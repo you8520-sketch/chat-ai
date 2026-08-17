@@ -1,14 +1,29 @@
 {
   "NON_MODEL_PROMPT_PARITY": true,
   "MODEL_ONLY_PARITY": false,
-  "MODEL_ONLY_PARITY_NOTE": "Only one CI-available candidate (Aion 2.0). Two Fixture A repeats share an identical request body. Aion 3.0 Mini was not assembled.",
-  "SOURCE_SHA": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
-  "SYSTEM_SHA": "217d3d5d36e594ecb74e13e9fc71734f23dd551257b9a4490a0d9e3b35cff3cc",
-  "HISTORY_SHA": "a41e9c408de452d231c64a5ab8d28e15f4cac7e82cbdd84079ddbd3d44ebf65a",
-  "CURRENT_USER_SHA": "1d54623bb91fff3270929ecdb3865084addc4fd3542b5a9215a1f2356c11e3ab",
-  "PROMPT_SHA": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6",
-  "temperature": 0.7,
-  "reasoning_effort": "none",
+  "MODEL_ONLY_PARITY_NOTE": "Aion 2.0 used Cheaper Inference; Aion 3.0 Mini uses OpenRouter by explicit instruction. Same Fixture A semantic inputs. Transport fields and provider-required body keys may differ. Aion 2.0 reasoning_effort=none was not copied onto 3.0 Mini.",
+  "AION20": {
+    "SOURCE_SHA": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+    "SYSTEM_SHA": "217d3d5d36e594ecb74e13e9fc71734f23dd551257b9a4490a0d9e3b35cff3cc",
+    "HISTORY_SHA": "a41e9c408de452d231c64a5ab8d28e15f4cac7e82cbdd84079ddbd3d44ebf65a",
+    "CURRENT_USER_SHA": "1d54623bb91fff3270929ecdb3865084addc4fd3542b5a9215a1f2356c11e3ab",
+    "PROMPT_SHA": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6",
+    "temperature": 0.7,
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "provider": "cheaperinference"
+  },
+  "AION30MINI": {
+    "SOURCE_SHA": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+    "SYSTEM_SHA": "217d3d5d36e594ecb74e13e9fc71734f23dd551257b9a4490a0d9e3b35cff3cc",
+    "HISTORY_SHA": "a41e9c408de452d231c64a5ab8d28e15f4cac7e82cbdd84079ddbd3d44ebf65a",
+    "CURRENT_USER_SHA": "1d54623bb91fff3270929ecdb3865084addc4fd3542b5a9215a1f2356c11e3ab",
+    "PROMPT_SHA": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6",
+    "temperature": 0.7,
+    "reasoning_effort": null,
+    "reasoning": null,
+    "provider": "openrouter"
+  },
   "adapters": {
     "aion_specific": 0,
     "muse_generic_mirror": 0,

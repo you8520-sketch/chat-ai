@@ -30,7 +30,7 @@ CHARACTER_FORCEFULNESS and USER_AGENCY_VIOLATION are separate axes.
 Outbound for this audit: Cheaper Inference. Official docs vs live catalog → live outbound wins.
 
 - Aion 2.0 CI exact id: `aion-labs.aion-2-0` (must be present live)
-- Aion 3.0 Mini: OpenRouter `aion-labs/aion-3.0-mini` is reference-only unless an exact CI id exists
+- Aion 3.0 Mini: live OpenRouter exact id `aion-labs/aion-3.0-mini` — called on OpenRouter after explicit instruction. `MODEL_ONLY_PARITY=false` vs CI Aion 2.0.
 - Aion 2.5: **excluded**. `AION25_CALLS = 0`. Docs listing is not availability.
 
 No guessed IDs. If only one model is on CI, do not mix providers.

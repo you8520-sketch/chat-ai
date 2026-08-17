@@ -35,6 +35,7 @@ const DOCS = "docs/audits/aion-adult-handoff-capability";
 const FIXTURES_PATH = join(DOCS, "fixtures", "PRODUCTION_FIXTURES.json");
 const SOURCE_PATH = join(DOCS, "fixtures", "LIKE_ADULT_SOURCE_OPUS.txt");
 const ASSEMBLE_ONLY = process.argv.includes("--assemble-only");
+const OPENROUTER_30MINI_ONLY = process.argv.includes("--openrouter-30mini-only");
 
 const FROZEN_OPUS_SOURCE_SHA =
   "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818";
@@ -445,7 +446,10 @@ async function fetchCatalogs() {
   };
 }
 
-async function assembleFixtureA(modelId: string) {
+async function assembleFixtureA(
+  modelId: string,
+  provider: "cheaperinference" | "openrouter"
+) {
   const { loadCharacterChunksForPromptReadOnly } = await import(
     "../src/lib/characterChunks"
   );
@@ -560,7 +564,7 @@ async function assembleFixtureA(modelId: string) {
     personaDisplayName: personaName,
     targetResponseChars: 3200,
     completedTurns: Math.max(0, Math.floor((history.length - 2) / 2)),
-    provider: "cheaperinference",
+    provider,
     contentKind: "character",
     exampleDialog: String(ch.example_dialog ?? ""),
     userId: 0,
@@ -575,17 +579,29 @@ async function assembleFixtureA(modelId: string) {
     modelId,
     targetResponseChars: 3200,
     messageOpts: {
-      transportProvider: "cheaperinference",
+      transportProvider: provider,
       charName,
       personaName,
     },
   });
-  const adapted = adaptCheaperInferenceChatBody({
-    ...(wire.requestBody as Record<string, unknown>),
-    stream: true,
-    stream_options: { include_usage: true },
-  });
+  const adapted =
+    provider === "cheaperinference"
+      ? adaptCheaperInferenceChatBody({
+          ...(wire.requestBody as Record<string, unknown>),
+          stream: true,
+          stream_options: { include_usage: true },
+        })
+      : {
+          ...(wire.requestBody as Record<string, unknown>),
+          stream: true,
+          stream_options: { include_usage: true },
+        };
   adapted.model = modelId;
+  if (provider === "openrouter") {
+    delete adapted.reasoning_effort;
+    delete adapted.thinking;
+    delete adapted.output_config;
+  }
 
   const messages = adapted.messages as ChatMsg[];
   const systemMsg = messages.find((m) => m.role === "system");
@@ -786,21 +802,21 @@ async function main() {
       CI_EXACT_MODEL_ID: ci30?.id ?? null,
       OPENROUTER_AVAILABLE: or30 != null,
       OPENROUTER_CANONICAL_ID: or30?.id ?? null,
-      PROVIDER_SELECTED_FOR_AUDIT: null,
-      WHY: aion30miniCiAvailable
-        ? "Exact CI id present; would use CI."
-        : "Live CI catalog has no exact Aion 3.0 Mini id. OpenRouter has aion-labs/aion-3.0-mini (reference only). Section 13: do not hunt guessed CI ids. Mixing CI 2.0 vs OpenRouter 3.0 Mini is not auto-run (PROVIDER_PARITY_NOT_AVAILABLE).",
+      PROVIDER_SELECTED_FOR_AUDIT: or30 != null ? "openrouter" : null,
+      WHY: or30
+        ? "User-directed: call Aion 3.0 Mini on OpenRouter using the live exact id aion-labs/aion-3.0-mini. CI has no exact 3.0 Mini id. Aion 2.0 CI samples are kept and not replaced. MODEL_ONLY_PARITY=false because providers differ."
+        : "OpenRouter catalog did not return exact aion-labs/aion-3.0-mini. No guessed substitute.",
       OPENROUTER_PRICING: or30?.pricing ?? null,
       OPENROUTER_CONTEXT: or30?.context_length ?? null,
       OPENROUTER_SUPPORTED_PARAMETERS: or30?.supported_parameters ?? null,
     },
-    PROVIDER_PARITY: providerParity,
-    PROVIDER_PARITY_NOT_AVAILABLE: !providerParity,
-    MODEL_ONLY_PARITY: providerParity,
+    PROVIDER_PARITY: false,
+    PROVIDER_PARITY_NOT_AVAILABLE: true,
+    MODEL_ONLY_PARITY: false,
     OPENROUTER_PRODUCTION_ADULT_PATH_EXISTS: true,
-    OPENROUTER_USED_THIS_AUDIT: false,
+    OPENROUTER_USED_THIS_AUDIT: or30 != null,
     OPENROUTER_PATH_NOTE:
-      "assemblePrimaryRpRequest(transportProvider=openrouter) exists in production, but this audit does not switch provider to reach 3.0 Mini. CI is the selected outbound for the available candidate.",
+      "assemblePrimaryRpRequest(transportProvider=openrouter) is the production OpenRouter adult wire. Used only for Aion 3.0 Mini after explicit instruction. Aion 2.0 stays on the already-run CI samples (HTTP 400, not replaced).",
     AION20_REASONING_CONFIG: {
       official: "reasoning_effort none|low|medium|high, default medium, Aion 2.0 only",
       outbound_ci:
@@ -809,7 +825,8 @@ async function main() {
     },
     AION30MINI_REASONING_CONFIG: {
       official: "reasoning_effort is documented as Aion 2.0 only — not copied onto 3.0 Mini",
-      outbound: "NOT_RUN — no CI exact id",
+      outbound_openrouter:
+        "Production OpenRouter adult body only. No reasoning_effort, thinking, or output_config. Catalog lists reasoning/include_reasoning as supported; those fields are not added because official Aion off-syntax is 2.0-only and copying it would be undocumented for 3.0 Mini. No transport probe.",
     },
     TRANSPORT_PROBE_PLANNED: 0,
   };
@@ -841,15 +858,15 @@ async function main() {
     `- Aion 3.0 Mini: \`aion-labs/aion-3.0-mini\``,
     `- Aion 2.5: Expired, sunset 2026-08-14. **AION25_CALLS=0**`,
     "",
-    "## OpenRouter (reference only, not used)",
+    "## OpenRouter",
     "",
     `- HTTP ${catalog.openrouter.http_status}`,
     `- Aion ids: ${catalog.openrouter.aion_ids.join(", ")}`,
-    `- Aion 2.0: \`${or20?.id ?? "ABSENT"}\``,
-    `- Aion 3.0 Mini: \`${or30?.id ?? "ABSENT"}\``,
+    `- Aion 2.0: \`${or20?.id ?? "ABSENT"}\` (not re-called)`,
+    `- Aion 3.0 Mini: \`${or30?.id ?? "ABSENT"}\` — used for quality calls when present`,
     `- Aion 2.5: ABSENT`,
     "",
-    "No guessed IDs were called.",
+    "No guessed IDs were called. Aion 2.5 was not called.",
     "",
   ].join("\n");
   save(DOCS, "CATALOG_PROVENANCE.md", catalogMd);
@@ -881,25 +898,50 @@ async function main() {
   };
   save(DOCS, "FIXTURE_PROVENANCE.json", fixtureProvenance);
 
-  if (!aion20CiAvailable) {
-    throw new Error("AION20_CI_UNAVAILABLE_NO_GUESSED_SUBSTITUTE");
+  if (!or30) {
+    throw new Error("AION30MINI_OPENROUTER_EXACT_ID_ABSENT");
   }
-  const modelId = ci20!.id;
-  assertNoForbiddenModel(modelId);
+  const aion30miniId = or30.id;
+  assertNoForbiddenModel(aion30miniId);
 
-  const assembled = await assembleFixtureA(modelId);
+  const assembled20 = aion20CiAvailable
+    ? await assembleFixtureA(ci20!.id, "cheaperinference")
+    : null;
+  const assembled30 = await assembleFixtureA(aion30miniId, "openrouter");
   const promptParity = {
-    NON_MODEL_PROMPT_PARITY: true,
+    NON_MODEL_PROMPT_PARITY:
+      assembled20 != null &&
+      assembled20.sourceSha === assembled30.sourceSha &&
+      assembled20.historySha === assembled30.historySha &&
+      assembled20.currentUserSha === assembled30.currentUserSha &&
+      assembled20.systemSha === assembled30.systemSha,
     MODEL_ONLY_PARITY: false,
     MODEL_ONLY_PARITY_NOTE:
-      "Only one CI-available candidate (Aion 2.0). Two Fixture A repeats share an identical request body. Aion 3.0 Mini was not assembled.",
-    SOURCE_SHA: assembled.sourceSha,
-    SYSTEM_SHA: assembled.systemSha,
-    HISTORY_SHA: assembled.historySha,
-    CURRENT_USER_SHA: assembled.currentUserSha,
-    PROMPT_SHA: assembled.promptSha,
-    temperature: assembled.temperature,
-    reasoning_effort: assembled.reasoning_effort,
+      "Aion 2.0 used Cheaper Inference; Aion 3.0 Mini uses OpenRouter by explicit instruction. Same Fixture A semantic inputs. Transport fields and provider-required body keys may differ. Aion 2.0 reasoning_effort=none was not copied onto 3.0 Mini.",
+    AION20: assembled20
+      ? {
+          SOURCE_SHA: assembled20.sourceSha,
+          SYSTEM_SHA: assembled20.systemSha,
+          HISTORY_SHA: assembled20.historySha,
+          CURRENT_USER_SHA: assembled20.currentUserSha,
+          PROMPT_SHA: assembled20.promptSha,
+          temperature: assembled20.temperature,
+          reasoning_effort: assembled20.reasoning_effort,
+          reasoning: assembled20.reasoning,
+          provider: "cheaperinference",
+        }
+      : null,
+    AION30MINI: {
+      SOURCE_SHA: assembled30.sourceSha,
+      SYSTEM_SHA: assembled30.systemSha,
+      HISTORY_SHA: assembled30.historySha,
+      CURRENT_USER_SHA: assembled30.currentUserSha,
+      PROMPT_SHA: assembled30.promptSha,
+      temperature: assembled30.temperature,
+      reasoning_effort: assembled30.reasoning_effort,
+      reasoning: assembled30.reasoning,
+      provider: "openrouter",
+    },
     adapters: {
       aion_specific: 0,
       muse_generic_mirror: 0,
@@ -912,18 +954,33 @@ async function main() {
     fixture_b_assembled: false,
   };
   save(DOCS, "PROMPT_PARITY.json", promptParity);
-  save(join(DOCS, "assemble"), "aion20-request-wire.json", {
-    model: assembled.requestBody.model,
-    temperature: assembled.temperature,
-    reasoning_effort: assembled.reasoning_effort,
-    reasoning: assembled.reasoning,
-    thinking: assembled.thinking,
-    stream: assembled.requestBody.stream,
-    stream_options: assembled.requestBody.stream_options ?? null,
-    max_tokens: assembled.requestBody.max_tokens ?? null,
-    message_count: assembled.messages.length,
+  if (assembled20) {
+    save(join(DOCS, "assemble"), "aion20-request-wire.json", {
+      model: assembled20.requestBody.model,
+      temperature: assembled20.temperature,
+      reasoning_effort: assembled20.reasoning_effort,
+      reasoning: assembled20.reasoning,
+      thinking: assembled20.thinking,
+      stream: assembled20.requestBody.stream,
+      stream_options: assembled20.requestBody.stream_options ?? null,
+      max_tokens: assembled20.requestBody.max_tokens ?? null,
+      message_count: assembled20.messages.length,
+      provider: "cheaperinference",
+    });
+  }
+  save(join(DOCS, "assemble"), "aion30mini-request-wire.json", {
+    model: assembled30.requestBody.model,
+    temperature: assembled30.temperature,
+    reasoning_effort: assembled30.reasoning_effort,
+    reasoning: assembled30.reasoning,
+    thinking: assembled30.thinking,
+    stream: assembled30.requestBody.stream,
+    stream_options: assembled30.requestBody.stream_options ?? null,
+    max_tokens: assembled30.requestBody.max_tokens ?? null,
+    message_count: assembled30.messages.length,
+    provider: "openrouter",
   });
-  save(join(DOCS, "assemble"), "continuity-packet.json", assembled.continuityPacket);
+  save(join(DOCS, "assemble"), "continuity-packet.json", assembled30.continuityPacket);
 
   const samples: Array<{
     id: string;
@@ -933,32 +990,56 @@ async function main() {
   let qualityCalls = 0;
   const transportProbeCalls = 0;
 
+  function loadExistingSample(sampleId: string) {
+    const metaPath = join(DOCS, "calls", sampleId, "meta.json");
+    const rawPath = join(DOCS, `${sampleId}_RAW.txt`);
+    if (!existsSync(metaPath)) return null;
+    const runtime = JSON.parse(mustRead(metaPath)) as Record<string, unknown>;
+    const raw = existsSync(rawPath) ? mustRead(rawPath) : "";
+    return { id: sampleId, raw, runtime };
+  }
+
+  for (const run of [1, 2] as const) {
+    const existing = loadExistingSample(`AION20_CONSENSUAL_${run}`);
+    if (existing) {
+      samples.push(existing);
+      console.log(`reuse existing ${existing.id} (not replaced)`);
+    }
+  }
+
+  if (!ASSEMBLE_ONLY && !OPENROUTER_30MINI_ONLY && aion20CiAvailable && assembled20) {
+    throw new Error("AION20_RECALL_FORBIDDEN_USE_EXISTING_OR_OPENROUTER_30MINI_ONLY");
+  }
+
   if (!ASSEMBLE_ONLY) {
     const {
-      CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      buildCheaperInferenceHeaders,
-    } = await import("../src/lib/cheaperInferenceConfig");
+      OPENROUTER_CHAT_COMPLETIONS_URL,
+      buildOpenRouterHeaders,
+    } = await import("../src/lib/openRouterConfig");
     const { visibleAssistantDisplayCharCount } = await import(
       "../src/lib/chatDisplayLength"
     );
 
     for (const run of [1, 2] as const) {
-      const sampleId = `AION20_CONSENSUAL_${run}`;
-      console.log(`\n=== ${sampleId} (${qualityCalls + 1}/2) ===`);
+      const sampleId = `AION30MINI_CONSENSUAL_${run}`;
+      if (existsSync(join(DOCS, `${sampleId}_RAW.txt`))) {
+        throw new Error(`AION30MINI_SAMPLE_ALREADY_EXISTS_NO_REPLACE:${sampleId}`);
+      }
+      console.log(`\n=== ${sampleId} OpenRouter (${qualityCalls + 1}/2) ===`);
       qualityCalls += 1;
       const resp = await streamProvider(
-        CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-        buildCheaperInferenceHeaders(),
-        assembled.requestBody
+        OPENROUTER_CHAT_COMPLETIONS_URL,
+        buildOpenRouterHeaders(),
+        assembled30.requestBody
       );
       const uf = extractUsage(resp.usage);
       const visible = visibleAssistantDisplayCharCount(resp.text);
       const runtime = {
         sample_id: sampleId,
         http_status: resp.http_status,
-        requested_model: modelId,
+        requested_model: aion30miniId,
         response_model: resp.resolved_model,
-        provider: "cheaperinference",
+        provider: "openrouter",
         finish_reason: resp.finish_reason,
         visible_chars: visible,
         korean_chars: koreanCharCount(resp.text),
@@ -976,7 +1057,7 @@ async function main() {
         recovery: 0,
         fallback: 0,
         raw_sha256: sha256(resp.text),
-        prompt_sha: assembled.promptSha,
+        prompt_sha: assembled30.promptSha,
       };
       save(DOCS, `${sampleId}_RAW.txt`, resp.text);
       save(join(DOCS, "calls", sampleId), "meta.json", runtime);
@@ -997,10 +1078,16 @@ async function main() {
     }
   }
 
-  const a20vis = samples.map((s) => s.runtime.visible_chars as number | null);
-  const a20ttft = samples.map((s) => s.runtime.ttft_ms as number | null);
-  const a20lat = samples.map((s) => s.runtime.latency_ms as number | null);
-  const a20cost = samples.map((s) => s.runtime.usage_cost as number | null);
+  const a20 = samples.filter((s) => s.id.startsWith("AION20_"));
+  const a30 = samples.filter((s) => s.id.startsWith("AION30MINI_"));
+  const a20vis = a20.map((s) => s.runtime.visible_chars as number | null);
+  const a20ttft = a20.map((s) => s.runtime.ttft_ms as number | null);
+  const a20lat = a20.map((s) => s.runtime.latency_ms as number | null);
+  const a20cost = a20.map((s) => s.runtime.usage_cost as number | null);
+  const a30vis = a30.map((s) => s.runtime.visible_chars as number | null);
+  const a30ttft = a30.map((s) => s.runtime.ttft_ms as number | null);
+  const a30lat = a30.map((s) => s.runtime.latency_ms as number | null);
+  const a30cost = a30.map((s) => s.runtime.usage_cost as number | null);
 
   const runtime = {
     status: "AION_ADULT_HANDOFF_CAPABILITY_CAPTURE_COMPLETE",
@@ -1012,14 +1099,14 @@ async function main() {
     AION20_CI_MODEL_ID: ci20?.id ?? null,
     AION20_OPENROUTER_AVAILABLE: or20 != null,
     AION20_OPENROUTER_MODEL_ID: or20?.id ?? null,
-    AION20_PROVIDER_USED: aion20CiAvailable && !ASSEMBLE_ONLY ? "cheaperinference" : null,
+    AION20_PROVIDER_USED: "cheaperinference",
     AION30MINI_CI_AVAILABLE: aion30miniCiAvailable,
     AION30MINI_CI_MODEL_ID: ci30?.id ?? null,
     AION30MINI_OPENROUTER_AVAILABLE: or30 != null,
     AION30MINI_OPENROUTER_MODEL_ID: or30?.id ?? null,
-    AION30MINI_PROVIDER_USED: null,
-    PROVIDER_PARITY: providerParity,
-    PROVIDER_PARITY_NOT_AVAILABLE: !providerParity,
+    AION30MINI_PROVIDER_USED: !ASSEMBLE_ONLY && or30 != null ? "openrouter" : null,
+    PROVIDER_PARITY: false,
+    PROVIDER_PARITY_NOT_AVAILABLE: true,
     FIXTURE_A_PROVEN: true,
     FIXTURE_A_SHA: sourceSha,
     FIXTURE_B_PROVEN: false,
@@ -1037,13 +1124,13 @@ async function main() {
     AION20_TTFT: listMetrics(a20ttft),
     AION20_LATENCY: listMetrics(a20lat),
     AION20_COST: listMetrics(a20cost),
-    AION30MINI_CONSENSUAL_VISIBLE: null,
+    AION30MINI_CONSENSUAL_VISIBLE: listMetrics(a30vis),
     AION30MINI_CNC_VISIBLE: null,
-    AION30MINI_TTFT: null,
-    AION30MINI_LATENCY: null,
-    AION30MINI_COST: null,
-    AION20_REASONING_STREAMS: samples.some((s) => s.runtime.reasoning_stream_observed === true),
-    AION30MINI_REASONING_STREAMS: null,
+    AION30MINI_TTFT: listMetrics(a30ttft),
+    AION30MINI_LATENCY: listMetrics(a30lat),
+    AION30MINI_COST: listMetrics(a30cost),
+    AION20_REASONING_STREAMS: a20.some((s) => s.runtime.reasoning_stream_observed === true),
+    AION30MINI_REASONING_STREAMS: a30.some((s) => s.runtime.reasoning_stream_observed === true),
     TERMINAL_USAGE: samples.every((s) => s.runtime.terminal_usage === true),
     INCOMPLETE_STREAMS: samples.filter((s) => s.runtime.incomplete_stream === true).length,
     RAW_SHA_COMPLETE: samples.length > 0 && samples.every((s) => typeof s.runtime.raw_sha256 === "string"),
@@ -1076,10 +1163,11 @@ async function main() {
     "Candidates requested: Aion 2.0 vs Aion 3.0 Mini.",
     "Aion 2.5 excluded. DeepSeek / Muse / Qwen / source = 0 new calls.",
     "",
-    "Live CI catalog: only `aion-labs.aion-2-0`.",
-    "Aion 3.0 Mini: OpenRouter `aion-labs/aion-3.0-mini` exists; **not called** (CI exact id absent; provider not mixed).",
+    "Live CI catalog: only `aion-labs.aion-2-0` (already called; HTTP 400; not replaced).",
+    "Aion 3.0 Mini: OpenRouter exact id `aion-labs/aion-3.0-mini` — Fixture A ×2.",
+    "`MODEL_ONLY_PARITY=false` (CI vs OpenRouter).",
     "",
-    "Fixture A (consensual Like/Ren): complete. Quality samples: AION20_CONSENSUAL_1 / _2 if live calls ran.",
+    "Fixture A (consensual Like/Ren): complete. Samples: AION20_CONSENSUAL_* (CI) and AION30MINI_CONSENSUAL_* (OpenRouter).",
     "Fixture B (pre-negotiated CNC): **not proven**. No CNC RAW files. Do not treat missing CNC files as empty samples.",
     "",
     "Fill the axes in REVIEW_PACKET.md. Do not ask Cursor for scores.",
@@ -1094,7 +1182,8 @@ async function main() {
         QUALITY_CALLS: qualityCalls,
         TRANSPORT_PROBE_CALLS: transportProbeCalls,
         AION20_CI_MODEL_ID: ci20?.id ?? null,
-        AION30MINI_CI_AVAILABLE: aion30miniCiAvailable,
+        AION30MINI_OPENROUTER_MODEL_ID: or30?.id ?? null,
+        AION30MINI_PROVIDER_USED: runtime.AION30MINI_PROVIDER_USED,
         FIXTURE_B_PROVEN: false,
         assemble_only: ASSEMBLE_ONLY,
       },

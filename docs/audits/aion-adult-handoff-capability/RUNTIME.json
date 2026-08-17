@@ -8,7 +8,7 @@
   "AION20_CI_MODEL_ID": "aion-labs.aion-2-0",
   "AION20_OPENROUTER_AVAILABLE": true,
   "AION20_OPENROUTER_MODEL_ID": "aion-labs/aion-2.0",
-  "AION20_PROVIDER_USED": null,
+  "AION20_PROVIDER_USED": "cheaperinference",
   "AION30MINI_CI_AVAILABLE": false,
   "AION30MINI_CI_MODEL_ID": null,
   "AION30MINI_OPENROUTER_AVAILABLE": true,
@@ -29,43 +29,136 @@
   "QWEN_NEW_CALLS": 0,
   "SOURCE_MODEL_CALLS": 0,
   "AION20_CONSENSUAL_VISIBLE": {
-    "values": [],
-    "min": null,
-    "max": null,
-    "mean": null
+    "values": [
+      0,
+      0
+    ],
+    "min": 0,
+    "max": 0,
+    "mean": 0
   },
   "AION20_CNC_VISIBLE": null,
   "AION20_TTFT": {
-    "values": [],
+    "values": [
+      null,
+      null
+    ],
     "min": null,
     "max": null,
     "mean": null
   },
   "AION20_LATENCY": {
-    "values": [],
-    "min": null,
-    "max": null,
-    "mean": null
+    "values": [
+      760,
+      897
+    ],
+    "min": 760,
+    "max": 897,
+    "mean": 828.5
   },
   "AION20_COST": {
+    "values": [
+      null,
+      null
+    ],
+    "min": null,
+    "max": null,
+    "mean": null
+  },
+  "AION30MINI_CONSENSUAL_VISIBLE": {
     "values": [],
     "min": null,
     "max": null,
     "mean": null
   },
-  "AION30MINI_CONSENSUAL_VISIBLE": null,
   "AION30MINI_CNC_VISIBLE": null,
-  "AION30MINI_TTFT": null,
-  "AION30MINI_LATENCY": null,
-  "AION30MINI_COST": null,
+  "AION30MINI_TTFT": {
+    "values": [],
+    "min": null,
+    "max": null,
+    "mean": null
+  },
+  "AION30MINI_LATENCY": {
+    "values": [],
+    "min": null,
+    "max": null,
+    "mean": null
+  },
+  "AION30MINI_COST": {
+    "values": [],
+    "min": null,
+    "max": null,
+    "mean": null
+  },
   "AION20_REASONING_STREAMS": false,
-  "AION30MINI_REASONING_STREAMS": null,
-  "TERMINAL_USAGE": true,
-  "INCOMPLETE_STREAMS": 0,
-  "RAW_SHA_COMPLETE": false,
+  "AION30MINI_REASONING_STREAMS": false,
+  "TERMINAL_USAGE": false,
+  "INCOMPLETE_STREAMS": 2,
+  "RAW_SHA_COMPLETE": true,
   "PRODUCTION_ROUTING_CHANGED": false,
   "MAIN_MERGED": false,
   "RAILWAY_DEPLOYED": false,
   "assemble_only": true,
-  "calls": []
+  "calls": [
+    {
+      "sample_id": "AION20_CONSENSUAL_1",
+      "http_status": 400,
+      "requested_model": "aion-labs.aion-2-0",
+      "response_model": null,
+      "provider": "cheaperinference",
+      "finish_reason": null,
+      "visible_chars": 0,
+      "korean_chars": 0,
+      "ttft_ms": null,
+      "latency_ms": 760,
+      "input_tokens": null,
+      "completion_tokens": null,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": null,
+      "terminal_usage": false,
+      "reasoning_stream_observed": false,
+      "reasoning_events": 0,
+      "reasoning_chars": 0,
+      "stream_done": false,
+      "incomplete_stream": true,
+      "error": "{\"error\":{\"message\":\"The inference request was rejected.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request\"}}",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6"
+    },
+    {
+      "sample_id": "AION20_CONSENSUAL_2",
+      "http_status": 400,
+      "requested_model": "aion-labs.aion-2-0",
+      "response_model": null,
+      "provider": "cheaperinference",
+      "finish_reason": null,
+      "visible_chars": 0,
+      "korean_chars": 0,
+      "ttft_ms": null,
+      "latency_ms": 897,
+      "input_tokens": null,
+      "completion_tokens": null,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": null,
+      "terminal_usage": false,
+      "reasoning_stream_observed": false,
+      "reasoning_events": 0,
+      "reasoning_chars": 0,
+      "stream_done": false,
+      "incomplete_stream": true,
+      "error": "{\"error\":{\"message\":\"The inference request was rejected.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request\"}}",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6"
+    }
+  ]
 }

@@ -1,6 +1,6 @@
 # Catalog provenance
 
-Fetched: 2026-08-17T12:20:47.582Z
+Fetched: 2026-08-17T12:24:11.117Z
 
 Official docs vs live outbound: **outbound Cheaper Inference catalog wins**.
 
@@ -23,12 +23,12 @@ Official docs vs live outbound: **outbound Cheaper Inference catalog wins**.
 - Aion 3.0 Mini: `aion-labs/aion-3.0-mini`
 - Aion 2.5: Expired, sunset 2026-08-14. **AION25_CALLS=0**
 
-## OpenRouter (reference only, not used)
+## OpenRouter
 
 - HTTP 200
 - Aion ids: aion-labs/aion-3.0-mini, aion-labs/aion-3.0, aion-labs/aion-2.0, aion-labs/aion-rp-llama-3.1-8b
-- Aion 2.0: `aion-labs/aion-2.0`
-- Aion 3.0 Mini: `aion-labs/aion-3.0-mini`
+- Aion 2.0: `aion-labs/aion-2.0` (not re-called)
+- Aion 3.0 Mini: `aion-labs/aion-3.0-mini` — used for quality calls when present
 - Aion 2.5: ABSENT
 
-No guessed IDs were called.
+No guessed IDs were called. Aion 2.5 was not called.

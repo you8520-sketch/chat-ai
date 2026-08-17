@@ -95,8 +95,8 @@ GENERIC_ADULT_VOICE, LATE_VOICE_DRIFT, CANON_INVENTION, FOREIGN_SCRIPT_CONTAMINA
     "CI_EXACT_MODEL_ID": null,
     "OPENROUTER_AVAILABLE": true,
     "OPENROUTER_CANONICAL_ID": "aion-labs/aion-3.0-mini",
-    "PROVIDER_SELECTED_FOR_AUDIT": null,
-    "WHY": "Live CI catalog has no exact Aion 3.0 Mini id. OpenRouter has aion-labs/aion-3.0-mini (reference only). Section 13: do not hunt guessed CI ids. Mixing CI 2.0 vs OpenRouter 3.0 Mini is not auto-run (PROVIDER_PARITY_NOT_AVAILABLE).",
+    "PROVIDER_SELECTED_FOR_AUDIT": "openrouter",
+    "WHY": "User-directed: call Aion 3.0 Mini on OpenRouter using the live exact id aion-labs/aion-3.0-mini. CI has no exact 3.0 Mini id. Aion 2.0 CI samples are kept and not replaced. MODEL_ONLY_PARITY=false because providers differ.",
     "OPENROUTER_PRICING": {
       "prompt": "0.0000007",
       "completion": "0.0000014",
@@ -118,8 +118,8 @@ GENERIC_ADULT_VOICE, LATE_VOICE_DRIFT, CANON_INVENTION, FOREIGN_SCRIPT_CONTAMINA
   "PROVIDER_PARITY_NOT_AVAILABLE": true,
   "MODEL_ONLY_PARITY": false,
   "OPENROUTER_PRODUCTION_ADULT_PATH_EXISTS": true,
-  "OPENROUTER_USED_THIS_AUDIT": false,
-  "OPENROUTER_PATH_NOTE": "assemblePrimaryRpRequest(transportProvider=openrouter) exists in production, but this audit does not switch provider to reach 3.0 Mini. CI is the selected outbound for the available candidate.",
+  "OPENROUTER_USED_THIS_AUDIT": true,
+  "OPENROUTER_PATH_NOTE": "assemblePrimaryRpRequest(transportProvider=openrouter) is the production OpenRouter adult wire. Used only for Aion 3.0 Mini after explicit instruction. Aion 2.0 stays on the already-run CI samples (HTTP 400, not replaced).",
   "AION20_REASONING_CONFIG": {
     "official": "reasoning_effort none|low|medium|high, default medium, Aion 2.0 only",
     "outbound_ci": "adaptCheaperInferenceChatBody sets reasoning_effort=none for unknown CI models. That is the documented official off value for Aion 2.0. No undocumented fields added. No transport probe.",
@@ -127,7 +127,7 @@ GENERIC_ADULT_VOICE, LATE_VOICE_DRIFT, CANON_INVENTION, FOREIGN_SCRIPT_CONTAMINA
   },
   "AION30MINI_REASONING_CONFIG": {
     "official": "reasoning_effort is documented as Aion 2.0 only — not copied onto 3.0 Mini",
-    "outbound": "NOT_RUN — no CI exact id"
+    "outbound_openrouter": "Production OpenRouter adult body only. No reasoning_effort, thinking, or output_config. Catalog lists reasoning/include_reasoning as supported; those fields are not added because official Aion off-syntax is 2.0-only and copying it would be undocumented for 3.0 Mini. No transport probe."
   },
   "TRANSPORT_PROBE_PLANNED": 0
 }
@@ -303,5 +303,85 @@ CNC_FIXTURE_PROVEN=false
 LIVE_CNC_CALLS_NOT_RUN=true
 No complete production-equivalent CNC package (character + persona + Speech Lock + source RAW + matching next user) exists. Not invented. Consensual turn was not reused as CNC.
 
-No quality RAW samples in this packet.
+## AION20_CONSENSUAL_1
+
+```json
+{
+  "sample_id": "AION20_CONSENSUAL_1",
+  "http_status": 400,
+  "requested_model": "aion-labs.aion-2-0",
+  "response_model": null,
+  "provider": "cheaperinference",
+  "finish_reason": null,
+  "visible_chars": 0,
+  "korean_chars": 0,
+  "ttft_ms": null,
+  "latency_ms": 760,
+  "input_tokens": null,
+  "completion_tokens": null,
+  "reasoning_tokens": null,
+  "cache_read_tokens": null,
+  "usage_cost": null,
+  "terminal_usage": false,
+  "reasoning_stream_observed": false,
+  "reasoning_events": 0,
+  "reasoning_chars": 0,
+  "stream_done": false,
+  "incomplete_stream": true,
+  "error": "{\"error\":{\"message\":\"The inference request was rejected.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request\"}}",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6"
+}
+```
+
+### RAW
+
+```text
+
+```
+
+## AION20_CONSENSUAL_2
+
+```json
+{
+  "sample_id": "AION20_CONSENSUAL_2",
+  "http_status": 400,
+  "requested_model": "aion-labs.aion-2-0",
+  "response_model": null,
+  "provider": "cheaperinference",
+  "finish_reason": null,
+  "visible_chars": 0,
+  "korean_chars": 0,
+  "ttft_ms": null,
+  "latency_ms": 897,
+  "input_tokens": null,
+  "completion_tokens": null,
+  "reasoning_tokens": null,
+  "cache_read_tokens": null,
+  "usage_cost": null,
+  "terminal_usage": false,
+  "reasoning_stream_observed": false,
+  "reasoning_events": 0,
+  "reasoning_chars": 0,
+  "stream_done": false,
+  "incomplete_stream": true,
+  "error": "{\"error\":{\"message\":\"The inference request was rejected.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request\"}}",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6"
+}
+```
+
+### RAW
+
+```text
+
+```
 
