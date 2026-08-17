@@ -34,15 +34,14 @@ function colorsetForTone(tone: TrpgD20Tone) {
   };
 }
 
-function applyTabletopCamera(
-  box: DiceBox,
-  target?: { x: number; y: number; z: number }
-) {
-  const height = box.cameraHeight.medium || box.cameraHeight.far;
-  const x = target?.x ?? 0;
-  const y = target?.y ?? 0;
-  box.camera.position.set(x, y - height * 0.22, height * 0.62);
-  box.camera.lookAt(x, y, 0);
+function applyWideCamera(box: DiceBox) {
+  box.camera.position.set(0, -520, 780);
+  box.camera.lookAt(0, 0, 0);
+}
+
+function applyCloseCamera(box: DiceBox, target: { x: number; y: number; z: number }) {
+  box.camera.position.set(target.x + 36, target.y - 210, 320);
+  box.camera.lookAt(target.x, target.y, 28);
 }
 
 export default function TrpgDiceBoxScene({
@@ -85,7 +84,7 @@ export default function TrpgDiceBoxScene({
       });
       await box.initialize();
       if (cancelled) return;
-      applyTabletopCamera(box);
+      applyWideCamera(box);
       box.light.intensity = reducedQuality ? 0.85 : 1.25;
       box.light_amb.intensity = 0.58;
       rim = box.light.clone();
@@ -104,7 +103,9 @@ export default function TrpgDiceBoxScene({
       }
       await box.roll(TRPG_DICE_BOX_NOTATION(value));
       if (cancelled) return;
-      applyTabletopCamera(box, box.diceList[0]?.position);
+      const landed = box.diceList[0]?.position;
+      if (landed) applyCloseCamera(box, landed);
+      else applyWideCamera(box);
       if (!settledRef.current) {
         settledRef.current = true;
         onSettled();
