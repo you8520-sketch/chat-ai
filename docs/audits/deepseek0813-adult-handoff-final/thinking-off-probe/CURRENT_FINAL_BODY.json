@@ -1,0 +1,134 @@
+{
+  "CURRENT_FINAL_BODY_MODEL": {
+    "present": true,
+    "value": "deepseek-v4-pro-0813"
+  },
+  "CURRENT_FINAL_BODY_THINKING": {
+    "present": true,
+    "value": {
+      "type": "disabled"
+    }
+  },
+  "CURRENT_FINAL_BODY_REASONING": {
+    "present": false,
+    "value": "ABSENT"
+  },
+  "CURRENT_FINAL_BODY_REASONING_EFFORT": {
+    "present": false,
+    "value": "ABSENT"
+  },
+  "CURRENT_FINAL_BODY_INCLUDE_REASONING": {
+    "present": false,
+    "value": "ABSENT"
+  },
+  "beforeAdapt": {
+    "topLevelKeys": [
+      "frequency_penalty",
+      "include_reasoning",
+      "messages",
+      "model",
+      "presence_penalty",
+      "reasoning",
+      "stream",
+      "stream_options",
+      "temperature",
+      "top_p"
+    ],
+    "thinkingRelated": {
+      "model": {
+        "present": true,
+        "value": "deepseek-v4-pro-0813"
+      },
+      "thinking": {
+        "present": false,
+        "value": "ABSENT"
+      },
+      "reasoning": {
+        "present": true,
+        "value": {
+          "effort": "none",
+          "exclude": true
+        }
+      },
+      "reasoning_effort": {
+        "present": false,
+        "value": "ABSENT"
+      },
+      "include_reasoning": {
+        "present": true,
+        "value": false
+      }
+    },
+    "otherScalar": {
+      "frequency_penalty": 0.1,
+      "presence_penalty": 0.05,
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.92,
+      "top_p": 0.92
+    }
+  },
+  "afterAdapt": {
+    "topLevelKeys": [
+      "messages",
+      "model",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+      "top_p"
+    ],
+    "thinkingRelated": {
+      "model": {
+        "present": true,
+        "value": "deepseek-v4-pro-0813"
+      },
+      "thinking": {
+        "present": true,
+        "value": {
+          "type": "disabled"
+        }
+      },
+      "reasoning": {
+        "present": false,
+        "value": "ABSENT"
+      },
+      "reasoning_effort": {
+        "present": false,
+        "value": "ABSENT"
+      },
+      "include_reasoning": {
+        "present": false,
+        "value": "ABSENT"
+      }
+    },
+    "otherScalar": {
+      "stream": true,
+      "stream_options": {
+        "include_usage": true
+      },
+      "temperature": 0.92,
+      "top_p": 0.92
+    }
+  },
+  "adaptIdempotent": true,
+  "adaptationKeyDiff": {
+    "removed": [
+      "frequency_penalty",
+      "include_reasoning",
+      "presence_penalty",
+      "reasoning"
+    ],
+    "added": [
+      "thinking"
+    ],
+    "changed": []
+  },
+  "requestBodyRelevantSha": "bd26a233e21983feb86955a7a674b57e1d85ba146afe1c945694766ef7cd0468",
+  "matchesFrozenGeminiVanillaRequestSha": true,
+  "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "frozenRawsUntouched": true,
+  "note": "API key not dumped. messages omitted; SHA compared to frozen Gemini31 VANILLA assembly."
+}
