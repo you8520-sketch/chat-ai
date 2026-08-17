@@ -5,6 +5,7 @@ import { withAssetSize, type CharacterAsset } from "@/lib/characterAssets";
 import {
   attachMatchingAssetTags,
   consumeAssetTagsOnce,
+  displayBodyEmotionTags,
   lastPortraitEmotionAsset,
   prepareBodyEmotionTags,
   splitProseForInlineAssets,
@@ -44,6 +45,15 @@ describe("inline tagged assets", () => {
     assert.equal((first.text.match(/\[태그: 폐역\]/g) ?? []).length, 1);
     const second = consumeAssetTagsOnce("다시.\n[태그: 폐역]", [wide], used);
     assert.equal(second.text.includes("[태그: 폐역]"), false);
+  });
+
+  it("hides landscape tags when the chat asset toggle is off", () => {
+    const source = "문이 열린다.\n[태그: 폐역]";
+    assert.match(displayBodyEmotionTags(source, assets, { assetsEnabled: true }), /\[태그: 폐역\]/);
+    assert.equal(
+      displayBodyEmotionTags(source, assets, { assetsEnabled: false }).includes("[태그:"),
+      false
+    );
   });
 
   it("inserts a matching unused landscape tag when a character reacts", () => {

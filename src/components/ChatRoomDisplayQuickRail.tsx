@@ -35,7 +35,7 @@ export default function ChatRoomDisplayQuickRail({
   return (
     <button
       type="button"
-      title={`왼쪽 감정 초상 ${on ? "표시" : "숨김"} · 클릭하여 전환`}
+          title={`캐릭터 에셋 ${on ? "표시" : "숨김"} · 좌측 초상·본문 가로 이미지 · 클릭하여 전환`}
       aria-pressed={on}
       aria-label={label}
       onClick={() =>

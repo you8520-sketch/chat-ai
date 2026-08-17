@@ -64,7 +64,7 @@ import {
   resolveEmotionTag,
   stripEmotionTag,
 } from "@/lib/emotionTag";
-import { lastPortraitEmotionAsset, mergeAssetSizes, prepareBodyEmotionTags } from "@/lib/inlineTaggedAssets";
+import { displayBodyEmotionTags, lastPortraitEmotionAsset, mergeAssetSizes } from "@/lib/inlineTaggedAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import {
   loadUnlockedCharacterAssetUrls,
@@ -4425,10 +4425,13 @@ export default function ChatClient({
                       const displayBody = stripIncompleteStatusWidgetTail(
                         stripRepeatedTrailingQuoteMarks(
                           stripRpMetaPreamble(
-                            prepareBodyEmotionTags(
+                            displayBodyEmotionTags(
                               stripInternalTagLeakage(variantContent),
                               resolvedAssets,
-                              { streaming: isStreamingThisMessage }
+                              {
+                                streaming: isStreamingThisMessage,
+                                assetsEnabled: showCharacterPortrait,
+                              }
                             )
                           )
                         )
@@ -4545,7 +4548,7 @@ export default function ChatClient({
                               paragraphMode={m.model === "greeting" ? "author" : "ai"}
                               proseOnly={m.model !== "greeting"}
                               streaming={isStreamingThisMessage}
-                              inlineAssets={resolvedAssets}
+                              inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
                               viewerIsCreator={isCharacterCreator}
                               unlockedUrls={unlockedUrls}
                             />

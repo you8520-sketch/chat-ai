@@ -33,6 +33,18 @@ export function mergeAssetSizes(
   });
 }
 
+/** 에셋 OFF면 태그를 모두 숨기고, ON이면 가로 태그만 본문에 남긴다. */
+export function displayBodyEmotionTags(
+  text: string,
+  assets: CharacterAsset[],
+  opts?: { streaming?: boolean; assetsEnabled?: boolean }
+): string {
+  if (opts?.assetsEnabled === false) {
+    return stripEmotionTagsForDisplay(text, { streaming: opts.streaming });
+  }
+  return prepareBodyEmotionTags(text, assets, opts);
+}
+
 /** 본문에서 세로 태그는 제거하고 가로 태그만 남겨 인라인 렌더에 넘긴다. */
 export function prepareBodyEmotionTags(
   text: string,
