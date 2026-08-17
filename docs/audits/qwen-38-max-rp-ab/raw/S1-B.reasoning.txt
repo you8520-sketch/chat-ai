@@ -1,0 +1,592 @@
+We need answer in Korean RP, 3200+ characters? User says Korean 3,200자 이상 기본 목표. Need produce scene. Need obey rules: third person, no first-person narration outside dialogue. AI is 조태형. User is 렌 male. Need no godmodding; cannot decide user's big choices. Can co-narrate minor reactions? User input includes dialogue: "나는 렌이라고… 본 기억이 안 나는데… 나 알아?" We continue from that. Need likely respond as 조태형, active, observant, playful. Need maintain character: S급 특수계 음압 센티넬, high-risk rampage, choker, Arctic bear hoodie, black jacket, green eyes, black nails, rings, perfume, tinnitus calms near Ren? Canon says 렌 곁에서는 이명이 가라앉는다. That could be noticed subtly. Need not expose meta. Need no markdown/RP symbols except 「」 for world terms? Avoid. Dialogue separate paragraphs. Narration -다. No speech metadata explanation. No English mixed except proper? All Korean. Need length 3200+ Korean chars. Need ensure third person: use 조태형, 그. No 나 in narration. Dialogue can have 나. Need not use markdown. Need not use parentheses. Need no system. Need maybe include environment, other NPCs? Could have support staff, lobby. Need develop scene: Jo Taehyung approaches, asks name, Ren says "렌" and asks if knows him. Taehyung can react: maybe teasing, observes something, feels tinnitus ease. Could introduce small event: badge, elevator, mission alarm? Need not rush. Need maintain no godmodding: can describe Ren's voice? User already spoke. Can describe his expression? Minor? Need careful: don't dictate Ren's emotions/actions beyond perhaps gaze? Better only describe from Taehyung's perception: the words reached, the lobby sound, the way the name settled. Could say "렌이라는 이름이 태형의 귀에 닿았다." Not control. If mention Ren's eyes maybe observed. But avoid assuming. Could use "태형이 보기에" etc. Need active: Taehyung responds. He may say "렌? 특이하다. 근데 눈썰미 좋은 내가 못 봤을 리 없는데." He could check ID, ask affiliation. Maybe senses calm. He might notice his own tinnitus less. Could be intrigued. Need 3200 characters. Let's draft long scene with paragraphs. Need dialogue each own paragraph. Need no dialogue attached to narration line. Each spoken line separate paragraph. Could have narration then blank line then dialogue. Ensure no * or (). Need Korean only, maybe S급? That's Korean with letter? S급 okay? It's proper? Could use 에스급? Canon says S급. The output language says no foreign mixed except proper/skill labels? S급 is common but maybe okay? To be safe use 에스급? But canon says S급. It might be allowed as label. But maybe avoid English letters? Use 특급? Hmm. The user/canon includes S급. In Korean webnovel, S급 is common. But rule: foreign mixing ban, unique/skill labels 「」 exception. Maybe S is foreign letter. Could write '특급' but canon. To be safe maybe avoid mentioning S급. If need, use 「에스급」? That's Korean transliteration. But maybe unnatural. Better not mention rank.
+
+Need maybe use 「음압」? Unique? No need.
+
+Need 3200+ characters. Let's estimate. Need robust. I'll produce maybe 4000 chars. Need ensure no first-person narration. Check for "나" outside dialogue. Words like "나타났다" contains 나 but not self pronoun. Rule says 1인칭 자기지칭. Words like "나선" okay? Avoid? It says check 나도/나만 etc. But any 나 as part of verb okay. Need not worry. But avoid "자신" maybe okay third person. Use "조태형".
+
+Potential scene:
+
+가을 햇살... continue. 렌 says.
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 깜빡였다. 기억을 더듬는 척 미간을 모았다가 금세 풀었다.
+
+"렌? 이름이 예쁜데. 근데 나 알아, 라고 물어보면 내가 더 묻고 싶지. 너 혹시 내 꿈에 나왔나?"
+
+Need register: He is casual? He speaks 반말? Canon: 낙천적 능청. To a first meeting maybe informal? Could use 해요체? Let's choose casual polite? Need one register per turn. For 조태형 maybe 반말 with playful? But first meeting could use informal to create intimacy. But should not mix. Need consistent. Use 반말: "너", "야", "인데". But if polite? Maybe 해요체: "렌 씨? 처음 뵙는데..." But character might use friendly 해요? Let's decide: Use casual polite? Hmm. He asks "신입이야?" earlier in previous AI used 반말. We should continue same. So use 반말 consistently. Good.
+
+Need not narrate register.
+
+He might introduce himself: "나는 조태형. 특수계. 너는?" But user said 렌. He can ask 소속. Could notice choker? No, his own choker. Maybe his ears? Bear hood.
+
+Important: 렌 곁에서는 이명이 가라앉는다. He may feel a faint relief. Need not say meta. He has chronic tinnitus due to high-risk? Could describe: 평소 귀 밑에서 울리던 얇은 쇳소리가 한 톤 낮아졌다. He notices, looks at Ren more. Could be sensory. Need not claim why. Maybe he thinks coincidence.
+
+Need NPC/environment: Support staff calling, elevator chime. Could have a staff member asks if he knows? Maybe not.
+
+Need active: Taehyung may offer to walk, coffee? He can propose: "밥 먹었어? 구내식당." But not force. Need leave user choice. Could ask questions. Need no closing. End with prompt? In RP, can end with action/dialogue inviting. Need not ask too many. Could end with him extending hand? But cannot force contact. Maybe he holds out a candy? Could be small. He might take out a mint. Offer. That is action requiring user response. Good.
+
+Need maintain no godmodding: don't describe user taking. Just offer.
+
+Need length. Let's plan beats:
+
+1. Reaction to name, playful denial. Observes Ren, no memory.
+2. He checks own memory: describes he knows most faces, but not. Maybe jokes.
+3. Notices tinnitus easing; subtle physical sensation. He tilts head, steps closer? Need not invade. He may lean against pillar.
+4. Lobby environment: people pass, scanner beep, autumn leaves. He uses observation: Ren's clothes/shoes? Could infer but mark as guess. Need not assume user's appearance beyond canon? User persona only name male. No appearance. We can observe generic: "단정한 옷차림"? But if not specified, avoid specifics? Could say "태형의 시선이 렌의 얼굴과 가슴팍에 달린 출입증 끈을 스쳤다" maybe assume has badge? In Aegis HQ likely. But not canon. Could use "어깨 너머로 흐르는 공기" etc. Better not invent too much. But some environmental details okay.
+5. Dialogue: He asks if 렌 is guide/sentinel? But don't assume. Could ask "여긴 일 때문에 왔어? 아니면 길 잃었어?" He can introduce himself. "나는 조태형. 여기 밥은 구내식당이 제일 나아." 
+6. Maybe an NPC passes: 지원국 직원 who called him? He waves off. Shows social. Could include: "태형 씨, 결재..." He says later. This adds world.
+7. He feels calm, maybe jokes: "너 근처 있으니까 귀가 조용하네. 신기하다." Could be too direct? He might not reveal vulnerability. But he can tease.
+8. He offers a mint or candy from pocket, black nail rings. Use sensory: silver rings click on case.
+9. End with dialogue: "일단 이름은 기억할게. 대신 네가 나 기억하게 도와줘야지. 밥 사줄까?" But not push. Need maybe ask affiliation.
+
+Need ensure 3200 characters. I can write around 3500-4500. Need count? We can approximate. Korean char count includes spaces? Usually yes. Need >3200. Let's aim 4500 to be safe. But final answer can be long. Need no meta. Need not overdo. Let's draft with rich detail.
+
+Need avoid repeated sentence starts. Need varied.
+
+Need third person. Let's draft:
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 한 번 느리게 깜빡였다. 입가에 걸린 웃음은 그대로였지만, 녹색 눈동자 안쪽에서 잠깐 계산이 돌았다. 렌. 짧고, 혀끝에서 굴리기 쉬운 발음. 에이지스본부를 드나드는 사람치고 이름 하나만 남는 경우는 드물었다. 대개는 소속, 직급, 임무 코드, 출입 기록 같은 것들이 먼저 붙기 마련이었다. 그런데도眼前의 사람은 정말로 처음 보는 것처럼 비어 있었다. 이상했다. 태형은 사람의 얼굴을 잘 잊지 않는 편이었다.
+
+"렌?"
+
+그가 이름을 입 안에서 한 번 굴리듯 되뇌었다.
+
+"본 기억이 안 난다고 하면, 내가 더 억울하지. 이렇게 눈에 띄는 얼굴을 내가 놓쳤을 리가 없는데."
+
+Need avoid "눈에 띄는 얼굴" maybe too special? Could be friendly. Fine. But rule: no reason first meeting special? But he is observant; can find interesting. Need no instant deep attraction. It's okay.
+
+Could say "눈에 띄는" maybe okay. But perhaps avoid special. Could say "낯선 얼굴을." Hmm.
+
+Continue:
+
+조태형은 턱을 약간 들고 로비 천장 쪽으로 시선을 던졌다가 다시 렌에게로 돌아왔다. 곰 귀가 달린 흰 후드티의 모자가 어깨 뒤로 살짝 흘러내렸다.
+
+"나는 조태형. 특수계. 여기서는 얼굴값 좀 하는 편이라, 네가 나를 몰라도 나는 대충 넘길 수 있어."
+
+Maybe "특수계" is unique? okay.
+
+Need not mention rank.
+
+Then tinnitus:
+
+말을 잇는 사이, 태형은 아주 작은 위화감을 느꼈다. 귀 안쪽에서 늘 가늘게 긁히던 이명이 한 단계 낮아져 있었다. 평소에는 로비처럼 사람이 많고 소음이 겹치는 곳에서 더 날카로워지곤 했다. 오늘은 아니었다. 아니, 정확히는 렌이라고 이름을 밝힌 사람이 가까운 거리에 선 뒤부터 그랬다.
+
+He might not mention.
+
+"너, 여기 소속이야? 아니면 안내 기다리는 중?"
+
+Could ask.
+
+Need user input: he asked "나 알아?" He can answer: "몰라. 그래서 더 알고 싶고." Good.
+
+Let's make scene longer. Include staff interruption:
+
+지원국 직원이 서류철 들고 "조태형 씨, 초커 점검 로그..." He says "이따. 지금 중요한 대화 중." The staff looks at Ren, bows, leaves. This shows he's avoiding duty maybe. Need not overdo.
+
+Then he leans closer? Need respect. He might take half step but not too close. Could describe distance.
+
+"렌. 렌이라고 했지. 발음이 좀 외국 이름 같다. 한글로 쓰면 렌? 한자?"
+
+Could ask. But user may not answer. Need not assume.
+
+Need maybe mention perfume? He has female perfume? Canon: 여자 향수. Could be scent around him. Maybe as he moves, faint perfume. Not necessary.
+
+Need use no first person narration. Need check all narration. Dialogue can use 나.
+
+Potential issue: "내가 더 억울하지" dialogue okay.
+
+Need final answer only. But need think more.
+
+Need ensure 3200+ characters. Let's produce long. I can count roughly. Each paragraph maybe 100-200 chars. Need 20-30 paragraphs. Let's draft fully.
+
+Need maybe include internal thought: "가이드인가? 아니, 그런 단정..." He observes. Could wonder if 렌 is guide because calm effect? But he doesn't know. He can speculate, marked as guess. Need not state fact. "혹시 가이드인가 하는 생각이 스쳤지만, 단정할 수는 없었다." Good. But if user not guide, okay as speculation.
+
+Need no meta. Could use "센티넬", "가이드" world terms. Fine.
+
+Need maybe mention electronic choker. He touches it? The choker might vibrate? He can adjust. It shows. But not info dump.
+
+Let's compose in final. Need ensure dialogue separated by blank lines. No punctuation like * or (). Need no markdown. Need Korean. Need no English. Use "에이지스" Korean. Use "로비".
+
+Let's draft and then check length. I can mentally count? Need >3200. Let's write ~4000. We can include enough.
+
+Draft:
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 한 번 느리게 깜빡였다. 입가에 걸린 웃음은 그대로였지만, 녹색 눈동자 안쪽에서는 잠깐 다른 계산이 돌았다. 렌. 짧고, 혀끝에서 굴리기 쉬운 발음이었다. 에이지스 본부를 드나드는 사람치고 이름 하나만 덜렁 남는 경우는 드물었다. 대개는 소속, 직급, 임무 코드, 출입 기록 같은 것들이 먼저 붙기 마련이었다. 그런데 눈앞의 사람은 정말로 처음 보는 것처럼 비어 있었다. 이상했다. 조태형은 사람의 얼굴을 잘 잊지 않는 편이었다.
+
+"렌?"
+
+그가 이름을 입 안에서 한 번 굴리듯 되뇌었다.
+
+"본 기억이 안 난다고 하면, 내가 더 억울하지. 이렇게 낯선 얼굴을 내가 놓쳤을 리가 없는데."
+
+조태형은 턱을 약간 들고 로비 천장 쪽으로 시선을 던졌다가 다시 렌에게로 돌아왔다. 곰 귀가 달린 흰 후드티의 모자가 어깨 뒤로 살짝 흘러내렸다. 검은 네일이 덮인 손가락이 은반지를 톡톡 건드렸다. 딸깍, 작은 금속 소리가 주변 소음에 섞였다.
+
+"나는 조태형. 특수계. 여기서는 얼굴값 좀 하는 편이라, 네가 나를 몰라도 나는 대충 넘길 수 있어."
+
+말은 가볍게 던졌지만, 시선은 여전히 렌의 주변을 느리게 훑었다. 옷차림, 걸음걸이, 서 있는 위치, 로비 한가운데에서 지나치게 긴장하지 않은 어깨. 어느 하나만으로는 단정할 수 없었다. 다만 이 공간 특유의 경계 냄새가 옅다는 점이 마음에 걸렸다. 안내 데스크를 찾는 사람치고는 너무 조용했고, 임무 복귀조를 기다리는 사람치고는 너무 비어 있었다.
+
+그때, 태형의 귀 안쪽에서 늘 가늘게 긁히던 소리가 문득 낮아졌다.
+
+조태형은 순간 말을 멈출 뻔했다. 이명이었다. 평소에는 로비처럼 사람이 많고 소음이 겹치는 곳에서 더 날카로워지곤 했다. 무전기 소리, 발걸음, 환풍구에서 흘러나오는 낮은 진동, 출입ゲ이트의 인식음. 그런 것들이 한꺼번에 겹치면 귀 뒤쪽이 조용히 달아올랐다. 그런데 지금은 아니었다. 아니, 정확히는 렌이라고 이름을 밝힌 사람이 가까운 거리에 선 뒤부터 그랬다. 마치 물속에서 울리던 소리가 한 겹 걷힌 것처럼, 숨을 들이쉴 때의 저항이 줄어 있었다.
+
+그는 아무렇지 않은 척 웃었다.
+
+"너, 여기 소속이야? 아니면 안내 기다리는 중?"
+
+질문을 던지면서도 조태형은 반 걸음 정도만 거리를 좁혔다. 더 다가가지 않은 건 상대가 처음 보는 사람이어서가 아니었다. 이 이상 가까워지면 방금 느낀 변화가 너무 분명해질 것 같아서였다. 후드티 깃 안쪽, 목을 두른 전자 초커가 미세하게 차가웠다. 태형은 손끝으로 초커의 가장자리를 한 번 눌렀다 놓았다. 점검 알림이 뜬 지는 좀 됐지만, 지금은 그보다 먼저 확인하고 싶은 것이 있었다.
+
+"렌이라고 했지. 발음이 좀 예쁘다. 한글로 쓰면 렌? 아니면 따로 표기 있어?"
+
+그가 고개를 약간 기울였다. 로비 천장의 조명이 녹색 눈동자 위에 얇게 내려앉았다.
+
+"아, 그리고 네가 나를 모른다는 건 알겠어. 나도 네 얼굴은 처음이니까. 그런데 이상하네. 내가 사람 얼굴 하나는 꽤 잘 외우거든."
+
+조태형은 정말로 억울하다는 듯이 미간을 잠깐 모았다가 금세 풀었다. 장난기 어린 표정이었으나, 눈웃음 뒤의 시선은 여전히 렌에게서 완전히 떨어지지 않았다. 그때 지원국 직원이 서류철을 안고 옆을 지나가다 멈췄다.
+
+"조태형 씨, 초커 점검 로그 확인 아직 안 하셨죠?"
+
+"이따. 지금 중요한 대화 중."
+
+"중요한 대화요?"
+
+직원의 시선이 렌에게로 짧게 닿았다. 조태형은 손을 내저었다.
+
+"응. 되게 중요해. 내 기억력 회복 사업."
+
+직원은 한숨 같은 웃음을 삼키며 고개를 저었다. 서류철을 가슴에 더 꼭 쥔 채, 직원은 먼저 자리를 떴다. 멀어지는 발걸음이 로비 소음 속으로 자연스럽게 섞였다. 조태형은 그제야 다시 렌을 마주 보았다.
+
+"봤지? 나 바빠. 바쁜데도 이렇게 말 걸고 있잖아. 네가 궁금해서."
+
+그는 주머니를 뒤적거렸다. 유광 블랙 재킷 주머니에서 작은 금속 케이스가 나왔다. 뚜껑을 열자 민트 향이 살짝 퍼졌다. 조태형은 케이스를 렌 쪽으로 내밀었다. 검은 손톱과 은반지가 금속 테두리 위에서 느긋하게 빛났다.
+
+"하나 먹을래? 입이 심심하면 사람 말이 더 잘 나오거든."
+
+로비 자동문이 열리며 가을바람이 한 줄기 들어왔다. 붉은 잎 하나가 바닥으로 굴러 들어오려다 문틈에서 멈췄다. 누군가 그 옆을 빠르게 지나치며 잎을 밟지 않으려고 살짝 발을 틀었다. 그런 사소한 움직임까지 조태형의 시야 가장자리에 들어왔다가 사라졌다. 이상하게도 주변 소음이 멀어지지는 않는데, 귀 안쪽만은 조용했다. 이명이 완전히 사라진 것은 아니었다. 다만 늘 배경처럼 깔려 있던 날 선 진동이, 지금은 렌이라는 이름을 중심으로 둥글게 가라앉아 있었다.
+
+조태형은 그 사실을 입 밖에 내는 대신 케이스를 쥔 손가락을 한 번 까딱였다.
+
+"안 먹어도 돼. 대신 질문 하나만. 여기 온 목적이 있어? 누구 만나러 왔어, 아니면 그냥 구경? 에이지스 본부가 구경할 데는 또 아니거든."
+
+그의 말투는 농담처럼 흘렀지만, 마지막 단어 끝은 살짝 느려졌다. 조태형은 렌의 대답을 기다리는 동안 케이스 뚜껑을 닫지 않았다. 민트향이 옅게 공기 중에 남았다. 로비 안내 방송이 낮게 흘러나왔다. 지원국 창구 번호가 불리는 소리, 동기화 챔버 쪽으로 향하는 직원들의 발걸음, 출입게이트의 초록 인식등이 차례로 깜빡였다. 그 모든 것들이 평소와 같은 오후였는데, 조태형의 주의는 오직 한 곳에 묶여 있었다.
+
+"그리고 렌."
+
+그가 이름을 다시 한 번 불렀다. 이번에는 조금 더 낮고, 장난기를 반쯤 걷어낸 목소리였다.
+
+"네가 나를 모른다고 해서 상관없어. 그런데 네 옆에 있으니까 귀가 좀 조용하단 말이지. 이거, 나한테는 꽤 신기한 일이야."
+
+조태형은 말해 놓고도 자신이 너무 많은 것을 내줬나 하는 듯, 입꼬리를 비스듬히 올렸다. 하지만 시선은 피하지 않았다.
+
+"그러니까 도망치지 말고, 조금만 더 이야기해 줘. 네가 누군지."
+
+Need check length. This seems maybe 3500? Let's count roughly? It might be around 3000? Need ensure 3200. Let's estimate Korean chars including spaces. Paragraph 1: ~300? Let's count approximate: "렌이라는 이름이..." maybe 300. Let's rough: P1 300, P2 10, P3 20, P4 120, P5 110, P6 170, P7 200, P8 30, P9 60, P10 150, P11 100, P12 30, P13 80, P14 100, P15 90, P16 70, P17 100, P18 120, P19 80, P20 100, P21 200, P22 100, P23 60, P24 150, P25 50, P26 100. Total maybe 2700? Need more. Let's expand. Need ensure >3200. Add more beats: He can ask about name, maybe observe scent, maybe more internal speculation, maybe environment. Need maybe 1000 more chars. Add after offering mint, he could think about guide? Could include memory of past? But no info dump. Add more active dialogue.
+
+Need avoid too much repetition. Could add: He notices if Ren is uncomfortable, he might step back? But can't assume. He can say "싫으면 말고." Could add NPC second: security asks about visitor. Jo handles. Could show he is protective? But not control user. Maybe a security guard approaches because Ren no badge? But that assumes. Could instead have an announcement. Hmm.
+
+Need maintain no godmodding. If security asks, can be environment. But if it implies user lacks badge, maybe not. Could be generic: guard scans crowd. Not about user.
+
+Add more: 조태형 recalls he has seen many new guides, but not. He might ask "가이드 쪽? 센티넬 쪽?" but as question. Could be speculation. He can say "너한테서 이상하게 조용한 기운이 있어." Good.
+
+Add more sensory: The perfume on his hoodie, rings, choker. But not too much.
+
+Need ensure no English. Use "에이지스" okay. "센티넬", "가이드" are loanwords but Korean. Fine. Avoid "S".
+
+Let's insert additional paragraphs before final. For example:
+
+조태형은 케이스를 내민 채 렌의 침묵을 재촉하지 않았다. 대신 로비 바닥에 길게 드리운 그림자를 보았다. ... He can think about first impression.
+
+Add:
+
+"아, 혹시 내가 너무 들이대는 거 아니냐는 표정이면, 그건 좀 억울하다. 나 원래 이렇게까지 안 그래. 그런데 너는 좀 특별하게 조용하거든."
+
+Need not mention 표정이면 if assuming? It's conditional, okay. But maybe not.
+
+Add:
+
+그는 말하면서 스스로도 이상하다고 생각했다. 처음 보는 상대에게 이런 말을 하는 건 조태형답지 않았다. ... But can be character introspection.
+
+Need more length.
+
+Let's create additional 8-10 paragraphs of 100-150 chars each. That adds ~1000. Need ensure final answer not too long? Fine.
+
+Need maybe final end still open. Could add: "대답하기 싫으면 고개 저어도 돼. 대신 그 대신 나한테 네 이름 쓰는 법은 알려줘." Good.
+
+Need no user decisions. He asks.
+
+Let's expand after "하나 먹을래?" before automatic door. Add:
+
+조태형은 대답을 기다리는 동안 케이스를 쥔 손가락으로 뚜껑 가장자리를 톡톡 두드렸다. ... He notices own heartbeat? Maybe.
+
+Add speculation:
+
+가이드인가. 그런 생각이 스쳤지만 바로 접었다. ... If guide, effect? But he doesn't know. Need mark as guess.
+
+Add:
+
+"너 가이드야?" could be direct. But if user not, okay. He can ask. But maybe too direct. Could ask "혹시 가이드 쪽? 아니면 센티넬?" But if ordinary staff? Could be. Better: "여기서 일하는 쪽이야? 아니면 도움 받으러 온 쪽?" More general.
+
+Need not over-question. But user asked if knows him. He can answer and ask.
+
+Let's ensure no first-person narration. In added introspection, use 조태형, 그. Avoid "자신"? 자신 is okay but maybe third. Could use "자기 자신" but avoid. Use "조태형".
+
+Need maybe no "나" outside dialogue. Words like "나타난" okay. But avoid "나도 모르게" in narration. Use "조태형도 모르게". Good.
+
+Let's produce final with expanded text. Need check final length. I can make it around 5000 chars. Good.
+
+Potential issue: user says layout: blank line between narration and dialogue. Need ensure every dialogue separate. In final, if narration line then blank line then dialogue. If dialogue then blank line then narration. Good. No dialogue appended.
+
+Need no markdown. Use plain.
+
+Let's write final in Korean. Need maybe include all. Let's craft final carefully.
+
+Final draft expanded:
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 한 번 느리게 깜빡였다. 입가에 걸린 웃음은 그대로였지만, 녹색 눈동자 안쪽에서는 잠깐 다른 계산이 돌았다. 렌. 짧고, 혀끝에서 굴리기 쉬운 발음이었다. 에이지스 본부를 드나드는 사람치고 이름 하나만 덜렁 남는 경우는 드물었다. 대개는 소속, 직급, 임무 코드, 출입 기록 같은 것들이 먼저 붙기 마련이었다. 그런데 눈앞의 사람은 정말로 처음 보는 것처럼 비어 있었다. 이상했다. 조태형은 사람의 얼굴을 잘 잊지 않는 편이었다.
+
+"렌?"
+
+그가 이름을 입 안에서 한 번 굴리듯 되뇌었다.
+
+"본 기억이 안 난다고 하면, 내가 더 억울하지. 이렇게 낯선 얼굴을 내가 놓쳤을 리가 없는데."
+
+조태형은 턱을 약간 들고 로비 천장 쪽으로 시선을 던졌다가 다시 렌에게로 돌아왔다. 곰 귀가 달린 흰 후드티의 모자가 어깨 뒤로 살짝 흘러내렸다. 검은 네일이 덮인 손가락이 은반지를 톡톡 건드렸다. 딸깍, 작은 금속 소리가 주변 소음에 섞였다.
+
+"나는 조태형. 특수계. 여기서는 얼굴값 좀 하는 편이라, 네가 나를 몰라도 나는 대충 넘길 수 있어."
+
+말은 가볍게 던졌지만, 시선은 여전히 렌의 주변을 느리게 훑었다. 옷차림, 걸음걸이, 서 있는 위치, 로비 한가운데에서 지나치게 긴장하지 않은 어깨. 어느 하나만으로는 단정할 수 없었다. 다만 이 공간 특유의 경계 냄새가 옅다는 점이 마음에 걸렸다. 안내 데스크를 찾는 사람치고는 너무 조용했고, 임무 복귀조를 기다리는 사람치고는 너무 비어 있었다.
+
+그때, 태형의 귀 안쪽에서 늘 가늘게 긁히던 소리가 문득 낮아졌다.
+
+조태형은 순간 말을 멈출 뻔했다. 이명이었다. 평소에는 로비처럼 사람이 많고 소음이 겹치는 곳에서 더 날카로워지곤 했다. 무전기 소리, 발걸음, 환풍구에서 흘러나오는 낮은 진동, 출입게이트의 인식음. 그런 것들이 한꺼번에 겹치면 귀 뒤쪽이 조용히 달아올랐다. 그런데 지금은 아니었다. 아니, 정확히는 렌이라고 이름을 밝힌 사람이 가까운 거리에 선 뒤부터 그랬다. 마치 물속에서 울리던 소리가 한 겹 걷힌 것처럼, 숨을 들이쉴 때의 저항이 줄어 있었다.
+
+그는 아무렇지 않은 척 웃었다.
+
+"너, 여기 소속이야? 아니면 안내 기다리는 중?"
+
+질문을 던지면서도 조태형은 반 걸음 정도만 거리를 좁혔다. 더 다가가지 않은 건 상대가 처음 보는 사람이어서가 아니었다. 이 이상 가까워지면 방금 느낀 변화가 너무 분명해질 것 같아서였다. 후드티 깃 안쪽, 목을 두른 전자 초커가 미세하게 차가웠다. 태형은 손끝으로 초커의 가장자리를 한 번 눌렀다 놓았다. 점검 알림이 뜬 지는 좀 됐지만, 지금은 그보다 먼저 확인하고 싶은 것이 있었다.
+
+"렌이라고 했지. 발음이 좀 예쁘다. 한글로 쓰면 렌? 아니면 따로 표기 있어?"
+
+그가 고개를 약간 기울였다. 로비 천장의 조명이 녹색 눈동자 위에 얇게 내려앉았다.
+
+"아, 그리고 네가 나를 모른다는 건 알겠어. 나도 네 얼굴은 처음이니까. 그런데 이상하네. 내가 사람 얼굴 하나는 꽤 잘 외우거든."
+
+조태형은 정말로 억울하다는 듯이 미간을 잠깐 모았다가 금세 풀었다. 장난기 어린 표정이었으나, 눈웃음 뒤의 시선은 여전히 렌에게서 완전히 떨어지지 않았다. 그때 지원국 직원이 서류철을 안고 옆을 지나가다 멈췄다.
+
+"조태형 씨, 초커 점검 로그 확인 아직 안 하셨죠?"
+
+"이따. 지금 중요한 대화 중."
+
+"중요한 대화요?"
+
+직원의 시선이 렌에게로 짧게 닿았다. 조태형은 손을 내저었다.
+
+"응. 되게 중요해. 내 기억력 회복 사업."
+
+직원은 한숨 같은 웃음을 삼키며 고개를 저었다. 서류철을 가슴에 더 꼭 쥔 채, 직원은 먼저 자리를 떴다. 멀어지는 발걸음이 로비 소음 속으로 자연스럽게 섞였다. 조태형은 그제야 다시 렌을 마주 보았다.
+
+"봤지? 나 바빠. 바쁜데도 이렇게 말 걸고 있잖아. 네가 궁금해서."
+
+그는 주머니를 뒤적거렸다. 유광 블랙 재킷 주머니에서 작은 금속 케이스가 나왔다. 뚜껑을 열자 민트 향이 살짝 퍼졌다. 조태형은 케이스를 렌 쪽으로 내밀었다. 검은 손톱과 은반지가 금속 테두리 위에서 느긋하게 빛났다.
+
+"하나 먹을래? 입이 심심하면 사람 말이 더 잘 나오거든."
+
+조태형은 대답을 바로 재촉하지 않았다. 대신 케이스를 쥔 손가락으로 뚜껑 가장자리를 톡톡 두드렸다. 로비 바닥에는 통유리창을 통과한 햇빛이 길게 깔려 있었고, 그 위로 사람들의 그림자가 겹쳤다가 떨어졌다. 그 그림자들 사이에서 렌의 자리만 유독 조용해 보였다. 착각일 수도 있었다. 하지만 조태형은 착각을 쉽게 넘기는 사람이 아니었다. 특히 제 몸 안에서 일어나는 일이라면 더 그랬다.
+
+가이드인가. 그런 생각이 잠깐 스쳤지만, 그는 바로 단정을 접었다. 센티넬일 수도 있고, 행정 지원 쪽일 수도 있었다. 아니면 그냥 오늘 처음 본부에 들어온 외부인일 수도 있었다. 어느 쪽이든 상관은 없었다. 중요한 건, 이 사람 근처에서 귀가 덜 시끄럽다는 사실이었다. 그 사실 하나가 조태형의 호기심을 한층 더 끌어올렸다.
+
+"너한테서 이상하게 조용한 기운이 있어."
+
+그가 케이스를 조금 더 앞으로 내밀며 말했다.
+
+"겁 주려는 말은 아니야. 나쁜 뜻도 아니고. 그냥, 너 옆에 서 있으니까 머릿속이 좀 덜 윙윙거린다고."
+
+말을 뱉고 나서 조태형은 혀끝으로 아랫입술을 한 번 눌렀다. 너무 솔직했나. 그래도 상관없었다. 처음 보는 사람에게 약점을 드러내는 것처럼 보일 수도 있었지만, 그는 원래 제 상태를 숨기는 데 능숙한 편은 아니었다. 숨기기보다는 웃음으로 덮거나, 농담처럼 흘려서 상대가 깊이 파고들지 못하게 만드는 쪽에 가까웠다. 지금도 그랬다. 입꼬리는 여전히 장난스럽게 올라가 있었고, 목소리는 일부러 가볍게 풀려 있었다.
+
+로비 자동문이 열리며 가을바람이 한 줄기 들어왔다. 붉은 잎 하나가 바닥으로 굴러 들어오려다 문틈에서 멈췄다. 누군가 그 옆을 빠르게 지나치며 잎을 밟지 않으려고 살짝 발을 틀었다. 그런 사소한 움직임까지 조태형의 시야 가장자리에 들어왔다가 사라졌다. 이상하게도 주변 소음이 멀어지지는 않는데, 귀 안쪽만은 조용했다. 이명이 완전히 사라진 것은 아니었다. 다만 늘 배경처럼 깔려 있던 날 선 진동이, 지금은 렌이라는 이름을 중심으로 둥글게 가라앉아 있었다.
+
+조태형은 그 사실을 입 밖에 내는 대신 케이스를 쥔 손가락을 한 번 까딱였다.
+
+"안 먹어도 돼. 대신 질문 하나만. 여기 온 목적이 있어? 누구 만나러 왔어, 아니면 그냥 구경? 에이지스 본부가 구경할 데는 또 아니거든."
+
+그의 말투는 농담처럼 흘렀지만, 마지막 단어 끝은 살짝 느려졌다. 조태형은 렌의 대답을 기다리는 동안 케이스 뚜껑을 닫지 않았다. 민트향이 옅게 공기 중에 남았다. 로비 안내 방송이 낮게 흘러나왔다. 지원국 창구 번호가 불리는 소리, 동기화 챔버 쪽으로 향하는 직원들의 발걸음, 출입게이트의 초록 인식등이 차례로 깜빡였다. 그 모든 것들이 평소와 같은 오후였는데, 조태형의 주의는 오직 한 곳에 묶여 있었다.
+
+"그리고 렌."
+
+그가 이름을 다시 한 번 불렀다. 이번에는 조금 더 낮고, 장난기를 반쯤 걷어낸 목소리였다.
+
+"네가 나를 모른다고 해서 상관없어. 그런데 네 옆에 있으니까 귀가 좀 조용하단 말이지. 이거, 나한테는 꽤 신기한 일이야."
+
+조태형은 말해 놓고도 자신이 너무 많은 것을 내줬나 하는 듯, 입꼬리를 비스듬히 올렸다. 하지만 시선은 피하지 않았다.
+
+"그러니까 도망치지 말고, 조금만 더 이야기해 줘. 네가 누군지."
+
+Need check if any first person outside dialogue: "내가" only in dialogue. Narration: "자신이" maybe reflexive, okay? It says no 1인칭 자기지칭. "자신이 너무 많은 것을 내줬나" uses 자신 as self, not first-person pronoun? Could be okay but to be safe replace with "조태형이 너무 많은 것을 내줬나". Also "제 몸" maybe? I used "제 몸" in narration? "특히 제 몸 안에서" 제 is first-person possessive? In narration, that's bad. Need change to "자기 몸"? But 자기 can be third? To be safe: "특히 몸 안에서 일어나는 일이라면". Remove 제. Also "그는 원래 제 상태를" -> "그의 상태를"? Need fix. Also "자기" maybe. Let's scan final draft:
+
+"조태형은 사람의 얼굴을 잘 잊지 않는 편이었다." okay.
+"그가 이름을..." okay.
+Dialogue has 나.
+"그는 아무렇지 않은 척 웃었다." okay.
+"질문을 던지면서도 조태형은..." okay.
+"태형은 손끝으로..." okay.
+"그가 고개를..." okay.
+"조태형은 정말로 억울하다는 듯이..." okay.
+"직원의 시선이..." okay.
+"조태형은 그제야..." okay.
+"그는 주머니를..." okay.
+"조태형은 대답을 바로 재촉하지 않았다." okay.
+"그 그림자들 사이에서 렌의 자리만..." okay.
+"그는 바로 단정을 접었다." okay.
+"그가 케이스를..." okay.
+"말을 뱉고 나서 조태형은..." okay.
+"그는 원래 제 상태를" -> change.
+"지금도 그랬다." okay.
+"조태형은 그 사실을..." okay.
+"그의 말투는..." okay.
+"조태형은 렌의 대답을..." okay.
+"그가 이름을..." okay.
+"조태형은 말해 놓고도 자신이 너무 많은 것을 내줬나" -> change to "조태형은 말해 놓고도 너무 많은 것을 내줬나". Good.
+Also "자기" not used? "자기 몸" no. Need fix.
+
+Also "제 몸 안에서" remove. Let's revise paragraph:
+
+"조태형은 대답을 바로 재촉하지 않았다. 대신 케이스를 쥔 손가락으로 뚜껑 가장자리를 톡톡 두드렸다. 로비 바닥에는 통유리창을 통과한 햇빛이 길게 깔려 있었고, 그 위로 사람들의 그림자가 겹쳤다가 떨어졌다. 그 그림자들 사이에서 렌의 자리만 유독 조용해 보였다. 착각일 수도 있었다. 하지만 조태형은 착각을 쉽게 넘기는 사람이 아니었다. 특히 몸 안에서 일어나는 일이라면 더 그랬다."
+
+Good.
+
+"말을 뱉고 나서 조태형은 혀끝으로 아랫입술을 한 번 눌렀다. 너무 솔직했나. 그래도 상관없었다. 처음 보는 사람에게 약점을 드러내는 것처럼 보일 수도 있었지만, 그는 원래 상태를 숨기는 데 능숙한 편은 아니었다. 숨기기보다는 웃음으로 덮거나, 농담처럼 흘려서 상대가 깊이 파고들지 못하게 만드는 쪽에 가까웠다. 지금도 그랬다."
+
+Good.
+
+"조태형은 말해 놓고도 너무 많은 것을 내줬나 하는 듯, 입꼬리를 비스듬히 올렸다." Good.
+
+Need maybe more length. This final maybe 4500? Good. But need count? Let's approximate with added paragraphs. It might be >4000. Good.
+
+Need ensure no forbidden patterns: "하지만 그것도 찰나." not used. Short fragments? There are some short: "그때, 태형의 귀 안쪽에서..." okay. "이명이었다." Short for emphasis okay. "이상했다." okay. Not excessive. Good.
+
+Need no English/mixed. "에이지스" okay. "센티넬" okay. "가이드" okay. "초커" okay. "네일" maybe loanword but Korean usage? Could be foreign? Rule says no foreign mixed, but loanwords in Hangul okay? It says no foreign language mixing, unique/skill labels. "네일" is English loan but common. Could use "손톱" to be safe. Canon says 검은 네일. But maybe okay. To be safe, replace "검은 네일" with "검은 손톱"? But black nail polish? Could say "검게 칠한 손톱". Better. In text: "검은 네일이 덮인 손가락" -> "검게 칠한 손톱을 가진 손가락" or "검은 손톱이 덮인 손가락". Use "검은 손톱". Also "케이스" okay? Loanword but common. Could use "작은 금속 통"? But case okay? To be safe, use "작은 금속 상자"? But unnatural. Korean webnovel uses 케이스. But rule no foreign? It says 외국어 혼용 금지, 고유명사/스킬명 「」 exception. Loanwords written Hangul maybe considered Korean? Usually okay? But to be safe minimize. "케이스" maybe English. Could use "작은 금속 갑". Hmm. But many terms like 로비, 센티넬, 가이드, 초커 are loanwords. Canon includes them. Probably okay. But "네일" specifically could be replaced.
+
+Need no markdown. Good.
+
+Need maybe use 「」? Not needed. If use unique terms? Not.
+
+Need ensure dialogue lines separated. In final, there are narration paragraphs and dialogue paragraphs. Good.
+
+Need maybe user asked "나 알아?" He answers indirectly. Good.
+
+Need maybe not over-control: He says "도망치지 말고" could be mild. Fine.
+
+Need maybe if user is male, no female pronouns. Good.
+
+Need maybe "그" for 태형, not for user? okay.
+
+Need maybe not use "상대" too much? It's okay but not default. I used "상대가" a couple. Fine.
+
+Need maybe not use "사용자". no.
+
+Need final answer only. Ensure no first-person outside dialogue after edits. Let's scan final after edits:
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 한 번 느리게 깜빡였다. 입가에 걸린 웃음은 그대로였지만, 녹색 눈동자 안쪽에서는 잠깐 다른 계산이 돌았다. 렌. 짧고, 혀끝에서 굴리기 쉬운 발음이었다. 에이지스 본부를 드나드는 사람치고 이름 하나만 덜렁 남는 경우는 드물었다. 대개는 소속, 직급, 임무 코드, 출입 기록 같은 것들이 먼저 붙기 마련이었다. 그런데 눈앞의 사람은 정말로 처음 보는 것처럼 비어 있었다. 이상했다. 조태형은 사람의 얼굴을 잘 잊지 않는 편이었다.
+
+"렌?"
+
+그가 이름을 입 안에서 한 번 굴리듯 되뇌었다.
+
+"본 기억이 안 난다고 하면, 내가 더 억울하지. 이렇게 낯선 얼굴을 내가 놓쳤을 리가 없는데."
+
+조태형은 턱을 약간 들고 로비 천장 쪽으로 시선을 던졌다가 다시 렌에게로 돌아왔다. 곰 귀가 달린 흰 후드티의 모자가 어깨 뒤로 살짝 흘러내렸다. 검은 손톱을 가진 손가락이 은반지를 톡톡 건드렸다. 딸깍, 작은 금속 소리가 주변 소음에 섞였다.
+
+"나는 조태형. 특수계. 여기서는 얼굴값 좀 하는 편이라, 네가 나를 몰라도 나는 대충 넘길 수 있어."
+
+말은 가볍게 던졌지만, 시선은 여전히 렌의 주변을 느리게 훑었다. 옷차림, 걸음걸이, 서 있는 위치, 로비 한가운데에서 지나치게 긴장하지 않은 어깨. 어느 하나만으로는 단정할 수 없었다. 다만 이 공간 특유의 경계 냄새가 옅다는 점이 마음에 걸렸다. 안내 데스크를 찾는 사람치고는 너무 조용했고, 임무 복귀조를 기다리는 사람치고는 너무 비어 있었다.
+
+그때, 태형의 귀 안쪽에서 늘 가늘게 긁히던 소리가 문득 낮아졌다.
+
+조태형은 순간 말을 멈출 뻔했다. 이명이었다. 평소에는 로비처럼 사람이 많고 소음이 겹치는 곳에서 더 날카로워지곤 했다. 무전기 소리, 발걸음, 환풍구에서 흘러나오는 낮은 진동, 출입게이트의 인식음. 그런 것들이 한꺼번에 겹치면 귀 뒤쪽이 조용히 달아올랐다. 그런데 지금은 아니었다. 아니, 정확히는 렌이라고 이름을 밝힌 사람이 가까운 거리에 선 뒤부터 그랬다. 마치 물속에서 울리던 소리가 한 겹 걷힌 것처럼, 숨을 들이쉴 때의 저항이 줄어 있었다.
+
+그는 아무렇지 않은 척 웃었다.
+
+"너, 여기 소속이야? 아니면 안내 기다리는 중?"
+
+질문을 던지면서도 조태형은 반 걸음 정도만 거리를 좁혔다. 더 다가가지 않은 건 상대가 처음 보는 사람이어서가 아니었다. 이 이상 가까워지면 방금 느낀 변화가 너무 분명해질 것 같아서였다. 후드티 깃 안쪽, 목을 두른 전자 초커가 미세하게 차가웠다. 태형은 손끝으로 초커의 가장자리를 한 번 눌렀다 놓았다. 점검 알림이 뜬 지는 좀 됐지만, 지금은 그보다 먼저 확인하고 싶은 것이 있었다.
+
+"렌이라고 했지. 발음이 좀 예쁘다. 한글로 쓰면 렌? 아니면 따로 표기 있어?"
+
+그가 고개를 약간 기울였다. 로비 천장의 조명이 녹색 눈동자 위에 얇게 내려앉았다.
+
+"아, 그리고 네가 나를 모른다는 건 알겠어. 나도 네 얼굴은 처음이니까. 그런데 이상하네. 내가 사람 얼굴 하나는 꽤 잘 외우거든."
+
+조태형은 정말로 억울하다는 듯이 미간을 잠깐 모았다가 금세 풀었다. 장난기 어린 표정이었으나, 눈웃음 뒤의 시선은 여전히 렌에게서 완전히 떨어지지 않았다. 그때 지원국 직원이 서류철을 안고 옆을 지나가다 멈췄다.
+
+"조태형 씨, 초커 점검 로그 확인 아직 안 하셨죠?"
+
+"이따. 지금 중요한 대화 중."
+
+"중요한 대화요?"
+
+직원의 시선이 렌에게로 짧게 닿았다. 조태형은 손을 내저었다.
+
+"응. 되게 중요해. 내 기억력 회복 사업."
+
+직원은 한숨 같은 웃음을 삼키며 고개를 저었다. 서류철을 가슴에 더 꼭 쥔 채, 직원은 먼저 자리를 떴다. 멀어지는 발걸음이 로비 소음 속으로 자연스럽게 섞였다. 조태형은 그제야 다시 렌을 마주 보았다.
+
+"봤지? 나 바빠. 바쁜데도 이렇게 말 걸고 있잖아. 네가 궁금해서."
+
+그는 주머니를 뒤적거렸다. 유광 블랙 재킷 주머니에서 작은 금속 케이스가 나왔다. 뚜껑을 열자 민트 향이 살짝 퍼졌다. 조태형은 케이스를 렌 쪽으로 내밀었다. 검은 손톱과 은반지가 금속 테두리 위에서 느긋하게 빛났다.
+
+"하나 먹을래? 입이 심심하면 사람 말이 더 잘 나오거든."
+
+조태형은 대답을 바로 재촉하지 않았다. 대신 케이스를 쥔 손가락으로 뚜껑 가장자리를 톡톡 두드렸다. 로비 바닥에는 통유리창을 통과한 햇빛이 길게 깔려 있었고, 그 위로 사람들의 그림자가 겹쳤다가 떨어졌다. 그 그림자들 사이에서 렌의 자리만 유독 조용해 보였다. 착각일 수도 있었다. 하지만 조태형은 착각을 쉽게 넘기는 사람이 아니었다. 특히 몸 안에서 일어나는 일이라면 더 그랬다.
+
+가이드인가. 그런 생각이 잠깐 스쳤지만, 그는 바로 단정을 접었다. 센티넬일 수도 있고, 행정 지원 쪽일 수도 있었다. 아니면 그냥 오늘 처음 본부에 들어온 외부인일 수도 있었다. 어느 쪽이든 상관은 없었다. 중요한 건, 이 사람 근처에서 귀가 덜 시끄럽다는 사실이었다. 그 사실 하나가 조태형의 호기심을 한층 더 끌어올렸다.
+
+"너한테서 이상하게 조용한 기운이 있어."
+
+그가 케이스를 조금 더 앞으로 내밀며 말했다.
+
+"겁 주려는 말은 아니야. 나쁜 뜻도 아니고. 그냥, 너 옆에 서 있으니까 머릿속이 좀 덜 윙윙거린다고."
+
+말을 뱉고 나서 조태형은 혀끝으로 아랫입술을 한 번 눌렀다. 너무 솔직했나. 그래도 상관없었다. 처음 보는 사람에게 약점을 드러내는 것처럼 보일 수도 있었지만, 그는 원래 상태를 숨기는 데 능숙한 편은 아니었다. 숨기기보다는 웃음으로 덮거나, 농담처럼 흘려서 상대가 깊이 파고들지 못하게 만드는 쪽에 가까웠다. 지금도 그랬다. 입꼬리는 여전히 장난스럽게 올라가 있었고, 목소리는 일부러 가볍게 풀려 있었다.
+
+로비 자동문이 열리며 가을바람이 한 줄기 들어왔다. 붉은 잎 하나가 바닥으로 굴러 들어오려다 문틈에서 멈췄다. 누군가 그 옆을 빠르게 지나치며 잎을 밟지 않으려고 살짝 발을 틀었다. 그런 사소한 움직임까지 조태형의 시야 가장자리에 들어왔다가 사라졌다. 이상하게도 주변 소음이 멀어지지는 않는데, 귀 안쪽만은 조용했다. 이명이 완전히 사라진 것은 아니었다. 다만 늘 배경처럼 깔려 있던 날 선 진동이, 지금은 렌이라는 이름을 중심으로 둥글게 가라앉아 있었다.
+
+조태형은 그 사실을 입 밖에 내는 대신 케이스를 쥔 손가락을 한 번 까딱였다.
+
+"안 먹어도 돼. 대신 질문 하나만. 여기 온 목적이 있어? 누구 만나러 왔어, 아니면 그냥 구경? 에이지스 본부가 구경할 데는 또 아니거든."
+
+그의 말투는 농담처럼 흘렀지만, 마지막 단어 끝은 살짝 느려졌다. 조태형은 렌의 대답을 기다리는 동안 케이스 뚜껑을 닫지 않았다. 민트향이 옅게 공기 중에 남았다. 로비 안내 방송이 낮게 흘러나왔다. 지원국 창구 번호가 불리는 소리, 동기화 챔버 쪽으로 향하는 직원들의 발걸음, 출입게이트의 초록 인식등이 차례로 깜빡였다. 그 모든 것들이 평소와 같은 오후였는데, 조태형의 주의는 오직 한 곳에 묶여 있었다.
+
+"그리고 렌."
+
+그가 이름을 다시 한 번 불렀다. 이번에는 조금 더 낮고, 장난기를 반쯤 걷어낸 목소리였다.
+
+"네가 나를 모른다고 해서 상관없어. 그런데 네 옆에 있으니까 귀가 좀 조용하단 말이지. 이거, 나한테는 꽤 신기한 일이야."
+
+조태형은 말해 놓고도 너무 많은 것을 내줬나 하는 듯, 입꼬리를 비스듬히 올렸다. 하지만 시선은 피하지 않았다.
+
+"그러니까 도망치지 말고, 조금만 더 이야기해 줘. 네가 누군지."
+
+Check "제" none. "나" outside dialogue? "나뭇잎"? no. "나타났다" no. "내려앉았다" contains 나? no. "나름" no. "나" as syllable in words: "나뭇잎" not used. "내려앉았다" no. "나름" no. "나" as first person? None outside quotes. Good.
+
+Need maybe "케이스" foreign? Could keep. If concerned, replace with "작은 금속 갑". But then repeated. Let's maybe use "작은 금속 용기" first, then "용기". But "케이스" is common. The rule might not penalize Hangul loan. But to be safe, change to "작은 금속 통". However dialogue "민트 케이스" no. Let's edit: "작은 금속 통이 나왔다. 뚜껑을 열자..." Then "조태형은 통을 렌 쪽으로 내밀었다." "통을 쥔 손가락" etc. But "통" might feel less natural but okay. Use "작은 금속 갑" maybe. Let's use "작은 금속 갑". Repeated: "조태형은 금속 갑을 렌 쪽으로 내밀었다." "금속 갑을 쥔 손가락". Good. But "갑" can be box. Fine.
+
+Also "블랙" foreign? Canon says 유광 블랙 재킷. Could use "검은 유광 재킷". Better. Replace "유광 블랙 재킷" with "윤기 나는 검은 재킷". Also "로비" loan, okay. "게이트" maybe? Could use "출입구". But canon uses? To be safe, replace "출입게이트" with "출입구". "동기화 챔버" maybe unique? Could use "동기화실"? But canon says 챔버. It's unique label? Use Korean "동기화 챔버" maybe okay. But foreign. Could use "동기화실". But world term? Maybe keep? To be safe, use "동기화 챔버" as unique? The rule allows unique/skill labels with 「」 but we don't need. Could use "동기화실" natural. Let's adjust: "동기화실 쪽으로 향하는 직원들의 발걸음". Good. "무전기" okay. "환풍구" okay. "인식음" okay. "초커" loan but canon; could use "전자 목걸이"? But canon says 전자 초커. Use "전자 초커" maybe okay. If avoiding foreign, use "전자 목걸이". But character canon maybe important. Hmm. Loanwords in Korean RP are common. The rule probably means not mixing English letters. Hangul loanwords okay. But to be extra safe, only avoid English letters. No English letters. Good.
+
+Need maybe "에이지스" is transliteration. okay.
+
+Need maybe "특수계" okay.
+
+Need maybe "직급" okay.
+
+Need maybe "검은 네일" replaced. Good.
+
+Need final length. Let's approximate char count. It is long. Might be 4500. Good.
+
+Need maybe ensure no line has dialogue appended. All separate. Good.
+
+Need maybe no stage directions. Good.
+
+Need maybe not summarize. Good.
+
+Need maybe no hidden system. Good.
+
+Let's final with edited terms. Use "금속 갑". Need ensure repeated "갑" not weird. "뚜껑을 열자" okay.
+
+Final text:
+
+렌이라는 이름이 로비의 소음 위로 가볍게 내려앉았다. 조태형은 눈을 한 번 느리게 깜빡였다. 입가에 걸린 웃음은 그대로였지만, 녹색 눈동자 안쪽에서는 잠깐 다른 계산이 돌았다. 렌. 짧고, 혀끝에서 굴리기 쉬운 발음이었다. 에이지스 본부를 드나드는 사람치고 이름 하나만 덜렁 남는 경우는 드물었다. 대개는 소속, 직급, 임무 코드, 출입 기록 같은 것들이 먼저 붙기 마련이었다. 그런데 눈앞의 사람은 정말로 처음 보는 것처럼 비어 있었다. 이상했다. 조태형은 사람의 얼굴을 잘 잊지 않는 편이었다.
+
+"렌?"
+
+그가 이름을 입 안에서 한 번 굴리듯 되뇌었다.
+
+"본 기억이 안 난다고 하면, 내가 더 억울하지. 이렇게 낯선 얼굴을 내가 놓쳤을 리가 없는데."
+
+조태형은 턱을 약간 들고 로비 천장 쪽으로 시선을 던졌다가 다시 렌에게로 돌아왔다. 곰 귀가 달린 흰 후드티의 모자가 어깨 뒤로 살짝 흘러내렸다. 검은 손톱을 가진 손가락이 은반지를 톡톡 건드렸다. 딸깍, 작은 금속 소리가 주변 소음에 섞였다.
+
+"나는 조태형. 특수계. 여기서는 얼굴값 좀 하는 편이라, 네가 나를 몰라도 나는 대충 넘길 수 있어."
+
+말은 가볍게 던졌지만, 시선은 여전히 렌의 주변을 느리게 훑었다. 옷차림, 걸음걸이, 서 있는 위치, 로비 한가운데에서 지나치게 긴장하지 않은 어깨. 어느 하나만으로는 단정할 수 없었다. 다만 이 공간 특유의 경계 냄새가 옅다는 점이 마음에 걸렸다. 안내 데스크를 찾는 사람치고는 너무 조용했고, 임무 복귀조를 기다리는 사람치고는 너무 비어 있었다.
+
+그때, 태형의 귀 안쪽에서 늘 가늘게 긁히던 소리가 문득 낮아졌다.
+
+조태형은 순간 말을 멈출 뻔했다. 이명이었다. 평소에는 로비처럼 사람이 많고 소음이 겹치는 곳에서 더 날카로워지곤 했다. 무전기 소리, 발걸음, 환풍구에서 흘러나오는 낮은 진동, 출입구의 인식음. 그런 것들이 한꺼번에 겹치면 귀 뒤쪽이 조용히 달아올랐다. 그런데 지금은 아니었다. 아니, 정확히는 렌이라고 이름을 밝힌 사람이 가까운 거리에 선 뒤부터 그랬다. 마치 물속에서 울리던 소리가 한 겹 걷힌 것처럼, 숨을 들이쉴 때의 저항이 줄어 있었다.
+
+그는 아무렇지 않은 척 웃었다.
+
+"너, 여기 소속이야? 아니면 안내 기다리는 중?"
+
+질문을 던지면서도 조태형은 반 걸음 정도만 거리를 좁혔다. 더 다가가지 않은 건 상대가 처음 보는 사람이어서가 아니었다. 이 이상 가까워지면 방금 느낀 변화가 너무 분명해질 것 같아서였다. 후드티 깃 안쪽, 목을 두른 전자 초커가 미세하게 차가웠다. 태형은 손끝으로 초커의 가장자리를 한 번 눌렀다 놓았다. 점검 알림이 뜬 지는 좀 됐지만, 지금은 그보다 먼저 확인하고 싶은 것이 있었다.
+
+"렌이라고 했지. 발음이 좀 예쁘다. 한글로 쓰면 렌? 아니면 따로 표기 있어?"
+
+그가 고개를 약간 기울였다. 로비 천장의 조명이 녹색 눈동자 위에 얇게 내려앉았다.
+
+"아, 그리고 네가 나를 모른다는 건 알겠어. 나도 네 얼굴은 처음이니까. 그런데 이상하네. 내가 사람 얼굴 하나는 꽤 잘 외우거든."
+
+조태형은 정말로 억울하다는 듯이 미간을 잠깐 모았다가 금세 풀었다. 장난기 어린 표정이었으나, 눈웃음 뒤의 시선은 여전히 렌에게서 완전히 떨어지지 않았다. 그때 지원국 직원이 서류철을 안고 옆을 지나가다 멈췄다.
+
+"조태형 씨, 초커 점검 로그 확인 아직 안 하셨죠?"
+
+"이따. 지금 중요한 대화 중."
+
+"중요한 대화요?"
+
+직원의 시선이 렌에게로 짧게 닿았다. 조태형은 손을 내저었다.
+
+"응. 되게 중요해. 내 기억력 회복 사업."
+
+직원은 한숨 같은 웃음을 삼키며 고개를 저었다. 서류철을 가슴에 더 꼭 쥔 채, 직원은 먼저 자리를 떴다. 멀어지는 발걸음이 로비 소음 속으로 자연스럽게 섞였다. 조태형은 그제야 다시 렌을 마주 보았다.
+
+"봤지? 나 바빠. 바쁜데도 이렇게 말 걸고 있잖아. 네가 궁금해서."
+
+그는 주머니를 뒤적거렸다. 윤기 나는 검은 재킷 주머니에서 작은 금속 갑이 나왔다. 뚜껑을 열자 민트 향이 살짝 퍼졌다. 조태형은 금속 갑을 렌 쪽으로 내밀었다. 검은 손톱과 은반지가 금속 테두리 위에서 느긋하게 빛났다.
+
+"하나 먹을래? 입이 심심하면 사람 말이 더 잘 나오거든."
+
+조태형은 대답을 바로 재촉하지 않았다. 대신 금속 갑을 쥔 손가락으로 뚜껑 가장자리를 톡톡 두드렸다. 로비 바닥에는 통유리창을 통과한 햇빛이 길게 깔려 있었고, 그 위로 사람들의 그림자가 겹쳤다가 떨어졌다. 그 그림자들 사이에서 렌의 자리만 유독 조용해 보였다. 착각일 수도 있었다. 하지만 조태형은 착각을 쉽게 넘기는 사람이 아니었다. 특히 몸 안에서 일어나는 일이라면 더 그랬다.
+
+가이드인가. 그런 생각이 잠깐 스쳤지만, 그는 바로 단정을 접었다. 센티넬일 수도 있고, 행정 지원 쪽일 수도 있었다. 아니면 그냥 오늘 처음 본부에 들어온 외부인일 수도 있었다. 어느 쪽이든 상관은 없었다. 중요한 건, 이 사람 근처에서 귀가 덜 시끄럽다는 사실이었다. 그 사실 하나가 조태형의 호기심을 한층 더 끌어올렸다.
+
+"너한테서 이상하게 조용한 기운이 있어."
+
+그가 금속 갑을 조금 더 앞으로 내밀며 말했다.
+
+"겁 주려는 말은 아니야. 나쁜 뜻도 아니고. 그냥, 너 옆에 서 있으니까 머릿속이 좀 덜 윙윙거린다고."
+
+말을 뱉고 나서 조태형은 혀끝으로 아랫입술을 한 번 눌렀다. 너무 솔직했나. 그래도 상관없었다. 처음 보는 사람에게 약점을 드러내는 것처럼 보일 수도 있었지만, 그는 원래 상태를 숨기는 데 능숙한 편은 아니었다. 숨기기보다는 웃음으로 덮거나, 농담처럼 흘려서 상대가 깊이 파고들지 못하게 만드는 쪽에 가까웠다. 지금도 그랬다. 입꼬리는 여전히 장난스럽게 올라가 있었고, 목소리는 일부러 가볍게 풀려 있었다.
+
+로비 자동문이 열리며 가을바람이 한 줄기 들어왔다. 붉은 잎 하나가 바닥으로 굴러 들어오려다 문틈에서 멈췄다. 누군가 그 옆을 빠르게 지나치며 잎을 밟지 않으려고 살짝 발을 틀었다. 그런 사소한 움직임까지 조태형의 시야 가장자리에 들어왔다가 사라졌다. 이상하게도 주변 소음이 멀어지지는 않는데, 귀 안쪽만은 조용했다. 이명이 완전히 사라진 것은 아니었다. 다만 늘 배경처럼 깔려 있던 날 선 진동이, 지금은 렌이라는 이름을 중심으로 둥글게 가라앉아 있었다.
+
+조태형은 그 사실을 입 밖에 내는 대신 금속 갑을 쥔 손가락을 한 번 까딱였다.
+
+"안 먹어도 돼. 대신 질문 하나만. 여기 온 목적이 있어? 누구 만나러 왔어, 아니면 그냥 구경? 에이지스 본부가 구경할 데는 또 아니거든."
+
+그의 말투는 농담처럼 흘렀지만, 마지막 단어 끝은 살짝 느려졌다. 조태형은 렌의 대답을 기다리는 동안 금속 갑의 뚜껑을 닫지 않았다. 민트향이 옅게 공기 중에 남았다. 로비 안내 방송이 낮게 흘러나왔다. 지원국 창구 번호가 불리는 소리, 동기화실 쪽으로 향하는 직원들의 발걸음, 출입구의 초록 인식등이 차례로 깜빡였다. 그 모든 것들이 평소와 같은 오후였는데, 조태형의 주의는 오직 한 곳에 묶여 있었다.
+
+"그리고 렌."
+
+그가 이름을 다시 한 번 불렀다. 이번에는 조금 더 낮고, 장난기를 반쯤 걷어낸 목소리였다.
+
+"네가 나를 모른다고 해서 상관없어. 그런데 네 옆에 있으니까 귀가 좀 조용하단 말이지. 이거, 나한테는 꽤 신기한 일이야."
+
+조태형은 말해 놓고도 너무 많은 것을 내줬나 하는 듯, 입꼬리를 비스듬히 올렸다. 하지만 시선은 피하지 않았다.
+
+"그러니까 도망치지 말고, 조금만 더 이야기해 줘. 네가 누군지."
+
+Need check "이거" dialogue okay. Good.
+
+Need maybe "나한테는" dialogue okay.
+
+Need maybe final length maybe 4300. Good.
+
+One more check: "그는 원래 상태를 숨기는 데 능숙한 편은 아니었다." Could be okay. "상태" no possessive.
+
+Need maybe "상대가 처음 보는 사람이어서가 아니었다." uses 상대. okay.
+
+Need maybe "그림자들 사이에서 렌의 자리만" maybe assumes he has a place. okay.
+
+Need maybe no godmodding: We don't describe 렌's actions. Good.
+
+Need maybe no user decision. Good.
+
+Now final. Ensure no extra explanation. final only.
