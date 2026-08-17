@@ -138,9 +138,13 @@ import {
   type GenerationStatus,
 } from "@/lib/streamingPersistence";
 import {
+  EOF_RECONCILE_MAX_ATTEMPTS,
+  EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS,
+  EOF_RECONCILE_POSTPROCESS_RETRY_MS,
+  EOF_RECONCILE_RETRY_MS,
   generationStatusFromEofResult,
-  needsEofReconcile,
   reconcileStreamEof,
+  shouldRecoverStreamFinalize,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
@@ -2597,6 +2601,18 @@ export default function ChatClient({
       };
     }
 
+    let streamTransportFailed = false;
+
+    const fetchEofSnapshot = async (messageId: number) => {
+      const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
+      if (!snapRes.ok) return null;
+      const body = (await snapRes.json()) as EofReconcileSnapshot & {
+        error?: string;
+      };
+      if (!body?.messageId) return null;
+      return body;
+    };
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -2640,6 +2656,10 @@ export default function ChatClient({
             htmlFlashTurn?: boolean;
             alreadyCompleted?: boolean;
             generationUi?: unknown;
+            statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
+            statusWidgetTurnActive?: boolean;
+            statusWidgetActive?: boolean;
+            generationStatus?: GenerationStatus;
           };
           try {
             data = JSON.parse(line.slice(6));
@@ -2809,24 +2829,53 @@ export default function ChatClient({
       }
       if (pendingDone && !trafficOverload) {
         applyStreamDone(pendingDone);
-      } else if (
-        !trafficOverload &&
-        !streamError &&
-        needsEofReconcile({ sawDone, sawError })
-      ) {
-        const messageIdForReconcile = persistedAssistantMessageId;
+      }
+    } catch (e) {
+      reveal.reset();
+      reveal.flush();
+      const abortMsg = chatStreamAbortMessage(e);
+      if (abortMsg) {
+        streamError = streamError || abortMsg;
+      } else if (!isBenignChatStreamAbort(e)) {
+        streamTransportFailed = true;
+        streamError = streamError || "스트림 수신 중 오류가 발생했습니다.";
+        console.error("[chat] stream consume failed:", e);
+      }
+    } finally {
+      activeStreamRevealRef.current = null;
+      setGenerationPrepUi(null);
+    }
 
+    // Recover finalize (status widget + completed row) even when SSE dropped mid
+    // post-process. Episodic facts persist server-side; the client still needs
+    // `done`/DB snapshot values to render the widget.
+    if (
+      !trafficOverload &&
+      !pendingDone &&
+      shouldRecoverStreamFinalize({
+        sawDone,
+        sawError,
+        streamTransportFailed,
+        hasPersistedMessageId:
+          persistedAssistantMessageId != null &&
+          Number.isFinite(persistedAssistantMessageId),
+      })
+    ) {
+      const messageIdForReconcile = persistedAssistantMessageId;
+      const usePostprocessBudget = streamTransportFailed || Boolean(streamError);
+      setStreamPhase(
+        usePostprocessBudget ? "상태창 동기화 중…" : "응답 동기화 중…"
+      );
+      try {
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
-          fetchSnapshot: async (messageId) => {
-            const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
-            if (!snapRes.ok) return null;
-            const body = (await snapRes.json()) as EofReconcileSnapshot & {
-              error?: string;
-            };
-            if (!body?.messageId) return null;
-            return body;
-          },
+          fetchSnapshot: fetchEofSnapshot,
+          maxAttempts: usePostprocessBudget
+            ? EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS
+            : EOF_RECONCILE_MAX_ATTEMPTS,
+          retryMs: usePostprocessBudget
+            ? EOF_RECONCILE_POSTPROCESS_RETRY_MS
+            : EOF_RECONCILE_RETRY_MS,
         });
 
         if (eofResult.kind === "completed") {
@@ -2850,6 +2899,9 @@ export default function ChatClient({
               (s.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ?? null,
             suggestedRepliesPending: s.suggestedRepliesPending === true,
           });
+          // Transport drop recovered via DB — do not scare the user / soft-rollback.
+          streamError = "";
+          eofUnresolved = false;
         } else {
           eofUnresolved = true;
           const status = generationStatusFromEofResult(eofResult);
@@ -2863,18 +2915,30 @@ export default function ChatClient({
             if (cur?.role === "assistant") {
               copy[aiIndex] = {
                 ...cur,
-                id: eofResult.snapshot?.messageId ?? cur.id ?? messageIdForReconcile ?? undefined,
-                content: (snapContent && snapContent.trim() ? snapContent : cur.content) || cur.content,
+                id:
+                  eofResult.snapshot?.messageId ??
+                  cur.id ??
+                  messageIdForReconcile ??
+                  undefined,
+                content:
+                  (snapContent && snapContent.trim() ? snapContent : cur.content) ||
+                  cur.content,
                 generationStatus: status,
                 usage: (eofResult.snapshot?.usage as Usage | null) ?? cur.usage,
-                variants: (eofResult.snapshot?.variants as MessageVariant[] | undefined) ?? cur.variants,
-                activeVariant: eofResult.snapshot?.activeVariant ?? cur.activeVariant,
-                variantCount: eofResult.snapshot?.variantCount ?? cur.variantCount,
+                variants:
+                  (eofResult.snapshot?.variants as MessageVariant[] | undefined) ??
+                  cur.variants,
+                activeVariant:
+                  eofResult.snapshot?.activeVariant ?? cur.activeVariant,
+                variantCount:
+                  eofResult.snapshot?.variantCount ?? cur.variantCount,
                 statusWidgetValues:
-                  (eofResult.snapshot?.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ??
+                  (eofResult.snapshot
+                    ?.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ??
                   cur.statusWidgetValues,
                 statusWidgetTurnActive:
-                  eofResult.snapshot?.statusWidgetTurnActive ?? cur.statusWidgetTurnActive,
+                  eofResult.snapshot?.statusWidgetTurnActive ??
+                  cur.statusWidgetTurnActive,
               };
             }
             return copy;
@@ -2882,22 +2946,19 @@ export default function ChatClient({
           if (status === "interrupted" || status === "failed" || status === "failed_partial") {
             clearChatStreamDraft(character.id, chatId);
           }
+          // Body already shown: keep soft toast via eofUnresolved, drop transport red error.
+          if (
+            streamTransportFailed &&
+            (assistantStreamContentRef.current || "").trim().length > 0
+          ) {
+            streamError = "";
+          }
         }
+      } finally {
+        setStreamPhase(null);
       }
-    } catch (e) {
-      reveal.reset();
-      reveal.flush();
-      const abortMsg = chatStreamAbortMessage(e);
-      if (abortMsg) {
-        streamError = streamError || abortMsg;
-      } else if (!isBenignChatStreamAbort(e)) {
-        streamError = streamError || "스트림 수신 중 오류가 발생했습니다.";
-        console.error("[chat] stream consume failed:", e);
-      }
-    } finally {
-      activeStreamRevealRef.current = null;
+    } else {
       setStreamPhase(null);
-      setGenerationPrepUi(null);
     }
 
     const billing =

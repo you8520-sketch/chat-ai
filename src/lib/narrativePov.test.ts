@@ -59,9 +59,12 @@ describe("narrative POV owner", () => {
     const prompt = buildNarrativePovPrompt({ mode: "third_person", povCharacterName: "권태현" });
     assert.match(prompt, /직전 AI 본문의 시점과 무관하게.*3인칭 소설형으로 전환/);
     assert.match(prompt, /과거 본문의 1인칭 문체를 이어 쓰거나 모방하지 않는다/);
+    assert.match(prompt, /지문·감각·내면\(따옴표 밖\)에서만/);
     assert.match(prompt, /나\/나는\/내가\/나를\/내\/나의 등의 1인칭 자기지칭을 사용하지 않는다/);
-    assert.match(prompt, /따옴표 안의 대사.*1인칭.*허용/);
-    assert.match(prompt, /나도\/나만\/나에게\/내게.*1인칭 자기지칭이 0개인지 확인/);
-    assert.match(prompt, /"나도 모르게 웃음이 나왔다"가 아니라 "권태현도 모르게/);
+    assert.match(prompt, /DIALOGUE — 따옴표 안 — SPEECH LOCK/);
+    assert.match(prompt, /자기 이름을 3인칭으로 부르는 습관을 이 규칙 때문에 만들지 않는다/);
+    assert.match(prompt, /따옴표 밖 지문만 검사/);
+    assert.match(prompt, /예\(지문만\): 나도 모르게 웃음이 나왔다 → 권태현도 모르게/);
+    assert.match(prompt, /이 치환을 대사 따옴표 안에는 절대 적용하지 않는다/);
   });
 });
