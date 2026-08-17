@@ -1,0 +1,256 @@
+{
+  "status": "DEEPSEEK0813_STYLE_TRACK_S1R_TRUE_OFF_CAPTURE_COMPLETE",
+  "target": "deepseek-v4-pro-0813",
+  "provider": "cheaperinference",
+  "TRUE_OFF_CONFIG": "thinking={type:\"disabled\"} + reasoning_effort=\"none\"",
+  "OLD_S1_TRANSPORT_CONTAMINATED_BY_REASONING": true,
+  "completion_owner": false,
+  "current_stage_boundary": false,
+  "source_mirror_baseline": false,
+  "source_mirror_challenger": true,
+  "source_mirror_production": false,
+  "production_transport_changed": false,
+  "baseline_calls": 2,
+  "mirror_calls": 2,
+  "total_new_calls": 4,
+  "opus_calls": 0,
+  "gemini31_calls": 0,
+  "gemini37_source_model_calls": 0,
+  "other_model_calls": 0,
+  "REASONING_EVENTS": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "REASONING_CHARS": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "TRUE_OFF_QUALITY_PARITY": true,
+  "quality_scoring_by_cursor": false,
+  "calls": [
+    {
+      "source_id": "gemini37",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "baseline",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_D1",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 1898,
+      "korean_chars": 1334,
+      "ttft_ms": 2331,
+      "latency_ms": 31014,
+      "input_tokens": 7387,
+      "completion_tokens": 1445,
+      "reasoning_stream_events": 0,
+      "reasoning_chars": 0,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.003156,
+      "terminal_usage": {
+        "prompt_tokens": 7387,
+        "completion_tokens": 1445,
+        "total_tokens": 8832,
+        "cost": 0.003156,
+        "cost_details": {
+          "upstream_inference_cost": 0.003156
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "TRUE_OFF_QUALITY_PARITY_SAMPLE": true,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "include_reasoning": null,
+        "enable_thinking": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 0,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "raw_sha256": "1bd8c89243f9c77577f77c7229d66077658388aa92130beaf072cb25a57d5c5e",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "baseline",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_D2",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 3141,
+      "korean_chars": 2199,
+      "ttft_ms": 1685,
+      "latency_ms": 48593,
+      "input_tokens": 7387,
+      "completion_tokens": 2398,
+      "reasoning_stream_events": 0,
+      "reasoning_chars": 0,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.00164,
+      "terminal_usage": {
+        "prompt_tokens": 7387,
+        "completion_tokens": 2398,
+        "total_tokens": 9785,
+        "cost": 0.00164,
+        "cost_details": {
+          "upstream_inference_cost": 0.00164
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "TRUE_OFF_QUALITY_PARITY_SAMPLE": true,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "include_reasoning": null,
+        "enable_thinking": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 0,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "raw_sha256": "0ae3babcc9b123415e35b032e45895e50fd40e55c9dfa1672cbc04dc352c34a4",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "challenger",
+      "run": 1,
+      "blind_label": "SOURCE_G37_SAMPLE_C1",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 2670,
+      "korean_chars": 1863,
+      "ttft_ms": 4025,
+      "latency_ms": 45378,
+      "input_tokens": 7701,
+      "completion_tokens": 2020,
+      "reasoning_stream_events": 0,
+      "reasoning_chars": 0,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.003603,
+      "terminal_usage": {
+        "prompt_tokens": 7701,
+        "completion_tokens": 2020,
+        "total_tokens": 9721,
+        "cost": 0.003603,
+        "cost_details": {
+          "upstream_inference_cost": 0.003603
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "TRUE_OFF_QUALITY_PARITY_SAMPLE": true,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "include_reasoning": null,
+        "enable_thinking": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 1,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "raw_sha256": "d2fad71221ef3350ed97683b21c4cf0d02173ffbacd01d88ad38189b2372e05a",
+      "error": null
+    },
+    {
+      "source_id": "gemini37",
+      "selected_source_model": "gemini-3.7-flash",
+      "resolved_target": "deepseek-v4-pro-0813",
+      "response_model": "deepseek-v4-pro-0813",
+      "provider": "cheaperinference",
+      "arm": "challenger",
+      "run": 2,
+      "blind_label": "SOURCE_G37_SAMPLE_C2",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "stream_done": true,
+      "incomplete": false,
+      "visible_chars": 3084,
+      "korean_chars": 2163,
+      "ttft_ms": 1545,
+      "latency_ms": 48671,
+      "input_tokens": 7701,
+      "completion_tokens": 2326,
+      "reasoning_stream_events": 0,
+      "reasoning_chars": 0,
+      "reasoning_tokens": 0,
+      "usage_cost": 0.001582,
+      "terminal_usage": {
+        "prompt_tokens": 7701,
+        "completion_tokens": 2326,
+        "total_tokens": 10027,
+        "cost": 0.001582,
+        "cost_details": {
+          "upstream_inference_cost": 0.001582
+        }
+      },
+      "TRUE_OFF_REQUESTED": true,
+      "TRUE_OFF_QUALITY_PARITY_SAMPLE": true,
+      "request_wire": {
+        "model": "deepseek-v4-pro-0813",
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "include_reasoning": null,
+        "enable_thinking": null,
+        "temperature": 0.92
+      },
+      "prompt_audit": {
+        "style_mirror": 1,
+        "scene_completion": 0,
+        "system_style_mirror": 0,
+        "system_scene_completion": 0
+      },
+      "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+      "raw_sha256": "5b9b42d642f5b7ef74b65bf23885ca9a8cef6f386a52273dc6a2ec0a0c18a5fe",
+      "error": null
+    }
+  ]
+}
