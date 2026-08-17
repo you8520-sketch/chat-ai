@@ -203,4 +203,20 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(admin.adultRouting?.actualModel, "qwen-3-8-max");
     assert.equal(admin.modelLabel, "Claude Opus 5");
   });
+
+  it("strips generationKind/canonical from public receipts", () => {
+    const usage = {
+      input: 1,
+      output: 2,
+      model: "claude-opus-5",
+      route: "safe" as const,
+      cost: 4,
+      breakdown: [],
+      generationKind: "ooc_scene_render" as const,
+      canonical: false,
+    } satisfies Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.generationKind, undefined);
+    assert.equal(sanitized.canonical, undefined);
+  });
 });

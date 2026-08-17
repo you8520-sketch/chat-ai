@@ -392,6 +392,18 @@ import {
   isChatOocSceneReset,
 } from "@/lib/chatOocPriority";
 import {
+  buildOocSceneRenderUserPrompt,
+  filterCanonicalMessageRows,
+  isOocSceneRenderSemantics,
+  mergeGenerationSemantics,
+  nextPersistedModelRouteState,
+  persistGenerationSemanticsOnMessages,
+  readGenerationSemantics,
+  resolveGenerationSemantics,
+  shouldCommitCanonicalTurnState,
+  type GenerationSemantics,
+} from "@/lib/oocSceneRender";
+import {
   streamOpenRouterAdultToClient,
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
@@ -966,15 +978,27 @@ export async function POST(req: Request) {
           regenerateMessageId
         )
       : null;
-  const msgRowsSource = regenerationBoundaryForHistory
-    ? regenerationBoundaryForHistory.historyRows
-    : filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds]);
+  const storedUserMessage = messageText;
+  const generationSemantics: GenerationSemantics = resolveGenerationSemantics({
+    userMessage: storedUserMessage,
+    inherited:
+      regenerateMessageId != null
+        ? readGenerationSemantics(
+            msgRowsWithId.find((row) => row.id === regenerateMessageId)?.usage
+          )
+        : null,
+  });
+  const oocSceneRenderTurn = isOocSceneRenderSemantics(generationSemantics);
+  const msgRowsSource = filterCanonicalMessageRows(
+    regenerationBoundaryForHistory
+      ? regenerationBoundaryForHistory.historyRows
+      : filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds])
+  );
   const msgRows = msgRowsSource.map(
     ({ role, content, model }) => ({ role, content, model: model ?? undefined })
   );
   const dialogueTurns = messagesToTurns(msgRows);
   const playableTurnCount = countPlayableTurns(dialogueTurns);
-  const storedUserMessage = messageText;
   const personaUsesBanmal = personaUsesInformalSpeech(selectedPersona?.description ?? "");
   const autoContinueContext =
     autoProgressionEnabled ||
@@ -995,7 +1019,9 @@ export async function POST(req: Request) {
     user.nickname
   );
   const chatOocRpUnrelated = chatOocSuppressesUserNoteExtras(storedUserMessage);
-  const promptUserMessage = autoContinueContext
+  const promptUserMessage = oocSceneRenderTurn
+    ? buildOocSceneRenderUserPrompt(displayUserMessage)
+    : autoContinueContext
     ? buildContinueNarrativeCommand({
         personaName: personaDisplayName,
         charName: ch.name,
@@ -2422,8 +2448,16 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (oocSceneRenderTurn) {
+    persistGenerationSemanticsOnMessages(db, {
+      userMessageId,
+      assistantMessageId: persistedAssistantId,
+      semantics: generationSemantics,
+    });
+  }
   if (
     bootstrapped.userMessageSaved &&
+    !oocSceneRenderTurn &&
     personaSecretBoundaryOn &&
     resolvedPersonaId &&
     pendingPersonaSecretRevealCandidates.length > 0
@@ -2446,6 +2480,7 @@ export async function POST(req: Request) {
     userMessageId != null &&
     !autoContinueContext &&
     !regenerate &&
+    !oocSceneRenderTurn &&
     messageText.trim() &&
     !isContinueUserMessage(messageText);
 
@@ -4421,6 +4456,9 @@ export async function POST(req: Request) {
         let usageRecord: Usage = {
           input: totalInput,
           output: totalOutput,
+          ...(oocSceneRenderTurn
+            ? mergeGenerationSemantics({}, generationSemantics)
+            : {}),
           ...(htmlFlashOnlyTurn ? { htmlFlashOnly: true } : {}),
           ...(primaryStage?.lengthRecoveryPasses != null && primaryStage.lengthRecoveryPasses > 0
             ? { lengthRecoveryPasses: primaryStage.lengthRecoveryPasses }
@@ -4723,6 +4761,9 @@ export async function POST(req: Request) {
           stripMuseAcceptanceFromUsage(dbUsageRecord),
           { keepInternal: showFullBillingReceipt }
         );
+        if (oocSceneRenderTurn) {
+          dbUsageRecord = mergeGenerationSemantics(dbUsageRecord, generationSemantics);
+        }
         usageRecord = dbUsageRecord;
         const variantUsageRecord: Usage = internalAdultRouteMeta
           ? { ...dbUsageRecord, adultRouting: internalAdultRouteMeta }
@@ -5068,15 +5109,20 @@ export async function POST(req: Request) {
             aiMessageId,
             chatRef.id
           );
+          const persistedModelRouteState = nextPersistedModelRouteState(
+            priorModelRouteState,
+            nextModelRouteState,
+            generationSemantics
+          );
           db.prepare(
             "UPDATE chats SET model_route_state_json=? WHERE id=? AND user_id=?"
           ).run(
-            serializeModelRouteState(nextModelRouteState),
+            serializeModelRouteState(persistedModelRouteState),
             chatRef.id,
             user.id
           );
           chatRef.model_route_state_json =
-            serializeModelRouteState(nextModelRouteState);
+            serializeModelRouteState(persistedModelRouteState);
         }
         clearPartialTimer();
         persistenceDiag.finalized = true;
@@ -5084,6 +5130,7 @@ export async function POST(req: Request) {
         persistenceDiag.lastPartialChars = savedText.length;
         logStreamingPersistence(persistenceDiag);
         // World-Motion V1.1: commit progression history only after successful finalize.
+        if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
           commitSceneProgressionState({
             chatId: chatRef.id,
@@ -5093,9 +5140,10 @@ export async function POST(req: Request) {
         } catch (err) {
           console.warn("[scene-progression] commit failed", err);
         }
+        }
 
         // SceneDirective V2 reconvergence: commit only after authoritative finalize.
-        if (pendingReconvergenceTransition) {
+        if (pendingReconvergenceTransition && shouldCommitCanonicalTurnState(generationSemantics)) {
           try {
             const commitResult = commitReconvergenceTransition(
               {
@@ -5156,7 +5204,8 @@ export async function POST(req: Request) {
         // events. Queued-trigger consumption semantics are unchanged.
         const derivedStateAllowed =
           assistantFinalizedThisRequest &&
-          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus);
+          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
+          shouldCommitCanonicalTurnState(generationSemantics);
 
         if (derivedStateAllowed) {
           const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);
@@ -5207,10 +5256,12 @@ export async function POST(req: Request) {
           }
         }
 
+        if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
           markStatusTriggerEventsConsumed(db, queuedStatusTriggerEventIds);
         } catch (e) {
           console.error("[StatusTrigger] consume failed:", (e as Error).message);
+        }
         }
 
         if (derivedStateAllowed) {
@@ -5352,7 +5403,7 @@ export async function POST(req: Request) {
           }
         }
 
-        if (statusMetaEnabled) {
+        if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
           scheduleStatusMetaExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
@@ -5371,6 +5422,7 @@ export async function POST(req: Request) {
         const suggestedRepliesEnabled =
           body.suggestedRepliesEnabled !== false &&
           !htmlFlashOnlyTurn &&
+          !oocSceneRenderTurn &&
           Boolean(savedText.trim());
         if (suggestedRepliesEnabled) {
           scheduleSuggestedRepliesExtraction({
@@ -5576,6 +5628,7 @@ export async function POST(req: Request) {
               promptHash: computePromptHash(contextJson),
               contextJson,
             });
+            if (shouldCommitCanonicalTurnState(generationSemantics)) {
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
               userId: user.id,
@@ -5595,6 +5648,7 @@ export async function POST(req: Request) {
               relationshipTailParsed,
               relationshipDeltaFromMain,
             });
+            }
           } catch (e) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }

@@ -16,6 +16,15 @@ describe("isTurnEligibleForMemoryRecord", () => {
     );
   });
 
+  it("excludes isolated OOC scene-render samples", () => {
+    assert.equal(
+      isTurnEligibleForMemoryRecord(
+        "OOC: 본편과 별개로 이 상황을 샘플 장면으로 한 번 보여줘."
+      ),
+      false
+    );
+  });
+
   it("includes rp_continuing OOC", () => {
     assert.equal(
       isTurnEligibleForMemoryRecord(

@@ -15,6 +15,10 @@ import {
   classifyEpisodicFactTemporalNature,
   isClearlyTemporaryEpisodicFact,
 } from "@/lib/episodicMemoryTemporal";
+import {
+  isNoncanonicalGeneration,
+  resolveOocSceneRenderIntent,
+} from "@/lib/oocSceneRender";
 
 export {
   classifyEpisodicFactTemporalNature,
@@ -653,6 +657,28 @@ function shouldReplaceSourceTurn(input: PersistEpisodicMemoryFactsInput): boolea
   return input.metadata?.regenerated === true;
 }
 
+function sourceMessageIsNoncanonical(
+  db: Database.Database,
+  chatId: number,
+  sourceUserMessageId: number | null,
+  sourceUserText: string | null | undefined
+): boolean {
+  if (sourceUserText && resolveOocSceneRenderIntent(sourceUserText)) return true;
+  if (sourceUserMessageId == null) return false;
+  try {
+    const row = db
+      .prepare("SELECT usage, content FROM messages WHERE id=? AND chat_id=? AND role='user'")
+      .get(sourceUserMessageId, chatId) as
+      | { usage?: unknown; content?: string }
+      | undefined;
+    if (!row) return false;
+    if (isNoncanonicalGeneration(row.usage)) return true;
+    return resolveOocSceneRenderIntent(row.content ?? "");
+  } catch {
+    return false;
+  }
+}
+
 function resolveSourceUserTextForEvidence(
   db: Database.Database,
   input: PersistEpisodicMemoryFactsInput,
@@ -707,6 +733,9 @@ export function persistEpisodicMemoryFactsCore(
     chatId,
     sourceUserMessageId
   );
+  if (sourceMessageIsNoncanonical(db, chatId, sourceUserMessageId, sourceUserText)) {
+    return 0;
+  }
 
   const assistantMessageId = metadataAssistantMessageId(input.metadata);
   const requestId = metadataRequestId(input.metadata);

@@ -1,8 +1,10 @@
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 
 /** RP와 무관한 OOC 턴(HTML/SNS mock·RP 중단 등) — 장기기억 히스토리에서 제외 */
 export function isTurnEligibleForMemoryRecord(userMessage: string): boolean {
+  if (resolveOocSceneRenderIntent(userMessage)) return false;
   const intent = classifyChatOocIntent(userMessage);
   return intent !== "rp_unrelated" && intent !== "rp_hard_stop";
 }

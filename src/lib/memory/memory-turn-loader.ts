@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
 import type Database from "better-sqlite3";
 import {
   getMemorySourceBoundary,
@@ -16,19 +17,27 @@ export type ChatTurnWithMessageIds = {
   assistantMessageId: number;
 };
 
-function loadChatTurnsWithMessageIdsCore(
+type ChatMessageRow = {
+  id: number;
+  role: string;
+  content: string;
+  model: string;
+  user_message_id: number | null;
+  usage?: unknown;
+};
+
+function loadChatMessageRowsCore(
   db: Database.Database,
   chatId: number
-): ChatTurnWithMessageIds[] {
-  const rows = db
-    .prepare("SELECT id, role, content, model, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC")
-    .all(chatId) as {
-    id: number;
-    role: string;
-    content: string;
-    model: string;
-    user_message_id: number | null;
-  }[];
+): ChatMessageRow[] {
+  return db
+    .prepare(
+      "SELECT id, role, content, model, user_message_id, usage FROM messages WHERE chat_id=? ORDER BY id ASC"
+    )
+    .all(chatId) as ChatMessageRow[];
+}
+
+function pairChatTurnsWithMessageIds(rows: ChatMessageRow[]): ChatTurnWithMessageIds[] {
 
   const userById = new Map(
     rows.filter((row) => row.role === "user").map((row) => [row.id, row.content] as const)
@@ -78,6 +87,13 @@ function loadChatTurnsWithMessageIdsCore(
   return turns;
 }
 
+function loadChatTurnsWithMessageIdsCore(
+  db: Database.Database,
+  chatId: number
+): ChatTurnWithMessageIds[] {
+  return pairChatTurnsWithMessageIds(loadChatMessageRowsCore(db, chatId));
+}
+
 export function loadChatTurnsWithMessageIds(chatId: number): ChatTurnWithMessageIds[] {
   return loadChatTurnsWithMessageIdsCore(getDb(), chatId);
 }
@@ -88,7 +104,9 @@ export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
   boundary: MemorySourceBoundary = getMemorySourceBoundaryCore(db, chatId)
 ): ChatTurnWithMessageIds[] {
   let memoryTurnNumber = 0;
-  return loadChatTurnsWithMessageIdsCore(db, chatId)
+  return pairChatTurnsWithMessageIds(
+    filterCanonicalMessageRows(loadChatMessageRowsCore(db, chatId))
+  )
     .filter(
       (turn) =>
         turn.turnNumber > 0 &&
@@ -113,17 +131,20 @@ export function countMemoryEligibleCompletedTurnsCore(
   chatId: number
 ): number {
   const boundary = getMemorySourceBoundaryCore(db, chatId);
-  const rows = db
-    .prepare(
-      `SELECT id, role, model, user_message_id
-       FROM messages WHERE chat_id=? ORDER BY id ASC`
-    )
-    .all(chatId) as {
-    id: number;
-    role: string;
-    model: string;
-    user_message_id: number | null;
-  }[];
+  const rows = filterCanonicalMessageRows(
+    db
+      .prepare(
+        `SELECT id, role, model, user_message_id, usage
+         FROM messages WHERE chat_id=? ORDER BY id ASC`
+      )
+      .all(chatId) as {
+      id: number;
+      role: string;
+      model: string;
+      user_message_id: number | null;
+      usage?: unknown;
+    }[]
+  );
   const userIds = new Set(
     rows.filter((row) => row.role === "user").map((row) => row.id)
   );

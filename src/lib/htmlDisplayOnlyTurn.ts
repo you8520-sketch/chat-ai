@@ -1,6 +1,7 @@
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 import { userRequestsHtmlOutput } from "@/lib/htmlVisualCardPolicy";
 import { DISPLAY_INPUT_ONLY, RP_STOP_OR_FLASH_ONLY } from "@/lib/oocHtmlTurnPatterns";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 
 export { RP_STOP_OR_FLASH_ONLY } from "@/lib/oocHtmlTurnPatterns";
 
@@ -67,5 +68,6 @@ function messageHasOocHtmlIntent(text: string): boolean {
 /** 채팅 입력 OOC+HTML 연출 턴 — 제작자 상태창 위젯 비표시 */
 export function chatInputSuppressesStatusWidget(userMessage: string): boolean {
   if (isHtmlFlashOnlyTurn(userMessage)) return true;
+  if (resolveOocSceneRenderIntent(userMessage)) return true;
   return messageHasOocHtmlIntent(userMessage);
 }
