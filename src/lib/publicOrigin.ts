@@ -36,3 +36,14 @@ export function resolvePublicOrigin(req: Request): string {
 export function googleOAuthCallbackUrl(origin: string): string {
   return `${origin.replace(/\/$/, "")}/api/auth/google/callback`;
 }
+
+/** CSRF check that compares the browser Origin to the public host, not the internal bind URL. */
+export function isBrowserOriginAllowed(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).origin === resolvePublicOrigin(req);
+  } catch {
+    return false;
+  }
+}

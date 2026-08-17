@@ -142,7 +142,7 @@ export default function PushNotificationManager() {
     if (kind === "likes") setPushNotifyLikes(next);
     else setPushNotifyComments(next);
     try {
-      const response = await fetch("/api/push", {
+      const response = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(kind === "likes" ? { pushNotifyLikes: next } : { pushNotifyComments: next }),
