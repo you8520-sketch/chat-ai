@@ -17,6 +17,7 @@ import {
   parseReplySuggestions,
   requestTrpgReplySuggestions,
   resetTrpgReplySuggestionCooldownForTests,
+  TRPG_REPLY_SUGGESTION_MAX_TOKENS,
   TRPG_REPLY_SUGGESTION_MODEL,
 } from "./replySuggestions";
 
@@ -87,6 +88,7 @@ describe("TRPG reply suggestions", () => {
     assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.notEqual(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.notEqual(TRPG_REPLY_SUGGESTION_MODEL, TRPG_GM_MODEL);
+    assert.equal(TRPG_REPLY_SUGGESTION_MAX_TOKENS, 1000);
   });
 
   it("parses exactly three valid action types", () => {

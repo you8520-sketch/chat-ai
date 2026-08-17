@@ -14,7 +14,7 @@ import { loadCampaign, loadLatestRound, loadParticipants } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
 
 export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
-export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 512;
+export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
 export const TRPG_REPLY_SUGGESTION_TIMEOUT_MS = 45_000;
 export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
@@ -228,7 +228,7 @@ export function extractReplySuggestionCompletionText(data: unknown): string {
 /**
  * Isolated from RP `adaptCheaperInferenceChatBody`, which deletes
  * `reasoning_effort` for DeepSeek V4 Flash/Pro. `thinking.disabled` alone
- * does not actually turn reasoning off on this family, so the 512-token
+ * does not actually turn reasoning off on this family, so the 1000-token
  * suggestion call spends the budget on hidden thinking and returns empty
  * visible content — the room then stays on 「예시 만드는 중…」 or comes
  * back with no list.
