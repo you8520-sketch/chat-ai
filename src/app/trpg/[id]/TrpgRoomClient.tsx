@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
 import TrpgPartySlots from "../TrpgPartySlots";
@@ -35,7 +34,6 @@ export default function TrpgRoomClient({
   initial: TrpgCampaignSnapshot;
   personas: PublicPersonaListItem[];
 }) {
-  const router = useRouter();
   const [snap, setSnap] = useState(initial);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
     initial.viewerPersonaId ?? initialPersonas[0]?.id ?? null
@@ -152,21 +150,6 @@ export default function TrpgRoomClient({
       setError(e instanceof Error ? e.message : "행동 예시를 만들지 못했습니다.");
     } finally {
       setSuggestionsBusy(false);
-    }
-  }
-
-  async function deleteCampaign() {
-    if (!window.confirm("이 캠페인을 삭제할까요? 복구할 수 없습니다.")) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { method: "DELETE" });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "삭제하지 못했습니다.");
-      router.push("/trpg");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "삭제하지 못했습니다.");
-      setBusy(false);
     }
   }
 
@@ -355,7 +338,6 @@ export default function TrpgRoomClient({
           onReroll={(roundNumber) =>
             void run(`/api/trpg/campaigns/${snap.id}/reroll`, { roundNumber })
           }
-          onDelete={() => void deleteCampaign()}
           onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
         />
         <ChatImageGeneratorPanel showRailTrigger={false} />
@@ -459,16 +441,6 @@ export default function TrpgRoomClient({
           code={snap.inviteCode}
           canJoin={setup && snap.participants.length < snap.maxSlots}
         />
-      ) : null}
-      {snap.viewerIsHost ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void deleteCampaign()}
-          className="rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
-        >
-          캠페인 삭제
-        </button>
       ) : null}
 
       <AppSectionCard title="파티">
