@@ -1,0 +1,62 @@
+{
+  "cell": "opus_generic_1",
+  "source_id": "opus",
+  "variant": "generic",
+  "n": 1,
+  "raw_file": "OPUS_GENERIC_1_RAW.txt",
+  "raw_sha256": "e154e2d835c09ae90310ab5139b5e7bdd0943ee2e39970286c0022cd0b780ccd",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "ttft_ms": 19223,
+  "latency_ms": 71545,
+  "visible_chars": 5668,
+  "korean_chars": 3925,
+  "input_tokens": 12299,
+  "completion_tokens": 4811,
+  "reasoning_stream_observed": false,
+  "reasoning_chars": 0,
+  "reasoning_tokens": null,
+  "terminal_usage": true,
+  "incomplete_stream": false,
+  "usage_cost": 0.030447,
+  "saw_done": true,
+  "resolved_model": "muse-spark-1.2",
+  "paragraph_count": 64,
+  "paragraphs_per_1000": 11.2915,
+  "one_sentence_paragraph_share": 0.0625,
+  "dialogue_blocks": 23,
+  "dialogue_blocks_per_1000": 4.0579,
+  "avg_paragraph_chars": 86.59,
+  "median_paragraph_chars": 64,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "wire": {
+    "requested_model": "muse-spark-1.2",
+    "temperature": 0.7,
+    "top_p": null,
+    "max_tokens": null,
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "keys": [
+      "messages",
+      "model",
+      "stream",
+      "stream_options",
+      "temperature"
+    ],
+    "muse_fields": {
+      "reasoning": "ABSENT",
+      "include_reasoning": "ABSENT",
+      "reasoning_effort": "ABSENT",
+      "thinking": "ABSENT",
+      "output_config": "ABSENT",
+      "extra_body": "ABSENT",
+      "reasoning_max_tokens": "ABSENT",
+      "enable_thinking": "ABSENT"
+    }
+  }
+}

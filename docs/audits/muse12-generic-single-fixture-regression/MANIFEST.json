@@ -1,0 +1,569 @@
+{
+  "status": "MUSE12_GENERIC_SINGLE_FIXTURE_CAPTURE_COMPLETE",
+  "question": "라이크 전용 스타일 힌트를 제거한 Generic Muse Mirror가 source output 자체만 읽고도 기존 Muse V1에 근접한 handoff 품질을 유지하는가?",
+  "not_a_generalization_audit": true,
+  "GENERALIZATION_PROVEN": false,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "QUALITY_REVIEW_STATUS": "PENDING_CHATGPT_MANUAL_REVIEW",
+  "SINGLE_FIXTURE_GENERIC_REGRESSION": "PENDING_CHATGPT_MANUAL_REVIEW",
+  "PRODUCTION_ROUTING_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "SOURCE_CALLS": 0,
+  "NEW_MUSE_CALLS": 6,
+  "OPUS_GENERIC_CALLS": 3,
+  "GEMINI_GENERIC_CALLS": 3,
+  "QWEN_CALLS": 0,
+  "DEEPSEEK_CALLS": 0,
+  "GLM_CALLS": 0,
+  "V1_RECALLS": 0,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "MUSE_MODEL": "muse-spark-1.2",
+  "MUSE_FINAL_WIRE": {
+    "reasoning": "ABSENT",
+    "include_reasoning": "ABSENT",
+    "reasoning_effort": "ABSENT",
+    "thinking": "ABSENT",
+    "output_config": "ABSENT",
+    "extra_body": "ABSENT",
+    "reasoning_max_tokens": "ABSENT",
+    "enable_thinking": "ABSENT"
+  },
+  "LIKE_SPECIFIC_PRODUCTION_OCCURRENCES": 0,
+  "GENERIC_BLOCK_OCCURRENCES": {
+    "opus": 1,
+    "gemini31": 1,
+    "system": 0
+  },
+  "frozen_sources": {
+    "opus": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+    "gemini31": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e"
+  },
+  "frozen_v1": {
+    "MUSE12_POSITIVE_OPUS.txt": "c63a257a57f1e0f062719b9953cfb0aa662b5718836df734591250d70b3a473d",
+    "MUSE12_FINAL_OPUS_POSITIVE_2.txt": "1f561ed45ffc02b3dd33dfd6b6679d55a8a6da3cdf3d638580fca68293f77de4",
+    "MUSE12_FINAL_OPUS_POSITIVE_3.txt": "f409fd35e58eaef98a5314bea30024a3f627714cca61e30f2fc0407ec1bef647",
+    "MUSE12_POSITIVE_GEMINI.txt": "3a6564d821e8e6d018d41e759de2971f2d4741e55143e68d45e7b277a2550a97",
+    "MUSE12_FINAL_GEMINI_POSITIVE_2.txt": "0d91cf0032636a2cfa45e0d02d2cd4503554351802850843e4175c5844a5bbaf",
+    "MUSE12_FINAL_GEMINI_POSITIVE_3.txt": "365748e3fa4f395a609dd209e445d4c2fba051827ba2814a3286712e0d302bc9"
+  },
+  "new_raw_sha": {
+    "OPUS_GENERIC_1_RAW.txt": "e154e2d835c09ae90310ab5139b5e7bdd0943ee2e39970286c0022cd0b780ccd",
+    "OPUS_GENERIC_2_RAW.txt": "3dbbe09438932814a3183e9aa5a7e40aa2178f88252bf1afc89ba425de11deab",
+    "OPUS_GENERIC_3_RAW.txt": "ed44db35c17d395a5271b6dcc56b77147c11db8e1f5060467872cb992809f549",
+    "GEMINI31_GENERIC_1_RAW.txt": "2b4089a7cb972060afb84cd687e13c25134cb941ef890b9bfd81cedff8f589b8",
+    "GEMINI31_GENERIC_2_RAW.txt": "448e7a07462f535403579797a1ca580c3e244402235adf9b34f03f92d470e43d",
+    "GEMINI31_GENERIC_3_RAW.txt": "1e5f975b3b80a0e5910ee6a599fd40ee2ceef553d654b9a35b5a834dce651353"
+  },
+  "RAW_SHA_COMPLETE": true,
+  "calls": [
+    {
+      "cell": "opus_generic_1",
+      "source_id": "opus",
+      "variant": "generic",
+      "n": 1,
+      "raw_file": "OPUS_GENERIC_1_RAW.txt",
+      "raw_sha256": "e154e2d835c09ae90310ab5139b5e7bdd0943ee2e39970286c0022cd0b780ccd",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 19223,
+      "latency_ms": 71545,
+      "visible_chars": 5668,
+      "korean_chars": 3925,
+      "input_tokens": 12299,
+      "completion_tokens": 4811,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.030447,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 64,
+      "paragraphs_per_1000": 11.2915,
+      "one_sentence_paragraph_share": 0.0625,
+      "dialogue_blocks": 23,
+      "dialogue_blocks_per_1000": 4.0579,
+      "avg_paragraph_chars": 86.59,
+      "median_paragraph_chars": 64,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    },
+    {
+      "cell": "opus_generic_2",
+      "source_id": "opus",
+      "variant": "generic",
+      "n": 2,
+      "raw_file": "OPUS_GENERIC_2_RAW.txt",
+      "raw_sha256": "3dbbe09438932814a3183e9aa5a7e40aa2178f88252bf1afc89ba425de11deab",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 12575,
+      "latency_ms": 69632,
+      "visible_chars": 5683,
+      "korean_chars": 3986,
+      "input_tokens": 12299,
+      "completion_tokens": 4394,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.028941,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 54,
+      "paragraphs_per_1000": 9.502,
+      "one_sentence_paragraph_share": 0.0185,
+      "dialogue_blocks": 15,
+      "dialogue_blocks_per_1000": 2.6395,
+      "avg_paragraph_chars": 103.28,
+      "median_paragraph_chars": 113.5,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    },
+    {
+      "cell": "opus_generic_3",
+      "source_id": "opus",
+      "variant": "generic",
+      "n": 3,
+      "raw_file": "OPUS_GENERIC_3_RAW.txt",
+      "raw_sha256": "ed44db35c17d395a5271b6dcc56b77147c11db8e1f5060467872cb992809f549",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 19968,
+      "latency_ms": 63230,
+      "visible_chars": 4601,
+      "korean_chars": 3229,
+      "input_tokens": 12299,
+      "completion_tokens": 4606,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.017971,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 38,
+      "paragraphs_per_1000": 8.2591,
+      "one_sentence_paragraph_share": 0.0526,
+      "dialogue_blocks": 12,
+      "dialogue_blocks_per_1000": 2.6081,
+      "avg_paragraph_chars": 119.13,
+      "median_paragraph_chars": 146,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    },
+    {
+      "cell": "gemini31_generic_1",
+      "source_id": "gemini31",
+      "variant": "generic",
+      "n": 1,
+      "raw_file": "GEMINI31_GENERIC_1_RAW.txt",
+      "raw_sha256": "2b4089a7cb972060afb84cd687e13c25134cb941ef890b9bfd81cedff8f589b8",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 19420,
+      "latency_ms": 56305,
+      "visible_chars": 4015,
+      "korean_chars": 2819,
+      "input_tokens": 11359,
+      "completion_tokens": 4277,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.027519,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 32,
+      "paragraphs_per_1000": 7.9701,
+      "one_sentence_paragraph_share": 0.0625,
+      "dialogue_blocks": 7,
+      "dialogue_blocks_per_1000": 1.7435,
+      "avg_paragraph_chars": 123.53,
+      "median_paragraph_chars": 148,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    },
+    {
+      "cell": "gemini31_generic_2",
+      "source_id": "gemini31",
+      "variant": "generic",
+      "n": 2,
+      "raw_file": "GEMINI31_GENERIC_2_RAW.txt",
+      "raw_sha256": "448e7a07462f535403579797a1ca580c3e244402235adf9b34f03f92d470e43d",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 17266,
+      "latency_ms": 63857,
+      "visible_chars": 4388,
+      "korean_chars": 3092,
+      "input_tokens": 11359,
+      "completion_tokens": 4073,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.026782,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 29,
+      "paragraphs_per_1000": 6.6089,
+      "one_sentence_paragraph_share": 0,
+      "dialogue_blocks": 7,
+      "dialogue_blocks_per_1000": 1.5953,
+      "avg_paragraph_chars": 149.38,
+      "median_paragraph_chars": 181,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    },
+    {
+      "cell": "gemini31_generic_3",
+      "source_id": "gemini31",
+      "variant": "generic",
+      "n": 3,
+      "raw_file": "GEMINI31_GENERIC_3_RAW.txt",
+      "raw_sha256": "1e5f975b3b80a0e5910ee6a599fd40ee2ceef553d654b9a35b5a834dce651353",
+      "http_status": 200,
+      "finish_reason": "stop",
+      "ttft_ms": 19214,
+      "latency_ms": 60016,
+      "visible_chars": 3639,
+      "korean_chars": 2549,
+      "input_tokens": 11359,
+      "completion_tokens": 4044,
+      "reasoning_stream_observed": false,
+      "reasoning_chars": 0,
+      "reasoning_tokens": null,
+      "terminal_usage": true,
+      "incomplete_stream": false,
+      "usage_cost": 0.01586,
+      "saw_done": true,
+      "resolved_model": "muse-spark-1.2",
+      "paragraph_count": 36,
+      "paragraphs_per_1000": 9.8928,
+      "one_sentence_paragraph_share": 0.0833,
+      "dialogue_blocks": 12,
+      "dialogue_blocks_per_1000": 3.2976,
+      "avg_paragraph_chars": 99.14,
+      "median_paragraph_chars": 105.5,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "wire": {
+        "requested_model": "muse-spark-1.2",
+        "temperature": 0.7,
+        "top_p": null,
+        "max_tokens": null,
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        },
+        "keys": [
+          "messages",
+          "model",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "muse_fields": {
+          "reasoning": "ABSENT",
+          "include_reasoning": "ABSENT",
+          "reasoning_effort": "ABSENT",
+          "thinking": "ABSENT",
+          "output_config": "ABSENT",
+          "extra_body": "ABSENT",
+          "reasoning_max_tokens": "ABSENT",
+          "enable_thinking": "ABSENT"
+        }
+      }
+    }
+  ],
+  "opus_summary": {
+    "HTTP": [
+      200,
+      200,
+      200
+    ],
+    "FINISH": [
+      "stop",
+      "stop",
+      "stop"
+    ],
+    "VISIBLE_CHARS": {
+      "values": [
+        5668,
+        5683,
+        4601
+      ],
+      "min": 4601,
+      "max": 5683,
+      "mean": 5317.3333
+    },
+    "TTFT": {
+      "values": [
+        19223,
+        12575,
+        19968
+      ],
+      "min": 12575,
+      "max": 19968,
+      "mean": 17255.3333
+    },
+    "LATENCY": {
+      "values": [
+        71545,
+        69632,
+        63230
+      ],
+      "min": 63230,
+      "max": 71545,
+      "mean": 68135.6667
+    },
+    "COMPLETION_TOKENS": {
+      "values": [
+        4811,
+        4394,
+        4606
+      ],
+      "min": 4394,
+      "max": 4811,
+      "mean": 4603.6667
+    },
+    "COST": {
+      "values": [
+        0.030447,
+        0.028941,
+        0.017971
+      ],
+      "min": 0.017971,
+      "max": 0.030447,
+      "mean": 0.0258
+    }
+  },
+  "gemini_summary": {
+    "HTTP": [
+      200,
+      200,
+      200
+    ],
+    "FINISH": [
+      "stop",
+      "stop",
+      "stop"
+    ],
+    "VISIBLE_CHARS": {
+      "values": [
+        4015,
+        4388,
+        3639
+      ],
+      "min": 3639,
+      "max": 4388,
+      "mean": 4014
+    },
+    "TTFT": {
+      "values": [
+        19420,
+        17266,
+        19214
+      ],
+      "min": 17266,
+      "max": 19420,
+      "mean": 18633.3333
+    },
+    "LATENCY": {
+      "values": [
+        56305,
+        63857,
+        60016
+      ],
+      "min": 56305,
+      "max": 63857,
+      "mean": 60059.3333
+    },
+    "COMPLETION_TOKENS": {
+      "values": [
+        4277,
+        4073,
+        4044
+      ],
+      "min": 4044,
+      "max": 4277,
+      "mean": 4131.3333
+    },
+    "COST": {
+      "values": [
+        0.027519,
+        0.026782,
+        0.01586
+      ],
+      "min": 0.01586,
+      "max": 0.027519,
+      "mean": 0.0234
+    }
+  },
+  "REASONING_STREAMS": 0,
+  "TERMINAL_USAGE": 6,
+  "INCOMPLETE_STREAMS": 0,
+  "artifacts": {
+    "BLIND_OPUS_PACKET": "docs/audits/muse12-generic-single-fixture-regression/BLIND_OPUS_GENERIC_VS_V1.md",
+    "BLIND_GEMINI_PACKET": "docs/audits/muse12-generic-single-fixture-regression/BLIND_GEMINI31_GENERIC_VS_V1.md",
+    "BLIND_RUNTIME": "docs/audits/muse12-generic-single-fixture-regression/BLIND_RUNTIME.json",
+    "REVEAL_MAP": "docs/audits/muse12-generic-single-fixture-regression/REVEAL_MAP.json"
+  }
+}

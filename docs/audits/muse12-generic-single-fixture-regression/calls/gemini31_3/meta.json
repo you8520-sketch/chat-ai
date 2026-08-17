@@ -1,0 +1,62 @@
+{
+  "cell": "gemini31_generic_3",
+  "source_id": "gemini31",
+  "variant": "generic",
+  "n": 3,
+  "raw_file": "GEMINI31_GENERIC_3_RAW.txt",
+  "raw_sha256": "1e5f975b3b80a0e5910ee6a599fd40ee2ceef553d654b9a35b5a834dce651353",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "ttft_ms": 19214,
+  "latency_ms": 60016,
+  "visible_chars": 3639,
+  "korean_chars": 2549,
+  "input_tokens": 11359,
+  "completion_tokens": 4044,
+  "reasoning_stream_observed": false,
+  "reasoning_chars": 0,
+  "reasoning_tokens": null,
+  "terminal_usage": true,
+  "incomplete_stream": false,
+  "usage_cost": 0.01586,
+  "saw_done": true,
+  "resolved_model": "muse-spark-1.2",
+  "paragraph_count": 36,
+  "paragraphs_per_1000": 9.8928,
+  "one_sentence_paragraph_share": 0.0833,
+  "dialogue_blocks": 12,
+  "dialogue_blocks_per_1000": 3.2976,
+  "avg_paragraph_chars": 99.14,
+  "median_paragraph_chars": 105.5,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "wire": {
+    "requested_model": "muse-spark-1.2",
+    "temperature": 0.7,
+    "top_p": null,
+    "max_tokens": null,
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "keys": [
+      "messages",
+      "model",
+      "stream",
+      "stream_options",
+      "temperature"
+    ],
+    "muse_fields": {
+      "reasoning": "ABSENT",
+      "include_reasoning": "ABSENT",
+      "reasoning_effort": "ABSENT",
+      "thinking": "ABSENT",
+      "output_config": "ABSENT",
+      "extra_body": "ABSENT",
+      "reasoning_max_tokens": "ABSENT",
+      "enable_thinking": "ABSENT"
+    }
+  }
+}
