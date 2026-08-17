@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { advanceTrpgCampaign, submitTrpgAction } from "@/lib/trpg/engine";
+import { parseTrpgInputOrigin } from "@/lib/trpg/replySuggestions";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -14,6 +15,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       actionType?: unknown;
       selectedStat?: unknown;
       idempotencyKey?: unknown;
+      inputOrigin?: unknown;
     };
     submitTrpgAction(gate.db, {
       campaignId: id,
@@ -22,6 +24,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       actionType: typeof body.actionType === "string" ? body.actionType : null,
       selectedStat: typeof body.selectedStat === "string" ? body.selectedStat : null,
       idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : null,
+      inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
     });
     const campaign = await advanceTrpgCampaign(gate.db, { campaignId: id, userId: gate.user.id });
     return NextResponse.json({ ok: true, campaign });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { TRPG_SCENARIO_DRAFT_MODEL, TRPG_SANDBOX_DIRECTOR_MODEL } from "./scenarioDraft";
+import { TRPG_REPLY_SUGGESTION_MODEL } from "./replySuggestions";
 import {
   TRPG_ALLOW_FORK,
   TRPG_BOT_MODEL,
@@ -19,9 +20,10 @@ describe("TRPG runtime contract (P0)", () => {
     assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
   });
 
-  it("uses flash 0731 only for scenario draft and sandbox blueprint", () => {
+  it("uses flash 0731 only for scenario draft, sandbox blueprint, and optional reply suggestions", () => {
     assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.equal(TRPG_SANDBOX_DIRECTOR_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
   });
 
   it("keeps a linear timeline and the existing round phases", () => {

@@ -10,6 +10,7 @@ import TrpgCampaignRoom from "../TrpgCampaignRoom";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
+import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
@@ -54,6 +55,10 @@ export default function TrpgRoomClient({
   });
   const [actionType, setActionType] = useState<TrpgActionType>("free");
   const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
+  const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
+  const [suggestionsBusy, setSuggestionsBusy] = useState(false);
+  const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>("manual");
+  const [suggestionRound, setSuggestionRound] = useState<number | null>(null);
   const [hostFill, setHostFill] = useState("");
   const [partyBody, setPartyBody] = useState("");
   const [relationshipBrief, setRelationshipBrief] = useState(initial.relationshipBrief ?? "");
@@ -76,6 +81,18 @@ export default function TrpgRoomClient({
     setSnap(next);
     if (next.myDraft?.body) setActionBody(next.myDraft.body);
   }, []);
+
+  useEffect(() => {
+    if (suggestionRound == null) {
+      setSuggestionRound(snap.round.number);
+      return;
+    }
+    if (suggestionRound !== snap.round.number) {
+      setSuggestions([]);
+      setInputOrigin("manual");
+      setSuggestionRound(snap.round.number);
+    }
+  }, [snap.round.number, suggestionRound]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
@@ -119,6 +136,22 @@ export default function TrpgRoomClient({
       setError(e instanceof Error ? e.message : "실패했습니다.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function requestSuggestions() {
+    if (suggestionsBusy) return;
+    setSuggestionsBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, { method: "POST" });
+      const data = (await res.json()) as { suggestions?: TrpgReplySuggestion[]; error?: string };
+      if (!res.ok || !data.suggestions) throw new Error(data.error || "행동 예시를 만들지 못했습니다.");
+      setSuggestions(data.suggestions);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "행동 예시를 만들지 못했습니다.");
+    } finally {
+      setSuggestionsBusy(false);
     }
   }
 
@@ -296,10 +329,19 @@ export default function TrpgRoomClient({
           onActionBodyChange={setActionBody}
           onPartyBodyChange={setPartyBody}
           onHostFillChange={setHostFill}
+          suggestions={suggestions}
+          suggestionsBusy={suggestionsBusy}
+          onRequestSuggestions={() => void requestSuggestions()}
+          onPickSuggestion={(item) => {
+            setActionType(item.actionType);
+            setActionBody(item.text);
+            setInputOrigin("reply_suggestion");
+          }}
           onSendAction={() =>
             void run(`/api/trpg/campaigns/${snap.id}/action`, {
               body: actionBody,
               actionType,
+              inputOrigin,
             })
           }
           onSendParty={() => void sendParty()}

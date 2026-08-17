@@ -22,6 +22,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
+import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
@@ -101,10 +102,14 @@ export default function TrpgCampaignRoom({
   actionBody,
   partyBody,
   hostFill,
+  suggestions,
+  suggestionsBusy,
   onActionTypeChange,
   onActionBodyChange,
   onPartyBodyChange,
   onHostFillChange,
+  onRequestSuggestions,
+  onPickSuggestion,
   onSendAction,
   onSendParty,
   onHostFill,
@@ -126,6 +131,10 @@ export default function TrpgCampaignRoom({
   onActionBodyChange: (value: string) => void;
   onPartyBodyChange: (value: string) => void;
   onHostFillChange: (value: string) => void;
+  suggestions: TrpgReplySuggestion[];
+  suggestionsBusy: boolean;
+  onRequestSuggestions: () => void;
+  onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
   onHostFill: () => void;
@@ -388,14 +397,42 @@ export default function TrpgCampaignRoom({
                 placeholder="무엇을 하는가"
                 className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
               />
-              <button
-                type="button"
-                disabled={busy || !actionBody.trim()}
-                onClick={onSendAction}
-                className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
-              >
-                행동 제출
-              </button>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy || suggestionsBusy}
+                  onClick={onRequestSuggestions}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-violet-400/40 px-3 text-sm font-semibold text-violet-100 hover:bg-violet-500/10 disabled:opacity-50"
+                >
+                  {suggestionsBusy ? "예시 만드는 중…" : "✨ 행동 예시"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || !actionBody.trim()}
+                  onClick={onSendAction}
+                  className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                >
+                  행동 제출
+                </button>
+              </div>
+              {suggestions.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {suggestions.map((item) => (
+                    <li key={`${item.actionType}:${item.text}`}>
+                      <button
+                        type="button"
+                        onClick={() => onPickSuggestion(item)}
+                        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.07]"
+                      >
+                        <span className="text-xs font-semibold text-violet-200">
+                          {actionTypeLabelKo(item.actionType)}
+                        </span>
+                        <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </AppSectionCard>
           ) : null}
 

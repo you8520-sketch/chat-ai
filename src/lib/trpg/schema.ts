@@ -180,6 +180,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_rounds", "usage_json", "TEXT");
   addColumn("trpg_campaign_state", "next_round_context", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_participants", "persona_json", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_action_submissions", "input_origin", "TEXT NOT NULL DEFAULT 'manual'");
   addColumn("trpg_scenarios", "default_pc_stats_json", "TEXT NOT NULL DEFAULT ''");
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite
