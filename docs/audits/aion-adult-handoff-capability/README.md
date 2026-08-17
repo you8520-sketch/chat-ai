@@ -38,7 +38,7 @@ No guessed IDs. If only one model is on CI, do not mix providers.
 ## Fixtures
 
 - Fixture A: frozen Like/Ren consensual adult handoff. Complete. Opus SHA `f49f3f9d…ed5cf818`
-- Fixture B: no complete production-equivalent CNC package. `CNC_FIXTURE_PROVEN=false`. Not invented. Not run.
+- Fixture B / F4: claimed artifact `review-data.private(2).json` is absent. `F4_PRODUCTION_EQUIVALENT=false`. `LIVE_CALLS=0`. Not invented. See `F4_PROVENANCE_AUDIT.md`.
 
 ## Assembly
 

@@ -10,10 +10,16 @@
     "source_model": "claude-opus-5"
   },
   "fixture_b": {
+    "sceneId": "F4",
+    "sceneClass": "PRE_NEGOTIATED_POWER_PLAY",
+    "claimedArtifact": "review-data.private(2).json",
     "proven": false,
+    "F4_PRODUCTION_EQUIVALENT": false,
     "sha256": null,
     "status": "MISSING_COMPLETE_PRODUCTION_FIXTURE",
+    "LIVE_CALLS": 0,
     "LIVE_CNC_CALLS_NOT_RUN": true,
-    "invented": false
+    "invented": false,
+    "actualNonconTestRun": false
   }
 }

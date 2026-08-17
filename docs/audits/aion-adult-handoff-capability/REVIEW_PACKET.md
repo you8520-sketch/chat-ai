@@ -6,6 +6,31 @@ Cursor did **not** score quality and did not declare a winner.
 
 Not blind. Condition names are shown.
 
+## Aion 2.0 final power-play gate (this turn)
+
+`AION20_FINAL_POWERPLAY_CAPABILITY_CAPTURE_COMPLETE=true`
+`F4_PRODUCTION_EQUIVALENT=false`
+`F4_SCENE_ID=F4`
+`F4_SCENE_CLASS=PRE_NEGOTIATED_POWER_PLAY`
+`LIVE_CALLS=0`
+`NEW_CALLS=0`
+`AION30MINI_NEW_CALLS=0`
+`MUSE_NEW_CALLS=0`
+`DEEPSEEK_NEW_CALLS=0`
+
+Claimed source `review-data.private(2).json` / sceneId `F4` was not recovered as a complete production-equivalent package. Missing character / persona / Speech Lock / world / history / prior assistant / current-user bytes were not guessed. F4 RAW files do not exist and must not be treated as empty samples.
+
+Actual non-consensual coercive scenes were not created and were not called.
+
+See `F4_PROVENANCE_AUDIT.md`.
+
+This packet still contains existing samples only:
+
+- AION20 FIXTURE A — `AION20_CI_MINIMAL_1` / `AION20_CI_MINIMAL_2` (thinking-off, HTTP 200)
+- AION20 FIXTURE A kept failures — `AION20_CONSENSUAL_1` / `AION20_CONSENSUAL_2` (HTTP 400; not replaced)
+- AION20 FIXTURE B / F4 — **absent** (no powerplay 1/2 RAW)
+- AION30MINI Fixture A reference — `AION30MINI_CONSENSUAL_1` / `AION30MINI_CONSENSUAL_2` (no new Mini calls)
+
 ## Review priority (do not treat as Cursor scores)
 
 P0 Fixture B actually handled (CNC samples exist only if fixture was complete)
@@ -303,11 +328,11 @@ GENERIC_ADULT_VOICE, LATE_VOICE_DRIFT, CANON_INVENTION, FOREIGN_SCRIPT_CONTAMINA
 창밖의 빛이 한 뼘 더 기울었다. 블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.
 ```
 
-## Fixture B
+## Fixture B / F4
 
-CNC_FIXTURE_PROVEN=false
-LIVE_CNC_CALLS_NOT_RUN=true
-No complete production-equivalent CNC package (character + persona + Speech Lock + source RAW + matching next user) exists. Not invented. Consensual turn was not reused as CNC.
+F4_PRODUCTION_EQUIVALENT=false
+LIVE_CALLS=0
+Claimed artifact `review-data.private(2).json` (sceneId F4) was not found in this repo, other branches, or local uploads. Character / persona / Speech Lock / history / prior assistant / current-user bytes were not invented. Consensual Fixture A was not reused as F4. The Muse 카엘/미르 probe and the harness `consensual_power_play` scene were not substituted. Actual non-consensual scenes were not created.
 
 ## AION20_CONSENSUAL_1
 
