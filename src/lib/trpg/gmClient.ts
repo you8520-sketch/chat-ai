@@ -33,8 +33,10 @@ export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<strin
 }
 
 /**
- * Bot-seat Pro call — thinking OFF like regular RP.
- * Isolated from both GM (thinking on) and `adaptCheaperInferenceChatBody`.
+ * Bot-seat Pro call — Thinking OFF is the product contract.
+ * DeepSeek V4 Pro 0813 does not actually disable reasoning from
+ * `thinking: { type: "disabled" }` alone; `reasoning_effort: "none"` must
+ * be sent with it. Isolated from GM (thinking on) and RP chat.
  */
 export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<string, unknown> {
   const adapted = { ...body };
@@ -43,7 +45,6 @@ export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<stri
   delete adapted.presence_penalty;
   delete adapted.repetition_penalty;
   delete adapted.include_reasoning;
-  delete adapted.reasoning_effort;
   if (typeof adapted.model === "string") {
     const model = normalizeDeepSeekV4ProModelId(adapted.model);
     adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
@@ -51,5 +52,6 @@ export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<stri
       : model;
   }
   adapted.thinking = { type: "disabled" };
+  adapted.reasoning_effort = "none";
   return adapted;
 }
