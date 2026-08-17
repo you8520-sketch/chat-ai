@@ -16,8 +16,8 @@ import {
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
-import { successLabelKo } from "@/lib/trpg/labels";
-import { isTrpgQuotedSpeech, parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
+import { formatTrpgRollCompact } from "@/lib/trpg/labels";
+import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
@@ -590,10 +590,8 @@ function SceneTurn({
   const revealNarration = isFreshLogKey(`n:${row.roundNumber}`);
   const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
   const beats = shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
-  const rolledIds = new Set(row.rolls.map((roll) => roll.participantId));
-  const visibleActions = row.actions.filter(
-    (a) => a.revealed && a.body.trim() && !rolledIds.has(a.participantId)
-  );
+  const rollsByParticipant = new Map(row.rolls.map((roll) => [roll.participantId, roll]));
+  const visibleActions = row.actions.filter((a) => a.revealed && a.body.trim());
   const showToolbar = canReroll || canImage || row.billedPoints != null;
   return (
     <article className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5">
@@ -603,6 +601,9 @@ function SceneTurn({
       <div className="space-y-3">
         {visibleActions.map((action) => {
           const parsed = parseTrpgBotAction(action.body);
+          const roll = rollsByParticipant.get(action.participantId);
+          const intent = parsed.intent.trim();
+          const showJudge = action.kind === "ai_character" || Boolean(intent) || Boolean(roll);
           return (
             <div key={`${row.roundNumber}-${action.participantId}`}>
               <TrpgNamedProse
@@ -625,13 +626,30 @@ function SceneTurn({
                   isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
                 }
               />
-              {parsed.intent ? (
-                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{parsed.intent}</p>
+              {showJudge ? (
+                <div className="mt-1.5 space-y-0.5 font-sans">
+                  <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>
+                  {intent ? (
+                    <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
+                  ) : null}
+                  {roll ? (
+                    <p className="text-[11px] tabular-nums text-zinc-500">
+                      {formatTrpgRollCompact({
+                        statLabel: statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey,
+                        d20: roll.d20,
+                        finalScore: roll.finalScore,
+                        dc: roll.dc,
+                        tier: roll.tier,
+                      })}
+                    </p>
+                  ) : action.kind === "ai_character" ? (
+                    <p className="text-[11px] text-zinc-500">판정 없음 · 대화</p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           );
         })}
-        {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
         {beats.map((beat, i) =>
           beat.speaker === "GM" ? (
             <TrpgGmTalk
@@ -645,7 +663,7 @@ function SceneTurn({
               name={beat.speaker}
               text={beat.text}
               variant={speechVariant(beat.speaker, selfNames)}
-              accent={Boolean(beat.speaker) || isTrpgQuotedSpeech(beat.text)}
+              accent={Boolean(beat.speaker)}
               display={display}
               assets={scenarioAssets}
             />
@@ -667,19 +685,6 @@ function SceneTurn({
   );
 }
 
-function DiceActionBody({ body }: { body: string }) {
-  const parsed = parseTrpgBotAction(body);
-  const prose = parsed.prose || body;
-  return (
-    <>
-      <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{prose}</p>
-      {parsed.intent ? (
-        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{parsed.intent}</p>
-      ) : null}
-    </>
-  );
-}
-
 function DiceStrip({
   rolls,
   statDefs,
@@ -688,39 +693,29 @@ function DiceStrip({
   statDefs: TrpgStatDefinition[];
 }) {
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-1.5 font-sans">
       {rolls.map((roll) => {
         const statLabel = statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey;
-        const typeLabel = roll.actionType ? actionTypeLabelKo(roll.actionType) : "행동";
         return (
           <li
             key={`${roll.participantId}-${roll.d20}-${roll.finalScore}`}
-            className="rounded-2xl border border-white/10 bg-[#161922] px-4 py-3"
+            className="rounded-xl border border-white/10 bg-[#161922] px-3 py-2"
           >
-            <div className="flex items-start gap-3">
-              <div className="min-w-[4.5rem] text-center">
-                <p className="text-3xl font-black tabular-nums text-zinc-50">{roll.d20}</p>
-                <p className={`text-sm font-semibold ${roll.success ? "text-emerald-300" : "text-rose-300"}`}>
-                  {successLabelKo(roll.tier)}
-                </p>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-zinc-100">
-                  {roll.name}
-                  {roll.kind === "ai_character" ? (
-                    <span className="ml-1.5 text-[10px] font-medium text-orange-300/80">AI</span>
-                  ) : null}
-                </p>
-                {roll.actionBody.trim() ? (
-                  <DiceActionBody body={roll.actionBody} />
-                ) : (
-                  <p className="mt-1 text-sm text-zinc-500">제출한 행동이 아직 없습니다.</p>
-                )}
-                <p className="mt-1.5 text-xs text-zinc-500">
-                  {typeLabel}이라 {statLabel} 판정 · {roll.finalScore} vs DC {roll.dc}
-                </p>
-              </div>
-            </div>
+            <p className="text-xs font-semibold text-zinc-200">
+              {roll.name}
+              {roll.kind === "ai_character" ? (
+                <span className="ml-1.5 text-[10px] font-medium text-orange-300/80">AI</span>
+              ) : null}
+            </p>
+            <p className="mt-0.5 text-[11px] tabular-nums text-zinc-400">
+              {formatTrpgRollCompact({
+                statLabel,
+                d20: roll.d20,
+                finalScore: roll.finalScore,
+                dc: roll.dc,
+                tier: roll.tier,
+              })}
+            </p>
           </li>
         );
       })}

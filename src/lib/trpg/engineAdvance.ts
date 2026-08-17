@@ -38,7 +38,7 @@ import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
-import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
+import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock, buildTrpgBotRecentContinuity, loadCompletedMemoryRounds } from "./memory";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
@@ -457,6 +457,8 @@ async function generateBotActions(
     humans.map((h) => h.body),
     scenarioAssets
   );
+  const recentContinuity = buildTrpgBotRecentContinuity(loadCompletedMemoryRounds(db, opts.campaign.id));
+  const campaignWorld = clipTrpgChars(opts.campaign.world_brief ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
 
   for (const turn of ordered) {
     const bot = parts.find((p) => p.id === turn.id);
@@ -505,7 +507,9 @@ async function generateBotActions(
       systemPrompt,
       exampleDialog,
       world,
+      campaignWorld,
       previousGmNarration: clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
+      recentContinuity,
       campaignMemory: buildTrpgBotMemoryBlock({
         ledger: loadCampaignLedger(db, opts.campaign.id),
         sheets: loadSheetSnapshots(db, opts.campaign.id).map((s) => ({

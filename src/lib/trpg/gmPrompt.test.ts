@@ -27,14 +27,18 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, new RegExp(`Aim about ${TRPG_GM_AIM_CHARS}`));
     assert.match(TRPG_GM_SYSTEM, new RegExp(`At least ${TRPG_GM_CLOSING_MIN_CHARS}`));
     assert.match(TRPG_GM_SYSTEM, /single linear timeline/i);
-    assert.match(TRPG_GM_SYSTEM, /comic and serious/i);
-    assert.match(TRPG_GM_SYSTEM, /Page time/);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[SPEECH FORMAT\]/g) ?? []).length, 1);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[ACTION RESOLUTION\]/g) ?? []).length, 1);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[TONE\]/g) ?? []).length, 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /comic and serious/i);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Page time/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Rewrite every ACTION/);
     assert.match(TRPG_GM_SYSTEM, /Extra NPCs/);
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /table-talk/);
-    assert.match(TRPG_GM_SYSTEM, /never the person they address/);
-    assert.match(TRPG_GM_SYSTEM, /Never bury a spoken line/);
+    assert.match(TRPG_GM_SYSTEM, /never the addressee/);
+    assert.match(TRPG_GM_SYSTEM, /Never replay/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     assert.equal(TRPG_GM_MIN_CHARS, 3000);
     assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);
@@ -60,10 +64,13 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(block, /ATTEMPTED ACTION/);
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
-    assert.match(block, /Rewrite every ACTION/);
+    assert.match(block, /do not replay submitted prose/);
+    assert.doesNotMatch(block, /Rewrite every ACTION/);
     assert.match(block, /table-talk/);
-    assert.match(block, /Infer comic vs serious/);
+    assert.match(block, /TONE CONTEXT/);
     assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /WORLD GENRES: 공포\/추리, 판타지/);
+    assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /TONE CONTEXT/);
+    assert.doesNotMatch(formatTrpgGenreToneLine(["공포/추리"]), /^\[TONE\]/);
     const withGenres = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",
@@ -132,8 +139,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Never paste/);
     assert.match(TRPG_GM_SYSTEM, /talk-ask only/);
     assert.match(TRPG_GM_SYSTEM, /Do not stop at echoing/);
-    assert.match(TRPG_GM_SYSTEM, /Written documents/);
-    assert.match(TRPG_GM_SYSTEM, /AI companion/);
+    assert.match(TRPG_GM_SYSTEM, /written text, signs/);
+    assert.match(TRPG_GM_SYSTEM, /AI PC/);
     const talk = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",
