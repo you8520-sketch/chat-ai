@@ -54,6 +54,7 @@ Set these before going live (values you provide separately):
 | `DISABLE_PAYOUT_SCHEDULER` | `1` |
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
 | `EPISODIC_MEMORY_RECALL_ENABLED` | `1` — **required** to inject saved episodic facts into prompts. Without it, facts are still saved but recall is off in production (boot warns). Read by `episodicMemoryRecallEnabled()` in `src/lib/episodicMemoryFacts.ts`. |
+| `WEB_PUSH_VAPID_*` / `WEB_PUSH_SUBJECT` | Optional. Empty values auto-provision a stable VAPID pair into `app_meta` on first boot (uses `OPENROUTER_HTTP_REFERER` / `NEXTAUTH_URL` / `ADMIN_EMAILS` for the subject). Set `DISABLE_WEB_PUSH=1` only if you want the settings toggle to stay off. |
 
 CLOSED_ADULT_TEST_MODE (closed adult cohort — not open-public legal verification):
 

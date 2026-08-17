@@ -129,7 +129,7 @@ export default function PushNotificationManager() {
       : state === "blocked"
         ? "기기 설정에서 하비 AI의 알림 권한을 허용해 주세요."
         : state === "unconfigured"
-          ? "푸시 알림 서버 설정을 준비하고 있습니다."
+          ? "푸시 알림이 서버에서 꺼져 있습니다. 배포 후 잠시 뒤 다시 열어 주세요."
           : state === "unsupported"
             ? "이 브라우저에서는 푸시 알림을 사용할 수 없습니다."
             : "중요한 처리 결과만 앱 알림으로 받을 수 있어요.";
