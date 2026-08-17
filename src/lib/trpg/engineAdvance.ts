@@ -57,7 +57,7 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
-import { buildTrpgRoundErrorJson } from "./startFailure";
+import { attachTrpgCallFailureMeta, buildTrpgRoundErrorJson, type TrpgFailureStage } from "./startFailure";
 import {
   computeResolutionOrder,
   formatResolutionOrderBlock,
@@ -787,56 +787,71 @@ async function runGmForRound(
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
-  const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
-  appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
-  const parsed = parseTrpgGmOutput(text);
-  parsed.narration = applyScenarioAssetTagsToTurnText(
-    parsed.narration,
-    scenarioAssets,
-    usedScenarioTags
-  );
-  const applied = applyValidatedStateDelta(sheets, parsed.delta);
-  const nextSheets = applied.ok ? applied.next : sheets;
-  const roundNumber = (
-    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
-  ).round_number;
-  const ledger = applyCampaignLedger(loadCampaignLedger(db, opts.campaignId), {
-    ...parsed.delta,
-    location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
-    nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
-    campaignFinished: parsed.campaignFinished,
-  });
+  let stage: TrpgFailureStage = "provider_call";
+  try {
+    const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
+    appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
+    stage = "gm_output_parse";
+    const parsed = parseTrpgGmOutput(text);
+    stage = "asset_tagging";
+    parsed.narration = applyScenarioAssetTagsToTurnText(
+      parsed.narration,
+      scenarioAssets,
+      usedScenarioTags
+    );
+    stage = "state_validation";
+    const applied = applyValidatedStateDelta(sheets, parsed.delta);
+    const nextSheets = applied.ok ? applied.next : sheets;
+    const roundNumber = (
+      db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+    ).round_number;
+    stage = "ledger_apply";
+    const ledger = applyCampaignLedger(loadCampaignLedger(db, opts.campaignId), {
+      ...parsed.delta,
+      location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
+      nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
+      campaignFinished: parsed.campaignFinished,
+    });
 
-  db.transaction(() => {
-    db.prepare(
-      `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
-       ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
-    ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
-    if (opts.regenerate) return;
-    if (applied.ok) {
-      persistSheets(db, nextSheets);
+    db.transaction(() => {
+      stage = "gm_persist";
       db.prepare(
-        `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
-         VALUES (?,?,?,?)`
-      ).run(opts.campaignId, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
-    }
-    persistCampaignLedger(db, opts.campaignId, roundNumber, ledger);
-    if (campaignContext && resolvedPlan) {
-      persistCampaignContext(
-        db,
-        applyCampaignStoryProgress(campaignContext, {
-          storyPhase: parsed.delta.storyPhase,
-          threadsAdd: parsed.delta.threadsAdd,
-          threadsResolve: parsed.delta.threadsResolve,
-          endingConditionId: parsed.delta.endingConditionId,
-          campaignFinished: parsed.campaignFinished,
-        })
-      );
-    }
-    setRoundPhase(db, opts.roundId, "APPLYING_STATE");
-    if (!opts.opening) maybeBillRound(db, campaign, opts.roundId, opts.deps?.skipBilling === true);
-  })();
-  return { campaignFinished: parsed.campaignFinished === true };
+        `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
+         ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
+      ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
+      if (opts.regenerate) return;
+      if (applied.ok) {
+        persistSheets(db, nextSheets);
+        db.prepare(
+          `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
+           VALUES (?,?,?,?)`
+        ).run(opts.campaignId, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
+      }
+      persistCampaignLedger(db, opts.campaignId, roundNumber, ledger);
+      if (campaignContext && resolvedPlan) {
+        stage = "story_progress";
+        persistCampaignContext(
+          db,
+          applyCampaignStoryProgress(campaignContext, {
+            storyPhase: parsed.delta.storyPhase,
+            threadsAdd: parsed.delta.threadsAdd,
+            threadsResolve: parsed.delta.threadsResolve,
+            endingConditionId: parsed.delta.endingConditionId,
+            campaignFinished: parsed.campaignFinished,
+          })
+        );
+      }
+      setRoundPhase(db, opts.roundId, "APPLYING_STATE");
+      if (!opts.opening) {
+        stage = "billing";
+        maybeBillRound(db, campaign, opts.roundId, opts.deps?.skipBilling === true);
+      }
+      stage = "round_complete";
+    })();
+    return { campaignFinished: parsed.campaignFinished === true };
+  } catch (error) {
+    throw attachTrpgCallFailureMeta(error, { stage });
+  }
 }
 
 async function completeGmRound(
@@ -951,12 +966,15 @@ function chargeTrpgCalls(
   for (const share of payers) {
     if (share.points <= 0) continue;
     if (getPointBalance(share.userId).total < share.points) {
-      throw new Error(
-        trpgInsufficientBalanceMessage({
-          billingMode,
-          hostUserId: campaign.host_user_id,
-          shortUserId: share.userId,
-        })
+      throw attachTrpgCallFailureMeta(
+        new Error(
+          trpgInsufficientBalanceMessage({
+            billingMode,
+            hostUserId: campaign.host_user_id,
+            shortUserId: share.userId,
+          })
+        ),
+        { stage: "billing" }
       );
     }
   }

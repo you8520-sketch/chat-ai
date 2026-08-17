@@ -404,6 +404,10 @@ export function loadTrpgSnapshot(
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
         ? sanitizeTrpgFailureHint(parseTrpgStartFailureJson(round?.error_json))
         : null,
+    gmFailureKind:
+      campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
+        ? parseTrpgStartFailureJson(round?.error_json)?.kind ?? null
+        : null,
   };
 }
 

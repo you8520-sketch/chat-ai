@@ -20,6 +20,7 @@ import {
   TRPG_BILLING_MODE_FORBIDDEN_MESSAGE,
   TRPG_BILLING_MODE_LOCKED_MESSAGE,
   TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE,
+  TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE,
   TRPG_PARTY_PREMIUM_PER_EXTRA_HUMAN,
   TRPG_VALUE_CREATOR_CAP_RATE,
 } from "./types";
@@ -156,7 +157,7 @@ describe("TRPG host-sponsored rooms", () => {
       hostUserId: 1,
       shortUserId: 2,
     });
-    assert.equal(guestSplit, "포인트가 부족합니다.");
+    assert.equal(guestSplit, TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE);
     const quote = quoteTrpgRoundEconomics({
       modelSubtotal: 80,
       humanUserIds: [1, 2],

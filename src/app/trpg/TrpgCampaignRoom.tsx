@@ -17,6 +17,7 @@ import {
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
+import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -26,6 +27,7 @@ import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
+import TrpgD20 from "./TrpgD20";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
@@ -546,14 +548,21 @@ export default function TrpgCampaignRoom({
           {phase === "ERROR_RECOVERY" && snap.viewerIsHost ? (
             <div className="space-y-2">
               <p className="text-sm text-rose-200">{snap.gmFailureHint || "GM 생성 실패"}</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onRetryGm}
-                className="inline-flex min-h-10 items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-sm font-semibold text-rose-100"
-              >
-                GM 다시 시도
-              </button>
+              {snap.gmFailureKind === "billing_insufficient" ? (
+                <p className="text-xs leading-relaxed text-zinc-400">
+                  포인트를 충전한 뒤 다음 라운드에서 다시 진행할 수 있습니다. 같은 GM 응답을 다시
+                  호출하지 않습니다.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onRetryGm}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-sm font-semibold text-rose-100"
+                >
+                  GM 다시 시도
+                </button>
+              )}
             </div>
           ) : null}
         </div>
@@ -653,50 +662,86 @@ function SceneTurn({
           const roll = rollsByParticipant.get(action.participantId);
           const intent = parsed.intent.trim();
           const showJudge = action.kind === "ai_character" || Boolean(intent) || Boolean(roll);
+          const outcome = roll ? trpgRollOutcomeLabel(roll.tier) : null;
+          const tone = roll ? resolveTrpgD20Tone(roll.d20, roll.tier) : null;
           return (
             <div key={`${row.roundNumber}-${action.participantId}`} data-trpg-action-card>
-              <TrpgNamedProse
-                name={action.name}
-                hint={
-                  action.kind === "ai_character"
-                    ? action.actionType
-                      ? `AI · ${actionTypeLabelKo(action.actionType)}`
-                      : "AI 캐릭터"
-                    : action.actionType
-                      ? actionTypeLabelKo(action.actionType)
-                      : undefined
-                }
-                text={parsed.prose || action.body}
-                variant={action.kind === "human" ? "user" : "character"}
-                display={display}
-                assets={scenarioAssets}
-                paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
-                reveal={
-                  action.kind === "ai_character" &&
-                  isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
-                }
-              />
-              {showJudge ? (
-                <div className="mt-1.5 space-y-0.5 font-sans">
-                  <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>
-                  {intent ? (
-                    <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
-                  ) : null}
-                  {roll ? (
-                    <p className="text-[11px] tabular-nums text-zinc-500">
-                      {formatTrpgRollCompact({
-                        statLabel: statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey,
-                        d20: roll.d20,
-                        finalScore: roll.finalScore,
-                        dc: roll.dc,
-                        tier: roll.tier,
-                      })}
+              {roll && tone && outcome ? (
+                <div className="mb-2 flex items-center gap-2.5 sm:hidden">
+                  <TrpgD20 value={roll.d20} tone={tone} size="mobile" />
+                  <div className="min-w-0">
+                    <p className="sr-only">{`d20 ${roll.d20}`}</p>
+                    <p
+                      className={`text-[12px] font-semibold ${
+                        outcome === "성공" ? "text-emerald-300/90" : "text-rose-300/90"
+                      }`}
+                    >
+                      {roll.d20} {outcome}
                     </p>
-                  ) : action.kind === "ai_character" ? (
-                    <p className="text-[11px] text-zinc-500">판정 없음 · 대화</p>
-                  ) : null}
+                  </div>
                 </div>
               ) : null}
+              <div className="flex items-start gap-3">
+                {roll && tone && outcome ? (
+                  <div className="hidden w-[76px] shrink-0 flex-col items-center gap-1 sm:flex">
+                    <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
+                    <p className="sr-only">{`d20 ${roll.d20}`}</p>
+                    <p
+                      className={`text-[11px] font-semibold ${
+                        outcome === "성공" ? "text-emerald-300/90" : "text-rose-300/90"
+                      }`}
+                    >
+                      {outcome}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <TrpgNamedProse
+                    name={action.name}
+                    hint={
+                      action.kind === "ai_character"
+                        ? action.actionType
+                          ? `AI · ${actionTypeLabelKo(action.actionType)}`
+                          : "AI 캐릭터"
+                        : action.actionType
+                          ? actionTypeLabelKo(action.actionType)
+                          : undefined
+                    }
+                    text={parsed.prose || action.body}
+                    variant={action.kind === "human" ? "user" : "character"}
+                    display={display}
+                    accent={false}
+                    dialogueAccent={false}
+                    assets={scenarioAssets}
+                    paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
+                    reveal={
+                      action.kind === "ai_character" &&
+                      isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
+                    }
+                  />
+                  {showJudge ? (
+                    <div className="mt-1.5 space-y-0.5 font-sans">
+                      <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>
+                      {intent ? (
+                        <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
+                      ) : null}
+                      {roll ? (
+                        <p className="text-[11px] tabular-nums text-zinc-500">
+                          {formatTrpgRollCompact({
+                            statLabel: statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey,
+                            d20: roll.d20,
+                            finalScore: roll.finalScore,
+                            dc: roll.dc,
+                            tier: roll.tier,
+                          })}
+                        </p>
+                      ) : action.kind === "ai_character" ? (
+                        <p className="text-[11px] text-zinc-500">판정 없음 · 대화</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
           );
         })}

@@ -1,12 +1,34 @@
-import { TRPG_GM_MODEL } from "./types";
+import {
+  TRPG_GM_MODEL,
+  TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE,
+  TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE,
+} from "./types";
 
 export const TRPG_START_FAILURE_CLASSES = ["A", "B", "C"] as const;
 export type TrpgStartFailureClass = (typeof TRPG_START_FAILURE_CLASSES)[number];
+
+export const TRPG_FAILURE_STAGES = [
+  "provider_call",
+  "gm_output_parse",
+  "asset_tagging",
+  "state_validation",
+  "ledger_apply",
+  "gm_persist",
+  "story_progress",
+  "billing",
+  "round_complete",
+] as const;
+export type TrpgFailureStage = (typeof TRPG_FAILURE_STAGES)[number];
 
 export const TRPG_FAILURE_KINDS = [
   "provider_timeout",
   "provider_http",
   "empty_completion",
+  "gm_output_parse",
+  "state_error",
+  "billing_insufficient",
+  "billing_error",
+  "persist_error",
   "parse_state",
   "unknown",
 ] as const;
@@ -16,6 +38,7 @@ export type TrpgStartFailure = {
   class: TrpgStartFailureClass;
   error: string;
   kind?: TrpgFailureKind;
+  stage?: TrpgFailureStage;
   model?: string;
   elapsedMs?: number | null;
   trueOffRequested?: boolean;
@@ -27,6 +50,7 @@ export type TrpgRoundErrorJson = {
   class: TrpgStartFailureClass;
   error: string;
   kind: TrpgFailureKind;
+  stage?: TrpgFailureStage;
   model: string;
   elapsedMs: number | null;
   trueOffRequested: true;
@@ -38,6 +62,7 @@ export type TrpgCallFailureMeta = {
   elapsedMs?: number;
   httpStatus?: number | null;
   reasoningTokens?: number | "unavailable";
+  stage?: TrpgFailureStage;
 };
 
 const PRE_GM_MESSAGE =
@@ -48,24 +73,56 @@ const PROVIDER_MESSAGE =
 
 const HTTP_STATUS_RE = /\[TRPG\]\s+(\d{3})\b/;
 
+const INSUFFICIENT_MESSAGE =
+  /포인트가 부족|방장의 포인트가 부족|플레이어의 포인트가 부족/;
+
+const PARSE_MESSAGE = /<<<NARRATION>>>|<<<DELTA>>>|GM output|parse|JSON/i;
+const STATE_MESSAGE = /unknown_participant|hp_out_of_range|duplicate_player|missing_item|state/i;
+const PERSIST_MESSAGE = /no such table|SQLITE_|UNIQUE constraint|persist/i;
+
+export function extractTrpgFailureStage(error: unknown): TrpgFailureStage | undefined {
+  if (typeof error === "object" && error && "stage" in error) {
+    const stage = (error as { stage?: unknown }).stage;
+    return TRPG_FAILURE_STAGES.find((item) => item === stage);
+  }
+  return undefined;
+}
+
 export function classifyTrpgStartFailure(opts: {
   error: unknown;
   /** True when opening round 0 was inserted before the GM ran. */
   reachedOpeningRound?: boolean;
-  /** Usage rows written after a successful GM provider response. */
+  /** Usage rows written after a successful GM provider response. Compatibility only. */
   gmUsageCount?: number;
+  stage?: TrpgFailureStage;
 }): TrpgStartFailure {
   const error = opts.error instanceof Error ? opts.error.message : String(opts.error ?? "start failed");
+  const stage = opts.stage ?? extractTrpgFailureStage(opts.error);
   if (!opts.reachedOpeningRound) {
-    return { class: "A", error };
+    return { class: "A", error, stage };
+  }
+  const kind = classifyTrpgFailureKind({
+    classified: { class: "B", error, stage },
+    error: opts.error,
+    stage,
+  });
+  if (
+    kind === "provider_timeout" ||
+    kind === "provider_http" ||
+    kind === "empty_completion"
+  ) {
+    return { class: "B", error, stage };
+  }
+  if (PRE_GM_MESSAGE.test(error) && !PROVIDER_MESSAGE.test(error) && !stage) {
+    return { class: "A", error, stage };
+  }
+  if (stage && stage !== "provider_call") {
+    return { class: "C", error, stage };
   }
   if ((opts.gmUsageCount ?? 0) > 0) {
-    return { class: "C", error };
+    return { class: "C", error, stage };
   }
-  if (PRE_GM_MESSAGE.test(error) && !PROVIDER_MESSAGE.test(error)) {
-    return { class: "A", error };
-  }
-  return { class: "B", error };
+  return { class: "B", error, stage };
 }
 
 export function extractTrpgHttpStatus(error: unknown): number | null {
@@ -97,19 +154,40 @@ export function extractTrpgReasoningTokens(error: unknown): number | "unavailabl
 }
 
 export function classifyTrpgFailureKind(opts: {
-  classified: TrpgStartFailure;
+  classified: Pick<TrpgStartFailure, "class" | "error" | "stage">;
   error: unknown;
+  stage?: TrpgFailureStage;
 }): TrpgFailureKind {
-  if (opts.classified.class === "C") return "parse_state";
-  if (opts.classified.class === "A") return "unknown";
   const raw = opts.classified.error;
   const name = opts.error instanceof Error ? opts.error.name : "";
+  const stage = opts.stage ?? opts.classified.stage ?? extractTrpgFailureStage(opts.error);
+
+  if (
+    INSUFFICIENT_MESSAGE.test(raw) ||
+    raw === TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE ||
+    raw === TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE
+  ) {
+    return "billing_insufficient";
+  }
+  if (stage === "billing") return "billing_error";
   if (/empty completion/i.test(raw)) return "empty_completion";
   if (/timeout|AbortError|TimeoutError|aborted/i.test(raw) || name === "TimeoutError" || name === "AbortError") {
     return "provider_timeout";
   }
   if (extractTrpgHttpStatus(opts.error) != null || HTTP_STATUS_RE.test(raw)) return "provider_http";
-  if (PROVIDER_MESSAGE.test(raw)) return "unknown";
+  if (stage === "gm_output_parse" || PARSE_MESSAGE.test(raw)) return "gm_output_parse";
+  if (stage === "state_validation" || STATE_MESSAGE.test(raw)) return "state_error";
+  if (
+    stage === "gm_persist" ||
+    stage === "story_progress" ||
+    stage === "ledger_apply" ||
+    stage === "round_complete" ||
+    PERSIST_MESSAGE.test(raw)
+  ) {
+    return "persist_error";
+  }
+  if (stage === "asset_tagging") return "state_error";
+  if (PROVIDER_MESSAGE.test(raw) || stage === "provider_call") return "unknown";
   return "unknown";
 }
 
@@ -120,6 +198,9 @@ export function attachTrpgCallFailureMeta(error: unknown, meta: TrpgCallFailureM
   if (meta.reasoningTokens !== undefined) {
     (err as Error & TrpgCallFailureMeta).reasoningTokens = meta.reasoningTokens;
   }
+  if (meta.stage && !(err as Error & TrpgCallFailureMeta).stage) {
+    (err as Error & TrpgCallFailureMeta).stage = meta.stage;
+  }
   return err;
 }
 
@@ -129,18 +210,22 @@ export function buildTrpgRoundErrorJson(opts: {
   gmUsageCount?: number;
   model?: string;
   elapsedMs?: number | null;
+  stage?: TrpgFailureStage;
 }): TrpgRoundErrorJson {
+  const stage = opts.stage ?? extractTrpgFailureStage(opts.error);
   const classified = classifyTrpgStartFailure({
     error: opts.error,
     reachedOpeningRound: opts.reachedOpeningRound,
     gmUsageCount: opts.gmUsageCount,
+    stage,
   });
-  const kind = classifyTrpgFailureKind({ classified, error: opts.error });
+  const kind = classifyTrpgFailureKind({ classified, error: opts.error, stage });
   const elapsedMs = opts.elapsedMs ?? extractTrpgElapsedMs(opts.error);
   return {
     class: classified.class,
     error: classified.error,
     kind,
+    stage,
     model: opts.model ?? TRPG_GM_MODEL,
     elapsedMs,
     trueOffRequested: true,
@@ -150,14 +235,15 @@ export function buildTrpgRoundErrorJson(opts: {
 }
 
 export function sanitizeTrpgFailureHint(
-  failure: Pick<TrpgStartFailure, "kind" | "httpStatus" | "class" | "error"> | null | undefined
+  failure: Pick<TrpgStartFailure, "kind" | "httpStatus" | "class" | "error" | "stage"> | null | undefined
 ): string {
   if (!failure) return "GM 생성 실패";
   const kind =
     failure.kind ??
     classifyTrpgFailureKind({
-      classified: { class: failure.class, error: failure.error },
+      classified: { class: failure.class, error: failure.error, stage: failure.stage },
       error: failure.error,
+      stage: failure.stage,
     });
   switch (kind) {
     case "provider_timeout":
@@ -170,6 +256,19 @@ export function sanitizeTrpgFailureHint(
     }
     case "empty_completion":
       return "GM 생성 실패 · Empty completion";
+    case "gm_output_parse":
+      return "GM 생성 실패 · GM output parse";
+    case "state_error":
+      return "GM 생성 실패 · State error";
+    case "billing_insufficient":
+      if (failure.error === TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE) {
+        return TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE;
+      }
+      return TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE;
+    case "billing_error":
+      return "라운드 과금에 실패했습니다.";
+    case "persist_error":
+      return "GM 생성 실패 · Persist error";
     case "parse_state":
       return "GM 생성 실패 · Parse/state error";
     case "unknown":
@@ -188,6 +287,7 @@ export function parseTrpgStartFailureJson(raw: string | null | undefined): TrpgS
       class?: unknown;
       error?: unknown;
       kind?: unknown;
+      stage?: unknown;
       model?: unknown;
       elapsedMs?: unknown;
       trueOffRequested?: unknown;
@@ -197,6 +297,7 @@ export function parseTrpgStartFailureJson(raw: string | null | undefined): TrpgS
     const failureClass = TRPG_START_FAILURE_CLASSES.find((item) => item === parsed.class);
     const error = typeof parsed.error === "string" && parsed.error.trim() ? parsed.error : raw;
     const kind = TRPG_FAILURE_KINDS.find((item) => item === parsed.kind);
+    const stage = TRPG_FAILURE_STAGES.find((item) => item === parsed.stage);
     const elapsedMs =
       typeof parsed.elapsedMs === "number" && Number.isFinite(parsed.elapsedMs) ? parsed.elapsedMs : null;
     const httpStatus =
@@ -211,6 +312,7 @@ export function parseTrpgStartFailureJson(raw: string | null | undefined): TrpgS
       class: failureClass ?? "C",
       error,
       kind,
+      stage,
       model: typeof parsed.model === "string" ? parsed.model : undefined,
       elapsedMs,
       trueOffRequested: parsed.trueOffRequested === true,
