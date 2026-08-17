@@ -157,6 +157,25 @@ describe("source-specific adult handoff routing", () => {
     assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_QWEN_38_MAX_MODEL), false);
   });
 
+  it("locks Opus→Qwen fragment to Candidate B replacement only", () => {
+    assert.equal(
+      OPUS_QWEN_FRAGMENT_SENTENCE,
+      "직전 assistant의 호흡을 기준으로 문단은 한두 문장 수가 아니라 의미 단위로 나눈다. 같은 화자의 짧은 연속 발화·확인·감탄은 가능한 한 하나의 대사 블록으로 묶고, 하나의 행동·감각·생각 흐름에 속한 서술은 한 문단 안에서 충분히 연결하며, 실제 의미 초점이나 행동 단계가 바뀔 때만 새 문단으로 전환한다."
+    );
+    assert.equal(
+      OPUS_QWEN_FRAGMENT_SENTENCE.includes(
+        "문단과 대사 분절은 직전 assistant의 패턴을 따른다."
+      ),
+      false
+    );
+    assert.equal(
+      GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK.startsWith(
+        "[QWEN SOURCE STYLE CONTINUITY — GEMINI 3.1]"
+      ),
+      true
+    );
+  });
+
   it("CASE A — Opus adult trigger uses Qwen with the Opus fragment only", () => {
     const result = decideForSource({
       selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
