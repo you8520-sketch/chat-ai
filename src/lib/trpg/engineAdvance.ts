@@ -1083,6 +1083,7 @@ function chargeTrpgCalls(
     throwBillingFault(substage, opts.billingFault, "billing fault: point_deduction");
     for (const share of payers) {
       if (share.points <= 0) continue;
+      substage = "point_deduction";
       if (opts.billingFault === "after_first_deduction" && deductedPayers >= 1) {
         throw new Error("billing fault: after_first_deduction");
       }

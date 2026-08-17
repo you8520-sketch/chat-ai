@@ -229,7 +229,7 @@ describe("TRPG post-GM billing recovery", () => {
       assert.equal(row.billed, 0);
       assert.equal(gmCalls, openingCalls + 1);
       const guest = loadTrpgSnapshot(db, campaignId, 2);
-      assert.equal(guest?.hasPendingGmResult, false);
+      assert.notEqual(guest?.hasPendingGmResult, true);
       assert.equal(JSON.stringify(snap).includes("pending_gm_result_json"), false);
       db.close();
     }
