@@ -256,6 +256,14 @@ export type ContextBuildInput = {
    * Muse/Gemini see no actual prompt change.
    */
   sceneMomentumInput?: import("@/lib/sceneMomentum/types").SceneMomentumInput | null;
+  /**
+   * Experiment-only DeepSeek user-turn adapters. Production chat route does
+   * not set this. Style Track S1 challenger may set applyStyleMirror only.
+   */
+  deepSeekAdultHandoff?: {
+    applyStyleMirror?: boolean;
+    applySceneCompletion?: boolean;
+  } | null;
 };
 
 export type BuiltContext = {

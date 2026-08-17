@@ -188,6 +188,7 @@ import {
   type MomentumActivationObservability,
 } from "@/lib/sceneMomentum/predicate";
 import { buildSimulationModeBlock } from "@/lib/simulationMode";
+import { appendDeepSeekAdultHandoffUserBlocks } from "@/lib/deepseekAdultHandoff";
 
 type SectionTarget = "dynamic" | "cacheRules" | "cacheCharacter";
 
@@ -1380,6 +1381,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   ) {
     // Residual canary only — keep Terra length owner as absolute end.
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
+  }
+  if (input.deepSeekAdultHandoff) {
+    userTurnContent = appendDeepSeekAdultHandoffUserBlocks(
+      userTurnContent,
+      input.deepSeekAdultHandoff
+    );
   }
   if (terraTerminalLengthOwner) {
     const terminalContract = resolveCanaryTerraTerminalContract(
