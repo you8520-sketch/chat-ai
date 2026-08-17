@@ -92,6 +92,12 @@ export type ContextBuildInput = {
   chatId?: number;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
+  /**
+   * Experiment D only — numeric USER_TAIL owner A/B.
+   * Production omits this; default remains 3,200.
+   * "B" + gemini-3.7-flash changes only 3,200 → 4,000.
+   */
+  userTailLengthOwnerArm?: "A" | "B" | null;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
   completedTurns?: number;
   /** Reset-boundary eligible completed turns; used only by memory coverage math. */

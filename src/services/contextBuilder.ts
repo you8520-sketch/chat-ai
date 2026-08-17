@@ -1399,6 +1399,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         contentKind: input.contentKind,
         party: input.party,
         runtimeMode,
+        userTailLengthOwnerArm: input.userTailLengthOwnerArm,
       }
     );
     if (rpVariant && rpDiagnosticUsesMinimalLengthOwner(rpVariant)) {
