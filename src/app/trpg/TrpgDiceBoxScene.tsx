@@ -34,13 +34,15 @@ function colorsetForTone(tone: TrpgD20Tone) {
   };
 }
 
-function applyTabletopCamera(box: {
-  camera: { position: { set: (x: number, y: number, z: number) => void }; lookAt: (x: number, y: number, z: number) => void };
-  cameraHeight: { far: number };
-}) {
-  const far = box.cameraHeight.far;
-  box.camera.position.set(0, -far * 0.4, far * 0.78);
-  box.camera.lookAt(0, 0, 0);
+function applyTabletopCamera(
+  box: DiceBox,
+  target?: { x: number; y: number; z: number }
+) {
+  const height = box.cameraHeight.medium || box.cameraHeight.far;
+  const x = target?.x ?? 0;
+  const y = target?.y ?? 0;
+  box.camera.position.set(x, y - height * 0.22, height * 0.62);
+  box.camera.lookAt(x, y, 0);
 }
 
 export default function TrpgDiceBoxScene({
@@ -76,16 +78,16 @@ export default function TrpgDiceBoxScene({
         theme_texture: "",
         theme_material: "glass",
         theme_customColorset: colorsetForTone(tone),
-        gravity_multiplier: 560,
-        light_intensity: reducedQuality ? 0.55 : 0.82,
-        strength: 1.15,
+        gravity_multiplier: 620,
+        light_intensity: reducedQuality ? 0.7 : 1.05,
+        strength: 1.05,
         color_spotlight: tone === "nat20" ? 0xf0d78c : tone === "nat1" ? 0xc07070 : 0xefdfd5,
       });
       await box.initialize();
       if (cancelled) return;
       applyTabletopCamera(box);
-      box.light.intensity = reducedQuality ? 0.7 : 1.05;
-      box.light_amb.intensity = 0.42;
+      box.light.intensity = reducedQuality ? 0.85 : 1.25;
+      box.light_amb.intensity = 0.58;
       rim = box.light.clone();
       rim.intensity = tone === "nat20" || tone === "nat1" ? 0.38 : 0.22;
       rim.position.set(-box.light.position.x * 0.35, box.light.position.y * 0.2, box.light.position.z * 0.55);
@@ -102,7 +104,7 @@ export default function TrpgDiceBoxScene({
       }
       await box.roll(TRPG_DICE_BOX_NOTATION(value));
       if (cancelled) return;
-      applyTabletopCamera(box);
+      applyTabletopCamera(box, box.diceList[0]?.position);
       if (!settledRef.current) {
         settledRef.current = true;
         onSettled();

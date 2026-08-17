@@ -386,8 +386,22 @@ html.chat-room-active .site-header {
 }
 
 html.character-intro-embed-active .site-header,
-html.character-intro-embed-active .app-shell > :not(main) {
+html.character-intro-embed-active .app-shell > :not(main),
+html.dice-lab-active .site-header,
+html.dice-lab-active .app-shell > :not(main),
+html.dice-lab-active .mobile-bottom-nav {
   display: none;
+}
+
+html.dice-lab-active .app-shell {
+  max-width: none;
+  gap: 0;
+  padding: 0;
+}
+
+html.dice-lab-active .app-shell > main {
+  min-height: 100dvh;
+  width: 100%;
 }
 
 html.character-intro-embed-active .app-shell {

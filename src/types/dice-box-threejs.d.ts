@@ -57,5 +57,6 @@ declare module "@3d-dice/dice-box-threejs" {
       domElement: HTMLCanvasElement;
     };
     desk: { receiveShadow: boolean };
+    diceList: Array<{ position: { x: number; y: number; z: number } }>;
   }
 }

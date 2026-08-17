@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import TrpgDiceOverlay, { type TrpgDiceRenderer } from "../TrpgDiceOverlay";
 import TrpgD20 from "../TrpgD20";
@@ -28,9 +28,14 @@ export default function TrpgDiceLabClient({
   const [playKey, setPlayKey] = useState(0);
   const rolls = useMemo(() => [{ ...FIXTURE }], [playKey]);
 
+  useEffect(() => {
+    document.documentElement.classList.add("dice-lab-active");
+    return () => document.documentElement.classList.remove("dice-lab-active");
+  }, []);
+
   return (
     <div className="relative min-h-[100dvh] bg-[#07080c] text-zinc-100">
-      <div className="pointer-events-auto relative z-[70] mx-auto flex max-w-xl flex-col gap-3 px-4 py-5">
+      <div className="pointer-events-auto relative z-[70] m-4 flex max-w-md flex-col gap-2 rounded-2xl bg-black/45 px-3 py-3 backdrop-blur-sm">
         <h1 className="text-lg font-semibold">TRPG D20 visual lab</h1>
         <p className="text-sm text-zinc-400">
           Fixture server d20 = 6. Client never invents a roll. Prototype A is the corrected custom

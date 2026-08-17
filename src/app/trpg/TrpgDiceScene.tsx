@@ -177,9 +177,9 @@ export default function TrpgDiceScene({
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 40);
-    camera.position.set(0, 1.12, 2.48);
-    camera.lookAt(0, 0.08, 0);
+    const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 40);
+    camera.position.set(0.2, 1.62, 3.35);
+    camera.lookAt(0, 0.12, 0);
 
     const key = new THREE.DirectionalLight(0xf3efe6, reducedQuality ? 1.15 : 1.7);
     key.position.set(-2.4, 3.4, 2.6);
@@ -217,6 +217,7 @@ export default function TrpgDiceScene({
 
     const toward = new THREE.Vector3(0, 1, 0);
     const end = landingQuaternion(die, faceValues, value, toward);
+    end.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.38));
     const start = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
     );

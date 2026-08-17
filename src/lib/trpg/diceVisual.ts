@@ -32,7 +32,7 @@ export const TRPG_DICE_BOX_NOTATION = (value: number) => `1d20@${value}`;
 export const TRPG_DICE_BOX_COLORSET = {
   name: "obsidian-relic",
   foreground: TRPG_D20_NUMERAL,
-  background: "#1c2028",
+  background: "#2a303a",
   outline: "#8a8070",
   texture: "none",
   material: "glass",

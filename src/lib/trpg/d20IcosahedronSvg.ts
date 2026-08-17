@@ -96,7 +96,7 @@ export function projectIcosahedronSvgFaces(opts: {
   const cy = size / 2 + 1;
   const scale = size * 0.3;
   const light = normalize([0.42, 0.78, 0.46]);
-  const rotated = VERTICES.map((vertex) => rotateY(rotateX(vertex, 0.52), -0.62));
+  const rotated = VERTICES.map((vertex) => rotateY(rotateX(vertex, 0.72), -0.38));
   const faces = FACES.map((indices) => {
     const a = rotated[indices[0]];
     const b = rotated[indices[1]];
