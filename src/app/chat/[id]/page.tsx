@@ -22,6 +22,7 @@ import {
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
+import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
 import ChatClient from "./ChatClient";
 
 import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
@@ -336,6 +337,19 @@ export default async function ChatPage({
     .map((m) => m.id);
   const reportStatusByMessageId = getReportStatusesForMessages(user.id, assistantMessageIds);
 
+  const staleAdoptionIds = new Set(
+    collectStaleOocAdoptionIds(
+      rawMessages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        model: m.model,
+        usage: m.usage,
+        generation_status: m.generation_status,
+      }))
+    )
+  );
+
   const allMessages = rawMessages.map((m, idx) => {
     const { variants, activeVariant } = normalizeMessageVariants(m);
     const variantMeta = serializeVariantsForClient(variants, activeVariant, {
@@ -343,6 +357,7 @@ export default async function ChatPage({
     });
     const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+    const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
     const clientUsage = activeUsage
       ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
           keepInternal: showFullBillingReceipt,
@@ -404,6 +419,9 @@ export default async function ChatPage({
       requestId: m.request_id ?? undefined,
       generationStatus: m.generation_status ?? undefined,
       reportStatus: reportStatusByMessageId.get(m.id) ?? "none",
+      oocSceneRender: oocFlags.oocSceneRender,
+      canonAdopted: oocFlags.canonAdopted,
+      canonAdoptionStale: staleAdoptionIds.has(m.id),
     };
   });
 

@@ -69,4 +69,11 @@ describe("chatInputSuppressesStatusWidget", () => {
   it("does not suppress for normal RP", () => {
     assert.equal(chatInputSuppressesStatusWidget("계속 이어서 RP"), false);
   });
+
+  it("suppresses widget for noncanonical OOC scene render without taking HTML path", () => {
+    const msg = "OOC: 본편과 별개로 이 상황을 샘플 장면으로 한 번 보여줘.";
+    assert.equal(chatInputSuppressesStatusWidget(msg), true);
+    assert.equal(isHtmlFlashOnlyTurn(msg), false);
+    assert.equal(isOocCreativeHtmlTurn(msg), false);
+  });
 });

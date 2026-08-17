@@ -29,6 +29,7 @@ import {
   type ChatMessageLike,
 } from "@/lib/chatMessagePagination";
 import { getReportStatusesForMessages } from "@/lib/refund";
+import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
 
 type DbMessageRow = {
   id: number;
@@ -60,6 +61,7 @@ function mapDbMessageForClient(
   });
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
     ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
         keepInternal: keepInternalAdultRouting,
@@ -113,7 +115,28 @@ function mapDbMessageForClient(
     requestId: m.request_id ?? undefined,
     generationStatus: m.generation_status ?? undefined,
     reportStatus,
+    oocSceneRender: oocFlags.oocSceneRender,
+    canonAdopted: oocFlags.canonAdopted,
   };
+}
+
+function attachCanonAdoptionStale<T extends { id: number; canonAdoptionStale?: boolean }>(
+  mapped: T[],
+  rawMessages: DbMessageRow[]
+): T[] {
+  const staleIds = new Set(
+    collectStaleOocAdoptionIds(
+      rawMessages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        model: m.model,
+        usage: m.usage,
+        generation_status: m.generation_status,
+      }))
+    )
+  );
+  return mapped.map((m) => (staleIds.has(m.id) ? { ...m, canonAdoptionStale: true } : m));
 }
 
 export async function GET(req: Request) {
@@ -155,13 +178,16 @@ export async function GET(req: Request) {
   );
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
 
-  const mapped = rawMessages.map((m) =>
-    mapDbMessageForClient(
-      m,
-      chat.user_note ?? undefined,
-      reportStatusByMessageId.get(m.id) ?? "none",
-      keepInternalAdultRouting
-    )
+  const mapped = attachCanonAdoptionStale(
+    rawMessages.map((m) =>
+      mapDbMessageForClient(
+        m,
+        chat.user_note ?? undefined,
+        reportStatusByMessageId.get(m.id) ?? "none",
+        keepInternalAdultRouting
+      )
+    ),
+    rawMessages
   ) as ChatMessageLike[];
   const safeTurnLimit =
     Number.isFinite(turnLimit) && turnLimit > 0

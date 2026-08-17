@@ -4,6 +4,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { mergeIncomingUsageWithStoredSemantics } from "@/lib/oocSceneRender";
 import { normalizeMessageVariants } from "./messageAlternates";
 
 export type GenerationStatus =
@@ -456,7 +457,7 @@ export function finalizeAssistantMessageCore(
 ): FinalizeAssistantMessageResult {
   const row = db
     .prepare(
-      `SELECT generation_status, deduction_slices, status_widget_values_json
+      `SELECT generation_status, deduction_slices, status_widget_values_json, usage
        FROM messages WHERE id=? AND chat_id=?`
     )
     .get(opts.assistantMessageId, opts.chatId) as
@@ -464,6 +465,7 @@ export function finalizeAssistantMessageCore(
         generation_status: string | null;
         deduction_slices: string | null;
         status_widget_values_json: string | null;
+        usage: string | null;
       }
     | undefined;
 
@@ -480,6 +482,7 @@ export function finalizeAssistantMessageCore(
   }
 
   const finalStatusWidgetValuesJson = opts.statusWidgetValuesJson ?? "";
+  const usageJson = mergeIncomingUsageWithStoredSemantics(row.usage, opts.usageJson);
 
   db.prepare(
     `UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?,
@@ -488,7 +491,7 @@ export function finalizeAssistantMessageCore(
   ).run(
     opts.content,
     opts.model,
-    opts.usageJson,
+    usageJson,
     opts.alternatesJson,
     opts.activeVariant,
     finalStatusWidgetValuesJson,

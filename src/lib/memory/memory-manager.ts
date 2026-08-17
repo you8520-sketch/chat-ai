@@ -31,6 +31,7 @@ import {
   resolveCanonicalSourceUserMessageId,
 } from "./memory-source-boundary";
 import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
@@ -293,6 +294,7 @@ export async function scheduleMemoryUpdate(opts: {
   relationshipDeltaFromMain?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
 }): Promise<void> {
   if (!isMemoryFeatureEnabled()) return;
+  if (resolveOocSceneRenderIntent(opts.userMessage)) return;
   if (isGeminiIsolationMode()) {
     console.warn("[gemini-isolation] scheduleMemoryUpdate skipped");
     return;

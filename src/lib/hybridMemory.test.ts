@@ -48,6 +48,32 @@ describe("rawRecentTurnsToHistory", () => {
     assert.equal(turns[1]!.user, "hi");
   });
 
+  it("emits assistant-only history for adopted OOC scenes without a fake user", () => {
+    const turns = messagesToTurns([
+      { role: "user", content: "*라이크와 카페에 있다.*" },
+      { role: "assistant", content: "<카페 scene>" },
+      {
+        role: "assistant",
+        content: "<호텔 키스 scene>",
+        usage: {
+          generationKind: "ooc_scene_render",
+          canonical: false,
+          canonAdopted: true,
+        },
+      },
+    ]);
+    assert.equal(turns.length, 2);
+    assert.equal(turns[1]!.assistantOnly, true);
+    assert.equal(turns[1]!.user, "");
+    const history = rawRecentTurnsToHistory(turns);
+    assert.deepEqual(
+      history.map((row) => row.role),
+      ["user", "assistant", "assistant"]
+    );
+    assert.equal(history.some((row) => row.content.includes("본편과 별개")), false);
+    assert.equal(history.at(-1)!.content, "<호텔 키스 scene>");
+  });
+
   it("summarizedTurnCount does not shrink the pool", () => {
     const turns = makeTurns(8);
     const { pool } = resolveRawRecentTurnPool(turns, 6);

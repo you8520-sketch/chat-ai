@@ -35,6 +35,7 @@ import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
+import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 
@@ -68,6 +69,15 @@ export async function PATCH(req: Request) {
   };
 
   const { variants, activeVariant } = normalizeMessageVariants(row);
+  if (isCanonAdoptedScene(row.usage)) {
+    return NextResponse.json(
+      {
+        error: OOC_CANON_ADOPTION_COPY.variantSwitchBlocked,
+        code: "ooc_canon_adopted_variant_blocked",
+      },
+      { status: 409 }
+    );
+  }
   if (variants.length <= 1) {
     return NextResponse.json({ error: "선택할 다른 버전이 없습니다." }, { status: 400 });
   }
