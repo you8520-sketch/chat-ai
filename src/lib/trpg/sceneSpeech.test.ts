@@ -128,5 +128,18 @@ describe("parseTrpgSceneSpeech", () => {
     assert.match(room, /formatTrpgRollCompact/);
     assert.match(room, /판정 없음 · 대화/);
     assert.doesNotMatch(room, /text-3xl font-black/);
+    assert.doesNotMatch(room, /DiceActionBody/);
+    assert.match(room, /paragraphMode=\{action\.kind === "ai_character" \? "ai" : "author"\}/);
+    assert.match(room, /orphanTrpgRolls/);
+    assert.match(room, /mergeTrpgActionRolls/);
+    assert.match(room, /gmFailureHint/);
+    assert.match(room, /data-trpg-action-card/);
+    const named = fs.readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
+    assert.match(named, /paragraphMode = "author"/);
+    assert.match(named, /streaming=\{reveal\}/);
+    const reveal = fs.readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
+    assert.match(reveal, /trpgRevealChunkSize/);
+    assert.match(reveal, /prefers-reduced-motion/);
+    assert.doesNotMatch(reveal, /n \+ 4/);
   });
 });

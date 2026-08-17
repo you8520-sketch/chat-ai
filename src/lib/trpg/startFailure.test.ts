@@ -3,12 +3,13 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
 import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
-import { startTrpgCampaign, type TrpgEngineDeps } from "./engineAdvance";
+import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { loadCampaignContext } from "./campaignContext";
 import { isTrpgSandboxDirectorEnabled } from "./sandboxDirector";
-import { classifyTrpgStartFailure, parseTrpgStartFailureJson } from "./startFailure";
+import { attachTrpgCallFailureMeta, buildTrpgRoundErrorJson, classifyTrpgStartFailure, parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
+import { TRPG_GM_MODEL } from "./types";
 
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
@@ -45,6 +46,50 @@ describe("TRPG start failure classification", () => {
       "A"
     );
     assert.equal(classifyTrpgStartFailure({ error: new Error("로그인이 필요합니다.") }).class, "A");
+  });
+
+  it("reuses the A/B/C classifier for timeout, HTTP, empty, and parse/state kinds", () => {
+    const timeout = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error("The operation was aborted due to timeout"), {
+        elapsedMs: 180123,
+      }),
+      reachedOpeningRound: true,
+      model: TRPG_GM_MODEL,
+    });
+    assert.equal(timeout.class, "B");
+    assert.equal(timeout.kind, "provider_timeout");
+    assert.equal(timeout.elapsedMs, 180123);
+    assert.equal(timeout.trueOffRequested, true);
+    assert.equal(timeout.httpStatus, null);
+    assert.equal(timeout.reasoningTokens, "unavailable");
+    assert.equal(sanitizeTrpgFailureHint(timeout), "GM 생성 실패 · Provider timeout (180초)");
+
+    const http = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error("[TRPG] 502: provider down"), { httpStatus: 502 }),
+      reachedOpeningRound: true,
+    });
+    assert.equal(http.class, "B");
+    assert.equal(http.kind, "provider_http");
+    assert.equal(http.httpStatus, 502);
+    assert.equal(sanitizeTrpgFailureHint(http), "GM 생성 실패 · Provider HTTP 5xx");
+
+    const empty = buildTrpgRoundErrorJson({
+      error: new Error("[TRPG] empty completion"),
+      reachedOpeningRound: true,
+    });
+    assert.equal(empty.class, "B");
+    assert.equal(empty.kind, "empty_completion");
+    assert.equal(sanitizeTrpgFailureHint(empty), "GM 생성 실패 · Empty completion");
+
+    const parseState = buildTrpgRoundErrorJson({
+      error: new Error("no such table: trpg_gm_messages"),
+      reachedOpeningRound: true,
+      gmUsageCount: 1,
+    });
+    assert.equal(parseState.class, "C");
+    assert.equal(parseState.kind, "parse_state");
+    assert.equal(sanitizeTrpgFailureHint(parseState), "GM 생성 실패 · Parse/state error");
+    assert.doesNotMatch(sanitizeTrpgFailureHint(parseState), /trpg_gm_messages|sk-|SECRET/);
   });
 
   it("classifies provider failures as B and post-GM persist failures as C", () => {
@@ -149,8 +194,42 @@ describe("TRPG start failure classification", () => {
     assert.equal(row.phase, "ERROR_RECOVERY");
     const failure = parseTrpgStartFailureJson(row.error_json);
     assert.equal(failure?.class, "B");
+    assert.equal(failure?.kind, "provider_http");
     assert.match(failure?.error ?? "", /provider down/);
     assert.equal(row.usage_json, null);
+    db.close();
+  });
+
+  it("records a mid-round provider timeout as ERROR_RECOVERY with a sanitized host hint", async () => {
+    const db = memoryDb();
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    let gmCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      gmCall: async () => {
+        gmCalls += 1;
+        if (gmCalls === 1) return { text: gmText() };
+        throw attachTrpgCallFailureMeta(new Error("The operation was aborted due to timeout"), {
+          elapsedMs: 180123,
+        });
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "문을 민다." });
+    const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ERROR_RECOVERY");
+    assert.equal(snap.gmFailureHint, "GM 생성 실패 · Provider timeout (180초)");
+    assert.doesNotMatch(snap.gmFailureHint ?? "", /aborted|sk-|SECRET|<<<NARRATION>>>/);
+    const row = db
+      .prepare(`SELECT error_json FROM trpg_rounds WHERE campaign_id=? AND round_number=1`)
+      .get(campaignId) as { error_json: string };
+    const failure = parseTrpgStartFailureJson(row.error_json);
+    assert.equal(failure?.class, "B");
+    assert.equal(failure?.kind, "provider_timeout");
+    assert.equal(failure?.elapsedMs, 180123);
+    assert.equal(failure?.trueOffRequested, true);
     db.close();
   });
 
@@ -178,6 +257,7 @@ describe("TRPG start failure classification", () => {
       .get(campaignId) as { phase: string; error_json: string; usage_json: string | null };
     assert.equal(row.phase, "ERROR_RECOVERY");
     assert.equal(parseTrpgStartFailureJson(row.error_json)?.class, "C");
+    assert.equal(parseTrpgStartFailureJson(row.error_json)?.kind, "parse_state");
     assert.match(row.usage_json ?? "", /deepseek-v4-pro|modelId/);
     db.close();
   });

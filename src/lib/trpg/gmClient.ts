@@ -51,3 +51,29 @@ export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<stri
   adapted.reasoning_effort = "none";
   return adapted;
 }
+
+export type TrpgProviderRequestContract = {
+  model: string;
+  thinkingType: string;
+  reasoningEffort: unknown;
+  stream: boolean;
+};
+
+/** Safe request fields only — never log prompts or keys. */
+export function trpgProviderRequestContract(body: Record<string, unknown>): TrpgProviderRequestContract {
+  const thinking = body.thinking;
+  const thinkingType =
+    thinking && typeof thinking === "object" && !Array.isArray(thinking)
+      ? String((thinking as { type?: unknown }).type ?? "")
+      : "";
+  return {
+    model: String(body.model ?? ""),
+    thinkingType,
+    reasoningEffort: body.reasoning_effort,
+    stream: body.stream === true,
+  };
+}
+
+export function isTrpgTrueOffRequest(contract: TrpgProviderRequestContract): boolean {
+  return contract.thinkingType === "disabled" && contract.reasoningEffort === "none";
+}

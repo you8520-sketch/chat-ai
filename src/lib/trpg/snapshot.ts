@@ -127,6 +127,8 @@ export type TrpgCampaignSnapshot = {
   scenarioAssets: CharacterAsset[];
   /** Long-form story stage. Independent from round.phase. */
   storyPhase?: string;
+  /** Host-only sanitized GM failure line. Never includes prompt, key, or raw provider body. */
+  gmFailureHint?: string | null;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

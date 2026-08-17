@@ -43,7 +43,7 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
-import { classifyTrpgStartFailure } from "./startFailure";
+import { buildTrpgRoundErrorJson } from "./startFailure";
 import {
   computeResolutionOrder,
   formatResolutionOrderBlock,
@@ -64,7 +64,7 @@ import {
   type TrpgRoundRow,
 } from "./store";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -83,6 +83,19 @@ function newRequestId(): string {
 
 function asPhase(value: string): TrpgRoundPhase {
   return isTrpgRoundPhase(value) ? value : "ERROR_RECOVERY";
+}
+
+function persistGmRoundFailure(db: Database.Database, roundId: number, error: unknown): void {
+  const failure = buildTrpgRoundErrorJson({
+    error,
+    reachedOpeningRound: true,
+    gmUsageCount: loadRoundUsage(db, roundId).length,
+    model: TRPG_GM_MODEL,
+  });
+  db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
+    JSON.stringify(failure),
+    roundId
+  );
 }
 
 function mustSnapshot(db: Database.Database, campaignId: number, userId: number): TrpgCampaignSnapshot {
@@ -133,15 +146,7 @@ export async function startTrpgCampaign(
     const round = loadLatestRound(db, opts.campaignId)!;
     await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
   } catch (e) {
-    const failure = classifyTrpgStartFailure({
-      error: e,
-      reachedOpeningRound: true,
-      gmUsageCount: loadRoundUsage(db, roundId).length,
-    });
-    db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
-      JSON.stringify(failure),
-      roundId
-    );
+    persistGmRoundFailure(db, roundId, e);
     throw e;
   }
   return mustSnapshot(db, opts.campaignId, opts.userId);
@@ -212,7 +217,12 @@ export async function regenerateTrpgNarration(
       `UPDATE trpg_rounds
        SET phase='ROUND_COMPLETE', lock_holder_request_id=NULL, gm_generation_id=NULL, error_json=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(JSON.stringify({ error: (e as Error).message }), target.id);
+    ).run(JSON.stringify(buildTrpgRoundErrorJson({
+      error: e,
+      reachedOpeningRound: true,
+      gmUsageCount: loadRoundUsage(db, target.id).length,
+      model: TRPG_GM_MODEL,
+    })), target.id);
     throw e;
   }
   return mustSnapshot(db, opts.campaignId, opts.userId);
@@ -341,10 +351,7 @@ export async function advanceTrpgCampaign(
       });
       await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
     } catch (e) {
-      db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
-        JSON.stringify({ error: (e as Error).message }),
-        round.id
-      );
+      persistGmRoundFailure(db, round.id, e);
     }
     return mustSnapshot(db, opts.campaignId, opts.userId);
   }
@@ -390,10 +397,7 @@ export async function advanceTrpgCampaign(
       });
       await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
     } catch (e) {
-      db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
-        JSON.stringify({ error: (e as Error).message }),
-        round.id
-      );
+      persistGmRoundFailure(db, round.id, e);
     }
   }
 

@@ -42,6 +42,8 @@ describe("TRPG bot actions", () => {
     assert.doesNotMatch(block, /SECRET_PLAN_CANARY|BLUEPRINT|endingCandidates|GM SECRET/);
     assert.match(TRPG_BOT_SYSTEM, /third-person concrete attempt/);
     assert.match(TRPG_BOT_SYSTEM, /Do not declare a finished result/);
+    assert.equal((TRPG_BOT_SYSTEM.match(/\[PROSE LAYOUT\]/g) ?? []).length, 1);
+    assert.doesNotMatch(block, /\[PROSE LAYOUT\]/);
     assert.match(block, /300/);
     assert.match(block, /550/);
     assert.match(block, /800/);

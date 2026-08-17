@@ -65,6 +65,7 @@ export default function TrpgNamedProse({
   accent,
   assets = [],
   reveal = false,
+  paragraphMode = "author",
 }: {
   name?: string | null;
   hint?: string;
@@ -75,6 +76,8 @@ export default function TrpgNamedProse({
   accent?: boolean;
   assets?: CharacterAsset[];
   reveal?: boolean;
+  /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
+  paragraphMode?: "ai" | "author";
 }) {
   const shown = useRevealedText(text, reveal);
   if (!shown.trim()) return null;
@@ -106,7 +109,7 @@ export default function TrpgNamedProse({
             assets={assets}
             display={display}
             variant={variant}
-            paragraphMode="author"
+            paragraphMode={paragraphMode}
             streaming={reveal}
           />
         ) : (
@@ -114,7 +117,8 @@ export default function TrpgNamedProse({
             content={shown}
             display={display}
             variant={variant}
-            paragraphMode="author"
+            paragraphMode={paragraphMode}
+            streaming={reveal}
           />
         )}
       </div>

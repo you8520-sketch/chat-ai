@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { startTrpgCampaign } from "@/lib/trpg/engine";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
-import { parseTrpgStartFailureJson } from "@/lib/trpg/startFailure";
+import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "@/lib/trpg/startFailure";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -22,7 +22,7 @@ export async function POST(_req: Request, ctx: RouteCtx) {
       const failure = parseTrpgStartFailureJson(row?.error_json);
       if (failure) {
         return NextResponse.json(
-          { error: failure.error, failureClass: failure.class },
+          { error: sanitizeTrpgFailureHint(failure), failureClass: failure.class },
           { status: failure.class === "B" ? 502 : 400 }
         );
       }

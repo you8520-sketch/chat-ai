@@ -16,6 +16,7 @@ import {
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
+import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
 import { formatTrpgRollCompact } from "@/lib/trpg/labels";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -163,6 +164,13 @@ export default function TrpgCampaignRoom({
   const partyNames = partyDisplayNames(snap);
   const selfSheet = snap.sheets.find((card) => card.isSelf);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
+  const liveRevealedActionIds = sceneRows
+    .filter((row) => row.roundNumber === snap.round.number)
+    .flatMap((row) => row.actions.filter((a) => a.revealed && a.body.trim()).map((a) => a.participantId));
+  const orphanRolls = orphanTrpgRolls({
+    currentRolls: snap.currentRolls,
+    revealedActionParticipantIds: liveRevealedActionIds,
+  });
   const seenLogKeysRef = useRef<Set<string> | null>(null);
   if (seenLogKeysRef.current === null) {
     seenLogKeysRef.current = new Set(trpgLogRevealKeys(snap.log));
@@ -355,9 +363,9 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {snap.currentRolls.length > 0 && !sceneRows.some((row) => row.rolls.length > 0) ? (
+          {orphanRolls.length > 0 ? (
             <AppSectionCard title="주사위">
-              <DiceStrip rolls={snap.currentRolls} statDefs={snap.statDefs} />
+              <DiceStrip rolls={orphanRolls} statDefs={snap.statDefs} />
               {phase === "GENERATING_NARRATION" || phase === "ROLLING" ? (
                 <p className="mt-3 text-sm text-zinc-400">판정이 끝났습니다. GM이 각 행동을 보고 장면을 쓰고 있습니다…</p>
               ) : null}
@@ -377,6 +385,7 @@ export default function TrpgCampaignRoom({
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
               isFreshLogKey={isFreshLogKey}
+              liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
               onReroll={() => onReroll(row.roundNumber)}
               onImage={() =>
                 openSceneImage({
@@ -508,14 +517,17 @@ export default function TrpgCampaignRoom({
           ) : null}
 
           {phase === "ERROR_RECOVERY" && snap.viewerIsHost ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onRetryGm}
-              className="inline-flex min-h-10 items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-sm font-semibold text-rose-100"
-            >
-              GM 다시 시도
-            </button>
+            <div className="space-y-2">
+              <p className="text-sm text-rose-200">{snap.gmFailureHint || "GM 생성 실패"}</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRetryGm}
+                className="inline-flex min-h-10 items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-sm font-semibold text-rose-100"
+              >
+                GM 다시 시도
+              </button>
+            </div>
           ) : null}
         </div>
         {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
@@ -571,6 +583,7 @@ function SceneTurn({
   busy,
   scenarioAssets,
   isFreshLogKey,
+  liveRolls,
   onReroll,
   onImage,
 }: {
@@ -584,13 +597,14 @@ function SceneTurn({
   busy: boolean;
   scenarioAssets: CharacterAsset[];
   isFreshLogKey: (key: string) => boolean;
+  liveRolls: TrpgPublicRoll[];
   onReroll: () => void;
   onImage: () => void;
 }) {
   const revealNarration = isFreshLogKey(`n:${row.roundNumber}`);
   const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
   const beats = shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
-  const rollsByParticipant = new Map(row.rolls.map((roll) => [roll.participantId, roll]));
+  const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });
   const visibleActions = row.actions.filter((a) => a.revealed && a.body.trim());
   const showToolbar = canReroll || canImage || row.billedPoints != null;
   return (
@@ -605,7 +619,7 @@ function SceneTurn({
           const intent = parsed.intent.trim();
           const showJudge = action.kind === "ai_character" || Boolean(intent) || Boolean(roll);
           return (
-            <div key={`${row.roundNumber}-${action.participantId}`}>
+            <div key={`${row.roundNumber}-${action.participantId}`} data-trpg-action-card>
               <TrpgNamedProse
                 name={action.name}
                 hint={
@@ -621,6 +635,7 @@ function SceneTurn({
                 variant={action.kind === "human" ? "user" : "character"}
                 display={display}
                 assets={scenarioAssets}
+                paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
                 reveal={
                   action.kind === "ai_character" &&
                   isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)

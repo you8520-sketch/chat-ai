@@ -28,6 +28,7 @@ import {
   type TrpgPublicRoll,
   type TrpgReadyState,
 } from "./snapshot";
+import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
   DEFAULT_TRPG_BILLING_MODE,
   TRPG_BOT_GROSS_MARGIN,
@@ -255,12 +256,6 @@ export function loadTrpgSnapshot(
   });
 
   const currentRolls = round ? loadRolls(db, round.id) : [];
-  if (currentRolls.length === 0 && round && round.round_number > 0) {
-    const prevId = db
-      .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
-      .get(campaignId, round.round_number - 1) as { id: number } | undefined;
-    if (prevId) currentRolls.push(...loadRolls(db, prevId.id));
-  }
   let currentNarration: string | null = null;
   if (round) {
     const gm = db
@@ -398,6 +393,10 @@ export function loadTrpgSnapshot(
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
+    gmFailureHint:
+      campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
+        ? sanitizeTrpgFailureHint(parseTrpgStartFailureJson(round?.error_json))
+        : null,
   };
 }
 

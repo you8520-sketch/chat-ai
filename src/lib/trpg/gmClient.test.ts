@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
-import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
+import {
+  adaptTrpgBotChatBody,
+  adaptTrpgGmChatBody,
+  isTrpgTrueOffRequest,
+  trpgProviderRequestContract,
+} from "./gmClient";
+import { reasoningTokensFromProviderUsage } from "./gmCall";
 import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 function thinkingType(body: Record<string, unknown>): string {
@@ -71,5 +77,31 @@ describe("TRPG DeepSeek Pro true-OFF contract", () => {
     assert.equal(bot.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+  });
+
+  it("keeps stream=false and true-OFF on the actual GM request contract", () => {
+    const gm = adaptTrpgGmChatBody({
+      model: TRPG_GM_MODEL,
+      messages: [{ role: "user", content: "장면" }],
+      stream: false,
+      temperature: 0.7,
+    });
+    const contract = trpgProviderRequestContract(gm);
+    assert.equal(contract.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(contract.thinkingType, "disabled");
+    assert.equal(contract.reasoningEffort, "none");
+    assert.equal(contract.stream, false);
+    assert.equal(isTrpgTrueOffRequest(contract), true);
+    assert.equal(gm.stream, false);
+  });
+
+  it("does not invent reasoning tokens when the provider omits them", () => {
+    assert.equal(reasoningTokensFromProviderUsage(undefined), "unavailable");
+    assert.equal(reasoningTokensFromProviderUsage({}), "unavailable");
+    assert.equal(reasoningTokensFromProviderUsage({ completion_tokens_details: {} }), "unavailable");
+    assert.equal(
+      reasoningTokensFromProviderUsage({ completion_tokens_details: { reasoning_tokens: 12 } }),
+      12
+    );
   });
 });

@@ -9,11 +9,28 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
+import { adaptTrpgBotChatBody, adaptTrpgGmChatBody, trpgProviderRequestContract } from "./gmClient";
 import type { TrpgModelUsage } from "./billing";
+import { attachTrpgCallFailureMeta } from "./startFailure";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
-export type TrpgGmCallResult = { text: string; usage?: TrpgModelUsage };
+export type TrpgGmCallResult = {
+  text: string;
+  usage?: TrpgModelUsage;
+  elapsedMs?: number;
+  reasoningTokens?: number | "unavailable";
+};
+
+export function reasoningTokensFromProviderUsage(usage: {
+  completion_tokens_details?: { reasoning_tokens?: unknown };
+  reasoning_tokens?: unknown;
+} | undefined): number | "unavailable" {
+  const fromDetails = usage?.completion_tokens_details?.reasoning_tokens;
+  if (typeof fromDetails === "number" && Number.isFinite(fromDetails)) return fromDetails;
+  const fromUsage = usage?.reasoning_tokens;
+  if (typeof fromUsage === "number" && Number.isFinite(fromUsage)) return fromUsage;
+  return "unavailable";
+}
 
 const MOCK_GM = `<<<NARRATION>>>
 낡은 등불이 흔들린다. 당신은 문턱에 서서 다음 한 수를 고른다. 안에서 숨소리가 들린다.
@@ -55,28 +72,54 @@ async function postTrpgChat(opts: {
   model: string;
   body: Record<string, unknown>;
   timeoutMs: number;
-}): Promise<{ text: string; usage?: TrpgModelUsage }> {
-  const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-    body: JSON.stringify(opts.body),
-    signal: AbortSignal.timeout(opts.timeoutMs),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`);
-  }
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      prompt_tokens_details?: { cached_tokens?: number };
+  role: "gm" | "bot";
+}): Promise<{ text: string; usage?: TrpgModelUsage; elapsedMs: number; reasoningTokens: number | "unavailable" }> {
+  const contract = trpgProviderRequestContract(opts.body);
+  console.info(`[TRPG][${opts.role}] request_contract`, contract);
+  const started = Date.now();
+  try {
+    const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      body: JSON.stringify(opts.body),
+      signal: AbortSignal.timeout(opts.timeoutMs),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
+        httpStatus: res.status,
+        reasoningTokens: "unavailable",
+      });
+    }
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        prompt_tokens_details?: { cached_tokens?: number };
+        completion_tokens_details?: { reasoning_tokens?: unknown };
+        reasoning_tokens?: unknown;
+      };
     };
-  };
-  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!text) throw new Error("[TRPG] empty completion");
-  return { text, usage: usageFromResponse(opts.model, data) };
+    const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);
+    const elapsedMs = Date.now() - started;
+    console.info(`[TRPG][${opts.role}] response_meta`, {
+      model: opts.model,
+      elapsedMs,
+      reasoningTokens,
+    });
+    const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!text) {
+      throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+        elapsedMs,
+        reasoningTokens,
+      });
+    }
+    return { text, usage: usageFromResponse(opts.model, data), elapsedMs, reasoningTokens };
+  } catch (error) {
+    const elapsedMs = Date.now() - started;
+    throw attachTrpgCallFailureMeta(error, { elapsedMs });
+  }
 }
 
 /** Isolated GM Pro call. Must not go through RP adaptCheaperInferenceChatBody. */
@@ -99,7 +142,7 @@ export async function callTrpgGm(opts: {
     temperature: 0.7,
     max_tokens: TRPG_GM_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 180_000 });
+  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 180_000, role: "gm" });
 }
 
 /** Bot-seat Pro call (thinking off). Separate from GM narration. */
@@ -122,5 +165,5 @@ export async function callTrpgBot(opts: {
     temperature: 0.85,
     max_tokens: TRPG_BOT_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000 });
+  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000, role: "bot" });
 }

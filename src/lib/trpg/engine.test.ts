@@ -103,8 +103,10 @@ describe("TRPG campaign loop", () => {
     assert.equal(gmCalls, 2);
     assert.equal(after.round.number, 2);
     assert.equal(after.round.phase, "ACTION_INPUT");
-    assert.equal(after.currentRolls.length, 1);
-    assert.equal(after.currentRolls[0]?.d20, 15);
+    assert.equal(after.currentRolls.length, 0);
+    const played = after.log.find((row) => row.roundNumber === 1);
+    assert.equal(played?.rolls.length, 1);
+    assert.equal(played?.rolls[0]?.d20, 15);
     assert.equal(after.workType, "wait_humans");
     db.close();
   });
