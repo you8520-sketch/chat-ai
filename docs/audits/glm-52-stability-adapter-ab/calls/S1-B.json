@@ -1,0 +1,42 @@
+{
+  "cell": "S1-B",
+  "seed": "S1",
+  "arm": "B",
+  "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 44834,
+  "ttftMs": 2219,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 3244,
+  "charsExclSpaces": 2429,
+  "paragraphCount": 25,
+  "dialogueParagraphCount": 8,
+  "dialogueRatio": 0.32,
+  "inputTokens": 5722,
+  "outputTokens": 2731,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "usageCostUsd": 0.006974,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null
+  },
+  "assembledChars": {
+    "system": 6619,
+    "history": 1162,
+    "lastUser": 815,
+    "total": 8600,
+    "estimatedInputTokens": 7740
+  },
+  "stabilityPresent": true
+}

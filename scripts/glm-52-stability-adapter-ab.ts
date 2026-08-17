@@ -629,10 +629,12 @@ async function runCells(seedIds: readonly SeedId[]) {
   return { rows, raw };
 }
 
-function parsePhase(): "assemble" | "s4" | "all" {
+function parsePhase(): "assemble" | "s4" | "rest" | "all" {
   const arg = process.argv.find((a) => a.startsWith("--phase="));
   const value = arg?.slice("--phase=".length) ?? "s4";
-  if (value === "assemble" || value === "s4" || value === "all") return value;
+  if (value === "assemble" || value === "s4" || value === "rest" || value === "all") {
+    return value;
+  }
   throw new Error(`unknown --phase=${value}`);
 }
 
@@ -683,7 +685,12 @@ async function main() {
   );
   if (phase === "assemble") return;
 
-  const seedIds = phase === "s4" ? (["S4"] as const) : SEEDS.map((s) => s.id);
+  const seedIds =
+    phase === "s4"
+      ? (["S4"] as const)
+      : phase === "rest"
+        ? (["S1", "S2", "S3"] as const)
+        : SEEDS.map((s) => s.id);
   const { rows, raw } = await runCells(seedIds);
   saveBoth(phase === "s4" ? "03-s4-metrics.json" : "03-call-metrics.json", {
     headSha: headSha(),
