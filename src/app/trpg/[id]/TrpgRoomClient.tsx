@@ -399,7 +399,7 @@ export default function TrpgRoomClient({
         ) : null}
         {setup && snap.viewerIsHost && snap.participants.filter((p) => p.kind === "human").length <= 1 ? (
           <p className="text-xs text-zinc-500">
-            「캠페인 시작」을 누르지 않고 로비로 나가면 이 초안은 삭제됩니다. 다른 사람이 들어오면 유지됩니다.
+            새 캠페인을 시작하면 시작 전 혼자 초안은 삭제됩니다. 다른 사람이 들어오면 유지됩니다.
           </p>
         ) : null}
         <p className="text-xs leading-relaxed text-zinc-500">

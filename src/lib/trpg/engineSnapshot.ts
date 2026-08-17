@@ -200,7 +200,6 @@ function loadActions(
 }
 
 export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCampaignSnapshot[] {
-  purgeUnstartedSoloDrafts(db, userId);
   const rows = db
     .prepare(
       `SELECT DISTINCT c.id
@@ -224,8 +223,13 @@ export function loadTrpgSnapshot(
 ): TrpgCampaignSnapshot | null {
   const campaign = loadCampaign(db, campaignId);
   if (!campaign) return null;
-  if (campaign.host_user_id === viewerUserId) {
-    purgeUnstartedSoloDrafts(db, viewerUserId, campaignId);
+  if (campaign.host_user_id === viewerUserId && isTrpgLobbyStatus(campaign.status) && !loadLatestRound(db, campaignId)) {
+    const humans = db
+      .prepare(`SELECT COUNT(*) AS n FROM trpg_participants WHERE campaign_id=? AND kind='human'`)
+      .get(campaignId) as { n: number };
+    if (humans.n <= 1) {
+      purgeUnstartedSoloDrafts(db, viewerUserId, campaignId);
+    }
   }
   const parts = loadParticipants(db, campaignId);
   const viewer = parts.find((p) => p.kind === "human" && p.user_id === viewerUserId);
