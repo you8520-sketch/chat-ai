@@ -20,6 +20,7 @@ import {
   getMemorySourceBoundaryCore,
   initializeForkMemoryBoundaryCore,
 } from "@/lib/memory/memory-source-boundary";
+import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
   const tier = resolveMemoryTier(user);
   const parentBoundary = getMemorySourceBoundaryCore(db, cId);
   const memoryEligibleForkTurnCount = countMemoryEligibleCompletedTurnsUpToMessageId(
-    toCopy,
+    filterCanonicalMessageRows(toCopy),
     mId,
     parentBoundary.resetAfterMessageId
   );

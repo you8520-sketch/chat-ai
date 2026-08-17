@@ -16,6 +16,15 @@ describe("isTurnEligibleForMemoryRecord", () => {
     );
   });
 
+  it("excludes isolated OOC scene-render samples", () => {
+    assert.equal(
+      isTurnEligibleForMemoryRecord(
+        "OOC: 본편과 별개로 이 상황을 샘플 장면으로 한 번 보여줘."
+      ),
+      false
+    );
+  });
+
   it("includes rp_continuing OOC", () => {
     assert.equal(
       isTurnEligibleForMemoryRecord(
@@ -54,6 +63,20 @@ describe("filterTurnsForMemorySummary", () => {
       { user: "다음 날 아침.", assistant: "해가 뜬다." },
     ];
     assert.equal(filterTurnsForMemorySummary(turns).length, 2);
+  });
+
+  it("keeps adopted assistant-only canon events", () => {
+    const turns = [
+      { user: "카페에 들어간다.", assistant: "문을 연다." },
+      {
+        user: "",
+        assistant: "호텔에서 키스했다.",
+        assistantOnly: true,
+      },
+    ];
+    const filtered = filterTurnsForMemorySummary(turns);
+    assert.equal(filtered.length, 2);
+    assert.equal(filtered[1]!.assistant, "호텔에서 키스했다.");
   });
 });
 

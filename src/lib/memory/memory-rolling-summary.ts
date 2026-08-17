@@ -181,6 +181,7 @@ export function loadTurnsForChat(chatId: number): DialogueTurn[] {
   return loadMemoryEligibleChatTurnsWithMessageIds(chatId).map((turn) => ({
     user: turn.user,
     assistant: turn.assistant,
+    assistantOnly: turn.assistantOnly,
   }));
 }
 
@@ -614,8 +615,8 @@ async function composeBatchScopePayload(opts: {
     };
   }
 
-  const mainEntries = plan.mainTurns.filter(({ turn }) =>
-    isTurnEligibleForMemoryRecord(turn.user)
+  const mainEntries = plan.mainTurns.filter(
+    ({ turn }) => turn.assistantOnly === true || isTurnEligibleForMemoryRecord(turn.user)
   );
 
   const scopes: ScopePayloadV1["scopes"] = {};

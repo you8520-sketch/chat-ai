@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { filterCanonicalMessageRows, isCanonAdoptedScene } from "@/lib/oocSceneRender";
 import type Database from "better-sqlite3";
 import {
   getMemorySourceBoundary,
@@ -14,21 +15,30 @@ export type ChatTurnWithMessageIds = {
   assistant: string;
   userMessageId: number | null;
   assistantMessageId: number;
+  assistantOnly?: boolean;
 };
 
-function loadChatTurnsWithMessageIdsCore(
+type ChatMessageRow = {
+  id: number;
+  role: string;
+  content: string;
+  model: string;
+  user_message_id: number | null;
+  usage?: unknown;
+};
+
+function loadChatMessageRowsCore(
   db: Database.Database,
   chatId: number
-): ChatTurnWithMessageIds[] {
-  const rows = db
-    .prepare("SELECT id, role, content, model, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC")
-    .all(chatId) as {
-    id: number;
-    role: string;
-    content: string;
-    model: string;
-    user_message_id: number | null;
-  }[];
+): ChatMessageRow[] {
+  return db
+    .prepare(
+      "SELECT id, role, content, model, user_message_id, usage FROM messages WHERE chat_id=? ORDER BY id ASC"
+    )
+    .all(chatId) as ChatMessageRow[];
+}
+
+function pairChatTurnsWithMessageIds(rows: ChatMessageRow[]): ChatTurnWithMessageIds[] {
 
   const userById = new Map(
     rows.filter((row) => row.role === "user").map((row) => [row.id, row.content] as const)
@@ -61,7 +71,20 @@ function loadChatTurnsWithMessageIdsCore(
       : null;
     const sourceUserId = linkedId != null && userById.has(linkedId) ? linkedId : pendingUserId;
     const sourceUser = sourceUserId != null ? userById.get(sourceUserId) ?? pendingUser : pendingUser;
-    if (sourceUser == null || sourceUserId == null) continue;
+    if (sourceUser == null || sourceUserId == null) {
+      if (isCanonAdoptedScene(row.usage)) {
+        playableTurnNumber += 1;
+        turns.push({
+          turnNumber: playableTurnNumber,
+          user: "",
+          assistant: row.content,
+          userMessageId: null,
+          assistantMessageId: row.id,
+          assistantOnly: true,
+        });
+      }
+      continue;
+    }
     playableTurnNumber += 1;
     turns.push({
       turnNumber: playableTurnNumber,
@@ -78,6 +101,13 @@ function loadChatTurnsWithMessageIdsCore(
   return turns;
 }
 
+function loadChatTurnsWithMessageIdsCore(
+  db: Database.Database,
+  chatId: number
+): ChatTurnWithMessageIds[] {
+  return pairChatTurnsWithMessageIds(loadChatMessageRowsCore(db, chatId));
+}
+
 export function loadChatTurnsWithMessageIds(chatId: number): ChatTurnWithMessageIds[] {
   return loadChatTurnsWithMessageIdsCore(getDb(), chatId);
 }
@@ -88,11 +118,16 @@ export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
   boundary: MemorySourceBoundary = getMemorySourceBoundaryCore(db, chatId)
 ): ChatTurnWithMessageIds[] {
   let memoryTurnNumber = 0;
-  return loadChatTurnsWithMessageIdsCore(db, chatId)
+  return pairChatTurnsWithMessageIds(
+    filterCanonicalMessageRows(loadChatMessageRowsCore(db, chatId))
+  )
     .filter(
       (turn) =>
         turn.turnNumber > 0 &&
-        isMemorySourceEligible({ sourceUserMessageId: turn.userMessageId, boundary })
+        isMemorySourceEligible({
+          sourceUserMessageId: turn.userMessageId ?? turn.assistantMessageId,
+          boundary,
+        })
     )
     .map((turn) => ({ ...turn, turnNumber: ++memoryTurnNumber }));
 }
@@ -113,17 +148,20 @@ export function countMemoryEligibleCompletedTurnsCore(
   chatId: number
 ): number {
   const boundary = getMemorySourceBoundaryCore(db, chatId);
-  const rows = db
-    .prepare(
-      `SELECT id, role, model, user_message_id
-       FROM messages WHERE chat_id=? ORDER BY id ASC`
-    )
-    .all(chatId) as {
-    id: number;
-    role: string;
-    model: string;
-    user_message_id: number | null;
-  }[];
+  const rows = filterCanonicalMessageRows(
+    db
+      .prepare(
+        `SELECT id, role, model, user_message_id, usage
+         FROM messages WHERE chat_id=? ORDER BY id ASC`
+      )
+      .all(chatId) as {
+      id: number;
+      role: string;
+      model: string;
+      user_message_id: number | null;
+      usage?: unknown;
+    }[]
+  );
   const userIds = new Set(
     rows.filter((row) => row.role === "user").map((row) => row.id)
   );
@@ -141,7 +179,15 @@ export function countMemoryEligibleCompletedTurnsCore(
         ? Number(row.user_message_id)
         : null;
     const sourceUserId = linkedId != null && userIds.has(linkedId) ? linkedId : pendingUserId;
-    if (sourceUserId == null) continue;
+    if (sourceUserId == null) {
+      if (
+        isCanonAdoptedScene(row.usage) &&
+        isMemorySourceEligible({ sourceUserMessageId: row.id, boundary })
+      ) {
+        count += 1;
+      }
+      continue;
+    }
     if (isMemorySourceEligible({ sourceUserMessageId: sourceUserId, boundary })) {
       count += 1;
     }
@@ -157,7 +203,9 @@ export function resolveMemoryEligibleTurnNumberCore(
   sourceUserMessageId: number
 ): number | null {
   const turn = loadMemoryEligibleChatTurnsWithMessageIdsCore(db, chatId).find(
-    (candidate) => candidate.userMessageId === sourceUserMessageId
+    (candidate) =>
+      candidate.userMessageId === sourceUserMessageId ||
+      candidate.assistantMessageId === sourceUserMessageId
   );
   return turn?.turnNumber ?? null;
 }

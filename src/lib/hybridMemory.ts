@@ -6,6 +6,7 @@ import {
   HISTORY_TRIM_CHUNK_MESSAGES,
   MIN_HISTORY_TURN_FLOOR,
 } from "@/lib/contextTrack";
+import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
 
 /** 하이브리드 메모리 — 슬라이딩 윈도우 + 6턴 롤링 요약 */
 export const SHORT_TERM_TURNS = 5;
@@ -19,12 +20,14 @@ export const BATCH_SUMMARY_MAX_CHARS = 300;
 export type DialogueTurn = {
   user: string;
   assistant: string;
+  assistantOnly?: boolean;
 };
 
 export type ChatMessageRow = {
   role: "user" | "assistant";
   content: string;
   model?: string;
+  usage?: unknown;
 };
 
 /** DB 메시지 → 턴 배열. greeting assistant = turn 0; user+assistant pairs = turn 1+. */
@@ -43,6 +46,8 @@ export function messagesToTurns(rows: ChatMessageRow[]): DialogueTurn[] {
       if (pendingUser !== null) {
         turns.push({ user: pendingUser, assistant: row.content });
         pendingUser = null;
+      } else if (isCanonAdoptedScene(row.usage)) {
+        turns.push({ user: "", assistant: row.content, assistantOnly: true });
       }
     }
   }
@@ -73,6 +78,10 @@ export function recentTurnsToHistory(
   const slice = turns.slice(-count);
   const out: { role: "user" | "assistant"; content: string }[] = [];
   for (const t of slice) {
+    if (t.assistantOnly) {
+      if (t.assistant) out.push({ role: "assistant", content: t.assistant });
+      continue;
+    }
     out.push({ role: "user", content: t.user });
     out.push({ role: "assistant", content: t.assistant });
   }
@@ -320,6 +329,12 @@ export function splitTurnsForGeminiCache(
 
   const dynamicHistory: ChatMsg[] = [];
   for (const t of dynamicTurns) {
+    if (t.assistantOnly) {
+      if (t.assistant) {
+        dynamicHistory.push({ role: "assistant", content: stripAssistant(t.assistant) });
+      }
+      continue;
+    }
     dynamicHistory.push({ role: "user", content: formatUser(t.user) });
     dynamicHistory.push({ role: "assistant", content: stripAssistant(t.assistant) });
   }

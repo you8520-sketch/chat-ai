@@ -163,4 +163,12 @@ export type Usage = {
     userChargedPoints?: number;
     latencyMs?: number;
   };
+  /**
+   * Internal generation semantics. Public receipts never include these fields.
+   * ooc_scene_render + canonical=false means the turn is visible but not RP canon.
+   */
+  generationKind?: "ooc_scene_render" | "canonical";
+  canonical?: boolean;
+  canonAdopted?: boolean;
+  canonAdoptedAt?: string;
 };

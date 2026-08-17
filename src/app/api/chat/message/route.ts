@@ -32,6 +32,7 @@ import {
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
+import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
   executeAtomicManualEditCore,
@@ -103,6 +104,7 @@ export async function GET(req: Request) {
   });
   const rowUsage = row.usage ? (JSON.parse(row.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
     ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
         keepInternal: keepInternalAdultRouting,
@@ -153,6 +155,8 @@ export async function GET(req: Request) {
     suggestedReplies: suggestedRepliesFields.suggestedReplies,
     userMessageId: row.user_message_id,
     requestId: row.request_id ?? undefined,
+    oocSceneRender: oocFlags.oocSceneRender,
+    canonAdopted: oocFlags.canonAdopted,
   });
 }
 
