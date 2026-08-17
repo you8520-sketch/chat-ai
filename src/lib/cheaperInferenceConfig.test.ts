@@ -195,3 +195,28 @@ test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id
   assert.equal(adapted.reasoning_effort, undefined);
   assert.notEqual(adapted.model, "deepseek-v4-pro");
 });
+
+test("Muse Spark 1.2 adult candidate sends no reasoning or thinking fields", () => {
+  const adapted = adaptCheaperInferenceChatBody({
+    model: "muse-spark-1.2",
+    messages: [{ role: "user", content: "hello" }],
+    temperature: 0.7,
+    reasoning: { effort: "none" },
+    include_reasoning: false,
+    reasoning_effort: "none",
+    thinking: { type: "enabled" },
+  });
+  assert.equal(adapted.model, "muse-spark-1.2");
+  assert.equal(adapted.temperature, 0.7);
+  assert.equal(adapted.reasoning, undefined);
+  assert.equal(adapted.include_reasoning, undefined);
+  assert.equal(adapted.reasoning_effort, undefined);
+  assert.equal(adapted.thinking, undefined);
+  const aliased = adaptCheaperInferenceChatBody({
+    model: "meta/muse-spark-1.2",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "low",
+  });
+  assert.equal(aliased.model, "muse-spark-1.2");
+  assert.equal(aliased.reasoning_effort, undefined);
+});

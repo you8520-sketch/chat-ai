@@ -37,6 +37,12 @@ export const CHEAPER_INFERENCE_GLM_52_MODEL = "glm-5.2";
 /** Cheaper Inference adult-handoff internal model — not user-selectable. */
 export const CHEAPER_INFERENCE_QWEN_38_MAX_MODEL = "qwen-3-8-max";
 
+/** Cheaper Inference adult-handoff candidate — not user-selectable. */
+export const CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL = "muse-spark-1.2";
+
+/** Catalog / receipt alias for Muse Spark 1.2. Never send this as the CI `model`. */
+export const OPENROUTER_MUSE_SPARK_12_MODEL = "meta/muse-spark-1.2";
+
 /** Map stored/env DeepSeek V4 Pro aliases to the canonical outbound id. */
 export function normalizeDeepSeekV4ProModelId(modelId: string): string {
   const id = modelId.trim();
@@ -145,6 +151,8 @@ export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
+
+export const MUSE_SPARK_12_DISPLAY_NAME = "Muse Spark 1.2";
 
 export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
 
@@ -318,6 +326,26 @@ export function isCheaperInferenceQwen38MaxModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL;
 }
 
+export function normalizeMuseSpark12ModelId(modelId: string): string {
+  const id = modelId.trim();
+  const lower = id.toLowerCase();
+  if (
+    lower === CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL ||
+    lower === OPENROUTER_MUSE_SPARK_12_MODEL
+  ) {
+    return CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL;
+  }
+  return id;
+}
+
+export function isCheaperInferenceMuseSpark12Model(modelId: string): boolean {
+  const lower = modelId.trim().toLowerCase();
+  return (
+    lower === CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL ||
+    lower === OPENROUTER_MUSE_SPARK_12_MODEL
+  );
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
@@ -331,7 +359,8 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL ||
-    id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
+    id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL ||
+    isCheaperInferenceMuseSpark12Model(id)
   );
 }
 
@@ -629,6 +658,9 @@ export function selectedAILabel(id: string): string {
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;
+  }
+  if (isCheaperInferenceMuseSpark12Model(id)) {
+    return MUSE_SPARK_12_DISPLAY_NAME;
   }
   if (id === OPENROUTER_MUSE_SPARK_11_MODEL || isMuseModel(id)) {
     return MUSE_SPARK_11_DISPLAY_NAME;

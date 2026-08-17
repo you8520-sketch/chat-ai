@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
   DEFAULT_SELECTED_AI,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   SELECTED_AI_OPTIONS,
+  isCheaperInferenceMuseSpark12Model,
   isMuseModel,
   isValidSelectedAI,
   resolveSelectedAI,
@@ -19,6 +21,10 @@ describe("retired Muse Spark 1.1 compatibility", () => {
     assert.ok(!SELECTED_AI_OPTIONS.some((o) => o.id === OPENROUTER_MUSE_SPARK_11_MODEL));
     assert.equal(isValidSelectedAI(OPENROUTER_MUSE_SPARK_11_MODEL), false);
     assert.equal(selectedAILabel(OPENROUTER_MUSE_SPARK_11_MODEL), "Muse Spark 1.1");
+    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL), false);
+    assert.ok(!SELECTED_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL));
+    assert.equal(isCheaperInferenceMuseSpark12Model("muse-spark-1.2"), true);
+    assert.equal(selectedAILabel(CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL), "Muse Spark 1.2");
   });
 
   it("maps stored Muse selections to DeepSeek and keeps OpenRouter fallback valid", () => {
