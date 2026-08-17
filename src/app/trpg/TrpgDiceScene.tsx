@@ -215,9 +215,8 @@ export default function TrpgDiceScene({
     const { mesh: die, faceValues } = buildDie(tone);
     scene.add(die);
 
-    const toward = new THREE.Vector3(0, 1, 0);
+    const toward = camera.position.clone().normalize().lerp(new THREE.Vector3(0, 1, 0), 0.28).normalize();
     const end = landingQuaternion(die, faceValues, value, toward);
-    end.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.38));
     const start = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
     );

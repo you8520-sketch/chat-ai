@@ -46,8 +46,8 @@ function applyWideCamera(box: DiceBox) {
 }
 
 function applyCloseCamera(box: DiceBox, target: { x: number; y: number; z: number }) {
-  box.camera.position.set(target.x + 70, target.y - 380, 560);
-  box.camera.lookAt(target.x, target.y, 36);
+  box.camera.position.set(target.x + 20, target.y - 140, 390);
+  box.camera.lookAt(target.x, target.y, 8);
   renderBox(box);
 }
 
