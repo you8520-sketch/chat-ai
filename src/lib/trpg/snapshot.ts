@@ -136,6 +136,7 @@ export type TrpgCampaignSnapshot = {
   storyPhase?: string;
   /** Host-only sanitized GM failure line. Never includes prompt, key, or raw provider body. */
   gmFailureHint?: string | null;
+  gmFailureKind?: string | null;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

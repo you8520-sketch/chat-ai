@@ -4,6 +4,7 @@ import NovelText from "@/components/NovelText";
 import TaggedNovelText from "@/components/TaggedNovelText";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { useRevealedText } from "./useRevealedText";
 
 const quoteSelectStyle = {
@@ -66,6 +67,7 @@ export default function TrpgNamedProse({
   assets = [],
   reveal = false,
   paragraphMode = "author",
+  dialogueAccent = true,
 }: {
   name?: string | null;
   hint?: string;
@@ -78,11 +80,13 @@ export default function TrpgNamedProse({
   reveal?: boolean;
   /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
   paragraphMode?: "ai" | "author";
+  /** Global chat keeps dialogue rails. TRPG action cards pass false. */
+  dialogueAccent?: boolean;
 }) {
   const shown = useRevealedText(text, reveal);
   if (!shown.trim()) return null;
   const labeled = Boolean(name?.trim());
-  const showRail = accent ?? labeled;
+  const showRail = resolveTrpgSpeakerRail(accent, labeled);
   const rail = showRail
     ? variant === "user"
       ? "border-l-[3px] border-violet-400"
@@ -111,6 +115,7 @@ export default function TrpgNamedProse({
             variant={variant}
             paragraphMode={paragraphMode}
             streaming={reveal}
+            dialogueAccent={dialogueAccent}
           />
         ) : (
           <NovelText
@@ -119,6 +124,7 @@ export default function TrpgNamedProse({
             variant={variant}
             paragraphMode={paragraphMode}
             streaming={reveal}
+            dialogueAccent={dialogueAccent}
           />
         )}
       </div>

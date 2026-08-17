@@ -127,6 +127,8 @@ export function parseTrpgBillingMode(value: unknown): TrpgBillingMode | null {
 
 export const TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE =
   "방장의 포인트가 부족해 다음 라운드를 진행할 수 없습니다.";
+export const TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE =
+  "플레이어의 포인트가 부족해 라운드를 진행할 수 없습니다.";
 export const TRPG_BILLING_MODE_FORBIDDEN_MESSAGE = "방장만 비용 부담 방식을 바꿀 수 있습니다.";
 export const TRPG_BILLING_MODE_LOCKED_MESSAGE =
   "방장 전액 부담을 시작한 뒤에는 현재 캠페인 동안 다시 균등분배로 바꿀 수 없습니다.";

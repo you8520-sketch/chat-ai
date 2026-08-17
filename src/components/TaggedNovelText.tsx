@@ -15,6 +15,7 @@ export default function TaggedNovelText({
   streaming = false,
   viewerIsCreator = false,
   unlockedUrls,
+  dialogueAccent = true,
 }: {
   content: string;
   assets: CharacterAsset[];
@@ -27,6 +28,7 @@ export default function TaggedNovelText({
   streaming?: boolean;
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
+  dialogueAccent?: boolean;
 }) {
   const parts = splitProseForInlineAssets(content, assets, { streaming, oncePerAsset: true });
   if (parts.length === 0) return null;
@@ -42,6 +44,7 @@ export default function TaggedNovelText({
               variant={variant}
               paragraphMode={paragraphMode}
               streaming={streaming && i === parts.length - 1}
+              dialogueAccent={dialogueAccent}
             />
           );
         }

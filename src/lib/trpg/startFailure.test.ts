@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
@@ -9,7 +10,11 @@ import { ensureTrpgTables } from "./schema";
 import { loadCampaignContext } from "./campaignContext";
 import { isTrpgSandboxDirectorEnabled } from "./sandboxDirector";
 import { attachTrpgCallFailureMeta, buildTrpgRoundErrorJson, classifyTrpgStartFailure, parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
-import { TRPG_GM_MODEL } from "./types";
+import {
+  TRPG_GM_MODEL,
+  TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE,
+  TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE,
+} from "./types";
 
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
@@ -81,15 +86,53 @@ describe("TRPG start failure classification", () => {
     assert.equal(empty.kind, "empty_completion");
     assert.equal(sanitizeTrpgFailureHint(empty), "GM 생성 실패 · Empty completion");
 
-    const parseState = buildTrpgRoundErrorJson({
+    const persist = buildTrpgRoundErrorJson({
       error: new Error("no such table: trpg_gm_messages"),
       reachedOpeningRound: true,
       gmUsageCount: 1,
     });
-    assert.equal(parseState.class, "C");
-    assert.equal(parseState.kind, "parse_state");
-    assert.equal(sanitizeTrpgFailureHint(parseState), "GM 생성 실패 · Parse/state error");
-    assert.doesNotMatch(sanitizeTrpgFailureHint(parseState), /trpg_gm_messages|sk-|SECRET/);
+    assert.equal(persist.class, "C");
+    assert.equal(persist.kind, "persist_error");
+    assert.notEqual(persist.kind, "parse_state");
+    assert.equal(sanitizeTrpgFailureHint(persist), "GM 생성 실패 · Persist error");
+    assert.doesNotMatch(sanitizeTrpgFailureHint(persist), /trpg_gm_messages|sk-|SECRET/);
+  });
+
+  it("does not classify post-GM billing or parse failures as parse_state", () => {
+    const billing = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error(TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE), {
+        stage: "billing",
+      }),
+      reachedOpeningRound: true,
+      gmUsageCount: 1,
+    });
+    assert.equal(billing.class, "C");
+    assert.equal(billing.kind, "billing_insufficient");
+    assert.equal(billing.stage, "billing");
+    assert.notEqual(billing.kind, "parse_state");
+    assert.equal(sanitizeTrpgFailureHint(billing), TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE);
+    assert.doesNotMatch(sanitizeTrpgFailureHint(billing), /Parse\/state|GM 생성 실패/);
+
+    const hostBilling = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error(TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE), {
+        stage: "billing",
+      }),
+      reachedOpeningRound: true,
+      gmUsageCount: 1,
+    });
+    assert.equal(hostBilling.kind, "billing_insufficient");
+    assert.equal(sanitizeTrpgFailureHint(hostBilling), TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE);
+
+    const parse = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error("GM output parse failed"), {
+        stage: "gm_output_parse",
+      }),
+      reachedOpeningRound: true,
+      gmUsageCount: 1,
+    });
+    assert.equal(parse.kind, "gm_output_parse");
+    assert.equal(parse.stage, "gm_output_parse");
+    assert.equal(sanitizeTrpgFailureHint(parse), "GM 생성 실패 · GM output parse");
   });
 
   it("classifies provider failures as B and post-GM persist failures as C", () => {
@@ -211,9 +254,12 @@ describe("TRPG start failure classification", () => {
       gmCall: async () => {
         gmCalls += 1;
         if (gmCalls === 1) return { text: gmText() };
-        throw attachTrpgCallFailureMeta(new Error("The operation was aborted due to timeout"), {
-          elapsedMs: 180123,
-        });
+        if (gmCalls === 2) {
+          throw attachTrpgCallFailureMeta(new Error("The operation was aborted due to timeout"), {
+            elapsedMs: 180123,
+          });
+        }
+        return { text: gmText("다시 진행한다.") };
       },
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -230,7 +276,26 @@ describe("TRPG start failure classification", () => {
     assert.equal(failure?.kind, "provider_timeout");
     assert.equal(failure?.elapsedMs, 180123);
     assert.equal(failure?.trueOffRequested, true);
+    const retried = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(gmCalls, 3);
+    assert.equal(retried.round.phase, "ACTION_INPUT");
     db.close();
+  });
+
+  it("keeps stored parse_state JSON as a compatibility hint only", () => {
+    assert.equal(
+      sanitizeTrpgFailureHint({ class: "C", error: "legacy", kind: "parse_state" }),
+      "GM 생성 실패 · Parse/state error"
+    );
+  });
+
+  it("documents that ERROR_RECOVERY retry re-enters runGmForRound", () => {
+    const advance = fs.readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
+    assert.match(advance, /phase === "ERROR_RECOVERY"[\s\S]*runGmForRound/);
+    assert.match(advance, /const \{ text, usage \} = await gmCall/);
+    const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /gmFailureKind === "billing_insufficient"/);
+    assert.match(room, /GM 다시 시도/);
   });
 
   it("records post-GM persist failure as ERROR_RECOVERY class C", async () => {
@@ -257,7 +322,8 @@ describe("TRPG start failure classification", () => {
       .get(campaignId) as { phase: string; error_json: string; usage_json: string | null };
     assert.equal(row.phase, "ERROR_RECOVERY");
     assert.equal(parseTrpgStartFailureJson(row.error_json)?.class, "C");
-    assert.equal(parseTrpgStartFailureJson(row.error_json)?.kind, "parse_state");
+    assert.equal(parseTrpgStartFailureJson(row.error_json)?.kind, "persist_error");
+    assert.equal(parseTrpgStartFailureJson(row.error_json)?.stage, "gm_persist");
     assert.match(row.usage_json ?? "", /deepseek-v4-pro|modelId/);
     db.close();
   });

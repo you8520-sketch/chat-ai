@@ -4,6 +4,7 @@ import {
   TRPG_BILLING_MODE_FORBIDDEN_MESSAGE,
   TRPG_BILLING_MODE_LOCKED_MESSAGE,
   TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE,
+  TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE,
   type TrpgBillingMode,
 } from "./types";
 import { loadCampaign } from "./store";
@@ -20,7 +21,7 @@ export function trpgInsufficientBalanceMessage(opts: {
   if (opts.billingMode === "host_pays" && opts.shortUserId === opts.hostUserId) {
     return TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE;
   }
-  return "포인트가 부족합니다.";
+  return TRPG_PLAYER_INSUFFICIENT_POINTS_MESSAGE;
 }
 
 export function canChangeTrpgBillingMode(opts: {

@@ -34,6 +34,7 @@ function InlineSegments({
   parseSegments,
   narrationMuted = false,
   preserveRawLineBreaks = false,
+  dialogueAccent = true,
 }: {
   text: string;
   paragraphKind?: NovelParagraphKind;
@@ -44,6 +45,8 @@ function InlineSegments({
   narrationMuted?: boolean;
   /** 제작자 원본(greeting) — 대사 안 줄바꿈 합치지 않음 */
   preserveRawLineBreaks?: boolean;
+  /** Global chat keeps the purple rail. TRPG action cards pass false. */
+  dialogueAccent?: boolean;
 }) {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -55,7 +58,7 @@ function InlineSegments({
   if (paragraphKind === "dialogue") {
     return (
       <span
-        className={`chat-dialogue-accent font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
+        className={`${dialogueAccent ? "chat-dialogue-accent " : ""}font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
         style={{ color: dialogueColor }}
       >
         {dialogueText}
@@ -137,6 +140,7 @@ export default function NovelText({
   centered = false,
   paragraphMode = "ai",
   streaming = false,
+  dialogueAccent = true,
 }: {
   content: string;
   display?: Pick<
@@ -149,6 +153,8 @@ export default function NovelText({
   paragraphMode?: "ai" | "author";
   /** 스트리밍 중 — 이미 그린 문단은 고정, 마지막 문단만 분리/갱신 */
   streaming?: boolean;
+  /** Global chat keeps the purple rail. TRPG action cards pass false. */
+  dialogueAccent?: boolean;
 }) {
   const streamingParasRef = useRef<string[]>([]);
 
@@ -238,6 +244,7 @@ export default function NovelText({
                   parseSegments={parseSegments}
                   narrationMuted={isAuthorMode}
                   preserveRawLineBreaks={isAuthorMode}
+                  dialogueAccent={dialogueAccent}
                 />
               )}
             </span>
@@ -279,6 +286,7 @@ export default function NovelText({
                 parseSegments={parseSegments}
                 narrationMuted={isAuthorMode}
                 preserveRawLineBreaks={isAuthorMode}
+                dialogueAccent={dialogueAccent}
               />
             )}
           </p>
