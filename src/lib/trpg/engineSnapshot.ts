@@ -8,6 +8,7 @@ import { loadTrpgPartyChat } from "./partyChat";
 import { trpgInvitePath } from "./invite";
 import { parseHumanPersona } from "./hostPersona";
 import { splitTrpgRoundCost } from "./billing";
+import { isTrpgLobbyStatus } from "./billingMode";
 import { parseBillingBreakdown } from "./economics";
 import {
   loadCampaign,
@@ -335,6 +336,9 @@ export function loadTrpgSnapshot(
     worldBrief: campaign.world_brief,
     relationshipBrief: campaign.relationship_brief ?? "",
     billingMode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
+    billingModeLocked:
+      !isTrpgLobbyStatus(campaign.status) &&
+      ((campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE) === "host_pays",
     campaignStatus: campaign.status,
     maxSlots: campaign.max_slots,
     pointPool: scenario.pointPool,
@@ -496,6 +500,7 @@ function loadLog(
       humanCount: breakdown?.humanCount,
       botCount: breakdown?.botCount,
       billingHint: hint,
+      billingMode: billing.mode,
     };
   });
 }

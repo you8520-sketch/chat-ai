@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { deleteTrpgCampaign, loadTrpgSnapshot, renameTrpgCampaign, saveTrpgRelationshipBrief } from "@/lib/trpg/engine";
+import { deleteTrpgCampaign, loadTrpgSnapshot, renameTrpgCampaign, saveTrpgBillingMode, saveTrpgRelationshipBrief } from "@/lib/trpg/engine";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
+import { parseTrpgBillingMode } from "@/lib/trpg/types";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -22,7 +23,19 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   if ("error" in gate) return gate.error;
   try {
     const id = campaignIdFromParams((await ctx.params).id);
-    const body = (await req.json().catch(() => ({}))) as { title?: unknown; relationshipBrief?: unknown };
+    const body = (await req.json().catch(() => ({}))) as {
+      title?: unknown;
+      relationshipBrief?: unknown;
+      billingMode?: unknown;
+    };
+    const billingMode = parseTrpgBillingMode(body.billingMode);
+    if (billingMode) {
+      saveTrpgBillingMode(gate.db, {
+        campaignId: id,
+        userId: gate.user.id,
+        billingMode,
+      });
+    }
     if (typeof body.relationshipBrief === "string") {
       saveTrpgRelationshipBrief(gate.db, {
         campaignId: id,

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
-import { TRPG_GM_MODEL, DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, DEFAULT_TRPG_DICE_RULES, type TrpgBillingMode, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor, resolveCampaignStatDefs } from "./stats";
 
 export function newTrpgInviteCode(): string {
@@ -163,15 +163,17 @@ export function insertCampaign(db: Database.Database, opts: {
   gmSecret?: string | null;
   statDefs?: TrpgStatDefinition[];
   pointPool?: number;
+  billingMode?: TrpgBillingMode;
 }): number {
   const invite = newTrpgInviteCode();
   const statDefs = opts.statDefs && opts.statDefs.length > 0 ? opts.statDefs : DEFAULT_TRPG_STAT_DEFS;
   const pointPool = opts.pointPool ?? pointPoolFor(statDefs);
+  const billingMode = opts.billingMode ?? DEFAULT_TRPG_BILLING_MODE;
   const info = db
     .prepare(
       `INSERT INTO trpg_campaigns
         (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id, gm_secret)
-       VALUES (?,?,?,?,?,'split_even',?,'CHARACTER_SETUP',?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,'CHARACTER_SETUP',?,?,?,?,?)`
     )
     .run(
       opts.hostUserId,
@@ -179,6 +181,7 @@ export function insertCampaign(db: Database.Database, opts: {
       opts.sourceWorldId,
       opts.title,
       opts.maxSlots,
+      billingMode,
       TRPG_GM_MODEL,
       invite,
       opts.worldBrief,

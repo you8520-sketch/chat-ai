@@ -69,6 +69,7 @@ export type TrpgPublicLog = {
   humanCount?: number;
   botCount?: number;
   billingHint?: string;
+  billingMode?: TrpgBillingMode;
 };
 
 export type TrpgPartyChatMessage = {
@@ -91,6 +92,7 @@ export type TrpgCampaignSnapshot = {
   worldBrief: string;
   relationshipBrief: string;
   billingMode: TrpgBillingMode;
+  billingModeLocked: boolean;
   campaignStatus: string;
   maxSlots: number;
   pointPool: number;

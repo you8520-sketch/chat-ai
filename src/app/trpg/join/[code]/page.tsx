@@ -59,6 +59,7 @@ export default async function TrpgJoinPage({
       code={code}
       title={peek.title}
       remainingSlots={peek.remainingSlots}
+      billingMode={peek.billingMode}
       personas={personas}
     />
   );

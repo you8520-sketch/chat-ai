@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { trpgInvitePath } from "@/lib/trpg/invite";
+import type { TrpgBillingMode } from "@/lib/trpg/types";
 
 export default function TrpgInviteLink({
   code,
   canJoin,
   compact = false,
+  billingMode,
 }: {
   code: string;
   canJoin: boolean;
   compact?: boolean;
+  billingMode?: TrpgBillingMode;
 }) {
   const path = trpgInvitePath(code);
   const [full, setFull] = useState(path);
@@ -60,6 +63,9 @@ export default function TrpgInviteLink({
           ? "시작 전에 이 링크를 보내면 바로 입장합니다. 사람+플레이어 캐릭터 합쳐 4자리이며, 플레이어 캐릭터는 최대 2명입니다."
           : "이미 시작됐거나 정원이 가득해서 새 참가는 안 됩니다."}
       </p>
+      {billingMode === "host_pays" ? (
+        <p className="mt-1 text-xs text-violet-200/80">방장이 플레이 비용을 부담하는 방입니다.</p>
+      ) : null}
       <button
         type="button"
         onClick={() => void copy()}

@@ -1,4 +1,4 @@
-import type { TrpgSuccessTier } from "./types";
+import type { TrpgBillingMode, TrpgSuccessTier } from "./types";
 
 /** Display-only. Uses server d20 / finalScore / DC / tier; does not reroll. */
 export function formatTrpgRollCompact(opts: {
@@ -11,6 +11,19 @@ export function formatTrpgRollCompact(opts: {
   const modifier = opts.finalScore - opts.d20;
   const modText = modifier >= 0 ? `+${modifier}` : String(modifier);
   return `${opts.statLabel} · d20 ${opts.d20} ${modText} = ${opts.finalScore} vs DC ${opts.dc} · ${successLabelKo(opts.tier)}`;
+}
+
+export function trpgBillingModeLabel(mode: TrpgBillingMode): string {
+  switch (mode) {
+    case "split_even":
+      return "균등 부담";
+    case "host_pays":
+      return "방장 전액 부담";
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
 }
 
 export function successLabelKo(tier: TrpgSuccessTier): string {

@@ -12,6 +12,8 @@ export type TrpgModelUsage = {
   outputTokens: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
+  /** Provider-reported USD cost when usage.cost (or equivalent) is present. */
+  upstreamCostUsd?: number;
 };
 
 /** Typical GM scene when the provider omits usage — Pro 65% still applies. */

@@ -14,7 +14,8 @@ import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS } from "@/lib/trpg/types";
+import { trpgBillingModeLabel } from "@/lib/trpg/labels";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const POLL_MS = 1500;
@@ -173,6 +174,11 @@ export default function TrpgRoomClient({
     await runPatch({ relationshipBrief });
   }
 
+  async function saveBillingMode(next: TrpgBillingMode) {
+    if (next === snap.billingMode) return;
+    await runPatch({ billingMode: next });
+  }
+
   async function runPatch(body: unknown) {
     setBusy(true);
     setError("");
@@ -252,7 +258,7 @@ export default function TrpgRoomClient({
         const relRes = await fetch(`/api/trpg/campaigns/${snap.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ relationshipBrief }),
+          body: JSON.stringify({ relationshipBrief, billingMode: snap.billingMode }),
         });
         const relData = (await relRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
         if (!relRes.ok || !relData.campaign) {
@@ -356,6 +362,7 @@ export default function TrpgRoomClient({
             void run(`/api/trpg/campaigns/${snap.id}/reroll`, { roundNumber })
           }
           onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
+          onBillingModeChange={(mode) => void saveBillingMode(mode)}
         />
         <ChatImageGeneratorPanel showRailTrigger={false} />
       </>
@@ -382,7 +389,14 @@ export default function TrpgRoomClient({
             로비
           </Link>
           {" · "}라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
+          {" · "}
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-zinc-300">
+            {trpgBillingModeLabel(snap.billingMode ?? DEFAULT_TRPG_BILLING_MODE)}
+          </span>
         </p>
+        {snap.billingMode === "host_pays" && !snap.viewerIsHost ? (
+          <p className="text-xs text-violet-200/80">이 방의 플레이 비용은 방장이 부담합니다.</p>
+        ) : null}
         {setup && snap.viewerIsHost && snap.participants.filter((p) => p.kind === "human").length <= 1 ? (
           <p className="text-xs text-zinc-500">
             「캠페인 시작」을 누르지 않고 로비로 나가면 이 초안은 삭제됩니다. 다른 사람이 들어오면 유지됩니다.
@@ -391,7 +405,7 @@ export default function TrpgRoomClient({
         <p className="text-xs leading-relaxed text-zinc-500">
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
           캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
-          마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰을 사람만 균등 분담합니다.
+          마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰은 사람만 냅니다.
           GM 서술은 3,000자를 넘기며, 캐릭터마다 분량을 주고 마지막에 GM 상황 설명을 넣습니다. 상한은 없습니다.
           캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
           채팅처럼 분기할 수 없습니다. 한 타임라인만 앞으로 갑니다.
@@ -413,6 +427,64 @@ export default function TrpgRoomClient({
           onPersonaChange={(id) => void applyPersona(id)}
           onAddCharacter={(id) => void addCharacter(id)}
         />
+      ) : null}
+
+      {setup ? (
+        <AppSectionCard title="비용 부담 방식">
+          {snap.viewerIsHost ? (
+            <fieldset className="space-y-3" disabled={busy}>
+              <legend className="sr-only">비용 부담 방식</legend>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                <input
+                  type="radio"
+                  name="trpg-billing-mode"
+                  className="mt-1"
+                  checked={(snap.billingMode ?? DEFAULT_TRPG_BILLING_MODE) === "split_even"}
+                  disabled={snap.billingModeLocked}
+                  onChange={() => void saveBillingMode("split_even")}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-100">함께 나누기</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-zinc-400">
+                    참가한 플레이어끼리 라운드 비용을 나눠 냅니다.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+                <input
+                  type="radio"
+                  name="trpg-billing-mode"
+                  className="mt-1"
+                  checked={snap.billingMode === "host_pays"}
+                  onChange={() => void saveBillingMode("host_pays")}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-100">방장이 전액 부담</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-zinc-400">
+                    다른 플레이어는 포인트가 없어도 함께 플레이할 수 있습니다. 이 방의 TRPG 비용은 방장이
+                    모두 부담합니다.
+                  </span>
+                </span>
+              </label>
+              {snap.billingModeLocked ? (
+                <p className="text-xs text-zinc-500">
+                  방장 전액 부담을 시작한 뒤에는 현재 캠페인 동안 다시 균등분배로 바꿀 수 없습니다.
+                </p>
+              ) : null}
+            </fieldset>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-zinc-100">
+                {trpgBillingModeLabel(snap.billingMode ?? DEFAULT_TRPG_BILLING_MODE)}
+              </p>
+              <p className="text-sm leading-relaxed text-zinc-400">
+                {snap.billingMode === "host_pays"
+                  ? "이 방의 플레이 비용은 방장이 부담합니다."
+                  : "참가한 플레이어끼리 라운드 비용을 나눠 냅니다."}
+              </p>
+            </div>
+          )}
+        </AppSectionCard>
       ) : null}
 
       {setup ? (
@@ -457,6 +529,7 @@ export default function TrpgRoomClient({
         <TrpgInviteLink
           code={snap.inviteCode}
           canJoin={setup && snap.participants.length < snap.maxSlots}
+          billingMode={snap.billingMode}
         />
       ) : null}
 
