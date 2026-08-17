@@ -41,10 +41,13 @@ export async function POST(req: Request) {
     const existing: TrpgScenarioDraftExisting = {
       title: String(existingDraft.title ?? ""),
       summary: String(existingDraft.summary ?? ""),
+      content: String(existingDraft.content ?? ""),
+      secretContent: String(existingDraft.secretContent ?? ""),
       startLocation: String(existingDraft.startLocation ?? ""),
       startInventory: parseInventory(existingDraft.startInventory),
       npcs: parseScenarioNpcs(existingDraft.npcs),
       plan: parseTrpgScenarioPlan(existingDraft.plan ?? existingDraft),
+      touchedFields: parseDraftFields(existingDraft.touchedFields ?? body.touchedFields),
     };
     if (mode === "regenerate_selected" && selectedFields.length === 0) {
       return NextResponse.json({ error: "다시 만들 항목을 선택해 주세요." }, { status: 400 });

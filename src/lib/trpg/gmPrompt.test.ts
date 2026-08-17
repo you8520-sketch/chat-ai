@@ -155,5 +155,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(talk, /talk\/ask only/);
     assert.doesNotMatch(talk, /d20=/);
     assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /DIRECTOR DELTA CONTRACT/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /"storyPhase"/);
   });
 });

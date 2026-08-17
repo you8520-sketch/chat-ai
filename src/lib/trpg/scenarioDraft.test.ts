@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
 import {
   assertScenarioDraftRateLimit,
+  buildScenarioDraftUserPrompt,
+  computeScenarioDraftBudget,
   mergeScenarioDraft,
   parseScenarioDraftJson,
   previewDraftOverwrite,
@@ -12,6 +14,7 @@ import {
 } from "./scenarioDraft";
 import { completeTrpgAuthoringJson } from "./scenarioDraftCall";
 import { emptyTrpgScenarioPlan } from "./scenarioPlan";
+import { TRPG_SCENARIO_BUNDLE_LIMIT } from "./scenarioTypes";
 
 const generated = parseScenarioDraftJson(
   JSON.stringify({
@@ -50,20 +53,63 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.plan.difficulty, "hard");
   });
 
-  it("repairs invalid JSON once and then fails", async () => {
-    let calls = 0;
+  it("repairs malformed JSON once, does not retry transport errors, and calls once for valid JSON", async () => {
+    let malformedCalls = 0;
+    const repairedUsers: string[] = [];
     const result = await completeTrpgAuthoringJson({
       kind: "scenario_draft",
       system: "sys",
       user: "user",
-      complete: async () => {
-        calls += 1;
-        if (calls === 1) return { text: "not-json", latencyMs: 1, model: TRPG_SCENARIO_DRAFT_MODEL };
+      complete: async ({ user }) => {
+        malformedCalls += 1;
+        repairedUsers.push(user);
+        if (malformedCalls === 1) return { text: "not-json", latencyMs: 1, model: TRPG_SCENARIO_DRAFT_MODEL };
         return { text: JSON.stringify({ title: "고침", startingSituation: "시작", centralConflict: "갈등", goal: "목표", endingConditions: ["끝"] }), latencyMs: 1, model: TRPG_SCENARIO_DRAFT_MODEL };
       },
     });
-    assert.equal(calls, 2);
+    assert.equal(malformedCalls, 2);
     assert.equal(result.title, "고침");
+    assert.match(repairedUsers[1] ?? "", /INVALID_OUTPUT/);
+    assert.match(repairedUsers[1] ?? "", /not-json/);
+    assert.match(repairedUsers[1] ?? "", /VALIDATION_ERROR/);
+
+    let transportCalls = 0;
+    await assert.rejects(
+      () =>
+        completeTrpgAuthoringJson({
+          kind: "scenario_draft",
+          system: "sys",
+          user: "user",
+          complete: async () => {
+            transportCalls += 1;
+            throw new Error("ECONNRESET timeout");
+          },
+        }),
+      /ECONNRESET/
+    );
+    assert.equal(transportCalls, 1);
+
+    let validCalls = 0;
+    await completeTrpgAuthoringJson({
+      kind: "scenario_draft",
+      system: "sys",
+      user: "user",
+      complete: async () => {
+        validCalls += 1;
+        return {
+          text: JSON.stringify({
+            title: "한 번",
+            startingSituation: "시작",
+            centralConflict: "갈등",
+            goal: "목표",
+            endingConditions: ["끝"],
+          }),
+          latencyMs: 1,
+          model: TRPG_SCENARIO_DRAFT_MODEL,
+        };
+      },
+    });
+    assert.equal(validCalls, 1);
 
     await assert.rejects(
       () =>
@@ -119,6 +165,78 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(locked.title, "내 제목");
     assert.equal(locked.plan.startingSituation, "내가 쓴 시작");
     assert.equal(locked.plan.goal, "목표");
+  });
+
+  it("treats untouched normal/medium as empty but keeps touched or locked enums", () => {
+    const untouched = {
+      plan: emptyTrpgScenarioPlan(),
+    };
+    assert.equal(previewDraftOverwrite({ mode: "fill_empty", existing: untouched }).includes("difficulty"), true);
+    assert.equal(previewDraftOverwrite({ mode: "fill_empty", existing: untouched }).includes("playLength"), true);
+    const filled = mergeScenarioDraft({ mode: "fill_empty", existing: untouched, generated });
+    assert.equal(filled.plan.difficulty, "hard");
+    assert.equal(filled.plan.playLength, "long");
+
+    const touched = mergeScenarioDraft({
+      mode: "fill_empty",
+      existing: { plan: emptyTrpgScenarioPlan(), touchedFields: ["difficulty", "playLength"] },
+      generated,
+    });
+    assert.equal(touched.plan.difficulty, "normal");
+    assert.equal(touched.plan.playLength, "medium");
+
+    const locked = mergeScenarioDraft({
+      mode: "regenerate_all",
+      existing: { plan: { ...emptyTrpgScenarioPlan(), difficulty: "normal", playLength: "medium" } },
+      generated,
+      lockedFields: ["difficulty", "playLength"],
+    });
+    assert.equal(locked.plan.difficulty, "normal");
+    assert.equal(locked.plan.playLength, "medium");
+
+    const easyGenerated = parseScenarioDraftJson(
+      JSON.stringify({
+        title: "AI제목",
+        summary: "공개 소개",
+        startingSituation: "시작",
+        centralConflict: "갈등",
+        goal: "목표",
+        endingConditions: ["끝"],
+        difficulty: "easy",
+        playLength: "short",
+      })
+    );
+    const authoredEnums = mergeScenarioDraft({
+      mode: "fill_empty",
+      existing: { plan: { ...emptyTrpgScenarioPlan(), difficulty: "hard", playLength: "long" } },
+      generated: easyGenerated,
+    });
+    assert.equal(authoredEnums.plan.difficulty, "hard");
+    assert.equal(authoredEnums.plan.playLength, "long");
+  });
+
+  it("puts a remaining bundle budget hint in the draft prompt without changing the save limit", () => {
+    const worldContent = "한".repeat(8000);
+    const existing = { plan: emptyTrpgScenarioPlan() };
+    const budget = computeScenarioDraftBudget({
+      worldSummary: "요약",
+      worldContent,
+      existing,
+      mode: "fill_empty",
+    });
+    assert.equal(budget.limit, TRPG_SCENARIO_BUNDLE_LIMIT);
+    assert.equal(TRPG_SCENARIO_BUNDLE_LIMIT, 10000);
+    assert.ok(budget.remaining < 2500);
+    assert.equal(budget.used + budget.remaining, budget.limit);
+    const prompt = buildScenarioDraftUserPrompt({
+      worldName: "북부",
+      worldSummary: "요약",
+      worldContent,
+      mode: "fill_empty",
+      existing,
+    });
+    assert.match(prompt, /available_text_budget≈/);
+    assert.match(prompt, new RegExp(String(budget.remaining)));
   });
 
   it("blocks overlapping draft requests", () => {

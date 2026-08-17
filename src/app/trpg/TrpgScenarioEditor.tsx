@@ -101,6 +101,9 @@ export default function TrpgScenarioEditor({
   const [assets, setAssets] = useState<CharacterAsset[]>(initial?.assets ?? []);
   const [plan, setPlan] = useState<TrpgScenarioPlan>(initial?.scenarioPlan ?? emptyTrpgScenarioPlan());
   const [lockedFields, setLockedFields] = useState<TrpgScenarioDraftField[]>([]);
+  const [touchedFields, setTouchedFields] = useState<TrpgScenarioDraftField[]>(() =>
+    initial?.scenarioPlan ? ["difficulty", "playLength"] : []
+  );
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
   const [readiness, setReadiness] = useState<ReturnType<typeof scoreTrpgScenarioReadiness> | null>(null);
@@ -269,14 +272,21 @@ export default function TrpgScenarioEditor({
     });
   }
 
+  function markTouched(field: TrpgScenarioDraftField) {
+    setTouchedFields((prev) => (prev.includes(field) ? prev : [...prev, field]));
+  }
+
   function existingDraft() {
     return {
       title,
       summary,
+      content,
+      secretContent,
       startLocation,
       startInventory: inventoryText.split(",").map((s) => s.trim()).filter(Boolean),
       npcs: namedNpcs,
       plan,
+      touchedFields,
     };
   }
 
@@ -325,6 +335,7 @@ export default function TrpgScenarioEditor({
       if (data.draft.startInventory.length) setInventoryText(data.draft.startInventory.join(", "));
       if (data.draft.npcs.length) setNpcs(data.draft.npcs);
       setPlan(data.draft.plan);
+      setTouchedFields((prev) => [...new Set([...prev, "difficulty", "playLength"])]);
       setReadiness(data.readiness ?? null);
       setLintMessages((data.lint ?? []).map((item) => item.message));
       setAdvancedOpen(true);
@@ -626,7 +637,10 @@ export default function TrpgScenarioEditor({
                   난이도
                   <select
                     value={plan.difficulty}
-                    onChange={(e) => patchPlan({ difficulty: e.target.value as TrpgScenarioDifficulty })}
+                    onChange={(e) => {
+                      markTouched("difficulty");
+                      patchPlan({ difficulty: e.target.value as TrpgScenarioDifficulty });
+                    }}
                     className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
                   >
                     {Object.entries(DIFFICULTY_LABEL).map(([value, label]) => (
@@ -640,7 +654,10 @@ export default function TrpgScenarioEditor({
                   플레이 길이
                   <select
                     value={plan.playLength}
-                    onChange={(e) => patchPlan({ playLength: e.target.value as TrpgScenarioPlayLength })}
+                    onChange={(e) => {
+                      markTouched("playLength");
+                      patchPlan({ playLength: e.target.value as TrpgScenarioPlayLength });
+                    }}
                     className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
                   >
                     {Object.entries(PLAY_LENGTH_LABEL).map(([value, label]) => (

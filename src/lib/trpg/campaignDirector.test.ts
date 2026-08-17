@@ -168,6 +168,98 @@ describe("TRPG sandbox director and plan security", () => {
     db.close();
   });
 
+  it("rejects a valid JSON blueprint that is missing goal or ending conditions", async () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
+       VALUES (2, '북부', '얼음 마법', 1, 'public')`
+    ).run();
+    let directorCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      directorCall: async () => {
+        directorCalls += 1;
+        return {
+          text: JSON.stringify({
+            title: "불완전",
+            startingSituation: "눈보라 속 성채",
+            centralConflict: "얼음 마법의 확산",
+            secret: "INCOMPLETESECRET",
+          }),
+          latencyMs: 1,
+          model: TRPG_SCENARIO_DRAFT_MODEL,
+        };
+      },
+      gmCall: async ({ user }) => {
+        assert.doesNotMatch(user, /\[SCENARIO PLAN\]/);
+        assert.doesNotMatch(user, /INCOMPLETESECRET/);
+        assert.doesNotMatch(user, /DIRECTOR DELTA CONTRACT/);
+        return { text: gmText("세계관만으로 시작한다.") };
+      },
+    };
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      worldId: 1,
+    });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const snap = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(directorCalls, 1);
+    assert.match(snap.currentNarration ?? "", /세계관만으로/);
+    assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
+    assert.match(loadCampaignContext(db, campaignId)?.directorError ?? "", /required story fields|목표|종료/);
+    db.close();
+  });
+
+  it("adds the storyPhase JSON contract once when a plan exists and never for legacy campaigns", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "폐역",
+      content: "유령 기차를 기다린다.",
+      visibility: "public",
+      scenarioPlan: playablePlan,
+    });
+    const planned: string[] = [];
+    const plannedDeps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async ({ user }) => {
+        planned.push(user);
+        return { text: gmText() };
+      },
+    };
+    const plannedId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    saveTrpgSheet(db, { campaignId: plannedId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, { campaignId: plannedId, userId: 1, deps: plannedDeps });
+    assert.equal(planned.length, 1);
+    assert.equal((planned[0]?.match(/\[DIRECTOR DELTA CONTRACT\]/g) ?? []).length, 1);
+    assert.equal((planned[0]?.match(/"storyPhase"/g) ?? []).length, 1);
+    assert.match(planned[0] ?? "", /threadsAdd/);
+    assert.match(planned[0] ?? "", /threadsResolve/);
+    assert.match(planned[0] ?? "", /endingConditionId/);
+
+    const legacy: string[] = [];
+    const legacyDeps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async ({ user }) => {
+        legacy.push(user);
+        return { text: gmText() };
+      },
+    };
+    const legacyId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId: legacyId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, { campaignId: legacyId, userId: 1, deps: legacyDeps });
+    assert.equal(legacy.length, 1);
+    assert.doesNotMatch(legacy[0] ?? "", /DIRECTOR DELTA CONTRACT/);
+    assert.doesNotMatch(legacy[0] ?? "", /"storyPhase"/);
+    db.close();
+  });
+
   it("falls back to world-only GM play when the director fails", async () => {
     const db = memoryDb();
     db.prepare(

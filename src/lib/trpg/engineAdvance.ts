@@ -32,6 +32,7 @@ import {
   resolvedCampaignPlan,
   serializeCampaignDirectorInstructions,
   serializeCampaignDirectorState,
+  serializeDirectorDeltaContract,
 } from "./campaignContext";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
@@ -649,8 +650,23 @@ async function runGmForRound(
   const campaignContext = loadCampaignContext(db, opts.campaignId);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan);
+  const completedRounds = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM trpg_rounds
+         WHERE campaign_id=? AND phase IN ('ROUND_COMPLETE','CAMPAIGN_COMPLETE')`
+      )
+      .get(opts.campaignId) as { n: number } | undefined
+  )?.n ?? 0;
   const storyDirectorBlock = resolvedPlan
-    ? [serializeCampaignDirectorInstructions(true), serializeCampaignDirectorState(campaignContext)]
+    ? [
+        serializeCampaignDirectorInstructions(true),
+        serializeDirectorDeltaContract({
+          storyPhase: campaignContext?.storyPhase ?? "INTRO",
+          completedRounds,
+        }),
+        serializeCampaignDirectorState(campaignContext),
+      ]
         .filter(Boolean)
         .join("\n\n")
     : "";

@@ -6,6 +6,7 @@ import { insertScenarioTemplate } from "./scenarioTemplates";
 import {
   applyStoryPhaseTransition,
   countScenarioPlanChars,
+  evaluateSandboxBlueprint,
   hasPlayableScenarioPlan,
   lintTrpgScenarioPlan,
   parseTrpgScenarioPlan,
@@ -76,6 +77,31 @@ describe("TRPG scenario plan", () => {
       countScenarioBundleChars({ content: "본문", scenarioPlan: plan }),
       "본문".length + planChars
     );
+  });
+
+  it("rejects unplayable sandbox blueprints while draft warnings stay non-blocking", () => {
+    const incomplete = parseTrpgScenarioPlan({
+      startingSituation: "폐도시에 들어간다",
+      centralConflict: "코어와 인간 세력이 충돌한다",
+    });
+    const rejected = evaluateSandboxBlueprint(incomplete);
+    assert.equal(rejected.ok, false);
+    const leaked = evaluateSandboxBlueprint(
+      parseTrpgScenarioPlan({
+        ...playablePlan,
+        startingSituation: "폐도시에 들어간다 SECRETPLAN",
+        secret: "SECRETPLAN",
+      })
+    );
+    assert.equal(leaked.ok, false);
+    const warned = lintTrpgScenarioPlan({
+      plan: parseTrpgScenarioPlan({
+        ...playablePlan,
+        clues: [],
+      }),
+    });
+    assert.ok(warned.some((issue) => issue.level === "warning"));
+    assert.equal(evaluateSandboxBlueprint(parseTrpgScenarioPlan(playablePlan)).ok, true);
   });
 
   it("lints missing clues and unrelated endings without blocking on warnings", () => {

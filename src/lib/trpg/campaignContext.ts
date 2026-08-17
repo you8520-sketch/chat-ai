@@ -227,5 +227,22 @@ export function serializeCampaignDirectorInstructions(hasPlan: boolean): string 
 - In CLIMAX, do not suddenly add a new world-scale crisis.
 - If the core conflict is resolved, allow EPILOGUE. In EPILOGUE do not start a new long plot.
 - campaign_finished may be true only when an ending condition is actually met by play, or an existing forced end applies.
-- Optional DELTA keys: storyPhase, threadsAdd, threadsResolve, endingConditionId. Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.`;
+- Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.
+- Put 이야기 단계 and thread fields in <<<DELTA>>> using the DIRECTOR DELTA CONTRACT.`;
+}
+
+export function serializeDirectorDeltaContract(opts: {
+  storyPhase: TrpgStoryPhase;
+  completedRounds?: number;
+}): string {
+  const rounds = opts.completedRounds ?? 0;
+  const hint =
+    rounds >= 3
+      ? `\nSoft hint only: ${rounds} completed scenes and the current 이야기 단계는 ${opts.storyPhase}. If the fiction already moved on, you MAY emit one adjacent step. Do not advance by count alone.`
+      : "";
+  return `[DIRECTOR DELTA CONTRACT]
+Every <<<DELTA>>> JSON must include the 이야기 단계 as the current value or one adjacent step.
+Include thread add/resolve lists and an endingConditionId when they apply.
+Example:
+{"players":[],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"storyPhase":"${opts.storyPhase}","threadsAdd":[],"threadsResolve":[],"endingConditionId":""}${hint}`;
 }

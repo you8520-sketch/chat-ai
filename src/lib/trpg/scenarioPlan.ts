@@ -223,6 +223,18 @@ export function hasPlayableScenarioPlan(plan: TrpgScenarioPlan | null | undefine
   );
 }
 
+/** Sandbox Blueprint only. Human-reviewed drafts keep warning UX and are not rejected here. */
+export function evaluateSandboxBlueprint(plan: TrpgScenarioPlan | null | undefined): { ok: true } | { ok: false; error: string } {
+  if (!hasPlayableScenarioPlan(plan)) {
+    return { ok: false, error: "sandbox blueprint missing required story fields" };
+  }
+  const errors = lintTrpgScenarioPlan({ plan }).filter((issue) => issue.level === "error");
+  if (errors.length > 0) {
+    return { ok: false, error: errors.map((issue) => issue.message).join("; ") };
+  }
+  return { ok: true };
+}
+
 export function countScenarioPlanChars(plan: TrpgScenarioPlan | null | undefined): number {
   if (!plan) return 0;
   const lists = [

@@ -14,7 +14,7 @@ import {
   buildSandboxDirectorUserPrompt,
 } from "./scenarioDraft";
 import { completeTrpgAuthoringJson, type TrpgAuthoringComplete } from "./scenarioDraftCall";
-import { parseTrpgScenarioPlan } from "./scenarioPlan";
+import { evaluateSandboxBlueprint, parseTrpgScenarioPlan } from "./scenarioPlan";
 import { loadScenarioTemplate, rowToScenarioTemplate } from "./scenarioTemplates";
 import { loadCampaign } from "./store";
 
@@ -118,12 +118,18 @@ export async function ensureCampaignDirectorContext(
       complete: deps?.directorCall,
     });
     const plan = parseTrpgScenarioPlan(generated.plan) ?? generated.plan;
-    plan.provenance = makeDraftProvenance({
-      worldId: ctx.worldSnapshot.id,
-      worldUpdatedAt: ctx.worldSnapshot.updatedAt,
-      worldHash: ctx.worldSnapshot.hash,
-    });
-    ctx.directorPlan = plan;
+    const accepted = evaluateSandboxBlueprint(plan);
+    if (!accepted.ok) {
+      ctx.directorPlan = null;
+      ctx.directorError = accepted.error;
+    } else {
+      plan.provenance = makeDraftProvenance({
+        worldId: ctx.worldSnapshot.id,
+        worldUpdatedAt: ctx.worldSnapshot.updatedAt,
+        worldHash: ctx.worldSnapshot.hash,
+      });
+      ctx.directorPlan = plan;
+    }
   } catch (error) {
     ctx.directorError = error instanceof Error ? error.message : "sandbox director failed";
     ctx.directorPlan = null;
