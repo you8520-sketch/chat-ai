@@ -1,23 +1,32 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
 import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+
+function thinkingType(body: Record<string, unknown>): string {
+  const thinking = body.thinking;
+  if (!thinking || typeof thinking !== "object" || Array.isArray(thinking)) return "";
+  return String((thinking as { type?: unknown }).type ?? "");
+}
 
 describe("TRPG GM call path vs regular chat", () => {
-  it("enables DeepSeek V4 Pro thinking only on the GM adapter", () => {
+  it("sends GM and Bot true OFF as thinking.disabled + reasoning_effort.none", () => {
     const body = {
       model: "deepseek-v4-pro",
       messages: [{ role: "user", content: "장면" }],
       reasoning_effort: "high",
     };
-    assert.deepEqual(adaptTrpgGmChatBody(body), {
+    const gm = adaptTrpgGmChatBody(body);
+    const bot = adaptTrpgBotChatBody(body);
+    assert.deepEqual(gm, {
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
-      thinking: { type: "enabled" },
+      thinking: { type: "disabled" },
+      reasoning_effort: "none",
     });
-    assert.deepEqual(adaptTrpgBotChatBody(body), {
+    assert.deepEqual(bot, {
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
       thinking: { type: "disabled" },
@@ -37,21 +46,30 @@ describe("TRPG GM call path vs regular chat", () => {
       max_tokens: TRPG_GM_MAX_TOKENS,
     });
     assert.equal(withCap.max_tokens, TRPG_GM_MAX_TOKENS);
-    assert.deepEqual(withCap.thinking, { type: "enabled" });
-    assert.equal("reasoning_effort" in withCap, false);
+    assert.deepEqual(withCap.thinking, { type: "disabled" });
+    assert.equal(withCap.reasoning_effort, "none");
   });
+});
 
-  it("keeps Bot on the true OFF contract even if a caller sent another effort", () => {
-    const adapted = adaptTrpgBotChatBody({
-      model: "deepseek-v4-pro-0813",
+describe("TRPG DeepSeek Pro true-OFF contract", () => {
+  it("pins GM and Bot request fields so reasoning_effort.none cannot be dropped", () => {
+    const gm = adaptTrpgGmChatBody({
+      model: TRPG_GM_MODEL,
+      messages: [{ role: "user", content: "장면" }],
       reasoning_effort: "high",
-      messages: [{ role: "user", content: "문을 막는다" }],
     });
-    assert.deepEqual(adapted.thinking, { type: "disabled" });
-    assert.equal((adapted.thinking as { type: string }).type, "disabled");
-    assert.equal(adapted.reasoning_effort, "none");
-    assert.equal(adapted.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    const bot = adaptTrpgBotChatBody({
+      model: TRPG_BOT_MODEL,
+      messages: [{ role: "user", content: "문을 막는다" }],
+      reasoning_effort: "high",
+    });
+    assert.equal(thinkingType(gm), "disabled");
+    assert.equal(gm.reasoning_effort, "none");
+    assert.equal(thinkingType(bot), "disabled");
+    assert.equal(bot.reasoning_effort, "none");
+    assert.equal(gm.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(bot.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
   });
 });
