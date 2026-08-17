@@ -51,5 +51,7 @@ Production-common adult handoff only:
 ## Run
 
 ```bash
-node --conditions=react-server --import tsx scripts/aion-adult-handoff-capability.ts
+node --conditions=react-server --import tsx scripts/aion-adult-handoff-capability.ts --aion20-ci-minimal
 ```
+
+Aion 2.0 CI thinking-off probe: `--aion20-ci-minimal`. Does not call Aion 3.0 Mini. Does not replace the earlier CI HTTP 400 samples.

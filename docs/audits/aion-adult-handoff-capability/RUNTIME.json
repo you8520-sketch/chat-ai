@@ -13,7 +13,8 @@
   "AION30MINI_CI_MODEL_ID": null,
   "AION30MINI_OPENROUTER_AVAILABLE": true,
   "AION30MINI_OPENROUTER_MODEL_ID": "aion-labs/aion-3.0-mini",
-  "AION30MINI_PROVIDER_USED": "openrouter",
+  "AION30MINI_PROVIDER_USED": null,
+  "AION20_CI_MINIMAL_PROBE": true,
   "PROVIDER_PARITY": false,
   "PROVIDER_PARITY_NOT_AVAILABLE": true,
   "FIXTURE_A_PROVEN": true,
@@ -30,40 +31,40 @@
   "SOURCE_MODEL_CALLS": 0,
   "AION20_CONSENSUAL_VISIBLE": {
     "values": [
-      0,
-      0
+      2943,
+      2386
     ],
-    "min": 0,
-    "max": 0,
-    "mean": 0
+    "min": 2386,
+    "max": 2943,
+    "mean": 2664.5
   },
   "AION20_CNC_VISIBLE": null,
   "AION20_TTFT": {
     "values": [
-      null,
-      null
+      11328,
+      3040
     ],
-    "min": null,
-    "max": null,
-    "mean": null
+    "min": 3040,
+    "max": 11328,
+    "mean": 7184
   },
   "AION20_LATENCY": {
     "values": [
-      760,
-      897
+      51354,
+      31886
     ],
-    "min": 760,
-    "max": 897,
-    "mean": 828.5
+    "min": 31886,
+    "max": 51354,
+    "mean": 41620
   },
   "AION20_COST": {
     "values": [
-      null,
-      null
+      0.009283,
+      0.00817
     ],
-    "min": null,
-    "max": null,
-    "mean": null
+    "min": 0.00817,
+    "max": 0.009283,
+    "mean": 0.0087
   },
   "AION30MINI_CONSENSUAL_VISIBLE": {
     "values": [
@@ -102,15 +103,10 @@
     "max": 0.0170618,
     "mean": 0.0139
   },
-  "AION20_REASONING_STREAMS": false,
+  "AION20_REASONING_STREAMS": true,
   "AION30MINI_REASONING_STREAMS": true,
   "TERMINAL_USAGE": false,
-  "TERMINAL_USAGE_NOTE": "false because the two reused Aion 2.0 CI 400s have no usage object. Both OpenRouter 3.0 Mini samples have terminal usage.",
-  "AION30MINI_TERMINAL_USAGE": true,
   "INCOMPLETE_STREAMS": 2,
-  "INCOMPLETE_STREAMS_NOTE": "Both incompletes are the Aion 2.0 CI 400s. Aion 3.0 Mini streams both saw [DONE].",
-  "AION30MINI_INCOMPLETE_STREAMS": 0,
-  "LIFETIME_QUALITY_CALLS_THIS_AUDIT": 4,
   "RAW_SHA_COMPLETE": true,
   "PRODUCTION_ROUTING_CHANGED": false,
   "MAIN_MERGED": false,
@@ -236,6 +232,74 @@
       "fallback": 0,
       "raw_sha256": "1640ea28beb6156d4753521bd9fb9202e0ce40db4a7ac67788c2c776d1d67302",
       "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6"
+    },
+    {
+      "sample_id": "AION20_CI_MINIMAL_1",
+      "http_status": 200,
+      "requested_model": "aion-labs.aion-2-0",
+      "response_model": "aion-labs.aion-2-0",
+      "provider": "cheaperinference",
+      "finish_reason": "stop",
+      "visible_chars": 2943,
+      "korean_chars": 1976,
+      "ttft_ms": 11328,
+      "latency_ms": 51354,
+      "input_tokens": 14984,
+      "completion_tokens": 2776,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": 0.009283,
+      "terminal_usage": true,
+      "reasoning_stream_observed": true,
+      "reasoning_events": 533,
+      "reasoning_chars": 2611,
+      "stream_done": true,
+      "incomplete_stream": false,
+      "error": null,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "raw_sha256": "dcf8218bb3a1676ad1f50e9923a554a92d838f23f274578782eef3f0657f98b8",
+      "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6",
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null
+    },
+    {
+      "sample_id": "AION20_CI_MINIMAL_2",
+      "http_status": 200,
+      "requested_model": "aion-labs.aion-2-0",
+      "response_model": "aion-labs.aion-2-0",
+      "provider": "cheaperinference",
+      "finish_reason": "stop",
+      "visible_chars": 2386,
+      "korean_chars": 1617,
+      "ttft_ms": 3040,
+      "latency_ms": 31886,
+      "input_tokens": 14984,
+      "completion_tokens": 1782,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": 0.00817,
+      "terminal_usage": true,
+      "reasoning_stream_observed": false,
+      "reasoning_events": 0,
+      "reasoning_chars": 0,
+      "stream_done": true,
+      "incomplete_stream": false,
+      "error": null,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "raw_sha256": "0b3553481ab8b8d5c2b7b8a02f202a9510913bb93f462c9962f55fd884aa3faf",
+      "prompt_sha": "9da85a85d814c304b781603c4659e878675b455a7f143b6c6a543611e95fe9c6",
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": null
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Catalog provenance
 
-Fetched: 2026-08-17T12:24:31.501Z
+Fetched: 2026-08-17T12:44:30.140Z
 
 Official docs vs live outbound: **outbound Cheaper Inference catalog wins**.
 
