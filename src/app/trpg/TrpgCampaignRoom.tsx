@@ -455,7 +455,17 @@ export default function TrpgCampaignRoom({
                             <span className="text-xs font-semibold text-violet-200">
                               {actionTypeLabelKo(item.actionType)}
                             </span>
-                            <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
+                            {item.stage ? (
+                              <p className="mt-1 text-sm text-zinc-300">{item.stage}</p>
+                            ) : null}
+                            {item.speech ? (
+                              <p className={`${item.stage ? "mt-0.5" : "mt-1"} text-sm text-zinc-100`}>
+                                「{item.speech}」
+                              </p>
+                            ) : null}
+                            {!item.stage && !item.speech ? (
+                              <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
+                            ) : null}
                           </button>
                         </li>
                       ))}

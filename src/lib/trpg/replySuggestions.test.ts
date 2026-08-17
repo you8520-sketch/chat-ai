@@ -14,10 +14,13 @@ import { TRPG_GM_MODEL } from "./types";
 import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import {
   adaptTrpgReplySuggestionChatBody,
+  buildReplySuggestionPublicContext,
   extractReplySuggestionCompletionText,
   parseReplySuggestions,
   requestTrpgReplySuggestions,
   resetTrpgReplySuggestionCooldownForTests,
+  TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS,
+  TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS,
   TRPG_REPLY_SUGGESTION_MAX_TOKENS,
   TRPG_REPLY_SUGGESTION_MODEL,
 } from "./replySuggestions";
@@ -92,6 +95,23 @@ describe("TRPG reply suggestions", () => {
     assert.equal(TRPG_REPLY_SUGGESTION_MAX_TOKENS, 1000);
   });
 
+  it("asks Flash for 지문 and 대사 in the 80–120 character band", () => {
+    const { system } = buildReplySuggestionPublicContext({
+      scene: "폐역",
+      persona: null,
+      recentActions: [],
+      self: null,
+      party: [],
+    });
+    assert.match(system, /stage \(지문\)/);
+    assert.match(system, /speech \(대사\)/);
+    assert.match(system, /Do not output speech-only/);
+    assert.match(
+      system,
+      new RegExp(`${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS}`)
+    );
+  });
+
   it("parses exactly three valid action types", () => {
     const parsed = parseReplySuggestions(validJson);
     assert.equal(parsed.length, 3);
@@ -99,7 +119,51 @@ describe("TRPG reply suggestions", () => {
       parsed.map((row) => row.actionType),
       ["investigate", "persuade", "free"]
     );
+    assert.equal(parsed[0]?.stage, "경첩부터 살핀다.");
+    assert.equal(parsed[0]?.speech, "");
     assert.throws(() => parseReplySuggestions(JSON.stringify({ suggestions: [{ actionType: "fly", text: "x" }] })));
+  });
+
+  it("parses stage and speech and composes tap-to-fill text", () => {
+    const parsed = parseReplySuggestions(
+      JSON.stringify({
+        suggestions: [
+          {
+            actionType: "investigate",
+            stage: "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.",
+            speech: "잠깐. 손대지 마. 내가 먼저 볼게.",
+          },
+          {
+            actionType: "stealth",
+            지문: "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.",
+            대사: "",
+          },
+          {
+            actionType: "persuade",
+            text: "한 손을 들어 상대를 멈춘다. 「잠깐. 서로 총부터 내려놓고 얘기하지.」",
+          },
+        ],
+      })
+    );
+    assert.equal(parsed.length, 3);
+    assert.equal(parsed[0]?.stage, "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.");
+    assert.equal(parsed[0]?.speech, "잠깐. 손대지 마. 내가 먼저 볼게.");
+    assert.equal(
+      parsed[0]?.text,
+      "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다. 「잠깐. 손대지 마. 내가 먼저 볼게.」"
+    );
+    assert.equal(parsed[1]?.stage, "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.");
+    assert.equal(parsed[1]?.speech, "");
+    assert.equal(parsed[1]?.text, "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.");
+    assert.equal(parsed[2]?.stage, "한 손을 들어 상대를 멈춘다.");
+    assert.equal(parsed[2]?.speech, "잠깐. 서로 총부터 내려놓고 얘기하지.");
+  });
+
+  it("renders 지문 and 대사 as separate lines in the room list", () => {
+    const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /item\.stage/);
+    assert.match(room, /item\.speech/);
+    assert.match(room, /「\{item\.speech\}」/);
   });
 
   it("scrolls the room down to the suggestion list when examples appear", () => {
