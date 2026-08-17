@@ -147,6 +147,9 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
           adultFlagged?: boolean;
           moderationReject?: boolean;
           moderationReason?: string;
+          width?: number;
+          height?: number;
+          orientation?: "landscape" | "portrait" | "square";
         }, index: number) => ({
           url: String(a.url),
           tag: String(a.tag).slice(0, 32),
@@ -158,6 +161,11 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
           ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
           ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
             ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
+            : {}),
+          ...(Number(a.width) > 0 ? { width: Math.round(Number(a.width)) } : {}),
+          ...(Number(a.height) > 0 ? { height: Math.round(Number(a.height)) } : {}),
+          ...(a.orientation === "landscape" || a.orientation === "portrait" || a.orientation === "square"
+            ? { orientation: a.orientation }
             : {}),
         }))
         .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))

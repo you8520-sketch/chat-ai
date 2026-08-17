@@ -7,7 +7,9 @@ import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
   defaultAssetFlags,
+  withAssetSize,
 } from "@/lib/characterAssets";
+import { measureImageUrl } from "@/lib/measureImageSize";
 import {
   allAgesAssetChangeRequest,
   isAssetBlockedForAllAges,
@@ -115,6 +117,9 @@ function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
     ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
       ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
       : {}),
+    ...(typeof a.width === "number" && a.width > 0 ? { width: a.width } : {}),
+    ...(typeof a.height === "number" && a.height > 0 ? { height: a.height } : {}),
+    ...(a.orientation ? { orientation: a.orientation } : {}),
   }));
 }
 
@@ -415,18 +420,24 @@ export default function CreateCharacter({
       }
 
       const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
+      const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
       const batch = uploadedUrls.map((url: string, i: number) => {
         const tagged = byUrl.get(url);
-        return {
-          url,
-          tag: tagged?.tag || fallbackAssetTag(assets.length + i),
-          ...defaultAssetFlags(assets, i),
-          ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
-          ...(typeof tagged?.moderationReject === "boolean"
-            ? { moderationReject: tagged.moderationReject }
-            : {}),
-          ...(tagged?.moderationReason ? { moderationReason: tagged.moderationReason } : {}),
-        };
+        const size = measured[i];
+        return withAssetSize(
+          {
+            url,
+            tag: tagged?.tag || fallbackAssetTag(assets.length + i),
+            ...defaultAssetFlags(assets, i),
+            ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
+            ...(typeof tagged?.moderationReject === "boolean"
+              ? { moderationReject: tagged.moderationReject }
+              : {}),
+            ...(tagged?.moderationReason ? { moderationReason: tagged.moderationReason } : {}),
+          },
+          size?.width,
+          size?.height
+        );
       });
       const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
       if (accepted.length > 0) {
@@ -1507,11 +1518,11 @@ export default function CreateCharacter({
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
-                대화 중 AI가 [태그: …]를 출력하면 해당 이미지로 좌측 초상이
-                전환됩니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움,
-                침대에 누움). 턴 끝 장면과 맞는 태그를 AI가 고릅니다. 업로드 시
-                Gemini Vision이 태그를 자동 분석하며, 잘못된 태그는 에셋 하단
-                태그를 클릭해 직접 수정할 수 있습니다.
+                대화 중 AI가 [태그: …]를 출력하면 세로로 긴 이미지는 좌측 초상(모바일은
+                채팅 배경)으로 바뀌고, 가로로 긴 이미지는 본문 가로폭에 맞춰 스트리밍
+                중에 바로 뜹니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움,
+                침대에 누움). 업로드 시 Gemini Vision이 태그를 자동 분석하며, 잘못된
+                태그는 에셋 하단 태그를 클릭해 직접 수정할 수 있습니다.
                 <br />
                 <span className="text-zinc-300">가리기</span>를 켠 이미지는
                 제작자에게만 선명하게 보이고, 다른 유저에게는 블러 처리됩니다.

@@ -127,6 +127,14 @@ export default function TrpgCatalogPreview({
       );
       body = (
         <div className="space-y-5">
+          {scenario.assets[0]?.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={scenario.assets[0].url}
+              alt=""
+              className="max-h-64 w-full rounded-xl object-cover"
+            />
+          ) : null}
           {scenario.content.trim() ? (
             <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-200">{scenario.content}</p>
           ) : (

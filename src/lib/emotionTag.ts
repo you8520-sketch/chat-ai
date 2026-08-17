@@ -1,7 +1,10 @@
 const TAG_RE = /\[태그:\s*([^\]]+)\]\s*$/;
 const PARTIAL_TAG_RE = /\[태그:[^\]]*$/;
-const ANY_TAG_RE = /\n?\[태그:\s*[^\]]+\]\s*/g;
+const ANY_TAG_RE = /\n?\[태그:\s*([^\]]+)\]\s*/g;
+const INLINE_TAG_RE = /\[태그:\s*([^\]]+)\]/g;
 const STREAM_TAG_PREFIX = "[태그:";
+
+export type EmotionTagPart = { kind: "text"; text: string } | { kind: "tag"; tag: string };
 
 /**
  * Hold back a trailing display-asset marker while it is still arriving.
@@ -55,6 +58,42 @@ export function stripEmotionTagsForDisplay(
   return source.replace(ANY_TAG_RE, "").trimEnd();
 }
 
+export function collectEmotionTags(text: string): string[] {
+  const tags: string[] = [];
+  const re = new RegExp(INLINE_TAG_RE.source, "g");
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text))) {
+    const tag = match[1]?.trim();
+    if (tag) tags.push(tag);
+  }
+  return tags;
+}
+
+export function splitProseWithEmotionTags(
+  text: string,
+  opts?: { streaming?: boolean }
+): EmotionTagPart[] {
+  const source = opts?.streaming
+    ? stripTrailingEmotionTagStreamCandidate(text)
+    : text;
+  const parts: EmotionTagPart[] = [];
+  const re = new RegExp(INLINE_TAG_RE.source, "g");
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) {
+    if (match.index > last) {
+      parts.push({ kind: "text", text: source.slice(last, match.index) });
+    }
+    const tag = match[1]?.trim();
+    if (tag) parts.push({ kind: "tag", tag });
+    last = match.index + match[0].length;
+  }
+  if (last < source.length) {
+    parts.push({ kind: "text", text: source.slice(last) });
+  }
+  return parts;
+}
+
 /** 캐릭터 에셋 목록에 있는 태그만 인정 — 업로드된 태그명과 정확히 일치할 때만 */
 export function resolveEmotionTag(tag: string, allowedTags: string[]): string | null {
   const q = tag.trim();
@@ -70,8 +109,10 @@ export function buildEmotionTagPrompt(allowedTags: string[]): string {
   return `[DISPLAY ASSET TAG — UPLOADED IMAGES ONLY]
 Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 침대에 누움, 대화).
 Allowed tags ONLY (copy spelling exactly): ${list}
-At the very end of your reply, append exactly ONE line: [태그: tagname]
-Choose the tag whose image best matches the character's look and what they are doing in the **final moment of this turn** (e.g. if they end up lying on a bed and that tag exists, use it).
+Insert [태그: tagname] in the body at the moment that image should appear. Wide/landscape images render inline in the message at that position. Tall/portrait images update the left portrait (and mobile chat background).
+You may use more than one tag. Prefer a portrait tag for expression and landscape tags for scene images.
+If you only use one tag, put it at the end: [태그: tagname]
+Choose tags whose images match the character's look and what they are doing in this turn (e.g. if they end up lying on a bed and that tag exists, use it).
 FORBIDDEN: any tag not in the list — do not invent tags for images that were not uploaded.
 If nothing fits perfectly, pick the closest tag from the list, or [태그: ${fallback}]`;
 }
@@ -83,14 +124,16 @@ export function buildFlashOwnedEmotionTagUserOverlay(allowedTags: string[]): str
   return `[FLASH-OWNED — scene-matched display asset]\n${core}`;
 }
 
-/** 저장 전 — 없는 태그는 제거, 비슷한 태그만 유지 */
+/** 저장 전 — 없는 태그는 제거, 허용된 태그만 본문 위치에 유지 */
 export function sanitizeEmotionTagInText(text: string, allowedTags: string[]): string {
   if (allowedTags.length === 0) {
     return stripEmotionTagsForDisplay(text);
   }
-  const { clean, tag } = stripEmotionTag(text);
-  if (!tag) return stripEmotionTagsForDisplay(text);
-  const resolved = resolveEmotionTag(tag, allowedTags);
-  if (!resolved) return clean;
-  return `${clean}\n[태그: ${resolved}]`;
+  const source = text.replace(/\r\n/g, "\n");
+  const rewritten = source.replace(ANY_TAG_RE, (full, name: string) => {
+    const resolved = resolveEmotionTag(String(name ?? "").trim(), allowedTags);
+    if (!resolved) return "";
+    return `${full.startsWith("\n") ? "\n" : ""}[태그: ${resolved}]`;
+  });
+  return rewritten.replace(/\n{3,}/g, "\n\n").trimEnd();
 }

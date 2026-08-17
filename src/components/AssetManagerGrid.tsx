@@ -16,9 +16,16 @@ type Props = {
   allAges?: boolean;
   onChange: (assets: ManagedAsset[]) => void;
   onRemove: (index: number) => void;
+  note?: string;
 };
 
-export default function AssetManagerGrid({ assets, allAges = false, onChange, onRemove }: Props) {
+export default function AssetManagerGrid({
+  assets,
+  allAges = false,
+  onChange,
+  onRemove,
+  note,
+}: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftTag, setDraftTag] = useState("");
@@ -77,6 +84,7 @@ export default function AssetManagerGrid({ assets, allAges = false, onChange, on
         {hiddenCount > 0 && (
           <span className="ml-2 text-zinc-300">가림 {hiddenCount}장</span>
         )}
+        {note ? <span className="mt-1 block text-zinc-400">{note}</span> : null}
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {assets.map((a, i) => (
