@@ -157,7 +157,7 @@ function parseProvenance(raw: unknown): TrpgScenarioPlanProvenance | null {
 
 export function parseTrpgScenarioPlan(raw: unknown): TrpgScenarioPlan | null {
   if (raw == null || raw === "") return null;
-  let value = raw;
+  let value: unknown = raw;
   if (typeof raw === "string") {
     const text = raw.trim();
     if (!text) return null;
