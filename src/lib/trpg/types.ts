@@ -10,6 +10,11 @@ export const TRPG_MAX_BOTS = 2;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;
+/** Bot-only lookback. Do not reuse this to widen GM raw memory. */
+export const TRPG_BOT_RECENT_ROUNDS = 5;
+export const TRPG_BOT_CONTINUITY_MAX_CHARS = 2200;
+export const TRPG_BOT_CONTINUITY_ACTION_CHARS = 80;
+export const TRPG_BOT_CONTINUITY_SCENE_CHARS = 220;
 /** GM prose — floor 3000 Korean characters; aim well above so scenes actually exceed it. */
 export const TRPG_GM_MIN_CHARS = 3000;
 export const TRPG_GM_AIM_CHARS = 4800;

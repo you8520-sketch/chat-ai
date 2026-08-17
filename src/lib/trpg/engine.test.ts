@@ -103,8 +103,10 @@ describe("TRPG campaign loop", () => {
     assert.equal(gmCalls, 2);
     assert.equal(after.round.number, 2);
     assert.equal(after.round.phase, "ACTION_INPUT");
-    assert.equal(after.currentRolls.length, 1);
-    assert.equal(after.currentRolls[0]?.d20, 15);
+    assert.equal(after.currentRolls.length, 0);
+    const played = after.log.find((row) => row.roundNumber === 1);
+    assert.equal(played?.rolls.length, 1);
+    assert.equal(played?.rolls[0]?.d20, 15);
     assert.equal(after.workType, "wait_humans");
     db.close();
   });
@@ -356,6 +358,61 @@ describe("TRPG campaign loop", () => {
     assert.doesNotMatch(botUsers[0] ?? "", /유나-먼저/);
     assert.match(botUsers[1] ?? "", /\[NAME\]\n카이/);
     assert.match(botUsers[1] ?? "", /유나-먼저/);
+    db.close();
+  });
+
+  it("feeds campaign world and compact continuity to the bot without secrets or extra calls", async () => {
+    const db = memoryDb();
+    let botCalls = 0;
+    let lastBot = "";
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      memoryCall: async () => ({ text: "봉인된 사실 요약" }),
+      gmCall: async () => ({
+        text: gmText({ narration: `FULLRAW_ROUND ${"가".repeat(180)}` }),
+      }),
+      botCall: async (_system, user) => {
+        botCalls += 1;
+        lastBot = user;
+        assert.doesNotMatch(user, /SECRET_GM_CANARY|SECRET_PLAN_CANARY|endingCandidates|BLUEPRINT/);
+        return {
+          text: `유나는 ${botCalls}번째로 창을 본다.\n\n<<<INTENT>>>\n유나는 창틀을 짚으려 했다.`,
+        };
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    db.prepare(`UPDATE trpg_campaigns SET world_brief=?, gm_secret=? WHERE id=?`).run(
+      "캠페인세계관CANON 폐역",
+      "SECRET_GM_CANARY",
+      campaignId
+    );
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    for (let n = 1; n <= 6; n += 1) {
+      submitTrpgAction(db, { campaignId, userId: 1, body: `인간행동R${n}` });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    }
+    const afterSix = botCalls;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "인간행동R7" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(botCalls, afterSix + 1);
+    assert.match(lastBot, /CAMPAIGN WORLD/);
+    assert.match(lastBot, /캠페인세계관CANON/);
+    assert.match(lastBot, /CAMPAIGN STATE/);
+    assert.match(lastBot, /PREVIOUS GM SCENE/);
+    assert.match(lastBot, /RECENT CONTINUITY/);
+    assert.match(lastBot, /인간행동R7/);
+    assert.doesNotMatch(lastBot, /SECRET_GM_CANARY/);
     db.close();
   });
 

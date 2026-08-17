@@ -1,4 +1,4 @@
-import { TRPG_BOT_INTENT_OPEN } from "./botActionParse";
+import { parseTrpgBotAction, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 import { clipTrpgChars } from "./clip";
 import {
   TRPG_BOT_ACTION_MAX_CHARS,
@@ -21,8 +21,10 @@ export type TrpgBotActionContext = {
   systemPrompt: string;
   exampleDialog?: string;
   world?: string;
+  campaignWorld?: string;
   previousGmNarration: string;
   campaignMemory: string;
+  recentContinuity?: string;
   humanActions: Array<{ playerName: string; text: string }>;
   companionActions?: Array<{ name: string; text: string }>;
   speakIndex?: number;
@@ -35,18 +37,30 @@ export type TrpgBotSpeakOrder = { id: number; name: string };
 
 export const TRPG_BOT_SYSTEM = `You ARE this character sitting in a Korean TRPG as a player, not the GM.
 
-Write one in-character beat: what you notice, how you move, what you say.
-Stay in their diction, attitude, and relationship habits from the character card and PARTY RELATIONSHIPS.
-Honor campaign state (HP, location, quests, flags, next decision).
-You may describe the world only as THIS character perceives it. Do not speak for other PCs. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
+Write one finished novelistic beat: what you notice, how you react, how you move, and spoken lines only if this character actually talks.
+Stay in their diction, attitude, example dialogue, and PARTY RELATIONSHIPS.
+Honor campaign world, recent continuity, and campaign state (HP, location, quests, flags, next decision).
+If CHARACTER CARD WORLD conflicts with CAMPAIGN WORLD, the current campaign world wins.
+You may describe the world only as THIS character perceives it. Do not decide other PCs' inner lives or actions. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
 Length: ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters (aim about ${TRPG_BOT_AIM_CHARS}). Stop on a finished sentence. Never cut a clause short. If you are near the cap, end the current sentence instead of starting a new one.
 
+[PROSE LAYOUT]
+Write Korean web-novel prose.
+Narration and actual spoken dialogue are separate paragraphs.
+If this character actually speaks:
+- put the spoken line in double quotes
+- give that spoken line its own paragraph
+- do not place narration before or after it in the same paragraph
+Use meaningful narration paragraphs rather than one giant wall of text.
+Do not create a new paragraph for every sentence.
+Keep the existing 300–800 character contract.
+
 Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.
 
-After the finished prose, end with exactly this marker and one concrete attempt the GM should resolve (not a question to allies):
+After the finished prose, end with exactly this marker and one third-person concrete attempt (subject + optional target + attempt). One line. Do not declare a finished result. Do not write only a quoted question.
 ${TRPG_BOT_INTENT_OPEN}
-(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동)`;
+(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동. 예: 강이현은 렌의 팔을 잡아 잔해 뒤로 끌어당기려 했다.)`;
 
 function nameAliases(name: string): string[] {
   const n = name.trim();
@@ -97,12 +111,18 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const humans =
     ctx.humanActions.length === 0
       ? "(아직 다른 유저 행동 없음 — 직전 장면만 보고 행동)"
-      : ctx.humanActions.map((a) => `- ${a.playerName}: ${a.text}`).join("\n");
+      : ctx.humanActions.map((a) => `- ${a.playerName}: ${clipTrpgChars(a.text, 220)}`).join("\n");
   const companions = ctx.companionActions ?? [];
   const earlier =
     companions.length === 0
       ? "(없음 — 당신이 인간 다음 첫 번째 동료)"
-      : companions.map((a) => `- ${a.name}: ${a.text}`).join("\n");
+      : companions
+          .map((a) => {
+            const parsed = parseTrpgBotAction(a.text);
+            const attempt = parsed.intent.trim() || clipTrpgChars(parsed.prose || a.text, 220);
+            return `- ${a.name}: ${attempt}`;
+          })
+          .join("\n");
   const speakCount = ctx.speakCount ?? 1;
   const speakIndex = ctx.speakIndex ?? 1;
   const card = [
@@ -110,7 +130,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     ctx.description.trim() ? `[DESCRIPTION]\n${ctx.description.trim()}` : "",
     ctx.greeting.trim() ? `[GREETING / VOICE SAMPLE]\n${ctx.greeting.trim()}` : "",
     ctx.exampleDialog?.trim() ? `[EXAMPLE DIALOG]\n${ctx.exampleDialog.trim()}` : "",
-    ctx.world?.trim() ? `[WORLD / SETTING]\n${ctx.world.trim()}` : "",
+    ctx.world?.trim() ? `[CHARACTER CARD WORLD / BACKGROUND]\n${ctx.world.trim()}` : "",
     ctx.systemPrompt.trim() ? `[CHARACTER CARD]\n${ctx.systemPrompt.trim()}` : "",
   ]
     .filter(Boolean)
@@ -118,13 +138,19 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const scene = clipTrpgChars(ctx.previousGmNarration, TRPG_BOT_SCENE_MAX_CHARS) || "(캠페인 시작)";
   return [
     "[TRPG BOT ACTION — you are this PC. Finished beat, then INTENT.]",
-    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_INTENT_OPEN} and one concrete action line.`,
+    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_INTENT_OPEN} and one third-person attempt, not a finished result.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
+    ctx.campaignWorld?.trim()
+      ? `[CAMPAIGN WORLD — current game canon; wins over character-card world]\n${ctx.campaignWorld.trim()}`
+      : "",
     ctx.relationshipBrief?.trim()
       ? `[PARTY RELATIONSHIPS — how you know the human and other PCs]\n${ctx.relationshipBrief.trim()}`
       : "",
     ctx.campaignMemory.trim(),
+    ctx.recentContinuity?.trim()
+      ? `[RECENT CONTINUITY — who just did what; not full GM dumps]\n${ctx.recentContinuity.trim()}`
+      : "",
     `[PREVIOUS GM SCENE]\n${scene}`,
     `[HUMAN ACTIONS THIS ROUND — already locked]\n${humans}`,
     `[EARLIER COMPANION ACTIONS THIS ROUND]\n${earlier}`,

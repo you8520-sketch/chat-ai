@@ -1,8 +1,13 @@
 import type Database from "better-sqlite3";
+import { parseTrpgBotAction } from "./botActionParse";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { parseJson } from "./store";
 import { loadSheetSnapshots } from "./engineSheets";
 import {
+  TRPG_BOT_CONTINUITY_ACTION_CHARS,
+  TRPG_BOT_CONTINUITY_MAX_CHARS,
+  TRPG_BOT_CONTINUITY_SCENE_CHARS,
+  TRPG_BOT_RECENT_ROUNDS,
   TRPG_RECENT_ROUND_RAW,
   TRPG_SEAL_SUMMARY_MAX_CHARS,
   TRPG_SEALED_PROMPT_MAX_CHARS,
@@ -118,6 +123,46 @@ export function buildTrpgMemoryPromptBlock(opts: {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function clipKeepLines(text: string, max: number): string {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+  const chars = Array.from(normalized);
+  if (chars.length <= max) return chars.join("");
+  return chars.slice(0, max).join("").trimEnd();
+}
+
+function compactActionLine(actorName: string, text: string): string {
+  const parsed = parseTrpgBotAction(text);
+  const attempt = parsed.intent.trim() || clipTrpgChars(parsed.prose || text, TRPG_BOT_CONTINUITY_ACTION_CHARS);
+  return `- ${actorName}: ${attempt}`;
+}
+
+function compactSceneResult(narration: string): string {
+  const trimmed = narration.replace(/\s+/g, " ").trim();
+  if (!trimmed) return "";
+  const chars = Array.from(trimmed);
+  if (chars.length <= TRPG_BOT_CONTINUITY_SCENE_CHARS) return trimmed;
+  const head = Math.floor(TRPG_BOT_CONTINUITY_SCENE_CHARS * 0.55);
+  const tail = TRPG_BOT_CONTINUITY_SCENE_CHARS - head - 1;
+  return `${chars.slice(0, head).join("")}…${chars.slice(-tail).join("")}`;
+}
+
+/**
+ * Bot-only lookback for the rounds before the current previous scene.
+ * Latest completed narration stays in [PREVIOUS GM SCENE]; this block is compact.
+ */
+export function buildTrpgBotRecentContinuity(completed: TrpgMemoryRound[]): string {
+  if (completed.length <= 1) return "";
+  const prior = completed.slice(0, -1).slice(-(TRPG_BOT_RECENT_ROUNDS - 1));
+  const body = prior
+    .map((round) => {
+      const acts = round.actions.map((a) => compactActionLine(a.actorName, a.text)).join("\n") || "- (행동 없음)";
+      const result = compactSceneResult(round.gmNarration);
+      return [`ROUND ${round.roundNumber}`, acts, result ? `결과: ${result}` : ""].filter(Boolean).join("\n");
+    })
+    .join("\n\n");
+  return clipKeepLines(body, TRPG_BOT_CONTINUITY_MAX_CHARS);
 }
 
 export function buildTrpgBotMemoryBlock(opts: {
