@@ -57,6 +57,7 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
+import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
@@ -220,6 +221,7 @@ export function submitTrpgAction(
     actionType?: string | null;
     selectedStat?: string | null;
     idempotencyKey?: string | null;
+    inputOrigin?: TrpgInputOrigin | null;
   }
 ): void {
   const parts = loadParticipants(db, opts.campaignId);
@@ -234,7 +236,17 @@ export function submitTrpgAction(
   if (!text) throw new Error("행동을 입력하세요.");
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
-  upsertLockedAction(db, round.id, me.id, text, actionType, opts.selectedStat ?? null, "human", opts.idempotencyKey);
+  upsertLockedAction(
+    db,
+    round.id,
+    me.id,
+    text,
+    actionType,
+    opts.selectedStat ?? null,
+    "human",
+    opts.idempotencyKey,
+    parseTrpgInputOrigin(opts.inputOrigin)
+  );
 }
 
 export function hostFillBotAction(
@@ -264,7 +276,8 @@ function upsertLockedAction(
   actionType: string,
   selectedStat: string | null,
   source: TrpgActionSource,
-  idempotencyKey?: string | null
+  idempotencyKey?: string | null,
+  inputOrigin: TrpgInputOrigin = "manual"
 ): void {
   const existing = db
     .prepare(`SELECT id, locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
@@ -273,19 +286,20 @@ function upsertLockedAction(
     if (source === "human") throw new Error("이미 제출했습니다.");
     return;
   }
+  const origin = source === "human" ? inputOrigin : "manual";
   if (existing) {
     db.prepare(
       `UPDATE trpg_action_submissions
-       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, updated_at=datetime('now')
+       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, existing.id);
+    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, existing.id);
     return;
   }
   db.prepare(
     `INSERT INTO trpg_action_submissions
-      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key)
-     VALUES (?,?,?,?,?,1,?,?)`
-  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null);
+      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin)
+     VALUES (?,?,?,?,?,1,?,?,?)`
+  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin);
 }
 
 export async function advanceTrpgCampaign(
