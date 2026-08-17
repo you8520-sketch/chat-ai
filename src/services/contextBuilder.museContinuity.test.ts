@@ -20,6 +20,7 @@ import {
   MUSE_SOURCE_CONTINUITY_STYLE_MIRROR,
   OPUS_QWEN_FRAGMENT_SENTENCE,
 } from "@/lib/adultHandoffSourceRouting";
+import { MUSE_ADULT_FICTION_FRAME_HEADER } from "@/lib/museAdultFictionFrame";
 import { MUSE_SOURCE_STYLE_FINGERPRINT_HEADER } from "@/lib/museSourceStyleFingerprint";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import type { CharacterChunk } from "@/types";
@@ -58,6 +59,11 @@ describe("buildContext — Muse source continuity on current-user recency", () =
     assert.equal(lastUser?.role, "user");
     const user = lastUser!.content;
     assert.equal(user.split(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR).length - 1, 1);
+    assert.equal(user.split(MUSE_ADULT_FICTION_FRAME_HEADER).length - 1, 1);
+    assert.ok(
+      user.indexOf(MUSE_ADULT_FICTION_FRAME_HEADER) <
+        user.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR)
+    );
     assert.ok(user.includes(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.ok(
       user.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR) <
@@ -103,6 +109,7 @@ describe("buildContext — Muse source continuity on current-user recency", () =
     const user = built.history.at(-1)?.content ?? "";
     assert.equal(user.includes(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR), false);
     assert.equal(user.includes(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER), false);
+    assert.equal(user.includes(MUSE_ADULT_FICTION_FRAME_HEADER), false);
   });
 
   it("places the source fingerprint before Generic Mirror when last assistant is long", () => {
@@ -126,6 +133,11 @@ describe("buildContext — Muse source continuity on current-user recency", () =
     const user = built.history.at(-1)?.content ?? "";
     assert.equal(user.split(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER).length - 1, 1);
     assert.equal(user.split(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR).length - 1, 1);
+    assert.equal(user.split(MUSE_ADULT_FICTION_FRAME_HEADER).length - 1, 1);
+    assert.ok(
+      user.indexOf(MUSE_ADULT_FICTION_FRAME_HEADER) <
+        user.indexOf(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER)
+    );
     assert.ok(
       user.indexOf(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER) <
         user.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR)

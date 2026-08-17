@@ -16,6 +16,10 @@ import {
   resolveMuseSourceStyleFingerprintBlock,
   stripMuseSourceStyleFingerprint,
 } from "@/lib/museSourceStyleFingerprint";
+import {
+  resolveMuseAdultFictionFrame,
+  stripMuseAdultFictionFrame,
+} from "@/lib/museAdultFictionFrame";
 
 export type AdultHandoffIdentityState = {
   adultHandoffSourceModelId?: string;
@@ -140,10 +144,15 @@ export function appendSourceSpecificMuseAdapterToUserTurn(
   sourceModelId?: string,
   adultTargetModelId?: string,
   terminalOwner?: string,
-  lastVisibleCanonicalAssistantRaw?: string
+  lastVisibleCanonicalAssistantRaw?: string,
+  nsfw?: boolean
 ): string {
   const adapter = resolveSourceSpecificMuseAdapter(sourceModelId, adultTargetModelId);
-  if (!adapter) return userTurnContent;
+  const fictionFrame = resolveMuseAdultFictionFrame({
+    adultTargetModelId,
+    nsfw,
+  });
+  if (!adapter && !fictionFrame) return userTurnContent;
   const fingerprint = resolveMuseSourceStyleFingerprintBlock({
     lastVisibleCanonicalAssistantRaw,
     adultTargetModelId,
@@ -152,13 +161,15 @@ export function appendSourceSpecificMuseAdapterToUserTurn(
   if (terminalOwner && body.includes(terminalOwner)) {
     body = body.split(terminalOwner).join("").trimEnd();
   }
+  body = stripMuseAdultFictionFrame(body);
   body = stripMuseSourceStyleFingerprint(body);
-  if (body.includes(adapter)) {
+  if (adapter && body.includes(adapter)) {
     body = body.split(adapter).join("").trimEnd();
   }
   const parts = [body.trimEnd()];
+  if (fictionFrame) parts.push(fictionFrame);
   if (fingerprint) parts.push(fingerprint);
-  parts.push(adapter);
+  if (adapter) parts.push(adapter);
   if (terminalOwner) parts.push(terminalOwner);
   return parts.filter(Boolean).join("\n\n");
 }

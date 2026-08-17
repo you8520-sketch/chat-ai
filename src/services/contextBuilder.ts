@@ -1411,9 +1411,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   userTurnContent = appendSourceSpecificMuseAdapterToUserTurn(
     userTurnContent,
     input.adultHandoffSourceModelId,
-    input.adultHandoffTargetModelId,
+    input.adultHandoffTargetModelId ?? input.modelId,
     USER_TAIL_LENGTH_OWNER_SENTENCE,
-    lastAssistantRawFromHistory(input.shortTermHistory)
+    lastAssistantRawFromHistory(input.shortTermHistory),
+    input.nsfw
   );
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
