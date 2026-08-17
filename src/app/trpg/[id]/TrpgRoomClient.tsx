@@ -57,6 +57,7 @@ export default function TrpgRoomClient({
   const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
   const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState("");
   const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>("manual");
   const [suggestionRound, setSuggestionRound] = useState<number | null>(null);
   const [hostFill, setHostFill] = useState("");
@@ -142,14 +143,29 @@ export default function TrpgRoomClient({
   async function requestSuggestions() {
     if (suggestionsBusy) return;
     setSuggestionsBusy(true);
+    setSuggestionsError("");
     setError("");
     try {
-      const res = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, { method: "POST" });
-      const data = (await res.json()) as { suggestions?: TrpgReplySuggestion[]; error?: string };
-      if (!res.ok || !data.suggestions) throw new Error(data.error || "행동 예시를 만들지 못했습니다.");
+      const res = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, {
+        method: "POST",
+        signal: AbortSignal.timeout(50_000),
+      });
+      const data = (await res.json().catch(() => null)) as { suggestions?: TrpgReplySuggestion[]; error?: string } | null;
+      if (!res.ok || !data?.suggestions?.length) {
+        throw new Error(data?.error || "행동 예시를 만들지 못했습니다.");
+      }
       setSuggestions(data.suggestions);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "행동 예시를 만들지 못했습니다.");
+      const timedOut =
+        (e instanceof DOMException || e instanceof Error) &&
+        (e.name === "TimeoutError" || e.name === "AbortError");
+      const message = timedOut
+        ? "행동 예시를 만드는 데 시간이 너무 오래 걸렸습니다."
+        : e instanceof Error
+          ? e.message
+          : "행동 예시를 만들지 못했습니다.";
+      setSuggestionsError(message);
+      setError(message);
     } finally {
       setSuggestionsBusy(false);
     }
@@ -331,6 +347,7 @@ export default function TrpgRoomClient({
           onHostFillChange={setHostFill}
           suggestions={suggestions}
           suggestionsBusy={suggestionsBusy}
+          suggestionsError={suggestionsError}
           onRequestSuggestions={() => void requestSuggestions()}
           onPickSuggestion={(item) => {
             setActionType(item.actionType);
