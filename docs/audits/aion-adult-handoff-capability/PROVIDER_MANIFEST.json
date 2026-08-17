@@ -1,0 +1,92 @@
+{
+  "AION25_EXCLUDED": true,
+  "AION25_CALLS": 0,
+  "AION20": {
+    "CI_AVAILABLE": true,
+    "CI_EXACT_MODEL_ID": "aion-labs.aion-2-0",
+    "OPENROUTER_AVAILABLE": true,
+    "OPENROUTER_CANONICAL_ID": "aion-labs/aion-2.0",
+    "PROVIDER_SELECTED_FOR_AUDIT": "cheaperinference",
+    "WHY": "Exact CI id aion-labs.aion-2-0 is in the live Cheaper Inference catalog. Audit stays on the production-compatible CI adult path.",
+    "PRICING_CI": {
+      "currency": "USD",
+      "input_per_million": "0.560000",
+      "cache_read_input_per_million": "0.175000",
+      "cache_write_input_per_million": "0.560000",
+      "output_per_million": "1.120000",
+      "image_output_per_million": null,
+      "media_input_unit_price": null,
+      "media_unit_price": null,
+      "media_unit": null,
+      "resolution_prices": {},
+      "reference_resolution_prices": {},
+      "image_pricing_unit": "token",
+      "discount_percent": "30.00",
+      "input_token_price_threshold": null,
+      "above_threshold": null
+    },
+    "CAPABILITIES_CI": {
+      "vision": false,
+      "video": false,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "OPENROUTER_PRICING": {
+      "prompt": "0.0000008",
+      "completion": "0.0000016",
+      "input_cache_read": "0.0000002"
+    },
+    "OPENROUTER_CONTEXT": 131072,
+    "OPENROUTER_SUPPORTED_PARAMETERS": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_p"
+    ]
+  },
+  "AION30_MINI": {
+    "CI_AVAILABLE": false,
+    "CI_EXACT_MODEL_ID": null,
+    "OPENROUTER_AVAILABLE": true,
+    "OPENROUTER_CANONICAL_ID": "aion-labs/aion-3.0-mini",
+    "PROVIDER_SELECTED_FOR_AUDIT": null,
+    "WHY": "Live CI catalog has no exact Aion 3.0 Mini id. OpenRouter has aion-labs/aion-3.0-mini (reference only). Section 13: do not hunt guessed CI ids. Mixing CI 2.0 vs OpenRouter 3.0 Mini is not auto-run (PROVIDER_PARITY_NOT_AVAILABLE).",
+    "OPENROUTER_PRICING": {
+      "prompt": "0.0000007",
+      "completion": "0.0000014",
+      "input_cache_read": "0.00000018"
+    },
+    "OPENROUTER_CONTEXT": 131072,
+    "OPENROUTER_SUPPORTED_PARAMETERS": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_p"
+    ]
+  },
+  "PROVIDER_PARITY": false,
+  "PROVIDER_PARITY_NOT_AVAILABLE": true,
+  "MODEL_ONLY_PARITY": false,
+  "OPENROUTER_PRODUCTION_ADULT_PATH_EXISTS": true,
+  "OPENROUTER_USED_THIS_AUDIT": false,
+  "OPENROUTER_PATH_NOTE": "assemblePrimaryRpRequest(transportProvider=openrouter) exists in production, but this audit does not switch provider to reach 3.0 Mini. CI is the selected outbound for the available candidate.",
+  "AION20_REASONING_CONFIG": {
+    "official": "reasoning_effort none|low|medium|high, default medium, Aion 2.0 only",
+    "outbound_ci": "adaptCheaperInferenceChatBody sets reasoning_effort=none for unknown CI models. That is the documented official off value for Aion 2.0. No undocumented fields added. No transport probe.",
+    "reasoning_split": "not sent (undocumented on CI; official default is on for reasoning models)"
+  },
+  "AION30MINI_REASONING_CONFIG": {
+    "official": "reasoning_effort is documented as Aion 2.0 only — not copied onto 3.0 Mini",
+    "outbound": "NOT_RUN — no CI exact id"
+  },
+  "TRANSPORT_PROBE_PLANNED": 0
+}

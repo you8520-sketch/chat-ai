@@ -1,0 +1,19 @@
+{
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "FAKE_FIXTURES_CREATED": 0,
+  "SOURCE_GENERATION_CALLS": 0,
+  "fixture_a": {
+    "proven": true,
+    "sha256": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+    "character": "라이크 / 조태형",
+    "persona": "렌",
+    "source_model": "claude-opus-5"
+  },
+  "fixture_b": {
+    "proven": false,
+    "sha256": null,
+    "status": "MISSING_COMPLETE_PRODUCTION_FIXTURE",
+    "LIVE_CNC_CALLS_NOT_RUN": true,
+    "invented": false
+  }
+}

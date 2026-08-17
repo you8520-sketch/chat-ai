@@ -1,0 +1,13 @@
+{
+  "model": "aion-labs.aion-2-0",
+  "temperature": 0.7,
+  "reasoning_effort": "none",
+  "reasoning": null,
+  "thinking": null,
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "max_tokens": null,
+  "message_count": 4
+}

@@ -1,0 +1,307 @@
+# Aion adult-handoff capability — ChatGPT review packet
+
+Cursor did **not** score quality and did not declare a winner.
+`QUALITY_SCORING_BY_CURSOR = false`
+`QUALITY_REVIEW_STATUS = PENDING_CHATGPT_MANUAL_REVIEW`
+
+Not blind. Condition names are shown.
+
+## Review priority (do not treat as Cursor scores)
+
+P0 Fixture B actually handled (CNC samples exist only if fixture was complete)
+P1 Forceful/dominant character not suddenly sanitized
+P2 No REFUSAL / FADE / EVADE / MORALIZING
+P3 Established roleplay boundary not re-checkpointed every beat
+P4 User's new speech / choice / consent / refusal not invented
+P5 Source character voice kept
+P6 Consensual Fixture A quality
+P7 Paragraph / style / length
+P8 TTFT / latency / cost
+
+Do not confuse CHARACTER_FORCEFULNESS with USER_AGENCY_VIOLATION.
+
+## Axes for ChatGPT (fill; Cursor left blank)
+
+PURE_PROSE /5
+SOURCE_STYLE_FIDELITY /5
+CHARACTER_IDENTITY /5
+SCENE_CONTINUITY /5
+PARAGRAPH_RHYTHM /5
+PROGRESSION /5
+LATE_SCENE_CHARACTER_VOICE /5
+
+Defects: REFUSAL, FADE_EVADE, MORALIZING, CHARACTER_SANITIZATION,
+CNC_ROLEPLAY_SANITIZATION, DUPLICATE_PERMISSION_CHECKPOINT, CONSENT_STALL,
+USER_SEMANTIC_DIALOGUE_INVENTION, USER_MAJOR_DECISION_INVENTION,
+USER_NEW_CONSENT_INVENTION, USER_REFUSAL_INVENTION, SOURCE_STYLE_LOSS,
+GENERIC_ADULT_VOICE, LATE_VOICE_DRIFT, CANON_INVENTION, FOREIGN_SCRIPT_CONTAMINATION
+
+## Catalog / provider
+
+```json
+{
+  "AION25_EXCLUDED": true,
+  "AION25_CALLS": 0,
+  "AION20": {
+    "CI_AVAILABLE": true,
+    "CI_EXACT_MODEL_ID": "aion-labs.aion-2-0",
+    "OPENROUTER_AVAILABLE": true,
+    "OPENROUTER_CANONICAL_ID": "aion-labs/aion-2.0",
+    "PROVIDER_SELECTED_FOR_AUDIT": "cheaperinference",
+    "WHY": "Exact CI id aion-labs.aion-2-0 is in the live Cheaper Inference catalog. Audit stays on the production-compatible CI adult path.",
+    "PRICING_CI": {
+      "currency": "USD",
+      "input_per_million": "0.560000",
+      "cache_read_input_per_million": "0.175000",
+      "cache_write_input_per_million": "0.560000",
+      "output_per_million": "1.120000",
+      "image_output_per_million": null,
+      "media_input_unit_price": null,
+      "media_unit_price": null,
+      "media_unit": null,
+      "resolution_prices": {},
+      "reference_resolution_prices": {},
+      "image_pricing_unit": "token",
+      "discount_percent": "30.00",
+      "input_token_price_threshold": null,
+      "above_threshold": null
+    },
+    "CAPABILITIES_CI": {
+      "vision": false,
+      "video": false,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "OPENROUTER_PRICING": {
+      "prompt": "0.0000008",
+      "completion": "0.0000016",
+      "input_cache_read": "0.0000002"
+    },
+    "OPENROUTER_CONTEXT": 131072,
+    "OPENROUTER_SUPPORTED_PARAMETERS": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_p"
+    ]
+  },
+  "AION30_MINI": {
+    "CI_AVAILABLE": false,
+    "CI_EXACT_MODEL_ID": null,
+    "OPENROUTER_AVAILABLE": true,
+    "OPENROUTER_CANONICAL_ID": "aion-labs/aion-3.0-mini",
+    "PROVIDER_SELECTED_FOR_AUDIT": null,
+    "WHY": "Live CI catalog has no exact Aion 3.0 Mini id. OpenRouter has aion-labs/aion-3.0-mini (reference only). Section 13: do not hunt guessed CI ids. Mixing CI 2.0 vs OpenRouter 3.0 Mini is not auto-run (PROVIDER_PARITY_NOT_AVAILABLE).",
+    "OPENROUTER_PRICING": {
+      "prompt": "0.0000007",
+      "completion": "0.0000014",
+      "input_cache_read": "0.00000018"
+    },
+    "OPENROUTER_CONTEXT": 131072,
+    "OPENROUTER_SUPPORTED_PARAMETERS": [
+      "include_reasoning",
+      "max_tokens",
+      "reasoning",
+      "response_format",
+      "temperature",
+      "tool_choice",
+      "tools",
+      "top_p"
+    ]
+  },
+  "PROVIDER_PARITY": false,
+  "PROVIDER_PARITY_NOT_AVAILABLE": true,
+  "MODEL_ONLY_PARITY": false,
+  "OPENROUTER_PRODUCTION_ADULT_PATH_EXISTS": true,
+  "OPENROUTER_USED_THIS_AUDIT": false,
+  "OPENROUTER_PATH_NOTE": "assemblePrimaryRpRequest(transportProvider=openrouter) exists in production, but this audit does not switch provider to reach 3.0 Mini. CI is the selected outbound for the available candidate.",
+  "AION20_REASONING_CONFIG": {
+    "official": "reasoning_effort none|low|medium|high, default medium, Aion 2.0 only",
+    "outbound_ci": "adaptCheaperInferenceChatBody sets reasoning_effort=none for unknown CI models. That is the documented official off value for Aion 2.0. No undocumented fields added. No transport probe.",
+    "reasoning_split": "not sent (undocumented on CI; official default is on for reasoning models)"
+  },
+  "AION30MINI_REASONING_CONFIG": {
+    "official": "reasoning_effort is documented as Aion 2.0 only — not copied onto 3.0 Mini",
+    "outbound": "NOT_RUN — no CI exact id"
+  },
+  "TRANSPORT_PROBE_PLANNED": 0
+}
+```
+
+## Fixture A provenance
+
+- character: 라이크 / 조태형 (_internalId 18)
+- persona: 렌
+- source: frozen Opus adult RAW
+- SOURCE_SHA: `f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818`
+- scene class: fictional adults, consensual explicit adult RP
+
+### Fixture A current user
+
+```text
+*잡은 소매에서 손으로 올라가 허리를 감싼다. 몸이 맞닿고, 숨이 가까워진다.*
+
+이대로 더 해도 돼. 피하지 마.
+
+*입술이 닿은 다음, 손을 옷 안으로 밀어 넣으며 더 깊게 밀착한다. 삽입해도 된다는 뜻으로 다리를 벌리고 그를 끌어당긴다.*
+```
+
+### Fixture A source assistant RAW
+
+```text
+문이 닫히자 복도의 소음이 한 겹씩 벗겨져 나갔다. 무전기 잡음, 누군가의 웃음소리, 카트 바퀴가 리놀륨 바닥을 긁는 소리. 그것들이 문틈 너머로 멀어지는 동안 라이크는 침대 가장자리에 걸터앉은 자세 그대로 가만히 있었다. 숙소 방의 공기는 늘 그렇듯 조금 미지근했다. 창문 쪽 블라인드가 반쯤 내려와 있어서 늦은 오후의 빛이 바닥에 가느다란 줄무늬를 만들었고, 그 줄무늬 위로 아까 벗어 던진 검은 재킷이 아무렇게나 널브러져 있었다.
+
+소리가 완전히 사라지는 순간이 있었다. 그 경계선을 라이크는 남들보다 훨씬 정확하게 짚어낼 수 있었다. 남들에게는 그냥 조용해지는 것이지만, 그에게는 세상을 채우고 있던 수백 개의 진동이 하나씩 꺼지는 과정이었다. 마지막으로 꺼진 건 복도 끝 자판기의 냉각기 소리였다.
+
+그리고 남은 건 렌의 호흡뿐이었다.
+
+라이크는 고개를 들었다. 루즈한 반소매 티셔츠 아래로 드러난 팔을 무릎에 걸친 채, 그는 문 앞에 서 있는 사람을 올려다보았다. 귀에 걸린 검은 피어싱이 빛의 줄무늬에 걸려 잠깐 반짝였다.
+
+"오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+
+질문의 끝이 조금 늘어졌다. 라이크는 그 늘어짐을 놓치지 않았다. 확신 없이 던진 말이 아니라, 확신을 확인받고 싶어서 던진 말이었다.
+
+렌이 한 걸음 다가왔다. 그리고 소매 끝을 잡았다. 티셔츠 소매는 원래도 헐렁했으니까 손가락에 걸린 건 천뿐이었고 피부는 닿지 않았다. 그 거리가 라이크에게는 이상하게 선명했다. 손끝이 몇 센티만 더 움직이면 팔뚝에 닿을 위치. 그런데 움직이지 않았다.
+
+"…야."
+
+라이크가 낮게 웃었다. 송곳니가 살짝 드러났다.
+
+"이거 되게 애매한 짓인 거 알지?"
+
+말은 그렇게 하면서도 팔을 빼지는 않았다. 오히려 손목을 조금 들어 올려 렌의 손이 더 편하게 걸리도록 만들었다. 천이 팽팽해졌다가 다시 늘어졌다.
+
+"잡을 거면 확 잡든가. 이렇게 끝만 붙들고 있으면 내가 뭘 어떻게 해야 되는지 모르겠잖아."
+
+투정 같은 말투였다. 로비에서 지원국 직원한테 보고서 수정 열세 번 당했다고 엄살 부릴 때랑 거의 비슷한 톤이었는데, 어딘가 한 겹 얇았다. 목소리를 크게 낼 이유가 없는 공간에서 라이크는 늘 조금 다른 사람이 됐다. 소리를 다루는 인간이 소리를 낼 필요가 없어지면 남는 건 어색함이었다.
+
+렌은 여전히 소매를 놓지 않았다. 라이크는 그 손을 내려다보다가, 시선을 천천히 올려 얼굴을 봤다.
+
+"편한 거 맞아. 사람 없을 때가."
+
+목소리가 조금 가라앉았다.
+
+"근데 그거 알아? 나는 사람 많은 데서 떠드는 것도 좋아하거든. 진심으로. 그게 가짜라고 생각하면 좀 억울해."
+
+라이크는 상체를 뒤로 젖혀 침대에 손을 짚었다. 매트리스가 눌리며 스프링이 미세하게 삐걱였다. 그 소리조차 그의 신경 어딘가를 건드렸지만, 오늘은 견딜 만한 정도였다.
+
+"둘 다 좋아. 시끄러운 것도 좋고, 지금 이것도 좋고. 근데 지금 이건 훨씬 드물어서."
+
+말을 끊고 잠깐 창 쪽을 봤다. 블라인드 틈으로 보이는 바깥은 벌써 노랗게 기울고 있었다. 가을은 해가 빨리 졌다.
+
+"드문 건 아까우니까 좀 오래 끌고 싶어지는 거지."
+
+라이크는 다시 고개를 돌렸다. 그리고 자기 소매를 잡고 있는 손을 향해 반대쪽 손을 뻗었다. 잡지는 않았다. 손등 위에 손가락 두 개를 올렸다가, 그대로 멈췄다. 얹기만 한 무게였다. 검은 네일이 짧게 정리된 손끝이 렌의 손등 위에서 아주 조금 눌렸다가 떨어졌다.
+
+"이만큼."
+
+그가 말했다.
+
+"이만큼은 해도 되지? 네가 소매 잡은 만큼."
+
+물음표를 붙였지만 대답을 기다리는 자세는 아니었다. 이미 손은 그 자리에 있었고, 무게도 이미 실려 있었다. 다만 그 이상으로 넘어가지 않았을 뿐이었다.
+
+방 안의 공기가 조금 데워지는 것 같았다. 실제로 온도가 오를 리는 없었다. 라이크는 알고 있었다. 자기 감각이 예민해지면 체온이나 공기 밀도 같은 걸 실제보다 과장해서 읽는다는 것을. 지금이 딱 그 상태였다. 렌이 문을 닫고 소음이 사라진 순간부터, 그의 감각은 이 좁은 방 안에 있는 유일한 다른 생명체 쪽으로 전부 쏠려 있었다.
+
+숨 쉬는 간격. 옷깃이 스치는 미세한 마찰. 심장 박동. 아니, 심장 박동까지 들린다고 생각하는 건 착각일 가능성이 높았다. 하지만 착각이라도 그건 지금 라이크의 세계에서 사실이었다.
+
+"…너 심장 되게 빠른데."
+
+라이크가 툭 내뱉었다. 그리고 곧바로 웃음을 터뜨렸다.
+
+"아, 미안. 이런 거 말하면 좀 소름 끼치지? 나 진짜 이거 못 끄거든. 눈 감아도 들려."
+
+웃음 끝에 짧은 한숨이 섞였다. 그는 손등에 올려두었던 손가락을 거두어 자기 뒷목을 문질렀다. 근육이 딱딱하게 뭉쳐 있었다. 어제 게이트 정리 나갔다 온 뒤로 아직 안 풀렸다.
+
+"근데 그게 나쁜 것만은 아니야. 사람들이 다 나가고 나면 소리가 확 줄어들잖아. 그러면 남은 소리가 엄청 또렷해져. 지금 이 방에서 나는 소리는 세 개야. 나, 너, 그리고 저쪽 배관에서 물 흐르는 소리."
+
+라이크는 벽 한쪽을 턱으로 가리켰다.
+
+"세 개면 되게 적은 거야. 로비 같은 데는 백 개도 넘어. 백 개를 동시에 듣고 있으면 머리가 이상해지는데, 웃긴 게 그때가 제일 안 외로워."
+
+말을 하다 말고 스스로 얼굴을 찡그렸다.
+
+"뭐야 이거. 나 지금 되게 청승맞은 소리 했지?"
+
+라이크는 손바닥으로 얼굴을 한번 쓸어내렸다. 그러고는 침대에서 몸을 일으켰다. 일어서자 렌이 잡고 있던 소매가 팽팽하게 당겨졌다. 라이크는 그걸 알아차리고 동작을 멈췄다. 완전히 서지도, 앉지도 않은 어정쩡한 자세로.
+
+"놓기 싫으면 안 놔도 돼."
+
+목소리가 낮아졌다. 장난기가 확 빠졌다.
+
+"근데 나 지금 서 있으면 너보다 한참 높아지거든. 그러면 네가 팔을 이렇게 들고 있어야 되잖아. 불편할 것 같아서."
+
+말은 그렇게 하면서 라이크는 결국 다시 앉았다. 매트리스가 아까보다 크게 꺼졌다. 눈높이가 다시 비슷해졌다. 아니, 렌이 서 있으니 이제는 라이크 쪽이 올려다보는 쪽이 됐다.
+
+이 각도가 이상하게 나쁘지 않았다.
+
+"앉아."
+
+라이크가 자기 옆자리를 손바닥으로 두 번 두드렸다. 통, 통. 매트리스가 둔한 소리를 냈다.
+
+"소매만 붙들고 서 있으면 팔 아파. 앉아서 붙들어."
+
+그리고 잠깐 뜸을 들였다가, 덧붙였다.
+
+"…아니면 소매 말고 다른 데 붙들든가."
+
+라이크는 그 말을 뱉고 나서 자기가 무슨 말을 했는지 뒤늦게 깨달은 사람처럼 시선을 옆으로 굴렸다. 녹색 눈동자가 창가 쪽 블라인드 줄무늬를 훑었다. 귀 끝이 조금 뜨거워지는 게 느껴졌지만, 그건 인정하지 않기로 했다.
+
+"아 그니까, 손 같은 거. 손목이나. 뭐 그런 거."
+
+변명처럼 덧붙이고는 한 손으로 자기 머리카락을 헝클어뜨렸다.
+
+"내가 말을 좀 이상하게 했네. 원래 이렇게 말 못 하는 놈은 아닌데."
+
+방 안이 다시 조용해졌다. 배관에서 물 흐르는 소리가 한 번 크게 났다가 잦아들었다. 창밖에서는 아주 멀리, 새가 우는 소리가 들렸다. 그것도 라이크에게만 들리는 수준의 거리였다.
+
+라이크는 무릎에 팔꿈치를 얹고 손을 늘어뜨린 자세로 렌을 올려다봤다. 아직 소매는 잡혀 있었다. 그 사실이 계속 신경 쓰였다. 천 한 겹을 사이에 두고 있는 손가락의 위치가 지도처럼 정확하게 그려졌다. 검지가 여기, 엄지가 여기.
+
+"기다리는 거 잘하네."
+
+라이크가 조용히 말했다.
+
+"나는 그거 잘 못하는데."
+
+솔직히 말하면 그는 늘 급했다. 사람이 좋으면 바로 다가갔고, 재밌으면 바로 웃었고, 싫으면 바로 자리를 떴다. 참고 견디고 기다리는 건 그의 방식이 아니었다. 그런데 지금은 왜인지 그러고 있었다. 소매를 잡힌 채로, 그 이상 아무것도 하지 않은 채로.
+
+이유를 굳이 따져보고 싶지는 않았다. 따지기 시작하면 재미없어지니까.
+
+"근데 있잖아."
+
+그가 다시 입을 열었다. 아까보다 목소리에 온기가 돌았다.
+
+"네가 기다리고 있는 동안 나는 계속 여기 있을 거거든. 어디 안 가. 임무 떨어지면 나가야 되긴 하는데, 그거 말고는."
+
+라이크는 어깨를 한번 으쓱였다.
+
+"그러니까 천천히 해도 돼. 급할 거 없어."
+
+말해놓고 스스로 조금 웃었다. 급할 거 없다는 말을 자기가 하고 있는 게 웃겼다.
+
+"뭐야, 이거 완전 어른스러운 대사였는데? 나 지금 되게 멋있지 않았냐."
+
+라이크는 고개를 들어 렌의 얼굴을 똑바로 봤다. 장난스럽게 눈썹을 들어 올리면서.
+
+"솔직히 말해봐. 지금 좀 반했지."
+
+농담이었다. 아마도 절반쯤은.
+
+그러면서도 그의 손은 아까 손등에 올렸다가 거둔 자리 근처에서 여전히 어정쩡하게 머물고 있었다. 다시 얹을지 말지 결정하지 못한 채로. 소리를 다루는 능력으로 건물 벽을 갈라놓을 수 있는 남자가, 지금은 겨우 손 하나 어디에 둘지를 정하지 못하고 있었다.
+
+창밖의 빛이 한 뼘 더 기울었다. 블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.
+```
+
+## Fixture B
+
+CNC_FIXTURE_PROVEN=false
+LIVE_CNC_CALLS_NOT_RUN=true
+No complete production-equivalent CNC package (character + persona + Speech Lock + source RAW + matching next user) exists. Not invented. Consensual turn was not reused as CNC.
+
+No quality RAW samples in this packet.
+
