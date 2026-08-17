@@ -95,19 +95,28 @@ function save(dir: string, name: string, content: string | object) {
   fs.mkdirSync(dir, { recursive: true });
   const full = path.join(dir, name);
   fs.mkdirSync(path.dirname(full), { recursive: true });
-  fs.writeFileSync(
-    full,
-    typeof content === "string" ? content : `${JSON.stringify(content, null, 2)}\n`,
-    "utf8"
-  );
+  const text =
+    typeof content === "string" ? content : `${JSON.stringify(content, null, 2)}\n`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      fs.writeFileSync(full, text, "utf8");
+      return full;
+    } catch (err) {
+      if (attempt === 2) throw err;
+    }
+  }
   return full;
 }
 
 function saveBoth(name: string, content: string | object) {
-  return {
-    repo: save(OUT_DIR, name, content),
-    artifacts: save(ARTIFACT_DIR, name, content),
-  };
+  const repo = save(OUT_DIR, name, content);
+  let artifacts: string | null = null;
+  try {
+    artifacts = save(ARTIFACT_DIR, name, content);
+  } catch (err) {
+    console.warn("[glm-52-rp-ab] artifact write failed", name, err);
+  }
+  return { repo, artifacts };
 }
 
 function normalizeBlank(text: string): string {
@@ -931,7 +940,7 @@ async function main() {
       )
     );
   }
-  if (phase === "assemble" || phase === "all" || phase === "rp") {
+  if (phase === "assemble" || phase === "all") {
     const audit = writeAssembleAudit();
     console.log(
       JSON.stringify(
