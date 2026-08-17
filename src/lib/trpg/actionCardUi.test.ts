@@ -5,9 +5,12 @@ import {
   isTrpgD20Face,
   resolveTrpgD20Tone,
   resolveTrpgSpeakerRail,
+  trpgActionCardCompactName,
   trpgD20ViewModel,
   trpgRollIsSuccess,
   trpgRollOutcomeLabel,
+  trpgRollResultNumberClass,
+  trpgRollResultOutcomeClass,
 } from "./actionCardUi";
 
 describe("TRPG action card rails and d20 visual", () => {
@@ -72,15 +75,37 @@ describe("TRPG action card rails and d20 visual", () => {
   it("does not add image assets or empty dice shells in the action card", () => {
     const d20 = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
     assert.doesNotMatch(d20, /\.png|\.webp|dice-1|dice-20/);
     assert.match(d20, /<svg/);
     assert.match(d20, /size === "mobile" \? 52 : 76/);
+    assert.doesNotMatch(room, /<TrpgD20/);
+    assert.doesNotMatch(room, /from "\.\/TrpgD20"/);
+    assert.match(room, /TrpgRollResultLane/);
     assert.match(room, /accent=\{false\}/);
     assert.match(room, /dialogueAccent=\{false\}/);
     assert.match(room, /roll && tone && outcome/);
-    assert.match(room, /sm:hidden/);
+    assert.match(lane, /sm:hidden/);
+    assert.match(lane, /w-20/);
+    assert.match(lane, /text-\[36px\]/);
+    assert.match(lane, /tabular-nums/);
+    assert.doesNotMatch(lane, /text-\[6[0-9]px\]|text-\[7[0-9]px\]/);
+    assert.doesNotMatch(lane, /<svg|from "\.\/TrpgD20"|gradient|animate-|@keyframes|casino/i);
     assert.doesNotMatch(room, /DiceActionBody/);
     assert.equal((room.match(/text=\{parsed\.prose \|\| action\.body\}/g) ?? []).length, 1);
     assert.doesNotMatch(room, /function DiceStrip\([\s\S]*parsed\.prose/);
+  });
+
+  it("uses a large numeric result lane with subtle success and fail accents", () => {
+    assert.match(trpgRollResultNumberClass("success"), /emerald/);
+    assert.match(trpgRollResultNumberClass("fail"), /rose/);
+    assert.match(trpgRollResultNumberClass("nat20"), /#d4b45a/);
+    assert.match(trpgRollResultNumberClass("nat1"), /#c45c66/);
+    assert.match(trpgRollResultOutcomeClass("success"), /emerald/);
+    assert.match(trpgRollResultOutcomeClass("fail"), /rose/);
+    assert.equal(trpgRollOutcomeLabel("CRITICAL_SUCCESS"), "성공");
+    assert.equal(trpgRollOutcomeLabel("CRITICAL_FAILURE"), "실패");
+    assert.equal(trpgActionCardCompactName("강이현", "ai_character"), "강이현 AI");
+    assert.equal(trpgActionCardCompactName("권태현", "human"), "권태현");
   });
 });

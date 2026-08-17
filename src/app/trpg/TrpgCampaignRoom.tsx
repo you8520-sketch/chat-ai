@@ -17,7 +17,11 @@ import {
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
-import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
+import {
+  resolveTrpgD20Tone,
+  trpgActionCardCompactName,
+  trpgRollOutcomeLabel,
+} from "@/lib/trpg/actionCardUi";
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -27,8 +31,8 @@ import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
-import TrpgD20 from "./TrpgD20";
 import TrpgDiceOverlay from "./TrpgDiceOverlay";
+import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
@@ -692,33 +696,17 @@ function SceneTurn({
           return (
             <div key={`${row.roundNumber}-${action.participantId}`} data-trpg-action-card>
               {roll && tone && outcome ? (
-                <div className="mb-2 flex items-center gap-2.5 sm:hidden">
-                  <TrpgD20 value={roll.d20} tone={tone} size="mobile" />
-                  <div className="min-w-0">
-                    <p className="sr-only">{`d20 ${roll.d20}`}</p>
-                    <p
-                      className={`text-[12px] font-semibold ${
-                        outcome === "성공" ? "text-emerald-300/90" : "text-rose-300/90"
-                      }`}
-                    >
-                      {roll.d20} {outcome}
-                    </p>
-                  </div>
-                </div>
+                <TrpgRollResultLane
+                  layout="mobile"
+                  d20={roll.d20}
+                  tone={tone}
+                  outcome={outcome}
+                  compactName={trpgActionCardCompactName(action.name, action.kind)}
+                />
               ) : null}
               <div className="flex items-start gap-3">
                 {roll && tone && outcome ? (
-                  <div className="hidden w-[76px] shrink-0 flex-col items-center gap-1 sm:flex">
-                    <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
-                    <p className="sr-only">{`d20 ${roll.d20}`}</p>
-                    <p
-                      className={`text-[11px] font-semibold ${
-                        outcome === "성공" ? "text-emerald-300/90" : "text-rose-300/90"
-                      }`}
-                    >
-                      {outcome}
-                    </p>
-                  </div>
+                  <TrpgRollResultLane layout="desktop" d20={roll.d20} tone={tone} outcome={outcome} />
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <TrpgNamedProse

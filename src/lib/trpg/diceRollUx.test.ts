@@ -74,7 +74,8 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(scene, /IcosahedronGeometry/);
     assert.doesNotMatch(scene, /textures\/|sounds\/|wizards|dungeons/i);
     assert.match(room, /TrpgDiceOverlay/);
-    assert.match(room, /<TrpgD20 value=\{roll\.d20\}/);
+    assert.doesNotMatch(room, /<TrpgD20/);
+    assert.match(overlay, /<TrpgD20 value=\{roll\.d20\}/);
     assert.match(card, /<svg/);
     assert.doesNotMatch(card, /WebGLRenderer/);
     assert.equal((room.match(/text=\{parsed\.prose \|\| action\.body\}/g) ?? []).length, 1);
