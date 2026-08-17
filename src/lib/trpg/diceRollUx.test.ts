@@ -68,13 +68,13 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.equal(trpgDiceOverlayActive("ACTION_INPUT", [{ participantId: 1 } as never]), false);
   });
 
-  it("adopts dice-box-threejs without copying unverified textures or sounds", () => {
+  it("keeps dice-box-threejs available without copying unverified textures or sounds", () => {
     assert.equal(TRPG_DICE_ENGINE, "obsidian-relic-d20");
     assert.equal(TRPG_DICE_ENGINE_LICENSE, "MIT");
     assert.equal(TRPG_D20_THEME, "obsidian-relic");
-    assert.equal(TRPG_DICE_IMPLEMENTATION, "dice-box-threejs");
-    assert.equal(TRPG_DICE_RENDERER, "dice-box-threejs");
-    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "cannon-es");
+    assert.equal(TRPG_DICE_IMPLEMENTATION, "custom");
+    assert.equal(TRPG_DICE_RENDERER, "custom");
+    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "none");
     assert.equal(TRPG_DICE_BOX_THREEJS_REVIEWED, true);
     assert.equal(TRPG_DICE_BOX_THREEJS_ASSETS_COPIED, false);
     assert.equal(VISUAL_ASSETS_COPIED, false);

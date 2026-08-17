@@ -3,8 +3,9 @@
  * Server d20 / DC / billing are unchanged — this file is presentation only.
  */
 
-export const TRPG_DICE_IMPLEMENTATION = "dice-box-threejs" as const;
-export const TRPG_DICE_PHYSICS_ENGINE = "cannon-es" as const;
+/** Live overlay winner after browser A/B: custom reads the server face; physics B did not. */
+export const TRPG_DICE_IMPLEMENTATION = "custom" as const;
+export const TRPG_DICE_PHYSICS_ENGINE = "none" as const;
 export const TRPG_DICE_ENGINE = "obsidian-relic-d20" as const;
 export const TRPG_D20_THEME = "obsidian-relic" as const;
 
