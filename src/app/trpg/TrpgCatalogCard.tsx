@@ -32,7 +32,7 @@ export default function TrpgCatalogCard({
   editHref?: string;
 }) {
   const hue = hueFromId(id);
-  const kindLabel = kind === "world" ? "세계관" : "시나리오";
+  const kindLabel = kind === "world" ? "샌드박스" : "시나리오";
 
   return (
     <article

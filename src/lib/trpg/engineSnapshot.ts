@@ -17,6 +17,7 @@ import {
   type TrpgParticipantRow,
 } from "./store";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
+import { loadCampaignContext } from "./campaignContext";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
   isListedTrpgCampaign,
@@ -375,6 +376,7 @@ export function loadTrpgSnapshot(
         .get(campaignId, round?.round_number ?? 0)
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
+    storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
   };
 }
 

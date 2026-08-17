@@ -25,7 +25,17 @@ import {
   collectUsedScenarioTags,
 } from "./scenarioAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
+import {
+  applyCampaignStoryProgress,
+  loadCampaignContext,
+  persistCampaignContext,
+  resolvedCampaignPlan,
+  serializeCampaignDirectorInstructions,
+  serializeCampaignDirectorState,
+} from "./campaignContext";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
+import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
@@ -52,6 +62,7 @@ import type { TrpgCampaignSnapshot } from "./snapshot";
 export type TrpgEngineDeps = {
   gmCall?: (opts: { system: string; user: string }) => Promise<{ text: string; usage?: TrpgModelUsage }>;
   botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
+  directorCall?: TrpgDirectorDeps["directorCall"];
   memoryCall?: TrpgMemoryCall;
   rollD20?: () => number;
   skipBilling?: boolean;
@@ -76,6 +87,11 @@ export async function startTrpgCampaign(
   opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
 ): Promise<TrpgCampaignSnapshot> {
   assertCanStart(db, opts.campaignId, opts.userId);
+  try {
+    await ensureCampaignDirectorContext(db, opts.campaignId, { directorCall: opts.deps?.directorCall });
+  } catch (error) {
+    console.warn("[trpg-director] context failed; continuing with existing GM", error);
+  }
   const latest = loadLatestRound(db, opts.campaignId);
   const rid = newRequestId();
   let roundId: number;
@@ -630,6 +646,14 @@ async function runGmForRound(
     actions.map((a) => a.body),
     scenarioAssets
   );
+  const campaignContext = loadCampaignContext(db, opts.campaignId);
+  const resolvedPlan = resolvedCampaignPlan(campaignContext);
+  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan);
+  const storyDirectorBlock = resolvedPlan
+    ? [serializeCampaignDirectorInstructions(true), serializeCampaignDirectorState(campaignContext)]
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
@@ -641,6 +665,8 @@ async function runGmForRound(
     genres: loadCampaignGenres(db, campaign),
     relationshipBrief: campaign.relationship_brief ?? "",
     scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
+    scenarioPlanBlock,
+    storyDirectorBlock,
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
@@ -678,6 +704,18 @@ async function runGmForRound(
       ).run(opts.campaignId, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
     }
     persistCampaignLedger(db, opts.campaignId, roundNumber, ledger);
+    if (campaignContext && resolvedPlan) {
+      persistCampaignContext(
+        db,
+        applyCampaignStoryProgress(campaignContext, {
+          storyPhase: parsed.delta.storyPhase,
+          threadsAdd: parsed.delta.threadsAdd,
+          threadsResolve: parsed.delta.threadsResolve,
+          endingConditionId: parsed.delta.endingConditionId,
+          campaignFinished: parsed.campaignFinished,
+        })
+      );
+    }
     setRoundPhase(db, opts.roundId, "APPLYING_STATE");
     if (!opts.opening) maybeBillRound(db, campaign, opts.roundId, opts.deps?.skipBilling === true);
   })();

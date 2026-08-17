@@ -123,6 +123,8 @@ export type TrpgCampaignSnapshot = {
   canRerollRoundNumber: number | null;
   narrationRerolling: boolean;
   scenarioAssets: CharacterAsset[];
+  /** Long-form story stage. Independent from round.phase. */
+  storyPhase?: string;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

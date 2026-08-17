@@ -75,6 +75,14 @@ function asDelta(raw: unknown): TrpgStateDelta {
   if (questsRemove) delta.questsRemove = questsRemove;
   if (npcsRemove) delta.npcsRemove = npcsRemove;
   if (flagsRemove) delta.flagsRemove = flagsRemove;
+  if (typeof src.storyPhase === "string") delta.storyPhase = src.storyPhase as TrpgStateDelta["storyPhase"];
+  else if (typeof src.story_phase === "string") delta.storyPhase = src.story_phase as TrpgStateDelta["storyPhase"];
+  const threadsAdd = stringList(src.threadsAdd) ?? stringList(src.threads_add);
+  const threadsResolve = stringList(src.threadsResolve) ?? stringList(src.threads_resolve);
+  if (threadsAdd) delta.threadsAdd = threadsAdd;
+  if (threadsResolve) delta.threadsResolve = threadsResolve;
+  if (typeof src.endingConditionId === "string") delta.endingConditionId = src.endingConditionId;
+  else if (typeof src.ending_condition_id === "string") delta.endingConditionId = src.ending_condition_id;
   return delta;
 }
 
@@ -234,6 +242,8 @@ export function buildTrpgGmUserBlock(opts: {
   genres?: readonly string[];
     relationshipBrief?: string;
   scenarioAssetPrompt?: string;
+  scenarioPlanBlock?: string;
+  storyDirectorBlock?: string;
   actions: Array<{
     participantId: number;
     name: string;
@@ -281,6 +291,8 @@ export function buildTrpgGmUserBlock(opts: {
         ? "[OPENING SCENE — describe the start and ask what they do]"
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
+    opts.scenarioPlanBlock?.trim() ?? "",
+    opts.storyDirectorBlock?.trim() ?? "",
     formatTrpgGenreToneLine(opts.genres ?? []),
     "[SCENE CRAFT] Rewrite every ACTION in your own prose. Invent extras if the place would not be empty. After the last PC, move the world (environment, clocks, clues) yourself. End with one GM: table-talk aside (not a character quote card).",
     sheets,
