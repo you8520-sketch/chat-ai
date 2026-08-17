@@ -4687,7 +4687,7 @@ export default function ChatClient({
                 type="button"
                 onClick={sendContinue}
                 disabled={inputLocked || !canContinue}
-                title="AI 답변 직후 서사를 이어갑니다"
+                title="AI 답변 직후 서사를 이어갑니다. 유저 행동·대사도 함께 출력됩니다."
                 className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40"
               >
                 자동진행
@@ -4710,13 +4710,7 @@ export default function ChatClient({
             >
               {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
             </span>
-            <span className="text-[10px] text-zinc-500"> · Ctrl+Enter 전송</span>
-            {canContinue && !loading && (
-              <span className="text-[10px] text-violet-400/80">
-                {" "}
-                · 자동진행: 유저의 행동과 대사도 함께 출력됩니다
-              </span>
-            )}
+            <span className="hidden text-[10px] text-zinc-500 min-[576px]:inline"> · Ctrl+Enter 전송</span>
           </p>
         </div>
       </div>
