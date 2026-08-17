@@ -22,6 +22,14 @@ export type TrpgDirectorDeps = {
   directorCall?: TrpgAuthoringComplete;
 };
 
+export const TRPG_SANDBOX_DIRECTOR_ENABLED_ENV = "TRPG_SANDBOX_DIRECTOR_ENABLED";
+
+/** World-only Blueprint only. Default off. Scenario campaigns and Scenario Draft ignore this. */
+export function isTrpgSandboxDirectorEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env[TRPG_SANDBOX_DIRECTOR_ENABLED_ENV]?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
 function tableExists(db: Database.Database, name: string): boolean {
   const row = db
     .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
@@ -106,6 +114,11 @@ export async function ensureCampaignDirectorContext(
   }
 
   ctx.sourceMode = "sandbox";
+  if (!isTrpgSandboxDirectorEnabled()) {
+    ctx.directorPlan = null;
+    persistCampaignContext(db, ctx);
+    return ctx;
+  }
   try {
     const generated = await completeTrpgAuthoringJson({
       kind: "sandbox_blueprint",

@@ -14,6 +14,18 @@ import { insertParticipant, loadCampaign } from "./store";
 import { TRPG_BOT_MODEL, TRPG_GM_MODEL, TRPG_MAX_BOTS } from "./types";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
+import { ensureCampaignDirectorContext, isTrpgSandboxDirectorEnabled } from "./sandboxDirector";
+
+async function withSandboxDirectorEnabled<T>(enabled: boolean, fn: () => Promise<T>): Promise<T> {
+  const prev = process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
+  process.env.TRPG_SANDBOX_DIRECTOR_ENABLED = enabled ? "1" : "0";
+  try {
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
+    else process.env.TRPG_SANDBOX_DIRECTOR_ENABLED = prev;
+  }
+}
 
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
@@ -53,7 +65,19 @@ const playablePlan = {
 };
 
 describe("TRPG sandbox director and plan security", () => {
+  it("defaults the sandbox director flag to off", () => {
+    const prev = process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
+    delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
+    try {
+      assert.equal(isTrpgSandboxDirectorEnabled(), false);
+    } finally {
+      if (prev === undefined) delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
+      else process.env.TRPG_SANDBOX_DIRECTOR_ENABLED = prev;
+    }
+  });
+
   it("generates a world-only blueprint once and never again on refresh or next round", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
     const db = memoryDb();
     db.prepare(
       `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility)
@@ -115,9 +139,11 @@ describe("TRPG sandbox director and plan security", () => {
     assert.doesNotMatch(loadCampaign(db, campaignId)?.world_brief ?? "", /CHANGEDWORLD/);
     assert.doesNotMatch(JSON.stringify(loadCampaignContext(db, campaignId)?.worldSnapshot), /CHANGEDWORLD/);
     db.close();
+    });
   });
 
   it("does not call the director for scenario campaigns and keeps secrets off bot seats", async () => {
+    await withSandboxDirectorEnabled(false, async () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역",
@@ -170,9 +196,11 @@ describe("TRPG sandbox director and plan security", () => {
     assert.ok(seen.some((row) => row.startsWith("gm:") && row.includes("SECRETPLAN")));
     assert.equal(loadCampaignContext(db, campaignId)?.sourceMode, "scenario");
     db.close();
+    });
   });
 
   it("copies authored scenario plans onto directorPlan so endingConditionId resolves", async () => {
+    await withSandboxDirectorEnabled(false, async () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역",
@@ -213,9 +241,11 @@ describe("TRPG sandbox director and plan security", () => {
     });
     assert.equal(byText.endingStatus.endingConditionText, "코어를 봉쇄한다");
     db.close();
+    });
   });
 
   it("rejects a valid JSON blueprint that is missing goal or ending conditions", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
     const db = memoryDb();
     db.prepare(
       `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
@@ -257,6 +287,7 @@ describe("TRPG sandbox director and plan security", () => {
     assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
     assert.match(loadCampaignContext(db, campaignId)?.directorError ?? "", /required story fields|목표|종료/);
     db.close();
+    });
   });
 
   it("adds the storyPhase JSON contract once when a plan exists and never for legacy campaigns", async () => {
@@ -308,6 +339,7 @@ describe("TRPG sandbox director and plan security", () => {
   });
 
   it("falls back to world-only GM play when the director fails", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
     const db = memoryDb();
     db.prepare(
       `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
@@ -335,6 +367,86 @@ describe("TRPG sandbox director and plan security", () => {
     assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
     assert.match(loadCampaignContext(db, campaignId)?.directorError ?? "", /director down/);
     db.close();
+    });
+  });
+
+  it("skips the sandbox model call and does not wait on a director promise when the flag is off", async () => {
+    await withSandboxDirectorEnabled(false, async () => {
+      const db = memoryDb();
+      db.prepare(
+        `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
+         VALUES (2, '북부', '얼음 마법', 1, 'public')`
+      ).run();
+      let directorCalls = 0;
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        directorCall: () => {
+          directorCalls += 1;
+          return new Promise(() => {});
+        },
+        gmCall: async ({ user }) => {
+          assert.doesNotMatch(user, /\[SCENARIO PLAN\]/);
+          assert.doesNotMatch(user, /DIRECTOR DELTA CONTRACT/);
+          return { text: gmText("세계관만으로 시작한다.") };
+        },
+      };
+      const campaignId = createTrpgCampaign(db, {
+        hostUserId: 1,
+        hostNickname: "렌",
+        viewerUserId: 1,
+        worldId: 1,
+      });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+      const started = Date.now();
+      const snap = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.ok(Date.now() - started < 2_000);
+      assert.equal(directorCalls, 0);
+      assert.match(snap.currentNarration ?? "", /세계관만으로/);
+      assert.equal(loadCampaignContext(db, campaignId)?.sourceMode, "sandbox");
+      assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
+      db.close();
+    });
+  });
+
+  it("keeps a one-shot sandbox blueprint when the flag is on and replay adds no provider call", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      db.prepare(
+        `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
+         VALUES (2, '북부', '얼음 마법', 1, 'public')`
+      ).run();
+      let directorCalls = 0;
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        directorCall: async () => {
+          directorCalls += 1;
+          return {
+            text: JSON.stringify({
+              title: "블루프린트",
+              startingSituation: "눈보라 속 성채",
+              centralConflict: "얼음 마법의 확산",
+              goal: "보급로를 연다",
+              endingConditions: ["성채와 연락한다"],
+            }),
+            latencyMs: 1,
+            model: TRPG_SCENARIO_DRAFT_MODEL,
+          };
+        },
+        gmCall: async () => ({ text: gmText() }),
+      };
+      const campaignId = createTrpgCampaign(db, {
+        hostUserId: 1,
+        hostNickname: "렌",
+        viewerUserId: 1,
+        worldId: 1,
+      });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.equal(directorCalls, 1);
+      await ensureCampaignDirectorContext(db, campaignId, { directorCall: deps.directorCall });
+      assert.equal(directorCalls, 1);
+      db.close();
+    });
   });
 
   it("keeps 0/1/2 bot-seat calls independent of director and uses the original models", async () => {
