@@ -152,6 +152,30 @@ export function ensureTrpgTables(db: Database.Database): void {
       UNIQUE(campaign_id, round_start)
     );
 
+    CREATE TABLE IF NOT EXISTS trpg_memory_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      round_start INTEGER NOT NULL,
+      round_end INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      fact TEXT NOT NULL,
+      importance TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      actors_json TEXT NOT NULL DEFAULT '[]',
+      entities_json TEXT NOT NULL DEFAULT '[]',
+      keywords_json TEXT NOT NULL DEFAULT '[]',
+      known_participant_ids_json TEXT NOT NULL DEFAULT '[]',
+      fingerprint TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(campaign_id, fingerprint)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_memory_events_campaign
+      ON trpg_memory_events(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_trpg_memory_events_rounds
+      ON trpg_memory_events(campaign_id, round_start, round_end);
+    CREATE INDEX IF NOT EXISTS idx_trpg_memory_events_importance
+      ON trpg_memory_events(campaign_id, importance);
+
     CREATE TABLE IF NOT EXISTS trpg_state_change_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       campaign_id INTEGER NOT NULL,

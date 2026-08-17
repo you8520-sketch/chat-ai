@@ -12,6 +12,12 @@ import {
   type TrpgMemoryRound,
 } from "./memory";
 import { clipTrpgChars } from "./campaignLedger";
+import {
+  logTrpgMemoryUsage,
+  persistMemoryEvents,
+  parseTrpgSealMemory,
+  type TrpgMemoryEventDraft,
+} from "./memoryHorizon";
 import { TRPG_SEAL_SUMMARY_MAX_CHARS } from "./types";
 
 export type TrpgMemoryCall = (system: string, user: string) => Promise<{ text: string }>;
@@ -25,7 +31,7 @@ async function defaultMemoryCall(system: string, user: string): Promise<{ text: 
     [{ role: "user", content: user }],
     undefined,
     "background-memory-extract",
-    { maxTokens: 768, temperature: 0.2 }
+    { maxTokens: 1536, temperature: 0.2 }
   );
   return { text };
 }
@@ -43,23 +49,51 @@ export async function sealDroppedTrpgRounds(
   if (dueNumbers.length === 0) return;
   const dueSet = new Set(dueNumbers);
   const due = completed.filter((r) => dueSet.has(r.roundNumber));
-  const summary = await summarizeRounds(due, memoryCall ?? defaultMemoryCall);
+  const sealed = await summarizeRounds(due, memoryCall ?? defaultMemoryCall);
   persistRoundSummary(
     db,
     campaignId,
     due[0]!.roundNumber,
     due[due.length - 1]!.roundNumber,
-    summary
+    sealed.summary
   );
+  persistMemoryEvents(db, {
+    campaignId,
+    roundStart: due[0]!.roundNumber,
+    roundEnd: due[due.length - 1]!.roundNumber,
+    events: sealed.events,
+  });
+  logTrpgMemoryUsage({
+    campaignId,
+    round: due[due.length - 1]!.roundNumber,
+    memoryEventsTotal: sealed.events.length,
+    anchorsInjected: 0,
+    historicalRecalled: 0,
+    historicalRecalledChars: 0,
+    botRecalled: 0,
+    sealSuccess: !sealed.fallback,
+    sealFallback: sealed.fallback,
+  });
 }
 
-async function summarizeRounds(rounds: TrpgMemoryRound[], memoryCall: TrpgMemoryCall): Promise<string> {
+async function summarizeRounds(
+  rounds: TrpgMemoryRound[],
+  memoryCall: TrpgMemoryCall
+): Promise<{ summary: string; events: TrpgMemoryEventDraft[]; fallback: boolean }> {
   const fallback = fallbackSealSummary(rounds);
   try {
     const { text } = await memoryCall(TRPG_SEAL_SYSTEM, buildTrpgSealUserBlock(rounds));
-    const clipped = clipTrpgChars(text, TRPG_SEAL_SUMMARY_MAX_CHARS);
-    return clipped || fallback;
+    const parsed = parseTrpgSealMemory(text);
+    if (!parsed.parsedJson) {
+      const clipped = clipTrpgChars(text, TRPG_SEAL_SUMMARY_MAX_CHARS);
+      return { summary: clipped || fallback, events: [], fallback: !clipped };
+    }
+    return {
+      summary: clipTrpgChars(parsed.summary, TRPG_SEAL_SUMMARY_MAX_CHARS) || fallback,
+      events: parsed.events,
+      fallback: false,
+    };
   } catch {
-    return fallback;
+    return { summary: fallback, events: [], fallback: true };
   }
 }

@@ -25,6 +25,9 @@ function deleteTrpgCampaignRows(db: Database.Database, campaignId: number): void
   ).run(campaignId);
   db.prepare(`DELETE FROM trpg_state_change_log WHERE campaign_id=?`).run(campaignId);
   db.prepare(`DELETE FROM trpg_round_summaries WHERE campaign_id=?`).run(campaignId);
+  if (tableExists(db, "trpg_memory_events")) {
+    db.prepare(`DELETE FROM trpg_memory_events WHERE campaign_id=?`).run(campaignId);
+  }
   if (tableExists(db, "trpg_creator_earnings")) {
     db.prepare(`DELETE FROM trpg_creator_earnings WHERE campaign_id=?`).run(campaignId);
   }

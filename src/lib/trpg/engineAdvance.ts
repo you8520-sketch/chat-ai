@@ -38,7 +38,13 @@ import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
-import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock, buildTrpgBotRecentContinuity, loadCompletedMemoryRounds } from "./memory";
+import { buildCampaignMemoryPrompt, buildCampaignMemoryQuery, buildTrpgBotMemoryBlock, buildTrpgBotRecentContinuity, loadCompletedMemoryRounds } from "./memory";
+import {
+  buildBotCompactContinuity,
+  buildHorizonPromptSections,
+  loadMemoryEvents,
+  logTrpgMemoryUsage,
+} from "./memoryHorizon";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
@@ -455,6 +461,14 @@ async function generateBotActions(
     previousGmNarration: prev,
   });
   const earlier: Array<{ name: string; text: string }> = [];
+  const completedRounds = loadCompletedMemoryRounds(db, opts.campaign.id);
+  const continuity = buildBotCompactContinuity(completedRounds, prev);
+  const botQueryBase = buildCampaignMemoryQuery(db, opts.campaign.id, {
+    actionText: humans.map((h) => `${h.name}: ${h.body}`).join("\n"),
+    sceneText: prev,
+    viewerKind: "bot",
+  });
+  const allMemoryEvents = loadMemoryEvents(db, opts.campaign.id);
   const scenarioAssets = loadCampaignScenarioAssets(db, opts.campaign.template_id);
   const scenarioAssetPrompt = buildScenarioAssetTagPrompt(scenarioAssets);
   const usedScenarioTags = collectUsedScenarioTags(
@@ -504,6 +518,19 @@ async function generateBotActions(
       greeting = clipTrpgChars(persona?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
       systemPrompt = clipTrpgChars(persona?.systemPrompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
     }
+    const botHorizon = buildHorizonPromptSections({
+      events: allMemoryEvents,
+      query: { ...botQueryBase, viewerName: bot.display_name, viewerKind: "bot" },
+    });
+    logTrpgMemoryUsage({
+      campaignId: opts.campaign.id,
+      round: botQueryBase.currentRound,
+      memoryEventsTotal: allMemoryEvents.length,
+      anchorsInjected: 0,
+      historicalRecalled: 0,
+      historicalRecalledChars: 0,
+      botRecalled: botHorizon.botCount,
+    });
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
       description,
@@ -512,7 +539,7 @@ async function generateBotActions(
       exampleDialog,
       world,
       campaignWorld,
-      previousGmNarration: clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
+      previousGmNarration: continuity.previousScene || clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
       recentContinuity,
       campaignMemory: buildTrpgBotMemoryBlock({
         ledger: loadCampaignLedger(db, opts.campaign.id),
@@ -523,6 +550,8 @@ async function generateBotActions(
           conditions: s.conditions,
         })),
       }),
+      longTermMemories: botHorizon.botMemories,
+      compactContinuity: continuity.compact,
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
       companionActions: earlier,
       speakIndex: earlier.length + 1,
@@ -678,7 +707,6 @@ async function runGmForRound(
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
-  const memory = buildCampaignMemoryPrompt(db, opts.campaignId);
   const storedSnapshot = parseJson(
     (db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
       | { input_snapshot_json: string | null }
@@ -687,6 +715,12 @@ async function runGmForRound(
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
   const actions = sortByResolutionOrder(loadActionsForGm(db, opts.roundId, scenario.statDefs), resolutionOrder);
+  const latestScene = previousNarration(db, opts.campaignId);
+  const memory = buildCampaignMemoryPrompt(db, opts.campaignId, {
+    actionText: actions.map((action) => `${action.name}: ${action.body}`).join("\n"),
+    sceneText: latestScene,
+    viewerKind: "gm",
+  });
   const playerPersonas = loadParticipants(db, opts.campaignId)
     .filter((p) => p.kind === "human")
     .map((p) => {

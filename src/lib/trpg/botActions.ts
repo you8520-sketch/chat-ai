@@ -1,5 +1,6 @@
 import { parseTrpgBotAction, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 import { clipTrpgChars } from "./clip";
+import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
 import {
   TRPG_BOT_ACTION_MAX_CHARS,
   TRPG_BOT_AIM_CHARS,
@@ -25,6 +26,8 @@ export type TrpgBotActionContext = {
   previousGmNarration: string;
   campaignMemory: string;
   recentContinuity?: string;
+  longTermMemories?: string;
+  compactContinuity?: string;
   humanActions: Array<{ playerName: string; text: string }>;
   companionActions?: Array<{ name: string; text: string }>;
   speakIndex?: number;
@@ -41,6 +44,7 @@ Write one finished novelistic beat: what you notice, how you react, how you move
 Stay in their diction, attitude, example dialogue, and PARTY RELATIONSHIPS.
 Honor campaign world, recent continuity, and campaign state (HP, location, quests, flags, next decision).
 If CHARACTER CARD WORLD conflicts with CAMPAIGN WORLD, the current campaign world wins.
+Honor [MY LONG-TERM MEMORIES] only as this character already knows them. They are past facts, not current HP or inventory.
 You may describe the world only as THIS character perceives it. Do not decide other PCs' inner lives or actions. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
 Length: ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters (aim about ${TRPG_BOT_AIM_CHARS}). Stop on a finished sentence. Never cut a clause short. If you are near the cap, end the current sentence instead of starting a new one.
@@ -135,7 +139,11 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   ]
     .filter(Boolean)
     .join("\n\n");
-  const scene = clipTrpgChars(ctx.previousGmNarration, TRPG_BOT_SCENE_MAX_CHARS) || "(캠페인 시작)";
+  const recent = ctx.recentContinuity?.trim() || ctx.compactContinuity?.trim() || "";
+  const sceneBudget = recent
+    ? Math.max(400, TRPG_MEMORY_BOT_CONTINUITY_BUDGET - Array.from(recent).length)
+    : TRPG_BOT_SCENE_MAX_CHARS;
+  const scene = clipTrpgChars(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
   return [
     "[TRPG BOT ACTION — you are this PC. Finished beat, then INTENT.]",
     `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_INTENT_OPEN} and one third-person attempt, not a finished result.`,
@@ -148,8 +156,9 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
       ? `[PARTY RELATIONSHIPS — how you know the human and other PCs]\n${ctx.relationshipBrief.trim()}`
       : "",
     ctx.campaignMemory.trim(),
-    ctx.recentContinuity?.trim()
-      ? `[RECENT CONTINUITY — who just did what; not full GM dumps]\n${ctx.recentContinuity.trim()}`
+    ctx.longTermMemories?.trim() ? `[MY LONG-TERM MEMORIES]\n${ctx.longTermMemories.trim()}` : "",
+    recent
+      ? `[RECENT CONTINUITY — who just did what; not full GM dumps]\n${recent}`
       : "",
     `[PREVIOUS GM SCENE]\n${scene}`,
     `[HUMAN ACTIONS THIS ROUND — already locked]\n${humans}`,
