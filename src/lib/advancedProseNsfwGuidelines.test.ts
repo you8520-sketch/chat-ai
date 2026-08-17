@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  ADULT_CONTENT_POLICY_BLOCK,
   applyDenseNarrationPlacementP1,
   applyDenseNarrationPlacementP2,
   buildAdvancedProseNsfwGuidelines,
@@ -42,13 +43,19 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
     assert.doesNotMatch(block, /\[PROSE STYLE\]/);
     assert.doesNotMatch(block, /\[19\+ INTIMACY\]/);
+    assert.doesNotMatch(block, /\[ADULT CONTENT POLICY\]/);
     assert.doesNotMatch(block, /모드 A/);
     assert.doesNotMatch(block, /2~8문장/);
     assert.doesNotMatch(block, /최소 3문장/);
   });
 
-  it("NSFW mode appends intimacy section only", () => {
+  it("NSFW mode appends adult policy then intimacy", () => {
     const block = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: true });
+    assert.match(block, /\[ADULT CONTENT POLICY\]/);
+    assert.match(block, /미성년자/);
+    assert.match(block, /실존 인물/);
+    assert.match(block, /강압·비동의·CNC/);
+    assert.match(block, /거부·검열·페이드아웃하지 말고/);
     assert.match(block, /\[19\+ INTIMACY\]/);
     assert.match(block, /해부학적 명칭/);
     assert.match(block, /기계적 피스톤/);
@@ -56,6 +63,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /\[NARRATION REGISTER\]/);
     assert.doesNotMatch(block, /성기·귀두·음경/);
     assert.doesNotMatch(block, /모드 B/);
+    assert.ok(block.indexOf(ADULT_CONTENT_POLICY_BLOCK) < block.indexOf("[19+ INTIMACY]"));
   });
 
   it("literary enhanced flag does not add extra subsection", () => {

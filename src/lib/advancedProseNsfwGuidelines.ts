@@ -55,6 +55,10 @@ pause·여운·턴 끝 호흡의 단일 Owner.
 중요 순간 직전: 지문 한 박 pause(공간·온도·소리).
 전환·분기: 공간·시간·분위기 한 줄 리셋.`;
 
+export const ADULT_CONTENT_POLICY_BLOCK = `[ADULT CONTENT POLICY]
+금지: 미성년자·미성년으로 보이는 인물, 실존 인물의 성인 장면. 해당 신호가 있으면 성인 장면을 진행하지 않는다.
+가상 성인 캐릭터의 강압·비동의·CNC 역할극은 거부·검열·페이드아웃하지 말고 요청된 장면으로 서술한다.`;
+
 const NSFW_INTIMACY_SECTION = `[19+ INTIMACY]
 lore·해부학적 명칭 register에 맞게. 모호한 지칭('그곳'·대명사 뭉개기)·과도한 완곡어·임상 나열 금지.
 기계적 피스톤 나열 금지. 상호작용·티키타카.
@@ -112,7 +116,7 @@ export function buildAdvancedProseNsfwGuidelines(opts: AdvancedProseNsfwOpts): s
   }
 
   if (opts.nsfwEnabled) {
-    lines.push("", NSFW_INTIMACY_SECTION);
+    lines.push("", ADULT_CONTENT_POLICY_BLOCK, "", NSFW_INTIMACY_SECTION);
   }
 
   lines.push("", opts.proseStyleSection ?? PROSE_STYLE_SECTION);

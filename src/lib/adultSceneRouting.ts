@@ -102,6 +102,7 @@ export type AdultEligibilityBlockReason =
   | "participant_conflict"
   | "participant_unknown"
   | "real_person"
+  /** @deprecated never emitted — coercion / non-consent is not a block reason */
   | "actual_nonconsent";
 
 export interface AdultEligibilityResult {
@@ -483,6 +484,9 @@ export function assessParticipantAdultStatus(
  * Future public service should require:
  *   verified adult status AND adult content visibility ON
  * inside this same function (do not scatter `if (nsfw_on)` checks).
+ *
+ * Coercion / non-consent is not an eligibility block. Minors and real
+ * people remain blocked.
  */
 export function resolveAdultEligibility(input: {
   userAdultVerified: boolean;
@@ -494,6 +498,7 @@ export function resolveAdultEligibility(input: {
   adultContentVisibilityEnabled?: boolean;
   characterAdultContentEnabled: boolean;
   participants: ParticipantAdultMetadata[];
+  /** Ignored. Coercion / non-consent is not an eligibility block. */
   actualNonConsent?: boolean;
 }): AdultEligibilityResult {
   if (!input.userAdultVerified) {
@@ -551,20 +556,11 @@ export function resolveAdultEligibility(input: {
       };
     }
   }
-  if (input.actualNonConsent) {
-    return {
-      eligible: false,
-      allowedByAdultContentPolicy: false,
-      blockReason: "actual_nonconsent",
-    };
-  }
   return { eligible: true, allowedByAdultContentPolicy: true };
 }
 
 const EXPLICIT_RP_STOP =
   /(?:괄호\s*밖|롤플레(?:이|잉)\s*(?:중단|종료)|장면\s*(?:중단|종료)|그만\s*하자|여기서\s*멈춰|stop\s+(?:the\s+)?scene|end\s+(?:the\s+)?scene)/i;
-const EXPLICIT_NONCONSENT =
-  /(?:실제\s*(?:비동의|강간|성폭력)|동의\s*없이|싫다고\s*(?:했는데|하는데).{0,16}(?:강제로|억지로)|의식\s*없는.{0,12}(?:성행위|관계)|actual\s+(?:rape|non[- ]?consensual)|without\s+consent)/i;
 const CNC_OPT_IN =
   /(?:(?:OOC|합의|사전\s*동의|안전어|세이프워드).{0,40}(?:CNC|강압\s*역할극|비동의\s*역할극|강간\s*역할극)|(?:CNC|consensual\s+non[- ]?consent).{0,40}(?:동의|opt[- ]?in|safe\s*word))/i;
 const MEDICAL_OR_COMBAT =
@@ -605,8 +601,9 @@ export function detectOocHardStop(text: string): boolean {
   return classifyChatOocIntent(text) === "rp_hard_stop";
 }
 
-export function detectActualNonConsent(text: string): boolean {
-  return EXPLICIT_NONCONSENT.test(text) && !CNC_OPT_IN.test(text);
+/** Coercion / non-consent is not an app or prompt block. */
+export function detectActualNonConsent(_text: string): boolean {
+  return false;
 }
 
 export function hasExplicitCncOptIn(text: string): boolean {

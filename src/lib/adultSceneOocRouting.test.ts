@@ -206,6 +206,17 @@ describe("OOC scene routing cases", () => {
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.blockReason, "participant_minor");
   });
+
+  it("case 11 — coercive adult OOC is not blocked when participants are confirmed adults", () => {
+    const { classification, decision } = decide({
+      currentInput:
+        "OOC: 싫다고 하는데 억지로 밀어붙인다. 동의 없이 성인 장면을 이어가.",
+    });
+    assert.equal(classification.actualNonConsent, false);
+    assert.equal(decision.shouldBlock, false);
+    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.blockReason, undefined);
+  });
 });
 
 describe("OOC intent helpers", () => {
