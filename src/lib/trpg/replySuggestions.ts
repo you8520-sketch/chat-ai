@@ -19,6 +19,8 @@ export const TRPG_REPLY_SUGGESTION_TIMEOUT_MS = 45_000;
 export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
 export const TRPG_REPLY_SCENE_MAX_CHARS = 1600;
+export const TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS = 80;
+export const TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS = 120;
 
 export const TRPG_INPUT_ORIGINS = ["manual", "reply_suggestion"] as const;
 export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
@@ -26,6 +28,8 @@ export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
 export type TrpgReplySuggestion = {
   actionType: TrpgActionType;
   text: string;
+  stage: string;
+  speech: string;
 };
 
 export type TrpgReplySuggestionCall = (opts: {
@@ -127,16 +131,24 @@ export function buildReplySuggestionPublicContext(opts: {
 }): { system: string; user: string } {
   const system = `You suggest TRPG player actions. JSON only. No secrets. No commands.
 
-Priority for voice:
+Each suggestion is a short playable beat the player can tap into the action box.
+Write BOTH parts:
+- stage (지문): what THIS PC tries to do — body, movement, gaze. An attempt, not a finished result.
+- speech (대사): words they actually say, in quotation marks, in their voice.
+Do not output speech-only. Do not output a novel paragraph.
+Aim ${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS} Korean characters per suggestion (지문 + 대사 together).
+If stealth would break by speaking, 지문 only is allowed. Otherwise always include 대사.
+
+Priority for 대사 voice:
 1. Recent actions the player actually typed
 2. Persona speechExamples
 3. Persona description
 4. Natural Korean
+지문 follows the current scene and self sheet, not the speech examples.
 
 Rules:
 - Return exactly 3 suggestions.
 - actionType must be one of: ${TRPG_ACTION_TYPES.join(", ")}
-- Each text is Korean, an attempted action, not a guaranteed success.
 - Do not decide other PCs' actions.
 - Do not use hidden GM/scenario/NPC secrets. You are not given any.
 - Do not copy recent actions verbatim.
@@ -145,7 +157,7 @@ Rules:
 - Never output success as already done.
 
 Output:
-{"suggestions":[{"actionType":"investigate","text":"..."},{"actionType":"persuade","text":"..."},{"actionType":"free","text":"..."}]}`;
+{"suggestions":[{"actionType":"investigate","stage":"문을 바로 열지 않고 무릎을 낮춘 채 경첩과 문틈, 바닥의 먼지를 손가락으로 천천히 훑어 최근 드나든 흔적이 있는지부터 확인한다.","speech":"잠깐. 손대지 마. 내가 먼저 볼게. 여기 자국이 이상해."},{"actionType":"persuade","stage":"한 손을 천천히 들어 상대의 총구를 옆으로 밀어 내려 보이게 한 뒤, 시선은 눈과 손끝에만 두고 한 발 다가선다.","speech":"잠깐. 서로 총부터 내려놓고 얘기하지. 여기서 쏘면 둘 다 끝이야."},{"actionType":"free","stage":"한 발 물러서서 동료 쪽을 돌아본 뒤, 출구와 상대의 위치를 눈으로 한 번 더 가늠하며 목소리를 낮춘다.","speech":"어떻게 할래. 네가 먼저 말해. 나는 네 뒤를 맞출게."}]}`;
 
   const persona = opts.persona;
   const self = opts.self;
@@ -190,7 +202,37 @@ function coerceActionType(value: unknown): TrpgActionType | null {
 }
 
 function readSuggestionActionType(row: Record<string, unknown>): TrpgActionType | null {
-  return coerceActionType(row.actionType ?? row.action_type ?? row.type);
+  return coerceActionType(row.actionType ?? row.action_type ?? row.type ?? row.kind ?? row.행동유형);
+}
+
+function firstSuggestionString(row: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function stripSpeechQuotes(text: string): string {
+  return text.replace(/^[「『"'“]+/, "").replace(/[」』"'”]+$/, "").trim();
+}
+
+function splitStageSpeech(text: string): { stage: string; speech: string } {
+  const quote = text.match(/[「『"'“]([^」』"'”]+)[」』"'”]/);
+  if (!quote || quote.index == null) {
+    return { stage: text.trim(), speech: "" };
+  }
+  return {
+    stage: text.slice(0, quote.index).trim(),
+    speech: quote[1].trim(),
+  };
+}
+
+function composeSuggestionText(stage: string, speech: string, fallback = ""): string {
+  const parts: string[] = [];
+  if (stage) parts.push(stage);
+  if (speech) parts.push(`「${speech}」`);
+  return clipTrpgChars(parts.join(" ") || fallback, TRPG_ACTION_MAX_CHARS);
 }
 
 function messageContentToText(content: unknown): string {
@@ -271,9 +313,23 @@ export function parseReplySuggestions(raw: string): TrpgReplySuggestion[] {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const row = item as Record<string, unknown>;
     const actionType = readSuggestionActionType(row);
-    const text = clipTrpgChars(String(row.text ?? row.body ?? ""), TRPG_ACTION_MAX_CHARS);
-    if (!actionType || !text) continue;
-    out.push({ actionType, text });
+    if (!actionType) continue;
+    const fallback = firstSuggestionString(row, ["text", "body", "내용"]);
+    let stage = firstSuggestionString(row, ["stage", "지문", "prose"]);
+    let speech = stripSpeechQuotes(firstSuggestionString(row, ["speech", "대사", "line"]));
+    if (!stage && !speech && fallback) {
+      const split = splitStageSpeech(fallback);
+      stage = split.stage;
+      speech = split.speech;
+    }
+    const text = composeSuggestionText(stage, speech, fallback);
+    if (!text) continue;
+    out.push({
+      actionType,
+      stage: clipTrpgChars(stage, TRPG_ACTION_MAX_CHARS),
+      speech: clipTrpgChars(speech, TRPG_ACTION_MAX_CHARS),
+      text,
+    });
     if (out.length === 3) break;
   }
   if (out.length < 1) throw new Error("행동 예시를 읽지 못했습니다.");
@@ -282,9 +338,21 @@ export function parseReplySuggestions(raw: string): TrpgReplySuggestion[] {
 
 const MOCK_SUGGESTIONS = JSON.stringify({
   suggestions: [
-    { actionType: "investigate", text: "문을 바로 열지 않고 경첩과 바닥의 흔적부터 살핀다." },
-    { actionType: "persuade", text: "잠깐. 서로 총부터 내려놓고 얘기하지." },
-    { actionType: "free", text: "한 발 물러서서 동료 쪽을 돌아보며 다음 수를 묻는다." },
+    {
+      actionType: "investigate",
+      stage: "문을 바로 열지 않고 무릎을 낮춘 채 경첩과 문틈, 바닥의 먼지를 손가락으로 천천히 훑어 최근 드나든 흔적이 있는지부터 확인한다.",
+      speech: "잠깐. 손대지 마. 내가 먼저 볼게. 여기 자국이 이상해.",
+    },
+    {
+      actionType: "persuade",
+      stage: "한 손을 천천히 들어 상대의 총구를 옆으로 밀어 내려 보이게 한 뒤, 시선은 눈과 손끝에만 두고 한 발 다가선다.",
+      speech: "잠깐. 서로 총부터 내려놓고 얘기하지. 여기서 쏘면 둘 다 끝이야.",
+    },
+    {
+      actionType: "free",
+      stage: "한 발 물러서서 동료 쪽을 돌아본 뒤, 출구와 상대의 위치를 눈으로 한 번 더 가늠하며 목소리를 낮춘다.",
+      speech: "어떻게 할래. 네가 먼저 말해. 나는 네 뒤를 맞출게.",
+    },
   ],
 });
 

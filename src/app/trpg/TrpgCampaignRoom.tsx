@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
@@ -147,6 +147,7 @@ export default function TrpgCampaignRoom({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
+  const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
@@ -210,6 +211,15 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useLayoutEffect(() => {
+    if (suggestions.length === 0 && !suggestionsError) return;
+    suggestionsAnchorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+      inline: "nearest",
+    });
+  }, [suggestions, suggestionsError]);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -428,26 +438,40 @@ export default function TrpgCampaignRoom({
                   행동 제출
                 </button>
               </div>
-              {suggestionsError ? (
-                <p className="mt-2 text-sm text-rose-200">{suggestionsError}</p>
-              ) : null}
-              {suggestions.length > 0 ? (
-                <ul className="mt-3 space-y-2">
-                  {suggestions.map((item) => (
-                    <li key={`${item.actionType}:${item.text}`}>
-                      <button
-                        type="button"
-                        onClick={() => onPickSuggestion(item)}
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.07]"
-                      >
-                        <span className="text-xs font-semibold text-violet-200">
-                          {actionTypeLabelKo(item.actionType)}
-                        </span>
-                        <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {suggestionsError || suggestions.length > 0 ? (
+                <div ref={suggestionsAnchorRef} className="scroll-mb-28">
+                  {suggestionsError ? (
+                    <p className="mt-2 text-sm text-rose-200">{suggestionsError}</p>
+                  ) : null}
+                  {suggestions.length > 0 ? (
+                    <ul className="mt-3 space-y-2">
+                      {suggestions.map((item) => (
+                        <li key={`${item.actionType}:${item.text}`}>
+                          <button
+                            type="button"
+                            onClick={() => onPickSuggestion(item)}
+                            className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.07]"
+                          >
+                            <span className="text-xs font-semibold text-violet-200">
+                              {actionTypeLabelKo(item.actionType)}
+                            </span>
+                            {item.stage ? (
+                              <p className="mt-1 text-sm text-zinc-300">{item.stage}</p>
+                            ) : null}
+                            {item.speech ? (
+                              <p className={`${item.stage ? "mt-0.5" : "mt-1"} text-sm text-zinc-100`}>
+                                「{item.speech}」
+                              </p>
+                            ) : null}
+                            {!item.stage && !item.speech ? (
+                              <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ) : null}
             </AppSectionCard>
           ) : null}
