@@ -316,7 +316,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
   const disposables: { dispose: () => void }[] = [source];
 
   const frameWidth = radius * 2 * TRPG_D20_FRAME_WIDTH_RATIO;
-  const frameDepth = frameWidth * 0.9;
+  const frameDepth = frameWidth * 1.6;
   const frameMaterial = new THREE.MeshPhysicalMaterial({
     color: TRPG_D20_GOLD_BASE,
     metalness: 0.88,
@@ -324,6 +324,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     clearcoat: 0.12,
     clearcoatRoughness: 0.4,
     envMapIntensity: 0.9,
+    flatShading: false,
   });
   const capMaterial = new THREE.MeshPhysicalMaterial({
     color: TRPG_D20_GOLD_HIGHLIGHT,
@@ -386,6 +387,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     });
     const gem = new THREE.Mesh(triangleGeometry(corners, TRPG_D20_GEM_SCALE, TRPG_D20_GEM_INSET_DEPTH), gemMaterial);
     gem.receiveShadow = true;
+    gem.castShadow = true;
     gem.renderOrder = 1;
     group.add(gem);
     disposables.push(gem.geometry, gemMaterial, gemMap);
