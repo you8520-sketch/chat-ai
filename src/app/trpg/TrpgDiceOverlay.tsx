@@ -27,9 +27,11 @@ import {
 } from "@/lib/trpg/diceVisual";
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
 import TrpgD20 from "./TrpgD20";
 
 const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
+const TrpgArtisanDiceScene = dynamic(() => import("./TrpgArtisanDiceScene"), { ssr: false });
 
 function detectWebgl(): boolean {
   try {
@@ -45,11 +47,15 @@ export default function TrpgDiceOverlay({
   rolls,
   resolutionOrder,
   theme = PRODUCTION_D20_THEME,
+  previewInstrument = false,
+  roundNumber = 0,
 }: {
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   resolutionOrder?: readonly TrpgResolutionOrderEntry[];
   theme?: TrpgD20ThemeId;
+  previewInstrument?: boolean;
+  roundNumber?: number;
 }) {
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const timing = trpgDiceDurationMs(ordered.length);
@@ -58,6 +64,10 @@ export default function TrpgDiceOverlay({
   const [use3d, setUse3d] = useState(false);
   const [reducedQuality, setReducedQuality] = useState(false);
   const prevRef = useRef({ phase: "", rollCount: 0 });
+  const playRef = useRef(play);
+  playRef.current = play;
+  const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered });
+  instrumentRef.current = { previewInstrument, roundNumber, theme, ordered };
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
 
   useEffect(() => {
@@ -67,6 +77,21 @@ export default function TrpgDiceOverlay({
       rollCount: ordered.length,
       prevRollCount: prevRef.current.rollCount,
     });
+    const inst = instrumentRef.current;
+    if (inst.previewInstrument) {
+      const next = applyTrpgDiceOverlaySession(playRef.current, action);
+      logTrpgDicePreviewInstrument({
+        roundNumber: inst.roundNumber,
+        phase,
+        currentRollsLength: ordered.length,
+        rollKey: previewDiceRollKey(inst.ordered),
+        overlaySessionAction: action,
+        overlayStarted: next.started,
+        overlayDismissed: next.dismissed,
+        theme: inst.theme,
+        overlayMounted: trpgDiceOverlayVisible(next.started, next.dismissed, ordered.length),
+      });
+    }
     prevRef.current = { phase, rollCount: ordered.length };
     setPlay((current) => applyTrpgDiceOverlaySession(current, action));
   }, [ordered.length, phase]);
@@ -134,14 +159,24 @@ export default function TrpgDiceOverlay({
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
             {use3d ? (
-              <TrpgDiceScene
-                value={roll.d20}
-                tone={tone}
-                theme={theme}
-                durationMs={timing.perDie}
-                reducedQuality={reducedQuality}
-                onSettled={onSettled}
-              />
+              theme === "emerald-relic" ? (
+                <TrpgArtisanDiceScene
+                  value={roll.d20}
+                  tone={tone}
+                  durationMs={timing.perDie}
+                  reducedQuality={reducedQuality}
+                  onSettled={onSettled}
+                />
+              ) : (
+                <TrpgDiceScene
+                  value={roll.d20}
+                  tone={tone}
+                  theme={theme}
+                  durationMs={timing.perDie}
+                  reducedQuality={reducedQuality}
+                  onSettled={onSettled}
+                />
+              )
             ) : (
               <div
                 className="flex h-full w-full items-center justify-center [&_svg]:h-[72%] [&_svg]:w-[72%]"

@@ -29,6 +29,14 @@ import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
+import { isTrpgDicePreviewRuntime, resolveCampaignDicePreviewOverlay } from "@/lib/trpg/dicePreviewTheme";
+import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
+import {
+  nextDiceRevealGateState,
+  shouldHoldRoundReveal,
+  TRPG_DICE_REVEAL_GATE_CAP_MS,
+  type TrpgDiceRevealGateState,
+} from "@/lib/trpg/diceRevealGate";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgDiceOverlay from "./TrpgDiceOverlay";
@@ -37,6 +45,40 @@ import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import { trpgLogRevealKeys, useRevealedText } from "./useRevealedText";
+
+function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
+  theme: TrpgD20ThemeId;
+  phase: string;
+  rolls: readonly TrpgPublicRoll[];
+  instrument: boolean;
+} {
+  const [query, setQuery] = useState({ previewEnabled: false, queryTheme: null as string | null, queryPreview: null as string | null });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setQuery({
+      previewEnabled: isTrpgDicePreviewRuntime({
+        nodeEnv: process.env.NODE_ENV,
+        previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
+        hostname: window.location.hostname,
+      }),
+      queryTheme: params.get("diceTheme"),
+      queryPreview: params.get("dicePreview"),
+    });
+  }, []);
+  const fixtureName =
+    snap.sheets.find((card) => card.isSelf)?.sheet.name.trim() ||
+    snap.participants.find((p) => p.id === snap.viewerParticipantId)?.displayName.trim() ||
+    "권태현";
+  const resolved = resolveCampaignDicePreviewOverlay({
+    previewEnabled: query.previewEnabled,
+    queryTheme: query.queryTheme,
+    queryPreview: query.queryPreview,
+    phase: snap.round.phase,
+    currentRolls: snap.currentRolls,
+    fixtureName,
+  });
+  return { ...resolved, instrument: query.previewEnabled };
+}
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
@@ -165,6 +207,30 @@ export default function TrpgCampaignRoom({
     null
   );
   const phase = snap.round.phase;
+  const dicePreview = useCampaignDicePreview(snap);
+  const [revealGate, setRevealGate] = useState<TrpgDiceRevealGateState>({ gatedRound: null, holding: false });
+  const [revealGateReleased, setRevealGateReleased] = useState(true);
+  useEffect(() => {
+    setRevealGate((prev) =>
+      nextDiceRevealGateState(prev, {
+        roundNumber: snap.round.number,
+        hasNewRolls: snap.currentRolls.length > 0,
+        overlayVisible: Boolean(dicePreview.rolls.length),
+        overlayDismissed: false,
+      })
+    );
+  }, [snap.round.number, snap.currentRolls.length, dicePreview.rolls.length]);
+  // Safety cap: never hold the reveal longer than the cap, even if the overlay never reports dismissal.
+  useEffect(() => {
+    if (!revealGate.holding) {
+      setRevealGateReleased(true);
+      return;
+    }
+    setRevealGateReleased(false);
+    const id = window.setTimeout(() => setRevealGateReleased(true), TRPG_DICE_REVEAL_GATE_CAP_MS);
+    return () => window.clearTimeout(id);
+  }, [revealGate.holding, revealGate.gatedRound]);
+  const holdCurrentRound = shouldHoldRoundReveal(revealGate, snap.round.number) && !revealGateReleased;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
     ...snap.participants.map((p) => p.displayName),
@@ -405,7 +471,9 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {sceneRows.map((row) => (
+          {sceneRows.map((row) => {
+            const gated = holdCurrentRound && row.roundNumber === snap.round.number;
+            return (
             <SceneTurn
               key={row.roundNumber}
               row={row}
@@ -434,8 +502,10 @@ export default function TrpgCampaignRoom({
                   partyNames,
                 })
               }
+              revealGateHeld={gated}
             />
-          ))}
+            );
+          })}
 
           {phase === "ACTION_INPUT" && snap.myDraft && !snap.myDraft.locked ? (
             <AppSectionCard title="시나리오 행동">
@@ -620,9 +690,12 @@ export default function TrpgCampaignRoom({
       />
 
       <TrpgDiceOverlay
-        phase={phase}
-        rolls={snap.currentRolls}
+        phase={dicePreview.phase}
+        rolls={dicePreview.rolls}
         resolutionOrder={snap.resolutionOrder}
+        theme={dicePreview.theme}
+        previewInstrument={dicePreview.instrument}
+        roundNumber={snap.round.number}
       />
 
       {toast ? (
@@ -669,6 +742,7 @@ function SceneTurn({
   billingMode,
   onReroll,
   onImage,
+  revealGateHeld,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -687,8 +761,9 @@ function SceneTurn({
   billingMode?: TrpgCampaignSnapshot["billingMode"];
   onReroll: () => void;
   onImage: () => void;
+  revealGateHeld?: boolean;
 }) {
-  const revealNarration = isFreshLogKey(`n:${row.roundNumber}`);
+  const revealNarration = !revealGateHeld && isFreshLogKey(`n:${row.roundNumber}`);
   const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
   const beats = shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
   const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });

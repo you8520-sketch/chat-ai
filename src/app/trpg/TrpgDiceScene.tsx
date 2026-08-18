@@ -117,6 +117,9 @@ function paintFaceGround(
     case "oxidized-bronze":
       paintOxidizedVariation(ctx, size, value, spec);
       return;
+    case "gilded-verdant":
+      // emerald-relic uses the artisan scene; this texture is not painted here.
+      return;
     default: {
       const _never: never = spec.texture;
       return _never;

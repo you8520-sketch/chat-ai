@@ -8,18 +8,18 @@ export const PRODUCTION_DICE_PROTO = "A" as const;
 export const TRPG_DICE_IMPLEMENTATION = "custom" as const;
 export const TRPG_DICE_PHYSICS_ENGINE = "none" as const;
 
-export type TrpgD20ThemeId = "verdant-relic" | "ancient-reliquary";
+export type TrpgD20ThemeId = "verdant-relic" | "ancient-reliquary" | "emerald-relic";
 
 export const PRODUCTION_D20_THEME: TrpgD20ThemeId = "verdant-relic";
 export const TRPG_D20_THEME = PRODUCTION_D20_THEME;
 export const TRPG_DICE_ENGINE = "verdant-relic-d20" as const;
 
-export type TrpgD20ThemeTexture = "sparse-gold-motes" | "oxidized-bronze";
+export type TrpgD20ThemeTexture = "sparse-gold-motes" | "oxidized-bronze" | "gilded-verdant";
 
 export type TrpgD20ThemeSpec = {
   id: TrpgD20ThemeId;
-  engine: typeof TRPG_DICE_ENGINE | "ancient-reliquary-d20";
-  look: "smoked_glass" | "oxidized_bronze";
+  engine: typeof TRPG_DICE_ENGINE | "ancient-reliquary-d20" | "emerald-relic-d20";
+  look: "smoked_glass" | "oxidized_bronze" | "gilded_verdant_relic";
   numeralColor: string;
   numeralStroke: string;
   numeralWeight: 600;
@@ -130,12 +130,52 @@ const ANCIENT_RELIQUARY: TrpgD20ThemeSpec = {
   texture: "oxidized-bronze",
 };
 
+const EMERALD_RELIC: TrpgD20ThemeSpec = {
+  id: "emerald-relic",
+  engine: "emerald-relic-d20",
+  look: "gilded_verdant_relic",
+  numeralColor: "#b89a58",
+  numeralStroke: "#4b381d",
+  numeralWeight: 600,
+  numeralFaceRatio: { single: 0.42, double: 0.38 },
+  palette: {
+    deepest: "#06120c",
+    body: "#0f2418",
+    vein: "#2c4a36",
+    brass: "#b89a58",
+    highlight: "#e1cf9a",
+  },
+  material: {
+    metalness: 0.2,
+    roughness: 0.28,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.3,
+    transmission: 0.34,
+    ior: 1.5,
+    thickness: 0.62,
+    envMapIntensity: 0.95,
+  },
+  lighting: {
+    key: 0.94,
+    fill: 0.26,
+    rim: 0.32,
+    ambient: 0.18,
+  },
+  shadow: {
+    radius: 0.55,
+    opacity: 0.18,
+  },
+  texture: "gilded-verdant",
+};
+
 export function trpgD20ThemeSpec(id: TrpgD20ThemeId): TrpgD20ThemeSpec {
   switch (id) {
     case "verdant-relic":
       return VERDANT_RELIC;
     case "ancient-reliquary":
       return ANCIENT_RELIQUARY;
+    case "emerald-relic":
+      return EMERALD_RELIC;
     default: {
       const _never: never = id;
       return _never;
@@ -144,7 +184,7 @@ export function trpgD20ThemeSpec(id: TrpgD20ThemeId): TrpgD20ThemeSpec {
 }
 
 export function isTrpgD20ThemeId(value: string | undefined): value is TrpgD20ThemeId {
-  return value === "verdant-relic" || value === "ancient-reliquary";
+  return value === "verdant-relic" || value === "ancient-reliquary" || value === "emerald-relic";
 }
 
 /** Brief confirmation hold after the settled face, then the overlay leaves. Do not wait for GM. */
