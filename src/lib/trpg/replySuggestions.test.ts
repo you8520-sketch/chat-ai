@@ -180,6 +180,8 @@ describe("TRPG reply suggestions", () => {
 
   it("scrolls the room down to the suggestion list when examples appear", () => {
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /bottomRef/);
+    assert.match(room, /scrollToLatest/);
     assert.match(room, /suggestionsAnchorRef/);
     assert.match(room, /scrollIntoView/);
     assert.match(room, /block: "end"/);

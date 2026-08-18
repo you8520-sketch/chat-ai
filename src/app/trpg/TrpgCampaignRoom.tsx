@@ -160,6 +160,8 @@ export default function TrpgCampaignRoom({
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToLatestRef = useRef<number | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
@@ -227,9 +229,45 @@ export default function TrpgCampaignRoom({
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
+  const scrollToLatest = useCallback(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
   }, []);
+
+  useLayoutEffect(() => {
+    hasScrolledToLatestRef.current = null;
+  }, [snap.id]);
+
+  useLayoutEffect(() => {
+    if (waitingOpening && sceneRows.length === 0) return;
+    if (hasScrolledToLatestRef.current === snap.id) return;
+
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    let cancelled = false;
+    const scroll = () => {
+      if (cancelled) return;
+      scrollToLatest();
+    };
+
+    scroll();
+    const delays = [100, 250, 500, 1000, 1500, 2500].map((ms) => window.setTimeout(scroll, ms));
+    const container = quoteSelectContainerRef.current;
+    const observer = container ? new ResizeObserver(scroll) : null;
+    if (container && observer) observer.observe(container);
+    const markDone = window.setTimeout(() => {
+      if (!cancelled) hasScrolledToLatestRef.current = snap.id;
+      observer?.disconnect();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      delays.forEach(clearTimeout);
+      window.clearTimeout(markDone);
+      observer?.disconnect();
+    };
+  }, [sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
 
   useLayoutEffect(() => {
     if (!suggestionsEnabled) return;
@@ -602,6 +640,7 @@ export default function TrpgCampaignRoom({
               )}
             </div>
           ) : null}
+          <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
         </div>
         {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
       </div>
