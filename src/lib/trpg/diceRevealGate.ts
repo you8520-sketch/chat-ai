@@ -5,8 +5,21 @@
  * the current round's result/narration until the dice overlay dismisses.
  */
 
-/** Watchdog only — must exceed full overlay lifecycle (~2500ms). Normal release is dismissed. */
+/** Minimum watchdog. Actual timeout is trpgDiceRevealWatchdogMs(rollCount). */
 export const TRPG_DICE_REVEAL_GATE_CAP_MS = 4000;
+
+/** Hide current-round results on the same render a new session key arrives, before pending is committed. */
+export function shouldHideIncomingRollSession(opts: {
+  rollSessionKey: string;
+  presentationSessionKey: string;
+  isFirstObservation: boolean;
+  replayOnMount: boolean;
+}): boolean {
+  if (!opts.rollSessionKey) return false;
+  if (opts.presentationSessionKey === opts.rollSessionKey) return false;
+  if (opts.isFirstObservation && opts.replayOnMount !== true) return false;
+  return true;
+}
 
 export type TrpgDicePresentationState = "idle" | "pending" | "playing" | "settled" | "dismissed";
 

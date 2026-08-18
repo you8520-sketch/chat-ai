@@ -111,6 +111,8 @@ export type TrpgDicePreviewInstrument = {
   overlayDismissedAt?: number;
   firstResultVisibleAt?: number;
   firstNarrationVisibleAt?: number;
+  incomingSessionHidden?: boolean;
+  watchdogMs?: number;
   theme: TrpgD20ThemeId;
   overlayMounted?: boolean;
 };

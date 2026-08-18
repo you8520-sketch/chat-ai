@@ -46,6 +46,32 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
   return { perDie, total: Math.min(TRPG_D20_TOTAL_CAP_MS, perDie * n) };
 }
 
+/** Emerald authored throw: shorten later dice so 3-up stays ~4–5s. */
+export const TRPG_EMERALD_ACTIVE_MS = { 1: 1800, 2: 1300, 3: 1000 } as const;
+export const TRPG_EMERALD_HOLD_MS = { 1: 700, 2: 450, 3: 350 } as const;
+export const TRPG_EMERALD_WATCHDOG_MARGIN_MS = 1500;
+export const TRPG_EMERALD_MULTI_ROLL_CAP_MS = 5000;
+
+export function trpgEmeraldDiceTiming(rollCount: number): {
+  activeMs: number;
+  holdMs: number;
+  perDieMs: number;
+  totalMs: number;
+} {
+  const n = Math.max(0, Math.floor(rollCount));
+  if (n <= 0) return { activeMs: 0, holdMs: 0, perDieMs: 0, totalMs: 0 };
+  const bucket = n === 1 ? 1 : n === 2 ? 2 : 3;
+  const activeMs = TRPG_EMERALD_ACTIVE_MS[bucket];
+  const holdMs = TRPG_EMERALD_HOLD_MS[bucket];
+  return { activeMs, holdMs, perDieMs: activeMs + holdMs, totalMs: (activeMs + holdMs) * n };
+}
+
+/** Watchdog = expected overlay total + margin. Never used to hide a short single-roll. */
+export function trpgDiceRevealWatchdogMs(rollCount: number): number {
+  const emerald = trpgEmeraldDiceTiming(rollCount);
+  return Math.max(emerald.totalMs + TRPG_EMERALD_WATCHDOG_MARGIN_MS, 4000);
+}
+
 export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: boolean }): boolean {
   return opts.webgl === true && opts.reducedMotion !== true;
 }

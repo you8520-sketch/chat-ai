@@ -12,6 +12,7 @@ import {
   shouldAnimateTrpgDice3d,
   shouldConsumeMountRollSession,
   trpgDiceDurationMs,
+  trpgEmeraldDiceTiming,
   trpgDiceOverlayAfterSettle,
   trpgDiceOverlaySessionAction,
   trpgDiceOverlayVisible,
@@ -73,7 +74,12 @@ export default function TrpgDiceOverlay({
 }) {
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const sessionKey = useMemo(() => trpgDiceRollSessionKey(roundNumber, ordered), [ordered, roundNumber]);
-  const timing = trpgDiceDurationMs(ordered.length);
+  const verdantTiming = trpgDiceDurationMs(ordered.length);
+  const emeraldTiming = trpgEmeraldDiceTiming(ordered.length);
+  const isEmerald = theme === "emerald-relic";
+  const timing = isEmerald
+    ? { perDie: emeraldTiming.perDieMs, total: emeraldTiming.totalMs, activeMs: emeraldTiming.activeMs, holdMs: emeraldTiming.holdMs }
+    : { perDie: verdantTiming.perDie, total: verdantTiming.total, activeMs: verdantTiming.perDie, holdMs: TRPG_D20_HOLD_AFTER_SETTLE_MS };
   const spec = trpgD20ThemeSpec(theme);
   const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [settled, setSettled] = useState(false);
@@ -193,6 +199,9 @@ export default function TrpgDiceOverlay({
       data-trpg-dice-proto={PRODUCTION_DICE_PROTO}
       data-trpg-dice-value={roll.d20}
       data-trpg-dice-predetermined={notation}
+      data-trpg-dice-active-ms={timing.activeMs}
+      data-trpg-dice-hold-ms={timing.holdMs}
+      data-trpg-dice-total-ms={timing.total}
       aria-hidden="true"
     >
       <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
@@ -210,7 +219,8 @@ export default function TrpgDiceOverlay({
                 <TrpgArtisanDiceScene
                   value={roll.d20}
                   tone={tone}
-                  durationMs={timing.perDie}
+                  durationMs={timing.activeMs}
+                  holdMs={timing.holdMs}
                   reducedQuality={reducedQuality}
                   onSettled={onSettled}
                 />

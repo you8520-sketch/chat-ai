@@ -21,8 +21,8 @@ import {
 } from "@/lib/trpg/artisanDiceGeometry";
 import { artisanLandingQuaternion } from "@/lib/trpg/artisanDiceOrientation";
 
-const HERO_HOLD_MS = 700;
-const ACTIVE_ROLL_MS = 1800;
+const DEFAULT_HERO_HOLD_MS = 700;
+const DEFAULT_ACTIVE_ROLL_MS = 1800;
 const CAMERA_SETTLE_MS = 200;
 const FLOOR_Y = -TRPG_D20_GEOMETRY_RADIUS - 0.02;
 
@@ -105,12 +105,14 @@ export default function TrpgArtisanDiceScene({
   value,
   tone,
   durationMs,
+  holdMs = DEFAULT_HERO_HOLD_MS,
   reducedQuality,
   onSettled,
 }: {
   value: number;
   tone: TrpgD20Tone;
   durationMs: number;
+  holdMs?: number;
   reducedQuality: boolean;
   onSettled: () => void;
 }) {
@@ -267,7 +269,7 @@ export default function TrpgArtisanDiceScene({
       const spinSpeed = 4 + Math.random() * 2;
 
       const started = performance.now();
-      const duration = ACTIVE_ROLL_MS;
+      const duration = durationMs > 0 ? durationMs : DEFAULT_ACTIVE_ROLL_MS;
       let heroStartedAt = 0;
       let throwEndQuat: THREE.Quaternion | null = null;
       let contactEndQuat: THREE.Quaternion | null = null;
@@ -333,7 +335,7 @@ export default function TrpgArtisanDiceScene({
         renderer.render(scene, camera);
         if (!settledRef.current) {
           settledRef.current = true;
-          window.setTimeout(onSettled, HERO_HOLD_MS);
+          window.setTimeout(onSettled, holdMs);
         }
       };
 
@@ -362,7 +364,7 @@ export default function TrpgArtisanDiceScene({
       cancelled = true;
       cleanup?.();
     };
-  }, [durationMs, onSettled, reducedQuality, tone, value]);
+  }, [durationMs, holdMs, onSettled, reducedQuality, tone, value]);
 
   return (
     <div
@@ -372,6 +374,8 @@ export default function TrpgArtisanDiceScene({
       data-trpg-dice-proto="artisan"
       data-trpg-dice-geometry="emerald-relic"
       data-trpg-dice-motion="authored_throw"
+      data-trpg-dice-active-ms={durationMs}
+      data-trpg-dice-hold-ms={holdMs}
     />
   );
 }

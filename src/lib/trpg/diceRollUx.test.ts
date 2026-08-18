@@ -17,6 +17,11 @@ import {
   shouldAnimateTrpgDice3d,
   shouldConsumeMountRollSession,
   trpgDiceDurationMs,
+  trpgDiceRevealWatchdogMs,
+  trpgEmeraldDiceTiming,
+  TRPG_EMERALD_ACTIVE_MS,
+  TRPG_EMERALD_HOLD_MS,
+  TRPG_EMERALD_MULTI_ROLL_CAP_MS,
   trpgDiceOverlayActive,
   trpgDiceOverlayAfterSettle,
   trpgDiceOverlaySessionAction,
@@ -226,5 +231,40 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(card, /data-trpg-d20-silhouette="icosahedron"/);
     assert.doesNotMatch(card, /WebGLRenderer/);
     assert.equal((room.match(/text=\{parsed\.prose \|\| action\.body\}/g) ?? []).length, 1);
+    assert.match(overlay, /trpgEmeraldDiceTiming/);
+    assert.match(overlay, /durationMs=\{timing\.activeMs\}/);
+    assert.match(overlay, /holdMs=\{timing\.holdMs\}/);
+    assert.match(artisan, /const duration = durationMs > 0 \? durationMs : DEFAULT_ACTIVE_ROLL_MS/);
+    assert.match(artisan, /window\.setTimeout\(onSettled, holdMs\)/);
+    assert.match(room, /trpgDiceRevealWatchdogMs/);
+    assert.match(room, /shouldHideIncomingRollSession/);
+    assert.doesNotMatch(room, /TRPG_DICE_REVEAL_GATE_CAP_MS/);
+  });
+
+  it("shortens emerald multi-roll so overlay finishes before the watchdog", () => {
+    const one = trpgEmeraldDiceTiming(1);
+    assert.equal(one.activeMs, TRPG_EMERALD_ACTIVE_MS[1]);
+    assert.equal(one.holdMs, TRPG_EMERALD_HOLD_MS[1]);
+    assert.equal(one.totalMs, 2500);
+    const two = trpgEmeraldDiceTiming(2);
+    assert.equal(two.activeMs, TRPG_EMERALD_ACTIVE_MS[2]);
+    assert.equal(two.holdMs, TRPG_EMERALD_HOLD_MS[2]);
+    assert.equal(two.totalMs, 3500);
+    const three = trpgEmeraldDiceTiming(3);
+    assert.equal(three.activeMs, TRPG_EMERALD_ACTIVE_MS[3]);
+    assert.equal(three.holdMs, TRPG_EMERALD_HOLD_MS[3]);
+    assert.equal(three.totalMs, 4050);
+    assert.ok(three.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
+    assert.ok(one.perDieMs > two.perDieMs);
+    assert.ok(two.perDieMs > three.perDieMs);
+    for (const n of [1, 2, 3] as const) {
+      const timing = trpgEmeraldDiceTiming(n);
+      const watchdog = trpgDiceRevealWatchdogMs(n);
+      assert.ok(timing.totalMs < watchdog);
+      assert.ok(watchdog < 10_000);
+    }
+    assert.equal(trpgDiceRevealWatchdogMs(1), 4000);
+    assert.equal(trpgDiceRevealWatchdogMs(2), 5000);
+    assert.equal(trpgDiceRevealWatchdogMs(3), 5550);
   });
 });

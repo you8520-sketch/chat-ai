@@ -6,9 +6,11 @@ import {
   nextDicePresentation,
   nextDiceRevealGateState,
   resolveDiceRevealGateReleaseReason,
+  shouldHideIncomingRollSession,
   shouldHoldRoundReveal,
   TRPG_DICE_REVEAL_GATE_CAP_MS,
 } from "./diceRevealGate";
+import { trpgDiceRevealWatchdogMs, trpgEmeraldDiceTiming } from "./diceRollUx";
 
 describe("dice presentation session", () => {
   it("holds on a new session immediately, even while overlay is not visible yet", () => {
@@ -111,5 +113,77 @@ describe("dice presentation session", () => {
 
   it("uses a watchdog cap above the full overlay lifecycle", () => {
     assert.ok(TRPG_DICE_REVEAL_GATE_CAP_MS >= 3000);
+    for (const n of [1, 2, 3] as const) {
+      const timing = trpgEmeraldDiceTiming(n);
+      const watchdog = trpgDiceRevealWatchdogMs(n);
+      assert.ok(watchdog > timing.totalMs, `${n} dice watchdog ${watchdog} must exceed overlay ${timing.totalMs}`);
+      assert.ok(watchdog < 10_000, "watchdog is expected duration + margin, not a 10s hide");
+    }
+  });
+
+  it("keeps overlay dismiss ahead of result reveal and the watchdog for 1-3 dice", () => {
+    for (const n of [1, 2, 3] as const) {
+      const overlayDismissedAt = trpgEmeraldDiceTiming(n).totalMs;
+      const firstResultVisibleAt = overlayDismissedAt;
+      const firstNarrationVisibleAt = overlayDismissedAt;
+      const watchdogAt = trpgDiceRevealWatchdogMs(n);
+      assert.ok(overlayDismissedAt <= firstResultVisibleAt);
+      assert.ok(overlayDismissedAt <= firstNarrationVisibleAt);
+      assert.ok(overlayDismissedAt < watchdogAt);
+      const dismissed = nextDicePresentation(
+        { state: "settled", sessionKey: `${n}|session`, roundNumber: n },
+        {
+          rollSessionKey: `${n}|session`,
+          roundNumber: n,
+          overlayVisible: false,
+          overlaySettled: true,
+          overlayDismissed: true,
+          mountConsume: false,
+        }
+      );
+      assert.equal(dismissed.state, "dismissed");
+      assert.equal(
+        resolveDiceRevealGateReleaseReason({ presentation: dismissed, watchdogFired: false }),
+        "dismissed"
+      );
+      assert.equal(
+        resolveDiceRevealGateReleaseReason({ presentation: dismissed, watchdogFired: true }),
+        "dismissed"
+      );
+    }
+  });
+
+  it("hides a new roll session on the same render before pending commits", () => {
+    assert.equal(
+      hideCurrentRoundResults(IDLE_DICE_PRESENTATION, 9),
+      false
+    );
+    assert.equal(
+      shouldHideIncomingRollSession({
+        rollSessionKey: "9|1:14:12:SUCCESS",
+        presentationSessionKey: "",
+        isFirstObservation: false,
+        replayOnMount: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldHideIncomingRollSession({
+        rollSessionKey: "9|1:14:12:SUCCESS",
+        presentationSessionKey: "9|1:14:12:SUCCESS",
+        isFirstObservation: false,
+        replayOnMount: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldHideIncomingRollSession({
+        rollSessionKey: "9|1:14:12:SUCCESS",
+        presentationSessionKey: "",
+        isFirstObservation: true,
+        replayOnMount: false,
+      }),
+      false
+    );
   });
 });

@@ -42,12 +42,16 @@ import {
   nextDicePresentation,
   nextDiceRevealGateState,
   resolveDiceRevealGateReleaseReason,
-  TRPG_DICE_REVEAL_GATE_CAP_MS,
+  shouldHideIncomingRollSession,
   type TrpgDicePresentation,
   type TrpgDiceRevealGateReleaseReason,
   type TrpgDiceRevealGateState,
 } from "@/lib/trpg/diceRevealGate";
-import { shouldConsumeMountRollSession, trpgDiceRollSessionKey } from "@/lib/trpg/diceRollUx";
+import {
+  shouldConsumeMountRollSession,
+  trpgDiceRevealWatchdogMs,
+  trpgDiceRollSessionKey,
+} from "@/lib/trpg/diceRollUx";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
@@ -281,7 +285,15 @@ export default function TrpgCampaignRoom({
     rollSessionKey,
     snap.round.number,
   ]);
-  const hideCurrentResults = hideCurrentRoundResults(presentation, snap.round.number);
+  const incomingSessionHidden = shouldHideIncomingRollSession({
+    rollSessionKey,
+    presentationSessionKey: presentation.sessionKey,
+    isFirstObservation: firstKeyObservationRef.current,
+    replayOnMount: dicePreview.inject,
+  });
+  const hideCurrentResults =
+    hideCurrentRoundResults(presentation, snap.round.number) || incomingSessionHidden;
+  const revealWatchdogMs = trpgDiceRevealWatchdogMs(snap.currentRolls.length);
   const [revealGate, setRevealGate] = useState<TrpgDiceRevealGateState>({ gatedRound: null, holding: false });
   const [revealGateReleased, setRevealGateReleased] = useState(true);
   const [revealGateReleaseReason, setRevealGateReleaseReason] = useState<TrpgDiceRevealGateReleaseReason | null>(
@@ -310,9 +322,9 @@ export default function TrpgCampaignRoom({
     const id = window.setTimeout(() => {
       setRevealGateReleased(true);
       setRevealGateReleaseReason("watchdog");
-    }, TRPG_DICE_REVEAL_GATE_CAP_MS);
+    }, revealWatchdogMs);
     return () => window.clearTimeout(id);
-  }, [hideCurrentResults, presentation.state]);
+  }, [hideCurrentResults, presentation.state, revealWatchdogMs]);
   const holdCurrentRound = hideCurrentResults && !revealGateReleased;
   const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
   const waitingOthers = snap.workType === "wait_humans";
@@ -483,6 +495,8 @@ export default function TrpgCampaignRoom({
       overlayDismissedAt: times.overlayDismissedAt || undefined,
       firstResultVisibleAt: times.firstResultVisibleAt || undefined,
       firstNarrationVisibleAt: times.firstNarrationVisibleAt || undefined,
+      incomingSessionHidden,
+      watchdogMs: revealWatchdogMs,
       theme: dicePreview.theme,
       overlayMounted: overlayPlayback.visible,
     });
@@ -490,6 +504,7 @@ export default function TrpgCampaignRoom({
     dicePreview.instrument,
     dicePreview.theme,
     holdCurrentRound,
+    incomingSessionHidden,
     orphanRolls.length,
     overlayPlayback.dismissed,
     overlayPlayback.sessionKey,
@@ -497,6 +512,7 @@ export default function TrpgCampaignRoom({
     phase,
     presentation,
     revealGateReleaseReason,
+    revealWatchdogMs,
     rollSessionKey,
     snap.currentRolls,
     snap.round.number,
@@ -510,6 +526,8 @@ export default function TrpgCampaignRoom({
       data-trpg-reveal-gate-release-reason={revealGateReleaseReason ?? undefined}
       data-trpg-dice-presentation={presentation.state}
       data-trpg-dice-session-key={rollSessionKey || undefined}
+      data-trpg-dice-watchdog-ms={revealWatchdogMs}
+      data-trpg-dice-incoming-hide={incomingSessionHidden ? "true" : "false"}
     >
       <div
         className="flex min-w-0 flex-1 flex-col"
