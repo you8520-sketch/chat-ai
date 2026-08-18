@@ -475,15 +475,13 @@ export function assessParticipantAdultStatus(
 /**
  * Central adult / adult-handoff eligibility.
  *
- * CLOSED_ADULT_TEST_MODE (current closed adult test cohort):
- * - No separate legal age-verification product is running.
- * - Operational gate = existing 「성인 캐릭터 보기」 (`users.nsfw_on`).
- * - `SKIP_ADULT_VERIFICATION` may make `userAdultVerified` effective-true;
- *   visibility OFF must still disable adult model handoff.
+ * Operational handoff gate = chat-room 「성인모드」
+ * (`chats.adult_handoff_enabled` / `adultContentVisibilityEnabled`).
+ * Home/header 「성인 캐릭터 표시」 (`users.nsfw_on`) only controls listing
+ * visibility and must not be passed here.
  *
- * Future public service should require:
- *   verified adult status AND adult content visibility ON
- * inside this same function (do not scatter `if (nsfw_on)` checks).
+ * `SKIP_ADULT_VERIFICATION` may make `userAdultVerified` effective-true;
+ * chat-room adult mode OFF must still disable adult model handoff.
  *
  * Coercion / non-consent is not an eligibility block. Minors and real
  * people remain blocked.
@@ -491,9 +489,9 @@ export function assessParticipantAdultStatus(
 export function resolveAdultEligibility(input: {
   userAdultVerified: boolean;
   /**
-   * 「성인 캐릭터 보기」 / `users.nsfw_on`.
+   * Chat-room 「성인모드」 / adult model handoff on/off.
    * Omit/undefined treated as ON only for legacy unit fixtures;
-   * production chat must pass the real preference.
+   * production chat must pass the real chat-room preference.
    */
   adultContentVisibilityEnabled?: boolean;
   characterAdultContentEnabled: boolean;
@@ -508,7 +506,7 @@ export function resolveAdultEligibility(input: {
       blockReason: "user_not_verified",
     };
   }
-  // CLOSED_ADULT_TEST_MODE gate: visibility OFF disables handoff only.
+  // Chat-room adult mode OFF disables handoff only.
   // Do not hard-block the turn (allowedByAdultContentPolicy stays true) so
   // the user keeps their selected general RP model instead of a 400.
   if (input.adultContentVisibilityEnabled === false) {

@@ -77,6 +77,7 @@ type ChatRow = {
   status_widget_display_mode?: string;
   narrative_pov?: string;
   pov_character_name?: string;
+  adult_handoff_enabled?: number;
 };
 
 function collectUnlockedAssetUrlsFromMessages(
@@ -198,7 +199,7 @@ export default async function ChatPage({
       if (requestedId) {
         chat = db
           .prepare(
-            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name FROM chats WHERE id=? AND user_id=? AND character_id=?"
+            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
           )
           .get(requestedId, user.id, c.id) as ChatRow | undefined;
       }
@@ -207,7 +208,7 @@ export default async function ChatPage({
     if (!chat) {
       chat = db
         .prepare(
-          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
+          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
         )
         .get(user.id, c.id) as ChatRow | undefined;
     }
@@ -522,6 +523,7 @@ export default async function ChatPage({
       nickname={user.nickname}
       isAdult={!!user.is_adult}
       userNsfwOn={!!user.nsfw_on}
+      initialAdultHandoffEnabled={!!chat.adult_handoff_enabled}
       initialSelectedAI={globalModelEntry.selectedAI}
       initialGlobalModelNotice={globalModelEntry.notice}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
