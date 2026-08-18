@@ -1,116 +1,115 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  hideCurrentRoundResults,
+  IDLE_DICE_PRESENTATION,
+  nextDicePresentation,
   nextDiceRevealGateState,
   resolveDiceRevealGateReleaseReason,
   shouldHoldRoundReveal,
   TRPG_DICE_REVEAL_GATE_CAP_MS,
 } from "./diceRevealGate";
 
-describe("dice reveal gate", () => {
-  it("holds a new round with new rolls until the overlay for that round is dismissed", () => {
-    let state = nextDiceRevealGateState(
-      { gatedRound: null, holding: false },
-      {
-        roundNumber: 5,
-        hasNewRolls: true,
-        overlayVisible: false,
-        overlayDismissed: true,
-        overlayRoundNumber: 4,
-      }
-    );
-    assert.equal(state.holding, true);
-    assert.equal(state.gatedRound, 5);
-    assert.equal(shouldHoldRoundReveal(state, 5), true);
-
-    state = nextDiceRevealGateState(state, {
+describe("dice presentation session", () => {
+  it("holds on a new session immediately, even while overlay is not visible yet", () => {
+    const pending = nextDicePresentation(IDLE_DICE_PRESENTATION, {
+      rollSessionKey: "5|1:12:10:SUCCESS",
       roundNumber: 5,
-      hasNewRolls: true,
-      overlayVisible: true,
+      overlayVisible: false,
+      overlaySettled: false,
       overlayDismissed: false,
-      overlayRoundNumber: 5,
+      mountConsume: false,
     });
-    assert.equal(state.holding, true);
-
-    state = nextDiceRevealGateState(state, {
+    assert.equal(pending.state, "pending");
+    assert.equal(hideCurrentRoundResults(pending, 5), true);
+    const gate = nextDiceRevealGateState({ gatedRound: null, holding: false }, {
       roundNumber: 5,
-      hasNewRolls: true,
-      overlayVisible: false,
-      overlayDismissed: true,
-      overlayRoundNumber: 5,
+      presentation: pending,
     });
-    assert.equal(state.holding, false);
-    assert.equal(shouldHoldRoundReveal(state, 5), false);
+    assert.equal(gate.holding, true);
+    assert.equal(shouldHoldRoundReveal(gate, 5), true);
   });
 
-  it("does not release early from stale overlay state on a previous round", () => {
-    let state = nextDiceRevealGateState(
-      { gatedRound: null, holding: false },
-      {
-        roundNumber: 6,
-        hasNewRolls: true,
-        overlayVisible: false,
-        overlayDismissed: true,
-        overlayRoundNumber: 5,
-      }
-    );
-    assert.equal(state.holding, true);
-    state = nextDiceRevealGateState(state, {
+  it("does not treat overlayVisible=false as dismissed while pending", () => {
+    const pending = nextDicePresentation(IDLE_DICE_PRESENTATION, {
+      rollSessionKey: "6|1:8:12:FAIL",
       roundNumber: 6,
-      hasNewRolls: true,
       overlayVisible: false,
+      overlaySettled: false,
       overlayDismissed: true,
-      overlayRoundNumber: 5,
+      mountConsume: false,
     });
-    assert.equal(state.holding, true);
+    assert.equal(pending.state, "pending");
+    assert.equal(hideCurrentRoundResults(pending, 6), true);
   });
 
-  it("does not gate a round with no rolls", () => {
-    const state = nextDiceRevealGateState(
-      { gatedRound: null, holding: false },
-      {
-        roundNumber: 3,
-        hasNewRolls: false,
-        overlayVisible: false,
-        overlayDismissed: false,
-        overlayRoundNumber: 3,
-      }
-    );
-    assert.equal(state.holding, false);
-    assert.equal(shouldHoldRoundReveal(state, 3), false);
+  it("walks pending → playing → settled → dismissed and only then releases", () => {
+    let state = nextDicePresentation(IDLE_DICE_PRESENTATION, {
+      rollSessionKey: "7|2:20:12:CRITICAL_SUCCESS",
+      roundNumber: 7,
+      overlayVisible: false,
+      overlaySettled: false,
+      overlayDismissed: false,
+      mountConsume: false,
+    });
+    state = nextDicePresentation(state, {
+      rollSessionKey: "7|2:20:12:CRITICAL_SUCCESS",
+      roundNumber: 7,
+      overlayVisible: true,
+      overlaySettled: false,
+      overlayDismissed: false,
+      mountConsume: false,
+    });
+    assert.equal(state.state, "playing");
+    state = nextDicePresentation(state, {
+      rollSessionKey: "7|2:20:12:CRITICAL_SUCCESS",
+      roundNumber: 7,
+      overlayVisible: true,
+      overlaySettled: true,
+      overlayDismissed: false,
+      mountConsume: false,
+    });
+    assert.equal(state.state, "settled");
+    assert.equal(hideCurrentRoundResults(state, 7), true);
+    state = nextDicePresentation(state, {
+      rollSessionKey: "7|2:20:12:CRITICAL_SUCCESS",
+      roundNumber: 7,
+      overlayVisible: false,
+      overlaySettled: true,
+      overlayDismissed: true,
+      mountConsume: false,
+    });
+    assert.equal(state.state, "dismissed");
+    assert.equal(hideCurrentRoundResults(state, 7), false);
+    assert.equal(resolveDiceRevealGateReleaseReason({ presentation: state, watchdogFired: false }), "dismissed");
   });
 
-  it("does not hold a different round", () => {
-    const state = { gatedRound: 5, holding: true };
-    assert.equal(shouldHoldRoundReveal(state, 6), false);
+  it("consumes historical mount rolls without playing them", () => {
+    const state = nextDicePresentation(IDLE_DICE_PRESENTATION, {
+      rollSessionKey: "3|1:4:10:FAIL",
+      roundNumber: 3,
+      overlayVisible: false,
+      overlaySettled: false,
+      overlayDismissed: false,
+      mountConsume: true,
+    });
+    assert.equal(state.state, "dismissed");
+    assert.equal(hideCurrentRoundResults(state, 3), false);
+  });
+
+  it("does not hide past-round results", () => {
+    const pending = nextDicePresentation(IDLE_DICE_PRESENTATION, {
+      rollSessionKey: "8|1:11:10:SUCCESS",
+      roundNumber: 8,
+      overlayVisible: false,
+      overlaySettled: false,
+      overlayDismissed: false,
+      mountConsume: false,
+    });
+    assert.equal(hideCurrentRoundResults(pending, 7), false);
   });
 
   it("uses a watchdog cap above the full overlay lifecycle", () => {
     assert.ok(TRPG_DICE_REVEAL_GATE_CAP_MS >= 3000);
-  });
-
-  it("resolves release reason from overlay dismissal for the active round", () => {
-    assert.equal(
-      resolveDiceRevealGateReleaseReason({
-        holding: true,
-        overlayDismissed: true,
-        overlayVisible: false,
-        overlayRoundNumber: 7,
-        roundNumber: 7,
-        watchdogFired: false,
-      }),
-      "dismissed"
-    );
-    assert.equal(
-      resolveDiceRevealGateReleaseReason({
-        holding: true,
-        overlayDismissed: false,
-        overlayVisible: true,
-        overlayRoundNumber: 7,
-        roundNumber: 7,
-        watchdogFired: true,
-      }),
-      "watchdog"
-    );
   });
 });

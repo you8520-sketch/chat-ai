@@ -52,32 +52,53 @@ export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: b
 
 export type TrpgDiceOverlaySessionAction = "start" | "keep" | "clear";
 
-/** Overlay may begin only while the server is actually rolling. */
-export function trpgDiceOverlayShouldStart(phase: string, rollCount: number): boolean {
-  return phase === "ROLLING" && rollCount > 0;
+export type TrpgDiceRollSessionFields = {
+  participantId: number;
+  d20: number;
+  dc: number;
+  tier: string;
+};
+
+/** Deterministic session id for one authoritative roll set. Phase is not part of the key. */
+export function trpgDiceRollSessionKey(
+  roundNumber: number,
+  rolls: readonly TrpgDiceRollSessionFields[]
+): string {
+  if (rolls.length === 0) return "";
+  const parts = rolls
+    .map((roll) => `${roll.participantId}:${roll.d20}:${roll.dc}:${roll.tier}`)
+    .sort();
+  return `${roundNumber}|${parts.join(",")}`;
 }
 
-/** In-flight tumble may finish after the phase flips to narration. */
-export function trpgDiceOverlayMayContinue(phase: string): boolean {
-  return phase === "ROLLING" || phase === "GENERATING_NARRATION";
+/** Historical rolls already in the snapshot on first mount must not autoplay. Fixture inject may. */
+export function shouldConsumeMountRollSession(opts: {
+  rollSessionKey: string;
+  replayOnMount: boolean;
+  isFirstObservation: boolean;
+}): boolean {
+  return opts.isFirstObservation && opts.rollSessionKey !== "" && opts.replayOnMount !== true;
 }
 
+/**
+ * Overlay start is owned by a new roll session key, not a transient server phase.
+ * ROLLING / GENERATING_NARRATION / ROUND_COMPLETE / ACTION_INPUT are display-only.
+ */
 export function trpgDiceOverlaySessionAction(opts: {
-  phase: string;
-  prevPhase: string;
-  rollCount: number;
-  prevRollCount: number;
+  rollSessionKey: string;
+  prevRollSessionKey: string;
+  consumed: boolean;
+  started: boolean;
+  dismissed: boolean;
 }): TrpgDiceOverlaySessionAction {
-  if (trpgDiceOverlayShouldStart(opts.phase, opts.rollCount)) {
-    if (opts.prevPhase !== "ROLLING" || opts.prevRollCount === 0) return "start";
-    return "keep";
+  if (opts.consumed) {
+    return opts.started && !opts.dismissed ? "keep" : "clear";
   }
-  if (trpgDiceOverlayMayContinue(opts.phase) && opts.rollCount > 0) {
-    // Poll can skip ROLLING and land on narration with new authoritative rolls.
-    if (opts.prevRollCount === 0) return "start";
-    return "keep";
+  if (!opts.rollSessionKey) {
+    return opts.started && !opts.dismissed ? "keep" : "clear";
   }
-  return "clear";
+  if (opts.rollSessionKey !== opts.prevRollSessionKey) return "start";
+  return "keep";
 }
 
 export function trpgDiceOverlayAfterSettle(
@@ -118,6 +139,6 @@ export function applyTrpgDiceOverlaySession(
   }
 }
 
-export function trpgDiceOverlayActive(phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
-  return trpgDiceOverlayShouldStart(phase, rolls.length);
+export function trpgDiceOverlayActive(_phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
+  return rolls.length > 0;
 }

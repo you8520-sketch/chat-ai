@@ -94,11 +94,25 @@ export type TrpgDicePreviewInstrument = {
   phase: string;
   currentRollsLength: number;
   rollKey: string;
-  overlaySessionAction: string;
-  overlayStarted: boolean;
-  overlayDismissed: boolean;
+  rollSessionKey?: string;
+  phaseAtFirstRollObservation?: string;
+  presentationState?: string;
+  gateHeld?: boolean;
+  overlayVisible?: boolean;
+  overlaySessionAction?: string;
+  overlayStarted?: boolean;
+  overlayDismissed?: boolean;
+  orphanRollCountRendered?: number;
+  currentRoundSceneRendered?: boolean;
+  releaseReason?: string | null;
+  rollObservedAt?: number;
+  gateHeldAt?: number;
+  overlayVisibleAt?: number;
+  overlayDismissedAt?: number;
+  firstResultVisibleAt?: number;
+  firstNarrationVisibleAt?: number;
   theme: TrpgD20ThemeId;
-  overlayMounted: boolean;
+  overlayMounted?: boolean;
 };
 
 export function previewDiceRollKey(rolls: readonly { participantId: number; d20: number }[]): string {

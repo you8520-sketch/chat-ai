@@ -15,11 +15,13 @@ import {
   applyTrpgDiceOverlaySession,
   orderTrpgDiceRolls,
   shouldAnimateTrpgDice3d,
+  shouldConsumeMountRollSession,
   trpgDiceDurationMs,
   trpgDiceOverlayActive,
   trpgDiceOverlayAfterSettle,
   trpgDiceOverlaySessionAction,
   trpgDiceOverlayVisible,
+  trpgDiceRollSessionKey,
   trpgPredeterminedD20Notation,
 } from "./diceRollUx";
 import {
@@ -62,7 +64,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(timing.perDie <= TRPG_D20_PER_DIE_MS.max);
     assert.ok(timing.total <= TRPG_D20_TOTAL_CAP_MS);
     assert.ok(TRPG_D20_TOTAL_CAP_MS <= 2600);
-    assert.ok(TRPG_D20_PER_DIE_MS.min >= 1750);
+    assert.ok(TRPG_D20_PER_DIE_MS.min >= 1100);
     assert.ok(TRPG_D20_PER_DIE_MS.max <= 2600);
     assert.ok(TRPG_D20_ANIMATION_MS >= 1100);
     assert.ok(TRPG_D20_ANIMATION_MS <= 2600);
@@ -75,52 +77,67 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.equal(shouldAnimateTrpgDice3d({ webgl: false, reducedMotion: false }), false);
     assert.equal(shouldAnimateTrpgDice3d({ webgl: true, reducedMotion: true }), false);
     assert.equal(trpgDiceOverlayActive("ROLLING", [{ participantId: 1 } as never]), true);
-    assert.equal(trpgDiceOverlayActive("GENERATING_NARRATION", [{ participantId: 1 } as never]), false);
-    assert.equal(trpgDiceOverlayActive("ACTION_INPUT", [{ participantId: 1 } as never]), false);
+    assert.equal(trpgDiceOverlayActive("ACTION_INPUT", [{ participantId: 1 } as never]), true);
+    assert.equal(trpgDiceOverlayActive("ACTION_INPUT", []), false);
+    const firstKey = trpgDiceRollSessionKey(4, [{ participantId: 1, d20: 11, dc: 12, tier: "SUCCESS" }]);
+    const sameKey = trpgDiceRollSessionKey(4, [{ participantId: 1, d20: 11, dc: 12, tier: "SUCCESS" }]);
+    assert.equal(firstKey, sameKey);
+    assert.equal(firstKey.startsWith("4|"), true);
     assert.equal(
       trpgDiceOverlaySessionAction({
-        phase: "ROLLING",
-        prevPhase: "LOCKING_ACTIONS",
-        rollCount: 1,
-        prevRollCount: 0,
+        rollSessionKey: firstKey,
+        prevRollSessionKey: "",
+        consumed: false,
+        started: false,
+        dismissed: false,
       }),
       "start"
     );
     assert.equal(
       trpgDiceOverlaySessionAction({
-        phase: "GENERATING_NARRATION",
-        prevPhase: "ROLLING",
-        rollCount: 1,
-        prevRollCount: 1,
+        rollSessionKey: firstKey,
+        prevRollSessionKey: firstKey,
+        consumed: false,
+        started: true,
+        dismissed: false,
       }),
       "keep"
     );
     assert.equal(
       trpgDiceOverlaySessionAction({
-        phase: "GENERATING_NARRATION",
-        prevPhase: "",
-        rollCount: 1,
-        prevRollCount: 0,
-      }),
-      "start"
-    );
-    assert.equal(
-      trpgDiceOverlaySessionAction({
-        phase: "GENERATING_NARRATION",
-        prevPhase: "BOT_ACTION",
-        rollCount: 2,
-        prevRollCount: 0,
-      }),
-      "start"
-    );
-    assert.equal(
-      trpgDiceOverlaySessionAction({
-        phase: "ACTION_INPUT",
-        prevPhase: "GENERATING_NARRATION",
-        rollCount: 1,
-        prevRollCount: 1,
+        rollSessionKey: firstKey,
+        prevRollSessionKey: firstKey,
+        consumed: true,
+        started: false,
+        dismissed: false,
       }),
       "clear"
+    );
+    assert.equal(
+      shouldConsumeMountRollSession({
+        rollSessionKey: firstKey,
+        replayOnMount: false,
+        isFirstObservation: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldConsumeMountRollSession({
+        rollSessionKey: firstKey,
+        replayOnMount: true,
+        isFirstObservation: true,
+      }),
+      false
+    );
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        rollSessionKey: trpgDiceRollSessionKey(9, [{ participantId: 3, d20: 2, dc: 14, tier: "FAIL" }]),
+        prevRollSessionKey: "",
+        consumed: false,
+        started: false,
+        dismissed: false,
+      }),
+      "start"
     );
     assert.deepEqual(trpgDiceOverlayAfterSettle(0, 1), { index: 0, dismissed: true });
     assert.deepEqual(trpgDiceOverlayAfterSettle(0, 2), { index: 1, dismissed: false });
@@ -162,7 +179,14 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /TrpgDiceScene/);
     assert.match(overlay, /trpgDiceOverlayAfterSettle/);
     assert.match(overlay, /trpgDiceOverlaySessionAction/);
+    assert.match(overlay, /trpgDiceRollSessionKey/);
     assert.match(overlay, /trpgDiceOverlayVisible/);
+    assert.doesNotMatch(overlay, /cannon-es/);
+    const artisan = fs.readFileSync("src/app/trpg/TrpgArtisanDiceScene.tsx", "utf8");
+    assert.match(artisan, /slerpQuaternions\(settleStartQuat, endQuat/);
+    assert.doesNotMatch(artisan, /settleT > 0\.88/);
+    assert.doesNotMatch(artisan, /cannon-es/);
+    assert.doesNotMatch(pkg, /"cannon-es"/);
     assert.match(overlay, /data-trpg-dice-stage/);
     assert.doesNotMatch(overlay, /phase === "ROLLING" \|\| phase === "GENERATING_NARRATION"/);
     assert.match(overlay, /bg-black\/15/);
