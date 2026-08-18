@@ -29,6 +29,8 @@ import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
+import { isTrpgDicePreviewRuntime, resolveCampaignDicePreviewOverlay } from "@/lib/trpg/dicePreviewTheme";
+import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgDiceOverlay from "./TrpgDiceOverlay";
@@ -37,6 +39,40 @@ import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import { trpgLogRevealKeys, useRevealedText } from "./useRevealedText";
+
+function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
+  theme: TrpgD20ThemeId;
+  phase: string;
+  rolls: readonly TrpgPublicRoll[];
+  instrument: boolean;
+} {
+  const [query, setQuery] = useState({ previewEnabled: false, queryTheme: null as string | null, queryPreview: null as string | null });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setQuery({
+      previewEnabled: isTrpgDicePreviewRuntime({
+        nodeEnv: process.env.NODE_ENV,
+        previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
+        hostname: window.location.hostname,
+      }),
+      queryTheme: params.get("diceTheme"),
+      queryPreview: params.get("dicePreview"),
+    });
+  }, []);
+  const fixtureName =
+    snap.sheets.find((card) => card.isSelf)?.sheet.name.trim() ||
+    snap.participants.find((p) => p.id === snap.viewerParticipantId)?.displayName.trim() ||
+    "권태현";
+  const resolved = resolveCampaignDicePreviewOverlay({
+    previewEnabled: query.previewEnabled,
+    queryTheme: query.queryTheme,
+    queryPreview: query.queryPreview,
+    phase: snap.round.phase,
+    currentRolls: snap.currentRolls,
+    fixtureName,
+  });
+  return { ...resolved, instrument: query.previewEnabled };
+}
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
@@ -166,6 +202,7 @@ export default function TrpgCampaignRoom({
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
   );
+  const dicePreview = useCampaignDicePreview(snap);
   const phase = snap.round.phase;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
@@ -659,9 +696,12 @@ export default function TrpgCampaignRoom({
       />
 
       <TrpgDiceOverlay
-        phase={phase}
-        rolls={snap.currentRolls}
+        phase={dicePreview.phase}
+        rolls={dicePreview.rolls}
         resolutionOrder={snap.resolutionOrder}
+        theme={dicePreview.theme}
+        previewInstrument={dicePreview.instrument}
+        roundNumber={snap.round.number}
       />
 
       {toast ? (

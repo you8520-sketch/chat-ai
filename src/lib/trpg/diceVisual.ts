@@ -8,18 +8,21 @@ export const PRODUCTION_DICE_PROTO = "A" as const;
 export const TRPG_DICE_IMPLEMENTATION = "custom" as const;
 export const TRPG_DICE_PHYSICS_ENGINE = "none" as const;
 
-export type TrpgD20ThemeId = "verdant-relic" | "ancient-reliquary";
+export type TrpgD20ThemeId = "verdant-relic" | "ancient-reliquary" | "gilded-verdant-relic";
 
 export const PRODUCTION_D20_THEME: TrpgD20ThemeId = "verdant-relic";
 export const TRPG_D20_THEME = PRODUCTION_D20_THEME;
 export const TRPG_DICE_ENGINE = "verdant-relic-d20" as const;
 
-export type TrpgD20ThemeTexture = "sparse-gold-motes" | "oxidized-bronze";
+/** Human review decides whether this replaces the production theme. */
+export const TRPG_D20_VISUAL_QUALITY = "NEEDS_HUMAN_REVIEW" as const;
+
+export type TrpgD20ThemeTexture = "sparse-gold-motes" | "oxidized-bronze" | "gilded-verdant";
 
 export type TrpgD20ThemeSpec = {
   id: TrpgD20ThemeId;
-  engine: typeof TRPG_DICE_ENGINE | "ancient-reliquary-d20";
-  look: "smoked_glass" | "oxidized_bronze";
+  engine: typeof TRPG_DICE_ENGINE | "ancient-reliquary-d20" | "gilded-verdant-relic-d20";
+  look: "smoked_glass" | "oxidized_bronze" | "gilded_verdant_relic";
   numeralColor: string;
   numeralStroke: string;
   numeralWeight: 600;
@@ -130,12 +133,52 @@ const ANCIENT_RELIQUARY: TrpgD20ThemeSpec = {
   texture: "oxidized-bronze",
 };
 
+const GILDED_VERDANT_RELIC: TrpgD20ThemeSpec = {
+  id: "gilded-verdant-relic",
+  engine: "gilded-verdant-relic-d20",
+  look: "gilded_verdant_relic",
+  numeralColor: "#b89a58",
+  numeralStroke: "#4b381d",
+  numeralWeight: 600,
+  numeralFaceRatio: { single: 0.42, double: 0.38 },
+  palette: {
+    deepest: "#0a1410",
+    body: "#14251c",
+    vein: "#2f4a34",
+    brass: "#b89a58",
+    highlight: "#e1cf9a",
+  },
+  material: {
+    metalness: 0.18,
+    roughness: 0.3,
+    clearcoat: 0.24,
+    clearcoatRoughness: 0.34,
+    transmission: 0.3,
+    ior: 1.46,
+    thickness: 0.6,
+    envMapIntensity: 0.9,
+  },
+  lighting: {
+    key: 0.92,
+    fill: 0.24,
+    rim: 0.3,
+    ambient: 0.17,
+  },
+  shadow: {
+    radius: 0.55,
+    opacity: 0.18,
+  },
+  texture: "gilded-verdant",
+};
+
 export function trpgD20ThemeSpec(id: TrpgD20ThemeId): TrpgD20ThemeSpec {
   switch (id) {
     case "verdant-relic":
       return VERDANT_RELIC;
     case "ancient-reliquary":
       return ANCIENT_RELIQUARY;
+    case "gilded-verdant-relic":
+      return GILDED_VERDANT_RELIC;
     default: {
       const _never: never = id;
       return _never;
@@ -144,7 +187,7 @@ export function trpgD20ThemeSpec(id: TrpgD20ThemeId): TrpgD20ThemeSpec {
 }
 
 export function isTrpgD20ThemeId(value: string | undefined): value is TrpgD20ThemeId {
-  return value === "verdant-relic" || value === "ancient-reliquary";
+  return value === "verdant-relic" || value === "ancient-reliquary" || value === "gilded-verdant-relic";
 }
 
 /** Brief confirmation hold after the settled face, then the overlay leaves. Do not wait for GM. */
@@ -164,6 +207,18 @@ export const TRPG_D20_NUMERAL_EDGE = productionTheme.numeralStroke;
 export const TRPG_D20_NUMERAL_WEIGHT = productionTheme.numeralWeight;
 
 export const TRPG_D20_GEOMETRY_RADIUS = 0.78;
+
+/** Gilded Verdant Relic structural tokens. Lab-only until human review. */
+export const TRPG_D20_FRAME_WIDTH_RATIO = 0.032;
+export const TRPG_D20_GEM_INSET_DEPTH = 0.03;
+export const TRPG_D20_VERTEX_CAP_RADIUS_RATIO = 0.045;
+export const TRPG_D20_NUMERAL_INLAY_HEIGHT_RATIO = 0.4;
+export const TRPG_D20_NUMERAL_INLAY_LIFT = 0.016;
+export const TRPG_D20_GEM_SCALE = 0.86;
+export const TRPG_D20_GOLD_BASE = "#b89a58";
+export const TRPG_D20_GOLD_HIGHLIGHT = "#e1cf9a";
+export const TRPG_D20_GOLD_SHADOW = "#4b381d";
+export const TRPG_D20_OXIDATION = "#2a2418";
 export const TRPG_D20_CAMERA_FOV = 32;
 export const TRPG_D20_CAMERA_POS = { x: 0.08, y: 0.98, z: 3.52 } as const;
 export const TRPG_D20_CAMERA_LOOK_AT = { x: 0, y: 0.04, z: 0 } as const;
