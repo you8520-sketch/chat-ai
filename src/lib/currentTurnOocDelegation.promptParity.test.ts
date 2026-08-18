@@ -140,9 +140,12 @@ describe("current-turn OOC delegation prompt parity", () => {
       personaDisplayName: user,
       completedTurns: 2,
     });
-    const ownerHits =
-      built.systemPrompt.split(CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE).length - 1;
-    assert.equal(ownerHits, 1);
+    const ownerSection = built.meta.trackedSections?.find((s) => s.id === "no-godmodding");
+    assert.ok(ownerSection?.text.includes(CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE));
+    assert.equal(
+      (ownerSection?.text.split(CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE).length ?? 0) - 1,
+      1
+    );
     assert.doesNotMatch(built.systemPrompt, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
     assert.doesNotMatch(built.systemPrompt, /LIMITED CO-NARRATION/);
     assert.match(built.systemPrompt, /직접 대사를 페르소나 말투/);
