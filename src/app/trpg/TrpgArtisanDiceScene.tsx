@@ -7,6 +7,7 @@ import type { Font } from "three/examples/jsm/loaders/FontLoader.js";
 import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
 import { preloadArtisanDiceFont } from "@/lib/trpg/artisanDiceFont";
 import {
+  TRPG_ARTISAN_VISIBLE_THROW_START_X,
   TRPG_D20_CAMERA_FOV,
   TRPG_D20_CAMERA_LOOK_AT,
   TRPG_D20_CAMERA_POS,
@@ -91,10 +92,6 @@ function pickThrowDirection(): ThrowDirection {
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
-}
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
 }
 
 function easeInOutQuad(t: number): number {
@@ -258,15 +255,20 @@ export default function TrpgArtisanDiceScene({
       const endQuat = artisanLandingQuaternion(targetFace, { toward, up: camUp });
 
       const throwDir = pickThrowDirection();
-      const startX = throwDir === "LEFT" || throwDir === "UPPER_LEFT" ? -(1.0 + Math.random() * 0.3) : (1.0 + Math.random() * 0.3);
-      const startY = throwDir === "UPPER_LEFT" || throwDir === "UPPER_RIGHT" ? 0.55 + Math.random() * 0.15 : 0.45 + Math.random() * 0.25;
-      const startZ = 0.15 + Math.random() * 0.2;
-      const endX = -0.1 + Math.random() * 0.2;
-      const endZ = -0.05 + Math.random() * 0.1;
+      const fromLeft = throwDir === "LEFT" || throwDir === "UPPER_LEFT";
+      const fromUpper = throwDir === "UPPER_LEFT" || throwDir === "UPPER_RIGHT";
+      const startX = (fromLeft ? -1 : 1) * (TRPG_ARTISAN_VISIBLE_THROW_START_X + (Math.random() - 0.5) * 0.06);
+      const startY = fromUpper ? 0.28 + Math.random() * 0.08 : 0.12 + Math.random() * 0.1;
+      const startZ = 0.06 + Math.random() * 0.08;
+      const endX = -0.04 + Math.random() * 0.08;
+      const endZ = -0.03 + Math.random() * 0.06;
       const endY = FLOOR_Y + radius;
 
-      const spinAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-      const spinSpeed = 4 + Math.random() * 2;
+      const spinAxis = new THREE.Vector3(0.62, 0.48, -0.62).normalize();
+      const spinSpeed = 3.4 + Math.random() * 0.8;
+      const startQuat = endQuat.clone().premultiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0.74, 0.38, 0.55).normalize(), Math.PI * 0.74)
+      );
 
       const started = performance.now();
       const duration = durationMs > 0 ? durationMs : DEFAULT_ACTIVE_ROLL_MS;
@@ -281,11 +283,12 @@ export default function TrpgArtisanDiceScene({
         const t = Math.min(1, elapsed / duration);
 
         if (t < THROW_END) {
-          const throwT = easeOutCubic(t / THROW_END);
+          const throwT = easeInOutQuad(t / THROW_END);
           die.position.x = lerp(startX, endX, throwT);
-          die.position.y = lerp(startY, endY, throwT) + Math.sin(throwT * Math.PI) * 0.25;
+          die.position.y = lerp(startY, endY, throwT) + Math.sin(throwT * Math.PI) * 0.18;
           die.position.z = lerp(startZ, endZ, throwT);
-          die.quaternion.setFromAxisAngle(spinAxis, spinSpeed * throwT * Math.PI * 2);
+          const spin = new THREE.Quaternion().setFromAxisAngle(spinAxis, spinSpeed * throwT * Math.PI * 2);
+          die.quaternion.copy(startQuat).multiply(spin);
         } else if (t < CONTACT_END) {
           if (!throwEndQuat) throwEndQuat = die.quaternion.clone();
           const contactT = (t - THROW_END) / (CONTACT_END - THROW_END);
@@ -339,6 +342,7 @@ export default function TrpgArtisanDiceScene({
         }
       };
 
+      tick(started);
       frame = requestAnimationFrame(tick);
 
       const onResize = () => {

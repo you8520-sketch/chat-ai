@@ -38,6 +38,7 @@ import {
 import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import {
   hideCurrentRoundResults,
+  holdCurrentRoundReveal,
   IDLE_DICE_PRESENTATION,
   nextDicePresentation,
   nextDiceRevealGateState,
@@ -325,7 +326,11 @@ export default function TrpgCampaignRoom({
     }, revealWatchdogMs);
     return () => window.clearTimeout(id);
   }, [hideCurrentResults, presentation.state, revealWatchdogMs]);
-  const holdCurrentRound = hideCurrentResults && !revealGateReleased;
+  const holdCurrentRound = holdCurrentRoundReveal({
+    incomingSessionHidden,
+    presentationHidesRound: hideCurrentRoundResults(presentation, snap.round.number),
+    revealGateReleased,
+  });
   const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [

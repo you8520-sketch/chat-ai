@@ -21,6 +21,16 @@ export function shouldHideIncomingRollSession(opts: {
   return true;
 }
 
+/** Incoming session hide is synchronous; do not wait for revealGateReleased to flip. */
+export function holdCurrentRoundReveal(opts: {
+  incomingSessionHidden: boolean;
+  presentationHidesRound: boolean;
+  revealGateReleased: boolean;
+}): boolean {
+  if (opts.incomingSessionHidden) return true;
+  return opts.presentationHidesRound && !opts.revealGateReleased;
+}
+
 export type TrpgDicePresentationState = "idle" | "pending" | "playing" | "settled" | "dismissed";
 
 export type TrpgDicePresentation = {

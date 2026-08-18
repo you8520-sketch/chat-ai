@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   hideCurrentRoundResults,
+  holdCurrentRoundReveal,
   IDLE_DICE_PRESENTATION,
   nextDicePresentation,
   nextDiceRevealGateState,
@@ -151,6 +152,41 @@ describe("dice presentation session", () => {
         "dismissed"
       );
     }
+  });
+
+  it("holds current-round results on the incoming-key render before revealGateReleased flips", () => {
+    assert.equal(
+      holdCurrentRoundReveal({
+        incomingSessionHidden: true,
+        presentationHidesRound: false,
+        revealGateReleased: true,
+      }),
+      true
+    );
+    assert.equal(
+      holdCurrentRoundReveal({
+        incomingSessionHidden: false,
+        presentationHidesRound: true,
+        revealGateReleased: true,
+      }),
+      false
+    );
+    assert.equal(
+      holdCurrentRoundReveal({
+        incomingSessionHidden: false,
+        presentationHidesRound: true,
+        revealGateReleased: false,
+      }),
+      true
+    );
+    assert.equal(
+      holdCurrentRoundReveal({
+        incomingSessionHidden: false,
+        presentationHidesRound: false,
+        revealGateReleased: true,
+      }),
+      false
+    );
   });
 
   it("hides a new roll session on the same render before pending commits", () => {

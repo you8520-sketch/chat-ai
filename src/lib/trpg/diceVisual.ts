@@ -211,6 +211,11 @@ export const TRPG_D20_REST_Y = -0.02;
 
 export const TRPG_D20_STAGE_DESKTOP = { width: 250, height: 218 } as const;
 export const TRPG_D20_STAGE_MOBILE = { width: 186, height: 168 } as const;
+/** Wider throw window only. Die mesh / stage height (projected diameter) stay the same. */
+export const TRPG_D20_THROW_WINDOW_DESKTOP = { width: 360, height: 218 } as const;
+export const TRPG_D20_THROW_WINDOW_MOBILE = { width: 300, height: 168 } as const;
+/** Visible-edge |startX| so first painted frame still has on-stage travel. */
+export const TRPG_ARTISAN_VISIBLE_THROW_START_X = 0.82;
 export const TRPG_D20_STAGE_DESKTOP_BAND = { width: [220, 280], height: [180, 230] } as const;
 export const TRPG_D20_STAGE_MOBILE_BAND = { width: [160, 210], height: [140, 180] } as const;
 export const TRPG_D20_DIAMETER_DESKTOP_BAND = { min: 150, max: 190 } as const;
@@ -240,6 +245,13 @@ export function trpgD20ProjectedDiameterPx(
   const visibleH = trpgD20VisibleHeightAtRest();
   if (visibleH <= 0 || stageHeightPx <= 0) return 0;
   return ((radius * 2) / visibleH) * stageHeightPx;
+}
+
+/** Horizontal screen-pixel travel for a world-X delta at the rest plane. */
+export function trpgD20WorldDeltaToPx(worldDelta: number, stageHeightPx: number): number {
+  const visibleH = trpgD20VisibleHeightAtRest();
+  if (visibleH <= 0 || stageHeightPx <= 0) return 0;
+  return (Math.abs(worldDelta) / visibleH) * stageHeightPx;
 }
 
 export const TRPG_DICE_BOX_NOTATION = (value: number) => `1d20@${value}`;

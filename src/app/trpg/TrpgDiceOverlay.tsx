@@ -24,6 +24,8 @@ import {
   PRODUCTION_DICE_PROTO,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
+  TRPG_D20_THROW_WINDOW_DESKTOP,
+  TRPG_D20_THROW_WINDOW_MOBILE,
   TRPG_DICE_PHYSICS_ENGINE,
   trpgD20ThemeSpec,
   type TrpgD20ThemeId,
@@ -207,16 +209,21 @@ export default function TrpgDiceOverlay({
       <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
         <div className="flex flex-col items-center">
           <div
-            className="relative h-[min(218px,32vw)] w-[min(250px,38vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(186px,48vw)] overflow-hidden rounded-2xl"
+            className="relative h-[min(218px,32vw)] w-[min(360px,58vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(300px,80vw)] overflow-hidden rounded-2xl"
             data-trpg-dice-stage
             data-trpg-dice-stage-w={TRPG_D20_STAGE_DESKTOP.width}
             data-trpg-dice-stage-h={TRPG_D20_STAGE_DESKTOP.height}
             data-trpg-dice-stage-mobile-w={TRPG_D20_STAGE_MOBILE.width}
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
+            data-trpg-dice-throw-window-w={TRPG_D20_THROW_WINDOW_DESKTOP.width}
+            data-trpg-dice-throw-window-h={TRPG_D20_THROW_WINDOW_DESKTOP.height}
+            data-trpg-dice-throw-window-mobile-w={TRPG_D20_THROW_WINDOW_MOBILE.width}
+            data-trpg-dice-throw-window-mobile-h={TRPG_D20_THROW_WINDOW_MOBILE.height}
           >
             {use3d ? (
               theme === "emerald-relic" ? (
                 <TrpgArtisanDiceScene
+                  key={play.index}
                   value={roll.d20}
                   tone={tone}
                   durationMs={timing.activeMs}

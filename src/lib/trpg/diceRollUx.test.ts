@@ -239,6 +239,11 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(artisan, /window\.setTimeout\(onSettled, holdMs\)/);
     assert.match(room, /trpgDiceRevealWatchdogMs/);
     assert.match(room, /shouldHideIncomingRollSession/);
+    assert.match(room, /holdCurrentRoundReveal/);
+    assert.match(artisan, /TRPG_ARTISAN_VISIBLE_THROW_START_X/);
+    assert.match(artisan, /easeInOutQuad\(t \/ THROW_END\)/);
+    assert.doesNotMatch(artisan, /easeOutCubic/);
+    assert.match(overlay, /w-\[min\(360px/);
     assert.doesNotMatch(room, /TRPG_DICE_REVEAL_GATE_CAP_MS/);
   });
 

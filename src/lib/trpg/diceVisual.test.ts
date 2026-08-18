@@ -9,12 +9,16 @@ import {
   TRPG_D20_OVERLAY_DIM_CLASS,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_DESKTOP_BAND,
+  TRPG_ARTISAN_VISIBLE_THROW_START_X,
   TRPG_D20_STAGE_MOBILE,
   TRPG_D20_STAGE_MOBILE_BAND,
   TRPG_D20_THEME,
+  TRPG_D20_THROW_WINDOW_DESKTOP,
+  TRPG_D20_THROW_WINDOW_MOBILE,
   isTrpgD20ThemeId,
   trpgD20ProjectedDiameterPx,
   trpgD20ThemeSpec,
+  trpgD20WorldDeltaToPx,
 } from "./diceVisual";
 
 describe("TRPG D20 visual themes and projected scale", () => {
@@ -63,5 +67,19 @@ describe("TRPG D20 visual themes and projected scale", () => {
     assert.ok(TRPG_D20_STAGE_MOBILE.width <= TRPG_D20_STAGE_MOBILE_BAND.width[1]);
     assert.ok(TRPG_D20_STAGE_MOBILE.height >= TRPG_D20_STAGE_MOBILE_BAND.height[0]);
     assert.ok(TRPG_D20_STAGE_MOBILE.height <= TRPG_D20_STAGE_MOBILE_BAND.height[1]);
+    assert.equal(TRPG_D20_THROW_WINDOW_DESKTOP.height, TRPG_D20_STAGE_DESKTOP.height);
+    assert.equal(TRPG_D20_THROW_WINDOW_MOBILE.height, TRPG_D20_STAGE_MOBILE.height);
+    assert.ok(TRPG_D20_THROW_WINDOW_DESKTOP.width > TRPG_D20_STAGE_DESKTOP.width);
+    assert.ok(TRPG_D20_THROW_WINDOW_MOBILE.width > TRPG_D20_STAGE_MOBILE.width);
+    const desktopTravel = trpgD20WorldDeltaToPx(
+      TRPG_ARTISAN_VISIBLE_THROW_START_X,
+      TRPG_D20_STAGE_DESKTOP.height
+    );
+    const mobileTravel = trpgD20WorldDeltaToPx(
+      TRPG_ARTISAN_VISIBLE_THROW_START_X,
+      TRPG_D20_STAGE_MOBILE.height
+    );
+    assert.ok(desktopTravel >= 70 && desktopTravel <= 100, `desktop travel ${desktopTravel}`);
+    assert.ok(mobileTravel >= 45 && mobileTravel <= 70, `mobile travel ${mobileTravel}`);
   });
 });
