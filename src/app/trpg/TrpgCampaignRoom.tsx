@@ -35,11 +35,12 @@ import {
   nextDiceRevealGateState,
   shouldHoldRoundReveal,
   TRPG_DICE_REVEAL_GATE_CAP_MS,
+  type TrpgDiceRevealGateReleaseReason,
   type TrpgDiceRevealGateState,
 } from "@/lib/trpg/diceRevealGate";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
-import TrpgDiceOverlay from "./TrpgDiceOverlay";
+import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
@@ -208,28 +209,63 @@ export default function TrpgCampaignRoom({
   );
   const phase = snap.round.phase;
   const dicePreview = useCampaignDicePreview(snap);
+  const [overlayPlayback, setOverlayPlayback] = useState<TrpgDiceOverlayPlaybackState>({
+    visible: false,
+    settled: false,
+    dismissed: true,
+    roundNumber: snap.round.number,
+  });
+  const handleOverlayPlaybackChange = useCallback((state: TrpgDiceOverlayPlaybackState) => {
+    setOverlayPlayback(state);
+  }, []);
   const [revealGate, setRevealGate] = useState<TrpgDiceRevealGateState>({ gatedRound: null, holding: false });
   const [revealGateReleased, setRevealGateReleased] = useState(true);
+  const [revealGateReleaseReason, setRevealGateReleaseReason] = useState<TrpgDiceRevealGateReleaseReason | null>(
+    null
+  );
   useEffect(() => {
     setRevealGate((prev) =>
       nextDiceRevealGateState(prev, {
         roundNumber: snap.round.number,
         hasNewRolls: snap.currentRolls.length > 0,
-        overlayVisible: Boolean(dicePreview.rolls.length),
-        overlayDismissed: false,
+        overlayVisible: overlayPlayback.visible,
+        overlayDismissed: overlayPlayback.dismissed,
+        overlayRoundNumber: overlayPlayback.roundNumber,
       })
     );
-  }, [snap.round.number, snap.currentRolls.length, dicePreview.rolls.length]);
-  // Safety cap: never hold the reveal longer than the cap, even if the overlay never reports dismissal.
+  }, [
+    snap.round.number,
+    snap.currentRolls.length,
+    overlayPlayback.visible,
+    overlayPlayback.dismissed,
+    overlayPlayback.roundNumber,
+  ]);
   useEffect(() => {
     if (!revealGate.holding) {
       setRevealGateReleased(true);
+      setRevealGateReleaseReason(null);
       return;
     }
     setRevealGateReleased(false);
-    const id = window.setTimeout(() => setRevealGateReleased(true), TRPG_DICE_REVEAL_GATE_CAP_MS);
+    const overlayForRound = overlayPlayback.roundNumber === snap.round.number;
+    if (overlayForRound && (overlayPlayback.dismissed || !overlayPlayback.visible)) {
+      setRevealGateReleased(true);
+      setRevealGateReleaseReason("dismissed");
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setRevealGateReleased(true);
+      setRevealGateReleaseReason("watchdog");
+    }, TRPG_DICE_REVEAL_GATE_CAP_MS);
     return () => window.clearTimeout(id);
-  }, [revealGate.holding, revealGate.gatedRound]);
+  }, [
+    revealGate.holding,
+    revealGate.gatedRound,
+    overlayPlayback.dismissed,
+    overlayPlayback.visible,
+    overlayPlayback.roundNumber,
+    snap.round.number,
+  ]);
   const holdCurrentRound = shouldHoldRoundReveal(revealGate, snap.round.number) && !revealGateReleased;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
@@ -360,7 +396,11 @@ export default function TrpgCampaignRoom({
     snap.participants.find((p) => p.kind === "ai_character")?.displayName || snap.title || "TRPG";
 
   return (
-    <div className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0">
+    <div
+      className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0"
+      data-trpg-reveal-gate-held={holdCurrentRound ? "true" : "false"}
+      data-trpg-reveal-gate-release-reason={revealGateReleaseReason ?? undefined}
+    >
       <div
         className="flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}
@@ -696,6 +736,7 @@ export default function TrpgCampaignRoom({
         theme={dicePreview.theme}
         previewInstrument={dicePreview.instrument}
         roundNumber={snap.round.number}
+        onPlaybackStateChange={handleOverlayPlaybackChange}
       />
 
       {toast ? (

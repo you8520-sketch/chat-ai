@@ -3,12 +3,13 @@
  *
  * Backend GM/Bot generation never blocks for dice animation. This gate only
  * delays the *frontend presentation* of a new round's narration/action cards
- * until the dice overlay has settled (or a ~1.5s safety cap elapses), so a
+ * until the dice overlay has settled (or a safety watchdog elapses), so a
  * poll that skips ROLLING and lands on GENERATING_NARRATION does not pop the
  * new prose before the dice play.
  */
 
-export const TRPG_DICE_REVEAL_GATE_CAP_MS = 1500;
+/** Watchdog only — must exceed full overlay lifecycle (~2200ms). Normal release is overlay dismissed. */
+export const TRPG_DICE_REVEAL_GATE_CAP_MS = 3500;
 
 export type TrpgDiceRevealGateState = {
   /** Round number whose narration/actions are currently gated. */
@@ -17,6 +18,8 @@ export type TrpgDiceRevealGateState = {
   holding: boolean;
 };
 
+export type TrpgDiceRevealGateReleaseReason = "dismissed" | "watchdog";
+
 export function nextDiceRevealGateState(
   prev: TrpgDiceRevealGateState,
   opts: {
@@ -24,24 +27,45 @@ export function nextDiceRevealGateState(
     hasNewRolls: boolean;
     overlayVisible: boolean;
     overlayDismissed: boolean;
+    overlayRoundNumber: number;
   }
 ): TrpgDiceRevealGateState {
+  const overlayForRound = opts.overlayRoundNumber === opts.roundNumber;
+  const overlayActive = overlayForRound && opts.overlayVisible && !opts.overlayDismissed;
+  const overlayFinished = overlayForRound && (opts.overlayDismissed || !opts.overlayVisible);
+
   const isNewRound = opts.roundNumber !== prev.gatedRound;
-  if (!isNewRound) {
-    // Same round: release once the overlay is gone (or was never needed).
-    if (!opts.overlayVisible || opts.overlayDismissed || !opts.hasNewRolls) {
-      return { gatedRound: opts.roundNumber, holding: false };
-    }
-    return { gatedRound: opts.roundNumber, holding: prev.holding };
+  if (isNewRound) {
+    return {
+      gatedRound: opts.roundNumber,
+      holding: opts.hasNewRolls,
+    };
   }
-  // A new round with new rolls should gate until the dice overlay plays.
-  if (opts.hasNewRolls && opts.overlayVisible && !opts.overlayDismissed) {
+  if (!opts.hasNewRolls || overlayFinished) {
+    return { gatedRound: opts.roundNumber, holding: false };
+  }
+  if (overlayActive) {
     return { gatedRound: opts.roundNumber, holding: true };
   }
-  return { gatedRound: opts.roundNumber, holding: false };
+  return { gatedRound: opts.roundNumber, holding: prev.holding };
 }
 
 /** Whether a round's narration/action reveal should be held back by the gate. */
 export function shouldHoldRoundReveal(state: TrpgDiceRevealGateState, roundNumber: number): boolean {
   return state.holding && state.gatedRound === roundNumber;
+}
+
+export function resolveDiceRevealGateReleaseReason(opts: {
+  holding: boolean;
+  overlayDismissed: boolean;
+  overlayVisible: boolean;
+  overlayRoundNumber: number;
+  roundNumber: number;
+  watchdogFired: boolean;
+}): TrpgDiceRevealGateReleaseReason | null {
+  if (!opts.holding) return null;
+  const overlayForRound = opts.overlayRoundNumber === opts.roundNumber;
+  if (overlayForRound && (opts.overlayDismissed || !opts.overlayVisible)) return "dismissed";
+  if (opts.watchdogFired) return "watchdog";
+  return null;
 }
