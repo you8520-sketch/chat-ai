@@ -245,7 +245,9 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.doesNotMatch(artisan, /easeOutCubic/);
     assert.match(overlay, /w-\[min\(360px/);
     assert.match(overlay, /useState\(\(\) => \{/);
-    assert.match(overlay, /shouldAnimateTrpgDice3d\(\{ webgl: detectWebgl\(\)/);
+    assert.match(overlay, /if \(theme === "emerald-relic"\) return webgl/);
+    assert.match(overlay, /shouldAnimateTrpgDice3d\(\{ webgl, reducedMotion \}\)/);
+    assert.match(overlay, /theme === "emerald-relic" \? timing\.perDie : Math\.min\(timing\.perDie, 900\)/);
     assert.doesNotMatch(room, /TRPG_DICE_REVEAL_GATE_CAP_MS/);
   });
 

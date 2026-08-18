@@ -22,6 +22,8 @@ import {
 } from "@/lib/trpg/artisanDiceGeometry";
 import { artisanLandingQuaternion } from "@/lib/trpg/artisanDiceOrientation";
 
+if (typeof window !== "undefined") void preloadArtisanDiceFont();
+
 const DEFAULT_HERO_HOLD_MS = 700;
 const DEFAULT_ACTIVE_ROLL_MS = 1800;
 const CAMERA_SETTLE_MS = 200;

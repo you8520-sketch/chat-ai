@@ -87,8 +87,12 @@ export default function TrpgDiceOverlay({
   const [settled, setSettled] = useState(false);
   const [use3d, setUse3d] = useState(() => {
     if (typeof window === "undefined") return false;
+    const webgl = detectWebgl();
+    // Emerald throw must paint in 3D when WebGL exists. Reduced-motion
+    // would otherwise swap to a centered static result face.
+    if (theme === "emerald-relic") return webgl;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return shouldAnimateTrpgDice3d({ webgl: detectWebgl(), reducedMotion });
+    return shouldAnimateTrpgDice3d({ webgl, reducedMotion });
   });
   const [reducedQuality, setReducedQuality] = useState(false);
   const prevKeyRef = useRef("");
@@ -165,18 +169,26 @@ export default function TrpgDiceOverlay({
   }, [ordered.length, sessionKey, theme]);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const webgl = detectWebgl();
-    setUse3d(shouldAnimateTrpgDice3d({ webgl, reducedMotion }));
+    setUse3d((current) => {
+      if (theme === "emerald-relic") {
+        // Never drop an in-flight 3D throw onto the static hero face.
+        return current || webgl;
+      }
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      return shouldAnimateTrpgDice3d({ webgl, reducedMotion });
+    });
     setReducedQuality(
       window.matchMedia("(max-width: 640px)").matches ||
         (typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 8) <= 4)
     );
-  }, [visible]);
+  }, [theme, visible]);
 
   useEffect(() => {
     if (!visible || use3d || ordered.length === 0) return;
-    const hold = Math.min(timing.perDie, 900);
+    // Emerald 3D owns settle. If WebGL is off, keep the 2D fallback on the
+    // authored per-die window so a 900ms timer cannot hard-swap numerals.
+    const hold = theme === "emerald-relic" ? timing.perDie : Math.min(timing.perDie, 900);
     const timer = window.setTimeout(() => {
       setPlay((current) => {
         const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
@@ -184,7 +196,7 @@ export default function TrpgDiceOverlay({
       });
     }, hold);
     return () => window.clearTimeout(timer);
-  }, [visible, play.index, ordered.length, timing.perDie, use3d]);
+  }, [visible, play.index, ordered.length, theme, timing.perDie, use3d]);
 
   if (!visible) return null;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
