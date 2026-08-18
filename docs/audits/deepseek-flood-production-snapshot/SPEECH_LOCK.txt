@@ -1,0 +1,11 @@
+SPEECH_LOCK.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0
+RAW: NOT_FETCHED
+RAW_PUBLISHED_TO_GIT: false
+
+Production loaders prepared:
+- parseStoredSpeechProfile(characters.speech_profile)
+- resolveExampleDialogForPrompt(characters.example_dialog, name)
+- loadCharacterChunksForPromptReadOnly (speech sections inside setting chunks)
+
+speech_personality / speech_traits are not database columns. Chat route reads them from the SELECT * row and therefore sees empty strings unless a future column exists.

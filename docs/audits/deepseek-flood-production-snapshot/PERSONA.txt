@@ -1,0 +1,16 @@
+PERSONA.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0
+PERSONA_SOURCE: ADMIN_EXISTING_PERSONA
+ADMIN_PERSONA_ID: NOT_RESOLVED
+ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: false
+RAW: NOT_FETCHED
+RAW_PUBLISHED_TO_GIT: false
+
+Production loaders prepared (not executed against live /data/app.db):
+- getPersonaById(ownerUserId, personaId)
+- toPublicPersonaDescription
+- formatPublicPersonaForPrompt
+- isAdminUser
+
+Resolve after deploy with mode=resolve-admin-personas, then snapshot the intended persona ID.
+Do not rewrite or summarize Persona content when it is later fetched.

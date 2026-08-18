@@ -1,0 +1,7 @@
+WORLD_CANON.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0
+RAW: NOT_FETCHED
+RAW_PUBLISHED_TO_GIT: false
+
+Production chat route does not JOIN the worlds table. buildContext receives characters.world from the same SELECT * row used for the character card.
+world_id is present on the character row but is not consumed by /api/chat or buildContext.
