@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
@@ -58,12 +59,22 @@ export async function PATCH(req: Request) {
     userStatusWidgetJson,
     narrativePov,
     povCharacterName,
+    adultHandoffEnabled: adultHandoffEnabledInput,
   } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
 
   const nsfw = isAdultMode ?? isNsfwMode ?? nsfwMode;
   if (nsfw === true && !user.is_adult) {
     return Response.json({ error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
+  }
+  const adultHandoffEnabled = parseAdultHandoffEnabled(
+    adultHandoffEnabledInput ?? body.adult_handoff_enabled
+  );
+  if (adultHandoffEnabled === true && !user.is_adult) {
+    return Response.json(
+      { error: "성인모드는 성인인증 후 이용할 수 있습니다.", needVerify: true },
+      { status: 403 }
+    );
   }
 
   const db = getDb();
@@ -195,6 +206,10 @@ export async function PATCH(req: Request) {
     sets.push("user_status_widget_json=?");
     vals.push(nextUserWidgetJson);
   }
+  if (adultHandoffEnabled !== undefined) {
+    sets.push("adult_handoff_enabled=?");
+    vals.push(adultHandoffEnabled ? 1 : 0);
+  }
 
   if (sets.length === 0) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
@@ -209,5 +224,6 @@ export async function PATCH(req: Request) {
     statusWidgetDisplayMode: nextDisplay,
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
+    ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),
   });
 }

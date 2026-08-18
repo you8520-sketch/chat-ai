@@ -497,6 +497,10 @@ import {
 } from "@/lib/adultSceneHandoffCanary";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { effectiveIsAdult } from "@/lib/adultVerification";
+import {
+  parseAdultHandoffEnabled,
+  resolveChatAdultHandoffEnabled,
+} from "@/lib/chatAdultHandoff";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -634,6 +638,7 @@ export async function POST(req: Request) {
             narrative_pov?: string;
             pov_character_name?: string;
             model_route_state_json?: string;
+            adult_handoff_enabled?: number;
           }
         | undefined)
     : undefined;
@@ -668,6 +673,10 @@ export async function POST(req: Request) {
       userNote: userNoteInput ?? "",
       selectedPersonaId: initialPersonaId,
       targetResponseChars: initialTargetChars,
+      adultHandoffEnabled: resolveChatAdultHandoffEnabled({
+        requested: body.adultHandoffEnabled ?? body.adult_handoff_enabled,
+        userAdultVerified: effectiveIsAdult(user.is_adult),
+      }),
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
@@ -1090,11 +1099,28 @@ export async function POST(req: Request) {
     userId: user.id,
     chatId: chat.id,
   });
+  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const chatAdultHandoffEnabled = resolveChatAdultHandoffEnabled({
+    persisted: chat.adult_handoff_enabled,
+    requested: body.adultHandoffEnabled ?? body.adult_handoff_enabled,
+    userAdultVerified,
+  });
+  if (
+    parseAdultHandoffEnabled(body.adultHandoffEnabled ?? body.adult_handoff_enabled) !==
+    undefined
+  ) {
+    db.prepare("UPDATE chats SET adult_handoff_enabled=? WHERE id=?").run(
+      chatAdultHandoffEnabled ? 1 : 0,
+      chat.id
+    );
+    chat.adult_handoff_enabled = chatAdultHandoffEnabled ? 1 : 0;
+  }
   const adultRoutingConfig = {
     ...baseAdultRoutingConfig,
     enabled: resolveAdultSceneRoutingEnabledForRequest({
       generalEnabled: handoffCanaryConfig.generalEnabled,
       adminCanaryAccess: adultHandoffCanaryAccess,
+      chatAdultHandoffEnabled,
     }),
   };
   const baseAdultModelPolicyConfig = resolveAdultSceneModelPolicyConfig();
@@ -1157,15 +1183,13 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
-  // CLOSED_ADULT_TEST_MODE: 「성인 캐릭터 보기」(nsfw_on) is the operational
-  // adult-handoff gate. Future public service should keep both verified-adult
-  // and visibility checks inside resolveAdultEligibility (no scattered gates).
-  const userAdultVerified = effectiveIsAdult(user.is_adult);
-  const adultContentVisibilityEnabled = !!user.nsfw_on;
+  // Chat-room 「성인모드」 is the operational adult-handoff gate.
+  // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
+  const adultContentVisibilityEnabled = chatAdultHandoffEnabled;
   const adultEligibility = resolveAdultEligibility({
     userAdultVerified,
     adultContentVisibilityEnabled,
-    characterAdultContentEnabled: isAdultMode && ch.nsfw === 1,
+    characterAdultContentEnabled: ch.nsfw === 1,
     participants: [
       {
         adultStatus: ch.adult_status,

@@ -35,7 +35,7 @@ import {
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
-import AdultHandoffModelNotice from "@/components/AdultHandoffModelNotice";
+import ChatRoomAdultModeToggle from "@/components/ChatRoomAdultModeToggle";
 import FloatingPointsDeduction from "@/components/FloatingPointsDeduction";
 import BookmarksPanel from "@/components/BookmarksPanel";
 import MessageBubbleToolbar from "@/components/MessageBubbleToolbar";
@@ -805,6 +805,7 @@ export default function ChatClient({
   nickname,
   isAdult,
   userNsfwOn,
+  initialAdultHandoffEnabled = false,
   initialSelectedAI,
   initialGlobalModelNotice = null,
   initialTargetResponseChars,
@@ -846,6 +847,7 @@ export default function ChatClient({
   nickname: string;
   isAdult: boolean;
   userNsfwOn: boolean;
+  initialAdultHandoffEnabled?: boolean;
   initialSelectedAI: SelectedAI;
   /** 전역 모델 1회 안내 (SSR에서 consume) */
   initialGlobalModelNotice?: string | null;
@@ -1002,6 +1004,9 @@ export default function ChatClient({
   const assistantStreamContentRef = useRef("");
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const nsfwMode = isAdult && userNsfwOn;
+  const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
+  const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
+  const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
   const [userNote, setUserNote] = useState(initialUserNote);
   const [liveStatusWidgetMode, setLiveStatusWidgetMode] =
@@ -1296,6 +1301,41 @@ export default function ChatClient({
     [chatId, nsfwMode, chatTitle, widgetReservedChars]
   );
 
+  const toggleAdultHandoff = useCallback(async () => {
+    if (!isAdult) {
+      router.push("/verify");
+      return;
+    }
+    const next = !adultHandoffOnRef.current;
+    setAdultHandoffOn(next);
+    adultHandoffOnRef.current = next;
+    if (!chatId) return;
+    setAdultHandoffBusy(true);
+    try {
+      const res = await fetch("/api/chat/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, adultHandoffEnabled: next }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        needVerify?: boolean;
+      } | null;
+      if (!res.ok) {
+        setAdultHandoffOn(!next);
+        adultHandoffOnRef.current = !next;
+        if (data?.needVerify) router.push("/verify");
+        else setToastMsg(data?.error || "성인모드 저장에 실패했습니다.");
+      }
+    } catch {
+      setAdultHandoffOn(!next);
+      adultHandoffOnRef.current = !next;
+      setToastMsg("성인모드 저장 중 오류가 발생했습니다.");
+    } finally {
+      setAdultHandoffBusy(false);
+    }
+  }, [chatId, isAdult, router]);
+
   const persistUserChatPrefs = useCallback(async () => {
     setDisplaySettingsSaving(true);
     try {
@@ -1372,6 +1412,8 @@ export default function ChatClient({
     setNotePresets(initialNotePresets);
     setSelectedAI(initialSelectedAI);
     setMode(initialMode);
+    setAdultHandoffOn(!!initialAdultHandoffEnabled);
+    adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
     setNarrativePov(initialNarrativePov);
@@ -1384,6 +1426,7 @@ export default function ChatClient({
     initialNotePresets,
     initialSelectedAI,
     initialMode,
+    initialAdultHandoffEnabled,
     initialTargetResponseChars,
     initialChatTitle,
     initialNarrativePov,
@@ -3066,6 +3109,7 @@ export default function ChatClient({
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
+          adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -3191,6 +3235,7 @@ export default function ChatClient({
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
+          adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -3433,6 +3478,7 @@ export default function ChatClient({
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
+          adultHandoffEnabled: adultHandoffOnRef.current,
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -4154,6 +4200,12 @@ export default function ChatClient({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  <ChatRoomAdultModeToggle
+                    isAdult={isAdult}
+                    enabled={adultHandoffOn}
+                    busy={adultHandoffBusy}
+                    onToggle={() => void toggleAdultHandoff()}
+                  />
                   <button
                     type="button"
                     onClick={() => setAssetAlbumOpen(true)}
@@ -4194,6 +4246,12 @@ export default function ChatClient({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
+              <ChatRoomAdultModeToggle
+                isAdult={isAdult}
+                enabled={adultHandoffOn}
+                busy={adultHandoffBusy}
+                onToggle={() => void toggleAdultHandoff()}
+              />
               <button
                 type="button"
                 onClick={() => setAssetAlbumOpen(true)}
@@ -4268,6 +4326,12 @@ export default function ChatClient({
               ) : null
             )}
           </div>
+          <ChatRoomAdultModeToggle
+            isAdult={isAdult}
+            enabled={adultHandoffOn}
+            busy={adultHandoffBusy}
+            onToggle={() => void toggleAdultHandoff()}
+          />
           <button
             type="button"
             onClick={() => setAssetAlbumOpen(true)}
@@ -4731,7 +4795,6 @@ export default function ChatClient({
                 </option>
               ))}
             </select>
-            <AdultHandoffModelNotice selectedAI={selectedAI} />
           </label>
           <button
             type="button"

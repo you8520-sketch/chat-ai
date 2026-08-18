@@ -24,6 +24,7 @@ export type CreateChatSessionInput = {
   userNote?: string;
   selectedPersonaId?: number | null;
   targetResponseChars?: number;
+  adultHandoffEnabled?: boolean;
 };
 
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
@@ -63,8 +64,8 @@ export function createChatSession(input: CreateChatSessionInput): number {
 
   const info = db
     .prepare(
-      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, memory_capacity)
-       VALUES (?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, memory_capacity, adult_handoff_enabled)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       input.userId,
@@ -75,7 +76,8 @@ export function createChatSession(input: CreateChatSessionInput): number {
       input.selectedPersonaId ?? null,
       0,
       targetResponseChars,
-      MEMORY_CAPACITY_DEFAULT
+      MEMORY_CAPACITY_DEFAULT,
+      input.adultHandoffEnabled === true ? 1 : 0
     );
 
   const chatId = Number(info.lastInsertRowid);

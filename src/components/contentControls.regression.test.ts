@@ -17,6 +17,9 @@ describe("content controls and navigation regression", () => {
   it("keeps chat-room navigation tools without a duplicate notification button", () => {
     const chatClient = read("src/app/chat/[id]/ChatClient.tsx");
     assert.doesNotMatch(chatClient, /NotificationBell/);
+    assert.doesNotMatch(chatClient, /AdultHandoffModelNotice/);
+    assert.doesNotMatch(chatClient, /성인 장면 자동 호환 지원/);
+    assert.match(chatClient, /<ChatRoomAdultModeToggle/);
     assert.match(chatClient, /<ChatRoomMobileMenu/);
     assert.match(chatClient, /settingsPanel=\{renderSettingsPanel\("rail"\)\}/);
     assert.match(chatClient, /bookmarksPanel=\{<BookmarksPanel variant="rail" \/>}/);

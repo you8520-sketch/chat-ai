@@ -62,6 +62,16 @@ describe("adult scene handoff admin canary", () => {
       generalEnabled: false,
       adminCanaryAccess: true,
     }), true);
+    assert.equal(resolveAdultSceneRoutingEnabledForRequest({
+      generalEnabled: false,
+      adminCanaryAccess: false,
+      chatAdultHandoffEnabled: true,
+    }), true);
+    assert.equal(resolveAdultSceneRoutingEnabledForRequest({
+      generalEnabled: false,
+      adminCanaryAccess: false,
+      chatAdultHandoffEnabled: false,
+    }), false);
   });
 
   it("labels the four observable route transitions", () => {

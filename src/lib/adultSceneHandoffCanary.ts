@@ -64,8 +64,14 @@ export function canUseAdultSceneHandoffAdminCanary(input: {
 export function resolveAdultSceneRoutingEnabledForRequest(input: {
   generalEnabled: boolean;
   adminCanaryAccess: boolean;
+  /** Chat-room 「성인모드」 — user-facing adult model handoff switch. */
+  chatAdultHandoffEnabled?: boolean;
 }): boolean {
-  return input.generalEnabled || input.adminCanaryAccess;
+  return (
+    input.generalEnabled ||
+    input.adminCanaryAccess ||
+    input.chatAdultHandoffEnabled === true
+  );
 }
 
 export function resolveAdultSceneHandoffCanaryStage(input: {

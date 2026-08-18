@@ -207,7 +207,7 @@ it("uses user-stated waist wrap as character→persona contact direction", () =>
   assert.match(extracted.contactDirection ?? "", /→ 렌 contact/);
 });
 
-it("CLOSED_ADULT_TEST_MODE: adult visibility OFF disables handoff without hard-blocking", () => {
+it("chat-room adult mode OFF disables handoff without hard-blocking", () => {
   const off = resolveAdultEligibility({
     userAdultVerified: true,
     adultContentVisibilityEnabled: false,
@@ -237,7 +237,7 @@ it("CLOSED_ADULT_TEST_MODE: adult visibility OFF disables handoff without hard-b
   assert.equal(decision.shouldBlock, false);
 });
 
-it("CLOSED_ADULT_TEST_MODE: visibility OFF breaks sticky adult handoff", () => {
+it("chat-room adult mode OFF breaks sticky adult handoff", () => {
   const off = resolveAdultEligibility({
     userAdultVerified: true,
     adultContentVisibilityEnabled: false,
