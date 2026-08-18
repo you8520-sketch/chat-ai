@@ -147,8 +147,8 @@ export function isTrpgD20ThemeId(value: string | undefined): value is TrpgD20The
   return value === "verdant-relic" || value === "ancient-reliquary";
 }
 
-/** Hold the settled face before advancing / fading. 400–600ms. */
-export const TRPG_D20_HOLD_AFTER_SETTLE_MS = 520;
+/** Brief confirmation hold after the settled face, then the overlay leaves. Do not wait for GM. */
+export const TRPG_D20_HOLD_AFTER_SETTLE_MS = 280;
 
 /** Custom renderer roll duration. Physics prototype B is lab-only. */
 export const TRPG_D20_ANIMATION_MS = 1_240;

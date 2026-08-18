@@ -12,10 +12,14 @@ import {
   TRPG_DICE_ENGINE,
   TRPG_DICE_ENGINE_LICENSE,
   TRPG_DICE_RENDERER,
+  applyTrpgDiceOverlaySession,
   orderTrpgDiceRolls,
   shouldAnimateTrpgDice3d,
   trpgDiceDurationMs,
   trpgDiceOverlayActive,
+  trpgDiceOverlayAfterSettle,
+  trpgDiceOverlaySessionAction,
+  trpgDiceOverlayVisible,
   trpgPredeterminedD20Notation,
 } from "./diceRollUx";
 import {
@@ -62,16 +66,63 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(TRPG_D20_PER_DIE_MS.max <= 1600);
     assert.ok(TRPG_D20_ANIMATION_MS >= 1100);
     assert.ok(TRPG_D20_ANIMATION_MS <= 1600);
-    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS >= 400);
-    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS <= 600);
+    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS >= 200);
+    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS <= 360);
   });
 
   it("falls back when WebGL is missing or motion is reduced", () => {
     assert.equal(shouldAnimateTrpgDice3d({ webgl: true, reducedMotion: false }), true);
     assert.equal(shouldAnimateTrpgDice3d({ webgl: false, reducedMotion: false }), false);
     assert.equal(shouldAnimateTrpgDice3d({ webgl: true, reducedMotion: true }), false);
-    assert.equal(trpgDiceOverlayActive("GENERATING_NARRATION", [{ participantId: 1 } as never]), true);
+    assert.equal(trpgDiceOverlayActive("ROLLING", [{ participantId: 1 } as never]), true);
+    assert.equal(trpgDiceOverlayActive("GENERATING_NARRATION", [{ participantId: 1 } as never]), false);
     assert.equal(trpgDiceOverlayActive("ACTION_INPUT", [{ participantId: 1 } as never]), false);
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        phase: "ROLLING",
+        prevPhase: "LOCKING_ACTIONS",
+        rollCount: 1,
+        prevRollCount: 0,
+      }),
+      "start"
+    );
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        phase: "GENERATING_NARRATION",
+        prevPhase: "ROLLING",
+        rollCount: 1,
+        prevRollCount: 1,
+      }),
+      "keep"
+    );
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        phase: "GENERATING_NARRATION",
+        prevPhase: "",
+        rollCount: 1,
+        prevRollCount: 0,
+      }),
+      "keep"
+    );
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        phase: "ACTION_INPUT",
+        prevPhase: "GENERATING_NARRATION",
+        rollCount: 1,
+        prevRollCount: 1,
+      }),
+      "clear"
+    );
+    assert.deepEqual(trpgDiceOverlayAfterSettle(0, 1), { index: 0, dismissed: true });
+    assert.deepEqual(trpgDiceOverlayAfterSettle(0, 2), { index: 1, dismissed: false });
+    assert.deepEqual(trpgDiceOverlayAfterSettle(1, 2), { index: 1, dismissed: true });
+    assert.equal(trpgDiceOverlayVisible(true, false, 1), true);
+    assert.equal(trpgDiceOverlayVisible(true, true, 1), false);
+    assert.equal(trpgDiceOverlayVisible(false, false, 1), false);
+    assert.deepEqual(
+      applyTrpgDiceOverlaySession({ started: false, dismissed: false, index: 3 }, "start"),
+      { started: true, dismissed: false, index: 0 }
+    );
   });
 
   it("keeps dice-box-threejs available without copying unverified textures or sounds", () => {
@@ -100,7 +151,11 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /prefers-reduced-motion/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
     assert.match(overlay, /TrpgDiceScene/);
+    assert.match(overlay, /trpgDiceOverlayAfterSettle/);
+    assert.match(overlay, /trpgDiceOverlaySessionAction/);
+    assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /data-trpg-dice-stage/);
+    assert.doesNotMatch(overlay, /phase === "ROLLING" \|\| phase === "GENERATING_NARRATION"/);
     assert.match(overlay, /bg-black\/15/);
     assert.match(overlay, /mt-2\.5/);
     assert.doesNotMatch(overlay, /TrpgDiceBoxScene/);

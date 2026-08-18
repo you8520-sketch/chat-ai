@@ -1,16 +1,19 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
   TRPG_D20_HOLD_AFTER_SETTLE_MS,
   TRPG_DICE_ENGINE,
   TRPG_DICE_RENDERER,
+  applyTrpgDiceOverlaySession,
   orderTrpgDiceRolls,
   shouldAnimateTrpgDice3d,
   trpgDiceDurationMs,
-  trpgDiceOverlayActive,
+  trpgDiceOverlayAfterSettle,
+  trpgDiceOverlaySessionAction,
+  trpgDiceOverlayVisible,
   trpgPredeterminedD20Notation,
 } from "@/lib/trpg/diceRollUx";
 import {
@@ -48,22 +51,32 @@ export default function TrpgDiceOverlay({
   resolutionOrder?: readonly TrpgResolutionOrderEntry[];
   theme?: TrpgD20ThemeId;
 }) {
-  const active = trpgDiceOverlayActive(phase, rolls);
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const timing = trpgDiceDurationMs(ordered.length);
   const spec = trpgD20ThemeSpec(theme);
-  const [index, setIndex] = useState(0);
+  const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [use3d, setUse3d] = useState(false);
   const [reducedQuality, setReducedQuality] = useState(false);
-  const rollKey = ordered.map((roll) => `${roll.participantId}:${roll.d20}`).join("|");
+  const prevRef = useRef({ phase: "", rollCount: 0 });
+  const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
 
   useEffect(() => {
-    setIndex(0);
-  }, [rollKey]);
+    const action = trpgDiceOverlaySessionAction({
+      phase,
+      prevPhase: prevRef.current.phase,
+      rollCount: ordered.length,
+      prevRollCount: prevRef.current.rollCount,
+    });
+    prevRef.current = { phase, rollCount: ordered.length };
+    setPlay((current) => applyTrpgDiceOverlaySession(current, action));
+  }, [ordered.length, phase]);
 
   const onSettled = useCallback(() => {
     window.setTimeout(() => {
-      setIndex((current) => Math.min(Math.max(ordered.length - 1, 0), current + 1));
+      setPlay((current) => {
+        const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
+        return { ...current, index: next.index, dismissed: next.dismissed };
+      });
     }, TRPG_D20_HOLD_AFTER_SETTLE_MS);
   }, [ordered.length]);
 
@@ -75,19 +88,22 @@ export default function TrpgDiceOverlay({
       window.matchMedia("(max-width: 640px)").matches ||
         (typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 8) <= 4)
     );
-  }, [active]);
+  }, [visible]);
 
   useEffect(() => {
-    if (!active || use3d || ordered.length === 0) return;
+    if (!visible || use3d || ordered.length === 0) return;
     const hold = Math.min(timing.perDie, 900);
     const timer = window.setTimeout(() => {
-      setIndex((current) => Math.min(ordered.length - 1, current + 1));
+      setPlay((current) => {
+        const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
+        return { ...current, index: next.index, dismissed: next.dismissed };
+      });
     }, hold);
     return () => window.clearTimeout(timer);
-  }, [active, index, ordered.length, timing.perDie, use3d]);
+  }, [visible, play.index, ordered.length, timing.perDie, use3d]);
 
-  if (!active || ordered.length === 0) return null;
-  const roll = ordered[Math.min(index, ordered.length - 1)];
+  if (!visible) return null;
+  const roll = ordered[Math.min(play.index, ordered.length - 1)];
   if (!roll) return null;
   const tone = resolveTrpgD20Tone(roll.d20, roll.tier);
   const outcome = trpgRollOutcomeLabel(roll.tier);

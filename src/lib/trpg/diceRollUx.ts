@@ -50,6 +50,70 @@ export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: b
   return opts.webgl === true && opts.reducedMotion !== true;
 }
 
+export type TrpgDiceOverlaySessionAction = "start" | "keep" | "clear";
+
+/** Overlay may begin only while the server is actually rolling. */
+export function trpgDiceOverlayShouldStart(phase: string, rollCount: number): boolean {
+  return phase === "ROLLING" && rollCount > 0;
+}
+
+/** In-flight tumble may finish after the phase flips to narration. */
+export function trpgDiceOverlayMayContinue(phase: string): boolean {
+  return phase === "ROLLING" || phase === "GENERATING_NARRATION";
+}
+
+export function trpgDiceOverlaySessionAction(opts: {
+  phase: string;
+  prevPhase: string;
+  rollCount: number;
+  prevRollCount: number;
+}): TrpgDiceOverlaySessionAction {
+  if (trpgDiceOverlayShouldStart(opts.phase, opts.rollCount)) {
+    if (opts.prevPhase !== "ROLLING" || opts.prevRollCount === 0) return "start";
+    return "keep";
+  }
+  if (trpgDiceOverlayMayContinue(opts.phase) && opts.rollCount > 0) return "keep";
+  return "clear";
+}
+
+export function trpgDiceOverlayAfterSettle(
+  currentIndex: number,
+  rollCount: number
+): { index: number; dismissed: boolean } {
+  const n = Math.max(0, Math.floor(rollCount));
+  if (n <= 0) return { index: 0, dismissed: true };
+  if (currentIndex + 1 >= n) return { index: currentIndex, dismissed: true };
+  return { index: currentIndex + 1, dismissed: false };
+}
+
+export function trpgDiceOverlayVisible(started: boolean, dismissed: boolean, rollCount: number): boolean {
+  return started === true && dismissed !== true && rollCount > 0;
+}
+
+export type TrpgDiceOverlayPlay = {
+  started: boolean;
+  dismissed: boolean;
+  index: number;
+};
+
+export function applyTrpgDiceOverlaySession(
+  play: TrpgDiceOverlayPlay,
+  action: TrpgDiceOverlaySessionAction
+): TrpgDiceOverlayPlay {
+  switch (action) {
+    case "start":
+      return { started: true, dismissed: false, index: 0 };
+    case "keep":
+      return play;
+    case "clear":
+      return { started: false, dismissed: false, index: 0 };
+    default: {
+      const _never: never = action;
+      return _never;
+    }
+  }
+}
+
 export function trpgDiceOverlayActive(phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
-  return (phase === "ROLLING" || phase === "GENERATING_NARRATION") && rolls.length > 0;
+  return trpgDiceOverlayShouldStart(phase, rolls.length);
 }
