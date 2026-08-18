@@ -230,8 +230,8 @@ function triangleGeometry(corners: FaceCorner[], scale: number, inset: number): 
   const p1 = shrink(b);
   const p2 = shrink(c);
   const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array([p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]);
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setFromPoints([p0, p1, p2]);
+  geometry.setIndex([0, 1, 2]);
   geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0.5, 0.86, 0.14, 0.16, 0.86, 0.16]), 2));
   const normals = new Float32Array([
     normal.x, normal.y, normal.z,
@@ -370,19 +370,17 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     const gemMap = gemFaceTexture(value, tone);
     const gemMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
-      metalness: 0.16,
-      roughness: 0.3,
-      clearcoat: 0.24,
-      clearcoatRoughness: 0.34,
-      transmission: 0.3,
+      metalness: 0.14,
+      roughness: 0.32,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.36,
+      transmission: 0,
       ior: 1.46,
-      thickness: 0.6,
-      attenuationColor: new THREE.Color("#14251c"),
-      attenuationDistance: 1.15,
+      thickness: 0,
       transparent: false,
       opacity: 1,
       depthWrite: true,
-      envMapIntensity: 0.9,
+      envMapIntensity: 0.85,
       map: gemMap,
       side: THREE.DoubleSide,
     });
