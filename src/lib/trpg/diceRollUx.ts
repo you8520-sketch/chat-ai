@@ -72,7 +72,11 @@ export function trpgDiceOverlaySessionAction(opts: {
     if (opts.prevPhase !== "ROLLING" || opts.prevRollCount === 0) return "start";
     return "keep";
   }
-  if (trpgDiceOverlayMayContinue(opts.phase) && opts.rollCount > 0) return "keep";
+  if (trpgDiceOverlayMayContinue(opts.phase) && opts.rollCount > 0) {
+    // Poll can skip ROLLING and land on narration with new authoritative rolls.
+    if (opts.prevRollCount === 0) return "start";
+    return "keep";
+  }
   return "clear";
 }
 
