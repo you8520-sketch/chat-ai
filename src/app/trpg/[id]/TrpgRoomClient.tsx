@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
@@ -9,8 +9,14 @@ import TrpgCampaignRoom from "../TrpgCampaignRoom";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
+import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
+import {
+  loadTrpgActionSuggestionsEnabled,
+  saveTrpgActionSuggestionsEnabled,
+  shouldAutoRequestTrpgActionSuggestions,
+} from "@/lib/trpg/displayPrefs";
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
@@ -57,8 +63,11 @@ export default function TrpgRoomClient({
   const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
+  const [suggestionsEnabled, setSuggestionsEnabled] = useState(false);
   const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>("manual");
   const [suggestionRound, setSuggestionRound] = useState<number | null>(null);
+  const suggestionsBusyRef = useRef(false);
+  const autoRequestedRoundRef = useRef<number | null>(null);
   const [hostFill, setHostFill] = useState("");
   const [partyBody, setPartyBody] = useState("");
   const [relationshipBrief, setRelationshipBrief] = useState(initial.relationshipBrief ?? "");
@@ -77,9 +86,17 @@ export default function TrpgRoomClient({
     snap.workType === "acquire_gm_lock" ||
     snap.narrationRerolling;
 
+  const appliedRoundRef = useRef(initial.round.number);
   const apply = useCallback((next: TrpgCampaignSnapshot) => {
+    const reset = trpgActionComposerForRound(appliedRoundRef.current, next.round.number, next.myDraft);
+    appliedRoundRef.current = next.round.number;
     setSnap(next);
-    if (next.myDraft?.body) setActionBody(next.myDraft.body);
+    if (reset) {
+      setActionBody(reset.body);
+      setActionType(reset.actionType);
+    } else if (next.myDraft?.body) {
+      setActionBody(next.myDraft.body);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,11 +105,16 @@ export default function TrpgRoomClient({
       return;
     }
     if (suggestionRound !== snap.round.number) {
+      const reset = trpgActionComposerForRound(suggestionRound, snap.round.number, snap.myDraft);
+      if (reset) {
+        setActionBody(reset.body);
+        setActionType(reset.actionType);
+      }
       setSuggestions([]);
       setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
-  }, [snap.round.number, suggestionRound]);
+  }, [snap.myDraft, snap.round.number, suggestionRound]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
@@ -139,8 +161,9 @@ export default function TrpgRoomClient({
     }
   }
 
-  async function requestSuggestions() {
-    if (suggestionsBusy) return;
+  const requestSuggestions = useCallback(async () => {
+    if (suggestionsBusyRef.current) return;
+    suggestionsBusyRef.current = true;
     setSuggestionsBusy(true);
     setSuggestionsError("");
     setError("");
@@ -166,7 +189,54 @@ export default function TrpgRoomClient({
       setSuggestionsError(message);
       setError(message);
     } finally {
+      suggestionsBusyRef.current = false;
       setSuggestionsBusy(false);
+    }
+  }, [snap.id]);
+
+  useEffect(() => {
+    setSuggestionsEnabled(loadTrpgActionSuggestionsEnabled());
+  }, []);
+
+  useEffect(() => {
+    if (
+      !shouldAutoRequestTrpgActionSuggestions({
+        enabled: suggestionsEnabled,
+        phase: String(phase),
+        hasDraft: Boolean(snap.myDraft),
+        locked: snap.myDraft?.locked === true,
+        requestedRound: autoRequestedRoundRef.current,
+        roundNumber: snap.round.number,
+      })
+    ) {
+      return;
+    }
+    autoRequestedRoundRef.current = snap.round.number;
+    void requestSuggestions();
+  }, [phase, requestSuggestions, snap.myDraft, snap.round.number, suggestionsEnabled]);
+
+  function toggleSuggestionsEnabled() {
+    const nextOn = !suggestionsEnabled;
+    setSuggestionsEnabled(nextOn);
+    saveTrpgActionSuggestionsEnabled(nextOn);
+    if (!nextOn) {
+      autoRequestedRoundRef.current = null;
+      setSuggestions([]);
+      setSuggestionsError("");
+      return;
+    }
+    if (
+      shouldAutoRequestTrpgActionSuggestions({
+        enabled: true,
+        phase: String(phase),
+        hasDraft: Boolean(snap.myDraft),
+        locked: snap.myDraft?.locked === true,
+        requestedRound: autoRequestedRoundRef.current,
+        roundNumber: snap.round.number,
+      })
+    ) {
+      autoRequestedRoundRef.current = snap.round.number;
+      void requestSuggestions();
     }
   }
 
@@ -337,7 +407,8 @@ export default function TrpgRoomClient({
           suggestions={suggestions}
           suggestionsBusy={suggestionsBusy}
           suggestionsError={suggestionsError}
-          onRequestSuggestions={() => void requestSuggestions()}
+          suggestionsEnabled={suggestionsEnabled}
+          onToggleSuggestions={toggleSuggestionsEnabled}
           onPickSuggestion={(item) => {
             setActionType(item.actionType);
             setActionBody(item.text);

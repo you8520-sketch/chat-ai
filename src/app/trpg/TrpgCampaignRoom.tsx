@@ -113,11 +113,12 @@ export default function TrpgCampaignRoom({
   suggestions,
   suggestionsBusy,
   suggestionsError,
+  suggestionsEnabled,
   onActionTypeChange,
   onActionBodyChange,
   onPartyBodyChange,
   onHostFillChange,
-  onRequestSuggestions,
+  onToggleSuggestions,
   onPickSuggestion,
   onSendAction,
   onSendParty,
@@ -143,7 +144,8 @@ export default function TrpgCampaignRoom({
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
   suggestionsError: string;
-  onRequestSuggestions: () => void;
+  suggestionsEnabled: boolean;
+  onToggleSuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
@@ -230,13 +232,14 @@ export default function TrpgCampaignRoom({
   }, []);
 
   useLayoutEffect(() => {
+    if (!suggestionsEnabled) return;
     if (suggestions.length === 0 && !suggestionsError) return;
     suggestionsAnchorRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "end",
       inline: "nearest",
     });
-  }, [suggestions, suggestionsError]);
+  }, [suggestions, suggestionsEnabled, suggestionsError]);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -466,11 +469,22 @@ export default function TrpgCampaignRoom({
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  disabled={busy || suggestionsBusy}
-                  onClick={onRequestSuggestions}
-                  className="inline-flex min-h-10 items-center rounded-xl border border-violet-400/40 px-3 text-sm font-semibold text-violet-100 hover:bg-violet-500/10 disabled:opacity-50"
+                  role="switch"
+                  aria-checked={suggestionsEnabled}
+                  aria-label="행동 예시"
+                  disabled={busy}
+                  onClick={onToggleSuggestions}
+                  className={`inline-flex min-h-10 items-center rounded-xl border px-3 text-sm font-semibold disabled:opacity-50 ${
+                    suggestionsEnabled
+                      ? "border-violet-400/50 bg-violet-500/15 text-violet-100"
+                      : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                  }`}
                 >
-                  {suggestionsBusy ? "예시 만드는 중…" : "✨ 행동 예시"}
+                  {suggestionsEnabled
+                    ? suggestionsBusy
+                      ? "예시 만드는 중…"
+                      : "행동 예시 켜짐"
+                    : "행동 예시 꺼짐"}
                 </button>
                 <button
                   type="button"
@@ -481,7 +495,7 @@ export default function TrpgCampaignRoom({
                   행동 제출
                 </button>
               </div>
-              {suggestionsError || suggestions.length > 0 ? (
+              {suggestionsEnabled && (suggestionsError || suggestions.length > 0) ? (
                 <div ref={suggestionsAnchorRef} className="scroll-mb-28">
                   {suggestionsError ? (
                     <p className="mt-2 text-sm text-rose-200">{suggestionsError}</p>
