@@ -85,6 +85,30 @@ describe("buildNoGodmoddingBlock", () => {
     assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
     assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
   });
+
+  it("currentTurnDelegated is a scoped owner, not coNarration", () => {
+    const block = buildNoGodmoddingBlock(
+      aiCharacterName,
+      userCharacterName,
+      "currentTurnDelegated",
+      {
+        currentTurnDelegation: {
+          active: true,
+          allowDialogue: true,
+          allowMajorActions: false,
+          source: "explicit_ooc",
+        },
+      }
+    );
+    assert.match(block, /CURRENT-TURN OOC DELEGATION/);
+    assert.match(block, /이번 턴에 한해/);
+    assert.doesNotMatch(block, /LIMITED CO-NARRATION/);
+    assert.doesNotMatch(block, /\[possession_mode\]/);
+    assert.notEqual(
+      block,
+      buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "coNarration")
+    );
+  });
 });
 
 describe("core master prompt", () => {

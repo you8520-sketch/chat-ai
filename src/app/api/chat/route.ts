@@ -293,6 +293,10 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
+import {
+  INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+  resolveCurrentTurnUserAuthoringDelegation,
+} from "@/lib/currentTurnUserAuthoringDelegation";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
   detectInteractiveUserImpersonation,
@@ -784,10 +788,17 @@ export async function POST(req: Request) {
   });
   // Auto progression uses limited_external agency — not full impersonation / possession.
   const userImpersonation = oocUserImpersonationAllowed;
+  const currentTurnDelegation = autoProgressionEnabled
+    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
+    : resolveCurrentTurnUserAuthoringDelegation({
+        currentUserInput: typeof message === "string" ? message : "",
+      });
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed,
+    currentTurnDelegationActive:
+      !oocUserImpersonationAllowed && currentTurnDelegation.active,
   });
   const userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
@@ -795,7 +806,10 @@ export async function POST(req: Request) {
     personaDescription,
     {
       coNarrationEnabled:
-        autoProgressionEnabled || novelModeEnabled || oocUserImpersonationAllowed,
+        autoProgressionEnabled ||
+        novelModeEnabled ||
+        oocUserImpersonationAllowed ||
+        currentTurnDelegation.active,
     }
   );
   const backgroundPersonaIdentity = formatSelectedPersonaIdentityForBackground(
@@ -1033,10 +1047,19 @@ export async function POST(req: Request) {
   const autoContinueContext =
     autoProgressionEnabled ||
     (regenerate && isContinueUserMessage(storedUserMessage));
+  const currentTurnDelegationForTurn = autoContinueContext
+    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
+    : resolveCurrentTurnUserAuthoringDelegation({
+        currentUserInput: storedUserMessage,
+      });
   runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: !autoContinueContext && oocUserImpersonationAllowed,
+    currentTurnDelegationActive:
+      !autoContinueContext &&
+      !oocUserImpersonationAllowed &&
+      currentTurnDelegationForTurn.active,
   });
   const autoContinueHistory = autoContinueContext
     ? resolveAutoContinueHistoryTurns(dialogueTurns)

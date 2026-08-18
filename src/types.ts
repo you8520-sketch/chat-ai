@@ -74,7 +74,7 @@ export type ContextBuildInput = {
   /**
    * Explicit runtime mode when known.
    * Prefer over reading isContinue/novelModeEnabled alone:
-   * interactive | auto_progression | ooc_user_impersonation_allowed
+   * interactive | auto_progression | ooc_user_impersonation_allowed | current_turn_ooc_delegated
    */
   runtimeMode?: ChatRuntimeMode;
   personaDisplayName?: string;
