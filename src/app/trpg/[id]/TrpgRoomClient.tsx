@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
@@ -9,6 +9,7 @@ import TrpgCampaignRoom from "../TrpgCampaignRoom";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
+import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
@@ -77,9 +78,17 @@ export default function TrpgRoomClient({
     snap.workType === "acquire_gm_lock" ||
     snap.narrationRerolling;
 
+  const appliedRoundRef = useRef(initial.round.number);
   const apply = useCallback((next: TrpgCampaignSnapshot) => {
+    const reset = trpgActionComposerForRound(appliedRoundRef.current, next.round.number, next.myDraft);
+    appliedRoundRef.current = next.round.number;
     setSnap(next);
-    if (next.myDraft?.body) setActionBody(next.myDraft.body);
+    if (reset) {
+      setActionBody(reset.body);
+      setActionType(reset.actionType);
+    } else if (next.myDraft?.body) {
+      setActionBody(next.myDraft.body);
+    }
   }, []);
 
   useEffect(() => {
@@ -88,11 +97,16 @@ export default function TrpgRoomClient({
       return;
     }
     if (suggestionRound !== snap.round.number) {
+      const reset = trpgActionComposerForRound(suggestionRound, snap.round.number, snap.myDraft);
+      if (reset) {
+        setActionBody(reset.body);
+        setActionType(reset.actionType);
+      }
       setSuggestions([]);
       setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
-  }, [snap.round.number, suggestionRound]);
+  }, [snap.myDraft, snap.round.number, suggestionRound]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
