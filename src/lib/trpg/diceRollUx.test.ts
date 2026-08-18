@@ -102,7 +102,16 @@ describe("TRPG 3D dice overlay contracts", () => {
         rollCount: 1,
         prevRollCount: 0,
       }),
-      "keep"
+      "start"
+    );
+    assert.equal(
+      trpgDiceOverlaySessionAction({
+        phase: "GENERATING_NARRATION",
+        prevPhase: "BOT_ACTION",
+        rollCount: 2,
+        prevRollCount: 0,
+      }),
+      "start"
     );
     assert.equal(
       trpgDiceOverlaySessionAction({

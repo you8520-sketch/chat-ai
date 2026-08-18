@@ -59,15 +59,13 @@ function buildNumeral(
   const upQ = (() => {
     const rotatedUp = face.up.clone().applyQuaternion(q).normalize();
     const targetUp = new THREE.Vector3(0, 1, 0);
-    const plane = rotatedUp.clone().sub(new THREE.Vector3(0, 0, 1).multiplyScalar(rotatedUp.z));
+    const cam = new THREE.Vector3(0, 0, 1);
+    const plane = rotatedUp.clone().sub(cam.multiplyScalar(rotatedUp.z));
     if (plane.lengthSq() < 1e-6) return new THREE.Quaternion();
     plane.normalize();
-    const cam = new THREE.Vector3(0, 0, 1);
-    let cos = THREE.MathUtils.clamp(plane.dot(targetUp), -1, 1);
-    let sin = plane.cross(targetUp).dot(cam);
-    const len = Math.hypot(cos, sin);
-    if (len > 0) { cos /= len; sin /= len; }
-    return new THREE.Quaternion(cam.x * sin, cam.y * sin, cam.z * sin, cos);
+    const cosFull = THREE.MathUtils.clamp(plane.dot(targetUp), -1, 1);
+    const sinFull = plane.cross(targetUp).dot(cam);
+    return new THREE.Quaternion().setFromAxisAngle(cam, Math.atan2(sinFull, cosFull));
   })();
   const full = upQ.multiply(q);
   geo.applyQuaternion(full);

@@ -41,14 +41,11 @@ export function artisanLandingQuaternion(face: ArtisanD20Face, basis: ArtisanOri
   }
   rotatedPlane.normalize();
 
-  let cos = THREE.MathUtils.clamp(rotatedPlane.dot(planeUp), -1, 1);
-  let sin = rotatedPlane.cross(planeUp).dot(toward);
-  const len = Math.hypot(cos, sin);
-  if (len > 0) {
-    cos /= len;
-    sin /= len;
-  }
-  const twist = new THREE.Quaternion(toward.x * sin, toward.y * sin, toward.z * sin, cos);
+  // Signed angle from rotatedPlane to planeUp around `toward`, then half-angle quaternion.
+  const cosFull = THREE.MathUtils.clamp(rotatedPlane.dot(planeUp), -1, 1);
+  const sinFull = rotatedPlane.cross(planeUp).dot(toward);
+  const angle = Math.atan2(sinFull, cosFull);
+  const twist = new THREE.Quaternion().setFromAxisAngle(toward, angle);
   return twist.multiply(first);
 }
 
