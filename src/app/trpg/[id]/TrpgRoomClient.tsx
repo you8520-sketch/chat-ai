@@ -13,7 +13,9 @@ import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import {
+  loadTrpgActionSuggestionsCache,
   loadTrpgActionSuggestionsEnabled,
+  saveTrpgActionSuggestionsCache,
   saveTrpgActionSuggestionsEnabled,
   shouldAutoRequestTrpgActionSuggestions,
 } from "@/lib/trpg/displayPrefs";
@@ -110,11 +112,13 @@ export default function TrpgRoomClient({
         setActionBody(reset.body);
         setActionType(reset.actionType);
       }
-      setSuggestions([]);
+      const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
+      setSuggestions(cached ?? []);
+      autoRequestedRoundRef.current = cached?.length ? snap.round.number : null;
       setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
-  }, [snap.myDraft, snap.round.number, suggestionRound]);
+  }, [snap.id, snap.myDraft, snap.round.number, suggestionRound]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
@@ -177,6 +181,7 @@ export default function TrpgRoomClient({
         throw new Error(data?.error || "행동 예시를 만들지 못했습니다.");
       }
       setSuggestions(data.suggestions);
+      saveTrpgActionSuggestionsCache(snap.id, snap.round.number, data.suggestions);
     } catch (e) {
       const timedOut =
         (e instanceof DOMException || e instanceof Error) &&
@@ -188,20 +193,36 @@ export default function TrpgRoomClient({
           : "행동 예시를 만들지 못했습니다.";
       setSuggestionsError(message);
       setError(message);
+      // Allow a later toggle-on to retry after a failed generation.
+      autoRequestedRoundRef.current = null;
     } finally {
       suggestionsBusyRef.current = false;
       setSuggestionsBusy(false);
     }
-  }, [snap.id]);
+  }, [snap.id, snap.round.number]);
 
   useEffect(() => {
     setSuggestionsEnabled(loadTrpgActionSuggestionsEnabled());
+    const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
+    if (cached?.length) {
+      setSuggestions(cached);
+      autoRequestedRoundRef.current = snap.round.number;
+    }
+    // Mount-only: restore this round's cached examples so re-entry never regenerates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (!suggestionsEnabled) return;
+    const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
+    if (cached?.length) {
+      setSuggestions(cached);
+      autoRequestedRoundRef.current = snap.round.number;
+      return;
+    }
     if (
       !shouldAutoRequestTrpgActionSuggestions({
-        enabled: suggestionsEnabled,
+        enabled: true,
         phase: String(phase),
         hasDraft: Boolean(snap.myDraft),
         locked: snap.myDraft?.locked === true,
@@ -213,16 +234,21 @@ export default function TrpgRoomClient({
     }
     autoRequestedRoundRef.current = snap.round.number;
     void requestSuggestions();
-  }, [phase, requestSuggestions, snap.myDraft, snap.round.number, suggestionsEnabled]);
+  }, [phase, requestSuggestions, snap.id, snap.myDraft, snap.round.number, suggestionsEnabled]);
 
   function toggleSuggestionsEnabled() {
     const nextOn = !suggestionsEnabled;
     setSuggestionsEnabled(nextOn);
     saveTrpgActionSuggestionsEnabled(nextOn);
     if (!nextOn) {
-      autoRequestedRoundRef.current = null;
       setSuggestions([]);
       setSuggestionsError("");
+      return;
+    }
+    const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
+    if (cached?.length) {
+      setSuggestions(cached);
+      autoRequestedRoundRef.current = snap.round.number;
       return;
     }
     if (
