@@ -4,16 +4,17 @@
  */
 
 /** Live overlay winner after browser A/B: custom reads the server face; physics B did not. */
+export const PRODUCTION_DICE_PROTO = "A" as const;
 export const TRPG_DICE_IMPLEMENTATION = "custom" as const;
 export const TRPG_DICE_PHYSICS_ENGINE = "none" as const;
 export const TRPG_DICE_ENGINE = "obsidian-relic-d20" as const;
 export const TRPG_D20_THEME = "obsidian-relic" as const;
 
-/** Hold the settled face before advancing / fading. Target roll+hold ≈ 1.1–1.8s. */
+/** Hold the settled face before advancing / fading. 400–600ms. */
 export const TRPG_D20_HOLD_AFTER_SETTLE_MS = 520;
 
-/** Custom renderer roll duration (prototype A). Physics prototype B is event-driven. */
-export const TRPG_D20_ANIMATION_MS = 1_080;
+/** Custom renderer roll duration (prototype A). Physics prototype B is lab-only. */
+export const TRPG_D20_ANIMATION_MS = 1_240;
 
 export const TRPG_D20_NAT20_GOLD = "#e8c56a";
 export const TRPG_D20_NAT1_CRIMSON = "#8a2430";

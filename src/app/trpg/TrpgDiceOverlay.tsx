@@ -14,15 +14,12 @@ import {
   trpgDiceOverlayActive,
   trpgPredeterminedD20Notation,
 } from "@/lib/trpg/diceRollUx";
-import { TRPG_DICE_PHYSICS_ENGINE } from "@/lib/trpg/diceVisual";
+import { PRODUCTION_DICE_PROTO, TRPG_DICE_PHYSICS_ENGINE } from "@/lib/trpg/diceVisual";
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import TrpgD20 from "./TrpgD20";
 
 const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
-const TrpgDiceBoxScene = dynamic(() => import("./TrpgDiceBoxScene"), { ssr: false });
-
-export type TrpgDiceRenderer = "dice-box-threejs" | "custom";
 
 function detectWebgl(): boolean {
   try {
@@ -37,12 +34,10 @@ export default function TrpgDiceOverlay({
   phase,
   rolls,
   resolutionOrder,
-  renderer = TRPG_DICE_RENDERER,
 }: {
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   resolutionOrder?: readonly TrpgResolutionOrderEntry[];
-  renderer?: TrpgDiceRenderer;
 }) {
   const active = trpgDiceOverlayActive(phase, rolls);
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
@@ -87,7 +82,6 @@ export default function TrpgDiceOverlay({
   const tone = resolveTrpgD20Tone(roll.d20, roll.tier);
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
-  const usePhysics = renderer === "dice-box-threejs";
 
   return (
     <div
@@ -96,22 +90,15 @@ export default function TrpgDiceOverlay({
       data-trpg-dice-engine={TRPG_DICE_ENGINE}
       data-trpg-dice-theme={TRPG_D20_THEME}
       data-trpg-dice-mode={use3d ? "3d" : "static"}
-      data-trpg-dice-renderer={use3d ? renderer : "static"}
-      data-trpg-dice-physics={use3d && usePhysics ? TRPG_DICE_PHYSICS_ENGINE : "none"}
+      data-trpg-dice-renderer={use3d ? TRPG_DICE_RENDERER : "static"}
+      data-trpg-dice-physics={TRPG_DICE_PHYSICS_ENGINE}
+      data-trpg-dice-proto={PRODUCTION_DICE_PROTO}
       data-trpg-dice-value={roll.d20}
       data-trpg-dice-predetermined={notation}
       aria-hidden="true"
     >
       <div className="absolute inset-0">
-        {use3d && usePhysics ? (
-          <TrpgDiceBoxScene
-            value={roll.d20}
-            tone={tone}
-            reducedQuality={reducedQuality}
-            onSettled={onSettled}
-          />
-        ) : null}
-        {use3d && !usePhysics ? (
+        {use3d ? (
           <TrpgDiceScene
             value={roll.d20}
             tone={tone}
@@ -119,12 +106,11 @@ export default function TrpgDiceOverlay({
             reducedQuality={reducedQuality}
             onSettled={onSettled}
           />
-        ) : null}
-        {!use3d ? (
+        ) : (
           <div className="flex h-full items-center justify-center" data-trpg-dice-canvas="static">
             <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
           </div>
-        ) : null}
+        )}
       </div>
       <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
         {roll.name} · D20 {roll.d20} · {outcome}

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { canAccessTrpg } from "@/lib/trpg/access";
-import type { TrpgDiceRenderer } from "../TrpgDiceOverlay";
+import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
 import TrpgDiceLabClient from "./TrpgDiceLabClient";
 
 export const dynamic = "force-dynamic";
 
-function parseRenderer(value: string | undefined): TrpgDiceRenderer {
-  return value === "custom" || value === "a" ? "custom" : "dice-box-threejs";
+function parseRenderer(value: string | undefined): TrpgDiceLabRenderer {
+  if (value === "dice-box-threejs" || value === "b") return "dice-box-threejs";
+  return "custom";
 }
 
 export default async function TrpgDiceLabPage({

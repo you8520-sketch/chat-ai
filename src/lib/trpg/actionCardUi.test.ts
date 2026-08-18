@@ -5,9 +5,12 @@ import {
   isTrpgD20Face,
   resolveTrpgD20Tone,
   resolveTrpgSpeakerRail,
+  trpgActionCardCompactName,
   trpgD20ViewModel,
   trpgRollIsSuccess,
   trpgRollOutcomeLabel,
+  trpgRollResultNumberClass,
+  trpgRollResultOutcomeClass,
 } from "./actionCardUi";
 
 describe("TRPG action card rails and d20 visual", () => {
@@ -77,15 +80,27 @@ describe("TRPG action card rails and d20 visual", () => {
   it("does not add image assets or empty dice shells in the action card", () => {
     const d20 = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
     assert.doesNotMatch(d20, /\.png|\.webp|dice-1|dice-20/);
     assert.match(d20, /<svg/);
     assert.match(d20, /size === "mobile" \? 52 : 76/);
     assert.match(room, /accent=\{false\}/);
     assert.match(room, /dialogueAccent=\{false\}/);
-    assert.match(room, /roll && tone && outcome/);
-    assert.match(room, /sm:hidden/);
+    assert.match(room, /TrpgRollResultLane/);
+    assert.doesNotMatch(room, /<TrpgD20/);
+    assert.match(lane, /sm:hidden/);
+    assert.match(lane, /w-\[72px\]/);
+    assert.match(lane, /h-\[72px\]/);
+    assert.match(lane, /text-\[34px\]/);
+    assert.match(lane, /text-\[12px\]/);
     assert.doesNotMatch(room, /DiceActionBody/);
     assert.equal((room.match(/text=\{parsed\.prose \|\| action\.body\}/g) ?? []).length, 1);
     assert.doesNotMatch(room, /function DiceStrip\([\s\S]*parsed\.prose/);
+    assert.equal(trpgActionCardCompactName("강이현", "ai_character"), "강이현 AI");
+    assert.equal(trpgActionCardCompactName("권태현", "human"), "권태현");
+    assert.match(trpgRollResultNumberClass("success"), /emerald/);
+    assert.match(trpgRollResultNumberClass("fail"), /rose/);
+    assert.match(trpgRollResultOutcomeClass("success"), /emerald/);
+    assert.match(trpgRollResultOutcomeClass("fail"), /rose/);
   });
 });

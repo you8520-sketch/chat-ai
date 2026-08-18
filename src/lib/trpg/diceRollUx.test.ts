@@ -19,6 +19,8 @@ import {
   trpgPredeterminedD20Notation,
 } from "./diceRollUx";
 import {
+  PRODUCTION_DICE_PROTO,
+  TRPG_D20_ANIMATION_MS,
   TRPG_DICE_BOX_COLORSET,
   TRPG_DICE_BOX_THREEJS_ASSETS_COPIED as VISUAL_ASSETS_COPIED,
   TRPG_DICE_IMPLEMENTATION,
@@ -55,9 +57,13 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(timing.perDie >= TRPG_D20_PER_DIE_MS.min);
     assert.ok(timing.perDie <= TRPG_D20_PER_DIE_MS.max);
     assert.ok(timing.total <= TRPG_D20_TOTAL_CAP_MS);
-    assert.ok(TRPG_D20_TOTAL_CAP_MS <= 1800);
+    assert.ok(TRPG_D20_TOTAL_CAP_MS <= 1600);
+    assert.ok(TRPG_D20_PER_DIE_MS.min >= 1100);
+    assert.ok(TRPG_D20_PER_DIE_MS.max <= 1600);
+    assert.ok(TRPG_D20_ANIMATION_MS >= 1100);
+    assert.ok(TRPG_D20_ANIMATION_MS <= 1600);
     assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS >= 400);
-    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS <= 650);
+    assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS <= 600);
   });
 
   it("falls back when WebGL is missing or motion is reduced", () => {
@@ -72,6 +78,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.equal(TRPG_DICE_ENGINE, "obsidian-relic-d20");
     assert.equal(TRPG_DICE_ENGINE_LICENSE, "MIT");
     assert.equal(TRPG_D20_THEME, "obsidian-relic");
+    assert.equal(PRODUCTION_DICE_PROTO, "A");
     assert.equal(TRPG_DICE_IMPLEMENTATION, "custom");
     assert.equal(TRPG_DICE_RENDERER, "custom");
     assert.equal(TRPG_DICE_PHYSICS_ENGINE, "none");
@@ -86,25 +93,36 @@ describe("TRPG 3D dice overlay contracts", () => {
     const custom = fs.readFileSync("src/app/trpg/TrpgDiceScene.tsx", "utf8");
     const box = fs.readFileSync("src/app/trpg/TrpgDiceBoxScene.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const lab = fs.readFileSync("src/app/trpg/dice-lab/TrpgDiceLabClient.tsx", "utf8");
     const card = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
+    const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
     assert.match(overlay, /ssr: false/);
     assert.match(overlay, /prefers-reduced-motion/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
-    assert.match(overlay, /TrpgDiceBoxScene/);
+    assert.match(overlay, /TrpgDiceScene/);
+    assert.doesNotMatch(overlay, /TrpgDiceBoxScene/);
+    assert.doesNotMatch(overlay, /renderer\?:/);
     assert.doesNotMatch(overlay, /w-\[min\(420px/);
     assert.doesNotMatch(overlay, /rounded-3xl border/);
     assert.doesNotMatch(overlay, /advance|gmCall|\/api\/trpg/);
     assert.match(custom, /landingQuaternion/);
     assert.match(custom, /IcosahedronGeometry/);
     assert.match(custom, /color: 0xffffff/);
+    assert.match(custom, /die\.quaternion\.copy\(end\)/);
     assert.doesNotMatch(custom, /EdgesGeometry|LineBasicMaterial|LineSegments/);
     assert.doesNotMatch(custom, /textures\/|sounds\/|wizards|dungeons/i);
     assert.match(box, /1d20@|TRPG_DICE_BOX_NOTATION/);
     assert.match(box, /sounds: false/);
     assert.match(box, /theme_texture: ""/);
     assert.doesNotMatch(box, /public\/textures|public\/sounds/);
+    assert.match(lab, /TrpgDiceBoxScene/);
+    assert.match(lab, /data-trpg-dice-lab-proto="B"/);
     assert.match(room, /TrpgDiceOverlay/);
-    assert.match(room, /<TrpgD20 value=\{roll\.d20\}/);
+    assert.match(room, /TrpgRollResultLane/);
+    assert.doesNotMatch(room, /<TrpgD20/);
+    assert.match(lane, /data-trpg-roll-result="desktop"/);
+    assert.match(lane, /w-\[72px\]/);
+    assert.match(lane, /text-\[34px\]/);
     assert.match(card, /<svg/);
     assert.match(card, /data-trpg-d20-silhouette="icosahedron"/);
     assert.doesNotMatch(card, /WebGLRenderer/);

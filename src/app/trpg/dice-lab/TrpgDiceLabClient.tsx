@@ -1,9 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
-import TrpgDiceOverlay, { type TrpgDiceRenderer } from "../TrpgDiceOverlay";
-import TrpgD20 from "../TrpgD20";
+import TrpgDiceOverlay from "../TrpgDiceOverlay";
+import TrpgRollResultLane from "../TrpgRollResultLane";
+
+const TrpgDiceBoxScene = dynamic(() => import("../TrpgDiceBoxScene"), { ssr: false });
 
 const FIXTURE: TrpgPublicRoll = {
   participantId: 1,
@@ -22,9 +26,9 @@ const FIXTURE: TrpgPublicRoll = {
 export default function TrpgDiceLabClient({
   initialRenderer,
 }: {
-  initialRenderer: TrpgDiceRenderer;
+  initialRenderer: TrpgDiceLabRenderer;
 }) {
-  const [renderer, setRenderer] = useState<TrpgDiceRenderer>(initialRenderer);
+  const [renderer, setRenderer] = useState<TrpgDiceLabRenderer>(initialRenderer);
   const [playKey, setPlayKey] = useState(0);
   const rolls = useMemo(() => [{ ...FIXTURE }], [playKey]);
 
@@ -38,8 +42,8 @@ export default function TrpgDiceLabClient({
       <div className="pointer-events-auto relative z-[70] m-4 flex max-w-md flex-col gap-2 rounded-2xl bg-black/45 px-3 py-3 backdrop-blur-sm">
         <h1 className="text-lg font-semibold">TRPG D20 visual lab</h1>
         <p className="text-sm text-zinc-400">
-          Fixture server d20 = 6. Client never invents a roll. Prototype A is the corrected custom
-          renderer. Prototype B is dice-box-threejs + Cannon with 1d20@6.
+          Fixture server d20 = 6. Production runtime is Prototype A only. Prototype B stays on this
+          lab page and is not wired into the campaign overlay.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -71,16 +75,29 @@ export default function TrpgDiceLabClient({
           </button>
         </div>
         <div className="flex items-center gap-3 text-sm text-zinc-400">
-          <span>Static token</span>
-          <TrpgD20 value={6} tone="fail" size="desktop" />
+          <span>Action card lane</span>
+          <TrpgRollResultLane layout="desktop" d20={6} tone="fail" outcome="실패" />
         </div>
       </div>
-      <TrpgDiceOverlay
-        key={`${renderer}-${playKey}`}
-        phase="ROLLING"
-        rolls={rolls}
-        renderer={renderer}
-      />
+      {renderer === "custom" ? (
+        <TrpgDiceOverlay key={`a-${playKey}`} phase="ROLLING" rolls={rolls} />
+      ) : (
+        <div
+          key={`b-${playKey}`}
+          className="pointer-events-none fixed inset-0 z-[65] bg-black/40"
+          data-trpg-dice-lab-proto="B"
+        >
+          <TrpgDiceBoxScene
+            value={6}
+            tone="fail"
+            reducedQuality={false}
+            onSettled={() => undefined}
+          />
+          <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
+            권태현 · D20 6 · 실패
+          </p>
+        </div>
+      )}
     </div>
   );
 }

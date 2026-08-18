@@ -1,4 +1,4 @@
-import type { TrpgSuccessTier } from "./types";
+import type { TrpgParticipantKind, TrpgSuccessTier } from "./types";
 
 export const TRPG_D20_TONES = ["nat1", "fail", "success", "nat20"] as const;
 export type TrpgD20Tone = (typeof TRPG_D20_TONES)[number];
@@ -57,4 +57,42 @@ export function trpgD20ViewModel(value: number, tone: TrpgD20Tone): {
     tone,
     fontSize: face >= 10 ? 21 : 26,
   };
+}
+
+/** Number color only. No card background, gradient, or glow. */
+export function trpgRollResultNumberClass(tone: TrpgD20Tone): string {
+  switch (tone) {
+    case "nat20":
+      return "text-[#d4b45a]";
+    case "nat1":
+      return "text-[#c45c66]";
+    case "success":
+      return "text-emerald-200/90";
+    case "fail":
+      return "text-rose-200/90";
+    default: {
+      const _exhaustive: never = tone;
+      return _exhaustive;
+    }
+  }
+}
+
+/** Outcome label follows success/fail, not a rewritten critical tier. */
+export function trpgRollResultOutcomeClass(tone: TrpgD20Tone): string {
+  switch (tone) {
+    case "nat20":
+    case "success":
+      return "text-emerald-300/80";
+    case "nat1":
+    case "fail":
+      return "text-rose-300/80";
+    default: {
+      const _exhaustive: never = tone;
+      return _exhaustive;
+    }
+  }
+}
+
+export function trpgActionCardCompactName(name: string, kind: TrpgParticipantKind): string {
+  return kind === "ai_character" ? `${name} AI` : name;
 }

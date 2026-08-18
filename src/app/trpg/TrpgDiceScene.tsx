@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
+import { dicePoseAt, randomStartEuler, randomUnitAxis } from "@/lib/trpg/diceAnim";
 import { TRPG_D20_NUMERAL, TRPG_D20_NUMERAL_EDGE } from "@/lib/trpg/diceVisual";
 
 const FACE_COUNT = 20;
@@ -217,26 +218,31 @@ export default function TrpgDiceScene({
 
     const toward = camera.position.clone().normalize().lerp(new THREE.Vector3(0, 1, 0), 0.28).normalize();
     const end = landingQuaternion(die, faceValues, value, toward);
+    const startEuler = randomStartEuler(Math.random);
     const start = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
+      new THREE.Euler(startEuler.x, startEuler.y, startEuler.z)
     );
+    const axis = randomUnitAxis(Math.random);
+    const tumbleAxis = new THREE.Vector3(axis.x, axis.y, axis.z);
     die.quaternion.copy(start);
-    die.position.set(1.15, 1.35, -0.35);
+    const first = dicePoseAt(0);
+    die.position.set(first.x, first.y, first.z);
 
     const started = performance.now();
-    const duration = Math.max(720, durationMs);
+    const duration = Math.max(1100, Math.min(1600, durationMs));
     let frame = 0;
 
     const tick = (now: number) => {
       const t = Math.min(1, (now - started) / duration);
-      const ease = t * t * (3 - 2 * t);
-      const bounce = Math.abs(Math.sin(t * Math.PI * 2.2)) * (1 - t) * (1 - t) * 1.28;
-      die.position.y = -0.02 + bounce + (1 - ease) * 0.85;
-      die.position.x = THREE.MathUtils.lerp(1.15, 0, ease) + Math.sin(t * 7.4) * (1 - t) * 0.18;
-      die.position.z = THREE.MathUtils.lerp(-0.35, 0, ease);
-      const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(t * 16.4, t * 12.8, t * 9.1));
-      const tumbled = start.clone().multiply(spin);
-      die.quaternion.slerpQuaternions(tumbled, end, ease);
+      const pose = dicePoseAt(t);
+      die.position.set(pose.x, pose.y, pose.z);
+      if (t >= 1) {
+        die.quaternion.copy(end);
+      } else {
+        const spin = new THREE.Quaternion().setFromAxisAngle(tumbleAxis, pose.tumbleAngle);
+        const tumbled = start.clone().multiply(spin);
+        die.quaternion.slerpQuaternions(tumbled, end, pose.settle);
+      }
       if (tone === "nat20") rim.intensity = 0.48 + Math.sin(now / 70) * 0.28;
       if (tone === "nat1") rim.intensity = 0.32 + Math.sin(now / 90) * 0.22;
       renderer.render(scene, camera);
@@ -245,7 +251,7 @@ export default function TrpgDiceScene({
         return;
       }
       die.quaternion.copy(end);
-      die.position.set(0, -0.02, 0);
+      die.position.set(0, pose.y, 0);
       renderer.render(scene, camera);
       if (!settledRef.current) {
         settledRef.current = true;
