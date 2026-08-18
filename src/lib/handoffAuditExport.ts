@@ -128,19 +128,23 @@ function asText(value: unknown): string {
   return String(value);
 }
 
+function runtimeEnv(name: string): string {
+  const env = globalThis.process?.env;
+  if (!env) return "";
+  return String(env[name] ?? "").trim();
+}
+
 export function isHandoffAuditExportEnabled(): boolean {
-  const raw = process.env[HANDOFF_AUDIT_EXPORT_ENABLED_ENV]?.trim().toLowerCase() ?? "";
+  const raw = runtimeEnv(HANDOFF_AUDIT_EXPORT_ENABLED_ENV).toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes";
 }
 
 export function isLiveProductionDatabase(): boolean {
   const env = (
-    process.env.RAILWAY_ENVIRONMENT_NAME ??
-    process.env.RAILWAY_ENVIRONMENT ??
-    ""
+    runtimeEnv("RAILWAY_ENVIRONMENT_NAME") || runtimeEnv("RAILWAY_ENVIRONMENT")
   ).toLowerCase();
   const mounted =
-    process.env.RAILWAY_VOLUME_MOUNT_PATH === "/data" || process.env.DATA_DIR === "/data";
+    runtimeEnv("RAILWAY_VOLUME_MOUNT_PATH") === "/data" || runtimeEnv("DATA_DIR") === "/data";
   return env === "production" && mounted;
 }
 
@@ -153,7 +157,7 @@ export function requestHandoffAuditExportToken(req: Request): string {
 
 export function authorizeHandoffAuditExport(req: Request): boolean {
   if (!isHandoffAuditExportEnabled()) return false;
-  const expected = process.env.ADMIN_DEBUG_TOKEN?.trim() ?? "";
+  const expected = runtimeEnv("ADMIN_DEBUG_TOKEN");
   if (!expected) return false;
   return requestHandoffAuditExportToken(req) === expected;
 }
@@ -188,7 +192,7 @@ export function resolveHandoffAuditCharacterCandidates(
 }
 
 export function resolveHandoffAuditAdminPersonaCandidates(): HandoffAuditPersonaCandidate[] {
-  const allowEmails = (process.env.ADMIN_EMAILS ?? "")
+  const allowEmails = runtimeEnv("ADMIN_EMAILS")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
