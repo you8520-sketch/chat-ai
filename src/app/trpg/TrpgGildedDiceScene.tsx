@@ -346,14 +346,14 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
 
   const capRadius = radius * 2 * TRPG_D20_VERTEX_CAP_RADIUS_RATIO;
   const capGeometry = new THREE.SphereGeometry(capRadius, 10, 8);
-  disposables.push(capGeometry);
+  const rivetGeometry = new THREE.SphereGeometry(capRadius * 0.42, 8, 6);
+  disposables.push(capGeometry, rivetGeometry);
   for (const vertex of collectUniqueVertices(source)) {
     const cap = new THREE.Mesh(capGeometry, capMaterial);
     cap.position.copy(vertex.clone().multiplyScalar(1.002));
     cap.castShadow = true;
     group.add(cap);
-    const rivet = new THREE.Mesh(capGeometry, oxidationMaterial);
-    rivet.scale.setScalar(0.42);
+    const rivet = new THREE.Mesh(rivetGeometry, oxidationMaterial);
     rivet.position.copy(vertex.clone().multiplyScalar(1.006));
     group.add(rivet);
   }
@@ -375,6 +375,8 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
       attenuationColor: new THREE.Color("#14251c"),
       attenuationDistance: 1.15,
       transparent: true,
+      opacity: 0.97,
+      depthWrite: true,
       envMapIntensity: 0.9,
       map: gemMap,
       side: THREE.DoubleSide,
@@ -395,6 +397,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
       map: numeralMap,
       transparent: true,
       alphaTest: 0.08,
+      depthWrite: false,
       side: THREE.DoubleSide,
     });
     numeralMaterials.push(numeralMaterial);
@@ -402,6 +405,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
       numeralPlaneGeometry(corners, TRPG_D20_GEM_SCALE, TRPG_D20_NUMERAL_INLAY_LIFT),
       numeralMaterial
     );
+    numeral.renderOrder = 2;
     group.add(numeral);
     disposables.push(numeral.geometry, numeralMaterial, numeralMap);
   }
