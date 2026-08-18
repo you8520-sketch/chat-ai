@@ -1,5 +1,9 @@
 {
-  "track": "DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0",
+  "track": "DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1",
+  "EXPORTER_METHOD": "POST",
+  "TOKEN_IN_HEADER_ONLY": true,
+  "CACHE_CONTROL_NO_STORE": true,
+  "EXPORT_STORAGE": "/data/handoff-audit-exports/",
   "CHARACTER": "플러드",
   "OTHER_CHARACTERS_EXCLUDED": ["이혁", "로코"],
   "EXISTING_EXPORT_PATH_FOUND": false,

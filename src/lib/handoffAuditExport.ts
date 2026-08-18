@@ -17,7 +17,8 @@ import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 
 export const HANDOFF_AUDIT_EXPORT_ENABLED_ENV = "HANDOFF_AUDIT_EXPORT_ENABLED";
-export const HANDOFF_AUDIT_PRIVATE_DIR = "data/handoff-audit-exports";
+export const HANDOFF_AUDIT_PRIVATE_DIR = "/data/handoff-audit-exports";
+export const FLOOD_AUDIT_EXACT_NAME = "플러드";
 
 export type HandoffAuditExportMode = "snapshot" | "resolve-character" | "resolve-admin-personas";
 
@@ -32,10 +33,10 @@ export type HandoffAuditCharacterCandidate = {
 };
 
 export type HandoffAuditPersonaCandidate = {
-  id: number;
+  personaId: number;
   name: string;
-  user_id: number;
-  owner_email: string;
+  createdAt: string;
+  inUse: boolean;
 };
 
 export type HandoffAuditHashedField = {
@@ -44,11 +45,16 @@ export type HandoffAuditHashedField = {
 };
 
 export type HandoffAuditSnapshot = {
+  SNAPSHOT_ID: string;
   PRODUCTION_RECORD_PROVEN: boolean;
   FLOOD_PRODUCTION_RECORD_PROVEN: boolean;
   ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: boolean;
   database_source: "live_production" | "local_non_production";
   snapshot_timestamp: string;
+  CHARACTER_SHA: string;
+  PERSONA_SHA: string;
+  SPEECH_LOCK_SHA: string;
+  WORLD_CANON_SHA: string;
   loaders: string[];
   character: {
     id: number;
@@ -139,9 +145,10 @@ export function isLiveProductionDatabase(): boolean {
 }
 
 export function requestHandoffAuditExportToken(req: Request): string {
+  const headerToken = req.headers.get("x-admin-debug-token")?.trim() ?? "";
+  if (headerToken) return headerToken;
   const auth = req.headers.get("authorization") ?? "";
-  const bearer = auth.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  return bearer || req.headers.get("x-admin-debug-token")?.trim() || "";
+  return auth.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() ?? "";
 }
 
 export function authorizeHandoffAuditExport(req: Request): boolean {
@@ -201,20 +208,33 @@ export function resolveHandoffAuditAdminPersonaCandidates(): HandoffAuditPersona
   if (adminIds.length === 0) return [];
 
   const placeholders = adminIds.map(() => "?").join(", ");
+  const inUseIds = new Set(
+    (
+      getDb()
+        .prepare(
+          `SELECT selected_persona_id AS persona_id
+           FROM chats
+           WHERE user_id IN (${placeholders}) AND selected_persona_id IS NOT NULL
+           ORDER BY id DESC`
+        )
+        .all(...adminIds) as Array<{ persona_id: number | null }>
+    )
+      .map((row) => Number(row.persona_id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+  );
   const rows = getDb()
     .prepare(
-      `SELECT p.id, p.name, p.user_id, u.email AS owner_email
+      `SELECT p.id, p.name, p.created_at
        FROM user_personas p
-       JOIN users u ON u.id = p.user_id
        WHERE p.user_id IN (${placeholders})
        ORDER BY p.user_id ASC, p.id ASC`
     )
-    .all(...adminIds) as HandoffAuditPersonaCandidate[];
+    .all(...adminIds) as Array<{ id: number; name: string; created_at: string }>;
   return rows.map((row) => ({
-    id: row.id,
+    personaId: row.id,
     name: row.name ?? "",
-    user_id: row.user_id,
-    owner_email: row.owner_email ?? "",
+    createdAt: row.created_at ?? "",
+    inUse: inUseIds.has(row.id),
   }));
 }
 
@@ -334,12 +354,20 @@ export function exportProductionHandoffAuditSnapshot(opts: {
   const worldFields = fieldMap([["world", asText(ch.world)]]);
 
   const live = isLiveProductionDatabase();
+  const floodProven = live && ch.name === FLOOD_AUDIT_EXACT_NAME;
+  const personaProven = live;
+  const snapshotTimestamp = new Date().toISOString();
   return {
-    PRODUCTION_RECORD_PROVEN: live,
-    FLOOD_PRODUCTION_RECORD_PROVEN: live,
-    ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: live,
+    SNAPSHOT_ID: `handoff-${ch.id}-${persona.id}-${snapshotTimestamp.replace(/[:.]/g, "-")}`,
+    PRODUCTION_RECORD_PROVEN: floodProven && personaProven,
+    FLOOD_PRODUCTION_RECORD_PROVEN: floodProven,
+    ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: personaProven,
     database_source: live ? "live_production" : "local_non_production",
-    snapshot_timestamp: new Date().toISOString(),
+    snapshot_timestamp: snapshotTimestamp,
+    CHARACTER_SHA: sha256Text(JSON.stringify(characterFields.fields)).sha256,
+    PERSONA_SHA: sha256Text(JSON.stringify(personaFields.fields)).sha256,
+    SPEECH_LOCK_SHA: sha256Text(JSON.stringify(speechLockFields.fields)).sha256,
+    WORLD_CANON_SHA: sha256Text(JSON.stringify(worldFields.fields)).sha256,
     loaders: [
       "getDb().prepare('SELECT * FROM characters WHERE id = ?')",
       "loadCharacterChunksForPromptReadOnly",
@@ -387,9 +415,13 @@ export function exportProductionHandoffAuditSnapshot(opts: {
 }
 
 export function writeHandoffAuditSnapshotPrivate(snapshot: HandoffAuditSnapshot): string {
-  const dir = path.join(process.cwd(), HANDOFF_AUDIT_PRIVATE_DIR, snapshot.snapshot_timestamp.replace(/[:.]/g, "-"));
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "SNAPSHOT.json"), JSON.stringify(snapshot, null, 2), "utf8");
+  const dir = path.join(HANDOFF_AUDIT_PRIVATE_DIR, snapshot.SNAPSHOT_ID);
+  fs.mkdirSync(HANDOFF_AUDIT_PRIVATE_DIR, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(dir, "SNAPSHOT.json"), JSON.stringify(snapshot, null, 2), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
   return dir;
 }
 

@@ -36,6 +36,8 @@ describe("handoffAuditExport read-only loaders", () => {
     assert.doesNotMatch(SOURCE, /loadCharacterChunksForPrompt\(/);
     assert.doesNotMatch(SOURCE, /saveCharacterChunks/);
     assert.doesNotMatch(SOURCE, /scheduleEnglishBackfill/);
+    assert.match(SOURCE, /\/data\/handoff-audit-exports/);
+    assert.doesNotMatch(SOURCE, /"data\/handoff-audit-exports"/);
   });
 });
 
@@ -73,7 +75,7 @@ describe("handoffAuditExport local fixture", () => {
     assert.equal("system_prompt" in candidates[0]!, false);
 
     const personas = resolveHandoffAuditAdminPersonaCandidates();
-    assert.ok(personas.some((row) => row.id === personaId));
+    assert.ok(personas.some((row) => row.personaId === personaId));
     assert.equal(
       personas.some((row) => JSON.stringify(row).includes("페르소나 본문")),
       false

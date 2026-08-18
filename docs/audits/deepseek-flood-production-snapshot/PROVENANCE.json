@@ -49,13 +49,14 @@
   ],
   "new_exporter": {
     "module": "src/lib/handoffAuditExport.ts",
-    "http": "GET /api/admin/handoff-audit-export",
+    "http": "POST /api/admin/handoff-audit-export",
     "default": "HANDOFF_AUDIT_EXPORT_ENABLED=false",
-    "auth": "ADMIN_DEBUG_TOKEN via x-admin-debug-token or Bearer",
+    "auth": "ADMIN_DEBUG_TOKEN via x-admin-debug-token or Authorization Bearer header only",
     "modes": ["snapshot", "resolve-character", "resolve-admin-personas"],
     "mutations": false,
     "logs_raw": false,
-    "private_storage": "data/handoff-audit-exports/ (gitignored)"
+    "cache_control": "no-store",
+    "private_storage": "/data/handoff-audit-exports/"
   },
   "production_db_source_when_proven": {
     "path": "/data/app.db",
