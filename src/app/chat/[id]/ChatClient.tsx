@@ -4200,12 +4200,6 @@ export default function ChatClient({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <ChatRoomAdultModeToggle
-                    isAdult={isAdult}
-                    enabled={adultHandoffOn}
-                    busy={adultHandoffBusy}
-                    onToggle={() => void toggleAdultHandoff()}
-                  />
                   <button
                     type="button"
                     onClick={() => setAssetAlbumOpen(true)}
@@ -4246,12 +4240,6 @@ export default function ChatClient({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <ChatRoomAdultModeToggle
-                isAdult={isAdult}
-                enabled={adultHandoffOn}
-                busy={adultHandoffBusy}
-                onToggle={() => void toggleAdultHandoff()}
-              />
               <button
                 type="button"
                 onClick={() => setAssetAlbumOpen(true)}
@@ -4326,12 +4314,6 @@ export default function ChatClient({
               ) : null
             )}
           </div>
-          <ChatRoomAdultModeToggle
-            isAdult={isAdult}
-            enabled={adultHandoffOn}
-            busy={adultHandoffBusy}
-            onToggle={() => void toggleAdultHandoff()}
-          />
           <button
             type="button"
             onClick={() => setAssetAlbumOpen(true)}
@@ -4795,6 +4777,12 @@ export default function ChatClient({
                 </option>
               ))}
             </select>
+            <ChatRoomAdultModeToggle
+              isAdult={isAdult}
+              enabled={adultHandoffOn}
+              busy={adultHandoffBusy}
+              onToggle={() => void toggleAdultHandoff()}
+            />
           </label>
           <button
             type="button"
