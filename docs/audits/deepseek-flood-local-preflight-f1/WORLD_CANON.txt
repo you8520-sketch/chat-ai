@@ -1,0 +1,6 @@
+WORLD_CANON.txt
+TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
+SHA256: NOT_COMPUTED
+RAW: NOT_FETCHED
+
+World/canon is character-owned production prompt data. It was not loaded because the 플러드 production record was not fetched.

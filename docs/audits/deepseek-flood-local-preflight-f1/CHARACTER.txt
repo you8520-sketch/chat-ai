@@ -1,0 +1,15 @@
+CHARACTER.txt
+TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
+REQUESTED_NAME: 플러드
+EXCLUDED_NAMES: 이혁, 로코
+CHARACTER_PRODUCTION_RECORD_PROVEN: false
+LOCAL_REPLICA_USED_AS_PRODUCTION: false
+RAW: NOT_FETCHED
+
+Provenance attempts (read-only):
+- Local /workspace/data/app.db: 0 matching rows.
+- Git / docs: no production card snapshot for 플러드.
+- Railway production volume chat-ai-volume (/data/app.db): not readable with the available project token (SSH key registration unsupported).
+- Production HTTP: unauthenticated search/home listed no 플러드 card; character pages require login.
+
+No character/card fields were invented, shortened, or copied from unit-test fixtures.

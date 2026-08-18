@@ -1,0 +1,17 @@
+{
+  "SOURCE_GEMINI_CALLS": 0,
+  "DEEPSEEK_CALLS": 0,
+  "REASONING_EVENTS": "0 / 0",
+  "REASONING_CHARS": "0 / 0",
+  "TRUE_OFF_PARITY": null,
+  "CHARACTER_SHA": null,
+  "PERSONA_SHA": null,
+  "SPEECH_LOCK_SHA": null,
+  "WORLD_CANON_SHA": null,
+  "SYSTEM_SHA": null,
+  "HISTORY_SHA": null,
+  "SOURCE_ASSISTANT_SHA": null,
+  "CURRENT_USER_SHA": null,
+  "FULL_PROMPT_SHA": null,
+  "QUALITY_SCORING_BY_CURSOR": false
+}

@@ -1,0 +1,9 @@
+HISTORY.txt
+TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
+SHA256: NOT_COMPUTED
+RAW: NOT_FETCHED
+SOURCE_GEMINI_CALLS: 0
+USER_TURN_ORIGIN: CURSOR_SYNTHETIC
+HUMAN_WRITTEN: false
+
+No local audit conversation was created. Gemini 3.7 Flash source turns were not started.

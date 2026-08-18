@@ -1,0 +1,8 @@
+CURRENT_USER.txt
+TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
+USER_TURN_ORIGIN: CURSOR_SYNTHETIC
+HUMAN_WRITTEN: false
+CURRENT_USER_SHA: NOT_COMPUTED
+RAW: NOT_WRITTEN
+
+No synthetic adult-boundary user turn was generated, because source voice establishment never started.

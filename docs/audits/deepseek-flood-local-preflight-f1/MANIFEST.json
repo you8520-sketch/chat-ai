@@ -1,0 +1,84 @@
+{
+  "track": "DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1",
+  "DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1": true,
+  "CHARACTER": "플러드",
+  "OTHER_CHARACTERS_EXCLUDED": ["이혁", "로코"],
+  "CHARACTER_PRODUCTION_RECORD_PROVEN": false,
+  "PERSONA_SOURCE": "ADMIN_EXISTING_PERSONA",
+  "PERSONA_CONTENT_FETCHED": false,
+  "SOURCE_MODEL": "Gemini 3.7 Flash",
+  "TARGET_MODEL": "deepseek-v4-pro-0813",
+  "USER_TURN_ORIGIN": "CURSOR_SYNTHETIC",
+  "HUMAN_WRITTEN": false,
+  "HUMAN_WRITTEN_FINAL_QUALIFICATION": false,
+  "PRODUCTION_EQUIVALENT_HUMAN_FIXTURE": false,
+  "SOURCE_GEMINI_CALLS": 0,
+  "DEEPSEEK_CALLS": 0,
+  "TRUE_OFF_CONFIG": {
+    "thinking": { "type": "disabled" },
+    "reasoning_effort": "none",
+    "do_not_send": ["enable_thinking", "reasoning", "include_reasoning"]
+  },
+  "REASONING_EVENTS": "0 / 0",
+  "REASONING_CHARS": "0 / 0",
+  "TRUE_OFF_PARITY": null,
+  "SOURCE_ASSISTANT_SHA": null,
+  "CURRENT_USER_SHA": null,
+  "FULL_PROMPT_SHA": null,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "TURN_OWNERSHIP": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "ADULT_SCENE_HANDOFF_GENERAL_ENABLED_CHANGED": false,
+  "QA_CANARY_CHANGED": false,
+  "STOP_REASON": "production_record_unreadable",
+  "production_lookup": {
+    "railway_project": "enchanting-ambition",
+    "railway_project_id": "072644e5-ce50-49bb-ab2e-1f13bae6b149",
+    "railway_environment": "production",
+    "railway_environment_id": "9ed4cc65-609e-4dde-96fb-2397a6a12885",
+    "railway_service": "chat-ai",
+    "railway_volume": "chat-ai-volume",
+    "railway_volume_id": "58dae376-de97-49ec-8a83-8ed38863eedd",
+    "production_db_path": "/data/app.db",
+    "production_db_mounted": true,
+    "latest_railway_git_sha": "be75385f8ec7c14110abb0e3f4798dfe0821bec9",
+    "local_workspace_git_sha_at_lookup": "be75385f8ec7c14110abb0e3f4798dfe0821bec9",
+    "local_data_app_db_flood_rows": 0,
+    "local_replica_used_as_production": false
+  },
+  "attempted_sources": [
+    {
+      "id": "local_sqlite_data_app_db",
+      "result": "no row WHERE name LIKE '%플러드%' OR name LIKE '%서강우%'"
+    },
+    {
+      "id": "git_history_and_docs",
+      "result": "no production card dump; only unit-test name mentions"
+    },
+    {
+      "id": "railway_volume_files_list_download",
+      "result": "blocked: project RAILWAY_TOKEN cannot register SSH keys; volume files require SSH"
+    },
+    {
+      "id": "railway_ssh_select",
+      "result": "blocked: SSH key signup_required; no workspace API token"
+    },
+    {
+      "id": "production_http_public",
+      "result": "GET /search?q=플러드 returned no character cards; GET /character/* redirects to /login; share slugs 404"
+    }
+  ],
+  "blocked_next_steps_not_run": [
+    "production character snapshot",
+    "admin persona snapshot",
+    "buildContext assembly freeze",
+    "Gemini 3.7 Flash source turns",
+    "adult handoff boundary synthetic user turn",
+    "DeepSeek 0813 Vanilla TRUE-OFF n=2"
+  ]
+}
