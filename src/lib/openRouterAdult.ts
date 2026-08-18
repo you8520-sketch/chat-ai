@@ -557,6 +557,11 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /**
+   * Non-DeepSeek → DeepSeek0813 adult-handoff TRUE-OFF only.
+   * Must not be set for native/user-selected DeepSeek.
+   */
+  deepSeekAdultHandoffTrueOff?: boolean;
   /** Internal budget/diagnostic label for this upstream request. */
   requestKind?: string;
   /**
@@ -1115,10 +1120,13 @@ function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): Compat
 
 function adaptRequestBodyForTransport(
   body: Record<string, unknown>,
-  transport: CompatibleTransport
+  transport: CompatibleTransport,
+  messageOpts?: OpenRouterMessageOpts
 ): Record<string, unknown> {
   if (transport.provider !== "cheaperinference") return body;
-  return adaptCheaperInferenceChatBody(body);
+  return adaptCheaperInferenceChatBody(body, {
+    deepSeekAdultHandoffTrueOff: messageOpts?.deepSeekAdultHandoffTrueOff === true,
+  });
 }
 
 export type AssembledPrimaryRpRequest = {
@@ -1218,7 +1226,11 @@ export function assemblePrimaryRpRequest(opts: {
     opts.messageOpts?.maxTokensOverride,
     opts.messageOpts?.generationOverrides
   ) as Record<string, unknown>;
-  const requestBody = adaptRequestBodyForTransport(requestBodyBeforeAdapt, transport);
+  const requestBody = adaptRequestBodyForTransport(
+    requestBodyBeforeAdapt,
+    transport,
+    opts.messageOpts
+  );
   return {
     transport,
     messages,
@@ -2244,7 +2256,8 @@ export async function callOpenRouterAdult(
         messageOpts?.maxTokensOverride,
         messageOpts?.generationOverrides
       ),
-      transport
+      transport,
+      messageOpts
     );
     dumpOpenRouterRequest(requestBody as Record<string, unknown>, {
       ...debugMeta,

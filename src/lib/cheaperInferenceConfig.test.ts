@@ -195,3 +195,34 @@ test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id
   assert.equal(adapted.reasoning_effort, undefined);
   assert.notEqual(adapted.model, "deepseek-v4-pro");
 });
+
+test("adult-handoff TRUE-OFF adds reasoning_effort none after the native DeepSeek adapter", () => {
+  const native = adaptCheaperInferenceChatBody({
+    model: "deepseek-v4-pro-0813",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "high",
+    enable_thinking: true,
+    reasoning: { effort: "high" },
+    include_reasoning: true,
+  });
+  const handoff = adaptCheaperInferenceChatBody(
+    {
+      model: "deepseek-v4-pro-0813",
+      messages: [{ role: "user", content: "hello" }],
+      reasoning_effort: "high",
+      enable_thinking: true,
+      reasoning: { effort: "high" },
+      include_reasoning: true,
+    },
+    { deepSeekAdultHandoffTrueOff: true }
+  );
+  assert.deepEqual(native.thinking, { type: "disabled" });
+  assert.equal(native.reasoning_effort, undefined);
+  assert.equal(native.reasoning, undefined);
+  assert.equal(native.include_reasoning, undefined);
+  assert.deepEqual(handoff.thinking, { type: "disabled" });
+  assert.equal(handoff.reasoning_effort, "none");
+  assert.equal(handoff.reasoning, undefined);
+  assert.equal(handoff.include_reasoning, undefined);
+  assert.equal(handoff.enable_thinking, undefined);
+});
