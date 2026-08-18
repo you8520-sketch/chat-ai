@@ -342,15 +342,12 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
   });
   disposables.push(frameMaterial, capMaterial, oxidationMaterial);
 
-  const showFrame = false;
-  if (showFrame) {
-    for (const [a, b] of collectUniqueEdges(source)) {
-      const frame = new THREE.Mesh(edgeFrameGeometry(a, b, frameWidth, frameDepth), frameMaterial);
-      frame.castShadow = true;
-      frame.receiveShadow = true;
-      group.add(frame);
-      disposables.push(frame.geometry);
-    }
+  for (const [a, b] of collectUniqueEdges(source)) {
+    const frame = new THREE.Mesh(edgeFrameGeometry(a, b, frameWidth, frameDepth), frameMaterial);
+    frame.castShadow = true;
+    frame.receiveShadow = true;
+    group.add(frame);
+    disposables.push(frame.geometry);
   }
 
   const capRadius = radius * 2 * TRPG_D20_VERTEX_CAP_RADIUS_RATIO;
@@ -388,6 +385,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     gem.receiveShadow = true;
     gem.castShadow = true;
     gem.renderOrder = 1;
+    gem.frustumCulled = false;
     group.add(gem);
     disposables.push(gem.geometry, gemMaterial, gemMap);
 
