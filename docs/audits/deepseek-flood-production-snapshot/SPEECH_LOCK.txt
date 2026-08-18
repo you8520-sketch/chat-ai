@@ -1,11 +1,10 @@
 SPEECH_LOCK.txt
-TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0
-RAW: NOT_FETCHED
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
+SPEECH_LOCK_SHA: a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
 RAW_PUBLISHED_TO_GIT: false
 
-Production loaders prepared:
-- parseStoredSpeechProfile(characters.speech_profile)
-- resolveExampleDialogForPrompt(characters.example_dialog, name)
-- loadCharacterChunksForPromptReadOnly (speech sections inside setting chunks)
-
-speech_personality / speech_traits are not database columns. Chat route reads them from the SELECT * row and therefore sees empty strings unless a future column exists.
+Loaders:
+- parseStoredSpeechProfile
+- resolveExampleDialogForPrompt
+- loadCharacterChunksForPromptReadOnly

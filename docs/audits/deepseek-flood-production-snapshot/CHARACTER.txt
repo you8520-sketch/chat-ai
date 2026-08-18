@@ -1,15 +1,18 @@
 CHARACTER.txt
-TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P0
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
 REQUESTED_NAME: 플러드
-FLOOD_CHARACTER_ID: NOT_RESOLVED
-FLOOD_PRODUCTION_RECORD_PROVEN: false
-RAW: NOT_FETCHED
+FLOOD_CHARACTER_ID: 17
+official: 0
+creator_id: 6
+nsfw: 1
+visibility: public
+moderation_status: approved
+exact_name_matches: 1
+FLOOD_PRODUCTION_RECORD_PROVEN: true
+CHARACTER_SHA: f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
 RAW_PUBLISHED_TO_GIT: false
 
-Production loaders prepared (not executed against live /data/app.db):
+Loaders:
 - getDb().prepare("SELECT * FROM characters WHERE id = ?")
 - loadCharacterChunksForPromptReadOnly
-
-Exact production ID is unresolved. Display name alone is not treated as unique.
-Deploy the default-off exporter, then resolve-character with exact name 플러드.
-Do not copy local data/app.db or unit-test fixtures as the production card.
