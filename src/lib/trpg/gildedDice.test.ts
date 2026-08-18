@@ -47,6 +47,16 @@ describe("Gilded Verdant Relic geometry redesign (lab candidate)", () => {
     assert.equal(TRPG_D20_OXIDATION, "#2a2418");
   });
 
+  it("wires the campaign overlay to the gilded scene only when that theme is selected", () => {
+    const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(overlay, /TrpgGildedDiceScene/);
+    assert.match(overlay, /theme === "gilded-verdant-relic"/);
+    assert.match(room, /diceTheme/);
+    assert.match(room, /useCampaignDicePreview/);
+    assert.doesNotMatch(room, /PRODUCTION_D20_THEME = "gilded-verdant-relic"/);
+  });
+
   it("stays a lab candidate until a human reviews real screenshots", () => {
     assert.equal(TRPG_D20_VISUAL_QUALITY, "NEEDS_HUMAN_REVIEW");
     const gilded = trpgD20ThemeSpec("gilded-verdant-relic");

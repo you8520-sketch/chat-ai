@@ -30,6 +30,7 @@ import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import TrpgD20 from "./TrpgD20";
 
 const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
+const TrpgGildedDiceScene = dynamic(() => import("./TrpgGildedDiceScene"), { ssr: false });
 
 function detectWebgl(): boolean {
   try {
@@ -134,14 +135,24 @@ export default function TrpgDiceOverlay({
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
             {use3d ? (
-              <TrpgDiceScene
-                value={roll.d20}
-                tone={tone}
-                theme={theme}
-                durationMs={timing.perDie}
-                reducedQuality={reducedQuality}
-                onSettled={onSettled}
-              />
+              theme === "gilded-verdant-relic" ? (
+                <TrpgGildedDiceScene
+                  value={roll.d20}
+                  tone={tone}
+                  durationMs={timing.perDie}
+                  reducedQuality={reducedQuality}
+                  onSettled={onSettled}
+                />
+              ) : (
+                <TrpgDiceScene
+                  value={roll.d20}
+                  tone={tone}
+                  theme={theme}
+                  durationMs={timing.perDie}
+                  reducedQuality={reducedQuality}
+                  onSettled={onSettled}
+                />
+              )
             ) : (
               <div
                 className="flex h-full w-full items-center justify-center [&_svg]:h-[72%] [&_svg]:w-[72%]"
