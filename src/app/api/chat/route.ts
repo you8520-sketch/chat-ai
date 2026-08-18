@@ -1969,6 +1969,7 @@ export async function POST(req: Request) {
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
     shortTermHistory: promptHistory,
     currentUserMessage: promptUserMessage,
+    currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
     nsfw: isAdultMode,
     gender: resolveCharacterGender(ch.gender),
     assetTags: assetTags.length > 0 ? assetTags : undefined,

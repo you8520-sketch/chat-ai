@@ -329,9 +329,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
   const currentTurnDelegation = autoProgressionEnabled
     ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveCurrentTurnUserAuthoringDelegation({
-        currentUserInput: input.currentUserMessage,
-      });
+    : input.currentTurnAuthoringDelegation !== undefined
+      ? input.currentTurnAuthoringDelegation
+      : resolveCurrentTurnUserAuthoringDelegation({
+          currentUserInput: input.currentUserMessage,
+        });
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
@@ -1673,6 +1675,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
       momentumActivation,
+      runtimeMode,
     },
   };
 }

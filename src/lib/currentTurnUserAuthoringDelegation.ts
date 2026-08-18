@@ -29,11 +29,23 @@ export const INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION: CurrentTurnAuthoringDel
 const AUTHORING_INTENT_RE =
   /알아서\s*해|알아서\s*(?:써|작성|진행|움직)|자동\s*서술|맡길게|네가\s*(?:해|알아서|써|작성|진행|움직)|써\s*줘|작성해(?:\s*줘|[라요])?|작성한다|진행해(?:\s*줘|[라요])?|진행한다|움직여(?:\s*줘|[라요])?/;
 
-const DIALOGUE_SCOPE_RE = /대사/;
-const ACTION_SCOPE_RE = /행동|움직여/;
+/**
+ * Positive authoring relationship for a scope — not mere noun presence.
+ * "행동은 내가 할게" contains 행동 but is not action delegation.
+ */
+const DIALOGUE_GRANT_RE = /(?:유저\s*)?대사(?:만|도|는|은|를|을|랑)|유저대사/;
+const ACTION_GRANT_RE = /행동(?:만|도|는|은|를|을|랑)|움직여/;
 /** Whole-persona / turn-progress — not "페르소나에 맞춰서" style qualifiers. */
-const FULL_PERSONA_SCOPE_RE =
-  /(?:유저\s*)?페르소나\s*도|턴을\s*진행|자동\s*서술/;
+const FULL_PERSONA_GRANT_RE =
+  /(?:유저\s*)?페르소나\s*도|턴을\s*진행|자동\s*서술|대사\s*(?:랑|와|과)\s*행동/;
+
+const EXCLUSIVE_DIALOGUE_RE = /대사\s*만/;
+const EXCLUSIVE_ACTION_RE = /행동\s*만/;
+
+const DIALOGUE_RETAIN_OR_DENY_RE =
+  /대사(?:는|은|를|을)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|쓸게|쓸래|쓸|작성)|직접\s*(?:쓸|할게|작성))/;
+const ACTION_RETAIN_OR_DENY_RE =
+  /행동(?:는|은|를|을)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|할래|할|진행할게)|직접\s*(?:할게|할|진행))/;
 
 const LEADING_BARE_COLON_RE = /^OOC\s*[:：]/i;
 const LEADING_BRACKET_RE = /^\[\s*OOC\s*\]/i;
@@ -118,26 +130,29 @@ function resolveDelegationScope(oocBody: string): {
 } | null {
   if (!AUTHORING_INTENT_RE.test(oocBody)) return null;
 
-  const hasDialogue = DIALOGUE_SCOPE_RE.test(oocBody);
-  const hasAction = ACTION_SCOPE_RE.test(oocBody);
-  const hasFullPersona = FULL_PERSONA_SCOPE_RE.test(oocBody);
+  const exclusiveDialogue = EXCLUSIVE_DIALOGUE_RE.test(oocBody) && !EXCLUSIVE_ACTION_RE.test(oocBody);
+  const exclusiveAction = EXCLUSIVE_ACTION_RE.test(oocBody) && !EXCLUSIVE_DIALOGUE_RE.test(oocBody);
+  const dialogueDenied = DIALOGUE_RETAIN_OR_DENY_RE.test(oocBody);
+  const actionDenied = ACTION_RETAIN_OR_DENY_RE.test(oocBody);
 
-  if (hasDialogue && hasAction) {
-    return { allowDialogue: true, allowMajorActions: true };
+  let allowDialogue =
+    DIALOGUE_GRANT_RE.test(oocBody) || FULL_PERSONA_GRANT_RE.test(oocBody);
+  let allowMajorActions =
+    ACTION_GRANT_RE.test(oocBody) || FULL_PERSONA_GRANT_RE.test(oocBody);
+
+  if (exclusiveDialogue) {
+    allowDialogue = true;
+    allowMajorActions = false;
+  } else if (exclusiveAction) {
+    allowDialogue = false;
+    allowMajorActions = true;
   }
-  if (hasFullPersona && (hasDialogue || hasAction)) {
-    return { allowDialogue: true, allowMajorActions: true };
-  }
-  if (hasDialogue) {
-    return { allowDialogue: true, allowMajorActions: false };
-  }
-  if (hasAction) {
-    return { allowDialogue: false, allowMajorActions: true };
-  }
-  if (hasFullPersona) {
-    return { allowDialogue: true, allowMajorActions: true };
-  }
-  return null;
+
+  if (dialogueDenied) allowDialogue = false;
+  if (actionDenied) allowMajorActions = false;
+
+  if (!allowDialogue && !allowMajorActions) return null;
+  return { allowDialogue, allowMajorActions };
 }
 
 export function resolveCurrentTurnUserAuthoringDelegation(input: {

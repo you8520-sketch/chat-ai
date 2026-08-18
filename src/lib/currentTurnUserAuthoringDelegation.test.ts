@@ -145,6 +145,61 @@ describe("resolveCurrentTurnUserAuthoringDelegation", () => {
     }
   });
 
+  it("scope A — dialogue-only with retained actions", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 대사만 페르소나대로 써줘.\n행동은 내가 할게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: true, allowMajorActions: false }
+    );
+  });
+
+  it("scope B — action-only with retained dialogue", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 행동만 알아서 진행해.\n대사는 내가 쓸게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: false, allowMajorActions: true }
+    );
+  });
+
+  it("scope C — explicit action denial", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 대사는 써줘. 행동은 쓰지 마.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: true, allowMajorActions: false }
+    );
+  });
+
+  it("scope D — explicit dialogue denial", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 행동은 진행해줘. 대사는 쓰지 마.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: false, allowMajorActions: true }
+    );
+  });
+
+  it("full delegation still grants both scopes", () => {
+    for (const input of [
+      "OOC: 내 대사랑 행동도 알아서 진행해.",
+      "OOC: 유저 페르소나도 네가 알아서 진행해.",
+      "OOC: 유저대사를 유저페르소나 성격에 맞춰서\n자동서술하며 턴을 진행한다.",
+    ]) {
+      const d = resolveCurrentTurnUserAuthoringDelegation({ currentUserInput: input });
+      assert.deepEqual(
+        { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+        { active: true, allowDialogue: true, allowMajorActions: true },
+        input
+      );
+    }
+  });
+
   it("supports listed dialogue / action / full scopes", () => {
     const dialogue = resolveCurrentTurnUserAuthoringDelegation({
       currentUserInput: "OOC: 렌 대사는 네가 알아서 해.",
