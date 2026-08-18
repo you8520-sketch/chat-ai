@@ -5,18 +5,18 @@
 
 export const TRPG_D20_SETTLE_START = 0.82;
 export const TRPG_D20_FLOOR_Y = -0.02;
-export const TRPG_D20_START_Y = 1.58;
+export const TRPG_D20_START_Y = 0.36;
 export const TRPG_D20_FALL_END = 0.5;
 export const TRPG_D20_BOUNCE1_PEAK_T = 0.58;
 export const TRPG_D20_BOUNCE1_END = 0.68;
-export const TRPG_D20_BOUNCE1_HEIGHT = 0.3;
+export const TRPG_D20_BOUNCE1_HEIGHT = 0.13;
 export const TRPG_D20_BOUNCE2_PEAK_T = 0.73;
 export const TRPG_D20_BOUNCE2_END = 0.82;
-export const TRPG_D20_BOUNCE2_HEIGHT = 0.075;
+export const TRPG_D20_BOUNCE2_HEIGHT = 0.04;
 export const TRPG_D20_OMEGA0 = 22;
 export const TRPG_D20_SPIN_DECAY = 2.55;
-export const TRPG_D20_START_X = 1.18;
-export const TRPG_D20_START_Z = -0.38;
+export const TRPG_D20_START_X = 0.26;
+export const TRPG_D20_START_Z = 0.14;
 
 export function clampUnit(t: number): number {
   if (t <= 0) return 0;
