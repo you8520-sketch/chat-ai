@@ -230,8 +230,8 @@ function triangleGeometry(corners: FaceCorner[], scale: number, inset: number): 
   const p1 = shrink(b);
   const p2 = shrink(c);
   const geometry = new THREE.BufferGeometry();
-  geometry.setFromPoints([p0, p1, p2]);
-  geometry.setIndex([0, 1, 2]);
+  const positions = new Float32Array([p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0.5, 0.86, 0.14, 0.16, 0.86, 0.16]), 2));
   const normals = new Float32Array([
     normal.x, normal.y, normal.z,
@@ -370,7 +370,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     const value = faceValues[face];
     const gemMap = gemFaceTexture(value, tone);
     const gemMaterial = new THREE.MeshBasicMaterial({
-      color: 0x2f6a44,
+      color: 0xffffff,
       map: gemMap,
       side: THREE.DoubleSide,
     });
