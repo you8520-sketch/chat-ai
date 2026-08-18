@@ -1,0 +1,53 @@
+{
+  "keys": [
+    "messages",
+    "model",
+    "stream",
+    "stream_options",
+    "temperature",
+    "thinking"
+  ],
+  "fields": {
+    "model": "aion-labs.aion-2-0",
+    "stream": true,
+    "temperature": 0.7,
+    "stream_options": {
+      "include_usage": true
+    },
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "message_roles": [
+    "system",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "message_chars": [
+    17339,
+    204,
+    4324,
+    973
+  ],
+  "reasoning_metadata": {
+    "provider": "cheaperinference",
+    "model": "aion-labs.aion-2-0",
+    "capabilities_reasoning": true,
+    "supported_efforts": null,
+    "default_effort": null,
+    "default_enabled": null,
+    "mandatory": null,
+    "prior_reasoning_effort_none": "HTTP 400 invalid_request on AION20_CONSENSUAL_1/2",
+    "official_aion20": "reasoning_effort none|low|medium|high, default medium"
+  },
+  "reasoning_config": {
+    "reasoning_effort": "OMITTED_CI_REJECTED_NONE",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning": null,
+    "include_reasoning": null,
+    "why": "CI catalog has no supported_efforts. Live CI rejected reasoning_effort=none. Thinking off uses CI production thinking.type=disabled. Official Aion 2.0 none was not resent."
+  }
+}
