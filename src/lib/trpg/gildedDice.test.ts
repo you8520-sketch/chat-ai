@@ -54,6 +54,7 @@ describe("Gilded Verdant Relic geometry redesign (lab candidate)", () => {
     assert.match(overlay, /theme === "gilded-verdant-relic"/);
     assert.match(room, /diceTheme/);
     assert.match(room, /useCampaignDicePreview/);
+    assert.match(room, /resolveCampaignDicePreviewOverlay/);
     assert.doesNotMatch(room, /PRODUCTION_D20_THEME = "gilded-verdant-relic"/);
   });
 

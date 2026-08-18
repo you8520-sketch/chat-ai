@@ -27,6 +27,7 @@ import {
 } from "@/lib/trpg/diceVisual";
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
 import TrpgD20 from "./TrpgD20";
 
 const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
@@ -46,11 +47,15 @@ export default function TrpgDiceOverlay({
   rolls,
   resolutionOrder,
   theme = PRODUCTION_D20_THEME,
+  previewInstrument = false,
+  roundNumber = 0,
 }: {
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   resolutionOrder?: readonly TrpgResolutionOrderEntry[];
   theme?: TrpgD20ThemeId;
+  previewInstrument?: boolean;
+  roundNumber?: number;
 }) {
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const timing = trpgDiceDurationMs(ordered.length);
@@ -59,6 +64,10 @@ export default function TrpgDiceOverlay({
   const [use3d, setUse3d] = useState(false);
   const [reducedQuality, setReducedQuality] = useState(false);
   const prevRef = useRef({ phase: "", rollCount: 0 });
+  const playRef = useRef(play);
+  playRef.current = play;
+  const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered });
+  instrumentRef.current = { previewInstrument, roundNumber, theme, ordered };
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
 
   useEffect(() => {
@@ -68,9 +77,39 @@ export default function TrpgDiceOverlay({
       rollCount: ordered.length,
       prevRollCount: prevRef.current.rollCount,
     });
+    const inst = instrumentRef.current;
+    if (inst.previewInstrument) {
+      const next = applyTrpgDiceOverlaySession(playRef.current, action);
+      logTrpgDicePreviewInstrument({
+        roundNumber: inst.roundNumber,
+        phase,
+        currentRollsLength: ordered.length,
+        rollKey: previewDiceRollKey(inst.ordered),
+        overlaySessionAction: action,
+        overlayStarted: next.started,
+        overlayDismissed: next.dismissed,
+        theme: inst.theme,
+        overlayMounted: trpgDiceOverlayVisible(next.started, next.dismissed, ordered.length),
+      });
+    }
     prevRef.current = { phase, rollCount: ordered.length };
     setPlay((current) => applyTrpgDiceOverlaySession(current, action));
   }, [ordered.length, phase]);
+
+  useEffect(() => {
+    if (!previewInstrument) return;
+    logTrpgDicePreviewInstrument({
+      roundNumber,
+      phase,
+      currentRollsLength: ordered.length,
+      rollKey: previewDiceRollKey(ordered),
+      overlaySessionAction: "keep",
+      overlayStarted: play.started,
+      overlayDismissed: play.dismissed,
+      theme,
+      overlayMounted: visible,
+    });
+  }, [ordered, phase, play.dismissed, play.started, previewInstrument, roundNumber, theme, visible]);
 
   const onSettled = useCallback(() => {
     window.setTimeout(() => {

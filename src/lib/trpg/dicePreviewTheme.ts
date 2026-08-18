@@ -54,8 +54,64 @@ export function shouldInjectPreviewDiceOverlay(opts: {
 }): boolean {
   if (!opts.previewEnabled) return false;
   const play = (opts.queryPreview ?? "").trim().toLowerCase();
-  if (play === "1" || play === "true") return true;
-  return parseDiceThemeQuery(opts.queryTheme) === "gilded-verdant-relic";
+  return play === "1" || play === "true";
+}
+
+export function resolveCampaignDicePreviewOverlay(opts: {
+  previewEnabled: boolean;
+  queryTheme?: string | null;
+  queryPreview?: string | null;
+  phase: string;
+  currentRolls: readonly TrpgPublicRoll[];
+  fixtureName?: string;
+}): {
+  theme: TrpgD20ThemeId;
+  phase: string;
+  rolls: readonly TrpgPublicRoll[];
+  inject: boolean;
+} {
+  const theme = resolveCampaignOverlayDiceTheme({
+    previewEnabled: opts.previewEnabled,
+    queryTheme: opts.queryTheme,
+  });
+  const inject = shouldInjectPreviewDiceOverlay({
+    previewEnabled: opts.previewEnabled,
+    queryTheme: opts.queryTheme,
+    queryPreview: opts.queryPreview,
+  });
+  if (!inject) {
+    return { theme, phase: opts.phase, rolls: opts.currentRolls, inject: false };
+  }
+  return {
+    theme,
+    phase: "ROLLING",
+    rolls: opts.currentRolls.length > 0 ? opts.currentRolls : [previewDiceOverlayFixture(opts.fixtureName)],
+    inject: true,
+  };
+}
+
+export type TrpgDicePreviewInstrument = {
+  roundNumber: number;
+  phase: string;
+  currentRollsLength: number;
+  rollKey: string;
+  overlaySessionAction: string;
+  overlayStarted: boolean;
+  overlayDismissed: boolean;
+  theme: TrpgD20ThemeId;
+  overlayMounted: boolean;
+};
+
+export function previewDiceRollKey(rolls: readonly { participantId: number; d20: number }[]): string {
+  return rolls.map((roll) => `${roll.participantId}:${roll.d20}`).join(",");
+}
+
+export function logTrpgDicePreviewInstrument(entry: TrpgDicePreviewInstrument): void {
+  if (typeof window === "undefined") return;
+  const bag = ((window as Window & { __TRPG_DICE_PREVIEW_LOG?: TrpgDicePreviewInstrument[] })
+    .__TRPG_DICE_PREVIEW_LOG ??= []);
+  bag.push(entry);
+  console.info("[trpg-dice-preview]", entry);
 }
 
 export function previewDiceOverlayFixture(name = "권태현"): TrpgPublicRoll {
