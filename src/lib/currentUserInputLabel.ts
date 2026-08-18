@@ -70,6 +70,8 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
  *    aligned with COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Default gate is OFF.
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
  *    full co-narration semantics preserved unchanged.
+ *  - current_turn_ooc_delegated: keep the OOC instruction verbatim; owner
+ *    controls delegated [B] scope for this turn only.
  */
 export function buildCurrentUserInputWrapper(opts?: {
   mode?: ChatRuntimeMode;
@@ -85,6 +87,13 @@ The following is the user's latest input.
 It is what the user already said/did.
 Current mode allows limited/full user co-narration per [NO GODMODDING] / novel rules.
 If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`;
+  }
+
+  if (mode === "current_turn_ooc_delegated") {
+    return `${CURRENT_USER_INPUT_HEADER}
+The following is the user's completed input, including an explicit current-turn OOC authoring instruction.
+Keep the OOC text as written (style, tone, and qualifiers). Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the delegated scope only.
+This delegation applies to THIS TURN only.`;
   }
 
   // interactive

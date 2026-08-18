@@ -45,6 +45,15 @@ describe("chatRuntimeMode", () => {
     assert.equal(chatRuntimeModeAllowsUserNarration("interactive"), false);
     assert.equal(chatRuntimeModeAllowsUserNarration("auto_progression"), true);
   });
+
+  it("maps current-turn OOC delegation → current_turn_ooc_delegated", () => {
+    assert.equal(
+      resolveChatRuntimeMode({ currentTurnDelegationActive: true }),
+      "current_turn_ooc_delegated"
+    );
+    assert.equal(isInteractiveChatRuntimeMode("current_turn_ooc_delegated"), false);
+    assert.equal(chatRuntimeModeAllowsUserNarration("current_turn_ooc_delegated"), false);
+  });
 });
 
 describe("interactive user control prompt", () => {
@@ -195,6 +204,13 @@ describe("interactive user impersonation detector", () => {
   it("skips detection in auto_progression", () => {
     const hit = detectInteractiveUserImpersonation('[B]는 말했다. "가자."', {
       mode: "auto_progression",
+    });
+    assert.equal(hit.detected, false);
+  });
+
+  it("skips detection in current_turn_ooc_delegated", () => {
+    const hit = detectInteractiveUserImpersonation('[B]는 말했다. "가자."', {
+      mode: "current_turn_ooc_delegated",
     });
     assert.equal(hit.detected, false);
   });

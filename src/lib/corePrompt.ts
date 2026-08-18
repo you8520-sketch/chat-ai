@@ -44,6 +44,8 @@ export type CoreMasterPromptInput = {
   statusWindowTailActive?: boolean;
   /** 일반 자동진행 턴 — length guard가 확장 BOUNDARY와 일치 */
   autoContinueTurn?: boolean;
+  /** Manual current-turn OOC delegation owner */
+  currentTurnDelegated?: boolean;
 };
 
 function roleBoundaryLine(i: CoreMasterPromptInput): string {
@@ -53,6 +55,9 @@ function roleBoundaryLine(i: CoreMasterPromptInput): string {
   }
   if (i.impersonationOn) {
     return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL MODE - LIMITED CO-NARRATION]를 따른다.`;
+  }
+  if (i.currentTurnDelegated) {
+    return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER AUTHORING — CURRENT-TURN OOC DELEGATION]를 따른다.`;
   }
   return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL — COLLABORATIVE INTERACTIVE]를 따른다.`;
 }
@@ -135,6 +140,7 @@ function buildIdentityPreamble(opts: {
   impersonationOn: boolean;
   novelMode: boolean;
   autoProgression: boolean;
+  currentTurnDelegated: boolean;
 }): string {
   if (opts.autoProgression) {
     return AUTO_PROGRESSION_IDENTITY_PREAMBLE;
@@ -143,6 +149,9 @@ function buildIdentityPreamble(opts: {
     return `The following defines the USER's roleplay persona for novel mode co-narration. [USER_PERSONA] describes [B] — mirror per [NO GODMODDING — NOVEL MODE] and [NOVEL MODE — USER PERSONA NARRATION RULES].`;
   }
   if (opts.impersonationOn) return IDENTITY_PREAMBLE;
+  if (opts.currentTurnDelegated) {
+    return `The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves. Current-turn OOC delegation may author the delegated [B] scope per [USER AUTHORING — CURRENT-TURN OOC DELEGATION].`;
+  }
   return `The following defines the USER's roleplay persona (NOT the AI character). [USER_PERSONA] describes [B] — involuntary physiological cues OK; voluntary dialogue/action/emotion forbidden per [NO GODMODDING].`;
 }
 
@@ -153,6 +162,7 @@ export function buildIdentityAndRulesBlock(
     impersonationOn?: boolean;
     novelModeEnabled?: boolean;
     autoProgressionEnabled?: boolean;
+    currentTurnDelegated?: boolean;
     userName?: string;
   }
 ): string | null {
@@ -165,6 +175,7 @@ export function buildIdentityAndRulesBlock(
       impersonationOn: !!opts?.impersonationOn,
       novelMode: !!opts?.novelModeEnabled,
       autoProgression: !!opts?.autoProgressionEnabled,
+      currentTurnDelegated: !!opts?.currentTurnDelegated,
     }),
   ];
   if (personaText) parts.push(`[USER_PERSONA]\n${personaText}`);

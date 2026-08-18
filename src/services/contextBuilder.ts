@@ -38,6 +38,10 @@ import { buildUserPersonaReferencePrompt } from "@/lib/userPersonaReference";
 import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
+  INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+  resolveCurrentTurnUserAuthoringDelegation,
+} from "@/lib/currentTurnUserAuthoringDelegation";
+import {
   resolveChatRuntimeMode,
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
@@ -323,6 +327,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const oocLimitedCoNarration =
     !!input.userImpersonation && !autoProgressionEnabled;
   const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
+  const currentTurnDelegation = autoProgressionEnabled
+    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
+    : input.currentTurnAuthoringDelegation !== undefined
+      ? input.currentTurnAuthoringDelegation
+      : resolveCurrentTurnUserAuthoringDelegation({
+          currentUserInput: input.currentUserMessage,
+        });
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
@@ -330,7 +341,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     isContinue: input.isContinue === true,
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
+    currentTurnDelegationActive:
+      !oocLimitedCoNarration && currentTurnDelegation.active,
   });
+  const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
   const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
     input.userId,
     input.modelId
@@ -458,6 +472,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
     autoProgressionEnabled,
+    currentTurnDelegated,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
@@ -481,6 +496,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         novelModeEnabled,
         autoProgressionEnabled,
         impersonationOn: oocLimitedCoNarration,
+        currentTurnDelegated,
         party: input.party,
       }),
       "cacheRules"
@@ -521,6 +537,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
     autoProgressionEnabled,
+    currentTurnDelegated,
     userName: personaLabel,
   });
 
@@ -584,6 +601,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     legacyNovelModeEnabled,
     impersonationOn: oocLimitedCoNarration,
     isContinue: autoProgressionEnabled,
+    currentTurnDelegation,
   });
   // Gemini 3.1 only: append body/intent boundary after shared collaborative
   // interactive owner. Does not mutate COLLABORATIVE_INTERACTIVE_OWNER_BLOCK
@@ -593,7 +611,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "[0a] No godmodding (user agency)",
     "systemRules",
     appendGemini31UserAgencySupplement(
-      buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
+      buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode, {
+        currentTurnDelegation,
+      }),
       {
         modelId: input.modelId,
         godmoddingMode,
@@ -1655,6 +1675,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
       momentumActivation,
+      runtimeMode,
     },
   };
 }

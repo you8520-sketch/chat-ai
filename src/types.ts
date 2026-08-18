@@ -2,6 +2,7 @@ import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import type { ChatMsg } from "@/lib/ai";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ResolvedNarrativePov } from "@/lib/narrativePov";
 /** 캐릭터 설정 분할 단위 */
@@ -74,9 +75,16 @@ export type ContextBuildInput = {
   /**
    * Explicit runtime mode when known.
    * Prefer over reading isContinue/novelModeEnabled alone:
-   * interactive | auto_progression | ooc_user_impersonation_allowed
+   * interactive | auto_progression | ooc_user_impersonation_allowed | current_turn_ooc_delegated
    */
   runtimeMode?: ChatRuntimeMode;
+  /**
+   * Authoritative current-turn OOC delegation from the RAW human user input.
+   * /api/chat must supply this after regenerate/current-turn source is known.
+   * Direct buildContext callers may omit it; contextBuilder then falls back
+   * to parsing currentUserMessage as raw text.
+   */
+  currentTurnAuthoringDelegation?: CurrentTurnAuthoringDelegation;
   personaDisplayName?: string;
   /**
    * Requesting user id — used ONLY by the INTERACTIVE_USER_OWNERSHIP_LOCK admin
@@ -303,6 +311,8 @@ export type BuiltContext = {
      *  + model policy. No raw conversation text. Null when Momentum never
      *  computed (e.g. legacy callers without the channel). */
     momentumActivation?: import("@/lib/sceneMomentum/predicate").MomentumActivationObservability | null;
+    /** Effective runtime mode used for owner + CURRENT USER INPUT wrapper. */
+    runtimeMode?: ChatRuntimeMode;
   };
 };
 

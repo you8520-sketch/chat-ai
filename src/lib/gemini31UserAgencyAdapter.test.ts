@@ -52,6 +52,13 @@ describe("gemini31UserAgencyAdapter", () => {
     assert.equal(
       shouldInjectGemini31UserAgencySupplement({
         modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+        godmoddingMode: "currentTurnDelegated",
+      }),
+      false
+    );
+    assert.equal(
+      shouldInjectGemini31UserAgencySupplement({
+        modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
         godmoddingMode: "standard",
         contentKind: "simulation",
       }),
