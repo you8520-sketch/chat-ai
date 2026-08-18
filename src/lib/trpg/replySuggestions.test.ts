@@ -192,6 +192,8 @@ describe("TRPG reply suggestions", () => {
     const client = fs.readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     assert.match(client, /shouldAutoRequestTrpgActionSuggestions/);
     assert.match(client, /saveTrpgActionSuggestionsEnabled/);
+    assert.match(client, /loadTrpgActionSuggestionsCache/);
+    assert.match(client, /saveTrpgActionSuggestionsCache/);
   });
 
   it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {

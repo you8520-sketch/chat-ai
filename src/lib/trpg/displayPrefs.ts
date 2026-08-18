@@ -5,6 +5,7 @@ import {
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+import type { TrpgReplySuggestion } from "./replySuggestions";
 
 /** Pre-shared-prefs TRPG-only font size. */
 export const TRPG_LEGACY_FONT_SIZE_KEY = "habi:trpg-fontSizePreset";
@@ -43,6 +44,47 @@ export function shouldAutoRequestTrpgActionSuggestions(opts: {
   if (!opts.hasDraft || opts.locked) return false;
   if (opts.requestedRound === opts.roundNumber) return false;
   return true;
+}
+
+/** Per-campaign cache of the last generated action examples (one round per campaign). */
+export const TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX = "habi:trpg-actionSuggestions:";
+
+function suggestionsCacheKey(campaignId: number): string {
+  return `${TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX}${campaignId}`;
+}
+
+/** Returns cached examples only when they were generated for this exact round. */
+export function loadTrpgActionSuggestionsCache(
+  campaignId: number,
+  roundNumber: number
+): TrpgReplySuggestion[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(suggestionsCacheKey(campaignId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { round?: unknown; suggestions?: unknown };
+    if (parsed.round !== roundNumber) return null;
+    if (!Array.isArray(parsed.suggestions) || parsed.suggestions.length === 0) return null;
+    return parsed.suggestions as TrpgReplySuggestion[];
+  } catch {
+    return null;
+  }
+}
+
+export function saveTrpgActionSuggestionsCache(
+  campaignId: number,
+  roundNumber: number,
+  suggestions: readonly TrpgReplySuggestion[]
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      suggestionsCacheKey(campaignId),
+      JSON.stringify({ round: roundNumber, suggestions })
+    );
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 /**
