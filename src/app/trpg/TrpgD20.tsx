@@ -1,60 +1,40 @@
 "use client";
 
-import { useId } from "react";
 import { trpgD20ViewModel, type TrpgD20Tone } from "@/lib/trpg/actionCardUi";
+import { icosahedronFrontFace, projectIcosahedronSvgFaces } from "@/lib/trpg/d20IcosahedronSvg";
+import { TRPG_D20_NAT1_CRIMSON, TRPG_D20_NAT20_GOLD, TRPG_D20_NUMERAL } from "@/lib/trpg/diceVisual";
 
 const TONE_STYLE: Record<
   TrpgD20Tone,
-  {
-    bodyFrom: string;
-    bodyTo: string;
-    faceFrom: string;
-    faceTo: string;
-    edge: string;
-    facet: string;
-    glow: string;
-    number: string;
-  }
+  { body: string; highlight: string; shadow: string; edge: string; number: string }
 > = {
   success: {
-    bodyFrom: "#3f4a55",
-    bodyTo: "#1b222b",
-    faceFrom: "#5b6774",
-    faceTo: "#2a333d",
-    edge: "#9aa6b4",
-    facet: "rgba(226,232,240,0.22)",
-    glow: "rgba(74,222,128,0.22)",
-    number: "#f8fafc",
+    body: "#1a1d24",
+    highlight: "#3a4150",
+    shadow: "#07080c",
+    edge: "#3f4550",
+    number: TRPG_D20_NUMERAL,
   },
   fail: {
-    bodyFrom: "#3f4a55",
-    bodyTo: "#1b222b",
-    faceFrom: "#5b6774",
-    faceTo: "#2a333d",
-    edge: "#9aa6b4",
-    facet: "rgba(226,232,240,0.22)",
-    glow: "rgba(248,113,113,0.2)",
-    number: "#f8fafc",
+    body: "#1a1d24",
+    highlight: "#3a4150",
+    shadow: "#07080c",
+    edge: "#3f4550",
+    number: TRPG_D20_NUMERAL,
   },
   nat20: {
-    bodyFrom: "#6b5724",
-    bodyTo: "#2a2110",
-    faceFrom: "#d4b45a",
-    faceTo: "#8a7018",
-    edge: "#f0d78c",
-    facet: "rgba(255,236,179,0.28)",
-    glow: "rgba(234,179,8,0.32)",
-    number: "#fff8dc",
+    body: "#241c10",
+    highlight: "#3d3118",
+    shadow: "#100c08",
+    edge: TRPG_D20_NAT20_GOLD,
+    number: "#ffe7a3",
   },
   nat1: {
-    bodyFrom: "#5a2a2e",
-    bodyTo: "#1c1012",
-    faceFrom: "#8f3a40",
-    faceTo: "#4a1c20",
-    edge: "#f0a8a8",
-    facet: "rgba(254,202,202,0.22)",
-    glow: "rgba(220,38,38,0.3)",
-    number: "#fff1f2",
+    body: "#1c1014",
+    highlight: "#3a1c22",
+    shadow: "#0c0608",
+    edge: TRPG_D20_NAT1_CRIMSON,
+    number: "#ffd4d6",
   },
 };
 
@@ -67,14 +47,17 @@ export default function TrpgD20({
   tone: TrpgD20Tone;
   size?: "desktop" | "mobile";
 }) {
-  const rawId = useId().replace(/:/g, "");
-  const bodyId = `trpg-d20-body-${rawId}`;
-  const faceId = `trpg-d20-face-${rawId}`;
   const view = trpgD20ViewModel(value, tone);
   const style = TONE_STYLE[view.tone];
-  const face = view.face;
-  const fontSize = view.fontSize;
+  const faces = projectIcosahedronSvgFaces({
+    body: style.body,
+    highlight: style.highlight,
+    shadow: style.shadow,
+    edge: style.edge,
+  });
+  const front = icosahedronFrontFace(faces);
   const px = size === "mobile" ? 52 : 76;
+  const fontSize = view.face >= 10 ? 20 : 26;
 
   return (
     <svg
@@ -84,57 +67,32 @@ export default function TrpgD20({
       role="img"
       aria-hidden="true"
       data-trpg-d20
-      data-trpg-d20-value={face}
+      data-trpg-d20-value={view.face}
       data-trpg-d20-tone={tone}
+      data-trpg-d20-silhouette="icosahedron"
       className="block shrink-0"
     >
-      <defs>
-        <linearGradient id={bodyId} x1="18" y1="6" x2="64" y2="74" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor={style.bodyFrom} />
-          <stop offset="1" stopColor={style.bodyTo} />
-        </linearGradient>
-        <linearGradient id={faceId} x1="32" y1="24" x2="50" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor={style.faceFrom} />
-          <stop offset="1" stopColor={style.faceTo} />
-        </linearGradient>
-      </defs>
-      <ellipse cx="40" cy="42" rx="30" ry="31" fill={style.glow} />
-      <polygon
-        points="40,4 72,22 72,58 40,76 8,58 8,22"
-        fill={`url(#${bodyId})`}
-        stroke={style.edge}
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <polygon points="40,4 72,22 40,28 8,22" fill={style.facet} />
-      <polygon points="8,22 8,58 22,48 22,32" fill="rgba(15,23,42,0.28)" />
-      <polygon points="72,22 72,58 58,48 58,32" fill="rgba(248,250,252,0.08)" />
-      <polygon points="8,58 40,76 22,56" fill="rgba(15,23,42,0.34)" />
-      <polygon points="72,58 40,76 58,56" fill="rgba(15,23,42,0.2)" />
-      <line x1="40" y1="4" x2="40" y2="28" stroke={style.facet} strokeWidth="1" />
-      <line x1="8" y1="22" x2="22" y2="32" stroke={style.facet} strokeWidth="1" />
-      <line x1="72" y1="22" x2="58" y2="32" stroke={style.facet} strokeWidth="1" />
-      <line x1="8" y1="58" x2="22" y2="48" stroke={style.facet} strokeWidth="1" />
-      <line x1="72" y1="58" x2="58" y2="48" stroke={style.facet} strokeWidth="1" />
-      <line x1="40" y1="76" x2="40" y2="60" stroke={style.facet} strokeWidth="1" />
-      <polygon
-        points="40,22 58,32 58,48 40,58 22,48 22,32"
-        fill={`url(#${faceId})`}
-        stroke={style.edge}
-        strokeWidth="1.15"
-        strokeLinejoin="round"
-      />
-      <polygon points="40,22 58,32 40,28 22,32" fill="rgba(255,255,255,0.16)" />
+      <ellipse cx="40" cy="60" rx="16" ry="4.5" fill="rgba(0,0,0,0.4)" />
+      {faces.map((face, index) => (
+        <polygon
+          key={`${face.points}-${index}`}
+          points={face.points}
+          fill={face.fill}
+          stroke={face.stroke}
+          strokeWidth={index === faces.length - 1 ? 0.85 : 0.35}
+          strokeLinejoin="round"
+        />
+      ))}
       <text
-        x="40"
-        y="43"
+        x={front.cx}
+        y={front.cy + 1}
         textAnchor="middle"
         dominantBaseline="middle"
         fill={style.number}
         fontSize={fontSize}
-        fontWeight="800"
-        fontFamily="ui-sans-serif, system-ui, sans-serif"
-        letterSpacing={face >= 10 ? "-0.04em" : "0"}
+        fontWeight="700"
+        fontFamily='"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif'
+        letterSpacing={view.face >= 10 ? "-0.04em" : "0"}
       >
         {view.faceText}
       </text>

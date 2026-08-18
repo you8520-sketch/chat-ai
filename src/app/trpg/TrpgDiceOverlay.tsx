@@ -7,14 +7,16 @@ import {
   TRPG_D20_HOLD_AFTER_SETTLE_MS,
   TRPG_D20_THEME,
   TRPG_DICE_ENGINE,
+  TRPG_DICE_RENDERER,
   orderTrpgDiceRolls,
   shouldAnimateTrpgDice3d,
   trpgDiceDurationMs,
   trpgDiceOverlayActive,
   trpgPredeterminedD20Notation,
 } from "@/lib/trpg/diceRollUx";
-import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import { PRODUCTION_DICE_PROTO, TRPG_DICE_PHYSICS_ENGINE } from "@/lib/trpg/diceVisual";
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
+import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import TrpgD20 from "./TrpgD20";
 
 const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
@@ -83,41 +85,36 @@ export default function TrpgDiceOverlay({
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-[65] flex items-center justify-center bg-[#07080c]/72"
+      className="pointer-events-none fixed inset-0 z-[65] bg-black/40"
       data-trpg-dice-overlay
       data-trpg-dice-engine={TRPG_DICE_ENGINE}
       data-trpg-dice-theme={TRPG_D20_THEME}
       data-trpg-dice-mode={use3d ? "3d" : "static"}
+      data-trpg-dice-renderer={use3d ? TRPG_DICE_RENDERER : "static"}
+      data-trpg-dice-physics={TRPG_DICE_PHYSICS_ENGINE}
+      data-trpg-dice-proto={PRODUCTION_DICE_PROTO}
       data-trpg-dice-value={roll.d20}
       data-trpg-dice-predetermined={notation}
       aria-hidden="true"
     >
-      <div className="flex w-[min(420px,92vw)] flex-col items-center gap-3">
-        <div className="relative h-[240px] w-full overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#141821] to-[#07080c] shadow-[0_0_80px_rgba(0,0,0,0.55)]">
-          {use3d ? (
-            <TrpgDiceScene
-              value={roll.d20}
-              tone={tone}
-              durationMs={timing.perDie}
-              reducedQuality={reducedQuality}
-              onSettled={onSettled}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center" data-trpg-dice-canvas="static">
-              <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
-            </div>
-          )}
-          {tone === "nat20" ? (
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(234,179,8,0.22),transparent_58%)]" />
-          ) : null}
-          {tone === "nat1" ? (
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle,rgba(127,29,29,0.28),transparent_60%)]" />
-          ) : null}
-        </div>
-        <p className="text-sm font-semibold tracking-wide text-zinc-100">
-          {roll.name} · D20 {roll.d20} {outcome}
-        </p>
+      <div className="absolute inset-0">
+        {use3d ? (
+          <TrpgDiceScene
+            value={roll.d20}
+            tone={tone}
+            durationMs={timing.perDie}
+            reducedQuality={reducedQuality}
+            onSettled={onSettled}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center" data-trpg-dice-canvas="static">
+            <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
+          </div>
+        )}
       </div>
+      <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
+        {roll.name} · D20 {roll.d20} · {outcome}
+      </p>
     </div>
   );
 }

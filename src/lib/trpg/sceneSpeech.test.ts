@@ -130,7 +130,8 @@ describe("parseTrpgSceneSpeech", () => {
     assert.match(room, /GM 판정용/);
     assert.match(room, /formatTrpgRollCompact/);
     assert.match(room, /판정 없음 · 대화/);
-    assert.match(room, /TrpgD20/);
+    assert.match(room, /TrpgRollResultLane/);
+    assert.doesNotMatch(room, /<TrpgD20/);
     assert.doesNotMatch(room, /DiceActionBody/);
     assert.match(room, /paragraphMode=\{action\.kind === "ai_character" \? "ai" : "author"\}/);
     assert.match(room, /orphanTrpgRolls/);

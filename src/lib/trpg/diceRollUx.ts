@@ -1,23 +1,28 @@
 import type { TrpgPublicRoll } from "./snapshot";
+import {
+  TRPG_D20_HOLD_AFTER_SETTLE_MS as VISUAL_HOLD_MS,
+  TRPG_D20_THEME as VISUAL_THEME,
+  TRPG_DICE_BOX_NOTATION,
+  TRPG_DICE_BOX_THREEJS_ASSETS_COPIED as VISUAL_ASSETS_COPIED,
+  TRPG_DICE_BOX_THREEJS_REVIEWED as VISUAL_REVIEWED,
+  TRPG_DICE_ENGINE as VISUAL_ENGINE,
+  TRPG_DICE_IMPLEMENTATION,
+} from "./diceVisual";
 
-/**
- * First-choice prototype was `@3d-dice/dice-box-threejs` (MIT code, 0.0.12).
- * Bundled `public/textures` and `public/sounds` are third-party photographic /
- * hit samples with unverified redistribution rights (Teall-era lineage).
- * Those assets are not copied. Rendering uses Three.js (MIT) + generated canvases.
- */
-export const TRPG_DICE_ENGINE = "three-icosahedron-obsidian";
+export const TRPG_DICE_ENGINE = VISUAL_ENGINE;
 export const TRPG_DICE_ENGINE_LICENSE = "MIT";
-export const TRPG_DICE_BOX_THREEJS_REVIEWED = true;
-export const TRPG_DICE_BOX_THREEJS_ASSETS_COPIED = false;
-export const TRPG_D20_THEME = "obsidian";
+export const TRPG_DICE_BOX_THREEJS_REVIEWED = VISUAL_REVIEWED;
+export const TRPG_DICE_BOX_THREEJS_ASSETS_COPIED = VISUAL_ASSETS_COPIED;
+export const TRPG_D20_THEME = VISUAL_THEME;
+export const TRPG_D20_HOLD_AFTER_SETTLE_MS = VISUAL_HOLD_MS;
+export const TRPG_DICE_RENDERER = TRPG_DICE_IMPLEMENTATION;
+export type TrpgDiceLabRenderer = "custom" | "dice-box-threejs";
 
-export const TRPG_D20_PER_DIE_MS = { min: 800, max: 1400 } as const;
-export const TRPG_D20_TOTAL_CAP_MS = 3600;
-export const TRPG_D20_HOLD_AFTER_SETTLE_MS = 240;
+export const TRPG_D20_PER_DIE_MS = { min: 1100, max: 1300 } as const;
+export const TRPG_D20_TOTAL_CAP_MS = 1600;
 
 export function trpgPredeterminedD20Notation(d20: number): string {
-  return `1d20@${d20}`;
+  return TRPG_DICE_BOX_NOTATION(d20);
 }
 
 export function orderTrpgDiceRolls<T extends { participantId: number }>(

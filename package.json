@@ -25,6 +25,7 @@
     "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
   },
   "dependencies": {
+    "@3d-dice/dice-box-threejs": "^0.0.12",
     "@portone/browser-sdk": "^0.1.8",
     "@vercel/blob": "^2.8.0",
     "better-sqlite3": "npm:libsql@^0.5.0",

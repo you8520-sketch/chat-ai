@@ -8,6 +8,7 @@ const distDir =
 const nextConfig: NextConfig = {
   distDir,
   serverExternalPackages: ["better-sqlite3", "isomorphic-dompurify", "jsdom"],
+  transpilePackages: ["@3d-dice/dice-box-threejs"],
   allowedDevOrigins: ["127.0.0.1"],
 };
 export default nextConfig;
