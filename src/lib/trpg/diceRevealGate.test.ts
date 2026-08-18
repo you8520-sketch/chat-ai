@@ -113,7 +113,7 @@ describe("dice presentation session", () => {
 
   it("uses a watchdog cap above the full overlay lifecycle", () => {
     assert.ok(TRPG_DICE_REVEAL_GATE_CAP_MS >= 3000);
-    for (const n of [1, 2, 3] as const) {
+    for (const n of [1, 2, 3, 4] as const) {
       const timing = trpgEmeraldDiceTiming(n);
       const watchdog = trpgDiceRevealWatchdogMs(n);
       assert.ok(watchdog > timing.totalMs, `${n} dice watchdog ${watchdog} must exceed overlay ${timing.totalMs}`);
@@ -121,8 +121,8 @@ describe("dice presentation session", () => {
     }
   });
 
-  it("keeps overlay dismiss ahead of result reveal and the watchdog for 1-3 dice", () => {
-    for (const n of [1, 2, 3] as const) {
+  it("keeps overlay dismiss ahead of result reveal and the watchdog for 1-4 dice", () => {
+    for (const n of [1, 2, 3, 4] as const) {
       const overlayDismissedAt = trpgEmeraldDiceTiming(n).totalMs;
       const firstResultVisibleAt = overlayDismissedAt;
       const firstNarrationVisibleAt = overlayDismissedAt;
