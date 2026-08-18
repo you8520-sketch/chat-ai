@@ -1,6 +1,4 @@
 SPEECH_LOCK.txt
-TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
-SHA256: NOT_COMPUTED
-RAW: NOT_FETCHED
-
-Speech Lock is character-owned production prompt data. It was not loaded because the 플러드 production record was not fetched.
+SPEECH_LOCK_SHA: a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21
+Parsed profile is in EVALUATION_CONTEXT.md.
+RAW: PRIVATE_SNAPSHOT_ONLY

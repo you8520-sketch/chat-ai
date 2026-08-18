@@ -1,9 +1,6 @@
 PERSONA.txt
-TRACK: DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1
-PERSONA_SOURCE: ADMIN_EXISTING_PERSONA
-PERSONA_CONTENT_FETCHED: false
-SHA256: NOT_COMPUTED
-RAW: NOT_FETCHED
-
-Admin persona content was not read. Production users/user_personas live on /data/app.db, which was not opened.
-No persona was rewritten or summarized.
+PERSONA: 렌
+PERSONA_ID: 1
+PERSONA_SHA: 019047714e494c1b1f874b8bca0fc463522a4ff83d76d6b482f7caddbee7876c
+ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: true
+RAW: PRIVATE_SNAPSHOT_ONLY

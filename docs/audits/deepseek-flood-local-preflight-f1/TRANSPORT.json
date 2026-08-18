@@ -1,17 +1,34 @@
 {
-  "intended_true_off": {
-    "model": "deepseek-v4-pro-0813",
-    "provider": "cheaperinference",
-    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
-    "thinking": { "type": "disabled" },
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "source_model": "gemini-3.7-flash",
+  "target_model": "deepseek-v4-pro-0813",
+  "true_off": {
+    "thinking": {
+      "type": "disabled"
+    },
     "reasoning_effort": "none",
-    "omitted_keys": ["enable_thinking", "reasoning", "include_reasoning"]
+    "do_not_send": [
+      "enable_thinking",
+      "reasoning",
+      "include_reasoning"
+    ]
   },
-  "production_rp_adapter_note": "src/lib/cheaperInferenceConfig.ts adaptCheaperInferenceChatBody still deletes reasoning_effort for DeepSeek Pro and sets thinking.disabled only. This track did not change that adapter.",
-  "live_request_sent": false,
-  "live_request_body": null,
-  "reasoning_stream_events_run1": "n/a",
-  "reasoning_stream_events_run2": "n/a",
-  "reasoning_chars_run1": "n/a",
-  "reasoning_chars_run2": "n/a"
+  "frozen_body_keys": [
+    "messages",
+    "model",
+    "reasoning_effort",
+    "stream",
+    "stream_options",
+    "temperature",
+    "thinking"
+  ],
+  "gemini_body_keys": [
+    "messages",
+    "model",
+    "reasoning_effort",
+    "stream",
+    "stream_options",
+    "temperature"
+  ]
 }
