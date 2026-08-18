@@ -269,6 +269,10 @@ export default function TrpgArtisanDiceScene({
       const started = performance.now();
       const duration = ACTIVE_ROLL_MS;
       let heroStartedAt = 0;
+      let throwEndQuat: THREE.Quaternion | null = null;
+      let contactEndQuat: THREE.Quaternion | null = null;
+      let settleStartQuat: THREE.Quaternion | null = null;
+      const contactAxis = new THREE.Vector3(-spinAxis.z, spinAxis.y, spinAxis.x).normalize();
 
       const tick = (now: number) => {
         const elapsed = now - started;
@@ -281,28 +285,29 @@ export default function TrpgArtisanDiceScene({
           die.position.z = lerp(startZ, endZ, throwT);
           die.quaternion.setFromAxisAngle(spinAxis, spinSpeed * throwT * Math.PI * 2);
         } else if (t < CONTACT_END) {
+          if (!throwEndQuat) throwEndQuat = die.quaternion.clone();
           const contactT = (t - THROW_END) / (CONTACT_END - THROW_END);
           die.position.x = lerp(endX, endX * 0.5, contactT);
           die.position.y = lerp(endY, endY, contactT);
           die.position.z = lerp(endZ, endZ * 0.5, contactT);
-          const bounceAxis = new THREE.Vector3(-spinAxis.z, spinAxis.y, spinAxis.x).normalize();
-          die.quaternion.setFromAxisAngle(bounceAxis, spinSpeed * 0.3 * contactT * Math.PI * 2);
+          const extra = new THREE.Quaternion().setFromAxisAngle(contactAxis, spinSpeed * 0.3 * contactT * Math.PI * 2);
+          die.quaternion.copy(throwEndQuat).multiply(extra);
         } else if (t < BOUNCE_END) {
+          if (!contactEndQuat) contactEndQuat = die.quaternion.clone();
           const bounceT = (t - CONTACT_END) / (BOUNCE_END - CONTACT_END);
           die.position.x = lerp(endX * 0.5, endX * 0.2, bounceT);
           die.position.y = endY + Math.sin(bounceT * Math.PI) * 0.13;
           die.position.z = lerp(endZ * 0.5, endZ * 0.2, bounceT);
-          die.quaternion.setFromAxisAngle(spinAxis, spinSpeed * 0.1 * bounceT * Math.PI);
+          const extra = new THREE.Quaternion().setFromAxisAngle(spinAxis, spinSpeed * 0.1 * bounceT * Math.PI);
+          die.quaternion.copy(contactEndQuat).multiply(extra);
         } else {
+          if (!settleStartQuat) settleStartQuat = die.quaternion.clone();
           const settleT = (t - BOUNCE_END) / (1 - BOUNCE_END);
           const smoothSettle = easeInOutQuad(settleT);
           die.position.x = lerp(endX * 0.2, 0, smoothSettle);
           die.position.y = lerp(endY, FLOOR_Y + radius, smoothSettle);
           die.position.z = lerp(endZ * 0.2, 0, smoothSettle);
-          if (settleT > 0.88) {
-            const orientT = (settleT - 0.88) / 0.12;
-            die.quaternion.slerp(endQuat, easeInOutQuad(orientT));
-          }
+          die.quaternion.slerpQuaternions(settleStartQuat, endQuat, smoothSettle);
           if (heroStartedAt === 0) heroStartedAt = now;
         }
 
