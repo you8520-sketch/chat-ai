@@ -61,11 +61,11 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(timing.perDie >= TRPG_D20_PER_DIE_MS.min);
     assert.ok(timing.perDie <= TRPG_D20_PER_DIE_MS.max);
     assert.ok(timing.total <= TRPG_D20_TOTAL_CAP_MS);
-    assert.ok(TRPG_D20_TOTAL_CAP_MS <= 1600);
-    assert.ok(TRPG_D20_PER_DIE_MS.min >= 1100);
-    assert.ok(TRPG_D20_PER_DIE_MS.max <= 1600);
+    assert.ok(TRPG_D20_TOTAL_CAP_MS <= 2600);
+    assert.ok(TRPG_D20_PER_DIE_MS.min >= 1750);
+    assert.ok(TRPG_D20_PER_DIE_MS.max <= 2600);
     assert.ok(TRPG_D20_ANIMATION_MS >= 1100);
-    assert.ok(TRPG_D20_ANIMATION_MS <= 1600);
+    assert.ok(TRPG_D20_ANIMATION_MS <= 2600);
     assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS >= 200);
     assert.ok(TRPG_D20_HOLD_AFTER_SETTLE_MS <= 360);
   });

@@ -18,8 +18,8 @@ export const TRPG_D20_HOLD_AFTER_SETTLE_MS = VISUAL_HOLD_MS;
 export const TRPG_DICE_RENDERER = TRPG_DICE_IMPLEMENTATION;
 export type TrpgDiceLabRenderer = "custom" | "dice-box-threejs";
 
-export const TRPG_D20_PER_DIE_MS = { min: 1100, max: 1300 } as const;
-export const TRPG_D20_TOTAL_CAP_MS = 1600;
+export const TRPG_D20_PER_DIE_MS = { min: 1750, max: 1900 } as const;
+export const TRPG_D20_TOTAL_CAP_MS = 2600;
 
 export function trpgPredeterminedD20Notation(d20: number): string {
   return TRPG_DICE_BOX_NOTATION(d20);

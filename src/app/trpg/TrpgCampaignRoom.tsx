@@ -267,6 +267,7 @@ export default function TrpgCampaignRoom({
     snap.round.number,
   ]);
   const holdCurrentRound = shouldHoldRoundReveal(revealGate, snap.round.number) && !revealGateReleased;
+  const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
     ...snap.participants.map((p) => p.displayName),
@@ -277,7 +278,10 @@ export default function TrpgCampaignRoom({
   const partyNames = partyDisplayNames(snap);
   const selfSheet = snap.sheets.find((card) => card.isSelf);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
-  const liveRevealedActionIds = sceneRows
+  const visibleSceneRows = gatedRoundNumber != null
+    ? sceneRows.filter((row) => row.roundNumber !== gatedRoundNumber)
+    : sceneRows;
+  const liveRevealedActionIds = visibleSceneRows
     .filter((row) => row.roundNumber === snap.round.number)
     .flatMap((row) => row.actions.filter((a) => a.revealed && a.body.trim()).map((a) => a.participantId));
   const orphanRolls = orphanTrpgRolls({
@@ -290,7 +294,7 @@ export default function TrpgCampaignRoom({
   }
   const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
   const waitingOpening =
-    sceneRows.length === 0 &&
+    visibleSceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
   const botFillTargets = useMemo(
     () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
@@ -511,7 +515,7 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {sceneRows.map((row) => {
+          {visibleSceneRows.map((row) => {
             const gated = holdCurrentRound && row.roundNumber === snap.round.number;
             return (
             <SceneTurn

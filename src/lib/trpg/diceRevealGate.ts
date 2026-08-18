@@ -8,8 +8,8 @@
  * new prose before the dice play.
  */
 
-/** Watchdog only — must exceed full overlay lifecycle (~2200ms). Normal release is overlay dismissed. */
-export const TRPG_DICE_REVEAL_GATE_CAP_MS = 3500;
+/** Watchdog only — must exceed full overlay lifecycle (~2600ms). Normal release is overlay dismissed. */
+export const TRPG_DICE_REVEAL_GATE_CAP_MS = 4000;
 
 export type TrpgDiceRevealGateState = {
   /** Round number whose narration/actions are currently gated. */

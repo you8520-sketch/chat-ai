@@ -2,12 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import * as CANNON from "cannon-es";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import type { Font } from "three/examples/jsm/loaders/FontLoader.js";
 import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
 import { preloadArtisanDiceFont } from "@/lib/trpg/artisanDiceFont";
-import { buildArtisanD20ConvexShape } from "@/lib/trpg/artisanDicePhysics";
 import {
   TRPG_D20_CAMERA_FOV,
   TRPG_D20_CAMERA_LOOK_AT,
@@ -23,10 +21,15 @@ import {
 } from "@/lib/trpg/artisanDiceGeometry";
 import { artisanLandingQuaternion } from "@/lib/trpg/artisanDiceOrientation";
 
-const TUMBLE_PHASE = 0.7; // fraction of duration spent in real physics tumble
-const HERO_HOLD_MS = 720; // single owner: scene holds hero face before overlay dismiss
-const CAMERA_SETTLE_MS = 200; // last ~200ms subtle hero camera move
+const HERO_HOLD_MS = 700;
+const ACTIVE_ROLL_MS = 1800;
+const CAMERA_SETTLE_MS = 200;
 const FLOOR_Y = -TRPG_D20_GEOMETRY_RADIUS - 0.02;
+
+// Throw phase: 0-0.60, Contact: 0.60-0.78, Bounce: 0.78-0.88, Settle: 0.88-1.00
+const THROW_END = 0.60;
+const CONTACT_END = 0.78;
+const BOUNCE_END = 0.88;
 
 function applySize(renderer: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera, width: number, height: number) {
   renderer.setSize(width, height);
@@ -40,7 +43,7 @@ function buildNumeral(
   face: ArtisanD20Face,
   radius: number
 ): { mesh: THREE.Mesh; dispose: () => void } {
-  const size = radius * 0.42 * (value >= 10 ? 0.82 : 1);
+  const size = radius * 0.52 * (value >= 10 ? 0.78 : 1);
   const geo = new TextGeometry(String(value), {
     font,
     size,
@@ -79,6 +82,25 @@ function buildNumeral(
   };
 }
 
+type ThrowDirection = "LEFT" | "RIGHT" | "UPPER_LEFT" | "UPPER_RIGHT";
+
+function pickThrowDirection(): ThrowDirection {
+  const dirs: ThrowDirection[] = ["LEFT", "RIGHT", "UPPER_LEFT", "UPPER_RIGHT"];
+  return dirs[Math.floor(Math.random() * dirs.length)];
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutQuad(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
 export default function TrpgArtisanDiceScene({
   value,
   tone,
@@ -108,7 +130,6 @@ export default function TrpgArtisanDiceScene({
 
       const spec = trpgD20ThemeSpec("emerald-relic");
       const radius = TRPG_D20_GEOMETRY_RADIUS;
-      const numeralGeometryReady = true;
 
       const width = host.clientWidth || TRPG_D20_STAGE_DESKTOP.width;
       const height = host.clientHeight || TRPG_D20_STAGE_DESKTOP.height;
@@ -129,7 +150,7 @@ export default function TrpgArtisanDiceScene({
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(TRPG_D20_CAMERA_FOV, width / height, 0.1, 40);
       const tabletopPos = new THREE.Vector3(TRPG_D20_CAMERA_POS.x, TRPG_D20_CAMERA_POS.y, TRPG_D20_CAMERA_POS.z);
-      const heroPos = new THREE.Vector3(0.04, 0.82, 3.32);
+      const heroPos = new THREE.Vector3(0.02, 0.75, 3.1);
       camera.position.copy(tabletopPos);
       camera.lookAt(TRPG_D20_CAMERA_LOOK_AT.x, TRPG_D20_CAMERA_LOOK_AT.y, TRPG_D20_CAMERA_LOOK_AT.z);
       applySize(renderer, camera, width, height);
@@ -177,32 +198,32 @@ export default function TrpgArtisanDiceScene({
 
       const build: ArtisanD20Build = buildArtisanD20Geometry(radius);
       const emeraldMat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(spec.palette.body),
-        metalness: spec.material.metalness,
-        roughness: spec.material.roughness,
-        clearcoat: spec.material.clearcoat,
-        clearcoatRoughness: spec.material.clearcoatRoughness,
-        transmission: spec.material.transmission,
-        ior: spec.material.ior,
-        thickness: spec.material.thickness,
-        envMapIntensity: spec.material.envMapIntensity * 1.25,
-        transparent: spec.material.transmission > 0,
+        color: new THREE.Color(0x0d2a1c),
+        metalness: 0.08,
+        roughness: 0.38,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.32,
+        transmission: 0.12,
+        ior: 1.48,
+        thickness: 0.5,
+        envMapIntensity: 0.75,
+        transparent: false,
       });
       const goldMat = new THREE.MeshPhysicalMaterial({
-        color: 0xb89a58,
-        metalness: 0.92,
-        roughness: 0.34,
-        clearcoat: 0.16,
-        clearcoatRoughness: 0.36,
-        envMapIntensity: 1.1,
+        color: 0x9a7a48,
+        metalness: 0.85,
+        roughness: 0.42,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.4,
+        envMapIntensity: 0.9,
       });
       const numeralMat = new THREE.MeshPhysicalMaterial({
-        color: 0xe1cf9a,
-        metalness: 0.9,
-        roughness: 0.28,
-        clearcoat: 0.14,
-        clearcoatRoughness: 0.38,
-        envMapIntensity: 1.15,
+        color: 0xf0e0b8,
+        metalness: 0.88,
+        roughness: 0.22,
+        clearcoat: 0.1,
+        clearcoatRoughness: 0.35,
+        envMapIntensity: 1.2,
       });
       const die = new THREE.Mesh(build.geometry, [emeraldMat, goldMat]);
       die.castShadow = true;
@@ -230,62 +251,62 @@ export default function TrpgArtisanDiceScene({
       }
 
       const targetFace = build.faces.find((f) => f.value === value) ?? build.faces[0];
-      const toward = camera.position.clone().normalize().lerp(new THREE.Vector3(0, 1, 0), 0.18).normalize();
+      const toward = new THREE.Vector3(0, 0.12, 1).normalize();
       const camUp = new THREE.Vector3(0, 1, 0);
       const endQuat = artisanLandingQuaternion(targetFace, { toward, up: camUp });
 
-      const world = new CANNON.World();
-      world.gravity.set(0, -9.82, 0);
-      const floorBody = new CANNON.Body({ mass: 0 });
-      floorBody.addShape(new CANNON.Plane());
-      floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-      world.addBody(floorBody);
+      const throwDir = pickThrowDirection();
+      const startX = throwDir === "LEFT" || throwDir === "UPPER_LEFT" ? -(1.0 + Math.random() * 0.3) : (1.0 + Math.random() * 0.3);
+      const startY = throwDir === "UPPER_LEFT" || throwDir === "UPPER_RIGHT" ? 0.55 + Math.random() * 0.15 : 0.45 + Math.random() * 0.25;
+      const startZ = 0.15 + Math.random() * 0.2;
+      const endX = -0.1 + Math.random() * 0.2;
+      const endZ = -0.05 + Math.random() * 0.1;
+      const endY = FLOOR_Y + radius;
 
-      const dieBody = new CANNON.Body({ mass: 1, type: CANNON.Body.DYNAMIC });
-      dieBody.addShape(buildArtisanD20ConvexShape(radius));
-      dieBody.position.set(0.26, radius + 0.36, 0.14);
-      dieBody.angularVelocity.set(
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16
-      );
-      dieBody.velocity.set(-0.6, 0, -0.3);
-      dieBody.material = new CANNON.Material({ friction: 0.42, restitution: 0.28 });
-      floorBody.material = new CANNON.Material({ friction: 0.52, restitution: 0.26 });
-      const contactMat = new CANNON.ContactMaterial(dieBody.material, floorBody.material, {
-        friction: 0.48,
-        restitution: 0.3,
-      });
-      world.addContactMaterial(contactMat);
-      world.addBody(dieBody);
+      const spinAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+      const spinSpeed = 4 + Math.random() * 2;
 
       const started = performance.now();
-      const duration = Math.max(1200, Math.min(1700, durationMs));
-      const fixedStep = 1 / 60;
-      let lastQuat = new THREE.Quaternion();
+      const duration = ACTIVE_ROLL_MS;
       let heroStartedAt = 0;
 
       const tick = (now: number) => {
-        const t = Math.min(1, (now - started) / duration);
-        const tumbleEnd = TUMBLE_PHASE;
-        if (t < tumbleEnd) {
-          world.step(fixedStep);
-          die.position.set(dieBody.position.x, dieBody.position.y - radius, dieBody.position.z);
-          lastQuat.copy(die.quaternion).set(
-            dieBody.quaternion.x, dieBody.quaternion.y, dieBody.quaternion.z, dieBody.quaternion.w
-          );
-          die.quaternion.copy(lastQuat);
+        const elapsed = now - started;
+        const t = Math.min(1, elapsed / duration);
+
+        if (t < THROW_END) {
+          const throwT = easeOutCubic(t / THROW_END);
+          die.position.x = lerp(startX, endX, throwT);
+          die.position.y = lerp(startY, endY, throwT) + Math.sin(throwT * Math.PI) * 0.25;
+          die.position.z = lerp(startZ, endZ, throwT);
+          die.quaternion.setFromAxisAngle(spinAxis, spinSpeed * throwT * Math.PI * 2);
+        } else if (t < CONTACT_END) {
+          const contactT = (t - THROW_END) / (CONTACT_END - THROW_END);
+          die.position.x = lerp(endX, endX * 0.5, contactT);
+          die.position.y = lerp(endY, endY, contactT);
+          die.position.z = lerp(endZ, endZ * 0.5, contactT);
+          const bounceAxis = new THREE.Vector3(-spinAxis.z, spinAxis.y, spinAxis.x).normalize();
+          die.quaternion.setFromAxisAngle(bounceAxis, spinSpeed * 0.3 * contactT * Math.PI * 2);
+        } else if (t < BOUNCE_END) {
+          const bounceT = (t - CONTACT_END) / (BOUNCE_END - CONTACT_END);
+          die.position.x = lerp(endX * 0.5, endX * 0.2, bounceT);
+          die.position.y = endY + Math.sin(bounceT * Math.PI) * 0.13;
+          die.position.z = lerp(endZ * 0.5, endZ * 0.2, bounceT);
+          die.quaternion.setFromAxisAngle(spinAxis, spinSpeed * 0.1 * bounceT * Math.PI);
         } else {
-          const converge = THREE.MathUtils.smoothstep(t, tumbleEnd, 1);
-          die.quaternion.slerpQuaternions(lastQuat, endQuat, converge);
-          const restY = FLOOR_Y + radius;
-          die.position.y = THREE.MathUtils.lerp(die.position.y, restY, converge);
-          die.position.x = THREE.MathUtils.lerp(die.position.x, 0, converge);
-          die.position.z = THREE.MathUtils.lerp(die.position.z, 0, converge);
+          const settleT = (t - BOUNCE_END) / (1 - BOUNCE_END);
+          const smoothSettle = easeInOutQuad(settleT);
+          die.position.x = lerp(endX * 0.2, 0, smoothSettle);
+          die.position.y = lerp(endY, FLOOR_Y + radius, smoothSettle);
+          die.position.z = lerp(endZ * 0.2, 0, smoothSettle);
+          if (settleT > 0.88) {
+            const orientT = (settleT - 0.88) / 0.12;
+            die.quaternion.slerp(endQuat, easeInOutQuad(orientT));
+          }
           if (heroStartedAt === 0) heroStartedAt = now;
         }
 
-        const remaining = duration - (now - started);
+        const remaining = duration - elapsed;
         if (remaining > 0 && remaining < CAMERA_SETTLE_MS) {
           const k = 1 - remaining / CAMERA_SETTLE_MS;
           camera.position.lerpVectors(tabletopPos, heroPos, THREE.MathUtils.clamp(k, 0, 1));
@@ -311,9 +332,7 @@ export default function TrpgArtisanDiceScene({
         }
       };
 
-      if (numeralGeometryReady) {
-        frame = requestAnimationFrame(tick);
-      }
+      frame = requestAnimationFrame(tick);
 
       const onResize = () => {
         const nextW = host.clientWidth || TRPG_D20_STAGE_DESKTOP.width;
@@ -347,7 +366,7 @@ export default function TrpgArtisanDiceScene({
       data-trpg-dice-canvas="3d"
       data-trpg-dice-proto="artisan"
       data-trpg-dice-geometry="emerald-relic"
-      data-trpg-dice-physics-collider="convex_d20"
+      data-trpg-dice-motion="authored_throw"
     />
   );
 }

@@ -9,9 +9,9 @@ import * as THREE from "three";
  */
 
 export const ARTISAN_D20_FACE_COUNT = 20;
-export const ARTISAN_D20_INSET_SCALE = 0.84;
-export const ARTISAN_D20_RECESS_DEPTH_RATIO = 0.06;
-export const ARTISAN_D20_BEVEL_GOLD = 0xb89a58;
+export const ARTISAN_D20_INSET_SCALE = 0.88;
+export const ARTISAN_D20_RECESS_DEPTH_RATIO = 0.04;
+export const ARTISAN_D20_BEVEL_GOLD = 0x9a7a48;
 
 export type ArtisanD20Face = {
   index: number;

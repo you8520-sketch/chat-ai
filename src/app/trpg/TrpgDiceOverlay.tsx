@@ -121,13 +121,12 @@ export default function TrpgDiceOverlay({
 
   const onSettled = useCallback(() => {
     setSettled(true);
-    const holdMs = theme === "emerald-relic" ? 0 : TRPG_D20_HOLD_AFTER_SETTLE_MS;
     window.setTimeout(() => {
       setPlay((current) => {
         const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
         return { ...current, index: next.index, dismissed: next.dismissed };
       });
-    }, holdMs);
+    }, theme === "emerald-relic" ? 0 : TRPG_D20_HOLD_AFTER_SETTLE_MS);
   }, [ordered.length, theme]);
 
   useEffect(() => {
