@@ -9,17 +9,17 @@ const TONE_STYLE: Record<
   { body: string; highlight: string; shadow: string; edge: string; number: string }
 > = {
   success: {
-    body: "#1a1d24",
-    highlight: "#3a4150",
-    shadow: "#07080c",
-    edge: "#3f4550",
+    body: "#163226",
+    highlight: "#3f6a4a",
+    shadow: "#0e1c16",
+    edge: "#8a6a3a",
     number: TRPG_D20_NUMERAL,
   },
   fail: {
-    body: "#1a1d24",
-    highlight: "#3a4150",
-    shadow: "#07080c",
-    edge: "#3f4550",
+    body: "#163226",
+    highlight: "#3f6a4a",
+    shadow: "#0e1c16",
+    edge: "#8a6a3a",
     number: TRPG_D20_NUMERAL,
   },
   nat20: {
@@ -90,7 +90,7 @@ export default function TrpgD20({
         dominantBaseline="middle"
         fill={style.number}
         fontSize={fontSize}
-        fontWeight="700"
+        fontWeight="600"
         fontFamily='"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif'
         letterSpacing={view.face >= 10 ? "-0.04em" : "0"}
       >

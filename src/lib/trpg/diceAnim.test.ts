@@ -8,6 +8,8 @@ import {
   TRPG_D20_BOUNCE2_PEAK_T,
   TRPG_D20_FLOOR_Y,
   TRPG_D20_SETTLE_START,
+  TRPG_D20_START_X,
+  TRPG_D20_START_Y,
   diceDropHeight,
   dicePoseAt,
   randomStartEuler,
@@ -52,9 +54,9 @@ describe("custom D20 animation (no physics engine)", () => {
     const bounce1 = diceDropHeight(TRPG_D20_BOUNCE1_PEAK_T);
     const bounce2 = diceDropHeight(TRPG_D20_BOUNCE2_PEAK_T);
     const rest = diceDropHeight(0.95);
-    assert.ok(midFall > firstContact + 0.6);
-    assert.ok(bounce1 > firstContact + 0.18);
-    assert.ok(bounce2 > TRPG_D20_FLOOR_Y + 0.03);
+    assert.ok(midFall > firstContact + 0.18);
+    assert.ok(bounce1 > firstContact + 0.08);
+    assert.ok(bounce2 > TRPG_D20_FLOOR_Y + 0.02);
     assert.ok(bounce1 > bounce2 * 2.5);
     assert.equal(diceDropHeight(1), TRPG_D20_FLOOR_Y);
     assert.ok(Math.abs(rest - TRPG_D20_FLOOR_Y) < 1e-9);
@@ -62,6 +64,9 @@ describe("custom D20 animation (no physics engine)", () => {
     assert.equal(landed.x, 0);
     assert.equal(landed.z, 0);
     assert.equal(landed.y, TRPG_D20_FLOOR_Y);
+    assert.ok(TRPG_D20_START_Y <= 0.42);
+    assert.ok(TRPG_D20_START_X <= 0.36);
+    assert.ok(Math.abs(dicePoseAt(0).y - TRPG_D20_START_Y - TRPG_D20_FLOOR_Y) < 1e-9);
   });
 
   it("randomizes start rotation and tumble axis without changing the t=1 pose", () => {

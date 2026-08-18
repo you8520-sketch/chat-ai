@@ -75,9 +75,9 @@ describe("TRPG 3D dice overlay contracts", () => {
   });
 
   it("keeps dice-box-threejs available without copying unverified textures or sounds", () => {
-    assert.equal(TRPG_DICE_ENGINE, "obsidian-relic-d20");
+    assert.equal(TRPG_DICE_ENGINE, "verdant-relic-d20");
     assert.equal(TRPG_DICE_ENGINE_LICENSE, "MIT");
-    assert.equal(TRPG_D20_THEME, "obsidian-relic");
+    assert.equal(TRPG_D20_THEME, "verdant-relic");
     assert.equal(PRODUCTION_DICE_PROTO, "A");
     assert.equal(TRPG_DICE_IMPLEMENTATION, "custom");
     assert.equal(TRPG_DICE_RENDERER, "custom");
@@ -100,15 +100,23 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /prefers-reduced-motion/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
     assert.match(overlay, /TrpgDiceScene/);
+    assert.match(overlay, /data-trpg-dice-stage/);
+    assert.match(overlay, /bg-black\/15/);
+    assert.match(overlay, /mt-2\.5/);
     assert.doesNotMatch(overlay, /TrpgDiceBoxScene/);
     assert.doesNotMatch(overlay, /renderer\?:/);
     assert.doesNotMatch(overlay, /w-\[min\(420px/);
     assert.doesNotMatch(overlay, /rounded-3xl border/);
+    assert.doesNotMatch(overlay, /bottom-\[11%\]/);
+    assert.doesNotMatch(overlay, /className="absolute inset-0"/);
     assert.doesNotMatch(overlay, /advance|gmCall|\/api\/trpg/);
     assert.match(custom, /landingQuaternion/);
     assert.match(custom, /IcosahedronGeometry/);
     assert.match(custom, /color: 0xffffff/);
     assert.match(custom, /die\.quaternion\.copy\(end\)/);
+    assert.match(custom, /sparse-gold-motes/);
+    assert.match(custom, /transmission: spec\.material\.transmission/);
+    assert.doesNotMatch(custom, /% 23\) - 11/);
     assert.doesNotMatch(custom, /EdgesGeometry|LineBasicMaterial|LineSegments/);
     assert.doesNotMatch(custom, /textures\/|sounds\/|wizards|dungeons/i);
     assert.match(box, /1d20@|TRPG_DICE_BOX_NOTATION/);
@@ -117,6 +125,9 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.doesNotMatch(box, /public\/textures|public\/sounds/);
     assert.match(lab, /TrpgDiceBoxScene/);
     assert.match(lab, /data-trpg-dice-lab-proto="B"/);
+    assert.match(lab, /Verdant Relic/);
+    assert.match(lab, /Ancient Reliquary/);
+    assert.match(lab, /data-trpg-dice-lab-prose/);
     assert.match(room, /TrpgDiceOverlay/);
     assert.match(room, /TrpgRollResultLane/);
     assert.doesNotMatch(room, /<TrpgD20/);

@@ -13,7 +13,7 @@ function colorsetForTone(tone: TrpgD20Tone) {
   if (tone === "nat20") {
     return {
       ...TRPG_DICE_BOX_COLORSET,
-      name: "obsidian-relic-nat20",
+      name: "verdant-relic-nat20",
       foreground: "#ffe7a3",
       outline: "#c9a227",
       background: "#241c10",
@@ -22,7 +22,7 @@ function colorsetForTone(tone: TrpgD20Tone) {
   if (tone === "nat1") {
     return {
       ...TRPG_DICE_BOX_COLORSET,
-      name: "obsidian-relic-nat1",
+      name: "verdant-relic-nat1",
       foreground: "#ffd4d6",
       outline: "#6b1c24",
       background: "#1c1014",

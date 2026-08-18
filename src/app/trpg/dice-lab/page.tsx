@@ -14,7 +14,7 @@ function parseRenderer(value: string | undefined): TrpgDiceLabRenderer {
 export default async function TrpgDiceLabPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ proto?: string; renderer?: string }>;
+  searchParams?: Promise<{ proto?: string; renderer?: string; theme?: string }>;
 }) {
   if (process.env.NODE_ENV === "production") {
     const user = await getSessionUser();
@@ -22,5 +22,10 @@ export default async function TrpgDiceLabPage({
     if (!canAccessTrpg(user)) redirect("/");
   }
   const params = (await searchParams) ?? {};
-  return <TrpgDiceLabClient initialRenderer={parseRenderer(params.proto ?? params.renderer)} />;
+  return (
+    <TrpgDiceLabClient
+      initialRenderer={parseRenderer(params.proto ?? params.renderer)}
+      initialTheme={params.theme}
+    />
+  );
 }
