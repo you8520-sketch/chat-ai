@@ -364,6 +364,14 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     group.add(rivet);
   }
 
+  const debugGem = new THREE.Mesh(
+    new THREE.CircleGeometry(0.5, 32),
+    new THREE.MeshBasicMaterial({ color: 0x2f6a44, side: THREE.DoubleSide })
+  );
+  debugGem.position.set(0, 0, 0.5);
+  group.add(debugGem);
+  disposables.push(debugGem.geometry, debugGem.material as THREE.Material);
+
   const numeralMaterials: THREE.MeshPhysicalMaterial[] = [];
   for (let face = 0; face < FACE_COUNT; face += 1) {
     const corners = faceCorners(source, face).map((v) => [v.x, v.y, v.z] as FaceCorner);
