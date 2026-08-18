@@ -14,14 +14,15 @@
   "PRODUCTION_EQUIVALENT_HUMAN_FIXTURE": false,
   "SOURCE_GEMINI_CALLS": 0,
   "DEEPSEEK_CALLS": 0,
+  "INTENDED_CALLS_NOT_RECORDED_AS_EXECUTED": true,
   "TRUE_OFF_CONFIG": {
     "thinking": { "type": "disabled" },
     "reasoning_effort": "none",
     "do_not_send": ["enable_thinking", "reasoning", "include_reasoning"]
   },
-  "REASONING_EVENTS": "0 / 0",
-  "REASONING_CHARS": "0 / 0",
-  "TRUE_OFF_PARITY": null,
+  "REASONING_EVENTS": "n/a",
+  "REASONING_CHARS": "n/a",
+  "TRUE_OFF_PARITY": "n/a",
   "SOURCE_ASSISTANT_SHA": null,
   "CURRENT_USER_SHA": null,
   "FULL_PROMPT_SHA": null,

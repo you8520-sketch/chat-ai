@@ -1,9 +1,9 @@
 {
   "SOURCE_GEMINI_CALLS": 0,
   "DEEPSEEK_CALLS": 0,
-  "REASONING_EVENTS": "0 / 0",
-  "REASONING_CHARS": "0 / 0",
-  "TRUE_OFF_PARITY": null,
+  "REASONING_EVENTS": "n/a",
+  "REASONING_CHARS": "n/a",
+  "TRUE_OFF_PARITY": "n/a",
   "CHARACTER_SHA": null,
   "PERSONA_SHA": null,
   "SPEECH_LOCK_SHA": null,

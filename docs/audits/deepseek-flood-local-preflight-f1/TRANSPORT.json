@@ -10,8 +10,8 @@
   "production_rp_adapter_note": "src/lib/cheaperInferenceConfig.ts adaptCheaperInferenceChatBody still deletes reasoning_effort for DeepSeek Pro and sets thinking.disabled only. This track did not change that adapter.",
   "live_request_sent": false,
   "live_request_body": null,
-  "reasoning_stream_events_run1": 0,
-  "reasoning_stream_events_run2": 0,
-  "reasoning_chars_run1": 0,
-  "reasoning_chars_run2": 0
+  "reasoning_stream_events_run1": "n/a",
+  "reasoning_stream_events_run2": "n/a",
+  "reasoning_chars_run1": "n/a",
+  "reasoning_chars_run2": "n/a"
 }

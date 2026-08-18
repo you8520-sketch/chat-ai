@@ -71,12 +71,13 @@ Not applicable. No model outputs.
 
 ## 12. Telemetry
 
-- `DEEPSEEK_CALLS`: 0
-- Intended TRUE-OFF: `thinking={type:"disabled"}` + `reasoning_effort="none"`
+- `SOURCE_GEMINI_CALLS`: 0
+- `DEEPSEEK_CALLS`: 0 (executed; do not record intended calls as executed)
+- Intended TRUE-OFF (not run): `thinking={type:"disabled"}` + `reasoning_effort="none"`
 - Do not send: `enable_thinking`, `reasoning`, `include_reasoning`
-- `REASONING_EVENTS`: 0 / 0
-- `REASONING_CHARS`: 0 / 0
-- `TRUE_OFF_PARITY`: null
+- `REASONING_EVENTS`: n/a
+- `REASONING_CHARS`: n/a
+- `TRUE_OFF_PARITY`: n/a
 - `QUALITY_SCORING_BY_CURSOR`: false
 - `SOURCE_MIRROR`: false
 - `COMPLETION`: false
