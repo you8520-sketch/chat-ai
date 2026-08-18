@@ -183,6 +183,13 @@ describe("TRPG reply suggestions", () => {
     assert.match(room, /suggestionsAnchorRef/);
     assert.match(room, /scrollIntoView/);
     assert.match(room, /block: "end"/);
+    assert.match(room, /role="switch"/);
+    assert.match(room, /행동 예시 켜짐/);
+    assert.match(room, /행동 예시 꺼짐/);
+    assert.doesNotMatch(room, /✨ 행동 예시/);
+    const client = fs.readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
+    assert.match(client, /shouldAutoRequestTrpgActionSuggestions/);
+    assert.match(client, /saveTrpgActionSuggestionsEnabled/);
   });
 
   it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {
