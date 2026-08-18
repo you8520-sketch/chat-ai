@@ -23,7 +23,8 @@ Read-only attempts:
 2. Git/docs search for a production card dump — none
 3. Railway volume file list/download of `/data/app.db` — blocked (project token cannot register SSH keys)
 4. Railway SSH SELECT — blocked (`signup_required` for SSH key)
-5. Production HTTP search/home/share — no public 플러드 card; `/character/*` requires login
+5. Production HTTP search/home/share — unauthenticated `/search?q=플러드` result count=0 (`nsfw=0` filter); `/character/*` requires login; `/api/characters/:id` 401
+6. Railway `volume files list /` recheck — SSH authentication failed (project token cannot register SSH keys)
 
 ## 2. Synthetic / human origin
 

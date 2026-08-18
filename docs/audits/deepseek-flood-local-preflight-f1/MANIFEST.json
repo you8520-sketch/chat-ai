@@ -70,7 +70,15 @@
     },
     {
       "id": "production_http_public",
-      "result": "GET /search?q=플러드 returned no character cards; GET /character/* redirects to /login; share slugs 404"
+      "result": "GET /search?q=플러드 HTML contains the query string only; result count=0 because unauthenticated listing filters nsfw=0. GET /character/* redirects to /login. GET /api/characters/:id returns 401. share slugs 404"
+    },
+    {
+      "id": "railway_volume_files_list_cli_recheck",
+      "result": "railway volume list succeeds for chat-ai-volume; railway volume files list / fails: SSH authentication failed; project RAILWAY_TOKEN cannot railway ssh keys add"
+    },
+    {
+      "id": "production_admin_debug_token",
+      "result": "ADMIN_DEBUG_TOKEN accepted on /api/admin/regen-context (message id required; returns message-id trace only, not character card). /api/admin/character-moderation remains 403 (session admin required). No character dump endpoint exists."
     }
   ],
   "blocked_next_steps_not_run": [
