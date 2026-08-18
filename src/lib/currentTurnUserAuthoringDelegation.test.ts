@@ -200,6 +200,82 @@ describe("resolveCurrentTurnUserAuthoringDelegation", () => {
     }
   });
 
+  it("TEST J — action delegated, dialogue retained with 대사만 내가", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 행동은 네가 알아서 진행해.\n대사만 내가 쓸게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: false, allowMajorActions: true }
+    );
+  });
+
+  it("TEST K — dialogue delegated, action retained with 행동만 내가", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 대사는 네가 알아서 써줘.\n행동만 내가 할게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: true, allowMajorActions: false }
+    );
+  });
+
+  it("TEST L — full persona grant, dialogue retained", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 유저 페르소나도 네가 알아서 진행해.\n대사만 내가 쓸게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: false, allowMajorActions: true }
+    );
+  });
+
+  it("TEST M — full persona grant, action retained", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 유저 페르소나도 네가 알아서 진행해.\n행동만 내가 할게.",
+    });
+    assert.deepEqual(
+      { active: d.active, allowDialogue: d.allowDialogue, allowMajorActions: d.allowMajorActions },
+      { active: true, allowDialogue: true, allowMajorActions: false }
+    );
+  });
+
+  it("TEST N — 내 대사만 네가 써줘 is AI dialogue exclusive", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 대사만 네가 써줘.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, true);
+    assert.equal(d.allowMajorActions, false);
+  });
+
+  it("TEST O — 내 행동만 네가 진행해 is AI action exclusive", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 내 행동만 네가 진행해.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, false);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("TEST P — 대사만 내가 쓸게 is retain-only, no delegation", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 대사만 내가 쓸게.",
+    });
+    assert.equal(d.active, false);
+    assert.equal(d.allowDialogue, false);
+    assert.equal(d.allowMajorActions, false);
+  });
+
+  it("TEST Q — 행동만 내가 할게 is retain-only, no delegation", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 행동만 내가 할게.",
+    });
+    assert.equal(d.active, false);
+    assert.equal(d.allowDialogue, false);
+    assert.equal(d.allowMajorActions, false);
+  });
+
   it("supports listed dialogue / action / full scopes", () => {
     const dialogue = resolveCurrentTurnUserAuthoringDelegation({
       currentUserInput: "OOC: 렌 대사는 네가 알아서 해.",

@@ -39,13 +39,10 @@ const ACTION_GRANT_RE = /행동(?:만|도|는|은|를|을|랑)|움직여/;
 const FULL_PERSONA_GRANT_RE =
   /(?:유저\s*)?페르소나\s*도|턴을\s*진행|자동\s*서술|대사\s*(?:랑|와|과)\s*행동/;
 
-const EXCLUSIVE_DIALOGUE_RE = /대사\s*만/;
-const EXCLUSIVE_ACTION_RE = /행동\s*만/;
-
 const DIALOGUE_RETAIN_OR_DENY_RE =
-  /대사(?:는|은|를|을)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|쓸게|쓸래|쓸|작성)|직접\s*(?:쓸|할게|작성))/;
+  /대사(?:는|은|를|을|만|도)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|쓸게|쓸래|쓸|작성)|직접\s*(?:쓸|할게|작성))/;
 const ACTION_RETAIN_OR_DENY_RE =
-  /행동(?:는|은|를|을)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|할래|할|진행할게)|직접\s*(?:할게|할|진행))/;
+  /행동(?:는|은|를|을|만|도)?\s*(?:쓰지\s*마|쓰지마|작성하지\s*마|하지\s*마|내가\s*(?:할게|할래|할|진행할게)|직접\s*(?:할게|할|진행))/;
 
 const LEADING_BARE_COLON_RE = /^OOC\s*[:：]/i;
 const LEADING_BRACKET_RE = /^\[\s*OOC\s*\]/i;
@@ -130,8 +127,6 @@ function resolveDelegationScope(oocBody: string): {
 } | null {
   if (!AUTHORING_INTENT_RE.test(oocBody)) return null;
 
-  const exclusiveDialogue = EXCLUSIVE_DIALOGUE_RE.test(oocBody) && !EXCLUSIVE_ACTION_RE.test(oocBody);
-  const exclusiveAction = EXCLUSIVE_ACTION_RE.test(oocBody) && !EXCLUSIVE_DIALOGUE_RE.test(oocBody);
   const dialogueDenied = DIALOGUE_RETAIN_OR_DENY_RE.test(oocBody);
   const actionDenied = ACTION_RETAIN_OR_DENY_RE.test(oocBody);
 
@@ -139,14 +134,6 @@ function resolveDelegationScope(oocBody: string): {
     DIALOGUE_GRANT_RE.test(oocBody) || FULL_PERSONA_GRANT_RE.test(oocBody);
   let allowMajorActions =
     ACTION_GRANT_RE.test(oocBody) || FULL_PERSONA_GRANT_RE.test(oocBody);
-
-  if (exclusiveDialogue) {
-    allowDialogue = true;
-    allowMajorActions = false;
-  } else if (exclusiveAction) {
-    allowDialogue = false;
-    allowMajorActions = true;
-  }
 
   if (dialogueDenied) allowDialogue = false;
   if (actionDenied) allowMajorActions = false;
