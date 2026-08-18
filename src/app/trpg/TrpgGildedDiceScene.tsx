@@ -233,7 +233,12 @@ function triangleGeometry(corners: FaceCorner[], scale: number, inset: number): 
   const positions = new Float32Array([p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]);
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0.5, 0.86, 0.14, 0.16, 0.86, 0.16]), 2));
-  geometry.computeVertexNormals();
+  const normals = new Float32Array([
+    normal.x, normal.y, normal.z,
+    normal.x, normal.y, normal.z,
+    normal.x, normal.y, normal.z,
+  ]);
+  geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   return geometry;
 }
 
@@ -374,8 +379,8 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
       thickness: 0.6,
       attenuationColor: new THREE.Color("#14251c"),
       attenuationDistance: 1.15,
-      transparent: true,
-      opacity: 0.97,
+      transparent: false,
+      opacity: 1,
       depthWrite: true,
       envMapIntensity: 0.9,
       map: gemMap,
@@ -383,6 +388,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     });
     const gem = new THREE.Mesh(triangleGeometry(corners, TRPG_D20_GEM_SCALE, TRPG_D20_GEM_INSET_DEPTH), gemMaterial);
     gem.receiveShadow = true;
+    gem.renderOrder = 1;
     group.add(gem);
     disposables.push(gem.geometry, gemMaterial, gemMap);
 
