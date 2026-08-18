@@ -85,7 +85,11 @@ export default function TrpgDiceOverlay({
   const spec = trpgD20ThemeSpec(theme);
   const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [settled, setSettled] = useState(false);
-  const [use3d, setUse3d] = useState(false);
+  const [use3d, setUse3d] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return shouldAnimateTrpgDice3d({ webgl: detectWebgl(), reducedMotion });
+  });
   const [reducedQuality, setReducedQuality] = useState(false);
   const prevKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
