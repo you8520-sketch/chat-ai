@@ -58,6 +58,7 @@ import {
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -2917,6 +2918,13 @@ export async function POST(req: Request) {
                   : {}),
                 ...(input.provider === "cheaperinference"
                   ? { transportProvider: "cheaperinference" as const }
+                  : {}),
+                ...(resolveDeepSeekAdultHandoffTrueOff({
+                  selectedModelId: selectedAIRef,
+                  adultHandoffActuallyApplied: input.adultRoute,
+                  resolvedTargetModelId: input.modelId,
+                })
+                  ? { deepSeekAdultHandoffTrueOff: true as const }
                   : {}),
                 ...(input.adultRoute
                   ? {
