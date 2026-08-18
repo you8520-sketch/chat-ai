@@ -179,10 +179,12 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(box, /theme_texture: ""/);
     assert.doesNotMatch(box, /public\/textures|public\/sounds/);
     assert.match(lab, /TrpgDiceBoxScene/);
+    assert.match(lab, /TrpgGildedDiceScene/);
     assert.match(lab, /data-trpg-dice-lab-proto="B"/);
-    assert.match(lab, /Verdant Relic/);
-    assert.match(lab, /Ancient Reliquary/);
+    assert.match(lab, /A · Verdant/);
+    assert.match(lab, /B · Gilded Verdant Relic/);
     assert.match(lab, /data-trpg-dice-lab-prose/);
+    assert.doesNotMatch(lab, /A · Ancient Reliquary/);
     assert.match(room, /TrpgDiceOverlay/);
     assert.match(room, /TrpgRollResultLane/);
     assert.doesNotMatch(room, /<TrpgD20/);

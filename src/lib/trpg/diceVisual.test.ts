@@ -32,6 +32,7 @@ describe("TRPG D20 visual themes and projected scale", () => {
     assert.ok(verdant.material.clearcoat <= 0.28);
     assert.equal(TRPG_D20_OVERLAY_DIM_CLASS, "bg-black/15");
     assert.equal(isTrpgD20ThemeId("verdant-relic"), true);
+    assert.equal(isTrpgD20ThemeId("gilded-verdant-relic"), true);
     assert.equal(isTrpgD20ThemeId("obsidian-relic"), false);
   });
 

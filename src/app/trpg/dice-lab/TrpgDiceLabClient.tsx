@@ -3,12 +3,12 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
-import { isTrpgD20ThemeId, PRODUCTION_D20_THEME, type TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import TrpgDiceOverlay from "../TrpgDiceOverlay";
 import TrpgRollResultLane from "../TrpgRollResultLane";
 
 const TrpgDiceBoxScene = dynamic(() => import("../TrpgDiceBoxScene"), { ssr: false });
+const TrpgGildedDiceScene = dynamic(() => import("../TrpgGildedDiceScene"), { ssr: false });
 
 const FIXTURE: TrpgPublicRoll = {
   participantId: 1,
@@ -24,11 +24,12 @@ const FIXTURE: TrpgPublicRoll = {
   kind: "human",
 };
 
-type LabMode = TrpgD20ThemeId | "dice-box-threejs";
+type LabMode = "verdant-relic" | "gilded-verdant-relic" | "dice-box-threejs";
 
 function initialMode(renderer: TrpgDiceLabRenderer, theme: string | undefined): LabMode {
   if (renderer === "dice-box-threejs") return "dice-box-threejs";
-  return isTrpgD20ThemeId(theme) ? theme : PRODUCTION_D20_THEME;
+  if (theme === "gilded-verdant-relic") return "gilded-verdant-relic";
+  return "verdant-relic";
 }
 
 export default function TrpgDiceLabClient({
@@ -41,7 +42,6 @@ export default function TrpgDiceLabClient({
   const [mode, setMode] = useState<LabMode>(() => initialMode(initialRenderer, initialTheme));
   const [playKey, setPlayKey] = useState(0);
   const rolls = useMemo(() => [{ ...FIXTURE }], [playKey]);
-  const customTheme: TrpgD20ThemeId = mode === "ancient-reliquary" ? "ancient-reliquary" : "verdant-relic";
 
   useEffect(() => {
     document.documentElement.classList.add("dice-lab-active");
@@ -63,9 +63,9 @@ export default function TrpgDiceLabClient({
       <div className="pointer-events-auto relative z-[70] m-4 flex max-w-md flex-col gap-2 rounded-2xl bg-black/45 px-3 py-3 backdrop-blur-sm">
         <h1 className="text-lg font-semibold">TRPG D20 visual lab</h1>
         <p className="text-sm text-zinc-400">
-          Fixture server d20 = 6. Production overlay is Verdant Relic on the custom renderer.
-          Ancient Reliquary is the same renderer with a different material. Prototype B stays on
-          this lab page and is not wired into the campaign overlay.
+          Fixture server d20 = 6. A = current Verdant. B = Gilded Verdant Relic (geometry redesign
+          candidate, NEEDS_HUMAN_REVIEW). Physics B stays lab-only and is not wired into the campaign
+          overlay.
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -76,17 +76,17 @@ export default function TrpgDiceLabClient({
               setPlayKey((key) => key + 1);
             }}
           >
-            B · Verdant Relic
+            A · Verdant
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-1.5 text-sm ${mode === "ancient-reliquary" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
+            className={`rounded-full px-3 py-1.5 text-sm ${mode === "gilded-verdant-relic" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
             onClick={() => {
-              setMode("ancient-reliquary");
+              setMode("gilded-verdant-relic");
               setPlayKey((key) => key + 1);
             }}
           >
-            A · Ancient Reliquary
+            B · Gilded Verdant Relic
           </button>
           <button
             type="button"
@@ -127,13 +127,31 @@ export default function TrpgDiceLabClient({
             권태현 · D20 6 · 실패
           </p>
         </div>
+      ) : mode === "gilded-verdant-relic" ? (
+        <div
+          key={`gilded-${playKey}`}
+          className="pointer-events-none fixed inset-0 z-[65] bg-black/15"
+          data-trpg-dice-lab-proto="gilded"
+        >
+          <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
+            <div className="flex flex-col items-center">
+              <div className="relative h-[min(218px,32vw)] w-[min(250px,38vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(186px,48vw)] overflow-hidden rounded-2xl">
+                <TrpgGildedDiceScene
+                  value={6}
+                  tone="fail"
+                  durationMs={1240}
+                  reducedQuality={false}
+                  onSettled={() => undefined}
+                />
+              </div>
+              <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
+                권태현 · D20 6 · 실패
+              </p>
+            </div>
+          </div>
+        </div>
       ) : (
-        <TrpgDiceOverlay
-          key={`${customTheme}-${playKey}`}
-          phase="ROLLING"
-          rolls={rolls}
-          theme={customTheme}
-        />
+        <TrpgDiceOverlay key={`verdant-${playKey}`} phase="ROLLING" rolls={rolls} theme="verdant-relic" />
       )}
     </div>
   );

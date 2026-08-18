@@ -117,6 +117,9 @@ function paintFaceGround(
     case "oxidized-bronze":
       paintOxidizedVariation(ctx, size, value, spec);
       return;
+    case "gilded-verdant":
+      paintSparseGoldMotes(ctx, size, value, spec);
+      return;
     default: {
       const _never: never = spec.texture;
       return _never;
