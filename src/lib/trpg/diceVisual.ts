@@ -140,7 +140,7 @@ const EMERALD_RELIC: TrpgD20ThemeSpec = {
   numeralFaceRatio: { single: 0.42, double: 0.38 },
   palette: {
     deepest: "#06120c",
-    body: "#0f2418",
+    body: "#1c3a2a",
     vein: "#2c4a36",
     brass: "#b89a58",
     highlight: "#e1cf9a",

@@ -101,6 +101,8 @@ export function buildArtisanD20Geometry(radius: number, insetScale = ARTISAN_D20
   const positions: number[] = [];
   const normals: number[] = [];
   const faces: ArtisanD20Face[] = [];
+  const groups: { start: number; count: number; materialIndex: number }[] = [];
+  let cursor = 0;
 
   for (let face = 0; face < ARTISAN_D20_FACE_COUNT; face += 1) {
     const [a, b, c] = faceCorners(source, face);
@@ -112,10 +114,14 @@ export function buildArtisanD20Geometry(radius: number, insetScale = ARTISAN_D20
     const bi = insetCorner(b);
     const ci = insetCorner(c);
 
-    // Recessed emerald face (the numeral pocket).
+    // Recessed emerald face (the numeral pocket) — material group 0.
+    const faceStart = cursor;
     pushTri(positions, normals, ai, bi, ci, normal.clone().multiplyScalar(-1));
+    cursor += 3;
+    groups.push({ start: faceStart, count: cursor - faceStart, materialIndex: 0 });
 
-    // Three chamfered bevel quads from each original edge down to the recessed inset edge.
+    // Three chamfered gold bevel quads — material group 1.
+    const bevelStart = cursor;
     const bevelNormal = (e0: THREE.Vector3, e1: THREE.Vector3, i0: THREE.Vector3, i1: THREE.Vector3) => {
       const edge = e1.clone().sub(e0).normalize();
       const wallNormal = normal.clone().cross(edge).normalize();
@@ -124,6 +130,8 @@ export function buildArtisanD20Geometry(radius: number, insetScale = ARTISAN_D20
     bevelNormal(a, b, ai, bi);
     bevelNormal(b, c, bi, ci);
     bevelNormal(c, a, ci, ai);
+    cursor += 18;
+    groups.push({ start: bevelStart, count: cursor - bevelStart, materialIndex: 1 });
 
     const up = faceUpTangent(a, b, c, normal);
     const right = new THREE.Vector3().crossVectors(normal, up).normalize();
@@ -141,6 +149,7 @@ export function buildArtisanD20Geometry(radius: number, insetScale = ARTISAN_D20
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
   geometry.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(normals), 3));
+  for (const g of groups) geometry.addGroup(g.start, g.count, g.materialIndex);
   source.dispose();
   return { geometry, faces };
 }

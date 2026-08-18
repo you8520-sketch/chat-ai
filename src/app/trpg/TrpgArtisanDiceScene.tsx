@@ -42,7 +42,7 @@ function buildNumeral(
   face: ArtisanD20Face,
   radius: number
 ): { mesh: THREE.Mesh; dispose: () => void } {
-  const size = radius * 0.34 * (value >= 10 ? 0.82 : 1);
+  const size = radius * 0.42 * (value >= 10 ? 0.82 : 1);
   const geo = new TextGeometry(String(value), {
     font,
     size,
@@ -133,17 +133,17 @@ export default function TrpgArtisanDiceScene({
 
     const pmrem = new THREE.PMREMGenerator(renderer);
     const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(spec.palette.body);
-    const envKey = new THREE.DirectionalLight(0xf0ead8, 0.6);
+    envScene.background = new THREE.Color(0x9a8a6a);
+    const envKey = new THREE.DirectionalLight(0xf0ead8, 1.1);
     envKey.position.set(-1.1, 2.1, 1.2);
     envScene.add(envKey);
-    const envFill = new THREE.DirectionalLight(0x7a9a82, 0.36);
+    const envFill = new THREE.DirectionalLight(0x7a9a82, 0.5);
     envFill.position.set(1.5, 0.5, -1.1);
     envScene.add(envFill);
     const envTarget = pmrem.fromScene(envScene, 0.08);
     scene.environment = envTarget.texture;
 
-    const key = new THREE.DirectionalLight(0xece6d4, reducedQuality ? spec.lighting.key * 0.78 : spec.lighting.key);
+    const key = new THREE.DirectionalLight(0xece6d4, reducedQuality ? spec.lighting.key * 0.9 : spec.lighting.key * 1.1);
     key.position.set(-1.6, 2.4, 1.8);
     key.castShadow = !reducedQuality;
     if (!reducedQuality) {
@@ -183,7 +183,7 @@ export default function TrpgArtisanDiceScene({
       transmission: spec.material.transmission,
       ior: spec.material.ior,
       thickness: spec.material.thickness,
-      envMapIntensity: spec.material.envMapIntensity,
+      envMapIntensity: spec.material.envMapIntensity * 1.25,
       transparent: spec.material.transmission > 0,
     });
     const goldMat = new THREE.MeshPhysicalMaterial({
@@ -192,17 +192,17 @@ export default function TrpgArtisanDiceScene({
       roughness: 0.34,
       clearcoat: 0.16,
       clearcoatRoughness: 0.36,
-      envMapIntensity: 1,
+      envMapIntensity: 1.1,
     });
     const numeralMat = new THREE.MeshPhysicalMaterial({
-      color: 0xb89a58,
-      metalness: 0.86,
-      roughness: 0.32,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.4,
-      envMapIntensity: 1.05,
+      color: 0xe1cf9a,
+      metalness: 0.9,
+      roughness: 0.28,
+      clearcoat: 0.14,
+      clearcoatRoughness: 0.38,
+      envMapIntensity: 1.15,
     });
-    const die = new THREE.Mesh(build.geometry, emeraldMat);
+    const die = new THREE.Mesh(build.geometry, [emeraldMat, goldMat]);
     die.castShadow = true;
     die.receiveShadow = true;
     scene.add(die);
