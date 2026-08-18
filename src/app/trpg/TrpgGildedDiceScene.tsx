@@ -342,7 +342,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
   });
   disposables.push(frameMaterial, capMaterial, oxidationMaterial);
 
-  const showFrame = true;
+  const showFrame = false;
   if (showFrame) {
     for (const [a, b] of collectUniqueEdges(source)) {
       const frame = new THREE.Mesh(edgeFrameGeometry(a, b, frameWidth, frameDepth), frameMaterial);
