@@ -370,7 +370,7 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
     const value = faceValues[face];
     const gemMap = gemFaceTexture(value, tone);
     const gemMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
+      color: 0x2f6a44,
       metalness: 0.14,
       roughness: 0.32,
       clearcoat: 0.22,
@@ -382,7 +382,6 @@ function buildGildedDie(tone: TrpgD20Tone): { group: THREE.Group; faceValues: nu
       opacity: 1,
       depthWrite: true,
       envMapIntensity: 0.85,
-      map: gemMap,
       side: THREE.DoubleSide,
     });
     const gem = new THREE.Mesh(triangleGeometry(corners, TRPG_D20_GEM_SCALE, TRPG_D20_GEM_INSET_DEPTH), gemMaterial);
