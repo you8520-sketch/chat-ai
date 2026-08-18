@@ -1,0 +1,84 @@
+{
+  "LIVE_CALLS_NOT_RUN": true,
+  "STOP_REASON": "Complete production-equivalent assembly (character + persona + Speech Lock + exact next user turn + history) exists for only one Like/Ren adult pair. Additional real source RAWs exist, but matching next-user + character bundles are missing. Fake fixtures and new source generation are forbidden.",
+  "SOURCE_CALLS": 0,
+  "MUSE_V1_CALLS": 0,
+  "MUSE_V2_CALLS": 0,
+  "TOTAL_MUSE_CALLS": 0,
+  "recovered_real_source_raws": [
+    {
+      "id": "LIKE_ADULT_OPUS",
+      "source_model": "claude-opus-5",
+      "character": "라이크 / 조태형",
+      "style_bucket": "C_action_adult",
+      "sha256": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+      "bytes": 10128,
+      "origin": "origin/cursor/deepseek0813-adult-handoff-final-9ec2:docs/audits/deepseek0813-adult-handoff-final/SOURCE_OPUS.txt",
+      "complete_assembly": true,
+      "complete_assembly_note": "Only this pair has a committed production-equivalent Like/Ren + adult next-user bundle on prior audit branches."
+    },
+    {
+      "id": "LIKE_ADULT_GEMINI31",
+      "source_model": "gemini-3.1-pro-preview",
+      "character": "라이크 / 조태형",
+      "style_bucket": "C_action_adult",
+      "sha256": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "bytes": 5995,
+      "origin": "origin/cursor/deepseek0813-adult-handoff-final-9ec2:docs/audits/deepseek0813-adult-handoff-final/SOURCE_GEMINI31.txt",
+      "complete_assembly": true
+    },
+    {
+      "id": "KASPEN_OPUS_T1",
+      "source_model": "claude-opus-5",
+      "character": "카스펜",
+      "style_bucket": "A_narration_sensory",
+      "sha256": "aecc1821f4d2e9b67fc04b481fc501b23abb1f01965871c331f513b054597c14",
+      "bytes": 5363,
+      "origin": "origin/audit/adult-handoff-qwen38-vs-deepseek0813:docs/audits/adult-handoff-qwen38-vs-deepseek0813/recovered-sources/opus-t1.txt",
+      "complete_assembly": false,
+      "missing": ["committed character fixture", "exact next user turn", "Speech Lock bundle"]
+    },
+    {
+      "id": "KASPEN_OPUS_T2",
+      "source_model": "claude-opus-5",
+      "character": "카스펜",
+      "style_bucket": "B_dialogue_voice",
+      "sha256": "e6bc2970913d249969ed2bc3f902cffb2db417f68ffe986455b642f9a960908b",
+      "bytes": 6706,
+      "origin": "origin/audit/adult-handoff-qwen38-vs-deepseek0813:docs/audits/adult-handoff-qwen38-vs-deepseek0813/recovered-sources/opus-t2.txt",
+      "complete_assembly": false,
+      "missing": ["committed character fixture", "exact next user turn", "Speech Lock bundle"]
+    },
+    {
+      "id": "LIKE_LOBBY_GEMINI31_T1",
+      "source_model": "gemini-3.1-pro-preview",
+      "character": "라이크 / 조태형",
+      "style_bucket": "B_dialogue_voice",
+      "sha256": "7a70fb1ee256166f37d856561f5dba768c279c7601ccd7d26341b550ffa48ea1",
+      "bytes": 11285,
+      "origin": "origin/audit/adult-handoff-qwen38-vs-deepseek0813:docs/audits/adult-handoff-qwen38-vs-deepseek0813/recovered-sources/gemini-t1.txt",
+      "complete_assembly": false,
+      "missing": [
+        "exact next user turn for this lobby RAW",
+        "reusing the adult handoff user after a lobby RAW would be a scene mismatch"
+      ]
+    },
+    {
+      "id": "LIKE_LOBBY_GEMINI31_T2",
+      "source_model": "gemini-3.1-pro-preview",
+      "character": "라이크 / 조태형",
+      "style_bucket": "A_narration_sensory",
+      "sha256": "558150d1eb88b20ab77e7874b7bbcef2d7ddda698be7d1d2b21fd454686fe256",
+      "bytes": 10274,
+      "origin": "origin/audit/adult-handoff-qwen38-vs-deepseek0813:docs/audits/adult-handoff-qwen38-vs-deepseek0813/recovered-sources/gemini-t2.txt",
+      "complete_assembly": false,
+      "missing": ["exact next user turn for this lobby RAW"]
+    }
+  ],
+  "complete_opus_fixtures": 1,
+  "complete_gemini31_fixtures": 1,
+  "required_opus_fixtures": 3,
+  "required_gemini31_fixtures": 3,
+  "synthetic_fixtures_created": 0,
+  "source_generation_calls": 0
+}

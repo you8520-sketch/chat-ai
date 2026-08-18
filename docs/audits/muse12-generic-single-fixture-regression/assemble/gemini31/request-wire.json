@@ -1,0 +1,56 @@
+{
+  "requested_model": "muse-spark-1.2",
+  "temperature": 0.7,
+  "top_p": null,
+  "max_tokens": null,
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "keys": [
+    "messages",
+    "model",
+    "stream",
+    "stream_options",
+    "temperature"
+  ],
+  "muse_fields": {
+    "reasoning": "ABSENT",
+    "include_reasoning": "ABSENT",
+    "reasoning_effort": "ABSENT",
+    "thinking": "ABSENT",
+    "output_config": "ABSENT",
+    "extra_body": "ABSENT",
+    "reasoning_max_tokens": "ABSENT",
+    "enable_thinking": "ABSENT"
+  },
+  "source_id": "gemini31",
+  "source_sha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "fixture_canon_hits": {
+    "미세한 환경음과 거리감": {
+      "generic_block": 0,
+      "current_user_minus_generic": 0,
+      "system": 0
+    },
+    "얇은 농담": {
+      "generic_block": 0,
+      "current_user_minus_generic": 0,
+      "system": 0
+    },
+    "능글맞음": {
+      "generic_block": 0,
+      "current_user_minus_generic": 0,
+      "system": 1
+    },
+    "어색하게 비치는 진심": {
+      "generic_block": 0,
+      "current_user_minus_generic": 0,
+      "system": 0
+    },
+    "장난스러운 반응": {
+      "generic_block": 0,
+      "current_user_minus_generic": 0,
+      "system": 0
+    }
+  }
+}

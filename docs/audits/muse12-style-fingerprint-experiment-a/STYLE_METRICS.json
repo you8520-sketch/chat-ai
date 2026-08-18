@@ -1,0 +1,856 @@
+{
+  "opus_source": {
+    "source_visible_chars": 4324,
+    "sentence_char_median": 18,
+    "sentence_char_p75": 27,
+    "paragraph_char_median": 45,
+    "paragraph_char_p75": 95,
+    "paragraphs_per_1000_chars": 16.4,
+    "one_sentence_paragraph_share": 0.1343,
+    "dialogue_char_share": 0.219,
+    "dialogue_blocks_per_1000_chars": 6.7,
+    "usable_prose_paragraphs": 67,
+    "dialogue_blocks": 29
+  },
+  "opus_baseline_1": {
+    "metrics": {
+      "source_visible_chars": 5668,
+      "sentence_char_median": 24,
+      "sentence_char_p75": 33,
+      "paragraph_char_median": 85,
+      "paragraph_char_p75": 152,
+      "paragraphs_per_1000_chars": 11.3,
+      "one_sentence_paragraph_share": 0.0656,
+      "dialogue_char_share": 0.0665,
+      "dialogue_blocks_per_1000_chars": 4.1,
+      "usable_prose_paragraphs": 61,
+      "dialogue_blocks": 23
+    },
+    "distance": {
+      "overall": 0.4939,
+      "features": {
+        "sentence_char_median": 0.3333,
+        "sentence_char_p75": 0.2222,
+        "paragraph_char_median": 0.8889,
+        "paragraph_char_p75": 0.6,
+        "paragraphs_per_1000_chars": 0.311,
+        "one_sentence_paragraph_share": 0.5115,
+        "dialogue_char_share": 0.6963,
+        "dialogue_blocks_per_1000_chars": 0.3881
+      }
+    }
+  },
+  "opus_baseline_2": {
+    "metrics": {
+      "source_visible_chars": 5683,
+      "sentence_char_median": 25,
+      "sentence_char_p75": 33,
+      "paragraph_char_median": 135,
+      "paragraph_char_p75": 185,
+      "paragraphs_per_1000_chars": 9.5,
+      "one_sentence_paragraph_share": 0.0213,
+      "dialogue_char_share": 0.028,
+      "dialogue_blocks_per_1000_chars": 2.6,
+      "usable_prose_paragraphs": 47,
+      "dialogue_blocks": 15
+    },
+    "distance": {
+      "overall": 0.7881,
+      "features": {
+        "sentence_char_median": 0.3889,
+        "sentence_char_p75": 0.2222,
+        "paragraph_char_median": 2,
+        "paragraph_char_p75": 0.9474,
+        "paragraphs_per_1000_chars": 0.4207,
+        "one_sentence_paragraph_share": 0.8414,
+        "dialogue_char_share": 0.8721,
+        "dialogue_blocks_per_1000_chars": 0.6119
+      }
+    }
+  },
+  "opus_baseline_3": {
+    "metrics": {
+      "source_visible_chars": 4601,
+      "sentence_char_median": 27,
+      "sentence_char_p75": 35,
+      "paragraph_char_median": 153,
+      "paragraph_char_p75": 194,
+      "paragraphs_per_1000_chars": 8.3,
+      "one_sentence_paragraph_share": 0.0556,
+      "dialogue_char_share": 0.05,
+      "dialogue_blocks_per_1000_chars": 2.6,
+      "usable_prose_paragraphs": 36,
+      "dialogue_blocks": 12
+    },
+    "distance": {
+      "overall": 0.8377,
+      "features": {
+        "sentence_char_median": 0.5,
+        "sentence_char_p75": 0.2963,
+        "paragraph_char_median": 2.4,
+        "paragraph_char_p75": 1.0421,
+        "paragraphs_per_1000_chars": 0.4939,
+        "one_sentence_paragraph_share": 0.586,
+        "dialogue_char_share": 0.7717,
+        "dialogue_blocks_per_1000_chars": 0.6119
+      }
+    }
+  },
+  "opus_fingerprint_1": {
+    "metrics": {
+      "source_visible_chars": 4869,
+      "sentence_char_median": 22,
+      "sentence_char_p75": 32,
+      "paragraph_char_median": 113,
+      "paragraph_char_p75": 150,
+      "paragraphs_per_1000_chars": 11.1,
+      "one_sentence_paragraph_share": 0.02,
+      "dialogue_char_share": 0.0518,
+      "dialogue_blocks_per_1000_chars": 3.9,
+      "usable_prose_paragraphs": 50,
+      "dialogue_blocks": 19
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 1731,
+        "sentence_char_median": 21,
+        "sentence_char_p75": 32,
+        "paragraph_char_median": 73,
+        "paragraph_char_p75": 147,
+        "paragraphs_per_1000_chars": 12.1,
+        "one_sentence_paragraph_share": 0.05,
+        "dialogue_char_share": 0.0653,
+        "dialogue_blocks_per_1000_chars": 4,
+        "usable_prose_paragraphs": 20,
+        "dialogue_blocks": 7
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1638,
+        "sentence_char_median": 23,
+        "sentence_char_p75": 32,
+        "paragraph_char_median": 147,
+        "paragraph_char_p75": 160,
+        "paragraphs_per_1000_chars": 9.2,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0366,
+        "dialogue_blocks_per_1000_chars": 3.1,
+        "usable_prose_paragraphs": 13,
+        "dialogue_blocks": 5
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1496,
+        "sentence_char_median": 25,
+        "sentence_char_p75": 31,
+        "paragraph_char_median": 124,
+        "paragraph_char_p75": 128,
+        "paragraphs_per_1000_chars": 12,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0528,
+        "dialogue_blocks_per_1000_chars": 4.7,
+        "usable_prose_paragraphs": 17,
+        "dialogue_blocks": 7
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.6066,
+        "features": {
+          "sentence_char_median": 0.2222,
+          "sentence_char_p75": 0.1852,
+          "paragraph_char_median": 1.5111,
+          "paragraph_char_p75": 0.5789,
+          "paragraphs_per_1000_chars": 0.3232,
+          "one_sentence_paragraph_share": 0.8511,
+          "dialogue_char_share": 0.7635,
+          "dialogue_blocks_per_1000_chars": 0.4179
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.4395,
+        "features": {
+          "sentence_char_median": 0.1667,
+          "sentence_char_p75": 0.1852,
+          "paragraph_char_median": 0.6222,
+          "paragraph_char_p75": 0.5474,
+          "paragraphs_per_1000_chars": 0.2622,
+          "one_sentence_paragraph_share": 0.6277,
+          "dialogue_char_share": 0.7018,
+          "dialogue_blocks_per_1000_chars": 0.403
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.7779,
+        "features": {
+          "sentence_char_median": 0.2778,
+          "sentence_char_p75": 0.1852,
+          "paragraph_char_median": 2.2667,
+          "paragraph_char_p75": 0.6842,
+          "paragraphs_per_1000_chars": 0.439,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.8329,
+          "dialogue_blocks_per_1000_chars": 0.5373
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.6207,
+        "features": {
+          "sentence_char_median": 0.3889,
+          "sentence_char_p75": 0.1481,
+          "paragraph_char_median": 1.7556,
+          "paragraph_char_p75": 0.3474,
+          "paragraphs_per_1000_chars": 0.2683,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.7589,
+          "dialogue_blocks_per_1000_chars": 0.2985
+        }
+      }
+    }
+  },
+  "opus_fingerprint_2": {
+    "metrics": {
+      "source_visible_chars": 4535,
+      "sentence_char_median": 22,
+      "sentence_char_p75": 32,
+      "paragraph_char_median": 82,
+      "paragraph_char_p75": 147,
+      "paragraphs_per_1000_chars": 11.7,
+      "one_sentence_paragraph_share": 0.0208,
+      "dialogue_char_share": 0.08,
+      "dialogue_blocks_per_1000_chars": 4.9,
+      "usable_prose_paragraphs": 48,
+      "dialogue_blocks": 22
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 1585,
+        "sentence_char_median": 26,
+        "sentence_char_p75": 35,
+        "paragraph_char_median": 107,
+        "paragraph_char_p75": 178,
+        "paragraphs_per_1000_chars": 9.5,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0688,
+        "dialogue_blocks_per_1000_chars": 3.2,
+        "usable_prose_paragraphs": 14,
+        "dialogue_blocks": 5
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1448,
+        "sentence_char_median": 20,
+        "sentence_char_p75": 32,
+        "paragraph_char_median": 57,
+        "paragraph_char_p75": 148,
+        "paragraphs_per_1000_chars": 12.4,
+        "one_sentence_paragraph_share": 0.0625,
+        "dialogue_char_share": 0.0849,
+        "dialogue_blocks_per_1000_chars": 5.5,
+        "usable_prose_paragraphs": 16,
+        "dialogue_blocks": 8
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1498,
+        "sentence_char_median": 19,
+        "sentence_char_p75": 31,
+        "paragraph_char_median": 84,
+        "paragraph_char_p75": 124,
+        "paragraphs_per_1000_chars": 13.4,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0874,
+        "dialogue_blocks_per_1000_chars": 6,
+        "usable_prose_paragraphs": 18,
+        "dialogue_blocks": 9
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.4765,
+        "features": {
+          "sentence_char_median": 0.2222,
+          "sentence_char_p75": 0.1852,
+          "paragraph_char_median": 0.8222,
+          "paragraph_char_p75": 0.5474,
+          "paragraphs_per_1000_chars": 0.2866,
+          "one_sentence_paragraph_share": 0.8451,
+          "dialogue_char_share": 0.6347,
+          "dialogue_blocks_per_1000_chars": 0.2687
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.7026,
+        "features": {
+          "sentence_char_median": 0.4444,
+          "sentence_char_p75": 0.2963,
+          "paragraph_char_median": 1.3778,
+          "paragraph_char_p75": 0.8737,
+          "paragraphs_per_1000_chars": 0.4207,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.6858,
+          "dialogue_blocks_per_1000_chars": 0.5224
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.3364,
+        "features": {
+          "sentence_char_median": 0.1111,
+          "sentence_char_p75": 0.1852,
+          "paragraph_char_median": 0.2667,
+          "paragraph_char_p75": 0.5579,
+          "paragraphs_per_1000_chars": 0.2439,
+          "one_sentence_paragraph_share": 0.5346,
+          "dialogue_char_share": 0.6123,
+          "dialogue_blocks_per_1000_chars": 0.1791
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.408,
+        "features": {
+          "sentence_char_median": 0.0556,
+          "sentence_char_p75": 0.1481,
+          "paragraph_char_median": 0.8667,
+          "paragraph_char_p75": 0.3053,
+          "paragraphs_per_1000_chars": 0.1829,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.6009,
+          "dialogue_blocks_per_1000_chars": 0.1045
+        }
+      }
+    }
+  },
+  "opus_fingerprint_3": {
+    "metrics": {
+      "source_visible_chars": 6029,
+      "sentence_char_median": 18,
+      "sentence_char_p75": 24,
+      "paragraph_char_median": 73,
+      "paragraph_char_p75": 103,
+      "paragraphs_per_1000_chars": 15.6,
+      "one_sentence_paragraph_share": 0.0488,
+      "dialogue_char_share": 0.0542,
+      "dialogue_blocks_per_1000_chars": 4.8,
+      "usable_prose_paragraphs": 82,
+      "dialogue_blocks": 29
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 2094,
+        "sentence_char_median": 18,
+        "sentence_char_p75": 25,
+        "paragraph_char_median": 84,
+        "paragraph_char_p75": 114,
+        "paragraphs_per_1000_chars": 14.3,
+        "one_sentence_paragraph_share": 0.0769,
+        "dialogue_char_share": 0.0392,
+        "dialogue_blocks_per_1000_chars": 3.3,
+        "usable_prose_paragraphs": 26,
+        "dialogue_blocks": 7
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1952,
+        "sentence_char_median": 18,
+        "sentence_char_p75": 23,
+        "paragraph_char_median": 66,
+        "paragraph_char_p75": 103,
+        "paragraphs_per_1000_chars": 15.4,
+        "one_sentence_paragraph_share": 0.0714,
+        "dialogue_char_share": 0.0676,
+        "dialogue_blocks_per_1000_chars": 4.6,
+        "usable_prose_paragraphs": 28,
+        "dialogue_blocks": 9
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1979,
+        "sentence_char_median": 19,
+        "sentence_char_p75": 24,
+        "paragraph_char_median": 67,
+        "paragraph_char_p75": 95,
+        "paragraphs_per_1000_chars": 17.2,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0571,
+        "dialogue_blocks_per_1000_chars": 6.6,
+        "usable_prose_paragraphs": 28,
+        "dialogue_blocks": 13
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.3174,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0.1111,
+          "paragraph_char_median": 0.6222,
+          "paragraph_char_p75": 0.0842,
+          "paragraphs_per_1000_chars": 0.0488,
+          "one_sentence_paragraph_share": 0.6366,
+          "dialogue_char_share": 0.7525,
+          "dialogue_blocks_per_1000_chars": 0.2836
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.3781,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0.0741,
+          "paragraph_char_median": 0.8667,
+          "paragraph_char_p75": 0.2,
+          "paragraphs_per_1000_chars": 0.128,
+          "one_sentence_paragraph_share": 0.4274,
+          "dialogue_char_share": 0.821,
+          "dialogue_blocks_per_1000_chars": 0.5075
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.2791,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0.1481,
+          "paragraph_char_median": 0.4667,
+          "paragraph_char_p75": 0.0842,
+          "paragraphs_per_1000_chars": 0.061,
+          "one_sentence_paragraph_share": 0.4684,
+          "dialogue_char_share": 0.6913,
+          "dialogue_blocks_per_1000_chars": 0.3134
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.3073,
+        "features": {
+          "sentence_char_median": 0.0556,
+          "sentence_char_p75": 0.1111,
+          "paragraph_char_median": 0.4889,
+          "paragraph_char_p75": 0,
+          "paragraphs_per_1000_chars": 0.0488,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.7393,
+          "dialogue_blocks_per_1000_chars": 0.0149
+        }
+      }
+    }
+  },
+  "gemini31_source": {
+    "source_visible_chars": 2497,
+    "sentence_char_median": 33,
+    "sentence_char_p75": 43,
+    "paragraph_char_median": 94,
+    "paragraph_char_p75": 155,
+    "paragraphs_per_1000_chars": 10,
+    "one_sentence_paragraph_share": 0.1304,
+    "dialogue_char_share": 0.1237,
+    "dialogue_blocks_per_1000_chars": 2.8,
+    "usable_prose_paragraphs": 23,
+    "dialogue_blocks": 7
+  },
+  "gemini31_baseline_1": {
+    "metrics": {
+      "source_visible_chars": 4015,
+      "sentence_char_median": 32,
+      "sentence_char_p75": 42,
+      "paragraph_char_median": 150,
+      "paragraph_char_p75": 189,
+      "paragraphs_per_1000_chars": 8,
+      "one_sentence_paragraph_share": 0.0667,
+      "dialogue_char_share": 0.0279,
+      "dialogue_blocks_per_1000_chars": 1.7,
+      "usable_prose_paragraphs": 30,
+      "dialogue_blocks": 7
+    },
+    "distance": {
+      "overall": 0.3406,
+      "features": {
+        "sentence_char_median": 0.0303,
+        "sentence_char_p75": 0.0233,
+        "paragraph_char_median": 0.5957,
+        "paragraph_char_p75": 0.2194,
+        "paragraphs_per_1000_chars": 0.2,
+        "one_sentence_paragraph_share": 0.4885,
+        "dialogue_char_share": 0.7745,
+        "dialogue_blocks_per_1000_chars": 0.3929
+      }
+    }
+  },
+  "gemini31_baseline_2": {
+    "metrics": {
+      "source_visible_chars": 4388,
+      "sentence_char_median": 37,
+      "sentence_char_p75": 50,
+      "paragraph_char_median": 182,
+      "paragraph_char_p75": 198,
+      "paragraphs_per_1000_chars": 6.6,
+      "one_sentence_paragraph_share": 0,
+      "dialogue_char_share": 0.026,
+      "dialogue_blocks_per_1000_chars": 1.6,
+      "usable_prose_paragraphs": 28,
+      "dialogue_blocks": 7
+    },
+    "distance": {
+      "overall": 0.507,
+      "features": {
+        "sentence_char_median": 0.1212,
+        "sentence_char_p75": 0.1628,
+        "paragraph_char_median": 0.9362,
+        "paragraph_char_p75": 0.2774,
+        "paragraphs_per_1000_chars": 0.34,
+        "one_sentence_paragraph_share": 1,
+        "dialogue_char_share": 0.7898,
+        "dialogue_blocks_per_1000_chars": 0.4286
+      }
+    }
+  },
+  "gemini31_baseline_3": {
+    "metrics": {
+      "source_visible_chars": 3639,
+      "sentence_char_median": 28,
+      "sentence_char_p75": 37,
+      "paragraph_char_median": 123,
+      "paragraph_char_p75": 161,
+      "paragraphs_per_1000_chars": 9.9,
+      "one_sentence_paragraph_share": 0.0294,
+      "dialogue_char_share": 0.0486,
+      "dialogue_blocks_per_1000_chars": 3.3,
+      "usable_prose_paragraphs": 34,
+      "dialogue_blocks": 12
+    },
+    "distance": {
+      "overall": 0.2761,
+      "features": {
+        "sentence_char_median": 0.1515,
+        "sentence_char_p75": 0.1395,
+        "paragraph_char_median": 0.3085,
+        "paragraph_char_p75": 0.0387,
+        "paragraphs_per_1000_chars": 0.01,
+        "one_sentence_paragraph_share": 0.7745,
+        "dialogue_char_share": 0.6071,
+        "dialogue_blocks_per_1000_chars": 0.1786
+      }
+    }
+  },
+  "gemini31_fingerprint_1": {
+    "metrics": {
+      "source_visible_chars": 3640,
+      "sentence_char_median": 30,
+      "sentence_char_p75": 42,
+      "paragraph_char_median": 133,
+      "paragraph_char_p75": 162,
+      "paragraphs_per_1000_chars": 8.8,
+      "one_sentence_paragraph_share": 0,
+      "dialogue_char_share": 0.0484,
+      "dialogue_blocks_per_1000_chars": 2.5,
+      "usable_prose_paragraphs": 32,
+      "dialogue_blocks": 9
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 1226,
+        "sentence_char_median": 30,
+        "sentence_char_p75": 43,
+        "paragraph_char_median": 121,
+        "paragraph_char_p75": 139,
+        "paragraphs_per_1000_chars": 9,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0432,
+        "dialogue_blocks_per_1000_chars": 2.4,
+        "usable_prose_paragraphs": 11,
+        "dialogue_blocks": 3
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1307,
+        "sentence_char_median": 29,
+        "sentence_char_p75": 41,
+        "paragraph_char_median": 147,
+        "paragraph_char_p75": 174,
+        "paragraphs_per_1000_chars": 7.7,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.023,
+        "dialogue_blocks_per_1000_chars": 1.5,
+        "usable_prose_paragraphs": 10,
+        "dialogue_blocks": 2
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1103,
+        "sentence_char_median": 33,
+        "sentence_char_p75": 40,
+        "paragraph_char_median": 108,
+        "paragraph_char_p75": 151,
+        "paragraphs_per_1000_chars": 10,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0843,
+        "dialogue_blocks_per_1000_chars": 3.6,
+        "usable_prose_paragraphs": 11,
+        "dialogue_blocks": 4
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.3013,
+        "features": {
+          "sentence_char_median": 0.0909,
+          "sentence_char_p75": 0.0233,
+          "paragraph_char_median": 0.4149,
+          "paragraph_char_p75": 0.0452,
+          "paragraphs_per_1000_chars": 0.12,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.6087,
+          "dialogue_blocks_per_1000_chars": 0.1071
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.2969,
+        "features": {
+          "sentence_char_median": 0.0909,
+          "sentence_char_p75": 0,
+          "paragraph_char_median": 0.2872,
+          "paragraph_char_p75": 0.1032,
+          "paragraphs_per_1000_chars": 0.1,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.6508,
+          "dialogue_blocks_per_1000_chars": 0.1429
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.4203,
+        "features": {
+          "sentence_char_median": 0.1212,
+          "sentence_char_p75": 0.0465,
+          "paragraph_char_median": 0.5638,
+          "paragraph_char_p75": 0.1226,
+          "paragraphs_per_1000_chars": 0.23,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.8141,
+          "dialogue_blocks_per_1000_chars": 0.4643
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.2311,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0.0698,
+          "paragraph_char_median": 0.1489,
+          "paragraph_char_p75": 0.0258,
+          "paragraphs_per_1000_chars": 0,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.3185,
+          "dialogue_blocks_per_1000_chars": 0.2857
+        }
+      }
+    }
+  },
+  "gemini31_fingerprint_2": {
+    "metrics": {
+      "source_visible_chars": 3683,
+      "sentence_char_median": 33,
+      "sentence_char_p75": 44,
+      "paragraph_char_median": 167,
+      "paragraph_char_p75": 196,
+      "paragraphs_per_1000_chars": 7.3,
+      "one_sentence_paragraph_share": 0.037,
+      "dialogue_char_share": 0.0407,
+      "dialogue_blocks_per_1000_chars": 2.4,
+      "usable_prose_paragraphs": 27,
+      "dialogue_blocks": 9
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 1271,
+        "sentence_char_median": 32,
+        "sentence_char_p75": 43,
+        "paragraph_char_median": 167,
+        "paragraph_char_p75": 192,
+        "paragraphs_per_1000_chars": 7.1,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0236,
+        "dialogue_blocks_per_1000_chars": 1.6,
+        "usable_prose_paragraphs": 9,
+        "dialogue_blocks": 2
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1181,
+        "sentence_char_median": 36,
+        "sentence_char_p75": 48,
+        "paragraph_char_median": 202,
+        "paragraph_char_p75": 226,
+        "paragraphs_per_1000_chars": 6.8,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0347,
+        "dialogue_blocks_per_1000_chars": 2.5,
+        "usable_prose_paragraphs": 8,
+        "dialogue_blocks": 3
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1227,
+        "sentence_char_median": 33,
+        "sentence_char_p75": 43,
+        "paragraph_char_median": 134,
+        "paragraph_char_p75": 186,
+        "paragraphs_per_1000_chars": 8.1,
+        "one_sentence_paragraph_share": 0.1,
+        "dialogue_char_share": 0.0644,
+        "dialogue_blocks_per_1000_chars": 3.3,
+        "usable_prose_paragraphs": 10,
+        "dialogue_blocks": 4
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.3581,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0.0233,
+          "paragraph_char_median": 0.7766,
+          "paragraph_char_p75": 0.2645,
+          "paragraphs_per_1000_chars": 0.27,
+          "one_sentence_paragraph_share": 0.7163,
+          "dialogue_char_share": 0.671,
+          "dialogue_blocks_per_1000_chars": 0.1429
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.4467,
+        "features": {
+          "sentence_char_median": 0.0303,
+          "sentence_char_p75": 0,
+          "paragraph_char_median": 0.7766,
+          "paragraph_char_p75": 0.2387,
+          "paragraphs_per_1000_chars": 0.29,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.8092,
+          "dialogue_blocks_per_1000_chars": 0.4286
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.4951,
+        "features": {
+          "sentence_char_median": 0.0909,
+          "sentence_char_p75": 0.1163,
+          "paragraph_char_median": 1.1489,
+          "paragraph_char_p75": 0.4581,
+          "paragraphs_per_1000_chars": 0.32,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.7195,
+          "dialogue_blocks_per_1000_chars": 0.1071
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.2133,
+        "features": {
+          "sentence_char_median": 0,
+          "sentence_char_p75": 0,
+          "paragraph_char_median": 0.4255,
+          "paragraph_char_p75": 0.2,
+          "paragraphs_per_1000_chars": 0.19,
+          "one_sentence_paragraph_share": 0.2331,
+          "dialogue_char_share": 0.4794,
+          "dialogue_blocks_per_1000_chars": 0.1786
+        }
+      }
+    }
+  },
+  "gemini31_fingerprint_3": {
+    "metrics": {
+      "source_visible_chars": 3775,
+      "sentence_char_median": 30,
+      "sentence_char_p75": 40,
+      "paragraph_char_median": 121,
+      "paragraph_char_p75": 141,
+      "paragraphs_per_1000_chars": 9,
+      "one_sentence_paragraph_share": 0,
+      "dialogue_char_share": 0.0233,
+      "dialogue_blocks_per_1000_chars": 1.3,
+      "usable_prose_paragraphs": 34,
+      "dialogue_blocks": 5
+    },
+    "thirds": {
+      "FIRST_THIRD": {
+        "source_visible_chars": 1305,
+        "sentence_char_median": 31,
+        "sentence_char_p75": 39,
+        "paragraph_char_median": 112,
+        "paragraph_char_p75": 142,
+        "paragraphs_per_1000_chars": 9.2,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.033,
+        "dialogue_blocks_per_1000_chars": 1.5,
+        "usable_prose_paragraphs": 12,
+        "dialogue_blocks": 2
+      },
+      "MIDDLE_THIRD": {
+        "source_visible_chars": 1321,
+        "sentence_char_median": 30,
+        "sentence_char_p75": 39,
+        "paragraph_char_median": 130,
+        "paragraph_char_p75": 140,
+        "paragraphs_per_1000_chars": 8.3,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0114,
+        "dialogue_blocks_per_1000_chars": 0.8,
+        "usable_prose_paragraphs": 11,
+        "dialogue_blocks": 1
+      },
+      "LAST_THIRD": {
+        "source_visible_chars": 1145,
+        "sentence_char_median": 32,
+        "sentence_char_p75": 40,
+        "paragraph_char_median": 119,
+        "paragraph_char_p75": 140,
+        "paragraphs_per_1000_chars": 9.6,
+        "one_sentence_paragraph_share": 0,
+        "dialogue_char_share": 0.0262,
+        "dialogue_blocks_per_1000_chars": 1.7,
+        "usable_prose_paragraphs": 11,
+        "dialogue_blocks": 2
+      }
+    },
+    "distances": {
+      "overall": {
+        "overall": 0.3732,
+        "features": {
+          "sentence_char_median": 0.0909,
+          "sentence_char_p75": 0.0698,
+          "paragraph_char_median": 0.2872,
+          "paragraph_char_p75": 0.0903,
+          "paragraphs_per_1000_chars": 0.1,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.8116,
+          "dialogue_blocks_per_1000_chars": 0.5357
+        }
+      },
+      "FIRST_THIRD_DISTANCE": {
+        "overall": 0.3383,
+        "features": {
+          "sentence_char_median": 0.0606,
+          "sentence_char_p75": 0.093,
+          "paragraph_char_median": 0.1915,
+          "paragraph_char_p75": 0.0839,
+          "paragraphs_per_1000_chars": 0.08,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.7332,
+          "dialogue_blocks_per_1000_chars": 0.4643
+        }
+      },
+      "MIDDLE_THIRD_DISTANCE": {
+        "overall": 0.432,
+        "features": {
+          "sentence_char_median": 0.0909,
+          "sentence_char_p75": 0.093,
+          "paragraph_char_median": 0.383,
+          "paragraph_char_p75": 0.0968,
+          "paragraphs_per_1000_chars": 0.17,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.9078,
+          "dialogue_blocks_per_1000_chars": 0.7143
+        }
+      },
+      "LAST_THIRD_DISTANCE": {
+        "overall": 0.3355,
+        "features": {
+          "sentence_char_median": 0.0303,
+          "sentence_char_p75": 0.0698,
+          "paragraph_char_median": 0.266,
+          "paragraph_char_p75": 0.0968,
+          "paragraphs_per_1000_chars": 0.04,
+          "one_sentence_paragraph_share": 1,
+          "dialogue_char_share": 0.7882,
+          "dialogue_blocks_per_1000_chars": 0.3929
+        }
+      }
+    }
+  }
+}
