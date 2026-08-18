@@ -25,6 +25,7 @@ Read-only attempts:
 4. Railway SSH SELECT — blocked (`signup_required` for SSH key)
 5. Production HTTP search/home/share — unauthenticated `/search?q=플러드` result count=0 (`nsfw=0` filter); `/character/*` requires login; `/api/characters/:id` 401
 6. Railway `volume files list /` recheck — SSH authentication failed (project token cannot register SSH keys)
+7. Production `ADMIN_DEBUG_TOKEN` — `/api/admin/regen-context` accepted (message-id trace only; no character card). `/api/admin/character-moderation` still 403
 
 ## 2. Synthetic / human origin
 
