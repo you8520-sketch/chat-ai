@@ -69,13 +69,16 @@ Character greeting exists in `character.fields.greeting` (`greeting_chars=580`).
 
 ```text
 LOCAL_DB = data/app.db
-LOCAL_CHARACTERS = 9 seeded demo rows; id 17 / 플러드 absent
-LOCAL_PERSONA_ID_1 = 데모유저  (not snapshot 렌)
-LOCAL_CHATS = 1  (character_id=1, not Flood)
-LOCAL_MESSAGES = 1  (role=assistant, model=greeting)
+LOCAL_CHAT_ID = 2
+LOCAL_CHAT_URL = http://127.0.0.1:3000/chat/17?chat=2
+LOCAL_CHARACTERS = Flood id 17 loaded from frozen snapshot (prompt/canon text unchanged)
+LOCAL_PERSONA_ID_1 = 렌  (snapshot persona fields; was 데모유저)
+LOCAL_SELECTED_AI = gemini-3.7-flash
+LOCAL_ADULT_HANDOFF_ENABLED = 0
+LOCAL_MESSAGES = greeting only (model=greeting)
 LOCAL_GEMINI_37_MESSAGES = 0
-LOCAL_FIXTURE_ID / CHAT_ID = n/a
-ASSISTANT_MESSAGE_ID = n/a
+BROWSER_OPENED = true
+BROWSER_TYPED_USER_TURN = false
 ```
 
 `scripts/tmp-f1-assemble-dry-run.ts` can assemble a Gemini 3.7 request against this snapshot, but its `currentUserMessage` is a **synthetic** setup line (`여기… 평가 때문에 온 거야? 나는 렌이라고 해.`). That line was not sent and is not treated as human-authored context.
@@ -181,7 +184,9 @@ PRODUCTION_CHANGED = false
 
 ## Next human action
 
-Provide one **human-authored local setup RP turn** for Flood + 렌 on the frozen snapshot (greeting may already be in history; greeting itself is not the Gemini source).
+Local browser is open on `http://127.0.0.1:3000/chat/17?chat=2` (플러드 greeting, Gemini 3.7 Flash, 성인모드 off, composer empty).
+
+Type one **human-authored setup RP turn** there and send. Do not use a Cursor-written line. Greeting is already in history and is not the Gemini source.
 
 After that setup turn exists:
 
