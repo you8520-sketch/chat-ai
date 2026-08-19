@@ -12,9 +12,9 @@ import {
   trpgDiceRollSessionKey,
   trpgEmeraldDiceTiming,
   trpgPredeterminedD20Notation,
-  trpgResultConfirmPerDieMs,
   TRPG_RESULT_ENTER_MS,
   TRPG_RESULT_EXIT_MS,
+  TRPG_RESULT_HOLD_MS,
 } from "@/lib/trpg/diceRollUx";
 import {
   PRODUCTION_D20_THEME,
@@ -172,7 +172,8 @@ export default function TrpgDiceOverlay({
       return () => window.clearTimeout(enter);
     }
     if (resultPhase === "holding") {
-      const holdMs = TRPG_RESULT_ENTER_MS + trpgResultConfirmPerDieMs(ordered.length) - TRPG_RESULT_ENTER_MS - TRPG_RESULT_EXIT_MS;
+      const bucket = ordered.length === 1 ? 1 : ordered.length === 2 ? 2 : ordered.length === 3 ? 3 : 4;
+      const holdMs = TRPG_RESULT_HOLD_MS[bucket];
       const exit = window.setTimeout(() => setResultPhase("exiting"), holdMs);
       return () => window.clearTimeout(exit);
     }
@@ -248,8 +249,8 @@ export default function TrpgDiceOverlay({
             data-trpg-dice-stage-mobile-w={TRPG_D20_STAGE_MOBILE.width}
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
-            {/* 3D roll phase */}
-            {use3d && !showResult ? (
+            {/* 3D roll phase — visible during rolling AND entering (no blank frame) */}
+            {use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
               <div
                 key={`${sessionKey}:${play.index}`}
                 className="h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
@@ -264,8 +265,8 @@ export default function TrpgDiceOverlay({
               </div>
             ) : null}
 
-            {/* Static fallback (no WebGL) during roll phase */}
-            {!use3d && !showResult ? (
+            {/* Static fallback (no WebGL) during roll + entering phase */}
+            {!use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -303,33 +304,77 @@ export default function TrpgDiceOverlay({
                 data-trpg-dice-result-confirm
                 data-trpg-dice-result-tone={tone}
               >
-                {/* nat20 effect: champagne-gold radial flare */}
+                {/* nat20 effect: champagne-gold radial flare + expanding ring + sparks */}
                 {tone === "nat20" ? (
-                  <div
-                    className="pointer-events-none absolute inset-[-30%] rounded-full"
-                    style={{
-                      background:
-                        "radial-gradient(circle, rgba(232,197,106,0.35) 0%, rgba(232,197,106,0.1) 45%, transparent 70%)",
-                    }}
-                    data-trpg-dice-burst="nat20"
-                  />
+                  <>
+                    <div
+                      className="pointer-events-none absolute inset-[-30%] rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle, rgba(232,197,106,0.35) 0%, rgba(232,197,106,0.1) 45%, transparent 70%)",
+                      }}
+                      data-trpg-dice-burst="nat20"
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-[-20%] rounded-full border-2"
+                      style={{
+                        borderColor: "rgba(232,197,106,0.6)",
+                        animation: "trpg-nat-ring 380ms ease-out",
+                      }}
+                      data-trpg-dice-burst-ring="nat20"
+                    />
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={`nat20-spark-${i}`}
+                        className="pointer-events-none absolute h-1 w-1 rounded-full"
+                        style={{
+                          background: "#f5e8b8",
+                          top: `${30 + Math.sin(i * 1.2) * 25}%`,
+                          left: `${40 + Math.cos(i * 0.9) * 28}%`,
+                          animation: "trpg-nat-spark 400ms ease-out",
+                          animationDelay: `${i * 30}ms`,
+                        }}
+                        data-trpg-dice-burst-spark="nat20"
+                      />
+                    ))}
+                  </>
                 ) : null}
-                {/* nat1 effect: crimson pulse */}
+                {/* nat1 effect: crimson pulse + expanding shock ring + dark-red vignette */}
                 {tone === "nat1" ? (
-                  <div
-                    className="pointer-events-none absolute inset-[-25%] rounded-full"
-                    style={{
-                      background:
-                        "radial-gradient(circle, rgba(138,36,48,0.35) 0%, rgba(80,18,40,0.12) 50%, transparent 72%)",
-                    }}
-                    data-trpg-dice-burst="nat1"
-                  />
+                  <>
+                    <div
+                      className="pointer-events-none absolute inset-[-25%] rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle, rgba(138,36,48,0.35) 0%, rgba(80,18,40,0.12) 50%, transparent 72%)",
+                      }}
+                      data-trpg-dice-burst="nat1"
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-[-18%] rounded-full border-2"
+                      style={{
+                        borderColor: "rgba(180,40,56,0.5)",
+                        animation: "trpg-nat-ring 320ms ease-out",
+                      }}
+                      data-trpg-dice-burst-ring="nat1"
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-[-10%] rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle, transparent 50%, rgba(40,8,16,0.25) 100%)",
+                        animation: "trpg-nat-vignette 350ms ease-out",
+                      }}
+                      data-trpg-dice-burst-vignette="nat1"
+                    />
+                  </>
                 ) : null}
                 <span
-                  className="font-serif font-semibold leading-none"
+                  className="font-semibold leading-none"
                   style={{
                     color: tone === "nat20" ? "#f5e8b8" : tone === "nat1" ? "#e08a92" : "#e8dcc0",
-                    fontSize: "min(84px, 12vw)",
+                    fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
+                    fontSize: "clamp(58px, 12vw, 84px)",
                     textShadow:
                       "0 1px 2px rgba(0,0,0,0.6), 0 0 16px rgba(232,197,106,0.22)",
                   }}

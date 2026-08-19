@@ -183,6 +183,14 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /data-trpg-dice-result-confirm/);
     assert.match(overlay, /data-trpg-dice-result-numeral/);
     assert.match(overlay, /data-trpg-dice-result-outcome/);
+    assert.match(overlay, /'Cinzel'/);
+    assert.match(overlay, /clamp\(58px/);
+    assert.match(overlay, /resultPhase !== "holding"/);
+    assert.match(overlay, /trpg-nat-ring/);
+    assert.match(overlay, /trpg-dice-burst-ring="nat20"/);
+    assert.match(overlay, /trpg-dice-burst-spark="nat20"/);
+    assert.match(overlay, /trpg-dice-burst-ring="nat1"/);
+    assert.match(overlay, /trpg-dice-burst-vignette="nat1"/);
     assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
     assert.match(overlay, /data-trpg-dice-burst="nat1"/);

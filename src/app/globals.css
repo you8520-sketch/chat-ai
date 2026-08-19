@@ -41,6 +41,26 @@ body {
 }
 
 @keyframes home-hero-copy-in {
+
+@keyframes trpg-nat-ring {
+  0% { transform: scale(0.3); opacity: 0.8; }
+  60% { opacity: 0.5; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes trpg-nat-spark {
+  0% { transform: scale(0); opacity: 0; }
+  30% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.5); opacity: 0; }
+}
+
+@keyframes trpg-nat-vignette {
+  0% { opacity: 0; }
+  30% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+@keyframes home-hero-copy-in {
   from {
     opacity: 0.25;
     transform: translateY(0.65rem);
