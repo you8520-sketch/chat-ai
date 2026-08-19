@@ -16,7 +16,6 @@ import {
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
-import { loadTrpgDiceTheme } from "@/lib/trpg/diceThemePrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
 import {
   resolveTrpgD20Tone,
@@ -74,7 +73,12 @@ function useCampaignDicePreview(
   inject: boolean;
   instrument: boolean;
 } {
-  const [query, setQuery] = useState({ previewEnabled: false, queryTheme: null as string | null, queryPreview: null as string | null });
+  const [query, setQuery] = useState({
+    previewEnabled: false,
+    queryTheme: null as string | null,
+    queryPreview: null as string | null,
+    queryPreviewD20: null as string | null,
+  });
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setQuery({
@@ -85,6 +89,7 @@ function useCampaignDicePreview(
       }),
       queryTheme: params.get("diceTheme"),
       queryPreview: params.get("dicePreview"),
+      queryPreviewD20: params.get("dicePreviewD20"),
     });
   }, []);
   const fixtureName =
@@ -95,6 +100,7 @@ function useCampaignDicePreview(
     previewEnabled: query.previewEnabled,
     queryTheme: query.queryTheme,
     queryPreview: query.queryPreview,
+    queryPreviewD20: query.queryPreviewD20,
     savedTheme,
     phase: snap.round.phase,
     currentRolls: snap.currentRolls,
@@ -221,7 +227,6 @@ export default function TrpgCampaignRoom({
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
-  const [diceTheme, setDiceTheme] = useState<TrpgD20ThemeId>(PRODUCTION_D20_THEME);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
@@ -233,7 +238,7 @@ export default function TrpgCampaignRoom({
     null
   );
   const phase = snap.round.phase;
-  const dicePreview = useCampaignDicePreview(snap, diceTheme);
+  const dicePreview = useCampaignDicePreview(snap, PRODUCTION_D20_THEME);
   const rollSessionKey = useMemo(
     () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
     [snap.currentRolls, snap.round.number]
@@ -379,7 +384,6 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
     setDisplayPrefs(loadTrpgDisplayPrefs());
-    setDiceTheme(loadTrpgDiceTheme());
     const cached = loadUserChatPrefsClient();
     accountPrefsRef.current = {
       targetResponseChars: cached.targetResponseChars,
@@ -502,8 +506,6 @@ export default function TrpgCampaignRoom({
     snap,
     displayPrefs,
     onDisplayPrefsChange: changeDisplayPrefs,
-    diceTheme,
-    onDiceThemeChange: setDiceTheme,
     partyBody,
     onPartyBodyChange,
     onSendParty,

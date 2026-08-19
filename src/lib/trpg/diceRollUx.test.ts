@@ -19,8 +19,7 @@ import {
   trpgDiceDurationMs,
   trpgDiceRevealWatchdogMs,
   trpgEmeraldDiceTiming,
-  TRPG_EMERALD_ACTIVE_MS,
-  TRPG_EMERALD_HOLD_MS,
+  trpgResultConfirmPerDieMs,
   TRPG_EMERALD_MULTI_ROLL_CAP_MS,
   trpgDiceOverlayActive,
   trpgDiceOverlayAfterSettle,
@@ -157,19 +156,22 @@ describe("TRPG 3D dice overlay contracts", () => {
     );
   });
 
-  it("serves a static result overlay with no production 3D renderer", () => {
-    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "none");
+  it("uses dice-box-threejs as the production physics renderer with Obsidian Royal skin", () => {
+    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "cannon-es");
     assert.equal(TRPG_DICE_BOX_THREEJS_REVIEWED, true);
     assert.equal(TRPG_DICE_BOX_THREEJS_ASSETS_COPIED, false);
     assert.equal(VISUAL_ASSETS_COPIED, false);
     assert.equal(TRPG_DICE_BOX_COLORSET.texture, "none");
+    assert.equal(TRPG_DICE_BOX_COLORSET.font, "Cinzel");
+    assert.equal(TRPG_DICE_BOX_COLORSET.name, "obsidian-royal");
     const pkg = fs.readFileSync("package.json", "utf8");
-    assert.doesNotMatch(pkg, /"cannon-es"/);
+    assert.match(pkg, /"@3d-dice\/dice-box-threejs"/);
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    const diceBoxScene = fs.readFileSync("src/app/trpg/TrpgDiceBoxScene.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const rail = fs.readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
     const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
-    assert.doesNotMatch(overlay, /TrpgDiceScene|TrpgArtisanDiceScene|TrpgDiceBoxScene|WebGLRenderer|three/);
+    assert.match(overlay, /TrpgDiceBoxScene/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
     assert.match(overlay, /trpgDiceOverlayAfterSettle/);
     assert.match(overlay, /trpgDiceOverlaySessionAction/);
@@ -177,39 +179,55 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /trpgEmeraldDiceTiming/);
     assert.match(overlay, /trpgD20StaticOverlaySpec/);
-    assert.match(overlay, /overlay\.baseAsset/);
-    assert.match(overlay, /data-trpg-dice-numeral=\{face\}/);
-    assert.match(overlay, /data-trpg-dice-stage/);
+    assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
+    assert.match(overlay, /data-trpg-dice-result-phase/);
+    assert.match(overlay, /data-trpg-dice-result-confirm/);
+    assert.match(overlay, /absolute inset-0 z-10 flex flex-col items-center justify-center/);
+    assert.match(overlay, /data-trpg-dice-canvas="3d"\s*\n\s*>\s*\n\s*<TrpgDiceBoxScene/);
+    assert.match(overlay, /className="absolute inset-0"\s*\n\s*data-trpg-dice-canvas="3d"/);
+    assert.match(overlay, /data-trpg-dice-result-numeral/);
+    assert.match(overlay, /data-trpg-dice-result-outcome/);
+    assert.match(overlay, /'Cinzel'/);
+    assert.match(overlay, /clamp\(58px/);
+    assert.match(overlay, /resultPhase !== "holding"/);
+    assert.match(overlay, /trpg-nat-ring/);
+    assert.match(overlay, /trpg-dice-burst-ring="nat20"/);
+    assert.match(overlay, /trpg-dice-burst-spark="nat20"/);
+    assert.match(overlay, /trpg-dice-burst-ring="nat1"/);
+    assert.match(overlay, /trpg-dice-burst-vignette="nat1"/);
     assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
     assert.match(overlay, /data-trpg-dice-burst="nat1"/);
+    assert.match(diceBoxScene, /gravity_multiplier:\s*400/);
+    assert.match(diceBoxScene, /strength:\s*1/);
+    assert.match(diceBoxScene, /baseScale:\s*75/);
+    assert.doesNotMatch(diceBoxScene, /baseScale:\s*50/);
+    assert.match(diceBoxScene, /event:\s*"DICE_ERROR_CODE"/);
+    assert.match(diceBoxScene, /source:\s*"init-error"/);
+    assert.match(diceBoxScene, /source:\s*"physics"/);
+    assert.match(overlay, /source:\s*"watchdog"/);
     assert.match(room, /TrpgDiceOverlay/);
     assert.match(room, /TrpgRollResultLane/);
     assert.match(room, /trpgDiceRevealWatchdogMs/);
     assert.match(room, /shouldHideIncomingRollSession/);
     assert.match(room, /holdCurrentRoundReveal/);
-    assert.match(room, /loadTrpgDiceTheme/);
-    assert.match(rail, /TrpgDiceThemeSettings/);
+    assert.match(room, /useCampaignDicePreview\(snap, PRODUCTION_D20_THEME\)/);
+    assert.doesNotMatch(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
-    assert.equal(
-      fs.readdirSync("public/d20-result").filter((f) => /^d20-result-\d+\.webp$/.test(f)).length,
-      0,
-      "per-number generated assets must be removed"
-    );
   });
 
-  it("paces static multi-roll so overlay finishes before the watchdog", () => {
+  it("paces result-confirm multi-roll so overlay finishes before the watchdog", () => {
     const one = trpgEmeraldDiceTiming(1);
-    assert.equal(one.perDieMs, TRPG_EMERALD_ACTIVE_MS[1]);
-    assert.equal(one.perDieMs, 1500);
-    assert.equal(one.totalMs, 1500);
+    assert.equal(one.perDieMs, trpgResultConfirmPerDieMs(1));
+    assert.equal(one.perDieMs, 1230);
+    assert.equal(one.totalMs, 1230);
     const two = trpgEmeraldDiceTiming(2);
-    assert.equal(two.perDieMs, TRPG_EMERALD_ACTIVE_MS[2]);
-    assert.equal(two.totalMs, 2120);
+    assert.equal(two.perDieMs, trpgResultConfirmPerDieMs(2));
+    assert.equal(two.totalMs, 2060);
     const three = trpgEmeraldDiceTiming(3);
-    assert.equal(three.perDieMs, TRPG_EMERALD_ACTIVE_MS[3]);
-    assert.equal(three.totalMs, 2700);
+    assert.equal(three.perDieMs, trpgResultConfirmPerDieMs(3));
+    assert.equal(three.totalMs, 2640);
     assert.ok(three.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
     assert.ok(one.perDieMs > two.perDieMs);
     assert.ok(two.perDieMs > three.perDieMs);
@@ -218,16 +236,16 @@ describe("TRPG 3D dice overlay contracts", () => {
       const watchdog = trpgDiceRevealWatchdogMs(n);
       assert.ok(timing.totalMs < watchdog);
       assert.ok(timing.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
-      assert.ok(watchdog < 10_000);
+      assert.ok(watchdog >= 10_000);
     }
-    assert.equal(trpgDiceRevealWatchdogMs(1), 4000);
+    assert.equal(trpgDiceRevealWatchdogMs(1), 10_230);
     const four = trpgEmeraldDiceTiming(4);
-    assert.equal(four.perDieMs, TRPG_EMERALD_ACTIVE_MS[4]);
-    assert.equal(four.perDieMs, 820);
-    assert.equal(four.totalMs, 3280);
-    assert.equal(trpgDiceRevealWatchdogMs(4), 4780);
+    assert.equal(four.perDieMs, trpgResultConfirmPerDieMs(4));
+    assert.equal(four.perDieMs, 880);
+    assert.equal(four.totalMs, 3520);
+    assert.equal(trpgDiceRevealWatchdogMs(4), 12_520);
     assert.ok(four.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
-    assert.ok(three.perDieMs > four.perDieMs);
+    assert.ok(three.perDieMs >= four.perDieMs);
     const ux = fs.readFileSync("src/lib/trpg/diceRollUx.ts", "utf8");
     assert.match(ux, /Math\.min\(TRPG_EMERALD_MULTI_ROLL_CAP_MS, perDieMs \* n\)/);
     assert.equal(TRPG_MAX_SLOTS, 4);

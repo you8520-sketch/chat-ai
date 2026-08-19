@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PRODUCTION_D20_THEME } from "./diceVisual";
 import {
+  isTrpgDiceRuntimeInstrument,
   isTrpgDicePreviewRuntime,
   isTrpgProductionAppHost,
+  parseDicePreviewD20,
   parseDiceThemeQuery,
   previewDiceOverlayFixture,
   previewDiceRollKey,
@@ -62,8 +64,45 @@ describe("preview-only campaign dice theme", () => {
     assert.equal(injected.rolls[0]?.name, "유라");
   });
 
+  it("allows preview-only dicePreviewD20 override for QA capture", () => {
+    const existing = previewDiceOverlayFixture("기존", 7);
+    const nat20 = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreview: "1",
+      queryPreviewD20: "20",
+      phase: "ACTION_INPUT",
+      currentRolls: [existing],
+    });
+    assert.equal(nat20.rolls[0]?.d20, 20);
+    assert.equal(nat20.rolls[0]?.tier, "CRITICAL_SUCCESS");
+    const nat1 = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreview: "1",
+      queryPreviewD20: "1",
+      phase: "ACTION_INPUT",
+      currentRolls: [],
+    });
+    assert.equal(nat1.rolls[0]?.d20, 1);
+    assert.equal(nat1.rolls[0]?.tier, "CRITICAL_FAILURE");
+  });
+
+  it("never injects when dicePreviewD20 is supplied without the preview switch", () => {
+    const live = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreviewD20: "20",
+      phase: "ACTION_INPUT",
+      currentRolls: [],
+    });
+    assert.equal(live.inject, false);
+    assert.equal(live.rolls.length, 0);
+    for (const invalid of ["", "0", "21", "1.5", "abc"]) {
+      assert.equal(parseDicePreviewD20(invalid), null);
+    }
+  });
+
   it("never overrides theme or injects on the production Railway host", () => {
     assert.equal(isTrpgProductionAppHost("chat-ai-production-3e84.up.railway.app"), true);
+    assert.equal(isTrpgProductionAppHost("CHAT-AI-PRODUCTION-3E84.UP.RAILWAY.APP"), true);
     const previewEnabled = isTrpgDicePreviewRuntime({
       nodeEnv: "production",
       previewFlag: "1",
@@ -86,6 +125,7 @@ describe("preview-only campaign dice theme", () => {
       previewEnabled,
       queryTheme: "gemstone-arcane",
       queryPreview: "1",
+      queryPreviewD20: "20",
       savedTheme: "ancient-reliquary",
       phase: "ACTION_INPUT",
       currentRolls: [],
@@ -118,5 +158,42 @@ describe("preview-only campaign dice theme", () => {
       "ancient-reliquary"
     );
     assert.equal(resolveCampaignOverlayDiceTheme({ previewEnabled: false }), PRODUCTION_D20_THEME);
+  });
+
+  it("validates permanent dice lifecycle events without extra metadata", () => {
+    const dimensions = {
+      hostWidth: 1266,
+      hostHeight: 801,
+      canvasClientWidth: 1280,
+      canvasClientHeight: 801,
+      canvasWidth: 1280,
+      canvasHeight: 801,
+    };
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ROLL_RESOLVED",
+      data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
+      timestamp: 1,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ERROR_CODE",
+      data: { boxId: "dice-box", code: "DICE_INIT_ERROR", errorName: "Error", ...dimensions },
+      timestamp: 2,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_SETTLE_SOURCE",
+      data: { boxId: "dice-box", source: "init-error", operation: "initialize" },
+      timestamp: 3,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_SETTLE_SOURCE",
+      data: { source: "watchdog", watchdogMs: 10_000 },
+      timestamp: 4,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ROLL_RESOLVED",
+      debugMetadata: true,
+      data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
+      timestamp: 5,
+    }), false);
   });
 });

@@ -1,15 +1,13 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { TRPG_D20_THEME_OPTIONS } from "@/lib/trpg/diceThemePrefs";
 import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
 import { isTrpgD20ThemeId, PRODUCTION_D20_THEME, type TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import TrpgDiceBoxScene from "../TrpgDiceBoxScene";
 import TrpgDiceOverlay from "../TrpgDiceOverlay";
 import TrpgRollResultLane from "../TrpgRollResultLane";
-
-const TrpgDiceBoxScene = dynamic(() => import("../TrpgDiceBoxScene"), { ssr: false });
 
 const FIXTURE: TrpgPublicRoll = {
   participantId: 1,
@@ -114,6 +112,7 @@ export default function TrpgDiceLabClient({
             value={6}
             tone="fail"
             reducedQuality={false}
+            previewInstrument
             onSettled={() => undefined}
           />
           <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">

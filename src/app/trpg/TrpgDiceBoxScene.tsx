@@ -1,139 +1,172 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import DiceBox from "@3d-dice/dice-box-threejs";
+import { useEffect, useRef, useState } from "react";
 import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
 import {
-  TRPG_D20_NUMERAL,
   TRPG_DICE_BOX_COLORSET,
   TRPG_DICE_BOX_NOTATION,
 } from "@/lib/trpg/diceVisual";
+import { logTrpgDiceRuntimeInstrument } from "@/lib/trpg/dicePreviewTheme";
 
-function colorsetForTone(tone: TrpgD20Tone) {
-  if (tone === "nat20") {
-    return {
-      ...TRPG_DICE_BOX_COLORSET,
-      name: "verdant-relic-nat20",
-      foreground: "#ffe7a3",
-      outline: "#c9a227",
-      background: "#241c10",
-    };
+export type TrpgDiceSettleSource = "physics" | "watchdog" | "init-error";
+
+async function ensureCinzelLoaded(): Promise<void> {
+  if (typeof document === "undefined" || !(document as { fonts?: FontFaceSet }).fonts) return;
+  try {
+    await (document as { fonts: FontFaceSet }).fonts.load('900 100px "Cinzel"');
+    await (document as { fonts: FontFaceSet }).fonts.ready;
+  } catch {
+    /* font load best-effort; canvas falls back to serif */
   }
-  if (tone === "nat1") {
-    return {
-      ...TRPG_DICE_BOX_COLORSET,
-      name: "verdant-relic-nat1",
-      foreground: "#ffd4d6",
-      outline: "#6b1c24",
-      background: "#1c1014",
-    };
-  }
-  return {
-    ...TRPG_DICE_BOX_COLORSET,
-    foreground: TRPG_D20_NUMERAL,
-  };
-}
-
-function renderBox(box: DiceBox) {
-  box.renderer.render(box.scene, box.camera);
-}
-
-function applyWideCamera(box: DiceBox) {
-  const far = box.cameraHeight.far;
-  box.camera.position.set(0, -far * 0.16, far);
-  box.camera.lookAt(0, 0, 0);
-  renderBox(box);
-}
-
-function applyCloseCamera(box: DiceBox, target: { x: number; y: number; z: number }) {
-  box.camera.position.set(target.x + 20, target.y - 140, 390);
-  box.camera.lookAt(target.x, target.y, 8);
-  renderBox(box);
 }
 
 export default function TrpgDiceBoxScene({
   value,
   tone,
   reducedQuality,
+  previewInstrument = false,
   onSettled,
 }: {
   value: number;
   tone: TrpgD20Tone;
   reducedQuality: boolean;
-  onSettled: () => void;
+  previewInstrument?: boolean;
+  onSettled: (source: TrpgDiceSettleSource) => void;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const boxIdRef = useRef(`trpg-dice-box-${Math.random().toString(36).slice(2, 10)}`);
   const settledRef = useRef(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !hostRef.current) return;
     settledRef.current = false;
     let cancelled = false;
-    let rim: ReturnType<DiceBox["light"]["clone"]> | null = null;
-    let pulse: number | null = null;
+    let operation: "initialize" | "roll" = "initialize";
+
+    const dimensions = () => {
+      const host = hostRef.current;
+      const canvas = host?.querySelector("canvas");
+      return {
+        hostWidth: host?.clientWidth ?? null,
+        hostHeight: host?.clientHeight ?? null,
+        canvasClientWidth: canvas?.clientWidth ?? null,
+        canvasClientHeight: canvas?.clientHeight ?? null,
+        canvasWidth: canvas?.width ?? null,
+        canvasHeight: canvas?.height ?? null,
+      };
+    };
+    const settleInitError = (err: unknown) => {
+      console.error("[trpg-dice-box] init/roll failed:", err);
+      if (previewInstrument) {
+        logTrpgDiceRuntimeInstrument({
+          event: "DICE_ERROR_CODE",
+          data: {
+            boxId: boxIdRef.current,
+            code: operation === "initialize" ? "DICE_INIT_ERROR" : "DICE_ROLL_ERROR",
+            errorName: err instanceof Error ? err.name : "UnknownError",
+            ...dimensions(),
+          },
+        });
+      }
+      if (!cancelled && !settledRef.current) {
+        settledRef.current = true;
+        if (previewInstrument) {
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_SETTLE_SOURCE",
+            data: { boxId: boxIdRef.current, source: "init-error", operation },
+          });
+        }
+        onSettled("init-error");
+      }
+    };
 
     const run = async () => {
       if (cancelled || !hostRef.current) return;
-      const box = new DiceBox(`#${boxIdRef.current}`, {
-        assetPath: "/",
-        sounds: false,
-        shadows: !reducedQuality,
-        theme_surface: "green-felt",
-        theme_texture: "",
-        theme_material: "glass",
-        theme_customColorset: colorsetForTone(tone),
-        gravity_multiplier: 620,
-        light_intensity: reducedQuality ? 0.7 : 1.05,
-        strength: 1.05,
-        color_spotlight: tone === "nat20" ? 0xf0d78c : tone === "nat1" ? 0xc07070 : 0xefdfd5,
-      });
-      await box.initialize();
-      if (cancelled) return;
-      applyWideCamera(box);
-      box.light.intensity = reducedQuality ? 0.85 : 1.25;
-      box.light_amb.intensity = 0.58;
-      rim = box.light.clone();
-      rim.intensity = tone === "nat20" || tone === "nat1" ? 0.38 : 0.22;
-      rim.position.set(-box.light.position.x * 0.35, box.light.position.y * 0.2, box.light.position.z * 0.55);
-      box.scene.add(rim);
-      if (tone === "nat20" || tone === "nat1") {
-        const started = performance.now();
-        const tick = (now: number) => {
-          if (cancelled || !rim) return;
-          const wave = Math.sin((now - started) / 80);
-          rim.intensity = 0.28 + wave * 0.16;
-          pulse = requestAnimationFrame(tick);
-        };
-        pulse = requestAnimationFrame(tick);
+      if (previewInstrument) {
+        logTrpgDiceRuntimeInstrument({
+          event: "DICE_INIT_STARTED",
+          data: { boxId: boxIdRef.current, value, ...dimensions() },
+        });
       }
-      await box.roll(TRPG_DICE_BOX_NOTATION(value));
+      await ensureCinzelLoaded();
       if (cancelled) return;
-      const landed = box.diceList[0]?.position;
-      if (landed) applyCloseCamera(box, landed);
-      else applyWideCamera(box);
-      if (!settledRef.current) {
-        settledRef.current = true;
-        onSettled();
+      try {
+        const DiceBox = (await import("@3d-dice/dice-box-threejs")).default;
+        if (cancelled) return;
+        const box = new DiceBox(`#${boxIdRef.current}`, {
+          assetPath: "/",
+          sounds: false,
+          shadows: !reducedQuality,
+          theme_surface: "stainless",
+          theme_texture: "",
+          theme_material: "glass",
+          theme_customColorset: TRPG_DICE_BOX_COLORSET,
+          gravity_multiplier: 400,
+          light_intensity: reducedQuality ? 0.7 : 1.05,
+          strength: 1,
+          baseScale: 75,
+          color_spotlight: 0xefdfd5,
+        });
+        await box.initialize();
+        if (previewInstrument) {
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_INITIALIZED",
+            data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() },
+          });
+        }
+        if (cancelled) return;
+        box.light.intensity = reducedQuality ? 0.85 : 1.25;
+        box.light_amb.intensity = 0.58;
+        operation = "roll";
+        if (previewInstrument) {
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_ROLL_STARTED",
+            data: {
+              boxId: boxIdRef.current,
+              notation: TRPG_DICE_BOX_NOTATION(value),
+              diceListLength: box.diceList.length,
+              ...dimensions(),
+            },
+          });
+        }
+        await box.roll(TRPG_DICE_BOX_NOTATION(value));
+        if (previewInstrument) {
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_ROLL_RESOLVED",
+            data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() },
+          });
+        }
+        if (cancelled) return;
+        if (!settledRef.current) {
+          settledRef.current = true;
+          if (previewInstrument) {
+            logTrpgDiceRuntimeInstrument({
+              event: "DICE_SETTLE_SOURCE",
+              data: { boxId: boxIdRef.current, source: "physics", diceListLength: box.diceList.length },
+            });
+          }
+          onSettled("physics");
+        }
+      } catch (err) {
+        settleInitError(err);
       }
     };
 
-    run().catch(() => {
-      if (!cancelled && !settledRef.current) {
-        settledRef.current = true;
-        onSettled();
-      }
-    });
+    run().catch(settleInitError);
 
     return () => {
       cancelled = true;
-      if (pulse != null) cancelAnimationFrame(pulse);
-      const canvas = host.querySelector("canvas");
+      const canvas = hostRef.current?.querySelector("canvas");
       canvas?.remove();
     };
-  }, [onSettled, reducedQuality, tone, value]);
+  }, [previewInstrument, ready, onSettled, reducedQuality, tone, value]);
 
+  if (!ready) return null;
   return (
     <div
       id={boxIdRef.current}

@@ -63,6 +63,7 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   previewEnabled: boolean;
   queryTheme?: string | null;
   queryPreview?: string | null;
+  queryPreviewD20?: string | null;
   savedTheme?: TrpgD20ThemeId | null;
   phase: string;
   currentRolls: readonly TrpgPublicRoll[];
@@ -86,10 +87,14 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   if (!inject) {
     return { theme, phase: opts.phase, rolls: opts.currentRolls, inject: false };
   }
+  const previewD20 = parseDicePreviewD20(opts.queryPreviewD20);
   return {
     theme,
     phase: "ROLLING",
-    rolls: opts.currentRolls.length > 0 ? opts.currentRolls : [previewDiceOverlayFixture(opts.fixtureName)],
+    rolls:
+      previewD20 == null && opts.currentRolls.length > 0
+        ? opts.currentRolls
+        : [previewDiceOverlayFixture(opts.fixtureName, previewD20 ?? 14)],
     inject: true,
   };
 }
@@ -122,6 +127,121 @@ export type TrpgDicePreviewInstrument = {
   overlayMounted?: boolean;
 };
 
+export type TrpgDiceRuntimeEventName =
+  | "DICE_INIT_STARTED"
+  | "DICE_INITIALIZED"
+  | "DICE_ROLL_STARTED"
+  | "DICE_ROLL_RESOLVED"
+  | "DICE_SETTLE_SOURCE"
+  | "DICE_ERROR_CODE";
+
+type TrpgDiceCanvasDimensions = {
+  hostWidth: number | null;
+  hostHeight: number | null;
+  canvasClientWidth: number | null;
+  canvasClientHeight: number | null;
+  canvasWidth: number | null;
+  canvasHeight: number | null;
+};
+
+type TrpgDiceRuntimeEventData = {
+  DICE_INIT_STARTED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    value: number;
+  };
+  DICE_INITIALIZED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    diceListLength: number;
+  };
+  DICE_ROLL_STARTED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    notation: string;
+    diceListLength: number;
+  };
+  DICE_ROLL_RESOLVED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    diceListLength: number;
+  };
+  DICE_SETTLE_SOURCE: {
+    source: "physics" | "watchdog" | "init-error";
+    boxId?: string;
+    diceListLength?: number;
+    operation?: "initialize" | "roll";
+    sessionKey?: string;
+    playIndex?: number;
+    watchdogMs?: number;
+  };
+  DICE_ERROR_CODE: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    code: "DICE_INIT_ERROR" | "DICE_ROLL_ERROR";
+    errorName: string;
+  };
+};
+
+export type TrpgDiceRuntimeInstrument = {
+  [Event in TrpgDiceRuntimeEventName]: {
+    event: Event;
+    data: TrpgDiceRuntimeEventData[Event];
+    timestamp: number;
+  };
+}[TrpgDiceRuntimeEventName];
+
+export type TrpgDiceRuntimeInstrumentInput = {
+  [Event in TrpgDiceRuntimeEventName]: {
+    event: Event;
+    data: TrpgDiceRuntimeEventData[Event];
+  };
+}[TrpgDiceRuntimeEventName];
+
+const DICE_DIMENSION_FIELDS = [
+  "hostWidth",
+  "hostHeight",
+  "canvasClientWidth",
+  "canvasClientHeight",
+  "canvasWidth",
+  "canvasHeight",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasCanvasDimensions(data: Record<string, unknown>): boolean {
+  return DICE_DIMENSION_FIELDS.every((field) => data[field] === null || typeof data[field] === "number");
+}
+
+function hasOnlyFields(value: Record<string, unknown>, fields: readonly string[]): boolean {
+  return Object.keys(value).every((field) => fields.includes(field));
+}
+
+export function isTrpgDiceRuntimeInstrument(value: unknown): value is TrpgDiceRuntimeInstrument {
+  if (!isRecord(value) || typeof value.timestamp !== "number" || !isRecord(value.data)) return false;
+  if (!hasOnlyFields(value, ["event", "data", "timestamp"])) return false;
+  const data = value.data;
+  const hasBox = typeof data.boxId === "string";
+  switch (value.event) {
+    case "DICE_INIT_STARTED":
+      return hasBox && typeof data.value === "number" && hasCanvasDimensions(data);
+    case "DICE_INITIALIZED":
+    case "DICE_ROLL_RESOLVED":
+      return hasBox && typeof data.diceListLength === "number" && hasCanvasDimensions(data);
+    case "DICE_ROLL_STARTED":
+      return hasBox
+        && typeof data.notation === "string"
+        && typeof data.diceListLength === "number"
+        && hasCanvasDimensions(data);
+    case "DICE_SETTLE_SOURCE":
+      return data.source === "physics" || data.source === "watchdog" || data.source === "init-error";
+    case "DICE_ERROR_CODE":
+      return hasBox
+        && (data.code === "DICE_INIT_ERROR" || data.code === "DICE_ROLL_ERROR")
+        && typeof data.errorName === "string"
+        && hasCanvasDimensions(data);
+    default:
+      return false;
+  }
+}
+
 export function previewDiceRollKey(rolls: readonly { participantId: number; d20: number }[]): string {
   return rolls.map((roll) => `${roll.participantId}:${roll.d20}`).join(",");
 }
@@ -134,18 +254,40 @@ export function logTrpgDicePreviewInstrument(entry: TrpgDicePreviewInstrument): 
   console.info("[trpg-dice-preview]", entry);
 }
 
-export function previewDiceOverlayFixture(name = "권태현"): TrpgPublicRoll {
+export function logTrpgDiceRuntimeInstrument(
+  entry: TrpgDiceRuntimeInstrumentInput,
+): void {
+  if (typeof window === "undefined") return;
+  const timestamped = { ...entry, timestamp: Date.now() } as TrpgDiceRuntimeInstrument;
+  const bag = ((window as Window & { __TRPG_DICE_RUNTIME_LOG?: TrpgDiceRuntimeInstrument[] })
+    .__TRPG_DICE_RUNTIME_LOG ??= []);
+  bag.push(timestamped);
+  console.info("[trpg-dice-preview]", timestamped);
+}
+
+export function previewDiceOverlayFixture(name = "권태현", d20 = 14): TrpgPublicRoll {
+  const face = Math.max(1, Math.min(20, Math.floor(d20)));
+  const tier =
+    face === 20 ? "CRITICAL_SUCCESS" : face === 1 ? "CRITICAL_FAILURE" : face + 8 >= 12 ? "SUCCESS" : "FAILURE";
   return {
     participantId: 1,
     name,
-    d20: 14,
+    d20: face,
     statKey: "str",
-    finalScore: 16,
+    finalScore: face + 2,
     dc: 12,
-    tier: "SUCCESS",
-    success: true,
+    tier,
+    success: tier === "SUCCESS" || tier === "CRITICAL_SUCCESS",
     actionBody: "preview-only fixture",
     actionType: "free",
     kind: "human",
   };
+}
+
+export function parseDicePreviewD20(value: string | null | undefined): number | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 20) return null;
+  return n;
 }
