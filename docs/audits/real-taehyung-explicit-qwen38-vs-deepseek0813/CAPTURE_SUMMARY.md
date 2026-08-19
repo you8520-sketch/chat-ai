@@ -1,0 +1,19 @@
+# CAPTURE SUMMARY
+
+```text
+{
+  "CAPTURE_COMPLETE": true,
+  "CHARACTER": "production 라이크",
+  "CHARACTER_REAL_NAME": "조태형",
+  "REAL_OPUS_LIKE_TAEHYUNG": "GENERATED",
+  "REAL_GEMINI_LIKE_TAEHYUNG": "GENERATED",
+  "API_CALLS": 6,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "OPUS_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "GEMINI_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "FINAL_ADULT_MODEL_WINNER": "HUMAN_REVIEW_REQUIRED"
+}
+```

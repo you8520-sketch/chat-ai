@@ -1,0 +1,285 @@
+{
+  "DEEPSEEK_CLEAN_VS_LEGACY_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "QWEN_FRAGMENTATION_VERDICT": "HUMAN_REVIEW_REQUIRED",
+  "FINAL_ADULT_MODEL_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "QWEN_THINKING_RETEST": "NO",
+  "QWEN_LENGTH_TUNING": "NO",
+  "SOURCE_API_CALLS": 0,
+  "DEEPSEEK_CLEAN_API_CALLS": 2,
+  "QWEN_FINALIZER_API_CALLS": 0,
+  "QWEN_FRAGMENT_PROMPT_TEST": "REQUIRED",
+  "QWEN_FRAGMENT_API_CALLS": 2,
+  "TOTAL_NEW_API_CALLS": 4,
+  "prompt_compare": {
+    "opus": {
+      "legacy_system_chars": 17430,
+      "clean_system_chars": 17403,
+      "legacy_current_user_chars": 1252,
+      "clean_current_user_chars": 973,
+      "legacy_est_input_tokens": 20889,
+      "clean_est_input_tokens": 20614,
+      "removed_deepseek_specific_chars": 306,
+      "removed_deepseek_specific_est_tokens": 276,
+      "estimator": "ESTIMATED",
+      "legacy_markers": {
+        "style_reminder_present": true,
+        "xml_persona_present": false,
+        "xml_world_lore_present": true,
+        "appearance_rule_present": false,
+        "handoff_instruction_present": true
+      },
+      "clean_markers": {
+        "style_reminder_present": false,
+        "xml_persona_present": false,
+        "xml_world_lore_present": false,
+        "appearance_rule_present": false,
+        "handoff_instruction_present": true
+      },
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null
+      }
+    },
+    "gemini": {
+      "legacy_system_chars": 17449,
+      "clean_system_chars": 17422,
+      "legacy_current_user_chars": 1252,
+      "clean_current_user_chars": 973,
+      "legacy_est_input_tokens": 19262,
+      "clean_est_input_tokens": 18987,
+      "removed_deepseek_specific_chars": 306,
+      "removed_deepseek_specific_est_tokens": 276,
+      "estimator": "ESTIMATED",
+      "legacy_markers": {
+        "style_reminder_present": true,
+        "xml_persona_present": false,
+        "xml_world_lore_present": true,
+        "appearance_rule_present": false,
+        "handoff_instruction_present": true
+      },
+      "clean_markers": {
+        "style_reminder_present": false,
+        "xml_persona_present": false,
+        "xml_world_lore_present": false,
+        "appearance_rule_present": false,
+        "handoff_instruction_present": true
+      },
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null
+      }
+    }
+  },
+  "qwen_finalizer": {
+    "opus": {
+      "raw_visible_chars": 4725,
+      "raw_paragraph_count": 120,
+      "raw_dialogue_paragraph_count": 57,
+      "finalized_visible_chars": 4735,
+      "finalized_paragraph_count": 120,
+      "finalized_dialogue_paragraph_count": 56,
+      "source_paragraph_count": 71,
+      "signals": {
+        "short_dialogue_paragraphs": 54,
+        "short_narration_fragments": 29,
+        "finalized_vs_source_paragraph_ratio": 1.6901408450704225
+      }
+    },
+    "gemini": {
+      "raw_visible_chars": 4703,
+      "raw_paragraph_count": 69,
+      "raw_dialogue_paragraph_count": 28,
+      "finalized_visible_chars": 4697,
+      "finalized_paragraph_count": 69,
+      "finalized_dialogue_paragraph_count": 25,
+      "source_paragraph_count": 25,
+      "signals": {
+        "short_dialogue_paragraphs": 25,
+        "short_narration_fragments": 15,
+        "finalized_vs_source_paragraph_ratio": 2.76
+      }
+    }
+  },
+  "clean_cells": {
+    "opus": {
+      "requested_model": "deepseek-v4-pro-0813",
+      "resolved_model": "deepseek-v4-pro-0813",
+      "HTTP_status": 200,
+      "finish_reason": "stop",
+      "visible_chars": 3283,
+      "paragraph_count": 35,
+      "dialogue_paragraph_count": 16,
+      "latency": 105.42,
+      "input_tokens": 15094,
+      "output_tokens": 5264,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": 0.009107,
+      "temperature": 0.92,
+      "top_p": 0.92,
+      "thinking": {
+        "type": "disabled"
+      },
+      "refusal": false,
+      "fade_to_black": false,
+      "evasive_rewrite": false,
+      "scene_avoidance": false,
+      "meta_policy_response": false,
+      "foreign_language_contamination": false,
+      "explicitAdultContinuation": true,
+      "adult_capability": "OK",
+      "agency": {
+        "newUserDialogue": false,
+        "consentDecidedForUser": false,
+        "userEmotionFactForced": false,
+        "unpromptedUserActionChain": false,
+        "severeAgencyViolationCount": 0
+      },
+      "continuity": {
+        "previousActionActor": null,
+        "previousActionTarget": null,
+        "contactDirection": null,
+        "actor_target_inverted": false,
+        "contact_direction_inverted": false
+      },
+      "handoff_packet": {
+        "previousSceneMode": "explicit",
+        "sexualContextActive": true,
+        "activeConsentMode": "standard",
+        "location": "복도의 소음이 한 겹씩 벗겨져 나갔다",
+        "charactersPresent": [
+          "라이크",
+          "렌"
+        ],
+        "currentPov": "third_person",
+        "unfinishedAction": "블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.",
+        "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "error": null
+    },
+    "gemini": {
+      "requested_model": "deepseek-v4-pro-0813",
+      "resolved_model": "deepseek-v4-pro-0813",
+      "HTTP_status": 200,
+      "finish_reason": "stop",
+      "visible_chars": 2053,
+      "paragraph_count": 16,
+      "dialogue_paragraph_count": 6,
+      "latency": 112.269,
+      "input_tokens": 13856,
+      "output_tokens": 5731,
+      "reasoning_tokens": null,
+      "cache_read_tokens": null,
+      "usage_cost": 0.008429,
+      "temperature": 0.92,
+      "top_p": 0.92,
+      "thinking": {
+        "type": "disabled"
+      },
+      "refusal": false,
+      "fade_to_black": false,
+      "evasive_rewrite": false,
+      "scene_avoidance": false,
+      "meta_policy_response": false,
+      "foreign_language_contamination": false,
+      "explicitAdultContinuation": true,
+      "adult_capability": "OK",
+      "agency": {
+        "newUserDialogue": false,
+        "consentDecidedForUser": false,
+        "userEmotionFactForced": false,
+        "unpromptedUserActionChain": false,
+        "severeAgencyViolationCount": 0
+      },
+      "continuity": {
+        "previousActionActor": null,
+        "previousActionTarget": null,
+        "contactDirection": null,
+        "actor_target_inverted": false,
+        "contact_direction_inverted": false
+      },
+      "handoff_packet": {
+        "previousSceneMode": "explicit",
+        "sexualContextActive": true,
+        "activeConsentMode": "standard",
+        "location": "복도를 가득 메우고 있던 사람들의 발소리, 무전",
+        "charactersPresent": [
+          "라이크",
+          "렌"
+        ],
+        "currentPov": "third_person",
+        "unfinishedAction": "\"뭐, 정 무서우면 밥 달라고 얌전히 기다리는 대형견 정도로 생각해 주든가.\"",
+        "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "error": null
+    }
+  },
+  "qwen_fragment_minimal": {
+    "opus": {
+      "requested_model": "qwen-3-8-max",
+      "resolved_model": "qwen-3-8-max",
+      "HTTP_status": 200,
+      "finish_reason": "stop",
+      "visible_chars": 5026,
+      "paragraph_count": 64,
+      "dialogue_paragraph_count": 28,
+      "latency": 175.383,
+      "input_tokens": 12166,
+      "output_tokens": 7782,
+      "reasoning_tokens": null,
+      "usage_cost": 0.058988,
+      "temperature": 0.7,
+      "top_p": null,
+      "thinking": null,
+      "reasoning_effort": "none",
+      "fragment_sentence_present": true,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "error": null
+    },
+    "gemini": {
+      "requested_model": "qwen-3-8-max",
+      "resolved_model": "qwen-3-8-max",
+      "HTTP_status": 200,
+      "finish_reason": "stop",
+      "visible_chars": 4224,
+      "paragraph_count": 60,
+      "dialogue_paragraph_count": 28,
+      "latency": 274.397,
+      "input_tokens": 11223,
+      "output_tokens": 14271,
+      "reasoning_tokens": null,
+      "usage_cost": 0.084179,
+      "temperature": 0.7,
+      "top_p": null,
+      "thinking": null,
+      "reasoning_effort": "none",
+      "fragment_sentence_present": true,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "fallback": 0,
+      "error": null
+    }
+  }
+}

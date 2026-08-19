@@ -1,0 +1,49 @@
+{
+  "MUSE12_CATALOG_FOUND": true,
+  "MUSE12_MODEL_REQUESTED": "muse-spark-1.2",
+  "MUSE12_MODEL_RESOLVED": "muse-spark-1.2",
+  "MUSE12_OWNED_BY": "meta",
+  "MUSE12_PROVIDER": "meta",
+  "MUSE12_INPUT_PRICE": "1.062500",
+  "MUSE12_OUTPUT_PRICE": "3.612500",
+  "MUSE12_CACHED_INPUT_PRICE": "0.106250",
+  "MUSE12_REASONING_CAPABILITY": true,
+  "other_muse_ids": [],
+  "catalog_http_status": 200,
+  "catalog_model_count": 62,
+  "raw": {
+    "id": "muse-spark-1.2",
+    "aliases": [],
+    "object": "model",
+    "owned_by": "meta",
+    "provider": "meta",
+    "type": "text",
+    "endpoint": "/v1/chat/completions",
+    "capabilities": {
+      "vision": true,
+      "video": true,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "is_free": false,
+    "available_until": null,
+    "pricing": {
+      "currency": "USD",
+      "input_per_million": "1.062500",
+      "cache_read_input_per_million": "0.106250",
+      "cache_write_input_per_million": "1.062500",
+      "output_per_million": "3.612500",
+      "image_output_per_million": null,
+      "media_input_unit_price": null,
+      "media_unit_price": null,
+      "media_unit": null,
+      "resolution_prices": {},
+      "reference_resolution_prices": {},
+      "image_pricing_unit": "token",
+      "discount_percent": "15.00",
+      "input_token_price_threshold": null,
+      "above_threshold": null
+    }
+  }
+}
