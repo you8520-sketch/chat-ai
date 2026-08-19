@@ -134,7 +134,7 @@ async function main() {
     ${labelSvgParts.join("\n")}
   </svg>`;
 
-  const outPath = path.join(OUT_DIR, "d20_contact_sheet_1_2_4_9_10_11_16_19_20.png");
+  const outPath = path.join(OUT_DIR, "d20_contact_sheet_v3.png");
   await sharp(Buffer.from(backdrop))
     .composite(composites)
     .png()
