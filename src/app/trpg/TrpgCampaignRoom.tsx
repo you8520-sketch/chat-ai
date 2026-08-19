@@ -279,23 +279,32 @@ export default function TrpgCampaignRoom({
     () => snap.log.find((row) => row.roundNumber === snap.round.number) ?? null,
     [snap.log, snap.round.number]
   );
+  const sourceActions = useMemo(
+    () => (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
+    [currentLogRow]
+  );
+  const sourceRolls = useMemo(() => {
+    if (dicePreview.rolls.length > 0) return dicePreview.rolls;
+    if (snap.currentRolls.length > 0) return snap.currentRolls;
+    return currentLogRow?.rolls ?? [];
+  }, [currentLogRow, dicePreview.rolls, snap.currentRolls]);
   const presentationActors = useMemo(
     () =>
       buildRoundPresentationActors({
         resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
-        actions: (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
-        rolls: dicePreview.rolls,
+        actions: sourceActions,
+        rolls: sourceRolls,
       }),
-    [currentLogRow, dicePreview.rolls, snap.resolutionOrder]
+    [sourceActions, sourceRolls, snap.resolutionOrder]
   );
   const queueSessionKey = useMemo(
     () =>
       trpgRoundPresentationSessionKey({
         roundNumber: snap.round.number,
-        rolls: dicePreview.rolls,
-        actions: (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
+        rolls: sourceRolls,
+        actions: sourceActions,
       }),
-    [currentLogRow, dicePreview.rolls, snap.round.number]
+    [sourceActions, sourceRolls, snap.round.number]
   );
   const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
   const queueKeyRef = useRef("");
@@ -328,15 +337,15 @@ export default function TrpgCampaignRoom({
     const isFirstObservation = firstKeyObservationRef.current;
     firstKeyObservationRef.current = false;
     const mountConsume = shouldConsumeMountRollSession({
-      rollSessionKey,
+      rollSessionKey: queueSessionKey || rollSessionKey,
       replayOnMount: dicePreview.inject,
       isFirstObservation,
     });
     const mode = decideRoundPresentationMode({
       consumeOnMount: mountConsume,
-      actorCount: presentationActors.length,
+      actorCount: sourceActions.length > 0 || sourceRolls.length > 0 ? presentationActors.length : 0,
     });
-    if (queueKeyRef.current !== queueSessionKey) {
+    if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
       queueKeyRef.current = queueSessionKey;
       if (mode === "historical") setRoundShow(historicalPresentation());
       else if (mode === "cinematic") setRoundShow({ mode: "cinematic", ...startCinematicPresentation() });
@@ -371,6 +380,8 @@ export default function TrpgCampaignRoom({
     phase,
     presentationActors.length,
     queueSessionKey,
+    sourceActions.length,
+    sourceRolls.length,
     rollSessionKey,
     roundShow,
     snap.round.number,
@@ -746,6 +757,9 @@ export default function TrpgCampaignRoom({
       data-trpg-round-presentation-phase={roundShow.phase}
       data-trpg-round-presentation-index={roundShow.presentationIndex}
       data-trpg-round-revealed-actors={cinematicRevealedIds.join(",") || undefined}
+      data-trpg-round-actor-count={presentationActors.length}
+      data-trpg-round-source-actions={sourceActions.length}
+      data-trpg-round-source-rolls={sourceRolls.length}
     >
       <div
         className="flex min-w-0 flex-1 flex-col"
