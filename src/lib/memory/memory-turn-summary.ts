@@ -3,10 +3,7 @@ import {
   resolveRecordSpan,
   newBatchEndForStart,
 } from "./memory-summary-range";
-import {
-  ROLLING_SUMMARY_MAX_CHARS,
-  ROLLING_SUMMARY_MIN_CHARS,
-} from "./memory-constants";
+import { MEMORY_RECORD_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   appendBranchControlMutation,
@@ -30,7 +27,7 @@ import {
 } from "./memory-summary-scope";
 
 export const MEMORY_RECORD_MIN_CHARS = ROLLING_SUMMARY_MIN_CHARS;
-export const MEMORY_RECORD_MAX_CHARS = ROLLING_SUMMARY_MAX_CHARS;
+export { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
 export type MemoryRecordRow = {
   id: number;
@@ -572,13 +569,10 @@ export type ReopenClosedBranchResult =
  * each closed→active row so last-turn delete can restore prior closed.
  * UI reopen: omit control or use source=ui without user_turn stack entries.
  */
-export function reopenClosedBranchCanon(opts: {
+export function reopenClosedBranchCanonCore(opts: {
   chatId: number;
   branchId?: string | null;
   recordId?: number | null;
-  /** Log-only label; not persisted to schema. */
-  source?: string;
-  /** When source=user_turn with message id, records reopen_branch mutations. */
   control?: BranchControlSource | null;
 }): ReopenClosedBranchResult {
   const db = getDb();
@@ -621,76 +615,66 @@ export function reopenClosedBranchCanon(opts: {
   const closedOtherRowIds: number[] = [];
   const reopenedRowIds: number[] = [];
 
-  const run = db.transaction(() => {
-    const beforeClose = db
-      .prepare(
-        `SELECT id FROM chat_turn_summaries
+  const beforeClose = db
+    .prepare(
+      `SELECT id FROM chat_turn_summaries
          WHERE chat_id=? AND summary_kind='branch_canon'
            AND COALESCE(branch_status,'active')='active'
            AND COALESCE(inactive,0)=0
            AND (branch_id IS NULL OR branch_id != ?)`
-      )
-      .all(opts.chatId, targetBranchId) as Array<{ id: number }>;
-    closeActiveBranchesExcept(opts.chatId, targetBranchId);
-    for (const r of beforeClose) closedOtherRowIds.push(r.id);
+    )
+    .all(opts.chatId, targetBranchId) as Array<{ id: number }>;
+  closeActiveBranchesExcept(opts.chatId, targetBranchId);
+  for (const r of beforeClose) closedOtherRowIds.push(r.id);
 
-    for (const row of targetRows) {
-      const view = rowToView(row);
-      const wasClosed = view.branchStatus !== "active";
-      if (!wasClosed) {
-        reopenedRowIds.push(row.id);
-        continue;
-      }
+  for (const row of targetRows) {
+    const view = rowToView(row);
+    const wasClosed = view.branchStatus !== "active";
+    if (!wasClosed) {
+      reopenedRowIds.push(row.id);
+      continue;
+    }
 
-      if (recordUserTurnProvenance) {
-        const previous = snapshotBranchControlPrevious({
-          id: view.id,
-          summaryKind: view.summaryKind,
+    if (recordUserTurnProvenance) {
+      const previous = snapshotBranchControlPrevious({
+        id: view.id,
+        summaryKind: view.summaryKind,
+        scopes: view.scopes,
+        branchId: view.branchId,
+        branchStatus: view.branchStatus,
+        promotedBy: view.promotedBy,
+        promotedAt: view.promotedAt,
+        inactive: view.inactive,
+        scopePayloadRaw: row.scope_payload ?? null,
+      });
+      const basePayload = parseScopePayload(row.scope_payload) ?? {
+        v: 1 as const,
+        scopes: view.scopes,
+        branchControlMutations: [],
+      };
+      const payload = appendBranchControlMutation(
+        {
+          ...basePayload,
+          v: 1,
           scopes: view.scopes,
           branchId: view.branchId,
-          branchStatus: view.branchStatus,
+          branchStatus: "active",
           promotedBy: view.promotedBy,
           promotedAt: view.promotedAt,
-          inactive: view.inactive,
-          scopePayloadRaw: row.scope_payload ?? null,
-        });
-        const basePayload = parseScopePayload(row.scope_payload) ?? {
-          v: 1 as const,
-          scopes: view.scopes,
-          branchControlMutations: [],
-        };
-        const payload = appendBranchControlMutation(
-          {
-            ...basePayload,
-            v: 1,
-            scopes: view.scopes,
-            branchId: view.branchId,
-            branchStatus: "active",
-            promotedBy: view.promotedBy,
-            promotedAt: view.promotedAt,
-          },
-          buildBranchControlMutation("reopen_branch", previous, opts.control)
-        );
-        db.prepare(
-          `UPDATE chat_turn_summaries SET
+        },
+        buildBranchControlMutation("reopen_branch", previous, opts.control)
+      );
+      db.prepare(
+        `UPDATE chat_turn_summaries SET
             branch_status='active',
             scope_payload=?,
             updated_at=datetime('now')
            WHERE id=? AND chat_id=?`
-        ).run(encodeScopePayload(payload), row.id, opts.chatId);
-      } else {
-        setRowBranchStatusOnly(opts.chatId, row, "active");
-      }
-      reopenedRowIds.push(row.id);
+      ).run(encodeScopePayload(payload), row.id, opts.chatId);
+    } else {
+      setRowBranchStatusOnly(opts.chatId, row, "active");
     }
-  });
-
-  run();
-
-  if (opts.source) {
-    console.info(
-      `[memory] reopen branch chat=${opts.chatId} branchId=${targetBranchId} source=${opts.source} rows=${reopenedRowIds.length} closedOther=${closedOtherRowIds.length}`
-    );
+    reopenedRowIds.push(row.id);
   }
 
   return {
@@ -701,7 +685,28 @@ export function reopenClosedBranchCanon(opts: {
   };
 }
 
-export function closeActiveBranchCanon(
+export function reopenClosedBranchCanon(opts: {
+  chatId: number;
+  branchId?: string | null;
+  recordId?: number | null;
+  /** Log-only label; not persisted to schema. */
+  source?: string;
+  /** When source=user_turn with message id, records reopen_branch mutations. */
+  control?: BranchControlSource | null;
+}): ReopenClosedBranchResult {
+  const db = getDb();
+  const result = db.transaction(() => reopenClosedBranchCanonCore(opts)).immediate();
+
+  if (opts.source && result.ok) {
+    console.info(
+      `[memory] reopen branch chat=${opts.chatId} branchId=${result.branchId} source=${opts.source} rows=${result.reopenedRowIds.length} closedOther=${result.closedOtherRowIds.length}`
+    );
+  }
+
+  return result;
+}
+
+export function closeActiveBranchCanonCore(
   chatId: number,
   control?: BranchControlSource | null
 ): number {
@@ -760,6 +765,14 @@ export function closeActiveBranchCanon(
     n++;
   }
   return n;
+}
+
+export function closeActiveBranchCanon(
+  chatId: number,
+  control?: BranchControlSource | null
+): number {
+  const db = getDb();
+  return db.transaction(() => closeActiveBranchCanonCore(chatId, control)).immediate();
 }
 
 export function adoptBranchToMainCanon(opts: {

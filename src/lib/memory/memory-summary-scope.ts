@@ -5,7 +5,7 @@
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
-import { ROLLING_SUMMARY_MAX_CHARS } from "./memory-constants";
+import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
 export const MEMORY_SUMMARY_SCOPES = [
   "main_canon",
@@ -409,7 +409,7 @@ export function buildNoncanonSummaryFromTurns(
   const joined = bits.filter(Boolean).join(" / ");
   if (!joined) return "비정사·번외 장면을 진행함.";
   const prefix = MEANINGFUL_NONCANON_RE.test(joined) ? "비정사·번외: " : "비정사 장면: ";
-  return fitNoncanonSummaryWithinLimit(prefix, bits, ROLLING_SUMMARY_MAX_CHARS);
+  return fitNoncanonSummaryWithinLimit(prefix, bits, MEMORY_RECORD_MAX_CHARS);
 }
 
 export function buildPreferenceSummaryFromTurns(

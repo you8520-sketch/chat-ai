@@ -28,9 +28,7 @@ import {
   rebuildLorebookFromRecords,
   listMemoryRecordsForChat,
   listDistinctClosedBranchIds,
-  closeActiveBranchCanon,
   promoteRecordsToBranchCanon,
-  reopenClosedBranchCanon,
   resolveSoleClosedContinueReopen,
   isExplicitClosedBranchContinueIntent,
   selectLatestContiguousNoncanonRecordIds,
@@ -277,6 +275,13 @@ let persistForceFailAfterUpsertForTests = false;
 
 export function __setPersistForceFailAfterUpsertForTests(fail: boolean): void {
   persistForceFailAfterUpsertForTests = fail;
+}
+
+/** @internal test seam — force txn rollback after branch ops, before lorebook commit */
+let persistForceFailAfterBranchOpsForTests = false;
+
+export function __setPersistForceFailAfterBranchOpsForTests(fail: boolean): void {
+  persistForceFailAfterBranchOpsForTests = fail;
 }
 
 /** @internal exported for unit tests */
@@ -539,11 +544,11 @@ type ComposedBatchScope =
       mainModelCalls: number;
       /**
        * Sole-closed reopen branch id (compose-only signal for scope attach).
-       * Actual DB reopen is applied via pendingBranchControlOps after persist.
+       * Actual DB reopen is applied via pendingBranchControlOps inside persist txn.
        */
       pendingSoleClosedReopenId: string | null;
       /**
-       * Branch control ops in source-turn order — applied only after successful persist.
+       * Branch control ops in source-turn order — applied inside persist transaction.
        * Typical: reopen_branch → close_active_branches (resume then close/adopt).
        */
       pendingBranchControlOps: PendingBranchControlOp[];
@@ -1042,7 +1047,9 @@ async function persistComposedBatchScopes(opts: {
     sourceStartUserMessageId: opts.sourceUserMessageIds[0] ?? null,
     sourceEndUserMessageId:
       opts.sourceUserMessageIds[opts.sourceUserMessageIds.length - 1] ?? null,
+    pendingBranchControlOps: opts.composed.pendingBranchControlOps,
     __testThrowAfterUpsert: persistForceFailAfterUpsertForTests || undefined,
+    __testThrowAfterBranchOps: persistForceFailAfterBranchOpsForTests || undefined,
   });
 
   if (!persisted.ok) {
@@ -1062,7 +1069,6 @@ async function persistComposedBatchScopes(opts: {
     return false;
   }
 
-  const pendingOps = opts.composed.pendingBranchControlOps ?? [];
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   const db = getDb();
   if (
@@ -1074,27 +1080,7 @@ async function persistComposedBatchScopes(opts: {
   ) {
     return true;
   }
-  for (const pending of pendingOps) {
-    if (pending.op === "reopen_branch") {
-      reopenClosedBranchCanon({
-        chatId: opts.chatId,
-        branchId: pending.branchId,
-        source: "seal_sole_closed_continue",
-        control: pending.control,
-      });
-    } else if (pending.op === "close_active_branches") {
-      closeActiveBranchCanon(opts.chatId, pending.control);
-    }
-  }
-  const postPersistMemory = rebuildLorebookFromRecords(opts.chatId);
-  if (pendingOps.length > 0) {
-    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-      recent_summary: postPersistMemory,
-      membership_tier: opts.tier,
-    });
-    syncChatLongTermMemory(opts.chatId, postPersistMemory);
-  }
-  let currentMemory = postPersistMemory;
+  let currentMemory = rebuildLorebookFromRecords(opts.chatId);
   if (currentMemory.length > lorebookBudget) {
     try {
       const compacted = await compactCurrentMemory(

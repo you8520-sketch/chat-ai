@@ -21,6 +21,20 @@ export type BranchControlSource = {
   sourceBatchStart?: number | null;
 };
 
+/** Branch mutations applied inside persistValidatedSummaryBatch transaction. */
+export type PersistPendingBranchControlOp =
+  | {
+      op: "reopen_branch";
+      branchId: string;
+      sourceTurn: number;
+      control: BranchControlSource;
+    }
+  | {
+      op: "close_active_branches";
+      sourceTurn: number;
+      control: BranchControlSource;
+    };
+
 export type BranchControlRowSnapshot = {
   id: number;
   summaryKind: MemorySummaryScope;

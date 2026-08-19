@@ -16,11 +16,14 @@ export const LEGACY_SUMMARY_MAX_CHARS = 800;
 export const NEW_SUMMARY_TARGET_CHARS = 450;
 export const NEW_SUMMARY_MAX_CHARS = 600;
 
-/** @deprecated use resolveSummaryTargetChars() — Phase-2 default reference */
+/** User-edited / manual memory record clamp cap (unchanged across Phase1/2). */
+export const MEMORY_RECORD_MAX_CHARS = 800;
+
+/** @deprecated use resolveSummaryTargetChars() for automatic rolling summary only */
 export const ROLLING_SUMMARY_TARGET_CHARS = NEW_SUMMARY_TARGET_CHARS;
 /** 유효 기록·절단 시 하한(짧은 요약 허용, 패딩 강제 없음) */
 export const ROLLING_SUMMARY_MIN_CHARS = 80;
-/** @deprecated use resolveSummaryMaxChars() — Phase-2 default reference */
+/** @deprecated use resolveSummaryMaxChars() for automatic rolling summary only */
 export const ROLLING_SUMMARY_MAX_CHARS = NEW_SUMMARY_MAX_CHARS;
 
 /** 로어북 전체 압축 시 설정 상한 대비 목표 하한 비율 (과도한 축소 방지) */

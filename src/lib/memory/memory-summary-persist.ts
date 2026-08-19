@@ -15,8 +15,11 @@ import {
   formatTurnRangeLabel,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  reopenClosedBranchCanonCore,
+  closeActiveBranchCanonCore,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+import type { PersistPendingBranchControlOp } from "./memory-branch-control";
 import {
   highestContiguousCompletedTurn,
   type SummaryReasonCode,
@@ -162,6 +165,10 @@ export function persistValidatedSummaryBatch(opts: {
   sourceEndUserMessageId?: number | null;
   /** @internal test-only — throw after upsert to verify full txn rollback */
   __testThrowAfterUpsert?: boolean;
+  /** Branch reopen/close applied atomically inside this transaction after upsert. */
+  pendingBranchControlOps?: readonly PersistPendingBranchControlOp[];
+  /** @internal test-only — throw after branch ops to verify full txn rollback */
+  __testThrowAfterBranchOps?: boolean;
 }): PersistSummaryBatchResult {
   const kind = normalizeSummaryScope(opts.summaryKind);
   const validated = validateSummaryNarrative(opts.summary, kind);
@@ -235,6 +242,31 @@ export function persistValidatedSummaryBatch(opts: {
 
       if (opts.__testThrowAfterUpsert) {
         throw Object.assign(new Error("test forced failure after upsert"), {
+          code: "SUMMARY_SAVE_FAILED" as const,
+        });
+      }
+
+      if (opts.pendingBranchControlOps?.length) {
+        for (const pending of opts.pendingBranchControlOps) {
+          if (pending.op === "reopen_branch") {
+            const reopened = reopenClosedBranchCanonCore({
+              chatId: opts.chatId,
+              branchId: pending.branchId,
+              control: pending.control,
+            });
+            if (!reopened.ok) {
+              throw Object.assign(new Error(`reopen failed: ${reopened.reason}`), {
+                code: "SUMMARY_SAVE_FAILED" as const,
+              });
+            }
+          } else if (pending.op === "close_active_branches") {
+            closeActiveBranchCanonCore(opts.chatId, pending.control);
+          }
+        }
+      }
+
+      if (opts.__testThrowAfterBranchOps) {
+        throw Object.assign(new Error("test forced failure after branch ops"), {
           code: "SUMMARY_SAVE_FAILED" as const,
         });
       }

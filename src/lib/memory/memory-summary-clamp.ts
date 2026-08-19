@@ -1,5 +1,5 @@
 import {
-  ROLLING_SUMMARY_MAX_CHARS,
+  MEMORY_RECORD_MAX_CHARS,
   ROLLING_SUMMARY_MIN_CHARS,
 } from "./memory-constants";
 
@@ -21,7 +21,7 @@ const FALLBACK_BREAKS: { pattern: string; cutAfter: boolean }[] = [
  */
 export function clampMemoryRecordSummary(
   text: string,
-  max = ROLLING_SUMMARY_MAX_CHARS,
+  max = MEMORY_RECORD_MAX_CHARS,
   min = ROLLING_SUMMARY_MIN_CHARS
 ): string {
   const t = text.replace(/\s+/g, " ").trim();
