@@ -18,8 +18,8 @@ export const TRPG_D20_HOLD_AFTER_SETTLE_MS = VISUAL_HOLD_MS;
 export const TRPG_DICE_RENDERER = TRPG_DICE_IMPLEMENTATION;
 export type TrpgDiceLabRenderer = "custom" | "dice-box-threejs";
 
-export const TRPG_D20_PER_DIE_MS = { min: 1100, max: 1300 } as const;
-export const TRPG_D20_TOTAL_CAP_MS = 1600;
+export const TRPG_D20_PER_DIE_MS = { min: 1750, max: 1900 } as const;
+export const TRPG_D20_TOTAL_CAP_MS = 2600;
 
 export function trpgPredeterminedD20Notation(d20: number): string {
   return TRPG_DICE_BOX_NOTATION(d20);
@@ -46,34 +46,89 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
   return { perDie, total: Math.min(TRPG_D20_TOTAL_CAP_MS, perDie * n) };
 }
 
+/** Static result overlay: per-roll reveal window (enter + hold + exit). No throw motion. */
+export const TRPG_EMERALD_ACTIVE_MS = { 1: 1500, 2: 1060, 3: 900, 4: 820 } as const;
+export const TRPG_EMERALD_HOLD_MS = { 1: 0, 2: 0, 3: 0, 4: 0 } as const;
+export const TRPG_EMERALD_WATCHDOG_MARGIN_MS = 1500;
+export const TRPG_EMERALD_MULTI_ROLL_CAP_MS = 5000;
+
+export function trpgEmeraldDiceTiming(rollCount: number): {
+  activeMs: number;
+  holdMs: number;
+  perDieMs: number;
+  totalMs: number;
+} {
+  const n = Math.max(0, Math.floor(rollCount));
+  if (n <= 0) return { activeMs: 0, holdMs: 0, perDieMs: 0, totalMs: 0 };
+  const bucket = n === 1 ? 1 : n === 2 ? 2 : n === 3 ? 3 : 4;
+  const perDieMs = TRPG_EMERALD_ACTIVE_MS[bucket];
+  return {
+    activeMs: perDieMs,
+    holdMs: 0,
+    perDieMs,
+    totalMs: Math.min(TRPG_EMERALD_MULTI_ROLL_CAP_MS, perDieMs * n),
+  };
+}
+
+/** Watchdog = expected overlay total + margin. Never used to hide a short single-roll. */
+export function trpgDiceRevealWatchdogMs(rollCount: number): number {
+  const emerald = trpgEmeraldDiceTiming(rollCount);
+  return Math.max(emerald.totalMs + TRPG_EMERALD_WATCHDOG_MARGIN_MS, 4000);
+}
+
 export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: boolean }): boolean {
   return opts.webgl === true && opts.reducedMotion !== true;
 }
 
 export type TrpgDiceOverlaySessionAction = "start" | "keep" | "clear";
 
-/** Overlay may begin only while the server is actually rolling. */
-export function trpgDiceOverlayShouldStart(phase: string, rollCount: number): boolean {
-  return phase === "ROLLING" && rollCount > 0;
+export type TrpgDiceRollSessionFields = {
+  participantId: number;
+  d20: number;
+  dc: number;
+  tier: string;
+};
+
+/** Deterministic session id for one authoritative roll set. Phase is not part of the key. */
+export function trpgDiceRollSessionKey(
+  roundNumber: number,
+  rolls: readonly TrpgDiceRollSessionFields[]
+): string {
+  if (rolls.length === 0) return "";
+  const parts = rolls
+    .map((roll) => `${roll.participantId}:${roll.d20}:${roll.dc}:${roll.tier}`)
+    .sort();
+  return `${roundNumber}|${parts.join(",")}`;
 }
 
-/** In-flight tumble may finish after the phase flips to narration. */
-export function trpgDiceOverlayMayContinue(phase: string): boolean {
-  return phase === "ROLLING" || phase === "GENERATING_NARRATION";
+/** Historical rolls already in the snapshot on first mount must not autoplay. Fixture inject may. */
+export function shouldConsumeMountRollSession(opts: {
+  rollSessionKey: string;
+  replayOnMount: boolean;
+  isFirstObservation: boolean;
+}): boolean {
+  return opts.isFirstObservation && opts.rollSessionKey !== "" && opts.replayOnMount !== true;
 }
 
+/**
+ * Overlay start is owned by a new roll session key, not a transient server phase.
+ * ROLLING / GENERATING_NARRATION / ROUND_COMPLETE / ACTION_INPUT are display-only.
+ */
 export function trpgDiceOverlaySessionAction(opts: {
-  phase: string;
-  prevPhase: string;
-  rollCount: number;
-  prevRollCount: number;
+  rollSessionKey: string;
+  prevRollSessionKey: string;
+  consumed: boolean;
+  started: boolean;
+  dismissed: boolean;
 }): TrpgDiceOverlaySessionAction {
-  if (trpgDiceOverlayShouldStart(opts.phase, opts.rollCount)) {
-    if (opts.prevPhase !== "ROLLING" || opts.prevRollCount === 0) return "start";
-    return "keep";
+  if (opts.consumed) {
+    return opts.started && !opts.dismissed ? "keep" : "clear";
   }
-  if (trpgDiceOverlayMayContinue(opts.phase) && opts.rollCount > 0) return "keep";
-  return "clear";
+  if (!opts.rollSessionKey) {
+    return opts.started && !opts.dismissed ? "keep" : "clear";
+  }
+  if (opts.rollSessionKey !== opts.prevRollSessionKey) return "start";
+  return "keep";
 }
 
 export function trpgDiceOverlayAfterSettle(
@@ -114,6 +169,6 @@ export function applyTrpgDiceOverlaySession(
   }
 }
 
-export function trpgDiceOverlayActive(phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
-  return trpgDiceOverlayShouldStart(phase, rolls.length);
+export function trpgDiceOverlayActive(_phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
+  return rolls.length > 0;
 }

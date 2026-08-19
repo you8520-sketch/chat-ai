@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import { TRPG_D20_THEME_OPTIONS } from "@/lib/trpg/diceThemePrefs";
 import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
 import { isTrpgD20ThemeId, PRODUCTION_D20_THEME, type TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
@@ -41,7 +42,7 @@ export default function TrpgDiceLabClient({
   const [mode, setMode] = useState<LabMode>(() => initialMode(initialRenderer, initialTheme));
   const [playKey, setPlayKey] = useState(0);
   const rolls = useMemo(() => [{ ...FIXTURE }], [playKey]);
-  const customTheme: TrpgD20ThemeId = mode === "ancient-reliquary" ? "ancient-reliquary" : "verdant-relic";
+  const customTheme: TrpgD20ThemeId = isTrpgD20ThemeId(mode) ? mode : PRODUCTION_D20_THEME;
 
   useEffect(() => {
     document.documentElement.classList.add("dice-lab-active");
@@ -63,31 +64,23 @@ export default function TrpgDiceLabClient({
       <div className="pointer-events-auto relative z-[70] m-4 flex max-w-md flex-col gap-2 rounded-2xl bg-black/45 px-3 py-3 backdrop-blur-sm">
         <h1 className="text-lg font-semibold">TRPG D20 visual lab</h1>
         <p className="text-sm text-zinc-400">
-          Fixture server d20 = 6. Production overlay is Verdant Relic on the custom renderer.
-          Ancient Reliquary is the same renderer with a different material. Prototype B stays on
-          this lab page and is not wired into the campaign overlay.
+          Fixture server d20 = 6. Production overlay is one static result system with swappable themes.
+          Prototype B stays on this lab page and is not wired into the campaign overlay.
         </p>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-sm ${mode === "verdant-relic" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
-            onClick={() => {
-              setMode("verdant-relic");
-              setPlayKey((key) => key + 1);
-            }}
-          >
-            B · Verdant Relic
-          </button>
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-sm ${mode === "ancient-reliquary" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
-            onClick={() => {
-              setMode("ancient-reliquary");
-              setPlayKey((key) => key + 1);
-            }}
-          >
-            A · Ancient Reliquary
-          </button>
+          {TRPG_D20_THEME_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={`rounded-full px-3 py-1.5 text-sm ${mode === option.id ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
+              onClick={() => {
+                setMode(option.id);
+                setPlayKey((key) => key + 1);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
           <button
             type="button"
             className={`rounded-full px-3 py-1.5 text-sm ${mode === "dice-box-threejs" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
@@ -133,6 +126,7 @@ export default function TrpgDiceLabClient({
           phase="ROLLING"
           rolls={rolls}
           theme={customTheme}
+          replayOnMount
         />
       )}
     </div>
