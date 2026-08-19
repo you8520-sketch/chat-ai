@@ -1071,6 +1071,7 @@ export interface AdultRouteDecision {
   transientAdultCapableRoute: boolean;
 }
 
+/** Scene / eligibility decision only. Provider delivery is owned by AdultDeliveryPlan. */
 export function decideAdultModelRoute(input: {
   config: AdultRoutingConfig;
   state: ModelRouteState;
