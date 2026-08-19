@@ -458,6 +458,7 @@ import {
   advanceModelRouteState,
   appendAdultHandoffPrompt,
   appendAdultHandoffToSystemSplit,
+  buildCharacterParticipantIdentityDescription,
   buildAdultProviderRoutingRequest,
   buildGeneralProviderContext,
   buildGeneralRouteBridge,
@@ -615,6 +616,7 @@ export async function POST(req: Request) {
     simulation_cast?: string | null;
     adult_dialogue_profile?: string | null;
     adult_status?: string | null;
+    participant_min_age?: number | null;
     adult_consent_modes_json?: string | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
@@ -1198,15 +1200,16 @@ export async function POST(req: Request) {
     ),
     activeConsentMode: requestedConsentMode,
   });
-  const characterAdultDescription = [
-    ch.adult_status,
-    ch.description,
-    ch.system_prompt,
-    ch.world,
-    ch.simulation_cast,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  // Participant age eligibility uses identity fields only. World lore, cast, and
+  // system prompt can mention unrelated minors and must not contaminate status.
+  const characterParticipantDescription =
+    buildCharacterParticipantIdentityDescription({
+      adultStatus: ch.adult_status,
+      description: ch.description,
+      systemPrompt: ch.system_prompt,
+      world: ch.world,
+      simulationCast: (ch as { simulation_cast?: string }).simulation_cast,
+    });
   // Chat-room 「성인모드」 is the operational adult-handoff gate.
   // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
   const adultContentVisibilityEnabled = chatAdultHandoffEnabled;
@@ -1217,7 +1220,12 @@ export async function POST(req: Request) {
     participants: [
       {
         adultStatus: ch.adult_status,
-        description: characterAdultDescription,
+        age:
+          typeof ch.participant_min_age === "number" &&
+          Number.isFinite(ch.participant_min_age)
+            ? ch.participant_min_age
+            : null,
+        description: characterParticipantDescription,
       },
       {
         description: personaDescription,

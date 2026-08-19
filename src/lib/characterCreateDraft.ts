@@ -25,6 +25,7 @@ export type CharacterCreateDraft = {
     status_window_prompt: string;
     genres: CharacterGenre[];
     tags: string[];
+    participant_min_age?: string | number;
     nsfw: boolean;
     emoji: string;
     hue: number;

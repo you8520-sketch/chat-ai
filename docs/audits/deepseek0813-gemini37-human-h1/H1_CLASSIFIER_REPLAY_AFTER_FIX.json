@@ -1,0 +1,19 @@
+{
+  "replay": "H1_CLASSIFIER_ONLY_AFTER_PATCH_2",
+  "provider_calls": 0,
+  "charParticipantStatus": "unknown",
+  "identityContainsBackstoryMinorTokens": false,
+  "eligibility": {
+    "blockReason": "participant_unknown",
+    "allowedByAdultContentPolicy": false
+  },
+  "sceneClassification": {
+    "sceneMode": "intimate_transition",
+    "currentInputExplicitIntent": true
+  },
+  "adultRouteDecision": {
+    "shouldBlock": true,
+    "blockReason": "participant_unknown"
+  },
+  "not_participant_minor": true
+}

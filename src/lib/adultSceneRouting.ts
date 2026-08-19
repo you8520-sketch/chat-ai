@@ -186,10 +186,8 @@ const EXPLICIT_SCENE_MODES = new Set<SceneMode>([
   "explicit",
 ]);
 
-const MINOR_SIGNAL =
-  /(?:미성년|미성년자|중학생|고등학생|초등학생|아동|어린이|어린아이|child|minor|underage|middle\s*school|high\s*school)/i;
 const ADULT_SIGNAL =
-  /(?:\b(?:19|2[0-9]|[3-9][0-9])\s*(?:세|살)\b|성인(?:\s*(?:남성|여성))?|adult|대학생|직장인|현역\s*군인)/i;
+  /(?:\b(?:19|2[0-9]|[3-9][0-9])\s*(?:세|살)(?!\d)|성인(?:\s*(?:남성|여성))?|adult|대학생|직장인|현역\s*군인)/i;
 const REAL_PERSON_SIGNAL =
   /(?:실존\s*인물|실제\s*연예인|actual\s+person|real\s+person|celebrity)/i;
 
@@ -417,7 +415,8 @@ export function normalizeAdultDialogueProfile(
 export function inferAdultStatusFromLegacyText(text: string): AdultStatus {
   const normalized = text.trim();
   if (!normalized) return "unknown";
-  const minor = MINOR_SIGNAL.test(normalized) || findNumericMinorAge(normalized);
+  const minor =
+    hasCurrentMinorKeyword(normalized) || findCurrentNumericMinorAge(normalized);
   const adult = ADULT_SIGNAL.test(normalized);
   if (minor && adult) return "conflict";
   if (minor) return "minor";
@@ -425,26 +424,142 @@ export function inferAdultStatusFromLegacyText(text: string): AdultStatus {
   return "unknown";
 }
 
-function findNumericMinorAge(text: string): boolean {
-  const ages = [...text.matchAll(/(?:나이\s*[:：]?\s*)?(\d{1,2})\s*(?:세|살)\b/g)];
-  return ages.some((match) => {
+/** Age/school mention refers to the past, not the participant's current status. */
+const HISTORICAL_AGE_AFTER =
+  /^\s*(?:(?:이(?:었|던|였)(?:을|던)?|였(?:을|던)?)(?:\s*(?:때|무렵|적|시절|당시|에(?:서|선)?|경|부터|이전(?:까지)?|전(?:까지|에)?))?(?=\s|$|[,.])|(?:때|무렵|적|시절|당시|에(?:서|선)?|경|당시|부터|was|when|ago|back\s+when|in\s+(?:the\s+)?past|at\s+that\s+time|years?\s+ago|이전(?:까지)?|전(?:까지|에)?)(?=\s|$|[,.]))/i;
+
+const HISTORICAL_AGE_BEFORE =
+  /(?:과거|어릴|어린|childhood|past|former|예전|\*\*과거\*\*)(?:\s*[:：])?\s*$/i;
+
+const CURRENT_AGE_BEFORE =
+  /(?:현재|지금|now|currently)\s*$/i;
+
+const MINOR_KEYWORD_PATTERN = /(?:미성년자|미성년)/g;
+
+const SCHOOL_ROLE_PATTERN =
+  /(?:중학생|고등학생|초등학생|middle\s*school|high\s*school)/gi;
+
+export function buildCharacterParticipantIdentityDescription(input: {
+  adultStatus?: string | null;
+  description?: string | null;
+  systemPrompt?: string | null;
+  world?: string | null;
+  simulationCast?: string | null;
+}): string {
+  return [input.adultStatus, input.description].filter(Boolean).join("\n");
+}
+
+function isHistoricalAgeMention(
+  text: string,
+  matchIndex: number,
+  matchLength: number
+): boolean {
+  const after = text.slice(matchIndex + matchLength, matchIndex + matchLength + 32);
+  if (HISTORICAL_AGE_AFTER.test(after)) return true;
+  const before = text.slice(Math.max(0, matchIndex - 24), matchIndex);
+  if (HISTORICAL_AGE_BEFORE.test(before)) return true;
+  return false;
+}
+
+function isCurrentAgeMention(
+  text: string,
+  matchIndex: number,
+  matchLength: number
+): boolean {
+  const before = text.slice(Math.max(0, matchIndex - 12), matchIndex);
+  if (CURRENT_AGE_BEFORE.test(before)) return true;
+  const after = text.slice(matchIndex + matchLength, matchIndex + matchLength + 16);
+  if (/^\s*(?:이다|입니다|임|캐릭터|설정)(?=\s|$|[,.])/i.test(after)) return true;
+  return false;
+}
+
+function findCurrentNumericMinorAge(text: string): boolean {
+  for (const match of text.matchAll(/나이\s*[:：]\s*(\d{1,2})\s*(?:세|살)(?!\d)/gi)) {
     const age = Number(match[1]);
-    return age > 0 && age < 19;
-  });
+    if (age > 0 && age < 19) return true;
+  }
+
+  for (const match of text.matchAll(/(?<![0-9])(\d{1,2})\s*(?:세|살)(?!\d)/g)) {
+    const age = Number(match[1]);
+    if (age <= 0 || age >= 19) continue;
+    const idx = match.index ?? 0;
+    const len = match[0].length;
+    if (isCurrentAgeMention(text, idx, len)) return true;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    const after = text.slice(idx + len, idx + len + 24);
+    if (/^\s*(?:고등학생|중학생|초등학생|미성년)/i.test(after)) return true;
+    if (!HISTORICAL_AGE_AFTER.test(after)) return true;
+  }
+  return false;
+}
+
+function hasCurrentMinorKeyword(text: string): boolean {
+  for (const match of text.matchAll(MINOR_KEYWORD_PATTERN)) {
+    const idx = match.index ?? 0;
+    const len = match[0].length;
+    if (isCurrentAgeMention(text, idx, len)) return true;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    return true;
+  }
+
+  if (/\b(?:minor|underage)\b/i.test(text)) {
+    for (const match of text.matchAll(/\b(?:minor|underage)\b/gi)) {
+      const idx = match.index ?? 0;
+      const len = match[0].length;
+      if (isHistoricalAgeMention(text, idx, len)) continue;
+      return true;
+    }
+  }
+
+  for (const match of text.matchAll(SCHOOL_ROLE_PATTERN)) {
+    const idx = match.index ?? 0;
+    const len = match[0].length;
+    if (isCurrentAgeMention(text, idx, len)) return true;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    return true;
+  }
+
+  for (const match of text.matchAll(/(?:어린이|어린아이)/g)) {
+    const idx = match.index ?? 0;
+    const len = match[0].length;
+    const before = text.slice(Math.max(0, idx - 12), idx);
+    const after = text.slice(idx + len, idx + len + 16);
+    if (/어린\s*$/i.test(before)) continue;
+    if (/(?:시절|적|때)\s*$/i.test(before)) continue;
+    if (/^\s*(?:였|이었|였던|구조|를|을|의|가\s)/i.test(after)) continue;
+    if (/^\s*구조/i.test(after)) continue;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    return true;
+  }
+
+  if (/\bchild\b/i.test(text)) {
+    for (const match of text.matchAll(/\bchild\b/gi)) {
+      const idx = match.index ?? 0;
+      const len = match[0].length;
+      const after = text.slice(idx + len, idx + len + 16);
+      if (/^\s*(?:ren|hood|ren's)\b/i.test(after)) continue;
+      if (isHistoricalAgeMention(text, idx, len)) continue;
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function assessParticipantAdultStatus(
   participant: ParticipantAdultMetadata
 ): AdultStatus | "real_person" {
-  const description = [
+  const identityDescription = [
     participant.description,
     participant.currentSchool,
     participant.ageGroup,
-    participant.adultStatus,
   ]
     .filter(Boolean)
     .join("\n");
-  if (participant.isRealPerson || REAL_PERSON_SIGNAL.test(description)) {
+  const structuredAdultStatus = participant.adultStatus?.trim() ?? "";
+  const structuredAgeGroup = participant.ageGroup?.trim() ?? "";
+
+  if (participant.isRealPerson || REAL_PERSON_SIGNAL.test(identityDescription)) {
     return "real_person";
   }
 
@@ -452,18 +567,37 @@ export function assessParticipantAdultStatus(
     typeof participant.age === "number" && Number.isFinite(participant.age)
       ? participant.age
       : null;
-  const explicitMinor =
-    (numericAge != null && numericAge < 19) ||
-    MINOR_SIGNAL.test(description) ||
-    findNumericMinorAge(description) ||
-    /^(minor|underage|child)$/i.test(participant.adultStatus?.trim() ?? "");
-  const explicitAdult =
-    (numericAge != null && numericAge >= 19) ||
+
+  // Structured authoring age outranks free-text lore inference (Patch 3).
+  if (numericAge != null) {
+    if (numericAge < 19) return "minor";
+    return "confirmed";
+  }
+
+  const textMinor =
+    hasCurrentMinorKeyword(identityDescription) ||
+    findCurrentNumericMinorAge(identityDescription);
+  const textAdult = ADULT_SIGNAL.test(identityDescription);
+
+  if (/^(minor|underage|child)$/i.test(structuredAdultStatus)) {
+    if (textAdult) return "conflict";
+    return "minor";
+  }
+  if (/^(confirmed|adult)$/i.test(structuredAdultStatus)) {
+    if (textMinor) return "conflict";
+    return "confirmed";
+  }
+  if (structuredAdultStatus === "conflict") return "conflict";
+
+  const structuredMinor =
+    /^(minor|underage|child)$/i.test(structuredAgeGroup);
+  const structuredAdult =
     participant.isAdult === true ||
     participant.isAdult === 1 ||
-    /^(adult)$/i.test(participant.ageGroup?.trim() ?? "") ||
-    /^(confirmed|adult)$/i.test(participant.adultStatus?.trim() ?? "") ||
-    ADULT_SIGNAL.test(description);
+    /^(adult)$/i.test(structuredAgeGroup);
+
+  const explicitMinor = structuredMinor || textMinor;
+  const explicitAdult = structuredAdult || textAdult;
 
   if (explicitMinor && explicitAdult) return "conflict";
   if (explicitMinor) return "minor";
