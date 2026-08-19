@@ -258,6 +258,8 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /revealedActorIds/);
     assert.match(room, /showGmNarration/);
     assert.match(room, /visibleSceneRows = sceneRows/);
+    assert.match(room, /typeof window === "undefined"/);
+    assert.match(room, /window\.location\.search/);
     assert.doesNotMatch(room, /sceneRows\.filter\(\(row\) => row\.roundNumber !== gatedRoundNumber\)/);
     assert.match(overlay, /TrpgDiceBoxScene/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);

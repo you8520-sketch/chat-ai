@@ -94,11 +94,26 @@ function useCampaignDicePreview(
   inject: boolean;
   instrument: boolean;
 } {
-  const [query, setQuery] = useState({
-    previewEnabled: false,
-    queryTheme: null as string | null,
-    queryPreview: null as string | null,
-    queryPreviewD20: null as string | null,
+  const [query, setQuery] = useState(() => {
+    if (typeof window === "undefined") {
+      return {
+        previewEnabled: false,
+        queryTheme: null as string | null,
+        queryPreview: null as string | null,
+        queryPreviewD20: null as string | null,
+      };
+    }
+    const params = new URLSearchParams(window.location.search);
+    return {
+      previewEnabled: isTrpgDicePreviewRuntime({
+        nodeEnv: process.env.NODE_ENV,
+        previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
+        hostname: window.location.hostname,
+      }),
+      queryTheme: params.get("diceTheme"),
+      queryPreview: params.get("dicePreview"),
+      queryPreviewD20: params.get("dicePreviewD20"),
+    };
   });
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
