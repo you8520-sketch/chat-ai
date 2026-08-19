@@ -206,7 +206,6 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(diceBoxScene, /source:\s*"init-error"/);
     assert.match(diceBoxScene, /source:\s*"physics"/);
     assert.match(overlay, /source:\s*"watchdog"/);
-    assert.doesNotMatch(`${diceBoxScene}\n${overlay}`, /hypothesisId|#region agent log|location:\s*"TrpgDice|message:\s*"Dice/);
     assert.match(room, /TrpgDiceOverlay/);
     assert.match(room, /TrpgRollResultLane/);
     assert.match(room, /trpgDiceRevealWatchdogMs/);

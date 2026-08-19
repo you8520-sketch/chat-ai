@@ -92,7 +92,7 @@ export function resolveCampaignDicePreviewOverlay(opts: {
     theme,
     phase: "ROLLING",
     rolls:
-      opts.currentRolls.length > 0
+      previewD20 == null && opts.currentRolls.length > 0
         ? opts.currentRolls
         : [previewDiceOverlayFixture(opts.fixtureName, previewD20 ?? 14)],
     inject: true,
@@ -210,9 +210,13 @@ function hasCanvasDimensions(data: Record<string, unknown>): boolean {
   return DICE_DIMENSION_FIELDS.every((field) => data[field] === null || typeof data[field] === "number");
 }
 
+function hasOnlyFields(value: Record<string, unknown>, fields: readonly string[]): boolean {
+  return Object.keys(value).every((field) => fields.includes(field));
+}
+
 export function isTrpgDiceRuntimeInstrument(value: unknown): value is TrpgDiceRuntimeInstrument {
   if (!isRecord(value) || typeof value.timestamp !== "number" || !isRecord(value.data)) return false;
-  if ("hypothesisId" in value || "location" in value || "message" in value) return false;
+  if (!hasOnlyFields(value, ["event", "data", "timestamp"])) return false;
   const data = value.data;
   const hasBox = typeof data.boxId === "string";
   switch (value.event) {

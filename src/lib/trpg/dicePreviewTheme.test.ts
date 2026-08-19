@@ -64,12 +64,13 @@ describe("preview-only campaign dice theme", () => {
   });
 
   it("allows preview-only dicePreviewD20 override for QA capture", () => {
+    const existing = previewDiceOverlayFixture("기존", 7);
     const nat20 = resolveCampaignDicePreviewOverlay({
       previewEnabled: true,
       queryPreview: "1",
       queryPreviewD20: "20",
       phase: "ACTION_INPUT",
-      currentRolls: [],
+      currentRolls: [existing],
     });
     assert.equal(nat20.rolls[0]?.d20, 20);
     assert.equal(nat20.rolls[0]?.tier, "CRITICAL_SUCCESS");
@@ -142,7 +143,7 @@ describe("preview-only campaign dice theme", () => {
     assert.equal(resolveCampaignOverlayDiceTheme({ previewEnabled: false }), PRODUCTION_D20_THEME);
   });
 
-  it("validates permanent dice lifecycle events without temporary debug metadata", () => {
+  it("validates permanent dice lifecycle events without extra metadata", () => {
     const dimensions = {
       hostWidth: 1266,
       hostHeight: 801,
@@ -173,7 +174,7 @@ describe("preview-only campaign dice theme", () => {
     }), true);
     assert.equal(isTrpgDiceRuntimeInstrument({
       event: "DICE_ROLL_RESOLVED",
-      hypothesisId: "temporary",
+      debugMetadata: true,
       data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
       timestamp: 5,
     }), false);
