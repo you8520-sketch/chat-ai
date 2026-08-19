@@ -70,6 +70,31 @@ function sortedActiveSpans(records: BatchSpan[], actualTurnCount: number) {
     .sort((a, b) => a.turnStart - b.turnStart);
 }
 
+function sortedAllSpans(records: BatchSpan[], actualTurnCount: number) {
+  return records
+    .map(normalizeSpan)
+    .filter((r) => r.turnEnd <= actualTurnCount)
+    .sort((a, b) => a.turnStart - b.turnStart);
+}
+
+/**
+ * Highest turn covered by contiguous batches starting at 1, including soft-deleted rows.
+ * Used for persist gap checks so inactive historical rows still occupy their span.
+ */
+export function highestContiguousOccupiedTurn(
+  records: BatchSpan[],
+  actualTurnCount: number
+): number {
+  let expectedStart = 1;
+  let highest = 0;
+  for (const r of sortedAllSpans(records, actualTurnCount)) {
+    if (r.turnStart !== expectedStart) break;
+    highest = r.turnEnd;
+    expectedStart = r.turnEnd + 1;
+  }
+  return highest;
+}
+
 /**
  * Highest turn covered by contiguous complete batches starting at 1.
  * Gap at 1 (e.g. only 7~12 present) → 0.

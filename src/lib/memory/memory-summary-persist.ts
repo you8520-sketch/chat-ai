@@ -20,6 +20,7 @@ import {
 import {
   highestContiguousCompletedTurn,
   type SummaryReasonCode,
+  highestContiguousOccupiedTurn,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
 import { newBatchEndForStart, LEGACY_NULL_TURN_END_OFFSET } from "./memory-summary-range";
@@ -204,9 +205,9 @@ export function persistValidatedSummaryBatch(opts: {
         });
       }
       const before = listMemoryRecordsForChat(opts.chatId);
-      // Contiguity ignores soft-deleted rows; upsert may still revive the same turnStart.
-      const contiguousBefore = highestContiguousCompletedTurn(before, opts.playableTurnCount);
-      const expectedNextStart = contiguousBefore === 0 ? 1 : contiguousBefore + 1;
+      // Occupied span includes inactive rows for gap checks; LTM uses active-only contiguous.
+      const occupiedBefore = highestContiguousOccupiedTurn(before, opts.playableTurnCount);
+      const expectedNextStart = occupiedBefore === 0 ? 1 : occupiedBefore + 1;
       const existingSame = before.find((r) => r.turnStart === opts.turnStart);
 
       if (!existingSame && opts.turnStart !== expectedNextStart) {

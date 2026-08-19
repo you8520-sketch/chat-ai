@@ -45,9 +45,6 @@ const TEXT_MAIN =
 const TEXT_PREF = "앞으로 서술 톤은 차분하게 유지해 주세요.";
 const TEXT_BRANCH_C = "분기C: 활성 분기에서 계약 장면이 이어지고 있다.";
 const TEXT_BRANCH_A = "분기A: 종료된 분기에서 카페 IF가 마무리됐다.";
-const MOCK_SUMMARY =
-  "짧지만 중요한 사건 하나만 기록함. 이후 전개에 영향을 주는 약속과 관계 변화만 남김. " +
-  "추가 장식 없이 사실만 압축. 반복 묘사는 생략. 핵심만 유지.";
 
 function cleanup() {
   const db = getDb();
@@ -165,12 +162,19 @@ function seedPlayableTurns(
   }
 }
 
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+let savedEnv: string | undefined;
+
 beforeEach(() => {
+  savedEnv = process.env[ENV_KEY];
+  delete process.env[ENV_KEY];
   seed();
 });
 
 afterEach(() => {
   __setSummarizeTurnBatchCallerForTests(null);
+  if (savedEnv === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = savedEnv;
 });
 
 after(() => {
@@ -180,8 +184,8 @@ after(() => {
 describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
   it("stops at main_canon and returns only latest segment", () => {
     const a = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_A });
-    persistKind({ turnStart: 6, kind: "main_canon", text: TEXT_MAIN });
-    const b = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B });
+    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    const b = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b]
@@ -191,9 +195,9 @@ describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
 
   it("skips preference and empty_ooc inside a group", () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
-    persistKind({ turnStart: 6, kind: "preference", text: TEXT_PREF });
-    persistKind({ turnStart: 11, kind: "empty_ooc", text: "__SUMMARY_KIND_OOC_ONLY__" });
-    const b2 = persistKind({ turnStart: 16, kind: "noncanon", text: TEXT_B2 });
+    persistKind({ turnStart: 7, kind: "preference", text: TEXT_PREF });
+    persistKind({ turnStart: 13, kind: "empty_ooc", text: "__SUMMARY_KIND_OOC_ONLY__" });
+    const b2 = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B2 });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b1, b2]
@@ -203,13 +207,13 @@ describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
   it("ignores inactive rows for membership and boundaries", () => {
     const liveOld = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_A });
     persistKind({
-      turnStart: 6,
+      turnStart: 7,
       kind: "noncanon",
       text: "비정사 DEAD: 비활성 행은 무시된다.",
       inactive: true,
     });
-    persistKind({ turnStart: 6, kind: "main_canon", text: TEXT_MAIN });
-    const b = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B });
+    persistKind({ turnStart: 13, kind: "main_canon", text: TEXT_MAIN });
+    const b = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b]
@@ -225,15 +229,15 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 6, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
     const idB = persistKind({
-      turnStart: 11,
+      turnStart: 13,
       kind: "noncanon",
       text: TEXT_B,
     });
-    persistKind({ turnStart: 16, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: 19, kind: "main_canon", text: TEXT_MAIN });
     const idC = persistKind({
-      turnStart: 21,
+      turnStart: 25,
       kind: "noncanon",
       text: TEXT_C,
     });
@@ -273,18 +277,18 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
 
   it("A1-A3/main/B1-B2 → B1+B2 only", async () => {
     const a1 = persistKind({ turnStart: 1, kind: "noncanon", text: `${TEXT_A} 1` });
-    const a2 = persistKind({ turnStart: 6, kind: "noncanon", text: `${TEXT_A} 2` });
-    const a3 = persistKind({ turnStart: 11, kind: "noncanon", text: `${TEXT_A} 3` });
-    persistKind({ turnStart: 16, kind: "main_canon", text: TEXT_MAIN });
-    const b1 = persistKind({ turnStart: 21, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 26, kind: "noncanon", text: TEXT_B2 });
+    const a2 = persistKind({ turnStart: 7, kind: "noncanon", text: `${TEXT_A} 2` });
+    const a3 = persistKind({ turnStart: 13, kind: "noncanon", text: `${TEXT_A} 3` });
+    persistKind({ turnStart: 19, kind: "main_canon", text: TEXT_MAIN });
+    const b1 = persistKind({ turnStart: 25, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: 31, kind: "noncanon", text: TEXT_B2 });
 
-    seedPlayableTurns(35, (t) =>
-      t === 35
+    seedPlayableTurns(42, (t) =>
+      t === 42
         ? { user: "이어서", assistant: "학교 IF 계속." }
         : { user: `(OOC: 비트 ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
 
     assert.equal(
       await processRollingSummaryBatch({
@@ -309,17 +313,17 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
   it("B1/preference/B2 → B1+B2 promoted; preference untouched", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
     const pref = persistKind({
-      turnStart: 6,
+      turnStart: 7,
       kind: "preference",
       text: TEXT_PREF,
     });
-    const b2 = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B2 });
+    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
     seedPlayableTurns(24, (t) =>
       t === 24
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -340,17 +344,17 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
   it("B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
     const ooc = persistKind({
-      turnStart: 6,
+      turnStart: 7,
       kind: "empty_ooc",
       text: "__SUMMARY_KIND_OOC_ONLY__",
     });
-    const b2 = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B2 });
+    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
     seedPlayableTurns(24, (t) =>
       t === 24
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -376,7 +380,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       branchStatus: "active",
     });
     const idB = persistKind({
-      turnStart: 6,
+      turnStart: 7,
       kind: "noncanon",
       text: TEXT_B,
     });
@@ -385,7 +389,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
         ? { user: "계속", assistant: "분기C 이어감." }
         : { user: `분기 비트 ${t}`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -403,7 +407,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     assert.equal(row(idB).branchId, null);
     assert.equal(mutations(idB).length, 0);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
-    const batch3 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 11)!;
+    const batch3 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 13)!;
     assert.equal(batch3.branchId, "branch-C");
     const lore = rebuildLorebookFromRecords(CHAT);
     assert.match(lore, /분기C|활성 분기|계약 장면/);
@@ -418,14 +422,14 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       branchId: "branch-A",
       branchStatus: "closed",
     });
-    const b1 = persistKind({ turnStart: 6, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B2 });
+    const b1 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
     seedPlayableTurns(24, (t) =>
       t === 24
         ? { user: "계속", assistant: "새 분기." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -447,14 +451,14 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
 
   it("G: B1/B2/B3 all promoted with same branch_id", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 6, kind: "noncanon", text: TEXT_B2 });
-    const b3 = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B3 });
+    const b2 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B2 });
+    const b3 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B3 });
     seedPlayableTurns(24, (t) =>
       t === 24
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -479,11 +483,11 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 6, kind: "main_canon", text: TEXT_MAIN });
-    const b1 = persistKind({ turnStart: 11, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 16, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(25, (t) =>
-      t === 25
+    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    const b1 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B2 });
+    seedPlayableTurns(30, (t) =>
+      t === 30
         ? { user: "계속", assistant: "B 이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -494,7 +498,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
         )
         .get(CHAT, "계속") as { id: number }
     ).id;
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -525,20 +529,31 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     assert.equal(row(idA).branchId, null);
   });
 
-  it.skip("I: inactive noncanon ignored in group selection (covered by helper suite)", async () => {
-    persistKind({ turnStart: 1, kind: "main_canon", text: TEXT_MAIN });
+  it("I: inactive noncanon ignored in group selection", async () => {
     persistKind({
-      turnStart: 6,
+      turnStart: 1,
       kind: "noncanon",
       text: "비정사 INACTIVE: 최신처럼 보이지만 비활성이다.",
       inactive: true,
     });
-    seedPlayableTurns(10, (t) =>
-      t === 10
+    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    const live = persistKind({
+      turnStart: 13,
+      kind: "noncanon",
+      text: TEXT_B,
+    });
+    persistKind({
+      turnStart: 19,
+      kind: "noncanon",
+      text: "비정사 INACTIVE2: 그룹 안의 비활성 행이다.",
+      inactive: true,
+    });
+    seedPlayableTurns(30, (t) =>
+      t === 30
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await processRollingSummaryBatch({
         chatId: CHAT,
@@ -550,13 +565,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       }),
       true
     );
-    const live = listMemoryRecordsForChat(CHAT).find(
-      (r) => r.turnStart === 6 && !r.inactive
-    )!;
-    assert.ok(live);
-    assert.ok(live.summaryKind === "branch_canon" || live.summaryKind === "noncanon");
+    assert.equal(row(live).summaryKind, "branch_canon");
     const inactiveRows = listMemoryRecordsForChat(CHAT).filter((r) => r.inactive);
-    assert.equal(inactiveRows.length, 0, "inactive row at 6 was replaced by sealed batch");
     for (const r of inactiveRows) {
       assert.equal(r.summaryKind, "noncanon");
       assert.equal(r.branchId, null);
@@ -569,9 +579,9 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 6, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
     const existing = persistKind({
-      turnStart: 11,
+      turnStart: 13,
       kind: "branch_canon",
       text: TEXT_BRANCH_C,
       branchId: "branch-X",
@@ -587,7 +597,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       summarized_turn_count: 18,
       membership_tier: "free",
     });
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
     assert.equal(
       await regenerateMemoryRecordBatch({
         chatId: CHAT,
@@ -596,7 +606,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
         charName: "P1BChar",
         tier: "free",
         memoryCapacity: 8000,
-        turnStart: 11,
+        turnStart: 13,
       }),
       true
     );

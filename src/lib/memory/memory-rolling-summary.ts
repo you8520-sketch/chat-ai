@@ -1065,39 +1065,35 @@ async function persistComposedBatchScopes(opts: {
   const pendingOps = opts.composed.pendingBranchControlOps ?? [];
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   const db = getDb();
-  const postPersistMemory = db.transaction(() => {
-    if (
-      !isMemoryWriteGuardCurrentCore(db, {
+  if (
+    !isMemoryWriteGuardCurrentCore(db, {
+      chatId: opts.chatId,
+      snapshot: opts.boundarySnapshot,
+      sourceUserMessageIds: opts.sourceUserMessageIds,
+    })
+  ) {
+    return true;
+  }
+  for (const pending of pendingOps) {
+    if (pending.op === "reopen_branch") {
+      reopenClosedBranchCanon({
         chatId: opts.chatId,
-        snapshot: opts.boundarySnapshot,
-        sourceUserMessageIds: opts.sourceUserMessageIds,
-      })
-    ) {
-      return null;
-    }
-    for (const pending of pendingOps) {
-      if (pending.op === "reopen_branch") {
-        reopenClosedBranchCanon({
-          chatId: opts.chatId,
-          branchId: pending.branchId,
-          source: "seal_sole_closed_continue",
-          control: pending.control,
-        });
-      } else if (pending.op === "close_active_branches") {
-        closeActiveBranchCanon(opts.chatId, pending.control);
-      }
-    }
-    const rebuilt = rebuildLorebookFromRecords(opts.chatId);
-    if (pendingOps.length > 0) {
-      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-        recent_summary: rebuilt,
-        membership_tier: opts.tier,
+        branchId: pending.branchId,
+        source: "seal_sole_closed_continue",
+        control: pending.control,
       });
-      syncChatLongTermMemory(opts.chatId, rebuilt);
+    } else if (pending.op === "close_active_branches") {
+      closeActiveBranchCanon(opts.chatId, pending.control);
     }
-    return rebuilt;
-  }).immediate();
-  if (postPersistMemory == null) return true;
+  }
+  const postPersistMemory = rebuildLorebookFromRecords(opts.chatId);
+  if (pendingOps.length > 0) {
+    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      recent_summary: postPersistMemory,
+      membership_tier: opts.tier,
+    });
+    syncChatLongTermMemory(opts.chatId, postPersistMemory);
+  }
   let currentMemory = postPersistMemory;
   if (currentMemory.length > lorebookBudget) {
     try {
