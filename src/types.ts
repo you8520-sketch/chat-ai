@@ -270,6 +270,14 @@ export type ContextBuildInput = {
    * Muse/Gemini see no actual prompt change.
    */
   sceneMomentumInput?: import("@/lib/sceneMomentum/types").SceneMomentumInput | null;
+  /**
+   * DeepSeek adult-handoff user-turn adapters. Set only when
+   * isDeepSeekAdultHandoff is true. Native DeepSeek turns stay null.
+   */
+  deepSeekAdultHandoff?: {
+    applyStyleMirror?: boolean;
+    applySceneCompletion?: boolean;
+  } | null;
 };
 
 export type BuiltContext = {
