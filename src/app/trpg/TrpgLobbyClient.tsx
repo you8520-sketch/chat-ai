@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import TrpgInviteLink from "./TrpgInviteLink";
-import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
+import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
 import type { TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
@@ -85,9 +85,6 @@ export default function TrpgLobbyClient({
     router.push(`/trpg/join/${parsed}`);
   }
 
-  const canJoinStatus = (status: string) =>
-    status === "CHARACTER_SETUP" || status === "WAITING_FOR_PLAYERS";
-
   return (
     <div className="space-y-8">
       <TrpgCatalogBrowse
@@ -115,37 +112,42 @@ export default function TrpgLobbyClient({
               <li key={c.id} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-1">
-                    {c.viewerIsHost ? (
-                      <TrpgCampaignTitle
-                        campaignId={c.id}
-                        title={c.title}
-                        canEdit
-                        onSaved={(title) =>
-                          setCampaigns((prev) => prev.map((row) => (row.id === c.id ? { ...row, title } : row)))
-                        }
-                      />
-                    ) : (
-                      <Link href={`/trpg/${c.id}`} className="block truncate text-sm font-medium text-zinc-100 hover:text-violet-200">
-                        {c.title}
-                      </Link>
-                    )}
-                    <Link href={`/trpg/${c.id}`} className="text-xs text-zinc-500 hover:text-violet-200">
-                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase} · 열기
-                    </Link>
-                  </div>
-                  {c.viewerIsHost ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void deleteCampaign(c.id)}
-                      className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                    <Link
+                      href={`/trpg/${c.id}`}
+                      className="block truncate text-sm font-medium text-zinc-100 hover:text-violet-200"
                     >
-                      삭제
-                    </button>
-                  ) : null}
+                      {c.title}
+                    </Link>
+                    <p className="text-xs text-zinc-500">
+                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/trpg/${c.id}`}
+                      data-trpg-reenter-cta
+                      className="inline-flex min-h-9 w-auto shrink-0 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 sm:min-h-10"
+                    >
+                      {trpgLobbyReenterCtaLabel(c.campaignStatus)}
+                    </Link>
+                    {c.viewerIsHost ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void deleteCampaign(c.id)}
+                        className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                      >
+                        삭제
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 {c.inviteCode ? (
-                  <TrpgInviteLink code={c.inviteCode} canJoin={canJoinStatus(c.campaignStatus)} />
+                  <TrpgInviteLink
+                    code={c.inviteCode}
+                    canJoin={trpgLobbyCanInvite(c.campaignStatus)}
+                    compact
+                  />
                 ) : null}
               </li>
             ))}

@@ -152,8 +152,13 @@ export default function TrpgSelfSheetHud({
             <p className="text-xs text-zinc-400">{sheet.location.trim()}</p>
           ) : null}
           <ConditionBadges conditions={conditions.slice(0, 2)} />
-          <p className="text-xs text-zinc-400" aria-label={`소지품 ${itemCount}개`}>
-            🎒 {itemCount}
+          <p
+            className="text-xs text-zinc-400"
+            aria-label={`소지품 ${itemCount}개`}
+            title={`현재 소지품 ${itemCount}개`}
+            data-trpg-inventory-count={itemCount}
+          >
+            소지품 {itemCount}
           </p>
           <button
             type="button"
@@ -190,7 +195,9 @@ export default function TrpgSelfSheetHud({
           <span className="text-zinc-600" aria-hidden>
             |
           </span>
-          <span aria-label={`소지품 ${itemCount}개`}>🎒{itemCount}</span>
+          <span aria-label={`소지품 ${itemCount}개`} title={`현재 소지품 ${itemCount}개`}>
+            소지품 {itemCount}
+          </span>
           <span className="ml-auto text-zinc-400" aria-hidden>
             ↑
           </span>

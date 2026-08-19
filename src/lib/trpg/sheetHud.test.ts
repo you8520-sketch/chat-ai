@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { applyValidatedStateDelta, buildPartySheetHud } from "./sheetView";
 import {
@@ -69,5 +70,12 @@ describe("TRPG self sheet HUD helpers", () => {
     assert.equal(hpBarClass(32, 40), "bg-emerald-400");
     assert.equal(hpBarClass(16, 40), "bg-amber-400");
     assert.equal(hpBarClass(8, 40), "bg-rose-400");
+  });
+
+  it("labels inventory count as 소지품 instead of an emoji badge", () => {
+    const hud = readFileSync("src/app/trpg/TrpgSelfSheetHud.tsx", "utf8");
+    assert.match(hud, /소지품 \{itemCount\}/);
+    assert.match(hud, /현재 소지품 \$\{itemCount\}개/);
+    assert.doesNotMatch(hud, /🎒/);
   });
 });

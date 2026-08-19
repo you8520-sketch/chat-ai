@@ -42,36 +42,26 @@ export default function TrpgInviteLink({
 
   if (!path) return null;
 
-  if (compact) {
+  if (!canJoin) {
     return (
-      <button
-        type="button"
-        onClick={() => void copy()}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/10"
-      >
-        {copied ? "복사됨" : "입장 링크 복사"}
-      </button>
+      <p className="text-xs text-zinc-500" data-trpg-invite-closed>
+        새 참가 불가
+      </p>
     );
   }
 
   return (
-    <div className="rounded-xl border border-violet-400/20 bg-violet-500/5 p-3">
-      <p className="text-xs font-semibold text-violet-200">같이할 유저 초대</p>
-      <p className="mt-1 break-all text-sm text-zinc-200">{full}</p>
-      <p className="mt-1 text-xs text-zinc-500">
-        {canJoin
-          ? "시작 전에 이 링크를 보내면 바로 입장합니다. 사람+플레이어 캐릭터 합쳐 4자리이며, 플레이어 캐릭터는 최대 2명입니다."
-          : "이미 시작됐거나 정원이 가득해서 새 참가는 안 됩니다."}
-      </p>
+    <div className={compact ? "" : "space-y-1"}>
       {billingMode === "host_pays" ? (
-        <p className="mt-1 text-xs text-violet-200/80">방장이 플레이 비용을 부담하는 방입니다.</p>
+        <p className="text-xs text-zinc-500">방장이 플레이 비용을 부담하는 방입니다.</p>
       ) : null}
       <button
         type="button"
         onClick={() => void copy()}
-        className="mt-2 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
+        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/10"
+        data-trpg-invite-copy
       >
-        {copied ? "복사됨" : "입장 링크 복사"}
+        {copied ? "복사됨" : "초대 링크 복사"}
       </button>
     </div>
   );

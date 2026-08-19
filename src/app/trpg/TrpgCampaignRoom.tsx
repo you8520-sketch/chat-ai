@@ -7,6 +7,7 @@ import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { parseTrpgBotAction } from "@/lib/trpg/botActionParse";
 import {
+  CHAT_GLOBAL_HEADER_OFFSET_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   chatReadabilityRootStyle,
@@ -54,8 +55,10 @@ import {
   trpgDiceRevealWatchdogMs,
   trpgDiceRollSessionKey,
 } from "@/lib/trpg/diceRollUx";
+import { isNearBottom } from "@/lib/trpg/followLatest";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
+import TrpgUserChatPanel from "./TrpgUserChatPanel";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
@@ -233,6 +236,10 @@ export default function TrpgCampaignRoom({
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const hasScrolledToLatestRef = useRef<number | null>(null);
+  const followLatestRef = useRef(true);
+  const seenSceneLenRef = useRef(0);
+  const [followLatest, setFollowLatest] = useState(true);
+  const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
@@ -413,47 +420,61 @@ export default function TrpgCampaignRoom({
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  const scrollToLatest = useCallback(() => {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = "instant") => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+    followLatestRef.current = true;
+    setFollowLatest(true);
+    setUnseenLatest(false);
   }, []);
 
   useLayoutEffect(() => {
     hasScrolledToLatestRef.current = null;
+    followLatestRef.current = true;
+    setFollowLatest(true);
+    setUnseenLatest(false);
+    seenSceneLenRef.current = 0;
   }, [snap.id]);
 
   useLayoutEffect(() => {
     if (waitingOpening && sceneRows.length === 0) return;
-    if (hasScrolledToLatestRef.current === snap.id) return;
 
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
 
-    let cancelled = false;
-    const scroll = () => {
-      if (cancelled) return;
-      scrollToLatest();
-    };
+    const isFirstEntry = hasScrolledToLatestRef.current !== snap.id;
+    if (isFirstEntry) {
+      scrollToLatest("instant");
+      hasScrolledToLatestRef.current = snap.id;
+      seenSceneLenRef.current = sceneRows.length;
+      return;
+    }
 
-    scroll();
-    const delays = [100, 250, 500, 1000, 1500, 2500].map((ms) => window.setTimeout(scroll, ms));
-    const container = quoteSelectContainerRef.current;
-    const observer = container ? new ResizeObserver(scroll) : null;
-    if (container && observer) observer.observe(container);
-    const markDone = window.setTimeout(() => {
-      if (!cancelled) hasScrolledToLatestRef.current = snap.id;
-      observer?.disconnect();
-    }, 3000);
-
-    return () => {
-      cancelled = true;
-      delays.forEach(clearTimeout);
-      window.clearTimeout(markDone);
-      observer?.disconnect();
-    };
+    if (sceneRows.length > seenSceneLenRef.current) {
+      seenSceneLenRef.current = sceneRows.length;
+      if (followLatestRef.current) scrollToLatest("instant");
+      else setUnseenLatest(true);
+    }
   }, [sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
 
+  useEffect(() => {
+    const onScroll = () => {
+      const root = document.documentElement;
+      const near = isNearBottom({
+        scrollHeight: root.scrollHeight,
+        scrollTop: window.scrollY,
+        clientHeight: root.clientHeight,
+      });
+      followLatestRef.current = near;
+      setFollowLatest(near);
+      if (near) setUnseenLatest(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   useLayoutEffect(() => {
+    if (!followLatestRef.current) return;
     if (!suggestionsEnabled) return;
     if (suggestions.length === 0 && !suggestionsError) return;
     suggestionsAnchorRef.current?.scrollIntoView({
@@ -584,6 +605,18 @@ export default function TrpgCampaignRoom({
       data-trpg-dice-watchdog-ms={revealWatchdogMs}
       data-trpg-dice-incoming-hide={incomingSessionHidden ? "true" : "false"}
     >
+      <aside
+        className={`sticky ${CHAT_GLOBAL_HEADER_OFFSET_CLASS} z-30 hidden h-[calc(100dvh-7.5rem)] w-[260px] shrink-0 flex-col self-start overflow-hidden border-r border-white/10 bg-[#101010]/90 min-[576px]:flex`}
+        data-trpg-user-chat-desktop
+      >
+        <TrpgUserChatPanel
+          snap={snap}
+          partyBody={partyBody}
+          onPartyBodyChange={onPartyBodyChange}
+          onSendParty={onSendParty}
+          busy={busy}
+        />
+      </aside>
       <div
         className="flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}
@@ -733,7 +766,7 @@ export default function TrpgCampaignRoom({
           {phase === "ACTION_INPUT" && snap.myDraft && !snap.myDraft.locked ? (
             <AppSectionCard title="시나리오 행동">
               <p className="mb-3 text-sm text-zinc-400">
-                세계 안에서 무엇을 할지 적으세요. 유저끼리 잡담은 오른쪽 「잡담」입니다.
+                세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
               </p>
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {TRPG_ACTION_TYPES.map((kind) => (
@@ -923,6 +956,17 @@ export default function TrpgCampaignRoom({
         replayOnMount={dicePreview.inject}
         onPlaybackStateChange={handleOverlayPlaybackChange}
       />
+
+      {!followLatest && unseenLatest ? (
+        <button
+          type="button"
+          onClick={() => scrollToLatest("smooth")}
+          className="fixed bottom-24 left-1/2 z-[65] -translate-x-1/2 rounded-full border border-white/15 bg-[#161616]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg"
+          data-trpg-jump-latest
+        >
+          최신으로 ↓
+        </button>
+      ) : null}
 
       {toast ? (
         <p className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full border border-white/10 bg-[#161616]/95 px-4 py-2 text-xs text-zinc-100 shadow-lg">

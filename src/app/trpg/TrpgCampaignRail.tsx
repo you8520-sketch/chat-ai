@@ -6,8 +6,8 @@ import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
 import TrpgInviteLink from "./TrpgInviteLink";
+import TrpgUserChatPanel from "./TrpgUserChatPanel";
 
 export type TrpgCampaignRailTab = "display" | "sheets" | "ooc";
 
@@ -18,7 +18,7 @@ function tabLabel(tab: TrpgCampaignRailTab): string {
     case "sheets":
       return "시트";
     case "ooc":
-      return "잡담";
+      return "유저 채팅";
     default: {
       const _exhaustive: never = tab;
       return _exhaustive;
@@ -48,7 +48,7 @@ function tabHint(tab: TrpgCampaignRailTab): string {
     case "sheets":
       return "파티 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
-      return "유저끼리만 보는 잡담";
+      return "플레이어끼리만 보이며 GM 진행에는 반영되지 않습니다.";
     default: {
       const _exhaustive: never = tab;
       return _exhaustive;
@@ -94,7 +94,7 @@ export default function TrpgCampaignRail({
     };
   }, [active]);
 
-  const tabs: TrpgCampaignRailTab[] = ["display", "sheets", "ooc"];
+  const tabs: TrpgCampaignRailTab[] = compact ? ["display", "sheets", "ooc"] : ["display", "sheets"];
 
   return (
     <div ref={rootRef} className="relative flex w-full flex-col">
@@ -148,46 +148,14 @@ export default function TrpgCampaignRail({
               </div>
             ) : null}
             {active === "ooc" ? (
-              <div>
-                <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
-                  GM·봇·주사위·시나리오에는 안 들어갑니다.
-                </p>
-                <ul className="mb-3 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
-                  {(snap.partyChat ?? []).length === 0 ? (
-                    <li className="text-sm text-zinc-500">아직 대화가 없습니다.</li>
-                  ) : (
-                    (snap.partyChat ?? []).map((msg) => (
-                      <li key={msg.id} className="text-sm leading-relaxed">
-                        <span className={msg.isSelf ? "font-semibold text-violet-300" : "font-semibold text-zinc-400"}>
-                          {msg.name}
-                        </span>
-                        <span className="ml-2 text-zinc-200">{msg.body}</span>
-                      </li>
-                    ))
-                  )}
-                </ul>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    onSendParty();
-                  }}
-                  className="flex flex-col gap-2"
-                >
-                  <input
-                    value={partyBody}
-                    onChange={(e) => onPartyBodyChange(e.target.value)}
-                    maxLength={TRPG_PARTY_CHAT_MAX_CHARS}
-                    placeholder="파티원에게 말하기"
-                    className="min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-                  />
-                  <button
-                    type="submit"
-                    disabled={busy || !partyBody.trim()}
-                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-200 hover:bg-white/10 disabled:opacity-50"
-                  >
-                    보내기
-                  </button>
-                </form>
+              <div className="h-[min(28rem,60dvh)]">
+                <TrpgUserChatPanel
+                  snap={snap}
+                  partyBody={partyBody}
+                  onPartyBodyChange={onPartyBodyChange}
+                  onSendParty={onSendParty}
+                  busy={busy}
+                />
               </div>
             ) : null}
           </div>

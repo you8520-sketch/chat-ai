@@ -12,7 +12,7 @@ import {
 } from "react";
 import type { UserChatSession } from "@/lib/recentChats";
 import SidebarRecentChatIcons from "./SidebarRecentChatIcons";
-import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
+import { isChatRoomPathname, isCompactRoomPathname } from "@/lib/chatDisplayPrefs";
 import {
   IconSidebarChevronLeft,
   IconSidebarChevronRight,
@@ -97,6 +97,7 @@ function usePinnedSidebarGeometry(isChatRoom: boolean) {
 export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }: Props) {
   const pathname = usePathname();
   const isChatRoomRoute = isChatRoomPathname(pathname);
+  const isCompactRoom = isCompactRoomPathname(pathname);
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
   const { spacerRef, geometry } = usePinnedSidebarGeometry(isChatRoomRoute);
 
@@ -104,13 +105,13 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
     setManualExpanded(null);
   }, [pathname]);
 
-  const expanded = manualExpanded ?? !isChatRoomRoute;
-  const collapsed = isChatRoomRoute && !expanded;
+  const expanded = manualExpanded ?? !isCompactRoom;
+  const collapsed = isCompactRoom && !expanded;
   const railWidth = collapsed ? 44 : 176;
 
   function toggleExpanded() {
     setManualExpanded((prev) => {
-      const current = prev ?? !isChatRoomRoute;
+      const current = prev ?? !isCompactRoom;
       return !current;
     });
   }
@@ -172,7 +173,7 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
           </Link>
         )}
 
-        {isChatRoomRoute && (
+        {isCompactRoom && (
           <button
             type="button"
             onClick={toggleExpanded}
