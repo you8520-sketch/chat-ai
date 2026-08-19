@@ -1,6 +1,6 @@
 import type { TrpgPublicRoll } from "./snapshot";
 import { resolveTrpgDiceTheme } from "./diceThemePrefs";
-import { PRODUCTION_D20_THEME, normalizeTrpgD20ThemeId, type TrpgD20ThemeId } from "./diceVisual";
+import { normalizeTrpgD20ThemeId, type TrpgD20ThemeId } from "./diceVisual";
 
 /** Query keys allowed on preview/dev hosts only. */
 export const TRPG_DICE_PREVIEW_THEME_QUERY = "diceTheme";

@@ -166,6 +166,8 @@ export default function TrpgDiceOverlay({
   const twoDigit = face >= 10;
   const numeralPx = twoDigit ? overlay.numeral.doublePx : overlay.numeral.singlePx;
   const mobileNumeralPx = twoDigit ? overlay.numeral.mobileDoublePx : overlay.numeral.mobileSinglePx;
+  const numeralGradient = overlay.numeral.gradient[tone];
+  const numeralGlow = overlay.numeral.glow[tone];
 
   return (
     <div
@@ -227,12 +229,15 @@ export default function TrpgDiceOverlay({
                 key={`${sessionKey}:${play.index}`}
                 className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold max-md:[font-size:var(--trpg-d20-mobile-numeral)] [font-size:var(--trpg-d20-numeral)]"
                 style={{
-                  ["--trpg-d20-numeral" as string]: `min(${numeralPx}px, ${twoDigit ? "15vw" : "19vw"})`,
-                  ["--trpg-d20-mobile-numeral" as string]: `min(${mobileNumeralPx}px, ${twoDigit ? "19vw" : "24vw"})`,
-                  color: overlay.numeral.colors[tone],
+                  ["--trpg-d20-numeral" as string]: `min(${numeralPx}px, ${twoDigit ? "10vw" : "12vw"})`,
+                  ["--trpg-d20-mobile-numeral" as string]: `min(${mobileNumeralPx}px, ${twoDigit ? "12vw" : "15vw"})`,
                   fontFamily: overlay.numeral.fontFamily,
                   fontWeight: overlay.numeral.weight,
-                  textShadow: overlay.numeral.textShadow,
+                  background: `linear-gradient(180deg, ${numeralGradient.hi}, ${numeralGradient.mid}, ${numeralGradient.lo})`,
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  filter: `drop-shadow(0 1px 1px rgba(20,14,4,0.9)) drop-shadow(0 2px 4px rgba(0,0,0,0.6)) drop-shadow(0 0 14px ${numeralGlow})`,
                   letterSpacing: twoDigit ? overlay.numeral.letterSpacingDouble : "0",
                 }}
                 data-trpg-dice-numeral={face}

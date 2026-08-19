@@ -38,6 +38,8 @@ export type TrpgD20StaticOverlaySpec = {
     letterSpacingDouble: string;
     textShadow: string;
     colors: Record<TrpgD20StaticOverlayTone, string>;
+    gradient: Record<TrpgD20StaticOverlayTone, { hi: string; mid: string; lo: string }>;
+    glow: Record<TrpgD20StaticOverlayTone, string>;
   };
   frameGlow: Record<TrpgD20StaticOverlayTone, string>;
   burst: {
@@ -130,18 +132,28 @@ const OBSIDIAN_ROYAL: TrpgD20ThemeSpec = {
     label: "Obsidian Royal",
     overlayDimClass: "bg-black/15",
     numeral: {
-      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
       weight: 600,
-      singlePx: 128,
-      doublePx: 104,
-      mobileSinglePx: 100,
-      mobileDoublePx: 80,
-      letterSpacingDouble: "-0.04em",
+      singlePx: 74,
+      doublePx: 60,
+      mobileSinglePx: 58,
+      mobileDoublePx: 46,
+      letterSpacingDouble: "-0.02em",
       textShadow: SHARED_TEXT_SHADOW,
       colors: {
         normal: "#e8dcc0",
         nat1: "#e08a92",
         nat20: "#f5e8b8",
+      },
+      gradient: {
+        normal: { hi: "#fff8e0", mid: "#e8c56a", lo: "#9a7838" },
+        nat1: { hi: "#f5c8c8", mid: "#d46878", lo: "#7a2030" },
+        nat20: { hi: "#fff6d8", mid: "#f0d068", lo: "#b8862a" },
+      },
+      glow: {
+        normal: "rgba(232,197,106,0.28)",
+        nat1: "rgba(180,40,56,0.4)",
+        nat20: "rgba(240,210,106,0.5)",
       },
     },
     frameGlow: {
@@ -199,19 +211,29 @@ const ANCIENT_RELIQUARY: TrpgD20ThemeSpec = {
     label: "Ancient Reliquary",
     overlayDimClass: "bg-black/18",
     numeral: {
-      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
       weight: 600,
-      singlePx: 124,
-      doublePx: 100,
-      mobileSinglePx: 96,
-      mobileDoublePx: 78,
-      letterSpacingDouble: "-0.035em",
+      singlePx: 80,
+      doublePx: 64,
+      mobileSinglePx: 62,
+      mobileDoublePx: 48,
+      letterSpacingDouble: "-0.02em",
       textShadow:
         "0 0 1px rgba(12,18,20,0.92), 0 2px 6px rgba(0,0,0,0.62), 0 0 16px rgba(184,152,88,0.24)",
       colors: {
         normal: "#d6c7a1",
         nat1: "#d48488",
         nat20: "#f0dc9a",
+      },
+      gradient: {
+        normal: { hi: "#f5e8c0", mid: "#c8a458", lo: "#7a5828" },
+        nat1: { hi: "#f5c8c8", mid: "#c45868", lo: "#6a1828" },
+        nat20: { hi: "#fff0c0", mid: "#e8c048", lo: "#a8781a" },
+      },
+      glow: {
+        normal: "rgba(200,164,88,0.24)",
+        nat1: "rgba(170,40,48,0.4)",
+        nat20: "rgba(232,192,72,0.5)",
       },
     },
     frameGlow: {
@@ -269,19 +291,29 @@ const GEMSTONE_ARCANE: TrpgD20ThemeSpec = {
     label: "Gemstone Arcane",
     overlayDimClass: "bg-black/16",
     numeral: {
-      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
       weight: 600,
-      singlePx: 128,
-      doublePx: 104,
-      mobileSinglePx: 100,
-      mobileDoublePx: 80,
-      letterSpacingDouble: "-0.04em",
+      singlePx: 72,
+      doublePx: 58,
+      mobileSinglePx: 56,
+      mobileDoublePx: 44,
+      letterSpacingDouble: "-0.02em",
       textShadow:
         "0 0 1px rgba(18,8,24,0.92), 0 2px 6px rgba(0,0,0,0.62), 0 0 20px rgba(154,120,216,0.32)",
       colors: {
         normal: "#f0e8d0",
         nat1: "#e090a8",
         nat20: "#fff4c8",
+      },
+      gradient: {
+        normal: { hi: "#fff4e8", mid: "#d8b8e8", lo: "#7a58a8" },
+        nat1: { hi: "#f5c0d0", mid: "#c05878", lo: "#681848" },
+        nat20: { hi: "#fff8d8", mid: "#f0d878", lo: "#b88828" },
+      },
+      glow: {
+        normal: "rgba(200,160,232,0.32)",
+        nat1: "rgba(160,40,80,0.4)",
+        nat20: "rgba(240,220,120,0.5)",
       },
     },
     frameGlow: {

@@ -126,6 +126,7 @@ export default function TrpgDiceLabClient({
           phase="ROLLING"
           rolls={rolls}
           theme={customTheme}
+          replayOnMount
         />
       )}
     </div>

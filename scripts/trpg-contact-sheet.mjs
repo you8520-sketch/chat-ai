@@ -12,85 +12,96 @@ const CELL = 768;
 const PAD = 48;
 const COLS = 3;
 
+// Cinzel variable font installed system-wide; reference by family name.
+const FONT_FAMILY = "Cinzel";
+
+// Die geometry measured from the base asset: die ~589x671 in 768 canvas.
+// Front triangular face height ≈ 30% of die height ≈ 201px.
+// Reference spec: numeral = 55–65% of face height (~201px) → visual digit height ~120px.
+// Cinzel digit cap height ≈ 0.5× font-size, so font-size ≈ 2× target → single 240px, double 192px.
+const FACE_CENTER = { x: 385, y: 372 };
+const SINGLE_PX = 240;
+const DOUBLE_PX = 192;
+
 function tone(face) {
   if (face === 1) return "nat1";
   if (face === 20) return "nat20";
   return "normal";
 }
 
-function numeralColor(face) {
+// Metallic pearl-gold gradient stops (reference: "pearl-gold numeral").
+function numeralGradient(face) {
   const t = tone(face);
-  if (t === "nat20") return "#f0dc9a";
-  if (t === "nat1") return "#d98a92";
-  return "#e6d3a3";
+  if (t === "nat1") {
+    return { id: "nat1grad", stops: [
+      ["0%", "#f5c8c8"], ["38%", "#e08a92"], ["72%", "#b8525a"], ["100%", "#8a2a3a"]
+    ]};
+  }
+  if (t === "nat20") {
+    return { id: "nat20grad", stops: [
+      ["0%", "#fff6d8"], ["35%", "#f5e0a8"], ["70%", "#e8c56a"], ["100%", "#b8862a"]
+    ]};
+  }
+  return { id: "goldgrad", stops: [
+    ["0%", "#fff8e0"], ["30%", "#f0e0b0"], ["62%", "#d4b56a"], ["100%", "#9a7838"]
+  ]};
 }
 
 function numeralSvg(face) {
   const twoDigit = face >= 10;
-  const displayPx = 218;
-  const scale = CELL / displayPx;
-  const fontSize = Math.round((twoDigit ? 104 : 128) * scale);
-  const letterSpacing = twoDigit ? "-0.04em" : "0";
-  const color = numeralColor(face);
-  const y = Math.round(CELL * 0.52);
+  const fontSize = twoDigit ? DOUBLE_PX : SINGLE_PX;
+  const letterSpacing = twoDigit ? "-0.02em" : "0";
+  const grad = numeralGradient(face);
+  const cx = FACE_CENTER.x;
+  const cy = FACE_CENTER.y + Math.round(fontSize * 0.05);
+  const stops = grad.stops.map(([off, col]) => `<stop offset="${off}" stop-color="${col}"/>`).join("");
   return Buffer.from(`<svg width="${CELL}" height="${CELL}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.65)"/>
-      <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="rgba(230,211,163,0.28)"/>
+    <linearGradient id="${grad.id}" x1="0" y1="0" x2="0" y2="1">
+      ${stops}
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff8e0" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#fff8e0" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#1a1206" stop-opacity="0.55"/>
+    </linearGradient>
+    <filter id="engrave" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.2" result="blur"/>
+      <feSpecularLighting in="blur" result="spec" lighting-color="#fff4d0" surfaceScale="2.4" specularConstant="0.9" specularExponent="22">
+        <feDistantLight azimuth="305" elevation="55"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specOnly"/>
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="specOnly"/>
+      </feMerge>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
-  <text x="50%" y="${y}" text-anchor="middle" dominant-baseline="middle"
-    font-family="Georgia, 'Times New Roman', serif" font-weight="600" font-size="${fontSize}px"
-    fill="${color}" letter-spacing="${letterSpacing}" filter="url(#shadow)">${face}</text>
+  <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+    font-family="${FONT_FAMILY}" font-weight="900" font-size="${fontSize}px"
+    letter-spacing="${letterSpacing}"
+    fill="url(#${grad.id})" stroke="#1a1206" stroke-width="1.4"
+    filter="url(#engrave)">${face}</text>
+  <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+    font-family="${FONT_FAMILY}" font-weight="900" font-size="${fontSize}px"
+    letter-spacing="${letterSpacing}"
+    fill="url(#rim)" opacity="0.5">${face}</text>
 </svg>`);
 }
 
 async function renderFace(face) {
   const svg = numeralSvg(face);
   return sharp(BASE)
-    .composite([{ input: svg, top: 0, left: 0 }])
+    .composite([{ input: svg, top: 0, left: 0, blend: "over" }])
     .png()
     .toBuffer();
-}
-
-async function bodyMask() {
-  const { data, info } = await sharp(BASE).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const cx = info.width / 2;
-  const cy = info.height / 2;
-  const r = info.width * 0.16;
-  const mask = Buffer.alloc(info.width * info.height);
-  for (let y = 0; y < info.height; y++) {
-    for (let x = 0; x < info.width; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const insideNumeral = dx * dx + dy * dy <= r * r;
-      mask[y * info.width + x] = insideNumeral ? 0 : 1;
-    }
-  }
-  return { mask, width: info.width, height: info.height };
-}
-
-async function compareBodies(tiles, maskInfo, baseRaw) {
-  for (const tile of tiles) {
-    let diff = 0;
-    for (let p = 0; p < maskInfo.mask.length; p++) {
-      if (!maskInfo.mask[p]) continue;
-      const o = p * 4;
-      if (
-        baseRaw[o] !== tile.raw[o] ||
-        baseRaw[o + 1] !== tile.raw[o + 1] ||
-        baseRaw[o + 2] !== tile.raw[o + 2] ||
-        baseRaw[o + 3] !== tile.raw[o + 3]
-      ) {
-        diff++;
-      }
-    }
-    if (diff > 0) {
-      throw new Error(`body pixels differ for face ${tile.face}: ${diff} mismatches outside numeral disc`);
-    }
-  }
-  return true;
 }
 
 async function main() {
@@ -129,7 +140,7 @@ async function main() {
     .png()
     .toFile(outPath);
 
-  console.log(JSON.stringify({ outPath, faces: FACES, baseAsset: BASE }, null, 2));
+  console.log(JSON.stringify({ outPath, faces: FACES, baseAsset: BASE, numeralFont: "Cinzel Black", singlePx: SINGLE_PX, doublePx: DOUBLE_PX }, null, 2));
 }
 
 main().catch((err) => {
