@@ -1,4 +1,5 @@
 import type { TrpgPublicRoll } from "./snapshot";
+import { decideTrpgDiceRenderer } from "./diceRendererDecision";
 import {
   TRPG_D20_HOLD_AFTER_SETTLE_MS as VISUAL_HOLD_MS,
   TRPG_D20_THEME as VISUAL_THEME,
@@ -90,7 +91,7 @@ export function trpgDiceRevealWatchdogMs(rollCount: number): number {
 }
 
 export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: boolean }): boolean {
-  return opts.webgl === true && opts.reducedMotion !== true;
+  return decideTrpgDiceRenderer(opts).renderer === "dice-box-threejs";
 }
 
 export type TrpgDiceOverlaySessionAction = "start" | "keep" | "clear";
