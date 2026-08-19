@@ -112,13 +112,14 @@ describe("dice presentation session", () => {
     assert.equal(hideCurrentRoundResults(pending, 7), false);
   });
 
-  it("uses a watchdog cap above the full overlay lifecycle", () => {
+  it("budgets the watchdog above physics plus the full overlay lifecycle", () => {
     assert.ok(TRPG_DICE_REVEAL_GATE_CAP_MS >= 3000);
     for (const n of [1, 2, 3, 4] as const) {
       const timing = trpgEmeraldDiceTiming(n);
       const watchdog = trpgDiceRevealWatchdogMs(n);
       assert.ok(watchdog > timing.totalMs, `${n} dice watchdog ${watchdog} must exceed overlay ${timing.totalMs}`);
-      assert.ok(watchdog < 10_000, "watchdog is expected duration + margin, not a 10s hide");
+      assert.ok(watchdog >= 10_000, "watchdog must include the variable physics-roll budget");
+      assert.ok(watchdog <= 12_520, "watchdog must remain bounded for four sequential dice");
     }
   });
 

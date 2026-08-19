@@ -211,7 +211,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(room, /trpgDiceRevealWatchdogMs/);
     assert.match(room, /shouldHideIncomingRollSession/);
     assert.match(room, /holdCurrentRoundReveal/);
-    assert.match(room, /loadTrpgDiceTheme/);
+    assert.match(room, /useCampaignDicePreview\(snap, PRODUCTION_D20_THEME\)/);
     assert.doesNotMatch(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
