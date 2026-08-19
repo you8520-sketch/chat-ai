@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { fetchLatestSessionsPerCharacter } from "@/lib/recentChats";
 import {
+  SIDEBAR_SOLO_SETUP_VISIBLE,
+  TRPG_RECENT_ICON,
+  TRPG_SOURCE_THUMB,
   characterChatsToActivity,
   compareActivityAtDesc,
   fetchRecentActivity,
@@ -55,15 +58,24 @@ function insertCampaign(
     sourceCharacterId?: number;
     humans?: number;
     started?: boolean;
+    status?: string;
+    phase?: string;
   }
 ): number {
   const campaignId = Number(
     db
       .prepare(
-        `INSERT INTO trpg_campaigns (host_user_id, title, source_character_id, updated_at, created_at)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO trpg_campaigns (host_user_id, title, status, source_character_id, updated_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(opts.userId, opts.title, opts.sourceCharacterId ?? null, opts.updatedAt, opts.updatedAt).lastInsertRowid
+      .run(
+        opts.userId,
+        opts.title,
+        opts.status ?? (opts.started === false ? "CHARACTER_SETUP" : "ROUND_COMPLETE"),
+        opts.sourceCharacterId ?? null,
+        opts.updatedAt,
+        opts.updatedAt
+      ).lastInsertRowid
   );
   const humans = opts.humans ?? 1;
   for (let i = 0; i < humans; i++) {
@@ -75,8 +87,13 @@ function insertCampaign(
   if (opts.started !== false) {
     db.prepare(
       `INSERT INTO trpg_rounds (campaign_id, round_number, phase, updated_at)
-       VALUES (?, 1, 'ROUND_COMPLETE', ?)`
-    ).run(campaignId, opts.updatedAt);
+       VALUES (?, 1, ?, ?)`
+    ).run(campaignId, opts.phase ?? "ROUND_COMPLETE", opts.updatedAt);
+  } else if (opts.phase) {
+    db.prepare(
+      `INSERT INTO trpg_rounds (campaign_id, round_number, phase, updated_at)
+       VALUES (?, 0, ?, ?)`
+    ).run(campaignId, opts.phase, opts.updatedAt);
   }
   return campaignId;
 }
@@ -117,10 +134,10 @@ describe("unified recent activity", () => {
     assert.equal(chats.filter((row) => row.character_id === quiet).length, 1);
 
     const campaigns = fetchRecentTrpgCampaigns(db, userId, 40);
-    assert.equal(campaigns.length, 1);
-    assert.equal(campaigns[0]?.campaignId, campA);
-    assert.equal(campaigns[0]?.href, `/trpg/${campA}`);
-    assert.equal(campaigns[0]?.kind, "trpg_campaign");
+    assert.equal(campaigns.length, 2);
+    assert.equal(campaigns.some((row) => row.campaignId === campA), true);
+    assert.equal(campaigns[0]?.href.startsWith("/trpg/"), true);
+    assert.equal(campaigns.every((row) => row.kind === "trpg_campaign"), true);
   });
 
   it("merges character chats and campaigns by lastActivityAt DESC", () => {
@@ -161,7 +178,6 @@ describe("unified recent activity", () => {
       href: "/trpg/9",
       title: "캠페인",
       campaignId: 9,
-      thumbUrl: null,
     };
     const merged = mergeRecentActivity([olderChat, newerChat], [campaign], 10);
     assert.deepEqual(
@@ -234,5 +250,66 @@ describe("unified recent activity", () => {
     assert.match(lobby, /name="q"/);
     assert.match(ownerPage, /initialCampaignQuery/);
     assert.doesNotMatch(lobby, /w-full items-center justify-center rounded-xl bg-violet-600/);
+  });
+
+  it("includes solo setup, solo waiting, and started campaigns in recent", () => {
+    assert.equal(SIDEBAR_SOLO_SETUP_VISIBLE, true);
+    const db = getDb();
+    const userId = uniqueUserId();
+    db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?, ?, ?, ?)`).run(
+      userId,
+      `setup-${userId}@test.local`,
+      `setup${userId}`,
+      "x"
+    );
+    const setupId = insertCampaign(db, {
+      userId,
+      title: "솔로 셋업",
+      updatedAt: "2026-08-03 09:00:00",
+      started: false,
+      humans: 1,
+      status: "CHARACTER_SETUP",
+    });
+    const waitingId = insertCampaign(db, {
+      userId,
+      title: "솔로 대기",
+      updatedAt: "2026-08-03 10:00:00",
+      started: false,
+      humans: 1,
+      status: "WAITING_FOR_PLAYERS",
+    });
+    const startedId = insertCampaign(db, {
+      userId,
+      title: "진행 중",
+      updatedAt: "2026-08-03 11:00:00",
+      started: true,
+      humans: 1,
+      status: "ACTION_INPUT",
+    });
+    const campaigns = fetchRecentTrpgCampaigns(db, userId, 40);
+    const ids = campaigns.map((row) => row.campaignId);
+    assert.equal(ids.includes(setupId), true, "SOLO_CHARACTER_SETUP_IN_RECENT");
+    assert.equal(ids.includes(waitingId), true, "SOLO_WAITING_CAMPAIGN_IN_RECENT");
+    assert.equal(ids.includes(startedId), true, "STARTED_CAMPAIGN_IN_RECENT");
+    assert.equal(campaigns.length, 3);
+  });
+
+  it("locks TRPG recent to the D20 glyph and drops the 전체 link", () => {
+    assert.equal(TRPG_RECENT_ICON, "D20", "TRPG_RECENT_USES_D20_GLYPH");
+    assert.equal(TRPG_SOURCE_THUMB, false, "TRPG_RECENT_DOES_NOT_LOAD_SOURCE_THUMB");
+    const activity = readFileSync("src/lib/recentActivity.ts", "utf8");
+    const sidebar = readFileSync("src/components/SidebarRecentChatIcons.tsx", "utf8");
+    assert.doesNotMatch(activity, /resolveCampaignThumb/);
+    assert.doesNotMatch(activity, /parseRecentThumb/);
+    assert.doesNotMatch(activity, /sanitizeWorldCoverUrl/);
+    assert.doesNotMatch(activity, /thumbUrl/);
+    assert.doesNotMatch(activity, /source_character_id/);
+    assert.doesNotMatch(activity, /source_world_id/);
+    assert.match(sidebar, /TrpgRecentGlyph/);
+    assert.match(sidebar, /data-trpg-recent-icon="d20"/);
+    assert.doesNotMatch(sidebar, /entry\.thumbUrl/);
+    assert.doesNotMatch(sidebar, />전체</);
+    assert.doesNotMatch(sidebar, /href="\/chats"/);
+    assert.equal(sidebar.includes(">전체<") === false, true, "RECENT_ACTIVITY_HEADER_HAS_NO_MISLEADING_ALL_LINK");
   });
 });

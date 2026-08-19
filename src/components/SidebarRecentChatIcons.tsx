@@ -121,27 +121,22 @@ function RecentTrpgRow({
   active: boolean;
   compact: boolean;
 }) {
-  const thumb = entry.thumbUrl;
   return (
     <Link
       href={entry.href}
       title={entry.title}
       data-trpg-recent-kind="trpg_campaign"
+      data-trpg-recent-icon="d20"
       className={`flex w-full min-w-0 items-center rounded-lg transition hover:bg-white/[0.06] ${
         compact ? "justify-center px-0 py-0.5" : "gap-2 px-1 py-1"
       } ${active ? "bg-white/[0.06]" : ""}`}
     >
       <span
-        className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ${
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-300 ring-1 ${
           active ? "ring-violet-300/50" : "ring-white/10"
-        } ${thumb ? "" : "bg-violet-500/15 text-violet-300"}`}
+        }`}
       >
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <TrpgRecentGlyph className="h-4 w-4" />
-        )}
+        <TrpgRecentGlyph className="h-4 w-4" />
       </span>
       {!compact && (
         <span className="min-w-0 flex-1 text-left text-[11px] font-medium leading-snug text-zinc-200 line-clamp-2">
@@ -220,12 +215,7 @@ export default function SidebarRecentChatIcons({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showHeader && (
-        <div className="mb-1 flex shrink-0 items-center justify-between px-0.5">
-          <p className="text-[11px] font-medium text-zinc-200">최근 활동</p>
-          <Link href="/chats" className="text-[10px] font-medium text-zinc-200 hover:text-white">
-            전체
-          </Link>
-        </div>
+        <p className="mb-1 px-0.5 text-[11px] font-medium text-zinc-200">최근 활동</p>
       )}
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
         {displayEntries.map((entry) => (
