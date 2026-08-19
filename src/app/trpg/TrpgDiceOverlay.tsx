@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
@@ -24,6 +25,8 @@ import {
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
 
+const TrpgDiceBoxScene = dynamic(() => import("./TrpgDiceBoxScene"), { ssr: false });
+
 export type TrpgDiceOverlayPlaybackState = {
   visible: boolean;
   settled: boolean;
@@ -39,6 +42,21 @@ function overlayTone(d20: number, tierTone: ReturnType<typeof resolveTrpgD20Tone
   if (tierTone === "nat20") return "nat20";
   if (tierTone === "nat1") return "nat1";
   return "normal";
+}
+
+function detectWebgl(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return !!(canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
+  } catch {
+    return false;
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export default function TrpgDiceOverlay({
@@ -68,6 +86,7 @@ export default function TrpgDiceOverlay({
   const [settled, setSettled] = useState(false);
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [use3d, setUse3d] = useState(true);
   const prevKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
   const firstObservationRef = useRef(true);
@@ -76,6 +95,11 @@ export default function TrpgDiceOverlay({
   const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered, phase, sessionKey });
   instrumentRef.current = { previewInstrument, roundNumber, theme, ordered, phase, sessionKey };
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setUse3d(detectWebgl() && !prefersReducedMotion());
+  }, []);
 
   useEffect(() => {
     onPlaybackStateChange?.({
@@ -144,14 +168,11 @@ export default function TrpgDiceOverlay({
     setEntered(false);
     setLeaving(false);
     const enter = window.setTimeout(() => setEntered(true), 20);
-    const perDie = Math.max(320, timing.perDieMs);
-    const exitAt = Math.max(60, perDie - 220);
-    const exit = window.setTimeout(() => setLeaving(true), exitAt);
-    const done = window.setTimeout(() => onSettled(), perDie);
+    // Watchdog: if 3D physics takes too long, force settle
+    const watchdog = window.setTimeout(() => onSettled(), Math.min(8000, timing.perDieMs + 4000));
     return () => {
       window.clearTimeout(enter);
-      window.clearTimeout(exit);
-      window.clearTimeout(done);
+      window.clearTimeout(watchdog);
     };
   }, [visible, play.index, ordered.length, timing.perDieMs, onSettled]);
 
@@ -163,11 +184,6 @@ export default function TrpgDiceOverlay({
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
   const face = Math.max(1, Math.min(20, Math.floor(roll.d20)));
-  const twoDigit = face >= 10;
-  const numeralPx = twoDigit ? overlay.numeral.doublePx : overlay.numeral.singlePx;
-  const mobileNumeralPx = twoDigit ? overlay.numeral.mobileDoublePx : overlay.numeral.mobileSinglePx;
-  const numeralGradient = overlay.numeral.gradient[tone];
-  const numeralGlow = overlay.numeral.glow[tone];
 
   return (
     <div
@@ -175,13 +191,12 @@ export default function TrpgDiceOverlay({
         entered && !leaving ? "opacity-100" : "opacity-0"
       }`}
       data-trpg-dice-overlay
-      data-trpg-dice-engine="static-result"
+      data-trpg-dice-engine={use3d ? "dice-box-threejs" : "static-result"}
       data-trpg-dice-theme={theme}
       data-trpg-dice-theme-label={overlay.label}
-      data-trpg-dice-theme-asset-ready={overlay.assetReady ? "1" : "0"}
-      data-trpg-dice-mode="static"
-      data-trpg-dice-renderer="static"
-      data-trpg-dice-physics={TRPG_DICE_PHYSICS_ENGINE}
+      data-trpg-dice-mode={use3d ? "physics" : "static"}
+      data-trpg-dice-renderer={use3d ? "dice-box-threejs" : "static"}
+      data-trpg-dice-physics={use3d ? "cannon-es" : TRPG_DICE_PHYSICS_ENGINE}
       data-trpg-dice-proto={PRODUCTION_DICE_PROTO}
       data-trpg-dice-value={roll.d20}
       data-trpg-dice-predetermined={notation}
@@ -217,33 +232,45 @@ export default function TrpgDiceOverlay({
                   data-trpg-dice-burst="nat1"
                 />
               ) : null}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={overlay.baseAsset}
-                alt=""
-                draggable={false}
-                className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
-                data-trpg-dice-canvas="static"
-              />
-              <span
-                key={`${sessionKey}:${play.index}`}
-                className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold max-md:[font-size:var(--trpg-d20-mobile-numeral)] [font-size:var(--trpg-d20-numeral)]"
-                style={{
-                  ["--trpg-d20-numeral" as string]: `min(${numeralPx}px, ${twoDigit ? "10vw" : "12vw"})`,
-                  ["--trpg-d20-mobile-numeral" as string]: `min(${mobileNumeralPx}px, ${twoDigit ? "12vw" : "15vw"})`,
-                  fontFamily: overlay.numeral.fontFamily,
-                  fontWeight: overlay.numeral.weight,
-                  background: `linear-gradient(180deg, ${numeralGradient.hi}, ${numeralGradient.mid}, ${numeralGradient.lo})`,
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  filter: `drop-shadow(0 1px 1px rgba(20,14,4,0.9)) drop-shadow(0 2px 4px rgba(0,0,0,0.6)) drop-shadow(0 0 14px ${numeralGlow})`,
-                  letterSpacing: twoDigit ? overlay.numeral.letterSpacingDouble : "0",
-                }}
-                data-trpg-dice-numeral={face}
-              >
-                {face}
-              </span>
+              {use3d ? (
+                <div
+                  key={`${sessionKey}:${play.index}`}
+                  className="h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
+                  data-trpg-dice-canvas="3d"
+                >
+                  <TrpgDiceBoxScene
+                    value={face}
+                    tone={tierTone}
+                    reducedQuality={false}
+                    onSettled={onSettled}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={overlay.baseAsset}
+                    alt=""
+                    draggable={false}
+                    className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
+                    data-trpg-dice-canvas="static"
+                  />
+                  <span
+                    key={`${sessionKey}:${play.index}`}
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold"
+                    style={{
+                      color: overlay.numeral.colors[tone],
+                      fontFamily: overlay.numeral.fontFamily,
+                      fontWeight: overlay.numeral.weight,
+                      fontSize: `min(${face >= 10 ? overlay.numeral.doublePx : overlay.numeral.singlePx}px, 12vw)`,
+                      textShadow: overlay.numeral.textShadow,
+                    }}
+                    data-trpg-dice-numeral={face}
+                  >
+                    {face}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">

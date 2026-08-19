@@ -157,19 +157,21 @@ describe("TRPG 3D dice overlay contracts", () => {
     );
   });
 
-  it("serves a static result overlay with no production 3D renderer", () => {
-    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "none");
+  it("uses dice-box-threejs as the production physics renderer with Obsidian Royal skin", () => {
+    assert.equal(TRPG_DICE_PHYSICS_ENGINE, "cannon-es");
     assert.equal(TRPG_DICE_BOX_THREEJS_REVIEWED, true);
     assert.equal(TRPG_DICE_BOX_THREEJS_ASSETS_COPIED, false);
     assert.equal(VISUAL_ASSETS_COPIED, false);
     assert.equal(TRPG_DICE_BOX_COLORSET.texture, "none");
+    assert.equal(TRPG_DICE_BOX_COLORSET.font, "Cinzel");
+    assert.equal(TRPG_DICE_BOX_COLORSET.name, "obsidian-royal");
     const pkg = fs.readFileSync("package.json", "utf8");
-    assert.doesNotMatch(pkg, /"cannon-es"/);
+    assert.match(pkg, /"@3d-dice\/dice-box-threejs"/);
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const rail = fs.readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
     const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
-    assert.doesNotMatch(overlay, /TrpgDiceScene|TrpgArtisanDiceScene|TrpgDiceBoxScene|WebGLRenderer|three/);
+    assert.match(overlay, /TrpgDiceBoxScene/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
     assert.match(overlay, /trpgDiceOverlayAfterSettle/);
     assert.match(overlay, /trpgDiceOverlaySessionAction/);
@@ -177,8 +179,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /trpgEmeraldDiceTiming/);
     assert.match(overlay, /trpgD20StaticOverlaySpec/);
-    assert.match(overlay, /overlay\.baseAsset/);
-    assert.match(overlay, /data-trpg-dice-numeral=\{face\}/);
+    assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
     assert.match(overlay, /data-trpg-dice-stage/);
     assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
@@ -192,11 +193,6 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
-    assert.equal(
-      fs.readdirSync("public/d20-result").filter((f) => /^d20-result-\d+\.webp$/.test(f)).length,
-      0,
-      "per-number generated assets must be removed"
-    );
   });
 
   it("paces static multi-roll so overlay finishes before the watchdog", () => {

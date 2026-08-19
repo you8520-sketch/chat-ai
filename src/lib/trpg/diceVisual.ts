@@ -4,8 +4,8 @@
  */
 
 export const PRODUCTION_DICE_PROTO = "A" as const;
-export const TRPG_DICE_IMPLEMENTATION = "custom" as const;
-export const TRPG_DICE_PHYSICS_ENGINE = "none" as const;
+export const TRPG_DICE_IMPLEMENTATION = "dice-box-threejs" as const;
+export const TRPG_DICE_PHYSICS_ENGINE = "cannon-es" as const;
 
 export type TrpgD20ThemeId = "obsidian-royal" | "ancient-reliquary" | "gemstone-arcane";
 
@@ -429,16 +429,19 @@ export function trpgD20WorldDeltaToPx(worldDelta: number, stageHeightPx: number)
 export const TRPG_DICE_BOX_NOTATION = (value: number) => `1d20@${value}`;
 
 /**
- * dice-box-threejs colorset. Texture is `none` (no third-party images).
- * Lab-only physics prototype — not wired into the campaign overlay.
+ * dice-box-threejs colorset for the Obsidian Royal production theme.
+ * Numerals are rendered by the library onto the 3D face canvas texture (not DOM overlay).
+ * Font: Cinzel (loaded via @font-face in globals.css before the dice box initializes).
  */
 export const TRPG_DICE_BOX_COLORSET = {
   name: "obsidian-royal",
-  foreground: TRPG_D20_NUMERAL,
-  background: "#121018",
-  outline: "#d4b56a",
+  foreground: "#e8dcc0",
+  background: "#0a0a0e",
+  outline: "#06060a",
+  edge: "#c8a858",
   texture: "none",
   material: "glass",
+  font: "Cinzel",
 } as const;
 
 export const TRPG_DICE_ASSET_LICENSES = [

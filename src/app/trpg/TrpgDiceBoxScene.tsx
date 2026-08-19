@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import DiceBox from "@3d-dice/dice-box-threejs";
 import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
 import {
-  TRPG_D20_NUMERAL,
   TRPG_DICE_BOX_COLORSET,
   TRPG_DICE_BOX_NOTATION,
 } from "@/lib/trpg/diceVisual";
@@ -13,25 +12,22 @@ function colorsetForTone(tone: TrpgD20Tone) {
   if (tone === "nat20") {
     return {
       ...TRPG_DICE_BOX_COLORSET,
-      name: "verdant-relic-nat20",
-      foreground: "#ffe7a3",
-      outline: "#c9a227",
-      background: "#241c10",
+      name: "obsidian-royal-nat20",
+      foreground: "#fff5cc",
+      edge: "#e8c56a",
+      color_spotlight: 0xf0d78c,
     };
   }
   if (tone === "nat1") {
     return {
       ...TRPG_DICE_BOX_COLORSET,
-      name: "verdant-relic-nat1",
-      foreground: "#ffd4d6",
-      outline: "#6b1c24",
-      background: "#1c1014",
+      name: "obsidian-royal-nat1",
+      foreground: "#f0c8d0",
+      edge: "#8a2430",
+      color_spotlight: 0xc07070,
     };
   }
-  return {
-    ...TRPG_DICE_BOX_COLORSET,
-    foreground: TRPG_D20_NUMERAL,
-  };
+  return TRPG_DICE_BOX_COLORSET;
 }
 
 function renderBox(box: DiceBox) {
@@ -49,6 +45,16 @@ function applyCloseCamera(box: DiceBox, target: { x: number; y: number; z: numbe
   box.camera.position.set(target.x + 20, target.y - 140, 390);
   box.camera.lookAt(target.x, target.y, 8);
   renderBox(box);
+}
+
+async function ensureCinzelLoaded(): Promise<void> {
+  if (typeof document === "undefined" || !(document as { fonts?: FontFaceSet }).fonts) return;
+  try {
+    await (document as { fonts: FontFaceSet }).fonts.load('900 100px "Cinzel"');
+    await (document as { fonts: FontFaceSet }).fonts.ready;
+  } catch {
+    /* font load best-effort; canvas falls back to serif */
+  }
 }
 
 export default function TrpgDiceBoxScene({
@@ -76,18 +82,21 @@ export default function TrpgDiceBoxScene({
 
     const run = async () => {
       if (cancelled || !hostRef.current) return;
+      await ensureCinzelLoaded();
+      if (cancelled) return;
+      const colorset = colorsetForTone(tone);
       const box = new DiceBox(`#${boxIdRef.current}`, {
         assetPath: "/",
         sounds: false,
         shadows: !reducedQuality,
-        theme_surface: "green-felt",
+        theme_surface: "black",
         theme_texture: "",
         theme_material: "glass",
-        theme_customColorset: colorsetForTone(tone),
+        theme_customColorset: colorset,
         gravity_multiplier: 620,
         light_intensity: reducedQuality ? 0.7 : 1.05,
         strength: 1.05,
-        color_spotlight: tone === "nat20" ? 0xf0d78c : tone === "nat1" ? 0xc07070 : 0xefdfd5,
+        color_spotlight: (colorset as { color_spotlight?: number }).color_spotlight ?? 0xefdfd5,
       });
       await box.initialize();
       if (cancelled) return;
