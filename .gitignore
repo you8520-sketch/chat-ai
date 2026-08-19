@@ -30,3 +30,7 @@ scripts/tmp-*
 # Playwright UI test artifacts
 test-results/
 playwright-report/
+
+# dice-box-threejs runtime assets (copied from node_modules, not committed)
+public/textures/
+public/sounds/
