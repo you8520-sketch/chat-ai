@@ -14,6 +14,7 @@ import {
   summarySealAtTurn,
 } from "./memory-rolling-summary";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 import { resolveMemoryCoverageGap } from "@/lib/hybridMemory";
 import type { DialogueTurn } from "@/lib/hybridMemory";
 
@@ -81,6 +82,12 @@ describe("Phase1 summary semantics P1-P5 (MEMORY_5PLUS4_ENABLED=false)", () => {
       0
     );
   });
+
+  it("P5b OFF user-edited memory record default cap stays 800", () => {
+    const userEdited = clampMemoryRecordSummary("가".repeat(900));
+    assert.ok(userEdited.length <= MEMORY_RECORD_MAX_CHARS);
+    assert.equal(MEMORY_RECORD_MAX_CHARS, 800);
+  });
 });
 
 describe("Phase2 summary semantics P6-P10 (MEMORY_5PLUS4_ENABLED=true)", () => {
@@ -126,6 +133,14 @@ describe("Phase2 summary semantics P6-P10 (MEMORY_5PLUS4_ENABLED=true)", () => {
       resolveMemoryCoverageGap({ firstRawPlayableTurn: firstRaw, summarizedTurnCount: summarized }),
       0
     );
+  });
+
+  it("P10b ON automatic rolling summary clamps to 600 (not memory record cap)", () => {
+    const clamped = clampMemoryRecordSummary("가".repeat(900), resolveSummaryMaxChars());
+    assert.ok(clamped.length <= 600);
+    const userEdited = clampMemoryRecordSummary("가".repeat(900));
+    assert.ok(userEdited.length <= MEMORY_RECORD_MAX_CHARS);
+    assert.equal(MEMORY_RECORD_MAX_CHARS, 800);
   });
 });
 

@@ -8,6 +8,7 @@ import {
   expectedBatchStartsThrough,
   expectedSealedTurnCount,
   highestContiguousCompletedTurn,
+  highestContiguousOccupiedTurn,
   isLikelySummaryInstructionEcho,
   isOocOnlyPlaceholderText,
   isOocOnlySummaryKind,
@@ -54,6 +55,19 @@ describe("highestContiguousCompletedTurn", () => {
       ),
       0
     );
+  });
+});
+
+describe("highestContiguousOccupiedTurn vs canonical coverage", () => {
+  it("inactive middle span occupies position but does not advance canonical", () => {
+    const records = [
+      { turnStart: 1, turnEnd: 5, inactive: false },
+      { turnStart: 6, turnEnd: 10, inactive: true },
+      { turnStart: 11, turnEnd: 15, inactive: false },
+    ];
+    assert.equal(highestContiguousOccupiedTurn(records, 15), 15);
+    assert.equal(highestContiguousCompletedTurn(records, 15), 5);
+    assert.equal(earliestMissingBatchStart(records, 15), 6);
   });
 });
 
