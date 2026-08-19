@@ -93,28 +93,14 @@ function useCampaignDicePreview(
   rolls: readonly TrpgPublicRoll[];
   inject: boolean;
   instrument: boolean;
+  ready: boolean;
 } {
-  const [query, setQuery] = useState(() => {
-    if (typeof window === "undefined") {
-      return {
-        previewEnabled: false,
-        queryTheme: null as string | null,
-        queryPreview: null as string | null,
-        queryPreviewD20: null as string | null,
-      };
-    }
-    const params = new URLSearchParams(window.location.search);
-    return {
-      previewEnabled: isTrpgDicePreviewRuntime({
-        nodeEnv: process.env.NODE_ENV,
-        previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
-        hostname: window.location.hostname,
-      }),
-      queryTheme: params.get("diceTheme"),
-      queryPreview: params.get("dicePreview"),
-      queryPreviewD20: params.get("dicePreviewD20"),
-    };
-  });
+  const [query, setQuery] = useState<{
+    previewEnabled: boolean;
+    queryTheme: string | null;
+    queryPreview: string | null;
+    queryPreviewD20: string | null;
+  } | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setQuery({
@@ -132,6 +118,16 @@ function useCampaignDicePreview(
     snap.sheets.find((card) => card.isSelf)?.sheet.name.trim() ||
     snap.participants.find((p) => p.id === snap.viewerParticipantId)?.displayName.trim() ||
     "권태현";
+  if (!query) {
+    return {
+      theme: savedTheme,
+      phase: snap.round.phase,
+      rolls: snap.currentRolls,
+      inject: false,
+      instrument: false,
+      ready: false,
+    };
+  }
   const resolved = resolveCampaignDicePreviewOverlay({
     previewEnabled: query.previewEnabled,
     queryTheme: query.queryTheme,
@@ -142,7 +138,7 @@ function useCampaignDicePreview(
     currentRolls: snap.currentRolls,
     fixtureName,
   });
-  return { ...resolved, instrument: query.previewEnabled };
+  return { ...resolved, instrument: query.previewEnabled, ready: true };
 }
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
@@ -328,6 +324,7 @@ export default function TrpgCampaignRoom({
     phaseAtFirstRollObservation: "",
   });
   useEffect(() => {
+    if (!dicePreview.ready) return;
     const isFirstObservation = firstKeyObservationRef.current;
     firstKeyObservationRef.current = false;
     const mountConsume = shouldConsumeMountRollSession({
@@ -366,6 +363,7 @@ export default function TrpgCampaignRoom({
   }, [
     dicePreview.inject,
     dicePreview.instrument,
+    dicePreview.ready,
     overlayPlayback.dismissed,
     overlayPlayback.sessionKey,
     overlayPlayback.settled,
