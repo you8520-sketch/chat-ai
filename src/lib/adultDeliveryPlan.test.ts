@@ -156,6 +156,95 @@ function simulateRefusalOnlyDelivery(input: {
 }
 
 describe("H1 refusal-only adult delivery plan", () => {
+  it("TENSION-1: eligible tension prepares fallback but valid Gemini stays primary", () => {
+    const delivery = plan({
+      classification: classification({
+        sceneMode: "tension",
+        sexualContextActive: true,
+        currentInputExplicitIntent: false,
+        requiresAdultCapableModel: false,
+        reason: "tension",
+      }),
+    });
+    assert.equal(delivery.fallbackPrepared, true);
+    assert.equal(
+      delivery.fallbackReason,
+      "sexual_tension_refusal_candidate"
+    );
+    const result = simulateRefusalOnlyDelivery({
+      plan: delivery,
+      primary: { text: "서강우가 렌의 시선을 마주했다.", finishReason: "stop" },
+      fallback: { text: "사용되면 안 됨" },
+    });
+    assert.equal(result.geminiCalls, 1);
+    assert.equal(result.deepseekCalls, 0);
+  });
+
+  it("TENSION-2: eligible tension replaces a Gemini refusal", () => {
+    const delivery = plan({
+      classification: classification({
+        sceneMode: "tension",
+        sexualContextActive: true,
+        currentInputExplicitIntent: false,
+        requiresAdultCapableModel: false,
+        reason: "tension",
+      }),
+    });
+    const result = simulateRefusalOnlyDelivery({
+      plan: delivery,
+      primary: { text: "요청에 응할 수 없습니다.", finishReason: "stop" },
+      fallback: { text: "긴장 장면을 이어가는 최종 응답" },
+    });
+    assert.equal(result.geminiCalls, 1);
+    assert.equal(result.deepseekCalls, 1);
+    assert.equal(result.fallbackSucceeded, true);
+  });
+
+  it("TENSION-3: normal scene does not prepare fallback", () => {
+    const delivery = plan({
+      classification: classification({
+        sceneMode: "normal",
+        sexualContextActive: false,
+        currentInputExplicitIntent: false,
+        requiresAdultCapableModel: false,
+        reason: "normal",
+      }),
+    });
+    assert.equal(delivery.fallbackPrepared, false);
+  });
+
+  it("TENSION-4: romantic scene does not prepare fallback", () => {
+    const delivery = plan({
+      classification: classification({
+        sceneMode: "romantic",
+        sexualContextActive: false,
+        currentInputExplicitIntent: false,
+        requiresAdultCapableModel: false,
+        reason: "romantic",
+      }),
+    });
+    assert.equal(delivery.fallbackPrepared, false);
+  });
+
+  it("TENSION-5: scene reset to normal does not prepare fallback", () => {
+    const delivery = plan({
+      classification: classification({
+        sceneMode: "normal",
+        sexualContextActive: false,
+        currentInputExplicitIntent: false,
+        requiresAdultCapableModel: false,
+        sceneReset: true,
+        reason: "scene_reset",
+      }),
+      state: {
+        ...DEFAULT_STATE,
+        activeRoute: "adult",
+        currentSceneMode: "explicit",
+      },
+    });
+    assert.equal(delivery.fallbackPrepared, false);
+  });
+
   it("H1-T1: eligible explicit + valid Gemini stays primary", () => {
     const delivery = plan();
     assert.equal(delivery.primaryModelId, GEMINI);
