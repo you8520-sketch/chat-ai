@@ -135,14 +135,108 @@ export type TrpgDiceRuntimeEventName =
   | "DICE_SETTLE_SOURCE"
   | "DICE_ERROR_CODE";
 
-export type TrpgDiceRuntimeInstrument = {
-  event: TrpgDiceRuntimeEventName;
-  hypothesisId: string;
-  location: string;
-  message: string;
-  data: Record<string, unknown>;
-  timestamp: number;
+type TrpgDiceCanvasDimensions = {
+  hostWidth: number | null;
+  hostHeight: number | null;
+  canvasClientWidth: number | null;
+  canvasClientHeight: number | null;
+  canvasWidth: number | null;
+  canvasHeight: number | null;
 };
+
+type TrpgDiceRuntimeEventData = {
+  DICE_INIT_STARTED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    value: number;
+  };
+  DICE_INITIALIZED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    diceListLength: number;
+  };
+  DICE_ROLL_STARTED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    notation: string;
+    diceListLength: number;
+  };
+  DICE_ROLL_RESOLVED: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    diceListLength: number;
+  };
+  DICE_SETTLE_SOURCE: {
+    source: "physics" | "watchdog" | "init-error";
+    boxId?: string;
+    diceListLength?: number;
+    operation?: "initialize" | "roll";
+    sessionKey?: string;
+    playIndex?: number;
+    watchdogMs?: number;
+  };
+  DICE_ERROR_CODE: TrpgDiceCanvasDimensions & {
+    boxId: string;
+    code: "DICE_INIT_ERROR" | "DICE_ROLL_ERROR";
+    errorName: string;
+  };
+};
+
+export type TrpgDiceRuntimeInstrument = {
+  [Event in TrpgDiceRuntimeEventName]: {
+    event: Event;
+    data: TrpgDiceRuntimeEventData[Event];
+    timestamp: number;
+  };
+}[TrpgDiceRuntimeEventName];
+
+export type TrpgDiceRuntimeInstrumentInput = {
+  [Event in TrpgDiceRuntimeEventName]: {
+    event: Event;
+    data: TrpgDiceRuntimeEventData[Event];
+  };
+}[TrpgDiceRuntimeEventName];
+
+const DICE_DIMENSION_FIELDS = [
+  "hostWidth",
+  "hostHeight",
+  "canvasClientWidth",
+  "canvasClientHeight",
+  "canvasWidth",
+  "canvasHeight",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasCanvasDimensions(data: Record<string, unknown>): boolean {
+  return DICE_DIMENSION_FIELDS.every((field) => data[field] === null || typeof data[field] === "number");
+}
+
+export function isTrpgDiceRuntimeInstrument(value: unknown): value is TrpgDiceRuntimeInstrument {
+  if (!isRecord(value) || typeof value.timestamp !== "number" || !isRecord(value.data)) return false;
+  if ("hypothesisId" in value || "location" in value || "message" in value) return false;
+  const data = value.data;
+  const hasBox = typeof data.boxId === "string";
+  switch (value.event) {
+    case "DICE_INIT_STARTED":
+      return hasBox && typeof data.value === "number" && hasCanvasDimensions(data);
+    case "DICE_INITIALIZED":
+    case "DICE_ROLL_RESOLVED":
+      return hasBox && typeof data.diceListLength === "number" && hasCanvasDimensions(data);
+    case "DICE_ROLL_STARTED":
+      return hasBox
+        && typeof data.notation === "string"
+        && typeof data.diceListLength === "number"
+        && hasCanvasDimensions(data);
+    case "DICE_SETTLE_SOURCE":
+      return data.source === "physics" || data.source === "watchdog" || data.source === "init-error";
+    case "DICE_ERROR_CODE":
+      return hasBox
+        && (data.code === "DICE_INIT_ERROR" || data.code === "DICE_ROLL_ERROR")
+        && typeof data.errorName === "string"
+        && hasCanvasDimensions(data);
+    default:
+      return false;
+  }
+}
 
 export function previewDiceRollKey(rolls: readonly { participantId: number; d20: number }[]): string {
   return rolls.map((roll) => `${roll.participantId}:${roll.d20}`).join(",");
@@ -157,10 +251,10 @@ export function logTrpgDicePreviewInstrument(entry: TrpgDicePreviewInstrument): 
 }
 
 export function logTrpgDiceRuntimeInstrument(
-  entry: Omit<TrpgDiceRuntimeInstrument, "timestamp">,
+  entry: TrpgDiceRuntimeInstrumentInput,
 ): void {
   if (typeof window === "undefined") return;
-  const timestamped = { ...entry, timestamp: Date.now() };
+  const timestamped = { ...entry, timestamp: Date.now() } as TrpgDiceRuntimeInstrument;
   const bag = ((window as Window & { __TRPG_DICE_RUNTIME_LOG?: TrpgDiceRuntimeInstrument[] })
     .__TRPG_DICE_RUNTIME_LOG ??= []);
   bag.push(timestamped);

@@ -201,9 +201,10 @@ export default function TrpgDiceOverlay({
     const watchdog = window.setTimeout(() => {
       if (!settled) {
         if (previewInstrument) {
-          // #region agent log
-          logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "D,E", location: "TrpgDiceOverlay.tsx:watchdog", message: "Dice overlay settled", data: { source: "watchdog", sessionKey, playIndex: play.index, watchdogMs: 10000 } });
-          // #endregion
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_SETTLE_SOURCE",
+            data: { source: "watchdog", sessionKey, playIndex: play.index, watchdogMs: 10000 },
+          });
         }
         onDieSettled("watchdog");
       }

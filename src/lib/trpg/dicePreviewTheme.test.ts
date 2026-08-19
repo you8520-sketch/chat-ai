@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PRODUCTION_D20_THEME } from "./diceVisual";
 import {
+  isTrpgDiceRuntimeInstrument,
   isTrpgDicePreviewRuntime,
   isTrpgProductionAppHost,
   parseDiceThemeQuery,
@@ -139,5 +140,42 @@ describe("preview-only campaign dice theme", () => {
       "ancient-reliquary"
     );
     assert.equal(resolveCampaignOverlayDiceTheme({ previewEnabled: false }), PRODUCTION_D20_THEME);
+  });
+
+  it("validates permanent dice lifecycle events without temporary debug metadata", () => {
+    const dimensions = {
+      hostWidth: 1266,
+      hostHeight: 801,
+      canvasClientWidth: 1280,
+      canvasClientHeight: 801,
+      canvasWidth: 1280,
+      canvasHeight: 801,
+    };
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ROLL_RESOLVED",
+      data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
+      timestamp: 1,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ERROR_CODE",
+      data: { boxId: "dice-box", code: "DICE_INIT_ERROR", errorName: "Error", ...dimensions },
+      timestamp: 2,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_SETTLE_SOURCE",
+      data: { boxId: "dice-box", source: "init-error", operation: "initialize" },
+      timestamp: 3,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_SETTLE_SOURCE",
+      data: { source: "watchdog", watchdogMs: 10_000 },
+      timestamp: 4,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_ROLL_RESOLVED",
+      hypothesisId: "temporary",
+      data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
+      timestamp: 5,
+    }), false);
   });
 });

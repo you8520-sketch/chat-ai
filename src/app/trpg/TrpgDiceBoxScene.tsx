@@ -46,29 +46,55 @@ export default function TrpgDiceBoxScene({
     if (!ready || !hostRef.current) return;
     settledRef.current = false;
     let cancelled = false;
+    let operation: "initialize" | "roll" = "initialize";
+
+    const dimensions = () => {
+      const host = hostRef.current;
+      const canvas = host?.querySelector("canvas");
+      return {
+        hostWidth: host?.clientWidth ?? null,
+        hostHeight: host?.clientHeight ?? null,
+        canvasClientWidth: canvas?.clientWidth ?? null,
+        canvasClientHeight: canvas?.clientHeight ?? null,
+        canvasWidth: canvas?.width ?? null,
+        canvasHeight: canvas?.height ?? null,
+      };
+    };
+    const settleInitError = (err: unknown) => {
+      console.error("[trpg-dice-box] init/roll failed:", err);
+      if (previewInstrument) {
+        logTrpgDiceRuntimeInstrument({
+          event: "DICE_ERROR_CODE",
+          data: {
+            boxId: boxIdRef.current,
+            code: operation === "initialize" ? "DICE_INIT_ERROR" : "DICE_ROLL_ERROR",
+            errorName: err instanceof Error ? err.name : "UnknownError",
+            ...dimensions(),
+          },
+        });
+      }
+      if (!cancelled && !settledRef.current) {
+        settledRef.current = true;
+        if (previewInstrument) {
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_SETTLE_SOURCE",
+            data: { boxId: boxIdRef.current, source: "init-error", operation },
+          });
+        }
+        onSettled("init-error");
+      }
+    };
 
     const run = async () => {
       if (cancelled || !hostRef.current) return;
-      const dimensions = () => {
-        const host = hostRef.current;
-        const canvas = host?.querySelector("canvas");
-        return {
-          hostWidth: host?.clientWidth ?? null,
-          hostHeight: host?.clientHeight ?? null,
-          canvasClientWidth: canvas?.clientWidth ?? null,
-          canvasClientHeight: canvas?.clientHeight ?? null,
-          canvasWidth: canvas?.width ?? null,
-          canvasHeight: canvas?.height ?? null,
-        };
-      };
       if (previewInstrument) {
-        // #region agent log
-        logTrpgDiceRuntimeInstrument({ event: "DICE_INIT_STARTED", hypothesisId: "A,E", location: "TrpgDiceBoxScene.tsx:run", message: "Dice initialization started", data: { boxId: boxIdRef.current, value, ...dimensions() } });
-        // #endregion
+        logTrpgDiceRuntimeInstrument({
+          event: "DICE_INIT_STARTED",
+          data: { boxId: boxIdRef.current, value, ...dimensions() },
+        });
       }
       await ensureCinzelLoaded();
       if (cancelled) return;
-      let operation: "initialize" | "roll" = "initialize";
       try {
         const DiceBox = (await import("@3d-dice/dice-box-threejs")).default;
         if (cancelled) return;
@@ -83,66 +109,55 @@ export default function TrpgDiceBoxScene({
           gravity_multiplier: 400,
           light_intensity: reducedQuality ? 0.7 : 1.05,
           strength: 1,
-          baseScale: 50,
+          baseScale: 75,
           color_spotlight: 0xefdfd5,
         });
         await box.initialize();
         if (previewInstrument) {
-          // #region agent log
-          logTrpgDiceRuntimeInstrument({ event: "DICE_INITIALIZED", hypothesisId: "A,C,E", location: "TrpgDiceBoxScene.tsx:initialize", message: "Dice initialization completed", data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() } });
-          // #endregion
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_INITIALIZED",
+            data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() },
+          });
         }
         if (cancelled) return;
         box.light.intensity = reducedQuality ? 0.85 : 1.25;
         box.light_amb.intensity = 0.58;
         operation = "roll";
         if (previewInstrument) {
-          // #region agent log
-          logTrpgDiceRuntimeInstrument({ event: "DICE_ROLL_STARTED", hypothesisId: "A,B,D", location: "TrpgDiceBoxScene.tsx:roll", message: "Dice roll started", data: { boxId: boxIdRef.current, notation: TRPG_DICE_BOX_NOTATION(value), diceListLength: box.diceList.length, ...dimensions() } });
-          // #endregion
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_ROLL_STARTED",
+            data: {
+              boxId: boxIdRef.current,
+              notation: TRPG_DICE_BOX_NOTATION(value),
+              diceListLength: box.diceList.length,
+              ...dimensions(),
+            },
+          });
         }
         await box.roll(TRPG_DICE_BOX_NOTATION(value));
         if (previewInstrument) {
-          // #region agent log
-          logTrpgDiceRuntimeInstrument({ event: "DICE_ROLL_RESOLVED", hypothesisId: "B,D", location: "TrpgDiceBoxScene.tsx:roll", message: "Dice roll promise resolved", data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() } });
-          // #endregion
+          logTrpgDiceRuntimeInstrument({
+            event: "DICE_ROLL_RESOLVED",
+            data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() },
+          });
         }
         if (cancelled) return;
         if (!settledRef.current) {
           settledRef.current = true;
           if (previewInstrument) {
-            // #region agent log
-            logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "D", location: "TrpgDiceBoxScene.tsx:settle", message: "Dice scene settled", data: { boxId: boxIdRef.current, source: "physics", diceListLength: box.diceList.length } });
-            // #endregion
+            logTrpgDiceRuntimeInstrument({
+              event: "DICE_SETTLE_SOURCE",
+              data: { boxId: boxIdRef.current, source: "physics", diceListLength: box.diceList.length },
+            });
           }
           onSettled("physics");
         }
       } catch (err) {
-        console.error("[trpg-dice-box] init/roll failed:", err);
-        if (previewInstrument) {
-          // #region agent log
-          logTrpgDiceRuntimeInstrument({ event: "DICE_ERROR_CODE", hypothesisId: "C,D,E", location: "TrpgDiceBoxScene.tsx:catch", message: "Dice initialization or roll failed", data: { boxId: boxIdRef.current, code: operation === "initialize" ? "DICE_INIT_ERROR" : "DICE_ROLL_ERROR", errorName: err instanceof Error ? err.name : "UnknownError", ...dimensions() } });
-          // #endregion
-        }
-        if (!cancelled && !settledRef.current) {
-          settledRef.current = true;
-          if (previewInstrument) {
-            // #region agent log
-            logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "C,D,E", location: "TrpgDiceBoxScene.tsx:catch", message: "Dice scene settled", data: { boxId: boxIdRef.current, source: "init-error", operation } });
-            // #endregion
-          }
-          onSettled("init-error");
-        }
+        settleInitError(err);
       }
     };
 
-    run().catch((err) => {
-      console.error("[trpg-dice-box] run catch:", err);
-      if (!cancelled && !settledRef.current) {
-        settledRef.current = true;
-        onSettled("init-error");
-      }
-    });
+    run().catch(settleInitError);
 
     return () => {
       cancelled = true;

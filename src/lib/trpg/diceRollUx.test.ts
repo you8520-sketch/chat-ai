@@ -167,6 +167,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     const pkg = fs.readFileSync("package.json", "utf8");
     assert.match(pkg, /"@3d-dice\/dice-box-threejs"/);
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    const diceBoxScene = fs.readFileSync("src/app/trpg/TrpgDiceBoxScene.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const rail = fs.readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
     const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
@@ -197,6 +198,15 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
     assert.match(overlay, /data-trpg-dice-burst="nat1"/);
+    assert.match(diceBoxScene, /gravity_multiplier:\s*400/);
+    assert.match(diceBoxScene, /strength:\s*1/);
+    assert.match(diceBoxScene, /baseScale:\s*75/);
+    assert.doesNotMatch(diceBoxScene, /baseScale:\s*50/);
+    assert.match(diceBoxScene, /event:\s*"DICE_ERROR_CODE"/);
+    assert.match(diceBoxScene, /source:\s*"init-error"/);
+    assert.match(diceBoxScene, /source:\s*"physics"/);
+    assert.match(overlay, /source:\s*"watchdog"/);
+    assert.doesNotMatch(`${diceBoxScene}\n${overlay}`, /hypothesisId|#region agent log|location:\s*"TrpgDice|message:\s*"Dice/);
     assert.match(room, /TrpgDiceOverlay/);
     assert.match(room, /TrpgRollResultLane/);
     assert.match(room, /trpgDiceRevealWatchdogMs/);
