@@ -182,13 +182,16 @@ describe("TRPG reply suggestions", () => {
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /bottomRef/);
     assert.match(room, /scrollToLatest/);
+    assert.match(room, /followLatestRef/);
     assert.match(room, /suggestionsAnchorRef/);
     assert.match(room, /scrollIntoView/);
     assert.match(room, /block: "end"/);
+    assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.match(room, /role="switch"/);
     assert.match(room, /행동 예시 켜짐/);
     assert.match(room, /행동 예시 꺼짐/);
     assert.doesNotMatch(room, /✨ 행동 예시/);
+    assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
     const client = fs.readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     assert.match(client, /shouldAutoRequestTrpgActionSuggestions/);
     assert.match(client, /saveTrpgActionSuggestionsEnabled/);
