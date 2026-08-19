@@ -426,7 +426,7 @@ export function inferAdultStatusFromLegacyText(text: string): AdultStatus {
 
 /** Age/school mention refers to the past, not the participant's current status. */
 const HISTORICAL_AGE_AFTER =
-  /^\s*(?:때|무렵|적|시절|에(?:서|선)?|경|당시|부터|이었|였|였던|was|when|ago|back\s+when|in\s+(?:the\s+)?past|at\s+that\s+time|years?\s+ago|이전(?:까지)?|전(?:까지|에)?)(?=\s|$|[,.])/i;
+  /^\s*(?:(?:이(?:었|던|였)(?:을|던)?|였(?:을|던)?)(?:\s*(?:때|무렵|적|시절|당시|에(?:서|선)?|경|부터|이전(?:까지)?|전(?:까지|에)?))?(?=\s|$|[,.])|(?:때|무렵|적|시절|당시|에(?:서|선)?|경|당시|부터|was|when|ago|back\s+when|in\s+(?:the\s+)?past|at\s+that\s+time|years?\s+ago|이전(?:까지)?|전(?:까지|에)?)(?=\s|$|[,.]))/i;
 
 const HISTORICAL_AGE_BEFORE =
   /(?:과거|어릴|어린|childhood|past|former|예전|\*\*과거\*\*)(?:\s*[:：])?\s*$/i;
@@ -434,8 +434,20 @@ const HISTORICAL_AGE_BEFORE =
 const CURRENT_AGE_BEFORE =
   /(?:현재|지금|now|currently)\s*$/i;
 
+const MINOR_KEYWORD_PATTERN = /(?:미성년자|미성년)/g;
+
 const SCHOOL_ROLE_PATTERN =
   /(?:중학생|고등학생|초등학생|middle\s*school|high\s*school)/gi;
+
+export function buildCharacterParticipantIdentityDescription(input: {
+  adultStatus?: string | null;
+  description?: string | null;
+  systemPrompt?: string | null;
+  world?: string | null;
+  simulationCast?: string | null;
+}): string {
+  return [input.adultStatus, input.description].filter(Boolean).join("\n");
+}
 
 function isHistoricalAgeMention(
   text: string,
@@ -446,6 +458,18 @@ function isHistoricalAgeMention(
   if (HISTORICAL_AGE_AFTER.test(after)) return true;
   const before = text.slice(Math.max(0, matchIndex - 24), matchIndex);
   if (HISTORICAL_AGE_BEFORE.test(before)) return true;
+  return false;
+}
+
+function isCurrentAgeMention(
+  text: string,
+  matchIndex: number,
+  matchLength: number
+): boolean {
+  const before = text.slice(Math.max(0, matchIndex - 12), matchIndex);
+  if (CURRENT_AGE_BEFORE.test(before)) return true;
+  const after = text.slice(matchIndex + matchLength, matchIndex + matchLength + 16);
+  if (/^\s*(?:이다|입니다|임|캐릭터|설정)(?=\s|$|[,.])/i.test(after)) return true;
   return false;
 }
 
@@ -460,18 +484,23 @@ function findCurrentNumericMinorAge(text: string): boolean {
     if (age <= 0 || age >= 19) continue;
     const idx = match.index ?? 0;
     const len = match[0].length;
-    const before = text.slice(Math.max(0, idx - 12), idx);
-    if (CURRENT_AGE_BEFORE.test(before)) return true;
+    if (isCurrentAgeMention(text, idx, len)) return true;
     if (isHistoricalAgeMention(text, idx, len)) continue;
     const after = text.slice(idx + len, idx + len + 24);
     if (/^\s*(?:고등학생|중학생|초등학생|미성년)/i.test(after)) return true;
-    if (!/^\s*(?:때|무렵|적|시절|이전|전)(?=\s|$|[,.])/.test(after)) return true;
+    if (!HISTORICAL_AGE_AFTER.test(after)) return true;
   }
   return false;
 }
 
 function hasCurrentMinorKeyword(text: string): boolean {
-  if (/(?:미성년|미성년자)\b/i.test(text)) return true;
+  for (const match of text.matchAll(MINOR_KEYWORD_PATTERN)) {
+    const idx = match.index ?? 0;
+    const len = match[0].length;
+    if (isCurrentAgeMention(text, idx, len)) return true;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    return true;
+  }
 
   if (/\b(?:minor|underage)\b/i.test(text)) {
     for (const match of text.matchAll(/\b(?:minor|underage)\b/gi)) {
@@ -485,14 +514,9 @@ function hasCurrentMinorKeyword(text: string): boolean {
   for (const match of text.matchAll(SCHOOL_ROLE_PATTERN)) {
     const idx = match.index ?? 0;
     const len = match[0].length;
-    const before = text.slice(Math.max(0, idx - 8), idx);
-    const after = text.slice(idx + len, idx + len + 12);
-    if (/(?:때|적|시절|was|when)\s*$/i.test(before)) continue;
-    if (/^\s*(?:때|적|시절|was|when|이\s)/i.test(after)) continue;
-    if (CURRENT_AGE_BEFORE.test(before) || /^(?:현재|지금)\s*/i.test(before)) {
-      return true;
-    }
-    if (!isHistoricalAgeMention(text, idx, len)) return true;
+    if (isCurrentAgeMention(text, idx, len)) return true;
+    if (isHistoricalAgeMention(text, idx, len)) continue;
+    return true;
   }
 
   for (const match of text.matchAll(/(?:어린이|어린아이)/g)) {

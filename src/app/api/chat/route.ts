@@ -458,6 +458,7 @@ import {
   advanceModelRouteState,
   appendAdultHandoffPrompt,
   appendAdultHandoffToSystemSplit,
+  buildCharacterParticipantIdentityDescription,
   buildAdultProviderRoutingRequest,
   buildGeneralProviderContext,
   buildGeneralRouteBridge,
@@ -1200,9 +1201,14 @@ export async function POST(req: Request) {
   });
   // Participant age eligibility uses identity fields only. World lore, cast, and
   // system prompt can mention unrelated minors and must not contaminate status.
-  const characterParticipantDescription = [ch.adult_status, ch.description]
-    .filter(Boolean)
-    .join("\n");
+  const characterParticipantDescription =
+    buildCharacterParticipantIdentityDescription({
+      adultStatus: ch.adult_status,
+      description: ch.description,
+      systemPrompt: ch.system_prompt,
+      world: ch.world,
+      simulationCast: (ch as { simulation_cast?: string }).simulation_cast,
+    });
   // Chat-room 「성인모드」 is the operational adult-handoff gate.
   // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
   const adultContentVisibilityEnabled = chatAdultHandoffEnabled;

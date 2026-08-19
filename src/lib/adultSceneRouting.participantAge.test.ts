@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   assessParticipantAdultStatus,
+  buildCharacterParticipantIdentityDescription,
   classifySceneMode,
   decideAdultModelRoute,
   DEFAULT_MODEL_ROUTE_STATE,
@@ -47,29 +48,94 @@ describe("participant adult status — historical vs current age evidence", () =
     );
   });
 
-  it("D. current adult + unrelated world 어린아이 must not contaminate participant", () => {
+  it("D. route identity assembly excludes world/system_prompt/simulation_cast", () => {
+    const identity = buildCharacterParticipantIdentityDescription({
+      adultStatus: "confirmed",
+      description: "S급 센티넬. 28세 성인.",
+      systemPrompt: "과거: 5살 때 바다 사고. 어린아이 구조 임무.",
+      world: "세계관: 재난 현장에서 어린아이를 구조하는 임무가 자주 발생한다.",
+      simulationCast: "NPC: 12세 초등학생 조연",
+    });
+    assert.equal(identity, "confirmed\nS급 센티넬. 28세 성인.");
+    assert.doesNotMatch(identity, /어린아이|5살|12세|초등학생/);
     assert.equal(
       assessParticipantAdultStatus({
         adultStatus: "confirmed",
-        description: "S급 가이드. 28세 성인.",
+        description: identity,
       }),
       "confirmed"
     );
-    const eligibility = resolveAdultEligibility({
-      userAdultVerified: true,
-      adultContentVisibilityEnabled: true,
-      characterAdultContentEnabled: true,
-      participants: [
-        { adultStatus: "confirmed", description: "S급 센티넬. 28세 성인." },
-        {
-          description:
-            "세계관: 재난 현장에서 어린아이를 구조하는 임무가 자주 발생한다.",
-          isVerifiedAdultUserPersona: true,
-        },
-      ],
-    });
-    assert.equal(eligibility.allowedByAdultContentPolicy, true);
-    assert.equal(eligibility.blockReason, undefined);
+  });
+
+  it("K1. 현재 미성년자 => minor", () => {
+    assert.equal(
+      assessParticipantAdultStatus({ description: "현재 미성년자" }),
+      "minor"
+    );
+  });
+
+  it("K2. 미성년자였던 시절 + confirmed adult => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        adultStatus: "confirmed",
+        description: "28세 요원. 미성년자였던 시절의 기억.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("K3. 17살이었을 때 + confirmed adult => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        adultStatus: "confirmed",
+        description: "성인 캐릭터. 17살이었을 때의 일화.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("K4. 17세이던 시절 + confirmed adult => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        adultStatus: "confirmed",
+        description: "29세. 17세이던 시절을 회상한다.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("K5. 고등학생이었던 시절 + confirmed adult => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        adultStatus: "confirmed",
+        description: "직장인. 고등학생이었던 시절의 추억.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("K6. 중학생이던 때 + confirmed adult => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        adultStatus: "confirmed",
+        description: "성인. 중학생이던 때의 기억.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("K7. 현재 17살 => minor", () => {
+    assert.equal(
+      assessParticipantAdultStatus({ description: "현재 17살" }),
+      "minor"
+    );
+  });
+
+  it("K8. 현재 고등학생 => minor", () => {
+    assert.equal(
+      assessParticipantAdultStatus({ description: "현재 고등학생" }),
+      "minor"
+    );
   });
 
   it("E. current 17살 => minor", () => {
