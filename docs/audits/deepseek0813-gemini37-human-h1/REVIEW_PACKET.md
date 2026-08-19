@@ -3,10 +3,11 @@
 `QUALITY_SCORING_BY_CURSOR=false`  
 `CURRENT_TURN_OOC_DELEGATION_TESTED=false`  
 `DEEPSEEK_CALLS=0`
-`GEMINI_CALLS=2` (browser-authored; this audit added 0)
+`GEMINI_CALLS=2` (browser-authored human cut input + R1 replacement regen; audit added 0 provider calls beyond R1)
 `GEMINI_CALLS_ADDITIONAL=0`
-`GEMINI_SOURCE_READY=false`
-`SOURCE_OUTPUT_COMPLETE=false`
+`REPLACEMENT_CAPTURE_CALLS=1`
+`GEMINI_SOURCE_READY=true`
+`SOURCE_OUTPUT_COMPLETE=true`
 `RAILWAY_PRODUCTION_USED=false`
 
 ---
@@ -26,39 +27,32 @@ H1-SOURCE ran in the local test workflow only. Stale Railway `b06037d` was not u
 
 # H1-SOURCE — GEMINI 3.7 ABRUPT STREAM CUT AUDIT
 
-Second Gemini turn (`cr_mszh62oh_e2gs51ql`, message 7) ended mid-sentence at `조금 더 끌`. **Invalid as H1 canonical source until ChatGPT review.** Full write-up: `H1_GEMINI_ABRUPT_CUT_AUDIT.md`. RAW frozen; no delete / regen / continuation / DeepSeek.
+Second Gemini turn first attempt (`cr_mszh62oh_e2gs51ql`) **invalid** — upstream premature EOF at 200 chars. **R1 replacement capture succeeded** (`h1_r1_mszhxtj1_itmqsv`, 4367 chars, `finish_reason=stop`). Failed sample preserved. Full write-ups:
+
+- `H1_GEMINI_ABRUPT_CUT_AUDIT.md` (failed call)
+- `H1_SOURCE_R1.md` (replacement capture)
 
 ```text
-H1_GEMINI_ABRUPT_CUT_AUDIT:
+H1_GEMINI_ABRUPT_CUT_AUDIT (FAILED — preserved):
 CALL_ID: cr_mszh62oh_e2gs51ql
-REQUEST_BODY_SHA: not_persisted
-ASSEMBLED_PROMPT_SHA: 202c30452a36279a9bc0513453921712ac601508cfc06192a14e4a4234069cc2 (prompt_dump.txt; not request JSON)
-LIVE_PROMPT_HASH_PREFIX: 1e440802
-PROVIDER_RAW_CHARS: 200
-SERVER_ACCUMULATED_CHARS: 200
-FINAL_PROCESSED_CHARS: 200
-DB_STORED_CHARS: 200
-BROWSER_VISIBLE_CHARS: 200
-FIRST_DIVERGENCE_LAYER: none (A=B=C=D=E)
-FINISH_REASON: (none) / undefined
-OUTPUT_TOKENS: 180
-MAX_OUTPUT_TOKENS_SENT: undefined
-TOKEN_LIMIT_HIT: false
-DONE_EVENT_PRESENT: not_logged
-STREAM_EOF_NORMAL: true
-STREAM_ERROR: false
-REQUEST_ABORTED: false
-DEV_SERVER_RESTARTED: false
-POSTPROCESS_CHANGED_TEXT: false
-STATUS_WIDGET_EXPECTED: false
-ROOT_CAUSE: PROVIDER_EARLY_STOP
-GEMINI_SOURCE_READY: false
-ADDITIONAL_GEMINI_CALLS: 0
-DEEPSEEK_CALLS: 0
-APPLICATION_PROMPT_CHANGED: false
+ROOT_CAUSE: UPSTREAM_STREAM_PREMATURE_EOF
+VISIBLE_CHARS: 200
+FINISH_REASON: (none)
+CANONICAL: false
+
+H1_SOURCE_R1 (REPLACEMENT — canonical for human cut-input turn):
+CALL_ID: h1_r1_mszhxtj1_itmqsv
+REQUEST_BODY_SHA256: 1d8466dbfc4d605d0b7613316947324946918af77d7e858a9bc0695d4056066b
+LIVE_PROMPT_HASH_PREFIX: d7ab0893
+SOURCE_VISIBLE_CHARS: 4367
+SOURCE_OUTPUT_TOKENS: 3931
+SOURCE_FINISH_REASON: stop
+ENDS_INCOMPLETE: false
+GEMINI_SOURCE_READY: true
+REPEATED_UPSTREAM_STREAM_FAILURE: false
 ```
 
-STOP. Wait for ChatGPT review.
+STOP. Do not begin HUMAN USER #1 yet. Wait for ChatGPT review.
 
 ## Fixture lock (existing Flood production snapshot)
 
@@ -166,11 +160,17 @@ Human setup and Gemini RAW are stored next to this packet. Do not delete or rege
 - `docs/audits/deepseek0813-gemini37-human-h1/GEMINI_SOURCE_RAW.txt`
 
 ```text
-GEMINI_SOURCE_READY = false
-SOURCE_OUTPUT_COMPLETE = false
+GEMINI_SOURCE_READY = true
+SOURCE_OUTPUT_COMPLETE = true
 SOURCE_NEEDS_HUMAN_SETUP = false
-SOURCE_CAPTURE_INVALID = true  (second Gemini turn cut; do not use as style baseline)
-FIRST_TURN_FROZEN_BUT_NOT_LIVE_CANON = true  (message 5 / 2558 still on disk)
+FAILED_CUT_CALL_PRESERVED = true
+CANONICAL_GEMINI_R1_RAW = GEMINI_SOURCE_R1_RAW.txt
+CANONICAL_HUMAN_CUT_INPUT = HUMAN_CUT_INPUT_RAW.txt
+R1_CALL_ID = h1_r1_mszhxtj1_itmqsv
+R1_VISIBLE_CHARS = 4367
+R1_OUTPUT_TOKENS = 3931
+R1_FINISH_REASON = stop
+FIRST_TURN_FROZEN = GEMINI_SOURCE_RAW.txt (msg 5 / first human setup; separate turn)
 LOCAL_CHAT_ID = 3
 ASSISTANT_MESSAGE_ID = 5
 USER_MESSAGE_ID = 4
@@ -252,21 +252,22 @@ PRODUCTION_CHANGED = false
 
 ## Next human action
 
-**STOP.** Second Gemini output is an abrupt cut. Do not type HUMAN USER #1 for DeepSeek. Do not regenerate Gemini. Wait for ChatGPT review.
+**STOP.** R1 replacement Gemini source is frozen (`GEMINI_SOURCE_R1_RAW.txt`). Do not begin HUMAN USER #1 / DeepSeek until ChatGPT reviews.
 
 ---
 
 # H1-1
 
 ```text
-GEMINI_SOURCE_ACCEPTED = false
-GEMINI_SOURCE_READY = false
-SOURCE_OUTPUT_COMPLETE = false
-CUT_CALL_ID = cr_mszh62oh_e2gs51ql
-CUT_VISIBLE_CHARS = 200
-CUT_OUTPUT_TOKENS = 180
-CUT_FINISH_REASON = (none)
-HUMAN_USER_1_RECEIVED = n-a (cut audit; DeepSeek blocked)
+GEMINI_SOURCE_ACCEPTED = true
+GEMINI_SOURCE_READY = true
+SOURCE_OUTPUT_COMPLETE = true
+R1_CALL_ID = h1_r1_mszhxtj1_itmqsv
+R1_VISIBLE_CHARS = 4367
+R1_OUTPUT_TOKENS = 3931
+R1_FINISH_REASON = stop
+FAILED_CUT_CALL_ID = cr_mszh62oh_e2gs51ql
+HUMAN_USER_1_RECEIVED = false
 DEEPSEEK_CALLS = 0
 RETRY = 0
 CONTINUATION = 0
