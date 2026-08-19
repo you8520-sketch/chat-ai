@@ -27,7 +27,8 @@ import {
   selectLatestContiguousNoncanonRecordIds,
   type MemoryRecordView,
 } from "./memory-turn-summary";
-import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
+import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { loadMemoryEligibleChatTurnsWithMessageIds, loadChatTurnsWithMessageIds } from "./memory-turn-loader";
 import {
   getMemorySourceBoundary,
   isMemoryWriteGuardCurrentCore,
@@ -200,6 +201,22 @@ export function loadTurnsForCharacter(_userId: number, _characterId: number): Di
   return [];
 }
 
+function formatOpeningPreludeForSummary(openingAssistant: string): string {
+  const text = openingAssistant.trim();
+  if (!text) return "";
+  return `[OPENING/PRELUDE CONTEXT — not source turn 1]\n${OPENING_TURN_USER}\n${text}`;
+}
+
+function resolveOpeningPreludeForBatch(
+  chatId: number,
+  batchStart: number
+): string {
+  if (batchStart !== 1) return "";
+  const opening = loadChatTurnsWithMessageIds(chatId).find((t) => t.turnNumber === 0);
+  if (!opening?.assistant?.trim()) return "";
+  return formatOpeningPreludeForSummary(opening.assistant);
+}
+
 function formatBatchDialogue(
   entries: Array<{ turnIndex: number; turn: DialogueTurn }>,
   charName: string
@@ -259,6 +276,7 @@ export async function summarizeTurnBatch(opts: {
   endTurn: number;
   sourceTurnIndexes?: number[];
   userPersona?: string | null;
+  openingPrelude?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<string> {
   const personaBlock = opts.userPersona?.trim()
@@ -281,7 +299,10 @@ export async function summarizeTurnBatch(opts: {
   const sourceCoverage = sourceTurnIndexes.map((turn) => `[${turn}턴]`).join(" ");
   const sourceTurnCount = Math.max(1, opts.endTurn - opts.startTurn + 1);
   const systemPrompt = buildRollingSummarySystemPrompt(sourceTurnCount);
-  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const openingBlock = opts.openingPrelude?.trim()
+    ? `${opts.openingPrelude.trim()}\n\n`
+    : "";
+  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
@@ -533,6 +554,7 @@ async function composeBatchScopePayload(opts: {
   charName: string;
   characterIdentity?: string | null;
   userPersona?: string | null;
+  openingPrelude?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
   mode: ComposeBatchScopeMode;
   existingRecord?: MemoryRecordView | null;
@@ -852,6 +874,7 @@ async function composeBatchScopePayload(opts: {
         endTurn: summaryEndTurn,
         sourceTurnIndexes: mainEntries.map((entry) => entry.turnIndex),
         userPersona: opts.userPersona,
+        openingPrelude: opts.openingPrelude,
         turnTrace: opts.turnTrace,
       });
     } catch (e) {
@@ -1151,6 +1174,7 @@ async function rebuildExistingBatchScopePayload(opts: {
     charName: opts.charName,
     characterIdentity: opts.characterIdentity,
     userPersona: opts.userPersona,
+    openingPrelude: resolveOpeningPreludeForBatch(opts.chatId, opts.batchStart),
     turnTrace: opts.turnTrace,
     mode: "regen",
     existingRecord: opts.existingRecord,
@@ -1378,6 +1402,7 @@ export async function processRollingSummaryBatch(opts: {
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
         userPersona: opts.userPersona,
+        openingPrelude: resolveOpeningPreludeForBatch(opts.chatId, batchStart),
         turnTrace: opts.turnTrace,
         mode: "seal",
         existingRecord: null,

@@ -353,6 +353,7 @@ import {
   pushRemovalTraceStep,
   type RemovalTraceStep,
 } from "@/lib/removalTrace";
+import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
 import {
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
@@ -464,6 +465,7 @@ import {
   buildCharacterParticipantIdentityDescription,
   buildAdultProviderRoutingRequest,
   buildGeneralProviderContext,
+  boundCanonicalRouteHistoryForProvider,
   buildGeneralRouteBridge,
   buildSceneContinuityPacket,
   classifySceneMode,
@@ -1336,7 +1338,10 @@ export async function POST(req: Request) {
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
-  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const summarizedTurnCountBeforeBarrier = chatMemory?.summarized_turn_count ?? 0;
+  let effectiveSummarizedTurnCount = memoryFeatureOn
+    ? summarizedTurnCountBeforeBarrier
+    : 0;
   const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
   const completedTurnsForMemoryCoverage = memoryFeatureOn
     ? memorySourceEligibleCompletedTurns
@@ -1365,10 +1370,18 @@ export async function POST(req: Request) {
         { status: 503 }
       );
     }
+    effectiveSummarizedTurnCount = barrier.summarizedThrough;
   }
 
-  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
-    (m) => ({
+  const providerRawOpts = {
+    summarizedTurnCount: effectiveSummarizedTurnCount,
+    memoryFeatureEnabled: memoryFeatureOn,
+  };
+  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(
+    turnsForRecentHistory,
+    RAW_HISTORY_COMPLETE_EXCHANGES,
+    providerRawOpts
+  ).map((m) => ({
       ...m,
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
@@ -1376,7 +1389,7 @@ export async function POST(req: Request) {
   const historyMinTurnFloor = resolveHistoryMinTurnFloor({
     memoryFeatureEnabled: memoryFeatureOn,
     completedTurns: completedTurnsForMemoryCoverage,
-    summarizedTurnCount,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
   });
   const coverageProtectedCanonicalHistory = trimHistoryToBudget(
     canonicalRecentHistoryFull,
@@ -1437,7 +1450,7 @@ export async function POST(req: Request) {
   ) {
     providerRecentHistoryFull = trimHistoryToBudget(
       buildGeneralProviderContext(
-        canonicalRouteHistory,
+        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory),
         priorModelRouteState.generalRouteBridge
       ),
       historyTokenBudget,
@@ -1493,7 +1506,7 @@ export async function POST(req: Request) {
   );
   const unsummarizedCompletedTurns = Math.max(
     0,
-    completedTurnsForMemoryCoverage - (chatMemory?.summarized_turn_count ?? 0)
+    completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
   );
   console.info("RAW_HISTORY_SELECTED", {
     chat_id: chat.id,
@@ -2047,7 +2060,7 @@ export async function POST(req: Request) {
     targetResponseChars,
     completedTurns: playableTurnCount,
     completedTurnsForMemoryCoverage,
-    summarizedTurnCount,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
     historyMinTurnFloor,
     adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
@@ -4431,51 +4444,15 @@ export async function POST(req: Request) {
           { key: "asset" as const, est: assetTagEst },
           { key: "rel" as const, est: memoryMetaEst },
         ];
-        const totalEst = Math.max(1, sectionEsts.reduce((s, x) => s + x.est, 0));
-        const alloc = (est: number) => Math.round((est / totalEst) * draftInput);
-        const breakdown = sectionEsts
-          .map((s) => {
-            const tokens = alloc(s.est);
-            let label: string;
-            switch (s.key) {
-              case "raw":
-                label = `최근 RAW: ~${tokens.toLocaleString()} 토큰 배분 · ${rawHistoryChars.toLocaleString()} chars · ${rawCompleteExchanges} exchanges`;
-                break;
-              case "narrative":
-                label = `요약·내러티브: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "character":
-                label = `캐릭터 프롬프트: ~${tokens.toLocaleString()} 토큰 배분 · ${(splitChars?.characterSettingsBlock.length ?? charPromptEst).toLocaleString()} chars`;
-                break;
-              case "system":
-                label = `시스템 프롬프트: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "memory":
-                label = `장기기억: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "persona":
-                label = `페르소나: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "keyword":
-                label = `${BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL}: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "note":
-                label = `유저 노트: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              case "asset":
-                label = `에셋 태그: ~${tokens.toLocaleString()} 토큰 배분`;
-                break;
-              default:
-                label = `관계 메모: ~${tokens.toLocaleString()} 토큰 배분`;
-            }
-            return {
-              label,
-              tokens,
-              pct: Math.round((s.est / totalEst) * 100),
-            };
-          })
-          .filter((s) => s.tokens > 0);
         const splitChars = openRouterSystemSplitRef;
+        const breakdown = buildEstimatedReceiptSectionBreakdown({
+          sectionEsts: sectionEsts as import("@/lib/billingReceiptSectionBreakdown").ReceiptSectionEstimate[],
+          draftInput,
+          splitChars,
+          charPromptEst,
+          rawHistoryChars,
+          rawCompleteExchanges,
+        });
         const historyChars = historyRef.reduce((n, m) => n + (m.content?.length ?? 0), 0);
         const currentUserChars = historyRef.at(-1)?.content.length ?? 0;
         const assembledPromptChars = {
@@ -4665,7 +4642,7 @@ export async function POST(req: Request) {
             rawChars: rawHistoryChars,
             rawInternalEstimate: rawHistoryInternalEstimate,
             summaryInterval: ROLLING_SUMMARY_INTERVAL,
-            summarizedThroughTurn: chatMemory?.summarized_turn_count ?? 0,
+            summarizedThroughTurn: effectiveSummarizedTurnCount,
             unsummarizedCompletedTurns,
             ...(rawCompleteExchanges > RAW_HISTORY_COMPLETE_EXCHANGES
               ? { policyViolation: true }

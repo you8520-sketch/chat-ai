@@ -1,4 +1,6 @@
+import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import type { ChatMsg } from "@/lib/ai";
+import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   normalizeDeepSeekV4ProModelId,
@@ -1392,11 +1394,8 @@ export function selectAdultHandoffRawVariants(
   } = {}
 ): AdultHandoffRawVariants {
   const baseExchanges = Math.max(2, opts.baseExchanges ?? 4);
-  const targetExchanges = Math.max(
-    baseExchanges,
-    opts.targetExchanges ?? 6
-  );
-  const extraRawTokens = Math.max(0, opts.extraRawTokens ?? 4_000);
+  const targetExchanges = Math.max(baseExchanges, opts.targetExchanges ?? 4);
+  const extraRawTokens = Math.max(0, opts.extraRawTokens ?? 0);
   const pairs = collectCompleteAdultRawPairs(history);
   const baseStart = Math.max(0, pairs.length - baseExchanges);
   const basePairs = pairs.slice(baseStart);
@@ -1441,8 +1440,8 @@ export function selectAdultHandoffRawHistory(
 ): SelectedAdultRawHistory {
   return selectAdultHandoffRawVariants(history, {
     baseExchanges: opts.baseExchanges ?? opts.minimumTurns ?? 4,
-    targetExchanges: opts.targetExchanges ?? opts.targetTurns ?? 6,
-    extraRawTokens: opts.extraRawTokens ?? opts.maxTokens ?? 4_000,
+    targetExchanges: opts.targetExchanges ?? opts.targetTurns ?? 4,
+    extraRawTokens: opts.extraRawTokens ?? opts.maxTokens ?? 0,
   }).handoff;
 }
 
@@ -1818,6 +1817,31 @@ export function buildGeneralRouteBridge(
 export interface CanonicalRouteHistoryMessage extends ChatMsg {
   sceneMode?: SceneMode;
   activeRoute?: ActiveModelRoute;
+}
+
+/** Latest N complete playable route exchanges — opening greeting excluded from count. */
+export function boundCanonicalRouteHistoryForProvider(
+  history: CanonicalRouteHistoryMessage[],
+  maxExchanges = RAW_HISTORY_COMPLETE_EXCHANGES
+): CanonicalRouteHistoryMessage[] {
+  const pairs: CanonicalRouteHistoryMessage[][] = [];
+  let pendingUser: CanonicalRouteHistoryMessage | null = null;
+
+  for (const message of history) {
+    if (message.role === "user") {
+      pendingUser = message;
+      continue;
+    }
+    if (!pendingUser || message.role !== "assistant") continue;
+    if (pendingUser.content === OPENING_TURN_USER) {
+      pendingUser = null;
+      continue;
+    }
+    pairs.push([pendingUser, message]);
+    pendingUser = null;
+  }
+
+  return pairs.slice(-maxExchanges).flat();
 }
 
 export function buildGeneralProviderContext(

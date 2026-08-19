@@ -9,7 +9,10 @@ import {
 import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
 
 /** 하이브리드 메모리 — 슬라이딩 윈도우 + 5턴 롤링 요약 */
-export const SHORT_TERM_TURNS = 5;
+/** Non-provider memory analysis window (batch gap math only — NOT provider RAW). */
+export const MEMORY_ANALYSIS_WINDOW_TURNS = 5;
+/** @deprecated Use MEMORY_ANALYSIS_WINDOW_TURNS — not provider RAW policy. */
+export const SHORT_TERM_TURNS = MEMORY_ANALYSIS_WINDOW_TURNS;
 /** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 — 전 모델 10K 통일 */
 export const SHORT_TERM_TOKEN_BUDGET = 10_000;
 /** New summary batches seal every 5 complete playable turns. */
@@ -73,10 +76,10 @@ export function countPlayableTurns(turns: DialogueTurn[]): number {
   return splitOpeningPlayableTurns(turns).playable.length;
 }
 
-/** 최근 N턴을 AI history 형식으로 (원본 유지) */
+/** 최근 N턴을 AI history 형식으로 (원본 유지). Caller must pass explicit count. */
 export function recentTurnsToHistory(
   turns: DialogueTurn[],
-  count = SHORT_TERM_TURNS
+  count: number
 ): { role: "user" | "assistant"; content: string }[] {
   const slice = turns.slice(-count);
   const out: { role: "user" | "assistant"; content: string }[] = [];
@@ -240,31 +243,71 @@ function alignHistoryPrefixDrop(
   return aligned.length > 0 ? aligned : kept;
 }
 
+export type ProviderRawHistoryOpts = {
+  /** Post-barrier authoritative summarized frontier (playable turns). */
+  summarizedTurnCount?: number;
+  memoryFeatureEnabled?: boolean;
+};
+
+/** Whether opening greeting belongs in provider RAW (turn 0 — not counted toward RAW=4). */
+export function shouldIncludeOpeningInProviderRaw(opts: {
+  opening: DialogueTurn | null;
+  summarizedTurnCount?: number;
+  memoryFeatureEnabled?: boolean;
+  playableCount: number;
+}): boolean {
+  if (!opts.opening) return false;
+  const summarized = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  if (opts.memoryFeatureEnabled) {
+    return summarized < ROLLING_SUMMARY_INTERVAL;
+  }
+  return opts.playableCount <= RAW_HISTORY_COMPLETE_EXCHANGES;
+}
+
 /**
- * Provider RAW pool — latest N complete playable exchanges (opening greeting excluded).
- * Full canonical turns may still be loaded elsewhere for memory reconciliation.
+ * Provider RAW pool — latest N complete playable exchanges.
+ * Opening greeting (turn 0) may prepend when still needed for scene continuity.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],
-  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES
-): { pool: DialogueTurn[]; firstTurn1Indexed: number } {
-  const { playable } = splitOpeningPlayableTurns(turns);
+  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES,
+  rawOpts?: ProviderRawHistoryOpts
+): { pool: DialogueTurn[]; firstTurn1Indexed: number; includesOpening: boolean } {
+  const { opening, playable } = splitOpeningPlayableTurns(turns);
+  const includeOpening = shouldIncludeOpeningInProviderRaw({
+    opening,
+    summarizedTurnCount: rawOpts?.summarizedTurnCount,
+    memoryFeatureEnabled: rawOpts?.memoryFeatureEnabled ?? false,
+    playableCount: playable.length,
+  });
+
   if (playable.length === 0) {
-    return { pool: [], firstTurn1Indexed: 1 };
+    return {
+      pool: includeOpening && opening ? [opening] : [],
+      firstTurn1Indexed: 1,
+      includesOpening: includeOpening && !!opening,
+    };
   }
 
   const count = Math.max(1, Math.min(exchangeCount, playable.length));
   const recentPlayable = playable.slice(-count);
   const firstTurn1Indexed = playable.length - recentPlayable.length + 1;
+  const pool =
+    includeOpening && opening ? [opening, ...recentPlayable] : recentPlayable;
 
-  return { pool: recentPlayable, firstTurn1Indexed };
+  return {
+    pool,
+    firstTurn1Indexed,
+    includesOpening: includeOpening && !!opening,
+  };
 }
 
 export function rawRecentTurnsToHistory(
   turns: DialogueTurn[],
-  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES
+  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES,
+  rawOpts?: ProviderRawHistoryOpts
 ): { role: "user" | "assistant"; content: string }[] {
-  const { pool } = resolveRawRecentTurnPool(turns, exchangeCount);
+  const { pool } = resolveRawRecentTurnPool(turns, exchangeCount, rawOpts);
   if (pool.length === 0) return [];
   return recentTurnsToHistory(pool, pool.length);
 }
@@ -361,8 +404,11 @@ export function nextBatchRange(
   totalTurns: number,
   archivedTurnCount: number
 ): { start: number; end: number } | null {
-  if (totalTurns <= SHORT_TERM_TURNS) return null;
-  const windowStart = Math.max(archivedTurnCount, totalTurns - SHORT_TERM_TURNS);
+  if (totalTurns <= MEMORY_ANALYSIS_WINDOW_TURNS) return null;
+  const windowStart = Math.max(
+    archivedTurnCount,
+    totalTurns - MEMORY_ANALYSIS_WINDOW_TURNS
+  );
   const pendingBeforeWindow = windowStart - archivedTurnCount;
   if (pendingBeforeWindow <= 0) return null;
   const batchSize = Math.min(BATCH_TURN_SIZE, pendingBeforeWindow);

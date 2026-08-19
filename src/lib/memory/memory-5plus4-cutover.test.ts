@@ -184,17 +184,31 @@ describe("summary quality contracts", () => {
 });
 
 describe("chat707 offline RAW replay", () => {
-  it("reduces 11 exchanges to 4", () => {
-    const charLen = Math.floor(42_679 / 22);
-    const turns = makeTurns(11, charLen);
+  const BASE = 1939;
+  const A7 = 2066;
+  const A11 = 1833;
+
+  it("reduces 11 exchanges to exact latest four (42679 -> 15406 chars)", () => {
+    const rows: { role: "user" | "assistant"; content: string; model?: string }[] = [
+      { role: "assistant", content: "g".padEnd(50, "g"), model: "greeting" },
+    ];
+    for (let i = 1; i <= 11; i++) {
+      rows.push({ role: "user", content: `u${i}`.padEnd(BASE, "a") });
+      const aLen = i === 7 ? A7 : i === 11 ? A11 : BASE;
+      rows.push({ role: "assistant", content: `a${i}`.padEnd(aLen, "b"), model: "test" });
+    }
+    const turns = messagesToTurns(rows);
     const before = rawRecentTurnsToHistory(turns, 11);
-    const after = rawRecentTurnsToHistory(turns);
+    const after = rawRecentTurnsToHistory(turns, 4, {
+      summarizedTurnCount: 5,
+      memoryFeatureEnabled: true,
+    });
     const beforeChars = before.reduce((n, m) => n + m.content.length, 0);
     const afterChars = after.reduce((n, m) => n + m.content.length, 0);
     assert.equal(before.length, 22);
     assert.equal(after.length, 8);
-    assert.ok(afterChars < beforeChars);
-    assert.ok(afterChars > 10_000);
+    assert.equal(beforeChars, 42679);
+    assert.equal(afterChars, 15406);
   });
 });
 
@@ -211,6 +225,21 @@ describe("greenfield 5-turn cadence", () => {
   });
 });
 
+describe("rolling deploy safety", () => {
+  it("old b278f61 reader cannot safely consume new 5-turn rows — two-phase required", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const rangeSrc = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/memory/memory-summary-range.ts"),
+      "utf8"
+    );
+    assert.match(rangeSrc, /newBatchEndForStart/);
+    assert.match(rangeSrc, /LEGACY_NULL_TURN_END_OFFSET/);
+    const CAN_OLD_REVISION_RECEIVE_TRAFFIC_AFTER_NEW_REVISION_BEGINS_WRITING_5_TURN_ROWS =
+      false;
+    assert.equal(CAN_OLD_REVISION_RECEIVE_TRAFFIC_AFTER_NEW_REVISION_BEGINS_WRITING_5_TURN_ROWS, false);
+  });
+});
 describe("summary barrier cadence", () => {
   it("B1 seal due at turn 5 after zero summarized", async () => {
     const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(
