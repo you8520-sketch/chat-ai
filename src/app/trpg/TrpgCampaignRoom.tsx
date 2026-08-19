@@ -54,6 +54,27 @@ import {
   trpgDiceRevealWatchdogMs,
   trpgDiceRollSessionKey,
 } from "@/lib/trpg/diceRollUx";
+import {
+  activePresentationRoll,
+  advanceAfterActorAction,
+  advanceAfterActorResult,
+  advanceAfterDiceDismiss,
+  buildRoundPresentationActors,
+  decideRoundPresentationMode,
+  historicalPresentation,
+  idlePresentation,
+  isRoundPresentationComplete,
+  resultLaneActorIds,
+  revealedActorIds,
+  ROUND_ACTION_REVEAL_MS,
+  ROUND_RESULT_HOLD_MS,
+  selectVisibleActions,
+  shouldShowGmNarration,
+  startCinematicPresentation,
+  trpgRoundPresentationSessionKey,
+  trpgRoundPresentationWatchdogMs,
+  type RoundPresentationState,
+} from "@/lib/trpg/roundPresentation";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
@@ -243,6 +264,33 @@ export default function TrpgCampaignRoom({
     () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
     [snap.currentRolls, snap.round.number]
   );
+  const currentLogRow = useMemo(
+    () => snap.log.find((row) => row.roundNumber === snap.round.number) ?? null,
+    [snap.log, snap.round.number]
+  );
+  const presentationActors = useMemo(
+    () =>
+      buildRoundPresentationActors({
+        resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
+        actions: (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
+        rolls: dicePreview.rolls,
+      }),
+    [currentLogRow, dicePreview.rolls, snap.resolutionOrder]
+  );
+  const queueSessionKey = useMemo(
+    () =>
+      trpgRoundPresentationSessionKey({
+        roundNumber: snap.round.number,
+        rolls: dicePreview.rolls,
+        actions: (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
+      }),
+    [currentLogRow, dicePreview.rolls, snap.round.number]
+  );
+  const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
+  const queueKeyRef = useRef("");
+  const presentationActorKey = presentationActors
+    .map((actor) => `${actor.actorId}:${actor.roll?.participantId ?? 0}:${actor.roll?.d20 ?? 0}`)
+    .join("|");
   const [overlayPlayback, setOverlayPlayback] = useState<TrpgDiceOverlayPlaybackState>({
     visible: false,
     settled: false,
@@ -272,6 +320,16 @@ export default function TrpgCampaignRoom({
       replayOnMount: dicePreview.inject,
       isFirstObservation,
     });
+    const mode = decideRoundPresentationMode({
+      consumeOnMount: mountConsume,
+      actorCount: presentationActors.length,
+    });
+    if (queueKeyRef.current !== queueSessionKey) {
+      queueKeyRef.current = queueSessionKey;
+      if (mode === "historical") setRoundShow(historicalPresentation());
+      else if (mode === "cinematic") setRoundShow({ mode: "cinematic", ...startCinematicPresentation() });
+      else setRoundShow(idlePresentation());
+    }
     setPresentation((prev) =>
       nextDicePresentation(prev, {
         rollSessionKey,
@@ -280,6 +338,7 @@ export default function TrpgCampaignRoom({
         overlaySettled: overlayPlayback.settled,
         overlayDismissed: overlayPlayback.dismissed && overlayPlayback.sessionKey === rollSessionKey,
         mountConsume,
+        roundPresentationComplete: isRoundPresentationComplete(roundShow),
       })
     );
     if (dicePreview.instrument && rollSessionKey && isFirstObservation === false && !mountConsume) {
@@ -297,7 +356,77 @@ export default function TrpgCampaignRoom({
     overlayPlayback.settled,
     overlayPlayback.visible,
     phase,
+    presentationActors.length,
+    queueSessionKey,
     rollSessionKey,
+    roundShow,
+    snap.round.number,
+  ]);
+  useEffect(() => {
+    if (roundShow.mode !== "cinematic") return;
+    if (roundShow.phase === "actor-action") {
+      const id = window.setTimeout(() => {
+        setRoundShow((prev) => {
+          if (prev.mode !== "cinematic" || prev.phase !== "actor-action") return prev;
+          return {
+            ...prev,
+            ...advanceAfterActorAction({
+              actors: presentationActors,
+              presentationIndex: prev.presentationIndex,
+            }),
+          };
+        });
+      }, ROUND_ACTION_REVEAL_MS);
+      return () => window.clearTimeout(id);
+    }
+    if (roundShow.phase === "actor-result") {
+      const id = window.setTimeout(() => {
+        setRoundShow((prev) => {
+          if (prev.mode !== "cinematic" || prev.phase !== "actor-result") return prev;
+          return {
+            ...prev,
+            ...advanceAfterActorResult({
+              actors: presentationActors,
+              presentationIndex: prev.presentationIndex,
+            }),
+          };
+        });
+      }, ROUND_RESULT_HOLD_MS);
+      return () => window.clearTimeout(id);
+    }
+  }, [presentationActorKey, presentationActors, roundShow.mode, roundShow.phase, roundShow.presentationIndex]);
+  useEffect(() => {
+    if (roundShow.mode !== "cinematic" || roundShow.phase !== "actor-dice") return;
+    const current = presentationActors[roundShow.presentationIndex];
+    if (!current?.roll) {
+      setRoundShow((prev) => ({
+        ...prev,
+        ...advanceAfterDiceDismiss({
+          actors: presentationActors,
+          presentationIndex: prev.presentationIndex,
+        }),
+      }));
+      return;
+    }
+    const activeKey = trpgDiceRollSessionKey(snap.round.number, [current.roll]);
+    if (!overlayPlayback.dismissed || overlayPlayback.sessionKey !== activeKey) return;
+    setRoundShow((prev) => {
+      if (prev.mode !== "cinematic" || prev.phase !== "actor-dice") return prev;
+      return {
+        ...prev,
+        ...advanceAfterDiceDismiss({
+          actors: presentationActors,
+          presentationIndex: prev.presentationIndex,
+        }),
+      };
+    });
+  }, [
+    overlayPlayback.dismissed,
+    overlayPlayback.sessionKey,
+    presentationActors,
+    roundShow.mode,
+    roundShow.phase,
+    roundShow.presentationIndex,
     snap.round.number,
   ]);
   const incomingSessionHidden = shouldHideIncomingRollSession({
@@ -308,7 +437,13 @@ export default function TrpgCampaignRoom({
   });
   const hideCurrentResults =
     hideCurrentRoundResults(presentation, snap.round.number) || incomingSessionHidden;
-  const revealWatchdogMs = trpgDiceRevealWatchdogMs(snap.currentRolls.length);
+  const revealWatchdogMs = Math.max(
+    trpgDiceRevealWatchdogMs(snap.currentRolls.length),
+    trpgRoundPresentationWatchdogMs({
+      actorCount: presentationActors.length,
+      rollCount: dicePreview.rolls.length,
+    })
+  );
   const [revealGate, setRevealGate] = useState<TrpgDiceRevealGateState>({ gatedRound: null, holding: false });
   const [revealGateReleased, setRevealGateReleased] = useState(true);
   const [revealGateReleaseReason, setRevealGateReleaseReason] = useState<TrpgDiceRevealGateReleaseReason | null>(
@@ -345,6 +480,10 @@ export default function TrpgCampaignRoom({
     presentationHidesRound: hideCurrentRoundResults(presentation, snap.round.number),
     revealGateReleased,
   });
+  useEffect(() => {
+    if (revealGateReleaseReason !== "watchdog") return;
+    setRoundShow((prev) => (prev.mode === "cinematic" ? { ...prev, phase: "complete" } : prev));
+  }, [revealGateReleaseReason]);
   const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
@@ -356,9 +495,12 @@ export default function TrpgCampaignRoom({
   const partyNames = partyDisplayNames(snap);
   const selfSheet = snap.sheets.find((card) => card.isSelf);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
-  const visibleSceneRows = gatedRoundNumber != null
-    ? sceneRows.filter((row) => row.roundNumber !== gatedRoundNumber)
-    : sceneRows;
+  const visibleSceneRows = sceneRows;
+  const cinematicRevealedIds = revealedActorIds({ actors: presentationActors, state: roundShow });
+  const cinematicLaneIds = resultLaneActorIds({ actors: presentationActors, state: roundShow });
+  const cinematicShowGm = shouldShowGmNarration(roundShow);
+  const activeRoll = activePresentationRoll({ actors: presentationActors, state: roundShow });
+  const overlayRolls = activeRoll ? [activeRoll] : [];
   const liveRevealedActionIds = visibleSceneRows
     .filter((row) => row.roundNumber === snap.round.number)
     .flatMap((row) => row.actions.filter((a) => a.revealed && a.body.trim()).map((a) => a.participantId));
@@ -540,6 +682,8 @@ export default function TrpgCampaignRoom({
       overlayDismissed: overlayPlayback.dismissed,
       orphanRollCountRendered: orphanRolls.length,
       currentRoundSceneRendered: visibleSceneRows.some((row) => row.roundNumber === snap.round.number),
+      roundPresentationPhase: roundShow.phase,
+      activeRollActorId: activeRoll?.participantId ?? null,
       releaseReason: resolveDiceRevealGateReleaseReason({
         presentation,
         watchdogFired: revealGateReleaseReason === "watchdog",
@@ -572,6 +716,8 @@ export default function TrpgCampaignRoom({
     snap.currentRolls,
     snap.round.number,
     visibleSceneRows,
+    roundShow.phase,
+    activeRoll?.participantId,
   ]);
 
   return (
@@ -583,6 +729,10 @@ export default function TrpgCampaignRoom({
       data-trpg-dice-session-key={rollSessionKey || undefined}
       data-trpg-dice-watchdog-ms={revealWatchdogMs}
       data-trpg-dice-incoming-hide={incomingSessionHidden ? "true" : "false"}
+      data-trpg-round-presentation-mode={roundShow.mode}
+      data-trpg-round-presentation-phase={roundShow.phase}
+      data-trpg-round-presentation-index={roundShow.presentationIndex}
+      data-trpg-round-revealed-actors={cinematicRevealedIds.join(",") || undefined}
     >
       <div
         className="flex min-w-0 flex-1 flex-col"
@@ -710,6 +860,21 @@ export default function TrpgCampaignRoom({
               scenarioAssets={snap.scenarioAssets ?? []}
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
+              revealedActorIds={
+                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
+                  ? cinematicRevealedIds
+                  : undefined
+              }
+              resultLaneActorIds={
+                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
+                  ? cinematicLaneIds
+                  : undefined
+              }
+              showGmNarration={
+                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
+                  ? cinematicShowGm
+                  : undefined
+              }
               partyHumanCount={snap.partyHumanCount}
               partyBotCount={snap.partyBotCount}
               viewerIsHost={snap.viewerIsHost}
@@ -915,7 +1080,7 @@ export default function TrpgCampaignRoom({
 
       <TrpgDiceOverlay
         phase={dicePreview.phase}
-        rolls={dicePreview.rolls}
+        rolls={overlayRolls}
         resolutionOrder={snap.resolutionOrder}
         theme={dicePreview.theme}
         previewInstrument={dicePreview.instrument}
@@ -962,6 +1127,9 @@ function SceneTurn({
   scenarioAssets,
   isFreshLogKey,
   liveRolls,
+  revealedActorIds: revealedIds,
+  resultLaneActorIds: laneIds,
+  showGmNarration,
   partyHumanCount,
   partyBotCount,
   viewerIsHost,
@@ -981,6 +1149,9 @@ function SceneTurn({
   scenarioAssets: CharacterAsset[];
   isFreshLogKey: (key: string) => boolean;
   liveRolls: TrpgPublicRoll[];
+  revealedActorIds?: number[];
+  resultLaneActorIds?: number[];
+  showGmNarration?: boolean;
   partyHumanCount?: number;
   partyBotCount?: number;
   viewerIsHost: boolean;
@@ -989,11 +1160,14 @@ function SceneTurn({
   onImage: () => void;
   revealGateHeld?: boolean;
 }) {
-  const revealNarration = !revealGateHeld && isFreshLogKey(`n:${row.roundNumber}`);
+  const allowGm = showGmNarration !== false && !revealGateHeld;
+  const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`);
   const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
-  const beats = shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
+  const beats = allowGm && shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
   const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });
-  const visibleActions = row.actions.filter((a) => a.revealed && a.body.trim());
+  const revealedActions = row.actions.filter((a) => a.revealed && a.body.trim());
+  const visibleActions =
+    revealedIds != null ? selectVisibleActions(revealedActions, revealedIds) : revealedActions;
   const showToolbar = canReroll || canImage || row.billedPoints != null;
   return (
     <article className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5">
@@ -1008,9 +1182,10 @@ function SceneTurn({
           const showJudge = action.kind === "ai_character" || Boolean(intent) || Boolean(roll);
           const outcome = roll ? trpgRollOutcomeLabel(roll.tier) : null;
           const tone = roll ? resolveTrpgD20Tone(roll.d20, roll.tier) : null;
+          const showResultLane = Boolean(roll && tone && outcome && (laneIds == null || laneIds.includes(action.participantId)));
           return (
             <div key={`${row.roundNumber}-${action.participantId}`} data-trpg-action-card>
-              {roll && tone && outcome ? (
+              {showResultLane && roll && tone && outcome ? (
                 <TrpgRollResultLane
                   layout="mobile"
                   d20={roll.d20}
@@ -1020,7 +1195,7 @@ function SceneTurn({
                 />
               ) : null}
               <div className="flex items-start gap-3">
-                {roll && tone && outcome ? (
+                {showResultLane && roll && tone && outcome ? (
                   <TrpgRollResultLane layout="desktop" d20={roll.d20} tone={tone} outcome={outcome} />
                 ) : null}
                 <div className="min-w-0 flex-1">
@@ -1053,7 +1228,7 @@ function SceneTurn({
                       {intent ? (
                         <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
                       ) : null}
-                      {roll ? (
+                      {roll && showResultLane ? (
                         <p className="text-[11px] tabular-nums text-zinc-500">
                           {formatTrpgRollCompact({
                             statLabel: statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey,
@@ -1063,7 +1238,7 @@ function SceneTurn({
                             tier: roll.tier,
                           })}
                         </p>
-                      ) : action.kind === "ai_character" ? (
+                      ) : action.kind === "ai_character" && !roll ? (
                         <p className="text-[11px] text-zinc-500">판정 없음 · 대화</p>
                       ) : null}
                     </div>

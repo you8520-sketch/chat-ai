@@ -190,6 +190,26 @@ describe("preview-only campaign dice theme", () => {
       timestamp: 4,
     }), true);
     assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_RENDERER_DECISION",
+      data: {
+        WEBGL_AVAILABLE: true,
+        PREFERS_REDUCED_MOTION: false,
+        SELECTED_RENDERER: "dice-box-threejs",
+        FALLBACK_REASON: "none",
+      },
+      timestamp: 6,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_RENDERER_DECISION",
+      data: {
+        WEBGL_AVAILABLE: true,
+        PREFERS_REDUCED_MOTION: false,
+        SELECTED_RENDERER: "custom",
+        FALLBACK_REASON: "none",
+      },
+      timestamp: 7,
+    }), false);
+    assert.equal(isTrpgDiceRuntimeInstrument({
       event: "DICE_ROLL_RESOLVED",
       debugMetadata: true,
       data: { boxId: "dice-box", diceListLength: 1, ...dimensions },
