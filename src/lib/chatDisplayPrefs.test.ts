@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   CHAT_INFO_STICKY_NO_PORTRAIT_CLASS,
@@ -13,6 +14,8 @@ import {
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  isChatRoomPathname,
+  isCompactRoomPathname,
   formatStreamIntervalLabel,
   normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
@@ -20,6 +23,34 @@ import {
   normalizeShowSuggestedReplies,
   resolveClientDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+
+describe("compact room pathnames", () => {
+  it("keeps chat-room chrome on /chat/:id only", () => {
+    assert.equal(isChatRoomPathname("/chat/12"), true);
+    assert.equal(isChatRoomPathname("/trpg/12"), false);
+    assert.equal(isChatRoomPathname("/trpg"), false);
+  });
+
+  it("collapses the desktop global rail on chat and TRPG rooms", () => {
+    assert.equal(isCompactRoomPathname("/chat/12"), true);
+    assert.equal(isCompactRoomPathname("/trpg/12"), true);
+    assert.equal(isCompactRoomPathname("/trpg"), false);
+    assert.equal(isCompactRoomPathname("/trpg/join/abcd"), false);
+    assert.equal(isCompactRoomPathname("/"), false);
+  });
+
+  it("uses the compact helper for rail collapse without expanding chat-room chrome", () => {
+    const shell = readFileSync("src/components/SidebarShell.tsx", "utf8");
+    const docClass = readFileSync("src/components/ChatRoomDocumentClass.tsx", "utf8");
+    const header = readFileSync("src/components/HeaderMainNavRow.tsx", "utf8");
+    assert.match(shell, /isCompactRoomPathname/);
+    assert.match(shell, /railWidth = collapsed \? 44 : 176/);
+    assert.match(docClass, /isChatRoomPathname/);
+    assert.doesNotMatch(docClass, /isCompactRoomPathname/);
+    assert.match(header, /isChatRoomPathname/);
+    assert.doesNotMatch(header, /isCompactRoomPathname/);
+  });
+});
 
 describe("chat streaming speed presets", () => {
   it("defaults new users to fast streaming", () => {

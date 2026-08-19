@@ -419,6 +419,11 @@ export function isChatRoomPathname(pathname: string): boolean {
   return /^\/chat\/\d+/.test(pathname);
 }
 
+/** Desktop compact left rail: regular chat rooms and TRPG campaign rooms. */
+export function isCompactRoomPathname(pathname: string): boolean {
+  return isChatRoomPathname(pathname) || /^\/trpg\/\d+/.test(pathname);
+}
+
 /** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · chat desktop+: 제목 바 숨김 */
 export const CHAT_ROOM_TITLE_BAR_CLASS =
   "chat-room-mobile-title-bar fixed inset-x-0 top-0 z-50 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur min-[576px]:px-0 min-[576px]:hidden";
