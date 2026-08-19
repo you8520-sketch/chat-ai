@@ -127,6 +127,7 @@ import {
   resolveHistoryTokenBudget,
   resolveMaxPayloadInputTokens,
   GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD,
+  HISTORY_TOKEN_HARD_CAP,
   MIN_HISTORY_TURN_FLOOR,
 } from "@/lib/contextTrack";
 import {
@@ -233,7 +234,7 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
  *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → tail
  *
- * History: 전체 대화 raw → trimHistoryToBudget (전 모델 10K + coverage-aware floor).
+ * History: 전체 대화 raw → trimHistoryToBudget (10K 예산 + 16K hard cap + coverage-aware floor).
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;
@@ -1445,8 +1446,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   let effectiveHistoryTurnFloor = requestedSafetyTurnFloor;
   let memoryCoverageDegraded = false;
 
-  let effectiveHistoryBudget = historyBudget;
-  let historySource = input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory
+  let effectiveHistoryBudget = input.preserveAdultHandoffRawHistory
+    ? Math.min(historyBudget, HISTORY_TOKEN_HARD_CAP)
+    : historyBudget;
+  let historySource = input.geminiStaticDynamicMode
     ? historyForAssembly
     : trimHistoryToBudget(
         historyForAssembly,
@@ -1456,7 +1459,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   if (!input.geminiStaticDynamicMode) {
     while (
-      !input.preserveAdultHandoffRawHistory &&
       estimatePayloadTokens(historySource) > maxPayload &&
       effectiveHistoryBudget > 400
     ) {

@@ -4349,7 +4349,7 @@ export async function POST(req: Request) {
           charPromptEst = Math.max(0, charPromptEst - keywordLoreEst);
         }
 
-        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + coverage-aware floor)
+        // raw = 전체 대화 → trimHistoryToBudget(10K 예산 + 16K hard cap + coverage-aware floor)
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);

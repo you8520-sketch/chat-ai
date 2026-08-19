@@ -131,7 +131,7 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     assert.ok(!ids.includes("auto-continue-handoff-hint"));
   });
 
-  it("preserves the already-selected adult handoff RAW without a second trim", () => {
+  it("hard-caps already-selected adult handoff RAW instead of replaying it unbounded", () => {
     const longAssistant = "장면의 위치와 미완료 행동을 이어 간다. ".repeat(260);
     const shortTermHistory = Array.from({ length: 5 }, (_, index) => [
       { role: "user" as const, content: `완전한 user 왕복 ${index}` },
@@ -148,8 +148,11 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
       provider: "cheaperinference",
       preserveAdultHandoffRawHistory: true,
     });
-    assert.equal(built.history.length, 11);
-    assert.equal(built.history.filter((message) => message.role === "assistant").length, 5);
+    const priorHistory = built.history.slice(0, -1);
+    assert.ok(priorHistory.length < shortTermHistory.length);
+    assert.ok(priorHistory.length >= 8);
+    assert.equal(priorHistory.length % 2, 0);
+    assert.ok(built.history.filter((message) => message.role === "assistant").length <= 4);
     assert.match(built.history.at(-1)?.content ?? "", /현재 입력/);
   });
 });
