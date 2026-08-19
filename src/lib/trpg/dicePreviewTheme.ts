@@ -263,18 +263,6 @@ export function logTrpgDiceRuntimeInstrument(
     .__TRPG_DICE_RUNTIME_LOG ??= []);
   bag.push(timestamped);
   console.info("[trpg-dice-preview]", timestamped);
-  if (isTrpgDicePreviewRuntime({
-    nodeEnv: process.env.NODE_ENV,
-    previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
-    hostname: window.location.hostname,
-  })) {
-    void fetch("/api/trpg/dice-preview-log", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(timestamped),
-      keepalive: true,
-    }).catch(() => undefined);
-  }
 }
 
 export function previewDiceOverlayFixture(name = "권태현", d20 = 14): TrpgPublicRoll {

@@ -28,6 +28,7 @@ export type OpenRouterKoreanProseTopOpts = {
   novelModeEnabled?: boolean;
   autoProgressionEnabled?: boolean;
   impersonationOn?: boolean;
+  currentTurnDelegated?: boolean;
   party?: boolean;
 };
 
@@ -49,6 +50,7 @@ export function buildOpenRouterKoreanProseTopBlock(
     novelModeEnabled: opts.novelModeEnabled,
     autoProgressionEnabled: opts.autoProgressionEnabled,
     impersonationOn: opts.impersonationOn,
+    currentTurnDelegated: opts.currentTurnDelegated,
     party: opts.party,
   });
 

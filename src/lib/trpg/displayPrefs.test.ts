@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
+  loadTrpgActionSuggestionsCache,
   loadTrpgActionSuggestionsEnabled,
   loadTrpgDisplayPrefs,
+  saveTrpgActionSuggestionsCache,
   saveTrpgActionSuggestionsEnabled,
   shouldAutoRequestTrpgActionSuggestions,
+  TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX,
   TRPG_ACTION_SUGGESTIONS_KEY,
   TRPG_LEGACY_FONT_SIZE_KEY,
 } from "./displayPrefs";
@@ -142,5 +145,38 @@ describe("TRPG display prefs", () => {
       }),
       true
     );
+  });
+
+  it("caches action examples per campaign round and restores them without regenerating", () => {
+    const store = new Map<string, string>();
+    const suggestions = [
+      { actionType: "free" as const, text: "문을 연다" },
+      { actionType: "talk" as const, text: "GM에게 묻는다", speech: "여기는 어디지?" },
+    ];
+    withLocalStorage(store, () => {
+      assert.equal(loadTrpgActionSuggestionsCache(7, 3), null);
+      saveTrpgActionSuggestionsCache(7, 3, suggestions);
+      assert.equal(store.get(`${TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX}7`) != null, true);
+      // Same round restores the cached examples.
+      assert.deepEqual(loadTrpgActionSuggestionsCache(7, 3), suggestions);
+      // A different round never reuses stale examples.
+      assert.equal(loadTrpgActionSuggestionsCache(7, 4), null);
+      // A different campaign never reuses another room's examples.
+      assert.equal(loadTrpgActionSuggestionsCache(8, 3), null);
+      // New round overwrites the old cache.
+      saveTrpgActionSuggestionsCache(7, 4, [suggestions[0]]);
+      assert.deepEqual(loadTrpgActionSuggestionsCache(7, 4), [suggestions[0]]);
+      assert.equal(loadTrpgActionSuggestionsCache(7, 3), null);
+    });
+  });
+
+  it("ignores corrupt or empty suggestion cache entries", () => {
+    const store = new Map<string, string>();
+    withLocalStorage(store, () => {
+      store.set(`${TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX}7`, "not-json");
+      assert.equal(loadTrpgActionSuggestionsCache(7, 3), null);
+      store.set(`${TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX}7`, JSON.stringify({ round: 3, suggestions: [] }));
+      assert.equal(loadTrpgActionSuggestionsCache(7, 3), null);
+    });
   });
 });

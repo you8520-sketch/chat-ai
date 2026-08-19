@@ -30,6 +30,7 @@ import {
   SHORT_TERM_TURNS,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
+import { trimProviderHistoryToBudget, isOpeningUserMessage } from "@/lib/providerHistoryPolicy";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
@@ -37,6 +38,10 @@ import { buildNarrativePovPrompt } from "@/lib/narrativePov";
 import { buildUserPersonaReferencePrompt } from "@/lib/userPersonaReference";
 import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
+import {
+  INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+  resolveCurrentTurnUserAuthoringDelegation,
+} from "@/lib/currentTurnUserAuthoringDelegation";
 import {
   resolveChatRuntimeMode,
   type ChatRuntimeMode,
@@ -323,6 +328,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const oocLimitedCoNarration =
     !!input.userImpersonation && !autoProgressionEnabled;
   const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
+  const currentTurnDelegation = autoProgressionEnabled
+    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
+    : input.currentTurnAuthoringDelegation !== undefined
+      ? input.currentTurnAuthoringDelegation
+      : resolveCurrentTurnUserAuthoringDelegation({
+          currentUserInput: input.currentUserMessage,
+        });
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
@@ -330,7 +342,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     isContinue: input.isContinue === true,
     legacyNovelModeEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
+    currentTurnDelegationActive:
+      !oocLimitedCoNarration && currentTurnDelegation.active,
   });
+  const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
   const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
     input.userId,
     input.modelId
@@ -458,6 +473,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
     autoProgressionEnabled,
+    currentTurnDelegated,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
@@ -481,6 +497,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         novelModeEnabled,
         autoProgressionEnabled,
         impersonationOn: oocLimitedCoNarration,
+        currentTurnDelegated,
         party: input.party,
       }),
       "cacheRules"
@@ -521,6 +538,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
     autoProgressionEnabled,
+    currentTurnDelegated,
     userName: personaLabel,
   });
 
@@ -584,6 +602,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     legacyNovelModeEnabled,
     impersonationOn: oocLimitedCoNarration,
     isContinue: autoProgressionEnabled,
+    currentTurnDelegation,
   });
   // Gemini 3.1 only: append body/intent boundary after shared collaborative
   // interactive owner. Does not mutate COLLABORATIVE_INTERACTIVE_OWNER_BLOCK
@@ -593,7 +612,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "[0a] No godmodding (user agency)",
     "systemRules",
     appendGemini31UserAgencySupplement(
-      buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
+      buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode, {
+        currentTurnDelegation,
+      }),
       {
         modelId: input.modelId,
         godmoddingMode,
@@ -1415,6 +1436,30 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const requestedHistoryTurnFloor = Number.isFinite(input.historyMinTurnFloor)
     ? Math.max(0, Math.floor(input.historyMinTurnFloor!))
     : MIN_HISTORY_TURN_FLOOR;
+  const providerHistoryAbsoluteTurnFloor = Number.isFinite(
+    input.providerHistoryAbsoluteTurnFloor
+  )
+    ? Math.max(0, Math.floor(input.providerHistoryAbsoluteTurnFloor!))
+    : 0;
+  const providerTrimOpts = {
+    minRealPlayableExchanges:
+      Number.isFinite(input.providerHistoryMinRealPlayableExchanges) &&
+      (input.providerHistoryMinRealPlayableExchanges ?? 0) > 0
+        ? Math.floor(input.providerHistoryMinRealPlayableExchanges!)
+        : requestedHistoryTurnFloor,
+    protectOpening: input.providerHistoryProtectOpening === true,
+  };
+  const useProviderHistoryTrim =
+    input.providerHistoryProtectOpening === true ||
+    Number.isFinite(input.providerHistoryMinRealPlayableExchanges);
+  const trimHistoryForAssembly = (
+    hist: ContextBuildInput["shortTermHistory"],
+    budget: number,
+    turnFloor: number
+  ) =>
+    useProviderHistoryTrim
+      ? trimProviderHistoryToBudget(hist, budget, providerTrimOpts)
+      : trimHistoryToBudget(hist, budget, turnFloor);
   const adultRequiredTurnFloor = Number.isFinite(input.adultHandoffRequiredTurnFloor)
     ? Math.max(0, Math.floor(input.adultHandoffRequiredTurnFloor!))
     : 0;
@@ -1428,7 +1473,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   let effectiveHistoryBudget = historyBudget;
   let historySource = input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory
     ? historyForAssembly
-    : trimHistoryToBudget(
+    : trimHistoryForAssembly(
         historyForAssembly,
         effectiveHistoryBudget,
         effectiveHistoryTurnFloor
@@ -1441,7 +1486,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       effectiveHistoryBudget > 400
     ) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
-      historySource = trimHistoryToBudget(
+      historySource = trimHistoryForAssembly(
         historyForAssembly,
         effectiveHistoryBudget,
         effectiveHistoryTurnFloor
@@ -1450,31 +1495,44 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
     if (estimatePayloadTokens(historySource) > maxPayload) {
       memoryCoverageDegraded = true;
-      let low = 0;
-      let high = requestedSafetyTurnFloor;
-      let bestFloor = 0;
-      let bestHistory: ContextBuildInput["shortTermHistory"] = [];
+      if (useProviderHistoryTrim) {
+        historySource = trimHistoryForAssembly(
+          historyForAssembly,
+          effectiveHistoryBudget,
+          Math.max(providerHistoryAbsoluteTurnFloor, effectiveHistoryTurnFloor)
+        );
+        effectiveHistoryTurnFloor = Math.max(
+          providerHistoryAbsoluteTurnFloor,
+          requestedSafetyTurnFloor
+        );
+      } else {
+        let low = 0;
+        let high = requestedSafetyTurnFloor;
+        let bestFloor = 0;
+        let bestHistory: ContextBuildInput["shortTermHistory"] = [];
 
-      while (low <= high) {
-        const candidateFloor = Math.floor((low + high) / 2);
-        const candidateHistory = candidateFloor === 0
-          ? []
-          : trimHistoryToBudget(
-              historyForAssembly,
-              effectiveHistoryBudget,
-              candidateFloor
-            );
-        if (estimatePayloadTokens(candidateHistory) <= maxPayload) {
-          bestFloor = candidateFloor;
-          bestHistory = candidateHistory;
-          low = candidateFloor + 1;
-        } else {
-          high = candidateFloor - 1;
+        while (low <= high) {
+          const candidateFloor = Math.floor((low + high) / 2);
+          const candidateHistory =
+            candidateFloor === 0
+              ? []
+              : trimHistoryToBudget(
+                  historyForAssembly,
+                  effectiveHistoryBudget,
+                  candidateFloor
+                );
+          if (estimatePayloadTokens(candidateHistory) <= maxPayload) {
+            bestFloor = candidateFloor;
+            bestHistory = candidateHistory;
+            low = candidateFloor + 1;
+          } else {
+            high = candidateFloor - 1;
+          }
         }
-      }
 
-      effectiveHistoryTurnFloor = bestFloor;
-      historySource = bestHistory;
+        effectiveHistoryTurnFloor = bestFloor;
+        historySource = bestHistory;
+      }
     }
   }
 
@@ -1522,6 +1580,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       return { ...m, content };
     }
     if (m.role === "user") {
+      if (isOpeningUserMessage(m.content)) {
+        return m;
+      }
       // Consistent action/thought labels for all providers (not CURRENT USER INPUT — history only).
       return { ...m, content: formatUserMessageForPrompt(m.content, hasMindReading) };
     }
@@ -1655,6 +1716,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
       momentumActivation,
+      runtimeMode,
     },
   };
 }

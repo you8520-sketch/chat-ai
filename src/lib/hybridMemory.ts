@@ -8,11 +8,17 @@ import {
 } from "@/lib/contextTrack";
 import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
 
-/** 하이브리드 메모리 — 슬라이딩 윈도우 + 6턴 롤링 요약 */
-export const SHORT_TERM_TURNS = 5;
+/** 하이브리드 메모리 — 슬라이딩 윈도우 + 5턴 롤링 요약 */
+/** Non-provider memory analysis window (batch gap math only — NOT provider RAW). */
+export const MEMORY_ANALYSIS_WINDOW_TURNS = 5;
+/** @deprecated Use MEMORY_ANALYSIS_WINDOW_TURNS — not provider RAW policy. */
+export const SHORT_TERM_TURNS = MEMORY_ANALYSIS_WINDOW_TURNS;
 /** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 — 전 모델 10K 통일 */
 export const SHORT_TERM_TOKEN_BUDGET = 10_000;
-export const ROLLING_SUMMARY_INTERVAL = 6;
+/** New summary batches seal every 5 complete playable turns. */
+export const ROLLING_SUMMARY_INTERVAL = 5;
+/** Normal provider RAW history — latest N complete playable exchanges (not messages). */
+export const RAW_HISTORY_COMPLETE_EXCHANGES = 4;
 /** @deprecated ROLLING_SUMMARY_INTERVAL 사용 */
 export const BATCH_TURN_SIZE = ROLLING_SUMMARY_INTERVAL;
 export const BATCH_SUMMARY_MAX_CHARS = 300;
@@ -70,10 +76,10 @@ export function countPlayableTurns(turns: DialogueTurn[]): number {
   return splitOpeningPlayableTurns(turns).playable.length;
 }
 
-/** 최근 N턴을 AI history 형식으로 (원본 유지) */
+/** 최근 N턴을 AI history 형식으로 (원본 유지). Caller must pass explicit count. */
 export function recentTurnsToHistory(
   turns: DialogueTurn[],
-  count = SHORT_TERM_TURNS
+  count: number
 ): { role: "user" | "assistant"; content: string }[] {
   const slice = turns.slice(-count);
   const out: { role: "user" | "assistant"; content: string }[] = [];
@@ -112,22 +118,19 @@ export function resolveMemoryCoverageTurnFloor(opts: {
   return Math.max(baseFloor, unsummarizedTurns);
 }
 
-/** Memory OFF는 main의 고정 4-turn RAW 정책을 그대로 유지한다. */
+/** Memory OFF and provider RAW both use the fixed exchange floor (not coverage lag). */
 export function resolveHistoryMinTurnFloor(opts: {
   memoryFeatureEnabled: boolean;
   completedTurns: number;
   summarizedTurnCount?: number | null;
   baseFloor?: number;
 }): number {
-  const baseFloor = normalizeNonNegativeInteger(
-    opts.baseFloor ?? MIN_HISTORY_TURN_FLOOR
+  void opts.memoryFeatureEnabled;
+  void opts.completedTurns;
+  void opts.summarizedTurnCount;
+  return normalizeNonNegativeInteger(
+    opts.baseFloor ?? RAW_HISTORY_COMPLETE_EXCHANGES
   );
-  if (!opts.memoryFeatureEnabled) return baseFloor;
-  return resolveMemoryCoverageTurnFloor({
-    completedTurns: opts.completedTurns,
-    summarizedTurnCount: opts.summarizedTurnCount,
-    baseFloor,
-  });
 }
 
 /** first RAW playable turn과 sealed summary 사이의 미보존 구간. */
@@ -240,25 +243,73 @@ function alignHistoryPrefixDrop(
   return aligned.length > 0 ? aligned : kept;
 }
 
+export type ProviderRawHistoryOpts = {
+  /** Post-barrier authoritative summarized frontier (playable turns). */
+  summarizedTurnCount?: number;
+  memoryFeatureEnabled?: boolean;
+};
+
+/** Whether opening greeting belongs in provider RAW (turn 0 — not counted toward RAW=4). */
+export function shouldIncludeOpeningInProviderRaw(opts: {
+  opening: DialogueTurn | null;
+  summarizedTurnCount?: number;
+  memoryFeatureEnabled?: boolean;
+  playableCount: number;
+}): boolean {
+  if (!opts.opening) return false;
+  const summarized = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  if (opts.memoryFeatureEnabled) {
+    return summarized < ROLLING_SUMMARY_INTERVAL;
+  }
+  return opts.playableCount <= RAW_HISTORY_COMPLETE_EXCHANGES;
+}
+
 /**
- * 전체 대화 턴 풀 — opening + playable 전부.
- * 주입량은 trimHistoryToBudget(전 모델 10K + coverage-aware floor)만 결정.
+ * Provider RAW pool — latest N complete playable exchanges.
+ * Opening greeting (turn 0) may prepend when still needed for scene continuity.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],
-  _summarizedTurnCount?: number
-): { pool: DialogueTurn[]; firstTurn1Indexed: number } {
-  void _summarizedTurnCount;
+  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES,
+  rawOpts?: ProviderRawHistoryOpts
+): { pool: DialogueTurn[]; firstTurn1Indexed: number; includesOpening: boolean } {
   const { opening, playable } = splitOpeningPlayableTurns(turns);
-  if (playable.length === 0 && !opening) {
-    return { pool: [], firstTurn1Indexed: 1 };
+  const includeOpening = shouldIncludeOpeningInProviderRaw({
+    opening,
+    summarizedTurnCount: rawOpts?.summarizedTurnCount,
+    memoryFeatureEnabled: rawOpts?.memoryFeatureEnabled ?? false,
+    playableCount: playable.length,
+  });
+
+  if (playable.length === 0) {
+    return {
+      pool: includeOpening && opening ? [opening] : [],
+      firstTurn1Indexed: 1,
+      includesOpening: includeOpening && !!opening,
+    };
   }
 
-  const pool: DialogueTurn[] = [];
-  if (opening) pool.push(opening);
-  pool.push(...playable);
+  const count = Math.max(1, Math.min(exchangeCount, playable.length));
+  const recentPlayable = playable.slice(-count);
+  const firstTurn1Indexed = playable.length - recentPlayable.length + 1;
+  const pool =
+    includeOpening && opening ? [opening, ...recentPlayable] : recentPlayable;
 
-  return { pool, firstTurn1Indexed: 1 };
+  return {
+    pool,
+    firstTurn1Indexed,
+    includesOpening: includeOpening && !!opening,
+  };
+}
+
+export function rawRecentTurnsToHistory(
+  turns: DialogueTurn[],
+  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES,
+  rawOpts?: ProviderRawHistoryOpts
+): { role: "user" | "assistant"; content: string }[] {
+  const { pool } = resolveRawRecentTurnPool(turns, exchangeCount, rawOpts);
+  if (pool.length === 0) return [];
+  return recentTurnsToHistory(pool, pool.length);
 }
 
 /**
@@ -300,16 +351,6 @@ export function resolveLorebookExcludeTurnStart(
   return rawTurnPool.firstTurn1Indexed;
 }
 
-export function rawRecentTurnsToHistory(
-  turns: DialogueTurn[],
-  _summarizedTurnCount?: number
-): { role: "user" | "assistant"; content: string }[] {
-  void _summarizedTurnCount;
-  const { pool } = resolveRawRecentTurnPool(turns);
-  if (pool.length === 0) return [];
-  return recentTurnsToHistory(pool, pool.length);
-}
-
 /**
  * Gemini Dynamic — 최근 3턴 raw history (Static cache와 분리)
  */
@@ -317,10 +358,9 @@ export function splitTurnsForGeminiCache(
   turns: DialogueTurn[],
   formatUser: (userText: string) => string,
   stripAssistant: (assistantText: string) => string = (t) => t,
-  _summarizedTurnCount?: number
+  exchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES
 ): { dynamicHistory: ChatMsg[] } {
-  void _summarizedTurnCount;
-  const { pool } = resolveRawRecentTurnPool(turns);
+  const { pool } = resolveRawRecentTurnPool(turns, exchangeCount);
   if (pool.length === 0) {
     return { dynamicHistory: [] };
   }
@@ -364,8 +404,11 @@ export function nextBatchRange(
   totalTurns: number,
   archivedTurnCount: number
 ): { start: number; end: number } | null {
-  if (totalTurns <= SHORT_TERM_TURNS) return null;
-  const windowStart = Math.max(archivedTurnCount, totalTurns - SHORT_TERM_TURNS);
+  if (totalTurns <= MEMORY_ANALYSIS_WINDOW_TURNS) return null;
+  const windowStart = Math.max(
+    archivedTurnCount,
+    totalTurns - MEMORY_ANALYSIS_WINDOW_TURNS
+  );
   const pendingBeforeWindow = windowStart - archivedTurnCount;
   if (pendingBeforeWindow <= 0) return null;
   const batchSize = Math.min(BATCH_TURN_SIZE, pendingBeforeWindow);

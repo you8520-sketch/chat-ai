@@ -5,6 +5,7 @@ import {
   isTrpgDiceRuntimeInstrument,
   isTrpgDicePreviewRuntime,
   isTrpgProductionAppHost,
+  parseDicePreviewD20,
   parseDiceThemeQuery,
   previewDiceOverlayFixture,
   previewDiceRollKey,
@@ -85,8 +86,23 @@ describe("preview-only campaign dice theme", () => {
     assert.equal(nat1.rolls[0]?.tier, "CRITICAL_FAILURE");
   });
 
+  it("never injects when dicePreviewD20 is supplied without the preview switch", () => {
+    const live = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreviewD20: "20",
+      phase: "ACTION_INPUT",
+      currentRolls: [],
+    });
+    assert.equal(live.inject, false);
+    assert.equal(live.rolls.length, 0);
+    for (const invalid of ["", "0", "21", "1.5", "abc"]) {
+      assert.equal(parseDicePreviewD20(invalid), null);
+    }
+  });
+
   it("never overrides theme or injects on the production Railway host", () => {
     assert.equal(isTrpgProductionAppHost("chat-ai-production-3e84.up.railway.app"), true);
+    assert.equal(isTrpgProductionAppHost("CHAT-AI-PRODUCTION-3E84.UP.RAILWAY.APP"), true);
     const previewEnabled = isTrpgDicePreviewRuntime({
       nodeEnv: "production",
       previewFlag: "1",
@@ -109,6 +125,7 @@ describe("preview-only campaign dice theme", () => {
       previewEnabled,
       queryTheme: "gemstone-arcane",
       queryPreview: "1",
+      queryPreviewD20: "20",
       savedTheme: "ancient-reliquary",
       phase: "ACTION_INPUT",
       currentRolls: [],

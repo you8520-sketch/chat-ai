@@ -4,6 +4,7 @@
  * - interactive: normal user-input turn; collaborative interactive owner
  * - auto_progression: continue button OR legacy novelModeEnabled normalized
  * - ooc_user_impersonation_allowed: explicit OOC co-narration opt-in on an interactive turn
+ * - current_turn_ooc_delegated: manual turn with explicit leading OOC authoring delegation
  *
  * Legacy novelModeEnabled maps to auto_progression (compatibility) — never novel POV.
  */
@@ -11,7 +12,8 @@
 export type ChatRuntimeMode =
   | "interactive"
   | "auto_progression"
-  | "ooc_user_impersonation_allowed";
+  | "ooc_user_impersonation_allowed"
+  | "current_turn_ooc_delegated";
 
 export type ResolveChatRuntimeModeInput = {
   /** Auto-continue button turn */
@@ -24,6 +26,8 @@ export type ResolveChatRuntimeModeInput = {
    */
   novelModeEnabled?: boolean;
   legacyNovelModeEnabled?: boolean;
+  /** Manual current-turn OOC delegation. Composer is locked during auto progression. */
+  currentTurnDelegationActive?: boolean;
 };
 
 export function resolveChatRuntimeMode(input: ResolveChatRuntimeModeInput): ChatRuntimeMode {
@@ -34,6 +38,9 @@ export function resolveChatRuntimeMode(input: ResolveChatRuntimeModeInput): Chat
   }
   if (input.oocUserImpersonationAllowed === true) {
     return "ooc_user_impersonation_allowed";
+  }
+  if (input.currentTurnDelegationActive === true) {
+    return "current_turn_ooc_delegated";
   }
   return "interactive";
 }

@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, beforeEach, describe, it } from "node:test";
+import { after, afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
   rollbackBranchControlMutationsForDeletedUserMessage,
@@ -154,8 +154,18 @@ function loadRow(recordId: number) {
   return listMemoryRecordsForChat(CHAT).find((r) => r.id === recordId)!;
 }
 
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+let savedEnv: string | undefined;
+
 beforeEach(() => {
+  savedEnv = process.env[ENV_KEY];
+  delete process.env[ENV_KEY];
   seedChat();
+});
+
+afterEach(() => {
+  if (savedEnv === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = savedEnv;
 });
 
 after(() => {

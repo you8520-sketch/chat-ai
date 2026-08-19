@@ -180,6 +180,8 @@ describe("TRPG reply suggestions", () => {
 
   it("scrolls the room down to the suggestion list when examples appear", () => {
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /bottomRef/);
+    assert.match(room, /scrollToLatest/);
     assert.match(room, /suggestionsAnchorRef/);
     assert.match(room, /scrollIntoView/);
     assert.match(room, /block: "end"/);
@@ -190,6 +192,8 @@ describe("TRPG reply suggestions", () => {
     const client = fs.readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     assert.match(client, /shouldAutoRequestTrpgActionSuggestions/);
     assert.match(client, /saveTrpgActionSuggestionsEnabled/);
+    assert.match(client, /loadTrpgActionSuggestionsCache/);
+    assert.match(client, /saveTrpgActionSuggestionsCache/);
   });
 
   it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {

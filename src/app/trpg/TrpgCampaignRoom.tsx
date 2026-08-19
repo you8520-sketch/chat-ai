@@ -16,7 +16,6 @@ import {
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
-import { loadTrpgDiceTheme } from "@/lib/trpg/diceThemePrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
 import {
   resolveTrpgD20Tone,
@@ -228,17 +227,18 @@ export default function TrpgCampaignRoom({
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
-  const [diceTheme, setDiceTheme] = useState<TrpgD20ThemeId>(PRODUCTION_D20_THEME);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToLatestRef = useRef<number | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
   );
   const phase = snap.round.phase;
-  const dicePreview = useCampaignDicePreview(snap, diceTheme);
+  const dicePreview = useCampaignDicePreview(snap, PRODUCTION_D20_THEME);
   const rollSessionKey = useMemo(
     () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
     [snap.currentRolls, snap.round.number]
@@ -384,7 +384,6 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
     setDisplayPrefs(loadTrpgDisplayPrefs());
-    setDiceTheme(loadTrpgDiceTheme());
     const cached = loadUserChatPrefsClient();
     accountPrefsRef.current = {
       targetResponseChars: cached.targetResponseChars,
@@ -414,9 +413,45 @@ export default function TrpgCampaignRoom({
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
+  const scrollToLatest = useCallback(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
   }, []);
+
+  useLayoutEffect(() => {
+    hasScrolledToLatestRef.current = null;
+  }, [snap.id]);
+
+  useLayoutEffect(() => {
+    if (waitingOpening && sceneRows.length === 0) return;
+    if (hasScrolledToLatestRef.current === snap.id) return;
+
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    let cancelled = false;
+    const scroll = () => {
+      if (cancelled) return;
+      scrollToLatest();
+    };
+
+    scroll();
+    const delays = [100, 250, 500, 1000, 1500, 2500].map((ms) => window.setTimeout(scroll, ms));
+    const container = quoteSelectContainerRef.current;
+    const observer = container ? new ResizeObserver(scroll) : null;
+    if (container && observer) observer.observe(container);
+    const markDone = window.setTimeout(() => {
+      if (!cancelled) hasScrolledToLatestRef.current = snap.id;
+      observer?.disconnect();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      delays.forEach(clearTimeout);
+      window.clearTimeout(markDone);
+      observer?.disconnect();
+    };
+  }, [sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
 
   useLayoutEffect(() => {
     if (!suggestionsEnabled) return;
@@ -471,8 +506,6 @@ export default function TrpgCampaignRoom({
     snap,
     displayPrefs,
     onDisplayPrefsChange: changeDisplayPrefs,
-    diceTheme,
-    onDiceThemeChange: setDiceTheme,
     partyBody,
     onPartyBodyChange,
     onSendParty,
@@ -862,6 +895,7 @@ export default function TrpgCampaignRoom({
               )}
             </div>
           ) : null}
+          <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
         </div>
         {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
       </div>

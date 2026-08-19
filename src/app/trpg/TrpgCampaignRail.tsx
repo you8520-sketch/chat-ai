@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
 import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/ChatSettingsRailIcons";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
-import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
@@ -45,7 +44,7 @@ function tabIcon(tab: TrpgCampaignRailTab): ChatSettingsRailIconId {
 function tabHint(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "글꼴 · 크기 · 문단 · 색";
+      return "글꼴 · 크기";
     case "sheets":
       return "파티 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
@@ -61,8 +60,6 @@ export default function TrpgCampaignRail({
   snap,
   displayPrefs,
   onDisplayPrefsChange,
-  diceTheme,
-  onDiceThemeChange,
   partyBody,
   onPartyBodyChange,
   onSendParty,
@@ -72,8 +69,6 @@ export default function TrpgCampaignRail({
   snap: TrpgCampaignSnapshot;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
-  diceTheme: TrpgD20ThemeId;
-  onDiceThemeChange: (theme: TrpgD20ThemeId) => void;
   partyBody: string;
   onPartyBodyChange: (value: string) => void;
   onSendParty: () => void;
@@ -114,10 +109,12 @@ export default function TrpgCampaignRail({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             {active === "display" ? (
-              <ChatDisplayReadabilitySettings
-                displayPrefs={displayPrefs}
-                onDisplayPrefsChange={onDisplayPrefsChange}
-              />
+              <>
+                <ChatDisplayReadabilitySettings
+                  displayPrefs={displayPrefs}
+                  onDisplayPrefsChange={onDisplayPrefsChange}
+                />
+              </>
             ) : null}
             {active === "sheets" ? (
               <div className="space-y-3">

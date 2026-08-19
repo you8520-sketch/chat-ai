@@ -42,11 +42,26 @@ export type Usage = {
   apiCallCount?: number;
   /** Next-turn picker — promptAudit.totalAssembledTokens at generation time */
   assembledInputTokens?: number;
-  /**
-   * Admin/debug — receipt breakdown tokens are a proportional allocation of
-   * provider draftInput, not per-section tokenizer counts.
-   */
+  /** Admin/debug — proportional section allocation metadata */
   breakdownAllocation?: "estimated_section_allocation";
+  /** Admin/debug — RAW window health for memory policy verification */
+  rawHistoryHealth?: {
+    rawCompleteExchanges: number;
+    rawMessages: number;
+    rawChars: number;
+    rawInternalEstimate: number;
+    summaryInterval: number;
+    summarizedThroughTurn: number;
+    unsummarizedCompletedTurns: number;
+    policyViolation?: boolean;
+    realRawCompleteExchanges?: number;
+    realRawMessages?: number;
+    realRawChars?: number;
+    openingPreludePresent?: boolean;
+    openingPreludeChars?: number;
+    generalRouteBridgePresent?: boolean;
+    generalRouteBridgeChars?: number;
+  };
   /** Admin/debug — assembled prompt character counts (not provider tokens). */
   assembledPromptChars?: {
     system: number;

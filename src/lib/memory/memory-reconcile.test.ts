@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import {
   computeSummarizedTurnCountFromRecords,
@@ -35,32 +35,58 @@ function record(
   };
 }
 
-describe("shouldTriggerRollingSummary seal at batch end", () => {
-  it("seals [1~6] when turn 6 completes", () => {
-    assert.equal(shouldTriggerRollingSummary(6, 0), true);
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("shouldTriggerRollingSummary seal at batch end (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
   });
 
-  it("does not seal before turn 6", () => {
-    assert.equal(shouldTriggerRollingSummary(5, 0), false);
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
   });
 
-  it("seals [7~12] when turn 12 completes (first batch done)", () => {
-    assert.equal(shouldTriggerRollingSummary(11, 6), false);
-    assert.equal(shouldTriggerRollingSummary(12, 6), true);
+  it("seals [1~5] when turn 5 completes", () => {
+    assert.equal(shouldTriggerRollingSummary(5, 0), true);
+  });
+
+  it("does not seal before turn 5", () => {
+    assert.equal(shouldTriggerRollingSummary(4, 0), false);
+  });
+
+  it("seals [6~10] when turn 10 completes (first batch done)", () => {
+    assert.equal(shouldTriggerRollingSummary(9, 5), false);
+    assert.equal(shouldTriggerRollingSummary(10, 5), true);
   });
 });
 
-describe("turnsUntilNextSummary seal at batch end", () => {
-  it("counts turns until seal at 6 for first batch", () => {
-    assert.equal(turnsUntilNextSummary(0, 0), 6);
-    assert.equal(turnsUntilNextSummary(5, 0), 1);
-    assert.equal(turnsUntilNextSummary(6, 0), 0);
+describe("turnsUntilNextSummary seal at batch end (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
+  it("counts turns until seal at 5 for first batch", () => {
+    assert.equal(turnsUntilNextSummary(0, 0), 5);
+    assert.equal(turnsUntilNextSummary(4, 0), 1);
+    assert.equal(turnsUntilNextSummary(5, 0), 0);
   });
 
   it("counts turns until next batch seal", () => {
-    assert.equal(turnsUntilNextSummary(6, 6), 6);
-    assert.equal(turnsUntilNextSummary(11, 6), 1);
-    assert.equal(turnsUntilNextSummary(12, 6), 0);
+    assert.equal(turnsUntilNextSummary(5, 5), 5);
+    assert.equal(turnsUntilNextSummary(9, 5), 1);
+    assert.equal(turnsUntilNextSummary(10, 5), 0);
   });
 });
 
@@ -99,6 +125,6 @@ describe("computeSummarizedTurnCountFromRecords", () => {
 describe("pruneStaleMemoryRecords", () => {
   it("is exported for turn-delete reconcile", () => {
     assert.equal(typeof pruneStaleMemoryRecords, "function");
-    assert.equal(ROLLING_SUMMARY_INTERVAL, 6);
+    assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
   });
 });

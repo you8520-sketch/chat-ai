@@ -6,6 +6,7 @@ import {
   isCheaperInferenceGemini31ProModel,
   isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceQwen38MaxModel,
+  isDeepSeekV4ProModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
   normalizeDeepSeekV4ProModelId,
@@ -42,9 +43,48 @@ export function assertCheaperInferenceEndpoint(url: string): void {
   }
 }
 
+export type CheaperInferenceAdaptOpts = {
+  /**
+   * Non-DeepSeek → DeepSeek0813 adult-handoff only.
+   * Native/user-selected DeepSeek must omit this flag.
+   */
+  deepSeekAdultHandoffTrueOff?: boolean;
+};
+
+/** Adult-handoff TRUE-OFF applies only after a non-DeepSeek source hands off. */
+export function resolveDeepSeekAdultHandoffTrueOff(input: {
+  selectedModelId: string;
+  adultHandoffActuallyApplied: boolean;
+  resolvedTargetModelId: string;
+}): boolean {
+  const target = normalizeDeepSeekV4ProModelId(input.resolvedTargetModelId);
+  return (
+    !isDeepSeekV4ProModel(input.selectedModelId) &&
+    input.adultHandoffActuallyApplied === true &&
+    target === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+}
+
+/**
+ * Final adult-handoff outbound owner — runs after the generic DeepSeek adapter
+ * so `reasoning_effort` is not deleted again.
+ */
+export function applyDeepSeekAdultHandoffTrueOff(
+  body: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...body };
+  delete next.enable_thinking;
+  delete next.reasoning;
+  delete next.include_reasoning;
+  next.thinking = { type: "disabled" };
+  next.reasoning_effort = "none";
+  return next;
+}
+
 /** Strip OpenRouter-only extensions before sending an OpenAI-compatible request. */
 export function adaptCheaperInferenceChatBody(
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  opts?: CheaperInferenceAdaptOpts
 ): Record<string, unknown> {
   const adapted = { ...body };
   delete adapted.session_id;
@@ -66,6 +106,12 @@ export function adaptCheaperInferenceChatBody(
       }
       delete adapted.reasoning_effort;
       adapted.thinking = { type: "disabled" };
+      if (
+        opts?.deepSeekAdultHandoffTrueOff === true &&
+        isCheaperInferenceDeepSeekV4ProModel(model)
+      ) {
+        return applyDeepSeekAdultHandoffTrueOff(adapted);
+      }
       return adapted;
     }
     if (isCheaperInferenceClaudeOpus5Model(model)) {

@@ -1,7 +1,12 @@
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
+import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
 
 /** Production modes only — legacy `novel` removed; normalize to autoContinue at request boundary. */
-export type NoGodmoddingMode = "standard" | "coNarration" | "autoContinue";
+export type NoGodmoddingMode =
+  | "standard"
+  | "coNarration"
+  | "autoContinue"
+  | "currentTurnDelegated";
 
 export type UserAgencyRuleOptions = {
   /** @deprecated auto-continue uses buildAutoProgressionUserControlBlock */
@@ -112,20 +117,66 @@ ${POSSESSION_MODE_HINT}
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
 }
 
+export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE =
+  "[USER AUTHORING — CURRENT-TURN OOC DELEGATION]";
+
+export type NoGodmoddingBlockOptions = {
+  currentTurnDelegation?: CurrentTurnAuthoringDelegation;
+};
+
+function delegatedScopeLines(delegation?: CurrentTurnAuthoringDelegation): string {
+  const allowDialogue = delegation?.allowDialogue === true;
+  const allowMajorActions = delegation?.allowMajorActions === true;
+  if (allowDialogue && allowMajorActions) {
+    return `이번 턴에 [B]의 대사와 중요한 행동을 페르소나에 맞게 작성할 수 있다.
+위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)은 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니고, 이번 턴에만 적용된다.`;
+  }
+  if (allowDialogue) {
+    return `이번 턴에 [B]의 직접 대사를 페르소나 말투·성격에 맞게 작성할 수 있다.
+새로운 중요한 자발적 행동·동의/거절·관계·정체성 결정은 현재 입력이 이미 확정한 범위 밖에서는 대신하지 않는다.`;
+  }
+  if (allowMajorActions) {
+    return `이번 턴에 [B]의 중요한 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
+현재 입력에 없는 새 [B] 대사는 만들지 않는다.`;
+  }
+  return `이번 턴의 위임 범위가 없으면 [USER CONTROL — COLLABORATIVE INTERACTIVE]와 같이 새 대사·중요 행동을 대신하지 않는다.`;
+}
+
+/** Current-turn OOC delegation owner — not LIMITED CO-NARRATION, not autoContinue. */
+export function buildCurrentTurnDelegatedOwnerBlock(
+  delegation?: CurrentTurnAuthoringDelegation
+): string {
+  return `${CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE}
+
+현재 사용자가 OOC로 이번 턴에 한해 유저 페르소나 서술을 위임했다. 이후 일반 입력 턴의 권한이 아니다.
+
+[USER_PERSONA], 확정된 관계, 현재 장면, 실제 대화·기억을 정본으로 따른다. 새 성격을 만들지 않는다.
+
+${delegatedScopeLines(delegation)}
+
+짧은 표정·시선·호흡·습관·이미 시작된 상태의 자연스러운 마무리는 기존과 같이 공동 서술할 수 있다.`;
+}
+
 export function buildNoGodmoddingBlock(
   _charName: string,
   _userName: string,
-  mode: NoGodmoddingMode = "standard"
+  mode: NoGodmoddingMode = "standard",
+  options?: NoGodmoddingBlockOptions
 ): string {
-  if (mode === "autoContinue") {
-    return buildAutoProgressionUserControlBlock();
+  switch (mode) {
+    case "autoContinue":
+      return buildAutoProgressionUserControlBlock();
+    case "coNarration":
+      return buildLimitedCoNarrationBlock();
+    case "currentTurnDelegated":
+      return buildCurrentTurnDelegatedOwnerBlock(options?.currentTurnDelegation);
+    case "standard":
+      return buildCompactNoGodmoddingStandardBlock();
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
   }
-
-  if (mode === "coNarration") {
-    return buildLimitedCoNarrationBlock();
-  }
-
-  return buildCompactNoGodmoddingStandardBlock();
 }
 
 /** @deprecated consolidated into buildNoGodmoddingBlock */
@@ -142,11 +193,14 @@ export function resolveNoGodmoddingMode(opts: {
   legacyNovelModeEnabled?: boolean;
   impersonationOn?: boolean;
   isContinue?: boolean;
+  /** Manual current-turn OOC only. Ignored when autoContinue already wins. */
+  currentTurnDelegation?: CurrentTurnAuthoringDelegation | null;
 }): NoGodmoddingMode {
   const legacyNovel =
     opts.legacyNovelModeEnabled === true || opts.novelModeEnabled === true;
   // Continue and legacy novel both → AI-focal auto progression (never novel POV)
   if (opts.isContinue || legacyNovel) return "autoContinue";
   if (opts.impersonationOn) return "coNarration";
+  if (opts.currentTurnDelegation?.active) return "currentTurnDelegated";
   return "standard";
 }

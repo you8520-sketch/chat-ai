@@ -47,7 +47,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
               genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
-              content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed
+              content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age
        FROM characters WHERE id=?`
     )
     .get(characterId) as {
@@ -84,6 +84,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     simulation_reuse_allowed: number;
     simulation_nsfw_allowed: number;
     trpg_reuse_allowed: number;
+    participant_min_age: number | null;
   };
 
   let genres: ReturnType<typeof sanitizeCharacterGenres> = [];
@@ -151,6 +152,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     genres,
     tags: tagList.join(", "),
     nsfw: c.nsfw === 1,
+    participant_min_age: c.participant_min_age,
     emoji: c.emoji,
     hue: c.hue,
     audience: c.audience,

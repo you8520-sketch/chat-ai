@@ -58,6 +58,11 @@ import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { parseCharacterTagsInput } from "@/lib/characterTags";
 import {
+  parseParticipantMinAgeInput,
+  validateNsfwParticipantAgeContract,
+  validateParticipantMinAgeValue,
+} from "@/lib/participantMinAge";
+import {
   clearCharacterCreateDraft,
   formatDraftSavedAt,
   loadCharacterCreateDraft,
@@ -158,6 +163,7 @@ export default function CreateCharacter({
     genres: [] as CharacterGenre[],
     tags: [] as string[],
     nsfw: false,
+    participant_min_age: "" as string | number,
     emoji: "✨",
     hue: 260,
     audience: "all",
@@ -255,6 +261,7 @@ export default function CreateCharacter({
       content_kind: draft.form.content_kind ?? initialContentKind,
       simulation_cast: draft.form.simulation_cast ?? "",
       simulation_rules: draft.form.simulation_rules ?? "",
+      participant_min_age: draft.form.participant_min_age ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(normalizeManagedAssets(draft.assets));
@@ -520,6 +527,8 @@ export default function CreateCharacter({
           genres: Array.isArray(data.genres) ? data.genres : [],
           tags: parseCharacterTagsInput(data.tags ?? ""),
           nsfw: !!data.nsfw,
+          participant_min_age:
+            data.participant_min_age != null ? data.participant_min_age : "",
           emoji: data.emoji ?? "✨",
           hue: Number(data.hue) || 260,
           audience: data.audience ?? "all",
@@ -794,6 +803,28 @@ export default function CreateCharacter({
       setError("감정 에셋 이미지를 1장 이상 업로드해 주세요.");
       return;
     }
+    const ageParsed = parseParticipantMinAgeInput(form.participant_min_age);
+    if (!ageParsed.ok) {
+      setError(ageParsed.error);
+      return;
+    }
+    if (ageParsed.value == null) {
+      setError("캐릭터 나이를 입력해 주세요.");
+      return;
+    }
+    const ageRangeError = validateParticipantMinAgeValue(ageParsed.value);
+    if (ageRangeError) {
+      setError(ageRangeError);
+      return;
+    }
+    const nsfwAgeError = validateNsfwParticipantAgeContract({
+      nsfw: form.nsfw,
+      participantMinAge: ageParsed.value,
+    });
+    if (nsfwAgeError) {
+      setError(nsfwAgeError);
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -801,6 +832,7 @@ export default function CreateCharacter({
     const description = form.description.trim();
     const payload = {
       ...form,
+      participant_min_age: ageParsed.value,
       system_prompt: form.content_kind === "simulation" ? form.simulation_cast : form.system_prompt,
       gender: form.content_kind === "simulation" ? "other" : form.gender,
       simulation_import_ids: form.content_kind === "simulation"
@@ -1840,12 +1872,54 @@ export default function CreateCharacter({
                     성인용 {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    {form.nsfw
-                      ? "성인 캐릭터는 본문 단어 검사를 하지 않습니다. 에셋 태깅에서 성인용으로 걸리면 관리자 승인 후 홈에 올라갑니다."
-                      : "일반 캐릭터는 공개 글의 성인물 단어만 확인하고 바로 홈에 올라갑니다. 에셋이 성인용으로 검열되면 그 이미지를 바꿔 주세요."}
+                    {form.content_kind === "simulation"
+                      ? "성인 장면 기능을 사용할 시뮬레이션입니다. 성인 장면에 참여 가능한 주요 등장인물은 모두 만 19세 이상이어야 합니다."
+                      : "성인 장면 기능을 사용할 캐릭터입니다. 성인 장면에 참여 가능한 주요 등장인물은 모두 만 19세 이상이어야 합니다."}
                   </p>
                 </div>
               </label>
+
+              <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
+                <label className={label} htmlFor="participant-min-age">
+                  {form.content_kind === "simulation"
+                    ? "성인 장면 참여 가능 등장인물 중 최저 나이"
+                    : "캐릭터 나이"}
+                </label>
+                <input
+                  id="participant-min-age"
+                  type="number"
+                  min={1}
+                  max={999}
+                  step={1}
+                  inputMode="numeric"
+                  value={form.participant_min_age}
+                  onChange={(e) =>
+                    setForm({ ...form, participant_min_age: e.target.value })
+                  }
+                  className={`${cls} mt-2`}
+                  placeholder="예: 28"
+                  disabled={loading}
+                />
+                <p className="mt-2 text-xs text-zinc-400">
+                  {form.content_kind === "simulation"
+                    ? "성인 장면에 참여할 수 있는 주요 등장인물 중 가장 어린 인물의 현재 만 나이를 입력해 주세요. 자녀·가족·학생·아동 NPC 등 성인 장면에 참여하지 않는 설정상 조연은 제외합니다."
+                    : "현재 캐릭터의 만 나이를 입력해 주세요."}
+                </p>
+                {form.nsfw && form.participant_min_age === "" ? (
+                  <p className="mt-2 text-xs text-amber-400">
+                    성인용 캐릭터로 설정하려면 나이를 입력해 주세요.
+                  </p>
+                ) : null}
+                {form.nsfw &&
+                form.participant_min_age !== "" &&
+                Number(form.participant_min_age) > 0 &&
+                Number(form.participant_min_age) < 19 ? (
+                  <p className="mt-2 text-xs text-amber-400">
+                    성인용 캐릭터/시뮬레이션은 성인 장면 참여 가능 인물이 모두 만
+                    19세 이상이어야 합니다.
+                  </p>
+                ) : null}
+              </div>
 
               <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
                 <ToggleSwitch

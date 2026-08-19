@@ -91,6 +91,23 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     }
   });
 
+  it("E2. current_turn_ooc_delegated → lock NOT injected; OOC kept; not remain-user-authored", () => {
+    const w = buildCurrentUserInputWrapper({
+      mode: "current_turn_ooc_delegated",
+      ownershipLockEnabled: true,
+      personaName: "렌",
+    });
+    assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
+    assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+    assert.ok(!w.includes("[B] ="));
+    assert.match(w, /CURRENT-TURN OOC DELEGATION/);
+    assert.doesNotMatch(w, /remain user-authored/);
+    const wrapped = wrapCurrentUserInput("OOC: 내 대사도 써줘.", {
+      mode: "current_turn_ooc_delegated",
+    });
+    assert.match(wrapped, /OOC: 내 대사도 써줘/);
+  });
+
   it("E. ooc_user_impersonation_allowed → lock NOT injected regardless of gate", () => {
     const w = buildCurrentUserInputWrapper({
       mode: "ooc_user_impersonation_allowed",

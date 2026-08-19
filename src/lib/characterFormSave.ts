@@ -70,12 +70,16 @@ import {
   type SimulationImportSnapshot,
 } from "@/lib/simulationMode";
 import {
-  inferAdultStatusFromLegacyText,
   normalizeAdultDialogueProfile,
   type AdultConsentMode,
   type AdultDialogueProfile,
   type AdultStatus,
 } from "@/lib/adultSceneRouting";
+import {
+  deriveAdultStatusFromParticipantMinAge,
+  resolveParticipantMinAgeForSave,
+  validateNsfwParticipantAgeContract,
+} from "@/lib/participantMinAge";
 
 import {
   AI_LEARNING_LIMIT,
@@ -121,6 +125,7 @@ export type ParsedCharacterForm = {
   audience: string;
   requestedVisibility: CharacterVisibility;
   nsfw: boolean;
+  participantMinAge: number | null;
   adultDialogueProfile: AdultDialogueProfile;
   adultStatus: AdultStatus;
   adultConsentModesAllowed: AdultConsentMode[];
@@ -193,6 +198,16 @@ function parseExplicitAdultStatus(value: unknown): AdultStatus | null {
     : null;
 }
 
+function deriveAdultStatusForSave(input: {
+  participantMinAge: number | null;
+  legacyExplicitStatus?: AdultStatus | null;
+}): AdultStatus {
+  if (input.participantMinAge != null) {
+    return deriveAdultStatusFromParticipantMinAge(input.participantMinAge);
+  }
+  return input.legacyExplicitStatus ?? "unknown";
+}
+
 function parseSimulationImportIds(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
   return Array.from(
@@ -258,7 +273,11 @@ function resolveSimulationImports(
 
 export function parseCharacterFormBody(
   b: Record<string, unknown>,
-  user: SessionUser
+  user: SessionUser,
+  options?: {
+    existingParticipantMinAge?: number | null;
+    requireStructuredAge?: boolean;
+  }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
   if (!user.is_adult) {
     return { ok: false, error: "캐릭터 제작·수정은 성인인증 완료 후 가능합니다.", status: 403 };
@@ -307,11 +326,26 @@ export function parseCharacterFormBody(
   const adultDialogueProfile = normalizeAdultDialogueProfile(
     b.adult_dialogue_profile ?? b.adultDialogueProfile
   );
-  const adultStatus =
-    parseExplicitAdultStatus(b.adult_status ?? b.adultStatus) ??
-    inferAdultStatusFromLegacyText(
-      [description, systemPrompt, world, simulationCast].filter(Boolean).join("\n")
-    );
+  const participantMinAgeResult = resolveParticipantMinAgeForSave({
+    bodyValue: b.participant_min_age ?? b.participantMinAge,
+    existingValue: options?.existingParticipantMinAge ?? null,
+    requireStructuredAge: options?.requireStructuredAge ?? true,
+  });
+  if (!participantMinAgeResult.ok) {
+    return { ok: false, error: participantMinAgeResult.error, status: 400 };
+  }
+  const participantMinAge = participantMinAgeResult.value;
+  const nsfwAgeError = validateNsfwParticipantAgeContract({
+    nsfw,
+    participantMinAge,
+  });
+  if (nsfwAgeError) {
+    return { ok: false, error: nsfwAgeError, status: 400 };
+  }
+  const adultStatus = deriveAdultStatusForSave({
+    participantMinAge,
+    legacyExplicitStatus: parseExplicitAdultStatus(b.adult_status ?? b.adultStatus),
+  });
   const adultConsentModesAllowed = parseAdultConsentModes(
     b.adult_consent_modes_allowed ?? b.adultConsentModesAllowed
   );
@@ -459,6 +493,7 @@ export function parseCharacterFormBody(
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
       requestedVisibility: parseVisibility(b.visibility),
       nsfw,
+      participantMinAge,
       adultDialogueProfile,
       adultStatus,
       adultConsentModesAllowed,
@@ -761,12 +796,13 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   const characterId = Number(info.lastInsertRowid);
   db.prepare(
     `UPDATE characters
-     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?
+     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?, participant_min_age=?
      WHERE id=?`
   ).run(
     data.adultDialogueProfile,
     data.adultStatus,
     JSON.stringify(data.adultConsentModesAllowed),
+    data.participantMinAge,
     characterId
   );
   saveCharacterStatusWidgetTriggers(
@@ -816,16 +852,13 @@ export async function updateCharacterFromForm(
   characterId: number,
   b: Record<string, unknown>
 ) {
-  const parsed = parseCharacterFormBody(b, user);
-  if (!parsed.ok) return parsed;
-
   const db = getDb();
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
               creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
-              content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json
+              content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json, participant_min_age
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -855,10 +888,10 @@ export async function updateCharacterFromForm(
         adult_dialogue_profile: string | null;
         adult_status: string | null;
         adult_consent_modes_json: string | null;
+        participant_min_age: number | null;
       }
     | undefined;
 
-  const data = parsed.data;
   if (!row) return { ok: false as const, error: "캐릭터를 찾을 수 없습니다.", status: 404 };
   if (row.creator_id !== user.id) {
     return { ok: false as const, error: "본인 캐릭터만 수정할 수 있습니다.", status: 403 };
@@ -866,6 +899,14 @@ export async function updateCharacterFromForm(
   if (row.official === 1) {
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
+
+  const parsed = parseCharacterFormBody(b, user, {
+    existingParticipantMinAge: row.participant_min_age,
+    requireStructuredAge: false,
+  });
+  if (!parsed.ok) return parsed;
+
+  const data = parsed.data;
   if ((row.content_kind ?? "character") !== data.contentKind) {
     return {
       ok: false as const,
@@ -974,24 +1015,21 @@ export async function updateCharacterFromForm(
   );
   const adultProfileWasProvided =
     b.adult_dialogue_profile != null || b.adultDialogueProfile != null;
-  const adultStatusWasProvided =
-    b.adult_status != null || b.adultStatus != null;
   const adultConsentModesWereProvided =
     b.adult_consent_modes_allowed != null || b.adultConsentModesAllowed != null;
   db.prepare(
     `UPDATE characters
-     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?
+     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?, participant_min_age=?
      WHERE id=?`
   ).run(
     adultProfileWasProvided
       ? data.adultDialogueProfile
       : normalizeAdultDialogueProfile(row.adult_dialogue_profile),
-    adultStatusWasProvided
-      ? data.adultStatus
-      : parseExplicitAdultStatus(row.adult_status) ?? data.adultStatus,
+    data.adultStatus,
     adultConsentModesWereProvided
       ? JSON.stringify(data.adultConsentModesAllowed)
       : row.adult_consent_modes_json || JSON.stringify(["standard"]),
+    data.participantMinAge,
     characterId
   );
   saveCharacterStatusWidgetTriggers(
@@ -1057,7 +1095,7 @@ export async function updateCharacterPublicProfileFromForm(
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
-              images, nsfw, name, greeting, creator_comment, tags
+              images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1075,6 +1113,8 @@ export async function updateCharacterPublicProfileFromForm(
         greeting: string;
         creator_comment: string | null;
         tags: string | null;
+        participant_min_age: number | null;
+        adult_status: string | null;
       }
     | undefined;
 
@@ -1109,6 +1149,26 @@ export async function updateCharacterPublicProfileFromForm(
   }
 
   const nsfw = !!b.nsfw;
+  const participantMinAgeResult = resolveParticipantMinAgeForSave({
+    bodyValue: b.participant_min_age ?? b.participantMinAge,
+    existingValue: row.participant_min_age,
+    requireStructuredAge: false,
+  });
+  if (!participantMinAgeResult.ok) {
+    return { ok: false as const, error: participantMinAgeResult.error, status: 400 };
+  }
+  const nsfwAgeError = validateNsfwParticipantAgeContract({
+    nsfw,
+    participantMinAge: participantMinAgeResult.value,
+  });
+  if (nsfwAgeError) {
+    return { ok: false as const, error: nsfwAgeError, status: 400 };
+  }
+  const participantMinAge = participantMinAgeResult.value;
+  const adultStatus = deriveAdultStatusForSave({
+    participantMinAge,
+    legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
+  });
   const images = assetUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
@@ -1154,7 +1214,8 @@ export async function updateCharacterPublicProfileFromForm(
       tagline=?, description=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?,
-      simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?
+      simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?,
+      participant_min_age=?, adult_status=?
      WHERE id=?`
   ).run(
     tagline,
@@ -1179,6 +1240,8 @@ export async function updateCharacterPublicProfileFromForm(
     0,
     0,
     b.trpg_reuse_allowed === true ? 1 : 0,
+    participantMinAge,
+    adultStatus,
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);

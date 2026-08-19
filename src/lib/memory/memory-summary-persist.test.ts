@@ -11,9 +11,9 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { describe, it, before, after } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
-import { getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { syncMemoryFromChat } from "./memory-backfill";
 import {
   buildOocOnlyBatchPlaceholder,
@@ -29,7 +29,9 @@ import {
   listMemoryRecordsForChat,
   listVisibleMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  countDistinctActiveBranchIds,
 } from "./memory-turn-summary";
+import type { PersistPendingBranchControlOp } from "./memory-branch-control";
 import { buildRecentNarrativeContextBlock, buildStoredHistoryStaticBlock } from "./memory-narrative-context";
 import { stripOocFromMemorySummary } from "./memory-ooc-filter";
 import { getMemorySourceBoundary } from "./memory-source-boundary";
@@ -79,7 +81,21 @@ function memCount(): number {
   return mem?.summarized_turn_count ?? -1;
 }
 
-describe("persistValidatedSummaryBatch integrity", () => {
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("persistValidatedSummaryBatch integrity (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   before(() => {
     seed();
   });
@@ -87,7 +103,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     cleanup();
   });
 
-  it("valid 1~6 inserts row and sets count=6", () => {
+  it("valid 1~5 inserts row and sets count=5", () => {
     cleanup();
     seed();
     const r = persistValidatedSummaryBatch({
@@ -102,36 +118,37 @@ describe("persistValidatedSummaryBatch integrity", () => {
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 6);
+    assert.equal(r.summarizedTurnCount, 5);
     const rows = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(rows.length, 1);
     assert.equal(rows[0]!.turnStart, 1);
+    assert.equal(rows[0]!.turnEnd, 5);
     assert.equal(rows[0]!.summaryKind, "main_canon");
   });
 
-  it("valid 7~12 coexists with 1~6 and sets count=12", () => {
+  it("valid 6~10 coexists with 1~5 and sets count=10", () => {
     const r = persistValidatedSummaryBatch({
       chatId: CHAT_ID,
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 12);
+    assert.equal(r.summarizedTurnCount, 10);
     const rows = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(rows.length, 2);
     assert.deepEqual(
       rows.map((x) => x.turnStart),
-      [1, 7]
+      [1, 6]
     );
   });
 
-  it("batch 7 cannot complete while batch 1 is missing", () => {
+  it("batch 6 cannot complete while batch 1 is missing", () => {
     cleanup();
     seed();
     const r = persistValidatedSummaryBatch({
@@ -139,7 +156,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
@@ -169,7 +186,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: "",
       playableTurnCount: 13,
@@ -223,7 +240,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     });
     assert.equal(r.ok, false);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
-    assert.notEqual(memCount(), 6);
+    assert.notEqual(memCount(), 5);
   });
 
   it("duplicate same-batch upsert is idempotent", () => {
@@ -254,17 +271,17 @@ describe("persistValidatedSummaryBatch integrity", () => {
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 1);
   });
 
-  it("reconcile pulls counter down when only 7~12 exists", () => {
+  it("reconcile pulls counter down when only 6~10 exists without batch 1", () => {
     cleanup();
     seed();
     const db = getDb();
     db.prepare(
-      `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, 7, FIXTURE2, "main_canon");
+      `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind) VALUES (?,?,?,?,?)`
+    ).run(CHAT_ID, 6, 10, FIXTURE2, "main_canon");
     db.prepare(
       `INSERT INTO chat_memories (chat_id, user_id, character_id, recent_summary, summarized_turn_count, membership_tier, used_chars)
-       VALUES (?,?,?,?,12,'free',?)`
-    ).run(CHAT_ID, USER_ID, CHAR_ID, "[7~12턴] x", FIXTURE2.length);
+       VALUES (?,?,?,?,10,'free',?)`
+    ).run(CHAT_ID, USER_ID, CHAR_ID, "[6~10턴] x", FIXTURE2.length);
 
     const n = reconcileSummarizedTurnCountFromTable({
       chatId: CHAT_ID,
@@ -287,13 +304,13 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 13,
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 6);
+    assert.equal(r.summarizedTurnCount, 5);
     assert.equal(r.record.summaryKind, "empty_ooc");
     assert.equal(r.record.summary, OOC_ONLY_SUMMARY_MARKER);
 
@@ -309,7 +326,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     const mem = db
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    assert.equal(mem.summarized_turn_count, 6);
+    assert.equal(mem.summarized_turn_count, 5);
     assert.equal((mem.recent_summary || "").includes(OOC_ONLY_SUMMARY_MARKER), false);
 
     assert.equal(buildRecentNarrativeContextBlock(CHAT_ID, 13), "");
@@ -321,16 +338,16 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
     });
     assert.equal(r2.ok, true);
     if (!r2.ok) return;
-    assert.equal(r2.summarizedTurnCount, 12);
+    assert.equal(r2.summarizedTurnCount, 10);
     const lore = rebuildLorebookFromRecords(CHAT_ID);
-    assert.match(lore, /\[7~12턴\]/);
+    assert.match(lore, /\[6~10턴\]/);
     assert.equal(lore.includes(OOC_ONLY_SUMMARY_MARKER), false);
     assert.equal(listVisibleMemoryRecordsForChat(CHAT_ID).length, 1);
   });
@@ -345,7 +362,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
@@ -356,7 +373,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
@@ -465,7 +482,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
@@ -486,8 +503,8 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       playableTurnCount: 13,
     });
-    assert.equal(a, 12);
-    assert.equal(b, 12);
+    assert.equal(a, 10);
+    assert.equal(b, 10);
     assert.equal(rebuildLorebookFromRecords(CHAT_ID), recentA);
     assert.deepEqual(
       listMemoryRecordsForChat(CHAT_ID).map((r) => r.turnStart),
@@ -541,6 +558,216 @@ describe("persistValidatedSummaryBatch integrity", () => {
       playableTurnCount: 20,
     });
     assert.equal(n, 6);
+  });
+});
+
+describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    delete process.env[ENV_KEY];
+    seed();
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
+  after(() => {
+    cleanup();
+  });
+
+  it("rollback after branch ops leaves summary/branch/memory unchanged; retry succeeds", () => {
+    getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
+    const branchText =
+      "분기A: 현대 회사 IF에서 두 사람이 계약을 준비했다. " +
+      "오해가 풀리고 다음 만남을 약속하며 분기가 계속된다. ".repeat(2);
+    const branchPayload = {
+      v: 1 as const,
+      scopes: { branch_canon: branchText },
+      branchId: "branch-A",
+      branchStatus: "closed" as const,
+      promotedBy: "user_continue",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const branchPersist = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary: branchText,
+      summaryKind: "branch_canon",
+      scopePayload: branchPayload,
+      branchId: "branch-A",
+      branchStatus: "closed",
+      promotedBy: "user_continue",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+      playableTurnCount: 20,
+    });
+    assert.equal(branchPersist.ok, true);
+    const branchId = branchPersist.ok ? branchPersist.record.id : 0;
+    const mutationsBefore = getDb()
+      .prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?")
+      .get(branchId) as { scope_payload: string };
+    updateChatMemory(CHAT_ID, USER_ID, CHAR_ID, {
+      recent_summary: "[1~6턴] " + branchText.slice(0, 40),
+      membership_tier: "free",
+    });
+    getDb()
+      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
+      .run("[1~6턴] " + branchText.slice(0, 40), CHAT_ID);
+    const memBefore = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
+    const currentBefore = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT_ID) as { current_summary: string }
+    ).current_summary;
+    const activeBefore = countDistinctActiveBranchIds(CHAT_ID);
+
+    const pendingOps: PersistPendingBranchControlOp[] = [
+      {
+        op: "reopen_branch",
+        branchId: "branch-A",
+        sourceTurn: 12,
+        control: {
+          source: "user_turn",
+          sourceUserMessageId: 999,
+          sourceTurn: 12,
+          sourceBatchStart: 7,
+        },
+      },
+    ];
+    const failed = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 7,
+      assistantMessageId: null,
+      summary: FIXTURE2,
+      summaryKind: "main_canon",
+      playableTurnCount: 20,
+      pendingBranchControlOps: pendingOps,
+      __testThrowAfterBranchOps: true,
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 7), false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).find((r) => r.id === branchId)!.branchStatus, "closed");
+    const mutationsAfter = getDb()
+      .prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?")
+      .get(branchId) as { scope_payload: string };
+    assert.equal(mutationsAfter.scope_payload, mutationsBefore.scope_payload);
+    const memAfter = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
+    assert.equal(memAfter.recent_summary, memBefore.recent_summary);
+    assert.equal(memAfter.summarized_turn_count, memBefore.summarized_turn_count);
+    const currentAfter = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT_ID) as { current_summary: string }
+    ).current_summary;
+    assert.equal(currentAfter, currentBefore);
+    assert.equal(countDistinctActiveBranchIds(CHAT_ID), activeBefore);
+
+    const ok = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 7,
+      assistantMessageId: null,
+      summary: FIXTURE2,
+      summaryKind: "main_canon",
+      playableTurnCount: 20,
+      pendingBranchControlOps: pendingOps,
+    });
+    assert.equal(ok.ok, true);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).filter((r) => r.turnStart === 7).length, 1);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).find((r) => r.id === branchId)!.branchStatus, "active");
+    assert.equal(countDistinctActiveBranchIds(CHAT_ID), 1);
+    const memOk = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
+    assert.equal(memOk.summarized_turn_count, 12);
+    const currentOk = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT_ID) as { current_summary: string }
+    ).current_summary;
+    assert.equal(currentOk, memOk.recent_summary);
+  });
+
+  it("rollback after close-active branch ops leaves active branch unchanged", () => {
+    getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
+    const branchText =
+      "분기C: 카페 IF가 이어지며 약속을 잡았다. " +
+      "오해가 풀리고 다음 만남을 약속하며 분기가 계속된다. ".repeat(2);
+    const branchPayload = {
+      v: 1 as const,
+      scopes: { branch_canon: branchText },
+      branchId: "branch-C",
+      branchStatus: "active" as const,
+      promotedBy: "user_continue",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    };
+    persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary: branchText,
+      summaryKind: "branch_canon",
+      scopePayload: branchPayload,
+      branchId: "branch-C",
+      branchStatus: "active",
+      promotedBy: "user_continue",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+      playableTurnCount: 20,
+    });
+    const activeBefore = countDistinctActiveBranchIds(CHAT_ID);
+    assert.equal(activeBefore, 1);
+
+    const pendingOps: PersistPendingBranchControlOp[] = [
+      {
+        op: "close_active_branches",
+        sourceTurn: 12,
+        control: {
+          source: "user_turn",
+          sourceUserMessageId: 888,
+          sourceTurn: 12,
+          sourceBatchStart: 7,
+        },
+      },
+    ];
+    const failed = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 7,
+      assistantMessageId: null,
+      summary: FIXTURE2,
+      summaryKind: "main_canon",
+      playableTurnCount: 20,
+      pendingBranchControlOps: pendingOps,
+      __testThrowAfterBranchOps: true,
+    });
+    assert.equal(failed.ok, false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 7), false);
+    assert.equal(countDistinctActiveBranchIds(CHAT_ID), activeBefore);
+    assert.equal(
+      listMemoryRecordsForChat(CHAT_ID).find((r) => r.branchId === "branch-C")!.branchStatus,
+      "active"
+    );
   });
 });
 
