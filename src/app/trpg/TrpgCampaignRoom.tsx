@@ -69,6 +69,7 @@ import {
   ROUND_ACTION_REVEAL_MS,
   ROUND_RESULT_HOLD_MS,
   selectVisibleActions,
+  shouldGateLiveRoundPresentation,
   shouldShowGmNarration,
   startCinematicPresentation,
   trpgRoundPresentationSessionKey,
@@ -888,18 +889,27 @@ export default function TrpgCampaignRoom({
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
               revealedActorIds={
-                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
-                  ? cinematicRevealedIds
+                row.roundNumber === snap.round.number &&
+                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                  ? roundShow.mode === "cinematic"
+                    ? cinematicRevealedIds
+                    : []
                   : undefined
               }
               resultLaneActorIds={
-                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
-                  ? cinematicLaneIds
+                row.roundNumber === snap.round.number &&
+                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                  ? roundShow.mode === "cinematic"
+                    ? cinematicLaneIds
+                    : []
                   : undefined
               }
               showGmNarration={
-                row.roundNumber === snap.round.number && roundShow.mode === "cinematic"
-                  ? cinematicShowGm
+                row.roundNumber === snap.round.number &&
+                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                  ? roundShow.mode === "cinematic"
+                    ? cinematicShowGm
+                    : false
                   : undefined
               }
               partyHumanCount={snap.partyHumanCount}

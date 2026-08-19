@@ -11,6 +11,7 @@ import {
   resultLaneActorIds,
   revealedActorIds,
   shouldShowActorResultLane,
+  shouldGateLiveRoundPresentation,
   shouldShowGmNarration,
   startCinematicPresentation,
   trpgRoundPresentationSessionKey,
@@ -188,6 +189,9 @@ describe("TRPG round presentation queue", () => {
     assert.equal(shouldShowActorResultLane({ actorId: 5, actors, state: afterFirstResult }), true);
     assert.equal(shouldShowActorResultLane({ actorId: 6, actors, state: afterFirstResult }), false);
     assert.deepEqual(resultLaneActorIds({ actors, state: historicalPresentation() }), [5, 6]);
+    assert.equal(shouldGateLiveRoundPresentation({ mode: "idle", previewReady: false }), true);
+    assert.equal(shouldGateLiveRoundPresentation({ mode: "cinematic", previewReady: true }), true);
+    assert.equal(shouldGateLiveRoundPresentation({ mode: "historical", previewReady: true }), false);
   });
 
   it("does not autoplay historical remounts", () => {
@@ -257,6 +261,7 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /rolls=\{overlayRolls\}/);
     assert.match(room, /revealedActorIds/);
     assert.match(room, /showGmNarration/);
+    assert.match(room, /shouldGateLiveRoundPresentation/);
     assert.match(room, /visibleSceneRows = sceneRows/);
     assert.match(room, /dicePreview\.ready/);
     assert.match(room, /window\.location\.search/);

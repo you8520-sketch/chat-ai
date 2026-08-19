@@ -145,6 +145,14 @@ export function shouldShowGmNarration(state: RoundPresentationState): boolean {
   return state.phase === "gm-narration" || state.phase === "complete";
 }
 
+/** Hide the live round until the client knows cinematic vs historical. */
+export function shouldGateLiveRoundPresentation(opts: {
+  mode: RoundPresentationMode;
+  previewReady: boolean;
+}): boolean {
+  return !opts.previewReady || opts.mode === "cinematic";
+}
+
 export function isRoundPresentationComplete(state: RoundPresentationState): boolean {
   return shouldShowGmNarration(state);
 }
