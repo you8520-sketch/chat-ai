@@ -3,8 +3,10 @@
 `QUALITY_SCORING_BY_CURSOR=false`  
 `CURRENT_TURN_OOC_DELEGATION_TESTED=false`  
 `DEEPSEEK_CALLS=0`
-`GEMINI_CALLS=1` (first source turn, already received; this audit added 0)
+`GEMINI_CALLS=2` (browser-authored; this audit added 0)
 `GEMINI_CALLS_ADDITIONAL=0`
+`GEMINI_SOURCE_READY=false`
+`SOURCE_OUTPUT_COMPLETE=false`
 `RAILWAY_PRODUCTION_USED=false`
 
 ---
@@ -19,6 +21,44 @@ P3_BLOCKED_UNTIL = /api/health gitCommit 213d92e
 ```
 
 H1-SOURCE ran in the local test workflow only. Stale Railway `b06037d` was not used as the source environment.
+
+---
+
+# H1-SOURCE — GEMINI 3.7 ABRUPT STREAM CUT AUDIT
+
+Second Gemini turn (`cr_mszh62oh_e2gs51ql`, message 7) ended mid-sentence at `조금 더 끌`. **Invalid as H1 canonical source until ChatGPT review.** Full write-up: `H1_GEMINI_ABRUPT_CUT_AUDIT.md`. RAW frozen; no delete / regen / continuation / DeepSeek.
+
+```text
+H1_GEMINI_ABRUPT_CUT_AUDIT:
+CALL_ID: cr_mszh62oh_e2gs51ql
+REQUEST_BODY_SHA: not_persisted
+ASSEMBLED_PROMPT_SHA: 202c30452a36279a9bc0513453921712ac601508cfc06192a14e4a4234069cc2 (prompt_dump.txt; not request JSON)
+LIVE_PROMPT_HASH_PREFIX: 1e440802
+PROVIDER_RAW_CHARS: 200
+SERVER_ACCUMULATED_CHARS: 200
+FINAL_PROCESSED_CHARS: 200
+DB_STORED_CHARS: 200
+BROWSER_VISIBLE_CHARS: 200
+FIRST_DIVERGENCE_LAYER: none (A=B=C=D=E)
+FINISH_REASON: (none) / undefined
+OUTPUT_TOKENS: 180
+MAX_OUTPUT_TOKENS_SENT: undefined
+TOKEN_LIMIT_HIT: false
+DONE_EVENT_PRESENT: not_logged
+STREAM_EOF_NORMAL: true
+STREAM_ERROR: false
+REQUEST_ABORTED: false
+DEV_SERVER_RESTARTED: false
+POSTPROCESS_CHANGED_TEXT: false
+STATUS_WIDGET_EXPECTED: false
+ROOT_CAUSE: PROVIDER_EARLY_STOP
+GEMINI_SOURCE_READY: false
+ADDITIONAL_GEMINI_CALLS: 0
+DEEPSEEK_CALLS: 0
+APPLICATION_PROMPT_CHANGED: false
+```
+
+STOP. Wait for ChatGPT review.
 
 ## Fixture lock (existing Flood production snapshot)
 
@@ -126,9 +166,11 @@ Human setup and Gemini RAW are stored next to this packet. Do not delete or rege
 - `docs/audits/deepseek0813-gemini37-human-h1/GEMINI_SOURCE_RAW.txt`
 
 ```text
-GEMINI_SOURCE_READY = true
+GEMINI_SOURCE_READY = false
+SOURCE_OUTPUT_COMPLETE = false
 SOURCE_NEEDS_HUMAN_SETUP = false
-SOURCE_CAPTURE_INVALID = false
+SOURCE_CAPTURE_INVALID = true  (second Gemini turn cut; do not use as style baseline)
+FIRST_TURN_FROZEN_BUT_NOT_LIVE_CANON = true  (message 5 / 2558 still on disk)
 LOCAL_CHAT_ID = 3
 ASSISTANT_MESSAGE_ID = 5
 USER_MESSAGE_ID = 4
@@ -210,24 +252,21 @@ PRODUCTION_CHANGED = false
 
 ## Next human action
 
-H1-SOURCE accepted. Gemini 2558-char source is frozen.
-
-Type **HUMAN USER #1** in `http://127.0.0.1:3000/chat/17?chat=3`. Do not ask Cursor to write it.
-
-After that message is submitted: one DeepSeek 0813 call only if adult handoff normally triggers, then STOP. No HUMAN USER #2 / DS2.
-
-Current chat: `adult_handoff_enabled=0`. 성인모드 is not forced on.
+**STOP.** Second Gemini output is an abrupt cut. Do not type HUMAN USER #1 for DeepSeek. Do not regenerate Gemini. Wait for ChatGPT review.
 
 ---
 
 # H1-1
 
 ```text
-GEMINI_SOURCE_ACCEPTED = true
-GEMINI_SOURCE_VISIBLE_CHARS = 2558
-GEMINI_SOURCE_OUTPUT_TOKENS = 2749
-GEMINI_SOURCE_FINISH_REASON = stop
-HUMAN_USER_1_RECEIVED = false
+GEMINI_SOURCE_ACCEPTED = false
+GEMINI_SOURCE_READY = false
+SOURCE_OUTPUT_COMPLETE = false
+CUT_CALL_ID = cr_mszh62oh_e2gs51ql
+CUT_VISIBLE_CHARS = 200
+CUT_OUTPUT_TOKENS = 180
+CUT_FINISH_REASON = (none)
+HUMAN_USER_1_RECEIVED = n-a (cut audit; DeepSeek blocked)
 DEEPSEEK_CALLS = 0
 RETRY = 0
 CONTINUATION = 0
