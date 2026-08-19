@@ -1095,7 +1095,7 @@ export async function updateCharacterPublicProfileFromForm(
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
-              images, nsfw, name, greeting, creator_comment, tags, participant_min_age
+              images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1114,6 +1114,7 @@ export async function updateCharacterPublicProfileFromForm(
         creator_comment: string | null;
         tags: string | null;
         participant_min_age: number | null;
+        adult_status: string | null;
       }
     | undefined;
 
@@ -1163,6 +1164,11 @@ export async function updateCharacterPublicProfileFromForm(
   if (nsfwAgeError) {
     return { ok: false as const, error: nsfwAgeError, status: 400 };
   }
+  const participantMinAge = participantMinAgeResult.value;
+  const adultStatus = deriveAdultStatusForSave({
+    participantMinAge,
+    legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
+  });
   const images = assetUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
@@ -1208,7 +1214,8 @@ export async function updateCharacterPublicProfileFromForm(
       tagline=?, description=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?,
-      simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?
+      simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?,
+      participant_min_age=?, adult_status=?
      WHERE id=?`
   ).run(
     tagline,
@@ -1233,6 +1240,8 @@ export async function updateCharacterPublicProfileFromForm(
     0,
     0,
     b.trpg_reuse_allowed === true ? 1 : 0,
+    participantMinAge,
+    adultStatus,
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
