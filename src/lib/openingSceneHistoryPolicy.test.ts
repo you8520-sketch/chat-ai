@@ -105,4 +105,34 @@ describe("opening greeting provider RAW contract G1-G6", () => {
       false
     );
   });
+
+  it("G5 opening prelude is passed into first-batch summary user payload", async () => {
+    const {
+      __setSummarizeTurnBatchCallerForTests,
+      summarizeTurnBatch,
+    } = await import("@/lib/memory/memory-rolling-summary");
+    const OPENING_FACT = "비밀 열쇠를 들고 있다";
+    let captured = "";
+    __setSummarizeTurnBatchCallerForTests(async (_system, history) => {
+      captured = history[0]!.content;
+      return {
+        text:
+          "짧지만 중요한 사건 하나만 기록함. 비밀 열쇠를 들고 있었다. " +
+          "추가 장식 없이 사실만 압축. 반복 묘사는 생략. 핵심만 유지.",
+      };
+    });
+    try {
+      await summarizeTurnBatch({
+        dialogue: "[1턴]\n유저: hi\nChar: hello",
+        charName: "Char",
+        startTurn: 1,
+        endTurn: 5,
+        openingPrelude: `[OPENING/PRELUDE CONTEXT — not source turn 1]\n${OPENING_TURN_USER}\n${OPENING_FACT}`,
+      });
+      assert.match(captured, /OPENING\/PRELUDE CONTEXT/);
+      assert.match(captured, new RegExp(OPENING_FACT));
+    } finally {
+      __setSummarizeTurnBatchCallerForTests(null);
+    }
+  });
 });
