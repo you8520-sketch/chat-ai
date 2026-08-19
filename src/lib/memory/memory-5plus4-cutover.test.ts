@@ -163,10 +163,17 @@ describe("LTM + RAW gap test", () => {
 });
 
 describe("summary quality contracts", () => {
-  it("Q1 5-turn prompt mentions max 600 not mandatory 450", () => {
-    const prompt = buildRollingSummarySystemPrompt(5);
-    assert.match(prompt, /최대 600자/);
-    assert.doesNotMatch(prompt, /450자/);
+  it("Q1 5-turn prompt mentions max 600 not mandatory 450 when Phase2 ON", () => {
+    const prev = process.env.MEMORY_5PLUS4_ENABLED;
+    try {
+      process.env.MEMORY_5PLUS4_ENABLED = "1";
+      const prompt = buildRollingSummarySystemPrompt(5);
+      assert.match(prompt, /최대 600자/);
+      assert.doesNotMatch(prompt, /450자/);
+    } finally {
+      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
+      else process.env.MEMORY_5PLUS4_ENABLED = prev;
+    }
   });
 
   it("Q9 rejects 5-turn and 6-turn instruction echo", () => {
@@ -247,14 +254,23 @@ describe("greenfield 5-turn cadence (MEMORY_5PLUS4_ENABLED)", () => {
 });
 
 
-describe("summary barrier cadence", () => {
+describe("summary barrier cadence (Phase2 flag ON)", () => {
+  const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
   it("B1 seal due at turn 5 after zero summarized", async () => {
-    const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(
-      "./memory-rolling-summary"
-    );
-    assert.equal(summarySealAtTurn(0), 5);
-    assert.equal(shouldTriggerRollingSummary(4, 0), false);
-    assert.equal(shouldTriggerRollingSummary(5, 0), true);
+    const prev = process.env[ENV_KEY];
+    try {
+      process.env[ENV_KEY] = "1";
+      const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(
+        "./memory-rolling-summary"
+      );
+      assert.equal(summarySealAtTurn(0), 5);
+      assert.equal(shouldTriggerRollingSummary(4, 0), false);
+      assert.equal(shouldTriggerRollingSummary(5, 0), true);
+    } finally {
+      if (prev === undefined) delete process.env[ENV_KEY];
+      else process.env[ENV_KEY] = prev;
+    }
   });
 
   it("B4 healthy unsummarized <=4 after first batch", () => {

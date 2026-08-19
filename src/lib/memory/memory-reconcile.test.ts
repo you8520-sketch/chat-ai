@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import {
   computeSummarizedTurnCountFromRecords,
@@ -35,7 +35,21 @@ function record(
   };
 }
 
-describe("shouldTriggerRollingSummary seal at batch end", () => {
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("shouldTriggerRollingSummary seal at batch end (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   it("seals [1~5] when turn 5 completes", () => {
     assert.equal(shouldTriggerRollingSummary(5, 0), true);
   });
@@ -50,7 +64,19 @@ describe("shouldTriggerRollingSummary seal at batch end", () => {
   });
 });
 
-describe("turnsUntilNextSummary seal at batch end", () => {
+describe("turnsUntilNextSummary seal at batch end (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   it("counts turns until seal at 5 for first batch", () => {
     assert.equal(turnsUntilNextSummary(0, 0), 5);
     assert.equal(turnsUntilNextSummary(4, 0), 1);

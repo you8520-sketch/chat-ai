@@ -2,11 +2,13 @@
  * Durable summary batch spans — legacy 6-turn (NULL turn_end) vs new 5-turn rows.
  * NULL turn_end always resolves as turn_start + 5 (six-turn legacy), never current interval.
  */
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import {
+  LEGACY_NULL_TURN_END_OFFSET,
+  NEW_ROLLING_SUMMARY_INTERVAL,
+} from "./memory-constants";
 import { resolveNewBatchEndForStart } from "./memory-5plus4-flag";
 
-/** Legacy rows with NULL turn_end span six playable turns: end = start + 5. */
-export const LEGACY_NULL_TURN_END_OFFSET = 5;
+export { LEGACY_NULL_TURN_END_OFFSET } from "./memory-constants";
 
 export type SummarySpan = {
   turnStart: number;
@@ -51,7 +53,7 @@ export function newBatchEndForStart(turnStart: number): number {
 }
 
 export function isNewIntervalBatch(span: SummarySpan): boolean {
-  return span.turnCount === ROLLING_SUMMARY_INTERVAL;
+  return span.turnCount === NEW_ROLLING_SUMMARY_INTERVAL;
 }
 
 export function isLegacySixTurnBatch(span: SummarySpan): boolean {

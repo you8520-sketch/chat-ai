@@ -30,7 +30,7 @@ import {
   SHORT_TERM_TURNS,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
-import { trimProviderHistoryToBudget } from "@/lib/providerHistoryPolicy";
+import { trimProviderHistoryToBudget, isOpeningUserMessage } from "@/lib/providerHistoryPolicy";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
@@ -1580,6 +1580,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       return { ...m, content };
     }
     if (m.role === "user") {
+      if (isOpeningUserMessage(m.content)) {
+        return m;
+      }
       // Consistent action/thought labels for all providers (not CURRENT USER INPUT — history only).
       return { ...m, content: formatUserMessageForPrompt(m.content, hasMindReading) };
     }

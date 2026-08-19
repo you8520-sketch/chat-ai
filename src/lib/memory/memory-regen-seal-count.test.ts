@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { getOrCreateChatMemory } from "./memory-db";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
@@ -61,7 +61,21 @@ function seedSevenPlayableTurns() {
   }
 }
 
-describe("syncMemoryEligibleTurnCount + regen seal gate", () => {
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("syncMemoryEligibleTurnCount + regen seal gate (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   before(() => seedSevenPlayableTurns());
   after(() => cleanup());
 

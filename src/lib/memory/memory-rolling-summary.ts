@@ -2,14 +2,22 @@ import { getDb } from "@/lib/db";
 import { callGeminiBackground } from "@/lib/ai";
 import {
   splitOpeningPlayableTurns,
-  ROLLING_SUMMARY_INTERVAL,
   RAW_HISTORY_COMPLETE_EXCHANGES,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
-import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
+import {
+  LOREBOOK_COMPACT_FILL_RATIO,
+  NEW_ROLLING_SUMMARY_INTERVAL,
+  ROLLING_SUMMARY_MIN_CHARS,
+} from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
-import { isSummaryBarrierActive } from "./memory-5plus4-flag";
+import {
+  isSummaryBarrierActive,
+  resolveActiveSummaryInterval,
+  resolveSummaryLogLabel,
+  resolveSummaryMaxChars,
+} from "./memory-5plus4-flag";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
@@ -78,7 +86,10 @@ import {
   type ScopePayloadV1,
 } from "./memory-summary-scope";
 
-export function buildRollingSummarySystemPrompt(sourceTurnCount: number): string {
+export function buildRollingSummarySystemPrompt(
+  sourceTurnCount: number,
+  maxChars = resolveSummaryMaxChars()
+): string {
   return `[${sourceTurnCount}턴 히스토리 요약]
 
 ${sourceTurnCount}턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.
@@ -91,7 +102,7 @@ ${sourceTurnCount}턴 배치의 사건을 발생 순서대로 요약한다. 사�
 [형식]
 - 음슴체(명사형·~함·~임 종결)로 간결하게. 존댓말 서술(~했다/~였다)보다 글자를 절약한다.
 - 원인 → 행동·선택 → 결과 → 관계·감정 변화 순
-- 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다. 반복 장면이면 짧아도 된다.
+- 최대 ${maxChars}자. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다. 반복 장면이면 짧아도 된다.
 - 파편식 단문 나열과 분위기 묘사 중심 요약 금지
 - 유저의 명확한 선택이 캐릭터의 태도·감정·행동에 영향을 주었으면 반드시 기록
 - 유저의 생각·의도·감정을 입력에 없는 내용으로 추측하지 않는다.
@@ -129,9 +140,9 @@ ${sourceTurnCount}턴 배치의 사건을 발생 순서대로 요약한다. 사�
 [OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.`;
 }
 
-/** Default prompt for current 5-turn batches. */
+/** Default prompt for active summary interval at module load. */
 export const ROLLING_SUMMARY_SYSTEM_PROMPT = buildRollingSummarySystemPrompt(
-  ROLLING_SUMMARY_INTERVAL
+  resolveActiveSummaryInterval()
 );
 
 export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIRED]
@@ -303,11 +314,11 @@ export async function summarizeTurnBatch(opts: {
   const openingBlock = opts.openingPrelude?.trim()
     ? `${opts.openingPrelude.trim()}\n\n`
     : "";
-  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${resolveSummaryMaxChars()}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
-    return clampMemoryRecordSummary(cleaned);
+    return clampMemoryRecordSummary(cleaned, resolveSummaryMaxChars(), ROLLING_SUMMARY_MIN_CHARS);
   };
   const callLlm: RollingSummaryLlmCaller =
     summarizeTurnBatchCallerOverride ??
@@ -346,7 +357,7 @@ export async function summarizeTurnBatch(opts: {
       const msg = (e as Error).message ?? String(e);
       lastSummarizeTurnBatchError = msg.slice(0, 300);
       console.warn(
-        `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 background LLM 실패${attempt >= 1 ? ` (재시도 ${attempt + 1}/3)` : ""}:`,
+        `[memory] ${resolveSummaryLogLabel()} background LLM 실패${attempt >= 1 ? ` (재시도 ${attempt + 1}/3)` : ""}:`,
         msg
       );
       if (attempt >= 2) break;
@@ -504,9 +515,10 @@ export function resolveBatchStartTurnForTurnNumber(
 ): number {
   if (records) return resolveBatchStartForTurnNumber(turnNumber, records);
   const n = Math.max(1, Math.floor(turnNumber));
-  let start = Math.floor((n - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL + 1;
-  while (start + ROLLING_SUMMARY_INTERVAL - 1 < n) {
-    start += ROLLING_SUMMARY_INTERVAL;
+  const interval = resolveActiveSummaryInterval();
+  let start = Math.floor((n - 1) / interval) * interval + 1;
+  while (start + interval - 1 < n) {
+    start += interval;
   }
   return start;
 }
@@ -1281,9 +1293,10 @@ export function pickNextSummaryBatch(
   summarizedTurnCount: number
 ): DialogueTurn[] {
   const { playable } = splitOpeningPlayableTurns(turns);
+  const interval = resolveActiveSummaryInterval();
   const pending = playable.length - summarizedTurnCount;
-  if (pending < ROLLING_SUMMARY_INTERVAL) return [];
-  return playable.slice(summarizedTurnCount, summarizedTurnCount + ROLLING_SUMMARY_INTERVAL);
+  if (pending < interval) return [];
+  return playable.slice(summarizedTurnCount, summarizedTurnCount + interval);
 }
 
 /** 6턴 1배치 → 기억 기록 저장 + 로어북(recent_summary) 누적 (원자적·연속 배치) */
@@ -1435,7 +1448,7 @@ export async function processRollingSummaryBatch(opts: {
         playableCount,
         composed,
         turnTrace: opts.turnTrace,
-        logLabel: `${ROLLING_SUMMARY_INTERVAL}턴 기억 기록`,
+        logLabel: resolveSummaryLogLabel(),
         boundarySnapshot,
         sourceUserMessageIds: batchMeta
           .map((turn) => turn.userMessageId)
@@ -1538,13 +1551,13 @@ export async function catchUpRollingSummaries(opts: {
 }
 
 export function shouldTriggerRollingSummary(messageCount: number, summarizedTurnCount: number): boolean {
-  /** [1~5] at 5 turns, [6~10] at 10 turns — frontier-based batch seal */
-  return messageCount >= summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
+  const interval = resolveActiveSummaryInterval();
+  return messageCount >= summarizedTurnCount + interval;
 }
 
-/** Next batch seal completes at this playable turn (first greenfield batch = 5). */
+/** Next batch seal completes at this playable turn. */
 export function summarySealAtTurn(summarizedTurnCount = 0): number {
-  return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
+  return summarizedTurnCount + resolveActiveSummaryInterval();
 }
 
 export function turnsUntilNextSummary(
