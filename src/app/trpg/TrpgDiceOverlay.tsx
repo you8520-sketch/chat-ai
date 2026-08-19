@@ -1,33 +1,24 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
-  TRPG_D20_HOLD_AFTER_SETTLE_MS,
-  TRPG_DICE_ENGINE,
-  TRPG_DICE_RENDERER,
   applyTrpgDiceOverlaySession,
   orderTrpgDiceRolls,
-  shouldAnimateTrpgDice3d,
   shouldConsumeMountRollSession,
-  trpgDiceDurationMs,
-  trpgEmeraldDiceTiming,
   trpgDiceOverlayAfterSettle,
   trpgDiceOverlaySessionAction,
   trpgDiceOverlayVisible,
   trpgDiceRollSessionKey,
+  trpgEmeraldDiceTiming,
   trpgPredeterminedD20Notation,
 } from "@/lib/trpg/diceRollUx";
 import {
   PRODUCTION_D20_THEME,
   PRODUCTION_DICE_PROTO,
+  TRPG_DICE_PHYSICS_ENGINE,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
-  TRPG_D20_THROW_WINDOW_DESKTOP,
-  TRPG_D20_THROW_WINDOW_MOBILE,
-  TRPG_DICE_PHYSICS_ENGINE,
-  trpgD20ThemeSpec,
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
 
@@ -41,18 +32,12 @@ export type TrpgDiceOverlayPlaybackState = {
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
-import TrpgD20 from "./TrpgD20";
 
-const TrpgDiceScene = dynamic(() => import("./TrpgDiceScene"), { ssr: false });
-const TrpgArtisanDiceScene = dynamic(() => import("./TrpgArtisanDiceScene"), { ssr: false });
+const RESULT_IMAGE_BASE = "/d20-result";
 
-function detectWebgl(): boolean {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
+function resultImageSrc(value: number): string {
+  const n = Math.max(1, Math.min(20, Math.floor(value)));
+  return `${RESULT_IMAGE_BASE}/d20-result-${String(n).padStart(2, "0")}.webp`;
 }
 
 export default function TrpgDiceOverlay({
@@ -76,25 +61,11 @@ export default function TrpgDiceOverlay({
 }) {
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const sessionKey = useMemo(() => trpgDiceRollSessionKey(roundNumber, ordered), [ordered, roundNumber]);
-  const verdantTiming = trpgDiceDurationMs(ordered.length);
-  const emeraldTiming = trpgEmeraldDiceTiming(ordered.length);
-  const isEmerald = theme === "emerald-relic";
-  const timing = isEmerald
-    ? { perDie: emeraldTiming.perDieMs, total: emeraldTiming.totalMs, activeMs: emeraldTiming.activeMs, holdMs: emeraldTiming.holdMs }
-    : { perDie: verdantTiming.perDie, total: verdantTiming.total, activeMs: verdantTiming.perDie, holdMs: TRPG_D20_HOLD_AFTER_SETTLE_MS };
-  const spec = trpgD20ThemeSpec(theme);
+  const timing = trpgEmeraldDiceTiming(ordered.length);
   const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [settled, setSettled] = useState(false);
-  const [use3d, setUse3d] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const webgl = detectWebgl();
-    // Emerald throw must paint in 3D when WebGL exists. Reduced-motion
-    // would otherwise swap to a centered static result face.
-    if (theme === "emerald-relic") return webgl;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    return shouldAnimateTrpgDice3d({ webgl, reducedMotion });
-  });
-  const [reducedQuality, setReducedQuality] = useState(false);
+  const [entered, setEntered] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const prevKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
   const firstObservationRef = useRef(true);
@@ -159,44 +130,28 @@ export default function TrpgDiceOverlay({
 
   const onSettled = useCallback(() => {
     setSettled(true);
-    window.setTimeout(() => {
-      setPlay((current) => {
-        const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
-        if (next.dismissed && sessionKey) consumedKeysRef.current.add(sessionKey);
-        return { ...current, index: next.index, dismissed: next.dismissed };
-      });
-    }, theme === "emerald-relic" ? 0 : TRPG_D20_HOLD_AFTER_SETTLE_MS);
-  }, [ordered.length, sessionKey, theme]);
-
-  useEffect(() => {
-    const webgl = detectWebgl();
-    setUse3d((current) => {
-      if (theme === "emerald-relic") {
-        // Never drop an in-flight 3D throw onto the static hero face.
-        return current || webgl;
-      }
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      return shouldAnimateTrpgDice3d({ webgl, reducedMotion });
+    setPlay((current) => {
+      const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
+      if (next.dismissed && sessionKey) consumedKeysRef.current.add(sessionKey);
+      return { ...current, index: next.index, dismissed: next.dismissed };
     });
-    setReducedQuality(
-      window.matchMedia("(max-width: 640px)").matches ||
-        (typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 8) <= 4)
-    );
-  }, [theme, visible]);
+  }, [ordered.length, sessionKey]);
 
   useEffect(() => {
-    if (!visible || use3d || ordered.length === 0) return;
-    // Emerald 3D owns settle. If WebGL is off, keep the 2D fallback on the
-    // authored per-die window so a 900ms timer cannot hard-swap numerals.
-    const hold = theme === "emerald-relic" ? timing.perDie : Math.min(timing.perDie, 900);
-    const timer = window.setTimeout(() => {
-      setPlay((current) => {
-        const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
-        return { ...current, index: next.index, dismissed: next.dismissed };
-      });
-    }, hold);
-    return () => window.clearTimeout(timer);
-  }, [visible, play.index, ordered.length, theme, timing.perDie, use3d]);
+    if (!visible || ordered.length === 0) return;
+    setEntered(false);
+    setLeaving(false);
+    const enter = window.setTimeout(() => setEntered(true), 20);
+    const perDie = Math.max(320, timing.perDieMs);
+    const exitAt = Math.max(60, perDie - 220);
+    const exit = window.setTimeout(() => setLeaving(true), exitAt);
+    const done = window.setTimeout(() => onSettled(), perDie);
+    return () => {
+      window.clearTimeout(enter);
+      window.clearTimeout(exit);
+      window.clearTimeout(done);
+    };
+  }, [visible, play.index, ordered.length, timing.perDieMs, onSettled]);
 
   if (!visible) return null;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
@@ -204,67 +159,69 @@ export default function TrpgDiceOverlay({
   const tone = resolveTrpgD20Tone(roll.d20, roll.tier);
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
+  const src = resultImageSrc(roll.d20);
+
+  const frameClass =
+    tone === "nat20"
+      ? "drop-shadow-[0_0_42px_rgba(232,197,106,0.55)]"
+      : tone === "nat1"
+        ? "drop-shadow-[0_0_38px_rgba(138,36,48,0.6)]"
+        : "drop-shadow-[0_0_28px_rgba(214,199,161,0.28)]";
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-[65] bg-black/15"
+      className={`pointer-events-none fixed inset-0 z-[65] bg-black/15 transition-opacity duration-200 ${
+        entered && !leaving ? "opacity-100" : "opacity-0"
+      }`}
       data-trpg-dice-overlay
-      data-trpg-dice-engine={theme === PRODUCTION_D20_THEME ? TRPG_DICE_ENGINE : spec.engine}
+      data-trpg-dice-engine="static-result"
       data-trpg-dice-theme={theme}
-      data-trpg-dice-mode={use3d ? "3d" : "static"}
-      data-trpg-dice-renderer={use3d ? TRPG_DICE_RENDERER : "static"}
+      data-trpg-dice-mode="static"
+      data-trpg-dice-renderer="static"
       data-trpg-dice-physics={TRPG_DICE_PHYSICS_ENGINE}
       data-trpg-dice-proto={PRODUCTION_DICE_PROTO}
       data-trpg-dice-value={roll.d20}
       data-trpg-dice-predetermined={notation}
-      data-trpg-dice-active-ms={timing.activeMs}
-      data-trpg-dice-hold-ms={timing.holdMs}
-      data-trpg-dice-total-ms={timing.total}
+      data-trpg-dice-active-ms={timing.perDieMs}
+      data-trpg-dice-hold-ms={0}
+      data-trpg-dice-total-ms={timing.totalMs}
       aria-hidden="true"
     >
       <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
         <div className="flex flex-col items-center">
           <div
-            className="relative h-[min(218px,32vw)] w-[min(360px,58vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(300px,80vw)] overflow-hidden rounded-2xl"
+            className={`relative flex items-center justify-center transition-all duration-200 ease-out ${
+              entered && !leaving ? "scale-100 opacity-100" : "scale-[0.94] opacity-0"
+            }`}
             data-trpg-dice-stage
             data-trpg-dice-stage-w={TRPG_D20_STAGE_DESKTOP.width}
             data-trpg-dice-stage-h={TRPG_D20_STAGE_DESKTOP.height}
             data-trpg-dice-stage-mobile-w={TRPG_D20_STAGE_MOBILE.width}
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
-            data-trpg-dice-throw-window-w={TRPG_D20_THROW_WINDOW_DESKTOP.width}
-            data-trpg-dice-throw-window-h={TRPG_D20_THROW_WINDOW_DESKTOP.height}
-            data-trpg-dice-throw-window-mobile-w={TRPG_D20_THROW_WINDOW_MOBILE.width}
-            data-trpg-dice-throw-window-mobile-h={TRPG_D20_THROW_WINDOW_MOBILE.height}
           >
-            {use3d ? (
-              theme === "emerald-relic" ? (
-                <TrpgArtisanDiceScene
-                  key={play.index}
-                  value={roll.d20}
-                  tone={tone}
-                  durationMs={timing.activeMs}
-                  holdMs={timing.holdMs}
-                  reducedQuality={reducedQuality}
-                  onSettled={onSettled}
+            <div className={`relative ${frameClass}`}>
+              {tone === "nat20" ? (
+                <div
+                  className="pointer-events-none absolute inset-[-18%] rounded-full bg-[radial-gradient(circle,rgba(232,197,106,0.34)_0%,rgba(232,197,106,0.12)_42%,transparent_68%)]"
+                  data-trpg-dice-burst="nat20"
                 />
-              ) : (
-                <TrpgDiceScene
-                  value={roll.d20}
-                  tone={tone}
-                  theme={theme}
-                  durationMs={timing.perDie}
-                  reducedQuality={reducedQuality}
-                  onSettled={onSettled}
+              ) : null}
+              {tone === "nat1" ? (
+                <div
+                  className="pointer-events-none absolute inset-[-16%] rounded-full bg-[radial-gradient(circle,rgba(138,36,48,0.4)_0%,rgba(80,18,40,0.16)_46%,transparent_70%)]"
+                  data-trpg-dice-burst="nat1"
                 />
-              )
-            ) : (
-              <div
-                className="flex h-full w-full items-center justify-center [&_svg]:h-[72%] [&_svg]:w-[72%]"
+              ) : null}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={`${sessionKey}:${play.index}`}
+                src={src}
+                alt=""
+                draggable={false}
+                className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
                 data-trpg-dice-canvas="static"
-              >
-                <TrpgD20 value={roll.d20} tone={tone} size="desktop" />
-              </div>
-            )}
+              />
+            </div>
           </div>
           <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
             {roll.name} · D20 {roll.d20} · {outcome}
