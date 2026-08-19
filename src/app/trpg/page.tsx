@@ -18,12 +18,19 @@ export const dynamic = "force-dynamic";
 export default async function TrpgLobbyPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ characterId?: string; personaId?: string; characterIds?: string; code?: string }>;
+  searchParams?: Promise<{
+    characterId?: string;
+    personaId?: string;
+    characterIds?: string;
+    code?: string;
+    q?: string;
+  }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/trpg");
   if (!canAccessTrpg(user)) redirect("/");
   const params = (await searchParams) ?? {};
+  const campaignQuery = typeof params.q === "string" ? params.q : "";
   const inviteCode = parseTrpgInviteInput(params.code);
   if (inviteCode) redirect(`/trpg/join/${inviteCode}`);
   const seededIds = parseCompanionIds(
@@ -44,6 +51,7 @@ export default async function TrpgLobbyPage({
     >
       <TrpgLobbyClient
         initialCampaigns={campaigns}
+        initialCampaignQuery={campaignQuery}
         catalog={catalog}
         characterIds={seededIds}
       />

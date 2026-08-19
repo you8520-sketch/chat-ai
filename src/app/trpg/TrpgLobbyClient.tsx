@@ -15,10 +15,12 @@ import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
 export default function TrpgLobbyClient({
   initialCampaigns,
+  initialCampaignQuery = "",
   catalog,
   characterIds,
 }: {
   initialCampaigns: TrpgCampaignSnapshot[];
+  initialCampaignQuery?: string;
   catalog: TrpgCatalog;
   characterIds: number[];
 }) {
@@ -28,7 +30,7 @@ export default function TrpgLobbyClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [pick, setPick] = useState<TrpgCatalogPick | null>(null);
-  const [campaignQuery, setCampaignQuery] = useState("");
+  const [campaignQuery, setCampaignQuery] = useState(initialCampaignQuery);
   const visibleCampaigns = useMemo(
     () => filterTrpgLobbyCampaigns(campaigns, campaignQuery),
     [campaigns, campaignQuery]
@@ -109,14 +111,17 @@ export default function TrpgLobbyClient({
 
       <AppSectionCard title="내 캠페인">
         {campaigns.length > 0 ? (
-          <input
-            type="search"
-            value={campaignQuery}
-            onChange={(e) => setCampaignQuery(e.target.value)}
-            data-trpg-lobby-search
-            placeholder="캠페인 제목 검색"
-            className="mb-4 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-          />
+          <form action="/trpg" method="get" className="mb-4" role="search">
+            <input
+              type="search"
+              name="q"
+              value={campaignQuery}
+              onChange={(e) => setCampaignQuery(e.target.value)}
+              data-trpg-lobby-search
+              placeholder="캠페인 제목 검색"
+              className="min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
+            />
+          </form>
         ) : null}
         {campaigns.length === 0 ? (
           <p className="text-sm text-zinc-500">

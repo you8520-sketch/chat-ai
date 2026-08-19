@@ -222,6 +222,7 @@ describe("unified recent activity", () => {
     const sidebar = readFileSync("src/components/SidebarRecentChatIcons.tsx", "utf8");
     const owner = readFileSync("src/components/Sidebar.tsx", "utf8");
     const lobby = readFileSync("src/app/trpg/TrpgLobbyClient.tsx", "utf8");
+    const ownerPage = readFileSync("src/app/trpg/page.tsx", "utf8");
     assert.match(sidebar, /최근 활동/);
     assert.match(sidebar, /data-trpg-recent-kind/);
     assert.match(sidebar, /trpg_campaign/);
@@ -229,6 +230,9 @@ describe("unified recent activity", () => {
     assert.match(owner, /fetchRecentActivity/);
     assert.match(lobby, /filterTrpgLobbyCampaigns/);
     assert.match(lobby, /data-trpg-lobby-search/);
+    assert.match(lobby, /method="get"/);
+    assert.match(lobby, /name="q"/);
+    assert.match(ownerPage, /initialCampaignQuery/);
     assert.doesNotMatch(lobby, /w-full items-center justify-center rounded-xl bg-violet-600/);
   });
 });
