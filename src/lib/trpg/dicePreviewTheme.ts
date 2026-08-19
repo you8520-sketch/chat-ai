@@ -63,6 +63,7 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   previewEnabled: boolean;
   queryTheme?: string | null;
   queryPreview?: string | null;
+  queryPreviewD20?: string | null;
   savedTheme?: TrpgD20ThemeId | null;
   phase: string;
   currentRolls: readonly TrpgPublicRoll[];
@@ -86,10 +87,14 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   if (!inject) {
     return { theme, phase: opts.phase, rolls: opts.currentRolls, inject: false };
   }
+  const previewD20 = parseDicePreviewD20(opts.queryPreviewD20);
   return {
     theme,
     phase: "ROLLING",
-    rolls: opts.currentRolls.length > 0 ? opts.currentRolls : [previewDiceOverlayFixture(opts.fixtureName)],
+    rolls:
+      opts.currentRolls.length > 0
+        ? opts.currentRolls
+        : [previewDiceOverlayFixture(opts.fixtureName, previewD20 ?? 14)],
     inject: true,
   };
 }
@@ -134,18 +139,29 @@ export function logTrpgDicePreviewInstrument(entry: TrpgDicePreviewInstrument): 
   console.info("[trpg-dice-preview]", entry);
 }
 
-export function previewDiceOverlayFixture(name = "권태현"): TrpgPublicRoll {
+export function previewDiceOverlayFixture(name = "권태현", d20 = 14): TrpgPublicRoll {
+  const face = Math.max(1, Math.min(20, Math.floor(d20)));
+  const tier =
+    face === 20 ? "CRITICAL_SUCCESS" : face === 1 ? "CRITICAL_FAILURE" : face + 8 >= 12 ? "SUCCESS" : "FAILURE";
   return {
     participantId: 1,
     name,
-    d20: 14,
+    d20: face,
     statKey: "str",
-    finalScore: 16,
+    finalScore: face + 2,
     dc: 12,
-    tier: "SUCCESS",
-    success: true,
+    tier,
+    success: tier === "SUCCESS" || tier === "CRITICAL_SUCCESS",
     actionBody: "preview-only fixture",
     actionType: "free",
     kind: "human",
   };
+}
+
+export function parseDicePreviewD20(value: string | null | undefined): number | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 20) return null;
+  return n;
 }

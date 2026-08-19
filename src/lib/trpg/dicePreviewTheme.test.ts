@@ -62,6 +62,27 @@ describe("preview-only campaign dice theme", () => {
     assert.equal(injected.rolls[0]?.name, "유라");
   });
 
+  it("allows preview-only dicePreviewD20 override for QA capture", () => {
+    const nat20 = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreview: "1",
+      queryPreviewD20: "20",
+      phase: "ACTION_INPUT",
+      currentRolls: [],
+    });
+    assert.equal(nat20.rolls[0]?.d20, 20);
+    assert.equal(nat20.rolls[0]?.tier, "CRITICAL_SUCCESS");
+    const nat1 = resolveCampaignDicePreviewOverlay({
+      previewEnabled: true,
+      queryPreview: "1",
+      queryPreviewD20: "1",
+      phase: "ACTION_INPUT",
+      currentRolls: [],
+    });
+    assert.equal(nat1.rolls[0]?.d20, 1);
+    assert.equal(nat1.rolls[0]?.tier, "CRITICAL_FAILURE");
+  });
+
   it("never overrides theme or injects on the production Railway host", () => {
     assert.equal(isTrpgProductionAppHost("chat-ai-production-3e84.up.railway.app"), true);
     const previewEnabled = isTrpgDicePreviewRuntime({

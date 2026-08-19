@@ -74,7 +74,12 @@ function useCampaignDicePreview(
   inject: boolean;
   instrument: boolean;
 } {
-  const [query, setQuery] = useState({ previewEnabled: false, queryTheme: null as string | null, queryPreview: null as string | null });
+  const [query, setQuery] = useState({
+    previewEnabled: false,
+    queryTheme: null as string | null,
+    queryPreview: null as string | null,
+    queryPreviewD20: null as string | null,
+  });
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setQuery({
@@ -85,6 +90,7 @@ function useCampaignDicePreview(
       }),
       queryTheme: params.get("diceTheme"),
       queryPreview: params.get("dicePreview"),
+      queryPreviewD20: params.get("dicePreviewD20"),
     });
   }, []);
   const fixtureName =
@@ -95,6 +101,7 @@ function useCampaignDicePreview(
     previewEnabled: query.previewEnabled,
     queryTheme: query.queryTheme,
     queryPreview: query.queryPreview,
+    queryPreviewD20: query.queryPreviewD20,
     savedTheme,
     phase: snap.round.phase,
     currentRolls: snap.currentRolls,
