@@ -91,6 +91,15 @@ export function resolveContextTrack(
   return "gemini-bulk";
 }
 
+/**
+ * Claude Opus 5 — do not drop unsummarized turns (6-turn seal gap).
+ * Cost control is compress-older-turns, not a token cap that recreates
+ * the 4-turn-vs-6-turn hole that forced unlimited raw history.
+ */
+export function usesPaidHistoryDiet(modelId?: string | null): boolean {
+  return isClaudeModelId(modelId ?? "");
+}
+
 export function resolveHistoryTokenBudget(
   modelId?: string | null,
   provider?: "gemini" | "openrouter" | "openai"
@@ -149,8 +158,11 @@ export function resolveStaticStoredSummaryLimit(
     : CLAUDE_RECENT_NARRATIVE_CONTEXT_LIMIT;
 }
 
+/** Claude — system + character + history + user 합산 안전 상한 */
+export const CLAUDE_MAX_PAYLOAD_INPUT_TOKENS = 48_000;
+
 export function resolveMaxPayloadInputTokens(modelId?: string | null): number {
-  void modelId;
+  if (usesPaidHistoryDiet(modelId)) return CLAUDE_MAX_PAYLOAD_INPUT_TOKENS;
   return Number.MAX_SAFE_INTEGER;
 }
 

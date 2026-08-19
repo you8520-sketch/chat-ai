@@ -25,8 +25,10 @@ import {
   promoteAppearanceChunkImportance,
 } from "@/lib/visualAnchor";
 import {
+  compressOlderTurnsForPaidDiet,
   countPlayableHistoryTurns,
   resolveMemoryCoverageGap,
+  resolvePaidDietCoverageTurns,
   SHORT_TERM_TURNS,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
@@ -126,6 +128,7 @@ import {
   resolveContextTrack,
   resolveHistoryTokenBudget,
   resolveMaxPayloadInputTokens,
+  usesPaidHistoryDiet,
   GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD,
   MIN_HISTORY_TURN_FLOOR,
 } from "@/lib/contextTrack";
@@ -233,7 +236,9 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
  *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → tail
  *
- * History: 전체 대화 raw → trimHistoryToBudget (전 모델 10K + coverage-aware floor).
+ * History: 전체 대화 raw → trimHistoryToBudget.
+ *   Cheap models: unlimited + coverage-aware floor.
+ *   Claude: keep the 6-turn unsummarized window, compress older assistants.
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;
@@ -1442,20 +1447,34 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     requestedHistoryTurnFloor,
     input.preserveAdultHandoffRawHistory ? adultRequiredTurnFloor : 0
   );
-  let effectiveHistoryTurnFloor = requestedSafetyTurnFloor;
+  const paidHistoryDiet = usesPaidHistoryDiet(input.modelId);
+  if (paidHistoryDiet) {
+    // Flash HTML is not Opus output, but it is stored on assistant rows.
+    // Strip it before counting/compressing so 6 coverage turns stay RP prose.
+    historyForAssembly = sanitizePrimaryModelHistoryMessages(historyForAssembly);
+  }
+  let effectiveHistoryTurnFloor = paidHistoryDiet
+    ? resolvePaidDietCoverageTurns(requestedSafetyTurnFloor)
+    : requestedSafetyTurnFloor;
   let memoryCoverageDegraded = false;
 
   let effectiveHistoryBudget = historyBudget;
-  let historySource = input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory
+  let historySource =
+    !paidHistoryDiet &&
+    (input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory)
     ? historyForAssembly
     : trimHistoryToBudget(
         historyForAssembly,
         effectiveHistoryBudget,
         effectiveHistoryTurnFloor
       );
+  if (paidHistoryDiet) {
+    historySource = compressOlderTurnsForPaidDiet(historySource);
+  }
 
   if (!input.geminiStaticDynamicMode) {
     while (
+      !paidHistoryDiet &&
       !input.preserveAdultHandoffRawHistory &&
       estimatePayloadTokens(historySource) > maxPayload &&
       effectiveHistoryBudget > 400
@@ -1468,7 +1487,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       );
     }
 
-    if (estimatePayloadTokens(historySource) > maxPayload) {
+    if (paidHistoryDiet) {
+      let compressedChars = 900;
+      while (
+        estimatePayloadTokens(historySource) > maxPayload &&
+        compressedChars > 200
+      ) {
+        compressedChars = Math.max(200, compressedChars - 200);
+        historySource = compressOlderTurnsForPaidDiet(
+          trimHistoryToBudget(
+            historyForAssembly,
+            effectiveHistoryBudget,
+            effectiveHistoryTurnFloor
+          ),
+          { maxAssistantChars: compressedChars }
+        );
+      }
+    } else if (estimatePayloadTokens(historySource) > maxPayload) {
       memoryCoverageDegraded = true;
       let low = 0;
       let high = requestedSafetyTurnFloor;

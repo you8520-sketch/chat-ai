@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import {
+  compressOlderTurnsForPaidDiet,
   rawRecentTurnsToHistory,
   resolveLorebookExcludeFromTrimmedHistory,
   resolveLorebookExcludeTurnStart,
+  resolvePaidDietCoverageTurns,
   resolveRawRecentTurnPool,
   messagesToTurns,
   trimHistoryToBudget,
@@ -108,6 +110,40 @@ describe("trimHistoryToBudget", () => {
     assert.match(trimmed.at(-1)!.content, /assistant turn 10/);
     // chunk 정렬(10msg)로 floor보다 약간 더 남을 수 있음 — 최근 4턴(7~10)은 반드시 포함
     assert.ok(trimmed.some((m) => /user turn 7/.test(m.content)));
+  });
+
+  it("caps paid-diet coverage at the 6-turn seal window", () => {
+    assert.equal(resolvePaidDietCoverageTurns(4), 4);
+    assert.equal(resolvePaidDietCoverageTurns(6), 6);
+    assert.equal(resolvePaidDietCoverageTurns(16), 6);
+  });
+
+  it("compresses older coverage turns without dropping the 6-turn window", () => {
+    const turns = Array.from({ length: 6 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(200),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(4000),
+    }));
+    const full = rawRecentTurnsToHistory(turns);
+    const compressed = compressOlderTurnsForPaidDiet(full);
+    assert.equal(compressed.length, 12);
+    assert.ok(compressed[1]!.content.length < 1_200);
+    assert.match(compressed[1]!.content, /이전 턴 중반 생략/);
+    assert.ok(compressed[11]!.content.length > 3_500);
+    assert.match(compressed[11]!.content, /assistant turn 6/);
+  });
+
+  it("hardCap keeps the budget even when the coverage floor would overflow", () => {
+    const turns = Array.from({ length: 16 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(1200),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(4000),
+    }));
+    const full = rawRecentTurnsToHistory(turns);
+    const soft = trimHistoryToBudget(full, 2_000, 14);
+    const hard = trimHistoryToBudget(full, 2_000, 14, { hardCap: true });
+    assert.ok(soft.length >= 8);
+    assert.ok(hard.length >= 2);
+    assert.ok(hard.length < soft.length);
+    assert.match(hard.at(-1)!.content, /assistant turn 16/);
   });
 
   it("returns everything when history is shorter than the floor", () => {

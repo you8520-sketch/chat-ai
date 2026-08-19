@@ -175,7 +175,7 @@ function ReceiptBody({
         <p>
           <span className="text-zinc-500">저장 RP:</span>{" "}
           {usage.savedOutputChars.toLocaleString()}자
-          <span className="text-zinc-600"> (화면 표시 · HTML·마크업 코드 제외)</span>
+          <span className="text-zinc-600"> (화면 표시 글자 · API 토큰과 다름)</span>
         </p>
       )}
       {isMeteredReceiptProvider(usage.provider) &&

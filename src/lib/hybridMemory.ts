@@ -192,18 +192,71 @@ export function areCompatibleHistorySuffixes(a: ChatMsg[], b: ChatMsg[]): boolea
   return true;
 }
 
+/** Opus — newest N turns stay verbatim; older unsummarized turns stay present but truncated. */
+export const PAID_DIET_FULL_RAW_TURNS = 2;
+/** Older assistant turns in the 6-turn coverage window. */
+export const PAID_DIET_COMPRESSED_ASSISTANT_CHARS = 900;
+/** Never send more than one unsealed 6-turn batch as raw/compressed history. */
+export const PAID_DIET_MAX_COVERAGE_TURNS = ROLLING_SUMMARY_INTERVAL;
+
+export function resolvePaidDietCoverageTurns(requestedFloor: number): number {
+  const floor = normalizeNonNegativeInteger(requestedFloor);
+  if (floor <= 0) return MIN_HISTORY_TURN_FLOOR;
+  return Math.min(Math.max(floor, MIN_HISTORY_TURN_FLOOR), PAID_DIET_MAX_COVERAGE_TURNS);
+}
+
+function truncateAssistantTail(text: string, maxChars: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  const budget = Math.max(40, maxChars - 18);
+  const tail = trimmed.slice(-budget).replace(/^\S{0,20}\s/, "");
+  return `…(이전 턴 중반 생략)\n${tail}`;
+}
+
+/**
+ * Keep every coverage turn (no 4-vs-6 hole) but shrink older assistant
+ * turns so 6 × 4k-char Korean RP does not become 30k+ Claude tokens.
+ */
+export function compressOlderTurnsForPaidDiet(
+  history: ChatMsg[],
+  opts?: { fullRawTurns?: number; maxAssistantChars?: number }
+): ChatMsg[] {
+  const fullRawTurns = Math.max(1, opts?.fullRawTurns ?? PAID_DIET_FULL_RAW_TURNS);
+  const maxChars = Math.max(80, opts?.maxAssistantChars ?? PAID_DIET_COMPRESSED_ASSISTANT_CHARS);
+  const fullRawMessages = fullRawTurns * 2;
+  if (history.length <= fullRawMessages) return history;
+
+  return history.map((msg, index) => {
+    if (history.length - index <= fullRawMessages) return msg;
+    if (msg.role !== "assistant") return msg;
+    if (msg.content.length <= maxChars) return msg;
+    return { ...msg, content: truncateAssistantTail(msg.content, maxChars) };
+  });
+}
+
+export type TrimHistoryToBudgetOptions = {
+  /**
+   * When true, the token budget wins over the turn floor (keep at least one
+   * complete turn). Used for expensive Claude calls so coverage-aware floors
+   * cannot re-inflate a 10K diet into 30K+ raw history.
+   */
+  hardCap?: boolean;
+};
+
 /** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
   budget: number,
-  minTurnFloor = MIN_HISTORY_TURN_FLOOR
+  minTurnFloor = MIN_HISTORY_TURN_FLOOR,
+  opts?: TrimHistoryToBudgetOptions
 ): ChatMsg[] {
   if (history.length === 0) return [];
 
+  const hardCap = opts?.hardCap === true;
   // 1턴 = user+assistant 2메시지
   const floorMessages = Math.min(
     history.length,
-    normalizeNonNegativeInteger(minTurnFloor) * 2
+    hardCap ? 2 : normalizeNonNegativeInteger(minTurnFloor) * 2
   );
 
   let tokens = 0;
@@ -216,6 +269,9 @@ export function trimHistoryToBudget(
     tokens += t;
   }
   if ((history.length - kept.length) % 2 !== 0) kept.shift();
+  if (hardCap) {
+    return kept.length > 0 ? kept : history.slice(-Math.min(2, history.length));
+  }
   return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 
