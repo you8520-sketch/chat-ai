@@ -1,35 +1,19 @@
 {
-  "replay": "H1_CLASSIFIER_ONLY_AFTER_FIX",
+  "replay": "H1_CLASSIFIER_ONLY_AFTER_PATCH_2",
   "provider_calls": 0,
-  "before_fix": {
-    "charParticipantStatus": "minor",
-    "blockReason": "participant_minor",
+  "charParticipantStatus": "unknown",
+  "identityContainsBackstoryMinorTokens": false,
+  "eligibility": {
+    "blockReason": "participant_unknown",
+    "allowedByAdultContentPolicy": false
+  },
+  "sceneClassification": {
+    "sceneMode": "intimate_transition",
+    "currentInputExplicitIntent": true
+  },
+  "adultRouteDecision": {
     "shouldBlock": true,
-    "red_message": "이 설정에서는 해당 성인 장면을 진행할 수 없습니다."
+    "blockReason": "participant_unknown"
   },
-  "after_fix": {
-    "charParticipantStatus": "unknown",
-    "personaParticipantStatus": "confirmed",
-    "eligibility": {
-      "eligible": false,
-      "allowedByAdultContentPolicy": false,
-      "blockReason": "participant_unknown"
-    },
-    "sceneClassification": {
-      "sceneMode": "intimate_transition",
-      "currentInputExplicitIntent": true,
-      "sexualContextActive": true
-    },
-    "adultRouteDecision": {
-      "shouldBlock": true,
-      "blockReason": "participant_unknown"
-    },
-    "red_message_if_blocked": "등장인물의 성인 여부를 확인할 수 없어 이 장면을 진행할 수 없습니다."
-  },
-  "fix_notes": {
-    "participant_minor_false_positive_removed": true,
-    "historical_backstory_no_longer_classifies_as_minor": true,
-    "character_17_still_unknown_without_confirmed_adult_metadata": true,
-    "explicit_scene_may_still_block_on_participant_unknown": true
-  }
+  "not_participant_minor": true
 }
