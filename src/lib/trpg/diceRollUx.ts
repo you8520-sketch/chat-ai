@@ -46,11 +46,25 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
   return { perDie, total: Math.min(TRPG_D20_TOTAL_CAP_MS, perDie * n) };
 }
 
-/** Static result overlay: per-roll reveal window (enter + hold + exit). No throw motion. */
-export const TRPG_EMERALD_ACTIVE_MS = { 1: 1500, 2: 1060, 3: 900, 4: 820 } as const;
-export const TRPG_EMERALD_HOLD_MS = { 1: 0, 2: 0, 3: 0, 4: 0 } as const;
-export const TRPG_EMERALD_WATCHDOG_MARGIN_MS = 1500;
+/**
+ * Result confirmation phase timing (after 3D physics settle).
+ * The 3D roll is physics-driven (variable time); these constants
+ * control only the post-settle RESULT_CONFIRM HUD duration.
+ */
+export const TRPG_RESULT_ENTER_MS = 180 as const;
+export const TRPG_RESULT_HOLD_MS = { 1: 850, 2: 650, 3: 500, 4: 500 } as const;
+export const TRPG_RESULT_EXIT_MS = 200 as const;
+/** Max 3D physics roll time per die (watchdog budget). */
+export const TRPG_ROLL_MAX_MS = 7000 as const;
+export const TRPG_EMERALD_WATCHDOG_MARGIN_MS = 2000;
 export const TRPG_EMERALD_MULTI_ROLL_CAP_MS = 5000;
+
+export function trpgResultConfirmPerDieMs(rollCount: number): number {
+  const n = Math.max(0, Math.floor(rollCount));
+  if (n <= 0) return 0;
+  const bucket = n === 1 ? 1 : n === 2 ? 2 : n === 3 ? 3 : 4;
+  return TRPG_RESULT_ENTER_MS + TRPG_RESULT_HOLD_MS[bucket] + TRPG_RESULT_EXIT_MS;
+}
 
 export function trpgEmeraldDiceTiming(rollCount: number): {
   activeMs: number;
@@ -60,8 +74,7 @@ export function trpgEmeraldDiceTiming(rollCount: number): {
 } {
   const n = Math.max(0, Math.floor(rollCount));
   if (n <= 0) return { activeMs: 0, holdMs: 0, perDieMs: 0, totalMs: 0 };
-  const bucket = n === 1 ? 1 : n === 2 ? 2 : n === 3 ? 3 : 4;
-  const perDieMs = TRPG_EMERALD_ACTIVE_MS[bucket];
+  const perDieMs = trpgResultConfirmPerDieMs(n);
   return {
     activeMs: perDieMs,
     holdMs: 0,
@@ -70,10 +83,10 @@ export function trpgEmeraldDiceTiming(rollCount: number): {
   };
 }
 
-/** Watchdog = expected overlay total + margin. Never used to hide a short single-roll. */
+/** Watchdog = max physics roll time + result confirm total + margin. */
 export function trpgDiceRevealWatchdogMs(rollCount: number): number {
-  const emerald = trpgEmeraldDiceTiming(rollCount);
-  return Math.max(emerald.totalMs + TRPG_EMERALD_WATCHDOG_MARGIN_MS, 4000);
+  const result = trpgEmeraldDiceTiming(rollCount);
+  return Math.max(result.totalMs + TRPG_ROLL_MAX_MS + TRPG_EMERALD_WATCHDOG_MARGIN_MS, 10000);
 }
 
 export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: boolean }): boolean {

@@ -12,6 +12,9 @@ import {
   trpgDiceRollSessionKey,
   trpgEmeraldDiceTiming,
   trpgPredeterminedD20Notation,
+  trpgResultConfirmPerDieMs,
+  TRPG_RESULT_ENTER_MS,
+  TRPG_RESULT_EXIT_MS,
 } from "@/lib/trpg/diceRollUx";
 import {
   PRODUCTION_D20_THEME,
@@ -23,7 +26,6 @@ import {
   type TrpgD20StaticOverlayTone,
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
-
 import TrpgDiceBoxScene from "./TrpgDiceBoxScene";
 
 export type TrpgDiceOverlayPlaybackState = {
@@ -36,6 +38,8 @@ export type TrpgDiceOverlayPlaybackState = {
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
+
+type ResultPhase = "rolling" | "entering" | "holding" | "exiting";
 
 function overlayTone(d20: number, tierTone: ReturnType<typeof resolveTrpgD20Tone>): TrpgD20StaticOverlayTone {
   if (tierTone === "nat20") return "nat20";
@@ -83,8 +87,7 @@ export default function TrpgDiceOverlay({
   const timing = trpgEmeraldDiceTiming(ordered.length);
   const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [settled, setSettled] = useState(false);
-  const [entered, setEntered] = useState(false);
-  const [leaving, setLeaving] = useState(false);
+  const [resultPhase, setResultPhase] = useState<ResultPhase>("rolling");
   const [use3d, setUse3d] = useState(true);
   const prevKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
@@ -148,32 +151,53 @@ export default function TrpgDiceOverlay({
     prevKeyRef.current = sessionKey;
     setPlay((current) => {
       const next = applyTrpgDiceOverlaySession(current, action);
-      if (action === "start" || action === "clear") setSettled(false);
+      if (action === "start" || action === "clear") {
+        setSettled(false);
+        setResultPhase("rolling");
+      }
       return next;
     });
   }, [ordered.length, replayOnMount, sessionKey]);
 
-  const onSettled = useCallback(() => {
+  // Called by the 3D scene when physics settles
+  const onDieSettled = useCallback(() => {
     setSettled(true);
-    setPlay((current) => {
-      const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
-      if (next.dismissed && sessionKey) consumedKeysRef.current.add(sessionKey);
-      return { ...current, index: next.index, dismissed: next.dismissed };
-    });
-  }, [ordered.length, sessionKey]);
+    setResultPhase("entering");
+  }, []);
 
+  // Result confirm phase timing
+  useEffect(() => {
+    if (resultPhase === "entering") {
+      const enter = window.setTimeout(() => setResultPhase("holding"), TRPG_RESULT_ENTER_MS);
+      return () => window.clearTimeout(enter);
+    }
+    if (resultPhase === "holding") {
+      const holdMs = TRPG_RESULT_ENTER_MS + trpgResultConfirmPerDieMs(ordered.length) - TRPG_RESULT_ENTER_MS - TRPG_RESULT_EXIT_MS;
+      const exit = window.setTimeout(() => setResultPhase("exiting"), holdMs);
+      return () => window.clearTimeout(exit);
+    }
+    if (resultPhase === "exiting") {
+      const done = window.setTimeout(() => {
+        setSettled(true);
+        setPlay((current) => {
+          const next = trpgDiceOverlayAfterSettle(current.index, ordered.length);
+          if (next.dismissed && sessionKey) consumedKeysRef.current.add(sessionKey);
+          return { ...current, index: next.index, dismissed: next.dismissed };
+        });
+        setResultPhase("rolling");
+      }, TRPG_RESULT_EXIT_MS);
+      return () => window.clearTimeout(done);
+    }
+  }, [resultPhase, ordered.length, sessionKey]);
+
+  // Watchdog: if 3D physics takes too long, force settle
   useEffect(() => {
     if (!visible || ordered.length === 0) return;
-    setEntered(false);
-    setLeaving(false);
-    const enter = window.setTimeout(() => setEntered(true), 20);
-    // Watchdog: if 3D physics takes too long, force settle
-    const watchdog = window.setTimeout(() => onSettled(), Math.min(8000, timing.perDieMs + 4000));
-    return () => {
-      window.clearTimeout(enter);
-      window.clearTimeout(watchdog);
-    };
-  }, [visible, play.index, ordered.length, timing.perDieMs, onSettled]);
+    const watchdog = window.setTimeout(() => {
+      if (!settled) onDieSettled();
+    }, 10000);
+    return () => window.clearTimeout(watchdog);
+  }, [visible, play.index, ordered.length, settled, onDieSettled]);
 
   if (!visible) return null;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
@@ -183,11 +207,20 @@ export default function TrpgDiceOverlay({
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
   const face = Math.max(1, Math.min(20, Math.floor(roll.d20)));
+  const showResult = resultPhase === "entering" || resultPhase === "holding" || resultPhase === "exiting";
+  const resultOpacity =
+    resultPhase === "entering" ? 0 :
+    resultPhase === "holding" ? 1 :
+    resultPhase === "exiting" ? 0 : 0;
+  const resultScale =
+    resultPhase === "entering" ? 0.92 :
+    resultPhase === "holding" ? 1 :
+    resultPhase === "exiting" ? 1 : 1;
 
   return (
     <div
       className={`pointer-events-none fixed inset-0 z-[65] transition-opacity duration-200 ${overlay.overlayDimClass} ${
-        entered && !leaving ? "opacity-100" : "opacity-0"
+        visible ? "opacity-100" : "opacity-0"
       }`}
       data-trpg-dice-overlay
       data-trpg-dice-engine={use3d ? "dice-box-threejs" : "static-result"}
@@ -202,79 +235,125 @@ export default function TrpgDiceOverlay({
       data-trpg-dice-active-ms={timing.perDieMs}
       data-trpg-dice-hold-ms={0}
       data-trpg-dice-total-ms={timing.totalMs}
+      data-trpg-dice-result-phase={resultPhase}
       aria-hidden="true"
     >
       <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
         <div className="flex flex-col items-center">
           <div
-            className={`relative flex items-center justify-center transition-all duration-200 ease-out ${
-              entered && !leaving ? "scale-100 opacity-100" : "scale-[0.94] opacity-0"
-            }`}
+            className="relative flex items-center justify-center"
             data-trpg-dice-stage
             data-trpg-dice-stage-w={TRPG_D20_STAGE_DESKTOP.width}
             data-trpg-dice-stage-h={TRPG_D20_STAGE_DESKTOP.height}
             data-trpg-dice-stage-mobile-w={TRPG_D20_STAGE_MOBILE.width}
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
-            <div className={`relative ${overlay.frameGlow[tone]}`}>
-              {tone === "nat20" ? (
-                <div
-                  className="pointer-events-none absolute inset-[-18%] rounded-full"
-                  style={{ background: overlay.burst.nat20 }}
-                  data-trpg-dice-burst="nat20"
+            {/* 3D roll phase */}
+            {use3d && !showResult ? (
+              <div
+                key={`${sessionKey}:${play.index}`}
+                className="h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
+                data-trpg-dice-canvas="3d"
+              >
+                <TrpgDiceBoxScene
+                  value={face}
+                  tone={tierTone}
+                  reducedQuality={false}
+                  onSettled={onDieSettled}
                 />
-              ) : null}
-              {tone === "nat1" ? (
-                <div
-                  className="pointer-events-none absolute inset-[-16%] rounded-full"
-                  style={{ background: overlay.burst.nat1 }}
-                  data-trpg-dice-burst="nat1"
+              </div>
+            ) : null}
+
+            {/* Static fallback (no WebGL) during roll phase */}
+            {!use3d && !showResult ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={overlay.baseAsset}
+                  alt=""
+                  draggable={false}
+                  className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
+                  data-trpg-dice-canvas="static"
                 />
-              ) : null}
-              {use3d ? (
-                <div
+                <span
                   key={`${sessionKey}:${play.index}`}
-                  className="h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
-                  data-trpg-dice-canvas="3d"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold"
+                  style={{
+                    color: overlay.numeral.colors[tone],
+                    fontFamily: overlay.numeral.fontFamily,
+                    fontWeight: overlay.numeral.weight,
+                    fontSize: `min(${face >= 10 ? overlay.numeral.doublePx : overlay.numeral.singlePx}px, 12vw)`,
+                    textShadow: overlay.numeral.textShadow,
+                  }}
+                  data-trpg-dice-numeral={face}
                 >
-                  <TrpgDiceBoxScene
-                    value={face}
-                    tone={tierTone}
-                    reducedQuality={false}
-                    onSettled={onSettled}
-                  />
-                </div>
-              ) : (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={overlay.baseAsset}
-                    alt=""
-                    draggable={false}
-                    className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
-                    data-trpg-dice-canvas="static"
-                  />
-                  <span
-                    key={`${sessionKey}:${play.index}`}
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold"
+                  {face}
+                </span>
+              </>
+            ) : null}
+
+            {/* RESULT_CONFIRM phase: premium cinematic result HUD */}
+            {showResult ? (
+              <div
+                className="relative flex flex-col items-center justify-center transition-all duration-200 ease-out"
+                style={{
+                  opacity: resultOpacity,
+                  transform: `scale(${resultScale})`,
+                }}
+                data-trpg-dice-result-confirm
+                data-trpg-dice-result-tone={tone}
+              >
+                {/* nat20 effect: champagne-gold radial flare */}
+                {tone === "nat20" ? (
+                  <div
+                    className="pointer-events-none absolute inset-[-30%] rounded-full"
                     style={{
-                      color: overlay.numeral.colors[tone],
-                      fontFamily: overlay.numeral.fontFamily,
-                      fontWeight: overlay.numeral.weight,
-                      fontSize: `min(${face >= 10 ? overlay.numeral.doublePx : overlay.numeral.singlePx}px, 12vw)`,
-                      textShadow: overlay.numeral.textShadow,
+                      background:
+                        "radial-gradient(circle, rgba(232,197,106,0.35) 0%, rgba(232,197,106,0.1) 45%, transparent 70%)",
                     }}
-                    data-trpg-dice-numeral={face}
-                  >
-                    {face}
-                  </span>
-                </>
-              )}
-            </div>
+                    data-trpg-dice-burst="nat20"
+                  />
+                ) : null}
+                {/* nat1 effect: crimson pulse */}
+                {tone === "nat1" ? (
+                  <div
+                    className="pointer-events-none absolute inset-[-25%] rounded-full"
+                    style={{
+                      background:
+                        "radial-gradient(circle, rgba(138,36,48,0.35) 0%, rgba(80,18,40,0.12) 50%, transparent 72%)",
+                    }}
+                    data-trpg-dice-burst="nat1"
+                  />
+                ) : null}
+                <span
+                  className="font-serif font-semibold leading-none"
+                  style={{
+                    color: tone === "nat20" ? "#f5e8b8" : tone === "nat1" ? "#e08a92" : "#e8dcc0",
+                    fontSize: "min(84px, 12vw)",
+                    textShadow:
+                      "0 1px 2px rgba(0,0,0,0.6), 0 0 16px rgba(232,197,106,0.22)",
+                  }}
+                  data-trpg-dice-result-numeral={face}
+                >
+                  {face}
+                </span>
+                <p
+                  className="mt-3 text-center text-[14px] font-medium tracking-wide"
+                  style={{
+                    color: roll.success ? "#7ac4a0" : "#d4848e",
+                  }}
+                  data-trpg-dice-result-outcome={outcome}
+                >
+                  {outcome}
+                </p>
+              </div>
+            ) : null}
           </div>
-          <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
-            {roll.name} · D20 {roll.d20} · {outcome}
-          </p>
+          {!showResult ? (
+            <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
+              {roll.name} · D20 {roll.d20} · {outcome}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

@@ -19,8 +19,7 @@ import {
   trpgDiceDurationMs,
   trpgDiceRevealWatchdogMs,
   trpgEmeraldDiceTiming,
-  TRPG_EMERALD_ACTIVE_MS,
-  TRPG_EMERALD_HOLD_MS,
+  trpgResultConfirmPerDieMs,
   TRPG_EMERALD_MULTI_ROLL_CAP_MS,
   trpgDiceOverlayActive,
   trpgDiceOverlayAfterSettle,
@@ -180,7 +179,10 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgEmeraldDiceTiming/);
     assert.match(overlay, /trpgD20StaticOverlaySpec/);
     assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
-    assert.match(overlay, /data-trpg-dice-stage/);
+    assert.match(overlay, /data-trpg-dice-result-phase/);
+    assert.match(overlay, /data-trpg-dice-result-confirm/);
+    assert.match(overlay, /data-trpg-dice-result-numeral/);
+    assert.match(overlay, /data-trpg-dice-result-outcome/);
     assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
     assert.match(overlay, /data-trpg-dice-burst="nat1"/);
@@ -195,17 +197,17 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
   });
 
-  it("paces static multi-roll so overlay finishes before the watchdog", () => {
+  it("paces result-confirm multi-roll so overlay finishes before the watchdog", () => {
     const one = trpgEmeraldDiceTiming(1);
-    assert.equal(one.perDieMs, TRPG_EMERALD_ACTIVE_MS[1]);
-    assert.equal(one.perDieMs, 1500);
-    assert.equal(one.totalMs, 1500);
+    assert.equal(one.perDieMs, trpgResultConfirmPerDieMs(1));
+    assert.equal(one.perDieMs, 1230);
+    assert.equal(one.totalMs, 1230);
     const two = trpgEmeraldDiceTiming(2);
-    assert.equal(two.perDieMs, TRPG_EMERALD_ACTIVE_MS[2]);
-    assert.equal(two.totalMs, 2120);
+    assert.equal(two.perDieMs, trpgResultConfirmPerDieMs(2));
+    assert.equal(two.totalMs, 2060);
     const three = trpgEmeraldDiceTiming(3);
-    assert.equal(three.perDieMs, TRPG_EMERALD_ACTIVE_MS[3]);
-    assert.equal(three.totalMs, 2700);
+    assert.equal(three.perDieMs, trpgResultConfirmPerDieMs(3));
+    assert.equal(three.totalMs, 2640);
     assert.ok(three.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
     assert.ok(one.perDieMs > two.perDieMs);
     assert.ok(two.perDieMs > three.perDieMs);
@@ -214,16 +216,16 @@ describe("TRPG 3D dice overlay contracts", () => {
       const watchdog = trpgDiceRevealWatchdogMs(n);
       assert.ok(timing.totalMs < watchdog);
       assert.ok(timing.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
-      assert.ok(watchdog < 10_000);
+      assert.ok(watchdog >= 10_000);
     }
-    assert.equal(trpgDiceRevealWatchdogMs(1), 4000);
+    assert.equal(trpgDiceRevealWatchdogMs(1), 10_230);
     const four = trpgEmeraldDiceTiming(4);
-    assert.equal(four.perDieMs, TRPG_EMERALD_ACTIVE_MS[4]);
-    assert.equal(four.perDieMs, 820);
-    assert.equal(four.totalMs, 3280);
-    assert.equal(trpgDiceRevealWatchdogMs(4), 4780);
+    assert.equal(four.perDieMs, trpgResultConfirmPerDieMs(4));
+    assert.equal(four.perDieMs, 880);
+    assert.equal(four.totalMs, 3520);
+    assert.equal(trpgDiceRevealWatchdogMs(4), 12_520);
     assert.ok(four.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
-    assert.ok(three.perDieMs > four.perDieMs);
+    assert.ok(three.perDieMs >= four.perDieMs);
     const ux = fs.readFileSync("src/lib/trpg/diceRollUx.ts", "utf8");
     assert.match(ux, /Math\.min\(TRPG_EMERALD_MULTI_ROLL_CAP_MS, perDieMs \* n\)/);
     assert.equal(TRPG_MAX_SLOTS, 4);

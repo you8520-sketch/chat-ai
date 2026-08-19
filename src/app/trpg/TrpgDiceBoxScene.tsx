@@ -7,28 +7,6 @@ import {
   TRPG_DICE_BOX_NOTATION,
 } from "@/lib/trpg/diceVisual";
 
-function colorsetForTone(tone: TrpgD20Tone) {
-  if (tone === "nat20") {
-    return {
-      ...TRPG_DICE_BOX_COLORSET,
-      name: "obsidian-royal-nat20",
-      foreground: "#fff5cc",
-      edge: "#e8c56a",
-      color_spotlight: 0xf0d78c,
-    };
-  }
-  if (tone === "nat1") {
-    return {
-      ...TRPG_DICE_BOX_COLORSET,
-      name: "obsidian-royal-nat1",
-      foreground: "#f0c8d0",
-      edge: "#8a2430",
-      color_spotlight: 0xc07070,
-    };
-  }
-  return TRPG_DICE_BOX_COLORSET;
-}
-
 async function ensureCinzelLoaded(): Promise<void> {
   if (typeof document === "undefined" || !(document as { fonts?: FontFaceSet }).fonts) return;
   try {
@@ -61,10 +39,8 @@ export default function TrpgDiceBoxScene({
 
   useEffect(() => {
     if (!ready || !hostRef.current) return;
-    const host = hostRef.current;
     settledRef.current = false;
     let cancelled = false;
-    let pulse: number | null = null;
 
     const run = async () => {
       if (cancelled || !hostRef.current) return;
@@ -73,7 +49,6 @@ export default function TrpgDiceBoxScene({
       try {
         const DiceBox = (await import("@3d-dice/dice-box-threejs")).default;
         if (cancelled) return;
-        const colorset = colorsetForTone(tone);
         const box = new DiceBox(`#${boxIdRef.current}`, {
           assetPath: "/",
           sounds: false,
@@ -81,43 +56,19 @@ export default function TrpgDiceBoxScene({
           theme_surface: "stainless",
           theme_texture: "",
           theme_material: "glass",
-          theme_customColorset: colorset,
-        gravity_multiplier: 620,
-        light_intensity: reducedQuality ? 0.7 : 1.05,
-        strength: 0.8,
-        baseScale: 50,
-        color_spotlight: (colorset as { color_spotlight?: number }).color_spotlight ?? 0xefdfd5,
+          theme_customColorset: TRPG_DICE_BOX_COLORSET,
+          gravity_multiplier: 400,
+          light_intensity: reducedQuality ? 0.7 : 1.05,
+          strength: 1,
+          baseScale: 50,
+          color_spotlight: 0xefdfd5,
         });
         await box.initialize();
         if (cancelled) return;
-        const far = box.cameraHeight.far;
-        box.camera.position.set(0, -far * 0.16, far);
-        box.camera.lookAt(0, 0, 0);
-        box.renderer.render(box.scene, box.camera);
         box.light.intensity = reducedQuality ? 0.85 : 1.25;
         box.light_amb.intensity = 0.58;
-        const rim = box.light.clone();
-        rim.intensity = tone === "nat20" || tone === "nat1" ? 0.38 : 0.22;
-        rim.position.set(-box.light.position.x * 0.35, box.light.position.y * 0.2, box.light.position.z * 0.55);
-        box.scene.add(rim);
-        if (tone === "nat20" || tone === "nat1") {
-          const started = performance.now();
-          const tick = (now: number) => {
-            if (cancelled) return;
-            const wave = Math.sin((now - started) / 80);
-            rim.intensity = 0.28 + wave * 0.16;
-            pulse = requestAnimationFrame(tick);
-          };
-          pulse = requestAnimationFrame(tick);
-        }
         await box.roll(TRPG_DICE_BOX_NOTATION(value));
         if (cancelled) return;
-        const landed = box.diceList[0]?.position;
-        if (landed) {
-          box.camera.position.set(landed.x + 60, landed.y - 200, 520);
-          box.camera.lookAt(landed.x, landed.y, 8);
-          box.renderer.render(box.scene, box.camera);
-        }
         if (!settledRef.current) {
           settledRef.current = true;
           onSettled();
@@ -141,8 +92,7 @@ export default function TrpgDiceBoxScene({
 
     return () => {
       cancelled = true;
-      if (pulse != null) cancelAnimationFrame(pulse);
-      const canvas = host.querySelector("canvas");
+      const canvas = hostRef.current?.querySelector("canvas");
       canvas?.remove();
     };
   }, [ready, onSettled, reducedQuality, tone, value]);
