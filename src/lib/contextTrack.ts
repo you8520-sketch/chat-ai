@@ -1,5 +1,3 @@
-import { MAX_PAYLOAD_INPUT_TOKENS } from "@/lib/turnApiBudget";
-
 /** Google Gemini explicit CachedContent — 최소 토큰 (gemini-3.1-pro 등) */
 
 export const GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD = 32_768;
@@ -15,13 +13,6 @@ export const GEMINI_STATIC_STORED_SUMMARY_LIMIT = 15;
 
 /** 전 모델 공통 — 최근 대화 raw 히스토리 토큰 상한 */
 export const HISTORY_TOKEN_BUDGET = 10_000;
-
-/**
- * Coverage floor may keep a few extra unsummarized turns past HISTORY_TOKEN_BUDGET,
- * but must never replay an unbounded chat. Gemini 3.7 adult turns are ~5k tokens
- * each; without this cap, 8 raw turns become ~40k input.
- */
-export const HISTORY_TOKEN_HARD_CAP = 16_000;
 
 /** @deprecated HISTORY_TOKEN_BUDGET 사용 (전 모델 통일) */
 export const GEMINI_HISTORY_TOKEN_BUDGET = HISTORY_TOKEN_BUDGET;
@@ -106,7 +97,7 @@ export function resolveHistoryTokenBudget(
 ): number {
   void modelId;
   void provider;
-  return HISTORY_TOKEN_BUDGET;
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export function resolveRawRecentTurnWindow(
@@ -159,8 +150,8 @@ export function resolveStaticStoredSummaryLimit(
 }
 
 export function resolveMaxPayloadInputTokens(modelId?: string | null): number {
-  if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS;
-  return MAX_PAYLOAD_INPUT_TOKENS;
+  void modelId;
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export function resolveRecentNarrativeContextLimit(

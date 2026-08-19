@@ -16,10 +16,10 @@ import {
 } from "@/lib/hybridMemory";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
-function makePlayableTurns(count: number, assistantChars = 400): DialogueTurn[] {
+function makePlayableTurns(count: number): DialogueTurn[] {
   return Array.from({ length: count }, (_, index) => ({
     user: `user-${index + 1}:${"가".repeat(200)}`,
-    assistant: `assistant-${index + 1}:${"나".repeat(assistantChars)}`,
+    assistant: `assistant-${index + 1}:${"나".repeat(2500)}`,
   }));
 }
 
@@ -124,14 +124,14 @@ describe("RAW ↔ sealed summary coverage matrix", () => {
     });
   }
 
-  it("documents the fixed-floor gaps reproduced before the coverage-aware floor", () => {
+  it("documents the fixed-floor gaps reproduced before the fix", () => {
     const expected = [
-      { completed: 5, summarized: 0, gap: 0 },
-      { completed: 6, summarized: 0, gap: 0 },
-      { completed: 7, summarized: 0, gap: 0 },
+      { completed: 5, summarized: 0, gap: 1 },
+      { completed: 6, summarized: 0, gap: 2 },
+      { completed: 7, summarized: 0, gap: 3 },
       { completed: 12, summarized: 6, gap: 0 },
       { completed: 13, summarized: 6, gap: 0 },
-      { completed: 20, summarized: 6, gap: 0 },
+      { completed: 20, summarized: 6, gap: 9 },
     ];
     for (const fixture of expected) {
       const before = analyzeCoverage({

@@ -7,7 +7,6 @@ import {
 } from "@/lib/chatModels";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
-import { estimateTokens } from "@/lib/tokenEstimate";
 import {
   countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
@@ -19,7 +18,7 @@ import {
 import { buildContext } from "@/services/contextBuilder";
 import type { ChatMsg } from "@/lib/ai";
 
-function makeTurns(count: number, assistantChars = 400): DialogueTurn[] {
+function makeTurns(count: number, assistantChars = 2500): DialogueTurn[] {
   return Array.from({ length: count }, (_, index) => ({
     user: `user-${index + 1}:${"가".repeat(200)}`,
     assistant: `assistant-${index + 1}:${"나".repeat(assistantChars)}`,
@@ -188,10 +187,9 @@ describe("contextBuilder memory coverage", () => {
     const priorHistory = built.history.slice(0, -1);
 
     assert.equal(floor, 7);
-    assert.equal(countPlayableHistoryTurns(initialHistory), 7);
+    assert.equal(countPlayableHistoryTurns(priorHistory), 7);
     assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 1);
     assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
-    assert.equal(priorHistory.length % 2, 0);
   });
 
   it("keeps the existing adult handoff when it already exceeds coverage", () => {
@@ -225,7 +223,7 @@ describe("contextBuilder memory coverage", () => {
   });
 
   for (const path of ["first adult handoff", "silent fallback"] as const) {
-    it(`${path} hard-caps Gemini-sized coverage instead of replaying unbounded raw`, () => {
+    it(`${path} keeps all selected coverage when app-level input caps are disabled`, () => {
       const completedTurns = 20;
       const summarizedTurnCount = 6;
       const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
@@ -245,24 +243,18 @@ describe("contextBuilder memory coverage", () => {
         suppressMemoryCoverageDegradedLog: true,
       });
       const coverageMeta = built.meta.memoryCoverage!;
-      const priorHistory = built.history.slice(0, -1);
-      const priorTokens = priorHistory.reduce(
-        (sum, message) => sum + estimateTokens(message.content),
-        0
-      );
 
+      assert.equal(coverageMeta.degraded, false);
       assert.equal(coverageMeta.requestedFloor, 14);
       assert.equal(coverageMeta.adultRequiredFloor, 6);
-      assert.ok(
-        countPlayableHistoryTurns(priorHistory) <= 4,
-        `expected 4-turn hard ceiling, got ${countPlayableHistoryTurns(priorHistory)}`
-      );
-      assert.ok(priorTokens < 80_000, `expected a large cut from unbounded raw, got ${priorTokens}`);
-      assert.equal(priorHistory.length % 2, 0);
+      assert.equal(coverageMeta.effectiveFloor, coverageMeta.requestedFloor);
+      assert.equal(coverageMeta.adultBaselineDegraded, false);
+      assert.equal(coverageMeta.gapTurns, 0);
+      assert.equal(built.history.slice(0, -1).length % 2, 0);
     });
   }
 
-  it("hard-caps an oversized adult baseline instead of sending the full handoff", () => {
+  it("keeps the adult baseline even when it exceeds the former app cap", () => {
     const completedTurns = 6;
     const floor = 4;
     const handoff = rawRecentTurnsToHistory(makeTurns(completedTurns, 40_000));
@@ -277,46 +269,55 @@ describe("contextBuilder memory coverage", () => {
       adultHandoffRequiredTurnFloor: 6,
       suppressMemoryCoverageDegradedLog: true,
     });
-    const priorHistory = built.history.slice(0, -1);
-    const priorTokens = priorHistory.reduce(
-      (sum, message) => sum + estimateTokens(message.content),
-      0
-    );
+    const coverageMeta = built.meta.memoryCoverage!;
 
-    assert.ok(
-      countPlayableHistoryTurns(priorHistory) <= 4,
-      `expected 4-turn hard ceiling, got ${countPlayableHistoryTurns(priorHistory)}`
-    );
-    assert.ok(priorTokens < handoff.reduce((sum, message) => sum + estimateTokens(message.content), 0));
-    assert.equal(priorHistory.length % 2, 0);
+    assert.equal(coverageMeta.degraded, false);
+    assert.equal(coverageMeta.adultRequiredFloor, 6);
+    assert.equal(coverageMeta.effectiveFloor, coverageMeta.adultRequiredFloor);
+    assert.equal(coverageMeta.adultBaselineDegraded, false);
+    assert.equal(coverageMeta.gapTurns, 0);
+    assert.equal(built.history.slice(0, -1).length % 2, 0);
   });
 
-  it("trims a former unbounded payload instead of injecting the whole chat", () => {
+  it("does not degrade or warn at the former absolute payload limit", () => {
     const completedTurns = 20;
     const summarizedTurnCount = 0;
     const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
     const oversized = rawRecentTurnsToHistory(makeTurns(completedTurns, 10_000));
-    const built = buildCoverageContext({
-      provider: "openrouter",
-      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
-      history: oversized,
-      completedTurns,
-      summarizedTurnCount,
-      floor,
-      suppressMemoryCoverageDegradedLog: true,
-    });
-    const priorHistory = built.history.slice(0, -1);
-    const priorTokens = priorHistory.reduce(
-      (sum, message) => sum + estimateTokens(message.content),
-      0
-    );
+    const warnings: unknown[][] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => warnings.push(args);
+    let built: ReturnType<typeof buildContext>;
+    try {
+      built = buildCoverageContext({
+        provider: "openrouter",
+        modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+        history: oversized,
+        completedTurns,
+        summarizedTurnCount,
+        floor,
+      });
+      buildCoverageContext({
+        provider: "openrouter",
+        modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+        history: oversized,
+        completedTurns,
+        summarizedTurnCount,
+        floor,
+        suppressMemoryCoverageDegradedLog: true,
+      });
+    } finally {
+      console.warn = originalWarn;
+    }
 
-    assert.ok(
-      countPlayableHistoryTurns(priorHistory) <= 4,
-      `expected 4-turn hard ceiling, got ${countPlayableHistoryTurns(priorHistory)}`
-    );
-    assert.ok(priorTokens < oversized.reduce((sum, message) => sum + estimateTokens(message.content), 0));
-    assert.ok(priorHistory.length < oversized.length);
-    assert.equal(priorHistory.length % 2, 0);
+    const coverage = built!.meta.memoryCoverage!;
+    assert.equal(coverage.degraded, false);
+    assert.equal(coverage.reason, undefined);
+    assert.equal(coverage.effectiveFloor, coverage.requestedFloor);
+    assert.equal(coverage.gapTurns, 0);
+    assert.equal(built!.history.slice(0, -1).length % 2, 0);
+
+    const event = warnings.find(([name]) => name === "MEMORY_COVERAGE_DEGRADED");
+    assert.equal(event, undefined);
   });
 });

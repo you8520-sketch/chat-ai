@@ -3,7 +3,6 @@ import { estimateTokens } from "@/lib/tokenEstimate";
 import { OPENING_TURN_USER, isOpeningTurn } from "@/lib/chatGreetingContext";
 import {
   GEMINI_DYNAMIC_RECENT_TURNS,
-  HISTORY_TOKEN_HARD_CAP,
   HISTORY_TRIM_CHUNK_MESSAGES,
   MIN_HISTORY_TURN_FLOOR,
 } from "@/lib/contextTrack";
@@ -193,16 +192,11 @@ export function areCompatibleHistorySuffixes(a: ChatMsg[], b: ChatMsg[]): boolea
   return true;
 }
 
-function historyTokenCount(messages: ChatMsg[]): number {
-  return messages.reduce((sum, message) => sum + estimateTokens(message.content), 0);
-}
-
 /** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
   budget: number,
-  minTurnFloor = MIN_HISTORY_TURN_FLOOR,
-  hardCap = HISTORY_TOKEN_HARD_CAP
+  minTurnFloor = MIN_HISTORY_TURN_FLOOR
 ): ChatMsg[] {
   if (history.length === 0) return [];
 
@@ -211,26 +205,18 @@ export function trimHistoryToBudget(
     history.length,
     normalizeNonNegativeInteger(minTurnFloor) * 2
   );
-  const guaranteedMessages = Math.min(history.length, MIN_HISTORY_TURN_FLOOR * 2);
-  const tokenHardCap = Number.isFinite(hardCap) && hardCap > 0 ? hardCap : HISTORY_TOKEN_HARD_CAP;
 
   let tokens = 0;
   const kept: ChatMsg[] = [];
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i]!;
     const t = estimateTokens(msg.content);
-    const next = tokens + t;
-    const haveGuaranteedFloor = kept.length >= Math.max(1, guaranteedMessages);
-    const haveRequestedFloor = kept.length >= Math.max(1, floorMessages);
-    if (next > tokenHardCap && haveGuaranteedFloor) break;
-    if (next > budget && haveRequestedFloor) break;
+    if (tokens + t > budget && kept.length >= Math.max(1, floorMessages)) break;
     kept.unshift(msg);
     tokens += t;
   }
   if ((history.length - kept.length) % 2 !== 0) kept.shift();
-  const aligned = alignHistoryPrefixDrop(history, kept, floorMessages);
-  if (historyTokenCount(aligned) <= tokenHardCap) return aligned;
-  return kept;
+  return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 
 /** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 (floor 침범 금지) */
@@ -256,7 +242,7 @@ function alignHistoryPrefixDrop(
 
 /**
  * 전체 대화 턴 풀 — opening + playable 전부.
- * 주입량은 trimHistoryToBudget(10K 예산 + 16K hard cap + coverage-aware floor)만 결정.
+ * 주입량은 trimHistoryToBudget(전 모델 10K + coverage-aware floor)만 결정.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],

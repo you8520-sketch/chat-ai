@@ -10,7 +10,6 @@ import {
   trimHistoryToBudget,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
-import { estimateTokens } from "@/lib/tokenEstimate";
 
 function makeTurns(n: number): DialogueTurn[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -109,21 +108,6 @@ describe("trimHistoryToBudget", () => {
     assert.match(trimmed.at(-1)!.content, /assistant turn 10/);
     // chunk 정렬(10msg)로 floor보다 약간 더 남을 수 있음 — 최근 4턴(7~10)은 반드시 포함
     assert.ok(trimmed.some((m) => /user turn 7/.test(m.content)));
-  });
-
-  it("hard-caps Gemini-sized turns so coverage floor cannot replay 40k raw", () => {
-    const turns = Array.from({ length: 10 }, (_, i) => ({
-      user: `user turn ${i + 1} ` + "가".repeat(200),
-      assistant: `assistant turn ${i + 1} ` + "나".repeat(5_000),
-    }));
-    const full = rawRecentTurnsToHistory(turns);
-    const trimmed = trimHistoryToBudget(full, 10_000, 10);
-    const tokens = trimmed.reduce((sum, message) => sum + estimateTokens(message.content), 0);
-    const fullTokens = full.reduce((sum, message) => sum + estimateTokens(message.content), 0);
-    assert.equal(trimmed.length, 8, "4-turn minimum is the ceiling once hard cap binds");
-    assert.ok(tokens < fullTokens / 2, `expected a large cut from ${fullTokens}, got ${tokens}`);
-    assert.ok(tokens < 22_000, `4 long Gemini turns should stay near the hard cap, got ${tokens}`);
-    assert.match(trimmed.at(-1)!.content, /assistant turn 10/);
   });
 
   it("returns everything when history is shorter than the floor", () => {
