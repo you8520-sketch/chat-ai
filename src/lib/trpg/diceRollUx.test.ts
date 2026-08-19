@@ -175,7 +175,8 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgDiceRollSessionKey/);
     assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /trpgEmeraldDiceTiming/);
-    assert.match(overlay, /d20-result-\$\{String\(n\)\.padStart/);
+    assert.match(overlay, /d20-result-base\.webp/);
+    assert.match(overlay, /data-trpg-dice-numeral=\{face\}/);
     assert.match(overlay, /data-trpg-dice-stage/);
     assert.match(overlay, /bg-black\/15/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
@@ -186,13 +187,12 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(room, /shouldHideIncomingRollSession/);
     assert.match(room, /holdCurrentRoundReveal/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
-    for (let i = 1; i <= 20; i++) {
-      const n = String(i).padStart(2, "0");
-      assert.ok(
-        fs.existsSync(`public/d20-result/d20-result-${n}.webp`),
-        `missing result image ${n}`
-      );
-    }
+    assert.ok(fs.existsSync("public/d20-result/d20-result-base.webp"), "missing base D20 art");
+    assert.equal(
+      fs.readdirSync("public/d20-result").filter((f) => /^d20-result-\d+\.webp$/.test(f)).length,
+      0,
+      "per-number generated assets must be removed"
+    );
   });
 
   it("paces static multi-roll so overlay finishes before the watchdog", () => {

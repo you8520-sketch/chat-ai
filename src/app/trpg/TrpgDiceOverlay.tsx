@@ -34,11 +34,7 @@ import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
 
 const RESULT_IMAGE_BASE = "/d20-result";
-
-function resultImageSrc(value: number): string {
-  const n = Math.max(1, Math.min(20, Math.floor(value)));
-  return `${RESULT_IMAGE_BASE}/d20-result-${String(n).padStart(2, "0")}.webp`;
-}
+const RESULT_BASE_SRC = `${RESULT_IMAGE_BASE}/d20-result-base.webp`;
 
 export default function TrpgDiceOverlay({
   phase,
@@ -159,7 +155,8 @@ export default function TrpgDiceOverlay({
   const tone = resolveTrpgD20Tone(roll.d20, roll.tier);
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
-  const src = resultImageSrc(roll.d20);
+  const face = Math.max(1, Math.min(20, Math.floor(roll.d20)));
+  const twoDigit = face >= 10;
 
   const frameClass =
     tone === "nat20"
@@ -167,6 +164,13 @@ export default function TrpgDiceOverlay({
       : tone === "nat1"
         ? "drop-shadow-[0_0_38px_rgba(138,36,48,0.6)]"
         : "drop-shadow-[0_0_28px_rgba(214,199,161,0.28)]";
+
+  const numeralClass =
+    tone === "nat20"
+      ? "text-[#f0dc9a]"
+      : tone === "nat1"
+        ? "text-[#d98a92]"
+        : "text-[#e6d3a3]";
 
   return (
     <div
@@ -214,13 +218,28 @@ export default function TrpgDiceOverlay({
               ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                key={`${sessionKey}:${play.index}`}
-                src={src}
+                src={RESULT_BASE_SRC}
                 alt=""
                 draggable={false}
                 className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
                 data-trpg-dice-canvas="static"
               />
+              <span
+                key={`${sessionKey}:${play.index}`}
+                className={`pointer-events-none absolute inset-0 flex items-center justify-center font-serif font-semibold ${numeralClass} ${
+                  twoDigit
+                    ? "text-[min(104px,15vw)] max-md:text-[min(80px,19vw)]"
+                    : "text-[min(128px,19vw)] max-md:text-[min(100px,24vw)]"
+                }`}
+                style={{
+                  textShadow:
+                    "0 0 1px rgba(20,14,4,0.9), 0 2px 6px rgba(0,0,0,0.65), 0 0 18px rgba(230,211,163,0.28)",
+                  letterSpacing: twoDigit ? "-0.04em" : "0",
+                }}
+                data-trpg-dice-numeral={face}
+              >
+                {face}
+              </span>
             </div>
           </div>
           <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
