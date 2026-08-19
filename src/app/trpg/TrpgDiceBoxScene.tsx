@@ -82,10 +82,11 @@ export default function TrpgDiceBoxScene({
           theme_texture: "",
           theme_material: "glass",
           theme_customColorset: colorset,
-          gravity_multiplier: 620,
-          light_intensity: reducedQuality ? 0.7 : 1.05,
-          strength: 1.05,
-          color_spotlight: (colorset as { color_spotlight?: number }).color_spotlight ?? 0xefdfd5,
+        gravity_multiplier: 620,
+        light_intensity: reducedQuality ? 0.7 : 1.05,
+        strength: 0.8,
+        baseScale: 50,
+        color_spotlight: (colorset as { color_spotlight?: number }).color_spotlight ?? 0xefdfd5,
         });
         await box.initialize();
         if (cancelled) return;
@@ -113,7 +114,7 @@ export default function TrpgDiceBoxScene({
         if (cancelled) return;
         const landed = box.diceList[0]?.position;
         if (landed) {
-          box.camera.position.set(landed.x + 20, landed.y - 140, 390);
+          box.camera.position.set(landed.x + 60, landed.y - 200, 520);
           box.camera.lookAt(landed.x, landed.y, 8);
           box.renderer.render(box.scene, box.camera);
         }
