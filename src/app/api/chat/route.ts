@@ -101,12 +101,8 @@ import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterNam
 import {
   messagesToTurns,
   countPlayableTurns,
-  countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
-  resolveHistoryMinTurnFloor,
   selectLongerHistorySuffix,
-  trimHistoryToBudget,
-  RAW_HISTORY_COMPLETE_EXCHANGES,
   ROLLING_SUMMARY_INTERVAL,
 } from "@/lib/hybridMemory";
 import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
@@ -126,6 +122,18 @@ import {
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
 import { ensureSummaryBarrier } from "@/lib/memory/memory-rolling-summary";
+import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
+import { resolveProviderRawExchangeCount } from "@/lib/memory/memory-5plus4-flag";
+import {
+  analyzeProviderHistoryHealth,
+  countRealPlayableHistoryTurns,
+  resolveProviderHistoryTurnFloor,
+  trimProviderHistoryToBudget,
+} from "@/lib/providerHistoryPolicy";
+import {
+  shouldIncludeOpeningInProviderRaw,
+  splitOpeningPlayableTurns,
+} from "@/lib/hybridMemory";
 import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
 import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
@@ -1358,43 +1366,49 @@ export async function POST(req: Request) {
       userPersona: personaDisplayName,
       completedTurns: completedTurnsForMemoryCoverage,
     });
-    if (!barrier.ok) {
-      return Response.json(
-        {
-          error: "장기 기억 동기화가 지연되었습니다. 잠시 후 다시 시도해 주세요.",
-          code: barrier.reason,
-          retryable: true,
-          billingWaived: true,
-          pendingRange: barrier.pendingRange,
-        },
-        { status: 503 }
-      );
+    const gate = gateChatOnSummaryBarrier(barrier);
+    if (!gate.proceed) {
+      return Response.json(gate.response.body, { status: gate.response.status });
     }
-    effectiveSummarizedTurnCount = barrier.summarizedThrough;
+    effectiveSummarizedTurnCount = gate.summarizedThrough;
   }
 
+  const providerRawExchangeCount = resolveProviderRawExchangeCount();
+  const { opening: openingTurn, playable: playableTurnsForOpening } =
+    splitOpeningPlayableTurns(turnsForRecentHistory);
+  const protectOpening = shouldIncludeOpeningInProviderRaw({
+    opening: openingTurn,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
+    memoryFeatureEnabled: memoryFeatureOn,
+    playableCount: playableTurnsForOpening.length,
+  });
   const providerRawOpts = {
     summarizedTurnCount: effectiveSummarizedTurnCount,
     memoryFeatureEnabled: memoryFeatureOn,
   };
   const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(
     turnsForRecentHistory,
-    RAW_HISTORY_COMPLETE_EXCHANGES,
+    providerRawExchangeCount,
     providerRawOpts
   ).map((m) => ({
       ...m,
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
   );
-  const historyMinTurnFloor = resolveHistoryMinTurnFloor({
-    memoryFeatureEnabled: memoryFeatureOn,
-    completedTurns: completedTurnsForMemoryCoverage,
-    summarizedTurnCount: effectiveSummarizedTurnCount,
+  const providerTrimOpts = {
+    minRealPlayableExchanges: providerRawExchangeCount,
+    protectOpening,
+  };
+  const providerHistoryAbsoluteTurnFloor = resolveProviderHistoryTurnFloor({
+    minRealPlayableExchanges: providerRawExchangeCount,
+    protectOpening,
+    history: canonicalRecentHistoryFull,
   });
-  const coverageProtectedCanonicalHistory = trimHistoryToBudget(
+  const historyMinTurnFloor = providerHistoryAbsoluteTurnFloor;
+  const coverageProtectedCanonicalHistory = trimProviderHistoryToBudget(
     canonicalRecentHistoryFull,
     historyTokenBudget,
-    historyMinTurnFloor
+    providerTrimOpts
   );
   const canonicalRouteHistory: CanonicalRouteHistoryMessage[] = msgRowsSource
     .filter((row) => row.role === "user" || row.role === "assistant")
@@ -1448,13 +1462,15 @@ export async function POST(req: Request) {
     adultRouteDecision.activeRoute === "general" &&
     priorModelRouteState.generalRouteBridge
   ) {
-    providerRecentHistoryFull = trimHistoryToBudget(
+    providerRecentHistoryFull = trimProviderHistoryToBudget(
       buildGeneralProviderContext(
-        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory),
+        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawExchangeCount, {
+          includeOpening: protectOpening,
+        }),
         priorModelRouteState.generalRouteBridge
       ),
       historyTokenBudget,
-      historyMinTurnFloor
+      providerTrimOpts
     );
   }
   let handoffRawTurnsIncluded = 0;
@@ -1495,11 +1511,9 @@ export async function POST(req: Request) {
       : coverageProtectedCanonicalHistory;
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
-  const rawCompleteExchanges = countPlayableHistoryTurns(shortTermHistory);
-  const rawHistoryChars = shortTermHistory.reduce(
-    (n, m) => n + (m.content?.length ?? 0),
-    0
-  );
+  const providerHistoryHealth = analyzeProviderHistoryHealth(shortTermHistory);
+  const rawCompleteExchanges = providerHistoryHealth.realRawCompleteExchanges;
+  const rawHistoryChars = providerHistoryHealth.realRawChars;
   const rawHistoryInternalEstimate = shortTermHistory.reduce(
     (n, m) => n + estimateTokens(m.content ?? ""),
     0
@@ -1514,16 +1528,16 @@ export async function POST(req: Request) {
     chars: rawHistoryChars,
     internal_estimate: rawHistoryInternalEstimate,
   });
-  if (rawCompleteExchanges > RAW_HISTORY_COMPLETE_EXCHANGES) {
+  if (rawCompleteExchanges > providerRawExchangeCount) {
     console.warn("RAW_HISTORY_POLICY_VIOLATION", {
       chat_id: chat.id,
       raw_complete_exchanges: rawCompleteExchanges,
-      expected: RAW_HISTORY_COMPLETE_EXCHANGES,
+      expected: providerRawExchangeCount,
     });
   }
 
   const keptEligibleRawTurnsForLorebook = Math.min(
-    countPlayableHistoryTurns(trimmedHistoryForLorebook),
+    countRealPlayableHistoryTurns(trimmedHistoryForLorebook),
     completedTurnsForMemoryCoverage
   );
   const initialLorebookExcludeTurnStart =
@@ -2062,6 +2076,9 @@ export async function POST(req: Request) {
     completedTurnsForMemoryCoverage,
     summarizedTurnCount: effectiveSummarizedTurnCount,
     historyMinTurnFloor,
+    providerHistoryAbsoluteTurnFloor,
+    providerHistoryProtectOpening: protectOpening,
+    providerHistoryMinRealPlayableExchanges: providerRawExchangeCount,
     adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
@@ -4638,13 +4655,20 @@ export async function POST(req: Request) {
           breakdownAllocation: "estimated_section_allocation",
           rawHistoryHealth: {
             rawCompleteExchanges,
-            rawMessages: shortTermHistory.length,
+            rawMessages: providerHistoryHealth.realRawMessages,
             rawChars: rawHistoryChars,
             rawInternalEstimate: rawHistoryInternalEstimate,
             summaryInterval: ROLLING_SUMMARY_INTERVAL,
             summarizedThroughTurn: effectiveSummarizedTurnCount,
             unsummarizedCompletedTurns,
-            ...(rawCompleteExchanges > RAW_HISTORY_COMPLETE_EXCHANGES
+            realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+            realRawMessages: providerHistoryHealth.realRawMessages,
+            realRawChars: providerHistoryHealth.realRawChars,
+            openingPreludePresent: providerHistoryHealth.openingPreludePresent,
+            openingPreludeChars: providerHistoryHealth.openingPreludeChars,
+            generalRouteBridgePresent: providerHistoryHealth.generalRouteBridgePresent,
+            generalRouteBridgeChars: providerHistoryHealth.generalRouteBridgeChars,
+            ...(rawCompleteExchanges > providerRawExchangeCount
               ? { policyViolation: true }
               : {}),
           },

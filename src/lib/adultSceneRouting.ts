@@ -1,4 +1,5 @@
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { GENERAL_ROUTE_BRIDGE_USER_MARKER } from "@/lib/providerHistoryPolicy";
 import type { ChatMsg } from "@/lib/ai";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
 import {
@@ -1819,15 +1820,35 @@ export interface CanonicalRouteHistoryMessage extends ChatMsg {
   activeRoute?: ActiveModelRoute;
 }
 
-/** Latest N complete playable route exchanges — opening greeting excluded from count. */
+/** Latest N complete playable route exchanges; opening optional via shared policy. */
 export function boundCanonicalRouteHistoryForProvider(
   history: CanonicalRouteHistoryMessage[],
-  maxExchanges = RAW_HISTORY_COMPLETE_EXCHANGES
+  maxExchanges = RAW_HISTORY_COMPLETE_EXCHANGES,
+  opts?: { includeOpening?: boolean }
 ): CanonicalRouteHistoryMessage[] {
+  let openingPair: CanonicalRouteHistoryMessage[] = [];
+  let cursor = 0;
+
+  if (history.length >= 2 && history[0]?.role === "user" && history[0].content === OPENING_TURN_USER) {
+    openingPair = history.slice(0, 2);
+    cursor = 2;
+  } else if (
+    opts?.includeOpening &&
+    history.length >= 2 &&
+    history[0]?.role === "assistant" &&
+    history[1]?.role === "user"
+  ) {
+    openingPair = [
+      { role: "user", content: OPENING_TURN_USER },
+      history[0]!,
+    ];
+    cursor = 1;
+  }
+
   const pairs: CanonicalRouteHistoryMessage[][] = [];
   let pendingUser: CanonicalRouteHistoryMessage | null = null;
 
-  for (const message of history) {
+  for (const message of history.slice(cursor)) {
     if (message.role === "user") {
       pendingUser = message;
       continue;
@@ -1841,7 +1862,10 @@ export function boundCanonicalRouteHistoryForProvider(
     pendingUser = null;
   }
 
-  return pairs.slice(-maxExchanges).flat();
+  const bounded = pairs.slice(-maxExchanges).flat();
+  return opts?.includeOpening && openingPair.length > 0
+    ? [...openingPair, ...bounded]
+    : bounded;
 }
 
 export function buildGeneralProviderContext(
@@ -1855,7 +1879,7 @@ export function buildGeneralProviderContext(
   const insertBridge = () => {
     if (bridgeInserted || !bridge || Object.keys(bridge).length === 0) return;
     safe.push(
-      { role: "user", content: "[이전 장면 이후의 안전한 연속성 정보]" },
+      { role: "user", content: GENERAL_ROUTE_BRIDGE_USER_MARKER },
       {
         role: "assistant",
         content: JSON.stringify(sanitizeGeneralRouteBridge(bridge)),

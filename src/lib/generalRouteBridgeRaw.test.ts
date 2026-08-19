@@ -5,7 +5,11 @@ import {
   buildGeneralProviderContext,
   type CanonicalRouteHistoryMessage,
 } from "@/lib/adultSceneRouting";
-import { countPlayableHistoryTurns, trimHistoryToBudget } from "@/lib/hybridMemory";
+import {
+  analyzeProviderHistoryHealth,
+  countRealPlayableHistoryTurns,
+  trimProviderHistoryToBudget,
+} from "@/lib/providerHistoryPolicy";
 import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 
 function makeSafeHistory(count: number): CanonicalRouteHistoryMessage[] {
@@ -15,8 +19,8 @@ function makeSafeHistory(count: number): CanonicalRouteHistoryMessage[] {
     history.push({
       role: "assistant",
       content: `safe-a-${i}`,
-      sceneMode: "normal",
-      activeRoute: "general",
+      sceneMode: i <= 18 ? "explicit" : "normal",
+      activeRoute: i <= 18 ? "adult" : "general",
     });
   }
   return history;
@@ -33,8 +37,13 @@ describe("general route bridge RAW<=4", () => {
       relationshipChange: "trust grew",
       currentLocation: "office",
     });
-    const trimmed = trimHistoryToBudget(bridged, HISTORY_TOKEN_BUDGET, 4);
-    const realRaw = countPlayableHistoryTurns(trimmed);
-    assert.ok(realRaw <= 4, `expected <=4 real RAW, got ${realRaw}`);
+    const trimmed = trimProviderHistoryToBudget(bridged, HISTORY_TOKEN_BUDGET, {
+      minRealPlayableExchanges: 4,
+      protectOpening: false,
+    });
+    const health = analyzeProviderHistoryHealth(trimmed);
+    assert.ok(health.realRawCompleteExchanges <= 4);
+    assert.ok(health.generalRouteBridgePresent);
+    assert.equal(countRealPlayableHistoryTurns(trimmed), health.realRawCompleteExchanges);
   });
 });

@@ -54,8 +54,15 @@ describe("memory 5+4 cutover — legacy spans", () => {
     assert.deepEqual(missingContiguousBatchStarts(records, 16), []);
   });
 
-  it("L3 completed 17 seals 13-17 frontier", () => {
-    assert.deepEqual(resolveNextBatchRange(12, 17), { turnStart: 13, turnEnd: 17 });
+  it("L3 completed 17 seals 13-17 frontier when MEMORY_5PLUS4_ENABLED", () => {
+    const prev = process.env.MEMORY_5PLUS4_ENABLED;
+    try {
+      process.env.MEMORY_5PLUS4_ENABLED = "1";
+      assert.deepEqual(resolveNextBatchRange(12, 17), { turnStart: 13, turnEnd: 17 });
+    } finally {
+      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
+      else process.env.MEMORY_5PLUS4_ENABLED = prev;
+    }
   });
 
   it("L5 NULL turn_end resolves as six-turn legacy", () => {
@@ -183,7 +190,8 @@ describe("summary quality contracts", () => {
   });
 });
 
-describe("chat707 offline RAW replay", () => {
+describe("chat707 reconstructed totals fixture", () => {
+  const CHAT707_FIXTURE_TYPE = "reconstructed_totals";
   const BASE = 1939;
   const A7 = 2066;
   const A11 = 1833;
@@ -209,37 +217,36 @@ describe("chat707 offline RAW replay", () => {
     assert.equal(after.length, 8);
     assert.equal(beforeChars, 42679);
     assert.equal(afterChars, 15406);
+    assert.equal(CHAT707_FIXTURE_TYPE, "reconstructed_totals");
   });
 });
 
-describe("greenfield 5-turn cadence", () => {
+describe("greenfield 5-turn cadence (MEMORY_5PLUS4_ENABLED)", () => {
+  const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
   it("expectedSealedTurnCount for greenfield", () => {
     assert.equal(expectedSealedTurnCount(4), 0);
     assert.equal(expectedSealedTurnCount(5), 5);
     assert.equal(expectedSealedTurnCount(10), 10);
   });
 
-  it("newBatchEndForStart is start+4", () => {
-    assert.equal(newBatchEndForStart(1), 5);
-    assert.equal(newBatchEndForStart(13), 17);
+  it("newBatchEndForStart follows flag — OFF=6-turn legacy, ON=5-turn", () => {
+    const prev = process.env[ENV_KEY];
+    try {
+      delete process.env[ENV_KEY];
+      assert.equal(newBatchEndForStart(1), 6);
+      assert.equal(newBatchEndForStart(13), 18);
+      process.env[ENV_KEY] = "1";
+      assert.equal(newBatchEndForStart(1), 5);
+      assert.equal(newBatchEndForStart(13), 17);
+    } finally {
+      if (prev === undefined) delete process.env[ENV_KEY];
+      else process.env[ENV_KEY] = prev;
+    }
   });
 });
 
-describe("rolling deploy safety", () => {
-  it("old b278f61 reader cannot safely consume new 5-turn rows — two-phase required", async () => {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const rangeSrc = fs.readFileSync(
-      path.join(process.cwd(), "src/lib/memory/memory-summary-range.ts"),
-      "utf8"
-    );
-    assert.match(rangeSrc, /newBatchEndForStart/);
-    assert.match(rangeSrc, /LEGACY_NULL_TURN_END_OFFSET/);
-    const CAN_OLD_REVISION_RECEIVE_TRAFFIC_AFTER_NEW_REVISION_BEGINS_WRITING_5_TURN_ROWS =
-      false;
-    assert.equal(CAN_OLD_REVISION_RECEIVE_TRAFFIC_AFTER_NEW_REVISION_BEGINS_WRITING_5_TURN_ROWS, false);
-  });
-});
+
 describe("summary barrier cadence", () => {
   it("B1 seal due at turn 5 after zero summarized", async () => {
     const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(

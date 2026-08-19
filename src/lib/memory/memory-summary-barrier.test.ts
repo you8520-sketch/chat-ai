@@ -103,8 +103,28 @@ function sealBatch1to5() {
   updateChatMemory(CHAT, USER, CHAR, { summarized_turn_count: 5, message_count: 5 });
 }
 
-beforeEach(seed);
-afterEach(() => __setSummarizeTurnBatchCallerForTests(null));
+const ENV_5PLUS4 = "MEMORY_5PLUS4_ENABLED";
+const ENV_MEMORY = "MEMORY_FEATURE_ENABLED";
+let savedEnv: Record<string, string | undefined>;
+
+beforeEach(() => {
+  savedEnv = {
+    [ENV_5PLUS4]: process.env[ENV_5PLUS4],
+    [ENV_MEMORY]: process.env[ENV_MEMORY],
+  };
+  process.env[ENV_5PLUS4] = "1";
+  process.env[ENV_MEMORY] = "1";
+  seed();
+});
+afterEach(() => {
+  __setSummarizeTurnBatchCallerForTests(null);
+  if (savedEnv) {
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
 after(cleanup);
 
 describe("summary barrier B1-B7", () => {

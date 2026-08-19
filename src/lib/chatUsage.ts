@@ -54,6 +54,13 @@ export type Usage = {
     summarizedThroughTurn: number;
     unsummarizedCompletedTurns: number;
     policyViolation?: boolean;
+    realRawCompleteExchanges?: number;
+    realRawMessages?: number;
+    realRawChars?: number;
+    openingPreludePresent?: boolean;
+    openingPreludeChars?: number;
+    generalRouteBridgePresent?: boolean;
+    generalRouteBridgeChars?: number;
   };
   /** Admin/debug — assembled prompt character counts (not provider tokens). */
   assembledPromptChars?: {

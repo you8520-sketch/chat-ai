@@ -108,6 +108,12 @@ export type ContextBuildInput = {
   summarizedTurnCount?: number;
   /** route에서 한 번 계산한 RAW ↔ sealed summary coverage floor. */
   historyMinTurnFloor?: number;
+  /** Binary-search floor must not drop below this (opening + RAW4 protection). */
+  providerHistoryAbsoluteTurnFloor?: number;
+  /** While true, opening turn0 survives provider-history trims before first 1-5 seal. */
+  providerHistoryProtectOpening?: boolean;
+  /** Real playable RAW exchange cap for trim (4 when MEMORY_5PLUS4_ENABLED, else 5). */
+  providerHistoryMinRealPlayableExchanges?: number;
   /** hard-limit second pass에서 동일 degradation 로그의 중복 출력을 막는다. */
   suppressMemoryCoverageDegradedLog?: boolean;
   /** Selected User Persona 성별 (호칭·관계 규칙용) */

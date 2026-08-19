@@ -9,6 +9,7 @@ import {
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
+import { isSummaryBarrierActive } from "./memory-5plus4-flag";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
@@ -1574,6 +1575,15 @@ export async function ensureSummaryBarrier(opts: {
 }): Promise<SummaryBarrierResult> {
   if (!isMemoryFeatureEnabled()) {
     return { ok: true, summarizedThrough: 0 };
+  }
+
+  const recordsInitial = listMemoryRecordsForChat(opts.chatId);
+  const summarizedInitial = highestContiguousCompletedTurn(
+    recordsInitial,
+    opts.completedTurns
+  );
+  if (!isSummaryBarrierActive()) {
+    return { ok: true, summarizedThrough: summarizedInitial };
   }
 
   const maxRounds = 4;
