@@ -9,6 +9,7 @@ import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
+import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
 import type { TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
@@ -85,9 +86,6 @@ export default function TrpgLobbyClient({
     router.push(`/trpg/join/${parsed}`);
   }
 
-  const canJoinStatus = (status: string) =>
-    status === "CHARACTER_SETUP" || status === "WAITING_FOR_PLAYERS";
-
   return (
     <div className="space-y-8">
       <TrpgCatalogBrowse
@@ -129,9 +127,9 @@ export default function TrpgLobbyClient({
                         {c.title}
                       </Link>
                     )}
-                    <Link href={`/trpg/${c.id}`} className="text-xs text-zinc-500 hover:text-violet-200">
-                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase} · 열기
-                    </Link>
+                    <p className="text-xs text-zinc-500">
+                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase}
+                    </p>
                   </div>
                   {c.viewerIsHost ? (
                     <button
@@ -144,8 +142,19 @@ export default function TrpgLobbyClient({
                     </button>
                   ) : null}
                 </div>
+                <Link
+                  href={`/trpg/${c.id}`}
+                  data-trpg-reenter-cta
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
+                >
+                  {trpgLobbyReenterCtaLabel(c.campaignStatus)}
+                </Link>
                 {c.inviteCode ? (
-                  <TrpgInviteLink code={c.inviteCode} canJoin={canJoinStatus(c.campaignStatus)} />
+                  <TrpgInviteLink
+                    code={c.inviteCode}
+                    canJoin={trpgLobbyCanInvite(c.campaignStatus)}
+                    compact
+                  />
                 ) : null}
               </li>
             ))}
