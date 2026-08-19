@@ -12,46 +12,51 @@ import {
   shouldInjectPreviewDiceOverlay,
 } from "./dicePreviewTheme";
 
-describe("preview-only emerald campaign dice theme", () => {
+describe("preview-only campaign dice theme", () => {
   it("does not inject a fixture when only diceTheme is set", () => {
     assert.equal(
       shouldInjectPreviewDiceOverlay({
         previewEnabled: true,
-        queryTheme: "emerald-relic",
+        queryTheme: "gemstone-arcane",
       }),
       false
     );
     const live = resolveCampaignDicePreviewOverlay({
       previewEnabled: true,
-      queryTheme: "emerald-relic",
+      queryTheme: "gemstone-arcane",
       phase: "ACTION_INPUT",
       currentRolls: [],
     });
     assert.equal(live.inject, false);
-    assert.equal(live.theme, "emerald-relic");
+    assert.equal(live.theme, "gemstone-arcane");
     assert.equal(live.phase, "ACTION_INPUT");
     assert.equal(live.rolls.length, 0);
+  });
+
+  it("maps legacy emerald-relic preview ids onto gemstone-arcane", () => {
+    assert.equal(parseDiceThemeQuery("emerald-relic"), "gemstone-arcane");
+    assert.equal(parseDiceThemeQuery("verdant-relic"), "obsidian-royal");
   });
 
   it("injects a fixture only when dicePreview=1 on a preview runtime", () => {
     assert.equal(
       shouldInjectPreviewDiceOverlay({
         previewEnabled: true,
-        queryTheme: "emerald-relic",
+        queryTheme: "gemstone-arcane",
         queryPreview: "1",
       }),
       true
     );
     const injected = resolveCampaignDicePreviewOverlay({
       previewEnabled: true,
-      queryTheme: "emerald-relic",
+      queryTheme: "gemstone-arcane",
       queryPreview: "1",
       phase: "ACTION_INPUT",
       currentRolls: [],
       fixtureName: "유라",
     });
     assert.equal(injected.inject, true);
-    assert.equal(injected.theme, "emerald-relic");
+    assert.equal(injected.theme, "gemstone-arcane");
     assert.equal(injected.phase, "ROLLING");
     assert.equal(injected.rolls[0]?.d20, 14);
     assert.equal(injected.rolls[0]?.name, "유라");
@@ -66,21 +71,26 @@ describe("preview-only emerald campaign dice theme", () => {
     });
     assert.equal(previewEnabled, false);
     assert.equal(
-      resolveCampaignOverlayDiceTheme({ previewEnabled, queryTheme: "emerald-relic" }),
-      PRODUCTION_D20_THEME
+      resolveCampaignOverlayDiceTheme({
+        previewEnabled,
+        queryTheme: "gemstone-arcane",
+        savedTheme: "ancient-reliquary",
+      }),
+      "ancient-reliquary"
     );
     assert.equal(
-      shouldInjectPreviewDiceOverlay({ previewEnabled, queryTheme: "emerald-relic", queryPreview: "1" }),
+      shouldInjectPreviewDiceOverlay({ previewEnabled, queryTheme: "gemstone-arcane", queryPreview: "1" }),
       false
     );
     const live = resolveCampaignDicePreviewOverlay({
       previewEnabled,
-      queryTheme: "emerald-relic",
+      queryTheme: "gemstone-arcane",
       queryPreview: "1",
+      savedTheme: "ancient-reliquary",
       phase: "ACTION_INPUT",
       currentRolls: [],
     });
-    assert.equal(live.theme, PRODUCTION_D20_THEME);
+    assert.equal(live.theme, "ancient-reliquary");
     assert.equal(live.inject, false);
   });
 
@@ -88,17 +98,25 @@ describe("preview-only emerald campaign dice theme", () => {
     const roll = previewDiceOverlayFixture("권태현");
     const live = resolveCampaignDicePreviewOverlay({
       previewEnabled: true,
-      queryTheme: "emerald-relic",
+      queryTheme: "gemstone-arcane",
       phase: "ROLLING",
       currentRolls: [{ ...roll, d20: 17, participantId: 4 }],
     });
     assert.equal(live.inject, false);
-    assert.equal(live.theme, "emerald-relic");
+    assert.equal(live.theme, "gemstone-arcane");
     assert.equal(live.phase, "ROLLING");
     assert.equal(live.rolls.length, 1);
     assert.equal(live.rolls[0]?.d20, 17);
     assert.equal(previewDiceRollKey(live.rolls), "4:17");
-    assert.equal(parseDiceThemeQuery("emerald-relic"), "emerald-relic");
+    assert.equal(parseDiceThemeQuery("obsidian-royal"), "obsidian-royal");
     assert.equal(isTrpgDicePreviewRuntime({ nodeEnv: "development", hostname: "localhost" }), true);
+    assert.equal(
+      resolveCampaignOverlayDiceTheme({
+        previewEnabled: false,
+        savedTheme: "ancient-reliquary",
+      }),
+      "ancient-reliquary"
+    );
+    assert.equal(resolveCampaignOverlayDiceTheme({ previewEnabled: false }), PRODUCTION_D20_THEME);
   });
 });

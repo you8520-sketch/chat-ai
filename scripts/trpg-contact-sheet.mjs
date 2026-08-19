@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const BASE = path.join(ROOT, "public/d20-result/d20-result-base.webp");
+const BASE = path.join(ROOT, "public/d20-result/obsidian-royal.webp");
 const OUT_DIR = "/opt/cursor/artifacts";
 const FACES = [1, 2, 4, 9, 10, 11, 16, 19, 20];
 const CELL = 768;

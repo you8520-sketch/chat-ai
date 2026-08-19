@@ -16,9 +16,11 @@ import {
 import {
   PRODUCTION_D20_THEME,
   PRODUCTION_DICE_PROTO,
-  TRPG_DICE_PHYSICS_ENGINE,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
+  TRPG_DICE_PHYSICS_ENGINE,
+  trpgD20StaticOverlaySpec,
+  type TrpgD20StaticOverlayTone,
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
 
@@ -33,8 +35,11 @@ import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
 
-const RESULT_IMAGE_BASE = "/d20-result";
-const RESULT_BASE_SRC = `${RESULT_IMAGE_BASE}/d20-result-base.webp`;
+function overlayTone(d20: number, tierTone: ReturnType<typeof resolveTrpgD20Tone>): TrpgD20StaticOverlayTone {
+  if (tierTone === "nat20") return "nat20";
+  if (tierTone === "nat1") return "nat1";
+  return "normal";
+}
 
 export default function TrpgDiceOverlay({
   phase,
@@ -55,6 +60,7 @@ export default function TrpgDiceOverlay({
   replayOnMount?: boolean;
   onPlaybackStateChange?: (state: TrpgDiceOverlayPlaybackState) => void;
 }) {
+  const overlay = useMemo(() => trpgD20StaticOverlaySpec(theme), [theme]);
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const sessionKey = useMemo(() => trpgDiceRollSessionKey(roundNumber, ordered), [ordered, roundNumber]);
   const timing = trpgEmeraldDiceTiming(ordered.length);
@@ -152,34 +158,25 @@ export default function TrpgDiceOverlay({
   if (!visible) return null;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
   if (!roll) return null;
-  const tone = resolveTrpgD20Tone(roll.d20, roll.tier);
+  const tierTone = resolveTrpgD20Tone(roll.d20, roll.tier);
+  const tone = overlayTone(roll.d20, tierTone);
   const outcome = trpgRollOutcomeLabel(roll.tier);
   const notation = trpgPredeterminedD20Notation(roll.d20);
   const face = Math.max(1, Math.min(20, Math.floor(roll.d20)));
   const twoDigit = face >= 10;
-
-  const frameClass =
-    tone === "nat20"
-      ? "drop-shadow-[0_0_42px_rgba(232,197,106,0.55)]"
-      : tone === "nat1"
-        ? "drop-shadow-[0_0_38px_rgba(138,36,48,0.6)]"
-        : "drop-shadow-[0_0_28px_rgba(214,199,161,0.28)]";
-
-  const numeralClass =
-    tone === "nat20"
-      ? "text-[#f0dc9a]"
-      : tone === "nat1"
-        ? "text-[#d98a92]"
-        : "text-[#e6d3a3]";
+  const numeralPx = twoDigit ? overlay.numeral.doublePx : overlay.numeral.singlePx;
+  const mobileNumeralPx = twoDigit ? overlay.numeral.mobileDoublePx : overlay.numeral.mobileSinglePx;
 
   return (
     <div
-      className={`pointer-events-none fixed inset-0 z-[65] bg-black/15 transition-opacity duration-200 ${
+      className={`pointer-events-none fixed inset-0 z-[65] transition-opacity duration-200 ${overlay.overlayDimClass} ${
         entered && !leaving ? "opacity-100" : "opacity-0"
       }`}
       data-trpg-dice-overlay
       data-trpg-dice-engine="static-result"
       data-trpg-dice-theme={theme}
+      data-trpg-dice-theme-label={overlay.label}
+      data-trpg-dice-theme-asset-ready={overlay.assetReady ? "1" : "0"}
       data-trpg-dice-mode="static"
       data-trpg-dice-renderer="static"
       data-trpg-dice-physics={TRPG_DICE_PHYSICS_ENGINE}
@@ -203,22 +200,24 @@ export default function TrpgDiceOverlay({
             data-trpg-dice-stage-mobile-w={TRPG_D20_STAGE_MOBILE.width}
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
-            <div className={`relative ${frameClass}`}>
+            <div className={`relative ${overlay.frameGlow[tone]}`}>
               {tone === "nat20" ? (
                 <div
-                  className="pointer-events-none absolute inset-[-18%] rounded-full bg-[radial-gradient(circle,rgba(232,197,106,0.34)_0%,rgba(232,197,106,0.12)_42%,transparent_68%)]"
+                  className="pointer-events-none absolute inset-[-18%] rounded-full"
+                  style={{ background: overlay.burst.nat20 }}
                   data-trpg-dice-burst="nat20"
                 />
               ) : null}
               {tone === "nat1" ? (
                 <div
-                  className="pointer-events-none absolute inset-[-16%] rounded-full bg-[radial-gradient(circle,rgba(138,36,48,0.4)_0%,rgba(80,18,40,0.16)_46%,transparent_70%)]"
+                  className="pointer-events-none absolute inset-[-16%] rounded-full"
+                  style={{ background: overlay.burst.nat1 }}
                   data-trpg-dice-burst="nat1"
                 />
               ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={RESULT_BASE_SRC}
+                src={overlay.baseAsset}
                 alt=""
                 draggable={false}
                 className="h-[min(218px,32vw)] w-[min(218px,32vw)] max-md:h-[min(168px,40vw)] max-md:w-[min(168px,40vw)] select-none object-contain"
@@ -226,15 +225,15 @@ export default function TrpgDiceOverlay({
               />
               <span
                 key={`${sessionKey}:${play.index}`}
-                className={`pointer-events-none absolute inset-0 flex items-center justify-center font-serif font-semibold ${numeralClass} ${
-                  twoDigit
-                    ? "text-[min(104px,15vw)] max-md:text-[min(80px,19vw)]"
-                    : "text-[min(128px,19vw)] max-md:text-[min(100px,24vw)]"
-                }`}
+                className="pointer-events-none absolute inset-0 flex items-center justify-center font-semibold max-md:[font-size:var(--trpg-d20-mobile-numeral)] [font-size:var(--trpg-d20-numeral)]"
                 style={{
-                  textShadow:
-                    "0 0 1px rgba(20,14,4,0.9), 0 2px 6px rgba(0,0,0,0.65), 0 0 18px rgba(230,211,163,0.28)",
-                  letterSpacing: twoDigit ? "-0.04em" : "0",
+                  ["--trpg-d20-numeral" as string]: `min(${numeralPx}px, ${twoDigit ? "15vw" : "19vw"})`,
+                  ["--trpg-d20-mobile-numeral" as string]: `min(${mobileNumeralPx}px, ${twoDigit ? "19vw" : "24vw"})`,
+                  color: overlay.numeral.colors[tone],
+                  fontFamily: overlay.numeral.fontFamily,
+                  fontWeight: overlay.numeral.weight,
+                  textShadow: overlay.numeral.textShadow,
+                  letterSpacing: twoDigit ? overlay.numeral.letterSpacingDouble : "0",
                 }}
                 data-trpg-dice-numeral={face}
               >

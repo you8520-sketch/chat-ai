@@ -129,7 +129,7 @@ export default function TrpgArtisanDiceScene({
     preloadArtisanDiceFont().then((font) => {
       if (cancelled || !hostRef.current) return;
 
-      const spec = trpgD20ThemeSpec("emerald-relic");
+      const spec = trpgD20ThemeSpec("gemstone-arcane");
       const radius = TRPG_D20_GEOMETRY_RADIUS;
 
       const width = host.clientWidth || TRPG_D20_STAGE_DESKTOP.width;
@@ -378,7 +378,7 @@ export default function TrpgArtisanDiceScene({
       className="h-full w-full"
       data-trpg-dice-canvas="3d"
       data-trpg-dice-proto="artisan"
-      data-trpg-dice-geometry="emerald-relic"
+      data-trpg-dice-geometry="gemstone-arcane"
       data-trpg-dice-motion="authored_throw"
       data-trpg-dice-active-ms={durationMs}
       data-trpg-dice-hold-ms={holdMs}

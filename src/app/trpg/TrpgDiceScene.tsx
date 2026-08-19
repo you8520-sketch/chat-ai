@@ -111,14 +111,14 @@ function paintFaceGround(
   ctx.fillRect(0, 0, size, size);
 
   switch (spec.texture) {
-    case "sparse-gold-motes":
+    case "obsidian-gold":
       paintSparseGoldMotes(ctx, size, value, spec);
       return;
     case "oxidized-bronze":
       paintOxidizedVariation(ctx, size, value, spec);
       return;
-    case "gilded-verdant":
-      // emerald-relic uses the artisan scene; this texture is not painted here.
+    case "arcane-crystal":
+      // Gemstone Arcane uses the artisan scene; this texture is not painted here.
       return;
     default: {
       const _never: never = spec.texture;

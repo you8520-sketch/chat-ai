@@ -167,6 +167,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.doesNotMatch(pkg, /"cannon-es"/);
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const rail = fs.readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
     const lane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
     assert.doesNotMatch(overlay, /TrpgDiceScene|TrpgArtisanDiceScene|TrpgDiceBoxScene|WebGLRenderer|three/);
     assert.match(overlay, /trpgPredeterminedD20Notation/);
@@ -175,10 +176,11 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgDiceRollSessionKey/);
     assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /trpgEmeraldDiceTiming/);
-    assert.match(overlay, /d20-result-base\.webp/);
+    assert.match(overlay, /trpgD20StaticOverlaySpec/);
+    assert.match(overlay, /overlay\.baseAsset/);
     assert.match(overlay, /data-trpg-dice-numeral=\{face\}/);
     assert.match(overlay, /data-trpg-dice-stage/);
-    assert.match(overlay, /bg-black\/15/);
+    assert.match(overlay, /overlay\.overlayDimClass/);
     assert.match(overlay, /data-trpg-dice-burst="nat20"/);
     assert.match(overlay, /data-trpg-dice-burst="nat1"/);
     assert.match(room, /TrpgDiceOverlay/);
@@ -186,8 +188,10 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(room, /trpgDiceRevealWatchdogMs/);
     assert.match(room, /shouldHideIncomingRollSession/);
     assert.match(room, /holdCurrentRoundReveal/);
+    assert.match(room, /loadTrpgDiceTheme/);
+    assert.match(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
-    assert.ok(fs.existsSync("public/d20-result/d20-result-base.webp"), "missing base D20 art");
+    assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
     assert.equal(
       fs.readdirSync("public/d20-result").filter((f) => /^d20-result-\d+\.webp$/.test(f)).length,
       0,

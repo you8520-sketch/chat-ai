@@ -16,6 +16,7 @@ import {
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
+import { loadTrpgDiceTheme } from "@/lib/trpg/diceThemePrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
 import {
   resolveTrpgD20Tone,
@@ -36,6 +37,7 @@ import {
   resolveCampaignDicePreviewOverlay,
 } from "@/lib/trpg/dicePreviewTheme";
 import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
+import { PRODUCTION_D20_THEME } from "@/lib/trpg/diceVisual";
 import {
   hideCurrentRoundResults,
   holdCurrentRoundReveal,
@@ -62,7 +64,10 @@ import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import { trpgLogRevealKeys, useRevealedText } from "./useRevealedText";
 
-function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
+function useCampaignDicePreview(
+  snap: TrpgCampaignSnapshot,
+  savedTheme: TrpgD20ThemeId
+): {
   theme: TrpgD20ThemeId;
   phase: string;
   rolls: readonly TrpgPublicRoll[];
@@ -90,6 +95,7 @@ function useCampaignDicePreview(snap: TrpgCampaignSnapshot): {
     previewEnabled: query.previewEnabled,
     queryTheme: query.queryTheme,
     queryPreview: query.queryPreview,
+    savedTheme,
     phase: snap.round.phase,
     currentRolls: snap.currentRolls,
     fixtureName,
@@ -215,6 +221,7 @@ export default function TrpgCampaignRoom({
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
+  const [diceTheme, setDiceTheme] = useState<TrpgD20ThemeId>(PRODUCTION_D20_THEME);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
@@ -224,7 +231,7 @@ export default function TrpgCampaignRoom({
     null
   );
   const phase = snap.round.phase;
-  const dicePreview = useCampaignDicePreview(snap);
+  const dicePreview = useCampaignDicePreview(snap, diceTheme);
   const rollSessionKey = useMemo(
     () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
     [snap.currentRolls, snap.round.number]
@@ -370,6 +377,7 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
     setDisplayPrefs(loadTrpgDisplayPrefs());
+    setDiceTheme(loadTrpgDiceTheme());
     const cached = loadUserChatPrefsClient();
     accountPrefsRef.current = {
       targetResponseChars: cached.targetResponseChars,
@@ -456,6 +464,8 @@ export default function TrpgCampaignRoom({
     snap,
     displayPrefs,
     onDisplayPrefsChange: changeDisplayPrefs,
+    diceTheme,
+    onDiceThemeChange: setDiceTheme,
     partyBody,
     onPartyBodyChange,
     onSendParty,

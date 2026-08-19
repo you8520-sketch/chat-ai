@@ -1,5 +1,6 @@
 import type { TrpgPublicRoll } from "./snapshot";
-import { PRODUCTION_D20_THEME, isTrpgD20ThemeId, type TrpgD20ThemeId } from "./diceVisual";
+import { resolveTrpgDiceTheme } from "./diceThemePrefs";
+import { PRODUCTION_D20_THEME, normalizeTrpgD20ThemeId, type TrpgD20ThemeId } from "./diceVisual";
 
 /** Query keys allowed on preview/dev hosts only. */
 export const TRPG_DICE_PREVIEW_THEME_QUERY = "diceTheme";
@@ -32,17 +33,19 @@ export function isTrpgDicePreviewRuntime(opts: {
 }
 
 export function parseDiceThemeQuery(value: string | null | undefined): TrpgD20ThemeId | null {
-  const trimmed = value?.trim();
-  if (!trimmed || !isTrpgD20ThemeId(trimmed)) return null;
-  return trimmed;
+  return normalizeTrpgD20ThemeId(value ?? undefined);
 }
 
 export function resolveCampaignOverlayDiceTheme(opts: {
   previewEnabled: boolean;
   queryTheme?: string | null;
+  savedTheme?: TrpgD20ThemeId | null;
 }): TrpgD20ThemeId {
-  if (!opts.previewEnabled) return PRODUCTION_D20_THEME;
-  return parseDiceThemeQuery(opts.queryTheme) ?? PRODUCTION_D20_THEME;
+  return resolveTrpgDiceTheme({
+    previewEnabled: opts.previewEnabled,
+    queryTheme: opts.queryTheme,
+    savedTheme: opts.savedTheme ?? null,
+  });
 }
 
 /** Fixture injection requires an explicit dicePreview=1/true, never the theme query alone. */
@@ -60,6 +63,7 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   previewEnabled: boolean;
   queryTheme?: string | null;
   queryPreview?: string | null;
+  savedTheme?: TrpgD20ThemeId | null;
   phase: string;
   currentRolls: readonly TrpgPublicRoll[];
   fixtureName?: string;
@@ -72,6 +76,7 @@ export function resolveCampaignDicePreviewOverlay(opts: {
   const theme = resolveCampaignOverlayDiceTheme({
     previewEnabled: opts.previewEnabled,
     queryTheme: opts.queryTheme,
+    savedTheme: opts.savedTheme ?? null,
   });
   const inject = shouldInjectPreviewDiceOverlay({
     previewEnabled: opts.previewEnabled,
