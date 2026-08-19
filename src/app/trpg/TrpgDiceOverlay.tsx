@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
@@ -25,7 +24,7 @@ import {
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
 
-const TrpgDiceBoxScene = dynamic(() => import("./TrpgDiceBoxScene"), { ssr: false });
+import TrpgDiceBoxScene from "./TrpgDiceBoxScene";
 
 export type TrpgDiceOverlayPlaybackState = {
   visible: boolean;
