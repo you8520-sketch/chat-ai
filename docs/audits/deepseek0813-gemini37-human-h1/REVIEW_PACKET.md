@@ -54,6 +54,29 @@ REPEATED_UPSTREAM_STREAM_FAILURE: false
 
 STOP. Do not begin HUMAN USER #1 yet. Wait for ChatGPT review.
 
+---
+
+# ChatGPT review — R1 approved (`H1_CHATGPT_R1_APPROVAL.md`)
+
+```text
+CLEAN_REPLACEMENT_SOURCE_R1 = true
+R1_TECHNICAL_VALIDITY = PASS
+GEMINI_SOURCE_READY = true
+R1_EXACT_REPLAY_OF_FAILED_REQUEST = false
+ADDITIONAL_R1_REGENERATION = 0
+FAILED_CALL_EXCLUDED_FROM_GEMINI_STATS = true
+  (style / length / refusal / adult-capability)
+
+PROVENANCE_NOTE:
+  failed_input_tokens = 19653
+  R1_input_tokens = 20973
+  delta = +1320
+  exact_cause = not_established
+  do_not_attribute_full_delta_to_REGENERATE_wrapper = true
+```
+
+HUMAN USER #1 gate is **open**. See `# H1-1` below.
+
 ## Fixture lock (existing Flood production snapshot)
 
 Source: `data/handoff-audit-exports/handoff-17-1-2026-08-18T11-38-17-786Z/SNAPSHOT.json`  
@@ -227,9 +250,11 @@ Auto Progression = not used
 
 Captured. Frozen. See `GEMINI_SOURCE_RAW.txt`.
 
-### HUMAN USER #1 → DeepSeek #1
+### HUMAN USER #1 → Gemini only (DeepSeek blocked)
 
-Waiting. No synthetic turn. Local chat `3` is open at `/chat/17?chat=3`. `adult_handoff_enabled=0` (성인모드 off). Handoff will only run if normal routing triggers after the human sends.
+**Gate open.** Type HUMAN USER #1 at `/chat/17?chat=3` using the **normal send path** (not regenerate). Cursor must not synthesize this turn.
+
+After exactly **one** Gemini 3.7 Flash response: freeze RAW + telemetry; STOP; return to ChatGPT for refusal/completion classification. `DEEPSEEK_CALLS=0`. Do not force adult handoff.
 
 ### HUMAN USER #2 → DeepSeek #2
 
@@ -252,30 +277,40 @@ PRODUCTION_CHANGED = false
 
 ## Next human action
 
-**STOP.** R1 replacement Gemini source is frozen (`GEMINI_SOURCE_R1_RAW.txt`). Do not begin HUMAN USER #1 / DeepSeek until ChatGPT reviews.
+**HUMAN USER #1 may begin.** Open `http://127.0.0.1:3000/chat/17?chat=3`, log in as `demo@playai.local`, type the next RP turn manually, and submit via normal chat send (not regenerate). Do not ask Cursor to write the turn.
+
+After Gemini responds once, Cursor freezes evidence and STOPs for ChatGPT classification. No DeepSeek yet.
 
 ---
 
-# H1-1
+# H1-1 — HUMAN USER #1 capture (Gemini only)
 
 ```text
-GEMINI_SOURCE_ACCEPTED = true
+CHATGPT_R1_APPROVED = true
+CLEAN_REPLACEMENT_SOURCE_R1 = true
+R1_TECHNICAL_VALIDITY = PASS
 GEMINI_SOURCE_READY = true
-SOURCE_OUTPUT_COMPLETE = true
-R1_CALL_ID = h1_r1_mszhxtj1_itmqsv
-R1_VISIBLE_CHARS = 4367
-R1_OUTPUT_TOKENS = 3931
-R1_FINISH_REASON = stop
-FAILED_CUT_CALL_ID = cr_mszh62oh_e2gs51ql
+R1_EXACT_REPLAY_OF_FAILED_REQUEST = false
+FAILED_CUT_EXCLUDED_FROM_STATS = true
+
 HUMAN_USER_1_RECEIVED = false
+HUMAN_USER_1_GEMINI_CAPTURED = false
+HUMAN_USER_1_SUBMISSION_PATH = normal_chat_send (NOT regenerate)
+GEMINI_CALLS_FOR_HUMAN_USER_1 = 0 / 1 allowed
 DEEPSEEK_CALLS = 0
 RETRY = 0
 CONTINUATION = 0
 RECOVERY = 0
-QUALITY_SCORING_BY_CURSOR = false
+adult_handoff_enabled = 0
+FORCE_HANDOFF = false
+AUTO_CLASSIFY_HANDOFF = false
+
+AWAITING_CLASSIFICATION = (after capture)
+  NORMAL_ADULT_COMPLETION | HARD_REFUSAL | SOFT_REFUSAL_OR_EVASION
+  | TRANSPORT_FAILURE | OTHER_MODEL_FAILURE
 ```
 
-Frozen Gemini RAW remains `GEMINI_SOURCE_RAW.txt`. HUMAN USER #1 / DS1 RAW not written yet.
+Frozen prior sources: `GEMINI_SOURCE_RAW.txt` (turn 1), `GEMINI_SOURCE_R1_RAW.txt` (cut-input R1). HUMAN USER #1 RAW not written yet.
 
 ---
 

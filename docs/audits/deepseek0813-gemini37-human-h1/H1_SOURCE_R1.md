@@ -165,7 +165,7 @@ CONTINUATION = 0
 RECOVERY = 0
 ```
 
-STOP. Do not begin HUMAN USER #1 yet. Return RAW + telemetry to ChatGPT.
+STOP. HUMAN USER #1 gate open (ChatGPT R1 approved). See `H1_CHATGPT_R1_APPROVAL.md`. Await human normal-path send; then freeze one Gemini response for classification. No DeepSeek.
 
 ---
 
