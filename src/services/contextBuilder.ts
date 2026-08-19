@@ -30,6 +30,7 @@ import {
   SHORT_TERM_TURNS,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
+import { trimProviderHistoryToBudget, isOpeningUserMessage } from "@/lib/providerHistoryPolicy";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
@@ -1435,6 +1436,30 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const requestedHistoryTurnFloor = Number.isFinite(input.historyMinTurnFloor)
     ? Math.max(0, Math.floor(input.historyMinTurnFloor!))
     : MIN_HISTORY_TURN_FLOOR;
+  const providerHistoryAbsoluteTurnFloor = Number.isFinite(
+    input.providerHistoryAbsoluteTurnFloor
+  )
+    ? Math.max(0, Math.floor(input.providerHistoryAbsoluteTurnFloor!))
+    : 0;
+  const providerTrimOpts = {
+    minRealPlayableExchanges:
+      Number.isFinite(input.providerHistoryMinRealPlayableExchanges) &&
+      (input.providerHistoryMinRealPlayableExchanges ?? 0) > 0
+        ? Math.floor(input.providerHistoryMinRealPlayableExchanges!)
+        : requestedHistoryTurnFloor,
+    protectOpening: input.providerHistoryProtectOpening === true,
+  };
+  const useProviderHistoryTrim =
+    input.providerHistoryProtectOpening === true ||
+    Number.isFinite(input.providerHistoryMinRealPlayableExchanges);
+  const trimHistoryForAssembly = (
+    hist: ContextBuildInput["shortTermHistory"],
+    budget: number,
+    turnFloor: number
+  ) =>
+    useProviderHistoryTrim
+      ? trimProviderHistoryToBudget(hist, budget, providerTrimOpts)
+      : trimHistoryToBudget(hist, budget, turnFloor);
   const adultRequiredTurnFloor = Number.isFinite(input.adultHandoffRequiredTurnFloor)
     ? Math.max(0, Math.floor(input.adultHandoffRequiredTurnFloor!))
     : 0;
@@ -1448,7 +1473,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   let effectiveHistoryBudget = historyBudget;
   let historySource = input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory
     ? historyForAssembly
-    : trimHistoryToBudget(
+    : trimHistoryForAssembly(
         historyForAssembly,
         effectiveHistoryBudget,
         effectiveHistoryTurnFloor
@@ -1461,7 +1486,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       effectiveHistoryBudget > 400
     ) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
-      historySource = trimHistoryToBudget(
+      historySource = trimHistoryForAssembly(
         historyForAssembly,
         effectiveHistoryBudget,
         effectiveHistoryTurnFloor
@@ -1470,31 +1495,44 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
     if (estimatePayloadTokens(historySource) > maxPayload) {
       memoryCoverageDegraded = true;
-      let low = 0;
-      let high = requestedSafetyTurnFloor;
-      let bestFloor = 0;
-      let bestHistory: ContextBuildInput["shortTermHistory"] = [];
+      if (useProviderHistoryTrim) {
+        historySource = trimHistoryForAssembly(
+          historyForAssembly,
+          effectiveHistoryBudget,
+          Math.max(providerHistoryAbsoluteTurnFloor, effectiveHistoryTurnFloor)
+        );
+        effectiveHistoryTurnFloor = Math.max(
+          providerHistoryAbsoluteTurnFloor,
+          requestedSafetyTurnFloor
+        );
+      } else {
+        let low = 0;
+        let high = requestedSafetyTurnFloor;
+        let bestFloor = 0;
+        let bestHistory: ContextBuildInput["shortTermHistory"] = [];
 
-      while (low <= high) {
-        const candidateFloor = Math.floor((low + high) / 2);
-        const candidateHistory = candidateFloor === 0
-          ? []
-          : trimHistoryToBudget(
-              historyForAssembly,
-              effectiveHistoryBudget,
-              candidateFloor
-            );
-        if (estimatePayloadTokens(candidateHistory) <= maxPayload) {
-          bestFloor = candidateFloor;
-          bestHistory = candidateHistory;
-          low = candidateFloor + 1;
-        } else {
-          high = candidateFloor - 1;
+        while (low <= high) {
+          const candidateFloor = Math.floor((low + high) / 2);
+          const candidateHistory =
+            candidateFloor === 0
+              ? []
+              : trimHistoryToBudget(
+                  historyForAssembly,
+                  effectiveHistoryBudget,
+                  candidateFloor
+                );
+          if (estimatePayloadTokens(candidateHistory) <= maxPayload) {
+            bestFloor = candidateFloor;
+            bestHistory = candidateHistory;
+            low = candidateFloor + 1;
+          } else {
+            high = candidateFloor - 1;
+          }
         }
-      }
 
-      effectiveHistoryTurnFloor = bestFloor;
-      historySource = bestHistory;
+        effectiveHistoryTurnFloor = bestFloor;
+        historySource = bestHistory;
+      }
     }
   }
 
@@ -1542,6 +1580,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       return { ...m, content };
     }
     if (m.role === "user") {
+      if (isOpeningUserMessage(m.content)) {
+        return m;
+      }
       // Consistent action/thought labels for all providers (not CURRENT USER INPUT — history only).
       return { ...m, content: formatUserMessageForPrompt(m.content, hasMindReading) };
     }

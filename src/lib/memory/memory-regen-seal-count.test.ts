@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { getOrCreateChatMemory } from "./memory-db";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
@@ -61,11 +61,25 @@ function seedSevenPlayableTurns() {
   }
 }
 
-describe("syncMemoryEligibleTurnCount + regen seal gate", () => {
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("syncMemoryEligibleTurnCount + regen seal gate (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   before(() => seedSevenPlayableTurns());
   after(() => cleanup());
 
-  it("syncs message_count from eligible turns and enables seal at turn 6 after stale count", () => {
+  it("syncs message_count from eligible turns and enables seal at turn 5 after stale count", () => {
     getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
     getDb()
       .prepare(`UPDATE chat_memories SET message_count=5, summarized_turn_count=0 WHERE chat_id=?`)
@@ -80,7 +94,7 @@ describe("syncMemoryEligibleTurnCount + regen seal gate", () => {
     assert.equal(count, 7);
     assert.equal(shouldTriggerRollingSummary(count, 0), true);
 
-    assert.equal(shouldTriggerRollingSummary(6, 0), true);
-    assert.equal(shouldTriggerRollingSummary(5, 0), false);
+    assert.equal(shouldTriggerRollingSummary(5, 0), true);
+    assert.equal(shouldTriggerRollingSummary(4, 0), false);
   });
 });

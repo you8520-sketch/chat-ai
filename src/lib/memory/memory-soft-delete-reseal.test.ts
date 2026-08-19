@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { getOrCreateChatMemory } from "./memory-db";
 import { reconcileMemoryAfterRecordDelete } from "./memory-reconcile";
@@ -66,7 +66,21 @@ function seedPlayableTurns(count: number) {
   }
 }
 
-describe("soft-delete memory record reseal path", () => {
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+describe("soft-delete memory record reseal path (Phase2 ON)", () => {
+  let prevEnv: string | undefined;
+
+  beforeEach(() => {
+    prevEnv = process.env[ENV_KEY];
+    process.env[ENV_KEY] = "1";
+  });
+
+  afterEach(() => {
+    if (prevEnv === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prevEnv;
+  });
+
   before(() => {
     seedPlayableTurns(7);
   });
@@ -92,7 +106,7 @@ describe("soft-delete memory record reseal path", () => {
     getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
     getDb()
       .prepare(
-        `UPDATE chat_memories SET message_count=7, summarized_turn_count=6 WHERE chat_id=?`
+        `UPDATE chat_memories SET message_count=7, summarized_turn_count=5 WHERE chat_id=?`
       )
       .run(CHAT_ID);
 
@@ -128,7 +142,7 @@ describe("soft-delete memory record reseal path", () => {
     if (!revived.ok) return;
     assert.equal(revived.record.inactive, false);
     assert.equal(listVisibleMemoryRecordsForChat(CHAT_ID).length, 1);
-    assert.equal(revived.summarizedTurnCount, 6);
+    assert.equal(revived.summarizedTurnCount, 5);
   });
 
   it("reconcileMemoryAfterRecordDelete zeros summarized_turn_count at turn 7", () => {
@@ -148,7 +162,7 @@ describe("soft-delete memory record reseal path", () => {
     assert.equal(sealed.ok, true);
     getDb()
       .prepare(
-        `UPDATE chat_memories SET message_count=7, summarized_turn_count=6 WHERE chat_id=?`
+        `UPDATE chat_memories SET message_count=7, summarized_turn_count=5 WHERE chat_id=?`
       )
       .run(CHAT_ID);
 

@@ -35,6 +35,7 @@ import {
 } from "./memory-turn-summary";
 import {
   __setPersistForceFailAfterUpsertForTests,
+  __setPersistForceFailAfterBranchOpsForTests,
   __setSummarizeTurnBatchCallerForTests,
   processRollingSummaryBatch,
 } from "./memory-rolling-summary";
@@ -217,13 +218,21 @@ function seedPlayableTurns(
   }
 }
 
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+let savedEnv: string | undefined;
+
 beforeEach(() => {
+  savedEnv = process.env[ENV_KEY];
+  delete process.env[ENV_KEY];
   seed();
 });
 
 afterEach(() => {
   __setPersistForceFailAfterUpsertForTests(false);
+  __setPersistForceFailAfterBranchOpsForTests(false);
   __setSummarizeTurnBatchCallerForTests(null);
+  if (savedEnv === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = savedEnv;
 });
 
 after(() => {
@@ -569,6 +578,92 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     ).current_summary;
     assert.equal(loreAfter, loreBefore);
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+  });
+
+  it("1b: sole-closed reopen rolls back when fail after branch ops", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    const provBefore = branchMutations(idA).length;
+    updateChatMemory(CHAT, USER, CHAR, {
+      recent_summary: "[1~6턴] " + TEXT_A,
+      membership_tier: "free",
+    });
+    getDb()
+      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
+      .run("[1~6턴] " + TEXT_A, CHAT);
+    const memBefore = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
+    const currentBefore = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT) as { current_summary: string }
+    ).current_summary;
+
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
+        : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
+    );
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+    __setPersistForceFailAfterBranchOpsForTests(true);
+    const okFail = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(okFail, false);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(branchMutations(idA).length, provBefore);
+    assert.equal(listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7), false);
+    const memAfterFail = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
+    assert.equal(memAfterFail.recent_summary, memBefore.recent_summary);
+    assert.equal(memAfterFail.summarized_turn_count, memBefore.summarized_turn_count);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT current_summary FROM chats WHERE id=?")
+          .get(CHAT) as { current_summary: string }
+      ).current_summary,
+      currentBefore
+    );
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+
+    __setPersistForceFailAfterBranchOpsForTests(false);
+    const okRetry = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(okRetry, true);
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(listMemoryRecordsForChat(CHAT).filter((r) => r.turnStart === 7).length, 1);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 1);
+    const memOk = getDb()
+      .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
+      .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
+    assert.equal(memOk.summarized_turn_count, 12);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT current_summary FROM chats WHERE id=?")
+          .get(CHAT) as { current_summary: string }
+      ).current_summary,
+      memOk.recent_summary
+    );
   });
 
   it("mixed-A: turn7~11 main + turn12 explicit IF resume keeps both scopes", async () => {

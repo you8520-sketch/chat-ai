@@ -1,10 +1,17 @@
 /**
- * 6-turn summary integrity — contiguous batches, reason codes, diagnostics.
+ * Summary integrity — contiguous batches from stored spans (legacy 6-turn + new 5-turn).
  * Never trust summarized_turn_count alone.
  */
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
+import {
+  LEGACY_NULL_TURN_END_OFFSET,
+  newBatchEndForStart,
+  resolveNextBatchRange,
+  resolveRecordSpan,
+  resolveStoredTurnEnd,
+} from "./memory-summary-range";
 import {
   EMPTY_OOC_SUMMARY_MARKER,
   isEmptyOocScope,
@@ -49,70 +56,111 @@ export type SummaryBatchDiag = {
   reasonCode: SummaryReasonCode | "SUMMARY_OK" | "SUMMARY_COUNTER_DRIFT";
 };
 
-/** Highest turn that should already be sealed given playable count (0, 6, 12, …). */
-export function expectedSealedTurnCount(playableTurnCount: number): number {
-  return (
-    Math.floor(Math.max(0, playableTurnCount) / ROLLING_SUMMARY_INTERVAL) *
-    ROLLING_SUMMARY_INTERVAL
-  );
+function normalizeSpan(row: BatchSpan): { turnStart: number; turnEnd: number } {
+  return {
+    turnStart: row.turnStart,
+    turnEnd: resolveStoredTurnEnd(row.turnStart, row.turnEnd),
+  };
 }
 
-/** Expected batch starts: 1, 7, 13, … up to floor(playable/INTERVAL)*INTERVAL window. */
-export function expectedBatchStartsThrough(playableTurnCount: number): number[] {
-  const completeEnds = expectedSealedTurnCount(playableTurnCount);
-  const starts: number[] = [];
-  for (let s = 1; s <= completeEnds; s += ROLLING_SUMMARY_INTERVAL) {
-    starts.push(s);
-  }
-  return starts;
+function sortedActiveSpans(records: BatchSpan[], actualTurnCount: number) {
+  return activeMemoryRecords(records)
+    .map(normalizeSpan)
+    .filter((r) => r.turnEnd <= actualTurnCount)
+    .sort((a, b) => a.turnStart - b.turnStart);
 }
 
-export function batchEndForStart(startTurn: number): number {
-  return startTurn + ROLLING_SUMMARY_INTERVAL - 1;
+function sortedAllSpans(records: BatchSpan[], actualTurnCount: number) {
+  return records
+    .map(normalizeSpan)
+    .filter((r) => r.turnEnd <= actualTurnCount)
+    .sort((a, b) => a.turnStart - b.turnStart);
 }
 
 /**
- * Highest turn covered by contiguous complete batches starting at 1.
- * Gap at 1 (e.g. only 7~12 present) → 0.
+ * Highest turn covered by contiguous batches starting at 1, including soft-deleted rows.
+ * Used for persist gap checks so inactive historical rows still occupy their span.
  */
-export function highestContiguousCompletedTurn(
+export function highestContiguousOccupiedTurn(
   records: BatchSpan[],
   actualTurnCount: number
 ): number {
-  const byStart = new Map<number, { turnStart: number; turnEnd: number }>();
-  for (const r of activeMemoryRecords(records)) {
-    const span = r.turnEnd - r.turnStart + 1;
-    if (span !== ROLLING_SUMMARY_INTERVAL) continue;
-    if (r.turnEnd > actualTurnCount) continue;
-    if ((r.turnStart - 1) % ROLLING_SUMMARY_INTERVAL !== 0) continue;
-    byStart.set(r.turnStart, r);
-  }
-
   let expectedStart = 1;
   let highest = 0;
-  while (byStart.has(expectedStart)) {
-    const r = byStart.get(expectedStart)!;
-    if (r.turnEnd > actualTurnCount) break;
+  for (const r of sortedAllSpans(records, actualTurnCount)) {
+    if (r.turnStart !== expectedStart) break;
     highest = r.turnEnd;
     expectedStart = r.turnEnd + 1;
   }
   return highest;
 }
 
+/**
+ * Highest turn covered by contiguous complete batches starting at 1.
+ * Gap at 1 (e.g. only 7~12 present) → 0.
+ * Supports mixed legacy 6-turn and new 5-turn stored spans.
+ */
+export function highestContiguousCompletedTurn(
+  records: BatchSpan[],
+  actualTurnCount: number
+): number {
+  let expectedStart = 1;
+  let highest = 0;
+  for (const r of sortedActiveSpans(records, actualTurnCount)) {
+    if (r.turnStart !== expectedStart) break;
+    highest = r.turnEnd;
+    expectedStart = r.turnEnd + 1;
+  }
+  return highest;
+}
+
+/** Expected sealed-through turn for a greenfield 5-turn cadence (diagnostics only). */
+export function expectedSealedTurnCount(playableTurnCount: number): number {
+  const n = Math.max(0, Math.floor(playableTurnCount));
+  if (n < ROLLING_SUMMARY_INTERVAL) return 0;
+  let sealed = 0;
+  let start = 1;
+  while (start + ROLLING_SUMMARY_INTERVAL - 1 <= n) {
+    sealed = start + ROLLING_SUMMARY_INTERVAL - 1;
+    start = sealed + 1;
+  }
+  return sealed;
+}
+
+/** Expected 5-turn batch starts for a greenfield chat (diagnostics only — not legacy). */
+export function expectedBatchStartsThrough(playableTurnCount: number): number[] {
+  const starts: number[] = [];
+  let start = 1;
+  while (start + ROLLING_SUMMARY_INTERVAL - 1 <= playableTurnCount) {
+    starts.push(start);
+    start += ROLLING_SUMMARY_INTERVAL;
+  }
+  return starts;
+}
+
+/** New 5-turn batch end for a batch starting at startTurn. */
+export function batchEndForStart(startTurn: number): number {
+  return newBatchEndForStart(startTurn);
+}
+
 export function missingContiguousBatchStarts(
   records: BatchSpan[],
   playableTurnCount: number
 ): number[] {
-  const expected = expectedBatchStartsThrough(playableTurnCount);
-  const have = new Set(
-    activeMemoryRecords(records)
-      .filter((r) => r.turnEnd - r.turnStart + 1 === ROLLING_SUMMARY_INTERVAL)
-      .map((r) => r.turnStart)
-  );
   const missing: number[] = [];
-  for (const s of expected) {
-    if (!have.has(s)) missing.push(s);
-    // stop listing after first gap for "earliest missing first" semantics in callers
+  let expectedStart = 1;
+  for (const r of sortedActiveSpans(records, playableTurnCount)) {
+    if (r.turnStart > expectedStart) {
+      missing.push(expectedStart);
+      return missing;
+    }
+    expectedStart = r.turnEnd + 1;
+  }
+  const highest = highestContiguousCompletedTurn(records, playableTurnCount);
+  const next = resolveNextBatchRange(highest, playableTurnCount);
+  if (next) {
+    const has = activeMemoryRecords(records).some((r) => r.turnStart === next.turnStart);
+    if (!has) missing.push(next.turnStart);
   }
   return missing;
 }
@@ -123,6 +171,23 @@ export function earliestMissingBatchStart(
 ): number | null {
   const missing = missingContiguousBatchStarts(records, playableTurnCount);
   return missing[0] ?? null;
+}
+
+/** Resolve stored batch start containing turnNumber (legacy or new span). */
+export function resolveBatchStartForTurnNumber(
+  turnNumber: number,
+  records: BatchSpan[]
+): number {
+  const n = Math.max(1, Math.floor(turnNumber));
+  for (const r of sortedActiveSpans(records, n)) {
+    if (n >= r.turnStart && n <= r.turnEnd) return r.turnStart;
+  }
+  const highest = highestContiguousCompletedTurn(records, n);
+  let start = Math.max(1, highest + 1);
+  while (start + ROLLING_SUMMARY_INTERVAL - 1 < n) {
+    start += ROLLING_SUMMARY_INTERVAL;
+  }
+  return start;
 }
 
 /** @deprecated use EMPTY_OOC_SUMMARY_MARKER — kept for legacy imports/tests */
@@ -150,6 +215,7 @@ export function isOocOnlyPlaceholderText(text: string): boolean {
 
 const SUMMARY_INSTRUCTION_ECHO_PATTERNS = [
   /(?:6|여섯)\s*턴\s*배치의?\s*사건을?\s*발생\s*순서대로\s*요약/i,
+  /(?:5|다섯)\s*턴\s*배치의?\s*사건을?\s*발생\s*순서대로\s*요약/i,
   /사건\s*시기와?\s*인과관계를?\s*누락하지\s*않/i,
   /요약\s*(?:대상|작성|규칙|지침|형식|본문만\s*출력)/i,
   /(?:source|소스)\s*(?:턴|내용).*(?:검토|요약)/i,
@@ -169,11 +235,6 @@ const EPISTEMIC_MARKER =
 const SOURCE_UNCERTAINTY_MARKER =
   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
 
-/**
- * Strong certainty-inflation patterns — a summary stating these as settled fact
- * when the source only had them as a character's guess is the real failure mode
- * this guard exists for. Normal RP perception/estimate wording must not trip it.
- */
 const STRONG_UNCERTAIN_CLAIM =
   /(?:각성|폭주|등급\s*상승|정체|정체성|임신|중독|저주|기억상실|조종|세뇌|배신)/i;
 const CLAIM_TOKEN_STOPWORDS = new Set([
@@ -222,9 +283,6 @@ export function isRollingSummaryGroundedInDialogue(
     return false;
   }
 
-  // Only enforce attribution for STRONG claims (awakening, identity, rank-up,
-  // betrayal, etc.). Normal RP perception ("파장을 감지했다", "안정을 느꼈다")
-  // is scene content, not certainty inflation — do not reject it.
   const uncertainAssistantParts = source.assistant
     .split(/(?<=[.!?。！？]|다\.)\s+|\n+/)
     .filter(
@@ -275,7 +333,6 @@ export function validateSummaryNarrative(
   if (isFallbackMemoryRecordSummary(t)) return { ok: false, reason: "SUMMARY_INVALID" };
   if (isLikelySummaryInstructionEcho(t)) return { ok: false, reason: "SUMMARY_INVALID" };
 
-  // Preference / noncanon / branch may be shorter than main_canon floor
   const minChars =
     scope === "preference" || scope === "noncanon" || scope === "branch_canon"
       ? 12
@@ -303,7 +360,13 @@ export function describeRecentSummaryBatchRange(recentSummary: string): string |
   if (starts.length === 0) return null;
   const first = Math.min(...starts);
   const lastStart = Math.max(...starts);
-  return `${first}~${batchEndForStart(lastStart)}`;
+  const lastEndMatch = recentSummary.match(
+    new RegExp(`\\[${lastStart}~(\\d+)턴\\]`)
+  );
+  const lastEnd = lastEndMatch
+    ? Number(lastEndMatch[1])
+    : resolveStoredTurnEnd(lastStart, null);
+  return `${first}~${lastEnd}`;
 }
 
 export function buildSummaryBatchDiagnostics(opts: {
@@ -315,9 +378,7 @@ export function buildSummaryBatchDiagnostics(opts: {
 }): SummaryBatchDiag {
   const persistedBatchStarts = [
     ...new Set(
-      activeMemoryRecords(opts.records)
-        .filter((r) => r.turnEnd - r.turnStart + 1 === ROLLING_SUMMARY_INTERVAL)
-        .map((r) => r.turnStart)
+      activeMemoryRecords(opts.records).map((r) => normalizeSpan(r).turnStart)
     ),
   ].sort((a, b) => a - b);
 
@@ -347,3 +408,5 @@ export function buildSummaryBatchDiagnostics(opts: {
     reasonCode,
   };
 }
+
+export { LEGACY_NULL_TURN_END_OFFSET, resolveRecordSpan, resolveStoredTurnEnd };

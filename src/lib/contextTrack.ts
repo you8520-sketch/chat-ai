@@ -97,7 +97,7 @@ export function resolveHistoryTokenBudget(
 ): number {
   void modelId;
   void provider;
-  return Number.MAX_SAFE_INTEGER;
+  return HISTORY_TOKEN_BUDGET;
 }
 
 export function resolveRawRecentTurnWindow(

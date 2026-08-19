@@ -1,8 +1,13 @@
 /**
- * Atomic 6-turn summary persistence — row + counter + recent_summary in one transaction.
+ * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { NEW_ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
+import {
+  isMemory5Plus4Enabled,
+  resolveNewBatchEndForStart,
+  resolveNewBatchSpanLength,
+} from "./memory-5plus4-flag";
 import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
 import type { MemoryTier } from "./memory-types";
 import {
@@ -10,13 +15,18 @@ import {
   formatTurnRangeLabel,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  reopenClosedBranchCanonCore,
+  closeActiveBranchCanonCore,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+import type { PersistPendingBranchControlOp } from "./memory-branch-control";
 import {
   highestContiguousCompletedTurn,
   type SummaryReasonCode,
+  highestContiguousOccupiedTurn,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
+import { newBatchEndForStart, LEGACY_NULL_TURN_END_OFFSET } from "./memory-summary-range";
 import {
   encodeScopePayload,
   isEmptyOocScope,
@@ -41,6 +51,7 @@ export type PersistSummaryBatchResult =
 function upsertRowInTx(opts: {
   chatId: number;
   turnStart: number;
+  turnEnd: number;
   assistantMessageId: number | null;
   summary: string;
   summaryKind: MemorySummaryScope;
@@ -74,7 +85,7 @@ function upsertRowInTx(opts: {
     }
     db.prepare(
       `UPDATE chat_turn_summaries SET
-        summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
+        summary=?, summary_kind=?, turn_end=?, assistant_message_id=COALESCE(?, assistant_message_id),
         scope_payload=?, branch_id=?, branch_status=?, promoted_by=?, promoted_at=?,
           inactive=?, user_edited=?,
           source_start_user_message_id=COALESCE(?, source_start_user_message_id),
@@ -84,6 +95,7 @@ function upsertRowInTx(opts: {
     ).run(
       opts.summary,
       opts.summaryKind,
+      opts.turnEnd,
       opts.assistantMessageId,
       payloadJson,
       opts.branchId ?? null,
@@ -99,13 +111,14 @@ function upsertRowInTx(opts: {
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
+        (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
          scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive,
          source_start_user_message_id, source_end_user_message_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
+      opts.turnEnd,
       opts.assistantMessageId,
       opts.summary,
       opts.summaryKind,
@@ -132,6 +145,7 @@ export function persistValidatedSummaryBatch(opts: {
   characterId: number;
   tier: MemoryTier;
   turnStart: number;
+  turnEnd?: number;
   assistantMessageId: number | null;
   summary: string;
   summaryKind?: SummaryKind | MemorySummaryScope;
@@ -151,6 +165,10 @@ export function persistValidatedSummaryBatch(opts: {
   sourceEndUserMessageId?: number | null;
   /** @internal test-only — throw after upsert to verify full txn rollback */
   __testThrowAfterUpsert?: boolean;
+  /** Branch reopen/close applied atomically inside this transaction after upsert. */
+  pendingBranchControlOps?: readonly PersistPendingBranchControlOp[];
+  /** @internal test-only — throw after branch ops to verify full txn rollback */
+  __testThrowAfterBranchOps?: boolean;
 }): PersistSummaryBatchResult {
   const kind = normalizeSummaryScope(opts.summaryKind);
   const validated = validateSummaryNarrative(opts.summary, kind);
@@ -158,8 +176,21 @@ export function persistValidatedSummaryBatch(opts: {
     return { ok: false, reason: validated.reason };
   }
 
-  const turnEnd = opts.turnStart + ROLLING_SUMMARY_INTERVAL - 1;
-  if ((opts.turnStart - 1) % ROLLING_SUMMARY_INTERVAL !== 0 || opts.turnStart < 1) {
+  const turnEnd = opts.turnEnd ?? resolveNewBatchEndForStart(opts.turnStart);
+  const turnSpan = turnEnd - opts.turnStart + 1;
+  if (opts.turnStart < 1 || turnSpan < 1) {
+    return { ok: false, reason: "SUMMARY_INVALID" };
+  }
+  const legacySpan = LEGACY_NULL_TURN_END_OFFSET + 1;
+  const newSpan = resolveNewBatchSpanLength();
+  // Mixed read accepts legacy 6 + new 5; new writes follow flag (6 when OFF, 5 when ON).
+  if (turnSpan !== NEW_ROLLING_SUMMARY_INTERVAL && turnSpan !== legacySpan) {
+    return { ok: false, reason: "SUMMARY_INVALID" };
+  }
+  if (opts.turnEnd == null && turnSpan !== newSpan) {
+    return { ok: false, reason: "SUMMARY_INVALID" };
+  }
+  if (!isMemory5Plus4Enabled() && opts.turnEnd == null && turnSpan === NEW_ROLLING_SUMMARY_INTERVAL) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
 
@@ -181,9 +212,9 @@ export function persistValidatedSummaryBatch(opts: {
         });
       }
       const before = listMemoryRecordsForChat(opts.chatId);
-      // Contiguity ignores soft-deleted rows; upsert may still revive the same turnStart.
-      const contiguousBefore = highestContiguousCompletedTurn(before, opts.playableTurnCount);
-      const expectedNextStart = contiguousBefore === 0 ? 1 : contiguousBefore + 1;
+      // Occupied span includes inactive rows for gap checks; LTM uses active-only contiguous.
+      const occupiedBefore = highestContiguousOccupiedTurn(before, opts.playableTurnCount);
+      const expectedNextStart = occupiedBefore === 0 ? 1 : occupiedBefore + 1;
       const existingSame = before.find((r) => r.turnStart === opts.turnStart);
 
       if (!existingSame && opts.turnStart !== expectedNextStart) {
@@ -193,6 +224,7 @@ export function persistValidatedSummaryBatch(opts: {
       upsertRowInTx({
         chatId: opts.chatId,
         turnStart: opts.turnStart,
+        turnEnd,
         assistantMessageId: opts.assistantMessageId,
         summary: validated.text,
         summaryKind: validated.kind,
@@ -210,6 +242,31 @@ export function persistValidatedSummaryBatch(opts: {
 
       if (opts.__testThrowAfterUpsert) {
         throw Object.assign(new Error("test forced failure after upsert"), {
+          code: "SUMMARY_SAVE_FAILED" as const,
+        });
+      }
+
+      if (opts.pendingBranchControlOps?.length) {
+        for (const pending of opts.pendingBranchControlOps) {
+          if (pending.op === "reopen_branch") {
+            const reopened = reopenClosedBranchCanonCore({
+              chatId: opts.chatId,
+              branchId: pending.branchId,
+              control: pending.control,
+            });
+            if (!reopened.ok) {
+              throw Object.assign(new Error(`reopen failed: ${reopened.reason}`), {
+                code: "SUMMARY_SAVE_FAILED" as const,
+              });
+            }
+          } else if (pending.op === "close_active_branches") {
+            closeActiveBranchCanonCore(opts.chatId, pending.control);
+          }
+        }
+      }
+
+      if (opts.__testThrowAfterBranchOps) {
+        throw Object.assign(new Error("test forced failure after branch ops"), {
           code: "SUMMARY_SAVE_FAILED" as const,
         });
       }

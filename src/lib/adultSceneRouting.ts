@@ -1,4 +1,7 @@
+import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { GENERAL_ROUTE_BRIDGE_USER_MARKER } from "@/lib/providerHistoryPolicy";
 import type { ChatMsg } from "@/lib/ai";
+import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   normalizeDeepSeekV4ProModelId,
@@ -235,24 +238,22 @@ export function resolveAdultRoutingConfig(
     env.ADULT_SCENE_BASE_RAW_EXCHANGES,
     4,
     2,
-    8
+    4
   );
   const handoffTargetRawExchanges = Math.max(
     baseRawExchanges,
     envInt(
       env.ADULT_SCENE_HANDOFF_TARGET_RAW_EXCHANGES ??
         env.ADULT_SCENE_HANDOFF_RAW_TURNS,
-      6,
+      4,
       baseRawExchanges,
-      12
+      4
     )
   );
-  // Legacy MAX_TOKENS is accepted as the extra-history budget. It no longer
-  // has authority to trim the always-preserved base RAW exchanges.
   const handoffExtraRawTokens = envInt(
     env.ADULT_SCENE_HANDOFF_EXTRA_RAW_TOKENS ??
       env.ADULT_SCENE_HANDOFF_MAX_TOKENS,
-    4_000,
+    0,
     0,
     20_000
   );
@@ -1394,11 +1395,8 @@ export function selectAdultHandoffRawVariants(
   } = {}
 ): AdultHandoffRawVariants {
   const baseExchanges = Math.max(2, opts.baseExchanges ?? 4);
-  const targetExchanges = Math.max(
-    baseExchanges,
-    opts.targetExchanges ?? 6
-  );
-  const extraRawTokens = Math.max(0, opts.extraRawTokens ?? 4_000);
+  const targetExchanges = Math.max(baseExchanges, opts.targetExchanges ?? 4);
+  const extraRawTokens = Math.max(0, opts.extraRawTokens ?? 0);
   const pairs = collectCompleteAdultRawPairs(history);
   const baseStart = Math.max(0, pairs.length - baseExchanges);
   const basePairs = pairs.slice(baseStart);
@@ -1443,8 +1441,8 @@ export function selectAdultHandoffRawHistory(
 ): SelectedAdultRawHistory {
   return selectAdultHandoffRawVariants(history, {
     baseExchanges: opts.baseExchanges ?? opts.minimumTurns ?? 4,
-    targetExchanges: opts.targetExchanges ?? opts.targetTurns ?? 6,
-    extraRawTokens: opts.extraRawTokens ?? opts.maxTokens ?? 4_000,
+    targetExchanges: opts.targetExchanges ?? opts.targetTurns ?? 4,
+    extraRawTokens: opts.extraRawTokens ?? opts.maxTokens ?? 0,
   }).handoff;
 }
 
@@ -1822,6 +1820,54 @@ export interface CanonicalRouteHistoryMessage extends ChatMsg {
   activeRoute?: ActiveModelRoute;
 }
 
+/** Latest N complete playable route exchanges; opening optional via shared policy. */
+export function boundCanonicalRouteHistoryForProvider(
+  history: CanonicalRouteHistoryMessage[],
+  maxExchanges = RAW_HISTORY_COMPLETE_EXCHANGES,
+  opts?: { includeOpening?: boolean }
+): CanonicalRouteHistoryMessage[] {
+  let openingPair: CanonicalRouteHistoryMessage[] = [];
+  let cursor = 0;
+
+  if (history.length >= 2 && history[0]?.role === "user" && history[0].content === OPENING_TURN_USER) {
+    openingPair = history.slice(0, 2);
+    cursor = 2;
+  } else if (
+    opts?.includeOpening &&
+    history.length >= 2 &&
+    history[0]?.role === "assistant" &&
+    history[1]?.role === "user"
+  ) {
+    openingPair = [
+      { role: "user", content: OPENING_TURN_USER },
+      history[0]!,
+    ];
+    cursor = 1;
+  }
+
+  const pairs: CanonicalRouteHistoryMessage[][] = [];
+  let pendingUser: CanonicalRouteHistoryMessage | null = null;
+
+  for (const message of history.slice(cursor)) {
+    if (message.role === "user") {
+      pendingUser = message;
+      continue;
+    }
+    if (!pendingUser || message.role !== "assistant") continue;
+    if (pendingUser.content === OPENING_TURN_USER) {
+      pendingUser = null;
+      continue;
+    }
+    pairs.push([pendingUser, message]);
+    pendingUser = null;
+  }
+
+  const bounded = pairs.slice(-maxExchanges).flat();
+  return opts?.includeOpening && openingPair.length > 0
+    ? [...openingPair, ...bounded]
+    : bounded;
+}
+
 export function buildGeneralProviderContext(
   history: CanonicalRouteHistoryMessage[],
   bridge?: GeneralRouteBridge
@@ -1833,7 +1879,7 @@ export function buildGeneralProviderContext(
   const insertBridge = () => {
     if (bridgeInserted || !bridge || Object.keys(bridge).length === 0) return;
     safe.push(
-      { role: "user", content: "[이전 장면 이후의 안전한 연속성 정보]" },
+      { role: "user", content: GENERAL_ROUTE_BRIDGE_USER_MARKER },
       {
         role: "assistant",
         content: JSON.stringify(sanitizeGeneralRouteBridge(bridge)),

@@ -1,9 +1,9 @@
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import {
-  ROLLING_SUMMARY_MAX_CHARS,
-  ROLLING_SUMMARY_MIN_CHARS,
-} from "./memory-constants";
+  resolveRecordSpan,
+  newBatchEndForStart,
+} from "./memory-summary-range";
+import { MEMORY_RECORD_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   appendBranchControlMutation,
@@ -27,12 +27,13 @@ import {
 } from "./memory-summary-scope";
 
 export const MEMORY_RECORD_MIN_CHARS = ROLLING_SUMMARY_MIN_CHARS;
-export const MEMORY_RECORD_MAX_CHARS = ROLLING_SUMMARY_MAX_CHARS;
+export { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
 export type MemoryRecordRow = {
   id: number;
   chat_id: number;
   turn_number: number;
+  turn_end?: number | null;
   assistant_message_id: number | null;
   summary: string;
   summary_kind?: string | null;
@@ -73,8 +74,9 @@ function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
 }
 
 function rowToView(r: MemoryRecordRow): MemoryRecordView {
-  const turnStart = r.turn_number;
-  const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
+  const span = resolveRecordSpan(r);
+  const turnStart = span.turnStart;
+  const turnEnd = span.turnEnd;
   const summaryKind = normalizeSummaryScope(r.summary_kind);
   const payload = parseScopePayload(r.scope_payload);
   const scopes: Partial<Record<MemorySummaryScope, string>> = {
@@ -121,7 +123,7 @@ export function formatMemoryBlock(startTurn: number, endTurn: number, summary: s
 }
 
 function selectSql(): string {
-  return `SELECT id, chat_id, turn_number, assistant_message_id, summary,
+  return `SELECT id, chat_id, turn_number, turn_end, assistant_message_id, summary,
               COALESCE(summary_kind, 'narrative') AS summary_kind,
               scope_payload, branch_id, branch_status, promoted_by, promoted_at,
               COALESCE(inactive, 0) AS inactive,
@@ -149,7 +151,9 @@ export function rebuildLorebookFromRecords(
   });
   const cutoff = opts?.excludeTurnStartGte;
   if (cutoff != null && cutoff > 0) {
-    records = records.filter((r) => r.turnEnd < cutoff);
+    // Drop summaries whose playable span starts at/after first verbatim RAW turn.
+    // Partial overlap (e.g. 1~5 summary + RAW 2~5) keeps turn-1 facts in LTM.
+    records = records.filter((r) => r.turnStart < cutoff);
   }
   return records
     .map((r) => {
@@ -202,6 +206,7 @@ export function listTurnSummariesForChat(chatId: number): {
 export async function upsertMemoryRecord(opts: {
   chatId: number;
   turnStart: number;
+  turnEnd?: number;
   assistantMessageId: number | null;
   summary: string;
   userEdited?: boolean;
@@ -216,6 +221,7 @@ export async function upsertMemoryRecord(opts: {
   const kind = normalizeSummaryScope(opts.summaryKind);
   const summary = kind === "empty_ooc" ? opts.summary.trim() : clampRecord(opts.summary);
   const payloadJson = opts.scopePayload ? encodeScopePayload(opts.scopePayload) : null;
+  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
   const db = getDb();
   const existing = db
     .prepare("SELECT id, summary_kind FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
@@ -224,7 +230,7 @@ export async function upsertMemoryRecord(opts: {
   if (existing) {
     db.prepare(
       `UPDATE chat_turn_summaries SET
-        summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
+        summary=?, summary_kind=?, turn_end=?, assistant_message_id=COALESCE(?, assistant_message_id),
         scope_payload=COALESCE(?, scope_payload),
         branch_id=COALESCE(?, branch_id),
         branch_status=COALESCE(?, branch_status),
@@ -236,6 +242,7 @@ export async function upsertMemoryRecord(opts: {
     ).run(
       summary,
       kind,
+      turnEnd,
       opts.assistantMessageId,
       payloadJson,
       opts.branchId ?? null,
@@ -249,12 +256,13 @@ export async function upsertMemoryRecord(opts: {
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
+        (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
          scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
+      turnEnd,
       opts.assistantMessageId,
       summary,
       kind,
@@ -561,13 +569,10 @@ export type ReopenClosedBranchResult =
  * each closed→active row so last-turn delete can restore prior closed.
  * UI reopen: omit control or use source=ui without user_turn stack entries.
  */
-export function reopenClosedBranchCanon(opts: {
+export function reopenClosedBranchCanonCore(opts: {
   chatId: number;
   branchId?: string | null;
   recordId?: number | null;
-  /** Log-only label; not persisted to schema. */
-  source?: string;
-  /** When source=user_turn with message id, records reopen_branch mutations. */
   control?: BranchControlSource | null;
 }): ReopenClosedBranchResult {
   const db = getDb();
@@ -610,76 +615,66 @@ export function reopenClosedBranchCanon(opts: {
   const closedOtherRowIds: number[] = [];
   const reopenedRowIds: number[] = [];
 
-  const run = db.transaction(() => {
-    const beforeClose = db
-      .prepare(
-        `SELECT id FROM chat_turn_summaries
+  const beforeClose = db
+    .prepare(
+      `SELECT id FROM chat_turn_summaries
          WHERE chat_id=? AND summary_kind='branch_canon'
            AND COALESCE(branch_status,'active')='active'
            AND COALESCE(inactive,0)=0
            AND (branch_id IS NULL OR branch_id != ?)`
-      )
-      .all(opts.chatId, targetBranchId) as Array<{ id: number }>;
-    closeActiveBranchesExcept(opts.chatId, targetBranchId);
-    for (const r of beforeClose) closedOtherRowIds.push(r.id);
+    )
+    .all(opts.chatId, targetBranchId) as Array<{ id: number }>;
+  closeActiveBranchesExcept(opts.chatId, targetBranchId);
+  for (const r of beforeClose) closedOtherRowIds.push(r.id);
 
-    for (const row of targetRows) {
-      const view = rowToView(row);
-      const wasClosed = view.branchStatus !== "active";
-      if (!wasClosed) {
-        reopenedRowIds.push(row.id);
-        continue;
-      }
+  for (const row of targetRows) {
+    const view = rowToView(row);
+    const wasClosed = view.branchStatus !== "active";
+    if (!wasClosed) {
+      reopenedRowIds.push(row.id);
+      continue;
+    }
 
-      if (recordUserTurnProvenance) {
-        const previous = snapshotBranchControlPrevious({
-          id: view.id,
-          summaryKind: view.summaryKind,
+    if (recordUserTurnProvenance) {
+      const previous = snapshotBranchControlPrevious({
+        id: view.id,
+        summaryKind: view.summaryKind,
+        scopes: view.scopes,
+        branchId: view.branchId,
+        branchStatus: view.branchStatus,
+        promotedBy: view.promotedBy,
+        promotedAt: view.promotedAt,
+        inactive: view.inactive,
+        scopePayloadRaw: row.scope_payload ?? null,
+      });
+      const basePayload = parseScopePayload(row.scope_payload) ?? {
+        v: 1 as const,
+        scopes: view.scopes,
+        branchControlMutations: [],
+      };
+      const payload = appendBranchControlMutation(
+        {
+          ...basePayload,
+          v: 1,
           scopes: view.scopes,
           branchId: view.branchId,
-          branchStatus: view.branchStatus,
+          branchStatus: "active",
           promotedBy: view.promotedBy,
           promotedAt: view.promotedAt,
-          inactive: view.inactive,
-          scopePayloadRaw: row.scope_payload ?? null,
-        });
-        const basePayload = parseScopePayload(row.scope_payload) ?? {
-          v: 1 as const,
-          scopes: view.scopes,
-          branchControlMutations: [],
-        };
-        const payload = appendBranchControlMutation(
-          {
-            ...basePayload,
-            v: 1,
-            scopes: view.scopes,
-            branchId: view.branchId,
-            branchStatus: "active",
-            promotedBy: view.promotedBy,
-            promotedAt: view.promotedAt,
-          },
-          buildBranchControlMutation("reopen_branch", previous, opts.control)
-        );
-        db.prepare(
-          `UPDATE chat_turn_summaries SET
+        },
+        buildBranchControlMutation("reopen_branch", previous, opts.control)
+      );
+      db.prepare(
+        `UPDATE chat_turn_summaries SET
             branch_status='active',
             scope_payload=?,
             updated_at=datetime('now')
            WHERE id=? AND chat_id=?`
-        ).run(encodeScopePayload(payload), row.id, opts.chatId);
-      } else {
-        setRowBranchStatusOnly(opts.chatId, row, "active");
-      }
-      reopenedRowIds.push(row.id);
+      ).run(encodeScopePayload(payload), row.id, opts.chatId);
+    } else {
+      setRowBranchStatusOnly(opts.chatId, row, "active");
     }
-  });
-
-  run();
-
-  if (opts.source) {
-    console.info(
-      `[memory] reopen branch chat=${opts.chatId} branchId=${targetBranchId} source=${opts.source} rows=${reopenedRowIds.length} closedOther=${closedOtherRowIds.length}`
-    );
+    reopenedRowIds.push(row.id);
   }
 
   return {
@@ -690,7 +685,28 @@ export function reopenClosedBranchCanon(opts: {
   };
 }
 
-export function closeActiveBranchCanon(
+export function reopenClosedBranchCanon(opts: {
+  chatId: number;
+  branchId?: string | null;
+  recordId?: number | null;
+  /** Log-only label; not persisted to schema. */
+  source?: string;
+  /** When source=user_turn with message id, records reopen_branch mutations. */
+  control?: BranchControlSource | null;
+}): ReopenClosedBranchResult {
+  const db = getDb();
+  const result = db.transaction(() => reopenClosedBranchCanonCore(opts)).immediate();
+
+  if (opts.source && result.ok) {
+    console.info(
+      `[memory] reopen branch chat=${opts.chatId} branchId=${result.branchId} source=${opts.source} rows=${result.reopenedRowIds.length} closedOther=${result.closedOtherRowIds.length}`
+    );
+  }
+
+  return result;
+}
+
+export function closeActiveBranchCanonCore(
   chatId: number,
   control?: BranchControlSource | null
 ): number {
@@ -749,6 +765,14 @@ export function closeActiveBranchCanon(
     n++;
   }
   return n;
+}
+
+export function closeActiveBranchCanon(
+  chatId: number,
+  control?: BranchControlSource | null
+): number {
+  const db = getDb();
+  return db.transaction(() => closeActiveBranchCanonCore(chatId, control)).immediate();
 }
 
 export function adoptBranchToMainCanon(opts: {

@@ -101,11 +101,9 @@ import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterNam
 import {
   messagesToTurns,
   countPlayableTurns,
-  countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
-  resolveHistoryMinTurnFloor,
   selectLongerHistorySuffix,
-  trimHistoryToBudget,
+  ROLLING_SUMMARY_INTERVAL,
 } from "@/lib/hybridMemory";
 import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
 import {
@@ -123,6 +121,19 @@ import {
   resolveMemoryTier,
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
+import { ensureSummaryBarrier } from "@/lib/memory/memory-rolling-summary";
+import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
+import { resolveProviderRawExchangeCount } from "@/lib/memory/memory-5plus4-flag";
+import {
+  analyzeProviderHistoryHealth,
+  countRealPlayableHistoryTurns,
+  resolveProviderHistoryTurnFloor,
+  trimProviderHistoryToBudget,
+} from "@/lib/providerHistoryPolicy";
+import {
+  shouldIncludeOpeningInProviderRaw,
+  splitOpeningPlayableTurns,
+} from "@/lib/hybridMemory";
 import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
 import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
@@ -350,6 +361,7 @@ import {
   pushRemovalTraceStep,
   type RemovalTraceStep,
 } from "@/lib/removalTrace";
+import { buildEstimatedReceiptSectionBreakdown } from "@/lib/billingReceiptSectionBreakdown";
 import {
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
@@ -461,6 +473,7 @@ import {
   buildCharacterParticipantIdentityDescription,
   buildAdultProviderRoutingRequest,
   buildGeneralProviderContext,
+  boundCanonicalRouteHistoryForProvider,
   buildGeneralRouteBridge,
   buildSceneContinuityPacket,
   classifySceneMode,
@@ -1333,26 +1346,69 @@ export async function POST(req: Request) {
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
-  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
-    (m) => ({
-      ...m,
-      content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
-    })
-  );
-  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const summarizedTurnCountBeforeBarrier = chatMemory?.summarized_turn_count ?? 0;
+  let effectiveSummarizedTurnCount = memoryFeatureOn
+    ? summarizedTurnCountBeforeBarrier
+    : 0;
   const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
   const completedTurnsForMemoryCoverage = memoryFeatureOn
     ? memorySourceEligibleCompletedTurns
     : playableTurnCount;
-  const historyMinTurnFloor = resolveHistoryMinTurnFloor({
+
+  if (memoryFeatureOn) {
+    const barrier = await ensureSummaryBarrier({
+      chatId: chat.id,
+      userId: user.id,
+      characterId: ch.id,
+      charName: ch.name,
+      tier: memoryTier,
+      memoryCapacity,
+      userPersona: personaDisplayName,
+      completedTurns: completedTurnsForMemoryCoverage,
+    });
+    const gate = gateChatOnSummaryBarrier(barrier);
+    if (!gate.proceed) {
+      return Response.json(gate.response.body, { status: gate.response.status });
+    }
+    effectiveSummarizedTurnCount = gate.summarizedThrough;
+  }
+
+  const providerRawExchangeCount = resolveProviderRawExchangeCount();
+  const { opening: openingTurn, playable: playableTurnsForOpening } =
+    splitOpeningPlayableTurns(turnsForRecentHistory);
+  const protectOpening = shouldIncludeOpeningInProviderRaw({
+    opening: openingTurn,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
     memoryFeatureEnabled: memoryFeatureOn,
-    completedTurns: completedTurnsForMemoryCoverage,
-    summarizedTurnCount,
+    playableCount: playableTurnsForOpening.length,
   });
-  const coverageProtectedCanonicalHistory = trimHistoryToBudget(
+  const providerRawOpts = {
+    summarizedTurnCount: effectiveSummarizedTurnCount,
+    memoryFeatureEnabled: memoryFeatureOn,
+  };
+  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(
+    turnsForRecentHistory,
+    providerRawExchangeCount,
+    providerRawOpts
+  ).map((m) => ({
+      ...m,
+      content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
+    })
+  );
+  const providerTrimOpts = {
+    minRealPlayableExchanges: providerRawExchangeCount,
+    protectOpening,
+  };
+  const providerHistoryAbsoluteTurnFloor = resolveProviderHistoryTurnFloor({
+    minRealPlayableExchanges: providerRawExchangeCount,
+    protectOpening,
+    history: canonicalRecentHistoryFull,
+  });
+  const historyMinTurnFloor = providerHistoryAbsoluteTurnFloor;
+  const coverageProtectedCanonicalHistory = trimProviderHistoryToBudget(
     canonicalRecentHistoryFull,
     historyTokenBudget,
-    historyMinTurnFloor
+    providerTrimOpts
   );
   const canonicalRouteHistory: CanonicalRouteHistoryMessage[] = msgRowsSource
     .filter((row) => row.role === "user" || row.role === "assistant")
@@ -1406,13 +1462,15 @@ export async function POST(req: Request) {
     adultRouteDecision.activeRoute === "general" &&
     priorModelRouteState.generalRouteBridge
   ) {
-    providerRecentHistoryFull = trimHistoryToBudget(
+    providerRecentHistoryFull = trimProviderHistoryToBudget(
       buildGeneralProviderContext(
-        canonicalRouteHistory,
+        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawExchangeCount, {
+          includeOpening: protectOpening,
+        }),
         priorModelRouteState.generalRouteBridge
       ),
       historyTokenBudget,
-      historyMinTurnFloor
+      providerTrimOpts
     );
   }
   let handoffRawTurnsIncluded = 0;
@@ -1453,9 +1511,33 @@ export async function POST(req: Request) {
       : coverageProtectedCanonicalHistory;
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
+  const providerHistoryHealth = analyzeProviderHistoryHealth(shortTermHistory);
+  const rawCompleteExchanges = providerHistoryHealth.realRawCompleteExchanges;
+  const rawHistoryChars = providerHistoryHealth.realRawChars;
+  const rawHistoryInternalEstimate = shortTermHistory.reduce(
+    (n, m) => n + estimateTokens(m.content ?? ""),
+    0
+  );
+  const unsummarizedCompletedTurns = Math.max(
+    0,
+    completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
+  );
+  console.info("RAW_HISTORY_SELECTED", {
+    chat_id: chat.id,
+    exchange_count: rawCompleteExchanges,
+    chars: rawHistoryChars,
+    internal_estimate: rawHistoryInternalEstimate,
+  });
+  if (rawCompleteExchanges > providerRawExchangeCount) {
+    console.warn("RAW_HISTORY_POLICY_VIOLATION", {
+      chat_id: chat.id,
+      raw_complete_exchanges: rawCompleteExchanges,
+      expected: providerRawExchangeCount,
+    });
+  }
 
   const keptEligibleRawTurnsForLorebook = Math.min(
-    countPlayableHistoryTurns(trimmedHistoryForLorebook),
+    countRealPlayableHistoryTurns(trimmedHistoryForLorebook),
     completedTurnsForMemoryCoverage
   );
   const initialLorebookExcludeTurnStart =
@@ -1992,8 +2074,11 @@ export async function POST(req: Request) {
     targetResponseChars,
     completedTurns: playableTurnCount,
     completedTurnsForMemoryCoverage,
-    summarizedTurnCount,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
     historyMinTurnFloor,
+    providerHistoryAbsoluteTurnFloor,
+    providerHistoryProtectOpening: protectOpening,
+    providerHistoryMinRealPlayableExchanges: providerRawExchangeCount,
     adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
@@ -4357,34 +4442,34 @@ export async function POST(req: Request) {
           charPromptEst = Math.max(0, charPromptEst - keywordLoreEst);
         }
 
-        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + coverage-aware floor)
+        // Provider RAW — latest complete exchanges + soft 10K budget
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);
 
-        const sections = [
-          { label: "최근 raw 턴", est: historyEst },
+        const sectionEsts = [
+          { key: "raw", est: historyEst },
           ...(narrativeContextEst > 0
-            ? [{ label: "요약·내러티브 (이전 대화)", est: narrativeContextEst }]
+            ? [{ key: "narrative" as const, est: narrativeContextEst }]
             : []),
-          { label: "캐릭터 프롬프트", est: charPromptEst },
-          { label: "시스템 프롬프트 (고정 규칙)", est: sysRulesEst },
-          { label: "장기 기억 (현재기억)", est: currentMemoryEst },
-          { label: "선택 페르소나", est: personaEst },
-          { label: BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL, est: keywordLoreEst },
-          { label: "유저 노트", est: userNoteEst },
-          { label: "에셋 태그", est: assetTagEst },
-          { label: "관계 메모", est: memoryMetaEst },
+          { key: "character" as const, est: charPromptEst },
+          { key: "system" as const, est: sysRulesEst },
+          { key: "memory" as const, est: currentMemoryEst },
+          { key: "persona" as const, est: personaEst },
+          { key: "keyword" as const, est: keywordLoreEst },
+          { key: "note" as const, est: userNoteEst },
+          { key: "asset" as const, est: assetTagEst },
+          { key: "rel" as const, est: memoryMetaEst },
         ];
-        const totalEst = Math.max(1, sections.reduce((s, x) => s + x.est, 0));
-        const breakdown = sections
-          .map((s) => ({
-            label: s.label,
-            tokens: Math.round((s.est / totalEst) * draftInput),
-            pct: Math.round((s.est / totalEst) * 100),
-          }))
-          .filter((s) => s.tokens > 0);
         const splitChars = openRouterSystemSplitRef;
+        const breakdown = buildEstimatedReceiptSectionBreakdown({
+          sectionEsts: sectionEsts as import("@/lib/billingReceiptSectionBreakdown").ReceiptSectionEstimate[],
+          draftInput,
+          splitChars,
+          charPromptEst,
+          rawHistoryChars,
+          rawCompleteExchanges,
+        });
         const historyChars = historyRef.reduce((n, m) => n + (m.content?.length ?? 0), 0);
         const currentUserChars = historyRef.at(-1)?.content.length ?? 0;
         const assembledPromptChars = {
@@ -4568,6 +4653,25 @@ export async function POST(req: Request) {
               : billableStages.some((s) => s.estimated),
           breakdown,
           breakdownAllocation: "estimated_section_allocation",
+          rawHistoryHealth: {
+            rawCompleteExchanges,
+            rawMessages: providerHistoryHealth.realRawMessages,
+            rawChars: rawHistoryChars,
+            rawInternalEstimate: rawHistoryInternalEstimate,
+            summaryInterval: ROLLING_SUMMARY_INTERVAL,
+            summarizedThroughTurn: effectiveSummarizedTurnCount,
+            unsummarizedCompletedTurns,
+            realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+            realRawMessages: providerHistoryHealth.realRawMessages,
+            realRawChars: providerHistoryHealth.realRawChars,
+            openingPreludePresent: providerHistoryHealth.openingPreludePresent,
+            openingPreludeChars: providerHistoryHealth.openingPreludeChars,
+            generalRouteBridgePresent: providerHistoryHealth.generalRouteBridgePresent,
+            generalRouteBridgeChars: providerHistoryHealth.generalRouteBridgeChars,
+            ...(rawCompleteExchanges > providerRawExchangeCount
+              ? { policyViolation: true }
+              : {}),
+          },
           assembledPromptChars,
           usedEnglishCharacterPrompt,
           characterPromptLanguage: usedEnglishCharacterPrompt

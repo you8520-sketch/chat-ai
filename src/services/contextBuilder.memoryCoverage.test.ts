@@ -1,22 +1,35 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  GEMINI_CHAT_FLASH_25,
-  OPENROUTER_QWEN_37_MAX_MODEL,
-} from "@/lib/chatModels";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
+import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 import {
-  countPlayableHistoryTurns,
+  GENERAL_ROUTE_BRIDGE_USER_MARKER,
+  analyzeProviderHistoryHealth,
+  countRealPlayableHistoryTurns,
+  trimProviderHistoryToBudget,
+} from "@/lib/providerHistoryPolicy";
+import {
+  messagesToTurns,
   rawRecentTurnsToHistory,
-  resolveMemoryCoverageTurnFloor,
+  resolveMemoryCoverageGap,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
 import { buildContext } from "@/services/contextBuilder";
 import type { ChatMsg } from "@/lib/ai";
+
+const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+function saveEnv(): string | undefined {
+  return process.env[ENV_KEY];
+}
+
+function restoreEnv(value: string | undefined): void {
+  if (value === undefined) delete process.env[ENV_KEY];
+  else process.env[ENV_KEY] = value;
+}
 
 function makeTurns(count: number, assistantChars = 2500): DialogueTurn[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -26,13 +39,14 @@ function makeTurns(count: number, assistantChars = 2500): DialogueTurn[] {
 }
 
 function buildCoverageContext(opts: {
-  provider: "gemini" | "openrouter" | "cheaperinference";
-  modelId: string;
   history: ChatMsg[];
   completedTurns: number;
   completedTurnsForMemoryCoverage?: number;
   summarizedTurnCount: number;
-  floor: number;
+  historyMinTurnFloor?: number;
+  providerHistoryMinRealPlayableExchanges?: number;
+  providerHistoryAbsoluteTurnFloor?: number;
+  providerHistoryProtectOpening?: boolean;
   preserveAdultHandoffRawHistory?: boolean;
   adultHandoffRequiredTurnFloor?: number;
   suppressMemoryCoverageDegradedLog?: boolean;
@@ -44,280 +58,270 @@ function buildCoverageContext(opts: {
     shortTermHistory: opts.history,
     currentUserMessage: "현재 입력",
     nsfw: false,
-    provider: opts.provider,
-    modelId: opts.modelId,
+    provider: "openrouter",
+    modelId: OPENROUTER_QWEN_37_MAX_MODEL,
     completedTurns: opts.completedTurns,
     completedTurnsForMemoryCoverage: opts.completedTurnsForMemoryCoverage,
     summarizedTurnCount: opts.summarizedTurnCount,
-    historyMinTurnFloor: opts.floor,
+    historyMinTurnFloor: opts.historyMinTurnFloor ?? 4,
+    providerHistoryMinRealPlayableExchanges: opts.providerHistoryMinRealPlayableExchanges,
+    providerHistoryAbsoluteTurnFloor: opts.providerHistoryAbsoluteTurnFloor,
+    providerHistoryProtectOpening: opts.providerHistoryProtectOpening,
     preserveAdultHandoffRawHistory: opts.preserveAdultHandoffRawHistory,
     adultHandoffRequiredTurnFloor: opts.adultHandoffRequiredTurnFloor,
     suppressMemoryCoverageDegradedLog: opts.suppressMemoryCoverageDegradedLog,
   });
 }
 
-describe("contextBuilder memory coverage", () => {
-  const providers = [
-    { label: "Gemini/general", provider: "gemini" as const, modelId: GEMINI_CHAT_FLASH_25 },
-    { label: "OpenRouter", provider: "openrouter" as const, modelId: OPENROUTER_QWEN_37_MAX_MODEL },
-    {
-      label: "CheaperInference DeepSeek",
-      provider: "cheaperinference" as const,
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-    },
-  ];
+describe("contextBuilder memory coverage — 5+4 owner contract MC1-MC10", () => {
+  let savedFlag: string | undefined;
 
-  for (const fixture of providers) {
-    it(`${fixture.label} uses the route-resolved floor during payload re-trim`, () => {
-      const completedTurns = 20;
-      const summarizedTurnCount = 6;
-      const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
-      const initialHistory = trimHistoryToBudget(
-        rawRecentTurnsToHistory(makeTurns(completedTurns)),
-        HISTORY_TOKEN_BUDGET,
-        floor
-      );
-      const built = buildCoverageContext({
-        ...fixture,
-        history: initialHistory,
-        completedTurns,
-        summarizedTurnCount,
-        floor,
-      });
-      const priorHistory = built.history.slice(0, -1);
-
-      assert.equal(built.meta.memoryCoverage?.requestedFloor, 14);
-      assert.equal(built.meta.memoryCoverage?.effectiveFloor, 14);
-      assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
-      assert.equal(built.meta.memoryCoverage?.degraded, false);
-      assert.ok(countPlayableHistoryTurns(priorHistory) >= 14);
-      assert.equal(priorHistory.length % 2, 0, "history must keep complete pairs");
-      assert.deepEqual(priorHistory, initialHistory);
-      assert.match(priorHistory.at(-1)?.content ?? "", /assistant-20/);
-    });
-  }
-
-  it("keeps requested/effective floor at four when memory is disabled upstream", () => {
-    const completedTurns = 20;
-    const full = rawRecentTurnsToHistory(makeTurns(completedTurns));
-    const mainHistory = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, 4);
-    const built = buildCoverageContext({
-      provider: "openrouter",
-      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
-      history: mainHistory,
-      completedTurns,
-      summarizedTurnCount: 0,
-      floor: 4,
-    });
-
-    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
-    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 4);
-    assert.equal(built.meta.memoryCoverage?.degraded, false);
-    const builtPriorHistory = built.history.slice(0, -1);
-    assert.ok(builtPriorHistory.length <= mainHistory.length);
-    assert.deepEqual(selectLongerHistorySuffix(builtPriorHistory, mainHistory), mainHistory);
+  beforeEach(() => {
+    savedFlag = saveEnv();
   });
 
-  it("uses one eligible turn instead of 101 global turns immediately after reset", () => {
+  afterEach(() => {
+    restoreEnv(savedFlag);
+  });
+
+  it("MC1 Phase1 flag OFF — route-supplied RAW5 is not widened; gap0 after 1-6 seal", () => {
+    delete process.env[ENV_KEY];
+    const completedTurns = 6;
+    const summarizedTurnCount = 6;
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(makeTurns(completedTurns), 5),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 5, protectOpening: false }
+    );
     const built = buildCoverageContext({
-      provider: "openrouter",
-      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      history,
+      completedTurns,
+      summarizedTurnCount,
+      historyMinTurnFloor: 5,
+      providerHistoryMinRealPlayableExchanges: 5,
+      providerHistoryAbsoluteTurnFloor: 5,
+    });
+    const prior = built.history.slice(0, -1);
+    assert.equal(countRealPlayableHistoryTurns(prior), 5);
+    assert.equal(built.meta.memoryCoverage?.requestedFloor, 5);
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 5);
+    assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 2);
+    assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
+    assert.equal(prior.length % 2, 0);
+  });
+
+  it("MC2 Phase2 flag ON — buildContext keeps REAL RAW <=4 and does not lag-expand floor", () => {
+    process.env[ENV_KEY] = "1";
+    const completedTurns = 20;
+    const summarizedTurnCount = 6;
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(makeTurns(completedTurns), 4),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 4, protectOpening: false }
+    );
+    const built = buildCoverageContext({
+      history,
+      completedTurns,
+      summarizedTurnCount,
+      historyMinTurnFloor: 4,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 4,
+    });
+    const prior = built.history.slice(0, -1);
+    assert.ok(countRealPlayableHistoryTurns(prior) <= 4);
+    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 4);
+    assert.notEqual(built.meta.memoryCoverage?.requestedFloor, 14);
+  });
+
+  it("MC3 buildContext does not re-expand 4 RAW into legacy coverage floor 14", () => {
+    process.env[ENV_KEY] = "1";
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(makeTurns(20), 4),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 4, protectOpening: false }
+    );
+    const built = buildCoverageContext({
+      history,
+      completedTurns: 20,
+      summarizedTurnCount: 6,
+      historyMinTurnFloor: 4,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 4,
+    });
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 4);
+    assert.equal(countRealPlayableHistoryTurns(built.history.slice(0, -1)), 4);
+  });
+
+  it("MC4 opening is not counted as real playable RAW", () => {
+    process.env[ENV_KEY] = "1";
+    const rows: Array<{ role: "user" | "assistant"; content: string; model?: string }> = [
+      { role: "assistant", model: "greeting", content: "오프닝 장면" },
+    ];
+    for (let t = 1; t <= 4; t++) {
+      rows.push({ role: "user", content: `user-${t}` });
+      rows.push({ role: "assistant", content: `assistant-${t}`, model: "test" });
+    }
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(messagesToTurns(rows), 4, {
+        summarizedTurnCount: 0,
+        memoryFeatureEnabled: true,
+      }),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 4, protectOpening: true }
+    );
+    const health = analyzeProviderHistoryHealth(history);
+    assert.equal(health.openingPreludePresent, true);
+    assert.equal(health.realRawCompleteExchanges, 4);
+    const built = buildCoverageContext({
+      history,
+      completedTurns: 4,
+      summarizedTurnCount: 0,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 5,
+      providerHistoryProtectOpening: true,
+    });
+    const priorHealth = analyzeProviderHistoryHealth(built.history.slice(0, -1));
+    assert.ok(priorHealth.realRawCompleteExchanges <= 4);
+  });
+
+  it("MC5 general bridge is not counted as real RAW", () => {
+    const history: ChatMsg[] = [
+      { role: "user", content: GENERAL_ROUTE_BRIDGE_USER_MARKER },
+      { role: "assistant", content: '{"relationshipChange":"calm"}' },
+      ...rawRecentTurnsToHistory(makeTurns(4, 400)),
+    ];
+    const health = analyzeProviderHistoryHealth(history);
+    assert.equal(health.generalRouteBridgePresent, true);
+    assert.equal(countRealPlayableHistoryTurns(history), health.realRawCompleteExchanges);
+    assert.ok(health.realRawCompleteExchanges <= 4);
+  });
+
+  it("MC6 opening + RAW4 over 10K stays protected when provider policy fields supplied", () => {
+    process.env[ENV_KEY] = "1";
+    const OPENING = "*UNIQUE_OPENING_FACT*";
+    const rows: Array<{ role: "user" | "assistant"; content: string; model?: string }> = [
+      { role: "assistant", model: "greeting", content: OPENING },
+    ];
+    for (let t = 1; t <= 4; t++) {
+      rows.push({ role: "user", content: `u${t}` });
+      rows.push({ role: "assistant", content: `a${t}`.padEnd(12_000, "x"), model: "test" });
+    }
+    const turns = messagesToTurns(rows);
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(turns, 4, {
+        summarizedTurnCount: 0,
+        memoryFeatureEnabled: true,
+      }),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 4, protectOpening: true }
+    );
+    const trimmedHealth = analyzeProviderHistoryHealth(history);
+    assert.equal(trimmedHealth.openingPreludePresent, true);
+    assert.equal(trimmedHealth.realRawCompleteExchanges, 4);
+    const built = buildCoverageContext({
+      history,
+      completedTurns: 4,
+      summarizedTurnCount: 0,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 5,
+      providerHistoryProtectOpening: true,
+      suppressMemoryCoverageDegradedLog: true,
+    });
+    const prior = built.history.slice(0, -1);
+    const builtHealth = analyzeProviderHistoryHealth(prior);
+    assert.ok(
+      builtHealth.openingPreludePresent ||
+        prior.some((m) => m.content.includes("UNIQUE_OPENING_FACT"))
+    );
+    assert.equal(builtHealth.realRawCompleteExchanges, 4);
+  });
+
+  it("MC7 after summary5 opening disappears and RAW2-5 remains", () => {
+    process.env[ENV_KEY] = "1";
+    const OPENING = "*UNIQUE_OPENING_FACT*";
+    const rows: Array<{ role: "user" | "assistant"; content: string; model?: string }> = [
+      { role: "assistant", model: "greeting", content: OPENING },
+    ];
+    for (let t = 1; t <= 5; t++) {
+      rows.push({ role: "user", content: `u${t}` });
+      rows.push({ role: "assistant", content: `a${t}`, model: "test" });
+    }
+    const history = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(messagesToTurns(rows), 4, {
+        summarizedTurnCount: 5,
+        memoryFeatureEnabled: true,
+      }),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: 4, protectOpening: false }
+    );
+    const text = history.map((m) => m.content).join("\n");
+    assert.doesNotMatch(text, /UNIQUE_OPENING_FACT/);
+    assert.match(text, /u2/);
+    assert.match(text, /u5/);
+    assert.equal(countRealPlayableHistoryTurns(history), 4);
+  });
+
+  it("MC8 first adult handoff supplied bounded history remains byte/order stable", () => {
+    const full = rawRecentTurnsToHistory(makeTurns(6, 200));
+    const handoff = full.slice(-12);
+    const built = buildCoverageContext({
+      history: handoff,
+      completedTurns: 6,
+      summarizedTurnCount: 6,
+      historyMinTurnFloor: 4,
+      preserveAdultHandoffRawHistory: true,
+      adultHandoffRequiredTurnFloor: 6,
+    });
+    assert.deepEqual(built.history.slice(0, -1), handoff);
+    assert.equal(built.meta.memoryCoverage?.degraded, false);
+  });
+
+  it("MC9 memory reset eligible-turn arithmetic still produces gap=0", () => {
+    const built = buildCoverageContext({
       history: rawRecentTurnsToHistory(makeTurns(4, 200)),
       completedTurns: 101,
       completedTurnsForMemoryCoverage: 1,
       summarizedTurnCount: 0,
-      floor: 4,
+      historyMinTurnFloor: 4,
+      providerHistoryMinRealPlayableExchanges: 4,
     });
-
-    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
     assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 1);
     assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
-    assert.equal(built.meta.memoryCoverage?.degraded, false);
-  });
-
-  it("preserves the larger adult handoff/coverage suffix without a second trim", () => {
-    const completedTurns = 20;
-    const summarizedTurnCount = 6;
-    const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
-    const full = rawRecentTurnsToHistory(makeTurns(completedTurns));
-    const existingHandoff = full.slice(-12);
-    const coverageRequired = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
-    const selected = selectLongerHistorySuffix(existingHandoff, coverageRequired);
-    const built = buildCoverageContext({
-      provider: "cheaperinference",
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      history: selected,
-      completedTurns,
-      summarizedTurnCount,
-      floor,
-      preserveAdultHandoffRawHistory: true,
-      adultHandoffRequiredTurnFloor: 6,
-    });
-    const priorHistory = built.history.slice(0, -1);
-
-    assert.equal(selected, coverageRequired);
-    assert.equal(priorHistory.length, selected.length);
-    assert.equal(built.meta.memoryCoverage?.degraded, false);
-    assert.equal(built.meta.memoryCoverage?.adultRequiredFloor, 6);
-    assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
-    assert.equal(priorHistory.length % 2, 0);
-  });
-
-  it("does not count the opening greeting as a playable coverage turn", () => {
-    const completedTurns = 7;
-    const summarizedTurnCount = 0;
-    const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
-    const turns = [
-      { user: OPENING_TURN_USER, assistant: "이미 발생한 오프닝 장면" },
-      ...makeTurns(completedTurns),
-    ];
-    const initialHistory = trimHistoryToBudget(
-      rawRecentTurnsToHistory(turns),
-      HISTORY_TOKEN_BUDGET,
-      floor
+    assert.equal(
+      resolveMemoryCoverageGap({
+        firstRawPlayableTurn: built.meta.memoryCoverage?.firstRawPlayableTurn,
+        summarizedTurnCount: 0,
+      }),
+      0
     );
-    const built = buildCoverageContext({
-      provider: "openrouter",
-      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
-      history: initialHistory,
-      completedTurns,
-      summarizedTurnCount,
-      floor,
-    });
-    const priorHistory = built.history.slice(0, -1);
-
-    assert.equal(floor, 7);
-    assert.equal(countPlayableHistoryTurns(priorHistory), 7);
-    assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 1);
-    assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
   });
 
-  it("keeps the existing adult handoff when it already exceeds coverage", () => {
+  it("MC10 no orphan user/assistant half pair in assembled history", () => {
+    process.env[ENV_KEY] = "1";
+    const built = buildCoverageContext({
+      history: trimProviderHistoryToBudget(
+        rawRecentTurnsToHistory(makeTurns(8), 4),
+        HISTORY_TOKEN_BUDGET,
+        { minRealPlayableExchanges: 4, protectOpening: false }
+      ),
+      completedTurns: 8,
+      summarizedTurnCount: 5,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 4,
+    });
+    const prior = built.history.slice(0, -1);
+    assert.equal(prior.length % 2, 0);
+    for (let i = 0; i < prior.length; i += 2) {
+      assert.equal(prior[i]?.role, "user");
+      assert.equal(prior[i + 1]?.role, "assistant");
+    }
+  });
+
+  it("legacy selectLongerHistorySuffix helper still preserves longer adult handoff suffix", () => {
     const full = rawRecentTurnsToHistory(makeTurns(8, 200));
     const existingHandoff = full.slice(-12);
     const coverageRequired = full.slice(-8);
     assert.equal(selectLongerHistorySuffix(existingHandoff, coverageRequired), existingHandoff);
-  });
-
-  it("keeps normal caught-up adult handoff byte-identical before assembly", () => {
-    const full = rawRecentTurnsToHistory(makeTurns(6, 200));
-    const handoff = full.slice(-12);
-    const coverage = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, 4);
-    const selected = selectLongerHistorySuffix(handoff, coverage);
-    assert.equal(selected, handoff);
-    assert.deepEqual(selected, handoff);
-
-    const built = buildCoverageContext({
-      provider: "cheaperinference",
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      history: selected,
-      completedTurns: 6,
-      summarizedTurnCount: 6,
-      floor: 4,
-      preserveAdultHandoffRawHistory: true,
-      adultHandoffRequiredTurnFloor: 6,
-    });
-    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 6);
-    assert.equal(built.meta.memoryCoverage?.degraded, false);
-    assert.equal(built.history.slice(0, -1).length, handoff.length);
-  });
-
-  for (const path of ["first adult handoff", "silent fallback"] as const) {
-    it(`${path} keeps all selected coverage when app-level input caps are disabled`, () => {
-      const completedTurns = 20;
-      const summarizedTurnCount = 6;
-      const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
-      const full = rawRecentTurnsToHistory(makeTurns(completedTurns, 15_000));
-      const handoff = full.slice(-12);
-      const coverage = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
-      const selected = selectLongerHistorySuffix(handoff, coverage);
-      const built = buildCoverageContext({
-        provider: "cheaperinference",
-        modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-        history: selected,
-        completedTurns,
-        summarizedTurnCount,
-        floor,
-        preserveAdultHandoffRawHistory: true,
-        adultHandoffRequiredTurnFloor: 6,
-        suppressMemoryCoverageDegradedLog: true,
-      });
-      const coverageMeta = built.meta.memoryCoverage!;
-
-      assert.equal(coverageMeta.degraded, false);
-      assert.equal(coverageMeta.requestedFloor, 14);
-      assert.equal(coverageMeta.adultRequiredFloor, 6);
-      assert.equal(coverageMeta.effectiveFloor, coverageMeta.requestedFloor);
-      assert.equal(coverageMeta.adultBaselineDegraded, false);
-      assert.equal(coverageMeta.gapTurns, 0);
-      assert.equal(built.history.slice(0, -1).length % 2, 0);
-    });
-  }
-
-  it("keeps the adult baseline even when it exceeds the former app cap", () => {
-    const completedTurns = 6;
-    const floor = 4;
-    const handoff = rawRecentTurnsToHistory(makeTurns(completedTurns, 40_000));
-    const built = buildCoverageContext({
-      provider: "cheaperinference",
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      history: handoff,
-      completedTurns,
-      summarizedTurnCount: completedTurns,
-      floor,
-      preserveAdultHandoffRawHistory: true,
-      adultHandoffRequiredTurnFloor: 6,
-      suppressMemoryCoverageDegradedLog: true,
-    });
-    const coverageMeta = built.meta.memoryCoverage!;
-
-    assert.equal(coverageMeta.degraded, false);
-    assert.equal(coverageMeta.adultRequiredFloor, 6);
-    assert.equal(coverageMeta.effectiveFloor, coverageMeta.adultRequiredFloor);
-    assert.equal(coverageMeta.adultBaselineDegraded, false);
-    assert.equal(coverageMeta.gapTurns, 0);
-    assert.equal(built.history.slice(0, -1).length % 2, 0);
-  });
-
-  it("does not degrade or warn at the former absolute payload limit", () => {
-    const completedTurns = 20;
-    const summarizedTurnCount = 0;
-    const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
-    const oversized = rawRecentTurnsToHistory(makeTurns(completedTurns, 10_000));
-    const warnings: unknown[][] = [];
-    const originalWarn = console.warn;
-    console.warn = (...args: unknown[]) => warnings.push(args);
-    let built: ReturnType<typeof buildContext>;
-    try {
-      built = buildCoverageContext({
-        provider: "openrouter",
-        modelId: OPENROUTER_QWEN_37_MAX_MODEL,
-        history: oversized,
-        completedTurns,
-        summarizedTurnCount,
-        floor,
-      });
-      buildCoverageContext({
-        provider: "openrouter",
-        modelId: OPENROUTER_QWEN_37_MAX_MODEL,
-        history: oversized,
-        completedTurns,
-        summarizedTurnCount,
-        floor,
-        suppressMemoryCoverageDegradedLog: true,
-      });
-    } finally {
-      console.warn = originalWarn;
-    }
-
-    const coverage = built!.meta.memoryCoverage!;
-    assert.equal(coverage.degraded, false);
-    assert.equal(coverage.reason, undefined);
-    assert.equal(coverage.effectiveFloor, coverage.requestedFloor);
-    assert.equal(coverage.gapTurns, 0);
-    assert.equal(built!.history.slice(0, -1).length % 2, 0);
-
-    const event = warnings.find(([name]) => name === "MEMORY_COVERAGE_DEGRADED");
-    assert.equal(event, undefined);
   });
 });

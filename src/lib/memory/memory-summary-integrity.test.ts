@@ -8,6 +8,7 @@ import {
   expectedBatchStartsThrough,
   expectedSealedTurnCount,
   highestContiguousCompletedTurn,
+  highestContiguousOccupiedTurn,
   isLikelySummaryInstructionEcho,
   isOocOnlyPlaceholderText,
   isOocOnlySummaryKind,
@@ -57,16 +58,29 @@ describe("highestContiguousCompletedTurn", () => {
   });
 });
 
+describe("highestContiguousOccupiedTurn vs canonical coverage", () => {
+  it("inactive middle span occupies position but does not advance canonical", () => {
+    const records = [
+      { turnStart: 1, turnEnd: 5, inactive: false },
+      { turnStart: 6, turnEnd: 10, inactive: true },
+      { turnStart: 11, turnEnd: 15, inactive: false },
+    ];
+    assert.equal(highestContiguousOccupiedTurn(records, 15), 15);
+    assert.equal(highestContiguousCompletedTurn(records, 15), 5);
+    assert.equal(earliestMissingBatchStart(records, 15), 6);
+  });
+});
+
 describe("missing / expected batches", () => {
-  it("expected sealed turn count at batch ends", () => {
-    assert.equal(expectedSealedTurnCount(5), 0);
-    assert.equal(expectedSealedTurnCount(6), 6);
-    assert.equal(expectedSealedTurnCount(8), 6);
-    assert.equal(expectedSealedTurnCount(12), 12);
+  it("expected sealed turn count at batch ends (greenfield 5-turn)", () => {
+    assert.equal(expectedSealedTurnCount(4), 0);
+    assert.equal(expectedSealedTurnCount(5), 5);
+    assert.equal(expectedSealedTurnCount(8), 5);
+    assert.equal(expectedSealedTurnCount(10), 10);
   });
 
-  it("expected starts for 13 playable turns", () => {
-    assert.deepEqual(expectedBatchStartsThrough(13), [1, 7]);
+  it("expected starts for 13 playable turns (greenfield 5-turn)", () => {
+    assert.deepEqual(expectedBatchStartsThrough(13), [1, 6]);
   });
 
   it("finds missing 1 when only 7 present", () => {
@@ -206,6 +220,15 @@ describe("diagnostics", () => {
       parseRecentSummaryBatchStarts("[1~6턴] a\n\n[7~12턴] b"),
       [1, 7]
     );
-    assert.equal(batchEndForStart(1), 6);
+    const prev = process.env.MEMORY_5PLUS4_ENABLED;
+    try {
+      delete process.env.MEMORY_5PLUS4_ENABLED;
+      assert.equal(batchEndForStart(1), 6);
+      process.env.MEMORY_5PLUS4_ENABLED = "1";
+      assert.equal(batchEndForStart(1), 5);
+    } finally {
+      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
+      else process.env.MEMORY_5PLUS4_ENABLED = prev;
+    }
   });
 });
