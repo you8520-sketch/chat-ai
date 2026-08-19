@@ -8,7 +8,6 @@ import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
-import TrpgDiceThemeSettings from "./TrpgDiceThemeSettings";
 import TrpgInviteLink from "./TrpgInviteLink";
 
 export type TrpgCampaignRailTab = "display" | "sheets" | "ooc";
@@ -46,7 +45,7 @@ function tabIcon(tab: TrpgCampaignRailTab): ChatSettingsRailIconId {
 function tabHint(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "글꼴 · 크기 · 주사위 테마";
+      return "글꼴 · 크기 · 문단 · 색";
     case "sheets":
       return "파티 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
@@ -115,13 +114,10 @@ export default function TrpgCampaignRail({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             {active === "display" ? (
-              <>
-                <ChatDisplayReadabilitySettings
-                  displayPrefs={displayPrefs}
-                  onDisplayPrefsChange={onDisplayPrefsChange}
-                />
-                <TrpgDiceThemeSettings theme={diceTheme} onThemeChange={onDiceThemeChange} />
-              </>
+              <ChatDisplayReadabilitySettings
+                displayPrefs={displayPrefs}
+                onDisplayPrefsChange={onDisplayPrefsChange}
+              />
             ) : null}
             {active === "sheets" ? (
               <div className="space-y-3">
