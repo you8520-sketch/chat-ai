@@ -10,7 +10,7 @@ import {
   type MouseEvent,
   Suspense,
 } from "react";
-import type { UserChatSession } from "@/lib/recentChats";
+import type { RecentActivityEntry } from "@/lib/recentActivity";
 import SidebarRecentChatIcons from "./SidebarRecentChatIcons";
 import { isChatRoomPathname, isCompactRoomPathname } from "@/lib/chatDisplayPrefs";
 import {
@@ -30,7 +30,7 @@ export type SidebarNavItem = {
 
 type Props = {
   user: { nickname: string } | null;
-  chatSessions: UserChatSession[];
+  recentActivity: RecentActivityEntry[];
   blurNsfw: boolean;
   navItems: SidebarNavItem[];
 };
@@ -94,7 +94,7 @@ function usePinnedSidebarGeometry(isChatRoom: boolean) {
   return { spacerRef, geometry };
 }
 
-export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }: Props) {
+export default function SidebarShell({ user, recentActivity, blurNsfw, navItems }: Props) {
   const pathname = usePathname();
   const isChatRoomRoute = isChatRoomPathname(pathname);
   const isCompactRoom = isCompactRoomPathname(pathname);
@@ -215,7 +215,7 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
         {user && (
           <Suspense fallback={null}>
             <SidebarRecentChatIcons
-              sessions={chatSessions}
+              entries={recentActivity}
               blurNsfw={blurNsfw}
               compact={collapsed}
               showHeader={!collapsed}
