@@ -567,21 +567,34 @@ export function assessParticipantAdultStatus(
     typeof participant.age === "number" && Number.isFinite(participant.age)
       ? participant.age
       : null;
-  const structuredMinor =
-    (numericAge != null && numericAge < 19) ||
-    /^(minor|underage|child)$/i.test(structuredAdultStatus) ||
-    /^(minor|underage|child)$/i.test(structuredAgeGroup);
-  const structuredAdult =
-    (numericAge != null && numericAge >= 19) ||
-    participant.isAdult === true ||
-    participant.isAdult === 1 ||
-    /^(adult)$/i.test(structuredAgeGroup) ||
-    /^(confirmed|adult)$/i.test(structuredAdultStatus);
+
+  // Structured authoring age outranks free-text lore inference (Patch 3).
+  if (numericAge != null) {
+    if (numericAge < 19) return "minor";
+    return "confirmed";
+  }
 
   const textMinor =
     hasCurrentMinorKeyword(identityDescription) ||
     findCurrentNumericMinorAge(identityDescription);
   const textAdult = ADULT_SIGNAL.test(identityDescription);
+
+  if (/^(minor|underage|child)$/i.test(structuredAdultStatus)) {
+    if (textAdult) return "conflict";
+    return "minor";
+  }
+  if (/^(confirmed|adult)$/i.test(structuredAdultStatus)) {
+    if (textMinor) return "conflict";
+    return "confirmed";
+  }
+  if (structuredAdultStatus === "conflict") return "conflict";
+
+  const structuredMinor =
+    /^(minor|underage|child)$/i.test(structuredAgeGroup);
+  const structuredAdult =
+    participant.isAdult === true ||
+    participant.isAdult === 1 ||
+    /^(adult)$/i.test(structuredAgeGroup);
 
   const explicitMinor = structuredMinor || textMinor;
   const explicitAdult = structuredAdult || textAdult;
@@ -590,7 +603,6 @@ export function assessParticipantAdultStatus(
   if (explicitMinor) return "minor";
   if (explicitAdult) return "confirmed";
   if (participant.isVerifiedAdultUserPersona) return "confirmed";
-  if (/^(confirmed|adult)$/i.test(structuredAdultStatus)) return "confirmed";
   return "unknown";
 }
 

@@ -590,6 +590,7 @@ function migrate(db: Database.Database) {
   addColumn("characters", "creator_canon_plan_json", "TEXT");
   addColumn("characters", "adult_dialogue_profile", "TEXT NOT NULL DEFAULT 'auto'");
   addColumn("characters", "adult_status", "TEXT NOT NULL DEFAULT 'unknown'");
+  addColumn("characters", "participant_min_age", "INTEGER");
   addColumn(
     "characters",
     "adult_consent_modes_json",

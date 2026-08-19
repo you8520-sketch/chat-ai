@@ -616,6 +616,7 @@ export async function POST(req: Request) {
     simulation_cast?: string | null;
     adult_dialogue_profile?: string | null;
     adult_status?: string | null;
+    participant_min_age?: number | null;
     adult_consent_modes_json?: string | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
@@ -1219,6 +1220,11 @@ export async function POST(req: Request) {
     participants: [
       {
         adultStatus: ch.adult_status,
+        age:
+          typeof ch.participant_min_age === "number" &&
+          Number.isFinite(ch.participant_min_age)
+            ? ch.participant_min_age
+            : null,
         description: characterParticipantDescription,
       },
       {

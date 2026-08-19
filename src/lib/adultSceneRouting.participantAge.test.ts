@@ -196,6 +196,48 @@ describe("participant adult status — historical vs current age evidence", () =
   });
 });
 
+describe("Patch 3 structured participant_min_age priority", () => {
+  it("A5 structured age=32 + 7살 딸 in description => confirmed", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        age: 32,
+        description: "7살 딸이 있다.",
+      }),
+      "confirmed"
+    );
+  });
+
+  it("S2 structured age 17 cannot be overridden by adult text", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        age: 17,
+        description: "성인인증 후 확인하세요. 성인용 캐릭터.",
+      }),
+      "minor"
+    );
+  });
+
+  it("S3 structured age 17 cannot be overridden by adult terms in description", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        age: 17,
+        description: "대학생 직장인 성인 남성",
+      }),
+      "minor"
+    );
+  });
+
+  it("S4 minor NPC in lore does not override structured adult main age", () => {
+    assert.equal(
+      assessParticipantAdultStatus({
+        age: 28,
+        description: "7살 딸과 10세 아들 NPC. 어린이 refugees.",
+      }),
+      "confirmed"
+    );
+  });
+});
+
 describe("H1 classifier-only regression — character 17 + frozen HUMAN USER #1", () => {
   it("does not block solely on historical childhood/backstory tokens", () => {
     const H1_TEXT =
@@ -298,5 +340,58 @@ describe("H1 classifier-only regression — character 17 + frozen HUMAN USER #1"
       assert.equal(adultRouteDecision.shouldBlock, true);
       assert.equal(adultRouteDecision.blockReason, "participant_unknown");
     }
+  });
+
+  it("with structured participant_min_age metadata => eligible confirmed adult", () => {
+    const charStatus = assessParticipantAdultStatus({
+      adultStatus: "confirmed",
+      age: 22,
+      description: "S급 물속성 센티넬. 키 174cm. 신인 센티넬.",
+    });
+    assert.equal(charStatus, "confirmed");
+
+    const adultEligibility = resolveAdultEligibility({
+      userAdultVerified: true,
+      adultContentVisibilityEnabled: true,
+      characterAdultContentEnabled: true,
+      participants: [
+        {
+          adultStatus: "confirmed",
+          age: 22,
+          description: "S급 물속성 센티넬. 키 174cm. 신인 센티넬.",
+        },
+        {
+          description: "신입 S급 가이드 렌",
+          isVerifiedAdultUserPersona: true,
+        },
+      ],
+    });
+
+    const adultRouteDecision = decideAdultModelRoute({
+      config: {
+        ...resolveAdultRoutingConfig({ ADULT_SCENE_ROUTING_ENABLED: "true" }),
+        enabled: resolveAdultSceneRoutingEnabledForRequest({
+          canary: resolveAdultSceneHandoffCanaryConfig(),
+          userId: 1,
+          characterId: 17,
+          chatId: 3,
+        }),
+      },
+      state: DEFAULT_MODEL_ROUTE_STATE,
+      classification: classifySceneMode({
+        currentInput: "(렌이 팔을 뻗어 서강우의 허리를 끌어안음) 왜 피해?",
+        previousSceneMode: "normal",
+        recentRawText: "",
+        adultDialogueProfile: normalizeAdultDialogueProfile("auto"),
+        activeConsentMode: "standard",
+      }),
+      eligibility: adultEligibility,
+      adultDialogueProfile: normalizeAdultDialogueProfile("auto"),
+      selectedModelId: "gemini-3.7-flash",
+    });
+
+    assert.equal(adultEligibility.eligible, true);
+    assert.equal(adultEligibility.blockReason, undefined);
+    assert.equal(adultRouteDecision.shouldBlock, false);
   });
 });
