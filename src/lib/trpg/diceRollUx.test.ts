@@ -181,6 +181,9 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
     assert.match(overlay, /data-trpg-dice-result-phase/);
     assert.match(overlay, /data-trpg-dice-result-confirm/);
+    assert.match(overlay, /absolute inset-0 z-10 flex flex-col items-center justify-center/);
+    assert.match(overlay, /data-trpg-dice-canvas="3d"\s*\n\s*>\s*\n\s*<TrpgDiceBoxScene/);
+    assert.match(overlay, /className="absolute inset-0"\s*\n\s*data-trpg-dice-canvas="3d"/);
     assert.match(overlay, /data-trpg-dice-result-numeral/);
     assert.match(overlay, /data-trpg-dice-result-outcome/);
     assert.match(overlay, /'Cinzel'/);

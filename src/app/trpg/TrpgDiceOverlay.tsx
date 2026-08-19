@@ -242,7 +242,7 @@ export default function TrpgDiceOverlay({
       <div className="flex h-full w-full items-center justify-center md:-translate-y-[6%]">
         <div className="flex flex-col items-center">
           <div
-            className="relative flex items-center justify-center"
+            className="relative h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
             data-trpg-dice-stage
             data-trpg-dice-stage-w={TRPG_D20_STAGE_DESKTOP.width}
             data-trpg-dice-stage-h={TRPG_D20_STAGE_DESKTOP.height}
@@ -253,7 +253,7 @@ export default function TrpgDiceOverlay({
             {use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
               <div
                 key={`${sessionKey}:${play.index}`}
-                className="h-[min(360px,52vw)] w-[min(360px,52vw)] max-md:h-[min(280px,70vw)] max-md:w-[min(280px,70vw)]"
+                className="absolute inset-0"
                 data-trpg-dice-canvas="3d"
               >
                 <TrpgDiceBoxScene
@@ -267,7 +267,7 @@ export default function TrpgDiceOverlay({
 
             {/* Static fallback (no WebGL) during roll + entering phase */}
             {!use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
-              <>
+              <div className="absolute inset-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={overlay.baseAsset}
@@ -290,13 +290,13 @@ export default function TrpgDiceOverlay({
                 >
                   {face}
                 </span>
-              </>
+              </div>
             ) : null}
 
             {/* RESULT_CONFIRM phase: premium cinematic result HUD */}
             {showResult ? (
               <div
-                className="relative flex flex-col items-center justify-center transition-all duration-200 ease-out"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center transition-all duration-200 ease-out"
                 style={{
                   opacity: resultOpacity,
                   transform: `scale(${resultScale})`,
