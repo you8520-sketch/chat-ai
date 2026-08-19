@@ -112,6 +112,7 @@ export default function TrpgDiceLabClient({
             value={6}
             tone="fail"
             reducedQuality={false}
+            previewInstrument
             onSettled={() => undefined}
           />
           <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">

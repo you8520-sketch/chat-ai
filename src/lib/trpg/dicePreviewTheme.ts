@@ -127,6 +127,23 @@ export type TrpgDicePreviewInstrument = {
   overlayMounted?: boolean;
 };
 
+export type TrpgDiceRuntimeEventName =
+  | "DICE_INIT_STARTED"
+  | "DICE_INITIALIZED"
+  | "DICE_ROLL_STARTED"
+  | "DICE_ROLL_RESOLVED"
+  | "DICE_SETTLE_SOURCE"
+  | "DICE_ERROR_CODE";
+
+export type TrpgDiceRuntimeInstrument = {
+  event: TrpgDiceRuntimeEventName;
+  hypothesisId: string;
+  location: string;
+  message: string;
+  data: Record<string, unknown>;
+  timestamp: number;
+};
+
 export function previewDiceRollKey(rolls: readonly { participantId: number; d20: number }[]): string {
   return rolls.map((roll) => `${roll.participantId}:${roll.d20}`).join(",");
 }
@@ -137,6 +154,29 @@ export function logTrpgDicePreviewInstrument(entry: TrpgDicePreviewInstrument): 
     .__TRPG_DICE_PREVIEW_LOG ??= []);
   bag.push(entry);
   console.info("[trpg-dice-preview]", entry);
+}
+
+export function logTrpgDiceRuntimeInstrument(
+  entry: Omit<TrpgDiceRuntimeInstrument, "timestamp">,
+): void {
+  if (typeof window === "undefined") return;
+  const timestamped = { ...entry, timestamp: Date.now() };
+  const bag = ((window as Window & { __TRPG_DICE_RUNTIME_LOG?: TrpgDiceRuntimeInstrument[] })
+    .__TRPG_DICE_RUNTIME_LOG ??= []);
+  bag.push(timestamped);
+  console.info("[trpg-dice-preview]", timestamped);
+  if (isTrpgDicePreviewRuntime({
+    nodeEnv: process.env.NODE_ENV,
+    previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
+    hostname: window.location.hostname,
+  })) {
+    void fetch("/api/trpg/dice-preview-log", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(timestamped),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
 }
 
 export function previewDiceOverlayFixture(name = "권태현", d20 = 14): TrpgPublicRoll {

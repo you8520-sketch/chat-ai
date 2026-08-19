@@ -26,7 +26,7 @@ import {
   type TrpgD20StaticOverlayTone,
   type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
-import TrpgDiceBoxScene from "./TrpgDiceBoxScene";
+import TrpgDiceBoxScene, { type TrpgDiceSettleSource } from "./TrpgDiceBoxScene";
 
 export type TrpgDiceOverlayPlaybackState = {
   visible: boolean;
@@ -37,7 +37,11 @@ export type TrpgDiceOverlayPlaybackState = {
 };
 import type { TrpgResolutionOrderEntry } from "@/lib/trpg/initiative";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
-import { logTrpgDicePreviewInstrument, previewDiceRollKey } from "@/lib/trpg/dicePreviewTheme";
+import {
+  logTrpgDicePreviewInstrument,
+  logTrpgDiceRuntimeInstrument,
+  previewDiceRollKey,
+} from "@/lib/trpg/dicePreviewTheme";
 
 type ResultPhase = "rolling" | "entering" | "holding" | "exiting";
 
@@ -160,7 +164,7 @@ export default function TrpgDiceOverlay({
   }, [ordered.length, replayOnMount, sessionKey]);
 
   // Called by the 3D scene when physics settles
-  const onDieSettled = useCallback(() => {
+  const onDieSettled = useCallback((_source: TrpgDiceSettleSource) => {
     setSettled(true);
     setResultPhase("entering");
   }, []);
@@ -195,10 +199,17 @@ export default function TrpgDiceOverlay({
   useEffect(() => {
     if (!visible || ordered.length === 0) return;
     const watchdog = window.setTimeout(() => {
-      if (!settled) onDieSettled();
+      if (!settled) {
+        if (previewInstrument) {
+          // #region agent log
+          logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "D,E", location: "TrpgDiceOverlay.tsx:watchdog", message: "Dice overlay settled", data: { source: "watchdog", sessionKey, playIndex: play.index, watchdogMs: 10000 } });
+          // #endregion
+        }
+        onDieSettled("watchdog");
+      }
     }, 10000);
     return () => window.clearTimeout(watchdog);
-  }, [visible, play.index, ordered.length, settled, onDieSettled]);
+  }, [visible, play.index, ordered.length, settled, onDieSettled, previewInstrument, sessionKey]);
 
   if (!visible) return null;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
@@ -260,6 +271,7 @@ export default function TrpgDiceOverlay({
                   value={face}
                   tone={tierTone}
                   reducedQuality={false}
+                  previewInstrument={previewInstrument}
                   onSettled={onDieSettled}
                 />
               </div>

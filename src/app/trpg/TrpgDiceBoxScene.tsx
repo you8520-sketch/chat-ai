@@ -6,6 +6,9 @@ import {
   TRPG_DICE_BOX_COLORSET,
   TRPG_DICE_BOX_NOTATION,
 } from "@/lib/trpg/diceVisual";
+import { logTrpgDiceRuntimeInstrument } from "@/lib/trpg/dicePreviewTheme";
+
+export type TrpgDiceSettleSource = "physics" | "watchdog" | "init-error";
 
 async function ensureCinzelLoaded(): Promise<void> {
   if (typeof document === "undefined" || !(document as { fonts?: FontFaceSet }).fonts) return;
@@ -21,12 +24,14 @@ export default function TrpgDiceBoxScene({
   value,
   tone,
   reducedQuality,
+  previewInstrument = false,
   onSettled,
 }: {
   value: number;
   tone: TrpgD20Tone;
   reducedQuality: boolean;
-  onSettled: () => void;
+  previewInstrument?: boolean;
+  onSettled: (source: TrpgDiceSettleSource) => void;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const boxIdRef = useRef(`trpg-dice-box-${Math.random().toString(36).slice(2, 10)}`);
@@ -44,8 +49,26 @@ export default function TrpgDiceBoxScene({
 
     const run = async () => {
       if (cancelled || !hostRef.current) return;
+      const dimensions = () => {
+        const host = hostRef.current;
+        const canvas = host?.querySelector("canvas");
+        return {
+          hostWidth: host?.clientWidth ?? null,
+          hostHeight: host?.clientHeight ?? null,
+          canvasClientWidth: canvas?.clientWidth ?? null,
+          canvasClientHeight: canvas?.clientHeight ?? null,
+          canvasWidth: canvas?.width ?? null,
+          canvasHeight: canvas?.height ?? null,
+        };
+      };
+      if (previewInstrument) {
+        // #region agent log
+        logTrpgDiceRuntimeInstrument({ event: "DICE_INIT_STARTED", hypothesisId: "A,E", location: "TrpgDiceBoxScene.tsx:run", message: "Dice initialization started", data: { boxId: boxIdRef.current, value, ...dimensions() } });
+        // #endregion
+      }
       await ensureCinzelLoaded();
       if (cancelled) return;
+      let operation: "initialize" | "roll" = "initialize";
       try {
         const DiceBox = (await import("@3d-dice/dice-box-threejs")).default;
         if (cancelled) return;
@@ -64,20 +87,51 @@ export default function TrpgDiceBoxScene({
           color_spotlight: 0xefdfd5,
         });
         await box.initialize();
+        if (previewInstrument) {
+          // #region agent log
+          logTrpgDiceRuntimeInstrument({ event: "DICE_INITIALIZED", hypothesisId: "A,C,E", location: "TrpgDiceBoxScene.tsx:initialize", message: "Dice initialization completed", data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() } });
+          // #endregion
+        }
         if (cancelled) return;
         box.light.intensity = reducedQuality ? 0.85 : 1.25;
         box.light_amb.intensity = 0.58;
+        operation = "roll";
+        if (previewInstrument) {
+          // #region agent log
+          logTrpgDiceRuntimeInstrument({ event: "DICE_ROLL_STARTED", hypothesisId: "A,B,D", location: "TrpgDiceBoxScene.tsx:roll", message: "Dice roll started", data: { boxId: boxIdRef.current, notation: TRPG_DICE_BOX_NOTATION(value), diceListLength: box.diceList.length, ...dimensions() } });
+          // #endregion
+        }
         await box.roll(TRPG_DICE_BOX_NOTATION(value));
+        if (previewInstrument) {
+          // #region agent log
+          logTrpgDiceRuntimeInstrument({ event: "DICE_ROLL_RESOLVED", hypothesisId: "B,D", location: "TrpgDiceBoxScene.tsx:roll", message: "Dice roll promise resolved", data: { boxId: boxIdRef.current, diceListLength: box.diceList.length, ...dimensions() } });
+          // #endregion
+        }
         if (cancelled) return;
         if (!settledRef.current) {
           settledRef.current = true;
-          onSettled();
+          if (previewInstrument) {
+            // #region agent log
+            logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "D", location: "TrpgDiceBoxScene.tsx:settle", message: "Dice scene settled", data: { boxId: boxIdRef.current, source: "physics", diceListLength: box.diceList.length } });
+            // #endregion
+          }
+          onSettled("physics");
         }
       } catch (err) {
         console.error("[trpg-dice-box] init/roll failed:", err);
+        if (previewInstrument) {
+          // #region agent log
+          logTrpgDiceRuntimeInstrument({ event: "DICE_ERROR_CODE", hypothesisId: "C,D,E", location: "TrpgDiceBoxScene.tsx:catch", message: "Dice initialization or roll failed", data: { boxId: boxIdRef.current, code: operation === "initialize" ? "DICE_INIT_ERROR" : "DICE_ROLL_ERROR", errorName: err instanceof Error ? err.name : "UnknownError", ...dimensions() } });
+          // #endregion
+        }
         if (!cancelled && !settledRef.current) {
           settledRef.current = true;
-          onSettled();
+          if (previewInstrument) {
+            // #region agent log
+            logTrpgDiceRuntimeInstrument({ event: "DICE_SETTLE_SOURCE", hypothesisId: "C,D,E", location: "TrpgDiceBoxScene.tsx:catch", message: "Dice scene settled", data: { boxId: boxIdRef.current, source: "init-error", operation } });
+            // #endregion
+          }
+          onSettled("init-error");
         }
       }
     };
@@ -86,7 +140,7 @@ export default function TrpgDiceBoxScene({
       console.error("[trpg-dice-box] run catch:", err);
       if (!cancelled && !settledRef.current) {
         settledRef.current = true;
-        onSettled();
+        onSettled("init-error");
       }
     });
 
@@ -95,7 +149,7 @@ export default function TrpgDiceBoxScene({
       const canvas = hostRef.current?.querySelector("canvas");
       canvas?.remove();
     };
-  }, [ready, onSettled, reducedQuality, tone, value]);
+  }, [previewInstrument, ready, onSettled, reducedQuality, tone, value]);
 
   if (!ready) return null;
   return (
