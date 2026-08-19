@@ -210,7 +210,7 @@ export default function TrpgDiceOverlay({
   const face = Math.max(1, Math.min(20, Math.floor(roll.d20)));
   const showResult = resultPhase === "entering" || resultPhase === "holding" || resultPhase === "exiting";
   const resultOpacity =
-    resultPhase === "entering" ? 0 :
+    resultPhase === "entering" ? 0.3 :
     resultPhase === "holding" ? 1 :
     resultPhase === "exiting" ? 0 : 0;
   const resultScale =
