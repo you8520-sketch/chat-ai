@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { HISTORY_TOKEN_BUDGET, MIN_HISTORY_TURN_FLOOR } from "@/lib/contextTrack";
 import {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
   areCompatibleHistorySuffixes,
   countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
@@ -23,23 +24,21 @@ function makePlayableTurns(count: number): DialogueTurn[] {
   }));
 }
 
-function analyzeCoverage(opts: {
+function analyzeRawPolicy(opts: {
   completedTurns: number;
   summarizedTurnCount: number;
   opening?: boolean;
-  coverageAware: boolean;
 }) {
   const playable = makePlayableTurns(opts.completedTurns);
   const turns = opts.opening
     ? [{ user: OPENING_TURN_USER, assistant: "오프닝 장면" }, ...playable]
     : playable;
   const full = rawRecentTurnsToHistory(turns);
-  const floor = opts.coverageAware
-    ? resolveMemoryCoverageTurnFloor({
-        completedTurns: opts.completedTurns,
-        summarizedTurnCount: opts.summarizedTurnCount,
-      })
-    : MIN_HISTORY_TURN_FLOOR;
+  const floor = resolveHistoryMinTurnFloor({
+    memoryFeatureEnabled: true,
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: opts.summarizedTurnCount,
+  });
   const trimmed = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
   const firstRawPlayableTurn =
     resolveLorebookExcludeFromTrimmedHistory(turns, trimmed) ?? 1;
@@ -52,6 +51,7 @@ function analyzeCoverage(opts: {
     trimmed,
     firstRawPlayableTurn,
     gap,
+    playableTurns: countPlayableHistoryTurns(trimmed),
     estimatedTokens: trimmed.reduce(
       (sum, message) => sum + estimateTokens(message.content),
       0
@@ -59,152 +59,64 @@ function analyzeCoverage(opts: {
   };
 }
 
-describe("resolveMemoryCoverageTurnFloor", () => {
-  it("uses max(base floor, unsummarized playable turns)", () => {
+describe("resolveMemoryCoverageTurnFloor (diagnostics only)", () => {
+  it("still reports unsummarized span for diagnostics", () => {
     assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 5, summarizedTurnCount: 0 }), 5);
     assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 12, summarizedTurnCount: 6 }), 6);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 20, summarizedTurnCount: 18 }), 4);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 5, summarizedTurnCount: 8 }), 4);
-  });
-
-  it("defends against negative, fractional, NaN, and infinite inputs", () => {
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: -3, summarizedTurnCount: -4 }), 4);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 7.9, summarizedTurnCount: 1.2 }), 6);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: Number.NaN, summarizedTurnCount: 0 }), 4);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: Number.POSITIVE_INFINITY, summarizedTurnCount: 0 }), 4);
-    assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 7, summarizedTurnCount: Number.NaN, baseFloor: 0 }), 7);
   });
 });
 
-describe("memory feature OFF parity", () => {
-  it("keeps the fixed four-turn main policy with zero coverage token increase", () => {
-    const completedTurns = 20;
-    const full = rawRecentTurnsToHistory(makePlayableTurns(completedTurns));
-    const mainHistory = trimHistoryToBudget(
-      full,
-      HISTORY_TOKEN_BUDGET,
-      MIN_HISTORY_TURN_FLOOR
-    );
-    const floor = resolveHistoryMinTurnFloor({
-      memoryFeatureEnabled: false,
-      completedTurns,
-      summarizedTurnCount: 0,
-    });
-    const memoryOffHistory = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
-
-    assert.equal(floor, 4);
-    assert.deepEqual(memoryOffHistory, mainHistory);
+describe("provider RAW policy", () => {
+  it("memory ON and OFF both keep four-exchange floor", () => {
     assert.equal(
-      memoryOffHistory.reduce((sum, message) => sum + estimateTokens(message.content), 0),
-      mainHistory.reduce((sum, message) => sum + estimateTokens(message.content), 0)
+      resolveHistoryMinTurnFloor({
+        memoryFeatureEnabled: true,
+        completedTurns: 20,
+        summarizedTurnCount: 0,
+      }),
+      RAW_HISTORY_COMPLETE_EXCHANGES
+    );
+    assert.equal(
+      resolveHistoryMinTurnFloor({
+        memoryFeatureEnabled: false,
+        completedTurns: 20,
+        summarizedTurnCount: 0,
+      }),
+      RAW_HISTORY_COMPLETE_EXCHANGES
     );
   });
-});
 
-describe("RAW ↔ sealed summary coverage matrix", () => {
-  const fixtures = [
-    { completed: 5, summarized: 0, state: "summary async delay" },
-    { completed: 6, summarized: 0, state: "pre-seal" },
-    { completed: 7, summarized: 0, state: "first batch generation failure" },
-    { completed: 12, summarized: 6, state: "second batch async delay" },
-    { completed: 13, summarized: 6, state: "second batch generation failure" },
-    { completed: 20, summarized: 6, state: "multiple-batch summary lag" },
-  ] as const;
-
-  for (const fixture of fixtures) {
-    it(`${fixture.state}: completed=${fixture.completed} summarized=${fixture.summarized}`, () => {
-      const after = analyzeCoverage({
-        completedTurns: fixture.completed,
-        summarizedTurnCount: fixture.summarized,
-        coverageAware: true,
-      });
-      assert.ok(after.firstRawPlayableTurn <= fixture.summarized + 1);
-      assert.equal(after.gap, 0);
-      assert.ok(countPlayableHistoryTurns(after.trimmed) >= fixture.completed - fixture.summarized);
-    });
-  }
-
-  it("documents the fixed-floor gaps reproduced before the fix", () => {
-    const expected = [
-      { completed: 5, summarized: 0, gap: 1 },
-      { completed: 6, summarized: 0, gap: 2 },
-      { completed: 7, summarized: 0, gap: 3 },
-      { completed: 12, summarized: 6, gap: 0 },
-      { completed: 13, summarized: 6, gap: 0 },
-      { completed: 20, summarized: 6, gap: 9 },
-    ];
-    for (const fixture of expected) {
-      const before = analyzeCoverage({
-        completedTurns: fixture.completed,
-        summarizedTurnCount: fixture.summarized,
-        coverageAware: false,
-      });
-      assert.equal(before.gap, fixture.gap, JSON.stringify({ fixture, before }));
+  it("never sends more than four complete exchanges to provider RAW", () => {
+    for (const completed of [5, 7, 12, 20]) {
+      const result = analyzeRawPolicy({ completedTurns: completed, summarizedTurnCount: 0 });
+      assert.equal(result.playableTurns, Math.min(RAW_HISTORY_COMPLETE_EXCHANGES, completed));
     }
   });
 
-  it("shrinks back to the four-turn baseline after summary catch-up", () => {
-    const before = analyzeCoverage({
-      completedTurns: 20,
-      summarizedTurnCount: 18,
-      coverageAware: false,
+  it("summary lag does not expand provider RAW beyond four exchanges", () => {
+    const lagging = analyzeRawPolicy({ completedTurns: 20, summarizedTurnCount: 6 });
+    assert.equal(lagging.floor, RAW_HISTORY_COMPLETE_EXCHANGES);
+    assert.equal(lagging.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
+  });
+
+  it("opening greeting is excluded from playable RAW count", () => {
+    const result = analyzeRawPolicy({
+      completedTurns: 7,
+      summarizedTurnCount: 0,
+      opening: true,
     });
-    const after = analyzeCoverage({
-      completedTurns: 20,
-      summarizedTurnCount: 18,
-      coverageAware: true,
-    });
-    assert.equal(after.floor, MIN_HISTORY_TURN_FLOOR);
-    assert.deepEqual(after.trimmed, before.trimmed);
-    assert.equal(after.estimatedTokens, before.estimatedTokens);
-    assert.equal(after.gap, 0);
+    assert.equal(result.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
+    assert.equal(result.firstRawPlayableTurn, 4);
   });
-});
-
-describe("lifecycle and opening fixtures", () => {
-  it("regeneration preserves the same coverage state", () => {
-    const original = analyzeCoverage({ completedTurns: 13, summarizedTurnCount: 6, coverageAware: true });
-    const regenerated = analyzeCoverage({ completedTurns: 13, summarizedTurnCount: 6, coverageAware: true });
-    assert.deepEqual(regenerated, original);
-  });
-
-  it("last-turn deletion recomputes from the reduced playable count", () => {
-    const deleted = analyzeCoverage({ completedTurns: 12, summarizedTurnCount: 6, coverageAware: true });
-    assert.equal(deleted.floor, 6);
-    assert.equal(deleted.gap, 0);
-  });
-
-  it("canonical variant invalidation expands coverage when sealed count rolls back", () => {
-    const beforeInvalidation = resolveMemoryCoverageTurnFloor({ completedTurns: 20, summarizedTurnCount: 18 });
-    const afterInvalidation = analyzeCoverage({ completedTurns: 20, summarizedTurnCount: 6, coverageAware: true });
-    assert.equal(beforeInvalidation, 4);
-    assert.equal(afterInvalidation.floor, 14);
-    assert.equal(afterInvalidation.gap, 0);
-  });
-
-  for (const opening of [false, true]) {
-    it(`opening greeting ${opening ? "present" : "absent"} is not counted as playable`, () => {
-      const result = analyzeCoverage({
-        completedTurns: 7,
-        summarizedTurnCount: 0,
-        opening,
-        coverageAware: true,
-      });
-      assert.equal(result.floor, 7);
-      assert.equal(countPlayableHistoryTurns(result.trimmed), 7);
-      assert.equal(result.firstRawPlayableTurn, 1);
-      assert.equal(result.gap, 0);
-    });
-  }
 });
 
 describe("adult suffix compatibility", () => {
   it("selects only compatible complete-pair suffixes from one canonical history", () => {
     const full = rawRecentTurnsToHistory(makePlayableTurns(20));
-    const handoff = full.slice(-12);
-    const coverage = full.slice(-28);
+    const handoff = full.slice(-8);
+    const coverage = full.slice(-8);
     assert.equal(areCompatibleHistorySuffixes(handoff, coverage), true);
-    assert.equal(selectLongerHistorySuffix(handoff, coverage), coverage);
+    assert.deepEqual(selectLongerHistorySuffix(handoff, coverage), coverage);
   });
 
   it("rejects same-length candidates from different worldlines in dev/test", () => {
@@ -221,7 +133,7 @@ describe("adult suffix compatibility", () => {
 
   it("trimmed history keeps complete user/assistant pairs", () => {
     const full = rawRecentTurnsToHistory(makePlayableTurns(5));
-    const trimmed = trimHistoryToBudget(full, 7_500, 4);
+    const trimmed = trimHistoryToBudget(full, 7_500, MIN_HISTORY_TURN_FLOOR);
     assert.equal(trimmed.length % 2, 0);
     for (let index = 0; index < trimmed.length; index += 2) {
       assert.equal(trimmed[index]?.role, "user");

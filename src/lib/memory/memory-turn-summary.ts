@@ -1,5 +1,8 @@
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import {
+  resolveRecordSpan,
+  newBatchEndForStart,
+} from "./memory-summary-range";
 import {
   ROLLING_SUMMARY_MAX_CHARS,
   ROLLING_SUMMARY_MIN_CHARS,
@@ -33,6 +36,7 @@ export type MemoryRecordRow = {
   id: number;
   chat_id: number;
   turn_number: number;
+  turn_end?: number | null;
   assistant_message_id: number | null;
   summary: string;
   summary_kind?: string | null;
@@ -73,8 +77,9 @@ function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
 }
 
 function rowToView(r: MemoryRecordRow): MemoryRecordView {
-  const turnStart = r.turn_number;
-  const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
+  const span = resolveRecordSpan(r);
+  const turnStart = span.turnStart;
+  const turnEnd = span.turnEnd;
   const summaryKind = normalizeSummaryScope(r.summary_kind);
   const payload = parseScopePayload(r.scope_payload);
   const scopes: Partial<Record<MemorySummaryScope, string>> = {
@@ -121,7 +126,7 @@ export function formatMemoryBlock(startTurn: number, endTurn: number, summary: s
 }
 
 function selectSql(): string {
-  return `SELECT id, chat_id, turn_number, assistant_message_id, summary,
+  return `SELECT id, chat_id, turn_number, turn_end, assistant_message_id, summary,
               COALESCE(summary_kind, 'narrative') AS summary_kind,
               scope_payload, branch_id, branch_status, promoted_by, promoted_at,
               COALESCE(inactive, 0) AS inactive,
@@ -149,7 +154,9 @@ export function rebuildLorebookFromRecords(
   });
   const cutoff = opts?.excludeTurnStartGte;
   if (cutoff != null && cutoff > 0) {
-    records = records.filter((r) => r.turnEnd < cutoff);
+    // Drop summaries whose playable span starts at/after first verbatim RAW turn.
+    // Partial overlap (e.g. 1~5 summary + RAW 2~5) keeps turn-1 facts in LTM.
+    records = records.filter((r) => r.turnStart < cutoff);
   }
   return records
     .map((r) => {
@@ -202,6 +209,7 @@ export function listTurnSummariesForChat(chatId: number): {
 export async function upsertMemoryRecord(opts: {
   chatId: number;
   turnStart: number;
+  turnEnd?: number;
   assistantMessageId: number | null;
   summary: string;
   userEdited?: boolean;
@@ -216,6 +224,7 @@ export async function upsertMemoryRecord(opts: {
   const kind = normalizeSummaryScope(opts.summaryKind);
   const summary = kind === "empty_ooc" ? opts.summary.trim() : clampRecord(opts.summary);
   const payloadJson = opts.scopePayload ? encodeScopePayload(opts.scopePayload) : null;
+  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
   const db = getDb();
   const existing = db
     .prepare("SELECT id, summary_kind FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
@@ -224,7 +233,7 @@ export async function upsertMemoryRecord(opts: {
   if (existing) {
     db.prepare(
       `UPDATE chat_turn_summaries SET
-        summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
+        summary=?, summary_kind=?, turn_end=?, assistant_message_id=COALESCE(?, assistant_message_id),
         scope_payload=COALESCE(?, scope_payload),
         branch_id=COALESCE(?, branch_id),
         branch_status=COALESCE(?, branch_status),
@@ -236,6 +245,7 @@ export async function upsertMemoryRecord(opts: {
     ).run(
       summary,
       kind,
+      turnEnd,
       opts.assistantMessageId,
       payloadJson,
       opts.branchId ?? null,
@@ -249,12 +259,13 @@ export async function upsertMemoryRecord(opts: {
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
+        (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
          scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
+      turnEnd,
       opts.assistantMessageId,
       summary,
       kind,

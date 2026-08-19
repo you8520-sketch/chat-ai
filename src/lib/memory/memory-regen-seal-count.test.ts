@@ -65,7 +65,7 @@ describe("syncMemoryEligibleTurnCount + regen seal gate", () => {
   before(() => seedSevenPlayableTurns());
   after(() => cleanup());
 
-  it("syncs message_count from eligible turns and enables seal at turn 6 after stale count", () => {
+  it("syncs message_count from eligible turns and enables seal at turn 5 after stale count", () => {
     getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
     getDb()
       .prepare(`UPDATE chat_memories SET message_count=5, summarized_turn_count=0 WHERE chat_id=?`)
@@ -80,7 +80,7 @@ describe("syncMemoryEligibleTurnCount + regen seal gate", () => {
     assert.equal(count, 7);
     assert.equal(shouldTriggerRollingSummary(count, 0), true);
 
-    assert.equal(shouldTriggerRollingSummary(6, 0), true);
-    assert.equal(shouldTriggerRollingSummary(5, 0), false);
+    assert.equal(shouldTriggerRollingSummary(5, 0), true);
+    assert.equal(shouldTriggerRollingSummary(4, 0), false);
   });
 });

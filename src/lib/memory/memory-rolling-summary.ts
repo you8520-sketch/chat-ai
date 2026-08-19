@@ -3,12 +3,14 @@ import { callGeminiBackground } from "@/lib/ai";
 import {
   splitOpeningPlayableTurns,
   ROLLING_SUMMARY_INTERVAL,
+  RAW_HISTORY_COMPLETE_EXCHANGES,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
   findBatchControlSource,
   type BranchControlSource,
@@ -56,6 +58,7 @@ import {
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
   isRollingSummaryGroundedInDialogue,
+  resolveBatchStartForTurnNumber,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
 import {
@@ -73,9 +76,10 @@ import {
   type ScopePayloadV1,
 } from "./memory-summary-scope";
 
-export const ROLLING_SUMMARY_SYSTEM_PROMPT = `[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약]
+export function buildRollingSummarySystemPrompt(sourceTurnCount: number): string {
+  return `[${sourceTurnCount}턴 히스토리 요약]
 
-${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.
+${sourceTurnCount}턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.
 마지막 턴만 보고 요약하지 않는다. 응답 전에 요약 대상 source 턴의 앞·중간·뒤를 모두 검토하고,
 서로 다른 중요한 사건이 있으면 각 구간의 원인·전환·결과가 최종 요약에 남았는지 자체 점검한다.
 단, 변화가 없는 짧은 반응이나 반복은 생략할 수 있다.
@@ -85,7 +89,7 @@ ${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한
 [형식]
 - 음슴체(명사형·~함·~임 종결)로 간결하게. 존댓말 서술(~했다/~였다)보다 글자를 절약한다.
 - 원인 → 행동·선택 → 결과 → 관계·감정 변화 순
-- ${ROLLING_SUMMARY_MAX_CHARS}자 이내. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다. 6턴 내내 단순 반복(예: 성행위만)이면 짧아도 된다.
+- 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다. 반복 장면이면 짧아도 된다.
 - 파편식 단문 나열과 분위기 묘사 중심 요약 금지
 - 유저의 명확한 선택이 캐릭터의 태도·감정·행동에 영향을 주었으면 반드시 기록
 - 유저의 생각·의도·감정을 입력에 없는 내용으로 추측하지 않는다.
@@ -121,6 +125,12 @@ ${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한
 
 [식별정보]: 캐릭터/유저 식별정보가 제공되면 성별·호칭·신체 묘사를 뒤집지 않는다.
 [OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.`;
+}
+
+/** Default prompt for current 5-turn batches. */
+export const ROLLING_SUMMARY_SYSTEM_PROMPT = buildRollingSummarySystemPrompt(
+  ROLLING_SUMMARY_INTERVAL
+);
 
 export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIRED]
 - Output the event summary itself. Never repeat, paraphrase, or explain these summary instructions.
@@ -269,7 +279,9 @@ export async function summarizeTurnBatch(opts: {
     )
   ).sort((a, b) => a - b);
   const sourceCoverage = sourceTurnIndexes.map((turn) => `[${turn}턴]`).join(" ");
-  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const sourceTurnCount = Math.max(1, opts.endTurn - opts.startTurn + 1);
+  const systemPrompt = buildRollingSummarySystemPrompt(sourceTurnCount);
+  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
@@ -283,7 +295,7 @@ export async function summarizeTurnBatch(opts: {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const { text } = await callLlm(
-        `${ROLLING_SUMMARY_SYSTEM_PROMPT}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`,
+        `${systemPrompt}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`,
         [{ role: "user", content: userContent }],
         opts.turnTrace,
         attempt === 0 ? "background-memory-extract" : "background-memory-extract-retry"
@@ -464,9 +476,17 @@ function syncChatLongTermMemory(chatId: number, summary: string): void {
 
 export { syncChatLongTermMemory };
 
-export function resolveBatchStartTurnForTurnNumber(turnNumber: number): number {
+export function resolveBatchStartTurnForTurnNumber(
+  turnNumber: number,
+  records?: Array<{ turnStart: number; turnEnd: number; inactive?: boolean }>
+): number {
+  if (records) return resolveBatchStartForTurnNumber(turnNumber, records);
   const n = Math.max(1, Math.floor(turnNumber));
-  return Math.floor((n - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL + 1;
+  let start = Math.floor((n - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL + 1;
+  while (start + ROLLING_SUMMARY_INTERVAL - 1 < n) {
+    start += ROLLING_SUMMARY_INTERVAL;
+  }
+  return start;
 }
 
 type ComposeBatchScopeMode = "seal" | "regen";
@@ -865,7 +885,19 @@ async function composeBatchScopePayload(opts: {
       return { ok: false, reason: "SUMMARY_EMPTY", detail: "OOC_STRIP" };
     }
     scopes.main_canon = [scopes.main_canon, narrative].filter(Boolean).join("\n");
-    summaryKind = "main_canon";
+    if (opts.mode === "regen" && existing?.summaryKind === "branch_canon") {
+      summaryKind = "branch_canon";
+      scopes.branch_canon =
+        scopes.branch_canon ??
+        existing.scopes.branch_canon ??
+        existing.summary;
+      branchId = existing.branchId ?? branchId;
+      branchStatus = existing.branchStatus ?? branchStatus;
+      promotedBy = existing.promotedBy ?? promotedBy;
+      promotedAt = existing.promotedAt ?? promotedAt;
+    } else {
+      summaryKind = "main_canon";
+    }
   }
 
   const shouldAdopt =
@@ -958,6 +990,7 @@ async function persistComposedBatchScopes(opts: {
     characterId: opts.characterId,
     tier: opts.tier,
     turnStart: opts.batchStart,
+    turnEnd: opts.endTurn,
     assistantMessageId: opts.lastAssistantId,
     summary: opts.composed.displaySummary,
     summaryKind: opts.composed.summaryKind,
@@ -1090,14 +1123,11 @@ async function rebuildExistingBatchScopePayload(opts: {
 }): Promise<boolean> {
   const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
   const allTurns = loadMemoryEligibleChatTurnsWithMessageIds(opts.chatId, boundarySnapshot);
+  const endTurn = opts.existingRecord.turnEnd;
   const batchMeta = allTurns.filter(
-    (t) =>
-      t.turnNumber >= opts.batchStart &&
-      t.turnNumber < opts.batchStart + ROLLING_SUMMARY_INTERVAL
+    (t) => t.turnNumber >= opts.batchStart && t.turnNumber <= endTurn
   );
   if (batchMeta.length === 0) return false;
-
-  const endTurn = opts.batchStart + ROLLING_SUMMARY_INTERVAL - 1;
   const allEntries = batchMeta.map((meta) => ({
     turnIndex: meta.turnNumber,
     turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
@@ -1170,7 +1200,10 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   const target = allTurns.find((t) => t.assistantMessageId === opts.assistantMessageId);
   if (!target) return false;
 
-  const batchStart = resolveBatchStartTurnForTurnNumber(target.turnNumber);
+  const batchStart = resolveBatchStartForTurnNumber(
+    target.turnNumber,
+    listMemoryRecordsForChat(opts.chatId)
+  );
   const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
   // Soft-deleted rows are absent for rebuild — reseal when the deferred trigger allows.
   if (record?.userEdited && !record.inactive) return false;
@@ -1274,32 +1307,45 @@ export async function processRollingSummaryBatch(opts: {
       }
 
       const missingEarliest = earliestMissingBatchStart(records, playableCount);
-      const nextStart = summarized + 1;
-      // Always fill earliest gap first (usually equals nextStart when contiguous)
-      const batchStart = missingEarliest ?? nextStart;
-      if (batchStart !== nextStart) {
+      const nextBatch = resolveNextBatchRange(summarized, playableCount);
+      const batchStart = missingEarliest ?? nextBatch?.turnStart ?? summarized + 1;
+      if (!batchStart || batchStart < 1) return false;
+      const existingSame = records.find((r) => !r.inactive && r.turnStart === batchStart);
+      const endTurn =
+        existingSame?.turnEnd ??
+        nextBatch?.turnEnd ??
+        newBatchEndForStart(batchStart);
+
+      if (nextBatch && batchStart !== nextBatch.turnStart && !missingEarliest) {
         console.warn("[memory] SUMMARY_BATCH_GAP refuse non-contiguous batch", {
           chatId: opts.chatId,
           batchStart,
-          nextStart,
+          nextStart: nextBatch.turnStart,
           missingEarliest,
         });
         return false;
       }
 
+      console.info("MEMORY_SUMMARY_DUE", {
+        chat_id: opts.chatId,
+        next_start: batchStart,
+        next_end: endTurn,
+      });
+
       // Idempotent: active row already present → never call V3 again for this batch.
-      // Inactive (soft-deleted) rows are ignored so a fresh seal can revive them.
-      if (records.some((r) => !r.inactive && r.turnStart === batchStart)) {
+      if (existingSame) {
         return true;
       }
 
-      const batchMeta = playableMeta.slice(batchStart - 1, batchStart - 1 + ROLLING_SUMMARY_INTERVAL);
-      if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) {
+      const batchMeta = playableMeta.filter(
+        (t) => t.turnNumber >= batchStart && t.turnNumber <= endTurn
+      );
+      if (batchMeta.length < endTurn - batchStart + 1) {
         console.warn("[memory] SUMMARY_BATCH_INCOMPLETE", {
           chatId: opts.chatId,
           batchStart,
           have: batchMeta.length,
-          need: ROLLING_SUMMARY_INTERVAL,
+          need: endTurn - batchStart + 1,
           playableCount,
         });
         return false;
@@ -1310,10 +1356,8 @@ export async function processRollingSummaryBatch(opts: {
       if (latest.some((r) => !r.inactive && r.turnStart === batchStart)) {
         return true;
       }
-
-      const endTurn = batchStart + ROLLING_SUMMARY_INTERVAL - 1;
-      const allEntries = batchMeta.map((meta, i) => ({
-        turnIndex: batchStart + i,
+      const allEntries = batchMeta.map((meta) => ({
+        turnIndex: meta.turnNumber,
         turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
         userMessageId: meta.userMessageId,
       }));
@@ -1402,7 +1446,10 @@ export async function regenerateMemoryRecordBatch(opts: {
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
 
-  const batchStart = resolveBatchStartTurnForTurnNumber(opts.turnStart);
+  const batchStart = resolveBatchStartForTurnNumber(
+    opts.turnStart,
+    listMemoryRecordsForChat(opts.chatId)
+  );
   const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
   if (record?.userEdited) return false;
   if (!record) return false;
@@ -1465,11 +1512,11 @@ export async function catchUpRollingSummaries(opts: {
 }
 
 export function shouldTriggerRollingSummary(messageCount: number, summarizedTurnCount: number): boolean {
-  /** [1~6]은 6턴 완료 시, [7~12]는 12턴 완료 시 … 배치 단위로 봉인 */
+  /** [1~5] at 5 turns, [6~10] at 10 turns — frontier-based batch seal */
   return messageCount >= summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
-/** 다음 배치 봉인이 일어나는 완료 턴 (첫 배치=6, 두 번째=12, …). */
+/** Next batch seal completes at this playable turn (first greenfield batch = 5). */
 export function summarySealAtTurn(summarizedTurnCount = 0): number {
   return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
@@ -1481,4 +1528,82 @@ export function turnsUntilNextSummary(
   const sealAt = summarySealAtTurn(summarizedTurnCount);
   if (messageCount >= sealAt) return 0;
   return sealAt - messageCount;
+}
+
+export type SummaryBarrierResult =
+  | { ok: true; summarizedThrough: number }
+  | { ok: false; reason: string; pendingRange: string };
+
+/** Await/coalesce pending summary seals before main-model context assembly. */
+export async function ensureSummaryBarrier(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  characterIdentity?: string | null;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userPersona?: string | null;
+  completedTurns: number;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+}): Promise<SummaryBarrierResult> {
+  if (!isMemoryFeatureEnabled()) {
+    return { ok: true, summarizedThrough: 0 };
+  }
+
+  const maxRounds = 4;
+  for (let round = 0; round < maxRounds; round++) {
+    const records = listMemoryRecordsForChat(opts.chatId);
+    const summarized = highestContiguousCompletedTurn(records, opts.completedTurns);
+    const unsummarized = opts.completedTurns - summarized;
+    if (unsummarized <= RAW_HISTORY_COMPLETE_EXCHANGES) {
+      return { ok: true, summarizedThrough: summarized };
+    }
+
+    const next = resolveNextBatchRange(summarized, opts.completedTurns);
+    const pendingRange = next
+      ? `${next.turnStart}~${next.turnEnd}`
+      : `${summarized + 1}~?`;
+
+    if (unsummarized > RAW_HISTORY_COMPLETE_EXCHANGES + 1) {
+      console.info("MEMORY_COVERAGE_LAG", {
+        chat_id: opts.chatId,
+        summarized_through: summarized,
+        completed_turns: opts.completedTurns,
+        unsummarized,
+      });
+    }
+
+    if (isRollingSummaryInFlight(opts.chatId)) {
+      console.info("MEMORY_SUMMARY_BARRIER_WAIT", {
+        chat_id: opts.chatId,
+        pending_range: pendingRange,
+      });
+    }
+
+    const ok = await processRollingSummaryBatch(opts);
+    if (!ok) {
+      console.error("MEMORY_SUMMARY_BARRIER_FAILED", {
+        chat_id: opts.chatId,
+        pending_range: pendingRange,
+        reason: lastSummarizeTurnBatchError ?? "SUMMARY_SEAL_FAILED",
+      });
+      return {
+        ok: false,
+        reason: "SUMMARY_BARRIER_FAILED",
+        pendingRange,
+      };
+    }
+  }
+
+  const records = listMemoryRecordsForChat(opts.chatId);
+  const summarized = highestContiguousCompletedTurn(records, opts.completedTurns);
+  if (opts.completedTurns - summarized <= RAW_HISTORY_COMPLETE_EXCHANGES) {
+    return { ok: true, summarizedThrough: summarized };
+  }
+  return {
+    ok: false,
+    reason: "SUMMARY_BARRIER_FAILED",
+    pendingRange: `${summarized + 1}~?`,
+  };
 }

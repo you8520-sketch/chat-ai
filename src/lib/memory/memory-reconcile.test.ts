@@ -36,31 +36,31 @@ function record(
 }
 
 describe("shouldTriggerRollingSummary seal at batch end", () => {
-  it("seals [1~6] when turn 6 completes", () => {
-    assert.equal(shouldTriggerRollingSummary(6, 0), true);
+  it("seals [1~5] when turn 5 completes", () => {
+    assert.equal(shouldTriggerRollingSummary(5, 0), true);
   });
 
-  it("does not seal before turn 6", () => {
-    assert.equal(shouldTriggerRollingSummary(5, 0), false);
+  it("does not seal before turn 5", () => {
+    assert.equal(shouldTriggerRollingSummary(4, 0), false);
   });
 
-  it("seals [7~12] when turn 12 completes (first batch done)", () => {
-    assert.equal(shouldTriggerRollingSummary(11, 6), false);
-    assert.equal(shouldTriggerRollingSummary(12, 6), true);
+  it("seals [6~10] when turn 10 completes (first batch done)", () => {
+    assert.equal(shouldTriggerRollingSummary(9, 5), false);
+    assert.equal(shouldTriggerRollingSummary(10, 5), true);
   });
 });
 
 describe("turnsUntilNextSummary seal at batch end", () => {
-  it("counts turns until seal at 6 for first batch", () => {
-    assert.equal(turnsUntilNextSummary(0, 0), 6);
-    assert.equal(turnsUntilNextSummary(5, 0), 1);
-    assert.equal(turnsUntilNextSummary(6, 0), 0);
+  it("counts turns until seal at 5 for first batch", () => {
+    assert.equal(turnsUntilNextSummary(0, 0), 5);
+    assert.equal(turnsUntilNextSummary(4, 0), 1);
+    assert.equal(turnsUntilNextSummary(5, 0), 0);
   });
 
   it("counts turns until next batch seal", () => {
-    assert.equal(turnsUntilNextSummary(6, 6), 6);
-    assert.equal(turnsUntilNextSummary(11, 6), 1);
-    assert.equal(turnsUntilNextSummary(12, 6), 0);
+    assert.equal(turnsUntilNextSummary(5, 5), 5);
+    assert.equal(turnsUntilNextSummary(9, 5), 1);
+    assert.equal(turnsUntilNextSummary(10, 5), 0);
   });
 });
 
@@ -99,6 +99,6 @@ describe("computeSummarizedTurnCountFromRecords", () => {
 describe("pruneStaleMemoryRecords", () => {
   it("is exported for turn-delete reconcile", () => {
     assert.equal(typeof pruneStaleMemoryRecords, "function");
-    assert.equal(ROLLING_SUMMARY_INTERVAL, 6);
+    assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
   });
 });

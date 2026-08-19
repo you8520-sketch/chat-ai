@@ -1,5 +1,5 @@
 /**
- * Atomic 6-turn summary persistence — row + counter + recent_summary in one transaction.
+ * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
@@ -17,6 +17,7 @@ import {
   type SummaryReasonCode,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
+import { newBatchEndForStart, LEGACY_NULL_TURN_END_OFFSET } from "./memory-summary-range";
 import {
   encodeScopePayload,
   isEmptyOocScope,
@@ -41,6 +42,7 @@ export type PersistSummaryBatchResult =
 function upsertRowInTx(opts: {
   chatId: number;
   turnStart: number;
+  turnEnd: number;
   assistantMessageId: number | null;
   summary: string;
   summaryKind: MemorySummaryScope;
@@ -74,7 +76,7 @@ function upsertRowInTx(opts: {
     }
     db.prepare(
       `UPDATE chat_turn_summaries SET
-        summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
+        summary=?, summary_kind=?, turn_end=?, assistant_message_id=COALESCE(?, assistant_message_id),
         scope_payload=?, branch_id=?, branch_status=?, promoted_by=?, promoted_at=?,
           inactive=?, user_edited=?,
           source_start_user_message_id=COALESCE(?, source_start_user_message_id),
@@ -84,6 +86,7 @@ function upsertRowInTx(opts: {
     ).run(
       opts.summary,
       opts.summaryKind,
+      opts.turnEnd,
       opts.assistantMessageId,
       payloadJson,
       opts.branchId ?? null,
@@ -99,13 +102,14 @@ function upsertRowInTx(opts: {
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
+        (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
          scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive,
          source_start_user_message_id, source_end_user_message_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
+      opts.turnEnd,
       opts.assistantMessageId,
       opts.summary,
       opts.summaryKind,
@@ -132,6 +136,7 @@ export function persistValidatedSummaryBatch(opts: {
   characterId: number;
   tier: MemoryTier;
   turnStart: number;
+  turnEnd?: number;
   assistantMessageId: number | null;
   summary: string;
   summaryKind?: SummaryKind | MemorySummaryScope;
@@ -158,8 +163,16 @@ export function persistValidatedSummaryBatch(opts: {
     return { ok: false, reason: validated.reason };
   }
 
-  const turnEnd = opts.turnStart + ROLLING_SUMMARY_INTERVAL - 1;
-  if ((opts.turnStart - 1) % ROLLING_SUMMARY_INTERVAL !== 0 || opts.turnStart < 1) {
+  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
+  const turnSpan = turnEnd - opts.turnStart + 1;
+  if (opts.turnStart < 1 || turnSpan < 1) {
+    return { ok: false, reason: "SUMMARY_INVALID" };
+  }
+  // New rows must be 5-turn; legacy regen passes explicit 6-turn turnEnd.
+  if (
+    turnSpan !== ROLLING_SUMMARY_INTERVAL &&
+    turnSpan !== LEGACY_NULL_TURN_END_OFFSET + 1
+  ) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
 
@@ -193,6 +206,7 @@ export function persistValidatedSummaryBatch(opts: {
       upsertRowInTx({
         chatId: opts.chatId,
         turnStart: opts.turnStart,
+        turnEnd,
         assistantMessageId: opts.assistantMessageId,
         summary: validated.text,
         summaryKind: validated.kind,

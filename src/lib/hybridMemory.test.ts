@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
   rawRecentTurnsToHistory,
   resolveLorebookExcludeFromTrimmedHistory,
   resolveLorebookExcludeTurnStart,
@@ -19,21 +20,21 @@ function makeTurns(n: number): DialogueTurn[] {
 }
 
 describe("rawRecentTurnsToHistory", () => {
-  it("includes all turns in raw pool regardless of summarizedTurnCount", () => {
+  it("returns latest 4 complete exchanges by default", () => {
     const turns = makeTurns(30);
-    const { pool, firstTurn1Indexed } = resolveRawRecentTurnPool(turns, 29);
-    assert.equal(pool.length, 30);
-    assert.equal(firstTurn1Indexed, 1);
-    const history = rawRecentTurnsToHistory(turns, 29);
-    assert.equal(history.length, 60);
-    assert.match(history[0]!.content, /user turn 1/);
+    const { pool, firstTurn1Indexed } = resolveRawRecentTurnPool(turns);
+    assert.equal(pool.length, RAW_HISTORY_COMPLETE_EXCHANGES);
+    assert.equal(firstTurn1Indexed, 27);
+    const history = rawRecentTurnsToHistory(turns);
+    assert.equal(history.length, RAW_HISTORY_COMPLETE_EXCHANGES * 2);
+    assert.match(history[0]!.content, /user turn 27/);
     assert.match(history.at(-1)!.content, /assistant turn 30/);
   });
 
-  it("includes full conversation without turn window cap", () => {
-    const turns = makeTurns(12);
-    const history = rawRecentTurnsToHistory(turns, 0);
-    assert.equal(history.length, 12 * 2);
+  it("includes fewer than 4 when conversation is short", () => {
+    const turns = makeTurns(2);
+    const history = rawRecentTurnsToHistory(turns);
+    assert.equal(history.length, 4);
     assert.match(history[0]!.content, /user turn 1/);
   });
 
@@ -74,26 +75,25 @@ describe("rawRecentTurnsToHistory", () => {
     assert.equal(history.at(-1)!.content, "<호텔 키스 scene>");
   });
 
-  it("summarizedTurnCount does not shrink the pool", () => {
+  it("exchangeCount override selects explicit window", () => {
     const turns = makeTurns(8);
     const { pool } = resolveRawRecentTurnPool(turns, 6);
-    assert.equal(pool.length, 8);
-    assert.match(pool[0]!.user, /user turn 1/);
-    assert.match(pool[7]!.user, /user turn 8/);
+    assert.equal(pool.length, 6);
+    assert.match(pool[0]!.user, /user turn 3/);
+    assert.match(pool[5]!.user, /user turn 8/);
   });
 });
 
 describe("trimHistoryToBudget", () => {
-  it("keeps newest messages within token budget", () => {
-    const turns = Array.from({ length: 40 }, (_, i) => ({
-      user: `user turn ${i + 1} `.repeat(20),
-      assistant: `assistant turn ${i + 1} `.repeat(40),
+  it("keeps newest messages within token budget when raw exceeds budget", () => {
+    const turns = Array.from({ length: 4 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(4000),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(4000),
     }));
     const full = rawRecentTurnsToHistory(turns);
-    const trimmed = trimHistoryToBudget(full, 2_000);
-    assert.ok(trimmed.length > 0);
-    assert.ok(trimmed.length < full.length);
-    assert.match(trimmed.at(-1)!.content, /assistant turn 40/);
+    const trimmed = trimHistoryToBudget(full, 2_000, RAW_HISTORY_COMPLETE_EXCHANGES);
+    assert.equal(trimmed.length, full.length);
+    assert.match(trimmed.at(-1)!.content, /assistant turn 4/);
   });
 
   it("keeps at least 4 turns even when they exceed the token budget", () => {
@@ -132,17 +132,15 @@ describe("resolveLorebookExcludeFromTrimmedHistory", () => {
     assert.equal(resolveLorebookExcludeFromTrimmedHistory(turns, history), 1);
   });
 
-  it("returns first playable turn index when prefix was trimmed", () => {
-    const turns = Array.from({ length: 40 }, (_, i) => ({
+  it("returns first playable turn index for latest-4 raw window", () => {
+    const turns = Array.from({ length: 10 }, (_, i) => ({
       user: `user turn ${i + 1} `.repeat(20),
       assistant: `assistant turn ${i + 1} `.repeat(40),
     }));
     const full = rawRecentTurnsToHistory(turns);
-    const trimmed = trimHistoryToBudget(full, 2_000);
-    assert.ok(trimmed.length < full.length);
-    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, trimmed);
-    assert.ok(cutoff != null && cutoff > 1);
-    assert.ok(trimmed[0]!.content.startsWith(`user turn ${cutoff}`));
+    const cutoff = resolveLorebookExcludeFromTrimmedHistory(turns, full);
+    assert.equal(cutoff, 7);
+    assert.match(full[0]!.content, /user turn 7/);
   });
 });
 

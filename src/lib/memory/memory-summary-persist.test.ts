@@ -87,7 +87,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     cleanup();
   });
 
-  it("valid 1~6 inserts row and sets count=6", () => {
+  it("valid 1~5 inserts row and sets count=5", () => {
     cleanup();
     seed();
     const r = persistValidatedSummaryBatch({
@@ -102,36 +102,37 @@ describe("persistValidatedSummaryBatch integrity", () => {
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 6);
+    assert.equal(r.summarizedTurnCount, 5);
     const rows = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(rows.length, 1);
     assert.equal(rows[0]!.turnStart, 1);
+    assert.equal(rows[0]!.turnEnd, 5);
     assert.equal(rows[0]!.summaryKind, "main_canon");
   });
 
-  it("valid 7~12 coexists with 1~6 and sets count=12", () => {
+  it("valid 6~10 coexists with 1~5 and sets count=10", () => {
     const r = persistValidatedSummaryBatch({
       chatId: CHAT_ID,
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 12);
+    assert.equal(r.summarizedTurnCount, 10);
     const rows = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(rows.length, 2);
     assert.deepEqual(
       rows.map((x) => x.turnStart),
-      [1, 7]
+      [1, 6]
     );
   });
 
-  it("batch 7 cannot complete while batch 1 is missing", () => {
+  it("batch 6 cannot complete while batch 1 is missing", () => {
     cleanup();
     seed();
     const r = persistValidatedSummaryBatch({
@@ -139,7 +140,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
@@ -169,7 +170,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: "",
       playableTurnCount: 13,
@@ -223,7 +224,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     });
     assert.equal(r.ok, false);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
-    assert.notEqual(memCount(), 6);
+    assert.notEqual(memCount(), 5);
   });
 
   it("duplicate same-batch upsert is idempotent", () => {
@@ -254,17 +255,17 @@ describe("persistValidatedSummaryBatch integrity", () => {
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 1);
   });
 
-  it("reconcile pulls counter down when only 7~12 exists", () => {
+  it("reconcile pulls counter down when only 6~10 exists without batch 1", () => {
     cleanup();
     seed();
     const db = getDb();
     db.prepare(
-      `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, 7, FIXTURE2, "main_canon");
+      `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind) VALUES (?,?,?,?,?)`
+    ).run(CHAT_ID, 6, 10, FIXTURE2, "main_canon");
     db.prepare(
       `INSERT INTO chat_memories (chat_id, user_id, character_id, recent_summary, summarized_turn_count, membership_tier, used_chars)
-       VALUES (?,?,?,?,12,'free',?)`
-    ).run(CHAT_ID, USER_ID, CHAR_ID, "[7~12턴] x", FIXTURE2.length);
+       VALUES (?,?,?,?,10,'free',?)`
+    ).run(CHAT_ID, USER_ID, CHAR_ID, "[6~10턴] x", FIXTURE2.length);
 
     const n = reconcileSummarizedTurnCountFromTable({
       chatId: CHAT_ID,
@@ -287,13 +288,13 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 13,
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.summarizedTurnCount, 6);
+    assert.equal(r.summarizedTurnCount, 5);
     assert.equal(r.record.summaryKind, "empty_ooc");
     assert.equal(r.record.summary, OOC_ONLY_SUMMARY_MARKER);
 
@@ -309,7 +310,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     const mem = db
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    assert.equal(mem.summarized_turn_count, 6);
+    assert.equal(mem.summarized_turn_count, 5);
     assert.equal((mem.recent_summary || "").includes(OOC_ONLY_SUMMARY_MARKER), false);
 
     assert.equal(buildRecentNarrativeContextBlock(CHAT_ID, 13), "");
@@ -321,16 +322,16 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
     });
     assert.equal(r2.ok, true);
     if (!r2.ok) return;
-    assert.equal(r2.summarizedTurnCount, 12);
+    assert.equal(r2.summarizedTurnCount, 10);
     const lore = rebuildLorebookFromRecords(CHAT_ID);
-    assert.match(lore, /\[7~12턴\]/);
+    assert.match(lore, /\[6~10턴\]/);
     assert.equal(lore.includes(OOC_ONLY_SUMMARY_MARKER), false);
     assert.equal(listVisibleMemoryRecordsForChat(CHAT_ID).length, 1);
   });
@@ -345,7 +346,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
@@ -356,7 +357,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       turnStart: 1,
       assistantMessageId: null,
-      summary: buildOocOnlyBatchPlaceholder(1, 6),
+      summary: buildOocOnlyBatchPlaceholder(1, 5),
       summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
@@ -465,7 +466,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: FIXTURE2,
       playableTurnCount: 13,
@@ -486,8 +487,8 @@ describe("persistValidatedSummaryBatch integrity", () => {
       tier: "free",
       playableTurnCount: 13,
     });
-    assert.equal(a, 12);
-    assert.equal(b, 12);
+    assert.equal(a, 10);
+    assert.equal(b, 10);
     assert.equal(rebuildLorebookFromRecords(CHAT_ID), recentA);
     assert.deepEqual(
       listMemoryRecordsForChat(CHAT_ID).map((r) => r.turnStart),

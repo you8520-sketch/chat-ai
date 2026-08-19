@@ -235,24 +235,22 @@ export function resolveAdultRoutingConfig(
     env.ADULT_SCENE_BASE_RAW_EXCHANGES,
     4,
     2,
-    8
+    4
   );
   const handoffTargetRawExchanges = Math.max(
     baseRawExchanges,
     envInt(
       env.ADULT_SCENE_HANDOFF_TARGET_RAW_EXCHANGES ??
         env.ADULT_SCENE_HANDOFF_RAW_TURNS,
-      6,
+      4,
       baseRawExchanges,
-      12
+      4
     )
   );
-  // Legacy MAX_TOKENS is accepted as the extra-history budget. It no longer
-  // has authority to trim the always-preserved base RAW exchanges.
   const handoffExtraRawTokens = envInt(
     env.ADULT_SCENE_HANDOFF_EXTRA_RAW_TOKENS ??
       env.ADULT_SCENE_HANDOFF_MAX_TOKENS,
-    4_000,
+    0,
     0,
     20_000
   );

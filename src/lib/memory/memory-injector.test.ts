@@ -8,7 +8,7 @@ describe("buildMemoryContext default header", () => {
     const injection = buildMemoryContext({
       memory: {
         pinned_facts: "",
-        recent_summary: "[1~6턴]\n밥을 먹었다",
+        recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",
       },
@@ -26,7 +26,7 @@ describe("buildMemoryContext pastEventSummaryDedupe", () => {
     const injection = buildMemoryContext({
       memory: {
         pinned_facts: "",
-        recent_summary: "[1~6턴]\n밥을 먹었다",
+        recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",
       },

@@ -106,6 +106,8 @@ import {
   resolveHistoryMinTurnFloor,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  ROLLING_SUMMARY_INTERVAL,
 } from "@/lib/hybridMemory";
 import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
 import {
@@ -123,6 +125,7 @@ import {
   resolveMemoryTier,
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
+import { ensureSummaryBarrier } from "@/lib/memory/memory-rolling-summary";
 import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
 import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
@@ -1333,17 +1336,43 @@ export async function POST(req: Request) {
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
+  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
+  const completedTurnsForMemoryCoverage = memoryFeatureOn
+    ? memorySourceEligibleCompletedTurns
+    : playableTurnCount;
+
+  if (memoryFeatureOn) {
+    const barrier = await ensureSummaryBarrier({
+      chatId: chat.id,
+      userId: user.id,
+      characterId: ch.id,
+      charName: ch.name,
+      tier: memoryTier,
+      memoryCapacity,
+      userPersona: personaDisplayName,
+      completedTurns: completedTurnsForMemoryCoverage,
+    });
+    if (!barrier.ok) {
+      return Response.json(
+        {
+          error: "장기 기억 동기화가 지연되었습니다. 잠시 후 다시 시도해 주세요.",
+          code: barrier.reason,
+          retryable: true,
+          billingWaived: true,
+          pendingRange: barrier.pendingRange,
+        },
+        { status: 503 }
+      );
+    }
+  }
+
   const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
     (m) => ({
       ...m,
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
   );
-  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
-  const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
-  const completedTurnsForMemoryCoverage = memoryFeatureOn
-    ? memorySourceEligibleCompletedTurns
-    : playableTurnCount;
   const historyMinTurnFloor = resolveHistoryMinTurnFloor({
     memoryFeatureEnabled: memoryFeatureOn,
     completedTurns: completedTurnsForMemoryCoverage,
@@ -1453,6 +1482,32 @@ export async function POST(req: Request) {
       : coverageProtectedCanonicalHistory;
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
+  const rawCompleteExchanges = countPlayableHistoryTurns(shortTermHistory);
+  const rawHistoryChars = shortTermHistory.reduce(
+    (n, m) => n + (m.content?.length ?? 0),
+    0
+  );
+  const rawHistoryInternalEstimate = shortTermHistory.reduce(
+    (n, m) => n + estimateTokens(m.content ?? ""),
+    0
+  );
+  const unsummarizedCompletedTurns = Math.max(
+    0,
+    completedTurnsForMemoryCoverage - (chatMemory?.summarized_turn_count ?? 0)
+  );
+  console.info("RAW_HISTORY_SELECTED", {
+    chat_id: chat.id,
+    exchange_count: rawCompleteExchanges,
+    chars: rawHistoryChars,
+    internal_estimate: rawHistoryInternalEstimate,
+  });
+  if (rawCompleteExchanges > RAW_HISTORY_COMPLETE_EXCHANGES) {
+    console.warn("RAW_HISTORY_POLICY_VIOLATION", {
+      chat_id: chat.id,
+      raw_complete_exchanges: rawCompleteExchanges,
+      expected: RAW_HISTORY_COMPLETE_EXCHANGES,
+    });
+  }
 
   const keptEligibleRawTurnsForLorebook = Math.min(
     countPlayableHistoryTurns(trimmedHistoryForLorebook),
@@ -4357,32 +4412,68 @@ export async function POST(req: Request) {
           charPromptEst = Math.max(0, charPromptEst - keywordLoreEst);
         }
 
-        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + coverage-aware floor)
+        // Provider RAW — latest complete exchanges + soft 10K budget
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);
 
-        const sections = [
-          { label: "최근 raw 턴", est: historyEst },
+        const sectionEsts = [
+          { key: "raw", est: historyEst },
           ...(narrativeContextEst > 0
-            ? [{ label: "요약·내러티브 (이전 대화)", est: narrativeContextEst }]
+            ? [{ key: "narrative" as const, est: narrativeContextEst }]
             : []),
-          { label: "캐릭터 프롬프트", est: charPromptEst },
-          { label: "시스템 프롬프트 (고정 규칙)", est: sysRulesEst },
-          { label: "장기 기억 (현재기억)", est: currentMemoryEst },
-          { label: "선택 페르소나", est: personaEst },
-          { label: BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL, est: keywordLoreEst },
-          { label: "유저 노트", est: userNoteEst },
-          { label: "에셋 태그", est: assetTagEst },
-          { label: "관계 메모", est: memoryMetaEst },
+          { key: "character" as const, est: charPromptEst },
+          { key: "system" as const, est: sysRulesEst },
+          { key: "memory" as const, est: currentMemoryEst },
+          { key: "persona" as const, est: personaEst },
+          { key: "keyword" as const, est: keywordLoreEst },
+          { key: "note" as const, est: userNoteEst },
+          { key: "asset" as const, est: assetTagEst },
+          { key: "rel" as const, est: memoryMetaEst },
         ];
-        const totalEst = Math.max(1, sections.reduce((s, x) => s + x.est, 0));
-        const breakdown = sections
-          .map((s) => ({
-            label: s.label,
-            tokens: Math.round((s.est / totalEst) * draftInput),
-            pct: Math.round((s.est / totalEst) * 100),
-          }))
+        const totalEst = Math.max(1, sectionEsts.reduce((s, x) => s + x.est, 0));
+        const alloc = (est: number) => Math.round((est / totalEst) * draftInput);
+        const breakdown = sectionEsts
+          .map((s) => {
+            const tokens = alloc(s.est);
+            let label: string;
+            switch (s.key) {
+              case "raw":
+                label = `최근 RAW: ~${tokens.toLocaleString()} 토큰 배분 · ${rawHistoryChars.toLocaleString()} chars · ${rawCompleteExchanges} exchanges`;
+                break;
+              case "narrative":
+                label = `요약·내러티브: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "character":
+                label = `캐릭터 프롬프트: ~${tokens.toLocaleString()} 토큰 배분 · ${(splitChars?.characterSettingsBlock.length ?? charPromptEst).toLocaleString()} chars`;
+                break;
+              case "system":
+                label = `시스템 프롬프트: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "memory":
+                label = `장기기억: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "persona":
+                label = `페르소나: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "keyword":
+                label = `${BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL}: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "note":
+                label = `유저 노트: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              case "asset":
+                label = `에셋 태그: ~${tokens.toLocaleString()} 토큰 배분`;
+                break;
+              default:
+                label = `관계 메모: ~${tokens.toLocaleString()} 토큰 배분`;
+            }
+            return {
+              label,
+              tokens,
+              pct: Math.round((s.est / totalEst) * 100),
+            };
+          })
           .filter((s) => s.tokens > 0);
         const splitChars = openRouterSystemSplitRef;
         const historyChars = historyRef.reduce((n, m) => n + (m.content?.length ?? 0), 0);
@@ -4568,6 +4659,18 @@ export async function POST(req: Request) {
               : billableStages.some((s) => s.estimated),
           breakdown,
           breakdownAllocation: "estimated_section_allocation",
+          rawHistoryHealth: {
+            rawCompleteExchanges,
+            rawMessages: shortTermHistory.length,
+            rawChars: rawHistoryChars,
+            rawInternalEstimate: rawHistoryInternalEstimate,
+            summaryInterval: ROLLING_SUMMARY_INTERVAL,
+            summarizedThroughTurn: chatMemory?.summarized_turn_count ?? 0,
+            unsummarizedCompletedTurns,
+            ...(rawCompleteExchanges > RAW_HISTORY_COMPLETE_EXCHANGES
+              ? { policyViolation: true }
+              : {}),
+          },
           assembledPromptChars,
           usedEnglishCharacterPrompt,
           characterPromptLanguage: usedEnglishCharacterPrompt

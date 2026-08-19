@@ -127,7 +127,7 @@ function persistBranchBatch2(opts?: {
     userId: USER,
     characterId: CHAR,
     tier: "free",
-    turnStart: 7,
+    turnStart: 6,
     assistantMessageId: null,
     summary: BRANCH_TEXT,
     summaryKind: "branch_canon",
@@ -177,7 +177,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: continueUserId,
         sourceTurn: 12,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     assert.equal(n, 1);
@@ -188,9 +188,9 @@ describe("branch-control provenance + last-turn delete rollback", () => {
 
     // Incomplete batch-2 summary that would be pruned after deleting last turns.
     persistBranchBatch2({ playableTurnCount: 13 });
-    // Simulate last-turn delete: remove continue turn messages, leave 11 turns.
+    // Simulate last-turn delete: remove continue turn messages, leave 9 turns (batch 6~10 incomplete).
     getDb().prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
-    for (let t = 1; t <= 11; t++) {
+    for (let t = 1; t <= 9; t++) {
       insertMsg("user", t === 1 ? "(OOC: 현대 회사 IF)" : `본편 턴 ${t}`);
       insertMsg("assistant", `응답 ${t}`);
     }
@@ -215,9 +215,9 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     assert.equal(restored.branchStatus, null);
     assert.equal(restored.promotedBy, null);
 
-    // Batch 2 pruned (turnEnd 12 > actual 11)
+    // Batch 2 pruned (turnEnd 10 > 9 playable turns after delete)
     assert.equal(
-      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7),
+      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 6),
       false
     );
 
@@ -228,7 +228,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     const mem = getDb()
       .prepare("SELECT summarized_turn_count, recent_summary FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { summarized_turn_count: number; recent_summary: string };
-    assert.equal(mem.summarized_turn_count, 6);
+    assert.equal(mem.summarized_turn_count, 5);
   });
 
   it("UI continue is not rolled back by message deletion", () => {
@@ -275,7 +275,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: newContinueId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     assert.equal(loadRow(id1).summaryKind, "branch_canon");
@@ -310,7 +310,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: continueUserId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     const closeId = insertMsg("user", "본편으로 돌아가자");
@@ -320,7 +320,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: closeId,
         sourceTurn: 8,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       }),
       1
     );
@@ -383,7 +383,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: continueId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     assert.equal(loadRow(id1).branchStatus, "active");
@@ -393,7 +393,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
       source: "user_turn",
       sourceUserMessageId: newCloseId,
       sourceTurn: 9,
-      sourceBatchStart: 7,
+      sourceBatchStart: 6,
     });
     assert.equal(loadRow(id1).branchStatus, "closed");
     assert.notEqual(newCloseId, oldCloseId);
@@ -420,7 +420,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: continueId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     const closeId = insertMsg("user", "본편으로 돌아가자");
@@ -429,7 +429,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
       source: "user_turn",
       sourceUserMessageId: closeId,
       sourceTurn: 8,
-      sourceBatchStart: 7,
+      sourceBatchStart: 6,
     });
 
     const stack = rowPayload(id1)?.branchControlMutations ?? [];
@@ -463,7 +463,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         source: "user_turn",
         sourceUserMessageId: continueId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
     closeActiveBranchCanon(CHAT, { source: "ui" });
@@ -482,13 +482,14 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     persistNoncanonBatch1();
     persistBranchBatch2({ playableTurnCount: 13 });
     updateChatMemory(CHAT, USER, CHAR, {
-      message_count: 12,
-      summarized_turn_count: 12,
+      message_count: 10,
+      summarized_turn_count: 10,
       membership_tier: "free",
     });
 
-    // 11 playable turns remain → batch 7~12 must prune; no 5-turn partial.
-    for (let t = 1; t <= 11; t++) {
+    // 9 playable turns → batch 6~10 must prune; only batch 1~5 remains.
+    getDb().prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
+    for (let t = 1; t <= 9; t++) {
       insertMsg("user", `턴 ${t}`);
       insertMsg("assistant", `응답 ${t}`);
     }
@@ -510,7 +511,7 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     const mem = getDb()
       .prepare("SELECT summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { summarized_turn_count: number };
-    assert.equal(mem.summarized_turn_count, 6);
+    assert.equal(mem.summarized_turn_count, 5);
   });
 
   it("legacy scope_payload without mutations still decodes", () => {
@@ -547,7 +548,7 @@ describe("C: main-adopt last-turn DELETE fixture (report only)", () => {
         source: "user_turn",
         sourceUserMessageId: continueId,
         sourceTurn: 8,
-        sourceBatchStart: 7,
+        sourceBatchStart: 6,
       },
     });
 
@@ -568,7 +569,7 @@ describe("C: main-adopt last-turn DELETE fixture (report only)", () => {
       userId: USER,
       characterId: CHAR,
       tier: "free",
-      turnStart: 7,
+      turnStart: 6,
       assistantMessageId: null,
       summary: adoptText,
       summaryKind: "main_canon",
@@ -585,9 +586,9 @@ describe("C: main-adopt last-turn DELETE fixture (report only)", () => {
     assert.equal(loadRow(id1).summaryKind, "branch_canon");
     assert.equal(loadRow(id1).branchStatus, "active");
 
-    // Delete last turns so playable count drops below batch2 end → prune batch2.
+    // Delete last turns so playable count drops below batch2 end (10) → prune batch2.
     getDb().prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
-    for (let t = 1; t <= 11; t++) {
+    for (let t = 1; t <= 9; t++) {
       insertMsg("user", t === 8 ? "이걸 본편으로 확정" : `턴 ${t}`);
       insertMsg("assistant", `응답 ${t}`);
     }
@@ -614,7 +615,7 @@ describe("C: main-adopt last-turn DELETE fixture (report only)", () => {
 
     const rows = listMemoryRecordsForChat(CHAT);
     assert.equal(
-      rows.some((r) => r.turnStart === 7),
+      rows.some((r) => r.turnStart === 6),
       false,
       "source adopt batch must be pruned"
     );

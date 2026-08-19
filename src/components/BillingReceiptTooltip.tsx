@@ -541,19 +541,32 @@ export default function BillingReceiptTooltip({
           ) && (
             <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
               <p className="mb-1 font-semibold text-zinc-400">
-                컨텍스트 분해 (
-                {showFullReceipt && usage.breakdownAllocation === "estimated_section_allocation"
-                  ? "estimated_section_allocation"
-                  : "추정"}
-                )
+                컨텍스트 분해 (추정 배분)
+              </p>
+              <p className="mb-1 text-[9px] leading-snug text-zinc-600">
+                섹션별 토큰은 provider가 영역별로 보고한 값이 아니라 조립된 텍스트 크기에 따른
+                추정 배분입니다. API 입력 총합만 provider 보고값입니다.
               </p>
               {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt)
                 .filter((b) => b.tokens > 0)
                 .map((b) => (
                   <p key={b.label}>
-                    {b.label}: {b.tokens.toLocaleString()} ({b.pct}%)
+                    {b.label} ({b.pct}%)
                   </p>
                 ))}
+              {showFullReceipt && usage.rawHistoryHealth && (
+                <div className="mt-1 space-y-0.5 border-t border-white/5 pt-1">
+                  <p>RAW exchanges: {usage.rawHistoryHealth.rawCompleteExchanges}</p>
+                  <p>RAW chars: {usage.rawHistoryHealth.rawChars.toLocaleString()}</p>
+                  <p>
+                    SUMMARY_INTERVAL: {usage.rawHistoryHealth.summaryInterval} · through turn{" "}
+                    {usage.rawHistoryHealth.summarizedThroughTurn}
+                  </p>
+                  {usage.rawHistoryHealth.policyViolation && (
+                    <p className="text-amber-400">RAW_HISTORY_POLICY_VIOLATION</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {showFullReceipt && usage.assembledPromptChars && (
