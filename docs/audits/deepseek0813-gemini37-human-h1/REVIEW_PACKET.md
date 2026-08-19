@@ -187,7 +187,7 @@ Captured. Frozen. See `GEMINI_SOURCE_RAW.txt`.
 
 ### HUMAN USER #1 → DeepSeek #1
 
-Not run. Do not add a synthetic HUMAN USER #1.
+Waiting. No synthetic turn. Local chat `3` is open at `/chat/17?chat=3`. `adult_handoff_enabled=0` (성인모드 off). Handoff will only run if normal routing triggers after the human sends.
 
 ### HUMAN USER #2 → DeepSeek #2
 
@@ -210,7 +210,32 @@ PRODUCTION_CHANGED = false
 
 ## Next human action
 
-STOP. First Gemini output is frozen. No regenerate. No DeepSeek. Wait for ChatGPT review.
+H1-SOURCE accepted. Gemini 2558-char source is frozen.
+
+Type **HUMAN USER #1** in `http://127.0.0.1:3000/chat/17?chat=3`. Do not ask Cursor to write it.
+
+After that message is submitted: one DeepSeek 0813 call only if adult handoff normally triggers, then STOP. No HUMAN USER #2 / DS2.
+
+Current chat: `adult_handoff_enabled=0`. 성인모드 is not forced on.
+
+---
+
+# H1-1
+
+```text
+GEMINI_SOURCE_ACCEPTED = true
+GEMINI_SOURCE_VISIBLE_CHARS = 2558
+GEMINI_SOURCE_OUTPUT_TOKENS = 2749
+GEMINI_SOURCE_FINISH_REASON = stop
+HUMAN_USER_1_RECEIVED = false
+DEEPSEEK_CALLS = 0
+RETRY = 0
+CONTINUATION = 0
+RECOVERY = 0
+QUALITY_SCORING_BY_CURSOR = false
+```
+
+Frozen Gemini RAW remains `GEMINI_SOURCE_RAW.txt`. HUMAN USER #1 / DS1 RAW not written yet.
 
 ---
 
