@@ -19,7 +19,8 @@ export type AdultFallbackPrepReason =
   | "previous_requires_adult"
   | "frequent_dirty_talk"
   | "provider_boundary_exceeded"
-  | "existing_adult_scene";
+  | "existing_adult_scene"
+  | "sexual_tension_refusal_candidate";
 
 export type AdultDeliveryPlan = {
   primaryModelId: string;
@@ -76,6 +77,13 @@ export function collectAdultFallbackPrepReasons(input: {
     !classification.sceneReset &&
     state.activeRoute === "adult" &&
     !isSafeSceneMode(classification.sceneMode);
+  const sexualTensionRefusalCandidate =
+    eligibility.eligible &&
+    eligibility.allowedByAdultContentPolicy &&
+    !classification.sceneReset &&
+    !isSafeSceneMode(classification.sceneMode) &&
+    (classification.sceneMode === "tension" ||
+      classification.sexualContextActive === true);
 
   if (classification.currentInputExplicitIntent) {
     reasons.push("current_input_explicit_intent");
@@ -94,6 +102,9 @@ export function collectAdultFallbackPrepReasons(input: {
   }
   if (existingAdultScene) {
     reasons.push("existing_adult_scene");
+  }
+  if (sexualTensionRefusalCandidate) {
+    reasons.push("sexual_tension_refusal_candidate");
   }
   return reasons;
 }
@@ -167,4 +178,31 @@ export function shouldInvokeAdultRefusalFallback(input: {
     return { invoke: false, reason: "not_refusal" };
   }
   return { invoke: true, reason: refusal.reason };
+}
+
+export async function invokePreparedAdultRefusalFallback<T>(input: {
+  plan: AdultDeliveryPlan;
+  fallbackContextAvailable: boolean;
+  text?: string | null;
+  finishReason?: string | null;
+  error?: unknown;
+  hasVisibleTokens: boolean;
+  fallbackAlreadyAttempted: boolean;
+  runFallback: () => Promise<T>;
+}): Promise<
+  | { invoked: false; reason: string }
+  | { invoked: true; reason: string; result: T }
+> {
+  if (!input.fallbackContextAvailable) {
+    return { invoked: false, reason: "fallback_context_unavailable" };
+  }
+  const decision = shouldInvokeAdultRefusalFallback(input);
+  if (!decision.invoke) {
+    return { invoked: false, reason: decision.reason };
+  }
+  return {
+    invoked: true,
+    reason: decision.reason,
+    result: await input.runFallback(),
+  };
 }
