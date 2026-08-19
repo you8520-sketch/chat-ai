@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import TrpgInviteLink from "./TrpgInviteLink";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
+import { filterTrpgLobbyCampaigns } from "@/lib/recentActivity";
 import type { TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
 export default function TrpgLobbyClient({
   initialCampaigns,
+  initialCampaignQuery = "",
   catalog,
   characterIds,
 }: {
   initialCampaigns: TrpgCampaignSnapshot[];
+  initialCampaignQuery?: string;
   catalog: TrpgCatalog;
   characterIds: number[];
 }) {
@@ -27,6 +30,11 @@ export default function TrpgLobbyClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [pick, setPick] = useState<TrpgCatalogPick | null>(null);
+  const [campaignQuery, setCampaignQuery] = useState(initialCampaignQuery);
+  const visibleCampaigns = useMemo(
+    () => filterTrpgLobbyCampaigns(campaigns, campaignQuery),
+    [campaigns, campaignQuery]
+  );
 
   async function postCampaign(body: Record<string, unknown>) {
     setBusy(true);
@@ -102,13 +110,28 @@ export default function TrpgLobbyClient({
       ) : null}
 
       <AppSectionCard title="내 캠페인">
+        {campaigns.length > 0 ? (
+          <form action="/trpg" method="get" className="mb-4" role="search">
+            <input
+              type="search"
+              name="q"
+              value={campaignQuery}
+              onChange={(e) => setCampaignQuery(e.target.value)}
+              data-trpg-lobby-search
+              placeholder="캠페인 제목 검색"
+              className="min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
+            />
+          </form>
+        ) : null}
         {campaigns.length === 0 ? (
           <p className="text-sm text-zinc-500">
             시작한 캠페인이 없습니다. 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 「캠페인 시작」을 누르면 파티를 구성합니다.
           </p>
+        ) : visibleCampaigns.length === 0 ? (
+          <p className="text-sm text-zinc-500">일치하는 캠페인이 없습니다.</p>
         ) : (
           <ul className="space-y-3">
-            {campaigns.map((c) => (
+            {visibleCampaigns.map((c) => (
               <li key={c.id} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 space-y-1">
