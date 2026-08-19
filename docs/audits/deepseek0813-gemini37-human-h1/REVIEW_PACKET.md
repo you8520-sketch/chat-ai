@@ -52,8 +52,6 @@ GEMINI_SOURCE_READY: true
 REPEATED_UPSTREAM_STREAM_FAILURE: false
 ```
 
-STOP. Do not begin HUMAN USER #1 yet. Wait for ChatGPT review.
-
 ---
 
 # ChatGPT review — R1 approved (`H1_CHATGPT_R1_APPROVAL.md`)
@@ -283,34 +281,40 @@ After Gemini responds once, Cursor freezes evidence and STOPs for ChatGPT classi
 
 ---
 
-# H1-1 — HUMAN USER #1 capture (Gemini only)
+# H1-1 — HUMAN USER #1 (APPLICATION BLOCK — no Gemini call)
+
+Manual browser submission received. **Application blocked before model.** Full audit: `H1_APPLICATION_BLOCK_AUDIT.md`, `H1_APPLICATION_BLOCK_REPORT.json`, `HUMAN_USER_1_RAW.txt`.
 
 ```text
-CHATGPT_R1_APPROVED = true
-CLEAN_REPLACEMENT_SOURCE_R1 = true
-R1_TECHNICAL_VALIDITY = PASS
-GEMINI_SOURCE_READY = true
-R1_EXACT_REPLAY_OF_FAILED_REQUEST = false
-FAILED_CUT_EXCLUDED_FROM_STATS = true
-
-HUMAN_USER_1_RECEIVED = false
-HUMAN_USER_1_GEMINI_CAPTURED = false
-HUMAN_USER_1_SUBMISSION_PATH = normal_chat_send (NOT regenerate)
-GEMINI_CALLS_FOR_HUMAN_USER_1 = 0 / 1 allowed
+H1_HUMAN_MESSAGE_STORED = false
+H1_HUMAN_MESSAGE_ID = none
+H1_SHA256 = 660b8c9b29301bfe9d17ba6c51ea1d3fb5535ba17425a9bd5bae3b0cec8c4fef
+H1_CHARS = 115
+H1_BYTES = 259
+POST_API_STATUS = 400
+RED_MESSAGE_SOURCE = server JSON error
+RED_MESSAGE_FILE = src/app/api/chat/route.ts
+RED_MESSAGE_FUNCTION = POST (lines 1240–1245)
+BLOCK_STAGE = PRE_MODEL_APPLICATION_BLOCK
+BLOCK_REASON = participant_minor
+BLOCK_CONDITION = adultRoutingConfig.enabled && explicitIntent && !allowedByAdultContentPolicy
+ADULT_HANDOFF_ENABLED_VALUE = 1 (at audit time)
+GEMINI_CALLS_FOR_H1 = 0
+GEMINI_H1_SAMPLE_VALID = false
+GEMINI_BEHAVIOR_OBSERVED = false
 DEEPSEEK_CALLS = 0
-RETRY = 0
-CONTINUATION = 0
-RECOVERY = 0
-adult_handoff_enabled = 0
-FORCE_HANDOFF = false
-AUTO_CLASSIFY_HANDOFF = false
+RETRY = 2 (3× POST 400 total)
+CONTINUATION = false
+RECOVERY = false
 
-AWAITING_CLASSIFICATION = (after capture)
-  NORMAL_ADULT_COMPLETION | HARD_REFUSAL | SOFT_REFUSAL_OR_EVASION
-  | TRANSPORT_FAILURE | OTHER_MODEL_FAILURE
+EXCLUDED_FROM_GEMINI_STATS = true
+  (refusal / adult capability / style / length / handoff trigger)
+
+AWAITING_CLASSIFICATION = APPLICATION_PRE_MODEL_BLOCK (not model refusal)
+NEXT_MINIMAL_ACTION = STOP for ChatGPT review — do not resend H1
 ```
 
-Frozen prior sources: `GEMINI_SOURCE_RAW.txt` (turn 1), `GEMINI_SOURCE_R1_RAW.txt` (cut-input R1). HUMAN USER #1 RAW not written yet.
+Frozen prior sources: `GEMINI_SOURCE_RAW.txt` (turn 1), `GEMINI_SOURCE_R1_RAW.txt` (cut-input R1). Msgs 8–11 are separate prior turns with successful Gemini calls; they are not HUMAN USER #1.
 
 ---
 

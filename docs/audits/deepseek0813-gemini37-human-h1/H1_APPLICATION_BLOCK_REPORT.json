@@ -1,0 +1,87 @@
+{
+  "audit": "H1_APPLICATION_BLOCK_AUDIT",
+  "timestamp_utc": "2026-08-19T04:11:00Z",
+  "chat_id": 3,
+  "character_id": 17,
+  "persona_id": 881000203,
+  "human_user_1": {
+    "text_utf8": "(렌이 팔을 뻗어 서강우의 허리를 끌어안음) 왜 피해? 방금 너 좋아했잖아. 눈빛이 확 변했어. 한 번 더 해보자, 이번엔 더 세게. 너 냄새도 마음에 들고,,, *그대로 목덜미를 살짝 물며 반응을 본다 *",
+    "chars": 115,
+    "bytes_utf8": 259,
+    "sha256": "660b8c9b29301bfe9d17ba6c51ea1d3fb5535ba17425a9bd5bae3b0cec8c4fef"
+  },
+  "db_after_submission": {
+    "human_message_stored": false,
+    "human_message_id": null,
+    "assistant_placeholder_created": false,
+    "message_generations_row": false,
+    "last_message_id": 11,
+    "last_user_message_id": 10,
+    "last_user_chars": 59,
+    "last_user_preview": "네가 해줘 *슬쩍 붙어서며 플러드의 손을 잡고 강력한 가이딩파장을 흘린다* 이러면 기분좋다고 하던데...."
+  },
+  "post_api_chat": {
+    "http_status": 400,
+    "response_shape": "application/json (not SSE)",
+    "response_body": {
+      "error": "이 설정에서는 해당 성인 장면을 진행할 수 없습니다."
+    },
+    "sse_events": [],
+    "stream_generation_began": false,
+    "observed_attempts_in_dev_log": 3,
+    "dev_log_latencies_ms": [12779, 700, 503],
+    "note_first_400_includes_route_compile_ms": true
+  },
+  "provider_telemetry_for_h1": {
+    "GEMINI_CALLS_FOR_H1": 0,
+    "DEEPSEEK_CALLS": 0,
+    "PROVIDER_FETCH_STARTED": false,
+    "SELECTED_MODEL": "gemini-3.7-flash",
+    "DELIVERED_MODEL": null,
+    "DELIVERED_PROVIDER": null,
+    "PROVIDER_HTTP_STATUS": null,
+    "PROVIDER_REQUEST_ID": null,
+    "PROVIDER_STREAM_EVENTS": 0,
+    "PROVIDER_RAW_TEXT_CHARS": 0,
+    "GEMINI_H1_SAMPLE_VALID": false,
+    "GEMINI_BEHAVIOR_OBSERVED": false
+  },
+  "red_message": {
+    "source": "server",
+    "file": "src/app/api/chat/route.ts",
+    "function": "POST",
+    "line": 1240,
+    "client_renderer": "src/app/chat/[id]/ChatClient.tsx handleStreamError → setError(data.error)"
+  },
+  "block": {
+    "stage": "PRE_MODEL_APPLICATION_BLOCK",
+    "stage_evidence": "Adult eligibility block at route.ts:1240 returns 400 before bootstrapStreamingTurn at route.ts:2507; H1 text absent from messages table",
+    "condition": "adultRoutingConfig.enabled && adultRouteDecision.shouldBlock",
+    "block_reason": "participant_minor",
+    "explicit_intent": true,
+    "scene_mode": "intimate_transition",
+    "eligibility_allowed_by_adult_content_policy": false,
+    "char_participant_status": "minor",
+    "persona_participant_status": "confirmed",
+    "minor_signal_evidence": [
+      "character world/backstory contains 어린아이 (MINOR_SIGNAL)",
+      "character world/backstory contains 5살 (findNumericMinorAge < 19)"
+    ]
+  },
+  "routing_env": {
+    "ADULT_SCENE_ROUTING_ENABLED": true,
+    "ADULT_SCENE_HANDOFF_GENERAL_ENABLED": false,
+    "ADULT_SCENE_HANDOFF_ADMIN_CANARY": false,
+    "chat_adult_handoff_enabled": 1,
+    "adult_routing_enabled_for_request": true,
+    "user_adult_verified": true,
+    "character_nsfw": 1
+  },
+  "retry_continuation_recovery": {
+    "RETRY": "browser retried POST /api/chat twice after first 400 (700ms, 503ms); all blocked identically",
+    "CONTINUATION": false,
+    "RECOVERY": false
+  },
+  "root_cause": "With chat-room adult handoff ON, adult scene routing enabled. H1 classified explicit (intimate_transition) after msgs 8–11 sexual context. resolveAdultEligibility flagged character 플러드/서강우 as participant_minor due to backstory minor-age tokens (5살, 어린아이). decideAdultModelRoute set shouldBlock=true → HTTP 400 JSON error before any DB insert or provider call.",
+  "next_minimal_action": "ChatGPT review: classify as APPLICATION_PRE_MODEL_BLOCK (not Gemini refusal). Do not count toward Gemini stats. Minimal fix candidates (out of scope for this audit): confirm character adult metadata for id=17, or narrow participant minor heuristics for historical backstory mentions — only after explicit authorization."
+}
