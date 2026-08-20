@@ -121,9 +121,12 @@ export function fallbackHpAfterTickAndGmHeal(
 ): number {
   const tickNet = tickNetFor(resolution, participantId);
   const restNet = restNetFor(resolution, participantId);
-  const postTick = clampHp(startHp - tickNet + restNet, maxHp);
+  const postMechanics = clampHp(startHp - tickNet + restNet, maxHp);
   if (gmHp > startHp) {
-    return clampHp(Math.max(postTick, gmHp), maxHp);
+    return clampHp(Math.max(postMechanics, gmHp), maxHp);
   }
-  return clampHp(Math.min(gmHp, postTick), maxHp);
+  if (gmHp === startHp) {
+    return postMechanics;
+  }
+  return clampHp(Math.min(gmHp + restNet, postMechanics), maxHp);
 }

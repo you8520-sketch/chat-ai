@@ -21,7 +21,6 @@ import { basicFirstAidHpCeiling, safeRestHealAmount } from "./mechanicsDice";
 import type { MechanicsActorInput, MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot } from "./types";
 import { ensureTrpgTables } from "./schema";
-import { TRPG_MECHANICS_REFEREE_ENABLED_ENV } from "./mechanicsTypes";
 
 function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
   return {
@@ -453,9 +452,6 @@ describe("TRPG contextual recovery UI", () => {
 
 describe("TRPG recovery engine persist / HUD commit", () => {
   it("A-engine. downed actor gets no d20 row or currentRoll", async () => {
-    const prev = process.env[TRPG_MECHANICS_REFEREE_ENABLED_ENV];
-    process.env[TRPG_MECHANICS_REFEREE_ENABLED_ENV] = "1";
-    try {
       const db = new Database(":memory:");
       ensureTrpgTables(db);
       const deps: TrpgEngineDeps = {
@@ -515,9 +511,5 @@ describe("TRPG recovery engine persist / HUD commit", () => {
       const stored = loadLatestCompleteMechanics(db, campaignId);
       assert.match(stored?.packet ?? "", /PRE_ACTION_HP_ZERO/);
       db.close();
-    } finally {
-      if (prev === undefined) delete process.env[TRPG_MECHANICS_REFEREE_ENABLED_ENV];
-      else process.env[TRPG_MECHANICS_REFEREE_ENABLED_ENV] = prev;
-    }
   });
 });
