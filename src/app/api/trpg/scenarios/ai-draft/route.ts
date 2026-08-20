@@ -13,7 +13,7 @@ import {
   previewDraftOverwrite,
   releaseScenarioDraftRateLimit,
   scenarioDraftOutputMaxTokens,
-  TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
+  scenarioDraftPrimaryTimeoutMs,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
   type TrpgScenarioDraftExisting,
@@ -84,6 +84,7 @@ export async function POST(req: Request) {
           });
     const changingFields = previewDraftOverwrite({ mode, existing, selectedFields, lockedFields });
     const primaryMaxTokens = scenarioDraftOutputMaxTokens({ mode, changingFields });
+    const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs(primaryMaxTokens);
     const userPrompt = buildScenarioDraftUserPrompt({
       worldName,
       worldSummary,
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
       EXISTING_SECRET_CONTENT_CHARS: existing.secretContent?.length ?? 0,
       PROMPT_CHARS: buildScenarioDraftSystemPrompt().length + userPrompt.length,
       MAX_TOKENS: primaryMaxTokens,
-      TIMEOUT_MS: TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
+      TIMEOUT_MS: primaryTimeoutMs,
     });
     const generated = await completeTrpgAuthoringJson({
       kind: "scenario_draft",
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
       user: userPrompt,
       expectedFields: changingFields,
       primaryMaxTokens,
-      primaryTimeoutMs: TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
+      primaryTimeoutMs,
       repairMaxTokens: Math.min(primaryMaxTokens, TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS),
       repairTimeoutMs: TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
     });

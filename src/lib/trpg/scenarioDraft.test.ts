@@ -19,8 +19,10 @@ import {
   releaseScenarioDraftRateLimit,
   resetScenarioDraftRateLimitForTests,
   scenarioDraftOutputMaxTokens,
+  scenarioDraftPrimaryTimeoutMs,
   STRUCTURED_PLAN_IS_PRIMARY,
   TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT,
+  TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_MODEL,
   TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
@@ -382,6 +384,11 @@ describe("TRPG scenario AI draft", () => {
   it("uses bounded primary/repair calls and a syntax-only repair prompt", () => {
     assert.equal(TRPG_AUTHORING_PROVIDER_RETRY, 0);
     assert.equal(TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS, 120_000);
+    assert.equal(
+      scenarioDraftPrimaryTimeoutMs(TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS),
+      TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
+    );
+    assert.equal(scenarioDraftPrimaryTimeoutMs(1200), TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS <= TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS < TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS);
     assert.equal(REPAIR_IS_REWRITE, false);

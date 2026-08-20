@@ -15,8 +15,8 @@ import {
   mergeScenarioDraft,
   previewDraftOverwrite,
   scenarioDraftOutputMaxTokens,
+  scenarioDraftPrimaryTimeoutMs,
   TRPG_SCENARIO_DRAFT_MODEL,
-  TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
   type TrpgScenarioDraftExisting,
@@ -31,8 +31,8 @@ import {
 } from "../src/lib/trpg/scenarioDraftCall";
 import {
   emptyTrpgScenarioPlan,
+  hasPlayableScenarioPlan,
   lintTrpgScenarioPlan,
-  scoreTrpgScenarioReadiness,
 } from "../src/lib/trpg/scenarioPlan";
 
 loadEnvConfig(process.cwd());
@@ -146,6 +146,7 @@ async function runFixture(fixture: Fixture, run: number) {
     mode: fixture.mode,
     changingFields,
   });
+  const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs(primaryMaxTokens);
   const attempts: Array<{
     stage: "primary" | "repair";
     maxTokens: number;
@@ -165,7 +166,7 @@ async function runFixture(fixture: Fixture, run: number) {
       user,
       expectedFields: changingFields,
       primaryMaxTokens,
-      primaryTimeoutMs: TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
+      primaryTimeoutMs,
       repairMaxTokens: Math.min(primaryMaxTokens, TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS),
       repairTimeoutMs: TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
       complete: async ({ system: callSystem, user: callUser, stage = "primary", maxTokens, timeoutMs }) => {
@@ -212,7 +213,9 @@ async function runFixture(fixture: Fixture, run: number) {
       npcs: merged.npcs,
       startInventory: merged.startInventory,
     });
-    mergedReadiness = scoreTrpgScenarioReadiness(lint, merged.plan).score >= 6;
+    mergedReadiness =
+      hasPlayableScenarioPlan(merged.plan) &&
+      lint.every((issue) => issue.level !== "error");
   } catch (error) {
     errorClass = isTrpgAuthoringTimeoutError(error)
       ? "TimeoutError"
@@ -241,7 +244,7 @@ async function runFixture(fixture: Fixture, run: number) {
       OUTPUT_TOKENS: attempts.reduce((sum, attempt) => sum + (attempt.result?.usage?.outputTokens ?? 0), 0),
       MAX_TOKENS: primary?.maxTokens ?? primaryMaxTokens,
       LATENCY_MS: Date.now() - started,
-      TIMEOUT_MS: primary?.timeoutMs ?? TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
+      TIMEOUT_MS: primary?.timeoutMs ?? primaryTimeoutMs,
       FINISH_REASON: primary?.result?.finishReason ?? "",
       PARSE_OK: parseOk,
       REPAIR_USED: Boolean(repair),
@@ -254,7 +257,13 @@ async function runFixture(fixture: Fixture, run: number) {
 
 async function main() {
   const runs = positiveRuns(process.env.TRPG_SCENARIO_DRAFT_BENCH_RUNS);
-  for (const fixture of fixtures) {
+  const filter = new Set(
+    String(process.env.TRPG_SCENARIO_DRAFT_BENCH_FIXTURES ?? "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+  );
+  for (const fixture of fixtures.filter((item) => filter.size === 0 || filter.has(item.name))) {
     for (let run = 1; run <= runs; run += 1) {
       await runFixture(fixture, run);
     }

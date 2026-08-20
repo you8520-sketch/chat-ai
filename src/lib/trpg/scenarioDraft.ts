@@ -24,9 +24,10 @@ export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_073
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
+export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 180_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 60_000;
-export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 3_200;
-export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 2_200;
+export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_400;
+export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
 export const FULL_SCENARIO_TEXT_REQUIRED = false;
@@ -317,7 +318,9 @@ Rules:
 - Do not invent a boss unless the world and conflict need one.
 - Use the world's factions, threats, and rules.
 - Be concrete enough to run, not padded. Keep scalar fields short and operational.
-- Include only essential major events, clues, and NPCs. Keep NPC systemPrompt concise.
+- Keep each scalar to 1–2 short sentences.
+- Use at most 5 major events, 5 clues, and 4 essential NPCs unless creator material clearly requires fewer.
+- Keep every list item to one sentence and every NPC description/greeting/systemPrompt to 1–2 short sentences.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
 - Summary must be player-safe: no secrets, twists, or endings.
 - NPC stats must be null unless a specific mechanical reason exists. Do not invent database IDs.
@@ -326,6 +329,7 @@ Rules:
 - For easy/normal campaigns, include at least one world-appropriate recovery opportunity (supplies, facility, or safe location). Hard/deadly campaigns may make it scarce.
 - Do not default to a no-recovery campaign unless the creator explicitly requests it.
 - Do not infer healing magic from a priest or religious title alone; magic must be supported by creator/world canon.
+- The user supplies fill_or_replace_fields. Return exactly and only those top-level keys; never emit locked or kept fields.
 
 JSON keys:
 title, summary, startingSituation, centralConflict, goal, secret, endingConditions, majorEvents, clues, npcs, forbiddenEvents, boss, startLocation, startInventory, specialRules, difficulty, climax, endingCandidates, factionChanges, gmDirection, playLength
@@ -402,6 +406,12 @@ export function scenarioDraftOutputMaxTokens(opts: {
   if (fields.has("npcs")) return 1_600;
   if (fields.size === 2) return 1_600;
   return 1_200;
+}
+
+export function scenarioDraftPrimaryTimeoutMs(maxTokens: number): number {
+  return maxTokens >= TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS
+    ? TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
+    : TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS;
 }
 
 export function computeScenarioDraftBudget(opts: {
