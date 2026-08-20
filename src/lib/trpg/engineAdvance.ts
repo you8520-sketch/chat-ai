@@ -905,6 +905,7 @@ function commitPendingGmResult(
   const mechanics = loadMechanicsResolution(db, opts.roundId);
   const applied = mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
   const nextSheets = applied.ok ? applied.next : sheets;
+  const persistMechanics = applied.ok || mechanics?.complete === true;
   const roundNumber = (
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
   ).round_number;
@@ -925,7 +926,7 @@ function commitPendingGmResult(
          ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
       ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
       if (opts.regenerate) return;
-      if (applied.ok) {
+      if (persistMechanics) {
         persistSheets(db, nextSheets);
         applyMechanicsOnCommit(db, mechanics);
         if (mechanics) markMechanicsApplied(db, mechanics);

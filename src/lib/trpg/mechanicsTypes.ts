@@ -42,6 +42,9 @@ export type DirectCause = (typeof DIRECT_CAUSES)[number];
 
 export const ONGOING_KINDS = ["periodic_harm", "control", "debuff", "regen"] as const;
 export type OngoingKind = (typeof ONGOING_KINDS)[number];
+/** V1 implements periodic_harm + control only. regen/debuff are rejected. */
+export const V1_ONGOING_KINDS = ["periodic_harm", "control"] as const;
+export type V1OngoingKind = (typeof V1_ONGOING_KINDS)[number];
 
 export const DURATION_BANDS = ["SHORT", "MEDIUM", "LONG"] as const;
 export type DurationBand = (typeof DURATION_BANDS)[number];
@@ -104,7 +107,12 @@ export type FlashOngoingAdd = {
 };
 
 export type FlashActorEffect = {
-  participantId: number;
+  /** Who performed the action. Parser fills this from participantId when omitted. */
+  sourceParticipantId?: number;
+  /** Who receives HP / ongoing / treatment. Defaults to source. */
+  targetParticipantId?: number;
+  /** Legacy alias for source=target when the new fields are absent. */
+  participantId?: number;
   directEffect: DirectEffectKind;
   directClass: MechanicsClass;
   cause: DirectCause;
@@ -141,6 +149,8 @@ export type DirectResolution = {
   effect: DirectEffectKind;
   class: MechanicsClass;
   cause: DirectCause;
+  sourceParticipantId: number;
+  targetParticipantId: number;
   dice: DiceRollRecord | null;
   hpBefore: number;
   hpAfter: number;
@@ -190,6 +200,9 @@ export type MechanicsResolution = {
     actionType: TrpgActionType | null;
     tier: TrpgSuccessTier | null;
     physicalThreat: boolean;
+    preActionHp: number;
+    skippedPhysicalAction: boolean;
+    skipReason: "PRE_ACTION_HP_ZERO" | null;
     direct: DirectResolution | null;
   }>;
   ongoingTicks: OngoingTickRecord[];
@@ -197,7 +210,20 @@ export type MechanicsResolution = {
   ongoingAdds: Array<Omit<TrpgOngoingEffect, "id"> & { id?: number }>;
   ongoingClearedIds: number[];
   ongoingUpdates: Array<
-    Pick<TrpgOngoingEffect, "id" | "severity" | "tickClass" | "remainingTicks" | "lastTickRound" | "actionModifier">
+    Pick<
+      TrpgOngoingEffect,
+      | "id"
+      | "severity"
+      | "tickClass"
+      | "remainingTicks"
+      | "lastTickRound"
+      | "actionModifier"
+      | "recoveryMode"
+      | "recoveryStat"
+      | "treatmentMode"
+      | "requiredItem"
+      | "stackPolicy"
+    >
   >;
   consumeItems: Array<{ participantId: number; item: string }>;
   hpAfter: Record<string, number>;
@@ -235,4 +261,13 @@ export function isMechanicsClass(value: string): value is MechanicsClass {
 
 export function isTickClass(value: string): value is TickClass {
   return (TICK_CLASSES as readonly string[]).includes(value);
+}
+
+/** Persistent remainingTicks=-1 is ACTIVE. Only 0 is inactive. */
+export function isOngoingActive(remainingTicks: number): boolean {
+  return remainingTicks !== 0;
+}
+
+export function isV1OngoingKind(value: string): value is V1OngoingKind {
+  return (V1_ONGOING_KINDS as readonly string[]).includes(value);
 }

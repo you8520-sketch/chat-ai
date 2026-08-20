@@ -13,13 +13,16 @@ import {
 import { parseFlashOrEmpty, resolveRoundMechanics, shouldCallMechanicsFlash } from "./mechanicsResolve";
 import { loadMechanicsResolution, loadOngoingEffects, saveMechanicsResolution } from "./mechanicsStore";
 import {
+  isOngoingActive,
   isTrpgMechanicsRefereeEnabled,
   type MechanicsActorInput,
   type MechanicsResolution,
 } from "./mechanicsTypes";
-import type { DiceRng } from "./mechanicsDice";
+import { isHealingIntentAction, type DiceRng } from "./mechanicsDice";
 import { loadSheetSnapshots } from "./engineSheets";
-import { loadCampaign, loadScenario, parseJson } from "./store";
+import { loadCampaignContext, resolvedCampaignPlan } from "./campaignContext";
+import { publicSpecialRulesText } from "./mechanicsValidate";
+import { loadScenario, parseJson } from "./store";
 
 export type MechanicsRoundDeps = {
   mechanicsCall?: (opts: { system: string; user: string }) => Promise<{
@@ -73,8 +76,9 @@ export async function completeRoundMechanics(
 ): Promise<MechanicsResolution> {
   const existing = loadMechanicsResolution(db, opts.roundId);
   if (existing?.complete) return existing;
-  const campaign = loadCampaign(db, opts.campaignId);
+  const campaignContext = loadCampaignContext(db, opts.campaignId);
   const scenario = loadScenario(db, opts.campaignId);
+  const specialRules = publicSpecialRulesText(resolvedCampaignPlan(campaignContext)?.specialRules);
   const sheets = loadSheetSnapshots(db, opts.campaignId);
   const effects = loadOngoingEffects(db, opts.campaignId);
   const roundNumber = (
@@ -89,8 +93,8 @@ export async function completeRoundMechanics(
   const actors = loadMechanicsActors(db, opts.roundId);
   const treatmentNeeded = actors.some(
     (actor) =>
-      (actor.actionType === "support" || actor.actionType === "use_item") &&
-      effects.some((effect) => effect.participantId === actor.participantId && effect.remainingTicks !== 0)
+      isHealingIntentAction(actor.actionType, actor.body) &&
+      effects.some((effect) => isOngoingActive(effect.remainingTicks))
   );
   const enabled = isTrpgMechanicsRefereeEnabled();
   const wantFlash = enabled && shouldCallMechanicsFlash({
@@ -114,7 +118,7 @@ export async function completeRoundMechanics(
           actors,
           sheets,
           effects,
-          specialRules: campaign?.world_brief ?? "",
+          specialRules,
         }),
       });
       flashText = result.text;
@@ -146,8 +150,9 @@ export async function completeRoundMechanics(
     model,
     latencyMs,
     baseDc: scenario.diceRules.dc,
-    specialRules: campaign?.world_brief ?? "",
+    specialRules,
     startInventory: scenario.startInventory ?? [],
+    scene: opts.previousScene,
     existing,
     rng: opts.deps?.rollDie,
     recoveryRng: opts.deps?.rollD20,

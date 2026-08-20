@@ -58,11 +58,25 @@ export function insertOngoingEffect(
 
 export function updateOngoingEffectRow(
   db: Database.Database,
-  effect: Pick<TrpgOngoingEffect, "id" | "severity" | "tickClass" | "remainingTicks" | "lastTickRound" | "actionModifier">
+  effect: Pick<
+    TrpgOngoingEffect,
+    | "id"
+    | "severity"
+    | "tickClass"
+    | "remainingTicks"
+    | "lastTickRound"
+    | "actionModifier"
+    | "recoveryMode"
+    | "recoveryStat"
+    | "treatmentMode"
+    | "requiredItem"
+    | "stackPolicy"
+  >
 ): void {
   db.prepare(
     `UPDATE trpg_ongoing_effects
-     SET severity=?, tick_class=?, remaining_ticks=?, last_tick_round=?, action_modifier=?
+     SET severity=?, tick_class=?, remaining_ticks=?, last_tick_round=?, action_modifier=?,
+         recovery_mode=?, recovery_stat=?, treatment_mode=?, required_item=?, stack_policy=?
      WHERE id=?`
   ).run(
     effect.severity,
@@ -70,6 +84,11 @@ export function updateOngoingEffectRow(
     effect.remainingTicks,
     effect.lastTickRound,
     effect.actionModifier,
+    effect.recoveryMode,
+    effect.recoveryStat,
+    effect.treatmentMode,
+    effect.requiredItem,
+    effect.stackPolicy,
     effect.id
   );
 }

@@ -19,15 +19,21 @@ Rules:
 - Never invent hidden events, enemies, or items.
 - Never output final numeric damage or heal amounts.
 - Classify only: NONE CHIP LIGHT MEDIUM HEAVY SEVERE CRITICAL.
+- Use sourceParticipantId (actor) and targetParticipantId (HP/effect recipient).
+- SELF_HEAL / ALLY_HEAL / SELF_TREAT / ALLY_TREAT are allowed. Unknown target is invalid.
 - FAILURE is not automatically HP damage.
-- Investigate/persuade/stealth without a physical threat → NONE.
-- Melee/defend against a real attack may be harm.
+- Action type is not the damage gate. Harm needs a real threat (enemy, trap, hazard, gunfire) plus cause.
+- Investigate/persuade/stealth in a safe room → NONE. No poison on safe SUCCESS.
+- Stealth FAILURE under fire or investigate FAILURE on a trap may be harm.
 - SUCCESS default is no harm. PARTIAL_SUCCESS may be tradeoff harm.
 - Healing only when the action is treatment/support/item.
+- V1 ongoing kinds: periodic_harm, control only. Never regen or debuff.
 - Ongoing effects use durationBand SHORT|MEDIUM|LONG only.
 - Do not invent persistent poison/curse without explicit public specialRules.
 - Do not invent an item that is not in inventory or specialRules.
-- One object per participant who needs classification.`;
+- One object per source→target classification.
+Schema example:
+{"effects":[{"sourceParticipantId":1,"targetParticipantId":2,"directEffect":"none","directClass":"NONE","cause":"none","ongoingAdd":[],"ongoingRemoveIds":[10],"ongoingReduceIds":[],"consumeItem":"해독제","reason":"ally antidote"}]}`;
 
 export function buildMechanicsRefereeUserBlock(opts: {
   scene: string;

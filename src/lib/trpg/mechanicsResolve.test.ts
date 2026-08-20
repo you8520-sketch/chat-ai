@@ -527,7 +527,7 @@ describe("TRPG mechanics referee — GM merge and retry", () => {
     assert.equal(loaded.complete, true);
   });
 
-  it("AB. HP 0 marks hp_zero incapacitation and heal does not auto-revive in resolution", () => {
+  it("AB. HP 0 marks hp_zero incapacitation; already-down actor skips self-heal", () => {
     const down = resolve({
       sheets: [sheet({ hp: 2 })],
       flash: flashHarm("HEAVY"),
@@ -542,8 +542,10 @@ describe("TRPG mechanics referee — GM merge and retry", () => {
       },
       rng: () => 4,
     });
-    assert.ok(heal.hpAfter["1"]! > 0);
-    assert.equal(heal.incapacitated.length, 0);
+    assert.equal(heal.actors[0]?.skippedPhysicalAction, true);
+    assert.equal(heal.actors[0]?.skipReason, "PRE_ACTION_HP_ZERO");
+    assert.equal(heal.hpAfter["1"], 0);
+    assert.deepEqual(heal.incapacitated, [{ participantId: 1, reason: "hp_zero" }]);
   });
 
   it("does not call Flash on opening or roll-less rounds", () => {

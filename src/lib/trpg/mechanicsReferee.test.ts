@@ -16,6 +16,9 @@ describe("TRPG mechanics referee contract", () => {
     assert.equal(adapted.reasoning_effort, "none");
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /JSON only/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /Never output final numeric damage/);
+    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /sourceParticipantId/);
+    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /targetParticipantId/);
+    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /periodic_harm, control only/);
   });
 
   it("sends only public structured facts and never hidden GM state", () => {
