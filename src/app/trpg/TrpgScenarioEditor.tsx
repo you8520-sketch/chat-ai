@@ -73,6 +73,23 @@ const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
   deadly: "치명적",
 };
 
+const SCENARIO_DRAFT_TIMEOUT_MESSAGE =
+  "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
+
+function scenarioDraftErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    if (
+      error.name === "TimeoutError" ||
+      error.name === "AbortError" ||
+      /aborted due to timeout|timed out|timeout/i.test(error.message)
+    ) {
+      return SCENARIO_DRAFT_TIMEOUT_MESSAGE;
+    }
+    if (error.message.trim()) return error.message;
+  }
+  return "AI 초안에 실패했습니다.";
+}
+
 export default function TrpgScenarioEditor({
   catalog,
   initial,
@@ -291,10 +308,6 @@ export default function TrpgScenarioEditor({
   }
 
   async function requestDraft(mode: TrpgScenarioDraftMode, selectedFields: TrpgScenarioDraftField[] = []) {
-    if (typeof worldId !== "number") {
-      setError("AI 초안은 세계관을 선택한 뒤에 만들 수 있습니다. 수동 작성은 계속 가능합니다.");
-      return;
-    }
     if (draftBusy) return;
     if (mode === "regenerate_all") {
       const ok = window.confirm("작성한 이야기 항목을 전부 다시 만들까요? 잠근 항목만 유지됩니다.");
@@ -307,7 +320,7 @@ export default function TrpgScenarioEditor({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          worldId,
+          worldId: worldId === "" ? null : worldId,
           mode,
           selectedFields,
           lockedFields,
@@ -316,6 +329,7 @@ export default function TrpgScenarioEditor({
       });
       const data = (await res.json()) as {
         error?: string;
+        code?: string;
         draft?: {
           title: string;
           summary: string;
@@ -327,7 +341,11 @@ export default function TrpgScenarioEditor({
         lint?: Array<{ message: string }>;
         readiness?: ReturnType<typeof scoreTrpgScenarioReadiness>;
       };
-      if (!res.ok) throw new Error(data.error || "AI 초안을 만들지 못했습니다.");
+      if (!res.ok) {
+        const failure = new Error(data.error || "AI 초안을 만들지 못했습니다.");
+        if (data.code === "SCENARIO_DRAFT_TIMEOUT") failure.name = "TimeoutError";
+        throw failure;
+      }
       if (!data.draft) throw new Error("AI 초안이 비어 있습니다.");
       setTitle(data.draft.title || title);
       setSummary(data.draft.summary || summary);
@@ -340,7 +358,7 @@ export default function TrpgScenarioEditor({
       setLintMessages((data.lint ?? []).map((item) => item.message));
       setAdvancedOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI 초안에 실패했습니다.");
+      setError(scenarioDraftErrorMessage(err));
     } finally {
       setDraftBusy(false);
     }
@@ -421,7 +439,7 @@ export default function TrpgScenarioEditor({
     return (
       <button
         type="button"
-        disabled={draftBusy || typeof worldId !== "number"}
+        disabled={draftBusy}
         onClick={() => void requestDraft("regenerate_selected", [field])}
         className="ml-2 text-[10px] font-semibold text-violet-300 disabled:opacity-40"
       >
@@ -435,8 +453,7 @@ export default function TrpgScenarioEditor({
         <AppSectionCard title="세계관">
           <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
           <p className="mt-1 text-xs text-zinc-500">
-            세계관만으로도 샌드박스 TRPG는 가능합니다. 시나리오를 만들 때도 세계관을 고르면 AI가 초안을 짤 수 있습니다.
-            세계관 없이 수동 작성도 됩니다.
+            세계관을 고르면 해당 설정을 따르고, 고르지 않으면 입력한 자료를 바탕으로 독립 시나리오를 구성합니다.
           </p>
           {catalog.myWorlds.length === 0 ? (
             <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
@@ -446,7 +463,7 @@ export default function TrpgScenarioEditor({
               onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
               className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             >
-              <option value="">없음 — 시나리오만 직접 작성</option>
+              <option value="">없음 — 독립 시나리오</option>
               {catalog.myWorlds.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -465,15 +482,22 @@ export default function TrpgScenarioEditor({
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={draftBusy || typeof worldId !== "number"}
+              disabled={draftBusy}
               onClick={() => void requestDraft("fill_empty")}
-              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {draftBusy ? "초안 작성 중…" : "✨ AI로 시나리오 초안 만들기"}
+              {draftBusy ? (
+                <>
+                  <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
+                  {typeof worldId === "number" ? "세계관 분석 · 시나리오 구성 중…" : "시나리오 구성 중…"}
+                </>
+              ) : (
+                "✨ AI로 시나리오 초안 만들기"
+              )}
             </button>
             <button
               type="button"
-              disabled={draftBusy || typeof worldId !== "number"}
+              disabled={draftBusy}
               onClick={() => void requestDraft("regenerate_all")}
               className="rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 disabled:opacity-50"
             >
@@ -481,7 +505,8 @@ export default function TrpgScenarioEditor({
             </button>
           </div>
           <p className="mt-2 text-xs text-zinc-500">
-            AI 결과는 바로 저장되지 않습니다. 확인한 뒤 아래 저장을 누르세요. 기본은 빈 항목만 채웁니다.
+            AI가 캠페인 이야기 구조와 주요 사건을 자동으로 구성합니다. 결과는 바로 저장되지 않으며 기본은 빈
+            항목만 채웁니다.
           </p>
           {readiness ? (
             <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-300">
@@ -713,7 +738,7 @@ export default function TrpgScenarioEditor({
 
         <AppSectionCard title="추가 GM 메모">
           <label className="block text-sm text-zinc-300">
-            시나리오 본문 (자유 메모 / 레거시)
+            전체 시나리오 본문 (선택 · 직접 추가 설정)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
               이야기 설계가 있으면 비워도 됩니다. 예전처럼 본문만 있어도 저장됩니다.
             </span>

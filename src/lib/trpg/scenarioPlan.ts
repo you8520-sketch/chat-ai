@@ -407,6 +407,33 @@ export function lintTrpgScenarioPlan(opts: {
   if (inventoryCount > 12) {
     issues.push({ level: "error", code: "inventory_limit", message: "시작 아이템 수가 제한을 초과합니다." });
   }
+  const recoveryText = [
+    opts.content ?? "",
+    ...(Array.isArray(opts.startInventory) ? opts.startInventory.map((item) => String(item ?? "")) : []),
+    ...plan.specialRules,
+    ...plan.majorEvents,
+    ...plan.clues,
+    plan.startingSituation,
+    plan.gmDirection,
+  ].join("\n");
+  const recoveryExplicitlyExcluded =
+    /회복\s*(?:불가|금지|없음)|치료\s*(?:불가|금지)|no[- ]?recovery/i.test(recoveryText);
+  const recoveryPathPresent =
+    /응급처치|안전한\s*휴식|구급|붕대|의료|치료소|회복약|포션|약초|medkit|medical\s*(?:station|facility)|first\s*aid|bandage/i.test(
+      recoveryText
+    );
+  if (
+    (plan.difficulty === "easy" || plan.difficulty === "normal") &&
+    !recoveryExplicitlyExcluded &&
+    !recoveryPathPresent
+  ) {
+    issues.push({
+      level: "warning",
+      code: "recovery_path_unclear",
+      message:
+        "기본 응급처치와 안전한 휴식은 가능하지만, 구급키트·회복약·의료시설 등 세계관에 맞는 추가 회복 수단을 설정하면 장기 플레이가 안정적입니다.",
+    });
+  }
   if (opts.bundleChars != null && opts.bundleLimit != null && opts.bundleChars > opts.bundleLimit) {
     issues.push({ level: "error", code: "bundle_limit", message: "시나리오 묶음 글자 수가 한도를 초과합니다." });
   }
