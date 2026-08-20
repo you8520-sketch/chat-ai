@@ -309,6 +309,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     let skipped = false;
     let directHpOwner: DirectHpOwner = "NONE";
     let acceptedDirects = 0;
+    const treatedEffectIds = new Set<number>();
 
     if (preActionIncap.has(actor.participantId)) {
       skipped = true;
@@ -489,7 +490,8 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
           liveEffects,
           sheets,
           consumeItems,
-          ongoingClearedIds
+          ongoingClearedIds,
+          treatedEffectIds
         );
 
         for (const rawAdd of flash.ongoingAdd ?? []) {
@@ -575,7 +577,8 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         liveEffects,
         sheets,
         consumeItems,
-        ongoingClearedIds
+        ongoingClearedIds,
+        treatedEffectIds
       );
       if (directHpOwner === "NONE" && !skipped && lastDirect?.rejectReason !== "ITEM_HEAL_REJECTED_ITEM_MISSING") {
         directHpOwner = input.calledFlash && input.fallback === "none" ? "NONE" : "GM_LEGACY";
@@ -729,7 +732,8 @@ function applyTreatmentsValidation(
   liveEffects: TrpgOngoingEffect[],
   sheets: Map<number, TrpgSheetSnapshot>,
   consumeItems: MechanicsResolution["consumeItems"],
-  ongoingClearedIds: Set<number>
+  ongoingClearedIds: Set<number>,
+  treatedEffectIds: Set<number>
 ): MechanicsResolution["validation"] {
   const inventories = [...sheets.values()].map((sheet) => ({
     participantId: sheet.participantId,
@@ -742,6 +746,7 @@ function applyTreatmentsValidation(
   let consumed = false;
   let treated = 0;
   for (const id of requested) {
+    if (treatedEffectIds.has(id)) continue;
     const effect = liveEffects.find((row) => row.id === id && row.participantId === targetId);
     const verdict = validateTreatment({
       actionType: actor.actionType,
@@ -762,6 +767,7 @@ function applyTreatmentsValidation(
       continue;
     }
     treated += 1;
+    if (effect.id > 0) treatedEffectIds.add(effect.id);
     if (verdict.allow === "remove") {
       effect.remainingTicks = 0;
       if (effect.id > 0) ongoingClearedIds.add(effect.id);
@@ -776,8 +782,6 @@ function applyTreatmentsValidation(
       const owner = sheets.get(verdict.ownerParticipantId);
       if (!already && owner && inventoryHasItem(owner.inventory, flash.consumeItem)) {
         consumeItems.push({ participantId: verdict.ownerParticipantId, item: flash.consumeItem });
-        const idx = owner.inventory.indexOf(flash.consumeItem);
-        if (idx >= 0) owner.inventory.splice(idx, 1);
         consumed = true;
       }
     }
@@ -843,7 +847,8 @@ function applyServerOwnedTreatments(
   liveEffects: TrpgOngoingEffect[],
   sheets: Map<number, TrpgSheetSnapshot>,
   consumeItems: MechanicsResolution["consumeItems"],
-  ongoingClearedIds: Set<number>
+  ongoingClearedIds: Set<number>,
+  treatedEffectIds: Set<number>
 ): MechanicsResolution["validation"] {
   const targetId = inferTreatmentTarget(actor, flashRows, sheets);
   const consumeItem = inferConsumeItem(actor.body, flashRows.find((row) => row.consumeItem)?.consumeItem ?? null);
@@ -858,6 +863,7 @@ function applyServerOwnedTreatments(
           row.participantId === targetId &&
           isOngoingActive(row.remainingTicks) &&
           row.id > 0 &&
+          !treatedEffectIds.has(row.id) &&
           effectMatchesTreatment(row, actor.body, consumeItem)
       )
       .map((row) => row.id)
@@ -872,7 +878,8 @@ function applyServerOwnedTreatments(
     liveEffects,
     sheets,
     consumeItems,
-    ongoingClearedIds
+    ongoingClearedIds,
+    treatedEffectIds
   );
 }
 
@@ -1057,10 +1064,8 @@ function recordHealItemConsume(
     (row) => row.participantId === sourceSheet.participantId && row.item === item
   );
   if (already) return;
-  const idx = sourceSheet.inventory.indexOf(item);
-  if (idx < 0) return;
+  if (sourceSheet.inventory.indexOf(item) < 0) return;
   consumeItems.push({ participantId: sourceSheet.participantId, item });
-  sourceSheet.inventory.splice(idx, 1);
 }
 
 function emptyFlash(participantId: number): FlashActorEffect {
@@ -1188,15 +1193,28 @@ function buildHpOwnership(opts: {
 }): Record<string, HpOwnershipFlags> {
   const out: Record<string, HpOwnershipFlags> = {};
   for (const sheet of opts.sheets) {
-    const actor = opts.actors.find((row) => row.participantId === sheet.participantId);
-    const rest = opts.safeRests.some((row) => row.participantId === sheet.participantId && row.allowed);
-    const recoveryDirect =
-      actor?.directHpOwner === "SERVER_RECOVERY" || actor?.direct?.owner === "SERVER_RECOVERY";
-    out[String(sheet.participantId)] = {
-      SERVER_PREACTION: opts.ongoingTicks.some((row) => row.participantId === sheet.participantId),
-      SERVER_RECOVERY: rest || recoveryDirect,
-      FLASH_REFEREE: actor?.directHpOwner === "FLASH_REFEREE" || actor?.direct?.owner === "FLASH_REFEREE",
-      GM_LEGACY: actor?.directHpOwner === "GM_LEGACY",
+    const participantId = sheet.participantId;
+    out[String(participantId)] = {
+      SERVER_PREACTION: opts.ongoingTicks.some((row) => row.participantId === participantId),
+      SERVER_RECOVERY:
+        opts.safeRests.some((row) => row.participantId === participantId && row.allowed) ||
+        opts.actors.some(
+          (row) =>
+            row.direct?.targetParticipantId === participantId &&
+            row.direct.owner === "SERVER_RECOVERY" &&
+            row.direct.effect !== "none" &&
+            !row.direct.rejected
+        ),
+      FLASH_REFEREE: opts.actors.some(
+        (row) =>
+          row.direct?.targetParticipantId === participantId &&
+          row.direct.owner === "FLASH_REFEREE" &&
+          row.direct.effect !== "none" &&
+          !row.direct.rejected
+      ),
+      GM_LEGACY: opts.actors.some(
+        (row) => row.participantId === participantId && row.directHpOwner === "GM_LEGACY"
+      ),
     };
   }
   return out;

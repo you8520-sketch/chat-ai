@@ -142,19 +142,36 @@ export function capHarmClass(tier: TrpgSuccessTier | null, requested: MechanicsC
 const PHYSICAL_THREAT_CUE =
   /함정|trap|붕괴|hazard|총격|gunfire|적탄|적습|습격|독니|venom|독액|독사|뱀독|붕괴하는|무너지|전투|교전|피격|습격당|적에게 노출|enemy|gunfire/i;
 const THREAT_ENDED =
-  /전투가 끝|전투는 끝|전투가 종료|총격이 멎|총격이 멈|총성이 멎|적은 물러|적이 물러|교전이 끝|싸움이 끝|전장이 잠/;
+  /전투가 끝|전투는 끝|전투가 종료|총격이 멎|총격이 멈|총성이 멎|적은 물러|적이 물러|교전이 끝|싸움이 끝|전장이 잠|더는 위협이 없|위협이 없/;
 const THREAT_RESUME =
   /다시\s*.{0,16}(총격|전투|교전|습격)|아직\s*.{0,16}(총격|전투|적)|이어진다|계속된다|재개|시작됐|시작되었/;
+const THREAT_AFTER_ENDED =
+  /(?:하지만|그러나|지만|느나|알았(?:으)?나)\s*.{0,48}(?:적|총|습격|공격|괴물|함정|교전|전투|총격|피격|달려|겨눴|노려)/;
+const THREAT_TAIL_SAFE =
+  /총격(?:이|도)?\s*멎|멎었|멈추|멈췄|조용|봉쇄|더는\s*위협이\s*없|위협이\s*없|없다\s*$/;
+
+function threatAfterLastEndedCue(text: string): boolean {
+  let lastEnd = -1;
+  for (const match of text.matchAll(new RegExp(THREAT_ENDED.source, "g"))) {
+    if (match.index != null) lastEnd = Math.max(lastEnd, match.index + match[0].length);
+  }
+  if (lastEnd < 0) return false;
+  const tail = text.slice(lastEnd).trim();
+  if (!tail || THREAT_TAIL_SAFE.test(tail)) return false;
+  return PHYSICAL_THREAT_CUE.test(tail) || THREAT_AFTER_ENDED.test(tail);
+}
 
 export function hasPhysicalThreatCue(text: string): boolean {
   return hasActivePhysicalThreat(text);
 }
 
-/** Deterministic active-threat detector. Ended-combat language is not an active threat. */
+/** Deterministic active-threat detector. Ended-combat language is not an active threat unless a later clause revives it. */
 export function hasActivePhysicalThreat(text: string): boolean {
   const t = text.replace(/\s+/g, " ");
   if (!t.trim()) return false;
+  if (THREAT_AFTER_ENDED.test(t)) return true;
   if (THREAT_RESUME.test(t)) return true;
+  if (threatAfterLastEndedCue(t)) return true;
   if (THREAT_ENDED.test(t)) return false;
   return PHYSICAL_THREAT_CUE.test(t);
 }

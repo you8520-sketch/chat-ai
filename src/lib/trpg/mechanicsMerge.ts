@@ -18,13 +18,28 @@ function serverRecoveryDirectNet(resolution: MechanicsResolution, participantId:
   return resolution.actors
     .filter(
       (row) =>
-        (row.directHpOwner === "SERVER_RECOVERY" || row.direct?.owner === "SERVER_RECOVERY") &&
         row.direct &&
+        row.direct.owner === "SERVER_RECOVERY" &&
         !row.direct.rejected &&
         row.direct.effect !== "none" &&
         row.direct.targetParticipantId === participantId
     )
     .reduce((sum, row) => sum + ((row.direct?.hpAfter ?? 0) - (row.direct?.hpBefore ?? 0)), 0);
+}
+
+function recoveryNetFor(resolution: MechanicsResolution, participantId: number): number {
+  return restNetFor(resolution, participantId) + serverRecoveryDirectNet(resolution, participantId);
+}
+
+function postMechanicsHp(
+  startHp: number,
+  maxHp: number,
+  resolution: MechanicsResolution,
+  participantId: number
+): number {
+  const tickNet = tickNetFor(resolution, participantId);
+  const recoveryNet = recoveryNetFor(resolution, participantId);
+  return clampHp(startHp - tickNet + recoveryNet, maxHp);
 }
 
 export function hpOwnershipOf(resolution: MechanicsResolution, participantId: number) {
@@ -35,13 +50,17 @@ export function hpOwnershipOf(resolution: MechanicsResolution, participantId: nu
         (resolution.safeRests ?? []).some((row) => row.participantId === participantId && row.allowed) ||
         resolution.actors.some(
           (row) =>
-            (row.directHpOwner === "SERVER_RECOVERY" || row.direct?.owner === "SERVER_RECOVERY") &&
-            row.direct?.targetParticipantId === participantId
+            row.direct?.targetParticipantId === participantId &&
+            row.direct.owner === "SERVER_RECOVERY" &&
+            row.direct.effect !== "none" &&
+            !row.direct.rejected
         ),
       FLASH_REFEREE: resolution.actors.some(
         (row) =>
-          (row.directHpOwner === "FLASH_REFEREE" || row.direct?.owner === "FLASH_REFEREE") &&
-          row.direct?.targetParticipantId === participantId
+          row.direct?.targetParticipantId === participantId &&
+          row.direct.owner === "FLASH_REFEREE" &&
+          row.direct.effect !== "none" &&
+          !row.direct.rejected
       ),
       GM_LEGACY: resolution.actors.some(
         (row) => row.participantId === participantId && row.directHpOwner === "GM_LEGACY"
@@ -158,27 +177,41 @@ export function resolveParticipantHp(opts: {
   gmHp: number | null;
 }): number {
   const ownership = hpOwnershipOf(opts.resolution, opts.participantId);
-  if (ownership.FLASH_REFEREE) {
-    const stored = opts.resolution.hpAfter[String(opts.participantId)];
-    if (stored != null) return clampHp(stored, opts.maxHp);
+  const stored = opts.resolution.hpAfter[String(opts.participantId)];
+  const postMechanics = postMechanicsHp(
+    opts.startHp,
+    opts.maxHp,
+    opts.resolution,
+    opts.participantId
+  );
+
+  if (ownership.FLASH_REFEREE && stored != null) {
+    return clampHp(stored, opts.maxHp);
   }
+
   if (opts.gmHp == null) {
     if (ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION) {
-      return fallbackHpAfterTickAndGmHeal(
-        opts.startHp,
-        opts.maxHp,
-        opts.resolution,
-        opts.participantId,
-        opts.startHp
-      );
+      return postMechanics;
     }
-    const stored = opts.resolution.hpAfter[String(opts.participantId)];
     return stored != null && !ownership.GM_LEGACY ? clampHp(stored, opts.maxHp) : clampHp(opts.startHp, opts.maxHp);
   }
-  if (ownership.FLASH_REFEREE) {
-    const stored = opts.resolution.hpAfter[String(opts.participantId)];
-    if (stored != null) return clampHp(stored, opts.maxHp);
+
+  if (ownership.FLASH_REFEREE && stored != null) {
+    return clampHp(stored, opts.maxHp);
   }
+
+  if (!ownership.GM_LEGACY) {
+    if (opts.gmHp > opts.startHp) {
+      return clampHp(Math.max(postMechanics, opts.gmHp), opts.maxHp);
+    }
+    return postMechanics;
+  }
+
+  if (ownership.SERVER_RECOVERY) {
+    const recoveryNet = recoveryNetFor(opts.resolution, opts.participantId);
+    return clampHp(opts.gmHp + recoveryNet, opts.maxHp);
+  }
+
   return fallbackHpAfterTickAndGmHeal(
     opts.startHp,
     opts.maxHp,

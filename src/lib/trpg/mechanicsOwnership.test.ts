@@ -12,12 +12,16 @@ import {
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
-import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import { mergeMechanicsOwnedDelta, hpOwnershipOf, resolveParticipantHp } from "./mechanicsMerge";
 import { resolveRoundMechanics } from "./mechanicsResolve";
 import { insertOngoingEffect, loadLatestCompleteMechanics } from "./mechanicsStore";
 import { formatMechanicsHudLines } from "./sheetHud";
 import {
+  ALLY_SERVER_RECOVERY_TARGET_OWNER,
+  BANDAGE_HEAL_AND_BLEED_TREAT,
   CURRENT_INVENTORY_REQUIRED_FOR_ITEM_HEAL,
+  DIRECT_HEAL_ITEM_CONSUMED_ONCE,
+  FLASH_TARGET_OWNER,
   DIRECT_HEAL_ITEM_CONSUMED_ONCE,
   FLAG_OFF_FIRST_AID_COMMITS,
   FLAG_OFF_LEGACY_COMBAT_HP_PRESERVED,
@@ -96,6 +100,10 @@ function poison(partial: Partial<TrpgOngoingEffect> = {}): TrpgOngoingEffect {
     metadata: {},
     ...partial,
   };
+}
+
+function ally(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
+  return sheet({ participantId: 2, name: "렌", playerName: "렌", inventory: [], ...partial });
 }
 
 function bleed(partial: Partial<TrpgOngoingEffect> = {}): TrpgOngoingEffect {
@@ -788,5 +796,228 @@ describe("TRPG P0-5 / P1 recovery UX + threat", () => {
       assert.notEqual(stored?.actors[0]?.direct?.effect, "heal");
       db.close();
     });
+  });
+});
+
+describe("TRPG P0-4 target ownership / recovery atomicity", () => {
+  it("exports gate flags", () => {
+    assert.equal(ALLY_SERVER_RECOVERY_TARGET_OWNER, true);
+    assert.equal(FLASH_TARGET_OWNER, true);
+    assert.equal(BANDAGE_HEAL_AND_BLEED_TREAT, true);
+  });
+
+  it("1. A heals B — target owns SERVER_RECOVERY, GM omit commits heal", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 20 }), ally({ hp: 10 })],
+      actors: [actor({ body: "렌의 상처를 응급처치한다", tier: "SUCCESS" })],
+      fallback: "gm_legacy",
+      calledFlash: false,
+      rng: () => 4,
+    });
+    const bFlags = resolution.hpOwnership?.["2"] ?? hpOwnershipOf(resolution, 2);
+    assert.equal(bFlags.SERVER_RECOVERY, true);
+    assert.equal(bFlags.GM_LEGACY, false);
+    assert.equal(resolution.actors[0]?.direct?.targetParticipantId, 2);
+    assert.equal(resolution.hpAfter["2"], 14);
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 20 }), ally({ hp: 10 })],
+      { players: [{ participantId: 1 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next.find((row) => row.participantId === 2)?.hp, 14);
+  });
+
+  it("2. Flash harms B — FLASH_TARGET_OWNER wins over stale GM hp", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 20 }), ally({ hp: 20 })],
+      actors: [actor({ actionType: "attack", body: "렌을 벤다", tier: "FAILURE", participantId: 1 })],
+      flash: {
+        effects: [
+          {
+            sourceParticipantId: 1,
+            targetParticipantId: 2,
+            directEffect: "harm",
+            directClass: "MEDIUM",
+            cause: "enemy_counter",
+          },
+        ],
+      },
+      fallback: "none",
+      calledFlash: true,
+      scene: "전투. 적이 받아친다.",
+      rng: () => 4,
+    });
+    assert.equal(hpOwnershipOf(resolution, 2).FLASH_REFEREE, true);
+    assert.equal(resolution.hpAfter["2"], 16);
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 20 }), ally({ hp: 20 })],
+      { players: [{ participantId: 2, hp: 20 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next.find((row) => row.participantId === 2)?.hp, 16);
+  });
+
+  it("3. self first aid — GM hp below mechanics ignored when GM_LEGACY=false", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 10 })],
+      actors: [actor({ body: "상처를 응급처치한다", tier: "SUCCESS" })],
+      rng: () => 4,
+    });
+    assert.equal(hpOwnershipOf(resolution, 1).SERVER_RECOVERY, true);
+    assert.equal(hpOwnershipOf(resolution, 1).GM_LEGACY, false);
+    assert.equal(
+      resolveParticipantHp({
+        startHp: 10,
+        maxHp: 25,
+        resolution,
+        participantId: 1,
+        gmHp: 6,
+      }),
+      14
+    );
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10 })],
+      { players: [{ participantId: 1, hp: 6 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next[0]?.hp, 14);
+  });
+
+  it("4. safe rest — GM hp below mechanics ignored when GM_LEGACY=false", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 10, maxHp: 25 })],
+      actors: [actor({ actionType: "free", body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.", tier: null, d20: null })],
+    });
+    assert.equal(
+      resolveParticipantHp({
+        startHp: 10,
+        maxHp: 25,
+        resolution,
+        participantId: 1,
+        gmHp: 3,
+      }),
+      15
+    );
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, maxHp: 25 })],
+      { players: [{ participantId: 1, hp: 3 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next[0]?.hp, 15);
+  });
+
+  it("5. A heals B +4 and B GM_LEGACY harm — layered gm7 + recovery4 = 11", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 20 }), ally({ hp: 10 })],
+      actors: [
+        actor({ body: "렌의 상처를 응급처치한다", tier: "SUCCESS" }),
+        actor({
+          participantId: 2,
+          name: "렌",
+          actionType: "attack",
+          body: "반격한다",
+          tier: "FAILURE",
+        }),
+      ],
+      fallback: "gm_legacy",
+      calledFlash: false,
+      rng: () => 4,
+    });
+    const bFlags = hpOwnershipOf(resolution, 2);
+    assert.equal(bFlags.SERVER_RECOVERY, true);
+    assert.equal(bFlags.GM_LEGACY, true);
+    assert.equal(
+      resolveParticipantHp({
+        startHp: 10,
+        maxHp: 25,
+        resolution,
+        participantId: 2,
+        gmHp: 7,
+      }),
+      11
+    );
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 20 }), ally({ hp: 10 })],
+      { players: [{ participantId: 2, hp: 7 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next.find((row) => row.participantId === 2)?.hp, 11);
+  });
+
+  it("6. BANDAGE_HEAL_AND_BLEED_TREAT — one bandage powers heal + bleed treat", () => {
+    const out = resolve({
+      sheets: [sheet({ hp: 10, inventory: ["붕대"] })],
+      effects: [bleed({ participantId: 1, startsRound: 7, treatmentMode: "item_or_support", requiredItem: "붕대" })],
+      actors: [
+        actor({
+          actionType: "use_item",
+          body: "붕대로 출혈을 지혈하고 상처를 응급처치한다.",
+          tier: "SUCCESS",
+        }),
+      ],
+      rng: () => 4,
+    });
+    assert.ok((out.hpAfter["1"] ?? 0) > 10);
+    assert.ok(out.ongoingClearedIds.includes(11));
+    assert.deepEqual(out.consumeItems, [{ participantId: 1, item: "붕대" }]);
+    const merged = mergeMechanicsOwnedDelta([sheet({ hp: 10, inventory: ["붕대"] })], { players: [] }, out);
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.deepEqual(merged.next[0]?.inventory, []);
+  });
+
+  it("7. bandage combined treatment retry does not double consume", () => {
+    const first = resolve({
+      sheets: [sheet({ hp: 10, inventory: ["붕대"] })],
+      effects: [bleed({ participantId: 1, startsRound: 7, treatmentMode: "item_or_support", requiredItem: "붕대" })],
+      actors: [
+        actor({
+          actionType: "use_item",
+          body: "붕대로 출혈을 지혈하고 상처를 응급처치한다.",
+          tier: "SUCCESS",
+        }),
+      ],
+      rng: () => 4,
+    });
+    const retry = resolve({ existing: { ...first, complete: true, applied: false } });
+    assert.deepEqual(retry.consumeItems, first.consumeItems);
+    assert.equal(retry.consumeItems.length, 1);
+  });
+
+  it("8. ended clause with later active threat blocks safe rest", () => {
+    assert.equal(hasActivePhysicalThreat("전투가 끝났다. 하지만 복도 끝에서 적이 총을 겨눴다."), true);
+    assert.equal(hasActivePhysicalThreat("총격은 멎었지만 문밖에서 괴물이 달려든다."), true);
+    assert.equal(hasActivePhysicalThreat("싸움이 끝난 줄 알았으나 바로 뒤에서 습격당했다."), true);
+    assert.equal(
+      evaluateSafeRestEligibility({
+        hp: 10,
+        maxHp: 25,
+        scene: "전투가 끝났다. 하지만 적이 총을 겨눴다.",
+        sameRoundCombat: false,
+        lastSafeRestRound: null,
+        currentRound: 3,
+      }).available,
+      false
+    );
+  });
+
+  it("9. terminal safe clauses allow safe rest", () => {
+    assert.equal(hasActivePhysicalThreat("적이 물러갔다. 총격도 멎었다. 주변은 조용하다."), false);
+    assert.equal(hasActivePhysicalThreat("전투가 끝났다. 문을 봉쇄했고 더는 위협이 없다."), false);
+    assert.equal(
+      evaluateSafeRestEligibility({
+        hp: 10,
+        maxHp: 25,
+        scene: "전투가 끝났다. 더는 위협이 없다.",
+        sameRoundCombat: false,
+        lastSafeRestRound: null,
+        currentRound: 3,
+      }).available,
+      true
+    );
   });
 });
