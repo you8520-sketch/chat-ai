@@ -21,11 +21,14 @@ import {
   BANDAGE_HEAL_AND_BLEED_TREAT,
   CURRENT_INVENTORY_REQUIRED_FOR_ITEM_HEAL,
   DIRECT_HEAL_ITEM_CONSUMED_ONCE,
+  FIRST_AID_CEILING_NOT_BYPASSED_BY_GM,
   FLASH_TARGET_OWNER,
-  DIRECT_HEAL_ITEM_CONSUMED_ONCE,
   FLAG_OFF_FIRST_AID_COMMITS,
   FLAG_OFF_LEGACY_COMBAT_HP_PRESERVED,
+  GM_HP_IGNORED_WITHOUT_LEGACY_OWNER,
   MAX_ONGOING_TREAT_TARGETS_PER_ACTION,
+  MECHANICS_CONSUME_BEATS_GM_ADD,
+  NO_DOUBLE_CONSUME_ON_GM_REMOVE,
   NO_DOUBLE_HEAL_ITEM_CONSUME,
   NO_SILENT_DIRECT_OVERWRITE,
   NO_SILENT_HARM_PLUS_HEAL,
@@ -1019,5 +1022,135 @@ describe("TRPG P0-4 target ownership / recovery atomicity", () => {
       }).available,
       true
     );
+  });
+});
+
+describe("TRPG P0-5 strict HP / inventory ownership", () => {
+  function bandageResolution(inventory: string[] = ["붕대"]): MechanicsResolution {
+    return resolve({
+      sheets: [sheet({ hp: 10, inventory })],
+      effects: [bleed({ participantId: 1, startsRound: 7, treatmentMode: "item_or_support", requiredItem: "붕대" })],
+      actors: [
+        actor({
+          actionType: "use_item",
+          body: "붕대로 출혈을 지혈하고 상처를 응급처치한다.",
+          tier: "SUCCESS",
+        }),
+      ],
+      rng: () => 4,
+    });
+  }
+
+  it("exports strict ownership gate flags", () => {
+    assert.equal(GM_HP_IGNORED_WITHOUT_LEGACY_OWNER, true);
+    assert.equal(FIRST_AID_CEILING_NOT_BYPASSED_BY_GM, true);
+    assert.equal(MECHANICS_CONSUME_BEATS_GM_ADD, true);
+    assert.equal(NO_DOUBLE_CONSUME_ON_GM_REMOVE, true);
+  });
+
+  it("GM HP lower, equal, and higher are ignored without GM_LEGACY", () => {
+    const resolution = resolve({
+      sheets: [sheet({ hp: 10, maxHp: 25 })],
+      actors: [actor({ body: "상처를 응급처치한다", tier: "SUCCESS" })],
+      rng: () => 4,
+    });
+    assert.equal(hpOwnershipOf(resolution, 1).GM_LEGACY, false);
+    assert.equal(resolution.hpAfter["1"], 14);
+    for (const gmHp of [6, 10, 22]) {
+      assert.equal(
+        resolveParticipantHp({
+          startHp: 10,
+          maxHp: 25,
+          resolution,
+          participantId: 1,
+          gmHp,
+        }),
+        14
+      );
+    }
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, maxHp: 25 })],
+      { players: [{ participantId: 1, hp: 22 }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.equal(merged.next[0]?.hp, 14);
+  });
+
+  it("GM HP cannot bypass the basic first-aid ceiling or safe-rest result", () => {
+    const firstAid = resolve({
+      sheets: [sheet({ hp: 10, maxHp: 25 })],
+      actors: [actor({ body: "상처를 응급처치한다", tier: "SUCCESS" })],
+      rng: () => 4,
+    });
+    const firstAidMerged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, maxHp: 25 })],
+      { players: [{ participantId: 1, hp: 25 }] },
+      firstAid
+    );
+    assert.equal(firstAidMerged.ok, true);
+    if (firstAidMerged.ok) {
+      assert.equal(firstAidMerged.next[0]?.hp, 14);
+      assert.ok((firstAidMerged.next[0]?.hp ?? 25) <= Math.floor(25 * 0.7));
+    }
+
+    const safeRest = resolve({
+      sheets: [sheet({ hp: 10, maxHp: 25 })],
+      actors: [actor({ actionType: "free", body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.", tier: null, d20: null })],
+    });
+    const safeRestMerged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, maxHp: 25 })],
+      { players: [{ participantId: 1, hp: 25 }] },
+      safeRest
+    );
+    assert.equal(safeRestMerged.ok, true);
+    if (safeRestMerged.ok) assert.equal(safeRestMerged.next[0]?.hp, 15);
+  });
+
+  it("mechanics consume beats a conflicting GM inventory add", () => {
+    const resolution = bandageResolution();
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, inventory: ["붕대"] })],
+      { players: [{ participantId: 1, inventoryAdd: ["붕대"] }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) {
+      assert.deepEqual(merged.next[0]?.inventory, []);
+      assert.equal(merged.INVALID_GM_INVENTORY_DELTA, false);
+    }
+  });
+
+  it("conflicting GM remove does not double-consume or mark inventory invalid", () => {
+    const resolution = bandageResolution();
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, inventory: ["붕대"] })],
+      { players: [{ participantId: 1, inventoryRemove: ["붕대"] }] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) {
+      assert.deepEqual(merged.next[0]?.inventory, []);
+      assert.equal(merged.INVALID_GM_INVENTORY_DELTA, false);
+    }
+  });
+
+  it("mechanics consumes exactly one of two identical items", () => {
+    const resolution = bandageResolution(["붕대", "붕대"]);
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet({ hp: 10, inventory: ["붕대", "붕대"] })],
+      { players: [] },
+      resolution
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.deepEqual(merged.next[0]?.inventory, ["붕대"]);
+  });
+
+  it("billing retry reuses one mechanics reservation without adding a consume", () => {
+    const first = bandageResolution();
+    const retry = resolve({ existing: { ...first, complete: true, applied: false } });
+    assert.deepEqual(first.consumeItems, [{ participantId: 1, item: "붕대" }]);
+    assert.deepEqual(retry.consumeItems, first.consumeItems);
+    assert.equal(retry.consumeItems.length, 1);
   });
 });

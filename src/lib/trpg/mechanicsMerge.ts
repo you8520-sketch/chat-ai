@@ -89,6 +89,17 @@ export function mergeMechanicsOwnedDelta(
   resolution: MechanicsResolution | null
 ): MechanicsMergeResult {
   const complete = resolution?.complete === true;
+  const mechanicsConsumed = new Map<string, { participantId: number; item: string }>();
+  if (complete && resolution) {
+    for (const row of resolution.consumeItems) {
+      const item = row.item.trim();
+      if (!item) continue;
+      mechanicsConsumed.set(`${row.participantId}\u0000${item}`, {
+        participantId: row.participantId,
+        item,
+      });
+    }
+  }
 
   const next = sheets.map((sheet) => {
     const copy = { ...sheet, inventory: [...sheet.inventory], conditions: [...sheet.conditions], stats: { ...sheet.stats } };
@@ -100,7 +111,7 @@ export function mergeMechanicsOwnedDelta(
         participantId: sheet.participantId,
         gmHp: null,
       });
-      for (const row of resolution.consumeItems) {
+      for (const row of mechanicsConsumed.values()) {
         if (row.participantId !== sheet.participantId) continue;
         const idx = copy.inventory.indexOf(row.item);
         if (idx >= 0) copy.inventory.splice(idx, 1);
@@ -122,12 +133,14 @@ export function mergeMechanicsOwnedDelta(
     if (patch.inventoryAdd) {
       for (const item of patch.inventoryAdd) {
         const t = item.trim();
+        if (mechanicsConsumed.has(`${patch.participantId}\u0000${t}`)) continue;
         if (t) cur.inventory.push(t);
       }
     }
     if (patch.inventoryRemove) {
       for (const item of patch.inventoryRemove) {
         const t = item.trim();
+        if (mechanicsConsumed.has(`${patch.participantId}\u0000${t}`)) continue;
         const idx = cur.inventory.indexOf(t);
         if (idx < 0) {
           invalidInventory = true;
@@ -201,9 +214,6 @@ export function resolveParticipantHp(opts: {
   }
 
   if (!ownership.GM_LEGACY) {
-    if (opts.gmHp > opts.startHp) {
-      return clampHp(Math.max(postMechanics, opts.gmHp), opts.maxHp);
-    }
     return postMechanics;
   }
 
