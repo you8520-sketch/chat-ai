@@ -1,4 +1,5 @@
 import type { TrpgSheetSnapshot } from "./types";
+import type { MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 
 export type TrpgHpRisk = "safe" | "wounded" | "critical";
 
@@ -37,4 +38,56 @@ export function selfHudAriaLabel(sheet: Pick<TrpgSheetSnapshot, "name" | "hp" | 
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+export function recoveryHintKo(effect: Pick<TrpgOngoingEffect, "recoveryMode" | "requiredItem" | "recoveryStat">): string {
+  if (effect.requiredItem) return `해독 필요: ${effect.requiredItem}`;
+  if (effect.recoveryMode === "save") return "매 라운드 회복 판정";
+  if (effect.recoveryMode === "treatment") return "치료로 회복";
+  if (effect.recoveryMode === "persistent") return "특수 규칙이 있는 동안 유지";
+  if (effect.recoveryMode === "duration") return "지속이 끝나면 자연 소멸";
+  return "저항 판정 또는 치료로 회복";
+}
+
+export function mergeDisplayConditions(conditions: readonly string[], effectLabels: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const item of [...conditions, ...effectLabels]) {
+    const label = item.trim();
+    if (label && !out.includes(label)) out.push(label);
+  }
+  return out;
+}
+
+export function formatMechanicsHudLines(
+  resolution: MechanicsResolution | null,
+  participantId: number
+): string[] {
+  if (!resolution?.complete) return [];
+  const lines: string[] = [];
+  const actor = resolution.actors.find((row) => row.participantId === participantId);
+  if (actor?.direct?.effect === "harm" && actor.direct.dice) {
+    lines.push(`피해 ${actor.direct.dice.amount}`);
+    lines.push(`HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}`);
+  } else if (actor?.direct?.effect === "heal" && actor.direct.dice) {
+    lines.push(`회복 ${actor.direct.dice.amount}`);
+    lines.push(`HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}`);
+  }
+  for (const tick of resolution.ongoingTicks.filter((row) => row.participantId === participantId)) {
+    lines.push(`${tick.label} ${tick.dice?.amount ?? 0}`);
+    lines.push(`HP ${tick.hpBefore} → ${tick.hpAfter}`);
+  }
+  return lines;
+}
+
+export function formatOngoingBadge(effect: {
+  label: string;
+  severity: string;
+  kind: string;
+  remainingTicks: number;
+}): string {
+  if (effect.kind === "control") {
+    return `${effect.label} ${effect.severity} · 회복 판정 가능`;
+  }
+  if (effect.remainingTicks < 0) return `${effect.label} ${effect.severity}`;
+  return `${effect.label} ${effect.severity} · ${effect.remainingTicks}회 남음`;
 }

@@ -297,6 +297,41 @@ export function ensureTrpgTables(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_trpg_party_messages_campaign
       ON trpg_party_messages(campaign_id, id DESC);
+
+    CREATE TABLE IF NOT EXISTS trpg_ongoing_effects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      participant_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      stack_key TEXT NOT NULL,
+      stack_policy TEXT NOT NULL DEFAULT 'refresh',
+      source_round INTEGER NOT NULL,
+      applied_round INTEGER NOT NULL,
+      starts_round INTEGER NOT NULL,
+      tick_class TEXT,
+      remaining_ticks INTEGER NOT NULL,
+      last_tick_round INTEGER,
+      recovery_mode TEXT NOT NULL,
+      recovery_stat TEXT NOT NULL,
+      treatment_mode TEXT NOT NULL,
+      required_item TEXT,
+      action_modifier INTEGER NOT NULL DEFAULT 0,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_ongoing_effects_campaign
+      ON trpg_ongoing_effects(campaign_id, participant_id, remaining_ticks);
+
+    CREATE TABLE IF NOT EXISTS trpg_mechanics_resolutions (
+      round_id INTEGER PRIMARY KEY,
+      campaign_id INTEGER NOT NULL,
+      resolution_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_mechanics_resolutions_campaign
+      ON trpg_mechanics_resolutions(campaign_id);
   `);
   migrateTrpgCreatorEarningsUnique(db);
 }

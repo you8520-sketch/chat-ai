@@ -55,8 +55,15 @@ import {
 } from "./memoryHorizon";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
-import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
+import {
+  applyMechanicsOnCommit,
+  completeRoundMechanics,
+  ensurePreActionMechanics,
+  type MechanicsRoundDeps,
+} from "./mechanicsRound";
+import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import { loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
 import {
   classifyTrpgBillingErrorCode,
   type TrpgBillingSubstage,
@@ -102,7 +109,7 @@ export type TrpgEngineDeps = {
   skipBilling?: boolean;
   /** Test-only. Throws after entering this billing substage. */
   billingFault?: TrpgBillingSubstage | "after_first_deduction";
-};
+} & MechanicsRoundDeps;
 
 function newRequestId(): string {
   return randomBytes(12).toString("hex");
@@ -623,6 +630,10 @@ function persistRolls(
 ): void {
   const existing = db.prepare(`SELECT 1 FROM trpg_dice_rolls WHERE round_id=? LIMIT 1`).get(roundId);
   if (existing) return;
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(roundId) as { round_number: number }
+  ).round_number;
+  const pre = ensurePreActionMechanics(db, { campaignId, roundId, roundNumber, deps });
   const scenario = loadScenario(db, campaignId);
   const subs = db
     .prepare(
@@ -638,8 +649,8 @@ function persistRolls(
   }[];
   const ins = db.prepare(
     `INSERT INTO trpg_dice_rolls
-      (round_id, submission_id, d20, stat_key, stat_modifier, final_score, dc, tier)
-     VALUES (?,?,?,?,?,?,?,?)`
+      (round_id, submission_id, d20, stat_key, stat_modifier, condition_modifier, final_score, dc, tier)
+     VALUES (?,?,?,?,?,?,?,?,?)`
   );
   db.transaction(() => {
     for (const sub of subs) {
@@ -661,9 +672,11 @@ function persistRolls(
         )
         .get(sub.participant_id, statKey) as { value: number } | undefined;
       const d20 = deps?.rollD20?.() ?? rollServerD20();
+      const conditionModifier = pre.actionModifiers[String(sub.participant_id)] ?? 0;
       const result = resolveTrpgRoll({
         d20,
         statModifier: statModifier(statRow?.value ?? 5),
+        conditionModifier,
         dc: scenario.diceRules.dc,
         rules: scenario.diceRules,
       });
@@ -673,6 +686,7 @@ function persistRolls(
         result.d20,
         statKey,
         statModifier(statRow?.value ?? 5),
+        conditionModifier,
         result.finalScore,
         result.dc,
         result.tier
@@ -750,6 +764,17 @@ async function runGmForRound(
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
   const actions = sortByResolutionOrder(loadActionsForGm(db, opts.roundId, scenario.statDefs), resolutionOrder);
   const latestScene = previousNarration(db, opts.campaignId);
+  const mechanics = opts.opening
+    ? null
+    : opts.regenerate
+      ? loadMechanicsResolution(db, opts.roundId)
+      : await completeRoundMechanics(db, {
+          campaignId: opts.campaignId,
+          roundId: opts.roundId,
+          opening: false,
+          previousScene: latestScene,
+          deps: opts.deps,
+        });
   const memory = buildCampaignMemoryPrompt(db, opts.campaignId, {
     actionText: actions.map((action) => `${action.name}: ${action.body}`).join("\n"),
     sceneText: latestScene,
@@ -810,6 +835,7 @@ async function runGmForRound(
     scenarioPlanBlock,
     storyDirectorBlock,
     resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
+    mechanicsPacket: mechanics?.packet ?? "",
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
@@ -826,7 +852,7 @@ async function runGmForRound(
       usedScenarioTags
     );
     stage = "state_validation";
-    applyValidatedStateDelta(sheets, parsed.delta);
+    mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
     if (!opts.regenerate) {
       savePendingGmResult(db, opts.roundId, parsed);
     }
@@ -876,7 +902,8 @@ function commitPendingGmResult(
   const parsed = opts.parsed;
   const scenario = loadScenario(db, campaign.id);
   const sheets = loadSheetSnapshots(db, campaign.id);
-  const applied = applyValidatedStateDelta(sheets, parsed.delta);
+  const mechanics = loadMechanicsResolution(db, opts.roundId);
+  const applied = mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
   const nextSheets = applied.ok ? applied.next : sheets;
   const roundNumber = (
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
@@ -900,6 +927,8 @@ function commitPendingGmResult(
       if (opts.regenerate) return;
       if (applied.ok) {
         persistSheets(db, nextSheets);
+        applyMechanicsOnCommit(db, mechanics);
+        if (mechanics) markMechanicsApplied(db, mechanics);
         db.prepare(
           `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
            VALUES (?,?,?,?)`

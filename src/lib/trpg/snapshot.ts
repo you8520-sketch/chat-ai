@@ -140,6 +140,22 @@ export type TrpgCampaignSnapshot = {
   gmFailureBillingSubstage?: string | null;
   gmFailureBillingErrorCode?: string | null;
   hasPendingGmResult?: boolean;
+  ongoingEffects?: TrpgPublicOngoingEffect[];
+  mechanicsLines?: TrpgMechanicsHudLine[];
+};
+
+export type TrpgPublicOngoingEffect = {
+  participantId: number;
+  label: string;
+  kind: string;
+  severity: string;
+  remainingTicks: number;
+  recoveryHint: string;
+};
+
+export type TrpgMechanicsHudLine = {
+  participantId: number;
+  text: string;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

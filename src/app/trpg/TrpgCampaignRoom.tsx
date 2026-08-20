@@ -1133,7 +1133,14 @@ export default function TrpgCampaignRoom({
           ) : null}
           <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
         </div>
-        {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
+        {selfSheet ? (
+          <TrpgSelfSheetHud
+            card={selfSheet}
+            statDefs={snap.statDefs}
+            ongoingEffects={snap.ongoingEffects}
+            mechanicsLines={snap.mechanicsLines}
+          />
+        ) : null}
       </div>
 
       <aside

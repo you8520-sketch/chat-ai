@@ -39,6 +39,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /table-talk/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
     assert.match(TRPG_GM_SYSTEM, /Never replay/);
+    assert.match(TRPG_GM_SYSTEM, /AUTHORITATIVE MECHANICS/);
+    assert.match(TRPG_GM_SYSTEM, /mechanics wins/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     assert.equal(TRPG_GM_MIN_CHARS, 3000);
     assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);
@@ -112,6 +114,14 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(sheets, /SCENARIO SHEET STATS/);
     assert.match(sheets, /힘 \(str\)/);
+    const withMechanics = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "",
+      opening: false,
+      mechanicsPacket: "[AUTHORITATIVE MECHANICS]\n렌\nHP 16/30",
+      actions: [],
+    });
+    assert.match(withMechanics, /AUTHORITATIVE MECHANICS/);
     const withSheets = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",

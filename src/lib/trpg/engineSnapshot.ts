@@ -30,6 +30,8 @@ import {
   type TrpgPublicRoll,
   type TrpgReadyState,
 } from "./snapshot";
+import { loadLatestCompleteMechanics, loadOngoingEffects } from "./mechanicsStore";
+import { formatMechanicsHudLines, recoveryHintKo } from "./sheetHud";
 import { hasPendingGmResult } from "./pendingGmResult";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
@@ -425,6 +427,24 @@ export function loadTrpgSnapshot(
       campaign.host_user_id === viewerUserId && round?.id
         ? hasPendingGmResult(db, round.id)
         : false,
+    ongoingEffects: loadOngoingEffects(db, campaignId).map((effect) => ({
+      participantId: effect.participantId,
+      label: effect.label,
+      kind: effect.kind,
+      severity: effect.severity,
+      remainingTicks: effect.remainingTicks,
+      recoveryHint: recoveryHintKo(effect),
+    })),
+    mechanicsLines: (() => {
+      const latest = loadLatestCompleteMechanics(db, campaignId);
+      if (!latest) return [];
+      return parts.flatMap((part) =>
+        formatMechanicsHudLines(latest, part.id).map((text) => ({
+          participantId: part.id,
+          text,
+        }))
+      );
+    })(),
   };
 }
 
