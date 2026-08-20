@@ -35,6 +35,7 @@ import {
 } from "./scenarioDraft";
 import {
   buildAuthoringRepairUser,
+  buildTrpgScenarioDraftRequestBody,
   completeTrpgAuthoringJson,
   FORM_PRESERVED_ON_TIMEOUT,
   isTrpgAuthoringTimeoutError,
@@ -75,6 +76,17 @@ const generated = parseScenarioDraftJson(
 describe("TRPG scenario AI draft", () => {
   it("uses the flash 0731 draft model constant", () => {
     assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+    const body = buildTrpgScenarioDraftRequestBody({
+      system: "system",
+      user: "user",
+      maxTokens: 1800,
+      temperature: 0.3,
+    });
+    assert.equal(body.model, TRPG_SCENARIO_DRAFT_MODEL);
+    assert.deepEqual(body.thinking, { type: "disabled" });
+    assert.equal(body.reasoning_effort, "none");
+    assert.equal(body.max_tokens, 1800);
+    assert.deepEqual(body.response_format, { type: "json_object" });
   });
 
   it("parses JSON and forces NPC stats to null", () => {

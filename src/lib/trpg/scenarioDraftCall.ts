@@ -108,6 +108,30 @@ export function logTrpgAuthoringUsage(opts: {
   });
 }
 
+export function buildTrpgScenarioDraftRequestBody(opts: {
+  system: string;
+  user: string;
+  maxTokens?: number;
+  temperature?: number;
+}): Record<string, unknown> {
+  const body = adaptCheaperInferenceChatBody({
+    model: TRPG_SCENARIO_DRAFT_MODEL,
+    messages: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+    stream: false,
+    temperature: opts.temperature ?? 0.6,
+    max_tokens: opts.maxTokens ?? 4096,
+    response_format: { type: "json_object" },
+  });
+  // Scenario authoring owns true-off after the generic DeepSeek adapter.
+  // This does not alter global adapter behavior or GM/Bot calls.
+  body.thinking = { type: "disabled" };
+  body.reasoning_effort = "none";
+  return body;
+}
+
 export async function callTrpgAuthoringModel(opts: {
   system: string;
   user: string;
@@ -120,16 +144,11 @@ export async function callTrpgAuthoringModel(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_DRAFT, latencyMs: Date.now() - started, model };
   }
-  const body = adaptCheaperInferenceChatBody({
-    model,
-    messages: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    stream: false,
-    temperature: opts.temperature ?? 0.6,
-    max_tokens: opts.maxTokens ?? 4096,
-    response_format: { type: "json_object" },
+  const body = buildTrpgScenarioDraftRequestBody({
+    system: opts.system,
+    user: opts.user,
+    maxTokens: opts.maxTokens,
+    temperature: opts.temperature,
   });
   const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
     method: "POST",
