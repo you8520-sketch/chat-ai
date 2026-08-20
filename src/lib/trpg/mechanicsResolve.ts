@@ -12,7 +12,7 @@ import {
   type DiceRng,
   DEFAULT_DICE_RNG,
 } from "./mechanicsDice";
-import { isSafeRestIntent } from "./mechanicsIntent";
+import { findExplicitTreatmentItem, isHpHealingItem, isSafeRestIntent } from "./mechanicsIntent";
 import {
   authorizedHealClass,
   evaluateSafeRestEligibility,
@@ -29,11 +29,14 @@ import {
   validateTreatment,
 } from "./mechanicsValidate";
 import {
-  MAX_DIRECT_TARGETS_PER_SOURCE,
+  MAX_DIRECT_HP_EFFECTS_PER_SOURCE,
+  MAX_ONGOING_TREAT_TARGETS_PER_ACTION,
   isOngoingActive,
   NO_DOUBLE_BURST_ON_APPLICATION,
+  type DirectHpOwner,
   type FlashActorEffect,
   type FlashMechanicsOutput,
+  type HpOwnershipFlags,
   type MechanicsActorInput,
   type MechanicsResolution,
   type RecoveryRollRecord,
@@ -304,6 +307,8 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     let lastDirect: MechanicsResolution["actors"][number]["direct"] = null;
     let physicalThreat = false;
     let skipped = false;
+    let directHpOwner: DirectHpOwner = "NONE";
+    let acceptedDirects = 0;
 
     if (preActionIncap.has(actor.participantId)) {
       skipped = true;
@@ -319,6 +324,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         rejected: true,
         rejectReason: "PRE_ACTION_HP_ZERO",
       };
+      directHpOwner = "NONE";
     } else if (restedActors.has(actor.participantId) || isSafeRestIntent(actor.body)) {
       lastDirect = {
         effect: "none",
@@ -332,25 +338,68 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         rejected: false,
         rejectReason: restedActors.has(actor.participantId) ? "safe_rest" : "safe_rest_blocked",
       };
+      directHpOwner = restedActors.has(actor.participantId) ? "SERVER_RECOVERY" : "NONE";
     } else {
-      let acceptedDirects = 0;
+      const authorized = authorizedHealClass({
+        actionType: actor.actionType,
+        body: actor.body,
+        tier: actor.tier,
+        sourceInventory: sourceSheet.inventory,
+        startInventory: input.startInventory ?? [],
+        specialRules: input.specialRules ?? "",
+      });
+      const reserveHeal = authorized.klass !== "NONE";
+      if (reserveHeal) {
+        const applied = applyAuthorizedHeal({
+          actor,
+          sourceSheet,
+          sheets,
+          flashRows: used,
+          rng,
+          startInventory: input.startInventory ?? [],
+          specialRules: input.specialRules ?? "",
+          consumeItems,
+        });
+        if (applied?.effect === "heal") {
+          lastDirect = { ...applied, owner: "SERVER_RECOVERY" };
+          acceptedDirects = 1;
+          directHpOwner = "SERVER_RECOVERY";
+        }
+      } else if (authorized.reason === "ITEM_HEAL_REJECTED_ITEM_MISSING") {
+        lastDirect = {
+          effect: "none",
+          class: "NONE",
+          cause: "none",
+          sourceParticipantId: actor.participantId,
+          targetParticipantId: actor.participantId,
+          dice: null,
+          hpBefore: sourceSheet.hp,
+          hpAfter: sourceSheet.hp,
+          rejected: true,
+          rejectReason: "ITEM_HEAL_REJECTED_ITEM_MISSING",
+          owner: "NONE",
+        };
+      }
       for (const flash of used) {
         const targetId = flash.targetParticipantId || actor.participantId;
         const targetSheet = sheets.get(targetId);
         if (!targetSheet) {
           validation = "rejected_partial";
-          lastDirect = {
-            effect: "none",
-            class: "NONE",
-            cause: "none",
-            sourceParticipantId: actor.participantId,
-            targetParticipantId: targetId,
-            dice: null,
-            hpBefore: sourceSheet.hp,
-            hpAfter: sourceSheet.hp,
-            rejected: true,
-            rejectReason: "unknown_target",
-          };
+          if (acceptedDirects === 0) {
+            lastDirect = {
+              effect: "none",
+              class: "NONE",
+              cause: "none",
+              sourceParticipantId: actor.participantId,
+              targetParticipantId: targetId,
+              dice: null,
+              hpBefore: sourceSheet.hp,
+              hpAfter: sourceSheet.hp,
+              rejected: true,
+              rejectReason: "unknown_target",
+              owner: "NONE",
+            };
+          }
           continue;
         }
         const threat = resolvePhysicalThreat({
@@ -376,9 +425,9 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
 
         let hp = targetSheet.hp;
         const wantsHp = (direct.effect === "harm" || direct.effect === "heal") && direct.klass !== "NONE";
-        if (wantsHp && acceptedDirects >= MAX_DIRECT_TARGETS_PER_SOURCE) {
+        if (wantsHp && (acceptedDirects >= MAX_DIRECT_HP_EFFECTS_PER_SOURCE || (reserveHeal && direct.effect === "harm"))) {
           validation = validation === "ok" ? "downgraded" : validation;
-        } else if (direct.effect === "harm" && direct.klass !== "NONE") {
+        } else if (direct.effect === "harm" && direct.klass !== "NONE" && acceptedDirects === 0) {
           const dice = rollDiceExpression(direct.klass, targetSheet.maxHp, rng);
           const hpAfter = clampHpAmount(hp - dice.amount, targetSheet.maxHp);
           lastDirect = {
@@ -392,10 +441,12 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
             hpAfter,
             rejected: false,
             rejectReason: null,
+            owner: "FLASH_REFEREE",
           };
           targetSheet.hp = hpAfter;
           acceptedDirects += 1;
-        } else if (direct.effect === "heal" && direct.klass !== "NONE") {
+          directHpOwner = "FLASH_REFEREE";
+        } else if (direct.effect === "heal" && direct.klass !== "NONE" && acceptedDirects === 0) {
           const healClass =
             direct.klass === "HEAVY" || direct.klass === "MEDIUM" || direct.klass === "LIGHT" ? direct.klass : "LIGHT";
           const applied = applyHealToSheet({
@@ -407,10 +458,14 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
             rng,
             startInventory: input.startInventory ?? [],
             specialRules: input.specialRules ?? "",
+            consumeItems,
           });
-          lastDirect = applied;
-          acceptedDirects += 1;
-        } else {
+          lastDirect = { ...applied, owner: "SERVER_RECOVERY" };
+          if (applied.effect === "heal") {
+            acceptedDirects += 1;
+            directHpOwner = "SERVER_RECOVERY";
+          }
+        } else if (acceptedDirects === 0 && lastDirect?.rejectReason !== "ITEM_HEAL_REJECTED_ITEM_MISSING") {
           lastDirect = {
             effect: "none",
             class: "NONE",
@@ -422,6 +477,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
             hpAfter: hp,
             rejected: direct.rejected,
             rejectReason: direct.reason,
+            owner: "NONE",
           };
         }
 
@@ -521,17 +577,11 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         consumeItems,
         ongoingClearedIds
       );
-      if (!skipped && lastDirect?.effect !== "heal") {
-        const authorized = applyAuthorizedHeal({
-          actor,
-          sourceSheet,
-          sheets,
-          flashRows: used,
-          rng,
-          startInventory: input.startInventory ?? [],
-          specialRules: input.specialRules ?? "",
-        });
-        if (authorized) lastDirect = authorized;
+      if (directHpOwner === "NONE" && !skipped && lastDirect?.rejectReason !== "ITEM_HEAL_REJECTED_ITEM_MISSING") {
+        directHpOwner = input.calledFlash && input.fallback === "none" ? "NONE" : "GM_LEGACY";
+        if (lastDirect && directHpOwner === "GM_LEGACY") {
+          lastDirect = { ...lastDirect, owner: "GM_LEGACY" };
+        }
       }
     }
 
@@ -543,6 +593,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
       preActionHp: preActionHp.get(actor.participantId) ?? sourceSheet.hp,
       skippedPhysicalAction: skipped,
       skipReason: skipped ? "PRE_ACTION_HP_ZERO" : null,
+      directHpOwner,
       direct: lastDirect ?? {
         effect: "none",
         class: "NONE",
@@ -554,6 +605,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         hpAfter: sourceSheet.hp,
         rejected: false,
         rejectReason: null,
+        owner: directHpOwner,
       },
     });
   }
@@ -610,6 +662,8 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     preActionIncap,
     ongoingAdds,
     safeRests,
+    fallback: input.fallback,
+    calledFlash: input.calledFlash,
   });
 
   const harmCount = actors.filter((row) => row.direct?.effect === "harm").length;
@@ -638,6 +692,12 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     hpAfter,
     incapacitated,
     safeRests,
+    hpOwnership: buildHpOwnership({
+      sheets: [...sheets.values()],
+      actors,
+      ongoingTicks,
+      safeRests,
+    }),
     applied: false,
     flashRaw: input.flashRaw ?? input.existing?.flashRaw ?? null,
     packet,
@@ -680,6 +740,7 @@ function applyTreatmentsValidation(
   const requested = [...new Set([...removeIds, ...reduceIds])];
   let next = validation;
   let consumed = false;
+  let treated = 0;
   for (const id of requested) {
     const effect = liveEffects.find((row) => row.id === id && row.participantId === targetId);
     const verdict = validateTreatment({
@@ -696,6 +757,11 @@ function applyTreatmentsValidation(
       continue;
     }
     if (!effect) continue;
+    if (treated >= MAX_ONGOING_TREAT_TARGETS_PER_ACTION) {
+      next = next === "ok" ? "downgraded" : next;
+      continue;
+    }
+    treated += 1;
     if (verdict.allow === "remove") {
       effect.remainingTicks = 0;
       if (effect.id > 0) ongoingClearedIds.add(effect.id);
@@ -729,12 +795,15 @@ function applyTreatmentsValidation(
 }
 
 function effectMatchesTreatment(effect: TrpgOngoingEffect, body: string, item: string | null): boolean {
-  const key = `${effect.stackKey} ${effect.label}`;
+  const key = `${effect.stackKey} ${effect.label} ${effect.kind}`;
   if (item === "해독제" || /해독|antidote|poison|중독/i.test(body)) {
     return /poison|중독|독/i.test(key);
   }
   if (item === "붕대" || /붕대|지혈|bandage|bleed|출혈/i.test(body)) {
     return /bleed|출혈/i.test(key);
+  }
+  if (/마비|paralys/i.test(body)) {
+    return /마비|paralys|control/i.test(key);
   }
   return true;
 }
@@ -743,6 +812,7 @@ function inferConsumeItem(body: string, flashItem: string | null): string | null
   if (flashItem?.trim()) return flashItem.trim();
   if (/해독제|antidote/i.test(body)) return "해독제";
   if (/붕대|bandage/i.test(body)) return "붕대";
+  if (/구급키트|medkit/i.test(body)) return "구급키트";
   return null;
 }
 
@@ -790,7 +860,8 @@ function applyServerOwnedTreatments(
           row.id > 0 &&
           effectMatchesTreatment(row, actor.body, consumeItem)
       )
-      .map((row) => row.id),
+      .map((row) => row.id)
+      .slice(0, MAX_ONGOING_TREAT_TARGETS_PER_ACTION),
   };
   if (!synthetic.ongoingRemoveIds?.length) return validation;
   return applyTreatmentsValidation(
@@ -889,6 +960,7 @@ function applyHealToSheet(opts: {
   rng: DiceRng;
   startInventory: readonly string[];
   specialRules: string;
+  consumeItems: MechanicsResolution["consumeItems"];
 }): NonNullable<MechanicsResolution["actors"][number]["direct"]> {
   const dice = rollDiceExpression(opts.healClass, opts.targetSheet.maxHp, opts.rng);
   let amount = dice.amount;
@@ -910,6 +982,16 @@ function applyHealToSheet(opts: {
     }
   }
   opts.targetSheet.hp = hpAfter;
+  if (amount > 0 && owner === "item") {
+    const item = findExplicitTreatmentItem(
+      opts.actor.body,
+      opts.sourceSheet.inventory,
+      opts.startInventory
+    );
+    if (item && isHpHealingItem(item)) {
+      recordHealItemConsume(opts.consumeItems, opts.sourceSheet, item);
+    }
+  }
   return {
     effect: amount > 0 ? "heal" : "none",
     class: opts.healClass,
@@ -920,7 +1002,8 @@ function applyHealToSheet(opts: {
     hpBefore: opts.hp,
     hpAfter,
     rejected: amount <= 0,
-    rejectReason: amount <= 0 ? "first_aid_ceiling" : null,
+    rejectReason: amount <= 0 ? (owner === "item" ? "ITEM_HEAL_REJECTED_ITEM_MISSING" : "first_aid_ceiling") : null,
+    owner: "SERVER_RECOVERY",
   };
 }
 
@@ -932,6 +1015,7 @@ function applyAuthorizedHeal(opts: {
   rng: DiceRng;
   startInventory: readonly string[];
   specialRules: string;
+  consumeItems: MechanicsResolution["consumeItems"];
 }): MechanicsResolution["actors"][number]["direct"] {
   const authorized = authorizedHealClass({
     actionType: opts.actor.actionType,
@@ -959,7 +1043,23 @@ function applyAuthorizedHeal(opts: {
     rng: opts.rng,
     startInventory: opts.startInventory,
     specialRules: opts.specialRules,
+    consumeItems: opts.consumeItems,
   });
+}
+
+function recordHealItemConsume(
+  consumeItems: MechanicsResolution["consumeItems"],
+  sourceSheet: TrpgSheetSnapshot,
+  item: string
+): void {
+  const already = consumeItems.some(
+    (row) => row.participantId === sourceSheet.participantId && row.item === item
+  );
+  if (already) return;
+  const idx = sourceSheet.inventory.indexOf(item);
+  if (idx < 0) return;
+  consumeItems.push({ participantId: sourceSheet.participantId, item });
+  sourceSheet.inventory.splice(idx, 1);
 }
 
 function emptyFlash(participantId: number): FlashActorEffect {
@@ -1011,6 +1111,8 @@ function formatAuthoritativePacket(opts: {
   preActionIncap: Set<number>;
   ongoingAdds: MechanicsResolution["ongoingAdds"];
   safeRests: SafeRestRecord[];
+  fallback: MechanicsResolution["fallback"];
+  calledFlash: boolean;
 }): string {
   const blocks = opts.sheets.map((sheet) => {
     const name = sheet.name;
@@ -1054,13 +1156,15 @@ function formatAuthoritativePacket(opts: {
       lines.push(`CURRENT ACTION: ${input.actionType ?? "free"} ${input.tier ?? ""}`.trim());
       if (actor.skippedPhysicalAction) {
         lines.push("authoritative: 시도하지 못함/쓰러짐");
+      } else if (actor.directHpOwner === "GM_LEGACY") {
+        lines.push("GM_LEGACY_DIRECT current action HP is not mechanics-classified");
       } else if (actor.direct && actor.direct.effect !== "none") {
         const targetNote =
           actor.direct.targetParticipantId !== actor.direct.sourceParticipantId
             ? ` target=${actor.direct.targetParticipantId}`
             : "";
         lines.push(
-          `direct ${actor.direct.effect}: ${actor.direct.class} ${actor.direct.dice?.expression ?? ""} = ${actor.direct.dice?.total ?? 0} HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}${targetNote}`
+          `direct ${actor.direct.effect}: ${actor.direct.class} ${actor.direct.dice?.expression ?? ""} = ${actor.direct.dice?.total ?? 0} HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}${targetNote} owner=${actor.direct.owner ?? actor.directHpOwner}`
         );
       } else {
         lines.push("direct: NONE");
@@ -1073,6 +1177,28 @@ function formatAuthoritativePacket(opts: {
     return lines.join("\n");
   });
   return `[AUTHORITATIVE MECHANICS]\n${blocks.join("\n\n")}`;
+}
+
+function buildHpOwnership(opts: {
+  sheets: TrpgSheetSnapshot[];
+  actors: MechanicsResolution["actors"];
+  ongoingTicks: MechanicsResolution["ongoingTicks"];
+  safeRests: SafeRestRecord[];
+}): Record<string, HpOwnershipFlags> {
+  const out: Record<string, HpOwnershipFlags> = {};
+  for (const sheet of opts.sheets) {
+    const actor = opts.actors.find((row) => row.participantId === sheet.participantId);
+    const rest = opts.safeRests.some((row) => row.participantId === sheet.participantId && row.allowed);
+    const recoveryDirect =
+      actor?.directHpOwner === "SERVER_RECOVERY" || actor?.direct?.owner === "SERVER_RECOVERY";
+    out[String(sheet.participantId)] = {
+      SERVER_PREACTION: opts.ongoingTicks.some((row) => row.participantId === sheet.participantId),
+      SERVER_RECOVERY: rest || recoveryDirect,
+      FLASH_REFEREE: actor?.directHpOwner === "FLASH_REFEREE" || actor?.direct?.owner === "FLASH_REFEREE",
+      GM_LEGACY: actor?.directHpOwner === "GM_LEGACY",
+    };
+  }
+  return out;
 }
 
 function emptyObservability(): MechanicsResolution["observability"] {

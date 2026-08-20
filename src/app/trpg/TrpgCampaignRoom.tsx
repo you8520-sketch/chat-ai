@@ -10,6 +10,8 @@ import {
   SAFE_REST_COOLDOWN_HINT,
   SAFE_REST_ONGOING_NOTICE,
   contextualFirstAidDraft,
+  contextualStatusTreatDraft,
+  showContextualStatusTreat,
   contextualSafeRestDraft,
   showContextualFirstAid,
 } from "@/lib/trpg/actionComposer";
@@ -1017,6 +1019,12 @@ export default function TrpgCampaignRoom({
                         .map((effect) => effect.label),
                     })
                   : null;
+                const statusTreat = showContextualStatusTreat({ treatableOngoing: treatable });
+                const statusTreatDraft = contextualStatusTreatDraft(
+                  (snap.ongoingEffects ?? [])
+                    .filter((effect) => effect.participantId === viewerId)
+                    .map((effect) => effect.label)
+                );
                 const rest = snap.safeRest;
                 const showRest = Boolean(rest?.available && hp < maxHp);
                 const showHint = snap.showRecoveryHint === true;
@@ -1028,7 +1036,7 @@ export default function TrpgCampaignRoom({
                     {showHint && rest?.blockedReason === "cooldown" ? (
                       <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
                     ) : null}
-                    {firstAid || showRest ? (
+                    {firstAid || statusTreat || showRest ? (
                       <div className="mb-2 flex flex-wrap gap-1.5">
                         {firstAid && firstAidDraft ? (
                           <button
@@ -1040,7 +1048,20 @@ export default function TrpgCampaignRoom({
                             }}
                             className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100"
                           >
-                            {firstAidDraft.kind === "status" ? "🩹 상태 치료" : "🩹 응급처치"}
+                            🩹 응급처치
+                          </button>
+                        ) : null}
+                        {statusTreat ? (
+                          <button
+                            type="button"
+                            data-contextual="status-treat"
+                            onClick={() => {
+                              onActionTypeChange(statusTreatDraft.actionType);
+                              onActionBodyChange(statusTreatDraft.body);
+                            }}
+                            className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-100"
+                          >
+                            💊 상태 치료
                           </button>
                         ) : null}
                         {showRest && rest ? (

@@ -14,8 +14,22 @@ export const NO_DAMAGE_REROLL = true;
 export const NO_DOUBLE_DAMAGE = true;
 export const NO_DOUBLE_POISON_TICK = true;
 export const NO_DOUBLE_ITEM_CONSUME = true;
+export const NO_DOUBLE_HEAL_ITEM_CONSUME = true;
+export const NO_SILENT_DIRECT_OVERWRITE = true;
+export const NO_SILENT_HARM_PLUS_HEAL = true;
+export const SAFE_REST_PREVIEW_EXACT = true;
+export const FLAG_OFF_FIRST_AID_COMMITS = true;
+export const FLAG_OFF_LEGACY_COMBAT_HP_PRESERVED = true;
+export const CURRENT_INVENTORY_REQUIRED_FOR_ITEM_HEAL = true;
+export const DIRECT_HEAL_ITEM_CONSUMED_ONCE = true;
+export const POST_COMBAT_REST_AVAILABLE = true;
+export const PARALYSIS_DRAFT_CORRECT = true;
+export const STATUS_TREATMENT_DOES_NOT_HEAL_HP = true;
+export const ONE_STATUS_PER_TREATMENT = true;
 export const TOTAL_ONGOING_DAMAGE_RATIO = 0.35;
 export const MAX_DIRECT_TARGETS_PER_SOURCE = 1;
+export const MAX_DIRECT_HP_EFFECTS_PER_SOURCE = 1;
+export const MAX_ONGOING_TREAT_TARGETS_PER_ACTION = 1;
 export const SAFE_REST_HEAL_RATIO = 0.2;
 export const SAFE_REST_COOLDOWN_ROUNDS = 4;
 export const BASIC_FIRST_AID_HP_CEILING_RATIO = 0.7;
@@ -72,6 +86,16 @@ export const TICK_CLASSES = ["CHIP", "LIGHT", "MEDIUM"] as const;
 export type TickClass = (typeof TICK_CLASSES)[number];
 
 export type MechanicsFallback = "none" | "gm_legacy" | "flash_failure";
+
+export const DIRECT_HP_OWNERS = ["SERVER_RECOVERY", "FLASH_REFEREE", "GM_LEGACY", "NONE"] as const;
+export type DirectHpOwner = (typeof DIRECT_HP_OWNERS)[number];
+
+export type HpOwnershipFlags = {
+  SERVER_PREACTION: boolean;
+  SERVER_RECOVERY: boolean;
+  FLASH_REFEREE: boolean;
+  GM_LEGACY: boolean;
+};
 
 export type SafeRestBlockedReason =
   | "full_hp"
@@ -183,6 +207,7 @@ export type DirectResolution = {
   hpAfter: number;
   rejected: boolean;
   rejectReason: string | null;
+  owner?: DirectHpOwner;
 };
 
 export type OngoingTickRecord = {
@@ -232,6 +257,7 @@ export type MechanicsResolution = {
     preActionHp: number;
     skippedPhysicalAction: boolean;
     skipReason: "PRE_ACTION_HP_ZERO" | null;
+    directHpOwner?: DirectHpOwner;
     direct: DirectResolution | null;
   }>;
   ongoingTicks: OngoingTickRecord[];
@@ -258,6 +284,7 @@ export type MechanicsResolution = {
   hpAfter: Record<string, number>;
   incapacitated: Array<{ participantId: number; reason: "hp_zero" }>;
   safeRests?: SafeRestRecord[];
+  hpOwnership?: Record<string, HpOwnershipFlags>;
   applied?: boolean;
   flashRaw?: string | null;
   packet: string;

@@ -4,10 +4,13 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   CONTEXTUAL_FIRST_AID_DRAFT,
+  CONTEXTUAL_PARALYSIS_TREAT_DRAFT,
   CONTEXTUAL_SAFE_REST_DRAFT,
   contextualFirstAidDraft,
   contextualSafeRestDraft,
+  contextualStatusTreatDraft,
   showContextualFirstAid,
+  showContextualStatusTreat,
 } from "./actionComposer";
 import { TRPG_ACTION_TYPES } from "./actionTypes";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
@@ -373,9 +376,13 @@ describe("TRPG contextual recovery UI", () => {
     assert.equal(draft.body, CONTEXTUAL_FIRST_AID_DRAFT);
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /data-contextual="first-aid"/);
+    assert.match(room, /data-contextual="status-treat"/);
     assert.match(room, /onActionTypeChange\(firstAidDraft\.actionType\)/);
     assert.match(room, /onActionBodyChange\(firstAidDraft\.body\)/);
+    assert.match(room, /onActionTypeChange\(statusTreatDraft\.actionType\)/);
+    assert.match(room, /onActionBodyChange\(statusTreatDraft\.body\)/);
     assert.doesNotMatch(room, /data-contextual="first-aid"[\s\S]{0,400}onSendAction\(\)/);
+    assert.doesNotMatch(room, /data-contextual="status-treat"[\s\S]{0,400}onSendAction\(\)/);
     assert.ok(!TRPG_ACTION_TYPES.includes("heal" as (typeof TRPG_ACTION_TYPES)[number]));
     assert.ok(!TRPG_ACTION_TYPES.includes("first_aid" as (typeof TRPG_ACTION_TYPES)[number]));
     assert.ok(!TRPG_ACTION_TYPES.includes("rest" as (typeof TRPG_ACTION_TYPES)[number]));
@@ -437,6 +444,10 @@ describe("TRPG contextual recovery UI", () => {
       "cooldown"
     );
     assert.equal(showContextualFirstAid({ hp: 10, maxHp: 25, treatableOngoing: false }), true);
+    assert.equal(showContextualFirstAid({ hp: 25, maxHp: 25, treatableOngoing: true }), false);
+    assert.equal(showContextualStatusTreat({ treatableOngoing: true }), true);
+    assert.equal(showContextualStatusTreat({ treatableOngoing: false }), false);
+    assert.equal(contextualStatusTreatDraft(["마비"]).body, CONTEXTUAL_PARALYSIS_TREAT_DRAFT);
     const restDraft = contextualSafeRestDraft();
     assert.equal(restDraft.actionType, "free");
     assert.equal(restDraft.body, CONTEXTUAL_SAFE_REST_DRAFT);

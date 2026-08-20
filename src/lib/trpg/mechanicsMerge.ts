@@ -14,6 +14,42 @@ function restNetFor(resolution: MechanicsResolution, participantId: number): num
     .reduce((sum, row) => sum + (row.hpAfter - row.hpBefore), 0);
 }
 
+function serverRecoveryDirectNet(resolution: MechanicsResolution, participantId: number): number {
+  return resolution.actors
+    .filter(
+      (row) =>
+        (row.directHpOwner === "SERVER_RECOVERY" || row.direct?.owner === "SERVER_RECOVERY") &&
+        row.direct &&
+        !row.direct.rejected &&
+        row.direct.effect !== "none" &&
+        row.direct.targetParticipantId === participantId
+    )
+    .reduce((sum, row) => sum + ((row.direct?.hpAfter ?? 0) - (row.direct?.hpBefore ?? 0)), 0);
+}
+
+export function hpOwnershipOf(resolution: MechanicsResolution, participantId: number) {
+  return (
+    resolution.hpOwnership?.[String(participantId)] ?? {
+      SERVER_PREACTION: resolution.ongoingTicks.some((row) => row.participantId === participantId),
+      SERVER_RECOVERY:
+        (resolution.safeRests ?? []).some((row) => row.participantId === participantId && row.allowed) ||
+        resolution.actors.some(
+          (row) =>
+            (row.directHpOwner === "SERVER_RECOVERY" || row.direct?.owner === "SERVER_RECOVERY") &&
+            row.direct?.targetParticipantId === participantId
+        ),
+      FLASH_REFEREE: resolution.actors.some(
+        (row) =>
+          (row.directHpOwner === "FLASH_REFEREE" || row.direct?.owner === "FLASH_REFEREE") &&
+          row.direct?.targetParticipantId === participantId
+      ),
+      GM_LEGACY: resolution.actors.some(
+        (row) => row.participantId === participantId && row.directHpOwner === "GM_LEGACY"
+      ),
+    }
+  );
+}
+
 export type MechanicsMergeResult =
   | {
       ok: true;
@@ -24,9 +60,9 @@ export type MechanicsMergeResult =
   | { ok: false; error: string; detail: string; AUTHORITATIVE_DAMAGE_NOT_LOST: false };
 
 /**
- * Option A: mechanics-owned HP/consume is the authoritative base.
- * GM inventory/location/conditions are applied field-by-field and sanitized.
- * Invalid GM inventory never drops mechanics HP.
+ * Layered HP commit. Fallback string is not a binary "all mechanics / all GM" switch.
+ * SERVER_PREACTION / SERVER_RECOVERY always persist. FLASH_REFEREE is authoritative
+ * when present. GM_LEGACY only owns unclassified current-action HP.
  */
 export function mergeMechanicsOwnedDelta(
   sheets: TrpgSheetSnapshot[],
@@ -34,17 +70,17 @@ export function mergeMechanicsOwnedDelta(
   resolution: MechanicsResolution | null
 ): MechanicsMergeResult {
   const complete = resolution?.complete === true;
-  const mechanicsOwnsHp = complete && resolution.fallback === "none";
 
   const next = sheets.map((sheet) => {
     const copy = { ...sheet, inventory: [...sheet.inventory], conditions: [...sheet.conditions], stats: { ...sheet.stats } };
     if (complete && resolution) {
-      if (mechanicsOwnsHp) {
-        const hp = resolution.hpAfter[String(sheet.participantId)];
-        if (hp != null) copy.hp = clampHp(hp, copy.maxHp);
-      } else {
-        copy.hp = fallbackHpAfterTickAndGmHeal(sheet.hp, copy.maxHp, resolution, sheet.participantId, sheet.hp);
-      }
+      copy.hp = resolveParticipantHp({
+        startHp: sheet.hp,
+        maxHp: copy.maxHp,
+        resolution,
+        participantId: sheet.participantId,
+        gmHp: null,
+      });
       for (const row of resolution.consumeItems) {
         if (row.participantId !== sheet.participantId) continue;
         const idx = copy.inventory.indexOf(row.item);
@@ -81,8 +117,15 @@ export function mergeMechanicsOwnedDelta(
         cur.inventory.splice(idx, 1);
       }
     }
-    if (patch.hp != null && !mechanicsOwnsHp && complete && resolution) {
-      cur.hp = fallbackHpAfterTickAndGmHeal(sheets.find((row) => row.participantId === cur.participantId)?.hp ?? cur.hp, cur.maxHp, resolution, cur.participantId, patch.hp);
+    if (patch.hp != null && complete && resolution) {
+      const start = sheets.find((row) => row.participantId === cur.participantId)?.hp ?? cur.hp;
+      cur.hp = resolveParticipantHp({
+        startHp: start,
+        maxHp: cur.maxHp,
+        resolution,
+        participantId: cur.participantId,
+        gmHp: patch.hp,
+      });
     } else if (patch.hp != null && !complete) {
       if (Number.isInteger(patch.hp) && patch.hp >= 0 && patch.hp <= cur.maxHp) {
         cur.hp = clampHp(patch.hp, cur.maxHp);
@@ -107,10 +150,47 @@ export function mergeMechanicsOwnedDelta(
   };
 }
 
+export function resolveParticipantHp(opts: {
+  startHp: number;
+  maxHp: number;
+  resolution: MechanicsResolution;
+  participantId: number;
+  gmHp: number | null;
+}): number {
+  const ownership = hpOwnershipOf(opts.resolution, opts.participantId);
+  if (ownership.FLASH_REFEREE) {
+    const stored = opts.resolution.hpAfter[String(opts.participantId)];
+    if (stored != null) return clampHp(stored, opts.maxHp);
+  }
+  if (opts.gmHp == null) {
+    if (ownership.SERVER_RECOVERY || ownership.SERVER_PREACTION) {
+      return fallbackHpAfterTickAndGmHeal(
+        opts.startHp,
+        opts.maxHp,
+        opts.resolution,
+        opts.participantId,
+        opts.startHp
+      );
+    }
+    const stored = opts.resolution.hpAfter[String(opts.participantId)];
+    return stored != null && !ownership.GM_LEGACY ? clampHp(stored, opts.maxHp) : clampHp(opts.startHp, opts.maxHp);
+  }
+  if (ownership.FLASH_REFEREE) {
+    const stored = opts.resolution.hpAfter[String(opts.participantId)];
+    if (stored != null) return clampHp(stored, opts.maxHp);
+  }
+  return fallbackHpAfterTickAndGmHeal(
+    opts.startHp,
+    opts.maxHp,
+    opts.resolution,
+    opts.participantId,
+    opts.gmHp
+  );
+}
+
 /**
- * Flag-off / Flash-failure: tick is mechanics-owned, GM heal is legacy-owned.
- * Tick cannot be erased. Heal above start HP survives after the tick.
- * start=20 tick=-4 postTick=16 GM=21 → 21.
+ * SERVER_PREACTION + SERVER_RECOVERY are the mechanics floor.
+ * GM heal above start still survives. Stale start-HP writes cannot erase them.
  */
 export function fallbackHpAfterTickAndGmHeal(
   startHp: number,
@@ -121,12 +201,13 @@ export function fallbackHpAfterTickAndGmHeal(
 ): number {
   const tickNet = tickNetFor(resolution, participantId);
   const restNet = restNetFor(resolution, participantId);
-  const postMechanics = clampHp(startHp - tickNet + restNet, maxHp);
+  const recoveryNet = restNet + serverRecoveryDirectNet(resolution, participantId);
+  const postMechanics = clampHp(startHp - tickNet + recoveryNet, maxHp);
   if (gmHp > startHp) {
     return clampHp(Math.max(postMechanics, gmHp), maxHp);
   }
   if (gmHp === startHp) {
     return postMechanics;
   }
-  return clampHp(Math.min(gmHp + restNet, postMechanics), maxHp);
+  return clampHp(Math.min(gmHp + recoveryNet, postMechanics), maxHp);
 }

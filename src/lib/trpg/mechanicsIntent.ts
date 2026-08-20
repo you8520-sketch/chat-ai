@@ -14,6 +14,8 @@ const CANON_HEAL_RE = /치유 주문|회복 마법|힐링 스펠|대치유|heali
 export const CONTEXTUAL_FIRST_AID_DRAFT = "상처를 응급처치한다.";
 export const CONTEXTUAL_POISON_TREAT_DRAFT = "중독 상태를 치료하려 한다.";
 export const CONTEXTUAL_BLEED_TREAT_DRAFT = "출혈을 지혈하려 한다.";
+export const CONTEXTUAL_PARALYSIS_TREAT_DRAFT = "마비 상태를 완화하려 한다.";
+export const CONTEXTUAL_STATUS_TREAT_DRAFT = "현재 상태이상을 치료하려 한다.";
 export const CONTEXTUAL_SAFE_REST_DRAFT = "안전한 곳에서 잠시 휴식하며 상처를 추스른다.";
 export const RECOVERY_DISCOVERY_HINT =
   "HP 회복: 지원으로 응급처치 · 안전한 곳에서 휴식 · 치료 아이템 사용";
@@ -44,12 +46,16 @@ export function hasCanonHealingCapability(specialRules: string, body: string): b
   return CANON_HEAL_RE.test(rules) && CANON_HEAL_RE.test(body);
 }
 
+export function mentionsHealingItem(body: string, extraKnown: readonly string[] = []): boolean {
+  if (TREATMENT_ITEM_NAME_RE.test(body)) return true;
+  return extraKnown.some((item) => item.trim() && body.includes(item.trim()));
+}
+
 export function findExplicitTreatmentItem(
   body: string,
   sourceInventory: readonly string[],
   extraKnown: readonly string[] = []
 ): string | null {
-  const known = [...sourceInventory, ...extraKnown];
   for (const item of sourceInventory) {
     const name = item.trim();
     if (!name) continue;
@@ -59,7 +65,9 @@ export function findExplicitTreatmentItem(
   }
   const mentioned = body.match(TREATMENT_ITEM_NAME_RE)?.[0];
   if (!mentioned) return null;
-  const found = known.find((row) => row.includes(mentioned) || mentioned.includes(row.trim()));
+  const found = sourceInventory.find(
+    (row) => row.includes(mentioned) || mentioned.includes(row.trim())
+  );
   return found?.trim() || null;
 }
 
@@ -74,7 +82,10 @@ export function isTreatmentItemIntent(
 }
 
 export function isStatusTreatmentOnly(body: string): boolean {
-  return /해독|antidote|중독/.test(body) && !/상처|응급|회복약|구급|체력|붕대|지혈/i.test(body);
+  if (/상처|응급처치|구급|회복약|체력/.test(body) && !/상태/.test(body)) return false;
+  return /해독|antidote|중독 상태|마비 상태|출혈을 지혈|상태이상을 치료|상태를 치료|상태를 완화|paralys/i.test(
+    body
+  );
 }
 
 export function isHpHealingItem(name: string): boolean {
@@ -90,6 +101,9 @@ export function isHealingIntentAction(
   if (isSafeRestIntent(body)) return false;
   if (isCoverFireSupport(body)) return false;
   if (isStatusTreatmentOnly(body)) return false;
+  if (mentionsHealingItem(body, extraKnown) && !findExplicitTreatmentItem(body, sourceInventory, extraKnown)) {
+    return isBasicFirstAidIntent(body);
+  }
   if (isBasicFirstAidIntent(body)) return true;
   const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
   if (item && isTreatmentItemIntent(body, sourceInventory, extraKnown) && isHpHealingItem(item)) return true;
@@ -110,17 +124,26 @@ export function contextualFirstAidDraft(opts: {
   maxHp: number;
   effectLabels?: readonly string[];
 }): { actionType: "support"; body: string; kind: ContextualFirstAidKind } {
-  const labels = (opts.effectLabels ?? []).join(" ");
+  void opts;
+  return { actionType: "support", body: CONTEXTUAL_FIRST_AID_DRAFT, kind: "first_aid" };
+}
+
+export function contextualStatusTreatDraft(effectLabels: readonly string[] = []): {
+  actionType: "support";
+  body: string;
+  kind: "status";
+} {
+  const labels = effectLabels.join(" ");
   if (/중독|독|poison/i.test(labels)) {
     return { actionType: "support", body: CONTEXTUAL_POISON_TREAT_DRAFT, kind: "status" };
   }
   if (/출혈|bleed/i.test(labels)) {
     return { actionType: "support", body: CONTEXTUAL_BLEED_TREAT_DRAFT, kind: "status" };
   }
-  if (opts.hp >= opts.maxHp && labels.trim()) {
-    return { actionType: "support", body: CONTEXTUAL_POISON_TREAT_DRAFT, kind: "status" };
+  if (/마비|paralys/i.test(labels)) {
+    return { actionType: "support", body: CONTEXTUAL_PARALYSIS_TREAT_DRAFT, kind: "status" };
   }
-  return { actionType: "support", body: CONTEXTUAL_FIRST_AID_DRAFT, kind: "first_aid" };
+  return { actionType: "support", body: CONTEXTUAL_STATUS_TREAT_DRAFT, kind: "status" };
 }
 
 export function contextualSafeRestDraft(): { actionType: "free"; body: string } {
@@ -130,7 +153,12 @@ export function contextualSafeRestDraft(): { actionType: "free"; body: string } 
 export function showContextualFirstAid(opts: {
   hp: number;
   maxHp: number;
-  treatableOngoing: boolean;
+  treatableOngoing?: boolean;
 }): boolean {
-  return opts.hp < opts.maxHp || opts.treatableOngoing;
+  void opts.treatableOngoing;
+  return opts.hp < opts.maxHp;
+}
+
+export function showContextualStatusTreat(opts: { treatableOngoing: boolean }): boolean {
+  return opts.treatableOngoing;
 }

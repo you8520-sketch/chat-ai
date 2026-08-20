@@ -40,6 +40,7 @@ import {
   isBasicFirstAidIntent,
   isHealingIntentAction as intentHeal,
   isTreatmentItemIntent,
+  mentionsHealingItem,
 } from "./mechanicsIntent";
 import {
   SAFE_REST_COOLDOWN_ROUNDS,
@@ -140,9 +141,22 @@ export function capHarmClass(tier: TrpgSuccessTier | null, requested: MechanicsC
 
 const PHYSICAL_THREAT_CUE =
   /함정|trap|붕괴|hazard|총격|gunfire|적탄|적습|습격|독니|venom|독액|독사|뱀독|붕괴하는|무너지|전투|교전|피격|습격당|적에게 노출|enemy|gunfire/i;
+const THREAT_ENDED =
+  /전투가 끝|전투는 끝|전투가 종료|총격이 멎|총격이 멈|총성이 멎|적은 물러|적이 물러|교전이 끝|싸움이 끝|전장이 잠/;
+const THREAT_RESUME =
+  /다시\s*.{0,16}(총격|전투|교전|습격)|아직\s*.{0,16}(총격|전투|적)|이어진다|계속된다|재개|시작됐|시작되었/;
 
 export function hasPhysicalThreatCue(text: string): boolean {
-  return PHYSICAL_THREAT_CUE.test(text);
+  return hasActivePhysicalThreat(text);
+}
+
+/** Deterministic active-threat detector. Ended-combat language is not an active threat. */
+export function hasActivePhysicalThreat(text: string): boolean {
+  const t = text.replace(/\s+/g, " ");
+  if (!t.trim()) return false;
+  if (THREAT_RESUME.test(t)) return true;
+  if (THREAT_ENDED.test(t)) return false;
+  return PHYSICAL_THREAT_CUE.test(t);
 }
 
 /**
@@ -176,8 +190,10 @@ export function healOwnerKind(opts: {
   const inventory = opts.sourceInventory ?? [];
   const extra = [...(opts.startInventory ?? [])];
   if (hasCanonHealingCapability(opts.specialRules ?? "", opts.body)) return "canon";
-  if (isTreatmentItemIntent(opts.body, inventory, extra) && findExplicitTreatmentItem(opts.body, inventory, extra)) {
-    return "item";
+  const owned = findExplicitTreatmentItem(opts.body, inventory, extra);
+  if (owned && isTreatmentItemIntent(opts.body, inventory, extra)) return "item";
+  if (mentionsHealingItem(opts.body, extra) && !owned && !isBasicFirstAidIntent(opts.body)) {
+    return "none";
   }
   if (isBasicFirstAidIntent(opts.body) || intentHeal(null, opts.body, inventory, extra)) return "first_aid";
   return "none";
@@ -196,7 +212,16 @@ export function authorizedHealClass(opts: {
     return { klass: "NONE", owner: "none", reason: "heal_without_treatment" };
   }
   const owner = healOwnerKind(opts);
-  if (owner === "none") return { klass: "NONE", owner, reason: "heal_without_treatment" };
+  if (owner === "none") {
+    const missingItem =
+      mentionsHealingItem(opts.body, opts.startInventory ?? []) &&
+      !findExplicitTreatmentItem(opts.body, opts.sourceInventory ?? [], opts.startInventory ?? []);
+    return {
+      klass: "NONE",
+      owner,
+      reason: missingItem ? "ITEM_HEAL_REJECTED_ITEM_MISSING" : "heal_without_treatment",
+    };
+  }
   const tierCap = TIER_HEAL_CAP[opts.tier];
   const firstAidCap = BASIC_FIRST_AID_TIER_CAP[opts.tier];
   const cap = owner === "first_aid" ? minClass(tierCap, firstAidCap) : tierCap;
@@ -211,10 +236,11 @@ export function evaluateSafeRestEligibility(opts: {
   lastSafeRestRound: number | null;
   currentRound: number;
 }): SafeRestEligibility {
-  const healAmount = safeRestHealAmount(opts.maxHp);
-  if (opts.hp <= 0) return { available: false, healAmount, blockedReason: "incapacitated" };
-  if (opts.hp >= opts.maxHp) return { available: false, healAmount, blockedReason: "full_hp" };
-  if (hasPhysicalThreatCue(opts.scene)) return { available: false, healAmount, blockedReason: "physical_threat" };
+  const raw = safeRestHealAmount(opts.maxHp);
+  const healAmount = Math.min(raw, Math.max(0, opts.maxHp - opts.hp));
+  if (opts.hp <= 0) return { available: false, healAmount: raw, blockedReason: "incapacitated" };
+  if (opts.hp >= opts.maxHp) return { available: false, healAmount: 0, blockedReason: "full_hp" };
+  if (hasActivePhysicalThreat(opts.scene)) return { available: false, healAmount, blockedReason: "physical_threat" };
   if (opts.sameRoundCombat) return { available: false, healAmount, blockedReason: "combat_active" };
   if (
     opts.lastSafeRestRound != null &&
