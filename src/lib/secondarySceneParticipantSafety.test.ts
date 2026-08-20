@@ -62,6 +62,22 @@ function memDb(): Database.Database {
   const db = new Database(":memory:");
   ensureObserverSchema(db);
   ensureSecondarySceneParticipantSafetySchema(db);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY,
+      chat_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      model TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
   return db;
 }
 
@@ -1104,15 +1120,6 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
 
   it("P2 canonical user source turns are 1, 2 and edits preserve the turn", () => {
     const db = memDb();
-    db.exec(`
-      CREATE TABLE messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id INTEGER NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        model TEXT NOT NULL DEFAULT ''
-      );
-    `);
     const chatId = nextChatId();
     const user1 = Number(
       db
@@ -1549,7 +1556,10 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
       "utf8"
     );
     const preflight = routeSource.indexOf(
-      "const prospectiveSecondarySafety"
+      "buildProspectiveSecondarySceneSafetySnapshot"
+    );
+    const guardBlock = routeSource.indexOf(
+      'secondarySceneParticipantGuardResult.action === "HARD_BLOCK_TURN"'
     );
     const durableBootstrap = routeSource.indexOf("bootstrapStreamingTurn(db");
     const provider = routeSource.indexOf(
@@ -1557,7 +1567,9 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
     );
     const billing = routeSource.indexOf("const deducted = deductPoints(");
     assert.ok(preflight > 0);
-    assert.ok(preflight < durableBootstrap);
+    assert.ok(guardBlock > 0);
+    assert.ok(preflight < guardBlock);
+    assert.ok(guardBlock < durableBootstrap);
     assert.ok(preflight < provider);
     assert.ok(preflight < billing);
   });
