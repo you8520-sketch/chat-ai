@@ -32,7 +32,11 @@ Rules:
 - Do not invent persistent poison/curse without explicit public specialRules.
 - Do not invent an item that is not in inventory or specialRules.
 - One object per source→target classification.
-Schema example:
+- When the PUBLIC scene explicitly states that failure/partial caused a counterattack, hit, bite, shot, collapse, trap impact, fall, or hazardous exposure, propose harm with enemy_counter/hazard/tradeoff/self_cost. Numeric HP damage remains server-owned; do not choose NONE merely because you cannot output a number.
+- When PUBLIC text explicitly establishes continuing poison, bleeding, paralysis, toxin, venom, neural suppression, or equivalent, propose V1 periodic_harm/control. Reserve NONE for genuinely uncertain or absent causes.
+- When no inventory item is consumed, consumeItem must be JSON null, never "none", "null", "-", or "없음".
+Schema examples:
+{"effects":[{"sourceParticipantId":1,"targetParticipantId":1,"directEffect":"harm","directClass":"LIGHT","cause":"hazard","ongoingAdd":[],"ongoingRemoveIds":[],"ongoingReduceIds":[],"consumeItem":null,"reason":"explicit trap impact"}]}
 {"effects":[{"sourceParticipantId":1,"targetParticipantId":2,"directEffect":"none","directClass":"NONE","cause":"none","ongoingAdd":[],"ongoingRemoveIds":[10],"ongoingReduceIds":[],"consumeItem":"해독제","reason":"ally antidote"}]}`;
 
 export function buildMechanicsRefereeUserBlock(opts: {

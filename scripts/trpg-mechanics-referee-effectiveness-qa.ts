@@ -599,6 +599,9 @@ async function runFixture(fixture: Fixture, index: number) {
   const invalidKinds = untypedOngoing.filter(
     (row) => !(V1_ONGOING_KINDS as readonly string[]).includes(String(row.kind ?? ""))
   );
+  const consumeItemStringNone = rawUntyped.some(
+    (row) => typeof row.consumeItem === "string" && row.consumeItem.trim().toLowerCase() === "none"
+  );
   const rawHarmRows = sourceRows.filter((row) => row.directEffect === "harm" && row.directClass !== "NONE");
   const rawNegativeOngoing = sourceRows.flatMap((row) => row.ongoingAdd ?? []);
   const rawClearIds = new Set(sourceRows.flatMap((row) => row.ongoingRemoveIds ?? []));
@@ -786,6 +789,7 @@ async function runFixture(fixture: Fixture, index: number) {
       treatmentCorrect,
       treatmentFailureFalseClear,
       partialOversevere,
+      consumeItemStringNone,
       invalidKinds: invalidKinds.length,
       rawOngoingCount: untypedOngoing.length,
       serverDowngraded,
@@ -897,6 +901,10 @@ async function main() {
       proposed.length
     ),
     FLASH_NONE_RATE_TOTAL: ratio(rows.filter((row) => row.SCORE.rawNone).length, rows.length),
+    CONSUME_ITEM_STRING_NONE_RATE: ratio(
+      rows.filter((row) => row.SCORE.consumeItemStringNone).length,
+      rows.length
+    ),
     FLASH_NONE_RATE_BY_CATEGORY: byCategory,
     AVG_INPUT_TOKENS: average(inputTokens),
     AVG_OUTPUT_TOKENS: average(outputTokens),
