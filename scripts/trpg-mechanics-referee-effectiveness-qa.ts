@@ -489,6 +489,7 @@ async function callWithWireStats(system: string, user: string): Promise<{
   call: Awaited<ReturnType<typeof callTrpgMechanicsReferee>> | null;
   wire: WireStats;
   errorClass: string;
+  errorMessage: string;
 }> {
   const originalFetch = globalThis.fetch;
   const wire: WireStats = {
@@ -533,12 +534,13 @@ async function callWithWireStats(system: string, user: string): Promise<{
   };
   try {
     const call = await callTrpgMechanicsReferee({ system, user });
-    return { call, wire, errorClass: "" };
+    return { call, wire, errorClass: "", errorMessage: "" };
   } catch (error) {
     return {
       call: null,
       wire,
       errorClass: error instanceof Error ? error.name || "Error" : "Error",
+      errorMessage: error instanceof Error ? error.message.slice(0, 160) : "provider call failed",
     };
   } finally {
     globalThis.fetch = originalFetch;
@@ -740,7 +742,9 @@ async function runFixture(fixture: Fixture, index: number) {
     COST: called.wire.cost,
     LATENCY_MS: called.call?.latencyMs ?? 0,
     FINISH_REASON: called.wire.finishReason,
+    HTTP_STATUS: called.wire.httpStatus,
     ERROR_CLASS: called.errorClass,
+    ERROR_MESSAGE: called.errorMessage,
     FLASH_RAW_EFFECT: sourceRows.map((row) => ({
       sourceParticipantId: row.sourceParticipantId,
       targetParticipantId: row.targetParticipantId,
@@ -814,12 +818,23 @@ async function main() {
     throw new Error("TRPG_MECHANICS_REFEREE_ENABLED must remain default false");
   }
   if (fixtures.length !== 30) throw new Error(`expected 30 fixtures, got ${fixtures.length}`);
+  const fixtureFilter = new Set(
+    String(process.env.TRPG_MECHANICS_QA_FIXTURES ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+  const runFixtures = fixtures.filter((fixture) => fixtureFilter.size === 0 || fixtureFilter.has(fixture.id));
+  const delayMs = Math.max(0, Number(process.env.TRPG_MECHANICS_QA_DELAY_MS ?? 0) || 0);
 
   const rows = [];
-  for (let index = 0; index < fixtures.length; index += 1) {
-    const row = await runFixture(fixtures[index]!, index);
+  for (let index = 0; index < runFixtures.length; index += 1) {
+    const row = await runFixture(runFixtures[index]!, index);
     rows.push(row);
     console.log(JSON.stringify(row));
+    if (delayMs > 0 && index + 1 < runFixtures.length) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 
   const obvious = rows.filter((row) => row.CATEGORY === "A_PHYSICAL_FAILURE");
@@ -928,7 +943,7 @@ async function main() {
       REASONING_EFFORT: adapted.reasoning_effort,
       PROVIDER_RETRY: 0,
       FLAG_DEFAULT: false,
-      FIXTURE_COUNT: fixtures.length,
+      FIXTURE_COUNT: runFixtures.length,
       PROVIDER_CALLS_PER_FIXTURE: 1,
     },
     metrics,
