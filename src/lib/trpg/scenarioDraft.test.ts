@@ -31,6 +31,7 @@ import {
   TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
+  TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS,
   scenarioDraftRequestedFields,
 } from "./scenarioDraft";
 import {
@@ -409,7 +410,7 @@ describe("TRPG scenario AI draft", () => {
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),
-      1200
+      1600
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({
@@ -429,6 +430,7 @@ describe("TRPG scenario AI draft", () => {
     });
     assert.match(prompt, /fill_or_replace_fields=boss/);
     assert.match(prompt, /sparse JSON object/);
+    assert.match(prompt, /ONE_FIELD_LIMIT/);
   });
 
   it("uses bounded primary/repair calls and a syntax-only repair prompt", () => {
@@ -450,7 +452,7 @@ describe("TRPG scenario AI draft", () => {
     );
     assert.equal(
       scenarioDraftPrimaryTimeoutMs({ mode: "regenerate_selected", changingFields: ["boss"] }),
-      TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS
+      TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS
     );
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS <= TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS < TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS);

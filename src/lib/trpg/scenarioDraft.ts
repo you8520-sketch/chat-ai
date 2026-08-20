@@ -24,6 +24,7 @@ export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_073
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
+export const TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS = 180_000;
 export const TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS = 210_000;
 export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 240_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 90_000;
@@ -429,7 +430,7 @@ export function scenarioDraftOutputMaxTokens(opts: {
   if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
   if (fields.has("npcs")) return 1_400;
   if (fields.size === 2) return 1_400;
-  return 1_200;
+  return 1_600;
 }
 
 export function scenarioDraftRequestedFields(opts: {
@@ -448,6 +449,9 @@ export function scenarioDraftPrimaryTimeoutMs(opts: {
   changingFields: readonly TrpgScenarioDraftField[];
 }): number {
   if (opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS;
+  if (opts.mode === "regenerate_selected" && opts.changingFields.length === 1) {
+    return TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS;
+  }
   if (opts.mode === "fill_empty" && opts.changingFields.length >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length) {
     return TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS;
   }
@@ -548,6 +552,9 @@ export function buildScenarioDraftUserPrompt(opts: {
     `mode=${opts.mode}`,
     `fill_or_replace_fields=${requested.join(",") || "(none)"}`,
     `optional_fields_left_unchanged=${changing.filter((field) => !requested.includes(field)).join(",") || "(none)"}`,
+    requested.length === 1
+      ? "ONE_FIELD_LIMIT: Return exactly one JSON property and stay below 400 output tokens."
+      : "MULTI_FIELD_LIMIT: Return no keys beyond fill_or_replace_fields.",
     `locked_fields=${(opts.lockedFields ?? []).join(",") || "(none)"}`,
     `Return a sparse JSON object containing only fill_or_replace_fields. Omit every locked or kept field. If every field is requested, return the complete structured blueprint.`,
     `available_text_budget≈${budget.remaining} Korean characters (linked world + locked/kept fields already use ${budget.used}/${budget.limit}). Stay comfortably inside this budget. Be concise. Do not pad.`,
