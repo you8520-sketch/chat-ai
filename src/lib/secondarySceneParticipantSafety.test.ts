@@ -1559,7 +1559,7 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
       "buildProspectiveSecondarySceneSafetySnapshot"
     );
     const guardBlock = routeSource.indexOf(
-      'secondarySceneParticipantGuardResult.action === "HARD_BLOCK_TURN"'
+      'secondarySceneParticipantGuardResult?.action === "HARD_BLOCK_TURN"'
     );
     const durableBootstrap = routeSource.indexOf("bootstrapStreamingTurn(db");
     const provider = routeSource.indexOf(

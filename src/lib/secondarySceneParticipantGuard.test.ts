@@ -617,15 +617,17 @@ describe("S2-M route-level guard wiring seam", () => {
     assert.deepEqual(result.providerCalls, []);
   });
 
-  it("route hard-block point is before bootstrapStreamingTurn", () => {
+  it("route hard-block point is before atomic bootstrap execution", () => {
     const routeSource = readFileSync(
       new URL("../app/api/chat/route.ts", import.meta.url),
       "utf8"
     );
     const guardBlock = routeSource.indexOf(
-      'secondarySceneParticipantGuardResult.action === "HARD_BLOCK_TURN"'
+      'secondarySceneParticipantGuardResult?.action === "HARD_BLOCK_TURN"'
     );
-    const bootstrap = routeSource.indexOf("bootstrapStreamingTurn(db");
+    const bootstrap = routeSource.indexOf(
+      "bootstrapAndCommitSecondarySafetyAtomic(db"
+    );
     assert.ok(guardBlock > 0);
     assert.ok(bootstrap > guardBlock);
   });
