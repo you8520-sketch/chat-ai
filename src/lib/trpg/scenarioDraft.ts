@@ -429,7 +429,7 @@ export function scenarioDraftOutputMaxTokens(opts: {
   if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
   if (fields.has("npcs")) return 1_400;
   if (fields.size === 2) return 1_400;
-  return 900;
+  return 1_200;
 }
 
 export function scenarioDraftRequestedFields(opts: {

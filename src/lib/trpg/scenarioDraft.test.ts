@@ -409,7 +409,7 @@ describe("TRPG scenario AI draft", () => {
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),
-      900
+      1200
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({
