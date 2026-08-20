@@ -307,15 +307,76 @@ export function setSecondarySafetyCoverageCore(opts: {
     );
 }
 
+export function countPriorPlayableTurnsFromDb(
+  chatId: number,
+  db: Database.Database = getDb()
+): number {
+  ensureSecondarySceneParticipantSafetySchema(db);
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS turnCount
+       FROM messages
+       WHERE chat_id=? AND role='user'`
+    )
+    .get(chatId) as { turnCount: number };
+  return row.turnCount > 0 ? row.turnCount : 0;
+}
+
+export function getStoredSecondarySafetyCoverageRow(
+  chatId: number,
+  db: Database.Database = getDb()
+): { coverage: SecondarySafetyCoverage; reason: string } | null {
+  ensureSecondarySceneParticipantSafetySchema(db);
+  const row = db
+    .prepare(
+      `SELECT coverage, reason FROM chat_secondary_safety_coverage WHERE chat_id=?`
+    )
+    .get(chatId) as { coverage?: string; reason?: string } | undefined;
+  if (row?.coverage === "INCOMPLETE") {
+    return {
+      coverage: "INCOMPLETE",
+      reason: row.reason ?? "stored_incomplete",
+    };
+  }
+  if (row?.coverage === "COMPLETE") {
+    return {
+      coverage: "COMPLETE",
+      reason: row.reason ?? "stored_complete",
+    };
+  }
+  return null;
+}
+
+export function resolveSecondarySafetyCoverage(opts: {
+  chatId: number;
+  priorPlayableTurns: number;
+  sceneReset?: boolean;
+  clearSceneTransition?: boolean;
+  db?: Database.Database;
+}): { coverage: SecondarySafetyCoverage; reason: string } {
+  const db = opts.db ?? getDb();
+  ensureSecondarySceneParticipantSafetySchema(db);
+  if (opts.sceneReset === true) {
+    return { coverage: "COMPLETE", reason: "scene_reset" };
+  }
+  if (opts.clearSceneTransition === true) {
+    return { coverage: "COMPLETE", reason: "clear_scene_transition" };
+  }
+  const stored = getStoredSecondarySafetyCoverageRow(opts.chatId, db);
+  if (stored) return stored;
+  if (opts.priorPlayableTurns <= 0) {
+    return { coverage: "COMPLETE", reason: "tracked_from_chat_start" };
+  }
+  return { coverage: "INCOMPLETE", reason: "legacy_history_untracked" };
+}
+
 export function getSecondarySafetyCoverage(
   chatId: number,
   db: Database.Database = getDb()
 ): SecondarySafetyCoverage {
-  ensureSecondarySceneParticipantSafetySchema(db);
-  const row = db
-    .prepare(
-      `SELECT coverage FROM chat_secondary_safety_coverage WHERE chat_id=?`
-    )
-    .get(chatId) as { coverage?: string } | undefined;
-  return row?.coverage === "INCOMPLETE" ? "INCOMPLETE" : "COMPLETE";
+  return resolveSecondarySafetyCoverage({
+    chatId,
+    priorPlayableTurns: countPriorPlayableTurnsFromDb(chatId, db),
+    db,
+  }).coverage;
 }

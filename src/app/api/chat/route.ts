@@ -308,6 +308,12 @@ import {
   evaluateCurrentTurnSecondarySceneSafetyShadow,
   persistAssistantTurnSecondarySceneSafety,
 } from "@/lib/secondarySceneParticipantSafety";
+import {
+  evaluateSecondarySceneParticipantGuard,
+  isSecondarySceneParticipantGuardEnabled,
+  secondarySceneParticipantGuardUserMessage,
+  type SecondarySceneParticipantGuardResult,
+} from "@/lib/secondarySceneParticipantGuard";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
@@ -1257,12 +1263,18 @@ export async function POST(req: Request) {
     actualNonConsent: sceneClassification.actualNonConsent,
   });
 
-  // S1.2 pure preflight. Future S2 guard belongs immediately after this read:
-  // classify -> base eligibility -> prospective safety -> guard -> durable
-  // bootstrap -> safety commit -> existing adult route/delivery -> provider.
-  // S1.2 remains shadow-only and cannot block or alter routing.
+  // S2 guard: classify -> base eligibility -> prospective safety -> guard ->
+  // durable bootstrap -> safety commit -> adult route/delivery -> provider.
+  const secondarySceneParticipantGuardEnabled =
+    isSecondarySceneParticipantGuardEnabled();
+  let secondarySceneParticipantGuardResult: SecondarySceneParticipantGuardResult | null =
+    null;
+  let prospectiveSecondarySafetyBuildFailed = false;
+  let prospectiveSecondarySafetyForGuard: ReturnType<
+    typeof buildProspectiveSecondarySceneSafetySnapshot
+  > | null = null;
   try {
-    const prospectiveSecondarySafety =
+    prospectiveSecondarySafetyForGuard =
       buildProspectiveSecondarySceneSafetySnapshot({
         chatId: chat.id,
         currentTurn: playableTurnCount + 1,
@@ -1272,27 +1284,64 @@ export async function POST(req: Request) {
           sceneClassification.clearSceneTransition === true,
         sexualContextActive: sceneClassification.sexualContextActive,
       });
+  } catch (err) {
+    prospectiveSecondarySafetyBuildFailed = true;
+    if (!secondarySceneParticipantGuardEnabled) {
+      console.warn(
+        "[secondary-scene-safety-preflight-shadow] evaluation unavailable",
+        err
+      );
+    }
+  }
+
+  if (secondarySceneParticipantGuardEnabled) {
+    secondarySceneParticipantGuardResult =
+      evaluateSecondarySceneParticipantGuard({
+        sceneClassification,
+        baseAdultEligibility: adultEligibility,
+        prospectiveSecondarySafety: prospectiveSecondarySafetyForGuard,
+        adultRoutingEnabled: adultRoutingConfig.enabled,
+        safetyEvaluationFailed: prospectiveSecondarySafetyBuildFailed,
+      });
+    if (
+      secondarySceneParticipantGuardResult.action === "HARD_BLOCK_TURN"
+    ) {
+      return Response.json(
+        { error: secondarySceneParticipantGuardUserMessage() },
+        { status: 400 }
+      );
+    }
+    console.info("[secondary-scene-participant-guard]", {
+      chatId: chat.id,
+      action: secondarySceneParticipantGuardResult.action,
+      reason: secondarySceneParticipantGuardResult.reason,
+      coverage: prospectiveSecondarySafetyForGuard?.coverage ?? null,
+    });
+  } else if (prospectiveSecondarySafetyForGuard) {
     console.info("[secondary-scene-safety-preflight-shadow]", {
       chatId: chat.id,
       present:
-        prospectiveSecondarySafety.presentSecondaryParticipants.length,
+        prospectiveSecondarySafetyForGuard.presentSecondaryParticipants.length,
       wouldBlockAdultScene:
-        prospectiveSecondarySafety.wouldBlockAdultScene,
-      coverage: prospectiveSecondarySafety.coverage,
+        prospectiveSecondarySafetyForGuard.wouldBlockAdultScene,
+      coverage: prospectiveSecondarySafetyForGuard.coverage,
       shadowOnly: true,
     });
-  } catch (err) {
-    // Future S2 policy: normal RP may continue only on the selected general
-    // model with adult handoff disabled; adult/sexual scenes fail closed here,
-    // before persistence/provider/billing. No enforcement in S1.2.
-    console.warn(
-      "[secondary-scene-safety-preflight-shadow] evaluation unavailable",
-      err
-    );
   }
 
+  const effectiveAdultRoutingEnabled =
+    secondarySceneParticipantGuardEnabled &&
+    secondarySceneParticipantGuardResult?.action ===
+      "DISABLE_ADULT_HANDOFF_ONLY"
+      ? false
+      : adultRoutingConfig.enabled;
+  const effectiveAdultRoutingConfig = {
+    ...adultRoutingConfig,
+    enabled: effectiveAdultRoutingEnabled,
+  };
+
   const adultRouteDecision = decideAdultModelRoute({
-    config: adultRoutingConfig,
+    config: effectiveAdultRoutingConfig,
     state: priorModelRouteState,
     classification: sceneClassification,
     eligibility: adultEligibility,
@@ -1302,7 +1351,7 @@ export async function POST(req: Request) {
     selectedModelId: selectedAI,
   });
 
-  if (adultRoutingConfig.enabled && adultRouteDecision.shouldBlock) {
+  if (effectiveAdultRoutingEnabled && adultRouteDecision.shouldBlock) {
     const eligibilityMessage =
       adultRouteDecision.blockReason === "participant_unknown"
         ? "등장인물의 성인 여부를 확인할 수 없어 이 장면을 진행할 수 없습니다."
@@ -1310,7 +1359,7 @@ export async function POST(req: Request) {
     return Response.json({ error: eligibilityMessage }, { status: 400 });
   }
   if (
-    adultRoutingConfig.enabled &&
+    effectiveAdultRoutingEnabled &&
     !isAllowedAdultHandoffTargetModel(activeAdultModelId)
   ) {
     return Response.json(
@@ -1320,7 +1369,7 @@ export async function POST(req: Request) {
   }
 
   const adultDeliveryPlan = resolveAdultDeliveryPlan({
-    routingEnabled: adultRoutingConfig.enabled,
+    routingEnabled: effectiveAdultRoutingEnabled,
     eligibility: adultEligibility,
     silentRefusalFallback: adultRoutingConfig.silentRefusalFallback,
     selectedModelId: selectedAI,
@@ -2606,10 +2655,10 @@ export async function POST(req: Request) {
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
 
-  // S1.1 shadow-only: project after durable message ids exist. Never feeds
-  // resolveAdultEligibility / AdultDeliveryPlan / provider routing / HTTP 400.
-  try {
-    const secondarySceneSafetyShadow =
+  // S2 enforcement persists safety evidence after durable bootstrap when guard
+  // allowed. S1 shadow remains when the guard flag is OFF.
+  if (secondarySceneParticipantGuardEnabled) {
+    const secondarySceneSafetyCommitted =
       evaluateCurrentTurnSecondarySceneSafetyShadow({
         chatId: chatRef.id,
         userMessage: storedUserMessage,
@@ -2620,14 +2669,12 @@ export async function POST(req: Request) {
         sourceMessageId: userMessageId,
         skipSceneBoundary: Boolean(regenerate) || bootstrapped.reusedExisting,
       });
-    console.info("[secondary-scene-safety-shadow]", {
+    console.info("[secondary-scene-safety-commit]", {
       chatId: chatRef.id,
-      present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
-      wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
-      reason: secondarySceneSafetyShadow.reason,
-      sceneReset: sceneClassification.sceneReset === true,
-      clearSceneTransition: sceneClassification.clearSceneTransition === true,
-      shadowOnly: true,
+      present:
+        secondarySceneSafetyCommitted.presentSecondaryParticipants.length,
+      coverage: secondarySceneSafetyCommitted.coverage,
+      guardAction: secondarySceneParticipantGuardResult?.action ?? null,
     });
     if (personaSecretDiscoveryOn) {
       bootstrapChatObservers({
@@ -2638,8 +2685,40 @@ export async function POST(req: Request) {
         userId: user.id,
       });
     }
-  } catch (err) {
-    console.warn("[secondary-scene-safety-shadow] eval failed", err);
+  } else {
+    try {
+      const secondarySceneSafetyShadow =
+        evaluateCurrentTurnSecondarySceneSafetyShadow({
+          chatId: chatRef.id,
+          userMessage: storedUserMessage,
+          sceneReset: sceneClassification.sceneReset === true,
+          clearSceneTransition: sceneClassification.clearSceneTransition === true,
+          currentTurn: playableTurnCount + 1,
+          sexualContextActive: sceneClassification.sexualContextActive,
+          sourceMessageId: userMessageId,
+          skipSceneBoundary: Boolean(regenerate) || bootstrapped.reusedExisting,
+        });
+      console.info("[secondary-scene-safety-shadow]", {
+        chatId: chatRef.id,
+        present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
+        wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
+        reason: secondarySceneSafetyShadow.reason,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition: sceneClassification.clearSceneTransition === true,
+        shadowOnly: true,
+      });
+      if (personaSecretDiscoveryOn) {
+        bootstrapChatObservers({
+          chatId: chatRef.id,
+          characterId: ch.id,
+          displayName: typeof ch.name === "string" ? ch.name : "",
+          turnNumber: playableTurnCount + 1,
+          userId: user.id,
+        });
+      }
+    } catch (err) {
+      console.warn("[secondary-scene-safety-shadow] eval failed", err);
+    }
   }
 
   if (oocSceneRenderTurn) {

@@ -38,6 +38,7 @@ import {
   listPresentSecondaryParticipants,
   listSecondaryParticipantSafetyForScene,
   listSecondarySafetyEventsForParticipant,
+  resolveSecondarySafetyCoverage,
   setSecondarySafetyCoverageCore,
   upsertSecondaryParticipantSafety,
 } from "@/lib/secondarySceneParticipantSafetyStore";
@@ -669,13 +670,36 @@ function evaluateCurrentTurnSecondarySceneSafetyShadowCore(
       coveredFromTurn: input.currentTurn,
       db,
     });
+  } else if (input.currentTurn === 1) {
+    const stored = db
+      .prepare(
+        `SELECT coverage FROM chat_secondary_safety_coverage WHERE chat_id=?`
+      )
+      .get(input.chatId) as { coverage?: string } | undefined;
+    if (!stored) {
+      setSecondarySafetyCoverageCore({
+        chatId: input.chatId,
+        coverage: "COMPLETE",
+        reason: "tracked_from_chat_start",
+        coveredFromTurn: 1,
+        db,
+      });
+    }
   }
+
+  const coverage = resolveSecondarySafetyCoverage({
+    chatId: input.chatId,
+    priorPlayableTurns: Math.max(0, input.currentTurn - 1),
+    sceneReset: input.sceneReset,
+    clearSceneTransition: input.clearSceneTransition === true,
+    db,
+  }).coverage;
 
   return computeSecondarySceneSafetySnapshot(
     listPresentSecondaryParticipants(boundary.scene.id, db),
     {
       sexualContextActive: input.sexualContextActive,
-      coverage: getSecondarySafetyCoverage(input.chatId, db),
+      coverage,
     }
   );
 }
@@ -1051,16 +1075,13 @@ export function buildProspectiveSecondarySceneSafetySnapshot(input: {
     applyProspectiveEvent(rows, event, input.chatId, input.currentTurn);
   }
 
-  const coverageRow = db
-    .prepare(
-      `SELECT coverage FROM chat_secondary_safety_coverage WHERE chat_id=?`
-    )
-    .get(input.chatId) as { coverage?: string } | undefined;
-  const coverage: SecondarySafetyCoverage = boundary
-    ? "COMPLETE"
-    : coverageRow?.coverage === "INCOMPLETE"
-      ? "INCOMPLETE"
-      : "COMPLETE";
+  const coverage = resolveSecondarySafetyCoverage({
+    chatId: input.chatId,
+    priorPlayableTurns: Math.max(0, input.currentTurn - 1),
+    sceneReset: input.sceneReset,
+    clearSceneTransition: input.clearSceneTransition === true,
+    db,
+  }).coverage;
   return computeSecondarySceneSafetySnapshot(
     [...rows.values()].filter((row) => row.presence_state === "PRESENT"),
     { sexualContextActive: input.sexualContextActive, coverage }
@@ -1104,3 +1125,4 @@ export function reconcileAssistantOwnedSecondarySafety(opts: {
 }
 
 export type { SceneSecondaryParticipantSafetyEventRow };
+export { resolveSecondarySafetyCoverage } from "@/lib/secondarySceneParticipantSafetyStore";
