@@ -1298,27 +1298,6 @@ export async function POST(req: Request) {
   });
   const adultFallbackModelId = adultDeliveryPlan.fallbackModelId;
 
-  // S1 shadow-only: scene-participant safety projection. Never feeds
-  // resolveAdultEligibility / AdultDeliveryPlan / provider routing.
-  try {
-    const secondarySceneSafetyShadow =
-      evaluateCurrentTurnSecondarySceneSafetyShadow({
-        chatId: chat.id,
-        userMessage: storedUserMessage,
-        sceneReset: sceneClassification.sceneReset === true,
-        currentTurn: playableTurnCount + 1,
-        sexualContextActive: sceneClassification.sexualContextActive,
-      });
-    console.info("[secondary-scene-safety-shadow]", {
-      chatId: chat.id,
-      present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
-      wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
-      reason: secondarySceneSafetyShadow.reason,
-    });
-  } catch (err) {
-    console.warn("[secondary-scene-safety-shadow] eval failed", err);
-  }
-
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
     loadCharacterChunksForPrompt(
       {
@@ -2590,6 +2569,43 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+
+  // S1.1 shadow-only: project after durable message ids exist. Never feeds
+  // resolveAdultEligibility / AdultDeliveryPlan / provider routing / HTTP 400.
+  try {
+    const secondarySceneSafetyShadow =
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId: chatRef.id,
+        userMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition: sceneClassification.clearSceneTransition === true,
+        currentTurn: playableTurnCount + 1,
+        sexualContextActive: sceneClassification.sexualContextActive,
+        sourceMessageId: userMessageId,
+        skipSceneBoundary: Boolean(regenerate) || bootstrapped.reusedExisting,
+      });
+    console.info("[secondary-scene-safety-shadow]", {
+      chatId: chatRef.id,
+      present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
+      wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
+      reason: secondarySceneSafetyShadow.reason,
+      sceneReset: sceneClassification.sceneReset === true,
+      clearSceneTransition: sceneClassification.clearSceneTransition === true,
+      shadowOnly: true,
+    });
+    if (personaSecretDiscoveryOn) {
+      bootstrapChatObservers({
+        chatId: chatRef.id,
+        characterId: ch.id,
+        displayName: typeof ch.name === "string" ? ch.name : "",
+        turnNumber: playableTurnCount + 1,
+        userId: user.id,
+      });
+    }
+  } catch (err) {
+    console.warn("[secondary-scene-safety-shadow] eval failed", err);
+  }
+
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {
       userMessageId,
@@ -5387,6 +5403,7 @@ export async function POST(req: Request) {
               chatId: chatRef.id,
               assistantText: savedText,
               currentTurn: playableTurnCount + 1,
+              sourceMessageId: persistedAssistantId,
             });
           } catch (err) {
             console.warn(

@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import type { ParticipantAdultMetadata } from "@/lib/adultSceneRouting";
 import {
   assessTrustedParticipantAdultStatus,
+  deriveEffectiveSecondaryAdultStatus,
   eventToRestrictiveMetadata,
   extractCurrentTurnSceneParticipantEvents,
   isAuthoritativeParticipantId,
@@ -22,15 +23,19 @@ import {
 } from "@/lib/secondarySceneParticipantEvidence";
 import {
   ensureSecondarySceneParticipantSafetySchema,
+  type SceneSecondaryParticipantSafetyEventRow,
   type SceneSecondaryParticipantSafetyRow,
   type SecondaryAdultStatus,
   type SecondaryEvidenceSource,
   type SecondaryEvidenceTrust,
 } from "@/lib/secondarySceneParticipantSafetySchema";
 import {
+  deleteSecondarySafetyEventsForSourceMessages,
   getSecondaryParticipantSafety,
+  insertSecondarySafetyEvent,
   listPresentSecondaryParticipants,
   listSecondaryParticipantSafetyForScene,
+  listSecondarySafetyEventsForParticipant,
   upsertSecondaryParticipantSafety,
 } from "@/lib/secondarySceneParticipantSafetyStore";
 
@@ -43,6 +48,10 @@ export type SecondaryParticipantView = {
   evidenceTrust: SecondaryEvidenceTrust;
   evidenceSource: SecondaryEvidenceSource;
   age: number | null;
+  authoritativeAge: number | null;
+  authoritativeAdultStatus: SecondaryAdultStatus | null;
+  restrictiveAge: number | null;
+  restrictiveAdultStatus: SecondaryAdultStatus | null;
 };
 
 export type SecondarySceneSafetySnapshot = {
@@ -58,18 +67,31 @@ export type SecondarySceneSafetySnapshot = {
   reason: string | null;
 };
 
+/**
+ * S1.1 canonical mutation matrix. Unsupported paths must stay out of S2
+ * enforcement until they can retract source-owned evidence.
+ */
+export const SECONDARY_SAFETY_CANONICAL_RECONCILIATION = {
+  regen: "SUPPORTED",
+  delete: "SUPPORTED",
+  assistantReplacement: "SUPPORTED",
+  materialAssistantEdit: "SUPPORTED",
+  variantSwitch: "SUPPORTED",
+  "branch/noncanon": "UNSUPPORTED",
+  fork: "UNSUPPORTED",
+} as const;
+
 export type EvaluateSecondarySceneSafetyInput = {
   chatId: number;
   userMessage: string;
   sceneReset: boolean;
+  clearSceneTransition?: boolean;
   currentTurn: number;
-  /** Accepted for a future S2 guard. Production classifySceneMode usually sets true on tension. */
+  sourceMessageId?: number | null;
+  skipSceneBoundary?: boolean;
+  applyUserEvents?: boolean;
   sexualContextActive?: boolean;
   authoritativeActors?: AuthoritativeSecondaryActor[];
-  /**
-   * Public body claims are ignored. Accepted only so tests can prove they
-   * never become authoritative.
-   */
   publicParticipantClaims?: Array<{
     participantId?: unknown;
     age?: unknown;
@@ -86,13 +108,15 @@ function normalizeName(name: string): string {
 export function resolveSafetySceneBoundary(opts: {
   chatId: number;
   sceneReset: boolean;
+  clearSceneTransition?: boolean;
   currentTurn: number;
   db?: Database.Database;
 }): { scene: ChatSceneRow; closedPrevious: boolean; created: boolean } {
   const db = opts.db ?? getDb();
   ensureSecondarySceneParticipantSafetySchema(db);
+  const shouldClose = opts.sceneReset === true || opts.clearSceneTransition === true;
   let closedPrevious = false;
-  if (opts.sceneReset) {
+  if (shouldClose) {
     const closed = closeActiveChatScene({
       chatId: opts.chatId,
       endedTurn: opts.currentTurn,
@@ -124,6 +148,10 @@ function rowToView(
     evidenceTrust: row.evidence_trust,
     evidenceSource: row.evidence_source,
     age: row.age,
+    authoritativeAge: row.authoritative_age ?? null,
+    authoritativeAdultStatus: row.authoritative_adult_status ?? null,
+    restrictiveAge: row.restrictive_age ?? null,
+    restrictiveAdultStatus: row.restrictive_adult_status ?? null,
   };
 }
 
@@ -133,7 +161,13 @@ export function computeSecondarySceneSafetySnapshot(
 ): SecondarySceneSafetySnapshot {
   const presentSecondaryParticipants = presentRows.map(rowToView);
   const restrictiveParticipantIds = presentRows
-    .filter((row) => row.evidence_trust === "RESTRICTIVE_ONLY")
+    .filter(
+      (row) =>
+        row.restrictive_age != null ||
+        row.restrictive_adult_status != null ||
+        row.restrictive_is_real_person === 1 ||
+        row.evidence_trust === "RESTRICTIVE_ONLY"
+    )
     .map((row) => row.participant_id);
   const unknownParticipantIds = presentRows
     .filter((row) => (row.adult_status ?? "unknown") === "unknown")
@@ -195,177 +229,232 @@ function findSameNameAuthoritative(
   );
 }
 
-function storedMetadataFromRow(
-  row: SceneSecondaryParticipantSafetyRow
+function authoritativeMetadataFromRow(
+  row: SceneSecondaryParticipantSafetyRow | null
 ): ParticipantAdultMetadata {
+  if (!row) return {};
   return {
-    age: row.age,
+    age: row.authoritative_age,
     adultStatus:
-      row.adult_status === "real_person" ? undefined : row.adult_status,
-    isRealPerson: row.is_real_person === 1,
+      row.authoritative_adult_status === "real_person"
+        ? undefined
+        : row.authoritative_adult_status,
+    isRealPerson: row.authoritative_is_real_person === 1,
   };
 }
 
-function mergeAndAssess(opts: {
-  existing: SceneSecondaryParticipantSafetyRow | null;
-  trust: SecondaryEvidenceTrust;
-  source: SecondaryEvidenceSource;
-  metadata: ParticipantAdultMetadata;
-  authoritativeProfile?: ParticipantAdultMetadata | null;
-}): {
-  trust: SecondaryEvidenceTrust;
-  source: SecondaryEvidenceSource;
-  age: number | null;
-  adultStatus: SecondaryAdultStatus;
-  isRealPerson: boolean | null;
-} {
-  const existingTrust = opts.existing?.evidence_trust;
-  const trust: SecondaryEvidenceTrust =
-    existingTrust === "AUTHORITATIVE" || opts.trust === "AUTHORITATIVE"
-      ? "AUTHORITATIVE"
-      : opts.trust;
+function restrictiveMetadataFromOverlay(input: {
+  age?: number | null;
+  adultStatus?: string | null;
+  isRealPerson?: boolean | null;
+}): ParticipantAdultMetadata {
+  return toRestrictiveOnlyMetadata({
+    age: input.age,
+    adultStatus: input.adultStatus,
+    isRealPerson: input.isRealPerson === true,
+  });
+}
 
-  const source =
-    trust === "AUTHORITATIVE" && opts.existing?.evidence_trust === "AUTHORITATIVE"
-      ? opts.existing.evidence_source
-      : opts.source;
-
-  const existingMeta = opts.existing
-    ? storedMetadataFromRow(opts.existing)
-    : {};
-
-  let metadata: ParticipantAdultMetadata;
-  if (trust === "AUTHORITATIVE") {
-    metadata = {
-      ...(opts.existing?.evidence_trust === "AUTHORITATIVE"
-        ? existingMeta
-        : {}),
-      ...opts.metadata,
-    };
-    const restrictiveOverlay = toRestrictiveOnlyMetadata({
-      ...existingMeta,
-      ...opts.metadata,
-    });
-    if (
-      restrictiveOverlay.age != null ||
-      restrictiveOverlay.adultStatus ||
-      restrictiveOverlay.isRealPerson
-    ) {
-      metadata = { ...metadata, ...restrictiveOverlay };
-    }
-  } else {
-    metadata = toRestrictiveOnlyMetadata({
-      ...existingMeta,
-      ...opts.metadata,
-    });
-  }
-
-  const assessed = toStoredAdultStatus(
-    assessTrustedParticipantAdultStatus({
-      trust,
-      metadata,
-      authoritativeProfile: opts.authoritativeProfile,
-    })
-  );
-
-  const storedAge =
-    trust === "AUTHORITATIVE"
-      ? typeof metadata.age === "number" && Number.isFinite(metadata.age)
-        ? metadata.age
-        : null
-      : typeof metadata.age === "number" && metadata.age < 19
-        ? metadata.age
-        : null;
-
+function mergeRestrictiveOverlay(
+  existing: ParticipantAdultMetadata,
+  incoming: ParticipantAdultMetadata
+): ParticipantAdultMetadata {
+  const a = toRestrictiveOnlyMetadata(existing);
+  const b = toRestrictiveOnlyMetadata(incoming);
   return {
-    trust,
-    source,
-    age: storedAge,
-    adultStatus: assessed,
-    isRealPerson: assessed === "real_person" ? true : metadata.isRealPerson === true ? true : null,
+    age: b.age ?? a.age,
+    adultStatus: b.adultStatus ?? a.adultStatus,
+    isRealPerson: b.isRealPerson === true || a.isRealPerson === true,
+    currentSchool: b.currentSchool ?? a.currentSchool,
+    ageGroup: b.ageGroup ?? a.ageGroup,
   };
 }
 
-export function applySceneParticipantEvents(opts: {
+function rebuildParticipantProjection(opts: {
   sceneId: string;
   chatId: number;
-  currentTurn: number;
-  events: SceneParticipantEvent[];
-  trust: SecondaryEvidenceTrust;
-  source: SecondaryEvidenceSource;
-  db?: Database.Database;
-}): SceneSecondaryParticipantSafetyRow[] {
-  const db = opts.db ?? getDb();
-  ensureSecondarySceneParticipantSafetySchema(db);
-  const applied: SceneSecondaryParticipantSafetyRow[] = [];
+  participantId: string;
+  displayName: string;
+  participantKind: SceneSecondaryParticipantSafetyRow["participant_kind"];
+  db: Database.Database;
+}): SceneSecondaryParticipantSafetyRow {
+  const existing = getSecondaryParticipantSafety(
+    opts.sceneId,
+    opts.participantId,
+    opts.db
+  );
+  const events = listSecondarySafetyEventsForParticipant(
+    opts.sceneId,
+    opts.participantId,
+    opts.db
+  );
+  const authMeta = authoritativeMetadataFromRow(existing);
+  const hasAuth = Boolean(
+    existing?.authoritative_source ||
+      existing?.authoritative_age != null ||
+      existing?.authoritative_adult_status ||
+      existing?.authoritative_is_real_person === 1
+  );
 
-  for (const event of opts.events) {
-    const dynamic = resolveDynamicEventIdentity(event);
-    const sameNameAuth =
-      opts.trust !== "AUTHORITATIVE"
-        ? findSameNameAuthoritative(opts.sceneId, dynamic.displayName, db)
-        : null;
-    const participantId = sameNameAuth?.participant_id ?? dynamic.participantId;
-    const existing = getSecondaryParticipantSafety(
-      opts.sceneId,
-      participantId,
-      db
-    );
-    const metadata =
-      opts.trust === "RESTRICTIVE_ONLY"
-        ? eventToRestrictiveMetadata(event)
-        : {
-            age: event.attachedAge,
-            adultStatus: event.attachedAdultStatus,
-            isRealPerson: event.attachedIsRealPerson === true,
-            currentSchool: event.attachedSchoolRole,
-          };
-    const assessed = mergeAndAssess({
-      existing,
-      trust: sameNameAuth ? "AUTHORITATIVE" : opts.trust,
-      source: opts.source,
-      metadata,
-    });
+  let presence: SceneSecondaryParticipantSafetyRow["presence_state"] = hasAuth
+    ? "PRESENT"
+    : "UNKNOWN";
+  let firstSeen = existing?.first_seen_turn ?? null;
+  let lastSeen = existing?.last_seen_turn ?? null;
+  let leftTurn: number | null = hasAuth ? null : existing?.left_turn ?? null;
+  let rest = restrictiveMetadataFromOverlay({
+    age: existing?.restrictive_age,
+    adultStatus: existing?.restrictive_adult_status,
+    isRealPerson: existing?.restrictive_is_real_person === 1,
+  });
+  // Rebuild restrictive overlay from remaining events only — never from
+  // authoritative columns.
+  rest = {};
+  let restSource: SecondaryEvidenceSource | null = existing?.restrictive_source ?? null;
+  if (events.length > 0) {
+    restSource = null;
+  }
 
-    let presenceState = existing?.presence_state ?? "UNKNOWN";
-    let leftTurn = existing?.left_turn ?? null;
+  for (const event of events) {
     switch (event.action) {
       case "ENTER":
       case "PRESENT":
-        presenceState = "PRESENT";
+        presence = "PRESENT";
         leftTurn = null;
+        firstSeen = firstSeen ?? event.source_turn;
+        lastSeen = event.source_turn ?? lastSeen;
         break;
       case "LEAVE":
-        presenceState = "ABSENT";
-        leftTurn = opts.currentTurn;
+        presence = "ABSENT";
+        leftTurn = event.source_turn;
+        lastSeen = event.source_turn ?? lastSeen;
         break;
       default: {
         const _never: never = event.action;
         void _never;
       }
     }
+    if (event.evidence_trust === "RESTRICTIVE_ONLY") {
+      rest = mergeRestrictiveOverlay(rest, {
+        age: event.restrictive_age,
+        adultStatus: event.restrictive_adult_status,
+        isRealPerson: event.restrictive_is_real_person === 1,
+      });
+      restSource = event.evidence_source;
+    }
+  }
 
+  const effective = deriveEffectiveSecondaryAdultStatus({
+    authoritative: hasAuth ? authMeta : null,
+    restrictive: rest,
+  });
+  const restAssessed =
+    rest.age != null || rest.adultStatus || rest.isRealPerson === true
+      ? toStoredAdultStatus(
+          assessTrustedParticipantAdultStatus({
+            trust: "RESTRICTIVE_ONLY",
+            metadata: rest,
+          })
+        )
+      : null;
+  const trust: SecondaryEvidenceTrust = hasAuth
+    ? "AUTHORITATIVE"
+    : restSource
+      ? "RESTRICTIVE_ONLY"
+      : "UNKNOWN";
+  const source: SecondaryEvidenceSource =
+    existing?.authoritative_source ??
+    restSource ??
+    existing?.evidence_source ??
+    "USER_PROSE";
+  const effectiveAge =
+    rest.age != null
+      ? rest.age
+      : hasAuth && typeof authMeta.age === "number"
+        ? authMeta.age
+        : null;
+
+  return upsertSecondaryParticipantSafety(
+    {
+      sceneId: opts.sceneId,
+      chatId: opts.chatId,
+      participantId: opts.participantId,
+      displayName: opts.displayName,
+      participantKind: opts.participantKind,
+      presenceState: presence,
+      age: effectiveAge,
+      adultStatus: effective,
+      isRealPerson: effective === "real_person",
+      evidenceTrust: trust,
+      evidenceSource: source,
+      authoritativeAge: hasAuth ? existing?.authoritative_age ?? null : null,
+      authoritativeAdultStatus: hasAuth
+        ? existing?.authoritative_adult_status ?? null
+        : null,
+      authoritativeIsRealPerson: hasAuth
+        ? existing?.authoritative_is_real_person === 1
+        : null,
+      authoritativeSource: hasAuth ? existing?.authoritative_source ?? null : null,
+      restrictiveAge: rest.age ?? null,
+      restrictiveAdultStatus: restAssessed,
+      restrictiveIsRealPerson: rest.isRealPerson === true,
+      restrictiveSource: restSource,
+      firstSeenTurn: firstSeen,
+      lastSeenTurn: lastSeen,
+      leftTurn,
+    },
+    opts.db
+  );
+}
+
+function applyPresenceEvents(opts: {
+  sceneId: string;
+  chatId: number;
+  currentTurn: number;
+  events: SceneParticipantEvent[];
+  trust: SecondaryEvidenceTrust;
+  source: SecondaryEvidenceSource;
+  sourceRole: "user" | "assistant";
+  sourceMessageId?: number | null;
+  db: Database.Database;
+}): SceneSecondaryParticipantSafetyRow[] {
+  const applied: SceneSecondaryParticipantSafetyRow[] = [];
+  for (const event of opts.events) {
+    const dynamic = resolveDynamicEventIdentity(event);
+    const sameNameAuth =
+      opts.trust !== "AUTHORITATIVE"
+        ? findSameNameAuthoritative(opts.sceneId, dynamic.displayName, opts.db)
+        : null;
+    const participantId = sameNameAuth?.participant_id ?? dynamic.participantId;
+    const rest = eventToRestrictiveMetadata(event);
+    insertSecondarySafetyEvent(
+      {
+        sceneId: opts.sceneId,
+        chatId: opts.chatId,
+        participantId,
+        action: event.action,
+        sourceRole: opts.sourceRole,
+        sourceMessageId: opts.sourceMessageId,
+        sourceTurn: opts.currentTurn,
+        evidenceTrust: opts.trust,
+        evidenceSource: opts.source,
+        attachedAge: event.attachedAge ?? null,
+        restrictiveAge: rest.age ?? null,
+        restrictiveAdultStatus: rest.adultStatus ?? null,
+        restrictiveIsRealPerson: rest.isRealPerson === true,
+      },
+      opts.db
+    );
     applied.push(
-      upsertSecondaryParticipantSafety(
-        {
-          sceneId: opts.sceneId,
-          chatId: opts.chatId,
-          participantId,
-          displayName: sameNameAuth?.display_name ?? dynamic.displayName,
-          participantKind:
-            sameNameAuth?.participant_kind ?? dynamic.participantKind,
-          presenceState,
-          age: assessed.age,
-          adultStatus: assessed.adultStatus,
-          isRealPerson: assessed.isRealPerson,
-          evidenceTrust: assessed.trust,
-          evidenceSource: assessed.source,
-          firstSeenTurn: existing?.first_seen_turn ?? opts.currentTurn,
-          lastSeenTurn: opts.currentTurn,
-          leftTurn,
-        },
-        db
-      )
+      rebuildParticipantProjection({
+        sceneId: opts.sceneId,
+        chatId: opts.chatId,
+        participantId,
+        displayName: sameNameAuth?.display_name ?? dynamic.displayName,
+        participantKind:
+          sameNameAuth?.participant_kind ?? dynamic.participantKind,
+        db: opts.db,
+      })
     );
   }
   return applied;
@@ -385,12 +474,11 @@ function seedAuthoritativeActors(opts: {
       projected.participantId,
       opts.db
     );
-    const assessed = mergeAndAssess({
-      existing,
-      trust: "AUTHORITATIVE",
-      source: projected.source,
-      metadata: projected.metadata,
-    });
+    const authAge =
+      typeof projected.metadata.age === "number" &&
+      Number.isFinite(projected.metadata.age)
+        ? projected.metadata.age
+        : null;
     upsertSecondaryParticipantSafety(
       {
         sceneId: opts.sceneId,
@@ -399,24 +487,41 @@ function seedAuthoritativeActors(opts: {
         displayName: projected.displayName,
         participantKind: projected.participantKind,
         presenceState: existing?.presence_state ?? "PRESENT",
-        age: assessed.age,
-        adultStatus: assessed.adultStatus,
-        isRealPerson: assessed.isRealPerson,
+        age: existing?.age ?? null,
+        adultStatus: existing?.adult_status ?? "unknown",
+        isRealPerson: existing?.is_real_person === 1,
         evidenceTrust: "AUTHORITATIVE",
         evidenceSource: projected.source,
+        authoritativeAge: authAge,
+        authoritativeAdultStatus:
+          projected.adultStatus === "real_person"
+            ? "real_person"
+            : projected.adultStatus,
+        authoritativeIsRealPerson:
+          projected.metadata.isRealPerson === true ||
+          projected.adultStatus === "real_person",
+        authoritativeSource: projected.source,
+        restrictiveAge: existing?.restrictive_age ?? null,
+        restrictiveAdultStatus: existing?.restrictive_adult_status ?? null,
+        restrictiveIsRealPerson: existing?.restrictive_is_real_person === 1,
+        restrictiveSource: existing?.restrictive_source ?? null,
         firstSeenTurn: existing?.first_seen_turn ?? opts.currentTurn,
         lastSeenTurn: existing?.last_seen_turn ?? opts.currentTurn,
         leftTurn: existing?.left_turn ?? null,
       },
       opts.db
     );
+    rebuildParticipantProjection({
+      sceneId: opts.sceneId,
+      chatId: opts.chatId,
+      participantId: projected.participantId,
+      displayName: projected.displayName,
+      participantKind: projected.participantKind,
+      db: opts.db,
+    });
   }
 }
 
-/**
- * Current-user-turn shadow evaluation.
- * Does not change AdultDeliveryPlan, eligibility, or provider routing.
- */
 export function evaluateCurrentTurnSecondarySceneSafetyShadow(
   input: EvaluateSecondarySceneSafetyInput
 ): SecondarySceneSafetySnapshot {
@@ -429,12 +534,25 @@ export function evaluateCurrentTurnSecondarySceneSafetyShadow(
     }
   }
 
-  const boundary = resolveSafetySceneBoundary({
-    chatId: input.chatId,
-    sceneReset: input.sceneReset,
-    currentTurn: input.currentTurn,
-    db,
-  });
+  const skipBoundary = input.skipSceneBoundary === true;
+  const boundary = skipBoundary
+    ? {
+        scene: (getActiveChatScene(input.chatId, db) ??
+          ensureActiveChatScene({
+            chatId: input.chatId,
+            startedTurn: input.currentTurn,
+            db,
+          }).scene),
+        closedPrevious: false,
+        created: false,
+      }
+    : resolveSafetySceneBoundary({
+        chatId: input.chatId,
+        sceneReset: input.sceneReset,
+        clearSceneTransition: input.clearSceneTransition === true,
+        currentTurn: input.currentTurn,
+        db,
+      });
 
   if (input.authoritativeActors?.length) {
     seedAuthoritativeActors({
@@ -446,16 +564,28 @@ export function evaluateCurrentTurnSecondarySceneSafetyShadow(
     });
   }
 
-  const events = extractCurrentTurnSceneParticipantEvents(input.userMessage);
-  applySceneParticipantEvents({
-    sceneId: boundary.scene.id,
-    chatId: input.chatId,
-    currentTurn: input.currentTurn,
-    events,
-    trust: "RESTRICTIVE_ONLY",
-    source: "USER_PROSE",
-    db,
-  });
+  if (input.applyUserEvents !== false) {
+    if (input.sourceMessageId != null) {
+      retractSecondarySafetyEventsForSourceMessages({
+        chatId: input.chatId,
+        sourceMessageIds: [input.sourceMessageId],
+        sourceRole: "user",
+        db,
+      });
+    }
+    const events = extractCurrentTurnSceneParticipantEvents(input.userMessage);
+    applyPresenceEvents({
+      sceneId: boundary.scene.id,
+      chatId: input.chatId,
+      currentTurn: input.currentTurn,
+      events,
+      trust: "RESTRICTIVE_ONLY",
+      source: "USER_PROSE",
+      sourceRole: "user",
+      sourceMessageId: input.sourceMessageId,
+      db,
+    });
+  }
 
   return computeSecondarySceneSafetySnapshot(
     listPresentSecondaryParticipants(boundary.scene.id, db),
@@ -463,14 +593,11 @@ export function evaluateCurrentTurnSecondarySceneSafetyShadow(
   );
 }
 
-/**
- * Persist assistant-introduced actors for the next turn.
- * Does not alter or retry the already-delivered assistant turn.
- */
 export function persistAssistantTurnSecondarySceneSafety(opts: {
   chatId: number;
   assistantText: string;
   currentTurn: number;
+  sourceMessageId?: number | null;
   db?: Database.Database;
 }): SceneSecondaryParticipantSafetyRow[] {
   const db = opts.db ?? getDb();
@@ -481,16 +608,58 @@ export function persistAssistantTurnSecondarySceneSafety(opts: {
     db,
   });
   if (!active) return [];
+  if (opts.sourceMessageId != null) {
+    retractSecondarySafetyEventsForSourceMessages({
+      chatId: opts.chatId,
+      sourceMessageIds: [opts.sourceMessageId],
+      sourceRole: "assistant",
+      db,
+    });
+  }
   const events = extractCurrentTurnSceneParticipantEvents(opts.assistantText);
-  return applySceneParticipantEvents({
+  return applyPresenceEvents({
     sceneId: active.id,
     chatId: opts.chatId,
     currentTurn: opts.currentTurn,
     events,
     trust: "RESTRICTIVE_ONLY",
     source: "ASSISTANT_PROSE",
+    sourceRole: "assistant",
+    sourceMessageId: opts.sourceMessageId,
     db,
   });
+}
+
+export function retractSecondarySafetyEventsForSourceMessages(opts: {
+  chatId: number;
+  sourceMessageIds: number[];
+  sourceRole?: "user" | "assistant";
+  db?: Database.Database;
+}): { deleted: number } {
+  const db = opts.db ?? getDb();
+  ensureSecondarySceneParticipantSafetySchema(db);
+  const { deleted, participantKeys } = deleteSecondarySafetyEventsForSourceMessages({
+    chatId: opts.chatId,
+    sourceMessageIds: opts.sourceMessageIds,
+    sourceRole: opts.sourceRole,
+    db,
+  });
+  for (const key of participantKeys) {
+    const existing = getSecondaryParticipantSafety(
+      key.sceneId,
+      key.participantId,
+      db
+    );
+    rebuildParticipantProjection({
+      sceneId: key.sceneId,
+      chatId: opts.chatId,
+      participantId: key.participantId,
+      displayName: existing?.display_name ?? "",
+      participantKind: existing?.participant_kind ?? "dynamic",
+      db,
+    });
+  }
+  return { deleted };
 }
 
 export function readSecondarySceneSafetySnapshot(opts: {
@@ -509,3 +678,21 @@ export function readSecondarySceneSafetySnapshot(opts: {
     listPresentSecondaryParticipants(scene.id, db)
   );
 }
+
+export function reconcileAssistantOwnedSecondarySafety(opts: {
+  chatId: number;
+  assistantText: string;
+  currentTurn: number;
+  sourceMessageId: number;
+  db?: Database.Database;
+}): SceneSecondaryParticipantSafetyRow[] {
+  return persistAssistantTurnSecondarySceneSafety({
+    chatId: opts.chatId,
+    assistantText: opts.assistantText,
+    currentTurn: opts.currentTurn,
+    sourceMessageId: opts.sourceMessageId,
+    db: opts.db,
+  });
+}
+
+export type { SceneSecondaryParticipantSafetyEventRow };

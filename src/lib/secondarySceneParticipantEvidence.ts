@@ -45,9 +45,9 @@ const GROUP_ACTOR = "(?:세|두|네|다섯|여섯|[0-9]+)\\s*(?:명|사람)";
 const ACTOR_CORE = `(?:${KINSHIP}|${GROUP_ACTOR}|[가-힣]{2,4})`;
 
 const NON_ACTOR_TOKEN =
-  /^(?:문|방|여기|집|학교|자리|둘만|사람|문을|열고|방에|방으로|함께|이제|다른|어떤|이런|저런|새로운|작은|큰)$/;
+  /^(?:문|방|여기|집|학교|자리|둘만|사람|문을|열고|방에|방으로|함께|이제|다른|어떤|이런|저런|새로운|작은|큰|따라|성인|직장인)$/;
 
-const PARTICLE = "(?:이|가|은|는|도|을|를|의)?";
+const PARTICLE = "(?:이|가|은|는|도|을|를|의|와|과|랑|이랑)?";
 
 const AGE_PREFIX = "(?:(\\d{1,2})\\s*(?:살|세)\\s*)";
 
@@ -58,7 +58,7 @@ const SCHOOL_OR_MINOR_PREFIX =
   "(?:중학생|고등학생|초등학생|미성년자|미성년|underage|minor)\\s*";
 
 const ENTER_VERB =
-  "(?:문을\\s*열고\\s*)?(?:들어왔|들어온다|들어왔어|들어와|들어옴|합류했|합류한다|합류했다|합류)";
+  "(?:문을\\s*열고\\s*)?(?:따라\\s*)?(?:들어왔|들어온다|들어왔어|들어와|들어옴|들어오고|들어오며|합류했|합류한다|합류했다|합류)";
 
 const HERE_PRESENT =
   "(?:여기\\s*함께\\s*있|함께\\s*있|방에\\s*있)";
@@ -80,7 +80,7 @@ function splitClauses(text: string): string[] {
 
 function stripParticle(raw: string): string {
   const trimmed = raw.replace(/\s+/g, " ").trim();
-  const stripped = trimmed.replace(/(?:이|가|은|는|도|을|를|의)$/u, "");
+  const stripped = trimmed.replace(/(?:이랑|이|가|은|는|도|을|를|의|와|과|랑)$/u, "");
   return (stripped || trimmed).normalize("NFC");
 }
 
@@ -88,6 +88,12 @@ function normalizeActorKey(displayName: string): string {
   return stripParticle(displayName).toLowerCase();
 }
 
+/**
+ * Same-name dynamic actors inside one scene collapse to one dyn: id
+ * (sha256 of the normalized display name). That is conservative for
+ * safety: conflicting ages cannot create an adulthood bypass. Authoritative
+ * `auth:{kind}:{stableId}` identities stay distinct.
+ */
 export function buildDynamicParticipantId(displayName: string): string {
   const digest = createHash("sha256")
     .update(normalizeActorKey(displayName), "utf8")
@@ -184,21 +190,79 @@ function actorPhrasePattern(): RegExp {
   );
 }
 
-function matchAction(clause: string): {
+function findClauseActions(clause: string): Array<{
   action: SceneParticipantEventAction;
   verbIndex: number;
-} | null {
-  const leave = clause.search(new RegExp(LEAVE_VERB, "u"));
-  const enter = clause.search(new RegExp(ENTER_VERB, "u"));
-  const present = clause.search(new RegExp(HERE_PRESENT, "u"));
-  const candidates: Array<{ action: SceneParticipantEventAction; index: number }> =
-    [];
-  if (leave >= 0) candidates.push({ action: "LEAVE", index: leave });
-  if (enter >= 0) candidates.push({ action: "ENTER", index: enter });
-  if (present >= 0) candidates.push({ action: "PRESENT", index: present });
-  if (candidates.length === 0) return null;
-  candidates.sort((a, b) => a.index - b.index);
-  return { action: candidates[0].action, verbIndex: candidates[0].index };
+  verbEnd: number;
+}> {
+  const hits: Array<{
+    action: SceneParticipantEventAction;
+    verbIndex: number;
+    verbEnd: number;
+  }> = [];
+  const patterns: Array<{
+    action: SceneParticipantEventAction;
+    re: string;
+  }> = [
+    { action: "LEAVE", re: LEAVE_VERB },
+    { action: "ENTER", re: ENTER_VERB },
+    { action: "PRESENT", re: HERE_PRESENT },
+  ];
+  for (const pattern of patterns) {
+    for (const match of clause.matchAll(new RegExp(pattern.re, "gu"))) {
+      const verbIndex = match.index ?? 0;
+      hits.push({
+        action: pattern.action,
+        verbIndex,
+        verbEnd: verbIndex + match[0].length,
+      });
+    }
+  }
+  hits.sort((a, b) => a.verbIndex - b.verbIndex || b.verbEnd - a.verbEnd);
+  const kept: typeof hits = [];
+  let cursor = -1;
+  for (const hit of hits) {
+    if (hit.verbIndex < cursor) continue;
+    kept.push(hit);
+    cursor = hit.verbEnd;
+  }
+  return kept;
+}
+
+function extractActorsFromSpan(
+  subjectSpan: string,
+  action: SceneParticipantEventAction
+): SceneParticipantEvent[] {
+  const actorRe = actorPhrasePattern();
+  const candidates: SceneParticipantEvent[] = [];
+  for (const match of subjectSpan.matchAll(actorRe)) {
+    const displayName = stripParticle(match[4] ?? "");
+    if (!displayName || NON_ACTOR_TOKEN.test(displayName)) continue;
+    const evidence = extractAttachedEvidence({
+      age: match[1],
+      realPerson: match[2],
+      schoolOrMinor: match[3],
+    });
+    candidates.push({
+      action,
+      displayName,
+      participantKind: isGroupActor(displayName) ? "group" : "dynamic",
+      ...evidence,
+    });
+  }
+  if (candidates.length === 0 && action !== "LEAVE") {
+    const group = subjectSpan.match(
+      /((?:세|두|네|다섯|여섯|[0-9]+)\s*(?:명|사람))/
+    );
+    if (group?.[1]) {
+      candidates.push({
+        action,
+        displayName: stripParticle(group[1]),
+        participantKind: "group",
+      });
+    }
+  }
+  return candidates;
 }
 
 /**
@@ -212,51 +276,23 @@ export function extractCurrentTurnSceneParticipantEvents(
   const events: SceneParticipantEvent[] = [];
   for (const clause of splitClauses(text)) {
     if (clauseIsRejected(clause)) continue;
-    const found = matchAction(clause);
-    if (!found) continue;
-    const { action, verbIndex } = found;
-    if (
-      (action === "ENTER" || action === "PRESENT") &&
-      OFFSCENE_LOCATION.test(clause) &&
-      !new RegExp(ENTER_VERB, "u").test(clause) &&
-      !new RegExp(HERE_PRESENT, "u").test(clause)
-    ) {
-      continue;
-    }
-
-    const subjectSpan = clause.slice(0, verbIndex);
-    const actorRe = actorPhrasePattern();
-    const candidates: SceneParticipantEvent[] = [];
-    for (const match of subjectSpan.matchAll(actorRe)) {
-      const displayName = stripParticle(match[4] ?? "");
-      if (!displayName || NON_ACTOR_TOKEN.test(displayName)) continue;
-      const evidence = extractAttachedEvidence({
-        age: match[1],
-        realPerson: match[2],
-        schoolOrMinor: match[3],
-      });
-      candidates.push({
-        action,
-        displayName,
-        participantKind: isGroupActor(displayName) ? "group" : "dynamic",
-        ...evidence,
-      });
-    }
-    const matched = candidates.length > 0;
-    if (matched) {
-      events.push(candidates[candidates.length - 1]);
-    }
-    if (!matched && action !== "LEAVE") {
-      const group = subjectSpan.match(
-        /((?:세|두|네|다섯|여섯|[0-9]+)\s*(?:명|사람))/
-      );
-      if (group?.[1]) {
-        events.push({
-          action,
-          displayName: stripParticle(group[1]),
-          participantKind: "group",
-        });
+    const actions = findClauseActions(clause);
+    if (actions.length === 0) continue;
+    let spanStart = 0;
+    for (const found of actions) {
+      const { action, verbIndex, verbEnd } = found;
+      if (
+        (action === "ENTER" || action === "PRESENT") &&
+        OFFSCENE_LOCATION.test(clause) &&
+        !new RegExp(ENTER_VERB, "u").test(clause) &&
+        !new RegExp(HERE_PRESENT, "u").test(clause)
+      ) {
+        spanStart = verbEnd;
+        continue;
       }
+      const subjectSpan = clause.slice(spanStart, verbIndex);
+      events.push(...extractActorsFromSpan(subjectSpan, action));
+      spanStart = verbEnd;
     }
   }
   return events;
@@ -332,6 +368,79 @@ export function assessTrustedParticipantAdultStatus(input: {
       return _never;
     }
   }
+}
+
+function hasAuthoritativeFacts(
+  metadata: ParticipantAdultMetadata | null | undefined
+): boolean {
+  if (!metadata) return false;
+  return (
+    (typeof metadata.age === "number" && Number.isFinite(metadata.age)) ||
+    Boolean(metadata.adultStatus?.trim()) ||
+    metadata.isRealPerson === true ||
+    metadata.isAdult === true ||
+    metadata.isAdult === 1 ||
+    metadata.isVerifiedAdultUserPersona === true
+  );
+}
+
+function hasRestrictiveFacts(
+  metadata: ParticipantAdultMetadata | null | undefined
+): boolean {
+  if (!metadata) return false;
+  const rest = toRestrictiveOnlyMetadata(metadata);
+  return (
+    rest.age != null ||
+    Boolean(rest.adultStatus) ||
+    rest.isRealPerson === true ||
+    Boolean(rest.currentSchool) ||
+    Boolean(rest.ageGroup)
+  );
+}
+
+/**
+ * Combine independently stored authoritative + restrictive layers.
+ * Untrusted adult-positive facts never populate the authoritative layer.
+ */
+export function deriveEffectiveSecondaryAdultStatus(input: {
+  authoritative?: ParticipantAdultMetadata | null;
+  restrictive?: ParticipantAdultMetadata | null;
+}): SecondaryAdultStatus {
+  const auth = input.authoritative ?? null;
+  const rest = toRestrictiveOnlyMetadata(input.restrictive ?? {});
+  const authStatus = hasAuthoritativeFacts(auth)
+    ? toStoredAdultStatus(
+        assessTrustedParticipantAdultStatus({
+          trust: "AUTHORITATIVE",
+          metadata: auth,
+        })
+      )
+    : null;
+  const restStatus = hasRestrictiveFacts(rest)
+    ? toStoredAdultStatus(
+        assessTrustedParticipantAdultStatus({
+          trust: "RESTRICTIVE_ONLY",
+          metadata: rest,
+        })
+      )
+    : null;
+
+  if (authStatus === "real_person" || restStatus === "real_person") {
+    return "real_person";
+  }
+  if (authStatus === "conflict" || restStatus === "conflict") {
+    return "conflict";
+  }
+  if (
+    (authStatus === "confirmed" && restStatus === "minor") ||
+    (authStatus === "minor" && restStatus === "confirmed")
+  ) {
+    return "conflict";
+  }
+  if (authStatus === "minor" || restStatus === "minor") return "minor";
+  if (authStatus === "confirmed") return "confirmed";
+  if (restStatus === "confirmed") return "unknown";
+  return authStatus ?? restStatus ?? "unknown";
 }
 
 export function toStoredAdultStatus(

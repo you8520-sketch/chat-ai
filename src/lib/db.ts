@@ -1072,6 +1072,14 @@ function migrate(db: Database.Database) {
       is_real_person INTEGER,
       evidence_trust TEXT NOT NULL,
       evidence_source TEXT NOT NULL,
+      authoritative_age INTEGER,
+      authoritative_adult_status TEXT,
+      authoritative_is_real_person INTEGER,
+      authoritative_source TEXT,
+      restrictive_age INTEGER,
+      restrictive_adult_status TEXT,
+      restrictive_is_real_person INTEGER,
+      restrictive_source TEXT,
       first_seen_turn INTEGER,
       last_seen_turn INTEGER,
       left_turn INTEGER,
@@ -1083,6 +1091,28 @@ function migrate(db: Database.Database) {
       ON scene_secondary_participant_safety(scene_id, presence_state);
     CREATE INDEX IF NOT EXISTS idx_ssps_chat_scene
       ON scene_secondary_participant_safety(chat_id, scene_id);
+
+    CREATE TABLE IF NOT EXISTS scene_secondary_participant_safety_events (
+      id TEXT PRIMARY KEY,
+      scene_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      participant_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      source_role TEXT NOT NULL,
+      source_message_id INTEGER,
+      source_turn INTEGER,
+      evidence_trust TEXT NOT NULL,
+      evidence_source TEXT NOT NULL,
+      attached_age INTEGER,
+      restrictive_age INTEGER,
+      restrictive_adult_status TEXT,
+      restrictive_is_real_person INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ssps_events_scene_part
+      ON scene_secondary_participant_safety_events(scene_id, participant_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_ssps_events_source_msg
+      ON scene_secondary_participant_safety_events(chat_id, source_message_id);
 
     CREATE TABLE IF NOT EXISTS scene_observer_presence (
       scene_id TEXT NOT NULL,

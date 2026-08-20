@@ -15,6 +15,7 @@ import {
   NumericTurnDeleteChainNotReadyError,
   revertNumericStateForDeletedAssistantCore,
 } from "@/lib/rpNumericState/turnDeleteRevert";
+import { retractSecondarySafetyEventsForSourceMessages } from "@/lib/secondarySceneParticipantSafety";
 
 type Db = Database.Database;
 
@@ -80,6 +81,12 @@ export function executeLastTurnDeleteTransaction(
     if (input.__testThrowAfterNumericRestore) {
       throw new Error("TEST_THROW_AFTER_NUMERIC_RESTORE");
     }
+
+    retractSecondarySafetyEventsForSourceMessages({
+      chatId: input.chatId,
+      sourceMessageIds: idsToDelete,
+      db,
+    });
 
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM bookmarks WHERE message_id=?").run(id);

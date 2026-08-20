@@ -49,6 +49,10 @@ import {
   isGreetingMessage,
   resolveChatMessageEditLimit,
 } from "@/lib/chatMessageEditPolicy";
+import {
+  evaluateCurrentTurnSecondarySceneSafetyShadow,
+  persistAssistantTurnSecondarySceneSafety,
+} from "@/lib/secondarySceneParticipantSafety";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -348,6 +352,23 @@ export async function PATCH(req: Request) {
       );
     }
 
+    if (materialProseChange) {
+      try {
+        persistAssistantTurnSecondarySceneSafety({
+          chatId: msg.chat_id,
+          assistantText: text,
+          currentTurn: getAssistantSourceTurn(db, msg.chat_id, id) ?? 0,
+          sourceMessageId: id,
+          db,
+        });
+      } catch (err) {
+        console.warn(
+          "[secondary-scene-safety-shadow] assistant edit reconcile failed",
+          err
+        );
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       content: text,
@@ -357,5 +378,21 @@ export async function PATCH(req: Request) {
   }
 
   db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+  try {
+    evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId: msg.chat_id,
+      userMessage: text,
+      sceneReset: false,
+      currentTurn: getAssistantSourceTurn(db, msg.chat_id, id) ?? 0,
+      sourceMessageId: id,
+      skipSceneBoundary: true,
+      db,
+    });
+  } catch (err) {
+    console.warn(
+      "[secondary-scene-safety-shadow] user edit reconcile failed",
+      err
+    );
+  }
   return NextResponse.json({ ok: true, content: text });
 }

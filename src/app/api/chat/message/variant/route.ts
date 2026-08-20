@@ -38,6 +38,28 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
+import { persistAssistantTurnSecondarySceneSafety } from "@/lib/secondarySceneParticipantSafety";
+
+function reconcileVariantSecondarySafetyShadow(opts: {
+  chatId: number;
+  messageId: number;
+  assistantText: string;
+  currentTurn: number | null;
+}): void {
+  try {
+    persistAssistantTurnSecondarySceneSafety({
+      chatId: opts.chatId,
+      assistantText: opts.assistantText,
+      currentTurn: opts.currentTurn ?? 0,
+      sourceMessageId: opts.messageId,
+    });
+  } catch (err) {
+    console.warn(
+      "[secondary-scene-safety-shadow] variant reconcile failed",
+      err
+    );
+  }
+}
 
 /** 재생성 버전 선택 — ACTIVE SELECTED VARIANT == CANONICAL WORLDLINE */
 export async function PATCH(req: Request) {
@@ -259,6 +281,13 @@ export async function PATCH(req: Request) {
       }
     }
 
+    reconcileVariantSecondarySafetyShadow({
+      chatId: msg.chat_id,
+      messageId,
+      assistantText: responseSelected.content,
+      currentTurn: atomicResult.sourceTurn,
+    });
+
     return NextResponse.json({
       ok: true,
       ...serializeVariantsForClient(responseVariants, responseActive, {
@@ -394,6 +423,12 @@ export async function PATCH(req: Request) {
   }
 
   const selected = variants[variantIndex];
+  reconcileVariantSecondarySafetyShadow({
+    chatId: msg.chat_id,
+    messageId,
+    assistantText: selected.content,
+    currentTurn: sourceTurn,
+  });
   return NextResponse.json({
     ok: true,
     ...serializeVariantsForClient(variants, variantIndex, {

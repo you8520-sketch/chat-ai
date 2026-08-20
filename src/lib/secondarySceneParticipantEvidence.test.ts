@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   assessTrustedParticipantAdultStatus,
+  buildAuthoritativeParticipantId,
   buildDynamicParticipantId,
+  deriveEffectiveSecondaryAdultStatus,
   extractCurrentTurnSceneParticipantEvents,
   rejectPublicTrustedParticipantIdentity,
   toRestrictiveOnlyMetadata,
@@ -116,6 +118,86 @@ describe("current-turn secondary participant extractor", () => {
     assert.equal(events[1].displayName, "민수");
   });
 
+  it("H1 A. 17살 민수와 철수가 방으로 들어왔다 emits both actors", () => {
+    const events = extractCurrentTurnSceneParticipantEvents(
+      "17살 민수와 철수가 방으로 들어왔다."
+    );
+    assert.deepEqual(
+      events.map((e) => [e.displayName, e.action, e.attachedAge ?? null]),
+      [
+        ["민수", "ENTER", 17],
+        ["철수", "ENTER", null],
+      ]
+    );
+  });
+
+  it("H1 B. 17살 민수와 22살 철수가 들어왔다 keeps raw 22 on 철수", () => {
+    const events = extractCurrentTurnSceneParticipantEvents(
+      "17살 민수와 22살 철수가 들어왔다."
+    );
+    assert.deepEqual(
+      events.map((e) => [e.displayName, e.action, e.attachedAge ?? null]),
+      [
+        ["민수", "ENTER", 17],
+        ["철수", "ENTER", 22],
+      ]
+    );
+    assert.equal(
+      toRestrictiveOnlyMetadata({ age: events[1].attachedAge }).age,
+      undefined
+    );
+  });
+
+  it("H1 C. 민수가 들어오고 17살 동생도 따라 들어왔다 preserves action order", () => {
+    const events = extractCurrentTurnSceneParticipantEvents(
+      "민수가 들어오고 17살 동생도 따라 들어왔다."
+    );
+    assert.deepEqual(
+      events.map((e) => [e.displayName, e.action, e.attachedAge ?? null]),
+      [
+        ["민수", "ENTER", null],
+        ["동생", "ENTER", 17],
+      ]
+    );
+  });
+
+  it("H1 D. 민수가 들어왔다. 철수가 나갔다. emits ENTER then LEAVE", () => {
+    const events = extractCurrentTurnSceneParticipantEvents(
+      "민수가 들어왔다. 철수가 나갔다."
+    );
+    assert.deepEqual(
+      events.map((e) => [e.displayName, e.action]),
+      [
+        ["민수", "ENTER"],
+        ["철수", "LEAVE"],
+      ]
+    );
+  });
+
+  it("H1 minor first / middle / last in a shared clause all emit", () => {
+    const first = extractCurrentTurnSceneParticipantEvents(
+      "17살 민수와 철수와 영희가 들어왔다."
+    );
+    const middle = extractCurrentTurnSceneParticipantEvents(
+      "철수와 17살 민수와 영희가 들어왔다."
+    );
+    const last = extractCurrentTurnSceneParticipantEvents(
+      "철수와 영희와 17살 민수가 들어왔다."
+    );
+    for (const [label, events] of [
+      ["first", first],
+      ["middle", middle],
+      ["last", last],
+    ] as const) {
+      assert.equal(events.length, 3, label);
+      const minor = events.find((e) => e.displayName === "민수");
+      assert.ok(minor, label);
+      assert.equal(minor!.attachedAge, 17, label);
+      assert.ok(events.some((e) => e.displayName === "철수"), label);
+      assert.ok(events.some((e) => e.displayName === "영희"), label);
+    }
+  });
+
   it("24. duplicate actor mention stays the same normalized identity", () => {
     const a = buildDynamicParticipantId("동생");
     const b = buildDynamicParticipantId("동생");
@@ -211,6 +293,61 @@ describe("directional trust adapter", () => {
         authoritativeProfile: { age: 24, adultStatus: "confirmed" },
       }),
       "confirmed"
+    );
+  });
+
+  it("H3 deriveEffective splits authoritative vs restrictive layers", () => {
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        authoritative: { age: 22, adultStatus: "confirmed" },
+      }),
+      "confirmed"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        restrictive: { age: 17 },
+      }),
+      "minor"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        authoritative: { age: 22, adultStatus: "confirmed" },
+        restrictive: { age: 17 },
+      }),
+      "conflict"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        authoritative: { adultStatus: "confirmed" },
+        restrictive: { adultStatus: "minor" },
+      }),
+      "conflict"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        authoritative: { isRealPerson: true },
+      }),
+      "real_person"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        restrictive: { isRealPerson: true },
+      }),
+      "real_person"
+    );
+    assert.equal(
+      deriveEffectiveSecondaryAdultStatus({
+        restrictive: { age: 22, adultStatus: "confirmed" },
+      }),
+      "unknown"
+    );
+  });
+
+  it("H8 same-name dyn ids collapse; authoritative stable ids stay distinct", () => {
+    assert.equal(buildDynamicParticipantId("민수"), buildDynamicParticipantId("민수"));
+    assert.notEqual(
+      buildAuthoritativeParticipantId("creator_npc", "npc-1"),
+      buildAuthoritativeParticipantId("creator_npc", "npc-2")
     );
   });
 
