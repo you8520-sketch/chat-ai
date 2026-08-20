@@ -13,6 +13,7 @@ import {
   mergeScenarioDraft,
   NO_WORLD_AI_DRAFT_ALLOWED,
   PARTIAL_REGEN_SPARSE,
+  PARTIAL_REGEN_SPARSE_UNSAFE_REASON,
   parseScenarioDraftJson,
   previewDraftOverwrite,
   RECOVERY_PATH_GUIDANCE,
@@ -390,8 +391,9 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(makeDraftProvenance({ worldId: null }).sourceWorldId, null);
   });
 
-  it("uses sparse operation budgets without turning full drafts into free-form novels", () => {
-    assert.equal(PARTIAL_REGEN_SPARSE, true);
+  it("keeps selected-field merge ownership even though provider sparse output is not trusted", () => {
+    assert.equal(PARTIAL_REGEN_SPARSE, false);
+    assert.match(PARTIAL_REGEN_SPARSE_UNSAFE_REASON, /full schema/);
     assert.equal(STRUCTURED_PLAN_IS_PRIMARY, true);
     assert.equal(FULL_SCENARIO_TEXT_REQUIRED, false);
     assert.equal(

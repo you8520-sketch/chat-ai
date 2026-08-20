@@ -34,7 +34,9 @@ export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
 export const FULL_SCENARIO_TEXT_REQUIRED = false;
-export const PARTIAL_REGEN_SPARSE = true;
+export const PARTIAL_REGEN_SPARSE = false;
+export const PARTIAL_REGEN_SPARSE_UNSAFE_REASON =
+  "deepseek-v4-flash-0731 may return the full schema despite exact sparse-key instructions; merge ownership still applies only selected fields.";
 export const RECOVERY_PATH_GUIDANCE = true;
 
 export const TRPG_SCENARIO_DRAFT_MODES = ["fill_empty", "regenerate_selected", "regenerate_all"] as const;
