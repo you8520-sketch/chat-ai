@@ -303,6 +303,10 @@ import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
+import {
+  evaluateCurrentTurnSecondarySceneSafetyShadow,
+  persistAssistantTurnSecondarySceneSafety,
+} from "@/lib/secondarySceneParticipantSafety";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
@@ -1293,6 +1297,27 @@ export async function POST(req: Request) {
     providerCapabilities: adultRoutingConfig.providerCapabilities,
   });
   const adultFallbackModelId = adultDeliveryPlan.fallbackModelId;
+
+  // S1 shadow-only: scene-participant safety projection. Never feeds
+  // resolveAdultEligibility / AdultDeliveryPlan / provider routing.
+  try {
+    const secondarySceneSafetyShadow =
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId: chat.id,
+        userMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        currentTurn: playableTurnCount + 1,
+        sexualContextActive: sceneClassification.sexualContextActive,
+      });
+    console.info("[secondary-scene-safety-shadow]", {
+      chatId: chat.id,
+      present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
+      wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
+      reason: secondarySceneSafetyShadow.reason,
+    });
+  } catch (err) {
+    console.warn("[secondary-scene-safety-shadow] eval failed", err);
+  }
 
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
     loadCharacterChunksForPrompt(
@@ -5355,6 +5380,21 @@ export async function POST(req: Request) {
           assistantFinalizedThisRequest &&
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
           shouldCommitCanonicalTurnState(generationSemantics);
+
+        if (assistantFinalizedThisRequest && savedText.trim()) {
+          try {
+            persistAssistantTurnSecondarySceneSafety({
+              chatId: chatRef.id,
+              assistantText: savedText,
+              currentTurn: playableTurnCount + 1,
+            });
+          } catch (err) {
+            console.warn(
+              "[secondary-scene-safety-shadow] assistant persist failed",
+              err
+            );
+          }
+        }
 
         if (derivedStateAllowed) {
           const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);
