@@ -223,6 +223,7 @@ async function runFixture(fixture: Fixture, run: number) {
       existing: fixture.existing,
       generated,
       selectedFields: fixture.selectedFields,
+      generatedFields: requestedFields,
       provenance: makeDraftProvenance({ worldId: fixture.worldSelected ? 1 : null }),
     });
     const lint = lintTrpgScenarioPlan({

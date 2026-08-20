@@ -130,6 +130,7 @@ export async function POST(req: Request) {
       generated,
       selectedFields,
       lockedFields,
+      generatedFields: requestedFields,
       provenance: makeDraftProvenance({
         worldId,
         worldUpdatedAt,

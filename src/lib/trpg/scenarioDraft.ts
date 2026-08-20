@@ -245,42 +245,68 @@ export function mergeScenarioDraft(opts: {
   generated: TrpgScenarioDraftResult;
   selectedFields?: TrpgScenarioDraftField[];
   lockedFields?: TrpgScenarioDraftField[];
+  generatedFields?: readonly TrpgScenarioDraftField[];
   provenance?: TrpgScenarioPlanProvenance | null;
 }): TrpgScenarioDraftResult {
-  const changing = new Set(previewDraftOverwrite(opts));
+  const allowedGenerated = opts.generatedFields ? new Set(opts.generatedFields) : null;
+  const changing = new Set(
+    previewDraftOverwrite(opts).filter((field) => allowedGenerated == null || allowedGenerated.has(field))
+  );
   const overwrite = (field: TrpgScenarioDraftField) => changing.has(field);
+  const generatedAllowed = (field: TrpgScenarioDraftField) =>
+    allowedGenerated == null || allowedGenerated.has(field);
   const existingPlan = { ...emptyTrpgScenarioPlan(), ...(opts.existing.plan ?? {}) };
   const generated = opts.generated;
+  const text = (field: TrpgScenarioDraftField, existing: string | undefined, value: string) =>
+    generatedAllowed(field) ? pickText(existing, value, overwrite(field)) : String(existing ?? "").trim();
+  const list = (field: TrpgScenarioDraftField, existing: string[] | undefined, value: string[]) =>
+    generatedAllowed(field) ? pickList(existing, value, overwrite(field)) : existing ?? [];
   const plan: TrpgScenarioPlan = {
     ...emptyTrpgScenarioPlan(),
-    startingSituation: pickText(existingPlan.startingSituation, generated.plan.startingSituation, overwrite("startingSituation")),
-    centralConflict: pickText(existingPlan.centralConflict, generated.plan.centralConflict, overwrite("centralConflict")),
-    goal: pickText(existingPlan.goal, generated.plan.goal, overwrite("goal")),
-    secret: pickText(existingPlan.secret, generated.plan.secret, overwrite("secret")),
-    endingConditions: pickList(existingPlan.endingConditions, generated.plan.endingConditions, overwrite("endingConditions")),
-    majorEvents: pickList(existingPlan.majorEvents, generated.plan.majorEvents, overwrite("majorEvents")),
-    clues: pickList(existingPlan.clues, generated.plan.clues, overwrite("clues")),
-    forbiddenEvents: pickList(existingPlan.forbiddenEvents, generated.plan.forbiddenEvents, overwrite("forbiddenEvents")),
-    boss: pickText(existingPlan.boss, generated.plan.boss, overwrite("boss")),
-    specialRules: pickList(existingPlan.specialRules, generated.plan.specialRules, overwrite("specialRules")),
-    difficulty: overwrite("difficulty") ? generated.plan.difficulty : existingPlan.difficulty || generated.plan.difficulty,
-    climax: pickText(existingPlan.climax, generated.plan.climax, overwrite("climax")),
-    endingCandidates: pickList(existingPlan.endingCandidates, generated.plan.endingCandidates, overwrite("endingCandidates")),
-    factionChanges: pickList(existingPlan.factionChanges, generated.plan.factionChanges, overwrite("factionChanges")),
-    gmDirection: pickText(existingPlan.gmDirection, generated.plan.gmDirection, overwrite("gmDirection")),
-    playLength: overwrite("playLength") ? generated.plan.playLength : existingPlan.playLength || generated.plan.playLength,
+    startingSituation: text("startingSituation", existingPlan.startingSituation, generated.plan.startingSituation),
+    centralConflict: text("centralConflict", existingPlan.centralConflict, generated.plan.centralConflict),
+    goal: text("goal", existingPlan.goal, generated.plan.goal),
+    secret: text("secret", existingPlan.secret, generated.plan.secret),
+    endingConditions: list("endingConditions", existingPlan.endingConditions, generated.plan.endingConditions),
+    majorEvents: list("majorEvents", existingPlan.majorEvents, generated.plan.majorEvents),
+    clues: list("clues", existingPlan.clues, generated.plan.clues),
+    forbiddenEvents: list("forbiddenEvents", existingPlan.forbiddenEvents, generated.plan.forbiddenEvents),
+    boss: text("boss", existingPlan.boss, generated.plan.boss),
+    specialRules: list("specialRules", existingPlan.specialRules, generated.plan.specialRules),
+    difficulty: generatedAllowed("difficulty") && overwrite("difficulty")
+      ? generated.plan.difficulty
+      : existingPlan.difficulty,
+    climax: text("climax", existingPlan.climax, generated.plan.climax),
+    endingCandidates: list("endingCandidates", existingPlan.endingCandidates, generated.plan.endingCandidates),
+    factionChanges: list("factionChanges", existingPlan.factionChanges, generated.plan.factionChanges),
+    gmDirection: text("gmDirection", existingPlan.gmDirection, generated.plan.gmDirection),
+    playLength: generatedAllowed("playLength") && overwrite("playLength")
+      ? generated.plan.playLength
+      : existingPlan.playLength,
     provenance: opts.provenance ?? generated.plan.provenance ?? existingPlan.provenance ?? null,
   };
   return {
-    title: pickText(opts.existing.title, generated.title, overwrite("title")).slice(0, TRPG_SCENARIO_TITLE_LIMIT),
-    summary: pickText(opts.existing.summary, generated.summary, overwrite("summary")).slice(0, TRPG_SCENARIO_SUMMARY_LIMIT),
-    startLocation: pickText(opts.existing.startLocation, generated.startLocation, overwrite("startLocation")),
-    startInventory: overwrite("startInventory")
+    title: text("title", opts.existing.title, generated.title).slice(0, TRPG_SCENARIO_TITLE_LIMIT),
+    summary: text("summary", opts.existing.summary, generated.summary).slice(0, TRPG_SCENARIO_SUMMARY_LIMIT),
+    startLocation: text("startLocation", opts.existing.startLocation, generated.startLocation),
+    startInventory: generatedAllowed("startInventory") && overwrite("startInventory")
       ? parseInventory(generated.startInventory)
-      : parseInventory(opts.existing.startInventory?.length ? opts.existing.startInventory : generated.startInventory),
-    npcs: overwrite("npcs")
+      : parseInventory(
+          opts.existing.startInventory?.length
+            ? opts.existing.startInventory
+            : generatedAllowed("startInventory")
+              ? generated.startInventory
+              : []
+        ),
+    npcs: generatedAllowed("npcs") && overwrite("npcs")
       ? parseScenarioNpcs(generated.npcs).slice(0, TRPG_SCENARIO_MAX_NPCS)
-      : parseScenarioNpcs((opts.existing.npcs?.length ? opts.existing.npcs : generated.npcs)).slice(0, TRPG_SCENARIO_MAX_NPCS),
+      : parseScenarioNpcs(
+          opts.existing.npcs?.length
+            ? opts.existing.npcs
+            : generatedAllowed("npcs")
+              ? generated.npcs
+              : []
+        ).slice(0, TRPG_SCENARIO_MAX_NPCS),
     plan,
   };
 }

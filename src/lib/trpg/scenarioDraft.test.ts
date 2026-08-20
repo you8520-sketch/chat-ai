@@ -410,6 +410,15 @@ describe("TRPG scenario AI draft", () => {
       }),
       TRPG_SCENARIO_DRAFT_CORE_FIELDS
     );
+    const coreOnly = mergeScenarioDraft({
+      mode: "fill_empty",
+      existing: {},
+      generated,
+      generatedFields: TRPG_SCENARIO_DRAFT_CORE_FIELDS,
+    });
+    assert.deepEqual(coreOnly.npcs, []);
+    assert.equal(coreOnly.plan.gmDirection, "");
+    assert.equal(coreOnly.plan.goal, "목표");
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),
       1600
