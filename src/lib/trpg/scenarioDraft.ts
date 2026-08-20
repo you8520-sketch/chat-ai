@@ -24,10 +24,10 @@ export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_073
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
-export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 180_000;
+export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 210_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 60_000;
-export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 1_600;
-export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_200;
+export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_000;
+export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_400;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
 export const FULL_SCENARIO_TEXT_REQUIRED = false;
@@ -321,7 +321,7 @@ Rules:
 - Keep each scalar to one short sentence.
 - Use at most 3 major events, 3 clues, and 3 essential NPCs.
 - Keep every list item to one sentence and every NPC description/greeting/systemPrompt to one short sentence.
-- Keep the complete JSON comfortably below 1,600 output tokens.
+- Keep the complete JSON comfortably below 2,000 output tokens.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
 - Summary must be player-safe: no secrets, twists, or endings.
 - NPC stats must be null unless a specific mechanical reason exists. Do not invent database IDs.
@@ -401,7 +401,7 @@ export function scenarioDraftOutputMaxTokens(opts: {
 }): number {
   const fields = new Set(opts.changingFields);
   if (fields.size >= 16 || opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
-  if (fields.size >= 8) return 1_600;
+  if (fields.size >= 8) return 2_000;
   if (fields.size >= 3) return 1_400;
   if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
   if (fields.has("npcs")) return 1_400;

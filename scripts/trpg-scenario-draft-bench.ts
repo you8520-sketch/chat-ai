@@ -11,6 +11,7 @@ import { loadEnvConfig } from "@next/env";
 import {
   buildScenarioDraftSystemPrompt,
   buildScenarioDraftUserPrompt,
+  extractJsonObject,
   makeDraftProvenance,
   mergeScenarioDraft,
   previewDraftOverwrite,
@@ -249,6 +250,7 @@ async function runFixture(fixture: Fixture, run: number) {
       LATENCY_MS: Date.now() - started,
       TIMEOUT_MS: primary?.timeoutMs ?? primaryTimeoutMs,
       FINISH_REASON: primary?.result?.finishReason ?? "",
+      OUTPUT_KEYS: primary?.result ? Object.keys(extractJsonObject(primary.result.text) ?? {}) : [],
       PARSE_OK: parseOk,
       REPAIR_USED: Boolean(repair),
       REPAIR_TIMEOUT_MS: repair?.timeoutMs ?? 0,
