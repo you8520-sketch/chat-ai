@@ -10,6 +10,7 @@ import {
   type SecondaryEvidenceTrust,
   type SecondaryParticipantKind,
   type SecondaryPresenceState,
+  type SecondarySafetyCoverage,
   type SecondarySafetySourceRole,
 } from "@/lib/secondarySceneParticipantSafetySchema";
 import type { SceneParticipantEventAction } from "@/lib/secondarySceneParticipantEvidence";
@@ -47,6 +48,7 @@ export type SecondarySafetyEventWrite = {
   sourceRole: SecondarySafetySourceRole;
   sourceMessageId?: number | null;
   sourceTurn?: number | null;
+  eventIndex: number;
   evidenceTrust: SecondaryEvidenceTrust;
   evidenceSource: SecondaryEvidenceSource;
   attachedAge?: number | null;
@@ -197,10 +199,10 @@ export function insertSecondarySafetyEvent(
   db.prepare(
     `INSERT INTO scene_secondary_participant_safety_events (
        id, scene_id, chat_id, participant_id, action, source_role,
-       source_message_id, source_turn, evidence_trust, evidence_source,
+       source_message_id, source_turn, event_index, evidence_trust, evidence_source,
        attached_age, restrictive_age, restrictive_adult_status,
        restrictive_is_real_person
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   ).run(
     id,
     input.sceneId,
@@ -210,6 +212,7 @@ export function insertSecondarySafetyEvent(
     input.sourceRole,
     input.sourceMessageId ?? null,
     input.sourceTurn ?? null,
+    input.eventIndex,
     input.evidenceTrust,
     input.evidenceSource,
     input.attachedAge ?? null,
@@ -232,7 +235,16 @@ export function listSecondarySafetyEventsForParticipant(
     .prepare(
       `SELECT * FROM scene_secondary_participant_safety_events
        WHERE scene_id=? AND participant_id=?
-       ORDER BY created_at ASC, id ASC`
+       ORDER BY
+         source_turn ASC,
+         CASE source_role
+           WHEN 'user' THEN 0
+           WHEN 'assistant' THEN 1
+           ELSE 2
+         END ASC,
+         source_message_id ASC,
+         event_index ASC,
+         id ASC`
     )
     .all(sceneId, participantId) as SceneSecondaryParticipantSafetyEventRow[];
 }
@@ -267,4 +279,43 @@ export function deleteSecondarySafetyEventsForSourceMessages(opts: {
     )
     .run(...params);
   return { deleted: result.changes, participantKeys: affected };
+}
+
+export function setSecondarySafetyCoverageCore(opts: {
+  chatId: number;
+  coverage: SecondarySafetyCoverage;
+  reason: string;
+  coveredFromTurn?: number | null;
+  db: Database.Database;
+}): void {
+  opts.db
+    .prepare(
+      `INSERT INTO chat_secondary_safety_coverage (
+         chat_id, coverage, reason, covered_from_turn
+       ) VALUES (?,?,?,?)
+       ON CONFLICT(chat_id) DO UPDATE SET
+         coverage=excluded.coverage,
+         reason=excluded.reason,
+         covered_from_turn=excluded.covered_from_turn,
+         updated_at=datetime('now')`
+    )
+    .run(
+      opts.chatId,
+      opts.coverage,
+      opts.reason,
+      opts.coveredFromTurn ?? null
+    );
+}
+
+export function getSecondarySafetyCoverage(
+  chatId: number,
+  db: Database.Database = getDb()
+): SecondarySafetyCoverage {
+  ensureSecondarySceneParticipantSafetySchema(db);
+  const row = db
+    .prepare(
+      `SELECT coverage FROM chat_secondary_safety_coverage WHERE chat_id=?`
+    )
+    .get(chatId) as { coverage?: string } | undefined;
+  return row?.coverage === "INCOMPLETE" ? "INCOMPLETE" : "COMPLETE";
 }

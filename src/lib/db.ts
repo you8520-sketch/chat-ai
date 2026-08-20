@@ -1101,6 +1101,7 @@ function migrate(db: Database.Database) {
       source_role TEXT NOT NULL,
       source_message_id INTEGER,
       source_turn INTEGER,
+      event_index INTEGER NOT NULL DEFAULT 0,
       evidence_trust TEXT NOT NULL,
       evidence_source TEXT NOT NULL,
       attached_age INTEGER,
@@ -1113,6 +1114,14 @@ function migrate(db: Database.Database) {
       ON scene_secondary_participant_safety_events(scene_id, participant_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_ssps_events_source_msg
       ON scene_secondary_participant_safety_events(chat_id, source_message_id);
+
+    CREATE TABLE IF NOT EXISTS chat_secondary_safety_coverage (
+      chat_id INTEGER PRIMARY KEY,
+      coverage TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      covered_from_turn INTEGER,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
 
     CREATE TABLE IF NOT EXISTS scene_observer_presence (
       scene_id TEXT NOT NULL,

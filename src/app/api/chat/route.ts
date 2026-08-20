@@ -304,6 +304,7 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import {
+  buildProspectiveSecondarySceneSafetySnapshot,
   evaluateCurrentTurnSecondarySceneSafetyShadow,
   persistAssistantTurnSecondarySceneSafety,
 } from "@/lib/secondarySceneParticipantSafety";
@@ -1255,6 +1256,41 @@ export async function POST(req: Request) {
     ],
     actualNonConsent: sceneClassification.actualNonConsent,
   });
+
+  // S1.2 pure preflight. Future S2 guard belongs immediately after this read:
+  // classify -> base eligibility -> prospective safety -> guard -> durable
+  // bootstrap -> safety commit -> existing adult route/delivery -> provider.
+  // S1.2 remains shadow-only and cannot block or alter routing.
+  try {
+    const prospectiveSecondarySafety =
+      buildProspectiveSecondarySceneSafetySnapshot({
+        chatId: chat.id,
+        currentTurn: playableTurnCount + 1,
+        currentUserMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition:
+          sceneClassification.clearSceneTransition === true,
+        sexualContextActive: sceneClassification.sexualContextActive,
+      });
+    console.info("[secondary-scene-safety-preflight-shadow]", {
+      chatId: chat.id,
+      present:
+        prospectiveSecondarySafety.presentSecondaryParticipants.length,
+      wouldBlockAdultScene:
+        prospectiveSecondarySafety.wouldBlockAdultScene,
+      coverage: prospectiveSecondarySafety.coverage,
+      shadowOnly: true,
+    });
+  } catch (err) {
+    // Future S2 policy: normal RP may continue only on the selected general
+    // model with adult handoff disabled; adult/sexual scenes fail closed here,
+    // before persistence/provider/billing. No enforcement in S1.2.
+    console.warn(
+      "[secondary-scene-safety-preflight-shadow] evaluation unavailable",
+      err
+    );
+  }
+
   const adultRouteDecision = decideAdultModelRoute({
     config: adultRoutingConfig,
     state: priorModelRouteState,

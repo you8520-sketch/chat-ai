@@ -1,6 +1,7 @@
 import Module from "module";
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { classifySceneMode } from "./adultSceneRouting";
 import { getActiveChatScene, listChatScenes } from "./chatScenes";
@@ -14,16 +15,24 @@ import {
   extractCurrentTurnSceneParticipantEvents,
 } from "./secondarySceneParticipantEvidence";
 import {
+  buildProspectiveSecondarySceneSafetySnapshot,
   evaluateCurrentTurnSecondarySceneSafetyShadow,
+  markSecondarySafetyCoverageIncomplete,
   persistAssistantTurnSecondarySceneSafety,
   readSecondarySceneSafetySnapshot,
+  resolveCanonicalUserPlayableTurn,
   resolveSafetySceneBoundary,
   retractSecondarySafetyEventsForSourceMessages,
+  SECONDARY_SAFETY_BRANCH_NONCANON_AUDIT,
   SECONDARY_SAFETY_CANONICAL_RECONCILIATION,
+  SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER,
+  SECONDARY_SAFETY_FUTURE_FAILURE_POLICY,
+  SECONDARY_SAFETY_USER_EDIT_BOUNDARY_POLICY,
 } from "./secondarySceneParticipantSafety";
 import { ensureSecondarySceneParticipantSafetySchema } from "./secondarySceneParticipantSafetySchema";
 import {
   getSecondaryParticipantSafety,
+  getSecondarySafetyCoverage,
   listPresentSecondaryParticipants,
   listSecondarySafetyEventsForParticipant,
 } from "./secondarySceneParticipantSafetyStore";
@@ -778,9 +787,12 @@ describe("S1.1 secondary-scene safety pre-enforcement hardening", () => {
     assert.equal(SECONDARY_SAFETY_CANONICAL_RECONCILIATION.delete, "SUPPORTED");
     assert.equal(
       SECONDARY_SAFETY_CANONICAL_RECONCILIATION["branch/noncanon"],
-      "UNSUPPORTED"
+      "NOT_APPLICABLE_TO_SECONDARY_SAFETY"
     );
-    assert.equal(SECONDARY_SAFETY_CANONICAL_RECONCILIATION.fork, "UNSUPPORTED");
+    assert.equal(
+      SECONDARY_SAFETY_CANONICAL_RECONCILIATION.fork,
+      "COVERAGE_INCOMPLETE"
+    );
   });
 
   it("H7 Discovery ON scene reset restores main presence and drops secondary inheritance", () => {
@@ -956,5 +968,627 @@ describe("S1.1 secondary-scene safety pre-enforcement hardening", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
+  it("P1 same-second ENTER→LEAVE is always ABSENT with event_index order", () => {
+    for (let run = 0; run < 30; run += 1) {
+      const db = memDb();
+      const chatId = nextChatId();
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "민수가 들어왔다. 민수가 나갔다.",
+        sceneReset: false,
+        currentTurn: 1,
+        sourceMessageId: 100,
+        db,
+      });
+      const scene = getActiveChatScene(chatId, db)!;
+      const participantId = buildDynamicParticipantId("민수");
+      const row = getSecondaryParticipantSafety(scene.id, participantId, db)!;
+      assert.equal(row.presence_state, "ABSENT");
+      const events = listSecondarySafetyEventsForParticipant(
+        scene.id,
+        participantId,
+        db
+      );
+      assert.deepEqual(
+        events.map((event) => [event.action, event.event_index]),
+        [
+          ["ENTER", 0],
+          ["LEAVE", 1],
+        ]
+      );
+      assert.equal(events[0].created_at, events[1].created_at);
+    }
+  });
+
+  it("P1 same-second LEAVE→ENTER is always PRESENT", () => {
+    for (let run = 0; run < 30; run += 1) {
+      const db = memDb();
+      const chatId = nextChatId();
+      const snap = evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "민수가 나갔다. 민수가 들어왔다.",
+        sceneReset: false,
+        currentTurn: 1,
+        sourceMessageId: 100,
+        db,
+      });
+      assert.equal(snap.presentSecondaryParticipants.length, 1);
+      assert.equal(
+        snap.presentSecondaryParticipants[0].presenceState,
+        "PRESENT"
+      );
+    }
+  });
+
+  it("P1 user events sort before assistant events in one playable turn", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "민수가 들어왔다.",
+      sceneReset: false,
+      currentTurn: 1,
+      sourceMessageId: 900,
+      db,
+    });
+    persistAssistantTurnSecondarySceneSafety({
+      chatId,
+      assistantText: "민수가 나갔다.",
+      currentTurn: 1,
+      sourceMessageId: 100,
+      db,
+    });
+    assert.equal(
+      readSecondarySceneSafetySnapshot({ chatId, db })
+        .presentSecondaryParticipants.length,
+      0
+    );
+    const scene = getActiveChatScene(chatId, db)!;
+    const events = listSecondarySafetyEventsForParticipant(
+      scene.id,
+      buildDynamicParticipantId("민수"),
+      db
+    );
+    assert.deepEqual(
+      events.map((event) => event.source_role),
+      ["user", "assistant"]
+    );
+  });
+
+  it("P2 canonical user source turns are 1, 2 and edits preserve the turn", () => {
+    const db = memDb();
+    db.exec(`
+      CREATE TABLE messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        model TEXT NOT NULL DEFAULT ''
+      );
+    `);
+    const chatId = nextChatId();
+    const user1 = Number(
+      db
+        .prepare(
+          `INSERT INTO messages (chat_id, role, content) VALUES (?, 'user', '첫 턴')`
+        )
+        .run(chatId).lastInsertRowid
+    );
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model)
+       VALUES (?, 'assistant', '첫 답변', 'model')`
+    ).run(chatId);
+    const user2 = Number(
+      db
+        .prepare(
+          `INSERT INTO messages (chat_id, role, content) VALUES (?, 'user', '둘째 턴')`
+        )
+        .run(chatId).lastInsertRowid
+    );
+    assert.equal(
+      resolveCanonicalUserPlayableTurn({
+        chatId,
+        userMessageId: user1,
+        db,
+      }),
+      1
+    );
+    assert.equal(
+      resolveCanonicalUserPlayableTurn({
+        chatId,
+        userMessageId: user2,
+        db,
+      }),
+      2
+    );
+    evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "17살 동생이 들어왔다.",
+      sceneReset: false,
+      currentTurn: 2,
+      sourceMessageId: user2,
+      db,
+    });
+    db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (?, 'user', '후속')")
+      .run(chatId);
+    assert.equal(
+      resolveCanonicalUserPlayableTurn({
+        chatId,
+        userMessageId: user2,
+        db,
+      }),
+      2
+    );
+  });
+
+  it("P3 event insert + projection rollback atomically", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    assert.throws(
+      () =>
+        evaluateCurrentTurnSecondarySceneSafetyShadow({
+          chatId,
+          userMessage: "17살 동생이 들어왔다.",
+          sceneReset: false,
+          currentTurn: 1,
+          sourceMessageId: 1,
+          db,
+          __testFailurePoint: "AFTER_EVENT_INSERT",
+        }),
+      /AFTER_EVENT_INSERT/
+    );
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety_events WHERE chat_id=?"
+        )
+        .get(chatId).count,
+      0
+    );
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety WHERE chat_id=?"
+        )
+        .get(chatId).count,
+      0
+    );
+  });
+
+  it("P3 source retract + projection rollback atomically", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "17살 동생이 들어왔다.",
+      sceneReset: false,
+      currentTurn: 1,
+      sourceMessageId: 11,
+      db,
+    });
+    const before = readSecondarySceneSafetySnapshot({ chatId, db });
+    assert.throws(
+      () =>
+        retractSecondarySafetyEventsForSourceMessages({
+          chatId,
+          sourceMessageIds: [11],
+          db,
+          __testFailurePoint: "AFTER_EVENT_DELETE",
+        }),
+      /AFTER_EVENT_DELETE/
+    );
+    assert.deepEqual(readSecondarySceneSafetySnapshot({ chatId, db }), before);
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety_events WHERE chat_id=?"
+        )
+        .get(chatId).count,
+      1
+    );
+  });
+
+  it("P3 multi-actor batch rolls back without half-applied state", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    assert.throws(
+      () =>
+        evaluateCurrentTurnSecondarySceneSafetyShadow({
+          chatId,
+          userMessage: "17살 민수와 철수가 들어왔다.",
+          sceneReset: false,
+          currentTurn: 1,
+          sourceMessageId: 12,
+          db,
+          __testFailurePoint: "MID_EVENT_BATCH",
+        }),
+      /MID_EVENT_BATCH/
+    );
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety_events WHERE chat_id=?"
+        )
+        .get(chatId).count,
+      0
+    );
+    assert.equal(
+      db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety WHERE chat_id=?"
+        )
+        .get(chatId).count,
+      0
+    );
+  });
+
+  it("P3 public mutation uses no nested transaction inside outer owner", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    db.transaction(() => {
+      assert.equal(db.inTransaction, true);
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "민수가 들어왔다.",
+        sceneReset: false,
+        currentTurn: 1,
+        sourceMessageId: 13,
+        db,
+      });
+      assert.equal(db.inTransaction, true);
+    }).immediate();
+    assert.equal(
+      readSecondarySceneSafetySnapshot({ chatId, db })
+        .presentSecondaryParticipants.length,
+      1
+    );
+  });
+
+  it("P4 prospective snapshot equals persisted snapshot for 20+ fixtures", () => {
+    const fixtures = [
+      "문을 닫았다.",
+      "민수가 들어왔다.",
+      "17살 동생이 들어왔다.",
+      "22살 철수가 들어왔다.",
+      "민수가 들어왔다. 민수가 나갔다.",
+      "민수가 나갔다. 민수가 들어왔다.",
+      "17살 민수와 철수가 들어왔다.",
+      "철수와 17살 민수와 영희가 들어왔다.",
+      "실존 인물인 민수가 들어왔다.",
+      "동생도 여기 함께 있다.",
+      "세 사람이 방에 합류했다.",
+      "동생은 방을 나갔다.",
+      "아들은 학교에 있어.",
+      "사진 속 아이가 웃었다.",
+      "전화 중인 동생 이야기다.",
+      "17살 때 만났던 친구다.",
+      "민수가 방으로 들어왔다.",
+      "민수가 들어오고 17살 동생도 따라 들어왔다.",
+      "민수가 들어왔다. 철수가 나갔다.",
+      "17살 민수와 22살 철수가 들어왔다.",
+      "고등학생 동생이 들어왔다.",
+      "미성년자 민수가 들어왔다.",
+      "민수가 여기 함께 있다.",
+      "민수가 떠났다.",
+    ];
+    for (const [index, text] of fixtures.entries()) {
+      const db = memDb();
+      const chatId = nextChatId();
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "철수가 들어왔다.",
+        sceneReset: false,
+        currentTurn: 1,
+        sourceMessageId: 1,
+        db,
+      });
+      const prospective = buildProspectiveSecondarySceneSafetySnapshot({
+        chatId,
+        currentTurn: 2,
+        currentUserMessage: text,
+        sceneReset: false,
+        db,
+      });
+      const persisted = evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: text,
+        sceneReset: false,
+        currentTurn: 2,
+        sourceMessageId: 1000 + index,
+        db,
+      });
+      assert.deepEqual(prospective, persisted, text);
+    }
+  });
+
+  it("P4 prospective authoritative/restrictive conflict matches persisted", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    const authoritativeActors = [
+      {
+        stableId: "prospective-minsu",
+        displayName: "민수",
+        kind: "creator_npc" as const,
+        metadata: { age: 22, adultStatus: "confirmed" as const },
+      },
+    ];
+    const prospective = buildProspectiveSecondarySceneSafetySnapshot({
+      chatId,
+      currentTurn: 1,
+      currentUserMessage: "17살 민수가 들어왔다.",
+      sceneReset: false,
+      authoritativeActors,
+      db,
+    });
+    const persisted = evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "17살 민수가 들어왔다.",
+      sceneReset: false,
+      currentTurn: 1,
+      sourceMessageId: 100,
+      authoritativeActors,
+      db,
+    });
+    assert.deepEqual(prospective, persisted);
+    assert.equal(
+      prospective.presentSecondaryParticipants[0].adultStatus,
+      "conflict"
+    );
+  });
+
+  it("P4 prospective boundary semantics are pure and match persisted reset/transition", () => {
+    for (const boundary of [
+      { sceneReset: true, clearSceneTransition: false },
+      { sceneReset: false, clearSceneTransition: true },
+    ]) {
+      const db = memDb();
+      const chatId = nextChatId();
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "17살 동생이 들어왔다.",
+        sceneReset: false,
+        currentTurn: 1,
+        sourceMessageId: 1,
+        db,
+      });
+      markSecondarySafetyCoverageIncomplete({
+        chatId,
+        reason: "test_incomplete",
+        db,
+      });
+      const sceneBefore = getActiveChatScene(chatId, db)!;
+      const countsBefore = {
+        scenes: db
+          .prepare("SELECT COUNT(*) AS count FROM chat_scenes WHERE chat_id=?")
+          .get(chatId).count,
+        events: db
+          .prepare(
+            "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety_events WHERE chat_id=?"
+          )
+          .get(chatId).count,
+        rows: db
+          .prepare(
+            "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety WHERE chat_id=?"
+          )
+          .get(chatId).count,
+      };
+      const prospective = buildProspectiveSecondarySceneSafetySnapshot({
+        chatId,
+        currentTurn: 2,
+        currentUserMessage: "민수가 들어왔다.",
+        ...boundary,
+        db,
+      });
+      assert.equal(getActiveChatScene(chatId, db)?.id, sceneBefore.id);
+      assert.deepEqual(
+        {
+          scenes: db
+            .prepare("SELECT COUNT(*) AS count FROM chat_scenes WHERE chat_id=?")
+            .get(chatId).count,
+          events: db
+            .prepare(
+              "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety_events WHERE chat_id=?"
+            )
+            .get(chatId).count,
+          rows: db
+            .prepare(
+              "SELECT COUNT(*) AS count FROM scene_secondary_participant_safety WHERE chat_id=?"
+            )
+            .get(chatId).count,
+        },
+        countsBefore
+      );
+      assert.equal(prospective.coverage, "COMPLETE");
+      const persisted = evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "민수가 들어왔다.",
+        currentTurn: 2,
+        sourceMessageId: 2,
+        ...boundary,
+        db,
+      });
+      assert.deepEqual(prospective, persisted);
+    }
+  });
+
+  it("P4 prospective preflight performs zero provider calls", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    let calls = 0;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      throw new Error("provider call forbidden");
+    }) as typeof fetch;
+    try {
+      buildProspectiveSecondarySceneSafetySnapshot({
+        chatId,
+        currentTurn: 1,
+        currentUserMessage: "17살 동생이 들어왔다.",
+        sceneReset: false,
+        db,
+      });
+      assert.equal(calls, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("P5 future block point precedes persistence, provider, and billing owners", () => {
+    assert.deepEqual(SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER, [
+      "classify_scene",
+      "base_main_persona_eligibility",
+      "prospective_secondary_safety",
+      "SecondarySceneParticipantGuard",
+      "durable_user_assistant_bootstrap",
+      "commit_secondary_safety_evidence",
+      "background_extractors",
+      "adult_route_delivery",
+      "provider",
+      "billing_deduction",
+    ]);
+    const guard = SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER.indexOf(
+      "SecondarySceneParticipantGuard"
+    );
+    assert.ok(
+      guard <
+        SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER.indexOf(
+          "durable_user_assistant_bootstrap"
+        )
+    );
+    assert.ok(
+      guard <
+        SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER.indexOf(
+          "background_extractors"
+        )
+    );
+    assert.ok(
+      guard <
+        SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER.indexOf("provider")
+    );
+    assert.ok(
+      guard <
+        SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER.indexOf(
+          "billing_deduction"
+        )
+    );
+
+    const routeSource = readFileSync(
+      new URL("../app/api/chat/route.ts", import.meta.url),
+      "utf8"
+    );
+    const preflight = routeSource.indexOf(
+      "const prospectiveSecondarySafety"
+    );
+    const durableBootstrap = routeSource.indexOf("bootstrapStreamingTurn(db");
+    const provider = routeSource.indexOf(
+      "return streamOpenRouterAdultToClient("
+    );
+    const billing = routeSource.indexOf("const deducted = deductPoints(");
+    assert.ok(preflight > 0);
+    assert.ok(preflight < durableBootstrap);
+    assert.ok(preflight < provider);
+    assert.ok(preflight < billing);
+  });
+
+  it("P6 fork coverage is incomplete at frontier/history and reset completes it", () => {
+    for (const reason of [
+      "fork_current_frontier_not_reconstructed",
+      "fork_historical_not_reconstructed",
+    ]) {
+      const db = memDb();
+      const childChatId = nextChatId();
+      markSecondarySafetyCoverageIncomplete({
+        chatId: childChatId,
+        reason,
+        db,
+      });
+      assert.equal(
+        getSecondarySafetyCoverage(childChatId, db),
+        "INCOMPLETE"
+      );
+      assert.equal(
+        readSecondarySceneSafetySnapshot({ chatId: childChatId, db }).coverage,
+        "INCOMPLETE"
+      );
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId: childChatId,
+        userMessage: "새 장면을 시작한다.",
+        sceneReset: true,
+        currentTurn: 3,
+        sourceMessageId: 3,
+        db,
+      });
+      assert.equal(getSecondarySafetyCoverage(childChatId, db), "COMPLETE");
+    }
+  });
+
+  it("P7 branch/noncanon is memory-only and not a safety mutation path", () => {
+    assert.equal(
+      SECONDARY_SAFETY_BRANCH_NONCANON_AUDIT.classification,
+      "NOT_APPLICABLE_TO_SECONDARY_SAFETY"
+    );
+    assert.match(
+      SECONDARY_SAFETY_BRANCH_NONCANON_AUDIT.reason,
+      /does not replace message rows.*switch variants.*mutate chat_scenes.*create\/copy chats/
+    );
+    const branchOwners = [
+      "memory/memory-branch-control.ts",
+      "memory/memory-turn-summary.ts",
+    ].map((path) =>
+      readFileSync(new URL(path, import.meta.url), "utf8")
+    );
+    for (const source of branchOwners) {
+      assert.doesNotMatch(source, /UPDATE\s+messages/i);
+      assert.doesNotMatch(source, /active_variant/i);
+      assert.doesNotMatch(source, /chat_scenes/i);
+      assert.doesNotMatch(source, /INSERT\s+INTO\s+chats/i);
+    }
+  });
+
+  it("P8 user edit retracts source evidence; boundary edit marks coverage incomplete", () => {
+    const db = memDb();
+    const chatId = nextChatId();
+    evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "17살 동생이 들어왔다.",
+      sceneReset: false,
+      currentTurn: 1,
+      sourceMessageId: 81,
+      db,
+    });
+    const edited = evaluateCurrentTurnSecondarySceneSafetyShadow({
+      chatId,
+      userMessage: "창밖을 바라봤다.",
+      sceneReset: false,
+      currentTurn: 1,
+      sourceMessageId: 81,
+      skipSceneBoundary: true,
+      db,
+    });
+    assert.equal(edited.minorParticipantIds.length, 0);
+    assert.equal(edited.presentSecondaryParticipants.length, 0);
+
+    markSecondarySafetyCoverageIncomplete({
+      chatId,
+      reason: "user_edit_changed_scene_boundary",
+      db,
+    });
+    assert.equal(
+      SECONDARY_SAFETY_USER_EDIT_BOUNDARY_POLICY.classification,
+      "UNSUPPORTED_FOR_S2"
+    );
+    assert.equal(getSecondarySafetyCoverage(chatId, db), "INCOMPLETE");
+  });
+
+  it("P9 future failure policy disables adult handoff or fails closed", () => {
+    assert.deepEqual(SECONDARY_SAFETY_FUTURE_FAILURE_POLICY, {
+      normalRp: "continue_general_model_adult_handoff_disabled",
+      adultOrSexual: "fail_closed_before_provider",
+    });
   });
 });

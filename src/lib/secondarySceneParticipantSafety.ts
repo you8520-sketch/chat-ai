@@ -28,14 +28,17 @@ import {
   type SecondaryAdultStatus,
   type SecondaryEvidenceSource,
   type SecondaryEvidenceTrust,
+  type SecondarySafetyCoverage,
 } from "@/lib/secondarySceneParticipantSafetySchema";
 import {
   deleteSecondarySafetyEventsForSourceMessages,
+  getSecondarySafetyCoverage,
   getSecondaryParticipantSafety,
   insertSecondarySafetyEvent,
   listPresentSecondaryParticipants,
   listSecondaryParticipantSafetyForScene,
   listSecondarySafetyEventsForParticipant,
+  setSecondarySafetyCoverageCore,
   upsertSecondaryParticipantSafety,
 } from "@/lib/secondarySceneParticipantSafetyStore";
 
@@ -65,6 +68,7 @@ export type SecondarySceneSafetySnapshot = {
   wouldBlockAdultScene: boolean;
   wouldDisableAdultHandoff: boolean;
   reason: string | null;
+  coverage: SecondarySafetyCoverage;
 };
 
 /**
@@ -77,9 +81,44 @@ export const SECONDARY_SAFETY_CANONICAL_RECONCILIATION = {
   assistantReplacement: "SUPPORTED",
   materialAssistantEdit: "SUPPORTED",
   variantSwitch: "SUPPORTED",
-  "branch/noncanon": "UNSUPPORTED",
-  fork: "UNSUPPORTED",
+  "branch/noncanon": "NOT_APPLICABLE_TO_SECONDARY_SAFETY",
+  fork: "COVERAGE_INCOMPLETE",
 } as const;
+
+export const SECONDARY_SAFETY_FUTURE_EXECUTION_ORDER = [
+  "classify_scene",
+  "base_main_persona_eligibility",
+  "prospective_secondary_safety",
+  "SecondarySceneParticipantGuard",
+  "durable_user_assistant_bootstrap",
+  "commit_secondary_safety_evidence",
+  "background_extractors",
+  "adult_route_delivery",
+  "provider",
+  "billing_deduction",
+] as const;
+
+export const SECONDARY_SAFETY_FUTURE_FAILURE_POLICY = {
+  normalRp: "continue_general_model_adult_handoff_disabled",
+  adultOrSexual: "fail_closed_before_provider",
+} as const;
+
+export const SECONDARY_SAFETY_BRANCH_NONCANON_AUDIT = {
+  classification: "NOT_APPLICABLE_TO_SECONDARY_SAFETY",
+  reason:
+    "memory branch/noncanon changes memory-record canonicality only; it does not replace message rows, switch variants, mutate chat_scenes, or create/copy chats",
+} as const;
+
+export const SECONDARY_SAFETY_USER_EDIT_BOUNDARY_POLICY = {
+  classification: "UNSUPPORTED_FOR_S2",
+  action:
+    "mark coverage INCOMPLETE until a fresh sceneReset or clearSceneTransition",
+} as const;
+
+type SecondarySafetyFailurePoint =
+  | "AFTER_EVENT_INSERT"
+  | "AFTER_EVENT_DELETE"
+  | "MID_EVENT_BATCH";
 
 export type EvaluateSecondarySceneSafetyInput = {
   chatId: number;
@@ -99,7 +138,18 @@ export type EvaluateSecondarySceneSafetyInput = {
     isRealPerson?: unknown;
   }>;
   db?: Database.Database;
+  /** @internal test-only */
+  __testFailurePoint?: SecondarySafetyFailurePoint;
 };
+
+function runSecondarySafetyAtomic<T>(
+  db: Database.Database,
+  core: () => T
+): T {
+  // Callers such as last-turn delete already own the transaction. Running the
+  // core directly avoids nested transaction/savepoint ownership.
+  return db.inTransaction ? core() : db.transaction(core).immediate();
+}
 
 function normalizeName(name: string): string {
   return name.replace(/\s+/g, " ").trim().toLowerCase().normalize("NFC");
@@ -157,10 +207,16 @@ function rowToView(
 
 export function computeSecondarySceneSafetySnapshot(
   presentRows: SceneSecondaryParticipantSafetyRow[],
-  _opts?: { sexualContextActive?: boolean }
+  opts?: {
+    sexualContextActive?: boolean;
+    coverage?: SecondarySafetyCoverage;
+  }
 ): SecondarySceneSafetySnapshot {
-  const presentSecondaryParticipants = presentRows.map(rowToView);
-  const restrictiveParticipantIds = presentRows
+  const canonicalRows = [...presentRows].sort((a, b) =>
+    a.participant_id.localeCompare(b.participant_id)
+  );
+  const presentSecondaryParticipants = canonicalRows.map(rowToView);
+  const restrictiveParticipantIds = canonicalRows
     .filter(
       (row) =>
         row.restrictive_age != null ||
@@ -169,19 +225,19 @@ export function computeSecondarySceneSafetySnapshot(
         row.evidence_trust === "RESTRICTIVE_ONLY"
     )
     .map((row) => row.participant_id);
-  const unknownParticipantIds = presentRows
+  const unknownParticipantIds = canonicalRows
     .filter((row) => (row.adult_status ?? "unknown") === "unknown")
     .map((row) => row.participant_id);
-  const minorParticipantIds = presentRows
+  const minorParticipantIds = canonicalRows
     .filter((row) => row.adult_status === "minor")
     .map((row) => row.participant_id);
-  const conflictParticipantIds = presentRows
+  const conflictParticipantIds = canonicalRows
     .filter((row) => row.adult_status === "conflict")
     .map((row) => row.participant_id);
-  const realPersonParticipantIds = presentRows
+  const realPersonParticipantIds = canonicalRows
     .filter((row) => row.adult_status === "real_person")
     .map((row) => row.participant_id);
-  const confirmedParticipantIds = presentRows
+  const confirmedParticipantIds = canonicalRows
     .filter((row) => row.adult_status === "confirmed")
     .map((row) => row.participant_id);
 
@@ -190,6 +246,7 @@ export function computeSecondarySceneSafetySnapshot(
     conflictParticipantIds.length > 0 ||
     realPersonParticipantIds.length > 0 ||
     unknownParticipantIds.length > 0;
+  const coverage = opts?.coverage ?? "COMPLETE";
   const reason = wouldBlockAdultScene
     ? minorParticipantIds.length > 0
       ? "present_minor"
@@ -198,7 +255,9 @@ export function computeSecondarySceneSafetySnapshot(
         : conflictParticipantIds.length > 0
           ? "present_conflict"
           : "present_unknown"
-    : null;
+    : coverage === "INCOMPLETE"
+      ? "coverage_incomplete"
+      : null;
 
   return {
     presentSecondaryParticipants,
@@ -209,8 +268,10 @@ export function computeSecondarySceneSafetySnapshot(
     realPersonParticipantIds,
     confirmedParticipantIds,
     wouldBlockAdultScene,
-    wouldDisableAdultHandoff: wouldBlockAdultScene,
+    wouldDisableAdultHandoff:
+      wouldBlockAdultScene || coverage === "INCOMPLETE",
     reason,
+    coverage,
   };
 }
 
@@ -417,9 +478,10 @@ function applyPresenceEvents(opts: {
   sourceRole: "user" | "assistant";
   sourceMessageId?: number | null;
   db: Database.Database;
+  __testFailurePoint?: SecondarySafetyFailurePoint;
 }): SceneSecondaryParticipantSafetyRow[] {
   const applied: SceneSecondaryParticipantSafetyRow[] = [];
-  for (const event of opts.events) {
+  for (const [eventIndex, event] of opts.events.entries()) {
     const dynamic = resolveDynamicEventIdentity(event);
     const sameNameAuth =
       opts.trust !== "AUTHORITATIVE"
@@ -436,6 +498,7 @@ function applyPresenceEvents(opts: {
         sourceRole: opts.sourceRole,
         sourceMessageId: opts.sourceMessageId,
         sourceTurn: opts.currentTurn,
+        eventIndex,
         evidenceTrust: opts.trust,
         evidenceSource: opts.source,
         attachedAge: event.attachedAge ?? null,
@@ -445,6 +508,9 @@ function applyPresenceEvents(opts: {
       },
       opts.db
     );
+    if (opts.__testFailurePoint === "AFTER_EVENT_INSERT") {
+      throw new Error("TEST_SECONDARY_SAFETY_AFTER_EVENT_INSERT");
+    }
     applied.push(
       rebuildParticipantProjection({
         sceneId: opts.sceneId,
@@ -456,6 +522,13 @@ function applyPresenceEvents(opts: {
         db: opts.db,
       })
     );
+    if (
+      opts.__testFailurePoint === "MID_EVENT_BATCH" &&
+      eventIndex === 0 &&
+      opts.events.length > 1
+    ) {
+      throw new Error("TEST_SECONDARY_SAFETY_MID_EVENT_BATCH");
+    }
   }
   return applied;
 }
@@ -522,7 +595,7 @@ function seedAuthoritativeActors(opts: {
   }
 }
 
-export function evaluateCurrentTurnSecondarySceneSafetyShadow(
+function evaluateCurrentTurnSecondarySceneSafetyShadowCore(
   input: EvaluateSecondarySceneSafetyInput
 ): SecondarySceneSafetySnapshot {
   const db = input.db ?? getDb();
@@ -584,12 +657,35 @@ export function evaluateCurrentTurnSecondarySceneSafetyShadow(
       sourceRole: "user",
       sourceMessageId: input.sourceMessageId,
       db,
+      __testFailurePoint: input.__testFailurePoint,
+    });
+  }
+
+  if (input.sceneReset || input.clearSceneTransition) {
+    setSecondarySafetyCoverageCore({
+      chatId: input.chatId,
+      coverage: "COMPLETE",
+      reason: input.sceneReset ? "scene_reset" : "clear_scene_transition",
+      coveredFromTurn: input.currentTurn,
+      db,
     });
   }
 
   return computeSecondarySceneSafetySnapshot(
     listPresentSecondaryParticipants(boundary.scene.id, db),
-    { sexualContextActive: input.sexualContextActive }
+    {
+      sexualContextActive: input.sexualContextActive,
+      coverage: getSecondarySafetyCoverage(input.chatId, db),
+    }
+  );
+}
+
+export function evaluateCurrentTurnSecondarySceneSafetyShadow(
+  input: EvaluateSecondarySceneSafetyInput
+): SecondarySceneSafetySnapshot {
+  const db = input.db ?? getDb();
+  return runSecondarySafetyAtomic(db, () =>
+    evaluateCurrentTurnSecondarySceneSafetyShadowCore({ ...input, db })
   );
 }
 
@@ -599,34 +695,39 @@ export function persistAssistantTurnSecondarySceneSafety(opts: {
   currentTurn: number;
   sourceMessageId?: number | null;
   db?: Database.Database;
+  /** @internal test-only */
+  __testFailurePoint?: SecondarySafetyFailurePoint;
 }): SceneSecondaryParticipantSafetyRow[] {
   const db = opts.db ?? getDb();
-  ensureSecondarySceneParticipantSafetySchema(db);
-  const { scene: active } = ensureActiveChatScene({
-    chatId: opts.chatId,
-    startedTurn: opts.currentTurn,
-    db,
-  });
-  if (!active) return [];
-  if (opts.sourceMessageId != null) {
-    retractSecondarySafetyEventsForSourceMessages({
+  return runSecondarySafetyAtomic(db, () => {
+    ensureSecondarySceneParticipantSafetySchema(db);
+    const { scene: active } = ensureActiveChatScene({
       chatId: opts.chatId,
-      sourceMessageIds: [opts.sourceMessageId],
-      sourceRole: "assistant",
+      startedTurn: opts.currentTurn,
       db,
     });
-  }
-  const events = extractCurrentTurnSceneParticipantEvents(opts.assistantText);
-  return applyPresenceEvents({
-    sceneId: active.id,
-    chatId: opts.chatId,
-    currentTurn: opts.currentTurn,
-    events,
-    trust: "RESTRICTIVE_ONLY",
-    source: "ASSISTANT_PROSE",
-    sourceRole: "assistant",
-    sourceMessageId: opts.sourceMessageId,
-    db,
+    if (!active) return [];
+    if (opts.sourceMessageId != null) {
+      retractSecondarySafetyEventsForSourceMessages({
+        chatId: opts.chatId,
+        sourceMessageIds: [opts.sourceMessageId],
+        sourceRole: "assistant",
+        db,
+      });
+    }
+    const events = extractCurrentTurnSceneParticipantEvents(opts.assistantText);
+    return applyPresenceEvents({
+      sceneId: active.id,
+      chatId: opts.chatId,
+      currentTurn: opts.currentTurn,
+      events,
+      trust: "RESTRICTIVE_ONLY",
+      source: "ASSISTANT_PROSE",
+      sourceRole: "assistant",
+      sourceMessageId: opts.sourceMessageId,
+      db,
+      __testFailurePoint: opts.__testFailurePoint,
+    });
   });
 }
 
@@ -635,31 +736,321 @@ export function retractSecondarySafetyEventsForSourceMessages(opts: {
   sourceMessageIds: number[];
   sourceRole?: "user" | "assistant";
   db?: Database.Database;
+  /** @internal test-only */
+  __testFailurePoint?: SecondarySafetyFailurePoint;
 }): { deleted: number } {
   const db = opts.db ?? getDb();
-  ensureSecondarySceneParticipantSafetySchema(db);
-  const { deleted, participantKeys } = deleteSecondarySafetyEventsForSourceMessages({
-    chatId: opts.chatId,
-    sourceMessageIds: opts.sourceMessageIds,
-    sourceRole: opts.sourceRole,
-    db,
+  return runSecondarySafetyAtomic(db, () => {
+    ensureSecondarySceneParticipantSafetySchema(db);
+    const { deleted, participantKeys } =
+      deleteSecondarySafetyEventsForSourceMessages({
+        chatId: opts.chatId,
+        sourceMessageIds: opts.sourceMessageIds,
+        sourceRole: opts.sourceRole,
+        db,
+      });
+    if (opts.__testFailurePoint === "AFTER_EVENT_DELETE") {
+      throw new Error("TEST_SECONDARY_SAFETY_AFTER_EVENT_DELETE");
+    }
+    for (const key of participantKeys) {
+      const existing = getSecondaryParticipantSafety(
+        key.sceneId,
+        key.participantId,
+        db
+      );
+      rebuildParticipantProjection({
+        sceneId: key.sceneId,
+        chatId: opts.chatId,
+        participantId: key.participantId,
+        displayName: existing?.display_name ?? "",
+        participantKind: existing?.participant_kind ?? "dynamic",
+        db,
+      });
+    }
+    return { deleted };
   });
-  for (const key of participantKeys) {
-    const existing = getSecondaryParticipantSafety(
-      key.sceneId,
-      key.participantId,
-      db
+}
+
+export function resolveCanonicalUserPlayableTurn(opts: {
+  chatId: number;
+  userMessageId: number;
+  db?: Database.Database;
+}): number | null {
+  const db = opts.db ?? getDb();
+  ensureSecondarySceneParticipantSafetySchema(db);
+  const existing = db
+    .prepare(
+      `SELECT source_turn AS sourceTurn
+       FROM scene_secondary_participant_safety_events
+       WHERE chat_id=? AND source_role='user' AND source_message_id=?
+       ORDER BY event_index ASC, id ASC
+       LIMIT 1`
+    )
+    .get(opts.chatId, opts.userMessageId) as
+    | { sourceTurn: number | null }
+    | undefined;
+  if (existing?.sourceTurn != null) return existing.sourceTurn;
+
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS turnNumber
+       FROM messages
+       WHERE chat_id=? AND role='user' AND id<=?`
+    )
+    .get(opts.chatId, opts.userMessageId) as { turnNumber: number };
+  return row.turnNumber > 0 ? row.turnNumber : null;
+}
+
+export function markSecondarySafetyCoverageIncompleteCore(opts: {
+  chatId: number;
+  reason: string;
+  db: Database.Database;
+}): void {
+  ensureSecondarySceneParticipantSafetySchema(opts.db);
+  setSecondarySafetyCoverageCore({
+    chatId: opts.chatId,
+    coverage: "INCOMPLETE",
+    reason: opts.reason,
+    coveredFromTurn: null,
+    db: opts.db,
+  });
+}
+
+export function markSecondarySafetyCoverageIncomplete(opts: {
+  chatId: number;
+  reason: string;
+  db?: Database.Database;
+}): void {
+  const db = opts.db ?? getDb();
+  runSecondarySafetyAtomic(db, () =>
+    markSecondarySafetyCoverageIncompleteCore({ ...opts, db })
+  );
+}
+
+function prospectiveAuthoritativeRow(
+  chatId: number,
+  actor: AuthoritativeSecondaryActor,
+  currentTurn: number
+): SceneSecondaryParticipantSafetyRow {
+  const projected = projectAuthoritativeSecondaryActor(actor);
+  const age =
+    typeof projected.metadata.age === "number" &&
+    Number.isFinite(projected.metadata.age)
+      ? projected.metadata.age
+      : null;
+  return {
+    scene_id: "prospective",
+    chat_id: chatId,
+    participant_id: projected.participantId,
+    display_name: projected.displayName,
+    participant_kind: projected.participantKind,
+    presence_state: "PRESENT",
+    age,
+    adult_status: projected.adultStatus,
+    is_real_person: projected.adultStatus === "real_person" ? 1 : 0,
+    evidence_trust: "AUTHORITATIVE",
+    evidence_source: projected.source,
+    authoritative_age: age,
+    authoritative_adult_status: projected.adultStatus,
+    authoritative_is_real_person:
+      projected.metadata.isRealPerson === true ||
+      projected.adultStatus === "real_person"
+        ? 1
+        : 0,
+    authoritative_source: projected.source,
+    restrictive_age: null,
+    restrictive_adult_status: null,
+    restrictive_is_real_person: null,
+    restrictive_source: null,
+    first_seen_turn: currentTurn,
+    last_seen_turn: currentTurn,
+    left_turn: null,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
+function applyProspectiveEvent(
+  rows: Map<string, SceneSecondaryParticipantSafetyRow>,
+  event: SceneParticipantEvent,
+  chatId: number,
+  currentTurn: number
+): void {
+  const dynamic = resolveDynamicEventIdentity(event);
+  const sameNameAuth = [...rows.values()].find(
+    (row) =>
+      isAuthoritativeParticipantId(row.participant_id) &&
+      normalizeName(row.display_name) === normalizeName(dynamic.displayName)
+  );
+  const participantId = sameNameAuth?.participant_id ?? dynamic.participantId;
+  const existing = rows.get(participantId);
+  const row: SceneSecondaryParticipantSafetyRow = existing
+    ? { ...existing }
+    : {
+        scene_id: "prospective",
+        chat_id: chatId,
+        participant_id: participantId,
+        display_name: sameNameAuth?.display_name ?? dynamic.displayName,
+        participant_kind:
+          sameNameAuth?.participant_kind ?? dynamic.participantKind,
+        presence_state: "UNKNOWN",
+        age: null,
+        adult_status: "unknown",
+        is_real_person: 0,
+        evidence_trust: "UNKNOWN",
+        evidence_source: "USER_PROSE",
+        authoritative_age: null,
+        authoritative_adult_status: null,
+        authoritative_is_real_person: null,
+        authoritative_source: null,
+        restrictive_age: null,
+        restrictive_adult_status: null,
+        restrictive_is_real_person: null,
+        restrictive_source: null,
+        first_seen_turn: null,
+        last_seen_turn: null,
+        left_turn: null,
+        created_at: "",
+        updated_at: "",
+      };
+
+  switch (event.action) {
+    case "ENTER":
+    case "PRESENT":
+      row.presence_state = "PRESENT";
+      row.left_turn = null;
+      row.first_seen_turn = row.first_seen_turn ?? currentTurn;
+      row.last_seen_turn = currentTurn;
+      break;
+    case "LEAVE":
+      row.presence_state = "ABSENT";
+      row.left_turn = currentTurn;
+      row.last_seen_turn = currentTurn;
+      break;
+    default: {
+      const _never: never = event.action;
+      void _never;
+    }
+  }
+
+  const incoming = eventToRestrictiveMetadata(event);
+  const restrictive = mergeRestrictiveOverlay(
+    restrictiveMetadataFromOverlay({
+      age: row.restrictive_age,
+      adultStatus: row.restrictive_adult_status,
+      isRealPerson: row.restrictive_is_real_person === 1,
+    }),
+    incoming
+  );
+  const hasAuth = row.authoritative_source != null;
+  const auth = authoritativeMetadataFromRow(row);
+  const effective = deriveEffectiveSecondaryAdultStatus({
+    authoritative: hasAuth ? auth : null,
+    restrictive,
+  });
+  const restrictiveStatus =
+    restrictive.age != null ||
+    restrictive.adultStatus ||
+    restrictive.isRealPerson === true
+      ? toStoredAdultStatus(
+          assessTrustedParticipantAdultStatus({
+            trust: "RESTRICTIVE_ONLY",
+            metadata: restrictive,
+          })
+        )
+      : null;
+  row.restrictive_age =
+    typeof restrictive.age === "number" ? restrictive.age : null;
+  row.restrictive_adult_status = restrictiveStatus;
+  row.restrictive_is_real_person =
+    restrictive.isRealPerson === true ? 1 : 0;
+  row.restrictive_source = "USER_PROSE";
+  row.age =
+    row.restrictive_age ??
+    (typeof auth.age === "number" ? auth.age : null);
+  row.adult_status = effective;
+  row.is_real_person = effective === "real_person" ? 1 : 0;
+  row.evidence_trust = hasAuth
+    ? "AUTHORITATIVE"
+    : "RESTRICTIVE_ONLY";
+  row.evidence_source =
+    row.authoritative_source ?? row.restrictive_source ?? "USER_PROSE";
+  rows.set(participantId, row);
+}
+
+/**
+ * Pure S1.2 preflight owner. It reads persisted state and applies the current
+ * input in memory. It never ensures schema, mutates chat_scenes, writes
+ * messages/events/projections, bills, or calls a provider.
+ */
+export function buildProspectiveSecondarySceneSafetySnapshot(input: {
+  chatId: number;
+  currentTurn: number;
+  currentUserMessage: string;
+  sceneReset: boolean;
+  clearSceneTransition?: boolean;
+  authoritativeActors?: AuthoritativeSecondaryActor[];
+  sexualContextActive?: boolean;
+  db?: Database.Database;
+}): SecondarySceneSafetySnapshot {
+  const db = input.db ?? getDb();
+  const boundary = input.sceneReset || input.clearSceneTransition === true;
+  const active = db
+    .prepare(
+      `SELECT id FROM chat_scenes
+       WHERE chat_id=? AND status='ACTIVE'
+       ORDER BY started_turn DESC, created_at DESC LIMIT 1`
+    )
+    .get(input.chatId) as { id: string } | undefined;
+  const persistedRows =
+    !boundary && active
+      ? (db
+          .prepare(
+            `SELECT * FROM scene_secondary_participant_safety WHERE scene_id=?`
+          )
+          .all(active.id) as SceneSecondaryParticipantSafetyRow[])
+      : [];
+  const rows = new Map(
+    persistedRows.map((row) => [row.participant_id, { ...row }])
+  );
+
+  for (const actor of input.authoritativeActors ?? []) {
+    const prospective = prospectiveAuthoritativeRow(
+      input.chatId,
+      actor,
+      input.currentTurn
     );
-    rebuildParticipantProjection({
-      sceneId: key.sceneId,
-      chatId: opts.chatId,
-      participantId: key.participantId,
-      displayName: existing?.display_name ?? "",
-      participantKind: existing?.participant_kind ?? "dynamic",
-      db,
+    const existing = rows.get(prospective.participant_id);
+    rows.set(prospective.participant_id, {
+      ...prospective,
+      restrictive_age: existing?.restrictive_age ?? null,
+      restrictive_adult_status:
+        existing?.restrictive_adult_status ?? null,
+      restrictive_is_real_person:
+        existing?.restrictive_is_real_person ?? null,
+      restrictive_source: existing?.restrictive_source ?? null,
     });
   }
-  return { deleted };
+  for (const event of extractCurrentTurnSceneParticipantEvents(
+    input.currentUserMessage
+  )) {
+    applyProspectiveEvent(rows, event, input.chatId, input.currentTurn);
+  }
+
+  const coverageRow = db
+    .prepare(
+      `SELECT coverage FROM chat_secondary_safety_coverage WHERE chat_id=?`
+    )
+    .get(input.chatId) as { coverage?: string } | undefined;
+  const coverage: SecondarySafetyCoverage = boundary
+    ? "COMPLETE"
+    : coverageRow?.coverage === "INCOMPLETE"
+      ? "INCOMPLETE"
+      : "COMPLETE";
+  return computeSecondarySceneSafetySnapshot(
+    [...rows.values()].filter((row) => row.presence_state === "PRESENT"),
+    { sexualContextActive: input.sexualContextActive, coverage }
+  );
 }
 
 export function readSecondarySceneSafetySnapshot(opts: {
@@ -672,10 +1063,13 @@ export function readSecondarySceneSafetySnapshot(opts: {
     ? { id: opts.sceneId }
     : getActiveChatScene(opts.chatId, db);
   if (!scene) {
-    return computeSecondarySceneSafetySnapshot([]);
+    return computeSecondarySceneSafetySnapshot([], {
+      coverage: getSecondarySafetyCoverage(opts.chatId, db),
+    });
   }
   return computeSecondarySceneSafetySnapshot(
-    listPresentSecondaryParticipants(scene.id, db)
+    listPresentSecondaryParticipants(scene.id, db),
+    { coverage: getSecondarySafetyCoverage(opts.chatId, db) }
   );
 }
 

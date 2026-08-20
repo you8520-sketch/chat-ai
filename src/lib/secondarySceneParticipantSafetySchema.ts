@@ -7,6 +7,11 @@ export const SCENE_SECONDARY_PARTICIPANT_SAFETY_TABLE =
 export const SCENE_SECONDARY_PARTICIPANT_SAFETY_EVENTS_TABLE =
   "scene_secondary_participant_safety_events";
 
+export const CHAT_SECONDARY_SAFETY_COVERAGE_TABLE =
+  "chat_secondary_safety_coverage";
+
+export type SecondarySafetyCoverage = "COMPLETE" | "INCOMPLETE";
+
 export type SecondaryParticipantKind =
   | "dynamic"
   | "group"
@@ -76,6 +81,7 @@ export type SceneSecondaryParticipantSafetyEventRow = {
   source_role: SecondarySafetySourceRole;
   source_message_id: number | null;
   source_turn: number | null;
+  event_index: number;
   evidence_trust: SecondaryEvidenceTrust;
   evidence_source: SecondaryEvidenceSource;
   attached_age: number | null;
@@ -150,6 +156,7 @@ export function ensureSecondarySceneParticipantSafetySchema(
       source_role TEXT NOT NULL,
       source_message_id INTEGER,
       source_turn INTEGER,
+      event_index INTEGER NOT NULL DEFAULT 0,
       evidence_trust TEXT NOT NULL,
       evidence_source TEXT NOT NULL,
       attached_age INTEGER,
@@ -162,6 +169,27 @@ export function ensureSecondarySceneParticipantSafetySchema(
       ON scene_secondary_participant_safety_events(scene_id, participant_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_ssps_events_source_msg
       ON scene_secondary_participant_safety_events(chat_id, source_message_id);
+
+    CREATE TABLE IF NOT EXISTS chat_secondary_safety_coverage (
+      chat_id INTEGER PRIMARY KEY,
+      coverage TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      covered_from_turn INTEGER,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  addColumnIfMissing(
+    db,
+    "scene_secondary_participant_safety_events",
+    "event_index",
+    "INTEGER NOT NULL DEFAULT 0"
+  );
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_ssps_events_canonical_order
+      ON scene_secondary_participant_safety_events(
+        scene_id, participant_id, source_turn, source_role,
+        source_message_id, event_index
+      );
   `);
   addColumnIfMissing(db, "scene_secondary_participant_safety", "authoritative_age", "INTEGER");
   addColumnIfMissing(
