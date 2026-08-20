@@ -198,6 +198,25 @@ function hostSheet(db: Database.Database, campaignId: number): { id: number; hp:
   return { ...row, inventory: JSON.parse(row.inventoryJson || "[]") as string[] };
 }
 
+function pinHostVitals(
+  db: Database.Database,
+  hostId: number,
+  hp: number,
+  maxHp = 25,
+  inventory?: string[]
+): void {
+  if (inventory) {
+    db.prepare(`UPDATE trpg_character_sheets SET hp=?, max_hp=?, inventory_json=? WHERE participant_id=?`).run(
+      hp,
+      maxHp,
+      JSON.stringify(inventory),
+      hostId
+    );
+    return;
+  }
+  db.prepare(`UPDATE trpg_character_sheets SET hp=?, max_hp=? WHERE participant_id=?`).run(hp, maxHp, hostId);
+}
+
 async function setupSolo(
   db: Database.Database,
   deps: TrpgEngineDeps
@@ -320,7 +339,7 @@ describe("TRPG P0-1 flag-off HP ownership", () => {
         gmCall: async () => ({ text: gmText() }),
       };
       const { campaignId, hostId } = await setupSolo(db, deps);
-      db.prepare(`UPDATE trpg_character_sheets SET hp=10 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 10);
       submitTrpgAction(db, { campaignId, userId: 1, body: "상처를 응급처치한다.", actionType: "support" });
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       assert.equal(hostSheet(db, campaignId).hp, 14);
@@ -349,7 +368,7 @@ describe("TRPG P0-1 flag-off HP ownership", () => {
       };
       const { campaignId, hostId } = await setupSolo(db, deps);
       hostIdRef.id = hostId;
-      db.prepare(`UPDATE trpg_character_sheets SET hp=20 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 20);
       submitTrpgAction(db, { campaignId, userId: 1, body: "검으로 벤다.", actionType: "attack" });
       await advanceTrpgCampaign(db, {
         campaignId,
@@ -381,7 +400,7 @@ describe("TRPG P0-1 flag-off HP ownership", () => {
       };
       const { campaignId, hostId } = await setupSolo(db, deps);
       hostIdRef.id = hostId;
-      db.prepare(`UPDATE trpg_character_sheets SET hp=10 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 10);
       submitTrpgAction(db, {
         campaignId,
         userId: 1,
@@ -433,7 +452,7 @@ describe("TRPG P0-1 flag-off HP ownership", () => {
       };
       const { campaignId, hostId } = await setupSolo(db, deps);
       hostIdRef.id = hostId;
-      db.prepare(`UPDATE trpg_character_sheets SET hp=20 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 20);
       submitTrpgAction(db, { campaignId, userId: 1, body: "검으로 벤다.", actionType: "attack" });
       await advanceTrpgCampaign(db, {
         campaignId,
@@ -510,10 +529,7 @@ describe("TRPG P0-2/P0-3 current inventory item heal", () => {
         JSON.stringify(["구급키트"]),
         campaignId
       );
-      db.prepare(`UPDATE trpg_character_sheets SET hp=10, inventory_json=? WHERE participant_id=?`).run(
-        JSON.stringify(["구급키트"]),
-        hostId
-      );
+      pinHostVitals(db, hostId, 10, 25, ["구급키트"]);
       submitTrpgAction(db, { campaignId, userId: 1, body: "구급키트를 사용한다.", actionType: "use_item" });
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       const afterR1 = hostSheet(db, campaignId);
@@ -547,10 +563,7 @@ describe("TRPG P0-2/P0-3 current inventory item heal", () => {
         JSON.stringify(["구급키트"]),
         campaignId
       );
-      db.prepare(`UPDATE trpg_character_sheets SET hp=10, inventory_json=? WHERE participant_id=?`).run(
-        JSON.stringify([]),
-        hostId
-      );
+      pinHostVitals(db, hostId, 10, 25, []);
       submitTrpgAction(db, { campaignId, userId: 1, body: "구급키트를 사용한다.", actionType: "use_item" });
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       assert.equal(hostSheet(db, campaignId).hp, 10);
@@ -564,7 +577,7 @@ describe("TRPG P0-2/P0-3 current inventory item heal", () => {
 describe("TRPG P0-4 single direct HP slot", () => {
   it("NO_SILENT_HARM_PLUS_HEAL — PARTIAL first aid reserves heal over Flash harm", () => {
     const out = resolve({
-      sheets: [sheet({ hp: 20 })],
+      sheets: [sheet({ hp: 10 })],
       actors: [actor({ body: "상처를 응급처치한다", tier: "PARTIAL_SUCCESS" })],
       flash: {
         effects: [
@@ -579,12 +592,12 @@ describe("TRPG P0-4 single direct HP slot", () => {
     });
     assert.equal(out.actors[0]?.direct?.effect, "heal");
     assert.equal(out.actors[0]?.directHpOwner, "SERVER_RECOVERY");
-    assert.equal(out.hpAfter["1"], 24);
+    assert.equal(out.hpAfter["1"], 14);
     assert.equal(out.actors.filter((row) => row.direct?.effect === "harm").length, 0);
     const hud = formatMechanicsHudLines({ ...out, applied: true }, 1);
     assert.equal(hud.some((line) => line.startsWith("회복")), true);
     assert.equal(hud.some((line) => line.startsWith("피해")), false);
-    assert.match(hud.join("\n"), /HP 20 → 24/);
+    assert.match(hud.join("\n"), /HP 10 → 14/);
   });
 
   it("NO_SILENT_DIRECT_OVERWRITE — later none/invalid Flash row cannot replace accepted heal", () => {
@@ -717,7 +730,7 @@ describe("TRPG P0-5 / P1 recovery UX + threat", () => {
         gmCall: async () => ({ text: gmText({ narration: "전투가 끝났다. 적은 물러갔다." }) }),
       };
       const { campaignId, hostId } = await setupSolo(db, deps);
-      db.prepare(`UPDATE trpg_character_sheets SET hp=24 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 24);
       const snap = loadTrpgSnapshot(db, campaignId, 1);
       assert.equal(snap?.safeRest?.available, true);
       assert.equal(snap?.safeRest?.healAmount, 1);
@@ -746,7 +759,7 @@ describe("TRPG P0-5 / P1 recovery UX + threat", () => {
       const round = db
         .prepare(`SELECT round_number FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number DESC LIMIT 1`)
         .get(campaignId) as { round_number: number };
-      db.prepare(`UPDATE trpg_character_sheets SET hp=10 WHERE participant_id=?`).run(hostId);
+      pinHostVitals(db, hostId, 10);
       insertOngoingEffect(db, {
         campaignId,
         participantId: hostId,

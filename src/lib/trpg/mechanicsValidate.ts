@@ -208,19 +208,19 @@ export function authorizedHealClass(opts: {
   specialRules?: string;
 }): { klass: MechanicsClass; owner: ReturnType<typeof healOwnerKind>; reason: string | null } {
   if (!opts.tier) return { klass: "NONE", owner: "none", reason: "no_tier" };
+  const missingItem =
+    mentionsHealingItem(opts.body, opts.startInventory ?? []) &&
+    !findExplicitTreatmentItem(opts.body, opts.sourceInventory ?? [], opts.startInventory ?? []) &&
+    !isBasicFirstAidIntent(opts.body);
+  if (missingItem) {
+    return { klass: "NONE", owner: "none", reason: "ITEM_HEAL_REJECTED_ITEM_MISSING" };
+  }
   if (!isHealingIntentAction(opts.actionType, opts.body, opts.sourceInventory, opts.startInventory)) {
     return { klass: "NONE", owner: "none", reason: "heal_without_treatment" };
   }
   const owner = healOwnerKind(opts);
   if (owner === "none") {
-    const missingItem =
-      mentionsHealingItem(opts.body, opts.startInventory ?? []) &&
-      !findExplicitTreatmentItem(opts.body, opts.sourceInventory ?? [], opts.startInventory ?? []);
-    return {
-      klass: "NONE",
-      owner,
-      reason: missingItem ? "ITEM_HEAL_REJECTED_ITEM_MISSING" : "heal_without_treatment",
-    };
+    return { klass: "NONE", owner, reason: "heal_without_treatment" };
   }
   const tierCap = TIER_HEAL_CAP[opts.tier];
   const firstAidCap = BASIC_FIRST_AID_TIER_CAP[opts.tier];

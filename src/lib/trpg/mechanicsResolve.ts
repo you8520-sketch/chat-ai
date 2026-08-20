@@ -360,7 +360,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
           specialRules: input.specialRules ?? "",
           consumeItems,
         });
-        if (applied?.effect === "heal") {
+        if (applied) {
           lastDirect = { ...applied, owner: "SERVER_RECOVERY" };
           acceptedDirects = 1;
           directHpOwner = "SERVER_RECOVERY";
@@ -981,6 +981,7 @@ function applyHealToSheet(opts: {
       amount = hpAfter - opts.hp;
     }
   }
+  amount = hpAfter - opts.hp;
   opts.targetSheet.hp = hpAfter;
   if (amount > 0 && owner === "item") {
     const item = findExplicitTreatmentItem(
@@ -1002,7 +1003,7 @@ function applyHealToSheet(opts: {
     hpBefore: opts.hp,
     hpAfter,
     rejected: amount <= 0,
-    rejectReason: amount <= 0 ? (owner === "item" ? "ITEM_HEAL_REJECTED_ITEM_MISSING" : "first_aid_ceiling") : null,
+    rejectReason: amount <= 0 ? (owner === "first_aid" ? "first_aid_ceiling" : "heal_amount_zero") : null,
     owner: "SERVER_RECOVERY",
   };
 }
