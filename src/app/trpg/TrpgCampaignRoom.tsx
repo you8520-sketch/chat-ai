@@ -5,6 +5,16 @@ import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import {
+  RECOVERY_DISCOVERY_HINT,
+  SAFE_REST_COOLDOWN_HINT,
+  SAFE_REST_ONGOING_NOTICE,
+  contextualFirstAidDraft,
+  contextualStatusTreatDraft,
+  showContextualStatusTreat,
+  contextualSafeRestDraft,
+  showContextualFirstAid,
+} from "@/lib/trpg/actionComposer";
 import { parseTrpgBotAction } from "@/lib/trpg/botActionParse";
 import {
   CHAT_GLOBAL_HEADER_OFFSET_CLASS,
@@ -987,6 +997,96 @@ export default function TrpgCampaignRoom({
                   </button>
                 ))}
               </div>
+              {(() => {
+                const selfSheet = snap.sheets.find((card) => card.isSelf)?.sheet;
+                const viewerId = snap.viewerParticipantId;
+                const treatable = (snap.ongoingEffects ?? []).some(
+                  (effect) =>
+                    effect.participantId === viewerId &&
+                    (effect.kind === "periodic_harm" || effect.kind === "control")
+                );
+                const hp = selfSheet?.hp ?? 0;
+                const maxHp = selfSheet?.maxHp ?? 0;
+                const firstAid = selfSheet
+                  ? showContextualFirstAid({ hp, maxHp, treatableOngoing: treatable })
+                  : false;
+                const firstAidDraft = selfSheet
+                  ? contextualFirstAidDraft({
+                      hp,
+                      maxHp,
+                      effectLabels: (snap.ongoingEffects ?? [])
+                        .filter((effect) => effect.participantId === viewerId)
+                        .map((effect) => effect.label),
+                    })
+                  : null;
+                const statusTreat = showContextualStatusTreat({ treatableOngoing: treatable });
+                const statusTreatDraft = contextualStatusTreatDraft(
+                  (snap.ongoingEffects ?? [])
+                    .filter((effect) => effect.participantId === viewerId)
+                    .map((effect) => effect.label)
+                );
+                const rest = snap.safeRest;
+                const showRest = Boolean(rest?.available && hp < maxHp);
+                const showHint = snap.showRecoveryHint === true;
+                return (
+                  <>
+                    {showHint ? (
+                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{RECOVERY_DISCOVERY_HINT}</p>
+                    ) : null}
+                    {showHint && rest?.blockedReason === "cooldown" ? (
+                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
+                    ) : null}
+                    {firstAid || statusTreat || showRest ? (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {firstAid && firstAidDraft ? (
+                          <button
+                            type="button"
+                            data-contextual="first-aid"
+                            onClick={() => {
+                              onActionTypeChange(firstAidDraft.actionType);
+                              onActionBodyChange(firstAidDraft.body);
+                            }}
+                            className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100"
+                          >
+                            🩹 응급처치
+                          </button>
+                        ) : null}
+                        {statusTreat ? (
+                          <button
+                            type="button"
+                            data-contextual="status-treat"
+                            onClick={() => {
+                              onActionTypeChange(statusTreatDraft.actionType);
+                              onActionBodyChange(statusTreatDraft.body);
+                            }}
+                            className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-100"
+                          >
+                            💊 상태 치료
+                          </button>
+                        ) : null}
+                        {showRest && rest ? (
+                          <button
+                            type="button"
+                            data-contextual="safe-rest"
+                            onClick={() => {
+                              const draft = contextualSafeRestDraft();
+                              onActionTypeChange(draft.actionType);
+                              onActionBodyChange(draft.body);
+                            }}
+                            className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100"
+                            title={treatable ? SAFE_REST_ONGOING_NOTICE : undefined}
+                          >
+                            {`🏕 안전한 휴식 · HP +${rest.healAmount}`}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {showRest && treatable ? (
+                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_ONGOING_NOTICE}</p>
+                    ) : null}
+                  </>
+                );
+              })()}
               <textarea
                 value={actionBody}
                 onChange={(e) => onActionBodyChange(e.target.value)}
@@ -1133,7 +1233,14 @@ export default function TrpgCampaignRoom({
           ) : null}
           <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
         </div>
-        {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
+        {selfSheet ? (
+          <TrpgSelfSheetHud
+            card={selfSheet}
+            statDefs={snap.statDefs}
+            ongoingEffects={snap.ongoingEffects}
+            mechanicsLines={snap.mechanicsLines}
+          />
+        ) : null}
       </div>
 
       <aside

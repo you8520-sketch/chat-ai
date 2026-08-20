@@ -1,4 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
+import { isSafeRestIntent } from "./mechanicsIntent";
 
 /** Party talk, questions, and stage-only speech — no d20. */
 const ASK =
@@ -36,5 +37,6 @@ export function actionNeedsCheck(opts: {
   actionType?: TrpgActionType | null;
 }): boolean {
   void opts.actionType;
+  if (isSafeRestIntent(opts.body)) return false;
   return !isTalkOnlyAction(opts.body);
 }

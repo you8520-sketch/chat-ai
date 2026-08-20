@@ -140,6 +140,38 @@ export type TrpgCampaignSnapshot = {
   gmFailureBillingSubstage?: string | null;
   gmFailureBillingErrorCode?: string | null;
   hasPendingGmResult?: boolean;
+  ongoingEffects?: TrpgPublicOngoingEffect[];
+  mechanicsLines?: TrpgMechanicsHudLine[];
+  /** Server-authoritative safe-rest eligibility. UI must not re-parse the scene. */
+  safeRest?: TrpgSafeRestSnapshot;
+  showRecoveryHint?: boolean;
+};
+
+export type TrpgSafeRestBlockedReason =
+  | "full_hp"
+  | "physical_threat"
+  | "combat_active"
+  | "cooldown"
+  | "incapacitated";
+
+export type TrpgSafeRestSnapshot = {
+  available: boolean;
+  healAmount: number;
+  blockedReason: TrpgSafeRestBlockedReason | null;
+};
+
+export type TrpgPublicOngoingEffect = {
+  participantId: number;
+  label: string;
+  kind: string;
+  severity: string;
+  remainingTicks: number;
+  recoveryHint: string;
+};
+
+export type TrpgMechanicsHudLine = {
+  participantId: number;
+  text: string;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

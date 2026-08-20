@@ -4,12 +4,15 @@ import { useEffect, useId, useState } from "react";
 import { statModifier } from "@/lib/trpg/stats";
 import {
   compactConditions,
+  formatOngoingBadge,
   hpBarClass,
   inventoryCount,
+  mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
 import type { TrpgSheetHudCard } from "@/lib/trpg/sheetView";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
+import type { TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "@/lib/trpg/snapshot";
 
 function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
   const safeMax = Math.max(maxHp, 1);
@@ -28,16 +31,31 @@ function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
   );
 }
 
-function ConditionBadges({ conditions }: { conditions: string[] }) {
-  if (conditions.length === 0) return null;
+function ConditionBadges({
+  conditions,
+  effects = [],
+}: {
+  conditions: string[];
+  effects?: TrpgPublicOngoingEffect[];
+}) {
+  const badges = [
+    ...conditions.map((item) => ({ key: `n:${item}`, label: item, title: item })),
+    ...effects.map((effect) => ({
+      key: `e:${effect.label}:${effect.severity}`,
+      label: formatOngoingBadge(effect),
+      title: effect.recoveryHint,
+    })),
+  ];
+  if (badges.length === 0) return null;
   return (
     <ul className="flex flex-wrap gap-1">
-      {conditions.map((item) => (
+      {badges.map((item) => (
         <li
-          key={item}
+          key={item.key}
+          title={item.title}
           className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-0.5 text-[11px] font-medium text-amber-100"
         >
-          {item}
+          {item.label}
         </li>
       ))}
     </ul>
@@ -47,9 +65,13 @@ function ConditionBadges({ conditions }: { conditions: string[] }) {
 function ExpandedSheet({
   card,
   statDefs,
+  ongoingEffects,
+  mechanicsLines,
 }: {
   card: TrpgSheetHudCard;
   statDefs: TrpgStatDefinition[];
+  ongoingEffects: TrpgPublicOngoingEffect[];
+  mechanicsLines: string[];
 }) {
   const sheet = card.sheet;
   const inventory = sheet.inventory.filter((item) => item.trim());
@@ -78,11 +100,21 @@ function ExpandedSheet({
           {sheet.modifiersNote}
         </p>
       ) : null}
+      {mechanicsLines.length > 0 ? (
+        <div data-trpg-mechanics-lines>
+          <p className="text-xs text-zinc-500">판정 결과</p>
+          <ul className="mt-1 space-y-0.5 text-xs tabular-nums text-zinc-300">
+            {mechanicsLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div>
         <p className="text-xs text-zinc-500">상태</p>
-        {conditions.length > 0 ? (
+        {conditions.length > 0 || ongoingEffects.length > 0 ? (
           <div className="mt-1">
-            <ConditionBadges conditions={conditions} />
+            <ConditionBadges conditions={conditions} effects={ongoingEffects} />
           </div>
         ) : (
           <p className="mt-1 text-xs text-zinc-500">없음</p>
@@ -112,15 +144,25 @@ function ExpandedSheet({
 export default function TrpgSelfSheetHud({
   card,
   statDefs,
+  ongoingEffects = [],
+  mechanicsLines = [],
 }: {
   card: TrpgSheetHudCard;
   statDefs: TrpgStatDefinition[];
+  ongoingEffects?: TrpgPublicOngoingEffect[];
+  mechanicsLines?: TrpgMechanicsHudLine[];
 }) {
   const sheet = card.sheet;
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
   const inventory = sheet.inventory.filter((item) => item.trim());
-  const conditions = sheet.conditions.filter((item) => item.trim());
+  const selfEffects = ongoingEffects.filter((effect) => effect.participantId === sheet.participantId);
+  const selfLines = mechanicsLines.filter((line) => line.participantId === sheet.participantId).map((line) => line.text);
+  const narrativeConditions = sheet.conditions.filter((item) => item.trim());
+  const conditions = mergeDisplayConditions(
+    narrativeConditions,
+    selfEffects.map((effect) => effect.label)
+  );
   const compactCondition = compactConditions(conditions, 1)[0];
   const itemCount = inventoryCount(inventory);
   const label = selfHudAriaLabel(sheet);
@@ -148,10 +190,16 @@ export default function TrpgSelfSheetHud({
             </p>
             <HpBar hp={sheet.hp} maxHp={sheet.maxHp} />
           </div>
+          {selfLines[0] ? (
+            <p className="text-xs tabular-nums text-zinc-400" data-trpg-mechanics-summary>
+              {selfLines[0]}
+              {selfLines[1] ? ` · ${selfLines[1]}` : ""}
+            </p>
+          ) : null}
           {sheet.location.trim() ? (
             <p className="text-xs text-zinc-400">{sheet.location.trim()}</p>
           ) : null}
-          <ConditionBadges conditions={conditions.slice(0, 2)} />
+          <ConditionBadges conditions={narrativeConditions.slice(0, 2)} effects={selfEffects.slice(0, 2)} />
           <p
             className="text-xs text-zinc-400"
             aria-label={`소지품 ${itemCount}개`}
@@ -172,7 +220,12 @@ export default function TrpgSelfSheetHud({
         </div>
         {expanded ? (
           <div id={panelId} className="mt-3 border-t border-white/5 pt-3">
-            <ExpandedSheet card={card} statDefs={statDefs} />
+            <ExpandedSheet
+              card={card}
+              statDefs={statDefs}
+              ongoingEffects={selfEffects}
+              mechanicsLines={selfLines}
+            />
           </div>
         ) : null}
       </div>
@@ -240,7 +293,12 @@ export default function TrpgSelfSheetHud({
             <div className="mb-3">
               <HpBar hp={sheet.hp} maxHp={sheet.maxHp} />
             </div>
-            <ExpandedSheet card={card} statDefs={statDefs} />
+            <ExpandedSheet
+              card={card}
+              statDefs={statDefs}
+              ongoingEffects={selfEffects}
+              mechanicsLines={selfLines}
+            />
           </div>
         </div>
       ) : null}

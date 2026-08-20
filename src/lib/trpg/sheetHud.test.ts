@@ -4,9 +4,12 @@ import { describe, it } from "node:test";
 import { applyValidatedStateDelta, buildPartySheetHud } from "./sheetView";
 import {
   compactConditions,
+  formatOngoingBadge,
   hpBarClass,
   hpRiskLevel,
   inventoryCount,
+  mergeDisplayConditions,
+  recoveryHintKo,
   selfHudAriaLabel,
 } from "./sheetHud";
 import type { TrpgSheetSnapshot } from "./types";
@@ -70,6 +73,14 @@ describe("TRPG self sheet HUD helpers", () => {
     assert.equal(hpBarClass(32, 40), "bg-emerald-400");
     assert.equal(hpBarClass(16, 40), "bg-amber-400");
     assert.equal(hpBarClass(8, 40), "bg-rose-400");
+  });
+
+  it("shows recovery hints and merges structured effect labels", () => {
+    assert.equal(recoveryHintKo({ recoveryMode: "save_or_treatment", recoveryStat: "res", requiredItem: null }), "저항 판정 또는 치료로 회복");
+    assert.equal(recoveryHintKo({ recoveryMode: "save", recoveryStat: "res", requiredItem: null }), "매 라운드 회복 판정");
+    assert.equal(recoveryHintKo({ recoveryMode: "treatment", recoveryStat: "res", requiredItem: "해독제" }), "해독 필요: 해독제");
+    assert.deepEqual(mergeDisplayConditions(["긴장"], ["중독"]), ["긴장", "중독"]);
+    assert.match(formatOngoingBadge({ label: "중독", severity: "LIGHT", kind: "periodic_harm", remainingTicks: 2 }), /2회 남음/);
   });
 
   it("labels inventory count as 소지품 instead of an emoji badge", () => {

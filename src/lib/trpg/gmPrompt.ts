@@ -161,6 +161,7 @@ export const TRPG_GM_SYSTEM = `You are the TRPG Game Master. Korean novelistic n
 
 Rules:
 - You NEVER roll dice or change dice results. Use the provided roll outcomes exactly.
+- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
 - Do not invent player actions that were not submitted.
 - Do not control player characters' unspoken choices.
 - Failed rolls must fail in the fiction. Successes must land.
@@ -270,6 +271,7 @@ export function buildTrpgGmUserBlock(opts: {
   scenarioPlanBlock?: string;
   storyDirectorBlock?: string;
   resolutionOrderBlock?: string;
+  mechanicsPacket?: string;
   actions: Array<{
     participantId: number;
     name: string;
@@ -332,6 +334,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.memoryBlock,
     opts.resolutionOrderBlock?.trim() ?? "",
     actionBlock,
+    opts.mechanicsPacket?.trim() ?? "",
     opts.scenarioAssetPrompt?.trim() ?? "",
   ]
     .filter(Boolean)

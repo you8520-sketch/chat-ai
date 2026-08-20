@@ -30,6 +30,9 @@ import {
   type TrpgPublicRoll,
   type TrpgReadyState,
 } from "./snapshot";
+import { loadLastSafeRestRounds, loadLatestCompleteMechanics, loadOngoingEffects } from "./mechanicsStore";
+import { evaluateSafeRestEligibility, sameRoundHasCombatAction } from "./mechanicsValidate";
+import { formatMechanicsHudLines, recoveryHintKo } from "./sheetHud";
 import { hasPendingGmResult } from "./pendingGmResult";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
@@ -425,6 +428,49 @@ export function loadTrpgSnapshot(
       campaign.host_user_id === viewerUserId && round?.id
         ? hasPendingGmResult(db, round.id)
         : false,
+    ongoingEffects: loadOngoingEffects(db, campaignId).map((effect) => ({
+      participantId: effect.participantId,
+      label: effect.label,
+      kind: effect.kind,
+      severity: effect.severity,
+      remainingTicks: effect.remainingTicks,
+      recoveryHint: recoveryHintKo(effect),
+    })),
+    mechanicsLines: (() => {
+      const latest = loadLatestCompleteMechanics(db, campaignId);
+      if (!latest) return [];
+      return parts.flatMap((part) =>
+        formatMechanicsHudLines(latest, part.id).map((text) => ({
+          participantId: part.id,
+          text,
+        }))
+      );
+    })(),
+    safeRest: (() => {
+      const self = sheets.find((card) => card.isSelf)?.sheet;
+      if (!self) return { available: false, healAmount: 0, blockedReason: "incapacitated" as const };
+      const combatActions = round
+        ? (
+            db
+              .prepare(
+                `SELECT action_type FROM trpg_action_submissions WHERE round_id=? AND locked=1`
+              )
+              .all(round.id) as Array<{ action_type: string | null }>
+          ).map((row) => ({
+            actionType: row.action_type && isTrpgActionType(row.action_type) ? row.action_type : null,
+          }))
+        : [];
+      const lastRests = loadLastSafeRestRounds(db, campaignId);
+      return evaluateSafeRestEligibility({
+        hp: self.hp,
+        maxHp: self.maxHp,
+        scene: currentNarration ?? "",
+        sameRoundCombat: sameRoundHasCombatAction(combatActions),
+        lastSafeRestRound: lastRests[String(self.participantId)] ?? null,
+        currentRound: round?.round_number ?? 0,
+      });
+    })(),
+    showRecoveryHint: phase === "ACTION_INPUT" && (round?.round_number ?? 0) <= 2,
   };
 }
 
