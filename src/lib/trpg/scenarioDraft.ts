@@ -26,8 +26,8 @@ export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
 export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 180_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 60_000;
-export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_400;
-export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
+export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 1_600;
+export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_200;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
 export const FULL_SCENARIO_TEXT_REQUIRED = false;
@@ -318,9 +318,10 @@ Rules:
 - Do not invent a boss unless the world and conflict need one.
 - Use the world's factions, threats, and rules.
 - Be concrete enough to run, not padded. Keep scalar fields short and operational.
-- Keep each scalar to 1–2 short sentences.
-- Use at most 5 major events, 5 clues, and 4 essential NPCs unless creator material clearly requires fewer.
-- Keep every list item to one sentence and every NPC description/greeting/systemPrompt to 1–2 short sentences.
+- Keep each scalar to one short sentence.
+- Use at most 3 major events, 3 clues, and 3 essential NPCs.
+- Keep every list item to one sentence and every NPC description/greeting/systemPrompt to one short sentence.
+- Keep the complete JSON comfortably below 1,600 output tokens.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
 - Summary must be player-safe: no secrets, twists, or endings.
 - NPC stats must be null unless a specific mechanical reason exists. Do not invent database IDs.
@@ -400,16 +401,19 @@ export function scenarioDraftOutputMaxTokens(opts: {
 }): number {
   const fields = new Set(opts.changingFields);
   if (fields.size >= 16 || opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
-  if (fields.size >= 8) return 2_400;
-  if (fields.size >= 3) return 2_000;
-  if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 2_000;
-  if (fields.has("npcs")) return 1_600;
-  if (fields.size === 2) return 1_600;
-  return 1_200;
+  if (fields.size >= 8) return 1_600;
+  if (fields.size >= 3) return 1_400;
+  if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
+  if (fields.has("npcs")) return 1_400;
+  if (fields.size === 2) return 1_400;
+  return 900;
 }
 
-export function scenarioDraftPrimaryTimeoutMs(maxTokens: number): number {
-  return maxTokens >= TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS
+export function scenarioDraftPrimaryTimeoutMs(opts: {
+  mode: TrpgScenarioDraftMode;
+  changingFields: readonly TrpgScenarioDraftField[];
+}): number {
+  return opts.changingFields.length >= 16 || opts.mode === "regenerate_all"
     ? TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
     : TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS;
 }

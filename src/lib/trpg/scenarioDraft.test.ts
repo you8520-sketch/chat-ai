@@ -359,14 +359,14 @@ describe("TRPG scenario AI draft", () => {
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),
-      1200
+      900
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({
         mode: "regenerate_selected",
         changingFields: ["npcs", "majorEvents"],
       }),
-      2000
+      1600
     );
     const prompt = buildScenarioDraftUserPrompt({
       worldName: "",
@@ -385,10 +385,16 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(TRPG_AUTHORING_PROVIDER_RETRY, 0);
     assert.equal(TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS, 120_000);
     assert.equal(
-      scenarioDraftPrimaryTimeoutMs(TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS),
+      scenarioDraftPrimaryTimeoutMs({
+        mode: "fill_empty",
+        changingFields: previewDraftOverwrite({ mode: "fill_empty", existing: {} }),
+      }),
       TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
     );
-    assert.equal(scenarioDraftPrimaryTimeoutMs(1200), TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
+    assert.equal(
+      scenarioDraftPrimaryTimeoutMs({ mode: "regenerate_selected", changingFields: ["boss"] }),
+      TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS
+    );
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS <= TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS < TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS);
     assert.equal(REPAIR_IS_REWRITE, false);

@@ -84,7 +84,7 @@ export async function POST(req: Request) {
           });
     const changingFields = previewDraftOverwrite({ mode, existing, selectedFields, lockedFields });
     const primaryMaxTokens = scenarioDraftOutputMaxTokens({ mode, changingFields });
-    const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs(primaryMaxTokens);
+    const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs({ mode, changingFields });
     const userPrompt = buildScenarioDraftUserPrompt({
       worldName,
       worldSummary,

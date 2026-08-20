@@ -146,7 +146,10 @@ async function runFixture(fixture: Fixture, run: number) {
     mode: fixture.mode,
     changingFields,
   });
-  const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs(primaryMaxTokens);
+  const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs({
+    mode: fixture.mode,
+    changingFields,
+  });
   const attempts: Array<{
     stage: "primary" | "repair";
     maxTokens: number;
