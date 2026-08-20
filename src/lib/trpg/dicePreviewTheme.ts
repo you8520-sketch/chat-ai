@@ -125,6 +125,12 @@ export type TrpgDicePreviewInstrument = {
   watchdogMs?: number;
   theme: TrpgD20ThemeId;
   overlayMounted?: boolean;
+  webglAvailable?: boolean;
+  prefersReducedMotion?: boolean;
+  selectedRenderer?: "dice-box-threejs" | "static";
+  fallbackReason?: "none" | "no-webgl" | "reduced-motion";
+  roundPresentationPhase?: string;
+  activeRollActorId?: number | null;
 };
 
 export type TrpgDiceRuntimeEventName =
@@ -133,7 +139,8 @@ export type TrpgDiceRuntimeEventName =
   | "DICE_ROLL_STARTED"
   | "DICE_ROLL_RESOLVED"
   | "DICE_SETTLE_SOURCE"
-  | "DICE_ERROR_CODE";
+  | "DICE_ERROR_CODE"
+  | "DICE_RENDERER_DECISION";
 
 type TrpgDiceCanvasDimensions = {
   hostWidth: number | null;
@@ -175,6 +182,12 @@ type TrpgDiceRuntimeEventData = {
     boxId: string;
     code: "DICE_INIT_ERROR" | "DICE_ROLL_ERROR";
     errorName: string;
+  };
+  DICE_RENDERER_DECISION: {
+    WEBGL_AVAILABLE: boolean;
+    PREFERS_REDUCED_MOTION: boolean;
+    SELECTED_RENDERER: "dice-box-threejs" | "static";
+    FALLBACK_REASON: "none" | "no-webgl" | "reduced-motion";
   };
 };
 
@@ -237,6 +250,15 @@ export function isTrpgDiceRuntimeInstrument(value: unknown): value is TrpgDiceRu
         && (data.code === "DICE_INIT_ERROR" || data.code === "DICE_ROLL_ERROR")
         && typeof data.errorName === "string"
         && hasCanvasDimensions(data);
+    case "DICE_RENDERER_DECISION":
+      return (
+        typeof data.WEBGL_AVAILABLE === "boolean" &&
+        typeof data.PREFERS_REDUCED_MOTION === "boolean" &&
+        (data.SELECTED_RENDERER === "dice-box-threejs" || data.SELECTED_RENDERER === "static") &&
+        (data.FALLBACK_REASON === "none" ||
+          data.FALLBACK_REASON === "no-webgl" ||
+          data.FALLBACK_REASON === "reduced-motion")
+      );
     default:
       return false;
   }

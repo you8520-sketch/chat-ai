@@ -180,6 +180,10 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgEmeraldDiceTiming/);
     assert.match(overlay, /trpgD20StaticOverlaySpec/);
     assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
+    assert.match(overlay, /data-trpg-dice-webgl/);
+    assert.match(overlay, /data-trpg-dice-reduced-motion/);
+    assert.match(overlay, /data-trpg-dice-fallback-reason/);
+    assert.match(overlay, /decideTrpgDiceRenderer/);
     assert.match(overlay, /data-trpg-dice-result-phase/);
     assert.match(overlay, /data-trpg-dice-result-confirm/);
     assert.match(overlay, /absolute inset-0 z-10 flex flex-col items-center justify-center/);
@@ -211,6 +215,8 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(room, /trpgDiceRevealWatchdogMs/);
     assert.match(room, /shouldHideIncomingRollSession/);
     assert.match(room, /holdCurrentRoundReveal/);
+    assert.match(room, /activePresentationRoll/);
+    assert.match(room, /rolls=\{overlayRolls\}/);
     assert.match(room, /useCampaignDicePreview\(snap, PRODUCTION_D20_THEME\)/);
     assert.doesNotMatch(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);

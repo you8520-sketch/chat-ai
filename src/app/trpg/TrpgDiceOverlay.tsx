@@ -42,6 +42,10 @@ import {
   logTrpgDiceRuntimeInstrument,
   previewDiceRollKey,
 } from "@/lib/trpg/dicePreviewTheme";
+import {
+  decideTrpgDiceRenderer,
+  type DiceRendererDecision,
+} from "@/lib/trpg/diceRendererDecision";
 
 type ResultPhase = "rolling" | "entering" | "holding" | "exiting";
 
@@ -64,6 +68,30 @@ function detectWebgl(): boolean {
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function readDiceRendererDecision(): DiceRendererDecision {
+  return decideTrpgDiceRenderer({
+    webgl: detectWebgl(),
+    reducedMotion: prefersReducedMotion(),
+  });
+}
+
+function publishDiceRendererDecision(decision: DiceRendererDecision): void {
+  if (typeof window === "undefined") return;
+  const payload = {
+    WEBGL_AVAILABLE: decision.webgl,
+    PREFERS_REDUCED_MOTION: decision.reducedMotion,
+    SELECTED_RENDERER: decision.renderer,
+    FALLBACK_REASON: decision.fallbackReason,
+  };
+  (window as Window & { __TRPG_DICE_RENDERER_DECISION?: typeof payload }).__TRPG_DICE_RENDERER_DECISION =
+    payload;
+  console.info("[trpg-dice-renderer]", payload);
+  logTrpgDiceRuntimeInstrument({
+    event: "DICE_RENDERER_DECISION",
+    data: payload,
+  });
 }
 
 export default function TrpgDiceOverlay({
@@ -92,10 +120,11 @@ export default function TrpgDiceOverlay({
   const [play, setPlay] = useState({ started: false, dismissed: false, index: 0 });
   const [settled, setSettled] = useState(false);
   const [resultPhase, setResultPhase] = useState<ResultPhase>("rolling");
-  const [use3d, setUse3d] = useState(true);
+  const [decision, setDecision] = useState<DiceRendererDecision | null>(null);
   const prevKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
   const firstObservationRef = useRef(true);
+  const rendererLoggedRef = useRef(false);
   const playRef = useRef(play);
   playRef.current = play;
   const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered, phase, sessionKey });
@@ -103,8 +132,27 @@ export default function TrpgDiceOverlay({
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setUse3d(detectWebgl() && !prefersReducedMotion());
+    if (typeof window === "undefined" || rendererLoggedRef.current) return;
+    const next = readDiceRendererDecision();
+    rendererLoggedRef.current = true;
+    setDecision(next);
+    publishDiceRendererDecision(next);
+    const inst = instrumentRef.current;
+    if (inst.previewInstrument) {
+      logTrpgDicePreviewInstrument({
+        roundNumber: inst.roundNumber,
+        phase: inst.phase,
+        currentRollsLength: inst.ordered.length,
+        rollKey: previewDiceRollKey(inst.ordered),
+        rollSessionKey: inst.sessionKey,
+        theme: inst.theme,
+        overlayMounted: false,
+        webglAvailable: next.webgl,
+        prefersReducedMotion: next.reducedMotion,
+        selectedRenderer: next.renderer,
+        fallbackReason: next.fallbackReason,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -212,9 +260,20 @@ export default function TrpgDiceOverlay({
     return () => window.clearTimeout(watchdog);
   }, [visible, play.index, ordered.length, settled, onDieSettled, previewInstrument, sessionKey]);
 
-  if (!visible) return null;
+  const use3d = decision?.renderer === "dice-box-threejs";
+  const rendererDiagnostic = decision ? (
+    <div
+      hidden
+      data-trpg-dice-renderer-decision
+      data-trpg-dice-webgl={decision.webgl ? "true" : "false"}
+      data-trpg-dice-reduced-motion={decision.reducedMotion ? "true" : "false"}
+      data-trpg-dice-fallback-reason={decision.fallbackReason}
+      data-trpg-dice-renderer={decision.renderer}
+    />
+  ) : null;
+  if (!visible) return rendererDiagnostic;
   const roll = ordered[Math.min(play.index, ordered.length - 1)];
-  if (!roll) return null;
+  if (!roll) return rendererDiagnostic;
   const tierTone = resolveTrpgD20Tone(roll.d20, roll.tier);
   const tone = overlayTone(roll.d20, tierTone);
   const outcome = trpgRollOutcomeLabel(roll.tier);
@@ -236,6 +295,9 @@ export default function TrpgDiceOverlay({
         visible ? "opacity-100" : "opacity-0"
       }`}
       data-trpg-dice-overlay
+      data-trpg-dice-webgl={decision?.webgl ? "true" : "false"}
+      data-trpg-dice-reduced-motion={decision?.reducedMotion ? "true" : "false"}
+      data-trpg-dice-fallback-reason={decision?.fallbackReason ?? "no-webgl"}
       data-trpg-dice-engine={use3d ? "dice-box-threejs" : "static-result"}
       data-trpg-dice-theme={theme}
       data-trpg-dice-theme-label={overlay.label}
@@ -262,7 +324,7 @@ export default function TrpgDiceOverlay({
             data-trpg-dice-stage-mobile-h={TRPG_D20_STAGE_MOBILE.height}
           >
             {/* 3D roll phase — visible during rolling AND entering (no blank frame) */}
-            {use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
+            {decision && use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
               <div
                 key={`${sessionKey}:${play.index}`}
                 className="absolute inset-0"
@@ -279,7 +341,7 @@ export default function TrpgDiceOverlay({
             ) : null}
 
             {/* Static fallback (no WebGL) during roll + entering phase */}
-            {!use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
+            {decision && !use3d && resultPhase !== "holding" && resultPhase !== "exiting" ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
