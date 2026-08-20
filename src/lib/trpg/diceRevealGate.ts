@@ -61,6 +61,8 @@ export function nextDicePresentation(
     overlaySettled: boolean;
     overlayDismissed: boolean;
     mountConsume: boolean;
+    /** Client presentation queue finished every actor; outer GM gate may release. */
+    roundPresentationComplete?: boolean;
   }
 ): TrpgDicePresentation {
   const key = opts.rollSessionKey;
@@ -68,10 +70,13 @@ export function nextDicePresentation(
 
   const isNewSession = key !== prev.sessionKey;
   if (isNewSession) {
-    if (opts.mountConsume) {
+    if (opts.mountConsume || opts.roundPresentationComplete) {
       return { state: "dismissed", sessionKey: key, roundNumber: opts.roundNumber };
     }
     return { state: "pending", sessionKey: key, roundNumber: opts.roundNumber };
+  }
+  if (opts.roundPresentationComplete) {
+    return { state: "dismissed", sessionKey: key, roundNumber: opts.roundNumber };
   }
 
   switch (prev.state) {
