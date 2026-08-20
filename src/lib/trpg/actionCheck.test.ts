@@ -8,6 +8,8 @@ describe("TRPG talk-only actions skip checks", () => {
       "안전가옥을 찾아볼까?? 아니면 약국에 쓸만한게 있나볼까??? *모두를 향해 물어본다*";
     assert.equal(isTalkOnlyAction(body), true);
     assert.equal(actionNeedsCheck({ body, actionType: "persuade" }), false);
+    assert.equal(actionNeedsCheck({ body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "휴식한다", actionType: "support" }), false);
   });
 
   it("skips stage direction plus quoted speech", () => {

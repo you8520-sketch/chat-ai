@@ -1,4 +1,14 @@
 import type { TrpgActionType } from "./actionTypes";
+export {
+  CONTEXTUAL_FIRST_AID_DRAFT,
+  CONTEXTUAL_SAFE_REST_DRAFT,
+  RECOVERY_DISCOVERY_HINT,
+  SAFE_REST_COOLDOWN_HINT,
+  SAFE_REST_ONGOING_NOTICE,
+  contextualFirstAidDraft,
+  contextualSafeRestDraft,
+  showContextualFirstAid,
+} from "./mechanicsIntent";
 
 /** When the GM finishes a turn, the next ACTION_INPUT round must not keep the previous body. */
 export function trpgActionComposerForRound(

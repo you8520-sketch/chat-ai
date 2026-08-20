@@ -8,6 +8,12 @@ function tickNetFor(resolution: MechanicsResolution, participantId: number): num
     .reduce((sum, row) => sum + (row.hpBefore - row.hpAfter), 0);
 }
 
+function restNetFor(resolution: MechanicsResolution, participantId: number): number {
+  return (resolution.safeRests ?? [])
+    .filter((row) => row.participantId === participantId && row.allowed)
+    .reduce((sum, row) => sum + (row.hpAfter - row.hpBefore), 0);
+}
+
 export type MechanicsMergeResult =
   | {
       ok: true;
@@ -114,7 +120,8 @@ export function fallbackHpAfterTickAndGmHeal(
   gmHp: number
 ): number {
   const tickNet = tickNetFor(resolution, participantId);
-  const postTick = clampHp(startHp - tickNet, maxHp);
+  const restNet = restNetFor(resolution, participantId);
+  const postTick = clampHp(startHp - tickNet + restNet, maxHp);
   if (gmHp > startHp) {
     return clampHp(Math.max(postTick, gmHp), maxHp);
   }

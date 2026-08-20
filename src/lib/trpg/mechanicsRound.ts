@@ -11,7 +11,7 @@ import {
   TRPG_MECHANICS_REFEREE_SYSTEM,
 } from "./mechanicsReferee";
 import { parseFlashOrEmpty, resolveRoundMechanics, shouldCallMechanicsFlash } from "./mechanicsResolve";
-import { loadMechanicsResolution, loadOngoingEffects, saveMechanicsResolution } from "./mechanicsStore";
+import { loadLastSafeRestRounds, loadMechanicsResolution, loadOngoingEffects, saveMechanicsResolution } from "./mechanicsStore";
 import {
   isOngoingActive,
   isTrpgMechanicsRefereeEnabled,
@@ -39,7 +39,7 @@ export function ensurePreActionMechanics(
   opts: { campaignId: number; roundId: number; roundNumber: number; deps?: MechanicsRoundDeps }
 ): MechanicsResolution {
   const existing = loadMechanicsResolution(db, opts.roundId);
-  if (existing) return existing;
+  if (existing?.complete || existing?.preActionOwnerComplete) return existing;
   const sheets = loadSheetSnapshots(db, opts.campaignId);
   const effects = loadOngoingEffects(db, opts.campaignId);
   const scenario = loadScenario(db, opts.campaignId);
@@ -156,6 +156,7 @@ export async function completeRoundMechanics(
     existing,
     rng: opts.deps?.rollDie,
     recoveryRng: opts.deps?.rollD20,
+    lastSafeRestByParticipant: loadLastSafeRestRounds(db, opts.campaignId),
   });
   saveMechanicsResolution(db, resolved);
   logMechanicsObservability(resolved);
@@ -171,6 +172,7 @@ function emptyIncomplete(campaignId: number, roundId: number, roundNumber: numbe
   return {
     v: 1,
     complete: false,
+    preActionOwnerComplete: false,
     campaignId,
     roundId,
     roundNumber,

@@ -25,7 +25,26 @@ import {
   type TreatmentMode,
   type TrpgOngoingEffect,
 } from "./mechanicsTypes";
-import { classRank, isHealingIntentAction, minClass, TIER_HARM_CAP } from "./mechanicsDice";
+import {
+  BASIC_FIRST_AID_TIER_CAP,
+  classRank,
+  isHealingIntentAction,
+  minClass,
+  TIER_HARM_CAP,
+  TIER_HEAL_CAP,
+  safeRestHealAmount,
+} from "./mechanicsDice";
+import {
+  findExplicitTreatmentItem,
+  hasCanonHealingCapability,
+  isBasicFirstAidIntent,
+  isHealingIntentAction as intentHeal,
+  isTreatmentItemIntent,
+} from "./mechanicsIntent";
+import {
+  SAFE_REST_COOLDOWN_ROUNDS,
+  type SafeRestEligibility,
+} from "./mechanicsTypes";
 import type { TrpgSuccessTier } from "./types";
 
 function asEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -148,6 +167,70 @@ export function resolvePhysicalThreat(opts: {
   return cues && harmCause;
 }
 
+export function healOwnerKind(opts: {
+  body: string;
+  sourceInventory?: readonly string[];
+  startInventory?: readonly string[];
+  specialRules?: string;
+}): "none" | "first_aid" | "item" | "canon" {
+  const inventory = opts.sourceInventory ?? [];
+  const extra = [...(opts.startInventory ?? [])];
+  if (hasCanonHealingCapability(opts.specialRules ?? "", opts.body)) return "canon";
+  if (isTreatmentItemIntent(opts.body, inventory, extra) && findExplicitTreatmentItem(opts.body, inventory, extra)) {
+    return "item";
+  }
+  if (isBasicFirstAidIntent(opts.body) || intentHeal(null, opts.body, inventory, extra)) return "first_aid";
+  return "none";
+}
+
+export function authorizedHealClass(opts: {
+  actionType: TrpgActionType | null;
+  body: string;
+  tier: TrpgSuccessTier | null;
+  sourceInventory?: readonly string[];
+  startInventory?: readonly string[];
+  specialRules?: string;
+}): { klass: MechanicsClass; owner: ReturnType<typeof healOwnerKind>; reason: string | null } {
+  if (!opts.tier) return { klass: "NONE", owner: "none", reason: "no_tier" };
+  if (!isHealingIntentAction(opts.actionType, opts.body, opts.sourceInventory, opts.startInventory)) {
+    return { klass: "NONE", owner: "none", reason: "heal_without_treatment" };
+  }
+  const owner = healOwnerKind(opts);
+  if (owner === "none") return { klass: "NONE", owner, reason: "heal_without_treatment" };
+  const tierCap = TIER_HEAL_CAP[opts.tier];
+  const firstAidCap = BASIC_FIRST_AID_TIER_CAP[opts.tier];
+  const cap = owner === "first_aid" ? minClass(tierCap, firstAidCap) : tierCap;
+  return { klass: cap, owner, reason: cap === "NONE" ? "tier_heal_none" : null };
+}
+
+export function evaluateSafeRestEligibility(opts: {
+  hp: number;
+  maxHp: number;
+  scene: string;
+  sameRoundCombat: boolean;
+  lastSafeRestRound: number | null;
+  currentRound: number;
+}): SafeRestEligibility {
+  const healAmount = safeRestHealAmount(opts.maxHp);
+  if (opts.hp <= 0) return { available: false, healAmount, blockedReason: "incapacitated" };
+  if (opts.hp >= opts.maxHp) return { available: false, healAmount, blockedReason: "full_hp" };
+  if (hasPhysicalThreatCue(opts.scene)) return { available: false, healAmount, blockedReason: "physical_threat" };
+  if (opts.sameRoundCombat) return { available: false, healAmount, blockedReason: "combat_active" };
+  if (
+    opts.lastSafeRestRound != null &&
+    opts.currentRound - opts.lastSafeRestRound < SAFE_REST_COOLDOWN_ROUNDS
+  ) {
+    return { available: false, healAmount, blockedReason: "cooldown" };
+  }
+  return { available: true, healAmount, blockedReason: null };
+}
+
+export function sameRoundHasCombatAction(
+  actors: Array<{ actionType: TrpgActionType | null }>
+): boolean {
+  return actors.some((row) => row.actionType === "attack" || row.actionType === "defend");
+}
+
 export function validateDirectEffect(opts: {
   actionType: TrpgActionType | null;
   body: string;
@@ -156,18 +239,29 @@ export function validateDirectEffect(opts: {
   klass: MechanicsClass;
   cause: DirectCause;
   physicalThreat: boolean;
+  sourceInventory?: readonly string[];
+  startInventory?: readonly string[];
+  specialRules?: string;
 }): { effect: DirectEffectKind; klass: MechanicsClass; cause: DirectCause; rejected: boolean; reason: string | null } {
   if (opts.effect === "heal") {
-    if (!isHealingIntentAction(opts.actionType, opts.body)) {
-      return { effect: "none", klass: "NONE", cause: "none", rejected: true, reason: "heal_without_treatment" };
+    const authorized = authorizedHealClass(opts);
+    if (authorized.klass === "NONE") {
+      return { effect: "none", klass: "NONE", cause: "none", rejected: true, reason: authorized.reason };
     }
-    if (opts.klass === "NONE" || opts.klass === "CHIP" || opts.klass === "SEVERE" || opts.klass === "CRITICAL") {
-      return { effect: "heal", klass: "LIGHT", cause: "healing", rejected: false, reason: "heal_class_normalized" };
-    }
-    if (classRank(opts.klass) > classRank("HEAVY")) {
-      return { effect: "heal", klass: "HEAVY", cause: "healing", rejected: false, reason: "heal_capped" };
-    }
-    return { effect: "heal", klass: opts.klass, cause: "healing", rejected: false, reason: null };
+    const requested =
+      opts.klass === "NONE" || opts.klass === "CHIP" || classRank(opts.klass) > classRank("HEAVY")
+        ? "LIGHT"
+        : opts.klass;
+    const capped = minClass(requested, authorized.klass);
+    const healClass: "LIGHT" | "MEDIUM" | "HEAVY" =
+      capped === "HEAVY" || capped === "MEDIUM" || capped === "LIGHT" ? capped : "LIGHT";
+    return {
+      effect: "heal",
+      klass: healClass,
+      cause: "healing",
+      rejected: healClass !== opts.klass,
+      reason: healClass !== opts.klass ? "heal_tier_cap" : null,
+    };
   }
   if (opts.effect !== "harm") {
     return { effect: "none", klass: "NONE", cause: "none", rejected: false, reason: null };
@@ -293,6 +387,7 @@ export function validateTreatment(opts: {
   tier: TrpgSuccessTier | null;
   effect: TrpgOngoingEffect | null;
   consumeItem: string | null;
+  sourceParticipantId: number;
   inventories: Array<{ participantId: number; items: readonly string[] }>;
 }): { allow: TreatmentAllow; consume: boolean; ownerParticipantId: number | null; reason: string | null } {
   if (!opts.effect || !isOngoingActive(opts.effect.remainingTicks)) {
@@ -312,11 +407,11 @@ export function validateTreatment(opts: {
   }
   let owner: number | null = null;
   if (itemNeeded && wanted) {
-    const found = opts.inventories.find((row) => inventoryHasItem(row.items, wanted));
-    if (!found) {
+    const sourceInv = opts.inventories.find((row) => row.participantId === opts.sourceParticipantId);
+    if (!sourceInv || !inventoryHasItem(sourceInv.items, wanted)) {
       return { allow: "none", consume: false, ownerParticipantId: null, reason: "item_missing" };
     }
-    owner = found.participantId;
+    owner = opts.sourceParticipantId;
   }
   if (!opts.tier || opts.tier === "FAILURE" || opts.tier === "SEVERE_FAILURE" || opts.tier === "CRITICAL_FAILURE") {
     return { allow: "none", consume: false, ownerParticipantId: owner, reason: "tier_failure" };

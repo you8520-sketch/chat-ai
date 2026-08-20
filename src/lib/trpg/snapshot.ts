@@ -142,6 +142,22 @@ export type TrpgCampaignSnapshot = {
   hasPendingGmResult?: boolean;
   ongoingEffects?: TrpgPublicOngoingEffect[];
   mechanicsLines?: TrpgMechanicsHudLine[];
+  /** Server-authoritative safe-rest eligibility. UI must not re-parse the scene. */
+  safeRest?: TrpgSafeRestSnapshot;
+  showRecoveryHint?: boolean;
+};
+
+export type TrpgSafeRestBlockedReason =
+  | "full_hp"
+  | "physical_threat"
+  | "combat_active"
+  | "cooldown"
+  | "incapacitated";
+
+export type TrpgSafeRestSnapshot = {
+  available: boolean;
+  healAmount: number;
+  blockedReason: TrpgSafeRestBlockedReason | null;
 };
 
 export type TrpgPublicOngoingEffect = {

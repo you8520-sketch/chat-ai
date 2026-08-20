@@ -658,6 +658,11 @@ function persistRolls(
       const parsed = parseTrpgBotAction(sub.body);
       const checkBody = parsed.intent || parsed.prose || sub.body;
       if (!actionNeedsCheck({ body: checkBody, actionType })) continue;
+      const preHp = pre.hpAfter[String(sub.participant_id)];
+      const downed =
+        (typeof preHp === "number" && preHp <= 0) ||
+        (pre.incapacitated ?? []).some((row) => row.participantId === sub.participant_id);
+      if (downed) continue;
       const statKey = pickStatForAction({
         actionType,
         selectedStat: sub.selected_stat,

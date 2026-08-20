@@ -62,15 +62,23 @@ export function formatMechanicsHudLines(
   resolution: MechanicsResolution | null,
   participantId: number
 ): string[] {
-  if (!resolution?.complete) return [];
+  if (!resolution?.complete || resolution.applied !== true) return [];
   const lines: string[] = [];
-  const actor = resolution.actors.find((row) => row.participantId === participantId);
-  if (actor?.direct?.effect === "harm" && actor.direct.dice) {
-    lines.push(`피해 ${actor.direct.dice.amount}`);
-    lines.push(`HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}`);
-  } else if (actor?.direct?.effect === "heal" && actor.direct.dice) {
-    lines.push(`회복 ${actor.direct.dice.amount}`);
-    lines.push(`HP ${actor.direct.hpBefore} → ${actor.direct.hpAfter}`);
+  for (const actor of resolution.actors) {
+    const direct = actor.direct;
+    if (!direct || direct.rejected || direct.effect === "none" || !direct.dice) continue;
+    if (direct.targetParticipantId !== participantId) continue;
+    if (direct.effect === "harm") {
+      lines.push(`피해 ${direct.dice.amount}`);
+      lines.push(`HP ${direct.hpBefore} → ${direct.hpAfter}`);
+    } else if (direct.effect === "heal") {
+      lines.push(`회복 ${direct.dice.amount}`);
+      lines.push(`HP ${direct.hpBefore} → ${direct.hpAfter}`);
+    }
+  }
+  for (const rest of (resolution.safeRests ?? []).filter((row) => row.participantId === participantId && row.allowed)) {
+    lines.push(`회복 ${rest.amount}`);
+    lines.push(`HP ${rest.hpBefore} → ${rest.hpAfter}`);
   }
   for (const tick of resolution.ongoingTicks.filter((row) => row.participantId === participantId)) {
     lines.push(`${tick.label} ${tick.dice?.amount ?? 0}`);

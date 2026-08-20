@@ -152,20 +152,21 @@ async function main() {
     });
     let flash: Awaited<ReturnType<typeof callTrpgMechanicsReferee>> | null = null;
     let lastError = "";
-    for (let attempt = 0; attempt < 3 && !flash; attempt++) {
-      try {
-        flash = await callTrpgMechanicsReferee({
-          system: TRPG_MECHANICS_REFEREE_SYSTEM,
-          user,
-        });
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
-        await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
-      }
+    let providerCalls = 0;
+    try {
+      providerCalls += 1;
+      flash = await callTrpgMechanicsReferee({
+        system: TRPG_MECHANICS_REFEREE_SYSTEM,
+        user,
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
     }
     if (!flash) {
       (report.fixtures as unknown[]).push({
         name: fixture.name,
+        PROVIDER_CALLS: providerCalls,
+        MECHANICS_ACCEPTED_EFFECTS: 0,
         FLASH_CALLS_PER_ROUND: 1,
         fallbackPath: "flash_failure",
         error: lastError,
@@ -193,10 +194,13 @@ async function main() {
     });
     const row = {
       name: fixture.name,
+      PROVIDER_CALLS: providerCalls,
+      MECHANICS_ACCEPTED_EFFECTS:
+        resolved.observability.MECHANICS_HARM_COUNT + resolved.observability.MECHANICS_HEAL_COUNT,
       FLASH_CALLS_PER_ROUND: resolved.observability.FLASH_CALLS_PER_ROUND,
       latencyMs: flash.latencyMs,
       model: flash.model,
-      flashEffects: parsed.effects.length,
+      flashProposedEffects: parsed.effects.length,
       serverHarm: resolved.observability.MECHANICS_HARM_COUNT,
       serverHeal: resolved.observability.MECHANICS_HEAL_COUNT,
       ongoingAdds: resolved.ongoingAdds.map((item) => item.label),

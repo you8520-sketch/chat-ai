@@ -15,6 +15,10 @@ export const NO_DOUBLE_DAMAGE = true;
 export const NO_DOUBLE_POISON_TICK = true;
 export const NO_DOUBLE_ITEM_CONSUME = true;
 export const TOTAL_ONGOING_DAMAGE_RATIO = 0.35;
+export const MAX_DIRECT_TARGETS_PER_SOURCE = 1;
+export const SAFE_REST_HEAL_RATIO = 0.2;
+export const SAFE_REST_COOLDOWN_ROUNDS = 4;
+export const BASIC_FIRST_AID_HP_CEILING_RATIO = 0.7;
 
 export const MECHANICS_CLASSES = [
   "NONE",
@@ -68,6 +72,29 @@ export const TICK_CLASSES = ["CHIP", "LIGHT", "MEDIUM"] as const;
 export type TickClass = (typeof TICK_CLASSES)[number];
 
 export type MechanicsFallback = "none" | "gm_legacy" | "flash_failure";
+
+export type SafeRestBlockedReason =
+  | "full_hp"
+  | "physical_threat"
+  | "combat_active"
+  | "cooldown"
+  | "incapacitated"
+  | "no_intent";
+
+export type SafeRestEligibility = {
+  available: boolean;
+  healAmount: number;
+  blockedReason: Exclude<SafeRestBlockedReason, "no_intent"> | null;
+};
+
+export type SafeRestRecord = {
+  participantId: number;
+  amount: number;
+  hpBefore: number;
+  hpAfter: number;
+  allowed: boolean;
+  reason: SafeRestBlockedReason | null;
+};
 
 export type TrpgOngoingEffect = {
   id: number;
@@ -185,6 +212,8 @@ export type MechanicsActorInput = {
 export type MechanicsResolution = {
   v: 1;
   complete: boolean;
+  /** Pre-action owner (recovery + DOT + incap) finished. HP not committed. */
+  preActionOwnerComplete?: boolean;
   campaignId: number;
   roundId: number;
   roundNumber: number;
@@ -228,6 +257,7 @@ export type MechanicsResolution = {
   consumeItems: Array<{ participantId: number; item: string }>;
   hpAfter: Record<string, number>;
   incapacitated: Array<{ participantId: number; reason: "hp_zero" }>;
+  safeRests?: SafeRestRecord[];
   applied?: boolean;
   flashRaw?: string | null;
   packet: string;

@@ -195,8 +195,8 @@ describe("TRPG mechanics referee — direct damage", () => {
 
   it("H. heal over maxHP clamps", () => {
     const out = resolve({
-      sheets: [sheet({ hp: 23 })],
-      actors: [actor({ actionType: "support", body: "상처를 치료한다", tier: "SUCCESS" })],
+      sheets: [sheet({ hp: 23, inventory: ["구급키트"] })],
+      actors: [actor({ actionType: "use_item", body: "구급키트를 사용한다", tier: "GREAT_SUCCESS" })],
       flash: {
         effects: [{ participantId: 1, directEffect: "heal", directClass: "HEAVY", cause: "healing" }],
       },

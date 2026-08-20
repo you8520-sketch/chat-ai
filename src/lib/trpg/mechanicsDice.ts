@@ -1,7 +1,8 @@
 import { randomInt } from "node:crypto";
 import type { MechanicsClass, TickClass } from "./mechanicsTypes";
-import { TOTAL_ONGOING_DAMAGE_RATIO } from "./mechanicsTypes";
+import { BASIC_FIRST_AID_HP_CEILING_RATIO, SAFE_REST_HEAL_RATIO, TOTAL_ONGOING_DAMAGE_RATIO } from "./mechanicsTypes";
 import type { TrpgSuccessTier } from "./types";
+import { isHealingIntentAction as intentIsHealing } from "./mechanicsIntent";
 
 export type DiceRng = (sides: number) => number;
 
@@ -52,6 +53,26 @@ export const TIER_HARM_CAP: Record<TrpgSuccessTier, MechanicsClass> = {
   FAILURE: "HEAVY",
   SEVERE_FAILURE: "SEVERE",
   CRITICAL_FAILURE: "CRITICAL",
+};
+
+export const TIER_HEAL_CAP: Record<TrpgSuccessTier, MechanicsClass> = {
+  CRITICAL_SUCCESS: "HEAVY",
+  GREAT_SUCCESS: "HEAVY",
+  SUCCESS: "MEDIUM",
+  PARTIAL_SUCCESS: "LIGHT",
+  FAILURE: "NONE",
+  SEVERE_FAILURE: "NONE",
+  CRITICAL_FAILURE: "NONE",
+};
+
+export const BASIC_FIRST_AID_TIER_CAP: Record<TrpgSuccessTier, MechanicsClass> = {
+  CRITICAL_SUCCESS: "MEDIUM",
+  GREAT_SUCCESS: "MEDIUM",
+  SUCCESS: "LIGHT",
+  PARTIAL_SUCCESS: "LIGHT",
+  FAILURE: "NONE",
+  SEVERE_FAILURE: "NONE",
+  CRITICAL_FAILURE: "NONE",
 };
 
 const CLASS_RANK: Record<MechanicsClass, number> = {
@@ -119,7 +140,19 @@ export function isPhysicalThreatAction(actionType: string | null): boolean {
   return actionType === "attack" || actionType === "defend";
 }
 
-export function isHealingIntentAction(actionType: string | null, body = ""): boolean {
-  if (actionType === "support" || actionType === "use_item") return true;
-  return /치료|치유|붕대|해독|회복|약|antidote|bandage|heal/i.test(body);
+export function isHealingIntentAction(
+  actionType: string | null,
+  body = "",
+  sourceInventory: readonly string[] = [],
+  extraKnown: readonly string[] = []
+): boolean {
+  return intentIsHealing(actionType, body, sourceInventory, extraKnown);
+}
+
+export function basicFirstAidHpCeiling(maxHp: number): number {
+  return Math.ceil(Math.max(1, maxHp) * BASIC_FIRST_AID_HP_CEILING_RATIO);
+}
+
+export function safeRestHealAmount(maxHp: number): number {
+  return Math.max(1, Math.ceil(Math.max(1, maxHp) * SAFE_REST_HEAL_RATIO));
 }

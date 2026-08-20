@@ -122,6 +122,33 @@ export function markMechanicsApplied(db: Database.Database, resolution: Mechanic
   saveMechanicsResolution(db, { ...resolution, applied: true });
 }
 
+export function loadLastSafeRestRounds(
+  db: Database.Database,
+  campaignId: number
+): Record<string, number> {
+  if (!hasTable(db, "trpg_mechanics_resolutions")) return {};
+  const rows = db
+    .prepare(
+      `SELECT r.round_number, m.resolution_json
+       FROM trpg_mechanics_resolutions m
+       JOIN trpg_rounds r ON r.id = m.round_id
+       WHERE m.campaign_id=?
+       ORDER BY r.round_number DESC`
+    )
+    .all(campaignId) as Array<{ round_number: number; resolution_json: string }>;
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    const parsed = parseJson(row.resolution_json, null as MechanicsResolution | null);
+    if (parsed?.v !== 1 || !parsed.applied) continue;
+    for (const rest of parsed.safeRests ?? []) {
+      if (!rest.allowed) continue;
+      const key = String(rest.participantId);
+      if (out[key] == null) out[key] = row.round_number;
+    }
+  }
+  return out;
+}
+
 export function loadLatestCompleteMechanics(
   db: Database.Database,
   campaignId: number
