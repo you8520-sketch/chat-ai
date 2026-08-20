@@ -494,6 +494,10 @@ import {
   type SceneMode,
 } from "@/lib/adultSceneRouting";
 import {
+  invokePreparedAdultRefusalFallback,
+  resolveAdultDeliveryPlan,
+} from "@/lib/adultDeliveryPlan";
+import {
   classifyAdultSceneHardFailure,
   resolveAdultSceneModelPolicyConfig,
   shouldFallbackToGlm,
@@ -1275,6 +1279,21 @@ export async function POST(req: Request) {
     );
   }
 
+  const adultDeliveryPlan = resolveAdultDeliveryPlan({
+    routingEnabled: adultRoutingConfig.enabled,
+    eligibility: adultEligibility,
+    silentRefusalFallback: adultRoutingConfig.silentRefusalFallback,
+    selectedModelId: selectedAI,
+    adultTargetModelId: activeAdultModelId,
+    classification: sceneClassification,
+    state: priorModelRouteState,
+    adultDialogueProfile: normalizeAdultDialogueProfile(
+      ch.adult_dialogue_profile
+    ),
+    providerCapabilities: adultRoutingConfig.providerCapabilities,
+  });
+  const adultFallbackModelId = adultDeliveryPlan.fallbackModelId;
+
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
     loadCharacterChunksForPrompt(
       {
@@ -1321,10 +1340,8 @@ export async function POST(req: Request) {
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
 
-  const effectiveSelectedAI: SelectedAI =
-    adultRoutingConfig.enabled && adultRouteDecision.activeRoute === "adult"
-      ? (activeAdultModelId as SelectedAI)
-      : selectedAI;
+  const effectiveSelectedAI =
+    adultDeliveryPlan.primaryModelId as SelectedAI;
   const primaryProvider = isCheaperInferenceModel(effectiveSelectedAI)
     ? "cheaperinference"
     : selectedAIProvider(effectiveSelectedAI);
@@ -1476,39 +1493,7 @@ export async function POST(req: Request) {
   let handoffRawTurnsIncluded = 0;
   let handoffRawTokensIncluded = 0;
   let adultHandoffRequiredTurnFloor = 0;
-  if (
-    adultRoutingConfig.enabled &&
-    adultRouteDecision.activeRoute === "adult" &&
-    adultRouteDecision.firstAdultHandoff
-  ) {
-    const handoffVariants = selectAdultHandoffRawVariants(
-      canonicalRecentHistoryFull,
-      {
-        baseExchanges: adultRoutingConfig.baseRawExchanges,
-        targetExchanges: adultRoutingConfig.handoffTargetRawExchanges,
-        extraRawTokens: adultRoutingConfig.handoffExtraRawTokens,
-      }
-    );
-    const handoffHistory = handoffVariants.handoff;
-    adultHandoffRequiredTurnFloor = handoffHistory.rawTurnsIncluded;
-    providerRecentHistoryFull = selectLongerHistorySuffix(
-      handoffHistory.history,
-      coverageProtectedCanonicalHistory
-    );
-    handoffRawTurnsIncluded = providerRecentHistoryFull.filter(
-      (message) => message.role === "assistant"
-    ).length;
-    handoffRawTokensIncluded = providerRecentHistoryFull.reduce(
-      (total, message) => total + estimateTokens(message.content),
-      0
-    );
-  }
-  const trimmedHistoryForLorebook =
-    adultRoutingConfig.enabled &&
-    adultRouteDecision.activeRoute === "adult" &&
-    adultRouteDecision.firstAdultHandoff
-      ? providerRecentHistoryFull
-      : coverageProtectedCanonicalHistory;
+  const trimmedHistoryForLorebook = coverageProtectedCanonicalHistory;
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
   const providerHistoryHealth = analyzeProviderHistoryHealth(shortTermHistory);
@@ -2120,10 +2105,7 @@ export async function POST(req: Request) {
             : null,
         }
       : null,
-    preserveAdultHandoffRawHistory:
-      adultRoutingConfig.enabled &&
-      adultRouteDecision.activeRoute === "adult" &&
-      adultRouteDecision.firstAdultHandoff,
+    preserveAdultHandoffRawHistory: false,
   };
 
   const assembleContext = <T,>(fn: () => T): T =>
@@ -2310,29 +2292,6 @@ export async function POST(req: Request) {
     sceneReset: sceneClassification.sceneReset,
     ...(sceneClassification.sceneReset ? {} : extractedHandoffContinuity),
   });
-  if (
-    adultRoutingConfig.enabled &&
-    adultRouteDecision.activeRoute === "adult" &&
-    adultRouteDecision.firstAdultHandoff
-  ) {
-    systemPromptForTurn = appendAdultHandoffPrompt(
-      systemPromptForTurn,
-      continuityPacket,
-      {
-        sourceModelId: adultHandoffSourceModelId,
-        adultTargetModelId: activeAdultModelId,
-      }
-    );
-    openRouterSystemSplitForTurn = appendAdultHandoffToSystemSplit(
-      openRouterSystemSplitForTurn,
-      continuityPacket,
-      {
-        sourceModelId: adultHandoffSourceModelId,
-        adultTargetModelId: activeAdultModelId,
-      }
-    );
-  }
-
   let fallbackAdultContext:
     | {
         systemPrompt: string;
@@ -2344,12 +2303,7 @@ export async function POST(req: Request) {
         rawTokensIncluded: number;
       }
     | null = null;
-  if (
-    adultRoutingConfig.enabled &&
-    adultRouteDecision.activeRoute === "general" &&
-    adultEligibility.eligible &&
-    adultRoutingConfig.silentRefusalFallback
-  ) {
+  if (adultDeliveryPlan.fallbackPrepared) {
     const fallbackVariants = selectAdultHandoffRawVariants(
       canonicalRecentHistoryFull,
       {
@@ -2364,14 +2318,14 @@ export async function POST(req: Request) {
       coverageProtectedCanonicalHistory
     );
     const fallbackCanonPolicy = resolveCanonInjectionPolicy(
-      activeAdultModelId,
+      adultFallbackModelId,
       { userId: user.id, chatId: chat.id }
     );
     const fallbackMemoryInjection = initialMemoryInjection;
     let fallbackBuilt = assembleContext(() =>
       buildContext({
         ...contextBuildInput,
-        modelId: activeAdultModelId,
+        modelId: adultFallbackModelId,
         provider: "openrouter" as const,
         shortTermHistory: fallbackHistory,
         longTermMemory: fallbackMemoryInjection.text,
@@ -2400,7 +2354,7 @@ export async function POST(req: Request) {
             tier: memoryTier,
             memoryCapacity,
             userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
-            modelId: activeAdultModelId,
+            modelId: adultFallbackModelId,
             provider: "openrouter",
             excludeSummaryTurnStartGte,
           }),
@@ -2408,7 +2362,7 @@ export async function POST(req: Request) {
           assembleContext(() =>
             buildContext({
               ...contextBuildInput,
-              modelId: activeAdultModelId,
+              modelId: adultFallbackModelId,
               provider: "openrouter" as const,
               shortTermHistory: fallbackHistory,
               longTermMemory: reconciledMemory.text,
@@ -2449,7 +2403,7 @@ export async function POST(req: Request) {
       continuityPacket,
       {
         sourceModelId: adultHandoffSourceModelId,
-        adultTargetModelId: activeAdultModelId,
+        adultTargetModelId: adultFallbackModelId,
       }
     );
     fallbackSystemSplit = appendAdultHandoffToSystemSplit(
@@ -2457,7 +2411,7 @@ export async function POST(req: Request) {
       continuityPacket,
       {
         sourceModelId: adultHandoffSourceModelId,
-        adultTargetModelId: activeAdultModelId,
+        adultTargetModelId: adultFallbackModelId,
       }
     );
     fallbackAdultContext = {
@@ -2519,8 +2473,7 @@ export async function POST(req: Request) {
   let deliveredSelectedAI: SelectedAI = effectiveSelectedAI;
   let deliveredModelId = openRouterApiModelId;
   let deliveredProvider = primaryProvider;
-  let deliveredActiveRoute: ActiveModelRoute =
-    adultRoutingConfig.enabled ? adultRouteDecision.activeRoute : "general";
+  let deliveredActiveRoute: ActiveModelRoute = "general";
   let adultFallbackAttempted = false;
   let adultFallbackSucceeded = false;
   let glmHardFailureFallbackAttempted = false;
@@ -2947,10 +2900,7 @@ export async function POST(req: Request) {
             streamVisibleTextRef = "";
           } else {
           const shouldBufferGeneral =
-            adultRoutingConfig.enabled &&
-            adultRouteDecision.activeRoute === "general" &&
-            adultRouteDecision.refusalBufferRecommended &&
-            fallbackAdultContext != null;
+            adultDeliveryPlan.fallbackPrepared && fallbackAdultContext != null;
           const shouldBufferAdultForHardFailure =
             adultModelPolicyConfig.glmHardFailureFallbackEnabled &&
             adultRouteDecision.activeRoute === "adult" &&
@@ -3054,15 +3004,6 @@ export async function POST(req: Request) {
             );
           };
 
-          const canFallback = () =>
-            adultRoutingConfig.enabled &&
-            adultRoutingConfig.silentRefusalFallback &&
-            adultEligibility.eligible &&
-            adultEligibility.allowedByAdultContentPolicy &&
-            !streamGate.hasVisibleTokens() &&
-            !adultFallbackAttempted &&
-            fallbackAdultContext != null;
-
           const runAdultFallback = async () => {
             adultFallbackAttempted = true;
             streamGate.discard();
@@ -3072,8 +3013,8 @@ export async function POST(req: Request) {
               system: fallback.systemPrompt,
               history: fallback.history,
               systemSplit: fallback.openRouterSystemSplit,
-              modelId: activeAdultModelId,
-              selectedModel: activeAdultModelId as SelectedAI,
+              modelId: adultFallbackModelId,
+              selectedModel: adultFallbackModelId as SelectedAI,
               provider: "cheaperinference",
               adultRoute: true,
               requestKind: "adult-general-refusal-fallback",
@@ -3081,8 +3022,8 @@ export async function POST(req: Request) {
             adultFallbackSucceeded = true;
             deliveredActiveRoute = "adult";
             deliveredSelectedAI =
-              activeAdultModelId as SelectedAI;
-            deliveredModelId = activeAdultModelId;
+              adultFallbackModelId as SelectedAI;
+            deliveredModelId = adultFallbackModelId;
             deliveredProvider = "cheaperinference";
             systemRef = fallback.systemPrompt;
             historyRef = fallback.history;
@@ -3189,10 +3130,19 @@ export async function POST(req: Request) {
               adultRoute: deliveredActiveRoute === "adult",
             });
           } catch (primaryError) {
-            const refusal = detectModelRefusal({ error: primaryError });
-            if (refusal.refused && canFallback()) {
-              result = await runAdultFallback();
+            const adultRefusalFallback =
+              await invokePreparedAdultRefusalFallback({
+                plan: adultDeliveryPlan,
+                fallbackContextAvailable: fallbackAdultContext != null,
+                error: primaryError,
+                hasVisibleTokens: streamGate.hasVisibleTokens(),
+                fallbackAlreadyAttempted: adultFallbackAttempted,
+                runFallback: runAdultFallback,
+              });
+            if (adultRefusalFallback.invoked) {
+              result = adultRefusalFallback.result;
             } else {
+              const refusal = detectModelRefusal({ error: primaryError });
               const hardFailure = classifyAdultSceneHardFailure({
                 error: primaryError,
                 refusalDetected: refusal.refused,
@@ -3248,14 +3198,20 @@ export async function POST(req: Request) {
           }
 
           if (!adultFallbackSucceeded) {
-            const refusal = detectModelRefusal({
-              text: result.text,
-              finishReason: result.stage.finishReason,
-            });
-            if (refusal.refused && canFallback()) {
+            const adultRefusalFallback =
+              await invokePreparedAdultRefusalFallback({
+                plan: adultDeliveryPlan,
+                fallbackContextAvailable: fallbackAdultContext != null,
+                text: result.text,
+                finishReason: result.stage.finishReason,
+                hasVisibleTokens: streamGate.hasVisibleTokens(),
+                fallbackAlreadyAttempted: adultFallbackAttempted,
+                runFallback: runAdultFallback,
+              });
+            if (adultRefusalFallback.invoked) {
               hiddenFallbackOverheadCostUsd =
                 result.stage.upstreamCostUsd ?? 0;
-              result = await runAdultFallback();
+              result = adultRefusalFallback.result;
             } else {
               streamGate.flush();
             }
@@ -4596,7 +4552,7 @@ export async function POST(req: Request) {
           transientAdultCapableRoute,
           establishedOngoingSexualContext,
           adultHandoffSourceModelId,
-          adultHandoffTargetModelId: activeAdultModelId,
+          adultHandoffTargetModelId: adultFallbackModelId,
         });
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
