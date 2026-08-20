@@ -130,7 +130,7 @@ export async function POST(req: Request) {
       generated,
       selectedFields,
       lockedFields,
-      generatedFields: requestedFields,
+      generatedFields: requestedFields.filter((field) => generated.generatedFields?.includes(field)),
       provenance: makeDraftProvenance({
         worldId,
         worldUpdatedAt,
