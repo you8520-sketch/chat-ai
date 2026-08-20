@@ -319,8 +319,10 @@ Rules:
 - Use the world's factions, threats, and rules.
 - Be concrete enough to run, not padded. Keep scalar fields short and operational.
 - Keep each scalar to one short sentence.
-- Use at most 3 major events, 3 clues, and 3 essential NPCs.
-- Keep every list item to one sentence and every NPC description/greeting/systemPrompt to one short sentence.
+- Hard size caps: title 30 Korean chars; summary 80; each scalar 100; secret 160.
+- Use at most 2 items per list, each at most 60 Korean chars.
+- Use at most 2 essential NPCs. NPC name 20 chars, description 80, greeting 40, systemPrompt 80.
+- Use at most 4 startInventory items, each at most 20 chars.
 - Keep the complete JSON comfortably below 2,600 output tokens.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
 - Summary must be player-safe: no secrets, twists, or endings.

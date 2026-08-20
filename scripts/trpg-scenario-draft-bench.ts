@@ -171,9 +171,18 @@ async function runFixture(fixture: Fixture, run: number) {
       expectedFields: changingFields,
       primaryMaxTokens,
       primaryTimeoutMs,
+      primaryTemperature: 0.3,
       repairMaxTokens: Math.min(primaryMaxTokens, TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS),
       repairTimeoutMs: TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
-      complete: async ({ system: callSystem, user: callUser, stage = "primary", maxTokens, timeoutMs }) => {
+      repairTemperature: 0,
+      complete: async ({
+        system: callSystem,
+        user: callUser,
+        stage = "primary",
+        maxTokens,
+        timeoutMs,
+        temperature,
+      }) => {
         const callStarted = Date.now();
         try {
           const result = await callTrpgAuthoringModel({
@@ -181,6 +190,7 @@ async function runFixture(fixture: Fixture, run: number) {
             user: callUser,
             maxTokens,
             timeoutMs,
+            temperature,
           });
           attempts.push({
             stage,

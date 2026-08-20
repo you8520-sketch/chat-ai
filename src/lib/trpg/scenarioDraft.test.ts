@@ -90,18 +90,22 @@ describe("TRPG scenario AI draft", () => {
       expectedFields: ["title", "goal"],
       primaryMaxTokens: 1200,
       primaryTimeoutMs: 120_000,
+      primaryTemperature: 0.3,
       repairMaxTokens: 900,
       repairTimeoutMs: 60_000,
-      complete: async ({ user, stage, maxTokens, timeoutMs }) => {
+      repairTemperature: 0,
+      complete: async ({ user, stage, maxTokens, timeoutMs, temperature }) => {
         malformedCalls += 1;
         repairedUsers.push(user);
         stages.push(stage);
         if (stage === "primary") {
           assert.equal(maxTokens, 1200);
           assert.equal(timeoutMs, 120_000);
+          assert.equal(temperature, 0.3);
         } else {
           assert.equal(maxTokens, 900);
           assert.equal(timeoutMs, 60_000);
+          assert.equal(temperature, 0);
         }
         if (malformedCalls === 1) return { text: "not-json", latencyMs: 1, model: TRPG_SCENARIO_DRAFT_MODEL };
         return { text: JSON.stringify({ title: "고침", startingSituation: "시작", centralConflict: "갈등", goal: "목표", endingConditions: ["끝"] }), latencyMs: 1, model: TRPG_SCENARIO_DRAFT_MODEL };

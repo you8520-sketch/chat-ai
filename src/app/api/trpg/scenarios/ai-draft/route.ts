@@ -117,8 +117,10 @@ export async function POST(req: Request) {
       expectedFields: changingFields,
       primaryMaxTokens,
       primaryTimeoutMs,
+      primaryTemperature: 0.3,
       repairMaxTokens: Math.min(primaryMaxTokens, TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS),
       repairTimeoutMs: TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
+      repairTemperature: 0,
     });
     const merged = mergeScenarioDraft({
       mode,

@@ -26,6 +26,7 @@ export type TrpgAuthoringComplete = (opts: {
   stage?: "primary" | "repair";
   maxTokens?: number;
   timeoutMs?: number;
+  temperature?: number;
   repairOf?: string;
 }) => Promise<TrpgAuthoringCallResult>;
 
@@ -112,6 +113,7 @@ export async function callTrpgAuthoringModel(opts: {
   user: string;
   timeoutMs?: number;
   maxTokens?: number;
+  temperature?: number;
 }): Promise<TrpgAuthoringCallResult> {
   const started = Date.now();
   const model = TRPG_SCENARIO_DRAFT_MODEL;
@@ -125,7 +127,7 @@ export async function callTrpgAuthoringModel(opts: {
       { role: "user", content: opts.user },
     ],
     stream: false,
-    temperature: 0.6,
+    temperature: opts.temperature ?? 0.6,
     max_tokens: opts.maxTokens ?? 4096,
     response_format: { type: "json_object" },
   });
@@ -190,6 +192,8 @@ export async function completeTrpgAuthoringJson(opts: {
   primaryTimeoutMs?: number;
   repairMaxTokens?: number;
   repairTimeoutMs?: number;
+  primaryTemperature?: number;
+  repairTemperature?: number;
 }): Promise<TrpgScenarioDraftResult> {
   const complete =
     opts.complete ??
@@ -199,6 +203,7 @@ export async function completeTrpgAuthoringJson(opts: {
         user: call.user,
         maxTokens: call.maxTokens,
         timeoutMs: call.timeoutMs,
+        temperature: call.temperature,
       }));
   const started = Date.now();
   let result: TrpgAuthoringCallResult;
@@ -209,6 +214,7 @@ export async function completeTrpgAuthoringJson(opts: {
       stage: "primary",
       maxTokens: opts.primaryMaxTokens,
       timeoutMs: opts.primaryTimeoutMs,
+      temperature: opts.primaryTemperature,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "authoring failed";
@@ -260,6 +266,7 @@ export async function completeTrpgAuthoringJson(opts: {
         stage: "repair",
         maxTokens: opts.repairMaxTokens,
         timeoutMs: opts.repairTimeoutMs,
+        temperature: opts.repairTemperature,
         repairOf: lastError,
       });
     } catch (error) {
