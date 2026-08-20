@@ -24,6 +24,7 @@ import {
   TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT,
   TRPG_SCENARIO_DRAFT_CORE_FIELDS,
   TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS,
+  TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_MODEL,
@@ -425,6 +426,13 @@ describe("TRPG scenario AI draft", () => {
       scenarioDraftPrimaryTimeoutMs({
         mode: "fill_empty",
         changingFields: previewDraftOverwrite({ mode: "fill_empty", existing: {} }),
+      }),
+      TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS
+    );
+    assert.equal(
+      scenarioDraftPrimaryTimeoutMs({
+        mode: "regenerate_all",
+        changingFields: previewDraftOverwrite({ mode: "regenerate_all", existing: {} }),
       }),
       TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
     );

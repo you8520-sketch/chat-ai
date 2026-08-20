@@ -24,10 +24,11 @@ export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_073
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
+export const TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS = 210_000;
 export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 240_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 90_000;
 export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_600;
-export const TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS = 2_200;
+export const TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS = 1_800;
 export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
@@ -74,13 +75,10 @@ export const TRPG_SCENARIO_DRAFT_CORE_FIELDS: readonly TrpgScenarioDraftField[] 
   "endingConditions",
   "majorEvents",
   "clues",
-  "npcs",
   "startLocation",
   "startInventory",
   "difficulty",
   "climax",
-  "gmDirection",
-  "playLength",
 ];
 
 export type TrpgScenarioDraftExisting = {
@@ -449,9 +447,11 @@ export function scenarioDraftPrimaryTimeoutMs(opts: {
   mode: TrpgScenarioDraftMode;
   changingFields: readonly TrpgScenarioDraftField[];
 }): number {
-  return opts.changingFields.length >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length || opts.mode === "regenerate_all"
-    ? TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
-    : TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS;
+  if (opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS;
+  if (opts.mode === "fill_empty" && opts.changingFields.length >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length) {
+    return TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS;
+  }
+  return TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS;
 }
 
 export function computeScenarioDraftBudget(opts: {
