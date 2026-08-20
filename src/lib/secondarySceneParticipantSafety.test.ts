@@ -1000,7 +1000,28 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
           ["LEAVE", 1],
         ]
       );
-      assert.equal(events[0].created_at, events[1].created_at);
+      persistAssistantTurnSecondarySceneSafety({
+        chatId,
+        assistantText: "민수가 여기 함께 있다.",
+        currentTurn: 2,
+        sourceMessageId: 200,
+        db,
+      });
+      db.prepare(
+        `UPDATE scene_secondary_participant_safety_events
+         SET created_at='2026-01-01 00:00:00' WHERE chat_id=?`
+      ).run(chatId);
+      retractSecondarySafetyEventsForSourceMessages({
+        chatId,
+        sourceMessageIds: [200],
+        sourceRole: "assistant",
+        db,
+      });
+      assert.equal(
+        getSecondaryParticipantSafety(scene.id, participantId, db)
+          ?.presence_state,
+        "ABSENT"
+      );
     }
   });
 
@@ -1019,6 +1040,28 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
       assert.equal(snap.presentSecondaryParticipants.length, 1);
       assert.equal(
         snap.presentSecondaryParticipants[0].presenceState,
+        "PRESENT"
+      );
+      persistAssistantTurnSecondarySceneSafety({
+        chatId,
+        assistantText: "민수가 나갔다.",
+        currentTurn: 2,
+        sourceMessageId: 200,
+        db,
+      });
+      db.prepare(
+        `UPDATE scene_secondary_participant_safety_events
+         SET created_at='2026-01-01 00:00:00' WHERE chat_id=?`
+      ).run(chatId);
+      retractSecondarySafetyEventsForSourceMessages({
+        chatId,
+        sourceMessageIds: [200],
+        sourceRole: "assistant",
+        db,
+      });
+      assert.equal(
+        readSecondarySceneSafetySnapshot({ chatId, db })
+          .presentSecondaryParticipants[0].presenceState,
         "PRESENT"
       );
     }
@@ -1336,6 +1379,30 @@ describe("S1.2 deterministic / atomic / preflight / coverage hardening", () => {
     assert.deepEqual(prospective, persisted);
     assert.equal(
       prospective.presentSecondaryParticipants[0].adultStatus,
+      "conflict"
+    );
+    const reseedProspective =
+      buildProspectiveSecondarySceneSafetySnapshot({
+        chatId,
+        currentTurn: 2,
+        currentUserMessage: "창밖을 봤다.",
+        sceneReset: false,
+        authoritativeActors,
+        db,
+      });
+    const reseedPersisted =
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId,
+        userMessage: "창밖을 봤다.",
+        sceneReset: false,
+        currentTurn: 2,
+        sourceMessageId: 101,
+        authoritativeActors,
+        db,
+      });
+    assert.deepEqual(reseedProspective, reseedPersisted);
+    assert.equal(
+      reseedProspective.presentSecondaryParticipants[0].adultStatus,
       "conflict"
     );
   });

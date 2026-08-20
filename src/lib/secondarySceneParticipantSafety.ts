@@ -1021,7 +1021,7 @@ export function buildProspectiveSecondarySceneSafetySnapshot(input: {
       input.currentTurn
     );
     const existing = rows.get(prospective.participant_id);
-    rows.set(prospective.participant_id, {
+    const merged = {
       ...prospective,
       restrictive_age: existing?.restrictive_age ?? null,
       restrictive_adult_status:
@@ -1029,7 +1029,21 @@ export function buildProspectiveSecondarySceneSafetySnapshot(input: {
       restrictive_is_real_person:
         existing?.restrictive_is_real_person ?? null,
       restrictive_source: existing?.restrictive_source ?? null,
+    };
+    const restrictive = restrictiveMetadataFromOverlay({
+      age: merged.restrictive_age,
+      adultStatus: merged.restrictive_adult_status,
+      isRealPerson: merged.restrictive_is_real_person === 1,
     });
+    const effective = deriveEffectiveSecondaryAdultStatus({
+      authoritative: authoritativeMetadataFromRow(merged),
+      restrictive,
+    });
+    merged.adult_status = effective;
+    merged.age =
+      merged.restrictive_age ?? merged.authoritative_age ?? null;
+    merged.is_real_person = effective === "real_person" ? 1 : 0;
+    rows.set(prospective.participant_id, merged);
   }
   for (const event of extractCurrentTurnSceneParticipantEvents(
     input.currentUserMessage
