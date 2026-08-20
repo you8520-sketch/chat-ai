@@ -31,6 +31,8 @@ export type TrpgAuthoringComplete = (opts: {
 
 export const TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE =
   "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
+export const TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE =
+  "AI 초안이 너무 길어 완성되지 않았습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
 export const FORM_PRESERVED_ON_TIMEOUT = true;
 export const REPAIR_IS_REWRITE = false;
 export const TRPG_AUTHORING_PROVIDER_RETRY = 0;
@@ -42,6 +44,13 @@ export function isTrpgAuthoringTimeoutError(error: unknown): boolean {
     error.name === "AbortError" ||
     /aborted due to timeout|timed out|timeout/i.test(error.message)
   );
+}
+
+export class TrpgAuthoringTruncatedError extends Error {
+  constructor() {
+    super(TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE);
+    this.name = "TrpgAuthoringTruncatedError";
+  }
 }
 
 const MOCK_DRAFT = JSON.stringify({
@@ -212,6 +221,20 @@ export async function completeTrpgAuthoringJson(opts: {
       error: message,
     });
     throw error;
+  }
+
+  if (result.finishReason === "length") {
+    logTrpgAuthoringUsage({
+      kind: opts.kind,
+      stage: "primary",
+      model: result.model || TRPG_SCENARIO_DRAFT_MODEL,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+      latencyMs: result.latencyMs || Date.now() - started,
+      success: false,
+      error: "output_truncated",
+    });
+    throw new TrpgAuthoringTruncatedError();
   }
 
   try {

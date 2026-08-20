@@ -35,6 +35,7 @@ import {
   FORM_PRESERVED_ON_TIMEOUT,
   isTrpgAuthoringTimeoutError,
   REPAIR_IS_REWRITE,
+  TrpgAuthoringTruncatedError,
   TRPG_AUTHORING_PROVIDER_RETRY,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
 } from "./scenarioDraftCall";
@@ -130,6 +131,27 @@ describe("TRPG scenario AI draft", () => {
       /ECONNRESET/
     );
     assert.equal(transportCalls, 1);
+
+    let truncatedCalls = 0;
+    await assert.rejects(
+      () =>
+        completeTrpgAuthoringJson({
+          kind: "scenario_draft",
+          system: "sys",
+          user: "user",
+          complete: async () => {
+            truncatedCalls += 1;
+            return {
+              text: '{"title":"잘린',
+              finishReason: "length",
+              latencyMs: 1,
+              model: TRPG_SCENARIO_DRAFT_MODEL,
+            };
+          },
+        }),
+      TrpgAuthoringTruncatedError
+    );
+    assert.equal(truncatedCalls, 1);
 
     let validCalls = 0;
     await completeTrpgAuthoringJson({

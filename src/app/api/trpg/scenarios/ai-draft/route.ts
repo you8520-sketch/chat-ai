@@ -21,7 +21,9 @@ import {
 import {
   completeTrpgAuthoringJson,
   isTrpgAuthoringTimeoutError,
+  TrpgAuthoringTruncatedError,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
+  TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE,
 } from "@/lib/trpg/scenarioDraftCall";
 import { lintTrpgScenarioPlan, parseTrpgScenarioPlan, scoreTrpgScenarioReadiness } from "@/lib/trpg/scenarioPlan";
 import { parseInventory, parseScenarioNpcs } from "@/lib/trpg/scenarioTypes";
@@ -153,6 +155,12 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE, code: "SCENARIO_DRAFT_TIMEOUT" },
         { status: 504 }
+      );
+    }
+    if (e instanceof TrpgAuthoringTruncatedError) {
+      return NextResponse.json(
+        { error: TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE, code: "SCENARIO_DRAFT_TRUNCATED" },
+        { status: 422 }
       );
     }
     return trpgFail(e);
