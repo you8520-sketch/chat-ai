@@ -14,6 +14,7 @@ import {
   releaseScenarioDraftRateLimit,
   scenarioDraftOutputMaxTokens,
   scenarioDraftPrimaryTimeoutMs,
+  scenarioDraftRequestedFields,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
   type TrpgScenarioDraftExisting,
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
             updatedAt: worldUpdatedAt,
           });
     const changingFields = previewDraftOverwrite({ mode, existing, selectedFields, lockedFields });
+    const requestedFields = scenarioDraftRequestedFields({ mode, changingFields });
     const primaryMaxTokens = scenarioDraftOutputMaxTokens({ mode, changingFields });
     const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs({ mode, changingFields });
     const userPrompt = buildScenarioDraftUserPrompt({
@@ -114,7 +116,7 @@ export async function POST(req: Request) {
       kind: "scenario_draft",
       system: buildScenarioDraftSystemPrompt(),
       user: userPrompt,
-      expectedFields: changingFields,
+      expectedFields: requestedFields,
       primaryMaxTokens,
       primaryTimeoutMs,
       primaryTemperature: 0.3,

@@ -17,6 +17,7 @@ import {
   previewDraftOverwrite,
   scenarioDraftOutputMaxTokens,
   scenarioDraftPrimaryTimeoutMs,
+  scenarioDraftRequestedFields,
   TRPG_SCENARIO_DRAFT_MODEL,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
@@ -147,6 +148,10 @@ async function runFixture(fixture: Fixture, run: number) {
     mode: fixture.mode,
     changingFields,
   });
+  const requestedFields = scenarioDraftRequestedFields({
+    mode: fixture.mode,
+    changingFields,
+  });
   const primaryTimeoutMs = scenarioDraftPrimaryTimeoutMs({
     mode: fixture.mode,
     changingFields,
@@ -168,7 +173,7 @@ async function runFixture(fixture: Fixture, run: number) {
       kind: "scenario_draft",
       system,
       user,
-      expectedFields: changingFields,
+      expectedFields: requestedFields,
       primaryMaxTokens,
       primaryTimeoutMs,
       primaryTemperature: 0.3,

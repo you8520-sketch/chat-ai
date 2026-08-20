@@ -22,12 +22,15 @@ import {
   scenarioDraftPrimaryTimeoutMs,
   STRUCTURED_PLAN_IS_PRIMARY,
   TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT,
+  TRPG_SCENARIO_DRAFT_CORE_FIELDS,
+  TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_MODEL,
   TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
+  scenarioDraftRequestedFields,
 } from "./scenarioDraft";
 import {
   buildAuthoringRepairUser,
@@ -369,6 +372,7 @@ describe("TRPG scenario AI draft", () => {
     assert.match(prompt, /연결된 별도 세계관 없음/);
     assert.match(prompt, /다른 저장 세계관을 참조하지 않는다/);
     assert.match(prompt, /고립된 역/);
+    assert.match(prompt, /optional_fields_left_unchanged=.*forbiddenEvents/);
     assert.equal(makeDraftProvenance({ worldId: null }).sourceWorldId, null);
   });
 
@@ -381,7 +385,14 @@ describe("TRPG scenario AI draft", () => {
         mode: "fill_empty",
         changingFields: previewDraftOverwrite({ mode: "fill_empty", existing: {} }),
       }),
-      TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS
+      TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS
+    );
+    assert.deepEqual(
+      scenarioDraftRequestedFields({
+        mode: "fill_empty",
+        changingFields: previewDraftOverwrite({ mode: "fill_empty", existing: {} }),
+      }),
+      TRPG_SCENARIO_DRAFT_CORE_FIELDS
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),

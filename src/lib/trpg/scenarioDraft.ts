@@ -27,6 +27,7 @@ export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
 export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 240_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 90_000;
 export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_600;
+export const TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS = 2_200;
 export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
@@ -62,6 +63,25 @@ export const TRPG_SCENARIO_DRAFT_FIELDS = [
 ] as const;
 
 export type TrpgScenarioDraftField = (typeof TRPG_SCENARIO_DRAFT_FIELDS)[number];
+
+export const TRPG_SCENARIO_DRAFT_CORE_FIELDS: readonly TrpgScenarioDraftField[] = [
+  "title",
+  "summary",
+  "startingSituation",
+  "centralConflict",
+  "goal",
+  "secret",
+  "endingConditions",
+  "majorEvents",
+  "clues",
+  "npcs",
+  "startLocation",
+  "startInventory",
+  "difficulty",
+  "climax",
+  "gmDirection",
+  "playLength",
+];
 
 export type TrpgScenarioDraftExisting = {
   title?: string;
@@ -402,7 +422,10 @@ export function scenarioDraftOutputMaxTokens(opts: {
   changingFields: readonly TrpgScenarioDraftField[];
 }): number {
   const fields = new Set(opts.changingFields);
-  if (fields.size >= 16 || opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
+  if (opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
+  if (opts.mode === "fill_empty" && fields.size >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length) {
+    return TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS;
+  }
   if (fields.size >= 8) return 2_200;
   if (fields.size >= 3) return 1_600;
   if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
@@ -411,11 +434,22 @@ export function scenarioDraftOutputMaxTokens(opts: {
   return 900;
 }
 
+export function scenarioDraftRequestedFields(opts: {
+  mode: TrpgScenarioDraftMode;
+  changingFields: readonly TrpgScenarioDraftField[];
+}): TrpgScenarioDraftField[] {
+  if (opts.mode === "fill_empty" && opts.changingFields.length >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length) {
+    const changing = new Set(opts.changingFields);
+    return TRPG_SCENARIO_DRAFT_CORE_FIELDS.filter((field) => changing.has(field));
+  }
+  return [...opts.changingFields];
+}
+
 export function scenarioDraftPrimaryTimeoutMs(opts: {
   mode: TrpgScenarioDraftMode;
   changingFields: readonly TrpgScenarioDraftField[];
 }): number {
-  return opts.changingFields.length >= 16 || opts.mode === "regenerate_all"
+  return opts.changingFields.length >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length || opts.mode === "regenerate_all"
     ? TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS
     : TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS;
 }
@@ -481,6 +515,7 @@ export function buildScenarioDraftUserPrompt(opts: {
   lockedFields?: TrpgScenarioDraftField[];
 }): string {
   const changing = previewDraftOverwrite(opts);
+  const requested = scenarioDraftRequestedFields({ mode: opts.mode, changingFields: changing });
   const budget = computeScenarioDraftBudget(opts);
   const worldSelected = opts.worldSelected ?? Boolean(opts.worldName || opts.worldSummary || opts.worldContent);
   const context = buildScenarioDraftPromptContext({
@@ -511,7 +546,8 @@ export function buildScenarioDraftUserPrompt(opts: {
       plan: opts.existing.plan ?? {},
     })}\n</EXISTING_DRAFT>`,
     `mode=${opts.mode}`,
-    `fill_or_replace_fields=${changing.join(",") || "(none)"}`,
+    `fill_or_replace_fields=${requested.join(",") || "(none)"}`,
+    `optional_fields_left_unchanged=${changing.filter((field) => !requested.includes(field)).join(",") || "(none)"}`,
     `locked_fields=${(opts.lockedFields ?? []).join(",") || "(none)"}`,
     `Return a sparse JSON object containing only fill_or_replace_fields. Omit every locked or kept field. If every field is requested, return the complete structured blueprint.`,
     `available_text_budget≈${budget.remaining} Korean characters (linked world + locked/kept fields already use ${budget.used}/${budget.limit}). Stay comfortably inside this budget. Be concise. Do not pad.`,
