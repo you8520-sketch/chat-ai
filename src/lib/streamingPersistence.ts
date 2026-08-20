@@ -26,6 +26,17 @@ export type StreamingTurnBootstrap = {
   assistantPlaceholderCreated: boolean;
 };
 
+export type StreamingTurnBootstrapOptions = {
+  chatId: number;
+  requestId: string;
+  userContent: string;
+  skipUserInsert: boolean;
+  existingUserMessageId?: number | null;
+  regenerateAssistantId?: number | null;
+  characterId?: number;
+  onUserInserted?: () => void;
+};
+
 export type StreamingPersistenceDiag = {
   requestId: string;
   userMessageSaved: boolean;
@@ -134,18 +145,13 @@ export function findTurnByRequestId(
  * Save user + assistant placeholder before model call (idempotent by request_id).
  * Regenerate: reuses existing assistant id, marks generating, no new user row.
  */
-export function bootstrapStreamingTurn(
+/**
+ * Transaction-free bootstrap core. Callers composing bootstrap with another
+ * durable mutation must own the surrounding transaction.
+ */
+export function bootstrapStreamingTurnCore(
   db: Database.Database,
-  opts: {
-    chatId: number;
-    requestId: string;
-    userContent: string;
-    skipUserInsert: boolean;
-    existingUserMessageId?: number | null;
-    regenerateAssistantId?: number | null;
-    characterId?: number;
-    onUserInserted?: () => void;
-  }
+  opts: StreamingTurnBootstrapOptions
 ): StreamingTurnBootstrap {
   const existing = findTurnByRequestId(db, opts.chatId, opts.requestId);
   if (existing.assistantMessageId != null) {
@@ -221,45 +227,41 @@ export function bootstrapStreamingTurn(
   let userMessageId = opts.existingUserMessageId ?? null;
   let userMessageSaved = opts.skipUserInsert;
 
-  const tx = db.transaction(() => {
-    if (!opts.skipUserInsert) {
-      const userMsg = db
-        .prepare(
-          `INSERT INTO messages (chat_id, role, content, model, request_id, generation_status)
-           VALUES (?,?,?,?,?,?)`
-        )
-        .run(opts.chatId, "user", opts.userContent, "", opts.requestId, "submitted");
-      userMessageId = Number(userMsg.lastInsertRowid);
-      userMessageSaved = true;
-      opts.onUserInserted?.();
-    } else if (userMessageId != null) {
-      db.prepare(`UPDATE messages SET request_id=? WHERE id=? AND chat_id=?`).run(
-        opts.requestId,
-        userMessageId,
-        opts.chatId
-      );
-    }
-
-    const aiMsg = db
+  if (!opts.skipUserInsert) {
+    const userMsg = db
       .prepare(
-        `INSERT INTO messages (chat_id, role, content, model, request_id, generation_status, user_message_id, alternates, active_variant)
-         VALUES (?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO messages (chat_id, role, content, model, request_id, generation_status)
+         VALUES (?,?,?,?,?,?)`
       )
-      .run(
-        opts.chatId,
-        "assistant",
-        "",
-        "",
-        opts.requestId,
-        "generating",
-        userMessageId,
-        "[]",
-        0
-      );
-    return Number(aiMsg.lastInsertRowid);
-  });
+      .run(opts.chatId, "user", opts.userContent, "", opts.requestId, "submitted");
+    userMessageId = Number(userMsg.lastInsertRowid);
+    userMessageSaved = true;
+    opts.onUserInserted?.();
+  } else if (userMessageId != null) {
+    db.prepare(`UPDATE messages SET request_id=? WHERE id=? AND chat_id=?`).run(
+      opts.requestId,
+      userMessageId,
+      opts.chatId
+    );
+  }
 
-  const assistantMessageId = tx();
+  const aiMsg = db
+    .prepare(
+      `INSERT INTO messages (chat_id, role, content, model, request_id, generation_status, user_message_id, alternates, active_variant)
+       VALUES (?,?,?,?,?,?,?,?,?)`
+    )
+    .run(
+      opts.chatId,
+      "assistant",
+      "",
+      "",
+      opts.requestId,
+      "generating",
+      userMessageId,
+      "[]",
+      0
+    );
+  const assistantMessageId = Number(aiMsg.lastInsertRowid);
 
   return {
     requestId: opts.requestId,
@@ -269,6 +271,14 @@ export function bootstrapStreamingTurn(
     userMessageSaved,
     assistantPlaceholderCreated: true,
   };
+}
+
+export function bootstrapStreamingTurn(
+  db: Database.Database,
+  opts: StreamingTurnBootstrapOptions
+): StreamingTurnBootstrap {
+  const run = () => bootstrapStreamingTurnCore(db, opts);
+  return db.inTransaction ? run() : db.transaction(run).immediate();
 }
 
 export function createPartialSaveThrottler(opts?: { minMs?: number; minChars?: number }) {

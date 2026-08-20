@@ -116,8 +116,9 @@ export const SECONDARY_SAFETY_USER_EDIT_BOUNDARY_POLICY = {
     "mark coverage INCOMPLETE until a fresh sceneReset or clearSceneTransition",
 } as const;
 
-type SecondarySafetyFailurePoint =
+export type SecondarySafetyFailurePoint =
   | "AFTER_EVENT_INSERT"
+  | "AFTER_PROJECTION_WRITE"
   | "AFTER_EVENT_DELETE"
   | "MID_EVENT_BATCH";
 
@@ -523,6 +524,9 @@ function applyPresenceEvents(opts: {
         db: opts.db,
       })
     );
+    if (opts.__testFailurePoint === "AFTER_PROJECTION_WRITE") {
+      throw new Error("TEST_SECONDARY_SAFETY_AFTER_PROJECTION_WRITE");
+    }
     if (
       opts.__testFailurePoint === "MID_EVENT_BATCH" &&
       eventIndex === 0 &&
@@ -596,7 +600,11 @@ function seedAuthoritativeActors(opts: {
   }
 }
 
-function evaluateCurrentTurnSecondarySceneSafetyShadowCore(
+/**
+ * Transaction-free current-user safety commit core. Enforcement callers must
+ * compose this with durable turn bootstrap in one outer transaction.
+ */
+export function commitCurrentTurnSecondarySafetyCore(
   input: EvaluateSecondarySceneSafetyInput
 ): SecondarySceneSafetySnapshot {
   const db = input.db ?? getDb();
@@ -709,7 +717,7 @@ export function evaluateCurrentTurnSecondarySceneSafetyShadow(
 ): SecondarySceneSafetySnapshot {
   const db = input.db ?? getDb();
   return runSecondarySafetyAtomic(db, () =>
-    evaluateCurrentTurnSecondarySceneSafetyShadowCore({ ...input, db })
+    commitCurrentTurnSecondarySafetyCore({ ...input, db })
   );
 }
 
@@ -849,6 +857,67 @@ export function markSecondarySafetyCoverageIncomplete(opts: {
   runSecondarySafetyAtomic(db, () =>
     markSecondarySafetyCoverageIncompleteCore({ ...opts, db })
   );
+}
+
+export type SecondarySafetyReconciliationFailureReason =
+  | "user_postbootstrap_safety_failed"
+  | "assistant_postturn_safety_failed"
+  | "assistant_edit_safety_failed"
+  | "user_edit_safety_failed"
+  | "variant_switch_safety_failed"
+  | "assistant_replacement_safety_failed";
+
+export function markSecondarySafetyReconciliationFailure(opts: {
+  chatId: number;
+  reason: SecondarySafetyReconciliationFailureReason;
+  db?: Database.Database;
+  /** @internal test-only */
+  __testMarkIncomplete?: () => void;
+}): void {
+  try {
+    if (opts.__testMarkIncomplete) {
+      opts.__testMarkIncomplete();
+    } else {
+      markSecondarySafetyCoverageIncomplete(opts);
+    }
+  } catch (err) {
+    console.error(
+      "[secondary-scene-safety-critical] coverage degradation failed",
+      {
+        chatId: opts.chatId,
+        reason: opts.reason,
+        error: err,
+      }
+    );
+    throw err;
+  }
+}
+
+export function reconcileSecondarySafetyAfterCanonicalMutation(opts: {
+  chatId: number;
+  reason: SecondarySafetyReconciliationFailureReason;
+  reconcile: () => void;
+  db?: Database.Database;
+}): boolean {
+  try {
+    opts.reconcile();
+    return true;
+  } catch (err) {
+    console.warn(
+      "[secondary-scene-safety] post-canonical reconciliation failed",
+      {
+        chatId: opts.chatId,
+        reason: opts.reason,
+        error: err,
+      }
+    );
+    markSecondarySafetyReconciliationFailure({
+      chatId: opts.chatId,
+      reason: opts.reason,
+      db: opts.db,
+    });
+    return false;
+  }
 }
 
 function prospectiveAuthoritativeRow(
