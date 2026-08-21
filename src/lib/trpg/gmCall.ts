@@ -15,12 +15,42 @@ import { parseProviderUsageCostUsd } from "./roundEconomics";
 import { attachTrpgCallFailureMeta } from "./startFailure";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
+/** GM transport only: first attempt + one retry on known transient HTTP 5xx. */
+export const GM_MAX_PROVIDER_ATTEMPTS = 2;
+/** Bot-seat stays one provider attempt. Do not add a 5xx retry here. */
+export const BOT_MAX_PROVIDER_ATTEMPTS = 1;
+export const GM_PROVIDER_5XX_RETRY_DELAY_MS = 1000;
+export const GM_RETRYABLE_HTTP_STATUSES = [500, 502, 503, 504] as const;
+
 export type TrpgGmCallResult = {
   text: string;
   usage?: TrpgModelUsage;
   elapsedMs?: number;
   reasoningTokens?: number | "unavailable";
 };
+
+export function isGmRetryableHttpStatus(status: number): boolean {
+  return (GM_RETRYABLE_HTTP_STATUSES as readonly number[]).includes(status);
+}
+
+function maxProviderAttempts(role: "gm" | "bot"): number {
+  switch (role) {
+    case "gm":
+      return GM_MAX_PROVIDER_ATTEMPTS;
+    case "bot":
+      return BOT_MAX_PROVIDER_ATTEMPTS;
+    default: {
+      const _exhaustive: never = role;
+      return _exhaustive;
+    }
+  }
+}
+
+function waitGmProviderRetryDelay(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, GM_PROVIDER_5XX_RETRY_DELAY_MS);
+  });
+}
 
 export function reasoningTokensFromProviderUsage(usage: {
   completion_tokens_details?: { reasoning_tokens?: unknown };
@@ -85,50 +115,71 @@ async function postTrpgChat(opts: {
   const contract = trpgProviderRequestContract(opts.body);
   console.info(`[TRPG][${opts.role}] request_contract`, contract);
   const started = Date.now();
+  const serializedBody = JSON.stringify(opts.body);
+  const headers = buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey());
+  const maxAttempts = maxProviderAttempts(opts.role);
   try {
-    const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
-      method: "POST",
-      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-      body: JSON.stringify(opts.body),
-      signal: AbortSignal.timeout(opts.timeoutMs),
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
-        httpStatus: res.status,
-        reasoningTokens: "unavailable",
+    let previousHttpStatus: number | undefined;
+    let lastHttpError: Error | undefined;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1) {
+        console.info("[TRPG][gm] provider_retry", {
+          attempt,
+          previousHttpStatus,
+          delayMs: GM_PROVIDER_5XX_RETRY_DELAY_MS,
+        });
+        await waitGmProviderRetryDelay();
+      }
+      const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers,
+        body: serializedBody,
+        signal: AbortSignal.timeout(opts.timeoutMs),
       });
-    }
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-      usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
-        prompt_tokens_details?: { cached_tokens?: number };
-        completion_tokens_details?: { reasoning_tokens?: unknown };
-        reasoning_tokens?: unknown;
-        cost?: unknown;
-        total_cost?: unknown;
-        cost_usd?: unknown;
-        total_cost_usd?: unknown;
-        cost_details?: unknown;
+      if (!res.ok) {
+        const errText = await res.text();
+        lastHttpError = attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
+          httpStatus: res.status,
+          reasoningTokens: "unavailable",
+        });
+        if (opts.role === "gm" && attempt < maxAttempts && isGmRetryableHttpStatus(res.status)) {
+          previousHttpStatus = res.status;
+          continue;
+        }
+        throw lastHttpError;
+      }
+      const data = (await res.json()) as {
+        choices?: { message?: { content?: string } }[];
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          prompt_tokens_details?: { cached_tokens?: number };
+          completion_tokens_details?: { reasoning_tokens?: unknown };
+          reasoning_tokens?: unknown;
+          cost?: unknown;
+          total_cost?: unknown;
+          cost_usd?: unknown;
+          total_cost_usd?: unknown;
+          cost_details?: unknown;
+        };
       };
-    };
-    const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);
-    const elapsedMs = Date.now() - started;
-    console.info(`[TRPG][${opts.role}] response_meta`, {
-      model: opts.model,
-      elapsedMs,
-      reasoningTokens,
-    });
-    const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-    if (!text) {
-      throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+      const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);
+      const elapsedMs = Date.now() - started;
+      console.info(`[TRPG][${opts.role}] response_meta`, {
+        model: opts.model,
         elapsedMs,
         reasoningTokens,
       });
+      const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (!text) {
+        throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+          elapsedMs,
+          reasoningTokens,
+        });
+      }
+      return { text, usage: usageFromResponse(opts.model, data), elapsedMs, reasoningTokens };
     }
-    return { text, usage: usageFromResponse(opts.model, data), elapsedMs, reasoningTokens };
+    throw lastHttpError ?? new Error("[TRPG] provider retry exhausted");
   } catch (error) {
     const elapsedMs = Date.now() - started;
     throw attachTrpgCallFailureMeta(error, { elapsedMs });
