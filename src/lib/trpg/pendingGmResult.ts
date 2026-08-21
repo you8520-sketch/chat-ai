@@ -1,8 +1,8 @@
 import type Database from "better-sqlite3";
 import type { ParsedTrpgGmOutput } from "./gmPrompt";
 import {
-  parsePostGmOngoingPromotions,
-  type PostGmOngoingPromotion,
+  parsePostGmOngoingSeeds,
+  type PostGmOngoingSeed,
 } from "./postGmOngoing";
 
 export type TrpgPendingGmResult = {
@@ -12,12 +12,12 @@ export type TrpgPendingGmResult = {
   campaignFinished: boolean;
   nextRoundContext: string;
   delta: ParsedTrpgGmOutput["delta"];
-  postGmOngoingPromotions: PostGmOngoingPromotion[];
+  postGmOngoingSeeds: PostGmOngoingSeed[];
 };
 
 export function toPendingGmResult(
   parsed: ParsedTrpgGmOutput,
-  postGmOngoingPromotions: readonly PostGmOngoingPromotion[] = []
+  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = []
 ): TrpgPendingGmResult {
   return {
     v: 1,
@@ -26,7 +26,7 @@ export function toPendingGmResult(
     campaignFinished: parsed.campaignFinished === true,
     nextRoundContext: parsed.nextRoundContext ?? "",
     delta: parsed.delta,
-    postGmOngoingPromotions: [...postGmOngoingPromotions],
+    postGmOngoingSeeds: parsePostGmOngoingSeeds(postGmOngoingSeeds),
   };
 }
 
@@ -44,10 +44,10 @@ export function savePendingGmResult(
   db: Database.Database,
   roundId: number,
   parsed: ParsedTrpgGmOutput,
-  postGmOngoingPromotions: readonly PostGmOngoingPromotion[] = []
+  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = []
 ): void {
   db.prepare(`UPDATE trpg_rounds SET pending_gm_result_json=? WHERE id=?`).run(
-    JSON.stringify(toPendingGmResult(parsed, postGmOngoingPromotions)),
+    JSON.stringify(toPendingGmResult(parsed, postGmOngoingSeeds)),
     roundId
   );
 }
@@ -63,7 +63,9 @@ export function loadPendingGmResult(db: Database.Database, roundId: number): Trp
   const raw = row?.pending_gm_result_json?.trim();
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<TrpgPendingGmResult>;
+    const parsed = JSON.parse(raw) as Partial<TrpgPendingGmResult> & {
+      postGmOngoingPromotions?: unknown;
+    };
     if (parsed.v !== 1 || typeof parsed.narration !== "string") return null;
     return {
       v: 1,
@@ -72,7 +74,9 @@ export function loadPendingGmResult(db: Database.Database, roundId: number): Trp
       campaignFinished: parsed.campaignFinished === true,
       nextRoundContext: typeof parsed.nextRoundContext === "string" ? parsed.nextRoundContext : "",
       delta: parsed.delta && typeof parsed.delta === "object" ? parsed.delta : { players: [] },
-      postGmOngoingPromotions: parsePostGmOngoingPromotions(parsed.postGmOngoingPromotions),
+      postGmOngoingSeeds: parsePostGmOngoingSeeds(
+        parsed.postGmOngoingSeeds ?? parsed.postGmOngoingPromotions
+      ),
     };
   } catch {
     return null;
