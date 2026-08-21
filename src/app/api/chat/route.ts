@@ -55,6 +55,7 @@ import {
   normalizeClientRequestId,
   persistStreamCompleteContent,
   restoreAssistantFromAlternatesOnFailedRegen,
+  type StreamingTurnBootstrap,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
@@ -303,6 +304,21 @@ import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
+import {
+  buildProspectiveSecondarySceneSafetySnapshot,
+  evaluateCurrentTurnSecondarySceneSafetyShadow,
+  markSecondarySafetyReconciliationFailure,
+  persistAssistantTurnSecondarySceneSafety,
+  reconcileSecondarySafetyAfterCanonicalMutation,
+} from "@/lib/secondarySceneParticipantSafety";
+import {
+  isSecondarySceneParticipantGuardEnabled,
+  secondarySceneParticipantGuardUserMessage,
+} from "@/lib/secondarySceneParticipantGuard";
+import {
+  bootstrapAndCommitSecondarySafetyAtomic,
+  resolveSecondarySceneParticipantExecutionPlan,
+} from "@/lib/secondarySceneParticipantExecution";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
@@ -478,7 +494,6 @@ import {
   buildSceneContinuityPacket,
   classifySceneMode,
   createInitialStreamBuffer,
-  decideAdultModelRoute,
   detectModelRefusal,
   extractHandoffContinuityFromAssistantText,
   hasNewlyEstablishedSexualContext,
@@ -495,7 +510,6 @@ import {
 } from "@/lib/adultSceneRouting";
 import {
   invokePreparedAdultRefusalFallback,
-  resolveAdultDeliveryPlan,
 } from "@/lib/adultDeliveryPlan";
 import {
   classifyAdultSceneHardFailure,
@@ -1251,18 +1265,85 @@ export async function POST(req: Request) {
     ],
     actualNonConsent: sceneClassification.actualNonConsent,
   });
-  const adultRouteDecision = decideAdultModelRoute({
-    config: adultRoutingConfig,
-    state: priorModelRouteState,
-    classification: sceneClassification,
-    eligibility: adultEligibility,
-    adultDialogueProfile: normalizeAdultDialogueProfile(
-      ch.adult_dialogue_profile
-    ),
-    selectedModelId: selectedAI,
-  });
 
-  if (adultRoutingConfig.enabled && adultRouteDecision.shouldBlock) {
+  // S2 guard: classify -> base eligibility -> prospective safety -> guard ->
+  // durable bootstrap -> safety commit -> adult route/delivery -> provider.
+  const secondarySceneParticipantGuardEnabled =
+    isSecondarySceneParticipantGuardEnabled();
+  let prospectiveSecondarySafetyBuildFailed = false;
+  let prospectiveSecondarySafetyForGuard: ReturnType<
+    typeof buildProspectiveSecondarySceneSafetySnapshot
+  > | null = null;
+  try {
+    prospectiveSecondarySafetyForGuard =
+      buildProspectiveSecondarySceneSafetySnapshot({
+        chatId: chat.id,
+        currentTurn: playableTurnCount + 1,
+        currentUserMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition:
+          sceneClassification.clearSceneTransition === true,
+        sexualContextActive: sceneClassification.sexualContextActive,
+      });
+  } catch (err) {
+    prospectiveSecondarySafetyBuildFailed = true;
+    if (!secondarySceneParticipantGuardEnabled) {
+      console.warn(
+        "[secondary-scene-safety-preflight-shadow] evaluation unavailable",
+        err
+      );
+    }
+  }
+
+  const adultDialogueProfile = normalizeAdultDialogueProfile(
+    ch.adult_dialogue_profile
+  );
+  const secondaryParticipantExecutionPlan =
+    resolveSecondarySceneParticipantExecutionPlan({
+      guardEnabled: secondarySceneParticipantGuardEnabled,
+      sceneClassification,
+      baseAdultEligibility: adultEligibility,
+      prospectiveSecondarySafety: prospectiveSecondarySafetyForGuard,
+      safetyEvaluationFailed: prospectiveSecondarySafetyBuildFailed,
+      adultRoutingConfig,
+      adultDialogueProfile,
+      priorModelRouteState,
+      selectedModelId: selectedAI,
+      adultTargetModelId: activeAdultModelId,
+    });
+  const {
+    guardResult: secondarySceneParticipantGuardResult,
+    effectiveAdultRoutingEnabled,
+    adultRouteDecision,
+    adultDeliveryPlan,
+  } = secondaryParticipantExecutionPlan;
+
+  if (secondarySceneParticipantGuardResult?.action === "HARD_BLOCK_TURN") {
+    return Response.json(
+      { error: secondarySceneParticipantGuardUserMessage() },
+      { status: 400 }
+    );
+  }
+  if (secondarySceneParticipantGuardResult) {
+    console.info("[secondary-scene-participant-guard]", {
+      chatId: chat.id,
+      action: secondarySceneParticipantGuardResult.action,
+      reason: secondarySceneParticipantGuardResult.reason,
+      coverage: prospectiveSecondarySafetyForGuard?.coverage ?? null,
+    });
+  } else if (prospectiveSecondarySafetyForGuard) {
+    console.info("[secondary-scene-safety-preflight-shadow]", {
+      chatId: chat.id,
+      present:
+        prospectiveSecondarySafetyForGuard.presentSecondaryParticipants.length,
+      wouldBlockAdultScene:
+        prospectiveSecondarySafetyForGuard.wouldBlockAdultScene,
+      coverage: prospectiveSecondarySafetyForGuard.coverage,
+      shadowOnly: true,
+    });
+  }
+
+  if (effectiveAdultRoutingEnabled && adultRouteDecision.shouldBlock) {
     const eligibilityMessage =
       adultRouteDecision.blockReason === "participant_unknown"
         ? "등장인물의 성인 여부를 확인할 수 없어 이 장면을 진행할 수 없습니다."
@@ -1270,7 +1351,7 @@ export async function POST(req: Request) {
     return Response.json({ error: eligibilityMessage }, { status: 400 });
   }
   if (
-    adultRoutingConfig.enabled &&
+    effectiveAdultRoutingEnabled &&
     !isAllowedAdultHandoffTargetModel(activeAdultModelId)
   ) {
     return Response.json(
@@ -1279,19 +1360,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const adultDeliveryPlan = resolveAdultDeliveryPlan({
-    routingEnabled: adultRoutingConfig.enabled,
-    eligibility: adultEligibility,
-    silentRefusalFallback: adultRoutingConfig.silentRefusalFallback,
-    selectedModelId: selectedAI,
-    adultTargetModelId: activeAdultModelId,
-    classification: sceneClassification,
-    state: priorModelRouteState,
-    adultDialogueProfile: normalizeAdultDialogueProfile(
-      ch.adult_dialogue_profile
-    ),
-    providerCapabilities: adultRoutingConfig.providerCapabilities,
-  });
   const adultFallbackModelId = adultDeliveryPlan.fallbackModelId;
 
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
@@ -2534,37 +2602,130 @@ export async function POST(req: Request) {
     reusedExisting: false,
   };
 
-  const existingByRequest = findTurnByRequestId(db, chatRef.id, clientRequestId);
+  const existingByRequest = findTurnByRequestId(
+    db,
+    chatRef.id,
+    clientRequestId
+  );
   const alreadyCompletedTurn =
     existingByRequest.assistantMessageId != null &&
     (existingByRequest.assistantStatus === "completed" ||
       existingByRequest.assistantStatus === "ok" ||
-      existingByRequest.assistantStatus === "completed_with_postprocess_error");
-
-  const bootstrapped = alreadyCompletedTurn
-    ? {
-        requestId: clientRequestId,
-        userMessageId: existingByRequest.userMessageId,
-        assistantMessageId: existingByRequest.assistantMessageId!,
-        reusedExisting: true,
-        userMessageSaved: true,
-        assistantPlaceholderCreated: false,
-      }
-    : bootstrapStreamingTurn(db, {
-        chatId: chatRef.id,
-        requestId: clientRequestId,
-        userContent: messageText,
-        skipUserInsert,
-        existingUserMessageId: userMessageId,
-        regenerateAssistantId: regenerateMessageId,
-        onUserInserted: () => incrementCharacterTotalTurns(db, ch.id),
+      existingByRequest.assistantStatus ===
+        "completed_with_postprocess_error");
+  const bootstrapOptions = {
+    chatId: chatRef.id,
+    requestId: clientRequestId,
+    userContent: messageText,
+    skipUserInsert,
+    existingUserMessageId: userMessageId,
+    regenerateAssistantId: regenerateMessageId,
+    onUserInserted: () => incrementCharacterTotalTurns(db, ch.id),
+  };
+  let bootstrapped: StreamingTurnBootstrap;
+  if (secondarySceneParticipantGuardEnabled) {
+    try {
+      bootstrapped = bootstrapAndCommitSecondarySafetyAtomic(db, {
+        bootstrap: bootstrapOptions,
+        safety: (bootstrapResult) => ({
+          chatId: chatRef.id,
+          userMessage: storedUserMessage,
+          sceneReset: sceneClassification.sceneReset === true,
+          clearSceneTransition:
+            sceneClassification.clearSceneTransition === true,
+          currentTurn: playableTurnCount + 1,
+          sexualContextActive: sceneClassification.sexualContextActive,
+          skipSceneBoundary:
+            Boolean(regenerate) || bootstrapResult.reusedExisting,
+        }),
       });
+    } catch (err) {
+      console.error(
+        "[secondary-scene-safety-enforcement] atomic bootstrap commit failed",
+        err
+      );
+      return Response.json(
+        { error: "대화를 저장하는 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
+    }
+  } else {
+    bootstrapped = alreadyCompletedTurn
+      ? {
+          requestId: clientRequestId,
+          userMessageId: existingByRequest.userMessageId,
+          assistantMessageId: existingByRequest.assistantMessageId!,
+          reusedExisting: true,
+          userMessageSaved: true,
+          assistantPlaceholderCreated: false,
+        }
+      : bootstrapStreamingTurn(db, bootstrapOptions);
+  }
   userMessageId = bootstrapped.userMessageId;
   const persistedAssistantId = bootstrapped.assistantMessageId;
   skipUserInsert = true; // already saved (or regenerate)
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+
+  // Guard-ON safety evidence committed atomically with bootstrap above.
+  // S1 shadow remains unchanged when the guard flag is OFF.
+  if (secondarySceneParticipantGuardEnabled) {
+    console.info("[secondary-scene-safety-commit]", {
+      chatId: chatRef.id,
+      guardAction: secondarySceneParticipantGuardResult?.action ?? null,
+      atomicWithBootstrap: true,
+    });
+    if (personaSecretDiscoveryOn) {
+      bootstrapChatObservers({
+        chatId: chatRef.id,
+        characterId: ch.id,
+        displayName: typeof ch.name === "string" ? ch.name : "",
+        turnNumber: playableTurnCount + 1,
+        userId: user.id,
+      });
+    }
+  } else {
+    try {
+      const secondarySceneSafetyShadow =
+        evaluateCurrentTurnSecondarySceneSafetyShadow({
+          chatId: chatRef.id,
+          userMessage: storedUserMessage,
+          sceneReset: sceneClassification.sceneReset === true,
+          clearSceneTransition: sceneClassification.clearSceneTransition === true,
+          currentTurn: playableTurnCount + 1,
+          sexualContextActive: sceneClassification.sexualContextActive,
+          sourceMessageId: userMessageId,
+          skipSceneBoundary: Boolean(regenerate) || bootstrapped.reusedExisting,
+        });
+      console.info("[secondary-scene-safety-shadow]", {
+        chatId: chatRef.id,
+        present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
+        wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
+        reason: secondarySceneSafetyShadow.reason,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition: sceneClassification.clearSceneTransition === true,
+        shadowOnly: true,
+      });
+      if (personaSecretDiscoveryOn) {
+        bootstrapChatObservers({
+          chatId: chatRef.id,
+          characterId: ch.id,
+          displayName: typeof ch.name === "string" ? ch.name : "",
+          turnNumber: playableTurnCount + 1,
+          userId: user.id,
+        });
+      }
+    } catch (err) {
+      console.warn("[secondary-scene-safety-shadow] eval failed", err);
+      markSecondarySafetyReconciliationFailure({
+        chatId: chatRef.id,
+        reason: "user_postbootstrap_safety_failed",
+        db,
+      });
+    }
+  }
+
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {
       userMessageId,
@@ -5355,6 +5516,22 @@ export async function POST(req: Request) {
           assistantFinalizedThisRequest &&
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
           shouldCommitCanonicalTurnState(generationSemantics);
+
+        if (assistantFinalizedThisRequest && savedText.trim()) {
+          reconcileSecondarySafetyAfterCanonicalMutation({
+            chatId: chatRef.id,
+            reason: regenerateMessageId
+              ? "assistant_replacement_safety_failed"
+              : "assistant_postturn_safety_failed",
+            reconcile: () =>
+              persistAssistantTurnSecondarySceneSafety({
+                chatId: chatRef.id,
+                assistantText: savedText,
+                currentTurn: playableTurnCount + 1,
+                sourceMessageId: persistedAssistantId,
+              }),
+          });
+        }
 
         if (derivedStateAllowed) {
           const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);

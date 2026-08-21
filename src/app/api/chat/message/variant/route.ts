@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -38,6 +39,32 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
+import {
+  persistAssistantTurnSecondarySceneSafety,
+  reconcileSecondarySafetyAfterCanonicalMutation,
+} from "@/lib/secondarySceneParticipantSafety";
+
+function reconcileVariantSecondarySafetyShadow(opts: {
+  chatId: number;
+  messageId: number;
+  assistantText: string;
+  currentTurn: number | null;
+  db: Database.Database;
+}): void {
+  reconcileSecondarySafetyAfterCanonicalMutation({
+    chatId: opts.chatId,
+    reason: "variant_switch_safety_failed",
+    db: opts.db,
+    reconcile: () =>
+      persistAssistantTurnSecondarySceneSafety({
+        chatId: opts.chatId,
+        assistantText: opts.assistantText,
+        currentTurn: opts.currentTurn ?? 0,
+        sourceMessageId: opts.messageId,
+        db: opts.db,
+      }),
+  });
+}
 
 /** 재생성 버전 선택 — ACTIVE SELECTED VARIANT == CANONICAL WORLDLINE */
 export async function PATCH(req: Request) {
@@ -259,6 +286,14 @@ export async function PATCH(req: Request) {
       }
     }
 
+    reconcileVariantSecondarySafetyShadow({
+      chatId: msg.chat_id,
+      messageId,
+      assistantText: responseSelected.content,
+      currentTurn: atomicResult.sourceTurn,
+      db,
+    });
+
     return NextResponse.json({
       ok: true,
       ...serializeVariantsForClient(responseVariants, responseActive, {
@@ -394,6 +429,13 @@ export async function PATCH(req: Request) {
   }
 
   const selected = variants[variantIndex];
+  reconcileVariantSecondarySafetyShadow({
+    chatId: msg.chat_id,
+    messageId,
+    assistantText: selected.content,
+    currentTurn: sourceTurn,
+    db,
+  });
   return NextResponse.json({
     ok: true,
     ...serializeVariantsForClient(variants, variantIndex, {

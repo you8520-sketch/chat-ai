@@ -49,6 +49,14 @@ import {
   isGreetingMessage,
   resolveChatMessageEditLimit,
 } from "@/lib/chatMessageEditPolicy";
+import {
+  evaluateCurrentTurnSecondarySceneSafetyShadow,
+  markSecondarySafetyCoverageIncomplete,
+  persistAssistantTurnSecondarySceneSafety,
+  reconcileSecondarySafetyAfterCanonicalMutation,
+  resolveCanonicalUserPlayableTurn,
+} from "@/lib/secondarySceneParticipantSafety";
+import { classifySceneMode } from "@/lib/adultSceneRouting";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -348,6 +356,22 @@ export async function PATCH(req: Request) {
       );
     }
 
+    if (materialProseChange) {
+      reconcileSecondarySafetyAfterCanonicalMutation({
+        chatId: msg.chat_id,
+        reason: "assistant_edit_safety_failed",
+        db,
+        reconcile: () =>
+          persistAssistantTurnSecondarySceneSafety({
+            chatId: msg.chat_id,
+            assistantText: text,
+            currentTurn: getAssistantSourceTurn(db, msg.chat_id, id) ?? 0,
+            sourceMessageId: id,
+            db,
+          }),
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       content: text,
@@ -357,5 +381,42 @@ export async function PATCH(req: Request) {
   }
 
   db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+  reconcileSecondarySafetyAfterCanonicalMutation({
+    chatId: msg.chat_id,
+    reason: "user_edit_safety_failed",
+    db,
+    reconcile: () => {
+      const beforeBoundary = classifySceneMode({ currentInput: msg.content });
+      const afterBoundary = classifySceneMode({ currentInput: text });
+      const boundaryChanged =
+        beforeBoundary.sceneReset !== afterBoundary.sceneReset ||
+        beforeBoundary.clearSceneTransition !==
+          afterBoundary.clearSceneTransition;
+      if (boundaryChanged) {
+        // Replaying scene ownership after a historical user edit is not safe in
+        // S1.2. Preserve ordinary RP, but mark future adult-handoff coverage
+        // incomplete until a fresh real scene boundary.
+        markSecondarySafetyCoverageIncomplete({
+          chatId: msg.chat_id,
+          reason: "user_edit_changed_scene_boundary",
+          db,
+        });
+      }
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId: msg.chat_id,
+        userMessage: text,
+        sceneReset: false,
+        currentTurn:
+          resolveCanonicalUserPlayableTurn({
+            chatId: msg.chat_id,
+            userMessageId: id,
+            db,
+          }) ?? 0,
+        sourceMessageId: id,
+        skipSceneBoundary: true,
+        db,
+      });
+    },
+  });
   return NextResponse.json({ ok: true, content: text });
 }
