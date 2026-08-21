@@ -17,6 +17,7 @@ export const TRPG_MECHANICS_REFEREE_SYSTEM = `You are a TRPG mechanics referee. 
 Rules:
 - Never change dice, success tier, or player intent.
 - Never invent hidden events, enemies, or items.
+- [SCENE] is PUBLIC resolved fiction. If it explicitly says injury, impact, bite, shot, fall, trap hit, collapse, or hazardous exposure actually happened, classify that stated outcome; tier alone is never enough.
 - Never output final numeric damage or heal amounts.
 - Classify only: NONE CHIP LIGHT MEDIUM HEAVY SEVERE CRITICAL.
 - Use sourceParticipantId (actor) and targetParticipantId (HP/effect recipient).
@@ -32,12 +33,15 @@ Rules:
 - Do not invent persistent poison/curse without explicit public specialRules.
 - Do not invent an item that is not in inventory or specialRules.
 - One object per source→target classification.
-- If PUBLIC text explicitly says failure/partial caused a counterattack, hit, bite, shot, collapse, trap impact, fall, or hazardous exposure: propose harm with enemy_counter/hazard/tradeoff/self_cost. Numeric HP remains server-owned; inability to output a number is never a reason for NONE.
-- If PUBLIC text explicitly establishes continuing poison, bleeding, paralysis, toxin, venom, neural suppression, or equivalent: propose V1 periodic_harm/control. Reserve NONE for uncertain or absent causes.
+- Shape invariant: harm requires directEffect="harm", non-NONE directClass, and non-"none" cause. No direct harm requires directEffect="none", directClass="NONE", cause="none". Never mix these shapes.
+- Explicit continuing poison/venom/toxin/bleeding requires periodic_harm in ongoingAdd; paralysis/neural suppression/immobilizing control requires control. Do not leave ongoingAdd empty for an explicit continuing condition; do not infer one from vague sensations.
+- Treatment FAILURE/SEVERE_FAILURE/CRITICAL_FAILURE requires ongoingRemoveIds=[], ongoingReduceIds=[], consumeItem=null. PARTIAL_SUCCESS may reduce but should not full-remove by default; successful treatment may remove.
 - No consumed item: consumeItem must be JSON null, never "none", "null", "-", or "없음".
-Schema examples:
-Non-item result: {"consumeItem":null}
-{"effects":[{"sourceParticipantId":1,"targetParticipantId":2,"directEffect":"none","directClass":"NONE","cause":"none","ongoingAdd":[],"ongoingRemoveIds":[10],"ongoingReduceIds":[],"consumeItem":"해독제","reason":"ally antidote"}]}`;
+Canonical examples:
+{"effects":[{"sourceParticipantId":1,"targetParticipantId":1,"directEffect":"harm","directClass":"LIGHT","cause":"enemy_counter","ongoingAdd":[],"ongoingRemoveIds":[],"ongoingReduceIds":[],"consumeItem":null,"reason":"explicit counterattack hit"}]}
+{"effects":[{"sourceParticipantId":1,"targetParticipantId":1,"directEffect":"none","directClass":"NONE","cause":"none","ongoingAdd":[{"label":"중독","kind":"periodic_harm","severity":"LIGHT","tickClass":"LIGHT","durationBand":"SHORT","recoveryMode":"save_or_treatment","recoveryStat":"res","treatmentMode":"item_or_support","requiredItem":null,"stackKey":"poison","stackPolicy":"refresh"}],"ongoingRemoveIds":[],"ongoingReduceIds":[],"consumeItem":null,"reason":"explicit continuing poison"}]}
+{"effects":[{"sourceParticipantId":1,"targetParticipantId":2,"directEffect":"none","directClass":"NONE","cause":"none","ongoingAdd":[],"ongoingRemoveIds":[],"ongoingReduceIds":[],"consumeItem":null,"reason":"treatment failed"}]}
+Successful item fields: {"ongoingRemoveIds":[10],"consumeItem":"해독제"}`;
 
 export function buildMechanicsRefereeUserBlock(opts: {
   scene: string;
