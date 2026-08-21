@@ -1,5 +1,9 @@
 import type Database from "better-sqlite3";
 import type { ParsedTrpgGmOutput } from "./gmPrompt";
+import {
+  parsePostGmOngoingPromotions,
+  type PostGmOngoingPromotion,
+} from "./postGmOngoing";
 
 export type TrpgPendingGmResult = {
   v: 1;
@@ -8,9 +12,13 @@ export type TrpgPendingGmResult = {
   campaignFinished: boolean;
   nextRoundContext: string;
   delta: ParsedTrpgGmOutput["delta"];
+  postGmOngoingPromotions: PostGmOngoingPromotion[];
 };
 
-export function toPendingGmResult(parsed: ParsedTrpgGmOutput): TrpgPendingGmResult {
+export function toPendingGmResult(
+  parsed: ParsedTrpgGmOutput,
+  postGmOngoingPromotions: readonly PostGmOngoingPromotion[] = []
+): TrpgPendingGmResult {
   return {
     v: 1,
     narration: parsed.narration,
@@ -18,6 +26,7 @@ export function toPendingGmResult(parsed: ParsedTrpgGmOutput): TrpgPendingGmResu
     campaignFinished: parsed.campaignFinished === true,
     nextRoundContext: parsed.nextRoundContext ?? "",
     delta: parsed.delta,
+    postGmOngoingPromotions: [...postGmOngoingPromotions],
   };
 }
 
@@ -34,10 +43,11 @@ export function parsedFromPending(pending: TrpgPendingGmResult): ParsedTrpgGmOut
 export function savePendingGmResult(
   db: Database.Database,
   roundId: number,
-  parsed: ParsedTrpgGmOutput
+  parsed: ParsedTrpgGmOutput,
+  postGmOngoingPromotions: readonly PostGmOngoingPromotion[] = []
 ): void {
   db.prepare(`UPDATE trpg_rounds SET pending_gm_result_json=? WHERE id=?`).run(
-    JSON.stringify(toPendingGmResult(parsed)),
+    JSON.stringify(toPendingGmResult(parsed, postGmOngoingPromotions)),
     roundId
   );
 }
@@ -62,6 +72,7 @@ export function loadPendingGmResult(db: Database.Database, roundId: number): Trp
       campaignFinished: parsed.campaignFinished === true,
       nextRoundContext: typeof parsed.nextRoundContext === "string" ? parsed.nextRoundContext : "",
       delta: parsed.delta && typeof parsed.delta === "object" ? parsed.delta : { players: [] },
+      postGmOngoingPromotions: parsePostGmOngoingPromotions(parsed.postGmOngoingPromotions),
     };
   } catch {
     return null;

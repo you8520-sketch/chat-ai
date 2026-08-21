@@ -13,6 +13,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(parsed.narration, /등불이 흔들린다/);
     assert.equal(parsed.delta.players[0]?.participantId, 4);
     assert.equal(parsed.delta.players[0]?.hp, 18);
+    assert.deepEqual(parsed.delta.players[0]?.conditions, ["먼지"]);
     assert.deepEqual(parsed.delta.players[0]?.inventoryAdd, ["열쇠"]);
     assert.equal(parsed.location, "복도");
     assert.equal(parsed.campaignFinished, false);
@@ -41,6 +42,9 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Never replay/);
     assert.match(TRPG_GM_SYSTEM, /AUTHORITATIVE MECHANICS/);
     assert.match(TRPG_GM_SYSTEM, /mechanics wins/);
+    assert.match(TRPG_GM_SYSTEM, /players\[\]\.conditions is the resulting post-round narrative condition list/);
+    assert.match(TRPG_GM_SYSTEM, /중독, 출혈, or 마비/);
+    assert.match(TRPG_GM_SYSTEM, /server owns those mechanics/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     assert.equal(TRPG_GM_MIN_CHARS, 3000);
     assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);

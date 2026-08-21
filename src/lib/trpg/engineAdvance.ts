@@ -63,7 +63,14 @@ import {
   type MechanicsRoundDeps,
 } from "./mechanicsRound";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
-import { loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
+import { loadMechanicsResolution, loadOngoingEffects, markMechanicsApplied } from "./mechanicsStore";
+import {
+  applyPostGmOngoingPromotions,
+  derivePostGmOngoingPromotions,
+  logPostGmOngoingCandidates,
+  logPostGmOngoingObservability,
+  type PostGmOngoingPromotion,
+} from "./postGmOngoing";
 import {
   classifyTrpgBillingErrorCode,
   type TrpgBillingSubstage,
@@ -858,8 +865,24 @@ async function runGmForRound(
     );
     stage = "state_validation";
     mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
+    const currentRoundNumber = (
+      db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as {
+        round_number: number;
+      }
+    ).round_number;
+    const postGmOngoingPromotions =
+      opts.opening || opts.regenerate
+        ? []
+        : derivePostGmOngoingPromotions({
+            campaignId: opts.campaignId,
+            roundNumber: currentRoundNumber,
+            startingSheets: sheets,
+            delta: parsed.delta,
+            activeEffects: loadOngoingEffects(db, opts.campaignId),
+          });
+    logPostGmOngoingCandidates(postGmOngoingPromotions);
     if (!opts.regenerate) {
-      savePendingGmResult(db, opts.roundId, parsed);
+      savePendingGmResult(db, opts.roundId, parsed, postGmOngoingPromotions);
     }
     return commitPendingGmResult(db, {
       campaign,
@@ -867,6 +890,7 @@ async function runGmForRound(
       opening: opts.opening,
       regenerate: opts.regenerate === true,
       parsed,
+      postGmOngoingPromotions,
       deps: opts.deps,
     });
   } catch (error) {
@@ -888,6 +912,7 @@ function applyPendingGmResult(
     opening: false,
     regenerate: false,
     parsed: parsedFromPending(pending),
+    postGmOngoingPromotions: pending.postGmOngoingPromotions,
     deps: opts.deps,
   });
 }
@@ -900,6 +925,7 @@ function commitPendingGmResult(
     opening: boolean;
     regenerate: boolean;
     parsed: ParsedTrpgGmOutput;
+    postGmOngoingPromotions?: readonly PostGmOngoingPromotion[];
     deps?: TrpgEngineDeps;
   }
 ): { campaignFinished: boolean } {
@@ -916,6 +942,8 @@ function commitPendingGmResult(
   ).round_number;
   const campaignContext = loadCampaignContext(db, campaign.id);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
+  const postGmOngoingPromotions = opts.postGmOngoingPromotions ?? [];
+  let postGmOngoingResult = { promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
   const ledger = applyCampaignLedger(loadCampaignLedger(db, campaign.id), {
     ...parsed.delta,
@@ -934,6 +962,9 @@ function commitPendingGmResult(
       if (persistMechanics) {
         persistSheets(db, nextSheets);
         applyMechanicsOnCommit(db, mechanics);
+        if (applied.ok && !opts.opening) {
+          postGmOngoingResult = applyPostGmOngoingPromotions(db, postGmOngoingPromotions);
+        }
         if (mechanics) markMechanicsApplied(db, mechanics);
         db.prepare(
           `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
@@ -962,6 +993,13 @@ function commitPendingGmResult(
       clearPendingGmResult(db, opts.roundId);
       stage = "round_complete";
     })();
+    if (!opts.regenerate && !opts.opening) {
+      logPostGmOngoingObservability({
+        promotions: postGmOngoingPromotions,
+        promoted: postGmOngoingResult.promoted,
+        deduped: postGmOngoingResult.deduped,
+      });
+    }
     return { campaignFinished: parsed.campaignFinished === true };
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
