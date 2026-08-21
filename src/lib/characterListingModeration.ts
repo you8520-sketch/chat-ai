@@ -71,6 +71,11 @@ export function decideCharacterListing(input: {
   requestedVisibility: CharacterVisibility;
   nsfw: boolean;
   assets: CharacterAsset[];
+  /**
+   * Official characters skip ordinary creator listing review.
+   * They must never enter `pending` (the admin queue is for user-created rows).
+   */
+  official?: boolean;
   existing?: {
     shareSlug: string | null;
     visibility?: CharacterVisibility;
@@ -94,7 +99,6 @@ export function decideCharacterListing(input: {
   const imageUrls = assets.map((a) => a.url);
   const canReuseApproved =
     existing?.moderationStatus === "approved" &&
-    existing.visibility !== "private" &&
     Array.isArray(existing.imageUrls) &&
     sameImageList(existing.imageUrls, imageUrls) &&
     Boolean(existing.nsfw) === nsfw;
@@ -102,7 +106,7 @@ export function decideCharacterListing(input: {
     return {
       finalVisibility: requestedVisibility,
       moderationStatus: "approved",
-      moderationNote: existing?.moderationNote || "기존 공개 검수 결과 재사용",
+      moderationNote: existing?.moderationNote || "기존 이미지 검수 결과 재사용",
       shareSlug:
         requestedVisibility === "link"
           ? existing?.shareSlug || generateShareSlug()
@@ -122,6 +126,19 @@ export function decideCharacterListing(input: {
     };
   }
 
+  if (input.official === true) {
+    return {
+      finalVisibility: requestedVisibility,
+      moderationStatus: "approved",
+      moderationNote: "공식 캐릭터 — 홈 노출 검수 생략",
+      shareSlug:
+        requestedVisibility === "link"
+          ? existing?.shareSlug || generateShareSlug()
+          : existing?.shareSlug ?? null,
+      awaitingAdmin: false,
+    };
+  }
+
   if (!nsfw) {
     return {
       finalVisibility: requestedVisibility,
@@ -135,8 +152,9 @@ export function decideCharacterListing(input: {
     };
   }
 
-  const needsAdmin = summary.adultFlagged || summary.unknown;
-  if (needsAdmin) {
+  // Only an explicit adult classification requires admin review.
+  // Missing/undefined adultFlagged is legacy unknown, not "adult detected".
+  if (summary.adultFlagged) {
     const keepPending =
       existing?.moderationStatus === "pending" &&
       Array.isArray(existing.imageUrls) &&
@@ -159,7 +177,9 @@ export function decideCharacterListing(input: {
   return {
     finalVisibility: requestedVisibility,
     moderationStatus: "approved",
-    moderationNote: "성인 캐릭터 — 에셋 검열에서 성인용 표시 없음, 즉시 공개",
+    moderationNote: summary.unknown
+      ? "성인 캐릭터 — 레거시 에셋 adultFlagged 미기록, 성인 이미지 검출 아님"
+      : "성인 캐릭터 — 에셋 검열에서 성인용 표시 없음, 즉시 공개",
     shareSlug:
       requestedVisibility === "link"
         ? existing?.shareSlug || generateShareSlug()
