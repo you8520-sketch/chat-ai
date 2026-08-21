@@ -244,6 +244,11 @@ describe("TRPG post-GM structured ongoing promotion V1", () => {
     const db = memoryDb();
     const { campaignId, participantId } = await setupSolo(db);
     const existingId = addExistingPoison(db, campaignId, participantId);
+    db.prepare(
+      `UPDATE trpg_ongoing_effects
+       SET remaining_ticks=1, treatment_mode='specific_item', required_item='해독제'
+       WHERE id=?`
+    ).run(existingId);
     await playRound(db, {
       campaignId,
       gmText: gmText({ participantId, conditions: ["중독"] }),
@@ -253,6 +258,9 @@ describe("TRPG post-GM structured ongoing promotion V1", () => {
     );
     assert.equal(effects.length, 1);
     assert.equal(effects[0]?.id, existingId);
+    assert.equal(effects[0]?.remainingTicks, 2);
+    assert.equal(effects[0]?.treatmentMode, "specific_item");
+    assert.equal(effects[0]?.requiredItem, "해독제");
     db.close();
   });
 

@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { CONTROL_MODIFIER, DURATION_TICKS } from "./mechanicsDice";
-import { insertOngoingEffect } from "./mechanicsStore";
+import { insertOngoingEffect, updateOngoingEffectRow } from "./mechanicsStore";
 import type { TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
@@ -19,6 +19,20 @@ export type PostGmOngoingPromotion = {
   stackKey: "poison" | "bleed" | "paralysis";
   deduped: boolean;
   existingEffectId: number | null;
+  existingUpdate: Pick<
+    TrpgOngoingEffect,
+    | "id"
+    | "severity"
+    | "tickClass"
+    | "remainingTicks"
+    | "lastTickRound"
+    | "actionModifier"
+    | "recoveryMode"
+    | "recoveryStat"
+    | "treatmentMode"
+    | "requiredItem"
+    | "stackPolicy"
+  > | null;
   effect: Omit<TrpgOngoingEffect, "id"> | null;
 };
 
@@ -118,6 +132,24 @@ export function derivePostGmOngoingPromotions(opts: {
         stackKey: defaults.stackKey,
         deduped: existing != null,
         existingEffectId: existing?.id ?? null,
+        existingUpdate: existing
+          ? {
+              id: existing.id,
+              severity: existing.severity,
+              tickClass: existing.tickClass,
+              remainingTicks:
+                existing.remainingTicks < 0 || existing.stackPolicy === "independent"
+                  ? existing.remainingTicks
+                  : Math.max(existing.remainingTicks, DURATION_TICKS.SHORT),
+              lastTickRound: existing.lastTickRound,
+              actionModifier: existing.actionModifier,
+              recoveryMode: existing.recoveryMode,
+              recoveryStat: existing.recoveryStat,
+              treatmentMode: existing.treatmentMode,
+              requiredItem: existing.requiredItem,
+              stackPolicy: existing.stackPolicy,
+            }
+          : null,
         effect: existing
           ? null
           : {
@@ -183,6 +215,12 @@ export function parsePostGmOngoingPromotions(raw: unknown): PostGmOngoingPromoti
         typeof row.existingEffectId === "number" && Number.isInteger(row.existingEffectId)
           ? row.existingEffectId
           : null,
+      existingUpdate:
+        row.existingUpdate &&
+        typeof row.existingUpdate.id === "number" &&
+        row.existingUpdate.id === row.existingEffectId
+          ? row.existingUpdate
+          : null,
       effect,
     });
   }
@@ -197,6 +235,9 @@ export function applyPostGmOngoingPromotions(
   let deduped = 0;
   for (const promotion of promotions) {
     if (promotion.deduped || !promotion.effect) {
+      if (promotion.existingUpdate) {
+        updateOngoingEffectRow(db, promotion.existingUpdate);
+      }
       deduped += 1;
       continue;
     }
