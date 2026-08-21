@@ -38,8 +38,8 @@ H4.2 CONTROL median was `4727`. H4.2 STRICT median was `4396`. Do not treat the 
 | Sample | HTTP | Seconds | Prompt tok | Completion tok | Reasoning tok | Cost USD | Refusal |
 |---|---:|---:|---:|---:|---:|---:|---|
 | narrow-r1 | 200 | 84.473 | 9206 | 5851 | 4156 | 0.0798232 | no |
-| narrow-r2 | 200 | 113.7 | 9206 | see `metrics.json` | see `metrics.json` | see `metrics.json` | no |
-| narrow-r3 | 200 | 73.7 | 9206 | see `metrics.json` | see `metrics.json` | see `metrics.json` | no |
+| narrow-r2 | 200 | 113.693 | 9206 | 9408 | 6561 | 0.1201912 | no |
+| narrow-r3 | 200 | 73.675 | 9206 | 4657 | 2429 | 0.0631792 | no |
 
 Model: `google/gemini-3.1-pro-preview`. Temperature `0.95`. Reasoning `{effort:low}`. DeepSeek 0. Retries 0.
 
