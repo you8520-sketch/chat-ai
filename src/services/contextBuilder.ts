@@ -346,6 +346,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       !oocLimitedCoNarration && currentTurnDelegation.active,
   });
   const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
+  const coauthorDuration =
+    currentTurnDelegation.duration === "persistent" ||
+    currentTurnDelegation.duration === "turn"
+      ? currentTurnDelegation.duration
+      : currentTurnDelegated
+        ? "turn"
+        : null;
+  const postDelegationBoundary =
+    !currentTurnDelegated && currentTurnDelegation.postDelegationBoundary === true;
   const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
     input.userId,
     input.modelId
@@ -474,6 +483,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     autoProgressionEnabled,
     currentTurnDelegated,
+    postDelegationRestored: postDelegationBoundary,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
@@ -498,6 +508,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         autoProgressionEnabled,
         impersonationOn: oocLimitedCoNarration,
         currentTurnDelegated,
+        postDelegationRestored: postDelegationBoundary,
         party: input.party,
       }),
       "cacheRules"
@@ -539,6 +550,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     autoProgressionEnabled,
     currentTurnDelegated,
+    postDelegationRestored: postDelegationBoundary,
     userName: personaLabel,
   });
 
@@ -1252,6 +1264,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         personaName: input.personaDisplayName,
         ownershipLockEnabled,
         ownershipTerminalEchoEnabled,
+        coauthorDuration,
+        postDelegationBoundary,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;

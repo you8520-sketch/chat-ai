@@ -21,6 +21,7 @@ import {
   initializeForkMemoryBoundaryCore,
 } from "@/lib/memory/memory-source-boundary";
 import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
+import { recomputeAndPersistUserCoauthorMode } from "@/lib/userCoauthorState";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -189,6 +190,8 @@ export async function POST(req: Request) {
       child_boundary: childResetAfterMessageId,
       eligible_turn_count: memoryEligibleForkTurnCount,
     });
+
+    recomputeAndPersistUserCoauthorMode(db, newChatId);
 
     return { newChatId, forkTurnCount, memoryEligibleForkTurnCount, copiedSummaryPages };
   })();

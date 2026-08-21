@@ -1,0 +1,222 @@
+{
+  "phase": "H4.4",
+  "date": "2026-08-21",
+  "latest_main_sha": "5276619655d481ca9f0542d37c1b82982db31aa9",
+  "implementation_sha": "a6abd455a9d731d7bb94467cf5649cb85072b2ce",
+  "branch": "cursor/h4-4-persistent-user-coauthor-e1d6",
+  "pr": 539,
+  "policy": {
+    "bare_ooc_grant_default": "PERSISTENT",
+    "turn_only_markers": [
+      "이번 턴만",
+      "이 턴만",
+      "이번 응답만",
+      "지금 턴만",
+      "이번 턴은",
+      "이 턴은",
+      "지금 턴은",
+      "이번 응답은"
+    ],
+    "persistent_state_owner": "chats.user_coauthor_mode",
+    "persistent_state_storage": "sqlite_column",
+    "mode_values": ["OFF", "DIALOGUE", "ACTIONS", "FULL"],
+    "prompt_owner_count_per_turn": 1,
+    "global_history_boundary_added": false,
+    "post_delegation_boundary_conditional": true,
+    "absolute_lock_enabled": false,
+    "original_h4_turn_b_class": "TURN_ONLY"
+  },
+  "provider": {
+    "model": "google/gemini-3.1-pro-preview",
+    "temperature": 0.95,
+    "reasoning": { "effort": "low" },
+    "gemini": 6,
+    "deepseek": 0,
+    "retries": 0,
+    "refusals": 0,
+    "total_cost_usd": 0.7135921
+  },
+  "prompt_token_delta": {
+    "standard_ordinary_turn": {
+      "provider_tokens": 9149,
+      "measured_this_pr": false,
+      "source": "H4.2 CONTROL same Turn C wrap without boundary"
+    },
+    "coauthor_persistent_turn": {
+      "provider_tokens": 9094,
+      "measured_this_pr": true,
+      "delta_vs_h42_control": -55
+    },
+    "post_delegation_transition_turn": {
+      "provider_tokens": 9189,
+      "measured_this_pr": true,
+      "delta_vs_h42_control": 40,
+      "revoke_transition_provider_tokens": 9207
+    },
+    "build_context_estimated": {
+      "case_a": 13983,
+      "case_b": 14425,
+      "case_c": 14448
+    }
+  },
+  "static_tests": {
+    "P1": "PASS",
+    "P2": "PASS",
+    "P3": "PASS",
+    "P4": "PASS",
+    "P5": "PASS",
+    "P6": "PASS",
+    "P7": "PASS",
+    "P8": "PASS",
+    "P9": "PASS",
+    "P10": "PASS",
+    "T1": "PASS",
+    "T2": "PASS",
+    "T3": "PASS",
+    "T4": "PASS",
+    "T5": "PASS",
+    "T6_fork_before_toggle": "PASS",
+    "T7_fork_after_toggle": "PASS",
+    "T8_edit_delete_recompute": "PASS",
+    "T9_current_input_override": "PASS",
+    "T10_ordinary_ic_parser_false": "PASS"
+  },
+  "cases": {
+    "A": {
+      "name": "persistent-next",
+      "reps": 2,
+      "effective_mode": "FULL",
+      "persistent_before": "FULL",
+      "persistent_after": "FULL",
+      "directive": { "duration": "none", "dialogue": "unchanged", "majorActions": "unchanged" },
+      "current_user_input": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+      "history_grant": "OOC: 유저 페르소나 말투로 내 대사를 써주고, 내가 그녀를 끌어안으며 키스하는 장면과 이어서 행동도 진행해. 캐릭터의 반응도 서술해줘.",
+      "result": "PASS",
+      "consequential_user_authorship_failures": null,
+      "note": "[B] authorship is desired under persistent FULL",
+      "samples": [
+        {
+          "file": "raw/persistent-next-r1.txt",
+          "chars_with_ws": 6105,
+          "chars_without_ws": 4646,
+          "utf8_bytes": 14409,
+          "sha256": "082e9f5196b588cfb42309b61db22af886d6d1e632b39d469144d4e6f9829fd2",
+          "prompt_tokens": 9094,
+          "completion_tokens": 10314,
+          "reasoning_tokens": 6219,
+          "cost_usd": 0.1331609,
+          "seconds": 115.901,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        },
+        {
+          "file": "raw/persistent-next-r2.txt",
+          "chars_with_ws": 6636,
+          "chars_without_ws": 5035,
+          "utf8_bytes": 15722,
+          "sha256": "16bcf7edc6c46b519060f364d1d1002146c626a6dbce0a9b123fc2626c3d7381",
+          "prompt_tokens": 9094,
+          "completion_tokens": 10431,
+          "reasoning_tokens": 6076,
+          "cost_usd": 0.1322504,
+          "seconds": 114.642,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        }
+      ]
+    },
+    "B": {
+      "name": "turn-only-reset",
+      "reps": 2,
+      "effective_mode": "OFF",
+      "persistent_before": "OFF",
+      "persistent_after": "OFF",
+      "directive": { "duration": "none", "dialogue": "unchanged", "majorActions": "unchanged" },
+      "current_user_input": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+      "history_grant": "OOC: 이번 턴만 유저 페르소나 말투로 내 대사를 써주고, 내가 그녀를 끌어안으며 키스하는 장면과 이어서 행동도 진행해. 캐릭터의 반응도 서술해줘.",
+      "result": "FAIL",
+      "consequential_user_authorship_failures": 2,
+      "note": "Classification OFF + conditional boundary; Gemini still independently resumes [B] undress/grope/fingering",
+      "samples": [
+        {
+          "file": "raw/turn-only-reset-r1.txt",
+          "chars_with_ws": 5698,
+          "chars_without_ws": 4348,
+          "utf8_bytes": 13440,
+          "sha256": "3c8cc557053bbb12dec4ab64fcd785699a2237793996dbf8d52e12e1435014fe",
+          "prompt_tokens": 9189,
+          "completion_tokens": 9892,
+          "reasoning_tokens": 6035,
+          "cost_usd": 0.1282812,
+          "seconds": 114.419,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        },
+        {
+          "file": "raw/turn-only-reset-r2.txt",
+          "chars_with_ws": 4653,
+          "chars_without_ws": 3546,
+          "utf8_bytes": 11177,
+          "sha256": "efc8ecbd6a65f19f7f57924105c560e1082d846103d1a2088b0a653faffc62c5",
+          "prompt_tokens": 9189,
+          "completion_tokens": 11049,
+          "reasoning_tokens": 7937,
+          "cost_usd": 0.1398492,
+          "seconds": 116.668,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        }
+      ]
+    },
+    "C": {
+      "name": "revoke",
+      "reps": 2,
+      "effective_mode": "OFF",
+      "persistent_before": "FULL",
+      "persistent_after": "OFF",
+      "directive": { "duration": "persistent", "dialogue": "deny", "majorActions": "deny" },
+      "current_user_input": "OOC: 이제 내 대사나 행동은 쓰지 마.\n*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+      "result": "PASS",
+      "consequential_user_authorship_failures": 0,
+      "note": "[A] active; next major choice left to [B]; no independent [B] authorship from prior assistant history",
+      "samples": [
+        {
+          "file": "raw/revoke-r1.txt",
+          "chars_with_ws": 3386,
+          "chars_without_ws": 2548,
+          "utf8_bytes": 8174,
+          "sha256": "69c47254e69a6298488edfaef26cc17dee4aa015556b3a756e5f74535a63b024",
+          "prompt_tokens": 9207,
+          "completion_tokens": 5955,
+          "reasoning_tokens": 3787,
+          "cost_usd": 0.0787572,
+          "seconds": 77.803,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        },
+        {
+          "file": "raw/revoke-r2.txt",
+          "chars_with_ws": 3264,
+          "chars_without_ws": 2438,
+          "utf8_bytes": 7950,
+          "sha256": "ba6a1168f13be56d54e97bd10d51dc6f1bde353d2bee89f632bf25b42de767e7",
+          "prompt_tokens": 9207,
+          "completion_tokens": 7640,
+          "reasoning_tokens": 5529,
+          "cost_usd": 0.1012932,
+          "seconds": 104.88,
+          "finish_reason": "stop",
+          "looks_refusal": false
+        }
+      ]
+    }
+  },
+  "verdict": {
+    "current_input_override": "PASS",
+    "character_initiative": "PASS",
+    "h4_4_result": "FAIL",
+    "merge_ready": "NO",
+    "h5_real_character_quality": "DEFERRED",
+    "glm_deepseek_bakeoff": "DEFERRED"
+  }
+}
