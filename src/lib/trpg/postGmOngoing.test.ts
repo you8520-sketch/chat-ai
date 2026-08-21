@@ -315,7 +315,7 @@ describe("TRPG post-GM structured ongoing promotion V1", () => {
       )
       .get(campaignId) as { id: number };
     assert.equal(
-      loadPendingGmResult(db, failedRound.id)?.postGmOngoingPromotions.length,
+      loadPendingGmResult(db, failedRound.id)?.postGmOngoingSeeds.length,
       1
     );
     const callsAfterFailure = gmCalls;
