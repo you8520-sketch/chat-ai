@@ -1,0 +1,491 @@
+{
+  "audit": "H4.3",
+  "method": "CONTROLLED_CONTEXT_REPLAY",
+  "h4_2_control_reference": "PR #531",
+  "control_rerun": false,
+  "model": "google/gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "reasoning": {
+    "effort": "low"
+  },
+  "user_input_exact": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+  "user_input": {
+    "chars_with_ws": 38,
+    "chars_no_ws": 30,
+    "raw_bytes_utf8": 88,
+    "sha256": "68aef6988882172656b84269d727424fcd87660b14c16abee9da2913cc609eae"
+  },
+  "provider_calls": {
+    "gemini": 3,
+    "deepseek": 0,
+    "refusals": 0,
+    "retries": 0
+  },
+  "samples": [
+    {
+      "sample": "narrow-r1",
+      "rep": 1,
+      "refusal": false,
+      "http": 200,
+      "ok": true,
+      "seconds": 84.473,
+      "finish_reason": "stop",
+      "provider_model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "reasoning": {
+        "effort": "low"
+      },
+      "prompt_tokens": 9206,
+      "completion_tokens": 5851,
+      "reasoning_tokens": 4156,
+      "cost_usd": 0.0798232,
+      "raw_bytes_utf8": 6136,
+      "chars_with_ws": 2590,
+      "chars_no_ws": 1962,
+      "hangul_syllables": 1770,
+      "paragraphs": 17,
+      "sentences": 58,
+      "dialogue_block_count": 5,
+      "dialogue_char_count": 148,
+      "narration_char_count": 2409,
+      "dialogue_ratio": 0.05788032850997262,
+      "narration_ratio": 0.9421196714900274,
+      "sha256": "9a9c45060c74f75a4e9ed8af12642bde2481057224739f8489093ab41cbcaa77",
+      "utf8_bom": false,
+      "trailing_newline": false,
+      "paragraph_shapes": [
+        {
+          "id": "N-R1-P01",
+          "type": "narration",
+          "chars": 265
+        },
+        {
+          "id": "N-R1-P02",
+          "type": "narration",
+          "chars": 245
+        },
+        {
+          "id": "N-R1-P03",
+          "type": "narration",
+          "chars": 238
+        },
+        {
+          "id": "N-R1-P04",
+          "type": "dialogue",
+          "chars": 8
+        },
+        {
+          "id": "N-R1-P05",
+          "type": "narration",
+          "chars": 207
+        },
+        {
+          "id": "N-R1-P06",
+          "type": "dialogue",
+          "chars": 43
+        },
+        {
+          "id": "N-R1-P07",
+          "type": "narration",
+          "chars": 199
+        },
+        {
+          "id": "N-R1-P08",
+          "type": "narration",
+          "chars": 206
+        },
+        {
+          "id": "N-R1-P09",
+          "type": "narration",
+          "chars": 117
+        },
+        {
+          "id": "N-R1-P10",
+          "type": "dialogue",
+          "chars": 62
+        },
+        {
+          "id": "N-R1-P11",
+          "type": "narration",
+          "chars": 179
+        },
+        {
+          "id": "N-R1-P12",
+          "type": "narration",
+          "chars": 174
+        },
+        {
+          "id": "N-R1-P13",
+          "type": "dialogue",
+          "chars": 21
+        },
+        {
+          "id": "N-R1-P14",
+          "type": "narration",
+          "chars": 218
+        },
+        {
+          "id": "N-R1-P15",
+          "type": "dialogue",
+          "chars": 14
+        },
+        {
+          "id": "N-R1-P16",
+          "type": "narration",
+          "chars": 217
+        },
+        {
+          "id": "N-R1-P17",
+          "type": "narration",
+          "chars": 144
+        }
+      ],
+      "CLUSTER_1_RESUME": "PASS",
+      "CLUSTER_2_ESCALATE": "PASS",
+      "CLUSTER_3_CONSENT_PACE": "PASS",
+      "ENDING_FUNCTION": "CHARACTER_PROPOSITION",
+      "ACTIVE_CHARACTER": "PASS",
+      "residual": "A places already-present B hand into open shirt; not scored as independent resume"
+    },
+    {
+      "sample": "narrow-r2",
+      "rep": 2,
+      "refusal": false,
+      "http": 200,
+      "ok": true,
+      "seconds": 113.693,
+      "finish_reason": "stop",
+      "provider_model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "reasoning": {
+        "effort": "low"
+      },
+      "prompt_tokens": 9206,
+      "completion_tokens": 9408,
+      "reasoning_tokens": 6561,
+      "cost_usd": 0.1201912,
+      "raw_bytes_utf8": 10505,
+      "chars_with_ws": 4417,
+      "chars_no_ws": 3358,
+      "hangul_syllables": 3043,
+      "paragraphs": 26,
+      "sentences": 91,
+      "dialogue_block_count": 8,
+      "dialogue_char_count": 172,
+      "narration_char_count": 4193,
+      "dialogue_ratio": 0.03940435280641466,
+      "narration_ratio": 0.9605956471935854,
+      "sha256": "e9fde4fe220251024e6979d259d9aaa7b1bf4d1ed2646cd6f9cbfa06d87595d6",
+      "utf8_bom": false,
+      "trailing_newline": false,
+      "paragraph_shapes": [
+        {
+          "id": "N-R2-P01",
+          "type": "narration",
+          "chars": 349
+        },
+        {
+          "id": "N-R2-P02",
+          "type": "narration",
+          "chars": 369
+        },
+        {
+          "id": "N-R2-P03",
+          "type": "dialogue",
+          "chars": 18
+        },
+        {
+          "id": "N-R2-P04",
+          "type": "narration",
+          "chars": 293
+        },
+        {
+          "id": "N-R2-P05",
+          "type": "narration",
+          "chars": 263
+        },
+        {
+          "id": "N-R2-P06",
+          "type": "dialogue",
+          "chars": 5
+        },
+        {
+          "id": "N-R2-P07",
+          "type": "narration",
+          "chars": 39
+        },
+        {
+          "id": "N-R2-P08",
+          "type": "dialogue",
+          "chars": 35
+        },
+        {
+          "id": "N-R2-P09",
+          "type": "narration",
+          "chars": 234
+        },
+        {
+          "id": "N-R2-P10",
+          "type": "narration",
+          "chars": 206
+        },
+        {
+          "id": "N-R2-P11",
+          "type": "dialogue",
+          "chars": 5
+        },
+        {
+          "id": "N-R2-P12",
+          "type": "narration",
+          "chars": 129
+        },
+        {
+          "id": "N-R2-P13",
+          "type": "dialogue",
+          "chars": 25
+        },
+        {
+          "id": "N-R2-P14",
+          "type": "narration",
+          "chars": 231
+        },
+        {
+          "id": "N-R2-P15",
+          "type": "dialogue",
+          "chars": 21
+        },
+        {
+          "id": "N-R2-P16",
+          "type": "narration",
+          "chars": 199
+        },
+        {
+          "id": "N-R2-P17",
+          "type": "narration",
+          "chars": 290
+        },
+        {
+          "id": "N-R2-P18",
+          "type": "narration",
+          "chars": 201
+        },
+        {
+          "id": "N-R2-P19",
+          "type": "narration",
+          "chars": 222
+        },
+        {
+          "id": "N-R2-P20",
+          "type": "narration",
+          "chars": 180
+        },
+        {
+          "id": "N-R2-P21",
+          "type": "dialogue",
+          "chars": 26
+        },
+        {
+          "id": "N-R2-P22",
+          "type": "narration",
+          "chars": 211
+        },
+        {
+          "id": "N-R2-P23",
+          "type": "narration",
+          "chars": 301
+        },
+        {
+          "id": "N-R2-P24",
+          "type": "narration",
+          "chars": 235
+        },
+        {
+          "id": "N-R2-P25",
+          "type": "dialogue",
+          "chars": 37
+        },
+        {
+          "id": "N-R2-P26",
+          "type": "narration",
+          "chars": 241
+        }
+      ],
+      "CLUSTER_1_RESUME": "PASS",
+      "CLUSTER_2_ESCALATE": "PASS",
+      "CLUSTER_3_CONSENT_PACE": "PASS",
+      "ENDING_FUNCTION": "CHARACTER_PROPOSITION",
+      "ACTIVE_CHARACTER": "PASS"
+    },
+    {
+      "sample": "narrow-r3",
+      "rep": 3,
+      "refusal": false,
+      "http": 200,
+      "ok": true,
+      "seconds": 73.675,
+      "finish_reason": "stop",
+      "provider_model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "reasoning": {
+        "effort": "low"
+      },
+      "prompt_tokens": 9206,
+      "completion_tokens": 4657,
+      "reasoning_tokens": 2429,
+      "cost_usd": 0.0631792,
+      "raw_bytes_utf8": 7830,
+      "chars_with_ws": 3318,
+      "chars_no_ws": 2503,
+      "hangul_syllables": 2246,
+      "paragraphs": 24,
+      "sentences": 67,
+      "dialogue_block_count": 7,
+      "dialogue_char_count": 121,
+      "narration_char_count": 3138,
+      "dialogue_ratio": 0.03712795335992636,
+      "narration_ratio": 0.9628720466400736,
+      "sha256": "c73b675707ee21e19dbe1e3dea922e9f783dbc8785126edc0d40f02b1f879a77",
+      "utf8_bom": false,
+      "trailing_newline": false,
+      "paragraph_shapes": [
+        {
+          "id": "N-R3-P01",
+          "type": "narration",
+          "chars": 251
+        },
+        {
+          "id": "N-R3-P02",
+          "type": "narration",
+          "chars": 210
+        },
+        {
+          "id": "N-R3-P03",
+          "type": "narration",
+          "chars": 232
+        },
+        {
+          "id": "N-R3-P04",
+          "type": "dialogue",
+          "chars": 5
+        },
+        {
+          "id": "N-R3-P05",
+          "type": "narration",
+          "chars": 93
+        },
+        {
+          "id": "N-R3-P06",
+          "type": "dialogue",
+          "chars": 23
+        },
+        {
+          "id": "N-R3-P07",
+          "type": "narration",
+          "chars": 198
+        },
+        {
+          "id": "N-R3-P08",
+          "type": "dialogue",
+          "chars": 25
+        },
+        {
+          "id": "N-R3-P09",
+          "type": "narration",
+          "chars": 205
+        },
+        {
+          "id": "N-R3-P10",
+          "type": "narration",
+          "chars": 156
+        },
+        {
+          "id": "N-R3-P11",
+          "type": "narration",
+          "chars": 177
+        },
+        {
+          "id": "N-R3-P12",
+          "type": "narration",
+          "chars": 137
+        },
+        {
+          "id": "N-R3-P13",
+          "type": "dialogue",
+          "chars": 10
+        },
+        {
+          "id": "N-R3-P14",
+          "type": "narration",
+          "chars": 212
+        },
+        {
+          "id": "N-R3-P15",
+          "type": "narration",
+          "chars": 230
+        },
+        {
+          "id": "N-R3-P16",
+          "type": "narration",
+          "chars": 150
+        },
+        {
+          "id": "N-R3-P17",
+          "type": "narration",
+          "chars": 218
+        },
+        {
+          "id": "N-R3-P18",
+          "type": "dialogue",
+          "chars": 11
+        },
+        {
+          "id": "N-R3-P19",
+          "type": "narration",
+          "chars": 135
+        },
+        {
+          "id": "N-R3-P20",
+          "type": "narration",
+          "chars": 160
+        },
+        {
+          "id": "N-R3-P21",
+          "type": "dialogue",
+          "chars": 15
+        },
+        {
+          "id": "N-R3-P22",
+          "type": "narration",
+          "chars": 149
+        },
+        {
+          "id": "N-R3-P23",
+          "type": "dialogue",
+          "chars": 32
+        },
+        {
+          "id": "N-R3-P24",
+          "type": "narration",
+          "chars": 225
+        }
+      ],
+      "CLUSTER_1_RESUME": "FAIL",
+      "CLUSTER_2_ESCALATE": "FAIL",
+      "CLUSTER_3_CONSENT_PACE": "FAIL",
+      "ENDING_FUNCTION": "MODEL_AUTHORED_USER_CONTINUATION",
+      "ACTIVE_CHARACTER": "PASS"
+    }
+  ],
+  "narrow_median_chars_with_ws": 3318,
+  "cluster_fail_counts": {
+    "NARROW_CLUSTER_1_FAILS": 1,
+    "NARROW_CLUSTER_2_FAILS": 1,
+    "NARROW_CLUSTER_3_FAILS": 1
+  },
+  "result": {
+    "H4_3_RESULT": "FAIL",
+    "MERGE_READY": "NO",
+    "ACTIVE_CHARACTER_BEHAVIOR": "PASS",
+    "H5_REAL_CHARACTER_LENGTH_AUDIT": "DEFERRED"
+  }
+}

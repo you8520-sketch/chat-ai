@@ -1,0 +1,33 @@
+{
+  "model": "google/gemini-3.1-pro-preview",
+  "model_alias_check": "google/gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "reasoning": {
+    "effort": "low"
+  },
+  "boundary": "Past assistant-authored [B] dialogue or actions, including those written on an earlier delegated or co-authored turn, are established scene history only — not permission or precedent to write new [B] dialogue, consequential actions, consent/refusal, or decisions on this turn.",
+  "lockEnabled": null,
+  "narrow": {
+    "lastUserChars": 1132,
+    "lastUserHasC": true,
+    "lastUserHasLock": false,
+    "lastUserHasNarrowBoundary": true,
+    "lastUserHasCollaborativeWrapper": true,
+    "systemHasStandardOwner": true,
+    "systemHasGemini31Supplement": true,
+    "systemHasDelegatedOwner": false,
+    "historyRoles": [
+      "user:7",
+      "assistant:38",
+      "user:88",
+      "assistant:1173",
+      "user:83",
+      "assistant:2626",
+      "user:1132"
+    ],
+    "estimatedInputTokens": 14498,
+    "runtimeMode": "interactive",
+    "lastUserHead": "[CURRENT USER INPUT]\nThe following is the user's completed input and the newest state of the scene.\nContinue from what it changes now rather than restating or explaining the input.\n[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.\nPast assistant-authored [B] dialogue or actions, including those written on an earlier delegated or co-authored turn, are established scene history only — not permission or precedent to ",
+    "lastUserTail": "ent/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].\n[유저 지문/행동 — 캐릭터가 관찰 가능]\n잠시 숨을 고르고 얼굴을 바라본다.\n[유저 대사]\n괜찮아?너무 빨랐으면 말해.\n\n레이아웃: 지문과 \"…\" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.\n\n이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다."
+  }
+}
