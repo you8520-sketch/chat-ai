@@ -1,0 +1,52 @@
+{
+  "TRACK": "TURN_OWNERSHIP_T1",
+  "BASE_HEAD": "f77ed3eb25caafe3b5d391252dae5b801aa55c05",
+  "BRANCH_HEAD": "d8c14910bfeaabbb4ad6952dd3a7c8d0edfa75fc",
+  "PRIMARY_FIXTURE_PROVEN": false,
+  "PRIMARY_LIVE_CALLS": 0,
+  "BASELINE_CALLS": 0,
+  "CHALLENGER_CALLS": 0,
+  "ANTI_PASSIVITY_CALLS": 0,
+  "TOTAL_NEW_CALLS": 0,
+  "REASON": "experiment_a_provenance_incomplete",
+  "TARGET": "deepseek-v4-pro-0813",
+  "TRUE_OFF": "thinking.disabled + reasoning_effort.none",
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "candidate_header": "[DEEPSEEK HANDOFF — TURN OWNERSHIP]",
+  "candidate_chars": 360,
+  "source_raw": {
+    "path": "docs/audits/gemini-37-flash-word-count-owner-e/S3-A-raw.txt",
+    "sha256": "f8924f36b15d821459407f82cc5771b153c86e690540e373af81245ea9243639",
+    "matchesFrozenSha": true
+  },
+  "fields": {
+    "character": "stub",
+    "persona": "stub",
+    "speechLock": "missing",
+    "worldCanon": "missing",
+    "history": "mismatched",
+    "sourceAssistantRaw": "proven",
+    "matchingCurrentUser": "mismatched"
+  },
+  "notes": [
+    "Experiment A last assistant is committed Gemini 3.7 Flash S3-A lobby RAW.",
+    "S3-A matching user is the bag-strap lobby line, not an adult waist-wrap turn.",
+    "Experiment A current user was an Aion-era adult-entry line (이대로 있어도 돼?).",
+    "Character assembly was stub identity only ([Identity]\\n조태형).",
+    "Persona was nickname 렌 only. Speech Lock and world/canon were not supplied.",
+    "Do not reconstruct missing fields. Do not substitute a synthetic scene."
+  ],
+  "experimentAQuality": {
+    "RUN1": "SOFT_FAIL",
+    "RUN2": "HARD_FAIL",
+    "RUN3": "PASS",
+    "USER_CONSENT_OR_INTENT_INVENTION": "2/3",
+    "OVER_PROGRESSION": "1/3"
+  }
+}
