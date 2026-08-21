@@ -502,6 +502,12 @@ function migrate(db: Database.Database) {
   addColumn("characters", "visibility", "TEXT NOT NULL DEFAULT 'public'");
   addColumn("characters", "moderation_status", "TEXT NOT NULL DEFAULT 'approved'");
   addColumn("characters", "moderation_note", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  db.exec(`
+    UPDATE characters
+    SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))
+    WHERE updated_at = '' OR updated_at IS NULL
+  `);
   addColumn("characters", "share_slug", "TEXT");
   addColumn("characters", "genres", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("characters", "world_id", "INTEGER");

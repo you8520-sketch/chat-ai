@@ -2,12 +2,23 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import CharacterAssetGalleryLightbox from "@/components/CharacterAssetGalleryLightbox";
+import CharacterAssetImage from "@/components/CharacterAssetImage";
 import { moderationLabel, type ModerationStatus } from "@/lib/characterVisibility";
+
+type ReviewAsset = {
+  url: string;
+  tag: string;
+  adultFlagged: boolean | null;
+  moderationReject: boolean | null;
+  moderationReason: string;
+};
 
 type Row = {
   id: number;
   name: string;
   nsfw: number;
+  official: number;
   visibility: string;
   moderation_status: ModerationStatus;
   moderation_note: string;
@@ -15,6 +26,8 @@ type Row = {
   creator_name: string;
   creator_email: string;
   updated_at: string;
+  representative_image_url: string | null;
+  assets: ReviewAsset[];
 };
 
 const FILTERS = [
@@ -24,6 +37,21 @@ const FILTERS = [
   { id: "all", label: "전체" },
 ] as const;
 
+const EMPTY_UNLOCKED = new Set<string>();
+
+function assetStateLabel(asset: ReviewAsset): { text: string; className: string } {
+  if (asset.moderationReject === true) {
+    return { text: "REJECTED", className: "bg-rose-600 text-white" };
+  }
+  if (asset.adultFlagged === true) {
+    return { text: "ADULT FLAGGED", className: "bg-amber-500 text-black" };
+  }
+  if (asset.adultFlagged === false) {
+    return { text: "SAFE", className: "bg-emerald-700 text-white" };
+  }
+  return { text: "UNKNOWN", className: "bg-zinc-600 text-white" };
+}
+
 export default function AdminCharacterModerationClient() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("pending");
   const [rows, setRows] = useState<Row[]>([]);
@@ -31,6 +59,11 @@ export default function AdminCharacterModerationClient() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
+  const [lightbox, setLightbox] = useState<{
+    name: string;
+    assets: ReviewAsset[];
+    index: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,7 +106,8 @@ export default function AdminCharacterModerationClient() {
       </Link>
       <h1 className="mt-4 text-2xl font-black text-white">성인 캐릭터 홈 노출 검수</h1>
       <p className="mt-1 text-sm text-gray-400">
-        에셋 태깅에서 성인용으로 걸린 캐릭터만 대기합니다. 승인하면 홈에 올라갑니다.
+        에셋 태깅에서 실제로 성인용으로 분류된 캐릭터만 대기합니다. 레거시 unknown은 성인 검출이 아닙니다.
+        승인하면 홈에 올라갑니다.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -111,6 +145,7 @@ export default function AdminCharacterModerationClient() {
                   <p className="mt-1 text-sm text-gray-400">
                     @{row.creator_name} · {row.creator_email}
                     {row.nsfw === 1 ? " · 성인" : " · 일반"}
+                    {row.official === 1 ? " · 공식" : ""}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
                     #{row.id} · {row.visibility} · {row.updated_at}
@@ -129,6 +164,55 @@ export default function AdminCharacterModerationClient() {
                   {moderationLabel(row.moderation_status)}
                 </span>
               </div>
+
+              {row.assets.length > 0 ? (
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {row.assets.map((asset, index) => {
+                    const badge = assetStateLabel(asset);
+                    return (
+                      <button
+                        key={`${row.id}-${asset.url}-${index}`}
+                        type="button"
+                        onClick={() =>
+                          setLightbox({ name: row.name, assets: row.assets, index })
+                        }
+                        className={`relative overflow-hidden rounded-xl border ${
+                          asset.adultFlagged === true
+                            ? "border-amber-400"
+                            : "border-white/10"
+                        }`}
+                      >
+                        <CharacterAssetImage
+                          src={asset.url}
+                          alt={asset.tag || row.name}
+                          imgClassName="block aspect-[3/4] w-full object-cover object-top"
+                        />
+                        <span
+                          className={`absolute left-1 top-1 rounded px-1.5 py-0.5 text-[9px] font-black ${badge.className}`}
+                        >
+                          {badge.text}
+                        </span>
+                        {asset.tag ? (
+                          <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] text-white">
+                            {asset.tag}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : row.representative_image_url ? (
+                <div className="mt-4 w-24 overflow-hidden rounded-xl border border-white/10">
+                  <CharacterAssetImage
+                    src={row.representative_image_url}
+                    alt={row.name}
+                    imgClassName="block aspect-[3/4] w-full object-cover object-top"
+                  />
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-zinc-500">제출된 이미지가 없습니다.</p>
+              )}
+
               {row.moderation_status === "pending" ? (
                 <div className="mt-4 space-y-2">
                   <input
@@ -161,6 +245,24 @@ export default function AdminCharacterModerationClient() {
           ))}
         </ul>
       )}
+
+      {lightbox ? (
+        <CharacterAssetGalleryLightbox
+          open
+          assets={lightbox.assets.map((asset) => ({
+            url: asset.url,
+            tag: asset.tag,
+            adultFlagged: asset.adultFlagged ?? undefined,
+            moderationReject: asset.moderationReject ?? undefined,
+            moderationReason: asset.moderationReason || undefined,
+          }))}
+          initialIndex={lightbox.index}
+          characterName={lightbox.name}
+          viewerIsCreator
+          unlockedUrls={EMPTY_UNLOCKED}
+          onClose={() => setLightbox(null)}
+        />
+      ) : null}
     </div>
   );
 }

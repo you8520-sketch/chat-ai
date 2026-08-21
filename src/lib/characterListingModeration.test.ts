@@ -21,6 +21,17 @@ const adultAsset: CharacterAsset = {
   adultFlagged: true,
   moderationReject: false,
 };
+const rejectedAsset: CharacterAsset = {
+  url: "/uploads/reject.webp",
+  tag: "반려",
+  adultFlagged: false,
+  moderationReject: true,
+  moderationReason: "정책 위반",
+};
+const legacyUnknownAsset: CharacterAsset = {
+  url: "/uploads/legacy.webp",
+  tag: "기쁨",
+};
 
 describe("character adult text filter", () => {
   it("flags explicit adult fiction terms and ignores mild romance", () => {
@@ -115,5 +126,114 @@ describe("character listing moderation", () => {
     assert.equal(split.rejected.length, 1);
     assert.match(allAgesAssetChangeRequest(1), /바꿔 주세요/);
     assert.deepEqual(partitionAllAgesTaggingBatch([adultAsset], true).accepted, [adultAsset]);
+  });
+
+  it("1. nsfw + adultFlagged=true public request is adult-image pending", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [adultAsset],
+    });
+    assert.equal(decided.moderationStatus, "pending");
+    assert.equal(decided.awaitingAdmin, true);
+    assert.match(decided.moderationNote, /성인 에셋 검열/);
+  });
+
+  it("2. nsfw + adultFlagged=false public request is approved", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [cleanAsset],
+    });
+    assert.equal(decided.moderationStatus, "approved");
+    assert.equal(decided.awaitingAdmin, false);
+  });
+
+  it("3. nsfw + legacy unknown adultFlagged is not fake adult-image pending", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [legacyUnknownAsset],
+    });
+    assert.equal(decided.moderationStatus, "approved");
+    assert.equal(decided.awaitingAdmin, false);
+    assert.doesNotMatch(decided.moderationNote, /성인 에셋 검열/);
+    assert.match(decided.moderationNote, /레거시/);
+  });
+
+  it("4. private-skip approved must not bypass adult review on public switch", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [adultAsset],
+      existing: {
+        shareSlug: null,
+        visibility: "private",
+        moderationStatus: "approved",
+        moderationNote: "비공개 — 검수 생략",
+        imageUrls: [adultAsset.url],
+        nsfw: true,
+      },
+    });
+    assert.equal(decided.moderationStatus, "pending");
+    assert.equal(decided.awaitingAdmin, true);
+  });
+
+  it("4b. public prior image approval is still reusable for the same assets", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [cleanAsset],
+      existing: {
+        shareSlug: "abc",
+        visibility: "public",
+        moderationStatus: "approved",
+        moderationNote: "관리자 승인",
+        imageUrls: [cleanAsset.url],
+        nsfw: true,
+      },
+    });
+    assert.equal(decided.moderationStatus, "approved");
+    assert.equal(decided.awaitingAdmin, false);
+  });
+
+  it("5. changed image list does not reuse the old approval", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [adultAsset],
+      existing: {
+        shareSlug: null,
+        visibility: "private",
+        moderationStatus: "approved",
+        imageUrls: [cleanAsset.url],
+        nsfw: true,
+      },
+    });
+    assert.equal(decided.moderationStatus, "pending");
+    assert.equal(decided.awaitingAdmin, true);
+  });
+
+  it("6. moderationReject keeps the existing rejection behavior", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [rejectedAsset],
+    });
+    assert.equal(decided.moderationStatus, "rejected");
+    assert.equal(decided.finalVisibility, "private");
+    assert.equal(decided.awaitingAdmin, false);
+    assert.equal(decided.moderationNote, "정책 위반");
+  });
+
+  it("official characters never enter ordinary adult-image pending", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      official: true,
+      assets: [adultAsset],
+    });
+    assert.equal(decided.moderationStatus, "approved");
+    assert.equal(decided.awaitingAdmin, false);
   });
 });
