@@ -16,6 +16,7 @@ export function buildCoreRpCanonFragment(opts: {
   autoProgressionEnabled?: boolean;
   impersonationOn?: boolean;
   currentTurnDelegated?: boolean;
+  postDelegationRestored?: boolean;
   party?: boolean;
 }): string {
   let role: string;
@@ -27,6 +28,8 @@ export function buildCoreRpCanonFragment(opts: {
     role = `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL MODE - LIMITED CO-NARRATION]를 따른다.`;
   } else if (opts.currentTurnDelegated) {
     role = `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER AUTHORING — CURRENT-TURN OOC DELEGATION]를 따른다.`;
+  } else if (opts.postDelegationRestored) {
+    role = `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL — POST-DELEGATION RESTORED]를 따른다.`;
   } else {
     role = `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [NO GODMODDING]를 따른다.`;
   }
@@ -55,6 +58,7 @@ export function buildCanonScopeKnowledgeBlock(opts: {
   autoProgressionEnabled?: boolean;
   impersonationOn?: boolean;
   currentTurnDelegated?: boolean;
+  postDelegationRestored?: boolean;
   party?: boolean;
 }): string {
   const knowledge = CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT;

@@ -26,7 +26,7 @@ export type CurrentTurnAuthoringDelegation = {
   source: CurrentTurnAuthoringDelegationSource;
   /** Effective owner duration when active. Omitted by the current-input parser. */
   duration?: UserCoauthorDuration | null;
-  /** Conditional post-delegation / revoke boundary on the STANDARD owner only. */
+  /** One-turn POST-DELEGATION RESTORED owner after turn-only expiry. Not revoke. */
   postDelegationBoundary?: boolean;
 };
 

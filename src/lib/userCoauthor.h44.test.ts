@@ -15,6 +15,7 @@ import {
   COLLABORATIVE_INTERACTIVE_OWNER_TITLE,
   CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE,
   CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE,
+  POST_DELEGATION_RESTORED_OWNER_TITLE,
 } from "@/lib/noGodmodding";
 import {
   applyUserCoauthorDirective,
@@ -128,7 +129,7 @@ describe("H4.4 P1–P10 command semantics", () => {
       currentUserInput: "OOC: 이제 내 대사나 행동은 쓰지 마.",
     });
     assert.deepEqual(modeOf(applied), { current: "OFF", persistent: "OFF" });
-    assert.equal(applied.postDelegationBoundary, true);
+    assert.equal(applied.postDelegationBoundary, false);
   });
 
   it("P8 — persistent FULL + 이번 턴은 대사는 내가 쓸게 → current ACTIONS, persistent FULL", () => {
@@ -324,7 +325,7 @@ describe("H4.4 additional product fixtures", () => {
       currentUserInput: "OOC: 이번 턴만 내 행동이나 대사는 쓰지 마.",
     });
     assert.deepEqual(modeOf(applied), { current: "OFF", persistent: "FULL" });
-    assert.equal(applied.postDelegationBoundary, true);
+    assert.equal(applied.postDelegationBoundary, false);
   });
 
   it("does not scan assistant history as an authoring command", () => {
@@ -354,15 +355,16 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.match(owner, /능동적으로 수행한다/);
   });
 
-  it("injects the post-delegation sentence only when flagged", () => {
-    const withBoundary = buildCurrentUserInputWrapper({
+  it("uses the restored wrapper instead of a STANDARD transition sentence", () => {
+    const restored = buildCurrentUserInputWrapper({
       mode: "interactive",
       postDelegationBoundary: true,
     });
     const without = buildCurrentUserInputWrapper({ mode: "interactive" });
-    assert.equal(withBoundary.includes(POST_DELEGATION_AUTHORING_BOUNDARY), true);
+    assert.equal(restored.includes(POST_DELEGATION_RESTORED_OWNER_TITLE), true);
+    assert.equal(restored.includes(POST_DELEGATION_AUTHORING_BOUNDARY), false);
+    assert.equal(without.includes(POST_DELEGATION_RESTORED_OWNER_TITLE), false);
     assert.equal(without.includes(POST_DELEGATION_AUTHORING_BOUNDARY), false);
-    assert.equal(withBoundary.includes(without.split("\n").slice(0, 4).join("\n")), true);
   });
 
   it("persistent and turn-only coauthor owners do not include the standard owner", () => {
@@ -422,7 +424,7 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(last, new RegExp(POST_DELEGATION_AUTHORING_BOUNDARY));
   });
 
-  it("buildContext post-delegation STANDARD turn injects one compact sentence only", () => {
+  it("buildContext transition turn uses POST-DELEGATION RESTORED only", () => {
     const built = buildContext({
       charName: "테스트_AI_캐릭터",
       chunks: [],
@@ -446,11 +448,17 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
       completedTurns: 2,
     });
     assert.equal(built.meta.runtimeMode, "interactive");
-    assert.match(built.systemPrompt, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
+    assert.match(
+      built.systemPrompt,
+      new RegExp(POST_DELEGATION_RESTORED_OWNER_TITLE.replace(/[[\]]/g, "\\$&"))
+    );
+    assert.doesNotMatch(built.systemPrompt, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
     assert.doesNotMatch(built.systemPrompt, /CURRENT-TURN OOC DELEGATION/);
+    assert.doesNotMatch(built.systemPrompt, /INTERACTIVE USER OWNERSHIP — ABSOLUTE/);
     const last = built.history[built.history.length - 1]?.content ?? "";
-    assert.equal(last.includes(POST_DELEGATION_AUTHORING_BOUNDARY), true);
-    assert.equal(last.split(POST_DELEGATION_AUTHORING_BOUNDARY).length - 1, 1);
+    assert.equal(last.includes(POST_DELEGATION_RESTORED_OWNER_TITLE), true);
+    assert.equal(last.includes(POST_DELEGATION_AUTHORING_BOUNDARY), false);
+    assert.equal(last.split(POST_DELEGATION_RESTORED_OWNER_TITLE).length - 1, 1);
   });
 
   it("natural-completion allowance remains on STANDARD", () => {

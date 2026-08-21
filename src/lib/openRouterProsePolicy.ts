@@ -29,6 +29,7 @@ export type OpenRouterKoreanProseTopOpts = {
   autoProgressionEnabled?: boolean;
   impersonationOn?: boolean;
   currentTurnDelegated?: boolean;
+  postDelegationRestored?: boolean;
   party?: boolean;
 };
 

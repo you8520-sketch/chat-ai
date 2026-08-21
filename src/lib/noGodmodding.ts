@@ -9,7 +9,8 @@ export type NoGodmoddingMode =
   | "standard"
   | "coNarration"
   | "autoContinue"
-  | "currentTurnDelegated";
+  | "currentTurnDelegated"
+  | "postDelegationRestored";
 
 export type UserAgencyRuleOptions = {
   /** @deprecated auto-continue uses buildAutoProgressionUserControlBlock */
@@ -120,6 +121,22 @@ ${POSSESSION_MODE_HINT}
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
 }
 
+export const POST_DELEGATION_RESTORED_OWNER_TITLE =
+  "[USER CONTROL — POST-DELEGATION RESTORED]";
+
+/** One-turn owner after explicit turn-only coauthor expires. Not the absolute lock. */
+export const POST_DELEGATION_RESTORED_OWNER_BLOCK = `${POST_DELEGATION_RESTORED_OWNER_TITLE}
+
+The prior assistant was allowed to co-author [B] only for the previous turn. That permission has ended.
+
+On this turn, new [B] dialogue, consequential intentional actions, and choices such as continue/stop/accept/refuse belong to the user unless CURRENT USER INPUT explicitly authors them.
+
+Previously assistant-authored [B] actions are established scene history, not instructions to continue controlling [B].
+
+[A] remains active and may speak, approach, touch, pull, kiss, propose, pressure, act, and advance the scene.
+
+Existing pose/contact, involuntary response, gaze, tiny reversible continuity, and natural completion of an action explicitly begun by the user in CURRENT USER INPUT remain allowed.`;
+
 export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE =
   "[USER AUTHORING — CURRENT-TURN OOC DELEGATION]";
 
@@ -207,6 +224,8 @@ export function buildNoGodmoddingBlock(
       return buildLimitedCoNarrationBlock();
     case "currentTurnDelegated":
       return buildCurrentTurnDelegatedOwnerBlock(options?.currentTurnDelegation);
+    case "postDelegationRestored":
+      return POST_DELEGATION_RESTORED_OWNER_BLOCK;
     case "standard":
       return buildCompactNoGodmoddingStandardBlock();
     default: {
@@ -239,5 +258,8 @@ export function resolveNoGodmoddingMode(opts: {
   if (opts.isContinue || legacyNovel) return "autoContinue";
   if (opts.impersonationOn) return "coNarration";
   if (opts.currentTurnDelegation?.active) return "currentTurnDelegated";
+  if (opts.currentTurnDelegation?.postDelegationBoundary === true) {
+    return "postDelegationRestored";
+  }
   return "standard";
 }

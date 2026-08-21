@@ -483,6 +483,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     autoProgressionEnabled,
     currentTurnDelegated,
+    postDelegationRestored: postDelegationBoundary,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
@@ -507,6 +508,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         autoProgressionEnabled,
         impersonationOn: oocLimitedCoNarration,
         currentTurnDelegated,
+        postDelegationRestored: postDelegationBoundary,
         party: input.party,
       }),
       "cacheRules"
@@ -548,6 +550,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     autoProgressionEnabled,
     currentTurnDelegated,
+    postDelegationRestored: postDelegationBoundary,
     userName: personaLabel,
   });
 

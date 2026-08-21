@@ -97,13 +97,9 @@ export function shouldInjectPostDelegationBoundary(input: {
   currentMode: UserCoauthorMode;
 }): boolean {
   if (input.currentMode !== "OFF") return false;
-  const current = input.currentDirective;
-  const currentSuppresses =
-    current.duration !== "none" &&
-    (current.dialogue === "deny" || current.majorActions === "deny") &&
-    current.dialogue !== "grant" &&
-    current.majorActions !== "grant";
-  if (currentSuppresses) return true;
+  // Current-turn revoke/suppress stays on the existing STANDARD + user-OOC path.
+  // This flag is only the one-turn restored owner after a turn-only grant expires.
+  if (input.currentDirective.duration !== "none") return false;
   const previous = resolveUserCoauthorDirective({
     currentUserInput: input.previousUserInput ?? "",
   });

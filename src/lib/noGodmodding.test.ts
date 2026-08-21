@@ -86,6 +86,28 @@ describe("buildNoGodmoddingBlock", () => {
     assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
   });
 
+  it("postDelegationRestored is a one-turn owner, not STANDARD or ABSOLUTE", () => {
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "postDelegationRestored");
+    assert.match(block, /POST-DELEGATION RESTORED/);
+    assert.match(block, /That permission has ended/);
+    assert.match(block, /\[A\] remains active/);
+    assert.doesNotMatch(block, /COLLABORATIVE INTERACTIVE/);
+    assert.doesNotMatch(block, /CURRENT-TURN OOC DELEGATION/);
+    assert.doesNotMatch(block, /INTERACTIVE USER OWNERSHIP — ABSOLUTE/);
+    assert.equal(
+      resolveNoGodmoddingMode({
+        currentTurnDelegation: {
+          active: false,
+          allowDialogue: false,
+          allowMajorActions: false,
+          source: null,
+          postDelegationBoundary: true,
+        },
+      }),
+      "postDelegationRestored"
+    );
+  });
+
   it("currentTurnDelegated is a scoped owner, not coNarration", () => {
     const block = buildNoGodmoddingBlock(
       aiCharacterName,
