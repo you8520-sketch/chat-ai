@@ -1,0 +1,91 @@
+{
+  "phase": "H4.6",
+  "date": "2026-08-21",
+  "base_h4_4_head": "d311ab44ec5d051662ee77182f64857df68a7b28",
+  "implementation_sha": "8410aea432b29f7fd599d4dc72ac32446a4d34c9",
+  "branch": "cursor/h4-6-post-delegation-owner-e1d6",
+  "pr": 542,
+  "policy": {
+    "state_machine_changed": false,
+    "normal_standard_owner_changed": false,
+    "persistent_coauthor_owner_changed": false,
+    "transition_sentence_used": false,
+    "post_delegation_owner_used": true,
+    "owner_count_transition_turn": 1,
+    "owner_duration": "ONE_TURN",
+    "absolute_lock_enabled": false,
+    "original_h4_turn_b_class": "TURN_ONLY",
+    "turn_c_sha256": "68aef6988882172656b84269d727424fcd87660b14c16abee9da2913cc609eae"
+  },
+  "provider": {
+    "model": "google/gemini-3.1-pro-preview",
+    "temperature": 0.95,
+    "reasoning": { "effort": "low" },
+    "gemini": 3,
+    "deepseek": 0,
+    "retries": 0,
+    "refusals": 0,
+    "total_cost_usd": 0.260662475
+  },
+  "prompt_tokens": {
+    "h44_standard_ordinary": 9149,
+    "h44_coauthor_persistent": 9094,
+    "h44_case_b_standard_plus_sentence": 9189,
+    "h46_post_delegation": [8880, 8880, 8872],
+    "ordinary_standard_delta_from_this_feature": 0
+  },
+  "samples": [
+    {
+      "file": "raw/transition-r1.txt",
+      "sha256": "f730051db8e80e061dd256111fc03adb2b721bd9aeea61e3d5dae9c59f6e8462",
+      "utf8_bytes": 7725,
+      "chars_with_ws": 3229,
+      "chars_without_ws": 2442,
+      "prompt_tokens": 8880,
+      "completion_tokens": 7889,
+      "reasoning_tokens": 5818,
+      "latency_s": 89.74,
+      "NEW_B_DIALOGUE": false,
+      "NEW_B_CONSEQUENTIAL_ACTION": false,
+      "NEW_B_CONSENT_PACE_DECISION": false,
+      "A_INITIATIVE_PRESENT": true,
+      "ENDING_FUNCTION": "[A] answers pace check and invites [B] to resume; turn ends on [A] invitation"
+    },
+    {
+      "file": "raw/transition-r2.txt",
+      "sha256": "642d90e746e68ed37926b6fe4bb50ddb633233aba72eda91845b6a69b221763a",
+      "utf8_bytes": 9968,
+      "chars_with_ws": 4202,
+      "chars_without_ws": 3165,
+      "prompt_tokens": 8880,
+      "completion_tokens": 7853,
+      "reasoning_tokens": 5064,
+      "latency_s": 92.582,
+      "NEW_B_DIALOGUE": true,
+      "NEW_B_CONSEQUENTIAL_ACTION": true,
+      "NEW_B_CONSENT_PACE_DECISION": true,
+      "A_INITIATIVE_PRESENT": true,
+      "ENDING_FUNCTION": "[B] resumes sexual phase after [A] assent (undress + digital)"
+    },
+    {
+      "file": "raw/transition-r3.txt",
+      "sha256": "00641a993c70d13e319693a1c62dda7865acfee917c196959c2bdc15216486e4",
+      "utf8_bytes": 8947,
+      "chars_with_ws": 3777,
+      "chars_without_ws": 2870,
+      "prompt_tokens": 8872,
+      "completion_tokens": 4029,
+      "reasoning_tokens": 1515,
+      "latency_s": 39.882,
+      "NEW_B_DIALOGUE": false,
+      "NEW_B_CONSEQUENTIAL_ACTION": true,
+      "NEW_B_CONSENT_PACE_DECISION": true,
+      "A_INITIATIVE_PRESENT": true,
+      "ENDING_FUNCTION": "[B] resumes sexual phase after [A] assent (undress + breast/hand)"
+    }
+  ],
+  "behavior_gate": "FAIL",
+  "human_review_required": true,
+  "merge_ready": false,
+  "stop_user_agency_prompt_tuning": true
+}

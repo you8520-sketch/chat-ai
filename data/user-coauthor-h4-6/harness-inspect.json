@@ -1,0 +1,44 @@
+{
+  "model": "google/gemini-3.1-pro-preview",
+  "model_alias_check": "google/gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "reasoning": {
+    "effort": "low"
+  },
+  "b_turn_only": "OOC: 이번 턴만 유저 페르소나 말투로 내 대사를 써주고, 내가 그녀를 끌어안으며 키스하는 장면과 이어서 행동도 진행해. 캐릭터의 반응도 서술해줘.",
+  "c_input": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+  "B": {
+    "currentInput": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+    "currentInputSha256": "68aef6988882172656b84269d727424fcd87660b14c16abee9da2913cc609eae",
+    "turnBSha256": "cf35fca5c03afa1c51e0e8e5a72be8d1a990e83c9fb9017048fb7e52533d9590",
+    "persistentBefore": "OFF",
+    "persistentAfter": "OFF",
+    "currentMode": "OFF",
+    "directive": {
+      "duration": "none",
+      "dialogue": "unchanged",
+      "majorActions": "unchanged"
+    },
+    "duration": null,
+    "postDelegationBoundary": true,
+    "runtimeMode": "interactive",
+    "estimatedInputTokens": 14106,
+    "lastUserChars": 683,
+    "lastUserHasLock": false,
+    "lastUserHasRestored": true,
+    "lastUserHasH44Sentence": false,
+    "lastUserHasH45Sentence": false,
+    "lastUserHasStandardOwner": false,
+    "lastUserHasCoauthorOwner": false,
+    "lastUserHasPersistentWrapper": false,
+    "lastUserHasTurnOnlyWrapper": false,
+    "systemHasStandardOwner": false,
+    "systemHasCoauthorOwner": false,
+    "systemHasRestoredOwner": true,
+    "systemHasAbsolute": false,
+    "systemHasGemini31Supplement": false,
+    "systemHasH44Sentence": false,
+    "systemHasH45Sentence": false,
+    "ownerCount": 1
+  }
+}
