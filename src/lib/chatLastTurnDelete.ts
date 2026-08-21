@@ -15,6 +15,7 @@ import {
   NumericTurnDeleteChainNotReadyError,
   revertNumericStateForDeletedAssistantCore,
 } from "@/lib/rpNumericState/turnDeleteRevert";
+import { recomputeAndPersistUserCoauthorMode } from "@/lib/userCoauthorState";
 
 type Db = Database.Database;
 
@@ -108,6 +109,7 @@ export function executeLastTurnDeleteTransaction(
     if (engagementDelta > 0) {
       incrementCharacterTotalTurns(db, input.characterId, -engagementDelta);
     }
+    recomputeAndPersistUserCoauthorMode(db, input.chatId);
     return { deletedIds: idsToDelete, engagementDelta, numericAffectedStateCount };
   });
 

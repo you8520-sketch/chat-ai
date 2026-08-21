@@ -1,5 +1,8 @@
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
-import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
+import type {
+  CurrentTurnAuthoringDelegation,
+  UserCoauthorDuration,
+} from "@/lib/currentTurnUserAuthoringDelegation";
 
 /** Production modes only — legacy `novel` removed; normalize to autoContinue at request boundary. */
 export type NoGodmoddingMode =
@@ -120,43 +123,75 @@ ${NO_FALSE_SHARED_MEMORY_RULE}`;
 export const CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE =
   "[USER AUTHORING — CURRENT-TURN OOC DELEGATION]";
 
+export const USER_COAUTHOR_OWNER_TITLE = CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE;
+
+export const CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE =
+  "현재 사용자 입력이 이전에 어시스턴트가 쓴 [B] 대사·행동보다 우선한다. 방금 입력과 모순되는 페르소나 진행은 쓰지 않는다.";
+
 export type NoGodmoddingBlockOptions = {
   currentTurnDelegation?: CurrentTurnAuthoringDelegation;
 };
 
-function delegatedScopeLines(delegation?: CurrentTurnAuthoringDelegation): string {
+function resolveCoauthorDuration(
+  delegation?: CurrentTurnAuthoringDelegation
+): UserCoauthorDuration {
+  return delegation?.duration === "persistent" ? "persistent" : "turn";
+}
+
+function coauthorDurationLine(duration: UserCoauthorDuration): string {
+  if (duration === "persistent") {
+    return "사용자가 유저 페르소나 공동 서술을 켜 두었다. 철회하기 전까지 이후 일반 입력 턴에도 같은 범위가 유지된다.";
+  }
+  return "현재 사용자가 OOC로 이번 턴에 한해 유저 페르소나 서술을 위임했다. 이후 일반 입력 턴의 권한이 아니다.";
+}
+
+function delegatedScopeLines(
+  delegation?: CurrentTurnAuthoringDelegation,
+  duration: UserCoauthorDuration = "turn"
+): string {
   const allowDialogue = delegation?.allowDialogue === true;
   const allowMajorActions = delegation?.allowMajorActions === true;
+  const turnLimited = duration === "turn";
   if (allowDialogue && allowMajorActions) {
-    return `이번 턴에 [B]의 대사와 중요한 행동을 페르소나에 맞게 작성할 수 있다.
-위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)과 장면 국소적 후속 동작·반응·접근/후퇴는 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니고, 이번 턴에만 적용된다.
+    return `[B]의 대사와 중요한 행동을 페르소나에 맞게 작성할 수 있다.
+위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)과 장면 국소적 후속 동작·반응·접근/후퇴는 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
 현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.`;
   }
   if (allowDialogue) {
-    return `이번 턴에 [B]의 직접 대사를 페르소나 말투·성격에 맞게 작성할 수 있다.
+    return `[B]의 직접 대사를 페르소나 말투·성격에 맞게 작성할 수 있다.
 새로운 중요한 자발적 행동·동의/거절·관계·정체성 결정은 현재 입력이 이미 확정한 범위 밖에서는 대신하지 않는다.`;
   }
   if (allowMajorActions) {
-    return `이번 턴에 [B]의 중요한 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
+    return `[B]의 중요한 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
 요청된 장면을 자연스럽게 완성하기 위한 국소적 동작·반응·선택(접근·후퇴·망설임·수락·거절)은 허용한다. 현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.
 현재 입력에 없는 새 [B] 대사는 만들지 않는다.`;
   }
   return `이번 턴의 위임 범위가 없으면 [USER CONTROL — COLLABORATIVE INTERACTIVE]와 같이 새 대사·중요 행동을 대신하지 않는다.`;
 }
 
-/** Current-turn OOC delegation owner — not LIMITED CO-NARRATION, not autoContinue. */
-export function buildCurrentTurnDelegatedOwnerBlock(
+/** Parameterized coauthor owner — turn-only or persistent. Not LIMITED CO-NARRATION. */
+export function buildUserCoauthorOwnerBlock(
   delegation?: CurrentTurnAuthoringDelegation
 ): string {
-  return `${CURRENT_TURN_OOC_DELEGATION_OWNER_TITLE}
+  const duration = resolveCoauthorDuration(delegation);
+  return `${USER_COAUTHOR_OWNER_TITLE}
 
-현재 사용자가 OOC로 이번 턴에 한해 유저 페르소나 서술을 위임했다. 이후 일반 입력 턴의 권한이 아니다.
+${coauthorDurationLine(duration)}
 
 [USER_PERSONA], 확정된 관계, 현재 장면, 실제 대화·기억을 정본으로 따른다. 새 성격을 만들지 않는다.
 
-${delegatedScopeLines(delegation)}
+${delegatedScopeLines(delegation, duration)}
+
+${CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE}
 
 짧은 표정·시선·호흡·습관·이미 시작된 상태의 자연스러운 마무리는 기존과 같이 공동 서술할 수 있다.`;
+}
+
+/** @deprecated Use buildUserCoauthorOwnerBlock. */
+export function buildCurrentTurnDelegatedOwnerBlock(
+  delegation?: CurrentTurnAuthoringDelegation
+): string {
+  return buildUserCoauthorOwnerBlock(delegation);
 }
 
 export function buildNoGodmoddingBlock(

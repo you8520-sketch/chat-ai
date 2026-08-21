@@ -2,6 +2,7 @@ import {
   chatRuntimeModeAllowsUserNarration,
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
+import type { UserCoauthorDuration } from "@/lib/currentTurnUserAuthoringDelegation";
 
 export const CURRENT_USER_INPUT_HEADER = "[CURRENT USER INPUT]";
 
@@ -49,11 +50,17 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
  * Owns completed-input semantics + continue-from-consequence (no separate
  * input-echo owner). REPLACE-in-place only — do not append a second block.
  */
-function buildCollaborativeInteractiveWrapper(): string {
+export const POST_DELEGATION_AUTHORING_BOUNDARY =
+  "Earlier assistant-authored [B] content is scene history only; when authoring permission is off, natural completion applies only to [B] actions explicitly started by the user in the current input.";
+
+function buildCollaborativeInteractiveWrapper(postDelegationBoundary?: boolean): string {
+  const boundary = postDelegationBoundary
+    ? `\n${POST_DELEGATION_AUTHORING_BOUNDARY}`
+    : "";
   return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input and the newest state of the scene.
 Continue from what it changes now rather than restating or explaining the input.
-[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
+[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.${boundary}
 Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].`;
 }
 
@@ -70,13 +77,15 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
  *    aligned with COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Default gate is OFF.
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
  *    full co-narration semantics preserved unchanged.
- *  - current_turn_ooc_delegated: keep the OOC instruction verbatim; owner
- *    controls delegated [B] scope for this turn only.
+ *  - current_turn_ooc_delegated: one coauthor wrapper (turn-only or persistent).
+ *    Optional post-delegation sentence is STANDARD-only and never stacked here.
  */
 export function buildCurrentUserInputWrapper(opts?: {
   mode?: ChatRuntimeMode;
   personaName?: string;
   ownershipLockEnabled?: boolean;
+  coauthorDuration?: UserCoauthorDuration | null;
+  postDelegationBoundary?: boolean;
 }): string {
   const mode = opts?.mode;
   const allows = mode != null && chatRuntimeModeAllowsUserNarration(mode);
@@ -90,6 +99,13 @@ If the input contains parentheses or action text, treat it as completed user inp
   }
 
   if (mode === "current_turn_ooc_delegated") {
+    if (opts?.coauthorDuration === "persistent") {
+      return `${CURRENT_USER_INPUT_HEADER}
+The following is the user's completed input.
+The user has enabled ongoing persona co-authoring until revoked.
+Keep any OOC text as written. Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the granted scope.
+Current user input overrides prior assistant-authored [B] dialogue or actions.`;
+    }
     return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input, including an explicit current-turn OOC authoring instruction.
 Keep the OOC text as written (style, tone, and qualifiers). Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the delegated scope only.
@@ -98,7 +114,7 @@ This delegation applies to THIS TURN only.`;
 
   // interactive
   if (!opts?.ownershipLockEnabled) {
-    return buildCollaborativeInteractiveWrapper();
+    return buildCollaborativeInteractiveWrapper(opts?.postDelegationBoundary === true);
   }
 
   // interactive + ownership lock enabled — strict user ownership recency lock.
@@ -153,6 +169,8 @@ export function wrapCurrentUserInput(
     personaName?: string;
     ownershipLockEnabled?: boolean;
     ownershipTerminalEchoEnabled?: boolean;
+    coauthorDuration?: UserCoauthorDuration | null;
+    postDelegationBoundary?: boolean;
   }
 ): string {
   const body = userContent.trim();
