@@ -301,4 +301,23 @@ describe("resolveCurrentTurnUserAuthoringDelegation", () => {
       { active: true, allowDialogue: true, allowMajorActions: true }
     );
   });
+
+  it("H1 — natural-Korean 출력/서술 OOC with specified user action", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput:
+        "OOC: 유저의 대사를 페르소나 참고해서 출력해주고 유저가 캐릭터에게 삽입하는 장면과 캐릭터의 반응을 서술하라",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, true);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("H1 — 페르소나 참고만 해 is not delegation", () => {
+    assert.equal(
+      resolveCurrentTurnUserAuthoringDelegation({
+        currentUserInput: "OOC: 페르소나를 참고만 해.",
+      }).active,
+      false
+    );
+  });
 });
