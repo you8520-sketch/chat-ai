@@ -97,8 +97,11 @@ export function decideCharacterListing(input: {
   }
 
   const imageUrls = assets.map((a) => a.url);
+  // Private saves store moderation_status=approved because review is skipped.
+  // That is not proof of a prior human image verdict, so it must not be reused.
   const canReuseApproved =
     existing?.moderationStatus === "approved" &&
+    existing.visibility !== "private" &&
     Array.isArray(existing.imageUrls) &&
     sameImageList(existing.imageUrls, imageUrls) &&
     Boolean(existing.nsfw) === nsfw;

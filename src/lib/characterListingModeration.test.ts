@@ -161,23 +161,40 @@ describe("character listing moderation", () => {
     assert.match(decided.moderationNote, /레거시/);
   });
 
-  it("4. previous approved verdict is reused even when currently private", () => {
+  it("4. private-skip approved must not bypass adult review on public switch", () => {
+    const decided = decideCharacterListing({
+      requestedVisibility: "public",
+      nsfw: true,
+      assets: [adultAsset],
+      existing: {
+        shareSlug: null,
+        visibility: "private",
+        moderationStatus: "approved",
+        moderationNote: "비공개 — 검수 생략",
+        imageUrls: [adultAsset.url],
+        nsfw: true,
+      },
+    });
+    assert.equal(decided.moderationStatus, "pending");
+    assert.equal(decided.awaitingAdmin, true);
+  });
+
+  it("4b. public prior image approval is still reusable for the same assets", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
       assets: [cleanAsset],
       existing: {
         shareSlug: "abc",
-        visibility: "private",
+        visibility: "public",
         moderationStatus: "approved",
-        moderationNote: "이전 승인",
+        moderationNote: "관리자 승인",
         imageUrls: [cleanAsset.url],
         nsfw: true,
       },
     });
     assert.equal(decided.moderationStatus, "approved");
     assert.equal(decided.awaitingAdmin, false);
-    assert.equal(decided.finalVisibility, "public");
   });
 
   it("5. changed image list does not reuse the old approval", () => {
