@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCard, { type CharacterRow, CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
+import UserPreferenceControls from "@/components/UserPreferenceControls";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
 import { listableWhere } from "@/lib/characterVisibility";
@@ -186,6 +187,15 @@ export default async function TabPage({
       {tab === "ranking" && (
         <>
           <p className={cn(studioType.helper, "mt-2")}>{rankingPeriodDesc(rankingPeriod)}</p>
+          <div className="mt-5">
+            <UserPreferenceControls
+              isAdult={!!user?.is_adult}
+              nsfwOn={!!user?.nsfw_on}
+              pref={(user?.pref as "female" | "male" | null) ?? null}
+              loggedIn={loggedIn}
+              variant="homeRow"
+            />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {RANKING_PERIODS.map((period) => (
               <ChipLink

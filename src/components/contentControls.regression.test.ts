@@ -35,10 +35,32 @@ describe("content controls and navigation regression", () => {
     assert.doesNotMatch(mobileNav, /unreadCount/);
   });
 
+  it("shows public discovery tabs in the mobile home content", () => {
+    const home = read("src/app/page.tsx");
+    const desktopNav = read("src/components/HeaderMainNavRow.tsx");
+    assert.match(home, /MOBILE_DISCOVERY_TABS/);
+    assert.match(home, /\{ href: "\/tab\/new", label: "신작랭킹" \}/);
+    assert.match(home, /\{ href: "\/tab\/ranking", label: "랭킹" \}/);
+    assert.match(home, /\{ href: "\/trpg", label: "TRPG" \}/);
+    assert.match(home, /\{ href: "\/search", label: "검색" \}/);
+    assert.match(home, /variant="homeBanner"/);
+    assert.match(home, />\s*취향 설정\s*<\/Link>/);
+    assert.match(desktopNav, /\{ href: "\/trpg", label: "TRPG" \}/);
+    assert.doesNotMatch(desktopNav, /showTrpg/);
+  });
+
   it("does not reopen the home notice during an in-place preference refresh", () => {
     const popup = read("src/components/HomePopupNotice.tsx");
     assert.match(popup, /handledForThisHomeVisitRef = useRef\(false\)/);
     assert.match(popup, /if \(handledForThisHomeVisitRef\.current\) return/);
     assert.match(popup, /handledForThisHomeVisitRef\.current = true/);
+  });
+
+  it("shows the saved taste filter on ranking and applies it to the ranking query", () => {
+    const rankingPage = read("src/app/tab/[tab]/page.tsx");
+    assert.match(rankingPage, /tab === "ranking"[\s\S]*<UserPreferenceControls/);
+    assert.match(rankingPage, /pref=\{\(user\?\.pref as "female" \| "male" \| null\) \?\? null\}/);
+    assert.match(rankingPage, /variant="homeRow"/);
+    assert.match(rankingPage, /buildFilter\("c\."\)/);
   });
 });
