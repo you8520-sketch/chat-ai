@@ -47,5 +47,7 @@ describe("TRPG lobby re-enter CTA", () => {
     assert.doesNotMatch(room, /setInterval\([^)]*3000/);
     assert.match(room, /followLatest/);
     assert.match(room, /data-trpg-live-scene/);
+    assert.match(room, /bottomRef\.current\.scrollIntoView/);
+    assert.doesNotMatch(room, /observer\.observe\(content\)/);
   });
 });

@@ -22,19 +22,38 @@ describe("TRPG follow-latest scroll", () => {
     assert.equal(isNearBottom({ scrollHeight: 2000, scrollTop: 1780, clientHeight: 100 }), true);
   });
 
-  it("does not restore delayed force-scroll or a global ResizeObserver", () => {
+  it("settles on the latest scene while preserving manual history browsing", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /isNearBottom/);
     assert.match(room, /followLatest/);
     assert.match(room, /최신으로/);
-    assert.match(room, /livePresentationActivityKey/);
-    assert.match(room, /data-trpg-live-scene/);
-    assert.match(room, /ResizeObserver/);
+    assert.match(room, /bottomRef\.current\.scrollIntoView/);
+    assert.match(room, /requestAnimationFrame/);
+    assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
     assert.doesNotMatch(room, /setInterval\([^)]*3000/);
   });
 
-  it("follows cinematic activity only while the viewer is already at latest", () => {
+  it("keeps mobile campaign tabs fixed, visible, and touch friendly", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const rail = readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
+    assert.match(room, /fixed left-3 right-3 top-\[4\.5rem\]/);
+    assert.match(room, /aria-label="캠페인 도구"/);
+    assert.match(room, /pt-\[5\.25rem\] min-\[576px\]:pt-0/);
+    assert.doesNotMatch(room, /mobileMenuOpen/);
+    assert.match(rail, /grid grid-cols-3 gap-2/);
+    assert.match(rail, /min-h-14/);
+    assert.match(rail, /h-5 w-5/);
+  });
+
+  it("follows cinematic activity with a live-scene-only ResizeObserver", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /livePresentationActivityKey/);
+    assert.match(room, /data-trpg-live-scene/);
+    assert.match(room, /liveSceneRef\.current/);
+    assert.match(room, /ResizeObserver/);
+    assert.doesNotMatch(room, /observer\.observe\(content\)/);
+    assert.doesNotMatch(room, /observer\.observe\(quoteSelectContainerRef/);
     const actor1 = livePresentationActivityKey({
       roundNumber: 3,
       mode: "cinematic",

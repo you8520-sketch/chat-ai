@@ -10,6 +10,7 @@ const baseTabs = [
   { href: "/", label: "홈" },
   { href: "/tab/new", label: "신작" },
   { href: "/tab/ranking", label: "랭킹" },
+  { href: "/trpg", label: "TRPG" },
   { href: "/search", label: "검색" },
   { href: "/tab/following", label: "북마크/팔로잉" },
 ];
@@ -20,17 +21,16 @@ function isTabActive(pathname: string, href: string): boolean {
 }
 
 /** 데스크톱 상단 탭 — 모바일은 하단 탭 사용. 채팅방에서는 숨김 */
-export default function HeaderMainNavRow({ showTrpg = false }: { showTrpg?: boolean }) {
+export default function HeaderMainNavRow() {
   const pathname = usePathname();
   if (isChatRoomPathname(pathname)) return null;
-  const tabs = showTrpg ? [...baseTabs, { href: "/trpg", label: "TRPG" }] : baseTabs;
 
   return (
     <nav
       className="scrollbar-hide hidden max-w-[48vw] shrink items-stretch gap-0.5 overflow-x-auto overscroll-x-contain md:inline-flex xl:max-w-none"
       aria-label="주요 메뉴"
     >
-      {tabs.map((t) => {
+      {baseTabs.map((t) => {
         const active = isTabActive(pathname, t.href);
         return (
           <Link
