@@ -40,9 +40,9 @@ ${narration}
 
 const validJson = JSON.stringify({
   suggestions: [
-    { actionType: "investigate", text: "경첩부터 살핀다." },
-    { actionType: "persuade", text: "잠깐, 총부터 내려놓자." },
-    { actionType: "free", text: "한 발 물러선다." },
+    { stance: "good", actionType: "support", text: "부상자를 뒤로 물린다." },
+    { stance: "neutral", actionType: "investigate", text: "경첩부터 살핀다." },
+    { stance: "evil", actionType: "persuade", text: "퇴로를 막고 협박한다." },
   ],
 });
 
@@ -96,6 +96,8 @@ describe("TRPG reply suggestions", () => {
   });
 
   it("asks Flash for 지문 and 대사 in the 80–120 character band", () => {
+    assert.equal(TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS, 80);
+    assert.equal(TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS, 120);
     const { system } = buildReplySuggestionPublicContext({
       scene: "폐역",
       persona: null,
@@ -106,6 +108,9 @@ describe("TRPG reply suggestions", () => {
     assert.match(system, /stage \(지문\)/);
     assert.match(system, /speech \(대사\)/);
     assert.match(system, /Do not output speech-only/);
+    assert.match(system, /stance: good, neutral, evil/);
+    assert.match(system, /attack, defend, investigate, persuade, support, free/);
+    assert.doesNotMatch(system, /actionType must be one of: attack, defend, investigate, persuade, stealth/);
     assert.match(
       system,
       new RegExp(`${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS}`)
@@ -113,6 +118,10 @@ describe("TRPG reply suggestions", () => {
     const sample = system.match(/\{"suggestions":\[.*\]\}/);
     assert.ok(sample, "system prompt must include a JSON few-shot");
     const parsed = parseReplySuggestions(sample[0]);
+    assert.deepEqual(
+      parsed.map((row) => row.stance),
+      ["good", "neutral", "evil"]
+    );
     for (const row of parsed) {
       const n = Array.from(row.text).length;
       assert.ok(
@@ -128,12 +137,16 @@ describe("TRPG reply suggestions", () => {
     const parsed = parseReplySuggestions(validJson);
     assert.equal(parsed.length, 3);
     assert.deepEqual(
-      parsed.map((row) => row.actionType),
-      ["investigate", "persuade", "free"]
+      parsed.map((row) => row.stance),
+      ["good", "neutral", "evil"]
     );
-    assert.equal(parsed[0]?.stage, "경첩부터 살핀다.");
-    assert.equal(parsed[0]?.speech, "");
-    assert.throws(() => parseReplySuggestions(JSON.stringify({ suggestions: [{ actionType: "fly", text: "x" }] })));
+    assert.deepEqual(
+      parsed.map((row) => row.actionType),
+      ["support", "investigate", "persuade"]
+    );
+    assert.equal(parsed[1]?.stage, "경첩부터 살핀다.");
+    assert.equal(parsed[1]?.speech, "");
+    assert.throws(() => parseReplySuggestions(JSON.stringify({ suggestions: [{ stance: "good", actionType: "fly", text: "x" }] })));
   });
 
   it("parses stage and speech and composes tap-to-fill text", () => {
@@ -141,16 +154,19 @@ describe("TRPG reply suggestions", () => {
       JSON.stringify({
         suggestions: [
           {
+            stance: "neutral",
             actionType: "investigate",
             stage: "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.",
             speech: "잠깐. 손대지 마. 내가 먼저 볼게.",
           },
           {
-            actionType: "stealth",
-            지문: "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.",
+            stance: "good",
+            actionType: "support",
+            지문: "다친 동료를 자기 뒤로 물린 채 문 너머를 향해 손바닥을 든다.",
             대사: "",
           },
           {
+            stance: "evil",
             actionType: "persuade",
             text: "한 손을 들어 상대를 멈춘다. 「잠깐. 서로 총부터 내려놓고 얘기하지.」",
           },
@@ -158,15 +174,19 @@ describe("TRPG reply suggestions", () => {
       })
     );
     assert.equal(parsed.length, 3);
-    assert.equal(parsed[0]?.stage, "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.");
-    assert.equal(parsed[0]?.speech, "잠깐. 손대지 마. 내가 먼저 볼게.");
+    assert.deepEqual(
+      parsed.map((row) => row.stance),
+      ["good", "neutral", "evil"]
+    );
+    assert.equal(parsed[1]?.stage, "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.");
+    assert.equal(parsed[1]?.speech, "잠깐. 손대지 마. 내가 먼저 볼게.");
     assert.equal(
-      parsed[0]?.text,
+      parsed[1]?.text,
       "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다. 「잠깐. 손대지 마. 내가 먼저 볼게.」"
     );
-    assert.equal(parsed[1]?.stage, "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.");
-    assert.equal(parsed[1]?.speech, "");
-    assert.equal(parsed[1]?.text, "벽에 붙어 발소리를 죽인 채 모퉁이를 살핀다.");
+    assert.equal(parsed[0]?.stage, "다친 동료를 자기 뒤로 물린 채 문 너머를 향해 손바닥을 든다.");
+    assert.equal(parsed[0]?.speech, "");
+    assert.equal(parsed[0]?.text, "다친 동료를 자기 뒤로 물린 채 문 너머를 향해 손바닥을 든다.");
     assert.equal(parsed[2]?.stage, "한 손을 들어 상대를 멈춘다.");
     assert.equal(parsed[2]?.speech, "잠깐. 서로 총부터 내려놓고 얘기하지.");
   });
@@ -176,6 +196,8 @@ describe("TRPG reply suggestions", () => {
     assert.match(room, /item\.stage/);
     assert.match(room, /item\.speech/);
     assert.match(room, /「\{item\.speech\}」/);
+    assert.match(room, /replyStanceLabelKo/);
+    assert.match(room, /data-trpg-reply-stance/);
   });
 
   it("scrolls the room down to the suggestion list when examples appear", () => {
@@ -230,18 +252,34 @@ describe("TRPG reply suggestions", () => {
     assert.equal(extractReplySuggestionCompletionText({ choices: [{ message: { content: null } }] }), "");
   });
 
-  it("accepts action_type aliases and fewer than three valid rows", () => {
+  it("accepts action_type aliases when the exact three stances are present", () => {
     const parsed = parseReplySuggestions(
       JSON.stringify({
         suggestions: [
-          { action_type: "investigate", text: "경첩부터 살핀다." },
-          { actionType: "설득", text: "잠깐, 총부터 내려놓자." },
+          { stance: "neutral", action_type: "investigate", text: "경첩부터 살핀다." },
+          { stance: "evil", actionType: "설득", text: "잠깐, 총부터 내려놓자." },
+          { stance: "good", actionType: "support", text: "부상자를 뒤로 물린다." },
         ],
       })
     );
     assert.deepEqual(
       parsed.map((row) => row.actionType),
-      ["investigate", "persuade"]
+      ["support", "investigate", "persuade"]
+    );
+  });
+
+  it("rejects fewer than three unique stances", () => {
+    assert.throws(
+      () =>
+        parseReplySuggestions(
+          JSON.stringify({
+            suggestions: [
+              { stance: "good", actionType: "support", text: "부상자를 뒤로 물린다." },
+              { stance: "evil", actionType: "persuade", text: "퇴로를 막고 협박한다." },
+            ],
+          })
+        ),
+      /행동 예시를 읽지 못했습니다/
     );
   });
 

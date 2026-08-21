@@ -14,8 +14,27 @@ export const TRPG_ACTION_TYPES = [
 
 export type TrpgActionType = (typeof TRPG_ACTION_TYPES)[number];
 
+/**
+ * Composer quick-action chips only. Backend still owns stealth / use_item
+ * for server semantics and contextual owners; those chips stay hidden.
+ */
+export const TRPG_VISIBLE_ACTION_TYPES = [
+  "attack",
+  "defend",
+  "investigate",
+  "persuade",
+  "support",
+  "free",
+] as const;
+
+export type TrpgVisibleActionType = (typeof TRPG_VISIBLE_ACTION_TYPES)[number];
+
 export function isTrpgActionType(value: string): value is TrpgActionType {
   return (TRPG_ACTION_TYPES as readonly string[]).includes(value);
+}
+
+export function isTrpgVisibleActionType(value: string): value is TrpgVisibleActionType {
+  return (TRPG_VISIBLE_ACTION_TYPES as readonly string[]).includes(value);
 }
 
 /** Preferred sheet keys for each action, first match on the scenario sheet wins. */

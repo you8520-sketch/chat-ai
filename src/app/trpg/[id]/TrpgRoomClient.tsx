@@ -10,7 +10,11 @@ import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
 import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
-import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
+import {
+  applyReplySuggestionClick,
+  type TrpgInputOrigin,
+  type TrpgReplySuggestion,
+} from "@/lib/trpg/replySuggestions";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import {
   loadTrpgActionSuggestionsCache,
@@ -436,9 +440,10 @@ export default function TrpgRoomClient({
           suggestionsEnabled={suggestionsEnabled}
           onToggleSuggestions={toggleSuggestionsEnabled}
           onPickSuggestion={(item) => {
-            setActionType(item.actionType);
-            setActionBody(item.text);
-            setInputOrigin("reply_suggestion");
+            const filled = applyReplySuggestionClick(item);
+            setActionType(filled.actionType);
+            setActionBody(filled.actionBody);
+            setInputOrigin(filled.inputOrigin);
           }}
           onSendAction={() =>
             void run(`/api/trpg/campaigns/${snap.id}/action`, {
