@@ -1481,6 +1481,7 @@ function SceneTurn({
                     dialogueAccent={false}
                     assets={scenarioAssets}
                     paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
+                    hideMobileLabel={showResultLane}
                     reveal={
                       action.kind === "ai_character" &&
                       isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)

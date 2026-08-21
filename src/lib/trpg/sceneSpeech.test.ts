@@ -142,6 +142,14 @@ describe("parseTrpgSceneSpeech", () => {
     const named = fs.readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
     assert.match(named, /paragraphMode = "author"/);
     assert.match(named, /streaming=\{reveal\}/);
+    assert.match(named, /grid-cols-1/);
+    assert.match(named, /sm:grid-cols-\[5\.75rem_minmax\(0,1fr\)\]/);
+    assert.match(named, /hideMobileLabel/);
+    assert.match(named, /showRail \? "pl-3 sm:pl-4" : "sm:pl-4"/);
+    const resultLane = fs.readFileSync("src/app/trpg/TrpgRollResultLane.tsx", "utf8");
+    assert.match(resultLane, /items-center justify-between/);
+    assert.match(resultLane, /compactName[\s\S]*\{d20\}[\s\S]*\{outcome\}/);
+    assert.match(room, /hideMobileLabel=\{showResultLane\}/);
     const reveal = fs.readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
     assert.match(reveal, /trpgRevealChunkSize/);
     assert.match(reveal, /prefers-reduced-motion/);

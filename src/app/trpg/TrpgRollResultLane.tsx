@@ -22,12 +22,17 @@ export default function TrpgRollResultLane({
 
   if (layout === "mobile") {
     return (
-      <div className="mb-2 flex items-baseline gap-2 sm:hidden" data-trpg-roll-result="mobile">
-        <span className={`text-[30px] font-extrabold leading-none tabular-nums ${numberClass}`}>{d20}</span>
-        <span className={`text-[12px] font-semibold ${outcomeClass}`}>{outcome}</span>
+      <div
+        className="mb-3 flex min-h-12 items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-black/10 px-3 py-2 sm:hidden"
+        data-trpg-roll-result="mobile"
+      >
         {compactName ? (
-          <span className="min-w-0 truncate text-[12px] text-zinc-500">· {compactName}</span>
+          <span className="min-w-0 truncate text-[13px] font-bold text-zinc-200">{compactName}</span>
         ) : null}
+        <span className="ml-auto flex shrink-0 items-baseline gap-2">
+          <span className={`text-[28px] font-extrabold leading-none tabular-nums ${numberClass}`}>{d20}</span>
+          <span className={`text-[12px] font-semibold ${outcomeClass}`}>{outcome}</span>
+        </span>
       </div>
     );
   }

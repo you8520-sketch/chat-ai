@@ -68,6 +68,7 @@ export default function TrpgNamedProse({
   reveal = false,
   paragraphMode = "author",
   dialogueAccent = true,
+  hideMobileLabel = false,
 }: {
   name?: string | null;
   hint?: string;
@@ -82,6 +83,8 @@ export default function TrpgNamedProse({
   paragraphMode?: "ai" | "author";
   /** Global chat keeps dialogue rails. TRPG action cards pass false. */
   dialogueAccent?: boolean;
+  /** A mobile roll header can own the speaker label so prose starts at full width below it. */
+  hideMobileLabel?: boolean;
 }) {
   const shown = useRevealedText(text, reveal);
   if (!shown.trim()) return null;
@@ -93,17 +96,24 @@ export default function TrpgNamedProse({
       : "border-l-[3px] border-orange-400"
     : "";
   const nameColor = variant === "user" ? "text-violet-200" : "text-orange-200";
+  const hasLabel = labeled || Boolean(hint);
 
   return (
-    <div className="grid grid-cols-[5.75rem_minmax(0,1fr)] items-start">
-      <div className="pr-3 pt-1 text-right">
+    <div className="grid grid-cols-1 items-start gap-y-1.5 sm:grid-cols-[5.75rem_minmax(0,1fr)] sm:gap-y-0">
+      <div
+        className={`${hasLabel ? "flex" : "hidden sm:block"} ${hideMobileLabel ? "max-sm:hidden" : ""} min-w-0 items-baseline gap-2 px-0.5 text-left sm:block sm:pr-3 sm:pt-1 sm:text-right`}
+      >
         {labeled ? (
-          <p className={`text-[13px] font-bold leading-snug tracking-tight ${nameColor}`}>{name}</p>
+          <p className={`min-w-0 truncate text-[13px] font-bold leading-snug tracking-tight ${nameColor}`}>
+            {name}
+          </p>
         ) : null}
-        {hint ? <p className="mt-0.5 text-[10px] font-medium text-zinc-500">{hint}</p> : null}
+        {hint ? (
+          <p className="shrink-0 text-[10px] font-medium text-zinc-500 sm:mt-0.5">{hint}</p>
+        ) : null}
       </div>
       <div
-        className={`min-w-0 ${rail} pl-4 select-text [touch-action:pan-y] [-webkit-user-select:text]`}
+        className={`min-w-0 ${rail} ${showRail ? "pl-3 sm:pl-4" : "sm:pl-4"} select-text [touch-action:pan-y] [-webkit-user-select:text]`}
         data-quote-assistant
         style={quoteSelectStyle}
       >
