@@ -34,6 +34,8 @@ import type { TrpgSheetSnapshot, TrpgSuccessTier } from "../src/lib/trpg/types";
 
 loadEnvConfig(process.cwd());
 
+export const QA_TIMING_MODEL = "RESOLVED_OUTCOME_SYNTHETIC_QA" as const;
+
 type Category = "A_PHYSICAL_FAILURE" | "B_SAFE_FAILURE" | "C_ONGOING" | "D_TREATMENT" | "E_PARTIAL" | "F_AMBIGUOUS";
 
 type FixtureExpectation = {
@@ -915,6 +917,7 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(),
     contract: {
+      QA_TIMING_MODEL,
       MODEL: TRPG_MECHANICS_REFEREE_MODEL,
       THINKING: adapted.thinking,
       REASONING_EFFORT: adapted.reasoning_effort,
