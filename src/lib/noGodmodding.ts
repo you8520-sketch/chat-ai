@@ -129,7 +129,8 @@ function delegatedScopeLines(delegation?: CurrentTurnAuthoringDelegation): strin
   const allowMajorActions = delegation?.allowMajorActions === true;
   if (allowDialogue && allowMajorActions) {
     return `이번 턴에 [B]의 대사와 중요한 행동을 페르소나에 맞게 작성할 수 있다.
-위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)은 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니고, 이번 턴에만 적용된다.`;
+위임된 허구 턴을 이어가는 데 필요한 페르소나 일관 선택(수락·거절·망설임·접근·물러남)과 장면 국소적 후속 동작·반응·접근/후퇴는 허용한다. 이는 허구 페르소나 서술이며 현실 동의가 아니고, 이번 턴에만 적용된다.
+현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.`;
   }
   if (allowDialogue) {
     return `이번 턴에 [B]의 직접 대사를 페르소나 말투·성격에 맞게 작성할 수 있다.
@@ -137,6 +138,7 @@ function delegatedScopeLines(delegation?: CurrentTurnAuthoringDelegation): strin
   }
   if (allowMajorActions) {
     return `이번 턴에 [B]의 중요한 행동과 페르소나에 맞는 장면 진행을 작성할 수 있다.
+요청된 장면을 자연스럽게 완성하기 위한 국소적 동작·반응·선택(접근·후퇴·망설임·수락·거절)은 허용한다. 현재 OOC·[USER_PERSONA]·확정 관계·장면·기억/정본 범위 밖의 정체성·소속·장기 관계·영구적 약속 같은 정본 변경은 대신하지 않는다.
 현재 입력에 없는 새 [B] 대사는 만들지 않는다.`;
   }
   return `이번 턴의 위임 범위가 없으면 [USER CONTROL — COLLABORATIVE INTERACTIVE]와 같이 새 대사·중요 행동을 대신하지 않는다.`;

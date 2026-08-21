@@ -1918,6 +1918,80 @@ function normalizedRefusalText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/** Provider-policy refusal prose — not in-character RP dialogue. */
+function looksLikeProviderRefusalProse(text: string): boolean {
+  if (
+    /(?:요청에 (?:응할|따를) 수 없|도와드릴 수 없|작성할 수 없|제공할 수 없|해당 내용은|안전 정책|성적으로 노골적인 내용)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist) with (?:this|that|your|the) (?:request|content|topic)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) comply with (?:this|your|the) request/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/i must decline/i.test(text)) return true;
+  if (/cannot provide(?: assistance| support)?/i.test(text)) return true;
+
+  if (
+    /i (?:can(?:not|'t)|am unable to) fulfill (?:this|your|the) request/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/unable to fulfill (?:this|your|the)? request/i.test(text)) return true;
+
+  if (
+    /i (?:can(?:not|'t)|am unable to) participate in (?:this|the) (?:request|scenario)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) engage in (?:explicit|sexual|romantic)(?:\s|\/|-)*(?:role[- ]?play|content|scenarios?)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/unable to continue with (?:explicit|sexual) content/i.test(text)) {
+    return true;
+  }
+  if (
+    /(?:i am|i'm) programmed (?:not )?to (?:not )?take part in (?:romantic|sexual|explicit)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Early stream prefix that likely continues into a provider refusal. */
+export function isSuspiciousProviderRefusalPrefix(text: string): boolean {
+  const normalized = normalizedRefusalText(text);
+  if (!normalized) return false;
+  if (looksLikeProviderRefusalProse(normalized)) return true;
+  return /^(?:i am sorry,? but i (?:can(?:not|'t)|am unable to)|i (?:can(?:not|'t)|am unable to) fulfill|(?:i am|i'm) programmed|unable to fulfill (?:this|your|the))/i.test(
+    normalized
+  );
+}
+
 export function detectModelRefusal(input: {
   text?: string | null;
   finishReason?: string | null;
@@ -1946,9 +2020,7 @@ export function detectModelRefusal(input: {
   if (!text && /safety|blocked|filter|refusal/.test(`${finish} ${errorText}`)) {
     return { refused: true, reason: "empty_safety_response" };
   }
-  const refusal =
-    /(?:i (?:can(?:not|'t)|won't|am unable to) (?:help|assist|comply)|i must decline|cannot provide|can't continue|요청에 (?:응할|따를) 수 없|도와드릴 수 없|작성할 수 없|제공할 수 없|해당 내용은|안전 정책|성적으로 노골적인 내용)/i;
-  if (text && text.length <= 1_200 && refusal.test(text)) {
+  if (text && looksLikeProviderRefusalProse(text)) {
     return { refused: true, reason: "provider_refusal" };
   }
   return { refused: false, reason: "unknown" };
@@ -1999,7 +2071,11 @@ export function createInitialStreamBuffer(
       text += typed.delta;
     }
     queue.push(event);
-    if (text.length >= limit) flush();
+    if (limit === 0) return;
+    if (text.length >= limit) {
+      if (isSuspiciousProviderRefusalPrefix(text)) return;
+      flush();
+    }
   };
 
   return {
