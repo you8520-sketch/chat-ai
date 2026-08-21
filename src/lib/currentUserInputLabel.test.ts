@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  COLLABORATIVE_HISTORY_PRECEDENT_BOUNDARY,
   CURRENT_USER_INPUT_HEADER,
   INTERACTIVE_OWNERSHIP_LOCK_MARKER,
   INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER,
@@ -32,8 +33,10 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.match(w, /completed input and the newest state of the scene/);
     assert.match(w, /Continue from what it changes now rather than restating/);
     assert.match(w, /\[B\]'s new dialogue[\s\S]*remain user-authored/);
+    assert.ok(w.includes(COLLABORATIVE_HISTORY_PRECEDENT_BOUNDARY));
     assert.match(w, /Minor reversible expression/);
     assert.match(w, /USER CONTROL — COLLABORATIVE INTERACTIVE/);
+    assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.doesNotMatch(w, /Do not continue writing the user's future actions, dialogue, thoughts, or decisions/);
     assert.doesNotMatch(w, /\[NO INPUT ECHO/);
   });

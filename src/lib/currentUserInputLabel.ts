@@ -28,6 +28,17 @@ export const INTERACTIVE_OWNERSHIP_LOCK_MARKER = "[INTERACTIVE USER OWNERSHIP �
 export const INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER = "[END CURRENT USER INPUT]";
 
 /**
+ * H4.3 — one-sentence history-precedent boundary on the standard collaborative
+ * CURRENT USER INPUT wrapper. Past assistant-authored [B] content (including
+ * an earlier delegated/co-authored turn) is scene history only. It does not
+ * grant permission to write NEW consequential [B] content after standard
+ * ownership has returned. Current-turn user-started actions still complete
+ * via the existing natural-completion line. Not the absolute lock.
+ */
+export const COLLABORATIVE_HISTORY_PRECEDENT_BOUNDARY =
+  "Past assistant-authored [B] dialogue or actions, including those written on an earlier delegated or co-authored turn, are established scene history only — not permission or precedent to write new [B] dialogue, consequential actions, consent/refusal, or decisions on this turn.";
+
+/**
  * Generic fallback actor label when no runtime persona display name is
  * available. Never an account email / unrelated UI identity.
  */
@@ -54,6 +65,7 @@ function buildCollaborativeInteractiveWrapper(): string {
 The following is the user's completed input and the newest state of the scene.
 Continue from what it changes now rather than restating or explaining the input.
 [B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
+${COLLABORATIVE_HISTORY_PRECEDENT_BOUNDARY}
 Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].`;
 }
 
