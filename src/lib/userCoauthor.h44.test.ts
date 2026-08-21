@@ -16,6 +16,7 @@ import {
 } from "@/lib/noGodmodding";
 import {
   applyUserCoauthorDirective,
+  markUserMessageCoauthorSemanticsVersion,
   recomputeAndPersistUserCoauthorMode,
   recomputeUserCoauthorModeFromUserMessages,
   resolveEffectiveUserAuthoring,
@@ -249,12 +250,15 @@ describe("H4.4 T1–T10 regressions", () => {
       "OOC: 내 대사랑 행동도 알아서 써줘."
     );
     db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (1,'assistant','ok')").run();
+    markUserMessageCoauthorSemanticsVersion(db, 1);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "FULL");
     db.prepare("UPDATE messages SET content=? WHERE id=1").run("그냥 안녕.");
+    markUserMessageCoauthorSemanticsVersion(db, 1);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
     db.prepare("INSERT INTO messages (chat_id, role, content) VALUES (1,'user',?)").run(
       "OOC: 내 대사랑 행동도 알아서 써줘."
     );
+    markUserMessageCoauthorSemanticsVersion(db, 3);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "FULL");
     db.prepare("DELETE FROM messages WHERE id=3").run();
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");

@@ -627,6 +627,12 @@ function migrate(db: Database.Database) {
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
   /** Chat-scoped user co-authoring preference: OFF | DIALOGUE | ACTIONS | FULL. */
   addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");
+  /**
+   * Message semantics epoch for user co-authoring reconstruction.
+   * 0 = legacy / pre-feature (never a persistent reconstruction source).
+   * 1 = authored/edited under the persistent-coauthor product semantics.
+   */
+  addColumn("messages", "user_coauthor_semantics_version", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
     CREATE TABLE IF NOT EXISTS bookmarks (
       user_id INTEGER NOT NULL,

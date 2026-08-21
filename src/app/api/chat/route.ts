@@ -306,8 +306,11 @@ import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
-  persistUserCoauthorMode,
-  resolveEffectiveUserAuthoringFromHistory,
+  persistUserCoauthorAfterSuccessfulUserInsert,
+  readUserCoauthorMode,
+  resolveEffectiveUserAuthoring,
+  resolveEffectiveUserAuthoringForRegeneration,
+  resolveEffectiveUserAuthoringFromChatColumn,
 } from "@/lib/userCoauthorState";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
@@ -810,8 +813,8 @@ export async function POST(req: Request) {
   const userImpersonation = oocUserImpersonationAllowed;
   const currentTurnDelegation = autoProgressionEnabled
     ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveEffectiveUserAuthoringFromHistory({
-        historyUserContents: [],
+    : resolveEffectiveUserAuthoring({
+        persistentMode: readUserCoauthorMode(db, chat.id),
         currentUserInput: typeof message === "string" ? message : "",
       }).delegation;
   let runtimeMode = resolveChatRuntimeMode({
@@ -1068,15 +1071,11 @@ export async function POST(req: Request) {
   const autoContinueContext =
     autoProgressionEnabled ||
     (regenerate && isContinueUserMessage(storedUserMessage));
-  const historyUserContents = msgRows
-    .filter((row) => row.role === "user")
-    .map((row) => row.content);
   const effectiveUserAuthoring = autoContinueContext
     ? null
-    : resolveEffectiveUserAuthoringFromHistory({
-        historyUserContents,
-        currentUserInput: storedUserMessage,
-      });
+    : regenerate && userMessageId != null
+      ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId)
+      : resolveEffectiveUserAuthoringFromChatColumn(db, chat.id, storedUserMessage);
   const currentTurnDelegationForTurn = effectiveUserAuthoring
     ? effectiveUserAuthoring.delegation
     : INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION;
@@ -2578,11 +2577,15 @@ export async function POST(req: Request) {
         skipUserInsert,
         existingUserMessageId: userMessageId,
         regenerateAssistantId: regenerateMessageId,
-        onUserInserted: () => {
-          incrementCharacterTotalTurns(db, ch.id);
+        onUserInserted: (insertedUserMessageId) => {
           if (effectiveUserAuthoring) {
-            persistUserCoauthorMode(db, chat.id, effectiveUserAuthoring.persistentAfter);
+            persistUserCoauthorAfterSuccessfulUserInsert(db, {
+              chatId: chat.id,
+              userMessageId: insertedUserMessageId,
+              persistentAfter: effectiveUserAuthoring.persistentAfter,
+            });
           }
+          incrementCharacterTotalTurns(db, ch.id);
         },
       });
   userMessageId = bootstrapped.userMessageId;

@@ -16,10 +16,18 @@ Exactly one primary owner per turn: **STANDARD** or **COAUTHOR**.
 ## What is in production
 
 - Server-owned `chats.user_coauthor_mode` (`OFF | DIALOGUE | ACTIONS | FULL`)
+- Normal POST authority is that chat column. Ordinary requests do **not** replay historical USER text.
+- `messages.user_coauthor_semantics_version` (`INTEGER NOT NULL DEFAULT 0`)
+  - `0` = legacy / pre-feature; never a persistent reconstruction source
+  - `1` = USER message authored or edited under the new persistent-coauthor semantics
+- Every newly persisted USER message is marked `1` (epoch marker, not “had a directive”)
 - Bare leading-OOC grant → **PERSISTENT**
 - Explicit revoke → immediate and persistent
 - Partial revoke / partial grant
-- Fork / edit / last-turn-delete recompute from canonical user messages
+- Fork copies the version marker, then recomputes from `role='user' AND version>=1`
+- User-message edit marks that row `1`, then recomputes from eligible version>=1 rows
+- Last-turn-delete recomputes from remaining eligible version>=1 USER rows
+- Regeneration, when it needs a boundary, recomputes only eligible version>=1 USER rows up to the parent
 - Current user input overrides older assistant-authored persona content
 - Deterministic TURN-ONLY classification (`이번 턴만`, …) — state only
 

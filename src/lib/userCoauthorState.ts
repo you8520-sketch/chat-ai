@@ -1,8 +1,15 @@
 /**
  * Chat-scoped user co-authoring state.
  *
- * The server owns ON/OFF. Canonical USER messages (leading OOC only) are the
- * recompute source. Assistant / RAW / memory / lorebook are never authority.
+ * Normal POST runtime authority is chats.user_coauthor_mode. Historical USER
+ * text is never replayed on an ordinary request.
+ *
+ * Reconstruction (fork / user-edit / last-turn-delete / regen boundary) may
+ * replay only canonical USER messages whose user_coauthor_semantics_version
+ * is >= 1. Version 0 is the legacy / pre-feature epoch and is never treated
+ * as a persistent coauthor directive.
+ *
+ * Assistant / RAW / memory / lorebook are never authority.
  *
  * Canonical product flow: STANDARD → explicit leading-OOC grant → persistent
  * coauthor (DIALOGUE / ACTIONS / FULL) → explicit leading-OOC revoke or scope
@@ -35,6 +42,9 @@ export type UserCoauthorMode = (typeof USER_COAUTHOR_MODES)[number];
 
 export const DEFAULT_USER_COAUTHOR_MODE: UserCoauthorMode = "OFF";
 export const USER_COAUTHOR_MODE_COLUMN = "user_coauthor_mode";
+export const USER_COAUTHOR_SEMANTICS_VERSION_COLUMN = "user_coauthor_semantics_version";
+export const LEGACY_USER_COAUTHOR_SEMANTICS_VERSION = 0;
+export const CURRENT_USER_COAUTHOR_SEMANTICS_VERSION = 1;
 
 export type UserCoauthorBooleans = {
   allowDialogue: boolean;
@@ -179,6 +189,10 @@ export function resolveEffectiveUserAuthoring(input: {
   );
 }
 
+/**
+ * Pure text replay. Unit tests / audits only.
+ * Production mutation reconstruction must use the version>=1 helper.
+ */
 export function recomputeUserCoauthorModeFromUserMessages(
   userContents: Array<string | null | undefined>
 ): UserCoauthorMode {
@@ -198,13 +212,31 @@ function tableExists(db: CoauthorDb, table: string): boolean {
   return row != null;
 }
 
+function columnExists(db: CoauthorDb, table: string, column: string): boolean {
+  if (!tableExists(db, table)) return false;
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return cols.some((col) => col.name === column);
+}
+
 export function ensureUserCoauthorModeColumn(db: CoauthorDb): void {
   if (!tableExists(db, "chats")) return;
-  const cols = db.prepare(`PRAGMA table_info(chats)`).all() as Array<{ name: string }>;
-  if (cols.some((col) => col.name === USER_COAUTHOR_MODE_COLUMN)) return;
+  if (columnExists(db, "chats", USER_COAUTHOR_MODE_COLUMN)) return;
   db.exec(
     `ALTER TABLE chats ADD COLUMN ${USER_COAUTHOR_MODE_COLUMN} TEXT NOT NULL DEFAULT 'OFF'`
   );
+}
+
+export function ensureUserCoauthorSemanticsVersionColumn(db: CoauthorDb): void {
+  if (!tableExists(db, "messages")) return;
+  if (columnExists(db, "messages", USER_COAUTHOR_SEMANTICS_VERSION_COLUMN)) return;
+  db.exec(
+    `ALTER TABLE messages ADD COLUMN ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN} INTEGER NOT NULL DEFAULT ${LEGACY_USER_COAUTHOR_SEMANTICS_VERSION}`
+  );
+}
+
+export function ensureUserCoauthorSchema(db: CoauthorDb): void {
+  ensureUserCoauthorModeColumn(db);
+  ensureUserCoauthorSemanticsVersionColumn(db);
 }
 
 export function readUserCoauthorMode(db: CoauthorDb, chatId: number): UserCoauthorMode {
@@ -229,30 +261,135 @@ export function persistUserCoauthorMode(
   );
 }
 
-export function listCanonicalUserMessageContents(
+export function parseUserCoauthorSemanticsVersion(raw: unknown): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) {
+    return LEGACY_USER_COAUTHOR_SEMANTICS_VERSION;
+  }
+  return CURRENT_USER_COAUTHOR_SEMANTICS_VERSION;
+}
+
+export function readUserCoauthorSemanticsVersion(db: CoauthorDb, messageId: number): number {
+  ensureUserCoauthorSemanticsVersionColumn(db);
+  if (!columnExists(db, "messages", USER_COAUTHOR_SEMANTICS_VERSION_COLUMN)) {
+    return LEGACY_USER_COAUTHOR_SEMANTICS_VERSION;
+  }
+  const row = db
+    .prepare(
+      `SELECT ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN} AS version FROM messages WHERE id=?`
+    )
+    .get(messageId) as { version?: unknown } | undefined;
+  return parseUserCoauthorSemanticsVersion(row?.version);
+}
+
+export function markUserMessageCoauthorSemanticsVersion(
   db: CoauthorDb,
-  chatId: number
+  messageId: number,
+  version: number = CURRENT_USER_COAUTHOR_SEMANTICS_VERSION
+): void {
+  ensureUserCoauthorSemanticsVersionColumn(db);
+  if (!columnExists(db, "messages", USER_COAUTHOR_SEMANTICS_VERSION_COLUMN)) return;
+  db.prepare(
+    `UPDATE messages SET ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}=? WHERE id=?`
+  ).run(parseUserCoauthorSemanticsVersion(version), messageId);
+}
+
+export function persistUserCoauthorAfterSuccessfulUserInsert(
+  db: CoauthorDb,
+  input: {
+    chatId: number;
+    userMessageId: number;
+    persistentAfter: UserCoauthorMode;
+  }
+): void {
+  markUserMessageCoauthorSemanticsVersion(db, input.userMessageId);
+  persistUserCoauthorMode(db, input.chatId, input.persistentAfter);
+}
+
+export type EligibleUserCoauthorMessageQuery = {
+  beforeMessageId?: number;
+  upToMessageId?: number;
+};
+
+export function listEligibleUserCoauthorMessageContents(
+  db: CoauthorDb,
+  chatId: number,
+  query: EligibleUserCoauthorMessageQuery = {}
 ): string[] {
-  if (!tableExists(db, "messages")) return [];
+  ensureUserCoauthorSemanticsVersionColumn(db);
+  if (!columnExists(db, "messages", USER_COAUTHOR_SEMANTICS_VERSION_COLUMN)) return [];
   const rows = db
     .prepare(
-      `SELECT content FROM messages WHERE chat_id=? AND role='user' ORDER BY id ASC`
+      `SELECT content FROM messages
+       WHERE chat_id=? AND role='user'
+         AND ${USER_COAUTHOR_SEMANTICS_VERSION_COLUMN}>=?
+         AND (? IS NULL OR id < ?)
+         AND (? IS NULL OR id <= ?)
+       ORDER BY id ASC`
     )
-    .all(chatId) as Array<{ content?: string }>;
+    .all(
+      chatId,
+      CURRENT_USER_COAUTHOR_SEMANTICS_VERSION,
+      query.beforeMessageId ?? null,
+      query.beforeMessageId ?? null,
+      query.upToMessageId ?? null,
+      query.upToMessageId ?? null
+    ) as Array<{ content?: string }>;
   return rows.map((row) => String(row.content ?? ""));
+}
+
+export function recomputeUserCoauthorModeFromEligibleMessages(
+  db: CoauthorDb,
+  chatId: number,
+  query: EligibleUserCoauthorMessageQuery = {}
+): UserCoauthorMode {
+  return recomputeUserCoauthorModeFromUserMessages(
+    listEligibleUserCoauthorMessageContents(db, chatId, query)
+  );
 }
 
 export function recomputeAndPersistUserCoauthorMode(
   db: CoauthorDb,
   chatId: number
 ): UserCoauthorMode {
-  const mode = recomputeUserCoauthorModeFromUserMessages(
-    listCanonicalUserMessageContents(db, chatId)
-  );
+  const mode = recomputeUserCoauthorModeFromEligibleMessages(db, chatId);
   persistUserCoauthorMode(db, chatId, mode);
   return mode;
 }
 
+export function resolveEffectiveUserAuthoringFromChatColumn(
+  db: CoauthorDb,
+  chatId: number,
+  currentUserInput?: string | null
+): AppliedUserCoauthorDirective {
+  return resolveEffectiveUserAuthoring({
+    persistentMode: readUserCoauthorMode(db, chatId),
+    currentUserInput,
+  });
+}
+
+export function resolveEffectiveUserAuthoringForRegeneration(
+  db: CoauthorDb,
+  chatId: number,
+  parentUserMessageId: number
+): AppliedUserCoauthorDirective {
+  const persistentBefore = recomputeUserCoauthorModeFromEligibleMessages(db, chatId, {
+    beforeMessageId: parentUserMessageId,
+  });
+  const parentVersion = readUserCoauthorSemanticsVersion(db, parentUserMessageId);
+  if (parentVersion < CURRENT_USER_COAUTHOR_SEMANTICS_VERSION) {
+    return applyUserCoauthorDirective(persistentBefore, EMPTY_USER_COAUTHOR_DIRECTIVE);
+  }
+  const row = db
+    .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=? AND role='user'`)
+    .get(parentUserMessageId, chatId) as { content?: string } | undefined;
+  return resolveEffectiveUserAuthoring({
+    persistentMode: persistentBefore,
+    currentUserInput: row?.content ?? "",
+  });
+}
+
+/** @deprecated Test/audit helper. Not the production POST owner. */
 export function resolveEffectiveUserAuthoringFromHistory(input: {
   historyUserContents: Array<string | null | undefined>;
   currentUserInput?: string | null;

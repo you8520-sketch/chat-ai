@@ -147,3 +147,46 @@ PRE_MERGE_BLOCKER = YES
 CASE B. No migration / state-source fix invented in this audit.
 
 RECOMMENDATION: AUDIT FACTS ONLY — NO SUBJECTIVE SCORE
+
+## 8. After state-authority fix (logical re-audit)
+
+No production writes. No provider calls. Same frozen production snapshot as §2–§5.
+
+Architecture after this patch:
+
+| Fact | Value |
+|---|---|
+| READ_USER_COAUTHOR_MODE_USED_IN_NORMAL_POST | true |
+| CHAT_COLUMN_AUTHORITATIVE | true |
+| FULL_HISTORY_REPLAY_IN_NORMAL_POST | false |
+| MESSAGE_SEMANTICS_MARKER | `messages.user_coauthor_semantics_version INTEGER NOT NULL DEFAULT 0` |
+| LEGACY_DEFAULT_VERSION | 0 |
+| NEW_USER_MESSAGE_VERSION | 1 |
+| LEGACY_CHAT_DEFAULT_MODE | OFF |
+
+Reconstruction (fork / user-edit / last-turn-delete / regen boundary) uses only:
+
+`role='user' AND user_coauthor_semantics_version >= 1`
+
+ordered by `id ASC`. Version 0 rows are ignored. Assistant / RAW / memory / lore are not authority.
+
+SQLite migration default 0 keeps every existing production USER row in the legacy epoch. Existing `chats.user_coauthor_mode` defaults OFF. No backfill. No date cutoff. No text inference.
+
+Logical result against the frozen snapshot:
+
+| Metric | After fix |
+|---|---|
+| LEGACY_RETROACTIVE_NON_OFF_CHAT_COUNT | 0 |
+| AUDITED_CHAT_735_STATE | OFF |
+| AUDITED_CHAT_736_STATE | OFF |
+
+Frozen admin identity for chat 735 / message 3773 (no body):
+
+- PRE_FEATURE_MESSAGE: legacy semantics version 0
+- sha256: `9c68cbdf1f51906f06d6bbdfe71d4131861df223e93caf1acc44bdb4f558450c`
+- EXPECTED_POST_DEPLOY_STATE: OFF
+
+Chat 736 / message 3778 remains OFF (historical turn-only; also version 0).
+
+PRODUCTION_WRITES_DURING_AUDIT: 0
+PROVIDER_CALLS: 0
