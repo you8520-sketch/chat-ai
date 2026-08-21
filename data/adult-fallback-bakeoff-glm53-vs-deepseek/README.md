@@ -79,14 +79,51 @@ No public deployed character has `cnc_opt_in` in `adult_consent_modes_json`. F3/
 
 ## Run status
 
-Filled after the provider calls.
-
 ```text
-PROVIDER_BAKEOFF_BLOCKED: pending
-COMPLETED_FIXTURES: pending
-PROVIDER_CALLS: pending
+PROVIDER_BAKEOFF_BLOCKED: false
+F1:
+  GLM_HTTP: 200
+  DEEPSEEK_HTTP: 200
+COMPLETED_FIXTURES: F1 F2 F3 F4 F5 F6
+PROVIDER_CALLS:
+  GLM: 6
+  DEEPSEEK: 6
+  TOTAL: 12
+RAW_COMPLETE: true
+RAW_FILES:
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F1-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F1-deepseek.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F2-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F2-deepseek.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F3-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F3-deepseek.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F4-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F4-deepseek.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F5-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F5-deepseek.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F6-glm53.txt
+  data/adult-fallback-bakeoff-glm53-vs-deepseek/raw/F6-deepseek.txt
+METRICS_COMPLETE: true
+ACTUAL_COST_AVAILABLE:
+  GLM: true
+  DEEPSEEK: true
+REFUSAL_DETECTOR_COUNTS:
+  GLM: 0
+  DEEPSEEK: 0
+VISIBLE_PROVIDER_META_COUNTS:
+  GLM: 0
+  DEEPSEEK: 0
+F5_EFFECTIVE_COAUTHOR_MODE: FULL
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT: no
+F5_GLM_USER_PERSONA_ACTION_PRESENT: yes
+F5_DEEPSEEK_USER_PERSONA_DIALOGUE_PRESENT: no
+F5_DEEPSEEK_USER_PERSONA_ACTION_PRESENT: yes
+F6_GLM_IMMEDIATE_CONTINUATION: yes
+F6_DEEPSEEK_IMMEDIATE_CONTINUATION: yes
+SOURCE_PRODUCTION_FILES_CHANGED: 0
 QUALITY_SCORE_ASSIGNED: false
 MODEL_WINNER_SELECTED: false
 HUMAN_RAW_REVIEW_REQUIRED: true
-SOURCE_PRODUCTION_FILES_CHANGED: 0
 ```
+
+No retries. No extra samples. No winner. No fallback change.
