@@ -346,6 +346,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       !oocLimitedCoNarration && currentTurnDelegation.active,
   });
   const currentTurnDelegated = runtimeMode === "current_turn_ooc_delegated";
+  const coauthorDuration =
+    currentTurnDelegation.duration === "persistent" ||
+    currentTurnDelegation.duration === "turn"
+      ? currentTurnDelegation.duration
+      : currentTurnDelegated
+        ? "turn"
+        : null;
+  const postDelegationBoundary =
+    !currentTurnDelegated && currentTurnDelegation.postDelegationBoundary === true;
   const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
     input.userId,
     input.modelId
@@ -1252,6 +1261,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         personaName: input.personaDisplayName,
         ownershipLockEnabled,
         ownershipTerminalEchoEnabled,
+        coauthorDuration,
+        postDelegationBoundary,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;

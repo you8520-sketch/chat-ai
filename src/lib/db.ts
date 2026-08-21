@@ -625,6 +625,8 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_widget_display_mode", "TEXT NOT NULL DEFAULT ''");
   /** Chat-room 「성인모드」 — adult model handoff on/off. Not listing visibility. */
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
+  /** Chat-scoped user co-authoring preference: OFF | DIALOGUE | ACTIONS | FULL. */
+  addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");
   db.exec(`
     CREATE TABLE IF NOT EXISTS bookmarks (
       user_id INTEGER NOT NULL,

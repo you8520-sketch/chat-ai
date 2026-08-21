@@ -150,7 +150,7 @@ function buildIdentityPreamble(opts: {
   }
   if (opts.impersonationOn) return IDENTITY_PREAMBLE;
   if (opts.currentTurnDelegated) {
-    return `The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves. Current-turn OOC delegation may author the delegated [B] scope per [USER AUTHORING — CURRENT-TURN OOC DELEGATION].`;
+    return `The following defines the USER's roleplay persona (the human player character — NOT the AI character you play). Obey [USER_PERSONA] for how the user character speaks and behaves. OOC user co-authoring may author the granted [B] scope per [USER AUTHORING — CURRENT-TURN OOC DELEGATION].`;
   }
   return `The following defines the USER's roleplay persona (NOT the AI character). [USER_PERSONA] describes [B] — involuntary physiological cues OK; voluntary dialogue/action/emotion forbidden per [NO GODMODDING].`;
 }
