@@ -1918,7 +1918,7 @@ function normalizedRefusalText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-/** Provider-policy refusal prose — not in-character "I can't continue" RP dialogue. */
+/** Provider-policy refusal prose — not in-character RP dialogue. */
 function looksLikeProviderRefusalProse(text: string): boolean {
   if (
     /(?:요청에 (?:응할|따를) 수 없|도와드릴 수 없|작성할 수 없|제공할 수 없|해당 내용은|안전 정책|성적으로 노골적인 내용)/i.test(
@@ -1929,7 +1929,14 @@ function looksLikeProviderRefusalProse(text: string): boolean {
   }
 
   if (
-    /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist|comply(?: with)?)/i.test(
+    /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist) with (?:this|that|your|the) (?:request|content|topic)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) comply with (?:this|your|the) request/i.test(
       text
     )
   ) {
@@ -2013,13 +2020,11 @@ export function detectModelRefusal(input: {
   if (!text && /safety|blocked|filter|refusal/.test(`${finish} ${errorText}`)) {
     return { refused: true, reason: "empty_safety_response" };
   }
-  if (text && text.length <= 1_200 && looksLikeProviderRefusalProse(text)) {
+  if (text && looksLikeProviderRefusalProse(text)) {
     return { refused: true, reason: "provider_refusal" };
   }
   return { refused: false, reason: "unknown" };
 }
-
-const REFUSAL_AWARE_STREAM_HOLD_CHARS = 1_200;
 
 type StreamTextEvent = {
   type?: unknown;
@@ -2067,10 +2072,10 @@ export function createInitialStreamBuffer(
     }
     queue.push(event);
     if (limit === 0) return;
-    const holdLimit = isSuspiciousProviderRefusalPrefix(text)
-      ? Math.max(limit, REFUSAL_AWARE_STREAM_HOLD_CHARS)
-      : limit;
-    if (text.length >= holdLimit) flush();
+    if (text.length >= limit) {
+      if (isSuspiciousProviderRefusalPrefix(text)) return;
+      flush();
+    }
   };
 
   return {

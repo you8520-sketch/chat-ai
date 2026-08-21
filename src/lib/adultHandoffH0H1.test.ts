@@ -221,6 +221,28 @@ describe("H0/H1 — Gemini 3.1 refusal robustness", () => {
     );
   });
 
+  it("H1.1 — IC help/assist/comply without policy request is not refusal", () => {
+    for (const text of [
+      "I can't help you escape.",
+      "I cannot assist you with the heist.",
+      "I cannot comply with your order.",
+      "I won't help them betray the captain.",
+    ]) {
+      assert.equal(detectModelRefusal({ text }).refused, false, text);
+    }
+  });
+
+  it("H1.1 — provider-policy help/comply request forms stay true", () => {
+    for (const text of [
+      "I can't help with that request.",
+      "I am unable to comply with this request.",
+      "I cannot fulfill this request.",
+      "I cannot engage in sexual role-play.",
+    ]) {
+      assert.equal(detectModelRefusal({ text }).refused, true, text);
+    }
+  });
+
   it("exact fixture stays hidden before fallback with 400-char buffer", () => {
     const plan = deliveryPlanForOoc(EXACT_OOC_DELEGATION_FIXTURE);
     const result = simulateRefusalOnlyDelivery({
@@ -235,14 +257,14 @@ describe("H0/H1 — Gemini 3.1 refusal robustness", () => {
     assert.doesNotMatch(result.visibleText, /cannot fulfill/i);
   });
 
-  it("long provider refusal stays hidden via refusal-aware hold", () => {
+  it("long provider refusal (>1600 chars) stays hidden until fallback discard", () => {
     const longRefusal =
       EXACT_GEMINI31_REFUSAL_FIXTURE +
       " " +
       "Additional policy explanation that would exceed the normal buffer. ".repeat(
-        12
+        25
       );
-    assert.ok(longRefusal.length > 400);
+    assert.ok(longRefusal.length > 1600);
     assert.equal(isSuspiciousProviderRefusalPrefix(longRefusal.slice(0, 80)), true);
 
     const plan = deliveryPlanForOoc(EXACT_OOC_DELEGATION_FIXTURE);
@@ -256,6 +278,20 @@ describe("H0/H1 — Gemini 3.1 refusal robustness", () => {
     assert.equal(result.primaryVisible, false);
     assert.equal(result.fallbackSucceeded, true);
     assert.doesNotMatch(result.visibleText, /cannot fulfill/i);
+  });
+
+  it("long valid RP prose still flushes at normal 400-char buffer", () => {
+    const longValid =
+      "She stepped forward, breath steady, and traced the edge of the doorframe. ".repeat(
+        30
+      );
+    assert.ok(longValid.length > 1600);
+    const sent: object[] = [];
+    const gate = createInitialStreamBuffer((event) => sent.push(event), 400);
+    gate.send({ type: "delta", text: longValid });
+    assert.equal(gate.hasVisibleTokens(), true);
+    assert.ok(sent.length > 0);
+    assert.equal(detectModelRefusal({ text: longValid }).refused, false);
   });
 });
 
@@ -315,8 +351,71 @@ describe("H0/H1 — current-turn OOC delegation", () => {
     assert.equal(d.allowMajorActions, false);
     assert.equal(d.active, false);
   });
+});
 
-  it("delegated prompt uses currentTurnDelegated owner without Gemini 3.1 supplement", () => {
+describe("H1.1 — delegation regression semantics", () => {
+  it("A scene narration OOC grants major-action co-authoring", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 유저가 문을 열고 들어가는 장면을 서술해줘.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("B dialogue and action auto-progress both granted", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 유저의 대사도 쓰고 행동도 알아서 진행해줘.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, true);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("C exact combined OOC fixture keeps both scopes", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: EXACT_OOC_DELEGATION_FIXTURE,
+    });
+    assert.equal(d.allowDialogue, true);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("D action delegated, dialogue retained by user", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 행동은 알아서 써줘. 대사는 내가 할게.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, false);
+    assert.equal(d.allowMajorActions, true);
+  });
+
+  it("E dialogue delegated, action retained by user", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "OOC: 대사만 써줘. 행동은 내가 할게.",
+    });
+    assert.equal(d.active, true);
+    assert.equal(d.allowDialogue, true);
+    assert.equal(d.allowMajorActions, false);
+  });
+
+  it("F ordinary IC prose — no delegation", () => {
+    const d = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "*고개를 끄덕인다.*",
+    });
+    assert.equal(d.active, false);
+  });
+
+  it("G next ordinary turn — no delegation persistence", () => {
+    const turnN = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: EXACT_OOC_DELEGATION_FIXTURE,
+    });
+    const turnN1 = resolveCurrentTurnUserAuthoringDelegation({
+      currentUserInput: "계속해.",
+    });
+    assert.equal(turnN.active, true);
+    assert.equal(turnN1.active, false);
+  });
+
+  it("prompt owner: delegated turn injects OOC owner once without Gemini supplement", () => {
     const delegation = resolveCurrentTurnUserAuthoringDelegation({
       currentUserInput: EXACT_OOC_DELEGATION_FIXTURE,
     });
