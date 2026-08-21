@@ -282,7 +282,6 @@ export default function TrpgCampaignRoom({
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
@@ -662,7 +661,11 @@ export default function TrpgCampaignRoom({
   }, [toast]);
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "instant") => {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+    } else {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+    }
     followLatestRef.current = true;
     setFollowLatest(true);
     setUnseenLatest(false);
@@ -688,7 +691,16 @@ export default function TrpgCampaignRoom({
       scrollToLatest("instant");
       hasScrolledToLatestRef.current = snap.id;
       seenSceneLenRef.current = sceneRows.length;
-      return;
+      let secondFrame = 0;
+      const firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => scrollToLatest("instant"));
+        hasScrolledToLatestRef.current = snap.id;
+        seenSceneLenRef.current = sceneRows.length;
+      });
+      return () => {
+        window.cancelAnimationFrame(firstFrame);
+        window.cancelAnimationFrame(secondFrame);
+      };
     }
 
     if (sceneRows.length > seenSceneLenRef.current) {
@@ -697,6 +709,22 @@ export default function TrpgCampaignRoom({
       else setUnseenLatest(true);
     }
   }, [sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
+
+  useEffect(() => {
+    const content = quoteSelectContainerRef.current;
+    if (!content || typeof ResizeObserver === "undefined") return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      if (!followLatestRef.current) return;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => scrollToLatest("instant"));
+    });
+    observer.observe(content);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [scrollToLatest, snap.id]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -724,15 +752,6 @@ export default function TrpgCampaignRoom({
       inline: "nearest",
     });
   }, [suggestions, suggestionsEnabled, suggestionsError]);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileMenuOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mobileMenuOpen]);
 
   const changeDisplayPrefs = useCallback((next: ChatDisplayPrefs) => {
     setDisplayPrefs(next);
@@ -842,7 +861,7 @@ export default function TrpgCampaignRoom({
 
   return (
     <div
-      className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0"
+      className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0 pt-[5.25rem] min-[576px]:pt-0"
       data-trpg-reveal-gate-held={holdCurrentRound ? "true" : "false"}
       data-trpg-reveal-gate-release-reason={revealGateReleaseReason ?? undefined}
       data-trpg-dice-presentation={presentation.state}
@@ -867,6 +886,12 @@ export default function TrpgCampaignRoom({
         revealedActorIds: cinematicRevealedIds,
       })}
     >
+      <aside
+        className="fixed left-3 right-3 top-[4.5rem] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
+        aria-label="캠페인 도구"
+      >
+        <TrpgCampaignRail {...railProps} compact />
+      </aside>
       <aside
         className={`sticky ${CHAT_GLOBAL_HEADER_OFFSET_CLASS} z-30 hidden h-[calc(100dvh-7.5rem)] w-[260px] shrink-0 flex-col self-start overflow-hidden border-r border-white/10 bg-[#101010]/90 min-[576px]:flex`}
         data-trpg-user-chat-desktop
@@ -914,21 +939,6 @@ export default function TrpgCampaignRoom({
             {snap.billingMode === "host_pays" && !snap.viewerIsHost ? (
               <p className="mt-1 text-xs text-violet-200/80">이 방의 플레이 비용은 방장이 부담합니다.</p>
             ) : null}
-          </div>
-          <div className="min-[576px]:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((v) => !v)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-zinc-200"
-              aria-label="캠페인 메뉴"
-              aria-expanded={mobileMenuOpen}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5" aria-hidden>
-                <circle cx="12" cy="5" r="1.25" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="19" r="1.25" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
           </div>
         </header>
 
@@ -1365,22 +1375,6 @@ export default function TrpgCampaignRoom({
         </p>
       ) : null}
 
-      {mobileMenuOpen ? (
-        <div className="fixed inset-0 z-[60] min-[576px]:hidden" role="presentation">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/25"
-            aria-label="메뉴 닫기"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <aside
-            className="absolute right-1 top-[4.25rem] z-10 flex w-14 flex-col gap-1 rounded-xl border border-white/10 bg-[#101010]/95 px-1 py-1 shadow-[-10px_0_28px_rgba(0,0,0,0.45)] backdrop-blur"
-            aria-label="캠페인 메뉴"
-          >
-            <TrpgCampaignRail {...railProps} compact />
-          </aside>
-        </div>
-      ) : null}
     </div>
   );
 }

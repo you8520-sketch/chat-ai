@@ -107,7 +107,11 @@ export default function TrpgCampaignRail({
         <div
           role="dialog"
           aria-label={tabHint(active)}
-          className="absolute bottom-auto right-full top-0 z-50 mr-1 flex max-h-[calc(100dvh-6rem)] w-[min(20rem,calc(100vw-3.5rem))] flex-col border border-white/10 bg-[#161616] shadow-[-12px_0_32px_rgba(0,0,0,0.55)]"
+          className={`z-50 flex max-h-[calc(100dvh-9rem)] flex-col border border-white/10 bg-[#161616] shadow-[-12px_0_32px_rgba(0,0,0,0.55)] ${
+            compact
+              ? "absolute inset-x-0 top-full mt-2 w-full rounded-2xl"
+              : "absolute right-full top-0 mr-1 w-[min(20rem,calc(100vw-3.5rem))]"
+          }`}
         >
           <div className="flex shrink-0 items-center border-b border-white/10 px-3 py-2.5">
             <p className="text-xs font-medium text-zinc-200">{tabHint(active)}</p>
@@ -171,7 +175,7 @@ export default function TrpgCampaignRail({
         </div>
       ) : null}
 
-      <nav className={compact ? "flex gap-0.5" : "flex flex-col gap-px py-0.5"}>
+      <nav className={compact ? "grid grid-cols-3 gap-2" : "flex flex-col gap-px py-0.5"}>
         {tabs.map((id) => (
           <button
             key={id}
@@ -179,15 +183,15 @@ export default function TrpgCampaignRail({
             title={`${tabLabel(id)} · ${tabHint(id)}`}
             aria-pressed={active === id}
             onClick={() => setActive((prev) => (prev === id ? null : id))}
-            className={`flex flex-col items-center gap-0.5 rounded-md px-0 py-1.5 transition hover:bg-white/[0.06] ${
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border px-1 transition hover:bg-white/[0.06] ${
               active === id ? "bg-white/[0.06] font-semibold text-white" : "text-zinc-100 hover:text-white"
-            } ${compact ? "flex-1 py-2" : "w-full"}`}
+            } ${compact ? "min-h-14 border-white/10 bg-white/[0.03] py-2" : "w-full border-transparent py-1.5"}`}
           >
             <ChatSettingsRailIcon
               id={tabIcon(id)}
-              className={compact ? "h-[18px] w-[18px]" : "h-4 w-4"}
+              className={compact ? "h-5 w-5" : "h-4 w-4"}
             />
-            <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
+            <span className={`max-w-full px-0.5 text-center font-medium leading-tight tracking-tight ${compact ? "text-xs" : "text-[9px]"}`}>
               {tabLabel(id)}
             </span>
           </button>
