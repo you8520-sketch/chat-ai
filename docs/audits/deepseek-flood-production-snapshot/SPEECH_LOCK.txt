@@ -1,0 +1,10 @@
+SPEECH_LOCK.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
+SPEECH_LOCK_SHA: a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
+RAW_PUBLISHED_TO_GIT: false
+
+Loaders:
+- parseStoredSpeechProfile
+- resolveExampleDialogForPrompt
+- loadCharacterChunksForPromptReadOnly

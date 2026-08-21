@@ -1,0 +1,44 @@
+{
+  "consumed_by_chat_route_and_buildContext": {
+    "character_select": "SELECT * FROM characters WHERE id = ?",
+    "chunk_loader": "loadCharacterChunksForPrompt (write path in chat) / loadCharacterChunksForPromptReadOnly (this exporter)",
+    "fields": [
+      "id",
+      "name",
+      "gender",
+      "system_prompt",
+      "world",
+      "example_dialog",
+      "setting_chunks",
+      "setting_chunks_en",
+      "prompt_translation_hash",
+      "speech_profile",
+      "creator_compiled_description_json",
+      "appearance_raw",
+      "appearance_compiled",
+      "description",
+      "greeting",
+      "content_kind",
+      "simulation_cast",
+      "nsfw",
+      "genres"
+    ],
+    "persona_loader": "getPersonaById / formatPublicPersonaForPrompt",
+    "persona_fields_in_buildContext": ["name", "gender", "description"]
+  },
+  "routing_adjacent_not_buildContext": [
+    "adult_dialogue_profile",
+    "adult_status"
+  ],
+  "not_consumed_by_buildContext": [
+    "user_personas.speech_examples",
+    "characters.world_id",
+    "worlds table"
+  ],
+  "not_exported": [
+    "images",
+    "assets",
+    "likes",
+    "unrelated tables"
+  ]
+}

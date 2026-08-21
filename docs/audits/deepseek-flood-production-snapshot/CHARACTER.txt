@@ -1,0 +1,18 @@
+CHARACTER.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
+REQUESTED_NAME: 플러드
+FLOOD_CHARACTER_ID: 17
+official: 0
+creator_id: 6
+nsfw: 1
+visibility: public
+moderation_status: approved
+exact_name_matches: 1
+FLOOD_PRODUCTION_RECORD_PROVEN: true
+CHARACTER_SHA: f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
+RAW_PUBLISHED_TO_GIT: false
+
+Loaders:
+- getDb().prepare("SELECT * FROM characters WHERE id = ?")
+- loadCharacterChunksForPromptReadOnly

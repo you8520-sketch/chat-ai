@@ -1,0 +1,8 @@
+WORLD_CANON.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
+WORLD_CANON_SHA: de6c8097f83027ec0d1b0d80ced2b161b02b1cf551fb5864c0b6b59b3785ae98
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
+RAW_PUBLISHED_TO_GIT: false
+
+Source: characters.world from the same SELECT * row used by /api/chat.
+The worlds table is not joined by the chat route or buildContext.
