@@ -50,12 +50,12 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
  * Owns completed-input semantics + continue-from-consequence (no separate
  * input-echo owner). REPLACE-in-place only — do not append a second block.
  */
-export const POST_DELEGATION_AUTHORING_BOUNDARY =
-  "Earlier assistant-authored [B] content is scene history only; when authoring permission is off, natural completion applies only to [B] actions explicitly started by the user in the current input.";
+export const TURN_ONLY_EXPIRY_RESET =
+  "The previous user-authoring permission was explicitly limited to the prior turn and has ended. [B] is user-controlled again: do not write new [B] dialogue or consequential [B] actions/choices on this turn unless the current user input explicitly authors them.";
 
 function buildCollaborativeInteractiveWrapper(postDelegationBoundary?: boolean): string {
   const boundary = postDelegationBoundary
-    ? `\n${POST_DELEGATION_AUTHORING_BOUNDARY}`
+    ? `\n${TURN_ONLY_EXPIRY_RESET}`
     : "";
   return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input and the newest state of the scene.
@@ -78,7 +78,7 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
  *    full co-narration semantics preserved unchanged.
  *  - current_turn_ooc_delegated: one coauthor wrapper (turn-only or persistent).
- *    Optional post-delegation sentence is STANDARD-only and never stacked here.
+ *    Optional turn-only expiry reset is STANDARD-only and never stacked here.
  */
 export function buildCurrentUserInputWrapper(opts?: {
   mode?: ChatRuntimeMode;

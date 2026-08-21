@@ -29,6 +29,8 @@ export type UserCoauthorBooleans = {
   allowMajorActions: boolean;
 };
 
+export type UserCoauthorTransitionReason = "none" | "turn_only_expiry" | "revoke";
+
 export type AppliedUserCoauthorDirective = {
   persistentBefore: UserCoauthorMode;
   persistentAfter: UserCoauthorMode;
@@ -36,6 +38,8 @@ export type AppliedUserCoauthorDirective = {
   current: UserCoauthorBooleans;
   duration: UserCoauthorDuration | null;
   directive: UserCoauthorDirective;
+  transitionReason: UserCoauthorTransitionReason;
+  /** True only for turn-only expiry. Explicit revoke does not inject a reset sentence. */
   postDelegationBoundary: boolean;
   delegation: CurrentTurnAuthoringDelegation;
 };
@@ -91,26 +95,40 @@ export function isUserCoauthorModeActive(mode: UserCoauthorMode): boolean {
   return mode !== "OFF";
 }
 
+function currentDirectiveSuppresses(current: UserCoauthorDirective): boolean {
+  return (
+    current.duration !== "none" &&
+    (current.dialogue === "deny" || current.majorActions === "deny") &&
+    current.dialogue !== "grant" &&
+    current.majorActions !== "grant"
+  );
+}
+
+export function resolveUserCoauthorTransitionReason(input: {
+  previousUserInput?: string | null;
+  currentDirective: UserCoauthorDirective;
+  currentMode: UserCoauthorMode;
+}): UserCoauthorTransitionReason {
+  if (input.currentMode !== "OFF") return "none";
+  if (currentDirectiveSuppresses(input.currentDirective)) return "revoke";
+  const previous = resolveUserCoauthorDirective({
+    currentUserInput: input.previousUserInput ?? "",
+  });
+  if (
+    previous.duration === "turn" &&
+    (previous.dialogue === "grant" || previous.majorActions === "grant")
+  ) {
+    return "turn_only_expiry";
+  }
+  return "none";
+}
+
 export function shouldInjectPostDelegationBoundary(input: {
   previousUserInput?: string | null;
   currentDirective: UserCoauthorDirective;
   currentMode: UserCoauthorMode;
 }): boolean {
-  if (input.currentMode !== "OFF") return false;
-  const current = input.currentDirective;
-  const currentSuppresses =
-    current.duration !== "none" &&
-    (current.dialogue === "deny" || current.majorActions === "deny") &&
-    current.dialogue !== "grant" &&
-    current.majorActions !== "grant";
-  if (currentSuppresses) return true;
-  const previous = resolveUserCoauthorDirective({
-    currentUserInput: input.previousUserInput ?? "",
-  });
-  return (
-    previous.duration === "turn" &&
-    (previous.dialogue === "grant" || previous.majorActions === "grant")
-  );
+  return resolveUserCoauthorTransitionReason(input) === "turn_only_expiry";
 }
 
 export function applyUserCoauthorDirective(
@@ -121,11 +139,12 @@ export function applyUserCoauthorDirective(
   const persistentBefore = parseUserCoauthorMode(persistentMode);
   if (directive.duration === "none") {
     const current = booleansFromUserCoauthorMode(persistentBefore);
-    const postDelegationBoundary = shouldInjectPostDelegationBoundary({
+    const transitionReason = resolveUserCoauthorTransitionReason({
       previousUserInput,
       currentDirective: directive,
       currentMode: persistentBefore,
     });
+    const postDelegationBoundary = transitionReason === "turn_only_expiry";
     const active = isUserCoauthorModeActive(persistentBefore);
     return {
       persistentBefore,
@@ -134,6 +153,7 @@ export function applyUserCoauthorDirective(
       current,
       duration: active ? "persistent" : null,
       directive,
+      transitionReason,
       postDelegationBoundary,
       delegation: active
         ? {
@@ -164,11 +184,12 @@ export function applyUserCoauthorDirective(
   const currentMode = userCoauthorModeFromBooleans(nextFlags);
   const persistentAfter =
     directive.duration === "persistent" ? currentMode : persistentBefore;
-  const postDelegationBoundary = shouldInjectPostDelegationBoundary({
+  const transitionReason = resolveUserCoauthorTransitionReason({
     previousUserInput,
     currentDirective: directive,
     currentMode,
   });
+  const postDelegationBoundary = transitionReason === "turn_only_expiry";
   const active = isUserCoauthorModeActive(currentMode);
   const duration: UserCoauthorDuration | null = active
     ? directive.duration === "turn"
@@ -182,6 +203,7 @@ export function applyUserCoauthorDirective(
     current: nextFlags,
     duration,
     directive,
+    transitionReason,
     postDelegationBoundary,
     delegation: active
       ? {
