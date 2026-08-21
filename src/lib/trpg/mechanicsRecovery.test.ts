@@ -462,7 +462,7 @@ describe("TRPG contextual recovery UI", () => {
 });
 
 describe("TRPG recovery engine persist / HUD commit", () => {
-  it("A-engine. downed actor gets no d20 row or currentRoll", async () => {
+  it("A-engine. pre-action DOT-downed actor gets no d20 row or currentRoll", async () => {
       const db = new Database(":memory:");
       ensureTrpgTables(db);
       const deps: TrpgEngineDeps = {
@@ -485,7 +485,8 @@ describe("TRPG recovery engine persist / HUD commit", () => {
       const round = db
         .prepare(`SELECT id, round_number FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number DESC LIMIT 1`)
         .get(campaignId) as { id: number; round_number: number };
-      db.prepare(`UPDATE trpg_character_sheets SET hp=3 WHERE participant_id=?`).run(host.id);
+      // maxHp=40 makes the minimum LIGHT tick 2 HP; hp=1 guarantees this test exercises the downed path.
+      db.prepare(`UPDATE trpg_character_sheets SET hp=1 WHERE participant_id=?`).run(host.id);
       insertOngoingEffect(db, {
         campaignId,
         participantId: host.id,
