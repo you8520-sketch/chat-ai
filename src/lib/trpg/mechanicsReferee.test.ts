@@ -19,9 +19,9 @@ describe("TRPG mechanics referee contract", () => {
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /sourceParticipantId/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /targetParticipantId/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /periodic_harm, control only/);
-    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /explicitly states that failure\/partial caused/);
+    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /explicitly says failure\/partial caused/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /explicitly establishes continuing poison/);
-    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /consumeItem must be JSON null/);
+    assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /No consumed item: consumeItem must be JSON null/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /"consumeItem":null/);
     assert.match(TRPG_MECHANICS_REFEREE_SYSTEM, /"consumeItem":"해독제"/);
   });
