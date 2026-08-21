@@ -1,0 +1,36 @@
+{
+  "probe": 2,
+  "config_id": "current_plus_reasoning_effort_none",
+  "reason": "Existing TRPG 0813 adapter evidence: add only reasoning_effort=none to current thinking.disabled.",
+  "outbound": {
+    "model": "deepseek-v4-pro-0813",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "include_reasoning": null,
+    "enable_thinking": null,
+    "temperature": 0,
+    "max_tokens": 32
+  },
+  "http": 200,
+  "error": null,
+  "reasoning_events": 0,
+  "reasoning_chars": 0,
+  "ttft_ms": 1558,
+  "latency_ms": 1699,
+  "finish_reason": "stop",
+  "response_model": "deepseek-v4-pro-0813",
+  "visible_chars": 1,
+  "visible_preview": "4",
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 1,
+    "total_tokens": 13,
+    "cost": 0.000005,
+    "cost_details": {
+      "upstream_inference_cost": 0.000005
+    }
+  }
+}
