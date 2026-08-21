@@ -27,7 +27,7 @@ export const INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION: CurrentTurnAuthoringDel
 
 /** Compact authoring/delegation verbs — prefer false-negative over false-positive. */
 const AUTHORING_INTENT_RE =
-  /(?:알아서\s*해|알아서\s*(?:써|작성|진행|움직)|자동\s*서술|맡길게|네가\s*(?:해|알아서|써|작성|진행|움직)|출력(?:해(?:\s*줘|주(?:고|세요)?|[라요])?|하(?:라|세요)?)|서술(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|묘사(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|작성(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|(?:^|[\s,.])써(?:\s*줘|[라요]|라|세요)?|진행(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|움직여(?:\s*줘|[라요])?)/;
+  /(?:알아서\s*해|알아서\s*(?:써|작성|진행|움직)|자동\s*서술|맡길게|네가\s*(?:해|알아서|써|작성|진행|움직)|출력(?:해(?:\s*줘|주(?:고|세요)?|[라요])?|하(?:라|세요)?)|서술(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|묘사(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|작성(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|(?:^|[\s,.])써(?:\s*줘|[라요]|라|세요|고)?|진행(?:해(?:\s*줘|[라요])?|하(?:라|세요)?)|움직여(?:\s*줘|[라요])?)/;
 
 /**
  * Positive authoring relationship for a scope — not mere noun presence.
@@ -36,9 +36,9 @@ const AUTHORING_INTENT_RE =
 const DIALOGUE_GRANT_RE =
   /(?:유저\s*)?대사(?:만|도|는|은|를|을|랑)|유저(?:의|가)?\s*대사|내\s*대사|페르소나(?:의)?\s*대사|유저대사/;
 const ACTION_GRANT_RE = /행동(?:만|도|는|은|를|을|랑)|움직여/;
-/** OOC names a user action/scene to narrate — not blanket "알아서 진행". */
-const SPECIFIED_USER_ACTION_NARRATION_RE =
-  /(?:유저(?:가|의)?|내(?:가|의)?)[^\n。]{0,120}(?:장면|동작|행동|삽입|키스|포옹)[^\n。]{0,80}(?:서술|묘사|출력|작성)|(?:서술|묘사|출력|작성)[^\n。]{0,120}(?:유저(?:가|의)?|내(?:가|의)?)[^\n。]{0,120}(?:장면|동작|행동|삽입|키스|포옹|반응)/;
+/** User assigns a persona scene/action for this-turn co-authoring → allowMajorActions. */
+const SCENE_COAUTHOR_ACTION_GRANT_RE =
+  /(?:유저(?:가|의)?|내(?:가|의)?)[^\n。]{0,160}(?:장면|동작|행동|반응)|(?:장면|동작|행동)[^\n。]{0,60}(?:을|를|은|는)?\s*(?:서술|묘사|출력|작성|진행)|(?:서술|묘사|출력|작성|진행)[^\n。]{0,120}(?:유저(?:가|의)?|내(?:가|의)?)/;
 /** Whole-persona / turn-progress — not "페르소나에 맞춰서" style qualifiers. */
 const FULL_PERSONA_GRANT_RE =
   /(?:유저\s*)?페르소나\s*도|턴을\s*진행|자동\s*서술|대사\s*(?:랑|와|과)\s*행동/;
@@ -139,7 +139,7 @@ function resolveDelegationScope(oocBody: string): {
   let allowMajorActions =
     ACTION_GRANT_RE.test(oocBody) ||
     FULL_PERSONA_GRANT_RE.test(oocBody) ||
-    SPECIFIED_USER_ACTION_NARRATION_RE.test(oocBody);
+    SCENE_COAUTHOR_ACTION_GRANT_RE.test(oocBody);
 
   if (dialogueDenied) allowDialogue = false;
   if (actionDenied) allowMajorActions = false;
