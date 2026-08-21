@@ -5,14 +5,16 @@ import { actionNeedsCheck } from "./actionCheck";
 import { TRPG_ACTION_TYPES, TRPG_VISIBLE_ACTION_TYPES, isTrpgActionType } from "./actionTypes";
 import {
   applyReplySuggestionClick,
-  buildReplySuggestionPublicContext,
   normalizeTrpgReplyStance,
-  parseReplySuggestions,
   replyStanceLabelKo,
   TRPG_REPLY_STANCES,
+  type TrpgReplySuggestion,
+} from "./replySuggestionShared";
+import {
+  buildReplySuggestionPublicContext,
+  parseReplySuggestions,
   TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS,
   TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS,
-  type TrpgReplySuggestion,
 } from "./replySuggestions";
 
 function suggestionJson(
@@ -190,6 +192,7 @@ describe("TRPG reply suggestion stances", () => {
     assert.equal(filled.inputOrigin, "reply_suggestion");
     assert.equal(filled.autoSubmit, false);
     const client = fs.readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
+    assert.match(client, /from ["']@\/lib\/trpg\/replySuggestionShared["']/);
     assert.match(client, /applyReplySuggestionClick\(item\)/);
     const pick = client.match(/onPickSuggestion=\{\(item\) => \{[\s\S]*?\}\}/);
     assert.ok(pick, "room client must keep an onPickSuggestion fill handler");
@@ -327,6 +330,8 @@ describe("TRPG visible action composer ownership", () => {
     assert.match(room, /💊 상태 치료/);
     assert.match(room, /🏕 안전한 휴식/);
     assert.match(room, /data-contextual="first-aid"/);
+    assert.match(room, /from ["']@\/lib\/trpg\/replySuggestionShared["']/);
+    assert.doesNotMatch(room, /from ["']@\/lib\/trpg\/replySuggestions["']/);
     assert.match(room, /replyStanceLabelKo\(item\.stance\)/);
     assert.match(room, /actionTypeLabelKo\(item\.actionType\)/);
   });

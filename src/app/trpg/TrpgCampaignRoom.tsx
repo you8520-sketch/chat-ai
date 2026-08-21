@@ -40,7 +40,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
-import { replyStanceLabelKo, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
+import { replyStanceLabelKo, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   isTrpgDicePreviewRuntime,
   logTrpgDicePreviewInstrument,

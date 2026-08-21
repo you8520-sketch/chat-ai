@@ -14,7 +14,7 @@ import {
   applyReplySuggestionClick,
   type TrpgInputOrigin,
   type TrpgReplySuggestion,
-} from "@/lib/trpg/replySuggestions";
+} from "@/lib/trpg/replySuggestionShared";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import {
   loadTrpgActionSuggestionsCache,

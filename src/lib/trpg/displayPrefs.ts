@@ -5,7 +5,7 @@ import {
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
-import type { TrpgReplySuggestion } from "./replySuggestions";
+import type { TrpgReplySuggestion } from "./replySuggestionShared";
 
 /** Pre-shared-prefs TRPG-only font size. */
 export const TRPG_LEGACY_FONT_SIZE_KEY = "habi:trpg-fontSizePreset";
