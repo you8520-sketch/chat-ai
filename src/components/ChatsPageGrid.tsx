@@ -10,6 +10,10 @@ import CharacterChatBranchModal from "@/components/CharacterChatBranchModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { characterPageHref } from "@/lib/chatLinks";
 import {
+  compareActivityAtDesc,
+  type RecentTrpgCampaignEntry,
+} from "@/lib/recentActivity";
+import {
   formatChatListTime,
   formatChatPreview,
   getBranchDisplayTitle,
@@ -20,8 +24,13 @@ import {
 
 type Props = {
   sessions: UserChatSession[];
+  campaigns: RecentTrpgCampaignEntry[];
   blurNsfw: boolean;
 };
+
+type ChatListEntry =
+  | { kind: "character_chat"; group: CharacterChatGroup; lastActivityAt: string }
+  | { kind: "trpg_campaign"; campaign: RecentTrpgCampaignEntry; lastActivityAt: string };
 
 function formatLastChatLabel(iso: string | null): string {
   const t = formatChatListTime(iso);
@@ -154,9 +163,73 @@ function ChatCharacterCard({
   );
 }
 
-export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
+function TrpgChatCard({ campaign }: { campaign: RecentTrpgCampaignEntry }) {
+  const lastLabel = formatLastChatLabel(campaign.lastActivityAt);
+
+  return (
+    <Link
+      href={campaign.href}
+      data-chat-list-kind="trpg_campaign"
+      className="group flex min-w-0 overflow-hidden rounded-xl border border-violet-400/20 bg-[#131626] transition hover:border-violet-400/45 hover:bg-violet-500/[0.06]"
+    >
+      <span className="flex w-20 shrink-0 items-center justify-center bg-violet-500/10 text-violet-300 @min-[30rem]/chats:w-[4.25rem] @min-[48rem]/chats:w-20 @min-[64rem]/chats:w-24 @min-[80rem]/chats:w-28">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-300/25 bg-violet-500/15 @min-[64rem]/chats:h-14 @min-[64rem]/chats:w-14">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-6 w-6 @min-[64rem]/chats:h-7 @min-[64rem]/chats:w-7">
+            <path
+              d="M12 2.4 20.2 7v10L12 21.6 3.8 17V7L12 2.4Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <path d="M12 8.2 15.4 10v4L12 15.8 8.6 14v-4L12 8.2Z" fill="currentColor" opacity="0.85" />
+          </svg>
+        </span>
+      </span>
+
+      <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 p-2.5 text-left @min-[30rem]/chats:p-3 @min-[48rem]/chats:gap-1 @min-[64rem]/chats:p-4">
+        <span className="flex min-w-0 items-start justify-between gap-1.5 @md/chats:gap-2">
+          <span className="truncate text-xs font-bold text-zinc-50 @min-[30rem]/chats:text-sm @min-[48rem]/chats:text-base @min-[64rem]/chats:text-lg">
+            {campaign.title}
+          </span>
+          {lastLabel ? (
+            <span className="shrink-0 text-[9px] tabular-nums text-zinc-500 @min-[30rem]/chats:text-[10px] @min-[48rem]/chats:text-[11px] @min-[64rem]/chats:text-xs">
+              {lastLabel}
+            </span>
+          ) : null}
+        </span>
+        <span className="text-[10px] font-bold text-violet-300 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
+          TRPG 캠페인
+        </span>
+        <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
+          참여했던 방의 장면과 캐릭터 시트를 이어서 확인하세요.
+        </span>
+        <span className="mt-0.5 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
+          TRPG 방으로 돌아가기 →
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) {
   const router = useRouter();
   const groups = useMemo(() => groupSessionsByCharacter(sessions), [sessions]);
+  const entries = useMemo<ChatListEntry[]>(
+    () =>
+      [
+        ...groups.map((group) => ({
+          kind: "character_chat" as const,
+          group,
+          lastActivityAt: group.latest_at ?? "",
+        })),
+        ...campaigns.map((campaign) => ({
+          kind: "trpg_campaign" as const,
+          campaign,
+          lastActivityAt: campaign.lastActivityAt,
+        })),
+      ].sort((a, b) => compareActivityAtDesc(a.lastActivityAt, b.lastActivityAt)),
+    [campaigns, groups]
+  );
 
   const [pickerGroup, setPickerGroup] = useState<CharacterChatGroup | null>(null);
   const [pendingDelete, setPendingDelete] = useState<UserChatSession | null>(null);
@@ -269,14 +342,19 @@ export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
     });
   }
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && campaigns.length === 0) {
     return (
       <p className="py-16 text-center text-sm text-zinc-400">
-        아직 대화한 캐릭터가 없습니다.
+        아직 일반 대화나 TRPG 대화가 없습니다.
         <br />
-        <Link href="/" className="mt-3 inline-block text-violet-400 hover:underline">
-          캐릭터 둘러보기
-        </Link>
+        <span className="mt-3 inline-flex gap-4">
+          <Link href="/" className="text-violet-400 hover:underline">
+            캐릭터 둘러보기
+          </Link>
+          <Link href="/trpg" className="text-violet-400 hover:underline">
+            TRPG 둘러보기
+          </Link>
+        </span>
       </p>
     );
   }
@@ -289,80 +367,86 @@ export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
         </p>
       )}
 
-      <div className="mb-3 rounded-xl border border-white/10 bg-[#101321]/80 p-3">
-        {selectionMode ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-bold text-white">
-                삭제할 캐릭터를 선택하세요
-              </p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                선택한 캐릭터와 나눈 모든 대화방이 삭제되며 캐릭터 자체는 유지됩니다.
-              </p>
+      {groups.length > 0 ? (
+        <div className="mb-3 rounded-xl border border-white/10 bg-[#101321]/80 p-3">
+          {selectionMode ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-white">삭제할 캐릭터를 선택하세요</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  선택한 캐릭터와 나눈 모든 대화방이 삭제되며 캐릭터 자체는 유지됩니다.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={toggleAllCharacters}
+                  disabled={deletingGroups}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10 disabled:opacity-40"
+                >
+                  {allGroupsSelected ? "전체 해제" : "전체 선택"}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedGroups.length === 0 || deletingGroups}
+                  onClick={() => setPendingGroupDelete(selectedGroups)}
+                  className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-black text-white hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-zinc-600"
+                >
+                  {deletingGroups
+                    ? "삭제 중…"
+                    : selectedGroups.length > 0
+                      ? `선택한 캐릭터의 대화 전체 삭제 (${selectedGroups.length})`
+                      : "캐릭터를 선택하세요"}
+                </button>
+                <button
+                  type="button"
+                  onClick={stopSelection}
+                  disabled={deletingGroups}
+                  className="rounded-lg px-3 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5 hover:text-white disabled:opacity-40"
+                >
+                  취소
+                </button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-zinc-500">
+                캐릭터별 대화를 한꺼번에 정리할 수 있습니다.
+              </p>
               <button
                 type="button"
-                onClick={toggleAllCharacters}
-                disabled={deletingGroups}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/10 disabled:opacity-40"
+                onClick={() => {
+                  setSelectionMode(true);
+                  setSelectedCharacterIds(new Set());
+                  setError("");
+                }}
+                className="shrink-0 rounded-lg border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20"
               >
-                {allGroupsSelected ? "전체 해제" : "전체 선택"}
-              </button>
-              <button
-                type="button"
-                disabled={selectedGroups.length === 0 || deletingGroups}
-                onClick={() => setPendingGroupDelete(selectedGroups)}
-                className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-black text-white hover:bg-rose-500 disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-zinc-600"
-              >
-                {deletingGroups
-                  ? "삭제 중…"
-                  : selectedGroups.length > 0
-                    ? `선택한 캐릭터의 대화 전체 삭제 (${selectedGroups.length})`
-                    : "캐릭터를 선택하세요"}
-              </button>
-              <button
-                type="button"
-                onClick={stopSelection}
-                disabled={deletingGroups}
-                className="rounded-lg px-3 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5 hover:text-white disabled:opacity-40"
-              >
-                취소
+                선택 삭제
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-zinc-500">
-              캐릭터별 대화를 한꺼번에 정리할 수 있습니다.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectionMode(true);
-                setSelectedCharacterIds(new Set());
-                setError("");
-              }}
-              className="shrink-0 rounded-lg border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-300 hover:bg-rose-500/20"
-            >
-              선택 삭제
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-2 @min-[30rem]/chats:grid-cols-2 @min-[30rem]/chats:gap-2.5 @min-[48rem]/chats:gap-3 @min-[64rem]/chats:gap-4 @min-[80rem]/chats:gap-5">
-        {groups.map((g) => (
-          <ChatCharacterCard
-            key={g.character_id}
-            group={g}
-            blurNsfw={blurNsfw}
-            onOpenBranches={() => setPickerGroup(g)}
-            selectionMode={selectionMode}
-            selected={selectedCharacterIds.has(g.character_id)}
-            onToggleSelection={() => toggleCharacterSelection(g.character_id)}
-          />
-        ))}
+        {entries.map((entry) =>
+          entry.kind === "trpg_campaign" ? (
+            selectionMode ? null : (
+              <TrpgChatCard key={`trpg-${entry.campaign.campaignId}`} campaign={entry.campaign} />
+            )
+          ) : (
+            <ChatCharacterCard
+              key={`character-${entry.group.character_id}`}
+              group={entry.group}
+              blurNsfw={blurNsfw}
+              onOpenBranches={() => setPickerGroup(entry.group)}
+              selectionMode={selectionMode}
+              selected={selectedCharacterIds.has(entry.group.character_id)}
+              onToggleSelection={() => toggleCharacterSelection(entry.group.character_id)}
+            />
+          )
+        )}
       </div>
 
       {pickerGroup && (
