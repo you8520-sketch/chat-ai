@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
 import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/ChatSettingsRailIcons";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import { partyDetailedSheetCards } from "@/lib/trpg/partySheetPresentation";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import TrpgInviteLink from "./TrpgInviteLink";
@@ -46,7 +47,7 @@ function tabHint(tab: TrpgCampaignRailTab): string {
     case "display":
       return "글꼴 · 크기";
     case "sheets":
-      return "파티 시트 · 내 시트는 화면 아래 고정";
+      return "파티원 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
       return "플레이어끼리만 보이며 GM 진행에는 반영되지 않습니다.";
     default: {
@@ -95,6 +96,10 @@ export default function TrpgCampaignRail({
   }, [active]);
 
   const tabs: TrpgCampaignRailTab[] = compact ? ["display", "sheets", "ooc"] : ["display", "sheets"];
+  const partyDetailedSheets = partyDetailedSheetCards(
+    snap.sheets,
+    snap.viewerParticipantId
+  );
 
   return (
     <div ref={rootRef} className="relative flex w-full flex-col">
@@ -135,16 +140,20 @@ export default function TrpgCampaignRail({
                 {snap.inviteCode ? (
                   <TrpgInviteLink code={snap.inviteCode} canJoin={false} />
                 ) : null}
-                {snap.sheets.map((card) => (
-                  <div
-                    key={card.participantId}
-                    className={`rounded-xl border p-3 text-sm text-zinc-200 ${
-                      card.isSelf ? "border-violet-400/30 bg-violet-500/10" : "border-white/10 bg-white/[0.03]"
-                    }`}
-                  >
-                    <div className="trpg-sheet-hud" dangerouslySetInnerHTML={{ __html: card.html }} />
-                  </div>
-                ))}
+                {partyDetailedSheets.length > 0 ? (
+                  partyDetailedSheets.map((card) => (
+                    <div
+                      key={card.participantId}
+                      className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200"
+                    >
+                      <div className="trpg-sheet-hud" dangerouslySetInnerHTML={{ __html: card.html }} />
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-zinc-400">
+                    다른 파티원이 없습니다.
+                  </p>
+                )}
               </div>
             ) : null}
             {active === "ooc" ? (
