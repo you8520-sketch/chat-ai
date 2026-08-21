@@ -72,7 +72,6 @@ const sceneClassification = classifySceneMode({
 const adultEligibility = resolveAdultEligibility({
   userAdultVerified: true,
   adultContentVisibilityEnabled: true,
-  characterAdultContentEnabled: row.nsfw === 1,
   participants: [
     {
       adultStatus: row.adult_status,

@@ -100,6 +100,7 @@ export interface ParticipantAdultMetadata {
 export type AdultEligibilityBlockReason =
   | "user_not_verified"
   | "adult_visibility_off"
+  /** @deprecated never emitted — listing `characters.nsfw` is not an RP gate */
   | "character_adult_disabled"
   | "participant_minor"
   | "participant_conflict"
@@ -615,6 +616,11 @@ export function assessParticipantAdultStatus(
  * Home/header 「성인 캐릭터 표시」 (`users.nsfw_on`) only controls listing
  * visibility and must not be passed here.
  *
+ * `characters.nsfw` is a listing / creator content-rating flag
+ * (adult-labelled vs general). It is not an adult-RP eligibility gate.
+ * A general (`nsfw=0`) confirmed-adult character may enter adult RP when
+ * the user is adult-verified and chat-room adult mode is ON.
+ *
  * `SKIP_ADULT_VERIFICATION` may make `userAdultVerified` effective-true;
  * chat-room adult mode OFF must still disable adult model handoff.
  *
@@ -629,7 +635,12 @@ export function resolveAdultEligibility(input: {
    * production chat must pass the real chat-room preference.
    */
   adultContentVisibilityEnabled?: boolean;
-  characterAdultContentEnabled: boolean;
+  /**
+   * @deprecated Listing/content-rating (`characters.nsfw`) must not be passed
+   * here. Ignored when provided. Adult RP eligibility is user verified +
+   * chat adult mode + participant age / real-person gates only.
+   */
+  characterAdultContentEnabled?: boolean;
   participants: ParticipantAdultMetadata[];
   /** Ignored. Coercion / non-consent is not an eligibility block. */
   actualNonConsent?: boolean;
@@ -651,13 +662,7 @@ export function resolveAdultEligibility(input: {
       blockReason: "adult_visibility_off",
     };
   }
-  if (!input.characterAdultContentEnabled) {
-    return {
-      eligible: false,
-      allowedByAdultContentPolicy: false,
-      blockReason: "character_adult_disabled",
-    };
-  }
+  void input.characterAdultContentEnabled;
   for (const participant of input.participants) {
     const status = assessParticipantAdultStatus(participant);
     if (status === "real_person") {
@@ -758,6 +763,37 @@ export function resolveRequestedConsentMode(
   }
   if (requested === "standard") return "standard";
   return previous;
+}
+
+/** Character allowlist only. Listing `nsfw` does not change consent modes. */
+export function parseAllowedConsentModes(raw: string | null | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw || '["standard"]') as unknown;
+    if (Array.isArray(parsed)) {
+      const modes = parsed.filter((value): value is string => typeof value === "string");
+      if (modes.length > 0) return modes;
+    }
+  } catch {
+    /* fall through */
+  }
+  return ["standard"];
+}
+
+export function resolveEffectiveConsentMode(input: {
+  requested: unknown;
+  previous: AdultConsentMode;
+  currentInput: string;
+  allowedConsentModes: string[];
+}): AdultConsentMode {
+  const resolved = resolveRequestedConsentMode(
+    input.requested,
+    input.previous,
+    input.currentInput
+  );
+  if (!input.allowedConsentModes.includes(resolved)) {
+    return "standard";
+  }
+  return resolved;
 }
 
 export interface SceneClassification {
