@@ -34,6 +34,7 @@ import {
   trpgRollOutcomeLabel,
 } from "@/lib/trpg/actionCardUi";
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
+import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
@@ -535,7 +536,10 @@ export default function TrpgCampaignRoom({
   ].filter((name, i, all) => name.trim() && all.indexOf(name) === i);
   const imageId = imageCharacterId(snap);
   const partyNames = partyDisplayNames(snap);
-  const selfSheet = snap.sheets.find((card) => card.isSelf);
+  const selfSheet = viewerSelfSheetCard(
+    snap.sheets,
+    snap.viewerParticipantId
+  );
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const visibleSceneRows = sceneRows;
   const cinematicRevealedIds = revealedActorIds({ actors: presentationActors, state: roundShow });
@@ -998,7 +1002,10 @@ export default function TrpgCampaignRoom({
                 ))}
               </div>
               {(() => {
-                const selfSheet = snap.sheets.find((card) => card.isSelf)?.sheet;
+                const selfSheet = viewerSelfSheetCard(
+                  snap.sheets,
+                  snap.viewerParticipantId
+                )?.sheet;
                 const viewerId = snap.viewerParticipantId;
                 const treatable = (snap.ongoingEffects ?? []).some(
                   (effect) =>

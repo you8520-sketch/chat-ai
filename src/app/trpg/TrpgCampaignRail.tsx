@@ -96,7 +96,10 @@ export default function TrpgCampaignRail({
   }, [active]);
 
   const tabs: TrpgCampaignRailTab[] = compact ? ["display", "sheets", "ooc"] : ["display", "sheets"];
-  const partyDetailedSheets = partyDetailedSheetCards(snap.sheets);
+  const partyDetailedSheets = partyDetailedSheetCards(
+    snap.sheets,
+    snap.viewerParticipantId
+  );
 
   return (
     <div ref={rootRef} className="relative flex w-full flex-col">
