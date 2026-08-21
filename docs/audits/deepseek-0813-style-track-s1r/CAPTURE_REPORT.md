@@ -1,0 +1,66 @@
+# DEEPSEEK0813_STYLE_TRACK_S1R_TRUE_OFF_CAPTURE_COMPLETE
+
+```
+DEEPSEEK0813_STYLE_TRACK_S1R_TRUE_OFF_CAPTURE_COMPLETE:
+BASE_HEAD: ca537aaeab3125cc35103992a5a03b523e4b2290
+BRANCH_HEAD: cef3cc3110de3d2831fb0c51ac7430ce125371dc
+TARGET:
+deepseek-v4-pro-0813
+PROVIDER:
+cheaperinference
+TRUE_OFF_CONFIG:
+thinking={type:"disabled"} + reasoning_effort="none"
+BASELINE_CALLS:
+2
+MIRROR_CALLS:
+2
+TOTAL_NEW_CALLS:
+4
+REASONING_EVENTS:
+0 / 0 / 0 / 0
+REASONING_CHARS:
+0 / 0 / 0 / 0
+TRUE_OFF_QUALITY_PARITY:
+true
+VISIBLE:
+1898 / 3141 / 2670 / 3084
+TTFT:
+2331 / 1685 / 4025 / 1545
+LATENCY:
+31014 / 48593 / 45378 / 48671
+COST:
+0.003156 / 0.00164 / 0.003603 / 0.001582
+RAW_SHA_COMPLETE:
+true
+BLIND_REVIEW_PACKET:
+docs/audits/deepseek-0813-style-track-s1r/BLIND_REVIEW_PACKET.md
+REVEAL_MAP:
+docs/audits/deepseek-0813-style-track-s1r/REVEAL_MAP.json
+QUALITY_SCORING_BY_CURSOR:
+false
+COMPLETION_OWNER:
+false
+CURRENT_STAGE_BOUNDARY:
+false
+PRODUCTION_TRANSPORT_CHANGED:
+false
+SOURCE_MIRROR_PRODUCTION:
+false
+MAIN_MERGED:
+false
+RAILWAY_DEPLOYED:
+false
+```
+
+## Review order
+
+1. Read `BLIND_REVIEW_PACKET.md` only. Labels are C1/C2/D1/D2.
+2. Score. Do not open `REVEAL_MAP.json`, `SUMMARY.json`, or `STYLE_METRICS.json` until scoring is finished.
+3. Then open `REVEAL_MAP.json`.
+
+Old S1 remains in `docs/audits/deepseek-0813-style-track-s1/`.
+`OLD_S1_TRANSPORT_CONTAMINATED_BY_REASONING=true`.
+
+Cursor does not decide PASS/REJECT.
+
+STOP. Wait for ChatGPT blind review.

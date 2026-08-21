@@ -1,0 +1,13 @@
+{
+  "source_id": "gemini37",
+  "source_model": "gemini-3.7-flash",
+  "last_assistant_path": "docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+  "last_assistant_sha256": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+  "current_user_semantic": "같이 갈래? *두리번*",
+  "opus_calls": 0,
+  "gemini31_calls": 0,
+  "gemini37_source_model_calls": 0,
+  "old_s1_preserved": true,
+  "OLD_S1_TRANSPORT_CONTAMINATED_BY_REASONING": true,
+  "production_transport_changed": false
+}

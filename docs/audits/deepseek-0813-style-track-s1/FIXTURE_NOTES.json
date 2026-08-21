@@ -1,0 +1,20 @@
+{
+  "notes": [
+    "OPUS_FIXTURE_UNAVAILABLE: frozen last-assistant RAW missing at /opt/cursor/artifacts/opus-instruction-boundary/live/s5_relationship_hand/arm-E/run1/turn2-provider-raw.txt and no committed Opus RAW + matching next user. Skipped. Not relabeled.",
+    "GEMINI31_FIXTURE_UNAVAILABLE: frozen last-assistant RAW missing at /opt/cursor/artifacts/gemini31-opus5-minimal-screen/gemini31/relationship/run1/turn2-provider-raw.txt and no committed Gemini 3.1 RAW + matching next user. Skipped. Not relabeled."
+  ],
+  "sources": [
+    {
+      "id": "gemini37",
+      "label": "Gemini 3.7 Flash source",
+      "sourceModel": "gemini-3.7-flash",
+      "lastAssistantPath": "docs/audits/gemini-37-flash-baseline/t1-raw.txt",
+      "lastAssistantProvenance": "committed:docs/audits/gemini-37-flash-baseline/t1-raw.txt"
+    }
+  ],
+  "opus_fixture_proven": false,
+  "gemini31_fixture_proven": false,
+  "gemini37_fixture_proven": true,
+  "existing_baseline_reuse": false,
+  "reason_no_reuse": "No prior 0813 vanilla sample shares exact SOURCE/SYSTEM/HISTORY/CURRENT_USER SHA with this Style Track fixture."
+}

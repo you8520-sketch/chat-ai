@@ -1,0 +1,24 @@
+{
+  "note": "Separate from the blind packet. Do not read before scoring.",
+  "gemini37": {
+    "a_is_baseline": true,
+    "labels": {
+      "SOURCE_G37_SAMPLE_A1": {
+        "arm": "BASELINE",
+        "run": 1
+      },
+      "SOURCE_G37_SAMPLE_A2": {
+        "arm": "BASELINE",
+        "run": 2
+      },
+      "SOURCE_G37_SAMPLE_B1": {
+        "arm": "CHALLENGER",
+        "run": 1
+      },
+      "SOURCE_G37_SAMPLE_B2": {
+        "arm": "CHALLENGER",
+        "run": 2
+      }
+    }
+  }
+}
