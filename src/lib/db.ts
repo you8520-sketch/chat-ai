@@ -24,6 +24,7 @@ import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
+import { ensureSecondarySceneParticipantSafetySchema } from "@/lib/secondarySceneParticipantSafetySchema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
@@ -1059,6 +1060,69 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_chat_scenes_active
       ON chat_scenes(chat_id, status);
 
+    CREATE TABLE IF NOT EXISTS scene_secondary_participant_safety (
+      scene_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      participant_id TEXT NOT NULL,
+      display_name TEXT NOT NULL DEFAULT '',
+      participant_kind TEXT NOT NULL,
+      presence_state TEXT NOT NULL,
+      age INTEGER,
+      adult_status TEXT,
+      is_real_person INTEGER,
+      evidence_trust TEXT NOT NULL,
+      evidence_source TEXT NOT NULL,
+      authoritative_age INTEGER,
+      authoritative_adult_status TEXT,
+      authoritative_is_real_person INTEGER,
+      authoritative_source TEXT,
+      restrictive_age INTEGER,
+      restrictive_adult_status TEXT,
+      restrictive_is_real_person INTEGER,
+      restrictive_source TEXT,
+      first_seen_turn INTEGER,
+      last_seen_turn INTEGER,
+      left_turn INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (scene_id, participant_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ssps_scene_presence
+      ON scene_secondary_participant_safety(scene_id, presence_state);
+    CREATE INDEX IF NOT EXISTS idx_ssps_chat_scene
+      ON scene_secondary_participant_safety(chat_id, scene_id);
+
+    CREATE TABLE IF NOT EXISTS scene_secondary_participant_safety_events (
+      id TEXT PRIMARY KEY,
+      scene_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      participant_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      source_role TEXT NOT NULL,
+      source_message_id INTEGER,
+      source_turn INTEGER,
+      event_index INTEGER NOT NULL DEFAULT 0,
+      evidence_trust TEXT NOT NULL,
+      evidence_source TEXT NOT NULL,
+      attached_age INTEGER,
+      restrictive_age INTEGER,
+      restrictive_adult_status TEXT,
+      restrictive_is_real_person INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ssps_events_scene_part
+      ON scene_secondary_participant_safety_events(scene_id, participant_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_ssps_events_source_msg
+      ON scene_secondary_participant_safety_events(chat_id, source_message_id);
+
+    CREATE TABLE IF NOT EXISTS chat_secondary_safety_coverage (
+      chat_id INTEGER PRIMARY KEY,
+      coverage TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      covered_from_turn INTEGER,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS scene_observer_presence (
       scene_id TEXT NOT NULL,
       chat_id INTEGER NOT NULL,
@@ -1602,6 +1666,7 @@ function migrate(db: Database.Database) {
   // Phase B1-A — empty numeric tables only; no chat backfill / no route wiring.
   ensureRpNumericStateTables(db);
   ensureTrpgTables(db);
+  ensureSecondarySceneParticipantSafetySchema(db);
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);

@@ -303,6 +303,11 @@ import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
+import {
+  buildProspectiveSecondarySceneSafetySnapshot,
+  evaluateCurrentTurnSecondarySceneSafetyShadow,
+  persistAssistantTurnSecondarySceneSafety,
+} from "@/lib/secondarySceneParticipantSafety";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import {
   INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
@@ -1251,6 +1256,41 @@ export async function POST(req: Request) {
     ],
     actualNonConsent: sceneClassification.actualNonConsent,
   });
+
+  // S1.2 pure preflight. Future S2 guard belongs immediately after this read:
+  // classify -> base eligibility -> prospective safety -> guard -> durable
+  // bootstrap -> safety commit -> existing adult route/delivery -> provider.
+  // S1.2 remains shadow-only and cannot block or alter routing.
+  try {
+    const prospectiveSecondarySafety =
+      buildProspectiveSecondarySceneSafetySnapshot({
+        chatId: chat.id,
+        currentTurn: playableTurnCount + 1,
+        currentUserMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition:
+          sceneClassification.clearSceneTransition === true,
+        sexualContextActive: sceneClassification.sexualContextActive,
+      });
+    console.info("[secondary-scene-safety-preflight-shadow]", {
+      chatId: chat.id,
+      present:
+        prospectiveSecondarySafety.presentSecondaryParticipants.length,
+      wouldBlockAdultScene:
+        prospectiveSecondarySafety.wouldBlockAdultScene,
+      coverage: prospectiveSecondarySafety.coverage,
+      shadowOnly: true,
+    });
+  } catch (err) {
+    // Future S2 policy: normal RP may continue only on the selected general
+    // model with adult handoff disabled; adult/sexual scenes fail closed here,
+    // before persistence/provider/billing. No enforcement in S1.2.
+    console.warn(
+      "[secondary-scene-safety-preflight-shadow] evaluation unavailable",
+      err
+    );
+  }
+
   const adultRouteDecision = decideAdultModelRoute({
     config: adultRoutingConfig,
     state: priorModelRouteState,
@@ -2565,6 +2605,43 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+
+  // S1.1 shadow-only: project after durable message ids exist. Never feeds
+  // resolveAdultEligibility / AdultDeliveryPlan / provider routing / HTTP 400.
+  try {
+    const secondarySceneSafetyShadow =
+      evaluateCurrentTurnSecondarySceneSafetyShadow({
+        chatId: chatRef.id,
+        userMessage: storedUserMessage,
+        sceneReset: sceneClassification.sceneReset === true,
+        clearSceneTransition: sceneClassification.clearSceneTransition === true,
+        currentTurn: playableTurnCount + 1,
+        sexualContextActive: sceneClassification.sexualContextActive,
+        sourceMessageId: userMessageId,
+        skipSceneBoundary: Boolean(regenerate) || bootstrapped.reusedExisting,
+      });
+    console.info("[secondary-scene-safety-shadow]", {
+      chatId: chatRef.id,
+      present: secondarySceneSafetyShadow.presentSecondaryParticipants.length,
+      wouldBlockAdultScene: secondarySceneSafetyShadow.wouldBlockAdultScene,
+      reason: secondarySceneSafetyShadow.reason,
+      sceneReset: sceneClassification.sceneReset === true,
+      clearSceneTransition: sceneClassification.clearSceneTransition === true,
+      shadowOnly: true,
+    });
+    if (personaSecretDiscoveryOn) {
+      bootstrapChatObservers({
+        chatId: chatRef.id,
+        characterId: ch.id,
+        displayName: typeof ch.name === "string" ? ch.name : "",
+        turnNumber: playableTurnCount + 1,
+        userId: user.id,
+      });
+    }
+  } catch (err) {
+    console.warn("[secondary-scene-safety-shadow] eval failed", err);
+  }
+
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {
       userMessageId,
@@ -5355,6 +5432,22 @@ export async function POST(req: Request) {
           assistantFinalizedThisRequest &&
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
           shouldCommitCanonicalTurnState(generationSemantics);
+
+        if (assistantFinalizedThisRequest && savedText.trim()) {
+          try {
+            persistAssistantTurnSecondarySceneSafety({
+              chatId: chatRef.id,
+              assistantText: savedText,
+              currentTurn: playableTurnCount + 1,
+              sourceMessageId: persistedAssistantId,
+            });
+          } catch (err) {
+            console.warn(
+              "[secondary-scene-safety-shadow] assistant persist failed",
+              err
+            );
+          }
+        }
 
         if (derivedStateAllowed) {
           const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);

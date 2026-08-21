@@ -21,6 +21,7 @@ import {
   initializeForkMemoryBoundaryCore,
 } from "@/lib/memory/memory-source-boundary";
 import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
+import { markSecondarySafetyCoverageIncompleteCore } from "@/lib/secondarySceneParticipantSafety";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -128,6 +129,11 @@ export async function POST(req: Request) {
         String(source.pov_character_name ?? "")
       );
     const newChatId = Number(info.lastInsertRowid);
+    markSecondarySafetyCoverageIncompleteCore({
+      chatId: newChatId,
+      reason: "fork_history_not_reconstructed",
+      db,
+    });
     const messageIdMap = new Map<number, number>();
 
     const ins = db.prepare(
