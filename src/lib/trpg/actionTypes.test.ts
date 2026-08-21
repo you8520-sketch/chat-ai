@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { actionTypeLabelKo, pickStatForAction } from "./actionTypes";
+import {
+  actionTypeLabelKo,
+  isTrpgActionType,
+  isTrpgVisibleActionType,
+  pickStatForAction,
+  TRPG_ACTION_TYPES,
+  TRPG_VISIBLE_ACTION_TYPES,
+} from "./actionTypes";
 import { defsFromKeys, DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 describe("TRPG action stat pick", () => {
@@ -39,5 +46,38 @@ describe("TRPG action stat pick", () => {
   it("shows 기타 행동 for backend free without changing the key", () => {
     assert.equal(actionTypeLabelKo("free"), "기타 행동");
     assert.notEqual(actionTypeLabelKo("free"), "자유 행동");
+  });
+});
+
+describe("TRPG visible action chips", () => {
+  it("keeps eight backend types while exposing exactly six composer chips", () => {
+    assert.deepEqual(TRPG_ACTION_TYPES, [
+      "attack",
+      "defend",
+      "investigate",
+      "persuade",
+      "stealth",
+      "support",
+      "use_item",
+      "free",
+    ]);
+    assert.equal(TRPG_ACTION_TYPES.length, 8);
+    assert.ok(isTrpgActionType("stealth"));
+    assert.ok(isTrpgActionType("use_item"));
+    assert.deepEqual(TRPG_VISIBLE_ACTION_TYPES, [
+      "attack",
+      "defend",
+      "investigate",
+      "persuade",
+      "support",
+      "free",
+    ]);
+    assert.equal(TRPG_VISIBLE_ACTION_TYPES.length, 6);
+    assert.equal(isTrpgVisibleActionType("stealth"), false);
+    assert.equal(isTrpgVisibleActionType("use_item"), false);
+    assert.deepEqual(
+      TRPG_VISIBLE_ACTION_TYPES.map((kind) => actionTypeLabelKo(kind)),
+      ["공격", "방어", "조사", "설득", "지원", "기타 행동"]
+    );
   });
 });

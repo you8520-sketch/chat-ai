@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
-import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import { TRPG_VISIBLE_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
   RECOVERY_DISCOVERY_HINT,
   SAFE_REST_COOLDOWN_HINT,
@@ -40,7 +40,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
-import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
+import { replyStanceLabelKo, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import {
   isTrpgDicePreviewRuntime,
   logTrpgDicePreviewInstrument,
@@ -1189,10 +1189,11 @@ export default function TrpgCampaignRoom({
                 세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
               </p>
               <div className="mb-3 flex flex-wrap gap-1.5">
-                {TRPG_ACTION_TYPES.map((kind) => (
+                {TRPG_VISIBLE_ACTION_TYPES.map((kind) => (
                   <button
                     key={kind}
                     type="button"
+                    data-trpg-action-chip={kind}
                     onClick={() => onActionTypeChange(kind)}
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
                       actionType === kind
@@ -1342,14 +1343,20 @@ export default function TrpgCampaignRoom({
                   {suggestions.length > 0 ? (
                     <ul className="mt-3 space-y-2">
                       {suggestions.map((item) => (
-                        <li key={`${item.actionType}:${item.text}`}>
+                        <li key={`${item.stance}:${item.actionType}:${item.text}`}>
                           <button
                             type="button"
+                            data-trpg-reply-stance={item.stance}
                             onClick={() => onPickSuggestion(item)}
                             className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.07]"
                           >
-                            <span className="text-xs font-semibold text-violet-200">
-                              {actionTypeLabelKo(item.actionType)}
+                            <span className="flex items-baseline gap-2">
+                              <span className="text-xs font-semibold text-violet-200">
+                                {replyStanceLabelKo(item.stance)}
+                              </span>
+                              <span className="text-[10px] font-medium text-zinc-500">
+                                {actionTypeLabelKo(item.actionType)}
+                              </span>
                             </span>
                             {item.stage ? (
                               <p className="mt-1 text-sm text-zinc-300">{item.stage}</p>
