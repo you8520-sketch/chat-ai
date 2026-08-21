@@ -304,10 +304,14 @@ import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPu
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
+import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
-  INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
-  resolveCurrentTurnUserAuthoringDelegation,
-} from "@/lib/currentTurnUserAuthoringDelegation";
+  persistUserCoauthorAfterSuccessfulUserInsert,
+  readUserCoauthorMode,
+  resolveEffectiveUserAuthoring,
+  resolveEffectiveUserAuthoringForRegeneration,
+  resolveEffectiveUserAuthoringFromChatColumn,
+} from "@/lib/userCoauthorState";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
   detectInteractiveUserImpersonation,
@@ -809,9 +813,10 @@ export async function POST(req: Request) {
   const userImpersonation = oocUserImpersonationAllowed;
   const currentTurnDelegation = autoProgressionEnabled
     ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveCurrentTurnUserAuthoringDelegation({
+    : resolveEffectiveUserAuthoring({
+        persistentMode: readUserCoauthorMode(db, chat.id),
         currentUserInput: typeof message === "string" ? message : "",
-      });
+      }).delegation;
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
     legacyNovelModeEnabled,
@@ -819,7 +824,7 @@ export async function POST(req: Request) {
     currentTurnDelegationActive:
       !oocUserImpersonationAllowed && currentTurnDelegation.active,
   });
-  const userPersonaPrompt = formatPublicPersonaForPrompt(
+  let userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
     selectedPersona?.gender ?? "other",
     personaDescription,
@@ -1066,11 +1071,14 @@ export async function POST(req: Request) {
   const autoContinueContext =
     autoProgressionEnabled ||
     (regenerate && isContinueUserMessage(storedUserMessage));
-  const currentTurnDelegationForTurn = autoContinueContext
-    ? INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION
-    : resolveCurrentTurnUserAuthoringDelegation({
-        currentUserInput: storedUserMessage,
-      });
+  const effectiveUserAuthoring = autoContinueContext
+    ? null
+    : regenerate && userMessageId != null
+      ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId)
+      : resolveEffectiveUserAuthoringFromChatColumn(db, chat.id, storedUserMessage);
+  const currentTurnDelegationForTurn = effectiveUserAuthoring
+    ? effectiveUserAuthoring.delegation
+    : INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION;
   runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
     legacyNovelModeEnabled,
@@ -1080,6 +1088,18 @@ export async function POST(req: Request) {
       !oocUserImpersonationAllowed &&
       currentTurnDelegationForTurn.active,
   });
+  userPersonaPrompt = formatPublicPersonaForPrompt(
+    personaDisplayName,
+    selectedPersona?.gender ?? "other",
+    personaDescription,
+    {
+      coNarrationEnabled:
+        autoContinueContext ||
+        novelModeEnabled ||
+        oocUserImpersonationAllowed ||
+        currentTurnDelegationForTurn.active,
+    }
+  );
   const autoContinueHistory = autoContinueContext
     ? resolveAutoContinueHistoryTurns(dialogueTurns)
     : null;
@@ -2557,7 +2577,16 @@ export async function POST(req: Request) {
         skipUserInsert,
         existingUserMessageId: userMessageId,
         regenerateAssistantId: regenerateMessageId,
-        onUserInserted: () => incrementCharacterTotalTurns(db, ch.id),
+        onUserInserted: (insertedUserMessageId) => {
+          if (effectiveUserAuthoring) {
+            persistUserCoauthorAfterSuccessfulUserInsert(db, {
+              chatId: chat.id,
+              userMessageId: insertedUserMessageId,
+              persistentAfter: effectiveUserAuthoring.persistentAfter,
+            });
+          }
+          incrementCharacterTotalTurns(db, ch.id);
+        },
       });
   userMessageId = bootstrapped.userMessageId;
   const persistedAssistantId = bootstrapped.assistantMessageId;

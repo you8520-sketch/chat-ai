@@ -2,6 +2,7 @@ import {
   chatRuntimeModeAllowsUserNarration,
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
+import type { UserCoauthorDuration } from "@/lib/currentTurnUserAuthoringDelegation";
 
 export const CURRENT_USER_INPUT_HEADER = "[CURRENT USER INPUT]";
 
@@ -70,13 +71,13 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
  *    aligned with COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Default gate is OFF.
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
  *    full co-narration semantics preserved unchanged.
- *  - current_turn_ooc_delegated: keep the OOC instruction verbatim; owner
- *    controls delegated [B] scope for this turn only.
+ *  - current_turn_ooc_delegated: one coauthor wrapper (turn-only or persistent).
  */
 export function buildCurrentUserInputWrapper(opts?: {
   mode?: ChatRuntimeMode;
   personaName?: string;
   ownershipLockEnabled?: boolean;
+  coauthorDuration?: UserCoauthorDuration | null;
 }): string {
   const mode = opts?.mode;
   const allows = mode != null && chatRuntimeModeAllowsUserNarration(mode);
@@ -90,6 +91,13 @@ If the input contains parentheses or action text, treat it as completed user inp
   }
 
   if (mode === "current_turn_ooc_delegated") {
+    if (opts?.coauthorDuration === "persistent") {
+      return `${CURRENT_USER_INPUT_HEADER}
+The following is the user's completed input.
+The user has enabled ongoing persona co-authoring until revoked.
+Keep any OOC text as written. Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the granted scope.
+Current user input overrides prior assistant-authored [B] dialogue or actions.`;
+    }
     return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input, including an explicit current-turn OOC authoring instruction.
 Keep the OOC text as written (style, tone, and qualifiers). Follow [USER AUTHORING — CURRENT-TURN OOC DELEGATION] for the delegated scope only.
@@ -153,6 +161,7 @@ export function wrapCurrentUserInput(
     personaName?: string;
     ownershipLockEnabled?: boolean;
     ownershipTerminalEchoEnabled?: boolean;
+    coauthorDuration?: UserCoauthorDuration | null;
   }
 ): string {
   const body = userContent.trim();

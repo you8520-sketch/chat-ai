@@ -5,6 +5,7 @@
 
 import type Database from "better-sqlite3";
 import { mergeIncomingUsageWithStoredSemantics } from "@/lib/oocSceneRender";
+import { markUserMessageCoauthorSemanticsVersion } from "@/lib/userCoauthorState";
 import { normalizeMessageVariants } from "./messageAlternates";
 
 export type GenerationStatus =
@@ -144,7 +145,7 @@ export function bootstrapStreamingTurn(
     existingUserMessageId?: number | null;
     regenerateAssistantId?: number | null;
     characterId?: number;
-    onUserInserted?: () => void;
+    onUserInserted?: (userMessageId: number) => void;
   }
 ): StreamingTurnBootstrap {
   const existing = findTurnByRequestId(db, opts.chatId, opts.requestId);
@@ -231,7 +232,8 @@ export function bootstrapStreamingTurn(
         .run(opts.chatId, "user", opts.userContent, "", opts.requestId, "submitted");
       userMessageId = Number(userMsg.lastInsertRowid);
       userMessageSaved = true;
-      opts.onUserInserted?.();
+      markUserMessageCoauthorSemanticsVersion(db, userMessageId);
+      opts.onUserInserted?.(userMessageId);
     } else if (userMessageId != null) {
       db.prepare(`UPDATE messages SET request_id=? WHERE id=? AND chat_id=?`).run(
         opts.requestId,

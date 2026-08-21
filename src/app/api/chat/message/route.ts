@@ -49,6 +49,10 @@ import {
   isGreetingMessage,
   resolveChatMessageEditLimit,
 } from "@/lib/chatMessageEditPolicy";
+import {
+  markUserMessageCoauthorSemanticsVersion,
+  recomputeAndPersistUserCoauthorMode,
+} from "@/lib/userCoauthorState";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -357,5 +361,9 @@ export async function PATCH(req: Request) {
   }
 
   db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+  if (msg.role === "user") {
+    markUserMessageCoauthorSemanticsVersion(db, id);
+    recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
+  }
   return NextResponse.json({ ok: true, content: text });
 }
