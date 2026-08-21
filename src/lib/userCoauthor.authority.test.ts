@@ -47,7 +47,8 @@ function openAuthorityDb(): Database.Database {
       generation_status TEXT NOT NULL DEFAULT 'completed',
       user_message_id INTEGER,
       alternates TEXT NOT NULL DEFAULT '[]',
-      active_variant INTEGER NOT NULL DEFAULT 0
+      active_variant INTEGER NOT NULL DEFAULT 0,
+      deduction_slices TEXT
     );
   `);
   ensureUserCoauthorSchema(db);
@@ -250,7 +251,9 @@ describe("user coauthor authority + semantics epoch", () => {
     const laterRevoke = resolveEffectiveUserAuthoringForRegeneration(
       db,
       1,
-      db.prepare("SELECT MAX(id) AS id FROM messages").get() as { id: number }
+      Number(
+        (db.prepare("SELECT MAX(id) AS id FROM messages").get() as { id: number }).id
+      )
     );
     assert.equal(laterRevoke.currentMode, "OFF");
   });
