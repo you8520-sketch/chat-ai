@@ -73,9 +73,13 @@ import {
   advanceAfterDiceDismiss,
   buildRoundPresentationActors,
   decideRoundPresentationMode,
+  freezeLivePresentationActors,
   historicalPresentation,
   idlePresentation,
+  isLiveRoundPresentationReady,
   isRoundPresentationComplete,
+  liveRoundWaitCopy,
+  liveRoundWaitKind,
   resultLaneActorIds,
   revealedActorIds,
   ROUND_ACTION_REVEAL_MS,
@@ -86,6 +90,7 @@ import {
   startCinematicPresentation,
   trpgRoundPresentationSessionKey,
   trpgRoundPresentationWatchdogMs,
+  type PresentationActor,
   type RoundPresentationState,
 } from "@/lib/trpg/roundPresentation";
 import { isNearBottom } from "@/lib/trpg/followLatest";
@@ -307,7 +312,11 @@ export default function TrpgCampaignRoom({
     if (snap.currentRolls.length > 0) return snap.currentRolls;
     return currentLogRow?.rolls ?? [];
   }, [currentLogRow, dicePreview.rolls, snap.currentRolls]);
-  const presentationActors = useMemo(
+  const liveReady = isLiveRoundPresentationReady({
+    phase,
+    hasLockedActorSet: sourceActions.length > 0 || sourceRolls.length > 0,
+  });
+  const liveActors = useMemo(
     () =>
       buildRoundPresentationActors({
         resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
@@ -316,14 +325,28 @@ export default function TrpgCampaignRoom({
       }),
     [sourceActions, sourceRolls, snap.resolutionOrder]
   );
+  const frozenActorsRef = useRef<{ round: number; actors: PresentationActor[] } | null>(null);
+  const frozenActors = freezeLivePresentationActors({
+    previous:
+      frozenActorsRef.current?.round === snap.round.number ? frozenActorsRef.current.actors : null,
+    next: liveActors,
+    ready: liveReady,
+    roundNumber: snap.round.number,
+    frozenRound: frozenActorsRef.current?.round ?? null,
+  });
+  frozenActorsRef.current = liveReady
+    ? { round: snap.round.number, actors: frozenActors.actors }
+    : null;
+  const presentationActors = frozenActors.actors;
   const queueSessionKey = useMemo(
     () =>
       trpgRoundPresentationSessionKey({
         roundNumber: snap.round.number,
         rolls: sourceRolls,
         actions: sourceActions,
+        ready: liveReady,
       }),
-    [sourceActions, sourceRolls, snap.round.number]
+    [liveReady, sourceActions, sourceRolls, snap.round.number]
   );
   const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
   const queueKeyRef = useRef("");
@@ -362,7 +385,7 @@ export default function TrpgCampaignRoom({
     });
     const mode = decideRoundPresentationMode({
       consumeOnMount: mountConsume,
-      actorCount: sourceActions.length > 0 || sourceRolls.length > 0 ? presentationActors.length : 0,
+      actorCount: liveReady ? presentationActors.length : 0,
     });
     if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
       queueKeyRef.current = queueSessionKey;
@@ -397,10 +420,9 @@ export default function TrpgCampaignRoom({
     overlayPlayback.settled,
     overlayPlayback.visible,
     phase,
+    liveReady,
     presentationActors.length,
     queueSessionKey,
-    sourceActions.length,
-    sourceRolls.length,
     rollSessionKey,
     roundShow,
     snap.round.number,
@@ -529,6 +551,21 @@ export default function TrpgCampaignRoom({
   }, [revealGateReleaseReason]);
   const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
   const waitingOthers = snap.workType === "wait_humans";
+  const livePending =
+    !liveReady &&
+    (sourceActions.length > 0 ||
+      snap.myDraft?.locked === true ||
+      phase === "BOT_ACTION" ||
+      phase === "LOCKING_ACTIONS" ||
+      phase === "ADJUDICATING" ||
+      phase === "ROLLING" ||
+      snap.workType === "generate_bots" ||
+      snap.workType === "acquire_gm_lock");
+  const gateLiveRound = shouldGateLiveRoundPresentation({
+    mode: roundShow.mode,
+    previewReady: dicePreview.ready,
+    livePending,
+  });
   const knownNames = [
     ...snap.participants.map((p) => p.displayName),
     ...snap.sheets.map((s) => s.sheet.name),
@@ -564,6 +601,17 @@ export default function TrpgCampaignRoom({
   const waitingOpening =
     visibleSceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
+  const waitKind = liveRoundWaitKind({
+    phase: String(phase),
+    workType: snap.workType,
+    viewerLocked: snap.myDraft?.locked === true,
+    narrationRerolling: snap.narrationRerolling,
+    waitingOpening,
+  });
+  const waitCopy =
+    waitKind !== "none" && (roundShow.mode !== "cinematic" || waitKind === "reroll")
+      ? liveRoundWaitCopy(waitKind)
+      : null;
   const botFillTargets = useMemo(
     () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
     [snap.hostFillBotIds, snap.participants]
@@ -797,6 +845,15 @@ export default function TrpgCampaignRoom({
       data-trpg-round-actor-count={presentationActors.length}
       data-trpg-round-source-actions={sourceActions.length}
       data-trpg-round-source-rolls={sourceRolls.length}
+      data-trpg-presentation-ready={liveReady ? "true" : "false"}
+      data-trpg-live-pending={livePending ? "true" : "false"}
+      data-trpg-canonical-visible={
+        gateLiveRound
+          ? roundShow.mode === "cinematic"
+            ? selectVisibleActions(sourceActions, cinematicRevealedIds).length
+            : 0
+          : sourceActions.length
+      }
     >
       <aside
         className={`sticky ${CHAT_GLOBAL_HEADER_OFFSET_CLASS} z-30 hidden h-[calc(100dvh-7.5rem)] w-[260px] shrink-0 flex-col self-start overflow-hidden border-r border-white/10 bg-[#101010]/90 min-[576px]:flex`}
@@ -892,9 +949,9 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {generating && !waitingOpening ? (
-            <p className="text-sm text-zinc-400">
-              {snap.narrationRerolling ? "장면을 리롤하고 있습니다…" : "GM이 장면을 쓰고 있습니다…"}
+          {waitCopy ? (
+            <p className="text-sm text-zinc-400" data-trpg-live-wait={waitKind}>
+              {waitCopy}
             </p>
           ) : null}
 
@@ -921,6 +978,14 @@ export default function TrpgCampaignRoom({
           ) : null}
 
           {visibleSceneRows.map((row) => {
+            if (
+              row.roundNumber === snap.round.number &&
+              gateLiveRound &&
+              roundShow.mode !== "cinematic" &&
+              roundShow.mode !== "historical"
+            ) {
+              return null;
+            }
             const gated = holdCurrentRound && row.roundNumber === snap.round.number;
             return (
             <SceneTurn
@@ -937,24 +1002,21 @@ export default function TrpgCampaignRoom({
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
               revealedActorIds={
-                row.roundNumber === snap.round.number &&
-                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                row.roundNumber === snap.round.number && gateLiveRound
                   ? roundShow.mode === "cinematic"
                     ? cinematicRevealedIds
                     : []
                   : undefined
               }
               resultLaneActorIds={
-                row.roundNumber === snap.round.number &&
-                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                row.roundNumber === snap.round.number && gateLiveRound
                   ? roundShow.mode === "cinematic"
                     ? cinematicLaneIds
                     : []
                   : undefined
               }
               showGmNarration={
-                row.roundNumber === snap.round.number &&
-                shouldGateLiveRoundPresentation({ mode: roundShow.mode, previewReady: dicePreview.ready })
+                row.roundNumber === snap.round.number && gateLiveRound
                   ? roundShow.mode === "cinematic"
                     ? cinematicShowGm
                     : false
@@ -1169,7 +1231,7 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {snap.myDraft?.locked && waitingOthers ? (
+          {snap.myDraft?.locked && waitingOthers && waitKind !== "wait_humans" ? (
             <p className="text-sm text-zinc-400">제출했습니다. 다른 플레이어를 기다립니다.</p>
           ) : null}
 
