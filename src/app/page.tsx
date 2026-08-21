@@ -15,6 +15,14 @@ export const dynamic = "force-dynamic";
 /** 소개와 태그를 충분히 읽을 수 있는 세로형 카드 폭 */
 const SCROLL_CARD_WIDTH = "w-[168px] sm:w-[196px] xl:w-[216px]";
 
+const MOBILE_DISCOVERY_TABS = [
+  { href: "/", label: "추천" },
+  { href: "/tab/new", label: "신작랭킹" },
+  { href: "/tab/ranking", label: "랭킹" },
+  { href: "/trpg", label: "TRPG" },
+  { href: "/search", label: "검색" },
+] as const;
+
 const SECTION_META: Record<string, { eyebrow: string; description: string }> = {
   "추천 캐릭터": {
     eyebrow: "FOR YOU",
@@ -67,6 +75,31 @@ function SectionHeader({
         </Link>
       ) : null}
     </div>
+  );
+}
+
+function MobileDiscoveryNav() {
+  return (
+    <nav
+      className="grid grid-cols-5 gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-1.5 md:hidden"
+      aria-label="콘텐츠 탐색"
+    >
+      {MOBILE_DISCOVERY_TABS.map((tab, index) => (
+        <Link
+          key={tab.href}
+          href={tab.href}
+          aria-current={index === 0 ? "page" : undefined}
+          className={cn(
+            "flex min-h-11 min-w-0 items-center justify-center rounded-xl px-1 text-center text-[11px] font-semibold tracking-[-0.03em] transition",
+            index === 0
+              ? "bg-violet-600 text-white shadow-[0_6px_18px_rgba(124,58,237,.22)]"
+              : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100",
+          )}
+        >
+          {tab.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -137,7 +170,25 @@ export default async function Home() {
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
-      <div className="mt-6 border-b border-white/[0.07] pb-6">
+      <div className="mt-6 border-b border-white/[0.07] pb-6 md:hidden">
+        <MobileDiscoveryNav />
+        <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
+          <UserPreferenceControls
+            isAdult={!!user?.is_adult}
+            nsfwOn={!!user?.nsfw_on}
+            pref={(user?.pref as "female" | "male" | null) ?? null}
+            loggedIn={loggedIn}
+            variant="homeBanner"
+          />
+          <Link
+            href="/settings"
+            className="shrink-0 text-[11px] font-medium text-zinc-500 transition hover:text-zinc-300"
+          >
+            취향 설정
+          </Link>
+        </div>
+      </div>
+      <div className="mt-6 hidden border-b border-white/[0.07] pb-6 md:block">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
           nsfwOn={!!user?.nsfw_on}

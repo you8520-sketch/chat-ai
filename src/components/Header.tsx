@@ -15,7 +15,6 @@ import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled } from "@/lib/portoneConfig";
-import { canAccessTrpg } from "@/lib/trpg/access";
 
 export default async function Header() {
   const user = await getSessionUser();
@@ -47,7 +46,7 @@ export default async function Header() {
                 하비 <span className="text-violet-400">AI</span>
               </span>
             </Link>
-            <HeaderMainNavRow showTrpg={canAccessTrpg(user)} />
+            <HeaderMainNavRow />
             <HeaderBoardLinks unreadNotice={unreadNotice} />
           </div>
 
