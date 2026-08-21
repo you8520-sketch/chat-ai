@@ -6,8 +6,15 @@ import {
   actorOrderEqualsResolutionOrder,
   buildRoundPresentationActors,
   decideRoundPresentationMode,
+  freezeLivePresentationActors,
   historicalPresentation,
+  isLiveRoundPresentationReady,
+  isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
+  liveRoundCanonicalVisibleCount,
+  liveRoundWaitCopy,
+  liveRoundWaitKind,
+  shouldShowLiveRoundWaitCopy,
   resultLaneActorIds,
   revealedActorIds,
   shouldShowActorResultLane,
@@ -17,6 +24,7 @@ import {
   trpgRoundPresentationSessionKey,
   trpgRoundPresentationWatchdogMs,
   walkCinematicPresentation,
+  walkLiveRoundSnapshots,
   type PresentationActor,
 } from "./roundPresentation";
 import { shouldConsumeMountRollSession, trpgPredeterminedD20Notation } from "./diceRollUx";
@@ -192,6 +200,31 @@ describe("TRPG round presentation queue", () => {
     assert.equal(shouldGateLiveRoundPresentation({ mode: "idle", previewReady: false }), true);
     assert.equal(shouldGateLiveRoundPresentation({ mode: "cinematic", previewReady: true }), true);
     assert.equal(shouldGateLiveRoundPresentation({ mode: "historical", previewReady: true }), false);
+    assert.equal(
+      shouldGateLiveRoundPresentation({ mode: "idle", previewReady: true, livePending: true }),
+      true
+    );
+    assert.equal(
+      shouldGateLiveRoundPresentation({ mode: "idle", previewReady: true, livePending: false }),
+      false
+    );
+    assert.equal(
+      shouldGateLiveRoundPresentation({
+        mode: "historical",
+        previewReady: true,
+        livePending: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldGateLiveRoundPresentation({
+        mode: "idle",
+        previewReady: true,
+        livePending: false,
+        presentationStarting: true,
+      }),
+      true
+    );
   });
 
   it("does not autoplay historical remounts", () => {
@@ -262,6 +295,11 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /revealedActorIds/);
     assert.match(room, /showGmNarration/);
     assert.match(room, /shouldGateLiveRoundPresentation/);
+    assert.match(room, /isLiveRoundPresentationReady/);
+    assert.match(room, /isLiveRoundPresentationStarting/);
+    assert.match(room, /livePending/);
+    assert.match(room, /presentationStarting/);
+    assert.match(room, /actorCount: liveReady \? presentationActors\.length : 0/);
     assert.match(room, /visibleSceneRows = sceneRows/);
     assert.match(room, /dicePreview\.ready/);
     assert.match(room, /window\.location\.search/);
@@ -281,5 +319,319 @@ describe("TRPG round presentation queue", () => {
     }
     const start = startCinematicPresentation();
     assert.deepEqual(start, { phase: "actor-action", presentationIndex: 0 });
+  });
+});
+
+describe("TRPG live round presentation readiness", () => {
+  const order = [10, 20, 30];
+  const human = action(10, "권태현");
+  const bot1 = action(20, "렌");
+  const bot2 = action(30, "강이현");
+  const humanRoll = roll(10, "권태현", 16);
+  const bot1Roll = roll(20, "렌", 9);
+  const bot2Roll = roll(30, "강이현", 14);
+
+  it("does not treat incremental BOT_ACTION actionIds as ready", () => {
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }),
+      false
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "ACTION_INPUT", hasLockedActorSet: true }),
+      false
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "LOCKING_ACTIONS", hasLockedActorSet: true }),
+      false
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "GENERATING_NARRATION", hasLockedActorSet: true }),
+      true
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "ROLLING", hasLockedActorSet: true }),
+      true
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "ROLLING", hasLockedActorSet: false }),
+      false
+    );
+    assert.equal(
+      trpgRoundPresentationSessionKey({
+        roundNumber: 3,
+        rolls: [],
+        actions: [human, bot1],
+        ready: false,
+      }),
+      ""
+    );
+    assert.equal(liveRoundWaitKind({
+      phase: "BOT_ACTION",
+      workType: "generate_bots",
+      viewerLocked: true,
+    }), "bots");
+    assert.equal(liveRoundWaitCopy("bots"), "행동 제출됨 · 동료 행동 결정 중…");
+    assert.equal(liveRoundWaitCopy("rolls"), "라운드 판정 준비 중…");
+  });
+
+  it("S1-S5 incremental snapshots hide canonical cards until one ready start", () => {
+    const walked = walkLiveRoundSnapshots([
+      {
+        phase: "ACTION_INPUT",
+        roundNumber: 3,
+        actions: [],
+        rolls: [],
+        resolutionOrder: order,
+      },
+      {
+        phase: "BOT_ACTION",
+        roundNumber: 3,
+        actions: [human],
+        rolls: [],
+        resolutionOrder: order,
+      },
+      {
+        phase: "BOT_ACTION",
+        roundNumber: 3,
+        actions: [human, bot1],
+        rolls: [],
+        resolutionOrder: order,
+      },
+      {
+        phase: "BOT_ACTION",
+        roundNumber: 3,
+        actions: [human, bot1, bot2],
+        rolls: [],
+        resolutionOrder: order,
+      },
+      {
+        phase: "GENERATING_NARRATION",
+        roundNumber: 3,
+        actions: [human, bot1, bot2],
+        rolls: [humanRoll, bot1Roll, bot2Roll],
+        resolutionOrder: order,
+      },
+      {
+        phase: "GENERATING_NARRATION",
+        roundNumber: 3,
+        actions: [human, bot1, bot2],
+        rolls: [humanRoll, bot1Roll, bot2Roll],
+        resolutionOrder: order,
+      },
+    ]);
+    const [s0, s1, s2, s3, s4, s5] = walked.steps;
+    assert.equal(s0?.ready, false);
+    assert.deepEqual(s1?.visibleCanonicalActionIds, []);
+    assert.equal(s1?.mode, "idle");
+    assert.equal(s1?.started, false);
+    assert.deepEqual(s2?.visibleCanonicalActionIds, []);
+    assert.equal(s2?.started, false);
+    assert.equal(s2?.restarted, false);
+    assert.deepEqual(s3?.visibleCanonicalActionIds, []);
+    assert.equal(s3?.ready, false);
+    assert.equal(s3?.started, false);
+    assert.equal(s4?.ready, true);
+    assert.equal(s4?.started, true);
+    assert.equal(s4?.mode, "cinematic");
+    assert.deepEqual(s4?.visibleCanonicalActionIds, [10]);
+    assert.equal(s5?.started, false);
+    assert.equal(s5?.restarted, false);
+    assert.equal(s5?.sessionKey, s4?.sessionKey);
+    assert.equal(walked.startCount, 1);
+    assert.equal(walked.restartCount, 0);
+    const frames = walkCinematicPresentation(s4!.actors);
+    assert.deepEqual(frames.map((frame) => frame.phase), [
+      "actor-action",
+      "actor-dice",
+      "actor-result",
+      "actor-action",
+      "actor-dice",
+      "actor-result",
+      "actor-action",
+      "actor-dice",
+      "actor-result",
+      "gm-narration",
+    ]);
+    const dice = frames.filter((frame) => frame.phase === "actor-dice");
+    assert.deepEqual(dice.map((frame) => frame.activeRollActorId), [10, 20, 30]);
+    assert.equal(dice.every((frame) => frame.activeRollActorId != null), true);
+    assert.equal(frames.filter((frame) => frame.gmVisible).length, 1);
+    assert.equal(frames.at(-1)?.gmVisible, true);
+  });
+
+  it("does not restart a running cinematic after GM/log refresh", () => {
+    const ready = {
+      phase: "GENERATING_NARRATION",
+      roundNumber: 5,
+      actions: [human, bot1, bot2],
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+      resolutionOrder: order,
+    };
+    const walked = walkLiveRoundSnapshots([
+      { ...ready, phase: "BOT_ACTION", rolls: [] },
+      ready,
+      { ...ready, phase: "ROUND_COMPLETE" },
+      { ...ready, phase: "ROUND_COMPLETE" },
+    ]);
+    assert.equal(walked.startCount, 1);
+    assert.equal(walked.restartCount, 0);
+    assert.equal(walked.steps[1]?.sessionKey, walked.steps[2]?.sessionKey);
+    const frozen = freezeLivePresentationActors({
+      previous: walked.steps[1]?.actors ?? null,
+      next: walked.steps[2]?.actors ?? [],
+      ready: true,
+      roundNumber: 5,
+      frozenRound: 5,
+    });
+    assert.deepEqual(frozen.actors.map((actor) => actor.actorId), order);
+  });
+
+  it("can become ready with zero rolls when no actor needs a check", () => {
+    const walked = walkLiveRoundSnapshots([
+      {
+        phase: "BOT_ACTION",
+        roundNumber: 2,
+        actions: [human, bot1],
+        rolls: [],
+        resolutionOrder: [10, 20],
+      },
+      {
+        phase: "ROLLING",
+        roundNumber: 2,
+        actions: [human, bot1],
+        rolls: [],
+        resolutionOrder: [10, 20],
+      },
+    ]);
+    assert.equal(walked.steps[0]?.ready, false);
+    assert.equal(walked.steps[1]?.ready, true);
+    assert.equal(walked.startCount, 1);
+    assert.match(walked.steps[1]?.sessionKey ?? "", /actions:10,20/);
+    const frames = walkCinematicPresentation(walked.steps[1]!.actors);
+    assert.equal(frames.some((frame) => frame.phase === "actor-dice"), false);
+    assert.deepEqual(frames.map((frame) => frame.phase), [
+      "actor-action",
+      "actor-action",
+      "gm-narration",
+    ]);
+  });
+
+  it("does not invent a D20 for a downed or no-check actor", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [10, 20, 30],
+      actions: [human, bot1, bot2],
+      rolls: [humanRoll, bot2Roll],
+    });
+    assert.equal(actors[1]?.roll, null);
+    const frames = walkCinematicPresentation(actors);
+    assert.deepEqual(
+      frames.filter((frame) => frame.phase === "actor-dice").map((frame) => frame.activeRollActorId),
+      [10, 30]
+    );
+    assert.equal(frames.some((frame) => frame.activeRollActorId === 20), false);
+  });
+
+  it("keeps historical remount complete with no autoplay", () => {
+    const walked = walkLiveRoundSnapshots([
+      {
+        phase: "ROUND_COMPLETE",
+        roundNumber: 4,
+        actions: [human, bot1, bot2],
+        rolls: [humanRoll, bot1Roll, bot2Roll],
+        resolutionOrder: order,
+        consumeOnMount: true,
+      },
+    ]);
+    assert.equal(walked.steps[0]?.mode, "historical");
+    assert.equal(walked.startCount, 0);
+    assert.deepEqual(walked.steps[0]?.visibleCanonicalActionIds, order);
+    assert.equal(shouldShowGmNarration(historicalPresentation()), true);
+  });
+
+  it("gates the first ready render before cinematic mode is established", () => {
+    const actions = [human, bot1, bot2];
+    const sessionKey = trpgRoundPresentationSessionKey({
+      roundNumber: 3,
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+      actions,
+      ready: true,
+    });
+    assert.notEqual(sessionKey, "");
+
+    const firstReady = {
+      mode: "idle" as const,
+      previewReady: true,
+      livePending: false,
+      liveReady: true,
+      queueSessionKey: sessionKey,
+    };
+    const presentationStarting = isLiveRoundPresentationStarting(firstReady);
+    assert.equal(presentationStarting, true);
+    const firstGate = shouldGateLiveRoundPresentation({
+      mode: firstReady.mode,
+      previewReady: firstReady.previewReady,
+      livePending: firstReady.livePending,
+      presentationStarting,
+    });
+    assert.equal(firstGate, true);
+    const firstVisible = liveRoundCanonicalVisibleCount({
+      gated: firstGate,
+      mode: firstReady.mode,
+      actions,
+      revealedActorIds: [],
+    });
+    assert.equal(firstVisible, 0);
+    assert.equal(firstVisible === actions.length, false, "ALL_ACTIONS_FLASH_BEFORE_CINEMATIC");
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "gm",
+        mode: "idle",
+        presentationStarting: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "reroll",
+        mode: "idle",
+        presentationStarting: true,
+      }),
+      true
+    );
+
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions,
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+    });
+    const cinematic = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const afterStartGate = shouldGateLiveRoundPresentation({
+      mode: cinematic.mode,
+      previewReady: true,
+      livePending: false,
+      presentationStarting: isLiveRoundPresentationStarting({
+        liveReady: true,
+        mode: cinematic.mode,
+        queueSessionKey: sessionKey,
+      }),
+    });
+    assert.equal(afterStartGate, true);
+    const actor1Only = liveRoundCanonicalVisibleCount({
+      gated: afterStartGate,
+      mode: cinematic.mode,
+      actions,
+      revealedActorIds: revealedActorIds({ actors, state: cinematic }),
+    });
+    assert.equal(actor1Only, 1);
+    assert.deepEqual(revealedActorIds({ actors, state: cinematic }), [10]);
+    assert.equal(cinematic.phase, "actor-action");
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "gm",
+        mode: "cinematic",
+        presentationStarting: false,
+      }),
+      false
+    );
   });
 });

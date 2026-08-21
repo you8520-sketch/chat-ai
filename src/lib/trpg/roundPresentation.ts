@@ -71,6 +71,71 @@ export function decideRoundPresentationMode(opts: {
   return "cinematic";
 }
 
+/**
+ * Live cinematic may start only after persistRolls has committed.
+ * That owner is the current-round phase, not incremental action count.
+ * ACTION_INPUT / BOT_ACTION / LOCKING_ACTIONS still have a moving actor set
+ * or an unfinished roll/no-roll pass.
+ */
+export const LIVE_ROUND_PRESENTATION_READY_PHASES = new Set<string>([
+  "ROLLING",
+  "GENERATING_NARRATION",
+  "APPLYING_STATE",
+  "ROUND_COMPLETE",
+  "CAMPAIGN_COMPLETE",
+  "ERROR_RECOVERY",
+]);
+
+export function isLiveRoundPresentationReady(opts: {
+  phase: string;
+  hasLockedActorSet: boolean;
+}): boolean {
+  if (!opts.hasLockedActorSet) return false;
+  return LIVE_ROUND_PRESENTATION_READY_PHASES.has(opts.phase);
+}
+
+export type LiveRoundWaitKind = "none" | "wait_humans" | "bots" | "rolls" | "gm" | "reroll";
+
+export function liveRoundWaitKind(opts: {
+  phase: string;
+  workType: string;
+  viewerLocked: boolean;
+  narrationRerolling?: boolean;
+  waitingOpening?: boolean;
+}): LiveRoundWaitKind {
+  if (opts.waitingOpening) return "none";
+  if (opts.narrationRerolling) return "reroll";
+  if (opts.workType === "wait_humans" && opts.viewerLocked) return "wait_humans";
+  if (opts.workType === "generate_bots" || opts.phase === "BOT_ACTION") return "bots";
+  if (
+    opts.workType === "acquire_gm_lock" ||
+    opts.phase === "LOCKING_ACTIONS" ||
+    opts.phase === "ADJUDICATING" ||
+    opts.phase === "ROLLING"
+  ) {
+    return "rolls";
+  }
+  if (opts.phase === "GENERATING_NARRATION") return "gm";
+  return "none";
+}
+
+export function liveRoundWaitCopy(kind: LiveRoundWaitKind): string | null {
+  switch (kind) {
+    case "wait_humans":
+      return "제출했습니다. 다른 플레이어를 기다립니다.";
+    case "bots":
+      return "행동 제출됨 · 동료 행동 결정 중…";
+    case "rolls":
+      return "라운드 판정 준비 중…";
+    case "gm":
+      return "GM이 장면을 쓰고 있습니다…";
+    case "reroll":
+      return "장면을 리롤하고 있습니다…";
+    default:
+      return null;
+  }
+}
+
 export function startCinematicPresentation(): Pick<
   RoundPresentationState,
   "phase" | "presentationIndex"
@@ -145,12 +210,53 @@ export function shouldShowGmNarration(state: RoundPresentationState): boolean {
   return state.phase === "gm-narration" || state.phase === "complete";
 }
 
+/**
+ * First ready render is still mode=idle until the effect bootstraps cinematic.
+ * Visibility must stay gated synchronously; do not wait for that effect.
+ */
+export function isLiveRoundPresentationStarting(opts: {
+  liveReady: boolean;
+  mode: RoundPresentationMode;
+  queueSessionKey: string;
+}): boolean {
+  return opts.liveReady && opts.mode === "idle" && opts.queueSessionKey !== "";
+}
+
 /** Hide the live round until the client knows cinematic vs historical. */
 export function shouldGateLiveRoundPresentation(opts: {
   mode: RoundPresentationMode;
   previewReady: boolean;
+  livePending?: boolean;
+  presentationStarting?: boolean;
 }): boolean {
-  return !opts.previewReady || opts.mode === "cinematic";
+  if (opts.mode === "historical") return false;
+  if (!opts.previewReady) return true;
+  if (opts.mode === "cinematic") return true;
+  if (opts.livePending === true) return true;
+  return opts.presentationStarting === true;
+}
+
+export function shouldShowLiveRoundWaitCopy(opts: {
+  waitKind: LiveRoundWaitKind;
+  mode: RoundPresentationMode;
+  presentationStarting: boolean;
+}): boolean {
+  if (opts.waitKind === "none") return false;
+  if (opts.waitKind === "reroll") return true;
+  if (opts.mode === "cinematic") return false;
+  if (opts.presentationStarting) return false;
+  return true;
+}
+
+export function liveRoundCanonicalVisibleCount(opts: {
+  gated: boolean;
+  mode: RoundPresentationMode;
+  actions: readonly { participantId: number }[];
+  revealedActorIds: readonly number[];
+}): number {
+  if (!opts.gated) return opts.actions.length;
+  if (opts.mode !== "cinematic") return 0;
+  return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
 }
 
 export function isRoundPresentationComplete(state: RoundPresentationState): boolean {
@@ -235,7 +341,9 @@ export function trpgRoundPresentationSessionKey(opts: {
   roundNumber: number;
   rolls: readonly { participantId: number; d20: number; dc: number; tier: string }[];
   actions: readonly { participantId: number }[];
+  ready?: boolean;
 }): string {
+  if (opts.ready === false) return "";
   const rollKey = trpgDiceRollSessionKey(opts.roundNumber, opts.rolls);
   if (rollKey) return rollKey;
   const actionIds = [...new Set(opts.actions.map((action) => action.participantId))]
@@ -243,6 +351,139 @@ export function trpgRoundPresentationSessionKey(opts: {
     .sort((a, b) => a - b);
   if (actionIds.length === 0) return "";
   return `${opts.roundNumber}|actions:${actionIds.join(",")}`;
+}
+
+export function freezeLivePresentationActors(opts: {
+  previous: readonly PresentationActor[] | null;
+  next: readonly PresentationActor[];
+  ready: boolean;
+  roundNumber: number;
+  frozenRound: number | null;
+}): { actors: PresentationActor[]; frozenRound: number | null } {
+  if (!opts.ready) return { actors: [...opts.next], frozenRound: null };
+  if (opts.previous && opts.frozenRound === opts.roundNumber && opts.previous.length > 0) {
+    return {
+      actors: opts.previous.map((actor) => {
+        const fresh = opts.next.find((item) => item.actorId === actor.actorId);
+        return fresh
+          ? {
+              actorId: actor.actorId,
+              action: fresh.action ?? actor.action,
+              roll: fresh.roll ?? actor.roll,
+            }
+          : actor;
+      }),
+      frozenRound: opts.roundNumber,
+    };
+  }
+  return { actors: [...opts.next], frozenRound: opts.roundNumber };
+}
+
+export type LiveRoundSnapshotInput = {
+  phase: string;
+  roundNumber: number;
+  actions: readonly TrpgPublicAction[];
+  rolls: readonly TrpgPublicRoll[];
+  resolutionOrder: readonly number[];
+  consumeOnMount?: boolean;
+};
+
+export type LiveRoundPresentationStep = {
+  ready: boolean;
+  sessionKey: string;
+  mode: RoundPresentationMode;
+  visibleCanonicalActionIds: number[];
+  started: boolean;
+  restarted: boolean;
+  actors: PresentationActor[];
+};
+
+export function decideLiveRoundPresentation(input: LiveRoundSnapshotInput): {
+  ready: boolean;
+  sessionKey: string;
+  actorCount: number;
+  actors: PresentationActor[];
+} {
+  const actions = input.actions.filter((action) => action.revealed && action.body.trim());
+  const actors = buildRoundPresentationActors({
+    resolutionOrder: input.resolutionOrder,
+    actions,
+    rolls: input.rolls,
+  });
+  const ready = isLiveRoundPresentationReady({
+    phase: input.phase,
+    hasLockedActorSet: actions.length > 0 || input.rolls.length > 0,
+  });
+  return {
+    ready,
+    sessionKey: trpgRoundPresentationSessionKey({
+      roundNumber: input.roundNumber,
+      rolls: input.rolls,
+      actions,
+      ready,
+    }),
+    actorCount: ready ? actors.length : 0,
+    actors,
+  };
+}
+
+export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[]): {
+  steps: LiveRoundPresentationStep[];
+  startCount: number;
+  restartCount: number;
+} {
+  let prevKey = "";
+  let prevMode: RoundPresentationMode = "idle";
+  let frozen: PresentationActor[] | null = null;
+  let frozenRound: number | null = null;
+  let startCount = 0;
+  let restartCount = 0;
+  const steps = snaps.map((snap) => {
+    const decided = decideLiveRoundPresentation(snap);
+    const frozenNext = freezeLivePresentationActors({
+      previous: frozen,
+      next: decided.actors,
+      ready: decided.ready,
+      roundNumber: snap.roundNumber,
+      frozenRound,
+    });
+    frozen = frozenNext.actors;
+    frozenRound = frozenNext.frozenRound;
+    const mode = decideRoundPresentationMode({
+      consumeOnMount: snap.consumeOnMount === true,
+      actorCount: decided.actorCount,
+    });
+    const started = mode === "cinematic" && prevMode !== "cinematic";
+    const restarted =
+      mode === "cinematic" &&
+      prevMode === "cinematic" &&
+      decided.sessionKey !== "" &&
+      decided.sessionKey !== prevKey;
+    if (started) startCount += 1;
+    if (restarted) restartCount += 1;
+    const state: RoundPresentationState =
+      mode === "cinematic"
+        ? { mode, ...startCinematicPresentation() }
+        : mode === "historical"
+          ? historicalPresentation()
+          : idlePresentation();
+    const visibleCanonicalActionIds =
+      mode === "idle"
+        ? []
+        : revealedActorIds({ actors: frozenNext.actors, state });
+    prevKey = decided.sessionKey;
+    prevMode = mode;
+    return {
+      ready: decided.ready,
+      sessionKey: decided.sessionKey,
+      mode,
+      visibleCanonicalActionIds,
+      started,
+      restarted,
+      actors: frozenNext.actors,
+    };
+  });
+  return { steps, startCount, restartCount };
 }
 
 export function trpgRoundPresentationWatchdogMs(opts: {
