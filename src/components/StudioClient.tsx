@@ -320,9 +320,6 @@ function WorldCard({ world }: { world: WorldListItem }) {
         <StudioButton href={`/world/${world.id}/edit`} size="sm" className="w-full sm:w-auto">
           수정하기
         </StudioButton>
-        <StudioButton href="/create" size="sm" variant="secondary" className="w-full sm:w-auto">
-          캐릭터에 사용
-        </StudioButton>
         <StudioButton
           type="button"
           variant="secondary"
