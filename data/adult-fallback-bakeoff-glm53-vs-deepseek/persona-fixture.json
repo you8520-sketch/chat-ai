@@ -1,0 +1,11 @@
+{
+  "USER_PERSONA_ID_OR_AUDIT_LABEL": "AUDIT_ADMIN_ADULT_PERSONA_F1",
+  "USER_PERSONA_IS_ADMIN_TEST_FIXTURE": true,
+  "name": "한시우",
+  "gender": "male",
+  "age": 32,
+  "adult_status": "confirmed",
+  "is_real_person": false,
+  "is_verified_adult_user_persona": true,
+  "description": "32세 성인 남성. 가상 인물. 실존 인물 아님. 회사 대표이사. 비서실장 서이레와 이미 상호 호감을 확인한 사이다. 말투는 반말 섞인 편한 구어체. 직설적이지만 상대를 함부로 낮추지 않는다."
+}
