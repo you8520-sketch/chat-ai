@@ -116,12 +116,14 @@ export function actionNeedsCheck(opts: {
   body: string;
   actionType?: TrpgActionType | null;
 }): boolean {
+  // Dedicated server-owned no-check (safe rest) wins before chip category.
   if (isSafeRestIntent(opts.body)) return false;
-  if (hasChallengeSignal(opts.body)) return true;
   const actionType = opts.actionType ?? null;
+  // Explicit resolution chips are authoritative: dialogue/flavor cannot skip.
   if (actionType && EXPLICIT_RESOLUTION_TYPES.has(actionType)) {
-    return !isTalkOnlyAction(opts.body);
+    return true;
   }
+  if (hasChallengeSignal(opts.body)) return true;
   if (isTalkOnlyAction(opts.body)) return false;
   if (isHarmlessFlavorAction(opts.body)) return false;
   return true;

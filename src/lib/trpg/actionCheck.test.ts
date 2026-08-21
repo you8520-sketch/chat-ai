@@ -13,7 +13,8 @@ describe("TRPG talk-only actions skip checks", () => {
     const body =
       "안전가옥을 찾아볼까?? 아니면 약국에 쓸만한게 있나볼까??? *모두를 향해 물어본다*";
     assert.equal(isTalkOnlyAction(body), true);
-    assert.equal(actionNeedsCheck({ body, actionType: "persuade" }), false);
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body, actionType: "persuade" }), true);
     assert.equal(actionNeedsCheck({ body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.", actionType: "free" }), false);
     assert.equal(actionNeedsCheck({ body: "휴식한다", actionType: "support" }), false);
   });
@@ -140,9 +141,31 @@ describe("TRPG no-check dialogue and flavor", () => {
     assert.equal(actionNeedsCheck({ body: "그림자에 선다", actionType: "stealth" }), true);
   });
 
+  it("explicit resolution types cannot be skipped by pure dialogue", () => {
+    assert.equal(actionNeedsCheck({ body: "「내가 맡을게.」", actionType: "attack" }), true);
+    assert.equal(actionNeedsCheck({ body: "「막아볼게.」", actionType: "defend" }), true);
+    assert.equal(actionNeedsCheck({ body: "「어디 있는지 찾아보자.」", actionType: "investigate" }), true);
+    assert.equal(actionNeedsCheck({ body: "「내가 설득해 볼게.」", actionType: "persuade" }), true);
+    assert.equal(actionNeedsCheck({ body: "「조용히 갈게.」", actionType: "stealth" }), true);
+    assert.equal(isTalkOnlyAction("「내가 맡을게.」"), true);
+    assert.equal(isTalkOnlyAction("「막아볼게.」"), true);
+    assert.equal(isTalkOnlyAction("「어디 있는지 찾아보자.」"), true);
+    assert.equal(isTalkOnlyAction("「내가 설득해 볼게.」"), true);
+    assert.equal(isTalkOnlyAction("「조용히 갈게.」"), true);
+    assert.equal(actionNeedsCheck({ body: "「알겠어.」", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "고개를 끄덕인다. 「알겠어.」", actionType: "free" }), false);
+  });
+
   it("keeps dedicated recovery ownership without a fake extra skip", () => {
     assert.equal(actionNeedsCheck({ body: "상처를 응급처치한다.", actionType: "support" }), true);
     assert.equal(actionNeedsCheck({ body: "중독 상태를 치료하려 한다.", actionType: "support" }), true);
     assert.equal(actionNeedsCheck({ body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.", actionType: "free" }), false);
+    assert.equal(
+      actionNeedsCheck({
+        body: "안전한 곳에서 잠시 휴식하며 상처를 추스른다.",
+        actionType: "attack",
+      }),
+      false
+    );
   });
 });

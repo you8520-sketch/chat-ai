@@ -123,11 +123,30 @@ describe("TRPG campaign loop", () => {
       campaignId,
       userId: 1,
       body: "안전가옥을 찾아볼까?? 아니면 약국에 쓸만한게 있나볼까??? *모두를 향해 물어본다*",
-      actionType: "persuade",
+      actionType: "free",
     });
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(after.currentRolls.length, 0);
     assert.match(after.log.at(-1)?.narration ?? after.currentNarration ?? "", /렌이 묻자/);
+    db.close();
+  });
+
+  it("rolls when an explicit resolution chip is dialogue-only", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 14,
+      gmCall: async () => ({ text: gmText({ narration: "전열을 맡는다." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "「내가 맡을게.」",
+      actionType: "attack",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 1);
     db.close();
   });
 
