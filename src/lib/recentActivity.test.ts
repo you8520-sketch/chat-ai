@@ -252,6 +252,20 @@ describe("unified recent activity", () => {
     assert.doesNotMatch(lobby, /w-full items-center justify-center rounded-xl bg-violet-600/);
   });
 
+  it("includes TRPG campaigns in the desktop and mobile conversation list", () => {
+    const page = readFileSync("src/app/chats/page.tsx", "utf8");
+    const grid = readFileSync("src/components/ChatsPageGrid.tsx", "utf8");
+    assert.match(page, /fetchRecentTrpgCampaigns/);
+    assert.match(page, /campaigns=\{campaigns\}/);
+    assert.match(page, /개 TRPG/);
+    assert.match(grid, /data-chat-list-kind="trpg_campaign"/);
+    assert.match(grid, /compareActivityAtDesc/);
+    assert.match(grid, /TRPG 방으로 돌아가기/);
+    assert.match(grid, /href=\{campaign\.href\}/);
+    assert.match(grid, /grid-cols-1/);
+    assert.match(grid, /@min-\[30rem\]\/chats:grid-cols-2/);
+  });
+
   it("includes solo setup, solo waiting, and started campaigns in recent", () => {
     assert.equal(SIDEBAR_SOLO_SETUP_VISIBLE, true);
     const db = getDb();
