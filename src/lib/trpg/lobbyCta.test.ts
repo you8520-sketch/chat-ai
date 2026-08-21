@@ -41,10 +41,11 @@ describe("TRPG lobby re-enter CTA", () => {
     assert.doesNotMatch(invite, /bg-violet-600/);
   });
 
-  it("does not restore delayed force-scroll or ResizeObserver auto-scroll", () => {
+  it("does not restore delayed force-scroll or a global ResizeObserver", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
-    assert.doesNotMatch(room, /ResizeObserver/);
+    assert.doesNotMatch(room, /setInterval\([^)]*3000/);
     assert.match(room, /followLatest/);
+    assert.match(room, /data-trpg-live-scene/);
   });
 });
