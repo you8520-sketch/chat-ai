@@ -205,6 +205,44 @@ export function resultLaneActorIds(opts: {
     .map((actor) => actor.actorId);
 }
 
+/** Compact d20/DC/outcome text uses the same reveal owner as the result lane. */
+export function shouldShowCompactRoll(opts: {
+  actorId: number;
+  actors: readonly PresentationActor[];
+  state: RoundPresentationState;
+}): boolean {
+  const actor = opts.actors.find((row) => row.actorId === opts.actorId);
+  if (!actor?.roll) return false;
+  return shouldShowActorResultLane(opts);
+}
+
+export function compactRollActorIds(opts: {
+  actors: readonly PresentationActor[];
+  state: RoundPresentationState;
+}): number[] {
+  return opts.actors
+    .filter((actor) =>
+      shouldShowCompactRoll({
+        actorId: actor.actorId,
+        actors: opts.actors,
+        state: opts.state,
+      })
+    )
+    .map((actor) => actor.actorId);
+}
+
+export function shouldShowActionJudgeBlock(opts: {
+  kind: string;
+  hasIntent: boolean;
+  hasRoll: boolean;
+  resultRevealed: boolean;
+}): boolean {
+  if (opts.hasIntent) return true;
+  if (opts.hasRoll && opts.resultRevealed) return true;
+  if (opts.kind === "ai_character" && !opts.hasRoll) return true;
+  return false;
+}
+
 export function shouldShowGmNarration(state: RoundPresentationState): boolean {
   if (state.mode === "historical") return true;
   return state.phase === "gm-narration" || state.phase === "complete";
@@ -504,6 +542,7 @@ export type RoundPresentationFrame = {
   presentationIndex: number;
   revealedActorIds: number[];
   resultLaneActorIds: number[];
+  compactRollActorIds: number[];
   gmVisible: boolean;
   activeRollActorId: number | null;
 };
@@ -540,6 +579,7 @@ function snapshotFrame(
     presentationIndex: state.presentationIndex,
     revealedActorIds: revealedActorIds({ actors, state }),
     resultLaneActorIds: resultLaneActorIds({ actors, state }),
+    compactRollActorIds: compactRollActorIds({ actors, state }),
     gmVisible: shouldShowGmNarration(state),
     activeRollActorId: activePresentationRoll({ actors, state })?.participantId ?? null,
   };

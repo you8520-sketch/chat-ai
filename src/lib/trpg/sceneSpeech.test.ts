@@ -129,6 +129,9 @@ describe("parseTrpgSceneSpeech", () => {
     assert.doesNotMatch(room, /isTrpgQuotedSpeech\(beat\.text\)/);
     assert.match(room, /GM 판정용/);
     assert.match(room, /formatTrpgRollCompact/);
+    assert.match(room, /showCompactRoll/);
+    assert.match(room, /shouldShowActionJudgeBlock/);
+    assert.match(room, /showCompactRoll && roll/);
     assert.match(room, /판정 없음 · 대화/);
     assert.match(room, /TrpgRollResultLane/);
     assert.doesNotMatch(room, /<TrpgD20/);

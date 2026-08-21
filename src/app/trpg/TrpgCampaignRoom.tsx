@@ -85,6 +85,7 @@ import {
   shouldShowLiveRoundWaitCopy,
   resultLaneActorIds,
   revealedActorIds,
+  shouldShowActionJudgeBlock,
   ROUND_ACTION_REVEAL_MS,
   ROUND_RESULT_HOLD_MS,
   selectVisibleActions,
@@ -1584,10 +1585,17 @@ function SceneTurn({
           const parsed = parseTrpgBotAction(action.body);
           const roll = rollsByParticipant.get(action.participantId);
           const intent = parsed.intent.trim();
-          const showJudge = action.kind === "ai_character" || Boolean(intent) || Boolean(roll);
+          const resultRevealed = laneIds == null || laneIds.includes(action.participantId);
+          const showCompactRoll = Boolean(roll && resultRevealed);
+          const showJudge = shouldShowActionJudgeBlock({
+            kind: action.kind,
+            hasIntent: Boolean(intent),
+            hasRoll: Boolean(roll),
+            resultRevealed,
+          });
           const outcome = roll ? trpgRollOutcomeLabel(roll.tier) : null;
           const tone = roll ? resolveTrpgD20Tone(roll.d20, roll.tier) : null;
-          const showResultLane = Boolean(roll && tone && outcome && (laneIds == null || laneIds.includes(action.participantId)));
+          const showResultLane = Boolean(roll && tone && outcome && resultRevealed);
           return (
             <div key={`${row.roundNumber}-${action.participantId}`} data-trpg-action-card>
               {showResultLane && roll && tone && outcome ? (
@@ -1634,7 +1642,7 @@ function SceneTurn({
                       {intent ? (
                         <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
                       ) : null}
-                      {roll ? (
+                      {showCompactRoll && roll ? (
                         <p className="text-[11px] tabular-nums text-zinc-500">
                           {formatTrpgRollCompact({
                             statLabel: statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey,
@@ -1644,7 +1652,7 @@ function SceneTurn({
                             tier: roll.tier,
                           })}
                         </p>
-                      ) : action.kind === "ai_character" ? (
+                      ) : action.kind === "ai_character" && !roll ? (
                         <p className="text-[11px] text-zinc-500">판정 없음 · 대화</p>
                       ) : null}
                     </div>

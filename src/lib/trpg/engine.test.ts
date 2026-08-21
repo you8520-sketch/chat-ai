@@ -123,11 +123,86 @@ describe("TRPG campaign loop", () => {
       campaignId,
       userId: 1,
       body: "안전가옥을 찾아볼까?? 아니면 약국에 쓸만한게 있나볼까??? *모두를 향해 물어본다*",
-      actionType: "persuade",
+      actionType: "free",
     });
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(after.currentRolls.length, 0);
     assert.match(after.log.at(-1)?.narration ?? after.currentNarration ?? "", /렌이 묻자/);
+    db.close();
+  });
+
+  it("rolls when an explicit resolution chip is dialogue-only", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 14,
+      gmCall: async () => ({ text: gmText({ narration: "전열을 맡는다." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "「내가 맡을게.」",
+      actionType: "attack",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 1);
+    db.close();
+  });
+
+  it("does not roll pure dialogue or harmless flavor free actions", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 3,
+      gmCall: async () => ({ text: gmText({ narration: "고개를 끄덕이자 공기가 가라앉는다." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "고개를 끄덕인다. 「알겠어.」",
+      actionType: "free",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 0);
+
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "옷깃을 정리하고 벽에 기대 선다.",
+      actionType: "free",
+    });
+    const flavor = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(flavor.log.find((row) => row.roundNumber === 2)?.rolls.length, 0);
+    db.close();
+  });
+
+  it("still rolls risky and investigation free actions", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      gmCall: async () => ({ text: gmText({ narration: "잔해를 넘는다." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "무너지는 잔해 사이를 뛰어넘는다.",
+      actionType: "free",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 1);
+
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "빛나는 조각을 집어 들고 주변 기척을 살핀다.",
+      actionType: "free",
+    });
+    const investigate = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(investigate.log.find((row) => row.roundNumber === 2)?.rolls.length, 1);
     db.close();
   });
 

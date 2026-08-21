@@ -15,9 +15,12 @@ import {
   liveRoundWaitCopy,
   liveRoundWaitKind,
   shouldShowLiveRoundWaitCopy,
+  compactRollActorIds,
   resultLaneActorIds,
   revealedActorIds,
+  shouldShowActionJudgeBlock,
   shouldShowActorResultLane,
+  shouldShowCompactRoll,
   shouldGateLiveRoundPresentation,
   shouldShowGmNarration,
   startCinematicPresentation,
@@ -41,16 +44,26 @@ function action(participantId: number, name: string): TrpgPublicAction {
   };
 }
 
-function roll(participantId: number, name: string, d20: number): TrpgPublicRoll {
+function roll(
+  participantId: number,
+  name: string,
+  d20: number,
+  opts?: { tier?: TrpgPublicRoll["tier"]; success?: boolean; dc?: number; finalScore?: number }
+): TrpgPublicRoll {
+  const dc = opts?.dc ?? 12;
+  const finalScore = opts?.finalScore ?? d20 + 2;
+  const tier =
+    opts?.tier ??
+    (d20 === 20 ? "CRITICAL_SUCCESS" : d20 === 1 ? "CRITICAL_FAILURE" : finalScore >= dc ? "SUCCESS" : "FAILURE");
   return {
     participantId,
     name,
     d20,
     statKey: "str",
-    finalScore: d20 + 2,
-    dc: 12,
-    tier: d20 === 20 ? "CRITICAL_SUCCESS" : d20 === 1 ? "CRITICAL_FAILURE" : "SUCCESS",
-    success: d20 >= 10,
+    finalScore,
+    dc,
+    tier,
+    success: opts?.success ?? finalScore >= dc,
     actionBody: `${name} 행동`,
     actionType: "free",
     kind: participantId === 1 ? "human" : "ai_character",
@@ -113,8 +126,10 @@ describe("TRPG round presentation queue", () => {
     assert.equal(diceBeats[0]?.activeRollActorId, 7);
     const result = frames.find((frame) => frame.phase === "actor-result");
     assert.deepEqual(result?.resultLaneActorIds, [7]);
+    assert.deepEqual(result?.compactRollActorIds, [7]);
     const action = frames.find((frame) => frame.phase === "actor-action");
     assert.deepEqual(action?.resultLaneActorIds, []);
+    assert.deepEqual(action?.compactRollActorIds, []);
     const gm = frames.at(-1);
     assert.equal(gm?.gmVisible, true);
     assert.equal(gm?.phase, "gm-narration");
@@ -227,6 +242,71 @@ describe("TRPG round presentation queue", () => {
     );
   });
 
+  it("hides compact roll numbers until the existing result-reveal owner", () => {
+    const failed = buildRoundPresentationActors({
+      resolutionOrder: [7],
+      actions: [action(7, "권태현")],
+      rolls: [roll(7, "권태현", 7, { finalScore: 10, dc: 12, tier: "FAILURE", success: false })],
+    });
+    const actionState = { mode: "cinematic" as const, phase: "actor-action" as const, presentationIndex: 0 };
+    const diceState = { mode: "cinematic" as const, phase: "actor-dice" as const, presentationIndex: 0 };
+    const resultState = { mode: "cinematic" as const, phase: "actor-result" as const, presentationIndex: 0 };
+    assert.equal(shouldShowCompactRoll({ actorId: 7, actors: failed, state: actionState }), false);
+    assert.equal(shouldShowActorResultLane({ actorId: 7, actors: failed, state: actionState }), false);
+    assert.equal(shouldShowCompactRoll({ actorId: 7, actors: failed, state: diceState }), false);
+    assert.equal(shouldShowActorResultLane({ actorId: 7, actors: failed, state: diceState }), false);
+    assert.equal(shouldShowCompactRoll({ actorId: 7, actors: failed, state: resultState }), true);
+    assert.equal(shouldShowActorResultLane({ actorId: 7, actors: failed, state: resultState }), true);
+    const frames = walkCinematicPresentation(failed);
+    const actionFrame = frames.find((frame) => frame.phase === "actor-action");
+    const diceFrame = frames.find((frame) => frame.phase === "actor-dice");
+    const resultFrame = frames.find((frame) => frame.phase === "actor-result");
+    assert.deepEqual(actionFrame?.compactRollActorIds, []);
+    assert.deepEqual(actionFrame?.resultLaneActorIds, []);
+    assert.deepEqual(diceFrame?.compactRollActorIds, []);
+    assert.deepEqual(diceFrame?.resultLaneActorIds, []);
+    assert.deepEqual(resultFrame?.compactRollActorIds, [7]);
+    assert.deepEqual(resultFrame?.resultLaneActorIds, [7]);
+
+    const successActors = actorsFor([9], [[9, "렌", 16]], ["렌"]);
+    const successFrames = walkCinematicPresentation(successActors);
+    assert.deepEqual(successFrames.find((frame) => frame.phase === "actor-action")?.compactRollActorIds, []);
+    assert.deepEqual(successFrames.find((frame) => frame.phase === "actor-dice")?.compactRollActorIds, []);
+    assert.deepEqual(successFrames.find((frame) => frame.phase === "actor-result")?.compactRollActorIds, [9]);
+    assert.deepEqual(compactRollActorIds({ actors: successActors, state: historicalPresentation() }), [9]);
+    assert.equal(
+      shouldShowCompactRoll({ actorId: 9, actors: successActors, state: historicalPresentation() }),
+      true
+    );
+    assert.equal(
+      shouldShowActionJudgeBlock({
+        kind: "human",
+        hasIntent: false,
+        hasRoll: true,
+        resultRevealed: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowActionJudgeBlock({
+        kind: "human",
+        hasIntent: true,
+        hasRoll: true,
+        resultRevealed: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowActionJudgeBlock({
+        kind: "ai_character",
+        hasIntent: false,
+        hasRoll: true,
+        resultRevealed: false,
+      }),
+      false
+    );
+  });
+
   it("does not autoplay historical remounts", () => {
     const rolls = [roll(1, "권태현", 16), roll(2, "렌", 9)];
     const key = trpgRoundPresentationSessionKey({
@@ -301,6 +381,9 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /presentationStarting/);
     assert.match(room, /actorCount: liveReady \? presentationActors\.length : 0/);
     assert.match(room, /visibleSceneRows = sceneRows/);
+    assert.match(room, /showCompactRoll/);
+    assert.match(room, /shouldShowActionJudgeBlock/);
+    assert.match(room, /showCompactRoll && roll/);
     assert.match(room, /dicePreview\.ready/);
     assert.match(room, /window\.location\.search/);
     assert.doesNotMatch(room, /sceneRows\.filter\(\(row\) => row\.roundNumber !== gatedRoundNumber\)/);
