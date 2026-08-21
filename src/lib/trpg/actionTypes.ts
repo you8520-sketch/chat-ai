@@ -119,7 +119,7 @@ export function actionTypeLabelKo(actionType: TrpgActionType): string {
     case "use_item":
       return "도구";
     case "free":
-      return "자유 행동";
+      return "기타 행동";
     default: {
       const _exhaustive: never = actionType;
       return _exhaustive;

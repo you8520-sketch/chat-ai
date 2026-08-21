@@ -1,0 +1,132 @@
+import type { TrpgPublicParticipant } from "./snapshot";
+import type { RoundPresentationMode, RoundPresentationPhase } from "./roundPresentation";
+
+export type LiveTurnProcessStage =
+  | "none"
+  | "opening"
+  | "wait_humans"
+  | "bots"
+  | "rolls"
+  | "gm"
+  | "reroll";
+
+export function isLiveTurnCinematicMotion(
+  mode: RoundPresentationMode,
+  phase: RoundPresentationPhase
+): boolean {
+  return (
+    mode === "cinematic" &&
+    (phase === "actor-action" || phase === "actor-dice" || phase === "actor-result")
+  );
+}
+
+export function liveTurnProcessStage(opts: {
+  waitingOpening: boolean;
+  narrationRerolling: boolean;
+  workType: string;
+  phase: string;
+  viewerLocked: boolean;
+  cinematicMotion: boolean;
+  presentationStarting: boolean;
+  gmTextReady: boolean;
+}): LiveTurnProcessStage {
+  if (opts.waitingOpening) return "opening";
+  if (opts.narrationRerolling) return "reroll";
+  if (opts.cinematicMotion || opts.presentationStarting) return "none";
+  if (opts.workType === "wait_humans" && opts.viewerLocked) return "wait_humans";
+  if (opts.workType === "generate_bots" || opts.phase === "BOT_ACTION") return "bots";
+  if (
+    opts.workType === "acquire_gm_lock" ||
+    opts.phase === "LOCKING_ACTIONS" ||
+    opts.phase === "ADJUDICATING" ||
+    opts.phase === "ROLLING"
+  ) {
+    return "rolls";
+  }
+  if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return "gm";
+  return "none";
+}
+
+export function isLiveTurnProcessing(opts: {
+  waitingOpening: boolean;
+  narrationRerolling: boolean;
+  viewerLocked: boolean;
+  phase: string;
+  workType: string;
+  cinematicMotion: boolean;
+  presentationStarting: boolean;
+  gmTextReady: boolean;
+}): boolean {
+  if (opts.waitingOpening || opts.narrationRerolling) return true;
+  if (opts.presentationStarting || opts.cinematicMotion) return true;
+  if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return true;
+  if (
+    opts.phase === "BOT_ACTION" ||
+    opts.phase === "LOCKING_ACTIONS" ||
+    opts.phase === "ADJUDICATING" ||
+    opts.phase === "ROLLING"
+  ) {
+    return true;
+  }
+  if (opts.workType === "generate_bots" || opts.workType === "acquire_gm_lock") return true;
+  return opts.workType === "wait_humans" && opts.viewerLocked;
+}
+
+export function liveTurnBotProgress(
+  participants: readonly Pick<TrpgPublicParticipant, "kind" | "canAct" | "status" | "ready">[]
+): { done: number; total: number } | null {
+  const acting = participants.filter(
+    (part) => part.kind === "ai_character" && part.canAct && part.status === "active"
+  );
+  if (acting.length === 0) return null;
+  const done = acting.filter((part) => part.ready === "submitted").length;
+  if (done > acting.length) return null;
+  return { done, total: acting.length };
+}
+
+export function liveTurnProcessLabel(opts: {
+  stage: LiveTurnProcessStage;
+  botProgress?: { done: number; total: number } | null;
+}): string | null {
+  switch (opts.stage) {
+    case "opening":
+      return "오프닝 장면 준비 중";
+    case "wait_humans":
+      return "다른 플레이어 입력 대기 중";
+    case "bots":
+      return opts.botProgress
+        ? `동료 행동 구성 중 · ${opts.botProgress.done}/${opts.botProgress.total}`
+        : "동료 행동 구성 중";
+    case "rolls":
+      return "라운드 판정 준비 중";
+    case "gm":
+      return "GM 장면 작성 중";
+    case "reroll":
+      return "장면 다시 작성 중";
+    default:
+      return null;
+  }
+}
+
+export function formatLiveTurnProcessStatus(opts: {
+  stage: LiveTurnProcessStage;
+  elapsedSec: number;
+  botProgress?: { done: number; total: number } | null;
+}): string | null {
+  const label = liveTurnProcessLabel(opts);
+  if (!label) return null;
+  return `● ${label} · ${Math.max(0, Math.floor(opts.elapsedSec))}초`;
+}
+
+export function nextLiveTurnElapsedSec(opts: {
+  active: boolean;
+  startedAt: number | null;
+  now: number;
+}): { startedAt: number | null; elapsedSec: number } {
+  if (!opts.active) return { startedAt: null, elapsedSec: 0 };
+  const startedAt = opts.startedAt ?? opts.now;
+  return {
+    startedAt,
+    elapsedSec: Math.max(0, Math.floor((opts.now - startedAt) / 1000)),
+  };
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
@@ -96,7 +96,20 @@ import {
   type PresentationActor,
   type RoundPresentationState,
 } from "@/lib/trpg/roundPresentation";
-import { isNearBottom } from "@/lib/trpg/followLatest";
+import {
+  decideLiveFollowOnGrowth,
+  decideLiveFollowUpdate,
+  isNearBottom,
+  livePresentationActivityKey,
+} from "@/lib/trpg/followLatest";
+import {
+  formatLiveTurnProcessStatus,
+  isLiveTurnCinematicMotion,
+  isLiveTurnProcessing,
+  liveTurnBotProgress,
+  liveTurnProcessStage,
+  nextLiveTurnElapsedSec,
+} from "@/lib/trpg/liveTurnStatus";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgUserChatPanel from "./TrpgUserChatPanel";
@@ -289,6 +302,8 @@ export default function TrpgCampaignRoom({
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
   const seenSceneLenRef = useRef(0);
+  const seenActivityKeyRef = useRef("");
+  const liveSceneRef = useRef<HTMLElement | null>(null);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -623,6 +638,74 @@ export default function TrpgCampaignRoom({
   })
     ? liveRoundWaitCopy(waitKind)
     : null;
+  const cinematicMotion = isLiveTurnCinematicMotion(roundShow.mode, roundShow.phase);
+  const currentNarration = currentLogRow?.narration?.trim() || "";
+  const gmTextReady = cinematicShowGm && currentNarration.length > 0;
+  const processStage = liveTurnProcessStage({
+    waitingOpening,
+    narrationRerolling: snap.narrationRerolling,
+    workType: snap.workType,
+    phase: String(phase),
+    viewerLocked: snap.myDraft?.locked === true,
+    cinematicMotion,
+    presentationStarting,
+    gmTextReady,
+  });
+  const processingActive = isLiveTurnProcessing({
+    waitingOpening,
+    narrationRerolling: snap.narrationRerolling,
+    viewerLocked: snap.myDraft?.locked === true,
+    phase: String(phase),
+    workType: snap.workType,
+    cinematicMotion,
+    presentationStarting,
+    gmTextReady,
+  });
+  const botProgress = processStage === "bots" ? liveTurnBotProgress(snap.participants) : null;
+  const processStartedAtRef = useRef<number | null>(null);
+  const [processElapsedSec, setProcessElapsedSec] = useState(0);
+  useEffect(() => {
+    processStartedAtRef.current = null;
+    setProcessElapsedSec(0);
+  }, [snap.id, snap.round.number]);
+  useEffect(() => {
+    const next = nextLiveTurnElapsedSec({
+      active: processingActive,
+      startedAt: processStartedAtRef.current,
+      now: Date.now(),
+    });
+    processStartedAtRef.current = next.startedAt;
+    setProcessElapsedSec(next.elapsedSec);
+    if (!processingActive) return;
+    const id = window.setInterval(() => {
+      const tick = nextLiveTurnElapsedSec({
+        active: true,
+        startedAt: processStartedAtRef.current,
+        now: Date.now(),
+      });
+      processStartedAtRef.current = tick.startedAt;
+      setProcessElapsedSec(tick.elapsedSec);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [processingActive, snap.id, snap.round.number]);
+  const processStatus =
+    processStage !== "none" && !overlayPlayback.visible
+      ? formatLiveTurnProcessStatus({
+          stage: processStage,
+          elapsedSec: processElapsedSec,
+          botProgress,
+        })
+      : null;
+  const showInlineWait = Boolean(waitCopy) && !processStatus;
+  const followActivityKey = livePresentationActivityKey({
+    roundNumber: snap.round.number,
+    mode: roundShow.mode,
+    phase: roundShow.phase,
+    presentationIndex: roundShow.presentationIndex,
+    revealedActorCount: cinematicRevealedIds.length,
+    resultLaneCount: cinematicLaneIds.length,
+    gmVisible: cinematicShowGm && gmTextReady,
+  });
   const botFillTargets = useMemo(
     () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
     [snap.hostFillBotIds, snap.participants]
@@ -677,6 +760,7 @@ export default function TrpgCampaignRoom({
     setFollowLatest(true);
     setUnseenLatest(false);
     seenSceneLenRef.current = 0;
+    seenActivityKeyRef.current = "";
   }, [snap.id]);
 
   useLayoutEffect(() => {
@@ -691,11 +775,13 @@ export default function TrpgCampaignRoom({
       scrollToLatest("instant");
       hasScrolledToLatestRef.current = snap.id;
       seenSceneLenRef.current = sceneRows.length;
+      seenActivityKeyRef.current = followActivityKey;
       let secondFrame = 0;
       const firstFrame = window.requestAnimationFrame(() => {
         secondFrame = window.requestAnimationFrame(() => scrollToLatest("instant"));
         hasScrolledToLatestRef.current = snap.id;
         seenSceneLenRef.current = sceneRows.length;
+        seenActivityKeyRef.current = followActivityKey;
       });
       return () => {
         window.cancelAnimationFrame(firstFrame);
@@ -705,26 +791,53 @@ export default function TrpgCampaignRoom({
 
     if (sceneRows.length > seenSceneLenRef.current) {
       seenSceneLenRef.current = sceneRows.length;
-      if (followLatestRef.current) scrollToLatest("instant");
-      else setUnseenLatest(true);
+      const rowFollow = decideLiveFollowUpdate({
+        following: followLatestRef.current,
+        activityChanged: true,
+      });
+      if (rowFollow.autoFollow) scrollToLatest("instant");
+      else if (rowFollow.unseenLatest) setUnseenLatest(true);
     }
-  }, [sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
+
+    if (followActivityKey && followActivityKey !== seenActivityKeyRef.current) {
+      seenActivityKeyRef.current = followActivityKey;
+      const activityFollow = decideLiveFollowUpdate({
+        following: followLatestRef.current,
+        activityChanged: true,
+      });
+      if (activityFollow.autoFollow) {
+        requestAnimationFrame(() => {
+          if (followLatestRef.current) scrollToLatest("instant");
+        });
+      } else if (activityFollow.unseenLatest) {
+        setUnseenLatest(true);
+      }
+    }
+  }, [followActivityKey, sceneRows.length, scrollToLatest, snap.id, waitingOpening]);
 
   useEffect(() => {
-    const content = quoteSelectContainerRef.current;
-    if (!content || typeof ResizeObserver === "undefined") return;
-    let frame = 0;
+    const el = liveSceneRef.current;
+    const liveRevealActive =
+      roundShow.mode === "cinematic" || presentationStarting || Boolean(currentNarration);
+    if (!el || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
-      if (!followLatestRef.current) return;
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => scrollToLatest("instant"));
+      const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
+      if (growth.autoFollow) {
+        requestAnimationFrame(() => {
+          if (!followLatestRef.current) return;
+          if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({ behavior: "instant", block: "end", inline: "nearest" });
+          } else {
+            window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+          }
+        });
+      } else if (growth.unseenLatest) {
+        setUnseenLatest(true);
+      }
     });
-    observer.observe(content);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [scrollToLatest, snap.id]);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [currentNarration, presentationStarting, roundShow.mode, snap.round.number]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -885,6 +998,9 @@ export default function TrpgCampaignRoom({
         actions: sourceActions,
         revealedActorIds: cinematicRevealedIds,
       })}
+      data-trpg-follow-activity={followActivityKey || undefined}
+      data-trpg-follow-latest={followLatest ? "true" : "false"}
+      data-trpg-unseen-latest={unseenLatest ? "true" : "false"}
     >
       <aside
         className="fixed left-3 right-3 top-[4.5rem] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
@@ -971,7 +1087,7 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {waitCopy ? (
+          {showInlineWait ? (
             <p className="text-sm text-zinc-400" data-trpg-live-wait={waitKind}>
               {waitCopy}
             </p>
@@ -1060,6 +1176,8 @@ export default function TrpgCampaignRoom({
                 })
               }
               revealGateHeld={gated}
+              liveScene={row.roundNumber === snap.round.number}
+              liveSceneRef={row.roundNumber === snap.round.number ? liveSceneRef : undefined}
             />
             );
           })}
@@ -1358,15 +1476,30 @@ export default function TrpgCampaignRoom({
         onPlaybackStateChange={handleOverlayPlaybackChange}
       />
 
-      {!followLatest && unseenLatest ? (
-        <button
-          type="button"
-          onClick={() => scrollToLatest("smooth")}
-          className="fixed bottom-24 left-1/2 z-[65] -translate-x-1/2 rounded-full border border-white/15 bg-[#161616]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg"
-          data-trpg-jump-latest
-        >
-          최신으로 ↓
-        </button>
+      {processStatus || (!followLatest && unseenLatest) ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[5.75rem] z-[64] flex flex-col items-center gap-2 px-3 pb-[env(safe-area-inset-bottom)]">
+          {processStatus ? (
+            <p
+              className="pointer-events-none max-w-[min(24rem,calc(100vw-1.5rem))] rounded-full border border-white/15 bg-[#161616]/95 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-lg"
+              data-trpg-live-turn-status={processStage}
+              data-trpg-live-turn-elapsed={processElapsedSec}
+              role="status"
+              aria-live="polite"
+            >
+              {processStatus}
+            </p>
+          ) : null}
+          {!followLatest && unseenLatest ? (
+            <button
+              type="button"
+              onClick={() => scrollToLatest("smooth")}
+              className="pointer-events-auto rounded-full border border-white/15 bg-[#161616]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg"
+              data-trpg-jump-latest
+            >
+              최신으로 ↓
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {toast ? (
@@ -1401,6 +1534,8 @@ function SceneTurn({
   onReroll,
   onImage,
   revealGateHeld,
+  liveScene,
+  liveSceneRef,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -1423,6 +1558,8 @@ function SceneTurn({
   onReroll: () => void;
   onImage: () => void;
   revealGateHeld?: boolean;
+  liveScene?: boolean;
+  liveSceneRef?: Ref<HTMLElement | null>;
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
   const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`);
@@ -1434,7 +1571,11 @@ function SceneTurn({
     revealedIds != null ? selectVisibleActions(revealedActions, revealedIds) : revealedActions;
   const showToolbar = canReroll || canImage || row.billedPoints != null;
   return (
-    <article className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5">
+    <article
+      ref={liveScene ? liveSceneRef : undefined}
+      data-trpg-live-scene={liveScene ? "true" : undefined}
+      className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5"
+    >
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
       </p>

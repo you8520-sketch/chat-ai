@@ -35,4 +35,32 @@ describe("TRPG talk-only actions skip checks", () => {
     assert.equal(isTalkOnlyAction(body), false);
     assert.equal(actionNeedsCheck({ body, actionType: "free" }), true);
   });
+
+  it("audits current no-check semantics without rewriting the engine", () => {
+    const a = actionNeedsCheck({
+      body: "고개를 끄덕인다. 「알겠어.」",
+      actionType: "free",
+    });
+    const b = actionNeedsCheck({
+      body: "옷깃을 정리하고 벽에 기대 선다.",
+      actionType: "free",
+    });
+    const c = actionNeedsCheck({
+      body: "빛나는 조각을 집어 들고 주변 기척을 살핀다.",
+      actionType: "free",
+    });
+    const d = actionNeedsCheck({
+      body: "무너지는 잔해 사이를 뛰어넘는다.",
+      actionType: "free",
+    });
+    const e = actionNeedsCheck({
+      body: "무너지는 잔해 사이를 뛰어넘는다.",
+      actionType: "free",
+    });
+    assert.equal(c, true, "RISKY_INVESTIGATION_ROLL");
+    assert.equal(d, true, "RISKY_FREE_ACTION_ROLL");
+    assert.equal(e, true, "BOT_FREE_RISKY_ROLL");
+    assert.equal(a, true, "PURE_DIALOGUE_CURRENTLY_ROLLS");
+    assert.equal(b, true, "PURE_FLAVOR_CURRENTLY_ROLLS");
+  });
 });

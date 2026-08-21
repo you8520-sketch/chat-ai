@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pickStatForAction } from "./actionTypes";
+import { actionTypeLabelKo, pickStatForAction } from "./actionTypes";
 import { defsFromKeys, DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 describe("TRPG action stat pick", () => {
@@ -34,5 +34,10 @@ describe("TRPG action stat pick", () => {
       }),
       "cha"
     );
+  });
+
+  it("shows 기타 행동 for backend free without changing the key", () => {
+    assert.equal(actionTypeLabelKo("free"), "기타 행동");
+    assert.notEqual(actionTypeLabelKo("free"), "자유 행동");
   });
 });
