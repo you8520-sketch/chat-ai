@@ -1,0 +1,87 @@
+{
+  "model": "google/gemini-3.1-pro-preview",
+  "model_alias_check": "google/gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "reasoning": {
+    "effort": "low"
+  },
+  "b_turn_only": "OOC: 이번 턴만 유저 페르소나 말투로 내 대사를 써주고, 내가 그녀를 끌어안으며 키스하는 장면과 이어서 행동도 진행해. 캐릭터의 반응도 서술해줘.",
+  "b_persistent": "OOC: 유저 페르소나 말투로 내 대사를 써주고, 내가 그녀를 끌어안으며 키스하는 장면과 이어서 행동도 진행해. 캐릭터의 반응도 서술해줘.",
+  "c_input": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+  "c_revoke": "OOC: 이제 내 대사나 행동은 쓰지 마.\n*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+  "A": {
+    "caseId": "A",
+    "currentInput": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+    "persistentBefore": "FULL",
+    "persistentAfter": "FULL",
+    "currentMode": "FULL",
+    "directive": {
+      "duration": "none",
+      "dialogue": "unchanged",
+      "majorActions": "unchanged"
+    },
+    "duration": "persistent",
+    "postDelegationBoundary": false,
+    "runtimeMode": "current_turn_ooc_delegated",
+    "estimatedInputTokens": 13983,
+    "lastUserChars": 588,
+    "lastUserHasLock": false,
+    "lastUserHasBoundary": false,
+    "lastUserHasPersistentWrapper": true,
+    "lastUserHasTurnOnlyWrapper": false,
+    "systemHasStandardOwner": false,
+    "systemHasCoauthorOwner": true,
+    "systemHasGemini31Supplement": false,
+    "ownerCount": 1
+  },
+  "B": {
+    "caseId": "B",
+    "currentInput": "*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+    "persistentBefore": "OFF",
+    "persistentAfter": "OFF",
+    "currentMode": "OFF",
+    "directive": {
+      "duration": "none",
+      "dialogue": "unchanged",
+      "majorActions": "unchanged"
+    },
+    "duration": null,
+    "postDelegationBoundary": true,
+    "runtimeMode": "interactive",
+    "estimatedInputTokens": 14425,
+    "lastUserChars": 1051,
+    "lastUserHasLock": false,
+    "lastUserHasBoundary": true,
+    "lastUserHasPersistentWrapper": false,
+    "lastUserHasTurnOnlyWrapper": false,
+    "systemHasStandardOwner": true,
+    "systemHasCoauthorOwner": false,
+    "systemHasGemini31Supplement": true,
+    "ownerCount": 1
+  },
+  "C": {
+    "caseId": "C",
+    "currentInput": "OOC: 이제 내 대사나 행동은 쓰지 마.\n*잠시 숨을 고르고 얼굴을 바라본다.* 괜찮아? 너무 빨랐으면 말해.",
+    "persistentBefore": "FULL",
+    "persistentAfter": "OFF",
+    "currentMode": "OFF",
+    "directive": {
+      "duration": "persistent",
+      "dialogue": "deny",
+      "majorActions": "deny"
+    },
+    "duration": null,
+    "postDelegationBoundary": true,
+    "runtimeMode": "interactive",
+    "estimatedInputTokens": 14448,
+    "lastUserChars": 1083,
+    "lastUserHasLock": false,
+    "lastUserHasBoundary": true,
+    "lastUserHasPersistentWrapper": false,
+    "lastUserHasTurnOnlyWrapper": false,
+    "systemHasStandardOwner": true,
+    "systemHasCoauthorOwner": false,
+    "systemHasGemini31Supplement": true,
+    "ownerCount": 1
+  }
+}
