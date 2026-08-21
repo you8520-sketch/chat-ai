@@ -77,9 +77,12 @@ import {
   historicalPresentation,
   idlePresentation,
   isLiveRoundPresentationReady,
+  isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
+  liveRoundCanonicalVisibleCount,
   liveRoundWaitCopy,
   liveRoundWaitKind,
+  shouldShowLiveRoundWaitCopy,
   resultLaneActorIds,
   revealedActorIds,
   ROUND_ACTION_REVEAL_MS,
@@ -561,10 +564,16 @@ export default function TrpgCampaignRoom({
       phase === "ROLLING" ||
       snap.workType === "generate_bots" ||
       snap.workType === "acquire_gm_lock");
+  const presentationStarting = isLiveRoundPresentationStarting({
+    liveReady,
+    mode: roundShow.mode,
+    queueSessionKey,
+  });
   const gateLiveRound = shouldGateLiveRoundPresentation({
     mode: roundShow.mode,
     previewReady: dicePreview.ready,
     livePending,
+    presentationStarting,
   });
   const knownNames = [
     ...snap.participants.map((p) => p.displayName),
@@ -608,10 +617,13 @@ export default function TrpgCampaignRoom({
     narrationRerolling: snap.narrationRerolling,
     waitingOpening,
   });
-  const waitCopy =
-    waitKind !== "none" && (roundShow.mode !== "cinematic" || waitKind === "reroll")
-      ? liveRoundWaitCopy(waitKind)
-      : null;
+  const waitCopy = shouldShowLiveRoundWaitCopy({
+    waitKind,
+    mode: roundShow.mode,
+    presentationStarting,
+  })
+    ? liveRoundWaitCopy(waitKind)
+    : null;
   const botFillTargets = useMemo(
     () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
     [snap.hostFillBotIds, snap.participants]
@@ -847,13 +859,13 @@ export default function TrpgCampaignRoom({
       data-trpg-round-source-rolls={sourceRolls.length}
       data-trpg-presentation-ready={liveReady ? "true" : "false"}
       data-trpg-live-pending={livePending ? "true" : "false"}
-      data-trpg-canonical-visible={
-        gateLiveRound
-          ? roundShow.mode === "cinematic"
-            ? selectVisibleActions(sourceActions, cinematicRevealedIds).length
-            : 0
-          : sourceActions.length
-      }
+      data-trpg-presentation-starting={presentationStarting ? "true" : "false"}
+      data-trpg-canonical-visible={liveRoundCanonicalVisibleCount({
+        gated: gateLiveRound,
+        mode: roundShow.mode,
+        actions: sourceActions,
+        revealedActorIds: cinematicRevealedIds,
+      })}
     >
       <aside
         className={`sticky ${CHAT_GLOBAL_HEADER_OFFSET_CLASS} z-30 hidden h-[calc(100dvh-7.5rem)] w-[260px] shrink-0 flex-col self-start overflow-hidden border-r border-white/10 bg-[#101010]/90 min-[576px]:flex`}

@@ -9,9 +9,12 @@ import {
   freezeLivePresentationActors,
   historicalPresentation,
   isLiveRoundPresentationReady,
+  isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
+  liveRoundCanonicalVisibleCount,
   liveRoundWaitCopy,
   liveRoundWaitKind,
+  shouldShowLiveRoundWaitCopy,
   resultLaneActorIds,
   revealedActorIds,
   shouldShowActorResultLane,
@@ -213,6 +216,15 @@ describe("TRPG round presentation queue", () => {
       }),
       false
     );
+    assert.equal(
+      shouldGateLiveRoundPresentation({
+        mode: "idle",
+        previewReady: true,
+        livePending: false,
+        presentationStarting: true,
+      }),
+      true
+    );
   });
 
   it("does not autoplay historical remounts", () => {
@@ -284,7 +296,9 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /showGmNarration/);
     assert.match(room, /shouldGateLiveRoundPresentation/);
     assert.match(room, /isLiveRoundPresentationReady/);
+    assert.match(room, /isLiveRoundPresentationStarting/);
     assert.match(room, /livePending/);
+    assert.match(room, /presentationStarting/);
     assert.match(room, /actorCount: liveReady \? presentationActors\.length : 0/);
     assert.match(room, /visibleSceneRows = sceneRows/);
     assert.match(room, /dicePreview\.ready/);
@@ -532,5 +546,92 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(walked.startCount, 0);
     assert.deepEqual(walked.steps[0]?.visibleCanonicalActionIds, order);
     assert.equal(shouldShowGmNarration(historicalPresentation()), true);
+  });
+
+  it("gates the first ready render before cinematic mode is established", () => {
+    const actions = [human, bot1, bot2];
+    const sessionKey = trpgRoundPresentationSessionKey({
+      roundNumber: 3,
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+      actions,
+      ready: true,
+    });
+    assert.notEqual(sessionKey, "");
+
+    const firstReady = {
+      mode: "idle" as const,
+      previewReady: true,
+      livePending: false,
+      liveReady: true,
+      queueSessionKey: sessionKey,
+    };
+    const presentationStarting = isLiveRoundPresentationStarting(firstReady);
+    assert.equal(presentationStarting, true);
+    const firstGate = shouldGateLiveRoundPresentation({
+      mode: firstReady.mode,
+      previewReady: firstReady.previewReady,
+      livePending: firstReady.livePending,
+      presentationStarting,
+    });
+    assert.equal(firstGate, true);
+    const firstVisible = liveRoundCanonicalVisibleCount({
+      gated: firstGate,
+      mode: firstReady.mode,
+      actions,
+      revealedActorIds: [],
+    });
+    assert.equal(firstVisible, 0);
+    assert.equal(firstVisible === actions.length, false, "ALL_ACTIONS_FLASH_BEFORE_CINEMATIC");
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "gm",
+        mode: "idle",
+        presentationStarting: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "reroll",
+        mode: "idle",
+        presentationStarting: true,
+      }),
+      true
+    );
+
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions,
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+    });
+    const cinematic = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const afterStartGate = shouldGateLiveRoundPresentation({
+      mode: cinematic.mode,
+      previewReady: true,
+      livePending: false,
+      presentationStarting: isLiveRoundPresentationStarting({
+        liveReady: true,
+        mode: cinematic.mode,
+        queueSessionKey: sessionKey,
+      }),
+    });
+    assert.equal(afterStartGate, true);
+    const actor1Only = liveRoundCanonicalVisibleCount({
+      gated: afterStartGate,
+      mode: cinematic.mode,
+      actions,
+      revealedActorIds: revealedActorIds({ actors, state: cinematic }),
+    });
+    assert.equal(actor1Only, 1);
+    assert.deepEqual(revealedActorIds({ actors, state: cinematic }), [10]);
+    assert.equal(cinematic.phase, "actor-action");
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "gm",
+        mode: "cinematic",
+        presentationStarting: false,
+      }),
+      false
+    );
   });
 });

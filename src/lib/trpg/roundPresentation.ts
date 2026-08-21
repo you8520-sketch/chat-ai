@@ -210,16 +210,53 @@ export function shouldShowGmNarration(state: RoundPresentationState): boolean {
   return state.phase === "gm-narration" || state.phase === "complete";
 }
 
+/**
+ * First ready render is still mode=idle until the effect bootstraps cinematic.
+ * Visibility must stay gated synchronously; do not wait for that effect.
+ */
+export function isLiveRoundPresentationStarting(opts: {
+  liveReady: boolean;
+  mode: RoundPresentationMode;
+  queueSessionKey: string;
+}): boolean {
+  return opts.liveReady && opts.mode === "idle" && opts.queueSessionKey !== "";
+}
+
 /** Hide the live round until the client knows cinematic vs historical. */
 export function shouldGateLiveRoundPresentation(opts: {
   mode: RoundPresentationMode;
   previewReady: boolean;
   livePending?: boolean;
+  presentationStarting?: boolean;
 }): boolean {
   if (opts.mode === "historical") return false;
   if (!opts.previewReady) return true;
   if (opts.mode === "cinematic") return true;
-  return opts.livePending === true;
+  if (opts.livePending === true) return true;
+  return opts.presentationStarting === true;
+}
+
+export function shouldShowLiveRoundWaitCopy(opts: {
+  waitKind: LiveRoundWaitKind;
+  mode: RoundPresentationMode;
+  presentationStarting: boolean;
+}): boolean {
+  if (opts.waitKind === "none") return false;
+  if (opts.waitKind === "reroll") return true;
+  if (opts.mode === "cinematic") return false;
+  if (opts.presentationStarting) return false;
+  return true;
+}
+
+export function liveRoundCanonicalVisibleCount(opts: {
+  gated: boolean;
+  mode: RoundPresentationMode;
+  actions: readonly { participantId: number }[];
+  revealedActorIds: readonly number[];
+}): number {
+  if (!opts.gated) return opts.actions.length;
+  if (opts.mode !== "cinematic") return 0;
+  return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
 }
 
 export function isRoundPresentationComplete(state: RoundPresentationState): boolean {
