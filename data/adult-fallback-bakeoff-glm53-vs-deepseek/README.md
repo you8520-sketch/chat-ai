@@ -114,7 +114,8 @@ VISIBLE_PROVIDER_META_COUNTS:
   GLM: 0
   DEEPSEEK: 0
 F5_EFFECTIVE_COAUTHOR_MODE: FULL
-F5_GLM_USER_PERSONA_DIALOGUE_PRESENT: no
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT: YES
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT_NOTE: human RAW review correction of detector false-negative; RAW unchanged
 F5_GLM_USER_PERSONA_ACTION_PRESENT: yes
 F5_DEEPSEEK_USER_PERSONA_DIALOGUE_PRESENT: no
 F5_DEEPSEEK_USER_PERSONA_ACTION_PRESENT: yes
@@ -127,3 +128,18 @@ HUMAN_RAW_REVIEW_REQUIRED: true
 ```
 
 No retries. No extra samples. No winner. No fallback change.
+
+## True CNC disputed fixture (this turn)
+
+Read-only production search found **0** characters whose `adult_consent_modes_json` includes `cnc_opt_in`. The only public/approved/`nsfw=1`/`adult_status=confirmed` character remains id 6 `밤의 비서실장` with `["standard"]`.
+
+```text
+CHARACTER_CNC_OPT_IN_ALLOWED: false
+EFFECTIVE_CONSENT_MODE cannot be proven as cnc_opt_in
+PROVIDER_CALLS_THIS_TURN: 0
+TRUE_CNC_PAIR_RUN: false
+F1_F2_F5_F6_RERUN: false
+STOP_REASON: no deployed public character allows cnc_opt_in
+```
+
+See `CNC_CHARACTER_SEARCH.md` / `cnc-character-search.json`.

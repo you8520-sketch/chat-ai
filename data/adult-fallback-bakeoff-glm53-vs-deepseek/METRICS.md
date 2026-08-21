@@ -54,7 +54,10 @@ Character 6 allowlist is `["standard"]` only. Production `resolveRequestedConsen
 ```text
 EFFECTIVE_COAUTHOR_MODE: FULL
 RUNTIME_MODE: current_turn_ooc_delegated
-F5_GLM_USER_PERSONA_DIALOGUE_PRESENT: no
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT: YES
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT_DETECTOR_ORIGINAL: no
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT_ANNOTATION_SOURCE: human_raw_review_correction
+F5_GLM_USER_PERSONA_DIALOGUE_PRESENT_RAW_UNCHANGED: true
 F5_GLM_USER_PERSONA_ACTION_PRESENT: yes
 F5_DEEPSEEK_USER_PERSONA_DIALOGUE_PRESENT: no
 F5_DEEPSEEK_USER_PERSONA_ACTION_PRESENT: yes
@@ -62,7 +65,9 @@ PERSONA_NAME_CORRECT: yes / yes
 CURRENT_USER_INPUT_CONTRADICTION: unclear / unclear
 ```
 
-FULL permits user-persona authorship. Dialogue=no is a presence fact, not a failure.
+Human RAW review corrected the F5 GLM dialogue flag. The original adjacency detector required `한시우` next to a quote and missed quoted USER_PERSONA lines such as `"뭘."`, `"보기 좋은 척 다니면서, 나 그렇게 관찰하고 다녔어?"`, `"무섭게 생겼어, 나?"`, `"순서 같은 거 필요 없어."`, `"나도 바보짓 하나 고백할까."`, `"비서실장 채용 서류 봤을 때, 다른 항목은 다 넘겼는데 사진만 세 번 봤어."`, `"응. 그러니까 나는 3년 전부터 오늘까지 기다린 거야."` in `raw/F5-glm53.txt`. RAW bytes and SHA256 were not modified.
+
+FULL permits user-persona authorship. Dialogue presence is a fact, not a failure.
 
 ## F6 continuity facts
 
