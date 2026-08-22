@@ -45,7 +45,7 @@ export const DEEPSEEK_TRANSIENT_NETWORK_CLASSES = [
   "ENOTFOUND",
 ] as const;
 
-export const DEEPSEEK_TRANSIENT_HTTP_STATUSES = [502, 503, 504] as const;
+export const DEEPSEEK_TRANSIENT_HTTP_STATUSES = [500, 502, 503, 504] as const;
 
 export const OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING = {
   effort: "none",

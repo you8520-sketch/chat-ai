@@ -146,7 +146,7 @@ describe("background complete-body ownership", () => {
       }).primaryCompletionMs,
       40
     );
-    assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [502, 503, 504]);
+    assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [500, 502, 503, 504]);
     assert.deepEqual(
       [...DEEPSEEK_TRANSIENT_NETWORK_CLASSES],
       [
