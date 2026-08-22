@@ -27,6 +27,7 @@ import {
 } from "./scenarioHandoff";
 import {
   countFirstCreateFilledFields,
+  countFirstCreateRemainingFields,
   evaluateScenarioReadiness,
   FIRST_CREATE_VISIBLE_FIELDS,
   scenarioReadinessHeadline,
@@ -152,18 +153,28 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
   });
 
   it("TEST 6: blocked scenario cannot play and names the first missing field", () => {
+    const emptyPlan = emptyTrpgScenarioPlan();
     const readiness = evaluateScenarioReadiness({
       title: "",
       content: "",
-      scenarioPlan: emptyTrpgScenarioPlan(),
+      scenarioPlan: emptyPlan,
     });
     assert.equal(readiness.status, "blocked");
     assert.equal(readiness.canPlay, false);
     assert.ok(readiness.blockers.some((item) => item.id === "missing_title"));
     assert.ok(readiness.blockers.some((item) => item.field === "startingSituation"));
+    assert.equal(readiness.blockers.length, 2);
     assert.equal(scenarioPersistDecision({ dirty: true, canPlay: false, savedId: null }), "blocked");
-    assert.equal(scenarioReadinessHeadline(readiness), "아직 2개 항목이 필요합니다");
-    assert.equal(countFirstCreateFilledFields({ title: "", scenarioPlan: emptyTrpgScenarioPlan() }), 0);
+    const FIRST_CREATE_FILLED = countFirstCreateFilledFields({ title: "", scenarioPlan: emptyPlan });
+    const FIRST_CREATE_REMAINING = countFirstCreateRemainingFields({ title: "", scenarioPlan: emptyPlan });
+    const HEADLINE = scenarioReadinessHeadline(readiness, {
+      firstCreateRemaining: FIRST_CREATE_REMAINING,
+    });
+    assert.equal(FIRST_CREATE_FILLED, 0);
+    assert.equal(FIRST_CREATE_REMAINING, 5);
+    assert.equal(HEADLINE, "아직 5개 항목이 필요합니다");
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /scenarioReadinessHeadline\(readiness, \{ firstCreateRemaining \}\)/);
   });
 
   it("TEST 7: recommended-only quality lint does not block play", () => {
@@ -605,6 +616,50 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.match(editor, /const \[detailsOpen, setDetailsOpen\] = useState\(false\)/);
     assert.doesNotMatch(editor, /setAiToolsOpen\(true\)/);
     assert.doesNotMatch(editor, /setDetailsOpen\(true\)[\s\S]{0,80}setLastDraftSnapshot/);
+  });
+
+  it("Phase 2: first-create blocked headline uses remaining visible fields", () => {
+    const twoFilledPlan = {
+      ...emptyTrpgScenarioPlan(),
+      startingSituation: "폐도시에 들어간다",
+    };
+    const twoFilled = evaluateScenarioReadiness({
+      title: "폐역",
+      content: "",
+      scenarioPlan: twoFilledPlan,
+    });
+    assert.equal(twoFilled.status, "blocked");
+    assert.equal(twoFilled.canPlay, false);
+    const filledTwo = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: twoFilledPlan });
+    const remainingTwo = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: twoFilledPlan });
+    assert.equal(filledTwo, 2);
+    assert.equal(remainingTwo, 3);
+    assert.equal(
+      scenarioReadinessHeadline(twoFilled, { firstCreateRemaining: remainingTwo }),
+      "아직 3개 항목이 필요합니다"
+    );
+
+    const fourFilledPlan = {
+      ...emptyTrpgScenarioPlan(),
+      startingSituation: "폐도시에 들어간다",
+      centralConflict: "코어와 인간 세력이 충돌한다",
+      goal: "코어를 봉쇄한다",
+    };
+    const fourFilled = evaluateScenarioReadiness({
+      title: "폐역",
+      content: "",
+      scenarioPlan: fourFilledPlan,
+    });
+    assert.equal(fourFilled.status, "blocked");
+    assert.equal(fourFilled.canPlay, false);
+    const filledFour = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: fourFilledPlan });
+    const remainingFour = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: fourFilledPlan });
+    assert.equal(filledFour, 4);
+    assert.equal(remainingFour, 1);
+    assert.equal(
+      scenarioReadinessHeadline(fourFilled, { firstCreateRemaining: remainingFour }),
+      "아직 1개 항목이 필요합니다"
+    );
   });
 
   it("Phase 2: manual 5-field author is playable without AI chrome", () => {

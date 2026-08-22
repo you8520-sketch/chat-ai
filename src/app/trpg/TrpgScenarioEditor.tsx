@@ -40,6 +40,7 @@ import {
 import { scenarioPersistDecision, scenarioPlayCtaLabel, trpgPlayHref } from "@/lib/trpg/scenarioHandoff";
 import {
   countFirstCreateFilledFields,
+  countFirstCreateRemainingFields,
   evaluateScenarioReadiness,
   scenarioReadinessHeadline,
   type ScenarioReadinessField,
@@ -262,7 +263,8 @@ export default function TrpgScenarioEditor({
   });
   const showAiFieldChrome = offerAiEditingTools && aiToolsOpen;
   const firstCreateFilled = countFirstCreateFilledFields({ title, scenarioPlan: plan });
-  const readinessHeadline = scenarioReadinessHeadline(readiness);
+  const firstCreateRemaining = countFirstCreateRemainingFields({ title, scenarioPlan: plan });
+  const readinessHeadline = scenarioReadinessHeadline(readiness, { firstCreateRemaining });
 
   function leaveEditor() {
     if (

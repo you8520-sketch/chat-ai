@@ -205,8 +205,26 @@ export function countFirstCreateFilledFields(input: {
   ].filter(Boolean).length;
 }
 
-export function scenarioReadinessHeadline(readiness: ScenarioReadiness): string {
+export function countFirstCreateRemainingFields(input: {
+  title: string;
+  scenarioPlan: TrpgScenarioPlan | null | undefined;
+}): number {
+  return FIRST_CREATE_VISIBLE_FIELDS.length - countFirstCreateFilledFields(input);
+}
+
+export type ScenarioReadinessHeadlineOptions = {
+  firstCreateRemaining?: number;
+};
+
+export function scenarioReadinessHeadline(
+  readiness: ScenarioReadiness,
+  options?: ScenarioReadinessHeadlineOptions
+): string {
   if (readiness.status === "blocked") {
+    const remaining = options?.firstCreateRemaining;
+    if (remaining != null && remaining > 0) {
+      return `아직 ${remaining}개 항목이 필요합니다`;
+    }
     return readiness.blockers.length > 1
       ? `아직 ${readiness.blockers.length}개 항목이 필요합니다`
       : "아직 플레이할 수 없습니다";
