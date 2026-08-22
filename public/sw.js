@@ -1,10 +1,11 @@
-const CACHE_NAME = "hobby-ai-static-v1";
+const CACHE_NAME = "hobby-ai-static-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   OFFLINE_URL,
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/apple-touch-icon.png",
+  "/icons/icon-door-v2-192.png",
+  "/icons/icon-door-v2-512.png",
+  "/icons/icon-door-v2-maskable-512.png",
+  "/icons/apple-touch-icon-door-v2.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -78,8 +79,8 @@ self.addEventListener("push", (event) => {
     Promise.all([
       self.registration.showNotification(payload.title, {
         body: payload.body,
-        icon: "/icons/icon-192.png",
-        badge: "/icons/icon-192.png",
+        icon: "/icons/icon-door-v2-192.png",
+        badge: "/icons/icon-door-v2-192.png",
         tag: payload.tag,
         renotify: true,
         data: { url: payload.url, kind: payload.kind },

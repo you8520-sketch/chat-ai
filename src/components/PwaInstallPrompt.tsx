@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-at-v2";
+const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-at-v3";
 const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
 
 interface BeforeInstallPromptEvent extends Event {
@@ -102,7 +102,7 @@ export default function PwaInstallPrompt() {
     <div className="fixed inset-x-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[70] mx-auto max-w-sm rounded-2xl border border-violet-300/20 bg-[#131626]/95 p-4 text-zinc-100 shadow-2xl shadow-black/60 backdrop-blur-xl sm:hidden">
       <div className="flex items-start gap-3">
         <img
-          src="/icons/icon-192.png"
+          src="/icons/icon-door-v2-192.png"
           alt=""
           width={52}
           height={52}
@@ -125,6 +125,7 @@ export default function PwaInstallPrompt() {
 
       {showAndroidGuide ? (
         <div className="mt-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs leading-relaxed text-zinc-300">
+          브라우저 배지가 붙은 기존 아이콘이 있다면 먼저 홈 화면에서 삭제하세요. 그다음
           브라우저 오른쪽 위 <strong className="text-white">메뉴(⋮)</strong>에서
           <strong className="text-violet-300"> 앱 설치</strong> 또는
           <strong className="text-violet-300"> 홈 화면에 추가</strong>를 선택하세요.
