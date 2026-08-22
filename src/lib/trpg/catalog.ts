@@ -5,6 +5,14 @@ import { sanitizeWorldCoverUrl } from "@/lib/worlds";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
+import {
+  EMPTY_TRPG_CATALOG_PLAY_SCORES,
+  type TrpgCatalogPlayScore,
+  type TrpgCatalogPlayScores,
+} from "./catalogPlayScores";
+
+export type { TrpgCatalogPlayScore, TrpgCatalogPlayScores } from "./catalogPlayScores";
+export { EMPTY_TRPG_CATALOG_PLAY_SCORES } from "./catalogPlayScores";
 
 export type TrpgCatalogWorld = {
   id: number;
@@ -36,11 +44,72 @@ export type TrpgCatalog = {
   myScenarios: TrpgScenarioTemplate[];
 };
 
+/** Campaign-start window used by the TRPG lobby “실시간 랭킹” row. */
+export const TRPG_LIVE_RANKING_SINCE_SQL = "datetime('now', '-1 day')";
+
 function tableExists(db: Database.Database, name: string): boolean {
   const row = db
     .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
     .get(name) as { ok: number } | undefined;
   return Boolean(row);
+}
+
+function tableColumns(db: Database.Database, name: string): Set<string> {
+  return new Set(
+    (db.prepare(`PRAGMA table_info(${name})`).all() as { name: string }[]).map((col) => col.name)
+  );
+}
+
+function mapPlayScores(
+  rows: Array<{ id: number; all_starts: number; recent_starts: number }>
+): Record<number, TrpgCatalogPlayScore> {
+  const out: Record<number, TrpgCatalogPlayScore> = {};
+  for (const row of rows) {
+    if (!Number.isInteger(row.id) || row.id <= 0) continue;
+    out[row.id] = {
+      recent: Number(row.recent_starts) || 0,
+      all: Number(row.all_starts) || 0,
+    };
+  }
+  return out;
+}
+
+/** Public catalog ranking scores: campaign starts in the last 24h, then all-time. */
+export function loadTrpgCatalogPlayScores(db: Database.Database): TrpgCatalogPlayScores {
+  if (!tableExists(db, "trpg_campaigns")) return EMPTY_TRPG_CATALOG_PLAY_SCORES;
+  const cols = tableColumns(db, "trpg_campaigns");
+  if (!cols.has("source_world_id") || !cols.has("created_at")) {
+    return EMPTY_TRPG_CATALOG_PLAY_SCORES;
+  }
+
+  const worldRows = db
+    .prepare(
+      `SELECT source_world_id AS id,
+              COUNT(*) AS all_starts,
+              COALESCE(SUM(CASE WHEN created_at >= ${TRPG_LIVE_RANKING_SINCE_SQL} THEN 1 ELSE 0 END), 0) AS recent_starts
+       FROM trpg_campaigns
+       WHERE source_world_id IS NOT NULL
+       GROUP BY source_world_id`
+    )
+    .all() as Array<{ id: number; all_starts: number; recent_starts: number }>;
+
+  const scenarioRows = cols.has("template_id")
+    ? (db
+        .prepare(
+          `SELECT template_id AS id,
+                  COUNT(*) AS all_starts,
+                  COALESCE(SUM(CASE WHEN created_at >= ${TRPG_LIVE_RANKING_SINCE_SQL} THEN 1 ELSE 0 END), 0) AS recent_starts
+           FROM trpg_campaigns
+           WHERE template_id IS NOT NULL
+           GROUP BY template_id`
+        )
+        .all() as Array<{ id: number; all_starts: number; recent_starts: number }>)
+    : [];
+
+  return {
+    worlds: mapPlayScores(worldRows),
+    scenarios: mapPlayScores(scenarioRows),
+  };
 }
 
 function mapWorld(row: {
