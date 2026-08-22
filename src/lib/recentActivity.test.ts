@@ -234,7 +234,7 @@ describe("unified recent activity", () => {
     assert.equal(chatsOnly.every((entry) => entry.kind === "character_chat"), true);
   });
 
-  it("uses 최근 활동 in the sidebar and keeps lobby continue compact", () => {
+  it("uses 최근 활동 in the sidebar and does not duplicate campaigns on the TRPG lobby", () => {
     const sidebar = readFileSync("src/components/SidebarRecentChatIcons.tsx", "utf8");
     const owner = readFileSync("src/components/Sidebar.tsx", "utf8");
     const lobby = readFileSync("src/app/trpg/TrpgLobbyClient.tsx", "utf8");
@@ -244,12 +244,13 @@ describe("unified recent activity", () => {
     assert.match(sidebar, /trpg_campaign/);
     assert.doesNotMatch(sidebar, />최근 대화</);
     assert.match(owner, /fetchRecentActivity/);
-    assert.match(lobby, /filterTrpgLobbyCampaigns/);
-    assert.match(lobby, /data-trpg-lobby-search/);
-    assert.match(lobby, /method="get"/);
-    assert.match(lobby, /name="q"/);
-    assert.match(ownerPage, /initialCampaignQuery/);
-    assert.doesNotMatch(lobby, /w-full items-center justify-center rounded-xl bg-violet-600/);
+    assert.doesNotMatch(lobby, /내 캠페인/);
+    assert.doesNotMatch(lobby, /filterTrpgLobbyCampaigns/);
+    assert.doesNotMatch(lobby, /data-trpg-lobby-search/);
+    assert.doesNotMatch(lobby, /data-trpg-reenter-cta/);
+    assert.doesNotMatch(ownerPage, /initialCampaignQuery/);
+    assert.doesNotMatch(ownerPage, /listTrpgCampaigns/);
+    assert.match(lobby, /초대 링크·코드로 참가/);
   });
 
   it("includes TRPG campaigns in the desktop and mobile conversation list", () => {

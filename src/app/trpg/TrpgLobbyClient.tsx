@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
-import TrpgInviteLink from "./TrpgInviteLink";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import {
@@ -12,22 +11,15 @@ import {
   type TrpgCatalogPlayScores,
 } from "@/lib/trpg/catalogPlayScores";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
-import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
-import { filterTrpgLobbyCampaigns } from "@/lib/recentActivity";
 import { catalogScenarioById, type TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
 import { resolveScenarioHandoff } from "@/lib/trpg/scenarioHandoff";
-import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
 export default function TrpgLobbyClient({
-  initialCampaigns,
-  initialCampaignQuery = "",
   catalog,
   characterIds,
   initialScenarioId,
   playScores = EMPTY_TRPG_CATALOG_PLAY_SCORES,
 }: {
-  initialCampaigns: TrpgCampaignSnapshot[];
-  initialCampaignQuery?: string;
   catalog: TrpgCatalog;
   characterIds: number[];
   initialScenarioId?: string;
@@ -35,16 +27,10 @@ export default function TrpgLobbyClient({
 }) {
   const router = useRouter();
   const handoff = resolveScenarioHandoff(catalog, initialScenarioId);
-  const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(handoff.ok || !initialScenarioId ? "" : handoff.error);
   const [pick, setPick] = useState<TrpgCatalogPick | null>(handoff.ok ? handoff.pick : null);
-  const [campaignQuery, setCampaignQuery] = useState(initialCampaignQuery);
-  const visibleCampaigns = useMemo(
-    () => filterTrpgLobbyCampaigns(campaigns, campaignQuery),
-    [campaigns, campaignQuery]
-  );
 
   async function postCampaign(body: Record<string, unknown>) {
     if (busy) return;
@@ -74,22 +60,6 @@ export default function TrpgLobbyClient({
       router.push(`/trpg/${data.campaignId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
-      setBusy(false);
-    }
-  }
-
-  async function deleteCampaign(id: number) {
-    if (!window.confirm("이 캠페인을 삭제할까요? 초안이든 진행 중이든 복구할 수 없습니다.")) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/trpg/campaigns/${id}`, { method: "DELETE" });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "삭제하지 못했습니다.");
-      setCampaigns((prev) => prev.filter((c) => c.id !== id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "삭제하지 못했습니다.");
-    } finally {
       setBusy(false);
     }
   }
@@ -151,75 +121,6 @@ export default function TrpgLobbyClient({
           ) : null}
         </div>
       ) : null}
-
-      <AppSectionCard title="내 캠페인">
-        {campaigns.length > 0 ? (
-          <form action="/trpg" method="get" className="mb-4" role="search">
-            <input
-              type="search"
-              name="q"
-              value={campaignQuery}
-              onChange={(e) => setCampaignQuery(e.target.value)}
-              data-trpg-lobby-search
-              placeholder="캠페인 제목 검색"
-              className="min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-            />
-          </form>
-        ) : null}
-        {campaigns.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            시작한 캠페인이 없습니다. 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 「캠페인 시작」을 누르면 파티를 구성합니다.
-          </p>
-        ) : visibleCampaigns.length === 0 ? (
-          <p className="text-sm text-zinc-500">일치하는 캠페인이 없습니다.</p>
-        ) : (
-          <ul className="space-y-3">
-            {visibleCampaigns.map((c) => (
-              <li key={c.id} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <Link
-                      href={`/trpg/${c.id}`}
-                      className="block truncate text-sm font-medium text-zinc-100 hover:text-violet-200"
-                    >
-                      {c.title}
-                    </Link>
-                    <p className="text-xs text-zinc-500">
-                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Link
-                      href={`/trpg/${c.id}`}
-                      data-trpg-reenter-cta
-                      className="inline-flex min-h-9 w-auto shrink-0 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 sm:min-h-10"
-                    >
-                      {trpgLobbyReenterCtaLabel(c.campaignStatus)}
-                    </Link>
-                    {c.viewerIsHost ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void deleteCampaign(c.id)}
-                        className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
-                      >
-                        삭제
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                {c.inviteCode ? (
-                  <TrpgInviteLink
-                    code={c.inviteCode}
-                    canJoin={trpgLobbyCanInvite(c.campaignStatus)}
-                    compact
-                  />
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </AppSectionCard>
 
       <AppSectionCard title="초대 링크·코드로 참가">
         <p className="mb-3 text-sm text-zinc-400">입장 링크를 붙여넣거나 8자리 코드를 넣으면 페르소나를 고른 뒤 들어갑니다.</p>
