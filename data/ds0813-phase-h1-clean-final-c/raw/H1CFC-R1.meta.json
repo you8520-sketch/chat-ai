@@ -1,0 +1,112 @@
+{
+  "KEY": "H1CFC-R1",
+  "USED_PROVIDER": "cheaperinference",
+  "PROVIDER_ATTEMPT_COUNT": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "PRIMARY_FAILURE_CLASS": null,
+  "FAILOVER_TRIGGER": null,
+  "BACKUP_SUCCESS": false,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 3612,
+  "KOREAN_CHARS": 2493,
+  "UNDER_LENGTH": false,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13638,
+  "OUTPUT_TOKENS": 2951,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 91164,
+  "RAW_SHA256": "f8daa6e2a9c1cecfe37e91abbc0ad35ce77609f821a8b564752cbcc18dbb2105",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "24821b2a7942072fa1ecee0d3989abc872b8b4c680ff2cee6210bc6c7301b57e",
+  "FINAL_MESSAGES_SHA": "4a16d53923d88f2f747e6b48b5b3e3ea0f20d67e2b0372d44b45f4a2f6d3e670",
+  "flags": {
+    "SAME_BEAT_MICRO_CONTINUATION": {
+      "value": true,
+      "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다. 마른 입술이 닿는"
+    },
+    "LOW_STAKES_AMBIENT_COACTION": {
+      "value": true,
+      "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다."
+    },
+    "TRUE_NEW_USER_ACTION_BEAT": {
+      "value": false,
+      "actor": null,
+      "target": null,
+      "action": null,
+      "passage": null,
+      "evidence": null
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_MAJOR_REWIND": {
+      "value": false,
+      "evidence": null
+    },
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": false,
+      "evidence": null
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "META_LEAK": false,
+    "VISIBLE_CHARS": 3612,
+    "USED_PROVIDER": "cheaperinference",
+    "DEEPSEEK_CALLS": 1,
+    "PRIMARY_HTTP_STATUS": 200,
+    "FAILOVER_TRIGGER": null,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13638,
+    "completion_tokens": 2951,
+    "total_tokens": 16589,
+    "cost": 0.006476,
+    "cost_details": {
+      "upstream_inference_cost": 0.006476
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": null,
+    "primary_http_status": 200,
+    "primary_headers_ms": 3301,
+    "primary_first_visible_ms": 3301,
+    "failover_trigger": null,
+    "backup_headers_ms": null,
+    "backup_first_visible_ms": null,
+    "backup_success": false,
+    "provider_attempt_count": 1
+  },
+  "DEEPSEEK_CALLS": 1
+}

@@ -1,0 +1,58 @@
+{
+  "PROMPT_EDITED": false,
+  "FINAL_D_CREATED": false,
+  "QUALITY_SCORE_ASSIGNED": false,
+  "HUMAN_RAW_REVIEW_REQUIRED": true,
+  "FROZEN_FINAL_B_MESSAGES_SHA": "4a16d53923d88f2f747e6b48b5b3e3ea0f20d67e2b0372d44b45f4a2f6d3e670",
+  "NEW_TWO_CALL_AVG_CHARS": 3392,
+  "LENGTH_REGRESSION_PROVEN": false,
+  "LENGTH_REGRESSION_SUSPECTED": false,
+  "STOCHASTIC_VARIATION_PLAUSIBLE": false,
+  "GEMINI_37_FLASH_ADULT_HANDOFF_ACCEPTED": false,
+  "ACCEPTANCE_BLOCKER": "H1CFC-R2 repeats a true [B] door-handle / room-close chain after the current user already closed the door.",
+  "samples": [
+    {
+      "KEY": "H1CFC-R1",
+      "USED_PROVIDER": "cheaperinference",
+      "VISIBLE_CHARS": 3612,
+      "UNDER_LENGTH": false,
+      "SAME_BEAT_MICRO_CONTINUATION": true,
+      "LOW_STAKES_AMBIENT_COACTION": true,
+      "TRUE_NEW_USER_ACTION_BEAT": false,
+      "CURRENT_USER_MAJOR_REWIND": false,
+      "NEW_USER_DIALOGUE": false,
+      "NEW_USER_INNER_THOUGHT": false,
+      "NEW_USER_INTENT_AS_FACT": false,
+      "CHARACTER_VOICE_SEAM": false,
+      "GENERIC_ADULT_RP_VOICE": false,
+      "SEMANTIC_REPETITION": false,
+      "ODD_OR_NONSENSICAL_PROSE": false,
+      "TRUE_NEW_USER_ACTION_BEAT_DETAIL": null,
+      "HUMAN_NOTE": "[A] says the door was not closed yet and [A] pulls the handle. Actor is 태형, so this is not TRUE_NEW_USER_ACTION_BEAT. It contradicts '문을 닫고' but is not a major [B] rewind chain."
+    },
+    {
+      "KEY": "H1CFC-R2",
+      "USED_PROVIDER": "cheaperinference",
+      "VISIBLE_CHARS": 3172,
+      "UNDER_LENGTH": false,
+      "SAME_BEAT_MICRO_CONTINUATION": true,
+      "LOW_STAKES_AMBIENT_COACTION": true,
+      "TRUE_NEW_USER_ACTION_BEAT": true,
+      "CURRENT_USER_MAJOR_REWIND": true,
+      "NEW_USER_DIALOGUE": false,
+      "NEW_USER_INNER_THOUGHT": false,
+      "NEW_USER_INTENT_AS_FACT": false,
+      "CHARACTER_VOICE_SEAM": false,
+      "GENERIC_ADULT_RP_VOICE": false,
+      "SEMANTIC_REPETITION": "UNCERTAIN",
+      "ODD_OR_NONSENSICAL_PROSE": false,
+      "TRUE_NEW_USER_ACTION_BEAT_DETAIL": {
+        "actor": "렌 [B]",
+        "target": "비상 관리실 문고리",
+        "action": "문고리를 뒤로 잡아채 문을 닫음",
+        "passage": "렌은 그대로 상체를 밀착시켜 복도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다."
+      },
+      "HUMAN_NOTE": "태형은 렌의 몸을 벽 쪽으로 밀어 붙이며 is actor 태형 [A] and is not a user beat. The blocker is the earlier [B] door-handle close after the user already closed the door."
+    }
+  ]
+}

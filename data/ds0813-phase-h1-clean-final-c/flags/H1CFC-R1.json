@@ -1,0 +1,64 @@
+{
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다. 마른 입술이 닿는"
+  },
+  "LOW_STAKES_AMBIENT_COACTION": {
+    "value": true,
+    "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다."
+  },
+  "TRUE_NEW_USER_ACTION_BEAT": {
+    "value": false,
+    "actor": null,
+    "target": null,
+    "action": null,
+    "passage": null,
+    "evidence": null
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_MAJOR_REWIND": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": false,
+    "evidence": null
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 3612,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

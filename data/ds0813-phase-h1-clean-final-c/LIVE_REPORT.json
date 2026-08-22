@@ -1,0 +1,262 @@
+{
+  "report": {
+    "QUALITY_SCORE_ASSIGNED": false,
+    "HUMAN_RAW_REVIEW_REQUIRED": true,
+    "MERGED": false,
+    "DEPLOYED": false,
+    "PROMPT_EDITED": false,
+    "FINAL_D_CREATED": false,
+    "HANDOFF_OWNER_CHARS": 219,
+    "HANDOFF_WRAPPER_BODY_CHARS": 208,
+    "TOTAL_LOGICAL_HANDOFFS": 2,
+    "NEW_TWO_CALL_AVG_CHARS": 3392,
+    "LENGTH_REGRESSION_PROVEN": false,
+    "LENGTH_REGRESSION_SUSPECTED": false,
+    "STOCHASTIC_VARIATION_PLAUSIBLE": false,
+    "GEMINI_37_FLASH_ADULT_HANDOFF_ACCEPTED": false,
+    "results": [
+      {
+        "KEY": "H1CFC-R1",
+        "USED_PROVIDER": "cheaperinference",
+        "VISIBLE_CHARS": 3612,
+        "UNDER_LENGTH": false,
+        "HTTP_STATUS": 200,
+        "RAW_SHA256": "f8daa6e2a9c1cecfe37e91abbc0ad35ce77609f821a8b564752cbcc18dbb2105"
+      },
+      {
+        "KEY": "H1CFC-R2",
+        "USED_PROVIDER": "cheaperinference",
+        "VISIBLE_CHARS": 3172,
+        "UNDER_LENGTH": false,
+        "HTTP_STATUS": 200,
+        "RAW_SHA256": "74ff76c148328bbfc5a402893b4dc24a69eaec404a27f797d5bfca5bc5facc11"
+      }
+    ]
+  },
+  "results": [
+    {
+      "KEY": "H1CFC-R1",
+      "USED_PROVIDER": "cheaperinference",
+      "PROVIDER_ATTEMPT_COUNT": 1,
+      "PRIMARY_HTTP_STATUS": 200,
+      "PRIMARY_FAILURE_CLASS": null,
+      "FAILOVER_TRIGGER": null,
+      "BACKUP_SUCCESS": false,
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "VISIBLE_CHARS": 3612,
+      "KOREAN_CHARS": 2493,
+      "UNDER_LENGTH": false,
+      "QUALITY_SAMPLE": true,
+      "INPUT_TOKENS": 13638,
+      "OUTPUT_TOKENS": 2951,
+      "TTFT_MS": 0,
+      "TOTAL_LATENCY_MS": 91164,
+      "RAW_SHA256": "f8daa6e2a9c1cecfe37e91abbc0ad35ce77609f821a8b564752cbcc18dbb2105",
+      "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+      "CURRENT_USER_SHA": "24821b2a7942072fa1ecee0d3989abc872b8b4c680ff2cee6210bc6c7301b57e",
+      "FINAL_MESSAGES_SHA": "4a16d53923d88f2f747e6b48b5b3e3ea0f20d67e2b0372d44b45f4a2f6d3e670",
+      "flags": {
+        "SAME_BEAT_MICRO_CONTINUATION": {
+          "value": true,
+          "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다. 마른 입술이 닿는"
+        },
+        "LOW_STAKES_AMBIENT_COACTION": {
+          "value": true,
+          "evidence": "렌의 손끝이 태형의 재킷 깃을 더듬어 쥐었다. 그대로 뒤로 밀어붙이는 동시에 목덜미를 감싸 쥐고 입술을 겹쳐 왔다."
+        },
+        "TRUE_NEW_USER_ACTION_BEAT": {
+          "value": false,
+          "actor": null,
+          "target": null,
+          "action": null,
+          "passage": null,
+          "evidence": null
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "CURRENT_USER_MAJOR_REWIND": {
+          "value": false,
+          "evidence": null
+        },
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "SEMANTIC_REPETITION": {
+          "value": false,
+          "evidence": null
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": false,
+          "evidence": null
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "META_LEAK": false,
+        "VISIBLE_CHARS": 3612,
+        "USED_PROVIDER": "cheaperinference",
+        "DEEPSEEK_CALLS": 1,
+        "PRIMARY_HTTP_STATUS": 200,
+        "FAILOVER_TRIGGER": null,
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13638,
+        "completion_tokens": 2951,
+        "total_tokens": 16589,
+        "cost": 0.006476,
+        "cost_details": {
+          "upstream_inference_cost": 0.006476
+        }
+      },
+      "telemetry": {
+        "logical_model": "deepseek-v4-pro-0813",
+        "route_kind": "adult_handoff",
+        "primary_provider": "cheaperinference",
+        "backup_provider": "openrouter",
+        "primary_failure_class": null,
+        "primary_http_status": 200,
+        "primary_headers_ms": 3301,
+        "primary_first_visible_ms": 3301,
+        "failover_trigger": null,
+        "backup_headers_ms": null,
+        "backup_first_visible_ms": null,
+        "backup_success": false,
+        "provider_attempt_count": 1
+      },
+      "DEEPSEEK_CALLS": 1
+    },
+    {
+      "KEY": "H1CFC-R2",
+      "USED_PROVIDER": "cheaperinference",
+      "PROVIDER_ATTEMPT_COUNT": 1,
+      "PRIMARY_HTTP_STATUS": 200,
+      "PRIMARY_FAILURE_CLASS": null,
+      "FAILOVER_TRIGGER": null,
+      "BACKUP_SUCCESS": false,
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "VISIBLE_CHARS": 3172,
+      "KOREAN_CHARS": 2204,
+      "UNDER_LENGTH": false,
+      "QUALITY_SAMPLE": true,
+      "INPUT_TOKENS": 13638,
+      "OUTPUT_TOKENS": 2549,
+      "TTFT_MS": 0,
+      "TOTAL_LATENCY_MS": 75588,
+      "RAW_SHA256": "74ff76c148328bbfc5a402893b4dc24a69eaec404a27f797d5bfca5bc5facc11",
+      "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+      "CURRENT_USER_SHA": "24821b2a7942072fa1ecee0d3989abc872b8b4c680ff2cee6210bc6c7301b57e",
+      "FINAL_MESSAGES_SHA": "4a16d53923d88f2f747e6b48b5b3e3ea0f20d67e2b0372d44b45f4a2f6d3e670",
+      "flags": {
+        "SAME_BEAT_MICRO_CONTINUATION": {
+          "value": true,
+          "evidence": "렌의 손이 조태형의 재킷 앞섶을 짚었다. 검은 가죽 표면이 손아귀에 쓸려 내려가며 낮고 매끄러운 마찰음을 냈고, 렌은 그대로 상체를 밀"
+        },
+        "LOW_STAKES_AMBIENT_COACTION": {
+          "value": true,
+          "evidence": "어린 여유와는 결이 달랐다. 렌의 손끝이 재킷 안쪽의 후드 겉면을 스치며 옷을 벗겨낼 때마다 옅은 긴장과 기대가 뒤섞인 숨이 새어 나왔다. 무거"
+        },
+        "TRUE_NEW_USER_ACTION_BEAT": {
+          "value": true,
+          "actor": "렌 [B]",
+          "target": "문고리",
+          "action": "문고리를 잡음",
+          "passage": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙",
+          "evidence": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙"
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "CURRENT_USER_MAJOR_REWIND": {
+          "value": true,
+          "evidence": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙"
+        },
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": "KISS_CYCLE=12"
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": false,
+          "evidence": null
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "META_LEAK": false,
+        "VISIBLE_CHARS": 3172,
+        "USED_PROVIDER": "cheaperinference",
+        "DEEPSEEK_CALLS": 1,
+        "PRIMARY_HTTP_STATUS": 200,
+        "FAILOVER_TRIGGER": null,
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13638,
+        "completion_tokens": 2549,
+        "total_tokens": 16187,
+        "cost": 0.00206,
+        "cost_details": {
+          "upstream_inference_cost": 0.00206
+        }
+      },
+      "telemetry": {
+        "logical_model": "deepseek-v4-pro-0813",
+        "route_kind": "adult_handoff",
+        "primary_provider": "cheaperinference",
+        "backup_provider": "openrouter",
+        "primary_failure_class": null,
+        "primary_http_status": 200,
+        "primary_headers_ms": 3077,
+        "primary_first_visible_ms": 3078,
+        "failover_trigger": null,
+        "backup_headers_ms": null,
+        "backup_first_visible_ms": null,
+        "backup_success": false,
+        "provider_attempt_count": 1
+      },
+      "DEEPSEEK_CALLS": 1
+    }
+  ]
+}

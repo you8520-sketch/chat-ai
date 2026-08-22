@@ -1,0 +1,64 @@
+{
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "렌의 손이 조태형의 재킷 앞섶을 짚었다. 검은 가죽 표면이 손아귀에 쓸려 내려가며 낮고 매끄러운 마찰음을 냈고, 렌은 그대로 상체를 밀"
+  },
+  "LOW_STAKES_AMBIENT_COACTION": {
+    "value": true,
+    "evidence": "어린 여유와는 결이 달랐다. 렌의 손끝이 재킷 안쪽의 후드 겉면을 스치며 옷을 벗겨낼 때마다 옅은 긴장과 기대가 뒤섞인 숨이 새어 나왔다. 무거"
+  },
+  "TRUE_NEW_USER_ACTION_BEAT": {
+    "value": true,
+    "actor": "렌 [B]",
+    "target": "문고리",
+    "action": "문고리를 잡음",
+    "passage": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙",
+    "evidence": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_MAJOR_REWIND": {
+    "value": true,
+    "evidence": "도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다. 공조 장치의 기계음만이 낮게 윙윙"
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": "UNCERTAIN",
+    "evidence": "KISS_CYCLE=12"
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 3172,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}
