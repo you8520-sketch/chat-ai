@@ -1,0 +1,23 @@
+{
+  "NOTE": "tiny isolated canary; no DB/billing/chat mutation",
+  "body": {
+    "model": "deepseek-v4-pro-0813",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly: pong"
+      }
+    ],
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none"
+  },
+  "backup_model": "deepseek/deepseek-v4-pro-0813"
+}

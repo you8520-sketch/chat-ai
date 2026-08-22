@@ -1,0 +1,36 @@
+{
+  "LIVE_CANARY_PRIMARY_STATUS": 500,
+  "LIVE_CANARY_PRIMARY_FAILURE_CLASS": "http_500",
+  "LIVE_CANARY_FAILOVER_TRIGGER": "error",
+  "LIVE_CANARY_USED_PROVIDER": "openrouter",
+  "LIVE_CANARY_BACKUP_SUCCESS": true,
+  "LIVE_CANARY_VISIBLE": "pong",
+  "LIVE_CANARY_PROVIDER_ATTEMPTS": 2,
+  "FINISH_REASON": "stop",
+  "USAGE": {
+    "prompt_tokens": 10,
+    "completion_tokens": 2,
+    "total_tokens": 12,
+    "cost": 0.00002322,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.00002322,
+      "upstream_inference_prompt_cost": 0.0000145,
+      "upstream_inference_completions_cost": 0.00000872
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 1732,
+  "CANARY_SUCCESS": true
+}
