@@ -29,7 +29,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, new RegExp(`At least ${TRPG_GM_CLOSING_MIN_CHARS}`));
     assert.match(TRPG_GM_SYSTEM, /single linear timeline/i);
     assert.equal((TRPG_GM_SYSTEM.match(/\[SPEECH FORMAT\]/g) ?? []).length, 1);
-    assert.equal((TRPG_GM_SYSTEM.match(/\[ACTION RESOLUTION\]/g) ?? []).length, 1);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
     assert.equal((TRPG_GM_SYSTEM.match(/\[TONE\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /comic and serious/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Page time/);
@@ -39,7 +40,15 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /table-talk/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /Never replay/);
+    assert.match(TRPG_GM_SYSTEM, /Brief or mechanical action/);
+    assert.match(TRPG_GM_SYSTEM, /Already-rich narration/);
+    assert.match(TRPG_GM_SYSTEM, /Depicting that chosen action is not a failure/);
+    assert.match(TRPG_GM_SYSTEM, /do not retell the same beats/);
+    assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
+    assert.match(TRPG_GM_SYSTEM, /isolated per-character recaps/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Never paste it/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Do not stop at echoing/);
     assert.match(TRPG_GM_SYSTEM, /AUTHORITATIVE MECHANICS/);
     assert.match(TRPG_GM_SYSTEM, /mechanics wins/);
     assert.match(TRPG_GM_SYSTEM, /players\[\]\.conditions is the resulting post-round narrative condition list/);
@@ -70,7 +79,11 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(block, /ATTEMPTED ACTION/);
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
-    assert.match(block, /do not replay submitted prose/);
+    assert.match(block, /Follow GM SCENE CRAFT/);
+    assert.match(block, /enrich if brief, do not retell if already rich/);
+    assert.doesNotMatch(block, /do not replay submitted prose/);
+    assert.doesNotMatch(block, /do not paste/);
+    assert.doesNotMatch(block, /never dump into the scene/);
     assert.doesNotMatch(block, /Rewrite every ACTION/);
     assert.match(block, /table-talk/);
     assert.match(block, /TONE CONTEXT/);
@@ -150,11 +163,10 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(withSheets, /stat=힘\(str\) value=9 modifier=2/);
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
-    assert.match(TRPG_GM_SYSTEM, /Never paste/);
-    assert.match(TRPG_GM_SYSTEM, /talk-ask only/);
-    assert.match(TRPG_GM_SYSTEM, /Do not stop at echoing/);
+    assert.match(TRPG_GM_SYSTEM, /talk\/ask only/);
+    assert.match(TRPG_GM_SYSTEM, /Do not stop at prettier restatement/);
     assert.match(TRPG_GM_SYSTEM, /written text, signs/);
-    assert.match(TRPG_GM_SYSTEM, /AI PC/);
+    assert.match(TRPG_GM_SYSTEM, /human\/AI/);
     const talk = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",
@@ -178,5 +190,37 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /DIRECTOR DELTA CONTRACT/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /"storyPhase"/);
+  });
+
+  it("owns adaptive narration in one GM SCENE CRAFT block", () => {
+    assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
+    assert.match(TRPG_GM_SYSTEM, /Brief or mechanical action: enrich/);
+    assert.match(TRPG_GM_SYSTEM, /Already-rich narration: do not retell/);
+    assert.match(TRPG_GM_SYSTEM, /physical execution and immediate sensory texture/);
+    assert.match(TRPG_GM_SYSTEM, /Do not invent their next meaningful choice/);
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "그는 검을 역수로 고쳐 쥐었다. 바닥을 박차고 놈의 측면으로 파고들며 갈비뼈 아래를 노렸다.",
+          intent: "측면을 찔러 공격한다",
+          statKey: "str",
+          d20: 16,
+          finalScore: 18,
+          dc: 13,
+          tier: "SUCCESS",
+        },
+      ],
+    });
+    assert.match(block, /\[ATTEMPTED ACTION — resolve this\]\n측면을 찔러 공격한다/);
+    assert.match(block, /\[PROPOSED FICTION — their wording; enrich if brief, do not retell if already rich\]/);
+    assert.match(block, /검을 역수로 고쳐 쥐었다/);
+    assert.match(block, /\[SCENE CRAFT\] Follow GM SCENE CRAFT/);
+    assert.doesNotMatch(block, /color only, never dump/);
   });
 });
