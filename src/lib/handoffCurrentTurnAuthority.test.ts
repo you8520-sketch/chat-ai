@@ -86,7 +86,9 @@ describe("H1 current-turn handoff authority", () => {
       priorAssistant: PRIOR_CORRIDOR,
       currentUser: longTurn,
     });
-    assert.ok(currentWrapped.includes(longTurn));
+    assert.ok(currentWrapped.includes(longTurn.trim()));
+    assert.ok(currentWrapped.includes(CURRENT_PRIVATE_ROOM));
+    assert.ok(currentWrapped.includes("한 장면을 더 진행한다."));
     assert.match(system, /사용자 턴을 자르거나 다시 해석하지 않는다/);
     assert.doesNotMatch(system, /직전 출력에서 완료되지 않은 행동이나 대화가 있다면/);
   });

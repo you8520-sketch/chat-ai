@@ -40,13 +40,13 @@ describe("H1 STANDARD / OFF agency", () => {
 
   it("B3 — new deliberate hand relocation is forbidden", () => {
     const { system } = standardTexts();
-    assert.match(system, STANDARD_AGENCY_FORBIDDEN_NEW_B);
+    assert.equal(system.includes(STANDARD_AGENCY_FORBIDDEN_NEW_B), true);
   });
 
   it("B4 — new deliberate minor movement/contact is forbidden", () => {
     const { wrapper } = standardTexts();
     assert.doesNotMatch(wrapper, /small movement\/contact\/object-handling\/daily continuity may be co-narrated/);
-    assert.match(wrapper, STANDARD_AGENCY_FORBIDDEN_NEW_B);
+    assert.equal(wrapper.includes(STANDARD_AGENCY_FORBIDDEN_NEW_B), true);
   });
 
   it("B5 — already-started user action physical consequence remains allowed", () => {
@@ -72,7 +72,7 @@ describe("H1 STANDARD / OFF agency", () => {
 
   it("B8 — AI character proactive action/contact remains allowed", () => {
     const system = buildCompactNoGodmoddingStandardBlock();
-    assert.match(system, STANDARD_AGENCY_AI_ACTIVE);
+    assert.equal(system.includes(STANDARD_AGENCY_AI_ACTIVE), true);
     const wrapper = wrapCurrentUserInput("문을 닫는다.", { mode: "interactive" });
     // Wrapper is a strict subset — must not contradict [A] activity.
     assert.doesNotMatch(wrapper, /\[A\]는 수동적으로/);
