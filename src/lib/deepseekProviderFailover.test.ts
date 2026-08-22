@@ -8,6 +8,7 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
 } from "./chatModels";
 import {
+  DEEPSEEK_TRANSIENT_HTTP_STATUSES,
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
   adaptOpenRouterDeepSeekBackupBody,
@@ -424,7 +425,7 @@ describe("DeepSeek cross-provider failover owner", () => {
   });
 
   it("E1-E4 deterministic HTTP statuses do not fail over", async () => {
-    for (const status of [400, 401, 403, 422]) {
+    for (const status of [400, 401, 403, 404, 422]) {
       let calls = 0;
       await assert.rejects(
         () =>
@@ -542,7 +543,8 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 404 }).failover, false);
     assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 422 }).failover, false);
     assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 429 }).failover, false);
-    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 500 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 500 }).failover, true);
+    assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [500, 502, 503, 504]);
     assert.equal(
       classifyDeepSeekProviderFailure({ error: new Error("socket hang up") }).failover,
       true
@@ -585,5 +587,168 @@ describe("DeepSeek cross-provider failover owner", () => {
     assert.equal(first.urls[0], CI_URL);
     assert.equal(second.urls[0], CI_URL);
     assert.equal(second.urls.length, 1);
+  });
+});
+
+describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
+  it("F500-1 CI Pro 0813 HTTP 500 → OR Pro 0813 exactly once", async () => {
+    const started = Date.now();
+    let calls = 0;
+    const result = await runStream({
+      logical: "pro",
+      routeKind: "adult_handoff",
+      deadlines: { headersMs: 8_000, firstVisibleMs: 12_000, backupFirstVisibleMs: 80 },
+      fetchFn: async () => {
+        calls += 1;
+        if (calls === 1) return new Response("internal", { status: 500 });
+        return sseResponse([{ choices: [{ delta: { content: "구조500" } }] }]);
+      },
+    });
+    assert.ok(Date.now() - started < 1_000, "HTTP 500 must fail over immediately");
+    assert.equal(calls, 2);
+    assert.deepEqual(result.urls, [CI_URL, OR_URL]);
+    assert.deepEqual(result.models, [
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
+    ]);
+    assert.equal(result.telemetry.primary_http_status, 500);
+    assert.equal(result.telemetry.primary_failure_class, "http_500");
+    assert.equal(result.telemetry.failover_trigger, "error");
+    assert.equal(result.telemetry.provider_attempt_count, 2);
+    assert.equal(result.telemetry.backup_success, true);
+    assert.match(result.text, /구조500/);
+  });
+
+  it("F500-2 CI Flash 0731 HTTP 500 → OR Flash 0731 exactly once", async () => {
+    let calls = 0;
+    const result = await runStream({
+      logical: "flash",
+      fetchFn: async () => {
+        calls += 1;
+        if (calls === 1) return new Response("internal", { status: 500 });
+        return sseResponse([{ choices: [{ delta: { content: "플래시500" } }] }]);
+      },
+    });
+    assert.equal(calls, 2);
+    assert.deepEqual(result.models, [
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+    ]);
+    assert.equal(result.telemetry.primary_http_status, 500);
+    assert.equal(result.telemetry.primary_failure_class, "http_500");
+    assert.equal(result.telemetry.failover_trigger, "error");
+    assert.equal(result.telemetry.backup_success, true);
+    assert.match(result.text, /플래시500/);
+  });
+
+  it("F500-4 CI 500 + OR also fails → attempts 2, no third call", async () => {
+    let calls = 0;
+    await assert.rejects(
+      () =>
+        runStream({
+          logical: "pro",
+          fetchFn: async () => {
+            calls += 1;
+            return new Response("internal", { status: 500 });
+          },
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof DeepSeekProviderFailoverError);
+        assert.equal(error.providerAttemptCount, 2);
+        return true;
+      }
+    );
+    assert.equal(calls, 2);
+  });
+
+  it("F500-5 400/401/403/404/422 → OR calls 0", async () => {
+    for (const status of [400, 401, 403, 404, 422]) {
+      let calls = 0;
+      await assert.rejects(
+        () =>
+          runStream({
+            logical: "pro",
+            fetchFn: async () => {
+              calls += 1;
+              return new Response("no", { status });
+            },
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof DeepSeekDeterministicProviderError);
+          assert.equal(error.httpStatus, status);
+          assert.equal(error.failover, false);
+          return true;
+        }
+      );
+      assert.equal(calls, 1);
+    }
+  });
+
+  it("F500-6 502/503/504 existing immediate OpenRouter unchanged", async () => {
+    for (const status of [502, 503, 504]) {
+      let calls = 0;
+      const result = await runStream({
+        logical: "pro",
+        fetchFn: async () => {
+          calls += 1;
+          if (calls === 1) return new Response("down", { status });
+          return sseResponse([{ choices: [{ delta: { content: `ok${status}` } }] }]);
+        },
+      });
+      assert.equal(calls, 2);
+      assert.equal(result.telemetry.primary_http_status, status);
+      assert.equal(result.telemetry.failover_trigger, "error");
+      assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    }
+  });
+
+  it("F500-7 headers timeout 8s owner still fails over once", async () => {
+    let calls = 0;
+    const result = await runStream({
+      logical: "pro",
+      deadlines: { headersMs: 25, firstVisibleMs: 80, backupFirstVisibleMs: 80 },
+      fetchFn: async (input, init) => {
+        calls += 1;
+        if (calls === 1) return hangUntilAbort(input, init);
+        return sseResponse([{ choices: [{ delta: { content: "헤더유지" } }] }]);
+      },
+    });
+    assert.equal(result.telemetry.failover_trigger, "headers_timeout");
+    assert.equal(result.telemetry.provider_attempt_count, 2);
+    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+  });
+
+  it("F500-8 first-visible timeout 12s owner still fails over once", async () => {
+    let calls = 0;
+    const result = await runStream({
+      logical: "pro",
+      deadlines: { headersMs: 80, firstVisibleMs: 30, backupFirstVisibleMs: 80 },
+      fetchFn: async () => {
+        calls += 1;
+        if (calls === 1) {
+          return sseResponse(
+            [{ choices: [{ delta: { reasoning: "hidden" } }] }],
+            { hang: true }
+          );
+        }
+        return sseResponse([{ choices: [{ delta: { content: "가시유지" } }] }]);
+      },
+    });
+    assert.equal(result.telemetry.failover_trigger, "first_visible_timeout");
+    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL);
+    assert.match(result.text, /가시유지/);
+  });
+
+  it("F500-9 after visible assistant text → no OR duplicate", async () => {
+    const result = await runStream({
+      logical: "pro",
+      fetchFn: async () =>
+        sseResponse([{ choices: [{ delta: { content: "이미보임" } }] }]),
+    });
+    assert.equal(result.urls.length, 1);
+    assert.equal(result.urls[0], CI_URL);
+    assert.equal(result.telemetry.provider_attempt_count, 1);
+    assert.equal(result.telemetry.failover_trigger, null);
+    assert.equal((result.text.match(/이미보임/g) ?? []).length, 1);
   });
 });

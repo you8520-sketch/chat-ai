@@ -74,6 +74,39 @@ describe("DeepSeek background Flash0731 provider failover", () => {
     });
   });
 
+  it("F500-3 background Flash CI HTTP 500 → OR Flash0731 exactly once", async () => {
+    await withKeys(async () => {
+      const previousFetch = globalThis.fetch;
+      const models: string[] = [];
+      const urls: string[] = [];
+      globalThis.fetch = (async (input, init) => {
+        urls.push(String(input));
+        const body = JSON.parse(String(init?.body)) as { model?: string };
+        models.push(String(body.model));
+        if (String(input).includes("cheaperinference")) {
+          return new Response("internal", { status: 500 });
+        }
+        return completion("flash500-rescue");
+      }) as typeof fetch;
+      try {
+        const result = await callBackgroundMemory(
+          "system",
+          [{ role: "user", content: "full memory source" }],
+          undefined,
+          "background-memory-extract"
+        );
+        assert.equal(result.text, "flash500-rescue");
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
+        assert.deepEqual(models, [
+          CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+        ]);
+      } finally {
+        globalThis.fetch = previousFetch;
+      }
+    });
+  });
+
   it("B2 memory CI 502 → OR Flash0731 1 → commit 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
