@@ -2,12 +2,11 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
+import type { TrpgCatalog, TrpgCatalogWorld } from "@/lib/trpg/catalog";
 import {
   EMPTY_TRPG_CATALOG_PLAY_SCORES,
-  type TrpgCatalog,
   type TrpgCatalogPlayScores,
-  type TrpgCatalogWorld,
-} from "@/lib/trpg/catalog";
+} from "@/lib/trpg/catalogPlayScores";
 import {
   catalogItemMatches,
   catalogLiveRanking,

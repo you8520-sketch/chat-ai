@@ -5,6 +5,14 @@ import { sanitizeWorldCoverUrl } from "@/lib/worlds";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
+import {
+  EMPTY_TRPG_CATALOG_PLAY_SCORES,
+  type TrpgCatalogPlayScore,
+  type TrpgCatalogPlayScores,
+} from "./catalogPlayScores";
+
+export type { TrpgCatalogPlayScore, TrpgCatalogPlayScores } from "./catalogPlayScores";
+export { EMPTY_TRPG_CATALOG_PLAY_SCORES } from "./catalogPlayScores";
 
 export type TrpgCatalogWorld = {
   id: number;
@@ -34,21 +42,6 @@ export type TrpgCatalog = {
   myCharacters: TrpgCatalogCharacter[];
   publicScenarios: TrpgScenarioTemplate[];
   myScenarios: TrpgScenarioTemplate[];
-};
-
-export type TrpgCatalogPlayScore = {
-  recent: number;
-  all: number;
-};
-
-export type TrpgCatalogPlayScores = {
-  worlds: Record<number, TrpgCatalogPlayScore>;
-  scenarios: Record<number, TrpgCatalogPlayScore>;
-};
-
-export const EMPTY_TRPG_CATALOG_PLAY_SCORES: TrpgCatalogPlayScores = {
-  worlds: {},
-  scenarios: {},
 };
 
 /** Campaign-start window used by the TRPG lobby “실시간 랭킹” row. */
