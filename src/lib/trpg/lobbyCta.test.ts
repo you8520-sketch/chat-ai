@@ -19,18 +19,14 @@ describe("TRPG lobby re-enter CTA", () => {
     assert.equal(trpgLobbyCanInvite("CAMPAIGN_COMPLETE"), false);
   });
 
-  it("renders a compact violet CTA, never a full-width continue bar", () => {
+  it("does not keep a duplicate my-campaign list on the TRPG lobby", () => {
     const lobby = readFileSync("src/app/trpg/TrpgLobbyClient.tsx", "utf8");
-    assert.match(lobby, /trpgLobbyReenterCtaLabel/);
-    assert.match(lobby, /data-trpg-reenter-cta/);
-    assert.match(lobby, /bg-violet-600/);
-    assert.match(lobby, /min-h-9/);
-    assert.match(lobby, /w-auto/);
-    assert.match(lobby, /shrink-0/);
-    assert.match(lobby, /href=\{`\/trpg\/\$\{c\.id\}`\}/);
-    assert.doesNotMatch(lobby, /· 열기/);
-    assert.doesNotMatch(lobby, /w-full items-center justify-center rounded-xl bg-violet-600/);
+    assert.doesNotMatch(lobby, /내 캠페인/);
+    assert.doesNotMatch(lobby, /trpgLobbyReenterCtaLabel/);
+    assert.doesNotMatch(lobby, /data-trpg-reenter-cta/);
+    assert.doesNotMatch(lobby, /href=\{`\/trpg\/\$\{c\.id\}`\}/);
     assert.doesNotMatch(lobby, /캠페인 계속하기/);
+    assert.match(lobby, /초대 링크·코드로 참가/);
   });
 
   it("keeps invite secondary and hides the large started-room card", () => {
