@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -36,11 +37,18 @@ export default async function Header() {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/"
+              aria-label="하비 AI 홈"
               className="group flex shrink-0 items-center gap-2.5 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
             >
-              <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[0.7rem] border border-violet-300/25 bg-gradient-to-br from-violet-500 to-indigo-700 text-xs font-black text-white shadow-[0_0_24px_rgba(124,58,237,.26)] transition group-hover:rotate-[-3deg] group-hover:scale-105">
-                H
-                <span className="absolute inset-[4px] rounded-[0.45rem] border border-white/20" />
+              <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[0.7rem] border border-violet-300/25 shadow-[0_0_24px_rgba(124,58,237,.26)] transition group-hover:rotate-[-3deg] group-hover:scale-105">
+                <Image
+                  src="/icons/icon-door-v2-192.png"
+                  alt=""
+                  width={36}
+                  height={36}
+                  priority
+                  className="h-9 w-9"
+                />
               </span>
               <span className="hidden tracking-[-0.035em] sm:inline">
                 하비 <span className="text-violet-400">AI</span>
