@@ -1,0 +1,851 @@
+{
+  "source": {
+    "frozen_capture": "/tmp/h4_turns_private.json",
+    "deployed_sha": "247e444089c074a4aa2865947ad1005dbcdef2a3",
+    "chat_id": 736,
+    "character_id": 30,
+    "note": "Assistant texts are the concatenated SSE append payloads captured at send time. User texts are the exact request bodies."
+  },
+  "file_integrity": {
+    "turn-a-user.txt": {
+      "bytes": 133,
+      "sha256": "7accc779938a5819b7d44020f96415ceaf4179443addf490cc53f8f74b57f7fb",
+      "chars": 57
+    },
+    "turn-a-assistant.txt": {
+      "bytes": 2715,
+      "sha256": "4dde87635162cc502c50bb07587ccbb0ab00791f12e41a94affd6dca5670ff5d",
+      "chars": 1173
+    },
+    "turn-b-user.txt": {
+      "bytes": 197,
+      "sha256": "cf35fca5c03afa1c51e0e8e5a72be8d1a990e83c9fb9017048fb7e52533d9590",
+      "chars": 83
+    },
+    "turn-b-assistant.txt": {
+      "bytes": 6132,
+      "sha256": "99d4653eea39de2523c0161ff78e88ce275f7824ba8770accc451a0722a68161",
+      "chars": 2626
+    },
+    "turn-c-user.txt": {
+      "bytes": 88,
+      "sha256": "68aef6988882172656b84269d727424fcd87660b14c16abee9da2913cc609eae",
+      "chars": 38
+    },
+    "turn-c-assistant.txt": {
+      "bytes": 12478,
+      "sha256": "a0268e39c02ff8e19f3327ae02c0c56fb925e1ffe921c0899d7308008d1ebcaf",
+      "chars": 5274
+    },
+    "turn-d-user.txt": {
+      "bytes": 100,
+      "sha256": "192e1195d6af1e46023fb5f1d0350dd5ed70b5a125642b03bb0011df962edded",
+      "chars": 44
+    },
+    "turn-d-assistant.txt": {
+      "bytes": 12085,
+      "sha256": "74849e3690e0b341478bfff224b7750ee8b6b3cdec78e5596ad1af22bb3655d4",
+      "chars": 5105
+    }
+  },
+  "turns": {
+    "A": {
+      "user": {
+        "chars_with_ws": 57,
+        "raw_bytes_utf8": 133,
+        "sha256": "7accc779938a5819b7d44020f96415ceaf4179443addf490cc53f8f74b57f7fb"
+      },
+      "assistant": {
+        "RAW_BYTES_UTF8": 2715,
+        "CHARS_WITH_WHITESPACE": 1173,
+        "CHARS_WITHOUT_WHITESPACE": 898,
+        "HANGUL_SYLLABLE_COUNT": 771,
+        "LINE_COUNT": 19,
+        "NONEMPTY_LINE_COUNT": 10,
+        "PARAGRAPH_COUNT": 10,
+        "SENTENCE_COUNT": 30,
+        "AVERAGE_PARAGRAPH_CHARS": 115.5,
+        "MEDIAN_PARAGRAPH_CHARS": 127.5,
+        "MAX_PARAGRAPH_CHARS": 214,
+        "MIN_PARAGRAPH_CHARS": 6,
+        "DIALOGUE_BLOCK_COUNT": 3,
+        "DIALOGUE_CHAR_COUNT": 31,
+        "NARRATION_CHAR_COUNT": 1124,
+        "AMBIGUOUS_DIALOGUE_CHARS": 0,
+        "DIALOGUE_CHAR_RATIO": 0.02684,
+        "NARRATION_CHAR_RATIO": 0.97316,
+        "DIALOGUE_PARAGRAPHS": 3,
+        "NARRATION_PARAGRAPHS": 7,
+        "MIXED_PARAGRAPHS": 0,
+        "AMBIGUOUS_PARAGRAPHS": 0,
+        "FIRST_PARAGRAPH_TYPE": "narration",
+        "LAST_PARAGRAPH_TYPE": "narration",
+        "UNIQUE_SENTENCE_RATIO": 1.0,
+        "SENTENCE_COUNT_FOR_RATIO": 30,
+        "UNIQUE_SENTENCE_COUNT": 30,
+        "REPEATED_EXACT_SENTENCES": [],
+        "REPEATED_PARAGRAPH_STARTS": [],
+        "TOP_REPEATED_3_WORD_NGRAMS": [],
+        "TOP_REPEATED_4_WORD_NGRAMS": [],
+        "TOP_REPEATED_5_WORD_NGRAMS": [],
+        "sse_chars_field": 1173,
+        "http": 200,
+        "seconds": 32.47,
+        "user_message_id": 3776,
+        "assistant_message_id": 3777,
+        "cost": 61,
+        "remaining": 1939,
+        "sha256": "4dde87635162cc502c50bb07587ccbb0ab00791f12e41a94affd6dca5670ff5d"
+      },
+      "paragraphs": [
+        {
+          "id": "A-P01",
+          "type": "narration",
+          "chars_with_ws": 204
+        },
+        {
+          "id": "A-P02",
+          "type": "narration",
+          "chars_with_ws": 146
+        },
+        {
+          "id": "A-P03",
+          "type": "dialogue",
+          "chars_with_ws": 6
+        },
+        {
+          "id": "A-P04",
+          "type": "narration",
+          "chars_with_ws": 120
+        },
+        {
+          "id": "A-P05",
+          "type": "narration",
+          "chars_with_ws": 185
+        },
+        {
+          "id": "A-P06",
+          "type": "dialogue",
+          "chars_with_ws": 12
+        },
+        {
+          "id": "A-P07",
+          "type": "narration",
+          "chars_with_ws": 214
+        },
+        {
+          "id": "A-P08",
+          "type": "narration",
+          "chars_with_ws": 133
+        },
+        {
+          "id": "A-P09",
+          "type": "dialogue",
+          "chars_with_ws": 13
+        },
+        {
+          "id": "A-P10",
+          "type": "narration",
+          "chars_with_ws": 122
+        }
+      ]
+    },
+    "B": {
+      "user": {
+        "chars_with_ws": 83,
+        "raw_bytes_utf8": 197,
+        "sha256": "cf35fca5c03afa1c51e0e8e5a72be8d1a990e83c9fb9017048fb7e52533d9590"
+      },
+      "assistant": {
+        "RAW_BYTES_UTF8": 6132,
+        "CHARS_WITH_WHITESPACE": 2626,
+        "CHARS_WITHOUT_WHITESPACE": 1995,
+        "HANGUL_SYLLABLE_COUNT": 1752,
+        "LINE_COUNT": 33,
+        "NONEMPTY_LINE_COUNT": 17,
+        "PARAGRAPH_COUNT": 17,
+        "SENTENCE_COUNT": 60,
+        "AVERAGE_PARAGRAPH_CHARS": 152.588,
+        "MEDIAN_PARAGRAPH_CHARS": 171,
+        "MAX_PARAGRAPH_CHARS": 255,
+        "MIN_PARAGRAPH_CHARS": 6,
+        "DIALOGUE_BLOCK_COUNT": 4,
+        "DIALOGUE_CHAR_COUNT": 39,
+        "NARRATION_CHAR_COUNT": 2555,
+        "AMBIGUOUS_DIALOGUE_CHARS": 0,
+        "DIALOGUE_CHAR_RATIO": 0.015035,
+        "NARRATION_CHAR_RATIO": 0.984965,
+        "DIALOGUE_PARAGRAPHS": 4,
+        "NARRATION_PARAGRAPHS": 13,
+        "MIXED_PARAGRAPHS": 0,
+        "AMBIGUOUS_PARAGRAPHS": 0,
+        "FIRST_PARAGRAPH_TYPE": "narration",
+        "LAST_PARAGRAPH_TYPE": "narration",
+        "UNIQUE_SENTENCE_RATIO": 1.0,
+        "SENTENCE_COUNT_FOR_RATIO": 60,
+        "UNIQUE_SENTENCE_COUNT": 60,
+        "REPEATED_EXACT_SENTENCES": [],
+        "REPEATED_PARAGRAPH_STARTS": [],
+        "TOP_REPEATED_3_WORD_NGRAMS": [],
+        "TOP_REPEATED_4_WORD_NGRAMS": [],
+        "TOP_REPEATED_5_WORD_NGRAMS": [],
+        "sse_chars_field": 2626,
+        "http": 200,
+        "seconds": 40.54,
+        "user_message_id": 3778,
+        "assistant_message_id": 3779,
+        "cost": 62,
+        "remaining": 1877,
+        "sha256": "99d4653eea39de2523c0161ff78e88ce275f7824ba8770accc451a0722a68161"
+      },
+      "paragraphs": [
+        {
+          "id": "B-P01",
+          "type": "narration",
+          "chars_with_ws": 238
+        },
+        {
+          "id": "B-P02",
+          "type": "narration",
+          "chars_with_ws": 232
+        },
+        {
+          "id": "B-P03",
+          "type": "dialogue",
+          "chars_with_ws": 6
+        },
+        {
+          "id": "B-P04",
+          "type": "narration",
+          "chars_with_ws": 164
+        },
+        {
+          "id": "B-P05",
+          "type": "narration",
+          "chars_with_ws": 220
+        },
+        {
+          "id": "B-P06",
+          "type": "narration",
+          "chars_with_ws": 255
+        },
+        {
+          "id": "B-P07",
+          "type": "narration",
+          "chars_with_ws": 188
+        },
+        {
+          "id": "B-P08",
+          "type": "dialogue",
+          "chars_with_ws": 6
+        },
+        {
+          "id": "B-P09",
+          "type": "narration",
+          "chars_with_ws": 159
+        },
+        {
+          "id": "B-P10",
+          "type": "narration",
+          "chars_with_ws": 158
+        },
+        {
+          "id": "B-P11",
+          "type": "narration",
+          "chars_with_ws": 171
+        },
+        {
+          "id": "B-P12",
+          "type": "narration",
+          "chars_with_ws": 166
+        },
+        {
+          "id": "B-P13",
+          "type": "dialogue",
+          "chars_with_ws": 13
+        },
+        {
+          "id": "B-P14",
+          "type": "narration",
+          "chars_with_ws": 193
+        },
+        {
+          "id": "B-P15",
+          "type": "narration",
+          "chars_with_ws": 208
+        },
+        {
+          "id": "B-P16",
+          "type": "dialogue",
+          "chars_with_ws": 14
+        },
+        {
+          "id": "B-P17",
+          "type": "narration",
+          "chars_with_ws": 203
+        }
+      ]
+    },
+    "C": {
+      "user": {
+        "chars_with_ws": 38,
+        "raw_bytes_utf8": 88,
+        "sha256": "68aef6988882172656b84269d727424fcd87660b14c16abee9da2913cc609eae"
+      },
+      "assistant": {
+        "RAW_BYTES_UTF8": 12478,
+        "CHARS_WITH_WHITESPACE": 5274,
+        "CHARS_WITHOUT_WHITESPACE": 4031,
+        "HANGUL_SYLLABLE_COUNT": 3595,
+        "LINE_COUNT": 39,
+        "NONEMPTY_LINE_COUNT": 20,
+        "PARAGRAPH_COUNT": 20,
+        "SENTENCE_COUNT": 101,
+        "AVERAGE_PARAGRAPH_CHARS": 261.8,
+        "MEDIAN_PARAGRAPH_CHARS": 295.0,
+        "MAX_PARAGRAPH_CHARS": 471,
+        "MIN_PARAGRAPH_CHARS": 5,
+        "DIALOGUE_BLOCK_COUNT": 4,
+        "DIALOGUE_CHAR_COUNT": 78,
+        "NARRATION_CHAR_COUNT": 5158,
+        "AMBIGUOUS_DIALOGUE_CHARS": 0,
+        "DIALOGUE_CHAR_RATIO": 0.014897,
+        "NARRATION_CHAR_RATIO": 0.985103,
+        "DIALOGUE_PARAGRAPHS": 4,
+        "NARRATION_PARAGRAPHS": 16,
+        "MIXED_PARAGRAPHS": 0,
+        "AMBIGUOUS_PARAGRAPHS": 0,
+        "FIRST_PARAGRAPH_TYPE": "narration",
+        "LAST_PARAGRAPH_TYPE": "narration",
+        "UNIQUE_SENTENCE_RATIO": 1.0,
+        "SENTENCE_COUNT_FOR_RATIO": 101,
+        "UNIQUE_SENTENCE_COUNT": 101,
+        "REPEATED_EXACT_SENTENCES": [],
+        "REPEATED_PARAGRAPH_STARTS": [],
+        "TOP_REPEATED_3_WORD_NGRAMS": [
+          {
+            "ngram": "H4Mina062138의 두 손이",
+            "count": 2
+          },
+          {
+            "ngram": "손끝을 통해 생생하게",
+            "count": 2
+          },
+          {
+            "ngram": "통해 생생하게 전해졌다",
+            "count": 2
+          }
+        ],
+        "TOP_REPEATED_4_WORD_NGRAMS": [
+          {
+            "ngram": "손끝을 통해 생생하게 전해졌다",
+            "count": 2
+          }
+        ],
+        "TOP_REPEATED_5_WORD_NGRAMS": [],
+        "sse_chars_field": 5274,
+        "http": 200,
+        "seconds": 99.4,
+        "user_message_id": 3780,
+        "assistant_message_id": 3781,
+        "cost": 183,
+        "remaining": 1694,
+        "sha256": "a0268e39c02ff8e19f3327ae02c0c56fb925e1ffe921c0899d7308008d1ebcaf"
+      },
+      "paragraphs": [
+        {
+          "id": "C-P01",
+          "type": "narration",
+          "chars_with_ws": 325
+        },
+        {
+          "id": "C-P02",
+          "type": "narration",
+          "chars_with_ws": 368
+        },
+        {
+          "id": "C-P03",
+          "type": "dialogue",
+          "chars_with_ws": 5
+        },
+        {
+          "id": "C-P04",
+          "type": "narration",
+          "chars_with_ws": 237
+        },
+        {
+          "id": "C-P05",
+          "type": "dialogue",
+          "chars_with_ws": 31
+        },
+        {
+          "id": "C-P06",
+          "type": "narration",
+          "chars_with_ws": 279
+        },
+        {
+          "id": "C-P07",
+          "type": "narration",
+          "chars_with_ws": 388
+        },
+        {
+          "id": "C-P08",
+          "type": "narration",
+          "chars_with_ws": 410
+        },
+        {
+          "id": "C-P09",
+          "type": "narration",
+          "chars_with_ws": 242
+        },
+        {
+          "id": "C-P10",
+          "type": "narration",
+          "chars_with_ws": 246
+        },
+        {
+          "id": "C-P11",
+          "type": "narration",
+          "chars_with_ws": 471
+        },
+        {
+          "id": "C-P12",
+          "type": "narration",
+          "chars_with_ws": 284
+        },
+        {
+          "id": "C-P13",
+          "type": "narration",
+          "chars_with_ws": 390
+        },
+        {
+          "id": "C-P14",
+          "type": "narration",
+          "chars_with_ws": 345
+        },
+        {
+          "id": "C-P15",
+          "type": "narration",
+          "chars_with_ws": 306
+        },
+        {
+          "id": "C-P16",
+          "type": "narration",
+          "chars_with_ws": 318
+        },
+        {
+          "id": "C-P17",
+          "type": "dialogue",
+          "chars_with_ws": 11
+        },
+        {
+          "id": "C-P18",
+          "type": "narration",
+          "chars_with_ws": 356
+        },
+        {
+          "id": "C-P19",
+          "type": "dialogue",
+          "chars_with_ws": 31
+        },
+        {
+          "id": "C-P20",
+          "type": "narration",
+          "chars_with_ws": 193
+        }
+      ]
+    },
+    "D": {
+      "user": {
+        "chars_with_ws": 44,
+        "raw_bytes_utf8": 100,
+        "sha256": "192e1195d6af1e46023fb5f1d0350dd5ed70b5a125642b03bb0011df962edded"
+      },
+      "assistant": {
+        "RAW_BYTES_UTF8": 12085,
+        "CHARS_WITH_WHITESPACE": 5105,
+        "CHARS_WITHOUT_WHITESPACE": 3911,
+        "HANGUL_SYLLABLE_COUNT": 3470,
+        "LINE_COUNT": 39,
+        "NONEMPTY_LINE_COUNT": 20,
+        "PARAGRAPH_COUNT": 20,
+        "SENTENCE_COUNT": 102,
+        "AVERAGE_PARAGRAPH_CHARS": 253.35,
+        "MEDIAN_PARAGRAPH_CHARS": 276.5,
+        "MAX_PARAGRAPH_CHARS": 420,
+        "MIN_PARAGRAPH_CHARS": 28,
+        "DIALOGUE_BLOCK_COUNT": 4,
+        "DIALOGUE_CHAR_COUNT": 127,
+        "NARRATION_CHAR_COUNT": 4940,
+        "AMBIGUOUS_DIALOGUE_CHARS": 0,
+        "DIALOGUE_CHAR_RATIO": 0.025064,
+        "NARRATION_CHAR_RATIO": 0.974936,
+        "DIALOGUE_PARAGRAPHS": 4,
+        "NARRATION_PARAGRAPHS": 16,
+        "MIXED_PARAGRAPHS": 0,
+        "AMBIGUOUS_PARAGRAPHS": 0,
+        "FIRST_PARAGRAPH_TYPE": "narration",
+        "LAST_PARAGRAPH_TYPE": "narration",
+        "UNIQUE_SENTENCE_RATIO": 1.0,
+        "SENTENCE_COUNT_FOR_RATIO": 102,
+        "UNIQUE_SENTENCE_COUNT": 102,
+        "REPEATED_EXACT_SENTENCES": [],
+        "REPEATED_PARAGRAPH_STARTS": [],
+        "TOP_REPEATED_3_WORD_NGRAMS": [
+          {
+            "ngram": "H4Mina062138의 몸이 매트리스",
+            "count": 2
+          }
+        ],
+        "TOP_REPEATED_4_WORD_NGRAMS": [],
+        "TOP_REPEATED_5_WORD_NGRAMS": [],
+        "sse_chars_field": 5105,
+        "http": 200,
+        "seconds": 73.95,
+        "user_message_id": 3782,
+        "assistant_message_id": 3783,
+        "cost": 148,
+        "remaining": 1546,
+        "sha256": "74849e3690e0b341478bfff224b7750ee8b6b3cdec78e5596ad1af22bb3655d4"
+      },
+      "paragraphs": [
+        {
+          "id": "D-P01",
+          "type": "narration",
+          "chars_with_ws": 420
+        },
+        {
+          "id": "D-P02",
+          "type": "narration",
+          "chars_with_ws": 408
+        },
+        {
+          "id": "D-P03",
+          "type": "dialogue",
+          "chars_with_ws": 31
+        },
+        {
+          "id": "D-P04",
+          "type": "narration",
+          "chars_with_ws": 335
+        },
+        {
+          "id": "D-P05",
+          "type": "narration",
+          "chars_with_ws": 409
+        },
+        {
+          "id": "D-P06",
+          "type": "narration",
+          "chars_with_ws": 319
+        },
+        {
+          "id": "D-P07",
+          "type": "narration",
+          "chars_with_ws": 307
+        },
+        {
+          "id": "D-P08",
+          "type": "dialogue",
+          "chars_with_ws": 28
+        },
+        {
+          "id": "D-P09",
+          "type": "narration",
+          "chars_with_ws": 343
+        },
+        {
+          "id": "D-P10",
+          "type": "narration",
+          "chars_with_ws": 278
+        },
+        {
+          "id": "D-P11",
+          "type": "narration",
+          "chars_with_ws": 254
+        },
+        {
+          "id": "D-P12",
+          "type": "dialogue",
+          "chars_with_ws": 39
+        },
+        {
+          "id": "D-P13",
+          "type": "narration",
+          "chars_with_ws": 275
+        },
+        {
+          "id": "D-P14",
+          "type": "narration",
+          "chars_with_ws": 313
+        },
+        {
+          "id": "D-P15",
+          "type": "narration",
+          "chars_with_ws": 231
+        },
+        {
+          "id": "D-P16",
+          "type": "narration",
+          "chars_with_ws": 249
+        },
+        {
+          "id": "D-P17",
+          "type": "narration",
+          "chars_with_ws": 217
+        },
+        {
+          "id": "D-P18",
+          "type": "dialogue",
+          "chars_with_ws": 29
+        },
+        {
+          "id": "D-P19",
+          "type": "narration",
+          "chars_with_ws": 238
+        },
+        {
+          "id": "D-P20",
+          "type": "narration",
+          "chars_with_ws": 344
+        }
+      ]
+    }
+  },
+  "cross_turn": {
+    "C_D_SHARED_3_WORD_NGRAMS": [
+      {
+        "ngram": "손끝을 통해 생생하게",
+        "count_c": 2,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "H4Mina062138은 눈을 지그시",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "H4Mina062138의 허리가 활처럼",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "감싸고 있던 손을",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "것이 손끝을 통해",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "굳어지는 것이 손끝을",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "그녀는 침대 시트를",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "그녀의 입술 사이로",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "그의 허리춤으로 향했다",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "눈을 지그시 감은",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 거친 손바닥이",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 굵은 손가락이",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 귓가에 입술을",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 단단한 복근이",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 단단한 어깨를",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "도윤의 커다란 손이",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "두 사람 사이의",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "두 사람의 가쁜",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "뒷목을 감싸고 있던",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "방 안의 공기가",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      }
+    ],
+    "C_D_SHARED_4_WORD_NGRAMS": [
+      {
+        "ngram": "H4Mina062138은 눈을 지그시 감은",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "H4Mina062138의 허리가 활처럼 크게",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "감싸고 있던 손을 천천히",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "것이 손끝을 통해 생생하게",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "굳어지는 것이 손끝을 통해",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "눈을 지그시 감은 채",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "뒷목을 감싸고 있던 손을",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "빳빳하게 굳어지는 것이 손끝을",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "있던 손을 천천히 아래로",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "허리가 활처럼 크게 휘어지며",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "활처럼 크게 휘어지며 침대",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      }
+    ],
+    "C_D_SHARED_5_WORD_NGRAMS": [
+      {
+        "ngram": "H4Mina062138은 눈을 지그시 감은 채",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "H4Mina062138의 허리가 활처럼 크게 휘어지며",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "감싸고 있던 손을 천천히 아래로",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "굳어지는 것이 손끝을 통해 생생하게",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "뒷목을 감싸고 있던 손을 천천히",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "빳빳하게 굳어지는 것이 손끝을 통해",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      },
+      {
+        "ngram": "허리가 활처럼 크게 휘어지며 침대",
+        "count_c": 1,
+        "count_d": 1,
+        "min": 1
+      }
+    ]
+  }
+}
