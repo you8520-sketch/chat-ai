@@ -1,0 +1,90 @@
+{
+  "H1R_REQUEST_SHAPE_SHA": "4ae2e9295da84cfd8b998e881c2c6ddbc9d68795d08365f20dc4d8b61fca45d8",
+  "H1S_REQUEST_SHAPE_SHA": "4ae2e9295da84cfd8b998e881c2c6ddbc9d68795d08365f20dc4d8b61fca45d8",
+  "REQUEST_ENVELOPE_IDENTICAL": true,
+  "H1R_FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+  "H1S_FINAL_MESSAGES_SHA": "e6993bf8a122ba892542da0e98866f56f8fd7d4524178cd0a84f99c70d6e0239",
+  "H1R_ENVELOPE": {
+    "model": "deepseek-v4-pro-0813",
+    "reasoning_effort": "none",
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "temperature": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "top_p": 0.92,
+    "message_count": 6
+  },
+  "H1S_ENVELOPE": {
+    "model": "deepseek-v4-pro-0813",
+    "reasoning_effort": "none",
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "temperature": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "top_p": 0.92,
+    "message_count": 6
+  },
+  "MESSAGE_CONTENT_DIFFS": [
+    {
+      "index": 0,
+      "role": "system",
+      "identical": false,
+      "h1rChars": 26699,
+      "h1sChars": 26890,
+      "deltaChars": 191
+    },
+    {
+      "index": 1,
+      "role": "user",
+      "identical": true,
+      "h1rChars": 27,
+      "h1sChars": 27,
+      "deltaChars": 0
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "identical": true,
+      "h1rChars": 2775,
+      "h1sChars": 2775,
+      "deltaChars": 0
+    },
+    {
+      "index": 3,
+      "role": "user",
+      "identical": true,
+      "h1rChars": 43,
+      "h1sChars": 43,
+      "deltaChars": 0
+    },
+    {
+      "index": 4,
+      "role": "assistant",
+      "identical": true,
+      "h1rChars": 2798,
+      "h1sChars": 2798,
+      "deltaChars": 0
+    },
+    {
+      "index": 5,
+      "role": "user",
+      "identical": true,
+      "h1rChars": 1147,
+      "h1sChars": 1147,
+      "deltaChars": 0
+    }
+  ],
+  "ONLY_SYSTEM_MESSAGE_DIFFERS": true,
+  "H1R_SYSTEM_CHARS": 26699,
+  "H1S_SYSTEM_CHARS": 26890,
+  "H1R_OWNER_CHARS": 534,
+  "H1S_OWNER_CHARS": 725
+}

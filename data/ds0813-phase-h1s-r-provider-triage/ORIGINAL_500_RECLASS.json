@@ -1,0 +1,45 @@
+{
+  "NOTE": "Original three H1S live calls are provider failures, not length/quality samples.",
+  "H1S_QUALITY_SAMPLES": 0,
+  "H1S_LENGTH_SAMPLES": 0,
+  "ORIGINAL_R1": {
+    "QUALITY_SAMPLE": false,
+    "LENGTH_SAMPLE": false,
+    "UNDER_LENGTH": null,
+    "HTTP_STATUS": 500,
+    "FINISH_REASON": null,
+    "USAGE": null,
+    "VISIBLE_CHARS": 0,
+    "FIRST_VISIBLE": null,
+    "LATENCY_MS": 164,
+    "ERROR_BODY": "{\"error\":{\"message\":\"Internal server error.\",\"type\":\"api_error\",\"param\":null,\"code\":\"server_error\"}}"
+  },
+  "ORIGINAL_R2": {
+    "QUALITY_SAMPLE": false,
+    "LENGTH_SAMPLE": false,
+    "UNDER_LENGTH": null,
+    "HTTP_STATUS": 500,
+    "FINISH_REASON": null,
+    "USAGE": null,
+    "VISIBLE_CHARS": 0,
+    "FIRST_VISIBLE": null,
+    "LATENCY_MS": 166,
+    "ERROR_BODY": "{\"error\":{\"message\":\"Internal server error.\",\"type\":\"api_error\",\"param\":null,\"code\":\"server_error\"}}"
+  },
+  "ORIGINAL_R3": {
+    "QUALITY_SAMPLE": false,
+    "LENGTH_SAMPLE": false,
+    "UNDER_LENGTH": null,
+    "HTTP_STATUS": 500,
+    "FINISH_REASON": null,
+    "USAGE": null,
+    "VISIBLE_CHARS": 0,
+    "FIRST_VISIBLE": null,
+    "LATENCY_MS": 171,
+    "ERROR_BODY": "{\"error\":{\"message\":\"Internal server error.\",\"type\":\"api_error\",\"param\":null,\"code\":\"server_error\"}}"
+  },
+  "ORIGINAL_R1_LENGTH_SAMPLE": false,
+  "ORIGINAL_R2_LENGTH_SAMPLE": false,
+  "ORIGINAL_R3_LENGTH_SAMPLE": false,
+  "ORIGINAL_500_LENGTH_SAMPLES": 0
+}
