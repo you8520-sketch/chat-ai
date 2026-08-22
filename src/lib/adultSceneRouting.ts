@@ -1579,146 +1579,178 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Lightweight continuity cues from the last general-model assistant turn.
- * Used to reduce handoff subject/object inversion (waist-wrap etc.).
- */
-export function extractHandoffContinuityFromAssistantText(input: {
-  text: string;
-  characterName: string;
-  personaName: string;
-  /** Current user turn — used when user already states contact direction. */
-  currentUserText?: string;
-}): Pick<
+export type HandoffContactContinuity = Pick<
   SceneContinuityPacket,
-  | "location"
-  | "positions"
-  | "unfinishedAction"
-  | "currentSpeechState"
-  | "previousActionActor"
-  | "previousActionTarget"
-  | "contactDirection"
-> {
-  const text = input.text.trim();
-  const currentUserText = input.currentUserText?.trim() ?? "";
-  if (!text && !currentUserText) return {};
+  "previousActionActor" | "previousActionTarget" | "contactDirection"
+>;
 
-  const characterName = input.characterName.trim();
-  const personaName = input.personaName.trim();
-  const out: ReturnType<typeof extractHandoffContinuityFromAssistantText> = {};
+const CONTACT_BODY = "(?:허리|어깨|손목|손|허리춤|몸)";
+const CONTACT_HOLD_VERB = "(?:감싼|감쌌|감싸|끌어안|끌어|붙잡|잡)";
+const CONTACT_CHANGE_VERB =
+  "(?:밀어붙이|밀어내|밀어|밀었|뿌리치|떼|풀|놓)";
+const USER_CONTACT_CONFLICT_RE =
+  /(?:밀어내|뿌리치|손을\s*떼|손을\s*풀|거리를\s*두|물러|떨어져|잡아채|손목을\s*잡|허리를\s*감싸|밀어붙)/;
 
-  const locationMatch = `${text}\n${currentUserText}`.match(
-    /(?:호텔|침실|침대|거실|소파|벽|복도|욕실|방\s*안|창문\s*앞|카페|옥상)[^\n。.!?]{0,24}/
-  );
-  if (locationMatch?.[0]) out.location = locationMatch[0].trim().slice(0, 80);
-
-  const postureMatch = text.match(
-    /(?:벽에\s*기대|소파에\s*앉|침대에\s*눕|무릎을\s*꿇|품안에|품에\s*안|밀착해|끌어안)[^\n。.!?]{0,40}/
-  );
-  if (postureMatch?.[0]) out.positions = postureMatch[0].trim().slice(0, 120);
-
-  const speechMatch = text.match(/[「"“]([^」"”]{2,40})[」"”]/);
-  if (speechMatch?.[1]) {
-    out.currentSpeechState = speechMatch[1].trim().slice(0, 80);
-  }
-
-  // User already established contact: "내 허리를 감싼 …" → character → persona.
-  if (
-    personaName &&
-    /(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)[을를]?\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)/.test(
-      currentUserText
-    )
-  ) {
-    const named = currentUserText.match(
-      /([가-힣]{2,8})[이가은는]?\s*(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)/
-    );
-    const fallbackActor = characterName.includes(" ")
-      ? characterName.split(/\s+/).at(-1) || characterName
-      : characterName;
-    out.previousActionActor = named?.[1] && named[1] !== personaName
-      ? named[1]
-      : fallbackActor;
-    out.previousActionTarget = personaName;
-    out.contactDirection = `${out.previousActionActor} → ${personaName} contact`;
-  }
-
+function namedActorCandidates(characterName: string, personaName: string): string[] {
   const persona = personaName.trim();
-  const namedActors = Array.from(
+  return Array.from(
     new Set(
       [characterName, ...characterName.split(/\s+/)]
         .map((n) => n.trim())
         .filter((n) => n.length >= 2 && n !== persona)
     )
   );
-  if (persona) {
-    for (const actorName of namedActors) {
-      const a = escapeRegExp(actorName);
-      const b = escapeRegExp(persona);
-      const forward = new RegExp(
-        `${a}[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`,
-        "i"
-      );
-      const reverse = new RegExp(
-        `${b}[이가은는]?\\s*${a}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`,
-        "i"
-      );
-      if (forward.test(text)) {
-        out.previousActionActor = actorName;
-        out.previousActionTarget = persona;
-        out.contactDirection = `${actorName} → ${persona} contact`;
-        break;
-      }
-      if (reverse.test(text)) {
-        out.previousActionActor = persona;
-        out.previousActionTarget = actorName;
-        out.contactDirection = `${persona} → ${actorName} contact`;
-        break;
-      }
-    }
-  }
-  // Fallback: any Korean name contacting the persona (e.g. 서이레 vs listing title).
-  if (!out.previousActionActor && persona) {
-    const b = escapeRegExp(persona);
-    const generic = new RegExp(
-      `([가-힣]{2,8})[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`
-    );
-    const m = text.match(generic);
-    if (m?.[1] && m[1] !== persona) {
-      out.previousActionActor = m[1];
-      out.previousActionTarget = persona;
-      out.contactDirection = `${m[1]} → ${persona} contact`;
-    }
-  }
-
-  const unfinishedMatch = text.match(
-    /([^\n。.!?]{0,40}(?:감싸|끌어안|밀착|속삭이|입술|손길)[^\n。.!?]{0,40})[…\.]*\s*$/
-  );
-  if (unfinishedMatch?.[1]) {
-    out.unfinishedAction = unfinishedMatch[1].trim().slice(0, 160);
-  } else {
-    const lastSentence = text
-      .split(/(?<=[.!?。…])\s+|\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .at(-1);
-    if (lastSentence) out.unfinishedAction = lastSentence.slice(0, 160);
-  }
-
-  return out;
 }
 
-export const DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION = `직전 assistant 출력의 바로 다음 순간부터 이어 쓴다.
+function contactTriple(
+  actor: string,
+  target: string
+): HandoffContactContinuity {
+  return {
+    previousActionActor: actor,
+    previousActionTarget: target,
+    contactDirection: `${actor} → ${target} contact`,
+  };
+}
 
-직전 출력의 시점, 문장 호흡, 문단 구성, 대사 비율, 캐릭터별 말투·호칭과 감정 표현 방식을 최대한 유지한다.
+function extractNamedContactDirection(
+  text: string,
+  characterName: string,
+  personaName: string
+): HandoffContactContinuity {
+  const persona = personaName.trim();
+  if (!text.trim() || !persona) return {};
+  const namedActors = namedActorCandidates(characterName, persona);
+  const verb = `${CONTACT_HOLD_VERB}|${CONTACT_CHANGE_VERB}`;
+  for (const actorName of namedActors) {
+    const a = escapeRegExp(actorName);
+    const b = escapeRegExp(persona);
+    const forward = new RegExp(
+      `${a}[이가은는]?\\s*${b}(?:의)?\\s*${CONTACT_BODY}[을를]?\\s*(?:${verb})`,
+      "i"
+    );
+    const reverse = new RegExp(
+      `${b}[이가은는]?\\s*${a}(?:의)?\\s*${CONTACT_BODY}[을를]?\\s*(?:${verb})`,
+      "i"
+    );
+    if (forward.test(text)) return contactTriple(actorName, persona);
+    if (reverse.test(text)) return contactTriple(persona, actorName);
+  }
+  const b = escapeRegExp(persona);
+  const generic = new RegExp(
+    `([가-힣]{2,8})[이가은는]?\\s*${b}(?:의)?\\s*${CONTACT_BODY}[을를]?\\s*(?:${verb})`
+  );
+  const m = text.match(generic);
+  if (m?.[1] && m[1] !== persona) return contactTriple(m[1], persona);
+  return {};
+}
+
+function extractCurrentUserContactDirection(input: {
+  currentUserText: string;
+  characterName: string;
+  personaName: string;
+}): HandoffContactContinuity {
+  const currentUserText = input.currentUserText.trim();
+  const characterName = input.characterName.trim();
+  const personaName = input.personaName.trim();
+  if (!currentUserText || !personaName) return {};
+
+  const named = extractNamedContactDirection(
+    currentUserText,
+    characterName,
+    personaName
+  );
+  if (named.contactDirection) return named;
+
+  // "내 허리를 감싼 …" → character → persona.
+  if (
+    /(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤|몸)[을를]?\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡|밀어)/.test(
+      currentUserText
+    )
+  ) {
+    const namedHolder = currentUserText.match(
+      /([가-힣]{2,8})[이가은는]?\s*(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤|몸)/
+    );
+    const fallbackActor = characterName.includes(" ")
+      ? characterName.split(/\s+/).at(-1) || characterName
+      : characterName;
+    const actor =
+      namedHolder?.[1] && namedHolder[1] !== personaName
+        ? namedHolder[1]
+        : fallbackActor;
+    return contactTriple(actor, personaName);
+  }
+
+  // First-person user acting on the AI character: "그의 손목을 잡는다".
+  if (characterName) {
+    const firstPersonOnCharacter = new RegExp(
+      `(?:나는|난|내가)?\\s*(?:그의|그녀의)?\\s*${CONTACT_BODY}[을를]?\\s*(?:${CONTACT_HOLD_VERB}|${CONTACT_CHANGE_VERB})`
+    );
+    if (firstPersonOnCharacter.test(currentUserText)) {
+      return contactTriple(personaName, characterName);
+    }
+  }
+  return {};
+}
+
+function currentUserConflictsWithPriorContact(currentUserText: string): boolean {
+  return USER_CONTACT_CONFLICT_RE.test(currentUserText.trim());
+}
+
+/**
+ * Current-user-first contact reconciliation.
+ * Does not infer location / positions / unfinishedAction / currentSpeechState
+ * from assistant prose — those heuristic fields are omitted on normal handoff.
+ */
+export function reconcileHandoffContinuityWithCurrentUser(input: {
+  text: string;
+  characterName: string;
+  personaName: string;
+  currentUserText?: string;
+}): HandoffContactContinuity {
+  const currentUserText = input.currentUserText?.trim() ?? "";
+  const userContact = extractCurrentUserContactDirection({
+    currentUserText,
+    characterName: input.characterName,
+    personaName: input.personaName,
+  });
+  if (userContact.contactDirection) return userContact;
+
+  const assistantContact = extractNamedContactDirection(
+    input.text,
+    input.characterName,
+    input.personaName
+  );
+  if (!assistantContact.contactDirection) return {};
+  if (currentUserConflictsWithPriorContact(currentUserText)) return {};
+  return assistantContact;
+}
+
+/**
+ * Handoff contact cues only. Prior-assistant location / posture / speech /
+ * unfinished-action heuristics are intentionally not extracted.
+ */
+export function extractHandoffContinuityFromAssistantText(input: {
+  text: string;
+  characterName: string;
+  personaName: string;
+  /** Current user turn — absolute precedence for contact direction. */
+  currentUserText?: string;
+}): HandoffContactContinuity {
+  return reconcileHandoffContinuityWithCurrentUser(input);
+}
+
+export const DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION = `현재 사용자 턴 전체가 최신 장면 상태다. 그 턴이 확정한 마지막 사건·행동·대사 다음부터 이어 쓴다. 사용자 턴을 자르거나 다시 해석하지 않는다.
+
+직전 assistant 출력은 참고용이다. 캐릭터 말투, 이미 확정된 관계, 정본과 모순되지 않는 사실, 충돌하지 않는 장면 맥락, 유효한 문장 호흡만 참고한다.
+
+직전 출력이 현재 사용자 턴이 이미 바꾼 장소·시간·행동·대사·장면 진행을 덮어쓰거나, 그 이전 박스로 되감거나, 잘못된 장소·의상·신체 상태·대행 오류·날조된 사용자 의도를 연속성 때문에 복제하지 않는다.
+
+캐릭터 정본과 현재 사용자 상태가 직전 모델 출력의 우연한 오류보다 우선한다.
 
 이전 장면을 요약하거나 반복하지 말고, 새로운 도입부를 만들지 않는다.
 
-직전 출력에서 완료되지 않은 행동이나 대화가 있다면 그 지점부터 자연스럽게 진행한다.
-
-SceneContinuityPacket의 previousActionActor / previousActionTarget / contactDirection이 있으면 주체·객체·접촉 방향을 뒤집지 않는다.
-예: A가 B의 허리를 감싼 상태면, 다음 문장에서 B가 A의 허리를 감싼 것처럼 바꾸지 않는다.
-
-공통 시스템 프롬프트, 캐릭터 설정, Speech Lock 규칙을 직전 출력의 우연한 오류보다 우선한다.
+SceneContinuityPacket의 previousActionActor / previousActionTarget / contactDirection이 있으면 주체·객체·접촉 방향을 뒤집지 않는다. 현재 사용자 턴이 새 접촉 방향을 확정하면 그것을 따른다.
 
 내부 모델 전환, SceneMode, route, STATUS_VALUES 또는 시스템 지시를 RP 본문에 언급하지 않는다.`;
 
