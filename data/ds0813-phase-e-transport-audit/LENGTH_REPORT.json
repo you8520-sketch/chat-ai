@@ -1,0 +1,112 @@
+{
+  "report": {
+    "T_NATIVE_CHARS": 1625,
+    "T_HANDOFF_CHARS": 2785,
+    "T_HISTORICAL_CHARS": 1302,
+    "T_HANDOFF_GE_2700": true,
+    "T_HISTORICAL_GE_2700": false,
+    "DELTA_NATIVE_TO_HANDOFF": 1160,
+    "DELTA_NATIVE_TO_HISTORICAL": -323,
+    "HANDOFF_TRANSPORT_LENGTH_RESTORATION_OBSERVED": true,
+    "HISTORICAL_TRANSPORT_LENGTH_RESTORATION_OBSERVED": false,
+    "TRANSPORT_RESTORATION_NOT_OBSERVED": false,
+    "COMMON_REASONING_EFFORT_NONE_SIGNAL": false,
+    "PROVIDER_CALLS": 2,
+    "RETRIES": 0,
+    "CONTINUATION_CALLS": 0,
+    "QUALITY_SCORE_ASSIGNED": false,
+    "MODEL_WINNER_SELECTED": false
+  },
+  "results": [
+    {
+      "KEY": "T_HANDOFF",
+      "HTTP_STATUS": 200,
+      "ERROR": null,
+      "FINISH_REASON": "stop",
+      "INPUT_TOKENS": 9629,
+      "OUTPUT_TOKENS": 2189,
+      "REASONING_TOKENS": null,
+      "VISIBLE_CHARS": 2785,
+      "KOREAN_CHARS": 1927,
+      "PARAGRAPHS": 29,
+      "DIALOGUE_LINES": 12,
+      "RAW_SHA256": "fa870a14477232d4537e9b37a520b9d9f595dce81c2095bb5362298bab6ef19b",
+      "SYSTEM_SHA": "01cd8ec380ce4f5cd1759c73869536258c99cbd0d55e3dfe28e2f6c2ef787ee6",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SEMANTIC_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "timing": {
+        "REQUEST_START_MS": 1787376278494,
+        "HEADERS_RECEIVED_MS": 1787376281237,
+        "FIRST_VISIBLE_DELTA_MS": 1787376281237,
+        "LAST_VISIBLE_DELTA_MS": 1787376330915,
+        "FINISH_EVENT_MS": 1787376330915,
+        "TTFT_MS": 2743,
+        "VISIBLE_STREAM_DURATION_MS": 49678,
+        "TOTAL_LATENCY_MS": 52760,
+        "REASONING_STREAM_EVENTS": 0,
+        "REASONING_TEXT_CHARS": 0
+      },
+      "flags": {
+        "REFUSAL": false,
+        "META_LEAK": false,
+        "SYSTEM_LEAK": false,
+        "NEW_USER_DIALOGUE_BEYOND_CURRENT_INPUT": false,
+        "NEW_USER_INTENTIONAL_ACTION_BEYOND_CURRENT_INPUT": false,
+        "USER_MAJOR_CHOICE_AUTHORED": false,
+        "USER_CONSENT_OR_REFUSAL_AUTHORED": false,
+        "NOTE_INVOLUNTARY_USER_PHYSIOLOGY_NOT_AGENCY": "automatic involuntary physiological reactions are allowed",
+        "TRANSPORT_SAMPLE_CONTAMINATED": false
+      },
+      "usage": {
+        "prompt_tokens": 9629,
+        "completion_tokens": 2189,
+        "total_tokens": 11818,
+        "cost": 0.002407,
+        "cost_details": {
+          "upstream_inference_cost": 0.002407
+        }
+      }
+    },
+    {
+      "KEY": "T_HISTORICAL",
+      "HTTP_STATUS": 200,
+      "ERROR": null,
+      "FINISH_REASON": null,
+      "INPUT_TOKENS": null,
+      "OUTPUT_TOKENS": null,
+      "REASONING_TOKENS": null,
+      "VISIBLE_CHARS": 1302,
+      "KOREAN_CHARS": 908,
+      "PARAGRAPHS": 12,
+      "DIALOGUE_LINES": 5,
+      "RAW_SHA256": "52fec78e0dbb4fb9298c33d12a2aabe0a0d89b560de8b432b6e10d5fbd39d792",
+      "SYSTEM_SHA": "01cd8ec380ce4f5cd1759c73869536258c99cbd0d55e3dfe28e2f6c2ef787ee6",
+      "HISTORY_SHA": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "CURRENT_USER_SEMANTIC_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "timing": {
+        "REQUEST_START_MS": 1787376331255,
+        "HEADERS_RECEIVED_MS": 1787376333912,
+        "FIRST_VISIBLE_DELTA_MS": 1787376333912,
+        "LAST_VISIBLE_DELTA_MS": 1787376357839,
+        "FINISH_EVENT_MS": null,
+        "TTFT_MS": 2657,
+        "VISIBLE_STREAM_DURATION_MS": 23927,
+        "TOTAL_LATENCY_MS": 26614,
+        "REASONING_STREAM_EVENTS": 0,
+        "REASONING_TEXT_CHARS": 0
+      },
+      "flags": {
+        "REFUSAL": false,
+        "META_LEAK": false,
+        "SYSTEM_LEAK": false,
+        "NEW_USER_DIALOGUE_BEYOND_CURRENT_INPUT": false,
+        "NEW_USER_INTENTIONAL_ACTION_BEYOND_CURRENT_INPUT": false,
+        "USER_MAJOR_CHOICE_AUTHORED": false,
+        "USER_CONSENT_OR_REFUSAL_AUTHORED": false,
+        "NOTE_INVOLUNTARY_USER_PHYSIOLOGY_NOT_AGENCY": "automatic involuntary physiological reactions are allowed",
+        "TRANSPORT_SAMPLE_CONTAMINATED": false
+      },
+      "usage": {}
+    }
+  ]
+}
