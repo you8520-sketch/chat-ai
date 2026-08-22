@@ -5,12 +5,13 @@ import { canAccessTrpg } from "@/lib/trpg/access";
 import {
   loadAccessibleTrpgCharacter,
   loadTrpgCatalog,
+  loadTrpgCatalogPlayScores,
   mergeCatalogCharacters,
 } from "@/lib/trpg/catalog";
-import { listTrpgCampaigns } from "@/lib/trpg/engine";
 import { getDb } from "@/lib/db";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { parseCompanionIds } from "@/lib/trpg/requestIds";
+import { TRPG_MAX_SLOTS } from "@/lib/trpg/types";
 import TrpgLobbyClient from "./TrpgLobbyClient";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,6 @@ export default async function TrpgLobbyPage({
     personaId?: string;
     characterIds?: string;
     code?: string;
-    q?: string;
     scenarioId?: string;
   }>;
 }) {
@@ -31,7 +31,6 @@ export default async function TrpgLobbyPage({
   if (!user) redirect("/login?redirect=/trpg");
   if (!canAccessTrpg(user)) redirect("/");
   const params = (await searchParams) ?? {};
-  const campaignQuery = typeof params.q === "string" ? params.q : "";
   const inviteCode = parseTrpgInviteInput(params.code);
   if (inviteCode) redirect(`/trpg/join/${inviteCode}`);
   const seededIds = parseCompanionIds(
@@ -41,19 +40,18 @@ export default async function TrpgLobbyPage({
     params.characterId
   );
   const db = getDb();
-  const campaigns = listTrpgCampaigns(db, user.id);
   const extras = seededIds.map((id) => loadAccessibleTrpgCharacter(db, id, user.id));
   const catalog = mergeCatalogCharacters(loadTrpgCatalog(db, user.id), extras);
+  const playScores = loadTrpgCatalogPlayScores(db);
 
   return (
     <AppPageShell
       title="TRPG"
-      description="세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 플레이어 캐릭터는 최대 2명입니다."
+      description={`세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 최대 참가인원은 ${TRPG_MAX_SLOTS}명입니다.`}
     >
       <TrpgLobbyClient
-        initialCampaigns={campaigns}
-        initialCampaignQuery={campaignQuery}
         catalog={catalog}
+        playScores={playScores}
         characterIds={seededIds}
         initialScenarioId={params.scenarioId}
       />

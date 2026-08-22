@@ -1,5 +1,6 @@
 import { CHARACTER_GENRES, type CharacterGenre } from "@/lib/characterGenres";
 import type { TrpgCatalog, TrpgCatalogWorld } from "./catalog";
+import type { TrpgCatalogPlayScores } from "./catalogPlayScores";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 
 export type TrpgCatalogPick =
@@ -55,6 +56,24 @@ export type TrpgCatalogNewItem =
   | { kind: "world"; id: number; updatedAt: string }
   | { kind: "scenario"; id: number; updatedAt: string };
 
+export type TrpgCatalogRankItem = TrpgCatalogNewItem & {
+  recentStarts: number;
+  allStarts: number;
+};
+
+function playScoreFor(
+  scores: TrpgCatalogPlayScores,
+  kind: "world" | "scenario",
+  id: number
+): { recentStarts: number; allStarts: number } {
+  const bucket = kind === "world" ? scores.worlds : scores.scenarios;
+  const score = bucket[id];
+  return {
+    recentStarts: score?.recent ?? 0,
+    allStarts: score?.all ?? 0,
+  };
+}
+
 /** Public worlds and scenarios mixed by recency for the TRPG “신작” row. */
 export function catalogNewReleases(
   catalog: Pick<TrpgCatalog, "publicWorlds" | "publicScenarios">,
@@ -73,6 +92,37 @@ export function catalogNewReleases(
     })),
   ];
   items.sort((a, b) => {
+    const byDate = b.updatedAt.localeCompare(a.updatedAt);
+    if (byDate !== 0) return byDate;
+    if (a.kind !== b.kind) return a.kind === "world" ? -1 : 1;
+    return b.id - a.id;
+  });
+  return items.slice(0, limit);
+}
+
+/** Public worlds and scenarios ranked by recent campaign starts, then all-time, then recency. */
+export function catalogLiveRanking(
+  catalog: Pick<TrpgCatalog, "publicWorlds" | "publicScenarios">,
+  scores: TrpgCatalogPlayScores,
+  limit = 16
+): TrpgCatalogRankItem[] {
+  const items: TrpgCatalogRankItem[] = [
+    ...catalog.publicWorlds.map((world) => ({
+      kind: "world" as const,
+      id: world.id,
+      updatedAt: world.updatedAt,
+      ...playScoreFor(scores, "world", world.id),
+    })),
+    ...catalog.publicScenarios.map((scenario) => ({
+      kind: "scenario" as const,
+      id: scenario.id,
+      updatedAt: scenario.updatedAt,
+      ...playScoreFor(scores, "scenario", scenario.id),
+    })),
+  ];
+  items.sort((a, b) => {
+    if (b.recentStarts !== a.recentStarts) return b.recentStarts - a.recentStarts;
+    if (b.allStarts !== a.allStarts) return b.allStarts - a.allStarts;
     const byDate = b.updatedAt.localeCompare(a.updatedAt);
     if (byDate !== 0) return byDate;
     if (a.kind !== b.kind) return a.kind === "world" ? -1 : 1;
