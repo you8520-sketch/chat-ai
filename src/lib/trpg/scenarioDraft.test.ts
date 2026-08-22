@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import {
   assertScenarioDraftRateLimit,
   buildScenarioDraftPromptContext,
@@ -22,7 +23,7 @@ import {
   scenarioDraftOutputMaxTokens,
   scenarioDraftPrimaryTimeoutMs,
   STRUCTURED_PLAN_IS_PRIMARY,
-  TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT,
+  TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT,
   TRPG_SCENARIO_DRAFT_CORE_FIELDS,
   TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS,
@@ -81,13 +82,13 @@ describe("TRPG scenario AI draft", () => {
     const body = buildTrpgScenarioDraftRequestBody({
       system: "system",
       user: "user",
-      maxTokens: 1800,
+      maxTokens: 6000,
       temperature: 0.3,
     });
     assert.equal(body.model, TRPG_SCENARIO_DRAFT_MODEL);
     assert.deepEqual(body.thinking, { type: "disabled" });
     assert.equal(body.reasoning_effort, "none");
-    assert.equal(body.max_tokens, 1800);
+    assert.equal(body.max_tokens, 6000);
     assert.deepEqual(body.response_format, { type: "json_object" });
   });
 
@@ -339,8 +340,8 @@ describe("TRPG scenario AI draft", () => {
 
   it("clips prompt context deterministically with creator prose ahead of secret and world", () => {
     const context = buildScenarioDraftPromptContext({
-      existingContent: "C".repeat(5_000),
-      existingSecretContent: "S".repeat(2_000),
+      existingContent: "C".repeat(10_000),
+      existingSecretContent: "S".repeat(10_000),
       worldSummary: "W".repeat(500),
       worldContent: "L".repeat(5_000),
     });
@@ -348,21 +349,22 @@ describe("TRPG scenario AI draft", () => {
     assert.ok(context.existingSecretContent.startsWith("S".repeat(100)));
     assert.equal(context.worldSummary, "");
     assert.equal(context.worldContent, "");
-    assert.ok(
-      context.existingContent.length +
-        context.existingSecretContent.length +
-        context.worldSummary.length +
-        context.worldContent.length <=
-        TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT
-    );
+    const usedTokens = [
+      context.existingContent,
+      context.existingSecretContent,
+      context.worldSummary,
+      context.worldContent,
+    ].reduce((sum, text) => sum + (text ? estimateTokens(text) : 0), 0);
+    assert.equal(TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT, 15_000);
+    assert.ok(usedTokens <= TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT);
     assert.ok(context.clipped.existingSecretContent > 0);
     assert.equal(context.clipped.worldContent, 5_000);
   });
 
-  it("shows existing content and secret to AI while clipping selected world independently of save budget", () => {
+  it("shows existing content, secret, and the complete selected world inside the 15k-token budget", () => {
     const content = "창작자 전체 시나리오";
     const secretContent = "창작자 비밀 설정";
-    const worldTail = "WORLD_TAIL_MUST_BE_CLIPPED";
+    const worldTail = "WORLD_TAIL_MUST_BE_INCLUDED";
     const worldContent = `${"세계".repeat(6_000)}${worldTail}`;
     const existing = { content, secretContent, plan: emptyTrpgScenarioPlan() };
     const budget = computeScenarioDraftBudget({
@@ -382,8 +384,7 @@ describe("TRPG scenario AI draft", () => {
     });
     assert.match(prompt, new RegExp(content));
     assert.match(prompt, new RegExp(secretContent));
-    assert.doesNotMatch(prompt, new RegExp(worldTail));
-    assert.ok(prompt.length < worldContent.length + 5_000);
+    assert.match(prompt, new RegExp(worldTail));
   });
 
   it("frames untrusted world and existing text as escaped JSON without tag breakout", () => {
@@ -451,14 +452,14 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(coreOnly.plan.goal, "목표");
     assert.equal(
       scenarioDraftOutputMaxTokens({ mode: "regenerate_selected", changingFields: ["boss"] }),
-      1600
+      TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS
     );
     assert.equal(
       scenarioDraftOutputMaxTokens({
         mode: "regenerate_selected",
         changingFields: ["npcs", "majorEvents"],
       }),
-      1600
+      TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS
     );
     const prompt = buildScenarioDraftUserPrompt({
       worldName: "",
@@ -496,7 +497,7 @@ describe("TRPG scenario AI draft", () => {
       TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS
     );
     assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS <= TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS);
-    assert.ok(TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS < TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS);
+    assert.equal(TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS, TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS);
     assert.equal(REPAIR_IS_REWRITE, false);
     const repair = buildAuthoringRepairUser('{"boss":', "invalid json", ["boss"]);
     assert.match(repair, /문법과 schema 형식만 정규화/);
@@ -513,7 +514,9 @@ describe("TRPG scenario AI draft", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
-    assert.match(editor, /전체 시나리오 본문 \(선택 · 직접 추가 설정\)/);
+    assert.match(editor, /전체 시나리오 본문 \(기존 형식 · 선택\)/);
+    assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
+    assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
     assert.doesNotMatch(editor, /AI 초안은 세계관을 선택한 뒤에/);
     assert.doesNotMatch(editor, /disabled=\{draftBusy \|\| typeof worldId !== "number"\}/);
     assert.match(route, /worldId == null \? null : loadWorldForTrpg/);

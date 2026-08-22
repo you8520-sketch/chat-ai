@@ -663,6 +663,37 @@ export default function TrpgScenarioEditor({
           )}
         </div>
 
+        <AppSectionCard title="세계관">
+          <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            AI 초안을 만들기 전에 세계관을 선택하세요. 고르지 않으면 입력한 자료를 바탕으로 독립 시나리오를 구성합니다.
+          </p>
+          {catalog.myWorlds.length === 0 ? (
+            <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
+          ) : (
+            <select
+              value={worldId}
+              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
+              className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+            >
+              <option value="">없음 — 독립 시나리오</option>
+              {catalog.myWorlds.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
+              붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
+            </p>
+          ) : null}
+          {worldStale ? (
+            <p className="mt-2 text-xs text-amber-300">이 시나리오 초안 생성 후 세계관이 수정되었습니다.</p>
+          ) : null}
+        </AppSectionCard>
+
         <AppSectionCard title="이야기">
           <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-violet-300/80">빠르게 시작</p>
           <div className="mb-3 flex flex-wrap gap-2">
@@ -796,37 +827,6 @@ export default function TrpgScenarioEditor({
 
         {detailsOpen ? (
         <div className="space-y-4">
-        <AppSectionCard title="세계관">
-          <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            세계관을 고르면 해당 설정을 따르고, 고르지 않으면 입력한 자료를 바탕으로 독립 시나리오를 구성합니다.
-          </p>
-          {catalog.myWorlds.length === 0 ? (
-            <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
-          ) : (
-            <select
-              value={worldId}
-              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
-              className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-            >
-              <option value="">없음 — 독립 시나리오</option>
-              {catalog.myWorlds.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          )}
-          {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
-            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
-              붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
-            </p>
-          ) : null}
-          {worldStale ? (
-            <p className="mt-2 text-xs text-amber-300">이 시나리오 초안 생성 후 세계관이 수정되었습니다.</p>
-          ) : null}
-        </AppSectionCard>
-
         <AppSectionCard title="이야기 보강">
           <label className="block text-sm text-zinc-300">
             한 줄 요약
@@ -985,9 +985,9 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="추가 GM 메모">
+        <AppSectionCard title="추가 자료 (선택)">
           <label className="block text-sm text-zinc-300" data-scenario-field="content">
-            전체 시나리오 본문 (선택 · 직접 추가 설정)
+            전체 시나리오 본문 (기존 형식 · 선택)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
               이야기 설계가 있으면 비워도 됩니다. 예전처럼 본문만 있어도 저장됩니다.
             </span>
@@ -1001,7 +1001,10 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
-            숨겨진 설정 (추가 GM 비밀 메모)
+            추가 GM 메모 (자유 입력 · 선택)
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              핵심 반전은 위의 비밀(GM 전용)에 적고, 그 밖의 진행 참고사항만 입력하세요.
+            </span>
             <textarea
               value={secretContent}
               maxLength={secretMax}

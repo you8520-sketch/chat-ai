@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import {
   emptyTrpgScenarioPlan,
   hasPlayableScenarioPlan,
@@ -22,15 +23,16 @@ import {
 
 export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
-export const TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT = 6_000;
+/** Creator/world source material available to the scenario-draft prompt. */
+export const TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT = 15_000;
 export const TRPG_SCENARIO_DRAFT_PRIMARY_TIMEOUT_MS = 120_000;
 export const TRPG_SCENARIO_DRAFT_SINGLE_FIELD_TIMEOUT_MS = 180_000;
 export const TRPG_SCENARIO_DRAFT_CORE_TIMEOUT_MS = 210_000;
 export const TRPG_SCENARIO_DRAFT_FULL_TIMEOUT_MS = 240_000;
 export const TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS = 90_000;
-export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 2_600;
-export const TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS = 1_800;
-export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 1_600;
+export const TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS = 6_000;
+export const TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS = 6_000;
+export const TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS = 6_000;
 export const NO_WORLD_AI_DRAFT_ALLOWED = true;
 export const STRUCTURED_PLAN_IS_PRIMARY = true;
 export const FULL_SCENARIO_TEXT_REQUIRED = false;
@@ -372,7 +374,7 @@ Rules:
 - Use at most 2 items per list, each at most 60 Korean chars.
 - Use at most 2 essential NPCs. NPC name 20 chars, description 80, greeting 40, systemPrompt 80.
 - Use at most 4 startInventory items, each at most 20 chars.
-- Keep the complete JSON comfortably below 2,600 output tokens.
+- Keep the complete JSON below 6,000 output tokens.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
 - Summary must be player-safe: no secrets, twists, or endings.
 - NPC stats must be null unless a specific mechanical reason exists. Do not invent database IDs.
@@ -403,18 +405,36 @@ export type ScenarioDraftPromptContext = {
   };
 };
 
-function takeScenarioDraftContext(text: string, remaining: number): { text: string; omitted: number } {
+function scenarioDraftContextTokens(text: string): number {
+  return text ? estimateTokens(text) : 0;
+}
+
+function takeScenarioDraftContext(text: string, remainingTokens: number): { text: string; omitted: number } {
   const value = text.trim();
-  if (!value || remaining <= 0) return { text: "", omitted: value.length };
-  if (value.length <= remaining) return { text: value, omitted: 0 };
-  const suffix = `\n[… ${value.length - remaining}자 생략]`;
-  const head = value.slice(0, Math.max(0, remaining - suffix.length));
-  return { text: `${head}${suffix}`, omitted: value.length - head.length };
+  if (!value || remainingTokens <= 0) return { text: "", omitted: value.length };
+  if (scenarioDraftContextTokens(value) <= remainingTokens) return { text: value, omitted: 0 };
+
+  let low = 0;
+  let high = value.length;
+  let best = "";
+  let keptChars = 0;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const candidate = `${value.slice(0, mid)}\n[… ${value.length - mid}자 생략]`;
+    if (scenarioDraftContextTokens(candidate) <= remainingTokens) {
+      best = candidate;
+      keptChars = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return { text: best, omitted: value.length - keptChars };
 }
 
 /**
- * Prompt context has its own deterministic clipping policy. The 10k bundle
- * limit remains the save-validation owner and is not treated as a prompt cap.
+ * Prompt context has its own deterministic token budget. The 10k-character
+ * bundle limit remains the save-validation owner and is not a prompt cap.
  */
 export function buildScenarioDraftPromptContext(opts: {
   worldSummary?: string;
@@ -422,10 +442,10 @@ export function buildScenarioDraftPromptContext(opts: {
   existingContent?: string;
   existingSecretContent?: string;
 }): ScenarioDraftPromptContext {
-  let remaining = TRPG_SCENARIO_DRAFT_CONTEXT_LIMIT;
+  let remainingTokens = TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT;
   const take = (value: string | undefined) => {
-    const part = takeScenarioDraftContext(String(value ?? ""), remaining);
-    remaining = Math.max(0, remaining - part.text.length);
+    const part = takeScenarioDraftContext(String(value ?? ""), remainingTokens);
+    remainingTokens = Math.max(0, remainingTokens - scenarioDraftContextTokens(part.text));
     return part;
   };
   const existingContent = take(opts.existingContent);
@@ -454,17 +474,8 @@ export function scenarioDraftOutputMaxTokens(opts: {
   mode: TrpgScenarioDraftMode;
   changingFields: readonly TrpgScenarioDraftField[];
 }): number {
-  const fields = new Set(opts.changingFields);
-  if (opts.mode === "regenerate_all") return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
-  if (opts.mode === "fill_empty" && fields.size >= TRPG_SCENARIO_DRAFT_CORE_FIELDS.length) {
-    return TRPG_SCENARIO_DRAFT_CORE_OUTPUT_TOKENS;
-  }
-  if (fields.size >= 8) return 2_200;
-  if (fields.size >= 3) return 1_600;
-  if (fields.has("npcs") && (fields.has("majorEvents") || fields.has("clues"))) return 1_600;
-  if (fields.has("npcs")) return 1_400;
-  if (fields.size === 2) return 1_400;
-  return 1_600;
+  void opts;
+  return TRPG_SCENARIO_DRAFT_FULL_OUTPUT_TOKENS;
 }
 
 export function scenarioDraftRequestedFields(opts: {
