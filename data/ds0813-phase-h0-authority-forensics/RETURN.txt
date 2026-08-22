@@ -1,6 +1,6 @@
 BASE_MAIN_SHA: 3a75c247490755ad388c5bbfa06438c06229dfb8
-PR: PENDING
-HEAD: PENDING
+PR: https://github.com/you8520-sketch/chat-ai/pull/566
+HEAD: PENDING_AFTER_THIS_COMMIT
 PROVIDER_CALLS:
 0
 CURRENT_USER_FULL_TURN_AUTHORITY_OWNER: src/lib/currentUserInputLabel.ts::buildCollaborativeInteractiveWrapper / wrapCurrentUserInput
