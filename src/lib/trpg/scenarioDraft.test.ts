@@ -514,7 +514,8 @@ describe("TRPG scenario AI draft", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
-    assert.match(editor, /전체 시나리오 본문 \(기존 형식 · 선택\)/);
+    assert.match(editor, /전체 시나리오 본문 \(선택\)/);
+    assert.doesNotMatch(editor, /예전처럼|기존 형식/);
     assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
     assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));

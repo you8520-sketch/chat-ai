@@ -998,10 +998,7 @@ export default function TrpgScenarioEditor({
 
         <AppSectionCard title="추가 자료 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <label className="block text-sm text-zinc-300" data-scenario-field="content">
-            전체 시나리오 본문 (기존 형식 · 선택)
-            <span className="mt-1 block text-xs font-normal text-zinc-500">
-              이야기 설계가 있으면 비워도 됩니다. 예전처럼 본문만 있어도 저장됩니다.
-            </span>
+            전체 시나리오 본문 (선택)
             <textarea
               value={content}
               maxLength={contentMax}
