@@ -534,14 +534,38 @@ describe("DeepSeek cross-provider failover owner", () => {
 
   it("classifies failover vs freeze owners", () => {
     assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 502 }).failover, true);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 503 }).failover, true);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 504 }).failover, true);
     assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 400 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 401 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 403 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 404 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 422 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 429 }).failover, false);
+    assert.equal(classifyDeepSeekProviderFailure({ httpStatus: 500 }).failover, false);
     assert.equal(
       classifyDeepSeekProviderFailure({ error: new Error("socket hang up") }).failover,
       true
     );
     assert.equal(
+      classifyDeepSeekProviderFailure({ error: new Error("EAI_AGAIN") }).failover,
+      true
+    );
+    assert.equal(
+      classifyDeepSeekProviderFailure({ error: new Error("ENOTFOUND") }).failover,
+      true
+    );
+    assert.equal(
+      classifyDeepSeekProviderFailure({ error: new Error("network") }).failover,
+      false
+    );
+    assert.equal(
       classifyDeepSeekProviderFailure({ trigger: "headers_timeout" }).failureClass,
       "headers_timeout"
+    );
+    assert.equal(
+      classifyDeepSeekProviderFailure({ trigger: "body_timeout" }).failureClass,
+      "body_timeout"
     );
   });
 

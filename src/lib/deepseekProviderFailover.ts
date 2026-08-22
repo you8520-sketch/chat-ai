@@ -24,6 +24,29 @@ export const BACKGROUND_FLASH_COMPLETION_DEADLINE_MS = 20_000;
 export const MAX_PROVIDER_ATTEMPTS_PER_LOGICAL_DEEPSEEK_TURN = 2;
 export const MAX_PROVIDER_ATTEMPTS_PER_BACKGROUND_TASK = 2;
 
+export const BACKGROUND_PRIMARY_COMPLETION_MS = {
+  short: 20_000,
+  trpgReply: 30_000,
+  longForm: 45_000,
+} as const;
+
+export const BACKGROUND_BACKUP_COMPLETION_MS = {
+  short: 30_000,
+  longForm: 45_000,
+} as const;
+
+export const DEEPSEEK_TRANSIENT_NETWORK_CLASSES = [
+  "UND_ERR_SOCKET",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "socket hang up",
+  "fetch failed",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+] as const;
+
+export const DEEPSEEK_TRANSIENT_HTTP_STATUSES = [502, 503, 504] as const;
+
 export const OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING = {
   effort: "none",
   exclude: true,
@@ -39,6 +62,7 @@ export type DeepSeekFailoverTrigger =
   | "error"
   | "headers_timeout"
   | "first_visible_timeout"
+  | "body_timeout"
   | null;
 export type DeepSeekProviderId = "cheaperinference" | "openrouter";
 
@@ -75,6 +99,7 @@ export type DeepSeekFailoverDeadlines = {
   firstVisibleMs?: number;
   backupFirstVisibleMs?: number;
   completionMs?: number;
+  backupCompletionMs?: number;
 };
 
 export type DeepSeekFailoverHooks = {
@@ -124,9 +149,26 @@ export class DeepSeekDeterministicProviderError extends Error {
 }
 
 const DETERMINISTIC_HTTP_STATUSES = new Set([400, 401, 403, 404, 422]);
-const FAILOVER_HTTP_STATUSES = new Set([502, 503, 504]);
+const FAILOVER_HTTP_STATUSES = new Set<number>(DEEPSEEK_TRANSIENT_HTTP_STATUSES);
 const SOCKET_ERROR_RE =
-  /UND_ERR_SOCKET|ECONNRESET|ETIMEDOUT|socket hang up|fetch failed|network|EAI_AGAIN|ENOTFOUND/i;
+  /UND_ERR_SOCKET|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|fetch failed/i;
+
+class DeepSeekBodyDeliveryError extends Error {
+  readonly trigger: "body_timeout" | "error";
+  readonly httpStatus: number | null;
+
+  constructor(opts: {
+    message: string;
+    trigger: "body_timeout" | "error";
+    httpStatus: number | null;
+  }) {
+    super(opts.message);
+    this.name =
+      opts.trigger === "body_timeout" ? "TimeoutError" : "DeepSeekBodyDeliveryError";
+    this.trigger = opts.trigger;
+    this.httpStatus = opts.httpStatus;
+  }
+}
 
 export function isDeepSeekPrimaryCheaperInferenceModel(modelId: string): boolean {
   return (
@@ -251,21 +293,6 @@ export function classifyDeepSeekProviderFailure(input: {
   failureClass: string;
   httpStatus: number | null;
 } {
-  if (input.trigger === "headers_timeout") {
-    return {
-      failover: true,
-      failureClass: "headers_timeout",
-      httpStatus: input.httpStatus ?? null,
-    };
-  }
-  if (input.trigger === "first_visible_timeout") {
-    return {
-      failover: true,
-      failureClass: "first_visible_timeout",
-      httpStatus: input.httpStatus ?? null,
-    };
-  }
-
   const status =
     typeof input.httpStatus === "number" && Number.isFinite(input.httpStatus)
       ? input.httpStatus
@@ -281,6 +308,34 @@ export function classifyDeepSeekProviderFailure(input: {
     return {
       failover: true,
       failureClass: `http_${status}`,
+      httpStatus: status,
+    };
+  }
+  if (status != null && status !== 200) {
+    return {
+      failover: false,
+      failureClass: `http_${status}`,
+      httpStatus: status,
+    };
+  }
+  if (input.trigger === "headers_timeout") {
+    return {
+      failover: true,
+      failureClass: "headers_timeout",
+      httpStatus: status,
+    };
+  }
+  if (input.trigger === "first_visible_timeout") {
+    return {
+      failover: true,
+      failureClass: "first_visible_timeout",
+      httpStatus: status,
+    };
+  }
+  if (input.trigger === "body_timeout") {
+    return {
+      failover: true,
+      failureClass: "body_timeout",
       httpStatus: status,
     };
   }
@@ -300,17 +355,39 @@ export function classifyDeepSeekProviderFailure(input: {
       httpStatus: status,
     };
   }
-  if (status != null && status >= 500) {
-    return {
-      failover: true,
-      failureClass: `http_${status}`,
-      httpStatus: status,
-    };
-  }
   return {
     failover: false,
     failureClass: status != null ? `http_${status}` : "deterministic",
     httpStatus: status,
+  };
+}
+
+export function resolveBackgroundFlashProviderDeadlines(opts: {
+  requestKind?: string;
+  existingTimeoutMs?: number;
+}): { primaryCompletionMs: number; backupCompletionMs: number } {
+  const kind = opts.requestKind ?? "";
+  const isLongForm =
+    /html-visual-card|background-html|scenario-draft|trpg-scenario|director/i.test(
+      kind
+    );
+  const isTrpgReply = /trpg-reply-suggestion|reply-suggestions/i.test(kind);
+  const primaryPolicy = isLongForm
+    ? BACKGROUND_PRIMARY_COMPLETION_MS.longForm
+    : isTrpgReply
+      ? BACKGROUND_PRIMARY_COMPLETION_MS.trpgReply
+      : BACKGROUND_PRIMARY_COMPLETION_MS.short;
+  const backupPolicy = isLongForm
+    ? BACKGROUND_BACKUP_COMPLETION_MS.longForm
+    : BACKGROUND_BACKUP_COMPLETION_MS.short;
+  const existing = opts.existingTimeoutMs;
+  const cap =
+    existing != null && Number.isFinite(existing) && existing > 0
+      ? existing
+      : undefined;
+  return {
+    primaryCompletionMs: cap != null ? Math.min(cap, primaryPolicy) : primaryPolicy,
+    backupCompletionMs: cap != null ? Math.min(cap, backupPolicy) : backupPolicy,
   };
 }
 
@@ -429,6 +506,8 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   const backupFirstVisibleDeadline =
     opts.deadlines?.backupFirstVisibleMs ?? OPENROUTER_FIRST_VISIBLE_DEADLINE_MS;
   const completionDeadline = opts.deadlines?.completionMs;
+  const backupCompletionDeadline =
+    opts.deadlines?.backupCompletionMs ?? completionDeadline;
 
   const finish = (
     response: Response,
@@ -468,7 +547,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
         fetchFn,
         now,
         backupFirstVisibleDeadline,
-        completionDeadline,
+        completionDeadline: backupCompletionDeadline,
       });
       return finish(backupResponse, "openrouter");
     } catch (error) {
@@ -484,16 +563,45 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       timeoutMs: opts.stream ? headersDeadline : completionDeadline ?? headersDeadline,
       now,
       startedAt: primaryStarted,
+      consumeCompleteBody: !opts.stream,
     });
     telemetry.primary_headers_ms = Math.max(0, now() - primaryStarted);
     telemetry.primary_http_status = primaryResponse.status;
   } catch (error) {
+    telemetry.primary_headers_ms = Math.max(0, now() - primaryStarted);
+    if (error instanceof DeepSeekBodyDeliveryError) {
+      const classified = classifyDeepSeekProviderFailure({
+        httpStatus: error.httpStatus,
+        error,
+        trigger: error.trigger === "body_timeout" ? "body_timeout" : undefined,
+      });
+      const failover =
+        classified.failover ||
+        error.httpStatus == null ||
+        error.httpStatus === 200;
+      telemetry.primary_http_status = error.httpStatus;
+      telemetry.primary_failure_class = failover
+        ? classified.failover
+          ? classified.failureClass
+          : error.trigger === "body_timeout"
+            ? "body_timeout"
+            : "body_transport"
+        : classified.failureClass;
+      telemetry.failover_trigger = failover ? error.trigger : null;
+      if (!failover) {
+        throw new DeepSeekDeterministicProviderError({
+          message: errorMessage(error),
+          httpStatus: classified.httpStatus,
+          failureClass: classified.failureClass,
+        });
+      }
+      return attemptBackup();
+    }
     const classified = classifyCaughtFetchError(
       error,
       now() - primaryStarted,
-      headersDeadline
+      opts.stream ? headersDeadline : completionDeadline ?? headersDeadline
     );
-    telemetry.primary_headers_ms = Math.max(0, now() - primaryStarted);
     telemetry.primary_http_status = classified.httpStatus;
     telemetry.primary_failure_class = classified.failureClass;
     telemetry.failover_trigger = classified.failover ? classified.trigger : null;
@@ -571,6 +679,8 @@ export async function executeDeepSeekBackgroundWithProviderFailover(opts: {
   primary: DeepSeekAssembledRequest;
   backupBody?: Record<string, unknown>;
   timeoutMs: number;
+  requestKind?: string;
+  deadlines?: DeepSeekFailoverDeadlines;
   hooks?: DeepSeekFailoverHooks;
 }): Promise<{
   response: Response;
@@ -581,6 +691,14 @@ export async function executeDeepSeekBackgroundWithProviderFailover(opts: {
     typeof opts.primary.body.model === "string" ? opts.primary.body.model : "";
   const logical = opts.logicalModel ?? resolveDeepSeekLogicalModel(model) ?? "flash";
   const backupModel = resolveDeepSeekBackupModelId(logical);
+  const resolved = resolveBackgroundFlashProviderDeadlines({
+    requestKind: opts.requestKind,
+    existingTimeoutMs: opts.timeoutMs,
+  });
+  const primaryCompletionMs =
+    opts.deadlines?.completionMs ?? resolved.primaryCompletionMs;
+  const backupCompletionMs =
+    opts.deadlines?.backupCompletionMs ?? resolved.backupCompletionMs;
   return executeDeepSeekWithProviderFailover({
     routeKind: opts.routeKind ?? "background_flash",
     logicalModel: logical,
@@ -589,7 +707,11 @@ export async function executeDeepSeekBackgroundWithProviderFailover(opts: {
       opts.backupBody ??
       adaptOpenRouterDeepSeekBackupBody(opts.primary.body, backupModel),
     stream: false,
-    deadlines: { completionMs: opts.timeoutMs, headersMs: opts.timeoutMs },
+    deadlines: {
+      completionMs: primaryCompletionMs,
+      backupCompletionMs,
+      headersMs: primaryCompletionMs,
+    },
     hooks: opts.hooks,
   });
 }
@@ -632,6 +754,7 @@ async function runBackup(input: {
         : input.completionDeadline ?? input.backupFirstVisibleDeadline,
       now: input.now,
       startedAt: started,
+      consumeCompleteBody: !input.opts.stream,
     });
     input.telemetry.backup_headers_ms = Math.max(0, input.now() - started);
   } catch (error) {
@@ -681,22 +804,53 @@ async function fetchCompatible(opts: {
   timeoutMs: number;
   now: () => number;
   startedAt: number;
+  consumeCompleteBody?: boolean;
 }): Promise<Response> {
   const controller = new AbortController();
   const remaining = Math.max(1, opts.timeoutMs - (opts.now() - opts.startedAt));
   const timer = setTimeout(() => controller.abort(), remaining);
+  let headersReceived = false;
+  let httpStatus: number | null = null;
   try {
-    return await opts.fetchFn(opts.request.endpoint, {
+    const response = await opts.fetchFn(opts.request.endpoint, {
       method: "POST",
       headers: opts.request.headers,
       body: JSON.stringify(opts.request.body),
       signal: controller.signal,
     });
+    headersReceived = true;
+    httpStatus = response.status;
+    if (!opts.consumeCompleteBody) {
+      return response;
+    }
+    try {
+      const bytes = await response.arrayBuffer();
+      return new Response(bytes, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (error) {
+      throw new DeepSeekBodyDeliveryError({
+        message: controller.signal.aborted
+          ? "body completion deadline exceeded"
+          : errorMessage(error) || "body delivery failed",
+        trigger: controller.signal.aborted ? "body_timeout" : "error",
+        httpStatus,
+      });
+    }
   } catch (error) {
-    if (controller.signal.aborted) {
-      const abortError = new Error("headers deadline exceeded");
+    if (error instanceof DeepSeekBodyDeliveryError) throw error;
+    if (!headersReceived && controller.signal.aborted) {
+      const abortError = new Error(
+        opts.consumeCompleteBody
+          ? "completion deadline exceeded"
+          : "headers deadline exceeded"
+      );
       abortError.name = "TimeoutError";
-      (abortError as Error & { trigger?: string }).trigger = "headers_timeout";
+      (abortError as Error & { trigger?: string }).trigger = opts.consumeCompleteBody
+        ? "body_timeout"
+        : "headers_timeout";
       throw abortError;
     }
     throw error;
@@ -915,15 +1069,22 @@ function classifyCaughtFetchError(
   trigger: Exclude<DeepSeekFailoverTrigger, null>;
 } {
   const namedTrigger = (error as { trigger?: unknown })?.trigger;
+  const message = errorMessage(error);
   const trigger: Exclude<DeepSeekFailoverTrigger, null> =
-    namedTrigger === "headers_timeout" ||
-    elapsedMs >= headersDeadlineMs ||
-    /headers deadline exceeded/i.test(errorMessage(error))
-      ? "headers_timeout"
-      : "error";
+    namedTrigger === "body_timeout" ||
+    /body completion deadline exceeded|completion deadline exceeded/i.test(message)
+      ? "body_timeout"
+      : namedTrigger === "headers_timeout" ||
+          /headers deadline exceeded/i.test(message) ||
+          elapsedMs >= headersDeadlineMs
+        ? "headers_timeout"
+        : "error";
   const classified = classifyDeepSeekProviderFailure({
     error,
-    trigger: trigger === "headers_timeout" ? "headers_timeout" : undefined,
+    trigger:
+      trigger === "headers_timeout" || trigger === "body_timeout"
+        ? trigger
+        : undefined,
   });
   return { ...classified, trigger };
 }
@@ -945,6 +1106,8 @@ function classifySocketFailure(message: string): string {
   if (/UND_ERR_SOCKET/i.test(message)) return "UND_ERR_SOCKET";
   if (/ECONNRESET/i.test(message)) return "ECONNRESET";
   if (/ETIMEDOUT/i.test(message)) return "ETIMEDOUT";
+  if (/EAI_AGAIN/i.test(message)) return "EAI_AGAIN";
+  if (/ENOTFOUND/i.test(message)) return "ENOTFOUND";
   if (/socket hang up/i.test(message)) return "socket_hang_up";
   if (/fetch failed/i.test(message)) return "fetch_failed";
   return "socket";

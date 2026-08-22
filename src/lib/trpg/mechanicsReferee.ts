@@ -112,6 +112,7 @@ export async function callTrpgMechanicsReferee(opts: {
       body,
     },
     timeoutMs: TRPG_MECHANICS_REFEREE_TIMEOUT_MS,
+    requestKind: "trpg-mechanics-referee",
   });
   const res = failover.response;
   if (!res.ok) {

@@ -23,7 +23,7 @@ import {
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
   adaptOpenRouterDeepSeekBackupBody,
-  executeDeepSeekWithProviderFailover,
+  executeDeepSeekBackgroundWithProviderFailover,
   isDeepSeekPrimaryCheaperInferenceModel,
   resolveDeepSeekBackupModelId,
   resolveDeepSeekFailoverRouteKind,
@@ -160,7 +160,7 @@ export async function callOpenRouterCompletion(opts: {
     routeKind
   ) {
     try {
-      const failover = await executeDeepSeekWithProviderFailover({
+      const failover = await executeDeepSeekBackgroundWithProviderFailover({
         routeKind,
         logicalModel: logical,
         primary: { endpoint, headers, body: requestBody },
@@ -168,8 +168,8 @@ export async function callOpenRouterCompletion(opts: {
           baseRequestBody,
           resolveDeepSeekBackupModelId(logical)
         ),
-        stream: false,
-        deadlines: { completionMs: timeoutMs, headersMs: timeoutMs },
+        timeoutMs,
+        requestKind: opts.requestKind,
       });
       res = failover.response;
       usedProvider = failover.usedProvider;

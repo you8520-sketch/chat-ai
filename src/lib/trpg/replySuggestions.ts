@@ -426,6 +426,7 @@ export async function callTrpgReplySuggestionModel(opts: {
       body,
     },
     timeoutMs: TRPG_REPLY_SUGGESTION_TIMEOUT_MS,
+    requestKind: "trpg-reply-suggestions",
   });
   const res = failover.response;
   if (!res.ok) {

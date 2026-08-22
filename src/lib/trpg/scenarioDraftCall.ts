@@ -158,6 +158,7 @@ export async function callTrpgAuthoringModel(opts: {
       body,
     },
     timeoutMs: opts.timeoutMs ?? 90_000,
+    requestKind: "trpg-scenario-draft",
   });
   const res = failover.response;
   if (!res.ok) {
