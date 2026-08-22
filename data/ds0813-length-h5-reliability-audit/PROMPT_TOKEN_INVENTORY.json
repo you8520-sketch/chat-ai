@@ -1,0 +1,469 @@
+{
+  "estimate_method": "estimateTokens = ceil(chars * 0.9) — local, not provider",
+  "fixtures": {
+    "R_A": {
+      "SYSTEM_TOKENS": 11919,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13484,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 7541,
+          "TOKENS": 6787,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 1754,
+          "TOKENS": 1579,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    },
+    "R_B": {
+      "SYSTEM_TOKENS": 12110,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13675,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 7541,
+          "TOKENS": 6787,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 1754,
+          "TOKENS": 1579,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-deepseek-length-adapter",
+          "LABEL": "DeepSeek length adapter (experiment)",
+          "SEMANTIC": "length_owner",
+          "CHARS": 210,
+          "TOKENS": 189,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    },
+    "R_C": {
+      "SYSTEM_TOKENS": 12051,
+      "HISTORY_TOKENS": 522,
+      "CURRENT_USER_TOKENS": 1042,
+      "TOTAL_ESTIMATED_INPUT": 13616,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 7541,
+          "TOKENS": 6787,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 1754,
+          "TOKENS": 1579,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-deepseek-length-adapter",
+          "LABEL": "DeepSeek length adapter (experiment)",
+          "SEMANTIC": "length_owner",
+          "CHARS": 144,
+          "TOKENS": 130,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    },
+    "A_A": {
+      "SYSTEM_TOKENS": 22805,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25025,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 19336,
+          "TOKENS": 17403,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 2054,
+          "TOKENS": 1849,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    },
+    "A_B": {
+      "SYSTEM_TOKENS": 22995,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25216,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 19336,
+          "TOKENS": 17403,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 2054,
+          "TOKENS": 1849,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-deepseek-length-adapter",
+          "LABEL": "DeepSeek length adapter (experiment)",
+          "SEMANTIC": "length_owner",
+          "CHARS": 210,
+          "TOKENS": 189,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    },
+    "A_C": {
+      "SYSTEM_TOKENS": 22936,
+      "HISTORY_TOKENS": 1187,
+      "CURRENT_USER_TOKENS": 1033,
+      "TOTAL_ESTIMATED_INPUT": 25156,
+      "sections": [
+        {
+          "SECTION_ID": "openrouter-korean-prose-top",
+          "LABEL": "[TOP] OpenRouter Korean prose",
+          "SEMANTIC": "core_rules",
+          "CHARS": 819,
+          "TOKENS": 738,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "runtime-prompt-contamination-guard",
+          "LABEL": "[TOP] Runtime prompt contamination guard",
+          "SEMANTIC": "other_operational",
+          "CHARS": 951,
+          "TOKENS": 856,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "no-godmodding",
+          "LABEL": "[0a] No godmodding (user agency)",
+          "SEMANTIC": "agency_no_godmodding",
+          "CHARS": 454,
+          "TOKENS": 409,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "character-core-identity",
+          "LABEL": "[2] Structured character canon (every turn)",
+          "SEMANTIC": "character_identity_canon",
+          "CHARS": 19336,
+          "TOKENS": 17403,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "identity-and-rules",
+          "LABEL": "[0] Identity & Rules (absolute)",
+          "SEMANTIC": "persona",
+          "CHARS": 307,
+          "TOKENS": 277,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "prose-style-xml-bundle",
+          "LABEL": "[1.4] Prose style policy (XML)",
+          "SEMANTIC": "prose_style",
+          "CHARS": 2054,
+          "TOKENS": 1849,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-output-layout-recency",
+          "LABEL": "Output layout recency (Korean webnovel paragraph breaks)",
+          "SEMANTIC": "other_operational",
+          "CHARS": 744,
+          "TOKENS": 670,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "user-persona-reference-owner",
+          "LABEL": "User persona reference owner (current-turn gender and naming)",
+          "SEMANTIC": "persona",
+          "CHARS": 632,
+          "TOKENS": 569,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        },
+        {
+          "SECTION_ID": "rule-deepseek-length-adapter",
+          "LABEL": "DeepSeek length adapter (experiment)",
+          "SEMANTIC": "length_owner",
+          "CHARS": 144,
+          "TOKENS": 130,
+          "DUPLICATE_OWNER_OF_SAME_CONCERN": false
+        }
+      ]
+    }
+  }
+}

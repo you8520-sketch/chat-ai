@@ -1,0 +1,321 @@
+{
+  "OPUS_WORKSTREAM_REOPENED": false,
+  "TOTAL_NEW_DEEPSEEK_CALLS": 3,
+  "OTHER_MODEL_CALLS": 0,
+  "TRUE_NONTHINKING_CONFIG": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none"
+  },
+  "BASELINE_VISIBLE_CHARS": [
+    1339,
+    2258,
+    2159
+  ],
+  "RESCUE_VISIBLE_CHARS": [
+    3893,
+    4939,
+    3821
+  ],
+  "BASELINE_VISIBLE_STATS": {
+    "run": [
+      1339,
+      2258,
+      2159
+    ],
+    "min": 1339,
+    "median": 2159,
+    "mean": 1918.6666666666667,
+    "max": 2258
+  },
+  "RESCUE_VISIBLE_STATS": {
+    "run": [
+      3893,
+      4939,
+      3821
+    ],
+    "min": 3821,
+    "median": 3893,
+    "mean": 4217.666666666667,
+    "max": 4939
+  },
+  "BASELINE_TTFT": [
+    3042,
+    1709,
+    2005
+  ],
+  "RESCUE_TTFT": [
+    48589,
+    61297,
+    13197
+  ],
+  "BASELINE_TTFT_STATS": {
+    "run": [
+      3042,
+      1709,
+      2005
+    ],
+    "min": 1709,
+    "median": 2005,
+    "mean": 2252,
+    "max": 3042
+  },
+  "RESCUE_TTFT_STATS": {
+    "run": [
+      48589,
+      61297,
+      13197
+    ],
+    "min": 13197,
+    "median": 48589,
+    "mean": 41027.666666666664,
+    "max": 61297
+  },
+  "BASELINE_LATENCY": [
+    28331,
+    43677,
+    43102
+  ],
+  "RESCUE_LATENCY": [
+    118732,
+    152809,
+    82798
+  ],
+  "BASELINE_LATENCY_STATS": {
+    "run": [
+      28331,
+      43677,
+      43102
+    ],
+    "min": 28331,
+    "median": 43102,
+    "mean": 38370,
+    "max": 43677
+  },
+  "RESCUE_LATENCY_STATS": {
+    "run": [
+      118732,
+      152809,
+      82798
+    ],
+    "min": 82798,
+    "median": 118732,
+    "mean": 118113,
+    "max": 152809
+  },
+  "BASELINE_COMPLETION_TOKENS": [
+    1051,
+    1755,
+    1691
+  ],
+  "RESCUE_COMPLETION_TOKENS": [
+    5364,
+    6573,
+    3533
+  ],
+  "RESCUE_REASONING_STREAM": [
+    true,
+    true,
+    true
+  ],
+  "RESCUE_REASONING_CHARS": [
+    8008,
+    9588,
+    819
+  ],
+  "RESCUE_FINISH_REASON": [
+    "stop",
+    "stop",
+    "stop"
+  ],
+  "RESCUE_TERMINAL_USAGE": [
+    true,
+    true,
+    true
+  ],
+  "RESCUE_INCOMPLETE_STREAM": [
+    false,
+    false,
+    false
+  ],
+  "RESCUE_COST": [
+    0.007612,
+    0.004445,
+    0.002594
+  ],
+  "rows": [
+    {
+      "cell": "DS0813_GEMINI31_LENGTH_RESCUE_1",
+      "source": "gemini31",
+      "condition": "TRUE_NONTHINKING_LENGTH_RESCUE",
+      "sample": 1,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 48589,
+      "TOTAL_LATENCY_MS": 118732,
+      "VISIBLE_CHARS": 3893,
+      "VISIBLE_KOREAN_CHARS": 2700,
+      "INPUT_TOKENS": 14107,
+      "COMPLETION_TOKENS": 5364,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_FIELD": "delta.reasoning",
+      "REASONING_TEXT_CHARS": 8008,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 8008,
+          "firstMs": 2544,
+          "lastMs": 48514,
+          "chunks": 2187
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.007612,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "22230915c8b4dd4b1d5e403780d02f716ccca237abb8992f2f7d5f09fdbbb36f",
+      "error": null
+    },
+    {
+      "cell": "DS0813_GEMINI31_LENGTH_RESCUE_2",
+      "source": "gemini31",
+      "condition": "TRUE_NONTHINKING_LENGTH_RESCUE",
+      "sample": 2,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 61297,
+      "TOTAL_LATENCY_MS": 152809,
+      "VISIBLE_CHARS": 4939,
+      "VISIBLE_KOREAN_CHARS": 3398,
+      "INPUT_TOKENS": 14107,
+      "COMPLETION_TOKENS": 6573,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_FIELD": "delta.reasoning",
+      "REASONING_TEXT_CHARS": 9588,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 9588,
+          "firstMs": 1822,
+          "lastMs": 61296,
+          "chunks": 2577
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.004445,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "4e3269545b8b9993d2ffcd5d4b3c4c63d231609cea91f7a987e5e7e121459dfe",
+      "error": null
+    },
+    {
+      "cell": "DS0813_GEMINI31_LENGTH_RESCUE_3",
+      "source": "gemini31",
+      "condition": "TRUE_NONTHINKING_LENGTH_RESCUE",
+      "sample": 3,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 13197,
+      "TOTAL_LATENCY_MS": 82798,
+      "VISIBLE_CHARS": 3821,
+      "VISIBLE_KOREAN_CHARS": 2683,
+      "INPUT_TOKENS": 14107,
+      "COMPLETION_TOKENS": 3533,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_FIELD": "delta.reasoning",
+      "REASONING_TEXT_CHARS": 819,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 819,
+          "firstMs": 1830,
+          "lastMs": 13112,
+          "chunks": 532
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.002594,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "df1e0b7b6f9008a6ae93e0b110649780cad887371b855e5014f92038daafde56",
+      "error": null
+    }
+  ],
+  "liveHeadSha": "da326a591a4eccaad41f89305eff14218569c7e8"
+}

@@ -1,0 +1,22 @@
+{
+  "NOTE": "Large canon is not called bloat. Only same-concern owners.",
+  "DUPLICATE_LENGTH_OWNERS": {
+    "ARM_A": false,
+    "ARM_B": true,
+    "ARM_C": true,
+    "DETAIL": "ARM A: sole owner is USER_TAIL_LENGTH_OWNER_SENTENCE at the absolute end of the current user turn (count=1, not in system). ARM B/C add existing DeepSeek length adapter section on system; USER_TAIL is unchanged. That extra owner is the intended experiment variable, not a second copy of USER_TAIL.",
+    "USER_TAIL_IN_USER_TURN": true,
+    "USER_TAIL_IN_SYSTEM_A": false,
+    "ADAPTER_IN_SYSTEM_A": false,
+    "ADAPTER_IN_SYSTEM_B": true,
+    "HISTORICAL_BLOCK_IN_PROMPT": false
+  },
+  "DUPLICATE_AGENCY_OWNERS": {
+    "value": true,
+    "DETAIL": "System section no-godmodding plus the current-user collaborative-control paragraph both state [B] agency. character-core-identity is canon, not a second agency owner."
+  },
+  "DUPLICATE_STYLE_OWNERS": {
+    "value": true,
+    "DETAIL": "System prose-style-xml-bundle plus DeepSeek style-only user-turn reminder (DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY / prependDeepSeekStyleOnlyReminder). Layout recency is operational, not a third style owner."
+  }
+}
