@@ -77,10 +77,10 @@ export default function PwaInstallPrompt() {
     }
 
     let disposed = false;
-    let androidFallback: number | null = null;
 
-    const handleBeforeInstallPrompt = (event: Event) => {
+    const handleBeforeInstallPrompt = async (event: Event) => {
       event.preventDefault();
+      if (wasDismissed() || (await hasRelatedInstalledPwa()) || disposed) return;
       setInstallEvent(event as BeforeInstallPromptEvent);
       setShowIosGuide(false);
       setShowAndroidGuide(false);
@@ -96,31 +96,22 @@ export default function PwaInstallPrompt() {
     };
 
     const initializeBrowserPrompt = async () => {
-      if (wasDismissed() || (await hasRelatedInstalledPwa()) || disposed) return;
+      if (wasDismissed() || (await hasRelatedInstalledPwa()) || disposed || !isIos) return;
 
-      if (isIos) {
-        setShowIosGuide(true);
-        setVisible(true);
-      } else {
-        // Some Android browsers withhold beforeinstallprompt. Show one manual
-        // guide per browser profile, never a daily recurring prompt.
-        androidFallback = window.setTimeout(() => {
-          setShowAndroidGuide(true);
-          setVisible(true);
-        }, 1_200);
-      }
-
-      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.addEventListener("appinstalled", handleInstalled);
+      setShowIosGuide(true);
+      setVisible(true);
     };
 
+    // Android install UI is shown only when the browser confirms that the PWA
+    // is installable. This avoids pointing users to menu items that do not exist.
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
     void initializeBrowserPrompt();
 
     return () => {
       disposed = true;
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
-      if (androidFallback !== null) window.clearTimeout(androidFallback);
     };
   }, []);
 
