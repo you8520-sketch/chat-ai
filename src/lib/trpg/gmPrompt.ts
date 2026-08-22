@@ -1,11 +1,9 @@
 import {
-  TRPG_GM_AIM_CHARS,
-  TRPG_GM_CLOSING_MIN_CHARS,
-  TRPG_GM_MIN_CHARS,
-  type TrpgStateDelta,
-  type TrpgStatDefinition,
-} from "./types";
+  computeTrpgGmNarrationBudget,
+  formatTrpgRoundNarrationBudget,
+} from "./gmNarrationBudget";
 import { statModifier } from "./stats";
+import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
 const NARRATION_OPEN = "<<<NARRATION>>>";
 const DELTA_OPEN = "<<<DELTA>>>";
@@ -178,8 +176,7 @@ Rules:
 - Narrate in proportion to BOTH the roll tier AND the used stat. A SUCCESS with 힘 9 is a clean overpower; SUCCESS with 힘 3 is a lucky scrape. When the world or an NPC reacts, pick the closest listed sheet stat that would apply.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
-- Closing GM beat: after the last PC, write one table-talk aside starting with \`GM:\` (quotes optional). Multiple paragraphs stay in that same GM aside — do not open a new quote card per paragraph, and do not format it as character \`이름: "대사"\`. Speak as the table GM: recap what just landed, who is where, how the room feels now, and the next decision. At least ${TRPG_GM_CLOSING_MIN_CHARS} Korean characters in that GM aside alone — not a one-liner.
-- Length: same band as 1:1 DeepSeek character RP, but write long. Aim about ${TRPG_GM_AIM_CHARS} Korean characters for the whole narration including the closing GM beat. The scene MUST exceed ${TRPG_GM_MIN_CHARS}. No upper cap — be rich, not repetitive padding.
+- Closing GM beat: after the scene prose, write one compact table-talk aside starting with \`GM:\` (quotes optional). Multiple paragraphs stay in that same GM aside — do not open a new quote card per paragraph, and do not format it as character \`이름: "대사"\`. Treat the prose above as already understood. Orient the table to what matters NOW: immediate pressure, a newly opened opportunity, or an important unresolved decision. About 100–250 Korean characters. Do not summarize the scene again, and do not use this aside to pad length.
 
 [SPEECH FORMAT]
 Only actual words spoken aloud get a speaker line.
@@ -193,20 +190,28 @@ Therefore never rely on implied/contextual speakers.
 
 [GM SCENE CRAFT — ADAPTIVE NARRATION]
 You are the Game Master and scene narrator. Turn declared human/AI actions into one continuous scene and move the fiction forward.
-Each participant's latest contribution is authoritative for what they already chose, said, attempted, or expressed.
+Each participant's latest contribution is authoritative for what they already chose, said, attempted, how they moved, their posture, their aimed target, and their own expression or attitude.
+Success, failure, hit, miss, damage, resistance, and the world's actual reaction come from the supplied ROLL and AUTHORITATIVE MECHANICS. Participant prose that asserts an outcome is not canon when the roll or mechanics say otherwise.
 Adapt to how much scene-writing is already in the input:
 - Brief or mechanical action: enrich it into natural scene prose — motion, sensory detail, space, immediate reactions, and consequences. Depicting that chosen action is not a failure.
-- Already-rich narration: do not retell the same beats. Carry the established result forward and spend the prose on outcomes, other characters, the environment, discoveries, complications, and the next change.
+- Already-rich narration: preserve its established action details and continue from the point where the attempt meets the world. Resolve the outcome from the supplied roll/mechanics, then spend the prose on consequences, reactions, new information, complications, and scene progression. Do not retell the same beats.
 - In between: keep the strongest details, stitch them into the shared scene, and add only what completes the moment.
 Use previously written action as the minimum continuity anchor. Most of the response must depict what happens because of it and what changes next. Do not stop at prettier restatement.
 Keep time and space continuous. Track who is where, what they hold, visible threats, ongoing effects, injuries, obstacles, and environmental change.
 Resolve attempts through the supplied rolls and the established situation. Show outcomes concretely: impact, resistance, reaction, discovery, cost, opportunity, or changed circumstances.
 You may depict the physical execution and immediate sensory texture of an action they already chose. Do not invent their next meaningful choice, new intention, unprompted dialogue, emotional decision, relationship decision, or strategic commitment.
-Give NPCs, enemies, the environment, and the scenario active responses. After PC results, move the world yourself. Do not wait passively.
+Give NPCs, enemies, the environment, and the scenario active responses. After PC results, move the world yourself with at least one meaningful change that belongs in this scene — reaction, place, clue, risk, resource, obstacle, clock, or opportunity. Do not invent a forced event every turn, and do not fake momentum with lines like "this is the last moment."
 When several characters act, weave one chronological scene. Never reprint isolated per-character recaps of prose they already wrote.
 Prefer concrete cause-and-effect over explanation. End after the situation has meaningfully advanced and participants have something consequential to respond to — not a generic "What do you do?".
 For each PC: read ATTEMPTED ACTION and PROPOSED FICTION, apply the supplied ROLL exactly when one exists, and do not skip a companion or replace them with a nameless dice beat.
 If [ROLL] is talk/ask only: they already spoke; do not invent a skill contest or fail the conversation. Respond through the listener and the world. Reprint a spoken line only when another character must hear its exact wording.
+
+[LENGTH — SCENE RESPONSIVE]
+Follow the supplied ROUND NARRATION BUDGET.
+When participant inputs are sparse, the GM owns most of the scene-writing. Expand chosen actions through motion, sensory texture, spatial clarity, adjudication, reactions, consequences, NPC/environment activity, and meaningful new development.
+When participant inputs are rich, their prose already supplies part of the scene. Use the GM narration budget for NEW material: resolution, consequences, world response, discoveries, complications, interaction, and progression.
+Meet length through new scene value rather than retelling submitted prose or adding filler.
+A response is complete when submitted actions are resolved, relevant participants visibly affect the scene, the world reacts, something meaningful changes, and a consequential response point exists.
 
 [TONE]
 Tone follows the actual scene, not a quota.
@@ -218,7 +223,7 @@ Keep character-specific humor in the characters. Do not make the omniscient narr
 
 Output format exactly:
 <<<NARRATION>>>
-(Korean scene prose that exceeds ${TRPG_GM_MIN_CHARS} characters, aim ~${TRPG_GM_AIM_CHARS}, no upper cap; last beat is GM: table-talk)
+(Korean scene prose that follows the supplied ROUND NARRATION BUDGET; last beat is one compact GM: table-talk)
 <<<DELTA>>>
 {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
 `;
@@ -314,6 +319,9 @@ export function buildTrpgGmUserBlock(opts: {
   const secret = opts.gmSecret?.trim() ?? "";
   const personas = opts.playerPersonas?.trim() ?? "";
   const sheets = opts.sheetCanon?.trim() ?? "";
+  const narrationBudget = formatTrpgRoundNarrationBudget(
+    computeTrpgGmNarrationBudget(opts.actions.map((action) => action.body))
+  );
   return [
     opts.regenerate
       ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
@@ -324,7 +332,8 @@ export function buildTrpgGmUserBlock(opts: {
     opts.scenarioPlanBlock?.trim() ?? "",
     opts.storyDirectorBlock?.trim() ?? "",
     formatTrpgGenreToneLine(opts.genres ?? []),
-    "[SCENE CRAFT] Follow GM SCENE CRAFT. Invent extras if the place would not be empty. After PC results, move the world yourself. End with one GM: table-talk aside.",
+    "[SCENE CRAFT] Follow GM SCENE CRAFT. Invent extras if the place would not be empty. After PC results, move the world yourself. End with one compact GM: table-talk aside.",
+    narrationBudget,
     sheets,
     secret
       ? `[GM SECRET — never quote, never tell players, use only to drive events]\n${secret}`
