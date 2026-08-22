@@ -23,8 +23,10 @@ import {
   wrapCurrentUserInput,
 } from "@/lib/currentUserInputLabel";
 import {
+  classifyCurrentUserMajorRewind,
   classifyNewUserActionBeat,
   classifySameBeatMicroContinuation,
+  classifyTrueNewUserActionBeat,
 } from "@/lib/handoffUserActionTaxonomy";
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import { buildContext } from "@/services/contextBuilder";
@@ -103,12 +105,14 @@ describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
     assert.equal(judged.value, true);
   });
 
-  it("6. initiating relocation → NEW_USER_ACTION_BEAT", () => {
+  it("6. [A] relocating [B] is NOT TRUE_NEW_USER_ACTION_BEAT", () => {
     assert.match(HANDOFF_WRAPPER, /새로운 행동의 목적·종류·대상/);
-    const judged = classifyNewUserActionBeat(
+    const judged = classifyTrueNewUserActionBeat(
       "태형은 렌을 회의실 탁자 쪽으로 밀어 올렸다."
     );
-    assert.equal(judged.value, true);
+    assert.equal(judged.value, false);
+    assert.equal(judged.actor, null);
+    assert.equal(classifyNewUserActionBeat("태형은 렌을 회의실 탁자 쪽으로 밀어 올렸다.").value, false);
   });
 
   it("7. answering a real question for [B] → NEW_USER_ACTION_BEAT", () => {
@@ -132,5 +136,32 @@ describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
     assert.equal(HANDOFF_WRAPPER.includes(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY), true);
     assert.doesNotMatch(OWNER, /같은 의도와 방향 안에서/);
     assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /예:|회의실|라이크/);
+  });
+
+  it("10. H1CFB-R2 correction: 태형은 렌의 몸을 벽 쪽으로 → actor [A]", () => {
+    const judged = classifyTrueNewUserActionBeat(
+      "태형은 렌의 몸을 벽 쪽으로 밀어 붙이며 자세를 바꿨다."
+    );
+    assert.equal(judged.value, false);
+    assert.equal(classifyCurrentUserMajorRewind("태형은 렌의 몸을 벽 쪽으로 밀어 붙이며 자세를 바꿨다.").value, false);
+  });
+
+  it("11. H1CFB-R3 correction: 그는 렌의 몸을 벽 쪽으로 → actor [A]", () => {
+    const judged = classifyTrueNewUserActionBeat(
+      "태형이 낮게 웃으며 물었다. 그는 렌의 몸을 벽 쪽으로 돌려 세웠다."
+    );
+    assert.equal(judged.value, false);
+  });
+
+  it("12. H1CFB-R3 door chain: [B] re-opens closed door → TRUE + REWIND", () => {
+    const text =
+      "렌은 이미 근처 비상용 보조실의 문고리를 틀어쥐고 있었다. 렌의 손이 그의 가슴팍을 밀쳐 안으로 들여보냈다. 곧이어 문이 닫히는 무거운 마찰음이 좁은 공간에 퍼졌다.";
+    const judged = classifyTrueNewUserActionBeat(text);
+    assert.equal(judged.value, true);
+    assert.equal(judged.actor, "렌 [B]");
+    assert.equal(judged.target, "문고리");
+    assert.equal(judged.action, "문고리를 잡음");
+    assert.match(judged.passage ?? "", /문고리/);
+    assert.equal(classifyCurrentUserMajorRewind(text).value, true);
   });
 });
