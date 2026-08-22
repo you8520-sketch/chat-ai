@@ -1,6 +1,6 @@
 {
   "RELIABILITY_PATCH_PR": 577,
-  "HEAD": "pending",
+  "HEAD": "bf76b101430aeca499d651e5770686b4a4350851",
   "HTTP_500_FAILOVER_ENABLED": true,
   "TRANSIENT_HTTP_STATUSES": [500, 502, 503, 504],
   "FAILOVER_TESTS": "58/58 pass (deepseekProviderFailover.test.ts + background + body)",
