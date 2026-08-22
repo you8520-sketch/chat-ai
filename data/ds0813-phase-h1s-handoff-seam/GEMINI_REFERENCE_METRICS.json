@@ -1,0 +1,92 @@
+{
+  "T1": {
+    "VISIBLE_CHARS": 2775,
+    "PARAGRAPHS": 24,
+    "DIALOGUE_PARAGRAPHS": 9,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.375,
+    "AVERAGE_PARAGRAPH_CHARS": 114,
+    "AVERAGE_SENTENCE_CHARS": 38,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "태형은",
+        8
+      ],
+      [
+        "있었다",
+        6
+      ],
+      [
+        "렌의",
+        5
+      ],
+      [
+        "사람",
+        4
+      ],
+      [
+        "그의",
+        4
+      ],
+      [
+        "아니면",
+        4
+      ],
+      [
+        "낯선",
+        3
+      ],
+      [
+        "귓가를",
+        3
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": [],
+    "visibleChars": 2775
+  },
+  "T2": {
+    "VISIBLE_CHARS": 2798,
+    "PARAGRAPHS": 28,
+    "DIALOGUE_PARAGRAPHS": 9,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.321,
+    "AVERAGE_PARAGRAPH_CHARS": 98,
+    "AVERAGE_SENTENCE_CHARS": 42,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        9
+      ],
+      [
+        "태형은",
+        9
+      ],
+      [
+        "있었다",
+        7
+      ],
+      [
+        "태형의",
+        7
+      ],
+      [
+        "않는",
+        4
+      ],
+      [
+        "아니면",
+        4
+      ],
+      [
+        "어디로",
+        3
+      ],
+      [
+        "않았다",
+        3
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": [],
+    "visibleChars": 2798
+  }
+}

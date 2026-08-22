@@ -1,0 +1,127 @@
+{
+  "SYSTEM_SHA": "7d2e2e1befd0172cda8570bd320c95a5c78c45e6b72622bae5bac392e995348a",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+  "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+  "FINAL_MESSAGES_SHA": "e6993bf8a122ba892542da0e98866f56f8fd7d4524178cd0a84f99c70d6e0239",
+  "GEMINI_FINAL_MESSAGES_SHA": "f68150fb2e9e738d40048c68a27d9c81e298ad2d88e75fde7f7de648286bdc32",
+  "OUTBOUND_CONFIG": {
+    "model": "deepseek-v4-pro-0813",
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": "OMITTED",
+    "stream": true,
+    "KEYS": [
+      "messages",
+      "model",
+      "reasoning_effort",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+      "top_p"
+    ]
+  },
+  "PRECEDING_GEMINI_ASSISTANT_CHARS": [
+    2775,
+    2798
+  ],
+  "HANDOFF_RAW_TURNS": 2,
+  "MESSAGES_IDENTICAL_ACROSS_R1_R2_R3": true,
+  "PRIMARY_GEMINI_REQUEST_ASSEMBLED": true,
+  "DEEPSEEK_HANDOFF_REQUEST_ASSEMBLED": true,
+  "COMMON_PAYLOAD_IDENTICAL_SECTIONS": [
+    "CHARACTER CANON",
+    "WORLD CANON",
+    "USER PERSONA",
+    "MEMORY",
+    "STYLE RULES",
+    "LENGTH OWNER"
+  ],
+  "HANDOFF_ONLY_DIFFERENT_SECTIONS": [
+    {
+      "section": "SYSTEM COMMON RULES",
+      "why": "model-family system-rule packaging differs; handoff owner is appended outside tracked common rules"
+    },
+    {
+      "section": "RAW HISTORY",
+      "why": "existing handoff raw-window: Gemini includes greeting; DeepSeek handoff uses two playable turns only"
+    },
+    {
+      "section": "CURRENT USER",
+      "why": "same current-user turn + common wrapper; DeepSeek prepends existing System Reminder"
+    }
+  ],
+  "PRIMARY_GEMINI_INPUT_EST": 30325,
+  "HANDOFF_DEEPSEEK_INPUT_EST": 30317,
+  "HANDOFF_ONLY_ADDED_CHARS": 946,
+  "HANDOFF_ONLY_ADDED_EST_TOKENS": 852,
+  "HANDOFF_ONLY_SECTIONS": [
+    "SceneContinuityPacket",
+    "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION"
+  ],
+  "SECTION_ROWS": {
+    "SYSTEM COMMON RULES": {
+      "status": "DIFFERENT",
+      "why": "model-family system-rule packaging differs; handoff owner is appended outside tracked common rules",
+      "geminiChars": 1343,
+      "deepseekChars": 1407
+    },
+    "CHARACTER CANON": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 19336,
+      "deepseekChars": 19336
+    },
+    "WORLD CANON": {
+      "status": "IDENTICAL",
+      "why": "empty on both sides",
+      "geminiChars": 0,
+      "deepseekChars": 0
+    },
+    "USER PERSONA": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 939,
+      "deepseekChars": 939
+    },
+    "MEMORY": {
+      "status": "IDENTICAL",
+      "why": "empty on both sides",
+      "geminiChars": 0,
+      "deepseekChars": 0
+    },
+    "RAW HISTORY": {
+      "status": "DIFFERENT",
+      "why": "existing handoff raw-window: Gemini includes greeting; DeepSeek handoff uses two playable turns only",
+      "geminiChars": 7879,
+      "deepseekChars": 6829
+    },
+    "CURRENT USER": {
+      "status": "DIFFERENT",
+      "why": "same current-user turn + common wrapper; DeepSeek prepends existing System Reminder",
+      "geminiChars": 868,
+      "deepseekChars": 1147
+    },
+    "STYLE RULES": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 4227,
+      "deepseekChars": 4227
+    },
+    "LENGTH OWNER": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 146,
+      "deepseekChars": 146
+    }
+  },
+  "SYSTEM_TOKENS": 24201,
+  "HISTORY_TOKENS": 5054,
+  "CURRENT_USER_TOKENS": 1033,
+  "FINAL_MESSAGES_TOKENS": 30317
+}
