@@ -15,16 +15,20 @@ import { buildContext } from "@/services/contextBuilder";
 const user = "테스트_유저_캐릭터";
 const ai = "테스트_AI_캐릭터";
 
-/** Frozen on main b06037dd before P2 wiring. */
+/**
+ * Frozen on main b06037dd before P2 wiring.
+ * H4.3 rehashes WRAP_MANUAL / MANUAL_USER only — collaborative wrapper gained
+ * COLLABORATIVE_HISTORY_PRECEDENT_BOUNDARY. STANDARD_OWNER / MANUAL_SYSTEM unchanged.
+ */
 const FROZEN = {
   STANDARD_OWNER: "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1",
   AUTO_OWNER: "43155d2d707de17fdd1e25f1857b07df0c5448da7fe5e9d84cf24675c3b2bada",
   CO_OWNER: "3a494f44bdc04854a288706c15d5d675b7d6da4bf718100677b23d388b5b622d",
-  WRAP_MANUAL: "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f",
+  WRAP_MANUAL: "114de72a41471566bc09eeac9c934ac3a18aa9c57594eb2bdba7d74c1c6cfe26",
   WRAP_AUTO: "308aca03db4645f6df2e8a97de9fbd15063954e131029b5b0b316275a9e66d7f",
   WRAP_OOC: "b27d927afab1ec2e24a6192a66cdd33acd1e64d82e153cd19e5f9ea8dd59174f",
   MANUAL_SYSTEM: "b0880180fec4bd1f338671b29e257908aca6000818043873c94b89a17157dbb2",
-  MANUAL_USER: "9b43e278c3cd79d3c27306429276b194d76fd76e92fed9b8aca7501384ac1565",
+  MANUAL_USER: "ca6fa195048abf4fb09061d9db15881f337bd6891078f568b5fbab648a06eedf",
   AUTO_SYSTEM: "6b565854de7bee818c37f39db71c1ce7ac71738de3828ad7bf9bb32cf53ad225",
   AUTO_USER: "920a2bcf89a77f79a54e0a9db6e2d7455d7914d83a18ab58fa876dfde3c95587",
   STRUCTURED_SYSTEM: "3d8f65e991d09203492e2f3569c328a79e0fec4c8dafd4652f42e7d7a5d55fc0",
@@ -41,7 +45,9 @@ function lastUserContent(built: ReturnType<typeof buildContext>): string {
 describe("current-turn OOC delegation prompt parity", () => {
   it("MANUAL owner / wrapper / assembled prompt SHA unchanged", () => {
     assert.equal(sha(buildNoGodmoddingBlock(ai, user, "standard")), FROZEN.STANDARD_OWNER);
-    assert.equal(sha(wrapCurrentUserInput("안녕.", { mode: "interactive" })), FROZEN.WRAP_MANUAL);
+    const wrapManual = wrapCurrentUserInput("안녕.", { mode: "interactive" });
+    assert.match(wrapManual, /Past assistant-authored \[B\] dialogue or actions/);
+    assert.equal(sha(wrapManual), FROZEN.WRAP_MANUAL);
 
     const built = buildContext({
       charName: ai,
