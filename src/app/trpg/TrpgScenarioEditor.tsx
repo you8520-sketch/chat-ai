@@ -26,7 +26,6 @@ import type { TrpgScenarioDraftField, TrpgScenarioDraftMode } from "@/lib/trpg/s
 import {
   confirmLeaveEditor,
   isScenarioEditorDirty,
-  optionalDepthFilled,
   SCENARIO_STORY_FIELD_COPY,
   scenarioEditorPersistedSnapshot,
   scenarioEditorSavePayload,
@@ -145,8 +144,6 @@ export default function TrpgScenarioEditor({
   const [touchedFields, setTouchedFields] = useState<TrpgScenarioDraftField[]>(() =>
     initial?.scenarioPlan ? ["difficulty", "playLength"] : []
   );
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
   const [lintMessages, setLintMessages] = useState<string[]>([]);
@@ -238,19 +235,6 @@ export default function TrpgScenarioEditor({
     savedId,
   });
   const playLabel = scenarioPlayCtaLabel(persistDecision);
-  const depthFilled = optionalDepthFilled({
-    summary,
-    content,
-    secretContent,
-    worldId,
-    startLocation,
-    inventoryText,
-    npcs,
-    genres,
-    assets,
-    visibility,
-    plan,
-  });
   const saveStateLabel = savedId ? (dirty ? "수정됨 · 저장 필요" : "저장됨") : "아직 저장되지 않음";
   const offerAiEditingTools = shouldOfferScenarioAiEditingTools({
     hasSessionDraft: lastDraftSnapshot != null,
@@ -274,12 +258,7 @@ export default function TrpgScenarioEditor({
     router.push(returnHref);
   }
 
-  function revealReadinessField(field: ScenarioReadinessField, section: "story" | "details") {
-    if (section === "details") setDetailsOpen(true);
-    if (field === "advanced" || field === "npcs" || field === "bundle") {
-      setDetailsOpen(true);
-      if (field === "advanced") setAdvancedOpen(true);
-    }
+  function revealReadinessField(field: ScenarioReadinessField, _section: "story" | "details") {
     window.setTimeout(() => scrollToScenarioField(field), 0);
   }
 
@@ -825,19 +804,6 @@ export default function TrpgScenarioEditor({
           </label>
         </AppSectionCard>
 
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((open) => !open)}
-          className="flex min-h-12 w-full items-center justify-between rounded-xl border border-violet-400/25 bg-violet-500/10 px-4 text-sm font-bold text-violet-100 transition hover:border-violet-300/50 hover:bg-violet-500/15"
-        >
-          <span>{detailsOpen ? "세부 설정 접기" : "더 자세히 설정"}</span>
-          <span className="text-xs font-medium text-violet-200/80">
-            {depthFilled ? "설정됨" : "게임 규칙 · NPC · 추가 설정"}
-          </span>
-        </button>
-
-        {detailsOpen ? (
-        <div className="space-y-4">
         <AppSectionCard title="이야기 보강" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <label className="block text-sm text-zinc-300">
             한 줄 요약
@@ -860,14 +826,6 @@ export default function TrpgScenarioEditor({
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
-          <button
-            type="button"
-            onClick={() => setAdvancedOpen((open) => !open)}
-            className="mt-4 text-sm font-semibold text-violet-300"
-          >
-            {advancedOpen ? "고급 설정 접기" : "고급 설정 펼치기"}
-          </button>
-          {advancedOpen ? (
             <div className="mt-3 space-y-3">
               <label className="block text-sm text-zinc-300">
                 주요 사건 (강제 순서가 아닌 가능/조건부 사건)
@@ -993,34 +951,6 @@ export default function TrpgScenarioEditor({
                 />
               </label>
             </div>
-          ) : null}
-        </AppSectionCard>
-
-        <AppSectionCard title="추가 자료 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
-          <label className="block text-sm text-zinc-300" data-scenario-field="content">
-            전체 시나리오 본문 (선택)
-            <textarea
-              value={content}
-              maxLength={contentMax}
-              rows={6}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다."
-              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-            />
-          </label>
-          <label className="mt-3 block text-sm text-zinc-300">
-            추가 GM 메모 (자유 입력 · 선택)
-            <span className="mt-1 block text-xs font-normal text-zinc-500">
-              핵심 반전은 위의 비밀(GM 전용)에 적고, 그 밖의 진행 참고사항만 입력하세요.
-            </span>
-            <textarea
-              value={secretContent}
-              maxLength={secretMax}
-              rows={4}
-              onChange={(e) => setSecretContent(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-            />
-          </label>
         </AppSectionCard>
 
         <AppSectionCard title="게임 규칙" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
@@ -1160,8 +1090,33 @@ export default function TrpgScenarioEditor({
           </button>
         </AppSectionCard>
         </div>
-        </div>
-        ) : null}
+
+        <AppSectionCard title="추가 자료 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+          <label className="block text-sm text-zinc-300" data-scenario-field="content">
+            전체 시나리오 본문 (선택)
+            <textarea
+              value={content}
+              maxLength={contentMax}
+              rows={6}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다."
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            추가 GM 메모 (자유 입력 · 선택)
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              핵심 반전은 위의 비밀(GM 전용)에 적고, 그 밖의 진행 참고사항만 입력하세요.
+            </span>
+            <textarea
+              value={secretContent}
+              maxLength={secretMax}
+              rows={4}
+              onChange={(e) => setSecretContent(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+        </AppSectionCard>
 
         <AppSectionCard title="표시 및 에셋" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="text-sm leading-relaxed text-zinc-300">
