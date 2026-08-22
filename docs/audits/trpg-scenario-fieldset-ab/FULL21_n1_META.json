@@ -1,0 +1,102 @@
+{
+  "model": "deepseek-v4-flash-0731",
+  "mode": "regenerate_all",
+  "requestedFields": [
+    "title",
+    "summary",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "secret",
+    "endingConditions",
+    "majorEvents",
+    "clues",
+    "npcs",
+    "forbiddenEvents",
+    "boss",
+    "startLocation",
+    "startInventory",
+    "specialRules",
+    "difficulty",
+    "climax",
+    "endingCandidates",
+    "factionChanges",
+    "gmDirection",
+    "playLength"
+  ],
+  "maxTokens": 2600,
+  "temperature": 0.3,
+  "finishReason": "length",
+  "outputTokens": 2600,
+  "latencyMs": 46968,
+  "rawTopLevelKeys": [
+    "title",
+    "summary",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "secret",
+    "endingConditions"
+  ],
+  "missingRequestedKeys": [
+    "majorEvents",
+    "clues",
+    "npcs",
+    "forbiddenEvents",
+    "boss",
+    "startLocation",
+    "startInventory",
+    "specialRules",
+    "difficulty",
+    "climax",
+    "endingCandidates",
+    "factionChanges",
+    "gmDirection",
+    "playLength"
+  ],
+  "wrongTypeFields": [],
+  "emptyRequiredFields": [],
+  "schemaKeyContamination": {
+    "endingConditions": [
+      "majorEvents"
+    ]
+  },
+  "repetitionDetected": true,
+  "success": false,
+  "setName": "FULL21",
+  "rep": 1,
+  "inputTokens": 1174,
+  "schemaErrors": 370,
+  "requestedFieldRawTypes": {
+    "title": "string",
+    "summary": "string",
+    "startingSituation": "string",
+    "centralConflict": "string",
+    "goal": "string",
+    "secret": "string",
+    "endingConditions": "array<string>",
+    "majorEvents": "missing",
+    "clues": "missing",
+    "npcs": "missing",
+    "forbiddenEvents": "missing",
+    "boss": "missing",
+    "startLocation": "missing",
+    "startInventory": "missing",
+    "specialRules": "missing",
+    "difficulty": "missing",
+    "climax": "missing",
+    "endingCandidates": "missing",
+    "factionChanges": "missing",
+    "gmDirection": "missing",
+    "playLength": "missing"
+  },
+  "repeatedListLoop": {
+    "endingConditions": {
+      "flagged": true,
+      "reason": "identical_item_x356",
+      "repeatedPrefix": "majorEvents"
+    }
+  },
+  "fillOrReplaceLine": "fill_or_replace_fields=title,summary,startingSituation,centralConflict,goal,secret,endingConditions,majorEvents,clues,npcs,forbiddenEvents,boss,startLocation,startInventory,specialRules,difficulty,climax,endingCandidates,factionChanges,gmDirection,playLength",
+  "source": "copied from existing /opt/cursor/artifacts/fieldset-ab measurement; no new provider call"
+}
