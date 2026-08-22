@@ -11,9 +11,11 @@ type Props = {
   value: CharacterGenre[];
   onChange: (genres: CharacterGenre[]) => void;
   disabled?: boolean;
+  excludedGenres?: readonly CharacterGenre[];
 };
 
-export default function GenrePicker({ value, onChange, disabled }: Props) {
+export default function GenrePicker({ value, onChange, disabled, excludedGenres = [] }: Props) {
+  const excluded = new Set(excludedGenres);
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -21,7 +23,7 @@ export default function GenrePicker({ value, onChange, disabled }: Props) {
         <span className={studioType.helper}>여러 개 선택 가능 · {value.length}개 선택</span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {CHARACTER_GENRES.map((genre) => {
+        {CHARACTER_GENRES.filter((genre) => !excluded.has(genre)).map((genre) => {
           const selected = value.includes(genre);
           return (
             <button

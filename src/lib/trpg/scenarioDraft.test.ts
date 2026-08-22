@@ -514,9 +514,30 @@ describe("TRPG scenario AI draft", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
-    assert.match(editor, /전체 시나리오 본문 \(기존 형식 · 선택\)/);
+    assert.match(editor, /전체 시나리오 본문 \(선택\)/);
+    assert.doesNotMatch(editor, /예전처럼|기존 형식/);
     assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
+    assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));
+    assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
+    assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
+    assert.match(editor, /SCENARIO_SECTION_TITLE_CLASS/);
+    assert.doesNotMatch(editor, /detailsOpen|advancedOpen|더 자세히 설정|고급 설정 펼치기/);
+    const orderedSections = [
+      'title="세계관"',
+      'title="이야기"',
+      'title="이야기 보강"',
+      'title="게임 규칙"',
+      'title="캐릭터 / NPC"',
+      'title="추가 자료 (선택)"',
+      'title="표시 및 에셋"',
+      'title="공개 설정"',
+    ].map((title) => editor.indexOf(title));
+    assert.ok(
+      orderedSections.every(
+        (index, position) => index >= 0 && (position === 0 || index > orderedSections[position - 1]!)
+      )
+    );
     assert.doesNotMatch(editor, /AI 초안은 세계관을 선택한 뒤에/);
     assert.doesNotMatch(editor, /disabled=\{draftBusy \|\| typeof worldId !== "number"\}/);
     assert.match(route, /worldId == null \? null : loadWorldForTrpg/);
