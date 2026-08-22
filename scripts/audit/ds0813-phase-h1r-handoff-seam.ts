@@ -44,6 +44,7 @@ import {
   DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
   detectModelRefusal,
   extractHandoffContinuityFromAssistantText,
+  renderSceneContinuityPacket,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   resolveEffectiveConsentMode,
@@ -473,7 +474,9 @@ function proveAcceptance(input: {
 
 function classifyBucket(section: TrackedPromptSection): string {
   const id = `${section.id} ${section.label} ${section.category}`.toLowerCase();
-  if (/(length|3200|3,200)/.test(id) || /3,200자/.test(section.text)) return "LENGTH OWNER";
+  if (/(length|3200|3,200|target.length|minimum.floor)/.test(id) || /3,200자/.test(section.text)) {
+    return "LENGTH OWNER";
+  }
   if (/(prose|immersive|style|narrat|webnovel)/.test(id)) return "STYLE RULES";
   if (/(persona|user-persona|user_persona)/.test(id)) return "USER PERSONA";
   if (/(memory|archive|ltm|long.term)/.test(id)) return "MEMORY";
@@ -525,12 +528,24 @@ function sectionParity(
     } else if (bucket === "CURRENT USER") {
       g = geminiCurrent;
       d = deepseekCurrent;
+    } else if (bucket === "LENGTH OWNER") {
+      const fromSectionsG = joinBucket(geminiSections, bucket);
+      const fromSectionsD = joinBucket(deepseekSections, bucket);
+      const fromUserG = (geminiCurrent.match(/이번 응답은 한국어 3,200자[\s\S]*?전개한다\./) ?? [""])[0];
+      const fromUserD = (deepseekCurrent.match(/이번 응답은 한국어 3,200자[\s\S]*?전개한다\./) ?? [""])[0];
+      g = fromSectionsG || fromUserG;
+      d = fromSectionsD || fromUserD;
     } else {
       g = joinBucket(geminiSections, bucket);
       d = joinBucket(deepseekSections, bucket);
     }
     if (g === d) {
-      rows[bucket] = { status: "IDENTICAL", why: "exact text match", geminiChars: g.length, deepseekChars: d.length };
+      rows[bucket] = {
+        status: "IDENTICAL",
+        why: g.length === 0 ? "empty on both sides" : "exact text match",
+        geminiChars: g.length,
+        deepseekChars: d.length,
+      };
       continue;
     }
     if (stripTags(g) === stripTags(d) && stripTags(g).length > 0) {
@@ -542,11 +557,19 @@ function sectionParity(
       };
       continue;
     }
+    let why = "assembled text differs after tag-strip";
+    if (bucket === "RAW HISTORY") {
+      why = "existing handoff raw-window: Gemini includes greeting; DeepSeek handoff uses two playable turns only";
+    } else if (bucket === "CURRENT USER") {
+      why = "same current-user turn + common wrapper; DeepSeek prepends existing System Reminder";
+    } else if (bucket === "SYSTEM COMMON RULES") {
+      why = "model-family system-rule packaging differs; handoff owner is appended outside tracked common rules";
+    } else if (g.length === 0 || d.length === 0) {
+      why = "bucket missing on one side";
+    }
     rows[bucket] = {
       status: "DIFFERENT",
-      why: g.length === 0 || d.length === 0
-        ? "bucket missing on one side"
-        : "assembled text differs after tag-strip",
+      why,
       geminiChars: g.length,
       deepseekChars: d.length,
     };
@@ -915,7 +938,11 @@ async function main() {
   );
   const geminiJoined = (geminiAssembled.messages as ChatMsg[]).map((m) => m.content).join("\n");
   const deepseekJoined = (assembled.messages as ChatMsg[]).map((m) => m.content).join("\n");
-  const handoffOnlyAdded = Math.max(0, deepseekJoined.length - geminiJoined.length);
+  const handoffOnlyAppend = [
+    renderSceneContinuityPacket(continuityPacket),
+    DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
+  ].join("\n\n");
+  const handoffOnlyAdded = handoffOnlyAppend.length;
   const identical = Object.entries(sectionRows)
     .filter(([, v]) => v.status === "IDENTICAL")
     .map(([k]) => k);

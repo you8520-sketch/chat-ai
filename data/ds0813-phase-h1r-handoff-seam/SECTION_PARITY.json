@@ -1,0 +1,88 @@
+{
+  "COMMON_PAYLOAD_IDENTICAL_SECTIONS": [
+    "CHARACTER CANON",
+    "WORLD CANON",
+    "USER PERSONA",
+    "MEMORY",
+    "STYLE RULES",
+    "LENGTH OWNER"
+  ],
+  "HANDOFF_ONLY_DIFFERENT_SECTIONS": [
+    {
+      "section": "SYSTEM COMMON RULES",
+      "why": "model-family system-rule packaging differs; handoff owner is appended outside tracked common rules"
+    },
+    {
+      "section": "RAW HISTORY",
+      "why": "existing handoff raw-window: Gemini includes greeting; DeepSeek handoff uses two playable turns only"
+    },
+    {
+      "section": "CURRENT USER",
+      "why": "same current-user turn + common wrapper; DeepSeek prepends existing System Reminder"
+    }
+  ],
+  "PRIMARY_GEMINI_INPUT_EST": 30325,
+  "HANDOFF_DEEPSEEK_INPUT_EST": 30145,
+  "HANDOFF_ONLY_ADDED_CHARS": 755,
+  "HANDOFF_ONLY_ADDED_EST_TOKENS": 680,
+  "HANDOFF_ONLY_SECTIONS": [
+    "SceneContinuityPacket",
+    "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION"
+  ],
+  "SECTION_ROWS": {
+    "SYSTEM COMMON RULES": {
+      "status": "DIFFERENT",
+      "why": "model-family system-rule packaging differs; handoff owner is appended outside tracked common rules",
+      "geminiChars": 1343,
+      "deepseekChars": 1407
+    },
+    "CHARACTER CANON": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 19336,
+      "deepseekChars": 19336
+    },
+    "WORLD CANON": {
+      "status": "IDENTICAL",
+      "why": "empty on both sides",
+      "geminiChars": 0,
+      "deepseekChars": 0
+    },
+    "USER PERSONA": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 939,
+      "deepseekChars": 939
+    },
+    "MEMORY": {
+      "status": "IDENTICAL",
+      "why": "empty on both sides",
+      "geminiChars": 0,
+      "deepseekChars": 0
+    },
+    "RAW HISTORY": {
+      "status": "DIFFERENT",
+      "why": "existing handoff raw-window: Gemini includes greeting; DeepSeek handoff uses two playable turns only",
+      "geminiChars": 7879,
+      "deepseekChars": 6829
+    },
+    "CURRENT USER": {
+      "status": "DIFFERENT",
+      "why": "same current-user turn + common wrapper; DeepSeek prepends existing System Reminder",
+      "geminiChars": 868,
+      "deepseekChars": 1147
+    },
+    "STYLE RULES": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 4227,
+      "deepseekChars": 4227
+    },
+    "LENGTH OWNER": {
+      "status": "IDENTICAL",
+      "why": "exact text match",
+      "geminiChars": 146,
+      "deepseekChars": 146
+    }
+  }
+}
