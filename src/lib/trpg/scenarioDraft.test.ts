@@ -516,33 +516,40 @@ describe("TRPG scenario AI draft", () => {
     assert.match(TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE, /작성 중인 내용은 그대로 보존/);
     assert.equal(FORM_PRESERVED_ON_TIMEOUT, true);
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    const worldStudio = readFileSync("src/components/CreateWorld.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
-    assert.match(editor, /세계관 직접 작성하기/);
-    assert.match(editor, /불러온 세계관에 덧붙일 설정 \(선택\)/);
+    assert.match(editor, /세계관 선택/);
+    assert.match(editor, /불러온 세계관에 덧붙일 설정/);
     assert.doesNotMatch(editor, /전체 시나리오 본문|없음 — 독립 시나리오|예전처럼|기존 형식/);
-    assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
+    assert.match(editor, /추가 GM 메모 \(선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
-    assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));
+    assert.ok(editor.indexOf('data-scenario-field="bundle"') > editor.indexOf('title="표시 / 공개"'));
     assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
     assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
-    assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 8);
-    assert.doesNotMatch(editor, /detailsOpen|advancedOpen|더 자세히 설정|고급 설정 펼치기/);
+    assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 5);
+    assert.match(editor, /data-scenario-story-details/);
     const orderedSections = [
       'title="세계관"',
       'title="이야기"',
-      'title="이야기 보강"',
       'title="게임 규칙"',
-      'title="캐릭터 / NPC"',
-      'title="GM 메모 (선택)"',
-      'title="표시 및 에셋"',
-      'title="공개 설정"',
+      'title="조연 / NPC"',
+      'title="표시 / 공개"',
     ].map((title) => editor.indexOf(title));
     assert.ok(
       orderedSections.every(
         (index, position) => index >= 0 && (position === 0 || index > orderedSections[position - 1]!)
       )
     );
+    assert.doesNotMatch(editor, /title="이야기 보강"|title="GM 메모|title="공개 설정"/);
+    assert.match(editor, /GM 비공개 설정 \(선택\)/);
+    assert.match(editor, /피해야 할 전개/);
+    assert.match(editor, /scenarioAuthoringStarted \? \(/);
+    assert.match(editor, /세계관만으로도 TRPG를 시작할 수 있습니다/);
+    assert.match(worldStudio, />\s*세계관\s*<\/button>/);
+    assert.doesNotMatch(worldStudio, /캐릭터·시뮬레이션 세계관/);
+    assert.match(worldStudio, /캐릭터·시뮬레이션·TRPG에서 함께 사용할/);
+    assert.match(worldStudio, /시나리오는 목표·전개·규칙을 더하는 선택적 확장/);
     assert.doesNotMatch(editor, /AI 초안은 세계관을 선택한 뒤에/);
     assert.doesNotMatch(editor, /disabled=\{draftBusy \|\| typeof worldId !== "number"\}/);
     assert.match(route, /worldId == null \? null : loadWorldForTrpg/);

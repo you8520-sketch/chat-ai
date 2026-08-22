@@ -51,9 +51,11 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
       </h1>
       <p className={`${studioType.helper} mt-2`}>
         {isEdit
-          ? "캐릭터·시뮬레이션에서 불러올 세계관 본문과 대표 이미지를 수정합니다."
+          ? "캐릭터·시뮬레이션·TRPG에서 함께 사용할 세계관을 수정합니다."
           : showTrpg
-            ? "캐릭터·시뮬레이션용 세계관과 TRPG 시나리오를 탭으로 나눠 만듭니다."
+            ? kind === "scenario"
+              ? "세계관만으로도 TRPG를 시작할 수 있습니다. 시나리오는 목표·전개·규칙을 더하는 선택적 확장입니다."
+              : "한 번 만든 세계관은 캐릭터·시뮬레이션·TRPG에서 함께 사용할 수 있습니다."
             : "배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다."}
       </p>
 
@@ -73,7 +75,7 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
               kind === "world" ? studioSurface.tabActive : studioSurface.tabIdle,
             )}
           >
-            캐릭터·시뮬레이션 세계관
+            세계관
           </button>
           <button
             type="button"
