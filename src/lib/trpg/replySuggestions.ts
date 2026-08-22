@@ -1,3 +1,5 @@
+import "server-only";
+
 import type Database from "better-sqlite3";
 import {
   buildCheaperInferenceHeaders,
@@ -12,14 +14,35 @@ import {
   TRPG_ACTION_TYPES,
   TRPG_VISIBLE_ACTION_TYPES,
   type TrpgActionType,
-  type TrpgVisibleActionType,
 } from "./actionTypes";
 import { clipTrpgChars } from "./clip";
 import { parseHumanPersona, type TrpgHumanPersona } from "./hostPersona";
+import {
+  normalizeTrpgReplyStance,
+  parseTrpgInputOrigin,
+  TRPG_REPLY_STANCES,
+  type TrpgReplyStance,
+  type TrpgReplySuggestion,
+} from "./replySuggestionShared";
 import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
 import { loadSheetSnapshots } from "./engineSheets";
 import { loadCampaign, loadLatestRound, loadParticipants } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
+
+export {
+  applyReplySuggestionClick,
+  isTrpgReplyStance,
+  normalizeTrpgReplyStance,
+  parseTrpgInputOrigin,
+  replyStanceLabelKo,
+  TRPG_INPUT_ORIGINS,
+  TRPG_REPLY_STANCES,
+} from "./replySuggestionShared";
+export type {
+  TrpgInputOrigin,
+  TrpgReplyStance,
+  TrpgReplySuggestion,
+} from "./replySuggestionShared";
 
 export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
@@ -29,57 +52,6 @@ export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
 export const TRPG_REPLY_SCENE_MAX_CHARS = 1600;
 export const TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS = 80;
 export const TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS = 120;
-
-export const TRPG_INPUT_ORIGINS = ["manual", "reply_suggestion"] as const;
-export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
-
-export const TRPG_REPLY_STANCES = ["good", "neutral", "evil"] as const;
-export type TrpgReplyStance = (typeof TRPG_REPLY_STANCES)[number];
-
-const REPLY_STANCE_ALIASES: Record<string, TrpgReplyStance> = {
-  good: "good",
-  neutral: "neutral",
-  evil: "evil",
-  선의: "good",
-  중립: "neutral",
-  악의: "evil",
-};
-
-export function isTrpgReplyStance(value: string): value is TrpgReplyStance {
-  return (TRPG_REPLY_STANCES as readonly string[]).includes(value);
-}
-
-export function replyStanceLabelKo(stance: TrpgReplyStance): string {
-  switch (stance) {
-    case "good":
-      return "선의";
-    case "neutral":
-      return "중립";
-    case "evil":
-      return "악의";
-    default: {
-      const _exhaustive: never = stance;
-      return _exhaustive;
-    }
-  }
-}
-
-export function normalizeTrpgReplyStance(value: unknown): TrpgReplyStance | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const lower = trimmed.toLowerCase();
-  if (isTrpgReplyStance(lower)) return lower;
-  return REPLY_STANCE_ALIASES[trimmed] ?? REPLY_STANCE_ALIASES[lower] ?? null;
-}
-
-export type TrpgReplySuggestion = {
-  stance: TrpgReplyStance;
-  actionType: TrpgVisibleActionType;
-  text: string;
-  stage: string;
-  speech: string;
-};
 
 export type TrpgReplySuggestionCall = (opts: {
   system: string;
@@ -98,25 +70,6 @@ function assertReplySuggestionGate(campaignId: number, userId: number): void {
   const gate = inflight.get(key);
   if (gate?.busy) throw new Error("이미 행동 예시를 만들고 있습니다.");
   if ((gate?.until ?? 0) > now) throw new Error("잠시 후 다시 시도하세요.");
-}
-
-export function parseTrpgInputOrigin(value: unknown): TrpgInputOrigin {
-  return value === "reply_suggestion" ? "reply_suggestion" : "manual";
-}
-
-/** Click a suggestion: fill the composer only. Never submit, roll, or call GM. */
-export function applyReplySuggestionClick(item: TrpgReplySuggestion): {
-  actionType: TrpgVisibleActionType;
-  actionBody: string;
-  inputOrigin: "reply_suggestion";
-  autoSubmit: false;
-} {
-  return {
-    actionType: item.actionType,
-    actionBody: item.text,
-    inputOrigin: "reply_suggestion",
-    autoSubmit: false,
-  };
 }
 
 export function logTrpgReplySuggestionUsage(opts: {
