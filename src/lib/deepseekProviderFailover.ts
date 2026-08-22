@@ -824,13 +824,22 @@ async function fetchCompatible(opts: {
       return response;
     }
     try {
-      const bytes = await response.arrayBuffer();
+      const leftoverMs = Math.max(1, opts.timeoutMs - (opts.now() - opts.startedAt));
+      const bytes = await readCompleteBody({
+        response,
+        leftoverMs,
+        httpStatus,
+        onTimeout: () => {
+          if (!controller.signal.aborted) controller.abort();
+        },
+      });
       return new Response(bytes, {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
       });
     } catch (error) {
+      if (error instanceof DeepSeekBodyDeliveryError) throw error;
       throw new DeepSeekBodyDeliveryError({
         message: controller.signal.aborted
           ? "body completion deadline exceeded"
@@ -856,6 +865,35 @@ async function fetchCompatible(opts: {
     throw error;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function readCompleteBody(opts: {
+  response: Response;
+  leftoverMs: number;
+  httpStatus: number | null;
+  onTimeout: () => void;
+}): Promise<ArrayBuffer> {
+  let leftoverTimer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      opts.response.arrayBuffer(),
+      new Promise<ArrayBuffer>((_, reject) => {
+        leftoverTimer = setTimeout(() => {
+          opts.onTimeout();
+          void opts.response.body?.cancel().catch(() => undefined);
+          reject(
+            new DeepSeekBodyDeliveryError({
+              message: "body completion deadline exceeded",
+              trigger: "body_timeout",
+              httpStatus: opts.httpStatus,
+            })
+          );
+        }, opts.leftoverMs);
+      }),
+    ]);
+  } finally {
+    if (leftoverTimer) clearTimeout(leftoverTimer);
   }
 }
 
