@@ -1,0 +1,185 @@
+{
+  "NOTE": "Usable H1S RAW only. No prose score. Inherited Gemini facts (electronic choker, tinnitus/sensory, Ren-quieting) are not failures.",
+  "QUALITY_SCORE_ASSIGNED": false,
+  "HUMAN_RAW_REVIEW_REQUIRED": true,
+  "H1S_QUALITY_SAMPLES": 3,
+  "GEMINI_T1_CHARS": 2775,
+  "GEMINI_T2_CHARS": 2798,
+  "CURRENT_USER": "문을 닫고 가까이 다가온다. / 합의된 성인 장면을 이어간다. / 옷을 천천히 벗기며 키스한다.",
+  "SAMPLES": {
+    "H1S-R1": {
+      "USED_PROVIDER": "openrouter",
+      "VISIBLE_CHARS": 2794,
+      "UNDER_LENGTH": false,
+      "FLAGS": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": "UNCERTAIN",
+          "evidence": "Gemini T1/T2는 능청·곰 귀·패션 자랑·가이드 농담이 중심이다. R1은 “생각보다 부드러운데.” / “네가 먼저 옷 벗기고 키스해 놓고, 왜 이렇게 굳어 있어.”처럼 장난이 남지만, “고위험 센티넬이 갑자기 흥분해서 널 덮칠 수도 있거든.”에서 위협형 성인 톤이 더 앞선다."
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": "UNCERTAIN",
+          "evidence": "“이거 풀어줘? 아니면 이대로 할래?” / “널 덮칠 수도 있거든.” / 허리·골반으로 손이 내려가는 지배적 비트. 직전 로비 능청과는 결이 다르다."
+        },
+        "PROSE_RHYTHM_SEAM": {
+          "value": "UNCERTAIN",
+          "evidence": "T2는 관찰·농담·복도 이동이 긴 문단으로 이어진다. R1은 키스·호흡·진정 감각을 짧은 반복 비트로 잇는다. 통계 동일을 요구하지 않음."
+        },
+        "DIALOGUE_STYLE_SEAM": {
+          "value": "UNCERTAIN",
+          "evidence": "“여기서 이러는 거야?”는 짓궂음이 남지만, 초커 해제 선택 질문과 위협 대사가 T1/T2의 가벼운 말투와 어긋난다."
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": "렌-진정/소음 소실은 상속 사실이지만 “소음이 지워졌다” → “안정감” → “침묵은 … 쾌락”으로 같은 의미가 분량용으로 반복된다. 키스·호흡·체온도 같은 비트로 돌아온다."
+        },
+        "ODD_OR_NONSENSICAL_PROSE": { "value": false },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": true,
+          "evidence": "사용자 턴은 문 닫기·다가오기·천천히 벗기기·키스다. R1은 그 앞에 “렌의 손이 태형의 팔목을 낚아챘다” / “회의실 문고리가 눈앞으로 다가왔다”를 새로 쓴다."
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": true,
+          "evidence": "“렌의 손이 태형의 팔목을 낚아챘다.” “그 힘에 끌려 … 회의실 문고리가 눈앞으로 다가왔다.” “렌이 대답하는 대신, 초커의 잠금 장치에 손가락을 걸었다.”"
+        },
+        "NEW_USER_DIALOGUE": { "value": false },
+        "NEW_USER_INNER_THOUGHT": { "value": false },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": "UNCERTAIN",
+          "evidence": "사용자가 확정하지 않은 회의실 이동과 초커 해제를 [B]의 의도적 행동으로 확정한다."
+        },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+          "value": true,
+          "evidence": "[A] “이거 풀어줘? 아니면 이대로 할래?” 직후 “렌이 대답하는 대신, 초커의 잠금 장치에 손가락을 걸었다.”"
+        },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": "UNCERTAIN",
+          "evidence": "사용자는 이미 “합의된 성인 장면을 이어간다”고 확정했다. “여기서 이러는 거야?”는 수사로 볼 수 있으나, “이거 풀어줘? 아니면 이대로 할래?”는 같은 턴에서 새 선택 게이트다."
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": true,
+          "evidence": "“근처의 비어 있는 회의실” / “회의실은 좁고 어두웠다.” / “이 밀폐된 회의실 안에서”. 사용자·T2는 복도/안내 스크린이지 회의실이 아니다."
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": true,
+          "evidence": "회의실 문고리, 창문 없는 실내, 대기 조명, “탁자 모서리가 아까워서 못 쓸 것 같으니까.”"
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": "UNCERTAIN",
+          "evidence": "초커를 풀면 음압이 샐 수 있다는 설명은 세계관과 맞을 수 있으나, 이 턴에서 잠금 장치를 [B]가 조작하는 사건은 새 사실이다."
+        },
+        "UNDER_LENGTH": { "value": false }
+      }
+    },
+    "H1S-R2": {
+      "USED_PROVIDER": "openrouter",
+      "VISIBLE_CHARS": 2466,
+      "UNDER_LENGTH": true,
+      "FLAGS": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": "“야, 그래도 옷은 좀 걸쳐놓고 하지. 여기 복도야.” / 드론 뒤처리 농담 / “네 옆에 있으니까 머리가 진짜 조용해. 이거 중독되겠어.” — T1/T2 능청과 더 가깝다."
+        },
+        "GENERIC_ADULT_RP_VOICE": { "value": false },
+        "PROSE_RHYTHM_SEAM": {
+          "value": "UNCERTAIN",
+          "evidence": "복도 관찰은 T2와 이어지나, 키스 이후 호흡·체온 비트가 T2의 긴 관찰 문단보다 짧고 반복적이다."
+        },
+        "DIALOGUE_STYLE_SEAM": { "value": false },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": "소음 소실 → 키스/호흡 → 다시 정적/중독. 상속 사실 자체는 오류가 아니나 같은 의미가 두 번 이상 돌아온다."
+        },
+        "ODD_OR_NONSENSICAL_PROSE": { "value": false },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": "UNCERTAIN",
+          "evidence": "문 닫힘·벗기기·키스는 사용자 턴과 맞다. 다만 “보조 출입문”과 이후 창고 제안은 사용자 턴에 없는 확장이다."
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": "UNCERTAIN",
+          "evidence": "문 닫기와 옷 벗기기/키스는 현재 사용자로 읽을 수 있다. 새 [B] 사슬(손목 낚아채기·방 끌기)은 없다."
+        },
+        "NEW_USER_DIALOGUE": { "value": false },
+        "NEW_USER_INNER_THOUGHT": { "value": false },
+        "NEW_USER_INTENT_AS_FACT": { "value": false },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": { "value": false },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": "UNCERTAIN",
+          "evidence": "사용자가 이미 성인 장면을 이어가기로 확정한 뒤 “어디까지 갈 건진 정해놓고 덤비는 게 낫지 않아?” / “진짜 어디 갈 거면 빨리 결정해.”"
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": true,
+          "evidence": "“저쪽 비상 계단 옆에 창고 비슷한 데가 있어.” T2/현재 사용자는 복도·닫힌 공간만 확정한다."
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": true,
+          "evidence": "보조 출입문, 비상 계단 옆 창고, 복도 끝 보안 게이트."
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": "UNCERTAIN",
+          "evidence": "비상 계단 옆 창고의 존재는 보이는 역사에 없다."
+        },
+        "UNDER_LENGTH": {
+          "value": true,
+          "evidence": "VISIBLE_CHARS=2466 < 2700"
+        }
+      }
+    },
+    "H1S-R3": {
+      "USED_PROVIDER": "openrouter",
+      "VISIBLE_CHARS": 2662,
+      "UNDER_LENGTH": true,
+      "FLAGS": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": true,
+          "evidence": "T1/T2의 한가하고 능청한 센티넬(“제일 한가하고, 제일 시끄러운”) 대신 “녹색 눈동자가 어둠 속에서 짐승처럼 번들거렸다” / “무언가를 덮치려는 듯한 위태로운 빛”."
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": true,
+          "evidence": "“네 옷도 벗겨줄까, 아니면 그냥 이대로 뜯어볼까.” / “나 진짜로 멈출 생각 없어질지도 몰라.” / “그래도 계속할래?”"
+        },
+        "PROSE_RHYTHM_SEAM": {
+          "value": "UNCERTAIN",
+          "evidence": "짧은 대사 문단과 접촉 비트가 T2의 긴 로비/복도 관찰 호흡과 갈라진다."
+        },
+        "DIALOGUE_STYLE_SEAM": {
+          "value": true,
+          "evidence": "직전은 가이드 농담·패션 자랑·길 안내. R3 대사는 위험 고지·계속/중단 게이트·지배적 제안이 중심이다."
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": "키스·체온·호흡·“머릿속이 이상하게 조용해져”가 같은 의미로 반복된 뒤 벽 밀기와 목 키스로 다시 같은 감각을 채운다."
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": "UNCERTAIN",
+          "evidence": "사용자는 이미 문을 닫았다. 같은 턴에서 [A]가 “잠깐, 문 잠그고 오면 안 돼?”라고 다시 묻는다."
+        },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": "UNCERTAIN",
+          "evidence": "사용자 벗기기/키스는 실현된다. 이후 [A]가 렌을 벽에 밀고 렌의 옷을 끌어올리는 새 사슬이 장면을 가져간다."
+        },
+        "NEW_USER_DELIBERATE_ACTION": { "value": false },
+        "NEW_USER_DIALOGUE": { "value": false },
+        "NEW_USER_INNER_THOUGHT": { "value": false },
+        "NEW_USER_INTENT_AS_FACT": { "value": false },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": { "value": false },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": true,
+          "evidence": "이미 “합의된 성인 장면을 이어간다”인데 “분위기 좋은 데 가는 게 낫지 않겠냐?” / “이런 데서 이러면 안 되는 거 알지?” / “문 잠그고 오면 안 돼?” / “여기서 다 벗기면, 나중에 후회할지도 몰라.” / “그래도 계속할래?”"
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": false,
+          "evidence": "이름 없는 “좁은 방 안”/닫힌 공간. H1S owner는 방 이름을 생략하면 허용한다."
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": "UNCERTAIN",
+          "evidence": "벽면 밀착이 이후 장면을 이끈다. 사용자 턴이 확정한 사물은 아니다."
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": { "value": false },
+        "UNDER_LENGTH": {
+          "value": true,
+          "evidence": "VISIBLE_CHARS=2662 < 2700"
+        }
+      }
+    }
+  }
+}

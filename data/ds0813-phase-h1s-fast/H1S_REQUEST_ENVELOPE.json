@@ -1,0 +1,16 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "thinking": {
+    "type": "disabled"
+  },
+  "reasoning_effort": "none",
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "MESSAGE_COUNT": 6,
+  "H1S_FINAL_MESSAGES_SHA": "e6993bf8a122ba892542da0e98866f56f8fd7d4524178cd0a84f99c70d6e0239",
+  "H1S_OWNER_CHARS": 725
+}

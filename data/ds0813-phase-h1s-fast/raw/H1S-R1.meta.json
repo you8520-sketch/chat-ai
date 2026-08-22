@@ -1,0 +1,60 @@
+{
+  "KEY": "H1S-R1",
+  "USED_PROVIDER": "openrouter",
+  "PROVIDER_ATTEMPT_COUNT": 2,
+  "PRIMARY_HTTP_STATUS": 500,
+  "PRIMARY_FAILURE_CLASS": "http_500",
+  "FAILOVER_TRIGGER": "error",
+  "BACKUP_SUCCESS": true,
+  "HTTP_STATUS": 200,
+  "VISIBLE_CHARS": 2794,
+  "UNDER_LENGTH": false,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13951,
+  "OUTPUT_TOKENS": 2232,
+  "TTFT": 0,
+  "TOTAL_LATENCY": 27510,
+  "PARAGRAPHS": 22,
+  "DIALOGUE_PARAGRAPHS": 6,
+  "DIALOGUE_RATIO": 0.273,
+  "FINISH_REASON": "stop",
+  "RAW_SHA256": "79003b77a51fca708451d93e72dd416dd7701098f877ef8c17574032d56c070d",
+  "USAGE": {
+    "prompt_tokens": 13951,
+    "completion_tokens": 2232,
+    "total_tokens": 16183,
+    "cost": 0.02725404,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.02725404,
+      "upstream_inference_prompt_cost": 0.01841532,
+      "upstream_inference_completions_cost": 0.00883872
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "TELEMETRY": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": "http_500",
+    "primary_http_status": 500,
+    "primary_headers_ms": 418,
+    "primary_first_visible_ms": null,
+    "failover_trigger": "error",
+    "backup_headers_ms": 1248,
+    "backup_first_visible_ms": 1249,
+    "backup_success": true,
+    "provider_attempt_count": 2
+  }
+}
