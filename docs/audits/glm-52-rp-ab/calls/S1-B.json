@@ -1,0 +1,55 @@
+{
+  "cell": "S1-B",
+  "seed": "S1",
+  "arm": "B",
+  "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 34117,
+  "ttftMs": 2468,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 2494,
+  "charsExclSpaces": 1862,
+  "paragraphCount": 26,
+  "dialogueParagraphCount": 5,
+  "dialogueRatio": 0.192,
+  "inputTokens": 5557,
+  "outputTokens": 2054,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 5557,
+  "usageCostUsd": 0.008643,
+  "catalogEstimatedUsd": 0.00864236,
+  "costPer1000VisibleChars": 0.00346552,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 6399,
+    "history": 1162,
+    "lastUser": 815,
+    "total": 8380,
+    "estimatedInputTokens": 7542
+  },
+  "usageRaw": {
+    "prompt_tokens": 5557,
+    "completion_tokens": 2054,
+    "total_tokens": 7611,
+    "cost": 0.008643,
+    "cost_details": {
+      "upstream_inference_cost": 0.008643
+    }
+  },
+  "error": null
+}

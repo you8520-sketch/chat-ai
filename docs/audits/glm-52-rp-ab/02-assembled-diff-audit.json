@@ -1,0 +1,487 @@
+{
+  "headSha": "8967fc1fa2ea09690178ef7abeb585e17d7525b1",
+  "model": "glm-5.2",
+  "note": "A = VANILLA_STYLE (style/output owners stripped). B = COMMON_PROSE_OUTPUT (production common owners). Character/history/persona/current-user/memory/agency/sampling/reasoning must be equal.",
+  "styleOutputSectionIds": [
+    "narrative-style",
+    "prose-style-xml-bundle",
+    "rule-advanced-prose-nsfw",
+    "rule-output-layout-recency",
+    "rule-length-control"
+  ],
+  "languageOwnerKept": "production [OUTPUT LANG] in openrouter-korean-prose-top (no new wording)",
+  "rows": [
+    {
+      "seed": "S1",
+      "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+      "diffs": {
+        "character": {
+          "aChars": 494,
+          "bChars": 494,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "history": {
+          "aChars": 1162,
+          "bChars": 1162,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "persona": {
+          "aChars": 889,
+          "bChars": 889,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "currentUser": {
+          "aChars": 590,
+          "bChars": 590,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "memory": {
+          "aChars": 0,
+          "bChars": 0,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "agency": {
+          "aChars": 454,
+          "bChars": 454,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "sampling": {
+          "equal": true,
+          "a": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          },
+          "b": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          }
+        },
+        "reasoning": {
+          "equal": true,
+          "a": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          },
+          "b": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          }
+        }
+      },
+      "aChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 611,
+        "total": 5674,
+        "estimatedInputTokens": 5107
+      },
+      "bChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 815,
+        "total": 8380,
+        "estimatedInputTokens": 7542
+      },
+      "aRemovedSectionIds": [
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency"
+      ],
+      "aSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "bSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "lastUserAHasLengthOwner": false,
+      "lastUserBHasLengthOwner": true,
+      "lastUserAHasLayoutOwner": false,
+      "lastUserBHasLayoutOwner": true
+    },
+    {
+      "seed": "S2",
+      "user": "같이 갈래? *두리번*",
+      "diffs": {
+        "character": {
+          "aChars": 494,
+          "bChars": 494,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "history": {
+          "aChars": 1162,
+          "bChars": 1162,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "persona": {
+          "aChars": 889,
+          "bChars": 889,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "currentUser": {
+          "aChars": 605,
+          "bChars": 605,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "memory": {
+          "aChars": 0,
+          "bChars": 0,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "agency": {
+          "aChars": 454,
+          "bChars": 454,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "sampling": {
+          "equal": true,
+          "a": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          },
+          "b": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          }
+        },
+        "reasoning": {
+          "equal": true,
+          "a": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          },
+          "b": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          }
+        }
+      },
+      "aChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 626,
+        "total": 5689,
+        "estimatedInputTokens": 5121
+      },
+      "bChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 830,
+        "total": 8395,
+        "estimatedInputTokens": 7556
+      },
+      "aRemovedSectionIds": [
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency"
+      ],
+      "aSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "bSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "lastUserAHasLengthOwner": false,
+      "lastUserBHasLengthOwner": true,
+      "lastUserAHasLayoutOwner": false,
+      "lastUserBHasLayoutOwner": true
+    },
+    {
+      "seed": "S3",
+      "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+      "diffs": {
+        "character": {
+          "aChars": 494,
+          "bChars": 494,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "history": {
+          "aChars": 1162,
+          "bChars": 1162,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "persona": {
+          "aChars": 889,
+          "bChars": 889,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "currentUser": {
+          "aChars": 623,
+          "bChars": 623,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "memory": {
+          "aChars": 0,
+          "bChars": 0,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "agency": {
+          "aChars": 454,
+          "bChars": 454,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "sampling": {
+          "equal": true,
+          "a": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          },
+          "b": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          }
+        },
+        "reasoning": {
+          "equal": true,
+          "a": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          },
+          "b": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          }
+        }
+      },
+      "aChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 644,
+        "total": 5707,
+        "estimatedInputTokens": 5137
+      },
+      "bChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8413,
+        "estimatedInputTokens": 7572
+      },
+      "aRemovedSectionIds": [
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency"
+      ],
+      "aSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "bSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "lastUserAHasLengthOwner": false,
+      "lastUserBHasLengthOwner": true,
+      "lastUserAHasLayoutOwner": false,
+      "lastUserBHasLayoutOwner": true
+    },
+    {
+      "seed": "S4",
+      "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+      "diffs": {
+        "character": {
+          "aChars": 494,
+          "bChars": 494,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "history": {
+          "aChars": 1162,
+          "bChars": 1162,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "persona": {
+          "aChars": 889,
+          "bChars": 889,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "currentUser": {
+          "aChars": 623,
+          "bChars": 623,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "memory": {
+          "aChars": 0,
+          "bChars": 0,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "agency": {
+          "aChars": 454,
+          "bChars": 454,
+          "equal": true,
+          "deltaChars": 0
+        },
+        "sampling": {
+          "equal": true,
+          "a": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          },
+          "b": {
+            "temperature": 0.7,
+            "max_tokens": null,
+            "top_p": null,
+            "stream": true
+          }
+        },
+        "reasoning": {
+          "equal": true,
+          "a": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          },
+          "b": {
+            "reasoning_effort": "none",
+            "reasoning": null,
+            "thinking": null,
+            "include_reasoning": null
+          }
+        }
+      },
+      "aChars": {
+        "system": 3897,
+        "history": 1162,
+        "lastUser": 644,
+        "total": 5707,
+        "estimatedInputTokens": 5137
+      },
+      "bChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8413,
+        "estimatedInputTokens": 7572
+      },
+      "aRemovedSectionIds": [
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency"
+      ],
+      "aSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "bSectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "lastUserAHasLengthOwner": false,
+      "lastUserBHasLengthOwner": true,
+      "lastUserAHasLayoutOwner": false,
+      "lastUserBHasLayoutOwner": true
+    }
+  ],
+  "allCharacterZero": true,
+  "allHistoryZero": true,
+  "allPersonaZero": true,
+  "allCurrentUserZero": true,
+  "allMemoryZero": true,
+  "allAgencyZero": true,
+  "allSamplingZero": true,
+  "allReasoningZero": true
+}
