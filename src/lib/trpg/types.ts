@@ -15,11 +15,6 @@ export const TRPG_BOT_RECENT_ROUNDS = 5;
 export const TRPG_BOT_CONTINUITY_MAX_CHARS = 2200;
 export const TRPG_BOT_CONTINUITY_ACTION_CHARS = 80;
 export const TRPG_BOT_CONTINUITY_SCENE_CHARS = 220;
-/** GM prose — floor 3000 Korean characters; aim well above so scenes actually exceed it. */
-export const TRPG_GM_MIN_CHARS = 3000;
-export const TRPG_GM_AIM_CHARS = 4800;
-/** Closing `GM: "..."` table-talk inside the narration — situation recap, not a one-liner. */
-export const TRPG_GM_CLOSING_MIN_CHARS = 400;
 /** Thinking-on + long Hangul; omit would risk provider-default truncation. */
 export const TRPG_GM_MAX_TOKENS = 12288;
 export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
