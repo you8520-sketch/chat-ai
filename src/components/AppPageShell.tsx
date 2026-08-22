@@ -38,11 +38,13 @@ export function AppSectionCard({
   children,
   className,
   titleClassName,
+  titleVariant = "default",
 }: {
   title?: string;
   children: ReactNode;
   className?: string;
   titleClassName?: string;
+  titleVariant?: "default" | "prominent";
 }) {
   return (
     <section
@@ -52,7 +54,15 @@ export function AppSectionCard({
       )}
     >
       {title ? (
-        <h2 className={cn("mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-500", titleClassName)}>
+        <h2
+          className={cn(
+            "mb-4",
+            titleVariant === "prominent"
+              ? "text-lg font-bold tracking-tight text-white"
+              : "text-xs font-semibold uppercase tracking-wide text-zinc-500",
+            titleClassName
+          )}
+        >
           {title}
         </h2>
       ) : null}

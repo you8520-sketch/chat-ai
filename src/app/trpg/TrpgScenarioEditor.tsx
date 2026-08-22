@@ -95,7 +95,6 @@ const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
 
 const SCENARIO_DRAFT_TIMEOUT_MESSAGE =
   "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
-const SCENARIO_SECTION_TITLE_CLASS = "text-base font-bold normal-case tracking-normal text-zinc-100";
 
 function scenarioDraftErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -651,7 +650,7 @@ export default function TrpgScenarioEditor({
           </p>
         </div>
 
-        <AppSectionCard title="세계관" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="세계관" titleVariant="prominent">
           <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
           <p className="mt-1 text-xs text-zinc-500">
             저장한 세계관을 선택하거나 아래에서 이번 시나리오의 세계관을 직접 작성하세요.
@@ -697,7 +696,7 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="이야기" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="이야기" titleVariant="prominent">
           <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-violet-300/80">빠르게 시작</p>
           <div className="mb-3 flex flex-wrap gap-2">
             <button
@@ -819,7 +818,7 @@ export default function TrpgScenarioEditor({
           </label>
         </AppSectionCard>
 
-        <AppSectionCard title="이야기 보강" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="이야기 보강" titleVariant="prominent">
           <label className="block text-sm text-zinc-300">
             한 줄 요약
             <LockButton field="summary" />
@@ -968,7 +967,7 @@ export default function TrpgScenarioEditor({
             </div>
         </AppSectionCard>
 
-        <AppSectionCard title="게임 규칙" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="게임 규칙" titleVariant="prominent">
           <p className="mb-3 text-sm text-zinc-400">
             이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 로비에서 5–15로 배분합니다.
           </p>
@@ -1009,7 +1008,7 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
 
         <div data-scenario-field="npcs">
-        <AppSectionCard title="캐릭터 / NPC" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="캐릭터 / NPC" titleVariant="prominent">
           <p className="mb-3 text-sm text-zinc-400">
             조연 설정입니다. GM이 참고해서 등장시키며, 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
             <RegenButton field="npcs" label="NPC" />
@@ -1106,7 +1105,7 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
         </div>
 
-        <AppSectionCard title="GM 메모 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="GM 메모 (선택)" titleVariant="prominent">
           <label className="block text-sm text-zinc-300">
             추가 GM 메모 (자유 입력 · 선택)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
@@ -1122,7 +1121,7 @@ export default function TrpgScenarioEditor({
           </label>
         </AppSectionCard>
 
-        <AppSectionCard title="표시 및 에셋" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="표시 및 에셋" titleVariant="prominent">
           <p className="text-sm leading-relaxed text-zinc-300">
             1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다.
           </p>
@@ -1170,7 +1169,7 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="공개 설정" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+        <AppSectionCard title="공개 설정" titleVariant="prominent">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

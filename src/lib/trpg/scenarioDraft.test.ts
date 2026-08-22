@@ -526,7 +526,7 @@ describe("TRPG scenario AI draft", () => {
     assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));
     assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
     assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
-    assert.match(editor, /SCENARIO_SECTION_TITLE_CLASS/);
+    assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 8);
     assert.doesNotMatch(editor, /detailsOpen|advancedOpen|더 자세히 설정|고급 설정 펼치기/);
     const orderedSections = [
       'title="세계관"',
