@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { loadWorldForTrpg } from "@/lib/trpg/catalog";
 import { requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 import {
@@ -15,6 +16,7 @@ import {
   scenarioDraftOutputMaxTokens,
   scenarioDraftPrimaryTimeoutMs,
   scenarioDraftRequestedFields,
+  TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT,
   TRPG_SCENARIO_DRAFT_REPAIR_OUTPUT_TOKENS,
   TRPG_SCENARIO_DRAFT_REPAIR_TIMEOUT_MS,
   type TrpgScenarioDraftExisting,
@@ -99,6 +101,7 @@ export async function POST(req: Request) {
       selectedFields,
       lockedFields,
     });
+    const systemPrompt = buildScenarioDraftSystemPrompt();
     console.info("[trpg-scenario-draft]", {
       STAGE: "primary",
       WORLD_SELECTED: worldId != null,
@@ -108,13 +111,15 @@ export async function POST(req: Request) {
       EXISTING_SUMMARY_CHARS: existing.summary?.length ?? 0,
       EXISTING_CONTENT_CHARS: existing.content?.length ?? 0,
       EXISTING_SECRET_CONTENT_CHARS: existing.secretContent?.length ?? 0,
-      PROMPT_CHARS: buildScenarioDraftSystemPrompt().length + userPrompt.length,
+      PROMPT_CHARS: systemPrompt.length + userPrompt.length,
+      PROMPT_ESTIMATED_TOKENS: estimateTokens(`${systemPrompt}\n${userPrompt}`),
+      SOURCE_CONTEXT_TOKEN_LIMIT: TRPG_SCENARIO_DRAFT_CONTEXT_TOKEN_LIMIT,
       MAX_TOKENS: primaryMaxTokens,
       TIMEOUT_MS: primaryTimeoutMs,
     });
     const generated = await completeTrpgAuthoringJson({
       kind: "scenario_draft",
-      system: buildScenarioDraftSystemPrompt(),
+      system: systemPrompt,
       user: userPrompt,
       expectedFields: requestedFields,
       primaryMaxTokens,
