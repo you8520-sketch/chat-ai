@@ -433,7 +433,6 @@ export default function TrpgScenarioEditor({
           plan: TrpgScenarioPlan;
         };
         lint?: Array<{ message: string }>;
-        readiness?: ReturnType<typeof scoreTrpgScenarioReadiness>;
       };
       if (!res.ok) {
         const failure = new Error(data.error || "AI 초안을 만들지 못했습니다.");
