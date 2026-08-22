@@ -93,6 +93,14 @@ export function optionalDepthFilled(fields: {
   );
 }
 
+export function confirmLeaveEditor(opts: {
+  dirty: boolean;
+  confirm: () => boolean;
+}): boolean {
+  if (!opts.dirty) return true;
+  return opts.confirm();
+}
+
 export function shouldConfirmScenarioDraftApply(opts: {
   mode: TrpgScenarioDraftMode;
   existing: TrpgScenarioDraftExisting;

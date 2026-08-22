@@ -6,6 +6,7 @@ import { catalogScenarioById } from "./catalogBrowse";
 import { createTrpgCampaign } from "./engineCreate";
 import { emptyTrpgScenarioPlan } from "./scenarioPlan";
 import {
+  confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
   scenarioEditorSavePayload,
@@ -332,6 +333,62 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.doesNotMatch(editor, /characterIds: \[\]/);
   });
 
+  it("A: dirty 나가기 cancel keeps the editor and does not navigate", () => {
+    const before = { ...emptySnapshot(), title: "작성 중", plan: playablePlan() };
+    let confirmCalls = 0;
+    const leave = confirmLeaveEditor({
+      dirty: isScenarioEditorDirty(before, scenarioEditorSnapshot(emptySnapshot())),
+      confirm: () => {
+        confirmCalls += 1;
+        return false;
+      },
+    });
+    assert.equal(leave, false);
+    assert.equal(confirmCalls, 1);
+    assert.equal(before.title, "작성 중");
+    assert.deepEqual(before.plan.goal, playablePlan().goal);
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /function leaveEditor/);
+    assert.match(editor, /confirmLeaveEditor/);
+    assert.match(editor, /저장하지 않은 변경이 있습니다/);
+  });
+
+  it("B: clean 나가기 navigates without confirm", () => {
+    let confirmCalls = 0;
+    const leave = confirmLeaveEditor({
+      dirty: false,
+      confirm: () => {
+        confirmCalls += 1;
+        return false;
+      },
+    });
+    assert.equal(leave, true);
+    assert.equal(confirmCalls, 0);
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /if \(\s*!confirmLeaveEditor\([\s\S]*?\)\s*\) \{\s*return;/);
+    assert.match(editor, /router\.push\(returnHref\)/);
+  });
+
+  it("C: AI draft optional values stay collapsed with 설정됨 only", () => {
+    const drafted = {
+      ...emptySnapshot(),
+      title: "초안",
+      plan: {
+        ...playablePlan(),
+        majorEvents: ["보급대가 실종된다"],
+      },
+      npcs: [{ name: "역무원", description: "야간 근무", greeting: "", systemPrompt: "", stats: null }],
+    };
+    assert.equal(optionalDepthFilled(drafted), true);
+    const payload = scenarioEditorSavePayload(drafted);
+    assert.deepEqual((payload.scenarioPlan as { majorEvents: string[] }).majorEvents, ["보급대가 실종된다"]);
+    assert.equal((payload.npcs as { name: string }[])[0]?.name, "역무원");
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.doesNotMatch(editor, /data\.draft\.plan\.majorEvents\.length \|\| data\.draft\.npcs\.length/);
+    assert.match(editor, /설정됨/);
+    assert.match(editor, /optionalDepthFilled/);
+  });
+
   it("TEST 17: a details-section blocker exposes a focusable field id", () => {
     const readiness = evaluateScenarioReadiness({
       title: "묶음",
@@ -343,7 +400,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(readiness.blockers[0]?.field, "bundle");
     assert.equal(readiness.blockers[0]?.section, "details");
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.match(editor, /scrollToScenarioField/);
-    assert.match(editor, /setDetailsOpen\(true\)/);
+    assert.match(editor, /function revealReadinessField[\s\S]*setDetailsOpen\(true\)[\s\S]*scrollToScenarioField/);
+    const autoOpenAfterDraft = /setLintMessages\([\s\S]{0,200}setDetailsOpen\(true\)/;
+    assert.equal(autoOpenAfterDraft.test(editor), false);
   });
 });

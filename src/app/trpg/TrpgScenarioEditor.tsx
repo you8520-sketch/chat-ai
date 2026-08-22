@@ -24,6 +24,7 @@ import {
 } from "@/lib/trpg/scenarioPlan";
 import type { TrpgScenarioDraftField, TrpgScenarioDraftMode } from "@/lib/trpg/scenarioDraft";
 import {
+  confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
   scenarioEditorSavePayload,
@@ -244,6 +245,18 @@ export default function TrpgScenarioEditor({
     plan,
   });
   const saveStateLabel = savedId ? (dirty ? "수정됨 · 저장 필요" : "저장됨") : "아직 저장되지 않음";
+
+  function leaveEditor() {
+    if (
+      !confirmLeaveEditor({
+        dirty,
+        confirm: () => window.confirm("저장하지 않은 변경이 있습니다. 이 화면을 나갈까요?"),
+      })
+    ) {
+      return;
+    }
+    router.push(returnHref);
+  }
 
   function revealReadinessField(field: ScenarioReadinessField, section: "story" | "details") {
     if (section === "details") setDetailsOpen(true);
@@ -466,7 +479,6 @@ export default function TrpgScenarioEditor({
       );
       setTouchedFields((prev) => [...new Set<TrpgScenarioDraftField>([...prev, "difficulty", "playLength"])]);
       setLintMessages((data.lint ?? []).map((item) => item.message));
-      if (data.draft.plan.majorEvents.length || data.draft.npcs.length) setDetailsOpen(true);
     } catch (err) {
       setError(scenarioDraftErrorMessage(err));
     } finally {
@@ -598,7 +610,7 @@ export default function TrpgScenarioEditor({
           <p className="mt-1 text-xs opacity-80">
             {saveStateLabel}
             {" · "}
-            <button type="button" onClick={() => router.push(returnHref)} className="underline">
+            <button type="button" onClick={leaveEditor} className="underline">
               나가기
             </button>
           </p>
