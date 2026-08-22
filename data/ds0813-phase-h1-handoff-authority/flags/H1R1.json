@@ -1,0 +1,72 @@
+{
+  "NEW_USER_SPOKEN_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_ATTRIBUTION": {
+    "value": false,
+    "evidence": null
+  },
+  "USER_CONSENT_OR_REFUSAL_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "USER_MAJOR_CHOICE_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_SCENE_REWOUND": {
+    "value": false,
+    "evidence": null
+  },
+  "STALE_PREVIOUS_LOCATION_RESTORED": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_LOCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_SCENE_DRIVING_EVENT": {
+    "value": false,
+    "evidence": null
+  },
+  "TURN_ENDS_ON_NEW_FORCED_CHOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "REFUSAL": {
+    "value": false,
+    "evidence": null
+  },
+  "META_LEAK": {
+    "value": false,
+    "evidence": null
+  },
+  "SYSTEM_LEAK": {
+    "value": false,
+    "evidence": null
+  },
+  "FOREIGN_SCRIPT": {
+    "value": false,
+    "evidence": null
+  },
+  "TRUNCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NOTE_INVOLUNTARY_PHYSIOLOGY_NOT_AGENCY": "automatic / involuntary physiological reactions are not agency violations",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

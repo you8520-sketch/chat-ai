@@ -1,0 +1,72 @@
+{
+  "NEW_USER_SPOKEN_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_ATTRIBUTION": {
+    "value": false,
+    "evidence": null
+  },
+  "USER_CONSENT_OR_REFUSAL_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "USER_MAJOR_CHOICE_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_SCENE_REWOUND": {
+    "value": "UNCERTAIN",
+    "evidence": "복도 끝의 문이 닫히는 소리가 공간의 공기를 울렸다. 푸르스름한 형광 라인이 벽을 타고 흐르는 좁은 공간에 두 사람의 실루엣만 남았다."
+  },
+  "STALE_PREVIOUS_LOCATION_RESTORED": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_LOCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_SCENE_DRIVING_EVENT": {
+    "value": false,
+    "evidence": null
+  },
+  "TURN_ENDS_ON_NEW_FORCED_CHOICE": {
+    "value": true,
+    "evidence": "“계속할 거면 지금 말해. 아님 여기서 내가 널 밀치고 나갈 테니까.”"
+  },
+  "REFUSAL": {
+    "value": false,
+    "evidence": null
+  },
+  "META_LEAK": {
+    "value": false,
+    "evidence": null
+  },
+  "SYSTEM_LEAK": {
+    "value": false,
+    "evidence": null
+  },
+  "FOREIGN_SCRIPT": {
+    "value": false,
+    "evidence": null
+  },
+  "TRUNCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NOTE_INVOLUNTARY_PHYSIOLOGY_NOT_AGENCY": "automatic / involuntary physiological reactions are not agency violations",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

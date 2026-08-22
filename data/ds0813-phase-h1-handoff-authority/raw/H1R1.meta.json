@@ -1,0 +1,115 @@
+{
+  "KEY": "H1R1",
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "INPUT_TOKENS": 13966,
+  "OUTPUT_TOKENS": 3654,
+  "REASONING_TOKENS": null,
+  "VISIBLE_CHARS_WITH_SPACES": 4563,
+  "VISIBLE_CHARS_NO_SPACES": 3390,
+  "KOREAN_CHARS": 3174,
+  "PARAGRAPHS": 43,
+  "DIALOGUE_LINES": 17,
+  "PROVIDER_COST": 0.007048,
+  "RAW_SHA256": "ada29ff044d621dc0088f1e891da76fa7581854373921101b76c6e3fbc58ed34",
+  "SYSTEM_SHA": "2016080386c951dc6d59c5d10b4fa44e424b9458c6ab4b8e2d83f9948863c584",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "ec0b93374f6f4eecd43dc25d25dcd88c8e6627f4ae42e3b0014ca4d0ecc49eb3",
+  "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+  "FINAL_MESSAGES_SHA": "2b1e71008600fc9bb702db5940924db2d8efd1a97739afcacb0adb7ec56b8a5d",
+  "GE_2700": true,
+  "GE_3200": true,
+  "timing": {
+    "REQUEST_START": "2026-08-22T08:14:26.693Z",
+    "HEADERS_RECEIVED": "2026-08-22T08:14:29.580Z",
+    "FIRST_VISIBLE_DELTA": "2026-08-22T08:14:29.580Z",
+    "LAST_VISIBLE_DELTA": "2026-08-22T08:15:59.436Z",
+    "FINISH_EVENT": "2026-08-22T08:15:59.438Z",
+    "TTFT_MS": 2887,
+    "TOTAL_LATENCY_MS": 92926,
+    "REASONING_STREAM_EVENTS": 0,
+    "REASONING_TEXT_CHARS": 0
+  },
+  "flags": {
+    "NEW_USER_SPOKEN_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_ATTRIBUTION": {
+      "value": false,
+      "evidence": null
+    },
+    "USER_CONSENT_OR_REFUSAL_AUTHORED": {
+      "value": false,
+      "evidence": null
+    },
+    "USER_MAJOR_CHOICE_AUTHORED": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_SCENE_REWOUND": {
+      "value": false,
+      "evidence": null
+    },
+    "STALE_PREVIOUS_LOCATION_RESTORED": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_LOCATION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_SCENE_DRIVING_EVENT": {
+      "value": false,
+      "evidence": null
+    },
+    "TURN_ENDS_ON_NEW_FORCED_CHOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "REFUSAL": {
+      "value": false,
+      "evidence": null
+    },
+    "META_LEAK": {
+      "value": false,
+      "evidence": null
+    },
+    "SYSTEM_LEAK": {
+      "value": false,
+      "evidence": null
+    },
+    "FOREIGN_SCRIPT": {
+      "value": false,
+      "evidence": null
+    },
+    "TRUNCATION": {
+      "value": false,
+      "evidence": null
+    },
+    "NOTE_INVOLUNTARY_PHYSIOLOGY_NOT_AGENCY": "automatic / involuntary physiological reactions are not agency violations",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13966,
+    "completion_tokens": 3654,
+    "total_tokens": 17620,
+    "cost": 0.007048,
+    "cost_details": {
+      "upstream_inference_cost": 0.007048
+    }
+  },
+  "DEEPSEEK_CALLS": 1
+}
