@@ -25,6 +25,10 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** @deprecated 기존 OpenRouter 선택값·영수증 호환용 */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
+/** OpenRouter backup slug for the current DeepSeek V4 Pro logical model. */
+export const OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL =
+  "deepseek/deepseek-v4-pro-0813";
+
 /** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro (canonical outbound id). */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro-0813";
 
@@ -55,8 +59,12 @@ export function normalizeDeepSeekV4ProModelId(modelId: string): string {
 /** @deprecated legacy background fallback slug — normalized to V4 Flash */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 
-/** OpenRouter — DeepSeek V4 Flash (Cheaper Inference background fallback) */
+/** @deprecated latest Flash alias — never use as the current OpenRouter backup */
 export const OPENROUTER_DEEPSEEK_V4_FLASH_MODEL = "deepseek/deepseek-v4-flash";
+
+/** OpenRouter backup slug for the current DeepSeek V4 Flash logical model. */
+export const OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL =
+  "deepseek/deepseek-v4-flash-0731";
 
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";

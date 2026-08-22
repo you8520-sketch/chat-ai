@@ -4,6 +4,7 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
+import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
 import { adaptTrpgReplySuggestionChatBody } from "./replySuggestions";
 import type { MechanicsActorInput, TrpgOngoingEffect } from "./mechanicsTypes";
 import { TRPG_MECHANICS_REFEREE_MODEL } from "./mechanicsTypes";
@@ -104,12 +105,15 @@ export async function callTrpgMechanicsReferee(opts: {
     max_tokens: TRPG_MECHANICS_REFEREE_MAX_TOKENS,
     response_format: { type: "json_object" },
   });
-  const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TRPG_MECHANICS_REFEREE_TIMEOUT_MS),
+  const failover = await executeDeepSeekBackgroundWithProviderFailover({
+    primary: {
+      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      body,
+    },
+    timeoutMs: TRPG_MECHANICS_REFEREE_TIMEOUT_MS,
   });
+  const res = failover.response;
   if (!res.ok) {
     throw new Error(`[TRPG mechanics] ${res.status}`);
   }

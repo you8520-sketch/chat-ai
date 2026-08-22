@@ -8,7 +8,7 @@ import {
 } from "./ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
 } from "./chatModels";
 
@@ -72,14 +72,14 @@ test("legacy or unset fallback resolves to OpenRouter DeepSeek V4 Flash", () => 
       { BACKGROUND_MEMORY_FALLBACK_MODEL: OPENROUTER_DEEPSEEK_V3_MODEL },
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
     ),
-    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+    OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL
   );
   assert.equal(
     resolveBackgroundMemoryFallbackModel(
       { BACKGROUND_MEMORY_FALLBACK_MODEL: "   " },
       "custom-model"
     ),
-    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+    OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL
   );
 });
 
@@ -119,12 +119,12 @@ test("memory failure falls back from Cheaper V4 to OpenRouter V4 without caps", 
     assert.equal(result.text, "fallback summary");
     assert.deepEqual(
       requests.map(({ body }) => body.model),
-      [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, OPENROUTER_DEEPSEEK_V4_FLASH_MODEL]
+      [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL]
     );
     assert.equal(requests[0]?.body.max_tokens, undefined);
     assert.equal(requests[1]?.body.max_tokens, undefined);
     assert.deepEqual(requests[0]?.body.thinking, { type: "disabled" });
-    assert.deepEqual(requests[1]?.body.reasoning, { effort: "none" });
+    assert.deepEqual(requests[1]?.body.reasoning, { effort: "none", exclude: true });
   } finally {
     globalThis.fetch = previousFetch;
     if (previousCheaperKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;

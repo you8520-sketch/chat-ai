@@ -42,14 +42,14 @@ describe("chatImageSceneBrief", () => {
   it("falls back to OpenRouter DeepSeek V4 Flash when cheaper inference fails", () => {
     assert.equal(
       CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
-      "deepseek/deepseek-v4-flash"
+      "deepseek/deepseek-v4-flash-0731"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
         {} as NodeJS.ProcessEnv,
         "deepseek-v4-flash"
       ),
-      "deepseek/deepseek-v4-flash"
+      "deepseek/deepseek-v4-flash-0731"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(

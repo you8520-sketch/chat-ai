@@ -1,7 +1,7 @@
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
@@ -9,7 +9,7 @@ import {
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
 /** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
@@ -486,52 +486,15 @@ export async function extractChatImageSceneBrief(opts: {
   }
 
   const model = resolveChatImageSceneBriefModel();
-  let text = "";
-  let usedModel = model;
-  try {
-    text = await callSceneBriefModel({
-      characterName: opts.characterName,
-      personaName: opts.personaName,
-      sourceTurn,
-      model,
-      maxTokens: 2048,
-      timeoutMs: 120_000,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const retriable =
-      /timeout|aborted|empty completion|finish=length|5\d\d/i.test(message);
-    if (!retriable) throw error;
-    const fallbackModel = resolveChatImageSceneBriefFallbackModel(process.env, model);
-    if (fallbackModel) {
-      console.warn(
-        "[chat-image-scene-brief] CheaperInference primary failed; retrying via OpenRouter",
-        { model, fallbackModel, message }
-      );
-      usedModel = fallbackModel;
-      text = await callSceneBriefModel({
-        characterName: opts.characterName,
-        personaName: opts.personaName,
-        sourceTurn,
-        model: fallbackModel,
-        maxTokens: 3072,
-        timeoutMs: 180_000,
-      });
-    } else {
-      console.warn("[chat-image-scene-brief] primary call failed; retrying once", {
-        model,
-        message,
-      });
-      text = await callSceneBriefModel({
-        characterName: opts.characterName,
-        personaName: opts.personaName,
-        sourceTurn,
-        model,
-        maxTokens: 3072,
-        timeoutMs: 180_000,
-      });
-    }
-  }
+  const usedModel = model;
+  const text = await callSceneBriefModel({
+    characterName: opts.characterName,
+    personaName: opts.personaName,
+    sourceTurn,
+    model,
+    maxTokens: 2048,
+    timeoutMs: 120_000,
+  });
 
   if (!text.trim()) {
     throw new Error("장면 브리프 응답이 비어 있습니다.");
