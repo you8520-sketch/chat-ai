@@ -5,6 +5,7 @@ import { canAccessTrpg } from "@/lib/trpg/access";
 import {
   loadAccessibleTrpgCharacter,
   loadTrpgCatalog,
+  loadTrpgCatalogPlayScores,
   mergeCatalogCharacters,
 } from "@/lib/trpg/catalog";
 import { listTrpgCampaigns } from "@/lib/trpg/engine";
@@ -44,6 +45,7 @@ export default async function TrpgLobbyPage({
   const campaigns = listTrpgCampaigns(db, user.id);
   const extras = seededIds.map((id) => loadAccessibleTrpgCharacter(db, id, user.id));
   const catalog = mergeCatalogCharacters(loadTrpgCatalog(db, user.id), extras);
+  const playScores = loadTrpgCatalogPlayScores(db);
 
   return (
     <AppPageShell
@@ -54,6 +56,7 @@ export default async function TrpgLobbyPage({
         initialCampaigns={campaigns}
         initialCampaignQuery={campaignQuery}
         catalog={catalog}
+        playScores={playScores}
         characterIds={seededIds}
         initialScenarioId={params.scenarioId}
       />

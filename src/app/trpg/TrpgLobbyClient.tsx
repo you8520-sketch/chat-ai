@@ -6,7 +6,11 @@ import { useMemo, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import TrpgInviteLink from "./TrpgInviteLink";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
-import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import {
+  EMPTY_TRPG_CATALOG_PLAY_SCORES,
+  type TrpgCatalog,
+  type TrpgCatalogPlayScores,
+} from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
 import { filterTrpgLobbyCampaigns } from "@/lib/recentActivity";
@@ -20,12 +24,14 @@ export default function TrpgLobbyClient({
   catalog,
   characterIds,
   initialScenarioId,
+  playScores = EMPTY_TRPG_CATALOG_PLAY_SCORES,
 }: {
   initialCampaigns: TrpgCampaignSnapshot[];
   initialCampaignQuery?: string;
   catalog: TrpgCatalog;
   characterIds: number[];
   initialScenarioId?: string;
+  playScores?: TrpgCatalogPlayScores;
 }) {
   const router = useRouter();
   const handoff = resolveScenarioHandoff(catalog, initialScenarioId);
@@ -116,6 +122,7 @@ export default function TrpgLobbyClient({
 
       <TrpgCatalogBrowse
         catalog={catalog}
+        playScores={playScores}
         busy={busy}
         pick={pick}
         initialPreview={handoff.ok ? handoff.pick : null}

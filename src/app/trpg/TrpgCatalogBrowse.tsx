@@ -2,9 +2,15 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
-import type { TrpgCatalog, TrpgCatalogWorld } from "@/lib/trpg/catalog";
+import {
+  EMPTY_TRPG_CATALOG_PLAY_SCORES,
+  type TrpgCatalog,
+  type TrpgCatalogPlayScores,
+  type TrpgCatalogWorld,
+} from "@/lib/trpg/catalog";
 import {
   catalogItemMatches,
+  catalogLiveRanking,
   catalogNewReleases,
   catalogScenarioById,
   catalogWorldById,
@@ -28,10 +34,12 @@ function WorldCardRow({
   world,
   selected,
   onSelect,
+  badge,
 }: {
   world: TrpgCatalogWorld;
   selected: boolean;
   onSelect: () => void;
+  badge?: string;
 }) {
   return (
     <TrpgCatalogCard
@@ -41,7 +49,7 @@ function WorldCardRow({
       summary={world.summary}
       creatorName={world.mine ? undefined : world.creatorName}
       genres={world.genres}
-      badge={world.mine ? (world.trpgEnabled ? "내 것" : "내 것 · 목록 숨김") : undefined}
+      badge={badge ?? (world.mine ? (world.trpgEnabled ? "내 것" : "내 것 · 목록 숨김") : undefined)}
       emoji="🌍"
       coverUrl={world.coverUrl}
       selected={selected}
@@ -56,11 +64,13 @@ function ScenarioCardRow({
   mine,
   selected,
   onSelect,
+  badge,
 }: {
   scenario: TrpgScenarioTemplate;
   mine?: boolean;
   selected: boolean;
   onSelect: () => void;
+  badge?: string;
 }) {
   return (
     <TrpgCatalogCard
@@ -69,7 +79,7 @@ function ScenarioCardRow({
       title={scenario.title}
       summary={scenario.summary || scenario.content}
       genres={scenario.genres}
-      badge={mine ? (scenario.visibility === "public" ? "내 것" : "내 것 · 비공개") : undefined}
+      badge={badge ?? (mine ? (scenario.visibility === "public" ? "내 것" : "내 것 · 비공개") : undefined)}
       emoji="📜"
       coverUrl={scenario.assets[0]?.url}
       selected={selected}
@@ -107,12 +117,14 @@ function NewReleaseCard({
   pick,
   onOpenWorld,
   onOpenScenario,
+  badge,
 }: {
   catalog: TrpgCatalog;
   item: TrpgCatalogNewItem;
   pick: TrpgCatalogPick | null;
   onOpenWorld: (id: number) => void;
   onOpenScenario: (id: number) => void;
+  badge?: string;
 }) {
   switch (item.kind) {
     case "world": {
@@ -124,6 +136,7 @@ function NewReleaseCard({
             world={world}
             selected={isPicked(pick, "world", world.id)}
             onSelect={() => onOpenWorld(world.id)}
+            badge={badge}
           />
         </div>
       );
@@ -138,6 +151,7 @@ function NewReleaseCard({
             mine={found.viewerIsCreator}
             selected={isPicked(pick, "scenario", found.scenario.id)}
             onSelect={() => onOpenScenario(found.scenario.id)}
+            badge={badge}
           />
         </div>
       );
@@ -158,6 +172,7 @@ export default function TrpgCatalogBrowse({
   onStartWorld,
   onStartScenario,
   initialPreview = null,
+  playScores = EMPTY_TRPG_CATALOG_PLAY_SCORES,
 }: {
   catalog: TrpgCatalog;
   busy: boolean;
@@ -167,6 +182,7 @@ export default function TrpgCatalogBrowse({
   onStartWorld: (id: number) => void;
   onStartScenario: (id: number) => void;
   initialPreview?: TrpgCatalogPick | null;
+  playScores?: TrpgCatalogPlayScores;
 }) {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<CharacterGenre | null>(null);
@@ -197,6 +213,10 @@ export default function TrpgCatalogBrowse({
   const availableGenres = genresInCatalog(allItems);
   const genreChips = availableGenres.length > 0 ? availableGenres : CHARACTER_GENRES;
   const newReleases = useMemo(() => catalogNewReleases(catalog, RECOMMEND_COUNT), [catalog]);
+  const liveRanking = useMemo(
+    () => catalogLiveRanking(catalog, playScores, RECOMMEND_COUNT),
+    [catalog, playScores]
+  );
 
   const matchWorld = (world: TrpgCatalogWorld) =>
     catalogItemMatches({
@@ -340,16 +360,18 @@ export default function TrpgCatalogBrowse({
               ))}
             </ScrollSection>
           ) : null}
-          {catalog.myWorlds.length > 0 ? (
-            <ScrollSection title="내 세계관">
-              {catalog.myWorlds.map((world) => (
-                <div key={world.id} className={`${SCROLL_CARD_WIDTH} shrink-0`}>
-                  <WorldCardRow
-                    world={world}
-                    selected={isPicked(pick, "world", world.id)}
-                    onSelect={() => openWorld(world.id)}
-                  />
-                </div>
+          {liveRanking.length > 0 ? (
+            <ScrollSection eyebrow="LIVE" title="실시간 랭킹">
+              {liveRanking.map((item, index) => (
+                <NewReleaseCard
+                  key={`${item.kind}-${item.id}`}
+                  catalog={catalog}
+                  item={item}
+                  pick={pick}
+                  onOpenWorld={openWorld}
+                  onOpenScenario={openScenario}
+                  badge={`#${index + 1}`}
+                />
               ))}
             </ScrollSection>
           ) : null}
