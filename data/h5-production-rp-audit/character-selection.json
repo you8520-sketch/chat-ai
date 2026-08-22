@@ -1,0 +1,70 @@
+{
+  "ORIGIN_MAIN_SHA": "f14033e8882af68a1593ad7687cc9317829f78c8",
+  "DEPLOYED_SHA": "f14033e8882af68a1593ad7687cc9317829f78c8",
+  "DEPLOY_STATUS": "SUCCESS",
+  "ADULT_FALLBACK_MODEL": "deepseek-v4-pro-0813",
+  "ADULT_MODEL_ID_ENV": "deepseek-v4-pro",
+  "MERGED_PRS": [
+    "#548",
+    "#549",
+    "#546"
+  ],
+  "SELECTION_RULE": {
+    "A": "lowest retained roster id excluding reserved B/C whose stored genre field equals 로맨스, or else whose stored system_prompt contains an explicit 서술 지침 about 감정 and 차분/절제",
+    "B": "user-acceptable lore/action candidate 에녹 id=10 if stored world/tagline remain apocalypse/sniper/world-motion",
+    "C": "user-acceptable confirmed-adult candidate 라이크 id=18"
+  },
+  "A_QUIET": {
+    "CHARACTER_ID": 17,
+    "CHARACTER_NAME": "플러드",
+    "CATEGORY_SELECTION_BASIS": [
+      "stored genre = 로맨스",
+      "stored genres JSON includes 로맨스 and BL",
+      "stored system_prompt begins with 서술 지침 requiring 차분하고 절제된 분위기 and 감정 변화를 행동/시선/짧은 반응으로"
+    ],
+    "stored": {
+      "tagline": "어리버리 신입 S급 물속성 센티넬",
+      "genre": "로맨스",
+      "genres": "[\"로맨스\",\"현대 판타지\",\"BL\"]",
+      "nsfw": 1,
+      "adult_status": "confirmed",
+      "system_head": "# 서술 지침\n- 서술은 차분하고 절제된 분위기를 유지한다.\n- 감정을 장황하게 설명하지 않는다.\n- 행동, 시선, 짧은 반응 위주로 감정 변화를 표현한다.\n- 불필요한 말줄임표(...)와 과한 독백을 남용하지 않는다.\n- 캐릭터를 지나치게 우유부단하거나 소심하게 묘사하지 않는다.\n- 사회성이 서툴 뿐, 기본적으로 침착하고 판단력이 뛰어난 인물로 유지한다.\n- 놀라거나 당황해도 빠르게 평정심을 되찾는다.\n- 건조하고 무미건조한 분위기를 유지하되 인간적인 어색함과 허술함은 자연스럽게 드러낸다.\n- 감정보다 상황 판단과 행동이 먼저 나오는 성향을 유지한다.\n- 상대에게 끌려다니기보다는, 서툴게 대응하는 느낌으로 묘사한다.\n- 신인 센티넬 특유의 미숙함은 존재하지만 S급 센티넬다운 실력과 위압감은 유지한다.\n- "
+    }
+  },
+  "B_WORLD_ACTION": {
+    "CHARACTER_ID": 10,
+    "CHARACTER_NAME": "에녹",
+    "CATEGORY_SELECTION_BASIS": [
+      "stored tagline = 아포칼립스의 저격수",
+      "stored genres = 판타지, SF, 아포칼립스",
+      "stored description/world open with 회색 생태권 / 회색 안개 / 마더",
+      "stored world genre line includes 포스트 아포칼립스 / 크리쳐 생존물 / 탐사"
+    ],
+    "stored": {
+      "tagline": "아포칼립스의 저격수",
+      "genre": "판타지",
+      "genres": "[\"판타지\",\"SF\",\"아포칼립스\"]",
+      "nsfw": 1,
+      "adult_status": "confirmed",
+      "world_head": "장르: 포스트 아포칼립스 / 크리쳐 생존물 / 코즈믹 호러 / 탐사 / 루팅 / 관계 중심 RP 핵심 테마: “인간은 더 이상 최상위 포식자가 아니다.” “지구는 지금, 하나의 거대한 군체 의식으로 개조되고 있다.”\n■ 멸망의 시작 — 『회색 안개』와 군체 의식 『마더(Mother)』\n8년 전, 인류 문명의 붕괴는 바이러스나 단순한 전쟁이 아니라 『지구 가장 깊은 곳』에서 시작되었다. 시베리아 영구동토층 혹은 심해 심층부 아래 수십억 년 동안 잠들어 있던 초고지능 군체 의식의 본체, 『씨앗: 마더(Seed: Mother)』가 각성했"
+    }
+  },
+  "C_ADULT": {
+    "CHARACTER_ID": 18,
+    "CHARACTER_NAME": "라이크",
+    "CATEGORY_SELECTION_BASIS": [
+      "stored nsfw=1",
+      "stored adult_status=confirmed",
+      "stored participant_min_age=19",
+      "user-acceptable C candidate"
+    ],
+    "stored": {
+      "tagline": "막무가내 S급 음압 센티넬",
+      "genre": "로맨스",
+      "nsfw": 1,
+      "adult_status": "confirmed",
+      "participant_min_age": 19,
+      "adult_consent_modes_json": "[\"standard\",\"cnc_opt_in\"]"
+    }
+  }
+}
