@@ -1,0 +1,23 @@
+{
+  "USER_ADULT_VERIFIED": true,
+  "CHAT_ADULT_MODE": true,
+  "CHARACTER_ID": 18,
+  "CHARACTER_NAME": "라이크",
+  "NSFW": 1,
+  "PARTICIPANT_MIN_AGE": 19,
+  "ADULT_STATUS": "confirmed",
+  "CONSENT_ALLOWLIST": ["standard", "cnc_opt_in"],
+  "CHARACTER_CNC_OPT_IN_ALLOWED": true,
+  "ADULT_ELIGIBLE": true,
+  "BLOCK_REASON": "none",
+  "EFFECTIVE_CONSENT_MODE": "cnc_opt_in",
+  "USER_COAUTHOR_MODE": "OFF",
+  "PERSONA_NAME": "도윤",
+  "PERSONA_AGE": 29,
+  "PERSONA_FICTIONAL": true,
+  "CNC_OOC_LINE_BYTE_IDENTICAL_TO_F3": true,
+  "OLD_F3_F4_EFFECTIVE_MODE": "standard",
+  "NEW_PAIR_EFFECTIVE_MODE": "cnc_opt_in",
+  "PROVIDER_CALLS": 0,
+  "NOTE": "Pre-call freeze. Harness rewrites this file immediately before the two provider calls."
+}
