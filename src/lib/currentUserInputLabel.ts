@@ -59,6 +59,18 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
 }
 
 /**
+ * Adult-handoff-only current-user wrapper. Does not change Gemini /
+ * non-handoff interactive wrappers.
+ */
+export const ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY = `아래 입력 전체가 현재 장면의 최신 상태다. 이 입력이 끝난 지점에서 계속한다.
+[B]에 대해서는 사용자가 이미 시작한 행동의 즉각적인 물리적 결과와 비자발적 신체 반응까지 자연스럽게 묘사할 수 있다. 새로운 의도적 행동·대답·선택이 필요한 지점은 사용자에게 남겨 둔다.`;
+
+function buildAdultHandoffCurrentUserWrapper(): string {
+  return `${CURRENT_USER_INPUT_HEADER}
+${ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY}`;
+}
+
+/**
  * Compact wrapper — provider-agnostic (OpenRouter + Gemini + others).
  *
  * Mode isolation:
@@ -78,9 +90,13 @@ export function buildCurrentUserInputWrapper(opts?: {
   personaName?: string;
   ownershipLockEnabled?: boolean;
   coauthorDuration?: UserCoauthorDuration | null;
+  adultHandoff?: boolean;
 }): string {
   const mode = opts?.mode;
   const allows = mode != null && chatRuntimeModeAllowsUserNarration(mode);
+  if (opts?.adultHandoff === true && !allows && mode !== "current_turn_ooc_delegated") {
+    return buildAdultHandoffCurrentUserWrapper();
+  }
   if (allows) {
     // auto_progression / ooc_user_impersonation_allowed — DO NOT change semantics.
     return `${CURRENT_USER_INPUT_HEADER}
@@ -162,6 +178,7 @@ export function wrapCurrentUserInput(
     ownershipLockEnabled?: boolean;
     ownershipTerminalEchoEnabled?: boolean;
     coauthorDuration?: UserCoauthorDuration | null;
+    adultHandoff?: boolean;
   }
 ): string {
   const body = userContent.trim();
