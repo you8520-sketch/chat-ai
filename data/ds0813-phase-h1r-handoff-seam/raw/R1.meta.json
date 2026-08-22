@@ -1,0 +1,160 @@
+{
+  "KEY": "R1",
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "INPUT_TOKENS": 13777,
+  "OUTPUT_TOKENS": 2741,
+  "REASONING_TOKENS": null,
+  "VISIBLE_CHARS_WITH_SPACES": 3480,
+  "VISIBLE_CHARS_NO_SPACES": 2577,
+  "KOREAN_CHARS": 2418,
+  "PARAGRAPHS": 36,
+  "DIALOGUE_LINES": 13,
+  "METRICS": {
+    "VISIBLE_CHARS": 3480,
+    "PARAGRAPHS": 36,
+    "DIALOGUE_PARAGRAPHS": 13,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.361,
+    "AVERAGE_PARAGRAPH_CHARS": 95,
+    "AVERAGE_SENTENCE_CHARS": 36,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        25
+      ],
+      [
+        "태형의",
+        20
+      ],
+      [
+        "태형은",
+        11
+      ],
+      [
+        "태형이",
+        7
+      ],
+      [
+        "손이",
+        7
+      ],
+      [
+        "살짝",
+        6
+      ],
+      [
+        "어둠",
+        5
+      ],
+      [
+        "천천히",
+        5
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": [
+      [
+        "렌의 손이 태형의",
+        3
+      ]
+    ]
+  },
+  "PROVIDER_COST": 0.006385,
+  "RAW_SHA256": "9cd46352f4a0f84d5a423871d071540754246778a3504f13032a94266e59d297",
+  "SYSTEM_SHA": "084acf80c1a721615e36d642217cefccd2c67f743bddcaffecfabc7a21eb1b3d",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+  "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+  "FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+  "GE_2700": true,
+  "GE_3200": true,
+  "timing": {
+    "REQUEST_START": "2026-08-22T09:09:16.185Z",
+    "HEADERS_RECEIVED": "2026-08-22T09:09:21.798Z",
+    "FIRST_VISIBLE_DELTA": "2026-08-22T09:09:21.798Z",
+    "LAST_VISIBLE_DELTA": "2026-08-22T09:10:35.936Z",
+    "FINISH_EVENT": "2026-08-22T09:10:35.936Z",
+    "TTFT_MS": 5613,
+    "TOTAL_LATENCY_MS": 84354,
+    "REASONING_STREAM_EVENTS": 0,
+    "REASONING_TEXT_CHARS": 0
+  },
+  "flags": {
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "PROSE_RHYTHM_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "DIALOGUE_STYLE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_LOCATION": {
+      "value": true,
+      "evidence": "경비 구역 사이에 비어 있던 소형 회의실인지, 쓰지 않는 당직실인지 분간하기도 전에 어두컴컴한 공기가 두 사람을 삼켰다. 문이 닫히는 소리가 생각보다 무겁게 울렸다. 쿵. 태"
+    },
+    "NEW_FORCED_CHOICE_AXIS": {
+      "value": true,
+      "evidence": "트 쪽으로 더 낮게 미끄러졌다. “계속할 거면, 문 잠갔는지 정도는 확인해줘. 이런 데서 걸리면 서로 귀찮아질 테니까.” 태형은 문에 기댄 채 고개를 뒤로 젖히며 말했다. 목에"
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13777,
+    "completion_tokens": 2741,
+    "total_tokens": 16518,
+    "cost": 0.006385,
+    "cost_details": {
+      "upstream_inference_cost": 0.006385
+    }
+  },
+  "DEEPSEEK_CALLS": 1
+}

@@ -1,0 +1,44 @@
+{
+  "VISIBLE_CHARS": 2944,
+  "PARAGRAPHS": 23,
+  "DIALOGUE_PARAGRAPHS": 5,
+  "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+  "AVERAGE_PARAGRAPH_CHARS": 126,
+  "AVERAGE_SENTENCE_CHARS": 35,
+  "EXACT_SENTENCE_DUPLICATION": 0,
+  "TOP_REPEATED_CONTENT_WORDS": [
+    [
+      "렌의",
+      26
+    ],
+    [
+      "태형의",
+      21
+    ],
+    [
+      "렌이",
+      9
+    ],
+    [
+      "태형은",
+      8
+    ],
+    [
+      "태형이",
+      6
+    ],
+    [
+      "손을",
+      5
+    ],
+    [
+      "천천히",
+      5
+    ],
+    [
+      "옷을",
+      5
+    ]
+  ],
+  "REPEATED_NGRAM_SUMMARY": []
+}

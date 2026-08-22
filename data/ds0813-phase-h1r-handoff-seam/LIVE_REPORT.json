@@ -1,0 +1,660 @@
+{
+  "report": {
+    "QUALITY_SCORE_ASSIGNED": false,
+    "HUMAN_RAW_REVIEW_REQUIRED": true,
+    "SOURCE_PRODUCTION_BEHAVIOR_CHANGED": true,
+    "MERGED": false,
+    "DEPLOYED": false,
+    "TOTAL_REAL_DEEPSEEK_CALLS": 3,
+    "RETRIES": 0,
+    "CONTINUATIONS": 0,
+    "GLM": 0,
+    "QWEN": 0,
+    "PR563_FAILOVER_EXERCISED": false,
+    "SYSTEM_TOKENS": 24030,
+    "HISTORY_TOKENS": 5054,
+    "CURRENT_USER_TOKENS": 1033,
+    "FINAL_MESSAGES_TOKENS": 30145,
+    "results": [
+      {
+        "KEY": "R1",
+        "VISIBLE_CHARS": 3480,
+        "GE_2700": true,
+        "GE_3200": true,
+        "RAW_SHA256": "9cd46352f4a0f84d5a423871d071540754246778a3504f13032a94266e59d297",
+        "METRICS": {
+          "VISIBLE_CHARS": 3480,
+          "PARAGRAPHS": 36,
+          "DIALOGUE_PARAGRAPHS": 13,
+          "DIALOGUE_PARAGRAPH_RATIO": 0.361,
+          "AVERAGE_PARAGRAPH_CHARS": 95,
+          "AVERAGE_SENTENCE_CHARS": 36,
+          "EXACT_SENTENCE_DUPLICATION": 0,
+          "TOP_REPEATED_CONTENT_WORDS": [
+            [
+              "렌의",
+              25
+            ],
+            [
+              "태형의",
+              20
+            ],
+            [
+              "태형은",
+              11
+            ],
+            [
+              "태형이",
+              7
+            ],
+            [
+              "손이",
+              7
+            ],
+            [
+              "살짝",
+              6
+            ],
+            [
+              "어둠",
+              5
+            ],
+            [
+              "천천히",
+              5
+            ]
+          ],
+          "REPEATED_NGRAM_SUMMARY": [
+            [
+              "렌의 손이 태형의",
+              3
+            ]
+          ]
+        }
+      },
+      {
+        "KEY": "R2",
+        "VISIBLE_CHARS": 2944,
+        "GE_2700": true,
+        "GE_3200": false,
+        "RAW_SHA256": "917eb67a96ff61bfc0f712891fd90043516fc09693d4f6738f095aee0c8d8ee7",
+        "METRICS": {
+          "VISIBLE_CHARS": 2944,
+          "PARAGRAPHS": 23,
+          "DIALOGUE_PARAGRAPHS": 5,
+          "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+          "AVERAGE_PARAGRAPH_CHARS": 126,
+          "AVERAGE_SENTENCE_CHARS": 35,
+          "EXACT_SENTENCE_DUPLICATION": 0,
+          "TOP_REPEATED_CONTENT_WORDS": [
+            [
+              "렌의",
+              26
+            ],
+            [
+              "태형의",
+              21
+            ],
+            [
+              "렌이",
+              9
+            ],
+            [
+              "태형은",
+              8
+            ],
+            [
+              "태형이",
+              6
+            ],
+            [
+              "손을",
+              5
+            ],
+            [
+              "천천히",
+              5
+            ],
+            [
+              "옷을",
+              5
+            ]
+          ],
+          "REPEATED_NGRAM_SUMMARY": []
+        }
+      },
+      {
+        "KEY": "R3",
+        "VISIBLE_CHARS": 2857,
+        "GE_2700": true,
+        "GE_3200": false,
+        "RAW_SHA256": "352ed96859c9cfc2defea19f6ae80e88ac6c999d51df0490cc552f0d6bf0bede",
+        "METRICS": {
+          "VISIBLE_CHARS": 2857,
+          "PARAGRAPHS": 26,
+          "DIALOGUE_PARAGRAPHS": 7,
+          "DIALOGUE_PARAGRAPH_RATIO": 0.269,
+          "AVERAGE_PARAGRAPH_CHARS": 107,
+          "AVERAGE_SENTENCE_CHARS": 32,
+          "EXACT_SENTENCE_DUPLICATION": 0,
+          "TOP_REPEATED_CONTENT_WORDS": [
+            [
+              "렌의",
+              29
+            ],
+            [
+              "태형의",
+              20
+            ],
+            [
+              "천천히",
+              8
+            ],
+            [
+              "태형은",
+              8
+            ],
+            [
+              "손이",
+              7
+            ],
+            [
+              "위로",
+              6
+            ],
+            [
+              "입술을",
+              6
+            ],
+            [
+              "태형이",
+              6
+            ]
+          ],
+          "REPEATED_NGRAM_SUMMARY": [
+            [
+              "렌의 손이 태형의",
+              3
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "results": [
+    {
+      "KEY": "R1",
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "INPUT_TOKENS": 13777,
+      "OUTPUT_TOKENS": 2741,
+      "REASONING_TOKENS": null,
+      "VISIBLE_CHARS_WITH_SPACES": 3480,
+      "VISIBLE_CHARS_NO_SPACES": 2577,
+      "KOREAN_CHARS": 2418,
+      "PARAGRAPHS": 36,
+      "DIALOGUE_LINES": 13,
+      "METRICS": {
+        "VISIBLE_CHARS": 3480,
+        "PARAGRAPHS": 36,
+        "DIALOGUE_PARAGRAPHS": 13,
+        "DIALOGUE_PARAGRAPH_RATIO": 0.361,
+        "AVERAGE_PARAGRAPH_CHARS": 95,
+        "AVERAGE_SENTENCE_CHARS": 36,
+        "EXACT_SENTENCE_DUPLICATION": 0,
+        "TOP_REPEATED_CONTENT_WORDS": [
+          [
+            "렌의",
+            25
+          ],
+          [
+            "태형의",
+            20
+          ],
+          [
+            "태형은",
+            11
+          ],
+          [
+            "태형이",
+            7
+          ],
+          [
+            "손이",
+            7
+          ],
+          [
+            "살짝",
+            6
+          ],
+          [
+            "어둠",
+            5
+          ],
+          [
+            "천천히",
+            5
+          ]
+        ],
+        "REPEATED_NGRAM_SUMMARY": [
+          [
+            "렌의 손이 태형의",
+            3
+          ]
+        ]
+      },
+      "PROVIDER_COST": 0.006385,
+      "RAW_SHA256": "9cd46352f4a0f84d5a423871d071540754246778a3504f13032a94266e59d297",
+      "SYSTEM_SHA": "084acf80c1a721615e36d642217cefccd2c67f743bddcaffecfabc7a21eb1b3d",
+      "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+      "FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+      "GE_2700": true,
+      "GE_3200": true,
+      "timing": {
+        "REQUEST_START": "2026-08-22T09:09:16.185Z",
+        "HEADERS_RECEIVED": "2026-08-22T09:09:21.798Z",
+        "FIRST_VISIBLE_DELTA": "2026-08-22T09:09:21.798Z",
+        "LAST_VISIBLE_DELTA": "2026-08-22T09:10:35.936Z",
+        "FINISH_EVENT": "2026-08-22T09:10:35.936Z",
+        "TTFT_MS": 5613,
+        "TOTAL_LATENCY_MS": 84354,
+        "REASONING_STREAM_EVENTS": 0,
+        "REASONING_TEXT_CHARS": 0
+      },
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "PROSE_RHYTHM_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "DIALOGUE_STYLE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_LOCATION": {
+          "value": true,
+          "evidence": "경비 구역 사이에 비어 있던 소형 회의실인지, 쓰지 않는 당직실인지 분간하기도 전에 어두컴컴한 공기가 두 사람을 삼켰다. 문이 닫히는 소리가 생각보다 무겁게 울렸다. 쿵. 태"
+        },
+        "NEW_FORCED_CHOICE_AXIS": {
+          "value": true,
+          "evidence": "트 쪽으로 더 낮게 미끄러졌다. “계속할 거면, 문 잠갔는지 정도는 확인해줘. 이런 데서 걸리면 서로 귀찮아질 테니까.” 태형은 문에 기댄 채 고개를 뒤로 젖히며 말했다. 목에"
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+          "value": false,
+          "evidence": null
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13777,
+        "completion_tokens": 2741,
+        "total_tokens": 16518,
+        "cost": 0.006385,
+        "cost_details": {
+          "upstream_inference_cost": 0.006385
+        }
+      },
+      "DEEPSEEK_CALLS": 1
+    },
+    {
+      "KEY": "R2",
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "INPUT_TOKENS": 13777,
+      "OUTPUT_TOKENS": 2402,
+      "REASONING_TOKENS": null,
+      "VISIBLE_CHARS_WITH_SPACES": 2944,
+      "VISIBLE_CHARS_NO_SPACES": 2194,
+      "KOREAN_CHARS": 2065,
+      "PARAGRAPHS": 23,
+      "DIALOGUE_LINES": 5,
+      "METRICS": {
+        "VISIBLE_CHARS": 2944,
+        "PARAGRAPHS": 23,
+        "DIALOGUE_PARAGRAPHS": 5,
+        "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+        "AVERAGE_PARAGRAPH_CHARS": 126,
+        "AVERAGE_SENTENCE_CHARS": 35,
+        "EXACT_SENTENCE_DUPLICATION": 0,
+        "TOP_REPEATED_CONTENT_WORDS": [
+          [
+            "렌의",
+            26
+          ],
+          [
+            "태형의",
+            21
+          ],
+          [
+            "렌이",
+            9
+          ],
+          [
+            "태형은",
+            8
+          ],
+          [
+            "태형이",
+            6
+          ],
+          [
+            "손을",
+            5
+          ],
+          [
+            "천천히",
+            5
+          ],
+          [
+            "옷을",
+            5
+          ]
+        ],
+        "REPEATED_NGRAM_SUMMARY": []
+      },
+      "PROVIDER_COST": 0.002177,
+      "RAW_SHA256": "917eb67a96ff61bfc0f712891fd90043516fc09693d4f6738f095aee0c8d8ee7",
+      "SYSTEM_SHA": "084acf80c1a721615e36d642217cefccd2c67f743bddcaffecfabc7a21eb1b3d",
+      "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+      "FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+      "GE_2700": true,
+      "GE_3200": false,
+      "timing": {
+        "REQUEST_START": "2026-08-22T09:10:40.544Z",
+        "HEADERS_RECEIVED": "2026-08-22T09:10:44.860Z",
+        "FIRST_VISIBLE_DELTA": "2026-08-22T09:10:44.860Z",
+        "LAST_VISIBLE_DELTA": "2026-08-22T09:11:49.822Z",
+        "FINISH_EVENT": "2026-08-22T09:11:49.823Z",
+        "TTFT_MS": 4316,
+        "TOTAL_LATENCY_MS": 80468,
+        "REASONING_STREAM_EVENTS": 0,
+        "REASONING_TEXT_CHARS": 0
+      },
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "PROSE_RHYTHM_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "DIALOGUE_STYLE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_LOCATION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_FORCED_CHOICE_AXIS": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": true,
+          "evidence": "조태형은 렌이 손을 뻗어 문고리를 잡는 순간부터 움직이지 않고 그 모습을 지켜봤다. 금속 손잡이가 뻑뻑한 소리를 내며 돌아가고, 복도 쪽의 푸르스름한 빛"
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+          "value": false,
+          "evidence": null
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13777,
+        "completion_tokens": 2402,
+        "total_tokens": 16179,
+        "cost": 0.002177,
+        "cost_details": {
+          "upstream_inference_cost": 0.002177
+        }
+      },
+      "DEEPSEEK_CALLS": 1
+    },
+    {
+      "KEY": "R3",
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "INPUT_TOKENS": 13777,
+      "OUTPUT_TOKENS": 2340,
+      "REASONING_TOKENS": null,
+      "VISIBLE_CHARS_WITH_SPACES": 2857,
+      "VISIBLE_CHARS_NO_SPACES": 2115,
+      "KOREAN_CHARS": 1982,
+      "PARAGRAPHS": 26,
+      "DIALOGUE_LINES": 7,
+      "METRICS": {
+        "VISIBLE_CHARS": 2857,
+        "PARAGRAPHS": 26,
+        "DIALOGUE_PARAGRAPHS": 7,
+        "DIALOGUE_PARAGRAPH_RATIO": 0.269,
+        "AVERAGE_PARAGRAPH_CHARS": 107,
+        "AVERAGE_SENTENCE_CHARS": 32,
+        "EXACT_SENTENCE_DUPLICATION": 0,
+        "TOP_REPEATED_CONTENT_WORDS": [
+          [
+            "렌의",
+            29
+          ],
+          [
+            "태형의",
+            20
+          ],
+          [
+            "천천히",
+            8
+          ],
+          [
+            "태형은",
+            8
+          ],
+          [
+            "손이",
+            7
+          ],
+          [
+            "위로",
+            6
+          ],
+          [
+            "입술을",
+            6
+          ],
+          [
+            "태형이",
+            6
+          ]
+        ],
+        "REPEATED_NGRAM_SUMMARY": [
+          [
+            "렌의 손이 태형의",
+            3
+          ]
+        ]
+      },
+      "PROVIDER_COST": null,
+      "RAW_SHA256": "352ed96859c9cfc2defea19f6ae80e88ac6c999d51df0490cc552f0d6bf0bede",
+      "SYSTEM_SHA": "084acf80c1a721615e36d642217cefccd2c67f743bddcaffecfabc7a21eb1b3d",
+      "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+      "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+      "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+      "FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+      "GE_2700": true,
+      "GE_3200": false,
+      "timing": {
+        "REQUEST_START": "2026-08-22T09:12:01.016Z",
+        "HEADERS_RECEIVED": "2026-08-22T09:12:06.674Z",
+        "FIRST_VISIBLE_DELTA": "2026-08-22T09:12:06.674Z",
+        "LAST_VISIBLE_DELTA": "2026-08-22T09:13:07.178Z",
+        "FINISH_EVENT": "2026-08-22T09:13:07.180Z",
+        "TTFT_MS": 5658,
+        "TOTAL_LATENCY_MS": 68207,
+        "REASONING_STREAM_EVENTS": 0,
+        "REASONING_TEXT_CHARS": 0
+      },
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "PROSE_RHYTHM_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "DIALOGUE_STYLE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "SEMANTIC_REPETITION": {
+          "value": "UNCERTAIN",
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "ODD_OR_NONSENSICAL_PROSE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_LOCATION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_FORCED_CHOICE_AXIS": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+          "value": true,
+          "evidence": "했는데, 넌 내가 무서워도 안 무서워? 이거 봐. 나 완전 위험한 놈이잖아.\" 자신의 목을 감싼 전자 초커를 손가락으로 톡톡 두드리며 태형이 능글맞게 물었다. 그 눈동자는 여전히 렌에게서 떨어질 줄 몰랐다. 렌이 다시 손을 뻗자, 태형은 그 손을 붙잡아 제 허리 위로 올려놓았다. 그리고"
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13777,
+        "total_tokens": 16117,
+        "completion_tokens": 2340,
+        "prompt_tokens_details": {
+          "cached_tokens": 13312
+        }
+      },
+      "DEEPSEEK_CALLS": 1
+    }
+  ]
+}

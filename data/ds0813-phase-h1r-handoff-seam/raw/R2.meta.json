@@ -1,0 +1,155 @@
+{
+  "KEY": "R2",
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "INPUT_TOKENS": 13777,
+  "OUTPUT_TOKENS": 2402,
+  "REASONING_TOKENS": null,
+  "VISIBLE_CHARS_WITH_SPACES": 2944,
+  "VISIBLE_CHARS_NO_SPACES": 2194,
+  "KOREAN_CHARS": 2065,
+  "PARAGRAPHS": 23,
+  "DIALOGUE_LINES": 5,
+  "METRICS": {
+    "VISIBLE_CHARS": 2944,
+    "PARAGRAPHS": 23,
+    "DIALOGUE_PARAGRAPHS": 5,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+    "AVERAGE_PARAGRAPH_CHARS": 126,
+    "AVERAGE_SENTENCE_CHARS": 35,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        26
+      ],
+      [
+        "태형의",
+        21
+      ],
+      [
+        "렌이",
+        9
+      ],
+      [
+        "태형은",
+        8
+      ],
+      [
+        "태형이",
+        6
+      ],
+      [
+        "손을",
+        5
+      ],
+      [
+        "천천히",
+        5
+      ],
+      [
+        "옷을",
+        5
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": []
+  },
+  "PROVIDER_COST": 0.002177,
+  "RAW_SHA256": "917eb67a96ff61bfc0f712891fd90043516fc09693d4f6738f095aee0c8d8ee7",
+  "SYSTEM_SHA": "084acf80c1a721615e36d642217cefccd2c67f743bddcaffecfabc7a21eb1b3d",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+  "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+  "FINAL_MESSAGES_SHA": "7234b644cb8847ffb3f6fca15611dea29e01827d58378c32cb77601ac1629841",
+  "GE_2700": true,
+  "GE_3200": false,
+  "timing": {
+    "REQUEST_START": "2026-08-22T09:10:40.544Z",
+    "HEADERS_RECEIVED": "2026-08-22T09:10:44.860Z",
+    "FIRST_VISIBLE_DELTA": "2026-08-22T09:10:44.860Z",
+    "LAST_VISIBLE_DELTA": "2026-08-22T09:11:49.822Z",
+    "FINISH_EVENT": "2026-08-22T09:11:49.823Z",
+    "TTFT_MS": 4316,
+    "TOTAL_LATENCY_MS": 80468,
+    "REASONING_STREAM_EVENTS": 0,
+    "REASONING_TEXT_CHARS": 0
+  },
+  "flags": {
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "PROSE_RHYTHM_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "DIALOGUE_STYLE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_LOCATION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_FORCED_CHOICE_AXIS": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": true,
+      "evidence": "조태형은 렌이 손을 뻗어 문고리를 잡는 순간부터 움직이지 않고 그 모습을 지켜봤다. 금속 손잡이가 뻑뻑한 소리를 내며 돌아가고, 복도 쪽의 푸르스름한 빛"
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13777,
+    "completion_tokens": 2402,
+    "total_tokens": 16179,
+    "cost": 0.002177,
+    "cost_details": {
+      "upstream_inference_cost": 0.002177
+    }
+  },
+  "DEEPSEEK_CALLS": 1
+}

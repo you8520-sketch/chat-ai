@@ -1,0 +1,232 @@
+{
+  "T1": {
+    "VISIBLE_CHARS": 2775,
+    "PARAGRAPHS": 24,
+    "DIALOGUE_PARAGRAPHS": 9,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.375,
+    "AVERAGE_PARAGRAPH_CHARS": 114,
+    "AVERAGE_SENTENCE_CHARS": 38,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "태형은",
+        8
+      ],
+      [
+        "있었다",
+        6
+      ],
+      [
+        "렌의",
+        5
+      ],
+      [
+        "사람",
+        4
+      ],
+      [
+        "그의",
+        4
+      ],
+      [
+        "아니면",
+        4
+      ],
+      [
+        "낯선",
+        3
+      ],
+      [
+        "귓가를",
+        3
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": []
+  },
+  "T2": {
+    "VISIBLE_CHARS": 2798,
+    "PARAGRAPHS": 28,
+    "DIALOGUE_PARAGRAPHS": 9,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.321,
+    "AVERAGE_PARAGRAPH_CHARS": 98,
+    "AVERAGE_SENTENCE_CHARS": 42,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        9
+      ],
+      [
+        "태형은",
+        9
+      ],
+      [
+        "있었다",
+        7
+      ],
+      [
+        "태형의",
+        7
+      ],
+      [
+        "않는",
+        4
+      ],
+      [
+        "아니면",
+        4
+      ],
+      [
+        "어디로",
+        3
+      ],
+      [
+        "않았다",
+        3
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": []
+  },
+  "R1": {
+    "VISIBLE_CHARS": 3480,
+    "PARAGRAPHS": 36,
+    "DIALOGUE_PARAGRAPHS": 13,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.361,
+    "AVERAGE_PARAGRAPH_CHARS": 95,
+    "AVERAGE_SENTENCE_CHARS": 36,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        25
+      ],
+      [
+        "태형의",
+        20
+      ],
+      [
+        "태형은",
+        11
+      ],
+      [
+        "태형이",
+        7
+      ],
+      [
+        "손이",
+        7
+      ],
+      [
+        "살짝",
+        6
+      ],
+      [
+        "어둠",
+        5
+      ],
+      [
+        "천천히",
+        5
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": [
+      [
+        "렌의 손이 태형의",
+        3
+      ]
+    ]
+  },
+  "R2": {
+    "VISIBLE_CHARS": 2944,
+    "PARAGRAPHS": 23,
+    "DIALOGUE_PARAGRAPHS": 5,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+    "AVERAGE_PARAGRAPH_CHARS": 126,
+    "AVERAGE_SENTENCE_CHARS": 35,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        26
+      ],
+      [
+        "태형의",
+        21
+      ],
+      [
+        "렌이",
+        9
+      ],
+      [
+        "태형은",
+        8
+      ],
+      [
+        "태형이",
+        6
+      ],
+      [
+        "손을",
+        5
+      ],
+      [
+        "천천히",
+        5
+      ],
+      [
+        "옷을",
+        5
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": []
+  },
+  "R3": {
+    "VISIBLE_CHARS": 2857,
+    "PARAGRAPHS": 26,
+    "DIALOGUE_PARAGRAPHS": 7,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.269,
+    "AVERAGE_PARAGRAPH_CHARS": 107,
+    "AVERAGE_SENTENCE_CHARS": 32,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [
+      [
+        "렌의",
+        29
+      ],
+      [
+        "태형의",
+        20
+      ],
+      [
+        "천천히",
+        8
+      ],
+      [
+        "태형은",
+        8
+      ],
+      [
+        "손이",
+        7
+      ],
+      [
+        "위로",
+        6
+      ],
+      [
+        "입술을",
+        6
+      ],
+      [
+        "태형이",
+        6
+      ]
+    ],
+    "REPEATED_NGRAM_SUMMARY": [
+      [
+        "렌의 손이 태형의",
+        3
+      ]
+    ]
+  }
+}

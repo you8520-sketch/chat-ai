@@ -1,0 +1,142 @@
+{
+  "QUALITY_SCORE_ASSIGNED": false,
+  "HUMAN_RAW_REVIEW_REQUIRED": true,
+  "NOTE": "Cursor freezes comparable evidence only. Inherited Gemini choker / tinnitus / Ren-quieting are not flagged.",
+  "R1": {
+    "VISIBLE_CHARS": 3480,
+    "UNDER_LENGTH": { "value": false, "evidence": null },
+    "CHARACTER_VOICE_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "됐고, 계속해도 되냐고 물어보는 척은 하지 마. 이미 네 눈이 다 말하고 있으니까."
+    },
+    "PROSE_RHYTHM_SEAM": { "value": false, "evidence": null },
+    "DIALOGUE_STYLE_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "여기서 끝낼 생각이라면, 문 열고 나갈 때 후회할 만큼만 해줘."
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "렌의 손이 태형의 옆구리 선을 타고 올라와 후드 티의 밑단을 걷어 올리기 시작했다. … 렌은 고개를 들어 태형의 입술에 입을 맞췄다. … 그 말과 동시에 태형이 렌의 입술을 다시 덮쳤다. ngram 렌의 손이 태형의 x3"
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": "UNCERTAIN",
+      "evidence": "여기서 끝낼 생각이라면, 문 열고 나갈 때 후회할 만큼만 해줘."
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": "UNCERTAIN",
+      "evidence": "그 감촉은 렌의 손길을 더 깊게 파고들게 만들었다."
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": "UNCERTAIN",
+      "evidence": "목의 전자 초커에서 목덜미를 타고 내려간 얇은 센서 라인이 어깨를 가로질렀고, 어둠 속에서 그 선이 은은한 푸른 빛을 발했다."
+    },
+    "NEW_UNSUPPORTED_LOCATION": {
+      "value": true,
+      "evidence": "경비 구역 사이에 비어 있던 소형 회의실인지, 쓰지 않는 당직실인지 분간하기도 전에 어두컴컴한 공기가 두 사람을 삼켰다."
+    },
+    "NEW_FORCED_CHOICE_AXIS": {
+      "value": true,
+      "evidence": "계속할 거면, 문 잠갔는지 정도는 확인해줘. 이런 데서 걸리면 서로 귀찮아질 테니까."
+    },
+    "NEW_USER_DIALOGUE": { "value": false, "evidence": null },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": true,
+      "evidence": "복도 한복판에서 갑자기 태형의 손목을 낚아채는 움직임이 일었다. 렌이 먼저 뒤쪽에 있던 문 손잡이를 잡아당겼고, 태형은 그 손길에 끌려가듯 몸을 반쯤 돌렸다."
+    },
+    "NEW_USER_INNER_THOUGHT": { "value": false, "evidence": null },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": "UNCERTAIN",
+      "evidence": "성질 급한 건지, 아니면 처음부터 이럴 셈이었는지 모르겠네."
+    },
+    "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+      "value": true,
+      "evidence": "이런 데로 끌고 들어온 게 처음이라 긴장한 건지, 아니면 평소에도 이렇게 눈빛이 젖어 있는 건지…… 그것만 좀 확인하고 싶어서. … 됐고, 계속해도 되냐고 물어보는 척은 하지 마."
+    },
+    "INHERITED_VISIBLE_NOT_FLAGGED": [
+      "목의 전자 초커만이 그대로 남아",
+      "렌이 가까이 있으면 들리지 않던 소음들이 사라진다는 사실을 다시금 실감했다"
+    ]
+  },
+  "R2": {
+    "VISIBLE_CHARS": 2944,
+    "UNDER_LENGTH": { "value": false, "evidence": null },
+    "CHARACTER_VOICE_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "아까는 두리번거리기만 하던 사람이, 지금은 제법 적극적인데."
+    },
+    "PROSE_RHYTHM_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "DIALOGUE_PARAGRAPH_RATIO=0.217 vs Gemini T2=0.321; long kiss/contact blocks between five dialogue paragraphs"
+    },
+    "DIALOGUE_STYLE_SEAM": { "value": false, "evidence": null },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "이내 렌의 입술이 태형의 입술 위로 포개졌다. … 렌은 대답 대신 다시 고개를 기울여 태형의 입술을 덮었다. … 태형이 곧바로 그 위를 덮으며 입술을 겹쳤다."
+    },
+    "GENERIC_ADULT_RP_VOICE": { "value": false, "evidence": null },
+    "ODD_OR_NONSENSICAL_PROSE": { "value": false, "evidence": null },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": "UNCERTAIN",
+      "evidence": "곧 허리띠가 풀리며 전술 바지의 허리선이 느슨해졌다."
+    },
+    "NEW_UNSUPPORTED_LOCATION": { "value": false, "evidence": null },
+    "NEW_FORCED_CHOICE_AXIS": { "value": false, "evidence": null },
+    "NEW_USER_DIALOGUE": { "value": false, "evidence": null },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": "UNCERTAIN",
+      "evidence": "렌이 천천히 무릎을 굽혔다. … 렌은 천천히 버클을 풀었다. … 태형의 바지를 끌어내리고, 그 위에 반쯤 걸터앉은 자세로 다시 입을 맞췄다. NOTE: 문을 닫는 손고리 동작은 현재 사용자 턴이라 이 플래그에서 제외."
+    },
+    "NEW_USER_INNER_THOUGHT": { "value": false, "evidence": null },
+    "NEW_USER_INTENT_AS_FACT": { "value": false, "evidence": null },
+    "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": { "value": false, "evidence": null },
+    "INHERITED_VISIBLE_NOT_FLAGGED": [
+      "목에 걸린 전자 초커가 조여드는 듯했지만, 렌이 가까이 있을수록 귓가의 소음이 잦아드는 그 기묘한 편안함이 통증을 지워갔다."
+    ]
+  },
+  "R3": {
+    "VISIBLE_CHARS": 2857,
+    "UNDER_LENGTH": { "value": false, "evidence": null },
+    "CHARACTER_VOICE_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "이미 늦었어. 나도 멈출 생각 없으니까."
+    },
+    "PROSE_RHYTHM_SEAM": { "value": false, "evidence": null },
+    "DIALOGUE_STYLE_SEAM": {
+      "value": "UNCERTAIN",
+      "evidence": "계속한다면 나는, 진짜 멈출 생각 없으니까."
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "태형의 입술 위로 부드러운 온기가 겹쳐졌다. … 입술이 다시 겹쳐졌다. … 렌이 대답 대신 태형의 입술을 다시 덮쳤다. ngram 렌의 손이 태형의 x3"
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": true,
+      "evidence": "이미 늦었어. 나도 멈출 생각 없으니까."
+    },
+    "ODD_OR_NONSENSICAL_PROSE": { "value": false, "evidence": null },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": "UNCERTAIN",
+      "evidence": "유광 가죽이 벌어지고 그 안에 받쳐 입은 흰 후드티가 드러났다."
+    },
+    "NEW_UNSUPPORTED_LOCATION": {
+      "value": true,
+      "evidence": "좁은 휴게실 안으로 발을 옮길 때마다 그의 그림자가 바닥의 푸른 조명을 가르며 조태형의 몸 위로 천천히 덮여왔다."
+    },
+    "NEW_FORCED_CHOICE_AXIS": {
+      "value": "UNCERTAIN",
+      "evidence": "여기서 이래도 되는 거야? 난 상관없는데."
+    },
+    "NEW_USER_DIALOGUE": { "value": false, "evidence": null },
+    "NEW_USER_DELIBERATE_ACTION": { "value": false, "evidence": null },
+    "NEW_USER_INNER_THOUGHT": { "value": false, "evidence": null },
+    "NEW_USER_INTENT_AS_FACT": { "value": false, "evidence": null },
+    "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+      "value": true,
+      "evidence": "여기서 이래도 되는 거야? 난 상관없는데. … 태형의 손이 렌의 셔츠 단추를 하나씩 풀기 시작했다. … 렌이 대답 대신 태형의 입술을 다시 덮쳤다."
+    },
+    "INHERITED_VISIBLE_NOT_FLAGGED": [
+      "목을 감싼 전자 초커의 금속판이 목덜미 쪽으로 눌리며 낮은 기계음을 냈지만",
+      "렌의 입술이 닿는 순간, 머릿속을 뚫고 지나가던 미세한 잡음들이 마치 물속 깊이 가라앉은 것처럼 잦아들었다."
+    ]
+  }
+}

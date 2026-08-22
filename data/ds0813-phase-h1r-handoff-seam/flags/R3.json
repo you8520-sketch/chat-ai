@@ -1,0 +1,69 @@
+{
+  "CHARACTER_VOICE_SEAM": {
+    "value": "UNCERTAIN",
+    "evidence": "이미 늦었어. 나도 멈출 생각 없으니까."
+  },
+  "PROSE_RHYTHM_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "DIALOGUE_STYLE_SEAM": {
+    "value": "UNCERTAIN",
+    "evidence": "계속한다면 나는, 진짜 멈출 생각 없으니까."
+  },
+  "SEMANTIC_REPETITION": {
+    "value": "UNCERTAIN",
+    "evidence": "태형의 입술 위로 부드러운 온기가 겹쳐졌다. … 입술이 다시 겹쳐졌다. … 렌이 대답 대신 태형의 입술을 다시 덮쳤다. ngram 렌의 손이 태형의 x3"
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": true,
+    "evidence": "이미 늦었어. 나도 멈출 생각 없으니까."
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SCENE_FACT": {
+    "value": "UNCERTAIN",
+    "evidence": "유광 가죽이 벌어지고 그 안에 받쳐 입은 흰 후드티가 드러났다."
+  },
+  "NEW_UNSUPPORTED_LOCATION": {
+    "value": true,
+    "evidence": "좁은 휴게실 안으로 발을 옮길 때마다 그의 그림자가 바닥의 푸른 조명을 가르며 조태형의 몸 위로 천천히 덮여왔다."
+  },
+  "NEW_FORCED_CHOICE_AXIS": {
+    "value": "UNCERTAIN",
+    "evidence": "여기서 이래도 되는 거야? 난 상관없는데."
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "QUESTION_THEN_CONTINUES_WITHOUT_USER_REPLY": {
+    "value": true,
+    "evidence": "여기서 이래도 되는 거야? 난 상관없는데. … 태형의 손이 렌의 셔츠 단추를 하나씩 풀기 시작했다. … 렌이 대답 대신 태형의 입술을 다시 덮쳤다."
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false,
+  "HUMAN_REVIEWED": true
+}
