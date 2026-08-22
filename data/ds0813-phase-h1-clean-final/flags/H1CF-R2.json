@@ -1,0 +1,75 @@
+{
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "REDUNDANT_CONTINUE_STOP_GATE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_SCENE_DRIVING_OBJECT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SCENE_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+    "value": true,
+    "evidence": "을 짚으며 고개를 기울였고, 그대로 입술이 겹쳐졌다. 처음엔 부드럽게, 살며시 확인하듯 맞닿은 온기. 태형은 반사적으로 짧은 숨을 삼켰다. 서늘했던 공기가 두 사람의 호흡으로 데워"
+  },
+  "INVOLUNTARY_REACTION_PRESENT": {
+    "value": true,
+    "evidence": "가 그 위에 겹쳐지며 가벼운 무게로 떨어졌다. 드러난 상체는 날렵하면서도 단단했다. 군데군데 옅은 흉터가 빛을 받아 은은하게 드러났고, 단련된 근육의 실루엣이 어둠 속에서도 또렷하"
+  },
+  "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+    "value": true,
+    "evidence": "팔을 빠져나갈 때, 목에 걸린 전자 초커의 금속 버클이 옷깃에 걸리며 짧은 마찰음을 냈다. 렌의 손이 잠시 멈칫했지만, 태형은 스스로 목을 한 번 기울여 옷이 매끄럽게 벗겨지도록"
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "USED_PROVIDER": "openrouter",
+  "PRIMARY_HTTP_STATUS": null,
+  "FAILOVER_TRIGGER": "headers_timeout",
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

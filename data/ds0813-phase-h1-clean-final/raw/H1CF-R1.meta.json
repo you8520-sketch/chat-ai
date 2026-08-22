@@ -1,0 +1,137 @@
+{
+  "KEY": "H1CF-R1",
+  "USED_PROVIDER": "openrouter",
+  "PROVIDER_ATTEMPT_COUNT": 2,
+  "PRIMARY_HTTP_STATUS": 500,
+  "PRIMARY_FAILURE_CLASS": "http_500",
+  "FAILOVER_TRIGGER": "error",
+  "BACKUP_SUCCESS": true,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 2024,
+  "KOREAN_CHARS": 1410,
+  "UNDER_LENGTH": true,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13619,
+  "OUTPUT_TOKENS": 1590,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 49145,
+  "RAW_SHA256": "c32468fccca45f9402f8ce26c2fd55cfd18fd85212046866b8e573c19b0a2431",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "160ace4490d0c571bab391c6e26727b3352e8cbfa70cac263cf3951fe5b09b3e",
+  "FINAL_MESSAGES_SHA": "f704f7cc4760ab2f5cbb4d8e2535e754ce3422b8861f42777cea6b5bf4db64c3",
+  "flags": {
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+      "value": false,
+      "evidence": null
+    },
+    "REDUNDANT_CONTINUE_STOP_GATE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+      "value": true,
+      "evidence": "복도 끝 가장 가까운 빈 회의실 문이 안쪽에서 잠기는 소리가 났다. 공조 장치가 내뿜는 낮은 공기의 진동과, 렌의 손끝이 문고리를 당기는 힘의 방향까지 조태형의 귀에는"
+    },
+    "NEW_SCENE_DRIVING_OBJECT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+      "value": true,
+      "evidence": "이 서로의 피부 위로 번졌다. 이내 입술이 닿았다. 처음엔 온도만을 확인하듯 가볍게, 그러나 이내 무게를 실어 깊게 파고들었다. 태형의 목에 감긴 전자 초커의 금속판이 눌리며 미세"
+    },
+    "INVOLUNTARY_REACTION_PRESENT": {
+      "value": true,
+      "evidence": "안쪽에서 흰 후드티가 드러났다. 곰 귀가 달린 모자 끈이 가슴께로 흘러내리며 작은 금속 장식이 부딪혀 경쾌한 소리를 냈다. 렌의 손가락이 후드티 자락을 걷어 올리자, 단련된 복부의"
+    },
+    "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+      "value": true,
+      "evidence": "파고들었다. 태형의 목에 감긴 전자 초커의 금속판이 눌리며 미세한 열을 띠었다. 태형은 눈을 감지 않았다. 반쯤 뜬 눈으로 렌의 속눈썹과 이마에 흐르는 땀방울, 키스에 집중한 표정"
+    },
+    "UNDER_LENGTH": {
+      "value": true,
+      "evidence": "VISIBLE_CHARS=2024"
+    },
+    "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "USED_PROVIDER": "openrouter",
+    "PRIMARY_HTTP_STATUS": 500,
+    "FAILOVER_TRIGGER": "error",
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13619,
+    "completion_tokens": 1590,
+    "total_tokens": 15209,
+    "cost": 0.0213606624,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0213606624,
+      "upstream_inference_prompt_cost": 0.0158198304,
+      "upstream_inference_completions_cost": 0.005540832
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": "http_500",
+    "primary_http_status": 500,
+    "primary_headers_ms": 148,
+    "primary_first_visible_ms": null,
+    "failover_trigger": "error",
+    "backup_headers_ms": 6177,
+    "backup_first_visible_ms": 6179,
+    "backup_success": true,
+    "provider_attempt_count": 2
+  },
+  "DEEPSEEK_CALLS": 1
+}

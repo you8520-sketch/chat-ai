@@ -1,0 +1,450 @@
+{
+  "report": {
+    "QUALITY_SCORE_ASSIGNED": false,
+    "HUMAN_RAW_REVIEW_REQUIRED": true,
+    "MERGED": false,
+    "DEPLOYED": false,
+    "HANDOFF_OWNER_CHARS": 219,
+    "HANDOFF_WRAPPER_BODY_CHARS": 175,
+    "TOTAL_LOGICAL_HANDOFFS": 3,
+    "results": [
+      {
+        "KEY": "H1CF-R1",
+        "USED_PROVIDER": "openrouter",
+        "VISIBLE_CHARS": 2024,
+        "UNDER_LENGTH": true,
+        "HTTP_STATUS": 200,
+        "RAW_SHA256": "c32468fccca45f9402f8ce26c2fd55cfd18fd85212046866b8e573c19b0a2431"
+      },
+      {
+        "KEY": "H1CF-R2",
+        "USED_PROVIDER": "openrouter",
+        "VISIBLE_CHARS": 2966,
+        "UNDER_LENGTH": false,
+        "HTTP_STATUS": 200,
+        "RAW_SHA256": "013368748b61c6d259dabe056a699cb32b0f6980c0e677a3ce47036599c0ee66"
+      },
+      {
+        "KEY": "H1CF-R3",
+        "USED_PROVIDER": "openrouter",
+        "VISIBLE_CHARS": 2905,
+        "UNDER_LENGTH": false,
+        "HTTP_STATUS": 200,
+        "RAW_SHA256": "f829e64706273bfc38756090dd9ae8ceeaebf76f0e5131054d0556fcfbf00f59"
+      }
+    ]
+  },
+  "results": [
+    {
+      "KEY": "H1CF-R1",
+      "USED_PROVIDER": "openrouter",
+      "PROVIDER_ATTEMPT_COUNT": 2,
+      "PRIMARY_HTTP_STATUS": 500,
+      "PRIMARY_FAILURE_CLASS": "http_500",
+      "FAILOVER_TRIGGER": "error",
+      "BACKUP_SUCCESS": true,
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "VISIBLE_CHARS": 2024,
+      "KOREAN_CHARS": 1410,
+      "UNDER_LENGTH": true,
+      "QUALITY_SAMPLE": true,
+      "INPUT_TOKENS": 13619,
+      "OUTPUT_TOKENS": 1590,
+      "TTFT_MS": 0,
+      "TOTAL_LATENCY_MS": 49145,
+      "RAW_SHA256": "c32468fccca45f9402f8ce26c2fd55cfd18fd85212046866b8e573c19b0a2431",
+      "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+      "CURRENT_USER_SHA": "160ace4490d0c571bab391c6e26727b3352e8cbfa70cac263cf3951fe5b09b3e",
+      "FINAL_MESSAGES_SHA": "f704f7cc4760ab2f5cbb4d8e2535e754ce3422b8861f42777cea6b5bf4db64c3",
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+          "value": false,
+          "evidence": null
+        },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": true,
+          "evidence": "복도 끝 가장 가까운 빈 회의실 문이 안쪽에서 잠기는 소리가 났다. 공조 장치가 내뿜는 낮은 공기의 진동과, 렌의 손끝이 문고리를 당기는 힘의 방향까지 조태형의 귀에는"
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+          "value": true,
+          "evidence": "이 서로의 피부 위로 번졌다. 이내 입술이 닿았다. 처음엔 온도만을 확인하듯 가볍게, 그러나 이내 무게를 실어 깊게 파고들었다. 태형의 목에 감긴 전자 초커의 금속판이 눌리며 미세"
+        },
+        "INVOLUNTARY_REACTION_PRESENT": {
+          "value": true,
+          "evidence": "안쪽에서 흰 후드티가 드러났다. 곰 귀가 달린 모자 끈이 가슴께로 흘러내리며 작은 금속 장식이 부딪혀 경쾌한 소리를 냈다. 렌의 손가락이 후드티 자락을 걷어 올리자, 단련된 복부의"
+        },
+        "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+          "value": true,
+          "evidence": "파고들었다. 태형의 목에 감긴 전자 초커의 금속판이 눌리며 미세한 열을 띠었다. 태형은 눈을 감지 않았다. 반쯤 뜬 눈으로 렌의 속눈썹과 이마에 흐르는 땀방울, 키스에 집중한 표정"
+        },
+        "UNDER_LENGTH": {
+          "value": true,
+          "evidence": "VISIBLE_CHARS=2024"
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "USED_PROVIDER": "openrouter",
+        "PRIMARY_HTTP_STATUS": 500,
+        "FAILOVER_TRIGGER": "error",
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13619,
+        "completion_tokens": 1590,
+        "total_tokens": 15209,
+        "cost": 0.0213606624,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0213606624,
+          "upstream_inference_prompt_cost": 0.0158198304,
+          "upstream_inference_completions_cost": 0.005540832
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "telemetry": {
+        "logical_model": "deepseek-v4-pro-0813",
+        "route_kind": "adult_handoff",
+        "primary_provider": "cheaperinference",
+        "backup_provider": "openrouter",
+        "primary_failure_class": "http_500",
+        "primary_http_status": 500,
+        "primary_headers_ms": 148,
+        "primary_first_visible_ms": null,
+        "failover_trigger": "error",
+        "backup_headers_ms": 6177,
+        "backup_first_visible_ms": 6179,
+        "backup_success": true,
+        "provider_attempt_count": 2
+      },
+      "DEEPSEEK_CALLS": 1
+    },
+    {
+      "KEY": "H1CF-R2",
+      "USED_PROVIDER": "openrouter",
+      "PROVIDER_ATTEMPT_COUNT": 2,
+      "PRIMARY_HTTP_STATUS": null,
+      "PRIMARY_FAILURE_CLASS": "headers_timeout",
+      "FAILOVER_TRIGGER": "headers_timeout",
+      "BACKUP_SUCCESS": true,
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "VISIBLE_CHARS": 2966,
+      "KOREAN_CHARS": 2059,
+      "UNDER_LENGTH": false,
+      "QUALITY_SAMPLE": true,
+      "INPUT_TOKENS": 13619,
+      "OUTPUT_TOKENS": 2376,
+      "TTFT_MS": 0,
+      "TOTAL_LATENCY_MS": 61901,
+      "RAW_SHA256": "013368748b61c6d259dabe056a699cb32b0f6980c0e677a3ce47036599c0ee66",
+      "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+      "CURRENT_USER_SHA": "160ace4490d0c571bab391c6e26727b3352e8cbfa70cac263cf3951fe5b09b3e",
+      "FINAL_MESSAGES_SHA": "f704f7cc4760ab2f5cbb4d8e2535e754ce3422b8861f42777cea6b5bf4db64c3",
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+          "value": false,
+          "evidence": null
+        },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+          "value": true,
+          "evidence": "을 짚으며 고개를 기울였고, 그대로 입술이 겹쳐졌다. 처음엔 부드럽게, 살며시 확인하듯 맞닿은 온기. 태형은 반사적으로 짧은 숨을 삼켰다. 서늘했던 공기가 두 사람의 호흡으로 데워"
+        },
+        "INVOLUNTARY_REACTION_PRESENT": {
+          "value": true,
+          "evidence": "가 그 위에 겹쳐지며 가벼운 무게로 떨어졌다. 드러난 상체는 날렵하면서도 단단했다. 군데군데 옅은 흉터가 빛을 받아 은은하게 드러났고, 단련된 근육의 실루엣이 어둠 속에서도 또렷하"
+        },
+        "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+          "value": true,
+          "evidence": "팔을 빠져나갈 때, 목에 걸린 전자 초커의 금속 버클이 옷깃에 걸리며 짧은 마찰음을 냈다. 렌의 손이 잠시 멈칫했지만, 태형은 스스로 목을 한 번 기울여 옷이 매끄럽게 벗겨지도록"
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "USED_PROVIDER": "openrouter",
+        "PRIMARY_HTTP_STATUS": null,
+        "FAILOVER_TRIGGER": "headers_timeout",
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13619,
+        "completion_tokens": 2376,
+        "total_tokens": 15995,
+        "cost": 0.02738604,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.02738604,
+          "upstream_inference_prompt_cost": 0.01797708,
+          "upstream_inference_completions_cost": 0.00940896
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "telemetry": {
+        "logical_model": "deepseek-v4-pro-0813",
+        "route_kind": "adult_handoff",
+        "primary_provider": "cheaperinference",
+        "backup_provider": "openrouter",
+        "primary_failure_class": "headers_timeout",
+        "primary_http_status": null,
+        "primary_headers_ms": 8001,
+        "primary_first_visible_ms": null,
+        "failover_trigger": "headers_timeout",
+        "backup_headers_ms": 748,
+        "backup_first_visible_ms": 2166,
+        "backup_success": true,
+        "provider_attempt_count": 2
+      },
+      "DEEPSEEK_CALLS": 1
+    },
+    {
+      "KEY": "H1CF-R3",
+      "USED_PROVIDER": "openrouter",
+      "PROVIDER_ATTEMPT_COUNT": 2,
+      "PRIMARY_HTTP_STATUS": 500,
+      "PRIMARY_FAILURE_CLASS": "http_500",
+      "FAILOVER_TRIGGER": "error",
+      "BACKUP_SUCCESS": true,
+      "HTTP_STATUS": 200,
+      "FINISH_REASON": "stop",
+      "VISIBLE_CHARS": 2905,
+      "KOREAN_CHARS": 2001,
+      "UNDER_LENGTH": false,
+      "QUALITY_SAMPLE": true,
+      "INPUT_TOKENS": 13620,
+      "OUTPUT_TOKENS": 2322,
+      "TTFT_MS": 0,
+      "TOTAL_LATENCY_MS": 21147,
+      "RAW_SHA256": "f829e64706273bfc38756090dd9ae8ceeaebf76f0e5131054d0556fcfbf00f59",
+      "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+      "CURRENT_USER_SHA": "160ace4490d0c571bab391c6e26727b3352e8cbfa70cac263cf3951fe5b09b3e",
+      "FINAL_MESSAGES_SHA": "f704f7cc4760ab2f5cbb4d8e2535e754ce3422b8861f42777cea6b5bf4db64c3",
+      "flags": {
+        "CHARACTER_VOICE_SEAM": {
+          "value": false,
+          "evidence": null
+        },
+        "GENERIC_ADULT_RP_VOICE": {
+          "value": false,
+          "evidence": null
+        },
+        "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+          "value": true,
+          "evidence": "어린 각도로 휘어졌다. 그는 렌의 손목을 잡아 제 몸 쪽으로 끌어당겼다. 렌의 손바닥이 태형의 단단한 복부에 밀착됐다. \"난 지금 꽤 기분이 좋아. 이게 무슨 소린지 알겠어?\""
+        },
+        "NEW_USER_DELIBERATE_ACTION": {
+          "value": true,
+          "evidence": "찮으면 되는 거 아니야?\" 태형은 렌의 몸을 벽 쪽으로 밀어붙였다. 차가운 벽면에 등이 닿자 렌이 짧게 숨을 들이켰다. 태형은 그 틈에 렌의 목덜미에 입술을 대고, 피부를 가볍게"
+        },
+        "NEW_USER_DIALOGUE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INNER_THOUGHT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_USER_INTENT_AS_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+          "value": false,
+          "evidence": null
+        },
+        "REDUNDANT_CONTINUE_STOP_GATE": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_SCENE_DRIVING_OBJECT": {
+          "value": false,
+          "evidence": null
+        },
+        "NEW_UNSUPPORTED_SCENE_FACT": {
+          "value": false,
+          "evidence": null
+        },
+        "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+          "value": true,
+          "evidence": "찾아볼 수 없는 태도였다. 렌의 입술이 태형의 목덜미 가까이 다가왔다. 전자 초커의 차가운 금속판과 피부가 맞닿은 경계를 혀로 훑듯 입술이 스쳤다. 태형의 목젖이 미세하게 움직"
+        },
+        "INVOLUNTARY_REACTION_PRESENT": {
+          "value": true,
+          "evidence": "깃이 스치는 미세한 마찰음, 그리고 숨소리의 깊이가 실시간으로 그의 신경망에 각인되었다. 평소 같으면 이 정도 거리에서 느껴지는 공기의 진동만으로도 뇌가 날카롭게 긁혔을 텐데, 지"
+        },
+        "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+          "value": true,
+          "evidence": "형의 목덜미 가까이 다가왔다. 전자 초커의 차가운 금속판과 피부가 맞닿은 경계를 혀로 훑듯 입술이 스쳤다. 태형의 목젖이 미세하게 움직였다. 초커가 조여 오는 압박과 렌의 뜨거운"
+        },
+        "UNDER_LENGTH": {
+          "value": false,
+          "evidence": null
+        },
+        "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+        "PRIMARY_REFUSAL_VISIBLE": false,
+        "DEEPSEEK_CALLS": 1,
+        "USED_PROVIDER": "openrouter",
+        "PRIMARY_HTTP_STATUS": 500,
+        "FAILOVER_TRIGGER": "error",
+        "VISIBLE_ASSISTANT_RESPONSES": 1,
+        "USER_POINT_DEDUCTIONS": 0,
+        "QUALITY_SCORE_ASSIGNED": false
+      },
+      "usage": {
+        "prompt_tokens": 13620,
+        "completion_tokens": 2322,
+        "total_tokens": 15942,
+        "cost": 0.02717352,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.02717352,
+          "upstream_inference_prompt_cost": 0.0179784,
+          "upstream_inference_completions_cost": 0.00919512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "telemetry": {
+        "logical_model": "deepseek-v4-pro-0813",
+        "route_kind": "adult_handoff",
+        "primary_provider": "cheaperinference",
+        "backup_provider": "openrouter",
+        "primary_failure_class": "http_500",
+        "primary_http_status": 500,
+        "primary_headers_ms": 386,
+        "primary_first_visible_ms": null,
+        "failover_trigger": "error",
+        "backup_headers_ms": 1103,
+        "backup_first_visible_ms": 1104,
+        "backup_success": true,
+        "provider_attempt_count": 2
+      },
+      "DEEPSEEK_CALLS": 1
+    }
+  ]
+}
