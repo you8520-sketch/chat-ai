@@ -120,6 +120,16 @@ import {
   mockReadableStreamFromText,
   recordMockApiPayload,
 } from "@/lib/mockApiMode";
+import {
+  DeepSeekDeterministicProviderError,
+  DeepSeekProviderFailoverError,
+  adaptOpenRouterDeepSeekBackupBody,
+  executeDeepSeekWithProviderFailover,
+  isDeepSeekPrimaryCheaperInferenceModel,
+  resolveDeepSeekBackupModelId,
+  resolveDeepSeekFailoverRouteKind,
+  resolveDeepSeekLogicalModel,
+} from "@/lib/deepseekProviderFailover";
 
 export { EURYALE_GENERATION_PARAMS, openRouterGenerationParams } from "@/lib/openRouterClient";
 export { formatClientApiError as formatOpenRouterClientError } from "@/lib/apiErrors";
@@ -1276,6 +1286,17 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     isAnthropicModel(apiModelId) &&
     !messageOpts?.recoveryAssistantPrefill?.trim() &&
     !messageOpts?.skipAssistantPrefill;
+  const deepSeekRouteKind = resolveDeepSeekFailoverRouteKind({
+    modelId: apiModelId,
+    adultHandoff: messageOpts?.deepSeekAdultHandoffTrueOff === true,
+  });
+  const deepSeekLogical = resolveDeepSeekLogicalModel(apiModelId);
+  const useDeepSeekProviderFailover =
+    transport.provider === "cheaperinference" &&
+    isDeepSeekPrimaryCheaperInferenceModel(apiModelId) &&
+    deepSeekRouteKind != null &&
+    deepSeekLogical != null;
+  let deepSeekProviderAttempts = 0;
 
   emptyStreamRetry:
   for (let emptyAttempt = 0; emptyAttempt <= 1; emptyAttempt++) {
@@ -1304,7 +1325,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         skipAssistantPrefill,
       }
     );
-  const { requestBody } = assemblePrimaryRpRequest({
+  const { requestBody, requestBodyBeforeAdapt } = assemblePrimaryRpRequest({
     system: effectiveSystem,
     history,
     modelId: apiModelId,
@@ -1361,12 +1382,47 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       headers: { "Content-Type": "text/event-stream" },
     });
   } else {
-    res = await fetchOpenRouterChatWithCreditRetry(
-      transport.endpoint,
-      transport.headers,
-      requestBody as Record<string, unknown>,
-      240_000
-    );
+    if (useDeepSeekProviderFailover && deepSeekLogical && deepSeekRouteKind) {
+      try {
+        const failover = await executeDeepSeekWithProviderFailover({
+          routeKind: deepSeekRouteKind,
+          logicalModel: deepSeekLogical,
+          primary: {
+            endpoint: transport.endpoint,
+            headers: transport.headers,
+            body: requestBody as Record<string, unknown>,
+          },
+          backupBody: adaptOpenRouterDeepSeekBackupBody(
+            requestBodyBeforeAdapt,
+            resolveDeepSeekBackupModelId(deepSeekLogical)
+          ),
+          stream: true,
+        });
+        res = failover.response;
+        deepSeekProviderAttempts = failover.telemetry.provider_attempt_count;
+      } catch (error) {
+        if (error instanceof DeepSeekDeterministicProviderError) {
+          throw new OpenRouterApiError({
+            status: error.httpStatus ?? undefined,
+            message: error.message,
+          });
+        }
+        if (error instanceof DeepSeekProviderFailoverError) {
+          throw new OpenRouterApiError({
+            status: error.primaryHttpStatus ?? 503,
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    } else {
+      res = await fetchOpenRouterChatWithCreditRetry(
+        transport.endpoint,
+        transport.headers,
+        requestBody as Record<string, unknown>,
+        240_000
+      );
+    }
     if (!res.body) {
       throw new OpenRouterApiError({
         status: res.status,
@@ -1657,7 +1713,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   };
   }
 
-  if (messageOpts?.allowEmptyStreamFallback !== false) {
+  if (
+    messageOpts?.allowEmptyStreamFallback !== false &&
+    !useDeepSeekProviderFailover &&
+    deepSeekProviderAttempts < 2
+  ) {
     try {
       console.warn("[OpenRouter] empty stream — non-stream fallback", {
         model: apiModelId,
@@ -2292,12 +2352,57 @@ export async function callOpenRouterAdult(
       if (debugMeta?.chargeTurnBudget !== false && attempt === 0) {
         debugMeta?.turnApiBudget?.beforeFetch(requestKind);
       }
-      res = await fetchOpenRouterChatWithCreditRetry(
-        transport.endpoint,
-        transport.headers,
-        requestBody as Record<string, unknown>,
-        120_000
-      );
+      const generateLogical = resolveDeepSeekLogicalModel(apiModelId);
+      const generateRouteKind = resolveDeepSeekFailoverRouteKind({
+        modelId: apiModelId,
+        adultHandoff: messageOpts?.deepSeekAdultHandoffTrueOff === true,
+      });
+      if (
+        transport.provider === "cheaperinference" &&
+        generateLogical &&
+        generateRouteKind &&
+        isDeepSeekPrimaryCheaperInferenceModel(apiModelId)
+      ) {
+        try {
+          const failover = await executeDeepSeekWithProviderFailover({
+            routeKind: generateRouteKind,
+            logicalModel: generateLogical,
+            primary: {
+              endpoint: transport.endpoint,
+              headers: transport.headers,
+              body: requestBody as Record<string, unknown>,
+            },
+            backupBody: adaptOpenRouterDeepSeekBackupBody(
+              requestBody as Record<string, unknown>,
+              resolveDeepSeekBackupModelId(generateLogical)
+            ),
+            stream: false,
+            deadlines: { completionMs: 120_000, headersMs: 120_000 },
+          });
+          res = failover.response;
+        } catch (error) {
+          if (error instanceof DeepSeekDeterministicProviderError) {
+            throw new OpenRouterApiError({
+              status: error.httpStatus ?? undefined,
+              message: error.message,
+            });
+          }
+          if (error instanceof DeepSeekProviderFailoverError) {
+            throw new OpenRouterApiError({
+              status: error.primaryHttpStatus ?? 503,
+              message: error.message,
+            });
+          }
+          throw error;
+        }
+      } else {
+        res = await fetchOpenRouterChatWithCreditRetry(
+          transport.endpoint,
+          transport.headers,
+          requestBody as Record<string, unknown>,
+          120_000
+        );
+      }
     }
 
     const data = await res.json();

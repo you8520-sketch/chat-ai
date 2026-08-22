@@ -5,6 +5,7 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
+import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
 import type { TrpgModelUsage } from "./billing";
 import {
   parseScenarioDraftJson,
@@ -150,12 +151,16 @@ export async function callTrpgAuthoringModel(opts: {
     maxTokens: opts.maxTokens,
     temperature: opts.temperature,
   });
-  const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(opts.timeoutMs ?? 90_000),
+  const failover = await executeDeepSeekBackgroundWithProviderFailover({
+    primary: {
+      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      body,
+    },
+    timeoutMs: opts.timeoutMs ?? 90_000,
+    requestKind: "trpg-scenario-draft",
   });
+  const res = failover.response;
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`[TRPG authoring] ${res.status}: ${errText.slice(0, 240)}`);

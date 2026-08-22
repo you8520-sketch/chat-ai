@@ -10,9 +10,8 @@ import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_GEMINI_20_FLASH_MODEL,
-  isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
@@ -97,15 +96,15 @@ export function resolveBackgroundMemoryFallbackModel(
   primaryModelId: string = BACKGROUND_OPENROUTER_MODEL
 ): string | null {
   const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
-  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
   const rawTrimmed = String(raw).trim();
-  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
   if (rawTrimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
   }
   const trimmed = resolveBackgroundTextModelId(rawTrimmed);
   if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
   }
   return trimmed;
 }
@@ -389,27 +388,7 @@ export async function callBackgroundMemory(
       maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
       temperature: opts?.temperature,
     });
-  try {
-    return await call(modelId);
-  } catch (primaryError) {
-    const canUseMemoryFallback =
-      /background-memory|background-lorebook-compact/i.test(requestKind) &&
-      isCheaperInferenceDeepSeekV4FlashModel(modelId);
-    if (!canUseMemoryFallback) throw primaryError;
-    const fallbackModelId = resolveBackgroundMemoryFallbackModel(
-      process.env,
-      modelId
-    );
-    if (!fallbackModelId) throw primaryError;
-    console.warn("[background-memory] primary failed; trying OpenRouter fallback", {
-      primaryModelId: modelId,
-      fallbackModelId,
-      requestKind,
-      errorName:
-        primaryError instanceof Error ? primaryError.name : "UnknownError",
-    });
-    return call(fallbackModelId);
-  }
+  return call(modelId);
 }
 
 /** @deprecated callBackgroundMemory */

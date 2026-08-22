@@ -19,6 +19,16 @@ import {
   MOCK_INPUT_TOKENS,
   MOCK_OUTPUT_TOKENS,
 } from "@/lib/mockApiMode";
+import {
+  DeepSeekDeterministicProviderError,
+  DeepSeekProviderFailoverError,
+  adaptOpenRouterDeepSeekBackupBody,
+  executeDeepSeekBackgroundWithProviderFailover,
+  isDeepSeekPrimaryCheaperInferenceModel,
+  resolveDeepSeekBackupModelId,
+  resolveDeepSeekFailoverRouteKind,
+  resolveDeepSeekLogicalModel,
+} from "@/lib/deepseekProviderFailover";
 
 export type OpenRouterChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -131,14 +141,67 @@ export async function callOpenRouterCompletion(opts: {
   const requestBody = useCheaperInference
     ? adaptCheaperInferenceChatBody(baseRequestBody)
     : baseRequestBody;
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(requestBody),
-    signal: AbortSignal.timeout(
-      opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind)
-    ),
+  const timeoutMs =
+    opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind);
+  const logical = resolveDeepSeekLogicalModel(model);
+  const routeKind = resolveDeepSeekFailoverRouteKind({
+    modelId: model,
+    background: true,
   });
+  let res: Response;
+  let usedProvider = useCheaperInference
+    ? ("cheaperinference" as const)
+    : ("openrouter" as const);
+  let usedModel = model;
+  if (
+    useCheaperInference &&
+    isDeepSeekPrimaryCheaperInferenceModel(model) &&
+    logical &&
+    routeKind
+  ) {
+    try {
+      const failover = await executeDeepSeekBackgroundWithProviderFailover({
+        routeKind,
+        logicalModel: logical,
+        primary: { endpoint, headers, body: requestBody },
+        backupBody: adaptOpenRouterDeepSeekBackupBody(
+          baseRequestBody,
+          resolveDeepSeekBackupModelId(logical)
+        ),
+        timeoutMs,
+        requestKind: opts.requestKind,
+      });
+      res = failover.response;
+      usedProvider = failover.usedProvider;
+      usedModel =
+        failover.usedProvider === "openrouter"
+          ? resolveDeepSeekBackupModelId(logical)
+          : model;
+    } catch (error) {
+      if (error instanceof DeepSeekDeterministicProviderError) {
+        throw new CompatibleCompletionError({
+          message: error.message,
+          provider: providerLabel,
+          httpStatus: error.httpStatus,
+        });
+      }
+      if (error instanceof DeepSeekProviderFailoverError) {
+        throw new CompatibleCompletionError({
+          message: error.message,
+          provider: "OpenRouter",
+          httpStatus: error.primaryHttpStatus,
+        });
+      }
+      throw error;
+    }
+  } else {
+    res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -174,8 +237,8 @@ export async function callOpenRouterCompletion(opts: {
   };
   try {
     recordApiCost({
-      provider: useCheaperInference ? "cheaperinference" : "openrouter",
-      model,
+      provider: usedProvider,
+      model: usedModel,
       requestKind: opts.requestKind,
       inputTokens: resolvedInputTokens,
       outputTokens: resolvedOutputTokens,

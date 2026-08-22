@@ -7,6 +7,7 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
+import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
 import {
   actionTypeLabelKo,
   isTrpgActionType,
@@ -418,12 +419,16 @@ export async function callTrpgReplySuggestionModel(opts: {
     max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
     response_format: { type: "json_object" },
   });
-  const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TRPG_REPLY_SUGGESTION_TIMEOUT_MS),
+  const failover = await executeDeepSeekBackgroundWithProviderFailover({
+    primary: {
+      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      body,
+    },
+    timeoutMs: TRPG_REPLY_SUGGESTION_TIMEOUT_MS,
+    requestKind: "trpg-reply-suggestions",
   });
+  const res = failover.response;
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`[TRPG reply] ${res.status}: ${errText.slice(0, 240)}`);
