@@ -1,0 +1,122 @@
+{
+  "KEY": "H1C-R3",
+  "USED_PROVIDER": "cheaperinference",
+  "PROVIDER_ATTEMPT_COUNT": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "PRIMARY_FAILURE_CLASS": null,
+  "FAILOVER_TRIGGER": null,
+  "BACKUP_SUCCESS": false,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 3138,
+  "KOREAN_CHARS": 2150,
+  "UNDER_LENGTH": false,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13598,
+  "OUTPUT_TOKENS": 2440,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 65956,
+  "RAW_SHA256": "659b7ed3a2a3d332af91deceb1ae84328ebb777e5dff41f1de48bbfb0fc99762",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "b00131e52011063678fb252d97291cddec555c4fd2b36a5456f5055eb8ade1ab",
+  "FINAL_MESSAGES_SHA": "0861ec0ff5e5fd19d90fda7611d0bdd2728591dbb9c71b3936412f10af76ef55",
+  "flags": {
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+      "value": true,
+      "evidence": "로 길게 늘여 놓았다. 태형은 렌의 손목을 잡은 채 자신의 몸 쪽으로 조금 더 끌어당겼다. 두 사람의 체중이 기울며 벽에 반쯤 기대어진 자세가 만들어졌고, 그 충격에 문 뒤쪽에서"
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+      "value": false,
+      "evidence": null
+    },
+    "REDUNDANT_CONTINUE_STOP_GATE": {
+      "value": true,
+      "evidence": "가며, 검은 눈동자를 번뜩였다. “계속할 거면, 네 손으로 마저 벗겨.” 그 말이 끝나자, 태형은 두 팔을 번쩍 들어 올렸다. 흰 후드티의 밑단이 딸려 올라가며 복근과 옆구리의"
+    },
+    "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_SCENE_DRIVING_OBJECT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+      "value": true,
+      "evidence": "히려 턱을 아주 조금 들어 올려 그 입술을 받아들였다. 처음엔 가벼웠다. 입술끼리 스치는 정도의 접촉이었지만, 곧 렌이 그 위에 무게를 실어 오자 태형의 눈이 감기고 목울대가 천천"
+    },
+    "INVOLUNTARY_REACTION_PRESENT": {
+      "value": true,
+      "evidence": "어 오른 실루엣을 드러냈다. 북극곰 귀가 달린 모자가 살짝 뒤로 젖혀지며 태형의 목덜미가 붉은 유도등 불빛에 번졌다. “덥네.” 태형이 나지막이 중얼거렸다. 장난기가 섞인 목소"
+    },
+    "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+      "value": true,
+      "evidence": "을 뺀 채 목을 살짝 꺾었다. 전자 초커의 금속 버클이 움직임에 따라 딸깍, 하고 작게 울렸다. 렌의 손이 그의 재킷 앞섶을 더듬어 왔다. 옷을 벗겨내려는 움직임은 서툴렀지만 조"
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "USED_PROVIDER": "cheaperinference",
+    "PRIMARY_HTTP_STATUS": 200,
+    "FAILOVER_TRIGGER": null,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13598,
+    "total_tokens": 16038,
+    "completion_tokens": 2440,
+    "prompt_tokens_details": {
+      "cached_tokens": 13312
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": null,
+    "primary_http_status": 200,
+    "primary_headers_ms": 3485,
+    "primary_first_visible_ms": 3486,
+    "failover_trigger": null,
+    "backup_headers_ms": null,
+    "backup_first_visible_ms": null,
+    "backup_success": false,
+    "provider_attempt_count": 1
+  },
+  "DEEPSEEK_CALLS": 1
+}

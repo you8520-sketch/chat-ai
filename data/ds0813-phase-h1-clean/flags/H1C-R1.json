@@ -1,0 +1,75 @@
+{
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": true,
+    "evidence": "와 팔의 윤곽이 희미하게 비쳤다. 렌이 손을 뻗어 목에 걸린 전자 초커의 금속 버클에 손끝이 스치기라도 할 기세로 다가오자, 태형의 눈이 가늘어졌다. \"그건 건드리지 않는 게"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "REDUNDANT_CONTINUE_STOP_GATE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+    "value": true,
+    "evidence": "의 출입이 뜸한 중앙 로비 서편의 소회의실이었다. 보안 등급이 낮은 구역이라 평소엔 인적이 드물었고, 퇴근 시간이 겹친 지금은 복도 끝까지 적막이 내려앉아 있었다. 렌의 손끝이 문"
+  },
+  "NEW_SCENE_DRIVING_OBJECT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SCENE_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "STARTED_USER_KISS_CONSEQUENCE_PRESENT": {
+    "value": true,
+    "evidence": "어?\" 태형은 웃음을 삼키며 렌의 입술을 자신의 것으로 덮었다. 예고도 없이, 그러나 놀랄 틈도 주지 않고 천천히. 마치 물 흐르듯 자연스럽게 이어지는 동작이었지만 그 안의 욕망"
+  },
+  "INVOLUNTARY_REACTION_PRESENT": {
+    "value": true,
+    "evidence": "관찰자의 눈빛이었다. 재킷이 바닥에 떨어지자 후드티의 부드러운 천이 드러났고, 그 아래로 단련된 어깨와 팔의 윤곽이 희미하게 비쳤다. 렌이 손을 뻗어 목에 걸린 전자 초커의 금속"
+  },
+  "VISIBLE_PRIOR_OUTFIT_OR_SENSORY": {
+    "value": true,
+    "evidence": "렌이 손을 뻗어 목에 걸린 전자 초커의 금속 버클에 손끝이 스치기라도 할 기세로 다가오자, 태형의 눈이 가늘어졌다. \"그건 건드리지 않는 게 좋아. 괜히 울려서 경비 드론이라"
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "USED_PROVIDER": "openrouter",
+  "PRIMARY_HTTP_STATUS": 500,
+  "FAILOVER_TRIGGER": "error",
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}
