@@ -1,6 +1,6 @@
 BASE_MAIN_SHA: 4af8a2487d01351bfb8c2b1946e130a937d7277a
 PR: https://github.com/you8520-sketch/chat-ai/pull/568
-HEAD: (updated after live evidence commit)
+HEAD: 898cd5b80089867c00daf95eba1afa46a0d48410
 SOURCE_PRODUCTION_BEHAVIOR_CHANGED:
 true
 CURRENT_USER_AUTHORITY_CONFLICT:
