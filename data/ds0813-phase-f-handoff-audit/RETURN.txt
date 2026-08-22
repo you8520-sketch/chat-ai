@@ -1,6 +1,6 @@
 BASE_MAIN_SHA: 3eec104b066ba2e851f8a5558c5ab7bc9cdd0f25
 PR: https://github.com/you8520-sketch/chat-ai/pull/560
-HEAD: pending
+HEAD: 7f70dd43308656109247915e69693e725f841376
 
 CHARACTER: 라이크
 CHARACTER_ID: 18
