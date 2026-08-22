@@ -157,6 +157,7 @@ export default function TrpgCatalogBrowse({
   onPickScenario,
   onStartWorld,
   onStartScenario,
+  initialPreview = null,
 }: {
   catalog: TrpgCatalog;
   busy: boolean;
@@ -165,10 +166,11 @@ export default function TrpgCatalogBrowse({
   onPickScenario: (id: number) => void;
   onStartWorld: (id: number) => void;
   onStartScenario: (id: number) => void;
+  initialPreview?: TrpgCatalogPick | null;
 }) {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<CharacterGenre | null>(null);
-  const [preview, setPreview] = useState<TrpgCatalogPick | null>(null);
+  const [preview, setPreview] = useState<TrpgCatalogPick | null>(initialPreview);
   const filtering = Boolean(query.trim() || genre);
 
   function openWorld(id: number) {

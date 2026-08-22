@@ -10,7 +10,8 @@ import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
 import { filterTrpgLobbyCampaigns } from "@/lib/recentActivity";
-import type { TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
+import { catalogScenarioById, type TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
+import { resolveScenarioHandoff } from "@/lib/trpg/scenarioHandoff";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 
 export default function TrpgLobbyClient({
@@ -18,18 +19,21 @@ export default function TrpgLobbyClient({
   initialCampaignQuery = "",
   catalog,
   characterIds,
+  initialScenarioId,
 }: {
   initialCampaigns: TrpgCampaignSnapshot[];
   initialCampaignQuery?: string;
   catalog: TrpgCatalog;
   characterIds: number[];
+  initialScenarioId?: string;
 }) {
   const router = useRouter();
+  const handoff = resolveScenarioHandoff(catalog, initialScenarioId);
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [pick, setPick] = useState<TrpgCatalogPick | null>(null);
+  const [error, setError] = useState(handoff.ok || !initialScenarioId ? "" : handoff.error);
+  const [pick, setPick] = useState<TrpgCatalogPick | null>(handoff.ok ? handoff.pick : null);
   const [campaignQuery, setCampaignQuery] = useState(initialCampaignQuery);
   const visibleCampaigns = useMemo(
     () => filterTrpgLobbyCampaigns(campaigns, campaignQuery),
@@ -37,6 +41,7 @@ export default function TrpgLobbyClient({
   );
 
   async function postCampaign(body: Record<string, unknown>) {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -95,10 +100,25 @@ export default function TrpgLobbyClient({
 
   return (
     <div className="space-y-8">
+      {pick?.kind === "scenario" ? (
+        <div
+          data-scenario-handoff-selected
+          className="rounded-xl border border-violet-400/25 bg-violet-500/10 px-3 py-2 text-sm text-violet-50"
+        >
+          <p className="font-semibold">선택한 시나리오 · {catalogScenarioById(catalog, pick.id)?.scenario.title}</p>
+          {catalogScenarioById(catalog, pick.id)?.scenario.summary.trim() ? (
+            <p className="mt-1 text-xs text-violet-100/80">
+              {catalogScenarioById(catalog, pick.id)?.scenario.summary}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <TrpgCatalogBrowse
         catalog={catalog}
         busy={busy}
         pick={pick}
+        initialPreview={handoff.ok ? handoff.pick : null}
         onPickWorld={(id) => setPick({ kind: "world", id })}
         onPickScenario={(id) => setPick({ kind: "scenario", id })}
         onStartWorld={(id) => void postCampaign({ worldId: id })}
@@ -106,7 +126,23 @@ export default function TrpgLobbyClient({
       />
 
       {error ? (
-        <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>
+        <div
+          data-scenario-handoff-error
+          className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
+        >
+          <p>{error}</p>
+          {!handoff.ok && initialScenarioId ? (
+            <p className="mt-2 text-xs">
+              <Link href="/world/create?tab=scenario" className="font-semibold underline">
+                새 시나리오 만들기
+              </Link>
+              {" · "}
+              <Link href="/trpg" className="font-semibold underline">
+                목록에서 다시 고르기
+              </Link>
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <AppSectionCard title="내 캠페인">

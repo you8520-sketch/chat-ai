@@ -24,6 +24,7 @@ export default async function TrpgLobbyPage({
     characterIds?: string;
     code?: string;
     q?: string;
+    scenarioId?: string;
   }>;
 }) {
   const user = await getSessionUser();
@@ -54,6 +55,7 @@ export default async function TrpgLobbyPage({
         initialCampaignQuery={campaignQuery}
         catalog={catalog}
         characterIds={seededIds}
+        initialScenarioId={params.scenarioId}
       />
     </AppPageShell>
   );
