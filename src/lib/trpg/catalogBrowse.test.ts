@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
+import Database from "better-sqlite3";
 import {
   catalogItemMatches,
+  catalogLiveRanking,
   catalogNewReleases,
   catalogScenarioById,
   catalogWorldById,
@@ -9,8 +12,14 @@ import {
   visibleScenarioSecret,
 } from "./catalogBrowse";
 import { parseWorldTrpgFlags } from "@/lib/worlds";
-import type { TrpgCatalog, TrpgCatalogWorld } from "./catalog";
+import {
+  EMPTY_TRPG_CATALOG_PLAY_SCORES,
+  loadTrpgCatalogPlayScores,
+  type TrpgCatalog,
+  type TrpgCatalogWorld,
+} from "./catalog";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
+import { ensureTrpgTables } from "./schema";
 
 describe("TRPG catalog browse", () => {
   it("filters by query and genre hashtags", () => {
@@ -152,5 +161,100 @@ describe("TRPG catalog browse", () => {
       catalogNewReleases(catalog, 1).map((item) => `${item.kind}:${item.id}`),
       ["world:2"]
     );
+  });
+
+  it("ranks public worlds and scenarios by recent starts, then all-time, then recency", () => {
+    const quietWorld: TrpgCatalogWorld = {
+      id: 1,
+      name: "조용한 왕국",
+      summary: "",
+      content: "",
+      creatorId: 2,
+      creatorName: "렌",
+      visibility: "public",
+      trpgEnabled: true,
+      mine: false,
+      genres: [],
+      coverUrl: "",
+      updatedAt: "2026-08-20 10:00:00",
+    };
+    const hotWorld: TrpgCatalogWorld = {
+      ...quietWorld,
+      id: 2,
+      name: "뜨거운 왕국",
+      updatedAt: "2026-08-01 10:00:00",
+    };
+    const midScenario: TrpgScenarioTemplate = {
+      id: 9,
+      creatorId: 3,
+      worldId: null,
+      title: "중간 시나리오",
+      summary: "",
+      content: "본문",
+      secretContent: "",
+      visibility: "public",
+      startLocation: "",
+      startInventory: [],
+      defaultPcStats: null,
+      statKeys: ["str", "dex", "int", "wis", "cha", "con"],
+      npcs: [],
+      characterIds: [],
+      genres: [],
+      assets: [],
+      scenarioPlan: null,
+      createdAt: "2026-08-05 00:00:00",
+      updatedAt: "2026-08-18 12:00:00",
+    };
+    const catalog: TrpgCatalog = {
+      publicWorlds: [quietWorld, hotWorld],
+      myWorlds: [],
+      myCharacters: [],
+      publicScenarios: [midScenario],
+      myScenarios: [],
+    };
+    assert.deepEqual(
+      catalogLiveRanking(catalog, EMPTY_TRPG_CATALOG_PLAY_SCORES, 3).map(
+        (item) => `${item.kind}:${item.id}`
+      ),
+      ["world:1", "scenario:9", "world:2"]
+    );
+    assert.deepEqual(
+      catalogLiveRanking(
+        catalog,
+        {
+          worlds: {
+            1: { recent: 0, all: 4 },
+            2: { recent: 2, all: 2 },
+          },
+          scenarios: {
+            9: { recent: 2, all: 9 },
+          },
+        },
+        3
+      ).map((item) => `${item.kind}:${item.id}:${item.recentStarts}:${item.allStarts}`),
+      ["scenario:9:2:9", "world:2:2:2", "world:1:0:4"]
+    );
+  });
+
+  it("counts recent and all-time campaign starts for lobby ranking", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    db.prepare(
+      `INSERT INTO trpg_campaigns (host_user_id, title, source_world_id, template_id, created_at)
+       VALUES (1, '오늘 세계관', 11, NULL, datetime('now')),
+              (1, '어제 세계관', 11, NULL, datetime('now', '-2 days')),
+              (1, '오늘 시나리오', NULL, 22, datetime('now'))`
+    ).run();
+    const scores = loadTrpgCatalogPlayScores(db);
+    assert.deepEqual(scores.worlds[11], { recent: 1, all: 2 });
+    assert.deepEqual(scores.scenarios[22], { recent: 1, all: 1 });
+    db.close();
+  });
+
+  it("replaces the dedicated 내 세계관 lobby row with live ranking", () => {
+    const browse = fs.readFileSync("src/app/trpg/TrpgCatalogBrowse.tsx", "utf8");
+    assert.doesNotMatch(browse, /title="내 세계관"/);
+    assert.match(browse, /title="실시간 랭킹"/);
+    assert.match(browse, /catalogLiveRanking/);
   });
 });
