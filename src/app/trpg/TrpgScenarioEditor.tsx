@@ -27,6 +27,7 @@ import {
   confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
+  scenarioEditorPersistedSnapshot,
   scenarioEditorSavePayload,
   scenarioEditorSnapshot,
   scrollToScenarioField,
@@ -403,11 +404,9 @@ export default function TrpgScenarioEditor({
 
   async function requestDraft(mode: TrpgScenarioDraftMode, selectedFields: TrpgScenarioDraftField[] = []) {
     if (draftBusy) return;
-    const existing = existingDraft();
     if (
       shouldConfirmScenarioDraftApply({
         mode,
-        existing,
         selectedFields,
         lockedFields,
         hasManualEdits,
@@ -511,7 +510,8 @@ export default function TrpgScenarioEditor({
     setLintMessages(issues.map((item) => item.message));
     setBusy(true);
     setError("");
-    const body = scenarioEditorSavePayload(currentFields());
+    const submittedFields = currentFields();
+    const body = scenarioEditorSavePayload(submittedFields);
     try {
       const targetId = savedId ?? initial?.id ?? null;
       const res = await fetch(targetId ? `/api/trpg/scenarios/${targetId}` : "/api/trpg/scenarios", {
@@ -524,11 +524,9 @@ export default function TrpgScenarioEditor({
       const id = data.scenario?.id ?? targetId;
       if (!id) throw new Error("저장된 시나리오 ID를 확인하지 못했습니다.");
       setSavedId(id);
-      setCharacterIds(data.scenario?.characterIds ?? characterIds);
-      setSavedSnapshot(scenarioEditorSnapshot({
-        ...currentFields(),
-        characterIds: data.scenario?.characterIds ?? characterIds,
-      }));
+      const persistedCharacterIds = data.scenario?.characterIds ?? submittedFields.characterIds;
+      setCharacterIds(persistedCharacterIds);
+      setSavedSnapshot(scenarioEditorPersistedSnapshot(submittedFields, persistedCharacterIds));
       return id;
     } catch (err) {
       setError(err instanceof Error ? err.message : "실패했습니다.");

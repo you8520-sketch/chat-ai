@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { catalogScenarioById } from "./catalogBrowse";
@@ -9,6 +10,7 @@ import {
   confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
+  scenarioEditorPersistedSnapshot,
   scenarioEditorSavePayload,
   scenarioEditorSnapshot,
   shouldConfirmScenarioDraftApply,
@@ -67,6 +69,60 @@ function catalogWith(scenarios: TrpgScenarioTemplate[]): TrpgCatalog {
     publicScenarios: scenarios.filter((row) => row.visibility === "public"),
     myCharacters: [],
   };
+}
+
+function runtimeImportSpecifiers(source: string): string[] {
+  const specs: string[] = [];
+  const re = /(?:^|\n)import\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(source))) {
+    const clause = match[1].trim();
+    if (clause.startsWith("type ")) continue;
+    const named = clause.match(/^\{([^}]*)\}$/);
+    if (named) {
+      const parts = named[1]
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 0 && parts.every((part) => part.startsWith("type "))) continue;
+    }
+    specs.push(match[2]);
+  }
+  return specs;
+}
+
+function resolveLocalImport(fromFile: string, specifier: string): string | null {
+  const base = specifier.startsWith("@/")
+    ? join("src", specifier.slice(2))
+    : specifier.startsWith(".")
+      ? join(dirname(fromFile), specifier)
+      : null;
+  if (!base) return null;
+  for (const ext of ["", ".ts", ".tsx", ".js", ".jsx"]) {
+    const candidate = `${base}${ext}`;
+    if (existsSync(candidate)) return candidate;
+  }
+  for (const ext of [".ts", ".tsx"]) {
+    const index = join(base, `index${ext}`);
+    if (existsSync(index)) return index;
+  }
+  return null;
+}
+
+function collectClientRuntimeFiles(entry: string): string[] {
+  const seen = new Set<string>();
+  const queue = [entry];
+  while (queue.length) {
+    const file = queue.pop();
+    if (!file || seen.has(file)) continue;
+    seen.add(file);
+    const specs = runtimeImportSpecifiers(readFileSync(file, "utf8"));
+    for (const spec of specs) {
+      const next = resolveLocalImport(file, spec);
+      if (next) queue.push(next);
+    }
+  }
+  return [...seen];
 }
 
 describe("TRPG scenario readiness and creator-to-play handoff", () => {
@@ -202,15 +258,27 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(catalogScenarioById(catalog, 99), null);
   });
 
-  it("TEST 10: regenerate after manual edits requires confirmation", () => {
-    const existing = {
-      title: "직접 수정",
-      plan: playablePlan(),
-    };
+  it("TEST 10: draft apply confirmation is client-safe mode/lock logic", () => {
     assert.equal(
       shouldConfirmScenarioDraftApply({
         mode: "regenerate_all",
-        existing,
+        hasManualEdits: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldConfirmScenarioDraftApply({
+        mode: "fill_empty",
+        selectedFields: ["goal"],
+        hasManualEdits: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldConfirmScenarioDraftApply({
+        mode: "regenerate_selected",
+        selectedFields: ["goal"],
+        lockedFields: ["title"],
         hasManualEdits: true,
       }),
       true
@@ -218,17 +286,17 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(
       shouldConfirmScenarioDraftApply({
         mode: "regenerate_selected",
-        existing,
         selectedFields: ["goal"],
+        lockedFields: ["goal"],
         hasManualEdits: true,
       }),
-      true
+      false
     );
     assert.equal(
       shouldConfirmScenarioDraftApply({
-        mode: "fill_empty",
-        existing,
-        hasManualEdits: true,
+        mode: "regenerate_selected",
+        selectedFields: ["goal"],
+        hasManualEdits: false,
       }),
       false
     );
@@ -403,5 +471,49 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.match(editor, /function revealReadinessField[\s\S]*setDetailsOpen\(true\)[\s\S]*scrollToScenarioField/);
     const autoOpenAfterDraft = /setLintMessages\([\s\S]{0,200}setDetailsOpen\(true\)/;
     assert.equal(autoOpenAfterDraft.test(editor), false);
+  });
+
+  it("P0: scenarioEditorState has no runtime scenarioDraft/node:crypto/db/server-only import", () => {
+    const source = readFileSync("src/lib/trpg/scenarioEditorState.ts", "utf8");
+    const runtime = runtimeImportSpecifiers(source);
+    assert.equal(runtime.includes("./scenarioDraft"), false);
+    assert.equal(runtime.includes("node:crypto"), false);
+    assert.equal(runtime.includes("server-only"), false);
+    assert.equal(runtime.some((spec) => spec === "./db" || spec.endsWith("/db")), false);
+    assert.match(source, /import type \{[\s\S]*from "\.\/scenarioDraft"/);
+    const clientFiles = collectClientRuntimeFiles("src/app/trpg/TrpgScenarioEditor.tsx");
+    assert.ok(clientFiles.includes("src/lib/trpg/scenarioEditorState.ts"));
+    for (const file of clientFiles) {
+      const specs = runtimeImportSpecifiers(readFileSync(file, "utf8"));
+      assert.equal(specs.includes("node:crypto"), false, file);
+      assert.equal(specs.includes("./scenarioDraft"), false, file);
+      assert.equal(specs.includes("@/lib/trpg/scenarioDraft"), false, file);
+    }
+  });
+
+  it("P0: save snapshot stays on the submitted fields when the editor changes in flight", () => {
+    const submitted = { ...emptySnapshot(), title: "A", plan: playablePlan() };
+    const currentDuringRequest = { ...submitted, title: "B" };
+    const body = scenarioEditorSavePayload(submitted);
+    assert.equal(body.title, "A");
+    assert.notEqual(body.title, currentDuringRequest.title);
+    const savedSnapshot = scenarioEditorPersistedSnapshot(submitted, submitted.characterIds);
+    assert.equal(JSON.parse(savedSnapshot).title, "A");
+    assert.equal(isScenarioEditorDirty(currentDuringRequest, savedSnapshot), true);
+    assert.equal(isScenarioEditorDirty(submitted, savedSnapshot), false);
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /const submittedFields = currentFields\(\)/);
+    assert.match(editor, /scenarioEditorSavePayload\(submittedFields\)/);
+    assert.match(editor, /scenarioEditorPersistedSnapshot\(submittedFields/);
+    assert.doesNotMatch(
+      editor,
+      /setSavedSnapshot\(\s*scenarioEditorSnapshot\(\{\s*\.\.\.currentFields\(\)/
+    );
+  });
+
+  it("P0: normal save without mid-request edit leaves dirty=false", () => {
+    const submitted = { ...emptySnapshot(), title: "A", plan: playablePlan() };
+    const savedSnapshot = scenarioEditorPersistedSnapshot(submitted, submitted.characterIds);
+    assert.equal(isScenarioEditorDirty(submitted, savedSnapshot), false);
   });
 });

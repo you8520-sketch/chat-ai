@@ -1,7 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import type { TrpgScenarioDraftField, TrpgScenarioDraftMode } from "./scenarioDraft";
-import { previewDraftOverwrite, type TrpgScenarioDraftExisting } from "./scenarioDraft";
 import type { TrpgScenarioPlan } from "./scenarioPlan";
 import type { TrpgScenarioNpc, TrpgScenarioTemplateInput } from "./scenarioTypes";
 import type { TrpgVisibility } from "./types";
@@ -103,20 +102,25 @@ export function confirmLeaveEditor(opts: {
 
 export function shouldConfirmScenarioDraftApply(opts: {
   mode: TrpgScenarioDraftMode;
-  existing: TrpgScenarioDraftExisting;
   selectedFields?: TrpgScenarioDraftField[];
   lockedFields?: TrpgScenarioDraftField[];
   hasManualEdits: boolean;
 }): boolean {
   if (opts.mode === "regenerate_all") return true;
-  const overwriteFields = previewDraftOverwrite({
-    mode: opts.mode,
-    existing: opts.existing,
-    selectedFields: opts.selectedFields,
-    lockedFields: opts.lockedFields,
+  if (opts.mode !== "regenerate_selected") return false;
+  if (!opts.hasManualEdits) return false;
+  const locked = new Set(opts.lockedFields ?? []);
+  return (opts.selectedFields ?? []).some((field) => !locked.has(field));
+}
+
+export function scenarioEditorPersistedSnapshot(
+  submittedFields: ScenarioEditorSnapshot,
+  persistedCharacterIds: number[]
+): string {
+  return scenarioEditorSnapshot({
+    ...submittedFields,
+    characterIds: persistedCharacterIds,
   });
-  if (!opts.hasManualEdits || overwriteFields.length === 0) return false;
-  return opts.mode === "regenerate_selected";
 }
 
 export function scrollToScenarioField(field: string): void {
