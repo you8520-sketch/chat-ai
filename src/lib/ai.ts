@@ -12,7 +12,9 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_GEMINI_20_FLASH_MODEL,
+  isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceModel,
+  normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
 import {
   GeminiTrafficOverloadError,
@@ -79,7 +81,7 @@ export function resolveBackgroundTextModelId(modelId?: string | null): string {
   ) {
     return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
   }
-  return trimmed;
+  return normalizeDeepSeekV4FlashModelId(trimmed);
 }
 
 export const BACKGROUND_OPENROUTER_MODEL =
@@ -392,8 +394,7 @@ export async function callBackgroundMemory(
   } catch (primaryError) {
     const canUseMemoryFallback =
       /background-memory|background-lorebook-compact/i.test(requestKind) &&
-      modelId.toLowerCase() ===
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase();
+      isCheaperInferenceDeepSeekV4FlashModel(modelId);
     if (!canUseMemoryFallback) throw primaryError;
     const fallbackModelId = resolveBackgroundMemoryFallbackModel(
       process.env,

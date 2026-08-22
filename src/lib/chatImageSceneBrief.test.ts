@@ -20,10 +20,16 @@ import {
 
 describe("chatImageSceneBrief", () => {
   it("defaults to DeepSeek V4 Flash on cheaper inference", () => {
-    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "deepseek-v4-flash");
+    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "deepseek-v4-flash-0731");
     assert.equal(
       resolveChatImageSceneBriefModel({} as NodeJS.ProcessEnv),
-      "deepseek-v4-flash"
+      "deepseek-v4-flash-0731"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefModel({
+        CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek-v4-flash",
+      } as NodeJS.ProcessEnv),
+      "deepseek-v4-flash-0731"
     );
     assert.equal(
       resolveChatImageSceneBriefModel({

@@ -177,7 +177,7 @@ test("DeepSeek V4 Flash stays Cheaper Inference but is temporarily hidden from p
   );
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
   assert.equal(
     isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),

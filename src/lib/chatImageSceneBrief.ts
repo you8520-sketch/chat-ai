@@ -3,6 +3,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   isCheaperInferenceModel,
+  normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
 
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
@@ -34,9 +35,9 @@ export type ChatImageSceneBrief = {
 export function resolveChatImageSceneBriefModel(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  return (
+  return normalizeDeepSeekV4FlashModelId(
     env.CHAT_IMAGE_SCENE_BRIEF_MODEL?.trim() ||
-    CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL
+      CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL
   );
 }
 

@@ -12,6 +12,7 @@ import {
   serializeAiModelUxJson,
 } from "@/lib/userSelectedAI";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   DEFAULT_SELECTED_AI,
@@ -82,6 +83,22 @@ describe("userSelectedAI helpers", () => {
       selected_ai: string;
     };
     assert.equal(stored.selected_ai, DEFAULT_SELECTED_AI);
+    db.close();
+  });
+
+  it("legacy stored deepseek-v4-flash stays valid Flash and resolves to 0731", () => {
+    const db = memoryDb();
+    db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
+      "deepseek-v4-flash"
+    );
+    const r = ensureUserSelectedAI(db, 1);
+    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+    assert.equal(r.selectedAI, "deepseek-v4-flash-0731");
+    assert.equal(r.remappedFromRetired, false);
+    const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
+      selected_ai: string;
+    };
+    assert.equal(stored.selected_ai, "deepseek-v4-flash-0731");
     db.close();
   });
 

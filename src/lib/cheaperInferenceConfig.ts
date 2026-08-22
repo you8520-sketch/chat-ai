@@ -1,4 +1,5 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceDeepSeekV4FlashModel,
@@ -9,6 +10,7 @@ import {
   isDeepSeekV4ProModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
+  normalizeDeepSeekV4FlashModelId,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
 
@@ -95,7 +97,9 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.include_reasoning;
 
   if (typeof adapted.model === "string") {
-    const model = normalizeDeepSeekV4ProModelId(adapted.model);
+    const model = normalizeDeepSeekV4FlashModelId(
+      normalizeDeepSeekV4ProModelId(adapted.model)
+    );
     adapted.model = model;
     if (
       isCheaperInferenceDeepSeekV4FlashModel(model) ||
@@ -103,6 +107,8 @@ export function adaptCheaperInferenceChatBody(
     ) {
       if (isCheaperInferenceDeepSeekV4ProModel(model)) {
         adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+      } else {
+        adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
       }
       delete adapted.reasoning_effort;
       adapted.thinking = { type: "disabled" };
