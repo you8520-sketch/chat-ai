@@ -58,7 +58,7 @@ export function AppSectionCard({
           className={cn(
             "mb-4",
             titleVariant === "prominent"
-              ? "text-lg font-bold tracking-tight text-white"
+              ? "border-l-4 border-violet-400 pl-3 text-xl font-extrabold leading-tight tracking-tight text-white"
               : "text-xs font-semibold uppercase tracking-wide text-zinc-500",
             titleClassName
           )}
