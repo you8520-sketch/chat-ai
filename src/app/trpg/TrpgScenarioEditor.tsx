@@ -96,6 +96,7 @@ const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
 
 const SCENARIO_DRAFT_TIMEOUT_MESSAGE =
   "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
+const SCENARIO_SECTION_TITLE_CLASS = "text-base font-bold normal-case tracking-normal text-zinc-100";
 
 function scenarioDraftErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -135,7 +136,9 @@ export default function TrpgScenarioEditor({
     initial?.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
   );
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
-  const [genres, setGenres] = useState<CharacterGenre[]>(initial?.genres ?? []);
+  const [genres, setGenres] = useState<CharacterGenre[]>(() =>
+    (initial?.genres ?? []).filter((genre) => genre !== "시뮬레이션")
+  );
   const [assets, setAssets] = useState<CharacterAsset[]>(initial?.assets ?? []);
   const [plan, setPlan] = useState<TrpgScenarioPlan>(initial?.scenarioPlan ?? emptyTrpgScenarioPlan());
   const [lockedFields, setLockedFields] = useState<TrpgScenarioDraftField[]>([]);
@@ -189,13 +192,6 @@ export default function TrpgScenarioEditor({
     scenarioPlan: plan,
   });
   const bundleOver = bundleUsed > TRPG_SCENARIO_BUNDLE_LIMIT;
-  const worldChars = countScenarioBundleChars({
-    worldSummary: linkedWorld?.summary,
-    worldContent: linkedWorld?.content,
-  });
-  const scenarioChars = countScenarioBundleChars({ summary, content, scenarioPlan: plan });
-  const secretChars = countScenarioBundleChars({ secretContent });
-  const npcChars = countScenarioBundleChars({ npcs: namedNpcs });
   const contentMax = remainingScenarioFieldMax(
     bundleUsed,
     countScenarioBundleChars({ content }),
@@ -663,7 +659,20 @@ export default function TrpgScenarioEditor({
           )}
         </div>
 
-        <AppSectionCard title="세계관">
+        <div
+          data-scenario-field="bundle"
+          className={`rounded-xl border px-4 py-3 shadow-lg shadow-black/10 ${
+            bundleOver
+              ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
+              : "border-violet-400/30 bg-violet-500/10 text-violet-100"
+          }`}
+        >
+          <p className="text-sm font-bold tabular-nums sm:text-base">
+            세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
+          </p>
+        </div>
+
+        <AppSectionCard title="세계관" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
           <p className="mt-1 text-xs text-zinc-500">
             AI 초안을 만들기 전에 세계관을 선택하세요. 고르지 않으면 입력한 자료를 바탕으로 독립 시나리오를 구성합니다.
@@ -694,7 +703,7 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="이야기">
+        <AppSectionCard title="이야기" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-violet-300/80">빠르게 시작</p>
           <div className="mb-3 flex flex-wrap gap-2">
             <button
@@ -819,15 +828,17 @@ export default function TrpgScenarioEditor({
         <button
           type="button"
           onClick={() => setDetailsOpen((open) => !open)}
-          className="text-sm font-semibold text-violet-300"
+          className="flex min-h-12 w-full items-center justify-between rounded-xl border border-violet-400/25 bg-violet-500/10 px-4 text-sm font-bold text-violet-100 transition hover:border-violet-300/50 hover:bg-violet-500/15"
         >
-          {detailsOpen ? "세부 설정 접기" : "더 자세히 설정"}
-          {!detailsOpen && depthFilled ? <span className="ml-2 text-xs font-medium text-amber-200">설정됨</span> : null}
+          <span>{detailsOpen ? "세부 설정 접기" : "더 자세히 설정"}</span>
+          <span className="text-xs font-medium text-violet-200/80">
+            {depthFilled ? "설정됨" : "게임 규칙 · NPC · 추가 설정"}
+          </span>
         </button>
 
         {detailsOpen ? (
         <div className="space-y-4">
-        <AppSectionCard title="이야기 보강">
+        <AppSectionCard title="이야기 보강" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <label className="block text-sm text-zinc-300">
             한 줄 요약
             <LockButton field="summary" />
@@ -985,7 +996,7 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="추가 자료 (선택)">
+        <AppSectionCard title="추가 자료 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <label className="block text-sm text-zinc-300" data-scenario-field="content">
             전체 시나리오 본문 (기존 형식 · 선택)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
@@ -1015,7 +1026,7 @@ export default function TrpgScenarioEditor({
           </label>
         </AppSectionCard>
 
-        <AppSectionCard title="게임 규칙">
+        <AppSectionCard title="게임 규칙" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="mb-3 text-sm text-zinc-400">
             이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 로비에서 5–15로 배분합니다.
           </p>
@@ -1056,7 +1067,7 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
 
         <div data-scenario-field="npcs">
-        <AppSectionCard title="캐릭터 / NPC">
+        <AppSectionCard title="캐릭터 / NPC" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="mb-3 text-sm text-zinc-400">
             조연 설정입니다. GM이 참고해서 등장시키며, 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
             <RegenButton field="npcs" label="NPC" />
@@ -1152,9 +1163,11 @@ export default function TrpgScenarioEditor({
           </button>
         </AppSectionCard>
         </div>
+        </div>
+        ) : null}
 
-        <AppSectionCard title="표시 및 에셋">
-          <p className="text-xs text-zinc-500">
+        <AppSectionCard title="표시 및 에셋" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+          <p className="text-sm leading-relaxed text-zinc-300">
             1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다.
           </p>
           <input
@@ -1172,10 +1185,10 @@ export default function TrpgScenarioEditor({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={assets.length + files.length >= TRPG_SCENARIO_MAX_ASSETS}
-            className="mt-3 w-full min-h-11 rounded-xl border border-dashed border-white/15 bg-[#161922] py-3 text-sm font-semibold text-zinc-200 hover:border-violet-400/40"
+            className="mt-3 min-h-14 w-full rounded-xl border border-violet-400/50 bg-violet-600/15 px-4 py-3 text-base font-bold text-violet-100 shadow-lg shadow-violet-950/20 transition hover:border-violet-300 hover:bg-violet-600/25 disabled:opacity-50"
           >
             + 시나리오 에셋 추가
-            <span className="mt-1 block text-xs font-normal text-zinc-500">
+            <span className="mt-1 block text-xs font-medium text-violet-200/70">
               {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 1번 이후는 가로 이미지
             </span>
           </button>
@@ -1201,21 +1214,8 @@ export default function TrpgScenarioEditor({
           ) : null}
         </AppSectionCard>
 
-        <AppSectionCard title="공개 설정">
-          <p
-            data-scenario-field="bundle"
-            className={`text-base font-semibold tabular-nums tracking-tight ${
-              bundleOver ? "text-rose-400" : "text-amber-300"
-            }`}
-          >
-            세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            불러온 세계관과 이 시나리오에 추가로 쓰는 본문·이야기 설계·숨겨진 설정·NPC를 합쳐{" "}
-            {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자입니다. 세계관 {worldChars.toLocaleString()} · 시나리오{" "}
-            {scenarioChars.toLocaleString()} · 비밀 {secretChars.toLocaleString()} · NPC {npcChars.toLocaleString()}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
+        <AppSectionCard title="공개 설정" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setVisibility("private")}
@@ -1236,11 +1236,9 @@ export default function TrpgScenarioEditor({
             </button>
           </div>
           <div className="mt-4">
-            <GenrePicker value={genres} onChange={setGenres} />
+            <GenrePicker value={genres} onChange={setGenres} excludedGenres={["시뮬레이션"]} />
           </div>
         </AppSectionCard>
-        </div>
-        ) : null}
 
         {error || bundleOver || lintMessages.length ? (
           <div className="space-y-2">

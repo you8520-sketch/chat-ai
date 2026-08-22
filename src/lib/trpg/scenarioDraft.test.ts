@@ -517,6 +517,14 @@ describe("TRPG scenario AI draft", () => {
     assert.match(editor, /전체 시나리오 본문 \(기존 형식 · 선택\)/);
     assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
+    assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));
+    assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
+    assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
+    assert.match(editor, /SCENARIO_SECTION_TITLE_CLASS/);
+    const detailsStart = editor.indexOf("{detailsOpen ? (");
+    const assetsStart = editor.indexOf('<AppSectionCard title="표시 및 에셋"');
+    assert.ok(detailsStart >= 0 && assetsStart > detailsStart);
+    assert.match(editor.slice(detailsStart, assetsStart), /\) : null\}\s*$/);
     assert.doesNotMatch(editor, /AI 초안은 세계관을 선택한 뒤에/);
     assert.doesNotMatch(editor, /disabled=\{draftBusy \|\| typeof worldId !== "number"\}/);
     assert.match(route, /worldId == null \? null : loadWorldForTrpg/);

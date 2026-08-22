@@ -37,10 +37,12 @@ export function AppSectionCard({
   title,
   children,
   className,
+  titleClassName,
 }: {
   title?: string;
   children: ReactNode;
   className?: string;
+  titleClassName?: string;
 }) {
   return (
     <section
@@ -50,7 +52,7 @@ export function AppSectionCard({
       )}
     >
       {title ? (
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className={cn("mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-500", titleClassName)}>
           {title}
         </h2>
       ) : null}
