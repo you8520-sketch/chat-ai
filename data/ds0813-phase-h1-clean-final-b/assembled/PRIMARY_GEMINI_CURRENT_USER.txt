@@ -1,0 +1,13 @@
+[CURRENT USER INPUT]
+The following is the user's completed input and the newest state of the scene.
+Continue from what it changes now rather than restating or explaining the input.
+[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
+Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].
+[유저 대사]
+문을 닫고 가까이 다가온다.합의된 성인 장면을 이어간다.
+[유저 지문/행동 — 캐릭터가 관찰 가능]
+옷을 천천히 벗기며 키스한다.
+
+레이아웃: 지문과 "…" 대사 사이 빈 줄(\n\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.
+
+이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.

@@ -1,0 +1,56 @@
+{
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "채 사라지기도 전에, 손끝이 재킷의 유광 표면을 타고 안쪽으로 파고들었다. 태형은 반사적으로 눈을 가늘게 떴다. 무슨 짓을 하려는지 물어보기도"
+  },
+  "NEW_USER_ACTION_BEAT": {
+    "value": true,
+    "evidence": "거 보니까 진짜네.” 그는 렌의 몸을 벽 쪽으로 돌려 세웠다. 이번에는 렌의 등이 차가운 벽에 닿았다. 태형이 렌의 양 손목을 한 손으로 잡아"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_MAJOR_REWIND": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": false,
+    "evidence": null
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 2886,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

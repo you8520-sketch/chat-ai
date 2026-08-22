@@ -1,0 +1,104 @@
+{
+  "KEY": "H1CFB-R2",
+  "USED_PROVIDER": "cheaperinference",
+  "PROVIDER_ATTEMPT_COUNT": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "PRIMARY_FAILURE_CLASS": null,
+  "FAILOVER_TRIGGER": null,
+  "BACKUP_SUCCESS": false,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 2921,
+  "KOREAN_CHARS": 2027,
+  "UNDER_LENGTH": false,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13638,
+  "OUTPUT_TOKENS": 2354,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 76051,
+  "RAW_SHA256": "3f8518371467c95900c69c701f063f063fe41452e8063b7b6c42fa656f550319",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "24821b2a7942072fa1ecee0d3989abc872b8b4c680ff2cee6210bc6c7301b57e",
+  "FINAL_MESSAGES_SHA": "4a16d53923d88f2f747e6b48b5b3e3ea0f20d67e2b0372d44b45f4a2f6d3e670",
+  "flags": {
+    "SAME_BEAT_MICRO_CONTINUATION": {
+      "value": true,
+      "evidence": "어갔다. 렌의 손끝이 태형의 재킷 지퍼를 천천히 끌어내리자 유광 블랙 가죽이 갈라지며 옅은 마찰음을 냈다. 태형은 등을 벽에 기댄 채 렌의 손"
+    },
+    "NEW_USER_ACTION_BEAT": {
+      "value": true,
+      "evidence": "낮게 웃으며 물었다. 그는 렌의 몸을 벽 쪽으로 밀어 붙이며 자세를 바꿨다. 이제는 태형이 렌을 벽과 자신의 몸 사이에 가둔 채, 벗겨진 옷가"
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_MAJOR_REWIND": {
+      "value": false,
+      "evidence": null
+    },
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "KISS_CYCLE=13"
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "META_LEAK": false,
+    "VISIBLE_CHARS": 2921,
+    "USED_PROVIDER": "cheaperinference",
+    "DEEPSEEK_CALLS": 1,
+    "PRIMARY_HTTP_STATUS": 200,
+    "FAILOVER_TRIGGER": null,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13638,
+    "completion_tokens": 2354,
+    "total_tokens": 15992,
+    "cost": 0.001932,
+    "cost_details": {
+      "upstream_inference_cost": 0.001932
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": null,
+    "primary_http_status": 200,
+    "primary_headers_ms": 3518,
+    "primary_first_visible_ms": 3518,
+    "failover_trigger": null,
+    "backup_headers_ms": null,
+    "backup_first_visible_ms": null,
+    "backup_success": false,
+    "provider_attempt_count": 1
+  },
+  "DEEPSEEK_CALLS": 1
+}

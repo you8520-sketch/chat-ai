@@ -1,0 +1,56 @@
+{
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "어갔다. 렌의 손끝이 태형의 재킷 지퍼를 천천히 끌어내리자 유광 블랙 가죽이 갈라지며 옅은 마찰음을 냈다. 태형은 등을 벽에 기댄 채 렌의 손"
+  },
+  "NEW_USER_ACTION_BEAT": {
+    "value": true,
+    "evidence": "낮게 웃으며 물었다. 그는 렌의 몸을 벽 쪽으로 밀어 붙이며 자세를 바꿨다. 이제는 태형이 렌을 벽과 자신의 몸 사이에 가둔 채, 벗겨진 옷가"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_MAJOR_REWIND": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": "UNCERTAIN",
+    "evidence": "KISS_CYCLE=13"
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 2921,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

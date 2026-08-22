@@ -1,0 +1,56 @@
+{
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": ", 렌의 손끝이 태형의 유광 재킷 지퍼를 천천히 끌어내렸다. 가죽 위로 미끄러지는 금속 지퍼의 파열음이 어둠 속에서 예리하게 가로질렀다. 재킷"
+  },
+  "NEW_USER_ACTION_BEAT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_MAJOR_REWIND": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": false,
+    "evidence": null
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": true,
+    "evidence": "VISIBLE_CHARS=2667"
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 2667,
+  "USED_PROVIDER": "openrouter",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": null,
+  "FAILOVER_TRIGGER": "headers_timeout",
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}
