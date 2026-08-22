@@ -654,7 +654,7 @@ export default function TrpgScenarioEditor({
         <AppSectionCard title="세계관" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
           <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
           <p className="mt-1 text-xs text-zinc-500">
-            AI 초안을 만들기 전에 세계관을 선택하세요. 고르지 않으면 입력한 자료를 바탕으로 독립 시나리오를 구성합니다.
+            저장한 세계관을 선택하거나 아래에서 이번 시나리오의 세계관을 직접 작성하세요.
           </p>
           {catalog.myWorlds.length === 0 ? (
             <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
@@ -664,7 +664,7 @@ export default function TrpgScenarioEditor({
               onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
               className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             >
-              <option value="">없음 — 독립 시나리오</option>
+              <option value="">세계관 직접 작성하기</option>
               {catalog.myWorlds.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.name}
@@ -677,6 +677,21 @@ export default function TrpgScenarioEditor({
               붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
             </p>
           ) : null}
+          <label className="mt-4 block text-sm text-zinc-300" data-scenario-field="content">
+            {linkedWorld ? "불러온 세계관에 덧붙일 설정 (선택)" : "세계관 직접 작성"}
+            <textarea
+              value={content}
+              maxLength={contentMax}
+              rows={6}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={
+                linkedWorld
+                  ? "예: 이 시나리오에서는 북부 공국의 겨울이 유난히 길고, 얼음 마법이 불안정하다."
+                  : "예: 눈 덮인 북부 공국. 얼음 마법이 흔하며, 오래된 성채 아래에 봉인된 도시가 있다."
+              }
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
           {worldStale ? (
             <p className="mt-2 text-xs text-amber-300">이 시나리오 초안 생성 후 세계관이 수정되었습니다.</p>
           ) : null}
@@ -1091,19 +1106,8 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
         </div>
 
-        <AppSectionCard title="추가 자료 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
-          <label className="block text-sm text-zinc-300" data-scenario-field="content">
-            전체 시나리오 본문 (선택)
-            <textarea
-              value={content}
-              maxLength={contentMax}
-              rows={6}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다."
-              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-            />
-          </label>
-          <label className="mt-3 block text-sm text-zinc-300">
+        <AppSectionCard title="GM 메모 (선택)" titleClassName={SCENARIO_SECTION_TITLE_CLASS}>
+          <label className="block text-sm text-zinc-300">
             추가 GM 메모 (자유 입력 · 선택)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
               핵심 반전은 위의 비밀(GM 전용)에 적고, 그 밖의 진행 참고사항만 입력하세요.

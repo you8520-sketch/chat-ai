@@ -405,7 +405,7 @@ describe("TRPG scenario AI draft", () => {
     assert.doesNotMatch(prompt, /^fill_or_replace_fields=title$/m);
   });
 
-  it("allows a self-contained no-world prompt and keeps null provenance", () => {
+  it("treats directly authored setting text as world data and keeps null provenance", () => {
     assert.equal(NO_WORLD_AI_DRAFT_ALLOWED, true);
     const prompt = buildScenarioDraftUserPrompt({
       worldName: "",
@@ -415,8 +415,12 @@ describe("TRPG scenario AI draft", () => {
       mode: "fill_empty",
       existing: { title: "고립된 역", content: "역 안의 생존자들이 구조 신호를 기다린다." },
     });
-    assert.match(prompt, /연결된 별도 세계관 없음/);
-    assert.match(prompt, /다른 저장 세계관을 참조하지 않는다/);
+    assert.match(prompt, /직접 작성 세계관/);
+    assert.match(prompt.match(/<WORLD_DATA_JSON>([\s\S]*?)<\/WORLD_DATA_JSON>/)?.[1] ?? "", /역 안의 생존자/);
+    assert.doesNotMatch(
+      prompt.match(/<EXISTING_DRAFT_JSON>([\s\S]*?)<\/EXISTING_DRAFT_JSON>/)?.[1] ?? "",
+      /역 안의 생존자/
+    );
     assert.match(prompt, /고립된 역/);
     assert.match(prompt, /optional_fields_left_unchanged=.*forbiddenEvents/);
     assert.equal(makeDraftProvenance({ worldId: null }).sourceWorldId, null);
@@ -514,8 +518,9 @@ describe("TRPG scenario AI draft", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
-    assert.match(editor, /전체 시나리오 본문 \(선택\)/);
-    assert.doesNotMatch(editor, /예전처럼|기존 형식/);
+    assert.match(editor, /세계관 직접 작성하기/);
+    assert.match(editor, /불러온 세계관에 덧붙일 설정 \(선택\)/);
+    assert.doesNotMatch(editor, /전체 시나리오 본문|없음 — 독립 시나리오|예전처럼|기존 형식/);
     assert.match(editor, /추가 GM 메모 \(자유 입력 · 선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
     assert.ok(editor.indexOf('data-scenario-field="bundle"') < editor.indexOf('title="세계관"'));
@@ -529,7 +534,7 @@ describe("TRPG scenario AI draft", () => {
       'title="이야기 보강"',
       'title="게임 규칙"',
       'title="캐릭터 / NPC"',
-      'title="추가 자료 (선택)"',
+      'title="GM 메모 (선택)"',
       'title="표시 및 에셋"',
       'title="공개 설정"',
     ].map((title) => editor.indexOf(title));
