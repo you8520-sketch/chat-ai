@@ -423,6 +423,50 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.doesNotMatch(editor, /characterIds: \[\]/);
   });
 
+  it("IA: all regrouped fields round-trip through the unchanged save payload", () => {
+    const fields = {
+      ...emptySnapshot(),
+      title: "분기점",
+      summary: "선택이 도시를 바꾼다",
+      content: "추가 세계관",
+      secretContent: "기존 GM 메모",
+      worldId: 17,
+      visibility: "public" as const,
+      startLocation: "서문",
+      inventoryText: "지도, 열쇠",
+      statKeys: ["str", "int"],
+      genres: ["판타지"] as TrpgScenarioTemplate["genres"],
+      assets: [{ url: "/cover.webp", tag: "대표" }] as TrpgScenarioTemplate["assets"],
+      characterIds: [3, 4],
+      npcs: [{ name: "문지기", description: "조연", greeting: "멈춰라", systemPrompt: "열쇠를 숨김", stats: null }],
+      plan: {
+        ...playablePlan(),
+        secret: "문은 거짓이다",
+        majorEvents: ["종이 울린다"],
+        clues: ["금 간 열쇠"],
+        climax: "두 문이 열린다",
+        endingCandidates: ["귀환"],
+        factionChanges: ["경비대 이탈"],
+        forbiddenEvents: ["선택 강요"],
+        gmDirection: "선택을 존중",
+        boss: "문지기 왕",
+        specialRules: ["시간 제한"],
+        difficulty: "hard" as const,
+        playLength: "long" as const,
+      },
+    };
+    const payload = scenarioEditorSavePayload(fields);
+    assert.equal(payload.worldId, 17);
+    assert.deepEqual(payload.startInventory, ["지도", "열쇠"]);
+    assert.deepEqual(payload.statKeys, fields.statKeys);
+    assert.deepEqual(payload.npcs, fields.npcs);
+    assert.deepEqual(payload.characterIds, fields.characterIds);
+    assert.deepEqual(payload.genres, fields.genres);
+    assert.deepEqual(payload.assets, fields.assets);
+    assert.deepEqual(payload.scenarioPlan, fields.plan);
+    assert.equal(payload.secretContent, fields.secretContent);
+  });
+
   it("A: dirty 나가기 cancel keeps the editor and does not navigate", () => {
     const before = { ...emptySnapshot(), title: "작성 중", plan: playablePlan() };
     let confirmCalls = 0;
@@ -475,8 +519,7 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal((payload.npcs as { name: string }[])[0]?.name, "역무원");
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     assert.doesNotMatch(editor, /data\.draft\.plan\.majorEvents\.length \|\| data\.draft\.npcs\.length/);
-    assert.match(editor, /설정됨/);
-    assert.match(editor, /optionalDepthFilled/);
+    assert.match(editor, /data-scenario-story-details/);
   });
 
   it("TEST 17: a details-section blocker exposes a focusable field id", () => {
@@ -490,8 +533,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(readiness.blockers[0]?.field, "bundle");
     assert.equal(readiness.blockers[0]?.section, "details");
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.match(editor, /function revealReadinessField[\s\S]*setDetailsOpen\(true\)[\s\S]*scrollToScenarioField/);
-    const autoOpenAfterDraft = /setLintMessages\([\s\S]{0,200}setDetailsOpen\(true\)/;
+    assert.match(editor, /function revealReadinessField[\s\S]*setStoryDetailsOpen\(true\)[\s\S]*scrollToScenarioField/);
+    const autoOpenAfterDraft = /setLintMessages\([\s\S]{0,200}setStoryDetailsOpen\(true\)/;
     assert.equal(autoOpenAfterDraft.test(editor), false);
   });
 
@@ -504,7 +547,7 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(runtime.some((spec) => spec === "./db" || spec.endsWith("/db")), false);
     assert.match(source, /import type \{[\s\S]*from "\.\/scenarioDraft"/);
     const clientFiles = collectClientRuntimeFiles("src/app/trpg/TrpgScenarioEditor.tsx");
-    assert.ok(clientFiles.includes("src/lib/trpg/scenarioEditorState.ts"));
+    assert.ok(clientFiles.some((file) => file.replaceAll("\\", "/") === "src/lib/trpg/scenarioEditorState.ts"));
     for (const file of clientFiles) {
       const specs = runtimeImportSpecifiers(readFileSync(file, "utf8"));
       assert.equal(specs.includes("node:crypto"), false, file);
@@ -551,7 +594,7 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.ok(SCENARIO_STORY_FIELD_COPY.goal.helper);
     assert.ok(SCENARIO_STORY_FIELD_COPY.endingConditions.helper);
     assert.match(editor, /data-scenario-ai-primary-cta/);
-    assert.match(editor, /직접 작성하려면 아래 5가지만 입력하면 됩니다/);
+    assert.match(editor, /직접 작성하려면 아래 핵심 5개만 채우면 됩니다/);
     assert.match(editor, /data-scenario-field-helper="startingSituation"/);
     assert.match(editor, /data-scenario-field-helper="centralConflict"/);
     assert.match(editor, /data-scenario-field-helper="goal"/);
@@ -561,7 +604,7 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.match(editor, /showAiFieldChrome/);
     assert.doesNotMatch(editor, /data-scenario-field="endingConditions"[\s\S]{0,180}종료 조건/);
     const storyStart = editor.indexOf('AppSectionCard title="이야기"');
-    const detailsStart = editor.indexOf("더 자세히 설정");
+    const detailsStart = editor.indexOf("data-scenario-story-details");
     const story = editor.slice(storyStart, detailsStart);
     assert.equal(story.includes("종료 조건"), false);
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.endingConditions\.label/);
@@ -613,9 +656,9 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     );
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     assert.match(editor, /const \[aiToolsOpen, setAiToolsOpen\] = useState\(false\)/);
-    assert.match(editor, /const \[detailsOpen, setDetailsOpen\] = useState\(false\)/);
+    assert.match(editor, /const \[storyDetailsOpen, setStoryDetailsOpen\] = useState/);
     assert.doesNotMatch(editor, /setAiToolsOpen\(true\)/);
-    assert.doesNotMatch(editor, /setDetailsOpen\(true\)[\s\S]{0,80}setLastDraftSnapshot/);
+    assert.doesNotMatch(editor, /setStoryDetailsOpen\(true\)[\s\S]{0,80}setLastDraftSnapshot/);
   });
 
   it("Phase 2: first-create blocked headline uses remaining visible fields", () => {
