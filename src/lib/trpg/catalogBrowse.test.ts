@@ -12,12 +12,8 @@ import {
   visibleScenarioSecret,
 } from "./catalogBrowse";
 import { parseWorldTrpgFlags } from "@/lib/worlds";
-import {
-  EMPTY_TRPG_CATALOG_PLAY_SCORES,
-  loadTrpgCatalogPlayScores,
-  type TrpgCatalog,
-  type TrpgCatalogWorld,
-} from "./catalog";
+import { loadTrpgCatalogPlayScores, type TrpgCatalog, type TrpgCatalogWorld } from "./catalog";
+import { EMPTY_TRPG_CATALOG_PLAY_SCORES } from "./catalogPlayScores";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { ensureTrpgTables } from "./schema";
 

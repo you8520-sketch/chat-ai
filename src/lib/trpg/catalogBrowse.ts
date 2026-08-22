@@ -1,5 +1,6 @@
 import { CHARACTER_GENRES, type CharacterGenre } from "@/lib/characterGenres";
-import type { TrpgCatalog, TrpgCatalogPlayScores, TrpgCatalogWorld } from "./catalog";
+import type { TrpgCatalog, TrpgCatalogWorld } from "./catalog";
+import type { TrpgCatalogPlayScores } from "./catalogPlayScores";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 
 export type TrpgCatalogPick =

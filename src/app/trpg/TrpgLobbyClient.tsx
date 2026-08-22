@@ -6,11 +6,11 @@ import { useMemo, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import TrpgInviteLink from "./TrpgInviteLink";
 import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
+import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import {
   EMPTY_TRPG_CATALOG_PLAY_SCORES,
-  type TrpgCatalog,
   type TrpgCatalogPlayScores,
-} from "@/lib/trpg/catalog";
+} from "@/lib/trpg/catalogPlayScores";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { trpgLobbyCanInvite, trpgLobbyReenterCtaLabel } from "@/lib/trpg/lobbyCta";
 import { filterTrpgLobbyCampaigns } from "@/lib/recentActivity";
