@@ -1,0 +1,29 @@
+{
+  "CHARACTER": {
+    "id": 18,
+    "name": "라이크",
+    "source": "PR #555 fixture copy only — file not modified on #555",
+    "path": "data/ds0813-length-h5-reliability-audit/fixtures/character-18-like.json",
+    "branch": "cursor/ds0813-length-h5-reliability-audit-fe23",
+    "adult_status": "confirmed",
+    "participant_min_age": 19,
+    "adult_consent_modes": ["standard", "cnc_opt_in"],
+    "this_run_consent": "standard"
+  },
+  "GEMINI_HISTORY": {
+    "source": "docs/audits/gemini-37-flash-baseline",
+    "model": "gemini-3.7-flash",
+    "T1_CHARS": 2775,
+    "T2_CHARS": 2798,
+    "T1_USER": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+    "T2_USER": "같이 갈래? *두리번*",
+    "NOTE": "Legitimate frozen Gemini 3.7 Flash RP turns for 조태형/라이크. Not fabricated for length."
+  },
+  "GREETING": {
+    "source": "PR #555 like-greeting-3797.txt (character greeting, not Gemini)",
+    "chars": 1318,
+    "included_in_short_term_history": true,
+    "included_in_handoff_raw_pairs": false
+  },
+  "PERSONA": "렌 — matches Gemini T1/T2 addressee. 도윤 from #555 is not used because it would contradict frozen Gemini RAWs."
+}
