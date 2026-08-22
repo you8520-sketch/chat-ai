@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-v4";
+// v4 could be set by the former Android fallback even when no native install
+// action existed. Do not let that stale dismissal hide the real install prompt.
+const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-v5";
 const ICON_VERSION = "door-v2";
 const ICON_VERSION_KEY = "hobby-ai-installed-icon-version";
 const ICON_MIGRATION_SEEN_KEY = "hobby-ai-icon-migration-seen-door-v2";
