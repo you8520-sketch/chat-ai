@@ -1,0 +1,41 @@
+{
+  "FIXTURE_ID": "TRUE_CNC",
+  "CHARACTER_CNC_OPT_IN_ALLOWED": true,
+  "REQUESTED_CONSENT_MODE": "cnc_opt_in",
+  "EFFECTIVE_CONSENT_MODE": "cnc_opt_in",
+  "EXPLICIT_CNC_OPT_IN_IN_CURRENT_INPUT": true,
+  "EFFECTIVE_COAUTHOR_MODE": "OFF",
+  "USER_COAUTHOR_MODE": "OFF",
+  "RUNTIME_MODE": "interactive",
+  "SCENE_MODE": "normal",
+  "USED_ENGLISH_CHARACTER_LAYER": true,
+  "ADULT_ELIGIBLE": true,
+  "BLOCK_REASON": "none",
+  "MODEL": "deepseek",
+  "MODEL_ID": "deepseek-v4-pro-0813",
+  "PROVIDER": "cheaperinference",
+  "TRUE_OFF": true,
+  "TEMPERATURE": 0.92,
+  "MAX_TOKENS": null,
+  "THINKING": {
+    "type": "disabled"
+  },
+  "REASONING_EFFORT": "none",
+  "ADAPTER_DIFF": {
+    "removed": [
+      "frequency_penalty",
+      "include_reasoning",
+      "presence_penalty",
+      "reasoning"
+    ],
+    "added": [
+      "reasoning_effort",
+      "thinking"
+    ],
+    "changed": []
+  },
+  "SYSTEM_SHA256": "544dd06544e5a558a6ed06d6da13bc7447559e14e09c72d5e24c7b486e096c5f",
+  "HISTORY_SHA256": "eeadee19ea00b56c57f46a819968a0f847634429a3fdf3650ff02a117a6cdbe7",
+  "HISTORY_MESSAGE_COUNT": 5,
+  "CURRENT_INPUT_SHA256": "ad064ec490974d0435457944a5ec27a42ee8bc72d2dabcdebb95157ca33973e5"
+}
