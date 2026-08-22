@@ -6,7 +6,7 @@ import { ACTION_STAT_PREFS, pickStatForAction } from "./actionTypes";
 import { createTrpgCampaign, EVEN_STATS } from "./engineCreate";
 import { normalizeScenarioTemplateInput } from "./scenarioTypes";
 import { ensureTrpgTables } from "./schema";
-import { rowToScenarioTemplate } from "./scenarioTemplates";
+import { loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
 import {
   DEFAULT_TRPG_POINT_POOL,
   DEFAULT_TRPG_STAT_DEFS,
@@ -24,6 +24,7 @@ import {
   isCanonicalStatKey,
   parseCanonicalStatKeys,
   parseStatKeys,
+  preservedLegacyStatKeysFromStored,
   pointPoolFor,
   resolveCampaignStatDefs,
 } from "./stats";
@@ -114,6 +115,8 @@ describe("TRPG canonical 18-stat vocabulary", () => {
     assert.deepEqual(created.statKeys, ["str", "mag"]);
     assert.equal(created.statKeys.some((key) => (LEGACY as readonly string[]).includes(key)), false);
     assert.deepEqual(parseCanonicalStatKeys(["acc", "grd", "siz"]), [...DEFAULT_TRPG_STAT_KEYS]);
+    assert.deepEqual(parseCanonicalStatKeys(["acc", "grd", "siz"], { fallbackToDefault: false }), []);
+    assert.deepEqual(preservedLegacyStatKeysFromStored(["str", "acc", "siz"]), ["siz", "acc"]);
   });
 
   it("B. stored mixed canonical+legacy keys survive load", () => {
@@ -234,4 +237,150 @@ describe("TRPG canonical 18-stat vocabulary", () => {
     assert.ok(EVEN_STATS.str);
     db.close();
   });
+
+  it("TEST 1: title-only update preserves mixed stored str/acc/siz", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const id = insertStoredScenario(db, { statKeys: ["str", "acc", "siz"] });
+    updateScenarioTemplate(db, id, 1, {
+      title: "제목만 수정",
+      content: "본문",
+      statKeys: ["str", "acc", "siz"],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.ok(template.statKeys.includes("str"));
+    assert.ok(template.statKeys.includes("acc"));
+    assert.ok(template.statKeys.includes("siz"));
+    assert.equal(template.title, "제목만 수정");
+    db.close();
+  });
+
+  it("TEST 2: legacy-only edit/save does not invent the default 6", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const id = insertStoredScenario(db, { statKeys: ["acc", "grd", "siz"] });
+    updateScenarioTemplate(db, id, 1, {
+      title: "무관한 수정",
+      content: "본문",
+      statKeys: ["acc", "grd", "siz"],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.deepEqual(template.statKeys, ["siz", "acc", "grd"]);
+    for (const key of DEFAULT_TRPG_STAT_KEYS) {
+      assert.equal(template.statKeys.includes(key), false);
+    }
+    db.close();
+  });
+
+  it("TEST 3: unrelated save keeps stored legacy NPC stats", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const npc = {
+      name: "경비",
+      description: "문 앞",
+      greeting: "멈춰",
+      systemPrompt: "경계한다",
+      stats: { acc: 11, siz: 9 },
+    };
+    const id = insertStoredScenario(db, {
+      statKeys: ["acc", "siz"],
+      npcs: [npc],
+    });
+    updateScenarioTemplate(db, id, 1, {
+      title: "제목만",
+      content: "본문",
+      statKeys: ["acc", "siz"],
+      npcs: [npc],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.equal(template.npcs[0]?.stats?.acc, 11);
+    assert.equal(template.npcs[0]?.stats?.siz, 9);
+    db.close();
+  });
+
+  it("TEST 4: editor null defaultPcStats still keeps stored legacy values", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const id = insertStoredScenario(db, {
+      statKeys: ["acc", "siz"],
+      defaultPcStats: { acc: 10, siz: 8 },
+    });
+    updateScenarioTemplate(db, id, 1, {
+      title: "제목만",
+      content: "본문",
+      statKeys: ["acc", "siz"],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.equal(template.defaultPcStats?.acc, 10);
+    assert.equal(template.defaultPcStats?.siz, 8);
+    db.close();
+  });
+
+  it("TEST 5: PATCH cannot inject a new legacy key into a canonical-only row", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const id = insertStoredScenario(db, { statKeys: ["str"] });
+    updateScenarioTemplate(db, id, 1, {
+      title: "주입 시도",
+      content: "본문",
+      statKeys: ["str", "acc"],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.ok(template.statKeys.includes("str"));
+    assert.equal(template.statKeys.includes("acc"), false);
+    db.close();
+  });
+
+  it("TEST 6: turning off a canonical key still keeps preserved legacy keys", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const id = insertStoredScenario(db, { statKeys: ["str", "acc", "siz"] });
+    updateScenarioTemplate(db, id, 1, {
+      title: "힘 해제",
+      content: "본문",
+      statKeys: [],
+      defaultPcStats: null,
+    });
+    const template = loadUpdated(db, id);
+    assert.equal(template.statKeys.includes("str"), false);
+    assert.ok(template.statKeys.includes("acc"));
+    assert.ok(template.statKeys.includes("siz"));
+    db.close();
+  });
 });
+
+function insertStoredScenario(
+  db: Database.Database,
+  opts: {
+    statKeys: string[];
+    title?: string;
+    defaultPcStats?: Record<string, number> | null;
+    npcs?: unknown;
+  }
+): number {
+  const info = db
+    .prepare(
+      `INSERT INTO trpg_scenario_templates
+        (creator_id, title, summary, content, visibility, start_location, start_inventory_json,
+         default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, updated_at)
+       VALUES (1, ?, '', '본문', 'private', '', '[]', ?, ?, ?, '[]', '[]', datetime('now'))`
+    )
+    .run(
+      opts.title ?? "유산",
+      opts.defaultPcStats ? JSON.stringify(opts.defaultPcStats) : "",
+      JSON.stringify(opts.statKeys),
+      JSON.stringify(opts.npcs ?? [])
+    );
+  return Number(info.lastInsertRowid);
+}
+
+function loadUpdated(db: Database.Database, id: number) {
+  const row = loadScenarioTemplate(db, id);
+  assert.ok(row);
+  return rowToScenarioTemplate(row);
+}

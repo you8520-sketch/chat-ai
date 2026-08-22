@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
-import { defsFromKeys, parseStatKeys } from "./stats";
+import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKeysFromStored } from "./stats";
 import { parseJson } from "./store";
 import { parseScenarioAssets } from "./scenarioAssets";
 import { parseTrpgScenarioPlan, publicTrpgScenarioPlan } from "./scenarioPlan";
@@ -17,7 +17,7 @@ import {
   type TrpgScenarioTemplate,
   type TrpgScenarioTemplateInput,
 } from "./scenarioTypes";
-import { parseTrpgVisibility } from "./types";
+import { parseTrpgVisibility, type TrpgStatDefinition } from "./types";
 
 export {
   TRPG_SCENARIO_BUNDLE_LIMIT,
@@ -228,9 +228,20 @@ export function updateScenarioTemplate(
   if (!existing || existing.creator_id !== creatorId) {
     throw new Error("시나리오를 찾을 수 없습니다.");
   }
-  const n = normalizeScenarioTemplateInput(input);
+  const preservedLegacyStatKeys = preservedLegacyStatKeysFromStored(
+    parseJson(existing.stat_keys_json, [] as unknown[])
+  );
+  const n = normalizeScenarioTemplateInput(input, { preservedLegacyStatKeys });
+  const statDefs = defsFromKeys(n.statKeys);
+  const defaultPcStats = restoreDefaultPcStatsOnUpdate(
+    input.defaultPcStats,
+    n.defaultPcStats,
+    existing.default_pc_stats_json,
+    statDefs
+  );
+  const npcs = restoreNpcLegacyStatsOnUpdate(n.npcs, existing.npcs_json, statDefs);
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
-  assertScenarioBundleFits(db, n);
+  assertScenarioBundleFits(db, { ...n, npcs });
   db.prepare(
     `UPDATE trpg_scenario_templates
      SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,
@@ -247,9 +258,9 @@ export function updateScenarioTemplate(
     n.visibility,
     n.startLocation,
     JSON.stringify(n.startInventory),
-    n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
+    defaultPcStats ? JSON.stringify(defaultPcStats) : "",
     JSON.stringify(n.statKeys),
-    JSON.stringify(n.npcs),
+    JSON.stringify(npcs),
     JSON.stringify(n.characterIds),
     JSON.stringify(n.genres),
     JSON.stringify(n.assets),
@@ -257,6 +268,48 @@ export function updateScenarioTemplate(
     id,
     creatorId
   );
+}
+
+function restoreDefaultPcStatsOnUpdate(
+  payload: Record<string, number> | null | undefined,
+  normalized: Record<string, number> | null,
+  existingJson: string,
+  statDefs: TrpgStatDefinition[]
+): Record<string, number> | null {
+  const existingStats = parseStatRecord(parseJson(existingJson, null), statDefs);
+  if (payload == null) {
+    return existingStats ?? normalized;
+  }
+  if (!existingStats) return normalized;
+  const merged = { ...(normalized ?? existingStats) };
+  for (const def of statDefs) {
+    if (isCanonicalStatKey(def.key)) continue;
+    const value = existingStats[def.key];
+    if (value != null) merged[def.key] = value;
+  }
+  return merged;
+}
+
+function restoreNpcLegacyStatsOnUpdate(
+  incoming: TrpgScenarioNpc[],
+  existingJson: string,
+  statDefs: TrpgStatDefinition[]
+): TrpgScenarioNpc[] {
+  const preservedKeys = statDefs.filter((def) => !isCanonicalStatKey(def.key)).map((def) => def.key);
+  if (preservedKeys.length === 0) return incoming;
+  const existingNpcs = parseScenarioNpcs(parseJson(existingJson, [] as unknown[]), statDefs);
+  if (existingNpcs.length === 0) return incoming;
+  const byName = new Map(existingNpcs.map((npc) => [npc.name, npc]));
+  return incoming.map((npc) => {
+    const prev = byName.get(npc.name);
+    if (!prev?.stats) return npc;
+    const stats = { ...(npc.stats ?? prev.stats) };
+    for (const key of preservedKeys) {
+      const value = prev.stats[key];
+      if (value != null) stats[key] = value;
+    }
+    return { ...npc, stats };
+  });
 }
 
 export function deleteScenarioTemplate(db: Database.Database, id: number, creatorId: number): void {

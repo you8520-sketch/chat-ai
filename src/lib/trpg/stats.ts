@@ -113,6 +113,10 @@ export function isCanonicalStatKey(key: string): boolean {
   return TRPG_STAT_CATALOG.some((row) => row.key === key);
 }
 
+export function isLegacyStatKey(key: string): boolean {
+  return TRPG_LEGACY_STAT_COMPAT_CATALOG.some((row) => row.key === key);
+}
+
 export function defsFromKeys(keys: readonly string[]): TrpgStatDefinition[] {
   const wanted = new Set(keys);
   return compatCatalog()
@@ -152,9 +156,12 @@ export const DEFAULT_TRPG_POINT_POOL = pointPoolFor(DEFAULT_TRPG_STAT_DEFS);
 
 function parseStatKeysFromCatalog(
   raw: unknown,
-  catalog: readonly TrpgStatCatalogEntry[]
+  catalog: readonly TrpgStatCatalogEntry[],
+  options?: { fallbackToDefault?: boolean }
 ): string[] {
-  if (!Array.isArray(raw) || raw.length === 0) return [...DEFAULT_TRPG_STAT_KEYS];
+  const fallbackToDefault = options?.fallbackToDefault !== false;
+  const fallback = (): string[] => (fallbackToDefault ? [...DEFAULT_TRPG_STAT_KEYS] : []);
+  if (!Array.isArray(raw) || raw.length === 0) return fallback();
   const allowed = new Set(catalog.map((row) => row.key));
   const seen = new Set<string>();
   const keys: string[] = [];
@@ -165,7 +172,7 @@ function parseStatKeysFromCatalog(
     keys.push(key);
     if (keys.length >= catalog.length) break;
   }
-  if (keys.length === 0) return [...DEFAULT_TRPG_STAT_KEYS];
+  if (keys.length === 0) return fallback();
   const wanted = new Set(keys);
   return catalog.filter((row) => wanted.has(row.key)).map((row) => row.key);
 }
@@ -176,8 +183,20 @@ export function parseStatKeys(raw: unknown): string[] {
 }
 
 /** New scenario / template / creator selection. Canonical 18 only. */
-export function parseCanonicalStatKeys(raw: unknown): string[] {
-  return parseStatKeysFromCatalog(raw, TRPG_STAT_CATALOG);
+export function parseCanonicalStatKeys(
+  raw: unknown,
+  options?: { fallbackToDefault?: boolean }
+): string[] {
+  return parseStatKeysFromCatalog(raw, TRPG_STAT_CATALOG, options);
+}
+
+/** Stored keys without the empty-catalog default-6 fallback. UPDATE preserve uses this. */
+export function parseStoredStatKeysWithoutDefault(raw: unknown): string[] {
+  return parseStatKeysFromCatalog(raw, compatCatalog(), { fallbackToDefault: false });
+}
+
+export function preservedLegacyStatKeysFromStored(raw: unknown): string[] {
+  return parseStoredStatKeysWithoutDefault(raw).filter((key) => !isCanonicalStatKey(key));
 }
 
 export type StatAllocationError =
