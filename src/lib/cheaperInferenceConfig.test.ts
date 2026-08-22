@@ -139,7 +139,7 @@ test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
   };
 
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
-    model: "deepseek-v4-flash",
+    model: "deepseek-v4-flash-0731",
     messages: [{ role: "user", content: "hello" }],
     thinking: { type: "disabled" },
   });

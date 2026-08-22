@@ -8,6 +8,11 @@ import {
   resolveCacheWriteUsdPerM,
   resolveOpenRouterModelRates,
 } from "@/lib/openRouterModelPricing";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  isCheaperInferenceDeepSeekV4FlashModel,
+} from "@/lib/chatModels";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -368,8 +373,9 @@ export function buildAdminFinanceSummary(
         apiRawCostKrw?: number;
       };
       model = usage.modelLabel?.trim() || usage.model?.trim() || model;
-      const isLedgeredDeepSeekFlash =
-        usage.model?.trim().toLowerCase() === "deepseek-v4-flash";
+      const isLedgeredDeepSeekFlash = isCheaperInferenceDeepSeekV4FlashModel(
+        usage.model ?? ""
+      );
       rowApiCost = isLedgeredDeepSeekFlash
         ? 0
         : finiteNonNegative(usage.apiRawCostKrw);
@@ -423,9 +429,14 @@ export function buildAdminFinanceSummary(
               COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,
               COALESCE(SUM(cost_krw),0) AS cost_krw
        FROM api_cost_ledger
-       WHERE created_at>=? AND created_at<? AND lower(model)='deepseek-v4-flash'`
+       WHERE created_at>=? AND created_at<? AND lower(model) IN (?, ?)`
     )
-    .get(start, end) as Record<string, number>;
+    .get(
+      start,
+      end,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    ) as Record<string, number>;
   const backgroundCost = finiteNonNegative(background.cost_krw);
   const backgroundWithTax = backgroundCost * (1 + adjustments.providerTaxRate);
   if (backgroundWithTax > 0) {

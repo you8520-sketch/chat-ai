@@ -5,7 +5,7 @@ import {
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
@@ -79,9 +79,9 @@ Output protocol:
 - The input contains numbered segments delimited by ⟦SEG n⟧ ... ⟦/SEG n⟧. Output EVERY segment in the same order with the SAME delimiters, containing only the English translation.
 - Output nothing outside the segment delimiters.`;
 
-/** Character-save translation primary — CI Flash dated slug, not background memory. */
+/** Character-save translation primary — canonical CI DeepSeek V4 Flash. */
 export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 
 /** Distinct CI Pro fallback — same resolved model is not a fallback. */
 export const DEFAULT_TRANSLATION_FALLBACK_MODEL =

@@ -1,0 +1,331 @@
+BASE_SHA=3a87d14d2ac9c5771ebffaf9564b0700c75b091b
+BRANCH=cursor/deepseek-v4-flash-0731-canonical-fe23
+
+===== RG1: deepseek-v4-flash|DEEPSEEK_V4_FLASH|OPENROUTER_DEEPSEEK_V3_MODEL =====
+./.env.example:18:# World-only TRPG Sandbox Blueprint (deepseek-v4-flash-0731). Default off.
+./.env.example:143:BACKGROUND_MEMORY_MODEL=deepseek-v4-flash
+./.env.example:146:# BACKGROUND_MEMORY_FALLBACK_MODEL=deepseek/deepseek-v4-flash
+./.env.example:150:# PROMPT_TRANSLATION_MODEL=deepseek-v4-flash-0731
+./scripts/d0-length-reaudit.ts:84:        provider: metricsJson.api?.model ?? "deepseek-v4-flash",
+./scripts/deepseek-flash-length-owner-probe.ts:9:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./scripts/deepseek-flash-length-owner-probe.ts:120:  const flash = buildProbe(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+./scripts/dump-model-output-prompts-comprehensive.ts:30:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./scripts/dump-model-output-prompts-comprehensive.ts:702:    `model: ${OPENROUTER_DEEPSEEK_V3_MODEL}`,
+./src/lib/adminFinance.ts:372:        usage.model?.trim().toLowerCase() === "deepseek-v4-flash";
+./src/lib/adminFinance.ts:426:       WHERE created_at>=? AND created_at<? AND lower(model)='deepseek-v4-flash'`
+./src/lib/pointsReasoningMargins.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/pointsReasoningMargins.ts:43:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_INPUT_USD_PER_MILLION = 0.098;
+./src/lib/pointsReasoningMargins.ts:44:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_CACHED_INPUT_USD_PER_MILLION =
+./src/lib/pointsReasoningMargins.ts:46:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_CACHE_WRITE_USD_PER_MILLION =
+./src/lib/pointsReasoningMargins.ts:48:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_OUTPUT_USD_PER_MILLION = 0.196;
+./src/lib/pointsReasoningMargins.ts:71:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN = 0.68;
+./src/lib/pointsReasoningMargins.ts:130:  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/pointsReasoningMargins.ts:132:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_INPUT_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:134:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_CACHED_INPUT_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:136:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_CACHE_WRITE_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:138:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_OUTPUT_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:139:  grossMargin: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN,
+./src/lib/pointsReasoningMargins.ts:337:  [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]: {
+./src/lib/pointsReasoningMargins.ts:338:    inputUsdPerMillion: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_INPUT_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:340:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_OUTPUT_USD_PER_MILLION,
+./src/lib/pointsReasoningMargins.ts:341:    grossMargin: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN,
+./src/lib/cheaperInferenceConfig.test.ts:135:    model: "deepseek-v4-flash",
+./src/lib/cheaperInferenceConfig.test.ts:142:    model: "deepseek-v4-flash",
+./src/lib/cheaperInferenceConfig.test.ts:148:      model: "deepseek-v4-flash-0731",
+./src/lib/cheaperInferenceConfig.test.ts:152:      model: "deepseek-v4-flash-0731",
+./src/lib/adminFinance.test.ts:10:    model: "deepseek-v4-flash",
+./src/lib/promptTranslation.ts:8:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+./src/lib/promptTranslation.ts:84:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+./src/lib/trpg/runtimeContract.test.ts:3:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/runtimeContract.test.ts:20:    assert.notEqual(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/runtimeContract.test.ts:21:    assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/runtimeContract.test.ts:25:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/runtimeContract.test.ts:26:    assert.equal(TRPG_SANDBOX_DIRECTOR_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/runtimeContract.test.ts:27:    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/runtimeContract.test.ts:28:    assert.equal(TRPG_MECHANICS_REFEREE_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/openRouterModelPricing.ts:129:const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES: OpenRouterModelRates = {
+./src/lib/openRouterModelPricing.ts:141:const OPENROUTER_DEEPSEEK_V4_FLASH_RATES: OpenRouterModelRates = {
+./src/lib/openRouterModelPricing.ts:342:  if (id === "deepseek-v4-flash" || id === "deepseek-v4-flash-0731") {
+./src/lib/openRouterModelPricing.ts:345:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES
+./src/lib/openRouterModelPricing.ts:348:  if (id === "deepseek/deepseek-v4-flash") {
+./src/lib/openRouterModelPricing.ts:349:    return OPENROUTER_DEEPSEEK_V4_FLASH_RATES;
+./src/lib/chatImageSceneBrief.test.ts:23:    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "deepseek-v4-flash");
+./src/lib/chatImageSceneBrief.test.ts:26:      "deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:30:        CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek/deepseek-v4-flash",
+./src/lib/chatImageSceneBrief.test.ts:32:      "deepseek/deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:39:      "deepseek/deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:44:        "deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:46:      "deepseek/deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:51:        "deepseek-v4-flash"
+./src/lib/chatImageSceneBrief.test.ts:58:        "deepseek/deepseek-v4-flash"
+./src/lib/trpg/campaignDirector.test.ts:15:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/campaignDirector.test.ts:132:    assert.equal(JSON.stringify(usageJson ?? {}).includes("deepseek-v4-flash-0731"), false);
+./src/lib/trpg/campaignDirector.test.ts:456:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/points.flashOnly.test.ts:13:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+./src/lib/points.flashOnly.test.ts:31:    assert.equal(flash.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+./src/lib/trpg/startFailure.test.ts:5:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/startFailure.test.ts:411:        return { text: "{}", latencyMs: 1, model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL };
+./src/lib/ai.cheaperInferenceBackground.test.ts:10:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/ai.cheaperInferenceBackground.test.ts:11:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/ai.cheaperInferenceBackground.test.ts:12:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/ai.cheaperInferenceBackground.test.ts:18:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:21:    resolveBackgroundTextModelId(OPENROUTER_DEEPSEEK_V3_MODEL),
+./src/lib/ai.cheaperInferenceBackground.test.ts:22:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:26:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:72:      { BACKGROUND_MEMORY_FALLBACK_MODEL: OPENROUTER_DEEPSEEK_V3_MODEL },
+./src/lib/ai.cheaperInferenceBackground.test.ts:73:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:75:    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:82:    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/ai.cheaperInferenceBackground.test.ts:93:  process.env.BACKGROUND_MEMORY_FALLBACK_MODEL = OPENROUTER_DEEPSEEK_V3_MODEL;
+./src/lib/ai.cheaperInferenceBackground.test.ts:122:      [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, OPENROUTER_DEEPSEEK_V4_FLASH_MODEL]
+./src/lib/openRouterClient.test.ts:37:    assert.equal(isDeepSeekOpenRouterModel("deepseek/deepseek-v4-flash"), true);
+./src/lib/trpg/mechanicsResolve.test.ts:118:    model: "deepseek-v4-flash-0731",
+./src/lib/appearanceCompiler.test.ts:13:import { OPENROUTER_DEEPSEEK_V3_MODEL, OPENROUTER_DEEPSEEK_V4_PRO_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL } from "@/lib/chatModels";
+./src/lib/appearanceCompiler.test.ts:93:    assert.match(baseContext(OPENROUTER_DEEPSEEK_V3_MODEL).systemPrompt, new RegExp(DEEPSEEK_APPEARANCE_VARIATION_RULE));
+./src/lib/trpg/mechanicsRecovery.test.ts:106:    model: "deepseek-v4-flash-0731",
+./src/lib/openRouterCompletion.cheaperInference.test.ts:20:        model: "deepseek-v4-flash",
+./src/lib/openRouterCompletion.cheaperInference.test.ts:35:      model: "deepseek-v4-flash",
+./src/lib/openRouterCompletion.cheaperInference.test.ts:45:    assert.equal(requestedBody?.model, "deepseek-v4-flash");
+./src/lib/openRouterCompletion.cheaperInference.test.ts:78:          model: "deepseek-v4-flash",
+./src/lib/openRouterCompletion.cheaperInference.test.ts:122:    for (const model of ["deepseek-v4-flash", "deepseek/deepseek-v4-flash"]) {
+./src/lib/trpg/scenarioDraft.ts:2:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/scenarioDraft.ts:23:export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+./src/lib/trpg/scenarioDraft.ts:39:  "deepseek-v4-flash-0731 may return the full schema despite exact sparse-key instructions; merge ownership still applies only selected fields.";
+./src/lib/billingReceiptAccess.test.ts:79:            modelId: "deepseek-v4-flash",
+./src/lib/trpg/replySuggestions.test.ts:5:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/replySuggestions.test.ts:92:    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/replySuggestions.test.ts:226:      model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+./src/lib/points.ts:19:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/points.ts:20:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/points.ts:2224:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/points.ts:2231:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/points.ts:2238:    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/trpg/scenarioDraft.test.ts:4:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+./src/lib/trpg/scenarioDraft.test.ts:80:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+./src/lib/trpg/mechanicsEngine.test.ts:112:          return { text: flashHarm(hostIdRef.id), model: "deepseek-v4-flash-0731", latencyMs: 9 };
+./src/lib/trpg/mechanicsEngine.test.ts:158:          return { text: flashHarm(hostIdRef.id), model: "deepseek-v4-flash-0731" };
+./src/lib/trpg/mechanicsEngine.test.ts:214:          model: "deepseek-v4-flash-0731",
+./src/lib/trpg/mechanicsEngine.test.ts:259:        mechanicsCall: async () => ({ text: flashHarm(hostIdRef.id), model: "deepseek-v4-flash-0731" }),
+./src/lib/trpg/mechanicsEngine.test.ts:361:            model: "deepseek-v4-flash-0731",
+./src/lib/trpg/mechanicsEngine.test.ts:394:            model: "deepseek-v4-flash-0731",
+./src/lib/trpg/mechanicsBlockers.test.ts:84:    model: "deepseek-v4-flash-0731",
+./src/lib/points.inputSurcharge.test.ts:13:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/points.inputSurcharge.test.ts:57:      openRouterInputTokenSurchargeKrw(10500, OPENROUTER_DEEPSEEK_V3_MODEL),
+./src/lib/points.inputSurcharge.test.ts:61:      openRouterInputTokenSurchargeKrw(12000, OPENROUTER_DEEPSEEK_V3_MODEL),
+./src/lib/points.deepseekCheaperInference.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/points.deepseekCheaperInference.test.ts:8:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN,
+./src/lib/points.deepseekCheaperInference.test.ts:49:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/points.deepseekCheaperInference.test.ts:58:    assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN, 0.68);
+./src/lib/points.deepseekCheaperInference.test.ts:61:      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/ai.ts:11:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/ai.ts:12:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/ai.ts:13:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/ai.ts:78:    trimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()
+./src/lib/ai.ts:80:    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/ai.ts:98:  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/ai.ts:100:  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/ai.ts:101:  if (rawTrimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
+./src/lib/ai.ts:102:    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/ai.ts:106:    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/ai.ts:396:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase();
+./src/lib/chatModels.cheaperInference.test.ts:6:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/chatModels.cheaperInference.test.ts:45:    isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.cheaperInference.test.ts:166:      (option) => option.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/chatModels.cheaperInference.test.ts:171:    selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.cheaperInference.test.ts:175:    selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.cheaperInference.test.ts:179:    resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.cheaperInference.test.ts:183:    isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatImageSceneBrief.ts:3:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/chatImageSceneBrief.ts:4:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/chatImageSceneBrief.ts:9:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/chatImageSceneBrief.ts:11:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:14:  it("public picker contains deepseek-v4-flash = false", () => {
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:17:        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:26:        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:29:    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), true);
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:31:      selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:38:      resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/chatModels.deepseekFlashPickerHide.test.ts:42:      resolveSelectedAI("deepseek-v4-flash"),
+./src/lib/deepseekNarrationFragmentGuard.test.ts:23:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/deepseekNarrationFragmentGuard.test.ts:60:    assert.equal(isDeepSeekV4ProModel(OPENROUTER_DEEPSEEK_V3_MODEL), false);
+./src/lib/promptTranslation.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+./src/lib/promptTranslation.test.ts:5:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/promptTranslation.test.ts:78:    process.env.BACKGROUND_MEMORY_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+./src/lib/promptTranslation.test.ts:82:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+./src/lib/promptTranslation.test.ts:87:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+./src/lib/promptTranslation.test.ts:109:      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/promptTranslation.test.ts:110:      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/promptTranslation.test.ts:112:    assert.deepEqual(models, [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]);
+./src/lib/promptTranslation.test.ts:132:        PROMPT_TRANSLATION_MODEL: "deepseek/deepseek-v4-flash",
+./src/lib/openRouterModelPricing.cheaperInference.test.ts:31:  const rates = resolveOpenRouterModelRates("deepseek-v4-flash");
+./src/lib/openRouterModelPricing.cheaperInference.test.ts:36:  const dated = resolveOpenRouterModelRates("deepseek-v4-flash-0731");
+./src/lib/openRouterModelPricing.cheaperInference.test.ts:102:  for (const modelId of ["gpt-5.6-luna", "claude-opus-5", "deepseek-v4-flash"] as const) {
+./src/lib/chatModels.ts:11:/** @deprecated UI 선택용 Flash — 백그라운드 작업은 OPENROUTER_DEEPSEEK_V3_MODEL */
+./src/lib/chatModels.ts:56:export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
+./src/lib/chatModels.ts:59:export const OPENROUTER_DEEPSEEK_V4_FLASH_MODEL = "deepseek/deepseek-v4-flash";
+./src/lib/chatModels.ts:101:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
+./src/lib/chatModels.ts:104:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL =
+./src/lib/chatModels.ts:105:  "deepseek-v4-flash-0731";
+./src/lib/chatModels.ts:137:export const DEEPSEEK_V4_FLASH_DISPLAY_NAME = "DeepSeek V4 Flash";
+./src/lib/chatModels.ts:209:    id: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/chatModels.ts:210:    label: DEEPSEEK_V4_FLASH_DISPLAY_NAME,
+./src/lib/chatModels.ts:312:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+./src/lib/chatModels.ts:313:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+./src/lib/chatModels.ts:332:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+./src/lib/chatModels.ts:333:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL ||
+./src/lib/chatModels.ts:364:    o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
+./src/lib/chatModels.ts:388:  if (id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
+./src/lib/chatModels.ts:421:    id === OPENROUTER_DEEPSEEK_V3_MODEL ||
+./src/lib/statusWidget/receiptUsage.ts:3:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/receiptUsage.ts:4:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/statusWidget/receiptUsage.ts:78:    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+./src/lib/statusWidget/receiptUsage.ts:79:    lower.includes("deepseek-v4-flash")
+./src/lib/statusWidget/receiptUsage.ts:84:    lower === OPENROUTER_DEEPSEEK_V3_MODEL ||
+./src/lib/statusWidget/extract.ts:7:import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+./src/lib/statusWidget/extract.ts:697:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase() !==
+./src/lib/statusWidget/extract.ts:699:        ? OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+./src/lib/statusWidget/receiptUsage.test.ts:17:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/receiptUsage.test.ts:19:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/statusWidget/receiptUsage.test.ts:28:  modelId: OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/statusWidget/receiptUsage.test.ts:211:    const v3Rates = resolveOpenRouterModelRates(OPENROUTER_DEEPSEEK_V3_MODEL);
+./src/lib/statusWidget/receiptUsage.test.ts:224:    assert.equal(receipt.model, OPENROUTER_DEEPSEEK_V3_MODEL);
+./src/lib/statusWidget/receiptUsage.test.ts:271:      statusWidgetExtractModelLabel(OPENROUTER_DEEPSEEK_V3_MODEL),
+./src/lib/statusWidget/receiptUsage.test.ts:275:      statusWidgetExtractModelLabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+./src/lib/statusWidget/extractV4Fallback.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractV4Fallback.test.ts:5:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractV4Fallback.test.ts:44:      if (opts.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
+./src/lib/statusWidget/extractV4Fallback.test.ts:66:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractV4Fallback.test.ts:67:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractV4Fallback.test.ts:68:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractV4Fallback.test.ts:112:    models.filter((model) => model === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
+./src/lib/statusWidget/extractRetry.test.ts:32:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:33:  OPENROUTER_DEEPSEEK_V3_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:34:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:1559:  const PRIMARY = OPENROUTER_DEEPSEEK_V3_MODEL;
+./src/lib/statusWidget/extractRetry.test.ts:1794:      primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:1799:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:1800:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/lib/statusWidget/extractRetry.test.ts:1801:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+./src/app/api/user/selected-ai/route.test.ts:8:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+./src/app/api/user/selected-ai/route.test.ts:79:    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), false);
+
+===== RG2: flash helper/constants =====
+scripts/deepseek-flash-length-owner-probe.ts:9:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+scripts/deepseek-flash-length-owner-probe.ts:120:  const flash = buildProbe(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+src/services/contextBuilder.ts:159:import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+src/services/contextBuilder.ts:1272:    isCheaperInferenceDeepSeekV4FlashModel(input.modelId ?? "")
+src/lib/pointsReasoningMargins.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/pointsReasoningMargins.ts:11:  isCheaperInferenceDeepSeekV4FlashModel,
+src/lib/pointsReasoningMargins.ts:130:  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/pointsReasoningMargins.ts:230:  if (isCheaperInferenceDeepSeekV4FlashModel(modelId)) {
+src/lib/pointsReasoningMargins.ts:337:  [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]: {
+src/lib/trpg/runtimeContract.test.ts:3:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+src/lib/trpg/runtimeContract.test.ts:20:    assert.notEqual(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/runtimeContract.test.ts:21:    assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/runtimeContract.test.ts:25:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/runtimeContract.test.ts:26:    assert.equal(TRPG_SANDBOX_DIRECTOR_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/runtimeContract.test.ts:27:    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/runtimeContract.test.ts:28:    assert.equal(TRPG_MECHANICS_REFEREE_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/promptTranslation.ts:8:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+src/lib/promptTranslation.ts:84:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+src/lib/trpg/campaignDirector.test.ts:15:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+src/lib/trpg/campaignDirector.test.ts:456:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/startFailure.test.ts:5:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+src/lib/trpg/startFailure.test.ts:411:        return { text: "{}", latencyMs: 1, model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL };
+src/lib/points.flashOnly.test.ts:13:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+src/lib/points.flashOnly.test.ts:31:    assert.equal(flash.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+src/lib/ai.cheaperInferenceBackground.test.ts:10:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/ai.cheaperInferenceBackground.test.ts:11:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/ai.cheaperInferenceBackground.test.ts:18:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:22:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:26:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:73:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:75:    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:82:    OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+src/lib/ai.cheaperInferenceBackground.test.ts:122:      [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, OPENROUTER_DEEPSEEK_V4_FLASH_MODEL]
+src/lib/trpg/scenarioDraft.ts:2:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+src/lib/trpg/scenarioDraft.ts:23:export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+src/lib/trpg/replySuggestions.test.ts:5:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+src/lib/trpg/replySuggestions.test.ts:92:    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/trpg/replySuggestions.test.ts:226:      model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+src/lib/trpg/scenarioDraft.test.ts:4:import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+src/lib/trpg/scenarioDraft.test.ts:80:    assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+src/lib/rpDiagnosticCanary.ts:9:  isCheaperInferenceDeepSeekV4FlashModel,
+src/lib/rpDiagnosticCanary.ts:128:  return isCheaperInferenceDeepSeekV4ProModel(id) || isCheaperInferenceDeepSeekV4FlashModel(id);
+src/lib/cheaperInferenceConfig.ts:4:  isCheaperInferenceDeepSeekV4FlashModel,
+src/lib/cheaperInferenceConfig.ts:101:      isCheaperInferenceDeepSeekV4FlashModel(model) ||
+src/lib/promptTranslation.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+src/lib/promptTranslation.test.ts:5:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/promptTranslation.test.ts:78:    process.env.BACKGROUND_MEMORY_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/promptTranslation.test.ts:82:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+src/lib/promptTranslation.test.ts:87:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+src/lib/promptTranslation.test.ts:109:      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/promptTranslation.test.ts:110:      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/promptTranslation.test.ts:112:    assert.deepEqual(models, [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]);
+src/lib/points.ts:19:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/points.ts:2224:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/points.ts:2231:    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/points.ts:2238:    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/ai.ts:11:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/ai.ts:13:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/ai.ts:80:    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/ai.ts:98:  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/ai.ts:100:  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/ai.ts:102:    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/ai.ts:106:    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/ai.ts:396:        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase();
+src/lib/points.deepseekCheaperInference.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/points.deepseekCheaperInference.test.ts:49:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/points.deepseekCheaperInference.test.ts:61:      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatModels.cheaperInference.test.ts:6:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatModels.cheaperInference.test.ts:45:    isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/chatModels.cheaperInference.test.ts:166:      (option) => option.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/chatModels.cheaperInference.test.ts:171:    selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/chatModels.cheaperInference.test.ts:175:    selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/chatModels.cheaperInference.test.ts:179:    resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/chatModels.cheaperInference.test.ts:183:    isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/statusWidget/receiptUsage.ts:3:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/receiptUsage.ts:78:    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+src/lib/chatImageSceneBrief.ts:3:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatImageSceneBrief.ts:4:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatImageSceneBrief.ts:9:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/chatImageSceneBrief.ts:11:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+src/lib/statusWidget/receiptUsage.test.ts:17:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/receiptUsage.test.ts:275:      statusWidgetExtractModelLabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/statusWidget/extractV4Fallback.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractV4Fallback.test.ts:5:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractV4Fallback.test.ts:44:      if (opts.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
+src/lib/statusWidget/extractV4Fallback.test.ts:66:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractV4Fallback.test.ts:67:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractV4Fallback.test.ts:68:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractV4Fallback.test.ts:112:    models.filter((model) => model === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
+src/lib/statusWidget/extract.ts:7:import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+src/lib/statusWidget/extract.ts:697:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase() !==
+src/lib/statusWidget/extract.ts:699:        ? OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
+src/lib/statusWidget/extractRetry.test.ts:32:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractRetry.test.ts:34:  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractRetry.test.ts:1794:      primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractRetry.test.ts:1799:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractRetry.test.ts:1800:      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/statusWidget/extractRetry.test.ts:1801:      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:4:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:17:        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:26:        (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:29:    assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), true);
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:31:      selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/lib/chatModels.deepseekFlashPickerHide.test.ts:38:      resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+src/app/api/user/selected-ai/route.test.ts:8:  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/app/api/user/selected-ai/route.test.ts:79:    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), false);
+src/lib/chatModels.ts:59:export const OPENROUTER_DEEPSEEK_V4_FLASH_MODEL = "deepseek/deepseek-v4-flash";
+src/lib/chatModels.ts:101:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
+src/lib/chatModels.ts:104:export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL =
+src/lib/chatModels.ts:209:    id: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+src/lib/chatModels.ts:309:export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
+src/lib/chatModels.ts:312:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+src/lib/chatModels.ts:313:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+src/lib/chatModels.ts:332:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+src/lib/chatModels.ts:333:    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL ||
+src/lib/chatModels.ts:364:    o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
+src/lib/chatModels.ts:388:  if (id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
+src/lib/chatModels.ts:420:    isCheaperInferenceDeepSeekV4FlashModel(id) ||

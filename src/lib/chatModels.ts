@@ -97,12 +97,30 @@ export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
 /** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 
-/** Cheaper Inference — chat selectable + background memory/status/HTML */
-export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
-
-/** Cheaper Inference — character-save KO→EN translation primary */
-export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL =
+/** Cheaper Inference — canonical current DeepSeek V4 Flash outbound id. */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL =
   "deepseek-v4-flash-0731";
+
+/** Legacy stored/receipt id — never send this as a new provider model. */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL =
+  "deepseek-v4-flash";
+
+/** @deprecated use CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+
+/** Map stored/env DeepSeek V4 Flash aliases to the canonical outbound id. */
+export function normalizeDeepSeekV4FlashModelId(modelId: string): string {
+  const id = modelId.trim();
+  const lower = id.toLowerCase();
+  if (
+    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL
+  ) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  }
+  return id;
+}
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
@@ -310,7 +328,7 @@ export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL
   );
 }
 
@@ -330,7 +348,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
   );
 }
@@ -384,16 +402,15 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
     return DEFAULT_SELECTED_AI;
   }
-  // DeepSeek V4 Flash temporarily hidden from picker — keep for background/receipts.
-  if (id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
-    return DEFAULT_SELECTED_AI;
-  }
+  // DeepSeek V4 Flash stays hidden from the picker. Stored/canonical Flash
+  // selections remain valid and must not collapse to the default Pro model.
   return id;
 }
 
 export function selectedAIProvider(
   selected: SelectedAI
 ): SelectedAIOptionMeta["provider"] {
+  if (isCheaperInferenceDeepSeekV4FlashModel(selected)) return "cheaperinference";
   return selectedAIOptionMeta(selected)?.provider ?? "openrouter";
 }
 
@@ -558,6 +575,8 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-v4-flash": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  "deepseek-v4-flash-0731": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
@@ -593,12 +612,17 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
 };
 
 export function isValidSelectedAI(v: unknown): v is SelectedAI {
-  return typeof v === "string" && VALID.has(v);
+  return (
+    typeof v === "string" &&
+    (VALID.has(v) || v === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL)
+  );
 }
 
 export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI {
   let resolved: SelectedAI;
-  if (isValidSelectedAI(value)) resolved = value;
+  if (typeof value === "string" && value === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL) {
+    resolved = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  } else if (isValidSelectedAI(value)) resolved = value;
   else if (typeof value === "string" && LEGACY_TO_SELECTED[value]) resolved = LEGACY_TO_SELECTED[value];
   else if (typeof value === "string" && isKimiModel(value)) resolved = DEFAULT_SELECTED_AI;
   else if (fallback && isValidSelectedAI(fallback)) resolved = fallback;
@@ -610,6 +634,9 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 
 /** UI·영수증 표시용 */
 export function selectedAILabel(id: string): string {
+  if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
+    return DEEPSEEK_V4_FLASH_DISPLAY_NAME;
+  }
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
   if (id === OPENROUTER_KIMI_K3_MODEL || isKimiModel(id)) {
