@@ -81,7 +81,9 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(SPEECH_METADATA_INVISIBLE_RULE, /서사·지문에서 언급·설명하지 않는다/);
     const userControl = buildNoGodmoddingBlock("A", "B", "standard");
     assert.match(userControl, /USER CONTROL — COLLABORATIVE INTERACTIVE/);
-    assert.match(userControl, /새로운 직접 대사, 중요한 선택·동의·거절/);
+    assert.match(userControl, /새로운 직접 대사/);
+    assert.match(userControl, /동의·거절/);
+    assert.match(userControl, /새로 시작한 의도적 행동이면 대신하지 않는다/);
     assert.doesNotMatch(userControl, /NO GODMODDING/);
     assert.equal(REACTION_VARIETY_BLOCK, "");
   });

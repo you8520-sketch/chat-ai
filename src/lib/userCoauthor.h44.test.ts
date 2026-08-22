@@ -343,7 +343,8 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     const wrapped = wrapCurrentUserInput("안녕.", { mode: "interactive" });
     assert.equal(
       sha(wrapped),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      // H1 rebase: STANDARD wrapper now reuses canonical agency constants.
+      "a065e9abc8f1c8ede5051171d9a76e5937bc3872d9a7f29838ba2dff5a7ce501"
     );
     assert.doesNotMatch(wrapped, /Earlier assistant-authored \[B\] content is scene history only/);
     assert.doesNotMatch(wrapped, /previous user-authoring permission was explicitly limited/);
@@ -445,12 +446,13 @@ describe("H4.4 prompt owners stay mutually exclusive", () => {
     assert.doesNotMatch(last, /POST-DELEGATION RESTORED/);
     assert.equal(
       sha(wrapCurrentUserInput("안녕.", { mode: "interactive" })),
-      "1f3e645d965bcefb7cf47bd1ec2774e97408e990c6c4cd952572d509ac83369f"
+      "a065e9abc8f1c8ede5051171d9a76e5937bc3872d9a7f29838ba2dff5a7ce501"
     );
   });
 
   it("natural-completion allowance remains on STANDARD", () => {
     const wrapper = wrapCurrentUserInput(STARTED_WALK, { mode: "interactive" });
-    assert.match(wrapper, /natural completion of an already-started action/);
+    assert.match(wrapper, /이미 시작한 행동의 즉각적이고 관찰 가능한 물리 결과/);
+    assert.doesNotMatch(wrapper, /small movement\/contact/);
   });
 });

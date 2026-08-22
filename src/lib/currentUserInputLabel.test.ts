@@ -31,9 +31,11 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.ok(!w.includes("[B] ="));
     assert.match(w, /completed input and the newest state of the scene/);
     assert.match(w, /Continue from what it changes now rather than restating/);
-    assert.match(w, /\[B\]'s new dialogue[\s\S]*remain user-authored/);
-    assert.match(w, /Minor reversible expression/);
-    assert.match(w, /USER CONTROL — COLLABORATIVE INTERACTIVE/);
+    assert.match(w, /새로운 직접 대사/);
+    assert.match(w, /새로 시작한 의도적 행동이면 대신하지 않는다/);
+    assert.match(w, /비자발적 생리 반응만 공동 서술할 수 있다/);
+    assert.doesNotMatch(w, /small movement\/contact/);
+    assert.doesNotMatch(w, /사소한 이동·접촉·물건 수취·일상 행동은 공동 서술할 수 있다/);
     assert.doesNotMatch(w, /Do not continue writing the user's future actions, dialogue, thoughts, or decisions/);
     assert.doesNotMatch(w, /\[NO INPUT ECHO/);
   });
@@ -41,7 +43,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
   it("A3. interactive + no gate opt → collaborative wrapper (no lock)", () => {
     const w = buildCurrentUserInputWrapper({ mode: "interactive" });
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
-    assert.match(w, /Minor reversible expression/);
+    assert.match(w, /새로 시작한 의도적 행동이면 대신하지 않는다/);
     assert.match(w, /Continue from what it changes now/);
   });
 
@@ -128,10 +130,10 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.equal(wrapCurrentUserInput(onceLegacy, { mode: "interactive", ownershipLockEnabled: false }), onceLegacy);
     // Body appended verbatim.
     assert.match(once, /고개를 든다/);
-    // Collaborative gate-off: continue-from-consequence + ownership + minor continuity.
+    // Collaborative gate-off: newest-state + canonical STANDARD agency constants.
     assert.match(onceLegacy, /Continue from what it changes now/);
-    assert.match(onceLegacy, /remain user-authored/);
-    assert.match(onceLegacy, /Minor reversible expression/);
+    assert.match(onceLegacy, /새로 시작한 의도적 행동이면 대신하지 않는다/);
+    assert.match(onceLegacy, /비자발적 생리 반응만 공동 서술할 수 있다/);
     // Empty input passthrough.
     assert.equal(wrapCurrentUserInput("   ", { mode: "interactive", ownershipLockEnabled: true }), "");
   });
@@ -174,7 +176,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     const interOff = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: false });
     assert.ok(!interOff.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.match(interOff, /completed input and the newest state of the scene/);
-    assert.match(interOff, /Minor reversible expression/);
+    assert.match(interOff, /새로 시작한 의도적 행동이면 대신하지 않는다/);
   });
 });
 

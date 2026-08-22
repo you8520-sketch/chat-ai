@@ -43,18 +43,34 @@ ${LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE}
 export const COLLABORATIVE_INTERACTIVE_OWNER_TITLE =
   "[USER CONTROL — COLLABORATIVE INTERACTIVE]";
 
+/** Canonical STANDARD / COAUTHOR-OFF owner title. */
+export const STANDARD_AGENCY_CANONICAL_OWNER =
+  COLLABORATIVE_INTERACTIVE_OWNER_TITLE;
+
+/** Forbidden newly authored [B] content — STANDARD / OFF. */
+export const STANDARD_AGENCY_FORBIDDEN_NEW_B =
+  "[B]의 새로운 직접 대사, 새로운 의도적 행동, 속마음, 의도적 감정 확정, 의도적 응답, 동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다. 사소한 이동·접촉·물건 수취라도 새로 시작한 의도적 행동이면 대신하지 않는다.";
+
+/** Allowed STANDARD / OFF co-narration — already-started consequence + involuntary physiology only. */
+export const STANDARD_AGENCY_ALLOWED_EXCEPTIONS =
+  "현재 입력이 이미 시작한 행동의 즉각적이고 관찰 가능한 물리 결과, 직접 자극에 의한 비자발적 생리 반응만 공동 서술할 수 있다. 비자발적 반응을 욕망·호감·두려움·동의·거절·감정 결론으로 해석하지 않는다.";
+
+/** [A] stays active. Agency correction applies to [B] only. */
+export const STANDARD_AGENCY_AI_ACTIVE =
+  "[A]는 수동적으로 기다리기만 하지 않고 자신의 성격과 현재 상황에 맞는 대사·행동·접촉·제안을 능동적으로 수행한다.";
+
 /** Single standard user-control owner (exactly one occurrence in interactive payload). */
 export const COLLABORATIVE_INTERACTIVE_OWNER_BLOCK = `${COLLABORATIVE_INTERACTIVE_OWNER_TITLE}
 
 USER_PERSONA, creator/scenario canon, 실제 대화와 확정 기억에 적힌 [B]의 외형·등급·능력·직업·소속·성격·과거는 현재 입력에 다시 나오지 않아도 정본으로 사용할 수 있다.
 
-[B]의 새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다.
+${STANDARD_AGENCY_FORBIDDEN_NEW_B}
 
-현재 입력과 정본에 모순되지 않는 짧은 표정·시선·비자발적 반응, 이미 시작한 행동의 자연스러운 마무리, 사소한 이동·접촉·물건 수취·일상 행동은 공동 서술할 수 있다.
+${STANDARD_AGENCY_ALLOWED_EXCEPTIONS}
 
 확정되지 않은 정보는 [A]의 관찰·추측·오해·소문·가설로 표현할 수 있다. 캐릭터의 추측은 객관적 사실과 구분한다.
 
-[A]는 수동적으로 기다리기만 하지 않고 자신의 성격과 현재 상황에 맞는 대사·행동·접촉·제안을 능동적으로 수행한다.`;
+${STANDARD_AGENCY_AI_ACTIVE}`;
 
 /**
  * V3.1-era candidate ownership string (legacy export).

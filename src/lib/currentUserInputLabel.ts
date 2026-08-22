@@ -3,6 +3,10 @@ import {
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
 import type { UserCoauthorDuration } from "@/lib/currentTurnUserAuthoringDelegation";
+import {
+  STANDARD_AGENCY_ALLOWED_EXCEPTIONS,
+  STANDARD_AGENCY_FORBIDDEN_NEW_B,
+} from "@/lib/noGodmodding";
 
 export const CURRENT_USER_INPUT_HEADER = "[CURRENT USER INPUT]";
 
@@ -42,9 +46,17 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
 }
 
 /**
- * Standard interactive CURRENT USER INPUT wrapper — aligned with
- * COLLABORATIVE_INTERACTIVE_OWNER_BLOCK (no godmodding of major [B] moves,
- * but minor reversible co-narration allowed). Strict ownership-lock canary
+ * Near-user reinforcement of STANDARD / OFF agency.
+ * Reuses the same canonical semantic constants as
+ * COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Must remain a strict subset —
+ * never broaden permissions.
+ */
+export const CURRENT_USER_AGENCY_REINFORCEMENT_OWNER =
+  "CURRENT_USER_COLLABORATIVE_WRAPPER";
+
+/**
+ * Standard interactive CURRENT USER INPUT wrapper — newest-state + the
+ * canonical STANDARD agency constants. Strict ownership-lock canary
  * path is unchanged when ownershipLockEnabled is true.
  *
  * Owns completed-input semantics + continue-from-consequence (no separate
@@ -54,8 +66,8 @@ function buildCollaborativeInteractiveWrapper(): string {
   return `${CURRENT_USER_INPUT_HEADER}
 The following is the user's completed input and the newest state of the scene.
 Continue from what it changes now rather than restating or explaining the input.
-[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
-Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].`;
+${STANDARD_AGENCY_FORBIDDEN_NEW_B}
+${STANDARD_AGENCY_ALLOWED_EXCEPTIONS}`;
 }
 
 /**
