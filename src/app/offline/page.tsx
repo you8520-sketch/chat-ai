@@ -4,7 +4,7 @@ export default function OfflinePage() {
   return (
     <section className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
       <img
-        src="/icons/icon-192.png"
+        src="/icons/icon-door-v2-192.png"
         alt="하비 AI"
         width={88}
         height={88}
