@@ -15,21 +15,21 @@ DUPLICATE_AGENCY_OWNERS: true (system no-godmodding + current-user collaborative
 DUPLICATE_STYLE_OWNERS: true (system prose-style-xml-bundle + DeepSeek style-only user-turn reminder)
 HISTORICAL_DS_LENGTH_OWNER_EFFECT_PROVEN: true
 ARM_A:
-  R_CHARS: pending_provider
-  A_CHARS: pending_provider
-  GE_2700: pending_provider
-  GE_3200: pending_provider
+  R_CHARS: 2123
+  A_CHARS: 1625
+  GE_2700: 0
+  GE_3200: 0
 ARM_B:
-  R_CHARS: pending_provider
-  A_CHARS: pending_provider
-  GE_2700: pending_provider
-  GE_3200: pending_provider
+  R_CHARS: 1816
+  A_CHARS: 1666
+  GE_2700: 0
+  GE_3200: 0
 ARM_C:
-  R_CHARS: pending_provider
-  A_CHARS: pending_provider
-  GE_2700: pending_provider
-  GE_3200: pending_provider
-PROVIDER_CALLS: 0 (pre-call revision; 6 max)
+  R_CHARS: 2331
+  A_CHARS: 2333
+  GE_2700: 0
+  GE_3200: 0
+PROVIDER_CALLS: 6
 RETRIES: 0
 CONTINUATION_CALLS: 0
 H5_C_295S_CLASSIFICATION: UNKNOWN
@@ -57,3 +57,22 @@ A/B/C within each fixture still differ only by the DeepSeek length-arm system de
 - C = existing strong early-stop sentence + existing anti-filler safety
 
 Common `USER_TAIL` not modified. B+C not stacked. No Gemini. No GLM. No retry. No continuation. thinking disabled in outbound body.
+
+## Six provider calls (objective only)
+
+All six HTTP 200. All `finish_reason=stop`. All `REASONING_TOKENS=0` (thinking disabled). All `OUTPUT_TRUNCATED=false`. No arm reached 2700. Latencies 34–52s, not 295s. `PROVIDER_COST` null in usage. No 5xx. No seventh call.
+
+| KEY | VISIBLE | IN | OUT | REASON | LATENCY_MS | RAW_SHA256 |
+|---|---:|---:|---:|---|---:|---|
+| R_A | 2123 | 13482 | 1911 | 0 | 43532 | 6382e7e8ae2aabb79406e066e1e4e723f8886b6424de54b96929f2641566d3af |
+| R_B | 1816 | 13673 | 1635 | 0 | 34311 | 0a7464190b861994e97a0e8dc7f0b9418bedb206512fe30a198fafd4fe0a7244 |
+| R_C | 2331 | 13614 | 2098 | 0 | 43856 | 738d66a02a6cb7d78b986bf0739e1e69671e52a04f9f34623890510dc078b480 |
+| A_A | 1625 | 25023 | 1463 | 0 | 39027 | 9459b0c583c8c04050c3312eb5ede8ebd7b8cbbc2a0a696d87415b84269cc021 |
+| A_B | 1666 | 25214 | 1500 | 0 | 37393 | 783cea3ff5dc1181888df7a825fa38ad55180f43dd297f4d6303d50185f7467a |
+| A_C | 2333 | 25155 | 2100 | 0 | 52330 | 5b69636d69d7c968c7842fa813c0e6114465e9e6e4d876c453fcd35afd3f6a51 |
+
+Within fixture R, `HISTORY_SHA` and `CURRENT_USER_SHA` are identical across A/B/C. Within fixture A, the same. `SYSTEM_SHA` differs only by the intended length-arm delta.
+
+Deterministic flags (regex, not prose scores): no refusal / meta / system leak / exact sentence dup / new canon / new NPC / unrelated event. `NEW_USER_DIALOGUE_AUTHORED` regex-true on R_A, R_B, A_A, A_B, A_C; false on R_C. `NEW_USER_INTENTIONAL_ACTION_AUTHORED` regex-true on A_B only. Human must review RAW. Do not treat these flags as a winner.
+
+This run `REASONING_TOKENS=0` vs H5 C stored `apiReasoningOutputTokens=6979`. Freeze the conflict. Do not classify H5 C latency from it.
