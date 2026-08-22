@@ -3,9 +3,11 @@ import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 import { normalizeScenarioAssets } from "./scenarioAssets";
 import {
   DEFAULT_TRPG_STAT_DEFS,
+  DEFAULT_TRPG_STAT_KEYS,
   defsFromKeys,
   floorStats,
-  parseStatKeys,
+  isLegacyStatKey,
+  parseCanonicalStatKeys,
   pointPoolFor,
   validateStatAllocation,
 } from "./stats";
@@ -142,7 +144,31 @@ export function parseInventory(raw: unknown): string[] {
     .slice(0, 12);
 }
 
-export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput): {
+export type NormalizeScenarioTemplateOptions = {
+  /**
+   * Legacy keys already stored on the existing DB row.
+   * UPDATE only: preserve these. The request payload cannot add new legacy keys.
+   */
+  preservedLegacyStatKeys?: readonly string[];
+};
+
+function uniquePreservedLegacyKeys(raw: readonly string[] | undefined): string[] {
+  if (!raw || raw.length === 0) return [];
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const item of raw) {
+    const key = String(item ?? "").trim();
+    if (!key || seen.has(key) || !isLegacyStatKey(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys;
+}
+
+export function normalizeScenarioTemplateInput(
+  input: TrpgScenarioTemplateInput,
+  options?: NormalizeScenarioTemplateOptions
+): {
   title: string;
   summary: string;
   content: string;
@@ -166,8 +192,16 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {
     throw new Error("시나리오 본문 또는 이야기 설계(시작 상황·중심 갈등·목표·종료 조건)를 입력해 주세요.");
   }
-  const statKeys = parseStatKeys(input.statKeys);
-  const statDefs = defsFromKeys(statKeys);
+  const preservedLegacy = uniquePreservedLegacyKeys(options?.preservedLegacyStatKeys);
+  const requestedCanonical = parseCanonicalStatKeys(input.statKeys, {
+    fallbackToDefault: preservedLegacy.length === 0,
+  });
+  const statDefs = defsFromKeys(
+    requestedCanonical.length + preservedLegacy.length > 0
+      ? [...requestedCanonical, ...preservedLegacy]
+      : [...DEFAULT_TRPG_STAT_KEYS]
+  );
+  const statKeys = statDefs.map((def) => def.key);
   const pool = pointPoolFor(statDefs);
   const npcs = parseScenarioNpcs(input.npcs, statDefs);
   const characterIds = parseCharacterIds(input.characterIds);

@@ -63,8 +63,8 @@ describe("TRPG stat allocation", () => {
     assert.equal(check.ok, true);
   });
 
-  it("keeps a 30-stat catalog and lets a scenario pick a subset", () => {
-    assert.equal(TRPG_STAT_CATALOG.length, 30);
+  it("keeps an 18-stat public catalog and lets a scenario pick a subset", () => {
+    assert.equal(TRPG_STAT_CATALOG.length, 18);
     assert.deepEqual(parseStatKeys(["mag", "str", "nope", "mag"]), ["str", "mag"]);
     const defs = defsFromKeys(["str", "mag"]);
     assert.equal(pointPoolFor(defs), 2 * TRPG_STAT_MIN + TRPG_STAT_POOL_BONUS);
@@ -75,7 +75,10 @@ describe("TRPG stat allocation", () => {
     assert.equal(Object.values(even).reduce((a, b) => a + b, 0), pointPoolFor(defs));
     assert.ok(even.str <= TRPG_STAT_MAX);
     assert.ok(TRPG_STAT_CATALOG.some((row) => row.key === "san"));
-    assert.ok(TRPG_STAT_CATALOG.some((row) => row.key === "rec"));
+    assert.equal(
+      TRPG_STAT_CATALOG.some((row) => row.key === "rec"),
+      false
+    );
   });
 
   it("refreshes stored campaign defs to the live 5–15 catalog", () => {
