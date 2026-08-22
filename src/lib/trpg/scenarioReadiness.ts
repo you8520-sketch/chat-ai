@@ -127,7 +127,7 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
     const field = firstMissingPlanField(plan);
     blockers.push({
       id: "missing_plan_or_content",
-      message: "시나리오 본문 또는 이야기 설계(시작 상황·중심 갈등·목표·종료 조건)를 입력해 주세요.",
+      message: "시작 장면, 핵심 문제, 플레이어 목표, 마무리 기준을 입력해 주세요.",
       field,
       section: sectionForField(field),
     });
@@ -189,4 +189,48 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
     canSave,
     canPlay: canSave,
   };
+}
+
+export function countFirstCreateFilledFields(input: {
+  title: string;
+  scenarioPlan: TrpgScenarioPlan | null | undefined;
+}): number {
+  const plan = input.scenarioPlan;
+  return [
+    Boolean(String(input.title ?? "").trim()),
+    Boolean(plan?.startingSituation.trim()),
+    Boolean(plan?.centralConflict.trim()),
+    Boolean(plan?.goal.trim()),
+    Boolean(plan?.endingConditions.some((item) => item.trim())),
+  ].filter(Boolean).length;
+}
+
+export function countFirstCreateRemainingFields(input: {
+  title: string;
+  scenarioPlan: TrpgScenarioPlan | null | undefined;
+}): number {
+  return FIRST_CREATE_VISIBLE_FIELDS.length - countFirstCreateFilledFields(input);
+}
+
+export type ScenarioReadinessHeadlineOptions = {
+  firstCreateRemaining?: number;
+};
+
+export function scenarioReadinessHeadline(
+  readiness: ScenarioReadiness,
+  options?: ScenarioReadinessHeadlineOptions
+): string {
+  if (readiness.status === "blocked") {
+    const remaining = options?.firstCreateRemaining;
+    if (remaining != null && remaining > 0) {
+      return `아직 ${remaining}개 항목이 필요합니다`;
+    }
+    return readiness.blockers.length > 1
+      ? `아직 ${readiness.blockers.length}개 항목이 필요합니다`
+      : "아직 플레이할 수 없습니다";
+  }
+  if (readiness.status === "recommended") {
+    return `플레이 가능 · 보완 ${readiness.recommendations.length}`;
+  }
+  return "플레이 가능";
 }

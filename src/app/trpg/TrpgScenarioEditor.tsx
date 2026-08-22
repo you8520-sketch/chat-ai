@@ -27,15 +27,24 @@ import {
   confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
+  SCENARIO_STORY_FIELD_COPY,
   scenarioEditorPersistedSnapshot,
   scenarioEditorSavePayload,
   scenarioEditorSnapshot,
+  scenarioHasAiDraftOrigin,
   scrollToScenarioField,
   shouldConfirmScenarioDraftApply,
+  shouldOfferScenarioAiEditingTools,
   type ScenarioEditorSnapshot,
 } from "@/lib/trpg/scenarioEditorState";
 import { scenarioPersistDecision, scenarioPlayCtaLabel, trpgPlayHref } from "@/lib/trpg/scenarioHandoff";
-import { evaluateScenarioReadiness, type ScenarioReadinessField } from "@/lib/trpg/scenarioReadiness";
+import {
+  countFirstCreateFilledFields,
+  countFirstCreateRemainingFields,
+  evaluateScenarioReadiness,
+  scenarioReadinessHeadline,
+  type ScenarioReadinessField,
+} from "@/lib/trpg/scenarioReadiness";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
@@ -135,6 +144,7 @@ export default function TrpgScenarioEditor({
   );
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [aiToolsOpen, setAiToolsOpen] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
   const [lintMessages, setLintMessages] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -246,6 +256,15 @@ export default function TrpgScenarioEditor({
     plan,
   });
   const saveStateLabel = savedId ? (dirty ? "수정됨 · 저장 필요" : "저장됨") : "아직 저장되지 않음";
+  const offerAiEditingTools = shouldOfferScenarioAiEditingTools({
+    hasSessionDraft: lastDraftSnapshot != null,
+    hasPersistedAiOrigin: scenarioHasAiDraftOrigin(plan),
+    isEditingSaved: savedId != null,
+  });
+  const showAiFieldChrome = offerAiEditingTools && aiToolsOpen;
+  const firstCreateFilled = countFirstCreateFilledFields({ title, scenarioPlan: plan });
+  const firstCreateRemaining = countFirstCreateRemainingFields({ title, scenarioPlan: plan });
+  const readinessHeadline = scenarioReadinessHeadline(readiness, { firstCreateRemaining });
 
   function leaveEditor() {
     if (
@@ -559,10 +578,12 @@ export default function TrpgScenarioEditor({
   }
 
   function LockButton({ field }: { field: TrpgScenarioDraftField }) {
+    if (!showAiFieldChrome) return null;
     const on = lockedFields.includes(field);
     return (
       <button
         type="button"
+        data-scenario-ai-lock={field}
         onClick={() => toggleLock(field)}
         className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
           on ? "bg-amber-500/20 text-amber-200" : "border border-white/10 text-zinc-500"
@@ -574,9 +595,11 @@ export default function TrpgScenarioEditor({
   }
 
   function RegenButton({ field, label }: { field: TrpgScenarioDraftField; label: string }) {
+    if (!showAiFieldChrome) return null;
     return (
       <button
         type="button"
+        data-scenario-ai-regen={field}
         disabled={draftBusy}
         onClick={() => void requestDraft("regenerate_selected", [field])}
         className="ml-2 text-[10px] font-semibold text-violet-300 disabled:opacity-40"
@@ -598,13 +621,7 @@ export default function TrpgScenarioEditor({
                 : "border-emerald-500/25 bg-emerald-500/10 text-emerald-50"
           }`}
         >
-          <p className="font-semibold">
-            {readiness.status === "blocked"
-              ? "아직 플레이할 수 없습니다"
-              : readiness.status === "recommended"
-                ? "플레이 가능 · 보완하면 더 좋아요"
-                : "플레이 가능"}
-          </p>
+          <p className="font-semibold">{readinessHeadline}</p>
           <p className="mt-1 text-xs opacity-80">
             {saveStateLabel}
             {" · "}
@@ -612,6 +629,11 @@ export default function TrpgScenarioEditor({
               나가기
             </button>
           </p>
+          {readiness.status === "blocked" ? (
+            <p className="mt-1 text-xs opacity-80" data-scenario-first-create-progress>
+              필수 이야기 {firstCreateFilled} / 5
+            </p>
+          ) : null}
           {readiness.blockers[0] ? (
             <button
               type="button"
@@ -620,17 +642,33 @@ export default function TrpgScenarioEditor({
             >
               {readiness.blockers[0].message}
             </button>
-          ) : readiness.recommendations[0] ? (
-            <p className="mt-1 text-xs opacity-80">{readiness.recommendations[0].message}</p>
+          ) : readiness.status === "recommended" && readiness.recommendations[0] ? (
+            <details className="mt-2 text-xs opacity-80" data-scenario-quality-lint>
+              <summary className="cursor-pointer font-semibold">보완하면 더 좋아요</summary>
+              <button
+                type="button"
+                onClick={() =>
+                  revealReadinessField(
+                    readiness.recommendations[0]!.field,
+                    readiness.recommendations[0]!.section
+                  )
+                }
+                className="mt-1 text-left underline"
+              >
+                {readiness.recommendations[0].message}
+              </button>
+            </details>
           ) : (
             <p className="mt-1 text-xs opacity-80">이 시나리오는 바로 시작할 수 있습니다.</p>
           )}
         </div>
 
         <AppSectionCard title="이야기">
+          <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-violet-300/80">빠르게 시작</p>
           <div className="mb-3 flex flex-wrap gap-2">
             <button
               type="button"
+              data-scenario-ai-primary-cta
               disabled={draftBusy}
               onClick={() => void requestDraft("fill_empty")}
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
@@ -644,20 +682,39 @@ export default function TrpgScenarioEditor({
                 "✨ AI로 시나리오 초안 만들기"
               )}
             </button>
-            <button
-              type="button"
-              disabled={draftBusy}
-              onClick={() => void requestDraft("regenerate_all")}
-              className="rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 disabled:opacity-50"
-            >
-              전체 다시 만들기
-            </button>
           </div>
           <p className="mb-3 text-xs text-zinc-500">
-            제목과 시작·갈등·목표·종료 조건만 있으면 테스트 플레이할 수 있습니다. AI 초안은 바로 저장되지 않습니다.
+            직접 작성하려면 아래 5가지만 입력하면 됩니다. AI 초안은 바로 저장되지 않습니다.
           </p>
+          {offerAiEditingTools ? (
+            <div className="mb-3">
+              <button
+                type="button"
+                data-scenario-ai-tools
+                aria-expanded={aiToolsOpen}
+                onClick={() => setAiToolsOpen((open) => !open)}
+                className="text-sm font-semibold text-violet-300"
+              >
+                {aiToolsOpen ? "AI 편집 도구 접기" : "✨ AI 편집 도구"}
+              </button>
+              {aiToolsOpen ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    data-scenario-ai-regen-all
+                    disabled={draftBusy}
+                    onClick={() => void requestDraft("regenerate_all")}
+                    className="rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 disabled:opacity-50"
+                  >
+                    전체 다시 만들기
+                  </button>
+                  <p className="text-xs text-zinc-500">잠그면 다시 만들 때 유지됩니다.</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <label className="block text-sm text-zinc-300" data-scenario-field="title">
-            제목 *
+            {SCENARIO_STORY_FIELD_COPY.title.label} *
             <LockButton field="title" />
             <input
               value={title}
@@ -667,9 +724,12 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300" data-scenario-field="startingSituation">
-            시작 상황
+            {SCENARIO_STORY_FIELD_COPY.startingSituation.label}
             <LockButton field="startingSituation" />
-            <RegenButton field="startingSituation" label="시작 상황" />
+            <RegenButton field="startingSituation" label={SCENARIO_STORY_FIELD_COPY.startingSituation.label} />
+            <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="startingSituation">
+              {SCENARIO_STORY_FIELD_COPY.startingSituation.helper}
+            </p>
             <textarea
               value={plan.startingSituation}
               rows={4}
@@ -679,9 +739,12 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300" data-scenario-field="centralConflict">
-            중심 갈등
+            {SCENARIO_STORY_FIELD_COPY.centralConflict.label}
             <LockButton field="centralConflict" />
-            <RegenButton field="centralConflict" label="중심 갈등" />
+            <RegenButton field="centralConflict" label={SCENARIO_STORY_FIELD_COPY.centralConflict.label} />
+            <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="centralConflict">
+              {SCENARIO_STORY_FIELD_COPY.centralConflict.helper}
+            </p>
             <textarea
               value={plan.centralConflict}
               rows={3}
@@ -691,24 +754,32 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300" data-scenario-field="goal">
-            목표
+            {SCENARIO_STORY_FIELD_COPY.goal.label}
             <LockButton field="goal" />
+            <RegenButton field="goal" label={SCENARIO_STORY_FIELD_COPY.goal.label} />
+            <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="goal">
+              {SCENARIO_STORY_FIELD_COPY.goal.helper}
+            </p>
             <textarea
               value={plan.goal}
               rows={3}
               onChange={(e) => patchPlan({ goal: e.target.value })}
-              placeholder="한 가지 행동만 강요하지 말고, 파티가 개입할 이유를 적습니다."
+              placeholder="예: 마지막 신호를 찾아 생존자를 구하고, 연구소에 남을지 떠날지 결정한다."
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300" data-scenario-field="endingConditions">
-            종료 조건 (줄마다 하나)
+            {SCENARIO_STORY_FIELD_COPY.endingConditions.label}
             <LockButton field="endingConditions" />
+            <RegenButton field="endingConditions" label={SCENARIO_STORY_FIELD_COPY.endingConditions.label} />
+            <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="endingConditions">
+              {SCENARIO_STORY_FIELD_COPY.endingConditions.helper}
+            </p>
             <textarea
               value={listText(plan.endingConditions)}
               rows={4}
               onChange={(e) => patchPlan({ endingConditions: parseList(e.target.value) })}
-              placeholder={"예: 코어의 확장을 막거나 협상한다\n예: 생존자를 이끌고 철수한다"}
+              placeholder={"예: 생존자를 구조하고 연구소에서 탈출한다\n예: 위협을 차단한 뒤 철수한다"}
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
