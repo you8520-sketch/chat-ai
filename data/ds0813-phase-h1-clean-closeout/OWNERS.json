@@ -1,0 +1,25 @@
+{
+  "HANDOFF_OWNER_CHARS": 219,
+  "HANDOFF_WRAPPER_BODY_CHARS": 199,
+  "HANDOFF_WRAPPER_WITH_HEADER_CHARS": 220,
+  "HANDOFF_CONTINUITY_OWNER_COUNT": 1,
+  "TEMPERATURE": 0.92,
+  "TOP_P": 0.92,
+  "THINKING": {
+    "type": "disabled"
+  },
+  "REASONING_EFFORT": "none",
+  "MAX_TOKENS": "OMITTED",
+  "SELECTED_PRIMARY": "gemini-3.7-flash",
+  "HANDOFF_TARGET": "deepseek-v4-pro-0813",
+  "CONTINUITY_PACKET": {
+    "previousSceneMode": "normal",
+    "sexualContextActive": true,
+    "activeConsentMode": "standard",
+    "charactersPresent": [
+      "라이크",
+      "렌"
+    ],
+    "currentPov": "third_person"
+  }
+}

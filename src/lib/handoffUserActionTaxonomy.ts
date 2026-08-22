@@ -238,3 +238,44 @@ export function classifyCurrentUserMajorRewind(text: string): TaxonomyFlag {
     evidence: passageAround(text, hit.index, hit.match.length),
   };
 }
+
+const COMPLETED_DOOR_CLAUSE_RE = /문을\s*닫고/;
+const ONGOING_UNDRESS_KISS_RE = /옷을\s*(?:천천히\s*)?벗기며|키스한다/;
+
+/**
+ * Deterministic current-user aspect split. Not injected into prompts.
+ * "문을 닫고" is a completed result state (DOOR_CLOSED), not a same-beat
+ * replay candidate. "옷을 벗기며 키스한다" remains an ongoing interaction.
+ */
+export function classifyCurrentUserCompletedVsOngoing(currentUserText: string): {
+  completedDoorClosed: boolean;
+  ongoingUndressKiss: boolean;
+  sameBeatReplayEligibleForDoor: false;
+  sameBeatMicroContinuationAllowed: boolean;
+  completedClause: string | null;
+  ongoingClause: string | null;
+} {
+  const completedClause = firstMatch(currentUserText, COMPLETED_DOOR_CLAUSE_RE);
+  const ongoingClause = firstMatch(currentUserText, ONGOING_UNDRESS_KISS_RE);
+  return {
+    completedDoorClosed: Boolean(completedClause),
+    ongoingUndressKiss: Boolean(ongoingClause),
+    sameBeatReplayEligibleForDoor: false,
+    sameBeatMicroContinuationAllowed: Boolean(ongoingClause),
+    completedClause,
+    ongoingClause,
+  };
+}
+
+const COMPLETED_STATE_REPLAY_RE =
+  /문고리|문을\s*(?:열|닫)|문\s*닫는\s*것도\s*잊|아직.{0,16}문|(?:보조실|관리실).{0,16}문|경첩이.{0,12}(?:닫히|열)|잠금음/;
+
+/**
+ * Re-staging a completed current-user result (door already closed) as if the
+ * transition were still happening. Actor-agnostic: [A] treating the door as
+ * still open also counts.
+ */
+export function classifyCompletedStateReplay(text: string): TaxonomyFlag {
+  const evidence = firstMatch(text, COMPLETED_STATE_REPLAY_RE);
+  return { value: Boolean(evidence), evidence };
+}

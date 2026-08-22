@@ -23,6 +23,8 @@ import {
   wrapCurrentUserInput,
 } from "@/lib/currentUserInputLabel";
 import {
+  classifyCompletedStateReplay,
+  classifyCurrentUserCompletedVsOngoing,
   classifyCurrentUserMajorRewind,
   classifyNewUserActionBeat,
   classifySameBeatMicroContinuation,
@@ -62,7 +64,7 @@ describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
   });
 
   it("2. 옷을 벗기며 키스한다 → completing that clothing-removal beat allowed", () => {
-    assert.match(HANDOFF_WRAPPER, /이미 시작한 행동과 상호작용은 같은 의도와 방향 안에서/);
+    assert.match(HANDOFF_WRAPPER, /진행 중인 행동과 상호작용은 같은 의도와 방향 안에서/);
     assert.match(HANDOFF_WRAPPER, /즉각적인 결과까지 이어 묘사할 수 있고/);
     const wrapped = wrapCurrentUserInput("옷을 벗기며 키스한다", {
       mode: "interactive",
@@ -135,7 +137,9 @@ describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
     assert.equal(system.split(OWNER).length - 1, 1);
     assert.equal(HANDOFF_WRAPPER.includes(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY), true);
     assert.doesNotMatch(OWNER, /같은 의도와 방향 안에서/);
-    assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /예:|회의실|라이크/);
+    assert.match(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /완료된 행동은 그 결과 상태로 이어받고/);
+    assert.match(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /진행 중인 행동과 상호작용/);
+    assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /예:|회의실|라이크|문고리|되감기|보조실/);
   });
 
   it("10. H1CFB-R2 correction: 태형은 렌의 몸을 벽 쪽으로 → actor [A]", () => {
@@ -163,5 +167,57 @@ describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
     assert.equal(judged.action, "문고리를 잡음");
     assert.match(judged.passage ?? "", /문고리/);
     assert.equal(classifyCurrentUserMajorRewind(text).value, true);
+  });
+});
+
+describe("H1-CLEAN CLOSEOUT — completed vs ongoing", () => {
+  const CURRENT_USER = `문을 닫고 가까이 다가온다.
+합의된 성인 장면을 이어간다.
+옷을 천천히 벗기며 키스한다.`;
+
+  it("completed 문을 닫고 → DOOR_CLOSED result, not same-beat replay", () => {
+    const aspect = classifyCurrentUserCompletedVsOngoing(CURRENT_USER);
+    assert.equal(aspect.completedDoorClosed, true);
+    assert.equal(aspect.sameBeatReplayEligibleForDoor, false);
+    assert.match(aspect.completedClause ?? "", /문을\s*닫고/);
+    assert.match(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /완료된 행동은 그 결과 상태로 이어받고/);
+    assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /문을\s*닫고|DOOR_CLOSED|되감기/);
+  });
+
+  it("ongoing 옷을 벗기며 키스한다 → same-beat micro continuation allowed", () => {
+    const aspect = classifyCurrentUserCompletedVsOngoing(CURRENT_USER);
+    assert.equal(aspect.ongoingUndressKiss, true);
+    assert.equal(aspect.sameBeatMicroContinuationAllowed, true);
+    assert.match(aspect.ongoingClause ?? "", /벗기며|키스한다/);
+    assert.equal(
+      classifySameBeatMicroContinuation("렌이 태형의 재킷을 천천히 벗기며 입술을 맞췄다.").value,
+      true
+    );
+    assert.equal(
+      classifyCompletedStateReplay("렌이 태형의 재킷을 천천히 벗기며 입술을 맞췄다.").value,
+      false
+    );
+  });
+
+  it("[A] treating the door as still open → COMPLETED_STATE_REPLAY", () => {
+    const text = "문 닫는 것도 잊었네, 아직. 손을 뻗어 문고리를 당기자 경첩이 낮은 소리를 냈다.";
+    assert.equal(classifyCompletedStateReplay(text).value, true);
+    assert.equal(classifyTrueNewUserActionBeat(text).value, false);
+  });
+
+  it("[B] re-staging the closed-door transition → COMPLETED_STATE_REPLAY + TRUE beat", () => {
+    const text =
+      "렌은 그대로 상체를 밀착시켜 복도 한쪽에 있는 비상 관리실 문고리를 뒤로 잡아챘다. 경첩이 닫히는 소리가 복도에 짧게 반향하다가 차단되었다.";
+    assert.equal(classifyCompletedStateReplay(text).value, true);
+    const beat = classifyTrueNewUserActionBeat(text);
+    assert.equal(beat.value, true);
+    assert.equal(beat.actor, "렌 [B]");
+  });
+
+  it("wrapper-only closeout: owner 219, no extra system rules", () => {
+    assert.equal(OWNER.length, 219);
+    assert.equal(OWNER, EXPECTED_OWNER);
+    assert.doesNotMatch(OWNER, /완료된 행동|진행 중인 행동/);
+    assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /3200|길이|분량/);
   });
 });
