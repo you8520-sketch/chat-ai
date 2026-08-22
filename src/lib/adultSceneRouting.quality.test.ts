@@ -191,8 +191,10 @@ it("extracts actor/target contact direction to block handoff inversion", () => {
   assert.equal(extracted.previousActionActor, "라이크");
   assert.equal(extracted.previousActionTarget, "렌");
   assert.match(extracted.contactDirection ?? "", /라이크 → 렌/);
-  assert.ok(extracted.location);
-  assert.equal(extracted.currentSpeechState, "괜찮아?");
+  assert.equal("location" in extracted, false);
+  assert.equal("currentSpeechState" in extracted, false);
+  assert.equal("unfinishedAction" in extracted, false);
+  assert.equal("positions" in extracted, false);
 });
 
 it("uses user-stated waist wrap as character→persona contact direction", () => {
