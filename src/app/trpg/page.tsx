@@ -11,6 +11,7 @@ import { listTrpgCampaigns } from "@/lib/trpg/engine";
 import { getDb } from "@/lib/db";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { parseCompanionIds } from "@/lib/trpg/requestIds";
+import { TRPG_MAX_SLOTS } from "@/lib/trpg/types";
 import TrpgLobbyClient from "./TrpgLobbyClient";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export default async function TrpgLobbyPage({
   return (
     <AppPageShell
       title="TRPG"
-      description="세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 플레이어 캐릭터는 최대 2명입니다."
+      description={`세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 최대 참가인원은 ${TRPG_MAX_SLOTS}명입니다.`}
     >
       <TrpgLobbyClient
         initialCampaigns={campaigns}
