@@ -123,6 +123,43 @@ export function scenarioEditorPersistedSnapshot(
   });
 }
 
+export const SCENARIO_STORY_FIELD_COPY = {
+  title: {
+    label: "제목",
+    helper: "",
+  },
+  startingSituation: {
+    label: "시작 장면",
+    helper: "어디에서, 어떤 상황으로 이야기가 시작하나요?",
+  },
+  centralConflict: {
+    label: "핵심 문제",
+    helper: "플레이 중 맞서거나 해결하게 될 가장 큰 문제는 무엇인가요?",
+  },
+  goal: {
+    label: "플레이어 목표",
+    helper: "플레이어들이 무엇을 이루려고 하는 이야기인가요?",
+  },
+  endingConditions: {
+    label: "마무리 기준",
+    helper: "어떤 결과가 나오면 이 시나리오를 마무리할 수 있나요? 여러 개 적어도 됩니다.",
+  },
+} as const;
+
+export function scenarioHasAiDraftOrigin(plan: {
+  provenance?: { generatorModel?: string | null } | null;
+}): boolean {
+  return Boolean(plan.provenance?.generatorModel?.trim());
+}
+
+export function shouldOfferScenarioAiEditingTools(opts: {
+  hasSessionDraft: boolean;
+  hasPersistedAiOrigin: boolean;
+  isEditingSaved: boolean;
+}): boolean {
+  return opts.hasSessionDraft || opts.hasPersistedAiOrigin || opts.isEditingSaved;
+}
+
 export function scrollToScenarioField(field: string): void {
   if (typeof document === "undefined") return;
   const el = document.querySelector<HTMLElement>(`[data-scenario-field="${field}"]`);

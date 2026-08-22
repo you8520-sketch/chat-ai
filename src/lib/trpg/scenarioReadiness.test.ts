@@ -10,10 +10,13 @@ import {
   confirmLeaveEditor,
   isScenarioEditorDirty,
   optionalDepthFilled,
+  SCENARIO_STORY_FIELD_COPY,
   scenarioEditorPersistedSnapshot,
   scenarioEditorSavePayload,
   scenarioEditorSnapshot,
+  scenarioHasAiDraftOrigin,
   shouldConfirmScenarioDraftApply,
+  shouldOfferScenarioAiEditingTools,
 } from "./scenarioEditorState";
 import {
   parseScenarioHandoffId,
@@ -23,8 +26,10 @@ import {
   trpgPlayHref,
 } from "./scenarioHandoff";
 import {
+  countFirstCreateFilledFields,
   evaluateScenarioReadiness,
   FIRST_CREATE_VISIBLE_FIELDS,
+  scenarioReadinessHeadline,
 } from "./scenarioReadiness";
 import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
 import { DEFAULT_TRPG_STAT_KEYS } from "./stats";
@@ -157,6 +162,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.ok(readiness.blockers.some((item) => item.id === "missing_title"));
     assert.ok(readiness.blockers.some((item) => item.field === "startingSituation"));
     assert.equal(scenarioPersistDecision({ dirty: true, canPlay: false, savedId: null }), "blocked");
+    assert.equal(scenarioReadinessHeadline(readiness), "아직 2개 항목이 필요합니다");
+    assert.equal(countFirstCreateFilledFields({ title: "", scenarioPlan: emptyTrpgScenarioPlan() }), 0);
   });
 
   it("TEST 7: recommended-only quality lint does not block play", () => {
@@ -172,6 +179,10 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(readiness.canPlay, true);
     assert.equal(readiness.status, "recommended");
     assert.ok(readiness.recommendations.some((item) => item.id === "secret_without_clues"));
+    assert.equal(scenarioReadinessHeadline(readiness), `플레이 가능 · 보완 ${readiness.recommendations.length}`);
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /data-scenario-quality-lint/);
+    assert.match(editor, /<details className="mt-2 text-xs opacity-80" data-scenario-quality-lint>/);
   });
 
   it("legacy content-only scenarios stay playable without a structured plan", () => {
@@ -515,5 +526,109 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     const submitted = { ...emptySnapshot(), title: "A", plan: playablePlan() };
     const savedSnapshot = scenarioEditorPersistedSnapshot(submitted, submitted.characterIds);
     assert.equal(isScenarioEditorDirty(submitted, savedSnapshot), false);
+  });
+
+  it("Phase 2: first-create labels, helpers, and AI chrome stay collapsed", () => {
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 5);
+    assert.equal(SCENARIO_STORY_FIELD_COPY.startingSituation.label, "시작 장면");
+    assert.equal(SCENARIO_STORY_FIELD_COPY.centralConflict.label, "핵심 문제");
+    assert.equal(SCENARIO_STORY_FIELD_COPY.goal.label, "플레이어 목표");
+    assert.equal(SCENARIO_STORY_FIELD_COPY.endingConditions.label, "마무리 기준");
+    assert.ok(SCENARIO_STORY_FIELD_COPY.startingSituation.helper);
+    assert.ok(SCENARIO_STORY_FIELD_COPY.centralConflict.helper);
+    assert.ok(SCENARIO_STORY_FIELD_COPY.goal.helper);
+    assert.ok(SCENARIO_STORY_FIELD_COPY.endingConditions.helper);
+    assert.match(editor, /data-scenario-ai-primary-cta/);
+    assert.match(editor, /직접 작성하려면 아래 5가지만 입력하면 됩니다/);
+    assert.match(editor, /data-scenario-field-helper="startingSituation"/);
+    assert.match(editor, /data-scenario-field-helper="centralConflict"/);
+    assert.match(editor, /data-scenario-field-helper="goal"/);
+    assert.match(editor, /data-scenario-field-helper="endingConditions"/);
+    assert.match(editor, /data-scenario-ai-tools/);
+    assert.match(editor, /useState\(false\)/);
+    assert.match(editor, /showAiFieldChrome/);
+    assert.doesNotMatch(editor, /data-scenario-field="endingConditions"[\s\S]{0,180}종료 조건/);
+    const storyStart = editor.indexOf('AppSectionCard title="이야기"');
+    const detailsStart = editor.indexOf("더 자세히 설정");
+    const story = editor.slice(storyStart, detailsStart);
+    assert.equal(story.includes("종료 조건"), false);
+    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.endingConditions\.label/);
+    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.startingSituation\.label/);
+    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.centralConflict\.label/);
+    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.goal\.label/);
+    assert.match(story, /data-scenario-ai-primary-cta/);
+    assert.equal(/data-scenario-ai-regen-all/.test(story), true);
+    assert.match(editor, /if \(!showAiFieldChrome\) return null;/);
+  });
+
+  it("Phase 2: AI editing tools stay collapsed until opened and use persisted origin", () => {
+    assert.equal(scenarioHasAiDraftOrigin({ provenance: null }), false);
+    assert.equal(
+      scenarioHasAiDraftOrigin({ provenance: { generatorModel: "deepseek-v4-flash-0731" } }),
+      true
+    );
+    assert.equal(
+      shouldOfferScenarioAiEditingTools({
+        hasSessionDraft: false,
+        hasPersistedAiOrigin: false,
+        isEditingSaved: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldOfferScenarioAiEditingTools({
+        hasSessionDraft: true,
+        hasPersistedAiOrigin: false,
+        isEditingSaved: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldOfferScenarioAiEditingTools({
+        hasSessionDraft: false,
+        hasPersistedAiOrigin: true,
+        isEditingSaved: false,
+      }),
+      true
+    );
+    assert.equal(
+      shouldOfferScenarioAiEditingTools({
+        hasSessionDraft: false,
+        hasPersistedAiOrigin: false,
+        isEditingSaved: true,
+      }),
+      true
+    );
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+    assert.match(editor, /const \[aiToolsOpen, setAiToolsOpen\] = useState\(false\)/);
+    assert.match(editor, /const \[detailsOpen, setDetailsOpen\] = useState\(false\)/);
+    assert.doesNotMatch(editor, /setAiToolsOpen\(true\)/);
+    assert.doesNotMatch(editor, /setDetailsOpen\(true\)[\s\S]{0,80}setLastDraftSnapshot/);
+  });
+
+  it("Phase 2: manual 5-field author is playable without AI chrome", () => {
+    const readiness = evaluateScenarioReadiness({
+      title: "[SMOKE] 최소 시나리오",
+      content: "",
+      scenarioPlan: playablePlan(),
+    });
+    assert.equal(readiness.canPlay, true);
+    assert.equal(readiness.canSave, true);
+    assert.equal(
+      countFirstCreateFilledFields({
+        title: "[SMOKE] 최소 시나리오",
+        scenarioPlan: playablePlan(),
+      }),
+      5
+    );
+    assert.equal(scenarioReadinessHeadline(readiness), "플레이 가능");
+    const payload = scenarioEditorSavePayload({
+      ...emptySnapshot(),
+      title: "[SMOKE] 최소 시나리오",
+      plan: playablePlan(),
+    });
+    assert.equal(payload.title, "[SMOKE] 최소 시나리오");
+    assert.deepEqual((payload.scenarioPlan as { endingConditions: string[] }).endingConditions, playablePlan().endingConditions);
   });
 });
