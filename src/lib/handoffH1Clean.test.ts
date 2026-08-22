@@ -22,6 +22,10 @@ import {
   buildCurrentUserInputWrapper,
   wrapCurrentUserInput,
 } from "@/lib/currentUserInputLabel";
+import {
+  classifyNewUserActionBeat,
+  classifySameBeatMicroContinuation,
+} from "@/lib/handoffUserActionTaxonomy";
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import { buildContext } from "@/services/contextBuilder";
 
@@ -35,11 +39,11 @@ const HANDOFF_WRAPPER = buildCurrentUserInputWrapper({
 const GEMINI_WRAPPER = buildCurrentUserInputWrapper({ mode: "interactive" });
 const KOREAN_HANDOFF_MARKER = /아래 입력 전체가 현재 장면의 최신 상태/;
 
-describe("H1-CLEAN final — user-action boundary only", () => {
+describe("H1-CLEAN FINAL-B — same-beat micro continuation", () => {
   it("1. normal Gemini wrapper unchanged", () => {
     assert.match(GEMINI_WRAPPER, /small movement\/contact\/object-handling/);
     assert.doesNotMatch(GEMINI_WRAPPER, KOREAN_HANDOFF_MARKER);
-    assert.doesNotMatch(GEMINI_WRAPPER, /이미 일어난 것으로 본다/);
+    assert.doesNotMatch(GEMINI_WRAPPER, /같은 의도와 방향 안에서/);
     const built = buildContext({
       charName: "라이크",
       chunks: [],
@@ -53,58 +57,80 @@ describe("H1-CLEAN final — user-action boundary only", () => {
     const last = built.history.at(-1)?.content ?? "";
     assert.match(last, /small movement\/contact\/object-handling/);
     assert.doesNotMatch(last, KOREAN_HANDOFF_MARKER);
-    assert.doesNotMatch(last, /이미 일어난 것으로 본다/);
   });
 
-  it("2. current-user events are treated as already completed state", () => {
-    assert.match(HANDOFF_WRAPPER, /입력에 적힌 사건과 행동은 이미 일어난 것으로 본다/);
-    assert.match(HANDOFF_WRAPPER, /그 마지막 순간 다음부터 이어 쓴다/);
-    const wrapped = wrapCurrentUserInput("문을 닫고 가까이 다가온다.", {
+  it("2. 옷을 벗기며 키스한다 → completing that clothing-removal beat allowed", () => {
+    assert.match(HANDOFF_WRAPPER, /이미 시작한 행동과 상호작용은 같은 의도와 방향 안에서/);
+    assert.match(HANDOFF_WRAPPER, /즉각적인 결과까지 이어 묘사할 수 있고/);
+    const wrapped = wrapCurrentUserInput("옷을 벗기며 키스한다", {
       mode: "interactive",
       adultHandoff: true,
     });
-    assert.match(wrapped, /이미 일어난 것으로 본다/);
-    assert.match(wrapped, /문을 닫고 가까이 다가온다/);
-  });
-
-  it("3. 옷을 벗기며 키스 may realize the immediate undressing/kiss result", () => {
-    assert.match(
-      HANDOFF_WRAPPER,
-      /이미 시작한 행동은 즉각적인 결과까지 자연스럽게 완성/
+    assert.match(wrapped, /옷을 벗기며 키스한다/);
+    const judged = classifySameBeatMicroContinuation(
+      "렌이 태형의 재킷을 천천히 벗기며 입술을 맞췄다."
     );
-    const wrapped = wrapCurrentUserInput("옷을 천천히 벗기며 키스한다.", {
-      mode: "interactive",
-      adultHandoff: true,
-    });
-    assert.match(wrapped, /즉각적인 결과까지 자연스럽게 완성/);
-    assert.match(wrapped, /옷을 천천히 벗기며 키스한다/);
+    assert.equal(judged.value, true);
+    assert.equal(
+      classifyNewUserActionBeat("렌이 태형의 재킷을 천천히 벗기며 입술을 맞췄다.").value,
+      false
+    );
   });
 
-  it("4. new [B] contact target is user-owned", () => {
-    assert.match(HANDOFF_WRAPPER, /이어지는 의도적 행동·접촉·이동·대답·선택은 사용자가 정한다/);
-    assert.doesNotMatch(HANDOFF_WRAPPER, /small movement\/contact/);
+  it("3. same kiss small posture/contact adjustment → SAME_BEAT_MICRO_CONTINUATION allowed", () => {
+    assert.match(HANDOFF_WRAPPER, /자연스러운 작은 움직임과 즉각적인 결과/);
+    const judged = classifySameBeatMicroContinuation(
+      "키스 중에 고개를 기울이며 입술을 더 가까이 맞췄다."
+    );
+    assert.equal(judged.value, true);
+    assert.equal(
+      classifyNewUserActionBeat("키스 중에 고개를 기울이며 입술을 더 가까이 맞췄다.")
+        .value,
+      false
+    );
   });
 
-  it("5. new [B] movement/relocation is user-owned", () => {
-    assert.match(HANDOFF_WRAPPER, /의도적 행동·접촉·이동/);
-    assert.match(HANDOFF_WRAPPER, /이동·대답·선택은 사용자가 정한다/);
-  });
-
-  it("6. new [B] dialogue/answer/choice is user-owned", () => {
-    assert.match(HANDOFF_WRAPPER, /대답·선택은 사용자가 정한다/);
-  });
-
-  it("7. involuntary physiological reaction remains allowed", () => {
+  it("4. involuntary physiology → allowed", () => {
     assert.match(HANDOFF_WRAPPER, /비자발적 신체 반응도 묘사한다/);
+    const judged = classifySameBeatMicroContinuation("렌의 숨이 짧게 떨렸다.");
+    assert.equal(judged.value, true);
+    assert.equal(classifyNewUserActionBeat("렌의 숨이 짧게 떨렸다.").value, false);
   });
 
-  it("8. system handoff owner remains exactly the current 219-char owner", () => {
+  it("5. suddenly choosing a new accessory/body target → NEW_USER_ACTION_BEAT", () => {
+    assert.match(HANDOFF_WRAPPER, /새로운 행동의 목적·종류·대상/);
+    const judged = classifyNewUserActionBeat("렌이 전자 초커를 잡아당겼다.");
+    assert.equal(judged.value, true);
+  });
+
+  it("6. initiating relocation → NEW_USER_ACTION_BEAT", () => {
+    assert.match(HANDOFF_WRAPPER, /새로운 행동의 목적·종류·대상/);
+    const judged = classifyNewUserActionBeat(
+      "태형은 렌을 회의실 탁자 쪽으로 밀어 올렸다."
+    );
+    assert.equal(judged.value, true);
+  });
+
+  it("7. answering a real question for [B] → NEW_USER_ACTION_BEAT", () => {
+    assert.match(HANDOFF_WRAPPER, /대답이나 중요한 선택은 사용자가 정한다/);
+    const judged = classifyNewUserActionBeat("렌이 대답했다. 「응.」");
+    assert.equal(judged.value, true);
+  });
+
+  it("8. new consent/refusal/important choice → NEW_USER_ACTION_BEAT", () => {
+    assert.match(HANDOFF_WRAPPER, /중요한 선택은 사용자가 정한다/);
+    const judged = classifyNewUserActionBeat("렌은 그 제안에 동의했다.");
+    assert.equal(judged.value, true);
+  });
+
+  it("9. current 219-char system owner byte-identical", () => {
     assert.equal(OWNER, EXPECTED_OWNER);
     assert.equal(OWNER.length, 219);
     const packet = buildSceneContinuityPacket({ previousSceneMode: "normal" });
     const system = appendAdultHandoffPrompt("SYSTEM", packet);
-    assert.equal((system.split(OWNER).length - 1), 1);
+    assert.equal(system.split(OWNER).length - 1, 1);
     assert.equal(HANDOFF_WRAPPER.includes(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY), true);
-    assert.doesNotMatch(OWNER, /이미 일어난 것으로 본다/);
+    assert.doesNotMatch(OWNER, /같은 의도와 방향 안에서/);
+    assert.doesNotMatch(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY, /예:|회의실|라이크/);
   });
 });

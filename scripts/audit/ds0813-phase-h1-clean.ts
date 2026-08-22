@@ -68,6 +68,11 @@ import {
   buildCurrentUserInputWrapper,
 } from "../../src/lib/currentUserInputLabel";
 import {
+  classifyCurrentUserMajorRewind,
+  classifyNewUserActionBeat,
+  classifySameBeatMicroContinuation,
+} from "../../src/lib/handoffUserActionTaxonomy";
+import {
   adaptOpenRouterDeepSeekBackupBody,
   executeDeepSeekWithProviderFailover,
   extractVisibleAssistantDeltaFromSseJson,
@@ -79,7 +84,7 @@ import {
 loadEnvLocal();
 
 const ROOT = process.cwd();
-const EVIDENCE = path.join(ROOT, "data/ds0813-phase-h1-clean-final");
+const EVIDENCE = path.join(ROOT, "data/ds0813-phase-h1-clean-final-b");
 const FIXTURES = path.join(ROOT, "data/ds0813-phase-h1-clean");
 const ASSEMBLE_ONLY = process.env.ASSEMBLE_ONLY === "1";
 const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
@@ -90,7 +95,7 @@ const FLOOR = 2700;
 const EXPECTED_OWNER = `현재 사용자 턴이 확정한 장면 다음부터 이어 쓴다. 직전 assistant의 말투·유머·호칭·문장 호흡·대사/서술 균형과 화면에 이미 나온 장면 상태를 자연스럽게 이어, 같은 캐릭터와 같은 글의 다음 부분처럼 작성한다.
 이미 다룬 감각이나 행동을 표현만 바꿔 반복하기보다 캐릭터의 새 행동·대사·반응과 그 결과로 장면을 계속 전진시킨다. 현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다.`;
 const EXPECTED_OWNER_CHARS = 219;
-const EXPECTED_WRAPPER_BODY_CHARS = 175;
+const EXPECTED_WRAPPER_BODY_CHARS = 208;
 
 function sha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -125,7 +130,27 @@ function flagWithEvidence(
   return { value, evidence: value === false ? null : evidence };
 }
 
-/** Objective hits only. Inherited Gemini choker / tinnitus / Ren-quieting are NOT flagged. */
+type TaxonomyFlagLike = { value: boolean | "UNCERTAIN"; evidence: string | null };
+
+function semanticRepetition(text: string): TaxonomyFlagLike {
+  const sentences = text
+    .split(/(?<=[.!?。…])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 12);
+  const seen = new Map<string, number>();
+  let dup: string | null = null;
+  for (const s of sentences) {
+    const n = (seen.get(s) ?? 0) + 1;
+    seen.set(s, n);
+    if (n === 2 && !dup) dup = s.slice(0, 80);
+  }
+  const kissCycle = (text.match(/키스|입술|숨결/g) ?? []).length;
+  if (dup) return { value: "UNCERTAIN", evidence: dup };
+  if (kissCycle >= 12) return { value: "UNCERTAIN", evidence: `KISS_CYCLE=${kissCycle}` };
+  return { value: false, evidence: null };
+}
+
+/** Objective hits only. Do not use NEW_USER_DELIBERATE_ACTION. */
 function flagsFor(text: string, httpStatus: number) {
   const genericLine = firstMatchSentence(
     text,
@@ -139,14 +164,6 @@ function flagsFor(text: string, httpStatus: number) {
     text,
     /렌(?:이|은|가|도)?[^.\n]{0,24}[「“"][^」”"]+[」”"]/
   );
-  const rewritten = firstMatchSentence(
-    text,
-    /손목을\s*낚아채|손목을\s*잡|끌어가|끌고\s*들|잡아당겼/
-  );
-  const deliberate = firstMatchSentence(
-    text,
-    /렌(?:이|은|가)?\s*(?:태형|라이크)?(?:의)?\s*(?:몸을\s*벽|무릎을\s*굽|버클을|감싸\s*안|밀어붙|손을\s*(?:뻗|넣)|끌어당|잡아끌|문을\s*열고|자리를\s*옮)/
-  );
   const inner = firstMatchSentence(
     text,
     /렌(?:이|은|가)?\s*(?:속으로|마음속으로|생각했다|바랐다)/
@@ -155,58 +172,35 @@ function flagsFor(text: string, httpStatus: number) {
     text,
     /렌(?:이|은|가|도|의)?[^.\n]{0,24}(?:더\s*원하고|원하고\s*있|좋아하(?:고|는)|동의한|거절한|두려운|겁먹은|원했다)/
   );
-  const newLoc = firstMatchSentence(
+  const refusal = firstMatchSentence(text, /I cannot fulfill this request|OPENROUTER_API_KEY/);
+  const meta = firstMatchSentence(
     text,
-    /회의실|당직실|휴게실|응접실|옥상|지하\s*주차장|대기실|감시실|통제실|의무실/
-  );
-  const sceneObject = firstMatchSentence(text, /소파|회의\s*탁자|당직\s*침대/);
-  const sceneFact = firstMatchSentence(
-    text,
-    /(?:사이렌|비상벨|경보가\s*울|순찰대가|새로운\s*능력|각성했)/
-  );
-  const continueGate = firstMatchSentence(
-    text,
-    /계속할\s*거면|계속해도\s*되|계속한다면|여기서\s*이래도\s*되는/
-  );
-  const questionAnswer = firstMatchSentence(
-    text,
-    /\?[^\n]{0,80}[\s\S]{8,120}렌이\s*(?:대답|고개를|입술을|손을)/
+    /SceneContinuityPacket|DEEPSEEK_HANDOFF|adult_handoff|STATUS_VALUES/
   );
   const usable = httpStatus === 200 && text.length > 0;
+  const sameBeat = classifySameBeatMicroContinuation(text);
+  const newBeat = classifyNewUserActionBeat(text);
+  const rewind = classifyCurrentUserMajorRewind(text);
   return {
-    CHARACTER_VOICE_SEAM: flagWithEvidence(genericLine ? "UNCERTAIN" : false, genericLine),
-    GENERIC_ADULT_RP_VOICE: flagWithEvidence(Boolean(genericLine), genericLine),
-    CURRENT_USER_REWRITTEN_OR_EXPANDED: flagWithEvidence(Boolean(rewritten), rewritten),
-    NEW_USER_DELIBERATE_ACTION: flagWithEvidence(Boolean(deliberate), deliberate),
+    SAME_BEAT_MICRO_CONTINUATION: sameBeat,
+    NEW_USER_ACTION_BEAT: newBeat,
     NEW_USER_DIALOGUE: flagWithEvidence(
       spoken ? true : spokenQuote ? "UNCERTAIN" : false,
       spoken ?? spokenQuote
     ),
     NEW_USER_INNER_THOUGHT: flagWithEvidence(inner ? "UNCERTAIN" : false, inner),
     NEW_USER_INTENT_AS_FACT: flagWithEvidence(Boolean(intent), intent),
-    QUESTION_THEN_USER_ANSWER_AUTHORED: flagWithEvidence(Boolean(questionAnswer), questionAnswer),
-    REDUNDANT_CONTINUE_STOP_GATE: flagWithEvidence(Boolean(continueGate), continueGate),
-    NEW_UNSUPPORTED_SPECIFIC_LOCATION: flagWithEvidence(Boolean(newLoc), newLoc),
-    NEW_SCENE_DRIVING_OBJECT: flagWithEvidence(Boolean(sceneObject), sceneObject),
-    NEW_UNSUPPORTED_SCENE_FACT: flagWithEvidence(Boolean(sceneFact), sceneFact),
-    STARTED_USER_KISS_CONSEQUENCE_PRESENT: flagWithEvidence(
-      /키스|입술/.test(text),
-      firstMatchSentence(text, /키스|입술/)
-    ),
-    INVOLUNTARY_REACTION_PRESENT: flagWithEvidence(
-      /(?:숨|떨|소름|심장이|귀가|이명|몸이)/.test(text),
-      firstMatchSentence(text, /(?:숨|떨|소름|심장이|귀가|이명|몸이)/)
-    ),
-    VISIBLE_PRIOR_OUTFIT_OR_SENSORY: flagWithEvidence(
-      /초커|이명|전자\s*목걸이|목줄/.test(text),
-      firstMatchSentence(text, /초커|이명|전자\s*목걸이|목줄/)
-    ),
+    CURRENT_USER_MAJOR_REWIND: rewind,
+    CHARACTER_VOICE_SEAM: flagWithEvidence(genericLine ? "UNCERTAIN" : false, genericLine),
+    GENERIC_ADULT_RP_VOICE: flagWithEvidence(Boolean(genericLine), genericLine),
+    SEMANTIC_REPETITION: semanticRepetition(text),
+    ODD_OR_NONSENSICAL_PROSE: flagWithEvidence(Boolean(refusal || meta || !usable), refusal ?? meta),
     UNDER_LENGTH: flagWithEvidence(
       usable && text.length < FLOOR,
       usable && text.length < FLOOR ? `VISIBLE_CHARS=${text.length}` : null
     ),
-    NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED:
-      "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    PRIMARY_REFUSAL_VISIBLE: Boolean(refusal),
+    META_LEAK: Boolean(meta),
   };
 }
 
@@ -241,9 +235,10 @@ function proveAcceptance(input: {
     HANDOFF_WRAPPER_CONCISE:
       input.currentUserWrapped.includes(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY) &&
       /이미 일어난 것으로 본다/.test(handoffWrapper) &&
-      /이어지는 의도적 행동·접촉·이동·대답·선택은 사용자가 정한다/.test(
+      /새로운 행동의 목적·종류·대상, 대답이나 중요한 선택은 사용자가 정한다/.test(
         handoffWrapper
       ) &&
+      /같은 의도와 방향 안에서 자연스러운 작은 움직임/.test(handoffWrapper) &&
       !/small movement\/contact\/object-handling/.test(input.currentUserWrapped),
     CURRENT_USER_NEWEST_STATE_PRESERVED:
       /현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다/.test(owner) &&
@@ -696,7 +691,7 @@ async function main() {
   console.log(JSON.stringify({ phase: "assembled", acceptance }, null, 2));
   if (ASSEMBLE_ONLY) return;
 
-  const keys = ["H1CF-R1", "H1CF-R2", "H1CF-R3"] as const;
+  const keys = ["H1CFB-R1", "H1CFB-R2", "H1CFB-R3"] as const;
   const results: Record<string, unknown>[] = [];
   for (const key of keys) {
     let deepseekCalls = 0;
@@ -718,9 +713,9 @@ async function main() {
     const visible = out.text.replace(/\r/g, "");
     const flags = {
       ...flagsFor(visible, out.httpStatus),
-      PRIMARY_REFUSAL_VISIBLE: false,
-      DEEPSEEK_CALLS: deepseekCalls,
+      VISIBLE_CHARS: visible.length,
       USED_PROVIDER: out.usedProvider,
+      DEEPSEEK_CALLS: deepseekCalls,
       PRIMARY_HTTP_STATUS: out.telemetry.primary_http_status,
       FAILOVER_TRIGGER: out.telemetry.failover_trigger,
       VISIBLE_ASSISTANT_RESPONSES: visible.length > 0 ? 1 : 0,
