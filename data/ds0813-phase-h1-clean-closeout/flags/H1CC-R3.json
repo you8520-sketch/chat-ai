@@ -1,0 +1,64 @@
+{
+  "COMPLETED_STATE_REPLAY": {
+    "value": false,
+    "evidence": null
+  },
+  "TRUE_NEW_USER_ACTION_BEAT": {
+    "value": false,
+    "actor": null,
+    "target": null,
+    "action": null,
+    "passage": null,
+    "evidence": null
+  },
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "이 밀려들었다. 렌의 손끝이 재킷 앞섶에 닿자, 유광 블랙 재킷이 어깨 위에서 천천히 밀려 내려갔다. 가죽이 옷자락에 스치며 내는 바스락거리는"
+  },
+  "LOW_STAKES_AMBIENT_COACTION": {
+    "value": true,
+    "evidence": "문 같은 정적이 밀려들었다. 렌의 손끝이 재킷 앞섶에 닿자, 유광 블랙 재킷이 어깨 위에서 천천히 밀려 내려갔다. 가죽이 옷자락에 스치며 내는"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": "UNCERTAIN",
+    "evidence": "KISS_CYCLE=17"
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": true,
+    "evidence": "VISIBLE_CHARS=2594"
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 2594,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

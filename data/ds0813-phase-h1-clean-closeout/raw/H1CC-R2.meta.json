@@ -1,0 +1,112 @@
+{
+  "KEY": "H1CC-R2",
+  "USED_PROVIDER": "cheaperinference",
+  "PROVIDER_ATTEMPT_COUNT": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "PRIMARY_FAILURE_CLASS": null,
+  "FAILOVER_TRIGGER": null,
+  "BACKUP_SUCCESS": false,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 3006,
+  "KOREAN_CHARS": 2088,
+  "UNDER_LENGTH": false,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13633,
+  "OUTPUT_TOKENS": 2389,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 64074,
+  "RAW_SHA256": "fea0e2316259991b3bd3432198ce7717a2367a1382fddc94f3316dcc3cdf899c",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "95e358dc5fda46116a7e96e7e3578c78d0b7a480807098bb590974c153cb85a2",
+  "FINAL_MESSAGES_SHA": "3d86b3d4128e11170180a0ac3f12608d0d47c4e6f5c87e0c80d8829365a558dc",
+  "flags": {
+    "COMPLETED_STATE_REPLAY": {
+      "value": false,
+      "evidence": null
+    },
+    "TRUE_NEW_USER_ACTION_BEAT": {
+      "value": false,
+      "actor": null,
+      "target": null,
+      "action": null,
+      "passage": null,
+      "evidence": null
+    },
+    "SAME_BEAT_MICRO_CONTINUATION": {
+      "value": true,
+      "evidence": "도 없이, 렌의 손이 태형의 재킷 앞섶으로 뻗어 왔다. 검은 네일이 빛나는 손가락이 가죽 재킷의 지퍼를 천천히 끌어내렸다. 짧은 금속 마찰음이"
+    },
+    "LOW_STAKES_AMBIENT_COACTION": {
+      "value": true,
+      "evidence": "실내의 그것으로 바뀌었다. 렌의 손끝이 등 뒤의 문을 밀어 닫자, 무거운 차단문이 모터 소리와 함께 밀폐되며 바깥의 모든 소음을 잘라냈다. 순"
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "KISS_CYCLE=13"
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": false,
+      "evidence": null
+    },
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "META_LEAK": false,
+    "VISIBLE_CHARS": 3006,
+    "USED_PROVIDER": "cheaperinference",
+    "DEEPSEEK_CALLS": 1,
+    "PRIMARY_HTTP_STATUS": 200,
+    "FAILOVER_TRIGGER": null,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13633,
+    "completion_tokens": 2389,
+    "total_tokens": 16022,
+    "cost": 0.001953,
+    "cost_details": {
+      "upstream_inference_cost": 0.001953
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": null,
+    "primary_http_status": 200,
+    "primary_headers_ms": 3217,
+    "primary_first_visible_ms": 3298,
+    "failover_trigger": null,
+    "backup_headers_ms": null,
+    "backup_first_visible_ms": null,
+    "backup_success": false,
+    "provider_attempt_count": 1
+  },
+  "DEEPSEEK_CALLS": 1
+}

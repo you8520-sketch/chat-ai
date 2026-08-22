@@ -1,0 +1,112 @@
+{
+  "KEY": "H1CC-R3",
+  "USED_PROVIDER": "cheaperinference",
+  "PROVIDER_ATTEMPT_COUNT": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "PRIMARY_FAILURE_CLASS": null,
+  "FAILOVER_TRIGGER": null,
+  "BACKUP_SUCCESS": false,
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "VISIBLE_CHARS": 2594,
+  "KOREAN_CHARS": 1823,
+  "UNDER_LENGTH": true,
+  "QUALITY_SAMPLE": true,
+  "INPUT_TOKENS": 13633,
+  "OUTPUT_TOKENS": 2099,
+  "TTFT_MS": 0,
+  "TOTAL_LATENCY_MS": 56539,
+  "RAW_SHA256": "f14973e215547ff0cddb6fd7286b3a62c0d6ed57af2e34419fbb0f11b5421467",
+  "SYSTEM_SHA": "07932551296d6e301c6b2d12ffd09fd1a6425597d0534bdd6a1f4c13ae320095",
+  "CURRENT_USER_SHA": "95e358dc5fda46116a7e96e7e3578c78d0b7a480807098bb590974c153cb85a2",
+  "FINAL_MESSAGES_SHA": "3d86b3d4128e11170180a0ac3f12608d0d47c4e6f5c87e0c80d8829365a558dc",
+  "flags": {
+    "COMPLETED_STATE_REPLAY": {
+      "value": false,
+      "evidence": null
+    },
+    "TRUE_NEW_USER_ACTION_BEAT": {
+      "value": false,
+      "actor": null,
+      "target": null,
+      "action": null,
+      "passage": null,
+      "evidence": null
+    },
+    "SAME_BEAT_MICRO_CONTINUATION": {
+      "value": true,
+      "evidence": "이 밀려들었다. 렌의 손끝이 재킷 앞섶에 닿자, 유광 블랙 재킷이 어깨 위에서 천천히 밀려 내려갔다. 가죽이 옷자락에 스치며 내는 바스락거리는"
+    },
+    "LOW_STAKES_AMBIENT_COACTION": {
+      "value": true,
+      "evidence": "문 같은 정적이 밀려들었다. 렌의 손끝이 재킷 앞섶에 닿자, 유광 블랙 재킷이 어깨 위에서 천천히 밀려 내려갔다. 가죽이 옷자락에 스치며 내는"
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": "UNCERTAIN",
+      "evidence": "KISS_CYCLE=17"
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": true,
+      "evidence": "VISIBLE_CHARS=2594"
+    },
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "META_LEAK": false,
+    "VISIBLE_CHARS": 2594,
+    "USED_PROVIDER": "cheaperinference",
+    "DEEPSEEK_CALLS": 1,
+    "PRIMARY_HTTP_STATUS": 200,
+    "FAILOVER_TRIGGER": null,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {
+    "prompt_tokens": 13633,
+    "completion_tokens": 2099,
+    "total_tokens": 15732,
+    "cost": 0.001763,
+    "cost_details": {
+      "upstream_inference_cost": 0.001763
+    }
+  },
+  "telemetry": {
+    "logical_model": "deepseek-v4-pro-0813",
+    "route_kind": "adult_handoff",
+    "primary_provider": "cheaperinference",
+    "backup_provider": "openrouter",
+    "primary_failure_class": null,
+    "primary_http_status": 200,
+    "primary_headers_ms": 3237,
+    "primary_first_visible_ms": 3237,
+    "failover_trigger": null,
+    "backup_headers_ms": null,
+    "backup_first_visible_ms": null,
+    "backup_success": false,
+    "provider_attempt_count": 1
+  },
+  "DEEPSEEK_CALLS": 1
+}

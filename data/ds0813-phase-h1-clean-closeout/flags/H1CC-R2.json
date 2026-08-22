@@ -1,0 +1,64 @@
+{
+  "COMPLETED_STATE_REPLAY": {
+    "value": false,
+    "evidence": null
+  },
+  "TRUE_NEW_USER_ACTION_BEAT": {
+    "value": false,
+    "actor": null,
+    "target": null,
+    "action": null,
+    "passage": null,
+    "evidence": null
+  },
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "도 없이, 렌의 손이 태형의 재킷 앞섶으로 뻗어 왔다. 검은 네일이 빛나는 손가락이 가죽 재킷의 지퍼를 천천히 끌어내렸다. 짧은 금속 마찰음이"
+  },
+  "LOW_STAKES_AMBIENT_COACTION": {
+    "value": true,
+    "evidence": "실내의 그것으로 바뀌었다. 렌의 손끝이 등 뒤의 문을 밀어 닫자, 무거운 차단문이 모터 소리와 함께 밀폐되며 바깥의 모든 소음을 잘라냈다. 순"
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": "UNCERTAIN",
+    "evidence": "KISS_CYCLE=13"
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 3006,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}

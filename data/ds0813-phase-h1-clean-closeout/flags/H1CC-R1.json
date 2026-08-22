@@ -1,0 +1,64 @@
+{
+  "COMPLETED_STATE_REPLAY": {
+    "value": true,
+    "evidence": "채 가만히 서 있었다. 렌이 문을 닫고 돌아서는 모습을 그 특유의 나른한 시선으로 바라보았다. 형광등 대신 벽면의 보조등 몇 개만 켜져 있어 공"
+  },
+  "TRUE_NEW_USER_ACTION_BEAT": {
+    "value": true,
+    "actor": "렌 [B]",
+    "target": "문",
+    "action": "문을 닫음",
+    "passage": "채 가만히 서 있었다. 렌이 문을 닫고 돌아서는 모습을 그 특유의 나른한 시선으로 바라보았다. 형광등 대신 벽면의 보조등 몇 개만 켜져 있어 공",
+    "evidence": "채 가만히 서 있었다. 렌이 문을 닫고 돌아서는 모습을 그 특유의 나른한 시선으로 바라보았다. 형광등 대신 벽면의 보조등 몇 개만 켜져 있어 공"
+  },
+  "SAME_BEAT_MICRO_CONTINUATION": {
+    "value": true,
+    "evidence": "렌의 손이 태형의 유광 블랙 재킷 앞섶을 천천히 더듬었다. 손가락이 지퍼의 금속 이빨을 찾아내자, 끌어내리는 날카로운 소리가 어둠 속을 갈랐다."
+  },
+  "LOW_STAKES_AMBIENT_COACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": false,
+    "evidence": null
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": false,
+    "evidence": null
+  },
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "META_LEAK": false,
+  "VISIBLE_CHARS": 2947,
+  "USED_PROVIDER": "cheaperinference",
+  "DEEPSEEK_CALLS": 1,
+  "PRIMARY_HTTP_STATUS": 200,
+  "FAILOVER_TRIGGER": null,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}
