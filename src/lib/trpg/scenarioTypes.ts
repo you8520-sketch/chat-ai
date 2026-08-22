@@ -5,7 +5,7 @@ import {
   DEFAULT_TRPG_STAT_DEFS,
   defsFromKeys,
   floorStats,
-  parseStatKeys,
+  parseCanonicalStatKeys,
   pointPoolFor,
   validateStatAllocation,
 } from "./stats";
@@ -166,7 +166,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {
     throw new Error("시나리오 본문 또는 이야기 설계(시작 상황·중심 갈등·목표·종료 조건)를 입력해 주세요.");
   }
-  const statKeys = parseStatKeys(input.statKeys);
+  const statKeys = parseCanonicalStatKeys(input.statKeys);
   const statDefs = defsFromKeys(statKeys);
   const pool = pointPoolFor(statDefs);
   const npcs = parseScenarioNpcs(input.npcs, statDefs);
