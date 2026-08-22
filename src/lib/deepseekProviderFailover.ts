@@ -472,7 +472,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
       });
       return finish(backupResponse, "openrouter");
     } catch (error) {
-      failBoth(error);
+      throw failBoth(error);
     }
   };
 
