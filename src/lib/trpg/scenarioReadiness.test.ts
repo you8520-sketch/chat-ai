@@ -467,6 +467,31 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(payload.secretContent, fields.secretContent);
   });
 
+  it("IA cleanup: authoring activation follows scenario ownership, not default values or world selection", () => {
+    const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
+
+    assert.match(editor, /useState\(Boolean\(initial\?\.id\)\)/);
+    assert.match(
+      editor,
+      /const scenarioAuthoringStarted = scenarioAuthoringActive \|\| lastDraftSnapshot !== null;/
+    );
+
+    const worldSelection = editor.slice(
+      editor.indexOf("const nextWorldId"),
+      editor.indexOf('className="mt-2 min-h-10', editor.indexOf("const nextWorldId"))
+    );
+    assert.doesNotMatch(worldSelection, /setScenarioAuthoringActive/);
+
+    assert.match(editor, /async function requestDraft[\s\S]*?setScenarioAuthoringActive\(true\);[\s\S]*?setDraftBusy\(true\)/);
+    assert.match(editor, /onChange=\{\(e\) => \{\s*setScenarioAuthoringActive\(true\);\s*setTitle/);
+    assert.match(editor, /function pickFiles[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.match(editor, /function editGenres[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.match(editor, /function editVisibility[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.match(editor, /function patchPlan[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.match(editor, /function toggleStatKey[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.match(editor, /function editNpcs[\s\S]*?setScenarioAuthoringActive\(true\)/);
+  });
+
   it("A: dirty 나가기 cancel keeps the editor and does not navigate", () => {
     const before = { ...emptySnapshot(), title: "작성 중", plan: playablePlan() };
     let confirmCalls = 0;

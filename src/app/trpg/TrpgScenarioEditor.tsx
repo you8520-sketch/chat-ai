@@ -167,6 +167,7 @@ export default function TrpgScenarioEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedId, setSavedId] = useState<number | null>(initial?.id ?? null);
+  const [scenarioAuthoringActive, setScenarioAuthoringActive] = useState(Boolean(initial?.id));
   const [characterIds, setCharacterIds] = useState<number[]>(initial?.characterIds ?? []);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -232,29 +233,7 @@ export default function TrpgScenarioEditor({
   const hasManualEdits = lastDraftSnapshot
     ? isScenarioEditorDirty(currentFields(), lastDraftSnapshot)
     : dirty;
-  const scenarioAuthoringStarted = Boolean(
-    title.trim() ||
-      summary.trim() ||
-      secretContent.trim() ||
-      startLocation.trim() ||
-      inventoryText.trim() ||
-      namedNpcs.length ||
-      characterIds.length ||
-      plan.startingSituation.trim() ||
-      plan.centralConflict.trim() ||
-      plan.goal.trim() ||
-      plan.endingConditions.some((item) => item.trim()) ||
-      plan.secret.trim() ||
-      plan.majorEvents.some((item) => item.trim()) ||
-      plan.clues.some((item) => item.trim()) ||
-      plan.climax.trim() ||
-      plan.endingCandidates.some((item) => item.trim()) ||
-      plan.factionChanges.some((item) => item.trim()) ||
-      plan.forbiddenEvents.some((item) => item.trim()) ||
-      plan.gmDirection.trim() ||
-      plan.boss.trim() ||
-      plan.specialRules.some((item) => item.trim())
-  );
+  const scenarioAuthoringStarted = scenarioAuthoringActive || lastDraftSnapshot !== null;
   const readiness = useMemo(
     () =>
       evaluateScenarioReadiness({
@@ -303,7 +282,25 @@ export default function TrpgScenarioEditor({
   }
 
   function patchPlan(partial: Partial<TrpgScenarioPlan>) {
+    setScenarioAuthoringActive(true);
     setPlan((prev) => ({ ...prev, ...partial }));
+  }
+
+  function editNpcs(updater: (prev: TrpgScenarioNpc[]) => TrpgScenarioNpc[]) {
+    setScenarioAuthoringActive(true);
+    setNpcs(updater);
+  }
+
+  function editVisibility(next: TrpgVisibility) {
+    if (next === visibility) return;
+    setScenarioAuthoringActive(true);
+    setVisibility(next);
+  }
+
+  function editGenres(next: CharacterGenre[]) {
+    if (next.length === genres.length && next.every((genre, index) => genre === genres[index])) return;
+    setScenarioAuthoringActive(true);
+    setGenres(next);
   }
 
   function toggleLock(field: TrpgScenarioDraftField) {
@@ -317,6 +314,7 @@ export default function TrpgScenarioEditor({
   function commitAssets(next: CharacterAsset[]) {
     try {
       assertScenarioAssetOrientations(next);
+      setScenarioAuthoringActive(true);
       setAssets(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR);
@@ -324,8 +322,9 @@ export default function TrpgScenarioEditor({
   }
 
   function pickFiles(list: FileList | null) {
-    if (!list) return;
+    if (!list || list.length === 0) return;
     const room = TRPG_SCENARIO_MAX_ASSETS - assets.length;
+    setScenarioAuthoringActive(true);
     setFiles([...files, ...Array.from(list)].slice(0, room));
   }
 
@@ -410,12 +409,11 @@ export default function TrpgScenarioEditor({
   }
 
   function toggleStatKey(key: string) {
-    setStatKeys((prev) => {
-      const on = prev.includes(key);
-      const next = on ? prev.filter((k) => k !== key) : [...prev, key];
-      if (next.length === 0) return prev;
-      return defsFromKeys(next).map((d) => d.key);
-    });
+    const on = statKeys.includes(key);
+    const next = on ? statKeys.filter((item) => item !== key) : [...statKeys, key];
+    if (next.length === 0) return;
+    setScenarioAuthoringActive(true);
+    setStatKeys(defsFromKeys(next).map((definition) => definition.key));
   }
 
   function markTouched(field: TrpgScenarioDraftField) {
@@ -453,6 +451,7 @@ export default function TrpgScenarioEditor({
       );
       if (!ok) return;
     }
+    setScenarioAuthoringActive(true);
     setDraftBusy(true);
     setError("");
     try {
@@ -817,7 +816,10 @@ export default function TrpgScenarioEditor({
             <input
               value={title}
               maxLength={TRPG_SCENARIO_TITLE_LIMIT}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setScenarioAuthoringActive(true);
+                setTitle(e.target.value);
+              }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
@@ -827,7 +829,10 @@ export default function TrpgScenarioEditor({
             <input
               value={summary}
               maxLength={summaryMax}
-              onChange={(e) => setSummary(e.target.value)}
+              onChange={(e) => {
+                setScenarioAuthoringActive(true);
+                setSummary(e.target.value);
+              }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
@@ -992,7 +997,10 @@ export default function TrpgScenarioEditor({
                   value={secretContent}
                   maxLength={secretMax}
                   rows={4}
-                  onChange={(e) => setSecretContent(e.target.value)}
+                  onChange={(e) => {
+                    setScenarioAuthoringActive(true);
+                    setSecretContent(e.target.value);
+                  }}
                   className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
                 />
               </label>
@@ -1058,7 +1066,10 @@ export default function TrpgScenarioEditor({
             시작 장소
             <input
               value={startLocation}
-              onChange={(e) => setStartLocation(e.target.value)}
+              onChange={(e) => {
+                setScenarioAuthoringActive(true);
+                setStartLocation(e.target.value);
+              }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
@@ -1066,7 +1077,10 @@ export default function TrpgScenarioEditor({
             시작 소지품 (쉼표로 구분)
             <input
               value={inventoryText}
-              onChange={(e) => setInventoryText(e.target.value)}
+              onChange={(e) => {
+                setScenarioAuthoringActive(true);
+                setInventoryText(e.target.value);
+              }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
@@ -1109,7 +1123,7 @@ export default function TrpgScenarioEditor({
                     TRPG_SCENARIO_NPC_NAME_LIMIT
                   )}
                   onChange={(e) =>
-                    setNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))
+                    editNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))
                   }
                   className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
                 />
@@ -1125,7 +1139,7 @@ export default function TrpgScenarioEditor({
                     TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT
                   )}
                   onChange={(e) =>
-                    setNpcs((prev) =>
+                    editNpcs((prev) =>
                       prev.map((row, i) => (i === index ? { ...row, description: e.target.value } : row))
                     )
                   }
@@ -1143,7 +1157,7 @@ export default function TrpgScenarioEditor({
                     TRPG_SCENARIO_NPC_GREETING_LIMIT
                   )}
                   onChange={(e) =>
-                    setNpcs((prev) =>
+                    editNpcs((prev) =>
                       prev.map((row, i) => (i === index ? { ...row, greeting: e.target.value } : row))
                     )
                   }
@@ -1161,7 +1175,7 @@ export default function TrpgScenarioEditor({
                     TRPG_SCENARIO_NPC_PROMPT_LIMIT
                   )}
                   onChange={(e) =>
-                    setNpcs((prev) =>
+                    editNpcs((prev) =>
                       prev.map((row, i) => (i === index ? { ...row, systemPrompt: e.target.value } : row))
                     )
                   }
@@ -1170,7 +1184,7 @@ export default function TrpgScenarioEditor({
               </label>
               <button
                 type="button"
-                onClick={() => setNpcs((prev) => prev.filter((_, i) => i !== index))}
+                onClick={() => editNpcs((prev) => prev.filter((_, i) => i !== index))}
                 className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-rose-200"
               >
                 삭제
@@ -1180,7 +1194,7 @@ export default function TrpgScenarioEditor({
           <button
             type="button"
             disabled={npcs.length >= TRPG_SCENARIO_MAX_NPCS}
-            onClick={() => setNpcs((prev) => [...prev, emptyNpc()])}
+            onClick={() => editNpcs((prev) => [...prev, emptyNpc()])}
             className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200 disabled:opacity-50"
           >
             + NPC 추가
@@ -1240,7 +1254,7 @@ export default function TrpgScenarioEditor({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setVisibility("private")}
+              onClick={() => editVisibility("private")}
               className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 visibility === "private" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
               }`}
@@ -1249,7 +1263,7 @@ export default function TrpgScenarioEditor({
             </button>
             <button
               type="button"
-              onClick={() => setVisibility("public")}
+              onClick={() => editVisibility("public")}
               className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 visibility === "public" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
               }`}
@@ -1258,7 +1272,7 @@ export default function TrpgScenarioEditor({
             </button>
           </div>
           <div className="mt-4">
-            <GenrePicker value={genres} onChange={setGenres} excludedGenres={["시뮬레이션"]} />
+            <GenrePicker value={genres} onChange={editGenres} excludedGenres={["시뮬레이션"]} />
           </div>
         </AppSectionCard>
 
