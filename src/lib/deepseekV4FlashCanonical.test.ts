@@ -26,7 +26,8 @@ import { resolveAdultRoutingConfig } from "./adultSceneRouting";
 import { ADULT_SCENE_MODEL_POLICY } from "./adultSceneModelPolicy";
 import { callOpenRouterCompletion } from "./openRouterCompletion";
 import { resolveOpenRouterModelRates } from "./openRouterModelPricing";
-import { resolveOpenRouterReasoningPointRates } from "./points";
+import { resolveOpenRouterReasoningPointRates } from "./pointsReasoningMargins";
+import { computeHtmlFlashOnlyTurnBilling } from "./points";
 import { estimateApiCostUsd } from "./adminFinance";
 import {
   DEFAULT_TRANSLATION_PRIMARY_MODEL,
@@ -34,7 +35,6 @@ import {
 } from "./promptTranslation";
 import { ensureUserSelectedAI } from "./userSelectedAI";
 import { statusWidgetExtractModelLabel } from "./statusWidget/receiptUsage";
-import { computeHtmlFlashOnlyTurnBilling } from "./points";
 
 async function captureOutboundModel(opts: {
   model: string;
