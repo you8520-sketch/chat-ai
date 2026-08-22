@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { mkdir } from "node:fs/promises";
+import { copyFile, mkdir } from "node:fs/promises";
 
 const source = "public/icons/icon-door-source.png";
 
@@ -29,4 +29,13 @@ await Promise.all([
   sharp(source).resize(512, 512).png().toFile("public/icons/icon-door-v2-maskable-512.png"),
   // iOS applies its own corner mask, so the touch icon also stays fully opaque.
   sharp(source).resize(180, 180).png().toFile("public/icons/apple-touch-icon-door-v2.png"),
+]);
+
+// Keep legacy URLs working for old service workers and external bookmarks,
+// but serve the current door artwork from every historical brand-icon path.
+await Promise.all([
+  copyFile("public/icons/icon-door-v2-192.png", "public/icons/icon-192.png"),
+  copyFile("public/icons/icon-door-v2-512.png", "public/icons/icon-512.png"),
+  copyFile("public/icons/icon-door-v2-maskable-512.png", "public/icons/icon-maskable-512.png"),
+  copyFile("public/icons/apple-touch-icon-door-v2.png", "public/icons/apple-touch-icon.png"),
 ]);
