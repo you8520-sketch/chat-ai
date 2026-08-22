@@ -22,6 +22,18 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
 - The interactive chat (`POST /api/chat`) calls OpenRouter directly and requires a non-empty `OPENROUTER_API_KEY`; without it the chat streams a graceful error `401 ... OPENROUTER_API_KEY is not configured`. The README's "works with demo responses without a key" only covers background summarize/memory tasks, NOT the user-facing chat reply.
 - `MOCK_MODE=1` (plus any non-empty dummy `OPENROUTER_API_KEY`) short-circuits the network with a canned reply, but that canned text is short and gets rejected by the response-length guard — so `MOCK_MODE` alone is NOT enough to produce a saved chat turn. Use a real `OPENROUTER_API_KEY` to demo an actual AI reply. Everything else (signup → 2,000P, opening a character, starting a chat, the character greeting, sending a message) works with no key.
 
+### Canonical production character roster
+- User-authorized retained production characters (do **not** treat as unused/test/legacy, and do **not** include in cleanup deletion candidate sets):
+  - 라이크 `id=18`
+  - 플러드 `id=17`
+  - 솔 `id=16`
+  - 권태현 `id=15`
+  - 로코 `id=14`
+  - 강이현 `id=13` (public deployed row; private clones 31/32 are not this roster row)
+  - 이혁 `id=11`
+  - 에녹 `id=10`
+- `characters.nsfw` is listing/content-rating only. Do not delete or rewrite 에녹 metadata just to match the CNC adult set; read the live row first.
+
 ### Home/listing shows no characters (expected on fresh seed)
 - Seeded characters have `official=0` and `creator_id NULL`, but `listableWhere()` (`src/lib/characterVisibility.ts`) only lists `official=1` or characters with a real creator — so Home/신작/랭킹 render empty and `/tab/ranking` throws a JSON error. This is pre-existing app behavior, not a broken environment. You can still open any public+approved character directly at `/character/<id>` (e.g. `/character/2`) — `canAccessCharacter()` allows it — and chat normally.
 

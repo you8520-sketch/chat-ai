@@ -488,9 +488,10 @@ import {
   hasNewlyEstablishedSexualContext,
   normalizeAdultDialogueProfile,
   parseModelRouteState,
+  parseAllowedConsentModes,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
-  resolveRequestedConsentMode,
+  resolveEffectiveConsentMode,
   selectAdultHandoffRawVariants,
   serializeModelRouteState,
   type ActiveModelRoute,
@@ -1204,23 +1205,13 @@ export async function POST(req: Request) {
     existingAdultModelId: adultRoutingConfig.adultModelId,
     state: priorModelRouteState,
   });
-  let requestedConsentMode = resolveRequestedConsentMode(
-    body.adultConsentMode ?? body.adult_consent_mode,
-    priorModelRouteState.activeConsentMode,
-    storedUserMessage
-  );
-  let allowedConsentModes: string[] = ["standard"];
-  try {
-    const parsed = JSON.parse(ch.adult_consent_modes_json || "[\"standard\"]");
-    if (Array.isArray(parsed)) {
-      allowedConsentModes = parsed.filter((value): value is string => typeof value === "string");
-    }
-  } catch {
-    allowedConsentModes = ["standard"];
-  }
-  if (!allowedConsentModes.includes(requestedConsentMode)) {
-    requestedConsentMode = "standard";
-  }
+  const allowedConsentModes = parseAllowedConsentModes(ch.adult_consent_modes_json);
+  const requestedConsentMode = resolveEffectiveConsentMode({
+    requested: body.adultConsentMode ?? body.adult_consent_mode,
+    previous: priorModelRouteState.activeConsentMode,
+    currentInput: storedUserMessage,
+    allowedConsentModes,
+  });
 
   const recentRawForSceneClassification = turnsForRecentHistory
     .slice(-3)
@@ -1249,11 +1240,11 @@ export async function POST(req: Request) {
     });
   // Chat-room 「성인모드」 is the operational adult-handoff gate.
   // Home/header 「성인 캐릭터 표시」(nsfw_on) only controls listing visibility.
+  // characters.nsfw is listing/content-rating only — not an adult-RP gate.
   const adultContentVisibilityEnabled = chatAdultHandoffEnabled;
   const adultEligibility = resolveAdultEligibility({
     userAdultVerified,
     adultContentVisibilityEnabled,
-    characterAdultContentEnabled: ch.nsfw === 1,
     participants: [
       {
         adultStatus: ch.adult_status,
