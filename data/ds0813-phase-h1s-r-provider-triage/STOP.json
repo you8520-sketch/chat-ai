@@ -1,0 +1,6 @@
+{
+  "STOP": true,
+  "PROVIDER_PATH_HEALTHY": false,
+  "H1S_QUALITY_REVALIDATION_BLOCKED": true,
+  "P0_HTTP_STATUS": 500
+}

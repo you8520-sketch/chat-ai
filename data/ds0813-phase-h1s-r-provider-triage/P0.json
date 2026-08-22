@@ -1,0 +1,28 @@
+{
+  "KEY": "P0",
+  "QUALITY_SAMPLE": false,
+  "LENGTH_SAMPLE": false,
+  "HTTP_STATUS": 500,
+  "FINISH_REASON": null,
+  "VISIBLE_CHARS": 0,
+  "UNDER_LENGTH": null,
+  "USAGE_PRESENT": false,
+  "ERROR_BODY": "{\"error\":{\"message\":\"Internal server error.\",\"type\":\"api_error\",\"param\":null,\"code\":\"server_error\"}}",
+  "timing": {
+    "REQUEST_START": "2026-08-22T11:16:01.162Z",
+    "HEADERS_RECEIVED": "2026-08-22T11:16:01.341Z",
+    "FIRST_VISIBLE_DELTA": null,
+    "LAST_VISIBLE_DELTA": null,
+    "FINISH_EVENT": null,
+    "TTFT_MS": null,
+    "TOTAL_LATENCY_MS": 181
+  },
+  "usage": null,
+  "RAW_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "P0_HTTP_STATUS": 500,
+  "P0_FINISH_REASON": null,
+  "P0_VISIBLE": "",
+  "P0_USAGE_PRESENT": false,
+  "P0_LATENCY_MS": 181,
+  "P0_ERROR_BODY": "{\"error\":{\"message\":\"Internal server error.\",\"type\":\"api_error\",\"param\":null,\"code\":\"server_error\"}}"
+}
