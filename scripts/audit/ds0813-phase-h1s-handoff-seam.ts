@@ -303,6 +303,31 @@ async function callExactBody(body: Record<string, unknown>) {
     body: JSON.stringify(body),
   });
   headersMs = Date.now();
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    writeFileSync(
+      path.join(EVIDENCE, `HTTP_${res.status}_BODY.txt`),
+      errText.slice(0, 4000),
+      "utf8"
+    );
+    return {
+      httpStatus: res.status,
+      text: "",
+      finishReason: null,
+      usage: { error_body: errText.slice(0, 500) } as Record<string, unknown>,
+      timing: {
+        REQUEST_START: iso(wallStart),
+        HEADERS_RECEIVED: iso(headersMs),
+        FIRST_VISIBLE_DELTA: null,
+        LAST_VISIBLE_DELTA: null,
+        FINISH_EVENT: null,
+        TTFT_MS: null,
+        TOTAL_LATENCY_MS: Date.now() - wallStart,
+        REASONING_STREAM_EVENTS: 0,
+        REASONING_TEXT_CHARS: 0,
+      } satisfies StreamTiming,
+    };
+  }
   if (!res.body) {
     return {
       httpStatus: res.status,
@@ -1077,8 +1102,24 @@ async function main() {
   console.log(JSON.stringify({ phase: "assembled", acceptance, parity }, null, 2));
   if (ASSEMBLE_ONLY) return;
 
-  const results: Record<string, unknown>[] = [];
+  const liveKeys = (process.env.LIVE_KEYS ?? "R1,R2,R3")
+    .split(",")
+    .map((k) => k.trim())
+    .filter((k): k is "R1" | "R2" | "R3" => k === "R1" || k === "R2" || k === "R3");
+  const priorResults: Record<string, unknown>[] = [];
   for (const key of ["R1", "R2", "R3"] as const) {
+    if (liveKeys.includes(key)) continue;
+    try {
+      const existing = JSON.parse(
+        readFileSync(path.join(EVIDENCE, "raw", `${key}.meta.json`), "utf8")
+      ) as Record<string, unknown>;
+      priorResults.push(existing);
+    } catch {
+      /* missing prior row */
+    }
+  }
+  const results: Record<string, unknown>[] = [...priorResults];
+  for (const key of liveKeys) {
     let deepseekCalls = 0;
     const fallback = await invokePreparedAdultRefusalFallback({
       plan: deliveryPlan,

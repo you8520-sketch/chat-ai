@@ -1,0 +1,122 @@
+{
+  "KEY": "R1",
+  "HTTP_STATUS": 500,
+  "FINISH_REASON": null,
+  "INPUT_TOKENS": null,
+  "OUTPUT_TOKENS": null,
+  "REASONING_TOKENS": null,
+  "VISIBLE_CHARS_WITH_SPACES": 0,
+  "VISIBLE_CHARS_NO_SPACES": 0,
+  "KOREAN_CHARS": 0,
+  "PARAGRAPHS": 0,
+  "DIALOGUE_LINES": 0,
+  "METRICS": {
+    "VISIBLE_CHARS": 0,
+    "PARAGRAPHS": 0,
+    "DIALOGUE_PARAGRAPHS": 0,
+    "DIALOGUE_PARAGRAPH_RATIO": 0,
+    "AVERAGE_PARAGRAPH_CHARS": 0,
+    "AVERAGE_SENTENCE_CHARS": 0,
+    "EXACT_SENTENCE_DUPLICATION": 0,
+    "TOP_REPEATED_CONTENT_WORDS": [],
+    "REPEATED_NGRAM_SUMMARY": []
+  },
+  "PROVIDER_COST": null,
+  "RAW_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "SYSTEM_SHA": "7d2e2e1befd0172cda8570bd320c95a5c78c45e6b72622bae5bac392e995348a",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+  "HANDOFF_PACKET_SHA": "b2ae34fa7279a47221d15cbb8dd17e6d7ca880a61d8b9f73922843b61bfb9aad",
+  "FINAL_MESSAGES_SHA": "e6993bf8a122ba892542da0e98866f56f8fd7d4524178cd0a84f99c70d6e0239",
+  "GE_2700": false,
+  "GE_3200": false,
+  "timing": {
+    "REQUEST_START": "2026-08-22T10:57:49.124Z",
+    "HEADERS_RECEIVED": "2026-08-22T10:57:49.284Z",
+    "FIRST_VISIBLE_DELTA": null,
+    "LAST_VISIBLE_DELTA": null,
+    "FINISH_EVENT": null,
+    "TTFT_MS": null,
+    "TOTAL_LATENCY_MS": 164,
+    "REASONING_STREAM_EVENTS": 0,
+    "REASONING_TEXT_CHARS": 0
+  },
+  "flags": {
+    "CHARACTER_VOICE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "GENERIC_ADULT_RP_VOICE": {
+      "value": false,
+      "evidence": null
+    },
+    "DIALOGUE_STYLE_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "PROSE_RHYTHM_SEAM": {
+      "value": false,
+      "evidence": null
+    },
+    "SEMANTIC_REPETITION": {
+      "value": false,
+      "evidence": null
+    },
+    "ODD_OR_NONSENSICAL_PROSE": {
+      "value": false,
+      "evidence": null
+    },
+    "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DELIBERATE_ACTION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_DIALOGUE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INNER_THOUGHT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_USER_INTENT_AS_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+      "value": false,
+      "evidence": null
+    },
+    "REDUNDANT_CONTINUE_STOP_GATE": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_SCENE_DRIVING_OBJECT": {
+      "value": false,
+      "evidence": null
+    },
+    "NEW_UNSUPPORTED_SCENE_FACT": {
+      "value": false,
+      "evidence": null
+    },
+    "UNDER_LENGTH": {
+      "value": true,
+      "evidence": "VISIBLE_CHARS=0"
+    },
+    "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+    "PRIMARY_REFUSAL_VISIBLE": false,
+    "DEEPSEEK_CALLS": 1,
+    "VISIBLE_ASSISTANT_RESPONSES": 1,
+    "USER_POINT_DEDUCTIONS": 0,
+    "QUALITY_SCORE_ASSIGNED": false
+  },
+  "usage": {},
+  "DEEPSEEK_CALLS": 1
+}

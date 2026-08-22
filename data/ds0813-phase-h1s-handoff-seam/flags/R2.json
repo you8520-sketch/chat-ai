@@ -1,0 +1,76 @@
+{
+  "CHARACTER_VOICE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "GENERIC_ADULT_RP_VOICE": {
+    "value": false,
+    "evidence": null
+  },
+  "DIALOGUE_STYLE_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "PROSE_RHYTHM_SEAM": {
+    "value": false,
+    "evidence": null
+  },
+  "SEMANTIC_REPETITION": {
+    "value": false,
+    "evidence": null
+  },
+  "ODD_OR_NONSENSICAL_PROSE": {
+    "value": false,
+    "evidence": null
+  },
+  "CURRENT_USER_REWRITTEN_OR_EXPANDED": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DELIBERATE_ACTION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_DIALOGUE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INNER_THOUGHT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_USER_INTENT_AS_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "QUESTION_THEN_USER_ANSWER_AUTHORED": {
+    "value": false,
+    "evidence": null
+  },
+  "REDUNDANT_CONTINUE_STOP_GATE": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SPECIFIC_LOCATION": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_SCENE_DRIVING_OBJECT": {
+    "value": false,
+    "evidence": null
+  },
+  "NEW_UNSUPPORTED_SCENE_FACT": {
+    "value": false,
+    "evidence": null
+  },
+  "UNDER_LENGTH": {
+    "value": true,
+    "evidence": "VISIBLE_CHARS=0"
+  },
+  "NOTE_INHERITED_GEMINI_CONTINUITY_NOT_FLAGGED": "electronic choker / tinnitus / Ren-quieting are inherited Gemini visible facts",
+  "PRIMARY_REFUSAL_VISIBLE": false,
+  "DEEPSEEK_CALLS": 1,
+  "VISIBLE_ASSISTANT_RESPONSES": 1,
+  "USER_POINT_DEDUCTIONS": 0,
+  "QUALITY_SCORE_ASSIGNED": false
+}
