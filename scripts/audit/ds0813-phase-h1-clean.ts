@@ -79,7 +79,8 @@ import {
 loadEnvLocal();
 
 const ROOT = process.cwd();
-const EVIDENCE = path.join(ROOT, "data/ds0813-phase-h1-clean");
+const EVIDENCE = path.join(ROOT, "data/ds0813-phase-h1-clean-final");
+const FIXTURES = path.join(ROOT, "data/ds0813-phase-h1-clean");
 const ASSEMBLE_ONLY = process.env.ASSEMBLE_ONLY === "1";
 const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
@@ -89,7 +90,7 @@ const FLOOR = 2700;
 const EXPECTED_OWNER = `현재 사용자 턴이 확정한 장면 다음부터 이어 쓴다. 직전 assistant의 말투·유머·호칭·문장 호흡·대사/서술 균형과 화면에 이미 나온 장면 상태를 자연스럽게 이어, 같은 캐릭터와 같은 글의 다음 부분처럼 작성한다.
 이미 다룬 감각이나 행동을 표현만 바꿔 반복하기보다 캐릭터의 새 행동·대사·반응과 그 결과로 장면을 계속 전진시킨다. 현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다.`;
 const EXPECTED_OWNER_CHARS = 219;
-const EXPECTED_WRAPPER_BODY_CHARS = 151;
+const EXPECTED_WRAPPER_BODY_CHARS = 175;
 
 function sha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -239,7 +240,10 @@ function proveAcceptance(input: {
     ) && /small movement\/contact\/object-handling/.test(geminiWrapper),
     HANDOFF_WRAPPER_CONCISE:
       input.currentUserWrapped.includes(ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY) &&
-      /아래 입력 전체가 현재 장면의 최신 상태다/.test(handoffWrapper) &&
+      /이미 일어난 것으로 본다/.test(handoffWrapper) &&
+      /이어지는 의도적 행동·접촉·이동·대답·선택은 사용자가 정한다/.test(
+        handoffWrapper
+      ) &&
       !/small movement\/contact\/object-handling/.test(input.currentUserWrapped),
     CURRENT_USER_NEWEST_STATE_PRESERVED:
       /현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다/.test(owner) &&
@@ -416,7 +420,7 @@ async function main() {
   mkdirSync(path.join(EVIDENCE, "assembled"), { recursive: true });
 
   const character = JSON.parse(
-    readFileSync(path.join(EVIDENCE, "source-fixtures/character-18-like.json"), "utf8")
+    readFileSync(path.join(FIXTURES, "source-fixtures/character-18-like.json"), "utf8")
   ) as CharacterSettingRow & {
     id: number;
     name: string;
@@ -429,21 +433,21 @@ async function main() {
     nsfw?: number;
   };
   const persona = JSON.parse(
-    readFileSync(path.join(EVIDENCE, "source-fixtures/persona-ren.json"), "utf8")
+    readFileSync(path.join(FIXTURES, "source-fixtures/persona-ren.json"), "utf8")
   ) as { name: string; gender: string; description: string };
   const currentUser = JSON.parse(
-    readFileSync(path.join(EVIDENCE, "source-fixtures/current-user.json"), "utf8")
+    readFileSync(path.join(FIXTURES, "source-fixtures/current-user.json"), "utf8")
   ) as { text: string };
-  const t1 = readFileSync(path.join(EVIDENCE, "gemini-history/T1_GEMINI.txt"), "utf8").replace(
+  const t1 = readFileSync(path.join(FIXTURES, "gemini-history/T1_GEMINI.txt"), "utf8").replace(
     /\r/g,
     ""
   );
-  const t2 = readFileSync(path.join(EVIDENCE, "gemini-history/T2_GEMINI.txt"), "utf8").replace(
+  const t2 = readFileSync(path.join(FIXTURES, "gemini-history/T2_GEMINI.txt"), "utf8").replace(
     /\r/g,
     ""
   );
   const greeting = readFileSync(
-    path.join(EVIDENCE, "source-fixtures/like-greeting.txt"),
+    path.join(FIXTURES, "source-fixtures/like-greeting.txt"),
     "utf8"
   ).replace(/\r/g, "");
 
@@ -692,7 +696,7 @@ async function main() {
   console.log(JSON.stringify({ phase: "assembled", acceptance }, null, 2));
   if (ASSEMBLE_ONLY) return;
 
-  const keys = ["H1C-R1", "H1C-R2", "H1C-R3"] as const;
+  const keys = ["H1CF-R1", "H1CF-R2", "H1CF-R3"] as const;
   const results: Record<string, unknown>[] = [];
   for (const key of keys) {
     let deepseekCalls = 0;

@@ -62,8 +62,8 @@ Minor reversible expression, gaze, involuntary reaction, natural completion of a
  * Adult-handoff-only current-user wrapper. Does not change Gemini /
  * non-handoff interactive wrappers.
  */
-export const ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY = `아래 입력 전체가 현재 장면의 최신 상태다. 이 입력이 끝난 지점에서 계속한다.
-[B]에 대해서는 사용자가 이미 시작한 행동의 즉각적인 물리적 결과와 비자발적 신체 반응까지 자연스럽게 묘사할 수 있다. 새로운 의도적 행동·대답·선택이 필요한 지점은 사용자에게 남겨 둔다.`;
+export const ADULT_HANDOFF_CURRENT_USER_WRAPPER_BODY = `아래 입력 전체가 현재 장면의 최신 상태이며, 입력에 적힌 사건과 행동은 이미 일어난 것으로 본다. 그 마지막 순간 다음부터 이어 쓴다.
+[B]가 현재 입력에서 이미 시작한 행동은 즉각적인 결과까지 자연스럽게 완성하고, 비자발적 신체 반응도 묘사한다. 이어지는 의도적 행동·접촉·이동·대답·선택은 사용자가 정한다.`;
 
 function buildAdultHandoffCurrentUserWrapper(): string {
   return `${CURRENT_USER_INPUT_HEADER}
