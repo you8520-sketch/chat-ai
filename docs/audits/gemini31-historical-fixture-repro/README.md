@@ -1,8 +1,8 @@
 # Gemini 3.1 — historical real-fixture reproduction (current main)
 
-EVIDENCE ONLY. DRAFT. NOT FOR MERGE. Do not deploy. Do not change production prompts.
+EVIDENCE ONLY. **CLOSED — NOT FOR MERGE.** Do not deploy. Do not change production prompts.
 
-ChatGPT / human entry: `HUMAN_REVIEW.md`
+ChatGPT / human entry: `HUMAN_REVIEW.md` · Final closeout: `CLOSEOUT.md`
 
 ```text
 FIXTURE_PARITY_PROVEN=true
