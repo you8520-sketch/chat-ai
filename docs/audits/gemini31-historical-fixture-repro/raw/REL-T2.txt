@@ -1,0 +1,5 @@
+NOT_RUN
+PROVIDER_CALLS=0
+FIXTURE_PARITY_PROVEN=false
+CALL=REL-T2
+REASON=exact current characters.id=18 and user_personas.id=61 unavailable; Audit #255 full request bundle not recovered
