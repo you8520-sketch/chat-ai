@@ -727,8 +727,31 @@ const OOC_RP_DIRECTIVE =
 const MEDICAL_NO_SEXUAL =
   /성적\s*묘사(?:는|를)?\s*(?:하지\s*마|금지|없|말아)/i;
 
-export function detectSafewordStop(text: string): boolean {
-  return SAFEWORD_STOP.test(text.trim());
+export function detectSafewordStop(
+  text: string,
+  opts?: {
+    activeConsentMode?: AdultConsentMode;
+    previousConsentMode?: AdultConsentMode;
+  }
+): boolean {
+  const trimmed = text.trim();
+  if (SAFEWORD_STOP.test(trimmed)) return true;
+  const cncSceneActive =
+    opts?.activeConsentMode === "cnc_opt_in" ||
+    opts?.previousConsentMode === "cnc_opt_in";
+  if (cncSceneActive && isCanonicalSafewordInvocation(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+/** Standalone canonical safeword tokens for active CNC scenes (RED / 레드 only). */
+export function isCanonicalSafewordInvocation(text: string): boolean {
+  return /^(?:레드|RED)[.!?…]*$/i.test(text.trim());
+}
+
+export function detectClearSceneTransition(routingText: string): boolean {
+  return TIME_OR_PLACE_JUMP.test(routingText.trim());
 }
 
 export function detectExplicitSceneStop(text: string): boolean {
@@ -757,28 +780,48 @@ export function hasExplicitCncOptIn(text: string): boolean {
   return CNC_OPT_IN.test(text);
 }
 
-export function resolveRequestedConsentMode(
-  requested: unknown,
-  previous: AdultConsentMode,
-  currentInput: string
-): AdultConsentMode {
-  if (detectOocHardStop(currentInput) || detectSafewordStop(currentInput)) {
+export function resolveRequestedConsentMode(input: {
+  requested: unknown;
+  previous: AdultConsentMode;
+  currentInput: string;
+  sceneReset?: boolean;
+  clearSceneTransition?: boolean;
+}): AdultConsentMode {
+  const {
+    requested,
+    previous,
+    currentInput,
+    sceneReset = false,
+    clearSceneTransition = false,
+  } = input;
+
+  if (
+    detectOocHardStop(currentInput) ||
+    detectSafewordStop(currentInput, { previousConsentMode: previous })
+  ) {
     return "standard";
   }
-  if (requested === "power_play") return "power_play";
+
   if (requested === "standard") return "standard";
+
+  if (sceneReset || clearSceneTransition) {
+    return hasExplicitCncOptIn(currentInput) ? "cnc_opt_in" : "standard";
+  }
+
+  if (requested === "power_play") return "power_play";
+
   if (hasExplicitCncOptIn(currentInput)) {
     return "cnc_opt_in";
   }
-  if (
-    requested === "cnc_opt_in" &&
-    hasExplicitCncOptIn(currentInput)
-  ) {
+
+  if (previous === "cnc_opt_in") {
     return "cnc_opt_in";
   }
+
   if (previous === "power_play" && requested == null) {
     return "power_play";
   }
+
   return "standard";
 }
 
@@ -801,12 +844,16 @@ export function resolveEffectiveConsentMode(input: {
   previous: AdultConsentMode;
   currentInput: string;
   allowedConsentModes: string[];
+  sceneReset?: boolean;
+  clearSceneTransition?: boolean;
 }): AdultConsentMode {
-  const resolved = resolveRequestedConsentMode(
-    input.requested,
-    input.previous,
-    input.currentInput
-  );
+  const resolved = resolveRequestedConsentMode({
+    requested: input.requested,
+    previous: input.previous,
+    currentInput: input.currentInput,
+    sceneReset: input.sceneReset,
+    clearSceneTransition: input.clearSceneTransition,
+  });
   if (!input.allowedConsentModes.includes(resolved)) {
     return "standard";
   }
@@ -908,12 +955,17 @@ export function classifySceneMode(input: {
   recentRawText?: string;
   adultDialogueProfile?: AdultDialogueProfile;
   activeConsentMode?: AdultConsentMode;
+  previousConsentMode?: AdultConsentMode;
 }): SceneClassification {
   const current = input.currentInput.trim();
   const oocIntent = classifyChatOocIntent(current);
   const sceneReset = oocIntent === "rp_scene_reset";
   const hardStop =
-    oocIntent === "rp_hard_stop" || detectSafewordStop(current);
+    oocIntent === "rp_hard_stop" ||
+    detectSafewordStop(current, {
+      activeConsentMode: input.activeConsentMode,
+      previousConsentMode: input.previousConsentMode,
+    });
   const routingText = oocIntent === "none" ? current : extractOocRoutingText(current);
   const previous = sceneReset ? "normal" : (input.previousSceneMode ?? "normal");
   const recent = sceneReset ? "" : (input.recentRawText?.slice(-6_000) ?? "");

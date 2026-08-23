@@ -183,15 +183,20 @@ describe("adult handoff refusal-only matrix", () => {
       previousSceneMode: "explicit",
     });
     assert.equal(hardStop.hardStop, true);
-    const safeword = "세이프워드: 레드";
-    assert.equal(detectSafewordStop(safeword), true);
+    const safewordLabel = "세이프워드: 레드";
+    assert.equal(detectSafewordStop(safewordLabel), true);
+    const standaloneSafeword = "레드";
+    assert.equal(
+      detectSafewordStop(standaloneSafeword, { previousConsentMode: "cnc_opt_in" }),
+      true
+    );
     const safewordClass = classifySceneMode({
-      currentInput: safeword,
+      currentInput: standaloneSafeword,
       previousSceneMode: "explicit",
-      activeConsentMode: "cnc_opt_in",
+      previousConsentMode: "cnc_opt_in",
     });
     assert.equal(safewordClass.hardStop, true);
-    const { plan } = deliveryPlan(GEMINI37, safeword, {
+    const { plan } = deliveryPlan(GEMINI37, standaloneSafeword, {
       ...DEFAULT_MODEL_ROUTE_STATE,
       activeConsentMode: "cnc_opt_in",
       currentSceneMode: "explicit",

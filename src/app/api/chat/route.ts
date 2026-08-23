@@ -409,6 +409,8 @@ import {
   buildChatOocRpContinuingUserPrompt,
   buildChatOocSceneResetUserPrompt,
   chatOocSuppressesUserNoteExtras,
+  classifyChatOocIntent,
+  extractOocRoutingText,
   isChatOocRpContinuing,
   isChatOocSceneReset,
 } from "@/lib/chatOocPriority";
@@ -483,6 +485,7 @@ import {
   classifySceneMode,
   createInitialStreamBuffer,
   decideAdultModelRoute,
+  detectClearSceneTransition,
   detectModelRefusal,
   extractHandoffContinuityFromAssistantText,
   hasNewlyEstablishedSexualContext,
@@ -1181,11 +1184,19 @@ export async function POST(req: Request) {
   const priorModelRouteState = parseModelRouteState(chat.model_route_state_json);
   const activeAdultModelId = resolveAdultRefusalFallbackModelId(selectedAI);
   const allowedConsentModes = parseAllowedConsentModes(ch.adult_consent_modes_json);
+  const preOocIntent = classifyChatOocIntent(storedUserMessage);
+  const preSceneReset = preOocIntent === "rp_scene_reset";
+  const preRoutingText =
+    preOocIntent === "none"
+      ? storedUserMessage
+      : extractOocRoutingText(storedUserMessage);
   const requestedConsentMode = resolveEffectiveConsentMode({
     requested: body.adultConsentMode ?? body.adult_consent_mode,
     previous: priorModelRouteState.activeConsentMode,
     currentInput: storedUserMessage,
     allowedConsentModes,
+    sceneReset: preSceneReset,
+    clearSceneTransition: detectClearSceneTransition(preRoutingText),
   });
 
   const recentRawForSceneClassification = turnsForRecentHistory
@@ -1202,6 +1213,7 @@ export async function POST(req: Request) {
       ch.adult_dialogue_profile
     ),
     activeConsentMode: requestedConsentMode,
+    previousConsentMode: priorModelRouteState.activeConsentMode,
   });
   // Participant age eligibility uses identity fields only. World lore, cast, and
   // system prompt can mention unrelated minors and must not contaminate status.
