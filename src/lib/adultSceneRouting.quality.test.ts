@@ -55,7 +55,8 @@ const eligibility = resolveAdultEligibility({
 
 type RouteCase = {
   id: string;
-  expected: "general" | "adult";
+  expected: "general";
+  refusalBufferRecommended?: boolean;
   state: ModelRouteState;
   currentInput: string;
   recentRawText: string;
@@ -78,7 +79,8 @@ const CASES: RouteCase[] = [
   },
   {
     id: "explicit_dialogue_boundary",
-    expected: "adult",
+    expected: "general",
+    refusalBufferRecommended: true,
     state: {
       ...DEFAULT_MODEL_ROUTE_STATE,
       currentSceneMode: "explicit_dialogue",
@@ -89,7 +91,8 @@ const CASES: RouteCase[] = [
   },
   {
     id: "aftercare_emotion",
-    expected: "adult",
+    expected: "general",
+    refusalBufferRecommended: true,
     state: {
       ...DEFAULT_MODEL_ROUTE_STATE,
       activeRoute: "adult",
@@ -117,7 +120,7 @@ const CASES: RouteCase[] = [
 
 describe("adult scene routing — initial five-scenario quality gate", () => {
   for (const scenario of CASES) {
-    it(`${scenario.id} routes to ${scenario.expected}`, () => {
+    it(`${scenario.id} keeps primary route general`, () => {
       const classification = classifySceneMode({
         currentInput: scenario.currentInput,
         previousSceneMode: scenario.state.currentSceneMode,
@@ -134,18 +137,25 @@ describe("adult scene routing — initial five-scenario quality gate", () => {
         selectedModelId: "google/gemini-3.6-flash",
       });
       assert.equal(decision.activeRoute, scenario.expected);
+      if (scenario.refusalBufferRecommended != null) {
+        assert.equal(
+          decision.refusalBufferRecommended,
+          scenario.refusalBufferRecommended,
+          scenario.id
+        );
+      }
     });
   }
 });
 
-it("routes general → adult entry → sticky adult → explicit exit back to general", () => {
+it("routes general → explicit prep → continued explicit → hard stop back to general", () => {
   const inputs = [
     "임무 지도를 펼쳐 다음 이동 경로를 확인한다.",
     "합의된 노골적인 성적 대사를 이어간다.",
     "합의된 현재 성인 장면을 같은 위치에서 계속한다.",
     "OOC: 성인 장면 종료. 다음 날의 일반 임무 장면으로 전환한다.",
   ];
-  const expected = ["general", "adult", "adult", "general"];
+  const expectedRoutes = ["general", "general", "general", "general"];
   let state: ModelRouteState = { ...DEFAULT_MODEL_ROUTE_STATE };
 
   inputs.forEach((currentInput, index) => {
@@ -166,7 +176,7 @@ it("routes general → adult entry → sticky adult → explicit exit back to ge
     });
     assert.equal(
       decision.activeRoute,
-      expected[index],
+      expectedRoutes[index],
       `turn ${index + 1}: ${classification.reason}/${classification.sceneMode}`
     );
     state = advanceModelRouteState({
@@ -176,7 +186,6 @@ it("routes general → adult entry → sticky adult → explicit exit back to ge
       sexualContextActive: decision.sexualContextActive,
       routeTriggerReason: decision.routeTriggerReason,
       config,
-      enteredAdultThisTurn: decision.firstAdultHandoff,
       explicitSceneEnd: classification.hardStop,
     });
   });
@@ -313,7 +322,8 @@ it("keeps blocking minors and real people, but never blocks coercion / non-conse
     selectedModelId: "deepseek-v4-pro-0813",
   });
   assert.equal(decision.shouldBlock, false);
-  assert.equal(decision.activeRoute, "adult");
+  assert.equal(decision.activeRoute, "general");
+  assert.equal(decision.refusalBufferRecommended, true);
 
   const minor = resolveAdultEligibility({
     userAdultVerified: true,

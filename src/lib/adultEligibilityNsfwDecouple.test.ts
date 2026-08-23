@@ -76,7 +76,8 @@ describe("nsfw listing is not adult RP eligibility", () => {
 
     const decision = handoffDecision(adultEligibility);
     assert.equal(decision.shouldBlock, false);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
   });
 
   it("B: chat adult mode OFF blocks handoff but keeps the general model", () => {

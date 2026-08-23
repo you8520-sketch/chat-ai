@@ -199,7 +199,7 @@ describe("production adult refusal delivery seam", () => {
       adultHandoffSourceModelId: GEMINI,
       adultHandoffTargetModelId: DEEPSEEK,
     });
-    assert.equal(afterFallback.activeRoute, "adult");
+    assert.equal(afterFallback.activeRoute, "general");
     assert.equal(afterFallback.currentSceneMode, "explicit");
 
     const nextTurn = deliveryPlan(afterFallback);

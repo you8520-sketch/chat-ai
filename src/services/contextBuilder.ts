@@ -944,6 +944,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const proseStyleSection = resolveProseStyleSection(input.userId, input.modelId);
   const proseGuidelinesOpts = {
     nsfwEnabled: !!input.nsfw,
+    activeConsentMode: input.activeConsentMode,
     literaryEnhanced: openRouterLiteraryNsfw,
     includeAbsoluteProhibition: !isOpenRouter,
     proseStyleSection,
