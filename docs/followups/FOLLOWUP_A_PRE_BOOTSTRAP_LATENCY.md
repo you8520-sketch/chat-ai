@@ -7,6 +7,12 @@ lifetime. The ~450s gap sits between client submit and `bootstrapStreamingTurn()
 user/assistant rows (both at `2026-08-19 05:58:51`). Parent user message for the turn is
 **3749**, not 3740.
 
+**Update (2026-08-23):** User reported seeing prose appear quickly after submit, then leaving
+the tab for 5+ minutes while output remained at the beginning. Combined with fixed-speed reveal
+(5485 chars × 35ms ≈ 192s foreground; much worse under background `setInterval` throttling),
+**client stream reveal backlog** is the leading hypothesis. Pre-bootstrap-only attribution is
+**insufficient** for this incident.
+
 ## What we know
 
 - DB bootstrap timestamps mark **persist time**, not client click time.

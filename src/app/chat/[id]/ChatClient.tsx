@@ -2496,6 +2496,7 @@ export default function ChatClient({
     }
 
     const applyStreamDone = (data: NonNullable<typeof pendingDone>) => {
+      setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
@@ -2647,6 +2648,37 @@ export default function ChatClient({
         freePoints: data.freePoints ?? 0,
       };
     }
+
+    let streamDoneApplied = false;
+    const onVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden") {
+        reveal.setBackgroundMode(true);
+      } else {
+        reveal.setBackgroundMode(false);
+        reveal.flush();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      if (document.visibilityState === "hidden") {
+        reveal.setBackgroundMode(true);
+      }
+    }
+
+    const finalizeStreamDone = (data: NonNullable<typeof pendingDone>) => {
+      if (streamDoneApplied) return;
+      streamDoneApplied = true;
+      reveal.flush();
+      if (data.finalContent?.trim()) {
+        postStreamLocked = true;
+        applyStreamReplaceTarget(data.finalContent, {
+          instant: true,
+          fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
+        });
+      }
+      applyStreamDone(data);
+    };
 
     try {
       while (true) {
@@ -2836,6 +2868,7 @@ export default function ChatClient({
                 data.finalContent?.trim() || GEMINI_TRAFFIC_OVERLOAD_MESSAGE;
             } else {
               pendingDone = data;
+              finalizeStreamDone(data);
             }
           }
 
@@ -2857,18 +2890,22 @@ export default function ChatClient({
 
       setStreamPhase(null);
       setGenerationPrepUi(null);
-      if (pendingDone?.finalContent) {
+      if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
         applyStreamReplaceTarget(pendingDone.finalContent, {
           instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
         });
       }
-      if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
-        await reveal.waitUntilIdle();
+      if (!streamDoneApplied) {
+        if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
+          await reveal.waitUntilIdle();
+        } else {
+          reveal.flush();
+        }
       } else {
         reveal.flush();
       }
-      if (pendingDone && !trafficOverload) {
+      if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
       } else if (
         !trafficOverload &&
@@ -2958,6 +2995,10 @@ export default function ChatClient({
         console.error("[chat] stream consume failed:", e);
       }
     } finally {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      reveal.setBackgroundMode(false);
       activeStreamRevealRef.current = null;
       setStreamPhase(null);
       setGenerationPrepUi(null);
@@ -4553,8 +4594,10 @@ export default function ChatClient({
                   <>
                     {(() => {
                       const isStreamingThisMessage =
-                        (loading && i === messages.length - 1) ||
-                        (genStatus === "generating" && i === lastAssistantIdx);
+                        i === lastAssistantIdx &&
+                        !isTerminalGenerationStatus(genStatus) &&
+                        ((loading && i === messages.length - 1) ||
+                          genStatus === "generating");
                       const variantContent = isStreamingThisMessage
                         ? m.content
                         : resolveActiveVariantContent(m);
