@@ -1732,6 +1732,8 @@ function migrateCommentModeration(db: Database.Database) {
   addColumn("profile_comments", "moderation_status", "TEXT NOT NULL DEFAULT 'visible'");
   addColumn("profile_comments", "normalized_content", "TEXT NOT NULL DEFAULT ''");
   addColumn("profile_comments", "delete_reason", "TEXT NOT NULL DEFAULT ''");
+  addColumn("profile_comment_reports", "resolution", "TEXT");
+  addColumn("profile_comment_reports", "resolved_at", "TEXT");
   addColumn("users", "comment_report_trust", "INTEGER NOT NULL DEFAULT 100");
   addColumn("users", "comment_report_restricted_until", "TEXT");
 

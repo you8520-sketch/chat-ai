@@ -1,16 +1,11 @@
 import type Database from "better-sqlite3";
-import { matchCommentBannedWords } from "@/lib/commentBannedWords";
+import { insertCommentModerationLog } from "@/lib/commentModerationStorage";
 import {
-  insertCommentModerationLog,
-  maybeBanCommentAuthor,
-  moderateCommentWithAi,
-} from "@/lib/commentModeration";
-import {
-  COMMENT_AUTHOR_BLOCK_STRIKES,
   COMMENT_REPORT_BLIND_THRESHOLD,
 } from "@/lib/commentModerationPolicy";
-import { checkCommentReportEligibility, penalizeCommentReporterTrust } from "@/lib/commentPolicy";
+import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { getProfileCommentById, resolveTargetOwnerId, type ProfileComment } from "@/lib/profileComments";
+import { notifyAdminsCommentNeedsReview } from "@/lib/userNotifications";
 
 export type ReportCommentResult =
   | { ok: true; blinded: boolean; message: string }
@@ -59,7 +54,9 @@ export async function reportProfileComment(
   ).run(commentId, reporterId);
 
   const reportCountRow = db
-    .prepare("SELECT COUNT(*) AS c FROM profile_comment_reports WHERE comment_id=?")
+    .prepare(
+      "SELECT COUNT(*) AS c FROM profile_comment_reports WHERE comment_id=? AND resolved_at IS NULL"
+    )
     .get(commentId) as { c: number };
   const reportCount = reportCountRow?.c ?? 0;
 
@@ -75,6 +72,10 @@ export async function reportProfileComment(
     action: "reported",
   });
 
+  if (comment.is_blinded !== 0) {
+    return { ok: true, blinded: true, message: "신고가 접수되었습니다. 현재 관리자 검토 중입니다." };
+  }
+
   if (reportCount < COMMENT_REPORT_BLIND_THRESHOLD) {
     return { ok: true, blinded: false, message: "신고가 접수되었습니다." };
   }
@@ -83,73 +84,26 @@ export async function reportProfileComment(
     "UPDATE profile_comments SET is_blinded=1, moderation_status='blinded' WHERE id=?"
   ).run(commentId);
 
-  const { normalized, matches } = matchCommentBannedWords(db, comment.content);
-  const ai = await moderateCommentWithAi({
-    content: comment.content,
-    normalized,
-    matchedWords: matches.map((m) => m.word),
-    trigger: "report_threshold",
-  });
-
-  if (ai.verdict === "BLOCK") {
-    db.transaction(() => {
-      db.prepare(
-        `UPDATE profile_comments
-         SET moderation_status='deleted', is_blinded=1, delete_reason=?, normalized_content=?
-         WHERE id=?`
-      ).run(ai.reason || "신고 임계치 AI 차단", normalized, commentId);
-      maybeBanCommentAuthor(db, comment.author_id, COMMENT_AUTHOR_BLOCK_STRIKES);
-    })();
-
-    insertCommentModerationLog(db, {
-      comment_id: commentId,
-      user_id: comment.author_id,
-      event_type: "report_threshold",
-      original_content: comment.content,
-      normalized_content: normalized,
-      matched_words_json: JSON.stringify(matches.map((m) => m.word)),
-      report_count: reportCount,
-      ai_verdict: ai.verdict,
-      ai_reason: ai.reason,
-      action: "deleted_report",
-      delete_reason: ai.reason || "신고 임계치 AI 차단",
-    });
-
-    return {
-      ok: true,
-      blinded: true,
-      message: "신고가 누적되어 해당 댓글이 삭제되었습니다.",
-    };
-  }
-
-  db.prepare(
-    "UPDATE profile_comments SET is_blinded=0, moderation_status='visible' WHERE id=?"
-  ).run(commentId);
-
-  const reporters = db
-    .prepare("SELECT reporter_id FROM profile_comment_reports WHERE comment_id=?")
-    .all(commentId) as { reporter_id: number }[];
-  for (const r of reporters) {
-    penalizeCommentReporterTrust(db, r.reporter_id);
-  }
-
   insertCommentModerationLog(db, {
     comment_id: commentId,
     user_id: comment.author_id,
     event_type: "report_threshold",
     original_content: comment.content,
-    normalized_content: normalized,
-    matched_words_json: JSON.stringify(matches.map((m) => m.word)),
+    normalized_content: comment.normalized_content ?? "",
     report_count: reportCount,
-    ai_verdict: ai.verdict,
-    ai_reason: ai.reason,
-    action: "unblinded",
+    action: "blinded_pending_admin",
   });
 
+  notifyAdminsCommentNeedsReview(db, {
+    commentId,
+    authorName: comment.author_name,
+    reportCount,
+    preview: comment.content,
+  });
   return {
     ok: true,
-    blinded: false,
-    message: "신고가 검토되었으며 댓글이 유지됩니다.",
+    blinded: true,
+    message: "신고가 누적되어 관리자 검토 전까지 댓글이 가려집니다.",
   };
 }
 

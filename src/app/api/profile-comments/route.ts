@@ -96,8 +96,8 @@ export async function POST(req: Request) {
   const isOwner = ownerId != null && user.id === ownerId;
   const enabled = isProfileCommentsEnabled(db, targetType, targetId);
 
-  if (isPrivate && !isOwner) {
-    return NextResponse.json({ error: "비공개 댓글은 크리에이터만 작성할 수 있습니다." }, { status: 403 });
+  if (isPrivate) {
+    return NextResponse.json({ error: "비공개 댓글은 작성할 수 없습니다." }, { status: 403 });
   }
 
   if (!enabled && !isOwner) {
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
     authorId: user.id,
     authorName: user.nickname,
     content,
-    isPrivate,
+    isPrivate: false,
   });
 
   if (!result.ok) {

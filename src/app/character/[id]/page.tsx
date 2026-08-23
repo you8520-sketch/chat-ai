@@ -39,7 +39,6 @@ import {
   canWriteCharacterProfileComment,
   getCommentWriteBlockedMessage,
 } from "@/lib/profileComments";
-import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
@@ -226,10 +225,6 @@ export default async function CharacterPage({
     user != null && !canWriteCharacterComment
       ? getCommentWriteBlockedMessage(db, user.id, { characterId: c.id, isOwner })
       : "이 캐릭터와 대화한 후에만 댓글을 작성할 수 있습니다.";
-  const canReportComment =
-    user != null &&
-    !isOwner &&
-    checkCommentReportEligibility(db, user.id, { characterId: c.id }).ok;
   const commentsEnabled = getCharacterCommentsEnabled(db, c.id);
   const showComments = commentsEnabled || isOwner;
   const comments = showComments
@@ -388,9 +383,9 @@ export default async function CharacterPage({
           comments={comments}
           loggedIn={!!user}
           canWrite={canWriteCharacterComment}
-          canReport={canReportComment}
           isOwner={isOwner}
           ownerUserId={c.creator_id ?? undefined}
+          currentUserId={user?.id}
           writeBlockedMessage={commentWriteBlockedMessage}
         />
       )}

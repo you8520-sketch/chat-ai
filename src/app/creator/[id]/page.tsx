@@ -17,7 +17,6 @@ import {
   canWriteCreatorProfileComment,
   getCommentWriteBlockedMessage,
 } from "@/lib/profileComments";
-import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
@@ -92,8 +91,6 @@ export default async function CreatorProfilePage({
     user != null && !canWriteComment
       ? getCommentWriteBlockedMessage(db, user.id, { isOwner })
       : "댓글을 작성할 수 없습니다.";
-  const canReportComment =
-    user != null && !isOwner && checkCommentReportEligibility(db, user.id, {}).ok;
 
   return (
     <div className="mx-auto mt-8 max-w-4xl px-4">
@@ -207,9 +204,9 @@ export default async function CreatorProfilePage({
           comments={comments}
           loggedIn={!!user}
           canWrite={canWriteComment}
-          canReport={canReportComment}
           isOwner={isOwner}
           ownerUserId={creatorId}
+          currentUserId={user?.id}
           writeBlockedMessage={commentWriteBlockedMessage}
         />
       )}

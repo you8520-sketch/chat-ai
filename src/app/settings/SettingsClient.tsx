@@ -25,6 +25,7 @@ type Props = {
     isCreator?: boolean;
   };
   unreadNotice?: boolean;
+  pendingCommentReviews?: number;
 };
 
 const SUPPORT_LINKS = [
@@ -48,7 +49,7 @@ function SupportChevron() {
   );
 }
 
-export default function SettingsClient({ user, unreadNotice = false }: Props) {
+export default function SettingsClient({ user, unreadNotice = false, pendingCommentReviews = 0 }: Props) {
   const router = useRouter();
   const [nickname, setNickname] = useState(user.nickname);
   const [pref, setPref] = useState(user.pref);
@@ -206,6 +207,12 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
               className={SETTINGS_ACTION_LINK_CLASS}
             >
               댓글 금지어 관리
+            </Link>
+            <Link
+              href="/admin/comment-reports"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              신고 댓글 관리{pendingCommentReviews > 0 ? ` (${pendingCommentReviews})` : ""}
             </Link>
             <Link
               href="/admin/payout"

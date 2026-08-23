@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { getUnreadNoticeCount } from "./notices";
 import { queueUserWebPush, type WebPushPayload } from "./webPush";
+import { isAdminUser } from "./isAdminUser";
 
 export type UserNotificationType =
   | "creator_character"
@@ -18,7 +19,9 @@ export type UserNotificationType =
   | "profile_comment"
   | "post_comment"
   | "notice"
-  | "event";
+  | "event"
+  | "admin_comment_review"
+  | "comment_moderation";
 
 export type UserNotificationRow = {
   id: number;
@@ -220,6 +223,10 @@ export function notificationHref(n: UserNotificationRow): string {
       return "/notifications";
     case "post_comment":
       return `/board/info?post=${n.ref_id}#post-${n.ref_id}`;
+    case "admin_comment_review":
+      return "/admin/comment-reports";
+    case "comment_moderation":
+      return "/notifications";
     case "follow_received":
       return n.actor_id ? `/creator/${n.actor_id}` : "/tab/following";
     case "gift_sent":
@@ -275,6 +282,10 @@ export function notificationIcon(type: UserNotificationType): string {
     case "profile_comment":
     case "post_comment":
       return "💬";
+    case "admin_comment_review":
+      return "🚨";
+    case "comment_moderation":
+      return "🛡️";
     case "notice":
       return "📢";
     case "event":
@@ -506,6 +517,58 @@ export function notifyPostCommentReceived(
           kind: "comment",
         }
       : undefined,
+  });
+}
+
+/** 신고 임계치에 도달한 댓글을 모든 관리자 계정에 내부 알림과 웹 푸시로 전달합니다. */
+export function notifyAdminsCommentNeedsReview(
+  db: Database.Database,
+  opts: { commentId: number; authorName: string; reportCount: number; preview: string }
+): number[] {
+  const admins = (db.prepare("SELECT id, email, is_admin FROM users").all() as {
+    id: number;
+    email: string;
+    is_admin: number;
+  }[]).filter((user) => isAdminUser(user));
+  const preview = opts.preview.replace(/\s+/g, " ").trim().slice(0, 80);
+  for (const admin of admins) {
+    insertNotification(db, {
+      userId: admin.id,
+      type: "admin_comment_review",
+      refId: opts.commentId,
+      actorId: null,
+      title: "신고 누적 댓글 검토 필요",
+      body: `@${opts.authorName}님의 댓글이 신고 ${opts.reportCount}건으로 가려졌습니다.${preview ? ` ${preview}` : ""}`,
+      push: {
+        url: "/admin/comment-reports",
+        tag: `comment-review:${opts.commentId}`,
+        kind: "comment",
+      },
+    });
+  }
+  return admins.map((admin) => admin.id);
+}
+
+export function notifyCommentModerationResult(
+  db: Database.Database,
+  opts: { userId: number; commentId: number; deleted: boolean; banned: boolean }
+): void {
+  insertNotification(db, {
+    userId: opts.userId,
+    type: "comment_moderation",
+    refId: opts.commentId,
+    actorId: null,
+    title: opts.deleted ? "댓글 운영 조치 안내" : "댓글 공개 복구 안내",
+    body: opts.deleted
+      ? opts.banned
+        ? "신고된 댓글이 운영 정책 위반으로 삭제되었으며, 누적 위반으로 댓글 작성이 제한되었습니다."
+        : "신고된 댓글이 운영 정책 위반으로 삭제되었습니다."
+      : "신고로 가려졌던 댓글이 관리자 검토 후 다시 공개되었습니다.",
+    push: {
+      url: "/notifications",
+      tag: `comment-moderation:${opts.commentId}`,
+      kind: "comment",
+    },
   });
 }
 

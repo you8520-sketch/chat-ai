@@ -21,9 +21,9 @@ export default function ProfileCommentSection({
   comments,
   loggedIn,
   canWrite,
-  canReport = false,
   isOwner = false,
   ownerUserId,
+  currentUserId,
   writeBlockedMessage,
 }: {
   targetType: ProfileCommentTarget;
@@ -31,14 +31,13 @@ export default function ProfileCommentSection({
   comments: Comment[];
   loggedIn: boolean;
   canWrite: boolean;
-  canReport?: boolean;
   isOwner?: boolean;
   ownerUserId?: number;
+  currentUserId?: number;
   writeBlockedMessage?: string;
 }) {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [blockingId, setBlockingId] = useState<number | null>(null);
   const [reportingId, setReportingId] = useState<number | null>(null);
@@ -52,7 +51,7 @@ export default function ProfileCommentSection({
     const res = await fetch("/api/profile-comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetType, targetId, content, isPrivate: isOwner && isPrivate }),
+      body: JSON.stringify({ targetType, targetId, content }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -60,7 +59,6 @@ export default function ProfileCommentSection({
       return;
     }
     setText("");
-    setIsPrivate(false);
     router.refresh();
   }
 
@@ -133,7 +131,12 @@ export default function ProfileCommentSection({
                 })}
               </p>
               <div className="flex items-center gap-2">
-                {canReport && c.author_id !== ownerUserId && !c.user_has_reported && (
+                {loggedIn &&
+                  !isOwner &&
+                  !c.is_private &&
+                  !c.is_blinded &&
+                  c.author_id !== currentUserId &&
+                  !c.user_has_reported && (
                   <button
                     type="button"
                     disabled={reportingId === c.id}
@@ -169,17 +172,6 @@ export default function ProfileCommentSection({
         <p className="mt-3 text-xs text-gray-600">로그인 후 댓글을 달 수 있습니다.</p>
       ) : canWrite ? (
         <div className="mt-3 space-y-2">
-          {isOwner && (
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
-              <input
-                type="checkbox"
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
-                className="rounded border-white/20 bg-[#0e1120] text-violet-600 focus:ring-violet-500"
-              />
-              비공개 댓글 (나만 보기)
-            </label>
-          )}
           <div className="flex gap-2">
             <input
               value={text}
@@ -190,7 +182,7 @@ export default function ProfileCommentSection({
                   submit();
                 }
               }}
-              placeholder={isOwner && isPrivate ? "비공개 메모…" : "댓글을 입력하세요…"}
+              placeholder="댓글을 입력하세요…"
               className="flex-1 rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-gray-600"
             />
             <button

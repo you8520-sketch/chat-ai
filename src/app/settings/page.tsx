@@ -7,6 +7,7 @@ import { userHasCreatedCharacters } from "@/lib/creatorAccess";
 import { getDb } from "@/lib/db";
 import { getLatestNoticeId, getUnreadNoticeCount, hasUnreadNotices } from "@/lib/notices";
 import SettingsClient from "./SettingsClient";
+import { countPendingCommentReviews } from "@/lib/adminCommentReports";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
     .get(user.id) as { is_admin: number } | undefined;
   const isAdmin = isAdminUser({ ...user, is_admin: adminRow?.is_admin ?? 0 });
   const isCreator = userHasCreatedCharacters(user.id);
+  const pendingCommentReviews = isAdmin ? countPendingCommentReviews(db) : 0;
 
   const cookieStore = await cookies();
   const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
@@ -45,6 +47,7 @@ export default async function SettingsPage() {
         isCreator,
       }}
       unreadNotice={unreadNotice}
+      pendingCommentReviews={pendingCommentReviews}
     />
   );
 }
