@@ -1,13 +1,25 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
+import {
+  adaptOpenRouterDeepSeekBackupBody,
+  classifyDeepSeekProviderFailure,
+  DeepSeekDeterministicProviderError,
+  DeepSeekProviderFailoverError,
+  fetchDeepSeekNonStreamCompletion,
+  resolveBackgroundFlashProviderDeadlines,
+  resolveDeepSeekBackupModelId,
+  resolveDeepSeekBackupTransport,
+  type DeepSeekFailoverHooks,
+} from "@/lib/deepseekProviderFailover";
+import { OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL } from "@/lib/chatModels";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
 import {
   actionTypeLabelKo,
   isTrpgActionType,
@@ -47,7 +59,21 @@ export type {
 
 export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
-export const TRPG_REPLY_SUGGESTION_TIMEOUT_MS = 45_000;
+export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 15_000;
+export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 25_000;
+
+/** Deadlines consumed by executeTrpgReplySuggestionProviderRound (separate primary/backup). */
+export function resolveTrpgReplySuggestionProviderDeadlines(): {
+  primaryCompletionMs: number;
+  backupCompletionMs: number;
+} {
+  return resolveBackgroundFlashProviderDeadlines({
+    requestKind: "trpg-reply-suggestions",
+  });
+}
+export const TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX = 2;
+export const TRPG_REPLY_SUGGESTION_CI_RETRY_COUNT = 0;
+export const TRPG_REPLY_SUGGESTION_OR_RETRY_COUNT = 0;
 export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
 export const TRPG_REPLY_SCENE_MAX_CHARS = 1600;
@@ -94,6 +120,164 @@ function readReplySuggestionGate(
   if (gate?.busy) throw new Error("이미 행동 예시를 만들고 있습니다.");
   if ((gate?.until ?? 0) > now) throw new Error("잠시 후 다시 시도하세요.");
   return null;
+}
+
+export type TrpgReplySemanticFailureClass =
+  | "empty_completion"
+  | "malformed_json"
+  | "malformed_provider_response"
+  | "invalid_suggestion_schema"
+  | "invalid_suggestion_count"
+  | null;
+
+export class TrpgMalformedProviderResponseError extends Error {
+  readonly failureClass = "malformed_provider_response" as const;
+
+  constructor(message = "malformed provider response envelope") {
+    super(message);
+    this.name = "TrpgMalformedProviderResponseError";
+  }
+}
+
+export type TrpgReplySuggestionProviderTelemetry = {
+  logical_request_id: string;
+  round_id: number | null;
+  primary_provider: "cheaperinference";
+  primary_status: number | null;
+  primary_latency_ms: number | null;
+  primary_failure_class: string | null;
+  semantic_failure_class: TrpgReplySemanticFailureClass;
+  fallback_attempted: boolean;
+  fallback_provider: "openrouter" | null;
+  fallback_model: string | null;
+  fallback_latency_ms: number | null;
+  fallback_success: boolean;
+  provider_attempt_count: number;
+};
+
+const TRPG_REPLY_TRANSPORT_FAILOVER_HTTP = new Set([408, 429, 500, 502, 503, 504]);
+
+export function classifyTrpgReplySuggestionTransportFailure(input: {
+  httpStatus?: number | null;
+  error?: unknown;
+  trigger?: "headers_timeout" | "body_timeout" | "error";
+}): {
+  failover: boolean;
+  failureClass: string;
+  httpStatus: number | null;
+} {
+  const classified = classifyDeepSeekProviderFailure(input);
+  if (classified.failover) return classified;
+  const status = classified.httpStatus;
+  if (status != null && TRPG_REPLY_TRANSPORT_FAILOVER_HTTP.has(status)) {
+    return {
+      failover: true,
+      failureClass: `http_${status}`,
+      httpStatus: status,
+    };
+  }
+  return classified;
+}
+
+export function validateReplySuggestionCompletion(raw: string):
+  | { ok: true; suggestions: TrpgReplySuggestion[] }
+  | { ok: false; semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null> } {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { ok: false, semanticFailureClass: "empty_completion" };
+  }
+  let parsed: unknown = null;
+  let jsonOk = false;
+  try {
+    parsed = JSON.parse(trimmed);
+    jsonOk = true;
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        parsed = JSON.parse(trimmed.slice(start, end + 1));
+        jsonOk = true;
+      } catch {
+        parsed = null;
+      }
+    }
+  }
+  if (!jsonOk) {
+    return { ok: false, semanticFailureClass: "malformed_json" };
+  }
+  const rows =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { suggestions?: unknown }).suggestions
+      : parsed;
+  if (!Array.isArray(rows)) {
+    return { ok: false, semanticFailureClass: "malformed_json" };
+  }
+  const byStance = new Map<TrpgReplyStance, TrpgReplySuggestion>();
+  let hiddenActionType = false;
+  let duplicateStance = false;
+  for (const item of rows) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const actionType = readSuggestionActionType(row);
+    if (!actionType) continue;
+    if (!isTrpgVisibleActionType(actionType)) {
+      hiddenActionType = true;
+      continue;
+    }
+    const stance = readSuggestionStance(row);
+    if (!stance) continue;
+    const fallback = firstSuggestionString(row, ["text", "body", "내용"]);
+    let stage = firstSuggestionString(row, ["stage", "지문", "prose"]);
+    let speech = stripSpeechQuotes(firstSuggestionString(row, ["speech", "대사", "line"]));
+    if (!stage && !speech && fallback) {
+      const split = splitStageSpeech(fallback);
+      stage = split.stage;
+      speech = split.speech;
+    }
+    const text = composeSuggestionText(stage, speech, fallback);
+    if (!text) continue;
+    if (byStance.has(stance)) {
+      duplicateStance = true;
+      continue;
+    }
+    byStance.set(stance, {
+      stance,
+      actionType,
+      stage: clipTrpgChars(stage, TRPG_ACTION_MAX_CHARS),
+      speech: clipTrpgChars(speech, TRPG_ACTION_MAX_CHARS),
+      text,
+    });
+  }
+  if (hiddenActionType || duplicateStance) {
+    return { ok: false, semanticFailureClass: "invalid_suggestion_schema" };
+  }
+  const out = TRPG_REPLY_STANCES.map((stance) => byStance.get(stance) ?? null);
+  if (out.some((row) => row == null)) {
+    return { ok: false, semanticFailureClass: "invalid_suggestion_count" };
+  }
+  return { ok: true, suggestions: out as TrpgReplySuggestion[] };
+}
+
+export function logTrpgReplySuggestionProviderTelemetry(
+  telemetry: TrpgReplySuggestionProviderTelemetry
+): void {
+  console.info("[trpg-reply-suggestion-provider]", {
+    kind: "trpg_reply_suggestion_provider",
+    logical_request_id: telemetry.logical_request_id,
+    round_id: telemetry.round_id,
+    primary_provider: telemetry.primary_provider,
+    primary_status: telemetry.primary_status,
+    primary_latency_ms: telemetry.primary_latency_ms,
+    primary_failure_class: telemetry.primary_failure_class,
+    semantic_failure_class: telemetry.semantic_failure_class,
+    fallback_attempted: telemetry.fallback_attempted,
+    fallback_provider: telemetry.fallback_provider,
+    fallback_model: telemetry.fallback_model,
+    fallback_latency_ms: telemetry.fallback_latency_ms,
+    fallback_success: telemetry.fallback_success,
+    provider_attempt_count: telemetry.provider_attempt_count,
+  });
 }
 
 export function logTrpgReplySuggestionUsage(opts: {
@@ -423,15 +607,91 @@ const MOCK_SUGGESTIONS = JSON.stringify({
   ],
 });
 
-export async function callTrpgReplySuggestionModel(opts: {
-  system: string;
-  user: string;
-}): Promise<{ text: string; inputTokens?: number; outputTokens?: number; model: string }> {
-  const model = TRPG_REPLY_SUGGESTION_MODEL;
-  if (isMockApiMode()) {
-    return { text: MOCK_SUGGESTIONS, model };
+function classifyTrpgReplyCaughtTransportFailure(
+  error: unknown,
+  elapsedMs: number,
+  deadlineMs: number
+): {
+  failover: boolean;
+  failureClass: string;
+  httpStatus: number | null;
+} {
+  const namedTrigger = (error as { trigger?: unknown })?.trigger;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const trigger: "headers_timeout" | "body_timeout" | "error" =
+    namedTrigger === "body_timeout" ||
+    /body completion deadline exceeded|completion deadline exceeded/i.test(message)
+      ? "body_timeout"
+      : namedTrigger === "headers_timeout" ||
+          /headers deadline exceeded/i.test(message) ||
+          elapsedMs >= deadlineMs
+        ? "headers_timeout"
+        : "error";
+  return classifyTrpgReplySuggestionTransportFailure({
+    error,
+    trigger: trigger === "headers_timeout" || trigger === "body_timeout" ? trigger : undefined,
+  });
+}
+
+async function readProviderCompletionResponse(res: Response): Promise<{
+  text: string;
+  inputTokens?: number;
+  outputTokens?: number;
+}> {
+  let data: {
+    choices?: { message?: { content?: unknown; reasoning_content?: unknown } }[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
+  try {
+    data = (await res.json()) as typeof data;
+  } catch {
+    throw new TrpgMalformedProviderResponseError();
   }
-  const body = adaptTrpgReplySuggestionChatBody({
+  return {
+    text: extractReplySuggestionCompletionText(data),
+    inputTokens: Number(data.usage?.prompt_tokens ?? 0) || undefined,
+    outputTokens: Number(data.usage?.completion_tokens ?? 0) || undefined,
+  };
+}
+
+async function readValidatedProviderCompletion(
+  res: Response
+): Promise<
+  | { ok: true; text: string; inputTokens?: number; outputTokens?: number }
+  | { ok: false; malformedProviderResponse: true }
+  | { ok: false; malformedProviderResponse: false; semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null> }
+> {
+  let completion: { text: string; inputTokens?: number; outputTokens?: number };
+  try {
+    completion = await readProviderCompletionResponse(res);
+  } catch (error) {
+    if (error instanceof TrpgMalformedProviderResponseError) {
+      return { ok: false, malformedProviderResponse: true };
+    }
+    throw error;
+  }
+  const validated = validateReplySuggestionCompletion(completion.text);
+  if (validated.ok) {
+    return {
+      ok: true,
+      text: completion.text,
+      inputTokens: completion.inputTokens,
+      outputTokens: completion.outputTokens,
+    };
+  }
+  return {
+    ok: false,
+    malformedProviderResponse: false,
+    semanticFailureClass: validated.semanticFailureClass,
+  };
+}
+
+function buildTrpgReplySuggestionBodies(opts: { system: string; user: string }): {
+  primaryBody: Record<string, unknown>;
+  backupBody: Record<string, unknown>;
+} {
+  const model = TRPG_REPLY_SUGGESTION_MODEL;
+  const primaryBody = adaptTrpgReplySuggestionChatBody({
     model,
     messages: [
       { role: "system", content: opts.system },
@@ -442,31 +702,273 @@ export async function callTrpgReplySuggestionModel(opts: {
     max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
     response_format: { type: "json_object" },
   });
-  const failover = await executeDeepSeekBackgroundWithProviderFailover({
-    primary: {
-      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
-      body,
-    },
-    timeoutMs: TRPG_REPLY_SUGGESTION_TIMEOUT_MS,
-    requestKind: "trpg-reply-suggestions",
-  });
-  const res = failover.response;
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`[TRPG reply] ${res.status}: ${errText.slice(0, 240)}`);
-  }
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: unknown; reasoning_content?: unknown } }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-  };
-  const text = extractReplySuggestionCompletionText(data);
-  if (!text) throw new Error("[TRPG reply] empty completion");
+  const backupModel = resolveDeepSeekBackupModelId("flash");
   return {
-    text,
-    model,
-    inputTokens: Number(data.usage?.prompt_tokens ?? 0) || undefined,
-    outputTokens: Number(data.usage?.completion_tokens ?? 0) || undefined,
+    primaryBody,
+    backupBody: adaptOpenRouterDeepSeekBackupBody(primaryBody, backupModel),
+  };
+}
+
+function createEmptyProviderTelemetry(opts: {
+  logicalRequestId: string;
+  roundId?: number | null;
+}): TrpgReplySuggestionProviderTelemetry {
+  return {
+    logical_request_id: opts.logicalRequestId,
+    round_id: opts.roundId ?? null,
+    primary_provider: "cheaperinference",
+    primary_status: null,
+    primary_latency_ms: null,
+    primary_failure_class: null,
+    semantic_failure_class: null,
+    fallback_attempted: false,
+    fallback_provider: null,
+    fallback_model: null,
+    fallback_latency_ms: null,
+    fallback_success: false,
+    provider_attempt_count: 0,
+  };
+}
+
+function throwProviderRoundFailure(opts: {
+  message: string;
+  telemetry: TrpgReplySuggestionProviderTelemetry;
+}): never {
+  logTrpgReplySuggestionProviderTelemetry(opts.telemetry);
+  throw new Error(opts.message);
+}
+
+export type TrpgReplySuggestionProviderRoundDeps = {
+  fetchCompletion?: typeof fetchDeepSeekNonStreamCompletion;
+};
+
+export async function executeTrpgReplySuggestionProviderRound(opts: {
+  system: string;
+  user: string;
+  logicalRequestId: string;
+  roundId?: number | null;
+  hooks?: DeepSeekFailoverHooks;
+  deps?: TrpgReplySuggestionProviderRoundDeps;
+}): Promise<{
+  text: string;
+  model: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  telemetry: TrpgReplySuggestionProviderTelemetry;
+}> {
+  const telemetry = createEmptyProviderTelemetry({
+    logicalRequestId: opts.logicalRequestId,
+    roundId: opts.roundId,
+  });
+  const { primaryBody, backupBody } = buildTrpgReplySuggestionBodies(opts);
+  const { primaryCompletionMs: primaryDeadlineMs, backupCompletionMs: backupDeadlineMs } =
+    resolveTrpgReplySuggestionProviderDeadlines();
+  const fetchCompletion = opts.deps?.fetchCompletion ?? fetchDeepSeekNonStreamCompletion;
+  const backupModel = String(backupBody.model ?? OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+
+  const attemptBackup = async (reason: {
+    primaryFailureClass: string;
+    semanticFailureClass: TrpgReplySemanticFailureClass;
+  }): Promise<{
+    text: string;
+    model: string;
+    inputTokens?: number;
+    outputTokens?: number;
+  }> => {
+    telemetry.primary_failure_class = reason.primaryFailureClass;
+    telemetry.semantic_failure_class = reason.semanticFailureClass;
+    telemetry.fallback_attempted = true;
+    telemetry.fallback_provider = "openrouter";
+    telemetry.fallback_model = backupModel;
+    telemetry.provider_attempt_count = 2;
+
+    const backup = resolveDeepSeekBackupTransport();
+    if (!backup) {
+      logTrpgReplySuggestionProviderTelemetry(telemetry);
+      throw new DeepSeekProviderFailoverError({
+        message: "NO_OPENROUTER_KEY",
+        retryable: true,
+        telemetry: {
+          logical_model: backupModel,
+          route_kind: "background_flash",
+          primary_provider: "cheaperinference",
+          backup_provider: "openrouter",
+          primary_failure_class: reason.primaryFailureClass,
+          primary_http_status: telemetry.primary_status,
+          primary_headers_ms: telemetry.primary_latency_ms,
+          primary_first_visible_ms: null,
+          failover_trigger: "error",
+          backup_headers_ms: null,
+          backup_first_visible_ms: null,
+          backup_success: false,
+          provider_attempt_count: 2,
+        },
+      });
+    }
+
+    try {
+      const backupResult = await fetchCompletion({
+        request: {
+          endpoint: backup.endpoint,
+          headers: backup.headers,
+          body: backupBody,
+        },
+        timeoutMs: backupDeadlineMs,
+        hooks: opts.hooks,
+      });
+      telemetry.fallback_latency_ms = backupResult.latencyMs;
+      if (!backupResult.response.ok) {
+        const errText = await backupResult.response.text();
+        telemetry.fallback_success = false;
+        throwProviderRoundFailure({
+          message: `[TRPG reply] ${backupResult.response.status}: ${errText.slice(0, 240)}`,
+          telemetry,
+        });
+      }
+      const backupRead = await readValidatedProviderCompletion(backupResult.response);
+      if (!backupRead.ok) {
+        telemetry.fallback_success = false;
+        telemetry.semantic_failure_class = backupRead.malformedProviderResponse
+          ? "malformed_provider_response"
+          : backupRead.semanticFailureClass;
+        throwProviderRoundFailure({
+          message: backupRead.malformedProviderResponse
+            ? "[TRPG reply] malformed backup provider response envelope"
+            : "[TRPG reply] unusable backup completion",
+          telemetry,
+        });
+      }
+      telemetry.fallback_success = true;
+      logTrpgReplySuggestionProviderTelemetry(telemetry);
+      return {
+        text: backupRead.text,
+        model: backupModel,
+        inputTokens: backupRead.inputTokens,
+        outputTokens: backupRead.outputTokens,
+      };
+    } catch (error) {
+      if (error instanceof DeepSeekProviderFailoverError) throw error;
+      if (error instanceof Error && error.message.startsWith("[TRPG reply]")) throw error;
+      telemetry.fallback_success = false;
+      throwProviderRoundFailure({
+        message: error instanceof Error ? error.message : "OpenRouter backup failed",
+        telemetry,
+      });
+    }
+  };
+
+  telemetry.provider_attempt_count = 1;
+  try {
+    const primaryResult = await fetchCompletion({
+      request: {
+        endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+        headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+        body: primaryBody,
+      },
+      timeoutMs: primaryDeadlineMs,
+      hooks: opts.hooks,
+    });
+    telemetry.primary_latency_ms = primaryResult.latencyMs;
+    telemetry.primary_status = primaryResult.response.status;
+
+    if (!primaryResult.response.ok) {
+      const errText = await primaryResult.response.text();
+      const classified = classifyTrpgReplySuggestionTransportFailure({
+        httpStatus: primaryResult.response.status,
+        error: errText,
+      });
+      if (!classified.failover) {
+        logTrpgReplySuggestionProviderTelemetry({
+          ...telemetry,
+          primary_failure_class: classified.failureClass,
+        });
+        throw new DeepSeekDeterministicProviderError({
+          message: `[TRPG reply] ${primaryResult.response.status}: ${errText.slice(0, 240)}`,
+          httpStatus: classified.httpStatus,
+          failureClass: classified.failureClass,
+        });
+      }
+      const backup = await attemptBackup({
+        primaryFailureClass: classified.failureClass,
+        semanticFailureClass: null,
+      });
+      return { ...backup, telemetry };
+    }
+
+    const primaryRead = await readValidatedProviderCompletion(primaryResult.response);
+    if (primaryRead.ok) {
+      telemetry.primary_failure_class = null;
+      telemetry.semantic_failure_class = null;
+      logTrpgReplySuggestionProviderTelemetry(telemetry);
+      return {
+        text: primaryRead.text,
+        model: TRPG_REPLY_SUGGESTION_MODEL,
+        inputTokens: primaryRead.inputTokens,
+        outputTokens: primaryRead.outputTokens,
+        telemetry,
+      };
+    }
+
+    const backup = await attemptBackup({
+      primaryFailureClass: primaryRead.malformedProviderResponse
+        ? "malformed_provider_response"
+        : primaryRead.semanticFailureClass,
+      semanticFailureClass: primaryRead.malformedProviderResponse
+        ? "malformed_provider_response"
+        : primaryRead.semanticFailureClass,
+    });
+    return { ...backup, telemetry };
+  } catch (error) {
+    if (
+      error instanceof DeepSeekDeterministicProviderError ||
+      error instanceof DeepSeekProviderFailoverError
+    ) {
+      throw error;
+    }
+    if (error instanceof Error && error.message.startsWith("[TRPG reply]")) {
+      throw error;
+    }
+    const classified = classifyTrpgReplyCaughtTransportFailure(
+      error,
+      telemetry.primary_latency_ms ?? 0,
+      primaryDeadlineMs
+    );
+    telemetry.primary_status = classified.httpStatus;
+    if (!classified.failover) {
+      telemetry.primary_failure_class = classified.failureClass;
+      logTrpgReplySuggestionProviderTelemetry(telemetry);
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+    const backup = await attemptBackup({
+      primaryFailureClass: classified.failureClass,
+      semanticFailureClass: null,
+    });
+    return { ...backup, telemetry };
+  }
+}
+
+export async function callTrpgReplySuggestionModel(opts: {
+  system: string;
+  user: string;
+  logicalRequestId?: string;
+  roundId?: number | null;
+  hooks?: DeepSeekFailoverHooks;
+}): Promise<{ text: string; inputTokens?: number; outputTokens?: number; model: string }> {
+  if (isMockApiMode()) {
+    return { text: MOCK_SUGGESTIONS, model: TRPG_REPLY_SUGGESTION_MODEL };
+  }
+  const result = await executeTrpgReplySuggestionProviderRound({
+    system: opts.system,
+    user: opts.user,
+    logicalRequestId: opts.logicalRequestId ?? randomUUID(),
+    roundId: opts.roundId,
+    hooks: opts.hooks,
+  });
+  return {
+    text: result.text,
+    model: result.model,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
   };
 }
 
@@ -534,7 +1036,15 @@ export async function requestTrpgReplySuggestions(
   const key = gateKey(opts.campaignId, opts.userId);
   const token = Symbol("trpg-reply-suggestion");
   const started = Date.now();
-  const complete = opts.complete ?? callTrpgReplySuggestionModel;
+  const logicalRequestId = randomUUID();
+  const complete =
+    opts.complete ??
+    ((prompt: { system: string; user: string }) =>
+      callTrpgReplySuggestionModel({
+        ...prompt,
+        logicalRequestId,
+        roundId: round.id,
+      }));
   const generation = (async (): Promise<TrpgReplySuggestionResult> => {
     try {
       const result = await complete({ system: prompt.system, user: prompt.user });
