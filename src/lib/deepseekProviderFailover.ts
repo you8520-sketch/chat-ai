@@ -26,12 +26,13 @@ export const MAX_PROVIDER_ATTEMPTS_PER_BACKGROUND_TASK = 2;
 
 export const BACKGROUND_PRIMARY_COMPLETION_MS = {
   short: 20_000,
-  trpgReply: 30_000,
+  trpgReply: 15_000,
   longForm: 45_000,
 } as const;
 
 export const BACKGROUND_BACKUP_COMPLETION_MS = {
   short: 30_000,
+  trpgReply: 25_000,
   longForm: 45_000,
 } as const;
 
@@ -379,7 +380,9 @@ export function resolveBackgroundFlashProviderDeadlines(opts: {
       : BACKGROUND_PRIMARY_COMPLETION_MS.short;
   const backupPolicy = isLongForm
     ? BACKGROUND_BACKUP_COMPLETION_MS.longForm
-    : BACKGROUND_BACKUP_COMPLETION_MS.short;
+    : isTrpgReply
+      ? BACKGROUND_BACKUP_COMPLETION_MS.trpgReply
+      : BACKGROUND_BACKUP_COMPLETION_MS.short;
   const existing = opts.existingTimeoutMs;
   const cap =
     existing != null && Number.isFinite(existing) && existing > 0
@@ -671,6 +674,25 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     }
     return attemptBackup();
   }
+}
+
+export async function fetchDeepSeekNonStreamCompletion(opts: {
+  request: DeepSeekAssembledRequest;
+  timeoutMs: number;
+  hooks?: DeepSeekFailoverHooks;
+}): Promise<{ response: Response; latencyMs: number }> {
+  const fetchFn = opts.hooks?.fetchFn ?? globalThis.fetch.bind(globalThis);
+  const now = opts.hooks?.now ?? Date.now;
+  const startedAt = now();
+  const response = await fetchCompatible({
+    request: opts.request,
+    fetchFn,
+    timeoutMs: opts.timeoutMs,
+    now,
+    startedAt,
+    consumeCompleteBody: true,
+  });
+  return { response, latencyMs: Math.max(0, now() - startedAt) };
 }
 
 export async function executeDeepSeekBackgroundWithProviderFailover(opts: {

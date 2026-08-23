@@ -85,7 +85,7 @@ function flashPrimary(bodyExtra?: Record<string, unknown>) {
 }
 
 describe("background complete-body ownership", () => {
-  it("policy: short tasks 20s/30s, TRPG reply 30s, long-form 45s, never increase existing", () => {
+  it("policy: short tasks 20s/30s, TRPG reply 15s/25s, long-form 45s, never increase existing", () => {
     assert.deepEqual(
       resolveBackgroundFlashProviderDeadlines({
         requestKind: "background-memory-extract",
@@ -116,7 +116,7 @@ describe("background complete-body ownership", () => {
         requestKind: "trpg-reply-suggestions",
         existingTimeoutMs: 45_000,
       }),
-      { primaryCompletionMs: 30_000, backupCompletionMs: 30_000 }
+      { primaryCompletionMs: 15_000, backupCompletionMs: 25_000 }
     );
     assert.deepEqual(
       resolveBackgroundFlashProviderDeadlines({

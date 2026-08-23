@@ -303,7 +303,7 @@ describe("TRPG reply suggestions", () => {
     db.close();
   });
 
-  it("calls the model once, without fallback, and keeps timeout at one call", async () => {
+  it("failover-capable provider round retries once through OpenRouter on transport failure", async () => {
     const db = memoryDb();
     const campaignId = await startedCampaign(db);
     let calls = 0;
