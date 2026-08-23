@@ -6,8 +6,11 @@ import {
   decideLiveFollowUpdate,
   distanceFromBottom,
   isNearBottom,
+  isNearNarrationFollow,
   livePresentationActivityKey,
+  narrationFollowDeltaPx,
   TRPG_FOLLOW_LATEST_THRESHOLD_PX,
+  TRPG_NARRATION_FOLLOW_TARGET_RATIO,
 } from "./followLatest";
 
 describe("TRPG follow-latest scroll", () => {
@@ -22,12 +25,38 @@ describe("TRPG follow-latest scroll", () => {
     assert.equal(isNearBottom({ scrollHeight: 2000, scrollTop: 1780, clientHeight: 100 }), true);
   });
 
+  it("keeps the live GM reveal end in the lower reading band", () => {
+    const vh = 800;
+    assert.equal(
+      narrationFollowDeltaPx({ endTop: vh * TRPG_NARRATION_FOLLOW_TARGET_RATIO, viewportHeight: vh }),
+      0
+    );
+    assert.equal(narrationFollowDeltaPx({ endTop: 624, viewportHeight: vh }), 0);
+    assert.ok(narrationFollowDeltaPx({ endTop: 780, viewportHeight: vh }) > 0);
+    assert.ok(narrationFollowDeltaPx({ endTop: 400, viewportHeight: vh }) < 0);
+    assert.equal(isNearNarrationFollow({ endTop: 624, viewportHeight: vh }), true);
+    assert.equal(isNearNarrationFollow({ endTop: 200, viewportHeight: vh }), false);
+    assert.equal(isNearNarrationFollow({ endTop: 760, viewportHeight: vh }), false);
+    for (const viewportHeight of [640, 800, 720]) {
+      const endTop = viewportHeight * TRPG_NARRATION_FOLLOW_TARGET_RATIO;
+      assert.equal(narrationFollowDeltaPx({ endTop, viewportHeight }), 0);
+      assert.equal(isNearNarrationFollow({ endTop, viewportHeight }), true);
+    }
+  });
+
   it("settles on the latest scene while preserving manual history browsing", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /isNearBottom/);
+    assert.match(room, /isNearNarrationFollowElement/);
     assert.match(room, /followLatest/);
     assert.match(room, /최신으로/);
     assert.match(room, /bottomRef\.current\.scrollIntoView/);
+    assert.match(room, /data-trpg-narration-end/);
+    assert.match(room, /isLiveFreshGmNarration/);
+    assert.match(room, /alignNarrationEnd/);
+    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm"\)/);
+    assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
+    assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
     assert.match(room, /requestAnimationFrame/);
     assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
