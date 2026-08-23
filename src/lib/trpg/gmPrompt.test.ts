@@ -219,10 +219,11 @@ describe("TRPG GM prompt/parse", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
     assert.match(TRPG_GM_SYSTEM, /Brief or mechanical action: enrich/);
-    assert.match(TRPG_GM_SYSTEM, /Already-rich narration: preserve its established action details/);
+    assert.match(TRPG_GM_SYSTEM, /Already-rich narration: treat it as the scene's already-written opening/);
+    assert.match(TRPG_GM_SYSTEM, /world-contact point/);
     assert.match(TRPG_GM_SYSTEM, /Do not retell the same beats/);
     assert.match(TRPG_GM_SYSTEM, /physical execution and immediate sensory texture/);
-    assert.match(TRPG_GM_SYSTEM, /Do not invent their next meaningful choice/);
+    assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "",
@@ -334,7 +335,7 @@ describe("TRPG GM prompt/parse", () => {
 
   it("F: closing GM beat is compact guidance, not a recap floor", () => {
     assert.match(TRPG_GM_SYSTEM, /compact table-talk aside starting with `GM:`/);
-    assert.match(TRPG_GM_SYSTEM, /what matters NOW/);
+    assert.match(TRPG_GM_SYSTEM, /open action space/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /how the room feels now/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /At least 400/);
@@ -353,8 +354,59 @@ describe("TRPG GM prompt/parse", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[AGENCY\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[DIALOGUE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /do not replay submitted prose/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /never dump into the scene/);
+  });
+
+  it("A: persona micro-reactions keep characters embodied", () => {
+    assert.match(TRPG_GM_SYSTEM, /Connect each participant as a living person/);
+    assert.match(TRPG_GM_SYSTEM, /habitual gesture/);
+    assert.match(TRPG_GM_SYSTEM, /small immediate reactions/);
+    assert.match(TRPG_GM_SYSTEM, /persona-true micro-reactions/);
+  });
+
+  it("B: micro-reactions do not take the next meaningful choice", () => {
+    assert.match(TRPG_GM_SYSTEM, /they do not replace the next decision/);
+    assert.match(TRPG_GM_SYSTEM, /Leave their next meaningful choice to them/);
+    assert.match(TRPG_GM_SYSTEM, /new goal or strategy/);
+    assert.match(TRPG_GM_SYSTEM, /lasting emotional conclusion/);
+  });
+
+  it("C: failure preserves competence and varies the cause", () => {
+    assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
+    assert.match(TRPG_GM_SYSTEM, /A failed roll changes the situation while preserving competence/);
+    assert.match(TRPG_GM_SYSTEM, /faster opponent, bad timing, terrain/);
+    assert.match(TRPG_GM_SYSTEM, /Clumsy slips are fine when the character and scene earn them/);
+    assert.match(TRPG_GM_SYSTEM, /If several participants fail together, give each a different fitting cause/);
+  });
+
+  it("D: rich participant prose starts GM writing at world-contact", () => {
+    assert.match(TRPG_GM_SYSTEM, /already-written opening/);
+    assert.match(TRPG_GM_SYSTEM, /Begin the main GM prose at the world-contact point/);
+    assert.match(TRPG_GM_SYSTEM, /Spend most of the response on the supplied roll/);
+  });
+
+  it("E: spoken lines prefer effect and response over reprint", () => {
+    assert.match(TRPG_GM_SYSTEM, /Write its effect first/);
+    assert.match(TRPG_GM_SYSTEM, /listener's face, an immediate reply/);
+    assert.match(TRPG_GM_SYSTEM, /Repeat the exact words only when the scene's rhythm/);
+  });
+
+  it("F2: closing keeps an open action space", () => {
+    assert.match(TRPG_GM_SYSTEM, /current open action space/);
+    assert.match(TRPG_GM_SYSTEM, /examples, not a closed menu/);
+    assert.match(TRPG_GM_SYSTEM, /players may invent a different solution/);
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "",
+      opening: false,
+      actions: [action({ participantId: 1, name: "렌", body: "문을 연다." })],
+    });
+    assert.match(block, /open action space/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
   });
 });
