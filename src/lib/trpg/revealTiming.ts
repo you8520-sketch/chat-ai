@@ -100,3 +100,23 @@ export function trpgRevealImmediate(opts: {
   }
   return false;
 }
+
+export type TrpgRevealSession = {
+  text: string;
+  active: boolean;
+  kind: TrpgRevealKind;
+};
+
+export function trpgRevealSessionChanged(prev: TrpgRevealSession, next: TrpgRevealSession): boolean {
+  return prev.text !== next.text || prev.active !== next.active || prev.kind !== next.kind;
+}
+
+/** Speed-only changes keep the already shown count. Instant finishes the rest. */
+export function trpgRevealContinueCount(opts: {
+  sessionChanged: boolean;
+  shownCount: number;
+  total: number;
+}): number {
+  if (opts.sessionChanged) return 0;
+  return Math.min(Math.max(0, opts.shownCount), Math.max(0, opts.total));
+}

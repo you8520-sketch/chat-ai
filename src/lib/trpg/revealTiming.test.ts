@@ -5,10 +5,13 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   streamCharsPerTickForInterval,
 } from "@/lib/chatDisplayPrefs";
+import { readFileSync } from "node:fs";
 import {
   trpgGmRevealTick,
+  trpgRevealContinueCount,
   trpgRevealDurationMs,
   trpgRevealImmediate,
+  trpgRevealSessionChanged,
   trpgRevealTargetMs,
   TRPG_REVEAL_BOT_MAX_MS,
 } from "./revealTiming";
@@ -58,5 +61,23 @@ describe("TRPG adaptive reveal", () => {
       trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 20 }),
       false
     );
+  });
+
+  it("keeps the shown GM count when only stream speed changes", () => {
+    const session = { text: "낡은 등불이 흔들린다.", active: true, kind: "gm" as const };
+    assert.equal(trpgRevealSessionChanged(session, { ...session }), false);
+    assert.equal(trpgRevealSessionChanged(session, { ...session, text: "다른 장면" }), true);
+    assert.equal(trpgRevealContinueCount({ sessionChanged: false, shownCount: 12, total: 40 }), 12);
+    assert.equal(trpgRevealContinueCount({ sessionChanged: true, shownCount: 12, total: 40 }), 0);
+    assert.equal(trpgRevealImmediate({
+      active: true,
+      reducedMotion: false,
+      charCount: 40,
+      streamIntervalMs: 0,
+    }), true);
+    const hook = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
+    assert.match(hook, /trpgRevealContinueCount/);
+    assert.match(hook, /trpgRevealSessionChanged/);
+    assert.doesNotMatch(hook, /setCount\(0\)/);
   });
 });

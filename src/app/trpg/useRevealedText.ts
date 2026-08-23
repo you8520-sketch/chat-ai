@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
   trpgGmRevealTick,
   trpgRevealChunkSize,
+  trpgRevealContinueCount,
   trpgRevealImmediate,
+  trpgRevealSessionChanged,
   TRPG_REVEAL_TICK_MS,
   type TrpgRevealKind,
 } from "@/lib/trpg/revealTiming";
@@ -31,9 +33,14 @@ export function useRevealedText(
       ? chars.length
       : 0
   );
+  const countRef = useRef(count);
+  countRef.current = count;
+  const sessionRef = useRef({ text, active, kind });
 
   useEffect(() => {
     const total = Array.from(text).length;
+    const sessionChanged = trpgRevealSessionChanged(sessionRef.current, { text, active, kind });
+    sessionRef.current = { text, active, kind };
     if (
       trpgRevealImmediate({
         active,
@@ -45,10 +52,14 @@ export function useRevealedText(
       setCount(total);
       return;
     }
-    setCount(0);
+    let n = trpgRevealContinueCount({
+      sessionChanged,
+      shownCount: countRef.current,
+      total,
+    });
+    if (n !== countRef.current) setCount(n);
     if (kind === "gm") {
       const tick = trpgGmRevealTick(streamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
-      let n = 0;
       const id = window.setInterval(() => {
         n = Math.min(total, n + tick.charsPerTick);
         setCount(n);
@@ -57,7 +68,6 @@ export function useRevealedText(
       return () => window.clearInterval(id);
     }
     const chunk = trpgRevealChunkSize(total, kind);
-    let n = 0;
     const id = window.setInterval(() => {
       n = Math.min(total, n + chunk);
       setCount(n);
