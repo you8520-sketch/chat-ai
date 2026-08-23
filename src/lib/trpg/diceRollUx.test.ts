@@ -223,6 +223,20 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");
   });
 
+  it("hides roll outcome until the centered result-confirm HUD", () => {
+    const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.doesNotMatch(overlay, /\{roll\.name\} · D20 \{roll\.d20\} · \{outcome\}/);
+    assert.doesNotMatch(overlay, /!showResult \?/);
+    assert.match(overlay, /trpgRollOutcomeLabel\(roll\.tier\)/);
+    assert.match(overlay, /data-trpg-dice-result-confirm/);
+    assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
+    assert.match(overlay, /data-trpg-dice-result-outcome=\{outcome\}/);
+    assert.match(overlay, /\{showResult \? \(/);
+    assert.match(overlay, /TRPG_RESULT_ENTER_MS/);
+    assert.match(overlay, /TRPG_RESULT_HOLD_MS/);
+    assert.match(overlay, /TRPG_RESULT_EXIT_MS/);
+  });
+
   it("paces result-confirm multi-roll so overlay finishes before the watchdog", () => {
     const one = trpgEmeraldDiceTiming(1);
     assert.equal(one.perDieMs, trpgResultConfirmPerDieMs(1));
