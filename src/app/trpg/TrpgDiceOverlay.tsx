@@ -22,6 +22,7 @@ import {
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
   TRPG_DICE_PHYSICS_ENGINE,
+  trpgD20ResultHudStyle,
   trpgD20StaticOverlaySpec,
   type TrpgD20StaticOverlayTone,
   type TrpgD20ThemeId,
@@ -288,6 +289,7 @@ export default function TrpgDiceOverlay({
     resultPhase === "entering" ? 0.92 :
     resultPhase === "holding" ? 1 :
     resultPhase === "exiting" ? 1 : 1;
+  const resultHud = trpgD20ResultHudStyle(theme, tone, face);
 
   return (
     <div
@@ -444,23 +446,25 @@ export default function TrpgDiceOverlay({
                     />
                   </>
                 ) : null}
+                <div
+                  className="pointer-events-none absolute inset-[-6%] rounded-full"
+                  style={{ background: resultHud.haloBackground }}
+                  data-trpg-dice-result-halo
+                />
                 <span
-                  className="font-semibold leading-none"
-                  style={{
-                    color: tone === "nat20" ? "#f5e8b8" : tone === "nat1" ? "#e08a92" : "#e8dcc0",
-                    fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
-                    fontSize: "clamp(58px, 12vw, 84px)",
-                    textShadow:
-                      "0 1px 2px rgba(0,0,0,0.6), 0 0 16px rgba(232,197,106,0.22)",
-                  }}
+                  className="relative leading-none"
+                  style={resultHud.numeral}
                   data-trpg-dice-result-numeral={face}
                 >
                   {face}
                 </span>
                 <p
-                  className="mt-3 text-center text-[14px] font-medium tracking-wide"
+                  className="relative mt-3 rounded-full bg-black/40 px-2.5 py-0.5 text-center text-[14px] font-medium tracking-wide"
                   style={{
                     color: roll.success ? "#7ac4a0" : "#d4848e",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
+                    WebkitTextStroke: "0.65px rgba(6,6,8,0.7)",
+                    paintOrder: "stroke fill",
                   }}
                   data-trpg-dice-result-outcome={outcome}
                 >

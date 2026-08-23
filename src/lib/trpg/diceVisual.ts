@@ -348,6 +348,57 @@ export function trpgD20StaticOverlaySpec(id: TrpgD20ThemeId): TrpgD20StaticOverl
   return trpgD20ThemeSpec(id).staticOverlay;
 }
 
+/** Centered result-confirm HUD paint. Reuses theme numeral tokens; no new palette. */
+export function trpgD20ResultHudStyle(
+  themeId: TrpgD20ThemeId,
+  tone: TrpgD20StaticOverlayTone,
+  face: number
+): {
+  haloBackground: string;
+  numeral: {
+    fontFamily: string;
+    fontWeight: 700;
+    fontSize: string;
+    letterSpacing: string;
+    color: string;
+    backgroundImage: string;
+    backgroundClip: "text";
+    WebkitBackgroundClip: "text";
+    WebkitTextFillColor: "transparent";
+    WebkitTextStroke: string;
+    paintOrder: "stroke fill";
+    filter: string;
+  };
+} {
+  const theme = trpgD20ThemeSpec(themeId);
+  const numeral = theme.staticOverlay.numeral;
+  const gradient = numeral.gradient[tone];
+  const glow = numeral.glow[tone];
+  return {
+    haloBackground:
+      "radial-gradient(circle, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 40%, transparent 70%)",
+    numeral: {
+      fontFamily: numeral.fontFamily,
+      fontWeight: 700,
+      fontSize: "clamp(58px, 12vw, 84px)",
+      letterSpacing: face >= 10 ? numeral.letterSpacingDouble : "0em",
+      color: numeral.colors[tone],
+      backgroundImage: `linear-gradient(180deg, ${gradient.hi} 0%, ${gradient.mid} 48%, ${gradient.lo} 100%)`,
+      backgroundClip: "text",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      WebkitTextStroke: `1.75px ${theme.palette.deepest}`,
+      paintOrder: "stroke fill",
+      filter: [
+        "drop-shadow(0 1px 1px rgba(0,0,0,0.85))",
+        "drop-shadow(0 5px 14px rgba(0,0,0,0.62))",
+        `drop-shadow(0 0 16px ${glow})`,
+        `drop-shadow(0 0 1px ${theme.numeralStroke})`,
+      ].join(" "),
+    },
+  };
+}
+
 export function normalizeTrpgD20ThemeId(value: string | undefined): TrpgD20ThemeId | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
