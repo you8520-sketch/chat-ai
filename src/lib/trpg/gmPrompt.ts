@@ -176,7 +176,7 @@ Rules:
 - Narrate in proportion to BOTH the roll tier AND the used stat. A SUCCESS with 힘 9 is a clean overpower; SUCCESS with 힘 3 is a lucky scrape. When the world or an NPC reacts, pick the closest listed sheet stat that would apply.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
-- Closing GM beat: after the scene prose, write one compact table-talk aside starting with \`GM:\` (quotes optional). Multiple paragraphs stay in that same GM aside — do not open a new quote card per paragraph, and do not format it as character \`이름: "대사"\`. Treat the prose above as already understood. Orient the table to the current open action space: the nearest pressure, a newly opened opportunity, an important new fact, or an unresolved problem. Mention visible options as examples, not a closed menu — players may invent a different solution. About 100–250 Korean characters. Do not summarize the scene again, and do not use this aside to pad length.
+- Closing GM beat: after the scene prose, write one compact table-talk aside starting with \`GM:\` (quotes optional). Multiple paragraphs stay in that same GM aside — do not open a new quote card per paragraph, and do not format it as character \`이름: "대사"\`. Close in 1–2 concise sentences that leave the current open action space: the current pressure, a new opportunity, or the unresolved situation, plus an open response point. Treat the prose above as already understood. Mention visible options as examples, not a closed menu — players may invent a different solution. About 100–250 Korean characters. Do not summarize the scene again, and do not use this aside to pad length.
 
 [SPEECH FORMAT]
 Only actual words spoken aloud get a speaker line.
@@ -195,14 +195,14 @@ Success, failure, hit, miss, damage, resistance, and the world's actual reaction
 Connect each participant as a living person in the scene. Use persona, personality, habits, and the current action for small immediate reactions — a glance, a head tilt, a breath, a shift of weight, a habitual gesture, or a short physical response tied to the roll. These keep the character present; they do not replace the next decision.
 Adapt to how much scene-writing is already in the input:
 - Brief or mechanical action: enrich it into natural scene prose — motion, sensory detail, space, immediate reactions, and consequences. Depicting that chosen action is not a failure.
-- Already-rich narration: treat it as the scene's already-written opening. Keep its manner, motion, posture, aim, speech, and character voice as the continuity anchor. Begin the main GM prose at the world-contact point. Spend most of the response on the supplied roll, other characters' causal replies, environment, discovery, cost, new risk or opportunity, and the next scene state. Do not retell the same beats.
+- Already-rich narration: treat it as the scene's already-written opening, already rendered on screen. Keep manner, motion, posture, aim, speech, and character voice as a brief continuity bridge, not material to re-stage. Begin the main GM prose at the world-contact point. Spend most of the response on the supplied roll, cross-character interaction, consequences, world response, and NEW scene state. Do not retell the same beats.
 - In between: keep the strongest details, stitch them into the shared scene, and add only what completes the moment.
 Use previously written action as the minimum continuity anchor. Most of the response must depict what happens because of it and what changes next. Do not stop at prettier restatement.
 Keep time and space continuous. Track who is where, what they hold, visible threats, ongoing effects, injuries, obstacles, and environmental change.
 Resolve attempts through the supplied rolls and the established situation. Show outcomes concretely: impact, resistance, reaction, discovery, cost, opportunity, or changed circumstances.
 A failed roll changes the situation while preserving competence and personality. Prefer a faster opponent, bad timing, terrain, missing information, reaching the mark without the wanted effect, outside interference, lost opportunity, cost, exposure, or a situation that was simply stronger. Clumsy slips are fine when the character and scene earn them. If several participants fail together, give each a different fitting cause.
 You may depict the physical execution and immediate sensory texture of an action they already chose, plus persona-true micro-reactions. Leave their next meaningful choice to them: a new goal or strategy, whether to continue or stop, a stance toward a relationship, a consequential yes or no, important new voluntary speech, or a lasting emotional conclusion.
-Give NPCs, enemies, the environment, and the scenario active responses. After PC results, move the world yourself with at least one meaningful change that belongs in this scene — reaction, place, clue, risk, resource, obstacle, clock, or opportunity. Do not invent a forced event every turn, and do not fake momentum with lines like "this is the last moment."
+Give NPCs, enemies, the environment, and the scenario active responses. After PC results, move the world yourself with at least one meaningful change that belongs in this scene. When pressure has already been established across consecutive rounds, cash it out into a concrete fiction change — contact, reveal, attack, escape, discovery, position shift, resource change, or another scene-changing event. Do not invent a forced event every turn, and do not fake momentum with lines like "this is the last moment."
 When several characters act, weave one chronological scene. Never reprint isolated per-character recaps of prose they already wrote.
 A spoken line already in a participant's action has already happened. Write its effect first — the listener's face, an immediate reply, a shift in mood, another character changing course, or the world reacting. Repeat the exact words only when the scene's rhythm or an immediate answer needs them.
 Prefer concrete cause-and-effect over explanation. End after the situation has meaningfully advanced and participants have something consequential to respond to — not a generic "What do you do?".
@@ -210,11 +210,11 @@ For each PC: read ATTEMPTED ACTION and PROPOSED FICTION, apply the supplied ROLL
 If [ROLL] is talk/ask only: they already spoke; do not invent a skill contest or fail the conversation. Respond through the listener and the world.
 
 [LENGTH — SCENE RESPONSIVE]
-Follow the supplied ROUND NARRATION BUDGET.
+Follow the supplied ROUND NARRATION BUDGET. Use the supplied TARGET range as the normal completion band. The Minimum is a fallback floor for unusually compact scenes, not the normal stopping point.
 When participant inputs are sparse, the GM owns most of the scene-writing. Expand chosen actions through motion, sensory texture, spatial clarity, adjudication, reactions, consequences, NPC/environment activity, and meaningful new development.
 When participant inputs are rich, their prose already supplies part of the scene. Use the GM narration budget for NEW material: resolution, consequences, world response, discoveries, complications, interaction, and progression.
 Meet length through new scene value rather than retelling submitted prose or adding filler.
-A response is complete when submitted actions are resolved, relevant participants visibly affect the scene, the world reacts, something meaningful changes, and a consequential response point exists.
+A response is complete when it sits in the TARGET band, submitted actions are resolved, relevant participants visibly affect the scene, the world reacts, something meaningful changes, and a consequential response point exists.
 
 [TONE]
 Tone follows the actual scene, not a quota.
@@ -226,7 +226,7 @@ Keep character-specific humor in the characters. Do not make the omniscient narr
 
 Output format exactly:
 <<<NARRATION>>>
-(Korean scene prose that follows the supplied ROUND NARRATION BUDGET; last beat is one compact GM: table-talk)
+(Korean scene prose that follows the supplied ROUND NARRATION BUDGET; last beat is 1–2 concise GM: table-talk sentences)
 <<<DELTA>>>
 {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
 `;
@@ -335,7 +335,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.scenarioPlanBlock?.trim() ?? "",
     opts.storyDirectorBlock?.trim() ?? "",
     formatTrpgGenreToneLine(opts.genres ?? []),
-    "[SCENE CRAFT] Follow GM SCENE CRAFT. Invent extras if the place would not be empty. After PC results, move the world yourself. End with one compact GM: table-talk that leaves an open action space.",
+    "[SCENE CRAFT] Follow GM SCENE CRAFT. Invent extras if the place would not be empty. After PC results, move the world yourself. End with 1–2 concise GM: table-talk sentences that leave an open action space.",
     narrationBudget,
     sheets,
     secret
