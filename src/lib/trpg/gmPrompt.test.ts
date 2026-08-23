@@ -388,6 +388,9 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /already-written opening/);
     assert.match(TRPG_GM_SYSTEM, /Begin the main GM prose at the world-contact point/);
     assert.match(TRPG_GM_SYSTEM, /Spend most of the response on the supplied roll/);
+    assert.match(TRPG_GM_SYSTEM, /already rendered on screen/);
+    assert.match(TRPG_GM_SYSTEM, /brief continuity bridge/);
+    assert.match(TRPG_GM_SYSTEM, /NEW scene state/);
   });
 
   it("E: spoken lines prefer effect and response over reprint", () => {
@@ -408,5 +411,22 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(block, /open action space/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
+  });
+
+  it("3-round follow-up: target band, new scene material, cash-out, 1–2 sentence close", () => {
+    assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[PROGRESSION\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
+    assert.match(TRPG_GM_SYSTEM, /TARGET range as the normal completion band/);
+    assert.match(TRPG_GM_SYSTEM, /fallback floor for unusually compact scenes/);
+    assert.match(TRPG_GM_SYSTEM, /already rendered on screen/);
+    assert.match(TRPG_GM_SYSTEM, /brief continuity bridge/);
+    assert.match(TRPG_GM_SYSTEM, /NEW scene state/);
+    assert.match(TRPG_GM_SYSTEM, /cash it out into a concrete fiction change/);
+    assert.match(TRPG_GM_SYSTEM, /Close in 1–2 concise sentences/);
+    assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
+    assert.match(TRPG_GM_SYSTEM, /faster opponent, bad timing, terrain/);
   });
 });
