@@ -74,7 +74,7 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
   };
-  if (routing?.activeRoute === "adult") {
+  if (routing?.activeRoute === "adult" || routing?.fallbackSucceeded) {
     Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));
     Object.assign(publicUsage, collapsePublicHandoffStages(publicUsage, routing));
   }
@@ -101,7 +101,7 @@ export function stripAdultRoutingForClient(
   void _canonAdopted;
   void _canonAdoptedAt;
   let client = { ...rest } as Usage;
-  if (routing?.activeRoute === "adult") {
+  if (routing?.activeRoute === "adult" || routing?.fallbackSucceeded) {
     client = applySelectedModelIdentity(client, routing);
     if (!options?.keepInternal) {
       client = collapsePublicHandoffStages(client, routing);

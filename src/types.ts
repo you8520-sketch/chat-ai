@@ -59,6 +59,8 @@ export type ContextBuildInput = {
   shortTermHistory: ChatMsg[];
   currentUserMessage: string;
   nsfw: boolean;
+  /** Active adult consent mode — gates CNC policy wording in prose guidelines. */
+  activeConsentMode?: "standard" | "power_play" | "cnc_opt_in";
   gender?: CharacterGender;
   assetTags?: string[];
   memoryMeta?: string | null;

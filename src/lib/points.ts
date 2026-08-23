@@ -1998,9 +1998,12 @@ export function isGeminiBillingStage(stage: { model: string }): boolean {
 /** One provider per turn — stealth fallback must never sum Gemini + OpenRouter stages. */
 export function selectBillableStages(
   stages: StageUsage[],
-  opts?: { stealthFallback?: boolean }
+  opts?: { stealthFallback?: boolean; refusalFallbackDelivered?: boolean }
 ): StageUsage[] {
   if (!stages.length) return [];
+  if (opts?.refusalFallbackDelivered) {
+    return [stages[stages.length - 1]!];
+  }
   if (opts?.stealthFallback) {
     const openRouterOnly = stages.filter((s) => !isGeminiBillingStage(s));
     return openRouterOnly.length > 0 ? openRouterOnly : [stages[stages.length - 1]!];

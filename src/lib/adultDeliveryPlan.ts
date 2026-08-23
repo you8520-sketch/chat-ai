@@ -19,7 +19,6 @@ export type AdultFallbackPrepReason =
   | "previous_requires_adult"
   | "frequent_dirty_talk"
   | "provider_boundary_exceeded"
-  | "existing_adult_scene"
   | "sexual_tension_refusal_candidate";
 
 export type AdultDeliveryPlan = {
@@ -73,10 +72,6 @@ export function collectAdultFallbackPrepReasons(input: {
     modelFamily(input.selectedModelId),
     classification.sceneMode
   );
-  const existingAdultScene =
-    !classification.sceneReset &&
-    state.activeRoute === "adult" &&
-    !isSafeSceneMode(classification.sceneMode);
   const sexualTensionRefusalCandidate =
     eligibility.eligible &&
     eligibility.allowedByAdultContentPolicy &&
@@ -100,9 +95,6 @@ export function collectAdultFallbackPrepReasons(input: {
   if (providerBoundaryExceeded) {
     reasons.push("provider_boundary_exceeded");
   }
-  if (existingAdultScene) {
-    reasons.push("existing_adult_scene");
-  }
   if (sexualTensionRefusalCandidate) {
     reasons.push("sexual_tension_refusal_candidate");
   }
@@ -119,6 +111,7 @@ export function resolveAdultDeliveryPlan(input: {
   state: ModelRouteState;
   adultDialogueProfile: AdultDialogueProfile;
   providerCapabilities: Record<string, SceneMode>;
+  chatAdultModeEnabled?: boolean;
 }): AdultDeliveryPlan {
   const primaryModelId = input.selectedModelId;
   const fallbackModelId = input.adultTargetModelId;
@@ -130,9 +123,11 @@ export function resolveAdultDeliveryPlan(input: {
   };
 
   if (!input.routingEnabled) return base;
+  if (input.chatAdultModeEnabled === false) return base;
   if (!input.eligibility.eligible) return base;
   if (!input.eligibility.allowedByAdultContentPolicy) return base;
   if (!input.silentRefusalFallback) return base;
+  if (input.classification.hardStop) return base;
   if (isSelectedModelAdultTarget(primaryModelId, fallbackModelId)) return base;
 
   const reasons = collectAdultFallbackPrepReasons({

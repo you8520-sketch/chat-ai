@@ -6,7 +6,6 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
-import { appendSourceSpecificQwenAdapter } from "@/lib/adultHandoffSourceRouting";
 import {
   classifyChatOocIntent,
   extractOocRoutingText,
@@ -699,6 +698,8 @@ export function resolveAdultEligibility(input: {
 
 const EXPLICIT_RP_STOP =
   /(?:괄호\s*밖|롤플레(?:이|잉)\s*(?:중단|종료)|장면\s*(?:중단|종료)|그만\s*하자|여기서\s*멈춰|stop\s+(?:the\s+)?scene|end\s+(?:the\s+)?scene)/i;
+const SAFEWORD_STOP =
+  /^(?:OOC\s*[:：]?\s*)?(?:세이프워드|safe\s*word)\s*[:：]?\s*(?:레드|red|stop|중단|그만|멈춰)/i;
 const CNC_OPT_IN =
   /(?:(?:OOC|합의|사전\s*동의|안전어|세이프워드).{0,40}(?:CNC|강압\s*역할극|비동의\s*역할극|강간\s*역할극)|(?:CNC|consensual\s+non[- ]?consent).{0,40}(?:동의|opt[- ]?in|safe\s*word))/i;
 const MEDICAL_OR_COMBAT =
@@ -725,6 +726,14 @@ const OOC_RP_DIRECTIVE =
   /(?:반응|출력|연출|묘사|진행|장면|에피소드|상황|어떻게\s*하는지|행동|대사|portray|react|output|describe|continue)/i;
 const MEDICAL_NO_SEXUAL =
   /성적\s*묘사(?:는|를)?\s*(?:하지\s*마|금지|없|말아)/i;
+
+export function detectSafewordStop(text: string): boolean {
+  return SAFEWORD_STOP.test(text.trim());
+}
+
+export function detectExplicitSceneStop(text: string): boolean {
+  return detectOocHardStop(text) || detectSafewordStop(text) || detectExplicitRpStop(text);
+}
 
 export function detectExplicitRpStop(text: string): boolean {
   return EXPLICIT_RP_STOP.test(text);
@@ -753,16 +762,24 @@ export function resolveRequestedConsentMode(
   previous: AdultConsentMode,
   currentInput: string
 ): AdultConsentMode {
-  if (detectOocHardStop(currentInput)) return "standard";
+  if (detectOocHardStop(currentInput) || detectSafewordStop(currentInput)) {
+    return "standard";
+  }
   if (requested === "power_play") return "power_play";
+  if (requested === "standard") return "standard";
+  if (hasExplicitCncOptIn(currentInput)) {
+    return "cnc_opt_in";
+  }
   if (
     requested === "cnc_opt_in" &&
     hasExplicitCncOptIn(currentInput)
   ) {
     return "cnc_opt_in";
   }
-  if (requested === "standard") return "standard";
-  return previous;
+  if (previous === "power_play" && requested == null) {
+    return "power_play";
+  }
+  return "standard";
 }
 
 /** Character allowlist only. Listing `nsfw` does not change consent modes. */
@@ -895,7 +912,8 @@ export function classifySceneMode(input: {
   const current = input.currentInput.trim();
   const oocIntent = classifyChatOocIntent(current);
   const sceneReset = oocIntent === "rp_scene_reset";
-  const hardStop = oocIntent === "rp_hard_stop";
+  const hardStop =
+    oocIntent === "rp_hard_stop" || detectSafewordStop(current);
   const routingText = oocIntent === "none" ? current : extractOocRoutingText(current);
   const previous = sceneReset ? "normal" : (input.previousSceneMode ?? "normal");
   const recent = sceneReset ? "" : (input.recentRawText?.slice(-6_000) ?? "");
@@ -1107,7 +1125,7 @@ export interface AdultRouteDecision {
   transientAdultCapableRoute: boolean;
 }
 
-/** Scene / eligibility decision only. Provider delivery is owned by AdultDeliveryPlan. */
+/** Scene / eligibility metadata only. Primary model delivery is owned by AdultDeliveryPlan. */
 export function decideAdultModelRoute(input: {
   config: AdultRoutingConfig;
   state: ModelRouteState;
@@ -1117,15 +1135,19 @@ export function decideAdultModelRoute(input: {
   selectedModelId: string;
 }): AdultRouteDecision {
   const { config, state, classification, eligibility } = input;
+  const baseGeneral = {
+    activeRoute: "general" as const,
+    shouldBlock: false,
+    firstAdultHandoff: false,
+    transientAdultCapableRoute: classification.transientAdultCapableRoute,
+  };
+
   if (!config.enabled) {
     return {
-      activeRoute: "general",
+      ...baseGeneral,
       sceneMode: state.currentSceneMode,
       sexualContextActive: state.sexualContextActive === true,
-      shouldBlock: false,
-      firstAdultHandoff: false,
       refusalBufferRecommended: false,
-      transientAdultCapableRoute: false,
     };
   }
 
@@ -1135,26 +1157,21 @@ export function decideAdultModelRoute(input: {
     EXPLICIT_SCENE_MODES.has(classification.sceneMode);
   if (explicitIntent && !eligibility.allowedByAdultContentPolicy) {
     return {
-      activeRoute: "general",
+      ...baseGeneral,
       sceneMode: classification.sceneMode,
       sexualContextActive: classification.sexualContextActive,
       shouldBlock: true,
       blockReason: eligibility.blockReason,
-      firstAdultHandoff: false,
       refusalBufferRecommended: false,
-      transientAdultCapableRoute: false,
     };
   }
   if (classification.hardStop) {
     return {
-      activeRoute: "general",
+      ...baseGeneral,
       sceneMode: "normal",
       sexualContextActive: false,
       routeTriggerReason: "user_ooc_hard_stop",
-      shouldBlock: false,
-      firstAdultHandoff: false,
       refusalBufferRecommended: false,
-      transientAdultCapableRoute: false,
     };
   }
   if (
@@ -1164,75 +1181,33 @@ export function decideAdultModelRoute(input: {
     !classification.requiresAdultCapableModel
   ) {
     return {
-      activeRoute: "general",
+      ...baseGeneral,
       sceneMode: "normal",
       sexualContextActive: false,
       routeTriggerReason: "clear_scene_transition",
-      shouldBlock: false,
-      firstAdultHandoff: false,
       refusalBufferRecommended: false,
-      transientAdultCapableRoute: false,
     };
   }
 
-  const frequentDirtyTalkRoute =
-    eligibility.eligible &&
-    input.adultDialogueProfile === "explicit_frequent" &&
-    classification.sexualContextActive;
-  const previousRequiresAdult =
-    !classification.sceneReset &&
-    (state.currentSceneMode === "explicit_dialogue" ||
-      state.currentSceneMode === "intimate_transition" ||
-      state.currentSceneMode === "explicit");
-  const providerBoundaryExceeded = !providerCanHandleScene(
-    config,
-    modelFamily(input.selectedModelId),
-    classification.sceneMode
-  );
-  const shouldEnterAdultRoute =
+  const refusalBufferRecommended =
     eligibility.eligible &&
     eligibility.allowedByAdultContentPolicy &&
+    config.silentRefusalFallback &&
+    !classification.hardStop &&
     (classification.currentInputExplicitIntent ||
       classification.requiresAdultCapableModel ||
-      previousRequiresAdult ||
-      frequentDirtyTalkRoute ||
-      providerBoundaryExceeded);
-
-  // Scene reset cancels old sticky adult; new classification decides the route.
-  const stickyAdult =
-    !classification.sceneReset &&
-    state.activeRoute === "adult" &&
-    eligibility.eligible &&
-    eligibility.allowedByAdultContentPolicy;
-
-  if (stickyAdult || shouldEnterAdultRoute) {
-    return {
-      activeRoute: "adult",
-      sceneMode: classification.sceneMode,
-      sexualContextActive: classification.sexualContextActive,
-      routeTriggerReason: shouldEnterAdultRoute
-        ? classification.reason
-        : state.routeTriggerReason ?? "sticky_adult_route",
-      shouldBlock: false,
-      firstAdultHandoff:
-        classification.sceneReset || state.activeRoute !== "adult",
-      refusalBufferRecommended: false,
-      transientAdultCapableRoute: classification.transientAdultCapableRoute,
-    };
-  }
+      classification.sexualContextActive ||
+      classification.sceneMode === "tension" ||
+      EXPLICIT_SCENE_MODES.has(classification.sceneMode) ||
+      (!classification.sceneReset &&
+        EXPLICIT_SCENE_MODES.has(state.currentSceneMode)));
 
   return {
-    activeRoute: "general",
+    ...baseGeneral,
     sceneMode: classification.sceneMode,
     sexualContextActive: classification.sexualContextActive,
-    shouldBlock: false,
-    firstAdultHandoff: false,
-    refusalBufferRecommended:
-      eligibility.eligible &&
-      config.silentRefusalFallback &&
-      (classification.sexualContextActive ||
-        classification.sceneMode === "tension"),
-    transientAdultCapableRoute: false,
+    routeTriggerReason: classification.reason,
+    refusalBufferRecommended,
   };
 }
 
@@ -1249,9 +1224,15 @@ export function advanceModelRouteState(input: {
   generalRouteBridge?: GeneralRouteBridge;
   transientAdultCapableRoute?: boolean;
   establishedOngoingSexualContext?: boolean;
+  /** @deprecated refusal-only handoff — ignored */
   adultHandoffSourceModelId?: string;
+  /** @deprecated refusal-only handoff — ignored */
   adultHandoffTargetModelId?: string;
 }): ModelRouteState {
+  void input.deliveredRoute;
+  void input.enteredAdultThisTurn;
+  void input.adultHandoffSourceModelId;
+  void input.adultHandoffTargetModelId;
   if (!input.config.enabled) return input.previous;
   if (input.explicitSceneEnd) {
     return {
@@ -1263,7 +1244,6 @@ export function advanceModelRouteState(input: {
 
   if (
     input.transientAdultCapableRoute &&
-    input.deliveredRoute === "adult" &&
     !input.establishedOngoingSexualContext
   ) {
     return {
@@ -1281,39 +1261,6 @@ export function advanceModelRouteState(input: {
 
   const safeScene =
     input.sceneModeAfter === "normal" || input.sceneModeAfter === "romantic";
-  if (input.deliveredRoute === "adult") {
-    const minimum = input.enteredAdultThisTurn
-      ? input.config.minimumRouteTurns
-      : Math.max(0, input.previous.adultRouteMinimumTurnsRemaining - 1);
-    const safeSceneStreak = safeScene ? input.previous.safeSceneStreak + 1 : 0;
-    const canReturn =
-      minimum === 0 && safeSceneStreak >= input.config.returnSafeTurns;
-    return {
-      activeRoute: canReturn ? "general" : "adult",
-      currentSceneMode: input.sceneModeAfter,
-      adultRouteMinimumTurnsRemaining: canReturn ? 0 : minimum,
-      safeSceneStreak: canReturn ? 0 : safeSceneStreak,
-      routeTriggerReason: canReturn
-        ? "safe_scene_streak"
-        : input.routeTriggerReason ?? input.previous.routeTriggerReason,
-      activeConsentMode:
-        input.activeConsentMode ?? input.previous.activeConsentMode,
-      sexualContextActive: input.sexualContextActive,
-      generalRouteBridge:
-        input.generalRouteBridge ?? input.previous.generalRouteBridge,
-      ...(canReturn
-        ? {}
-        : {
-            adultHandoffSourceModelId:
-              input.adultHandoffSourceModelId ??
-              input.previous.adultHandoffSourceModelId,
-            adultHandoffTargetModelId:
-              input.adultHandoffTargetModelId ??
-              input.previous.adultHandoffTargetModelId,
-          }),
-    };
-  }
-
   return {
     activeRoute: "general",
     currentSceneMode: input.sceneModeAfter,
@@ -1323,7 +1270,7 @@ export function advanceModelRouteState(input: {
     activeConsentMode:
       input.activeConsentMode ?? input.previous.activeConsentMode,
     sexualContextActive: input.sexualContextActive,
-    generalRouteBridge: input.previous.generalRouteBridge,
+    generalRouteBridge: input.generalRouteBridge ?? input.previous.generalRouteBridge,
   };
 }
 
@@ -1766,9 +1713,10 @@ export function renderSceneContinuityPacket(
 export function appendAdultHandoffPrompt(
   systemPrompt: string,
   packet: SceneContinuityPacket,
-  opts?: { sourceModelId?: string; adultTargetModelId?: string }
+  _opts?: { sourceModelId?: string; adultTargetModelId?: string }
 ): string {
-  const common = [
+  void _opts;
+  return [
     systemPrompt.trim(),
     renderSceneContinuityPacket(packet),
     packet.sceneReset
@@ -1777,11 +1725,6 @@ export function appendAdultHandoffPrompt(
   ]
     .filter(Boolean)
     .join("\n\n");
-  return appendSourceSpecificQwenAdapter(
-    common,
-    opts?.sourceModelId,
-    opts?.adultTargetModelId
-  );
 }
 
 export function appendAdultHandoffToSystemSplit<T extends {
@@ -1791,22 +1734,19 @@ export function appendAdultHandoffToSystemSplit<T extends {
 }>(
   split: T | undefined,
   packet: SceneContinuityPacket,
-  opts?: { sourceModelId?: string; adultTargetModelId?: string }
+  _opts?: { sourceModelId?: string; adultTargetModelId?: string }
 ): T | undefined {
+  void _opts;
   if (!split) return undefined;
-  const dynamicBlock = appendSourceSpecificQwenAdapter(
-    [
-      split.dynamicBlock.trim(),
-      renderSceneContinuityPacket(packet),
-      packet.sceneReset
-        ? SCENE_RESET_HANDOFF_INSTRUCTION
-        : DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
-    ]
-      .filter(Boolean)
-      .join("\n\n"),
-    opts?.sourceModelId,
-    opts?.adultTargetModelId
-  );
+  const dynamicBlock = [
+    split.dynamicBlock.trim(),
+    renderSceneContinuityPacket(packet),
+    packet.sceneReset
+      ? SCENE_RESET_HANDOFF_INSTRUCTION
+      : DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   return {
     ...split,
     dynamicBlock,
