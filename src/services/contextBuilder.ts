@@ -1260,6 +1260,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         ownershipLockEnabled,
         ownershipTerminalEchoEnabled,
         coauthorDuration,
+        adultHandoff: input.preserveAdultHandoffRawHistory === true,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
