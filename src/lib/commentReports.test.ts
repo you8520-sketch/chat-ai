@@ -113,6 +113,7 @@ describe("profile comment reports", () => {
     assert.equal(comment.moderation_status, "blinded");
     assert.equal(comment.report_count, 10);
     const alert = db.prepare("SELECT type, ref_id FROM user_notifications WHERE user_id=50").get() as { type: string; ref_id: number };
-    assert.deepEqual(alert, { type: "admin_comment_review", ref_id: 10 });
+    assert.equal(alert.type, "admin_comment_review");
+    assert.equal(alert.ref_id, 10);
   });
 });
