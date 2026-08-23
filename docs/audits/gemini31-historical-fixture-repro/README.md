@@ -35,6 +35,8 @@ A later production-equivalent character-18 dump exists on other branches. It is 
 ```text
 docs/audits/gemini31-historical-fixture-repro/
   README.md
+  HUMAN_REVIEW.md
+  HANDOFF_FLAGS.json
   FIXTURE_PARITY.md
   HISTORICAL_REFERENCE.md
   CURRENT_RESULTS.md
@@ -43,8 +45,10 @@ docs/audits/gemini31-historical-fixture-repro/
   meta/{REL,ACT}-T{1,2}.json
 ```
 
+ChatGPT / human entry: `HUMAN_REVIEW.md`.
+
 `raw/` and `meta/` are `NOT_RUN` sentinels. `requests/` hold the exact historical current-user strings only.
 
 ## Review rule
 
-Cursor assigned no quality score, style score, A/B winner, literary PASS/FAIL, or production recommendation. ChatGPT + human read RAW (none generated) and all literary judgments.
+Cursor assigned no quality score, style score, A/B winner, literary PASS/FAIL, or production recommendation. ChatGPT + human read RAW (none generated) and make all literary judgments.
