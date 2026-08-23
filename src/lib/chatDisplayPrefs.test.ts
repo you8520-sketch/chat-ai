@@ -13,12 +13,15 @@ import {
   CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
+  CHAT_STREAM_SPEED_PRESETS,
   DEFAULT_CHARACTER_DIALOGUE_COLOR,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  LEGACY_CHAT_STREAM_INTERVAL_MS,
   LEGACY_CHARACTER_DIALOGUE_COLOR,
   isChatRoomPathname,
   isCompactRoomPathname,
   formatStreamIntervalLabel,
+  loadChatDisplayPrefs,
   normalizeCharacterDialogueColor,
   normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
@@ -83,19 +86,82 @@ describe("chat streaming speed presets", () => {
   });
 
   it("defaults new users to fast streaming", () => {
-    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 20);
+    const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
+    assert.equal(fast.intervalMs, 35);
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 35);
     assert.equal(formatStreamIntervalLabel(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs), "빠름");
   });
 
-  it("maps legacy millisecond values to one of the four named presets", () => {
+  it("keeps one shared owner for chat and TRPG reading speeds", () => {
+    assert.deepEqual(
+      CHAT_STREAM_SPEED_PRESETS.map((p) => [p.label, p.intervalMs]),
+      [
+        ["즉시", 0],
+        ["빠름", 35],
+        ["보통", 50],
+        ["느림", 65],
+      ]
+    );
+  });
+
+  it("migrates the previous 빠름/보통/느림 millisecond values by label, not nearest ms", () => {
     assert.equal(normalizeStreamIntervalMs(0), 0);
-    assert.equal(normalizeStreamIntervalMs(40), 20);
-    assert.equal(normalizeStreamIntervalMs(60), 60);
-    assert.equal(normalizeStreamIntervalMs(80), 60);
-    assert.equal(normalizeStreamIntervalMs(100), 100);
+    assert.equal(normalizeStreamIntervalMs(20), 35);
+    assert.equal(normalizeStreamIntervalMs(60), 50);
+    assert.equal(normalizeStreamIntervalMs(100), 65);
+    assert.equal(LEGACY_CHAT_STREAM_INTERVAL_MS[60], 50);
+    assert.notEqual(normalizeStreamIntervalMs(60), 65);
     assert.equal(formatStreamIntervalLabel(0), "즉시");
+    assert.equal(formatStreamIntervalLabel(20), "빠름");
     assert.equal(formatStreamIntervalLabel(60), "보통");
     assert.equal(formatStreamIntervalLabel(100), "느림");
+    assert.equal(formatStreamIntervalLabel(35), "빠름");
+    assert.equal(formatStreamIntervalLabel(50), "보통");
+    assert.equal(formatStreamIntervalLabel(65), "느림");
+  });
+
+  it("maps unknown millisecond values to the nearest current preset", () => {
+    assert.equal(normalizeStreamIntervalMs(40), 35);
+    assert.equal(normalizeStreamIntervalMs(55), 50);
+    assert.equal(normalizeStreamIntervalMs(80), 65);
+  });
+
+  it("rewrites stored chat prefs so a saved 보통 stays 보통 after the interval retune", () => {
+    const store = new Map<string, string>();
+    const g = globalThis as typeof globalThis & {
+      window?: unknown;
+      localStorage?: Storage;
+    };
+    const prevWindow = g.window;
+    const prevStorage = g.localStorage;
+    g.window = g;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+      clear: () => store.clear(),
+      key: () => null,
+      get length() {
+        return store.size;
+      },
+    };
+    try {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, streamIntervalMs: 60, streamCharsPerTick: 1 })
+      );
+      const loaded = loadChatDisplayPrefs();
+      assert.equal(loaded.streamIntervalMs, 50);
+      assert.equal(formatStreamIntervalLabel(loaded.streamIntervalMs), "보통");
+      assert.equal(JSON.parse(store.get("playai-chat-display-prefs") ?? "{}").streamIntervalMs, 50);
+    } finally {
+      g.window = prevWindow;
+      g.localStorage = prevStorage;
+    }
   });
 });
 

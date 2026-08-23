@@ -22,7 +22,11 @@ export function loadTrpgStreamIntervalMs(): number {
   try {
     const raw = window.localStorage.getItem(TRPG_STREAM_INTERVAL_KEY);
     if (raw == null || raw === "") return DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
-    return normalizeStreamIntervalMs(Number(raw));
+    const next = normalizeStreamIntervalMs(Number(raw));
+    if (raw !== String(next)) {
+      window.localStorage.setItem(TRPG_STREAM_INTERVAL_KEY, String(next));
+    }
+    return next;
   } catch {
     return DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
   }

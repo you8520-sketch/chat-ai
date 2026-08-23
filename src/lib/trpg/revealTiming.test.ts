@@ -59,6 +59,11 @@ describe("TRPG adaptive reveal", () => {
     );
     assert.equal(
       trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 20 }),
+      false,
+      "legacy fast 20ms stays progressive after migrating to 35ms"
+    );
+    assert.equal(
+      trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 4800, streamIntervalMs: 35 }),
       false
     );
   });

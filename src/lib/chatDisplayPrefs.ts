@@ -1,14 +1,25 @@
 import type { CSSProperties } from "react";
 
 export const STREAM_INTERVAL_MIN = 0;
-export const STREAM_INTERVAL_MAX = 100;
+export const STREAM_INTERVAL_MAX = 65;
 
 export const CHAT_STREAM_SPEED_PRESETS = [
   { intervalMs: 0, label: "즉시" },
-  { intervalMs: 20, label: "빠름" },
-  { intervalMs: 60, label: "보통" },
-  { intervalMs: 100, label: "느림" },
+  { intervalMs: 35, label: "빠름" },
+  { intervalMs: 50, label: "보통" },
+  { intervalMs: 65, label: "느림" },
 ] as const;
+
+/**
+ * Previous 즉시/빠름/보통/느림 millisecond values.
+ * Map by label intent before nearest-ms — old 60 (보통) is closer to 65 (느림).
+ */
+export const LEGACY_CHAT_STREAM_INTERVAL_MS: Record<number, number> = {
+  0: 0,
+  20: 35,
+  60: 50,
+  100: 65,
+};
 
 export type ChatFontSizePreset = "small" | "medium" | "large" | "xlarge";
 export type ChatParagraphSpacingPreset = "tight" | "normal" | "relaxed" | "loose";
@@ -60,7 +71,7 @@ export const DEFAULT_CHARACTER_DIALOGUE_COLOR = "#c4b5fd";
 export const LEGACY_CHARACTER_DIALOGUE_COLOR = "#fb923c";
 
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
-  streamIntervalMs: 20,
+  streamIntervalMs: 35,
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",
@@ -176,14 +187,19 @@ export function formatStreamIntervalLabel(ms: number): string {
 }
 
 export function normalizeStreamIntervalMs(value: unknown): number {
-  const n = typeof value === "number" && !Number.isNaN(value) ? value : DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
+  const fallback = DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
+  const n = typeof value === "number" && !Number.isNaN(value) ? value : fallback;
+  const legacy = LEGACY_CHAT_STREAM_INTERVAL_MS[n];
+  if (legacy != null) return legacy;
+  const exact = CHAT_STREAM_SPEED_PRESETS.find((preset) => preset.intervalMs === n);
+  if (exact) return exact.intervalMs;
   const clamped = Math.min(STREAM_INTERVAL_MAX, Math.max(STREAM_INTERVAL_MIN, n));
   return CHAT_STREAM_SPEED_PRESETS.reduce<number>(
     (closest, preset) =>
       Math.abs(preset.intervalMs - clamped) < Math.abs(closest - clamped)
         ? preset.intervalMs
         : closest,
-    CHAT_STREAM_SPEED_PRESETS[0].intervalMs
+    fallback
   );
 }
 
@@ -355,7 +371,7 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
       : fontSizePresetFromLegacyPx(
           typeof parsed.fontSizePx === "number" ? parsed.fontSizePx : 15
         );
-    return {
+    const next: ChatDisplayPrefs = {
       ...DEFAULT_CHAT_DISPLAY_PREFS,
       ...parsed,
       streamIntervalMs,
@@ -378,6 +394,10 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
         parsed.portraitBackgroundOpacity
       ),
     };
+    if (parsed.streamIntervalMs !== streamIntervalMs) {
+      saveChatDisplayPrefs(next);
+    }
+    return next;
   } catch {
     return DEFAULT_CHAT_DISPLAY_PREFS;
   }

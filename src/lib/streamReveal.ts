@@ -1,3 +1,5 @@
+import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
+
 export type StreamRevealHandlers = {
   onAppend: (chunk: string) => void;
 };
@@ -10,8 +12,8 @@ export type StreamRevealOptions = {
 export type StreamRevealOptionsSource = StreamRevealOptions | (() => StreamRevealOptions);
 
 const DEFAULT_OPTIONS: StreamRevealOptions = {
-  intervalMs: 60,
-  charsPerTick: 1,
+  intervalMs: DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs,
+  charsPerTick: DEFAULT_CHAT_DISPLAY_PREFS.streamCharsPerTick,
 };
 
 function resolveOptions(source: StreamRevealOptionsSource): StreamRevealOptions {
