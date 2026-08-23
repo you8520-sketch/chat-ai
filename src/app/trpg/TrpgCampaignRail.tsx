@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
+import ChatStreamSpeedSettings from "@/components/ChatStreamSpeedSettings";
 import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/ChatSettingsRailIcons";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import { partyDetailedSheetCards } from "@/lib/trpg/partySheetPresentation";
@@ -15,7 +16,7 @@ export type TrpgCampaignRailTab = "display" | "sheets" | "ooc";
 function tabLabel(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "표시";
+      return "채팅 설정";
     case "sheets":
       return "시트";
     case "ooc":
@@ -45,7 +46,7 @@ function tabIcon(tab: TrpgCampaignRailTab): ChatSettingsRailIconId {
 function tabHint(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "글꼴 · 크기";
+      return "글꼴 · 크기 · 출력 속도";
     case "sheets":
       return "파티원 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
@@ -61,6 +62,8 @@ export default function TrpgCampaignRail({
   snap,
   displayPrefs,
   onDisplayPrefsChange,
+  streamIntervalMs,
+  onStreamIntervalMsChange,
   partyBody,
   onPartyBodyChange,
   onSendParty,
@@ -70,6 +73,8 @@ export default function TrpgCampaignRail({
   snap: TrpgCampaignSnapshot;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
+  streamIntervalMs: number;
+  onStreamIntervalMsChange: (intervalMs: number) => void;
   partyBody: string;
   onPartyBodyChange: (value: string) => void;
   onSendParty: () => void;
@@ -118,12 +123,17 @@ export default function TrpgCampaignRail({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             {active === "display" ? (
-              <>
+              <div className="space-y-5">
                 <ChatDisplayReadabilitySettings
                   displayPrefs={displayPrefs}
                   onDisplayPrefsChange={onDisplayPrefsChange}
                 />
-              </>
+                <ChatStreamSpeedSettings
+                  title="출력 속도"
+                  streamIntervalMs={streamIntervalMs}
+                  onStreamIntervalMsChange={onStreamIntervalMsChange}
+                />
+              </div>
             ) : null}
             {active === "sheets" ? (
               <div className="space-y-3">

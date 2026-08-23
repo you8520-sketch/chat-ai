@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
+import { DEFAULT_CHAT_DISPLAY_PREFS, loadChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import {
   loadTrpgActionSuggestionsCache,
   loadTrpgActionSuggestionsEnabled,
   loadTrpgDisplayPrefs,
+  loadTrpgStreamIntervalMs,
   saveTrpgActionSuggestionsCache,
   saveTrpgActionSuggestionsEnabled,
+  saveTrpgStreamIntervalMs,
   shouldAutoRequestTrpgActionSuggestions,
   TRPG_ACTION_SUGGESTIONS_CACHE_PREFIX,
   TRPG_ACTION_SUGGESTIONS_KEY,
   TRPG_LEGACY_FONT_SIZE_KEY,
+  TRPG_STREAM_INTERVAL_KEY,
 } from "./displayPrefs";
 
 function withLocalStorage(store: Map<string, string>, fn: () => void): void {
@@ -44,6 +47,23 @@ function withLocalStorage(store: Map<string, string>, fn: () => void): void {
 }
 
 describe("TRPG display prefs", () => {
+  it("defaults TRPG GM speed to chat fast and stores it apart from chat prefs", () => {
+    const store = new Map<string, string>();
+    withLocalStorage(store, () => {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, streamIntervalMs: 100, streamCharsPerTick: 1 })
+      );
+      assert.equal(loadTrpgStreamIntervalMs(), DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
+      saveTrpgStreamIntervalMs(60);
+      assert.equal(store.get(TRPG_STREAM_INTERVAL_KEY), "60");
+      assert.equal(loadTrpgStreamIntervalMs(), 60);
+      assert.equal(loadChatDisplayPrefs().streamIntervalMs, 100);
+      saveTrpgStreamIntervalMs(0);
+      assert.equal(loadTrpgStreamIntervalMs(), 0);
+    });
+  });
+
   it("keeps a legacy TRPG size when chat prefs are still the default size", () => {
     const store = new Map<string, string>();
     withLocalStorage(store, () => {

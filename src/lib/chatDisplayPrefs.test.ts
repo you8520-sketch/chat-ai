@@ -53,6 +53,16 @@ describe("compact room pathnames", () => {
 });
 
 describe("chat streaming speed presets", () => {
+  it("keeps the regular chat speed UI on the shared preset owner", () => {
+    const panel = readFileSync("src/components/ChatSettingsPanel.tsx", "utf8");
+    const speed = readFileSync("src/components/ChatStreamSpeedSettings.tsx", "utf8");
+    assert.match(panel, /ChatStreamSpeedSettings/);
+    assert.match(panel, /withStreamSpeed\(displayPrefs, intervalMs\)/);
+    assert.match(speed, /CHAT_STREAM_SPEED_PRESETS/);
+    assert.match(speed, /title = "스트리밍 속도"/);
+    assert.match(speed, /AI 답변이 화면에 나타나는 속도를 선택하세요\. 기본 설정은 빠름입니다\./);
+  });
+
   it("defaults new users to fast streaming", () => {
     assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 20);
     assert.equal(formatStreamIntervalLabel(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs), "빠름");
