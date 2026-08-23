@@ -4,11 +4,18 @@
  */
 
 import {
+  hasPostProcessPhaseEvidence,
+  type PostProcessPhaseEvidence,
+} from "@/lib/chatStreamPostProcessEvidence";
+import {
   isInFlightGenerationStatus,
   isTerminalGenerationStatus,
   type GenerationStatus,
 } from "@/lib/streamingPersistence";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+
+/** Matches resolveOpenRouterCompletionTimeoutMs("background-status-widget-extract") default. */
+export const EOF_RECONCILE_BACKGROUND_POSTPROCESS_DEADLINE_MS = 120_000;
 
 export type StreamTerminalFlags = {
   sawDone: boolean;
@@ -16,17 +23,31 @@ export type StreamTerminalFlags = {
 };
 
 /**
- * Short retries while server may still be finalizing (status widget / DB write).
+ * Short retries for true interruptions / pre-postprocess EOF.
  * attempts=6 · retry=350ms → sleeps between polls = 5×350 = 1750ms max
- * (covers status-widget finalize that lands slightly after the prior 1050ms budget).
  */
 export const EOF_RECONCILE_MAX_ATTEMPTS = 6;
 export const EOF_RECONCILE_RETRY_MS = 350;
 
-/** When substantial RP prose already streamed, post-process can take minutes. */
+/** Substantial RP prose threshold for extended reconcile eligibility. */
 export const EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS = 400;
-export const EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS = 30;
+
+/**
+ * Extended reconcile budget — secondary safety net when terminal SSE is lost
+ * AFTER post-process evidence was observed.
+ *
+ * Derived from background-status-widget-extract completion timeout (120s) and
+ * chat 707 observed post-main finalize (~55s). Heartbeats are the primary
+ * defense; 60s sleep budget covers observed finalize + DB write margin without
+ * the prior 116s prose-only window.
+ */
 export const EOF_RECONCILE_EXTENDED_RETRY_MS = 4000;
+export const EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS = 16;
+export const EOF_RECONCILE_EXTENDED_MAX_SLEEP_MS =
+  (EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS - 1) * EOF_RECONCILE_EXTENDED_RETRY_MS;
+
+export const EOF_RECONCILE_TRUE_INTERRUPTION_MAX_SLEEP_MS =
+  (EOF_RECONCILE_MAX_ATTEMPTS - 1) * EOF_RECONCILE_RETRY_MS;
 
 /** Max cumulative sleep between polls (excludes fetch latency). */
 export function eofReconcileMaxSleepMs(
@@ -39,15 +60,28 @@ export function eofReconcileMaxSleepMs(
 export function resolveEofReconcilePollBudget(opts: {
   snapshotContentChars?: number;
   streamedContentChars?: number;
-}): { maxAttempts: number; retryMs: number } {
+  postProcessPhaseObserved?: boolean;
+  postProcessEvidence?: PostProcessPhaseEvidence | null;
+}): { maxAttempts: number; retryMs: number; extended: boolean } {
   const chars = Math.max(opts.snapshotContentChars ?? 0, opts.streamedContentChars ?? 0);
-  if (chars >= EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS) {
+  const substantial = chars >= EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS;
+  const postProcessObserved =
+    opts.postProcessPhaseObserved === true ||
+    hasPostProcessPhaseEvidence(opts.postProcessEvidence);
+  const extended = substantial && postProcessObserved;
+
+  if (extended) {
     return {
       maxAttempts: EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS,
       retryMs: EOF_RECONCILE_EXTENDED_RETRY_MS,
+      extended: true,
     };
   }
-  return { maxAttempts: EOF_RECONCILE_MAX_ATTEMPTS, retryMs: EOF_RECONCILE_RETRY_MS };
+  return {
+    maxAttempts: EOF_RECONCILE_MAX_ATTEMPTS,
+    retryMs: EOF_RECONCILE_RETRY_MS,
+    extended: false,
+  };
 }
 
 export function needsEofReconcile(flags: StreamTerminalFlags): boolean {
@@ -122,6 +156,8 @@ export async function reconcileStreamEof(opts: {
   maxAttempts?: number;
   retryMs?: number;
   streamedContentChars?: number;
+  postProcessPhaseObserved?: boolean;
+  postProcessEvidence?: PostProcessPhaseEvidence | null;
 }): Promise<EofReconcileResult> {
   const messageId = opts.messageId != null && Number.isFinite(opts.messageId) ? Number(opts.messageId) : null;
   if (messageId == null || messageId <= 0) {
@@ -130,9 +166,15 @@ export async function reconcileStreamEof(opts: {
 
   const pollBudget =
     opts.maxAttempts != null && opts.retryMs != null
-      ? { maxAttempts: opts.maxAttempts, retryMs: opts.retryMs }
+      ? {
+          maxAttempts: opts.maxAttempts,
+          retryMs: opts.retryMs,
+          extended: opts.maxAttempts > EOF_RECONCILE_MAX_ATTEMPTS,
+        }
       : resolveEofReconcilePollBudget({
           streamedContentChars: opts.streamedContentChars,
+          postProcessPhaseObserved: opts.postProcessPhaseObserved,
+          postProcessEvidence: opts.postProcessEvidence,
         });
   const maxAttempts = opts.maxAttempts ?? pollBudget.maxAttempts;
   const retryMs = opts.retryMs ?? pollBudget.retryMs;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { requireForensicAdminAccess } from "@/lib/adminForensicAccess";
 import { hashForensicsText } from "@/lib/streamTurnForensics";
 import type { Usage } from "@/lib/chatUsage";
 
@@ -30,18 +31,6 @@ function parseMessageId(raw: string | null): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-function requestToken(req: Request): string {
-  const auth = req.headers.get("authorization") ?? "";
-  const bearer = auth.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  return bearer || req.headers.get("x-admin-debug-token")?.trim() || "";
-}
-
-function requireDebugToken(req: Request): boolean {
-  const expected = process.env.ADMIN_DEBUG_TOKEN?.trim() ?? "";
-  if (!expected) return process.env.NODE_ENV !== "production";
-  return requestToken(req) === expected;
-}
-
 function parseWidgetExtractDiagnostics(
   raw: string | null
 ): Usage["statusWidgetExtractDiagnostics"] | null {
@@ -55,7 +44,7 @@ function parseWidgetExtractDiagnostics(
 }
 
 export async function GET(req: Request) {
-  if (!requireDebugToken(req)) {
+  if (!(await requireForensicAdminAccess(req))) {
     return NextResponse.json({ error: "admin diagnostics access denied" }, { status: 403 });
   }
 
@@ -64,6 +53,7 @@ export async function GET(req: Request) {
   const chatIdParam = Number(url.searchParams.get("chatId"));
   const chatId =
     Number.isInteger(chatIdParam) && chatIdParam > 0 ? chatIdParam : null;
+  const includeContentTail = url.searchParams.get("includeContentTail") === "1";
 
   const db = getDb();
 
@@ -82,7 +72,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "message not found" }, { status: 404 });
     }
 
-    return NextResponse.json(formatForensicRow(row));
+    return NextResponse.json(formatForensicRow(row, includeContentTail));
   }
 
   if (!chatId) {
@@ -101,12 +91,13 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     chatId,
-    messages: rows.map(formatForensicRow),
+    messages: rows.map((row) => formatForensicRow(row, includeContentTail)),
   });
 }
 
-function formatForensicRow(row: ForensicMessageRow) {
+function formatForensicRow(row: ForensicMessageRow, includeContentTail: boolean) {
   const content = row.content ?? "";
+  const statusWidgetValuesJson = row.status_widget_values_json ?? "";
   return {
     messageId: row.id,
     chatId: row.chat_id,
@@ -116,12 +107,13 @@ function formatForensicRow(row: ForensicMessageRow) {
     generationStatus: row.generation_status,
     status: row.status,
     contentChars: content.length,
-    contentTail: content.slice(-300),
     contentHash: hashForensicsText(content),
+    ...(includeContentTail ? { contentTail: content.slice(-300) } : {}),
     alternatesChars: row.alternates?.length ?? 0,
     activeVariant: row.active_variant,
     statusWidgetTurnActive: row.status_widget_turn_active === 1,
-    statusWidgetValuesChars: row.status_widget_values_json?.length ?? 0,
+    statusWidgetValuesChars: statusWidgetValuesJson.length,
+    statusWidgetValuesHash: hashForensicsText(statusWidgetValuesJson),
     userMessageId: row.user_message_id,
     deductionSlices: row.deduction_slices,
     createdAt: row.created_at,

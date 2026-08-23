@@ -143,6 +143,12 @@ import {
   reconcileStreamEof,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
+import {
+  applyStatusMessageEvidence,
+  applyStreamHeartbeatEvidence,
+  createEmptyPostProcessPhaseEvidence,
+  type PostProcessPhaseEvidence,
+} from "@/lib/chatStreamPostProcessEvidence";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
@@ -2282,6 +2288,8 @@ export default function ChatClient({
     let postStreamLocked = false;
     /** OOC/HTML 전용 턴 — V3 비스트리밍·대용량 ```html``` 즉시 표시 */
     let htmlFlashStreamTurn = false;
+    const postProcessEvidence: PostProcessPhaseEvidence =
+      createEmptyPostProcessPhaseEvidence();
 
     assistantStreamContentRef.current = "";
     streamTargetTextRef.current = "";
@@ -2740,6 +2748,7 @@ export default function ChatClient({
           if (data.type === "status") {
             if (data.message) {
               setStreamPhase(data.message);
+              applyStatusMessageEvidence(postProcessEvidence, data.message);
               if (/HTML|상태창 생성/i.test(data.message)) {
                 htmlFlashStreamTurn = true;
               }
@@ -2757,6 +2766,15 @@ export default function ChatClient({
               postStreamLocked = true;
               setGenerationPrepUi(null);
             }
+            continue;
+          }
+
+          if (data.type === "stream_heartbeat") {
+            const heartbeatPhase =
+              typeof (data as { phase?: unknown }).phase === "string"
+                ? (data as { phase: string }).phase
+                : null;
+            applyStreamHeartbeatEvidence(postProcessEvidence, heartbeatPhase);
             continue;
           }
 
@@ -2862,6 +2880,7 @@ export default function ChatClient({
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
           streamedContentChars: assistantStreamContentRef.current.trim().length,
+          postProcessEvidence,
           fetchSnapshot: async (messageId) => {
             const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
             if (!snapRes.ok) return null;

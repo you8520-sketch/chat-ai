@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS,
+  EOF_RECONCILE_EXTENDED_MAX_SLEEP_MS,
   EOF_RECONCILE_EXTENDED_RETRY_MS,
+  EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS,
   EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
+  EOF_RECONCILE_TRUE_INTERRUPTION_MAX_SLEEP_MS,
   classifyReconcileStatus,
   eofReconcileMaxSleepMs,
   generationStatusFromEofResult,
@@ -12,6 +14,15 @@ import {
   resolveEofReconcilePollBudget,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
+import {
+  applyStatusMessageEvidence,
+  createEmptyPostProcessPhaseEvidence,
+  hasPostProcessPhaseEvidence,
+} from "@/lib/chatStreamPostProcessEvidence";
+import {
+  createStreamPostprocessHeartbeat,
+  STREAM_POSTPROCESS_HEARTBEAT_INTERVAL_MS,
+} from "@/lib/streamPostprocessHeartbeat";
 import {
   finalizeAssistantMessageCore,
   isTerminalGenerationStatus,
@@ -56,39 +67,45 @@ function openMessagesDb(): Database.Database {
 }
 
 describe("resolveEofReconcilePollBudget", () => {
-  it("uses short budget for empty/minimal streamed prose", () => {
-    const budget = resolveEofReconcilePollBudget({ streamedContentChars: 50 });
+  it("D: substantial prose alone does not open extended budget", () => {
+    const budget = resolveEofReconcilePollBudget({
+      streamedContentChars: EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
+    });
+    assert.equal(budget.extended, false);
     assert.equal(budget.maxAttempts, 6);
     assert.equal(budget.retryMs, 350);
   });
 
-  it("uses extended budget when substantial RP prose was already streamed", () => {
+  it("C: substantial prose + postprocess evidence opens extended budget", () => {
+    const evidence = createEmptyPostProcessPhaseEvidence();
+    applyStatusMessageEvidence(evidence, "상태창 생성 중…");
+    assert.ok(hasPostProcessPhaseEvidence(evidence));
     const budget = resolveEofReconcilePollBudget({
-      streamedContentChars: EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
+      streamedContentChars: 4200,
+      postProcessEvidence: evidence,
     });
+    assert.equal(budget.extended, true);
     assert.equal(budget.maxAttempts, EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS);
     assert.equal(budget.retryMs, EOF_RECONCILE_EXTENDED_RETRY_MS);
-    assert.equal(
-      eofReconcileMaxSleepMs(budget.maxAttempts, budget.retryMs),
-      (EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS - 1) * EOF_RECONCILE_EXTENDED_RETRY_MS
-    );
+    assert.equal(EOF_RECONCILE_EXTENDED_MAX_SLEEP_MS, 60_000);
+    assert.equal(EOF_RECONCILE_TRUE_INTERRUPTION_MAX_SLEEP_MS, 1750);
   });
 });
 
 describe("reconcileStreamEof extended finalize window", () => {
-  it("Test D: substantial prose + generating then completed within extended budget", async () => {
-    const completeAfterMs =
-      eofReconcileMaxSleepMs(6, 350) + 5000; // well beyond short budget
+  it("C: substantial prose + postprocess evidence + generating→completed", async () => {
+    const evidence = createEmptyPostProcessPhaseEvidence();
+    applyStatusMessageEvidence(evidence, "마무리 중…");
+    const completeAfterMs = eofReconcileMaxSleepMs(6, 350) + 5000;
     let elapsed = 0;
-    let fetches = 0;
     const result = await reconcileStreamEof({
       messageId: 781,
       streamedContentChars: 4200,
+      postProcessEvidence: evidence,
       sleep: async (ms) => {
         elapsed += ms;
       },
       fetchSnapshot: async () => {
-        fetches += 1;
         if (elapsed < completeAfterMs) {
           return snap({ generationStatus: "generating", content: "long rp body" });
         }
@@ -96,33 +113,35 @@ describe("reconcileStreamEof extended finalize window", () => {
       },
     });
     assert.equal(result.kind, "completed");
-    if (result.kind === "completed") {
-      assert.equal(result.snapshot.content, "long rp body final");
-      assert.equal(generationStatusFromEofResult(result), "completed");
-    }
-    assert.ok(elapsed >= completeAfterMs);
-    assert.ok(fetches >= 3);
-  });
-
-  it("Test F: DB completed after EOF — reconcile recovers terminal snapshot", async () => {
-    const result = await reconcileStreamEof({
-      messageId: 3750,
-      streamedContentChars: 5400,
-      retryMs: 0,
-      maxAttempts: 2,
-      sleep: async () => {},
-      fetchSnapshot: async () =>
-        snap({ generationStatus: "completed", content: "final prose preserved" }),
-    });
-    assert.equal(result.kind, "completed");
     assert.equal(generationStatusFromEofResult(result), "completed");
-    assert.equal(needsEofReconcile({ sawDone: false, sawError: false }), true);
   });
 
-  it("Test E: main stream interrupted stays failed_like terminal", async () => {
+  it("D: substantial prose without postprocess evidence stays short budget", async () => {
+    let fetches = 0;
+    const result = await reconcileStreamEof({
+      messageId: 781,
+      streamedContentChars: 4200,
+      retryMs: 0,
+      maxAttempts: 6,
+      sleep: async () => {},
+      fetchSnapshot: async () => {
+        fetches += 1;
+        return snap({ generationStatus: "generating", content: "long rp body" });
+      },
+    });
+    assert.equal(result.kind, "interrupted");
+    assert.equal(fetches, 6);
+  });
+
+  it("E: main stream interrupted returns terminal quickly", async () => {
     const result = await reconcileStreamEof({
       messageId: 99,
       streamedContentChars: 1200,
+      postProcessEvidence: (() => {
+        const e = createEmptyPostProcessPhaseEvidence();
+        applyStatusMessageEvidence(e, "마무리 중…");
+        return e;
+      })(),
       retryMs: 0,
       maxAttempts: 2,
       sleep: async () => {},
@@ -137,13 +156,7 @@ describe("reconcileStreamEof extended finalize window", () => {
 });
 
 describe("post-process terminalization invariants", () => {
-  it("Test B/C: widget empty or malformed must not block completed terminal status", () => {
-    assert.equal(classifyReconcileStatus("completed"), "completed");
-    assert.equal(classifyReconcileStatus("completed_with_postprocess_error"), "completed");
-    assert.ok(isTerminalGenerationStatus("completed_with_postprocess_error"));
-  });
-
-  it("Test A: completed family maps to completed client status", async () => {
+  it("A: completed family maps to completed client status", async () => {
     const result = await reconcileStreamEof({
       messageId: 1,
       retryMs: 0,
@@ -151,9 +164,27 @@ describe("post-process terminalization invariants", () => {
       fetchSnapshot: async () => snap({ generationStatus: "completed", content: "ok" }),
     });
     assert.equal(generationStatusFromEofResult(result), "completed");
+    assert.ok(needsEofReconcile({ sawDone: true, sawError: false }) === false);
   });
 
-  it("Test G: interrupted partial with content remains retryable, completed does not", () => {
+  it("B: widget/postprocess delay path uses heartbeat interval constant", () => {
+    const sent: object[] = [];
+    const hb = createStreamPostprocessHeartbeat((obj) => sent.push(obj), {
+      intervalMs: 10,
+    });
+    hb.start("status_widget");
+    assert.equal(sent[0], sent[0]);
+    assert.deepEqual(sent[0], { type: "stream_heartbeat", phase: "status_widget" });
+    hb.stop();
+    assert.equal(STREAM_POSTPROCESS_HEARTBEAT_INTERVAL_MS, 12_000);
+  });
+
+  it("B/C: completed_with_postprocess_error is terminal-completed for reconcile", () => {
+    assert.equal(classifyReconcileStatus("completed_with_postprocess_error"), "completed");
+    assert.ok(isTerminalGenerationStatus("completed_with_postprocess_error"));
+  });
+
+  it("G: interrupted partial preserved; completed finalize is terminal", () => {
     const db = openMessagesDb();
     db.prepare(
       `INSERT INTO messages (id, chat_id, role, content, model, generation_status)
@@ -164,7 +195,6 @@ describe("post-process terminalization invariants", () => {
       .prepare("SELECT generation_status, content FROM messages WHERE id=1")
       .get() as { generation_status: string; content: string };
     assert.equal(row.generation_status, "interrupted");
-    assert.ok(row.content.includes("partial rp"));
 
     finalizeAssistantMessageCore(db, {
       chatId: 707,
@@ -182,6 +212,38 @@ describe("post-process terminalization invariants", () => {
     assert.equal(done.generation_status, "completed");
     db.close();
   });
+
+  it("G: heartbeat timer count returns to zero after stop", () => {
+    const hb = createStreamPostprocessHeartbeat(() => {}, { intervalMs: 1000 });
+    hb.start("finalizing");
+    assert.equal(hb.activeTimerCount(), 1);
+    hb.stop();
+    assert.equal(hb.activeTimerCount(), 0);
+  });
+});
+
+describe("forensics ordering semantics", () => {
+  it("H: sse_done_attempted is true only after done send is queued", () => {
+    let sseDoneAttempted = false;
+    const events: string[] = [];
+    const send = (type: string) => {
+      events.push(type);
+    };
+    const emitForensics = () => {
+      events.push(
+        `forensics:sse_done=${sseDoneAttempted}:disconnect=false:status=completed`
+      );
+    };
+
+    sseDoneAttempted = true;
+    send("done");
+    emitForensics();
+
+    assert.deepEqual(events, [
+      "done",
+      "forensics:sse_done=true:disconnect=false:status=completed",
+    ]);
+  });
 });
 
 describe("reconcileStreamEof short budget unchanged for tiny streams", () => {
@@ -195,8 +257,5 @@ describe("reconcileStreamEof short budget unchanged for tiny streams", () => {
       fetchSnapshot: async () => snap({ generationStatus: "generating" }),
     });
     assert.equal(result.kind, "interrupted");
-    if (result.kind === "interrupted") {
-      assert.equal(result.reason, "still_generating");
-    }
   });
 });

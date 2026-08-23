@@ -58,6 +58,7 @@ import {
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
 import { hashForensicsText, logStreamTurnForensics } from "@/lib/streamTurnForensics";
+import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbeat";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
@@ -2759,6 +2760,7 @@ export async function POST(req: Request) {
         sseEncode
       );
       const send = safe.send;
+      const postprocessHeartbeat = createStreamPostprocessHeartbeat((obj) => send(obj));
       // Immediate heartbeat — mobile clients otherwise sit on a dark/idle screen
       // while prompt assembly + model connect can take tens of seconds.
       send({
@@ -2823,6 +2825,7 @@ export async function POST(req: Request) {
           clearInterval(partialTimer);
           partialTimer = null;
         }
+        postprocessHeartbeat.stop();
       };
 
       let partialTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
@@ -3131,6 +3134,7 @@ export async function POST(req: Request) {
             );
           }
           send({ type: "status", message: "마무리 중…" });
+          postprocessHeartbeat.start("postprocess");
           }
 
           if (!htmlFlashOnlyTurn && fullText.trim()) {
@@ -3554,6 +3558,9 @@ export async function POST(req: Request) {
           needsVisibleLengthContinuation(proseOnly, targetResponseCharsRef)
         ) {
           send({ type: "status", message: "분량 보강 중…" });
+          if (!postprocessHeartbeat.isActive()) {
+            postprocessHeartbeat.start("postprocess");
+          }
           const contResult = await continueNarrativeIfUnderMinimum({
             prose: proseOnly,
             system: systemRef,
@@ -3626,6 +3633,13 @@ export async function POST(req: Request) {
             type: "status",
             message: placement === "bottom" ? "상태창 생성 중…" : "HTML 생성 중…",
           });
+          if (!postprocessHeartbeat.isActive()) {
+            postprocessHeartbeat.start(
+              placement === "bottom" ? "status_widget" : "postprocess"
+            );
+          } else if (placement === "bottom") {
+            postprocessHeartbeat.setPhase("status_widget");
+          }
 
           if (proseOnly.trim() || htmlFlashOnlyTurn) {
           if (htmlFlashOnlyTurn) {
@@ -4664,6 +4678,7 @@ export async function POST(req: Request) {
         let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
         if (statusWidgetActive) {
           send({ type: "status", message: "상태창 생성 중…" });
+          postprocessHeartbeat.setPhase("status_widget");
           const widgetExtractStartedAt = Date.now();
           const widgetResolved = await resolveStatusWidgetTurnValues({
             chatId: chatRef.id,
@@ -5166,6 +5181,7 @@ export async function POST(req: Request) {
           chatRef.model_route_state_json =
             serializeModelRouteState(persistedModelRouteState);
         }
+        postprocessHeartbeat.setPhase("finalizing");
         clearPartialTimer();
         persistenceDiag.finalized = true;
         persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
@@ -5572,7 +5588,6 @@ export async function POST(req: Request) {
           });
         }
 
-        emitStreamTurnForensics(persistedGenerationStatus);
         sseDoneAttempted = true;
         send({
           type: "done",
@@ -5605,6 +5620,7 @@ export async function POST(req: Request) {
           finalContent: savedText,
           ...variantPayload,
         });
+        emitStreamTurnForensics(persistedGenerationStatus);
         controller.close();
 
         void (async () => {
@@ -5718,9 +5734,6 @@ export async function POST(req: Request) {
         } catch {
           /* ignore */
         }
-        emitStreamTurnForensics(
-          partialOnError.trim() ? "completed_with_postprocess_error" : "interrupted"
-        );
         if (e instanceof GeminiTrafficOverloadError) {
           sendTrafficOverloadGracefulStream(send);
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
@@ -5729,6 +5742,9 @@ export async function POST(req: Request) {
         } else {
           send({ type: "error", error: formatClientApiError(e, "Chat pipeline failed") });
         }
+        emitStreamTurnForensics(
+          partialOnError.trim() ? "completed_with_postprocess_error" : "interrupted"
+        );
         controller.close();
       }
       };
