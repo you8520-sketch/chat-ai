@@ -233,7 +233,7 @@ describe("Gemini 3.7 Flash adult-handoff production contract", () => {
   it("10. CI→OR reliability lock remains intact on this PR", () => {
     assert.equal(CHEAPER_INFERENCE_HEADERS_DEADLINE_MS, 8_000);
     assert.equal(CHEAPER_INFERENCE_FIRST_VISIBLE_DEADLINE_MS, 12_000);
-    assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [502, 503, 504]);
+    assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [500, 502, 503, 504]);
   });
 
   it("11-12. refusal handoff yields one visible assistant row and one deduction", () => {
