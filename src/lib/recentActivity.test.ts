@@ -265,6 +265,12 @@ describe("unified recent activity", () => {
     assert.match(grid, /href=\{campaign\.href\}/);
     assert.match(grid, /grid-cols-1/);
     assert.match(grid, /@min-\[30rem\]\/chats:grid-cols-2/);
+    assert.doesNotMatch(grid, /selectionMode \? null/);
+    assert.match(grid, /이 TRPG 방 선택/);
+    assert.match(grid, /toggleCampaignSelection/);
+    assert.match(grid, /\/api\/trpg\/campaigns\/\$\{campaignId\}/);
+    assert.match(grid, /삭제할 대화와 TRPG 방을 선택하세요/);
+    assert.match(grid, /선택한 TRPG 방 삭제/);
   });
 
   it("includes solo setup, solo waiting, and started campaigns in recent", () => {
