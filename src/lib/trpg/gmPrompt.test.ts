@@ -67,7 +67,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Brief or mechanical action/);
     assert.match(TRPG_GM_SYSTEM, /Already-rich narration/);
     assert.match(TRPG_GM_SYSTEM, /Depicting that chosen action is not a failure/);
-    assert.match(TRPG_GM_SYSTEM, /Do not retell the same beats/);
+    assert.match(TRPG_GM_SYSTEM, /first new beat/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
     assert.match(TRPG_GM_SYSTEM, /isolated per-character recaps/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
@@ -219,9 +219,9 @@ describe("TRPG GM prompt/parse", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
     assert.match(TRPG_GM_SYSTEM, /Brief or mechanical action: enrich/);
-    assert.match(TRPG_GM_SYSTEM, /Already-rich narration: treat it as the scene's already-written opening/);
-    assert.match(TRPG_GM_SYSTEM, /world-contact point/);
-    assert.match(TRPG_GM_SYSTEM, /Do not retell the same beats/);
+    assert.match(TRPG_GM_SYSTEM, /Already-rich narration is already rendered on screen/);
+    assert.match(TRPG_GM_SYSTEM, /first new beat/);
+    assert.match(TRPG_GM_SYSTEM, /bridge in one short sentence/);
     assert.match(TRPG_GM_SYSTEM, /physical execution and immediate sensory texture/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
     const block = buildTrpgGmUserBlock({
@@ -335,7 +335,7 @@ describe("TRPG GM prompt/parse", () => {
 
   it("F: closing GM beat is compact guidance, not a recap floor", () => {
     assert.match(TRPG_GM_SYSTEM, /compact table-talk aside starting with `GM:`/);
-    assert.match(TRPG_GM_SYSTEM, /open action space/);
+    assert.match(TRPG_GM_SYSTEM, /open response point/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /how the room feels now/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /At least 400/);
@@ -380,17 +380,16 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
     assert.match(TRPG_GM_SYSTEM, /A failed roll changes the situation while preserving competence/);
     assert.match(TRPG_GM_SYSTEM, /faster opponent, bad timing, terrain/);
-    assert.match(TRPG_GM_SYSTEM, /Clumsy slips are fine when the character and scene earn them/);
+    assert.match(TRPG_GM_SYSTEM, /On critical failure, preserve practiced competence/);
     assert.match(TRPG_GM_SYSTEM, /If several participants fail together, give each a different fitting cause/);
   });
 
-  it("D: rich participant prose starts GM writing at world-contact", () => {
-    assert.match(TRPG_GM_SYSTEM, /already-written opening/);
-    assert.match(TRPG_GM_SYSTEM, /Begin the main GM prose at the world-contact point/);
-    assert.match(TRPG_GM_SYSTEM, /Spend most of the response on the supplied roll/);
+  it("D: rich participant prose starts GM writing at the first new beat", () => {
     assert.match(TRPG_GM_SYSTEM, /already rendered on screen/);
-    assert.match(TRPG_GM_SYSTEM, /brief continuity bridge/);
-    assert.match(TRPG_GM_SYSTEM, /NEW scene state/);
+    assert.match(TRPG_GM_SYSTEM, /Start the GM scene at the first new beat/);
+    assert.match(TRPG_GM_SYSTEM, /bridge in one short sentence/);
+    assert.match(TRPG_GM_SYSTEM, /consequences, interaction, world response, and new state/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /manner, motion, posture, aim, speech/);
   });
 
   it("E: spoken lines prefer effect and response over reprint", () => {
@@ -400,9 +399,11 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("F2: closing keeps an open action space", () => {
-    assert.match(TRPG_GM_SYSTEM, /current open action space/);
-    assert.match(TRPG_GM_SYSTEM, /examples, not a closed menu/);
-    assert.match(TRPG_GM_SYSTEM, /players may invent a different solution/);
+    assert.match(TRPG_GM_SYSTEM, /live situation and an open response point/);
+    assert.match(TRPG_GM_SYSTEM, /every plausible player approach available/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /visible options/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /closed menu/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /players may invent a different solution/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "",
@@ -422,11 +423,13 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /TARGET range as the normal completion band/);
     assert.match(TRPG_GM_SYSTEM, /fallback floor for unusually compact scenes/);
     assert.match(TRPG_GM_SYSTEM, /already rendered on screen/);
-    assert.match(TRPG_GM_SYSTEM, /brief continuity bridge/);
-    assert.match(TRPG_GM_SYSTEM, /NEW scene state/);
+    assert.match(TRPG_GM_SYSTEM, /first new beat/);
+    assert.match(TRPG_GM_SYSTEM, /bridge in one short sentence/);
     assert.match(TRPG_GM_SYSTEM, /cash it out into a concrete fiction change/);
     assert.match(TRPG_GM_SYSTEM, /Close in 1–2 concise sentences/);
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
     assert.match(TRPG_GM_SYSTEM, /faster opponent, bad timing, terrain/);
+    assert.match(TRPG_GM_SYSTEM, /preserve practiced competence/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
   });
 });
