@@ -61,7 +61,16 @@ export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
 export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
 export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 15_000;
 export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 25_000;
-export const TRPG_REPLY_SUGGESTION_TIMEOUT_MS = TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS;
+
+/** Deadlines consumed by executeTrpgReplySuggestionProviderRound (separate primary/backup). */
+export function resolveTrpgReplySuggestionProviderDeadlines(): {
+  primaryCompletionMs: number;
+  backupCompletionMs: number;
+} {
+  return resolveBackgroundFlashProviderDeadlines({
+    requestKind: "trpg-reply-suggestions",
+  });
+}
 export const TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX = 2;
 export const TRPG_REPLY_SUGGESTION_CI_RETRY_COUNT = 0;
 export const TRPG_REPLY_SUGGESTION_OR_RETRY_COUNT = 0;
@@ -116,9 +125,19 @@ function readReplySuggestionGate(
 export type TrpgReplySemanticFailureClass =
   | "empty_completion"
   | "malformed_json"
+  | "malformed_provider_response"
   | "invalid_suggestion_schema"
   | "invalid_suggestion_count"
   | null;
+
+export class TrpgMalformedProviderResponseError extends Error {
+  readonly failureClass = "malformed_provider_response" as const;
+
+  constructor(message = "malformed provider response envelope") {
+    super(message);
+    this.name = "TrpgMalformedProviderResponseError";
+  }
+}
 
 export type TrpgReplySuggestionProviderTelemetry = {
   logical_request_id: string;
@@ -619,14 +638,51 @@ async function readProviderCompletionResponse(res: Response): Promise<{
   inputTokens?: number;
   outputTokens?: number;
 }> {
-  const data = (await res.json()) as {
+  let data: {
     choices?: { message?: { content?: unknown; reasoning_content?: unknown } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
+  try {
+    data = (await res.json()) as typeof data;
+  } catch {
+    throw new TrpgMalformedProviderResponseError();
+  }
   return {
     text: extractReplySuggestionCompletionText(data),
     inputTokens: Number(data.usage?.prompt_tokens ?? 0) || undefined,
     outputTokens: Number(data.usage?.completion_tokens ?? 0) || undefined,
+  };
+}
+
+async function readValidatedProviderCompletion(
+  res: Response
+): Promise<
+  | { ok: true; text: string; inputTokens?: number; outputTokens?: number }
+  | { ok: false; malformedProviderResponse: true }
+  | { ok: false; malformedProviderResponse: false; semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null> }
+> {
+  let completion: { text: string; inputTokens?: number; outputTokens?: number };
+  try {
+    completion = await readProviderCompletionResponse(res);
+  } catch (error) {
+    if (error instanceof TrpgMalformedProviderResponseError) {
+      return { ok: false, malformedProviderResponse: true };
+    }
+    throw error;
+  }
+  const validated = validateReplySuggestionCompletion(completion.text);
+  if (validated.ok) {
+    return {
+      ok: true,
+      text: completion.text,
+      inputTokens: completion.inputTokens,
+      outputTokens: completion.outputTokens,
+    };
+  }
+  return {
+    ok: false,
+    malformedProviderResponse: false,
+    semanticFailureClass: validated.semanticFailureClass,
   };
 }
 
@@ -682,12 +738,17 @@ function throwProviderRoundFailure(opts: {
   throw new Error(opts.message);
 }
 
+export type TrpgReplySuggestionProviderRoundDeps = {
+  fetchCompletion?: typeof fetchDeepSeekNonStreamCompletion;
+};
+
 export async function executeTrpgReplySuggestionProviderRound(opts: {
   system: string;
   user: string;
   logicalRequestId: string;
   roundId?: number | null;
   hooks?: DeepSeekFailoverHooks;
+  deps?: TrpgReplySuggestionProviderRoundDeps;
 }): Promise<{
   text: string;
   model: string;
@@ -700,12 +761,9 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     roundId: opts.roundId,
   });
   const { primaryBody, backupBody } = buildTrpgReplySuggestionBodies(opts);
-  const deadlines = resolveBackgroundFlashProviderDeadlines({
-    requestKind: "trpg-reply-suggestions",
-    existingTimeoutMs: TRPG_REPLY_SUGGESTION_TIMEOUT_MS,
-  });
-  const primaryDeadlineMs = deadlines.primaryCompletionMs;
-  const backupDeadlineMs = deadlines.backupCompletionMs;
+  const { primaryCompletionMs: primaryDeadlineMs, backupCompletionMs: backupDeadlineMs } =
+    resolveTrpgReplySuggestionProviderDeadlines();
+  const fetchCompletion = opts.deps?.fetchCompletion ?? fetchDeepSeekNonStreamCompletion;
   const backupModel = String(backupBody.model ?? OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
 
   const attemptBackup = async (reason: {
@@ -749,7 +807,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     }
 
     try {
-      const backupResult = await fetchDeepSeekNonStreamCompletion({
+      const backupResult = await fetchCompletion({
         request: {
           endpoint: backup.endpoint,
           headers: backup.headers,
@@ -767,23 +825,26 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
           telemetry,
         });
       }
-      const backupCompletion = await readProviderCompletionResponse(backupResult.response);
-      const validated = validateReplySuggestionCompletion(backupCompletion.text);
-      if (!validated.ok) {
+      const backupRead = await readValidatedProviderCompletion(backupResult.response);
+      if (!backupRead.ok) {
         telemetry.fallback_success = false;
-        telemetry.semantic_failure_class = validated.semanticFailureClass;
+        telemetry.semantic_failure_class = backupRead.malformedProviderResponse
+          ? "malformed_provider_response"
+          : backupRead.semanticFailureClass;
         throwProviderRoundFailure({
-          message: "[TRPG reply] unusable backup completion",
+          message: backupRead.malformedProviderResponse
+            ? "[TRPG reply] malformed backup provider response envelope"
+            : "[TRPG reply] unusable backup completion",
           telemetry,
         });
       }
       telemetry.fallback_success = true;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
       return {
-        text: backupCompletion.text,
+        text: backupRead.text,
         model: backupModel,
-        inputTokens: backupCompletion.inputTokens,
-        outputTokens: backupCompletion.outputTokens,
+        inputTokens: backupRead.inputTokens,
+        outputTokens: backupRead.outputTokens,
       };
     } catch (error) {
       if (error instanceof DeepSeekProviderFailoverError) throw error;
@@ -798,7 +859,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
 
   telemetry.provider_attempt_count = 1;
   try {
-    const primaryResult = await fetchDeepSeekNonStreamCompletion({
+    const primaryResult = await fetchCompletion({
       request: {
         endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
         headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
@@ -834,24 +895,27 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       return { ...backup, telemetry };
     }
 
-    const primaryCompletion = await readProviderCompletionResponse(primaryResult.response);
-    const validated = validateReplySuggestionCompletion(primaryCompletion.text);
-    if (validated.ok) {
+    const primaryRead = await readValidatedProviderCompletion(primaryResult.response);
+    if (primaryRead.ok) {
       telemetry.primary_failure_class = null;
       telemetry.semantic_failure_class = null;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
       return {
-        text: primaryCompletion.text,
+        text: primaryRead.text,
         model: TRPG_REPLY_SUGGESTION_MODEL,
-        inputTokens: primaryCompletion.inputTokens,
-        outputTokens: primaryCompletion.outputTokens,
+        inputTokens: primaryRead.inputTokens,
+        outputTokens: primaryRead.outputTokens,
         telemetry,
       };
     }
 
     const backup = await attemptBackup({
-      primaryFailureClass: validated.semanticFailureClass,
-      semanticFailureClass: validated.semanticFailureClass,
+      primaryFailureClass: primaryRead.malformedProviderResponse
+        ? "malformed_provider_response"
+        : primaryRead.semanticFailureClass,
+      semanticFailureClass: primaryRead.malformedProviderResponse
+        ? "malformed_provider_response"
+        : primaryRead.semanticFailureClass,
     });
     return { ...backup, telemetry };
   } catch (error) {

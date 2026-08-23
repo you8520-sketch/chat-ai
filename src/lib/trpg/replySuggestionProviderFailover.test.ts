@@ -9,10 +9,14 @@ import {
   executeTrpgReplySuggestionProviderRound,
   requestTrpgReplySuggestions,
   resetTrpgReplySuggestionCooldownForTests,
+  resolveTrpgReplySuggestionProviderDeadlines,
   TRPG_REPLY_SUGGESTION_OR_RETRY_COUNT,
   TRPG_REPLY_SUGGESTION_CI_RETRY_COUNT,
   TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX,
+  TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS,
+  TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS,
 } from "./replySuggestions";
+import { fetchDeepSeekNonStreamCompletion } from "@/lib/deepseekProviderFailover";
 import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { startTrpgCampaign, type TrpgEngineDeps } from "./engineAdvance";
 import { ensureTrpgTables } from "./schema";
@@ -470,5 +474,112 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     assert.equal(TRPG_REPLY_SUGGESTION_CI_RETRY_COUNT, 0);
     assert.equal(TRPG_REPLY_SUGGESTION_OR_RETRY_COUNT, 0);
     assert.equal(TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX, 2);
+  });
+});
+
+describe("TRPG reply suggestion execution-path corrections O-Q", () => {
+  it("O: resolveTrpgReplySuggestionProviderDeadlines resolves 15s primary / 25s backup", () => {
+    const deadlines = resolveTrpgReplySuggestionProviderDeadlines();
+    assert.equal(deadlines.primaryCompletionMs, TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS);
+    assert.equal(deadlines.backupCompletionMs, TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS);
+    assert.equal(deadlines.primaryCompletionMs, 15_000);
+    assert.equal(deadlines.backupCompletionMs, 25_000);
+  });
+
+  it("O: executeTrpgReplySuggestionProviderRound consumes 15s/25s fetch timeouts", async () => {
+    await withKeys(async () => {
+      const captured: number[] = [];
+      const realFetch = fetchDeepSeekNonStreamCompletion;
+      const fetchSpy: typeof fetchDeepSeekNonStreamCompletion = async (fetchOpts) => {
+        captured.push(fetchOpts.timeoutMs);
+        if (captured.length === 1) {
+          return { response: new Response("upstream", { status: 503 }), latencyMs: 1 };
+        }
+        return realFetch({
+          ...fetchOpts,
+          hooks: {
+            ...fetchOpts.hooks,
+            fetchFn: (async () => completion(validJson)) as typeof fetch,
+          },
+        });
+      };
+
+      await executeTrpgReplySuggestionProviderRound({
+        system: "sys",
+        user: "user",
+        logicalRequestId: "req-o-fetch",
+        deps: { fetchCompletion: fetchSpy },
+      });
+      assert.deepEqual(captured, [15_000, 25_000]);
+    });
+  });
+
+  it("P: CI HTTP 200 malformed provider envelope → OR once, provider_attempt_count=2", async () => {
+    await withKeys(async () => {
+      const previousFetch = globalThis.fetch;
+      const urls: string[] = [];
+      globalThis.fetch = (async (input) => {
+        urls.push(String(input));
+        if (String(input).includes("cheaperinference")) {
+          return new Response("{truncated-json", {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return completion(validJson);
+      }) as typeof fetch;
+      try {
+        const result = await executeTrpgReplySuggestionProviderRound({
+          system: "sys",
+          user: "user",
+          logicalRequestId: "req-p",
+        });
+        assert.equal(result.text, validJson);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
+        assert.equal(result.telemetry.provider_attempt_count, 2);
+        assert.equal(result.telemetry.semantic_failure_class, "malformed_provider_response");
+        assert.equal(result.telemetry.fallback_success, true);
+      } finally {
+        globalThis.fetch = previousFetch;
+      }
+    });
+  });
+
+  it("Q: CI + OR malformed provider envelopes → stable failure, total provider calls = 2", async () => {
+    await withKeys(async () => {
+      const previousFetch = globalThis.fetch;
+      let fetchCalls = 0;
+      globalThis.fetch = (async (input) => {
+        fetchCalls += 1;
+        return new Response("{not-valid-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }) as typeof fetch;
+      try {
+        await assert.rejects(
+          () =>
+            executeTrpgReplySuggestionProviderRound({
+              system: "sys",
+              user: "user",
+              logicalRequestId: "req-q",
+            }),
+          /malformed backup provider response envelope/
+        );
+        assert.equal(fetchCalls, 2);
+        await assert.rejects(
+          () =>
+            executeTrpgReplySuggestionProviderRound({
+              system: "sys",
+              user: "user",
+              logicalRequestId: "req-q-retry",
+            }),
+          /malformed backup provider response envelope/
+        );
+        assert.equal(fetchCalls, 4, "no automatic third provider call on retry");
+      } finally {
+        globalThis.fetch = previousFetch;
+      }
+    });
   });
 });
