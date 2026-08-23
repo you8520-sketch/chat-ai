@@ -2825,6 +2825,9 @@ export async function POST(req: Request) {
           clearInterval(partialTimer);
           partialTimer = null;
         }
+      };
+
+      const stopPostprocessHeartbeat = () => {
         postprocessHeartbeat.stop();
       };
 
@@ -2873,6 +2876,7 @@ export async function POST(req: Request) {
           persistenceDiag.recoveredOnLoad = true;
           logStreamingPersistence(persistenceDiag);
           clearPartialTimer();
+          stopPostprocessHeartbeat();
           controller.close();
           return;
         }
@@ -3163,6 +3167,7 @@ export async function POST(req: Request) {
           }
         } catch (e) {
           clearPartialTimer();
+          stopPostprocessHeartbeat();
           if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
             console.warn(
               e instanceof MetaLeakageAbortError
@@ -3967,6 +3972,7 @@ export async function POST(req: Request) {
             flashHtmlError,
           });
           clearPartialTimer();
+          stopPostprocessHeartbeat();
           try {
             markAssistantFailed(db, persistedAssistantId, savedText || streamVisibleTextRef);
             if (regenerateMessageId) {
@@ -5588,6 +5594,7 @@ export async function POST(req: Request) {
           });
         }
 
+        stopPostprocessHeartbeat();
         sseDoneAttempted = true;
         send({
           type: "done",
@@ -5712,6 +5719,7 @@ export async function POST(req: Request) {
         })();
       } catch (e) {
         clearPartialTimer();
+        stopPostprocessHeartbeat();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
         const partialOnError = streamVisibleTextRef || fullText;
         try {
