@@ -96,7 +96,9 @@ describe("reported comment admin review", () => {
     const result = reviewReportedComment(db, 99, 10, "restore", "위반 없음");
     assert.deepEqual(result, { ok: true, banned: false });
     const comment = db.prepare("SELECT moderation_status, is_blinded, report_count FROM profile_comments WHERE id=10").get() as Record<string, number | string>;
-    assert.deepEqual(comment, { moderation_status: "visible", is_blinded: 0, report_count: 0 });
+    assert.equal(comment.moderation_status, "visible");
+    assert.equal(comment.is_blinded, 0);
+    assert.equal(comment.report_count, 0);
     const trusts = db.prepare("SELECT comment_report_trust FROM users WHERE id IN (2,3,4) ORDER BY id").all() as { comment_report_trust: number }[];
     assert.deepEqual(trusts.map((row) => row.comment_report_trust), [88, 88, 88]);
     const unresolved = db.prepare("SELECT COUNT(*) AS c FROM profile_comment_reports WHERE resolved_at IS NULL").get() as { c: number };

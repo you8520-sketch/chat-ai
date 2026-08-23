@@ -109,7 +109,9 @@ describe("profile comment reports", () => {
       if (result.ok) assert.equal(result.blinded, reporterId === 11);
     }
     const comment = db.prepare("SELECT is_blinded, moderation_status, report_count FROM profile_comments WHERE id=10").get() as Record<string, number | string>;
-    assert.deepEqual(comment, { is_blinded: 1, moderation_status: "blinded", report_count: 10 });
+    assert.equal(comment.is_blinded, 1);
+    assert.equal(comment.moderation_status, "blinded");
+    assert.equal(comment.report_count, 10);
     const alert = db.prepare("SELECT type, ref_id FROM user_notifications WHERE user_id=50").get() as { type: string; ref_id: number };
     assert.deepEqual(alert, { type: "admin_comment_review", ref_id: 10 });
   });
