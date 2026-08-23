@@ -469,11 +469,6 @@ export default function TrpgDiceOverlay({
               </div>
             ) : null}
           </div>
-          {!showResult ? (
-            <p className="mt-2.5 text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
-              {roll.name} · D20 {roll.d20} · {outcome}
-            </p>
-          ) : null}
         </div>
       </div>
     </div>
