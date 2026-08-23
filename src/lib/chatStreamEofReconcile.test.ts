@@ -3,11 +3,14 @@ import { describe, it } from "node:test";
 import {
   EOF_RECONCILE_MAX_ATTEMPTS,
   EOF_RECONCILE_RETRY_MS,
+  EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS,
+  EOF_RECONCILE_EXTENDED_RETRY_MS,
   classifyReconcileStatus,
   eofReconcileMaxSleepMs,
   generationStatusFromEofResult,
   needsEofReconcile,
   reconcileStreamEof,
+  resolveEofReconcilePollBudget,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
 

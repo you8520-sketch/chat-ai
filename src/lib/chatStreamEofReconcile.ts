@@ -23,12 +23,31 @@ export type StreamTerminalFlags = {
 export const EOF_RECONCILE_MAX_ATTEMPTS = 6;
 export const EOF_RECONCILE_RETRY_MS = 350;
 
+/** When substantial RP prose already streamed, post-process can take minutes. */
+export const EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS = 400;
+export const EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS = 30;
+export const EOF_RECONCILE_EXTENDED_RETRY_MS = 4000;
+
 /** Max cumulative sleep between polls (excludes fetch latency). */
 export function eofReconcileMaxSleepMs(
   maxAttempts: number = EOF_RECONCILE_MAX_ATTEMPTS,
   retryMs: number = EOF_RECONCILE_RETRY_MS
 ): number {
   return Math.max(0, maxAttempts - 1) * retryMs;
+}
+
+export function resolveEofReconcilePollBudget(opts: {
+  snapshotContentChars?: number;
+  streamedContentChars?: number;
+}): { maxAttempts: number; retryMs: number } {
+  const chars = Math.max(opts.snapshotContentChars ?? 0, opts.streamedContentChars ?? 0);
+  if (chars >= EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS) {
+    return {
+      maxAttempts: EOF_RECONCILE_EXTENDED_MAX_ATTEMPTS,
+      retryMs: EOF_RECONCILE_EXTENDED_RETRY_MS,
+    };
+  }
+  return { maxAttempts: EOF_RECONCILE_MAX_ATTEMPTS, retryMs: EOF_RECONCILE_RETRY_MS };
 }
 
 export function needsEofReconcile(flags: StreamTerminalFlags): boolean {
@@ -102,14 +121,21 @@ export async function reconcileStreamEof(opts: {
   sleep?: (ms: number) => Promise<void>;
   maxAttempts?: number;
   retryMs?: number;
+  streamedContentChars?: number;
 }): Promise<EofReconcileResult> {
   const messageId = opts.messageId != null && Number.isFinite(opts.messageId) ? Number(opts.messageId) : null;
   if (messageId == null || messageId <= 0) {
     return { kind: "interrupted", reason: "missing_message_id", fetchCount: 0 };
   }
 
-  const maxAttempts = opts.maxAttempts ?? EOF_RECONCILE_MAX_ATTEMPTS;
-  const retryMs = opts.retryMs ?? EOF_RECONCILE_RETRY_MS;
+  const pollBudget =
+    opts.maxAttempts != null && opts.retryMs != null
+      ? { maxAttempts: opts.maxAttempts, retryMs: opts.retryMs }
+      : resolveEofReconcilePollBudget({
+          streamedContentChars: opts.streamedContentChars,
+        });
+  const maxAttempts = opts.maxAttempts ?? pollBudget.maxAttempts;
+  const retryMs = opts.retryMs ?? pollBudget.retryMs;
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
 
   let lastSnapshot: EofReconcileSnapshot | null = null;

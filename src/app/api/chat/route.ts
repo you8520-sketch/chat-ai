@@ -57,6 +57,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
+import { hashForensicsText, logStreamTurnForensics } from "@/lib/streamTurnForensics";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
@@ -2769,6 +2770,41 @@ export async function POST(req: Request) {
       let fullText = "";
       let streamVisibleTextRef = "";
       let rawStreamTextRef = "";
+      let rawProsePersisted = false;
+      let postprocessStarted = false;
+      let widgetExtractLatencyMs: number | null = null;
+      let widgetExtractAttempts: number | null = null;
+      let widgetExtractResult: string | null = null;
+      let sseDoneAttempted = false;
+      let mainProviderFinished = false;
+      let mainFinishReason: string | null = null;
+
+      const emitStreamTurnForensics = (assistantFinalizeStatus: string | null) => {
+        if (!clientRequestId) return;
+        const forensicsContent = streamVisibleTextRef || fullText;
+        logStreamTurnForensics({
+          request_id: clientRequestId,
+          chat_id: chatRef.id,
+          assistant_message_id: persistedAssistantId,
+          model: deliveredModelId ?? null,
+          main_provider_finished: mainProviderFinished,
+          main_finish_reason: mainFinishReason,
+          main_visible_chars: forensicsContent.length,
+          raw_prose_persisted: rawProsePersisted,
+          postprocess_started: postprocessStarted,
+          status_widget_active: statusWidgetActive,
+          status_widget_attempts: widgetExtractAttempts,
+          status_widget_latency_ms: widgetExtractLatencyMs,
+          status_widget_result: widgetExtractResult,
+          assistant_finalize_status: assistantFinalizeStatus,
+          sse_done_attempted: sseDoneAttempted,
+          client_disconnect_seen: safe.isDisconnected(),
+          total_server_ms: Date.now() - requestStartedAt,
+          content_length: forensicsContent.length,
+          content_hash: hashForensicsText(forensicsContent),
+        });
+      };
+
       const partialSaver = createPartialSaveThrottler();
 
       const persistPartialBestEffort = (text: string) => {
@@ -3086,6 +3122,8 @@ export async function POST(req: Request) {
           try {
             persistStreamCompleteContent(db, persistedAssistantId, streamVisibleTextRef || fullText);
             persistenceDiag.lastPartialChars = (streamVisibleTextRef || fullText).length;
+            rawProsePersisted = true;
+            postprocessStarted = true;
           } catch (persistErr) {
             console.warn(
               "[StreamingPersistence] post-stream save failed",
@@ -3834,6 +3872,8 @@ export async function POST(req: Request) {
           refusalFallbackDelivered: adultFallbackSucceeded,
         });
         const primaryStage = billableStages[0];
+        mainProviderFinished = true;
+        mainFinishReason = primaryStage?.finishReason ?? null;
         let generationFailure = detectAdultGenerationFailure(
           primaryStage?.finishReason,
           savedText,
@@ -4623,6 +4663,8 @@ export async function POST(req: Request) {
         }
         let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
         if (statusWidgetActive) {
+          send({ type: "status", message: "상태창 생성 중…" });
+          const widgetExtractStartedAt = Date.now();
           const widgetResolved = await resolveStatusWidgetTurnValues({
             chatId: chatRef.id,
             modelId: deliveredModelId,
@@ -4644,6 +4686,10 @@ export async function POST(req: Request) {
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
+          widgetExtractLatencyMs = Date.now() - widgetExtractStartedAt;
+          widgetExtractAttempts =
+            widgetResolved.widgetExtractDiagnostics?.attempts?.length ?? null;
+          widgetExtractResult = widgetResolved.telemetry.resolutionSource;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
@@ -5526,6 +5572,8 @@ export async function POST(req: Request) {
           });
         }
 
+        emitStreamTurnForensics(persistedGenerationStatus);
+        sseDoneAttempted = true;
         send({
           type: "done",
           chatId: chatRef.id,
@@ -5649,17 +5697,17 @@ export async function POST(req: Request) {
       } catch (e) {
         clearPartialTimer();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
+        const partialOnError = streamVisibleTextRef || fullText;
         try {
           if (!persistenceDiag.finalized) {
-            const partial = streamVisibleTextRef || fullText;
             // Stream already persisted raw text — post-process failure should not lose it
-            if (partial.trim()) {
+            if (partialOnError.trim()) {
               db.prepare(
                 `UPDATE messages SET content=?, generation_status=?, updated_at=datetime('now') WHERE id=?`
-              ).run(partial, "completed_with_postprocess_error", persistedAssistantId);
+              ).run(partialOnError, "completed_with_postprocess_error", persistedAssistantId);
               persistenceDiag.postprocessError = true;
             } else {
-              markAssistantInterrupted(db, persistedAssistantId, partial);
+              markAssistantInterrupted(db, persistedAssistantId, partialOnError);
               if (regenerateMessageId) {
                 restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
               }
@@ -5670,6 +5718,9 @@ export async function POST(req: Request) {
         } catch {
           /* ignore */
         }
+        emitStreamTurnForensics(
+          partialOnError.trim() ? "completed_with_postprocess_error" : "interrupted"
+        );
         if (e instanceof GeminiTrafficOverloadError) {
           sendTrafficOverloadGracefulStream(send);
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {

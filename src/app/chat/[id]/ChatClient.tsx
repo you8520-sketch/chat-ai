@@ -2861,6 +2861,7 @@ export default function ChatClient({
 
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
+          streamedContentChars: assistantStreamContentRef.current.trim().length,
           fetchSnapshot: async (messageId) => {
             const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
             if (!snapRes.ok) return null;
