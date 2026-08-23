@@ -2,6 +2,7 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
   normalizeFontSizePreset,
+  normalizeStreamIntervalMs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
@@ -12,6 +13,32 @@ export const TRPG_LEGACY_FONT_SIZE_KEY = "habi:trpg-fontSizePreset";
 
 /** Opt-in: once on, fetch action examples at the start of every ACTION_INPUT turn. */
 export const TRPG_ACTION_SUGGESTIONS_KEY = "habi:trpg-showActionSuggestions";
+
+/** TRPG GM reveal speed — same presets as chat, stored separately. */
+export const TRPG_STREAM_INTERVAL_KEY = "habi:trpg-streamIntervalMs";
+
+export function loadTrpgStreamIntervalMs(): number {
+  if (typeof window === "undefined") return DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
+  try {
+    const raw = window.localStorage.getItem(TRPG_STREAM_INTERVAL_KEY);
+    if (raw == null || raw === "") return DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
+    return normalizeStreamIntervalMs(Number(raw));
+  } catch {
+    return DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
+  }
+}
+
+export function saveTrpgStreamIntervalMs(intervalMs: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      TRPG_STREAM_INTERVAL_KEY,
+      String(normalizeStreamIntervalMs(intervalMs))
+    );
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 export function loadTrpgActionSuggestionsEnabled(): boolean {
   if (typeof window === "undefined") return false;

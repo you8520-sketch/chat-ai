@@ -31,11 +31,16 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   chatReadabilityRootStyle,
   ensureChatDisplayWebFontsLoaded,
+  loadChatDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
-import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
+import {
+  loadTrpgDisplayPrefs,
+  loadTrpgStreamIntervalMs,
+  saveTrpgStreamIntervalMs,
+} from "@/lib/trpg/displayPrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
 import {
   resolveTrpgD20Tone,
@@ -307,6 +312,7 @@ export default function TrpgCampaignRoom({
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
+  const [streamIntervalMs, setStreamIntervalMs] = useState(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
@@ -736,6 +742,7 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
     setDisplayPrefs(loadTrpgDisplayPrefs());
+    setStreamIntervalMs(loadTrpgStreamIntervalMs());
     const cached = loadUserChatPrefsClient();
     accountPrefsRef.current = {
       targetResponseChars: cached.targetResponseChars,
@@ -957,8 +964,14 @@ export default function TrpgCampaignRoom({
   }, [suggestions, suggestionsEnabled, suggestionsError]);
 
   const changeDisplayPrefs = useCallback((next: ChatDisplayPrefs) => {
-    setDisplayPrefs(next);
-    saveChatDisplayPrefs(next);
+    const current = loadChatDisplayPrefs();
+    const isolated: ChatDisplayPrefs = {
+      ...next,
+      streamIntervalMs: current.streamIntervalMs,
+      streamCharsPerTick: current.streamCharsPerTick,
+    };
+    setDisplayPrefs(isolated);
+    saveChatDisplayPrefs(isolated);
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
       const account = accountPrefsRef.current;
@@ -971,13 +984,13 @@ export default function TrpgCampaignRoom({
             body: JSON.stringify({
               targetResponseChars: account.targetResponseChars,
               novelModeEnabled: account.novelModeEnabled,
-              displayPrefs: next,
+              displayPrefs: isolated,
             }),
           });
           const data = (await res.json().catch(() => null)) as { prefs?: UserChatPrefs } | null;
           if (res.ok && data?.prefs) {
             cacheUserChatPrefsClient(data.prefs);
-            saveChatDisplayPrefs(data.prefs.displayPrefs ?? next);
+            saveChatDisplayPrefs(data.prefs.displayPrefs ?? isolated);
           }
         } catch {
           /* local toggle already applied */
@@ -986,10 +999,17 @@ export default function TrpgCampaignRoom({
     }, 400);
   }, []);
 
+  const changeStreamIntervalMs = useCallback((intervalMs: number) => {
+    setStreamIntervalMs(intervalMs);
+    saveTrpgStreamIntervalMs(intervalMs);
+  }, []);
+
   const railProps = {
     snap,
     displayPrefs,
     onDisplayPrefsChange: changeDisplayPrefs,
+    streamIntervalMs,
+    onStreamIntervalMsChange: changeStreamIntervalMs,
     partyBody,
     onPartyBodyChange,
     onSendParty,
@@ -1090,6 +1110,7 @@ export default function TrpgCampaignRoom({
       })}
       data-trpg-follow-activity={followActivityKey || undefined}
       data-trpg-follow-latest={followLatest ? "true" : "false"}
+      data-trpg-stream-interval-ms={streamIntervalMs}
       data-trpg-unseen-latest={unseenLatest ? "true" : "false"}
     >
       <aside
@@ -1266,6 +1287,7 @@ export default function TrpgCampaignRoom({
                 })
               }
               revealGateHeld={gated}
+              streamIntervalMs={streamIntervalMs}
               liveScene={row.roundNumber === snap.round.number}
               liveSceneRef={row.roundNumber === snap.round.number ? liveSceneRef : undefined}
               narrationStartRef={row.roundNumber === snap.round.number ? narrationStartRef : undefined}
@@ -1636,6 +1658,7 @@ function SceneTurn({
   onReroll,
   onImage,
   revealGateHeld,
+  streamIntervalMs,
   liveScene,
   liveSceneRef,
   narrationStartRef,
@@ -1663,6 +1686,7 @@ function SceneTurn({
   onReroll: () => void;
   onImage: () => void;
   revealGateHeld?: boolean;
+  streamIntervalMs: number;
   liveScene?: boolean;
   liveSceneRef?: Ref<HTMLElement | null>;
   narrationStartRef?: Ref<HTMLDivElement | null>;
@@ -1671,7 +1695,7 @@ function SceneTurn({
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
   const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`);
-  const shownNarration = useRevealedText(row.narration ?? "", revealNarration, "gm");
+  const shownNarration = useRevealedText(row.narration ?? "", revealNarration, "gm", streamIntervalMs);
   const fullNarrationLen = Array.from(row.narration ?? "").length;
   const shownNarrationLen = Array.from(shownNarration).length;
   if (liveGmRevealStateRef) {

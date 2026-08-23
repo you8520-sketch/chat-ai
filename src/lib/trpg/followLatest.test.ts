@@ -54,7 +54,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /data-trpg-narration-end/);
     assert.match(room, /isLiveFreshGmNarration/);
     assert.match(room, /alignNarrationEnd/);
-    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm"\)/);
+    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
     assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
     assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
     assert.match(room, /requestAnimationFrame/);

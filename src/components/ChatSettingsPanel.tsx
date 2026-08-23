@@ -11,8 +11,8 @@ import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
+import ChatStreamSpeedSettings from "@/components/ChatStreamSpeedSettings";
 import {
-  CHAT_STREAM_SPEED_PRESETS,
   withStreamSpeed,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
@@ -1056,35 +1056,12 @@ function DisplaySettingsSection({
         </button>
       </section>
 
-      <section>
-        <p className="mb-2 font-bold text-violet-300">스트리밍 속도</p>
-        <p className="mb-2 text-[10px] text-zinc-600">
-          AI 답변이 화면에 나타나는 속도를 선택하세요. 기본 설정은 빠름입니다.
-        </p>
-        <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="스트리밍 속도">
-          {CHAT_STREAM_SPEED_PRESETS.map((preset) => {
-            const selected = displayPrefs.streamIntervalMs === preset.intervalMs;
-            return (
-              <button
-                key={preset.intervalMs}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() =>
-                  onDisplayPrefsChange(withStreamSpeed(displayPrefs, preset.intervalMs))
-                }
-                className={`rounded-lg border px-2 py-2.5 font-semibold transition ${
-                  selected
-                    ? "border-violet-400/60 bg-violet-500/15 text-violet-200"
-                    : "border-white/10 bg-[#1a1a1a] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-                }`}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <ChatStreamSpeedSettings
+        streamIntervalMs={displayPrefs.streamIntervalMs}
+        onStreamIntervalMsChange={(intervalMs) =>
+          onDisplayPrefsChange(withStreamSpeed(displayPrefs, intervalMs))
+        }
+      />
 
       <ChatDisplayReadabilitySettings
         displayPrefs={displayPrefs}

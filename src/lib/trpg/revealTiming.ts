@@ -1,3 +1,8 @@
+import {
+  normalizeStreamIntervalMs,
+  streamCharsPerTickForInterval,
+} from "@/lib/chatDisplayPrefs";
+
 /** Client-side fake typing — not provider network streaming. */
 
 export const TRPG_REVEAL_TICK_MS = 16;
@@ -56,16 +61,42 @@ export function trpgRevealChunkSize(charCount: number, kind: TrpgRevealKind = "b
   return Math.max(1, Math.ceil(charCount / ticks));
 }
 
-export function trpgRevealDurationMs(charCount: number, kind: TrpgRevealKind = "bot"): number {
+export function trpgRevealDurationMs(
+  charCount: number,
+  kind: TrpgRevealKind = "bot",
+  streamIntervalMs?: number
+): number {
   if (charCount <= 0) return 0;
+  if (kind === "gm" && streamIntervalMs != null) {
+    const tick = trpgGmRevealTick(streamIntervalMs);
+    if (tick.intervalMs <= 0) return 0;
+    return Math.ceil(charCount / tick.charsPerTick) * tick.intervalMs;
+  }
   const chunk = trpgRevealChunkSize(charCount, kind);
   return Math.ceil(charCount / chunk) * TRPG_REVEAL_TICK_MS;
+}
+
+/** Same visible rate as regular chat: intervalMs + charsPerTick from CHAT_STREAM_SPEED_PRESETS. */
+export function trpgGmRevealTick(streamIntervalMs: number): {
+  intervalMs: number;
+  charsPerTick: number;
+} {
+  const intervalMs = normalizeStreamIntervalMs(streamIntervalMs);
+  return {
+    intervalMs,
+    charsPerTick: streamCharsPerTickForInterval(intervalMs),
+  };
 }
 
 export function trpgRevealImmediate(opts: {
   active: boolean;
   reducedMotion: boolean;
   charCount: number;
+  streamIntervalMs?: number;
 }): boolean {
-  return !opts.active || opts.charCount === 0 || opts.reducedMotion;
+  if (!opts.active || opts.charCount === 0 || opts.reducedMotion) return true;
+  if (opts.streamIntervalMs != null && normalizeStreamIntervalMs(opts.streamIntervalMs) <= 0) {
+    return true;
+  }
+  return false;
 }
