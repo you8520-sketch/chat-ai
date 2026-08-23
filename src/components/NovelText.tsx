@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import { type ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import {
+  DEFAULT_CHARACTER_DIALOGUE_COLOR,
+  type ChatDisplayPrefs,
+} from "@/lib/chatDisplayPrefs";
 import {
   classifyNovelParagraph,
   collapseDialogueInternalLineBreaks,
@@ -174,7 +177,7 @@ export default function NovelText({
   const dialogueColor =
     variant === "user"
       ? (display?.userDialogueColor ?? "#e4e4e7")
-      : (display?.dialogueColor ?? "#fb923c");
+      : (display?.dialogueColor ?? DEFAULT_CHARACTER_DIALOGUE_COLOR);
   const specialColor = DEFAULT_SPECIAL_TERM_COLOR;
   const parseSegments =
     variant === "user"

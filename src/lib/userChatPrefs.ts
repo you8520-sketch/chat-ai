@@ -3,6 +3,7 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
   normalizeChatFontFamily,
+  normalizeCharacterDialogueColor,
   normalizeFontSizePreset,
   normalizeParagraphSpacingPreset,
   normalizePortraitBackgroundOpacity,
@@ -48,6 +49,7 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
       raw.narrationColor,
       DEFAULT_CHAT_DISPLAY_PREFS.narrationColor
     ),
+    dialogueColor: normalizeCharacterDialogueColor(raw.dialogueColor),
     userNarrationColor: normalizeReadableTextColor(
       raw.userNarrationColor,
       DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor

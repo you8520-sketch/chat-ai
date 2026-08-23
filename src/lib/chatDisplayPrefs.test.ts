@@ -13,16 +13,35 @@ import {
   CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
+  DEFAULT_CHARACTER_DIALOGUE_COLOR,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  LEGACY_CHARACTER_DIALOGUE_COLOR,
   isChatRoomPathname,
   isCompactRoomPathname,
   formatStreamIntervalLabel,
+  normalizeCharacterDialogueColor,
   normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
   normalizeShowCharacterPortrait,
   normalizeShowSuggestedReplies,
   resolveClientDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+
+describe("character dialogue theme color", () => {
+  it("uses the high-contrast violet theme color by default", () => {
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.dialogueColor, "#c4b5fd");
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.dialogueColor, DEFAULT_CHARACTER_DIALOGUE_COLOR);
+  });
+
+  it("migrates only the legacy orange default and preserves custom colors", () => {
+    assert.equal(
+      normalizeCharacterDialogueColor(LEGACY_CHARACTER_DIALOGUE_COLOR),
+      DEFAULT_CHARACTER_DIALOGUE_COLOR
+    );
+    assert.equal(normalizeCharacterDialogueColor("#abcdef"), "#abcdef");
+    assert.equal(normalizeCharacterDialogueColor("invalid"), DEFAULT_CHARACTER_DIALOGUE_COLOR);
+  });
+});
 
 describe("compact room pathnames", () => {
   it("keeps chat-room chrome on /chat/:id only", () => {

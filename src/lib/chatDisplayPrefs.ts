@@ -55,6 +55,10 @@ export type ChatDisplayPrefs = {
   portraitBackgroundOpacity: number;
 };
 
+/** 검은 채팅 배경에서 홈페이지 보라 테마와 충분한 대비를 내는 캐릭터 대사색. */
+export const DEFAULT_CHARACTER_DIALOGUE_COLOR = "#c4b5fd";
+export const LEGACY_CHARACTER_DIALOGUE_COLOR = "#fb923c";
+
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   streamIntervalMs: 20,
   streamCharsPerTick: 1,
@@ -62,7 +66,7 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   fontSizePreset: "medium",
   paragraphSpacingPreset: "normal",
   narrationColor: "#fafafa",
-  dialogueColor: "#fb923c",
+  dialogueColor: DEFAULT_CHARACTER_DIALOGUE_COLOR,
   userNarrationColor: "#d4d4d8",
   userDialogueColor: "#e4e4e7",
   showCharacterPortrait: true,
@@ -89,6 +93,16 @@ export function normalizeReadableTextColor(color: unknown, fallback: string): st
   const lum = hexLuminance(trimmed);
   if (lum == null || lum < 0.62) return fallback;
   return trimmed;
+}
+
+/** 이전 기본 주황색만 새 테마색으로 이전하고 사용자가 고른 색상은 유지합니다. */
+export function normalizeCharacterDialogueColor(color: unknown): string {
+  if (typeof color !== "string") return DEFAULT_CHARACTER_DIALOGUE_COLOR;
+  const trimmed = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return DEFAULT_CHARACTER_DIALOGUE_COLOR;
+  return trimmed.toLowerCase() === LEGACY_CHARACTER_DIALOGUE_COLOR
+    ? DEFAULT_CHARACTER_DIALOGUE_COLOR
+    : trimmed;
 }
 
 /** Includes quote-card (텍스트 이미지 저장) faces so chat settings stay aligned. */
@@ -353,6 +367,7 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
         parsed.narrationColor,
         DEFAULT_CHAT_DISPLAY_PREFS.narrationColor
       ),
+      dialogueColor: normalizeCharacterDialogueColor(parsed.dialogueColor),
       userNarrationColor: normalizeReadableTextColor(
         parsed.userNarrationColor,
         DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
@@ -394,7 +409,11 @@ export function resolveClientDisplayPrefs(
   } catch {
     /* ignore */
   }
-  const next = serverPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS;
+  const source = serverPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS;
+  const next = {
+    ...source,
+    dialogueColor: normalizeCharacterDialogueColor(source.dialogueColor),
+  };
   saveChatDisplayPrefs(next);
   return next;
 }
