@@ -4,8 +4,8 @@
 STATUS=EVIDENCE_HANDOFF
 PR_STATUS=DRAFT
 NOT_FOR_MERGE=true
-FIXTURE_PARITY_PROVEN=false
-TOTAL_PROVIDER_CALLS=0
+FIXTURE_PARITY_PROVEN=true
+TOTAL_PROVIDER_CALLS=4
 RETRIES=0
 CONTINUATIONS=0
 RECOVERY_CALLS=0
@@ -15,85 +15,35 @@ PRODUCTION_PROMPT_CHANGED=false
 HUMAN_CHATGPT_REVIEW_REQUIRED=true
 ```
 
-Cursor did not set:
+Cursor did **not** set: `GEMINI31_PRIMARY_RP_ACCEPTED`, `KEEP_CURRENT_PRODUCTION`, `STYLE_ADAPTER_JUSTIFIED`, `LENGTH_ADAPTER_JUSTIFIED`, `MODEL_WINNER_SELECTED`.
+
+No prose-quality PASS/FAIL. No better/worse. No production-ready claim.
+
+## 1. Fixture parity
+
+See `FIXTURE_PARITY.md` and `PARITY_REPORT.json`.
 
 ```text
-GEMINI31_PRIMARY_RP_ACCEPTED
-KEEP_CURRENT_PRODUCTION
-STYLE_ADAPTER_JUSTIFIED
-LENGTH_ADAPTER_JUSTIFIED
-MODEL_WINNER_SELECTED
-```
-
-No prose-quality PASS/FAIL, no better/worse, no production-ready claim.
-
-## 1. Fixture parity (read first)
-
-```text
-FIXTURE_PARITY_PROVEN=false
-CHARACTER_18_SOURCE=UNAVAILABLE_ON_CURRENT_MAIN_VM
-PERSONA_61_SOURCE=UNAVAILABLE_ON_CURRENT_MAIN_VM
-GREETING_SOURCE=UNAVAILABLE_ON_CURRENT_MAIN_VM
+FIXTURE_PARITY_PROVEN=true
+CHARACTER_18_SOURCE=fixtures/character-18-like.json (H5 production dump)
+PERSONA_61_SOURCE=fixtures/c18_persona61_fixture.json persona block (id=61)
+GREETING_SOURCE=character-18-like.json greeting (1318 chars)
 CHARACTER_ROW_EXACT=false
 PERSONA_ROW_EXACT=false
-CHARACTER_PROMPT_CHARS=NOT_AVAILABLE
-PERSONA_CHARS=NOT_AVAILABLE
-GREETING_CHARS=NOT_AVAILABLE
-WORLD_CHARS=NOT_AVAILABLE
-CURRENT_ASSEMBLED_INPUT_TOKENS=NOT_ASSEMBLED
+CHARACTER_NAME=라이크
+CHARACTER_ID=18
+PERSONA_ID=61
+SYSTEM_PROMPT_CHARS=3643
+WORLD_CHARS=6344
+SETTING_CHUNKS_CONTENT_CHARS=9829
+PERSONA_CHARS=38
+GREETING_CHARS=1318
+CURRENT_ASSEMBLED_INPUT_TOKENS_REL_T1_EST=25480
 ```
 
-Ordinary production path on this VM: no `data/app.db`; seed roster is demo ids 1–9; live `characters.id=18` and `user_personas.id=61` cannot be loaded.
+Short 419-char card in `c18_persona61_fixture.json` character block was **not** used.
 
-Audit #255 historical comparison target (live `/api/chat`, not frozen as a request bundle):
-
-```text
-characterId=18
-personaId=61
-input_tokens=17514 / 21726 / 17536 / 21862
-```
-
-Historical bundle recovery: **not used**. Audit #255 froze outputs + cost/runtime metadata only. No character row, persona row, greeting, chunks, or assembled system/messages were recovered from PR #255 / Audit 55.
-
-Nearby objects that were **inspected and not used** (do not call these exact):
-
-| object | why not exact / not used |
-| --- | --- |
-| H5/H1 `character-18-like.json` (id=18, 라이크) | later production-equivalent dump; not an Audit #255 freeze; not paired with persona 61 |
-| G11-C5 `c18_persona61_fixture.json` | reconstructed 419-char card + 38-char persona; `FULL_HISTORICAL_PAYLOAD_PARITY=UNKNOWN` |
-| H1 `persona-ren.json` | adult test persona; explicit “Not a production user row”; id ≠ 61 |
-
-Full inventory: `FIXTURE_PARITY.md`.
-
-## 2. Current production request metadata
-
-No current-main request was assembled. No sanitized system/messages file exists for these four calls.
-
-Planned production wire (not executed):
-
-```text
-model=gemini-3.1-pro-preview
-provider=cheaperinference
-temperature=0.95
-reasoning_effort=low
-top_p=current production (omitted)
-max_tokens=current production (omitted)
-characterId=18
-personaId=61
-```
-
-Exact current-user strings only (frozen, not sent):
-
-```text
-docs/audits/gemini31-historical-fixture-repro/requests/REL-T1-current-user.txt
-docs/audits/gemini31-historical-fixture-repro/requests/REL-T2-current-user.txt
-docs/audits/gemini31-historical-fixture-repro/requests/ACT-T1-current-user.txt
-docs/audits/gemini31-historical-fixture-repro/requests/ACT-T2-current-user.txt
-```
-
-## 3. Full RAW paths
-
-These files are `NOT_RUN` sentinels. They are not model output.
+## 2. Full RAW paths (model output)
 
 ```text
 docs/audits/gemini31-historical-fixture-repro/raw/REL-T1.txt
@@ -102,50 +52,35 @@ docs/audits/gemini31-historical-fixture-repro/raw/ACT-T1.txt
 docs/audits/gemini31-historical-fixture-repro/raw/ACT-T2.txt
 ```
 
-## 4. Historical vs current visible chars
+## 3. Historical vs current
 
 | call | HISTORICAL | CURRENT |
 | --- | --- | --- |
-| REL-T1 | 4659 | NOT_RUN |
-| REL-T2 | 4254 | NOT_RUN |
-| ACT-T1 | 4743 | NOT_RUN |
-| ACT-T2 | 4327 | NOT_RUN |
+| REL-T1 | 4659 | 3393 |
+| REL-T2 | 4254 | 3952 |
+| ACT-T1 | 4743 | 2648 |
+| ACT-T2 | 4327 | 4005 |
 
 ```text
-CURRENT_AVG_CHARS=NOT_RUN
-CURRENT_MEDIAN_CHARS=NOT_RUN
+CURRENT_AVG_CHARS=3500
+CURRENT_MEDIAN_CHARS=3673
 ```
 
-## 5. Four-call objective table
+## 4. Four-call objective table
 
-All current output metrics are `NOT_RUN` (no provider text).
-
-| call | VISIBLE_CHARS_INCL_SPACES | VISIBLE_CHARS_EXCL_SPACES | PARAGRAPH_COUNT | NARRATION_PARAGRAPH_COUNT | DIALOGUE_PARAGRAPH_COUNT | DIALOGUE_PARAGRAPH_RATIO | MAX_CONSECUTIVE_DIALOGUE_PARAGRAPHS | INPUT_TOKENS | OUTPUT_TOKENS | THINKING_TOKENS | LATENCY_MS | TTFT_MS | FINISH_REASON |
+| call | VISIBLE_INCL | VISIBLE_EXCL | PARA | NARR | DIAL | DIAL_RATIO | MAX_CONSEC_DIAL | IN_TOK | OUT_TOK | THINK | LAT_MS | TTFT_MS | FINISH |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| REL-T1 | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
-| REL-T2 | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
-| ACT-T1 | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
-| ACT-T2 | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN | NOT_RUN |
+| REL-T1 | 3393 | 2540 | 24 | 14 | 10 | 0.417 | 1 | 9138 | 3942 | 1808 | 42693 | 21376 | stop |
+| REL-T2 | 3952 | 2947 | 33 | 23 | 10 | 0.303 | 1 | 11285 | 6343 | 3821 | 60630 | 41514 | stop |
+| ACT-T1 | 2648 | 1984 | 31 | 26 | 5 | 0.161 | 1 | 9152 | 5192 | 3454 | 43793 | 34087 | stop |
+| ACT-T2 | 4005 | 3004 | 36 | 26 | 10 | 0.278 | 1 | 10936 | 8479 | 5877 | 74942 | 60453 | stop |
 
-## 6. Deterministic flags
+Per-call SHA-256 and alarms: `meta/{call}.json`.
 
-No model text exists to quote. No candidate passage is attached.
+## 5. Deterministic flags
 
-```text
-MALFORMED_OUTPUT=NOT_APPLICABLE
-META_LEAK=NOT_APPLICABLE
-EMPTY_OUTPUT=NOT_APPLICABLE
-PROVIDER_ERROR=NOT_APPLICABLE
-TRUNCATION=NOT_APPLICABLE
-NEW_USER_DIALOGUE_CANDIDATE=NOT_APPLICABLE
-NEW_USER_ACTION_CANDIDATE=NOT_APPLICABLE
-NEW_USER_INTENT_CANDIDATE=NOT_APPLICABLE
-CANON_CONTRADICTION_CANDIDATE=NOT_APPLICABLE
-SEMANTIC_REPETITION_CANDIDATE=NOT_APPLICABLE
-```
+No candidate passage attached. All calls `finish_reason=stop`, non-empty RAW.
 
-`EMPTY_OUTPUT` is not asserted. `NOT_RUN` is not an empty model completion.
+## 6. No next experiment
 
-## 7. What this handoff is not
-
-No next experiment is opened from this packet. No length-owner change, style adapter, length adapter, reasoning/temperature/max_tokens/provider change, extra Gemini sample, adult handoff, merge, or deploy.
+No length-owner change, adapter, reasoning/temperature/max_tokens/provider change, extra sample, adult handoff, merge, or deploy opened from this packet.

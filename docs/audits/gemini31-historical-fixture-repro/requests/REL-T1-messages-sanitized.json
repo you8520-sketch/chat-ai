@@ -1,0 +1,41 @@
+{
+  "model": "gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "top_p": null,
+  "max_tokens": null,
+  "reasoning_effort": "low",
+  "message_count": 4,
+  "system_chars": 26117,
+  "estimated_input_tokens": 25480,
+  "messages": [
+    {
+      "index": 0,
+      "role": "system",
+      "chars": 26113,
+      "sha256": "cf84a6f1571329c824b77dc972c0d3121ee3187464a01f3e998e9b2f29763e4b",
+      "preview_head": "[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지"
+    },
+    {
+      "index": 1,
+      "role": "user",
+      "chars": 7,
+      "sha256": "c5ff9faaea0dc787b44164be76879bc4cbd49b3701c36088488e42f76a3f6012",
+      "preview_head": "[채팅 시작]"
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "chars": 1318,
+      "sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "preview_head": "가을 햇살이 로비의 통유리창을 길게 가로질렀다. 붉고 노랗게 물든 나뭇잎들이 바람에 흔들리는 풍경이 창밖 너머로 느리게 스쳐 지나갔다. 에이지스 컨트롤 본부의 중앙 로비는 오늘도 사람들로 붐볐다. 임무를 마치고 복귀"
+    },
+    {
+      "index": 3,
+      "role": "user",
+      "chars": 867,
+      "sha256": "3e9d38e2971df461b5d2320c25d14ef0e9d30cce95aeb230c629bd43f6a8065f",
+      "preview_head": "[CURRENT USER INPUT]\nThe following is the user's completed input and the newest state of the scene.\nContinue from what i"
+    }
+  ],
+  "request_sha256": "837874f4695edf4ebb2c0b411f83d4aa541e5d6d6c2d7e18d1b438d3cb844093"
+}

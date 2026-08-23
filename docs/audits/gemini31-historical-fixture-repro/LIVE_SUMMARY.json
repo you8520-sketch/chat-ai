@@ -1,0 +1,31 @@
+{
+  "FIXTURE_PARITY_PROVEN": true,
+  "TOTAL_PROVIDER_CALLS": 4,
+  "RETRIES": 0,
+  "CONTINUATIONS": 0,
+  "RECOVERY_CALLS": 0,
+  "CURRENT_AVG_CHARS": 3500,
+  "CURRENT_MEDIAN_CHARS": 3673,
+  "historical_vs_current": {
+    "REL-T1": {
+      "historical": 4659,
+      "current": 3393
+    },
+    "REL-T2": {
+      "historical": 4254,
+      "current": 3952
+    },
+    "ACT-T1": {
+      "historical": 4743,
+      "current": 2648
+    },
+    "ACT-T2": {
+      "historical": 4327,
+      "current": 4005
+    }
+  },
+  "CURSOR_QUALITY_SCORE_ASSIGNED": false,
+  "CURSOR_MODEL_VERDICT_ASSIGNED": false,
+  "PRODUCTION_PROMPT_CHANGED": false,
+  "HUMAN_CHATGPT_REVIEW_REQUIRED": true
+}

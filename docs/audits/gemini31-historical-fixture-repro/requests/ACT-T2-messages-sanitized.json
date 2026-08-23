@@ -1,0 +1,55 @@
+{
+  "model": "gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "top_p": null,
+  "max_tokens": null,
+  "reasoning_effort": "low",
+  "message_count": 6,
+  "system_chars": 26117,
+  "estimated_input_tokens": 27948,
+  "messages": [
+    {
+      "index": 0,
+      "role": "system",
+      "chars": 26113,
+      "sha256": "cf84a6f1571329c824b77dc972c0d3121ee3187464a01f3e998e9b2f29763e4b",
+      "preview_head": "[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지"
+    },
+    {
+      "index": 1,
+      "role": "user",
+      "chars": 7,
+      "sha256": "c5ff9faaea0dc787b44164be76879bc4cbd49b3701c36088488e42f76a3f6012",
+      "preview_head": "[채팅 시작]"
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "chars": 1318,
+      "sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "preview_head": "가을 햇살이 로비의 통유리창을 길게 가로질렀다. 붉고 노랗게 물든 나뭇잎들이 바람에 흔들리는 풍경이 창밖 너머로 느리게 스쳐 지나갔다. 에이지스 컨트롤 본부의 중앙 로비는 오늘도 사람들로 붐볐다. 임무를 마치고 복귀"
+    },
+    {
+      "index": 3,
+      "role": "user",
+      "chars": 106,
+      "sha256": "1235188e00788459bc0176ec70a4131ebcb31ee241c20fd207d0de41ed963b3c",
+      "preview_head": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.\n\n[유저 대사]\n저거 뭐야?"
+    },
+    {
+      "index": 4,
+      "role": "assistant",
+      "chars": 2648,
+      "sha256": "99bc5628ca6c3a146ea0e03b561694a27344408811373e947cebf39257f8cfac",
+      "preview_head": "능청스러운 미소가 채 입가에서 가시기도 전이었다.\n\n대답을 기다리며 렌을 향해 기울어져 있던 태형의 고개가 미세하게 틀어졌다. 에이지스 본부의 중앙 로비는 층고가 높고 탁 트여 있어 백색소음이 끊이지 않는 곳이었다."
+    },
+    {
+      "index": 5,
+      "role": "user",
+      "chars": 851,
+      "sha256": "26630518482f482c553011da96ce61ae3cdc7574792c1eb4382f6259662707bf",
+      "preview_head": "[CURRENT USER INPUT]\nThe following is the user's completed input and the newest state of the scene.\nContinue from what i"
+    }
+  ],
+  "request_sha256": "42d8bbc934e961c1a143bce92eda9cd7c4b7a90930a6f2d24ec0569fe674b268"
+}

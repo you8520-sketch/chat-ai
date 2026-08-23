@@ -1,10 +1,12 @@
 # Gemini 3.1 — historical real-fixture reproduction (current main)
 
-EVIDENCE ONLY. Do not merge. Do not deploy. Do not change production prompts.
+EVIDENCE ONLY. DRAFT. NOT FOR MERGE. Do not deploy. Do not change production prompts.
+
+ChatGPT / human entry: `HUMAN_REVIEW.md`
 
 ```text
-FIXTURE_PARITY_PROVEN=false
-TOTAL_PROVIDER_CALLS=0
+FIXTURE_PARITY_PROVEN=true
+TOTAL_PROVIDER_CALLS=4
 RETRIES=0
 CONTINUATIONS=0
 RECOVERY_CALLS=0
@@ -14,23 +16,23 @@ PRODUCTION_PROMPT_CHANGED=false
 HUMAN_CHATGPT_REVIEW_REQUIRED=true
 ```
 
-## Question (not answered)
+## Question
 
-Does current production Gemini 3.1 still produce long RP when given the same real character 18 / persona 61 / context family that Audit #255 recorded at ~4496 average visible chars?
+Does current production Gemini 3.1 still produce long RP when given the recovered historical character 18 / persona 61 production-scale fixture family that Audit #255 previously recorded at ~4496 average visible chars?
 
-This run did **not** call the provider. Fixture parity was not proven.
+Four Cheaper Inference calls were executed. No quality verdict is assigned here.
 
-## Why the provider was not called
+## Fixture bundle (merged)
 
-Exact current-main production rows for `characters.id=18` and `user_personas.id=61` cannot be loaded on this VM through the ordinary production path.
+| source | path |
+| --- | --- |
+| Character (production-scale) | `fixtures/character-18-like.json` |
+| Persona 61 block | `fixtures/c18_persona61_fixture.json` (persona only) |
+| Merged bundle used at runtime | `fixtures/merged_c18_persona61_bundle.json` |
 
-Audit #255 (PR #255 / Audit 55) used live `POST /api/chat` against those ids and froze outputs + token/cost metadata only. It did **not** freeze the character row, persona row, greeting blob, setting chunks, or assembled request/system.
+The 419-char reconstructed card inside `c18_persona61_fixture.json` **character** block was **not** used.
 
-No trustworthy historical full bundle matching that live request family was recovered.
-
-A later production-equivalent character-18 dump exists on other branches. It is **not** an Audit #255 freeze, and it is **not** paired with persona 61. Using it plus a reconstructed short persona would repeat the PR #589 / G11-C5 confound. That path was not used.
-
-## Required tree
+## Packet tree
 
 ```text
 docs/audits/gemini31-historical-fixture-repro/
@@ -40,15 +42,19 @@ docs/audits/gemini31-historical-fixture-repro/
   FIXTURE_PARITY.md
   HISTORICAL_REFERENCE.md
   CURRENT_RESULTS.md
+  PARITY_REPORT.json
+  LIVE_SUMMARY.json
+  fixtures/
   raw/{REL,ACT}-T{1,2}.txt
   requests/{REL,ACT}-T{1,2}-current-user.txt
+  requests/{REL,ACT}-T{1,2}-system-sanitized.txt
+  requests/{REL,ACT}-T{1,2}-messages-sanitized.json
   meta/{REL,ACT}-T{1,2}.json
 ```
 
-ChatGPT / human entry: `HUMAN_REVIEW.md`.
+Reproduce:
 
-`raw/` and `meta/` are `NOT_RUN` sentinels. `requests/` hold the exact historical current-user strings only.
-
-## Review rule
-
-Cursor assigned no quality score, style score, A/B winner, literary PASS/FAIL, or production recommendation. ChatGPT + human read RAW (none generated) and make all literary judgments.
+```bash
+node --conditions=react-server --import tsx scripts/gemini31-historical-fixture-repro.ts --parity
+node --conditions=react-server --import tsx scripts/gemini31-historical-fixture-repro.ts --live
+```
