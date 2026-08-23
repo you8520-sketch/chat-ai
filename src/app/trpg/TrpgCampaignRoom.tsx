@@ -116,6 +116,7 @@ import {
   decideLiveFollowUpdate,
   isNearBottom,
   isNearNarrationFollowElement,
+  liveFreshGmNarrationRow,
   livePresentationActivityKey,
   narrationFollowDeltaFromElement,
 } from "@/lib/trpg/followLatest";
@@ -326,9 +327,8 @@ export default function TrpgCampaignRoom({
   const seenSceneLenRef = useRef(0);
   const seenActivityKeyRef = useRef("");
   const liveSceneRef = useRef<HTMLElement | null>(null);
-  const cinematicShowGmRef = useRef(false);
   const currentNarrationRef = useRef("");
-  const liveRoundNumberRef = useRef(0);
+  const liveFreshGmRoundRef = useRef<number | null>(null);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -664,10 +664,14 @@ export default function TrpgCampaignRoom({
     ? liveRoundWaitCopy(waitKind)
     : null;
   const cinematicMotion = isLiveTurnCinematicMotion(roundShow.mode, roundShow.phase);
-  const currentNarration = currentLogRow?.narration?.trim() || "";
-  cinematicShowGmRef.current = cinematicShowGm;
+  const freshGmRow = liveFreshGmNarrationRow({
+    log: snap.log,
+    seenKeys: seenLogKeysRef.current!,
+  });
+  const liveFollowRound = freshGmRow?.roundNumber ?? snap.round.number;
+  const currentNarration = (freshGmRow?.narration ?? currentLogRow?.narration)?.trim() || "";
   currentNarrationRef.current = currentNarration;
-  liveRoundNumberRef.current = snap.round.number;
+  liveFreshGmRoundRef.current = freshGmRow?.roundNumber ?? null;
   const gmTextReady = cinematicShowGm && currentNarration.length > 0;
   const processStage = liveTurnProcessStage({
     waitingOpening,
@@ -773,9 +777,7 @@ export default function TrpgCampaignRoom({
   }, [toast]);
 
   const isLiveFreshGmNarration = useCallback(() => {
-    if (!cinematicShowGmRef.current) return false;
-    if (!currentNarrationRef.current) return false;
-    return !seenLogKeysRef.current!.has(`n:${liveRoundNumberRef.current}`);
+    return liveFreshGmRoundRef.current != null && Boolean(currentNarrationRef.current);
   }, []);
 
   const alignNarrationEnd = useCallback((behavior: ScrollBehavior) => {
@@ -954,6 +956,7 @@ export default function TrpgCampaignRoom({
 
   useLayoutEffect(() => {
     if (!followLatestRef.current) return;
+    if (isLiveFreshGmNarration()) return;
     if (!suggestionsEnabled) return;
     if (suggestions.length === 0 && !suggestionsError) return;
     suggestionsAnchorRef.current?.scrollIntoView({
@@ -961,7 +964,7 @@ export default function TrpgCampaignRoom({
       block: "end",
       inline: "nearest",
     });
-  }, [suggestions, suggestionsEnabled, suggestionsError]);
+  }, [isLiveFreshGmNarration, suggestions, suggestionsEnabled, suggestionsError]);
 
   const changeDisplayPrefs = useCallback((next: ChatDisplayPrefs) => {
     const current = loadChatDisplayPrefs();
@@ -1111,6 +1114,7 @@ export default function TrpgCampaignRoom({
       data-trpg-follow-activity={followActivityKey || undefined}
       data-trpg-follow-latest={followLatest ? "true" : "false"}
       data-trpg-stream-interval-ms={streamIntervalMs}
+      data-trpg-live-follow-round={liveFollowRound}
       data-trpg-unseen-latest={unseenLatest ? "true" : "false"}
     >
       <aside
@@ -1288,12 +1292,12 @@ export default function TrpgCampaignRoom({
               }
               revealGateHeld={gated}
               streamIntervalMs={streamIntervalMs}
-              liveScene={row.roundNumber === snap.round.number}
-              liveSceneRef={row.roundNumber === snap.round.number ? liveSceneRef : undefined}
-              narrationStartRef={row.roundNumber === snap.round.number ? narrationStartRef : undefined}
-              narrationEndRef={row.roundNumber === snap.round.number ? narrationEndRef : undefined}
+              liveScene={row.roundNumber === liveFollowRound}
+              liveSceneRef={row.roundNumber === liveFollowRound ? liveSceneRef : undefined}
+              narrationStartRef={row.roundNumber === liveFollowRound ? narrationStartRef : undefined}
+              narrationEndRef={row.roundNumber === liveFollowRound ? narrationEndRef : undefined}
               liveGmRevealStateRef={
-                row.roundNumber === snap.round.number ? liveGmRevealStateRef : undefined
+                row.roundNumber === liveFollowRound ? liveGmRevealStateRef : undefined
               }
             />
             );

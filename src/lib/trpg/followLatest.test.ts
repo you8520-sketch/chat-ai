@@ -2,18 +2,78 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  CHAT_STREAM_SPEED_PRESETS,
+  streamCharsPerTickForInterval,
+} from "@/lib/chatDisplayPrefs";
+import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   distanceFromBottom,
   isNearBottom,
   isNearNarrationFollow,
+  liveFreshGmNarrationRow,
   livePresentationActivityKey,
   narrationFollowDeltaPx,
   TRPG_FOLLOW_LATEST_THRESHOLD_PX,
   TRPG_NARRATION_FOLLOW_TARGET_RATIO,
 } from "./followLatest";
+import {
+  trpgGmRevealTick,
+  trpgRevealContinueCount,
+  trpgRevealImmediate,
+  trpgRevealSessionChanged,
+} from "./revealTiming";
 
 describe("TRPG follow-latest scroll", () => {
+  it("follows the unseen GM log row after beginNextActionRound advances the snapshot", () => {
+    const seenAtMount = new Set(["n:0"]);
+    const afterNewGm = [
+      { roundNumber: 0, narration: "문이 열린다. 시작 장면이다." },
+      { roundNumber: 1, narration: "AUDIT_GM_MARKER_28B0 낡은 등불이 흔들린다." },
+      { roundNumber: 2, narration: null },
+    ];
+    const stay = liveFreshGmNarrationRow({ log: afterNewGm, seenKeys: seenAtMount });
+    assert.equal(stay?.roundNumber, 1);
+    assert.match(stay?.narration ?? "", /AUDIT_GM_MARKER_28B0/);
+    const liveFresh = stay != null;
+    const liveFollowRound = stay?.roundNumber ?? 2;
+    assert.equal(liveFresh, true);
+    assert.equal(liveFollowRound, 1);
+    assert.notEqual(liveFollowRound, 2);
+    const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
+    const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
+    const slow = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "느림")!;
+    const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
+    assert.deepEqual(trpgGmRevealTick(fast.intervalMs), { intervalMs: 20, charsPerTick: 1 });
+    assert.deepEqual(trpgGmRevealTick(normal.intervalMs), { intervalMs: 60, charsPerTick: 1 });
+    assert.deepEqual(trpgGmRevealTick(slow.intervalMs), { intervalMs: 100, charsPerTick: 1 });
+    assert.equal(streamCharsPerTickForInterval(instant.intervalMs), 64);
+    assert.equal(
+      trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 40, streamIntervalMs: 0 }),
+      true
+    );
+    const session = { text: stay!.narration, active: true, kind: "gm" as const };
+    assert.equal(trpgRevealSessionChanged(session, session), false);
+    assert.equal(trpgRevealContinueCount({ sessionChanged: false, shownCount: 12, total: 40 }), 12);
+    assert.equal(
+      liveFreshGmNarrationRow({
+        log: afterNewGm,
+        seenKeys: new Set(["n:0", "a:1:1", "n:1"]),
+      }),
+      null
+    );
+    assert.equal(
+      liveFreshGmNarrationRow({
+        log: [
+          { roundNumber: 1, narration: null },
+          { roundNumber: 2, narration: null },
+        ],
+        seenKeys: seenAtMount,
+      }),
+      null
+    );
+  });
+
   it("treats distance <= 120px as near bottom", () => {
     assert.equal(TRPG_FOLLOW_LATEST_THRESHOLD_PX, 120);
     assert.equal(
@@ -44,6 +104,59 @@ describe("TRPG follow-latest scroll", () => {
     }
   });
 
+  it("keeps #598 speed presets while following persisted GM row N after snap.round advances", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
+    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(reveal, /trpgRevealContinueCount/);
+    assert.match(reveal, /trpgRevealSessionChanged/);
+    assert.match(reveal, /\[text, active, kind, streamIntervalMs\]/);
+    assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
+    const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
+    const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
+    const slow = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "느림")!;
+    const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
+    assert.deepEqual(trpgGmRevealTick(fast.intervalMs), { intervalMs: 20, charsPerTick: 1 });
+    assert.deepEqual(trpgGmRevealTick(normal.intervalMs), { intervalMs: 60, charsPerTick: 1 });
+    assert.deepEqual(trpgGmRevealTick(slow.intervalMs), { intervalMs: 100, charsPerTick: 1 });
+    assert.equal(streamCharsPerTickForInterval(instant.intervalMs), 64);
+    assert.equal(
+      trpgRevealImmediate({ active: true, reducedMotion: false, charCount: 80, streamIntervalMs: 0 }),
+      true
+    );
+    assert.equal(
+      trpgRevealContinueCount({ sessionChanged: false, shownCount: 18, total: 80 }),
+      18,
+      "mid-reveal speed change does not restart"
+    );
+
+    const persistedGmRound = 3;
+    const snapRoundAfterAdvance = persistedGmRound + 1;
+    const live = liveFreshGmNarrationRow({
+      log: [
+        { roundNumber: persistedGmRound, narration: "GM turn N body" },
+        { roundNumber: snapRoundAfterAdvance, narration: "" },
+      ],
+      seenKeys: new Set<string>(),
+    });
+    assert.equal(live?.roundNumber, persistedGmRound);
+    assert.notEqual(live?.roundNumber, snapRoundAfterAdvance);
+    assert.equal(Boolean(live && live.narration.trim()), true, "LIVE_FRESH_GM");
+
+    const liveFollowRound = live?.roundNumber ?? snapRoundAfterAdvance;
+    assert.equal(liveFollowRound, persistedGmRound);
+    assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
+    assert.match(room, /narrationStartRef=\{row\.roundNumber === liveFollowRound \? narrationStartRef : undefined\}/);
+    assert.match(room, /narrationEndRef=\{row\.roundNumber === liveFollowRound \? narrationEndRef : undefined\}/);
+    assert.match(room, /if \(isLiveFreshGmNarration\(\)\) return;/);
+    assert.match(
+      room,
+      /if \(isLiveFreshGmNarration\(\)\) \{\s*if \(!liveGmRevealStateRef\.current\.complete\) \{\s*alignNarrationEnd\("instant"\);\s*\}\s*return;\s*\}/
+    );
+    assert.match(room, /alignNarrationEnd\("instant"\)/);
+    assert.match(room, /followLiveGmNarration\(behavior\)/);
+  });
+
   it("settles on the latest scene while preserving manual history browsing", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /isNearBottom/);
@@ -53,10 +166,16 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /bottomRef\.current\.scrollIntoView/);
     assert.match(room, /data-trpg-narration-end/);
     assert.match(room, /isLiveFreshGmNarration/);
+    assert.match(room, /liveFreshGmNarrationRow/);
+    assert.match(room, /liveFollowRound/);
     assert.match(room, /alignNarrationEnd/);
     assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
+    assert.match(room, /data-trpg-live-follow-round=\{liveFollowRound\}/);
+    assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
     assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
     assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
+    assert.match(room, /if \(isLiveFreshGmNarration\(\)\) return;/);
     assert.match(room, /requestAnimationFrame/);
     assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
