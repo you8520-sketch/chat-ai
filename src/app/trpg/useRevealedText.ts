@@ -5,13 +5,14 @@ import {
   trpgRevealChunkSize,
   trpgRevealImmediate,
   TRPG_REVEAL_TICK_MS,
+  type TrpgRevealKind,
 } from "@/lib/trpg/revealTiming";
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function useRevealedText(text: string, active: boolean): string {
+export function useRevealedText(text: string, active: boolean, kind: TrpgRevealKind = "bot"): string {
   const chars = Array.from(text);
   const [count, setCount] = useState(() =>
     trpgRevealImmediate({ active, reducedMotion: prefersReducedMotion(), charCount: chars.length })
@@ -26,7 +27,7 @@ export function useRevealedText(text: string, active: boolean): string {
       return;
     }
     setCount(0);
-    const chunk = trpgRevealChunkSize(total);
+    const chunk = trpgRevealChunkSize(total, kind);
     let n = 0;
     const id = window.setInterval(() => {
       n = Math.min(total, n + chunk);
@@ -34,7 +35,7 @@ export function useRevealedText(text: string, active: boolean): string {
       if (n >= total) window.clearInterval(id);
     }, TRPG_REVEAL_TICK_MS);
     return () => window.clearInterval(id);
-  }, [text, active]);
+  }, [text, active, kind]);
 
   return chars.slice(0, count).join("");
 }

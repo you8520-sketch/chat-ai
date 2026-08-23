@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type Ref,
+} from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
@@ -101,7 +110,9 @@ import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   isNearBottom,
+  isNearNarrationFollowElement,
   livePresentationActivityKey,
+  narrationFollowDeltaFromElement,
 } from "@/lib/trpg/followLatest";
 import {
   formatLiveTurnProcessStatus,
@@ -300,11 +311,18 @@ export default function TrpgCampaignRoom({
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const narrationStartRef = useRef<HTMLDivElement | null>(null);
+  const narrationEndRef = useRef<HTMLSpanElement | null>(null);
+  const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
+  const narrationFollowRafRef = useRef<number | null>(null);
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
   const seenSceneLenRef = useRef(0);
   const seenActivityKeyRef = useRef("");
   const liveSceneRef = useRef<HTMLElement | null>(null);
+  const cinematicShowGmRef = useRef(false);
+  const currentNarrationRef = useRef("");
+  const liveRoundNumberRef = useRef(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -641,6 +659,9 @@ export default function TrpgCampaignRoom({
     : null;
   const cinematicMotion = isLiveTurnCinematicMotion(roundShow.mode, roundShow.phase);
   const currentNarration = currentLogRow?.narration?.trim() || "";
+  cinematicShowGmRef.current = cinematicShowGm;
+  currentNarrationRef.current = currentNarration;
+  liveRoundNumberRef.current = snap.round.number;
   const gmTextReady = cinematicShowGm && currentNarration.length > 0;
   const processStage = liveTurnProcessStage({
     waitingOpening,
@@ -744,8 +765,57 @@ export default function TrpgCampaignRoom({
     return () => window.clearTimeout(id);
   }, [toast]);
 
+  const isLiveFreshGmNarration = useCallback(() => {
+    if (!cinematicShowGmRef.current) return false;
+    if (!currentNarrationRef.current) return false;
+    return !seenLogKeysRef.current!.has(`n:${liveRoundNumberRef.current}`);
+  }, []);
+
+  const alignNarrationEnd = useCallback((behavior: ScrollBehavior) => {
+    const apply = () => {
+      const el = narrationEndRef.current;
+      if (!el) return;
+      const delta = narrationFollowDeltaFromElement(el);
+      if (delta === 0) return;
+      window.scrollBy({ top: delta, behavior });
+    };
+    if (behavior === "smooth") {
+      apply();
+      return;
+    }
+    if (narrationFollowRafRef.current != null) {
+      window.cancelAnimationFrame(narrationFollowRafRef.current);
+    }
+    narrationFollowRafRef.current = window.requestAnimationFrame(() => {
+      narrationFollowRafRef.current = null;
+      apply();
+    });
+  }, []);
+
+  const followLiveGmNarration = useCallback(
+    (behavior: ScrollBehavior) => {
+      if (!liveGmRevealStateRef.current.complete) {
+        if (narrationEndRef.current) {
+          alignNarrationEnd(behavior);
+          return;
+        }
+        return;
+      }
+      if (liveGmRevealStateRef.current.progressive && narrationEndRef.current) {
+        alignNarrationEnd(behavior);
+        return;
+      }
+      if (narrationStartRef.current) {
+        narrationStartRef.current.scrollIntoView({ behavior, block: "start", inline: "nearest" });
+      }
+    },
+    [alignNarrationEnd]
+  );
+
   const scrollToLatest = useCallback((behavior: ScrollBehavior = "instant") => {
-    if (bottomRef.current) {
+    if (isLiveFreshGmNarration()) {
+      followLiveGmNarration(behavior);
+    } else if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior, block: "end", inline: "nearest" });
     } else {
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
@@ -753,7 +823,7 @@ export default function TrpgCampaignRoom({
     followLatestRef.current = true;
     setFollowLatest(true);
     setUnseenLatest(false);
-  }, []);
+  }, [followLiveGmNarration, isLiveFreshGmNarration]);
 
   useLayoutEffect(() => {
     hasScrolledToLatestRef.current = null;
@@ -762,7 +832,12 @@ export default function TrpgCampaignRoom({
     setUnseenLatest(false);
     seenSceneLenRef.current = 0;
     seenActivityKeyRef.current = "";
+    liveGmRevealStateRef.current = { complete: false, progressive: false };
   }, [snap.id]);
+
+  useEffect(() => {
+    liveGmRevealStateRef.current = { complete: false, progressive: false };
+  }, [snap.round.number]);
 
   useLayoutEffect(() => {
     if (waitingOpening && sceneRows.length === 0) return;
@@ -826,6 +901,12 @@ export default function TrpgCampaignRoom({
       if (growth.autoFollow) {
         requestAnimationFrame(() => {
           if (!followLatestRef.current) return;
+          if (isLiveFreshGmNarration()) {
+            if (!liveGmRevealStateRef.current.complete) {
+              alignNarrationEnd("instant");
+            }
+            return;
+          }
           if (bottomRef.current) {
             bottomRef.current.scrollIntoView({ behavior: "instant", block: "end", inline: "nearest" });
           } else {
@@ -838,10 +919,18 @@ export default function TrpgCampaignRoom({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [currentNarration, presentationStarting, roundShow.mode, snap.round.number]);
+  }, [alignNarrationEnd, currentNarration, isLiveFreshGmNarration, presentationStarting, roundShow.mode, snap.round.number]);
 
   useEffect(() => {
     const onScroll = () => {
+      if (isLiveFreshGmNarration() && narrationEndRef.current) {
+        const near = isNearNarrationFollowElement(narrationEndRef.current);
+        followLatestRef.current = near;
+        setFollowLatest(near);
+        if (near) setUnseenLatest(false);
+        else setUnseenLatest(true);
+        return;
+      }
       const root = document.documentElement;
       const near = isNearBottom({
         scrollHeight: root.scrollHeight,
@@ -854,7 +943,7 @@ export default function TrpgCampaignRoom({
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isLiveFreshGmNarration]);
 
   useLayoutEffect(() => {
     if (!followLatestRef.current) return;
@@ -1179,6 +1268,11 @@ export default function TrpgCampaignRoom({
               revealGateHeld={gated}
               liveScene={row.roundNumber === snap.round.number}
               liveSceneRef={row.roundNumber === snap.round.number ? liveSceneRef : undefined}
+              narrationStartRef={row.roundNumber === snap.round.number ? narrationStartRef : undefined}
+              narrationEndRef={row.roundNumber === snap.round.number ? narrationEndRef : undefined}
+              liveGmRevealStateRef={
+                row.roundNumber === snap.round.number ? liveGmRevealStateRef : undefined
+              }
             />
             );
           })}
@@ -1544,6 +1638,9 @@ function SceneTurn({
   revealGateHeld,
   liveScene,
   liveSceneRef,
+  narrationStartRef,
+  narrationEndRef,
+  liveGmRevealStateRef,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -1568,10 +1665,21 @@ function SceneTurn({
   revealGateHeld?: boolean;
   liveScene?: boolean;
   liveSceneRef?: Ref<HTMLElement | null>;
+  narrationStartRef?: Ref<HTMLDivElement | null>;
+  narrationEndRef?: Ref<HTMLSpanElement | null>;
+  liveGmRevealStateRef?: MutableRefObject<{ complete: boolean; progressive: boolean }>;
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
   const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`);
-  const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
+  const shownNarration = useRevealedText(row.narration ?? "", revealNarration, "gm");
+  const fullNarrationLen = Array.from(row.narration ?? "").length;
+  const shownNarrationLen = Array.from(shownNarration).length;
+  if (liveGmRevealStateRef) {
+    if (shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen) {
+      liveGmRevealStateRef.current.progressive = true;
+    }
+    liveGmRevealStateRef.current.complete = fullNarrationLen > 0 && shownNarrationLen >= fullNarrationLen;
+  }
   const beats = allowGm && shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
   const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });
   const revealedActions = row.actions.filter((a) => a.revealed && a.body.trim());
@@ -1669,25 +1777,40 @@ function SceneTurn({
             </div>
           );
         })}
-        {beats.map((beat, i) =>
-          beat.speaker === "GM" ? (
-            <TrpgGmTalk
-              key={`${row.roundNumber}-gm-${i}`}
-              text={beat.text}
-              assets={scenarioAssets}
-            />
-          ) : (
-            <TrpgNamedProse
-              key={`${row.roundNumber}-gm-${i}`}
-              name={beat.speaker}
-              text={beat.text}
-              variant={speechVariant(beat.speaker, selfNames)}
-              accent={Boolean(beat.speaker)}
-              display={display}
-              assets={scenarioAssets}
-            />
-          )
-        )}
+        {beats.length > 0 ? (
+          <div
+            ref={liveScene ? narrationStartRef : undefined}
+            data-trpg-narration-start={liveScene ? "true" : undefined}
+          >
+            {beats.map((beat, i) =>
+              beat.speaker === "GM" ? (
+                <TrpgGmTalk
+                  key={`${row.roundNumber}-gm-${i}`}
+                  text={beat.text}
+                  assets={scenarioAssets}
+                />
+              ) : (
+                <TrpgNamedProse
+                  key={`${row.roundNumber}-gm-${i}`}
+                  name={beat.speaker}
+                  text={beat.text}
+                  variant={speechVariant(beat.speaker, selfNames)}
+                  accent={Boolean(beat.speaker)}
+                  display={display}
+                  assets={scenarioAssets}
+                />
+              )
+            )}
+            {liveScene && revealNarration ? (
+              <span
+                ref={narrationEndRef}
+                data-trpg-narration-end
+                aria-hidden="true"
+                className="inline-block h-px w-px"
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {showToolbar ? (
         <TrpgSceneToolbar
