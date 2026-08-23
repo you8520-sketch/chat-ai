@@ -1,0 +1,66 @@
+{
+  "track": "DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1",
+  "EXISTING_EXPORT_PATH_FOUND": false,
+  "NEW_EXPORTER_REQUIRED": true,
+  "DEPLOYMENT_REQUIRED": false,
+  "FLOOD_CHARACTER_ID": 17,
+  "FLOOD_PRODUCTION_RECORD_PROVEN": true,
+  "ADMIN_PERSONA_ID": 1,
+  "ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN": true,
+  "PRODUCTION_LOADERS_REUSED": [
+    "getDb().prepare('SELECT * FROM characters WHERE id = ?')",
+    "loadCharacterChunksForPromptReadOnly",
+    "resolveExampleDialogForPrompt",
+    "parseStoredSpeechProfile",
+    "getPersonaById",
+    "toPublicPersonaDescription",
+    "formatPublicPersonaForPrompt",
+    "isAdminUser"
+  ],
+  "rejected_existing_paths": [
+    {
+      "id": "scripts/dump-system-prompt.ts",
+      "reason": "reads local data/app.db only; uses write-capable loadCharacterChunks; requires an existing chat; cannot reach production /data/app.db"
+    },
+    {
+      "id": "GET /api/admin/regen-context",
+      "reason": "ADMIN_DEBUG_TOKEN accepted; returns message-id traces only, not character/persona prompt fields"
+    },
+    {
+      "id": "GET /api/admin/status-widget-diagnostics",
+      "reason": "status-widget values only"
+    },
+    {
+      "id": "GET /api/admin/character-moderation",
+      "reason": "session admin required; returns listing metadata; official characters excluded; no system_prompt"
+    },
+    {
+      "id": "GET /api/admin/full-db-migration",
+      "reason": "FULL_DB_MIGRATION_TOKEN is not present in production variables"
+    },
+    {
+      "id": "GET /api/characters/:id",
+      "reason": "owner session required; not an admin audit path"
+    },
+    {
+      "id": "PROMPT_DEBUG dump",
+      "reason": "writes assembled prompts on the production volume during live chat; not a targeted character/persona snapshot and not invoked"
+    }
+  ],
+  "new_exporter": {
+    "module": "src/lib/handoffAuditExport.ts",
+    "http": "POST /api/admin/handoff-audit-export",
+    "default": "HANDOFF_AUDIT_EXPORT_ENABLED=false",
+    "auth": "ADMIN_DEBUG_TOKEN via x-admin-debug-token or Authorization Bearer header only",
+    "modes": ["snapshot", "resolve-character", "resolve-admin-personas"],
+    "mutations": false,
+    "logs_raw": false,
+    "cache_control": "no-store",
+    "private_storage": "/data/handoff-audit-exports/"
+  },
+  "production_db_source_when_proven": {
+    "path": "/data/app.db",
+    "proof": "RAILWAY_ENVIRONMENT_NAME=production AND (RAILWAY_VOLUME_MOUNT_PATH=/data OR DATA_DIR=/data)"
+  },
+  "MODEL_CALLS": 0
+}

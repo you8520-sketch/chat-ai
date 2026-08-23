@@ -1,0 +1,18 @@
+PERSONA.txt
+TRACK: DEEPSEEK_FLOOD_PRODUCTION_SNAPSHOT_P1
+PERSONA_SOURCE: ADMIN_EXISTING_PERSONA
+ADMIN_PERSONA_ID: 1
+display_name: 렌
+createdAt: 2026-07-06 10:30:48
+inUse: true
+admin_persona_exact_matches: 1
+ADMIN_PERSONA_PRODUCTION_RECORD_PROVEN: true
+PERSONA_SHA: 019047714e494c1b1f874b8bca0fc463522a4ff83d76d6b482f7caddbee7876c
+RAW: PRIVATE_AUDIT_STORAGE_ONLY
+RAW_PUBLISHED_TO_GIT: false
+
+Loaders:
+- getPersonaById
+- toPublicPersonaDescription
+- formatPublicPersonaForPrompt
+- isAdminUser
