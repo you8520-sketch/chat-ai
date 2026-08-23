@@ -7,6 +7,7 @@ import {
   distanceFromBottom,
   isNearBottom,
   isNearNarrationFollow,
+  liveFreshGmNarrationRow,
   livePresentationActivityKey,
   narrationFollowDeltaPx,
   TRPG_FOLLOW_LATEST_THRESHOLD_PX,
@@ -14,6 +15,35 @@ import {
 } from "./followLatest";
 
 describe("TRPG follow-latest scroll", () => {
+  it("follows the unseen GM log row after beginNextActionRound advances the snapshot", () => {
+    const seenAtMount = new Set(["n:0"]);
+    const afterNewGm = [
+      { roundNumber: 0, narration: "문이 열린다. 시작 장면이다." },
+      { roundNumber: 1, narration: "AUDIT_GM_MARKER_28B0 낡은 등불이 흔들린다." },
+      { roundNumber: 2, narration: null },
+    ];
+    const stay = liveFreshGmNarrationRow({ log: afterNewGm, seenKeys: seenAtMount });
+    assert.equal(stay?.roundNumber, 1);
+    assert.match(stay?.narration ?? "", /AUDIT_GM_MARKER_28B0/);
+    assert.equal(
+      liveFreshGmNarrationRow({
+        log: afterNewGm,
+        seenKeys: new Set(["n:0", "a:1:1", "n:1"]),
+      }),
+      null
+    );
+    assert.equal(
+      liveFreshGmNarrationRow({
+        log: [
+          { roundNumber: 1, narration: null },
+          { roundNumber: 2, narration: null },
+        ],
+        seenKeys: seenAtMount,
+      }),
+      null
+    );
+  });
+
   it("treats distance <= 120px as near bottom", () => {
     assert.equal(TRPG_FOLLOW_LATEST_THRESHOLD_PX, 120);
     assert.equal(
@@ -53,10 +83,13 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /bottomRef\.current\.scrollIntoView/);
     assert.match(room, /data-trpg-narration-end/);
     assert.match(room, /isLiveFreshGmNarration/);
+    assert.match(room, /liveFreshGmNarrationRow/);
+    assert.match(room, /liveFollowRound/);
     assert.match(room, /alignNarrationEnd/);
     assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
     assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
     assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
+    assert.match(room, /if \(isLiveFreshGmNarration\(\)\) return;/);
     assert.match(room, /requestAnimationFrame/);
     assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);

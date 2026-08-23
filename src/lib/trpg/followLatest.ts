@@ -101,3 +101,19 @@ export function isNearNarrationFollowElement(el: Element): boolean {
     viewportHeight: window.innerHeight,
   });
 }
+
+/** Newest log row whose GM text arrived after this room mount. */
+export function liveFreshGmNarrationRow(opts: {
+  log: ReadonlyArray<{ roundNumber: number; narration: string | null }>;
+  seenKeys: Iterable<string>;
+}): { roundNumber: number; narration: string } | null {
+  const seen = opts.seenKeys instanceof Set ? opts.seenKeys : new Set(opts.seenKeys);
+  let found: { roundNumber: number; narration: string } | null = null;
+  for (const row of opts.log) {
+    const narration = row.narration?.trim() ?? "";
+    if (!narration) continue;
+    if (seen.has(`n:${row.roundNumber}`)) continue;
+    found = { roundNumber: row.roundNumber, narration };
+  }
+  return found;
+}
