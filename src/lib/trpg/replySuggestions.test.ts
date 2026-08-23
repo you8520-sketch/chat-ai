@@ -219,6 +219,11 @@ describe("TRPG reply suggestions", () => {
     assert.match(client, /saveTrpgActionSuggestionsEnabled/);
     assert.match(client, /loadTrpgActionSuggestionsCache/);
     assert.match(client, /saveTrpgActionSuggestionsCache/);
+    assert.match(client, /endless auto-retry\/flicker loop/);
+    assert.doesNotMatch(
+      client,
+      /setSuggestionsError\(message\);[\s\S]{0,200}autoRequestedRoundRef\.current = null;/
+    );
   });
 
   it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {
@@ -449,9 +454,10 @@ describe("TRPG reply suggestions", () => {
     db.close();
   });
 
-  it("rejects a second in-flight request", async () => {
+  it("lets a refreshed client join the in-flight request", async () => {
     const db = memoryDb();
     const campaignId = await startedCampaign(db);
+    let completeCalls = 0;
     let release: () => void = () => {};
     const hold = new Promise<void>((resolve) => {
       release = resolve;
@@ -460,16 +466,25 @@ describe("TRPG reply suggestions", () => {
       campaignId,
       userId: 1,
       complete: async () => {
+        completeCalls += 1;
         await hold;
         return { text: validJson, model: TRPG_REPLY_SUGGESTION_MODEL };
       },
     });
-    await assert.rejects(
-      () => requestTrpgReplySuggestions(db, { campaignId, userId: 1, complete: async () => ({ text: validJson }) }),
-      /이미 행동 예시/
-    );
+    const refreshed = requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        completeCalls += 1;
+        return { text: validJson };
+      },
+    });
+    assert.equal(completeCalls, 1);
     release();
-    assert.equal((await first).suggestions.length, 3);
+    const [originalResult, refreshedResult] = await Promise.all([first, refreshed]);
+    assert.equal(originalResult.suggestions.length, 3);
+    assert.deepEqual(refreshedResult.suggestions, originalResult.suggestions);
+    assert.equal(completeCalls, 1);
     db.close();
   });
 });

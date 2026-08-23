@@ -197,8 +197,9 @@ export default function TrpgRoomClient({
           : "행동 예시를 만들지 못했습니다.";
       setSuggestionsError(message);
       setError(message);
-      // Allow a later toggle-on to retry after a failed generation.
-      autoRequestedRoundRef.current = null;
+      // Keep this round marked as requested. Poll refreshes replace `snap.myDraft`
+      // every 1.5s; clearing the marker here would turn one failure into an
+      // endless auto-retry/flicker loop. Toggling examples off resets it below.
     } finally {
       suggestionsBusyRef.current = false;
       setSuggestionsBusy(false);
@@ -247,6 +248,7 @@ export default function TrpgRoomClient({
     if (!nextOn) {
       setSuggestions([]);
       setSuggestionsError("");
+      autoRequestedRoundRef.current = null;
       return;
     }
     const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);

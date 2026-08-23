@@ -59,18 +59,41 @@ export type TrpgReplySuggestionCall = (opts: {
   user: string;
 }) => Promise<{ text: string; inputTokens?: number; outputTokens?: number; model?: string }>;
 
-const inflight = new Map<string, { busy: boolean; until: number }>();
+type TrpgReplySuggestionResult = {
+  suggestions: TrpgReplySuggestion[];
+  prompt: { system: string; user: string };
+};
+
+type TrpgReplySuggestionGate = {
+  busy: boolean;
+  roundId: number;
+  token: symbol;
+  until: number;
+  promise?: Promise<TrpgReplySuggestionResult>;
+};
+
+const inflight = new Map<string, TrpgReplySuggestionGate>();
 
 function gateKey(campaignId: number, userId: number): string {
   return `${campaignId}:${userId}`;
 }
 
-function assertReplySuggestionGate(campaignId: number, userId: number): void {
+function readReplySuggestionGate(
+  campaignId: number,
+  userId: number,
+  roundId: number
+): Promise<TrpgReplySuggestionResult> | null {
   const key = gateKey(campaignId, userId);
   const now = Date.now();
   const gate = inflight.get(key);
+  if (gate?.roundId !== roundId) return null;
+  // A reload disconnects the first browser request, but the server-side model
+  // call keeps running. Let the replacement request join that same work so the
+  // generated examples are not lost and the client does not enter a retry loop.
+  if (gate?.busy && gate.promise) return gate.promise;
   if (gate?.busy) throw new Error("이미 행동 예시를 만들고 있습니다.");
   if ((gate?.until ?? 0) > now) throw new Error("잠시 후 다시 시도하세요.");
+  return null;
 }
 
 export function logTrpgReplySuggestionUsage(opts: {
@@ -454,8 +477,7 @@ export async function requestTrpgReplySuggestions(
     userId: number;
     complete?: TrpgReplySuggestionCall;
   }
-): Promise<{ suggestions: TrpgReplySuggestion[]; prompt: { system: string; user: string } }> {
-  assertReplySuggestionGate(opts.campaignId, opts.userId);
+): Promise<TrpgReplySuggestionResult> {
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const me = loadParticipants(db, opts.campaignId).find((p) => p.user_id === opts.userId && p.kind === "human");
@@ -469,6 +491,8 @@ export async function requestTrpgReplySuggestions(
     .prepare(`SELECT locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
     .get(round.id, me.id) as { locked: number } | undefined;
   if (draft?.locked === 1) throw new Error("이미 제출했습니다.");
+  const existing = readReplySuggestionGate(opts.campaignId, opts.userId, round.id);
+  if (existing) return existing;
 
   const sceneRow = db
     .prepare(
@@ -507,32 +531,51 @@ export async function requestTrpgReplySuggestions(
       })),
   });
 
+  const key = gateKey(opts.campaignId, opts.userId);
+  const token = Symbol("trpg-reply-suggestion");
   const started = Date.now();
   const complete = opts.complete ?? callTrpgReplySuggestionModel;
-  const key = gateKey(opts.campaignId, opts.userId);
-  inflight.set(key, { busy: true, until: Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS });
-  try {
-    const result = await complete({ system: prompt.system, user: prompt.user });
-    const suggestions = parseReplySuggestions(result.text);
-    logTrpgReplySuggestionUsage({
-      model: result.model || TRPG_REPLY_SUGGESTION_MODEL,
-      inputTokens: result.inputTokens,
-      outputTokens: result.outputTokens,
-      latencyMs: Date.now() - started,
-      success: true,
-    });
-    return { suggestions, prompt };
-  } catch (error) {
-    logTrpgReplySuggestionUsage({
-      model: TRPG_REPLY_SUGGESTION_MODEL,
-      latencyMs: Date.now() - started,
-      success: false,
-      error: error instanceof Error ? error.message : "reply suggestion failed",
-    });
-    throw error;
-  } finally {
-    inflight.set(key, { busy: false, until: Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS });
-  }
+  const generation = (async (): Promise<TrpgReplySuggestionResult> => {
+    try {
+      const result = await complete({ system: prompt.system, user: prompt.user });
+      const suggestions = parseReplySuggestions(result.text);
+      logTrpgReplySuggestionUsage({
+        model: result.model || TRPG_REPLY_SUGGESTION_MODEL,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        latencyMs: Date.now() - started,
+        success: true,
+      });
+      return { suggestions, prompt };
+    } catch (error) {
+      logTrpgReplySuggestionUsage({
+        model: TRPG_REPLY_SUGGESTION_MODEL,
+        latencyMs: Date.now() - started,
+        success: false,
+        error: error instanceof Error ? error.message : "reply suggestion failed",
+      });
+      throw error;
+    } finally {
+      // A newer round may already own this campaign/user gate. Never let an
+      // older completion overwrite that newer request's in-flight state.
+      if (inflight.get(key)?.token === token) {
+        inflight.set(key, {
+          busy: false,
+          roundId: round.id,
+          token,
+          until: Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS,
+        });
+      }
+    }
+  })();
+  inflight.set(key, {
+    busy: true,
+    roundId: round.id,
+    token,
+    until: Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS,
+    promise: generation,
+  });
+  return generation;
 }
 
 export function resetTrpgReplySuggestionCooldownForTests(): void {
