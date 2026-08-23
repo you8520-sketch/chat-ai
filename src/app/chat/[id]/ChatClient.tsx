@@ -143,6 +143,12 @@ import {
   reconcileStreamEof,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
+import {
+  applyStatusMessageEvidence,
+  applyStreamHeartbeatEvidence,
+  createEmptyPostProcessPhaseEvidence,
+  type PostProcessPhaseEvidence,
+} from "@/lib/chatStreamPostProcessEvidence";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
@@ -2282,6 +2288,8 @@ export default function ChatClient({
     let postStreamLocked = false;
     /** OOC/HTML 전용 턴 — V3 비스트리밍·대용량 ```html``` 즉시 표시 */
     let htmlFlashStreamTurn = false;
+    const postProcessEvidence: PostProcessPhaseEvidence =
+      createEmptyPostProcessPhaseEvidence();
 
     assistantStreamContentRef.current = "";
     streamTargetTextRef.current = "";
@@ -2488,6 +2496,7 @@ export default function ChatClient({
     }
 
     const applyStreamDone = (data: NonNullable<typeof pendingDone>) => {
+      setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
       if (data.chatId) {
         migrateChatMessageDraft(character.id, data.chatId);
@@ -2640,6 +2649,37 @@ export default function ChatClient({
       };
     }
 
+    let streamDoneApplied = false;
+    const onVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden") {
+        reveal.setBackgroundMode(true);
+      } else {
+        reveal.setBackgroundMode(false);
+        reveal.flush();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      if (document.visibilityState === "hidden") {
+        reveal.setBackgroundMode(true);
+      }
+    }
+
+    const finalizeStreamDone = (data: NonNullable<typeof pendingDone>) => {
+      if (streamDoneApplied) return;
+      streamDoneApplied = true;
+      reveal.flush();
+      if (data.finalContent?.trim()) {
+        postStreamLocked = true;
+        applyStreamReplaceTarget(data.finalContent, {
+          instant: true,
+          fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
+        });
+      }
+      applyStreamDone(data);
+    };
+
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -2740,6 +2780,7 @@ export default function ChatClient({
           if (data.type === "status") {
             if (data.message) {
               setStreamPhase(data.message);
+              applyStatusMessageEvidence(postProcessEvidence, data.message);
               if (/HTML|상태창 생성/i.test(data.message)) {
                 htmlFlashStreamTurn = true;
               }
@@ -2757,6 +2798,15 @@ export default function ChatClient({
               postStreamLocked = true;
               setGenerationPrepUi(null);
             }
+            continue;
+          }
+
+          if (data.type === "stream_heartbeat") {
+            const heartbeatPhase =
+              typeof (data as { phase?: unknown }).phase === "string"
+                ? (data as { phase: string }).phase
+                : null;
+            applyStreamHeartbeatEvidence(postProcessEvidence, heartbeatPhase);
             continue;
           }
 
@@ -2818,6 +2868,7 @@ export default function ChatClient({
                 data.finalContent?.trim() || GEMINI_TRAFFIC_OVERLOAD_MESSAGE;
             } else {
               pendingDone = data;
+              finalizeStreamDone(data);
             }
           }
 
@@ -2839,18 +2890,22 @@ export default function ChatClient({
 
       setStreamPhase(null);
       setGenerationPrepUi(null);
-      if (pendingDone?.finalContent) {
+      if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
         applyStreamReplaceTarget(pendingDone.finalContent, {
           instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
         });
       }
-      if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
-        await reveal.waitUntilIdle();
+      if (!streamDoneApplied) {
+        if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
+          await reveal.waitUntilIdle();
+        } else {
+          reveal.flush();
+        }
       } else {
         reveal.flush();
       }
-      if (pendingDone && !trafficOverload) {
+      if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
       } else if (
         !trafficOverload &&
@@ -2861,6 +2916,8 @@ export default function ChatClient({
 
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
+          streamedContentChars: assistantStreamContentRef.current.trim().length,
+          postProcessEvidence,
           fetchSnapshot: async (messageId) => {
             const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
             if (!snapRes.ok) return null;
@@ -2938,6 +2995,10 @@ export default function ChatClient({
         console.error("[chat] stream consume failed:", e);
       }
     } finally {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      reveal.setBackgroundMode(false);
       activeStreamRevealRef.current = null;
       setStreamPhase(null);
       setGenerationPrepUi(null);
@@ -4533,8 +4594,10 @@ export default function ChatClient({
                   <>
                     {(() => {
                       const isStreamingThisMessage =
-                        (loading && i === messages.length - 1) ||
-                        (genStatus === "generating" && i === lastAssistantIdx);
+                        i === lastAssistantIdx &&
+                        !isTerminalGenerationStatus(genStatus) &&
+                        ((loading && i === messages.length - 1) ||
+                          genStatus === "generating");
                       const variantContent = isStreamingThisMessage
                         ? m.content
                         : resolveActiveVariantContent(m);

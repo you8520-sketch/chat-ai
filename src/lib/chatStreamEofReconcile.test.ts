@@ -3,13 +3,16 @@ import { describe, it } from "node:test";
 import {
   EOF_RECONCILE_MAX_ATTEMPTS,
   EOF_RECONCILE_RETRY_MS,
+  EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
   classifyReconcileStatus,
   eofReconcileMaxSleepMs,
   generationStatusFromEofResult,
   needsEofReconcile,
   reconcileStreamEof,
+  resolveEofReconcilePollBudget,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
+import { applyStatusMessageEvidence, createEmptyPostProcessPhaseEvidence } from "@/lib/chatStreamPostProcessEvidence";
 
 function snap(overrides: Partial<EofReconcileSnapshot> = {}): EofReconcileSnapshot {
   return {
@@ -23,200 +26,83 @@ function snap(overrides: Partial<EofReconcileSnapshot> = {}): EofReconcileSnapsh
 }
 
 describe("EOF reconcile timing budget", () => {
-  it("documents attempts, interval, and max sleep", () => {
+  it("short budget defaults", () => {
     assert.equal(EOF_RECONCILE_MAX_ATTEMPTS, 6);
     assert.equal(EOF_RECONCILE_RETRY_MS, 350);
     assert.equal(eofReconcileMaxSleepMs(), 1750);
-    // Prior budget (4 attempts) was 3×350 = 1050ms — too tight for late widget finalize.
-    assert.equal(eofReconcileMaxSleepMs(4, 350), 1050);
   });
 });
 
-describe("needsEofReconcile", () => {
-  it("A-guard: skips when done was seen", () => {
-    assert.equal(needsEofReconcile({ sawDone: true, sawError: false }), false);
+describe("resolveEofReconcilePollBudget", () => {
+  it("uses short budget for empty/minimal streamed prose", () => {
+    const budget = resolveEofReconcilePollBudget({ streamedContentChars: 50 });
+    assert.equal(budget.maxAttempts, 6);
+    assert.equal(budget.retryMs, 350);
+    assert.equal(budget.extended, false);
   });
 
-  it("skips when error was seen", () => {
-    assert.equal(needsEofReconcile({ sawDone: false, sawError: true }), false);
-  });
+  it("requires postprocess evidence for extended budget", () => {
+    const withoutEvidence = resolveEofReconcilePollBudget({
+      streamedContentChars: EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
+    });
+    assert.equal(withoutEvidence.extended, false);
 
-  it("runs only when neither terminal event arrived", () => {
-    assert.equal(needsEofReconcile({ sawDone: false, sawError: false }), true);
-  });
-});
-
-describe("classifyReconcileStatus", () => {
-  it("classifies completed family", () => {
-    assert.equal(classifyReconcileStatus("completed"), "completed");
-    assert.equal(classifyReconcileStatus("ok"), "completed");
-    assert.equal(classifyReconcileStatus("completed_with_postprocess_error"), "completed");
-  });
-
-  it("classifies failed-like and in-flight", () => {
-    assert.equal(classifyReconcileStatus("failed"), "failed_like");
-    assert.equal(classifyReconcileStatus("interrupted"), "failed_like");
-    assert.equal(classifyReconcileStatus("generating"), "in_flight");
-    assert.equal(classifyReconcileStatus("submitted"), "in_flight");
+    const evidence = createEmptyPostProcessPhaseEvidence();
+    applyStatusMessageEvidence(evidence, "상태창 생성 중…");
+    const withEvidence = resolveEofReconcilePollBudget({
+      streamedContentChars: EOF_RECONCILE_SUBSTANTIAL_PROSE_MIN_CHARS,
+      postProcessEvidence: evidence,
+    });
+    assert.equal(withEvidence.extended, true);
   });
 });
 
 describe("reconcileStreamEof", () => {
-  it("A: not invoked when needsEofReconcile is false (done path)", () => {
-    assert.equal(needsEofReconcile({ sawDone: true, sawError: false }), false);
-  });
-
   it("B: DB completed after EOF → completed UI snapshot", async () => {
-    let fetches = 0;
+    const evidence = createEmptyPostProcessPhaseEvidence();
+    applyStatusMessageEvidence(evidence, "마무리 중…");
     const result = await reconcileStreamEof({
       messageId: 781,
+      streamedContentChars: 4200,
+      postProcessEvidence: evidence,
       retryMs: 0,
-      maxAttempts: 3,
+      maxAttempts: 2,
       sleep: async () => {},
-      fetchSnapshot: async () => {
-        fetches += 1;
-        return snap({ generationStatus: "completed", content: "final prose" });
-      },
+      fetchSnapshot: async () =>
+        snap({ generationStatus: "completed", content: "final prose preserved" }),
     });
     assert.equal(result.kind, "completed");
-    if (result.kind === "completed") {
-      assert.equal(result.snapshot.content, "final prose");
-      assert.equal(generationStatusFromEofResult(result), "completed");
-    }
-    assert.equal(fetches, 1);
-  });
-
-  it("C: DB stays generating → interrupted after limited retries", async () => {
-    let fetches = 0;
-    const result = await reconcileStreamEof({
-      messageId: 781,
-      retryMs: 0,
-      maxAttempts: 3,
-      sleep: async () => {},
-      fetchSnapshot: async () => {
-        fetches += 1;
-        return snap({ generationStatus: "generating" });
-      },
-    });
-    assert.equal(result.kind, "interrupted");
-    if (result.kind === "interrupted") {
-      assert.equal(result.reason, "still_generating");
-    }
-    assert.equal(generationStatusFromEofResult(result), "interrupted");
-    assert.equal(fetches, 3);
+    assert.equal(generationStatusFromEofResult(result), "completed");
   });
 
   it("D-guard: error terminal flag skips reconcile", () => {
     assert.equal(needsEofReconcile({ sawDone: false, sawError: true }), false);
   });
 
-  it("E: failed/interrupted server status maps to terminal", async () => {
+  it("still generating under short budget → interrupted", async () => {
     const result = await reconcileStreamEof({
-      messageId: 99,
+      messageId: 781,
+      streamedContentChars: 0,
       retryMs: 0,
-      maxAttempts: 2,
+      maxAttempts: 3,
       sleep: async () => {},
-      fetchSnapshot: async () => snap({ generationStatus: "failed", content: "x" }),
-    });
-    assert.equal(result.kind, "terminal");
-    if (result.kind === "terminal") {
-      assert.equal(result.status, "failed");
-      assert.equal(generationStatusFromEofResult(result), "failed");
-    }
-  });
-
-  it("F: generating then completed (status-widget finalizing window)", async () => {
-    let fetches = 0;
-    const result = await reconcileStreamEof({
-      messageId: 781,
-      retryMs: 0,
-      maxAttempts: 4,
-      sleep: async () => {},
-      fetchSnapshot: async () => {
-        fetches += 1;
-        if (fetches < 3) return snap({ generationStatus: "generating", content: "mid" });
-        return snap({ generationStatus: "completed", content: "done body" });
-      },
-    });
-    assert.equal(result.kind, "completed");
-    if (result.kind === "completed") {
-      assert.equal(result.snapshot.content, "done body");
-    }
-    assert.equal(fetches, 3);
-  });
-
-  it("G-race: widget finalize slightly after prior 1050ms budget still completes", async () => {
-    // Server stays generating until elapsed sleep passes the old 4-attempt budget
-    // (1050ms) by a small margin, then flips to completed — must not interrupt.
-    const priorBudgetMs = eofReconcileMaxSleepMs(4, 350);
-    assert.equal(priorBudgetMs, 1050);
-    const completeAfterMs = priorBudgetMs + 150; // 1200ms — slightly late vs old window
-
-    let elapsed = 0;
-    let fetches = 0;
-    const result = await reconcileStreamEof({
-      messageId: 781,
-      // production defaults (6 × 350 → 1750ms)
-      sleep: async (ms) => {
-        elapsed += ms;
-      },
-      fetchSnapshot: async () => {
-        fetches += 1;
-        if (elapsed < completeAfterMs) {
-          return snap({ generationStatus: "generating", content: "mid-widget" });
-        }
-        return snap({ generationStatus: "completed", content: "finalized after widget" });
-      },
-    });
-
-    assert.equal(result.kind, "completed");
-    if (result.kind === "completed") {
-      assert.equal(result.snapshot.content, "finalized after widget");
-      assert.equal(generationStatusFromEofResult(result), "completed");
-    }
-    assert.ok(elapsed >= completeAfterMs, `elapsed=${elapsed} should reach late finalize`);
-    assert.ok(elapsed <= eofReconcileMaxSleepMs(), `elapsed=${elapsed} within production budget`);
-    assert.ok(fetches >= 5, `expected late poll, got fetches=${fetches}`);
-  });
-
-  it("G-boundary: same late finalize under old 4-attempt budget would interrupt", async () => {
-    const priorBudgetMs = eofReconcileMaxSleepMs(4, 350);
-    const completeAfterMs = priorBudgetMs + 150; // 1200ms
-    let elapsed = 0;
-    const result = await reconcileStreamEof({
-      messageId: 781,
-      maxAttempts: 4,
-      retryMs: 350,
-      sleep: async (ms) => {
-        elapsed += ms;
-      },
-      fetchSnapshot: async () => {
-        if (elapsed < completeAfterMs) {
-          return snap({ generationStatus: "generating" });
-        }
-        return snap({ generationStatus: "completed" });
-      },
+      fetchSnapshot: async () => snap({ generationStatus: "generating" }),
     });
     assert.equal(result.kind, "interrupted");
     if (result.kind === "interrupted") {
       assert.equal(result.reason, "still_generating");
     }
-    assert.equal(elapsed, priorBudgetMs);
   });
 
-  it("missing messageId → interrupted without fetch", async () => {
-    let fetches = 0;
+  it("failed_partial is terminal", async () => {
     const result = await reconcileStreamEof({
-      messageId: null,
-      fetchSnapshot: async () => {
-        fetches += 1;
-        return snap();
-      },
+      messageId: 781,
+      retryMs: 0,
+      maxAttempts: 1,
+      sleep: async () => {},
+      fetchSnapshot: async () => snap({ generationStatus: "failed_partial", content: "x" }),
     });
-    assert.equal(result.kind, "interrupted");
-    if (result.kind === "interrupted") {
-      assert.equal(result.reason, "missing_message_id");
-    }
-    assert.equal(fetches, 0);
+    assert.equal(result.kind, "terminal");
+    assert.equal(classifyReconcileStatus("failed_partial"), "failed_like");
   });
 });

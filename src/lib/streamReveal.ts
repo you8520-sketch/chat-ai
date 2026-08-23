@@ -1,4 +1,5 @@
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
+import { computeAdaptiveCharsPerTick } from "@/lib/streamRevealTiming";
 
 export type StreamRevealHandlers = {
   onAppend: (chunk: string) => void;
@@ -256,6 +257,11 @@ export function createStreamReveal(
   let timer: ReturnType<typeof setInterval> | null = null;
   let activeIntervalMs = -1;
   let paused = false;
+  let backgroundMode = false;
+
+  function pendingLength(): number {
+    return [...pending].length;
+  }
 
   function readOptions(): StreamRevealOptions {
     return resolveOptions(optionsSource);
@@ -286,8 +292,7 @@ export function createStreamReveal(
   }
 
   function effectiveCharsPerTick(opts: StreamRevealOptions): number {
-    // 읽기 따라가기용 — 대기 큐가 쌓여도 설정 속도 유지 (가속 없음)
-    return opts.charsPerTick;
+    return computeAdaptiveCharsPerTick(pendingLength(), opts);
   }
 
   function tick() {
@@ -332,8 +337,35 @@ export function createStreamReveal(
   return {
     enqueue(text: string) {
       if (!text || paused) return;
+      if (backgroundMode) {
+        handlers.onAppend(text);
+        return;
+      }
       pending += text;
       pump();
+    },
+    /** Tab hidden — do not accumulate animation backlog; show text immediately. */
+    setBackgroundMode(on: boolean) {
+      if (backgroundMode === on) return;
+      backgroundMode = on;
+      if (on) {
+        if (pending) {
+          handlers.onAppend(pending);
+          pending = "";
+        }
+        stopTimer();
+      } else if (pending) {
+        pump();
+      }
+    },
+    isBackgroundMode() {
+      return backgroundMode;
+    },
+    getPendingLength() {
+      return pendingLength();
+    },
+    activeTimerCount() {
+      return timer ? 1 : 0;
     },
     pause() {
       paused = true;
