@@ -68,9 +68,9 @@ describe("OOC scene routing cases", () => {
     assert.equal(classification.sexualContextActive, false);
     assert.equal(classification.reason, "ooc_explicit_anatomy_reaction");
     assert.equal(classification.transientAdultCapableRoute, true);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(decision.transientAdultCapableRoute, true);
-    assert.equal(decision.firstAdultHandoff, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
     assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, "deepseek-v4-pro-0813");
 
@@ -127,7 +127,8 @@ describe("OOC scene routing cases", () => {
     });
     assert.equal(classification.sceneReset, false);
     assert.equal(classification.currentInputExplicitIntent, true);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
   });
 
@@ -135,7 +136,8 @@ describe("OOC scene routing cases", () => {
     const { decision } = decide({
       currentInput: "OOC: 현재 장면에서 NPC가 노골적인 성적 대사를 하게 해.",
     });
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
   });
 
@@ -177,8 +179,8 @@ describe("OOC scene routing cases", () => {
       currentInput: "OOC: 이전 장면 종료.\n새로운 성인 에피소드 시작...",
     });
     assert.equal(classification.sceneReset, true);
-    assert.equal(decision.activeRoute, "adult");
-    assert.equal(decision.firstAdultHandoff, true);
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
   });
 
   it("case 9 — medical exam without explicit sexual anatomy stays general", () => {
@@ -214,7 +216,8 @@ describe("OOC scene routing cases", () => {
     });
     assert.equal(classification.actualNonConsent, false);
     assert.equal(decision.shouldBlock, false);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(decision.blockReason, undefined);
   });
 });
@@ -260,7 +263,8 @@ describe("transient adult-capable OOC anatomy route", () => {
     const { classification, decision, next } = finalize({ currentInput: CASE1 });
     assert.equal(classification.transientAdultCapableRoute, true);
     assert.equal(classification.sexualContextActive, false);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
     assert.equal(next.activeRoute, "general");
     assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
@@ -278,19 +282,20 @@ describe("transient adult-capable OOC anatomy route", () => {
     assert.equal(decision.transientAdultCapableRoute, false);
   });
 
-  it("3 — OOC explicit sexual transition starts sticky adult 0813", () => {
+  it("3 — OOC explicit sexual transition prepares refusal fallback without sticky route", () => {
     const { classification, decision, next } = finalize({
       currentInput: "OOC: 현재 장면 계속. 이제 둘의 관계를 성인 장면까지 진행해.",
     });
     assert.equal(classification.transientAdultCapableRoute, false);
     assert.equal(classification.sexualContextActive, true);
-    assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
-    assert.equal(next.activeRoute, "adult");
-    assert.ok(next.adultRouteMinimumTurnsRemaining > 0);
+    assert.equal(next.activeRoute, "general");
+    assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
   });
 
-  it("4 — existing explicit adult action keeps sticky adult", () => {
+  it("4 — existing explicit adult action keeps primary general route metadata", () => {
     const state: ModelRouteState = {
       ...DEFAULT_MODEL_ROUTE_STATE,
       activeRoute: "adult",
@@ -304,8 +309,9 @@ describe("transient adult-capable OOC anatomy route", () => {
       assistantText: "둘은 삽입한 채 숨을 고르며 같은 자세를 유지했다.",
     });
     assert.equal(classification.transientAdultCapableRoute, false);
-    assert.equal(decision.activeRoute, "adult");
-    assert.equal(next.activeRoute, "adult");
-    assert.ok(next.adultRouteMinimumTurnsRemaining >= 1);
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.refusalBufferRecommended, true);
+    assert.equal(next.activeRoute, "general");
+    assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
   });
 });

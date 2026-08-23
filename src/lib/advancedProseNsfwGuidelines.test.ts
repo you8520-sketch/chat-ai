@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ADULT_CONTENT_POLICY_BLOCK,
+  ADULT_CONTENT_POLICY_CNC_PERMISSION,
   applyDenseNarrationPlacementP1,
   applyDenseNarrationPlacementP2,
   buildAdvancedProseNsfwGuidelines,
+  buildAdultContentPolicyBlock,
   DENSE_NARRATION_LIGHTWEIGHT_RULE,
   DIALOGUE_NARRATION_P2_WITH_DENSE,
   NSFW_EXPLICIT_SENSORY_WRITING_BLOCK,
@@ -49,13 +51,36 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /최소 3문장/);
   });
 
-  it("NSFW mode appends adult policy then intimacy", () => {
+  it("NSFW standard mode omits CNC permission sentence", () => {
+    const block = buildAdvancedProseNsfwGuidelines({
+      nsfwEnabled: true,
+      activeConsentMode: "standard",
+    });
+    assert.match(block, /\[ADULT CONTENT POLICY\]/);
+    assert.match(block, /미성년자/);
+    assert.doesNotMatch(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
+  });
+
+  it("NSFW cnc_opt_in mode includes CNC permission sentence", () => {
+    const block = buildAdvancedProseNsfwGuidelines({
+      nsfwEnabled: true,
+      activeConsentMode: "cnc_opt_in",
+    });
+    assert.match(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
+    assert.equal(
+      buildAdultContentPolicyBlock("cnc_opt_in").includes(
+        ADULT_CONTENT_POLICY_CNC_PERMISSION
+      ),
+      true
+    );
+  });
+
+  it("NSFW mode appends standard adult policy then intimacy", () => {
     const block = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: true });
     assert.match(block, /\[ADULT CONTENT POLICY\]/);
     assert.match(block, /미성년자/);
     assert.match(block, /실존 인물/);
-    assert.match(block, /강압·비동의·CNC/);
-    assert.match(block, /거부·검열·페이드아웃하지 말고/);
+    assert.doesNotMatch(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
     assert.match(block, /해부학적 명칭/);
     assert.match(block, /기계적 피스톤/);
