@@ -9,6 +9,7 @@ import {
   WITHDRAWAL_TOTAL_DEDUCTION_RATE,
   calcWithdrawalBreakdown,
   formatAccountInfoLabel,
+  withdrawalStatusLabel,
   type WithdrawalEligibility,
   type WithdrawalRequestRow,
 } from "@/lib/creatorShared";
@@ -175,7 +176,7 @@ export default function WithdrawalForm({
 
       {hasPendingWithdrawal && (
         <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          처리 대기(PENDING) 중인 출금 신청이 있습니다. 승인·반려 후 새로 신청할 수 있습니다.
+          지급 대기(PENDING) 중인 출금 신청이 있습니다. 월간 일괄 지급이 끝난 뒤 새로 신청할 수 있습니다.
         </p>
       )}
 
@@ -337,8 +338,13 @@ export default function WithdrawalForm({
 }
 
 function WithdrawalStatusLabel({ status }: { status: string }) {
-  if (status === "APPROVED") return <span className="text-emerald-400">승인·입금</span>;
-  if (status === "REJECTED") return <span className="text-rose-400">반려</span>;
-  if (status === "FAILED") return <span className="text-rose-400">지급실패·CP복구</span>;
-  return <span className="text-amber-400">검토중</span>;
+  const tone =
+    status === "APPROVED"
+      ? "text-emerald-400"
+      : status === "REJECTED" || status === "FAILED"
+        ? "text-rose-400"
+        : "text-amber-400";
+  const label =
+    status === "FAILED" ? "지급실패·CP복구" : withdrawalStatusLabel(status);
+  return <span className={tone}>{label}</span>;
 }

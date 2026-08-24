@@ -170,7 +170,7 @@ export default function SettingsClient({ user, unreadNotice = false, pendingComm
       {user.isAdmin && (
         <section className="mt-6 rounded-xl border border-violet-500/30 bg-violet-950/30 p-5">
           <h2 className="font-semibold tracking-tight text-violet-200">관리자</h2>
-          <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산</p>
+          <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산 조회</p>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Link
               href="/admin/point-grant"

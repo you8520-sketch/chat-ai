@@ -2,9 +2,9 @@ import { getDb } from "./db";
 import { decryptSensitive } from "./fieldEncryption";
 import { formatResidentNumberDisplay } from "./residentId";
 import { parseAccountInfo, WITHDRAWAL_TAX_RATE } from "./creatorShared";
+import { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL } from "./payoutSchedule";
 
-/** 지방소득세 = 국세(원천징수)의 10% (소득세법 기준) */
-export const LOCAL_TAX_RATE_OF_NATIONAL = 0.1;
+export { calcLocalTax, LOCAL_TAX_RATE_OF_NATIONAL };
 
 export type PayoutExportRow = {
   payoutDate: string;
@@ -46,10 +46,6 @@ export function parseYearMonth(yearParam: string | null, monthParam: string | nu
     throw new Error("유효한 월(month, 1–12)을 입력하세요.");
   }
   return { year, month, monthPadded: padMonth(month) };
-}
-
-export function calcLocalTax(nationalTax: number): number {
-  return Math.floor(nationalTax * LOCAL_TAX_RATE_OF_NATIONAL);
 }
 
 export function listApprovedWithdrawalsForMonth(year: number, monthPadded: string): ApprovedWithdrawalRecord[] {

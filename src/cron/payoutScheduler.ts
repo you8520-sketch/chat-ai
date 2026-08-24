@@ -1,12 +1,14 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { processPayoutQueue } from "@/lib/payoutQueue";
+import {
+  PAYOUT_CRON_EXPRESSION,
+  PAYOUT_TIMEZONE,
+} from "@/lib/payoutSchedule";
+
+export { PAYOUT_CRON_EXPRESSION, PAYOUT_TIMEZONE };
 
 let scheduledTask: ScheduledTask | null = null;
 let running = false;
-
-/** 매월 15일 03:00 (Asia/Seoul) 자동 일괄 지급 */
-export const PAYOUT_CRON_EXPRESSION = "0 3 15 * *";
-export const PAYOUT_TIMEZONE = "Asia/Seoul";
 
 async function runScheduledPayout() {
   if (running) {

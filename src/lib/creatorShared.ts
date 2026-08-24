@@ -54,6 +54,21 @@ export const CREATOR_NOTICE_CONTENT_MAX = 5_000;
 
 export type WithdrawalStatus = "PENDING" | "APPROVED" | "REJECTED" | "FAILED";
 
+export function withdrawalStatusLabel(status: WithdrawalStatus | string): string {
+  switch (status) {
+    case "PENDING":
+      return "지급 대기";
+    case "APPROVED":
+      return "지급 완료";
+    case "FAILED":
+      return "지급 실패";
+    case "REJECTED":
+      return "반려";
+    default:
+      return status;
+  }
+}
+
 export type WithdrawalBreakdown = {
   requestedCp: number;
   taxAmount: number;
