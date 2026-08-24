@@ -1,5 +1,8 @@
 import type { TrpgVisibleActionType } from "./actionTypes";
 
+export const TRPG_REPLY_SUGGESTION_USER_ERROR =
+  "행동 예시를 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요.";
+
 export const TRPG_INPUT_ORIGINS = ["manual", "reply_suggestion"] as const;
 export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
 
