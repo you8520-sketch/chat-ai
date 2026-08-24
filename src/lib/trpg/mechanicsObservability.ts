@@ -77,7 +77,7 @@ export function auditTrpgMechanicsRollEconomy(
 ): TrpgMechanicsEconomyAudit {
   const submissions = db
     .prepare(
-      `SELECT s.id, s.round_id, s.action_type, s.source, p.kind
+      `SELECT s.id, s.round_id, s.participant_id, s.action_type, s.source, p.kind
        FROM trpg_action_submissions s
        JOIN trpg_rounds r ON r.id = s.round_id
        JOIN trpg_participants p ON p.id = s.participant_id
@@ -87,6 +87,7 @@ export function auditTrpgMechanicsRollEconomy(
     .all(campaignId) as Array<{
     id: number;
     round_id: number;
+    participant_id: number;
     action_type: string | null;
     source: string;
     kind: string;
@@ -112,7 +113,7 @@ export function auditTrpgMechanicsRollEconomy(
     bot: emptyTypeRow(),
   };
   const failuresByRound = new Map<number, number>();
-  let humanStreak = 0;
+  const humanStreakByParticipant = new Map<number, number>();
   let maxHumanStreak = 0;
 
   for (const sub of submissions) {
@@ -122,10 +123,7 @@ export function auditTrpgMechanicsRollEconomy(
     typeRow.actions += 1;
     byActor[actor].actions += 1;
     const roll = rollBySubmission.get(sub.id);
-    if (!roll) {
-      if (actor === "human") humanStreak = 0;
-      continue;
-    }
+    if (!roll) continue;
     typeRow.checks += 1;
     byActor[actor].checks += 1;
     const bucket = bucketTrpgSuccessTier(roll.tier);
@@ -138,13 +136,12 @@ export function auditTrpgMechanicsRollEconomy(
       modRow.fullFailures += 1;
       failuresByRound.set(roll.round_id, (failuresByRound.get(roll.round_id) ?? 0) + 1);
       if (actor === "human") {
-        humanStreak += 1;
-        if (humanStreak > maxHumanStreak) maxHumanStreak = humanStreak;
-      } else {
-        humanStreak = 0;
+        const streak = (humanStreakByParticipant.get(sub.participant_id) ?? 0) + 1;
+        humanStreakByParticipant.set(sub.participant_id, streak);
+        if (streak > maxHumanStreak) maxHumanStreak = streak;
       }
     } else if (actor === "human") {
-      humanStreak = 0;
+      humanStreakByParticipant.set(sub.participant_id, 0);
     }
   }
 

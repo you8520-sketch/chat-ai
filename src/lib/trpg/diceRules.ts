@@ -18,15 +18,20 @@ function asPositiveInt(value: unknown, fallback: number): number {
   return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
+function asNonNegativeInt(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(n) && n >= 0 ? n : fallback;
+}
+
 export function parseTrpgDiceRules(raw: unknown): TrpgDiceRules | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = raw as Record<string, unknown>;
   return {
     die: 20,
     dc: asPositiveInt(row.dc, DEFAULT_TRPG_DICE_RULES.dc),
-    severeFailureMargin: asPositiveInt(row.severeFailureMargin, DEFAULT_TRPG_DICE_RULES.severeFailureMargin),
-    greatSuccessMargin: asPositiveInt(row.greatSuccessMargin, DEFAULT_TRPG_DICE_RULES.greatSuccessMargin),
-    partialWindow: asPositiveInt(row.partialWindow, DEFAULT_TRPG_DICE_RULES.partialWindow),
+    severeFailureMargin: asNonNegativeInt(row.severeFailureMargin, DEFAULT_TRPG_DICE_RULES.severeFailureMargin),
+    greatSuccessMargin: asNonNegativeInt(row.greatSuccessMargin, DEFAULT_TRPG_DICE_RULES.greatSuccessMargin),
+    partialWindow: asNonNegativeInt(row.partialWindow, DEFAULT_TRPG_DICE_RULES.partialWindow),
     nat1: asNatRule(row.nat1, DEFAULT_TRPG_DICE_RULES.nat1),
     nat20: asNatRule(row.nat20, DEFAULT_TRPG_DICE_RULES.nat20),
   };

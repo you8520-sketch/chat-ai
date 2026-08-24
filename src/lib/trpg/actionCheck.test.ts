@@ -224,4 +224,38 @@ describe("TRPG M1 roll economy fixtures", () => {
     assert.equal(decision.reason, "explicit_resolution");
     assert.equal(decision.needsCheck, true);
   });
+
+  it("ordinary therapeutic item use skips check; hazardous offensive item use rolls", () => {
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "해독제를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "중독 치료를 위해 해독제를 투여한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "붕대를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "구급키트를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "연막탄을 적에게 던진다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "잠긴 문에 공구를 억지로 들이민다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 응급처치한다.", actionType: "support" }).needsCheck,
+      true
+    );
+  });
 });
