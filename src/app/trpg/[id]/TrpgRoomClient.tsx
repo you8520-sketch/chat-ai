@@ -12,6 +12,7 @@ import type { TrpgActionType } from "@/lib/trpg/actionTypes";
 import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import {
   applyReplySuggestionClick,
+  TRPG_REPLY_SUGGESTION_USER_ERROR,
   type TrpgInputOrigin,
   type TrpgReplySuggestion,
 } from "@/lib/trpg/replySuggestionShared";
@@ -191,10 +192,10 @@ export default function TrpgRoomClient({
         (e instanceof DOMException || e instanceof Error) &&
         (e.name === "TimeoutError" || e.name === "AbortError");
       const message = timedOut
-        ? "행동 예시를 만드는 데 시간이 너무 오래 걸렸습니다."
+        ? TRPG_REPLY_SUGGESTION_USER_ERROR
         : e instanceof Error
           ? e.message
-          : "행동 예시를 만들지 못했습니다.";
+          : TRPG_REPLY_SUGGESTION_USER_ERROR;
       setSuggestionsError(message);
       setError(message);
       // Keep this round marked as requested. Poll refreshes replace `snap.myDraft`
