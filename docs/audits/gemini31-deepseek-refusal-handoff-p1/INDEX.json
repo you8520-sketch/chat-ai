@@ -78,5 +78,15 @@
     "b3_refused": false,
     "b3_gate_reason": "not_refusal",
     "regression_test": "src/lib/adultHandoffB3FrozenRefusal.test.ts"
+  },
+  "issue2": {
+    "production_code_changed": false,
+    "prompt_changed": false,
+    "HANDOFF_LENGTH_OWNER_PRESENT": true,
+    "HANDOFF_DIALOGUE_OWNER_PRESENT": true,
+    "frozen_request": "docs/audits/gemini31-deepseek-refusal-handoff-p1/requests/B-DEEPSEEK-input.json",
+    "second_raw": "docs/audits/gemini31-deepseek-refusal-handoff-p1/raw/B-DEEPSEEK-RAW-2.txt",
+    "compare": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE2-B2-HANDOFF-REPRO.md",
+    "stop_for_human_review": true
   }
 }

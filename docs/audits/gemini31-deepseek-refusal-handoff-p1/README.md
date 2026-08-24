@@ -14,3 +14,4 @@ RP provider call counts: A=1 Gemini, B=1 Gemini + 1 DeepSeek 0813, C=1 Gemini.
 Human/ChatGPT review: A/B2/C routing PASS. Production handoff acceptance NOT YET APPROVED.
 
 - Issue 1 diagnosis (no production change): `ISSUE1-B3-PATH-DIAGNOSIS.md`
+- Issue 2 frozen-request replay (no prompt change): `ISSUE2-B2-HANDOFF-REPRO.md` — STOP for review

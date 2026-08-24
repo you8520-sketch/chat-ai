@@ -28,6 +28,13 @@
 - `raw/B-B3-GEMINI-RAW.txt`
 - `src/lib/adultHandoffB3FrozenRefusal.test.ts` (expected invariant; currently fails at detectModelRefusal)
 
+## Issue 2 second DeepSeek RAW
+- `ISSUE2-B2-HANDOFF-REPRO.md`
+- `ISSUE2-B2-HANDOFF-REPRO.json`
+- `raw/B-DEEPSEEK-RAW-2.txt`
+- `raw/B-DEEPSEEK-WIRE-2.txt`
+- `meta/B-DEEPSEEK-2-provider.json`
+
 ## Metadata
 - `meta/A.json`
 - `meta/A-GEMINI-provider.json`
