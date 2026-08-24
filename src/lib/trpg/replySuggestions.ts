@@ -139,6 +139,23 @@ export class TrpgMalformedProviderResponseError extends Error {
   }
 }
 
+export type TrpgReplyFallbackContentKind =
+  | "string"
+  | "parts"
+  | "reasoning"
+  | "empty"
+  | "other";
+
+export type TrpgReplyFallbackParseStage =
+  | "extract_empty"
+  | "json_parse"
+  | "suggestions_not_array"
+  | "invalid_schema"
+  | "invalid_count"
+  | "valid";
+
+export type TrpgReplyPrimaryTimeoutStage = "headers" | "body" | null;
+
 export type TrpgReplySuggestionProviderTelemetry = {
   logical_request_id: string;
   round_id: number | null;
@@ -153,6 +170,23 @@ export type TrpgReplySuggestionProviderTelemetry = {
   fallback_latency_ms: number | null;
   fallback_success: boolean;
   provider_attempt_count: number;
+  fallback_status?: number | null;
+  fallback_finish_reason?: string | null;
+  fallback_output_tokens?: number | null;
+  fallback_has_choices?: boolean | null;
+  fallback_content_kind?: TrpgReplyFallbackContentKind | null;
+  fallback_parse_stage?: TrpgReplyFallbackParseStage | null;
+  primary_headers_received?: boolean | null;
+  primary_http_status?: number | null;
+  primary_elapsed_ms?: number | null;
+  primary_timeout_stage?: TrpgReplyPrimaryTimeoutStage;
+};
+
+type TrpgReplyBackupResponseShape = {
+  finish_reason: string | null;
+  output_tokens: number | null;
+  has_choices: boolean;
+  content_kind: TrpgReplyFallbackContentKind;
 };
 
 const TRPG_REPLY_TRANSPORT_FAILOVER_HTTP = new Set([408, 429, 500, 502, 503, 504]);
@@ -259,6 +293,169 @@ export function validateReplySuggestionCompletion(raw: string):
   return { ok: true, suggestions: out as TrpgReplySuggestion[] };
 }
 
+export function classifyReplySuggestionContentKind(message: {
+  content?: unknown;
+  reasoning_content?: unknown;
+  reasoning?: unknown;
+} | null | undefined): TrpgReplyFallbackContentKind {
+  if (!message) return "empty";
+  const visibleFromContent = messageContentToText(message.content);
+  if (visibleFromContent) {
+    if (typeof message.content === "string") return "string";
+    if (Array.isArray(message.content)) return "parts";
+    return "other";
+  }
+  const visibleFromReasoning =
+    messageContentToText(message.reasoning_content) || messageContentToText(message.reasoning);
+  if (visibleFromReasoning) return "reasoning";
+  if (
+    message.content == null &&
+    message.reasoning_content == null &&
+    message.reasoning == null
+  ) {
+    return "empty";
+  }
+  if (message.reasoning_content != null || message.reasoning != null) return "reasoning";
+  if (typeof message.content === "string") return message.content.trim() ? "string" : "empty";
+  if (Array.isArray(message.content)) return "parts";
+  return "other";
+}
+
+export function diagnoseReplySuggestionParseStage(raw: string): TrpgReplyFallbackParseStage {
+  const trimmed = raw.trim();
+  if (!trimmed) return "extract_empty";
+
+  let parsed: unknown = null;
+  let jsonOk = false;
+  try {
+    parsed = JSON.parse(trimmed);
+    jsonOk = true;
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        parsed = JSON.parse(trimmed.slice(start, end + 1));
+        jsonOk = true;
+      } catch {
+        return "json_parse";
+      }
+    } else {
+      return "json_parse";
+    }
+  }
+  if (!jsonOk) return "json_parse";
+
+  const rows =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { suggestions?: unknown }).suggestions
+      : parsed;
+  if (!Array.isArray(rows)) return "suggestions_not_array";
+
+  const validated = validateReplySuggestionCompletion(raw);
+  if (validated.ok) return "valid";
+  if (validated.semanticFailureClass === "invalid_suggestion_schema") return "invalid_schema";
+  if (validated.semanticFailureClass === "invalid_suggestion_count") return "invalid_count";
+  if (validated.semanticFailureClass === "empty_completion") return "extract_empty";
+  return "json_parse";
+}
+
+export function extractReplySuggestionResponseShape(data: unknown): TrpgReplyBackupResponseShape {
+  if (!data || typeof data !== "object") {
+    return {
+      finish_reason: null,
+      output_tokens: null,
+      has_choices: false,
+      content_kind: "other",
+    };
+  }
+  const row = data as {
+    choices?: Array<{
+      finish_reason?: unknown;
+      message?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown };
+    }>;
+    usage?: { completion_tokens?: number };
+  };
+  const choices = row.choices;
+  const has_choices = Array.isArray(choices) && choices.length > 0;
+  const first = has_choices ? choices[0] : null;
+  const finish_reason =
+    first && typeof first.finish_reason === "string" ? first.finish_reason : null;
+  const completionTokens = row.usage?.completion_tokens;
+  const output_tokens =
+    typeof completionTokens === "number" && Number.isFinite(completionTokens)
+      ? completionTokens
+      : null;
+  return {
+    finish_reason,
+    output_tokens,
+    has_choices,
+    content_kind: classifyReplySuggestionContentKind(first?.message ?? null),
+  };
+}
+
+export function resolvePrimaryTimeoutObservability(
+  error: unknown,
+  elapsedMs: number
+): {
+  primary_headers_received: boolean;
+  primary_http_status: number | null;
+  primary_elapsed_ms: number;
+  primary_timeout_stage: TrpgReplyPrimaryTimeoutStage;
+} {
+  const trigger = (error as { trigger?: unknown })?.trigger;
+  const httpStatusRaw = (error as { httpStatus?: unknown })?.httpStatus;
+  const httpStatus =
+    typeof httpStatusRaw === "number" && Number.isFinite(httpStatusRaw) ? httpStatusRaw : null;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  const isBodyTimeout =
+    trigger === "body_timeout" || /body completion deadline exceeded/i.test(message);
+  const isHeadersTimeout =
+    trigger === "headers_timeout" ||
+    /headers deadline exceeded/i.test(message) ||
+    (/completion deadline exceeded/i.test(message) && !isBodyTimeout);
+
+  if (isBodyTimeout) {
+    return {
+      primary_headers_received: true,
+      primary_http_status: httpStatus,
+      primary_elapsed_ms: elapsedMs,
+      primary_timeout_stage: "body",
+    };
+  }
+  if (isHeadersTimeout) {
+    return {
+      primary_headers_received: false,
+      primary_http_status: null,
+      primary_elapsed_ms: elapsedMs,
+      primary_timeout_stage: "headers",
+    };
+  }
+  return {
+    primary_headers_received: false,
+    primary_http_status: httpStatus,
+    primary_elapsed_ms: elapsedMs,
+    primary_timeout_stage: null,
+  };
+}
+
+function applyBackupResponseTelemetry(
+  telemetry: TrpgReplySuggestionProviderTelemetry,
+  opts: {
+    status: number;
+    shape: TrpgReplyBackupResponseShape;
+    parseStage: TrpgReplyFallbackParseStage | null;
+  }
+): void {
+  telemetry.fallback_status = opts.status;
+  telemetry.fallback_finish_reason = opts.shape.finish_reason;
+  telemetry.fallback_output_tokens = opts.shape.output_tokens;
+  telemetry.fallback_has_choices = opts.shape.has_choices;
+  telemetry.fallback_content_kind = opts.shape.content_kind;
+  telemetry.fallback_parse_stage = opts.parseStage;
+}
+
 export function logTrpgReplySuggestionProviderTelemetry(
   telemetry: TrpgReplySuggestionProviderTelemetry
 ): void {
@@ -277,6 +474,16 @@ export function logTrpgReplySuggestionProviderTelemetry(
     fallback_latency_ms: telemetry.fallback_latency_ms,
     fallback_success: telemetry.fallback_success,
     provider_attempt_count: telemetry.provider_attempt_count,
+    fallback_status: telemetry.fallback_status ?? null,
+    fallback_finish_reason: telemetry.fallback_finish_reason ?? null,
+    fallback_output_tokens: telemetry.fallback_output_tokens ?? null,
+    fallback_has_choices: telemetry.fallback_has_choices ?? null,
+    fallback_content_kind: telemetry.fallback_content_kind ?? null,
+    fallback_parse_stage: telemetry.fallback_parse_stage ?? null,
+    primary_headers_received: telemetry.primary_headers_received ?? null,
+    primary_http_status: telemetry.primary_http_status ?? null,
+    primary_elapsed_ms: telemetry.primary_elapsed_ms ?? null,
+    primary_timeout_stage: telemetry.primary_timeout_stage ?? null,
   });
 }
 
@@ -637,9 +844,10 @@ async function readProviderCompletionResponse(res: Response): Promise<{
   text: string;
   inputTokens?: number;
   outputTokens?: number;
+  shape: TrpgReplyBackupResponseShape;
 }> {
   let data: {
-    choices?: { message?: { content?: unknown; reasoning_content?: unknown } }[];
+    choices?: { finish_reason?: unknown; message?: { content?: unknown; reasoning_content?: unknown } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   try {
@@ -647,29 +855,65 @@ async function readProviderCompletionResponse(res: Response): Promise<{
   } catch {
     throw new TrpgMalformedProviderResponseError();
   }
+  const shape = extractReplySuggestionResponseShape(data);
   return {
     text: extractReplySuggestionCompletionText(data),
     inputTokens: Number(data.usage?.prompt_tokens ?? 0) || undefined,
     outputTokens: Number(data.usage?.completion_tokens ?? 0) || undefined,
+    shape,
   };
 }
 
 async function readValidatedProviderCompletion(
   res: Response
 ): Promise<
-  | { ok: true; text: string; inputTokens?: number; outputTokens?: number }
-  | { ok: false; malformedProviderResponse: true }
-  | { ok: false; malformedProviderResponse: false; semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null> }
+  | {
+      ok: true;
+      text: string;
+      inputTokens?: number;
+      outputTokens?: number;
+      shape: TrpgReplyBackupResponseShape;
+      parseStage: TrpgReplyFallbackParseStage;
+    }
+  | {
+      ok: false;
+      malformedProviderResponse: true;
+      shape: TrpgReplyBackupResponseShape;
+      parseStage: null;
+    }
+  | {
+      ok: false;
+      malformedProviderResponse: false;
+      semanticFailureClass: Exclude<TrpgReplySemanticFailureClass, null>;
+      shape: TrpgReplyBackupResponseShape;
+      parseStage: TrpgReplyFallbackParseStage;
+    }
 > {
-  let completion: { text: string; inputTokens?: number; outputTokens?: number };
+  let completion: {
+    text: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    shape: TrpgReplyBackupResponseShape;
+  };
   try {
     completion = await readProviderCompletionResponse(res);
   } catch (error) {
     if (error instanceof TrpgMalformedProviderResponseError) {
-      return { ok: false, malformedProviderResponse: true };
+      return {
+        ok: false,
+        malformedProviderResponse: true,
+        shape: {
+          finish_reason: null,
+          output_tokens: null,
+          has_choices: false,
+          content_kind: "other",
+        },
+        parseStage: null,
+      };
     }
     throw error;
   }
+  const parseStage = diagnoseReplySuggestionParseStage(completion.text);
   const validated = validateReplySuggestionCompletion(completion.text);
   if (validated.ok) {
     return {
@@ -677,12 +921,16 @@ async function readValidatedProviderCompletion(
       text: completion.text,
       inputTokens: completion.inputTokens,
       outputTokens: completion.outputTokens,
+      shape: completion.shape,
+      parseStage,
     };
   }
   return {
     ok: false,
     malformedProviderResponse: false,
     semanticFailureClass: validated.semanticFailureClass,
+    shape: completion.shape,
+    parseStage,
   };
 }
 
@@ -820,12 +1068,27 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       if (!backupResult.response.ok) {
         const errText = await backupResult.response.text();
         telemetry.fallback_success = false;
+        applyBackupResponseTelemetry(telemetry, {
+          status: backupResult.response.status,
+          shape: {
+            finish_reason: null,
+            output_tokens: null,
+            has_choices: false,
+            content_kind: "other",
+          },
+          parseStage: null,
+        });
         throwProviderRoundFailure({
           message: `[TRPG reply] ${backupResult.response.status}: ${errText.slice(0, 240)}`,
           telemetry,
         });
       }
       const backupRead = await readValidatedProviderCompletion(backupResult.response);
+      applyBackupResponseTelemetry(telemetry, {
+        status: backupResult.response.status,
+        shape: backupRead.shape,
+        parseStage: backupRead.parseStage,
+      });
       if (!backupRead.ok) {
         telemetry.fallback_success = false;
         telemetry.semantic_failure_class = backupRead.malformedProviderResponse
@@ -858,6 +1121,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
   };
 
   telemetry.provider_attempt_count = 1;
+  const primaryStartedAt = Date.now();
   try {
     const primaryResult = await fetchCompletion({
       request: {
@@ -930,10 +1194,19 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     }
     const classified = classifyTrpgReplyCaughtTransportFailure(
       error,
-      telemetry.primary_latency_ms ?? 0,
+      telemetry.primary_latency_ms ?? Math.max(0, Date.now() - primaryStartedAt),
       primaryDeadlineMs
     );
     telemetry.primary_status = classified.httpStatus;
+    const primaryElapsedMs =
+      telemetry.primary_latency_ms ?? Math.max(0, Date.now() - primaryStartedAt);
+    const timeoutObs = resolvePrimaryTimeoutObservability(error, primaryElapsedMs);
+    if (timeoutObs.primary_timeout_stage != null) {
+      telemetry.primary_headers_received = timeoutObs.primary_headers_received;
+      telemetry.primary_http_status = timeoutObs.primary_http_status;
+      telemetry.primary_elapsed_ms = timeoutObs.primary_elapsed_ms;
+      telemetry.primary_timeout_stage = timeoutObs.primary_timeout_stage;
+    }
     if (!classified.failover) {
       telemetry.primary_failure_class = classified.failureClass;
       logTrpgReplySuggestionProviderTelemetry(telemetry);
