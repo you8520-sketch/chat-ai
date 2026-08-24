@@ -1,0 +1,3 @@
+{
+  "error": "Error: Fixture B did not produce a qualifying refusal handoff\n    at main (file:///workspace/docs/audits/gemini31-deepseek-refusal-handoff-p1/scripts/run-phase1-freeze.mjs:592:11)"
+}

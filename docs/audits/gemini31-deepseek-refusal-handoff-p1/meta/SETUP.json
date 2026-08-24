@@ -1,0 +1,19 @@
+{
+  "character": {
+    "id": 18,
+    "name": "라이크",
+    "nsfw": 1,
+    "adult_status": "confirmed"
+  },
+  "userId": 1,
+  "personaId": 2,
+  "selected": {
+    "ok": true,
+    "selectedAI": "gemini-3.1-pro-preview",
+    "changed": true,
+    "label": "Gemini 3.1 Pro Preview"
+  },
+  "email": "gemini31.handoff.p1@example.com",
+  "model": "gemini-3.1-pro-preview",
+  "fallback": "deepseek-v4-pro-0813"
+}

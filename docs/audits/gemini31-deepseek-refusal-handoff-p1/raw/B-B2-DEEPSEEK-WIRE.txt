@@ -1,0 +1,21 @@
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1787570204-TOaV7XlyFIiqjlOkdVVN","object":"chat.completion","created":1787570204,"model":"deepseek/deepseek-v4-flash-0731","provider":"Venice","system_fingerprint":null,"service_tier":null,"choices":[{"index":0,"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","message":{"role":"assistant","content":"{\n  \"items\": [\n    {\n      \"kind\": \"escalate\",\n      \"text\": \"그 말 듣자마자 더 꽉 조여줄 수밖에 없잖아. *렌은 태형의 목을 끌어당겨 귓가에 대고 낮게 속삭인다.* \\\"그래, 다 쏟아부어. 내가 다 받아줄게.\\\" *동시에 허리를 들어 올려 더 깊이 박히게 만든다.*\"\n    },\n    {\n      \"kind\": \"soften\",\n      \"text\": \"*렌이 태형의 뺨을 감싸 안으며 시선을 맞춘다. 거친 숨결 사이로 부드러운 목소리가 새어 나온다.* \\\"좋아. 너도 좋지? 나도 좋아. 천천히 해도 돼, 이제는.\\\" *손끝으로 태형의 등줄기를 천천히 쓸어내린다.*\"\n    },\n    {\n      \"kind\": \"pivot\",\n      \"text\": \"*렌이 갑자기 태형의 어깨를 밀어내며 침대에서 일어난다. 짙은 숨을 내쉬며.* \\\"잠깐. 이러다 끝나기엔 아까워. 방금 전에 로비에서 네가 한 말, 아직 답 안 했잖아.\\\" *눈을 가늘게 뜨고 태형을 응시한다.*\"\n    }\n  ]\n}","refusal":null}}],"usage":{"prompt_tokens":4453,"completion_tokens":352,"total_tokens":4805,"cost":0.000902475,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.000902475,"upstream_inference_prompt_cost":0.000779275,"upstream_inference_completions_cost":0.0001232},"completion_tokens_details":{"reasoning_tokens":0,"image_tokens":0,"audio_tokens":0}}}

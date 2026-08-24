@@ -7,4 +7,6 @@ Evidence only. No production code, prompt, adapter, length-owner, or routing cha
 - Character: production 라이크 `id=18`
 - Persona: 렌 (adult S-class guide)
 
-See `INDEX.json` after the live freeze for RAW and metadata paths.
+Live freeze is in `INDEX.json`, `PATHS.md`, `raw/`, `requests/`, and `meta/`.
+
+RP provider call counts: A=1 Gemini, B=1 Gemini + 1 DeepSeek 0813, C=1 Gemini.
