@@ -79,6 +79,7 @@ export const TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX = 2;
 export const TRPG_REPLY_SUGGESTION_CI_RETRY_COUNT = 0;
 export const TRPG_REPLY_SUGGESTION_OR_RETRY_COUNT = 0;
 export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
+export const TRPG_REPLY_SUGGESTION_RESULT_CACHE_MS = 5 * 60_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
 export const TRPG_REPLY_SCENE_MAX_CHARS = 1600;
 export const TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS = 80;
@@ -100,6 +101,8 @@ type TrpgReplySuggestionGate = {
   token: symbol;
   until: number;
   promise?: Promise<TrpgReplySuggestionResult>;
+  result?: TrpgReplySuggestionResult;
+  resultUntil?: number;
 };
 
 const inflight = new Map<string, TrpgReplySuggestionGate>();
@@ -122,6 +125,12 @@ function readReplySuggestionGate(
   // generated examples are not lost and the client does not enter a retry loop.
   if (gate?.busy && gate.promise) return gate.promise;
   if (gate?.busy) throw new Error("이미 행동 예시를 만들고 있습니다.");
+  // The browser may time out or navigate away after generation started. Keep the
+  // completed round result on the server briefly so the replacement request can
+  // recover it instead of paying for a second model call.
+  if (gate?.result && (gate.resultUntil ?? 0) > now) {
+    return Promise.resolve(gate.result);
+  }
   if ((gate?.until ?? 0) > now) throw new Error("잠시 후 다시 시도하세요.");
   return null;
 }
@@ -1388,6 +1397,7 @@ export async function requestTrpgReplySuggestions(
         logicalRequestId,
         roundId: round.id,
       }));
+  let settledResult: TrpgReplySuggestionResult | undefined;
   const generation = (async (): Promise<TrpgReplySuggestionResult> => {
     try {
       const result = await complete({ system: prompt.system, user: prompt.user });
@@ -1399,7 +1409,8 @@ export async function requestTrpgReplySuggestions(
         latencyMs: Date.now() - started,
         success: true,
       });
-      return { suggestions, prompt };
+      settledResult = { suggestions, prompt };
+      return settledResult;
     } catch (error) {
       logTrpgReplySuggestionUsage({
         model: TRPG_REPLY_SUGGESTION_MODEL,
@@ -1416,7 +1427,13 @@ export async function requestTrpgReplySuggestions(
           busy: false,
           roundId: round.id,
           token,
-          until: Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS,
+          // A failed automatic request stays suppressed by the client round
+          // marker, but an explicit retry must be allowed immediately.
+          until: settledResult ? Date.now() + TRPG_REPLY_SUGGESTION_COOLDOWN_MS : Date.now(),
+          result: settledResult,
+          resultUntil: settledResult
+            ? Date.now() + TRPG_REPLY_SUGGESTION_RESULT_CACHE_MS
+            : undefined,
         });
       }
     }

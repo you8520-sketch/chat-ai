@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
-  trpgGmRevealTick,
+  trpgRevealTick,
   trpgRevealChunkSize,
   trpgRevealContinueCount,
   trpgRevealImmediate,
@@ -28,7 +28,7 @@ export function useRevealedText(
       active,
       reducedMotion: prefersReducedMotion(),
       charCount: chars.length,
-      streamIntervalMs: kind === "gm" ? streamIntervalMs : undefined,
+      streamIntervalMs,
     })
       ? chars.length
       : 0
@@ -46,7 +46,7 @@ export function useRevealedText(
         active,
         reducedMotion: prefersReducedMotion(),
         charCount: total,
-        streamIntervalMs: kind === "gm" ? streamIntervalMs : undefined,
+        streamIntervalMs,
       })
     ) {
       setCount(total);
@@ -58,8 +58,8 @@ export function useRevealedText(
       total,
     });
     if (n !== countRef.current) setCount(n);
-    if (kind === "gm") {
-      const tick = trpgGmRevealTick(streamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
+    if (streamIntervalMs != null || kind === "gm") {
+      const tick = trpgRevealTick(streamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
       const id = window.setInterval(() => {
         n = Math.min(total, n + tick.charsPerTick);
         setCount(n);

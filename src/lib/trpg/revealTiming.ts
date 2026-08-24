@@ -67,8 +67,8 @@ export function trpgRevealDurationMs(
   streamIntervalMs?: number
 ): number {
   if (charCount <= 0) return 0;
-  if (kind === "gm" && streamIntervalMs != null) {
-    const tick = trpgGmRevealTick(streamIntervalMs);
+  if (streamIntervalMs != null) {
+    const tick = trpgRevealTick(streamIntervalMs);
     if (tick.intervalMs <= 0) return 0;
     return Math.ceil(charCount / tick.charsPerTick) * tick.intervalMs;
   }
@@ -77,7 +77,7 @@ export function trpgRevealDurationMs(
 }
 
 /** Same visible rate as regular chat: intervalMs + charsPerTick from CHAT_STREAM_SPEED_PRESETS. */
-export function trpgGmRevealTick(streamIntervalMs: number): {
+export function trpgRevealTick(streamIntervalMs: number): {
   intervalMs: number;
   charsPerTick: number;
 } {
@@ -87,6 +87,9 @@ export function trpgGmRevealTick(streamIntervalMs: number): {
     charsPerTick: streamCharsPerTickForInterval(intervalMs),
   };
 }
+
+/** Backward-compatible name from before AI-PC reveal shared the same setting. */
+export const trpgGmRevealTick = trpgRevealTick;
 
 export function trpgRevealImmediate(opts: {
   active: boolean;

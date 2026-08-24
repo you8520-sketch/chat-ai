@@ -219,6 +219,9 @@ describe("TRPG reply suggestions", () => {
     assert.match(client, /saveTrpgActionSuggestionsEnabled/);
     assert.match(client, /loadTrpgActionSuggestionsCache/);
     assert.match(client, /saveTrpgActionSuggestionsCache/);
+    assert.match(client, /retrySuggestions/);
+    assert.match(room, /onRetrySuggestions/);
+    assert.match(room, />\s*다시 시도\s*</);
     assert.match(client, /endless auto-retry\/flicker loop/);
     assert.doesNotMatch(
       client,
@@ -485,6 +488,60 @@ describe("TRPG reply suggestions", () => {
     assert.equal(originalResult.suggestions.length, 3);
     assert.deepEqual(refreshedResult.suggestions, originalResult.suggestions);
     assert.equal(completeCalls, 1);
+    db.close();
+  });
+
+  it("recovers a completed result after the original browser request disconnects", async () => {
+    const db = memoryDb();
+    const campaignId = await startedCampaign(db);
+    let completeCalls = 0;
+    const originalResult = await requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        completeCalls += 1;
+        return { text: validJson };
+      },
+    });
+    const replacementResult = await requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        completeCalls += 1;
+        return { text: validJson };
+      },
+    });
+    assert.equal(completeCalls, 1);
+    assert.deepEqual(replacementResult.suggestions, originalResult.suggestions);
+    db.close();
+  });
+
+  it("allows an explicit retry immediately after a failed automatic request", async () => {
+    const db = memoryDb();
+    const campaignId = await startedCampaign(db);
+    let completeCalls = 0;
+    await assert.rejects(
+      () =>
+        requestTrpgReplySuggestions(db, {
+          campaignId,
+          userId: 1,
+          complete: async () => {
+            completeCalls += 1;
+            throw new Error("body completion deadline exceeded");
+          },
+        }),
+      /다시 시도/
+    );
+    const retried = await requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        completeCalls += 1;
+        return { text: validJson };
+      },
+    });
+    assert.equal(completeCalls, 2);
+    assert.equal(retried.suggestions.length, 3);
     db.close();
   });
 });
