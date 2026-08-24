@@ -38,7 +38,7 @@ Original accepted handoff owner unchanged.
 | dialogue_blocks | 8 | 10 | 14 | 9 |
 | requested_progression | no | yes | no | no |
 | redundant_confirmation | — | — | yes | yes |
-| turn_ending_checkpoint | yes | yes | yes | no |
+| turn_ending_checkpoint | yes | no | yes | no |
 
 ## Interpretation (do not implement)
 
@@ -48,7 +48,7 @@ C1 isolation changed **only** terminal dialogue line 2 in the frozen harness. Pr
 
 | Signal | Phase-1 / #609 baseline | C1 | Material change? |
 |---|---|---|---|
-| `turn_ending_user_checkpoint_candidate` | yes (run1/run2/#609 all end on user-directed hook) | **no** | **Yes — turn no longer ends on checkpoint question** |
+| `turn_ending_user_checkpoint_candidate` | run1/#609 yes; run2 no | **no** | **Mixed — matches run2; improved vs run1/#609** |
 | `redundant_confirmation_candidate` | yes (#609; run1 ends on “갈 거지?” while proceeding) | **yes** | **No — mid-scene confirmation dialogue remains** (“끝까지?”, “어때, 여기?”) |
 | `requested_progression_completed` | mixed (run2 yes, run1/#609 no) | **no** | **No — orgasm/destination not reached** |
 
