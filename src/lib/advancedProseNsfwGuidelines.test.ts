@@ -83,7 +83,9 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
     assert.match(block, /해부학적 명칭/);
-    assert.match(block, /기계적 피스톤/);
+    assert.match(block, /신체 행동은 접촉·자세·방향·강도·리듬/);
+    assert.match(block, /대사량은 캐릭터 성격과 현재 장면에 맡기며/);
+    assert.doesNotMatch(block, /티키타카/);
     assert.doesNotMatch(block, /슬로 모션 — 한 동작을 마찰/);
     assert.match(block, /\[NARRATION REGISTER\]/);
     assert.doesNotMatch(block, /성기·귀두·음경/);
@@ -104,7 +106,8 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
 
   it("exports NSFW intimacy section constant", () => {
     assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /\[19\+ INTIMACY\]/);
-    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /해부학적 명칭/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /신체 행동은 접촉·자세·방향·강도·리듬/);
+    assert.doesNotMatch(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /티키타카/);
   });
 
   it("P2 placement adds dense rule only under [DIALOGUE & NARRATION]", () => {
