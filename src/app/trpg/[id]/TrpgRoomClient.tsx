@@ -273,6 +273,12 @@ export default function TrpgRoomClient({
     }
   }
 
+  function retrySuggestions() {
+    if (suggestionsBusyRef.current) return;
+    autoRequestedRoundRef.current = snap.round.number;
+    void requestSuggestions();
+  }
+
   async function saveRelationship() {
     await runPatch({ relationshipBrief });
   }
@@ -442,6 +448,7 @@ export default function TrpgRoomClient({
           suggestionsError={suggestionsError}
           suggestionsEnabled={suggestionsEnabled}
           onToggleSuggestions={toggleSuggestionsEnabled}
+          onRetrySuggestions={retrySuggestions}
           onPickSuggestion={(item) => {
             const filled = applyReplySuggestionClick(item);
             setActionType(filled.actionType);

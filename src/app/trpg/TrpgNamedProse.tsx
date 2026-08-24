@@ -66,6 +66,7 @@ export default function TrpgNamedProse({
   accent,
   assets = [],
   reveal = false,
+  streamIntervalMs,
   paragraphMode = "author",
   dialogueAccent = true,
   hideMobileLabel = false,
@@ -79,6 +80,7 @@ export default function TrpgNamedProse({
   accent?: boolean;
   assets?: CharacterAsset[];
   reveal?: boolean;
+  streamIntervalMs?: number;
   /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
   paragraphMode?: "ai" | "author";
   /** Global chat keeps dialogue rails. TRPG action cards pass false. */
@@ -86,7 +88,7 @@ export default function TrpgNamedProse({
   /** A mobile roll header can own the speaker label so prose starts at full width below it. */
   hideMobileLabel?: boolean;
 }) {
-  const shown = useRevealedText(text, reveal);
+  const shown = useRevealedText(text, reveal, "bot", streamIntervalMs);
   if (!shown.trim()) return null;
   const labeled = Boolean(name?.trim());
   const showRail = resolveTrpgSpeakerRail(accent, labeled);

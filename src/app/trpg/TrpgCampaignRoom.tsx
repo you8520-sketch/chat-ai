@@ -276,6 +276,7 @@ export default function TrpgCampaignRoom({
   onPartyBodyChange,
   onHostFillChange,
   onToggleSuggestions,
+  onRetrySuggestions,
   onPickSuggestion,
   onSendAction,
   onSendParty,
@@ -303,6 +304,7 @@ export default function TrpgCampaignRoom({
   suggestionsError: string;
   suggestionsEnabled: boolean;
   onToggleSuggestions: () => void;
+  onRetrySuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
@@ -1458,7 +1460,17 @@ export default function TrpgCampaignRoom({
               {suggestionsEnabled && (suggestionsError || suggestions.length > 0) ? (
                 <div ref={suggestionsAnchorRef} className="scroll-mb-28">
                   {suggestionsError ? (
-                    <p className="mt-2 text-sm text-rose-200">{suggestionsError}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-rose-200">{suggestionsError}</p>
+                      <button
+                        type="button"
+                        disabled={busy || suggestionsBusy}
+                        onClick={onRetrySuggestions}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-semibold text-rose-100 hover:bg-rose-300/15 disabled:opacity-50"
+                      >
+                        다시 시도
+                      </button>
+                    </div>
                   ) : null}
                   {suggestions.length > 0 ? (
                     <ul className="mt-3 space-y-2">
@@ -1778,6 +1790,7 @@ function SceneTurn({
                       action.kind === "ai_character" &&
                       isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
                     }
+                    streamIntervalMs={streamIntervalMs}
                   />
                   {showJudge ? (
                     <div className="mt-1.5 space-y-0.5 font-sans">

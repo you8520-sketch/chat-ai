@@ -29,7 +29,7 @@ describe("TRPG adaptive reveal", () => {
     assert.ok(trpgRevealDurationMs(3000, "bot") <= TRPG_REVEAL_BOT_MAX_MS + 32);
   });
 
-  it("maps GM reveal to the same chat stream interval and chars-per-tick", () => {
+  it("maps GM and AI-PC reveal to the same chat stream interval and chars-per-tick", () => {
     const instant = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "즉시")!;
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
@@ -40,11 +40,17 @@ describe("TRPG adaptive reveal", () => {
     });
     assert.equal(trpgRevealDurationMs(100, "gm", instant.intervalMs), 0);
     const fastMs = trpgRevealDurationMs(100, "gm", fast.intervalMs);
+    const botFastMs = trpgRevealDurationMs(100, "bot", fast.intervalMs);
     const normalMs = trpgRevealDurationMs(100, "gm", normal.intervalMs);
+    const botNormalMs = trpgRevealDurationMs(100, "bot", normal.intervalMs);
     const slowMs = trpgRevealDurationMs(100, "gm", slow.intervalMs);
+    const botSlowMs = trpgRevealDurationMs(100, "bot", slow.intervalMs);
     assert.equal(fastMs, 100 * fast.intervalMs);
+    assert.equal(botFastMs, fastMs);
     assert.equal(normalMs, 100 * normal.intervalMs);
+    assert.equal(botNormalMs, normalMs);
     assert.equal(slowMs, 100 * slow.intervalMs);
+    assert.equal(botSlowMs, slowMs);
     assert.ok(fastMs < normalMs && normalMs < slowMs);
     assert.equal(fast.intervalMs, DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
   });
@@ -81,8 +87,12 @@ describe("TRPG adaptive reveal", () => {
       streamIntervalMs: 0,
     }), true);
     const hook = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
+    const named = readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(hook, /trpgRevealContinueCount/);
     assert.match(hook, /trpgRevealSessionChanged/);
+    assert.match(named, /useRevealedText\(text, reveal, "bot", streamIntervalMs\)/);
+    assert.match(room, /streamIntervalMs=\{streamIntervalMs\}/);
     assert.doesNotMatch(hook, /setCount\(0\)/);
   });
 });
