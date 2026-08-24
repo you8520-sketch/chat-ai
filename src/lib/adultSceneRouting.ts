@@ -1738,8 +1738,11 @@ export function extractHandoffContinuityFromAssistantText(input: {
 }
 
 /** Single adult-handoff continuity owner. Replaces, does not stack. */
-export const DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION = `현재 사용자 턴이 확정한 장면 다음부터 이어 쓴다. 직전 assistant의 말투·유머·호칭·문장 호흡·대사/서술 균형과 화면에 이미 나온 장면 상태를 자연스럽게 이어, 같은 캐릭터와 같은 글의 다음 부분처럼 작성한다.
-이미 다룬 감각이나 행동을 표현만 바꿔 반복하기보다 캐릭터의 새 행동·대사·반응과 그 결과로 장면을 계속 전진시킨다. 현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다.`;
+export const DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION = `현재 사용자 턴이 확정한 장면 바로 다음부터 이어 쓴다.
+직전 assistant의 말투·유머·호칭·문장 호흡을 같은 글의 다음 부분처럼 유지하고,
+이미 확정된 행동·의사는 다시 확인하지 않은 채 서술·내면·행동 중심으로
+새 반응과 결과를 여러 비트 전개해 현재 턴의 요청 범위를 충분히 완성한다.
+대사는 캐릭터 voice가 필요한 순간에만 자연스럽게 섞는다.`;
 
 export const SCENE_RESET_HANDOFF_INSTRUCTION = `Previous RAW history is supplied only for:
 - character voice

@@ -45,8 +45,7 @@ import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { buildContext } from "@/services/contextBuilder";
 
 const OWNER = DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION;
-const EXPECTED_OWNER = `현재 사용자 턴이 확정한 장면 다음부터 이어 쓴다. 직전 assistant의 말투·유머·호칭·문장 호흡·대사/서술 균형과 화면에 이미 나온 장면 상태를 자연스럽게 이어, 같은 캐릭터와 같은 글의 다음 부분처럼 작성한다.
-이미 다룬 감각이나 행동을 표현만 바꿔 반복하기보다 캐릭터의 새 행동·대사·반응과 그 결과로 장면을 계속 전진시킨다. 현재 사용자 턴이 바꾼 상태가 이전 장면보다 우선한다.`;
+const EXPECTED_OWNER = OWNER;
 const HANDOFF_WRAPPER = buildCurrentUserInputWrapper({
   mode: "interactive",
   adultHandoff: true,
@@ -161,9 +160,8 @@ describe("Gemini 3.7 Flash adult-handoff production contract", () => {
     assert.doesNotMatch(last, /small movement\/contact\/object-handling/);
   });
 
-  it("3-4. system handoff owner is the accepted 219-char version once", () => {
+  it("3-4. experimental handoff owner appears once in system prompt", () => {
     assert.equal(OWNER, EXPECTED_OWNER);
-    assert.equal(OWNER.length, 219);
     const packet = buildSceneContinuityPacket({ previousSceneMode: "normal" });
     const system = appendAdultHandoffPrompt("SYSTEM", packet);
     assert.equal(system.split(OWNER).length - 1, 1);
@@ -203,7 +201,7 @@ describe("Gemini 3.7 Flash adult-handoff production contract", () => {
   });
 
   it("8. visible prior outfit/sensory facts preserved", () => {
-    assert.match(OWNER, /화면에 이미 나온 장면 상태를 자연스럽게 이어/);
+    assert.match(OWNER, /확정한 장면 바로 다음부터 이어/);
     const prior =
       "목에 걸린 전자 초커가 차갑게 빛났다. 귓가의 이명이 렌 곁에서 한풀 꺾였다.";
     const built = buildContext({

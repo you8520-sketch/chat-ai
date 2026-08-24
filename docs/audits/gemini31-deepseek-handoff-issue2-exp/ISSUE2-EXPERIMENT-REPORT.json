@@ -1,0 +1,37 @@
+{
+  "experiment": "issue2-handoff-owner-replace-only",
+  "owner_changed": "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION",
+  "shared_3200_owner_changed": false,
+  "dialogue_owner_changed": false,
+  "frozen_base_request_sha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+  "experimental_request_sha": "3ea6da8644f522951f82ecaf792190283e22e2da68c9014e3c2012a54a82c905",
+  "model": "deepseek-v4-pro-0813",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "max_tokens": null,
+  "visible_chars": 2569,
+  "paragraph_count": 30,
+  "dialogue_blocks": 14,
+  "dialogue_ratio": 0.467,
+  "finish_reason": "stop",
+  "truncated": false,
+  "requested_progression_completed": false,
+  "redundant_confirmation_candidate": true,
+  "user_preemption_candidate": false,
+  "user_agency_consistency_candidate": true,
+  "repetition_candidate": false,
+  "canon_contradiction_candidate": false,
+  "http_status": 200,
+  "usage": {
+    "prompt_tokens": 11008,
+    "completion_tokens": 2007,
+    "total_tokens": 13015,
+    "cost": 0.010028,
+    "cost_details": {
+      "upstream_inference_cost": 0.010028
+    }
+  },
+  "ttft_ms": 2957,
+  "latency_ms": 44844,
+  "stop_for_human_review": true
+}
