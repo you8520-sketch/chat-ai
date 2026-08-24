@@ -21,6 +21,13 @@
 - `requests/B-DEEPSEEK-input.json`
 - `requests/C-GEMINI-input.json`
 
+## Issue 1 diagnosis
+- `ISSUE1-B3-PATH-DIAGNOSIS.md`
+- `ISSUE1-B3-PATH-DIAGNOSIS.json`
+- `raw/B-B3-USER_RAW.txt`
+- `raw/B-B3-GEMINI-RAW.txt`
+- `src/lib/adultHandoffB3FrozenRefusal.test.ts` (expected invariant; currently fails at detectModelRefusal)
+
 ## Metadata
 - `meta/A.json`
 - `meta/A-GEMINI-provider.json`

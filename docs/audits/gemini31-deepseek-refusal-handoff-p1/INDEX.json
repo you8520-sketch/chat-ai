@@ -67,5 +67,16 @@
     "C": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/C.json",
     "setup": "docs/audits/gemini31-deepseek-refusal-handoff-p1/meta/SETUP.json",
     "index": "docs/audits/gemini31-deepseek-refusal-handoff-p1/INDEX.json"
+  },
+  "issue1": {
+    "production_code_changed": false,
+    "new_refusal_phrases_added": false,
+    "diagnosis": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE1-B3-PATH-DIAGNOSIS.md",
+    "trace": "docs/audits/gemini31-deepseek-refusal-handoff-p1/ISSUE1-B3-PATH-DIAGNOSIS.json",
+    "first_controlling_divergence": "detectModelRefusal.refused",
+    "b2_refused": true,
+    "b3_refused": false,
+    "b3_gate_reason": "not_refusal",
+    "regression_test": "src/lib/adultHandoffB3FrozenRefusal.test.ts"
   }
 }
