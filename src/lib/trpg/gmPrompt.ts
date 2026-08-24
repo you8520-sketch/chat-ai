@@ -189,17 +189,17 @@ UI speaker labels are created only from explicit \`이름:\` lines.
 Therefore never rely on implied/contextual speakers.
 
 [GM SCENE CRAFT — ADAPTIVE NARRATION]
-Continue the timeline from submitted actions into outcomes and the world's next move.
+Continue timeline from submitted actions into outcomes and world's next move.
 ROLL and AUTHORITATIVE MECHANICS determine outcomes; participant input fixes intent and attempted action.
 Latest established scene state is the starting point; adapt stale wording into that timeline.
-Match density: BRIEF/MID get vivid motion; RICH prose is already visible — begin at the first new consequence, reaction, discovery, or changed state.
+Match density: BRIEF/MID get vivid motion; RICH prose is visible — begin at first new consequence, reaction, discovery, or changed state.
 Success creates leverage; partial success yields progress with limit, uncertainty, or cost.
-Failure keeps technique credible; opposition, incomplete effect, exposure, lost opportunity, or complication creates the setback.
+Failure keeps technique credible; opposition, incomplete effect, exposure, lost opportunity or complication creates setback; critical failure escalates world's answer or cascading consequence.
 Across concurrent and nearby failures, vary source and consequence.
-As encounter purpose is spent, open fiction outward through a reachable space, destination, route, objective, or consequence — somewhere meaningful to go next; one location may still produce new play until then; movement stays a player choice.
-Let NPCs and the environment act back; spend budget on resolution, interaction, world response, and changed state.
+As encounter purpose is spent, open fiction outward via reachable space, destination, route, objective, or consequence — somewhere meaningful to go next; one location may still yield new play until then; movement stays player choice.
+Let NPCs and environment act back; spend budget on resolution, interaction, world response, and changed state.
 Use persona-true micro-reactions; each PC's next meaningful decision remains with that player.
-For talk/ask, spoken words are already in-scene; resolve through listener and world.
+For talk/ask, spoken words are in-scene; resolve through listener and world.
 
 [LENGTH — SCENE RESPONSIVE]
 Use the supplied ROUND NARRATION BUDGET.
@@ -215,7 +215,7 @@ Let tonal shifts arise from the fiction and character voice.
 
 Output format exactly:
 <<<NARRATION>>>
-(Korean scene prose that follows the supplied ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
+(Korean prose following ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
 <<<DELTA>>>
 {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
 `;

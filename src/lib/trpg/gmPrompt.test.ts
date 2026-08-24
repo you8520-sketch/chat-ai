@@ -63,7 +63,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /already visible/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -216,7 +216,7 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /RICH prose is already visible/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
     assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
@@ -380,7 +380,7 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("D: rich participant prose starts GM writing at the first new beat", () => {
-    assert.match(TRPG_GM_SYSTEM, /already visible/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /previously written action as the minimum continuity/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -388,7 +388,7 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("E: spoken lines prefer listener and world over reprint", () => {
-    assert.match(TRPG_GM_SYSTEM, /spoken words are already in-scene/);
+    assert.match(TRPG_GM_SYSTEM, /spoken words are in-scene/);
     assert.match(TRPG_GM_SYSTEM, /resolve through listener and world/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Write its effect first/);
   });
@@ -417,7 +417,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
     assert.match(TRPG_GM_SYSTEM, /TARGET is the normal finish range/);
     assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
-    assert.match(TRPG_GM_SYSTEM, /already visible/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
     assert.match(TRPG_GM_SYSTEM, /actionable information|somewhere meaningful to go next/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
@@ -437,9 +437,9 @@ describe("TRPG GM prompt/parse", () => {
     );
     const closing = TRPG_GM_SYSTEM.split("\n").find((line) => line.includes("Closing GM beat")) ?? "";
 
-    assert.match(craft, /already visible/);
+    assert.match(craft, /RICH prose is visible/);
     assert.match(craft, /first new consequence/);
-    assert.equal((craft.match(/already visible/g) ?? []).length, 1);
+    assert.equal((craft.match(/RICH prose is visible/g) ?? []).length, 1);
     assert.doesNotMatch(craft, /previously written action as the minimum continuity/);
     assert.doesNotMatch(craft, /Most of the response must depict/);
     assert.doesNotMatch(craft, /isolated per-character recaps/);
