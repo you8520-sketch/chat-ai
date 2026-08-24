@@ -63,9 +63,9 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /already rendered/);
-    assert.match(TRPG_GM_SYSTEM, /first unseen/);
-    assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Never paste it/);
@@ -95,17 +95,19 @@ describe("TRPG GM prompt/parse", () => {
       ],
     });
     assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
-    assert.match(block, /PROPOSED FICTION/);
-    assert.match(block, /ATTEMPTED ACTION/);
+    assert.match(block, /density=BRIEF/);
+    assert.match(block, /\[ACTION PROSE — scene material for this resolution\]/);
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
-    assert.match(block, /Follow GM SCENE CRAFT/);
-    assert.match(block, /enrich if brief, do not retell if already rich/);
+    assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
+    assert.doesNotMatch(block, /enrich if brief, do not retell if already rich/);
+    assert.doesNotMatch(block, /ATTEMPTED ACTION/);
+    assert.doesNotMatch(block, /PROPOSED FICTION/);
     assert.doesNotMatch(block, /do not replay submitted prose/);
     assert.doesNotMatch(block, /do not paste/);
     assert.doesNotMatch(block, /never dump into the scene/);
     assert.doesNotMatch(block, /Rewrite every ACTION/);
-    assert.match(block, /players supply the approach/);
+    assert.doesNotMatch(block, /players supply the approach/);
     assert.match(block, /TONE CONTEXT/);
     assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /WORLD GENRES: 공포\/추리, 판타지/);
     assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /TONE CONTEXT/);
@@ -183,7 +185,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(withSheets, /stat=힘\(str\) value=9 modifier=2/);
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
-    assert.match(TRPG_GM_SYSTEM, /talk\/ask actions/);
+    assert.match(TRPG_GM_SYSTEM, /For talk\/ask/);
     assert.match(TRPG_GM_SYSTEM, /written text, signs/);
     assert.match(TRPG_GM_SYSTEM, /submitted actions/);
     const talk = buildTrpgGmUserBlock({
@@ -214,10 +216,10 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /rich prose and dialogue are already rendered/);
-    assert.match(TRPG_GM_SYSTEM, /first unseen consequence/);
-    assert.match(TRPG_GM_SYSTEM, /latest established scene state/);
-    assert.match(TRPG_GM_SYSTEM, /next meaningful choice/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
+    assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "",
@@ -226,7 +228,9 @@ describe("TRPG GM prompt/parse", () => {
         {
           participantId: 1,
           name: "렌",
-          body: "그는 검을 역수로 고쳐 쥐었다. 바닥을 박차고 놈의 측면으로 파고들며 갈비뼈 아래를 노렸다.",
+          body: padRich(
+            "그는 검을 역수로 고쳐 쥐었다. 바닥을 박차고 놈의 측면으로 파고들며 갈비뼈 아래를 노렸다."
+          ),
           intent: "측면을 찔러 공격한다",
           statKey: "str",
           d20: 16,
@@ -236,10 +240,10 @@ describe("TRPG GM prompt/parse", () => {
         },
       ],
     });
-    assert.match(block, /\[ATTEMPTED ACTION — resolve this\]\n측면을 찔러 공격한다/);
-    assert.match(block, /\[PROPOSED FICTION — their wording; enrich if brief, do not retell if already rich\]/);
+    assert.match(block, /\[INTENT\]\n측면을 찔러 공격한다/);
+    assert.match(block, /\[VISIBLE ACTION PROSE — established context for its outcome\]/);
     assert.match(block, /검을 역수로 고쳐 쥐었다/);
-    assert.match(block, /\[SCENE CRAFT\] Follow GM SCENE CRAFT/);
+    assert.match(block, /Apply the system scene-craft contract and ROUND NARRATION BUDGET/);
     assert.doesNotMatch(block, /color only, never dump/);
   });
 
@@ -328,9 +332,12 @@ describe("TRPG GM prompt/parse", () => {
 
   it("F: closing GM beat is compact guidance, not a recap floor", () => {
     assert.match(TRPG_GM_SYSTEM, /one compact `GM:` aside/);
-    assert.match(TRPG_GM_SYSTEM, /open agency point/);
+    assert.match(TRPG_GM_SYSTEM, /most immediate unresolved pressure/);
+    assert.match(TRPG_GM_SYSTEM, /player control returns/);
     assert.match(TRPG_GM_SYSTEM, /100–180 Korean chars/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /100–250/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /open agency point/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /players supply the approach/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /how the room feels now/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /At least 400/);
@@ -361,36 +368,34 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /persona-true micro-reactions/);
   });
 
-  it("B: micro-reactions do not take the next meaningful choice", () => {
-    assert.match(TRPG_GM_SYSTEM, /leaving each PC's next meaningful choice/);
-    assert.match(TRPG_GM_SYSTEM, /with that player/);
+  it("B: micro-reactions do not take the next meaningful decision", () => {
+    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
   });
 
   it("C: failure preserves competence and varies the cause", () => {
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /practiced competence visible/);
-    assert.match(TRPG_GM_SYSTEM, /Critical failure escalates the world's answer or cascading consequence/);
-    assert.match(TRPG_GM_SYSTEM, /Concurrent failures use distinct causes/);
+    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
+    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /slip|loss of balance|bodily mishap|hazardous terrain/i);
   });
 
-  it("D: rich participant prose starts GM writing at the first unseen beat", () => {
-    assert.match(TRPG_GM_SYSTEM, /already rendered/);
-    assert.match(TRPG_GM_SYSTEM, /first unseen consequence/);
+  it("D: rich participant prose starts GM writing at the first new beat", () => {
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /previously written action as the minimum continuity/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /manner, motion, posture, aim, speech/);
   });
 
   it("E: spoken lines prefer listener and world over reprint", () => {
-    assert.match(TRPG_GM_SYSTEM, /speech has already happened/);
-    assert.match(TRPG_GM_SYSTEM, /resolve through the listener and world/);
+    assert.match(TRPG_GM_SYSTEM, /spoken words are in-scene/);
+    assert.match(TRPG_GM_SYSTEM, /resolve through listener and world/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Write its effect first/);
   });
 
-  it("F2: closing keeps an open agency point", () => {
-    assert.match(TRPG_GM_SYSTEM, /live pressure and open agency point/);
-    assert.match(TRPG_GM_SYSTEM, /players supply the approach/);
+  it("F2: closing ends on immediate pressure when control returns", () => {
+    assert.match(TRPG_GM_SYSTEM, /most immediate unresolved pressure/);
+    assert.match(TRPG_GM_SYSTEM, /player control returns/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /visible options/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /closed menu/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /every plausible player approach available/);
@@ -400,11 +405,11 @@ describe("TRPG GM prompt/parse", () => {
       opening: false,
       actions: [action({ participantId: 1, name: "렌", body: "문을 연다." })],
     });
-    assert.match(block, /players supply the approach/);
+    assert.doesNotMatch(block, /players supply the approach/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /recap what just landed/);
   });
 
-  it("3-round follow-up: target band, new scene material, cash-out, 1–2 sentence close", () => {
+  it("3-round follow-up: target band, new scene material, changed state, 1–2 sentence close", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[PROGRESSION\]/);
@@ -412,12 +417,12 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
     assert.match(TRPG_GM_SYSTEM, /TARGET is the normal finish range/);
     assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
-    assert.match(TRPG_GM_SYSTEM, /already rendered/);
-    assert.match(TRPG_GM_SYSTEM, /first unseen consequence/);
-    assert.match(TRPG_GM_SYSTEM, /cash it out as a concrete event/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /actionable information|somewhere meaningful to go next/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /practiced competence visible/);
+    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
   });
 
@@ -432,28 +437,26 @@ describe("TRPG GM prompt/parse", () => {
     );
     const closing = TRPG_GM_SYSTEM.split("\n").find((line) => line.includes("Closing GM beat")) ?? "";
 
-    assert.match(craft, /already rendered/);
-    assert.match(craft, /first unseen consequence/);
-    assert.equal((craft.match(/already rendered/g) ?? []).length, 1);
+    assert.match(craft, /RICH prose is visible/);
+    assert.match(craft, /first new consequence/);
+    assert.equal((craft.match(/RICH prose is visible/g) ?? []).length, 1);
     assert.doesNotMatch(craft, /previously written action as the minimum continuity/);
     assert.doesNotMatch(craft, /Most of the response must depict/);
     assert.doesNotMatch(craft, /isolated per-character recaps/);
     assert.doesNotMatch(craft, /Write its effect first/);
     assert.doesNotMatch(length, /NEW material/);
 
-    assert.match(craft, /practiced competence visible/);
-    assert.match(craft, /Critical failure escalates the world's answer or cascading consequence/);
-    assert.match(craft, /Concurrent failures use distinct causes/);
+    assert.match(craft, /Failure keeps technique credible/);
+    assert.match(craft, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(craft, /slip|loss of balance|bodily mishap|hazardous terrain/i);
 
-    assert.match(craft, /Anchor to the latest established scene state/);
-    assert.match(craft, /adapting stale wording so the same intent fits the current timeline/);
+    assert.match(craft, /Latest established scene state is the starting point/);
 
     assert.match(closing, /1–2 sentences/);
     assert.match(closing, /100–180 Korean chars/);
-    assert.match(closing, /live pressure and open agency point/);
-    assert.match(closing, /players supply the approach/);
-    assert.doesNotMatch(closing, /options/i);
+    assert.match(closing, /most immediate unresolved pressure/);
+    assert.match(closing, /player control returns/);
+    assert.doesNotMatch(closing, /players supply the approach/);
     assert.doesNotMatch(craft, /\boptions\b/i);
 
     assert.match(length, /TARGET is the normal finish range/);
@@ -466,6 +469,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
-    assert.ok(TRPG_GM_SYSTEM.length < 11554);
+    assert.ok(TRPG_GM_SYSTEM.length <= 6740);
   });
 });
