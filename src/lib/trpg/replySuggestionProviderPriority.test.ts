@@ -250,4 +250,105 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     assert.equal(deadlines.backupCompletionMs, 15_000);
     assert.equal(TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX, 2);
   });
+
+  it("G: OpenRouter key/transport unavailable → no OR call → CI once → success", async () => {
+    const previousOr = process.env.OPENROUTER_API_KEY;
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    const urls: string[] = [];
+    const previousFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (input) => {
+        urls.push(String(input));
+        return completion(validJson);
+      }) as typeof fetch;
+      const result = await executeTrpgReplySuggestionProviderRound({
+        system: "sys",
+        user: "user",
+        logicalRequestId: "priority-g",
+      });
+      assert.equal(urls.length, 1);
+      assert.match(urls[0]!, /cheaperinference/);
+      assert.doesNotMatch(urls.join(","), /openrouter/);
+      assert.equal(result.telemetry.provider_attempt_count, 2);
+      assert.equal(result.telemetry.primary_failure_class, "no_api_key");
+      assert.equal(result.telemetry.fallback_attempted, true);
+      assert.equal(result.telemetry.fallback_success, true);
+      assert.equal(result.model, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousOr == null) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOr;
+      if (previousCi == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+    }
+  });
+
+  it("H: OpenRouter unavailable + CI fails → sanitized user error, internal detail in telemetry only", async () => {
+    resetTrpgReplySuggestionCooldownForTests();
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      hostPersona: {
+        personaId: 9,
+        name: "렌",
+        description: "차갑고 짧게 말한다.",
+        gender: "other",
+        speechExamples: "됐어. 내가 볼게.",
+      },
+    });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => ({
+        text: `<<<NARRATION>>>\n폐역\n<<<DELTA>>>\n{"players":[],"location":"폐역","next_round_context":"기다릴지","campaign_finished":false}`,
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+
+    const providerLogs: Record<string, unknown>[] = [];
+    const usageLogs: Record<string, unknown>[] = [];
+    const prevInfo = console.info;
+    console.info = ((label: unknown, payload: Record<string, unknown>) => {
+      if (label === "[trpg-reply-suggestion-provider]") providerLogs.push(payload);
+      if (label === "[trpg-reply-suggestion]") usageLogs.push(payload);
+    }) as typeof console.info;
+
+    const previousOr = process.env.OPENROUTER_API_KEY;
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    const previousFetch = globalThis.fetch;
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    try {
+      globalThis.fetch = (async (input) => {
+        assert.match(String(input), /cheaperinference/);
+        return new Response("backup failed", { status: 502 });
+      }) as typeof fetch;
+      await assert.rejects(
+        () => requestTrpgReplySuggestions(db, { campaignId, userId: 1 }),
+        (error: unknown) =>
+          error instanceof Error && error.message === TRPG_REPLY_SUGGESTION_USER_ERROR
+      );
+      assert.equal(providerLogs.length, 1);
+      assert.equal(providerLogs[0]?.primary_failure_class, "no_api_key");
+      assert.equal(providerLogs[0]?.provider_attempt_count, 2);
+      assert.equal(providerLogs[0]?.fallback_success, false);
+      assert.match(String(providerLogs[0]?.backup_failure_class), /http_502/);
+      assert.equal(usageLogs.at(-1)?.success, false);
+      assert.match(String(usageLogs.at(-1)?.error), /502|backup failed|\[TRPG reply\]/);
+      assert.doesNotMatch(String(usageLogs.at(-1)?.error), /NO_OPENROUTER_KEY/);
+    } finally {
+      console.info = prevInfo;
+      globalThis.fetch = previousFetch;
+      if (previousOr == null) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOr;
+      if (previousCi == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+      db.close();
+    }
+  });
 });

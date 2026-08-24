@@ -12,7 +12,6 @@ import {
   classifyDeepSeekProviderFailure,
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
-  type DeepSeekFailoverTelemetry,
   fetchDeepSeekNonStreamCompletion,
   resolveDeepSeekBackupModelId,
   resolveDeepSeekBackupTransport,
@@ -1184,26 +1183,11 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
 
   const primaryTransport = resolveDeepSeekBackupTransport();
   if (!primaryTransport) {
-    logTrpgReplySuggestionProviderTelemetry(telemetry);
-    throw new DeepSeekProviderFailoverError({
-      message: "NO_OPENROUTER_KEY",
-      retryable: true,
-      telemetry: {
-        logical_model: openRouterModel,
-        route_kind: "background_flash",
-        primary_provider: TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
-        backup_provider: TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER,
-        primary_failure_class: "no_api_key",
-        primary_http_status: null,
-        primary_headers_ms: null,
-        primary_first_visible_ms: null,
-        failover_trigger: "error",
-        backup_headers_ms: null,
-        backup_first_visible_ms: null,
-        backup_success: false,
-        provider_attempt_count: 1,
-      } as unknown as DeepSeekFailoverTelemetry,
+    const backup = await attemptCheaperInferenceBackup({
+      primaryFailureClass: "no_api_key",
+      semanticFailureClass: null,
     });
+    return { ...backup, telemetry };
   }
 
   telemetry.provider_attempt_count = 1;
