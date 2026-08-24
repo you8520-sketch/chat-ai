@@ -5,6 +5,7 @@ import {
   DEFAULT_TRPG_STAT_DEFS,
   DEFAULT_TRPG_STAT_KEYS,
   defsFromKeys,
+  evenStats,
   floorStats,
   isLegacyStatKey,
   parseCanonicalStatKeys,
@@ -92,12 +93,17 @@ export function parseStatRecord(
   pool = pointPoolFor(defs)
 ): Record<string, number> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  let authored = false;
   const stats = floorStats(defs);
   for (const def of defs) {
     const value = (raw as Record<string, unknown>)[def.key];
     const n = typeof value === "number" ? value : Number(value);
-    if (Number.isInteger(n)) stats[def.key] = n;
+    if (Number.isInteger(n)) {
+      stats[def.key] = n;
+      authored = true;
+    }
   }
+  if (!authored) return null;
   const check = validateStatAllocation(defs, stats, pool);
   return check.ok ? stats : floorStats(defs);
 }
@@ -221,7 +227,7 @@ export function normalizeScenarioTemplateInput(
     visibility: parseTrpgVisibility(input.visibility),
     startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
     startInventory: parseInventory(input.startInventory),
-    defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? floorStats(statDefs),
+    defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? evenStats(statDefs, pool),
     statKeys,
     npcs,
     characterIds,

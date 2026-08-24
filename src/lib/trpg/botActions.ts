@@ -1,4 +1,4 @@
-import { parseTrpgBotAction, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
+import { parseTrpgBotAction, TRPG_BOT_ACTION_TYPE_OPEN, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 import { clipTrpgChars } from "./clip";
 import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
 import {
@@ -12,6 +12,7 @@ export {
   parseTrpgBotAction,
   sanitizeBotActionText,
   finishAtSentenceBoundary,
+  TRPG_BOT_ACTION_TYPE_OPEN,
   TRPG_BOT_INTENT_OPEN,
 } from "./botActionParse";
 
@@ -62,9 +63,21 @@ Keep the existing 300–800 character contract.
 
 Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.
 
-After the finished prose, end with exactly this marker and one third-person concrete attempt (subject + optional target + attempt). One line. Do not declare a finished result. Do not write only a quoted question.
+After the finished prose, emit compact mechanical metadata then one third-person concrete attempt. Do not declare a finished result. Do not write only a quoted question.
+${TRPG_BOT_ACTION_TYPE_OPEN}
+one of: attack | defend | investigate | persuade | stealth | support | use_item | free
+attack=directly harm/strike/shoot/grapple an opponent
+defend=block, brace, protect, hold a threatened position
+investigate=obtain uncertain information by observing/searching/analyzing
+persuade=influence another thinking actor
+stealth=conceal, sneak, evade notice
+support=help an ally or set them up
+use_item=apply an existing tool/item where the item use is the core action
+free=ordinary movement, posture, conversation, preparation or scene interaction whose result does not itself require a contest
 ${TRPG_BOT_INTENT_OPEN}
-(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동. 예: 강이현은 렌의 팔을 잡아 잔해 뒤로 끌어당기려 했다.)`;
+(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동. 예: 강이현은 렌의 팔을 잡아 잔해 뒤로 끌어당기려 했다.)
+
+Locked actions are committed attempts whose mechanical outcomes remain open until round resolution. Build from facts already visible in the scene; when your move depends on another PC's attempted result, keep that dependency conditional until GM resolution.`;
 
 function nameAliases(name: string): string[] {
   const n = name.trim();
@@ -146,7 +159,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const scene = clipTrpgChars(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
   return [
     "[TRPG BOT ACTION — you are this PC. Finished beat, then INTENT.]",
-    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_INTENT_OPEN} and one third-person attempt, not a finished result.`,
+    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_ACTION_TYPE_OPEN} and ${TRPG_BOT_INTENT_OPEN} — one attempt, not a finished result.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
     ctx.campaignWorld?.trim()

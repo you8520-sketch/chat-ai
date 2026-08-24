@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
+import { parseTrpgDiceRules } from "./diceRules";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, DEFAULT_TRPG_DICE_RULES, type TrpgBillingMode, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor, resolveCampaignStatDefs } from "./stats";
 
@@ -140,7 +141,7 @@ export function loadScenario(db: Database.Database, campaignId: number): {
   return {
     statDefs,
     pointPool: pointPoolFor(statDefs),
-    diceRules: parseJson(row.dice_rules_json, DEFAULT_TRPG_DICE_RULES),
+    diceRules: parseTrpgDiceRules(parseJson(row.dice_rules_json, DEFAULT_TRPG_DICE_RULES)) ?? DEFAULT_TRPG_DICE_RULES,
     startLocation: row.start_location,
     startInventory: parseJson(row.start_inventory_json, [] as string[]),
     defaultPcStats:

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { migrateLegacyDefaultDiceRules } from "./diceRulesMigration";
 
 /** TRPG tables are additive. Regular chats/messages are unchanged. */
 export function ensureTrpgTables(db: Database.Database): void {
@@ -377,4 +378,6 @@ function migrateTrpgCreatorEarningsUnique(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
       ON trpg_creator_earnings(round_id, consumer_user_id);
   `);
+
+  migrateLegacyDefaultDiceRules(db);
 }

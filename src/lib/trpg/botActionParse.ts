@@ -1,7 +1,9 @@
+import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { clipTrpgChars } from "./clip";
 import { TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_INTENT_MAX_CHARS } from "./types";
 
 export const TRPG_BOT_INTENT_OPEN = "<<<INTENT>>>";
+export const TRPG_BOT_ACTION_TYPE_OPEN = "<<<ACTION_TYPE>>>";
 
 function clipMultiline(text: string, max: number): string {
   const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
@@ -33,15 +35,39 @@ export function finishAtSentenceBoundary(text: string, max: number): string {
   return clipped.slice(0, end).trimEnd();
 }
 
-export function parseTrpgBotAction(raw: string): { prose: string; intent: string } {
+function firstMarkerIndex(text: string): number {
+  const markers = [TRPG_BOT_INTENT_OPEN, TRPG_BOT_ACTION_TYPE_OPEN]
+    .map((marker) => text.indexOf(marker))
+    .filter((idx) => idx >= 0);
+  if (markers.length === 0) return -1;
+  return Math.min(...markers);
+}
+
+function sliceAfterMarker(text: string, marker: string): string {
+  const at = text.indexOf(marker);
+  if (at < 0) return "";
+  const rest = text.slice(at + marker.length);
+  const next = firstMarkerIndex(rest);
+  return (next < 0 ? rest : rest.slice(0, next)).trim();
+}
+
+function parseActionTypeToken(raw: string): TrpgActionType {
+  const token = raw.split(/\s+/)[0]?.trim().toLowerCase() ?? "";
+  return isTrpgActionType(token) ? token : "free";
+}
+
+export function parseTrpgBotAction(raw: string): {
+  prose: string;
+  intent: string;
+  actionType: TrpgActionType;
+} {
   const text = raw.replace(/\r\n/g, "\n").trim();
-  const at = text.indexOf(TRPG_BOT_INTENT_OPEN);
-  if (at < 0) {
-    return { prose: finishAtSentenceBoundary(text, TRPG_BOT_ACTION_MAX_CHARS), intent: "" };
-  }
+  const first = firstMarkerIndex(text);
+  const proseSource = first < 0 ? text : text.slice(0, first).trim();
   return {
-    prose: finishAtSentenceBoundary(text.slice(0, at).trim(), TRPG_BOT_ACTION_MAX_CHARS),
-    intent: clipTrpgChars(text.slice(at + TRPG_BOT_INTENT_OPEN.length), TRPG_BOT_INTENT_MAX_CHARS),
+    prose: finishAtSentenceBoundary(proseSource, TRPG_BOT_ACTION_MAX_CHARS),
+    intent: clipTrpgChars(sliceAfterMarker(text, TRPG_BOT_INTENT_OPEN), TRPG_BOT_INTENT_MAX_CHARS),
+    actionType: parseActionTypeToken(sliceAfterMarker(text, TRPG_BOT_ACTION_TYPE_OPEN)),
   };
 }
 
@@ -51,6 +77,14 @@ export function sanitizeBotActionText(
 ): string {
   const parsed = parseTrpgBotAction(raw);
   const prose = finishAtSentenceBoundary(parsed.prose, maxChars);
-  if (!parsed.intent) return prose;
-  return `${prose}\n\n${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`;
+  const parts = [prose];
+  if (parsed.actionType && parsed.actionType !== "free") {
+    parts.push(`${TRPG_BOT_ACTION_TYPE_OPEN}\n${parsed.actionType}`);
+  } else if (raw.includes(TRPG_BOT_ACTION_TYPE_OPEN)) {
+    parts.push(`${TRPG_BOT_ACTION_TYPE_OPEN}\n${parsed.actionType}`);
+  }
+  if (parsed.intent) {
+    parts.push(`${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`);
+  }
+  return parts.filter(Boolean).join("\n\n");
 }

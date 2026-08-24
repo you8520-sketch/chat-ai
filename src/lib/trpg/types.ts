@@ -146,12 +146,24 @@ export type TrpgDiceRules = {
   nat20: TrpgNatRule;
 };
 
-export const DEFAULT_TRPG_DICE_RULES: TrpgDiceRules = {
+/** Pre-V2 snapshot stored on campaigns created before STANDARD V2. */
+export const LEGACY_DEFAULT_TRPG_DICE_RULES: TrpgDiceRules = {
   die: 20,
   dc: 12,
   severeFailureMargin: 10,
   greatSuccessMargin: 10,
   partialWindow: 1,
+  nat1: "critical",
+  nat20: "critical",
+};
+
+/** STANDARD V2: DC 11 / partial window 3. */
+export const DEFAULT_TRPG_DICE_RULES: TrpgDiceRules = {
+  die: 20,
+  dc: 11,
+  severeFailureMargin: 10,
+  greatSuccessMargin: 10,
+  partialWindow: 3,
   nat1: "critical",
   nat20: "critical",
 };

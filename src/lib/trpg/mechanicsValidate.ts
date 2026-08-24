@@ -224,7 +224,12 @@ export function authorizedHealClass(opts: {
   startInventory?: readonly string[];
   specialRules?: string;
 }): { klass: MechanicsClass; owner: ReturnType<typeof healOwnerKind>; reason: string | null } {
-  if (!opts.tier) return { klass: "NONE", owner: "none", reason: "no_tier" };
+  if (!opts.tier) {
+    if (opts.actionType === "use_item") {
+      return authorizedHealClass({ ...opts, tier: "SUCCESS" });
+    }
+    return { klass: "NONE", owner: "none", reason: "no_tier" };
+  }
   const missingItem =
     mentionsHealingItem(opts.body, opts.startInventory ?? []) &&
     !findExplicitTreatmentItem(opts.body, opts.sourceInventory ?? [], opts.startInventory ?? []) &&
