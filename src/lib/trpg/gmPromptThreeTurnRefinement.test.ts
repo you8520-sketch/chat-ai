@@ -127,7 +127,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
   it("A: system owner — one continuation owner, no duplicate assembly, no new section", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Weave all submitted actions into ONE scene/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Turn all submitted actions into one chronological scene/i);
-    assert.match(TRPG_GM_SYSTEM, /Continue the shared timeline from submitted actions/);
+    assert.match(TRPG_GM_SYSTEM, /Continue the timeline from submitted actions/);
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
@@ -173,17 +173,17 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     assert.match(block, /density=BRIEF/);
     assert.match(block, /\[ACTION PROSE — scene material for this resolution\]/);
     assert.equal(block.split(body).length - 1, 1);
-    assert.match(TRPG_GM_SYSTEM, /BRIEF\/MID get enough motion for a vivid result/);
+    assert.match(TRPG_GM_SYSTEM, /BRIEF\/MID get vivid motion/);
   });
 
   it("E: failure — credible technique and nearby source diversity owners", () => {
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps the attempted technique credible/);
-    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary both source and consequence/);
+    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
+    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /slip|loss of balance|bodily mishap|hazardous terrain/i);
   });
 
   it("F: partial success owner", () => {
-    assert.match(TRPG_GM_SYSTEM, /Partial success yields real progress with a concrete limit, uncertainty, or cost/);
+    assert.match(TRPG_GM_SYSTEM, /partial success yields progress with limit, uncertainty, or cost/i);
   });
 
   it("G: closing — one owner, immediate pressure, no user-block duplicate", () => {
@@ -214,6 +214,21 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     assert.equal(TRPG_GM_RICH_TARGET_MAX_CHARS, 3500);
     assert.equal(TRPG_GM_BRIEF_MAX_CHARS, 160);
     assert.equal(TRPG_GM_RICH_MIN_CHARS, 350);
+  });
+
+  it("J: encounter progression opens outward without forced relocation", () => {
+    const craft = TRPG_GM_SYSTEM.slice(
+      TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
+      TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
+    );
+    assert.match(craft, /As encounter purpose is spent, open fiction outward/);
+    assert.match(craft, /reachable space, destination, route, objective, or consequence/);
+    assert.match(craft, /somewhere meaningful to go next/);
+    assert.match(craft, /one location may still produce new play until then/);
+    assert.match(craft, /movement stays a player choice/);
+    assert.doesNotMatch(craft, /every N rounds|turn-count|forced relocation cadence/i);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[PROGRESSION\]/);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
   });
 
   it("I: system size and round user block fixture comparison", () => {

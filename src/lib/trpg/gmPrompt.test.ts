@@ -216,9 +216,9 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /RICH prose and dialogue are already visible/);
+    assert.match(TRPG_GM_SYSTEM, /RICH prose is already visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
-    assert.match(TRPG_GM_SYSTEM, /latest established scene state/);
+    assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
@@ -369,13 +369,13 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("B: micro-reactions do not take the next meaningful decision", () => {
-    assert.match(TRPG_GM_SYSTEM, /Each PC's next meaningful decision remains with that player/);
+    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
   });
 
   it("C: failure preserves competence and varies the cause", () => {
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps the attempted technique credible/);
-    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary both source and consequence/);
+    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
+    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /slip|loss of balance|bodily mishap|hazardous terrain/i);
   });
 
@@ -388,8 +388,8 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("E: spoken lines prefer listener and world over reprint", () => {
-    assert.match(TRPG_GM_SYSTEM, /spoken words are already part of the scene/);
-    assert.match(TRPG_GM_SYSTEM, /resolve through the listener and world/);
+    assert.match(TRPG_GM_SYSTEM, /spoken words are already in-scene/);
+    assert.match(TRPG_GM_SYSTEM, /resolve through listener and world/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Write its effect first/);
   });
 
@@ -419,10 +419,10 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
     assert.match(TRPG_GM_SYSTEM, /already visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/);
-    assert.match(TRPG_GM_SYSTEM, /actionable information/);
+    assert.match(TRPG_GM_SYSTEM, /actionable information|somewhere meaningful to go next/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
     assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps the attempted technique credible/);
+    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
   });
 
@@ -446,11 +446,11 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(craft, /Write its effect first/);
     assert.doesNotMatch(length, /NEW material/);
 
-    assert.match(craft, /Failure keeps the attempted technique credible/);
-    assert.match(craft, /Across concurrent and nearby failures, vary both source and consequence/);
+    assert.match(craft, /Failure keeps technique credible/);
+    assert.match(craft, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(craft, /slip|loss of balance|bodily mishap|hazardous terrain/i);
 
-    assert.match(craft, /latest established scene state is the starting point/);
+    assert.match(craft, /Latest established scene state is the starting point/);
 
     assert.match(closing, /1–2 sentences/);
     assert.match(closing, /100–180 Korean chars/);
