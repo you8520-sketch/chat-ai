@@ -1975,6 +1975,16 @@ function looksLikeProviderRefusalProse(text: string): boolean {
   ) {
     return true;
   }
+  // Contextual Korean provider refusals: policy/guideline + generate/write/provide
+  // inability in the same message (frozen B3). "안전 가이드라인" or standalone
+  // "생성할 수 없" alone must not match.
+  if (
+    /(?:안전 가이드라인|안전 정책).{0,120}?(?:생성|작성|제공)할 수 없/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
 
   if (
     /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist) with (?:this|that|your|the) (?:request|content|topic)/i.test(
