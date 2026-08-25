@@ -100,7 +100,6 @@ import {
   resultLaneActorIds,
   revealedActorIds,
   shouldShowActionJudgeBlock,
-  ROUND_ACTION_REVEAL_MS,
   ROUND_RESULT_HOLD_MS,
   selectVisibleActions,
   shouldGateLiveRoundPresentation,
@@ -112,6 +111,15 @@ import {
   type RoundPresentationState,
 } from "@/lib/trpg/roundPresentation";
 import {
+  beginHiddenPresentationSession,
+  catchUpHiddenPresentationState,
+  isHiddenPresentationCatchUpActive,
+  hiddenPresentationSessionStillActive,
+  presentationStateEquals,
+  shouldSkipDecorativeReveal,
+  type HiddenPresentationSession,
+} from "@/lib/trpg/presentationHiddenCatchUp";
+import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   isNearBottom,
@@ -122,8 +130,10 @@ import {
   narrationFollowDeltaFromElement,
   resolveTrpgLiveFollowOwner,
   resolveEffectiveGmRevealComplete,
+  resolveEffectiveActorRevealComplete,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
+  type ActorRevealReport,
   type GmRevealReport,
   type TrpgLiveFollowOwner,
 } from "@/lib/trpg/followLatest";
@@ -332,6 +342,7 @@ export default function TrpgCampaignRoom({
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
+  const consumedActorActionBeatRef = useRef("");
   const narrationFollowRafRef = useRef<number | null>(null);
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
@@ -345,6 +356,18 @@ export default function TrpgCampaignRoom({
     complete: false,
     progressive: false,
   });
+  const [actorRevealReport, setActorRevealReport] = useState<ActorRevealReport>({
+    roundNumber: null,
+    participantId: null,
+    complete: false,
+    progressive: false,
+  });
+  const [documentHidden, setDocumentHidden] = useState(
+    () => typeof document !== "undefined" && document.visibilityState === "hidden"
+  );
+  const [hiddenPresentationSession, setHiddenPresentationSession] =
+    useState<HiddenPresentationSession | null>(null);
+  const [consumedDecorativeSessionKey, setConsumedDecorativeSessionKey] = useState<string | null>(null);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -447,6 +470,10 @@ export default function TrpgCampaignRoom({
     });
     if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
       queueKeyRef.current = queueSessionKey;
+      consumedActorActionBeatRef.current = "";
+      setActorRevealReport({ roundNumber: null, participantId: null, complete: false, progressive: false });
+      setHiddenPresentationSession(null);
+      setConsumedDecorativeSessionKey(null);
       if (mode === "historical") setRoundShow(historicalPresentation());
       else if (mode === "cinematic") setRoundShow({ mode: "cinematic", ...startCinematicPresentation() });
       else setRoundShow(idlePresentation());
@@ -485,39 +512,6 @@ export default function TrpgCampaignRoom({
     roundShow,
     snap.round.number,
   ]);
-  useEffect(() => {
-    if (roundShow.mode !== "cinematic") return;
-    if (roundShow.phase === "actor-action") {
-      const id = window.setTimeout(() => {
-        setRoundShow((prev) => {
-          if (prev.mode !== "cinematic" || prev.phase !== "actor-action") return prev;
-          return {
-            ...prev,
-            ...advanceAfterActorAction({
-              actors: presentationActors,
-              presentationIndex: prev.presentationIndex,
-            }),
-          };
-        });
-      }, ROUND_ACTION_REVEAL_MS);
-      return () => window.clearTimeout(id);
-    }
-    if (roundShow.phase === "actor-result") {
-      const id = window.setTimeout(() => {
-        setRoundShow((prev) => {
-          if (prev.mode !== "cinematic" || prev.phase !== "actor-result") return prev;
-          return {
-            ...prev,
-            ...advanceAfterActorResult({
-              actors: presentationActors,
-              presentationIndex: prev.presentationIndex,
-            }),
-          };
-        });
-      }, ROUND_RESULT_HOLD_MS);
-      return () => window.clearTimeout(id);
-    }
-  }, [presentationActorKey, presentationActors, roundShow.mode, roundShow.phase, roundShow.presentationIndex]);
   useEffect(() => {
     if (roundShow.mode !== "cinematic" || roundShow.phase !== "actor-dice") return;
     const current = presentationActors[roundShow.presentationIndex];
@@ -680,6 +674,15 @@ export default function TrpgCampaignRoom({
     ? liveRoundWaitCopy(waitKind)
     : null;
   const cinematicMotion = isLiveTurnCinematicMotion(roundShow.mode, roundShow.phase);
+  const activePresentationActorId =
+    cinematicMotion && presentationActors[roundShow.presentationIndex]
+      ? presentationActors[roundShow.presentationIndex].actorId
+      : null;
+  const effectiveActorRevealComplete = resolveEffectiveActorRevealComplete({
+    roundNumber: snap.round.number,
+    activeParticipantId: activePresentationActorId,
+    report: actorRevealReport,
+  });
   const freshGmRow = liveFreshGmNarrationRow({
     log: snap.log,
     seenKeys: seenLogKeysRef.current!,
@@ -689,6 +692,138 @@ export default function TrpgCampaignRoom({
   currentNarrationRef.current = currentNarration;
   liveFreshGmRoundRef.current = freshGmRow?.roundNumber ?? null;
   const gmTextReady = cinematicShowGm && currentNarration.length > 0;
+  const hiddenCatchUpActive = isHiddenPresentationCatchUpActive({
+    documentHidden,
+    session: hiddenPresentationSession,
+    sessionKey: queueSessionKey,
+    cinematic: roundShow.mode === "cinematic",
+  });
+  const hiddenRoundSessionActive = hiddenPresentationSessionStillActive({
+    session: hiddenPresentationSession,
+    sessionKey: queueSessionKey,
+  });
+  const skipDecorativeReveal = shouldSkipDecorativeReveal({
+    consumedSessionKey: consumedDecorativeSessionKey,
+    sessionKey: queueSessionKey,
+    hiddenCatchUpActive,
+  });
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const syncHidden = () => {
+      const hidden = document.visibilityState === "hidden";
+      setDocumentHidden(hidden);
+      if (hidden && queueSessionKey) {
+        setHiddenPresentationSession(
+          beginHiddenPresentationSession({
+            sessionKey: queueSessionKey,
+            roundNumber: snap.round.number,
+          })
+        );
+      }
+    };
+    document.addEventListener("visibilitychange", syncHidden);
+    syncHidden();
+    return () => document.removeEventListener("visibilitychange", syncHidden);
+  }, [queueSessionKey, snap.round.number]);
+  useEffect(() => {
+    if (!hiddenCatchUpActive) return;
+    if (roundShow.mode !== "cinematic") return;
+    const caught = catchUpHiddenPresentationState({
+      state: roundShow,
+      actors: presentationActors,
+      gmTextAvailable: gmTextReady,
+    });
+    if (!presentationStateEquals(caught, roundShow)) {
+      setRoundShow(caught);
+    }
+    setConsumedDecorativeSessionKey(queueSessionKey);
+  }, [
+    gmTextReady,
+    hiddenCatchUpActive,
+    presentationActors,
+    queueSessionKey,
+    roundShow,
+  ]);
+  useEffect(() => {
+    if (roundShow.mode !== "cinematic") return;
+    if (!hiddenRoundSessionActive) return;
+    if (!gmTextReady) return;
+    if (roundShow.phase !== "gm-narration" && roundShow.phase !== "complete") return;
+    const caught = catchUpHiddenPresentationState({
+      state: roundShow,
+      actors: presentationActors,
+      gmTextAvailable: true,
+    });
+    if (!presentationStateEquals(caught, roundShow)) {
+      setRoundShow(caught);
+    }
+    setConsumedDecorativeSessionKey(queueSessionKey);
+  }, [
+    gmTextReady,
+    hiddenRoundSessionActive,
+    presentationActors,
+    queueSessionKey,
+    roundShow,
+  ]);
+  useEffect(() => {
+    if (roundShow.mode !== "cinematic") return;
+    if (hiddenCatchUpActive) return;
+    if (roundShow.phase === "actor-action") {
+      if (!effectiveActorRevealComplete) return;
+      const beatKey = `${snap.round.number}|${roundShow.presentationIndex}|actor-action`;
+      if (consumedActorActionBeatRef.current === beatKey) return;
+      consumedActorActionBeatRef.current = beatKey;
+      setRoundShow((prev) => {
+        if (prev.mode !== "cinematic" || prev.phase !== "actor-action") return prev;
+        return {
+          ...prev,
+          ...advanceAfterActorAction({
+            actors: presentationActors,
+            presentationIndex: prev.presentationIndex,
+          }),
+        };
+      });
+      return;
+    }
+    if (roundShow.phase === "actor-result") {
+      if (skipDecorativeReveal) {
+        setRoundShow((prev) => {
+          if (prev.mode !== "cinematic" || prev.phase !== "actor-result") return prev;
+          return {
+            ...prev,
+            ...advanceAfterActorResult({
+              actors: presentationActors,
+              presentationIndex: prev.presentationIndex,
+            }),
+          };
+        });
+        return;
+      }
+      const id = window.setTimeout(() => {
+        setRoundShow((prev) => {
+          if (prev.mode !== "cinematic" || prev.phase !== "actor-result") return prev;
+          return {
+            ...prev,
+            ...advanceAfterActorResult({
+              actors: presentationActors,
+              presentationIndex: prev.presentationIndex,
+            }),
+          };
+        });
+      }, ROUND_RESULT_HOLD_MS);
+      return () => window.clearTimeout(id);
+    }
+  }, [
+    effectiveActorRevealComplete,
+    hiddenCatchUpActive,
+    presentationActorKey,
+    presentationActors,
+    roundShow.mode,
+    roundShow.phase,
+    roundShow.presentationIndex,
+    skipDecorativeReveal,
+    snap.round.number,
+  ]);
   const processStage = liveTurnProcessStage({
     waitingOpening,
     narrationRerolling: snap.narrationRerolling,
@@ -745,10 +880,6 @@ export default function TrpgCampaignRoom({
         })
       : null;
   const nextActionVisible = phase === "ACTION_INPUT" && Boolean(snap.myDraft && !snap.myDraft.locked);
-  const activePresentationActorId =
-    cinematicMotion && presentationActors[roundShow.presentationIndex]
-      ? presentationActors[roundShow.presentationIndex].actorId
-      : null;
   const effectiveGmRevealComplete = resolveEffectiveGmRevealComplete({
     freshGmRound: freshGmRow?.roundNumber ?? null,
     report: gmRevealReport,
@@ -772,6 +903,9 @@ export default function TrpgCampaignRoom({
       progressive: report.progressive ?? false,
     };
     setGmRevealReport(report);
+  }, []);
+  const handleActiveActorRevealChange = useCallback((report: ActorRevealReport) => {
+    setActorRevealReport(report);
   }, []);
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({
@@ -1369,6 +1503,14 @@ export default function TrpgCampaignRoom({
                   ? activePresentationCardRef
                   : undefined
               }
+              onActiveActorRevealChange={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? handleActiveActorRevealChange
+                  : undefined
+              }
+              skipDecorativeReveal={
+                row.roundNumber === snap.round.number && gateLiveRound ? skipDecorativeReveal : false
+              }
             />
             );
           })}
@@ -1758,6 +1900,8 @@ function SceneTurn({
   onLiveGmRevealChange,
   activePresentationActorId,
   activePresentationCardRef,
+  onActiveActorRevealChange,
+  skipDecorativeReveal = false,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -1789,9 +1933,11 @@ function SceneTurn({
   onLiveGmRevealChange?: (report: GmRevealReport) => void;
   activePresentationActorId?: number | null;
   activePresentationCardRef?: Ref<HTMLDivElement | null>;
+  onActiveActorRevealChange?: (report: ActorRevealReport) => void;
+  skipDecorativeReveal?: boolean;
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
-  const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`);
+  const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
   const narrationReveal = useRevealedText(row.narration ?? "", revealNarration, "gm", streamIntervalMs);
   const shownNarration = narrationReveal.shownText;
   const fullNarrationLen = Array.from(row.narration ?? "").length;
@@ -1891,9 +2037,21 @@ function SceneTurn({
                     hideMobileLabel={showResultLane}
                     reveal={
                       action.kind === "ai_character" &&
-                      isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
+                      isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`) &&
+                      !skipDecorativeReveal
                     }
                     streamIntervalMs={streamIntervalMs}
+                    onRevealChange={
+                      isActivePresentationCard && onActiveActorRevealChange
+                        ? (report) =>
+                            onActiveActorRevealChange({
+                              roundNumber: row.roundNumber,
+                              participantId: action.participantId,
+                              complete: report.complete,
+                              progressive: report.progressive,
+                            })
+                        : undefined
+                    }
                   />
                   {showJudge ? (
                     <div className="mt-1.5 space-y-0.5 font-sans">

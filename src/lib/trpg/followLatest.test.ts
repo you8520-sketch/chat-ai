@@ -111,7 +111,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
     assert.match(reveal, /resolveTrpgRevealVisibleCount/);
     assert.match(reveal, /trpgRevealSessionChanged/);
-    assert.match(reveal, /\[text, active, kind, streamIntervalMs\]/);
+    assert.match(reveal, /text, active, kind, streamIntervalMs, visibleEpoch\]/);
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;

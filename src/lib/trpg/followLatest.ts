@@ -154,6 +154,13 @@ export type GmRevealReport = {
   progressive?: boolean;
 };
 
+export type ActorRevealReport = {
+  roundNumber: number | null;
+  participantId: number | null;
+  complete: boolean;
+  progressive?: boolean;
+};
+
 /** Session-scoped GM reveal completion keyed to the reporting row. */
 export function resolveEffectiveGmRevealComplete(opts: {
   freshGmRound: number | null;
@@ -161,6 +168,18 @@ export function resolveEffectiveGmRevealComplete(opts: {
 }): boolean {
   if (opts.freshGmRound == null) return false;
   if (opts.report?.roundNumber !== opts.freshGmRound) return false;
+  return opts.report.complete;
+}
+
+/** Session-scoped actor reveal completion keyed to the active presentation actor. */
+export function resolveEffectiveActorRevealComplete(opts: {
+  roundNumber: number;
+  activeParticipantId: number | null;
+  report: ActorRevealReport | null;
+}): boolean {
+  if (opts.activeParticipantId == null) return false;
+  if (opts.report?.roundNumber !== opts.roundNumber) return false;
+  if (opts.report.participantId !== opts.activeParticipantId) return false;
   return opts.report.complete;
 }
 
