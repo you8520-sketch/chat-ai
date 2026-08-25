@@ -33,7 +33,6 @@ import {
   orderTrpgBotsForRound,
   parseTrpgBotAction,
   prepareTrpgBotActionBody,
-  sanitizeBotActionText,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
@@ -336,7 +335,7 @@ export function hostFillBotAction(
   }
   const bot = loadParticipants(db, opts.campaignId).find((p) => p.id === opts.participantId);
   if (!bot || bot.kind !== "ai_character") throw new Error("AI 캐릭터가 아닙니다.");
-  const text = sanitizeBotActionText(opts.body, TRPG_ACTION_MAX_CHARS);
+  const text = prepareTrpgBotActionBody(opts.body, "");
   if (!text) throw new Error("행동을 입력하세요.");
   upsertLockedAction(db, round.id, bot.id, text, parseTrpgBotAction(text).actionType, null, "host_fill");
 }

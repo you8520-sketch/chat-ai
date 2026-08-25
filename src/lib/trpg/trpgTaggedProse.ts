@@ -4,6 +4,7 @@ import {
   gmSceneAssetSeed,
   parseCharacterAssetMarkerPayload,
   selectStableTaggedAsset,
+  stripTrpgAssetControlMarkers,
   TRPG_CHARACTER_ASSET_MARKER_PREFIX,
 } from "./gmSceneAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
@@ -103,9 +104,5 @@ export function splitTrpgGmProseForAssets(
 }
 
 export function visibleTrpgGmProse(text: string): string {
-  return text
-    .replace(/\[캐릭터에셋:\s*[^\]]*\]/g, "")
-    .replace(/\[태그:\s*[^\]]*\]/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return stripTrpgAssetControlMarkers(text);
 }

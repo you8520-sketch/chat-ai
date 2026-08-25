@@ -110,6 +110,23 @@ export function formatScenarioAssetMarker(tag: string): string {
   return `[태그: ${tag.trim()}]`;
 }
 
+/** Strip TRPG scene-asset control syntax only. Ordinary bracketed prose stays. */
+export function stripTrpgAssetControlMarkers(text: string): string {
+  return text
+    .replace(/\[캐릭터에셋:\s*[^\]]*\]/g, "")
+    .replace(/\[태그:\s*[^\]]*\]/g, "")
+    .replace(/\[캐릭터에셋:[^\]]*$/g, "")
+    .replace(/\[태그:[^\]]*$/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
+/** Action-card display only. Does not change stored human mechanics/intent. */
+export function sanitizeTrpgActionDisplayText(text: string): string {
+  return stripTrpgAssetControlMarkers(text);
+}
+
 export function stablePickIndex(seed: string, count: number): number {
   if (count <= 1) return 0;
   let hash = 2166136261;

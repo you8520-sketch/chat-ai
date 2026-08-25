@@ -6,6 +6,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
+import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
 
@@ -95,6 +96,7 @@ export default function TrpgNamedProse({
   paragraphMode = "author",
   dialogueAccent = true,
   hideMobileLabel = false,
+  resolveSceneAssets = true,
   onRevealChange,
 }: {
   name?: string | null;
@@ -116,6 +118,8 @@ export default function TrpgNamedProse({
   dialogueAccent?: boolean;
   /** A mobile roll header can own the speaker label so prose starts at full width below it. */
   hideMobileLabel?: boolean;
+  /** GM narration may resolve scene images. Action cards must stay prose-only. */
+  resolveSceneAssets?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
   const { shownText: shown, complete } = useRevealedText(text, reveal, "bot", streamIntervalMs);
@@ -158,7 +162,8 @@ export default function TrpgNamedProse({
         data-quote-assistant
         style={quoteSelectStyle}
       >
-        {assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(shown) ? (
+        {resolveSceneAssets &&
+        (assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(shown)) ? (
           <TrpgTaggedNovelText
             content={shown}
             scenarioAssets={assets}
@@ -173,7 +178,7 @@ export default function TrpgNamedProse({
           />
         ) : (
           <NovelText
-            content={shown}
+            content={resolveSceneAssets ? shown : sanitizeTrpgActionDisplayText(shown)}
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}

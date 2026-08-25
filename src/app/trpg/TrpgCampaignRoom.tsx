@@ -52,6 +52,7 @@ import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
+import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
@@ -2034,12 +2035,12 @@ function SceneTurn({
                           ? actionTypeLabelKo(action.actionType)
                           : undefined
                     }
-                    text={parsed.prose || action.body}
+                    text={sanitizeTrpgActionDisplayText(parsed.prose || action.body)}
                     variant={action.kind === "human" ? "user" : "character"}
                     display={display}
                     accent={false}
                     dialogueAccent={false}
-                    assets={scenarioAssets}
+                    resolveSceneAssets={false}
                     paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
                     hideMobileLabel={showResultLane}
                     reveal={

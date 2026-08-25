@@ -6,7 +6,7 @@ import {
   TRPG_BOT_INTENT_OPEN,
 } from "./botActionParse";
 import { clipTrpgChars } from "./clip";
-import { formatTrpgCharacterIdentityBlock } from "./gmSceneAssets";
+import { formatTrpgCharacterIdentityBlock, stripTrpgAssetControlMarkers } from "./gmSceneAssets";
 import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
 import {
   TRPG_BOT_ACTION_MAX_CHARS,
@@ -190,5 +190,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
 
 /** Bot-seat prose only. Scene-level asset insertion is GM-owned. */
 export function prepareTrpgBotActionBody(raw: string, fallback: string): string {
-  return sanitizeBotActionText(raw, TRPG_BOT_ACTION_MAX_CHARS) || fallback;
+  return (
+    sanitizeBotActionText(stripTrpgAssetControlMarkers(raw), TRPG_BOT_ACTION_MAX_CHARS) || fallback
+  );
 }
