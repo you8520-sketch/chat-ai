@@ -287,7 +287,11 @@ export function logLengthAudit(opts: {
   });
 }
 
-export type GenerationFailureReason = "safety" | "content_filter" | "under_length";
+export type GenerationFailureReason =
+  | "safety"
+  | "content_filter"
+  | "under_length"
+  | "provider_error";
 
 const GENERATION_FAILURE_USER_MESSAGE =
   "AI가 묘사 수위 조절에 실패하여 생성이 중단되었습니다. 대화 방향을 살짝 바꿔서 다시 시도해 주세요.";
@@ -415,6 +419,9 @@ export function detectAdultGenerationFailure(
   }
   if (r === "CONTENT_FILTER" || r === "BLOCKED" || r === "BLOCKLIST") {
     return "content_filter";
+  }
+  if (r === "ERROR") {
+    return "provider_error";
   }
 
   const trimmed = text.trim();
