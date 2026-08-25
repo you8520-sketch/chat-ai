@@ -141,6 +141,15 @@ export function trpgRevealTextExtended(previous: string, next: string): boolean 
   return nextChars.slice(0, prevChars.length).join("") === previous;
 }
 
+/** True when a manual finish should release ownership after a true prefix extension. */
+export function shouldConsumeFinishLockOnPrefixExtension(opts: {
+  sessionChanged: boolean;
+  textExtended: boolean;
+  finishOwned: boolean;
+}): boolean {
+  return opts.sessionChanged && opts.textExtended && opts.finishOwned;
+}
+
 /** Speed-only changes keep the already shown count. Instant finishes the rest. */
 export function trpgRevealContinueCount(opts: {
   sessionChanged: boolean;

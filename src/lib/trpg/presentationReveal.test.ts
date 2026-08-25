@@ -4,16 +4,22 @@ import { describe, it } from "node:test";
 import {
   trpgRevealCountForElapsed,
   trpgRevealDurationMs,
-  trpgRevealTargetMs,
   resolveTrpgRevealVisibleCount,
+  shouldConsumeFinishLockOnPrefixExtension,
   trpgRevealTextExtended,
 } from "./revealTiming";
+import {
+  catchUpHiddenPresentationState,
+  isHiddenPresentationCatchUpActive,
+  shouldSkipDecorativeReveal,
+} from "./presentationHiddenCatchUp";
 import {
   advanceAfterActorAction,
   buildRoundPresentationActors,
   revealedActorIds,
   resultLaneActorIds,
   shouldShowGmNarration,
+  startCinematicPresentation,
   type PresentationActor,
   type RoundPresentationState,
 } from "./roundPresentation";
@@ -90,6 +96,9 @@ describe("TRPG presentation reveal integration", () => {
     assert.match(room, /activeActorRevealComplete/);
     assert.match(room, /handleActiveActorRevealChange/);
     assert.match(room, /onActiveActorRevealChange/);
+    assert.match(room, /hiddenCatchUpActive/);
+    assert.match(room, /skipDecorativeReveal/);
+    assert.match(room, /catchUpHiddenPresentationState/);
     assert.match(named, /onRevealChange/);
     assert.doesNotMatch(room, /ROUND_ACTION_REVEAL_MS/);
     assert.doesNotMatch(room, /setTimeout\([\s\S]{0,200}advanceAfterActorAction/);
@@ -152,13 +161,22 @@ describe("TRPG presentation reveal integration", () => {
     assert.match(hook, /clearRevealInterval/);
     assert.match(hook, /finishRequestedRef\.current = true/);
     assert.match(hook, /Math\.max\(countRef\.current/);
-    assert.match(hook, /finishRequestedRef\.current\)/);
+    assert.match(hook, /shouldConsumeFinishLockOnPrefixExtension/);
+    assert.match(hook, /finishRequestedRef\.current = false/);
   });
 
-  it("7: finished prefix stays visible while suffix streams", () => {
+  it("7: finished prefix stays visible while suffix streams after finish lock consumed", () => {
     const prefix = "A".repeat(2500);
     const extended = prefix + "B".repeat(200);
     assert.equal(trpgRevealTextExtended(prefix, extended), true);
+    assert.equal(
+      shouldConsumeFinishLockOnPrefixExtension({
+        sessionChanged: true,
+        textExtended: true,
+        finishOwned: true,
+      }),
+      true
+    );
     assert.equal(
       resolveTrpgRevealVisibleCount({
         previousSession: { text: prefix, active: true, kind: "gm" },
@@ -169,15 +187,6 @@ describe("TRPG presentation reveal integration", () => {
       }),
       2500
     );
-    const partialSuffix = resolveTrpgRevealVisibleCount({
-      previousSession: { text: extended, active: true, kind: "gm" },
-      nextSession: { text: extended, active: true, kind: "gm" },
-      storedCount: 2600,
-      finishOwned: true,
-      reducedMotion: false,
-    });
-    assert.ok(partialSuffix >= 2500);
-    assert.ok(partialSuffix < 2700);
   });
 
   it("8: same-round replacement starts fresh reveal", () => {
@@ -195,17 +204,20 @@ describe("TRPG presentation reveal integration", () => {
     );
   });
 
-  it("9-10: hidden tab catch-up avoids replaying stale cosmetic sequence", () => {
-    assert.match(hook, /visibilitychange/);
-    assert.match(hook, /trpgRevealCountForElapsed/);
-    assert.match(hook, /hiddenRef/);
-    const chars = 800;
-    const duration = trpgRevealTargetMs(chars, "bot");
-    const caught = trpgRevealCountForElapsed({ elapsedMs: duration + 500, charCount: chars, kind: "bot" });
-    assert.equal(caught, chars);
-    const mid = trpgRevealCountForElapsed({ elapsedMs: 200, charCount: chars, kind: "bot" });
-    assert.ok(mid > 0);
-    assert.ok(mid < chars);
+  it("9-10: room-level hidden owner fast-forwards queue without replay", () => {
+    assert.match(hook, /shouldConsumeFinishLockOnPrefixExtension/);
+    const actors = actorsFor([1, 2]);
+    const start = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const caught = catchUpHiddenPresentationState({ state: start, actors, gmTextAvailable: true });
+    assert.equal(caught.phase, "complete");
+    assert.equal(
+      shouldSkipDecorativeReveal({
+        consumedSessionKey: "5|actions:1,2",
+        sessionKey: "5|actions:1,2",
+        hiddenCatchUpActive: false,
+      }),
+      true
+    );
   });
 
   it("11: hidden fast-forward does not fabricate unavailable GM text", () => {

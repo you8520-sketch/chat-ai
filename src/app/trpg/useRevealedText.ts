@@ -9,6 +9,7 @@ import {
   trpgRevealImmediate,
   trpgRevealSessionChanged,
   trpgRevealTextExtended,
+  shouldConsumeFinishLockOnPrefixExtension,
   resolveTrpgRevealVisibleCount,
   TRPG_REVEAL_TICK_MS,
   type TrpgRevealKind,
@@ -168,6 +169,17 @@ export function useRevealedText(
     });
     if (sessionChanged && !textExtended) {
       finishRequestedRef.current = false;
+    }
+    if (
+      textExtended &&
+      shouldConsumeFinishLockOnPrefixExtension({
+        sessionChanged,
+        textExtended,
+        finishOwned: finishRequestedRef.current,
+      })
+    ) {
+      finishRequestedRef.current = false;
+      revealStartedAtRef.current = Date.now();
     }
     if (revealStartedAtRef.current == null || (sessionChanged && !textExtended)) {
       revealStartedAtRef.current = Date.now();
