@@ -18,7 +18,7 @@ import {
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 6740;
+const SYSTEM_PROMPT_CHARS_BEFORE = 6780;
 
 function padRich(seed: string): string {
   let out = seed.trim();

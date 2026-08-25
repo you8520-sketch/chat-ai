@@ -1,4 +1,5 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
+import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
 import type { TrpgActionType } from "./actionTypes";
 import type { TrpgResolutionOrderEntry } from "./initiative";
 import type { TrpgSheetHudCard } from "./sheetView";
@@ -132,6 +133,7 @@ export type TrpgCampaignSnapshot = {
   canRerollRoundNumber: number | null;
   narrationRerolling: boolean;
   scenarioAssets: CharacterAsset[];
+  aiCharacterAssets: TrpgPublicAiCharacterAssets[];
   /** Long-form story stage. Independent from round.phase. */
   storyPhase?: string;
   /** Host-only sanitized GM failure line. Never includes prompt, key, or raw provider body. */

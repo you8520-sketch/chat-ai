@@ -33,7 +33,7 @@ describe("TRPG scenario assets", () => {
     );
   });
 
-  it("prompts bots to insert each landscape tag at most once", () => {
+  it("prompts the GM to insert each landscape tag at most once", () => {
     const prompt = buildScenarioAssetTagPrompt([
       withAssetSize({ url: "/hall.webp", tag: "대합실" }, 1600, 900),
     ]);

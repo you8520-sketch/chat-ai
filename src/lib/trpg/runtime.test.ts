@@ -20,7 +20,7 @@ describe("TRPG bot actions", () => {
       greeting: "…뭐야, 또 왔어?",
       systemPrompt: "질투 많은 반말. 상대를 놓치지 않으려 한다.",
       exampleDialog: '"그 사람이랑 왜 얘기해."',
-      world: "카드세계관CANARY",
+      gender: "female",
       campaignWorld: "캠페인세계관CANARY 폐여관",
       previousGmNarration: "여관 문이 열린다.",
       campaignMemory: "[CAMPAIGN STATE]\nlocation=여관",
@@ -29,10 +29,12 @@ describe("TRPG bot actions", () => {
     });
     assert.match(block, /HUMAN ACTIONS THIS ROUND/);
     assert.match(block, /CHARACTER CARD/);
-    assert.match(block, /CHARACTER CARD WORLD \/ BACKGROUND/);
+    assert.match(block, /CHARACTER IDENTITY/);
+    assert.match(block, /Gender: 여성/);
+    assert.doesNotMatch(block, /CHARACTER CARD WORLD \/ BACKGROUND/);
     assert.match(block, /CAMPAIGN WORLD/);
     assert.match(block, /캠페인세계관CANARY/);
-    assert.match(block, /카드세계관CANARY/);
+    assert.doesNotMatch(block, /카드세계관CANARY/);
     assert.match(block, /RECENT CONTINUITY/);
     assert.match(block, /EXAMPLE DIALOG/);
     assert.match(block, /질투 많은 반말/);

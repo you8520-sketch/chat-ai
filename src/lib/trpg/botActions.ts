@@ -1,5 +1,12 @@
-import { parseTrpgBotAction, TRPG_BOT_ACTION_TYPE_OPEN, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
+import type { CharacterGender } from "@/lib/characterGender";
+import {
+  parseTrpgBotAction,
+  sanitizeBotActionText,
+  TRPG_BOT_ACTION_TYPE_OPEN,
+  TRPG_BOT_INTENT_OPEN,
+} from "./botActionParse";
 import { clipTrpgChars } from "./clip";
+import { formatTrpgCharacterIdentityBlock, stripTrpgAssetControlMarkers } from "./gmSceneAssets";
 import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
 import {
   TRPG_BOT_ACTION_MAX_CHARS,
@@ -18,11 +25,11 @@ export {
 
 export type TrpgBotActionContext = {
   characterName: string;
+  gender?: CharacterGender | string | null;
   description: string;
   greeting: string;
   systemPrompt: string;
   exampleDialog?: string;
-  world?: string;
   campaignWorld?: string;
   previousGmNarration: string;
   campaignMemory: string;
@@ -34,7 +41,6 @@ export type TrpgBotActionContext = {
   speakIndex?: number;
   speakCount?: number;
   relationshipBrief?: string;
-  scenarioAssetPrompt?: string;
 };
 
 export type TrpgBotSpeakOrder = { id: number; name: string };
@@ -44,7 +50,8 @@ export const TRPG_BOT_SYSTEM = `You ARE this character sitting in a Korean TRPG 
 Write one finished novelistic beat: what you notice, how you react, how you move, and spoken lines only if this character actually talks.
 Stay in their diction, attitude, example dialogue, and PARTY RELATIONSHIPS.
 Honor campaign world, recent continuity, and campaign state (HP, location, quests, flags, next decision).
-If CHARACTER CARD WORLD conflicts with CAMPAIGN WORLD, the current campaign world wins.
+Character name and gender are character canon.
+If any character-card background details conflict with CAMPAIGN WORLD, the current campaign world wins.
 Honor [MY LONG-TERM MEMORIES] only as this character already knows them. They are past facts, not current HP or inventory.
 You may describe the world only as THIS character perceives it. Do not decide other PCs' inner lives or actions. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
@@ -143,11 +150,11 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const speakCount = ctx.speakCount ?? 1;
   const speakIndex = ctx.speakIndex ?? 1;
   const card = [
+    formatTrpgCharacterIdentityBlock(ctx.characterName, ctx.gender),
     `[NAME]\n${ctx.characterName}`,
     ctx.description.trim() ? `[DESCRIPTION]\n${ctx.description.trim()}` : "",
     ctx.greeting.trim() ? `[GREETING / VOICE SAMPLE]\n${ctx.greeting.trim()}` : "",
     ctx.exampleDialog?.trim() ? `[EXAMPLE DIALOG]\n${ctx.exampleDialog.trim()}` : "",
-    ctx.world?.trim() ? `[CHARACTER CARD WORLD / BACKGROUND]\n${ctx.world.trim()}` : "",
     ctx.systemPrompt.trim() ? `[CHARACTER CARD]\n${ctx.systemPrompt.trim()}` : "",
   ]
     .filter(Boolean)
@@ -176,8 +183,21 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     `[PREVIOUS GM SCENE]\n${scene}`,
     `[HUMAN ACTIONS THIS ROUND — already locked]\n${humans}`,
     `[EARLIER COMPANION ACTIONS THIS ROUND]\n${earlier}`,
-    ctx.scenarioAssetPrompt?.trim() ?? "",
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/** Bot-seat prose only. Scene-level asset insertion is GM-owned. */
+export function prepareTrpgBotActionBody(raw: string, fallback: string): string {
+  const parsed = parseTrpgBotAction(raw);
+  const prose = stripTrpgAssetControlMarkers(parsed.prose);
+  const parts = [prose];
+  if (raw.includes(TRPG_BOT_ACTION_TYPE_OPEN)) {
+    parts.push(`${TRPG_BOT_ACTION_TYPE_OPEN}\n${parsed.actionType}`);
+  }
+  if (parsed.intent || raw.includes(TRPG_BOT_INTENT_OPEN)) {
+    parts.push(`${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`);
+  }
+  return sanitizeBotActionText(parts.filter(Boolean).join("\n\n"), TRPG_BOT_ACTION_MAX_CHARS) || fallback;
 }
