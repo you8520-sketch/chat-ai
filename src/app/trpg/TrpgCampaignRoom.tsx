@@ -121,6 +121,7 @@ import {
   livePresentationActivityKey,
   narrationFollowDeltaFromElement,
   resolveTrpgLiveFollowOwner,
+  resolveEffectiveGmRevealComplete,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
   type TrpgLiveFollowOwner,
@@ -744,16 +745,21 @@ export default function TrpgCampaignRoom({
     cinematicMotion && presentationActors[roundShow.presentationIndex]
       ? presentationActors[roundShow.presentationIndex].actorId
       : null;
+  const effectiveGmRevealComplete = resolveEffectiveGmRevealComplete({
+    freshGmRound: freshGmRow?.roundNumber ?? null,
+    trackedRevealRound: trackedFreshGmRoundRef.current,
+    gmRevealComplete,
+  });
   const liveFollowOwner = resolveTrpgLiveFollowOwner({
     cinematicMotion,
     freshGmRound: freshGmRow?.roundNumber ?? null,
-    gmRevealComplete,
+    gmRevealComplete: effectiveGmRevealComplete,
     nextActionVisible,
   });
   const showReplySuggestions = shouldShowTrpgReplySuggestions({
     suggestionsEnabled,
     freshGmRound: freshGmRow?.roundNumber ?? null,
-    gmRevealComplete,
+    gmRevealComplete: effectiveGmRevealComplete,
     hasSuggestions: suggestions.length > 0,
     hasSuggestionsError: Boolean(suggestionsError),
   });

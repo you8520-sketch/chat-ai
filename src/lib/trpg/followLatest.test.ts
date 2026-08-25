@@ -109,7 +109,7 @@ describe("TRPG follow-latest scroll", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
     assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
-    assert.match(reveal, /trpgRevealContinueCount/);
+    assert.match(reveal, /resolveTrpgRevealVisibleCount/);
     assert.match(reveal, /trpgRevealSessionChanged/);
     assert.match(reveal, /\[text, active, kind, streamIntervalMs\]/);
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);

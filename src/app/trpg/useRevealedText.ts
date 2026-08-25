@@ -5,10 +5,10 @@ import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
   trpgRevealTick,
   trpgRevealChunkSize,
-  trpgRevealContinueCount,
   trpgRevealImmediate,
   trpgRevealSessionChanged,
   trpgRevealTextExtended,
+  resolveTrpgRevealVisibleCount,
   TRPG_REVEAL_TICK_MS,
   type TrpgRevealKind,
 } from "@/lib/trpg/revealTiming";
@@ -44,6 +44,17 @@ export function useRevealedText(
   countRef.current = count;
   const sessionRef = useRef({ text, active, kind });
   const finishRequestedRef = useRef(false);
+  const reducedMotion = prefersReducedMotion();
+  const previousSession = sessionRef.current;
+  const nextSession = { text, active, kind };
+  const visibleCount = resolveTrpgRevealVisibleCount({
+    previousSession,
+    nextSession,
+    storedCount: count,
+    finishOwned: finishRequestedRef.current,
+    reducedMotion,
+    streamIntervalMs,
+  });
 
   const finish = useCallback(() => {
     const total = Array.from(text).length;
@@ -54,13 +65,13 @@ export function useRevealedText(
 
   useEffect(() => {
     const total = Array.from(text).length;
-    const previousSession = sessionRef.current;
-    const sessionChanged = trpgRevealSessionChanged(previousSession, { text, active, kind });
+    const previous = sessionRef.current;
+    const sessionChanged = trpgRevealSessionChanged(previous, { text, active, kind });
     const textExtended =
       sessionChanged &&
-      previousSession.active === active &&
-      previousSession.kind === kind &&
-      trpgRevealTextExtended(previousSession.text, text);
+      previous.active === active &&
+      previous.kind === kind &&
+      trpgRevealTextExtended(previous.text, text);
     sessionRef.current = { text, active, kind };
     if (
       trpgRevealImmediate({
@@ -73,10 +84,13 @@ export function useRevealedText(
       setCount(total);
       return;
     }
-    let n = trpgRevealContinueCount({
-      sessionChanged: sessionChanged && !(textExtended && finishRequestedRef.current),
-      shownCount: countRef.current,
-      total,
+    let n = resolveTrpgRevealVisibleCount({
+      previousSession: previous,
+      nextSession: { text, active, kind },
+      storedCount: countRef.current,
+      finishOwned: finishRequestedRef.current,
+      reducedMotion: prefersReducedMotion(),
+      streamIntervalMs,
     });
     if (sessionChanged && !textExtended) {
       finishRequestedRef.current = false;
@@ -100,8 +114,8 @@ export function useRevealedText(
     return () => window.clearInterval(id);
   }, [text, active, kind, streamIntervalMs]);
 
-  const shownText = chars.slice(0, count).join("");
-  const complete = chars.length === 0 || count >= chars.length;
+  const shownText = chars.slice(0, visibleCount).join("");
+  const complete = chars.length === 0 || visibleCount >= chars.length;
 
   return { shownText, complete, finish };
 }

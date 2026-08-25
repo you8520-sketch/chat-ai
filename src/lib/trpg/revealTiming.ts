@@ -132,3 +132,36 @@ export function trpgRevealContinueCount(opts: {
   if (opts.sessionChanged) return 0;
   return Math.min(Math.max(0, opts.shownCount), Math.max(0, opts.total));
 }
+
+/** Render-safe visible count before passive effects resync stored state. */
+export function resolveTrpgRevealVisibleCount(opts: {
+  previousSession: TrpgRevealSession;
+  nextSession: TrpgRevealSession;
+  storedCount: number;
+  finishOwned: boolean;
+  reducedMotion: boolean;
+  streamIntervalMs?: number;
+}): number {
+  const total = Array.from(opts.nextSession.text).length;
+  if (
+    trpgRevealImmediate({
+      active: opts.nextSession.active,
+      reducedMotion: opts.reducedMotion,
+      charCount: total,
+      streamIntervalMs: opts.streamIntervalMs,
+    })
+  ) {
+    return total;
+  }
+  const sessionChanged = trpgRevealSessionChanged(opts.previousSession, opts.nextSession);
+  const textExtended =
+    sessionChanged &&
+    opts.previousSession.active === opts.nextSession.active &&
+    opts.previousSession.kind === opts.nextSession.kind &&
+    trpgRevealTextExtended(opts.previousSession.text, opts.nextSession.text);
+  return trpgRevealContinueCount({
+    sessionChanged: sessionChanged && !(textExtended && opts.finishOwned),
+    shownCount: opts.storedCount,
+    total,
+  });
+}

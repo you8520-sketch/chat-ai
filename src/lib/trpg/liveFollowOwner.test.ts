@@ -8,6 +8,7 @@ import {
   isNearPresentationCard,
   liveFreshGmNarrationRow,
   resolveTrpgLiveFollowOwner,
+  resolveEffectiveGmRevealComplete,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
 } from "./followLatest";
@@ -281,5 +282,39 @@ describe("TRPG live follow owner", () => {
       room,
       /activePresentationCardRef=\{\s*row\.roundNumber === liveFollowRound/
     );
+  });
+
+  it("U: new fresh GM round is incomplete on first render before tracked session sync", () => {
+    assert.equal(
+      resolveEffectiveGmRevealComplete({
+        freshGmRound: 4,
+        trackedRevealRound: 3,
+        gmRevealComplete: true,
+      }),
+      false
+    );
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: false,
+        freshGmRound: 4,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "GM_NARRATION_END"
+    );
+    assert.equal(
+      shouldShowTrpgReplySuggestions({
+        suggestionsEnabled: true,
+        freshGmRound: 4,
+        gmRevealComplete: false,
+        hasSuggestions: true,
+        hasSuggestionsError: false,
+      }),
+      false
+    );
+
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /resolveEffectiveGmRevealComplete/);
+    assert.match(room, /effectiveGmRevealComplete/);
   });
 });
