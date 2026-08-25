@@ -1,0 +1,58 @@
+{
+  "MODEL": "z-ai/glm-5.3",
+  "PROVIDER": "openrouter",
+  "MESSAGE_COUNT": 8,
+  "ROLE_ORDER": [
+    "system",
+    "user",
+    "assistant",
+    "user",
+    "assistant",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "SYSTEM_SHA": "ebf339f4d7d423a0a13737610a0ee9a6624f03301b3b2f8e1e2869b6aebcb11a",
+  "REQUEST_SHA": "0ba8608766d61ec1b8a1602d15de94973a1ee1818428c6c80deee29d15bf4057",
+  "T1_ASSISTANT_BYTE_IDENTICAL": true,
+  "T2_ASSISTANT_BYTE_IDENTICAL": true,
+  "GEMINI_GOLD_PRESENT": false,
+  "GEMINI_REFUSAL_PRESENT": false,
+  "DEEPSEEK_STYLE_REMINDER_PRESENT": false,
+  "DEEPSEEK_XML_PRESENT": false,
+  "DEEPSEEK_OPENING_REMAP_PRESENT": false,
+  "GLM_SPECIFIC_STYLE_ADAPTER_PRESENT": false,
+  "GLM_SPECIFIC_STYLE_ADAPTER_MATCH": null,
+  "HANDOFF_CONTINUATION_INSTRUCTION_COUNT": 1,
+  "USER_TAIL_3200_OWNER_COUNT": 1,
+  "TERMINAL_DIALOGUE_OWNER_ACTIVE": true,
+  "USER_AGENCY_OWNER_ACTIVE": true,
+  "ACTIVE_CONSENT_MODE": "standard",
+  "CNC_PERMISSION_ON_WIRE": false,
+  "GLM_SPECIFIC_STYLE_PROMPT_CHARS": 0,
+  "GLM_SPECIFIC_LENGTH_PROMPT_CHARS": 0,
+  "NEW_STYLE_BLOCKS": 0,
+  "REASONING": {
+    "effort": "low",
+    "exclude": true
+  },
+  "TEMPERATURE": 0.92,
+  "TOP_P": 0.92,
+  "T1_EXEMPLAR": {
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 4,
+    "SOURCE_CHARS": 3473,
+    "TRANSPORTED_CHARS": 3473,
+    "BYTE_IDENTICAL": true
+  },
+  "T2_EXEMPLAR": {
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 6,
+    "SOURCE_CHARS": 3173,
+    "TRANSPORTED_CHARS": 3173,
+    "BYTE_IDENTICAL": true
+  },
+  "ASSEMBLY_GATE_PASS": true
+}

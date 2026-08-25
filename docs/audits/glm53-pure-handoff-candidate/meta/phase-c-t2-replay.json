@@ -1,0 +1,29 @@
+{
+  "T2_REPLAY_CANDIDATE": true,
+  "replay_topic_ids": [
+    "FIRST_KISS"
+  ],
+  "topic_hits": [
+    {
+      "topic_id": "WHY_LOOKING",
+      "topic_label": "why he was looking",
+      "t2_present": true,
+      "response_present": false,
+      "replay_candidate": false
+    },
+    {
+      "topic_id": "FOOD_HUNGER",
+      "topic_label": "food/hunger conversation",
+      "t2_present": true,
+      "response_present": false,
+      "replay_candidate": false
+    },
+    {
+      "topic_id": "FIRST_KISS",
+      "topic_label": "first kiss interpretation",
+      "t2_present": true,
+      "response_present": true,
+      "replay_candidate": true
+    }
+  ]
+}

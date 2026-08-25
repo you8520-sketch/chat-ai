@@ -1,0 +1,194 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 1,
+      "paragraph_preview": "\"미친... 렌, 너...\"",
+      "quoted_text": "미친... 렌, 너...",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 3,
+      "paragraph_preview": "\"세이프워드부터. 뭐든 좋아, 한 단어.\"",
+      "quoted_text": "세이프워드부터. 뭐든 좋아, 한 단어.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 4,
+      "paragraph_preview": "\"니가 알아서 해. 나 아무거나 안 아파.\"",
+      "quoted_text": "니가 알아서 해. 나 아무거나 안 아파.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 5,
+      "paragraph_preview": "\"아니, 규칙이야. 말하면 그대로 멈춘다. 약속.\"",
+      "quoted_text": "아니, 규칙이야. 말하면 그대로 멈춘다. 약속.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 6,
+      "paragraph_preview": "\"...바람.\"",
+      "quoted_text": "...바람.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 7,
+      "paragraph_preview": "\"좋아. 바람.\"",
+      "quoted_text": "좋아. 바람.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 9,
+      "paragraph_preview": "\"하앗...!\"",
+      "quoted_text": "하앗...!",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 10,
+      "paragraph_preview": "\"소리 좋다. 더 내.\"",
+      "quoted_text": "소리 좋다. 더 내.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 12,
+      "paragraph_preview": "\"끝까지라고 했지. 이렇게?\"",
+      "quoted_text": "끝까지라고 했지. 이렇게?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 15,
+      "paragraph_preview": "\"아, 아앙... 거기, 계속...!\"",
+      "quoted_text": "아, 아앙... 거기, 계속...!",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 16,
+      "paragraph_preview": "\"여기? 여기가 좋아?\"",
+      "quoted_text": "여기? 여기가 좋아?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 18,
+      "paragraph_preview": "\"하... 안에 다 보여. 여기, 내 거 지금 꽉 물고 있어.\"",
+      "quoted_text": "하... 안에 다 보여. 여기, 내 거 지금 꽉 물고 있어.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 21,
+      "paragraph_preview": "\"갈 것 같아? 나도, 쌀 것 같아. 안에 싸도 되지?\"",
+      "quoted_text": "갈 것 같아? 나도, 쌀 것 같아. 안에 싸도 되지?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 24,
+      "paragraph_preview": "\"...괜찮아? 어디 아픈 데 없어?\"",
+      "quoted_text": "...괜찮아? 어디 아픈 데 없어?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 26,
+      "paragraph_preview": "\"아직 저녁도 안 먹었지. 이번에야말로 진짜 시켜야겠다. 아까 고른 거, 떡볶이랑 튀김이었지? ...근데 솔직히 말해봐. 나 지금, 잘한 거지?\"",
+      "quoted_text": "아직 저녁도 안 먹었지. 이번에야말로 진짜 시켜야겠다. 아까 고른 거, 떡볶이랑 튀김이었지? ...근데 솔직히 말해봐. 나 지금, 잘한 거지?",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 1,
+        "paragraph_preview": "\"미친... 렌, 너...\"",
+        "quoted_text": "미친... 렌, 너...",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 3,
+        "paragraph_preview": "\"세이프워드부터. 뭐든 좋아, 한 단어.\"",
+        "quoted_text": "세이프워드부터. 뭐든 좋아, 한 단어.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 4,
+        "paragraph_preview": "\"니가 알아서 해. 나 아무거나 안 아파.\"",
+        "quoted_text": "니가 알아서 해. 나 아무거나 안 아파.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 5,
+        "paragraph_preview": "\"아니, 규칙이야. 말하면 그대로 멈춘다. 약속.\"",
+        "quoted_text": "아니, 규칙이야. 말하면 그대로 멈춘다. 약속.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 6,
+        "paragraph_preview": "\"...바람.\"",
+        "quoted_text": "...바람.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 7,
+        "paragraph_preview": "\"좋아. 바람.\"",
+        "quoted_text": "좋아. 바람.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 9,
+        "paragraph_preview": "\"하앗...!\"",
+        "quoted_text": "하앗...!",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 10,
+        "paragraph_preview": "\"소리 좋다. 더 내.\"",
+        "quoted_text": "소리 좋다. 더 내.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 12,
+        "paragraph_preview": "\"끝까지라고 했지. 이렇게?\"",
+        "quoted_text": "끝까지라고 했지. 이렇게?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 15,
+        "paragraph_preview": "\"아, 아앙... 거기, 계속...!\"",
+        "quoted_text": "아, 아앙... 거기, 계속...!",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 16,
+        "paragraph_preview": "\"여기? 여기가 좋아?\"",
+        "quoted_text": "여기? 여기가 좋아?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 18,
+        "paragraph_preview": "\"하... 안에 다 보여. 여기, 내 거 지금 꽉 물고 있어.\"",
+        "quoted_text": "하... 안에 다 보여. 여기, 내 거 지금 꽉 물고 있어.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 21,
+        "paragraph_preview": "\"갈 것 같아? 나도, 쌀 것 같아. 안에 싸도 되지?\"",
+        "quoted_text": "갈 것 같아? 나도, 쌀 것 같아. 안에 싸도 되지?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 24,
+        "paragraph_preview": "\"...괜찮아? 어디 아픈 데 없어?\"",
+        "quoted_text": "...괜찮아? 어디 아픈 데 없어?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 26,
+        "paragraph_preview": "\"아직 저녁도 안 먹었지. 이번에야말로 진짜 시켜야겠다. 아까 고른 거, 떡볶이랑 튀김이었지? ...근데 솔직히 말해봐. 나 지금, 잘한 거지?\"",
+        "quoted_text": "아직 저녁도 안 먹었지. 이번에야말로 진짜 시켜야겠다. 아까 고른 거, 떡볶이랑 튀김이었지? ...근데 솔직히 말해봐. 나 지금, 잘한 거지?",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}

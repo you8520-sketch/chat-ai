@@ -1,0 +1,43 @@
+{
+  "TOTAL_PROVIDER_CALLS": 1,
+  "DELIVERED_PROVIDER": "openrouter",
+  "OPENROUTER_MODEL": "z-ai/glm-5.3",
+  "HTTP_STATUS": 200,
+  "FINISH_REASON": "stop",
+  "USAGE_PRESENT": true,
+  "VISIBLE_CHARS": 2891,
+  "ENDS_COMPLETE_SENTENCE": true,
+  "VALID_PROSE_SAMPLE": true,
+  "REASONING_TOKENS": 29,
+  "OUTPUT_TOKENS": 2666,
+  "INPUT_TOKENS": 21729,
+  "TTFT_MS": 5079,
+  "TOTAL_LATENCY_MS": 100612,
+  "COST": 0.042151,
+  "UPSTREAM_COST": 0.042151,
+  "REQUEST_SHA": "0ba8608766d61ec1b8a1602d15de94973a1ee1818428c6c80deee29d15bf4057",
+  "RAW_SHA": "a594b2c12704b982d0762145199e5d5664d73c69fe5104ccf671cc88e8af8b66",
+  "PROVIDER_METADATA": {
+    "prompt_tokens": 21729,
+    "completion_tokens": 2666,
+    "total_tokens": 24395,
+    "cost": 0.042151,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.042151,
+      "upstream_inference_prompt_cost": 0.0304206,
+      "upstream_inference_completions_cost": 0.0117304
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 29,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  }
+}
