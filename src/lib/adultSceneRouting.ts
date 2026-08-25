@@ -814,6 +814,12 @@ export function resolveRequestedConsentMode(input: {
     return "cnc_opt_in";
   }
 
+  // DB allowlist / client requested cnc_opt_in is capability only — never activate
+  // without explicit current-turn opt-in or in-scene sticky state.
+  if (requested === "cnc_opt_in" && previous !== "cnc_opt_in") {
+    return "standard";
+  }
+
   if (previous === "cnc_opt_in") {
     return "cnc_opt_in";
   }
