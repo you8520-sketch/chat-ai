@@ -19,6 +19,13 @@ describe("useRevealedText finish semantics", () => {
     assert.equal(continueCount, shownBeforeGrowth);
   });
 
+  it("finish cancels active interval and preserves visible count", () => {
+    const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
+    assert.match(reveal, /clearRevealInterval\(\)/);
+    assert.match(reveal, /finishRequestedRef\.current = true/);
+    assert.match(reveal, /Math\.max\(countRef\.current/);
+  });
+
   it("exposes finish without restarting a completed session", () => {
     const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
     assert.match(reveal, /finishRequestedRef/);

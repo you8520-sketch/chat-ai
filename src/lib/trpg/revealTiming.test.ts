@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import {
   trpgGmRevealTick,
   trpgRevealContinueCount,
+  trpgRevealCountForElapsed,
   trpgRevealDurationMs,
   trpgRevealImmediate,
   trpgRevealSessionChanged,
@@ -74,6 +75,18 @@ describe("TRPG adaptive reveal", () => {
     );
   });
 
+  it("maps elapsed wall time to decorative reveal position for hidden-tab catch-up", () => {
+    const chars = 800;
+    const duration = trpgRevealDurationMs(chars, "bot");
+    assert.equal(trpgRevealCountForElapsed({ elapsedMs: 0, charCount: chars, kind: "bot" }), 0);
+    assert.ok(trpgRevealCountForElapsed({ elapsedMs: duration / 2, charCount: chars, kind: "bot" }) > 0);
+    assert.equal(
+      trpgRevealCountForElapsed({ elapsedMs: duration, charCount: chars, kind: "bot" }),
+      chars
+    );
+    assert.equal(trpgRevealCountForElapsed({ elapsedMs: duration + 1000, charCount: chars, kind: "bot" }), chars);
+  });
+
   it("keeps the shown GM count when only stream speed changes", () => {
     const session = { text: "낡은 등불이 흔들린다.", active: true, kind: "gm" as const };
     assert.equal(trpgRevealSessionChanged(session, { ...session }), false);
@@ -89,10 +102,13 @@ describe("TRPG adaptive reveal", () => {
     const hook = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
     const named = readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(hook, /trpgRevealContinueCount/);
+    assert.match(hook, /resolveTrpgRevealVisibleCount/);
     assert.match(hook, /trpgRevealSessionChanged/);
     assert.match(named, /useRevealedText\(text, reveal, "bot", streamIntervalMs\)/);
     assert.match(room, /streamIntervalMs=\{streamIntervalMs\}/);
+    assert.match(hook, /clearRevealInterval/);
+    assert.match(hook, /visibilitychange/);
+    assert.match(hook, /trpgRevealCountForElapsed/);
     assert.doesNotMatch(hook, /setCount\(0\)/);
   });
 });

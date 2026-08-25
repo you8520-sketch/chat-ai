@@ -76,6 +76,24 @@ export function trpgRevealDurationMs(
   return Math.ceil(charCount / chunk) * TRPG_REVEAL_TICK_MS;
 }
 
+/** Decorative reveal position after elapsed wall time — used for hidden-tab catch-up. */
+export function trpgRevealCountForElapsed(opts: {
+  elapsedMs: number;
+  charCount: number;
+  kind?: TrpgRevealKind;
+  streamIntervalMs?: number;
+}): number {
+  const charCount = Math.max(0, Math.floor(opts.charCount));
+  if (charCount <= 0) return 0;
+  const elapsedMs = Math.max(0, Math.floor(opts.elapsedMs));
+  if (elapsedMs <= 0) return 0;
+  const kind = opts.kind ?? "bot";
+  const durationMs = trpgRevealDurationMs(charCount, kind, opts.streamIntervalMs);
+  if (durationMs <= 0) return charCount;
+  const ratio = Math.min(1, elapsedMs / durationMs);
+  return Math.min(charCount, Math.max(0, Math.ceil(charCount * ratio)));
+}
+
 /** Same visible rate as regular chat: intervalMs + charsPerTick from CHAT_STREAM_SPEED_PRESETS. */
 export function trpgRevealTick(streamIntervalMs: number): {
   intervalMs: number;

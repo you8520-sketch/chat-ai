@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect } from "react";
 import NovelText from "@/components/NovelText";
 import TaggedNovelText from "@/components/TaggedNovelText";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -18,13 +19,24 @@ export function TrpgGmTalk({
   text,
   assets = [],
   reveal = false,
+  onRevealChange,
 }: {
   text: string;
   assets?: CharacterAsset[];
   reveal?: boolean;
+  onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
-  const { shownText: shown } = useRevealedText(text, reveal);
+  const { shownText: shown, complete } = useRevealedText(text, reveal);
   const body = shown.trim();
+  useLayoutEffect(() => {
+    if (!onRevealChange) return;
+    const fullLen = Array.from(text).length;
+    const shownLen = Array.from(shown).length;
+    onRevealChange({
+      complete: fullLen === 0 || shownLen >= fullLen,
+      progressive: shownLen > 0 && shownLen < fullLen,
+    });
+  }, [complete, onRevealChange, shown, text]);
   if (!body) return null;
   return (
     <div
@@ -70,6 +82,7 @@ export default function TrpgNamedProse({
   paragraphMode = "author",
   dialogueAccent = true,
   hideMobileLabel = false,
+  onRevealChange,
 }: {
   name?: string | null;
   hint?: string;
@@ -87,8 +100,18 @@ export default function TrpgNamedProse({
   dialogueAccent?: boolean;
   /** A mobile roll header can own the speaker label so prose starts at full width below it. */
   hideMobileLabel?: boolean;
+  onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
-  const { shownText: shown } = useRevealedText(text, reveal, "bot", streamIntervalMs);
+  const { shownText: shown, complete } = useRevealedText(text, reveal, "bot", streamIntervalMs);
+  useLayoutEffect(() => {
+    if (!onRevealChange) return;
+    const fullLen = Array.from(text).length;
+    const shownLen = Array.from(shown).length;
+    onRevealChange({
+      complete: fullLen === 0 || shownLen >= fullLen,
+      progressive: shownLen > 0 && shownLen < fullLen,
+    });
+  }, [complete, onRevealChange, shown, text]);
   if (!shown.trim()) return null;
   const labeled = Boolean(name?.trim());
   const showRail = resolveTrpgSpeakerRail(accent, labeled);
