@@ -13,7 +13,7 @@ export function shouldKickTrpgAdvance(opts: {
     case "acquire_gm_lock":
       return !opts.gmGenerationInFlight && opts.phase !== "GENERATING_NARRATION";
     case "wait_humans":
-    case "wait_host_fill":
+    case "bot_retry_required":
     case "idle":
       return false;
     default: {

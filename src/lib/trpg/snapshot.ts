@@ -20,8 +20,7 @@ export type TrpgReadyState =
   | "disconnected"
   | "incapacitated"
   | "spectating"
-  | "bot_pending"
-  | "host_fill";
+  | "bot_pending";
 
 export type TrpgPublicParticipant = {
   id: number;
@@ -103,8 +102,7 @@ export type TrpgCampaignSnapshot = {
   viewerParticipantId: number | null;
   viewerPersonaId: number | null;
   viewerIsHost: boolean;
-  needsHostFill: boolean;
-  hostFillBotIds: number[];
+  botRetryRequired: boolean;
   round: {
     id: number | null;
     number: number;

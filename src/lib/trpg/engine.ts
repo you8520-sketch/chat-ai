@@ -5,8 +5,8 @@ export { deleteTrpgCampaign, renameTrpgCampaign } from "./engineDelete";
 export {
   startTrpgCampaign,
   submitTrpgAction,
-  hostFillBotAction,
   advanceTrpgCampaign,
+  retryTrpgBots,
   regenerateTrpgNarration,
 } from "./engineAdvance";
 export { loadTrpgSnapshot, listTrpgCampaigns } from "./engineSnapshot";

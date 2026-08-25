@@ -75,7 +75,6 @@ export default function TrpgRoomClient({
   const [suggestionRound, setSuggestionRound] = useState<number | null>(null);
   const suggestionsBusyRef = useRef(false);
   const autoRequestedRoundRef = useRef<number | null>(null);
-  const [hostFill, setHostFill] = useState("");
   const [partyBody, setPartyBody] = useState("");
   const [relationshipBrief, setRelationshipBrief] = useState(initial.relationshipBrief ?? "");
   const [starting, setStarting] = useState(false);
@@ -438,11 +437,9 @@ export default function TrpgRoomClient({
           actionType={actionType}
           actionBody={actionBody}
           partyBody={partyBody}
-          hostFill={hostFill}
           onActionTypeChange={setActionType}
           onActionBodyChange={setActionBody}
           onPartyBodyChange={setPartyBody}
-          onHostFillChange={setHostFill}
           suggestions={suggestions}
           suggestionsBusy={suggestionsBusy}
           suggestionsError={suggestionsError}
@@ -463,12 +460,7 @@ export default function TrpgRoomClient({
             })
           }
           onSendParty={() => void sendParty()}
-          onHostFill={() =>
-            void run(`/api/trpg/campaigns/${snap.id}/host-fill`, {
-              participantId: snap.hostFillBotIds[0],
-              body: hostFill,
-            })
-          }
+          onRetryBots={() => void run(`/api/trpg/campaigns/${snap.id}/retry-bots`)}
           onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}
           onReroll={(roundNumber) =>
             void run(`/api/trpg/campaigns/${snap.id}/reroll`, { roundNumber })

@@ -69,15 +69,12 @@ import {
   logTrpgMemoryUsage,
 } from "./memoryHorizon";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
-import {
-  refreshBotGenerationHeartbeat,
-  releaseBotGeneration,
-  tryClaimBotGeneration,
-} from "./botGenerationLease";
+import { botGenerationInFlight, refreshBotGenerationHeartbeat, releaseBotGeneration, tryClaimBotGeneration } from "./botGenerationLease";
 import {
   botRecoveryEligible,
   resolveTrpgRoundWork,
   roundHasBotGenerateFailed,
+  tryClaimBotExplicitRetryGeneration,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
 import { ensureTrpgProcessStage } from "./processTimer";
@@ -334,25 +331,6 @@ export function submitTrpgAction(
   );
 }
 
-export function hostFillBotAction(
-  db: Database.Database,
-  opts: { campaignId: number; userId: number; participantId: number; body: string }
-): void {
-  const campaign = loadCampaign(db, opts.campaignId);
-  if (!campaign || campaign.host_user_id !== opts.userId) {
-    throw new Error("방장만 봇 행동을 입력할 수 있습니다.");
-  }
-  const round = loadLatestRound(db, opts.campaignId);
-  if (!round || (round.phase !== "BOT_ACTION" && round.phase !== "ACTION_INPUT")) {
-    throw new Error("지금은 봇 행동을 넣을 수 없습니다.");
-  }
-  const bot = loadParticipants(db, opts.campaignId).find((p) => p.id === opts.participantId);
-  if (!bot || bot.kind !== "ai_character") throw new Error("AI 캐릭터가 아닙니다.");
-  const text = prepareTrpgBotActionBody(opts.body, "");
-  if (!text) throw new Error("행동을 입력하세요.");
-  upsertLockedAction(db, round.id, bot.id, text, parseTrpgBotAction(text).actionType, null, "host_fill");
-}
-
 function upsertLockedAction(
   db: Database.Database,
   roundId: number,
@@ -512,6 +490,59 @@ export async function advanceTrpgCampaign(
   }
 
   return mustSnapshot(db, opts.campaignId, opts.userId);
+}
+
+/** Host explicit retry for pending AI companions after automatic recovery is exhausted. */
+export async function retryTrpgBots(
+  db: Database.Database,
+  opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
+): Promise<TrpgCampaignSnapshot> {
+  const campaign = loadCampaign(db, opts.campaignId);
+  if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
+  if (campaign.host_user_id !== opts.userId) {
+    throw new Error("방장만 동료 행동을 다시 생성할 수 있습니다.");
+  }
+  const round = loadLatestRound(db, opts.campaignId);
+  if (!round) throw new Error("진행 중인 라운드가 없습니다.");
+  if (botGenerationInFlight(db, round)) {
+    return mustSnapshot(db, opts.campaignId, opts.userId);
+  }
+  const parts = loadParticipants(db, opts.campaignId);
+  const actors = actorsForRound(db, parts, round.id);
+  const work = resolveTrpgRoundWork({
+    phase: round.phase as TrpgRoundPhase,
+    humans: actors.filter((a) => a.kind === "human"),
+    bots: actors.filter((a) => a.kind === "ai_character"),
+    errorJson: round.error_json,
+    recoveryAttempts: round.bot_generation_recovery_attempts,
+  });
+  if (work.type !== "bot_retry_required") {
+    throw new Error("지금은 동료 행동을 다시 생성할 수 없습니다.");
+  }
+  const rid = newRequestId();
+  const claim = tryClaimBotExplicitRetryGeneration(db, round.id, rid);
+  if (!claim.claimed) {
+    return mustSnapshot(db, opts.campaignId, opts.userId);
+  }
+  try {
+    await generateBotActions(db, {
+      campaign,
+      roundId: round.id,
+      botIds: work.botIds,
+      deps: opts.deps,
+      requestId: rid,
+    });
+    releaseBotGeneration(db, round.id, rid);
+    db.prepare(`UPDATE trpg_rounds SET error_json=NULL WHERE id=?`).run(round.id);
+  } catch (e) {
+    releaseBotGeneration(db, round.id, rid);
+    db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
+      JSON.stringify({ bot: (e as Error).message }),
+      round.id
+    );
+    return mustSnapshot(db, opts.campaignId, opts.userId);
+  }
+  return advanceTrpgCampaign(db, opts);
 }
 
 function actorsForRound(

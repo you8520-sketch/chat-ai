@@ -4,7 +4,6 @@ import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
-  hostFillBotAction,
   startTrpgCampaign,
   submitTrpgAction,
   type TrpgEngineDeps,
@@ -82,7 +81,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     assert.equal(botCalls, 1);
     const mid = loadTrpgSnapshot(db, campaignId, 1);
     assert.equal(mid?.botGenerationInFlight, true);
-    assert.equal(mid?.needsHostFill, false);
+    assert.equal(mid?.botRetryRequired, false);
     assert.equal(mid?.shouldKickAdvance, false);
     release();
     await Promise.all([first, second]);
@@ -150,7 +149,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     const progress = liveTurnBotProgress(snap.participants);
     assert.deepEqual(progress, { done: 1, total: 2 });
     assert.equal(snap.botGenerationInFlight, true);
-    assert.equal(snap.needsHostFill, false);
+    assert.equal(snap.botRetryRequired, false);
     const round = loadLatestRound(db, campaignId)!;
     const yuna = db
       .prepare(
@@ -166,7 +165,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     db.close();
   });
 
-  it("D real provider bot failure clears lease and defers host-fill until recovery is exhausted", async () => {
+  it("D real provider bot failure clears lease and defers explicit retry until recovery is exhausted", async () => {
     const db = memoryDb();
     const deps: TrpgEngineDeps = {
       skipBilling: true,
@@ -179,7 +178,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     const campaignId = await setupWithBots(db, ["유나"], deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
     const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(snap.needsHostFill, false);
+    assert.equal(snap.botRetryRequired, false);
     assert.equal(snap.workType, "generate_bots");
     assert.equal(snap.botGenerationInFlight, false);
     const round = loadLatestRound(db, campaignId)!;
@@ -187,7 +186,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     assert.equal(round.bot_generation_recovery_attempts, 0);
     assert.match(round.error_json ?? "", /bot-seat down/);
     const afterRecovery = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(afterRecovery.needsHostFill, true);
+    assert.equal(afterRecovery.botRetryRequired, true);
     assert.equal(loadLatestRound(db, campaignId)!.bot_generation_recovery_attempts, 1);
     db.close();
   });

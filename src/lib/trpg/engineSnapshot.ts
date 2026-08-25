@@ -103,7 +103,6 @@ function readyOf(
   if (status === "spectating") return "spectating";
   if (p.kind === "ai_character") {
     if (submitted) return "submitted";
-    if (work.type === "wait_host_fill") return "host_fill";
     return "bot_pending";
   }
   return submitted ? "submitted" : "writing";
@@ -362,8 +361,7 @@ export function loadTrpgSnapshot(
     viewerParticipantId: viewer?.id ?? null,
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
     viewerIsHost: campaign.host_user_id === viewerUserId,
-    needsHostFill: work.type === "wait_host_fill",
-    hostFillBotIds: work.type === "wait_host_fill" ? work.botIds : [],
+    botRetryRequired: work.type === "bot_retry_required",
     round: {
       id: round?.id ?? null,
       number: round?.round_number ?? 0,

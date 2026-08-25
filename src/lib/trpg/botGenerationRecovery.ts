@@ -115,6 +115,75 @@ export function tryClaimBotRecoveryGeneration(
   return { claimed: false, reason: "in_flight" };
 }
 
+/** Host-initiated explicit retry after automatic recovery budget is exhausted. Does not reset recovery_attempts. */
+export function tryClaimBotExplicitRetryGeneration(
+  db: Database.Database,
+  roundId: number,
+  requestId: string
+): BotGenerationClaimResult {
+  const row = db
+    .prepare(
+      `SELECT error_json, bot_generation_recovery_attempts
+       FROM trpg_rounds WHERE id = ?`
+    )
+    .get(roundId) as
+    | { error_json: string | null; bot_generation_recovery_attempts: number | null }
+    | undefined;
+  if (!row || !roundHasBotGenerateFailed(row.error_json)) {
+    return { claimed: false, reason: "in_flight" };
+  }
+  if ((row.bot_generation_recovery_attempts ?? 0) < AUTO_BOT_RECOVERY_MAX) {
+    return { claimed: false, reason: "in_flight" };
+  }
+  const clearedError = clearBotErrorFromErrorJson(row.error_json);
+
+  const fresh = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET phase = CASE WHEN phase = 'ACTION_INPUT' THEN 'BOT_ACTION' ELSE phase END,
+           error_json = ?,
+           bot_generation_id = ?,
+           bot_generation_started_at = datetime('now'),
+           bot_generation_heartbeat_at = datetime('now'),
+           process_stage = 'bots',
+           process_started_at = datetime('now'),
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND bot_generation_id IS NULL
+         AND phase IN ('ACTION_INPUT', 'BOT_ACTION')
+         AND error_json LIKE '%"bot"%'
+         AND COALESCE(bot_generation_recovery_attempts, 0) >= ?`
+    )
+    .run(clearedError, requestId, roundId, AUTO_BOT_RECOVERY_MAX);
+  if (fresh.changes === 1) return { claimed: true, reason: "claimed" };
+
+  const inFlight = db
+    .prepare(`SELECT bot_generation_id FROM trpg_rounds WHERE id=? AND bot_generation_id IS NOT NULL`)
+    .get(roundId) as { bot_generation_id: string } | undefined;
+  if (!inFlight) return { claimed: false, reason: "in_flight" };
+
+  if (!isBotGenerationLeaseStaleOnDb(db, roundId)) {
+    return { claimed: false, reason: "in_flight" };
+  }
+
+  const reclaimed = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET bot_generation_id = ?,
+           bot_generation_started_at = datetime('now'),
+           bot_generation_heartbeat_at = datetime('now'),
+           process_stage = 'bots',
+           process_started_at = datetime('now'),
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND bot_generation_id IS NOT NULL
+         AND datetime(bot_generation_heartbeat_at) < datetime('now', ?)`
+    )
+    .run(requestId, roundId, `-${staleSeconds()} seconds`);
+  if (reclaimed.changes === 1) return { claimed: true, reason: "stale_reclaimed" };
+  return { claimed: false, reason: "in_flight" };
+}
+
 export function resolveTrpgRoundWork(opts: {
   phase: TrpgRoundPhase;
   humans: TrpgActorReady[];

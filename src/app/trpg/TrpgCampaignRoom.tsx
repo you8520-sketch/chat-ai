@@ -286,7 +286,6 @@ export default function TrpgCampaignRoom({
   actionType,
   actionBody,
   partyBody,
-  hostFill,
   suggestions,
   suggestionsBusy,
   suggestionsError,
@@ -294,13 +293,12 @@ export default function TrpgCampaignRoom({
   onActionTypeChange,
   onActionBodyChange,
   onPartyBodyChange,
-  onHostFillChange,
   onToggleSuggestions,
   onRetrySuggestions,
   onPickSuggestion,
   onSendAction,
   onSendParty,
-  onHostFill,
+  onRetryBots,
   onRetryGm,
   onReroll,
   onTitleSaved,
@@ -314,11 +312,9 @@ export default function TrpgCampaignRoom({
   actionType: TrpgActionType;
   actionBody: string;
   partyBody: string;
-  hostFill: string;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
   onPartyBodyChange: (value: string) => void;
-  onHostFillChange: (value: string) => void;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
   suggestionsError: string;
@@ -328,7 +324,7 @@ export default function TrpgCampaignRoom({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
-  onHostFill: () => void;
+  onRetryBots: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
   onTitleSaved: (title: string) => void;
@@ -919,10 +915,6 @@ export default function TrpgCampaignRoom({
     resultLaneCount: cinematicLaneIds.length,
     gmVisible: cinematicShowGm && gmTextReady,
   });
-  const botFillTargets = useMemo(
-    () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
-    [snap.hostFillBotIds, snap.participants]
-  );
 
   useEffect(() => {
     void ensureChatDisplayWebFontsLoaded();
@@ -1731,29 +1723,16 @@ export default function TrpgCampaignRoom({
             <p className="text-sm text-zinc-400">제출했습니다. 다른 플레이어를 기다립니다.</p>
           ) : null}
 
-          {snap.needsHostFill && snap.viewerIsHost ? (
-            <AppSectionCard title="봇 행동 대신 입력">
-              <p className="mb-3 text-sm text-zinc-400">
-                플레이어 캐릭터 행동 생성에 실패했습니다. 방장이 이 라운드 행동을 넣습니다.
-              </p>
-              {botFillTargets.map((bot) => (
-                <p key={bot.id} className="mb-2 text-sm text-zinc-300">
-                  {bot.displayName}
-                </p>
-              ))}
-              <textarea
-                value={hostFill}
-                onChange={(e) => onHostFillChange(e.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-              />
+          {snap.botRetryRequired && snap.viewerIsHost ? (
+            <AppSectionCard title="동료 행동 생성">
+              <p className="mb-3 text-sm text-zinc-400">동료 행동 생성에 실패했습니다.</p>
               <button
                 type="button"
-                disabled={busy || !hostFill.trim() || !botFillTargets[0]}
-                onClick={onHostFill}
-                className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={busy || generating}
+                onClick={onRetryBots}
+                className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >
-                봇 행동 넣기
+                동료 행동 다시 생성
               </button>
             </AppSectionCard>
           ) : null}

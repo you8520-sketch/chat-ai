@@ -100,7 +100,7 @@ function seedLegacyStuckRound(
 }
 
 describe("TRPG stuck bot round self-heal", () => {
-  it("A legacy stuck room is recoverable instead of permanent wait_host_fill", async () => {
+  it("A legacy stuck room is recoverable instead of permanent bot_retry_required", async () => {
     const db = memoryDb();
     const deps: TrpgEngineDeps = {
       skipBilling: true,
@@ -110,7 +110,7 @@ describe("TRPG stuck bot round self-heal", () => {
     seedLegacyStuckRound(db, { campaignId, botIds });
     const snap = loadTrpgSnapshot(db, campaignId, 1)!;
     assert.equal(snap.workType, "generate_bots");
-    assert.equal(snap.needsHostFill, false);
+    assert.equal(snap.botRetryRequired, false);
     assert.equal(
       shouldKickTrpgAdvance({
         workType: snap.workType as "generate_bots",
@@ -174,7 +174,7 @@ describe("TRPG stuck bot round self-heal", () => {
     const gmCallsBeforeRecovery = gmCalls;
     seedLegacyStuckRound(db, { campaignId, botIds });
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(after.needsHostFill, false);
+    assert.equal(after.botRetryRequired, false);
     assert.equal(roundHasBotGenerateFailed(loadLatestRound(db, campaignId)?.error_json), false);
     assert.equal(gmCalls, gmCallsBeforeRecovery + 1);
     assert.match(after.currentNarration ?? "", /해결/);
@@ -197,8 +197,8 @@ describe("TRPG stuck bot round self-heal", () => {
     const round = loadLatestRound(db, campaignId)!;
     assert.equal(round.bot_generation_recovery_attempts, 1);
     assert.match(round.error_json ?? "", /recovery failed/);
-    assert.equal(after.needsHostFill, true);
-    assert.equal(after.workType, "wait_host_fill");
+    assert.equal(after.botRetryRequired, true);
+    assert.equal(after.workType, "bot_retry_required");
     assert.equal(after.shouldKickAdvance, false);
     db.close();
   });
@@ -392,7 +392,7 @@ describe("TRPG stuck bot round self-heal", () => {
     const stuck = loadTrpgSnapshot(db, campaignId, 1)!;
     assert.equal(stuck.workType, "generate_bots");
     const healed = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(healed.needsHostFill, false);
+    assert.equal(healed.botRetryRequired, false);
     assert.equal(healed.round.phase, "ACTION_INPUT");
     db.close();
   });

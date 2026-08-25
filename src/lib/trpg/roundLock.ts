@@ -11,7 +11,7 @@ export type TrpgActorReady = {
 export type TrpgRoundWork =
   | { type: "wait_humans"; pendingIds: number[] }
   | { type: "generate_bots"; botIds: number[] }
-  | { type: "wait_host_fill"; botIds: number[] }
+  | { type: "bot_retry_required"; botIds: number[] }
   | { type: "acquire_gm_lock" }
   | { type: "idle" };
 
@@ -64,7 +64,7 @@ export function nextTrpgRoundWork(opts: {
       const botPending = pendingIds(bots);
       if (botPending.length === 0) return { type: "acquire_gm_lock" };
       if (botGenerateFailed && !botRecoveryEligible) {
-        return { type: "wait_host_fill", botIds: botPending };
+        return { type: "bot_retry_required", botIds: botPending };
       }
       return { type: "generate_bots", botIds: botPending };
     }
