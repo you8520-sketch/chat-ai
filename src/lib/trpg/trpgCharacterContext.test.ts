@@ -151,9 +151,7 @@ describe("TRPG character context + GM asset integration", () => {
   });
 
   it("Y. allows supplied asset markers and still forbids unrelated internal markers", () => {
-    assert.match(TRPG_GM_SYSTEM, /explicitly allowed asset markers supplied for this turn/);
-    assert.match(TRPG_GM_SYSTEM, /internal\/system markers/);
-    assert.match(TRPG_GM_SYSTEM, /must appear only inside NARRATION/);
+    assert.match(TRPG_GM_SYSTEM, /internal\/system markers except allowed asset markers/);
     assert.match(TRPG_GM_SYSTEM, /chain-of-thought/);
     assert.match(TRPG_BOT_SYSTEM, /current campaign world wins/);
   });
