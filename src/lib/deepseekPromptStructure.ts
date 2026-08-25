@@ -18,6 +18,20 @@ export const LTM_ABSOLUTE_FACTS_RULE = `이 항목에 기록된 내용은 과거
 export const DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY =
   "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다. 하나의 행동이나 대사가 가진 핵심 의미는 가장 선명한 해석 한 번으로 충분히 살리고, 이어지는 문장에서는 새로운 반응·행동·감각·환경 변화로 장면을 전진시킨다.]";
 
+/** Paragraph-consolidation clause removed for adult handoff H2 only. */
+export const DEEPSEEK_PARAGRAPH_CONSOLIDATION_CLAUSE =
+  "지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다.";
+
+/** Adult handoff: full style reminder minus paragraph-consolidation clause only. */
+export const DEEPSEEK_BOTTOM_REMINDER_STYLE_HANDOFF =
+  DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY.replace(
+    ` ${DEEPSEEK_PARAGRAPH_CONSOLIDATION_CLAUSE}`,
+    ""
+  );
+
+export const DEEPSEEK_PROGRESSIVE_SCENE_CLAUSE =
+  "하나의 행동이나 대사가 가진 핵심 의미는 가장 선명한 해석 한 번으로 충분히 살리고, 이어지는 문장에서는 새로운 반응·행동·감각·환경 변화로 장면을 전진시킨다.";
+
 /**
  * @deprecated Competing length owner — not injected on production DeepSeek path.
  * Length is owned solely by USER_TAIL_LENGTH_OWNER_SENTENCE.
@@ -199,6 +213,33 @@ export function prependDeepSeekStyleOnlyReminder(
   const body = userContent.trim();
   if (!body) return reminder;
   if (
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY) ||
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_HANDOFF) ||
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER)
+  ) {
+    return body;
+  }
+  return `${reminder}\n\n${body}`;
+}
+
+/** Adult handoff only: H2 style reminder (consolidation clause removed). */
+export function buildDeepSeekHandoffStyleOnlyReminderBlock(
+  extraTail?: string | null
+): string {
+  const extra = extraTail?.trim();
+  if (!extra) return DEEPSEEK_BOTTOM_REMINDER_STYLE_HANDOFF;
+  return `${DEEPSEEK_BOTTOM_REMINDER_STYLE_HANDOFF}\n${extra}`;
+}
+
+export function prependDeepSeekHandoffStyleOnlyReminder(
+  userContent: string,
+  extraTail?: string | null
+): string {
+  const reminder = buildDeepSeekHandoffStyleOnlyReminderBlock(extraTail);
+  const body = userContent.trim();
+  if (!body) return reminder;
+  if (
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_HANDOFF) ||
     body.startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY) ||
     body.startsWith(DEEPSEEK_BOTTOM_REMINDER)
   ) {

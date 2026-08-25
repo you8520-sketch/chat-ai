@@ -172,6 +172,7 @@ import {
   createDeepSeekXmlBuffers,
   flushDeepSeekXmlBuffers,
   logDeepSeekContextStructure,
+  prependDeepSeekHandoffStyleOnlyReminder,
   prependDeepSeekStyleOnlyReminder,
   resolveDeepSeekLoreXmlGroup,
   resolveDeepSeekShortHistoryLengthExtra,
@@ -1370,10 +1371,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     // Competing length owners (DEEPSEEK LENGTH / SHORT HISTORY / SHORT USER / REGEN) OFF.
     // Sole numeric length owner remains USER_TAIL_LENGTH_OWNER_SENTENCE.
     const deepSeekUserExtras = [deepSeekMomentumExtra].filter(Boolean).join("\n");
-    userTurnContent = prependDeepSeekStyleOnlyReminder(
-      userBodyWithOpening,
-      deepSeekUserExtras || null
-    );
+    userTurnContent = input.useDeepSeekHandoffStyleReminder
+      ? prependDeepSeekHandoffStyleOnlyReminder(
+          userBodyWithOpening,
+          deepSeekUserExtras || null
+        )
+      : prependDeepSeekStyleOnlyReminder(
+          userBodyWithOpening,
+          deepSeekUserExtras || null
+        );
   } else if (deepSeekLengthStackOnly) {
     // Probe / canary length-stack-only mode — keep thin-history nudges only.
     const lengthStack = [
