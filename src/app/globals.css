@@ -34,6 +34,7 @@ body {
     radial-gradient(circle at 82% -8%, rgba(124, 58, 237, 0.12), transparent 24rem),
     radial-gradient(circle at -8% 28%, rgba(37, 99, 235, 0.06), transparent 26rem),
     var(--studio-bg, #070910);
+  background-repeat: no-repeat;
   color: var(--studio-text, #e6e8f0);
   font-family:
     "Pretendard Variable", Pretendard, "Noto Sans KR", ui-sans-serif, system-ui,

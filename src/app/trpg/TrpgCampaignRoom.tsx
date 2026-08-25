@@ -1663,9 +1663,14 @@ export default function TrpgCampaignRoom({
       </div>
 
       <aside
-        className={`chat-room-right-rail sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 min-[576px]:flex min-[576px]:w-[68px]`}
+        className="chat-room-right-rail hidden w-16 shrink-0 self-stretch bg-[#0b0d14] min-[576px]:flex min-[576px]:w-[68px]"
+        data-trpg-right-rail
       >
-        <TrpgCampaignRail {...railProps} />
+        <div
+          className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 flex h-fit w-full flex-col gap-1 self-start px-1 py-2`}
+        >
+          <TrpgCampaignRail {...railProps} />
+        </div>
       </aside>
 
       <ChatSelectionQuoteToolbar
