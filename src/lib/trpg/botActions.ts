@@ -190,7 +190,14 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
 
 /** Bot-seat prose only. Scene-level asset insertion is GM-owned. */
 export function prepareTrpgBotActionBody(raw: string, fallback: string): string {
-  return (
-    sanitizeBotActionText(stripTrpgAssetControlMarkers(raw), TRPG_BOT_ACTION_MAX_CHARS) || fallback
-  );
+  const parsed = parseTrpgBotAction(raw);
+  const prose = stripTrpgAssetControlMarkers(parsed.prose);
+  const parts = [prose];
+  if (raw.includes(TRPG_BOT_ACTION_TYPE_OPEN)) {
+    parts.push(`${TRPG_BOT_ACTION_TYPE_OPEN}\n${parsed.actionType}`);
+  }
+  if (parsed.intent || raw.includes(TRPG_BOT_INTENT_OPEN)) {
+    parts.push(`${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`);
+  }
+  return sanitizeBotActionText(parts.filter(Boolean).join("\n\n"), TRPG_BOT_ACTION_MAX_CHARS) || fallback;
 }

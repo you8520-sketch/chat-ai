@@ -30,7 +30,7 @@ export type GmSceneAssetKeep =
   | { kind: "character"; participantId: number; tag: string }
   | { kind: "scenario"; tag: string };
 
-const COMBINED_MARKER_RE = /\[캐릭터에셋:\s*([^\]]*)\]|\[태그:\s*([^\]]*)\]/g;
+const COMBINED_MARKER_RE = /\[캐릭터에셋:\s*([^\]\n]*)\]|\[태그:\s*([^\]\n]*)\]/g;
 const CHARACTER_PAYLOAD_RE = /^(\d+)\s*\|\s*(.+)$/;
 
 export function eligibleTrpgCharacterAssets(assets: CharacterAsset[]): CharacterAsset[] {
@@ -110,16 +110,45 @@ export function formatScenarioAssetMarker(tag: string): string {
   return `[태그: ${tag.trim()}]`;
 }
 
+const CLOSED_CHARACTER_MARKER_RE = /\[캐릭터에셋:\s*[^\]\n]*\]/g;
+const CLOSED_SCENARIO_MARKER_RE = /\[태그:\s*[^\]\n]*\]/g;
+/** Unclosed asset-control fragment on one line only — never crosses `\n`. */
+const UNCLOSED_CHARACTER_LINE_RE = /\[캐릭터에셋:[^\]\n]*/g;
+const UNCLOSED_SCENARIO_LINE_RE = /\[태그:[^\]\n]*/g;
+
+function normalizeTrpgAssetControlText(text: string): string {
+  return text.replace(/\r\n/g, "\n");
+}
+
+function collapseTrpgAssetControlWhitespace(text: string): string {
+  return text.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n");
+}
+
+function stripUnclosedAssetMarkersFromLine(line: string): string {
+  let result = line;
+  if (/\[캐릭터에셋:/.test(result) && !/\[캐릭터에셋:[^\]\n]*\]/.test(result)) {
+    result = result.replace(UNCLOSED_CHARACTER_LINE_RE, "");
+  }
+  if (/\[태그:/.test(result) && !/\[태그:[^\]\n]*\]/.test(result)) {
+    result = result.replace(UNCLOSED_SCENARIO_LINE_RE, "");
+  }
+  return result;
+}
+
+/** Line-local malformed TRPG asset-control fragments. Valid closed markers stay. */
+export function stripMalformedTrpgAssetControlMarkers(text: string): string {
+  return normalizeTrpgAssetControlText(text)
+    .split("\n")
+    .map(stripUnclosedAssetMarkersFromLine)
+    .join("\n");
+}
+
 /** Strip TRPG scene-asset control syntax only. Ordinary bracketed prose stays. */
 export function stripTrpgAssetControlMarkers(text: string): string {
-  return text
-    .replace(/\[캐릭터에셋:\s*[^\]]*\]/g, "")
-    .replace(/\[태그:\s*[^\]]*\]/g, "")
-    .replace(/\[캐릭터에셋:[^\]]*$/g, "")
-    .replace(/\[태그:[^\]]*$/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .trim();
+  const withoutClosed = normalizeTrpgAssetControlText(text)
+    .replace(CLOSED_CHARACTER_MARKER_RE, "")
+    .replace(CLOSED_SCENARIO_MARKER_RE, "");
+  return collapseTrpgAssetControlWhitespace(stripMalformedTrpgAssetControlMarkers(withoutClosed)).trim();
 }
 
 /** Action-card display only. Does not change stored human mechanics/intent. */
@@ -194,11 +223,9 @@ export function enforceGmSceneAssetMarkers(
     return formatScenarioAssetMarker(resolved);
   });
 
-  const stripped = rewritten
-    .replace(/\[캐릭터에셋:[^\]]*$/g, "")
-    .replace(/\[태그:[^\]]*$/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trimEnd();
+  const stripped = collapseTrpgAssetControlWhitespace(
+    stripMalformedTrpgAssetControlMarkers(rewritten)
+  ).trimEnd();
 
   return { text: stripped, kept };
 }
