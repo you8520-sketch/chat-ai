@@ -257,5 +257,27 @@ describe("TRPG M1 roll economy fixtures", () => {
       resolveTrpgActionCheckDecision({ body: "상처를 응급처치한다.", actionType: "support" }).needsCheck,
       true
     );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 응급처치한다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 치료한다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "저항하는 적에게 해독제를 억지로 투여한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "움직이는 대상에게 치료제를 정밀하게 주입한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      true
+    );
   });
 });

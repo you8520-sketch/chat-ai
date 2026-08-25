@@ -335,6 +335,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       ON trpg_mechanics_resolutions(campaign_id);
   `);
   migrateTrpgCreatorEarningsUnique(db);
+  migrateLegacyDefaultDiceRules(db);
 }
 
 function tableExists(db: Database.Database, name: string): boolean {
@@ -378,6 +379,4 @@ function migrateTrpgCreatorEarningsUnique(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
       ON trpg_creator_earnings(round_id, consumer_user_id);
   `);
-
-  migrateLegacyDefaultDiceRules(db);
 }

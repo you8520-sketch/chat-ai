@@ -51,4 +51,35 @@ describe("TRPG dice rules compatibility migration", () => {
     assert.equal(second.preserved, 4);
     db.close();
   });
+
+  it("ENSURE_TABLES_MIGRATES_LEGACY_DICE even when creator-earnings schema is current", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const earningsSql =
+      (
+        db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='trpg_creator_earnings'`).get() as
+          | { sql: string }
+          | undefined
+      )?.sql ?? "";
+    assert.match(earningsSql, /UNIQUE\(round_id, consumer_user_id, creator_id, role, character_id\)/);
+
+    db.prepare(`DELETE FROM trpg_scenarios`).run();
+    db.prepare(`DELETE FROM trpg_campaigns`).run();
+    seedScenario(db, 7, { ...LEGACY_DEFAULT_TRPG_DICE_RULES });
+
+    ensureTrpgTables(db);
+    const loaded = parseTrpgDiceRules(
+      JSON.parse(
+        (
+          db.prepare(`SELECT dice_rules_json FROM trpg_scenarios WHERE campaign_id=?`).get(7) as {
+            dice_rules_json: string;
+          }
+        ).dice_rules_json
+      )
+    );
+    assert.equal(loaded?.dc, 11);
+    assert.equal(loaded?.partialWindow, 3);
+    assert.ok(diceRulesSemanticallyEqual(loaded!, DEFAULT_TRPG_DICE_RULES));
+    db.close();
+  });
 });

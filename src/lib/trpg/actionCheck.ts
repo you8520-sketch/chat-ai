@@ -18,6 +18,8 @@ const CONTESTED = /속이|거짓말|협박|위협|설득하려|통과하려|거�
 const TREATMENT = /응급처치|치료|치유|지혈|해독|중독|출혈|마비/;
 const THERAPEUTIC_ITEM = /구급키트|붕대|회복약|해독제|치료제|medkit|bandage|antidote|potion|포션/i;
 const ITEM_USE = /사용|쓴다|꺼낸|바른|먹|투여|바르|사용한다/;
+const HOSTILE_OR_PRECISION_APPLICATION =
+  /억지로|강제로|정밀|조준|위험|폭발|저항하는|(?:적|형체|상대|목표)(?:에게|을|를)?.{0,16}(?:투여|주입|던(?:지|져|진))/;
 const HAZARDOUS_OFFENSIVE_ITEM =
   /조준|억지로|잠긴|정밀|위험|폭발|맨손|포자|(?:적|형체|상대|목표)(?:에게|을|를)?.{0,12}던(?:지|져|진)|던(?:지|져|진)\s*(?:공격|맞)/;
 const ORDINARY_PREP =
@@ -160,20 +162,31 @@ function isHazardousSupport(text: string): boolean {
   );
 }
 
+function isDangerousItemApplication(text: string): boolean {
+  if (HOSTILE_OR_PRECISION_APPLICATION.test(text) || HAZARDOUS_OFFENSIVE_ITEM.test(text)) return true;
+  if (/던(?:지|져|진)/.test(text)) return true;
+  const kind = classifyChallengeKind(text);
+  return kind === "hazard" || kind === "contested";
+}
+
 function isOrdinaryTherapeuticItemUse(text: string): boolean {
   const normalized = normalizeBody(text);
-  if (!ITEM_USE.test(normalized)) return false;
-  if (THERAPEUTIC_ITEM.test(normalized)) return true;
-  if (isStatusTreatmentOnly(normalized)) return true;
-  if (/중독\s*치료|치료(?:를)?\s*위해/.test(normalized) && /해독|antidote/i.test(normalized)) return true;
-  return false;
+  if (!ITEM_USE.test(normalized) || !THERAPEUTIC_ITEM.test(normalized)) return false;
+  return !isDangerousItemApplication(normalized);
+}
+
+function isSkillTreatmentWithoutItem(text: string): boolean {
+  const normalized = normalizeBody(text);
+  if (THERAPEUTIC_ITEM.test(normalized) && ITEM_USE.test(normalized)) return false;
+  return (
+    isBasicFirstAidIntent(normalized) ||
+    isStatusTreatmentOnly(normalized) ||
+    TREATMENT.test(normalized)
+  );
 }
 
 function isHazardousItemUse(text: string): boolean {
-  if (isOrdinaryTherapeuticItemUse(text)) return false;
-  if (HAZARDOUS_OFFENSIVE_ITEM.test(text)) return true;
-  if (/던(?:지|져|진)/.test(text) && !THERAPEUTIC_ITEM.test(text)) return true;
-  return classifyChallengeKind(text) === "hazard" || classifyChallengeKind(text) === "contested";
+  return isDangerousItemApplication(text);
 }
 
 function isOrdinaryPreparation(text: string): boolean {
@@ -214,6 +227,12 @@ export function resolveTrpgActionCheckDecision(opts: {
       const kind = classifyChallengeKind(text);
       if (kind === "contested") return { needsCheck: true, reason: "contested" };
       if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
+      return { needsCheck: true, reason: "challenge" };
+    }
+    if (isOrdinaryTherapeuticItemUse(text)) {
+      return { needsCheck: false, reason: "ordinary_item_use" };
+    }
+    if (isSkillTreatmentWithoutItem(text)) {
       return { needsCheck: true, reason: "challenge" };
     }
     return { needsCheck: false, reason: "ordinary_item_use" };
