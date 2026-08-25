@@ -166,7 +166,7 @@ describe("TRPG refresh-safe round work ownership", () => {
     db.close();
   });
 
-  it("D real provider bot failure clears lease and enables host-fill", async () => {
+  it("D real provider bot failure clears lease and defers host-fill until recovery is exhausted", async () => {
     const db = memoryDb();
     const deps: TrpgEngineDeps = {
       skipBilling: true,
@@ -179,11 +179,16 @@ describe("TRPG refresh-safe round work ownership", () => {
     const campaignId = await setupWithBots(db, ["유나"], deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
     const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(snap.needsHostFill, true);
+    assert.equal(snap.needsHostFill, false);
+    assert.equal(snap.workType, "generate_bots");
     assert.equal(snap.botGenerationInFlight, false);
     const round = loadLatestRound(db, campaignId)!;
     assert.equal(round.bot_generation_id, null);
+    assert.equal(round.bot_generation_recovery_attempts, 0);
     assert.match(round.error_json ?? "", /bot-seat down/);
+    const afterRecovery = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(afterRecovery.needsHostFill, true);
+    assert.equal(loadLatestRound(db, campaignId)!.bot_generation_recovery_attempts, 1);
     db.close();
   });
 

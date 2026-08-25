@@ -527,9 +527,13 @@ describe("TRPG campaign loop", () => {
     });
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
-    const waiting = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const firstFail = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(botCalls, 1);
     assert.equal(gmCalls, 1);
+    assert.equal(firstFail.needsHostFill, false);
+    assert.equal(firstFail.workType, "generate_bots");
+    const waiting = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(botCalls, 2);
     assert.equal(waiting.needsHostFill, true);
     assert.deepEqual(waiting.hostFillBotIds, [botId]);
     hostFillBotAction(db, { campaignId, userId: 1, participantId: botId, body: "유나가 창밖을 살핀다." });

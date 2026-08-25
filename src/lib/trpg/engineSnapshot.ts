@@ -4,7 +4,8 @@ import { loadSheetSnapshots } from "./engineSheets";
 import { botGenerationInFlight } from "./botGenerationLease";
 import { parseProcessStartedAtMs } from "./processTimer";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
-import { nextTrpgRoundWork, type TrpgRoundWork } from "./roundLock";
+import { resolveTrpgRoundWork } from "./botGenerationRecovery";
+import type { TrpgRoundWork } from "./roundLock";
 import { buildPartySheetHud } from "./sheetView";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
 import { loadTrpgPartyChat } from "./partyChat";
@@ -252,11 +253,12 @@ export function loadTrpgSnapshot(
     canAct: p.can_act === 1 && p.status === "active",
     submitted: locked.has(p.id),
   }));
-  const work = nextTrpgRoundWork({
+  const work = resolveTrpgRoundWork({
     phase: phase === "NONE" ? "CHARACTER_SETUP" : phase,
     humans: actors.filter((a) => a.kind === "human"),
     bots: actors.filter((a) => a.kind === "ai_character"),
-    botGenerateFailed: round?.error_json?.includes('"bot"') === true,
+    errorJson: round?.error_json,
+    recoveryAttempts: round?.bot_generation_recovery_attempts,
   });
 
   const widgetRow = db

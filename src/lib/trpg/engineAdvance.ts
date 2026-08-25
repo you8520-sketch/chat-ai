@@ -74,8 +74,14 @@ import {
   releaseBotGeneration,
   tryClaimBotGeneration,
 } from "./botGenerationLease";
+import {
+  botRecoveryEligible,
+  resolveTrpgRoundWork,
+  roundHasBotGenerateFailed,
+  tryClaimBotRecoveryGeneration,
+} from "./botGenerationRecovery";
 import { ensureTrpgProcessStage } from "./processTimer";
-import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
+import { tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import {
   applyMechanicsOnCommit,
@@ -433,20 +439,33 @@ export async function advanceTrpgCampaign(
   }
 
   const actors = actorsForRound(db, parts, round.id);
-  const work = nextTrpgRoundWork({
+  const humanActors = actors.filter((a) => a.kind === "human");
+  const botActors = actors.filter((a) => a.kind === "ai_character");
+  const work = resolveTrpgRoundWork({
     phase,
-    humans: actors.filter((a) => a.kind === "human"),
-    bots: actors.filter((a) => a.kind === "ai_character"),
-    botGenerateFailed: round.error_json?.includes('"bot"') === true,
+    humans: humanActors,
+    bots: botActors,
+    errorJson: round.error_json,
+    recoveryAttempts: round.bot_generation_recovery_attempts,
   });
 
   if (work.type === "generate_bots") {
     const rid = newRequestId();
-    const claim = tryClaimBotGeneration(db, round.id, rid);
+    const recoveryAttempt =
+      roundHasBotGenerateFailed(round.error_json) &&
+      botRecoveryEligible(
+        round.bot_generation_recovery_attempts,
+        roundHasBotGenerateFailed(round.error_json)
+      );
+    const claim = recoveryAttempt
+      ? tryClaimBotRecoveryGeneration(db, round.id, rid)
+      : tryClaimBotGeneration(db, round.id, rid);
     if (!claim.claimed) {
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
-    ensureTrpgProcessStage(db, round.id, "bots");
+    if (!recoveryAttempt) {
+      ensureTrpgProcessStage(db, round.id, "bots");
+    }
     try {
       await generateBotActions(db, {
         campaign,
