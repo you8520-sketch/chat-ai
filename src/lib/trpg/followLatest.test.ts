@@ -200,6 +200,9 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(rail, /grid grid-cols-3 gap-2/);
     assert.match(rail, /min-h-14/);
     assert.match(rail, /h-5 w-5/);
+    assert.match(room, /data-trpg-right-rail/);
+    assert.match(room, /self-stretch bg-\[#0b0d14\]/);
+    assert.doesNotMatch(room, /chat-room-right-rail sticky/);
   });
 
   it("follows cinematic activity with a live-scene-only ResizeObserver", () => {
