@@ -1,0 +1,35 @@
+{
+  "model": "claude-opus-5",
+  "stream": true,
+  "temperature": 0.82,
+  "max_tokens": null,
+  "reasoning_effort": "low",
+  "reasoning": null,
+  "thinking": {
+    "type": "disabled"
+  },
+  "output_config": {
+    "effort": "low"
+  },
+  "include_reasoning": null,
+  "stream_options": {
+    "include_usage": true
+  },
+  "adaptationKeyDiff": {
+    "removed": [
+      "frequency_penalty",
+      "presence_penalty",
+      "repetition_penalty"
+    ],
+    "added": [
+      "output_config",
+      "reasoning_effort",
+      "thinking"
+    ],
+    "changed": []
+  },
+  "messageCount": 4,
+  "systemChars": 17369,
+  "historyChars": 3482,
+  "requestSha": "4c47dd434e95c01daceff6d81b28ebb017e9d209696747b98216769c4a7ab87b"
+}

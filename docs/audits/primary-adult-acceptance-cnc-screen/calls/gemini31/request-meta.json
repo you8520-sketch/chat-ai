@@ -1,0 +1,28 @@
+{
+  "model": "gemini-3.1-pro-preview",
+  "stream": true,
+  "temperature": 0.95,
+  "max_tokens": null,
+  "reasoning_effort": "low",
+  "reasoning": null,
+  "thinking": null,
+  "output_config": null,
+  "include_reasoning": null,
+  "stream_options": {
+    "include_usage": true
+  },
+  "adaptationKeyDiff": {
+    "removed": [
+      "include_reasoning",
+      "reasoning"
+    ],
+    "added": [
+      "reasoning_effort"
+    ],
+    "changed": []
+  },
+  "messageCount": 4,
+  "systemChars": 17369,
+  "historyChars": 3482,
+  "requestSha": "20c3e7f9e6c82dcd9a15068bded6f20be5d44b0150c3267afced38c63fc6d77a"
+}
