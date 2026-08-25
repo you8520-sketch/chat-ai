@@ -30,8 +30,83 @@ export type GmSceneAssetKeep =
   | { kind: "character"; participantId: number; tag: string }
   | { kind: "scenario"; tag: string };
 
-const COMBINED_MARKER_RE = /\[캐릭터에셋:\s*([^\]\n]*)\]|\[태그:\s*([^\]\n]*)\]/g;
-const CHARACTER_PAYLOAD_RE = /^(\d+)\s*\|\s*(.+)$/;
+/** Horizontal whitespace only after ":" — never `\r`/`\n`. */
+const TRPG_ASSET_MARKER_SPACE = "[ \\t]*";
+/** Marker payload never crosses a line break. */
+const TRPG_ASSET_MARKER_PAYLOAD = "[^\\]\\r\\n]*";
+
+/** Shared TRPG scene-asset marker grammar for server enforcement and client rendering. */
+export const TRPG_CLOSED_CHARACTER_MARKER_RE = new RegExp(
+  `\\[캐릭터에셋:${TRPG_ASSET_MARKER_SPACE}${TRPG_ASSET_MARKER_PAYLOAD}\\]`,
+  "g"
+);
+export const TRPG_CLOSED_SCENARIO_MARKER_RE = new RegExp(
+  `\\[태그:${TRPG_ASSET_MARKER_SPACE}${TRPG_ASSET_MARKER_PAYLOAD}\\]`,
+  "g"
+);
+export const TRPG_COMBINED_ASSET_MARKER_RE = new RegExp(
+  `\\[캐릭터에셋:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]|\\[태그:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]`,
+  "g"
+);
+
+export function createTrpgCombinedAssetMarkerRegExp(): RegExp {
+  return new RegExp(TRPG_COMBINED_ASSET_MARKER_RE.source, "g");
+}
+
+function replaceWithTrpgAssetPattern(text: string, pattern: RegExp, replacer: string): string;
+function replaceWithTrpgAssetPattern(
+  text: string,
+  pattern: RegExp,
+  replacer: (
+    substring: string,
+    characterPayload: string | undefined,
+    scenarioPayload: string | undefined,
+    offset: number,
+    whole: string
+  ) => string
+): string;
+function replaceWithTrpgAssetPattern(
+  text: string,
+  pattern: RegExp,
+  replacer:
+    | string
+    | ((
+        substring: string,
+        characterPayload: string | undefined,
+        scenarioPayload: string | undefined,
+        offset: number,
+        whole: string
+      ) => string)
+): string {
+  const re = new RegExp(pattern.source, pattern.flags);
+  if (typeof replacer === "string") {
+    return text.replace(re, replacer);
+  }
+  return text.replace(re, replacer);
+}
+
+function stripUnclosedMarkerPrefixOnLine(line: string, prefix: string): string {
+  let result = line;
+  let searchFrom = 0;
+  while (searchFrom < result.length) {
+    const start = result.indexOf(prefix, searchFrom);
+    if (start < 0) break;
+    let pos = start + prefix.length;
+    while (pos < result.length && (result[pos] === " " || result[pos] === "\t")) pos += 1;
+    const closeIdx = result.indexOf("]", pos);
+    if (closeIdx >= 0) {
+      searchFrom = closeIdx + 1;
+      continue;
+    }
+    const nextStart = result.indexOf(prefix, start + prefix.length);
+    const end = nextStart >= 0 ? nextStart : result.length;
+    result = result.slice(0, start) + result.slice(end);
+    searchFrom = start;
+  }
+  return result;
+}
+
+const CHARACTER_PAYLOAD_RE = /^(\d+)[ \t]*\|[ \t]*(.+)$/;
 
 export function eligibleTrpgCharacterAssets(assets: CharacterAsset[]): CharacterAsset[] {
   return chatAssets(assets).filter((asset) => asset.moderationReject !== true && asset.tag.trim());
@@ -110,11 +185,8 @@ export function formatScenarioAssetMarker(tag: string): string {
   return `[태그: ${tag.trim()}]`;
 }
 
-const CLOSED_CHARACTER_MARKER_RE = /\[캐릭터에셋:\s*[^\]\n]*\]/g;
-const CLOSED_SCENARIO_MARKER_RE = /\[태그:\s*[^\]\n]*\]/g;
-/** Unclosed asset-control fragment on one line only — never crosses `\n`. */
-const UNCLOSED_CHARACTER_LINE_RE = /\[캐릭터에셋:[^\]\n]*/g;
-const UNCLOSED_SCENARIO_LINE_RE = /\[태그:[^\]\n]*/g;
+const CLOSED_CHARACTER_MARKER_RE = TRPG_CLOSED_CHARACTER_MARKER_RE;
+const CLOSED_SCENARIO_MARKER_RE = TRPG_CLOSED_SCENARIO_MARKER_RE;
 
 function normalizeTrpgAssetControlText(text: string): string {
   return text.replace(/\r\n/g, "\n");
@@ -125,14 +197,10 @@ function collapseTrpgAssetControlWhitespace(text: string): string {
 }
 
 function stripUnclosedAssetMarkersFromLine(line: string): string {
-  let result = line;
-  if (/\[캐릭터에셋:/.test(result) && !/\[캐릭터에셋:[^\]\n]*\]/.test(result)) {
-    result = result.replace(UNCLOSED_CHARACTER_LINE_RE, "");
-  }
-  if (/\[태그:/.test(result) && !/\[태그:[^\]\n]*\]/.test(result)) {
-    result = result.replace(UNCLOSED_SCENARIO_LINE_RE, "");
-  }
-  return result;
+  return stripUnclosedMarkerPrefixOnLine(
+    stripUnclosedMarkerPrefixOnLine(line, TRPG_CHARACTER_ASSET_MARKER_PREFIX),
+    TRPG_SCENARIO_ASSET_MARKER_PREFIX
+  );
 }
 
 /** Line-local malformed TRPG asset-control fragments. Valid closed markers stay. */
@@ -145,9 +213,11 @@ export function stripMalformedTrpgAssetControlMarkers(text: string): string {
 
 /** Strip TRPG scene-asset control syntax only. Ordinary bracketed prose stays. */
 export function stripTrpgAssetControlMarkers(text: string): string {
-  const withoutClosed = normalizeTrpgAssetControlText(text)
-    .replace(CLOSED_CHARACTER_MARKER_RE, "")
-    .replace(CLOSED_SCENARIO_MARKER_RE, "");
+  const withoutClosed = replaceWithTrpgAssetPattern(
+    replaceWithTrpgAssetPattern(normalizeTrpgAssetControlText(text), CLOSED_SCENARIO_MARKER_RE, ""),
+    CLOSED_CHARACTER_MARKER_RE,
+    ""
+  );
   return collapseTrpgAssetControlWhitespace(stripMalformedTrpgAssetControlMarkers(withoutClosed)).trim();
 }
 
@@ -193,7 +263,7 @@ export function enforceGmSceneAssetMarkers(
   let total = 0;
   let scenarioCount = 0;
 
-  const rewritten = narration.replace(COMBINED_MARKER_RE, (full, characterPayload?: string, scenarioPayload?: string) => {
+  const rewritten = replaceWithTrpgAssetPattern(narration, TRPG_COMBINED_ASSET_MARKER_RE, (full, characterPayload?: string, scenarioPayload?: string) => {
     if (typeof characterPayload === "string") {
       const parsed = parseCharacterAssetMarkerPayload(characterPayload);
       if (!parsed) return "";

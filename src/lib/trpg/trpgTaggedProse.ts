@@ -1,9 +1,11 @@
 import { isWideInlineAsset, type CharacterAsset } from "@/lib/characterAssets";
 import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import {
+  createTrpgCombinedAssetMarkerRegExp,
   gmSceneAssetSeed,
   parseCharacterAssetMarkerPayload,
   selectStableTaggedAsset,
+  stripMalformedTrpgAssetControlMarkers,
   stripTrpgAssetControlMarkers,
   TRPG_CHARACTER_ASSET_MARKER_PREFIX,
 } from "./gmSceneAssets";
@@ -14,21 +16,21 @@ export type TrpgInlineProsePart =
   | { kind: "scenario"; tag: string; asset: CharacterAsset }
   | { kind: "character"; participantId: number; tag: string; asset: CharacterAsset };
 
-const COMBINED_MARKER_RE = /\[캐릭터에셋:\s*([^\]]*)\]|\[태그:\s*([^\]]*)\]/g;
+const TRPG_STREAMING_CHARACTER_MARKER_RE = /^\[캐릭터에셋:[ \t]*[^\]\r\n]*\]$/;
 
 function stripTrailingCharacterAssetCandidate(text: string): string {
   const trimmed = text.trimEnd();
   const openBracket = trimmed.lastIndexOf("[");
   if (openBracket < 0) return text;
   const suffix = trimmed.slice(openBracket);
-  const compact = suffix.replace(/\s+/g, "");
+  const compact = suffix.replace(/[ \t]+/g, "");
   const isMarkerPrefix =
     compact.length > 0 && TRPG_CHARACTER_ASSET_MARKER_PREFIX.startsWith(compact);
   const isPartialOrCompleteMarker =
     compact.startsWith(TRPG_CHARACTER_ASSET_MARKER_PREFIX) &&
-    (compact.indexOf("]") < 0 || /^\[캐릭터에셋:[^\]]*\]$/.test(compact));
+    (compact.indexOf("]") < 0 || TRPG_STREAMING_CHARACTER_MARKER_RE.test(compact));
   if (!isMarkerPrefix && !isPartialOrCompleteMarker) return text;
-  if (/^\[캐릭터에셋:[^\]]+\]$/.test(compact)) return text;
+  if (/^\[캐릭터에셋:[ \t]*[^\]\r\n]+\]$/.test(compact)) return text;
   return trimmed.slice(0, openBracket).trimEnd();
 }
 
@@ -46,9 +48,11 @@ export function splitTrpgGmProseForAssets(
     streaming?: boolean;
   }
 ): TrpgInlineProsePart[] {
-  const source = opts.streaming ? stripTrailingTrpgAssetMarkers(text) : text;
+  const source = stripMalformedTrpgAssetControlMarkers(
+    opts.streaming ? stripTrailingTrpgAssetMarkers(text) : text
+  );
   const parts: TrpgInlineProsePart[] = [];
-  const re = new RegExp(COMBINED_MARKER_RE.source, "g");
+  const re = createTrpgCombinedAssetMarkerRegExp();
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = re.exec(source))) {

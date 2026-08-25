@@ -205,4 +205,99 @@ describe("TRPG malformed asset-marker data preservation", () => {
     assert.match(stripped, /뒤/);
     assert.doesNotMatch(stripped, /\[태그:/);
   });
+
+  it("I malformed scenario marker newline before ordinary bracket prose is line-local", () => {
+    const input = "before\n[태그:\n[내부메모: 유지]\nafter";
+    const display = sanitizeTrpgActionDisplayText(input);
+    assert.doesNotMatch(display, /\[태그:/);
+    assert.match(display, /\[내부메모: 유지\]/);
+    assert.match(display, /before/);
+    assert.match(display, /after/);
+    const gm = enforceGmSceneAssetMarkers(input, gmOpts);
+    assert.doesNotMatch(gm.text, /\[태그:/);
+    assert.match(gm.text, /\[내부메모: 유지\]/);
+    assert.match(gm.text, /after/);
+  });
+
+  it("J malformed character marker newline before ordinary bracket prose is line-local", () => {
+    const input = "before\n[캐릭터에셋:\n[내부메모: 유지]\nafter";
+    const display = sanitizeTrpgActionDisplayText(input);
+    assert.doesNotMatch(display, /캐릭터에셋/);
+    assert.match(display, /\[내부메모: 유지\]/);
+    assert.match(display, /after/);
+    const gm = enforceGmSceneAssetMarkers(input, gmOpts);
+    assert.doesNotMatch(gm.text, /캐릭터에셋/);
+    assert.match(gm.text, /\[내부메모: 유지\]/);
+    assert.match(gm.text, /after/);
+  });
+
+  it("K same-line valid plus malformed scenario marker keeps valid and text", () => {
+    const input = "[태그: 대합실] text [태그: broken";
+    const gm = enforceGmSceneAssetMarkers(input, gmOpts);
+    assert.match(gm.text, /\[태그: 대합실\]/);
+    assert.match(gm.text, /text/);
+    assert.doesNotMatch(gm.text, /broken/);
+    assert.doesNotMatch(gm.text, /\[태그: broken/);
+    assert.equal(gm.kept.some((item) => item.kind === "scenario" && item.tag === "대합실"), true);
+  });
+
+  it("L same-line valid plus malformed character marker keeps valid and text", () => {
+    const input = "[캐릭터에셋: 12|분노] text [캐릭터에셋: broken";
+    const gm = enforceGmSceneAssetMarkers(input, gmOpts);
+    assert.match(gm.text, /\[캐릭터에셋: 12\|분노\]/);
+    assert.match(gm.text, /text/);
+    assert.doesNotMatch(gm.text, /broken/);
+    assert.equal(gm.kept.some((item) => item.kind === "character" && item.tag === "분노"), true);
+  });
+
+  it("M splitTrpgGmProseForAssets does not parse asset markers across newline", () => {
+    const parts = splitTrpgGmProseForAssets("before\n[태그:\n[내부메모: 유지]\nafter", {
+      scenarioAssets: [hall],
+      characterCatalog: catalog,
+      campaignId: 9,
+      roundNumber: 3,
+    });
+    assert.equal(parts.some((part) => part.kind === "scenario" || part.kind === "character"), false);
+    const text = parts.map((part) => (part.kind === "text" ? part.text : "")).join("");
+    assert.match(text, /\[내부메모: 유지\]/);
+    assert.match(text, /after/);
+    assert.doesNotMatch(text, /\[태그:/);
+  });
+
+  it("N server enforce and client split agree on valid and malformed markers", () => {
+    const cases = [
+      "before\n[태그:\n[내부메모: 유지]\nafter",
+      "[태그: 대합실] text [태그: broken",
+      "[캐릭터에셋: 12|분노] text [캐릭터에셋: broken",
+      "앞.\n[캐릭터에셋: 12|분노]\n[태그: 대합실]\n뒤.",
+    ];
+    for (const input of cases) {
+      const enforced = enforceGmSceneAssetMarkers(input, gmOpts);
+      const parts = splitTrpgGmProseForAssets(enforced.text, {
+        scenarioAssets: [hall],
+        characterCatalog: catalog,
+        campaignId: 9,
+        roundNumber: 3,
+      });
+      const scenarioTags = parts
+        .filter((part) => part.kind === "scenario")
+        .map((part) => (part.kind === "scenario" ? part.tag : ""));
+      const characterTags = parts
+        .filter((part) => part.kind === "character")
+        .map((part) => (part.kind === "character" ? `${part.participantId}|${part.tag}` : ""));
+      assert.deepEqual(
+        scenarioTags,
+        enforced.kept.filter((item) => item.kind === "scenario").map((item) => item.tag)
+      );
+      assert.deepEqual(
+        characterTags,
+        enforced.kept
+          .filter((item) => item.kind === "character")
+          .map((item) => `${item.participantId}|${item.tag}`)
+      );
+      const visible = parts.map((part) => (part.kind === "text" ? part.text : "")).join("");
+      assert.doesNotMatch(visible, /\[태그: broken/);
+      assert.doesNotMatch(visible, /캐릭터에셋: broken/);
+    }
+  });
 });
