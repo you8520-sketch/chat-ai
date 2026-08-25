@@ -93,15 +93,19 @@ describe("TRPG presentation reveal integration", () => {
   const named = readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
 
   it("uses reveal completion instead of fixed 700ms actor-action timeout", () => {
-    assert.match(room, /activeActorRevealComplete/);
+    assert.match(room, /ActorRevealReport/);
+    assert.match(room, /resolveEffectiveActorRevealComplete/);
+    assert.match(room, /effectiveActorRevealComplete/);
     assert.match(room, /handleActiveActorRevealChange/);
     assert.match(room, /onActiveActorRevealChange/);
+    assert.match(room, /participantId: action\.participantId/);
     assert.match(room, /hiddenCatchUpActive/);
     assert.match(room, /skipDecorativeReveal/);
     assert.match(room, /catchUpHiddenPresentationState/);
     assert.match(named, /onRevealChange/);
     assert.doesNotMatch(room, /ROUND_ACTION_REVEAL_MS/);
     assert.doesNotMatch(room, /setTimeout\([\s\S]{0,200}advanceAfterActorAction/);
+    assert.doesNotMatch(room, /activeActorRevealComplete/);
   });
 
   it("1: AI1 reveal incomplete keeps AI1 visible and hides GM", () => {
