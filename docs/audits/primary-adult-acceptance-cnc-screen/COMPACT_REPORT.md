@@ -78,6 +78,27 @@ This live call did not produce a native refusal signal.
 | Gemini 3.1 standard adult T3 | **PROVEN previously by #620 — NO NEW CALL** |
 | Old Gemini 3.1 / 3.7 coercive-policy probes | **HISTORICAL_ONLY** · **NOT_VALID_CNC_ROUTING_EVIDENCE** |
 
+## OpenRouter provider-control addendum
+
+See `OPENROUTER_CONTROL_ADDENDUM.md`. `TOTAL_NEW_PROVIDER_CALLS=2`.
+
+| Model | Provider | Result | Refusal signal | Chars | Latency | Cost |
+|-------|----------|--------|----------------|------:|--------:|-----:|
+| Gemini 3.7 | OpenRouter | COMPLIED | none | 3904 | 41635 ms | $0.008832825 |
+| Opus 5 | OpenRouter | COMPLIED | none | 3610 | 85199 ms | $0.22522375 |
+
+Updated screening (Gemini 3.1 unchanged from above):
+
+```
+GEMINI37_VALID_CNC_CAPABILITY=PASS
+OPUS5_VALID_CNC_CAPABILITY=PASS
+GEMINI37_FALLBACK_CANDIDATE_CAPABILITY=PASS
+OPUS5_FALLBACK_VALUE_SIGNAL=LOWER_BUT_NOT_ZERO
+OPUS_TO_GEMINI37_BENCHMARK_WARRANTED=false
+```
+
+#637 CheaperInference 502s were transport confounds, not model refusals.
+
 ## Stop
 
 No repeat sampling. Human/ChatGPT review next.

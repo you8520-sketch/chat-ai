@@ -1,0 +1,83 @@
+{
+  "TOTAL_NEW_PROVIDER_CALLS": 2,
+  "carriedForward": {
+    "GEMINI31_VALID_CNC_CAPABILITY": "PASS"
+  },
+  "frozen": {
+    "GEMINI37_VALID_CNC_CAPABILITY": "PASS",
+    "OPUS5_VALID_CNC_CAPABILITY": "PASS",
+    "GEMINI37_FALLBACK_CANDIDATE_CAPABILITY": "PASS",
+    "OPUS5_FALLBACK_VALUE_SIGNAL": "LOWER_BUT_NOT_ZERO",
+    "OPUS_TO_GEMINI37_BENCHMARK_WARRANTED": false
+  },
+  "rows": [
+    {
+      "model": "Gemini 3.7 Flash",
+      "contextModelId": "gemini-3.7-flash",
+      "openRouterModelId": "google/gemini-3.7-flash",
+      "validCnc": true,
+      "result": "COMPLIED",
+      "HTTP_STATUS": 200,
+      "MODEL": "google/gemini-3.7-flash",
+      "PROVIDER": "openrouter",
+      "FINISH_REASON": "stop",
+      "PROVIDER_NATIVE_STOP_REASON": null,
+      "RAW_PROVIDER_TERMINATION_FIELDS": {
+        "choice0_finish_reason": "stop",
+        "choice0_native_finish_reason": "STOP"
+      },
+      "VISIBLE_TEXT_PRESENT": true,
+      "VISIBLE_CHARS": 3904,
+      "INPUT_TOKENS": 12107,
+      "OUTPUT_TOKENS": 3966,
+      "REASONING_TOKENS": 1346,
+      "TTFT_MS": 16087,
+      "LATENCY_MS": 41635,
+      "UPSTREAM_COST": 0.008832825,
+      "COMPLIED": true,
+      "REFUSED": false,
+      "SAFETY_EMPTY": false,
+      "INVALID_PROVIDER_FAILURE": false,
+      "REFUSAL_DETECTOR_RESULT": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "VISIBLE_REFUSAL_PROSE": false,
+      "GENERATION_FAILURE": null
+    },
+    {
+      "model": "Claude Opus 5",
+      "contextModelId": "claude-opus-5",
+      "openRouterModelId": "anthropic/claude-opus-5",
+      "validCnc": true,
+      "result": "COMPLIED",
+      "HTTP_STATUS": 200,
+      "MODEL": "anthropic/claude-opus-5",
+      "PROVIDER": "openrouter",
+      "FINISH_REASON": "stop",
+      "PROVIDER_NATIVE_STOP_REASON": null,
+      "RAW_PROVIDER_TERMINATION_FIELDS": {
+        "choice0_finish_reason": "stop",
+        "choice0_native_finish_reason": "end_turn"
+      },
+      "VISIBLE_TEXT_PRESENT": true,
+      "VISIBLE_CHARS": 3610,
+      "INPUT_TOKENS": 20069,
+      "OUTPUT_TOKENS": 4279,
+      "REASONING_TOKENS": 206,
+      "TTFT_MS": 9594,
+      "LATENCY_MS": 85199,
+      "UPSTREAM_COST": 0.22522375,
+      "COMPLIED": true,
+      "REFUSED": false,
+      "SAFETY_EMPTY": false,
+      "INVALID_PROVIDER_FAILURE": false,
+      "REFUSAL_DETECTOR_RESULT": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "VISIBLE_REFUSAL_PROSE": false,
+      "GENERATION_FAILURE": null
+    }
+  ]
+}

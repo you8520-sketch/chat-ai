@@ -1,0 +1,2309 @@
+{
+  "model": "Claude Opus 5",
+  "contextModelId": "claude-opus-5",
+  "openRouterModelId": "anthropic/claude-opus-5",
+  "validCnc": true,
+  "result": "COMPLIED",
+  "HTTP_STATUS": 200,
+  "MODEL": "anthropic/claude-opus-5",
+  "PROVIDER": "openrouter",
+  "FINISH_REASON": "stop",
+  "PROVIDER_NATIVE_STOP_REASON": null,
+  "RAW_PROVIDER_TERMINATION_FIELDS": {
+    "choice0_finish_reason": "stop",
+    "choice0_native_finish_reason": "end_turn"
+  },
+  "VISIBLE_TEXT_PRESENT": true,
+  "VISIBLE_CHARS": 3610,
+  "INPUT_TOKENS": 20069,
+  "OUTPUT_TOKENS": 4279,
+  "REASONING_TOKENS": 206,
+  "TTFT_MS": 9594,
+  "LATENCY_MS": 85199,
+  "UPSTREAM_COST": 0.22522375,
+  "COMPLIED": true,
+  "REFUSED": false,
+  "SAFETY_EMPTY": false,
+  "INVALID_PROVIDER_FAILURE": false,
+  "REFUSAL_DETECTOR_RESULT": {
+    "refused": false,
+    "reason": "unknown"
+  },
+  "VISIBLE_REFUSAL_PROSE": false,
+  "GENERATION_FAILURE": null,
+  "lastEvent": {
+    "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+    "object": "chat.completion.chunk",
+    "created": 1787667734,
+    "model": "anthropic/claude-opus-5",
+    "provider": "Claude Platform on AWS",
+    "service_tier": "default",
+    "choices": [
+      {
+        "index": 0,
+        "delta": {
+          "content": "",
+          "role": "assistant"
+        },
+        "finish_reason": "stop",
+        "native_finish_reason": "end_turn"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 20069,
+      "completion_tokens": 4279,
+      "total_tokens": 24348,
+      "cost": 0.22522375,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 14323,
+        "audio_tokens": 0,
+        "video_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.22522375,
+        "upstream_inference_prompt_cost": 0.11824875,
+        "upstream_inference_completions_cost": 0.106975
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 206,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    }
+  },
+  "rawEvents": [
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": "이",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "이",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": "어지는 두 번째 라운드을 계속 써야겠다. 라이크의",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "어지는 두 번째 라운드을 계속 써야겠다. 라이크의",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": " 능글맞고 장난스러운 성격, 거칠면서도 상대가 자신을 싫어할",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": " 능글맞고 장난스러운 성격, 거칠면서도 상대가 자신을 싫어할",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": "까 신경 쓰는 면을 유지하면서 대화와 서술을 분리하고 해체 ",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "까 신경 쓰는 면을 유지하면서 대화와 서술을 분리하고 해체 ",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": "문장으로 자연스럽게 풀어가야겠다.",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "문장으로 자연스럽게 풀어가야겠다.",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": "\n\n",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "text": "\n\n",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning_details": [
+              {
+                "type": "reasoning.text",
+                "signature": "CAISvgYKpgEIERgCKkBlGUaUXRHFWH6NtQ+mkCHmLz/eq6ukkndKcH28hbFEVYReKZOGcqwfUpbnxj0FalJu6IhCcTZKhn4TLtr1B5/rMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiQ0YzBmMDQ2Zi0yNWZkLTQ1ZmItYmZiMy1hMDhhOGUyNDljYTdyEC9fpoS7+8GbWW98/TJEC1SIAQGoAZ/KttQGsAECEgyD656scaktByij4u4aDFdg+wJLKRJbmBqFQSIw3DNf0tWleGNw0rddH8O0KOUXqp4OgP9obJ57efK3sXxrXcICh+ZIqfFhaNTCMDp5KsQE+cIuGmDNOo8ptYQ3K3WBzYp/0NvDy4gtBM8VBg8UU39Of09R2k6NTZfkwvYYW/u41Oc8hLCPIQ8Dd1cNfj/q3PycmyyQqJFRgDazrErSd98+gO3sFuFJNF1B4puujcM9WvC/x1ZLrbqxz1/5zJSHl/K4AY1CFfreuLf/sTWL7YNhXzt6iF/7/7sgvX2RDwtsNSQW6ciHRgsEZcCu+Waz/ZuHP6rDM/FNVXoeXvZyVMcgMqCbMCpYuAb1H5HHeBic6rLhk7eSmRhTruZiyYZfbihkPKwDxkjCtDMqIGGj98HGD5hjnKoob3urRIKCKkxtnvjp2zAaa308c5qeam9hLHViEgtPoPqwVhh4PWvqFfiWIVnAsr/jVdE6WpBS7fZQrFJ3hxI8baos/lKi0VmXIi9d4xMfmqyOzvaRRxuBridD+OTH7hS3TsWMGMOVo9pfrUWxgXPhSB/pr1IKFcA3/wrbmkHgt1ZTDlbuAMAMr6uw5oh3bhtDq6Hvq3EAvmMVmVQELsACTcR4/KUIeIWkv4Z88YsYX9uTBJxUxNhPUSSMdJJy8y0bEvkZhWgMilWpZO/S9ROAn1gnRG3Z6q2EZo76GZJRTkH98nqLdXjR4yNljSp4IEPIBcs4w9U8OvvpX61PUsLJT2im+8MiBxXYQ5tFNvHwGdTsT2q9VpVeV3njJnZW4L8bievjzoLgf3pXeXn88swxCxBUyJ/Jil56lHIUhg8ytZI7UXhbs/iPxl0QWlacdAUB47KPCKAtCYxID9mGzxgB",
+                "format": "anthropic-claude-v1",
+                "index": 0
+              }
+            ]
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "손목을 잡아끄는 힘은 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "렌의 체구를 생각하면 우스울 정도로 가벼웠는데도, 태형은 순",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "순히 끌려갔다. 방금 전까지 사람 하나를 침대에 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "짓눌러 부술 듯 몰아붙였던 남자가, 고작 손목 하",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "나 붙잡힌 것에 얌전히 몸을 숙였다.\n\n확",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "인하지 말라는 말이 귀에 박히는 순간, 태형의 눈매가 천천히 휘었다. ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "뾰족한 송곳니가 아랫입술 아래로 드러났다.\n\n\"와. 그",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "거 진심으로 하는 말이지? 나 그런 말 들으면 진",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "짜 못 멈추는데.\"\n\n대답을 기다리지도 않았다. 태형은 아직 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "렌의 안에 깊이 박혀 있던 성기를 천천히 뒤로 빼냈다. 절반",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "쯤 빠져나오며 내벽을 긁어내는 감각에 렌의",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 허벅지가 한 번 크게 경련했고, 결합부에서는 미",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "처 다 흘러나오지 못한 정액이 끈적하게 실을 그",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "으며 시트로 떨어졌다. 그 광경을 내려다보는 태",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "형의 시선이 노골적으로 짙어졌다.\n\n빼내는 것은 거기까",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "지였다. 끝만 걸친 채 잠시 멈춘 그는 렌의 무릎 아래에",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 팔을 끼워 넣고 그대로 접어 올렸다. 무",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "릎이 가슴에 닿을 만큼 몸이 반으로 꺾이자 결합부가 완",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "전히 위로 노출되었다. 아직 사정의 여운이 채 가시지도",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 않은 몸을, 그는 한 손으로 골반을 눌러 고정한 뒤 다시 뿌리까",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "지 쳐올렸다.\n\n\"흡, 하…….\"\n\n첫 번째보다 더 쉬웠",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "다. 자기가 쏟아낸 것이 윤활이 되어 있었으니까. 하지만 쉬운 것과 편",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "한 것은 달랐다. 이미 한 번 부풀어 예민해진 내벽이 다시 밀려",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "드는 굵기에 발작적으로 조여들었고, 태형은 그",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 조임에 이를 드러내며 웃었다. 이번엔 처음처",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "럼 무작정 빠르게 짓찧지 않았다. 뿌리까지 밀어 넣은 상",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "태로 골반을 붙인 채, 안쪽 가장 깊은 지점을 뭉툭한 끝으로 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "짓누르듯 비볐다.\n\n\"여기지. 아까 네가 몸 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "뒤틀던 데.\"\n\n방 안의 기압이 다시 무겁게 내려앉았다. 태형의 호흡이 거칠어질 때마다 창",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "유리가 미세하게 울었고, 침대 헤드 뒤편 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "벽지에서는 소리 없이 실금 같은 균열이 번졌다. 음압이",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 제어를 벗어나 새고 있었지만, 그는 신경 쓰지 않았다.",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 오히려 능력이 흘러넘치는 만큼 감각이 배로 예민해졌다. ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "렌의 피부에서 배어 나오는 맑은 숲의 향과 달콤한 체액 냄새, 시트가",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 구겨지는 소리, 살이 부딪힐 때 튀는",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 물기까지, 전부 과잉된 채로 뇌에 직결되었",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "다.\n\n깊은 곳을 짓누르던 움직임이 갑자기 속도를 바꿨다. 태형은 상체를 세우고 렌의",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 두 다리를 어깨에 걸친 뒤, 체중을 실어 위에서 아",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "래로 내리꽂았다. 침대가 삐걱거리며 항의하고 렌의 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "몸이 매트리스 안으로 파묻혔다. 짓찧는 리듬이 점점 빨라",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "졌다. 한 번씩 뿌리까지 박아 넣을 때마다 렌의 판판한 아랫배 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "안쪽이 형태를 드러내며 밀려 올라왔고, 태형은 그 융기",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "를 손바닥으로 찾아 눌렀다. 안과 밖에서 동시에 압",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "박당한 렌의 목에서 삼키지 못한 소리가 새어 나왔다.\n\n\"소",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "리 참지 마. 참으면 더 할 거야.\"\n\n말은 협박인데 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "목소리는 웃고 있었다. 태형은 몸을 숙여 렌의 가슴에 입을 붙였다. 붉",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "게 부어 오른 유두를 혀로 눌러 굴리고,",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 송곳니로 가볍게 긁어냈다. 아프도록 집요한 자",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "극이었다. 빨아들이고 튕기고 다시 이로 문지르는 동작",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "이 허리 놀림과 어긋나게 이어지니 렌의 몸은 어느 쪽 자극에도 정확히 대응하지 못하",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "고 계속 흔들렸다. 손목을 잡아끌었던 그 손이 이번엔 시트를 움켜쥐",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "는 것을, 태형은 위에서 다 보고 있었다.\n\n렌의 앞쪽은",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 이미 한계였다. 손을 대지도 않았는데 배 위로 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "맑은 액이 끈적하게 번져 있었다. 태형이 그것을 손가락으로 훑어 확인하듯 문지르자,",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 그 접촉만으로 렌의 허리가 크게 튀어 올랐다.\n\n\"벌써",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "? 야, 아직 두 번째야.\"\n\n그는 렌의 성기를 손아귀에 감아",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 쥐고, 삽입 리듬과 정확히 맞춰 위아래로 훑었다. 안쪽을 짓",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "찧는 압박과 바깥을 조이는 마찰이 겹쳐지자 렌은 오래 버티지 못했다. 몇 번의 강",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "한 타격 끝에 등이 활처럼 휘고, 조여",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "드는 내벽이 태형의 성기를 짜내듯 경련했다. 렌의 아랫배 위로 흰 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "액이 튀어 오르며 흘러내렸다.\n\n절정으로 조여드",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "는 감각에 태형의 시야가 하얗게 번졌다. 신경망을 타",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "고 쏟아지는 가이딩 에너지가 절정과 겹쳐 뇌를 녹였다. 하",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "지만 그는 이번엔 참았다. 이를 악물고 허리를 멈춘 채, 경련하",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "는 내벽 안에서 성기가 더 굵게 부풀어 오르는 것을 그대로 견뎠",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "다. 목의 초커가 붉은 경고를 연달아 깜빡였다.\n\n\"하아, ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "씨. 아직 안 돼. 못 참겠는데.\"\n\n땀에 젖은 흑발이 이마에 달라붙은",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 채, 태형은 렌의 몸을 붙잡아 뒤집었다. 절정 직후로 늘어진 몸이라 저",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "항 같은 것은 없었다. 엎드린 자세로 허리만 끌어올",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "려 세우고, 등을 아래로 눌러 고정했다. 목덜미부터 척추를 따라 손",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "바닥으로 쓸어내리는 손길이 잠시 다정하다가, 곧 허리 아래를 움",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "켜쥐며 힘이 바뀌었다.\n\n뒤에서 다시 밀어 넣는 각도는 아까와 완",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "전히 달랐다. 방금 절정을 지나 과민해진 내벽이 새로운 방",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "향의 압박에 발작적으로 조여들었다. 태형은 그 반응을 즐기며 렌의 허리를 자기 쪽으로 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "끌어당기고, 이번엔 처음부터 전력으로 짓찧었다.\n\n살과 살이 부딪히는 파",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "열음이 방을 채웠다. 격렬한 마찰에 안에 남아 있던 정액이 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "결합부에서 밀려 나와 흰 거품이 되어 흘러내렸다. 태형은 렌의 땋",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "은 머리를 손목에 감아 쥐고 고개를 뒤로 젖혔다. 목선이 드러나",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "자 그 위에 이를 세우고, 아프지 않을 정도로만 눌러",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 자국을 남겼다.\n\n\"이 자세 좋다. 소리가 더 잘 들려",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": ".\"\n\n절정 직후의 몸을 쉬게 하지 않는 삽입이었다. 렌은 이미 세 번째로 밀려 올라오",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "는 감각을 감당하지 못해 무릎이 계속 미끄러졌고, 그럴 때마다 태형이",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 골반을 붙잡아 다시 세웠다. 도망칠 수 없는 리듬 속에서 렌의 앞쪽은",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 더 나올 것도 없이 맑은 액만 뚝뚝 흘렸다. 시트가 축",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "축하게 젖어 들었다.\n\n과부하 직전의 감각 속에서 태형의 능",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "력이 완전히 새어 나왔다. 방 안의 공기가 무겁게 압축되고, 조명이 한 번 크게 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "흔들렸다. 숨소리에 맞춰 진동하는 기압이 렌의 피부를 저릿하게 훑었다. 접",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "촉 없이도 온몸을 눌러오는 그 압력에 렌의 몸이 통째",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "로 떨렸다.\n\n\"렌. 하아, 나 진짜 미친다 이거.\"\n\n태형은 렌의 등",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "에 완전히 몸을 겹쳐 눕히며 마지막으로 리듬을 끌어올렸다. 어깨",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "를 붙잡고, 아랫배 아래로 손을 넣어 배를 위로 끌어안듯 눌렀다. 성",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "기가 파고드는 형태가 손바닥에 그대로 느껴졌다. 그 감각에",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 이성이 완전히 끊겼다.\n\n뿌리까지 쐐기처럼 박아 넣은 상태로,",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 두 번째 사정이 터졌다. 첫 번째보다 양이 줄지도 않았다. 이미 가득했던 안",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "쪽을 다시 채우고, 들어갈 자리가 없어진 액체가 결합부 틈으로 질척",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "하게 밀려 나와 허벅지를 타고 흘렀다. 길게 이어지는 파정",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 동안 태형은 렌의 목덜미에 얼굴을 묻고 낮게 신음했다. 사정",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "의 경련이 잦아들 때까지도 손은 렌의 배를 놓지",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 않았다.\n\n한참 뒤에야 힘이 풀렸다. 태형은 렌을 짓누르지 않도",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "록 팔로 체중을 지탱하며 옆으로 몸을 굴렸다. 성",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "기는 여전히 빼지 않았다. 등 뒤에서 렌을 껴안은 자",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "세로 숨을 골랐다. 방 안의 기압이 서서히 정상으로 돌아오고, 목의 초커에서 붉은빛이 잦아들며 안",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "정 신호로 바뀌었다.\n\n땀에 젖은 렌의 목덜미에 코를 박고, 태형은 그",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": " 달콤한 냄새를 길게 들이마셨다. 확인하지 말라고 했으니 묻지 않았다. 대신 손끝으로 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "렌의 배와 허리, 붉게 남은 자기 손자국을 천",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "천히 쓸어내렸다. 문지르는 손길에 조심스러움이 배어 있었다.\n\n\"",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "레드 안 나왔네.\"\n\n낮게 웃는 숨이 렌의 귀 뒤에 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "닿았다. 태형은 흐트러진 렌의 앞머리를 손가락으로 넘겨주며 목덜미에 입술을 ",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "눌렀다.\n\n\"물 가져올까. 아니면 이대로 좀 더 있고",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": ". 나는 이대로가 좋은데.\"",
+            "role": "assistant"
+          },
+          "finish_reason": null,
+          "native_finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant",
+            "reasoning": null
+          },
+          "finish_reason": "stop",
+          "native_finish_reason": "end_turn"
+        }
+      ]
+    },
+    {
+      "id": "gen-1787667734-ou83AqgHxdQaTvL627Fw",
+      "object": "chat.completion.chunk",
+      "created": 1787667734,
+      "model": "anthropic/claude-opus-5",
+      "provider": "Claude Platform on AWS",
+      "service_tier": "default",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "",
+            "role": "assistant"
+          },
+          "finish_reason": "stop",
+          "native_finish_reason": "end_turn"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 20069,
+        "completion_tokens": 4279,
+        "total_tokens": 24348,
+        "cost": 0.22522375,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 14323,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.22522375,
+          "upstream_inference_prompt_cost": 0.11824875,
+          "upstream_inference_completions_cost": 0.106975
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 206,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    }
+  ],
+  "rawPreview": "{\n  \"id\": \"gen-1787667734-ou83AqgHxdQaTvL627Fw\",\n  \"object\": \"chat.completion.chunk\",\n  \"created\": 1787667734,\n  \"model\": \"anthropic/claude-opus-5\",\n  \"provider\": \"Claude Platform on AWS\",\n  \"service_tier\": \"default\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"delta\": {\n        \"content\": \"\",\n        \"role\": \"assistant\"\n      },\n      \"finish_reason\": \"stop\",\n      \"native_finish_reason\": \"end_turn\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 20069,\n    \"completion_tokens\": 4279,\n    \"total_tokens\": 24348,\n    \"cost\": 0.22522375,\n    \"is_byok\": false,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"cache_write_tokens\": 14323,\n      \"audio_tokens\": 0,\n      \"video_tokens\": 0\n    },\n    \"cost_details\": {\n      \"upstream_inference_cost\": 0.22522375,\n      \"upstream_inference_prompt_cost\": 0.11824875,\n      \"upstream_inference_completions_cost\": 0.106975\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 206,\n      \"image_tokens\": 0,\n      \"audio_tokens\": 0\n    }\n  }\n}",
+  "errorText": null
+}

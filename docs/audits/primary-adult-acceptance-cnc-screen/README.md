@@ -46,3 +46,21 @@ See `COMPACT_REPORT.md` and `calls/RESULTS.json`.
 | Opus 5 | true | INVALID_PROVIDER_FAILURE (HTTP 502) | 0 | 637 ms |
 
 `GEMINI31_VALID_CNC_CAPABILITY=PASS`. Gemini 3.7 / Opus 502 are **not** model refusals. No retries.
+
+## OpenRouter provider-control addendum
+
+Resolves Gemini 3.7 / Opus 502 inconclusives via exactly 2 OpenRouter calls (no Gemini 3.1 repeat).
+
+See `OPENROUTER_CONTROL_ADDENDUM.md` and `calls/openrouter-control/RESULTS.json`.
+
+```bash
+node --conditions=react-server --import tsx \
+  docs/audits/primary-adult-acceptance-cnc-screen/scripts/run-cnc-screen-openrouter-control.ts --live
+```
+
+| Model | Provider | Result | Chars | Latency |
+|-------|----------|--------|-------|---------|
+| Gemini 3.7 | OpenRouter | COMPLIED | 3904 | 41635 ms |
+| Opus 5 | OpenRouter | COMPLIED | 3610 | 85199 ms |
+
+`GEMINI37_VALID_CNC_CAPABILITY=PASS` · `OPUS5_VALID_CNC_CAPABILITY=PASS`

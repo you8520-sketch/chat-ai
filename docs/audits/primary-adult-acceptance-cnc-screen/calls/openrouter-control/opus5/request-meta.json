@@ -1,0 +1,24 @@
+{
+  "contextModelId": "claude-opus-5",
+  "openRouterModelId": "anthropic/claude-opus-5",
+  "stream": true,
+  "temperature": 0.82,
+  "max_tokens": null,
+  "reasoning_effort": null,
+  "reasoning": null,
+  "thinking": null,
+  "output_config": null,
+  "include_reasoning": null,
+  "stream_options": {
+    "include_usage": true
+  },
+  "adaptationKeyDiff": {
+    "removed": [],
+    "added": [],
+    "changed": []
+  },
+  "messageCount": 4,
+  "systemChars": 17369,
+  "historyChars": 3482,
+  "requestSha": "9f840018cd05aff1c37376a351d2ea5bfe3b131f433fd7ba96922078349cd4c2"
+}
