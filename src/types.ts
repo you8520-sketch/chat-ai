@@ -258,6 +258,12 @@ export type ContextBuildInput = {
    * second time.
    */
   preserveAdultHandoffRawHistory?: boolean;
+  /**
+   * Adult refusal handoff only (non-DeepSeek source → DeepSeek0813 fallback):
+   * skip DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY on the current user turn.
+   * Native/user-selected DeepSeek must leave this false.
+   */
+  suppressDeepSeekStyleReminderForAdultHandoff?: boolean;
   /** Existing bounded adult selector가 실제 보장한 complete exchange floor. */
   adultHandoffRequiredTurnFloor?: number;
   /** Canon injection policy — D1/D2 actual branches gated by this (DeepSeek canary only). */

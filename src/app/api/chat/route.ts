@@ -2333,6 +2333,7 @@ export async function POST(req: Request) {
         longTermMemory: fallbackMemoryInjection.text,
         archiveMemory: fallbackMemoryInjection.archiveText,
         preserveAdultHandoffRawHistory: true,
+        suppressDeepSeekStyleReminderForAdultHandoff: true,
         adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
         canonInjectionPolicy: fallbackCanonPolicy,
       })
@@ -2370,6 +2371,7 @@ export async function POST(req: Request) {
               longTermMemory: reconciledMemory.text,
               archiveMemory: reconciledMemory.archiveText,
               preserveAdultHandoffRawHistory: true,
+              suppressDeepSeekStyleReminderForAdultHandoff: true,
               adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
               canonInjectionPolicy: fallbackCanonPolicy,
               suppressMemoryCoverageDegradedLog: true,
