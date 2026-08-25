@@ -296,9 +296,15 @@ export type GenerationFailureReason =
 const GENERATION_FAILURE_USER_MESSAGE =
   "AI가 묘사 수위 조절에 실패하여 생성이 중단되었습니다. 대화 방향을 살짝 바꿔서 다시 시도해 주세요.";
 
+const PROVIDER_ERROR_USER_MESSAGE =
+  "AI 응답 생성 중 오류가 발생해 응답을 저장하지 않았습니다. 포인트는 차감되지 않았습니다. 다시 시도해 주세요.";
+
 export function generationFailureUserMessage(reason?: GenerationFailureReason | null): string {
   if (reason === "under_length") {
     return "AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.";
+  }
+  if (reason === "provider_error") {
+    return PROVIDER_ERROR_USER_MESSAGE;
   }
   return GENERATION_FAILURE_USER_MESSAGE;
 }

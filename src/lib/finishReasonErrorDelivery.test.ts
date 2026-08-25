@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   detectAdultGenerationFailure,
+  generationFailureUserMessage,
   isCatastrophicallyShortResponse,
 } from "@/lib/responseLength";
 import { shouldWaiveTurnBilling } from "@/lib/points";
@@ -93,5 +94,15 @@ describe("finish_reason=error delivery integrity", () => {
 
   it("finish_reason=length + non-empty body — success path unchanged when above catastrophic floor", () => {
     assert.equal(detectAdultGenerationFailure("length", healthyShortProse, 3500), null);
+  });
+
+  it("generationFailureUserMessage(provider_error) — provider stream failure copy", () => {
+    const message = generationFailureUserMessage("provider_error");
+    assert.match(message, /저장하지 않았습니다/);
+    assert.match(message, /포인트는 차감되지 않았습니다/);
+    assert.doesNotMatch(message, /묘사 수위/);
+    assert.doesNotMatch(message, /검열/);
+    assert.doesNotMatch(message, /안전 정책/);
+    assert.doesNotMatch(message, /콘텐츠 필터/);
   });
 });
