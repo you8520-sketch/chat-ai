@@ -238,10 +238,10 @@ describe("TRPG live follow owner", () => {
 
   it("O: persisted GM N remains complete after snap advances to N+1", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /trackedFreshGmRoundRef/);
-    assert.match(room, /\[freshGmRow\?\.roundNumber\]/);
-    assert.doesNotMatch(room, /setGmRevealComplete\(false\)[\s\S]{0,120}\[snap\.round\.number\]/);
-    assert.doesNotMatch(room, /}, \[snap\.round\.number\]\);[\s\S]{0,80}setGmRevealComplete\(false\)/);
+    assert.match(room, /gmRevealReport/);
+    assert.match(room, /resolveEffectiveGmRevealComplete/);
+    assert.doesNotMatch(room, /\[snap\.round\.number\][\s\S]{0,120}setGmRevealComplete\(false\)/);
+    assert.doesNotMatch(room, /trackedFreshGmRoundRef/);
 
     const persistedGmRound = 3;
     const snapRoundAfterAdvance = persistedGmRound + 1;
@@ -255,6 +255,13 @@ describe("TRPG live follow owner", () => {
     assert.equal(live?.roundNumber, persistedGmRound);
     assert.notEqual(live?.roundNumber, snapRoundAfterAdvance);
     assert.equal(
+      resolveEffectiveGmRevealComplete({
+        freshGmRound: persistedGmRound,
+        report: { roundNumber: persistedGmRound, complete: true, progressive: false },
+      }),
+      true
+    );
+    assert.equal(
       resolveTrpgLiveFollowOwner({
         cinematicMotion: true,
         freshGmRound: persistedGmRound,
@@ -265,10 +272,21 @@ describe("TRPG live follow owner", () => {
     );
   });
 
-  it("P: new fresh GM session resets incomplete reveal state", () => {
+  it("P: new fresh GM session ignores stale tagged completion until child reports", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /trackedFreshGmRoundRef\.current === nextFreshGmRound/);
-    assert.match(room, /setGmRevealComplete\(false\)/);
+    assert.match(room, /GmRevealReport/);
+    assert.match(room, /gmRevealReport/);
+    assert.match(room, /roundNumber: row\.roundNumber/);
+    assert.doesNotMatch(room, /\[freshGmRow\?\.roundNumber\][\s\S]{0,200}setGmRevealComplete\(false\)/);
+    assert.doesNotMatch(room, /trackedFreshGmRoundRef/);
+
+    assert.equal(
+      resolveEffectiveGmRevealComplete({
+        freshGmRound: 5,
+        report: { roundNumber: 4, complete: true, progressive: false },
+      }),
+      false
+    );
   });
 
   it("Q: active presentation card ref follows current presentation round, not liveFollowRound", () => {
@@ -284,12 +302,11 @@ describe("TRPG live follow owner", () => {
     );
   });
 
-  it("U: new fresh GM round is incomplete on first render before tracked session sync", () => {
+  it("U: new fresh GM round is incomplete on first render before child reports", () => {
     assert.equal(
       resolveEffectiveGmRevealComplete({
         freshGmRound: 4,
-        trackedRevealRound: 3,
-        gmRevealComplete: true,
+        report: { roundNumber: 3, complete: true, progressive: false },
       }),
       false
     );

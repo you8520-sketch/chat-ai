@@ -148,15 +148,20 @@ export function shouldShowTrpgReplySuggestions(opts: {
   return opts.hasSuggestions || opts.hasSuggestionsError;
 }
 
-/** Session-scoped GM reveal completion safe on the first render of a new fresh GM row. */
+export type GmRevealReport = {
+  roundNumber: number | null;
+  complete: boolean;
+  progressive?: boolean;
+};
+
+/** Session-scoped GM reveal completion keyed to the reporting row. */
 export function resolveEffectiveGmRevealComplete(opts: {
   freshGmRound: number | null;
-  trackedRevealRound: number | null;
-  gmRevealComplete: boolean;
+  report: GmRevealReport | null;
 }): boolean {
   if (opts.freshGmRound == null) return false;
-  if (opts.trackedRevealRound !== opts.freshGmRound) return false;
-  return opts.gmRevealComplete;
+  if (opts.report?.roundNumber !== opts.freshGmRound) return false;
+  return opts.report.complete;
 }
 
 export function hasActiveTextSelection(

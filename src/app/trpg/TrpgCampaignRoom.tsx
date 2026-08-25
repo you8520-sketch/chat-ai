@@ -124,6 +124,7 @@ import {
   resolveEffectiveGmRevealComplete,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
+  type GmRevealReport,
   type TrpgLiveFollowOwner,
 } from "@/lib/trpg/followLatest";
 import {
@@ -339,8 +340,11 @@ export default function TrpgCampaignRoom({
   const liveSceneRef = useRef<HTMLElement | null>(null);
   const currentNarrationRef = useRef("");
   const liveFreshGmRoundRef = useRef<number | null>(null);
-  const trackedFreshGmRoundRef = useRef<number | null>(null);
-  const [gmRevealComplete, setGmRevealComplete] = useState(false);
+  const [gmRevealReport, setGmRevealReport] = useState<GmRevealReport>({
+    roundNumber: null,
+    complete: false,
+    progressive: false,
+  });
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -747,8 +751,7 @@ export default function TrpgCampaignRoom({
       : null;
   const effectiveGmRevealComplete = resolveEffectiveGmRevealComplete({
     freshGmRound: freshGmRow?.roundNumber ?? null,
-    trackedRevealRound: trackedFreshGmRoundRef.current,
-    gmRevealComplete,
+    report: gmRevealReport,
   });
   const liveFollowOwner = resolveTrpgLiveFollowOwner({
     cinematicMotion,
@@ -763,9 +766,12 @@ export default function TrpgCampaignRoom({
     hasSuggestions: suggestions.length > 0,
     hasSuggestionsError: Boolean(suggestionsError),
   });
-  const handleLiveGmRevealChange = useCallback((state: { complete: boolean; progressive: boolean }) => {
-    liveGmRevealStateRef.current = state;
-    setGmRevealComplete(state.complete);
+  const handleLiveGmRevealChange = useCallback((report: GmRevealReport) => {
+    liveGmRevealStateRef.current = {
+      complete: report.complete,
+      progressive: report.progressive ?? false,
+    };
+    setGmRevealReport(report);
   }, []);
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({
@@ -915,17 +921,8 @@ export default function TrpgCampaignRoom({
     seenSceneLenRef.current = 0;
     seenActivityKeyRef.current = "";
     liveGmRevealStateRef.current = { complete: false, progressive: false };
-    trackedFreshGmRoundRef.current = null;
-    setGmRevealComplete(false);
+    setGmRevealReport({ roundNumber: null, complete: false, progressive: false });
   }, [snap.id]);
-
-  useEffect(() => {
-    const nextFreshGmRound = freshGmRow?.roundNumber ?? null;
-    if (trackedFreshGmRoundRef.current === nextFreshGmRound) return;
-    trackedFreshGmRoundRef.current = nextFreshGmRound;
-    liveGmRevealStateRef.current = { complete: false, progressive: false };
-    setGmRevealComplete(false);
-  }, [freshGmRow?.roundNumber]);
 
   useLayoutEffect(() => {
     if (waitingOpening && sceneRows.length === 0) return;
@@ -1784,7 +1781,7 @@ function SceneTurn({
   narrationStartRef?: Ref<HTMLDivElement | null>;
   narrationEndRef?: Ref<HTMLSpanElement | null>;
   liveGmRevealStateRef?: MutableRefObject<{ complete: boolean; progressive: boolean }>;
-  onLiveGmRevealChange?: (state: { complete: boolean; progressive: boolean }) => void;
+  onLiveGmRevealChange?: (report: GmRevealReport) => void;
   activePresentationActorId?: number | null;
   activePresentationCardRef?: Ref<HTMLDivElement | null>;
 }) {
@@ -1803,7 +1800,11 @@ function SceneTurn({
       progressive: gmRevealProgressive,
       complete: gmRevealComplete,
     };
-    onLiveGmRevealChange?.(liveGmRevealStateRef.current);
+    onLiveGmRevealChange?.({
+      roundNumber: row.roundNumber,
+      complete: gmRevealComplete,
+      progressive: gmRevealProgressive,
+    });
   }, [
     gmRevealComplete,
     gmRevealProgressive,
