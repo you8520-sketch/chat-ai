@@ -30,3 +30,9 @@ scripts/tmp-*
 # Playwright UI test artifacts
 test-results/
 playwright-report/
+
+# Handoff benchmark capsule runtime exports (never commit production persona/character contents)
+handoff-benchmark-capsule.json
+handoff-benchmark-capsule*.json
+data/handoff-benchmark-import/
+data/handoff-benchmark-capsule*.json
