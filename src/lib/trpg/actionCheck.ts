@@ -1,5 +1,10 @@
 import type { TrpgActionType } from "./actionTypes";
-import { isSafeRestIntent } from "./mechanicsIntent";
+import {
+  isBasicFirstAidIntent,
+  isCoverFireSupport,
+  isSafeRestIntent,
+  isStatusTreatmentOnly,
+} from "./mechanicsIntent";
 
 /** Party talk, questions, and stage-only speech — no d20. */
 const ASK =
@@ -10,6 +15,15 @@ const CHALLENGE =
   /문을?\s|창문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|방어|집어|던지|부순|연다|민다|뽑는다|베|찌르|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
 const HAZARD = /무너지|잔해|뛰어넘|틈을|포자|수상한|맨손|잠긴/;
 const CONTESTED = /속이|거짓말|협박|위협|설득하려|통과하려|거짓말로|속이려/;
+const TREATMENT = /응급처치|치료|치유|지혈|해독|중독|출혈|마비/;
+const THERAPEUTIC_ITEM = /구급키트|붕대|회복약|해독제|치료제|medkit|bandage|antidote|potion|포션/i;
+const ITEM_USE = /사용|쓴다|꺼낸|바른|먹|투여|바르|사용한다/;
+const HOSTILE_OR_PRECISION_APPLICATION =
+  /억지로|강제로|정밀|조준|위험|폭발|저항하는|(?:적|형체|상대|목표)(?:에게|을|를)?.{0,16}(?:투여|주입|던(?:지|져|진))/;
+const HAZARDOUS_OFFENSIVE_ITEM =
+  /조준|억지로|잠긴|정밀|위험|폭발|맨손|포자|(?:적|형체|상대|목표)(?:에게|을|를)?.{0,12}던(?:지|져|진)|던(?:지|져|진)\s*(?:공격|맞)/;
+const ORDINARY_PREP =
+  /준비|정비|장전|점검|정리|자세를|숨 고르|숨을 고르|자리를 잡|재배치|한 발 물러|뒤로 빠|옆으로 옮|그쪽으로 간다|다가선|다가가/;
 
 const EXPLICIT_RESOLUTION_TYPES: ReadonlySet<TrpgActionType> = new Set([
   "attack",
@@ -18,6 +32,23 @@ const EXPLICIT_RESOLUTION_TYPES: ReadonlySet<TrpgActionType> = new Set([
   "persuade",
   "stealth",
 ]);
+
+export type TrpgActionCheckReason =
+  | "explicit_resolution"
+  | "challenge"
+  | "hazard"
+  | "contested"
+  | "support_setup"
+  | "ordinary_item_use"
+  | "talk"
+  | "flavor"
+  | "safe_rest"
+  | "ordinary_free";
+
+export type TrpgActionCheckDecision = {
+  needsCheck: boolean;
+  reason: TrpgActionCheckReason;
+};
 
 const HARMLESS_FLAVOR_PHRASES = [
   "벽에 기대 선다",
@@ -76,6 +107,15 @@ export function hasChallengeSignal(body: string): boolean {
   return INVESTIGATION.test(text) || CHALLENGE.test(text) || HAZARD.test(text) || CONTESTED.test(text);
 }
 
+export function classifyChallengeKind(body: string): "challenge" | "hazard" | "contested" | null {
+  const text = normalizeBody(body);
+  if (!text) return null;
+  if (CONTESTED.test(text)) return "contested";
+  if (HAZARD.test(text)) return "hazard";
+  if (INVESTIGATION.test(text) || CHALLENGE.test(text)) return "challenge";
+  return null;
+}
+
 function leftoverAfterFlavor(text: string): string {
   let leftover = text;
   for (const phrase of HARMLESS_FLAVOR_PHRASES) {
@@ -112,19 +152,110 @@ export function isTalkOnlyAction(body: string): boolean {
   return false;
 }
 
+function isHazardousSupport(text: string): boolean {
+  return (
+    isBasicFirstAidIntent(text) ||
+    TREATMENT.test(text) ||
+    isCoverFireSupport(text) ||
+    classifyChallengeKind(text) === "hazard" ||
+    classifyChallengeKind(text) === "contested"
+  );
+}
+
+function isDangerousItemApplication(text: string): boolean {
+  if (HOSTILE_OR_PRECISION_APPLICATION.test(text) || HAZARDOUS_OFFENSIVE_ITEM.test(text)) return true;
+  if (/던(?:지|져|진)/.test(text)) return true;
+  const kind = classifyChallengeKind(text);
+  return kind === "hazard" || kind === "contested";
+}
+
+function isOrdinaryTherapeuticItemUse(text: string): boolean {
+  const normalized = normalizeBody(text);
+  if (!ITEM_USE.test(normalized) || !THERAPEUTIC_ITEM.test(normalized)) return false;
+  return !isDangerousItemApplication(normalized);
+}
+
+function isSkillTreatmentWithoutItem(text: string): boolean {
+  const normalized = normalizeBody(text);
+  if (THERAPEUTIC_ITEM.test(normalized) && ITEM_USE.test(normalized)) return false;
+  return (
+    isBasicFirstAidIntent(normalized) ||
+    isStatusTreatmentOnly(normalized) ||
+    TREATMENT.test(normalized)
+  );
+}
+
+function isHazardousItemUse(text: string): boolean {
+  return isDangerousItemApplication(text);
+}
+
+function isOrdinaryPreparation(text: string): boolean {
+  if (hasChallengeSignal(text)) return false;
+  return ORDINARY_PREP.test(text);
+}
+
+function classificationText(opts: { body: string; intent?: string | null }): string {
+  const intent = (opts.intent ?? "").trim();
+  if (intent) return intent;
+  return opts.body;
+}
+
+export function resolveTrpgActionCheckDecision(opts: {
+  body: string;
+  actionType?: TrpgActionType | null;
+  intent?: string | null;
+}): TrpgActionCheckDecision {
+  const text = classificationText(opts);
+  if (isSafeRestIntent(text) || isSafeRestIntent(opts.body)) {
+    return { needsCheck: false, reason: "safe_rest" };
+  }
+  const actionType = opts.actionType ?? null;
+  if (actionType && EXPLICIT_RESOLUTION_TYPES.has(actionType)) {
+    return { needsCheck: true, reason: "explicit_resolution" };
+  }
+  if (actionType === "support") {
+    if (isHazardousSupport(text)) {
+      const kind = classifyChallengeKind(text);
+      if (kind === "contested") return { needsCheck: true, reason: "contested" };
+      if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
+      return { needsCheck: true, reason: "challenge" };
+    }
+    return { needsCheck: false, reason: "support_setup" };
+  }
+  if (actionType === "use_item") {
+    if (isHazardousItemUse(text)) {
+      const kind = classifyChallengeKind(text);
+      if (kind === "contested") return { needsCheck: true, reason: "contested" };
+      if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
+      return { needsCheck: true, reason: "challenge" };
+    }
+    if (isOrdinaryTherapeuticItemUse(text)) {
+      return { needsCheck: false, reason: "ordinary_item_use" };
+    }
+    if (isSkillTreatmentWithoutItem(text)) {
+      return { needsCheck: true, reason: "challenge" };
+    }
+    return { needsCheck: false, reason: "ordinary_item_use" };
+  }
+
+  const kind = classifyChallengeKind(text);
+  if (kind) return { needsCheck: true, reason: kind };
+  if (isTalkOnlyAction(text) || isTalkOnlyAction(opts.body)) {
+    return { needsCheck: false, reason: "talk" };
+  }
+  if (isHarmlessFlavorAction(text) || isHarmlessFlavorAction(opts.body)) {
+    return { needsCheck: false, reason: "flavor" };
+  }
+  if (isOrdinaryPreparation(text)) {
+    return { needsCheck: false, reason: "ordinary_free" };
+  }
+  return { needsCheck: false, reason: "ordinary_free" };
+}
+
 export function actionNeedsCheck(opts: {
   body: string;
   actionType?: TrpgActionType | null;
+  intent?: string | null;
 }): boolean {
-  // Dedicated server-owned no-check (safe rest) wins before chip category.
-  if (isSafeRestIntent(opts.body)) return false;
-  const actionType = opts.actionType ?? null;
-  // Explicit resolution chips are authoritative: dialogue/flavor cannot skip.
-  if (actionType && EXPLICIT_RESOLUTION_TYPES.has(actionType)) {
-    return true;
-  }
-  if (hasChallengeSignal(opts.body)) return true;
-  if (isTalkOnlyAction(opts.body)) return false;
-  if (isHarmlessFlavorAction(opts.body)) return false;
-  return true;
+  return resolveTrpgActionCheckDecision(opts).needsCheck;
 }

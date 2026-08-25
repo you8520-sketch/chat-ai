@@ -13,7 +13,8 @@ import {
 } from "./economics";
 import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
-import { actionNeedsCheck } from "./actionCheck";
+import { resolveTrpgActionCheckDecision } from "./actionCheck";
+import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
   splitTrpgRoundCost,
@@ -322,7 +323,7 @@ export function hostFillBotAction(
   if (!bot || bot.kind !== "ai_character") throw new Error("AI 캐릭터가 아닙니다.");
   const text = sanitizeBotActionText(opts.body, TRPG_ACTION_MAX_CHARS);
   if (!text) throw new Error("행동을 입력하세요.");
-  upsertLockedAction(db, round.id, bot.id, text, "free", null, "host_fill");
+  upsertLockedAction(db, round.id, bot.id, text, parseTrpgBotAction(text).actionType, null, "host_fill");
 }
 
 function upsertLockedAction(
@@ -612,7 +613,7 @@ async function generateBotActions(
       sanitizeBotActionText(text, TRPG_BOT_ACTION_MAX_CHARS) ||
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
     const body = applyScenarioAssetTagsToTurnText(rawBody, scenarioAssets, usedScenarioTags);
-    upsertLockedAction(db, opts.roundId, bot.id, body, "free", null, "bot_model");
+    upsertLockedAction(db, opts.roundId, bot.id, body, parseTrpgBotAction(body).actionType, null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
     earlier.push({ name: bot.display_name, text: body });
   }
@@ -664,7 +665,19 @@ function persistRolls(
       const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
       const parsed = parseTrpgBotAction(sub.body);
       const checkBody = parsed.intent || parsed.prose || sub.body;
-      if (!actionNeedsCheck({ body: checkBody, actionType })) continue;
+      const decision = resolveTrpgActionCheckDecision({
+        body: parsed.prose || sub.body,
+        actionType,
+        intent: parsed.intent,
+      });
+      if (!decision.needsCheck) {
+        logTrpgMechanicsCheckTelemetry({
+          action_type: actionType,
+          check_required: false,
+          check_reason: decision.reason,
+        });
+        continue;
+      }
       const preHp = pre.hpAfter[String(sub.participant_id)];
       const downed =
         (typeof preHp === "number" && preHp <= 0) ||
@@ -703,6 +716,17 @@ function persistRolls(
         result.dc,
         result.tier
       );
+      logTrpgMechanicsCheckTelemetry({
+        action_type: actionType,
+        check_required: true,
+        check_reason: decision.reason,
+        stat_key: statKey,
+        stat_modifier: statModifier(statRow?.value ?? 5),
+        condition_modifier: conditionModifier,
+        final_score: result.finalScore,
+        dc: result.dc,
+        tier: result.tier,
+      });
     }
     setRoundPhase(db, roundId, "ROLLING");
     const parts = loadParticipants(db, campaignId);
@@ -1266,7 +1290,11 @@ function loadActionsForGm(
   ).map((a) => {
     const actionType = a.action_type && isTrpgActionType(a.action_type) ? a.action_type : "free";
     const parsed = parseTrpgBotAction(a.body);
-    const needsCheck = actionNeedsCheck({ body: parsed.intent || parsed.prose || a.body, actionType });
+    const needsCheck = resolveTrpgActionCheckDecision({
+      body: parsed.prose || a.body,
+      actionType,
+      intent: parsed.intent,
+    }).needsCheck;
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {

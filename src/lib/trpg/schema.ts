@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { migrateLegacyDefaultDiceRules } from "./diceRulesMigration";
 
 /** TRPG tables are additive. Regular chats/messages are unchanged. */
 export function ensureTrpgTables(db: Database.Database): void {
@@ -334,6 +335,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       ON trpg_mechanics_resolutions(campaign_id);
   `);
   migrateTrpgCreatorEarningsUnique(db);
+  migrateLegacyDefaultDiceRules(db);
 }
 
 function tableExists(db: Database.Database, name: string): boolean {

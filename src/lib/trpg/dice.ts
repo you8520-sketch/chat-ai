@@ -113,6 +113,47 @@ export function resolveSuccessTier(
   return applyNatRule(d20, numeric, rules.nat1, rules.nat20);
 }
 
+export type TrpgDiceOutcomeBucket = "FULL_FAILURE" | "PARTIAL" | "SUCCESS_OR_BETTER";
+
+export function bucketTrpgSuccessTier(tier: TrpgSuccessTier): TrpgDiceOutcomeBucket {
+  switch (tier) {
+    case "CRITICAL_FAILURE":
+    case "SEVERE_FAILURE":
+    case "FAILURE":
+      return "FULL_FAILURE";
+    case "PARTIAL_SUCCESS":
+      return "PARTIAL";
+    case "SUCCESS":
+    case "GREAT_SUCCESS":
+    case "CRITICAL_SUCCESS":
+      return "SUCCESS_OR_BETTER";
+    default: {
+      const _never: never = tier;
+      return _never;
+    }
+  }
+}
+
+export function exhaustiveD20Buckets(opts: {
+  modifier: number;
+  rules?: TrpgDiceRules;
+}): Record<TrpgDiceOutcomeBucket, number> {
+  const counts: Record<TrpgDiceOutcomeBucket, number> = {
+    FULL_FAILURE: 0,
+    PARTIAL: 0,
+    SUCCESS_OR_BETTER: 0,
+  };
+  for (let face = 1; face <= 20; face += 1) {
+    const roll = resolveTrpgRoll({
+      d20: face,
+      statModifier: opts.modifier,
+      rules: opts.rules,
+    });
+    counts[bucketTrpgSuccessTier(roll.tier)] += 1;
+  }
+  return counts;
+}
+
 export function resolveTrpgRoll(input: TrpgRollInput): TrpgRollResult {
   const rules = input.rules ?? DEFAULT_TRPG_DICE_RULES;
   const d20 = input.d20;

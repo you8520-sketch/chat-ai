@@ -5,6 +5,7 @@ import {
   hasChallengeSignal,
   isHarmlessFlavorAction,
   isTalkOnlyAction,
+  resolveTrpgActionCheckDecision,
   stripTalkWrappers,
 } from "./actionCheck";
 
@@ -128,9 +129,8 @@ describe("TRPG no-check dialogue and flavor", () => {
     assert.equal(actionNeedsCheck({ body: "조용히 웃으며 잠긴 문을 딴다.", actionType: "free" }), true);
   });
 
-  it("does not treat backend free as an always-no-roll category", () => {
-    assert.equal(actionNeedsCheck({ body: "갑자기 그쪽으로 간다.", actionType: "free" }), true);
-    assert.notEqual(actionNeedsCheck({ body: "갑자기 그쪽으로 간다.", actionType: "free" }), false);
+  it("ordinary free movement resolves without a roll", () => {
+    assert.equal(actionNeedsCheck({ body: "갑자기 그쪽으로 간다.", actionType: "free" }), false);
   });
 
   it("explicit resolution types cannot be skipped by vague or cosmetic prose", () => {
@@ -166,6 +166,118 @@ describe("TRPG no-check dialogue and flavor", () => {
         actionType: "attack",
       }),
       false
+    );
+  });
+});
+
+describe("TRPG M1 roll economy fixtures", () => {
+  it("ordinary dialogue / positioning / preparation skip the check", () => {
+    assert.equal(resolveTrpgActionCheckDecision({ body: "「알겠어.」", actionType: "free" }).reason, "talk");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "벽에 기대 선다.", actionType: "free" }).needsCheck, false);
+    assert.equal(resolveTrpgActionCheckDecision({ body: "자세를 바로잡고 한 발 물러선다.", actionType: "free" }).reason, "ordinary_free");
+  });
+
+  it("explicit attack / investigate / persuade / dangerous defense roll", () => {
+    assert.equal(resolveTrpgActionCheckDecision({ body: "형체를 벤다.", actionType: "attack" }).reason, "explicit_resolution");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "발자국을 살핀다.", actionType: "investigate" }).reason, "explicit_resolution");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "경비병을 설득한다.", actionType: "persuade" }).reason, "explicit_resolution");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "출입구를 가로막는다.", actionType: "defend" }).needsCheck, true);
+  });
+
+  it("contested free action still rolls", () => {
+    const decision = resolveTrpgActionCheckDecision({
+      body: "경비병에게 거짓말로 통과하려 한다.",
+      actionType: "free",
+    });
+    assert.equal(decision.needsCheck, true);
+    assert.equal(decision.reason, "contested");
+  });
+
+  it("ordinary valid item use skips a success check; hazardous item use rolls", () => {
+    assert.deepEqual(
+      resolveTrpgActionCheckDecision({ body: "붕대를 꺼낸다.", actionType: "use_item" }),
+      { needsCheck: false, reason: "ordinary_item_use" }
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "잠긴 문에 공구를 억지로 들이민다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+  });
+
+  it("ordinary support is setup; hazardous contested support rolls", () => {
+    assert.deepEqual(
+      resolveTrpgActionCheckDecision({ body: "렌의 옆을 지키며 뒤를 봐준다.", actionType: "support" }),
+      { needsCheck: false, reason: "support_setup" }
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "엄호 사격으로 진입을 막는다.", actionType: "support" }).needsCheck,
+      true
+    );
+  });
+
+  it("bot INTENT is classified before rich visible prose", () => {
+    const decision = resolveTrpgActionCheckDecision({
+      body: "권태현은 허리의 마체테를  bil며 오래 바라보고 숨을 고른 뒤 옷깃을 정리한다.",
+      intent: "권태현은 렌 앞을 가로막으며 출입구 형체의 진입을 막으려 했다.",
+      actionType: "defend",
+    });
+    assert.equal(decision.reason, "explicit_resolution");
+    assert.equal(decision.needsCheck, true);
+  });
+
+  it("ordinary therapeutic item use skips check; hazardous offensive item use rolls", () => {
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "해독제를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "중독 치료를 위해 해독제를 투여한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "붕대를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "구급키트를 사용한다.", actionType: "use_item" }).needsCheck,
+      false
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "연막탄을 적에게 던진다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "잠긴 문에 공구를 억지로 들이민다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 응급처치한다.", actionType: "support" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 응급처치한다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "상처를 치료한다.", actionType: "use_item" }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "저항하는 적에게 해독제를 억지로 투여한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      true
+    );
+    assert.equal(
+      resolveTrpgActionCheckDecision({
+        body: "움직이는 대상에게 치료제를 정밀하게 주입한다.",
+        actionType: "use_item",
+      }).needsCheck,
+      true
     );
   });
 });
