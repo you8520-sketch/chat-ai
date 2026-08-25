@@ -76,4 +76,61 @@ Phase A passed. Phase C may execute one logical DeepSeek turn.
 
 One logical DeepSeek turn through production `executeDeepSeekWithProviderFailover` (`routeKind=adult_handoff`). Provider failover is infrastructure, not a second generation experiment. No chat row, billing, memory, or route mutation.
 
-H1 MUST NOT EXECUTE.
+| Field | Value |
+| --- | --- |
+| `LOGICAL_DEEPSEEK_TURNS` | 1 |
+| `CI_ATTEMPTED` | true |
+| `CI_HTTP_STATUS` | 200 |
+| `CI_FIRST_VISIBLE_MS` | 4953 |
+| `CI_FAILURE_CLASS` | null |
+| `FAILOVER_TRIGGER` | null |
+| `OPENROUTER_BACKUP_ATTEMPTED` | false |
+| `OPENROUTER_BACKUP_MODEL` | `deepseek/deepseek-v4-pro-0813` |
+| `OPENROUTER_BACKUP_SUCCESS` | false |
+| `TOTAL_PROVIDER_ATTEMPTS` | 1 |
+| `DELIVERED_PROVIDER` | cheaperinference |
+| `PRODUCTION_WOULD_DELIVER_RESPONSE` | true |
+| `DELIVERED_RAW_CHARS` | 4293 |
+| `DELIVERED_FINISH_REASON` | stop |
+| `DELIVERED_USAGE_PRESENT` | true |
+| `DELIVERED_ENDS_COMPLETE_SENTENCE` | true |
+| `DELIVERED_VISIBLE_CHARS` | 4293 |
+| RAW == persisted-equivalent | true |
+
+Usage observed: `prompt_tokens=19510`, `completion_tokens=3398`. Elapsed 96940 ms.
+
+Frozen RAW: `responses/T3-DEEPSEEK-TRUE-PRODUCTION-HANDOFF-RAW.txt`
+
+### Objective metrics (descriptive only, no score)
+
+| Metric | T1 Gemini | T2 Gemini | T3 Gemini GOLD | T3 DeepSeek true-production |
+| --- | ---: | ---: | ---: | ---: |
+| VISIBLE_CHARS | 3473 | 3173 | 2651 | 4293 |
+| PARAGRAPH_COUNT | 22 | 24 | 23 | 32 |
+| DIALOGUE_BLOCKS | 5 | 5 | 5 | 13 |
+| DIALOGUE_BLOCKS_PER_1000_CHARS | 1.440 | 1.576 | 1.886 | 3.028 |
+| DIALOGUE_PARAGRAPH_RATIO | 0.227 | 0.208 | 0.217 | 0.406 |
+| MAX_CONSECUTIVE_DIALOGUE | 1 | 1 | 1 | 1 |
+| MEDIAN_PARAGRAPH_CHARS | 154 | 139 | 108 | 175.5 |
+| MEDIAN_NARRATION_PARAGRAPH_CHARS | 183 | 154 | 136.5 | 214 |
+| MEDIAN_DIALOGUE_PARAGRAPH_CHARS | 85 | 51 | 29 | 14 |
+
+Baselines: `PRIMARY_MEDIAN_VISIBLE_CHARS=3323`, `T3_GEMINI_GOLD_VISIBLE_CHARS=2651`.  
+Ratios: DeepSeek / primary median = 1.2919; DeepSeek / T3 gold = 1.6194.
+
+### Deterministic alarms (candidates only)
+
+| Alarm | Value |
+| --- | --- |
+| META_LEAK | false |
+| EMPTY_OUTPUT | false |
+| NEW_USER_DIALOGUE_CANDIDATE | false |
+| NEW_USER_ACTION_CANDIDATE | false |
+| CANON_CONTRADICTION_CANDIDATE | false |
+| REPETITION_CANDIDATE | false |
+| TURN_ENDING_USER_CHECKPOINT_CANDIDATE | false |
+| REQUESTED_PROGRESSION_COMPLETED | true |
+
+`CONTACT_ACTOR_EXTRACTION_BUG=true`. H1 was not executed.
+
+STOP for Human/ChatGPT RAW review.
