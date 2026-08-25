@@ -107,7 +107,7 @@ describe("TRPG follow-latest scroll", () => {
   it("keeps #598 speed presets while following persisted GM row N after snap.round advances", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
-    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
     assert.match(reveal, /trpgRevealContinueCount/);
     assert.match(reveal, /trpgRevealSessionChanged/);
     assert.match(reveal, /\[text, active, kind, streamIntervalMs\]/);
@@ -148,13 +148,11 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
     assert.match(room, /narrationStartRef=\{row\.roundNumber === liveFollowRound \? narrationStartRef : undefined\}/);
     assert.match(room, /narrationEndRef=\{row\.roundNumber === liveFollowRound \? narrationEndRef : undefined\}/);
-    assert.match(room, /if \(isLiveFreshGmNarration\(\)\) return;/);
-    assert.match(
-      room,
-      /if \(isLiveFreshGmNarration\(\)\) \{\s*if \(!liveGmRevealStateRef\.current\.complete\) \{\s*alignNarrationEnd\("instant"\);\s*\}\s*return;\s*\}/
-    );
-    assert.match(room, /alignNarrationEnd\("instant"\)/);
-    assert.match(room, /followLiveGmNarration\(behavior\)/);
+    assert.match(room, /resolveTrpgLiveFollowOwner/);
+    assert.match(room, /case "GM_NARRATION_END"/);
+    assert.match(room, /alignNarrationEnd\(behavior\)/);
+    assert.match(room, /scrollToFollowOwner\(liveFollowOwner, "instant"\)/);
+    assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
   });
 
   it("settles on the latest scene while preserving manual history browsing", () => {
@@ -165,17 +163,17 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /최신으로/);
     assert.match(room, /bottomRef\.current\.scrollIntoView/);
     assert.match(room, /data-trpg-narration-end/);
-    assert.match(room, /isLiveFreshGmNarration/);
     assert.match(room, /liveFreshGmNarrationRow/);
     assert.match(room, /liveFollowRound/);
+    assert.match(room, /resolveTrpgLiveFollowOwner/);
     assert.match(room, /alignNarrationEnd/);
-    assert.match(room, /useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     assert.match(room, /data-trpg-live-follow-round=\{liveFollowRound\}/);
     assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
     assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
     assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
-    assert.match(room, /if \(isLiveFreshGmNarration\(\)\) return;/);
+    assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
     assert.match(room, /requestAnimationFrame/);
     assert.match(room, /if \(!followLatestRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);

@@ -117,3 +117,65 @@ export function liveFreshGmNarrationRow(opts: {
   }
   return found;
 }
+
+export type TrpgLiveFollowOwner = "CURRENT_ACTOR" | "GM_NARRATION_END" | "NEXT_ACTION" | "NONE";
+
+/** Single resolver for which live element owns auto-follow during a TRPG round. */
+export function resolveTrpgLiveFollowOwner(opts: {
+  cinematicMotion: boolean;
+  freshGmRound: number | null;
+  gmRevealComplete: boolean;
+  nextActionVisible: boolean;
+}): TrpgLiveFollowOwner {
+  if (opts.freshGmRound != null) {
+    if (!opts.gmRevealComplete) return "GM_NARRATION_END";
+    return "NEXT_ACTION";
+  }
+  if (opts.cinematicMotion) return "CURRENT_ACTOR";
+  if (opts.nextActionVisible) return "NEXT_ACTION";
+  return "NONE";
+}
+
+export function shouldShowTrpgReplySuggestions(opts: {
+  suggestionsEnabled: boolean;
+  freshGmRound: number | null;
+  gmRevealComplete: boolean;
+  hasSuggestions: boolean;
+  hasSuggestionsError: boolean;
+}): boolean {
+  if (!opts.suggestionsEnabled) return false;
+  if (opts.freshGmRound != null && !opts.gmRevealComplete) return false;
+  return opts.hasSuggestions || opts.hasSuggestionsError;
+}
+
+export function hasActiveTextSelection(
+  selection: Pick<Selection, "isCollapsed" | "toString"> | null | undefined
+): boolean {
+  return Boolean(selection && !selection.isCollapsed && selection.toString().trim().length > 0);
+}
+
+export function isInteractiveRevealFinishTarget(target: Element): boolean {
+  return Boolean(
+    target.closest(
+      "a, button, input, textarea, select, option, label, summary, [role='button'], [role='link'], [contenteditable='true']"
+    )
+  );
+}
+
+export function isNearPresentationCard(
+  el: Element,
+  thresholdPx = TRPG_FOLLOW_LATEST_THRESHOLD_PX,
+  viewportHeight = typeof window !== "undefined" ? window.innerHeight : 0
+): boolean {
+  const rect = el.getBoundingClientRect();
+  const height = viewportHeight > 0 ? viewportHeight : 800;
+  return rect.top >= -thresholdPx && rect.bottom <= height + thresholdPx;
+}
+
+export function shouldSkipRevealFinishClick(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return true;
+  if (hasActiveTextSelection(typeof window !== "undefined" ? window.getSelection() : null)) {
+    return true;
+  }
+  return isInteractiveRevealFinishTarget(target);
+}

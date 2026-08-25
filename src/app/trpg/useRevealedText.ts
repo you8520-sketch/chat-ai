@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
   trpgRevealTick,
@@ -16,12 +16,18 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+export type TrpgRevealController = {
+  shownText: string;
+  complete: boolean;
+  finish: () => void;
+};
+
 export function useRevealedText(
   text: string,
   active: boolean,
   kind: TrpgRevealKind = "bot",
   streamIntervalMs?: number
-): string {
+): TrpgRevealController {
   const chars = Array.from(text);
   const [count, setCount] = useState(() =>
     trpgRevealImmediate({
@@ -36,10 +42,22 @@ export function useRevealedText(
   const countRef = useRef(count);
   countRef.current = count;
   const sessionRef = useRef({ text, active, kind });
+  const finishRequestedRef = useRef(false);
+
+  const finish = useCallback(() => {
+    const total = Array.from(text).length;
+    if (total <= 0) return;
+    finishRequestedRef.current = true;
+    setCount(total);
+  }, [text]);
 
   useEffect(() => {
     const total = Array.from(text).length;
     const sessionChanged = trpgRevealSessionChanged(sessionRef.current, { text, active, kind });
+    const onlyTextGrew =
+      sessionChanged &&
+      sessionRef.current.active === active &&
+      sessionRef.current.kind === kind;
     sessionRef.current = { text, active, kind };
     if (
       trpgRevealImmediate({
@@ -53,10 +71,13 @@ export function useRevealedText(
       return;
     }
     let n = trpgRevealContinueCount({
-      sessionChanged,
+      sessionChanged: sessionChanged && !(onlyTextGrew && finishRequestedRef.current),
       shownCount: countRef.current,
       total,
     });
+    if (sessionChanged && !onlyTextGrew) {
+      finishRequestedRef.current = false;
+    }
     if (n !== countRef.current) setCount(n);
     if (streamIntervalMs != null || kind === "gm") {
       const tick = trpgRevealTick(streamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
@@ -76,7 +97,10 @@ export function useRevealedText(
     return () => window.clearInterval(id);
   }, [text, active, kind, streamIntervalMs]);
 
-  return chars.slice(0, count).join("");
+  const shownText = chars.slice(0, count).join("");
+  const complete = chars.length === 0 || count >= chars.length;
+
+  return { shownText, complete, finish };
 }
 
 export function trpgLogRevealKeys(log: Array<{
