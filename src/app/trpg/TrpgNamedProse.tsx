@@ -23,7 +23,7 @@ export function TrpgGmTalk({
   assets?: CharacterAsset[];
   reveal?: boolean;
 }) {
-  const shown = useRevealedText(text, reveal);
+  const { shownText: shown } = useRevealedText(text, reveal);
   const body = shown.trim();
   if (!body) return null;
   return (
@@ -88,7 +88,7 @@ export default function TrpgNamedProse({
   /** A mobile roll header can own the speaker label so prose starts at full width below it. */
   hideMobileLabel?: boolean;
 }) {
-  const shown = useRevealedText(text, reveal, "bot", streamIntervalMs);
+  const { shownText: shown } = useRevealedText(text, reveal, "bot", streamIntervalMs);
   if (!shown.trim()) return null;
   const labeled = Boolean(name?.trim());
   const showRail = resolveTrpgSpeakerRail(accent, labeled);

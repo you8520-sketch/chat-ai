@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
 import {
   trpgRevealTick,
   trpgRevealChunkSize,
-  trpgRevealContinueCount,
   trpgRevealImmediate,
   trpgRevealSessionChanged,
+  trpgRevealTextExtended,
+  resolveTrpgRevealVisibleCount,
   TRPG_REVEAL_TICK_MS,
   type TrpgRevealKind,
 } from "@/lib/trpg/revealTiming";
@@ -16,12 +17,18 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+export type TrpgRevealController = {
+  shownText: string;
+  complete: boolean;
+  finish: () => void;
+};
+
 export function useRevealedText(
   text: string,
   active: boolean,
   kind: TrpgRevealKind = "bot",
   streamIntervalMs?: number
-): string {
+): TrpgRevealController {
   const chars = Array.from(text);
   const [count, setCount] = useState(() =>
     trpgRevealImmediate({
@@ -36,10 +43,35 @@ export function useRevealedText(
   const countRef = useRef(count);
   countRef.current = count;
   const sessionRef = useRef({ text, active, kind });
+  const finishRequestedRef = useRef(false);
+  const reducedMotion = prefersReducedMotion();
+  const previousSession = sessionRef.current;
+  const nextSession = { text, active, kind };
+  const visibleCount = resolveTrpgRevealVisibleCount({
+    previousSession,
+    nextSession,
+    storedCount: count,
+    finishOwned: finishRequestedRef.current,
+    reducedMotion,
+    streamIntervalMs,
+  });
+
+  const finish = useCallback(() => {
+    const total = Array.from(text).length;
+    if (total <= 0) return;
+    finishRequestedRef.current = true;
+    setCount(total);
+  }, [text]);
 
   useEffect(() => {
     const total = Array.from(text).length;
-    const sessionChanged = trpgRevealSessionChanged(sessionRef.current, { text, active, kind });
+    const previous = sessionRef.current;
+    const sessionChanged = trpgRevealSessionChanged(previous, { text, active, kind });
+    const textExtended =
+      sessionChanged &&
+      previous.active === active &&
+      previous.kind === kind &&
+      trpgRevealTextExtended(previous.text, text);
     sessionRef.current = { text, active, kind };
     if (
       trpgRevealImmediate({
@@ -52,11 +84,17 @@ export function useRevealedText(
       setCount(total);
       return;
     }
-    let n = trpgRevealContinueCount({
-      sessionChanged,
-      shownCount: countRef.current,
-      total,
+    let n = resolveTrpgRevealVisibleCount({
+      previousSession: previous,
+      nextSession: { text, active, kind },
+      storedCount: countRef.current,
+      finishOwned: finishRequestedRef.current,
+      reducedMotion: prefersReducedMotion(),
+      streamIntervalMs,
     });
+    if (sessionChanged && !textExtended) {
+      finishRequestedRef.current = false;
+    }
     if (n !== countRef.current) setCount(n);
     if (streamIntervalMs != null || kind === "gm") {
       const tick = trpgRevealTick(streamIntervalMs ?? DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
@@ -76,7 +114,10 @@ export function useRevealedText(
     return () => window.clearInterval(id);
   }, [text, active, kind, streamIntervalMs]);
 
-  return chars.slice(0, count).join("");
+  const shownText = chars.slice(0, visibleCount).join("");
+  const complete = chars.length === 0 || visibleCount >= chars.length;
+
+  return { shownText, complete, finish };
 }
 
 export function trpgLogRevealKeys(log: Array<{

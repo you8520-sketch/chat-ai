@@ -114,6 +114,15 @@ export function trpgRevealSessionChanged(prev: TrpgRevealSession, next: TrpgReve
   return prev.text !== next.text || prev.active !== next.active || prev.kind !== next.kind;
 }
 
+/** True when newly received text extends the previous text without replacing its prefix. */
+export function trpgRevealTextExtended(previous: string, next: string): boolean {
+  if (previous === next) return false;
+  const prevChars = Array.from(previous);
+  const nextChars = Array.from(next);
+  if (nextChars.length < prevChars.length) return false;
+  return nextChars.slice(0, prevChars.length).join("") === previous;
+}
+
 /** Speed-only changes keep the already shown count. Instant finishes the rest. */
 export function trpgRevealContinueCount(opts: {
   sessionChanged: boolean;
@@ -122,4 +131,37 @@ export function trpgRevealContinueCount(opts: {
 }): number {
   if (opts.sessionChanged) return 0;
   return Math.min(Math.max(0, opts.shownCount), Math.max(0, opts.total));
+}
+
+/** Render-safe visible count before passive effects resync stored state. */
+export function resolveTrpgRevealVisibleCount(opts: {
+  previousSession: TrpgRevealSession;
+  nextSession: TrpgRevealSession;
+  storedCount: number;
+  finishOwned: boolean;
+  reducedMotion: boolean;
+  streamIntervalMs?: number;
+}): number {
+  const total = Array.from(opts.nextSession.text).length;
+  if (
+    trpgRevealImmediate({
+      active: opts.nextSession.active,
+      reducedMotion: opts.reducedMotion,
+      charCount: total,
+      streamIntervalMs: opts.streamIntervalMs,
+    })
+  ) {
+    return total;
+  }
+  const sessionChanged = trpgRevealSessionChanged(opts.previousSession, opts.nextSession);
+  const textExtended =
+    sessionChanged &&
+    opts.previousSession.active === opts.nextSession.active &&
+    opts.previousSession.kind === opts.nextSession.kind &&
+    trpgRevealTextExtended(opts.previousSession.text, opts.nextSession.text);
+  return trpgRevealContinueCount({
+    sessionChanged: sessionChanged && !(textExtended && opts.finishOwned),
+    shownCount: opts.storedCount,
+    total,
+  });
 }
