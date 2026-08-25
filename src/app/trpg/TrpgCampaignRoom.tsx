@@ -147,6 +147,7 @@ import {
   liveTurnProcessStage,
   nextLiveTurnElapsedSec,
 } from "@/lib/trpg/liveTurnStatus";
+import { processElapsedSecFromStartedAt } from "@/lib/trpg/processTimer";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgUserChatPanel from "./TrpgUserChatPanel";
@@ -847,32 +848,31 @@ export default function TrpgCampaignRoom({
     gmTextReady,
   });
   const botProgress = processStage === "bots" ? liveTurnBotProgress(snap.participants) : null;
-  const processStartedAtRef = useRef<number | null>(null);
+  const fallbackStartedAtRef = useRef<number | null>(null);
   const [processElapsedSec, setProcessElapsedSec] = useState(0);
   useEffect(() => {
-    processStartedAtRef.current = null;
-    setProcessElapsedSec(0);
-  }, [snap.id, snap.round.number]);
-  useEffect(() => {
-    const next = nextLiveTurnElapsedSec({
-      active: processingActive,
-      startedAt: processStartedAtRef.current,
-      now: Date.now(),
-    });
-    processStartedAtRef.current = next.startedAt;
-    setProcessElapsedSec(next.elapsedSec);
-    if (!processingActive) return;
-    const id = window.setInterval(() => {
-      const tick = nextLiveTurnElapsedSec({
+    if (!processingActive) {
+      setProcessElapsedSec(0);
+      fallbackStartedAtRef.current = null;
+      return;
+    }
+    const tick = () => {
+      if (snap.processStartedAtMs != null) {
+        setProcessElapsedSec(processElapsedSecFromStartedAt(snap.processStartedAtMs, Date.now()));
+        return;
+      }
+      const next = nextLiveTurnElapsedSec({
         active: true,
-        startedAt: processStartedAtRef.current,
+        startedAt: fallbackStartedAtRef.current,
         now: Date.now(),
       });
-      processStartedAtRef.current = tick.startedAt;
-      setProcessElapsedSec(tick.elapsedSec);
-    }, 1000);
+      fallbackStartedAtRef.current = next.startedAt;
+      setProcessElapsedSec(next.elapsedSec);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, [processingActive, snap.id, snap.round.number]);
+  }, [processingActive, snap.processStartedAtMs, snap.processStage, snap.id, snap.round.number]);
   const processStatus =
     processStage !== "none" && !overlayPlayback.visible
       ? formatLiveTurnProcessStatus({

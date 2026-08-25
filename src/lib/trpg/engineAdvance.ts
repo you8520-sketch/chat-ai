@@ -69,6 +69,12 @@ import {
   logTrpgMemoryUsage,
 } from "./memoryHorizon";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
+import {
+  refreshBotGenerationHeartbeat,
+  releaseBotGeneration,
+  tryClaimBotGeneration,
+} from "./botGenerationLease";
+import { ensureTrpgProcessStage } from "./processTimer";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import {
@@ -249,6 +255,7 @@ export async function regenerateTrpgNarration(
   if (!tryBeginNarrationReroll(db, target.id, rid)) {
     throw new Error("이미 장면을 다시 쓰고 있습니다.");
   }
+  ensureTrpgProcessStage(db, target.id, "reroll");
   const usageBefore = loadRoundUsage(db, target.id).length;
   try {
     await runGmForRound(db, {
@@ -434,11 +441,24 @@ export async function advanceTrpgCampaign(
   });
 
   if (work.type === "generate_bots") {
-    if (phase === "ACTION_INPUT") setRoundPhase(db, round.id, "BOT_ACTION");
+    const rid = newRequestId();
+    const claim = tryClaimBotGeneration(db, round.id, rid);
+    if (!claim.claimed) {
+      return mustSnapshot(db, opts.campaignId, opts.userId);
+    }
+    ensureTrpgProcessStage(db, round.id, "bots");
     try {
-      await generateBotActions(db, { campaign, roundId: round.id, botIds: work.botIds, deps: opts.deps });
+      await generateBotActions(db, {
+        campaign,
+        roundId: round.id,
+        botIds: work.botIds,
+        deps: opts.deps,
+        requestId: rid,
+      });
+      releaseBotGeneration(db, round.id, rid);
       db.prepare(`UPDATE trpg_rounds SET error_json=NULL WHERE id=?`).run(round.id);
     } catch (e) {
+      releaseBotGeneration(db, round.id, rid);
       db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
         JSON.stringify({ bot: (e as Error).message }),
         round.id
@@ -453,10 +473,12 @@ export async function advanceTrpgCampaign(
     if (!tryAcquireGmLock(db, round.id, rid)) {
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
+    ensureTrpgProcessStage(db, round.id, "rolls");
     persistRolls(db, campaign.id, round.id, opts.deps);
     if (!tryBeginGmGeneration(db, round.id, rid)) {
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
+    ensureTrpgProcessStage(db, round.id, "gm");
     try {
       const gm = await runGmForRound(db, {
         campaignId: campaign.id,
@@ -500,6 +522,7 @@ async function generateBotActions(
     roundId: number;
     botIds: number[];
     deps?: TrpgEngineDeps;
+    requestId: string;
   }
 ): Promise<void> {
   const prev = previousNarration(db, opts.campaign.id);
@@ -536,6 +559,7 @@ async function generateBotActions(
   const campaignWorld = clipTrpgChars(opts.campaign.world_brief ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
 
   for (const turn of ordered) {
+    refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
     const bot = parts.find((p) => p.id === turn.id);
     if (!bot) continue;
     let description = "";
@@ -612,6 +636,7 @@ async function generateBotActions(
     );
     upsertLockedAction(db, opts.roundId, bot.id, body, parseTrpgBotAction(body).actionType, null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
+    refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
     earlier.push({ name: bot.display_name, text: body });
   }
 }

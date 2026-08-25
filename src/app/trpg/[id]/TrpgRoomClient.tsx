@@ -139,7 +139,7 @@ export default function TrpgRoomClient({
         try {
           const next = await refresh();
           if (setup) return;
-          if (next.workType === "generate_bots" || next.workType === "acquire_gm_lock") {
+          if (next.shouldKickAdvance) {
             await fetch(`/api/trpg/campaigns/${next.id}/advance`, { method: "POST" });
             await refresh();
           }

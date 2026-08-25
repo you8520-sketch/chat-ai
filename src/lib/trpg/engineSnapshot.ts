@@ -1,6 +1,9 @@
 import type Database from "better-sqlite3";
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { loadSheetSnapshots } from "./engineSheets";
+import { botGenerationInFlight } from "./botGenerationLease";
+import { parseProcessStartedAtMs } from "./processTimer";
+import { shouldKickTrpgAdvance } from "./roundWorkKick";
 import { nextTrpgRoundWork, type TrpgRoundWork } from "./roundLock";
 import { buildPartySheetHud } from "./sheetView";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
@@ -387,6 +390,16 @@ export function loadTrpgSnapshot(
     currentNarration,
     log,
     workType: work.type,
+    shouldKickAdvance: shouldKickTrpgAdvance({
+      workType: work.type,
+      phase,
+      botGenerationInFlight: round ? botGenerationInFlight(db, round) : false,
+      gmGenerationInFlight: phase === "GENERATING_NARRATION" && Boolean(round?.gm_generation_id),
+    }),
+    botGenerationInFlight: round ? botGenerationInFlight(db, round) : false,
+    gmGenerationInFlight: phase === "GENERATING_NARRATION" && Boolean(round?.gm_generation_id),
+    processStartedAtMs: parseProcessStartedAtMs(round?.process_started_at),
+    processStage: round?.process_stage ?? null,
     lastBilledPoints: lastBilled?.billed_points ?? null,
     partyHumanCount: parts.filter((p) => p.kind === "human").length,
     partyBotCount: parts.filter((p) => p.kind === "ai_character").length,
