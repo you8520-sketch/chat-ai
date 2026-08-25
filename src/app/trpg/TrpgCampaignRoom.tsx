@@ -1667,7 +1667,7 @@ export default function TrpgCampaignRoom({
         data-trpg-right-rail
       >
         <div
-          className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 flex w-full flex-col gap-1 px-1 py-2`}
+          className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 flex h-fit w-full flex-col gap-1 self-start px-1 py-2`}
         >
           <TrpgCampaignRail {...railProps} />
         </div>

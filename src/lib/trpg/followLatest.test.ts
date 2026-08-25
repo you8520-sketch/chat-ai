@@ -202,6 +202,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(rail, /h-5 w-5/);
     assert.match(room, /data-trpg-right-rail/);
     assert.match(room, /self-stretch bg-\[#0b0d14\]/);
+    assert.match(room, /h-fit w-full flex-col gap-1 self-start/);
     assert.doesNotMatch(room, /chat-room-right-rail sticky/);
   });
 
