@@ -123,6 +123,11 @@ export type TrpgCampaignSnapshot = {
   currentNarration: string | null;
   log: TrpgPublicLog[];
   workType: string;
+  shouldKickAdvance: boolean;
+  botGenerationInFlight: boolean;
+  gmGenerationInFlight: boolean;
+  processStartedAtMs: number | null;
+  processStage: string | null;
   lastBilledPoints: number | null;
   partyHumanCount: number;
   partyBotCount: number;

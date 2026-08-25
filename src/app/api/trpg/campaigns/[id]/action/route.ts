@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { advanceTrpgCampaign, submitTrpgAction } from "@/lib/trpg/engine";
+import { loadTrpgSnapshot } from "@/lib/trpg/engineSnapshot";
 import { parseTrpgInputOrigin } from "@/lib/trpg/replySuggestions";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 
@@ -26,7 +28,15 @@ export async function POST(req: Request, ctx: RouteCtx) {
       idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : null,
       inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
     });
-    const campaign = await advanceTrpgCampaign(gate.db, { campaignId: id, userId: gate.user.id });
+    const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);
+    if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
+    after(async () => {
+      try {
+        await advanceTrpgCampaign(gate.db, { campaignId: id, userId: gate.user.id });
+      } catch (error) {
+        console.error("[trpg] post-action advance failed", error);
+      }
+    });
     return NextResponse.json({ ok: true, campaign });
   } catch (e) {
     return trpgFail(e);
