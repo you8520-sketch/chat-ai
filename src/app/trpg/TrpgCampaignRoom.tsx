@@ -338,6 +338,7 @@ export default function TrpgCampaignRoom({
   const liveSceneRef = useRef<HTMLElement | null>(null);
   const currentNarrationRef = useRef("");
   const liveFreshGmRoundRef = useRef<number | null>(null);
+  const trackedFreshGmRoundRef = useRef<number | null>(null);
   const [gmRevealComplete, setGmRevealComplete] = useState(false);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
@@ -908,13 +909,17 @@ export default function TrpgCampaignRoom({
     seenSceneLenRef.current = 0;
     seenActivityKeyRef.current = "";
     liveGmRevealStateRef.current = { complete: false, progressive: false };
+    trackedFreshGmRoundRef.current = null;
     setGmRevealComplete(false);
   }, [snap.id]);
 
   useEffect(() => {
+    const nextFreshGmRound = freshGmRow?.roundNumber ?? null;
+    if (trackedFreshGmRoundRef.current === nextFreshGmRound) return;
+    trackedFreshGmRoundRef.current = nextFreshGmRound;
     liveGmRevealStateRef.current = { complete: false, progressive: false };
     setGmRevealComplete(false);
-  }, [snap.round.number]);
+  }, [freshGmRow?.roundNumber]);
 
   useLayoutEffect(() => {
     if (waitingOpening && sceneRows.length === 0) return;
@@ -1357,7 +1362,7 @@ export default function TrpgCampaignRoom({
                   : undefined
               }
               activePresentationCardRef={
-                row.roundNumber === liveFollowRound && activePresentationActorId != null
+                row.roundNumber === snap.round.number && activePresentationActorId != null
                   ? activePresentationCardRef
                   : undefined
               }

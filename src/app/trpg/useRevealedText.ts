@@ -8,6 +8,7 @@ import {
   trpgRevealContinueCount,
   trpgRevealImmediate,
   trpgRevealSessionChanged,
+  trpgRevealTextExtended,
   TRPG_REVEAL_TICK_MS,
   type TrpgRevealKind,
 } from "@/lib/trpg/revealTiming";
@@ -53,11 +54,13 @@ export function useRevealedText(
 
   useEffect(() => {
     const total = Array.from(text).length;
-    const sessionChanged = trpgRevealSessionChanged(sessionRef.current, { text, active, kind });
-    const onlyTextGrew =
+    const previousSession = sessionRef.current;
+    const sessionChanged = trpgRevealSessionChanged(previousSession, { text, active, kind });
+    const textExtended =
       sessionChanged &&
-      sessionRef.current.active === active &&
-      sessionRef.current.kind === kind;
+      previousSession.active === active &&
+      previousSession.kind === kind &&
+      trpgRevealTextExtended(previousSession.text, text);
     sessionRef.current = { text, active, kind };
     if (
       trpgRevealImmediate({
@@ -71,11 +74,11 @@ export function useRevealedText(
       return;
     }
     let n = trpgRevealContinueCount({
-      sessionChanged: sessionChanged && !(onlyTextGrew && finishRequestedRef.current),
+      sessionChanged: sessionChanged && !(textExtended && finishRequestedRef.current),
       shownCount: countRef.current,
       total,
     });
-    if (sessionChanged && !onlyTextGrew) {
+    if (sessionChanged && !textExtended) {
       finishRequestedRef.current = false;
     }
     if (n !== countRef.current) setCount(n);

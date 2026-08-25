@@ -210,4 +210,76 @@ describe("TRPG live follow owner", () => {
     assert.equal(isNearPresentationCard(el, 120, 800), true);
     assert.equal(isNearPresentationCard(el, 120, 150), false);
   });
+
+  it("M: persisted previous GM complete still yields CURRENT_ACTOR during cinematic motion", () => {
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        freshGmRound: 3,
+        gmRevealComplete: true,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
+  });
+
+  it("N: persisted previous GM incomplete still yields CURRENT_ACTOR during cinematic motion", () => {
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        freshGmRound: 3,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
+  });
+
+  it("O: persisted GM N remains complete after snap advances to N+1", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /trackedFreshGmRoundRef/);
+    assert.match(room, /\[freshGmRow\?\.roundNumber\]/);
+    assert.doesNotMatch(room, /setGmRevealComplete\(false\)[\s\S]{0,120}\[snap\.round\.number\]/);
+    assert.doesNotMatch(room, /}, \[snap\.round\.number\]\);[\s\S]{0,80}setGmRevealComplete\(false\)/);
+
+    const persistedGmRound = 3;
+    const snapRoundAfterAdvance = persistedGmRound + 1;
+    const live = liveFreshGmNarrationRow({
+      log: [
+        { roundNumber: persistedGmRound, narration: "GM turn N body" },
+        { roundNumber: snapRoundAfterAdvance, narration: "" },
+      ],
+      seenKeys: new Set<string>(),
+    });
+    assert.equal(live?.roundNumber, persistedGmRound);
+    assert.notEqual(live?.roundNumber, snapRoundAfterAdvance);
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        freshGmRound: persistedGmRound,
+        gmRevealComplete: true,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
+  });
+
+  it("P: new fresh GM session resets incomplete reveal state", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /trackedFreshGmRoundRef\.current === nextFreshGmRound/);
+    assert.match(room, /setGmRevealComplete\(false\)/);
+  });
+
+  it("Q: active presentation card ref follows current presentation round, not liveFollowRound", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(
+      room,
+      /activePresentationCardRef=\{\s*row\.roundNumber === snap\.round\.number && activePresentationActorId != null/
+    );
+    assert.match(room, /narrationEndRef=\{row\.roundNumber === liveFollowRound \? narrationEndRef : undefined\}/);
+    assert.doesNotMatch(
+      room,
+      /activePresentationCardRef=\{\s*row\.roundNumber === liveFollowRound/
+    );
+  });
 });

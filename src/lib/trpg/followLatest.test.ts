@@ -14,6 +14,7 @@ import {
   liveFreshGmNarrationRow,
   livePresentationActivityKey,
   narrationFollowDeltaPx,
+  resolveTrpgLiveFollowOwner,
   TRPG_FOLLOW_LATEST_THRESHOLD_PX,
   TRPG_NARRATION_FOLLOW_TARGET_RATIO,
 } from "./followLatest";
@@ -153,6 +154,15 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /alignNarrationEnd\(behavior\)/);
     assert.match(room, /scrollToFollowOwner\(liveFollowOwner, "instant"\)/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        freshGmRound: persistedGmRound,
+        gmRevealComplete: true,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
   });
 
   it("settles on the latest scene while preserving manual history browsing", () => {

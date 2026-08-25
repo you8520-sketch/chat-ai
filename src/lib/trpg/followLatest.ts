@@ -127,11 +127,11 @@ export function resolveTrpgLiveFollowOwner(opts: {
   gmRevealComplete: boolean;
   nextActionVisible: boolean;
 }): TrpgLiveFollowOwner {
+  if (opts.cinematicMotion) return "CURRENT_ACTOR";
   if (opts.freshGmRound != null) {
     if (!opts.gmRevealComplete) return "GM_NARRATION_END";
     return "NEXT_ACTION";
   }
-  if (opts.cinematicMotion) return "CURRENT_ACTOR";
   if (opts.nextActionVisible) return "NEXT_ACTION";
   return "NONE";
 }

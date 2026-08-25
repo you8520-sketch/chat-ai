@@ -114,6 +114,15 @@ export function trpgRevealSessionChanged(prev: TrpgRevealSession, next: TrpgReve
   return prev.text !== next.text || prev.active !== next.active || prev.kind !== next.kind;
 }
 
+/** True when newly received text extends the previous text without replacing its prefix. */
+export function trpgRevealTextExtended(previous: string, next: string): boolean {
+  if (previous === next) return false;
+  const prevChars = Array.from(previous);
+  const nextChars = Array.from(next);
+  if (nextChars.length < prevChars.length) return false;
+  return nextChars.slice(0, prevChars.length).join("") === previous;
+}
+
 /** Speed-only changes keep the already shown count. Instant finishes the rest. */
 export function trpgRevealContinueCount(opts: {
   sessionChanged: boolean;
