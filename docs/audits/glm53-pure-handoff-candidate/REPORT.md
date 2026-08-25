@@ -65,8 +65,8 @@ Production-candidate comparison (not strict one-variable A/B vs #625 DeepSeek-sp
 
 | Arm | Chars | Para | Dialogue | Dial/1k | Dial ratio | Med narr | User quoted | T2 replay | In tok | Out tok | Reas tok | Latency ms | Cost |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |
-| Gemini T1 | 3473 | 22 | 5 | 1.44 | 0.227 | 183 | 0 | FOOD_HUNGER, FIRST_KISS | — | — | — | — | — |
-| Gemini T2 | 3173 | 24 | 5 | 1.576 | 0.208 | 154 | 0 | WHY_LOOKING, FOOD_HUNGER, FIRST_KISS | — | — | — | — | — |
+| Gemini T1 | 3473 | 22 | 5 | 1.44 | 0.227 | 183 | 0 | — | — | — | — | — | — |
+| Gemini T2 | 3173 | 24 | 5 | 1.576 | 0.208 | 154 | 0 | — | — | — | — | — | — |
 | Gemini T3 GOLD | 2651 | 23 | 5 | 1.886 | 0.217 | 136.5 | 0 | FIRST_KISS | — | — | — | — | — |
 | DeepSeek #625 CI A | 2863 | 17 | 5 | 1.746 | 0.294 | 232 | 0 | FIRST_KISS | 19546 | 2307 | — | 2332 | 0.016224 |
 | DeepSeek #629 OR A | 2380 | 21 | 10 | 4.202 | 0.476 | 207 | 0 | FIRST_KISS | 19546 | 1924 | 0 | — | 0.021862896 |
@@ -94,4 +94,65 @@ Artifacts:
 - `responses/T3-GLM53-CANDIDATE-PERSISTED-EQUIVALENT.txt`
 - `meta/phase-c-objective-metrics.json`
 
-**STOP for Human/ChatGPT RAW review.**
+## Human review addendum (COMPLETE)
+
+**FINAL VERDICT:** `GLM53_ADULT_CAPABILITY=PASS` · `GLM53_REPLACEMENT_CANDIDATE=FAIL` · **Do not merge #635.**
+
+| Field | Value |
+| --- | --- |
+| GLM53_ADULT_CAPABILITY | PASS |
+| GLM53_REPLACEMENT_CANDIDATE | FAIL |
+| GLM53_PROMOTION | false |
+| DEEPSEEK_625_REMAINS_BEST_STABLE_FALLBACK | true |
+
+### Dialogue attribution — scanner false negative
+
+T3 source user quoted dialogue (only): `"박아. 끝까지."`
+
+Automated attribution reported `NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT=0` and classified all quoted blocks as `AI_CHARACTER_DIALOGUE_CANDIDATE`. Human review corrects this:
+
+| Field | Value |
+| --- | --- |
+| HUMAN_CONFIRMED_NEW_USER_DIALOGUE_COUNT | 4 |
+| NEW_USER_PERSONA_DIALOGUE_ACTUALLY_PRESENT | true |
+| DIALOGUE_ATTRIBUTION_SCANNER_FALSE_NEGATIVE | true |
+
+Human-confirmed new user/persona dialogue blocks:
+
+1. `"니가 알아서 해. 나 아무거나 안 아파."`
+2. `"...바람."`
+3. `"하앗...!"`
+4. `"아, 아앙... 거기, 계속...!"`
+
+`[USER AUTHORING]` owner was present on wire; the model violated it. No production USER AUTHORING rule changes.
+
+### Terminal dialogue owner
+
+| Field | Value |
+| --- | --- |
+| TOTAL_DIALOGUE_BLOCKS | 15 |
+| Human attribution (AI character dialogue) | ≈ 11 |
+| Human attribution (new user dialogue) | 4 |
+| TERMINAL_DIALOGUE_OWNER_PRESENT | true |
+| TERMINAL_DIALOGUE_OWNER_FOLLOWED | false |
+| Wire budget (AI direct speech max) | 4 blocks |
+
+No production terminal dialogue owner change.
+
+### Continuity drift
+
+| Field | Value |
+| --- | --- |
+| UNCONFIRMED_USER_CHOICE_CANDIDATE | true |
+
+GLM converts an earlier AI food suggestion into an established user choice: *"아까 고른 거, 떡볶이랑 튀김이었지?"* — not selected by the user in the frozen corpus.
+
+### Strengths vs failures
+
+**Strengths:** valid complete generation; no refusal; starts from current T3; requested progression completed; length close to Gemini Gold; uses character-specific canon.
+
+**Failures:** substantial dialogue excess; confirmed new user dialogue; ignores terminal dialogue budget; writer balance far from Gemini; unconfirmed user-choice continuity drift; ~100.6s latency; higher cost.
+
+Full frozen addendum: `meta/human-review-addendum.json`.
+
+**STOP — evidence frozen. PR closed without merge.**

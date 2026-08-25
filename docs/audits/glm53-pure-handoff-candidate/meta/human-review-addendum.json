@@ -1,0 +1,69 @@
+{
+  "review_status": "COMPLETE",
+  "review_source": "Human/ChatGPT RAW review",
+  "pr": 635,
+  "merge_decision": "DO_NOT_MERGE",
+  "final_verdict": {
+    "GLM53_ADULT_CAPABILITY": "PASS",
+    "GLM53_REPLACEMENT_CANDIDATE": "FAIL",
+    "GLM53_PROMOTION": false,
+    "DEEPSEEK_625_REMAINS_BEST_STABLE_FALLBACK": true
+  },
+  "t3_source_user_quoted_dialogue": ["박아. 끝까지."],
+  "dialogue_attribution": {
+    "automated_NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+    "automated_attribution_note": "All quoted blocks classified AI_CHARACTER_DIALOGUE_CANDIDATE",
+    "DIALOGUE_ATTRIBUTION_SCANNER_FALSE_NEGATIVE": true,
+    "HUMAN_CONFIRMED_NEW_USER_DIALOGUE_COUNT": 4,
+    "NEW_USER_PERSONA_DIALOGUE_ACTUALLY_PRESENT": true,
+    "human_confirmed_new_user_dialogue_blocks": [
+      "니가 알아서 해. 나 아무거나 안 아파.",
+      "...바람.",
+      "하앗...!",
+      "아, 아앙... 거기, 계속...!"
+    ],
+    "user_authoring_owner_present": true,
+    "user_authoring_rules_changed": false,
+    "model_violated_user_authoring": true
+  },
+  "terminal_dialogue": {
+    "TOTAL_DIALOGUE_BLOCKS": 15,
+    "human_attribution": {
+      "ai_character_dialogue_approx": 11,
+      "new_user_dialogue": 4
+    },
+    "terminal_dialogue_owner_present_on_wire": true,
+    "terminal_dialogue_budget_max_ai_direct_speech_blocks": 4,
+    "TERMINAL_DIALOGUE_OWNER_FOLLOWED": false,
+    "terminal_dialogue_owner_changed": false
+  },
+  "continuity": {
+    "UNCONFIRMED_USER_CHOICE_CANDIDATE": true,
+    "example": "아까 고른 거, 떡볶이랑 튀김이었지?",
+    "note": "User never selected that food in the frozen corpus; GLM converted an earlier AI food suggestion into an established user choice."
+  },
+  "strengths": [
+    "valid complete generation",
+    "no refusal",
+    "starts from current T3",
+    "requested progression completed",
+    "length close to Gemini Gold",
+    "uses character-specific canon"
+  ],
+  "failures": [
+    "substantial dialogue excess",
+    "confirmed new user dialogue",
+    "ignores terminal dialogue budget",
+    "writer balance far from Gemini",
+    "unconfirmed user-choice continuity drift",
+    "~100.6s latency",
+    "higher cost"
+  ],
+  "follow_up_prohibited": [
+    "no_merge",
+    "no_additional_glm53_provider_calls",
+    "no_cheaperinference_glm53_probe",
+    "no_glm_specific_style_adapter",
+    "no_production_routing_changes"
+  ]
+}

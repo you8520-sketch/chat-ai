@@ -1,0 +1,35 @@
+{
+  "note": "Human review correction — does not mutate automated phase-c-dialogue-attribution.json scan output.",
+  "automated_scan": {
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+    "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+    "scanner_false_negative": true
+  },
+  "human_review": {
+    "HUMAN_CONFIRMED_NEW_USER_DIALOGUE_COUNT": 4,
+    "NEW_USER_PERSONA_DIALOGUE_ACTUALLY_PRESENT": true,
+    "blocks": [
+      {
+        "quoted_text": "니가 알아서 해. 나 아무거나 안 아파.",
+        "automated_attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE",
+        "human_attribution": "NEW_USER_PERSONA_DIALOGUE"
+      },
+      {
+        "quoted_text": "...바람.",
+        "automated_attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE",
+        "human_attribution": "NEW_USER_PERSONA_DIALOGUE"
+      },
+      {
+        "quoted_text": "하앗...!",
+        "automated_attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE",
+        "human_attribution": "NEW_USER_PERSONA_DIALOGUE"
+      },
+      {
+        "quoted_text": "아, 아앙... 거기, 계속...!",
+        "automated_attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE",
+        "human_attribution": "NEW_USER_PERSONA_DIALOGUE"
+      }
+    ],
+    "t3_source_user_quoted_dialogue_only": ["박아. 끝까지."]
+  }
+}

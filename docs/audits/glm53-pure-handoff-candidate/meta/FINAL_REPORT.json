@@ -147,10 +147,7 @@
       "MEDIAN_NARRATION_PARAGRAPH_CHARS": 183,
       "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 85,
       "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
-      "T2_REPLAY_TOPIC_IDS": [
-        "FOOD_HUNGER",
-        "FIRST_KISS"
-      ]
+      "T2_REPLAY_TOPIC_IDS": null
     },
     {
       "label": "Gemini T2",
@@ -164,11 +161,7 @@
       "MEDIAN_NARRATION_PARAGRAPH_CHARS": 154,
       "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 51,
       "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
-      "T2_REPLAY_TOPIC_IDS": [
-        "WHY_LOOKING",
-        "FOOD_HUNGER",
-        "FIRST_KISS"
-      ]
+      "T2_REPLAY_TOPIC_IDS": null
     },
     {
       "label": "Gemini T3 GOLD",
@@ -182,9 +175,7 @@
       "MEDIAN_NARRATION_PARAGRAPH_CHARS": 136.5,
       "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 29,
       "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
-      "T2_REPLAY_TOPIC_IDS": [
-        "FIRST_KISS"
-      ]
+      "T2_REPLAY_TOPIC_IDS": null
     },
     {
       "label": "DeepSeek #625 CI A",
@@ -273,5 +264,20 @@
       "cost": 0.042151,
       "latency_ms": 100612
     }
-  ]
+  ],
+  "humanReview": {
+    "review_status": "COMPLETE",
+    "GLM53_ADULT_CAPABILITY": "PASS",
+    "GLM53_REPLACEMENT_CANDIDATE": "FAIL",
+    "GLM53_PROMOTION": false,
+    "DEEPSEEK_625_REMAINS_BEST_STABLE_FALLBACK": true,
+    "merge_decision": "DO_NOT_MERGE",
+    "HUMAN_CONFIRMED_NEW_USER_DIALOGUE_COUNT": 4,
+    "NEW_USER_PERSONA_DIALOGUE_ACTUALLY_PRESENT": true,
+    "DIALOGUE_ATTRIBUTION_SCANNER_FALSE_NEGATIVE": true,
+    "TERMINAL_DIALOGUE_OWNER_PRESENT": true,
+    "TERMINAL_DIALOGUE_OWNER_FOLLOWED": false,
+    "UNCONFIRMED_USER_CHOICE_CANDIDATE": true,
+    "addendum_path": "meta/human-review-addendum.json"
+  }
 }
