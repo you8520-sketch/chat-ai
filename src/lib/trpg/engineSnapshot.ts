@@ -21,6 +21,7 @@ import {
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
+import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
   isListedTrpgCampaign,
@@ -407,6 +408,7 @@ export function loadTrpgSnapshot(
         .get(campaignId, round?.round_number ?? 0)
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
+    aiCharacterAssets: toPublicAiCharacterAssets(loadTrpgAiCharacterContexts(db, parts)),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
     gmFailureHint:
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"

@@ -51,6 +51,7 @@ import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
+import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
@@ -1443,6 +1444,8 @@ export default function TrpgCampaignRoom({
               canImage={Boolean(imageId) && Boolean(row.narration)}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
+              characterCatalog={snap.aiCharacterAssets ?? []}
+              campaignId={snap.id}
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
               revealedActorIds={
@@ -1879,6 +1882,8 @@ function SceneTurn({
   canImage,
   busy,
   scenarioAssets,
+  characterCatalog = [],
+  campaignId,
   isFreshLogKey,
   liveRolls,
   revealedActorIds: revealedIds,
@@ -1912,6 +1917,8 @@ function SceneTurn({
   canImage: boolean;
   busy: boolean;
   scenarioAssets: CharacterAsset[];
+  characterCatalog?: TrpgPublicAiCharacterAssets[];
+  campaignId: number;
   isFreshLogKey: (key: string) => boolean;
   liveRolls: TrpgPublicRoll[];
   revealedActorIds?: number[];
@@ -2099,6 +2106,9 @@ function SceneTurn({
                   key={`${row.roundNumber}-gm-${i}`}
                   text={beat.text}
                   assets={scenarioAssets}
+                  characterCatalog={characterCatalog}
+                  campaignId={campaignId}
+                  roundNumber={row.roundNumber}
                 />
               ) : (
                 <TrpgNamedProse
@@ -2109,6 +2119,9 @@ function SceneTurn({
                   accent={Boolean(beat.speaker)}
                   display={display}
                   assets={scenarioAssets}
+                  characterCatalog={characterCatalog}
+                  campaignId={campaignId}
+                  roundNumber={row.roundNumber}
                 />
               )
             )}

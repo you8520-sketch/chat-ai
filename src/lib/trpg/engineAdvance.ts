@@ -22,17 +22,32 @@ import {
   TRPG_GM_USAGE_FALLBACK,
   type TrpgModelUsage,
 } from "./billing";
-import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, parseTrpgBotAction, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import {
+  aiParticipantIdSet,
+  characterTagsByParticipant,
+  loadTrpgAiCharacterContexts,
+  readCharacterRowFields,
+} from "./aiCharacterContext";
+import {
+  buildTrpgBotActionUserBlock,
+  orderTrpgBotsForRound,
+  parseTrpgBotAction,
+  prepareTrpgBotActionBody,
+  sanitizeBotActionText,
+  TRPG_BOT_SYSTEM,
+} from "./botActions";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
-import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
 import {
-  applyScenarioAssetTagsToTurnText,
-  buildScenarioAssetTagPrompt,
-  collectUsedScenarioTags,
-} from "./scenarioAssets";
+  buildAiCharacterImageTagCatalog,
+  buildAiPartyIdentityBlock,
+  enforceGmSceneAssetMarkers,
+  uniqueCharacterAssetTags,
+} from "./gmSceneAssets";
+import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
+import { playableScenarioAssets, buildScenarioAssetTagPrompt } from "./scenarioAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
 import {
   applyCampaignStoryProgress,
@@ -104,7 +119,7 @@ import {
   type TrpgRoundRow,
 } from "./store";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -518,12 +533,6 @@ async function generateBotActions(
     viewerKind: "bot",
   });
   const allMemoryEvents = loadMemoryEvents(db, opts.campaign.id);
-  const scenarioAssets = loadCampaignScenarioAssets(db, opts.campaign.template_id);
-  const scenarioAssetPrompt = buildScenarioAssetTagPrompt(scenarioAssets);
-  const usedScenarioTags = collectUsedScenarioTags(
-    humans.map((h) => h.body),
-    scenarioAssets
-  );
   const recentContinuity = buildTrpgBotRecentContinuity(loadCompletedMemoryRounds(db, opts.campaign.id));
   const campaignWorld = clipTrpgChars(opts.campaign.world_brief ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
 
@@ -534,27 +543,17 @@ async function generateBotActions(
     let greeting = "";
     let systemPrompt = "";
     let exampleDialog = "";
-    let world = "";
+    let gender: ReturnType<typeof readCharacterRowFields>["gender"] = "other";
     if (bot.character_id) {
       try {
-        const ch = db
-          .prepare(
-            `SELECT system_prompt, description, greeting, example_dialog, world FROM characters WHERE id=?`
-          )
-          .get(bot.character_id) as
-          | {
-              system_prompt: string | null;
-              description: string | null;
-              greeting: string | null;
-              example_dialog: string | null;
-              world: string | null;
-            }
-          | undefined;
-        description = clipTrpgChars(ch?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        greeting = clipTrpgChars(ch?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        exampleDialog = clipTrpgChars(ch?.example_dialog ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        world = clipTrpgChars(ch?.world ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
-        systemPrompt = clipTrpgChars(ch?.system_prompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+        const fields = readCharacterRowFields(
+          db.prepare(`SELECT * FROM characters WHERE id=?`).get(bot.character_id)
+        );
+        description = clipTrpgChars(fields.description, TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        greeting = clipTrpgChars(fields.greeting, TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        exampleDialog = clipTrpgChars(fields.exampleDialog, TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        systemPrompt = clipTrpgChars(fields.systemPrompt, TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+        gender = fields.gender;
       } catch {
         const persona = parseBotPersona(bot.persona_json);
         description = clipTrpgChars(persona?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
@@ -582,11 +581,11 @@ async function generateBotActions(
     });
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
+      gender,
       description,
       greeting,
       systemPrompt,
       exampleDialog,
-      world,
       campaignWorld,
       previousGmNarration: continuity.previousScene || clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
       recentContinuity,
@@ -606,13 +605,12 @@ async function generateBotActions(
       speakIndex: earlier.length + 1,
       speakCount: ordered.length,
       relationshipBrief: opts.campaign.relationship_brief ?? "",
-      scenarioAssetPrompt,
     });
     const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
-    const rawBody =
-      sanitizeBotActionText(text, TRPG_BOT_ACTION_MAX_CHARS) ||
-      `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
-    const body = applyScenarioAssetTagsToTurnText(rawBody, scenarioAssets, usedScenarioTags);
+    const body = prepareTrpgBotActionBody(
+      text,
+      `${bot.display_name}은 상황을 살피며 한 발 다가선다.`
+    );
     upsertLockedAction(db, opts.roundId, bot.id, body, parseTrpgBotAction(body).actionType, null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
     earlier.push({ name: bot.display_name, text: body });
@@ -816,7 +814,8 @@ async function runGmForRound(
     sceneText: latestScene,
     viewerKind: "gm",
   });
-  const playerPersonas = loadParticipants(db, opts.campaignId)
+  const participants = loadParticipants(db, opts.campaignId);
+  const playerPersonas = participants
     .filter((p) => p.kind === "human")
     .map((p) => {
       const persona = parseHumanPersona(p.persona_json);
@@ -830,9 +829,14 @@ async function runGmForRound(
     sheets: sheets.map((s) => ({ name: s.name, stats: s.stats })),
   });
   const scenarioAssets = loadCampaignScenarioAssets(db, campaign.template_id);
-  const usedScenarioTags = collectUsedScenarioTags(
-    actions.map((a) => a.body),
-    scenarioAssets
+  const aiContexts = loadTrpgAiCharacterContexts(db, participants);
+  const aiPartyIdentities = buildAiPartyIdentityBlock(aiContexts);
+  const characterAssetCatalog = buildAiCharacterImageTagCatalog(
+    aiContexts.map((row) => ({
+      participantId: row.participantId,
+      name: row.name,
+      tags: uniqueCharacterAssetTags(row.assets),
+    }))
   );
   const campaignContext = loadCampaignContext(db, opts.campaignId);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
@@ -867,6 +871,8 @@ async function runGmForRound(
     sheetCanon,
     genres: loadCampaignGenres(db, campaign),
     relationshipBrief: campaign.relationship_brief ?? "",
+    aiPartyIdentities,
+    characterAssetCatalog,
     scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
     scenarioPlanBlock,
     storyDirectorBlock,
@@ -882,11 +888,11 @@ async function runGmForRound(
     stage = "gm_output_parse";
     const parsed = parseTrpgGmOutput(text);
     stage = "asset_tagging";
-    parsed.narration = applyScenarioAssetTagsToTurnText(
-      parsed.narration,
-      scenarioAssets,
-      usedScenarioTags
-    );
+    parsed.narration = enforceGmSceneAssetMarkers(parsed.narration, {
+      aiParticipantIds: aiParticipantIdSet(aiContexts),
+      characterTagsByParticipant: characterTagsByParticipant(aiContexts),
+      scenarioTags: new Set(playableScenarioAssets(scenarioAssets).map((asset) => asset.tag.trim()).filter(Boolean)),
+    }).text;
     stage = "state_validation";
     mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
     const postGmOngoingSeeds =

@@ -2,10 +2,11 @@
 
 import { useLayoutEffect } from "react";
 import NovelText from "@/components/NovelText";
-import TaggedNovelText from "@/components/TaggedNovelText";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
+import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
 
 const quoteSelectStyle = {
@@ -18,11 +19,17 @@ const quoteSelectStyle = {
 export function TrpgGmTalk({
   text,
   assets = [],
+  characterCatalog = [],
+  campaignId = 0,
+  roundNumber = 0,
   reveal = false,
   onRevealChange,
 }: {
   text: string;
   assets?: CharacterAsset[];
+  characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  campaignId?: number;
+  roundNumber?: number;
   reveal?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
@@ -53,10 +60,13 @@ export function TrpgGmTalk({
         }}
       >
         <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
-        {assets.length > 0 ? (
-          <TaggedNovelText
+        {assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(body) ? (
+          <TrpgTaggedNovelText
             content={body}
-            assets={assets}
+            scenarioAssets={assets}
+            characterCatalog={characterCatalog}
+            campaignId={campaignId}
+            roundNumber={roundNumber}
             variant="character"
             paragraphMode="author"
             streaming={reveal}
@@ -77,6 +87,9 @@ export default function TrpgNamedProse({
   display,
   accent,
   assets = [],
+  characterCatalog = [],
+  campaignId = 0,
+  roundNumber = 0,
   reveal = false,
   streamIntervalMs,
   paragraphMode = "author",
@@ -92,6 +105,9 @@ export default function TrpgNamedProse({
   /** Left rail. Defaults to on when a speaker name is shown — never on plain narration. */
   accent?: boolean;
   assets?: CharacterAsset[];
+  characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  campaignId?: number;
+  roundNumber?: number;
   reveal?: boolean;
   streamIntervalMs?: number;
   /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
@@ -142,10 +158,13 @@ export default function TrpgNamedProse({
         data-quote-assistant
         style={quoteSelectStyle}
       >
-        {assets.length > 0 ? (
-          <TaggedNovelText
+        {assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(shown) ? (
+          <TrpgTaggedNovelText
             content={shown}
-            assets={assets}
+            scenarioAssets={assets}
+            characterCatalog={characterCatalog}
+            campaignId={campaignId}
+            roundNumber={roundNumber}
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}

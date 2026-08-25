@@ -56,9 +56,12 @@ export function buildScenarioAssetTagPrompt(assets: CharacterAsset[]): string {
   if (unique.length === 0) return "";
   const list = unique.join(", ");
   return `[SCENARIO IMAGE TAGS — uploaded landscape scene images]
-When a participating character reacts to a matching place, object, or beat, insert [태그: tagname] in the prose at that moment so the image can appear inline at full output width.
-Allowed tags ONLY (copy spelling exactly): ${list}
-Use each tag at most once this turn. Do not invent tags. Skip a tag if nothing in this beat matches it.`;
+GM NARRATION only. Insert [태그: tagname] only when this scene meaningfully matches that uploaded tag (environment, place, object, creature, supporting figure, event, or atmosphere).
+Do not insert an image merely because the tag exists. Never add filler images to reach a quota.
+Allowed scenario tags ONLY (copy spelling exactly): ${list}
+Use each scenario tag at most once this turn. Do not invent tags.
+Total images this scene ≤ 2. If AI characters are present, at most one scenario image. If not, at most two distinct scenario tags.
+Character images use a separate [캐릭터에셋: participantId|tag] namespace when that catalog is supplied. Do not reuse [태그: ...] for character assets.`;
 }
 
 export function collectUsedScenarioTags(texts: readonly string[], assets: CharacterAsset[]): Set<string> {
