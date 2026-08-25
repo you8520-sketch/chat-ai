@@ -1,0 +1,73 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 4,
+      "paragraph_preview": "\"후회해도 소용없어, 렌.\"",
+      "quoted_text": "후회해도 소용없어, 렌.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 6,
+      "paragraph_preview": "\"숨 쉬어.\"",
+      "quoted_text": "숨 쉬어.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 8,
+      "paragraph_preview": "\"꽉 조이네.\"",
+      "quoted_text": "꽉 조이네.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 11,
+      "paragraph_preview": "\"표정, 지금 꽤 좋은데.\"",
+      "quoted_text": "표정, 지금 꽤 좋은데.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 14,
+      "paragraph_preview": "\"갈 거면 그냥 가. 꾹 참지 말고.\"",
+      "quoted_text": "갈 거면 그냥 가. 꾹 참지 말고.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 4,
+        "paragraph_preview": "\"후회해도 소용없어, 렌.\"",
+        "quoted_text": "후회해도 소용없어, 렌.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 6,
+        "paragraph_preview": "\"숨 쉬어.\"",
+        "quoted_text": "숨 쉬어.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 8,
+        "paragraph_preview": "\"꽉 조이네.\"",
+        "quoted_text": "꽉 조이네.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 11,
+        "paragraph_preview": "\"표정, 지금 꽤 좋은데.\"",
+        "quoted_text": "표정, 지금 꽤 좋은데.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 14,
+        "paragraph_preview": "\"갈 거면 그냥 가. 꾹 참지 말고.\"",
+        "quoted_text": "갈 거면 그냥 가. 꾹 참지 말고.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}
