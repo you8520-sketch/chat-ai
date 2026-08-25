@@ -5,7 +5,7 @@
 
 import crypto from "crypto";
 
-export const CAPSULE_SCHEMA_VERSION = 1;
+export const CAPSULE_SCHEMA_VERSION = 2;
 
 /**
  * Step 1 conclusion (verified against src/app/api/chat/route.ts,
@@ -20,10 +20,11 @@ export const CAPSULE_SCHEMA_VERSION = 1;
 export const ADMIN_STATUS_AFFECTS_PERSONA_PROMPT = false;
 
 /**
- * Character columns read on the live chat prompt path (route.ts →
- * characterChunks.ts → contextBuilder.ts). Excludes listing/stats-only fields.
+ * Character columns that affect prompt/context generation.
+ * Excludes lorebook_id — that FK is identity, not prompt semantics.
+ * Resolved keyword lorebook content is hashed separately.
  */
-export const CHARACTER_PROMPT_FIELDS = [
+export const CHARACTER_ROW_PROMPT_FIELDS = [
   "name",
   "gender",
   "description",
@@ -51,9 +52,11 @@ export const CHARACTER_PROMPT_FIELDS = [
   "status_widget_json",
   "status_window_prompt",
   "status_widget_allow_user_override",
-  "lorebook_id",
   "nsfw",
 ];
+
+/** @deprecated use CHARACTER_ROW_PROMPT_FIELDS — lorebook_id is not prompt semantics */
+export const CHARACTER_PROMPT_FIELDS = CHARACTER_ROW_PROMPT_FIELDS;
 
 /** Keyword lorebook row content referenced by characters.lorebook_id. */
 export const CHARACTER_KEYWORD_LOREBOOK_FIELD = "keyword_lorebook_entries_json";
@@ -86,7 +89,7 @@ export const CHARACTER_LISTABILITY_FIELDS = [
 
 export const LISTABLE_WHERE_SQL = `(official=1 OR (visibility='public' AND moderation_status='approved' AND creator_id IS NOT NULL))`;
 
-const NULLABLE_INT_FIELDS = new Set(["participant_min_age", "lorebook_id", "nsfw"]);
+const NULLABLE_INT_FIELDS = new Set(["participant_min_age", "nsfw"]);
 
 export function parseArgs(argv) {
   const positional = [];
@@ -170,12 +173,21 @@ export function sha256PromptPayload(fields, record, extra = {}) {
   return crypto.createHash("sha256").update(JSON.stringify(canonical), "utf8").digest("hex");
 }
 
+function normalizeKeywordLorebookPayload(keywordLorebookEntriesJson) {
+  if (keywordLorebookEntriesJson == null) return null;
+  const trimmed = String(keywordLorebookEntriesJson).trim();
+  return trimmed ? keywordLorebookEntriesJson : null;
+}
+
+/**
+ * Character prompt fidelity hash:
+ * CHARACTER_ROW_PROMPT_FIELDS + resolved keyword lorebook content.
+ * Does NOT include lorebook_id.
+ */
 export function buildCharacterPromptHash(characterRow, keywordLorebookEntriesJson = null) {
-  const extra = {};
-  if (keywordLorebookEntriesJson != null && String(keywordLorebookEntriesJson).trim()) {
-    extra[CHARACTER_KEYWORD_LOREBOOK_FIELD] = keywordLorebookEntriesJson;
-  }
-  return sha256PromptPayload(CHARACTER_PROMPT_FIELDS, characterRow, extra);
+  return sha256PromptPayload(CHARACTER_ROW_PROMPT_FIELDS, characterRow, {
+    [CHARACTER_KEYWORD_LOREBOOK_FIELD]: normalizeKeywordLorebookPayload(keywordLorebookEntriesJson),
+  });
 }
 
 export function buildPersonaPromptHash(personaRow) {
@@ -201,4 +213,14 @@ export function tableExists(db, name) {
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")
     .get(name);
   return !!row;
+}
+
+export function insertUnrelatedKeywordLorebook(db, name = "unrelated-preseed-lorebook") {
+  const result = db
+    .prepare(
+      `INSERT INTO keyword_lorebooks (creator_id, name, summary, entries_json)
+       VALUES (0, ?, '', '[]')`
+    )
+    .run(name);
+  return Number(result.lastInsertRowid);
 }

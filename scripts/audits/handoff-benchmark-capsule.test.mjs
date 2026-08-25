@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Synthetic round-trip test for handoff benchmark capsule export/import.
+ * Synthetic round-trip + negative fidelity tests for handoff benchmark capsule.
  * Run: npx tsx scripts/audits/handoff-benchmark-capsule.test.mjs
  */
 
@@ -112,16 +112,15 @@ async function seedSourceDb(dataDir) {
     .run(adminUserId, "테스트페르소나", "male", "공개 설명", "비밀 설명 항목");
   const personaId = Number(personaResult.lastInsertRowid);
 
-  return { adminUserId, characterId, personaId, dbPath: path.join(dataDir, "app.db") };
+  return { adminUserId, characterId, personaId, lorebookId, dbPath: path.join(dataDir, "app.db") };
 }
 
 function runScript(script, env) {
-  const result = spawnSync("npx", ["tsx", script], {
+  return spawnSync("npx", ["tsx", script], {
     cwd: ROOT,
     env: { ...process.env, ...env },
     encoding: "utf8",
   });
-  return result;
 }
 
 function parseJsonReport(stdout) {
@@ -129,6 +128,29 @@ function parseJsonReport(stdout) {
   const start = trimmed.lastIndexOf("\n{");
   const jsonText = start >= 0 ? trimmed.slice(start + 1) : trimmed;
   return JSON.parse(jsonText);
+}
+
+function writeMutatedCapsule(sourcePath, destPath, mutate) {
+  const capsule = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+  mutate(capsule);
+  fs.writeFileSync(destPath, `${JSON.stringify(capsule, null, 2)}\n`, "utf8");
+}
+
+function assertImportFidelityFailure(label, capsulePath, targetDir, expectedFalseFlag) {
+  fs.rmSync(targetDir, { recursive: true, force: true });
+  const preseed = runScript("scripts/audits/handoff-benchmark-capsule-preseed-target.mjs", {
+    TARGET_DATA_DIR: targetDir,
+  });
+  assert.equal(preseed.status, 0, `${label} preseed failed:\n${preseed.stderr}\n${preseed.stdout}`);
+
+  const importRun = runScript("scripts/audits/import-handoff-benchmark-capsule.mjs", {
+    CAPSULE_PATH: capsulePath,
+    TARGET_DATA_DIR: targetDir,
+  });
+  assert.notEqual(importRun.status, 0, `${label} expected importer to fail`);
+  const report = parseJsonReport(importRun.stdout);
+  assert.equal(report.ok, false, `${label} report.ok should be false`);
+  assert.equal(report[expectedFalseFlag], false, `${label} ${expectedFalseFlag} should be false`);
 }
 
 async function main() {
@@ -148,6 +170,17 @@ async function main() {
   assert.equal(exportRun.status, 0, `export failed:\n${exportRun.stderr}\n${exportRun.stdout}`);
   assert.ok(fs.existsSync(capsulePath), "capsule file missing");
 
+  const exported = JSON.parse(fs.readFileSync(capsulePath, "utf8"));
+  assert.equal(exported.character.lorebook_id, undefined, "capsule character must not include lorebook_id");
+  assert.equal(exported.provenance.source_lorebook_id, seeded.lorebookId);
+
+  const preseed = runScript("scripts/audits/handoff-benchmark-capsule-preseed-target.mjs", {
+    TARGET_DATA_DIR: importDir,
+  });
+  assert.equal(preseed.status, 0, `preseed failed:\n${preseed.stderr}\n${preseed.stdout}`);
+  const preseedReport = parseJsonReport(preseed.stdout);
+  assert.ok(preseedReport.preseed_lorebook_id >= 1);
+
   const importRun = runScript("scripts/audits/import-handoff-benchmark-capsule.mjs", {
     CAPSULE_PATH: capsulePath,
     TARGET_DATA_DIR: importDir,
@@ -157,7 +190,11 @@ async function main() {
   const report = parseJsonReport(importRun.stdout);
   assert.equal(report.REAL_CHARACTER_PROMPT_DATA_EXACT, true);
   assert.equal(report.REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT, true);
+  assert.equal(report.BENCHMARK_USER_CONTEXT_EXACT, true);
+  assert.equal(report.ok, true);
   assert.equal(report.ADMIN_STATUS_AFFECTS_PERSONA_PROMPT, ADMIN_STATUS_AFFECTS_PERSONA_PROMPT);
+  assert.notEqual(report.SOURCE_LOREBOOK_ID, report.IMPORTED_LOREBOOK_ID);
+  assert.equal(report.SOURCE_LOREBOOK_ID, seeded.lorebookId);
 
   const importDb = new Database(path.join(importDir, "app.db"), { readonly: true });
   const importedChar = importDb
@@ -166,6 +203,9 @@ async function main() {
   const importedPersona = importDb
     .prepare("SELECT name, gender, description, secret_description FROM user_personas WHERE id = ?")
     .get(report.imported_persona_id);
+  const importedLore = importDb
+    .prepare("SELECT entries_json FROM keyword_lorebooks WHERE id = ?")
+    .get(importedChar.lorebook_id);
   importDb.close();
 
   const sourceDb = new Database(seeded.dbPath, { readonly: true });
@@ -178,12 +218,66 @@ async function main() {
     .get(sourceChar.lorebook_id);
   sourceDb.close();
 
+  assert.notEqual(sourceChar.lorebook_id, importedChar.lorebook_id);
+  assert.equal(sourceLore?.entries_json, importedLore?.entries_json);
   assert.equal(
-    buildCharacterPromptHash(importedChar, sourceLore?.entries_json),
+    buildCharacterPromptHash(importedChar, importedLore?.entries_json),
     buildCharacterPromptHash(sourceChar, sourceLore?.entries_json)
   );
   assert.equal(buildPersonaPromptHash(importedPersona), buildPersonaPromptHash(sourcePersona));
 
+  const changedCharacterPath = path.join(TMP, "changed-character.json");
+  writeMutatedCapsule(capsulePath, changedCharacterPath, (capsule) => {
+    capsule.character.name = `${capsule.character.name}-mutated`;
+  });
+  assertImportFidelityFailure(
+    "changed character prompt field",
+    changedCharacterPath,
+    path.join(TMP, "neg-character"),
+    "REAL_CHARACTER_PROMPT_DATA_EXACT"
+  );
+
+  const changedPersonaPath = path.join(TMP, "changed-persona.json");
+  writeMutatedCapsule(capsulePath, changedPersonaPath, (capsule) => {
+    capsule.persona.description = `${capsule.persona.description}-mutated`;
+  });
+  assertImportFidelityFailure(
+    "changed persona prompt field",
+    changedPersonaPath,
+    path.join(TMP, "neg-persona"),
+    "REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT"
+  );
+
+  const changedUserContextPath = path.join(TMP, "changed-user-context.json");
+  writeMutatedCapsule(capsulePath, changedUserContextPath, (capsule) => {
+    capsule.benchmark_user_context.nickname = `${capsule.benchmark_user_context.nickname}-mutated`;
+  });
+  assertImportFidelityFailure(
+    "changed benchmark user context field",
+    changedUserContextPath,
+    path.join(TMP, "neg-user-context"),
+    "BENCHMARK_USER_CONTEXT_EXACT"
+  );
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        SOURCE_LOREBOOK_ID: report.SOURCE_LOREBOOK_ID,
+        IMPORTED_LOREBOOK_ID: report.IMPORTED_LOREBOOK_ID,
+        REAL_CHARACTER_PROMPT_DATA_EXACT: true,
+        REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT: true,
+        BENCHMARK_USER_CONTEXT_EXACT: true,
+        negative_fidelity_detected: [
+          "character_prompt_field",
+          "persona_prompt_field",
+          "benchmark_user_context_field",
+        ],
+      },
+      null,
+      2
+    )
+  );
   console.log("handoff-benchmark-capsule.test.mjs: OK");
 }
 

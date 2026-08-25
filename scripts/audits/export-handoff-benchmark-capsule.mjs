@@ -24,7 +24,7 @@ import {
   BENCHMARK_USER_CONTEXT_FIELDS,
   CAPSULE_SCHEMA_VERSION,
   CHARACTER_LISTABILITY_FIELDS,
-  CHARACTER_PROMPT_FIELDS,
+  CHARACTER_ROW_PROMPT_FIELDS,
   LISTABLE_WHERE_SQL,
   PERSONA_PROMPT_FIELDS,
   buildBenchmarkUserContextHash,
@@ -83,7 +83,8 @@ function main() {
 
     const characterSelect = [
       "id",
-      ...CHARACTER_PROMPT_FIELDS,
+      "lorebook_id",
+      ...CHARACTER_ROW_PROMPT_FIELDS,
       ...CHARACTER_LISTABILITY_FIELDS,
     ].join(", ");
     const characterRow = db
@@ -155,6 +156,7 @@ function main() {
         source_db_path_basename: path.basename(resolvedDb),
         source_character_id: characterId,
         source_persona_id: personaId,
+        source_lorebook_id: characterRow.lorebook_id ?? null,
         source_character_prompt_sha256: characterPromptSha,
         source_persona_prompt_sha256: personaPromptSha,
         source_benchmark_user_context_sha256: benchmarkUserContextSha,
@@ -177,7 +179,7 @@ function main() {
         },
       },
       benchmark_user_context: benchmarkUserContext,
-      character: pickFields(characterRow, CHARACTER_PROMPT_FIELDS),
+      character: pickFields(characterRow, CHARACTER_ROW_PROMPT_FIELDS),
       persona: pickFields(personaRow, PERSONA_PROMPT_FIELDS),
       keyword_lorebook:
         keywordLorebookEntriesJson != null && String(keywordLorebookEntriesJson).trim()
@@ -195,6 +197,7 @@ function main() {
       ADMIN_STATUS_AFFECTS_PERSONA_PROMPT,
       source_character_id: characterId,
       source_persona_id: personaId,
+      source_lorebook_id: characterRow.lorebook_id ?? null,
       source_character_prompt_sha256: characterPromptSha,
       source_persona_prompt_sha256: personaPromptSha,
       character_listable: true,

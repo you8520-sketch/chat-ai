@@ -19,14 +19,13 @@ import {
   ADMIN_STATUS_AFFECTS_PERSONA_PROMPT,
   BENCHMARK_USER_CONTEXT_FIELDS,
   CAPSULE_SCHEMA_VERSION,
-  CHARACTER_PROMPT_FIELDS,
+  CHARACTER_ROW_PROMPT_FIELDS,
   PERSONA_PROMPT_FIELDS,
   buildBenchmarkUserContextHash,
   buildCharacterPromptHash,
   buildPersonaPromptHash,
   loadKeywordLorebookEntries,
   parseArgs,
-  pickFields,
   tableExists,
 } from "./handoff-benchmark-capsule-lib.mjs";
 
@@ -80,7 +79,7 @@ function insertKeywordLorebook(db, entriesJson) {
 }
 
 function insertCharacter(db, character, lorebookId) {
-  const columns = [...CHARACTER_PROMPT_FIELDS];
+  const columns = [...CHARACTER_ROW_PROMPT_FIELDS, "lorebook_id"];
   const values = columns.map((col) => {
     if (col === "lorebook_id") return lorebookId;
     return character[col] ?? (col === "participant_min_age" || col === "nsfw" ? null : "");
@@ -132,7 +131,7 @@ function insertPersona(db, userId, persona) {
 }
 
 function loadImportedCharacterRow(db, characterId) {
-  const cols = CHARACTER_PROMPT_FIELDS.join(", ");
+  const cols = [...CHARACTER_ROW_PROMPT_FIELDS, "lorebook_id"].join(", ");
   return db.prepare(`SELECT ${cols} FROM characters WHERE id = ?`).get(characterId);
 }
 
@@ -184,10 +183,20 @@ async function main() {
   const REAL_CHARACTER_PROMPT_DATA_EXACT = importedCharacterSha === sourceCharacterSha;
   const REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT = importedPersonaSha === sourcePersonaSha;
   const BENCHMARK_USER_CONTEXT_EXACT =
-    sourceUserContextSha == null || importedUserContextSha === sourceUserContextSha;
+    typeof sourceUserContextSha === "string" &&
+    sourceUserContextSha.length > 0 &&
+    importedUserContextSha === sourceUserContextSha;
+
+  const sourceLorebookId = capsule.provenance?.source_lorebook_id ?? null;
+  const importedLorebookId = importedCharacterRow.lorebook_id ?? null;
+
+  const ok =
+    REAL_CHARACTER_PROMPT_DATA_EXACT &&
+    REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT &&
+    BENCHMARK_USER_CONTEXT_EXACT;
 
   const report = {
-    ok: REAL_CHARACTER_PROMPT_DATA_EXACT && REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT,
+    ok,
     capsule_path: capsuleFile,
     target_data_dir: targetDataDir,
     target_db_path: path.join(targetDataDir, "app.db"),
@@ -195,6 +204,8 @@ async function main() {
     imported_character_id: importedCharacterId,
     imported_persona_id: importedPersonaId,
     imported_benchmark_user_id: benchmarkUserId,
+    SOURCE_LOREBOOK_ID: sourceLorebookId,
+    IMPORTED_LOREBOOK_ID: importedLorebookId,
     CHARACTER_PROMPT_SOURCE_SHA: sourceCharacterSha,
     CHARACTER_PROMPT_IMPORTED_SHA: importedCharacterSha,
     PERSONA_PROMPT_SOURCE_SHA: sourcePersonaSha,
@@ -205,13 +216,13 @@ async function main() {
     REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT,
     BENCHMARK_USER_CONTEXT_EXACT,
     normalization:
-      "SHA-256 of sorted-key JSON after SQLite null/string/int normalization (see handoff-benchmark-capsule-lib.mjs)",
+      "SHA-256 of CHARACTER_ROW_PROMPT_FIELDS + resolved keyword lorebook content (lorebook_id excluded) after SQLite null/string/int normalization",
     provenance: capsule.provenance,
   };
 
   console.log(JSON.stringify(report, null, 2));
 
-  if (!REAL_CHARACTER_PROMPT_DATA_EXACT || !REAL_ADMIN_PERSONA_PROMPT_DATA_EXACT) {
+  if (!ok) {
     process.exit(1);
   }
 }
