@@ -1,0 +1,15 @@
+{
+  "id": "069",
+  "url": "https://api.cheaperinference.com/v1/models",
+  "method": "POST",
+  "status": 200,
+  "model": "",
+  "requestSha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "rawSha": "b20f4b4c964d408ec20676afc2eaddb1ccee43e22aab8f99f91fd5ebe2f8619a",
+  "ttftMs": 226,
+  "latencyMs": 228,
+  "finishReason": null,
+  "usage": null,
+  "visibleChars": 0,
+  "capturedAt": "2026-08-25T04:51:47.868Z"
+}
