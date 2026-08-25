@@ -1,0 +1,3 @@
+opus5: HTTP_STATUS=502 LATENCY_MS=637 VISIBLE_CHARS=0
+Provider returned an HTML 502 page, not a model completion.
+Classified INVALID_PROVIDER_FAILURE. No retry.

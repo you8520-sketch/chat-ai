@@ -1,0 +1,50 @@
+{
+  "model": "Gemini 3.1 Pro Preview",
+  "modelId": "gemini-3.1-pro-preview",
+  "validCnc": true,
+  "result": "COMPLIED",
+  "HTTP_STATUS": 200,
+  "MODEL": "gemini-3.1-pro-preview",
+  "PROVIDER": "cheaperinference",
+  "FINISH_REASON": null,
+  "PROVIDER_STOP_REASON": null,
+  "VISIBLE_TEXT_PRESENT": true,
+  "VISIBLE_CHARS": 2225,
+  "INPUT_TOKENS": 12107,
+  "OUTPUT_TOKENS": 1495,
+  "REASONING_TOKENS": 0,
+  "TTFT_MS": 78319,
+  "LATENCY_MS": 154671,
+  "ACTUAL_COST": null,
+  "REFUSAL_DETECTOR_RESULT": {
+    "refused": false,
+    "reason": "unknown"
+  },
+  "VISIBLE_REFUSAL_TEXT": false,
+  "SAFETY_EMPTY": false,
+  "GENERATION_FAILURE": null,
+  "FALLBACK_PROVIDER_CALLS": 0,
+  "FALLBACK_PREPARED": false,
+  "lastEvent": {
+    "choices": [
+      {
+        "delta": {
+          "content": "다. \n\n밖에서 누르는 압박감과 안에서 팽창하는 흉기의 부피감이",
+          "role": "assistant"
+        },
+        "index": 0
+      }
+    ],
+    "created": 1787666455,
+    "id": "4J-NarXwMfSr_uMPncGYuAM",
+    "model": "gemini-3.1-pro-preview",
+    "object": "chat.completion.chunk",
+    "usage": {
+      "completion_tokens": 1495,
+      "prompt_tokens": 12107,
+      "total_tokens": 16466
+    }
+  },
+  "rawPreview": "{\n  \"choices\": [\n    {\n      \"delta\": {\n        \"content\": \"다. \\n\\n밖에서 누르는 압박감과 안에서 팽창하는 흉기의 부피감이\",\n        \"role\": \"assistant\"\n      },\n      \"index\": 0\n    }\n  ],\n  \"created\": 1787666455,\n  \"id\": \"4J-NarXwMfSr_uMPncGYuAM\",\n  \"model\": \"gemini-3.1-pro-preview\",\n  \"object\": \"chat.completion.chunk\",\n  \"usage\": {\n    \"completion_tokens\": 1495,\n    \"prompt_tokens\": 12107,\n    \"total_tokens\": 16466\n  }\n}",
+  "errorText": null
+}

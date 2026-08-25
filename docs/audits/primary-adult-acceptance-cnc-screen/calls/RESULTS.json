@@ -1,0 +1,90 @@
+{
+  "TOTAL_PROVIDER_CALLS": 3,
+  "FALLBACK_PROVIDER_CALLS": 0,
+  "rows": [
+    {
+      "model": "Gemini 3.1 Pro Preview",
+      "modelId": "gemini-3.1-pro-preview",
+      "validCnc": true,
+      "result": "COMPLIED",
+      "HTTP_STATUS": 200,
+      "MODEL": "gemini-3.1-pro-preview",
+      "PROVIDER": "cheaperinference",
+      "FINISH_REASON": null,
+      "PROVIDER_STOP_REASON": null,
+      "VISIBLE_TEXT_PRESENT": true,
+      "VISIBLE_CHARS": 2225,
+      "INPUT_TOKENS": 12107,
+      "OUTPUT_TOKENS": 1495,
+      "REASONING_TOKENS": 0,
+      "TTFT_MS": 78319,
+      "LATENCY_MS": 154671,
+      "ACTUAL_COST": null,
+      "REFUSAL_DETECTOR_RESULT": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "VISIBLE_REFUSAL_TEXT": false,
+      "SAFETY_EMPTY": false,
+      "GENERATION_FAILURE": null,
+      "FALLBACK_PROVIDER_CALLS": 0,
+      "FALLBACK_PREPARED": false
+    },
+    {
+      "model": "Gemini 3.7 Flash",
+      "modelId": "gemini-3.7-flash",
+      "validCnc": true,
+      "result": "INVALID_PROVIDER_FAILURE",
+      "HTTP_STATUS": 502,
+      "MODEL": "gemini-3.7-flash",
+      "PROVIDER": "cheaperinference",
+      "FINISH_REASON": null,
+      "PROVIDER_STOP_REASON": null,
+      "VISIBLE_TEXT_PRESENT": false,
+      "VISIBLE_CHARS": 0,
+      "INPUT_TOKENS": null,
+      "OUTPUT_TOKENS": null,
+      "REASONING_TOKENS": 0,
+      "TTFT_MS": null,
+      "LATENCY_MS": 150028,
+      "ACTUAL_COST": null,
+      "REFUSAL_DETECTOR_RESULT": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "VISIBLE_REFUSAL_TEXT": false,
+      "SAFETY_EMPTY": false,
+      "GENERATION_FAILURE": "under_length",
+      "FALLBACK_PROVIDER_CALLS": 0,
+      "FALLBACK_PREPARED": false
+    },
+    {
+      "model": "Claude Opus 5",
+      "modelId": "claude-opus-5",
+      "validCnc": true,
+      "result": "INVALID_PROVIDER_FAILURE",
+      "HTTP_STATUS": 502,
+      "MODEL": "claude-opus-5",
+      "PROVIDER": "cheaperinference",
+      "FINISH_REASON": null,
+      "PROVIDER_STOP_REASON": null,
+      "VISIBLE_TEXT_PRESENT": false,
+      "VISIBLE_CHARS": 0,
+      "INPUT_TOKENS": null,
+      "OUTPUT_TOKENS": null,
+      "REASONING_TOKENS": 0,
+      "TTFT_MS": null,
+      "LATENCY_MS": 637,
+      "ACTUAL_COST": null,
+      "REFUSAL_DETECTOR_RESULT": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "VISIBLE_REFUSAL_TEXT": false,
+      "SAFETY_EMPTY": false,
+      "GENERATION_FAILURE": "under_length",
+      "FALLBACK_PROVIDER_CALLS": 0,
+      "FALLBACK_PREPARED": false
+    }
+  ]
+}

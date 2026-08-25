@@ -1,0 +1,32 @@
+{
+  "model": "Gemini 3.7 Flash",
+  "modelId": "gemini-3.7-flash",
+  "validCnc": true,
+  "result": "INVALID_PROVIDER_FAILURE",
+  "HTTP_STATUS": 502,
+  "MODEL": "gemini-3.7-flash",
+  "PROVIDER": "cheaperinference",
+  "FINISH_REASON": null,
+  "PROVIDER_STOP_REASON": null,
+  "VISIBLE_TEXT_PRESENT": false,
+  "VISIBLE_CHARS": 0,
+  "INPUT_TOKENS": null,
+  "OUTPUT_TOKENS": null,
+  "REASONING_TOKENS": 0,
+  "TTFT_MS": null,
+  "LATENCY_MS": 150028,
+  "ACTUAL_COST": null,
+  "REFUSAL_DETECTOR_RESULT": {
+    "refused": false,
+    "reason": "unknown"
+  },
+  "VISIBLE_REFUSAL_TEXT": false,
+  "SAFETY_EMPTY": false,
+  "GENERATION_FAILURE": "under_length",
+  "FALLBACK_PROVIDER_CALLS": 0,
+  "FALLBACK_PREPARED": false,
+  "lastEvent": null,
+  "rawPreview": "HTTP 502 HTML gateway page from CheaperInference (Railway/CDN 502 title page). Full HTML omitted from git; not a model refusal body.",
+  "errorText": "HTTP 502",
+  "errorClass": "cheaperinference_html_502"
+}
