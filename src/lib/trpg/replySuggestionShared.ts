@@ -3,6 +3,41 @@ import type { TrpgVisibleActionType } from "./actionTypes";
 export const TRPG_REPLY_SUGGESTION_USER_ERROR =
   "행동 예시를 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요.";
 
+const TRPG_REPLY_SUGGESTION_BUSINESS_ERRORS = new Set([
+  "이미 행동 예시를 만들고 있습니다.",
+  "잠시 후 다시 시도하세요.",
+  "캠페인을 찾을 수 없습니다.",
+  "이 캠페인의 참가자가 아닙니다.",
+  "지금은 행동할 수 없습니다.",
+  "지금은 행동 예시를 받을 수 없습니다.",
+  "이미 제출했습니다.",
+  "잘못된 캠페인입니다.",
+]);
+
+const TRPG_REPLY_SUGGESTION_INTERNAL_ERROR_RE =
+  /\[TRPG reply\]|completion deadline exceeded|body completion deadline exceeded|headers deadline exceeded|header deadline exceeded|unusable backup completion|malformed_json|malformed backup provider response envelope|malformed provider response|NO_OPENROUTER_KEY|NO_CHEAPER_INFERENCE_KEY|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|fetch failed|network error|CheaperInference backup failed/i;
+
+export function isTrpgReplySuggestionInternalProviderError(error: unknown): boolean {
+  if (!(error instanceof Error)) return true;
+  const message = error.message.trim();
+  if (!message) return true;
+  if (TRPG_REPLY_SUGGESTION_BUSINESS_ERRORS.has(message)) return false;
+  if (error.name === "TimeoutError" || error.name === "AbortError") return true;
+  return TRPG_REPLY_SUGGESTION_INTERNAL_ERROR_RE.test(message);
+}
+
+export function normalizeTrpgReplySuggestionClientError(error: unknown): string {
+  if (error instanceof Error) {
+    const message = error.message.trim();
+    if (message && TRPG_REPLY_SUGGESTION_BUSINESS_ERRORS.has(message)) return message;
+  }
+  if (isTrpgReplySuggestionInternalProviderError(error)) {
+    return TRPG_REPLY_SUGGESTION_USER_ERROR;
+  }
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  return TRPG_REPLY_SUGGESTION_USER_ERROR;
+}
+
 export const TRPG_INPUT_ORIGINS = ["manual", "reply_suggestion"] as const;
 export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
 

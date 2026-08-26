@@ -31,6 +31,7 @@ import { clipTrpgChars } from "./clip";
 import { parseHumanPersona, type TrpgHumanPersona } from "./hostPersona";
 import {
   normalizeTrpgReplyStance,
+  normalizeTrpgReplySuggestionClientError,
   parseTrpgInputOrigin,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
   TRPG_REPLY_STANCES,
@@ -106,6 +107,13 @@ type TrpgReplySuggestionGate = {
 };
 
 const inflight = new Map<string, TrpgReplySuggestionGate>();
+let lastLoggedReplySuggestionProviderTelemetry: TrpgReplySuggestionProviderTelemetry | undefined;
+
+export function peekLastReplySuggestionProviderTelemetryForRoute():
+  | TrpgReplySuggestionProviderTelemetry
+  | undefined {
+  return lastLoggedReplySuggestionProviderTelemetry;
+}
 
 function gateKey(campaignId: number, userId: number): string {
   return `${campaignId}:${userId}`;
@@ -200,6 +208,16 @@ export class TrpgMalformedProviderResponseError extends Error {
   }
 }
 
+export class TrpgReplySuggestionProviderRoundError extends Error {
+  readonly telemetry: TrpgReplySuggestionProviderTelemetry;
+
+  constructor(message: string, telemetry: TrpgReplySuggestionProviderTelemetry) {
+    super(message);
+    this.name = "TrpgReplySuggestionProviderRoundError";
+    this.telemetry = telemetry;
+  }
+}
+
 export type TrpgReplyFallbackContentKind =
   | "string"
   | "parts"
@@ -278,6 +296,9 @@ export type TrpgReplySuggestionRouteTelemetry = {
     | "fallback_provider"
     | "fallback_latency_ms"
     | "provider_attempt_count"
+    | "primary_timeout_stage"
+    | "backup_failure_class"
+    | "semantic_failure_class"
   >;
 };
 
@@ -558,6 +579,7 @@ function applyBackupResponseTelemetry(
 export function logTrpgReplySuggestionProviderTelemetry(
   telemetry: TrpgReplySuggestionProviderTelemetry
 ): void {
+  lastLoggedReplySuggestionProviderTelemetry = telemetry;
   console.info("[trpg-reply-suggestion-provider]", {
     kind: "trpg_reply_suggestion_provider",
     logical_request_id: telemetry.logical_request_id,
@@ -613,6 +635,9 @@ export function logTrpgReplySuggestionRouteTelemetry(
     fallback_provider: telemetry.provider?.fallback_provider ?? null,
     fallback_latency_ms: telemetry.provider?.fallback_latency_ms ?? null,
     provider_attempt_count: telemetry.provider?.provider_attempt_count ?? 0,
+    primary_timeout_stage: telemetry.provider?.primary_timeout_stage ?? null,
+    backup_failure_class: telemetry.provider?.backup_failure_class ?? null,
+    semantic_failure_class: telemetry.provider?.semantic_failure_class ?? null,
   });
 }
 
@@ -1129,42 +1154,30 @@ function createEmptyProviderTelemetry(opts: {
 }
 
 export function toTrpgReplySuggestionUserError(error: unknown): Error {
-  if (!(error instanceof Error)) {
-    return new Error(TRPG_REPLY_SUGGESTION_USER_ERROR);
+  return new Error(normalizeTrpgReplySuggestionClientError(error));
+}
+
+function extractProviderRoundTelemetry(
+  error: unknown
+): TrpgReplySuggestionProviderTelemetry | undefined {
+  if (error instanceof TrpgReplySuggestionProviderRoundError) return error.telemetry;
+  if (error && typeof error === "object" && "telemetry" in error) {
+    const telemetry = (error as { telemetry?: unknown }).telemetry;
+    if (telemetry && typeof telemetry === "object" && "logical_request_id" in telemetry) {
+      return telemetry as TrpgReplySuggestionProviderTelemetry;
+    }
   }
-  const message = error.message.trim();
-  if (!message) return new Error(TRPG_REPLY_SUGGESTION_USER_ERROR);
-  if (
-    message === "이미 행동 예시를 만들고 있습니다." ||
-    message === "잠시 후 다시 시도하세요." ||
-    message === "캠페인을 찾을 수 없습니다." ||
-    message === "이 캠페인의 참가자가 아닙니다." ||
-    message === "지금은 행동할 수 없습니다." ||
-    message === "지금은 행동 예시를 받을 수 없습니다." ||
-    message === "이미 제출했습니다." ||
-    message === "잘못된 캠페인입니다."
-  ) {
-    return error;
-  }
-  if (
-    error instanceof DeepSeekProviderFailoverError ||
-    error instanceof DeepSeekDeterministicProviderError ||
-    message.startsWith("[TRPG reply]") ||
-    /body completion deadline exceeded|unusable backup completion|malformed_json|malformed backup provider response envelope|NO_OPENROUTER_KEY|NO_CHEAPER_INFERENCE_KEY/i.test(
-      message
-    )
-  ) {
-    return new Error(TRPG_REPLY_SUGGESTION_USER_ERROR);
-  }
-  return error;
+  return undefined;
 }
 
 function throwProviderRoundFailure(opts: {
   message: string;
   telemetry: TrpgReplySuggestionProviderTelemetry;
+  onProviderTelemetry?: (telemetry: TrpgReplySuggestionProviderTelemetry) => void;
 }): never {
   logTrpgReplySuggestionProviderTelemetry(opts.telemetry);
-  throw new Error(opts.message);
+  opts.onProviderTelemetry?.(opts.telemetry);
+  throw new TrpgReplySuggestionProviderRoundError(opts.message, opts.telemetry);
 }
 
 export type TrpgReplySuggestionProviderRoundDeps = {
@@ -1178,6 +1191,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
   roundId?: number | null;
   hooks?: DeepSeekFailoverHooks;
   deps?: TrpgReplySuggestionProviderRoundDeps;
+  onProviderTelemetry?: (telemetry: TrpgReplySuggestionProviderTelemetry) => void;
 }): Promise<{
   text: string;
   model: string;
@@ -1195,6 +1209,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
   const { primaryCompletionMs: primaryDeadlineMs, backupCompletionMs: backupDeadlineMs } =
     resolveTrpgReplySuggestionProviderDeadlines();
   const fetchCompletion = opts.deps?.fetchCompletion ?? fetchDeepSeekNonStreamCompletion;
+  const notifyProviderTelemetry = opts.onProviderTelemetry;
 
   const attemptCheaperInferenceBackup = async (reason: {
     primaryFailureClass: string;
@@ -1219,6 +1234,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       throwProviderRoundFailure({
         message: "[TRPG reply] NO_CHEAPER_INFERENCE_KEY",
         telemetry,
+        onProviderTelemetry: notifyProviderTelemetry,
       });
     }
 
@@ -1250,6 +1266,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         throwProviderRoundFailure({
           message: `[TRPG reply] ${backupResult.response.status}: ${errText.slice(0, 240)}`,
           telemetry,
+          onProviderTelemetry: notifyProviderTelemetry,
         });
       }
       const backupRead = await readValidatedProviderCompletion(backupResult.response);
@@ -1271,6 +1288,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
             ? "[TRPG reply] malformed backup provider response envelope"
             : "[TRPG reply] unusable backup completion",
           telemetry,
+          onProviderTelemetry: notifyProviderTelemetry,
         });
       }
       telemetry.fallback_success = true;
@@ -1283,7 +1301,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         outputTokens: backupRead.outputTokens,
       };
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("[TRPG reply]")) throw error;
+      if (error instanceof TrpgReplySuggestionProviderRoundError) throw error;
       telemetry.fallback_success = false;
       if (!telemetry.backup_failure_class) {
         const classified = classifyTrpgReplyCaughtTransportFailure(
@@ -1296,6 +1314,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       throwProviderRoundFailure({
         message: error instanceof Error ? error.message : "CheaperInference backup failed",
         telemetry,
+        onProviderTelemetry: notifyProviderTelemetry,
       });
     }
   };
@@ -1398,8 +1417,12 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     }
     if (!classified.failover) {
       telemetry.primary_failure_class = classified.failureClass;
+      notifyProviderTelemetry?.(telemetry);
       logTrpgReplySuggestionProviderTelemetry(telemetry);
-      throw error instanceof Error ? error : new Error(String(error));
+      throw new TrpgReplySuggestionProviderRoundError(
+        error instanceof Error ? error.message : String(error),
+        telemetry
+      );
     }
     const backup = await attemptCheaperInferenceBackup({
       primaryFailureClass: classified.failureClass,
@@ -1420,20 +1443,28 @@ export async function callTrpgReplySuggestionModel(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_SUGGESTIONS, model: TRPG_REPLY_SUGGESTION_MODEL };
   }
-  const result = await executeTrpgReplySuggestionProviderRound({
-    system: opts.system,
-    user: opts.user,
-    logicalRequestId: opts.logicalRequestId ?? randomUUID(),
-    roundId: opts.roundId,
-    hooks: opts.hooks,
-  });
-  opts.onProviderTelemetry?.(result.telemetry);
-  return {
-    text: result.text,
-    model: result.model,
-    inputTokens: result.inputTokens,
-    outputTokens: result.outputTokens,
-  };
+  try {
+    const result = await executeTrpgReplySuggestionProviderRound({
+      system: opts.system,
+      user: opts.user,
+      logicalRequestId: opts.logicalRequestId ?? randomUUID(),
+      roundId: opts.roundId,
+      hooks: opts.hooks,
+      onProviderTelemetry: opts.onProviderTelemetry,
+    });
+    opts.onProviderTelemetry?.(result.telemetry);
+    return {
+      text: result.text,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+    };
+  } catch (error) {
+    if (error instanceof TrpgReplySuggestionProviderRoundError) {
+      opts.onProviderTelemetry?.(error.telemetry);
+    }
+    throw error;
+  }
 }
 
 export async function requestTrpgReplySuggestions(
@@ -1551,16 +1582,39 @@ export async function requestTrpgReplySuggestions(
   let lastProviderTelemetry: TrpgReplySuggestionProviderTelemetry | undefined;
   const complete =
     opts.complete ??
-    ((prompt: { system: string; user: string }) =>
-      callTrpgReplySuggestionModel({
-        ...prompt,
-        logicalRequestId,
-        roundId: round.id,
-        onProviderTelemetry: (telemetry) => {
-          lastProviderTelemetry = telemetry;
-        },
-      }));
+    (async (prompt: { system: string; user: string }) => {
+      try {
+        return await callTrpgReplySuggestionModel({
+          ...prompt,
+          logicalRequestId,
+          roundId: round.id,
+          onProviderTelemetry: (telemetry) => {
+            lastProviderTelemetry = telemetry;
+          },
+        });
+      } catch (error) {
+        const roundTelemetry = extractProviderRoundTelemetry(error);
+        if (roundTelemetry) lastProviderTelemetry = roundTelemetry;
+        throw error;
+      }
+    });
   let settledResult: TrpgReplySuggestionResult | undefined;
+  const routeProviderTelemetry = (
+    telemetry: TrpgReplySuggestionProviderTelemetry
+  ): NonNullable<TrpgReplySuggestionRouteTelemetry["provider"]> => ({
+    logical_request_id: telemetry.logical_request_id,
+    primary_provider: telemetry.primary_provider,
+    primary_model: telemetry.primary_model,
+    primary_latency_ms: telemetry.primary_latency_ms,
+    primary_failure_class: telemetry.primary_failure_class,
+    fallback_attempted: telemetry.fallback_attempted,
+    fallback_provider: telemetry.fallback_provider,
+    fallback_latency_ms: telemetry.fallback_latency_ms,
+    provider_attempt_count: telemetry.provider_attempt_count,
+    primary_timeout_stage: telemetry.primary_timeout_stage ?? null,
+    backup_failure_class: telemetry.backup_failure_class ?? null,
+    semantic_failure_class: telemetry.semantic_failure_class,
+  });
   const generation = (async (): Promise<TrpgReplySuggestionResult> => {
     try {
       const result = await complete({ system: prompt.system, user: prompt.user });
@@ -1582,23 +1636,15 @@ export async function requestTrpgReplySuggestions(
         outputTokens: result.outputTokens ?? 0,
         totalProviderLatencyMs: providerLatency > 0 ? providerLatency : Date.now() - started,
         success: true,
-        provider: lastProviderTelemetry
-          ? {
-              logical_request_id: lastProviderTelemetry.logical_request_id,
-              primary_provider: lastProviderTelemetry.primary_provider,
-              primary_model: lastProviderTelemetry.primary_model,
-              primary_latency_ms: lastProviderTelemetry.primary_latency_ms,
-              primary_failure_class: lastProviderTelemetry.primary_failure_class,
-              fallback_attempted: lastProviderTelemetry.fallback_attempted,
-              fallback_provider: lastProviderTelemetry.fallback_provider,
-              fallback_latency_ms: lastProviderTelemetry.fallback_latency_ms,
-              provider_attempt_count: lastProviderTelemetry.provider_attempt_count,
-            }
-          : undefined,
+        provider: lastProviderTelemetry ? routeProviderTelemetry(lastProviderTelemetry) : undefined,
       });
       settledResult = { suggestions, prompt };
       return settledResult;
     } catch (error) {
+      const failureTelemetry =
+        lastProviderTelemetry ??
+        extractProviderRoundTelemetry(error) ??
+        peekLastReplySuggestionProviderTelemetryForRoute();
       logTrpgReplySuggestionUsage({
         model: TRPG_REPLY_SUGGESTION_MODEL,
         latencyMs: Date.now() - started,
@@ -1609,19 +1655,7 @@ export async function requestTrpgReplySuggestions(
         promptChars: prompt.system.length + prompt.user.length,
         success: false,
         totalProviderLatencyMs: Date.now() - started,
-        provider: lastProviderTelemetry
-          ? {
-              logical_request_id: lastProviderTelemetry.logical_request_id,
-              primary_provider: lastProviderTelemetry.primary_provider,
-              primary_model: lastProviderTelemetry.primary_model,
-              primary_latency_ms: lastProviderTelemetry.primary_latency_ms,
-              primary_failure_class: lastProviderTelemetry.primary_failure_class,
-              fallback_attempted: lastProviderTelemetry.fallback_attempted,
-              fallback_provider: lastProviderTelemetry.fallback_provider,
-              fallback_latency_ms: lastProviderTelemetry.fallback_latency_ms,
-              provider_attempt_count: lastProviderTelemetry.provider_attempt_count,
-            }
-          : undefined,
+        provider: failureTelemetry ? routeProviderTelemetry(failureTelemetry) : undefined,
       });
       throw toTrpgReplySuggestionUserError(error);
     } finally {
@@ -1655,4 +1689,5 @@ export async function requestTrpgReplySuggestions(
 
 export function resetTrpgReplySuggestionCooldownForTests(): void {
   inflight.clear();
+  lastLoggedReplySuggestionProviderTelemetry = undefined;
 }

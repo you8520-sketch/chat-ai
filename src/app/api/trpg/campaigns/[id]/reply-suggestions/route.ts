@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requestTrpgReplySuggestions } from "@/lib/trpg/replySuggestions";
+import { requestTrpgReplySuggestions, toTrpgReplySuggestionUserError } from "@/lib/trpg/replySuggestions";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 
 export const maxDuration = 60;
@@ -17,6 +17,6 @@ export async function POST(_req: Request, ctx: RouteCtx) {
     });
     return NextResponse.json({ ok: true, suggestions: result.suggestions });
   } catch (e) {
-    return trpgFail(e);
+    return trpgFail(toTrpgReplySuggestionUserError(e));
   }
 }
