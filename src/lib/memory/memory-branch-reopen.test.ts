@@ -23,6 +23,12 @@ import {
 } from "./memory-summary-scope";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
+  GREENFIELD_BATCH2_START,
+  GREENFIELD_BATCH3_START,
+  GREENFIELD_BATCH4_START,
+  greenfieldBatchEnd,
+} from "./memory-test-batch";
+import {
   closeActiveBranchCanon,
   countDistinctActiveBranchIds,
   isExplicitClosedBranchContinueIntent,
@@ -97,7 +103,6 @@ function persistBranch(opts: {
     characterId: CHAR,
     tier: "free",
     turnStart: opts.turnStart,
-    turnEnd: opts.turnStart + 5,
     assistantMessageId: null,
     summary: opts.text,
     summaryKind: "branch_canon",
@@ -120,7 +125,6 @@ function persistNoncanon(turnStart: number, text: string): number {
     characterId: CHAR,
     tier: "free",
     turnStart,
-    turnEnd: turnStart + 5,
     assistantMessageId: null,
     summary: text,
     summaryKind: "noncanon",
@@ -139,7 +143,6 @@ function persistMain(turnStart: number): number {
     characterId: CHAR,
     tier: "free",
     turnStart,
-    turnEnd: turnStart + 5,
     assistantMessageId: null,
     summary: MAIN_TEXT,
     summaryKind: "main_canon",
@@ -251,7 +254,7 @@ describe("targeted closed branch reopen", () => {
       text: TEXT_A,
     });
     const idB = persistBranch({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       branchId: "branch-B",
       status: "closed",
       text: TEXT_B,
@@ -280,7 +283,7 @@ describe("targeted closed branch reopen", () => {
       text: TEXT_A,
     });
     const idC = persistBranch({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       branchId: "branch-C",
       status: "active",
       text: TEXT_C,
@@ -307,19 +310,19 @@ describe("targeted closed branch reopen", () => {
       text: TEXT_A + " 1",
     });
     const a2 = persistBranch({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       branchId: "branch-A",
       status: "closed",
       text: TEXT_A + " 2",
     });
     const a3 = persistBranch({
-      turnStart: 13,
+      turnStart: GREENFIELD_BATCH3_START,
       branchId: "branch-A",
       status: "closed",
       text: TEXT_A + " 3",
     });
     persistBranch({
-      turnStart: 19,
+      turnStart: GREENFIELD_BATCH4_START,
       branchId: "branch-B",
       status: "closed",
       text: TEXT_B,
@@ -348,7 +351,7 @@ describe("targeted closed branch reopen", () => {
       status: "closed",
       text: TEXT_A,
     });
-    const idB = persistNoncanon(7, NONCANON_B);
+    const idB = persistNoncanon(GREENFIELD_BATCH2_START, NONCANON_B);
 
     reopenClosedBranchCanon({ chatId: CHAT, recordId: idA, source: "ui_reopen" });
     assert.equal(row(idA).branchStatus, "active");
@@ -393,7 +396,7 @@ describe("targeted closed branch reopen", () => {
       text: TEXT_A,
     });
     persistBranch({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       branchId: "branch-B",
       status: "closed",
       text: TEXT_B,
@@ -443,18 +446,18 @@ describe("targeted closed branch reopen", () => {
   it("H: LTM includes only active A; main/preference kept; noncanon excluded", () => {
     persistMain(1);
     const idA = persistBranch({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       branchId: "branch-A",
       status: "closed",
       text: TEXT_A,
     });
     persistBranch({
-      turnStart: 13,
+      turnStart: GREENFIELD_BATCH3_START,
       branchId: "branch-B",
       status: "closed",
       text: TEXT_B,
     });
-    persistNoncanon(19, NONCANON_B);
+    persistNoncanon(GREENFIELD_BATCH4_START, NONCANON_B);
 
     reopenClosedBranchCanon({ chatId: CHAT, recordId: idA, source: "ui_reopen" });
     const lore = rebuildLorebookFromRecords(CHAT);
@@ -478,7 +481,7 @@ describe("targeted closed branch reopen", () => {
         source: "user_turn",
         sourceUserMessageId: continueId,
         sourceTurn: 7,
-        sourceBatchStart: 7,
+        sourceBatchStart: GREENFIELD_BATCH2_START,
       },
     });
     const closeId = insertMsg("user", "본편으로 돌아가자");
@@ -487,7 +490,7 @@ describe("targeted closed branch reopen", () => {
       source: "user_turn",
       sourceUserMessageId: closeId,
       sourceTurn: 8,
-      sourceBatchStart: 7,
+      sourceBatchStart: GREENFIELD_BATCH2_START,
     });
     assert.equal(row(idA).branchStatus, "closed");
 
@@ -539,20 +542,20 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       text: TEXT_A,
     });
     updateChatMemory(CHAT, USER, CHAR, {
-      recent_summary: "[1~6턴] " + TEXT_A,
+      recent_summary: "[1~5턴] " + TEXT_A,
       membership_tier: "free",
     });
     getDb()
       .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~6턴] " + TEXT_A, CHAT);
+      .run("[1~5턴] " + TEXT_A, CHAT);
     const loreBefore = (
       getDb()
         .prepare("SELECT current_summary FROM chats WHERE id=?")
         .get(CHAT) as { current_summary: string }
     ).current_summary;
 
-    seedPlayableTurns(11, (t) =>
-      t === 11
+    seedPlayableTurns(10, (t) =>
+      t === 10
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
     );
@@ -571,7 +574,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(row(idA).branchId, "branch-A");
     assert.equal(
-      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7),
+      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === GREENFIELD_BATCH2_START),
       false
     );
     const loreAfter = (
@@ -592,12 +595,12 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     });
     const provBefore = branchMutations(idA).length;
     updateChatMemory(CHAT, USER, CHAR, {
-      recent_summary: "[1~6턴] " + TEXT_A,
+      recent_summary: "[1~5턴] " + TEXT_A,
       membership_tier: "free",
     });
     getDb()
       .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~6턴] " + TEXT_A, CHAT);
+      .run("[1~5턴] " + TEXT_A, CHAT);
     const memBefore = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
@@ -607,8 +610,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         .get(CHAT) as { current_summary: string }
     ).current_summary;
 
-    seedPlayableTurns(11, (t) =>
-      t === 11
+    seedPlayableTurns(10, (t) =>
+      t === 10
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
     );
@@ -626,7 +629,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(okFail, false);
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(branchMutations(idA).length, provBefore);
-    assert.equal(listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7), false);
+    assert.equal(listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === GREENFIELD_BATCH2_START), false);
     const memAfterFail = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
@@ -653,12 +656,12 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     });
     assert.equal(okRetry, true);
     assert.equal(row(idA).branchStatus, "active");
-    assert.equal(listMemoryRecordsForChat(CHAT).filter((r) => r.turnStart === 7).length, 1);
+    assert.equal(listMemoryRecordsForChat(CHAT).filter((r) => r.turnStart === GREENFIELD_BATCH2_START).length, 1);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
     const memOk = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
-    assert.equal(memOk.summarized_turn_count, 11);
+    assert.equal(memOk.summarized_turn_count, greenfieldBatchEnd(GREENFIELD_BATCH2_START));
     assert.equal(
       (
         getDb()
@@ -669,7 +672,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     );
   });
 
-  it("mixed-A: turn7~10 main + turn11 explicit IF resume keeps both scopes", async () => {
+  it("mixed-A: turn6~10 main + turn11 explicit IF resume keeps both scopes", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -677,8 +680,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       text: TEXT_A,
     });
 
-    seedPlayableTurns(11, (t) =>
-      t === 11
+    seedPlayableTurns(10, (t) =>
+      t === 10
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : {
             user: `본편 턴 ${t}`,
@@ -705,12 +708,12 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "active");
     assert.equal(row(idA).branchId, "branch-A");
 
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7);
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START);
     assert.ok(batch2);
     assert.ok(batch2!.scopes.main_canon?.includes("레온") || batch2!.scopes.main_canon === MAIN_TEXT);
     assert.ok(batch2!.scopes.branch_canon);
     assert.match(batch2!.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF/);
-    assert.doesNotMatch(batch2!.scopes.branch_canon ?? "", /본편 턴 7|본편 응답 7/);
+    assert.doesNotMatch(batch2!.scopes.branch_canon ?? "", /본편 턴 6|본편 응답 6/);
     assert.equal(batch2!.branchId, "branch-A");
     assert.equal(batch2!.branchStatus, "active");
     assert.equal(batch2!.branchId?.startsWith(`branch-${CHAT}-`), false);
@@ -751,14 +754,14 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(ok, true);
     assert.equal(mainCalls, 0);
     assert.equal(row(idA).branchStatus, "active");
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.equal(batch2.summaryKind, "branch_canon");
     assert.equal(batch2.branchId, "branch-A");
     assert.ok(batch2.scopes.branch_canon);
     assert.equal(batch2.scopes.main_canon, undefined);
   });
 
-  it("mixed-C: middle resume splits 7~9 main and 10~11 branch", async () => {
+  it("mixed-C: middle resume splits 6~8 main and 9~10 branch", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -766,14 +769,14 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       text: TEXT_A,
     });
 
-    seedPlayableTurns(11, (t) => {
-      if (t <= 9) {
+    seedPlayableTurns(10, (t) => {
+      if (t <= 8) {
         return {
           user: `본편 턴 ${t}`,
           assistant: `본편 응답 ${t} — 일상을 짧게 이어간다.`,
         };
       }
-      if (t === 10) {
+      if (t === 9) {
         return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
       }
       return {
@@ -799,10 +802,10 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(ok, true);
     assert.equal(mainCalls, 1);
     assert.equal(row(idA).branchStatus, "active");
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.ok(batch2.scopes.main_canon);
     assert.ok(batch2.scopes.branch_canon);
-    assert.match(batch2.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF|추가 11/);
+    assert.match(batch2.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF|추가 10/);
     assert.equal(batch2.branchId, "branch-A");
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
@@ -837,10 +840,10 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "active");
     assert.equal(row(idA).branchId, "branch-A");
 
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.equal(batch2.summaryKind, "branch_canon");
     assert.equal(batch2.branchId, "branch-A");
-    assert.notEqual(batch2.branchId, `branch-${CHAT}-7`);
+    assert.notEqual(batch2.branchId, `branch-${CHAT}-${GREENFIELD_BATCH2_START}`);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
 
@@ -872,7 +875,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(ok, true);
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.equal(batch2.summaryKind, "main_canon");
     assert.notEqual(batch2.branchId, "branch-A");
   });
@@ -942,8 +945,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(11, (t) =>
-      t === 11
+    seedPlayableTurns(10, (t) =>
+      t === 10
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
     );
@@ -989,7 +992,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: delUser,
-        deletedPlayableTurn: 11,
+        deletedPlayableTurn: 10,
       }),
       true
     );
@@ -997,7 +1000,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(branchMutations(idA).length, 0);
     assert.equal(
-      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7),
+      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === GREENFIELD_BATCH2_START),
       false
     );
     const lore = rebuildLorebookFromRecords(CHAT);
@@ -1042,8 +1045,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       control: {
         source: "user_turn",
         sourceUserMessageId: newResumeId,
-        sourceTurn: 12,
-        sourceBatchStart: 7,
+        sourceTurn: 10,
+        sourceBatchStart: GREENFIELD_BATCH2_START,
       },
     });
     assert.equal(reopened.ok, true);
@@ -1078,7 +1081,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       if (t <= 9) {
         return {
           user:
-            t === 7
+            t === 6
               ? "(OOC: 학교 배경 IF에서 시험 전날 대화를 나눈다)"
               : `학교 IF 이어 ${t}`,
           assistant: `${TEXT_B} 비트 ${t}`,
@@ -1107,7 +1110,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(branchMutations(idA).length, 0);
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.ok(batch2);
     assert.notEqual(batch2.branchId, "branch-A");
     assert.ok(batch2.scopes.branch_canon || batch2.scopes.noncanon);
@@ -1126,14 +1129,13 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(11, (t) => {
-      if (t === 9) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
-      if (t === 11) {
+    seedPlayableTurns(10, (t) => {
+      if (t === 8) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 10) {
         return { user: "본편으로 돌아가자", assistant: "본편으로 돌아간다." };
       }
-      if (t === 10) {
-        // Must not match isExplicitClosedBranchContinueIntent (surviving false-positive).
-        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 10` };
+      if (t === 9) {
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 9` };
       }
       return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
     });
@@ -1177,7 +1179,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: closeUserId,
-        deletedPlayableTurn: 11,
+        deletedPlayableTurn: 10,
       }),
       true
     );
@@ -1198,16 +1200,16 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(11, (t) => {
-      if (t === 9) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
-      if (t === 11) {
+    seedPlayableTurns(10, (t) => {
+      if (t === 8) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 10) {
         return {
           user: "이걸 본편으로 확정",
           assistant: "본편 타임라인으로 반영한다.",
         };
       }
-      if (t === 10) {
-        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 10` };
+      if (t === 9) {
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 9` };
       }
       return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
     });
@@ -1227,7 +1229,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     );
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
-    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH2_START)!;
     assert.equal(batch2.summaryKind, "main_canon");
     assert.ok(batch2.scopes.main_canon);
     assert.equal(batch2.scopes.branch_canon, undefined);
@@ -1258,7 +1260,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: adoptUserId,
-        deletedPlayableTurn: 11,
+        deletedPlayableTurn: 10,
       }),
       true
     );

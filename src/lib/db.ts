@@ -347,25 +347,6 @@ export function ensureMemoryResetBoundaryColumns(
   addColumn("chat_turn_summaries", "source_end_user_message_id", "INTEGER");
   addColumn("chat_turn_summaries", "turn_end", "INTEGER");
   addColumn("episodic_memory_facts", "source_user_message_id", "INTEGER");
-  backfillChatTurnSummaryTurnEnd(db);
-}
-
-/** Legacy 6-turn rows: turn_end = turn_number + 5. Idempotent — safe during rolling deploy. */
-function backfillChatTurnSummaryTurnEnd(db: Pick<Database.Database, "prepare" | "exec">): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS app_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-  `);
-  db.prepare(
-    `UPDATE chat_turn_summaries
-     SET turn_end = turn_number + 5
-     WHERE turn_end IS NULL`
-  ).run();
-  db.prepare(
-    "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('chat_turn_summaries_turn_end_backfill_v1', '1')"
-  ).run();
 }
 
 function backfillExistingUserOnboarding(db: Database.Database) {

@@ -17,7 +17,6 @@ import {
   isLikelySummaryInstructionEcho,
 } from "./memory-summary-integrity";
 import {
-  LEGACY_NULL_TURN_END_OFFSET,
   newBatchEndForStart,
   resolveNextBatchRange,
   resolveStoredTurnEnd,
@@ -58,8 +57,8 @@ describe("memory 5+4 cutover — legacy spans", () => {
     assert.deepEqual(resolveNextBatchRange(12, 17), { turnStart: 13, turnEnd: 17 });
   });
 
-  it("L5 NULL turn_end resolves as six-turn legacy", () => {
-    assert.equal(resolveStoredTurnEnd(1, null), 1 + LEGACY_NULL_TURN_END_OFFSET);
+  it("L5 NULL turn_end is invalid at runtime (no silent span inference)", () => {
+    assert.equal(resolveStoredTurnEnd(1, null), null);
   });
 
   it("L7 mixed ranges highest contiguous = 22", () => {

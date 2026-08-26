@@ -7,10 +7,10 @@ import type { NumericStateSourceKind } from "@/lib/rpNumericState/types";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { isMemoryFeatureEnabled } from "./memory-feature";
-import {
-  forkSummarizedTurnCount,
-  FORK_MEMORY_TURN_INTERVAL,
-} from "./memory-fork-turn-count";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import { newBatchEndForStart } from "./memory-summary-range";
+import { validateSummarySpanWrite } from "./memory-summary-span-write";
+import { listMemoryRecordsForChat } from "./memory-turn-summary";
 import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import {
   encodeScopePayload,
@@ -20,7 +20,7 @@ import {
 } from "./memory-summary-scope";
 import type { MemoryTier } from "./memory-types";
 
-export { countCompletedTurnsUpToMessageId, forkSummarizedTurnCount, FORK_MEMORY_TURN_INTERVAL } from "./memory-fork-turn-count";
+export { countCompletedTurnsUpToMessageId } from "./memory-fork-turn-count";
 export { countMemoryEligibleCompletedTurnsUpToMessageId } from "./memory-fork-turn-count";
 
 function tableExists(db: Database.Database, name: string): boolean {
@@ -106,7 +106,7 @@ export function isForkMutationAfterBoundary(
   }
   const sourceBatchStart = mutation.sourceBatchStart;
   if (sourceBatchStart != null && sourceBatchStart > 0) {
-    return sourceBatchStart + FORK_MEMORY_TURN_INTERVAL - 1 > forkTurnCount;
+    return newBatchEndForStart(sourceBatchStart) > forkTurnCount;
   }
   return false;
 }
@@ -245,12 +245,11 @@ export function copyForkTurnSummaries(
     messageIdMap: Map<number, number>;
   }
 ): number {
-  if (opts.forkTurnCount < FORK_MEMORY_TURN_INTERVAL) return 0;
   if (!tableExists(db, "chat_turn_summaries")) return 0;
 
   const rows = db
     .prepare(
-      `SELECT turn_number, assistant_message_id,
+      `SELECT turn_number, turn_end, assistant_message_id,
               source_start_user_message_id, source_end_user_message_id,
               summary, user_edited,
               COALESCE(summary_kind, 'narrative') AS summary_kind,
@@ -260,6 +259,7 @@ export function copyForkTurnSummaries(
     )
     .all(opts.sourceChatId) as {
     turn_number: number;
+    turn_end: number | null;
     assistant_message_id: number | null;
     source_start_user_message_id: number | null;
     source_end_user_message_id: number | null;
@@ -276,16 +276,38 @@ export function copyForkTurnSummaries(
 
   const ins = db.prepare(
     `INSERT INTO chat_turn_summaries
-      (chat_id, turn_number, assistant_message_id, summary, user_edited,
+      (chat_id, turn_number, turn_end, assistant_message_id, summary, user_edited,
        summary_kind, scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive,
        source_start_user_message_id, source_end_user_message_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   );
 
   let copied = 0;
   for (const row of rows) {
-    const turnEnd = row.turn_number + FORK_MEMORY_TURN_INTERVAL - 1;
-    if (turnEnd > opts.forkTurnCount) continue;
+    if (row.turn_end == null) {
+      console.warn("MEMORY_FORK_SKIP_NULL_TURN_END", {
+        source_chat_id: opts.sourceChatId,
+        turn_number: row.turn_number,
+      });
+      continue;
+    }
+
+    const spanValidation = validateSummarySpanWrite({
+      turnStart: row.turn_number,
+      turnEnd: row.turn_end,
+      userEdited: (row.user_edited ?? 0) === 1,
+    });
+    if (!spanValidation.ok) {
+      console.warn("MEMORY_FORK_SKIP_INVALID_SPAN", {
+        source_chat_id: opts.sourceChatId,
+        turn_number: row.turn_number,
+        turn_end: row.turn_end,
+        user_edited: row.user_edited ?? 0,
+      });
+      continue;
+    }
+
+    if (spanValidation.turnEnd > opts.forkTurnCount) continue;
     if (parentIdAfterFork(row.assistant_message_id, opts.forkMessageId)) continue;
     if (parentIdAfterFork(row.source_start_user_message_id, opts.forkMessageId)) continue;
     if (parentIdAfterFork(row.source_end_user_message_id, opts.forkMessageId)) continue;
@@ -307,6 +329,7 @@ export function copyForkTurnSummaries(
     ins.run(
       opts.newChatId,
       row.turn_number,
+      spanValidation.turnEnd,
       remapOptionalId(opts.messageIdMap, row.assistant_message_id),
       rewound.summary,
       row.user_edited ?? 0,
@@ -786,17 +809,25 @@ export async function initializeForkChatMemory(opts: {
   tier: MemoryTier;
   memoryCapacity: number;
 }): Promise<{ recentSummary: string; summarizedTurnCount: number }> {
-  const summarizedTurnCount = forkSummarizedTurnCount(opts.forkTurnCount);
-
   if (!isMemoryFeatureEnabled()) {
     return { recentSummary: "", summarizedTurnCount: 0 };
   }
+
+  const copiedRecords = listMemoryRecordsForChat(opts.newChatId);
+  const summarizedTurnCount = highestContiguousCompletedTurn(
+    copiedRecords.map((record) => ({
+      turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
+      inactive: record.inactive,
+    })),
+    opts.forkTurnCount
+  );
 
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
   let recentSummary = "";
   let compressed = false;
 
-  if (summarizedTurnCount >= FORK_MEMORY_TURN_INTERVAL) {
+  if (summarizedTurnCount > 0) {
     const resolved = await resolveLorebookFromRecords(opts.newChatId, budget.lorebook);
     recentSummary = resolved.text;
     compressed = resolved.compressed;

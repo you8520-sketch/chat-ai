@@ -18,26 +18,30 @@ import {
   parseRecentSummaryBatchStarts,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
+import { GREENFIELD_BATCH2_START, greenfieldBatchEnd } from "./memory-test-batch";
 
 function rec(turnStart: number) {
-  return { turnStart, turnEnd: turnStart + 5 };
+  return { turnStart, turnEnd: greenfieldBatchEnd(turnStart) };
 }
 
 describe("highestContiguousCompletedTurn", () => {
-  it("returns 0 when only 7~12 exists (gap at 1)", () => {
-    assert.equal(highestContiguousCompletedTurn([rec(7)], 13), 0);
+  it("returns 0 when only 6~10 exists (gap at 1)", () => {
+    assert.equal(highestContiguousCompletedTurn([rec(GREENFIELD_BATCH2_START)], 13), 0);
   });
 
-  it("returns 6 for first batch only", () => {
-    assert.equal(highestContiguousCompletedTurn([rec(1)], 13), 6);
+  it("returns 5 for first batch only", () => {
+    assert.equal(highestContiguousCompletedTurn([rec(1)], 13), 5);
   });
 
-  it("returns 12 for contiguous 1 then 7", () => {
-    assert.equal(highestContiguousCompletedTurn([rec(1), rec(7)], 13), 12);
+  it("returns 10 for contiguous 1 then 6", () => {
+    assert.equal(
+      highestContiguousCompletedTurn([rec(1), rec(GREENFIELD_BATCH2_START)], 13),
+      10
+    );
   });
 
-  it("stops at gap even if later batch exists (1 and 13 only → 6)", () => {
-    assert.equal(highestContiguousCompletedTurn([rec(1), rec(13)], 20), 6);
+  it("stops at gap even if later batch exists (1 and 11 only → 5)", () => {
+    assert.equal(highestContiguousCompletedTurn([rec(1), rec(11)], 20), 5);
   });
 
   it("ignores inactive soft-deleted batches", () => {
@@ -49,7 +53,7 @@ describe("highestContiguousCompletedTurn", () => {
       highestContiguousCompletedTurn(
         [
           { ...rec(1), inactive: true },
-          { ...rec(7), inactive: false },
+          { ...rec(GREENFIELD_BATCH2_START), inactive: false },
         ],
         13
       ),
@@ -83,13 +87,16 @@ describe("missing / expected batches", () => {
     assert.deepEqual(expectedBatchStartsThrough(13), [1, 6]);
   });
 
-  it("finds missing 1 when only 7 present", () => {
-    assert.deepEqual(missingContiguousBatchStarts([rec(7)], 13), [1]);
-    assert.equal(earliestMissingBatchStart([rec(7)], 13), 1);
+  it("finds missing 1 when only 6 present", () => {
+    assert.deepEqual(missingContiguousBatchStarts([rec(GREENFIELD_BATCH2_START)], 13), [1]);
+    assert.equal(earliestMissingBatchStart([rec(GREENFIELD_BATCH2_START)], 13), 1);
   });
 
-  it("no missing when 1 and 7 present", () => {
-    assert.deepEqual(missingContiguousBatchStarts([rec(1), rec(7)], 13), []);
+  it("no missing when 1 and 6 present", () => {
+    assert.deepEqual(
+      missingContiguousBatchStarts([rec(1), rec(GREENFIELD_BATCH2_START)], 13),
+      []
+    );
   });
 });
 
@@ -204,24 +211,24 @@ describe("diagnostics", () => {
   it("flags SUMMARY_BATCH_GAP for chat44-like state", () => {
     const d = buildSummaryBatchDiagnostics({
       chatId: 44,
-      records: [rec(7)],
+      records: [rec(GREENFIELD_BATCH2_START)],
       playableTurnCount: 13,
-      summarizedTurnCount: 12,
-      recentSummary: "[7~12턴] 레온과 렌의 이별",
+      summarizedTurnCount: 10,
+      recentSummary: "[6~10턴] 레온과 렌의 이별",
     });
     assert.equal(d.reasonCode, "SUMMARY_BATCH_GAP");
     assert.deepEqual(d.missingBatchStarts, [1]);
     assert.equal(d.highestContiguousTurn, 0);
-    assert.equal(d.recentSummaryBatchRange, "7~12");
+    assert.equal(d.recentSummaryBatchRange, "6~10");
   });
 
   it("parses batch starts from recent_summary", () => {
     assert.deepEqual(
-      parseRecentSummaryBatchStarts("[1~6턴] a\n\n[7~12턴] b"),
-      [1, 7]
+      parseRecentSummaryBatchStarts("[1~5턴] a\n\n[6~10턴] b"),
+      [1, 6]
     );
     assert.equal(batchEndForStart(1), 5);
     assert.equal(batchEndForStart(6), 10);
-    assert.equal(batchEndForStart(7), 11);
+    assert.equal(batchEndForStart(11), 15);
   });
 });

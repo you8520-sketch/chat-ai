@@ -2,8 +2,8 @@
  * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { LEGACY_SIX_TURN_SPAN, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
+import { validateSummarySpanWrite } from "./memory-summary-span-write";
 import type { MemoryTier } from "./memory-types";
 import {
   formatMemoryBlock,
@@ -22,7 +22,6 @@ import {
   highestContiguousOccupiedTurn,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
-import { newBatchEndForStart } from "./memory-summary-range";
 import {
   encodeScopePayload,
   isEmptyOocScope,
@@ -172,19 +171,15 @@ export function persistValidatedSummaryBatch(opts: {
     return { ok: false, reason: validated.reason };
   }
 
-  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
-  const turnSpan = turnEnd - opts.turnStart + 1;
-  if (opts.turnStart < 1 || turnSpan < 1) {
-    return { ok: false, reason: "SUMMARY_INVALID" };
+  const span = validateSummarySpanWrite({
+    turnStart: opts.turnStart,
+    turnEnd: opts.turnEnd,
+    userEdited: opts.userEdited,
+  });
+  if (!span.ok) {
+    return { ok: false, reason: span.reason };
   }
-  // Automatic writes (no explicit turnEnd) are 5-turn only.
-  // Explicit turnEnd may refresh a historical 6-turn row; new automatic rows never default to 6.
-  if (opts.turnEnd == null && turnSpan !== ROLLING_SUMMARY_INTERVAL) {
-    return { ok: false, reason: "SUMMARY_INVALID" };
-  }
-  if (turnSpan !== ROLLING_SUMMARY_INTERVAL && turnSpan !== LEGACY_SIX_TURN_SPAN) {
-    return { ok: false, reason: "SUMMARY_INVALID" };
-  }
+  const { turnEnd } = span;
 
   const db = getDb();
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);

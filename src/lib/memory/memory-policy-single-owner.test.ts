@@ -13,7 +13,6 @@ import {
 } from "./memory-constants";
 import { isSummaryBarrierActive } from "./memory-feature";
 import {
-  isLegacySixTurnBatch,
   newBatchEndForStart,
   resolveNextBatchRange,
   resolveRecordSpan,
@@ -27,6 +26,8 @@ import {
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import type { DialogueTurn } from "@/lib/hybridMemory";
 
+const REPO_ROOT = process.cwd();
+
 function makePlayable(count: number): DialogueTurn[] {
   return Array.from({ length: count }, (_, i) => ({
     user: `u${i + 1}`,
@@ -36,8 +37,8 @@ function makePlayable(count: number): DialogueTurn[] {
 
 function repoRgCount(pattern: string): number {
   const out = execSync(
-    `rg -l ${JSON.stringify(pattern)} --glob '!**/node_modules/**' --glob '!**/.git/**' --glob '!**/.next*/**' --glob '!*.test.ts' --glob '!*.md' . || true`,
-    { cwd: "/workspace", encoding: "utf8" }
+    `rg -l ${JSON.stringify(pattern)} --glob '!**/node_modules/**' --glob '!**/.git/**' --glob '!**/.next*/**' --glob '!*.test.ts' --glob '!**/memory-summary-migration.ts' --glob '!*.md' src scripts || true`,
+    { cwd: REPO_ROOT, encoding: "utf8" }
   );
   return out
     .split("\n")
@@ -58,7 +59,7 @@ describe("single memory policy owner", () => {
   it("MEMORY_5PLUS4_ENABLED production references are 0", () => {
     const hits = execSync(
       `rg -n "MEMORY_5PLUS4_ENABLED|isMemory5Plus4Enabled|resolveActiveSummaryInterval|resolveProviderRawExchangeCount|PHASE1_DEPLOY_PROCEDURE|PHASE2_ENABLE_PROCEDURE" src scripts --glob '!*.test.ts' --glob '!*.md' || true`,
-      { cwd: "/workspace", encoding: "utf8" }
+      { cwd: REPO_ROOT, encoding: "utf8" }
     ).trim();
     assert.equal(hits, "", hits);
   });
@@ -85,29 +86,37 @@ describe("single memory policy owner", () => {
     assert.equal(targetSummarizedThrough(37), 35);
   });
 
-  it("historical 1-6 rows remain readable", () => {
-    const span = resolveRecordSpan({ turn_number: 1, turn_end: null });
+  it("explicit user-edited 1~6 rows remain readable", () => {
+    const span = resolveRecordSpan({ turn_number: 1, turn_end: 6 });
+    assert.ok(span);
     assert.equal(span.turnEnd, 6);
-    assert.equal(isLegacySixTurnBatch(span), true);
-    assert.equal(resolveStoredTurnEnd(1, null), 6);
+    assert.equal(span.turnCount, 6);
+    assert.equal(resolveStoredTurnEnd(1, 6), 6);
+    assert.equal(resolveStoredTurnEnd(1, null), null);
     assert.equal(
       highestContiguousCompletedTurn([{ turnStart: 1, turnEnd: 6 }], 12),
       6
     );
   });
 
-  it("after old 1-6, next new batch is 7-11", () => {
+  it("after explicit user-edited 1~6, next new batch is 7-11", () => {
     assert.deepEqual(resolveNextBatchRange(6, 11), { turnStart: 7, turnEnd: 11 });
     assert.equal(resolveNextBatchRange(6, 10), null);
   });
 
-  it("mixed old6 + new5 + new5 keeps a contiguous frontier", () => {
+  it("mixed explicit 1~6 user span + new 5-turn batches keeps a contiguous frontier", () => {
     const records = [
       { turnStart: 1, turnEnd: 6 },
       { turnStart: 7, turnEnd: 11 },
       { turnStart: 12, turnEnd: 16 },
     ];
     assert.equal(highestContiguousCompletedTurn(records, 20), 16);
+  });
+
+  it("no runtime legacy six-turn automatic symbols outside migration", () => {
+    assert.equal(repoRgCount("isLegacySixTurnBatch"), 0);
+    assert.equal(repoRgCount("LEGACY_SIX_TURN_SPAN"), 0);
+    assert.equal(repoRgCount("LEGACY_NULL_TURN_END_OFFSET"), 0);
   });
 
   it("summary barrier is active whenever memory is on", () => {

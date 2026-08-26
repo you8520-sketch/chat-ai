@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import {
   ARCHIVE_CAPACITY_FIXED,
   MEMORY_CAPACITY_FIXED,
@@ -10,16 +11,16 @@ import { buildMemoryContext } from "./memory-injector";
 describe("resolveMemoryBudgetFromCapacity", () => {
   it("keeps 10000-char lorebook and enables archive budget", () => {
     const budget = resolveMemoryBudgetFromCapacity();
-    expect(budget.lorebook).toBe(MEMORY_CAPACITY_FIXED);
-    expect(budget.recent).toBe(MEMORY_CAPACITY_FIXED);
-    expect(budget.archive).toBe(ARCHIVE_CAPACITY_FIXED);
-    expect(budget.total).toBe(MEMORY_CAPACITY_FIXED + ARCHIVE_CAPACITY_FIXED);
+    assert.equal(budget.lorebook, MEMORY_CAPACITY_FIXED);
+    assert.equal(budget.recent, MEMORY_CAPACITY_FIXED);
+    assert.equal(budget.archive, ARCHIVE_CAPACITY_FIXED);
+    assert.equal(budget.total, MEMORY_CAPACITY_FIXED + ARCHIVE_CAPACITY_FIXED);
   });
 });
 
 describe("archive prompt injection", () => {
   it("includes archive when non-empty (all providers)", () => {
-    expect(shouldIncludeArchiveAlways("claude-opus-4", "openrouter")).toBe(true);
+    assert.equal(shouldIncludeArchiveAlways("claude-opus-4", "openrouter"), true);
     const injection = buildMemoryContext({
       memory: {
         pinned_facts: "",
@@ -31,17 +32,17 @@ describe("archive prompt injection", () => {
       memoryCapacity: MEMORY_CAPACITY_FIXED,
       includeArchiveAlways: true,
     });
-    expect(injection.archiveIncluded).toBe(true);
-    expect(injection.archiveText).toContain("과거 아카이브");
-    expect(injection.text).not.toContain("과거 아카이브");
-    expect(injection.text).toContain("[1~5턴]");
+    assert.equal(injection.archiveIncluded, true);
+    assert.match(injection.archiveText ?? "", /과거 아카이브/);
+    assert.doesNotMatch(injection.text, /과거 아카이브/);
+    assert.match(injection.text, /\[1~5턴\]/);
   });
 
   it("DeepSeek uses past-event summary header with dedupe line", () => {
     const injection = buildMemoryContext({
       memory: {
         pinned_facts: "",
-        recent_summary: "[1~6턴]\n밥을 먹었다",
+        recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",
       },
@@ -49,8 +50,8 @@ describe("archive prompt injection", () => {
       memoryCapacity: MEMORY_CAPACITY_FIXED,
       pastEventSummaryDedupe: true,
     });
-    expect(injection.text).toContain("[과거 사건 요약본]");
-    expect(injection.text).toContain("동일한 하나의 사건으로 인지");
-    expect(injection.text).not.toContain("[현재기억]");
+    assert.match(injection.text, /\[과거 사건 요약본\]/);
+    assert.match(injection.text, /동일한 하나의 사건으로 인지/);
+    assert.doesNotMatch(injection.text, /\[현재기억\]/);
   });
 });

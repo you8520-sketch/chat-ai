@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import { resolveRecordSpan } from "./memory-summary-range";
 import { encodeScopePayload } from "./memory-summary-scope";
 import {
   copyForkEpisodicMemoryFacts,
@@ -11,7 +13,6 @@ import {
   copyForkStatusTriggerEvents,
   copyForkTurnSummaries,
   countCompletedTurnsUpToMessageId,
-  forkSummarizedTurnCount,
   isForkMutationAfterBoundary,
   remapCopiedUserMessageIds,
   snapshotForkRelationshipMeta,
@@ -32,6 +33,7 @@ function makeDb(): Database.Database {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
       turn_number INTEGER NOT NULL,
+      turn_end INTEGER,
       assistant_message_id INTEGER,
       source_start_user_message_id INTEGER,
       source_end_user_message_id INTEGER,
@@ -135,6 +137,67 @@ function makeDb(): Database.Database {
   return db;
 }
 
+function insertSummary(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    turnStart: number;
+    turnEnd: number | null;
+    summary: string;
+    userEdited?: number;
+    assistantMessageId?: number | null;
+    sourceStartUserMessageId?: number | null;
+    sourceEndUserMessageId?: number | null;
+    summaryKind?: string;
+    branchId?: string | null;
+    branchStatus?: string | null;
+    scopePayload?: string | null;
+  }
+): void {
+  db.prepare(
+    `INSERT INTO chat_turn_summaries
+      (chat_id, turn_number, turn_end, assistant_message_id,
+       source_start_user_message_id, source_end_user_message_id,
+       summary, summary_kind, user_edited, branch_id, branch_status, scope_payload)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(
+    opts.chatId,
+    opts.turnStart,
+    opts.turnEnd,
+    opts.assistantMessageId ?? null,
+    opts.sourceStartUserMessageId ?? null,
+    opts.sourceEndUserMessageId ?? null,
+    opts.summary,
+    opts.summaryKind ?? "narrative",
+    opts.userEdited ?? 0,
+    opts.branchId ?? null,
+    opts.branchStatus ?? null,
+    opts.scopePayload ?? null
+  );
+}
+
+function childSummaryRows(db: Database.Database, chatId: number) {
+  return db
+    .prepare(
+      `SELECT turn_number, turn_end, summary, user_edited, summary_kind, branch_status
+       FROM chat_turn_summaries WHERE chat_id=? ORDER BY turn_number`
+    )
+    .all(chatId) as Array<{
+    turn_number: number;
+    turn_end: number | null;
+    summary: string;
+    user_edited: number;
+    summary_kind: string;
+    branch_status: string | null;
+  }>;
+}
+
+function readableChildRecords(db: Database.Database, chatId: number) {
+  return childSummaryRows(db, chatId)
+    .map((row) => resolveRecordSpan(row))
+    .filter((span): span is NonNullable<typeof span> => span != null);
+}
+
 describe("memory-fork-snapshot", () => {
   it("counts completed turns up to message id", () => {
     const messages = [
@@ -150,14 +213,6 @@ describe("memory-fork-snapshot", () => {
     assert.equal(countCompletedTurnsUpToMessageId(messages, 4), 1);
     assert.equal(countCompletedTurnsUpToMessageId(messages, 6), 2);
     assert.equal(countCompletedTurnsUpToMessageId(messages, 7), 2);
-  });
-
-  it("forkSummarizedTurnCount floors to completed 6-turn batches", () => {
-    assert.equal(forkSummarizedTurnCount(0), 0);
-    assert.equal(forkSummarizedTurnCount(5), 0);
-    assert.equal(forkSummarizedTurnCount(6), 6);
-    assert.equal(forkSummarizedTurnCount(13), 12);
-    assert.equal(forkSummarizedTurnCount(200), 198);
   });
 
   it("does not copy parent relationship ledger entries that only exist after the fork", () => {
@@ -257,7 +312,183 @@ describe("memory-fork-snapshot", () => {
     );
   });
 
-  it("copies 6-turn pages up to the fork and rewinds later branch-close mutations", () => {
+  it("fork at turn 5 copies automatic 1~5 with child turn_end=5", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 5,
+      summary: "자동 1~5 요약입니다. 충분한 길이의 본문을 포함합니다.",
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 5,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 1);
+    const child = childSummaryRows(db, 2);
+    assert.equal(child.length, 1);
+    assert.equal(child[0]?.turn_number, 1);
+    assert.equal(child[0]?.turn_end, 5);
+    assert.equal(child[0]?.user_edited, 0);
+  });
+
+  it("fork at turn 10 copies 1~5 and 6~10 with frontier 10", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 5,
+      summary: "자동 1~5 요약입니다. 충분한 길이의 본문을 포함합니다.",
+    });
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 6,
+      turnEnd: 10,
+      summary: "자동 6~10 요약입니다. 충분한 길이의 본문을 포함합니다.",
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 10,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 2);
+    const readable = readableChildRecords(db, 2);
+    assert.equal(readable.length, 2);
+    assert.equal(readable[0]?.turnEnd, 5);
+    assert.equal(readable[1]?.turnEnd, 10);
+    assert.equal(
+      highestContiguousCompletedTurn(
+        readable.map((span) => ({ turnStart: span.turnStart, turnEnd: span.turnEnd })),
+        10
+      ),
+      10
+    );
+  });
+
+  it("manual userEdited 1~6 is preserved when fork >= 6", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 6,
+      summary:
+        "사용자가 수동으로 편집한 1~6턴 요약입니다. 충분한 길이의 본문을 포함합니다.",
+      userEdited: 1,
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 6,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 1);
+    const child = childSummaryRows(db, 2);
+    assert.equal(child[0]?.turn_end, 6);
+    assert.equal(child[0]?.user_edited, 1);
+  });
+
+  it("does not copy partial summary when fork is before explicit turn_end", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 6,
+      summary:
+        "사용자가 수동으로 편집한 1~6턴 요약입니다. 충분한 길이의 본문을 포함합니다.",
+      userEdited: 1,
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 5,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 0);
+    assert.equal(childSummaryRows(db, 2).length, 0);
+  });
+
+  it("does not copy rows with NULL turn_end", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: null,
+      summary: "NULL span legacy row",
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 10,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 0);
+    assert.equal(childSummaryRows(db, 2).length, 0);
+  });
+
+  it("copied child rows remain readable via explicit span resolution", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 5,
+      summary: "자동 1~5 요약입니다. 충분한 길이의 본문을 포함합니다.",
+    });
+
+    copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 5,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    const readable = readableChildRecords(db, 2);
+    assert.equal(readable.length, 1);
+    assert.equal(readable[0]?.turnStart, 1);
+    assert.equal(readable[0]?.turnEnd, 5);
+  });
+
+  it("rejects automatic legacy 6-turn source rows instead of copying them", () => {
+    const db = makeDb();
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 6,
+      summary: "자동 1~6 legacy row should not copy",
+      userEdited: 0,
+    });
+
+    const copied = copyForkTurnSummaries(db, {
+      sourceChatId: 1,
+      newChatId: 2,
+      forkTurnCount: 10,
+      forkMessageId: 999,
+      messageIdMap: new Map(),
+    });
+
+    assert.equal(copied, 0);
+    assert.equal(childSummaryRows(db, 2).length, 0);
+  });
+
+  it("copies explicit-span pages up to the fork and rewinds later branch-close mutations", () => {
     const db = makeDb();
     const messageIdMap = new Map([
       [10, 110],
@@ -265,19 +496,30 @@ describe("memory-fork-snapshot", () => {
       [20, 120],
       [21, 121],
     ]);
-    db.prepare(
-      `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, source_start_user_message_id,
-         source_end_user_message_id, summary, summary_kind, branch_status, scope_payload)
-       VALUES (1, 1, 11, 10, 10, '1~6 정원', 'main_canon', NULL, NULL)`
-    ).run();
-    db.prepare(
-      `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, source_start_user_message_id,
-         source_end_user_message_id, summary, summary_kind, branch_id, branch_status, scope_payload)
-       VALUES (1, 7, 21, 20, 20, 'closed later', 'main_canon', 'b1', 'closed', ?)`
-    ).run(
-      encodeScopePayload({
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 1,
+      turnEnd: 6,
+      summary: "1~6 정원",
+      userEdited: 1,
+      assistantMessageId: 11,
+      sourceStartUserMessageId: 10,
+      sourceEndUserMessageId: 10,
+      summaryKind: "main_canon",
+    });
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 7,
+      turnEnd: 12,
+      summary: "closed later",
+      userEdited: 1,
+      assistantMessageId: 21,
+      sourceStartUserMessageId: 20,
+      sourceEndUserMessageId: 20,
+      summaryKind: "main_canon",
+      branchId: "b1",
+      branchStatus: "closed",
+      scopePayload: encodeScopePayload({
         v: 1,
         scopes: { main_canon: "closed later" },
         branchId: "b1",
@@ -299,13 +541,16 @@ describe("memory-fork-snapshot", () => {
             },
           },
         ],
-      })
-    );
-    db.prepare(
-      `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary)
-       VALUES (1, 199, 999, '199~204 이후 요약')`
-    ).run();
+      }),
+    });
+    insertSummary(db, {
+      chatId: 1,
+      turnStart: 199,
+      turnEnd: 204,
+      summary: "199~204 이후 요약",
+      userEdited: 1,
+      assistantMessageId: 999,
+    });
 
     const copied = copyForkTurnSummaries(db, {
       sourceChatId: 1,
@@ -315,22 +560,14 @@ describe("memory-fork-snapshot", () => {
       messageIdMap,
     });
     assert.equal(copied, 2);
-    const child = db
-      .prepare(
-        `SELECT turn_number, summary, summary_kind, branch_status
-         FROM chat_turn_summaries WHERE chat_id=2 ORDER BY turn_number`
-      )
-      .all() as Array<{
-      turn_number: number;
-      summary: string;
-      summary_kind: string;
-      branch_status: string | null;
-    }>;
+    const child = childSummaryRows(db, 2);
     assert.equal(child.length, 2);
     assert.equal(child[0]?.summary, "1~6 정원");
+    assert.equal(child[0]?.turn_end, 6);
     assert.equal(child[1]?.summary_kind, "branch_canon");
     assert.equal(child[1]?.branch_status, "active");
     assert.equal(child[1]?.summary, "7~12 분기 진행");
+    assert.equal(child[1]?.turn_end, 12);
     assert.equal(
       db.prepare(`SELECT COUNT(*) AS c FROM chat_turn_summaries WHERE chat_id=2 AND turn_number=199`).get()
         .c,

@@ -18,6 +18,13 @@ import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { parseScopePayload, type ScopePayloadV1 } from "./memory-summary-scope";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
+  GREENFIELD_BATCH2_START,
+  GREENFIELD_BATCH3_START,
+  GREENFIELD_BATCH4_START,
+  GREENFIELD_BATCH5_START,
+  GREENFIELD_BATCH6_START,
+} from "./memory-test-batch";
+import {
   countDistinctActiveBranchIds,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
@@ -107,7 +114,6 @@ function persistKind(opts: {
     characterId: CHAR,
     tier: "free",
     turnStart: opts.turnStart,
-    turnEnd: opts.turnStart + 5,
     assistantMessageId: null,
     summary: opts.text,
     summaryKind: opts.kind,
@@ -185,8 +191,8 @@ after(() => {
 describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
   it("stops at main_canon and returns only latest segment", () => {
     const a = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_A });
-    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
-    const b = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B });
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "main_canon", text: TEXT_MAIN });
+    const b = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b]
@@ -196,9 +202,9 @@ describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
 
   it("skips preference and empty_ooc inside a group", () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
-    persistKind({ turnStart: 7, kind: "preference", text: TEXT_PREF });
-    persistKind({ turnStart: 13, kind: "empty_ooc", text: "__SUMMARY_KIND_OOC_ONLY__" });
-    const b2 = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B2 });
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "preference", text: TEXT_PREF });
+    persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "empty_ooc", text: "__SUMMARY_KIND_OOC_ONLY__" });
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH4_START, kind: "noncanon", text: TEXT_B2 });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b1, b2]
@@ -208,13 +214,13 @@ describe("selectLatestContiguousNoncanonRecordIds (P1-B helper)", () => {
   it("ignores inactive rows for membership and boundaries", () => {
     const liveOld = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_A });
     persistKind({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       kind: "noncanon",
       text: "비정사 DEAD: 비활성 행은 무시된다.",
       inactive: true,
     });
-    persistKind({ turnStart: 13, kind: "main_canon", text: TEXT_MAIN });
-    const b = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B });
+    persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "main_canon", text: TEXT_MAIN });
+    const b = persistKind({ turnStart: GREENFIELD_BATCH4_START, kind: "noncanon", text: TEXT_B });
     assert.deepEqual(
       selectLatestContiguousNoncanonRecordIds(listMemoryRecordsForChat(CHAT)),
       [b]
@@ -230,21 +236,21 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "main_canon", text: TEXT_MAIN });
     const idB = persistKind({
-      turnStart: 13,
+      turnStart: GREENFIELD_BATCH3_START,
       kind: "noncanon",
       text: TEXT_B,
     });
-    persistKind({ turnStart: 19, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: GREENFIELD_BATCH4_START, kind: "main_canon", text: TEXT_MAIN });
     const idC = persistKind({
-      turnStart: 25,
+      turnStart: GREENFIELD_BATCH5_START,
       kind: "noncanon",
       text: TEXT_C,
     });
 
-    seedPlayableTurns(35, (t) =>
-      t === 35
+    seedPlayableTurns(30, (t) =>
+      t === 30
         ? { user: "계속", assistant: "카페 IF가 이어진다." }
         : { user: `(OOC: IF 비트 ${t})`, assistant: `장면 ${t}` }
     );
@@ -278,14 +284,14 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
 
   it("A1-A3/main/B1-B2 → B1+B2 only", async () => {
     const a1 = persistKind({ turnStart: 1, kind: "noncanon", text: `${TEXT_A} 1` });
-    const a2 = persistKind({ turnStart: 7, kind: "noncanon", text: `${TEXT_A} 2` });
-    const a3 = persistKind({ turnStart: 13, kind: "noncanon", text: `${TEXT_A} 3` });
-    persistKind({ turnStart: 19, kind: "main_canon", text: TEXT_MAIN });
-    const b1 = persistKind({ turnStart: 25, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 31, kind: "noncanon", text: TEXT_B2 });
+    const a2 = persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "noncanon", text: `${TEXT_A} 2` });
+    const a3 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: `${TEXT_A} 3` });
+    persistKind({ turnStart: GREENFIELD_BATCH4_START, kind: "main_canon", text: TEXT_MAIN });
+    const b1 = persistKind({ turnStart: GREENFIELD_BATCH5_START, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH6_START, kind: "noncanon", text: TEXT_B2 });
 
-    seedPlayableTurns(41, (t) =>
-      t === 41
+    seedPlayableTurns(35, (t) =>
+      t === 35
         ? { user: "이어서", assistant: "학교 IF 계속." }
         : { user: `(OOC: 비트 ${t})`, assistant: `응답 ${t}` }
     );
@@ -314,13 +320,13 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
   it("B1/preference/B2 → B1+B2 promoted; preference untouched", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
     const pref = persistKind({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       kind: "preference",
       text: TEXT_PREF,
     });
-    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(23, (t) =>
-      t === 23
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B2 });
+    seedPlayableTurns(20, (t) =>
+      t === 20
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -345,13 +351,13 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
   it("B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
     const ooc = persistKind({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       kind: "empty_ooc",
       text: "__SUMMARY_KIND_OOC_ONLY__",
     });
-    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(23, (t) =>
-      t === 23
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B2 });
+    seedPlayableTurns(20, (t) =>
+      t === 20
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -381,12 +387,12 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       branchStatus: "active",
     });
     const idB = persistKind({
-      turnStart: 7,
+      turnStart: GREENFIELD_BATCH2_START,
       kind: "noncanon",
       text: TEXT_B,
     });
-    seedPlayableTurns(17, (t) =>
-      t >= 13
+    seedPlayableTurns(15, (t) =>
+      t >= GREENFIELD_BATCH3_START
         ? { user: "계속", assistant: "분기C 이어감." }
         : { user: `분기 비트 ${t}`, assistant: `응답 ${t}` }
     );
@@ -408,7 +414,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     assert.equal(row(idB).branchId, null);
     assert.equal(mutations(idB).length, 0);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
-    const batch3 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 13)!;
+    const batch3 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === GREENFIELD_BATCH3_START)!;
     assert.equal(batch3.branchId, "branch-C");
     const lore = rebuildLorebookFromRecords(CHAT);
     assert.match(lore, /분기C|활성 분기|계약 장면/);
@@ -423,10 +429,10 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       branchId: "branch-A",
       branchStatus: "closed",
     });
-    const b1 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(23, (t) =>
-      t === 23
+    const b1 = persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B2 });
+    seedPlayableTurns(20, (t) =>
+      t === 20
         ? { user: "계속", assistant: "새 분기." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -452,10 +458,10 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
 
   it("G: B1/B2/B3 all promoted with same branch_id", async () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B2 });
-    const b3 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B3 });
-    seedPlayableTurns(23, (t) =>
-      t === 23
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "noncanon", text: TEXT_B2 });
+    const b3 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B3 });
+    seedPlayableTurns(20, (t) =>
+      t === 20
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -484,11 +490,11 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
-    const b1 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B1 });
-    const b2 = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(29, (t) =>
-      t === 29
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "main_canon", text: TEXT_MAIN });
+    const b1 = persistKind({ turnStart: GREENFIELD_BATCH3_START, kind: "noncanon", text: TEXT_B1 });
+    const b2 = persistKind({ turnStart: GREENFIELD_BATCH4_START, kind: "noncanon", text: TEXT_B2 });
+    seedPlayableTurns(25, (t) =>
+      t === 25
         ? { user: "계속", assistant: "B 이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -537,20 +543,20 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       text: "비정사 INACTIVE: 최신처럼 보이지만 비활성이다.",
       inactive: true,
     });
-    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "main_canon", text: TEXT_MAIN });
     const live = persistKind({
-      turnStart: 13,
+      turnStart: GREENFIELD_BATCH3_START,
       kind: "noncanon",
       text: TEXT_B,
     });
     persistKind({
-      turnStart: 19,
+      turnStart: GREENFIELD_BATCH4_START,
       kind: "noncanon",
       text: "비정사 INACTIVE2: 그룹 안의 비활성 행이다.",
       inactive: true,
     });
-    seedPlayableTurns(29, (t) =>
-      t === 29
+    seedPlayableTurns(25, (t) =>
+      t === 25
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -580,9 +586,9 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_A,
     });
-    persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
+    persistKind({ turnStart: GREENFIELD_BATCH2_START, kind: "main_canon", text: TEXT_MAIN });
     const existing = persistKind({
-      turnStart: 13,
+      turnStart: GREENFIELD_BATCH3_START,
       kind: "branch_canon",
       text: TEXT_BRANCH_C,
       branchId: "branch-X",
@@ -595,10 +601,10 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     );
     updateChatMemory(CHAT, USER, CHAR, {
       message_count: 18,
-      summarized_turn_count: 18,
+      summarized_turn_count: 15,
       membership_tier: "free",
     });
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: "x" }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: TEXT_MAIN }));
     assert.equal(
       await regenerateMemoryRecordBatch({
         chatId: CHAT,
@@ -607,7 +613,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
         charName: "P1BChar",
         tier: "free",
         memoryCapacity: 8000,
-        turnStart: 13,
+        turnStart: GREENFIELD_BATCH3_START,
       }),
       true
     );

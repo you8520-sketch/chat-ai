@@ -28,6 +28,7 @@ import {
   syntheticShadowRecordId,
 } from "./memory-shadow-state";
 import { composeBatchScopePayload } from "./memory-rolling-summary";
+import { insertAutomaticLegacySixTurnSummaryRow } from "./memory-test-batch";
 import {
   __setSummarizeTurnBatchCallerForTests,
   summarizeTurnBatch,
@@ -137,27 +138,17 @@ describe("pre-merge blocker regression", () => {
         assistant: `캐릭터 ${i + 1}`,
       }))
     );
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 18,
     });
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 7,
       turnEnd: 12,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 18,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     let shadowRecords: ReturnType<typeof shadowRecordFromComposed>[] = [];
@@ -253,16 +244,11 @@ describe("pre-merge blocker regression", () => {
         assistant: `캐릭터 ${i + 1}`,
       }))
     );
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 10,
     });
     const before = (
       getDb()
@@ -324,16 +310,11 @@ describe("pre-merge blocker regression", () => {
         assistant: `캐릭터 ${i + 1}`,
       }))
     );
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 6,
     });
     __setSummarizeTurnBatchCallerForTests(async () => {
       const userMsgId = turnOneUserMessageId();
@@ -407,19 +388,14 @@ describe("pre-merge blocker regression", () => {
       .prepare(
         `INSERT INTO chat_turn_summaries
           (chat_id, turn_number, turn_end, summary, summary_kind, user_edited, inactive)
-         VALUES (?, 1, NULL, ?, 'main_canon', 0, 1)`
+         VALUES (?, 7, 12, ?, 'main_canon', 0, 1)`
       )
       .run(CHAT, FIXTURE);
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 5,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     const result = await migrateChatSummariesToFiveTurn({
