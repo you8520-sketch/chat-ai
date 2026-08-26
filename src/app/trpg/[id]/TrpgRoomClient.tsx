@@ -13,13 +13,18 @@ import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import {
   applyReplySuggestionClick,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
+  normalizeTrpgReplySuggestionClientError,
+  shouldPersistTrpgActionSuggestionAttemptFailed,
   type TrpgInputOrigin,
   type TrpgReplySuggestion,
 } from "@/lib/trpg/replySuggestionShared";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import {
+  clearTrpgActionSuggestionAttempt,
+  loadTrpgActionSuggestionAttempt,
   loadTrpgActionSuggestionsCache,
   loadTrpgActionSuggestionsEnabled,
+  saveTrpgActionSuggestionAttempt,
   saveTrpgActionSuggestionsCache,
   saveTrpgActionSuggestionsEnabled,
   shouldAutoRequestTrpgActionSuggestions,
@@ -113,6 +118,7 @@ export default function TrpgRoomClient({
       const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
       setSuggestions(cached ?? []);
       autoRequestedRoundRef.current = cached?.length ? snap.round.number : null;
+      setSuggestionsError("");
       setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
@@ -169,31 +175,35 @@ export default function TrpgRoomClient({
     setSuggestionsBusy(true);
     setSuggestionsError("");
     setError("");
+    let response: Response | null = null;
     try {
-      const res = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, {
+      response = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, {
         method: "POST",
         signal: AbortSignal.timeout(50_000),
       });
-      const data = (await res.json().catch(() => null)) as { suggestions?: TrpgReplySuggestion[]; error?: string } | null;
-      if (!res.ok || !data?.suggestions?.length) {
+      const data = (await response.json().catch(() => null)) as {
+        suggestions?: TrpgReplySuggestion[];
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        throw new Error(data?.error || TRPG_REPLY_SUGGESTION_USER_ERROR);
+      }
+      if (!data?.suggestions?.length) {
         throw new Error(data?.error || "행동 예시를 만들지 못했습니다.");
       }
       setSuggestions(data.suggestions);
       saveTrpgActionSuggestionsCache(snap.id, snap.round.number, data.suggestions);
+      clearTrpgActionSuggestionAttempt(snap.id);
     } catch (e) {
-      const timedOut =
-        (e instanceof DOMException || e instanceof Error) &&
-        (e.name === "TimeoutError" || e.name === "AbortError");
-      const message = timedOut
-        ? TRPG_REPLY_SUGGESTION_USER_ERROR
-        : e instanceof Error
-          ? e.message
-          : TRPG_REPLY_SUGGESTION_USER_ERROR;
+      if (shouldPersistTrpgActionSuggestionAttemptFailed(response)) {
+        saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "failed");
+      }
+      const message = normalizeTrpgReplySuggestionClientError(e);
       setSuggestionsError(message);
       setError(message);
-      // Keep this round marked as requested. Poll refreshes replace `snap.myDraft`
-      // every 1.5s; clearing the marker here would turn one failure into an
-      // endless auto-retry/flicker loop. Toggling examples off resets it below.
+      // Definitive server failures persist "failed" so reload won't auto-retry.
+      // Ambiguous transport failures keep "pending" for durable DB / inflight recovery.
+      // Never clear autoRequestedRoundRef on failure — that would cause an endless auto-retry/flicker loop.
     } finally {
       suggestionsBusyRef.current = false;
       setSuggestionsBusy(false);
@@ -206,8 +216,15 @@ export default function TrpgRoomClient({
     if (cached?.length) {
       setSuggestions(cached);
       autoRequestedRoundRef.current = snap.round.number;
+      clearTrpgActionSuggestionAttempt(snap.id);
+      return;
     }
-    // Mount-only: restore this round's cached examples so re-entry never regenerates.
+    const attempt = loadTrpgActionSuggestionAttempt(snap.id, snap.round.number);
+    if (attempt === "failed") {
+      autoRequestedRoundRef.current = snap.round.number;
+      setSuggestionsError(TRPG_REPLY_SUGGESTION_USER_ERROR);
+    }
+    // Mount-only: restore cache or failed auto-attempt marker so reload never re-auto-generates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -217,6 +234,13 @@ export default function TrpgRoomClient({
     if (cached?.length) {
       setSuggestions(cached);
       autoRequestedRoundRef.current = snap.round.number;
+      clearTrpgActionSuggestionAttempt(snap.id);
+      return;
+    }
+    const autoAttempt = loadTrpgActionSuggestionAttempt(snap.id, snap.round.number);
+    if (autoAttempt === "failed") {
+      autoRequestedRoundRef.current = snap.round.number;
+      setSuggestionsError(TRPG_REPLY_SUGGESTION_USER_ERROR);
       return;
     }
     if (
@@ -231,6 +255,7 @@ export default function TrpgRoomClient({
     ) {
       return;
     }
+    saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "pending");
     autoRequestedRoundRef.current = snap.round.number;
     void requestSuggestions();
   }, [phase, requestSuggestions, snap.id, snap.myDraft, snap.round.number, suggestionsEnabled]);
@@ -243,6 +268,7 @@ export default function TrpgRoomClient({
       setSuggestions([]);
       setSuggestionsError("");
       autoRequestedRoundRef.current = null;
+      clearTrpgActionSuggestionAttempt(snap.id);
       return;
     }
     const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
@@ -268,7 +294,9 @@ export default function TrpgRoomClient({
 
   function retrySuggestions() {
     if (suggestionsBusyRef.current) return;
+    saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "pending");
     autoRequestedRoundRef.current = snap.round.number;
+    setSuggestionsError("");
     void requestSuggestions();
   }
 

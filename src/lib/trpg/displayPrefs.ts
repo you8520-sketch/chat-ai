@@ -69,12 +69,71 @@ export function shouldAutoRequestTrpgActionSuggestions(opts: {
   locked: boolean;
   requestedRound: number | null;
   roundNumber: number;
+  /** Same-round failed auto attempt persisted in localStorage — block automatic retry. */
+  autoAttemptFailed?: boolean;
 }): boolean {
   if (!opts.enabled) return false;
   if (opts.phase !== "ACTION_INPUT") return false;
   if (!opts.hasDraft || opts.locked) return false;
+  if (opts.autoAttemptFailed) return false;
   if (opts.requestedRound === opts.roundNumber) return false;
   return true;
+}
+
+/** Per-campaign auto-request attempt marker (not a suggestion result cache). */
+export const TRPG_ACTION_SUGGESTION_ATTEMPT_PREFIX = "habi:trpg-actionSuggestionAttempt:";
+
+export type TrpgActionSuggestionAttemptState = "pending" | "failed";
+
+type TrpgActionSuggestionAttemptRecord = {
+  round: number;
+  state: TrpgActionSuggestionAttemptState;
+};
+
+function suggestionAttemptKey(campaignId: number): string {
+  return `${TRPG_ACTION_SUGGESTION_ATTEMPT_PREFIX}${campaignId}`;
+}
+
+export function loadTrpgActionSuggestionAttempt(
+  campaignId: number,
+  roundNumber: number
+): TrpgActionSuggestionAttemptState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(suggestionAttemptKey(campaignId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<TrpgActionSuggestionAttemptRecord>;
+    if (parsed.round !== roundNumber) return null;
+    if (parsed.state === "pending" || parsed.state === "failed") return parsed.state;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTrpgActionSuggestionAttempt(
+  campaignId: number,
+  roundNumber: number,
+  state: TrpgActionSuggestionAttemptState
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      suggestionAttemptKey(campaignId),
+      JSON.stringify({ round: roundNumber, state } satisfies TrpgActionSuggestionAttemptRecord)
+    );
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function clearTrpgActionSuggestionAttempt(campaignId: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(suggestionAttemptKey(campaignId));
+  } catch {
+    /* ignore quota / private mode */
+  }
 }
 
 /** Per-campaign cache of the last generated action examples (one round per campaign). */
