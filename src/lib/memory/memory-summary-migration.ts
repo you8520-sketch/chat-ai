@@ -21,6 +21,7 @@ import {
 import {
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  type MemoryRecordView,
 } from "./memory-turn-summary";
 import {
   loadMemoryEligibleChatTurnsWithMessageIdsCore,
@@ -49,6 +50,32 @@ import {
 } from "./memory-summary-scope";
 import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { DialogueTurn } from "@/lib/hybridMemory";
+
+/** @internal test-only — final shadow snapshot per chat before DB swap */
+const migrationFinalShadowSnapshotsForTests = new Map<number, MemoryRecordView[]>();
+
+export function __peekMigrationFinalShadowForTests(
+  chatId?: number
+): readonly MemoryRecordView[] | null {
+  if (chatId != null) {
+    return migrationFinalShadowSnapshotsForTests.get(chatId) ?? null;
+  }
+  const snapshots = [...migrationFinalShadowSnapshotsForTests.values()];
+  return snapshots.length > 0 ? snapshots[snapshots.length - 1]! : null;
+}
+
+export function __clearMigrationFinalShadowForTests(): void {
+  migrationFinalShadowSnapshotsForTests.clear();
+}
+
+function cloneShadowRecordsForTestPeek(
+  records: readonly MemoryRecordView[]
+): MemoryRecordView[] {
+  return records.map((record) => ({
+    ...record,
+    scopes: { ...record.scopes },
+  }));
+}
 
 export type LegacySixTurnInventory = {
   ACTIVE_AUTOMATIC_LEGACY_6TURN_ROWS: number;
@@ -504,6 +531,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
   batchesCompleted: number;
 }> {
   const db = getDb();
+  migrationFinalShadowSnapshotsForTests.delete(opts.chatId);
   const classified = classifyChatForFiveTurnRebuild(db, opts.chatId);
 
   if (opts.dryRun) {
@@ -693,6 +721,10 @@ export async function migrateChatSummariesToFiveTurn(opts: {
   const tier = opts.tier ?? "free";
   ensureMemorySummaryMigrationsTable(db);
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, tier);
+  migrationFinalShadowSnapshotsForTests.set(
+    opts.chatId,
+    cloneShadowRecordsForTestPeek(finalShadowRecords)
+  );
 
   try {
     db.transaction(() => {

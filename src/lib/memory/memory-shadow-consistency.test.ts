@@ -18,6 +18,8 @@ import {
   __setSummarizeTurnBatchCallerForTests,
 } from "./memory-rolling-summary";
 import {
+  __clearMigrationFinalShadowForTests,
+  __peekMigrationFinalShadowForTests,
   migrateChatSummariesToFiveTurn,
 } from "./memory-summary-migration";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -139,6 +141,15 @@ function normalizeDbAutomaticRecords(chatId: number) {
     .map(normalizeShadowRecordForCompare);
 }
 
+function requireFinalMigrationShadow(chatId: number): MemoryRecordView[] {
+  const snapshot = __peekMigrationFinalShadowForTests(chatId);
+  assert.ok(
+    snapshot,
+    `expected migration final shadow snapshot for chat ${chatId} before DB swap`
+  );
+  return [...snapshot];
+}
+
 function assertDbMatchesFinalShadow(chatId: number, finalShadow: readonly MemoryRecordView[]) {
   const dbNorm = normalizeDbAutomaticRecords(chatId);
   const shadowNorm = finalShadow.map(normalizeShadowRecordForCompare);
@@ -159,11 +170,13 @@ function ifUserText(turn: number): string {
 }
 
 before(() => {
+  __clearMigrationFinalShadowForTests();
   __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
 });
 
 after(() => {
   __setSummarizeTurnBatchCallerForTests(null);
+  __clearMigrationFinalShadowForTests();
   cleanupChat(CHAT_A, USER_A, CHAR_A);
   cleanupChat(CHAT_B, USER_B, CHAR_B);
 });
@@ -198,14 +211,9 @@ describe("final shadow / DB consistency", () => {
     assert.ok(batch1.scopes.branch_canon);
     assert.equal(dbScopePayload(1, CHAT_A)?.scopes.branch_canon, batch1.scopes.branch_canon);
 
-    const shadowReplay = new ShadowState();
     assert.equal(syntheticShadowRecordId(1), 1);
     assert.equal(syntheticShadowRecordId(6), 6);
-    assertDbMatchesFinalShadow(
-      CHAT_A,
-      listMemoryRecordsForChat(CHAT_A).filter((row) => !row.inactive && !row.userEdited)
-    );
-    assert.equal(shadowReplay.priorRecords.length, 0);
+    assertDbMatchesFinalShadow(CHAT_A, requireFinalMigrationShadow(CHAT_A));
   });
 
   it("B batch2 close sets final DB batch1 branch_status closed", async () => {
@@ -241,10 +249,7 @@ describe("final shadow / DB consistency", () => {
         .get(CHAT_A)?.branch_status,
       "closed"
     );
-    assertDbMatchesFinalShadow(
-      CHAT_A,
-      listMemoryRecordsForChat(CHAT_A).filter((row) => !row.inactive && !row.userEdited)
-    );
+    assertDbMatchesFinalShadow(CHAT_A, requireFinalMigrationShadow(CHAT_A));
   });
 
   it("C closed branch reopen keeps final shadow and DB aligned", async () => {
@@ -283,7 +288,7 @@ describe("final shadow / DB consistency", () => {
     assert.ok(batch1.branchId);
     assert.equal(batch1.branchId, batch4.branchId);
     assert.equal(batch1.branchStatus, "active");
-    assertDbMatchesFinalShadow(CHAT_A, records);
+    assertDbMatchesFinalShadow(CHAT_A, requireFinalMigrationShadow(CHAT_A));
   });
 
   it("concurrent migrations use isolated shadow ids and correct final DB state", async () => {
@@ -365,14 +370,8 @@ describe("final shadow / DB consistency", () => {
     assert.equal(syntheticShadowRecordId(1), 1);
     assert.equal(syntheticShadowRecordId(6), 6);
 
-    assertDbMatchesFinalShadow(
-      CHAT_A,
-      listMemoryRecordsForChat(CHAT_A).filter((row) => !row.inactive && !row.userEdited)
-    );
-    assertDbMatchesFinalShadow(
-      CHAT_B,
-      listMemoryRecordsForChat(CHAT_B).filter((row) => !row.inactive && !row.userEdited)
-    );
+    assertDbMatchesFinalShadow(CHAT_A, requireFinalMigrationShadow(CHAT_A));
+    assertDbMatchesFinalShadow(CHAT_B, requireFinalMigrationShadow(CHAT_B));
   });
 });
 
