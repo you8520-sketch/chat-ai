@@ -1,3 +1,11 @@
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  renderChatImageVisualIdentity,
+  type ChatImageAppearanceMode,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
+
 export const CHAT_IMAGE_TEMPLATE_ID = "gift_box_duo" as const;
 export const CHAT_IMAGE_TEMPLATE_NAME = "선물상자 2인 SD";
 export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
@@ -111,12 +119,6 @@ function promptForMood(id: ChatImageMood): string {
   return CHAT_IMAGE_MOODS.find((item) => item.id === id)?.prompt ?? "lovely pastel mood";
 }
 
-function imageGenderLabel(gender: ImagePromptGender): string {
-  if (gender === "male") return "male";
-  if (gender === "female") return "female";
-  return "unspecified / non-binary";
-}
-
 export function buildImageGenderLockPrompt(
   subjects: readonly { label: string; name: string; gender: ImagePromptGender }[]
 ): string {
@@ -171,6 +173,16 @@ export function resolveChatImageReferenceOrder(opts: {
   };
 }
 
+export function orderGiftBoxVisualSubjects<T extends { role: string }>(
+  subjects: readonly T[],
+  placement: ChatImagePlacement
+): T[] {
+  const character = subjects.find((subject) => subject.role === "chat character");
+  const persona = subjects.find((subject) => subject.role === "user persona");
+  if (!character || !persona) return [...subjects];
+  return placement === "persona_top" ? [persona, character] : [character, persona];
+}
+
 export function buildChatImageGenerationPrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
@@ -180,6 +192,7 @@ export function buildChatImageGenerationPrompt(opts: {
   topExpression: ChatImageExpression;
   bottomExpression: ChatImageExpression;
   mood: ChatImageMood;
+  subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const topName = opts.placement === "persona_top" ? opts.personaName : opts.characterName;
   const bottomName = opts.placement === "persona_top" ? opts.characterName : opts.personaName;
@@ -187,22 +200,103 @@ export function buildChatImageGenerationPrompt(opts: {
     opts.placement === "persona_top" ? opts.personaGender : opts.characterGender;
   const bottomGender =
     opts.placement === "persona_top" ? opts.characterGender : opts.personaGender;
+  const identitySection = renderChatImageVisualIdentity({
+    subjects: opts.subjects?.length
+      ? opts.subjects
+      : bindChatImageReferencePack({
+          template: {
+            url: CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
+            role: "composition template",
+          },
+          subjectsInImageOrder: orderGiftBoxVisualSubjects(
+            buildChatDuoVisualSubjects({
+              characterName: opts.characterName,
+              characterGender: opts.characterGender,
+              characterImageUrl: "/character-ref",
+              characterSavedAppearance: "",
+              characterAppearanceMode: "image_only",
+              personaName: opts.personaName,
+              personaGender: opts.personaGender,
+              personaImageUrl: "/persona-ref",
+              personaSavedAppearance: "",
+              personaAppearanceMode: "image_only",
+            }),
+            opts.placement
+          ),
+        }).subjects,
+    hasTemplate: true,
+  });
 
   return [
     "Create one polished 4:3 two-person SD/chibi fixed-template commission illustration.",
     "Reference image 1 is the composition and decoration template. Preserve its recognizable luxury gift-box layout: a cream gift box with lace trim, sage-green ribbon and heart charm, teddy bear, bunny plush, candies, pearls, floating hearts, curling ribbons and golden sparkles on a clean pale background.",
-    `Reference image 2 is the identity reference for the TOP person, ${topName} (${imageGenderLabel(topGender)}). Reference image 3 is the identity reference for the BOTTOM person, ${bottomName} (${imageGenderLabel(bottomGender)}).`,
+    identitySection,
     buildImageGenderLockPrompt([
       { label: "TOP person", name: topName, gender: topGender },
       { label: "BOTTOM person", name: bottomName, gender: bottomGender },
     ]),
-    "Identity separation is critical. Do not blend the two identities. Preserve each referenced person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression while converting them into cohesive cute SD/chibi proportions.",
+    `TOP person is ${topName}. BOTTOM person is ${bottomName}. Keep those placements exact.`,
     `TOP person expression: ${promptForExpression(opts.topExpression)}. The top person leans over from above and gently hugs or rests both hands on the bottom person's head.`,
     `BOTTOM person expression: ${promptForExpression(opts.bottomExpression)}. The bottom person sits inside the decorative gift box with both forearms resting naturally on the box edge.`,
     `Overall mood: ${promptForMood(opts.mood)}.`,
-    "Exactly two human characters. No extra person, duplicate face, merged body, swapped hair, extra hands, malformed fingers, text, signature, logo or watermark.",
+    "Exactly two human characters. No extra person, duplicate face, merged body, extra hands, malformed fingers, text, signature, logo or watermark.",
     "Keep the full gift box and the surrounding decorative objects visible. Do not crop to faces only. Centered, clean, detailed, harmonious, merchandise-quality kawaii anime illustration.",
   ].join("\n\n");
+}
+
+export function buildGiftBoxGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  placement: ChatImagePlacement;
+  topExpression: ChatImageExpression;
+  bottomExpression: ChatImageExpression;
+  mood: ChatImageMood;
+}) {
+  const subjects = orderGiftBoxVisualSubjects(
+    buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+    opts.placement
+  );
+  const pack = bindChatImageReferencePack({
+    template: {
+      url: CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
+      role: "composition template",
+    },
+    subjectsInImageOrder: subjects,
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatImageGenerationPrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      placement: opts.placement,
+      topExpression: opts.topExpression,
+      bottomExpression: opts.bottomExpression,
+      mood: opts.mood,
+      subjects: pack.subjects,
+    }),
+  };
 }
 
 export function resolveChatImageGenerationPrice(

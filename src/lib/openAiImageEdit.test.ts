@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  OpenAiImageError,
   calculateGptImage2CostUsd,
   callOpenAiImageEdit,
 } from "./openAiImageEdit";
@@ -59,6 +60,39 @@ describe("openAiImageEdit", () => {
       });
       assert.equal(result.buffer.toString(), "generated");
       assert.ok(result.costUsd != null && result.costUsd > 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
+
+  it("rejects zero references without calling the provider", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalKey = process.env.OPENAI_API_KEY;
+    let called = false;
+    process.env.OPENAI_API_KEY = "test-key";
+    globalThis.fetch = async () => {
+      called = true;
+      throw new Error("provider must not be called");
+    };
+    try {
+      await assert.rejects(
+        () =>
+          callOpenAiImageEdit({
+            model: "gpt-image-2",
+            prompt: "test",
+            references: [],
+            size: "1024x1024",
+            quality: "high",
+            outputCompression: 88,
+          }),
+        (error: unknown) =>
+          error instanceof OpenAiImageError &&
+          error.status === 400 &&
+          /참조 이미지가 없어/.test(error.message)
+      );
+      assert.equal(called, false);
     } finally {
       globalThis.fetch = originalFetch;
       if (originalKey == null) delete process.env.OPENAI_API_KEY;

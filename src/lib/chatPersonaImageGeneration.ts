@@ -4,6 +4,7 @@ import {
   resolveCharacterGender,
 } from "@/lib/characterGender";
 import { buildChatImageSubjectGenderLock } from "@/lib/chatImageGender";
+import { extractVisualAppearance } from "@/lib/chatImageVisualIdentity";
 
 export const CHAT_PERSONA_IMAGE_TEMPLATE_ID = "persona_portrait_ld" as const;
 export const CHAT_PERSONA_IMAGE_TEMPLATE_NAME = "페르소나 3:5 LD 이미지";
@@ -18,21 +19,8 @@ export const CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE =
 export const CHAT_PERSONA_IMAGE_QUALITY = "medium" as const;
 export const CHAT_PERSONA_IMAGE_DEFAULT_POINTS = 200;
 
-const APPEARANCE_SIGNAL =
-  /(?:외모|외형|생김새|인상|머리|헤어|금발|은발|흑발|갈색머리|적발|눈|눈동자|벽안|적안|녹안|키|신장|체격|체형|피부|얼굴|복장|의상|옷|교복|정장|드레스|후드|장신구|안경|귀걸이|흉터|문신|점|날개|뿔|귀|꼬리|appearance|hair|eyes?|height|build|skin|face|outfit|clothes?|accessor(?:y|ies)|scar|tattoo)/i;
-
 export function extractPersonaAppearance(description: unknown): string {
-  const normalized = String(description ?? "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .trim();
-  if (!normalized) return "";
-
-  const segments = normalized
-    .split(/\n+|(?<=[.!?。！？])\s+/)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment && APPEARANCE_SIGNAL.test(segment));
-  return segments.join("\n").slice(0, 1_600).trim();
+  return extractVisualAppearance(description);
 }
 
 export function personaImageReadiness(persona: {

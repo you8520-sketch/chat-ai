@@ -41,6 +41,13 @@ import {
   type ChatImagePlacement,
 } from "@/lib/chatImageGeneration";
 import {
+  previewVisualAppearance,
+  resolveChatImageAppearanceControlProduct,
+  resolveEffectiveAppearanceMode,
+  shouldShowChatImageAppearanceModeControl,
+  type ChatImageAppearanceMode,
+} from "@/lib/chatImageVisualIdentity";
+import {
   CHAT_LD_ILLUSTRATION_DEFAULT_POINTS,
 } from "@/lib/chatLdIllustrationGeneration";
 import {
@@ -85,7 +92,10 @@ type Preflight = {
   modelId: string;
   modelLabel: string;
   template: { id: string; name: string; previewUrl: string };
-  character: ReferenceInfo;
+  character: ReferenceInfo & {
+    hasSavedAppearance?: boolean;
+    appearancePreview?: string;
+  };
   characterImages?: Array<{ url: string; tag: string }>;
   persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;
   balance?: { total: number; paid: number; free: number };
@@ -359,6 +369,10 @@ export default function ChatImageGeneratorPanel({
   >({});
   const [savedUrls, setSavedUrls] = useState<Set<string>>(() => new Set());
   const [selectedCharacterImageUrl, setSelectedCharacterImageUrl] = useState("");
+  const [characterAppearanceModeOverride, setCharacterAppearanceModeOverride] =
+    useState<ChatImageAppearanceMode | null>(null);
+  const [characterAppearancePreviewOpen, setCharacterAppearancePreviewOpen] =
+    useState(false);
   const [characterPickerOpen, setCharacterPickerOpen] = useState(false);
 
   const [placement, setPlacement] = useState<ChatImagePlacement>(
@@ -543,6 +557,32 @@ export default function ChatImageGeneratorPanel({
       imageUrl: selectedCharacterImageUrl || info.character.imageUrl,
     };
   }, [info?.character, selectedCharacterImageUrl]);
+  const primaryCharacterImageUrl =
+    info?.characterImages?.[0]?.url || info?.character.imageUrl || "";
+  const selectedCharacterUrl =
+    selectedCharacterImageUrl || info?.character.imageUrl || "";
+  const isPrimaryCharacterImage =
+    !selectedCharacterUrl || selectedCharacterUrl === primaryCharacterImageUrl;
+  const hasSavedAppearance = Boolean(info?.character.hasSavedAppearance);
+  const characterAppearanceMode = resolveEffectiveAppearanceMode({
+    sourceKind: "main_character",
+    isPrimaryImage: isPrimaryCharacterImage,
+    hasOwnSavedAppearance: hasSavedAppearance,
+    hasOwnReference: Boolean(selectedCharacterUrl),
+    override: characterAppearanceModeOverride,
+  });
+  const characterAppearanceFull = info?.character.appearancePreview?.trim() || "";
+  const characterAppearancePreview = previewVisualAppearance(characterAppearanceFull);
+  const appearanceControlProduct = resolveChatImageAppearanceControlProduct({
+    surface: tab === "sd" ? "sd" : "ld",
+    sdProduct,
+    ldProduct,
+    isTrpgParty: Boolean(campaignId),
+  });
+  const showAppearanceModeControl = shouldShowChatImageAppearanceModeControl({
+    product: appearanceControlProduct,
+    hasSavedAppearance,
+  });
   const partyPickerMember = useMemo(
     () => partyCast.find((row) => row.participantId === partyPickerId) ?? null,
     [partyCast, partyPickerId]
@@ -635,11 +675,11 @@ export default function ChatImageGeneratorPanel({
       const selectableImages = Array.isArray(data.characterImages)
         ? data.characterImages
         : [];
-      setSelectedCharacterImageUrl((previous) =>
-        selectableImages.some((image) => image.url === previous)
-          ? previous
-          : data.character.imageUrl
-      );
+      setSelectedCharacterImageUrl((previous) => {
+        if (selectableImages.some((image) => image.url === previous)) return previous;
+        setCharacterAppearanceModeOverride(null);
+        return data.character.imageUrl;
+      });
       setCharacterPickerOpen(false);
       if (data.latestResult?.imageUrl) {
         if (data.latestResult.mode === "persona") {
@@ -783,6 +823,7 @@ export default function ChatImageGeneratorPanel({
                 ? CHAT_COUPLE_STAMP_TEMPLATE_ID
                 : info.template.id,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+          characterAppearanceMode,
           ...(sdProduct === "coupleStamp"
             ? {
                 coupleHeight,
@@ -985,6 +1026,7 @@ export default function ChatImageGeneratorPanel({
               ? campaignRoundNumber
               : undefined,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+          characterAppearanceMode,
           castImagePicks:
             isIllustration && campaignId
               ? partyCast
@@ -1426,6 +1468,9 @@ export default function ChatImageGeneratorPanel({
                                 key={image.url}
                                 type="button"
                                 onClick={() => {
+                                  if (image.url !== selectedCharacterImageUrl) {
+                                    setCharacterAppearanceModeOverride(null);
+                                  }
                                   setSelectedCharacterImageUrl(image.url);
                                   setCharacterPickerOpen(false);
                                 }}
@@ -1448,6 +1493,69 @@ export default function ChatImageGeneratorPanel({
                             );
                           })}
                         </div>
+                      </div>
+                    ) : null}
+                    {showAppearanceModeControl ? (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                        <p className="text-[10px] font-semibold text-zinc-400">외형 기준</p>
+                        <div className="mt-1.5 space-y-1 text-[11px] text-zinc-300">
+                          <label className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="character-appearance-mode"
+                              className="mt-0.5"
+                              checked={characterAppearanceMode === "image_only"}
+                              disabled={generating}
+                              onChange={() => setCharacterAppearanceModeOverride("image_only")}
+                            />
+                            <span>선택 이미지 기준</span>
+                          </label>
+                          <label className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              name="character-appearance-mode"
+                              className="mt-0.5"
+                              checked={characterAppearanceMode === "image_plus_saved"}
+                              disabled={generating}
+                              onChange={() =>
+                                setCharacterAppearanceModeOverride("image_plus_saved")
+                              }
+                            />
+                            <span>메인 캐릭터 설정 외형도 함께 적용</span>
+                          </label>
+                        </div>
+                        {characterAppearanceMode === "image_plus_saved" ? (
+                          <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                            <p className="font-semibold text-zinc-400">메인 캐릭터 외형</p>
+                            <p className="mt-0.5 whitespace-pre-wrap">
+                              {characterAppearanceFull
+                                ? characterAppearancePreview.preview
+                                : "저장된 캐릭터 외형 설정을 함께 적용합니다."}
+                            </p>
+                            {characterAppearancePreview.truncated ? (
+                              <button
+                                type="button"
+                                className="mt-1 font-semibold text-violet-300"
+                                onClick={() =>
+                                  setCharacterAppearancePreviewOpen((previous) => !previous)
+                                }
+                              >
+                                {characterAppearancePreviewOpen ? "접기" : "더 보기"}
+                              </button>
+                            ) : null}
+                            {characterAppearancePreviewOpen &&
+                            characterAppearancePreview.truncated ? (
+                              <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                                {characterAppearancePreview.full}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                            이번 생성만 선택한 이미지를 기준으로 합니다. 저장된 메인 캐릭터
+                            외형은 바꾸지 않습니다.
+                          </p>
+                        )}
                       </div>
                     ) : null}
                       </>

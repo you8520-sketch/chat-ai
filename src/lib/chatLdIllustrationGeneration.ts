@@ -6,6 +6,14 @@ import {
   buildChatImagePairGenderLock,
   genderWordForImagePrompt,
 } from "@/lib/chatImageGender";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  renderChatImageVisualIdentity,
+  visualSubjectsFromCastMembers,
+  type ChatImageAppearanceMode,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
 
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
@@ -91,6 +99,9 @@ export type ChatLdIllustrationCastMember = {
   referenceIndex: number | null;
   appearanceNote?: string;
   aliases?: string[];
+  appearanceMode?: ChatImageAppearanceMode;
+  imageUrl?: string | null;
+  isPrimaryImage?: boolean;
 };
 
 export function uniqueIllustrationAliases(
@@ -131,7 +142,7 @@ export function withIllustrationReferenceIndices<T extends { imageUrl: string | 
 }
 
 const ILLUSTRATION_SAFETY =
-  "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.";
+  "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.";
 
 function peopleWord(count: number): string {
   return count === 1 ? "person" : "people";
@@ -144,14 +155,7 @@ function formatCastLine(member: ChatLdIllustrationCastMember, index: number): st
     .map((alias) => alias.trim())
     .filter((alias) => alias && alias !== name);
   const aliasText = aliases.length ? ` Also known as: ${aliases.join(", ")}.` : "";
-  const ref =
-    member.referenceIndex != null
-      ? ` Reference image ${member.referenceIndex} is the identity photo for ${name} only — copy this person's face, hairstyle, hair color, eyes, body, and outfit. Do not apply this photo to anyone else.`
-      : ` No photo for ${name}. Still draw this person using the name, confirmed ${gender} gender lock, and appearance notes. Do not substitute another referenced face.`;
-  const note = member.appearanceNote?.trim()
-    ? ` Appearance: ${member.appearanceNote.trim()}`
-    : "";
-  return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}${ref}${note}`;
+  return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}`;
 }
 
 export function buildTrpgIllustrationSituation(opts: {
@@ -180,13 +184,21 @@ export function buildTrpgIllustrationSituation(opts: {
 function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
   situation: string;
+  subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const count = opts.cast.length;
+  const subjects = opts.subjects?.length
+    ? [...opts.subjects]
+    : visualSubjectsFromCastMembers(opts.cast);
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
-    "CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):",
+    "CAST (roster — every listed person must appear):",
     ...opts.cast.map((member, index) => formatCastLine(member, index)),
+    renderChatImageVisualIdentity({
+      subjects,
+      hasTemplate: false,
+    }),
     buildImageGenderLockPrompt(
       opts.cast.map((member) => ({
         label: member.role,
@@ -196,8 +208,7 @@ function buildPartyIllustrationPrompt(opts: {
     ),
     ILLUSTRATION_SAFETY,
     "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
-    "Keep every identity clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits from their own reference/appearance.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.",
+    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     `Show exactly these ${count} ${peopleWord(count)}. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`,
@@ -207,6 +218,30 @@ function buildPartyIllustrationPrompt(opts: {
     "SELECTED TURN SCENE BRIEF:",
     opts.situation,
   ].join("\n");
+}
+
+function defaultLdDuoSubjects(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  subjects?: readonly ChatImageVisualSubject[];
+}): ChatImageVisualSubject[] {
+  if (opts.subjects?.length) return [...opts.subjects];
+  return bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: "/character-ref",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: "/persona-ref",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
 }
 
 export function buildChatLdIllustrationPrompt(opts: {
@@ -219,6 +254,7 @@ export function buildChatLdIllustrationPrompt(opts: {
   cast?: readonly ChatLdIllustrationCastMember[];
   /** Pre-formatted TRPG situation (location, round actions, GM scene). */
   situation?: string;
+  subjects?: readonly ChatImageVisualSubject[];
 }) {
   if (opts.cast && opts.cast.length > 0) {
     return buildPartyIllustrationPrompt({
@@ -226,13 +262,16 @@ export function buildChatLdIllustrationPrompt(opts: {
       situation:
         opts.situation?.trim() ||
         sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
+      subjects: opts.subjects,
     });
   }
   const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
-    `Reference image 1 is the identity and art-style reference for ${opts.characterName}, the chat character.`,
-    `Reference image 2 is the identity and art-style reference for ${opts.personaName}, the user persona.`,
+    renderChatImageVisualIdentity({
+      subjects: defaultLdDuoSubjects(opts),
+      hasTemplate: false,
+    }),
     buildChatImagePairGenderLock({
       characterName: opts.characterName,
       characterGender: opts.characterGender,
@@ -241,8 +280,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     }),
     ILLUSTRATION_SAFETY,
     "Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.",
-    "Keep both identities clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, harmonize them into one coherent polished style without changing either identity.",
+    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",
@@ -251,4 +289,45 @@ export function buildChatLdIllustrationPrompt(opts: {
     "SELECTED TURN SCENE BRIEF:",
     turn,
   ].join("\n");
+}
+
+export function buildLdDuoGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  currentTurn: string;
+}) {
+  const pack = bindChatImageReferencePack({
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatLdIllustrationPrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      currentTurn: opts.currentTurn,
+      subjects: pack.subjects,
+    }),
+  };
 }

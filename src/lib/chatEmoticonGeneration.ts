@@ -1,5 +1,12 @@
 import { type ImagePromptGender } from "@/lib/chatImageGeneration";
 import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  renderChatImageVisualIdentity,
+  type ChatImageAppearanceMode,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
 
 export const CHAT_EMOTICON_TEMPLATE_ID = "emoticon_grid_9" as const;
 export const CHAT_EMOTICON_TEMPLATE_NAME = "랜덤 9종 이모티콘";
@@ -101,12 +108,41 @@ export function selectRandomChatEmoticonScenes(
   return shuffled(selected, random);
 }
 
+function defaultEmoticonSubjects(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  subjects?: readonly ChatImageVisualSubject[];
+}): ChatImageVisualSubject[] {
+  if (opts.subjects?.length) return [...opts.subjects];
+  return bindChatImageReferencePack({
+    template: {
+      url: CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: "/character-ref",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: "/persona-ref",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+}
+
 export function buildChatEmoticonPrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
   personaName: string;
   personaGender: ImagePromptGender;
   scenes: readonly ChatEmoticonScene[];
+  subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const panels = opts.scenes
     .map((scene, index) => {
@@ -123,19 +159,66 @@ export function buildChatEmoticonPrompt(opts: {
   return [
     "Create one polished square 3-by-3 Korean SD/chibi emoticon sheet with exactly nine equal panels.",
     "Reference image 1 is the layout and finish reference. Keep only its clean 3x3 grid, rounded panel borders, safe text margins, pastel sticker finish and expressive merchandise quality. Do not copy its people.",
-    `Reference image 2 is the identity reference for chat character ${opts.characterName}. Reference image 3 is the identity reference for user persona ${opts.personaName}.`,
+    renderChatImageVisualIdentity({
+      subjects: defaultEmoticonSubjects(opts),
+      hasTemplate: true,
+    }),
     buildChatImagePairGenderLock({
       characterName: opts.characterName,
       characterGender: opts.characterGender,
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    "Identity separation is critical. Preserve each person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression. Never blend or swap the two identities.",
     "Use the following exact nine panels in this exact order:",
     panels,
     "Render exactly one listed Korean phrase in each panel, verbatim and fully legible. The pose, props and facial expression must clearly match that phrase.",
-    "Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, merged face, cropped text, extra text, signature, logo or watermark.",
+    "Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, cropped text, extra text, signature, logo or watermark.",
   ].join("\n\n");
+}
+
+export function buildEmoticonGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  scenes: readonly ChatEmoticonScene[];
+}) {
+  const pack = bindChatImageReferencePack({
+    template: {
+      url: CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatEmoticonPrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      scenes: opts.scenes,
+      subjects: pack.subjects,
+    }),
+  };
 }
 
 export function resolveChatEmoticonPrice(): number {

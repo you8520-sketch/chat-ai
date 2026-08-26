@@ -9,6 +9,13 @@ import {
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
 import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  renderChatImageVisualIdentity,
+  type ChatImageAppearanceMode,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
 
 export const CHAT_COUPLE_STAMP_TEMPLATE_ID = "couple_stamps_4" as const;
 export const CHAT_COUPLE_STAMP_TEMPLATE_NAME = "커플 인장";
@@ -204,26 +211,58 @@ function findPrompt<T extends readonly { id: string; prompt: string }[]>(
   return choices.find((choice) => choice.id === id)?.prompt ?? choices[0]!.prompt;
 }
 
+function defaultCoupleStampSubjects(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  subjects?: readonly ChatImageVisualSubject[];
+}): ChatImageVisualSubject[] {
+  if (opts.subjects?.length) return [...opts.subjects];
+  return bindChatImageReferencePack({
+    template: {
+      url: CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: "/character-ref",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: "/persona-ref",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+    }),
+  }).subjects;
+}
+
 export function buildChatCoupleStampPrompt(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
   personaName: string;
   personaGender: ImagePromptGender;
   options?: Partial<ChatCoupleStampOptions> | null;
+  subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const options = sanitizeChatCoupleStampOptions(opts.options);
 
   return [
     "Create ONE square couple profile stamp sheet: exactly four circular badges arranged in a 2-by-2 grid on a clean white background, with even gaps and equal badge sizes.",
     "Reference image 1 is the fixed template. Reproduce its layout, its four motifs, its bold thick outlines and its soft chibi / SD illustration finish. Replace only the two people.",
-    `Reference image 2 is the identity reference for chat character ${opts.characterName}. Reference image 3 is the identity reference for user persona ${opts.personaName}.`,
+    renderChatImageVisualIdentity({
+      subjects: defaultCoupleStampSubjects(opts),
+      hasTemplate: true,
+    }),
     buildChatImagePairGenderLock({
       characterName: opts.characterName,
       characterGender: opts.characterGender,
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    "The same two people appear in all four badges. Identity separation is critical: preserve each person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression. Never blend, swap or duplicate the two identities.",
+    "The same two people appear in all four badges.",
     CHAT_COUPLE_STAMP_PANELS.map((panel) => panel.prompt).join("\n"),
     `Chat character ${opts.characterName} expression in every badge: ${findPrompt(CHAT_COUPLE_STAMP_EXPRESSIONS, options.characterExpression)}.`,
     `User persona ${opts.personaName} expression in every badge: ${findPrompt(CHAT_COUPLE_STAMP_EXPRESSIONS, options.personaExpression)}.`,
@@ -232,8 +271,53 @@ export function buildChatCoupleStampPrompt(opts: {
     `Background decoration: ${findPrompt(CHAT_COUPLE_STAMP_BACKGROUNDS, options.background)}`,
     `Border decoration: ${findPrompt(CHAT_COUPLE_STAMP_BORDERS, options.border)}`,
     "Keep both faces and important gestures fully inside each circle. Bold clean line art, pastel digital coloring, merchandise-quality kawaii finish.",
-    "Exactly two people per badge and exactly four badges. No extra person, identity swap, merged face, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.",
+    "Exactly two people per badge and exactly four badges. No extra person, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.",
   ].join("\n\n");
+}
+
+export function buildCoupleStampGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  options?: Partial<ChatCoupleStampOptions> | null;
+}) {
+  const pack = bindChatImageReferencePack({
+    template: {
+      url: CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatCoupleStampPrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      options: opts.options,
+      subjects: pack.subjects,
+    }),
+  };
 }
 
 export function resolveChatCoupleStampPrice(): number {

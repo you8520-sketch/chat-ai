@@ -1,5 +1,8 @@
 const OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits";
 
+/** `/v1/images/edits` requires at least one image. Zero-image requests are not supported. */
+export const OPENAI_IMAGE_EDIT_MIN_REFERENCES = 1;
+
 export type OpenAiImageQuality = "low" | "medium" | "high";
 
 type OpenAiImageUsage = {
@@ -75,6 +78,12 @@ export async function callOpenAiImageEdit(opts: {
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new OpenAiImageError("OpenAI API 키가 설정되지 않았습니다.", 503);
+  if (opts.references.length < OPENAI_IMAGE_EDIT_MIN_REFERENCES) {
+    throw new OpenAiImageError(
+      "참조 이미지가 없어 이미지 편집을 요청할 수 없습니다.",
+      400
+    );
+  }
 
   const form = new FormData();
   form.set("model", opts.model);
