@@ -57,11 +57,13 @@ describe("normalizeVisionModerationFlags", () => {
 });
 
 describe("vision prompt policy wiring", () => {
-  it("documents back-only adult=false in vision.ts", async () => {
+  it("documents genitals-only reject in shared asset vision policy", async () => {
     const fs = await import("node:fs");
-    const src = fs.readFileSync(new URL("./vision.ts", import.meta.url), "utf8");
-    assert.match(src, /등짝 노출 포함/);
-    assert.match(src, /normalizeVisionModerationFlags/);
-    assert.doesNotMatch(src, /adult=true: 성인용으로 보이는 노출/);
+    const policy = fs.readFileSync(new URL("./assetVisionPolicy.ts", import.meta.url), "utf8");
+    const vision = fs.readFileSync(new URL("./vision.ts", import.meta.url), "utf8");
+    assert.match(policy, /성기·항문 노출/);
+    assert.match(policy, /등짝/);
+    assert.match(vision, /buildAssetVisionPrompt/);
+    assert.match(vision, /normalizeVisionModerationFlags/);
   });
 });

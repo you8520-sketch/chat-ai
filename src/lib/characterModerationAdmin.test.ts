@@ -87,13 +87,13 @@ function insertCharacter(
 }
 
 describe("admin listing moderation queue", () => {
-  it("A. actual adult asset is pending, listed, and exposes the flagged image", () => {
+  it("A. nsfw adultFlagged metadata alone stays approved and out of pending queue", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
       assets: [adultAsset],
     });
-    assert.equal(decided.moderationStatus, "pending");
+    assert.equal(decided.moderationStatus, "approved");
 
     const db = setupDb();
     const id = insertCharacter(db, {
@@ -102,18 +102,7 @@ describe("admin listing moderation queue", () => {
       moderation_note: decided.moderationNote,
       assets: [adultAsset],
     });
-    const pending = listCharactersForModeration(db, "pending");
-    const row = pending.find((item) => item.id === id);
-    assert.ok(row);
-    assert.equal(row.assets.some((asset) => asset.adultFlagged === true), true);
-    assert.equal(row.representative_image_url, adultAsset.url);
-    const approved = reviewCharacterListing(db, id, 1, "approve", "확인");
-    assert.equal(approved.ok, true);
     assert.equal(listCharactersForModeration(db, "pending").some((item) => item.id === id), false);
-    const after = db.prepare(`SELECT moderation_status FROM characters WHERE id=?`).get(id) as {
-      moderation_status: string;
-    };
-    assert.equal(after.moderation_status, "approved");
   });
 
   it("B. safe asset is approved and stays out of the pending queue", () => {

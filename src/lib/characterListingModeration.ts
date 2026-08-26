@@ -14,7 +14,7 @@ export type CharacterListingDecision = {
   moderationStatus: ModerationStatus;
   moderationNote: string;
   shareSlug: string | null;
-  /** True when an adult image needs a human before home listing. */
+  /** True when a human must review before home listing (legacy rows only). */
   awaitingAdmin: boolean;
 };
 
@@ -155,34 +155,13 @@ export function decideCharacterListing(input: {
     };
   }
 
-  // Only an explicit adult classification requires admin review.
-  // Missing/undefined adultFlagged is legacy unknown, not "adult detected".
-  if (summary.adultFlagged) {
-    const keepPending =
-      existing?.moderationStatus === "pending" &&
-      Array.isArray(existing.imageUrls) &&
-      sameImageList(existing.imageUrls, imageUrls) &&
-      Boolean(existing.nsfw) === nsfw;
-    return {
-      finalVisibility: requestedVisibility,
-      moderationStatus: "pending",
-      moderationNote: keepPending
-        ? existing?.moderationNote || "성인 에셋 검열 — 관리자 승인 대기"
-        : "성인 에셋 검열 — 관리자 승인 후 홈에 표시",
-      shareSlug:
-        requestedVisibility === "link"
-          ? existing?.shareSlug || generateShareSlug()
-          : existing?.shareSlug ?? null,
-      awaitingAdmin: true,
-    };
-  }
-
+  // 성인용 캐릭터: 성기·항문 등 reject만 비공개 반려. adultFlagged는 일반 캐릭터 업로드 필터용 메타.
   return {
     finalVisibility: requestedVisibility,
     moderationStatus: "approved",
     moderationNote: summary.unknown
-      ? "성인 캐릭터 — 레거시 에셋 adultFlagged 미기록, 성인 이미지 검출 아님"
-      : "성인 캐릭터 — 에셋 검열에서 성인용 표시 없음, 즉시 공개",
+      ? "성인 캐릭터 — 레거시 에셋 adultFlagged 미기록"
+      : "성인 캐릭터 — 금지 항목(성기·항문 등) 없음, 즉시 공개",
     shareSlug:
       requestedVisibility === "link"
         ? existing?.shareSlug || generateShareSlug()
