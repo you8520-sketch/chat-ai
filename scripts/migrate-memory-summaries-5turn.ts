@@ -7,6 +7,7 @@
  * Dry-run: DB mutation 0, provider call 0.
  * Apply is an explicit second step and is never run from panel/backfill.
  */
+import "./lib/server-only-mock";
 import { getDb } from "../src/lib/db";
 import {
   dryRunMemorySummaryMigration,

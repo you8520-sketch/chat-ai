@@ -179,7 +179,8 @@ describe("episodic ownership decoupled from status widget", () => {
       turnEnd: 5,
       assistantMessageId: null,
       summary:
-        "레온은 정원에서 렌을 만나 약속을 나눴다. 커프링크스를 건네고 다음을 기약했다.",
+        "레온은 연회장 테라스에서 렌을 만나 정원을 안내했다 → 렌의 청혼에 흔들리며 감정을 드러냈다 → " +
+        "커프링크스를 받으며 둘만의 약속을 나눴다 → 이별 전 심장을 맡긴다고 고백했다.",
       playableTurnCount: 5,
     });
     assert.equal(sealed.ok, true);

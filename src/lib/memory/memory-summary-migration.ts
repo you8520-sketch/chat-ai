@@ -4,7 +4,10 @@
  * Apply is chat-atomic: one failed batch keeps that chat's existing summaries.
  */
 import { getDb } from "@/lib/db";
-import { summarizeTurnBatch } from "./memory-rolling-summary";
+import {
+  __getLastSummarizeTurnBatchError,
+  summarizeTurnBatch,
+} from "./memory-rolling-summary";
 import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
 import {
   highestContiguousCompletedTurn,
@@ -434,7 +437,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         endTurn: batch.turnEnd,
         sourceTurnIndexes: batchTurns.map((t) => t.turnNumber),
       });
-    } catch (e) {
+    } catch {
       upsertMigrationState(db, {
         chat_id: opts.chatId,
         status: "FAILED_PROVIDER",
@@ -446,6 +449,24 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         started_at: new Date().toISOString(),
       });
       return { status: "FAILED_PROVIDER", batchesCompleted: 0 };
+    }
+    if (!summary.trim()) {
+      const lastError = __getLastSummarizeTurnBatchError() ?? "";
+      const providerFailed = lastError.length > 0 && !lastError.startsWith("SUMMARY_");
+      const status: MemorySummaryMigrationStatus = providerFailed
+        ? "FAILED_PROVIDER"
+        : "FAILED_VALIDATION";
+      upsertMigrationState(db, {
+        chat_id: opts.chatId,
+        status,
+        source_completed_turns: classified.completedTurns,
+        target_summarized_through: classified.targetThrough,
+        batches_total: classified.batches.length,
+        batches_completed: generated.length,
+        last_error_code: providerFailed ? "FAILED_PROVIDER" : lastError || "FAILED_VALIDATION",
+        started_at: new Date().toISOString(),
+      });
+      return { status, batchesCompleted: 0 };
     }
     const validated = validateSummaryNarrative(summary, "main_canon");
     if (!validated.ok) {
