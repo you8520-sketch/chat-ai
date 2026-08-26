@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
 } from "@/lib/chatModels";
-import { adaptTrpgReplySuggestionChatBody, buildReplySuggestionPublicContext, executeTrpgReplySuggestionProviderRound,
+import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
+import {
+  adaptTrpgReplySuggestionChatBody,
+  buildReplySuggestionPublicContext,
+  executeTrpgReplySuggestionProviderRound,
   requestTrpgReplySuggestions,
   resetTrpgReplySuggestionCooldownForTests,
   toTrpgReplySuggestionUserError,
@@ -66,15 +70,15 @@ function delayedCompletion(text: string, delayMs: number): Promise<Response> {
   });
 }
 
-describe("TRPG reply suggestion provider priority A-F", () => {
-  it("A: OpenRouter valid at simulated 10.8s → one provider attempt → success", async () => {
+describe("TRPG reply suggestion provider priority A-H", () => {
+  it("A: CheaperInference Luna valid → one provider attempt → success", async () => {
     await withKeys(async () => {
       let fetchCalls = 0;
       const previousFetch = globalThis.fetch;
       globalThis.fetch = (async (input) => {
         fetchCalls += 1;
-        assert.match(String(input), /openrouter/);
-        return delayedCompletion(validJson, 10_800);
+        assert.match(String(input), /cheaperinference/);
+        return delayedCompletion(validJson, 4_800);
       }) as typeof fetch;
       try {
         const result = await executeTrpgReplySuggestionProviderRound({
@@ -87,20 +91,20 @@ describe("TRPG reply suggestion provider priority A-F", () => {
         assert.equal(result.telemetry.provider_attempt_count, 1);
         assert.equal(result.telemetry.primary_provider, TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER);
         assert.equal(result.telemetry.fallback_attempted, false);
-        assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+        assert.equal(result.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("B: OpenRouter transport/body failure → CheaperInference attempted once → max attempts = 2", async () => {
+  it("B: Luna transport/body failure → OpenRouter DeepSeek attempted once → max attempts = 2", async () => {
     await withKeys(async () => {
       const urls: string[] = [];
       const previousFetch = globalThis.fetch;
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           throw Object.assign(new Error("body completion deadline exceeded"), {
             trigger: "body_timeout",
             httpStatus: 200,
@@ -114,23 +118,23 @@ describe("TRPG reply suggestion provider priority A-F", () => {
           user: "user",
           logicalRequestId: "priority-b",
         });
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 2);
         assert.equal(result.telemetry.fallback_provider, TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER);
-        assert.equal(result.model, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+        assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("C: OpenRouter semantic malformed_json → CheaperInference fallback once", async () => {
+  it("C: Luna semantic malformed_json → OpenRouter fallback once", async () => {
     await withKeys(async () => {
       const urls: string[] = [];
       const previousFetch = globalThis.fetch;
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) return completion("{bad-json");
+        if (String(input).includes("cheaperinference")) return completion("{bad-json");
         return completion(validJson);
       }) as typeof fetch;
       try {
@@ -139,7 +143,7 @@ describe("TRPG reply suggestion provider priority A-F", () => {
           user: "user",
           logicalRequestId: "priority-c",
         });
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.primary_failure_class, "malformed_json");
         assert.equal(result.telemetry.fallback_success, true);
       } finally {
@@ -207,8 +211,24 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     db.close();
   });
 
-  it("E: response_format / reasoning-off / schema unchanged", () => {
-    const body = adaptTrpgReplySuggestionChatBody({
+  it("E: Luna response_format / reasoning-off / schema unchanged", () => {
+    const lunaBody = adaptCheaperInferenceChatBody({
+      model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      messages: [{ role: "user", content: "x" }],
+      stream: false,
+      temperature: 0.7,
+      max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
+      response_format: { type: "json_object" },
+    });
+    assert.equal(lunaBody.max_tokens, TRPG_REPLY_SUGGESTION_MAX_TOKENS);
+    assert.deepEqual(lunaBody.response_format, { type: "json_object" });
+    assert.deepEqual(lunaBody.reasoning, { effort: "none" });
+    assert.equal(lunaBody.reasoning_effort, "none");
+    assert.notDeepEqual(lunaBody.thinking, { type: "disabled" });
+    assert.equal("thinking" in lunaBody, false);
+    assert.equal(lunaBody.temperature, 0.7);
+
+    const deepSeekAdapter = adaptTrpgReplySuggestionChatBody({
       model: TRPG_SCENARIO_DRAFT_MODEL,
       messages: [{ role: "user", content: "x" }],
       stream: false,
@@ -218,11 +238,8 @@ describe("TRPG reply suggestion provider priority A-F", () => {
       thinking: { type: "enabled" },
       reasoning_effort: "high",
     });
-    assert.equal(body.max_tokens, TRPG_REPLY_SUGGESTION_MAX_TOKENS);
-    assert.deepEqual(body.response_format, { type: "json_object" });
-    assert.deepEqual(body.thinking, { type: "disabled" });
-    assert.equal(body.reasoning_effort, "none");
-    assert.equal(body.temperature, 0.7);
+    assert.deepEqual(deepSeekAdapter.thinking, { type: "disabled" });
+    assert.equal(deepSeekAdapter.reasoning_effort, "none");
 
     const prompt = buildReplySuggestionPublicContext({
       scene: "SCENE_MARK",
@@ -244,20 +261,20 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     assert.doesNotMatch(scenarioDraft, /TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER/);
   });
 
-  it("policy: OpenRouter primary 25s / CheaperInference backup 15s / max attempts 2", () => {
+  it("policy: CI Luna primary 10s / OpenRouter DeepSeek fallback 30s / max attempts 2", () => {
     const deadlines = resolveTrpgReplySuggestionProviderDeadlines();
     assert.equal(deadlines.primaryCompletionMs, TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS);
     assert.equal(deadlines.backupCompletionMs, TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS);
-    assert.equal(deadlines.primaryCompletionMs, 25_000);
-    assert.equal(deadlines.backupCompletionMs, 15_000);
+    assert.equal(deadlines.primaryCompletionMs, 10_000);
+    assert.equal(deadlines.backupCompletionMs, 30_000);
     assert.equal(TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX, 2);
   });
 
-  it("G: OpenRouter key/transport unavailable → no OR call → CI once → success", async () => {
+  it("G: CheaperInference key unavailable → no CI call → OpenRouter once → success", async () => {
     const previousOr = process.env.OPENROUTER_API_KEY;
     const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
-    delete process.env.OPENROUTER_API_KEY;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    delete process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-or";
     const urls: string[] = [];
     const previousFetch = globalThis.fetch;
     try {
@@ -271,13 +288,13 @@ describe("TRPG reply suggestion provider priority A-F", () => {
         logicalRequestId: "priority-g",
       });
       assert.equal(urls.length, 1);
-      assert.match(urls[0]!, /cheaperinference/);
-      assert.doesNotMatch(urls.join(","), /openrouter/);
+      assert.match(urls[0]!, /openrouter/);
+      assert.doesNotMatch(urls.join(","), /cheaperinference/);
       assert.equal(result.telemetry.provider_attempt_count, 2);
       assert.equal(result.telemetry.primary_failure_class, "no_api_key");
       assert.equal(result.telemetry.fallback_attempted, true);
       assert.equal(result.telemetry.fallback_success, true);
-      assert.equal(result.model, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+      assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousOr == null) delete process.env.OPENROUTER_API_KEY;
@@ -287,7 +304,7 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     }
   });
 
-  it("H: OpenRouter unavailable + CI fails → sanitized user error, internal detail in telemetry only", async () => {
+  it("H: CI unavailable + OpenRouter fails → sanitized user error, internal detail in telemetry only", async () => {
     resetTrpgReplySuggestionCooldownForTests();
     const db = new Database(":memory:");
     ensureTrpgTables(db);
@@ -325,11 +342,11 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     const previousOr = process.env.OPENROUTER_API_KEY;
     const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
     const previousFetch = globalThis.fetch;
-    delete process.env.OPENROUTER_API_KEY;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    delete process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.OPENROUTER_API_KEY = "test-or";
     try {
       globalThis.fetch = (async (input) => {
-        assert.match(String(input), /cheaperinference/);
+        assert.match(String(input), /openrouter/);
         return new Response("backup failed", { status: 502 });
       }) as typeof fetch;
       await assert.rejects(
@@ -344,7 +361,7 @@ describe("TRPG reply suggestion provider priority A-F", () => {
       assert.match(String(providerLogs[0]?.backup_failure_class), /http_502/);
       assert.equal(usageLogs.at(-1)?.success, false);
       assert.match(String(usageLogs.at(-1)?.error), /502|backup failed|\[TRPG reply\]/);
-      assert.doesNotMatch(String(usageLogs.at(-1)?.error), /NO_OPENROUTER_KEY/);
+      assert.doesNotMatch(String(usageLogs.at(-1)?.error), /NO_CHEAPER_INFERENCE_KEY/);
     } finally {
       console.info = prevInfo;
       globalThis.fetch = previousFetch;

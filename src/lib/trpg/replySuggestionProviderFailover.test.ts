@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
 } from "@/lib/chatModels";
 import {
@@ -111,7 +111,7 @@ async function startedCampaign(db: Database.Database): Promise<number> {
 }
 
 describe("TRPG reply suggestion provider failover A-N", () => {
-  it("A: OR valid 200 JSON → CI calls = 0", async () => {
+  it("A: CI valid 200 JSON → OR calls = 0", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
@@ -126,22 +126,23 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-a",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL]);
+        assert.deepEqual(urls, [CI_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 1);
         assert.equal(result.telemetry.fallback_attempted, false);
+        assert.equal(result.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("B: OR network failure → CI calls = 1", async () => {
+  it("B: CI network failure → OR calls = 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) throw new Error("ECONNRESET");
+        if (String(input).includes("cheaperinference")) throw new Error("ECONNRESET");
         return completion(validJson);
       }) as typeof fetch;
       try {
@@ -151,7 +152,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-b",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 2);
       } finally {
         globalThis.fetch = previousFetch;
@@ -159,13 +160,13 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     });
   });
 
-  it("C: OR timeout → CI calls = 1", async () => {
+  it("C: CI timeout → OR calls = 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           const error = new Error("completion deadline exceeded");
           error.name = "TimeoutError";
           throw error;
@@ -179,20 +180,20 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-c",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("D: OR 503 → CI calls = 1", async () => {
+  it("D: CI 503 → OR calls = 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("unavailable", { status: 503 });
         }
         return completion(validJson);
@@ -204,20 +205,20 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-d",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("E: OR 429 → CI calls = 1", async () => {
+  it("E: CI 429 → OR calls = 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("rate limited", { status: 429 });
         }
         return completion(validJson);
@@ -229,7 +230,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-e",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.primary_failure_class, "http_429");
       } finally {
         globalThis.fetch = previousFetch;
@@ -237,13 +238,13 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     });
   });
 
-  it("F: OR 200 + empty completion → CI calls = 1", async () => {
+  it("F: CI 200 + empty completion → OR calls = 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) return emptyCompletion();
+        if (String(input).includes("cheaperinference")) return emptyCompletion();
         return completion(validJson);
       }) as typeof fetch;
       try {
@@ -253,7 +254,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-f",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.semantic_failure_class, "empty_completion");
       } finally {
         globalThis.fetch = previousFetch;
@@ -267,7 +268,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) return completion("not-json-at-all");
+        if (String(input).includes("cheaperinference")) return completion("not-json-at-all");
         return completion(validJson);
       }) as typeof fetch;
       try {
@@ -277,7 +278,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-g",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.semantic_failure_class, "malformed_json");
       } finally {
         globalThis.fetch = previousFetch;
@@ -300,7 +301,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-h",
         });
         assert.equal(result.text, recoverableJson);
-        assert.deepEqual(urls, [OR_URL]);
+        assert.deepEqual(urls, [CI_URL]);
       } finally {
         globalThis.fetch = previousFetch;
       }
@@ -319,7 +320,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
       });
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) return completion(invalidCount);
+        if (String(input).includes("cheaperinference")) return completion(invalidCount);
         return completion(validJson);
       }) as typeof fetch;
       try {
@@ -329,7 +330,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
           logicalRequestId: "req-i",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.semantic_failure_class, "invalid_suggestion_count");
       } finally {
         globalThis.fetch = previousFetch;
@@ -337,7 +338,7 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     });
   });
 
-  it("J: OR 400 deterministic request failure → CI calls = 0", async () => {
+  it("J: CI 400 deterministic request failure → OR calls = 0", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
@@ -355,31 +356,31 @@ describe("TRPG reply suggestion provider failover A-N", () => {
             }),
           /400/
         );
-        assert.deepEqual(urls, [OR_URL]);
+        assert.deepEqual(urls, [CI_URL]);
       } finally {
         globalThis.fetch = previousFetch;
       }
     });
   });
 
-  it("K: OR fails + CI succeeds → one suggestion result, provider attempts = 2", async () => {
+  it("K: CI fails + OR succeeds → one suggestion result, provider attempts = 2", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const models: string[] = [];
       globalThis.fetch = (async (input, init) => {
         const body = JSON.parse(String(init?.body)) as { model?: string };
         models.push(String(body.model));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("upstream", { status: 502 });
         }
         return completion(validJson);
       }) as typeof fetch;
       try {
         const result = await callTrpgReplySuggestionModel({ system: "sys", user: "user" });
-        assert.equal(result.model, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+        assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
         assert.deepEqual(models, [
+          CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
           OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
-          CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
         ]);
       } finally {
         globalThis.fetch = previousFetch;
@@ -387,13 +388,13 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     });
   });
 
-  it("L: OR fails + CI fails → stable failure, provider attempts = 2, no automatic retry", async () => {
+  it("L: CI fails + OR fails → stable failure, provider attempts = 2, no automatic retry", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       let fetchCalls = 0;
       globalThis.fetch = (async (input) => {
         fetchCalls += 1;
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("upstream", { status: 503 });
         }
         return new Response("backup failed", { status: 502 });
@@ -457,13 +458,13 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     await withKeys(async () => {
       globalThis.fetch = (async (input) => {
         fetchCalls += 1;
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("upstream", { status: 503 });
         }
         return new Response("backup failed", { status: 502 });
       }) as typeof fetch;
 
-      // A: one failed logical request uses OR primary + CI backup (max 2 provider calls).
+      // A: one failed logical request uses CI primary + OR fallback (max 2 provider calls).
       await assert.rejects(
         () => requestTrpgReplySuggestions(db, { campaignId, userId: 1 }),
         (error: unknown) =>
@@ -506,15 +507,15 @@ describe("TRPG reply suggestion provider failover A-N", () => {
 });
 
 describe("TRPG reply suggestion execution-path corrections O-Q", () => {
-  it("O: resolveTrpgReplySuggestionProviderDeadlines resolves 25s primary / 15s backup", () => {
+  it("O: resolveTrpgReplySuggestionProviderDeadlines resolves 10s primary / 30s backup", () => {
     const deadlines = resolveTrpgReplySuggestionProviderDeadlines();
     assert.equal(deadlines.primaryCompletionMs, TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS);
     assert.equal(deadlines.backupCompletionMs, TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS);
-    assert.equal(deadlines.primaryCompletionMs, 25_000);
-    assert.equal(deadlines.backupCompletionMs, 15_000);
+    assert.equal(deadlines.primaryCompletionMs, 10_000);
+    assert.equal(deadlines.backupCompletionMs, 30_000);
   });
 
-  it("O: executeTrpgReplySuggestionProviderRound consumes 25s/15s fetch timeouts", async () => {
+  it("O: executeTrpgReplySuggestionProviderRound consumes 10s/30s fetch timeouts", async () => {
     await withKeys(async () => {
       const captured: number[] = [];
       const realFetch = fetchDeepSeekNonStreamCompletion;
@@ -538,17 +539,17 @@ describe("TRPG reply suggestion execution-path corrections O-Q", () => {
         logicalRequestId: "req-o-fetch",
         deps: { fetchCompletion: fetchSpy },
       });
-      assert.deepEqual(captured, [25_000, 15_000]);
+      assert.deepEqual(captured, [10_000, 30_000]);
     });
   });
 
-  it("P: OR HTTP 200 malformed provider envelope → CI once, provider_attempt_count=2", async () => {
+  it("P: CI HTTP 200 malformed provider envelope → OR once, provider_attempt_count=2", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       const urls: string[] = [];
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           return new Response("{truncated-json", {
             status: 200,
             headers: { "Content-Type": "application/json" },
@@ -563,7 +564,7 @@ describe("TRPG reply suggestion execution-path corrections O-Q", () => {
           logicalRequestId: "req-p",
         });
         assert.equal(result.text, validJson);
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 2);
         assert.equal(result.telemetry.semantic_failure_class, "malformed_provider_response");
         assert.equal(result.telemetry.fallback_success, true);
@@ -573,7 +574,7 @@ describe("TRPG reply suggestion execution-path corrections O-Q", () => {
     });
   });
 
-  it("Q: OR + CI malformed provider envelopes → stable failure, total provider calls = 2", async () => {
+  it("Q: CI + OR malformed provider envelopes → stable failure, total provider calls = 2", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
       let fetchCalls = 0;

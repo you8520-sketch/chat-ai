@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { TRPG_SCENARIO_DRAFT_MODEL, TRPG_SANDBOX_DIRECTOR_MODEL } from "./scenarioDraft";
 import { TRPG_REPLY_SUGGESTION_MODEL } from "./replySuggestions";
 import { isTrpgMechanicsRefereeEnabled, TRPG_MECHANICS_REFEREE_MODEL } from "./mechanicsTypes";
@@ -21,10 +21,10 @@ describe("TRPG runtime contract (P0)", () => {
     assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
   });
 
-  it("uses flash 0731 for draft, sandbox blueprint, reply suggestions, and mechanics referee", () => {
+  it("uses flash 0731 for draft/sandbox/referee and Luna for reply suggestions", () => {
     assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.equal(TRPG_SANDBOX_DIRECTOR_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
-    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     assert.equal(TRPG_MECHANICS_REFEREE_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.equal(isTrpgMechanicsRefereeEnabled({}), false);
   });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it, beforeEach } from "node:test";
 import Database from "better-sqlite3";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { insertScenarioTemplate } from "./scenarioTemplates";
@@ -88,8 +88,8 @@ describe("TRPG reply suggestions", () => {
   });
 
   it("reuses the registered Flash constant and never the Pro GM/Bot model", () => {
-    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, TRPG_SCENARIO_DRAFT_MODEL);
-    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
+    assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.notEqual(TRPG_REPLY_SUGGESTION_MODEL, TRPG_SCENARIO_DRAFT_MODEL);
     assert.notEqual(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.notEqual(TRPG_REPLY_SUGGESTION_MODEL, TRPG_GM_MODEL);
     assert.equal(TRPG_REPLY_SUGGESTION_MAX_TOKENS, 1000);
