@@ -78,6 +78,7 @@ import {
   type TrpgDiceRevealGateState,
 } from "@/lib/trpg/diceRevealGate";
 import {
+  shouldAdvanceActorDiceAfterOverlayDismiss,
   shouldConsumeMountRollSession,
   trpgDiceRevealWatchdogMs,
   trpgDiceRollSessionKey,
@@ -557,7 +558,17 @@ export default function TrpgCampaignRoom({
       return;
     }
     const activeKey = trpgDiceRollSessionKey(snap.round.number, [current.roll]);
-    if (!overlayPlayback.dismissed || overlayPlayback.sessionKey !== activeKey) return;
+    if (
+      !shouldAdvanceActorDiceAfterOverlayDismiss({
+        mode: roundShow.mode,
+        phase: roundShow.phase,
+        overlayDismissed: overlayPlayback.dismissed,
+        overlaySessionKey: overlayPlayback.sessionKey,
+        activeRollSessionKey: activeKey,
+      })
+    ) {
+      return;
+    }
     setRoundShow((prev) => {
       if (prev.mode !== "cinematic" || prev.phase !== "actor-dice") return prev;
       return {
