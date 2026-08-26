@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
+  adaptCheaperInferenceChatBody,
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   resolveCheaperInferenceApiKey,
@@ -13,11 +14,13 @@ import {
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
   fetchDeepSeekNonStreamCompletion,
-  resolveDeepSeekBackupModelId,
   resolveDeepSeekBackupTransport,
   type DeepSeekFailoverHooks,
 } from "@/lib/deepseekProviderFailover";
-import { OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+} from "@/lib/chatModels";
 import { isMockApiMode } from "@/lib/mockApiMode";
 import {
   actionTypeLabelKo,
@@ -38,7 +41,6 @@ import {
   type TrpgReplyStance,
   type TrpgReplySuggestion,
 } from "./replySuggestionShared";
-import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
 import { loadSheetSnapshots } from "./engineSheets";
 import { loadCampaign, loadLatestRound, loadParticipants } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
@@ -59,14 +61,14 @@ export type {
   TrpgReplySuggestion,
 } from "./replySuggestionShared";
 
-export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
+export const TRPG_REPLY_SUGGESTION_MODEL = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
-export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 25_000;
-export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 15_000;
-export const TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER = "openrouter" as const;
-export const TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER = "cheaperinference" as const;
+export const TRPG_REPLY_SUGGESTION_PRIMARY_COMPLETION_MS = 10_000;
+export const TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS = 30_000;
+export const TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER = "cheaperinference" as const;
+export const TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER = "openrouter" as const;
 
-/** Deadlines consumed by executeTrpgReplySuggestionProviderRound (OpenRouter primary / CI backup). */
+/** Deadlines consumed by executeTrpgReplySuggestionProviderRound (CI Luna primary / OR DeepSeek fallback). */
 export function resolveTrpgReplySuggestionProviderDeadlines(): {
   primaryCompletionMs: number;
   backupCompletionMs: number;
@@ -1080,31 +1082,37 @@ async function readValidatedProviderCompletion(
   };
 }
 
-function buildTrpgReplySuggestionBodies(opts: { system: string; user: string }): {
-  openRouterBody: Record<string, unknown>;
-  cheaperInferenceBody: Record<string, unknown>;
-  openRouterModel: string;
-  cheaperInferenceModel: string;
-} {
-  const cheaperInferenceModel = TRPG_REPLY_SUGGESTION_MODEL;
-  const cheaperInferenceBody = adaptTrpgReplySuggestionChatBody({
-    model: cheaperInferenceModel,
+function buildTrpgReplySuggestionSharedRequest(opts: { system: string; user: string }) {
+  return {
     messages: [
       { role: "system", content: opts.system },
       { role: "user", content: opts.user },
-    ],
+    ] as const,
     stream: false,
     temperature: 0.7,
     max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
-    response_format: { type: "json_object" },
-  });
-  const openRouterModel = resolveDeepSeekBackupModelId("flash");
-  return {
-    cheaperInferenceBody,
-    openRouterBody: adaptOpenRouterDeepSeekBackupBody(cheaperInferenceBody, openRouterModel),
-    openRouterModel,
-    cheaperInferenceModel,
+    response_format: { type: "json_object" as const },
   };
+}
+
+function buildTrpgReplySuggestionBodies(opts: { system: string; user: string }): {
+  primaryBody: Record<string, unknown>;
+  fallbackBody: Record<string, unknown>;
+  primaryModel: string;
+  fallbackModel: string;
+} {
+  const shared = buildTrpgReplySuggestionSharedRequest(opts);
+  const primaryModel = TRPG_REPLY_SUGGESTION_MODEL;
+  const primaryBody = adaptCheaperInferenceChatBody({
+    ...shared,
+    model: primaryModel,
+  });
+  const fallbackModel = OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+  const fallbackBody = adaptOpenRouterDeepSeekBackupBody(
+    { ...shared, model: fallbackModel },
+    fallbackModel
+  );
+  return { primaryBody, fallbackBody, primaryModel, fallbackModel };
 }
 
 function resolveCheaperInferenceReplySuggestionTransport(): {
@@ -1191,19 +1199,19 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
   outputTokens?: number;
   telemetry: TrpgReplySuggestionProviderTelemetry;
 }> {
-  const { openRouterBody, cheaperInferenceBody, openRouterModel, cheaperInferenceModel } =
+  const { primaryBody, fallbackBody, primaryModel, fallbackModel } =
     buildTrpgReplySuggestionBodies(opts);
   const telemetry = createEmptyProviderTelemetry({
     logicalRequestId: opts.logicalRequestId,
     roundId: opts.roundId,
-    primaryModel: openRouterModel,
+    primaryModel,
   });
   const { primaryCompletionMs: primaryDeadlineMs, backupCompletionMs: backupDeadlineMs } =
     resolveTrpgReplySuggestionProviderDeadlines();
   const fetchCompletion = opts.deps?.fetchCompletion ?? fetchDeepSeekNonStreamCompletion;
   const notifyProviderTelemetry = opts.onProviderTelemetry;
 
-  const attemptCheaperInferenceBackup = async (reason: {
+  const attemptOpenRouterFallback = async (reason: {
     primaryFailureClass: string;
     semanticFailureClass: TrpgReplySemanticFailureClass;
   }): Promise<{
@@ -1216,15 +1224,15 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     telemetry.semantic_failure_class = reason.semanticFailureClass;
     telemetry.fallback_attempted = true;
     telemetry.fallback_provider = TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER;
-    telemetry.fallback_model = cheaperInferenceModel;
+    telemetry.fallback_model = fallbackModel;
     telemetry.provider_attempt_count = 2;
 
-    const backupTransport = resolveCheaperInferenceReplySuggestionTransport();
-    if (!backupTransport) {
+    const fallbackTransport = resolveDeepSeekBackupTransport();
+    if (!fallbackTransport) {
       telemetry.backup_failure_class = "no_api_key";
       logTrpgReplySuggestionProviderTelemetry(telemetry);
       throwProviderRoundFailure({
-        message: "[TRPG reply] NO_CHEAPER_INFERENCE_KEY",
+        message: "[TRPG reply] NO_OPENROUTER_KEY",
         telemetry,
         onProviderTelemetry: notifyProviderTelemetry,
       });
@@ -1233,9 +1241,9 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
     try {
       const backupResult = await fetchCompletion({
         request: {
-          endpoint: backupTransport.endpoint,
-          headers: backupTransport.headers,
-          body: cheaperInferenceBody,
+          endpoint: fallbackTransport.endpoint,
+          headers: fallbackTransport.headers,
+          body: fallbackBody,
         },
         timeoutMs: backupDeadlineMs,
         hooks: opts.hooks,
@@ -1288,7 +1296,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       logTrpgReplySuggestionProviderTelemetry(telemetry);
       return {
         text: backupRead.text,
-        model: cheaperInferenceModel,
+        model: fallbackModel,
         inputTokens: backupRead.inputTokens,
         outputTokens: backupRead.outputTokens,
       };
@@ -1304,20 +1312,20 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         telemetry.backup_failure_class = classified.failureClass;
       }
       throwProviderRoundFailure({
-        message: error instanceof Error ? error.message : "CheaperInference backup failed",
+        message: error instanceof Error ? error.message : "OpenRouter fallback failed",
         telemetry,
         onProviderTelemetry: notifyProviderTelemetry,
       });
     }
   };
 
-  const primaryTransport = resolveDeepSeekBackupTransport();
+  const primaryTransport = resolveCheaperInferenceReplySuggestionTransport();
   if (!primaryTransport) {
-    const backup = await attemptCheaperInferenceBackup({
+    const fallback = await attemptOpenRouterFallback({
       primaryFailureClass: "no_api_key",
       semanticFailureClass: null,
     });
-    return { ...backup, telemetry };
+    return { ...fallback, telemetry };
   }
 
   telemetry.provider_attempt_count = 1;
@@ -1327,7 +1335,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       request: {
         endpoint: primaryTransport.endpoint,
         headers: primaryTransport.headers,
-        body: openRouterBody,
+        body: primaryBody,
       },
       timeoutMs: primaryDeadlineMs,
       hooks: opts.hooks,
@@ -1352,11 +1360,11 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
           failureClass: classified.failureClass,
         });
       }
-      const backup = await attemptCheaperInferenceBackup({
+      const fallback = await attemptOpenRouterFallback({
         primaryFailureClass: classified.failureClass,
         semanticFailureClass: null,
       });
-      return { ...backup, telemetry };
+      return { ...fallback, telemetry };
     }
 
     const primaryRead = await readValidatedProviderCompletion(primaryResult.response);
@@ -1366,14 +1374,14 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
       logTrpgReplySuggestionProviderTelemetry(telemetry);
       return {
         text: primaryRead.text,
-        model: openRouterModel,
+        model: primaryModel,
         inputTokens: primaryRead.inputTokens,
         outputTokens: primaryRead.outputTokens,
         telemetry,
       };
     }
 
-    const backup = await attemptCheaperInferenceBackup({
+    const fallback = await attemptOpenRouterFallback({
       primaryFailureClass: primaryRead.malformedProviderResponse
         ? "malformed_provider_response"
         : primaryRead.semanticFailureClass,
@@ -1381,7 +1389,7 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         ? "malformed_provider_response"
         : primaryRead.semanticFailureClass,
     });
-    return { ...backup, telemetry };
+    return { ...fallback, telemetry };
   } catch (error) {
     if (
       error instanceof DeepSeekDeterministicProviderError ||
@@ -1416,11 +1424,11 @@ export async function executeTrpgReplySuggestionProviderRound(opts: {
         telemetry
       );
     }
-    const backup = await attemptCheaperInferenceBackup({
+    const fallback = await attemptOpenRouterFallback({
       primaryFailureClass: classified.failureClass,
       semanticFailureClass: null,
     });
-    return { ...backup, telemetry };
+    return { ...fallback, telemetry };
   }
 }
 

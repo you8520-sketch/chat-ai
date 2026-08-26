@@ -3,22 +3,37 @@ import fs from "node:fs";
 import { describe, it } from "node:test";
 import {
   adaptTrpgReplySuggestionChatBody,
+  TRPG_REPLY_SUGGESTION_MAX_TOKENS,
   TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER,
   TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER,
 } from "./replySuggestions";
 import { shouldAutoRequestTrpgActionSuggestions } from "./displayPrefs";
 import { shouldShowTrpgReplySuggestions } from "./followLatest";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 
 describe("TRPG reply suggestion prefetch vs reveal", () => {
-  it("A. reasoning true OFF on suggestion adapter", () => {
-    const adapted = adaptTrpgReplySuggestionChatBody({
-      model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  it("A. Luna primary uses reasoning-off semantics without DeepSeek thinking.disabled", () => {
+    const lunaBody = adaptCheaperInferenceChatBody({
+      model: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      messages: [{ role: "user", content: "scene" }],
+      stream: false,
+      temperature: 0.7,
+      max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
+      response_format: { type: "json_object" },
+    });
+    assert.deepEqual(lunaBody.reasoning, { effort: "none" });
+    assert.equal(lunaBody.reasoning_effort, "none");
+    assert.notDeepEqual(lunaBody.thinking, { type: "disabled" });
+    assert.equal("thinking" in lunaBody, false);
+
+    const deepSeekAdapter = adaptTrpgReplySuggestionChatBody({
+      model: "deepseek-v4-flash-0731",
       messages: [{ role: "user", content: "scene" }],
       reasoning_effort: "high",
     });
-    assert.deepEqual(adapted.thinking, { type: "disabled" });
-    assert.equal(adapted.reasoning_effort, "none");
+    assert.deepEqual(deepSeekAdapter.thinking, { type: "disabled" });
+    assert.equal(deepSeekAdapter.reasoning_effort, "none");
   });
 
   it("B. auto-request does not wait for GM reveal completion", () => {
@@ -95,12 +110,12 @@ describe("TRPG reply suggestion prefetch vs reveal", () => {
     );
   });
 
-  it("K. provider priority unchanged — OpenRouter primary, CheaperInference backup", () => {
-    assert.equal(TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER, "openrouter");
-    assert.equal(TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER, "cheaperinference");
+  it("K. provider priority — CheaperInference Luna primary, OpenRouter DeepSeek backup", () => {
+    assert.equal(TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER, "cheaperinference");
+    assert.equal(TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER, "openrouter");
     const source = fs.readFileSync("src/lib/trpg/replySuggestions.ts", "utf8");
-    assert.match(source, /TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER = "openrouter"/);
-    assert.match(source, /TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER = "cheaperinference"/);
+    assert.match(source, /TRPG_REPLY_SUGGESTION_PRIMARY_PROVIDER = "cheaperinference"/);
+    assert.match(source, /TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER = "openrouter"/);
   });
 
   it("no duplicate auto-request effect was added", () => {
