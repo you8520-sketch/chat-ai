@@ -10,10 +10,28 @@ import {
 } from "./memory-summary-scope";
 import type { MemoryRecordView } from "./memory-turn-summary";
 
-let nextShadowId = 1;
+export type ShadowBatchSourceMeta = {
+  sourceStartUserMessageId: number | null;
+  sourceEndUserMessageId: number | null;
+  assistantMessageId: number | null;
+};
 
-export function resetShadowIdCounterForTests(): void {
-  nextShadowId = 1;
+/** Deterministic synthetic row id — unique per turnStart within one chat shadow. */
+export function syntheticShadowRecordId(turnStart: number): number {
+  return turnStart;
+}
+
+export function buildScopePayloadFromShadowRecord(
+  record: MemoryRecordView
+): ScopePayloadV1 {
+  return {
+    v: 1,
+    scopes: record.scopes,
+    branchId: record.branchId,
+    branchStatus: record.branchStatus,
+    promotedBy: record.promotedBy,
+    promotedAt: record.promotedAt,
+  };
 }
 
 export function listClosedBranchIdsFromRecords(
@@ -34,6 +52,7 @@ export function listClosedBranchIdsFromRecords(
 }
 
 export function shadowRecordFromComposed(opts: {
+  id: number;
   turnStart: number;
   turnEnd: number;
   summaryKind: MemorySummaryScope;
@@ -45,12 +64,11 @@ export function shadowRecordFromComposed(opts: {
   assistantMessageId: number | null;
   displaySummary?: string;
 }): MemoryRecordView {
-  const id = nextShadowId++;
   const displaySummary =
     opts.displaySummary?.trim() ||
     displaySummaryFromScopes(opts.scopes, opts.summaryKind);
   return {
-    id,
+    id: opts.id,
     turnStart: opts.turnStart,
     turnEnd: opts.turnEnd,
     turnRangeLabel: `${opts.turnStart}~${opts.turnEnd}턴`,
@@ -144,4 +162,80 @@ export function applyPendingBranchOpsToShadowRecords(
     }
   }
   return state;
+}
+
+/** Per-chat shadow rebuild state — no global mutable id allocator. */
+export class ShadowState {
+  private records: MemoryRecordView[] = [];
+  private readonly sourceMetaByTurnStart = new Map<number, ShadowBatchSourceMeta>();
+
+  get priorRecords(): readonly MemoryRecordView[] {
+    return this.records;
+  }
+
+  applyPendingOps(ops: readonly PersistPendingBranchControlOp[]): void {
+    this.records = applyPendingBranchOpsToShadowRecords(this.records, ops);
+  }
+
+  appendFromComposed(
+    batch: { turnStart: number; turnEnd: number },
+    composed: {
+      summaryKind: MemorySummaryScope;
+      scopes: ScopePayloadV1["scopes"];
+      branchId: string | null;
+      branchStatus: BranchStatus | null;
+      promotedBy: string | null;
+      promotedAt: string | null;
+      displaySummary: string;
+    },
+    sourceMeta: ShadowBatchSourceMeta
+  ): void {
+    const shadow = shadowRecordFromComposed({
+      id: syntheticShadowRecordId(batch.turnStart),
+      turnStart: batch.turnStart,
+      turnEnd: batch.turnEnd,
+      summaryKind: composed.summaryKind,
+      scopes: composed.scopes,
+      branchId: composed.branchId,
+      branchStatus: composed.branchStatus,
+      promotedBy: composed.promotedBy,
+      promotedAt: composed.promotedAt,
+      assistantMessageId: sourceMeta.assistantMessageId,
+      displaySummary: composed.displaySummary,
+    });
+    this.records = [...this.records, shadow].sort((a, b) => a.turnStart - b.turnStart);
+    this.sourceMetaByTurnStart.set(batch.turnStart, sourceMeta);
+  }
+
+  finalRecords(): readonly MemoryRecordView[] {
+    return this.records;
+  }
+
+  sourceMetaFor(turnStart: number): ShadowBatchSourceMeta | undefined {
+    return this.sourceMetaByTurnStart.get(turnStart);
+  }
+}
+
+export type NormalizedShadowRecord = {
+  turnStart: number;
+  turnEnd: number;
+  summaryKind: MemorySummaryScope;
+  branchId: string | null;
+  branchStatus: BranchStatus | null;
+  promotedBy: string | null;
+  scopes: ScopePayloadV1["scopes"];
+};
+
+export function normalizeShadowRecordForCompare(
+  record: MemoryRecordView
+): NormalizedShadowRecord {
+  return {
+    turnStart: record.turnStart,
+    turnEnd: record.turnEnd,
+    summaryKind: record.summaryKind,
+    branchId: record.branchId,
+    branchStatus: record.branchStatus,
+    promotedBy: record.promotedBy,
+    scopes: record.scopes,
+  };
 }

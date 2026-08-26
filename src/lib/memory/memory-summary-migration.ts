@@ -35,20 +35,17 @@ import {
   snapshotMemorySourceFingerprint,
 } from "./memory-source-fingerprint";
 import {
-  applyPendingBranchOpsToShadowRecords,
-  resetShadowIdCounterForTests,
-  shadowRecordFromComposed,
+  buildScopePayloadFromShadowRecord,
+  ShadowState,
 } from "./memory-shadow-state";
 import {
+  LEGACY_NULL_TURN_END_OFFSET,
   LEGACY_SIX_TURN_SPAN,
   ROLLING_SUMMARY_INTERVAL,
 } from "./memory-constants";
 import type { MemoryTier } from "./memory-types";
 import {
   encodeScopePayload,
-  type BranchStatus,
-  type MemorySummaryScope,
-  type ScopePayloadV1,
 } from "./memory-summary-scope";
 import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { DialogueTurn } from "@/lib/hybridMemory";
@@ -181,7 +178,7 @@ export function materializeUserEditedNullSpanRows(
        SET turn_end = turn_number + ?, updated_at=datetime('now')
        WHERE chat_id=? AND user_edited=1 AND turn_end IS NULL`
     )
-    .run(ROLLING_SUMMARY_INTERVAL, chatId);
+    .run(LEGACY_NULL_TURN_END_OFFSET, chatId);
   return Number(info.changes);
 }
 
@@ -597,14 +594,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     startBoundary
   );
   const startFingerprint = snapshotMemorySourceFingerprint(eligible, startBoundary);
-  resetShadowIdCounterForTests();
-  let shadowRecords: import("./memory-turn-summary").MemoryRecordView[] = [];
-  const swapRows: Array<{
-    shadow: import("./memory-turn-summary").MemoryRecordView;
-    sourceStartUserMessageId: number | null;
-    sourceEndUserMessageId: number | null;
-    scopePayload: ScopePayloadV1;
-  }> = [];
+  const shadowState = new ShadowState();
 
   for (const batch of classified.batches) {
     const batchTurns = eligible.filter(
@@ -618,7 +608,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
       userMessageId: meta.userMessageId,
     }));
-    const previousWasNoncanonOrBranch = shadowRecords.some(
+    const previousWasNoncanonOrBranch = shadowState.priorRecords.some(
       (record) =>
         !record.inactive &&
         (record.summaryKind === "noncanon" ||
@@ -635,7 +625,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         mode: "seal",
         existingRecord: null,
         previousWasNoncanonOrBranch,
-        priorRecords: shadowRecords,
+        priorRecords: [...shadowState.priorRecords],
       });
     } catch {
       return { status: "FAILED_PROVIDER", batchesCompleted: 0 };
@@ -651,37 +641,24 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       };
     }
 
-    shadowRecords = applyPendingBranchOpsToShadowRecords(
-      shadowRecords,
-      composed.pendingBranchControlOps
+    shadowState.applyPendingOps(composed.pendingBranchControlOps);
+    shadowState.appendFromComposed(
+      { turnStart: batch.turnStart, turnEnd: batch.turnEnd },
+      {
+        summaryKind: composed.summaryKind,
+        scopes: composed.scopes,
+        branchId: composed.branchId,
+        branchStatus: composed.branchStatus,
+        promotedBy: composed.promotedBy,
+        promotedAt: composed.promotedAt,
+        displaySummary: composed.displaySummary,
+      },
+      {
+        sourceStartUserMessageId: batchTurns[0]?.userMessageId ?? null,
+        sourceEndUserMessageId: batchTurns[batchTurns.length - 1]?.userMessageId ?? null,
+        assistantMessageId: batchTurns[batchTurns.length - 1]?.assistantMessageId ?? null,
+      }
     );
-    const scopePayload: ScopePayloadV1 = {
-      v: 1,
-      scopes: composed.scopes,
-      branchId: composed.branchId,
-      branchStatus: composed.branchStatus,
-      promotedBy: composed.promotedBy,
-      promotedAt: composed.promotedAt,
-    };
-    const shadow = shadowRecordFromComposed({
-      turnStart: batch.turnStart,
-      turnEnd: batch.turnEnd,
-      summaryKind: composed.summaryKind,
-      scopes: composed.scopes,
-      branchId: composed.branchId,
-      branchStatus: composed.branchStatus,
-      promotedBy: composed.promotedBy,
-      promotedAt: composed.promotedAt,
-      assistantMessageId: batchTurns[batchTurns.length - 1]?.assistantMessageId ?? null,
-      displaySummary: composed.displaySummary,
-    });
-    shadowRecords = [...shadowRecords, shadow].sort((a, b) => a.turnStart - b.turnStart);
-    swapRows.push({
-      shadow,
-      sourceStartUserMessageId: batchTurns[0]?.userMessageId ?? null,
-      sourceEndUserMessageId: batchTurns[batchTurns.length - 1]?.userMessageId ?? null,
-      scopePayload,
-    });
 
     const batchBoundary = getMemorySourceBoundaryCore(db, opts.chatId);
     const batchEligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
@@ -696,7 +673,8 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     }
   }
 
-  if (swapRows.length !== classified.batches.length) {
+  const finalShadowRecords = shadowState.finalRecords();
+  if (finalShadowRecords.length !== classified.batches.length) {
     return { status: "FAILED_VALIDATION", batchesCompleted: 0 };
   }
 
@@ -740,21 +718,23 @@ export async function migrateChatSummariesToFiveTurn(opts: {
            branch_id, branch_status, promoted_by, promoted_at)
          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`
       );
-      for (const row of swapRows) {
+      for (const record of finalShadowRecords) {
+        const sourceMeta = shadowState.sourceMetaFor(record.turnStart);
+        const scopePayload = buildScopePayloadFromShadowRecord(record);
         insert.run(
           opts.chatId,
-          row.shadow.turnStart,
-          row.shadow.turnEnd,
-          row.shadow.assistantMessageId,
-          row.shadow.summary,
-          row.shadow.summaryKind,
-          row.sourceStartUserMessageId,
-          row.sourceEndUserMessageId,
-          encodeScopePayload(row.scopePayload),
-          row.shadow.branchId,
-          row.shadow.branchStatus,
-          row.shadow.promotedBy,
-          row.shadow.promotedAt
+          record.turnStart,
+          record.turnEnd,
+          record.assistantMessageId,
+          record.summary,
+          record.summaryKind,
+          sourceMeta?.sourceStartUserMessageId ?? null,
+          sourceMeta?.sourceEndUserMessageId ?? null,
+          encodeScopePayload(scopePayload),
+          record.branchId,
+          record.branchStatus,
+          record.promotedBy,
+          record.promotedAt
         );
       }
       const after = listMemoryRecordsForChat(opts.chatId);
@@ -778,8 +758,8 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         status: "COMPLETED",
         source_completed_turns: latestEligible.length,
         target_summarized_through: targetSummarizedThrough(latestEligible.length),
-        batches_total: swapRows.length,
-        batches_completed: swapRows.length,
+        batches_total: finalShadowRecords.length,
+        batches_completed: finalShadowRecords.length,
       });
     }).immediate();
   } catch (e) {
@@ -808,7 +788,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     return { status: "FAILED_VALIDATION", batchesCompleted: 0 };
   }
 
-  return { status: "COMPLETED", batchesCompleted: swapRows.length };
+  return { status: "COMPLETED", batchesCompleted: finalShadowRecords.length };
 }
 
 export function countLegacySixTurnRows(db: ReturnType<typeof getDb> = getDb()): number {

@@ -24,8 +24,8 @@ import {
 } from "./memory-episodic-extract";
 import {
   applyPendingBranchOpsToShadowRecords,
-  resetShadowIdCounterForTests,
   shadowRecordFromComposed,
+  syntheticShadowRecordId,
 } from "./memory-shadow-state";
 import { composeBatchScopePayload } from "./memory-rolling-summary";
 import {
@@ -160,7 +160,6 @@ describe("pre-merge blocker regression", () => {
       playableTurnCount: 18,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
-    resetShadowIdCounterForTests();
     let shadowRecords: ReturnType<typeof shadowRecordFromComposed>[] = [];
     const batch1Turns = Array.from({ length: 5 }, (_, i) => ({
       turnIndex: i + 1,
@@ -182,6 +181,7 @@ describe("pre-merge blocker regression", () => {
     if (!composed1.ok) return;
     shadowRecords = [
       shadowRecordFromComposed({
+        id: syntheticShadowRecordId(1),
         turnStart: 1,
         turnEnd: 5,
         summaryKind: composed1.summaryKind,
@@ -217,8 +217,8 @@ describe("pre-merge blocker regression", () => {
   });
 
   it("B shadow branch promote pending op updates prior noncanon row", () => {
-    resetShadowIdCounterForTests();
     const noncanon = shadowRecordFromComposed({
+      id: syntheticShadowRecordId(1),
       turnStart: 1,
       turnEnd: 5,
       summaryKind: "noncanon",
