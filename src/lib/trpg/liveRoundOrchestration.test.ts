@@ -42,6 +42,7 @@ import {
   shouldSkipDecorativeReveal,
 } from "./presentationHiddenCatchUp";
 import { holdCurrentRoundReveal, shouldHideIncomingRollSession } from "./diceRevealGate";
+import { resolveTrpgMountSeenKeys } from "../../app/trpg/useRevealedText";
 
 type ActionKind = "human" | "ai_character";
 type ActionType = "attack" | "talk";
@@ -94,8 +95,11 @@ function publicRoll(spec: FixtureAction) {
 }
 
 function actorsFrom(order: readonly number[], roster: readonly FixtureAction[]): PresentationActor[] {
-  const actions = roster.filter((row) => order.includes(row.actorId) || true).map(publicAction);
-  const rolls = roster.map(publicRoll).filter((row): row is NonNullable<typeof row> => row != null);
+  const actions = roster.filter((row) => order.includes(row.actorId)).map(publicAction);
+  const rolls = roster
+    .filter((row) => order.includes(row.actorId))
+    .map(publicRoll)
+    .filter((row): row is NonNullable<typeof row> => row != null);
   return buildRoundPresentationActors({
     resolutionOrder: order,
     actions,
@@ -189,12 +193,19 @@ function walkCinematicVisibleEvents(opts: {
   persisted: readonly FixtureAction[];
   phase?: string;
   gmText?: string;
+  preReadyVisibleHumanIds?: readonly number[];
 }): { events: VisibleEvent[]; frames: RoundPresentationState[] } {
   const actors = actorsFrom(opts.order, opts.persisted);
   let state: RoundPresentationState = { mode: "cinematic", ...startCinematicPresentation() };
   const events: VisibleEvent[] = [];
   const frames: RoundPresentationState[] = [];
   const seenHumanAction = new Set<number>();
+  if (opts.preReadyVisibleHumanIds) {
+    for (const id of opts.preReadyVisibleHumanIds) {
+      events.push(`human-action:${id}`);
+      seenHumanAction.add(id);
+    }
+  }
   const seenAiAction = new Set<number>();
   let guard = 0;
   while (state.phase !== "complete" && guard < 64) {
@@ -211,8 +222,7 @@ function walkCinematicVisibleEvents(opts: {
     const current = actors[state.presentationIndex];
     if (state.phase === "actor-action" && current) {
       if (current.action?.kind === "human") {
-        if (seenHumanAction.has(current.actorId)) events.push(`human-action-replay:${current.actorId}`);
-        else {
+        if (!seenHumanAction.has(current.actorId)) {
           events.push(`human-action:${current.actorId}`);
           seenHumanAction.add(current.actorId);
         }
@@ -346,7 +356,7 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.match(room, /#509 Outcome B/);
     assert.match(room, /earlyVisibleHumanActionIds/);
     assert.match(room, /resolveLiveRevealedActionIds/);
-    assert.match(room, /cinematicActorAction/);
+    assert.match(room, /resolveTrpgMountSeenKeys/);
     assert.doesNotMatch(presentation, /computeResolutionOrder/);
   });
 
@@ -401,7 +411,10 @@ describe("TRPG live round orchestration — single owner", () => {
       persisted,
       phase: "GENERATING_NARRATION",
       gmText: "장면",
+      preReadyVisibleHumanIds: [10],
     });
+    assert.equal(events.filter((event) => event === "human-action:10").length, 1);
+    assert.equal(events.includes("human-action-replay:10"), false);
     assert.deepEqual(events, [
       "human-action:10",
       "actor-dice:10",
@@ -440,8 +453,11 @@ describe("TRPG live round orchestration — single owner", () => {
       roster: persisted,
       persisted,
       gmText: "장면",
+      preReadyVisibleHumanIds: [10],
     });
-    assert.equal(events[0], "ai-action-progressive:20");
+    assert.equal(events.filter((event) => event === "human-action:10").length, 1);
+    assert.equal(events[0], "human-action:10");
+    assert.equal(events[1], "ai-action-progressive:20");
     assert.equal(events.includes("human-action-replay:10"), false);
     const humanDice = events.indexOf("actor-dice:10");
     const bot20 = events.indexOf("ai-action-progressive:20");
@@ -679,6 +695,169 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.match(room, /isHiddenPresentationCatchUpActive/);
     const ownership = readFileSync("src/lib/trpg/botGenerationLease.ts", "utf8");
     assert.match(ownership, /tryClaimBotGeneration/);
+  });
+
+  it("T_REFRESH_PRE_READY_HIDDEN_AI: refresh must not consume never-visible AI", () => {
+    const log = [
+      {
+        roundNumber: 4,
+        narration: null,
+        actions: [
+          { participantId: 10, kind: "human", revealed: true, body: "human10" },
+          { participantId: 20, kind: "ai_character", revealed: true, body: "bot20" },
+        ],
+      },
+    ];
+    const seenKeys = new Set(
+      resolveTrpgMountSeenKeys({
+        log,
+        currentRoundNumber: 4,
+        liveReady: false,
+      })
+    );
+    const isFreshLogKey = (key: string) => !seenKeys.has(key);
+
+    assert.ok(seenKeys.has("a:4:10"), "human early visibility may be consumed on mount");
+    assert.equal(seenKeys.has("a:4:20"), false, "PRE_READY_HIDDEN_AI_MARKED_SEEN=false");
+
+    const botKey = "a:4:20";
+    assert.equal(isFreshLogKey(botKey), true);
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 20,
+        activeRevealActorId: 20,
+        isFresh: isFreshLogKey(botKey),
+        skipDecorativeReveal: false,
+        cinematicActorAction: true,
+      }),
+      true,
+      "BOT20_PROGRESSIVE_REVEAL_COUNT=1"
+    );
+    assert.equal(
+      isActorActionRevealBeatSatisfied({
+        actionKind: "ai_character",
+        isFreshAiAction: isFreshLogKey(botKey),
+        alreadyCompleted: false,
+        effectiveActorRevealComplete: false,
+      }),
+      false,
+      "BOT20_ACTION_SKIP=false before #628"
+    );
+    assert.equal(
+      isActorActionRevealBeatSatisfied({
+        actionKind: "ai_character",
+        isFreshAiAction: isFreshLogKey(botKey),
+        alreadyCompleted: false,
+        effectiveActorRevealComplete: true,
+      }),
+      true
+    );
+
+    const actors = actorsFrom([10, 20], [HUMAN_10, BOT_20_TALK]);
+    let state: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 1,
+    };
+    const during = visibleSurface({
+      persisted: [HUMAN_10, BOT_20_TALK],
+      liveReady: true,
+      state,
+      actors,
+      phase: "ROLLING",
+    });
+    assert.equal(during.diceActorId, null);
+    state = { ...state, ...advanceAfterActorAction({ actors, presentationIndex: 1 }) };
+    assert.equal(state.phase, "gm-narration");
+  });
+
+  it("T_REFRESH_AT_READY_DOES_NOT_REPLAY: liveReady mount preserves mount-consume semantics", () => {
+    const log = [
+      {
+        roundNumber: 4,
+        narration: "장면",
+        actions: [
+          { participantId: 10, kind: "human", revealed: true, body: "human10" },
+          { participantId: 20, kind: "ai_character", revealed: true, body: "bot20" },
+        ],
+      },
+    ];
+    const seenPreReady = new Set(
+      resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: false })
+    );
+    const seenReady = new Set(
+      resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: true })
+    );
+
+    assert.equal(seenPreReady.has("a:4:20"), false);
+    assert.ok(seenReady.has("a:4:20"), "READY_MOUNT_DOES_NOT_REPLAY via mount-consume");
+    assert.ok(seenReady.has("n:4"));
+
+    const isFreshAfterReadyMount = (key: string) => !seenReady.has(key);
+    assert.equal(isFreshAfterReadyMount("a:4:20"), false);
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 20,
+        activeRevealActorId: 20,
+        isFresh: isFreshAfterReadyMount("a:4:20"),
+        skipDecorativeReveal: false,
+        cinematicActorAction: true,
+      }),
+      false
+    );
+  });
+
+  it("T_HUMAN_ACTOR_ACTION_STATUS_NOT_COMPANION: presenting is AI-only", () => {
+    const humanState: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 0,
+    };
+    const humanSurface = visibleSurface({
+      persisted: [HUMAN_10],
+      liveReady: true,
+      state: humanState,
+      actors: actorsFrom([10], [HUMAN_10]),
+      phase: "GENERATING_NARRATION",
+    });
+    assert.notEqual(humanSurface.status, "presenting");
+    assert.equal(
+      formatLiveTurnProcessStatus({ stage: humanSurface.status, elapsedSec: 3 }),
+      null
+    );
+
+    const aiState: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 0,
+    };
+    const aiSurface = visibleSurface({
+      persisted: [BOT_20_TALK],
+      liveReady: true,
+      state: aiState,
+      actors: actorsFrom([20], [BOT_20_TALK]),
+      phase: "GENERATING_NARRATION",
+    });
+    assert.equal(aiSurface.status, "presenting");
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "idle",
+        phase: "GENERATING_NARRATION",
+        viewerLocked: true,
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: false,
+      }),
+      "none",
+      "HUMAN_ACTOR_ACTION_STATUS_NOT_COMPANION"
+    );
   });
 
   it("T_MULTI_HUMAN: wait_humans stays excluded from companion process copy", () => {

@@ -64,12 +64,11 @@ export function liveTurnProcessStage(opts: {
   ) {
     return "none";
   }
-  if (opts.cinematicAiActionActive) return "presenting";
   if (
-    opts.cinematicMotion &&
-    (opts.presentationPhase ?? "actor-action") === "actor-action"
+    opts.presentationMode === "cinematic" &&
+    opts.presentationPhase === "actor-action"
   ) {
-    return "presenting";
+    return opts.cinematicAiActionActive ? "presenting" : "none";
   }
   if (opts.presentationMode === "cinematic" && opts.presentationPhase === "gm-narration") {
     return opts.gmTextReady ? "none" : "gm";

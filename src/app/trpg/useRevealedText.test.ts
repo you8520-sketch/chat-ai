@@ -6,6 +6,7 @@ import {
   trpgRevealContinueCount,
   trpgRevealTextExtended,
 } from "@/lib/trpg/revealTiming";
+import { resolveTrpgMountSeenKeys, trpgLogRevealKeys } from "./useRevealedText";
 
 describe("useRevealedText finish semantics", () => {
   it("preserves shown progress when text grows after finish()", () => {
@@ -139,5 +140,37 @@ describe("useRevealedText finish semantics", () => {
     });
     assert.equal(visibleCount, 0);
     assert.equal(visibleCount < Array.from(narrationB).length, true);
+  });
+});
+
+describe("resolveTrpgMountSeenKeys", () => {
+  const log = [
+    {
+      roundNumber: 3,
+      narration: "과거 GM",
+      actions: [{ participantId: 5, kind: "ai_character", revealed: true, body: "old bot" }],
+    },
+    {
+      roundNumber: 4,
+      narration: "현재 GM",
+      actions: [
+        { participantId: 10, kind: "human", revealed: true, body: "human10" },
+        { participantId: 20, kind: "ai_character", revealed: true, body: "bot20" },
+      ],
+    },
+  ];
+
+  it("pre-ready mount keeps hidden AI fresh while consuming early human", () => {
+    const keys = resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: false });
+    assert.ok(keys.includes("a:3:5"));
+    assert.ok(keys.includes("n:3"));
+    assert.ok(keys.includes("a:4:10"));
+    assert.equal(keys.includes("a:4:20"), false);
+    assert.equal(keys.includes("n:4"), false);
+  });
+
+  it("liveReady mount preserves full mount-consume keys", () => {
+    const keys = resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: true });
+    assert.deepEqual(keys, trpgLogRevealKeys(log));
   });
 });

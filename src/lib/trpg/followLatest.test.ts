@@ -181,7 +181,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     assert.match(room, /data-trpg-live-follow-round=\{liveFollowRound\}/);
     assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
-    assert.match(room, /seenLogKeysRef\.current = new Set\(trpgLogRevealKeys/);
+    assert.match(room, /resolveTrpgMountSeenKeys/);
     assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
     assert.match(room, /requestAnimationFrame/);

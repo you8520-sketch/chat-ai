@@ -162,7 +162,7 @@ import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
-import { trpgLogRevealKeys, useRevealedText } from "./useRevealedText";
+import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
 
 function useCampaignDicePreview(
   snap: TrpgCampaignSnapshot,
@@ -674,7 +674,13 @@ export default function TrpgCampaignRoom({
       });
   const seenLogKeysRef = useRef<Set<string> | null>(null);
   if (seenLogKeysRef.current === null) {
-    seenLogKeysRef.current = new Set(trpgLogRevealKeys(snap.log));
+    seenLogKeysRef.current = new Set(
+      resolveTrpgMountSeenKeys({
+        log: snap.log,
+        currentRoundNumber: snap.round.number,
+        liveReady,
+      })
+    );
   }
   const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
   const waitingOpening =

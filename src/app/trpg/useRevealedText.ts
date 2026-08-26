@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
+import { earlyVisibleHumanActionIds } from "@/lib/trpg/roundPresentation";
 import {
   trpgRevealCountForElapsed,
   trpgRevealTick,
@@ -249,6 +250,55 @@ export function trpgLogRevealKeys(log: Array<{
       }
     }
     if (row.narration?.trim()) keys.push(`n:${row.roundNumber}`);
+  }
+  return keys;
+}
+
+/**
+ * Mount-time seen keys: persisted content the user has already consumed on this mount.
+ * Pre-ready hidden AI must stay fresh until cinematic actor-action.
+ */
+export function resolveTrpgMountSeenKeys(opts: {
+  log: Array<{
+    roundNumber: number;
+    narration: string | null;
+    actions: Array<{ participantId: number; kind?: string; revealed: boolean; body: string }>;
+  }>;
+  currentRoundNumber: number;
+  liveReady: boolean;
+}): string[] {
+  if (opts.liveReady) {
+    return trpgLogRevealKeys(opts.log);
+  }
+
+  const keys: string[] = [];
+  for (const row of opts.log) {
+    if (row.roundNumber !== opts.currentRoundNumber) {
+      for (const action of row.actions) {
+        if (action.revealed && action.body.trim()) {
+          keys.push(`a:${row.roundNumber}:${action.participantId}`);
+        }
+      }
+      if (row.narration?.trim()) keys.push(`n:${row.roundNumber}`);
+      continue;
+    }
+
+    const visibleActions = row.actions.filter((action) => action.revealed && action.body.trim());
+    const earlyHumans = new Set(
+      earlyVisibleHumanActionIds(
+        visibleActions.map((action) => ({
+          participantId: action.participantId,
+          kind: action.kind ?? "human",
+          revealed: action.revealed,
+          body: action.body,
+        }))
+      )
+    );
+    for (const action of visibleActions) {
+      if (earlyHumans.has(action.participantId)) {
+        keys.push(`a:${row.roundNumber}:${action.participantId}`);
+      }
+    }
   }
   return keys;
 }
