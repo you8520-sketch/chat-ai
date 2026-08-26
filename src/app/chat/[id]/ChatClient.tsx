@@ -104,13 +104,13 @@ import {
 } from "@/lib/oocSceneRender";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 import {
-  USER_SELECTABLE_AI_OPTIONS,
   CHAT_MESSAGE_MAX,
   ASSISTANT_MESSAGE_MAX,
   DEFAULT_TARGET_RESPONSE_CHARS,
   isClaudeSelectedAI,
   selectedAILabel,
   selectedAIOptionMeta,
+  userSelectableAIOptionsForUser,
   type SelectedAI,
 } from "@/lib/chatModels";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
@@ -836,6 +836,7 @@ export default function ChatClient({
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
+  isAdmin = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
   personaSecretSettings = { canEdit: false, discoveryActive: false },
@@ -877,6 +878,7 @@ export default function ChatClient({
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
+  isAdmin?: boolean;
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
   personaSecretSettings?: PersonaSecretSettingsCapability;
@@ -1024,6 +1026,10 @@ export default function ChatClient({
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
+  const selectableAIOptions = useMemo(
+    () => userSelectableAIOptionsForUser(isAdmin),
+    [isAdmin]
+  );
   const [userNote, setUserNote] = useState(initialUserNote);
   const [liveStatusWidgetMode, setLiveStatusWidgetMode] =
     useState<StatusWidgetSourceMode>(initialStatusWidgetMode);
@@ -4869,7 +4875,7 @@ export default function ChatClient({
               disabled={inputLocked}
               className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {USER_SELECTABLE_AI_OPTIONS.map((o) => (
+              {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {selectedAIOptionLabel(o.id as SelectedAI)}
                 </option>

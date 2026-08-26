@@ -669,7 +669,11 @@ export async function POST(req: Request) {
     : undefined;
 
   /** 전역 선택이 소스 오브 트루스 — body/chat.gemini_model은 라우팅에 사용하지 않음 */
-  const selectedAI = getUserChatSelectedAI(db, user.id);
+  const isAdminForChat = isAdminUser({
+    email: user.email,
+    is_admin: userAdminRow?.is_admin ?? 0,
+  });
+  const selectedAI = getUserChatSelectedAI(db, user.id, { isAdmin: isAdminForChat });
 
   let initialPersonaId: number | null = null;
   if (requestedPersonaId) {

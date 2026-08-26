@@ -74,7 +74,7 @@ describe("Opus 5 temporary user-chat disable", () => {
       ),
       false
     );
-    assert.match(CHAT_CLIENT_SOURCE, /USER_SELECTABLE_AI_OPTIONS\.map/);
+    assert.match(CHAT_CLIENT_SOURCE, /userSelectableAIOptionsForUser\(isAdmin\)/);
     assert.equal(
       USER_SELECTABLE_AI_OPTIONS.some(
         (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
@@ -124,8 +124,7 @@ describe("Opus 5 temporary user-chat disable", () => {
   });
 
   it("rejects new Opus 5 selection on /api/user/selected-ai", () => {
-    assert.match(SELECTED_AI_ROUTE_SOURCE, /USER_SELECTABLE_AI_OPTIONS/);
-    assert.match(SELECTED_AI_ROUTE_SOURCE, /USER_SELECTABLE_IDS\.has\(requested\)/);
+    assert.match(SELECTED_AI_ROUTE_SOURCE, /isUserSelectableAI\(requested, isAdmin\)/);
     const allowed = new Set(USER_SELECTABLE_AI_OPTIONS.map((o) => o.id));
     assert.equal(allowed.has(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
   });
@@ -166,7 +165,7 @@ describe("Opus 5 temporary user-chat disable", () => {
   });
 
   it("routes an existing Opus-selected user to DeepSeek with 0 Opus provider calls", () => {
-    assert.match(CHAT_ROUTE_SOURCE, /getUserChatSelectedAI\(db, user\.id\)/);
+    assert.match(CHAT_ROUTE_SOURCE, /getUserChatSelectedAI\(db, user\.id, \{ isAdmin: isAdminForChat \}\)/);
     assert.doesNotMatch(
       CHAT_ROUTE_SOURCE,
       /const selectedAI = getUserSelectedAI\(db, user\.id\)/

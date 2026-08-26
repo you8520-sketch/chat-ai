@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { canShowFullBillingReceipt, stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
 
@@ -176,6 +177,10 @@ export default async function ChatPage({
     .get(user.id) as { is_admin: number } | undefined;
   const showFullBillingReceipt = canShowFullBillingReceipt({
     ...user,
+    is_admin: adminRow?.is_admin ?? 0,
+  });
+  const isAdmin = isAdminUser({
+    email: user.email,
     is_admin: adminRow?.is_admin ?? 0,
   });
 
@@ -476,6 +481,7 @@ export default async function ChatPage({
   ).n;
   const globalModelEntry = consumeSelectedAiEntryNotice(db, user.id, {
     isFirstChatVisitEver: userChatCount <= 1,
+    isAdmin,
   });
 
   const isSimulation = c.content_kind === "simulation";
@@ -542,6 +548,7 @@ export default async function ChatPage({
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0
       }
       showFullBillingReceipt={showFullBillingReceipt}
+      isAdmin={isAdmin}
       personaSecretSettings={personaSecretSettings}
     />
   );

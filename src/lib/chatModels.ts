@@ -200,9 +200,15 @@ export function isOpusUserSelectable(): boolean {
  * User-chat Claude Opus 5 — TEMPORARY DISABLE.
  * Prompt cache is not applying on Cheaper Inference; all input is billed full-price.
  * Re-enable with `OPUS5_USER_ENABLED=1`. Does not delete routing/pricing/cache.
+ * Admins (`is_admin` / ADMIN_EMAILS) may use Opus 5 in chat regardless.
  */
 export function isOpus5UserEnabled(): boolean {
   return process.env.OPUS5_USER_ENABLED?.trim() === "1";
+}
+
+/** Chat-room Opus 5 — global flag or admin account. */
+export function isOpus5ChatEnabledForUser(isAdmin: boolean): boolean {
+  return isOpus5UserEnabled() || isAdmin;
 }
 
 export type SelectedAIOptionMeta = {
@@ -370,11 +376,14 @@ export const DEFAULT_SELECTED_AI: SelectedAI =
 
 /**
  * Request-time user-chat remap. Does not persist — stored Opus 5 can be restored
- * when the flag is turned back on.
+ * when the flag is turned back on or for admin accounts.
  */
-export function resolveUserChatSelectedAI(selectedAI: SelectedAI): SelectedAI {
+export function resolveUserChatSelectedAI(
+  selectedAI: SelectedAI,
+  opts?: { isAdmin?: boolean }
+): SelectedAI {
   if (
-    !isOpus5UserEnabled() &&
+    !isOpus5ChatEnabledForUser(opts?.isAdmin === true) &&
     selectedAI === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
   ) {
     return DEFAULT_SELECTED_AI;
@@ -393,6 +402,28 @@ export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))
 );
+
+/** Admin accounts see Opus 5 in chat picker when global user enable is off. */
+export function userSelectableAIOptionsForUser(isAdmin: boolean): readonly SelectedAIOptionMeta[] {
+  if (!isAdmin || isOpus5UserEnabled()) return USER_SELECTABLE_AI_OPTIONS;
+  const opus = SELECTED_AI_OPTIONS.find((o) => o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
+  if (!opus || USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === opus.id)) {
+    return USER_SELECTABLE_AI_OPTIONS;
+  }
+  const deepSeekIdx = USER_SELECTABLE_AI_OPTIONS.findIndex(
+    (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+  if (deepSeekIdx < 0) return [...USER_SELECTABLE_AI_OPTIONS, opus];
+  return [
+    ...USER_SELECTABLE_AI_OPTIONS.slice(0, deepSeekIdx + 1),
+    opus,
+    ...USER_SELECTABLE_AI_OPTIONS.slice(deepSeekIdx + 1),
+  ];
+}
+
+export function isUserSelectableAI(modelId: string, isAdmin: boolean): boolean {
+  return userSelectableAIOptionsForUser(isAdmin).some((o) => o.id === modelId);
+}
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (

@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { registerCharacterChatUser } from "@/lib/characterEngagementStats";
 import { getUserChatSelectedAI } from "@/lib/userSelectedAI";
+import { isAdminUser } from "@/lib/isAdminUser";
 import {
   DEFAULT_TARGET_RESPONSE_CHARS,
   normalizeTargetResponseChars,
@@ -30,8 +31,15 @@ export type CreateChatSessionInput = {
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
 export function createChatSession(input: CreateChatSessionInput): number {
   const db = getDb();
+  const userRow = db
+    .prepare("SELECT email, is_admin FROM users WHERE id=?")
+    .get(input.userId) as { email: string; is_admin: number } | undefined;
+  const isAdmin = isAdminUser({
+    email: userRow?.email ?? "",
+    is_admin: userRow?.is_admin ?? 0,
+  });
   /** 전역 선택 미러 — 라우팅은 request-time user-chat model (Opus 5 may be remapped) */
-  const selectedAI = getUserChatSelectedAI(db, input.userId);
+  const selectedAI = getUserChatSelectedAI(db, input.userId, { isAdmin });
   const mode = input.mode ?? "safe";
   const targetResponseChars = normalizeTargetResponseChars(
     input.targetResponseChars ?? DEFAULT_TARGET_RESPONSE_CHARS

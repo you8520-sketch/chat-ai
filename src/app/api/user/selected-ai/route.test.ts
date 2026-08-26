@@ -47,10 +47,9 @@ function memoryDb() {
 }
 
 describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
-  it("PATCH uses USER_SELECTABLE_AI_OPTIONS as the server allow-list", () => {
-    assert.match(ROUTE_SOURCE, /USER_SELECTABLE_AI_OPTIONS/);
-    assert.match(ROUTE_SOURCE, /USER_SELECTABLE_IDS\.has\(requested\)/);
-    assert.match(CHAT_CLIENT_SOURCE, /USER_SELECTABLE_AI_OPTIONS\.map/);
+  it("PATCH uses admin-aware user selectable allow-list", () => {
+    assert.match(ROUTE_SOURCE, /isUserSelectableAI\(requested, isAdmin\)/);
+    assert.match(CHAT_CLIENT_SOURCE, /userSelectableAIOptionsForUser\(isAdmin\)/);
   });
 
   it("allows Gemini 3.7 Flash select/save and keeps sibling picker models", () => {
