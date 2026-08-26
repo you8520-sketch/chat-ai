@@ -92,7 +92,10 @@ import {
   freezeLivePresentationActors,
   historicalPresentation,
   idlePresentation,
+  incrementalCanonicalActionIds,
+  isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
+  resolveLiveRevealedActionIds,
   isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
   liveRoundCanonicalVisibleCount,
@@ -406,6 +409,8 @@ export default function TrpgCampaignRoom({
     [sourceActions, sourceRolls, snap.resolutionOrder]
   );
   const frozenActorsRef = useRef<{ round: number; actors: PresentationActor[] } | null>(null);
+  const pinnedVisibleActorIdsRef = useRef<number[]>([]);
+  const pinnedRoundRef = useRef<number | null>(null);
   const frozenActors = freezeLivePresentationActors({
     previous:
       frozenActorsRef.current?.round === snap.round.number ? frozenActorsRef.current.actors : null,
@@ -418,6 +423,27 @@ export default function TrpgCampaignRoom({
     ? { round: snap.round.number, actors: frozenActors.actors }
     : null;
   const presentationActors = frozenActors.actors;
+  const incrementalCanonicalVisible =
+    !liveReady &&
+    isIncrementalCanonicalActionPhase(String(phase)) &&
+    sourceActions.length > 0;
+  useEffect(() => {
+    if (pinnedRoundRef.current !== snap.round.number) {
+      pinnedRoundRef.current = snap.round.number;
+      pinnedVisibleActorIdsRef.current = [];
+    }
+    if (incrementalCanonicalVisible) {
+      pinnedVisibleActorIdsRef.current = incrementalCanonicalActionIds(
+        sourceActions,
+        (snap.resolutionOrder ?? []).map((entry) => entry.participantId)
+      );
+    }
+  }, [
+    incrementalCanonicalVisible,
+    snap.resolutionOrder,
+    snap.round.number,
+    sourceActions,
+  ]);
   const queueSessionKey = useMemo(
     () =>
       trpgRoundPresentationSessionKey({
@@ -636,7 +662,11 @@ export default function TrpgCampaignRoom({
   );
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const visibleSceneRows = sceneRows;
-  const cinematicRevealedIds = revealedActorIds({ actors: presentationActors, state: roundShow });
+  const cinematicRevealedIds = revealedActorIds({
+    actors: presentationActors,
+    state: roundShow,
+    pinnedVisibleActorIds: pinnedVisibleActorIdsRef.current,
+  });
   const cinematicLaneIds = resultLaneActorIds({ actors: presentationActors, state: roundShow });
   const cinematicShowGm = shouldShowGmNarration(roundShow);
   const activeRoll = activePresentationRoll({ actors: presentationActors, state: roundShow });
@@ -1296,6 +1326,7 @@ export default function TrpgCampaignRoom({
         mode: roundShow.mode,
         actions: sourceActions,
         revealedActorIds: cinematicRevealedIds,
+        incrementalCanonical: incrementalCanonicalVisible,
       })}
       data-trpg-follow-activity={followActivityKey || undefined}
       data-trpg-follow-latest={followLatest ? "true" : "false"}
@@ -1420,13 +1451,13 @@ export default function TrpgCampaignRoom({
           {visibleSceneRows.map((row) => {
             const gated = holdCurrentRound && row.roundNumber === snap.round.number;
             const isLiveRow = row.roundNumber === snap.round.number && gateLiveRound;
-            const liveRevealedActorIds = isLiveRow
-              ? roundShow.mode === "cinematic"
-                ? cinematicRevealedIds
-                : presentationStarting && sourceActions.length > 0
-                  ? undefined
-                  : []
-              : undefined;
+            const liveRevealedActorIds = resolveLiveRevealedActionIds({
+              isLiveRow,
+              mode: roundShow.mode,
+              cinematicRevealedIds: cinematicRevealedIds,
+              incrementalCanonicalVisible,
+              pinnedVisibleActorIds: pinnedVisibleActorIdsRef.current,
+            });
             const liveResultLaneIds = isLiveRow
               ? roundShow.mode === "cinematic"
                 ? cinematicLaneIds

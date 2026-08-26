@@ -414,10 +414,10 @@ describe("TRPG live round presentation readiness", () => {
   const bot1Roll = roll(20, "렌", 9);
   const bot2Roll = roll(30, "강이현", 14);
 
-  it("does not treat incremental BOT_ACTION actionIds as ready", () => {
+  it("does not treat incremental BOT_ACTION as cinematic-ready (#530 gate preserved)", () => {
     assert.equal(
       isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }),
-      true
+      false
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "ACTION_INPUT", hasLockedActorSet: true }),
@@ -425,7 +425,11 @@ describe("TRPG live round presentation readiness", () => {
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "LOCKING_ACTIONS", hasLockedActorSet: true }),
-      true
+      false
+    );
+    assert.equal(
+      isLiveRoundPresentationReady({ phase: "ADJUDICATING", hasLockedActorSet: true }),
+      false
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "GENERATING_NARRATION", hasLockedActorSet: true }),
@@ -444,9 +448,18 @@ describe("TRPG live round presentation readiness", () => {
         roundNumber: 3,
         rolls: [],
         actions: [human, bot1],
+        ready: false,
+      }),
+      ""
+    );
+    assert.equal(
+      trpgRoundPresentationSessionKey({
+        roundNumber: 3,
+        rolls: [],
+        actions: [human, bot1],
         ready: true,
       }),
-      "3|live"
+      "3|actions:10,20"
     );
     assert.equal(liveRoundWaitKind({
       phase: "BOT_ACTION",
@@ -457,7 +470,7 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(liveRoundWaitCopy("rolls"), "라운드 판정 준비 중…");
   });
 
-  it("S1-S5 incremental snapshots present canonical cards before rolls commit", () => {
+  it("S1-S5 incremental snapshots show actions before rolls commit; cinematic starts at roll-final", () => {
     const walked = walkLiveRoundSnapshots([
       {
         phase: "ACTION_INPUT",
@@ -488,7 +501,7 @@ describe("TRPG live round presentation readiness", () => {
         resolutionOrder: order,
       },
       {
-        phase: "GENERATING_NARRATION",
+        phase: "ROLLING",
         roundNumber: 3,
         actions: [human, bot1, bot2],
         rolls: [humanRoll, bot1Roll, bot2Roll],
@@ -504,24 +517,23 @@ describe("TRPG live round presentation readiness", () => {
     ]);
     const [s0, s1, s2, s3, s4, s5] = walked.steps;
     assert.equal(s0?.ready, false);
-    assert.equal(s1?.ready, true);
-    assert.equal(s1?.mode, "cinematic");
-    assert.equal(s1?.started, true);
-    assert.deepEqual(s1?.visibleCanonicalActionIds, [10]);
-    assert.equal(s2?.ready, true);
+    assert.equal(s1?.ready, false);
+    assert.equal(s1?.mode, "idle");
+    assert.equal(s1?.started, false);
+    assert.deepEqual(s1?.incrementalVisibleActionIds, [10]);
+    assert.equal(s2?.ready, false);
     assert.equal(s2?.started, false);
     assert.equal(s2?.restarted, false);
-    assert.equal(s2?.sessionKey, s1?.sessionKey);
-    assert.deepEqual(s2?.visibleCanonicalActionIds, [10]);
-    assert.equal(s3?.ready, true);
+    assert.deepEqual(s2?.incrementalVisibleActionIds, [10, 20]);
+    assert.equal(s3?.ready, false);
     assert.equal(s3?.started, false);
     assert.equal(s3?.restarted, false);
-    assert.equal(s3?.sessionKey, s1?.sessionKey);
+    assert.deepEqual(s3?.incrementalVisibleActionIds, order);
     assert.equal(s4?.ready, true);
-    assert.equal(s4?.started, false);
+    assert.equal(s4?.mode, "cinematic");
+    assert.equal(s4?.started, true);
     assert.equal(s4?.restarted, false);
-    assert.equal(s4?.sessionKey, s1?.sessionKey);
-    assert.deepEqual(s4?.visibleCanonicalActionIds, [10]);
+    assert.notEqual(s4?.sessionKey, "");
     assert.equal(s5?.started, false);
     assert.equal(s5?.restarted, false);
     assert.equal(walked.startCount, 1);
@@ -590,9 +602,11 @@ describe("TRPG live round presentation readiness", () => {
         resolutionOrder: [10, 20],
       },
     ]);
+    assert.equal(walked.steps[0]?.ready, false);
+    assert.equal(walked.steps[0]?.mode, "idle");
     assert.equal(walked.steps[1]?.ready, true);
     assert.equal(walked.startCount, 1);
-    assert.match(walked.steps[1]?.sessionKey ?? "", /^\d+\|live$/);
+    assert.match(walked.steps[1]?.sessionKey ?? "", /^2\|actions:10,20$/);
     const frames = walkCinematicPresentation(walked.steps[1]!.actors);
     assert.equal(frames.some((frame) => frame.phase === "actor-dice"), false);
     assert.deepEqual(frames.map((frame) => frame.phase), [

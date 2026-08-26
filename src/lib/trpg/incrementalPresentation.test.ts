@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  decideLiveRoundPresentation,
+  incrementalCanonicalActionIds,
+  isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
   liveRoundCanonicalVisibleCount,
+  resolveLiveRevealedActionIds,
+  revealedActorIds,
   shouldGateLiveRoundPresentation,
+  shouldShowGmNarration,
   shouldShowLiveRoundWaitCopy,
+  startCinematicPresentation,
+  walkCinematicPresentation,
   walkLiveRoundSnapshots,
+  idlePresentation,
+  type LiveRoundSnapshotInput,
+  type RoundPresentationState,
 } from "./roundPresentation";
 
 const order = [10, 20, 30];
@@ -16,58 +27,289 @@ const humanRoll = { participantId: 10, d20: 14, dc: 12, tier: "SUCCESS" as const
 const bot1Roll = { participantId: 20, d20: 8, dc: 12, tier: "FAILURE" as const, statKey: "dex", finalScore: 10 };
 const bot2Roll = { participantId: 30, d20: 17, dc: 12, tier: "SUCCESS" as const, statKey: "dex", finalScore: 19 };
 
-describe("TRPG incremental partial round client lifecycle", () => {
-  it("SNAPSHOT 1: human persisted — visible, processing non-blocking", () => {
-    const walked = walkLiveRoundSnapshots([
+type PresentationStep = {
+  label: string;
+  snap: LiveRoundSnapshotInput;
+  roundShow: RoundPresentationState;
+  pinnedIds: number[];
+  visibleActionIds: number[];
+  gmVisible: boolean;
+  diceActive: boolean;
+  cinematicStarted: boolean;
+  cinematicRestarted: boolean;
+};
+
+function simulateIncrementalPresentationSteps(
+  snaps: readonly { label: string; snap: LiveRoundSnapshotInput }[]
+): PresentationStep[] {
+  let pinnedIds: number[] = [];
+  let roundShow: RoundPresentationState = idlePresentation();
+  let prevKey = "";
+  let prevMode = roundShow.mode;
+  const out: PresentationStep[] = [];
+
+  for (const { label, snap } of snaps) {
+    const decided = decideLiveRoundPresentation(snap);
+    const incremental =
+      !decided.ready && isIncrementalCanonicalActionPhase(snap.phase) && snap.actions.length > 0;
+    const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
+
+    if (incremental) {
+      pinnedIds = incrementalCanonicalActionIds(actions, snap.resolutionOrder);
+      roundShow = idlePresentation();
+    } else if (decided.ready && decided.actorCount > 0) {
+      if (roundShow.mode !== "cinematic") {
+        roundShow = { mode: "cinematic", ...startCinematicPresentation() };
+      }
+    }
+
+    const cinematicStarted = roundShow.mode === "cinematic" && prevMode !== "cinematic";
+    const cinematicRestarted =
+      roundShow.mode === "cinematic" &&
+      prevMode === "cinematic" &&
+      decided.sessionKey !== "" &&
+      decided.sessionKey !== prevKey;
+
+    const cinematicRevealedIds = revealedActorIds({
+      actors: decided.actors,
+      state: roundShow,
+      pinnedVisibleActorIds: pinnedIds,
+    });
+    const resolved = resolveLiveRevealedActionIds({
+      isLiveRow: true,
+      mode: roundShow.mode,
+      cinematicRevealedIds,
+      incrementalCanonicalVisible: incremental,
+      pinnedVisibleActorIds: pinnedIds,
+    });
+    const visibleActionIds =
+      resolved == null
+        ? incrementalCanonicalActionIds(actions, snap.resolutionOrder)
+        : resolved;
+
+    out.push({
+      label,
+      snap,
+      roundShow: { ...roundShow },
+      pinnedIds: [...pinnedIds],
+      visibleActionIds,
+      gmVisible: shouldShowGmNarration(roundShow),
+      diceActive: roundShow.mode === "cinematic" && roundShow.phase === "actor-dice",
+      cinematicStarted,
+      cinematicRestarted,
+    });
+
+    prevKey = decided.sessionKey;
+    prevMode = roundShow.mode;
+  }
+
+  return out;
+}
+
+describe("TRPG incremental partial round presentation state", () => {
+  it("T0: human only — visible, no cinematic, no GM, no dice", () => {
+    const steps = simulateIncrementalPresentationSteps([
       {
-        phase: "BOT_ACTION",
-        roundNumber: 4,
-        actions: [human],
-        rolls: [],
-        resolutionOrder: order,
+        label: "T0",
+        snap: {
+          phase: "BOT_ACTION",
+          roundNumber: 4,
+          actions: [human],
+          rolls: [],
+          resolutionOrder: order,
+        },
       },
     ]);
-    const step = walked.steps[0]!;
-    assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), true);
-    assert.equal(step.ready, true);
-    assert.equal(step.mode, "cinematic");
-    assert.equal(step.started, true);
-    assert.deepEqual(step.visibleCanonicalActionIds, [10]);
+    const t0 = steps[0]!;
+    assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
+    assert.equal(t0.roundShow.mode, "idle");
+    assert.equal(t0.roundShow.phase, "idle");
+    assert.deepEqual(t0.visibleActionIds, [10]);
+    assert.equal(t0.gmVisible, false);
+    assert.equal(t0.diceActive, false);
+    assert.equal(t0.cinematicStarted, false);
 
-    const gate = shouldGateLiveRoundPresentation({
-      mode: "idle",
-      previewReady: true,
-      livePending: false,
-      presentationStarting: true,
-    });
-    assert.equal(gate, true);
-    const preCinematicVisible = liveRoundCanonicalVisibleCount({
-      gated: gate,
-      mode: "idle",
-      actions: [human],
-      revealedActorIds: [],
-    });
-    assert.equal(preCinematicVisible, 0);
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "bots",
+        mode: "idle",
+        presentationStarting: false,
+      }),
+      true
+    );
     assert.equal(
       liveRoundCanonicalVisibleCount({
-        gated: false,
+        gated: true,
         mode: "idle",
         actions: [human],
         revealedActorIds: [],
+        incrementalCanonical: true,
       }),
       1
     );
     assert.equal(
-      shouldShowLiveRoundWaitCopy({
-        waitKind: "bots",
-        mode: "cinematic",
+      shouldGateLiveRoundPresentation({
+        mode: "idle",
+        previewReady: true,
+        livePending: true,
         presentationStarting: false,
       }),
-      false
+      true
     );
   });
 
-  it("SNAPSHOT 2: human + bot1 — human session continues, bot1 appended", () => {
+  it("T1: human + bot1 — both visible, no cinematic restart, GM hidden", () => {
+    const steps = simulateIncrementalPresentationSteps([
+      {
+        label: "T0",
+        snap: {
+          phase: "BOT_ACTION",
+          roundNumber: 4,
+          actions: [human],
+          rolls: [],
+          resolutionOrder: order,
+        },
+      },
+      {
+        label: "T1",
+        snap: {
+          phase: "BOT_ACTION",
+          roundNumber: 4,
+          actions: [human, bot1],
+          rolls: [],
+          resolutionOrder: order,
+        },
+      },
+    ]);
+    const t1 = steps[1]!;
+    assert.deepEqual(t1.visibleActionIds, [10, 20]);
+    assert.equal(t1.roundShow.mode, "idle");
+    assert.equal(t1.gmVisible, false);
+    assert.equal(t1.diceActive, false);
+    assert.equal(t1.cinematicStarted, false);
+    assert.equal(t1.cinematicRestarted, false);
+  });
+
+  it("T2: human + bot1 + bot2 — resolution order preserved, GM still hidden", () => {
+    const steps = simulateIncrementalPresentationSteps([
+      {
+        label: "T0",
+        snap: { phase: "BOT_ACTION", roundNumber: 4, actions: [human], rolls: [], resolutionOrder: order },
+      },
+      {
+        label: "T1",
+        snap: {
+          phase: "BOT_ACTION",
+          roundNumber: 4,
+          actions: [human, bot1],
+          rolls: [],
+          resolutionOrder: order,
+        },
+      },
+      {
+        label: "T2",
+        snap: {
+          phase: "BOT_ACTION",
+          roundNumber: 4,
+          actions: [human, bot1, bot2],
+          rolls: [],
+          resolutionOrder: order,
+        },
+      },
+    ]);
+    const t2 = steps[2]!;
+    assert.deepEqual(t2.visibleActionIds, order);
+    assert.equal(t2.gmVisible, false);
+    assert.equal(t2.diceActive, false);
+    assert.equal(t2.cinematicRestarted, false);
+  });
+
+  it("T3: rolls final — cinematic starts once, pinned actions stay visible, dice order preserved", () => {
+    const walked = walkLiveRoundSnapshots([
+      {
+        phase: "BOT_ACTION",
+        roundNumber: 4,
+        actions: [human, bot1, bot2],
+        rolls: [],
+        resolutionOrder: order,
+      },
+      {
+        phase: "ROLLING",
+        roundNumber: 4,
+        actions: [human, bot1, bot2],
+        rolls: [humanRoll, bot1Roll, bot2Roll],
+        resolutionOrder: order,
+      },
+    ]);
+    const [partial, rolling] = walked.steps;
+    assert.equal(partial?.ready, false);
+    assert.equal(partial?.mode, "idle");
+    assert.deepEqual(partial?.incrementalVisibleActionIds, order);
+    assert.equal(rolling?.ready, true);
+    assert.equal(rolling?.mode, "cinematic");
+    assert.equal(rolling?.started, true);
+    assert.equal(rolling?.restarted, false);
+
+    const pinned = order;
+    const actors = rolling!.actors;
+    const startState = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const firstFrame = revealedActorIds({
+      actors,
+      state: startState,
+      pinnedVisibleActorIds: pinned,
+    });
+    assert.deepEqual(firstFrame, order, "ACTION_DISAPPEAR_AFTER_ROLLS");
+
+    const frames = walkCinematicPresentation(actors);
+    assert.equal(frames.some((frame) => frame.gmVisible), true);
+    assert.equal(frames.filter((frame) => frame.gmVisible).length, 1);
+    assert.equal(frames.at(-1)?.gmVisible, true);
+    const diceFrames = frames.filter((frame) => frame.phase === "actor-dice");
+    assert.deepEqual(
+      diceFrames.map((frame) => frame.activeRollActorId),
+      [10, 20, 30],
+      "DICE_ORDER_PRESERVED"
+    );
+    assert.equal(
+      frames.some((frame) => frame.phase === "gm-narration" && frame.revealedActorIds.length < 3),
+      false,
+      "EARLY_GM_FROM_PARTIAL_ACTORS"
+    );
+  });
+
+  it("T4: GM opens only after dice/result cinematic completes", () => {
+    const actors = walkLiveRoundSnapshots([
+      {
+        phase: "ROLLING",
+        roundNumber: 4,
+        actions: [human, bot1, bot2],
+        rolls: [humanRoll, bot1Roll, bot2Roll],
+        resolutionOrder: order,
+      },
+    ]).steps[0]!.actors;
+
+    const frames = walkCinematicPresentation(actors);
+    const preGm = frames.slice(0, -1);
+    assert.equal(preGm.every((frame) => !frame.gmVisible), true, "GM_ORDER_PRESERVED");
+    assert.equal(frames.at(-1)?.gmVisible, true);
+
+    const gmStep = simulateIncrementalPresentationSteps([
+      {
+        label: "GM",
+        snap: {
+          phase: "GENERATING_NARRATION",
+          roundNumber: 4,
+          actions: [human, bot1, bot2],
+          rolls: [humanRoll, bot1Roll, bot2Roll],
+          resolutionOrder: order,
+        },
+      },
+    ]);
+    assert.equal(gmStep[0]?.cinematicStarted, true);
+    assert.equal(gmStep[0]?.cinematicRestarted, false);
+  });
+
+  it("partial BOT_ACTION snapshots never start cinematic or enter gm-narration", () => {
     const walked = walkLiveRoundSnapshots([
       {
         phase: "BOT_ACTION",
@@ -83,58 +325,21 @@ describe("TRPG incremental partial round client lifecycle", () => {
         rolls: [],
         resolutionOrder: order,
       },
-    ]);
-    const [s1, s2] = walked.steps;
-    assert.equal(s1?.sessionKey, s2?.sessionKey);
-    assert.equal(s2?.restarted, false);
-    assert.deepEqual(s2?.actors.map((a) => a.actorId), [10, 20]);
-    assert.deepEqual(s2?.visibleCanonicalActionIds, [10]);
-  });
-
-  it("SNAPSHOT 3: human + bot1 + bot2 + rolls — session stable, dice path available", () => {
-    const walked = walkLiveRoundSnapshots([
       {
         phase: "BOT_ACTION",
         roundNumber: 4,
-        actions: [human, bot1],
+        actions: [human, bot1, bot2],
         rolls: [],
         resolutionOrder: order,
       },
-      {
-        phase: "GENERATING_NARRATION",
-        roundNumber: 4,
-        actions: [human, bot1, bot2],
-        rolls: [humanRoll, bot1Roll, bot2Roll],
-        resolutionOrder: order,
-      },
     ]);
-    const [s2, s3] = walked.steps;
-    assert.equal(s2?.restarted, false);
-    assert.equal(s3?.restarted, false);
-    assert.equal(s2?.sessionKey, s3?.sessionKey);
-    assert.deepEqual(s3?.actors.map((a) => a.actorId), order);
-    assert.ok(s3?.actors.every((a) => a.action));
-    assert.ok(s3?.actors.filter((a) => a.roll).length === 3);
-  });
-
-  it("SNAPSHOT 4: GM phase — presentation continues without reload", () => {
-    const walked = walkLiveRoundSnapshots([
-      {
-        phase: "GENERATING_NARRATION",
-        roundNumber: 4,
-        actions: [human, bot1, bot2],
-        rolls: [humanRoll, bot1Roll, bot2Roll],
-        resolutionOrder: order,
-      },
-      {
-        phase: "GENERATING_NARRATION",
-        roundNumber: 4,
-        actions: [human, bot1, bot2],
-        rolls: [humanRoll, bot1Roll, bot2Roll],
-        resolutionOrder: order,
-      },
-    ]);
+    assert.equal(walked.startCount, 0, "PARTIAL_ACTOR_QUEUE_STARTS_CINEMATIC");
     assert.equal(walked.restartCount, 0);
-    assert.equal(walked.steps[1]?.sessionKey, walked.steps[0]?.sessionKey);
+    for (const step of walked.steps) {
+      assert.equal(step.mode, "idle");
+      assert.equal(step.ready, false);
+      assert.equal(step.visibleCanonicalActionIds.length, 0);
+      assert.ok(step.incrementalVisibleActionIds.length >= 1);
+    }
   });
 });

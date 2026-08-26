@@ -12,7 +12,8 @@ export function ensureTrpgProcessStage(
     `UPDATE trpg_rounds
      SET process_stage = ?,
          process_started_at = CASE
-           WHEN process_stage IS NULL OR process_stage != ? THEN datetime('now')
+           WHEN ? = 'reroll' THEN datetime('now')
+           WHEN process_started_at IS NULL THEN datetime('now')
            ELSE process_started_at
          END,
          updated_at = datetime('now')
