@@ -493,7 +493,6 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
       imageUrl: context.characterImageUrl,
       hasSavedAppearance: characterAppearance.hasSavedAppearance,
       appearancePreview: characterAppearance.appearancePreview,
-      appearancePreviewShort: characterAppearance.appearancePreviewShort,
     },
     characterImages: context.characterImages,
     persona: context.persona

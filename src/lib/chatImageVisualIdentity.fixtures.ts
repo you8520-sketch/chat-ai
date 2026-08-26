@@ -14,6 +14,7 @@ import { buildChatLdIllustrationPrompt } from "@/lib/chatLdIllustrationGeneratio
 export const SYNTHETIC_CHARACTER_A_APPEARANCE = [
   "black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5",
   "black pupils, red irises",
+  "large healed scar on the back of the neck",
   "white shirt, black harness",
 ].join("\n");
 

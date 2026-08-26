@@ -172,7 +172,7 @@ export function buildChatEmoticonPrompt(opts: {
     "Use the following exact nine panels in this exact order:",
     panels,
     "Render exactly one listed Korean phrase in each panel, verbatim and fully legible. The pose, props and facial expression must clearly match that phrase.",
-    "Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, merged face, cropped text, extra text, signature, logo or watermark.",
+    "Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, cropped text, extra text, signature, logo or watermark.",
   ].join("\n\n");
 }
 

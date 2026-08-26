@@ -115,6 +115,11 @@ async function main() {
       referenceUrls: allAbsent.referenceUrls,
       subjects: allAbsent.subjects,
     }),
+    section("11. LD duo — healed identity scar vs active-injury safety", {
+      prompt: ldDuo.prompt,
+      referenceUrls: ldDuo.referenceUrls,
+      subjects: ldDuo.subjects,
+    }),
   ].join("\n");
 
   const outDir = path.join(process.cwd(), "docs/audits/chat-image-visual-identity");

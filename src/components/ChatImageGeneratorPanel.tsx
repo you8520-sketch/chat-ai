@@ -95,7 +95,6 @@ type Preflight = {
   character: ReferenceInfo & {
     hasSavedAppearance?: boolean;
     appearancePreview?: string;
-    appearancePreviewShort?: string;
   };
   characterImages?: Array<{ url: string; tag: string }>;
   persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;

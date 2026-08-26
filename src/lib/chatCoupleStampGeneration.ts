@@ -271,7 +271,7 @@ export function buildChatCoupleStampPrompt(opts: {
     `Background decoration: ${findPrompt(CHAT_COUPLE_STAMP_BACKGROUNDS, options.background)}`,
     `Border decoration: ${findPrompt(CHAT_COUPLE_STAMP_BORDERS, options.border)}`,
     "Keep both faces and important gestures fully inside each circle. Bold clean line art, pastel digital coloring, merchandise-quality kawaii finish.",
-    "Exactly two people per badge and exactly four badges. No extra person, identity swap, merged face, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.",
+    "Exactly two people per badge and exactly four badges. No extra person, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.",
   ].join("\n\n");
 }
 

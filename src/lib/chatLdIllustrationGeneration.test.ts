@@ -5,6 +5,7 @@ import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
   CHAT_LD_ILLUSTRATION_QUALITY,
   buildChatLdIllustrationPrompt,
+  buildLdDuoGenerationPlan,
   buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
@@ -85,8 +86,15 @@ describe("chatLdIllustrationGeneration", () => {
     assert.doesNotMatch(prompt, /Show exactly these two people/);
     assert.match(prompt, /1\. 렌 \(player\)\. Gender: confirmed male/);
     assert.match(prompt, /Also known as: 권태현, 태현/);
-    assert.match(prompt, /identity photo for 렌 only/);
+    assert.doesNotMatch(prompt, /identity photo/);
     assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
+    assert.equal([...prompt.matchAll(/Image 1 belongs ONLY to 렌/g)].length, 1);
+    const cast = prompt.slice(
+      prompt.indexOf("CAST ("),
+      prompt.indexOf("SUBJECT IDENTITY MANIFEST")
+    );
+    assert.doesNotMatch(cast, /belongs ONLY/);
+    assert.doesNotMatch(cast, /No photo for/);
     assert.match(prompt, /Image 1 belongs ONLY to 렌/);
     assert.match(prompt, /2\. 태형 \(companion character\)\. Gender: confirmed male/);
     assert.match(prompt, /3\. 유나 \(companion character\)\. Gender: confirmed female/);
@@ -112,6 +120,34 @@ describe("chatLdIllustrationGeneration", () => {
     assert.doesNotMatch(cleaned, /죽을 것 같/);
     assert.doesNotMatch(cleaned, /심장이 멎/);
     assert.match(cleaned, /손/);
+    const sceneInjury = sanitizeChatTurnForIllustrationPrompt("피투성이 상처");
+    assert.doesNotMatch(sceneInjury, /피투성이/);
+    assert.match(sceneInjury, /땀투성이/);
+  });
+
+  it("preserves healed identity scars and does not ban them as active injury", () => {
+    const plan = buildLdDuoGenerationPlan({
+      characterName: "CharacterA",
+      characterGender: "male",
+      personaName: "CharacterB",
+      personaGender: "female",
+      characterImageUrl: "/synthetic/character-a-primary.webp",
+      characterSavedAppearance: "large healed scar on the back of the neck",
+      characterAppearanceMode: "image_plus_saved",
+      personaImageUrl: "/synthetic/character-b-primary.webp",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+      currentTurn: "피투성이 상처가 난 것 같았다.",
+    });
+    assert.match(plan.prompt, /large healed scar on the back of the neck/);
+    assert.match(plan.prompt, /healed, non-graphic scar/);
+    assert.doesNotMatch(plan.prompt, /Do not depict injury, blood, wounds, scars/);
+    assert.doesNotMatch(plan.prompt, /피투성이/);
+    assert.match(plan.prompt, /땀투성이/);
+    assert.equal(
+      [...plan.prompt.matchAll(/Image 1 belongs ONLY to CharacterA/g)].length,
+      1
+    );
   });
 
   it("maps OpenAI self-harm safety rejections to a Korean retry hint", () => {

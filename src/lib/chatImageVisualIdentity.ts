@@ -66,13 +66,6 @@ export function isChatImageAppearanceMode(
   return value === "image_only" || value === "image_plus_saved";
 }
 
-export function sanitizeChatImageAppearanceMode(
-  raw: unknown,
-  fallback: ChatImageAppearanceMode
-): ChatImageAppearanceMode {
-  return isChatImageAppearanceMode(raw) ? raw : fallback;
-}
-
 function clauseLooksVisual(segment: string): boolean {
   return VISUAL_PHRASE.test(segment) || SHORT_KO_VISUAL_RE.test(segment);
 }
@@ -153,7 +146,6 @@ export function buildChatImageCharacterAppearanceClientView(opts: {
 }): {
   hasSavedAppearance: boolean;
   appearancePreview: string;
-  appearancePreviewShort: string;
 } {
   const saved = clipSavedAppearanceForPrompt(opts.savedAppearance);
   const hasSavedAppearance = Boolean(saved);
@@ -167,14 +159,11 @@ export function buildChatImageCharacterAppearanceClientView(opts: {
     return {
       hasSavedAppearance,
       appearancePreview: "",
-      appearancePreviewShort: "",
     };
   }
-  const preview = previewVisualAppearance(saved);
   return {
     hasSavedAppearance,
-    appearancePreview: preview.full,
-    appearancePreviewShort: preview.preview,
+    appearancePreview: saved,
   };
 }
 
@@ -367,13 +356,6 @@ export function buildChatDuoVisualSubjects(opts: {
   ];
 }
 
-export function subjectByKey(
-  subjects: readonly ChatImageVisualSubject[],
-  key: string
-): ChatImageVisualSubject | undefined {
-  return subjects.find((subject) => subject.key === key);
-}
-
 export function bindChatImageReferencePack(opts: {
   template?: ChatImageTemplateSlot | null;
   subjectsInImageOrder: readonly ChatImageVisualSubject[];
@@ -408,18 +390,6 @@ export function bindChatImageReferencePack(opts: {
       (subject) => byKey.get(subject.key) ?? { ...subject, referenceIndex: null }
     ),
   };
-}
-
-export function referenceUrlsFromSubjects(
-  subjects: readonly ChatImageVisualSubject[]
-): string[] {
-  return subjects
-    .filter(
-      (subject) =>
-        subject.referenceIndex != null && String(subject.referenceImageUrl ?? "").trim()
-    )
-    .sort((a, b) => (a.referenceIndex ?? 0) - (b.referenceIndex ?? 0))
-    .map((subject) => String(subject.referenceImageUrl).trim());
 }
 
 export function visualSubjectsFromCastMembers(
@@ -575,6 +545,7 @@ export function renderChatImageIdentityContract(opts: {
     "A trait appearing in one subject's reference is NOT a global style property.",
     "Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.",
     "Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.",
+    "A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.",
     "STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.",
     "Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.",
     "Template or another person's appearance must never be treated as a style characteristic.",

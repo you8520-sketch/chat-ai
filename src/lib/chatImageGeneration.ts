@@ -239,7 +239,7 @@ export function buildChatImageGenerationPrompt(opts: {
     `TOP person expression: ${promptForExpression(opts.topExpression)}. The top person leans over from above and gently hugs or rests both hands on the bottom person's head.`,
     `BOTTOM person expression: ${promptForExpression(opts.bottomExpression)}. The bottom person sits inside the decorative gift box with both forearms resting naturally on the box edge.`,
     `Overall mood: ${promptForMood(opts.mood)}.`,
-    "Exactly two human characters. No extra person, duplicate face, merged body, swapped hair, extra hands, malformed fingers, text, signature, logo or watermark.",
+    "Exactly two human characters. No extra person, duplicate face, merged body, extra hands, malformed fingers, text, signature, logo or watermark.",
     "Keep the full gift box and the surrounding decorative objects visible. Do not crop to faces only. Centered, clean, detailed, harmonious, merchandise-quality kawaii anime illustration.",
   ].join("\n\n");
 }

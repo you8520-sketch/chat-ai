@@ -142,7 +142,7 @@ export function withIllustrationReferenceIndices<T extends { imageUrl: string | 
 }
 
 const ILLUSTRATION_SAFETY =
-  "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.";
+  "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.";
 
 function peopleWord(count: number): string {
   return count === 1 ? "person" : "people";
@@ -155,11 +155,7 @@ function formatCastLine(member: ChatLdIllustrationCastMember, index: number): st
     .map((alias) => alias.trim())
     .filter((alias) => alias && alias !== name);
   const aliasText = aliases.length ? ` Also known as: ${aliases.join(", ")}.` : "";
-  const ref =
-    member.referenceIndex != null
-      ? ` Reference image ${member.referenceIndex} is the identity photo for ${name} only. Do not apply this photo to anyone else.`
-      : ` No photo for ${name}. Do not substitute another referenced face.`;
-  return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}${ref}`;
+  return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}`;
 }
 
 export function buildTrpgIllustrationSituation(opts: {
@@ -197,7 +193,7 @@ function buildPartyIllustrationPrompt(opts: {
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
-    "CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):",
+    "CAST (roster — every listed person must appear):",
     ...opts.cast.map((member, index) => formatCastLine(member, index)),
     renderChatImageVisualIdentity({
       subjects,
@@ -212,7 +208,7 @@ function buildPartyIllustrationPrompt(opts: {
     ),
     ILLUSTRATION_SAFETY,
     "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.",
+    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     `Show exactly these ${count} ${peopleWord(count)}. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`,
@@ -284,7 +280,7 @@ export function buildChatLdIllustrationPrompt(opts: {
     }),
     ILLUSTRATION_SAFETY,
     "Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.",
-    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, harmonize them into one coherent polished style without changing either identity.",
+    "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",

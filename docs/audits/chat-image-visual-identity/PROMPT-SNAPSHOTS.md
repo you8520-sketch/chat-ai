@@ -28,6 +28,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -55,6 +56,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -74,7 +76,7 @@ BOTTOM person expression: calm, soft expression. The bottom person sits inside t
 
 Overall mood: lovely pastel pink and sage-green accents, affectionate and sweet.
 
-Exactly two human characters. No extra person, duplicate face, merged body, swapped hair, extra hands, malformed fingers, text, signature, logo or watermark.
+Exactly two human characters. No extra person, duplicate face, merged body, extra hands, malformed fingers, text, signature, logo or watermark.
 
 Keep the full gift box and the surrounding decorative objects visible. Do not crop to faces only. Centered, clean, detailed, harmonious, merchandise-quality kawaii anime illustration.
 ```
@@ -127,6 +129,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -146,7 +149,7 @@ BOTTOM person expression: calm, soft expression. The bottom person sits inside t
 
 Overall mood: lovely pastel pink and sage-green accents, affectionate and sweet.
 
-Exactly two human characters. No extra person, duplicate face, merged body, swapped hair, extra hands, malformed fingers, text, signature, logo or watermark.
+Exactly two human characters. No extra person, duplicate face, merged body, extra hands, malformed fingers, text, signature, logo or watermark.
 
 Keep the full gift box and the surrounding decorative objects visible. Do not crop to faces only. Centered, clean, detailed, harmonious, merchandise-quality kawaii anime illustration.
 ```
@@ -176,6 +179,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -203,6 +207,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -228,7 +233,7 @@ Use the following exact nine panels in this exact order:
 
 Render exactly one listed Korean phrase in each panel, verbatim and fully legible. The pose, props and facial expression must clearly match that phrase.
 
-Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, merged face, cropped text, extra text, signature, logo or watermark.
+Exactly nine panels and exactly two identities overall. Solo panels contain only the named person; duo panels contain both. No third person, duplicate person, extra panel, missing panel, cropped text, extra text, signature, logo or watermark.
 ```
 
 ## 4. Couple stamps
@@ -256,6 +261,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -283,6 +289,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -315,7 +322,7 @@ Border decoration: No extra outer frame beyond each badge's clean circular edge.
 
 Keep both faces and important gestures fully inside each circle. Bold clean line art, pastel digital coloring, merchandise-quality kawaii finish.
 
-Exactly two people per badge and exactly four badges. No extra person, identity swap, merged face, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.
+Exactly two people per badge and exactly four badges. No extra person, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.
 ```
 
 ## 5. Standard LD duo
@@ -339,6 +346,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -366,6 +374,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -375,9 +384,9 @@ GENDER LOCK — mandatory identity rule.
 chat character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
 user persona CharacterB: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
-SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.
 Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.
-Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, harmonize them into one coherent polished style without changing either identity.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.
 Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
 Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
 Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
@@ -404,11 +413,11 @@ PROMPT:
 ```
 Create one polished vertical 2:3 Korean character illustration, not a comic page.
 This is a TRPG party group illustration. Show ALL 4 listed people together in a single scene. Count the people: 4. Do not omit anyone.
-CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):
-1. CharacterA (companion character). Gender: confirmed male. Reference image 1 is the identity photo for CharacterA only. Do not apply this photo to anyone else.
-2. CharacterB (player). Gender: confirmed female. Reference image 2 is the identity photo for CharacterB only. Do not apply this photo to anyone else.
-3. CharacterC (companion character). Gender: confirmed gender-unspecified. Reference image 3 is the identity photo for CharacterC only. Do not apply this photo to anyone else.
-4. CharacterD (player). Gender: confirmed male. No photo for CharacterD. Do not substitute another referenced face.
+CAST (roster — every listed person must appear):
+1. CharacterA (companion character). Gender: confirmed male.
+2. CharacterB (player). Gender: confirmed female.
+3. CharacterC (companion character). Gender: confirmed gender-unspecified.
+4. CharacterD (player). Gender: confirmed male.
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — COMPANION CHARACTER: CharacterA]
@@ -417,6 +426,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -462,6 +472,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -473,9 +484,9 @@ player CharacterB: confirmed FEMALE. Keep her female in face, torso and body sha
 companion character CharacterC: gender is unspecified / non-binary. Do not infer or change gender from hair length, cuteness, outfit, pose, blush, eyelashes or body size. Follow the reference identity without adding stereotyped male or female anatomy unless it is clearly present in the reference.
 player CharacterD: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
-SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.
 Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.
-Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.
 Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
 Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
 Show exactly these 4 people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
@@ -503,6 +514,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
@@ -546,11 +558,11 @@ PROMPT:
 ```
 Create one polished vertical 2:3 Korean character illustration, not a comic page.
 This is a TRPG party group illustration. Show ALL 4 listed people together in a single scene. Count the people: 4. Do not omit anyone.
-CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):
-1. CharacterA (companion character). Gender: confirmed male. Reference image 1 is the identity photo for CharacterA only. Do not apply this photo to anyone else.
-2. CharacterC (companion character). Gender: confirmed gender-unspecified. Reference image 2 is the identity photo for CharacterC only. Do not apply this photo to anyone else.
-3. CharacterD (player). Gender: confirmed male. No photo for CharacterD. Do not substitute another referenced face.
-4. CharacterE (player). Gender: confirmed female. No photo for CharacterE. Do not substitute another referenced face.
+CAST (roster — every listed person must appear):
+1. CharacterA (companion character). Gender: confirmed male.
+2. CharacterC (companion character). Gender: confirmed gender-unspecified.
+3. CharacterD (player). Gender: confirmed male.
+4. CharacterE (player). Gender: confirmed female.
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — COMPANION CHARACTER: CharacterA]
@@ -559,6 +571,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -601,6 +614,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -612,9 +626,9 @@ companion character CharacterC: gender is unspecified / non-binary. Do not infer
 player CharacterD: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
 player CharacterE: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
-SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.
 Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.
-Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.
 Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
 Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
 Show exactly these 4 people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
@@ -643,9 +657,9 @@ contextFallbackUrls (must not be sent): /synthetic/chat-main-character.webp, /sy
 
 Create one polished vertical 2:3 Korean character illustration, not a comic page.
 This is a TRPG party group illustration. Show ALL 2 listed people together in a single scene. Count the people: 2. Do not omit anyone.
-CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):
-1. CharacterA (companion character). Gender: confirmed male. No photo for CharacterA. Do not substitute another referenced face.
-2. CharacterB (player). Gender: confirmed female. No photo for CharacterB. Do not substitute another referenced face.
+CAST (roster — every listed person must appear):
+1. CharacterA (companion character). Gender: confirmed male.
+2. CharacterB (player). Gender: confirmed female.
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
 [SUBJECT A — COMPANION CHARACTER: CharacterA]
@@ -654,6 +668,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
 - black pupils, red irises
+- large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
@@ -678,6 +693,7 @@ Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
 Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
 Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
 STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
 Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
 Template or another person's appearance must never be treated as a style characteristic.
@@ -687,9 +703,9 @@ GENDER LOCK — mandatory identity rule.
 companion character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
 player CharacterB: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
-SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.
 Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.
-Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, keep one coherent polished style.
 Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
 Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
 Show exactly these 2 people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
@@ -699,5 +715,76 @@ Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixe
 SELECTED TURN SCENE BRIEF:
 LOCATION: camp
 GM SCENE: No one brought a photo.
+```
+
+## 11. LD duo — healed identity scar vs active-injury safety
+
+REFERENCE ORDER:
+Image 1: /synthetic/character-a-primary.webp
+Image 2: /synthetic/character-b-primary.webp
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref 1
+Subject B (CharacterB): IMAGE_PLUS_SAVED · ref 2
+
+PROMPT:
+```
+Create one polished vertical 2:3 Korean character illustration, not a comic page.
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: CharacterA]
+Reference: Image 1 belongs ONLY to CharacterA.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- black pupils, red irises
+- large healed scar on the back of the neck
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: CharacterB]
+Reference: Image 2 belongs ONLY to CharacterB.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- blue-black hair, center-parted hair
+- dark gray irises
+- black suit
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterB.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+GENDER LOCK — mandatory identity rule.
+chat character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+user persona CharacterB: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict active injury, blood, fresh wounds, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text. A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text.
+Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.
+Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
+Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
+Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
+Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.
+
+SELECTED TURN SCENE BRIEF:
+Setting: cafe Actions: CharacterB hands CharacterA a cup.
 ```
 

@@ -355,7 +355,20 @@ describe("chat image visual identity", () => {
     assert.match(subjectBlock(party.prompt, "D"), /short black hair, glasses/);
     assert.doesNotMatch(party.prompt, /IgnoredMain/);
     assert.doesNotMatch(party.identity, /IgnoredMain/);
-    assert.match(party.prompt, /identity photo for CharacterA only/);
+    assert.doesNotMatch(party.prompt, /identity photo/);
+    assert.equal(
+      [...party.prompt.matchAll(/Image 1 belongs ONLY to CharacterA/g)].length,
+      1
+    );
+    const cast = party.prompt.slice(
+      party.prompt.indexOf("CAST ("),
+      party.prompt.indexOf("SUBJECT IDENTITY MANIFEST")
+    );
+    assert.doesNotMatch(cast, /belongs ONLY/);
+    assert.doesNotMatch(cast, /No photo for/);
+    assert.match(subjectBlock(party.prompt, "A"), /healed scar/);
+    assert.match(party.prompt, /healed, non-graphic scar/);
+    assert.doesNotMatch(party.prompt, /Do not depict injury, blood, wounds, scars/);
   });
 
   it("does not extract Korean non-appearance substrings (NONVISUAL_CLAUSE_LEAK_TEST)", () => {
@@ -403,6 +416,20 @@ describe("chat image visual identity", () => {
     assert.equal(mixed.subjects[1]?.referenceIndex, 2);
     assert.equal(mixed.subjects[2]?.referenceIndex, null);
     assert.equal(mixed.subjects[3]?.referenceIndex, null);
+    assert.equal(
+      [...mixed.prompt.matchAll(/Image 1 belongs ONLY to CharacterA/g)].length,
+      1
+    );
+    assert.equal(
+      [...mixed.prompt.matchAll(/Image 2 belongs ONLY to CharacterC/g)].length,
+      1
+    );
+    const mixedCast = mixed.prompt.slice(
+      mixed.prompt.indexOf("CAST ("),
+      mixed.prompt.indexOf("SUBJECT IDENTITY MANIFEST")
+    );
+    assert.doesNotMatch(mixedCast, /belongs ONLY/);
+    assert.doesNotMatch(mixedCast, /identity photo/);
     assert.match(mixed.prompt, /Image 1 belongs ONLY to CharacterA/);
     assert.match(mixed.prompt, /Image 2 belongs ONLY to CharacterC/);
     assert.match(mixed.prompt, /No photo for CharacterD/);
@@ -633,7 +660,6 @@ describe("chat image visual identity", () => {
     }), false);
     assert.equal(nonOwner.hasSavedAppearance, true);
     assert.equal(nonOwner.appearancePreview, "");
-    assert.equal(nonOwner.appearancePreviewShort, "");
     const clientJson = JSON.stringify(nonOwner);
     assert.doesNotMatch(clientJson, /숨겨진 용 문신/);
     assert.doesNotMatch(clientJson, /검은 머리/);
