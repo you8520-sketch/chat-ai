@@ -41,15 +41,15 @@ const EMPTY_UNLOCKED = new Set<string>();
 
 function assetStateLabel(asset: ReviewAsset): { text: string; className: string } {
   if (asset.moderationReject === true) {
-    return { text: "REJECTED", className: "bg-rose-600 text-white" };
+    return { text: "하드 반려", className: "bg-rose-600 text-white" };
   }
   if (asset.adultFlagged === true) {
-    return { text: "ADULT FLAGGED", className: "bg-amber-500 text-black" };
+    return { text: "검수 필요", className: "bg-amber-500 text-black" };
   }
   if (asset.adultFlagged === false) {
-    return { text: "SAFE", className: "bg-emerald-700 text-white" };
+    return { text: "통과", className: "bg-emerald-700 text-white" };
   }
-  return { text: "UNKNOWN", className: "bg-zinc-600 text-white" };
+  return { text: "미분류", className: "bg-zinc-600 text-white" };
 }
 
 export default function AdminCharacterModerationClient() {
@@ -104,9 +104,10 @@ export default function AdminCharacterModerationClient() {
       <Link href="/" className="text-sm text-violet-400 hover:underline">
         ← 홈
       </Link>
-      <h1 className="mt-4 text-2xl font-black text-white">성인 캐릭터 홈 노출 검수</h1>
+      <h1 className="mt-4 text-2xl font-black text-white">캐릭터 이미지 검수</h1>
       <p className="mt-1 text-sm text-gray-400">
-        에셋 태깅에서 실제로 성인용으로 분류된 캐릭터만 대기합니다. 레거시 unknown은 성인 검출이 아닙니다.
+        애매한 선정성(관리자 검수 대상)으로 저장된 성인·일반 캐릭터가 대기합니다. 유두·성기 노출은
+        하드 반려되어 여기 오지 않습니다. 레거시 미분류는 자동 통과이며 대기가 아닙니다.
         승인하면 홈에 올라갑니다.
       </p>
 

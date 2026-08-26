@@ -15,9 +15,9 @@ const cleanAsset: CharacterAsset = {
   adultFlagged: false,
   moderationReject: false,
 };
-const adultAsset: CharacterAsset = {
-  url: "/uploads/nsfw.webp",
-  tag: "침실",
+const ambiguousAsset: CharacterAsset = {
+  url: "/uploads/back.webp",
+  tag: "등짝",
   adultFlagged: true,
   moderationReject: false,
 };
@@ -26,7 +26,7 @@ const rejectedAsset: CharacterAsset = {
   tag: "반려",
   adultFlagged: false,
   moderationReject: true,
-  moderationReason: "정책 위반",
+  moderationReason: "유두 노출",
 };
 const legacyUnknownAsset: CharacterAsset = {
   url: "/uploads/legacy.webp",
@@ -52,7 +52,7 @@ describe("character adult text filter", () => {
 });
 
 describe("character listing moderation", () => {
-  it("lets all-ages characters go live after a clean text check", () => {
+  it("lets all-ages characters go live when assets are clear", () => {
     assert.equal(
       allAgesListingBlockReason({
         nsfw: false,
@@ -91,55 +91,22 @@ describe("character listing moderation", () => {
       }),
       null
     );
-    const decided = decideCharacterListing({
-      requestedVisibility: "public",
-      nsfw: true,
-      assets: [cleanAsset],
-    });
-    assert.equal(decided.moderationStatus, "approved");
   });
 
-  it("queues adult characters for admin when tagging flags the asset as adult", () => {
-    const decided = decideCharacterListing({
-      requestedVisibility: "public",
-      nsfw: true,
-      assets: [adultAsset],
-    });
-    assert.equal(decided.moderationStatus, "pending");
-    assert.equal(decided.finalVisibility, "public");
-    assert.equal(decided.awaitingAdmin, true);
+  it("queues NSFW and all-ages public saves when assets are ambiguous", () => {
+    for (const nsfw of [true, false]) {
+      const decided = decideCharacterListing({
+        requestedVisibility: "public",
+        nsfw,
+        assets: [ambiguousAsset],
+      });
+      assert.equal(decided.moderationStatus, "pending", `nsfw=${nsfw}`);
+      assert.equal(decided.awaitingAdmin, true);
+      assert.match(decided.moderationNote, /애매한 선정성/);
+    }
   });
 
-  it("asks all-ages creators to change assets flagged adult at tagging", () => {
-    const reason = allAgesListingBlockReason({
-      nsfw: false,
-      visibility: "public",
-      adultTextHits: [],
-      assets: [adultAsset],
-    });
-    assert.match(reason ?? "", /바꿔 주세요/);
-    const split = partitionAllAgesTaggingBatch([cleanAsset, adultAsset], false);
-    assert.deepEqual(
-      split.accepted.map((a) => a.url),
-      [cleanAsset.url]
-    );
-    assert.equal(split.rejected.length, 1);
-    assert.match(allAgesAssetChangeRequest(1), /바꿔 주세요/);
-    assert.deepEqual(partitionAllAgesTaggingBatch([adultAsset], true).accepted, [adultAsset]);
-  });
-
-  it("1. nsfw + adultFlagged=true public request is adult-image pending", () => {
-    const decided = decideCharacterListing({
-      requestedVisibility: "public",
-      nsfw: true,
-      assets: [adultAsset],
-    });
-    assert.equal(decided.moderationStatus, "pending");
-    assert.equal(decided.awaitingAdmin, true);
-    assert.match(decided.moderationNote, /성인 에셋 검열/);
-  });
-
-  it("2. nsfw + adultFlagged=false public request is approved", () => {
+  it("approves NSFW immediately when assets are clear", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
@@ -149,7 +116,27 @@ describe("character listing moderation", () => {
     assert.equal(decided.awaitingAdmin, false);
   });
 
-  it("3. nsfw + legacy unknown adultFlagged is not fake adult-image pending", () => {
+  it("allows ambiguous assets on all-ages upload but hard-rejects nipples/genitals", () => {
+    assert.equal(
+      allAgesListingBlockReason({
+        nsfw: false,
+        visibility: "public",
+        adultTextHits: [],
+        assets: [ambiguousAsset],
+      }),
+      null
+    );
+    const split = partitionAllAgesTaggingBatch([cleanAsset, ambiguousAsset, rejectedAsset], false);
+    assert.deepEqual(
+      split.accepted.map((a) => a.url),
+      [cleanAsset.url, ambiguousAsset.url]
+    );
+    assert.equal(split.rejected.length, 1);
+    assert.match(allAgesAssetChangeRequest(1), /유두·성기·항문/);
+    assert.deepEqual(partitionAllAgesTaggingBatch([ambiguousAsset], true).accepted, [ambiguousAsset]);
+  });
+
+  it("legacy unknown adultFlagged does not fake admin pending", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
@@ -157,21 +144,20 @@ describe("character listing moderation", () => {
     });
     assert.equal(decided.moderationStatus, "approved");
     assert.equal(decided.awaitingAdmin, false);
-    assert.doesNotMatch(decided.moderationNote, /성인 에셋 검열/);
     assert.match(decided.moderationNote, /레거시/);
   });
 
-  it("4. private-skip approved must not bypass adult review on public switch", () => {
+  it("private to public re-evaluates ambiguous assets into pending", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
-      assets: [adultAsset],
+      assets: [ambiguousAsset],
       existing: {
         shareSlug: null,
         visibility: "private",
         moderationStatus: "approved",
         moderationNote: "비공개 — 검수 생략",
-        imageUrls: [adultAsset.url],
+        imageUrls: [ambiguousAsset.url],
         nsfw: true,
       },
     });
@@ -179,7 +165,7 @@ describe("character listing moderation", () => {
     assert.equal(decided.awaitingAdmin, true);
   });
 
-  it("4b. public prior image approval is still reusable for the same assets", () => {
+  it("reuses prior public approval for unchanged clear assets", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
@@ -197,41 +183,25 @@ describe("character listing moderation", () => {
     assert.equal(decided.awaitingAdmin, false);
   });
 
-  it("5. changed image list does not reuse the old approval", () => {
-    const decided = decideCharacterListing({
-      requestedVisibility: "public",
-      nsfw: true,
-      assets: [adultAsset],
-      existing: {
-        shareSlug: null,
-        visibility: "private",
-        moderationStatus: "approved",
-        imageUrls: [cleanAsset.url],
-        nsfw: true,
-      },
-    });
-    assert.equal(decided.moderationStatus, "pending");
-    assert.equal(decided.awaitingAdmin, true);
+  it("moderationReject keeps hard rejection for both ratings", () => {
+    for (const nsfw of [true, false]) {
+      const decided = decideCharacterListing({
+        requestedVisibility: "public",
+        nsfw,
+        assets: [rejectedAsset],
+      });
+      assert.equal(decided.moderationStatus, "rejected");
+      assert.equal(decided.finalVisibility, "private");
+      assert.equal(decided.awaitingAdmin, false);
+    }
   });
 
-  it("6. moderationReject keeps the existing rejection behavior", () => {
-    const decided = decideCharacterListing({
-      requestedVisibility: "public",
-      nsfw: true,
-      assets: [rejectedAsset],
-    });
-    assert.equal(decided.moderationStatus, "rejected");
-    assert.equal(decided.finalVisibility, "private");
-    assert.equal(decided.awaitingAdmin, false);
-    assert.equal(decided.moderationNote, "정책 위반");
-  });
-
-  it("official characters never enter ordinary adult-image pending", () => {
+  it("official characters never enter ordinary admin pending", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
       official: true,
-      assets: [adultAsset],
+      assets: [ambiguousAsset],
     });
     assert.equal(decided.moderationStatus, "approved");
     assert.equal(decided.awaitingAdmin, false);

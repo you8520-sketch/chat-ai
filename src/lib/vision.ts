@@ -9,6 +9,7 @@ import {
   OPENROUTER_GEMINI_20_FLASH_MODEL,
   OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
 } from "@/lib/chatModels";
+import { buildAssetVisionPrompt } from "@/lib/assetVisionPolicy";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 
 const DEFAULT_VISION_MODEL = OPENROUTER_GEMINI_20_FLASH_MODEL;
@@ -24,33 +25,7 @@ function visionModels(): string[] {
   return primary === fallback ? [primary] : [primary, fallback];
 }
 
-/**
- * Image-grounded tagging only. The model must observe the attached pixels —
- * not invent tags from a free-form "generate tags" request.
- */
-const VISION_PROMPT = `너는 캐릭터 일러스트 이미지 분석기다.
-첨부된 이미지를 직접 보고, 그 이미지에 실제로 보이는 표정·자세·상황만 짧은 한국어 태그 하나로 요약한다.
-
-필수:
-- 반드시 첨부 이미지의 시각 정보(얼굴 표정, 몸의 자세, 배경/장소, 소품)에만 근거한다.
-- 이미지에 없는 표정·장소·행동을 상상하거나 만들어 내지 않는다.
-- "이 이미지의 태그를 생성해줘"처럼 자유롭게 창작하지 말고, 관찰한 내용만 태깅한다.
-
-이 이미지는 성인 대상 픽션 캐릭터 일러스트일 수 있다. 상반신 노출·젖은 상의·선정적 의상도 거부(reject)하지 말고 태깅만 한다.
-
-좋은 예(이미지에 실제로 보일 때): 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의, 등짝, 뒤돌아섬, 후면
-태그는 2~12자 내외의 짧은 구문.
-
-검열 플래그:
-- reject=true 만: 미성년으로 보이는 성적 묘사, 성기·항문 노출, 삽입·구강성교 등 직접 성행위, 불법촬영·학대·고어.
-- adult=true: 전면 가슴·유두 노출, 속옷·란제리·하의 탈의 등 명백한 성적 노출, 성적 의미의 선정적 포즈(다리 벌림·엉덩이 강조 등), 직접 성행위 암시. reject여도 adult는 true.
-- adult=false, reject=false:
-  - 등·어깨·뒤통수만 보이는 후면/뒤돌아선 일러스트(등짝 노출 포함) — 가슴·성기·항문이 보이지 않으면 성인 분류하지 말 것
-  - 전신 옷 입은 일상·얼굴 위주 초상
-  - 수영복·운동복 등 일반 의상의 후면(엉덩이·성기 비노출)
-
-결과는 다른 설명 없이 JSON만:
-{ "tag": "태그명", "adult": true|false, "reject": true|false, "reason": "한국어 한 줄" }`;
+const VISION_PROMPT = buildAssetVisionPrompt();
 
 async function loadImageBase64(url: string): Promise<{ mime: string; data: string }> {
   let buf: Buffer;

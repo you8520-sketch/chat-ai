@@ -3,6 +3,7 @@ import {
   ALL_AGES_ADULT_ASSET_ERROR,
   ALL_AGES_ADULT_TEXT_ERROR,
 } from "@/lib/characterAdultText";
+import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
 import {
   generateShareSlug,
   type CharacterVisibility,
@@ -14,7 +15,7 @@ export type CharacterListingDecision = {
   moderationStatus: ModerationStatus;
   moderationNote: string;
   shareSlug: string | null;
-  /** True when an adult image needs a human before home listing. */
+  /** True when ambiguous suggestive assets need human review before home listing. */
   awaitingAdmin: boolean;
 };
 
@@ -22,11 +23,17 @@ function sameImageList(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((url, i) => url === b[i]);
 }
 
-export function isAssetBlockedForAllAges(asset: {
-  adultFlagged?: boolean;
-  moderationReject?: boolean;
-}): boolean {
-  return asset.moderationReject === true || asset.adultFlagged === true;
+function adminReviewNote(nsfw: boolean): string {
+  return nsfw
+    ? "성인 캐릭터 — 애매한 선정성 · 관리자 승인 대기"
+    : "일반 캐릭터 — 애매한 선정성 · 관리자 승인 대기";
+}
+
+function autoApproveNote(nsfw: boolean, unknown: boolean): string {
+  if (!nsfw) return "일반 캐릭터 — 즉시 공개";
+  return unknown
+    ? "성인 캐릭터 — 레거시 에셋 adultFlagged 미기록"
+    : "성인 캐릭터 — 즉시 공개";
 }
 
 export function partitionAllAgesTaggingBatch<T extends {
@@ -37,7 +44,7 @@ export function partitionAllAgesTaggingBatch<T extends {
   const accepted: T[] = [];
   const rejected: T[] = [];
   for (const item of items) {
-    if (isAssetBlockedForAllAges(item)) rejected.push(item);
+    if (isAssetHardRejected(item)) rejected.push(item);
     else accepted.push(item);
   }
   return { accepted, rejected };
@@ -45,7 +52,7 @@ export function partitionAllAgesTaggingBatch<T extends {
 
 export function allAgesAssetChangeRequest(rejectedCount: number): string {
   if (rejectedCount <= 1) return ALL_AGES_ADULT_ASSET_ERROR;
-  return `${rejectedCount}장이 성인용으로 검열되어 넣지 않았습니다. 해당 에셋을 바꿔 주세요.`;
+  return `${rejectedCount}장에 유두·성기·항문 노출이 감지되어 넣지 않았습니다. 해당 에셋을 바꿔 주세요.`;
 }
 
 export function assetModerationSummary(assets: CharacterAsset[]): {
@@ -97,8 +104,6 @@ export function decideCharacterListing(input: {
   }
 
   const imageUrls = assets.map((a) => a.url);
-  // Private saves store moderation_status=approved because review is skipped.
-  // That is not proof of a prior human image verdict, so it must not be reused.
   const canReuseApproved =
     existing?.moderationStatus === "approved" &&
     existing.visibility !== "private" &&
@@ -123,7 +128,7 @@ export function decideCharacterListing(input: {
     return {
       finalVisibility: "private",
       moderationStatus: "rejected",
-      moderationNote: summary.rejected.moderationReason?.trim() || "이미지 검열 반려",
+      moderationNote: summary.rejected.moderationReason?.trim() || "유두·성기·항문 노출 — 이미지 검열 반려",
       shareSlug: null,
       awaitingAdmin: false,
     };
@@ -142,21 +147,6 @@ export function decideCharacterListing(input: {
     };
   }
 
-  if (!nsfw) {
-    return {
-      finalVisibility: requestedVisibility,
-      moderationStatus: "approved",
-      moderationNote: "일반 캐릭터 — 성인물 단어 검사 통과, 즉시 공개",
-      shareSlug:
-        requestedVisibility === "link"
-          ? existing?.shareSlug || generateShareSlug()
-          : existing?.shareSlug ?? null,
-      awaitingAdmin: false,
-    };
-  }
-
-  // Only an explicit adult classification requires admin review.
-  // Missing/undefined adultFlagged is legacy unknown, not "adult detected".
   if (summary.adultFlagged) {
     const keepPending =
       existing?.moderationStatus === "pending" &&
@@ -167,8 +157,8 @@ export function decideCharacterListing(input: {
       finalVisibility: requestedVisibility,
       moderationStatus: "pending",
       moderationNote: keepPending
-        ? existing?.moderationNote || "성인 에셋 검열 — 관리자 승인 대기"
-        : "성인 에셋 검열 — 관리자 승인 후 홈에 표시",
+        ? existing?.moderationNote || adminReviewNote(nsfw)
+        : adminReviewNote(nsfw),
       shareSlug:
         requestedVisibility === "link"
           ? existing?.shareSlug || generateShareSlug()
@@ -180,9 +170,7 @@ export function decideCharacterListing(input: {
   return {
     finalVisibility: requestedVisibility,
     moderationStatus: "approved",
-    moderationNote: summary.unknown
-      ? "성인 캐릭터 — 레거시 에셋 adultFlagged 미기록, 성인 이미지 검출 아님"
-      : "성인 캐릭터 — 에셋 검열에서 성인용 표시 없음, 즉시 공개",
+    moderationNote: autoApproveNote(nsfw, summary.unknown),
     shareSlug:
       requestedVisibility === "link"
         ? existing?.shareSlug || generateShareSlug()
@@ -197,13 +185,12 @@ export function allAgesListingBlockReason(input: {
   adultTextHits: string[];
   assets: CharacterAsset[];
 }): string | null {
-  // Adult characters skip the public-text word filter; only all-ages listings are blocked here.
   if (input.nsfw || input.visibility === "private") return null;
   if (input.adultTextHits.length > 0) {
     return ALL_AGES_ADULT_TEXT_ERROR;
   }
   const summary = assetModerationSummary(input.assets);
-  if (summary.rejected || summary.adultFlagged) {
+  if (summary.rejected) {
     return ALL_AGES_ADULT_ASSET_ERROR;
   }
   return null;

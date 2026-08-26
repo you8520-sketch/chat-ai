@@ -9,9 +9,9 @@ export type CharacterAsset = {
   chat?: boolean;
   /** true면 제작자 외 유저에게 블러·가림 처리 */
   viewerBlur?: boolean;
-  /** 에셋 태깅 검열: 성인 콘텐츠로 분류됨 */
+  /** 애매한 선정성 — 관리자 검수 큐 (업로드 차단 아님) */
   adultFlagged?: boolean;
-  /** 에셋 태깅 검열: 공개 불가(미성년·성기 노출 등) */
+  /** 하드 반려: 여성 유두·남녀 성기·항문 노출 등 */
   moderationReject?: boolean;
   moderationReason?: string;
   width?: number;
