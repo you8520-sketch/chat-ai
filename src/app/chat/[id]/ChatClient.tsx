@@ -4840,12 +4840,14 @@ export default function ChatClient({
                 </option>
               ))}
             </select>
-            <ChatRoomAdultModeToggle
-              isAdult={isAdult}
-              enabled={adultHandoffOn}
-              busy={adultHandoffBusy}
-              onToggle={() => void toggleAdultHandoff()}
-            />
+            {isAdult ? (
+              <ChatRoomAdultModeToggle
+                isAdult={isAdult}
+                enabled={adultHandoffOn}
+                busy={adultHandoffBusy}
+                onToggle={() => void toggleAdultHandoff()}
+              />
+            ) : null}
           </label>
           <button
             type="button"

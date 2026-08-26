@@ -788,6 +788,12 @@ export function resolveRequestedConsentMode(input: {
   currentInput: string;
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
+  /**
+   * Server-authorized Adult Mode (effective adult + handoff ON).
+   * When false, new CNC activation is blocked but prior cnc_opt_in may persist
+   * for resume when Adult Mode is enabled again. Default true when omitted.
+   */
+  adultModeAuthorized?: boolean;
 }): AdultConsentMode {
   const {
     requested,
@@ -795,6 +801,7 @@ export function resolveRequestedConsentMode(input: {
     currentInput,
     sceneReset = false,
     clearSceneTransition = false,
+    adultModeAuthorized = true,
   } = input;
 
   if (
@@ -805,6 +812,14 @@ export function resolveRequestedConsentMode(input: {
   }
 
   if (requested === "standard") return "standard";
+
+  if (!adultModeAuthorized) {
+    if (previous === "cnc_opt_in") {
+      return "cnc_opt_in";
+    }
+    if (requested === "power_play") return "power_play";
+    return "standard";
+  }
 
   if (sceneReset || clearSceneTransition) {
     return hasExplicitCncOptIn(currentInput) ? "cnc_opt_in" : "standard";
@@ -854,6 +869,7 @@ export function resolveEffectiveConsentMode(input: {
   allowedConsentModes: string[];
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
+  adultModeAuthorized?: boolean;
 }): AdultConsentMode {
   const resolved = resolveRequestedConsentMode({
     requested: input.requested,
@@ -861,11 +877,26 @@ export function resolveEffectiveConsentMode(input: {
     currentInput: input.currentInput,
     sceneReset: input.sceneReset,
     clearSceneTransition: input.clearSceneTransition,
+    adultModeAuthorized: input.adultModeAuthorized,
   });
   if (!input.allowedConsentModes.includes(resolved)) {
     return "standard";
   }
   return resolved;
+}
+
+/** Adult Mode OFF suspends CNC on the provider wire without erasing persisted consent. */
+export function resolveWireConsentMode(input: {
+  persistedConsentMode: AdultConsentMode;
+  adultModeAuthorized: boolean;
+}): AdultConsentMode {
+  if (
+    !input.adultModeAuthorized &&
+    input.persistedConsentMode === "cnc_opt_in"
+  ) {
+    return "standard";
+  }
+  return input.persistedConsentMode;
 }
 
 export interface SceneClassification {

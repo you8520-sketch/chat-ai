@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { effectiveIsAdult } from "@/lib/adultVerification";
 import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
@@ -64,13 +65,14 @@ export async function PATCH(req: Request) {
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
 
   const nsfw = isAdultMode ?? isNsfwMode ?? nsfwMode;
-  if (nsfw === true && !user.is_adult) {
+  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  if (nsfw === true && !userAdultVerified) {
     return Response.json({ error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
   const adultHandoffEnabled = parseAdultHandoffEnabled(
     adultHandoffEnabledInput ?? body.adult_handoff_enabled
   );
-  if (adultHandoffEnabled === true && !user.is_adult) {
+  if (adultHandoffEnabled === true && !userAdultVerified) {
     return Response.json(
       { error: "성인모드는 성인인증 후 이용할 수 있습니다.", needVerify: true },
       { status: 403 }
