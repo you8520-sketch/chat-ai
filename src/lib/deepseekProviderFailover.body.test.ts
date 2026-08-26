@@ -85,14 +85,23 @@ function flashPrimary(bodyExtra?: Record<string, unknown>) {
 }
 
 describe("background complete-body ownership", () => {
-  it("policy: short tasks 20s/30s, TRPG reply 15s/25s, long-form 45s, never increase existing", () => {
+  it("policy: memory extract uses longForm 45s/45s; short tasks 20s/30s; TRPG reply unchanged", () => {
     assert.deepEqual(
       resolveBackgroundFlashProviderDeadlines({
         requestKind: "background-memory-extract",
       }),
       {
-        primaryCompletionMs: BACKGROUND_PRIMARY_COMPLETION_MS.short,
-        backupCompletionMs: BACKGROUND_BACKUP_COMPLETION_MS.short,
+        primaryCompletionMs: BACKGROUND_PRIMARY_COMPLETION_MS.longForm,
+        backupCompletionMs: BACKGROUND_BACKUP_COMPLETION_MS.longForm,
+      }
+    );
+    assert.deepEqual(
+      resolveBackgroundFlashProviderDeadlines({
+        requestKind: "background-memory-extract-retry",
+      }),
+      {
+        primaryCompletionMs: BACKGROUND_PRIMARY_COMPLETION_MS.longForm,
+        backupCompletionMs: BACKGROUND_BACKUP_COMPLETION_MS.longForm,
       }
     );
     for (const requestKind of [
@@ -105,9 +114,12 @@ describe("background complete-body ownership", () => {
       "background-chat-image-scene-brief",
       "background-suggested-replies-extract",
     ]) {
-      assert.equal(
-        resolveBackgroundFlashProviderDeadlines({ requestKind }).primaryCompletionMs,
-        20_000,
+      assert.deepEqual(
+        resolveBackgroundFlashProviderDeadlines({ requestKind }),
+        {
+          primaryCompletionMs: BACKGROUND_PRIMARY_COMPLETION_MS.short,
+          backupCompletionMs: BACKGROUND_BACKUP_COMPLETION_MS.short,
+        },
         requestKind
       );
     }
@@ -145,6 +157,20 @@ describe("background complete-body ownership", () => {
         existingTimeoutMs: 40,
       }).primaryCompletionMs,
       40
+    );
+    assert.ok(
+      resolveBackgroundFlashProviderDeadlines({
+        requestKind: "background-memory-extract",
+      }).primaryCompletionMs <
+        120_000,
+      "failover completion deadline still caps below generic OpenRouter 120s"
+    );
+    assert.ok(
+      resolveBackgroundFlashProviderDeadlines({
+        requestKind: "background-memory-extract",
+      }).primaryCompletionMs >
+        BACKGROUND_PRIMARY_COMPLETION_MS.short,
+      "memory extract no longer uses short 20s primary deadline"
     );
     assert.deepEqual([...DEEPSEEK_TRANSIENT_HTTP_STATUSES], [500, 502, 503, 504]);
     assert.deepEqual(
