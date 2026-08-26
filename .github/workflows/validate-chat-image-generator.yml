@@ -25,6 +25,8 @@ on:
       - "src/lib/chatImageVisualIdentity.ts"
       - "src/lib/chatImageVisualIdentity.test.ts"
       - "src/lib/chatImageVisualIdentity.fixtures.ts"
+      - "src/lib/openAiImageEdit.ts"
+      - "src/lib/openAiImageEdit.test.ts"
       - "src/lib/trpg/illustrationCast.ts"
       - "public/image-templates/**"
       - ".github/workflows/validate-chat-image-generator.yml"
@@ -50,3 +52,4 @@ jobs:
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts
       - run: node --import tsx --test src/lib/chatImageVisualIdentity.test.ts
+      - run: node --import tsx --test src/lib/openAiImageEdit.test.ts

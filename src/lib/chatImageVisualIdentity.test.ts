@@ -19,7 +19,9 @@ import {
   syntheticNoPhotoSavedSubject,
 } from "./chatImageVisualIdentity.fixtures";
 import {
+  buildChatImageCharacterAppearanceClientView,
   buildPartyIllustrationReferencePlan,
+  canRevealChatImageAppearancePreview,
   defaultAppearanceMode,
   extractVisualAppearance,
   isPrimarySelectableImage,
@@ -601,5 +603,127 @@ describe("chat image visual identity", () => {
       }),
       false
     );
+  });
+
+  it("keeps server grounding while hiding system_prompt appearance from non-owners", () => {
+    const systemPrompt = [
+      "[외형]",
+      "검은 머리, 붉은 홍채, 숨겨진 용 문신",
+      "[비밀]",
+      "절대 외부에 알리지 말 것.",
+    ].join("\n");
+    const serverAppearance = resolveCharacterSavedAppearance({
+      appearanceRaw: "",
+      appearanceSection: "검은 머리, 붉은 홍채, 숨겨진 용 문신",
+    });
+    assert.match(serverAppearance, /검은 머리/);
+    assert.match(serverAppearance, /붉은 홍채/);
+    assert.match(serverAppearance, /숨겨진 용 문신/);
+    assert.doesNotMatch(serverAppearance, /절대 외부에/);
+    assert.notEqual(serverAppearance, systemPrompt);
+
+    const nonOwner = buildChatImageCharacterAppearanceClientView({
+      savedAppearance: serverAppearance,
+      characterCreatorId: 100,
+      viewerUserId: 200,
+    });
+    assert.equal(canRevealChatImageAppearancePreview({
+      characterCreatorId: 100,
+      viewerUserId: 200,
+    }), false);
+    assert.equal(nonOwner.hasSavedAppearance, true);
+    assert.equal(nonOwner.appearancePreview, "");
+    assert.equal(nonOwner.appearancePreviewShort, "");
+    const clientJson = JSON.stringify(nonOwner);
+    assert.doesNotMatch(clientJson, /숨겨진 용 문신/);
+    assert.doesNotMatch(clientJson, /검은 머리/);
+    assert.doesNotMatch(clientJson, /system_prompt/);
+    assert.doesNotMatch(clientJson, /절대 외부에/);
+    assert.equal(clientJson.includes(systemPrompt), false);
+
+    const owner = buildChatImageCharacterAppearanceClientView({
+      savedAppearance: serverAppearance,
+      characterCreatorId: 100,
+      viewerUserId: 100,
+    });
+    assert.equal(canRevealChatImageAppearancePreview({
+      characterCreatorId: 100,
+      viewerUserId: 100,
+    }), true);
+    assert.equal(owner.hasSavedAppearance, true);
+    assert.match(owner.appearancePreview, /붉은 홍채/);
+    assert.match(owner.appearancePreview, /숨겨진 용 문신/);
+    assert.doesNotMatch(owner.appearancePreview, /절대 외부에/);
+
+    const privateNonOwner = buildChatImageCharacterAppearanceClientView({
+      savedAppearance: serverAppearance,
+      characterCreatorId: 100,
+      viewerUserId: 200,
+    });
+    assert.equal(privateNonOwner.appearancePreview, "");
+    assert.equal(privateNonOwner.hasSavedAppearance, true);
+
+    const modes = resolveRequestAppearanceModes({
+      characterImages: [{ url: "/synthetic/character-a-primary.webp" }],
+      selectedCharacterImageUrl: "/synthetic/character-a-primary.webp",
+      characterSavedAppearance: serverAppearance,
+      personaSavedAppearance: "",
+    });
+    assert.equal(modes.characterAppearanceMode, "image_plus_saved");
+    assert.equal(
+      resolveEffectiveAppearanceMode({
+        sourceKind: "main_character",
+        isPrimaryImage: false,
+        hasOwnSavedAppearance: nonOwner.hasSavedAppearance,
+        hasOwnReference: true,
+      }),
+      "image_only"
+    );
+    assert.equal(
+      resolveEffectiveAppearanceMode({
+        sourceKind: "main_character",
+        isPrimaryImage: true,
+        hasOwnSavedAppearance: nonOwner.hasSavedAppearance,
+        hasOwnReference: true,
+        override: "image_plus_saved",
+      }),
+      "image_plus_saved"
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "gift",
+        hasSavedAppearance: nonOwner.hasSavedAppearance,
+      }),
+      true
+    );
+  });
+
+  it("uses compiled appearance only when raw and section are empty", () => {
+    const compiled = JSON.stringify({
+      compiled_text: "짧은 은발, 녹색 눈",
+      body: "",
+      hair: "짧은 은발",
+      eyes: "녹색 눈",
+      face: "",
+      lips_makeup: "",
+      clothing: "",
+      impression: "",
+    });
+    const fromCompiled = resolveCharacterSavedAppearance({
+      appearanceRaw: "",
+      appearanceSection: "",
+      appearanceCompiled: compiled,
+    });
+    assert.match(fromCompiled, /짧은 은발/);
+    assert.match(fromCompiled, /녹색 눈/);
+
+    const rawWins = resolveCharacterSavedAppearance({
+      appearanceRaw: "검은 머리, 붉은 홍채",
+      appearanceSection: "",
+      appearanceCompiled: compiled,
+    });
+    assert.match(rawWins, /검은 머리/);
+    assert.doesNotMatch(rawWins, /은발/);
+    assert.doesNotMatch(rawWins, /녹색 눈/);
   });
 });

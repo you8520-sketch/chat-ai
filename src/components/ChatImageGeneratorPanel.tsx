@@ -93,6 +93,7 @@ type Preflight = {
   modelLabel: string;
   template: { id: string; name: string; previewUrl: string };
   character: ReferenceInfo & {
+    hasSavedAppearance?: boolean;
     appearancePreview?: string;
     appearancePreviewShort?: string;
   };
@@ -563,10 +564,11 @@ export default function ChatImageGeneratorPanel({
     selectedCharacterImageUrl || info?.character.imageUrl || "";
   const isPrimaryCharacterImage =
     !selectedCharacterUrl || selectedCharacterUrl === primaryCharacterImageUrl;
+  const hasSavedAppearance = Boolean(info?.character.hasSavedAppearance);
   const characterAppearanceMode = resolveEffectiveAppearanceMode({
     sourceKind: "main_character",
     isPrimaryImage: isPrimaryCharacterImage,
-    hasOwnSavedAppearance: Boolean(info?.character.appearancePreview?.trim()),
+    hasOwnSavedAppearance: hasSavedAppearance,
     hasOwnReference: Boolean(selectedCharacterUrl),
     override: characterAppearanceModeOverride,
   });
@@ -580,7 +582,7 @@ export default function ChatImageGeneratorPanel({
   });
   const showAppearanceModeControl = shouldShowChatImageAppearanceModeControl({
     product: appearanceControlProduct,
-    hasSavedAppearance: Boolean(characterAppearanceFull),
+    hasSavedAppearance,
   });
   const partyPickerMember = useMemo(
     () => partyCast.find((row) => row.participantId === partyPickerId) ?? null,
@@ -1527,8 +1529,9 @@ export default function ChatImageGeneratorPanel({
                           <div className="mt-2 text-[10px] leading-relaxed text-zinc-500">
                             <p className="font-semibold text-zinc-400">메인 캐릭터 외형</p>
                             <p className="mt-0.5 whitespace-pre-wrap">
-                              {characterAppearancePreview.preview ||
-                                "저장된 외형 정보가 없습니다."}
+                              {characterAppearanceFull
+                                ? characterAppearancePreview.preview
+                                : "저장된 캐릭터 외형 설정을 함께 적용합니다."}
                             </p>
                             {characterAppearancePreview.truncated ? (
                               <button

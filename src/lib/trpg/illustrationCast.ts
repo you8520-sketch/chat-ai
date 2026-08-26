@@ -55,6 +55,7 @@ type CharacterImageRow = {
   creator_id: number | null;
   visibility: string;
   appearance_raw: string | null;
+  appearance_compiled: string | null;
   system_prompt: string | null;
 };
 
@@ -159,6 +160,7 @@ export function loadTrpgIllustrationScene(
           .prepare(
             `SELECT id, name, gender, assets, images, creator_id, visibility,
                     COALESCE(appearance_raw, '') AS appearance_raw,
+                    COALESCE(appearance_compiled, '') AS appearance_compiled,
                     COALESCE(system_prompt, '') AS system_prompt
              FROM characters WHERE id=?`
           )
@@ -173,6 +175,7 @@ export function loadTrpgIllustrationScene(
             resolveCharacterSavedAppearance({
               appearanceRaw: row.appearance_raw,
               appearanceSection: extractAppearanceRawFromSetting(row.system_prompt ?? ""),
+              appearanceCompiled: row.appearance_compiled,
             })
           );
         }

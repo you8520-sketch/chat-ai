@@ -102,6 +102,7 @@ type CharacterRow = {
   creator_id: number | null;
   visibility: string;
   appearance_raw: string | null;
+  appearance_compiled: string | null;
   system_prompt: string | null;
 };
 
@@ -217,7 +218,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -276,6 +277,7 @@ function resolveGenerationContext(opts: {
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,
       appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
+      appearanceCompiled: character.appearance_compiled,
     }),
     personaSavedAppearance: resolvePersonaSavedAppearance(persona.description),
   };

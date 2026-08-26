@@ -59,7 +59,7 @@ import {
 } from "@/lib/chatImageGeneration";
 import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
 import {
-  previewVisualAppearance,
+  buildChatImageCharacterAppearanceClientView,
   resolveCharacterSavedAppearance,
   resolvePersonaSavedAppearance,
   resolveRequestAppearanceModes,
@@ -120,6 +120,7 @@ type CharacterRow = {
   creator_id: number | null;
   visibility: string;
   appearance_raw: string | null;
+  appearance_compiled: string | null;
   system_prompt: string | null;
 };
 
@@ -231,7 +232,7 @@ function resolveGenerationContext(opts: {
 
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -290,6 +291,7 @@ function resolveGenerationContext(opts: {
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,
       appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
+      appearanceCompiled: character.appearance_compiled,
     }),
     personaSavedAppearance: resolvePersonaSavedAppearance(persona?.description),
   };
@@ -459,12 +461,17 @@ async function callOpenAiImage(opts: {
   }
 }
 
-function publicContextResponse(context: GenerationContext) {
+function publicContextResponse(context: GenerationContext, viewerUserId: number) {
   const state = readiness(context);
   const personaState = personaImageReadiness(context.persona);
   const pricePoints = resolveChatImageGenerationPrice();
   const balance = getPointBalance(context.character.id ? 0 : 0);
   void balance;
+  const characterAppearance = buildChatImageCharacterAppearanceClientView({
+    savedAppearance: context.characterSavedAppearance,
+    characterCreatorId: context.character.creator_id,
+    viewerUserId,
+  });
   return {
     ...state,
     personaReady: personaState.ready && !!context.characterImageUrl,
@@ -484,8 +491,9 @@ function publicContextResponse(context: GenerationContext) {
       id: context.character.id,
       name: context.character.name,
       imageUrl: context.characterImageUrl,
-      appearancePreview: context.characterSavedAppearance,
-      appearancePreviewShort: previewVisualAppearance(context.characterSavedAppearance).preview,
+      hasSavedAppearance: characterAppearance.hasSavedAppearance,
+      appearancePreview: characterAppearance.appearancePreview,
+      appearancePreviewShort: characterAppearance.appearancePreviewShort,
     },
     characterImages: context.characterImages,
     persona: context.persona
@@ -642,7 +650,7 @@ export async function GET(req: Request) {
       };
     };
     return NextResponse.json({
-      ...publicContextResponse(context),
+      ...publicContextResponse(context, user.id),
       balance: getPointBalance(user.id),
       activeJob: findLatestChatImageGenerationJob({
         userId: user.id,

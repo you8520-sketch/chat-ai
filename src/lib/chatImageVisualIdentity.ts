@@ -91,14 +91,91 @@ export function extractVisualAppearance(source: unknown): string {
   return segments.join("\n").slice(0, CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX).trim();
 }
 
+const COMPILED_APPEARANCE_FIELDS = [
+  "compiled_text",
+  "body",
+  "hair",
+  "eyes",
+  "face",
+  "lips_makeup",
+  "clothing",
+  "impression",
+] as const;
+
+function compiledAppearanceText(compiledJson: unknown): string {
+  const raw = String(compiledJson ?? "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+    const compiledText = String(parsed.compiled_text ?? "").trim();
+    if (compiledText) return compiledText;
+    return COMPILED_APPEARANCE_FIELDS.filter((key) => key !== "compiled_text")
+      .map((key) => String(parsed[key] ?? "").trim())
+      .filter(Boolean)
+      .join(", ");
+  } catch {
+    return "";
+  }
+}
+
 export function resolveCharacterSavedAppearance(opts: {
   appearanceRaw?: string | null;
   appearanceSection?: string | null;
+  appearanceCompiled?: string | null;
 }): string {
   const raw =
     String(opts.appearanceRaw ?? "").trim() ||
-    String(opts.appearanceSection ?? "").trim();
+    String(opts.appearanceSection ?? "").trim() ||
+    compiledAppearanceText(opts.appearanceCompiled);
   return extractVisualAppearance(raw);
+}
+
+export function canRevealChatImageAppearancePreview(opts: {
+  characterCreatorId: number | null | undefined;
+  viewerUserId: number;
+}): boolean {
+  const creatorId = Number(opts.characterCreatorId);
+  const viewerId = Number(opts.viewerUserId);
+  return (
+    Number.isInteger(creatorId) &&
+    Number.isInteger(viewerId) &&
+    creatorId > 0 &&
+    viewerId > 0 &&
+    creatorId === viewerId
+  );
+}
+
+export function buildChatImageCharacterAppearanceClientView(opts: {
+  savedAppearance: string;
+  characterCreatorId: number | null | undefined;
+  viewerUserId: number;
+}): {
+  hasSavedAppearance: boolean;
+  appearancePreview: string;
+  appearancePreviewShort: string;
+} {
+  const saved = clipSavedAppearanceForPrompt(opts.savedAppearance);
+  const hasSavedAppearance = Boolean(saved);
+  if (
+    !hasSavedAppearance ||
+    !canRevealChatImageAppearancePreview({
+      characterCreatorId: opts.characterCreatorId,
+      viewerUserId: opts.viewerUserId,
+    })
+  ) {
+    return {
+      hasSavedAppearance,
+      appearancePreview: "",
+      appearancePreviewShort: "",
+    };
+  }
+  const preview = previewVisualAppearance(saved);
+  return {
+    hasSavedAppearance,
+    appearancePreview: preview.full,
+    appearancePreviewShort: preview.preview,
+  };
 }
 
 export function resolvePersonaSavedAppearance(description: unknown): string {
