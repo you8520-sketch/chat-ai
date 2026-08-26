@@ -47,14 +47,14 @@ const CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
-/** Cheaper Inference GPT-5.6 Luna — account catalog snapshot (2026-07-29). */
+/** Cheaper Inference GPT-5.6 Luna — public list fallback (2026-08). */
 const CHEAPER_INFERENCE_GPT_56_LUNA_RATES: OpenRouterModelRates = {
   family: "openai",
   label: "Cheaper Inference · OpenAI automatic cache",
-  inputUsdPerM: 1,
-  outputUsdPerM: 6,
-  cacheReadUsdPerM: 0.1,
-  cacheWriteUsdPerM: 1,
+  inputUsdPerM: 0.08,
+  outputUsdPerM: 0.48,
+  cacheReadUsdPerM: 0.008,
+  cacheWriteUsdPerM: 0.08,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };

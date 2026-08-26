@@ -532,10 +532,13 @@ A: 고마워요! ${"정말 재밌었어요. ".repeat(12)}`;
   });
 
   it("polishHtmlVisualCardInner strips full document wrappers to fragment", () => {
-    const doc = `<!DOCTYPE html><html><head><title>x</title></head><body><div style="padding:12px">card</div></body></html>`;
+    const doc =
+      "<!DOCTYPE html><html><head><title>x</title><style>.x{}</style>" +
+      '<meta charset="utf-8"><script>x()</script><link rel="stylesheet" href="/x.css">' +
+      "</head><body><div style=\"padding:12px\">card</div></body></html>";
     const polished = polishHtmlVisualCardInner(doc);
     assert.doesNotMatch(polished, /<!DOCTYPE/i);
-    assert.doesNotMatch(polished, /<\/?html/i);
+    assert.doesNotMatch(polished, /<\/?(?:html|head|body|title|style|script|meta|link)\b/i);
     assert.match(polished, /card/);
   });
 

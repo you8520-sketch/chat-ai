@@ -26,7 +26,7 @@ describe("GPT-5.6 Luna billing", () => {
       apiPromptTokens: 200_000,
       apiCompletionTokens: 100_000,
     });
-    const rawUsd = (100_000 * 1 + 100_000 * 0.1 + 100_000 * 6) / 1_000_000;
+    const rawUsd = (100_000 * 0.08 + 100_000 * 0.008 + 100_000 * 0.48) / 1_000_000;
     const expected = Math.ceil(
       (rawUsd * rates.effectiveKrwPerUsd) / (1 - 0.55) - 1e-9
     );

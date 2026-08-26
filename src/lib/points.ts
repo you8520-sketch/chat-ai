@@ -2169,7 +2169,7 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** HTML 전용 턴 과금 — routing/billing both use BACKGROUND_CREATIVE_HTML_MODEL (default gpt-5.6-luna). */
+/** HTML 전용 턴 — Creative HTML dedicated 55% gross-margin billing (routing model = billing model). */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;
@@ -2211,40 +2211,40 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
             Math.max(2000, Math.ceil(contextChars / 2.5) + 1500)
           );
   const tokensEstimated = !(opts.inputTokens != null && opts.inputTokens > 0);
-  const billing = computeOpenRouterTurnBilling({
-    modelId: htmlModelId,
-    inputTokens: estimatedInputTokens,
-    outputTokens: estimatedOutputTokens,
+  const cache = {
     cacheReadTokens: opts.cacheReadTokens,
     cacheWriteTokens: opts.cacheWriteTokens,
-    userContextChars: contextChars,
-    upstreamCostUsd: opts.upstreamCostUsd,
-    apiPromptTokens: estimatedInputTokens,
-    apiCompletionTokens: estimatedOutputTokens,
-  });
-  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
-    estimatedInputTokens,
-    estimatedOutputTokens,
-    htmlModelId,
-    {
-      cacheReadTokens: opts.cacheReadTokens,
-      cacheWriteTokens: opts.cacheWriteTokens,
-    },
+  };
+  const billingBasis =
     opts.upstreamCostUsd != null && opts.upstreamCostUsd > 0
       ? {
           upstreamCostUsd: opts.upstreamCostUsd,
           apiPromptTokens: estimatedInputTokens,
           apiCompletionTokens: estimatedOutputTokens,
         }
-      : undefined
+      : undefined;
+  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
+    estimatedInputTokens,
+    estimatedOutputTokens,
+    htmlModelId,
+    cache,
+    billingBasis
   );
-  const total = Math.max(OPENROUTER_MIN_TURN_COST, billing.total);
+  const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
+    estimatedInputTokens,
+    htmlModelId
+  );
+  const total = Math.max(
+    OPENROUTER_MIN_TURN_COST,
+    chargePoints(costPlusMarginKrw + inputSurchargeKrw)
+  );
   return {
     modelId: htmlModelId,
     modelLabel: HTML_ONLY_MODEL_LABEL,
-    baseCost: billing.baseCost,
-    contextSurcharge: billing.contextSurcharge,
-    multiplier: billing.multiplier,
+    baseCost: costPlusMarginKrw,
+    contextSurcharge: inputSurchargeKrw,
+    multiplier: 1,
     total,
     estimatedInputTokens,
     estimatedOutputTokens,

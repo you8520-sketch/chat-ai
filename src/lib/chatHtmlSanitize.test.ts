@@ -19,6 +19,21 @@ describe("stripLeakedDocumentMarkup", () => {
     const out = stripLeakedDocumentMarkup(raw);
     assert.doesNotMatch(out, /<!DOCTYPE/i);
     assert.doesNotMatch(out, /<html/i);
+    assert.doesNotMatch(out, /<head/i);
+    assert.doesNotMatch(out, /<body/i);
     assert.match(out, /ok/);
+  });
+
+  it("strips title/style/script/meta/link and preserves card body", () => {
+    const raw =
+      "<!DOCTYPE html><html><head>" +
+      '<meta charset="utf-8"><link rel="stylesheet" href="/x.css">' +
+      "<title>doc</title><style>.x{color:red}</style><script>alert(1)</script>" +
+      "</head><body><div style=\"padding:12px\">card body</div></body></html>";
+    const out = stripLeakedDocumentMarkup(raw);
+    assert.doesNotMatch(out, /<!DOCTYPE/i);
+    assert.doesNotMatch(out, /<\/?(?:html|head|body|title|style|script|meta|link)\b/i);
+    assert.match(out, /card body/);
+    assert.match(out, /<div/);
   });
 });

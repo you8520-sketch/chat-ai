@@ -132,9 +132,6 @@ export function resolveBackgroundCreativeHtmlPrimaryModelId(
 ): string {
   const raw = env.BACKGROUND_CREATIVE_HTML_MODEL?.trim();
   if (!raw) return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
-  if (isHistoricalBackgroundPrimaryDeepSeekAlias(raw)) {
-    return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
-  }
   return resolveBackgroundTextModelId(raw);
 }
 
