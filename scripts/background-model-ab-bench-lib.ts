@@ -18,6 +18,10 @@ import {
 import { resolveOpenRouterCompletionTimeoutMs } from "../src/lib/openRouterCompletion";
 import { parseOpenRouterUsage } from "../src/lib/openRouterUsage";
 import { resolveBackgroundMaxOutputTokens } from "../src/lib/ai";
+import {
+  isDeepSeekPrimaryCheaperInferenceModel,
+  resolveBackgroundFlashProviderDeadlines,
+} from "../src/lib/deepseekProviderFailover";
 import { extractFencedHtmlBlock } from "../src/lib/chatRichContent";
 import {
   oocFlashHtmlMustBeRejected,
@@ -36,6 +40,7 @@ import {
 export const MODEL_A = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 export const MODEL_B = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 export const OUT_DIR = path.resolve("output/background-model-ab");
+export const RAW_DIR = path.resolve("data/background-model-ab/raw");
 
 export type BenchModel = "deepseek" | "luna";
 
@@ -76,6 +81,71 @@ export function verifyOutboundReasoningFlags(body: Record<string, unknown>, mode
   return { deepseekThinkingOff, lunaReasoningNone };
 }
 
+/** Production-equivalent per-call timeout (flash short bucket for CI DeepSeek). */
+export function resolveBenchCallTimeoutMs(requestKind: string, modelId: string): number {
+  const outer = resolveOpenRouterCompletionTimeoutMs(requestKind);
+  if (isDeepSeekPrimaryCheaperInferenceModel(modelId)) {
+    return resolveBackgroundFlashProviderDeadlines({
+      requestKind,
+      existingTimeoutMs: outer,
+    }).primaryCompletionMs;
+  }
+  return outer;
+}
+
+export function writeRawJson(filename: string, payload: unknown): void {
+  fs.mkdirSync(RAW_DIR, { recursive: true });
+  fs.writeFileSync(path.join(RAW_DIR, filename), JSON.stringify(payload, null, 2), "utf8");
+}
+
+export function createIsolatedCiCaller(
+  modelId: string,
+  hooks?: {
+    onResult?: (raw: string, transport: DirectCallResult) => void;
+  }
+): {
+  caller: (
+    system: string,
+    history: { role: "user" | "assistant"; content: string }[],
+    opts: { requestKind: string; maxTokens?: number; temperature?: number; modelId: string }
+  ) => Promise<{ text: string; usage: { inputTokens: number; outputTokens: number; finishReason?: string | null; reasoningTokens?: number } }>;
+  flags: { deepseekThinkingOff: boolean; lunaReasoningNone: boolean };
+} {
+  let flags = { deepseekThinkingOff: false, lunaReasoningNone: false };
+  const caller = async (
+    system: string,
+    history: { role: "user" | "assistant"; content: string }[],
+    opts: { requestKind: string; maxTokens?: number; temperature?: number; modelId: string }
+  ) => {
+    const userContent = history.filter((m) => m.role === "user").at(-1)?.content ?? "";
+    const timeoutMs = resolveBenchCallTimeoutMs(opts.requestKind, modelId);
+    const result = await benchDirectCheaperInferenceCall({
+      model: modelId,
+      system,
+      userContent,
+      requestKind: opts.requestKind,
+      temperature: opts.temperature ?? 0,
+      maxTokens: opts.maxTokens ?? null,
+      timeoutMs,
+    });
+    flags = {
+      deepseekThinkingOff: result.outboundThinkingOff,
+      lunaReasoningNone: result.outboundReasoningNone,
+    };
+    hooks?.onResult?.(result.text, result);
+    return {
+      text: result.text,
+      usage: {
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+        finishReason: result.finishReason,
+        reasoningTokens: result.reasoningTokens,
+      },
+    };
+  };
+  return { caller, flags };
+}
+
 /** Single CheaperInference call — no OpenRouter fallback, no retry. */
 export async function benchDirectCheaperInferenceCall(opts: {
   model: string;
@@ -84,9 +154,11 @@ export async function benchDirectCheaperInferenceCall(opts: {
   requestKind: string;
   temperature?: number;
   maxTokens?: number | null;
+  timeoutMs?: number;
 }): Promise<DirectCallResult> {
   const started = Date.now();
-  const timeoutMs = resolveOpenRouterCompletionTimeoutMs(opts.requestKind);
+  const timeoutMs =
+    opts.timeoutMs ?? resolveBenchCallTimeoutMs(opts.requestKind, opts.model);
   const maxTokens =
     opts.maxTokens === undefined
       ? resolveBackgroundMaxOutputTokens(opts.requestKind)

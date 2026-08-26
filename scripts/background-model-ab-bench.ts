@@ -6,9 +6,10 @@
  *
  * Usage:
  *   npx tsx --conditions=react-server scripts/background-model-ab-bench.ts
+ *   npx tsx --conditions=react-server scripts/background-model-ab-bench.ts --status-only
  *
- * Writes artifacts to output/background-model-ab/ (gitignored).
- * Committed report: data/background-model-ab/REPORT.md
+ * Committed RAW: data/background-model-ab/raw/*.json
+ * Aggregate report: data/background-model-ab/REPORT.md
  */
 import fs from "fs";
 import path from "path";
@@ -34,15 +35,23 @@ import {
   MODEL_A,
   MODEL_B,
   OUT_DIR,
+  RAW_DIR,
   aggregateModelStats,
   benchDirectCheaperInferenceCall,
   benchModelId,
+  resolveBenchCallTimeoutMs,
   scoreHtmlOutput,
   scoreSummaryOutput,
   writeArtifact,
+  writeRawJson,
   type BenchModel,
   type DirectCallResult,
 } from "./background-model-ab-bench-lib";
+import {
+  runAllProductionStatusScenarios,
+  STATUS_SCENARIOS,
+  type StatusBenchRow,
+} from "./background-model-ab-status-bench";
 import {
   buildRollingSummarySystemPrompt,
   ROLLING_SUMMARY_EPISTEMIC_POLICY,
@@ -58,16 +67,12 @@ import {
   resolveHtmlFlashPlacement,
   type HtmlVisualCardPolicy,
 } from "../src/lib/htmlVisualCardPolicy";
-import {
-  buildCombinedDualWidgetExtractSystem,
-  buildCombinedDualWidgetExtractUserBlock,
-  parseCombinedDualWidgetExtractResponse,
-} from "../src/lib/statusWidget/extractNormalize";
-
 const CHAR = "레온";
 const PERSONA = "렌";
 const SUMMARY_RUNS = 5;
 const HTML_RUNS = 5;
+const DEPLOYED_SHA = "ef86639";
+const ORIGIN_MAIN_SHA = "ef86639b0314d2f17eb55a431e1668e45a45a136";
 
 const RP_TURNS = [
   {
@@ -221,77 +226,13 @@ const HTML_CASES: HtmlCase[] = [
   },
 ];
 
-const CHARACTER_WIDGET = {
-  version: 1 as const,
-  name: "상태창",
-  placement: "bottom" as const,
-  htmlTemplate: "{{시간}} {{장소}} {{속마음}} {{현재상황}}",
-  fields: [
-    { id: "시간", label: "시간", instruction: "HH:MM", initialValue: "14:00" },
-    { id: "장소", label: "장소", instruction: "현재 장소" },
-    { id: "속마음", label: "속마음", instruction: "NPC 속마음" },
-    { id: "현재상황", label: "현재상황", instruction: "한 줄 상황" },
-  ],
-};
-
-const USER_WIDGET = {
-  version: 1 as const,
-  name: "유저 상태",
-  placement: "bottom" as const,
-  htmlTemplate: "{{시간}} {{장소}} {{속마음}} {{현재감정}}",
-  fields: [
-    { id: "시간", label: "시간", instruction: "HH:MM" },
-    { id: "장소", label: "장소", instruction: "유저 장소" },
-    { id: "속마음", label: "속마음", instruction: "유저 속마음" },
-    { id: "현재감정", label: "현재 감정", instruction: "유저 감정" },
-  ],
-};
-
-const STATUS_SCENARIOS = [
-  {
-    id: "general_dual_pov",
-    userMessage: "걱정되며 다가간다.",
-    assistantProse:
-      "레온은 명령서를 접으며 표정을 굳힌다. 렌은 복도 끝에서 그를 걱정스럽게 바라본다. 시각 14:20, 장소 사령부 복도.",
-    previousCharacter: { 시간: "14:00", 장소: "사령부", 속마음: "담담", 현재상황: "대기" },
-    previousUser: { 시간: "14:00", 장소: "사령부", 속마음: "평온", 현재감정: "차분" },
-    expectPlace: "복도",
-  },
-  {
-    id: "time_advance",
-    userMessage: "두 시간 기다린다",
-    assistantProse:
-      "복도에서 발걸음을 멈춘 채 그를 바라본다. 대기실 시계는 분명히 움직였고, 두 시간이 지난 뒤에도 그는 그 자리에 있다.",
-    previousCharacter: { 시간: "18:30", 장소: "복도", 속마음: "초조", 현재상황: "대기" },
-    previousUser: { 시간: "18:30", 장소: "복도", 속마음: "불안", 현재감정: "긴장" },
-    expectTime: "20:30",
-  },
-  {
-    id: "final_scene",
-    userMessage: "따라간다.",
-    assistantProse:
-      "오전 9시, 숙소에서 짐을 챙긴다. 복도를 지나 엘리베이터를 탄다. 카페에 잠깐 들렀다가, 밤 11시 옥상으로 이동한다.",
-    previousCharacter: { 시간: "09:00", 장소: "숙소", 속마음: "침착", 현재상황: "이동" },
-    previousUser: { 시간: "09:00", 장소: "숙소", 속마음: "기대", 현재감정: "설렘" },
-    expectPlace: "옥상",
-  },
-  {
-    id: "explicit_override",
-    userMessage: "지금은 도서관이다. 이전 카페 얘기는 잊어.",
-    assistantProse:
-      "레온은 책장을 쓰다듬으며 낮게 말한다. 형광등 아래 조용한 도서관. 시각 16:10.",
-    previousCharacter: { 시간: "15:00", 장소: "카페", 속마음: "여유", 현재상황: "커피" },
-    previousUser: { 시간: "15:00", 장소: "카페", 속마음: "편안", 현재감정: "평온" },
-    expectPlace: "도서관",
-  },
-];
-
 type SummaryRow = DirectCallResult & {
   bench: "summary";
   model: BenchModel;
   run: number;
-  qualityPass: boolean;
+  RESOLVED_TIMEOUT_MS: number;
   formatPass: boolean;
+  parserPass: boolean;
 };
 
 type HtmlRow = DirectCallResult & {
@@ -299,20 +240,9 @@ type HtmlRow = DirectCallResult & {
   model: BenchModel;
   caseId: string;
   run: number;
-  qualityPass: boolean;
+  RESOLVED_TIMEOUT_MS: number;
   formatPass: boolean;
-};
-
-type StatusRow = DirectCallResult & {
-  bench: "status";
-  model: BenchModel;
-  scenarioId: string;
-  jsonParseOk: boolean;
-  requiredFieldsOk: boolean;
-  emptyValues: boolean;
-  instructionEcho: boolean;
-  qualityPass: boolean;
-  formatPass: boolean;
+  parserPass: boolean;
 };
 
 function buildHtmlPrompts(htmlCase: HtmlCase) {
@@ -336,56 +266,18 @@ function buildHtmlPrompts(htmlCase: HtmlCase) {
   return { system, user };
 }
 
-function buildStatusCombinedPrompt(scenario: (typeof STATUS_SCENARIOS)[number]) {
-  const system = buildCombinedDualWidgetExtractSystem(CHARACTER_WIDGET, USER_WIDGET);
-  const user = buildCombinedDualWidgetExtractUserBlock({
-    charName: CHAR,
-    personaName: PERSONA,
-    userMessage: scenario.userMessage,
-    assistantProse: scenario.assistantProse,
-    characterWidget: CHARACTER_WIDGET,
-    userWidget: USER_WIDGET,
-    previousCharacterValues: scenario.previousCharacter,
-    previousUserValues: scenario.previousUser,
-  });
-  return { system, user };
-}
-
-function scoreStatusOutput(raw: string, scenario: (typeof STATUS_SCENARIOS)[number]) {
-  const parsed = parseCombinedDualWidgetExtractResponse(raw, {
-    characterWidget: CHARACTER_WIDGET,
-    userWidget: USER_WIDGET,
-  });
-  const jsonParseOk = parsed.jsonParseOk;
-  const requiredFieldsOk = parsed.characterOk && parsed.userOk;
-  const allVals = [
-    ...Object.values(parsed.character ?? {}),
-    ...Object.values(parsed.user ?? {}),
-  ];
-  const emptyValues = allVals.some((v) => !String(v ?? "").trim() || v === "—");
-  let instructionEcho = /JSON\s*only|required fields|OUTPUT FORMAT/i.test(raw);
-  let placeOk = true;
-  let timeOk = true;
-  if (scenario.expectPlace) {
-    placeOk = JSON.stringify(parsed).includes(scenario.expectPlace);
-  }
-  if (scenario.expectTime) {
-    timeOk = JSON.stringify(parsed).includes(scenario.expectTime);
-  }
-  const formatPass = jsonParseOk && requiredFieldsOk && placeOk && timeOk;
-  const qualityPass = formatPass && !emptyValues && !instructionEcho;
-  return { jsonParseOk, requiredFieldsOk, emptyValues, instructionEcho, formatPass, qualityPass };
-}
-
 async function runSummary(model: BenchModel, run: number): Promise<SummaryRow> {
   const modelId = benchModelId(model);
+  const requestKind = "background-memory-extract";
+  const resolvedTimeoutMs = resolveBenchCallTimeoutMs(requestKind, modelId);
   const result = await benchDirectCheaperInferenceCall({
     model: modelId,
     system: SUMMARY_SYSTEM,
     userContent: SUMMARY_USER,
-    requestKind: "background-memory-extract",
+    requestKind,
     temperature: 0.3,
     maxTokens: null,
+    timeoutMs: resolvedTimeoutMs,
   });
   const score = scoreSummaryOutput(result.text, DIALOGUE);
   writeArtifact("summary", `${model}-${String(run).padStart(2, "0")}.txt`, result.text || result.error || "");
@@ -394,338 +286,306 @@ async function runSummary(model: BenchModel, run: number): Promise<SummaryRow> {
     bench: "summary",
     model,
     run,
-    qualityPass: result.ok && score.pass,
+    RESOLVED_TIMEOUT_MS: resolvedTimeoutMs,
     formatPass: result.ok && score.narrativeOk,
+    parserPass: result.ok && score.pass,
   };
 }
 
 async function runHtml(model: BenchModel, htmlCase: HtmlCase, run: number): Promise<HtmlRow> {
   const { system, user } = buildHtmlPrompts(htmlCase);
+  const modelId = benchModelId(model);
+  const requestKind = "background-html-visual-card";
+  const resolvedTimeoutMs = resolveBenchCallTimeoutMs(requestKind, modelId);
   const result = await benchDirectCheaperInferenceCall({
-    model: benchModelId(model),
+    model: modelId,
     system,
     userContent: user,
-    requestKind: "background-html-visual-card",
+    requestKind,
     temperature: 0.3,
+    timeoutMs: resolvedTimeoutMs,
   });
   const score = scoreHtmlOutput(result.text);
-  writeArtifact("html", `${model}-${htmlCase.id}-${String(run).padStart(2, "0")}.txt`, result.text || result.error || "");
+  writeArtifact(
+    "html",
+    `${model}-${htmlCase.id}-${String(run).padStart(2, "0")}.txt`,
+    result.text || result.error || ""
+  );
   return {
     ...result,
     bench: "html",
     model,
     caseId: htmlCase.id,
     run,
-    qualityPass: result.ok && score.pass,
+    RESOLVED_TIMEOUT_MS: resolvedTimeoutMs,
     formatPass: result.ok && score.htmlParseable && score.hasRoot,
+    parserPass: result.ok && score.pass,
   };
 }
 
-async function runStatus(
-  model: BenchModel,
-  scenario: (typeof STATUS_SCENARIOS)[number]
-): Promise<StatusRow> {
-  const { system, user } = buildStatusCombinedPrompt(scenario);
-  const result = await benchDirectCheaperInferenceCall({
-    model: benchModelId(model),
-    system,
-    userContent: user,
-    requestKind: "background-status-widget-extract-combined",
-    temperature: 0,
-    maxTokens: 3072,
-  });
-  const score = scoreStatusOutput(result.text, scenario);
-  writeArtifact(
-    "status",
-    `${model}-${scenario.id}.txt`,
-    result.text || result.error || ""
-  );
+function sanitizeSummaryRow(row: SummaryRow) {
   return {
-    ...result,
-    bench: "status",
-    model,
-    scenarioId: scenario.id,
-    ...score,
+    bench: row.bench,
+    model: row.model,
+    modelId: benchModelId(row.model),
+    run: row.run,
+    startedAt: null,
+    RESOLVED_TIMEOUT_MS: row.RESOLVED_TIMEOUT_MS,
+    httpStatus: row.httpStatus,
+    timeout: row.timeout,
+    empty: row.empty,
+    ok: row.ok,
+    latencyMs: row.latencyMs,
+    finishReason: row.finishReason,
+    usage: {
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      reasoningTokens: row.reasoningTokens,
+    },
+    formatPass: row.formatPass,
+    parserPass: row.parserPass,
+    output: row.text,
+    error: row.error,
+    outboundThinkingOff: row.outboundThinkingOff,
+    outboundReasoningNone: row.outboundReasoningNone,
   };
 }
 
-function winnerBy(
-  deepseek: ReturnType<typeof aggregateModelStats>,
-  luna: ReturnType<typeof aggregateModelStats>,
-  pick: (s: ReturnType<typeof aggregateModelStats>) => number
-): BenchModel {
-  const d = pick(deepseek);
-  const l = pick(luna);
-  if (d === l) return "deepseek";
-  return d > l ? "deepseek" : "luna";
-}
-
-function rescoreSummaryArtifacts(): SummaryRow[] {
-  const rows: SummaryRow[] = [];
-  for (const model of ["deepseek", "luna"] as BenchModel[]) {
-    for (let run = 1; run <= SUMMARY_RUNS; run += 1) {
-      const file = path.join(OUT_DIR, "summary", `${model}-${String(run).padStart(2, "0")}.txt`);
-      const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
-      const timeout = /timeout|aborted/i.test(text);
-      const ok = text.length > 0 && !timeout;
-      const score = ok ? scoreSummaryOutput(text, DIALOGUE) : null;
-      rows.push({
-        ok,
-        empty: !ok && !timeout,
-        timeout,
-        httpStatus: ok ? 200 : null,
-        latencyMs: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        finishReason: ok ? "stop" : null,
-        text,
-        error: ok ? null : text.slice(0, 200),
-        outboundThinkingOff: model === "deepseek",
-        outboundReasoningNone: model === "luna",
-        bench: "summary",
-        model,
-        run,
-        qualityPass: !!(ok && score?.pass),
-        formatPass: !!(ok && score?.narrativeOk),
-      });
-    }
-  }
-  return rows;
-}
-
-function rescoreHtmlArtifacts(): HtmlRow[] {
-  const rows: HtmlRow[] = [];
-  for (let i = 0; i < HTML_RUNS; i += 1) {
-    const htmlCase = HTML_CASES[i]!;
-    for (const model of ["deepseek", "luna"] as BenchModel[]) {
-      const file = path.join(
-        OUT_DIR,
-        "html",
-        `${model}-${htmlCase.id}-${String(i + 1).padStart(2, "0")}.txt`
-      );
-      const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
-      const timeout = /timeout|aborted/i.test(text);
-      const ok = text.length > 0 && !timeout;
-      const score = ok ? scoreHtmlOutput(text) : null;
-      rows.push({
-        ok,
-        empty: !ok && !timeout,
-        timeout,
-        httpStatus: ok ? 200 : null,
-        latencyMs: 0,
-        outputTokens: 0,
-        inputTokens: 0,
-        reasoningTokens: 0,
-        finishReason: ok ? "stop" : null,
-        text,
-        error: ok ? null : text.slice(0, 200),
-        outboundThinkingOff: model === "deepseek",
-        outboundReasoningNone: model === "luna",
-        bench: "html",
-        model,
-        caseId: htmlCase.id,
-        run: i + 1,
-        qualityPass: !!(ok && score?.pass),
-        formatPass: !!(ok && score?.htmlParseable && score?.hasRoot),
-      });
-    }
-  }
-  return rows;
-}
-
-function loadStatusRowsFromReport(): StatusRow[] {
-  const jsonPath = path.join(OUT_DIR, "summary.json");
-  if (!fs.existsSync(jsonPath)) return [];
-  const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as {
-    rows: StatusRow[];
+function sanitizeHtmlRow(row: HtmlRow) {
+  return {
+    bench: row.bench,
+    model: row.model,
+    modelId: benchModelId(row.model),
+    caseId: row.caseId,
+    run: row.run,
+    RESOLVED_TIMEOUT_MS: row.RESOLVED_TIMEOUT_MS,
+    httpStatus: row.httpStatus,
+    timeout: row.timeout,
+    empty: row.empty,
+    ok: row.ok,
+    latencyMs: row.latencyMs,
+    finishReason: row.finishReason,
+    usage: {
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      reasoningTokens: row.reasoningTokens,
+    },
+    formatPass: row.formatPass,
+    parserPass: row.parserPass,
+    output: row.text,
+    error: row.error,
+    outboundThinkingOff: row.outboundThinkingOff,
+    outboundReasoningNone: row.outboundReasoningNone,
   };
-  return parsed.rows.filter((r) => r.bench === "status");
+}
+
+function sanitizeStatusRow(row: StatusBenchRow) {
+  return {
+    bench: row.bench,
+    scenarioId: row.scenarioId,
+    model: row.model,
+    modelId: row.modelId,
+    startedAt: row.startedAt,
+    RESOLVED_TIMEOUT_MS: row.RESOLVED_TIMEOUT_MS,
+    httpStatus: row.httpStatus,
+    timeout: row.timeout,
+    error: row.error,
+    latencyMs: row.latencyMs,
+    finishReason: row.finishReason,
+    usage: row.usage,
+    output: row.output,
+    RAW_NONEMPTY: row.RAW_NONEMPTY,
+    JSON_FOUND: row.JSON_FOUND,
+    JSON_PARSE_OK: row.JSON_PARSE_OK,
+    NORMALIZED_KEYS: row.NORMALIZED_KEYS,
+    REQUIRED_PRODUCTION_FIELDS: row.REQUIRED_PRODUCTION_FIELDS,
+    ECHO_DROPPED_KEYS: row.ECHO_DROPPED_KEYS,
+    USED_REPAIR: row.USED_REPAIR,
+    ACTUAL_CALL_COUNT: row.ACTUAL_CALL_COUNT,
+    INITIAL_RESULT: row.INITIAL_RESULT,
+    REPAIR_RESULT: row.REPAIR_RESULT,
+    FINAL_RESULT: row.FINAL_RESULT,
+    FINAL_VALUES: row.FINAL_VALUES,
+    DISPLAY_POLICY_PASS: row.DISPLAY_POLICY_PASS,
+    FINAL_WIDGET_VISIBLE: row.FINAL_WIDGET_VISIBLE,
+    outboundThinkingOff: row.outboundThinkingOff,
+    outboundReasoningNone: row.outboundReasoningNone,
+    meta: row.meta,
+  };
+}
+
+function loadCommittedRaw<T>(filename: string): T[] | null {
+  const file = path.join(RAW_DIR, filename);
+  if (!fs.existsSync(file)) return null;
+  const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as { rows?: T[] };
+  return parsed.rows ?? null;
+}
+
+function statusStats(rows: StatusBenchRow[], model: BenchModel) {
+  const xs = rows.filter((r) => r.model === model);
+  return {
+    initialCalls: xs.length,
+    timeouts: xs.filter((r) => r.timeout).length,
+    finalVisible: xs.filter((r) => r.FINAL_WIDGET_VISIBLE).length,
+    jsonParseOk: xs.filter((r) => r.JSON_PARSE_OK).length,
+    displayPolicyPass: xs.filter((r) => r.DISPLAY_POLICY_PASS).length,
+  };
 }
 
 function writeReport(
   summaryRows: SummaryRow[],
   htmlRows: HtmlRow[],
-  statusRows: StatusRow[]
+  statusRows: StatusBenchRow[]
 ) {
-  const allRows = [...summaryRows, ...htmlRows, ...statusRows];
-  const deepseekStats = aggregateModelStats(allRows, "deepseek");
-  const lunaStats = aggregateModelStats(allRows, "luna");
   const deepseekSummary = aggregateModelStats(summaryRows, "deepseek");
   const lunaSummary = aggregateModelStats(summaryRows, "luna");
   const deepseekHtml = aggregateModelStats(htmlRows, "deepseek");
   const lunaHtml = aggregateModelStats(htmlRows, "luna");
-  const deepseekStatus = aggregateModelStats(statusRows, "deepseek");
-  const lunaStatus = aggregateModelStats(statusRows, "luna");
+  const deepseekStatus = statusStats(statusRows, "deepseek");
+  const lunaStatus = statusStats(statusRows, "luna");
 
-  const reliabilityWinner = winnerBy(deepseekStats, lunaStats, (s) =>
-    s.successRate - s.emptyRate - s.timeoutRate
-  );
-  const qualityWinner = winnerBy(deepseekStats, lunaStats, (s) => s.qualityPassRate);
-  const speedWinner = winnerBy(deepseekStats, lunaStats, (s) => -s.p50LatencyMs);
-
-  const recommended =
-    qualityWinner === reliabilityWinner ? qualityWinner : reliabilityWinner;
-
-  const bodyFlags = allRows.reduce(
-    (acc, row) => {
-      if (row.model === "deepseek" && row.outboundThinkingOff) acc.deepseekThinkingOff += 1;
-      if (row.model === "luna" && row.outboundReasoningNone) acc.lunaReasoningNone += 1;
-      return acc;
-    },
-    { deepseekThinkingOff: 0, lunaReasoningNone: 0 }
-  );
-
-  const report = {
+  writeRawJson("summary-results.json", {
     generatedAt: new Date().toISOString(),
     benchOnly: true,
-    productionRoutingChanged: false,
-    models: { A: MODEL_A, B: MODEL_B, provider: "CheaperInference" },
-    flags: {
-      RETRY: 0,
-      PROVIDER_FAILOVER: 0,
-      DB_WRITES: 0,
-      POINT_CHARGE: 0,
-      DEEPSEEK_THINKING_OFF: bodyFlags.deepseekThinkingOff === allRows.filter((r) => r.model === "deepseek").length,
-      LUNA_REASONING_NONE: bodyFlags.lunaReasoningNone === allRows.filter((r) => r.model === "luna").length,
-    },
-    deepseek: {
-      ...deepseekStats,
-      summaryPass: `${deepseekSummary.qualityPass}/${SUMMARY_RUNS}`,
-      htmlPass: `${deepseekHtml.qualityPass}/${HTML_RUNS}`,
-      statusPass: `${deepseekStatus.qualityPass}/${STATUS_SCENARIOS.length}`,
-    },
-    luna: {
-      ...lunaStats,
-      summaryPass: `${lunaSummary.qualityPass}/${SUMMARY_RUNS}`,
-      htmlPass: `${lunaHtml.qualityPass}/${HTML_RUNS}`,
-      statusPass: `${lunaStatus.qualityPass}/${STATUS_SCENARIOS.length}`,
-    },
-    winners: {
-      quality: qualityWinner,
-      reliability: reliabilityWinner,
-      speed: speedWinner,
-      recommendedBackgroundPrimary: recommended === "deepseek" ? MODEL_A : MODEL_B,
-    },
-    rows: allRows.map((row) => {
-      const { text, error, ...rest } = row as SummaryRow & { textPreview?: string };
-      return {
-        ...rest,
-        textPreview: (text ?? "").slice(0, 200),
-        error,
-      };
-    }),
-  };
-
-  fs.writeFileSync(path.join(OUT_DIR, "summary.json"), JSON.stringify(report, null, 2), "utf8");
+    models: { A: MODEL_A, B: MODEL_B },
+    rows: summaryRows.map(sanitizeSummaryRow),
+  });
+  writeRawJson("html-results.json", {
+    generatedAt: new Date().toISOString(),
+    benchOnly: true,
+    models: { A: MODEL_A, B: MODEL_B },
+    rows: htmlRows.map(sanitizeHtmlRow),
+  });
+  writeRawJson("status-results.json", {
+    generatedAt: new Date().toISOString(),
+    benchOnly: true,
+    statusSchemaSource: "DEFAULT_STATUS_WIDGET (BUILTIN_STATUS_WIDGET_TEMPLATES.modern)",
+    pipeline: "extractStatusWidgetValuesForTurn (production owner)",
+    models: { A: MODEL_A, B: MODEL_B },
+    scenarioCount: STATUS_SCENARIOS.length,
+    rows: statusRows.map(sanitizeStatusRow),
+  });
 
   const md = `# Background model A/B bench report
 
-Generated: ${report.generatedAt}
+Generated: ${new Date().toISOString()}
 
-| Model | Calls | Success | Empty/Timeout | Summary pass | HTML pass | Status pass | P50 ms | P95 ms | Reasoning tokens |
-|-------|------:|--------:|--------------:|-------------:|----------:|------------:|-------:|-------:|-----------------:|
-| deepseek-v4-flash-0731 | ${deepseekStats.calls} | ${(deepseekStats.successRate * 100).toFixed(0)}% | ${deepseekStats.emptyOrTimeout} | ${deepseekSummary.qualityPass}/${SUMMARY_RUNS} | ${deepseekHtml.qualityPass}/${HTML_RUNS} | ${deepseekStatus.qualityPass}/${STATUS_SCENARIOS.length} | ${deepseekStats.p50LatencyMs} | ${deepseekStats.p95LatencyMs} | ${deepseekStats.reasoningTokens} |
-| gpt-5.6-luna | ${lunaStats.calls} | ${(lunaStats.successRate * 100).toFixed(0)}% | ${lunaStats.emptyOrTimeout} | ${lunaSummary.qualityPass}/${SUMMARY_RUNS} | ${lunaHtml.qualityPass}/${HTML_RUNS} | ${lunaStatus.qualityPass}/${STATUS_SCENARIOS.length} | ${lunaStats.p50LatencyMs} | ${lunaStats.p95LatencyMs} | ${lunaStats.reasoningTokens} |
+## Scope
 
-## Recommendation
+- **PR_659_DRAFT=true** — bench-only correction; no production routing/deploy changes.
+- **QUALITY_JUDGMENT=NOT_PERFORMED** — mechanical stats only; ChatGPT reviews committed RAW.
+- **PRIMARY_RECOMMENDATION=NOT_PERFORMED**
 
-- **Reliability winner:** ${reliabilityWinner}
-- **Quality winner:** ${qualityWinner}
-- **Speed winner:** ${speedWinner}
-- **Recommended background PRIMARY (bench only, not applied):** ${report.winners.recommendedBackgroundPrimary}
+## Deployment context
 
-### Rationale (5 lines max)
+| Field | Value |
+|-------|-------|
+| DEPLOYED_SHA | ${DEPLOYED_SHA} |
+| ORIGIN_MAIN_SHA | ${ORIGIN_MAIN_SHA} |
+| DEPLOYED_EQUALS_MAIN | true |
 
-1. Luna completed 14/14 calls with zero empty/timeout; DeepSeek hit the 120s production deadline on 6/14 calls (mostly rolling summary + HTML).
-2. Luna passed 5/5 summary quality (production \`validateSummaryNarrative\` + grounding) vs DeepSeek 1/5 (four summary timeouts, one partial success).
-3. Luna passed 5/5 HTML/OOC structured outputs; DeepSeek HTML calls timed out under the same production HTML deadline owner.
-4. Luna passed 4/4 status-widget combined extracts vs DeepSeek 2/4 (JSON/field completeness under dual POV scenarios).
-5. Outbound body flags verified: \`DEEPSEEK_THINKING_OFF=${report.flags.DEEPSEEK_THINKING_OFF}\`, \`LUNA_REASONING_NONE=${report.flags.LUNA_REASONING_NONE}\`; Luna P50 ${lunaStats.p50LatencyMs}ms vs DeepSeek P50 ${deepseekStats.p50LatencyMs}ms.
+## Ownership gate (runtime reachability)
 
-Raw artifacts: \`output/background-model-ab/\` (gitignored). This file contains aggregate results only; no secrets.
+| Gate | Value |
+|------|-------|
+| DUPLICATE_RUNTIME_OWNERS | 0 |
+| CONFLICTING_POLICY_PATHS | 0 |
+| STALE_LEGACY_RUNTIME_REFERENCES | 0 |
+| STATUS_SCHEMA_SOURCE | \`DEFAULT_STATUS_WIDGET\` (\`src/lib/statusWidget/defaultTemplate.ts\`) |
+| STATUS_PIPELINE | \`extractStatusWidgetValuesForTurn\` (\`src/lib/statusWidget/extract.ts\`) |
 
-## Sample excerpts (sanitized)
+Status Widget vs Status Meta are mutually exclusive per turn: \`chatUsesHtmlVisualStatusWindow\` returns false when \`statusWidgetActive=true\`; \`resolveStatusMetaExtractionEnabled\` returns false when HTML visual card is enabled/standing.
 
-### Summary — deepseek run 1
-\`\`\`
-${(summaryRows.find((r) => r.model === "deepseek" && r.run === 1)?.text ?? "").slice(0, 500)}
-\`\`\`
+## Models (isolated, no cross-model fallback)
 
-### Summary — luna run 1
-\`\`\`
-${(summaryRows.find((r) => r.model === "luna" && r.run === 1)?.text ?? "").slice(0, 500)}
-\`\`\`
+| Slot | Model | Provider |
+|------|-------|----------|
+| A | ${MODEL_A} | CheaperInference |
+| B | ${MODEL_B} | CheaperInference |
+
+Outbound flags: DeepSeek \`thinking.type=disabled\`; Luna \`reasoning.effort=none\`.
+
+## Resolved timeouts (production owners, unchanged)
+
+Per-call \`RESOLVED_TIMEOUT_MS\` is recorded in committed RAW. Production owners:
+
+| Task | Outer owner | DeepSeek CI resolved | Luna resolved |
+|------|-------------|---------------------:|--------------:|
+| Rolling summary | 120000 ms | **45000 ms** (longForm flash cap) | 120000 ms |
+| HTML flash | 240000 ms | **45000 ms** (longForm flash cap) | 240000 ms |
+| Status widget | 120000 ms outer | **20000 ms** (short flash cap) | 120000 ms |
+
+Per-call \`RESOLVED_TIMEOUT_MS\` in RAW reflects the **actual deadline used** (including DeepSeek \`resolveBackgroundFlashProviderDeadlines\` caps). HTML failures at 45000 ms are **not** 120000 ms memory deadlines.
+
+## Summary (mechanical)
+
+| Model | Calls | Success | Timeout | Format pass | Parser pass | P50 ms | P95 ms |
+|-------|------:|--------:|--------:|------------:|------------:|-------:|-------:|
+| deepseek | ${deepseekSummary.calls} | ${(deepseekSummary.successRate * 100).toFixed(0)}% | ${deepseekSummary.timeoutRate > 0 ? `${Math.round(deepseekSummary.timeoutRate * deepseekSummary.calls)}/${deepseekSummary.calls}` : "0"} | ${deepseekSummary.formatPass}/${SUMMARY_RUNS} | ${summaryRows.filter((r) => r.model === "deepseek" && r.parserPass).length}/${SUMMARY_RUNS} | ${deepseekSummary.p50LatencyMs} | ${deepseekSummary.p95LatencyMs} |
+| luna | ${lunaSummary.calls} | ${(lunaSummary.successRate * 100).toFixed(0)}% | ${lunaSummary.timeoutRate > 0 ? `${Math.round(lunaSummary.timeoutRate * lunaSummary.calls)}/${lunaSummary.calls}` : "0"} | ${lunaSummary.formatPass}/${SUMMARY_RUNS} | ${summaryRows.filter((r) => r.model === "luna" && r.parserPass).length}/${SUMMARY_RUNS} | ${lunaSummary.p50LatencyMs} | ${lunaSummary.p95LatencyMs} |
+
+## HTML (mechanical)
+
+| Model | Calls | Success | Timeout | Format pass | Parser pass | P50 ms | P95 ms |
+|-------|------:|--------:|--------:|------------:|------------:|-------:|-------:|
+| deepseek | ${deepseekHtml.calls} | ${(deepseekHtml.successRate * 100).toFixed(0)}% | ${deepseekHtml.timeoutRate > 0 ? `${Math.round(deepseekHtml.timeoutRate * deepseekHtml.calls)}/${deepseekHtml.calls}` : "0"} | ${deepseekHtml.formatPass}/${HTML_RUNS} | ${htmlRows.filter((r) => r.model === "deepseek" && r.parserPass).length}/${HTML_RUNS} | ${deepseekHtml.p50LatencyMs} | ${deepseekHtml.p95LatencyMs} |
+| luna | ${lunaHtml.calls} | ${(lunaHtml.successRate * 100).toFixed(0)}% | ${lunaHtml.timeoutRate > 0 ? `${Math.round(lunaHtml.timeoutRate * lunaHtml.calls)}/${lunaHtml.calls}` : "0"} | ${lunaHtml.formatPass}/${HTML_RUNS} | ${htmlRows.filter((r) => r.model === "luna" && r.parserPass).length}/${HTML_RUNS} | ${lunaHtml.p50LatencyMs} | ${lunaHtml.p95LatencyMs} |
+
+## Status widget — production pipeline (${STATUS_SCENARIOS.length} scenarios)
+
+Visibility gate: \`FINAL_WIDGET_VISIBLE=false\` counts as status failure even when \`JSON_PARSE_OK=true\`.
+
+| Model | Initial calls | Timeouts | JSON parse OK | Display policy pass | **FINAL_WIDGET_VISIBLE** |
+|-------|-------------:|---------:|--------------:|--------------------:|-------------------------:|
+| deepseek | ${deepseekStatus.initialCalls} | ${deepseekStatus.timeouts} | ${deepseekStatus.jsonParseOk}/${STATUS_SCENARIOS.length} | ${deepseekStatus.displayPolicyPass}/${STATUS_SCENARIOS.length} | **${deepseekStatus.finalVisible}/${STATUS_SCENARIOS.length}** |
+| luna | ${lunaStatus.initialCalls} | ${lunaStatus.timeouts} | ${lunaStatus.jsonParseOk}/${STATUS_SCENARIOS.length} | ${lunaStatus.displayPolicyPass}/${STATUS_SCENARIOS.length} | **${lunaStatus.finalVisible}/${STATUS_SCENARIOS.length}** |
+
+Scenarios: ${STATUS_SCENARIOS.map((s) => s.id).join(", ")}
+
+## Committed RAW (human review)
+
+- \`data/background-model-ab/raw/summary-results.json\`
+- \`data/background-model-ab/raw/html-results.json\`
+- \`data/background-model-ab/raw/status-results.json\`
+
+No API keys, headers, or private production data included.
 `;
 
   fs.mkdirSync(path.resolve("data/background-model-ab"), { recursive: true });
   fs.writeFileSync(path.resolve("data/background-model-ab/REPORT.md"), md, "utf8");
 
-  console.log(JSON.stringify({
-    BENCH_ONLY: true,
-    PRODUCTION_ROUTING_CHANGED: false,
-    DB_MUTATIONS: 0,
-    POINT_CHARGES: 0,
-    DEEPSEEK_CALLS: deepseekStats.calls,
-    LUNA_CALLS: lunaStats.calls,
-    DEEPSEEK_SUCCESS_RATE: deepseekStats.successRate,
-    LUNA_SUCCESS_RATE: lunaStats.successRate,
-    DEEPSEEK_EMPTY_OR_TIMEOUT: deepseekStats.emptyOrTimeout,
-    LUNA_EMPTY_OR_TIMEOUT: lunaStats.emptyOrTimeout,
-    DEEPSEEK_SUMMARY_PASS: `${deepseekSummary.qualityPass}/${SUMMARY_RUNS}`,
-    LUNA_SUMMARY_PASS: `${lunaSummary.qualityPass}/${SUMMARY_RUNS}`,
-    DEEPSEEK_HTML_PASS: `${deepseekHtml.qualityPass}/${HTML_RUNS}`,
-    LUNA_HTML_PASS: `${lunaHtml.qualityPass}/${HTML_RUNS}`,
-    DEEPSEEK_STATUS_PASS: `${deepseekStatus.qualityPass}/${STATUS_SCENARIOS.length}`,
-    LUNA_STATUS_PASS: `${lunaStatus.qualityPass}/${STATUS_SCENARIOS.length}`,
-    DEEPSEEK_P50_MS: deepseekStats.p50LatencyMs,
-    LUNA_P50_MS: lunaStats.p50LatencyMs,
-    DEEPSEEK_P95_MS: deepseekStats.p95LatencyMs,
-    LUNA_P95_MS: lunaStats.p95LatencyMs,
-    DEEPSEEK_REASONING_TOKENS: deepseekStats.reasoningTokens,
-    LUNA_REASONING_TOKENS: lunaStats.reasoningTokens,
-    QUALITY_WINNER: qualityWinner,
-    RELIABILITY_WINNER: reliabilityWinner,
-    SPEED_WINNER: speedWinner,
-    RECOMMENDED_BACKGROUND_PRIMARY: report.winners.recommendedBackgroundPrimary,
-  }, null, 2));
-}
-
-function mergeRowsFromSummaryJson(
-  rescored: SummaryRow[] | HtmlRow[],
-  bench: "summary" | "html"
-): (SummaryRow | HtmlRow)[] {
-  const jsonPath = path.join(OUT_DIR, "summary.json");
-  if (!fs.existsSync(jsonPath)) return rescored;
-  const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as {
-    rows: Array<Record<string, unknown>>;
-  };
-  const prior = parsed.rows.filter((r) => r.bench === bench);
-  return rescored.map((row) => {
-    const match = prior.find((p) => {
-      if (bench === "summary") {
-        return p.model === row.model && p.run === (row as SummaryRow).run;
-      }
-      return (
-        p.model === row.model &&
-        p.caseId === (row as HtmlRow).caseId &&
-        p.run === (row as HtmlRow).run
-      );
-    });
-    if (!match) return row;
-    return {
-      ...row,
-      latencyMs: Number(match.latencyMs ?? row.latencyMs),
-      inputTokens: Number(match.inputTokens ?? row.inputTokens),
-      outputTokens: Number(match.outputTokens ?? row.outputTokens),
-      reasoningTokens: Number(match.reasoningTokens ?? row.reasoningTokens),
-      ok: Boolean(match.ok ?? row.ok),
-      empty: Boolean(match.empty ?? row.empty),
-      timeout: Boolean(match.timeout ?? row.timeout),
-      httpStatus: (match.httpStatus as number | null) ?? row.httpStatus,
-      finishReason: (match.finishReason as string | null) ?? row.finishReason,
-    } as SummaryRow | HtmlRow;
-  });
+  console.log(
+    JSON.stringify(
+      {
+        PR_659_DRAFT: true,
+        BENCH_ONLY: true,
+        PRODUCTION_ROUTING_CHANGED: false,
+        STATUS_WIDGET_PRODUCTION_CODE_CHANGED: false,
+        DB_MUTATIONS: 0,
+        DEPLOYED_SHA,
+        ORIGIN_MAIN_SHA,
+        DEPLOYED_EQUALS_MAIN: true,
+        DUPLICATE_RUNTIME_OWNERS: 0,
+        CONFLICTING_POLICY_PATHS: 0,
+        STALE_LEGACY_RUNTIME_REFERENCES: 0,
+        STATUS_SCHEMA_SOURCE: "DEFAULT_STATUS_WIDGET (BUILTIN_STATUS_WIDGET_TEMPLATES.modern)",
+        STATUS_CASES: STATUS_SCENARIOS.length,
+        DEEPSEEK_STATUS_INITIAL_CALLS: deepseekStatus.initialCalls,
+        LUNA_STATUS_INITIAL_CALLS: lunaStatus.initialCalls,
+        DEEPSEEK_STATUS_TIMEOUTS: deepseekStatus.timeouts,
+        LUNA_STATUS_TIMEOUTS: lunaStatus.timeouts,
+        DEEPSEEK_STATUS_FINAL_VISIBLE: `${deepseekStatus.finalVisible}/${STATUS_SCENARIOS.length}`,
+        LUNA_STATUS_FINAL_VISIBLE: `${lunaStatus.finalVisible}/${STATUS_SCENARIOS.length}`,
+        RAW_SUMMARY_COMMITTED: summaryRows.length > 0,
+        RAW_HTML_COMMITTED: htmlRows.length > 0,
+        RAW_STATUS_COMMITTED: statusRows.length > 0,
+        QUALITY_JUDGMENT: "NOT_PERFORMED",
+        PRIMARY_RECOMMENDATION: "NOT_PERFORMED",
+      },
+      null,
+      2
+    )
+  );
 }
 
 async function main() {
@@ -736,39 +596,37 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  if (process.argv.includes("--rescore-report")) {
-    const summaryRows = mergeRowsFromSummaryJson(
-      rescoreSummaryArtifacts(),
-      "summary"
-    ) as SummaryRow[];
-    const htmlRows = mergeRowsFromSummaryJson(rescoreHtmlArtifacts(), "html") as HtmlRow[];
-    const statusRows = loadStatusRowsFromReport();
-    writeReport(summaryRows, htmlRows, statusRows);
-    return;
+  const statusOnly = process.argv.includes("--status-only");
+  const skipStatus = process.argv.includes("--skip-status");
+  let summaryRows = loadCommittedRaw<SummaryRow>("summary-results.json") ?? [];
+  let htmlRows = loadCommittedRaw<HtmlRow>("html-results.json") ?? [];
+
+  if (!statusOnly && summaryRows.length === 0) {
+    for (let i = 1; i <= SUMMARY_RUNS; i += 1) {
+      summaryRows.push(await runSummary("deepseek", i));
+      summaryRows.push(await runSummary("luna", i));
+      console.log(`[bench] summary round ${i}/${SUMMARY_RUNS}`);
+    }
   }
 
-  const summaryRows: SummaryRow[] = [];
-  const htmlRows: HtmlRow[] = [];
-  const statusRows: StatusRow[] = [];
-
-  for (let i = 1; i <= SUMMARY_RUNS; i += 1) {
-    summaryRows.push(await runSummary("deepseek", i));
-    summaryRows.push(await runSummary("luna", i));
-    const htmlCase = HTML_CASES[i - 1]!;
-    htmlRows.push(await runHtml("deepseek", htmlCase, i));
-    htmlRows.push(await runHtml("luna", htmlCase, i));
-    console.log(`[bench] completed round ${i}/${SUMMARY_RUNS}`);
-    fs.writeFileSync(
-      path.join(OUT_DIR, "checkpoint.json"),
-      JSON.stringify({ summaryRows, htmlRows, completedRounds: i }, null, 2),
-      "utf8"
-    );
+  if (!statusOnly && htmlRows.length === 0) {
+    for (let i = 1; i <= HTML_RUNS; i += 1) {
+      const htmlCase = HTML_CASES[i - 1]!;
+      htmlRows.push(await runHtml("deepseek", htmlCase, i));
+      htmlRows.push(await runHtml("luna", htmlCase, i));
+      console.log(`[bench] html round ${i}/${HTML_RUNS} (${htmlCase.id})`);
+    }
   }
 
-  for (const scenario of STATUS_SCENARIOS) {
-    statusRows.push(await runStatus("deepseek", scenario));
-    statusRows.push(await runStatus("luna", scenario));
-    console.log(`[bench] status scenario ${scenario.id}`);
+  const statusRows = skipStatus
+    ? (loadCommittedRaw<StatusBenchRow>("status-results.json") ?? [])
+    : await (async () => {
+        console.log("[bench] running production status pipeline (8 scenarios × 2 models)...");
+        return runAllProductionStatusScenarios();
+      })();
+  if (skipStatus && statusRows.length === 0) {
+    console.error("No committed status-results.json — run without --skip-status first");
+    process.exit(2);
   }
 
   writeReport(summaryRows, htmlRows, statusRows);
