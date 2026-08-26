@@ -124,6 +124,23 @@ export const BACKGROUND_OPENROUTER_MODEL = resolveBackgroundPrimaryModelId(
 );
 
 /**
+ * Creative OOC HTML primary — task-specific owner (default Luna).
+ * Does not inherit BACKGROUND_MEMORY_MODEL when unset.
+ */
+export function resolveBackgroundCreativeHtmlPrimaryModelId(
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  const raw = env.BACKGROUND_CREATIVE_HTML_MODEL?.trim();
+  if (!raw) return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  if (isHistoricalBackgroundPrimaryDeepSeekAlias(raw)) {
+    return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  }
+  return resolveBackgroundTextModelId(raw);
+}
+
+export const BACKGROUND_CREATIVE_HTML_MODEL = resolveBackgroundCreativeHtmlPrimaryModelId();
+
+/**
  * Optional cross-model fallback after primary background calls fail.
  * Explicit fallback ids keep their vendor (DeepSeek stays DeepSeek).
  * Same resolved model as primary is replaced by OpenRouter DeepSeek V4 Flash

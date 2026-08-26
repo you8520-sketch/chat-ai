@@ -1,6 +1,7 @@
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 import { extractFocusZoneNote, parseUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { RP_STOP_OR_FLASH_ONLY } from "@/lib/oocHtmlTurnPatterns";
+import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
 import {
   resolveStatusWindowPlacementFromSources,
   type StatusWindowPlacementSources,
@@ -417,9 +418,9 @@ export function stripHtmlStatusWindowTitleBanner(inner: string): string {
   return t.replace(/^(?:\s|<br\s*\/?>)+/i, "").trim();
 }
 
-/** inner HTML — 배너 제거 등 Flash 후처리 */
+/** inner HTML — 배너 제거·문서 래퍼 정규화 등 Flash 후처리 */
 export function polishHtmlVisualCardInner(inner: string): string {
-  return stripHtmlStatusWindowTitleBanner(inner.trim());
+  return stripHtmlStatusWindowTitleBanner(stripLeakedDocumentMarkup(inner.trim()));
 }
 
 /** 서버 fallback·Flash가 복사한 **구형** 상태창 템플릿 — OOC·구템플릿 거부 */
@@ -505,14 +506,42 @@ export function oocRequestsAnonymousInbox(userMessage: string): boolean {
   );
 }
 
+/** Explicit OOC content count — never inferred from UI type (inbox/twitter/etc). */
+export function parseOocExplicitItemCount(userMessage: string): number | null {
+  const t = userMessage.trim();
+  if (!t) return null;
+
+  const msgCount = t.match(/(?:익명\s*)?메(?:시지|일)[\s\S]{0,40}?(\d+)\s*개/i);
+  if (msgCount) return Math.max(1, parseInt(msgCount[1]!, 10));
+
+  const qaCount = t.match(/(?:질문|답변)[\s\S]{0,30}?(\d+)\s*개/i);
+  if (qaCount) return Math.max(1, parseInt(qaCount[1]!, 10));
+
+  if (/(?:메(?:시지|일)|질문|답변)[\s\S]{0,24}?(?:1\s*개|하나)(?:만|만\s*표시)?/i.test(t)) {
+    return 1;
+  }
+
+  const qLines = (t.match(/(?:^|\n)\s*Q\d*[:：]/gim) ?? []).length;
+  const aLines = (t.match(/(?:^|\n)\s*A\d*[:：]/gim) ?? []).length;
+  if (qLines > 0 && aLines > 0) return Math.max(qLines, aLines);
+  if (qLines > 0) return qLines;
+  if (aLines > 0) return aLines;
+
+  return null;
+}
+
+/** Minimum Q/A or message pairs required by explicit OOC wording (0 = use plain-char threshold only). */
+export function resolveOocRequiredContentPairs(userMessage: string): number {
+  return parseOocMinQaCount(userMessage) ?? parseOocExplicitItemCount(userMessage) ?? 0;
+}
+
 /** OOC 커스텀 HTML — 프로필/헤더만 있고 본문(Q&A·메시지)이 빈 경우 거부 */
 export function isOocCreativeHtmlRichEnough(inner: string, userMessage = ""): boolean {
   const plain = visiblePlainFromHtmlInner(inner);
   if (plain.length < 240) return false;
 
   const minQa = parseOocMinQaCount(userMessage);
-  const inbox = oocRequestsAnonymousInbox(userMessage);
-  const requiredPairs = minQa ?? (inbox ? 5 : 0);
+  const requiredPairs = minQa ?? parseOocExplicitItemCount(userMessage) ?? 0;
 
   if (requiredPairs <= 0) {
     return plain.length >= resolveOocMinPlainChars(userMessage);
