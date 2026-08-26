@@ -20,6 +20,16 @@ export function isLiveTurnCinematicMotion(
   );
 }
 
+/** Hide process timer for cinematic handoff unless sequential AI reveal still owns the row. */
+export function shouldHideProcessTimerForPresentation(opts: {
+  cinematicMotion: boolean;
+  presentationStarting: boolean;
+  sequentialActionRevealPending: boolean;
+}): boolean {
+  if (opts.sequentialActionRevealPending) return false;
+  return opts.cinematicMotion || opts.presentationStarting;
+}
+
 export function liveTurnProcessStage(opts: {
   waitingOpening: boolean;
   narrationRerolling: boolean;
@@ -30,10 +40,19 @@ export function liveTurnProcessStage(opts: {
   presentationStarting: boolean;
   gmTextReady: boolean;
   botGenerationInFlight?: boolean;
+  sequentialActionRevealPending?: boolean;
 }): LiveTurnProcessStage {
   if (opts.waitingOpening) return "opening";
   if (opts.narrationRerolling) return "reroll";
-  if (opts.cinematicMotion || opts.presentationStarting) return "none";
+  if (
+    shouldHideProcessTimerForPresentation({
+      cinematicMotion: opts.cinematicMotion,
+      presentationStarting: opts.presentationStarting,
+      sequentialActionRevealPending: opts.sequentialActionRevealPending === true,
+    })
+  ) {
+    return "none";
+  }
   if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return "none";
   if (opts.workType === "wait_humans" && opts.viewerLocked) return "wait_humans";
   if (opts.workType === "generate_bots" || opts.botGenerationInFlight) return "bots";
@@ -46,6 +65,7 @@ export function liveTurnProcessStage(opts: {
     return "rolls";
   }
   if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return "gm";
+  if (opts.sequentialActionRevealPending) return "bots";
   return "none";
 }
 
@@ -59,8 +79,10 @@ export function isLiveTurnProcessing(opts: {
   presentationStarting: boolean;
   gmTextReady: boolean;
   botGenerationInFlight?: boolean;
+  sequentialActionRevealPending?: boolean;
 }): boolean {
   if (opts.waitingOpening || opts.narrationRerolling) return true;
+  if (opts.sequentialActionRevealPending) return true;
   if (opts.presentationStarting || opts.cinematicMotion) return true;
   if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return true;
   if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return false;
