@@ -11,6 +11,11 @@ import {
   stabilizeStreamingNovelParagraphs,
 } from "@/lib/novelParagraphs";
 import { splitTrpgGmProseForAssets } from "@/lib/trpg/trpgTaggedProse";
+import {
+  classifyTrpgSceneBeatKind,
+  trpgSceneBeatSpacingClass,
+} from "@/lib/trpg/gmSceneBeatSpacing";
+import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 
 const GM_GAP = "mt-[calc(1em*var(--chat-paragraph-gap-scale,1))]";
 
@@ -126,6 +131,8 @@ describe("TRPG GM prose renderer ownership", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /paragraphSpacingMode="gm"/);
     assert.match(room, /streaming=\{revealNarration\}/);
+    assert.match(room, /trpgSceneBeatSpacingClass/);
+    assert.match(room, /data-trpg-scene-beat/);
   });
 
   it("uses AI paragraph grouping for GM scene beats, not author mode", () => {
@@ -136,5 +143,66 @@ describe("TRPG GM prose renderer ownership", () => {
     assert.equal(aiGrouped.length, 2);
     assert.equal(classifyNovelParagraph(aiGrouped[0]!), "narration");
     assert.equal(classifyNovelParagraph(aiGrouped[1]!), "dialogue");
+  });
+});
+
+describe("TRPG GM scene beat inter-beat spacing (parseTrpgSceneSpeech → SceneTurn)", () => {
+  const fixture = `서술 문단 1
+
+서술 문단 2
+
+태현: "대사 1"
+
+이현: "대사 2"
+
+서술 문단 3`;
+
+  const knownNames = ["태현", "이현"];
+
+  it("H: parseTrpgSceneSpeech yields multiple beats for blank-line-separated GM prose", () => {
+    const beats = parseTrpgSceneSpeech(fixture, knownNames);
+    assert.ok(beats.length > 1);
+    assert.equal(beats.length, 5);
+    assert.equal(beats[0]!.speaker, null);
+    assert.equal(beats[1]!.speaker, null);
+    assert.equal(beats[2]!.speaker, "태현");
+    assert.equal(beats[3]!.speaker, "이현");
+    assert.equal(beats[4]!.speaker, null);
+  });
+
+  it("I: inter-beat GM gap on every adjacent beat transition", () => {
+    const beats = parseTrpgSceneSpeech(fixture, knownNames);
+    assert.equal(trpgSceneBeatSpacingClass(beats[0]!, null), "");
+    for (let i = 1; i < beats.length; i++) {
+      assert.equal(trpgSceneBeatSpacingClass(beats[i]!, beats[i - 1]!), GM_GAP);
+    }
+    assert.equal(classifyTrpgSceneBeatKind(beats[0]!), "narration");
+    assert.equal(classifyTrpgSceneBeatKind(beats[1]!), "narration");
+    assert.equal(classifyTrpgSceneBeatKind(beats[2]!), "dialogue");
+    assert.equal(classifyTrpgSceneBeatKind(beats[3]!), "dialogue");
+    assert.equal(classifyTrpgSceneBeatKind(beats[4]!), "narration");
+  });
+
+  it("J: streaming partial beats — one gap per boundary, no double gap on first beat", () => {
+    const full = parseTrpgSceneSpeech(fixture, knownNames);
+    const partial = parseTrpgSceneSpeech(
+      "서술 문단 1\n\n서술 문단 2",
+      knownNames
+    );
+    assert.equal(partial.length, 2);
+    assert.equal(trpgSceneBeatSpacingClass(partial[0]!, null), "");
+    assert.equal(trpgSceneBeatSpacingClass(partial[1]!, partial[0]!), GM_GAP);
+    assert.equal(trpgSceneBeatSpacingClass(full[2]!, full[1]!), GM_GAP);
+    assert.equal(trpgSceneBeatSpacingClass(full[0]!, null), "");
+  });
+
+  it("K: GM table-talk beat receives inter-beat gap", () => {
+    const withGm = parseTrpgSceneSpeech(
+      `어둠이 깊어진다.\n\nGM: "다음 판단은 너희 몫이다."`,
+      knownNames
+    );
+    assert.equal(withGm.length, 2);
+    assert.equal(withGm[1]!.speaker, "GM");
+    assert.equal(trpgSceneBeatSpacingClass(withGm[1]!, withGm[0]!), GM_GAP);
   });
 });

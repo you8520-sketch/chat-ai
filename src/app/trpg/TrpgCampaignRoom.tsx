@@ -49,6 +49,7 @@ import {
 } from "@/lib/trpg/actionCardUi";
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
+import { trpgSceneBeatSpacingClass } from "@/lib/trpg/gmSceneBeatSpacing";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
@@ -2098,35 +2099,43 @@ function SceneTurn({
                 : undefined
             }
           >
-            {beats.map((beat, i) =>
-              beat.speaker === "GM" ? (
-                <TrpgGmTalk
+            {beats.map((beat, i) => {
+              const beatGap = trpgSceneBeatSpacingClass(beat, i > 0 ? beats[i - 1]! : null);
+              return (
+                <div
                   key={`${row.roundNumber}-gm-${i}`}
-                  text={beat.text}
-                  assets={scenarioAssets}
-                  characterCatalog={characterCatalog}
-                  campaignId={campaignId}
-                  roundNumber={row.roundNumber}
-                  streaming={revealNarration}
-                />
-              ) : (
-                <TrpgNamedProse
-                  key={`${row.roundNumber}-gm-${i}`}
-                  name={beat.speaker}
-                  text={beat.text}
-                  variant={speechVariant(beat.speaker, selfNames)}
-                  accent={Boolean(beat.speaker)}
-                  display={display}
-                  assets={scenarioAssets}
-                  characterCatalog={characterCatalog}
-                  campaignId={campaignId}
-                  roundNumber={row.roundNumber}
-                  paragraphMode="ai"
-                  paragraphSpacingMode="gm"
-                  streaming={revealNarration}
-                />
-              )
-            )}
+                  className={beatGap || undefined}
+                  data-trpg-scene-beat
+                  data-trpg-scene-beat-index={i}
+                >
+                  {beat.speaker === "GM" ? (
+                    <TrpgGmTalk
+                      text={beat.text}
+                      assets={scenarioAssets}
+                      characterCatalog={characterCatalog}
+                      campaignId={campaignId}
+                      roundNumber={row.roundNumber}
+                      streaming={revealNarration}
+                    />
+                  ) : (
+                    <TrpgNamedProse
+                      name={beat.speaker}
+                      text={beat.text}
+                      variant={speechVariant(beat.speaker, selfNames)}
+                      accent={Boolean(beat.speaker)}
+                      display={display}
+                      assets={scenarioAssets}
+                      characterCatalog={characterCatalog}
+                      campaignId={campaignId}
+                      roundNumber={row.roundNumber}
+                      paragraphMode="ai"
+                      paragraphSpacingMode="gm"
+                      streaming={revealNarration}
+                    />
+                  )}
+                </div>
+              );
+            })}
             {liveScene && revealNarration ? (
               <span
                 ref={narrationEndRef}
