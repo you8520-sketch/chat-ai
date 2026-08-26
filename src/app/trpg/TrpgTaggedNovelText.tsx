@@ -17,6 +17,7 @@ export default function TrpgTaggedNovelText({
   display,
   variant = "character",
   paragraphMode = "ai",
+  paragraphSpacingMode = "default",
   streaming = false,
   viewerIsCreator = false,
   unlockedUrls,
@@ -33,6 +34,7 @@ export default function TrpgTaggedNovelText({
   >;
   variant?: "character" | "user";
   paragraphMode?: "ai" | "author";
+  paragraphSpacingMode?: "default" | "gm";
   streaming?: boolean;
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
@@ -58,6 +60,7 @@ export default function TrpgTaggedNovelText({
                 display={display}
                 variant={variant}
                 paragraphMode={paragraphMode}
+                paragraphSpacingMode={paragraphSpacingMode}
                 streaming={streaming && i === parts.length - 1}
                 dialogueAccent={dialogueAccent}
               />

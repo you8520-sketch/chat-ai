@@ -506,4 +506,12 @@ describe("novelParagraphSpacingClass", () => {
     assert.equal(novelParagraphSpacingClass("narration", "narration", "author"), "mt-0");
     assert.equal(novelParagraphSpacingClass("dialogue", "narration", "author"), "mt-0");
   });
+
+  it("uses uniform ~1em gaps between GM scene blocks", () => {
+    const gmGap = "mt-[calc(1em*var(--chat-paragraph-gap-scale,1))]";
+    assert.equal(novelParagraphSpacingClass("narration", "narration", "gm"), gmGap);
+    assert.equal(novelParagraphSpacingClass("dialogue", "narration", "gm"), gmGap);
+    assert.equal(novelParagraphSpacingClass("narration", "dialogue", "gm"), gmGap);
+    assert.equal(novelParagraphSpacingClass("dialogue", null, "gm"), "");
+  });
 });

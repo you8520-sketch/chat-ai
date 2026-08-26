@@ -2107,6 +2107,7 @@ function SceneTurn({
                   characterCatalog={characterCatalog}
                   campaignId={campaignId}
                   roundNumber={row.roundNumber}
+                  streaming={revealNarration}
                 />
               ) : (
                 <TrpgNamedProse
@@ -2120,6 +2121,9 @@ function SceneTurn({
                   characterCatalog={characterCatalog}
                   campaignId={campaignId}
                   roundNumber={row.roundNumber}
+                  paragraphMode="ai"
+                  paragraphSpacingMode="gm"
+                  streaming={revealNarration}
                 />
               )
             )}

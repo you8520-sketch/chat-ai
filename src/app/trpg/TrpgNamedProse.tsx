@@ -17,6 +17,55 @@ const quoteSelectStyle = {
   WebkitTouchCallout: "default" as const,
 };
 
+function TrpgGmProseBody({
+  body,
+  assets = [],
+  characterCatalog = [],
+  campaignId = 0,
+  roundNumber = 0,
+  streaming = false,
+}: {
+  body: string;
+  assets?: CharacterAsset[];
+  characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  campaignId?: number;
+  roundNumber?: number;
+  streaming?: boolean;
+}) {
+  const hasSceneAssets =
+    assets.length > 0 ||
+    characterCatalog.length > 0 ||
+    /\[(?:캐릭터에셋|태그):/.test(body);
+
+  if (hasSceneAssets) {
+    return (
+      <TrpgTaggedNovelText
+        content={body}
+        scenarioAssets={assets}
+        characterCatalog={characterCatalog}
+        campaignId={campaignId}
+        roundNumber={roundNumber}
+        variant="character"
+        paragraphMode="ai"
+        paragraphSpacingMode="gm"
+        streaming={streaming}
+        dialogueAccent={false}
+      />
+    );
+  }
+
+  return (
+    <NovelText
+      content={body}
+      variant="character"
+      paragraphMode="ai"
+      paragraphSpacingMode="gm"
+      streaming={streaming}
+      dialogueAccent={false}
+    />
+  );
+}
+
 export function TrpgGmTalk({
   text,
   assets = [],
@@ -24,6 +73,7 @@ export function TrpgGmTalk({
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
+  streaming = false,
   onRevealChange,
 }: {
   text: string;
@@ -32,6 +82,8 @@ export function TrpgGmTalk({
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
+  /** Live GM narration reveal — stabilizes paragraph boundaries while text grows. */
+  streaming?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
   const { shownText: shown, complete } = useRevealedText(text, reveal);
@@ -53,7 +105,7 @@ export function TrpgGmTalk({
       style={quoteSelectStyle}
     >
       <div
-        className="whitespace-pre-wrap leading-relaxed"
+        className="leading-relaxed"
         style={{
           fontSize: "var(--font-size-chat)",
           lineHeight: "var(--line-height-chat)",
@@ -61,20 +113,14 @@ export function TrpgGmTalk({
         }}
       >
         <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
-        {assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(body) ? (
-          <TrpgTaggedNovelText
-            content={body}
-            scenarioAssets={assets}
-            characterCatalog={characterCatalog}
-            campaignId={campaignId}
-            roundNumber={roundNumber}
-            variant="character"
-            paragraphMode="author"
-            streaming={reveal}
-          />
-        ) : (
-          <span className="italic font-semibold text-sky-100/85">{body}</span>
-        )}
+        <TrpgGmProseBody
+          body={body}
+          assets={assets}
+          characterCatalog={characterCatalog}
+          campaignId={campaignId}
+          roundNumber={roundNumber}
+          streaming={streaming}
+        />
       </div>
     </div>
   );
@@ -92,8 +138,10 @@ export default function TrpgNamedProse({
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
+  streaming = false,
   streamIntervalMs,
   paragraphMode = "author",
+  paragraphSpacingMode = "default",
   dialogueAccent = true,
   hideMobileLabel = false,
   resolveSceneAssets = true,
@@ -111,9 +159,13 @@ export default function TrpgNamedProse({
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
+  /** Stabilize paragraph boundaries during progressive text growth (distinct from decorative reveal). */
+  streaming?: boolean;
   streamIntervalMs?: number;
   /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
   paragraphMode?: "ai" | "author";
+  /** gm: TRPG scene narration spacing (~1em between blocks). */
+  paragraphSpacingMode?: "default" | "gm";
   /** Global chat keeps dialogue rails. TRPG action cards pass false. */
   dialogueAccent?: boolean;
   /** A mobile roll header can own the speaker label so prose starts at full width below it. */
@@ -173,7 +225,8 @@ export default function TrpgNamedProse({
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}
-            streaming={reveal}
+            paragraphSpacingMode={paragraphSpacingMode}
+            streaming={streaming || reveal}
             dialogueAccent={dialogueAccent}
           />
         ) : (
@@ -182,7 +235,8 @@ export default function TrpgNamedProse({
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}
-            streaming={reveal}
+            paragraphSpacingMode={paragraphSpacingMode}
+            streaming={streaming || reveal}
             dialogueAccent={dialogueAccent}
           />
         )}

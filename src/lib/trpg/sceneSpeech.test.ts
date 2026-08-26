@@ -144,7 +144,7 @@ describe("parseTrpgSceneSpeech", () => {
     assert.match(room, /data-trpg-action-card/);
     const named = fs.readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
     assert.match(named, /paragraphMode = "author"/);
-    assert.match(named, /streaming=\{reveal\}/);
+    assert.match(named, /streaming=\{streaming \|\| reveal\}/);
     assert.match(named, /grid-cols-1/);
     assert.match(named, /sm:grid-cols-\[5\.75rem_minmax\(0,1fr\)\]/);
     assert.match(named, /hideMobileLabel/);

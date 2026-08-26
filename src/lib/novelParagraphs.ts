@@ -1121,11 +1121,13 @@ function mergeAdjacentDialogueParagraphs(paragraphs: string[]): string[] {
   return out;
 }
 
+export type NovelParagraphSpacingMode = "ai" | "author" | "gm";
+
 /** 지문↔대사 전환 시 여백 강화 (em — 채팅 글자 크기에 비례) */
 export function novelParagraphSpacingClass(
   kind: NovelParagraphKind,
   prevKind: NovelParagraphKind | null,
-  mode: "ai" | "author" = "ai"
+  mode: NovelParagraphSpacingMode = "ai"
 ): string {
   if (prevKind == null) return "";
   const crossesDialogue =
@@ -1137,6 +1139,10 @@ export function novelParagraphSpacingClass(
   if (mode === "author") {
     // 수정 textarea와 동일: Enter 한 번 = 한 줄 간격 (큰 문단 마진 없음)
     return "mt-0";
+  }
+  if (mode === "gm") {
+    // TRPG GM scene prose — one readable blank-line gap between every block.
+    return "mt-[calc(1em*var(--chat-paragraph-gap-scale,1))]";
   }
   // Scale via --chat-paragraph-gap-scale from chat display prefs.
   return crossesDialogue

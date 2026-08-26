@@ -142,6 +142,7 @@ export default function NovelText({
   variant = "character",
   centered = false,
   paragraphMode = "ai",
+  paragraphSpacingMode = "default",
   streaming = false,
   dialogueAccent = true,
 }: {
@@ -154,6 +155,8 @@ export default function NovelText({
   centered?: boolean;
   /** ai: AI 응답용 병합 · author: 제작자 첫 메시지 등 Enter 줄바꿈 유지 */
   paragraphMode?: "ai" | "author";
+  /** default: chat/author spacing · gm: TRPG GM scene (~1em between blocks) */
+  paragraphSpacingMode?: "default" | "gm";
   /** 스트리밍 중 — 이미 그린 문단은 고정, 마지막 문단만 분리/갱신 */
   streaming?: boolean;
   /** Global chat keeps the purple rail. TRPG action cards pass false. */
@@ -204,8 +207,12 @@ export default function NovelText({
   const paragraphKinds = displayParagraphs.map((p) =>
     p.trim() ? classifyNovelParagraph(p) : ("narration" as NovelParagraphKind)
   );
-  const spacingMode: "ai" | "author" =
-    variant === "user" || paragraphMode === "author" ? "author" : "ai";
+  const spacingMode =
+    paragraphSpacingMode === "gm"
+      ? ("gm" as const)
+      : variant === "user" || paragraphMode === "author"
+        ? ("author" as const)
+        : ("ai" as const);
 
   const typography =
     variant === "user"
