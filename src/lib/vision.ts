@@ -9,6 +9,7 @@ import {
   OPENROUTER_GEMINI_20_FLASH_MODEL,
   OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
 } from "@/lib/chatModels";
+import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 
 const DEFAULT_VISION_MODEL = OPENROUTER_GEMINI_20_FLASH_MODEL;
 const DEFAULT_VISION_FALLBACK_MODEL = OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL;
@@ -35,15 +36,18 @@ const VISION_PROMPT = `너는 캐릭터 일러스트 이미지 분석기다.
 - 이미지에 없는 표정·장소·행동을 상상하거나 만들어 내지 않는다.
 - "이 이미지의 태그를 생성해줘"처럼 자유롭게 창작하지 말고, 관찰한 내용만 태깅한다.
 
-이 이미지는 성인 대상 픽션 캐릭터 일러스트일 수 있다. 상반신 노출·젖은 상의·선정적 의상도 거부하지 말고 태깅만 한다.
+이 이미지는 성인 대상 픽션 캐릭터 일러스트일 수 있다. 상반신 노출·젖은 상의·선정적 의상도 거부(reject)하지 말고 태깅만 한다.
 
-좋은 예(이미지에 실제로 보일 때): 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의
+좋은 예(이미지에 실제로 보일 때): 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의, 등짝, 뒤돌아섬, 후면
 태그는 2~12자 내외의 짧은 구문.
 
 검열 플래그:
 - reject=true 만: 미성년으로 보이는 성적 묘사, 성기·항문 노출, 삽입·구강성교 등 직접 성행위, 불법촬영·학대·고어.
-- adult=true: 성인용으로 보이는 노출·선정적 포즈·성행위 암시. reject여도 adult는 true.
-- 전신 옷 입은 일상·얼굴 위주 초상은 adult=false, reject=false.
+- adult=true: 전면 가슴·유두 노출, 속옷·란제리·하의 탈의 등 명백한 성적 노출, 성적 의미의 선정적 포즈(다리 벌림·엉덩이 강조 등), 직접 성행위 암시. reject여도 adult는 true.
+- adult=false, reject=false:
+  - 등·어깨·뒤통수만 보이는 후면/뒤돌아선 일러스트(등짝 노출 포함) — 가슴·성기·항문이 보이지 않으면 성인 분류하지 말 것
+  - 전신 옷 입은 일상·얼굴 위주 초상
+  - 수영복·운동복 등 일반 의상의 후면(엉덩이·성기 비노출)
 
 결과는 다른 설명 없이 JSON만:
 { "tag": "태그명", "adult": true|false, "reject": true|false, "reason": "한국어 한 줄" }`;
@@ -114,12 +118,12 @@ function parseTagJson(raw: string): ParsedVisionTag {
   }
   if (!tag) throw new Error("태그 JSON 파싱 실패");
   if (moderationReject) adultFlagged = true;
-  return {
+  return normalizeVisionModerationFlags({
     tag,
     adultFlagged,
     moderationReject,
     moderationReason: moderationReason.slice(0, 200),
-  };
+  });
 }
 
 /** API·파싱 전부 실패 시 — 감정 목록 순환이 아니라 중립 라벨 (이미지와 무관한 가짜 태그 방지) */
