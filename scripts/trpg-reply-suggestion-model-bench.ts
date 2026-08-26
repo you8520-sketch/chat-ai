@@ -5,9 +5,11 @@
  * Does NOT touch production routing, DB writes, or runtime bundles.
  *
  * Run:
- *   npx tsx scripts/trpg-reply-suggestion-model-bench.ts [--db=/path/to/app.db] [--campaign-id=30]
+ *   node --conditions=react-server --import tsx scripts/trpg-reply-suggestion-model-bench.ts
+ *   node --conditions=react-server --import tsx scripts/trpg-reply-suggestion-model-bench.ts --quality-samples
  *
  * Output: sanitized JSON summary path printed to stdout (no persona/scene/completion text).
+ * Quality samples mode writes human-review suggestion text to docs/audits/.../QUALITY-SAMPLES-*.md
  */
 import Module from "node:module";
 
@@ -81,6 +83,13 @@ const INTERLEAVE: Array<(typeof MODELS)[number]["key"]> = [
   "qwen",
 ];
 
+const QUALITY_SAMPLES_INTERLEAVE: Array<(typeof MODELS)[number]["key"]> = [
+  "gemini",
+  "qwen",
+  "gemini",
+  "qwen",
+];
+
 type PersonaSlice = {
   personaId: number | null;
   name: string;
@@ -135,17 +144,37 @@ type RunMetric = {
   reasoningMode: string;
 };
 
+type CallResult = {
+  metric: RunMetric;
+  suggestions: TrpgReplySuggestion[] | null;
+};
+
+type QualitySampleRun = {
+  sampleId: string;
+  modelKey: "gemini" | "qwen";
+  modelId: string;
+  runLabel: string;
+  httpStatus: number | null;
+  totalLatencyMs: number | null;
+  success: boolean;
+  validSchema: boolean;
+  failureClass: string | null;
+  suggestions: TrpgReplySuggestion[] | null;
+};
+
 const PERSONA_PUBLIC_SELECT =
   "SELECT id, user_id, name, memo, gender, description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
 
-function parseArgs(): { dbPath: string | null; campaignId: number | null } {
+function parseArgs(): { dbPath: string | null; campaignId: number | null; qualitySamples: boolean } {
   let dbPath: string | null = null;
   let campaignId: number | null = null;
+  let qualitySamples = false;
   for (const arg of process.argv.slice(2)) {
     if (arg.startsWith("--db=")) dbPath = arg.slice(5);
     if (arg.startsWith("--campaign-id=")) campaignId = Number(arg.slice(14)) || null;
+    if (arg === "--quality-samples") qualitySamples = true;
   }
-  return { dbPath, campaignId };
+  return { dbPath, campaignId, qualitySamples };
 }
 
 function resolveReadonlyDbPath(explicit: string | null): string | null {
@@ -491,7 +520,7 @@ async function runSingleCall(opts: {
   model: (typeof MODELS)[number];
   runLabel: string;
   prompt: PromptBundle;
-}): Promise<RunMetric> {
+}): Promise<CallResult> {
   const reasoningMode = describeReasoningMode(opts.model.modelId);
   const body = buildBenchRequestBody(opts.model.modelId, opts.prompt.system, opts.prompt.user);
   const started = Date.now();
@@ -563,7 +592,7 @@ function finalizeRun(
     usage: ReturnType<typeof parseOpenRouterUsage>;
     reasoningMode: string;
   }
-): RunMetric {
+): CallResult {
   let validJson = false;
   let validSchema = false;
   let exactly3 = false;
@@ -603,27 +632,30 @@ function finalizeRun(
     personaName: opts.prompt.persona.name,
   });
   return {
-    model: opts.model.modelId,
-    modelKey: opts.model.key,
-    run: opts.runLabel,
-    httpStatus: result.httpStatus,
-    ttftOrHeadersMs: result.ttftMs,
-    totalLatencyMs: result.totalLatencyMs,
-    success,
-    validJson,
-    validSchema,
-    exactly3,
-    stanceGood,
-    stanceNeutral,
-    stanceEvil,
-    inputTokens: result.usage.promptTokens || null,
-    outputTokens: result.usage.completionTokens || null,
-    reasoningTokens: result.usage.reasoningTokens || null,
-    usageCostUsd: result.usage.upstreamCostUsd ?? null,
-    promptChars: opts.prompt.promptChars,
-    failureClass: success ? null : result.failureClass ?? "invalid_schema",
-    quality,
-    reasoningMode: result.reasoningMode,
+    metric: {
+      model: opts.model.modelId,
+      modelKey: opts.model.key,
+      run: opts.runLabel,
+      httpStatus: result.httpStatus,
+      ttftOrHeadersMs: result.ttftMs,
+      totalLatencyMs: result.totalLatencyMs,
+      success,
+      validJson,
+      validSchema,
+      exactly3,
+      stanceGood,
+      stanceNeutral,
+      stanceEvil,
+      inputTokens: result.usage.promptTokens || null,
+      outputTokens: result.usage.completionTokens || null,
+      reasoningTokens: result.usage.reasoningTokens || null,
+      usageCostUsd: result.usage.upstreamCostUsd ?? null,
+      promptChars: opts.prompt.promptChars,
+      failureClass: success ? null : result.failureClass ?? "invalid_schema",
+      quality,
+      reasoningMode: result.reasoningMode,
+    },
+    suggestions,
   };
 }
 
@@ -659,7 +691,110 @@ function summarizeModel(runs: RunMetric[]) {
   };
 }
 
-async function main(): Promise<void> {
+function findSuggestionByStance(
+  suggestions: TrpgReplySuggestion[] | null,
+  stance: TrpgReplySuggestion["stance"]
+): TrpgReplySuggestion | null {
+  return suggestions?.find((s) => s.stance === stance) ?? null;
+}
+
+function formatStanceBlock(stance: "GOOD" | "NEUTRAL" | "EVIL", item: TrpgReplySuggestion | null): string {
+  if (!item) {
+    return `### ${stance}\n- (missing — schema parse failed)\n`;
+  }
+  return [
+    `### ${stance}`,
+    `- actionType: ${item.actionType}`,
+    `- stage: ${item.stage}`,
+    `- speech: ${item.speech}`,
+    `- composed text: ${item.text}`,
+    "",
+  ].join("\n");
+}
+
+function formatQualitySampleSection(run: QualitySampleRun): string {
+  const good = findSuggestionByStance(run.suggestions, "good");
+  const neutral = findSuggestionByStance(run.suggestions, "neutral");
+  const evil = findSuggestionByStance(run.suggestions, "evil");
+  return [
+    `## ${run.sampleId}`,
+    "",
+    `- model: \`${run.modelId}\``,
+    `- run: ${run.runLabel}`,
+    `- httpStatus: ${run.httpStatus ?? "n/a"}`,
+    `- totalLatencyMs: ${run.totalLatencyMs ?? "n/a"}`,
+    `- success: ${run.success}`,
+    `- validSchema: ${run.validSchema}`,
+    `- failureClass: ${run.failureClass ?? "none"}`,
+    "",
+    formatStanceBlock("GOOD", good),
+    formatStanceBlock("NEUTRAL", neutral),
+    formatStanceBlock("EVIL", evil),
+  ].join("\n");
+}
+
+function writeQualitySamplesArtifact(opts: {
+  prompt: PromptBundle;
+  runs: QualitySampleRun[];
+  outPath: string;
+}): void {
+  const lines = [
+    "# TRPG reply-suggestion quality samples (human review)",
+    "",
+    "Synthetic BenchAdmin fixture. Parsed via canonical `validateReplySuggestionCompletion()`.",
+    "For ChatGPT human review — not latency benchmark, not automatic quality scores.",
+    "",
+    `- generatedAt: ${new Date().toISOString()}`,
+    `- adminPersonaName: ${opts.prompt.persona.name}`,
+    `- promptChars: ${opts.prompt.promptChars}`,
+    `- totalProviderCalls: ${opts.runs.length}`,
+    `- interleave: GQGQ (retry 0)`,
+    "",
+    "---",
+    "",
+    ...opts.runs.map((run) => formatQualitySampleSection(run)),
+  ];
+  fs.writeFileSync(opts.outPath, lines.join("\n"));
+}
+
+async function runQualitySamples(): Promise<void> {
+  console.log("[bench] quality-samples mode (4 provider calls, GQGQ)");
+  const prompt = await buildFixturePrompt(5770);
+  const runCounters: Record<string, number> = { gemini: 0, qwen: 0 };
+  const sampleRuns: QualitySampleRun[] = [];
+
+  for (const key of QUALITY_SAMPLES_INTERLEAVE) {
+    const model = MODELS.find((m) => m.key === key)!;
+    runCounters[key] += 1;
+    const runLabel = `${key === "gemini" ? "G" : "Q"}${runCounters[key]}`;
+    const sampleId =
+      key === "gemini" ? `GEMINI_SAMPLE_${runCounters[key]}` : `QWEN_SAMPLE_${runCounters[key]}`;
+    const { metric, suggestions } = await runSingleCall({ model, runLabel, prompt });
+    sampleRuns.push({
+      sampleId,
+      modelKey: key,
+      modelId: model.modelId,
+      runLabel,
+      httpStatus: metric.httpStatus,
+      totalLatencyMs: metric.totalLatencyMs,
+      success: metric.success,
+      validSchema: metric.validSchema,
+      failureClass: metric.failureClass,
+      suggestions,
+    });
+    process.stdout.write(
+      `${sampleId} ${model.modelId} success=${metric.success} latency=${metric.totalLatencyMs}ms\n`
+    );
+  }
+
+  const outDir = path.join(process.cwd(), "docs/audits/trpg-reply-suggestion-model-bench");
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, "QUALITY-SAMPLES-2026-08-26.md");
+  writeQualitySamplesArtifact({ prompt, runs: sampleRuns, outPath });
+  console.log(JSON.stringify({ ok: true, mode: "quality-samples", outPath, calls: sampleRuns.length }));
+}
+
+async function runBenchmark(): Promise<void> {
   console.log("[bench] starting trpg reply-suggestion model benchmark");
   const args = parseArgs();
   const dbPath = resolveReadonlyDbPath(args.dbPath);
@@ -684,9 +819,11 @@ async function main(): Promise<void> {
     const model = MODELS.find((m) => m.key === key)!;
     runCounters[key] += 1;
     const runLabel = `${key === "gemini" ? "G" : "Q"}${runCounters[key]}`;
-    const metric = await runSingleCall({ model, runLabel, prompt });
+    const { metric } = await runSingleCall({ model, runLabel, prompt });
     allRuns.push(metric);
-    process.stdout.write(`${runLabel} ${model.modelId} success=${metric.success} latency=${metric.totalLatencyMs}ms\n`);
+    process.stdout.write(
+      `${runLabel} ${model.modelId} success=${metric.success} latency=${metric.totalLatencyMs}ms\n`
+    );
   }
 
   const geminiRuns = allRuns.filter((r) => r.modelKey === "gemini");
@@ -726,6 +863,15 @@ async function main(): Promise<void> {
     gemini: summary.gemini,
     qwen: summary.qwen,
   } }));
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs();
+  if (args.qualitySamples) {
+    await runQualitySamples();
+    return;
+  }
+  await runBenchmark();
 }
 
 main().catch((e) => {
