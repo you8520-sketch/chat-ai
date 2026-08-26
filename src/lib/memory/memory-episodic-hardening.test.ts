@@ -40,6 +40,7 @@ import {
 } from "./memory-rolling-summary";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import { listMemoryRecordsForChat } from "./memory-turn-summary";
+import { insertAutomaticLegacySixTurnSummaryRow } from "./memory-test-batch";
 import {
   executeAtomicMemoryResetCore,
   getMemorySourceBoundaryCore,
@@ -275,7 +276,7 @@ describe("memory episodic hardening regression", () => {
     assert.equal(legacy.n, 1);
   });
 
-  it("F legacy 6-turn summary regen does not invoke seal episodic extract", async () => {
+  it("F user-edited explicit 1~6 summary regen preserves span", async () => {
     seedBase();
     seedFiveTurnBatch();
     persistValidatedSummaryBatch({
@@ -287,12 +288,9 @@ describe("memory episodic hardening regression", () => {
       turnEnd: 6,
       assistantMessageId: null,
       summary: FIXTURE,
+      userEdited: true,
       playableTurnCount: 6,
     });
-    __resetEpisodicExtractCallCountForTests();
-    __setEpisodicExtractCallerForTests(async () => ({
-      text: JSON.stringify({ extracted_facts: [TURN1_FACT] }),
-    }));
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     await regenerateMemoryRecordBatch({
       chatId: CHAT,
@@ -303,7 +301,11 @@ describe("memory episodic hardening regression", () => {
       memoryCapacity: 450,
       turnStart: 1,
     });
-    assert.equal(__getEpisodicExtractCallCountForTests(), 0);
+    const records = listMemoryRecordsForChat(CHAT);
+    const row = records.find((r) => r.turnStart === 1);
+    assert.ok(row);
+    assert.equal(row.turnEnd, 6);
+    assert.equal(row.userEdited, true);
   });
 });
 
@@ -331,16 +333,11 @@ describe("migration hardening regression", () => {
         `INSERT INTO messages (chat_id, role, content, user_message_id) VALUES (?,?,?,?)`
       ).run(CHAT, "assistant", `캐릭터 턴 ${t}`, userId);
     }
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 5,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     const result = await migrateChatSummariesToFiveTurn({
@@ -357,16 +354,11 @@ describe("migration hardening regression", () => {
   it("H dryRun=true performs zero DB mutations", async () => {
     seedBase();
     seedFiveTurnBatch();
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 5,
     });
     const beforeSummaries = (
       getDb()
@@ -406,16 +398,11 @@ describe("migration hardening regression", () => {
   it("I dryRun=false enters apply path with stub provider", async () => {
     seedBase();
     seedFiveTurnBatch();
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 5,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     const pass = await runMemorySummaryMigrationPass({

@@ -2,7 +2,7 @@
  * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { LEGACY_SIX_TURN_SPAN, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
 import type { MemoryTier } from "./memory-types";
 import {
@@ -178,11 +178,10 @@ export function persistValidatedSummaryBatch(opts: {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
   // Automatic writes (no explicit turnEnd) are 5-turn only.
-  // Explicit turnEnd may refresh a historical 6-turn row; new automatic rows never default to 6.
   if (opts.turnEnd == null && turnSpan !== ROLLING_SUMMARY_INTERVAL) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
-  if (turnSpan !== ROLLING_SUMMARY_INTERVAL && turnSpan !== LEGACY_SIX_TURN_SPAN) {
+  if (!opts.userEdited && turnSpan !== ROLLING_SUMMARY_INTERVAL) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
 

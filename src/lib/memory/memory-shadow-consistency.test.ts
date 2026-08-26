@@ -23,6 +23,7 @@ import {
   migrateChatSummariesToFiveTurn,
 } from "./memory-summary-migration";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
+import { insertAutomaticLegacySixTurnSummaryRow } from "./memory-test-batch";
 import {
   parseScopePayload,
 } from "./memory-summary-scope";
@@ -106,20 +107,15 @@ function seedTurns(
 
 function seedLegacySixTurn(
   chatId: number,
-  userId: number,
-  charId: number,
-  playableTurnCount: number
+  _userId: number,
+  _charId: number,
+  _playableTurnCount: number
 ) {
-  persistValidatedSummaryBatch({
+  insertAutomaticLegacySixTurnSummaryRow({
     chatId,
-    userId,
-    characterId: charId,
-    tier: "free",
     turnStart: 1,
     turnEnd: 6,
-    assistantMessageId: null,
     summary: FIXTURE,
-    playableTurnCount,
   });
 }
 

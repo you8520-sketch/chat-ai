@@ -1,20 +1,14 @@
 /**
- * Durable summary batch spans — historical 6-turn (NULL turn_end) vs production 5-turn rows.
- * NULL turn_end always resolves as turn_start + 5 (six-turn legacy), never the current writer interval.
+ * Durable summary batch spans — explicit stored turn_end only (Phase C).
+ * NULL / missing turn_end is invalid at runtime; no silent span inference.
  */
 import {
-  LEGACY_NULL_TURN_END_OFFSET,
-  LEGACY_SIX_TURN_SPAN,
   ROLLING_SUMMARY_INTERVAL,
   newAutomaticBatchEnd,
   targetSummarizedThrough,
 } from "./memory-constants";
 
-export {
-  LEGACY_NULL_TURN_END_OFFSET,
-  LEGACY_SIX_TURN_SPAN,
-  targetSummarizedThrough,
-} from "./memory-constants";
+export { targetSummarizedThrough } from "./memory-constants";
 
 export type SummarySpan = {
   turnStart: number;
@@ -25,19 +19,20 @@ export type SummarySpan = {
 export function resolveStoredTurnEnd(
   turnStart: number,
   turnEnd: number | null | undefined
-): number {
+): number | null {
   if (turnEnd != null && Number.isFinite(turnEnd) && turnEnd >= turnStart) {
     return Math.floor(turnEnd);
   }
-  return turnStart + LEGACY_NULL_TURN_END_OFFSET;
+  return null;
 }
 
 export function resolveRecordSpan(row: {
   turn_number: number;
   turn_end?: number | null;
-}): SummarySpan {
+}): SummarySpan | null {
   const turnStart = row.turn_number;
   const turnEnd = resolveStoredTurnEnd(turnStart, row.turn_end);
+  if (turnEnd == null) return null;
   return {
     turnStart,
     turnEnd,
@@ -60,11 +55,6 @@ export function newBatchEndForStart(turnStart: number): number {
 
 export function isNewIntervalBatch(span: SummarySpan): boolean {
   return span.turnCount === ROLLING_SUMMARY_INTERVAL;
-}
-
-/** Historical reader: stored six-turn automatic batches (Phase A compatibility). */
-export function isLegacySixTurnBatch(span: SummarySpan): boolean {
-  return span.turnCount === LEGACY_SIX_TURN_SPAN;
 }
 
 /** Next new 5-turn batch after highest contiguous sealed turn (frontier-based, not global modulo). */

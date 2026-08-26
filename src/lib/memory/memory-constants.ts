@@ -17,14 +17,6 @@ export const ROLLING_SUMMARY_MAX_CHARS = 600;
 /** 유효 기록·절단 시 하한(짧은 요약 허용, 패딩 강제 없음) */
 export const ROLLING_SUMMARY_MIN_CHARS = 80;
 
-/**
- * Historical reader only (Phase A compatibility).
- * NULL / missing turn_end always means six-turn legacy: end = start + 5.
- * Automatic writers must not create new six-turn rows.
- */
-export const LEGACY_NULL_TURN_END_OFFSET = 5;
-export const LEGACY_SIX_TURN_SPAN = LEGACY_NULL_TURN_END_OFFSET + 1;
-
 /** User-edited / manual memory record clamp cap. */
 export const MEMORY_RECORD_MAX_CHARS = 800;
 

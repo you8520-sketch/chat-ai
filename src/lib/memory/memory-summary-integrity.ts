@@ -1,14 +1,12 @@
 /**
- * Summary integrity — contiguous batches from stored spans (legacy 6-turn + new 5-turn).
+ * Summary integrity — contiguous batches from explicit stored spans.
  * Never trust summarized_turn_count alone.
  */
 import { ROLLING_SUMMARY_INTERVAL, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import {
-  LEGACY_NULL_TURN_END_OFFSET,
   newBatchEndForStart,
   resolveNextBatchRange,
-  resolveRecordSpan,
   resolveStoredTurnEnd,
 } from "./memory-summary-range";
 import {
@@ -55,24 +53,28 @@ export type SummaryBatchDiag = {
   reasonCode: SummaryReasonCode | "SUMMARY_OK" | "SUMMARY_COUNTER_DRIFT";
 };
 
-function normalizeSpan(row: BatchSpan): { turnStart: number; turnEnd: number } {
+type ResolvedBatchSpan = { turnStart: number; turnEnd: number };
+
+function normalizeSpan(row: BatchSpan): ResolvedBatchSpan | null {
+  const turnEnd = resolveStoredTurnEnd(row.turnStart, row.turnEnd);
+  if (turnEnd == null) return null;
   return {
     turnStart: row.turnStart,
-    turnEnd: resolveStoredTurnEnd(row.turnStart, row.turnEnd),
+    turnEnd,
   };
 }
 
-function sortedActiveSpans(records: BatchSpan[], actualTurnCount: number) {
+function sortedActiveSpans(records: BatchSpan[], actualTurnCount: number): ResolvedBatchSpan[] {
   return activeMemoryRecords(records)
     .map(normalizeSpan)
-    .filter((r) => r.turnEnd <= actualTurnCount)
+    .filter((r): r is ResolvedBatchSpan => r != null && r.turnEnd <= actualTurnCount)
     .sort((a, b) => a.turnStart - b.turnStart);
 }
 
-function sortedAllSpans(records: BatchSpan[], actualTurnCount: number) {
+function sortedAllSpans(records: BatchSpan[], actualTurnCount: number): ResolvedBatchSpan[] {
   return records
     .map(normalizeSpan)
-    .filter((r) => r.turnEnd <= actualTurnCount)
+    .filter((r): r is ResolvedBatchSpan => r != null && r.turnEnd <= actualTurnCount)
     .sort((a, b) => a.turnStart - b.turnStart);
 }
 
@@ -97,7 +99,7 @@ export function highestContiguousOccupiedTurn(
 /**
  * Highest turn covered by contiguous complete batches starting at 1.
  * Gap at 1 (e.g. only 7~12 present) → 0.
- * Supports mixed legacy 6-turn and new 5-turn stored spans.
+ * Supports explicit stored spans (including user-edited arbitrary ranges).
  */
 export function highestContiguousCompletedTurn(
   records: BatchSpan[],
@@ -172,7 +174,7 @@ export function earliestMissingBatchStart(
   return missing[0] ?? null;
 }
 
-/** Resolve stored batch start containing turnNumber (legacy or new span). */
+/** Resolve stored batch start containing turnNumber. */
 export function resolveBatchStartForTurnNumber(
   turnNumber: number,
   records: BatchSpan[]
@@ -362,9 +364,8 @@ export function describeRecentSummaryBatchRange(recentSummary: string): string |
   const lastEndMatch = recentSummary.match(
     new RegExp(`\\[${lastStart}~(\\d+)턴\\]`)
   );
-  const lastEnd = lastEndMatch
-    ? Number(lastEndMatch[1])
-    : resolveStoredTurnEnd(lastStart, null);
+  const lastEnd = lastEndMatch ? Number(lastEndMatch[1]) : null;
+  if (lastEnd == null || !Number.isFinite(lastEnd)) return null;
   return `${first}~${lastEnd}`;
 }
 
@@ -377,7 +378,10 @@ export function buildSummaryBatchDiagnostics(opts: {
 }): SummaryBatchDiag {
   const persistedBatchStarts = [
     ...new Set(
-      activeMemoryRecords(opts.records).map((r) => normalizeSpan(r).turnStart)
+      activeMemoryRecords(opts.records)
+        .map(normalizeSpan)
+        .filter((r): r is ResolvedBatchSpan => r != null)
+        .map((r) => r.turnStart)
     ),
   ].sort((a, b) => a - b);
 
@@ -408,4 +412,4 @@ export function buildSummaryBatchDiagnostics(opts: {
   };
 }
 
-export { LEGACY_NULL_TURN_END_OFFSET, resolveRecordSpan, resolveStoredTurnEnd };
+export { resolveStoredTurnEnd } from "./memory-summary-range";

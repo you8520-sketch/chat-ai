@@ -73,8 +73,14 @@ function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
   return clampMemoryRecordSummary(text, max, ROLLING_SUMMARY_MIN_CHARS);
 }
 
-function rowToView(r: MemoryRecordRow): MemoryRecordView {
+function rowToViewOrNull(r: MemoryRecordRow): MemoryRecordView | null {
   const span = resolveRecordSpan(r);
+  if (!span) {
+    console.warn(
+      `[memory] skipping summary row with invalid span chat=${r.chat_id} turn=${r.turn_number}`
+    );
+    return null;
+  }
   const turnStart = span.turnStart;
   const turnEnd = span.turnEnd;
   const summaryKind = normalizeSummaryScope(r.summary_kind);
@@ -112,6 +118,16 @@ function rowToView(r: MemoryRecordRow): MemoryRecordView {
     charCount: r.summary.length,
     assistantMessageId: r.assistant_message_id ?? null,
   };
+}
+
+function rowToView(r: MemoryRecordRow): MemoryRecordView {
+  const view = rowToViewOrNull(r);
+  if (!view) {
+    throw new Error(
+      `invalid summary span chat=${r.chat_id} turn=${r.turn_number}`
+    );
+  }
+  return view;
 }
 
 export function formatTurnRangeLabel(startTurn: number, endTurn: number): string {
@@ -183,7 +199,7 @@ export function listMemoryRecordsForChat(chatId: number): MemoryRecordView[] {
     .prepare(`${selectSql()} WHERE chat_id=? ORDER BY turn_number ASC`)
     .all(chatId) as MemoryRecordRow[];
 
-  return rows.map(rowToView);
+  return rows.map(rowToViewOrNull).filter((view): view is MemoryRecordView => view != null);
 }
 
 /** @deprecated listMemoryRecordsForChat 사용 */

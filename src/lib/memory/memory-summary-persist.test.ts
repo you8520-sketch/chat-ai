@@ -538,7 +538,7 @@ describe("persistValidatedSummaryBatch integrity (Phase2 ON)", () => {
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
   });
 
-  it("batch 1+13 only → contiguous count 6", () => {
+  it("NULL-span rows without turn_end are skipped in contiguous coverage", () => {
     cleanup();
     seed();
     const db = getDb();
@@ -548,8 +548,8 @@ describe("persistValidatedSummaryBatch integrity (Phase2 ON)", () => {
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
     ).run(CHAT_ID, 13, FIXTURE2, "main_canon");
-    const records = listMemoryRecordsForChat(CHAT_ID);
-    assert.equal(highestContiguousCompletedTurn(records, 20), 6);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
+    assert.equal(highestContiguousCompletedTurn([], 20), 0);
     const n = reconcileSummarizedTurnCountFromTable({
       chatId: CHAT_ID,
       userId: USER_ID,
@@ -557,11 +557,11 @@ describe("persistValidatedSummaryBatch integrity (Phase2 ON)", () => {
       tier: "free",
       playableTurnCount: 20,
     });
-    assert.equal(n, 6);
+    assert.equal(n, 0);
   });
 });
 
-describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
+describe("persist branch-control atomicity (5-turn batches)", () => {
   let prevEnv: string | undefined;
 
   beforeEach(() => {
@@ -598,7 +598,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       characterId: CHAR_ID,
       tier: "free",
       turnStart: 1,
-      turnEnd: 6,
+      turnEnd: 5,
       assistantMessageId: null,
       summary: branchText,
       summaryKind: "branch_canon",
@@ -615,12 +615,12 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       .prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?")
       .get(branchId) as { scope_payload: string };
     updateChatMemory(CHAT_ID, USER_ID, CHAR_ID, {
-      recent_summary: "[1~6턴] " + branchText.slice(0, 40),
+      recent_summary: "[1~5턴] " + branchText.slice(0, 40),
       membership_tier: "free",
     });
     getDb()
       .prepare("UPDATE chats SET current_summary=? WHERE id=?")
-      .run("[1~6턴] " + branchText.slice(0, 40), CHAT_ID);
+      .run("[1~5턴] " + branchText.slice(0, 40), CHAT_ID);
     const memBefore = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
@@ -640,7 +640,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
           source: "user_turn",
           sourceUserMessageId: 999,
           sourceTurn: 12,
-          sourceBatchStart: 7,
+          sourceBatchStart: 6,
         },
       },
     ];
@@ -649,8 +649,8 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
-      turnEnd: 12,
+      turnStart: 6,
+      turnEnd: 10,
       assistantMessageId: null,
       summary: FIXTURE2,
       summaryKind: "main_canon",
@@ -659,7 +659,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       __testThrowAfterBranchOps: true,
     });
     assert.equal(failed.ok, false);
-    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 7), false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 6), false);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).find((r) => r.id === branchId)!.branchStatus, "closed");
     const mutationsAfter = getDb()
       .prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?")
@@ -683,8 +683,8 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
-      turnEnd: 12,
+      turnStart: 6,
+      turnEnd: 10,
       assistantMessageId: null,
       summary: FIXTURE2,
       summaryKind: "main_canon",
@@ -692,13 +692,13 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       pendingBranchControlOps: pendingOps,
     });
     assert.equal(ok.ok, true);
-    assert.equal(listMemoryRecordsForChat(CHAT_ID).filter((r) => r.turnStart === 7).length, 1);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).filter((r) => r.turnStart === 6).length, 1);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).find((r) => r.id === branchId)!.branchStatus, "active");
     assert.equal(countDistinctActiveBranchIds(CHAT_ID), 1);
     const memOk = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    assert.equal(memOk.summarized_turn_count, 12);
+    assert.equal(memOk.summarized_turn_count, 10);
     const currentOk = (
       getDb()
         .prepare("SELECT current_summary FROM chats WHERE id=?")
@@ -726,7 +726,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       characterId: CHAR_ID,
       tier: "free",
       turnStart: 1,
-      turnEnd: 6,
+      turnEnd: 5,
       assistantMessageId: null,
       summary: branchText,
       summaryKind: "branch_canon",
@@ -748,7 +748,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
           source: "user_turn",
           sourceUserMessageId: 888,
           sourceTurn: 12,
-          sourceBatchStart: 7,
+          sourceBatchStart: 6,
         },
       },
     ];
@@ -757,8 +757,8 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       userId: USER_ID,
       characterId: CHAR_ID,
       tier: "free",
-      turnStart: 7,
-      turnEnd: 12,
+      turnStart: 6,
+      turnEnd: 10,
       assistantMessageId: null,
       summary: FIXTURE2,
       summaryKind: "main_canon",
@@ -767,7 +767,7 @@ describe("persist branch-control atomicity (Phase1 legacy 6-turn)", () => {
       __testThrowAfterBranchOps: true,
     });
     assert.equal(failed.ok, false);
-    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 7), false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).some((r) => r.turnStart === 6), false);
     assert.equal(countDistinctActiveBranchIds(CHAT_ID), activeBefore);
     assert.equal(
       listMemoryRecordsForChat(CHAT_ID).find((r) => r.branchId === "branch-C")!.branchStatus,

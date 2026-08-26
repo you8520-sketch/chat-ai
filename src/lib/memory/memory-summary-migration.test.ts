@@ -24,6 +24,7 @@ import {
   migrateChatSummariesToFiveTurn,
   MEMORY_SUMMARY_MIGRATION_VERSION,
 } from "./memory-summary-migration";
+import { insertAutomaticLegacySixTurnSummaryRow } from "./memory-test-batch";
 
 const CHAT = 880011;
 const USER = 880012;
@@ -97,34 +98,18 @@ describe("5-turn summary migration worker", () => {
   it("dry-run mutates nothing and classifies legacy 6-turn chats", () => {
     seed();
     seedPlayableTurns(12);
-    assert.equal(
-      persistValidatedSummaryBatch({
-        chatId: CHAT,
-        userId: USER,
-        characterId: CHAR,
-        tier: "free",
-        turnStart: 1,
-        turnEnd: 6,
-        assistantMessageId: null,
-        summary: FIXTURE,
-        playableTurnCount: 12,
-      }).ok,
-      true
-    );
-    assert.equal(
-      persistValidatedSummaryBatch({
-        chatId: CHAT,
-        userId: USER,
-        characterId: CHAR,
-        tier: "free",
-        turnStart: 7,
-        turnEnd: 12,
-        assistantMessageId: null,
-        summary: FIXTURE,
-        playableTurnCount: 12,
-      }).ok,
-      true
-    );
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
+      turnStart: 1,
+      turnEnd: 6,
+      summary: FIXTURE,
+    });
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
+      turnStart: 7,
+      turnEnd: 12,
+      summary: FIXTURE,
+    });
     const beforeRows = getDb()
       .prepare("SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=?")
       .get(CHAT) as { n: number };
@@ -156,27 +141,17 @@ describe("5-turn summary migration worker", () => {
   it("chat-atomic apply rebuilds 1-5 / 6-10 and skips incomplete tail 11-12", async () => {
     seed();
     seedPlayableTurns(12);
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 12,
     });
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 7,
       turnEnd: 12,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 12,
     });
     __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
     const result = await migrateChatSummariesToFiveTurn({
@@ -204,16 +179,11 @@ describe("5-turn summary migration worker", () => {
   it("provider failure keeps existing 6-turn rows", async () => {
     seed();
     seedPlayableTurns(6);
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 6,
     });
     __setSummarizeTurnBatchCallerForTests(async () => {
       throw new Error("429 overloaded");
@@ -269,16 +239,11 @@ describe("5-turn summary migration worker", () => {
 
   it("missing RAW blocks without deleting existing summaries", async () => {
     seed();
-    persistValidatedSummaryBatch({
+    insertAutomaticLegacySixTurnSummaryRow({
       chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
       turnStart: 1,
       turnEnd: 6,
-      assistantMessageId: null,
       summary: FIXTURE,
-      playableTurnCount: 6,
     });
     const result = await migrateChatSummariesToFiveTurn({
       chatId: CHAT,

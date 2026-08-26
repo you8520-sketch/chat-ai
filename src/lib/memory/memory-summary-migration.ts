@@ -13,9 +13,7 @@ import {
   highestContiguousCompletedTurn,
 } from "./memory-summary-integrity";
 import {
-  isLegacySixTurnBatch,
   listTargetFiveTurnBatches,
-  resolveRecordSpan,
   targetSummarizedThrough,
 } from "./memory-summary-range";
 import {
@@ -40,8 +38,6 @@ import {
   ShadowState,
 } from "./memory-shadow-state";
 import {
-  LEGACY_NULL_TURN_END_OFFSET,
-  LEGACY_SIX_TURN_SPAN,
   ROLLING_SUMMARY_INTERVAL,
 } from "./memory-constants";
 import type { MemoryTier } from "./memory-types";
@@ -50,6 +46,39 @@ import {
 } from "./memory-summary-scope";
 import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { DialogueTurn } from "@/lib/hybridMemory";
+
+/** Migration/audit only — historical NULL→6 inference for inventory checks. */
+const MIGRATION_LEGACY_NULL_TURN_END_OFFSET = 5;
+const MIGRATION_LEGACY_SIX_TURN_SPAN = MIGRATION_LEGACY_NULL_TURN_END_OFFSET + 1;
+
+type MigrationSummarySpan = {
+  turnStart: number;
+  turnEnd: number;
+  turnCount: number;
+};
+
+function resolveMigrationStoredTurnEnd(
+  turnStart: number,
+  turnEnd: number | null | undefined
+): number {
+  if (turnEnd != null && Number.isFinite(turnEnd) && turnEnd >= turnStart) {
+    return Math.floor(turnEnd);
+  }
+  return turnStart + MIGRATION_LEGACY_NULL_TURN_END_OFFSET;
+}
+
+function resolveMigrationRecordSpan(row: {
+  turn_number: number;
+  turn_end?: number | null;
+}): MigrationSummarySpan {
+  const turnStart = row.turn_number;
+  const turnEnd = resolveMigrationStoredTurnEnd(turnStart, row.turn_end);
+  return { turnStart, turnEnd, turnCount: turnEnd - turnStart + 1 };
+}
+
+function isMigrationLegacySixTurnBatch(span: MigrationSummarySpan): boolean {
+  return span.turnCount === MIGRATION_LEGACY_SIX_TURN_SPAN;
+}
 
 /** @internal test-only — final shadow snapshot per chat before DB swap */
 const migrationFinalShadowSnapshotsForTests = new Map<number, MemoryRecordView[]>();
@@ -166,8 +195,8 @@ export function countLegacySixTurnInventory(
       userEditedNullSpan += 1;
     }
     if (row.user_edited) continue;
-    const span = resolveRecordSpan(row);
-    if (!isLegacySixTurnBatch(span)) continue;
+    const span = resolveMigrationRecordSpan(row);
+    if (!isMigrationLegacySixTurnBatch(span)) continue;
     if (row.inactive) inactive += 1;
     else active += 1;
   }
@@ -205,7 +234,7 @@ export function materializeUserEditedNullSpanRows(
        SET turn_end = turn_number + ?, updated_at=datetime('now')
        WHERE chat_id=? AND user_edited=1 AND turn_end IS NULL`
     )
-    .run(LEGACY_NULL_TURN_END_OFFSET, chatId);
+    .run(MIGRATION_LEGACY_NULL_TURN_END_OFFSET, chatId);
   return Number(info.changes);
 }
 
@@ -227,7 +256,7 @@ export function deleteInactiveAutomaticLegacySixTurnRows(
   }>;
   let deleted = 0;
   for (const row of rows) {
-    if (!isLegacySixTurnBatch(resolveRecordSpan(row))) continue;
+    if (!isMigrationLegacySixTurnBatch(resolveMigrationRecordSpan(row))) continue;
     db.prepare(`DELETE FROM chat_turn_summaries WHERE id=? AND chat_id=?`).run(row.id, chatId);
     deleted += 1;
   }
@@ -347,8 +376,8 @@ function classifyChatSummaries(rows: AutomaticSummaryRow[]): {
       continue;
     }
     automaticRows.push(row);
-    const span = resolveRecordSpan(row);
-    if (isLegacySixTurnBatch(span)) hasLegacy6 = true;
+    const span = resolveMigrationRecordSpan(row);
+    if (isMigrationLegacySixTurnBatch(span)) hasLegacy6 = true;
     else if (span.turnCount === ROLLING_SUMMARY_INTERVAL) hasFive = true;
   }
   return { hasLegacy6, hasFive, hasUserEdited, automaticRows };
@@ -417,7 +446,7 @@ export function classifyChatForFiveTurnRebuild(
   const alreadyFiveOnly =
     !hasLegacy6 &&
     hasFive &&
-    automaticRows.every((row) => resolveRecordSpan(row).turnCount === ROLLING_SUMMARY_INTERVAL);
+    automaticRows.every((row) => resolveMigrationRecordSpan(row).turnCount === ROLLING_SUMMARY_INTERVAL);
 
   const requiresRebuild =
     !alreadyCompleted &&
@@ -849,8 +878,8 @@ export function collectApplyVerification(
   let legacy = 0;
   for (const row of rows) {
     if (row.user_edited || row.inactive) continue;
-    const span = resolveRecordSpan(row);
-    if (span.turnCount === LEGACY_SIX_TURN_SPAN) legacy += 1;
+    const span = resolveMigrationRecordSpan(row);
+    if (span.turnCount === MIGRATION_LEGACY_SIX_TURN_SPAN) legacy += 1;
     else if (span.turnCount !== ROLLING_SUMMARY_INTERVAL || row.turn_end == null) {
       invalidFive += 1;
     }
