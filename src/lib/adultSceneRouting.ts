@@ -12,6 +12,7 @@ import {
   type ChatOocIntent,
 } from "@/lib/chatOocPriority";
 import { estimateTokens } from "@/lib/tokenEstimate";
+import { isProviderNativeRefusalSignal } from "@/lib/providerTermination";
 
 export type SceneMode =
   | "normal"
@@ -118,6 +119,7 @@ export interface RefusalResult {
   refused: boolean;
   reason:
     | "provider_refusal"
+    | "native_refusal"
     | "safety_block"
     | "empty_safety_response"
     | "content_filter"
@@ -2070,18 +2072,27 @@ export function detectModelRefusal(input: {
         ? input.error.toLowerCase()
         : "";
 
+  if (isProviderNativeRefusalSignal(input.finishReason)) {
+    return { refused: true, reason: "native_refusal" };
+  }
+
   if (
     /content[_ -]?filter|blocked|safety|recitation/.test(finish) ||
     /content[_ -]?filter|safety[_ -]?block|blocked by safety/.test(errorText)
   ) {
     return {
       refused: true,
-      reason: finish.includes("content") || errorText.includes("content")
-        ? "content_filter"
-        : "safety_block",
+      reason:
+        finish.includes("content") || errorText.includes("content")
+          ? "content_filter"
+          : "safety_block",
     };
   }
-  if (!text && /safety|blocked|filter|refusal/.test(`${finish} ${errorText}`)) {
+  if (
+    !text &&
+    (/safety|blocked|filter|refusal|refused/.test(`${finish} ${errorText}`) ||
+      isProviderNativeRefusalSignal(finish))
+  ) {
     return { refused: true, reason: "empty_safety_response" };
   }
   if (text && looksLikeProviderRefusalProse(text)) {
