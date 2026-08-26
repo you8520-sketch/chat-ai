@@ -290,7 +290,7 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** DeepSeek background/HTML path — V4 Pro pricing uses a separate owner below. */
+/** Dedicated 55% gross-margin billing paths (Creative HTML uses this margin owner). */
 export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
   Number(process.env.OPENROUTER_DEEPSEEK_GROSS_MARGIN) || 0.55;
 
@@ -2152,7 +2152,7 @@ export function billingTierBenchmark() {
   };
 }
 
-/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling (V3 + 55% 마진) 사용 */
+/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling (Creative HTML + 55% 마진) 사용 */
 export const FLASH_HTML_ONLY_OUTPUT_TOKENS_PER_TIER = 1000;
 /** @deprecated */
 export const FLASH_HTML_ONLY_WON_PER_TIER = 10;

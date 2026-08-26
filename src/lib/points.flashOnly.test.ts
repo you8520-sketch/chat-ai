@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   HTML_FLASH_MAX_OUTPUT_TOKENS,
   HTML_ONLY_MODEL_LABEL,
+  HTML_OOC_FLASH_INPUT_TARGET_TOKENS,
   HTML_ONLY_TURN_MAX_INPUT_TOKENS,
   HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
 } from "@/lib/htmlVisualCardRecovery";
@@ -16,11 +17,17 @@ import { clearCheaperInferenceCatalogPricingForTest } from "@/lib/cheaperInferen
 import { openRouterUsdCostFromRates } from "@/lib/openRouterModelPricing";
 import { convertUsdToKrw } from "@/lib/exchangeRate";
 
-describe("HTML-only turn limits", () => {
-  it("uses 30k input context and 6k output (same as secondary HTML flash)", () => {
+describe("HTML token budget owner", () => {
+  it("keeps dedicated HTML at 20k assembly target / 24k input hard cap / 8k output", () => {
+    assert.equal(HTML_OOC_FLASH_INPUT_TARGET_TOKENS, 20_000);
     assert.equal(HTML_ONLY_TURN_MAX_INPUT_TOKENS, 24_000);
+    assert.equal(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS, 8_000);
+    assert.ok(HTML_OOC_FLASH_INPUT_TARGET_TOKENS <= HTML_ONLY_TURN_MAX_INPUT_TOKENS);
+  });
+
+  it("keeps secondary HTML after RP at 6k output max", () => {
     assert.equal(HTML_FLASH_MAX_OUTPUT_TOKENS, 6000);
-    assert.equal(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS, 8000);
+    assert.ok(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS >= HTML_FLASH_MAX_OUTPUT_TOKENS);
   });
 });
 

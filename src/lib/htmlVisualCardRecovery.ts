@@ -58,8 +58,9 @@ const FLASH_LOREBOOK_MAX = 4_000;
 const FLASH_PREVIOUS_HTML_MAX = 3_000;
 /** RP 후 2차 HTML — 최근 raw 대화 (토큰) */
 export const HTML_FLASH_RECENT_HISTORY_MAX_TOKENS = 3_000;
-/** OOC·HTML 전용 턴 — 조립 목표·API hard cap (system+userBlock) */
+/** OOC·HTML dedicated turn — normal assembly target (system+userBlock budget) */
 export const HTML_OOC_FLASH_INPUT_TARGET_TOKENS = 20_000;
+/** OOC·HTML dedicated turn — API input hard cap (trimBackgroundPayload ceiling) */
 export const HTML_ONLY_TURN_MAX_INPUT_TOKENS = 24_000;
 /** OOC HTML — 섹션별 char/token 상한 (추구미·카테고리 카드 등) */
 export const OOC_FLASH_RECENT_HISTORY_MAX_TOKENS = 8_000;
@@ -69,9 +70,9 @@ const OOC_FLASH_LOREBOOK_MAX = 1_800;
 const OOC_FLASH_USER_NOTE_MAX = 2_500;
 const OOC_FLASH_USER_PERSONA_MAX = 900;
 const OOC_FLASH_MEMORY_HINTS_ONLY_MAX = 1_200;
-/** RP 후 2차 HTML — 출력 상한 (메인 prose cap 보호) */
+/** RP 후 2차 HTML (secondary) — 출력 상한 (메인 prose cap 보호) */
 export const HTML_FLASH_MAX_OUTPUT_TOKENS = 6000;
-/** HTML 요청 전용 턴 — 출력 상한 (실제 출력량으로 과금) */
+/** HTML-only dedicated turn — 출력 상한 */
 export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = 8_000;
 /** 영수증·UI 표시명 (실제 API: BACKGROUND_CREATIVE_HTML_MODEL via callBackgroundMemory) */
 export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
@@ -895,7 +896,7 @@ export function buildHtmlVisualCardFlashUserBlock(
     oocCreativeBrief?: boolean;
     chatOocExclusive?: boolean;
     htmlOnlyDedicatedTurn?: boolean;
-    /** HTML 전용 — 30k 입력 토큰 fit 시 섹션 char 상한 스케일 (0–1) */
+    /** HTML dedicated — 24k input hard cap fit 시 섹션 char 상한 스케일 (0–1) */
     htmlContextCharScale?: number;
   }
 ): string {
@@ -1108,7 +1109,7 @@ export type GenerateHtmlVisualCardOpts = HtmlVisualCardFlashContext & {
   oocCreativeBrief?: boolean;
   /** 채팅 OOC rp_unrelated — 유저노트 상태창/HTML 무시 */
   chatOocExclusive?: boolean;
-  /** HTML 전용 턴 — 메인 RP 미호출, 30k 입력 컨텍스트·6k 출력 */
+  /** HTML-only dedicated turn — 20k assembly target / 24k input hard cap / 8k output max */
   htmlOnlyDedicatedTurn?: boolean;
 };
 

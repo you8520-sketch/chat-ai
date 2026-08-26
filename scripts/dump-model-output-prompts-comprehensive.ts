@@ -27,8 +27,9 @@ import {
   OPENROUTER_QWEN_37_MAX_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
-  OPENROUTER_DEEPSEEK_V3_MODEL,
 } from "../src/lib/chatModels";
+import { BACKGROUND_CREATIVE_HTML_MODEL } from "../src/lib/ai";
+import { HTML_ONLY_MODEL_LABEL } from "../src/lib/htmlVisualCardRecovery";
 
 const OUTPUT = path.join("output", "model-output-prompts-comprehensive.txt");
 
@@ -543,9 +544,9 @@ async function dumpStandalonePrompts(): Promise<string[]> {
 
   lines.push(
     section(
-      "PART M — HTML 전용 모델 (DeepSeek V3) user block schema",
+      "PART M — HTML dedicated turn user block schema",
       HTML_FLASH_USER_BLOCK_SCHEMA,
-      `source: src/lib/htmlVisualCardRecovery.ts — buildHtmlVisualCardFlashUserBlock() · maxOut=${HTML_ONLY_TURN_MAX_OUTPUT_TOKENS} · label=${HTML_ONLY_MODEL_LABEL} · no sample lore/names in prompt`
+      `source: src/lib/htmlVisualCardRecovery.ts — buildHtmlVisualCardFlashUserBlock() · dedicated maxOut=${HTML_ONLY_TURN_MAX_OUTPUT_TOKENS} · secondary maxOut=${HTML_FLASH_MAX_OUTPUT_TOKENS} · label=${HTML_ONLY_MODEL_LABEL} · routing=${BACKGROUND_CREATIVE_HTML_MODEL}`
     )
   );
 
@@ -582,7 +583,7 @@ async function main() {
     "  • Flash/HTML/status firewall (메인 모델 출력 경계)",
     "  • DeepSeek XML bottom reminder (매 user turn)",
     "  • 자동진행·재생성·이어쓰기 user/system 주입",
-    "  • HTML 전용 턴 (V3) user block",
+    "  • HTML dedicated turn user block (20k assembly / 24k input cap / 8k output)",
     "  • 모델별 buildContext() 출력 관련 섹션 전문",
     "",
     "미포함:",
@@ -698,9 +699,11 @@ async function main() {
   lines.push(
     "",
     "█".repeat(88),
-    "PART P — 백그라운드 HTML 전용 모델 (DeepSeek V3)",
-    `model: ${OPENROUTER_DEEPSEEK_V3_MODEL}`,
-    "메인 RP 미호출 HTML 전용 턴 — system prompt는 htmlVisualCardRecovery.ts buildHtmlFlashSystemPrompt()",
+    "PART P — 백그라운드 Creative HTML (BACKGROUND_CREATIVE_HTML_MODEL)",
+    `model: ${BACKGROUND_CREATIVE_HTML_MODEL} (receipt label: ${HTML_ONLY_MODEL_LABEL})`,
+    "메인 RP 미호출 HTML dedicated turn — system prompt는 htmlVisualCardRecovery.ts buildHtmlFlashSystemPrompt()",
+    "  • dedicated: 20k assembly target / 24k input hard cap / 8k output max",
+    "  • secondary (RP 후 2차): 6k output max",
     "  • displayUserInputOnly / oocCreativeBrief / htmlOnlyDedicatedTurn 분기",
     "  • PART M user block schema 참조",
     "█".repeat(88),

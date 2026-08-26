@@ -1,5 +1,5 @@
 /**
- * OOC HTML 동물 문서 턴 — 라우팅·프롬프트·(선택) 실제 V3 호출 검증
+ * OOC HTML 동물 문서 턴 — 라우팅·프롬프트·(선택) live Creative HTML 호출 검증
  *
  * Usage:
  *   npx.cmd tsx scripts/verify-ooc-html-animal-doc.ts
@@ -101,16 +101,16 @@ async function main() {
   console.log("PART H on MAIN model (Gemini etc.):", hasPartH(mainFirewall));
   console.log("MAIN OpenRouter on this turn:", htmlFlashOnlyTurn ? "SKIPPED" : "runs");
   console.log(
-    "V3 system uses OOC CREATIVE path (not PART I templates):",
+    "Creative HTML system uses OOC CREATIVE path (not PART I templates):",
     flashMode.oocCreativeBrief || flashMode.chatOocExclusive
   );
-  console.log("PART H is NOT injected into V3 — only main-model firewall");
+  console.log("PART H is NOT injected into Creative HTML — only main-model firewall");
   console.log(
     "PART I templates only used for standing/turn-trigger status cards, not OOC creative turns"
   );
 
   if (!live) {
-    console.log("\n[dry-run] Add --live to call DeepSeek V3 and inspect output.");
+    console.log("\n[dry-run] Add --live to call BACKGROUND_CREATIVE_HTML_MODEL and inspect output.");
     return;
   }
 
@@ -119,7 +119,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n=== LIVE DeepSeek V3 HTML-only ===");
+  console.log("\n=== LIVE Creative HTML dedicated turn ===");
   const result = await generateHtmlVisualCardWithFlash({
     chatId: 0,
     charName: "TestNPC",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { responseHasHtmlVisualCard } from "@/lib/chatRichContent";
 import { resolveHtmlVisualCardPolicyFromSources } from "@/lib/htmlVisualCardPolicy";
@@ -14,7 +15,10 @@ import {
   ensureHtmlVisualCardBlock,
   normalizeFullResponsePreservingHtml,
   generateHtmlVisualCardWithFlash,
+  HTML_FLASH_MAX_OUTPUT_TOKENS,
   HTML_FLASH_RECENT_HISTORY_MAX_TOKENS,
+  HTML_ONLY_TURN_MAX_INPUT_TOKENS,
+  HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
   HTML_OOC_FLASH_INPUT_TARGET_TOKENS,
   OOC_FLASH_RECENT_HISTORY_MAX_TOKENS,
   resolveHtmlFlashContextBudget,
@@ -393,5 +397,42 @@ NPC의 속마음 한 줄
     assert.doesNotMatch(merged, /장면에 맞게 RP 본문을 참고하세요/);
     const pairs = extractStatusFieldPairsFromHtml(merged);
     assert.equal(pairs.length, 3);
+  });
+});
+
+describe("HTML token budget owner", () => {
+  it("canonical constants match runtime contract", () => {
+    assert.equal(HTML_OOC_FLASH_INPUT_TARGET_TOKENS, 20_000);
+    assert.equal(HTML_ONLY_TURN_MAX_INPUT_TOKENS, 24_000);
+    assert.equal(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS, 8_000);
+    assert.equal(HTML_FLASH_MAX_OUTPUT_TOKENS, 6000);
+    assert.ok(HTML_OOC_FLASH_INPUT_TARGET_TOKENS <= HTML_ONLY_TURN_MAX_INPUT_TOKENS);
+    assert.ok(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS >= HTML_FLASH_MAX_OUTPUT_TOKENS);
+  });
+
+  it("background-html-visual-card resolves API input hard cap and secondary output cap", async () => {
+    const { resolveBackgroundMaxInputTokens, resolveBackgroundMaxOutputTokens } =
+      await import("@/lib/ai");
+    assert.equal(
+      resolveBackgroundMaxInputTokens("background-html-visual-card"),
+      HTML_ONLY_TURN_MAX_INPUT_TOKENS
+    );
+    assert.equal(
+      resolveBackgroundMaxOutputTokens("background-html-visual-card"),
+      HTML_FLASH_MAX_OUTPUT_TOKENS
+    );
+  });
+
+  it("dedicated HTML calls use 8k maxTokens; secondary HTML uses 6k", () => {
+    const src = readFileSync(
+      new URL("./htmlVisualCardRecovery.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      src,
+      /opts\.htmlOnlyDedicatedTurn \|\| opts\.displayUserInputOnly[\s\S]*HTML_ONLY_TURN_MAX_OUTPUT_TOKENS/
+    );
+    assert.match(src, /:\s*HTML_FLASH_MAX_OUTPUT_TOKENS/);
+    assert.match(src, /maxTokens, modelId: BACKGROUND_CREATIVE_HTML_MODEL/);
   });
 });
