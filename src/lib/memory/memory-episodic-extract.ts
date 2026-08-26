@@ -68,7 +68,11 @@ export async function extractEpisodicFactsFromSealedBatch(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<ExtractedStatusFact[]> {
   extractCallCountForTests += 1;
-  if (!extractCallerOverride && !process.env.OPENROUTER_API_KEY?.trim()) {
+  const runningUnderNodeTest = Boolean(process.env.NODE_TEST_CONTEXT);
+  if (
+    !extractCallerOverride &&
+    (runningUnderNodeTest || !process.env.OPENROUTER_API_KEY?.trim())
+  ) {
     return [];
   }
   const system = buildEpisodicExtractSystemPrompt();

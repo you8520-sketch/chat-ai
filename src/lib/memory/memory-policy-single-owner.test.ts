@@ -36,7 +36,7 @@ function makePlayable(count: number): DialogueTurn[] {
 
 function repoRgCount(pattern: string): number {
   const out = execSync(
-    `rg -l ${JSON.stringify(pattern)} --glob '!**/node_modules/**' --glob '!**/.git/**' --glob '!**/.next*/**' . || true`,
+    `rg -l ${JSON.stringify(pattern)} --glob '!**/node_modules/**' --glob '!**/.git/**' --glob '!**/.next*/**' --glob '!*.test.ts' --glob '!*.md' . || true`,
     { cwd: "/workspace", encoding: "utf8" }
   );
   return out

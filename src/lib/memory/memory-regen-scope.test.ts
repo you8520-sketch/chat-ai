@@ -312,6 +312,7 @@ describe("assistant regeneration rebuilds full scopePayload", () => {
       characterId: CHAR,
       tier: "free",
       turnStart: 1,
+      turnEnd: 6,
       assistantMessageId: ids[5]!,
       summary: MAIN_NARRATIVE_A,
       summaryKind: "main_canon",

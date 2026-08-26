@@ -1,5 +1,4 @@
-import { MEMORY_POLICY_ID } from "./memory-constants";
-import { resolveNextBatchRange } from "./memory-summary-range";
+import { MEMORY_POLICY_ID, newAutomaticBatchEnd } from "./memory-constants";
 
 export type MemoryHealthTelemetry = {
   memory_policy: typeof MEMORY_POLICY_ID;
@@ -28,12 +27,13 @@ export function buildMemoryHealthTelemetry(input: {
   episodicBudgetBlockedCount: number;
   statusExtractCallCount: number;
 }): MemoryHealthTelemetry {
-  const next = resolveNextBatchRange(input.summarizedThrough, input.completedPlayableTurns);
+  const nextStart = Math.max(0, input.summarizedThrough) + 1;
+  const nextEnd = newAutomaticBatchEnd(nextStart);
   return {
     memory_policy: MEMORY_POLICY_ID,
     completed_playable_turns: input.completedPlayableTurns,
     summarized_through: input.summarizedThrough,
-    next_pending_summary_range: next ? `${next.turnStart}~${next.turnEnd}` : null,
+    next_pending_summary_range: nextStart >= 1 ? `${nextStart}~${nextEnd}` : null,
     real_raw_complete_exchanges: input.realRawCompleteExchanges,
     opening_in_raw: input.openingInRaw,
     bridge_in_raw: input.bridgeInRaw,

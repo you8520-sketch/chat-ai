@@ -96,28 +96,34 @@ describe("5-turn summary migration worker", () => {
   it("dry-run mutates nothing and classifies legacy 6-turn chats", () => {
     seed();
     seedPlayableTurns(12);
-    persistValidatedSummaryBatch({
-      chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      turnStart: 1,
-      turnEnd: 6,
-      assistantMessageId: null,
-      summary: FIXTURE,
-      playableTurnCount: 12,
-    });
-    persistValidatedSummaryBatch({
-      chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      turnStart: 7,
-      turnEnd: 12,
-      assistantMessageId: null,
-      summary: FIXTURE,
-      playableTurnCount: 12,
-    });
+    assert.equal(
+      persistValidatedSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        tier: "free",
+        turnStart: 1,
+        turnEnd: 6,
+        assistantMessageId: null,
+        summary: FIXTURE,
+        playableTurnCount: 12,
+      }).ok,
+      true
+    );
+    assert.equal(
+      persistValidatedSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        tier: "free",
+        turnStart: 7,
+        turnEnd: 12,
+        assistantMessageId: null,
+        summary: FIXTURE,
+        playableTurnCount: 12,
+      }).ok,
+      true
+    );
     const beforeRows = getDb()
       .prepare("SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=?")
       .get(CHAT) as { n: number };

@@ -170,7 +170,7 @@ describe("episodic ownership decoupled from status widget", () => {
   });
 
   it("failed episodic extract does not roll back a sealed summary", async () => {
-    persistValidatedSummaryBatch({
+    const sealed = persistValidatedSummaryBatch({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
@@ -182,6 +182,7 @@ describe("episodic ownership decoupled from status widget", () => {
         "레온은 정원에서 렌을 만나 약속을 나눴다. 커프링크스를 건네고 다음을 기약했다.",
       playableTurnCount: 5,
     });
+    assert.equal(sealed.ok, true);
     __setEpisodicExtractCallerForTests(async () => {
       throw new Error("provider 503");
     });

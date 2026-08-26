@@ -243,8 +243,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       text: TEXT_C,
     });
 
-    seedPlayableTurns(36, (t) =>
-      t === 36
+    seedPlayableTurns(35, (t) =>
+      t === 35
         ? { user: "계속", assistant: "카페 IF가 이어진다." }
         : { user: `(OOC: IF 비트 ${t})`, assistant: `장면 ${t}` }
     );
@@ -284,8 +284,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     const b1 = persistKind({ turnStart: 25, kind: "noncanon", text: TEXT_B1 });
     const b2 = persistKind({ turnStart: 31, kind: "noncanon", text: TEXT_B2 });
 
-    seedPlayableTurns(42, (t) =>
-      t === 42
+    seedPlayableTurns(41, (t) =>
+      t === 41
         ? { user: "이어서", assistant: "학교 IF 계속." }
         : { user: `(OOC: 비트 ${t})`, assistant: `응답 ${t}` }
     );
@@ -319,8 +319,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       text: TEXT_PREF,
     });
     const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(24, (t) =>
-      t === 24
+    seedPlayableTurns(23, (t) =>
+      t === 23
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -350,8 +350,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       text: "__SUMMARY_KIND_OOC_ONLY__",
     });
     const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(24, (t) =>
-      t === 24
+    seedPlayableTurns(23, (t) =>
+      t === 23
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -385,7 +385,7 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       kind: "noncanon",
       text: TEXT_B,
     });
-    seedPlayableTurns(18, (t) =>
+    seedPlayableTurns(17, (t) =>
       t >= 13
         ? { user: "계속", assistant: "분기C 이어감." }
         : { user: `분기 비트 ${t}`, assistant: `응답 ${t}` }
@@ -425,8 +425,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     });
     const b1 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B1 });
     const b2 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(24, (t) =>
-      t === 24
+    seedPlayableTurns(23, (t) =>
+      t === 23
         ? { user: "계속", assistant: "새 분기." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -454,8 +454,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     const b1 = persistKind({ turnStart: 1, kind: "noncanon", text: TEXT_B1 });
     const b2 = persistKind({ turnStart: 7, kind: "noncanon", text: TEXT_B2 });
     const b3 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B3 });
-    seedPlayableTurns(24, (t) =>
-      t === 24
+    seedPlayableTurns(23, (t) =>
+      t === 23
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -487,8 +487,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
     persistKind({ turnStart: 7, kind: "main_canon", text: TEXT_MAIN });
     const b1 = persistKind({ turnStart: 13, kind: "noncanon", text: TEXT_B1 });
     const b2 = persistKind({ turnStart: 19, kind: "noncanon", text: TEXT_B2 });
-    seedPlayableTurns(30, (t) =>
-      t === 30
+    seedPlayableTurns(29, (t) =>
+      t === 29
         ? { user: "계속", assistant: "B 이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
@@ -549,8 +549,8 @@ describe("P1-B seal-time narrow noncanon promotion", () => {
       text: "비정사 INACTIVE2: 그룹 안의 비활성 행이다.",
       inactive: true,
     });
-    seedPlayableTurns(30, (t) =>
-      t === 30
+    seedPlayableTurns(29, (t) =>
+      t === 29
         ? { user: "계속", assistant: "이어감." }
         : { user: `(OOC: IF ${t})`, assistant: `응답 ${t}` }
     );
