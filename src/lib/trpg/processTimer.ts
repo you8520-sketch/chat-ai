@@ -3,6 +3,19 @@ import type { LiveTurnProcessStage } from "./liveTurnStatus";
 
 export type TrpgProcessStage = Exclude<LiveTurnProcessStage, "none" | "wait_humans">;
 
+/** Anchor round processing elapsed time once all required humans have locked. */
+export function anchorTrpgProcessTimer(db: Database.Database, roundId: number): void {
+  db.prepare(
+    `UPDATE trpg_rounds
+     SET process_started_at = CASE
+           WHEN process_started_at IS NULL THEN datetime('now')
+           ELSE process_started_at
+         END,
+         updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(roundId);
+}
+
 export function ensureTrpgProcessStage(
   db: Database.Database,
   roundId: number,
@@ -12,7 +25,8 @@ export function ensureTrpgProcessStage(
     `UPDATE trpg_rounds
      SET process_stage = ?,
          process_started_at = CASE
-           WHEN process_stage IS NULL OR process_stage != ? THEN datetime('now')
+           WHEN ? = 'reroll' THEN datetime('now')
+           WHEN process_started_at IS NULL THEN datetime('now')
            ELSE process_started_at
          END,
          updated_at = datetime('now')

@@ -95,7 +95,10 @@ export function tryClaimBotRecoveryGeneration(
            bot_generation_started_at = datetime('now'),
            bot_generation_heartbeat_at = datetime('now'),
            process_stage = 'bots',
-           process_started_at = datetime('now'),
+           process_started_at = CASE
+             WHEN process_started_at IS NULL THEN datetime('now')
+             ELSE process_started_at
+           END,
            updated_at = datetime('now')
        WHERE id = ?
          AND bot_generation_id IS NULL
@@ -125,7 +128,10 @@ export function tryClaimBotRecoveryGeneration(
            bot_generation_started_at = datetime('now'),
            bot_generation_heartbeat_at = datetime('now'),
            process_stage = 'bots',
-           process_started_at = datetime('now'),
+           process_started_at = CASE
+             WHEN process_started_at IS NULL THEN datetime('now')
+             ELSE process_started_at
+           END,
            updated_at = datetime('now')
        WHERE id = ?
          AND bot_generation_id IS NOT NULL
@@ -169,7 +175,10 @@ export function tryClaimBotExplicitRetryGeneration(
            bot_generation_started_at = datetime('now'),
            bot_generation_heartbeat_at = datetime('now'),
            process_stage = 'bots',
-           process_started_at = datetime('now'),
+           process_started_at = CASE
+             WHEN process_started_at IS NULL THEN datetime('now')
+             ELSE process_started_at
+           END,
            updated_at = datetime('now')
        WHERE id = ?
          AND bot_generation_id IS NULL
@@ -196,7 +205,10 @@ export function tryClaimBotExplicitRetryGeneration(
            bot_generation_started_at = datetime('now'),
            bot_generation_heartbeat_at = datetime('now'),
            process_stage = 'bots',
-           process_started_at = datetime('now'),
+           process_started_at = CASE
+             WHEN process_started_at IS NULL THEN datetime('now')
+             ELSE process_started_at
+           END,
            updated_at = datetime('now')
        WHERE id = ?
          AND bot_generation_id IS NOT NULL

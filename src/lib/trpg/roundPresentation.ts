@@ -55,11 +55,13 @@ export function buildRoundPresentationActors(opts: {
   for (const id of order) leftoverActorIds.delete(id);
 
   const actorIds = [...order, ...[...leftoverActorIds].sort((a, b) => a - b)];
-  return actorIds.map((actorId) => ({
-    actorId,
-    action: opts.actions.find((action) => action.participantId === actorId) ?? null,
-    roll: opts.rolls.find((roll) => roll.participantId === actorId) ?? null,
-  }));
+  return actorIds
+    .map((actorId) => ({
+      actorId,
+      action: opts.actions.find((action) => action.participantId === actorId) ?? null,
+      roll: opts.rolls.find((roll) => roll.participantId === actorId) ?? null,
+    }))
+    .filter((actor) => actor.action != null || actor.roll != null);
 }
 
 export function decideRoundPresentationMode(opts: {
@@ -86,12 +88,46 @@ export const LIVE_ROUND_PRESENTATION_READY_PHASES = new Set<string>([
   "ERROR_RECOVERY",
 ]);
 
+/** Phases where persisted actions may display incrementally before roll-final cinematic. */
+export const LIVE_ROUND_INCREMENTAL_ACTION_PHASES = new Set<string>([
+  "BOT_ACTION",
+  "LOCKING_ACTIONS",
+  "ADJUDICATING",
+]);
+
+export function isIncrementalCanonicalActionPhase(phase: string): boolean {
+  return LIVE_ROUND_INCREMENTAL_ACTION_PHASES.has(phase);
+}
+
 export function isLiveRoundPresentationReady(opts: {
   phase: string;
   hasLockedActorSet: boolean;
 }): boolean {
   if (!opts.hasLockedActorSet) return false;
   return LIVE_ROUND_PRESENTATION_READY_PHASES.has(opts.phase);
+}
+
+export function incrementalCanonicalActionIds(
+  actions: readonly { participantId: number }[],
+  resolutionOrder: readonly number[]
+): number[] {
+  const persisted = new Set(actions.map((action) => action.participantId));
+  return uniqueResolutionOrder(resolutionOrder).filter((id) => persisted.has(id));
+}
+
+/** SceneTurn reveal owner for the live row (undefined = all persisted actions). */
+export function resolveLiveRevealedActionIds(opts: {
+  isLiveRow: boolean;
+  mode: RoundPresentationMode;
+  cinematicRevealedIds: readonly number[];
+  incrementalCanonicalVisible: boolean;
+  pinnedVisibleActorIds: readonly number[];
+}): number[] | undefined {
+  if (!opts.isLiveRow) return undefined;
+  if (opts.mode === "cinematic") return [...opts.cinematicRevealedIds];
+  if (opts.incrementalCanonicalVisible) return undefined;
+  if (opts.pinnedVisibleActorIds.length > 0) return [...opts.pinnedVisibleActorIds];
+  return [];
 }
 
 export type LiveRoundWaitKind = "none" | "wait_humans" | "bots" | "rolls" | "gm" | "reroll";
@@ -154,6 +190,7 @@ export function idlePresentation(): RoundPresentationState {
 export function revealedActorIds(opts: {
   actors: readonly PresentationActor[];
   state: RoundPresentationState;
+  pinnedVisibleActorIds?: readonly number[];
 }): number[] {
   if (opts.state.mode === "historical" || opts.state.phase === "gm-narration" || opts.state.phase === "complete") {
     return opts.actors.map((actor) => actor.actorId);
@@ -166,9 +203,12 @@ export function revealedActorIds(opts: {
   ) {
     return [];
   }
-  return opts.actors
+  const cinematicIds = opts.actors
     .slice(0, Math.min(opts.actors.length, opts.state.presentationIndex + 1))
     .map((actor) => actor.actorId);
+  if (!opts.pinnedVisibleActorIds?.length) return cinematicIds;
+  const allowed = new Set([...opts.pinnedVisibleActorIds, ...cinematicIds]);
+  return opts.actors.filter((actor) => allowed.has(actor.actorId)).map((actor) => actor.actorId);
 }
 
 export function shouldShowActorResultLane(opts: {
@@ -291,7 +331,9 @@ export function liveRoundCanonicalVisibleCount(opts: {
   mode: RoundPresentationMode;
   actions: readonly { participantId: number }[];
   revealedActorIds: readonly number[];
+  incrementalCanonical?: boolean;
 }): number {
+  if (opts.incrementalCanonical) return opts.actions.length;
   if (!opts.gated) return opts.actions.length;
   if (opts.mode !== "cinematic") return 0;
   return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
@@ -400,17 +442,23 @@ export function freezeLivePresentationActors(opts: {
 }): { actors: PresentationActor[]; frozenRound: number | null } {
   if (!opts.ready) return { actors: [...opts.next], frozenRound: null };
   if (opts.previous && opts.frozenRound === opts.roundNumber && opts.previous.length > 0) {
+    const merged = opts.previous.map((actor) => {
+      const fresh = opts.next.find((item) => item.actorId === actor.actorId);
+      return fresh
+        ? {
+            actorId: actor.actorId,
+            action: fresh.action ?? actor.action,
+            roll: fresh.roll ?? actor.roll,
+          }
+        : actor;
+    });
+    for (const actor of opts.next) {
+      if (!merged.some((item) => item.actorId === actor.actorId)) {
+        merged.push(actor);
+      }
+    }
     return {
-      actors: opts.previous.map((actor) => {
-        const fresh = opts.next.find((item) => item.actorId === actor.actorId);
-        return fresh
-          ? {
-              actorId: actor.actorId,
-              action: fresh.action ?? actor.action,
-              roll: fresh.roll ?? actor.roll,
-            }
-          : actor;
-      }),
+      actors: merged,
       frozenRound: opts.roundNumber,
     };
   }
@@ -431,6 +479,7 @@ export type LiveRoundPresentationStep = {
   sessionKey: string;
   mode: RoundPresentationMode;
   visibleCanonicalActionIds: number[];
+  incrementalVisibleActionIds: number[];
   started: boolean;
   restarted: boolean;
   actors: PresentationActor[];
@@ -509,6 +558,11 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
       mode === "idle"
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
+    const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
+    const incrementalVisibleActionIds =
+      !decided.ready && isIncrementalCanonicalActionPhase(snap.phase)
+        ? incrementalCanonicalActionIds(actions, snap.resolutionOrder)
+        : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {
@@ -516,6 +570,7 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
       sessionKey: decided.sessionKey,
       mode,
       visibleCanonicalActionIds,
+      incrementalVisibleActionIds,
       started,
       restarted,
       actors: frozenNext.actors,

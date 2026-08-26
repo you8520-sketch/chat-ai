@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
+  allRequiredHumanActionsLocked,
   nextTrpgRoundWork,
   tryAcquireGmLock,
   tryBeginGmGeneration,
@@ -25,6 +26,8 @@ describe("TRPG round work", () => {
       bots: [bot(3, false)],
     });
     assert.deepEqual(work, { type: "wait_humans", pendingIds: [2] });
+    assert.equal(allRequiredHumanActionsLocked([human(1, true), human(2, false)]), false);
+    assert.equal(allRequiredHumanActionsLocked([human(1, true), human(2, true)]), true);
   });
 
   it("starts bot generation only after every acting human has submitted", () => {

@@ -79,7 +79,8 @@ import {
   tryClaimBotExplicitRetryGeneration,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
-import { ensureTrpgProcessStage } from "./processTimer";
+import { allRequiredHumanActionsLocked } from "./roundLock";
+import { anchorTrpgProcessTimer, ensureTrpgProcessStage } from "./processTimer";
 import { tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import {
@@ -331,6 +332,10 @@ export function submitTrpgAction(
     opts.idempotencyKey,
     parseTrpgInputOrigin(opts.inputOrigin)
   );
+  const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
+  if (allRequiredHumanActionsLocked(humanActors)) {
+    anchorTrpgProcessTimer(db, round.id);
+  }
 }
 
 function upsertLockedAction(
@@ -430,6 +435,7 @@ export async function advanceTrpgCampaign(
   });
 
   if (work.type === "generate_bots") {
+    ensureTrpgProcessStage(db, round.id, "bots");
     const rid = newRequestId();
     const recoveryAttempt =
       roundHasBotGenerateFailed(round.error_json) &&
@@ -444,7 +450,7 @@ export async function advanceTrpgCampaign(
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
     if (!recoveryAttempt) {
-      ensureTrpgProcessStage(db, round.id, "bots");
+      /* stage + started_at already anchored above for human-submit processing */
     }
     try {
       await generateBotActions(db, {
