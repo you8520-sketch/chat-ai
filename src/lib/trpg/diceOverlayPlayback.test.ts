@@ -57,6 +57,15 @@ describe("TRPG dice overlay playback session handshake", () => {
     assert.match(overlay, /trpgDiceOverlayPlayOwnerSessionKey/);
   });
 
+  it("production room uses single actor-dice dismiss gate helper", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /shouldAdvanceActorDiceAfterOverlayDismiss/);
+    assert.doesNotMatch(
+      room,
+      /overlayPlayback\.dismissed \|\| overlayPlayback\.sessionKey !== activeKey/
+    );
+  });
+
   it("T_DICE_NEW_SESSION_STALE_DISMISSED: stale dismissed cannot skip a new session", () => {
     const keyA = sessionKey(4, rollA);
     let playOwner = "";
