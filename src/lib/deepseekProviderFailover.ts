@@ -369,7 +369,7 @@ export function resolveBackgroundFlashProviderDeadlines(opts: {
 }): { primaryCompletionMs: number; backupCompletionMs: number } {
   const kind = opts.requestKind ?? "";
   const isLongForm =
-    /html-visual-card|background-html|scenario-draft|trpg-scenario|director/i.test(
+    /html-visual-card|background-html|scenario-draft|trpg-scenario|director|background-memory-extract/i.test(
       kind
     );
   const isTrpgReply = /trpg-reply-suggestion|reply-suggestions/i.test(kind);
