@@ -98,7 +98,10 @@ export function parseStatusWidgetDisplayMode(
   }
 }
 
-/** Derive display preference from legacy engine mode when display column is unset. */
+/**
+ * COMPATIBILITY_ONLY_OWNER — one-way legacy display init when
+ * status_widget_display_mode is null/empty. Must not write engine mode.
+ */
 export function displayModeFromEngineMode(mode: StatusWidgetSourceMode): StatusWidgetDisplayMode {
   switch (mode) {
     case "both":
@@ -114,8 +117,8 @@ export function displayModeFromEngineMode(mode: StatusWidgetSourceMode): StatusW
 }
 
 /**
- * Engine mode for persistence: creator widget always stays on when present.
- * Display preference never turns creator generation off.
+ * @deprecated COMPATIBILITY_ONLY_OWNER — do not call from runtime engine or
+ * settings writes. Display must never determine engine mode.
  */
 export function engineModeForDisplay(
   display: StatusWidgetDisplayMode,
@@ -126,7 +129,6 @@ export function engineModeForDisplay(
     if (!hasUserWidget) return "off";
     return display === "hidden" ? "off" : "user_only";
   }
-  // Creator always on for engine
   if (hasUserWidget && (display === "user" || display === "both")) return "both";
   return "character_only";
 }

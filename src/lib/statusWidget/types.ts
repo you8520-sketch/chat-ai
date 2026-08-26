@@ -50,8 +50,8 @@ export type StatusWidgetSourceMode =
   | "both";
 
 /**
- * Visual-only preference. Never disables canonical creator status generation,
- * parsing, storage, triggers, or memory/state logic.
+ * Visual-only preference. Must not determine engine mode, extraction,
+ * persistence, triggers, numeric state, or memory behavior.
  */
 export type StatusWidgetDisplayMode =
   | "creator"
@@ -87,18 +87,18 @@ export type ParsedStatusWidgetTurnValues = {
 };
 
 export type ResolvedStatusWidgetTurn = {
-  /** Engine active — true when any status values must be generated this turn */
+  /** Engine active — true when effective mode is not off */
   active: boolean;
-  /** Engine source mode (canonical creator always included when character widget exists) */
+  /** Stored/requested engine mode before fail-closed availability */
+  requestedMode: StatusWidgetSourceMode;
+  /** Effective engine source-of-truth after fail-closed availability */
   mode: StatusWidgetSourceMode;
   /** Visual-only; does not affect needsCharacterValues / triggers / storage */
   displayMode: StatusWidgetDisplayMode;
   stackOrder: StatusWidgetStackOrder;
-  /** Canonical creator widget for engine (always present when character has a widget) */
   characterWidget: StatusWidget | null;
-  /** User display overlay widget (optional) */
   userWidget: StatusWidget | null;
-  /** Which sources need AI value blocks this turn */
+  /** Derived only from effective engine mode + source availability */
   needsCharacterValues: boolean;
   needsUserValues: boolean;
 };

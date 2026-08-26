@@ -45,6 +45,7 @@ const usage = (n: number): TokenUsage => ({
 function characterResolved(widget: StatusWidget = DEFAULT_STATUS_WIDGET): ResolvedStatusWidgetTurn {
   return {
     active: true,
+    requestedMode: "character_only",
     mode: "character_only",
     displayMode: "creator",
     stackOrder: "character_first",
@@ -61,6 +62,7 @@ function bothResolved(
 ): ResolvedStatusWidgetTurn {
   return {
     active: true,
+    requestedMode: "both",
     mode: "both",
     displayMode: "both",
     stackOrder: "character_first",
@@ -1504,6 +1506,7 @@ describe("combined dual output budget", () => {
   it("7. user-only does not use combined budget helper path", async () => {
     const userOnly: ResolvedStatusWidgetTurn = {
       active: true,
+      requestedMode: "user_only",
       mode: "user_only",
       displayMode: "user",
       stackOrder: "character_first",

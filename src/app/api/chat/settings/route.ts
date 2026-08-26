@@ -5,10 +5,13 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
+import { fieldPlaceholderKey } from "@/lib/statusWidget/fieldKeys";
+import {
+  statusWidgetHasCreatorSource,
+  statusWidgetHasUserSource,
+} from "@/lib/statusWidget/resolve";
 import {
   displayModeFromEngineMode,
-  engineModeForDisplay,
-  hasCharacterStatusWidget,
   parseStatusWidgetDisplayMode,
   parseStatusWidgetJson,
   parseStatusWidgetMode,
@@ -16,7 +19,14 @@ import {
   resolveStatusWidgetTurn,
   validateStatusWidgetContextBudget,
   serializeStatusWidget,
+  type StatusWidget,
+  type StatusWidgetSourceMode,
 } from "@/lib/statusWidget";
+import { resolveStatusWidgetSettingsWrite } from "@/lib/statusWidget/settingsWrite";
+import {
+  supersedeUnconsumedStatusTriggerEvents,
+  supersedeUnconsumedStatusTriggerEventsForKeys,
+} from "@/lib/statusWidgetTriggers";
 
 function loadChatWidgetContext(chatId: number, userId: number) {
   const db = getDb();
@@ -39,6 +49,51 @@ function loadChatWidgetContext(chatId: number, userId: number) {
         status_widget_allow_user_override: number | null;
       }
     | undefined;
+}
+
+function widgetFieldKeys(widget: StatusWidget | null | undefined): string[] {
+  if (!widget) return [];
+  const keys = new Set<string>();
+  for (const field of widget.fields) {
+    if (field.id?.trim()) keys.add(field.id.trim());
+    const placeholder = fieldPlaceholderKey(field);
+    if (placeholder) keys.add(placeholder);
+  }
+  return [...keys];
+}
+
+function supersedeDisabledStatusSources(opts: {
+  chatId: number;
+  prevMode: StatusWidgetSourceMode;
+  nextMode: StatusWidgetSourceMode;
+  characterWidget: StatusWidget | null;
+  userWidget: StatusWidget | null;
+}): void {
+  const db = getDb();
+  if (opts.nextMode === "off" && opts.prevMode !== "off") {
+    supersedeUnconsumedStatusTriggerEvents(db, opts.chatId);
+    return;
+  }
+  if (
+    statusWidgetHasCreatorSource(opts.prevMode) &&
+    !statusWidgetHasCreatorSource(opts.nextMode)
+  ) {
+    supersedeUnconsumedStatusTriggerEventsForKeys(
+      db,
+      opts.chatId,
+      widgetFieldKeys(opts.characterWidget)
+    );
+  }
+  if (
+    statusWidgetHasUserSource(opts.prevMode) &&
+    !statusWidgetHasUserSource(opts.nextMode)
+  ) {
+    supersedeUnconsumedStatusTriggerEventsForKeys(
+      db,
+      opts.chatId,
+      widgetFieldKeys(opts.userWidget)
+    );
+  }
 }
 
 export async function PATCH(req: Request) {
@@ -93,7 +148,6 @@ export async function PATCH(req: Request) {
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
-  const hasCreator = hasCharacterStatusWidget(widgetCtx?.status_widget_json);
   let nextUserWidgetJson = widgetCtx?.user_status_widget_json ?? null;
   if (userStatusWidgetJson !== undefined) {
     const parsed =
@@ -106,40 +160,42 @@ export async function PATCH(req: Request) {
     nextUserWidgetJson = serializeStatusWidget(parsed);
   }
 
-  const hasUser = Boolean(parseStatusWidgetJson(nextUserWidgetJson));
+  const allowUser = widgetCtx?.status_widget_allow_user_override !== 0;
+  const storedMode = parseStatusWidgetMode(widgetCtx?.status_widget_mode);
+  const storedDisplay = parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode);
+  const settingsWrite = resolveStatusWidgetSettingsWrite({
+    storedMode,
+    storedDisplay,
+    incomingMode: statusWidgetMode,
+    incomingDisplay: statusWidgetDisplayMode,
+  });
+  const nextMode = settingsWrite.nextMode;
+  const nextDisplay = settingsWrite.nextDisplay;
 
-  let nextDisplay =
-    statusWidgetDisplayMode !== undefined
-      ? parseStatusWidgetDisplayMode(String(statusWidgetDisplayMode))
-      : parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode);
-
-  // Legacy: if only engine mode sent, derive display
-  if (nextDisplay == null && statusWidgetMode !== undefined) {
-    nextDisplay = displayModeFromEngineMode(parseStatusWidgetMode(String(statusWidgetMode)));
-  }
-  if (nextDisplay == null) {
-    nextDisplay =
-      parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode) ??
-      displayModeFromEngineMode(parseStatusWidgetMode(widgetCtx?.status_widget_mode));
-  }
-
-  // Engine mode always keeps creator on when present
-  let nextMode = engineModeForDisplay(nextDisplay, hasCreator, hasUser);
-  nextMode = resolveStatusWidgetTurn({
+  const resolved = resolveStatusWidgetTurn({
     characterWidgetJson: widgetCtx?.status_widget_json,
     chatMode: nextMode,
     userWidgetJson: nextUserWidgetJson,
     stackOrder: widgetCtx?.status_widget_stack_order,
-    characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+    characterAllowUserOverride: allowUser,
     displayMode: nextDisplay,
-  }).mode;
+  });
+
+  const prevResolved = resolveStatusWidgetTurn({
+    characterWidgetJson: widgetCtx?.status_widget_json,
+    chatMode: storedMode,
+    userWidgetJson: widgetCtx?.user_status_widget_json,
+    stackOrder: widgetCtx?.status_widget_stack_order,
+    characterAllowUserOverride: allowUser,
+    displayMode: storedDisplay,
+  });
 
   const widgetReservedBreakdown = resolveStatusWidgetReservedBreakdown({
     characterWidgetJson: widgetCtx?.status_widget_json,
     chatMode: nextMode,
     userWidgetJson: nextUserWidgetJson,
     stackOrder: widgetCtx?.status_widget_stack_order,
-    characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+    characterAllowUserOverride: allowUser,
     displayMode: nextDisplay,
   });
   const widgetBudgetCheck = validateStatusWidgetContextBudget(widgetReservedBreakdown);
@@ -196,9 +252,11 @@ export async function PATCH(req: Request) {
     sets.push("pov_character_name=?");
     vals.push(resolvedNarrativePov.povCharacterName || null);
   }
-  if (statusWidgetMode !== undefined || statusWidgetDisplayMode !== undefined) {
+  if (settingsWrite.writeMode) {
     sets.push("status_widget_mode=?");
     vals.push(nextMode);
+  }
+  if (settingsWrite.writeDisplay) {
     sets.push("status_widget_display_mode=?");
     vals.push(nextDisplay);
   }
@@ -218,10 +276,20 @@ export async function PATCH(req: Request) {
   vals.push(chatId);
   db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=?`).run(...vals);
 
+  if (settingsWrite.writeMode) {
+    supersedeDisabledStatusSources({
+      chatId,
+      prevMode: prevResolved.mode,
+      nextMode: resolved.mode,
+      characterWidget: resolved.characterWidget,
+      userWidget: parseStatusWidgetJson(nextUserWidgetJson),
+    });
+  }
+
   return Response.json({
     ok: true,
     statusWidgetMode: nextMode,
-    statusWidgetDisplayMode: nextDisplay,
+    statusWidgetDisplayMode: nextDisplay ?? storedDisplay ?? displayModeFromEngineMode(nextMode),
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
     ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),

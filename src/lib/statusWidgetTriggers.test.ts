@@ -11,6 +11,9 @@ import {
   loadQueuedStatusTriggerEventsForPrompt,
   markStatusTriggerEventsConsumed,
   saveCharacterStatusWidgetTriggers,
+  STATUS_SOURCE_DISABLED_SUPERSEDE_REASON,
+  supersedeUnconsumedStatusTriggerEvents,
+  supersedeUnconsumedStatusTriggerEventsForKeys,
   validateStatusWidgetTriggerInput,
 } from "./statusWidgetTriggers";
 
@@ -573,5 +576,141 @@ describe("statusWidgetTriggers", () => {
       statusValues: { character: { d_day: "—" } },
     });
     assert.equal(result.firedEvents.length, 0);
+  });
+
+  it("disabling a source supersedes queued events without deleting them", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 7,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: true,
+      event_key: "affection_event",
+      effect_text: "애정이 임계점에 도달했다.",
+    });
+    const fired = evaluateStatusWidgetTriggers(db, {
+      chatId: 7,
+      sourceTurn: 4,
+      statusValues: { character: { affection: "90" } },
+    });
+    assert.equal(fired.firedEvents.length, 1);
+    assert.equal(loadQueuedStatusTriggerEventsForPrompt(db, 7).length, 1);
+
+    const superseded = supersedeUnconsumedStatusTriggerEvents(db, 7);
+    assert.equal(superseded, 1);
+    const stored = db
+      .prepare("SELECT is_superseded, superseded_reason, is_consumed FROM status_trigger_events WHERE chat_id=7")
+      .get() as { is_superseded: number; superseded_reason: string; is_consumed: number };
+    assert.equal(stored.is_superseded, 1);
+    assert.equal(stored.superseded_reason, STATUS_SOURCE_DISABLED_SUPERSEDE_REASON);
+    assert.equal(stored.is_consumed, 0);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 7, 8, { engineActive: true }).length,
+      0
+    );
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 7, 8, { engineActive: false }).length,
+      0
+    );
+    const remaining = db
+      .prepare("SELECT COUNT(*) AS n FROM status_trigger_events WHERE chat_id=7")
+      .get() as { n: number };
+    assert.equal(remaining.n, 1);
+  });
+
+  it("re-enable does not inject stale pre-disable queued events", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 8,
+      trigger_id: "d_day_zero",
+      status_key: "d_day",
+      operator: "<=",
+      value: 0,
+      fire_once: true,
+      event_key: "deadline",
+      effect_text: "기한이 끝났다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 8,
+      sourceTurn: 3,
+      statusValues: { character: { d_day: "0" } },
+    });
+    supersedeUnconsumedStatusTriggerEvents(db, 8);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 8, 8, {
+        engineActive: true,
+        allowedStatusKeys: ["d_day"],
+      }).length,
+      0
+    );
+  });
+
+  it("source-key supersede leaves the other source queued", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 9,
+      trigger_id: "creator_d_day",
+      status_key: "d_day",
+      operator: "<=",
+      value: 0,
+      fire_once: false,
+      event_key: "creator_deadline",
+      effect_text: "제작자 기한 이벤트",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 9,
+      trigger_id: "user_note_ready",
+      status_key: "my_note",
+      operator: "==",
+      value: "ready",
+      fire_once: false,
+      event_key: "user_note",
+      effect_text: "유저 메모 이벤트",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 9,
+      sourceTurn: 2,
+      statusValues: { character: { d_day: "0", my_note: "ready" } },
+    });
+    assert.equal(loadQueuedStatusTriggerEventsForPrompt(db, 9).length, 2);
+    supersedeUnconsumedStatusTriggerEventsForKeys(db, 9, ["d_day"]);
+    const remaining = loadQueuedStatusTriggerEventsForPrompt(db, 9, 8, {
+      engineActive: true,
+      allowedStatusKeys: ["my_note"],
+    });
+    assert.equal(remaining.length, 1);
+    assert.equal(remaining[0]?.trigger_id, "user_note_ready");
+    const creatorRow = db
+      .prepare("SELECT is_superseded FROM status_trigger_events WHERE trigger_id='creator_d_day'")
+      .get() as { is_superseded: number };
+    assert.equal(creatorRow.is_superseded, 1);
+  });
+
+  it("engine off or disallowed keys never inject queued events", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 10,
+      trigger_id: "trust_up",
+      status_key: "trust",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "trust_event",
+      effect_text: "신뢰가 올랐다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 10,
+      sourceTurn: 1,
+      statusValues: { character: { trust: "12" } },
+    });
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 10, 8, { engineActive: false }).length,
+      0
+    );
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 10, 8, {
+        engineActive: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
   });
 });

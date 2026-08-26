@@ -552,23 +552,79 @@ export function evaluateStatusWidgetTriggersBestEffort(
   }
 }
 
+export const STATUS_SOURCE_DISABLED_SUPERSEDE_REASON = "status_source_disabled";
+
+/** Audit-preserving freeze: queued events from a disabled source must not inject later. */
+export function supersedeUnconsumedStatusTriggerEvents(
+  db: Database.Database,
+  chatId: number,
+  reason = STATUS_SOURCE_DISABLED_SUPERSEDE_REASON
+): number {
+  ensureStatusWidgetTriggerTables(db);
+  const result = db
+    .prepare(
+      `UPDATE status_trigger_events
+       SET is_superseded = 1,
+           superseded_at = datetime('now'),
+           superseded_reason = ?
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0`
+    )
+    .run(reason, chatId);
+  return Number(result.changes) || 0;
+}
+
+export function supersedeUnconsumedStatusTriggerEventsForKeys(
+  db: Database.Database,
+  chatId: number,
+  statusKeys: readonly string[],
+  reason = STATUS_SOURCE_DISABLED_SUPERSEDE_REASON
+): number {
+  ensureStatusWidgetTriggerTables(db);
+  const keys = [...new Set(statusKeys.map((k) => k.trim()).filter(Boolean))];
+  if (keys.length === 0) return 0;
+  const placeholders = keys.map(() => "?").join(", ");
+  const result = db
+    .prepare(
+      `UPDATE status_trigger_events
+       SET is_superseded = 1,
+           superseded_at = datetime('now'),
+           superseded_reason = ?
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0
+         AND trigger_id IN (
+           SELECT trigger_id FROM status_widget_triggers
+           WHERE lower(status_key) IN (${placeholders})
+         )`
+    )
+    .run(reason, chatId, ...keys.map((k) => k.toLowerCase()));
+  return Number(result.changes) || 0;
+}
+
 export function loadQueuedStatusTriggerEventsForPrompt(
   db: Database.Database,
   chatId: number,
   limit = 8,
-  opts?: { maxSourceTurn?: number | null }
+  opts?: {
+    maxSourceTurn?: number | null;
+    engineActive?: boolean;
+    allowedStatusKeys?: readonly string[];
+  }
 ): StatusTriggerEvent[] {
   ensureStatusWidgetTriggerTables(db);
+  if (opts?.engineActive === false) return [];
   const maxSourceTurn =
     opts?.maxSourceTurn != null && Number.isFinite(opts.maxSourceTurn)
       ? Math.trunc(opts.maxSourceTurn)
       : null;
   const sourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
-  const params =
+  const params: unknown[] =
     maxSourceTurn != null
       ? [chatId, maxSourceTurn, Math.max(1, Math.min(20, limit))]
       : [chatId, Math.max(1, Math.min(20, limit))];
-  return db
+  const events = db
     .prepare(
       `SELECT * FROM status_trigger_events
        WHERE chat_id=? AND is_consumed=0 AND is_superseded=0${sourceTurnFilter}
@@ -576,6 +632,18 @@ export function loadQueuedStatusTriggerEventsForPrompt(
        LIMIT ?`
     )
     .all(...params) as StatusTriggerEvent[];
+  const allowed = opts?.allowedStatusKeys;
+  if (!allowed) return events;
+  const allowedSet = new Set(allowed.map((k) => k.trim().toLowerCase()).filter(Boolean));
+  if (allowedSet.size === 0) return [];
+  return events.filter((event) => {
+    const row = db
+      .prepare(
+        `SELECT status_key FROM status_widget_triggers WHERE trigger_id=? LIMIT 1`
+      )
+      .get(event.trigger_id) as { status_key: string } | undefined;
+    return Boolean(row && allowedSet.has(row.status_key.trim().toLowerCase()));
+  });
 }
 
 export function buildTriggeredScenarioEventsPromptBlock(events: StatusTriggerEvent[]): string {

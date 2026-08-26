@@ -21,6 +21,7 @@ const widget: StatusWidget = {
 
 const resolved: ResolvedStatusWidgetTurn = {
   active: true,
+  requestedMode: "character_only",
   mode: "character_only",
   displayMode: "creator",
   stackOrder: "character_first",

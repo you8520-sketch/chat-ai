@@ -97,6 +97,50 @@ describe("episodic ownership decoupled from status widget", () => {
     assert.match(route, /extractedFactsForTelemetry/);
   });
 
+  it("status mode=off does not block 5-turn summary seal or episodic extract", async () => {
+    getDb()
+      .prepare("UPDATE chats SET status_widget_mode='off' WHERE id=?")
+      .run(CHAT);
+    getDb().prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(CHAT);
+    getDb().prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(CHAT);
+    const sealed = persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary:
+        "레온은 연회장 테라스에서 렌을 만나 정원을 안내했다 → 렌의 청혼에 흔들리며 감정을 드러냈다 → " +
+        "커프링크스를 받으며 둘만의 약속을 나눴다 → 이별 전 심장을 맡긴다고 고백했다.",
+      playableTurnCount: 5,
+    });
+    assert.equal(sealed.ok, true);
+    __resetEpisodicExtractCallCountForTests();
+    __setEpisodicExtractCallerForTests(async () => ({
+      text: JSON.stringify({ extracted_facts: [VALID_FACT] }),
+    }));
+    const result = await extractAndPersistEpisodicFactsForSealedBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "EpChar",
+      startTurn: 1,
+      endTurn: 5,
+      dialogue: "유저: 커피에 시럽을 두 번 넣어.\n캐릭터: 알겠어.",
+      batchUserSources: [{ turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어." }],
+    });
+    assert.equal(result.calls, 1);
+    assert.ok(result.persisted >= 1);
+    const mode = getDb()
+      .prepare("SELECT status_widget_mode AS mode FROM chats WHERE id=?")
+      .get(CHAT) as { mode: string };
+    assert.equal(mode.mode, "off");
+    assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
+    assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
+  });
+
   it("seal extract persists facts without a status widget", async () => {
     getDb().prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(CHAT);
     __resetEpisodicExtractCallCountForTests();

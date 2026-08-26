@@ -12,12 +12,60 @@ import type {
   StatusWidgetSourceMode,
 } from "./types";
 
+export function statusWidgetHasCreatorSource(mode: StatusWidgetSourceMode): boolean {
+  return mode === "character_only" || mode === "both";
+}
+
+export function statusWidgetHasUserSource(mode: StatusWidgetSourceMode): boolean {
+  return mode === "user_only" || mode === "both";
+}
+
 /**
- * Resolve engine + display for a status-widget turn.
+ * Fail-closed effective engine mode.
+ * Requested source never silently activates another source.
+ */
+export function resolveEffectiveStatusWidgetMode(opts: {
+  requestedMode: StatusWidgetSourceMode;
+  hasCreatorWidget: boolean;
+  hasAllowedUserWidget: boolean;
+}): StatusWidgetSourceMode {
+  const { requestedMode, hasCreatorWidget, hasAllowedUserWidget } = opts;
+  switch (requestedMode) {
+    case "off":
+      return "off";
+    case "character_only":
+      return hasCreatorWidget ? "character_only" : "off";
+    case "user_only":
+      return hasAllowedUserWidget ? "user_only" : "off";
+    case "both":
+      if (hasCreatorWidget && hasAllowedUserWidget) return "both";
+      if (hasCreatorWidget) return "character_only";
+      if (hasAllowedUserWidget) return "user_only";
+      return "off";
+    default: {
+      const _exhaustive: never = requestedMode;
+      return _exhaustive;
+    }
+  }
+}
+
+function clampDisplayMode(opts: {
+  preference: StatusWidgetDisplayMode;
+  hasCreatorWidget: boolean;
+  hasAllowedUserWidget: boolean;
+}): StatusWidgetDisplayMode {
+  return displayModeFromUserChoice({
+    hasCharacterWidget: opts.hasCreatorWidget,
+    hasUserWidget: opts.hasAllowedUserWidget,
+    preference: opts.preference,
+  });
+}
+
+/**
+ * Single runtime owner for status-widget engine + display.
  *
- * Engine (canonical): when a creator widget exists it is ALWAYS included —
- * needsCharacterValues stays true regardless of display preference (including hidden).
- * Display: visual-only filter for orderedWidgetsForRender.
+ * Engine (`mode`) is fail-closed from stored `status_widget_mode`.
+ * Display is presentation-only and never changes engine / needs* / extract.
  */
 export function resolveStatusWidgetTurn(opts: {
   characterWidgetJson?: string | null;
@@ -25,73 +73,48 @@ export function resolveStatusWidgetTurn(opts: {
   userWidgetJson?: string | null;
   stackOrder?: string | null;
   characterAllowUserOverride?: boolean;
-  /** Visual-only preference; never disables creator engine status */
+  /** Visual-only preference; never changes engine extraction */
   displayMode?: string | null;
 }): ResolvedStatusWidgetTurn {
   const characterWidget = parseStatusWidgetJson(opts.characterWidgetJson);
   const userWidgetParsed = parseStatusWidgetJson(opts.userWidgetJson);
-  const allowUser =
-    opts.characterAllowUserOverride !== false && Boolean(userWidgetParsed);
-  const userWidget = allowUser ? userWidgetParsed : null;
+  const allowUserOverride = opts.characterAllowUserOverride !== false;
+  const hasAllowedUserWidget = allowUserOverride && Boolean(userWidgetParsed);
+  const userWidget = hasAllowedUserWidget ? userWidgetParsed : null;
 
-  const storedMode = parseStatusWidgetMode(opts.chatMode);
+  const requestedMode = parseStatusWidgetMode(opts.chatMode);
+  const mode = resolveEffectiveStatusWidgetMode({
+    requestedMode,
+    hasCreatorWidget: Boolean(characterWidget),
+    hasAllowedUserWidget,
+  });
+
   const explicitDisplay = parseStatusWidgetDisplayMode(opts.displayMode);
-  let displayMode: StatusWidgetDisplayMode =
-    explicitDisplay ?? displayModeFromEngineMode(storedMode);
-
-  // Clamp display when widgets missing
-  if (displayMode === "user" && !userWidget) {
-    displayMode = characterWidget ? "creator" : "hidden";
-  }
-  if (displayMode === "both" && !userWidget) {
-    displayMode = characterWidget ? "creator" : "hidden";
-  }
-  if ((displayMode === "creator" || displayMode === "both") && !characterWidget) {
-    displayMode = userWidget ? "user" : "hidden";
-  }
-
-  // ── Engine mode ──────────────────────────────────────────────────────────
-  // Creator widget present → always character_only or both (never off / user_only).
-  let mode: StatusWidgetSourceMode;
-  if (characterWidget) {
-    const wantUserValues =
-      Boolean(userWidget) &&
-      (displayMode === "user" || displayMode === "both" || storedMode === "both");
-    mode = wantUserValues ? "both" : "character_only";
-  } else if (userWidget && displayMode !== "hidden") {
-    mode = "user_only";
-  } else {
-    mode = "off";
-  }
+  const displayMode = clampDisplayMode({
+    preference: explicitDisplay ?? displayModeFromEngineMode(requestedMode),
+    hasCreatorWidget: Boolean(characterWidget),
+    hasAllowedUserWidget,
+  });
 
   const stackOrder = parseStatusWidgetStackOrder(opts.stackOrder);
-  const active = mode !== "off";
+  const needsCharacterValues =
+    Boolean(characterWidget) && statusWidgetHasCreatorSource(mode);
+  const needsUserValues = Boolean(userWidget) && statusWidgetHasUserSource(mode);
 
   return {
-    active,
+    active: mode !== "off",
+    requestedMode,
     mode,
     displayMode,
     stackOrder,
-    // Always keep creator widget reference for engine when it exists
     characterWidget,
-    // Keep user widget when engine needs user values OR display shows user overlay
-    userWidget:
-      userWidget &&
-      (mode === "both" ||
-        mode === "user_only" ||
-        displayMode === "user" ||
-        displayMode === "both")
-        ? userWidget
-        : null,
-    needsCharacterValues: Boolean(characterWidget),
-    needsUserValues:
-      Boolean(userWidget) &&
-      (mode === "both" || mode === "user_only") &&
-      displayMode !== "hidden",
+    userWidget,
+    needsCharacterValues,
+    needsUserValues,
   };
 }
 
-/** Widgets to paint in the chat UI — respects displayMode only. */
+/** Single render-source owner: ACTIVE_ENGINE_SOURCES ∩ DISPLAY_REQUESTED_SOURCES */
 export function orderedWidgetsForRender(
   resolved: ResolvedStatusWidgetTurn,
   values: { character?: Record<string, string> | null; user?: Record<string, string> | null }
@@ -99,10 +122,18 @@ export function orderedWidgetsForRender(
   if (!resolved.active) return [];
   if (resolved.displayMode === "hidden") return [];
 
-  const showCreator =
+  const displayCreator =
     resolved.displayMode === "creator" || resolved.displayMode === "both";
-  const showUser =
+  const displayUser =
     resolved.displayMode === "user" || resolved.displayMode === "both";
+  const showCreator =
+    displayCreator &&
+    statusWidgetHasCreatorSource(resolved.mode) &&
+    Boolean(resolved.characterWidget);
+  const showUser =
+    displayUser &&
+    statusWidgetHasUserSource(resolved.mode) &&
+    Boolean(resolved.userWidget);
 
   const items: Array<{
     source: "character" | "user";
@@ -140,10 +171,28 @@ export function orderedWidgetsForRender(
   return items;
 }
 
+export function resolveStatusWidgetEngineStatusKeys(
+  resolved: ResolvedStatusWidgetTurn
+): string[] {
+  const keys = new Set<string>();
+  const addWidget = (widget: StatusWidget | null) => {
+    if (!widget) return;
+    for (const field of widget.fields) {
+      if (field.id?.trim()) keys.add(field.id.trim());
+      const labelKey = field.label?.trim();
+      if (labelKey) keys.add(labelKey);
+    }
+  };
+  if (resolved.needsCharacterValues) addWidget(resolved.characterWidget);
+  if (resolved.needsUserValues) addWidget(resolved.userWidget);
+  return [...keys];
+}
+
 export function defaultChatStatusWidgetMode(characterHasWidget = false): StatusWidgetSourceMode {
   return characterHasWidget ? "character_only" : "off";
 }
 
+/** Single owner: UI engine toggles ↔ canonical mode. */
 export function statusWidgetModeFromToggles(
   creatorOn: boolean,
   userOn: boolean
@@ -154,7 +203,10 @@ export function statusWidgetModeFromToggles(
   return "user_only";
 }
 
-/** @deprecated Prefer displayModeFromUserChoice — engine mode is derived from display. */
+/**
+ * @deprecated COMPATIBILITY_ONLY_OWNER — do not use for runtime engine.
+ * Prefer statusWidgetModeFromToggles.
+ */
 export function statusWidgetModeFromUserToggle(
   userOn: boolean,
   hasCharacterWidget: boolean
@@ -165,6 +217,7 @@ export function statusWidgetModeFromUserToggle(
   return userOn ? "user_only" : "off";
 }
 
+/** Display-source clamp only. Never writes engine mode. */
 export function displayModeFromUserChoice(opts: {
   hasCharacterWidget: boolean;
   hasUserWidget: boolean;
@@ -180,11 +233,10 @@ export function displayModeFromUserChoice(opts: {
   }
   if (preference === "user") {
     if (hasUserWidget) return "user";
-    return hasCharacterWidget ? "creator" : "hidden";
+    return "hidden";
   }
-  // creator
   if (hasCharacterWidget) return "creator";
-  return hasUserWidget ? "user" : "hidden";
+  return "hidden";
 }
 
 export function statusWidgetTogglesFromMode(mode: StatusWidgetSourceMode): {
@@ -198,11 +250,19 @@ export function statusWidgetTogglesFromMode(mode: StatusWidgetSourceMode): {
       return { creatorOn: false, userOn: true };
     case "both":
       return { creatorOn: true, userOn: true };
-    default:
+    case "off":
       return { creatorOn: false, userOn: false };
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
   }
 }
 
+/**
+ * @deprecated COMPATIBILITY_ONLY_OWNER — display visibility helper only.
+ * Must not be used to derive engine mode.
+ */
 export function statusWidgetTogglesFromDisplayMode(display: StatusWidgetDisplayMode): {
   creatorVisible: boolean;
   userVisible: boolean;
@@ -217,5 +277,9 @@ export function statusWidgetTogglesFromDisplayMode(display: StatusWidgetDisplayM
       return { creatorVisible: true, userVisible: true, uiHidden: false };
     case "hidden":
       return { creatorVisible: false, userVisible: false, uiHidden: true };
+    default: {
+      const _exhaustive: never = display;
+      return _exhaustive;
+    }
   }
 }

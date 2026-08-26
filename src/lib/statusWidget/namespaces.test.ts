@@ -48,25 +48,27 @@ describe("resolveStatusWidgetTurn — display vs engine", () => {
     assert.equal(orderedWidgetsForRender(resolved, { character: { time: "1" } }).length, 0);
   });
 
-  it("forces creator on when legacy mode is off", () => {
+  it("keeps true off when creator widget exists", () => {
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson,
       chatMode: "off",
       displayMode: "hidden",
     });
-    assert.equal(resolved.needsCharacterValues, true);
-    assert.equal(resolved.mode, "character_only");
+    assert.equal(resolved.needsCharacterValues, false);
+    assert.equal(resolved.mode, "off");
+    assert.equal(resolved.active, false);
   });
 
-  it("upgrades user_only to both when character widget exists", () => {
+  it("does not upgrade user_only when character widget exists", () => {
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson,
       userWidgetJson,
       chatMode: "user_only",
       displayMode: "user",
     });
-    assert.equal(resolved.mode, "both");
-    assert.equal(resolved.needsCharacterValues, true);
+    assert.equal(resolved.mode, "user_only");
+    assert.equal(resolved.needsCharacterValues, false);
+    assert.equal(resolved.needsUserValues, true);
   });
 
   it("display option changes only rendered widgets, not engine flags", () => {

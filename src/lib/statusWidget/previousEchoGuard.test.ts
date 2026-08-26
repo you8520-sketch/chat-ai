@@ -38,6 +38,7 @@ const PERSISTENT_WIDGET: StatusWidget = {
 function characterResolved(widget: StatusWidget = PERSISTENT_WIDGET): ResolvedStatusWidgetTurn {
   return {
     active: true,
+    requestedMode: "character_only",
     mode: "character_only",
     displayMode: "creator",
     stackOrder: "character_first",

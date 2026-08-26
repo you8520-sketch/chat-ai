@@ -385,6 +385,7 @@ import {
   parseStatusWidgetJson,
   patchOpenRouterSplitForStatusWidget,
   resolveStatusWidgetTurn,
+  resolveStatusWidgetEngineStatusKeys,
   serializeStatusWidgetValuesJson,
   statusWidgetValuesHasContent,
 } from "@/lib/statusWidget";
@@ -1674,7 +1675,11 @@ export async function POST(req: Request) {
     db,
     chat.id,
     8,
-    regenerateMessageId ? { maxSourceTurn: playableTurnCount } : undefined
+    {
+      ...(regenerateMessageId ? { maxSourceTurn: playableTurnCount } : {}),
+      engineActive: statusWidgetTurn.active,
+      allowedStatusKeys: resolveStatusWidgetEngineStatusKeys(statusWidgetTurn),
+    }
   );
   const queuedStatusTriggerEventIds = queuedStatusTriggerEvents.map((event) => event.id);
   const triggeredScenarioEventsBlock =
@@ -4916,6 +4921,7 @@ export async function POST(req: Request) {
         let assistantFinalizedThisRequest = false;
 
         const numericCanonicalEligible =
+          statusWidgetTurn.needsCharacterValues &&
           resolveNumericCanonicalEligibility({
             userId: user.id,
             characterId: ch.id,
@@ -5281,6 +5287,20 @@ export async function POST(req: Request) {
                 .filter((r): r is string => Boolean(r))
             ),
           ],
+          requested_status_mode: statusWidgetTurn.requestedMode,
+          effective_status_mode: statusWidgetTurn.mode,
+          display_mode: statusWidgetTurn.displayMode,
+          needs_character_values: statusWidgetTurn.needsCharacterValues,
+          needs_user_values: statusWidgetTurn.needsUserValues,
+          status_extract_call_count:
+            widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
+              ? 1
+              : 0,
+          status_trigger_evaluated: Boolean(
+            statusWidgetActive &&
+              statusWidgetValuesPayload &&
+              statusWidgetValuesHasContent(statusWidgetValuesPayload)
+          ),
         });
         logMemoryHealthTelemetry(
           buildMemoryHealthTelemetry({
@@ -5340,11 +5360,20 @@ export async function POST(req: Request) {
           }
 
           if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
+            const triggerValues = {
+              character: statusWidgetTurn.needsCharacterValues
+                ? statusWidgetValuesPayload.character
+                : null,
+              user: statusWidgetTurn.needsUserValues
+                ? statusWidgetValuesPayload.user
+                : null,
+            };
+            if (statusWidgetValuesHasContent(triggerValues)) {
             evaluateStatusWidgetTriggersBestEffort(db, {
               chatId: chatRef.id,
               characterId: ch.id,
               sourceTurn: playableTurnCount + 1,
-              statusValues: statusWidgetValuesPayload,
+              statusValues: triggerValues,
               sourceMessageId: aiMessageId,
               requestId: clientRequestId ?? null,
               generationSequence: snapshotVariantIndex,

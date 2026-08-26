@@ -1,6 +1,5 @@
 import { STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS } from "@/lib/memory/memory-episodic-prompt";
 import {
-  STATUS_VALUES_BLOCK,
   STATUS_VALUES_CHAR_BLOCK,
   STATUS_VALUES_END,
   STATUS_VALUES_USER_BLOCK,
@@ -71,19 +70,6 @@ export function buildStatusWidgetPromptBlock(resolved: ResolvedStatusWidgetTurn)
     formatBlocks.push(
       STATUS_VALUES_USER_BLOCK,
       jsonExample(resolved.userWidget),
-      STATUS_VALUES_END
-    );
-  }
-
-  if (
-    !resolved.needsCharacterValues &&
-    !resolved.needsUserValues &&
-    resolved.characterWidget
-  ) {
-    parts.push("", "Fields:", fieldLines(resolved.characterWidget, ""));
-    formatBlocks.push(
-      STATUS_VALUES_BLOCK,
-      jsonExample(resolved.characterWidget),
       STATUS_VALUES_END
     );
   }
