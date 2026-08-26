@@ -37,6 +37,7 @@ import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
 import { ATTENDANCE_POINTS_VALID_MONTHS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
+import { BACKGROUND_CREATIVE_HTML_MODEL } from "./ai";
 import {
   HTML_FLASH_MAX_OUTPUT_TOKENS,
   HTML_ONLY_MODEL_LABEL,
@@ -2168,8 +2169,7 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** HTML 전용 턴 과금 — 실제 라우팅은 BACKGROUND_OPENROUTER_MODEL(gpt-5.6-luna).
- *  단가 테이블은 기존 Flash HTML 요율을 유지한다. 이번 PR은 라우팅만 바꾼다. */
+/** HTML 전용 턴 과금 — routing/billing both use BACKGROUND_CREATIVE_HTML_MODEL (default gpt-5.6-luna). */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;
@@ -2191,6 +2191,7 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
   tokensEstimated: boolean;
   rawCostKrw: number;
 } {
+  const htmlModelId = BACKGROUND_CREATIVE_HTML_MODEL;
   const htmlChars = Math.max(0, opts.savedTextChars);
   const estimatedOutputTokens =
     opts.outputTokens != null && opts.outputTokens > 0
@@ -2210,40 +2211,40 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
             Math.max(2000, Math.ceil(contextChars / 2.5) + 1500)
           );
   const tokensEstimated = !(opts.inputTokens != null && opts.inputTokens > 0);
-  const cache = {
+  const billing = computeOpenRouterTurnBilling({
+    modelId: htmlModelId,
+    inputTokens: estimatedInputTokens,
+    outputTokens: estimatedOutputTokens,
     cacheReadTokens: opts.cacheReadTokens,
     cacheWriteTokens: opts.cacheWriteTokens,
-  };
-  const billingBasis =
+    userContextChars: contextChars,
+    upstreamCostUsd: opts.upstreamCostUsd,
+    apiPromptTokens: estimatedInputTokens,
+    apiCompletionTokens: estimatedOutputTokens,
+  });
+  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
+    estimatedInputTokens,
+    estimatedOutputTokens,
+    htmlModelId,
+    {
+      cacheReadTokens: opts.cacheReadTokens,
+      cacheWriteTokens: opts.cacheWriteTokens,
+    },
     opts.upstreamCostUsd != null && opts.upstreamCostUsd > 0
       ? {
           upstreamCostUsd: opts.upstreamCostUsd,
           apiPromptTokens: estimatedInputTokens,
           apiCompletionTokens: estimatedOutputTokens,
         }
-      : undefined;
-  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
-    estimatedInputTokens,
-    estimatedOutputTokens,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-    cache,
-    billingBasis
+      : undefined
   );
-  const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
-    estimatedInputTokens,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
-  );
-  const total = Math.max(
-    OPENROUTER_MIN_TURN_COST,
-    chargePoints(costPlusMarginKrw + inputSurchargeKrw)
-  );
+  const total = Math.max(OPENROUTER_MIN_TURN_COST, billing.total);
   return {
-    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    modelId: htmlModelId,
     modelLabel: HTML_ONLY_MODEL_LABEL,
-    baseCost: costPlusMarginKrw,
-    contextSurcharge: inputSurchargeKrw,
-    multiplier: 1,
+    baseCost: billing.baseCost,
+    contextSurcharge: billing.contextSurcharge,
+    multiplier: billing.multiplier,
     total,
     estimatedInputTokens,
     estimatedOutputTokens,

@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  BACKGROUND_CREATIVE_HTML_MODEL,
   BACKGROUND_OPENROUTER_MODEL,
   BACKGROUND_VISION_OPENROUTER_MODEL,
   callBackgroundMemory,
   isHistoricalBackgroundPrimaryDeepSeekAlias,
+  resolveBackgroundCreativeHtmlPrimaryModelId,
   resolveBackgroundMemoryFallbackModel,
   resolveBackgroundPrimaryModelId,
   resolveBackgroundTextModelId,
@@ -35,7 +37,6 @@ const TEXT_BACKGROUND_TASKS = [
   "relationship-meta-extract",
   "status-widget-v3",
   "status-meta",
-  "ooc-html-visual-card",
   "suggested-replies",
   "prompt-translation",
   "chat-image-scene-brief",
@@ -44,6 +45,8 @@ const TEXT_BACKGROUND_TASKS = [
   "trpg-memory-seal",
   "trpg-reply-suggestions",
 ] as const;
+
+const CREATIVE_HTML_PRIMARY_TASKS = ["ooc-html-visual-card"] as const;
 
 const LUNA_PRIMARY_TASKS = TEXT_BACKGROUND_TASKS.filter(
   (task) => task !== "appearance-compile"
@@ -239,14 +242,37 @@ test("main RP routing is unchanged", () => {
 });
 
 test("text background task inventory: Luna PRIMARY, zero remaining DeepSeek primaries", () => {
-  assert.equal(TEXT_BACKGROUND_TASKS.length, 14);
-  assert.equal(LUNA_PRIMARY_TASKS.length, 13);
+  assert.equal(TEXT_BACKGROUND_TASKS.length, 13);
+  assert.equal(LUNA_PRIMARY_TASKS.length, 12);
+  assert.equal(CREATIVE_HTML_PRIMARY_TASKS.length, 1);
   assert.equal(NAMED_EXCEPTIONS.length, 1);
 
   assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  assert.equal(BACKGROUND_CREATIVE_HTML_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  assert.equal(
+    resolveBackgroundCreativeHtmlPrimaryModelId({} as NodeJS.ProcessEnv),
+    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+  );
+  assert.equal(
+    resolveBackgroundCreativeHtmlPrimaryModelId({
+      BACKGROUND_CREATIVE_HTML_MODEL: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    } as NodeJS.ProcessEnv),
+    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+  );
   assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
   assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
   assert.equal(TRPG_REPLY_SUGGESTION_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+
+  const htmlRecoverySrc = readFileSync(
+    new URL("./htmlVisualCardRecovery.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(htmlRecoverySrc, /BACKGROUND_CREATIVE_HTML_MODEL/);
+  assert.match(htmlRecoverySrc, /modelId:\s*BACKGROUND_CREATIVE_HTML_MODEL/);
+  assert.doesNotMatch(
+    htmlRecoverySrc,
+    /background-html-visual-card[\s\S]{0,120}\{ maxTokens \}/
+  );
 
   const appearanceSrc = readFileSync(
     new URL("./appearanceCompiler.ts", import.meta.url),

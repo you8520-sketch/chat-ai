@@ -226,14 +226,14 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     );
   });
 
-  it("7. HTML/background Flash call outbounds 0731", async () => {
+  it("7. HTML/background Flash call outbounds Luna; billing matches routing model", async () => {
     assert.equal(
       computeHtmlFlashOnlyTurnBilling({
         savedTextChars: 100,
         inputTokens: 100,
         outputTokens: 20,
       }).modelId,
-      "deepseek-v4-flash-0731"
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
     );
     assert.equal(
       await captureOutboundModel({

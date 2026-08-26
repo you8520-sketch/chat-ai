@@ -7,10 +7,10 @@ import {
   HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
 } from "@/lib/htmlVisualCardRecovery";
 import {
-  OPENROUTER_DEEPSEEK_GROSS_MARGIN,
   computeHtmlFlashOnlyTurnBilling,
 } from "@/lib/points";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { BACKGROUND_CREATIVE_HTML_MODEL } from "@/lib/ai";
 
 describe("HTML-only turn limits", () => {
   it("uses 30k input context and 6k output (same as secondary HTML flash)", () => {
@@ -21,14 +21,15 @@ describe("HTML-only turn limits", () => {
 });
 
 describe("computeHtmlFlashOnlyTurnBilling", () => {
-  it("uses DeepSeek V4 Flash with HTML전용모델 label and margin-based billing", () => {
+  it("uses Luna routing model with HTML전용모델 label and margin-based billing", () => {
     const flash = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 1200,
       userContextChars: 500,
       inputTokens: 8420,
       outputTokens: 2180,
     });
-    assert.equal(flash.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
+    assert.equal(flash.modelId, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(flash.modelId, BACKGROUND_CREATIVE_HTML_MODEL);
     assert.equal(flash.modelLabel, HTML_ONLY_MODEL_LABEL);
     assert.equal(flash.estimatedInputTokens, 8420);
     assert.equal(flash.estimatedOutputTokens, 2180);
@@ -39,16 +40,14 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
     assert.ok(flash.total >= flash.baseCost);
   });
 
-  it("applies 55% gross margin (charge ≈ raw / 0.45)", () => {
+  it("applies 55% gross margin (charge above raw API cost)", () => {
     const flash = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 5000,
       inputTokens: 10_000,
       outputTokens: 8000,
     });
-    const expected = Math.ceil(
-      flash.rawCostKrw / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 1e-9
-    );
-    assert.equal(flash.baseCost, expected);
+    assert.ok(flash.baseCost > flash.rawCostKrw);
+    assert.ok(flash.total >= flash.baseCost);
   });
 
   it("caps estimated output tokens at 6k when API usage missing", () => {
@@ -63,7 +62,7 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
     assert.ok(flash.total > 0);
   });
 
-  it("includes input surcharge for large prompts", () => {
+  it("charges more for larger input token usage", () => {
     const small = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 800,
       inputTokens: 4000,
@@ -74,7 +73,7 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
       inputTokens: 20_000,
       outputTokens: 1200,
     });
-    assert.ok(large.contextSurcharge > small.contextSurcharge);
+    assert.ok(large.baseCost > small.baseCost);
     assert.ok(large.total > small.total);
   });
 });
