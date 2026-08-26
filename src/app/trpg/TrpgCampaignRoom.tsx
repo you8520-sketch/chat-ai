@@ -936,6 +936,7 @@ export default function TrpgCampaignRoom({
     presentationStarting,
     gmTextReady,
     botGenerationInFlight: snap.botGenerationInFlight,
+    sequentialActionRevealPending,
   });
   const processingActive = isLiveTurnProcessing({
     waitingOpening,
@@ -947,6 +948,7 @@ export default function TrpgCampaignRoom({
     presentationStarting,
     gmTextReady,
     botGenerationInFlight: snap.botGenerationInFlight,
+    sequentialActionRevealPending,
   });
   const botProgress = processStage === "bots" ? liveTurnBotProgress(snap.participants) : null;
   const fallbackStartedAtRef = useRef<number | null>(null);

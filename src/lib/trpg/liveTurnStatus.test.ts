@@ -10,7 +10,9 @@ import {
   liveTurnBotProgress,
   liveTurnProcessStage,
   nextLiveTurnElapsedSec,
+  shouldHideProcessTimerForPresentation,
 } from "./liveTurnStatus";
+import { processElapsedSecFromStartedAt } from "./processTimer";
 
 describe("TRPG live turn process status", () => {
   it("bot_retry_required idle stops live processing and bots stage", () => {
@@ -205,6 +207,131 @@ describe("TRPG live turn process status", () => {
     assert.match(room, /data-trpg-live-turn-status/);
     assert.doesNotMatch(room, /DeepSeek/);
     assert.match(client, /const POLL_MS = 1500/);
+  });
+
+  it("T_PROCESS_TIMER_AI_REVEAL: elapsed ticks and stays visible through sequential reveal", () => {
+    const processStartedAtMs = 1_000_000;
+    const baseStage = {
+      waitingOpening: false,
+      narrationRerolling: false,
+      workType: "idle",
+      viewerLocked: true,
+      gmTextReady: false,
+      botGenerationInFlight: false,
+      sequentialActionRevealPending: true,
+    };
+
+    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs), 0, "0초 at T0");
+    assert.equal(
+      processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 1_000),
+      1,
+      "PROCESS_ELAPSED_SEC_TICKS_WHILE_AI_REVEAL"
+    );
+    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 2_000), 2);
+    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 3_000), 3);
+
+    const t0Stage = liveTurnProcessStage({
+      ...baseStage,
+      phase: "BOT_ACTION",
+      cinematicMotion: false,
+      presentationStarting: false,
+    });
+    assert.equal(t0Stage, "bots");
+    assert.equal(
+      formatLiveTurnProcessStatus({ stage: t0Stage, elapsedSec: 0 }),
+      "● 동료 행동 구성 중 · 0초"
+    );
+    assert.equal(
+      isLiveTurnProcessing({
+        waitingOpening: baseStage.waitingOpening,
+        narrationRerolling: baseStage.narrationRerolling,
+        viewerLocked: baseStage.viewerLocked,
+        phase: "BOT_ACTION",
+        workType: baseStage.workType,
+        cinematicMotion: false,
+        presentationStarting: false,
+        gmTextReady: baseStage.gmTextReady,
+        botGenerationInFlight: baseStage.botGenerationInFlight,
+        sequentialActionRevealPending: true,
+      }),
+      true
+    );
+
+    const rollsPersistStage = liveTurnProcessStage({
+      ...baseStage,
+      phase: "ROLLING",
+      cinematicMotion: false,
+      presentationStarting: true,
+    });
+    assert.notEqual(rollsPersistStage, "none", "timer STILL visible when presentationStarting during sequential reveal");
+    assert.equal(
+      formatLiveTurnProcessStatus({
+        stage: rollsPersistStage,
+        elapsedSec: processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 2_000),
+      }),
+      "● 라운드 판정 준비 중 · 2초"
+    );
+    assert.equal(
+      shouldHideProcessTimerForPresentation({
+        cinematicMotion: false,
+        presentationStarting: true,
+        sequentialActionRevealPending: true,
+      }),
+      false
+    );
+
+    const ai2Stage = liveTurnProcessStage({
+      ...baseStage,
+      phase: "ROLLING",
+      presentationStarting: true,
+      cinematicMotion: false,
+    });
+    assert.notEqual(ai2Stage, "none", "timer STILL visible while AI2 reveal");
+    assert.equal(
+      formatLiveTurnProcessStatus({
+        stage: ai2Stage,
+        elapsedSec: processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 3_000),
+      }),
+      "● 라운드 판정 준비 중 · 3초"
+    );
+
+    const queueDrainedStage = liveTurnProcessStage({
+      ...baseStage,
+      sequentialActionRevealPending: false,
+      phase: "ROLLING",
+      presentationStarting: true,
+      cinematicMotion: false,
+    });
+    assert.equal(queueDrainedStage, "none", "process status hides after queue drained + presentation owns row");
+    assert.equal(
+      shouldHideProcessTimerForPresentation({
+        cinematicMotion: false,
+        presentationStarting: true,
+        sequentialActionRevealPending: false,
+      }),
+      true
+    );
+
+    const cinematicAfterDrain = liveTurnProcessStage({
+      waitingOpening: false,
+      narrationRerolling: false,
+      workType: "idle",
+      phase: "GENERATING_NARRATION",
+      viewerLocked: true,
+      gmTextReady: false,
+      cinematicMotion: true,
+      presentationStarting: false,
+      sequentialActionRevealPending: false,
+    });
+    assert.equal(cinematicAfterDrain, "none");
+  });
+
+  it("production room passes sequentialActionRevealPending into process timer owners", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /sequentialActionRevealPending,/);
+    assert.match(room, /liveTurnProcessStage\(\{[\s\S]*sequentialActionRevealPending/);
+    assert.match(room, /isLiveTurnProcessing\(\{[\s\S]*sequentialActionRevealPending/);
+    assert.match(room, /!overlayPlayback\.visible/);
   });
 });
 
