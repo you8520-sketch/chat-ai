@@ -1,0 +1,82 @@
+```html
+<article style="max-width: 720px; margin: 0 auto; font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif; color: #1e1e2e; line-height: 1.7; padding: 16px;">
+
+  <!-- 헤더: 렌의 시선으로 정리한 레온과의 기록 -->
+  <header style="background: #ffffff; border-radius: 20px; padding: 28px 24px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); margin-bottom: 16px;">
+    <p style="margin: 0 0 4px 0; font-size: 0.82rem; letter-spacing: 0.12em; color: #646cff; font-weight: 700; text-transform: uppercase;">Ren's Private Note</p>
+    <h2 style="margin: 0 0 8px 0; font-size: 1.35rem; font-weight: 800; color: #1e1e2e;">레온과의 밤 — 기록 카드</h2>
+    <p style="margin: 0; font-size: 0.88rem; color: #6b7280;">연회장에서 시작해 정원을 지나 사무실 복도까지 이어진 오늘의 일. 내일 아침이 오기 전에 정리해둔다.</p>
+  </header>
+
+  <!-- 섹션 1: 일정 -->
+  <section style="background: #f8f7ff; border: 1px solid #e7e5ff; border-radius: 18px; padding: 22px 20px; margin-bottom: 14px;">
+    <h3 style="margin: 0 0 14px 0; font-size: 0.9rem; font-weight: 800; color: #4f46e5; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4f46e5;"></span>
+      일정
+    </h3>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #c7c3ff;">
+        연회장에서 시작된 오늘 밤은 정원으로 이어졌고, 그곳에서 레온의 고백은 단순한 마음 표현을 넘어 <strong style="color: #4f46e5;">청혼에 가까운 무게</strong>로 렌에게 전해졌다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #c7c3ff;">
+        그는 렌의 손에 <strong style="color: #4f46e5;">커프링크스를 쥐여주며</strong> 내일 아침에 답을 들려달라고 부탁했고, 렌은 그 자리에서 완전한 답을 하지 못한 채 시간을 건네받았다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #c7c3ff;">
+        현재는 사무실 복도까지 이동한 상태이며, 내일 아침이 되면 렌은 레온이 건넨 그 질문에 대한 <strong style="color: #4f46e5;">자신의 답을 직접 전해야 한다</strong>.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #c7c3ff;">
+        연회장에서 정원, 그리고 복도로 이어지는 이동은 우연이 아니라 레온이 의도한 흐름처럼 느껴졌고, 각 장소마다 렌을 향한 그의 태도는 차분하지만 확고했다.
+      </p>
+    </div>
+  </section>
+
+  <!-- 섹션 2: 관계 -->
+  <section style="background: #fff7f5; border: 1px solid #ffe0d9; border-radius: 18px; padding: 22px 20px; margin-bottom: 14px;">
+    <h3 style="margin: 0 0 14px 0; font-size: 0.9rem; font-weight: 800; color: #d35400; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #d35400;"></span>
+      관계
+    </h3>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #f3a98a;">
+        레온은 렌에게 <strong style="color: #d35400;">단순한 호감을 넘어선 관계</strong>, 거의 약속에 가까운 결속을 요구했다. 그가 건넨 말투와 시선에는 되돌릴 수 없는 진심이 담겨 있었다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #f3a98a;">
+        렌이 받아든 커프링크스는 장신구 그 이상의 의미를 지니며, <strong style="color: #d35400;">레온의 의지와 렌에 대한 신뢰를 상징하는 물건</strong>으로 자리잡았다. 그것을 받은 순간부터 둘의 관계는 이전과 달라졌다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #f3a98a;">
+        현재 둘 사이에는 아직 답하지 않은 질문이 걸려 있어, <strong style="color: #d35400;">온도가 끓어오르지도 식지도 않은 미묘한 균형</strong>이 유지되고 있다. 레온은 기다리는 쪽, 렌은 선택해야 하는 쪽이다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #f3a98a;">
+        렌 스스로도 레온을 향한 감정이 부정할 수 없는 수준까지 올라와 있음을 인지하고 있으며, 이 때문에 내일의 답이 더욱 무겁고도 선명한 의미를 갖게 되었다.
+      </p>
+    </div>
+  </section>
+
+  <!-- 섹션 3: 미해결 -->
+  <section style="background: #f5f8ff; border: 1px solid #d9e2ff; border-radius: 18px; padding: 22px 20px; margin-bottom: 14px;">
+    <h3 style="margin: 0 0 14px 0; font-size: 0.9rem; font-weight: 800; color: #1e5eff; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px;">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1e5eff;"></span>
+      미해결
+    </h3>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #9db4ff;">
+        렌은 <strong style="color: #1e5eff;">내일 아침까지 레온에게 답을 전해야 하는 의무</strong>를 안고 있다. 어떤 말을 꺼낼지, 어떤 표정으로 마주할지는 아직 렌 자신도 정하지 못했다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #9db4ff;">
+        커프링크스를 받아든 순간의 감정 — 떨림인지, 부담인지, 기대인지 — 를 렌이 어떻게 해석하고 정리하느냐가 <strong style="color: #1e5eff;">내일의 답을 좌우할 가장 큰 변수</strong>로 남아 있다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #9db4ff;">
+        레온이 답을 기다리는 동안 어떤 태도로 렌을 대할지, 그리고 렌이 그 기다림 속에서 어떤 마음가짐으로 아침을 맞이할지는 <strong style="color: #1e5eff;">결과가 나오기 전까지 확정할 수 없는 지점</strong>이다.
+      </p>
+      <p style="margin: 0; background: #ffffff; border-radius: 12px; padding: 14px 16px; font-size: 0.92rem; border-left: 3px solid #9db4ff;">
+        지휘동과 연회장이 공존하는 이 세계에서, 연회가 끝난 뒤의 고요함은 오히려 미해결된 감정을 더 선명하게 부각시키며 <strong style="color: #1e5eff;">내일 아침이라는 시한이 두 사람 사이의 긴장을 더욱 높이고 있다</strong>.
+      </p>
+    </div>
+  </section>
+
+  <footer style="text-align: right; margin-top: 8px; padding: 0 4px;">
+    <p style="margin: 0; font-size: 0.75rem; color: #9ca3af; letter-spacing: 0.06em;">— 렌, 내일 아침이 오기 전에.</p>
+  </footer>
+
+</article>
+```

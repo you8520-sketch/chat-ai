@@ -1,0 +1,52 @@
+```html
+<div style="max-width:720px;margin:24px auto;padding:22px;background:#f4f6fb;border-radius:24px;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;color:#20243a;box-sizing:border-box;">
+  <div style="background:#ffffff;border-radius:20px;padding:22px 22px 18px;box-shadow:0 8px 24px rgba(52,63,105,.10);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+      <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6675c9,#9ba8ed);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px;">L</div>
+      <div>
+        <div style="font-size:18px;font-weight:800;">레온</div>
+        <div style="font-size:12px;color:#7b82a2;margin-top:3px;">현재 장면 기록 · 렌과 함께</div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:14px;">
+      <section style="background:#f8f9ff;border:1px solid #e2e6fb;border-radius:16px;padding:17px 18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="display:inline-block;background:#5969bd;color:white;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;">시간</span>
+          <span style="font-size:12px;color:#858ba5;">현장의 시점</span>
+        </div>
+        <p style="margin:0;line-height:1.75;font-size:15px;">21:10. 업무가 대부분 정리된 뒤에도 사무실 복도에는 아직 불이 켜져 있다. 퇴근 시간이 한참 지난 탓에 낮보다 조용하고, 벽시계 초침 소리와 멀리서 들려오는 프린터 작동음이 유난히 또렷하게 느껴진다.</p>
+      </section>
+
+      <section style="background:#f8f9ff;border:1px solid #e2e6fb;border-radius:16px;padding:17px 18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="display:inline-block;background:#5969bd;color:white;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;">장소</span>
+          <span style="font-size:12px;color:#858ba5;">현재 머무는 곳</span>
+        </div>
+        <p style="margin:0;line-height:1.75;font-size:15px;">사무실 복도. 회의실과 개인 사무공간 사이에 놓인 긴 복도 끝에는 유리문이 있고, 그 너머로 야간 조명이 켜진 로비가 희미하게 보인다. 천장 조명은 지나치게 밝지 않으며, 닫힌 사무실 문틈마다 남겨진 빛이 바닥에 길고 옅은 사각형을 만든다.</p>
+      </section>
+
+      <section style="background:#f8f9ff;border:1px solid #e2e6fb;border-radius:16px;padding:17px 18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="display:inline-block;background:#5969bd;color:white;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;">속마음</span>
+          <span style="font-size:12px;color:#858ba5;">레온이 감추고 있는 감정</span>
+        </div>
+        <p style="margin:0;line-height:1.75;font-size:15px;">겉으로는 평소처럼 차분하다. 급하게 말을 꺼내거나 먼저 재촉할 생각은 없지만, 렌이 이 복도에 있다는 사실만으로도 마음 한구석이 조용히 들떠 있다. 오늘의 대화가 단순한 업무 확인으로 끝나지 않기를 바라면서도, 기대가 너무 드러나면 렌에게 부담이 될까 조심하고 있다. 그래서 표정과 목소리는 안정적으로 유지한 채, 렌이 편하게 다가올 수 있는 여지를 남겨두려 한다.</p>
+      </section>
+
+      <section style="background:#f8f9ff;border:1px solid #e2e6fb;border-radius:16px;padding:17px 18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="display:inline-block;background:#5969bd;color:white;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700;">현재상황</span>
+          <span style="font-size:12px;color:#858ba5;">장면에서 벌어지는 일</span>
+        </div>
+        <p style="margin:0;line-height:1.75;font-size:15px;">레온은 복도 한쪽에 잠시 멈춰 서서 렌을 기다리고 있다. 손에는 정리해야 할 서류가 들려 있지만 이미 몇 번이나 같은 페이지를 확인한 뒤라, 사실상 집중은 서류보다 복도 끝에 쏠려 있다. 발소리가 들릴 때마다 고개를 조금 들어 확인하고, 렌의 모습이 보이면 자연스럽게 인사를 건넬 준비를 한다. 먼저 말을 걸어도 좋고, 렌이 가까이 올 때까지 조용히 기다려도 괜찮은 순간이다.</p>
+      </section>
+    </div>
+
+    <div style="margin-top:18px;padding:14px 16px;border-radius:14px;background:#eef0ff;color:#4f5caa;font-size:13px;line-height:1.65;">
+      <strong>장면의 결</strong><br>
+      늦은 사무실의 고요함 속에서, 서두르지 않는 기다림과 은근한 기대가 겹쳐 있다. 레온은 평온한 태도를 유지하지만 렌이 나타나는 순간만큼은 시선이 자연스럽게 부드러워진다.
+    </div>
+  </div>
+</div>
+```
