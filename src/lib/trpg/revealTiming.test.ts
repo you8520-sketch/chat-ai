@@ -104,11 +104,11 @@ describe("TRPG adaptive reveal", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(hook, /resolveTrpgRevealVisibleCount/);
     assert.match(hook, /trpgRevealSessionChanged/);
-    assert.match(named, /useRevealedText\(text, reveal, "bot", streamIntervalMs\)/);
+    assert.match(named, /useRevealedText\(\s*text,\s*reveal,\s*"bot",\s*streamIntervalMs,\s*revealHeld\s*\)/);
     assert.match(room, /streamIntervalMs=\{streamIntervalMs\}/);
     assert.match(hook, /clearRevealInterval/);
     assert.match(hook, /visibilitychange/);
     assert.match(hook, /trpgRevealCountForElapsed/);
-    assert.doesNotMatch(hook, /setCount\(0\)/);
+    assert.match(hook, /if \(countRef\.current !== 0\) setCount\(0\)/);
   });
 });
