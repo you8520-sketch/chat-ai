@@ -16,7 +16,7 @@ describe("applyStatusWidgetSystemPromptOverrides", () => {
     assert.doesNotMatch(out, /FLASH-OWNED/);
     assert.match(out, /CREATOR WIDGET/);
     assert.doesNotMatch(out, /FORBIDDEN\. NO html, json, markdown tables, or status UI/);
-    assert.match(out, /DeepSeek V4 Flash/);
+    assert.match(out, /GPT-5.6 Luna/);
     assert.doesNotMatch(out, /\[FINAL — mandatory every reply\]/);
     assert.doesNotMatch(out, /Omitting the block is an error/);
   });

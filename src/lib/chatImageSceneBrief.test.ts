@@ -19,29 +19,40 @@ import {
 } from "./chatImageSceneBrief";
 
 describe("chatImageSceneBrief", () => {
-  it("defaults to DeepSeek V4 Flash on cheaper inference", () => {
-    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "deepseek-v4-flash-0731");
+  it("defaults to GPT-5.6 Luna and migrates stale Flash primary env", () => {
+    assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "gpt-5.6-luna");
     assert.equal(
       resolveChatImageSceneBriefModel({} as NodeJS.ProcessEnv),
-      "deepseek-v4-flash-0731"
+      "gpt-5.6-luna"
     );
     assert.equal(
       resolveChatImageSceneBriefModel({
         CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
-      "deepseek-v4-flash-0731"
+      "gpt-5.6-luna"
     );
     assert.equal(
       resolveChatImageSceneBriefModel({
         CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek/deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
-      "deepseek/deepseek-v4-flash"
+      "gpt-5.6-luna"
     );
   });
 
   it("falls back to OpenRouter DeepSeek V4 Flash when cheaper inference fails", () => {
     assert.equal(
       CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
+      "deepseek/deepseek-v4-flash-0731"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel({} as NodeJS.ProcessEnv),
+      "deepseek/deepseek-v4-flash-0731"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        {} as NodeJS.ProcessEnv,
+        "gpt-5.6-luna"
+      ),
       "deepseek/deepseek-v4-flash-0731"
     );
     assert.equal(

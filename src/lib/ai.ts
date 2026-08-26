@@ -8,9 +8,12 @@ import {
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_GEMINI_20_FLASH_MODEL,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
@@ -58,7 +61,7 @@ export type TokenUsage = {
   providerRequestId?: string;
 };
 
-/** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference DeepSeek V4 Flash */
+/** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference GPT-5.6 Luna */
 export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
 /** 5턴 요약 원문 + 기억 추출 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
 export const BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT = 48_000;
@@ -71,25 +74,60 @@ export function resolveBackgroundMemoryExtractMaxInputTokens(): number {
   return BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT;
 }
 
-/** Legacy Railway values are migrated in-process so deploys cannot stay on V3. */
+const HISTORICAL_BACKGROUND_PRIMARY_DEEPSEEK_ALIASES = new Set([
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase(),
+]);
+
+/** Known stale Railway / env aliases that used to mean "background text primary". */
+export function isHistoricalBackgroundPrimaryDeepSeekAlias(
+  modelId?: string | null
+): boolean {
+  const trimmed = modelId?.trim();
+  if (!trimmed) return false;
+  return HISTORICAL_BACKGROUND_PRIMARY_DEEPSEEK_ALIASES.has(trimmed.toLowerCase());
+}
+
+/**
+ * Explicit model id only. Does not migrate historical Flash primary aliases to Luna.
+ * Empty → Luna. Legacy V3 slug → CI DeepSeek V4 Flash (existing explicit compatibility).
+ */
 export function resolveBackgroundTextModelId(modelId?: string | null): string {
   const trimmed = modelId?.trim();
-  if (
-    !trimmed ||
-    trimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()
-  ) {
+  if (!trimmed) return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  if (trimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
     return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
   }
   return normalizeDeepSeekV4FlashModelId(trimmed);
 }
 
-export const BACKGROUND_OPENROUTER_MODEL =
-  resolveBackgroundTextModelId(process.env.BACKGROUND_MEMORY_MODEL);
+/**
+ * Background TEXT primary only. Migrates unset / legacy V3 / historical Flash
+ * primary env values to GPT-5.6 Luna so Railway stale BACKGROUND_MEMORY_MODEL
+ * cannot pin DeepSeek as primary after deploy.
+ */
+export function resolveBackgroundPrimaryModelId(
+  modelId?: string | null
+): string {
+  const trimmed = modelId?.trim();
+  if (!trimmed || isHistoricalBackgroundPrimaryDeepSeekAlias(trimmed)) {
+    return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  }
+  return resolveBackgroundTextModelId(trimmed);
+}
+
+export const BACKGROUND_OPENROUTER_MODEL = resolveBackgroundPrimaryModelId(
+  process.env.BACKGROUND_MEMORY_MODEL
+);
 
 /**
  * Optional cross-model fallback after primary background calls fail.
- * - unset / empty / legacy V3 → OpenRouter DeepSeek V4 Flash
- * - same as primary → skipped
+ * Explicit fallback ids keep their vendor (DeepSeek stays DeepSeek).
+ * Same resolved model as primary is replaced by OpenRouter DeepSeek V4 Flash
+ * so PRIMARY=Luna FALLBACK=Luna cannot happen.
  */
 export function resolveBackgroundMemoryFallbackModel(
   env: NodeJS.ProcessEnv = process.env,
@@ -371,7 +409,7 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default DeepSeek V4 Flash) */
+/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default GPT-5.6 Luna) */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
@@ -379,9 +417,10 @@ export async function callBackgroundMemory(
   requestKind = "background-memory-extract",
   opts?: { maxTokens?: number; temperature?: number; modelId?: string }
 ): Promise<{ text: string; usage: TokenUsage }> {
-  const modelId = resolveBackgroundTextModelId(
-    opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL
-  );
+  const explicitModelId = opts?.modelId?.trim();
+  const modelId = explicitModelId
+    ? resolveBackgroundTextModelId(explicitModelId)
+    : BACKGROUND_OPENROUTER_MODEL;
   const call = (targetModelId: string) =>
     callGeminiOnce(system, history, targetModelId, {
       requestKind,

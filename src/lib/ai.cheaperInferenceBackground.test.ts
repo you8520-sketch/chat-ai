@@ -4,18 +4,24 @@ import {
   BACKGROUND_OPENROUTER_MODEL,
   callBackgroundMemory,
   resolveBackgroundMemoryFallbackModel,
+  resolveBackgroundPrimaryModelId,
   resolveBackgroundTextModelId,
 } from "./ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
 } from "./chatModels";
 
-test("background text defaults to Cheaper Inference DeepSeek V4 Flash", () => {
+test("background text PRIMARY defaults to Cheaper Inference GPT-5.6 Luna", () => {
+  assert.equal(
+    resolveBackgroundPrimaryModelId(undefined),
+    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+  );
   assert.equal(
     resolveBackgroundTextModelId(undefined),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
   );
   assert.equal(
     resolveBackgroundTextModelId(OPENROUTER_DEEPSEEK_V3_MODEL),
@@ -23,7 +29,7 @@ test("background text defaults to Cheaper Inference DeepSeek V4 Flash", () => {
   );
   assert.equal(
     BACKGROUND_OPENROUTER_MODEL,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
   );
 });
 
@@ -58,7 +64,8 @@ test("memory and rolling-summary requests keep the full input and omit output ca
     assert.ok(messages?.at(-1)?.content?.endsWith(marker));
     assert.equal(messages?.at(-1)?.content?.length, longInput.length);
     assert.equal(requestBody?.max_tokens, undefined);
-    assert.deepEqual(requestBody?.thinking, { type: "disabled" });
+    assert.deepEqual(requestBody?.reasoning, { effort: "none" });
+    assert.equal(requestBody?.reasoning_effort, "none");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
@@ -113,7 +120,8 @@ test("memory failure falls back from Cheaper V4 to OpenRouter V4 without caps", 
       "system",
       [{ role: "user", content: "full memory source" }],
       undefined,
-      "background-memory-extract"
+      "background-memory-extract",
+      { modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL }
     );
 
     assert.equal(result.text, "fallback summary");

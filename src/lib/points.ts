@@ -2168,7 +2168,8 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** HTML 전용 턴 — DeepSeek V4 Flash 단독, API 원가 + 55% 마진 */
+/** HTML 전용 턴 과금 — 실제 라우팅은 BACKGROUND_OPENROUTER_MODEL(gpt-5.6-luna).
+ *  단가 테이블은 기존 Flash HTML 요율을 유지한다. 이번 PR은 라우팅만 바꾼다. */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;

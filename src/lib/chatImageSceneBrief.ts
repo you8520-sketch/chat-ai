@@ -1,13 +1,13 @@
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
+import { resolveBackgroundPrimaryModelId } from "@/lib/ai";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   isCheaperInferenceModel,
-  normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
 
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
 /** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
@@ -35,7 +35,7 @@ export type ChatImageSceneBrief = {
 export function resolveChatImageSceneBriefModel(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  return normalizeDeepSeekV4FlashModelId(
+  return resolveBackgroundPrimaryModelId(
     env.CHAT_IMAGE_SCENE_BRIEF_MODEL?.trim() ||
       CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL
   );

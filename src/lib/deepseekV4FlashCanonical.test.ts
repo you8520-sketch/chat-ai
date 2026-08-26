@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
@@ -20,6 +21,7 @@ import { adaptCheaperInferenceChatBody } from "./cheaperInferenceConfig";
 import {
   BACKGROUND_OPENROUTER_MODEL,
   callBackgroundMemory,
+  resolveBackgroundPrimaryModelId,
   resolveBackgroundTextModelId,
 } from "./ai";
 import { resolveAdultRoutingConfig } from "./adultSceneRouting";
@@ -166,9 +168,13 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     );
   });
 
-  it("5. background memory Flash call outbounds 0731", async () => {
-    assert.equal(BACKGROUND_OPENROUTER_MODEL, "deepseek-v4-flash-0731");
-    assert.equal(resolveBackgroundTextModelId(undefined), "deepseek-v4-flash-0731");
+  it("5. explicit Flash background still outbounds 0731; default PRIMARY is Luna", async () => {
+    assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(
+      resolveBackgroundPrimaryModelId(undefined),
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+    );
+    assert.equal(resolveBackgroundTextModelId(undefined), CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     assert.equal(
       resolveBackgroundTextModelId("deepseek-v4-flash"),
       "deepseek-v4-flash-0731"
@@ -193,7 +199,8 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
         "system",
         [{ role: "user", content: "기억" }],
         undefined,
-        "background-memory-extract"
+        "background-memory-extract",
+        { modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL }
       );
       assert.equal(requestedModel, "deepseek-v4-flash-0731");
     } finally {
@@ -203,8 +210,12 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     }
   });
 
-  it("6. background status Flash call resolves to 0731", () => {
-    assert.equal(BACKGROUND_OPENROUTER_MODEL, "deepseek-v4-flash-0731");
+  it("6. background status Flash labels stay Flash; default PRIMARY is Luna", () => {
+    assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(
+      statusWidgetExtractModelLabel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+      "GPT-5.6 Luna (상태창 추출)"
+    );
     assert.equal(
       statusWidgetExtractModelLabel("deepseek-v4-flash-0731"),
       "DeepSeek V4 Flash (상태창 추출)"
@@ -229,18 +240,18 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
         model: BACKGROUND_OPENROUTER_MODEL,
         requestKind: "background-html-visual-card",
       }),
-      "deepseek-v4-flash-0731"
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
     );
   });
 
-  it("8. character-save KO→EN translation uses 0731", () => {
-    assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, "deepseek-v4-flash-0731");
+  it("8. character-save KO→EN translation uses Luna PRIMARY", () => {
+    assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     delete process.env.PROMPT_TRANSLATION_MODEL;
     delete process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     try {
-      assert.equal(resolveTranslationModels()[0], "deepseek-v4-flash-0731");
+      assert.equal(resolveTranslationModels()[0], CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     } finally {
       if (prevPrimary === undefined) delete process.env.PROMPT_TRANSLATION_MODEL;
       else process.env.PROMPT_TRANSLATION_MODEL = prevPrimary;

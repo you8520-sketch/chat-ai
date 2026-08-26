@@ -95,7 +95,7 @@ export type Usage = {
   coldStartShieldApplied?: boolean;
   uncappedChargePoints?: number;
   coldStartCostFloorPoints?: number;
-  /** HTML 전용 턴 — DeepSeek V4 Flash, 메인 RP 모델 미사용 */
+  /** HTML 전용 턴 — 백그라운드 단독 (라우팅: GPT-5.6 Luna), 메인 RP 모델 미사용 */
   htmlFlashOnly?: boolean;
   /** 메인 RP OpenRouter 원가 (KRW) — 상태창 추출 분리 표시용 */
   mainApiRawCostKrw?: number;

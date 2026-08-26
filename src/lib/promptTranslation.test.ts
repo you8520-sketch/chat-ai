@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
 import {
@@ -69,7 +69,7 @@ describe("translation model chain", () => {
     assert.equal(resolveBackgroundMaxOutputTokens("generateContent"), 3072);
   });
 
-  it("defaults to distinct CI Flash 0731 primary and CI Pro 0813 fallback", () => {
+  it("defaults to distinct CI Luna primary and CI Pro 0813 fallback", () => {
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     const prevBg = process.env.BACKGROUND_MEMORY_MODEL;
@@ -79,12 +79,12 @@ describe("translation model chain", () => {
     try {
       const models = resolveTranslationModels();
       assert.deepEqual(models, [
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
         CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       ]);
       assert.equal(
         DEFAULT_TRANSLATION_PRIMARY_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
       );
       assert.equal(
         DEFAULT_TRANSLATION_FALLBACK_MODEL,
@@ -104,12 +104,23 @@ describe("translation model chain", () => {
     }
   });
 
-  it("does not treat the same resolved model as a fallback", () => {
+  it("migrates stale Flash primary env to Luna and keeps explicit Flash fallback", () => {
     const models = resolveTranslationModels({
       PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     } as NodeJS.ProcessEnv);
-    assert.deepEqual(models, [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]);
+    assert.deepEqual(models, [
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    ]);
+  });
+
+  it("does not treat the same resolved Luna model as a fallback", () => {
+    const models = resolveTranslationModels({
+      PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    } as NodeJS.ProcessEnv);
+    assert.deepEqual(models, [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]);
   });
 
   it("requires a CI key for the default CI-only translation chain", () => {
@@ -130,6 +141,13 @@ describe("translation model chain", () => {
       hasPromptTranslationTransport({
         OPENROUTER_API_KEY: "or",
         PROMPT_TRANSLATION_MODEL: "deepseek/deepseek-v4-flash",
+      } as NodeJS.ProcessEnv),
+      false
+    );
+    assert.equal(
+      hasPromptTranslationTransport({
+        OPENROUTER_API_KEY: "or",
+        PROMPT_TRANSLATION_MODEL: "openai/gpt-4o-mini",
       } as NodeJS.ProcessEnv),
       true
     );

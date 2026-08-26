@@ -1,6 +1,8 @@
 import type { TokenUsage } from "@/lib/ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  isGpt56LunaModel,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -73,6 +75,9 @@ export function statusWidgetExtractModelLabel(modelId: string): string {
     lower.includes("gemini-2.5-flash")
   ) {
     return "Google Gemini 2.5 Flash (상태창 추출)";
+  }
+  if (isGpt56LunaModel(id) || lower === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+    return "GPT-5.6 Luna (상태창 추출)";
   }
   if (
     lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||

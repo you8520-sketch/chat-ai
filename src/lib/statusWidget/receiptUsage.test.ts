@@ -276,6 +276,10 @@ describe("statusWidget receiptUsage", () => {
       "DeepSeek V4 Flash (상태창 추출)"
     );
     assert.equal(
+      statusWidgetExtractModelLabel("gpt-5.6-luna"),
+      "GPT-5.6 Luna (상태창 추출)"
+    );
+    assert.equal(
       statusWidgetExtractModelLabel("vendor/custom-model"),
       "vendor/custom-model (상태창 추출)"
     );
