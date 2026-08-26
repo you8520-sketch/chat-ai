@@ -11,12 +11,14 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
+import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
+import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { getDb } from "@/lib/db";
 import {
   detectRelationshipLedgerOwnedFact,
   episodicMemoryRecallEnabled,
-  persistEpisodicMemoryFactsBestEffort,
   resolveEpisodicMemoryMinAgeTurns,
 } from "@/lib/episodicMemoryFacts";
 import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "@/lib/statusWidget/prompt";
@@ -27,9 +29,14 @@ import {
   __resetEpisodicExtractCallCountForTests,
   __setEpisodicExtractCallerForTests,
   extractAndPersistEpisodicFactsForSealedBatch,
+  extractEpisodicFactsFromSealedBatch,
 } from "./memory-episodic-extract";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import { getOrCreateChatMemory } from "./memory-db";
+import {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  ROLLING_SUMMARY_INTERVAL,
+} from "./memory-constants";
 
 const CHAT = 870011;
 const USER = 870012;
@@ -80,6 +87,16 @@ after(() => {
 });
 
 describe("episodic ownership decoupled from status widget", () => {
+  it("status widget payload cannot persist episodic facts via /api/chat", () => {
+    const route = readFileSync(new URL("../../app/api/chat/route.ts", import.meta.url), "utf8");
+    assert.doesNotMatch(route, /reconcileEpisodicMemoryFactsForGeneration/);
+    assert.doesNotMatch(route, /persistEpisodicMemoryFactsBestEffort/);
+    assert.doesNotMatch(route, /StatusMemoryPersistence/);
+    assert.match(route, /extracted_facts/);
+    assert.match(route, /EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL/);
+    assert.match(route, /extractedFactsForTelemetry/);
+  });
+
   it("seal extract persists facts without a status widget", async () => {
     getDb().prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(CHAT);
     __resetEpisodicExtractCallCountForTests();
@@ -206,5 +223,62 @@ describe("episodic ownership decoupled from status widget", () => {
         .get(CHAT) as { n: number }
     ).n;
     assert.ok(summaries >= 1);
+  });
+
+  it("CI Luna extract reaches background caller when OPENROUTER_API_KEY is absent", async () => {
+    const extractSrc = readFileSync(
+      new URL("./memory-episodic-extract.ts", import.meta.url),
+      "utf8"
+    );
+    assert.doesNotMatch(extractSrc, /process\.env\.OPENROUTER_API_KEY/);
+    assert.doesNotMatch(extractSrc, /CHEAPER_INFERENCE_API_KEY/);
+    assert.equal(BACKGROUND_OPENROUTER_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
+    assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
+    assert.equal(resolveEpisodicMemoryMinAgeTurns({} as NodeJS.ProcessEnv), 5);
+
+    const prevNodeTest = process.env.NODE_TEST_CONTEXT;
+    const prevOr = process.env.OPENROUTER_API_KEY;
+    const prevCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    const prevFetch = globalThis.fetch;
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+    __setEpisodicExtractCallerForTests(null);
+    delete process.env.NODE_TEST_CONTEXT;
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "ci-present";
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: String(input),
+        body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>,
+      });
+      return new Response(
+        JSON.stringify({
+          choices: [
+            { message: { content: '{"extracted_facts":[]}' }, finish_reason: "stop" },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 4 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+    try {
+      await extractEpisodicFactsFromSealedBatch({
+        dialogue: "유저: 안녕\n캐릭터: 안녕",
+        charName: "EpChar",
+        startTurn: 1,
+        endTurn: 5,
+      });
+      assert.ok(requests.length >= 1, "must reach Luna background caller");
+      assert.equal(requests[0]?.body.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    } finally {
+      globalThis.fetch = prevFetch;
+      if (prevNodeTest == null) delete process.env.NODE_TEST_CONTEXT;
+      else process.env.NODE_TEST_CONTEXT = prevNodeTest;
+      if (prevOr == null) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = prevOr;
+      if (prevCi == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = prevCi;
+      __setEpisodicExtractCallerForTests(null);
+    }
   });
 });

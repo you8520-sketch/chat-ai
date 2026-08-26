@@ -144,11 +144,7 @@ import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
 import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
-import {
-  countMemoryEligibleCompletedTurns,
-  resolveMemoryEligibleTurnNumberCore,
-} from "@/lib/memory/memory-turn-loader";
-import { getMemorySourceBoundaryCore } from "@/lib/memory/memory-source-boundary";
+import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-loader";
 import {
   CHAT_MESSAGE_MAX,
   selectedAILabel,
@@ -451,8 +447,6 @@ import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFire
 import {
   getEpisodicMemoryForPrompt,
   logStatusMemoryPipelineDev,
-  persistEpisodicMemoryFactsBestEffort,
-  reconcileEpisodicMemoryFactsForGeneration,
   summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
@@ -5253,9 +5247,10 @@ export async function POST(req: Request) {
           }
         }
 
-        const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
+        // Compatibility telemetry only — Status Widget is not the episodic write owner.
+        const extractedFactsForTelemetry = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
-          extractedFactsForPersistence,
+          extractedFactsForTelemetry,
           { sourceUserText: messageText }
         );
         const parsedStatusKeys = [
@@ -5308,64 +5303,15 @@ export async function POST(req: Request) {
                 : 0,
           })
         );
-        // Phase B0: derived-state writes are allowed only when this request
-        // actually finalized the assistant (not an idempotent duplicate) AND
-        // the generation status is canonical. `interrupted` / `failed_partial`
-        // / `failed` must not create new durable episodic facts or trigger
-        // events. Queued-trigger consumption semantics are unchanged.
+        // Phase B0: trigger derived-state writes are allowed only when this
+        // request actually finalized the assistant (not an idempotent
+        // duplicate) AND the generation status is canonical.
+        // Status Widget must not persist/reconcile long-term episodic facts.
+        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
         const derivedStateAllowed =
           assistantFinalizedThisRequest &&
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
           shouldCommitCanonicalTurnState(generationSemantics);
-
-        if (derivedStateAllowed) {
-          const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);
-          const persistFacts = () => {
-            const persistence = reconcileEpisodicMemoryFactsForGeneration(db, {
-              chatId: chatRef.id,
-              characterId: ch.id,
-              userId: user.id,
-              sourceTurn:
-                (userMessageId != null
-                  ? resolveMemoryEligibleTurnNumberCore(db, chatRef.id, userMessageId)
-                  : null) ?? memorySourceEligibleCompletedTurns + 1,
-              sourceUserMessageId: userMessageId,
-              sourceUserText: messageText,
-              boundarySnapshot: episodicBoundarySnapshot,
-              facts: extractedFactsForPersistence,
-              isRegeneration: !!regenerateMessageId,
-              metadata: {
-                assistant_message_id: aiMessageId,
-                request_id: clientRequestId ?? null,
-                regenerated: !!regenerateMessageId,
-                variant_index: snapshotVariantIndex,
-                status_widget_turn_active: statusWidgetActive,
-              },
-            });
-            console.info(
-              "[StatusMemoryPersistence]",
-              JSON.stringify({
-                request_id: clientRequestId ?? null,
-                message_id: aiMessageId,
-                source_user_message_id: userMessageId,
-                insertable_count: factPersistSummary.insertableCount,
-                actual_inserted_count: persistence.inserted,
-                replaced_source_turn: persistence.replaced,
-              })
-            );
-            return persistence;
-          };
-          try {
-            // At most three small SQLite inserts. Complete the derived-memory
-            // attempt before completing this request so widget success cannot race
-            // a deferred callback or a reset epoch change.
-            persistFacts();
-          } catch (e) {
-            // Chat prose/status remain canonical even if best-effort derived
-            // memory fails; the persistence helper logs the underlying error.
-            console.error("[EpisodicMemory] synchronous persistence failed:", (e as Error).message);
-          }
-        }
 
         if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
