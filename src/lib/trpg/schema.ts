@@ -339,6 +339,16 @@ export function ensureTrpgTables(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_trpg_mechanics_resolutions_campaign
       ON trpg_mechanics_resolutions(campaign_id);
+
+    CREATE TABLE IF NOT EXISTS trpg_reply_suggestions (
+      round_id INTEGER NOT NULL,
+      participant_id INTEGER NOT NULL,
+      suggestions_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (round_id, participant_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_reply_suggestions_round
+      ON trpg_reply_suggestions(round_id);
   `);
   migrateTrpgCreatorEarningsUnique(db);
   migrateLegacyDefaultDiceRules(db);
