@@ -103,6 +103,16 @@ export type TrpgCampaignSnapshot = {
   viewerPersonaId: number | null;
   viewerIsHost: boolean;
   botRetryRequired: boolean;
+  /**
+   * @deprecated Stale pre-#636 client compatibility only.
+   * Manual host-fill no longer exists. Always false.
+   */
+  needsHostFill: boolean;
+  /**
+   * @deprecated Stale pre-#636 client compatibility only.
+   * Manual host-fill no longer exists. Always empty.
+   */
+  hostFillBotIds: number[];
   round: {
     id: number | null;
     number: number;

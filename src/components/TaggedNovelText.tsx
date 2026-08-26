@@ -16,6 +16,7 @@ export default function TaggedNovelText({
   viewerIsCreator = false,
   unlockedUrls,
   dialogueAccent = true,
+  assetSelectionKey,
 }: {
   content: string;
   assets: CharacterAsset[];
@@ -29,8 +30,13 @@ export default function TaggedNovelText({
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
   dialogueAccent?: boolean;
+  assetSelectionKey?: string;
 }) {
-  const parts = splitProseForInlineAssets(content, assets, { streaming, oncePerAsset: true });
+  const parts = splitProseForInlineAssets(content, assets, {
+    streaming,
+    oncePerAsset: true,
+    assetSelectionKey,
+  });
   if (parts.length === 0) return null;
   return (
     <div className="w-full min-w-0 max-w-full">

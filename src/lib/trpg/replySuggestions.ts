@@ -135,6 +135,54 @@ function readReplySuggestionGate(
   return null;
 }
 
+export function peekReplySuggestionCacheSource(
+  campaignId: number,
+  userId: number,
+  roundId: number
+): "inflight_join" | "memory_result" | null {
+  const gate = inflight.get(gateKey(campaignId, userId));
+  if (!gate || gate.roundId !== roundId) return null;
+  const now = Date.now();
+  if (gate.busy && gate.promise) return "inflight_join";
+  if (gate.result && (gate.resultUntil ?? 0) > now) return "memory_result";
+  return null;
+}
+
+export function loadDurableReplySuggestions(
+  db: Database.Database,
+  roundId: number,
+  participantId: number
+): TrpgReplySuggestion[] | null {
+  const row = db
+    .prepare(
+      `SELECT suggestions_json FROM trpg_reply_suggestions WHERE round_id=? AND participant_id=?`
+    )
+    .get(roundId, participantId) as { suggestions_json: string } | undefined;
+  if (!row?.suggestions_json?.trim()) return null;
+  try {
+    const parsed = JSON.parse(row.suggestions_json) as unknown;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parseReplySuggestions(JSON.stringify({ suggestions: parsed }));
+  } catch {
+    return null;
+  }
+}
+
+export function saveDurableReplySuggestions(
+  db: Database.Database,
+  roundId: number,
+  participantId: number,
+  suggestions: TrpgReplySuggestion[]
+): void {
+  db.prepare(
+    `INSERT INTO trpg_reply_suggestions (round_id, participant_id, suggestions_json)
+     VALUES (?,?,?)
+     ON CONFLICT(round_id, participant_id) DO UPDATE SET
+       suggestions_json=excluded.suggestions_json,
+       created_at=datetime('now')`
+  ).run(roundId, participantId, JSON.stringify(suggestions));
+}
+
 export type TrpgReplySemanticFailureClass =
   | "empty_completion"
   | "malformed_json"
@@ -174,6 +222,8 @@ export type TrpgReplySuggestionProviderId = "openrouter" | "cheaperinference";
 export type TrpgReplySuggestionProviderTelemetry = {
   logical_request_id: string;
   round_id: number | null;
+  campaign_id?: number | null;
+  participant_id?: number | null;
   primary_provider: TrpgReplySuggestionProviderId;
   primary_model: string | null;
   primary_status: number | null;
@@ -197,6 +247,38 @@ export type TrpgReplySuggestionProviderTelemetry = {
   primary_http_status?: number | null;
   primary_elapsed_ms?: number | null;
   primary_timeout_stage?: TrpgReplyPrimaryTimeoutStage;
+};
+
+export type TrpgReplySuggestionCacheSource =
+  | "durable_db"
+  | "inflight_join"
+  | "memory_result"
+  | "provider";
+
+export type TrpgReplySuggestionRouteTelemetry = {
+  campaign_id: number;
+  round_id: number;
+  participant_id: number;
+  cache_source: TrpgReplySuggestionCacheSource;
+  route_started_at_ms: number;
+  route_latency_ms: number;
+  prompt_chars: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_provider_latency_ms: number | null;
+  success: boolean;
+  provider?: Pick<
+    TrpgReplySuggestionProviderTelemetry,
+    | "logical_request_id"
+    | "primary_provider"
+    | "primary_model"
+    | "primary_latency_ms"
+    | "primary_failure_class"
+    | "fallback_attempted"
+    | "fallback_provider"
+    | "fallback_latency_ms"
+    | "provider_attempt_count"
+  >;
 };
 
 type TrpgReplyBackupResponseShape = {
@@ -503,6 +585,34 @@ export function logTrpgReplySuggestionProviderTelemetry(
     primary_http_status: telemetry.primary_http_status ?? null,
     primary_elapsed_ms: telemetry.primary_elapsed_ms ?? null,
     primary_timeout_stage: telemetry.primary_timeout_stage ?? null,
+  });
+}
+
+export function logTrpgReplySuggestionRouteTelemetry(
+  telemetry: TrpgReplySuggestionRouteTelemetry
+): void {
+  console.info("[trpg-reply-suggestion]", {
+    kind: "trpg_reply_suggestion_route",
+    campaign_id: telemetry.campaign_id,
+    round_id: telemetry.round_id,
+    participant_id: telemetry.participant_id,
+    cache_source: telemetry.cache_source,
+    route_started_at_ms: telemetry.route_started_at_ms,
+    route_latency_ms: telemetry.route_latency_ms,
+    prompt_chars: telemetry.prompt_chars,
+    input_tokens: telemetry.input_tokens,
+    output_tokens: telemetry.output_tokens,
+    total_provider_latency_ms: telemetry.total_provider_latency_ms,
+    success: telemetry.success,
+    logical_request_id: telemetry.provider?.logical_request_id ?? null,
+    primary_provider: telemetry.provider?.primary_provider ?? null,
+    primary_model: telemetry.provider?.primary_model ?? null,
+    primary_latency_ms: telemetry.provider?.primary_latency_ms ?? null,
+    primary_failure_class: telemetry.provider?.primary_failure_class ?? null,
+    fallback_attempted: telemetry.provider?.fallback_attempted ?? false,
+    fallback_provider: telemetry.provider?.fallback_provider ?? null,
+    fallback_latency_ms: telemetry.provider?.fallback_latency_ms ?? null,
+    provider_attempt_count: telemetry.provider?.provider_attempt_count ?? 0,
   });
 }
 
@@ -1305,6 +1415,7 @@ export async function callTrpgReplySuggestionModel(opts: {
   logicalRequestId?: string;
   roundId?: number | null;
   hooks?: DeepSeekFailoverHooks;
+  onProviderTelemetry?: (telemetry: TrpgReplySuggestionProviderTelemetry) => void;
 }): Promise<{ text: string; inputTokens?: number; outputTokens?: number; model: string }> {
   if (isMockApiMode()) {
     return { text: MOCK_SUGGESTIONS, model: TRPG_REPLY_SUGGESTION_MODEL };
@@ -1316,6 +1427,7 @@ export async function callTrpgReplySuggestionModel(opts: {
     roundId: opts.roundId,
     hooks: opts.hooks,
   });
+  opts.onProviderTelemetry?.(result.telemetry);
   return {
     text: result.text,
     model: result.model,
@@ -1332,6 +1444,7 @@ export async function requestTrpgReplySuggestions(
     complete?: TrpgReplySuggestionCall;
   }
 ): Promise<TrpgReplySuggestionResult> {
+  const routeStartedAt = Date.now();
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const me = loadParticipants(db, opts.campaignId).find((p) => p.user_id === opts.userId && p.kind === "human");
@@ -1345,8 +1458,54 @@ export async function requestTrpgReplySuggestions(
     .prepare(`SELECT locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
     .get(round.id, me.id) as { locked: number } | undefined;
   if (draft?.locked === 1) throw new Error("이미 제출했습니다.");
+
+  const logRoute = (
+    cacheSource: TrpgReplySuggestionCacheSource,
+    extra: {
+      promptChars?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      totalProviderLatencyMs?: number | null;
+      success: boolean;
+      provider?: TrpgReplySuggestionRouteTelemetry["provider"];
+    }
+  ) => {
+    logTrpgReplySuggestionRouteTelemetry({
+      campaign_id: opts.campaignId,
+      round_id: round.id,
+      participant_id: me.id,
+      cache_source: cacheSource,
+      route_started_at_ms: routeStartedAt,
+      route_latency_ms: Date.now() - routeStartedAt,
+      prompt_chars: extra.promptChars ?? 0,
+      input_tokens: extra.inputTokens ?? 0,
+      output_tokens: extra.outputTokens ?? 0,
+      total_provider_latency_ms: extra.totalProviderLatencyMs ?? null,
+      success: extra.success,
+      provider: extra.provider,
+    });
+  };
+
+  const durable = loadDurableReplySuggestions(db, round.id, me.id);
+  if (durable) {
+    logRoute("durable_db", { success: true });
+    return {
+      suggestions: durable,
+      prompt: { system: "", user: "" },
+    };
+  }
+
+  const memorySource = peekReplySuggestionCacheSource(opts.campaignId, opts.userId, round.id);
   const existing = readReplySuggestionGate(opts.campaignId, opts.userId, round.id);
-  if (existing) return existing;
+  if (existing) {
+    try {
+      const result = await existing;
+      logRoute(memorySource ?? "inflight_join", { success: true });
+      return result;
+    } catch (error) {
+      throw toTrpgReplySuggestionUserError(error);
+    }
+  }
 
   const sceneRow = db
     .prepare(
@@ -1389,6 +1548,7 @@ export async function requestTrpgReplySuggestions(
   const token = Symbol("trpg-reply-suggestion");
   const started = Date.now();
   const logicalRequestId = randomUUID();
+  let lastProviderTelemetry: TrpgReplySuggestionProviderTelemetry | undefined;
   const complete =
     opts.complete ??
     ((prompt: { system: string; user: string }) =>
@@ -1396,18 +1556,45 @@ export async function requestTrpgReplySuggestions(
         ...prompt,
         logicalRequestId,
         roundId: round.id,
+        onProviderTelemetry: (telemetry) => {
+          lastProviderTelemetry = telemetry;
+        },
       }));
   let settledResult: TrpgReplySuggestionResult | undefined;
   const generation = (async (): Promise<TrpgReplySuggestionResult> => {
     try {
       const result = await complete({ system: prompt.system, user: prompt.user });
       const suggestions = parseReplySuggestions(result.text);
+      saveDurableReplySuggestions(db, round.id, me.id, suggestions);
+      const providerLatency =
+        (lastProviderTelemetry?.primary_latency_ms ?? 0) +
+        (lastProviderTelemetry?.fallback_latency_ms ?? 0);
       logTrpgReplySuggestionUsage({
         model: result.model || TRPG_REPLY_SUGGESTION_MODEL,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
         latencyMs: Date.now() - started,
         success: true,
+      });
+      logRoute("provider", {
+        promptChars: prompt.system.length + prompt.user.length,
+        inputTokens: result.inputTokens ?? 0,
+        outputTokens: result.outputTokens ?? 0,
+        totalProviderLatencyMs: providerLatency > 0 ? providerLatency : Date.now() - started,
+        success: true,
+        provider: lastProviderTelemetry
+          ? {
+              logical_request_id: lastProviderTelemetry.logical_request_id,
+              primary_provider: lastProviderTelemetry.primary_provider,
+              primary_model: lastProviderTelemetry.primary_model,
+              primary_latency_ms: lastProviderTelemetry.primary_latency_ms,
+              primary_failure_class: lastProviderTelemetry.primary_failure_class,
+              fallback_attempted: lastProviderTelemetry.fallback_attempted,
+              fallback_provider: lastProviderTelemetry.fallback_provider,
+              fallback_latency_ms: lastProviderTelemetry.fallback_latency_ms,
+              provider_attempt_count: lastProviderTelemetry.provider_attempt_count,
+            }
+          : undefined,
       });
       settledResult = { suggestions, prompt };
       return settledResult;
@@ -1417,6 +1604,24 @@ export async function requestTrpgReplySuggestions(
         latencyMs: Date.now() - started,
         success: false,
         error: error instanceof Error ? error.message : "reply suggestion failed",
+      });
+      logRoute("provider", {
+        promptChars: prompt.system.length + prompt.user.length,
+        success: false,
+        totalProviderLatencyMs: Date.now() - started,
+        provider: lastProviderTelemetry
+          ? {
+              logical_request_id: lastProviderTelemetry.logical_request_id,
+              primary_provider: lastProviderTelemetry.primary_provider,
+              primary_model: lastProviderTelemetry.primary_model,
+              primary_latency_ms: lastProviderTelemetry.primary_latency_ms,
+              primary_failure_class: lastProviderTelemetry.primary_failure_class,
+              fallback_attempted: lastProviderTelemetry.fallback_attempted,
+              fallback_provider: lastProviderTelemetry.fallback_provider,
+              fallback_latency_ms: lastProviderTelemetry.fallback_latency_ms,
+              provider_attempt_count: lastProviderTelemetry.provider_attempt_count,
+            }
+          : undefined,
       });
       throw toTrpgReplySuggestionUserError(error);
     } finally {

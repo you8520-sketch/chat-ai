@@ -1,5 +1,6 @@
 import {
-  findAssetByTag,
+  findAssetByTagStable,
+  findAssetsByTag,
   isWideInlineAsset,
   type CharacterAsset,
 } from "@/lib/characterAssets";
@@ -14,6 +15,15 @@ import {
 export type InlineAssetPart =
   | { kind: "text"; text: string }
   | { kind: "image"; tag: string; asset: CharacterAsset };
+
+export function assetSelectionKeyForMessage(
+  m: { requestId?: string; id?: number | null },
+  index: number
+): string {
+  if (m.requestId?.trim()) return `request:${m.requestId.trim()}`;
+  if (m.id != null) return `message:${m.id}`;
+  return `row:${index}`;
+}
 
 export function mergeAssetSizes(
   assets: CharacterAsset[],
@@ -59,8 +69,8 @@ export function prepareBodyEmotionTags(
       out += part.text;
       continue;
     }
-    const asset = findAssetByTag(assets, part.tag);
-    if (asset && isWideInlineAsset(asset)) {
+    const hasInlineCandidate = findAssetsByTag(assets, part.tag).some(isWideInlineAsset);
+    if (hasInlineCandidate) {
       out += `[태그: ${part.tag}]`;
     }
   }
@@ -70,7 +80,7 @@ export function prepareBodyEmotionTags(
 export function splitProseForInlineAssets(
   text: string,
   assets: CharacterAsset[],
-  opts?: { streaming?: boolean; oncePerAsset?: boolean }
+  opts?: { streaming?: boolean; oncePerAsset?: boolean; assetSelectionKey?: string }
 ): InlineAssetPart[] {
   const seen = new Set<string>();
   const out: InlineAssetPart[] = [];
@@ -79,7 +89,10 @@ export function splitProseForInlineAssets(
       if (part.text) out.push(part);
       continue;
     }
-    const asset = findAssetByTag(assets, part.tag);
+    const selectionKey = opts?.assetSelectionKey?.trim();
+    const asset = selectionKey
+      ? findAssetByTagStable(assets, part.tag, selectionKey, "inline")
+      : findAssetsByTag(assets, part.tag).find(isWideInlineAsset) ?? null;
     if (!asset || !isWideInlineAsset(asset)) continue;
     if (opts?.oncePerAsset !== false) {
       if (seen.has(asset.url) || seen.has(asset.tag)) continue;
@@ -93,15 +106,19 @@ export function splitProseForInlineAssets(
 
 export function lastPortraitEmotionAsset(
   text: string,
-  assets: CharacterAsset[]
+  assets: CharacterAsset[],
+  selectionKey?: string
 ): CharacterAsset | null {
   const allowed = assets.filter((a) => a.chat !== false).map((a) => a.tag);
+  const key = selectionKey?.trim();
   let last: CharacterAsset | null = null;
   for (const tag of collectEmotionTags(text)) {
     const resolved = resolveEmotionTag(tag, allowed);
     if (!resolved) continue;
-    const asset = findAssetByTag(assets, resolved);
-    if (!asset || isWideInlineAsset(asset)) continue;
+    const asset = key
+      ? findAssetByTagStable(assets, resolved, key, "portrait")
+      : findAssetsByTag(assets, resolved).find((a) => !isWideInlineAsset(a)) ?? null;
+    if (!asset) continue;
     last = asset;
   }
   return last;

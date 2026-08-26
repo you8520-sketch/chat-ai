@@ -77,14 +77,17 @@ describe("TRPG host-fill removal policy", () => {
     assert.equal(snapshot.includes('"host_fill"'), false);
   });
 
-  it("NEEDS_HOST_FILL_EXISTS=false", () => {
+  it("NEEDS_HOST_FILL_RUNTIME_SHIM_ONLY", () => {
     const src = readFileSync("src/lib/trpg/engineSnapshot.ts", "utf8");
-    assert.equal(src.includes("needsHostFill"), false);
+    assert.match(src, /needsHostFill:\s*false/);
+    assert.equal(src.includes('work.type === "wait_host_fill"'), false);
+    assert.equal(src.includes("bot_retry_required"), true);
   });
 
-  it("HOST_FILL_BOT_IDS_EXISTS=false", () => {
-    const src = readFileSync("src/lib/trpg/snapshot.ts", "utf8");
-    assert.equal(src.includes("hostFillBotIds"), false);
+  it("HOST_FILL_BOT_IDS_RUNTIME_SHIM_ONLY", () => {
+    const src = readFileSync("src/lib/trpg/engineSnapshot.ts", "utf8");
+    assert.match(src, /hostFillBotIds:\s*\[\]/);
+    assert.equal(src.includes("hostFillBotIds:"), true);
   });
 
   it("HOST_FILL_API_EXISTS=false", () => {

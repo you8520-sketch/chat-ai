@@ -1,7 +1,9 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import type { User } from "@/lib/auth-types";
+import { isAdminUser } from "@/lib/isAdminUser";
 import {
-  USER_SELECTABLE_AI_OPTIONS,
+  isUserSelectableAI,
   isValidSelectedAI,
   selectedAILabel,
   type SelectedAI,
@@ -12,13 +14,20 @@ import {
   setUserSelectedAI,
 } from "@/lib/userSelectedAI";
 
-const USER_SELECTABLE_IDS = new Set<string>(USER_SELECTABLE_AI_OPTIONS.map((o) => o.id));
+function sessionIsAdmin(user: User): boolean {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(user.id) as { is_admin: number } | undefined;
+  return isAdminUser({ email: user.email, is_admin: row?.is_admin ?? 0 });
+}
 
 export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const db = getDb();
+  const isAdmin = sessionIsAdmin(user);
   const url = new URL(req.url);
   const consumeNotice = url.searchParams.get("consumeNotice") === "1";
 
@@ -28,6 +37,7 @@ export async function GET(req: Request) {
     ).n;
     const { notice, kind, selectedAI } = consumeSelectedAiEntryNotice(db, user.id, {
       isFirstChatVisitEver: chatCount <= 1,
+      isAdmin,
     });
     return Response.json({
       selectedAI,
@@ -37,7 +47,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const selectedAI = getUserChatSelectedAI(db, user.id);
+  const selectedAI = getUserChatSelectedAI(db, user.id, { isAdmin });
   return Response.json({
     selectedAI,
     label: selectedAILabel(selectedAI),
@@ -50,8 +60,9 @@ export async function PATCH(req: Request) {
 
   const body = await req.json();
   const requested = typeof body.selectedAI === "string" ? body.selectedAI.trim() : "";
-  // Server allow-list: only currently user-selectable production models (not Kimi/Qwen/GLM/arbitrary).
-  if (!requested || !isValidSelectedAI(requested) || !USER_SELECTABLE_IDS.has(requested)) {
+  const isAdmin = sessionIsAdmin(user);
+  // Server allow-list: user-selectable production models (+ admin-only Opus 5 when disabled globally).
+  if (!requested || !isValidSelectedAI(requested) || !isUserSelectableAI(requested, isAdmin)) {
     return Response.json({ error: "지원하지 않는 모델입니다." }, { status: 400 });
   }
 

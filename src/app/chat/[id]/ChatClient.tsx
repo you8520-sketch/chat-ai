@@ -53,7 +53,7 @@ import {
 import type { MessageVariant } from "@/lib/messageAlternates";
 import {
   assetByUrl,
-  findAssetByTag,
+  findAssetByTagStable,
   findAssetsByTag,
   getDefaultChatAsset,
   isWideInlineAsset,
@@ -65,7 +65,12 @@ import {
   resolveEmotionTag,
   stripEmotionTag,
 } from "@/lib/emotionTag";
-import { displayBodyEmotionTags, lastPortraitEmotionAsset, mergeAssetSizes } from "@/lib/inlineTaggedAssets";
+import {
+  assetSelectionKeyForMessage,
+  displayBodyEmotionTags,
+  lastPortraitEmotionAsset,
+  mergeAssetSizes,
+} from "@/lib/inlineTaggedAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import {
   loadUnlockedCharacterAssetUrls,
@@ -99,13 +104,13 @@ import {
 } from "@/lib/oocSceneRender";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 import {
-  USER_SELECTABLE_AI_OPTIONS,
   CHAT_MESSAGE_MAX,
   ASSISTANT_MESSAGE_MAX,
   DEFAULT_TARGET_RESPONSE_CHARS,
   isClaudeSelectedAI,
   selectedAILabel,
   selectedAIOptionMeta,
+  userSelectableAIOptionsForUser,
   type SelectedAI,
 } from "@/lib/chatModels";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
@@ -755,7 +760,7 @@ function findLastTurnIndices(msgs: Msg[]) {
 }
 
 function scanMessagesForPortrait(
-  msgs: { role: string; content: string }[],
+  msgs: { role: string; content: string; requestId?: string; id?: number | null }[],
   assets: CharacterAsset[],
   isCharacterCreator: boolean
 ): { activeUrl: string | null; activeTag: string | null; unlocked: Set<string> } {
@@ -768,12 +773,16 @@ function scanMessagesForPortrait(
 
   const allowed = assets.filter((a) => a.chat !== false).map((a) => a.tag);
 
-  for (const m of msgs) {
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
     if (m.role !== "assistant" || !m.content.trim()) continue;
-    const portrait = lastPortraitEmotionAsset(m.content, assets);
+    const selectionKey = assetSelectionKeyForMessage(m, i);
+    const portrait = lastPortraitEmotionAsset(m.content, assets, selectionKey);
     const { tag } = stripEmotionTag(m.content);
     const trailing = tag ? resolveEmotionTag(tag, allowed) : null;
-    const trailingAsset = trailing ? findAssetByTag(assets, trailing) : null;
+    const trailingAsset = trailing
+      ? findAssetByTagStable(assets, trailing, selectionKey, "portrait")
+      : null;
     const asset =
       portrait ??
       (trailingAsset && !isWideInlineAsset(trailingAsset) ? trailingAsset : null);
@@ -827,6 +836,7 @@ export default function ChatClient({
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
+  isAdmin = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
   personaSecretSettings = { canEdit: false, discoveryActive: false },
@@ -868,6 +878,7 @@ export default function ChatClient({
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
+  isAdmin?: boolean;
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
   personaSecretSettings?: PersonaSecretSettingsCapability;
@@ -984,6 +995,7 @@ export default function ChatClient({
   const [activePortraitUrl, setActivePortraitUrl] = useState<string | null>(
     () => initialPortrait.activeUrl
   );
+  const activePortraitUrlRef = useRef<string | null>(initialPortrait.activeUrl);
   const [activePortraitTag, setActivePortraitTag] = useState<string | null>(
     () => initialPortrait.activeTag
   );
@@ -1014,6 +1026,10 @@ export default function ChatClient({
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
+  const selectableAIOptions = useMemo(
+    () => userSelectableAIOptionsForUser(isAdmin),
+    [isAdmin]
+  );
   const [userNote, setUserNote] = useState(initialUserNote);
   const [liveStatusWidgetMode, setLiveStatusWidgetMode] =
     useState<StatusWidgetSourceMode>(initialStatusWidgetMode);
@@ -1459,7 +1475,9 @@ export default function ChatClient({
   /** 스트리밍 중 사용자가 직접 스크롤하면 true — 자동 따라가기 일시 중단 */
   const userScrollLockRef = useRef(false);
   const scrollRafRef = useRef<number | null>(null);
-  const applyEmotionRef = useRef<(text: string, showUnlockNotice?: boolean) => void>(() => {});
+  const applyEmotionRef = useRef<
+    (text: string, showUnlockNotice?: boolean, selectionKey?: string) => void
+  >(() => {});
   const loadingRef = useRef(loading);
   loadingRef.current = loading;
   const inFlightRef = useRef(false);
@@ -1537,13 +1555,20 @@ export default function ChatClient({
     }, CHAT_BACK_FALLBACK_DELAY_MS);
   }, [character.id, router]);
 
-  applyEmotionRef.current = (text: string, showUnlockNotice = true) => {
+  applyEmotionRef.current = (text: string, showUnlockNotice = true, selectionKey?: string) => {
     if (resolvedAssets.length === 0) return;
     const allowed = resolvedAssets.filter((a) => a.chat !== false).map((a) => a.tag);
-    const portrait = lastPortraitEmotionAsset(text, resolvedAssets);
+    const key = selectionKey?.trim();
+    const portrait = key
+      ? lastPortraitEmotionAsset(text, resolvedAssets, key)
+      : lastPortraitEmotionAsset(text, resolvedAssets);
     const { tag } = stripEmotionTag(text);
     const trailing = tag ? resolveEmotionTag(tag, allowed) : null;
-    const trailingAsset = trailing ? findAssetByTag(resolvedAssets, trailing) : null;
+    const trailingPortrait =
+      trailing && key ? findAssetByTagStable(resolvedAssets, trailing, key, "portrait") : null;
+    const trailingInline =
+      trailing && key ? findAssetByTagStable(resolvedAssets, trailing, key, "inline") : null;
+    const trailingAsset = trailingPortrait ?? trailingInline;
     const unlockTargets = [
       ...new Set(
         [...(portrait ? [portrait] : []), ...(trailingAsset ? [trailingAsset] : [])].map((a) => a.url)
@@ -1568,11 +1593,14 @@ export default function ChatClient({
 
     if (portraitPinnedRef.current) return;
     if (!portrait) return;
+    if (activePortraitUrlRef.current === portrait.url) return;
+    activePortraitUrlRef.current = portrait.url;
     setActivePortraitUrl(portrait.url);
     setActivePortraitTag(portrait.tag);
   };
 
   const handlePortraitSelected = useCallback((asset: CharacterAsset) => {
+    activePortraitUrlRef.current = asset.url;
     setActivePortraitUrl(asset.url);
     setActivePortraitTag(asset.tag);
   }, []);
@@ -1887,6 +1915,7 @@ export default function ChatClient({
       saveUnlockedCharacterAssetUrls(character.id, nextUnlocked);
     }
     setActivePortraitUrl(scanned.activeUrl);
+    activePortraitUrlRef.current = scanned.activeUrl;
     setActivePortraitTag(scanned.activeTag);
     unlockedUrlsRef.current = nextUnlocked;
     setUnlockedUrls(new Set(nextUnlocked));
@@ -2240,8 +2269,10 @@ export default function ChatClient({
     }, 2500);
   }, [messages]);
 
-  async function consumeChatStream(res: Response, aiIndex: number) {
+  async function consumeChatStream(res: Response, aiIndex: number, clientRequestId: string) {
     if (!res.body) throw new Error("스트림 본문이 없습니다.");
+
+    const assetSelectionKey = `request:${clientRequestId}`;
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -2308,7 +2339,7 @@ export default function ChatClient({
                 content: nextContent,
                 generationStatus: cur.generationStatus ?? "generating",
               };
-              applyEmotionRef.current(nextContent);
+              applyEmotionRef.current(nextContent, true, assetSelectionKey);
               const rid = cur.requestId;
               if (rid) {
                 const userText =
@@ -2341,7 +2372,7 @@ export default function ChatClient({
         const cur = copy[aiIndex];
         if (cur?.role === "assistant") {
           copy[aiIndex] = { ...cur, content: text };
-          applyEmotionRef.current(text);
+          applyEmotionRef.current(text, true, assetSelectionKey);
         }
         return copy;
       });
@@ -2586,7 +2617,7 @@ export default function ChatClient({
             oocSceneRender: data.oocSceneRender === true,
             canonAdopted: data.canonAdopted === true,
           };
-          if (data.finalContent) applyEmotionRef.current(data.finalContent);
+          if (data.finalContent) applyEmotionRef.current(data.finalContent, true, assetSelectionKey);
           clearChatStreamDraft(character.id, data.chatId ?? chatId);
         }
         return copy;
@@ -3183,7 +3214,7 @@ export default function ChatClient({
       });
       if (earlyExit) return;
 
-      streamResult = await consumeChatStream(res, aiIndex);
+      streamResult = await consumeChatStream(res, aiIndex, clientRequestId);
       handlePostStreamResult(streamResult, aiIndex, {
         rollback: () => setMessages((m) => softRollbackTurn(m, aiIndex)),
       });
@@ -3309,7 +3340,7 @@ export default function ChatClient({
       }, text);
       if (earlyExit) return;
 
-      streamResult = await consumeChatStream(res, aiIndex);
+      streamResult = await consumeChatStream(res, aiIndex, clientRequestId);
       handlePostStreamResult(streamResult, aiIndex, {
         rollback: () => setMessages((m) => softRollbackTurn(m, aiIndex)),
         restoreInput: text,
@@ -3550,7 +3581,7 @@ export default function ChatClient({
       const earlyExit = await handleStreamError(res, regenIndex, restoreAssistant);
       if (earlyExit) return;
 
-      streamResult = await consumeChatStream(res, regenIndex);
+      streamResult = await consumeChatStream(res, regenIndex, clientRequestId);
       if (streamResult.trafficOverload) {
         restoreAssistant();
         setError(streamResult.trafficOverload);
@@ -3633,7 +3664,16 @@ export default function ChatClient({
             : m
         )
       );
-      applyEmotionRef.current(data.content);
+      const switched = messages[messageIndex];
+      if (switched) {
+        applyEmotionRef.current(
+          data.content,
+          true,
+          assetSelectionKeyForMessage(switched, messageIndex)
+        );
+      } else {
+        applyEmotionRef.current(data.content);
+      }
     } catch {
       setToastMsg("네트워크 오류가 발생했습니다.");
     }
@@ -4730,6 +4770,7 @@ export default function ChatClient({
                               inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
                               viewerIsCreator={isCharacterCreator}
                               unlockedUrls={unlockedUrls}
+                              assetSelectionKey={assetSelectionKeyForMessage(m, i)}
                             />
                           </div>
                           {widgetsBottom.map((w) => (
@@ -4834,7 +4875,7 @@ export default function ChatClient({
               disabled={inputLocked}
               className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {USER_SELECTABLE_AI_OPTIONS.map((o) => (
+              {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {selectedAIOptionLabel(o.id as SelectedAI)}
                 </option>
