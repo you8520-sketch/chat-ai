@@ -84,34 +84,32 @@ describe("contextBuilder memory coverage — 5+4 owner contract MC1-MC10", () =>
     restoreEnv(savedFlag);
   });
 
-  it("MC1 Phase1 flag OFF — route-supplied RAW5 is not widened; gap0 after 1-6 seal", () => {
-    delete process.env[ENV_KEY];
+  it("MC1 after historical 1-6 seal, route RAW stays 4 and coverage gap is 0", () => {
     const completedTurns = 6;
     const summarizedTurnCount = 6;
     const history = trimProviderHistoryToBudget(
-      rawRecentTurnsToHistory(makeTurns(completedTurns), 5),
+      rawRecentTurnsToHistory(makeTurns(completedTurns), 4),
       HISTORY_TOKEN_BUDGET,
-      { minRealPlayableExchanges: 5, protectOpening: false }
+      { minRealPlayableExchanges: 4, protectOpening: false }
     );
     const built = buildCoverageContext({
       history,
       completedTurns,
       summarizedTurnCount,
-      historyMinTurnFloor: 5,
-      providerHistoryMinRealPlayableExchanges: 5,
-      providerHistoryAbsoluteTurnFloor: 5,
+      historyMinTurnFloor: 4,
+      providerHistoryMinRealPlayableExchanges: 4,
+      providerHistoryAbsoluteTurnFloor: 4,
     });
     const prior = built.history.slice(0, -1);
-    assert.equal(countRealPlayableHistoryTurns(prior), 5);
-    assert.equal(built.meta.memoryCoverage?.requestedFloor, 5);
-    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 5);
-    assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 2);
+    assert.equal(countRealPlayableHistoryTurns(prior), 4);
+    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 3);
     assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
     assert.equal(prior.length % 2, 0);
   });
 
-  it("MC2 Phase2 flag ON — buildContext keeps REAL RAW <=4 and does not lag-expand floor", () => {
-    process.env[ENV_KEY] = "1";
+  it("MC2 buildContext keeps REAL RAW <=4 and does not lag-expand floor", () => {
     const completedTurns = 20;
     const summarizedTurnCount = 6;
     const history = trimProviderHistoryToBudget(

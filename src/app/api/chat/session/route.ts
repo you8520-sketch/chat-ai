@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { adjustCharacterStatsOnChatDelete } from "@/lib/characterEngagementStats";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { parseChatSessionDeleteIds } from "@/lib/chatSessionDeleteIds";
+import { deleteChatOwnedDerivedRows } from "@/lib/chatOwnedDataCleanup";
 
 /** 채팅방(분기) 삭제 — 메시지·북마크·환불 요청 포함 */
 export async function PATCH(req: Request) {
@@ -80,26 +81,7 @@ export async function DELETE(req: Request) {
   db.transaction(() => {
     for (const chat of chats) {
       adjustCharacterStatsOnChatDelete(db, chat.character_id, user.id, chat.id);
-      db.prepare(
-        `DELETE FROM bookmarks
-         WHERE message_id IN (SELECT id FROM messages WHERE chat_id=?)`
-      ).run(chat.id);
-      db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM status_widget_triggers WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM status_trigger_events WHERE chat_id=?").run(chat.id);
-      // Phase B1-C: whole-chat delete cleans numeric ledger inside the same tx.
-      db.prepare("DELETE FROM rp_numeric_state_events WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM rp_numeric_state_current WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM message_feedback WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM message_generations WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM preference_events WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM reports WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM report_refunds WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM messages WHERE chat_id=?").run(chat.id);
-      db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(chat.id, user.id);
+      deleteChatOwnedDerivedRows(db, chat.id, user.id);
     }
   })();
 

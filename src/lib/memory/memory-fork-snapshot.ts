@@ -234,7 +234,7 @@ export function remapForkResetBoundary(opts: {
     : (opts.messageIdMap.get(lastBlockedParentMessageId) ?? null);
 }
 
-/** 부모 채팅의 6턴 히스토리 페이지를 분기 시점까지 새 채팅에 복사 */
+/** 부모 채팅의 롤링 요약 페이지를 분기 시점까지 새 채팅에 복사 */
 export function copyForkTurnSummaries(
   db: Database.Database,
   opts: {

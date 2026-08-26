@@ -1,12 +1,21 @@
+export function isMemoryFeatureEnabledIn(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env.MEMORY_FEATURE_ENABLED?.trim().toLowerCase();
+  return !(raw === "0" || raw === "false" || raw === "no" || raw === "off");
+}
+
 /** true | 1 | yes (default) — long-term memory system. Set 0|false|no|off to disable entirely. */
 export function isMemoryFeatureEnabled(): boolean {
-  const raw = process.env.MEMORY_FEATURE_ENABLED?.trim().toLowerCase();
-  if (raw === "0" || raw === "false" || raw === "no" || raw === "off") {
+  if (!isMemoryFeatureEnabledIn()) {
     logMemoryFeatureDisabledOnce();
     return false;
   }
   logMemoryFeatureEnabledOnce();
   return true;
+}
+
+/** Summary barrier follows MEMORY_FEATURE_ENABLED only — no 5+4 / 6+5 flag. */
+export function isSummaryBarrierActive(env: NodeJS.ProcessEnv = process.env): boolean {
+  return isMemoryFeatureEnabledIn(env);
 }
 
 let disabledLogged = false;

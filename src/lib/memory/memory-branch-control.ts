@@ -2,7 +2,7 @@
  * Cross-row branch control provenance + last-turn deletion rollback (no LLM, no migration).
  */
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   classifyMemoryTurnScope,
   encodeScopePayload,
@@ -31,6 +31,14 @@ export type PersistPendingBranchControlOp =
     }
   | {
       op: "close_active_branches";
+      sourceTurn: number;
+      control: BranchControlSource;
+    }
+  | {
+      op: "promote_noncanon_records";
+      recordIds: number[];
+      branchId: string;
+      promotedBy: string;
       sourceTurn: number;
       control: BranchControlSource;
     };

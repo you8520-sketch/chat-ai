@@ -1,4 +1,4 @@
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { resolveStaticStoredSummaryLimit } from "@/lib/contextTrack";
 import { listMemoryRecordsForChat, type MemoryRecordView } from "./memory-turn-summary";
 import { scopesInjectedIntoPrompt } from "./memory-summary-scope";
@@ -58,7 +58,7 @@ export function buildRecentNarrativeContextBlock(
 }
 
 /**
- * Static cache 6순위 — chat_turn_summaries(6턴마다 저장) 최신 생성순 1~15개.
+ * Static cache 6순위 — chat_turn_summaries(5턴마다 저장) 최신 생성순 1~15개.
  * read-only, 유저 수정 반영(summary 그대로).
  */
 export function buildStoredHistoryStaticBlock(

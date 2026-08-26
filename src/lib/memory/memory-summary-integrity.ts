@@ -2,8 +2,7 @@
  * Summary integrity — contiguous batches from stored spans (legacy 6-turn + new 5-turn).
  * Never trust summarized_turn_count alone.
  */
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
-import { ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
+import { ROLLING_SUMMARY_INTERVAL, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   LEGACY_NULL_TURN_END_OFFSET,

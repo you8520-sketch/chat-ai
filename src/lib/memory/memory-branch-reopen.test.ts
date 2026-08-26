@@ -97,6 +97,7 @@ function persistBranch(opts: {
     characterId: CHAR,
     tier: "free",
     turnStart: opts.turnStart,
+    turnEnd: opts.turnStart + 5,
     assistantMessageId: null,
     summary: opts.text,
     summaryKind: "branch_canon",
@@ -119,6 +120,7 @@ function persistNoncanon(turnStart: number, text: string): number {
     characterId: CHAR,
     tier: "free",
     turnStart,
+    turnEnd: turnStart + 5,
     assistantMessageId: null,
     summary: text,
     summaryKind: "noncanon",
@@ -137,6 +139,7 @@ function persistMain(turnStart: number): number {
     characterId: CHAR,
     tier: "free",
     turnStart,
+    turnEnd: turnStart + 5,
     assistantMessageId: null,
     summary: MAIN_TEXT,
     summaryKind: "main_canon",
@@ -548,8 +551,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         .get(CHAT) as { current_summary: string }
     ).current_summary;
 
-    seedPlayableTurns(12, (t) =>
-      t === 12
+    seedPlayableTurns(11, (t) =>
+      t === 11
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
     );
@@ -604,8 +607,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         .get(CHAT) as { current_summary: string }
     ).current_summary;
 
-    seedPlayableTurns(12, (t) =>
-      t === 12
+    seedPlayableTurns(11, (t) =>
+      t === 11
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
     );
@@ -655,7 +658,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     const memOk = getDb()
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT) as { recent_summary: string; summarized_turn_count: number };
-    assert.equal(memOk.summarized_turn_count, 12);
+    assert.equal(memOk.summarized_turn_count, 11);
     assert.equal(
       (
         getDb()
@@ -666,7 +669,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     );
   });
 
-  it("mixed-A: turn7~11 main + turn12 explicit IF resume keeps both scopes", async () => {
+  it("mixed-A: turn7~10 main + turn11 explicit IF resume keeps both scopes", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -674,8 +677,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       text: TEXT_A,
     });
 
-    seedPlayableTurns(12, (t) =>
-      t === 12
+    seedPlayableTurns(11, (t) =>
+      t === 11
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : {
             user: `본편 턴 ${t}`,
@@ -755,7 +758,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(batch2.scopes.main_canon, undefined);
   });
 
-  it("mixed-C: middle resume splits 7~9 main and 10~12 branch", async () => {
+  it("mixed-C: middle resume splits 7~9 main and 10~11 branch", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -763,7 +766,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       text: TEXT_A,
     });
 
-    seedPlayableTurns(12, (t) => {
+    seedPlayableTurns(11, (t) => {
       if (t <= 9) {
         return {
           user: `본편 턴 ${t}`,
@@ -799,7 +802,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
     assert.ok(batch2.scopes.main_canon);
     assert.ok(batch2.scopes.branch_canon);
-    assert.match(batch2.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF|추가 1[12]/);
+    assert.match(batch2.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF|추가 11/);
     assert.equal(batch2.branchId, "branch-A");
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
@@ -939,8 +942,8 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(12, (t) =>
-      t === 12
+    seedPlayableTurns(11, (t) =>
+      t === 11
         ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
     );
@@ -986,7 +989,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: delUser,
-        deletedPlayableTurn: 12,
+        deletedPlayableTurn: 11,
       }),
       true
     );
@@ -1123,14 +1126,14 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(12, (t) => {
-      if (t === 10) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
-      if (t === 12) {
+    seedPlayableTurns(11, (t) => {
+      if (t === 9) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 11) {
         return { user: "본편으로 돌아가자", assistant: "본편으로 돌아간다." };
       }
-      if (t === 11) {
+      if (t === 10) {
         // Must not match isExplicitClosedBranchContinueIntent (surviving false-positive).
-        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 11` };
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 10` };
       }
       return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
     });
@@ -1174,7 +1177,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: closeUserId,
-        deletedPlayableTurn: 12,
+        deletedPlayableTurn: 11,
       }),
       true
     );
@@ -1195,16 +1198,16 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       status: "closed",
       text: TEXT_A,
     });
-    seedPlayableTurns(12, (t) => {
-      if (t === 10) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
-      if (t === 12) {
+    seedPlayableTurns(11, (t) => {
+      if (t === 9) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 11) {
         return {
           user: "이걸 본편으로 확정",
           assistant: "본편 타임라인으로 반영한다.",
         };
       }
-      if (t === 11) {
-        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 11` };
+      if (t === 10) {
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 10` };
       }
       return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
     });
@@ -1255,7 +1258,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         tier: "free",
         memoryCapacity: 8000,
         deletedUserMessageId: adoptUserId,
-        deletedPlayableTurn: 12,
+        deletedPlayableTurn: 11,
       }),
       true
     );

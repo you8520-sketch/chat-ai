@@ -220,15 +220,8 @@ describe("diagnostics", () => {
       parseRecentSummaryBatchStarts("[1~6턴] a\n\n[7~12턴] b"),
       [1, 7]
     );
-    const prev = process.env.MEMORY_5PLUS4_ENABLED;
-    try {
-      delete process.env.MEMORY_5PLUS4_ENABLED;
-      assert.equal(batchEndForStart(1), 6);
-      process.env.MEMORY_5PLUS4_ENABLED = "1";
-      assert.equal(batchEndForStart(1), 5);
-    } finally {
-      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
-      else process.env.MEMORY_5PLUS4_ENABLED = prev;
-    }
+    assert.equal(batchEndForStart(1), 5);
+    assert.equal(batchEndForStart(6), 10);
+    assert.equal(batchEndForStart(7), 11);
   });
 });

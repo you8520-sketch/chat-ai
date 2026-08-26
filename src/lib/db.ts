@@ -24,6 +24,7 @@ import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
+import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
@@ -256,6 +257,7 @@ function init(db: Database.Database) {
   // Phase B1-A — dormant numeric state tables (no runtime wiring / no backfill).
   ensureRpNumericStateTables(db);
   ensureTrpgTables(db);
+  ensureMemorySummaryMigrationsTable(db);
   db.exec(`
   CREATE TABLE IF NOT EXISTS lorebook_active_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1616,6 +1618,7 @@ function migrate(db: Database.Database) {
   // Phase B1-A — empty numeric tables only; no chat backfill / no route wiring.
   ensureRpNumericStateTables(db);
   ensureTrpgTables(db);
+  ensureMemorySummaryMigrationsTable(db);
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);

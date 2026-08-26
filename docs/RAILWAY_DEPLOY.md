@@ -53,7 +53,7 @@ Set these before going live (values you provide separately):
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `0` — client UI (header shop icon, charge buttons) |
 | `DISABLE_PAYOUT_SCHEDULER` | 비워 두세요. `1`이면 매월 15일 자동 지급이 멈춥니다. |
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
-| `EPISODIC_MEMORY_RECALL_ENABLED` | `1` — **required** to inject saved episodic facts into prompts. Without it, facts are still saved but recall is off in production (boot warns). Read by `episodicMemoryRecallEnabled()` in `src/lib/episodicMemoryFacts.ts`. |
+| `EPISODIC_MEMORY_RECALL_DISABLED` | Optional emergency kill switch. Unset = recall ON whenever `MEMORY_FEATURE_ENABLED` is on. Legacy `EPISODIC_MEMORY_RECALL_ENABLED=0` still disables recall. |
 | `WEB_PUSH_VAPID_*` / `WEB_PUSH_SUBJECT` | Optional. Empty values auto-provision a stable VAPID pair into `app_meta` on first boot (uses `OPENROUTER_HTTP_REFERER` / `NEXTAUTH_URL` / `ADMIN_EMAILS` for the subject). Set `DISABLE_WEB_PUSH=1` only if you want the settings toggle to stay off. |
 
 CLOSED_ADULT_TEST_MODE (closed adult cohort — not open-public legal verification):

@@ -114,7 +114,7 @@ export type ContextBuildInput = {
   providerHistoryAbsoluteTurnFloor?: number;
   /** While true, opening turn0 survives provider-history trims before first 1-5 seal. */
   providerHistoryProtectOpening?: boolean;
-  /** Real playable RAW exchange cap for trim (4 when MEMORY_5PLUS4_ENABLED, else 5). */
+  /** Real playable RAW exchange cap for trim (always 4 complete playable exchanges). */
   providerHistoryMinRealPlayableExchanges?: number;
   /** hard-limit second pass에서 동일 degradation 로그의 중복 출력을 막는다. */
   suppressMemoryCoverageDegradedLog?: boolean;

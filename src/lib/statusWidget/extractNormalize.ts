@@ -1,7 +1,7 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
 import { expandStatusWidgetProfilePlaceholders } from "./placeholders";
 import { collectWidgetJsonKeys } from "./prompt";
-import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
+import { STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS } from "@/lib/memory/memory-episodic-prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import {
@@ -237,7 +237,7 @@ Rules:
 - Do NOT invent lore that contradicts the provided context.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.
-${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
+${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
 }
 
 export function buildWidgetExtractUserBlock(opts: {
@@ -876,7 +876,7 @@ Rules:
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - Prefer current-turn explicit change over previous canonical anchors.
 - Do NOT invent lore that contradicts the provided context.
-${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
+${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
 }
 
 export function buildCombinedDualWidgetExtractUserBlock(opts: {

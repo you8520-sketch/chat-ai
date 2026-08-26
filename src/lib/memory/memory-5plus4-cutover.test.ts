@@ -54,15 +54,8 @@ describe("memory 5+4 cutover — legacy spans", () => {
     assert.deepEqual(missingContiguousBatchStarts(records, 16), []);
   });
 
-  it("L3 completed 17 seals 13-17 frontier when MEMORY_5PLUS4_ENABLED", () => {
-    const prev = process.env.MEMORY_5PLUS4_ENABLED;
-    try {
-      process.env.MEMORY_5PLUS4_ENABLED = "1";
-      assert.deepEqual(resolveNextBatchRange(12, 17), { turnStart: 13, turnEnd: 17 });
-    } finally {
-      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
-      else process.env.MEMORY_5PLUS4_ENABLED = prev;
-    }
+  it("L3 completed 17 seals 13-17 frontier after historical 1-12", () => {
+    assert.deepEqual(resolveNextBatchRange(12, 17), { turnStart: 13, turnEnd: 17 });
   });
 
   it("L5 NULL turn_end resolves as six-turn legacy", () => {
@@ -163,17 +156,10 @@ describe("LTM + RAW gap test", () => {
 });
 
 describe("summary quality contracts", () => {
-  it("Q1 5-turn prompt mentions max 600 not mandatory 450 when Phase2 ON", () => {
-    const prev = process.env.MEMORY_5PLUS4_ENABLED;
-    try {
-      process.env.MEMORY_5PLUS4_ENABLED = "1";
-      const prompt = buildRollingSummarySystemPrompt(5);
-      assert.match(prompt, /최대 600자/);
-      assert.doesNotMatch(prompt, /450자/);
-    } finally {
-      if (prev === undefined) delete process.env.MEMORY_5PLUS4_ENABLED;
-      else process.env.MEMORY_5PLUS4_ENABLED = prev;
-    }
+  it("Q1 5-turn prompt mentions max 600 not mandatory 450", () => {
+    const prompt = buildRollingSummarySystemPrompt(5);
+    assert.match(prompt, /최대 600자/);
+    assert.doesNotMatch(prompt, /450자/);
   });
 
   it("Q9 rejects 5-turn and 6-turn instruction echo", () => {
@@ -228,49 +214,28 @@ describe("chat707 reconstructed totals fixture", () => {
   });
 });
 
-describe("greenfield 5-turn cadence (MEMORY_5PLUS4_ENABLED)", () => {
-  const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
-
+describe("greenfield 5-turn cadence", () => {
   it("expectedSealedTurnCount for greenfield", () => {
     assert.equal(expectedSealedTurnCount(4), 0);
     assert.equal(expectedSealedTurnCount(5), 5);
     assert.equal(expectedSealedTurnCount(10), 10);
   });
 
-  it("newBatchEndForStart follows flag — OFF=6-turn legacy, ON=5-turn", () => {
-    const prev = process.env[ENV_KEY];
-    try {
-      delete process.env[ENV_KEY];
-      assert.equal(newBatchEndForStart(1), 6);
-      assert.equal(newBatchEndForStart(13), 18);
-      process.env[ENV_KEY] = "1";
-      assert.equal(newBatchEndForStart(1), 5);
-      assert.equal(newBatchEndForStart(13), 17);
-    } finally {
-      if (prev === undefined) delete process.env[ENV_KEY];
-      else process.env[ENV_KEY] = prev;
-    }
+  it("newBatchEndForStart is always 5-turn", () => {
+    assert.equal(newBatchEndForStart(1), 5);
+    assert.equal(newBatchEndForStart(13), 17);
   });
 });
 
 
-describe("summary barrier cadence (Phase2 flag ON)", () => {
-  const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
-
+describe("summary barrier cadence", () => {
   it("B1 seal due at turn 5 after zero summarized", async () => {
-    const prev = process.env[ENV_KEY];
-    try {
-      process.env[ENV_KEY] = "1";
-      const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(
-        "./memory-rolling-summary"
-      );
-      assert.equal(summarySealAtTurn(0), 5);
-      assert.equal(shouldTriggerRollingSummary(4, 0), false);
-      assert.equal(shouldTriggerRollingSummary(5, 0), true);
-    } finally {
-      if (prev === undefined) delete process.env[ENV_KEY];
-      else process.env[ENV_KEY] = prev;
-    }
+    const { shouldTriggerRollingSummary, summarySealAtTurn } = await import(
+      "./memory-rolling-summary"
+    );
+    assert.equal(summarySealAtTurn(0), 5);
+    assert.equal(shouldTriggerRollingSummary(4, 0), false);
+    assert.equal(shouldTriggerRollingSummary(5, 0), true);
   });
 
   it("B4 healthy unsummarized <=4 after first batch", () => {

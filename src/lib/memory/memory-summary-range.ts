@@ -1,14 +1,20 @@
 /**
- * Durable summary batch spans — legacy 6-turn (NULL turn_end) vs new 5-turn rows.
- * NULL turn_end always resolves as turn_start + 5 (six-turn legacy), never current interval.
+ * Durable summary batch spans — historical 6-turn (NULL turn_end) vs production 5-turn rows.
+ * NULL turn_end always resolves as turn_start + 5 (six-turn legacy), never the current writer interval.
  */
 import {
   LEGACY_NULL_TURN_END_OFFSET,
-  NEW_ROLLING_SUMMARY_INTERVAL,
+  LEGACY_SIX_TURN_SPAN,
+  ROLLING_SUMMARY_INTERVAL,
+  newAutomaticBatchEnd,
+  targetSummarizedThrough,
 } from "./memory-constants";
-import { resolveNewBatchEndForStart } from "./memory-5plus4-flag";
 
-export { LEGACY_NULL_TURN_END_OFFSET } from "./memory-constants";
+export {
+  LEGACY_NULL_TURN_END_OFFSET,
+  LEGACY_SIX_TURN_SPAN,
+  targetSummarizedThrough,
+} from "./memory-constants";
 
 export type SummarySpan = {
   turnStart: number;
@@ -47,20 +53,21 @@ export function spanFromView(row: { turnStart: number; turnEnd: number }): Summa
   };
 }
 
-/** New automatically-created batches follow MEMORY_5PLUS4_ENABLED (5 or legacy 6). */
+/** New automatically-created batches are always 5-turn. */
 export function newBatchEndForStart(turnStart: number): number {
-  return resolveNewBatchEndForStart(turnStart);
+  return newAutomaticBatchEnd(turnStart);
 }
 
 export function isNewIntervalBatch(span: SummarySpan): boolean {
-  return span.turnCount === NEW_ROLLING_SUMMARY_INTERVAL;
+  return span.turnCount === ROLLING_SUMMARY_INTERVAL;
 }
 
+/** Historical reader: stored six-turn automatic batches (Phase A compatibility). */
 export function isLegacySixTurnBatch(span: SummarySpan): boolean {
-  return span.turnCount === LEGACY_NULL_TURN_END_OFFSET + 1;
+  return span.turnCount === LEGACY_SIX_TURN_SPAN;
 }
 
-/** Next new batch after highest contiguous sealed turn (frontier-based, not global modulo). */
+/** Next new 5-turn batch after highest contiguous sealed turn (frontier-based, not global modulo). */
 export function resolveNextBatchRange(
   highestContiguousTurn: number,
   completedPlayableTurns: number
@@ -88,4 +95,15 @@ export function unsummarizedCompletedTurns(
 
 export function summaryBatchLabel(turnStart: number, turnEnd: number): string {
   return `${turnStart}~${turnEnd}턴`;
+}
+
+export function listTargetFiveTurnBatches(
+  completedPlayableTurns: number
+): Array<{ turnStart: number; turnEnd: number }> {
+  const through = targetSummarizedThrough(completedPlayableTurns);
+  const batches: Array<{ turnStart: number; turnEnd: number }> = [];
+  for (let start = 1; start <= through; start += ROLLING_SUMMARY_INTERVAL) {
+    batches.push({ turnStart: start, turnEnd: start + ROLLING_SUMMARY_INTERVAL - 1 });
+  }
+  return batches;
 }

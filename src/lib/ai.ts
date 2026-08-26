@@ -60,7 +60,7 @@ export type TokenUsage = {
 
 /** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference DeepSeek V4 Flash */
 export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
-/** 6턴 RP raw + 기억 요약 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
+/** 5턴 요약 원문 + 기억 추출 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
 export const BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT = 48_000;
 
 export function resolveBackgroundMemoryExtractMaxInputTokens(): number {

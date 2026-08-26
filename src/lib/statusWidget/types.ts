@@ -71,45 +71,19 @@ export const CREATOR_PROTECTED_STATUS_KEYS = [
 
 export type StatusWidgetValues = Record<string, string>;
 
-export type ExtractedStatusFactCategory =
-  | "relationship"
-  | "character"
-  | "setting"
-  | "item"
-  | "preference"
-  | "rule"
-  | "quest"
-  | "location"
-  | "organization";
+import type { EpisodicExtractedFact } from "@/lib/memory/memory-episodic-types";
 
-export type ExtractedStatusFactImportance = "critical" | "important" | "normal";
-
-/**
- * Why a status extractor is allowed to promote a scene detail into durable
- * episodic memory. `assistant_inference` is intentionally not a valid value.
- */
-export type ExtractedStatusFactEvidenceType =
-  | "explicit_user_statement"
-  | "explicit_scene_event"
-  | "explicit_character_claim"
-  /** Legacy metadata only; new model output must never duplicate canon into episodic memory. */
-  | "canon";
-
-export type ExtractedStatusFact = {
-  category: ExtractedStatusFactCategory;
-  subject: string;
-  attribute: string;
-  value: string;
-  importance: ExtractedStatusFactImportance;
-  fact_text: string;
-  /** Optional only for legacy stored facts and internal fixtures. New model output requires it. */
-  evidence_type?: ExtractedStatusFactEvidenceType;
-};
+export type {
+  EpisodicFactCategory as ExtractedStatusFactCategory,
+  EpisodicFactImportance as ExtractedStatusFactImportance,
+  EpisodicFactEvidenceType as ExtractedStatusFactEvidenceType,
+  EpisodicExtractedFact as ExtractedStatusFact,
+} from "@/lib/memory/memory-episodic-types";
 
 export type ParsedStatusWidgetTurnValues = {
   character?: StatusWidgetValues | null;
   user?: StatusWidgetValues | null;
-  extracted_facts?: ExtractedStatusFact[];
+  extracted_facts?: EpisodicExtractedFact[];
 };
 
 export type ResolvedStatusWidgetTurn = {

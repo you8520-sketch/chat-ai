@@ -293,6 +293,22 @@ export function classifyMemoryBatchScopes(
   };
 }
 
+/** Main canonical + durable preference turns only — reuse summary scope owner for episodic input. */
+export function selectEpisodicEligibleTurnEntries(
+  entries: Array<{ turnIndex: number; turn: DialogueTurn; userMessageId?: number | null }>,
+  opts?: { previousWasNoncanonOrBranch?: boolean }
+): Array<{ turnIndex: number; turn: DialogueTurn; userMessageId?: number | null }> {
+  const plan = classifyMemoryBatchScopes(
+    entries.map(({ turnIndex, turn }) => ({ turnIndex, turn })),
+    opts
+  );
+  const allowed = new Set([
+    ...plan.mainTurns.map((entry) => entry.turnIndex),
+    ...plan.preferenceTurns.map((entry) => entry.turnIndex),
+  ]);
+  return entries.filter((entry) => allowed.has(entry.turnIndex));
+}
+
 const NONCANON_BIT_USER_MAX = 80;
 const NONCANON_BIT_ASSISTANT_MAX = 320;
 const NONCANON_SUMMARY_ELLIPSIS = " / … / ";
