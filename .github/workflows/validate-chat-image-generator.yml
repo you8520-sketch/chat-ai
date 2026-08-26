@@ -25,6 +25,10 @@ on:
       - "src/lib/chatImageVisualIdentity.ts"
       - "src/lib/chatImageVisualIdentity.test.ts"
       - "src/lib/chatImageVisualIdentity.fixtures.ts"
+      - "src/lib/chatImageComposition.ts"
+      - "src/lib/chatImageComposition.test.ts"
+      - "src/lib/chatImageEyeTraits.ts"
+      - "src/lib/chatImageEyeTraits.test.ts"
       - "src/lib/openAiImageEdit.ts"
       - "src/lib/openAiImageEdit.test.ts"
       - "src/lib/trpg/illustrationCast.ts"
@@ -52,4 +56,6 @@ jobs:
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts
       - run: node --import tsx --test src/lib/chatImageVisualIdentity.test.ts
+      - run: node --import tsx --test src/lib/chatImageComposition.test.ts
+      - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts

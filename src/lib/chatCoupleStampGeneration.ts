@@ -5,6 +5,10 @@
  */
 
 import {
+  coupleStampHeightToRelativeScale,
+  renderChatImageCompositionBlock,
+} from "@/lib/chatImageComposition";
+import {
   CHAT_IMAGE_EXPRESSIONS,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
@@ -52,31 +56,16 @@ export const CHAT_COUPLE_STAMP_PANELS = [
   {
     id: "cheek_closeup",
     prompt:
-      "BOTTOM-RIGHT badge: no animal ears. Tight cheek-to-cheek face close-up, faces noticeably larger and more zoomed-in than the other three badges, one hand raised near the cheek. Pink background with a heart and a ribbon.",
+      "BOTTOM-RIGHT badge: no animal ears. Tight cheek-to-cheek face close-up, both faces zoomed-in tighter than the other three badges (camera zoom only — do not override COMPOSITION relative scale between the two people), one hand raised near the cheek. Pink background with a heart and a ribbon.",
   },
 ] as const;
 
 export const CHAT_COUPLE_STAMP_EXPRESSIONS = CHAT_IMAGE_EXPRESSIONS;
 
 export const CHAT_COUPLE_STAMP_HEIGHTS = [
-  {
-    id: "same",
-    label: "키 같게",
-    prompt:
-      "Keep both faces at the same vertical height inside the circle — equal eye-line, neither person taller.",
-  },
-  {
-    id: "character_taller",
-    label: "캐릭터 키크게",
-    prompt:
-      "Make the chat character visibly taller: their face sits higher in the frame than the user persona's face.",
-  },
-  {
-    id: "persona_taller",
-    label: "유저 키크게",
-    prompt:
-      "Make the user persona visibly taller: their face sits higher in the frame than the chat character's face.",
-  },
+  { id: "same", label: "키 같게" },
+  { id: "character_taller", label: "캐릭터 키크게" },
+  { id: "persona_taller", label: "유저 키크게" },
 ] as const;
 
 export const CHAT_COUPLE_STAMP_BACKGROUNDS = [
@@ -248,6 +237,12 @@ export function buildChatCoupleStampPrompt(opts: {
   subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const options = sanitizeChatCoupleStampOptions(opts.options);
+  const compositionBlock = renderChatImageCompositionBlock({
+    scale: coupleStampHeightToRelativeScale(options.height),
+    product: "couple_stamp",
+    characterName: opts.characterName,
+    personaName: opts.personaName,
+  });
 
   return [
     "Create ONE square couple profile stamp sheet: exactly four circular badges arranged in a 2-by-2 grid on a clean white background, with even gaps and equal badge sizes.",
@@ -262,12 +257,12 @@ export function buildChatCoupleStampPrompt(opts: {
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
+    compositionBlock,
     "The same two people appear in all four badges.",
     CHAT_COUPLE_STAMP_PANELS.map((panel) => panel.prompt).join("\n"),
     `Chat character ${opts.characterName} expression in every badge: ${findPrompt(CHAT_COUPLE_STAMP_EXPRESSIONS, options.characterExpression)}.`,
     `User persona ${opts.personaName} expression in every badge: ${findPrompt(CHAT_COUPLE_STAMP_EXPRESSIONS, options.personaExpression)}.`,
     "Keep each person's chosen expression recognizable in all four badges; only small natural variation such as a wink or a wider smile is allowed.",
-    `Height / face position in every badge: ${findPrompt(CHAT_COUPLE_STAMP_HEIGHTS, options.height)}`,
     `Background decoration: ${findPrompt(CHAT_COUPLE_STAMP_BACKGROUNDS, options.background)}`,
     `Border decoration: ${findPrompt(CHAT_COUPLE_STAMP_BORDERS, options.border)}`,
     "Keep both faces and important gestures fully inside each circle. Bold clean line art, pastel digital coloring, merchandise-quality kawaii finish.",

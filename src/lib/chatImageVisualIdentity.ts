@@ -1,4 +1,5 @@
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
+import { normalizeSavedAppearanceForProvider } from "@/lib/chatImageEyeTraits";
 
 export const CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX = 1_600;
 export const CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX = 700;
@@ -432,12 +433,28 @@ export function visualSubjectsFromCastMembers(
 }
 
 function formatSavedAppearanceLines(appearance: string): string {
-  return appearance
+  const eyeMarker = "Eyes (explicit iris/pupil ownership):";
+  const eyeIndex = appearance.indexOf(eyeMarker);
+  const body = eyeIndex >= 0 ? appearance.slice(0, eyeIndex).trim() : appearance;
+  const eyeBlock = eyeIndex >= 0 ? appearance.slice(eyeIndex).trim() : "";
+
+  const bodyLines = body
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => `- ${line}`)
     .join("\n");
+
+  if (!eyeBlock) return bodyLines;
+
+  const eyeLines = eyeBlock
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
+    .join("\n");
+
+  return [bodyLines, eyeLines].filter(Boolean).join("\n");
 }
 
 export function renderChatImageSubjectManifest(
@@ -453,7 +470,9 @@ export function renderChatImageSubjectManifest(
     .filter((alias) => alias && alias !== name);
   const aliasLine = aliases.length ? `Also known as: ${aliases.join(", ")}.` : "";
   const hasReference = subject.referenceIndex != null;
-  const saved = clipSavedAppearanceForPrompt(subject.savedAppearance);
+  const saved = clipSavedAppearanceForPrompt(
+    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "")
+  );
   const useSaved = subject.appearanceMode === "image_plus_saved" && Boolean(saved);
   const reference = hasReference
     ? `Reference: Image ${subject.referenceIndex} belongs ONLY to ${name}.`
