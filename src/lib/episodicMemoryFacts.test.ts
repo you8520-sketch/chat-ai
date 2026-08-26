@@ -513,9 +513,9 @@ describe("status episodic source-of-truth and evidence boundaries", () => {
 });
 
 describe("episodicMemoryRecallEnabled production warning", () => {
-  it("detects production without EPISODIC_MEMORY_RECALL_ENABLED", () => {
+  it("production recall is on by default; only explicit kill switches disable it", () => {
     assert.equal(
-      episodicMemoryRecallDisabledInProduction({
+      episodicMemoryRecallEnabled({
         NODE_ENV: "production",
       } as NodeJS.ProcessEnv),
       true
@@ -523,22 +523,29 @@ describe("episodicMemoryRecallEnabled production warning", () => {
     assert.equal(
       episodicMemoryRecallDisabledInProduction({
         NODE_ENV: "production",
-        EPISODIC_MEMORY_RECALL_ENABLED: "1",
       } as NodeJS.ProcessEnv),
       false
     );
     assert.equal(
       episodicMemoryRecallEnabled({
         NODE_ENV: "production",
-        EPISODIC_MEMORY_RECALL_ENABLED: "1",
+        EPISODIC_MEMORY_RECALL_DISABLED: "1",
       } as NodeJS.ProcessEnv),
-      true
+      false
+    );
+    assert.equal(
+      episodicMemoryRecallEnabled({
+        NODE_ENV: "production",
+        EPISODIC_MEMORY_RECALL_ENABLED: "0",
+      } as NodeJS.ProcessEnv),
+      false
     );
   });
 
-  it("warnEpisodicMemoryRecallDisabledInProduction returns true when disabled", () => {
+  it("warnEpisodicMemoryRecallDisabledInProduction returns true when killed", () => {
     const warned = warnEpisodicMemoryRecallDisabledInProduction({
       NODE_ENV: "production",
+      EPISODIC_MEMORY_RECALL_DISABLED: "1",
     } as NodeJS.ProcessEnv);
     assert.equal(warned, true);
   });
@@ -562,12 +569,31 @@ describe("getEpisodicMemoryForPrompt", () => {
       }),
       1
     );
-    const env = {
+    const envOff = {
       ...process.env,
       NODE_ENV: "development",
       MEMORY_FEATURE_ENABLED: "0",
-      EPISODIC_MEMORY_RECALL_ENABLED: "1",
-      EPISODIC_MEMORY_MIN_AGE_TURNS: "3",
+    } as NodeJS.ProcessEnv;
+    assert.equal(
+      getEpisodicMemoryForPrompt(
+        db,
+        {
+          chatId: 1,
+          characterId: 2,
+          userId: 3,
+          currentTurn: 10,
+          currentUserMessage: "different current message",
+        },
+        envOff
+      ).facts.length,
+      0
+    );
+
+    const env = {
+      ...process.env,
+      NODE_ENV: "development",
+      MEMORY_FEATURE_ENABLED: "1",
+      EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
     } as NodeJS.ProcessEnv;
 
     const tooYoung = getEpisodicMemoryForPrompt(
@@ -576,7 +602,7 @@ describe("getEpisodicMemoryForPrompt", () => {
         chatId: 1,
         characterId: 2,
         userId: 3,
-        currentTurn: 2,
+        currentTurn: 5,
         currentUserMessage: "different current message",
       },
       env
@@ -589,7 +615,7 @@ describe("getEpisodicMemoryForPrompt", () => {
         chatId: 1,
         characterId: 2,
         userId: 3,
-        currentTurn: 4,
+        currentTurn: 6,
         currentUserMessage: "different current message",
       },
       env

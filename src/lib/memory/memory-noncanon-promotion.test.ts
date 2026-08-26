@@ -107,6 +107,7 @@ function persistKind(opts: {
     characterId: CHAR,
     tier: "free",
     turnStart: opts.turnStart,
+    turnEnd: opts.turnStart + 5,
     assistantMessageId: null,
     summary: opts.text,
     summaryKind: opts.kind,
