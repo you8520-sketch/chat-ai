@@ -343,6 +343,22 @@ type CallRecord = {
   outputTokens: number | null;
   reasoningTokens: number | null;
   rawText: string;
+  jsonFound?: boolean;
+  jsonParseOk?: boolean;
+  normalizedValues?: ParsedStatusWidgetTurnValues;
+  normalizedKeys?: string[];
+  echoDroppedKeys?: string[];
+  usedRepair?: boolean;
+  usedFallback?: boolean;
+  actualCallCount?: number;
+  expectedValues?: Record<string, unknown>;
+  finalValues?: ParsedStatusWidgetTurnValues;
+  displayPolicyPass?: boolean;
+  finalWidgetVisible?: boolean;
+  characterValues?: StatusWidgetValues | null;
+  userValues?: StatusWidgetValues | null;
+  subjectSwap?: boolean;
+  wholesaleClone?: boolean;
 };
 
 type WidgetSnapshot = {
@@ -933,7 +949,29 @@ async function runTurn(scenario: Scenario, modelKey: ModelKey): Promise<TurnRow>
     initialOnlyResult,
     productionRepairResult,
     dual,
-    calls: callRecords,
+    calls: callRecords.map((call, index) => {
+      const snap = index === 0 ? initialOnlyResult : productionRepairResult;
+      return {
+        ...call,
+        jsonFound: snap.jsonFound,
+        jsonParseOk: snap.jsonParseOk,
+        normalizedValues: snap.normalizedValues,
+        normalizedKeys: snap.normalizedKeys,
+        echoDroppedKeys,
+        usedRepair: result.meta.usedRepair,
+        usedFallback: result.meta.usedFallback,
+        actualCallCount: result.meta.actualCallCount,
+        expectedValues: scenario.expectedValues,
+        finalValues: productionRepairResult.finalValues,
+        displayPolicyPass: productionRepairResult.displayPolicyPass,
+        finalWidgetVisible: productionRepairResult.finalWidgetVisible,
+        characterValues: productionRepairResult.characterValues,
+        userValues: productionRepairResult.userValues,
+        ...(dual
+          ? { subjectSwap: dual.subjectSwap, wholesaleClone: dual.wholesaleClone }
+          : {}),
+      };
+    }),
   };
 }
 
