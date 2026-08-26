@@ -26,6 +26,8 @@ import {
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import type { DialogueTurn } from "@/lib/hybridMemory";
 
+const REPO_ROOT = process.cwd();
+
 function makePlayable(count: number): DialogueTurn[] {
   return Array.from({ length: count }, (_, i) => ({
     user: `u${i + 1}`,
@@ -36,7 +38,7 @@ function makePlayable(count: number): DialogueTurn[] {
 function repoRgCount(pattern: string): number {
   const out = execSync(
     `rg -l ${JSON.stringify(pattern)} --glob '!**/node_modules/**' --glob '!**/.git/**' --glob '!**/.next*/**' --glob '!*.test.ts' --glob '!**/memory-summary-migration.ts' --glob '!*.md' src scripts || true`,
-    { cwd: "/workspace", encoding: "utf8" }
+    { cwd: REPO_ROOT, encoding: "utf8" }
   );
   return out
     .split("\n")
@@ -57,7 +59,7 @@ describe("single memory policy owner", () => {
   it("MEMORY_5PLUS4_ENABLED production references are 0", () => {
     const hits = execSync(
       `rg -n "MEMORY_5PLUS4_ENABLED|isMemory5Plus4Enabled|resolveActiveSummaryInterval|resolveProviderRawExchangeCount|PHASE1_DEPLOY_PROCEDURE|PHASE2_ENABLE_PROCEDURE" src scripts --glob '!*.test.ts' --glob '!*.md' || true`,
-      { cwd: "/workspace", encoding: "utf8" }
+      { cwd: REPO_ROOT, encoding: "utf8" }
     ).trim();
     assert.equal(hits, "", hits);
   });

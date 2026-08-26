@@ -1,7 +1,6 @@
 import { getDb } from "@/lib/db";
 import {
   resolveRecordSpan,
-  newBatchEndForStart,
 } from "./memory-summary-range";
 import { MEMORY_RECORD_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
@@ -217,86 +216,6 @@ export function listTurnSummariesForChat(chatId: number): {
     userEdited: r.userEdited,
     charCount: r.charCount,
   }));
-}
-
-export async function upsertMemoryRecord(opts: {
-  chatId: number;
-  turnStart: number;
-  turnEnd?: number;
-  assistantMessageId: number | null;
-  summary: string;
-  userEdited?: boolean;
-  summaryKind?: SummaryKind | MemorySummaryScope;
-  scopePayload?: ScopePayloadV1 | null;
-  branchId?: string | null;
-  branchStatus?: BranchStatus | null;
-  promotedBy?: string | null;
-  promotedAt?: string | null;
-  inactive?: boolean;
-}): Promise<MemoryRecordView> {
-  const kind = normalizeSummaryScope(opts.summaryKind);
-  const summary = kind === "empty_ooc" ? opts.summary.trim() : clampRecord(opts.summary);
-  const payloadJson = opts.scopePayload ? encodeScopePayload(opts.scopePayload) : null;
-  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
-  const db = getDb();
-  const existing = db
-    .prepare("SELECT id, summary_kind FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
-    .get(opts.chatId, opts.turnStart) as { id: number; summary_kind?: string } | undefined;
-
-  if (existing) {
-    db.prepare(
-      `UPDATE chat_turn_summaries SET
-        summary=?, summary_kind=?, turn_end=?, assistant_message_id=COALESCE(?, assistant_message_id),
-        scope_payload=COALESCE(?, scope_payload),
-        branch_id=COALESCE(?, branch_id),
-        branch_status=COALESCE(?, branch_status),
-        promoted_by=COALESCE(?, promoted_by),
-        promoted_at=COALESCE(?, promoted_at),
-        inactive=COALESCE(?, inactive),
-        user_edited=?, updated_at=datetime('now')
-       WHERE id=?`
-    ).run(
-      summary,
-      kind,
-      turnEnd,
-      opts.assistantMessageId,
-      payloadJson,
-      opts.branchId ?? null,
-      opts.branchStatus ?? null,
-      opts.promotedBy ?? null,
-      opts.promotedAt ?? null,
-      opts.inactive == null ? null : opts.inactive ? 1 : 0,
-      opts.userEdited ? 1 : 0,
-      existing.id
-    );
-  } else {
-    db.prepare(
-      `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
-         scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(
-      opts.chatId,
-      opts.turnStart,
-      turnEnd,
-      opts.assistantMessageId,
-      summary,
-      kind,
-      opts.userEdited ? 1 : 0,
-      payloadJson,
-      opts.branchId ?? null,
-      opts.branchStatus ?? null,
-      opts.promotedBy ?? null,
-      opts.promotedAt ?? null,
-      opts.inactive ? 1 : 0
-    );
-  }
-
-  const row = db
-    .prepare(`${selectSql()} WHERE chat_id=? AND turn_number=?`)
-    .get(opts.chatId, opts.turnStart) as MemoryRecordRow;
-
-  return rowToView(row);
 }
 
 export function updateMemoryRecordById(
