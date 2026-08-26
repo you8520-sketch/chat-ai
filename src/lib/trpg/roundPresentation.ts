@@ -394,7 +394,12 @@ export function shouldShowActorResultLane(opts: {
   if (index < opts.state.presentationIndex) return true;
   if (index > opts.state.presentationIndex) return false;
   const actor = opts.actors[index];
-  if (!actor?.roll) return true;
+  if (!actor?.roll) {
+    return (
+      opts.state.phase === "gm-narration" ||
+      opts.state.phase === "complete"
+    );
+  }
   return (
     opts.state.phase === "actor-result" ||
     opts.state.phase === "gm-narration" ||
@@ -449,8 +454,9 @@ export function shouldShowActionJudgeBlock(opts: {
   hasRoll: boolean;
   resultRevealed: boolean;
 }): boolean {
+  if (!opts.resultRevealed) return false;
   if (opts.hasIntent) return true;
-  if (opts.hasRoll && opts.resultRevealed) return true;
+  if (opts.hasRoll) return true;
   if (opts.kind === "ai_character" && !opts.hasRoll) return true;
   return false;
 }

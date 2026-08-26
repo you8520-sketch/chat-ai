@@ -294,7 +294,7 @@ describe("TRPG round presentation queue", () => {
         hasRoll: true,
         resultRevealed: false,
       }),
-      true
+      false
     );
     assert.equal(
       shouldShowActionJudgeBlock({
