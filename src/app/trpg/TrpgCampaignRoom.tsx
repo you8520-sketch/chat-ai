@@ -97,6 +97,7 @@ import {
   isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
   isSequentialActionRevealPending,
+  resolveActivePresentationActorId,
   resolveLiveRevealedActionIds,
   resolveSequentialActionRevealQueue,
   shouldDecorativeRevealAction,
@@ -497,23 +498,8 @@ export default function TrpgCampaignRoom({
       actorCount: liveReady ? presentationActors.length : 0,
     });
     if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
-      const prevKey = queueKeyRef.current;
       queueKeyRef.current = queueSessionKey;
       consumedActorActionBeatRef.current = "";
-      const sameRoundSessionBump =
-        prevKey !== "" &&
-        queueSessionKey !== "" &&
-        prevKey.split("|")[0] === queueSessionKey.split("|")[0];
-      if (!sameRoundSessionBump) {
-        sequentialRevealCompletedRef.current = [];
-        consumedSequentialRevealBeatRef.current = "";
-        setActorRevealReport({
-          roundNumber: null,
-          participantId: null,
-          complete: false,
-          progressive: false,
-        });
-      }
       setHiddenPresentationSession(null);
       setConsumedDecorativeSessionKey(null);
       if (mode === "historical") setRoundShow(historicalPresentation());
@@ -762,10 +748,11 @@ export default function TrpgCampaignRoom({
     cinematicMotion && presentationActors[roundShow.presentationIndex]
       ? presentationActors[roundShow.presentationIndex].actorId
       : null;
-  const activePresentationActorId =
-    sequentialActionRevealPending && (incrementalCanonicalVisible || roundShow.mode === "cinematic")
-      ? sequentialRevealQueue.activeRevealActorId
-      : cinematicActiveActorId;
+  const activePresentationActorId = resolveActivePresentationActorId({
+    sequentialActionRevealPending,
+    sequentialActiveRevealActorId: sequentialRevealQueue.activeRevealActorId,
+    cinematicActiveActorId,
+  });
   const activePresentationAction =
     activePresentationActorId != null
       ? sourceActions.find((action) => action.participantId === activePresentationActorId)
@@ -845,11 +832,7 @@ export default function TrpgCampaignRoom({
   ]);
   useEffect(() => {
     if (hiddenCatchUpActive) return;
-    if (
-      sequentialActionRevealPending &&
-      (incrementalCanonicalVisible ||
-        (roundShow.mode === "cinematic" && roundShow.phase === "actor-action"))
-    ) {
+    if (sequentialActionRevealPending) {
       if (!activeActorRevealBeatSatisfied) return;
       const activeId = sequentialRevealQueue.activeRevealActorId;
       if (activeId == null) return;
@@ -915,7 +898,6 @@ export default function TrpgCampaignRoom({
   }, [
     activeActorRevealBeatSatisfied,
     hiddenCatchUpActive,
-    incrementalCanonicalVisible,
     presentationActorKey,
     presentationActors,
     roundShow.mode,

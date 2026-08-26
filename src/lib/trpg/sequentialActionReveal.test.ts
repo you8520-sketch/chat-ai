@@ -4,13 +4,20 @@ import { describe, it } from "node:test";
 import {
   buildRoundPresentationActors,
   decideLiveRoundPresentation,
+  idlePresentation,
+  isIncrementalCanonicalActionPhase,
+  isLiveRoundPresentationReady,
+  isLiveRoundPresentationStarting,
   isSequentialActionRevealPending,
+  resolveActivePresentationActorId,
   resolveSequentialActionRevealQueue,
   shouldDecorativeRevealAction,
   shouldHoldDecorativeRevealAction,
   startCinematicPresentation,
+  trpgRoundPresentationSessionKey,
   type LiveRoundSnapshotInput,
 } from "./roundPresentation";
+import { resolveTrpgRevealVisibleCount } from "./revealTiming";
 import { trpgLogRevealKeys } from "../../app/trpg/useRevealedText";
 
 const order = [10, 20, 30];
@@ -44,6 +51,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
 
   it("room extends the single actor reveal owner — no second queue module", () => {
     assert.match(room, /resolveSequentialActionRevealQueue/);
+    assert.match(room, /resolveActivePresentationActorId/);
     assert.match(room, /sequentialRevealCompletedRef/);
     assert.match(room, /mergeActorRevealReport/);
     assert.match(room, /shouldDecorativeRevealAction/);
@@ -192,6 +200,196 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     });
     assert.equal(actors.length, 3, "REVEAL_ORDER_FOLLOWS_RESOLUTION_ORDER");
     assert.equal(startCinematicPresentation().phase, "actor-action");
+  });
+
+  it("T_SEQ_2A: ROLLING first idle render keeps sequential owner — no full-text flash", () => {
+    const fresh = new Set(["a:4:20", "a:4:30"]);
+    const completed: number[] = [];
+    const actions = [human, bot1, bot2].filter((a) => a.revealed && a.body.trim());
+    const rolls = [
+      {
+        participantId: 10,
+        name: "유저",
+        d20: 14,
+        dc: 12,
+        tier: "SUCCESS" as const,
+        statKey: "dex",
+        finalScore: 16,
+        success: true,
+        actionBody: "",
+        actionType: "free" as const,
+        kind: "human" as const,
+      },
+      {
+        participantId: 20,
+        name: "동료1",
+        d20: 8,
+        dc: 12,
+        tier: "FAILURE" as const,
+        statKey: "dex",
+        finalScore: 10,
+        success: false,
+        actionBody: "",
+        actionType: "talk" as const,
+        kind: "ai_character" as const,
+      },
+      {
+        participantId: 30,
+        name: "동료2",
+        d20: 17,
+        dc: 12,
+        tier: "SUCCESS" as const,
+        statKey: "dex",
+        finalScore: 19,
+        success: true,
+        actionBody: "",
+        actionType: "talk" as const,
+        kind: "ai_character" as const,
+      },
+    ];
+
+    const sequentialInput = {
+      resolutionOrder: order,
+      actions,
+      completedRevealActorIds: completed,
+      isFreshAiAction: (id: number) => fresh.has(`a:4:${id}`),
+      skipDecorativeReveal: false,
+    };
+    const queue = resolveSequentialActionRevealQueue(sequentialInput);
+    assert.equal(isSequentialActionRevealPending(sequentialInput), true);
+    assert.equal(queue.activeRevealActorId, 20);
+
+    const liveReady = isLiveRoundPresentationReady({
+      phase: "ROLLING",
+      hasLockedActorSet: actions.length > 0 || rolls.length > 0,
+    });
+    assert.equal(liveReady, true);
+    assert.equal(
+      !liveReady && isIncrementalCanonicalActionPhase("BOT_ACTION") && actions.length > 0,
+      false
+    );
+
+    const roundShow = idlePresentation();
+    assert.equal(roundShow.mode, "idle");
+    const rollSessionKey = trpgRoundPresentationSessionKey({
+      roundNumber: 4,
+      rolls,
+      actions,
+      ready: liveReady,
+    });
+    assert.notEqual(rollSessionKey, "");
+    assert.equal(
+      trpgRoundPresentationSessionKey({
+        roundNumber: 4,
+        rolls: [],
+        actions,
+        ready: false,
+      }),
+      ""
+    );
+    assert.equal(
+      isLiveRoundPresentationStarting({
+        liveReady,
+        mode: roundShow.mode,
+        queueSessionKey: rollSessionKey,
+      }),
+      true
+    );
+
+    const activeId = resolveActivePresentationActorId({
+      sequentialActionRevealPending: true,
+      sequentialActiveRevealActorId: queue.activeRevealActorId,
+      cinematicActiveActorId: null,
+    });
+    assert.equal(activeId, 20, "ACTIVE_REVEAL_ACTOR=bot1");
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: bot1.kind,
+        participantId: bot1.participantId,
+        activeRevealActorId: activeId,
+        isFresh: fresh.has("a:4:20"),
+        skipDecorativeReveal: false,
+      }),
+      true,
+      "BOT1_REVEAL_ACTIVE=true"
+    );
+    assert.equal(
+      shouldHoldDecorativeRevealAction({
+        kind: bot2.kind,
+        participantId: bot2.participantId,
+        activeRevealActorId: activeId,
+        isFresh: fresh.has("a:4:30"),
+        skipDecorativeReveal: false,
+      }),
+      true,
+      "BOT2_REVEAL_HELD=true"
+    );
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: bot2.body, active: false, kind: "bot" },
+        nextSession: { text: bot2.body, active: false, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: true,
+      }),
+      0,
+      "BOT2_VISIBLE_COUNT=0"
+    );
+
+    const cinematicRoundShow = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const activeAfterCinematic = resolveActivePresentationActorId({
+      sequentialActionRevealPending: true,
+      sequentialActiveRevealActorId: queue.activeRevealActorId,
+      cinematicActiveActorId: order[cinematicRoundShow.presentationIndex] ?? null,
+    });
+    assert.equal(activeAfterCinematic, 20, "NO_FULL_TEXT_FLASH_ON_ROLLING_TRANSITION");
+
+    fresh.delete("a:4:20");
+    completed.push(20);
+    const afterBot1 = resolveSequentialActionRevealQueue({
+      ...sequentialInput,
+      completedRevealActorIds: completed,
+      isFreshAiAction: (id: number) => fresh.has(`a:4:${id}`),
+    });
+    assert.equal(afterBot1.activeRevealActorId, 30);
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: bot2.body, active: false, kind: "bot" },
+        nextSession: { text: bot2.body, active: true, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: false,
+      }),
+      0
+    );
+    assert.equal(fresh.has("a:4:20"), false, "NO_AI_ACTION_REPLAY");
+  });
+
+  it("revealHeld contract: held hides text; release starts progressive reveal from 0", () => {
+    const text = "조용히 움직인다.";
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: "", active: false, kind: "bot" },
+        nextSession: { text, active: false, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: true,
+      }),
+      0
+    );
+    const released = resolveTrpgRevealVisibleCount({
+      previousSession: { text, active: false, kind: "bot" },
+      nextSession: { text, active: true, kind: "bot" },
+      storedCount: 0,
+      finishOwned: false,
+      reducedMotion: false,
+      held: false,
+    });
+    assert.equal(released, 0);
+    assert.notEqual(released, Array.from(text).length);
   });
 
   it("T_SEQ_3: bot1 completes before bot2 persistence — bot2 starts immediately when available", () => {

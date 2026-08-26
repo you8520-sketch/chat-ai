@@ -181,6 +181,22 @@ export function isSequentialActionRevealPending(opts: SequentialActionRevealInpu
   return resolveSequentialActionRevealQueue(opts).activeRevealActorId != null;
 }
 
+/**
+ * Single #628 reveal owner resolver.
+ * While any fresh AI action reveal remains, the sequential queue owns the active
+ * actor — including the ready=false → ROLLING handoff when roundShow is still idle.
+ */
+export function resolveActivePresentationActorId(opts: {
+  sequentialActionRevealPending: boolean;
+  sequentialActiveRevealActorId: number | null;
+  cinematicActiveActorId: number | null;
+}): number | null {
+  if (opts.sequentialActionRevealPending) {
+    return opts.sequentialActiveRevealActorId;
+  }
+  return opts.cinematicActiveActorId;
+}
+
 /** Decorative streaming eligibility — separate from incremental canonical card visibility. */
 export function shouldDecorativeRevealAction(opts: {
   kind: string;
