@@ -310,15 +310,15 @@ describe("TRPG reply suggestion auto-attempt reload + error sanitization", () =>
     const makeTelemetry = (logicalRequestId: string) => ({
       logical_request_id: logicalRequestId,
       round_id: 1,
-      primary_provider: "openrouter",
-      primary_model: "deepseek/deepseek-v4-flash-0731",
+      primary_provider: "cheaperinference",
+      primary_model: "gpt-5.6-luna",
       primary_status: null,
       primary_latency_ms: 100,
       primary_failure_class: "body_timeout",
       semantic_failure_class: null,
       fallback_attempted: true,
-      fallback_provider: "cheaperinference",
-      fallback_model: "deepseek-v4-flash-0731",
+      fallback_provider: "openrouter",
+      fallback_model: "deepseek/deepseek-v4-flash-0731",
       fallback_latency_ms: 50,
       fallback_success: false,
       backup_failure_class: "body_timeout",
@@ -432,7 +432,7 @@ describe("TRPG reply suggestion auto-attempt reload + error sanitization", () =>
     try {
       globalThis.fetch = (async (input) => {
         calls += 1;
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           throw Object.assign(new Error("body completion deadline exceeded"), { trigger: "body_timeout" });
         }
         return new Response(

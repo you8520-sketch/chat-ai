@@ -109,7 +109,7 @@ describe("TRPG reply suggestion failure instrumentation", () => {
           logicalRequestId: "inst-d",
           deps: {
             fetchCompletion: async (fetchOpts) => {
-              if (String(fetchOpts.request.endpoint).includes("openrouter")) {
+              if (String(fetchOpts.request.endpoint).includes("cheaperinference")) {
                 throw Object.assign(new Error("body completion deadline exceeded"), {
                   trigger: "body_timeout",
                   httpStatus: 200,
@@ -151,7 +151,7 @@ describe("TRPG reply suggestion failure instrumentation", () => {
           logicalRequestId: "inst-e",
           deps: {
             fetchCompletion: async (fetchOpts) => {
-              if (String(fetchOpts.request.endpoint).includes("openrouter")) {
+              if (String(fetchOpts.request.endpoint).includes("cheaperinference")) {
                 throw Object.assign(new Error("headers deadline exceeded"), {
                   trigger: "headers_timeout",
                 });
@@ -181,15 +181,15 @@ describe("TRPG reply suggestion failure instrumentation", () => {
       logTrpgReplySuggestionProviderTelemetry({
         logical_request_id: "req-log",
         round_id: 83,
-        primary_provider: "openrouter",
-        primary_model: "deepseek/deepseek-v4-flash-0731",
+        primary_provider: "cheaperinference",
+        primary_model: "gpt-5.6-luna",
         primary_status: null,
         primary_latency_ms: null,
         primary_failure_class: "body_timeout",
         semantic_failure_class: "malformed_json",
         fallback_attempted: true,
-        fallback_provider: "cheaperinference",
-        fallback_model: "deepseek-v4-flash-0731",
+        fallback_provider: "openrouter",
+        fallback_model: "deepseek/deepseek-v4-flash-0731",
         fallback_latency_ms: 4578,
         fallback_success: false,
         backup_failure_class: "malformed_json",
@@ -222,7 +222,7 @@ describe("TRPG reply suggestion failure instrumentation", () => {
       const previousFetch = globalThis.fetch;
       globalThis.fetch = (async (input) => {
         urls.push(String(input));
-        if (String(input).includes("openrouter")) {
+        if (String(input).includes("cheaperinference")) {
           throw Object.assign(new Error("body completion deadline exceeded"), {
             trigger: "body_timeout",
             httpStatus: 200,
@@ -238,7 +238,7 @@ describe("TRPG reply suggestion failure instrumentation", () => {
             logicalRequestId: "inst-malformed",
           });
         });
-        assert.deepEqual(urls, [OR_URL, CI_URL]);
+        assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(telemetry?.fallback_status, 200);
         assert.equal(telemetry?.fallback_parse_stage, "json_parse");
         assert.equal(telemetry?.semantic_failure_class, "malformed_json");
