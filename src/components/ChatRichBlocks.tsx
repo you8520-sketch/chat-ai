@@ -97,6 +97,7 @@ export default function ChatRichBlocks({
   inlineAssets,
   viewerIsCreator = false,
   unlockedUrls,
+  assetSelectionKey,
 }: {
   content: string;
   display?: Pick<
@@ -110,6 +111,7 @@ export default function ChatRichBlocks({
   inlineAssets?: CharacterAsset[];
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
+  assetSelectionKey?: string;
 }) {
   const displayContent = useMemo(() => {
     if (!streaming) return content;
@@ -147,6 +149,7 @@ export default function ChatRichBlocks({
                 streaming={streaming}
                 viewerIsCreator={viewerIsCreator}
                 unlockedUrls={unlockedUrls}
+                assetSelectionKey={assetSelectionKey}
               />
             );
           }

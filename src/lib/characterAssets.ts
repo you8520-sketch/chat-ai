@@ -170,6 +170,49 @@ function pickRandomAsset<T>(items: T[]): T | null {
   return items[Math.floor(Math.random() * items.length)] ?? null;
 }
 
+export type AssetDisplayKind = "portrait" | "inline" | "any";
+
+/** FNV-1a — chat render path only; no Math.random(). */
+export function stableAssetIndex(key: string, poolLength: number): number {
+  if (poolLength <= 0) return 0;
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % poolLength;
+}
+
+function assetPoolForDisplayKind(
+  assets: CharacterAsset[],
+  tag: string,
+  displayKind: AssetDisplayKind
+): CharacterAsset[] {
+  const pool = findAssetsByTag(assets, tag);
+  if (displayKind === "portrait") return pool.filter((a) => !isWideInlineAsset(a));
+  if (displayKind === "inline") return pool.filter(isWideInlineAsset);
+  return pool;
+}
+
+/**
+ * Chat render 전용 — 동일 selectionKey+tag+displayKind면 항상 같은 asset.
+ * Math.random() 사용하지 않음.
+ */
+export function findAssetByTagStable(
+  assets: CharacterAsset[],
+  tag: string,
+  selectionKey: string,
+  displayKind: AssetDisplayKind = "any"
+): CharacterAsset | null {
+  const q = tag.trim();
+  const key = selectionKey.trim();
+  if (!q || !key) return null;
+  const pool = assetPoolForDisplayKind(assets, q, displayKind);
+  if (pool.length === 0) return null;
+  const idx = stableAssetIndex(`${key}|${q}|${displayKind}`, pool.length);
+  return pool[idx] ?? null;
+}
+
 /** 태그명으로 chat 에셋 찾기 — 동일 태그가 여러 장이면 그중 무작위 1장 */
 export function findAssetByTag(assets: CharacterAsset[], tag: string): CharacterAsset | null {
   const q = tag.trim();
