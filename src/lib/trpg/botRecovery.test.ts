@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   AUTO_BOT_RECOVERY_MAX,
+  clearBotErrorFromErrorJson,
   roundHasBotGenerateFailed,
+  setBotErrorInErrorJson,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -399,5 +401,141 @@ describe("TRPG stuck bot round self-heal", () => {
 
   it("exports AUTO_BOT_RECOVERY_MAX=1", () => {
     assert.equal(AUTO_BOT_RECOVERY_MAX, 1);
+  });
+
+  it("K stale recovery claim consumes auto budget and clears bot error", () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO trpg_campaigns (id, host_user_id, title) VALUES (1, 1, 't')`).run();
+    db.prepare(
+      `INSERT INTO trpg_rounds
+        (id, campaign_id, round_number, phase, error_json, bot_generation_recovery_attempts,
+         bot_generation_id, bot_generation_started_at, bot_generation_heartbeat_at)
+       VALUES (10, 1, 1, 'BOT_ACTION', ?, 0, 'stale-owner', datetime('now', '-130 seconds'), datetime('now', '-130 seconds'))`
+    ).run(JSON.stringify({ bot: "old failure", other: "keep" }));
+    const claim = tryClaimBotRecoveryGeneration(db, 10, "req-stale");
+    assert.equal(claim.claimed, true);
+    assert.equal(claim.reason, "stale_reclaimed");
+    const row = db
+      .prepare(`SELECT bot_generation_recovery_attempts, error_json, bot_generation_id FROM trpg_rounds WHERE id=10`)
+      .get() as {
+      bot_generation_recovery_attempts: number;
+      error_json: string;
+      bot_generation_id: string;
+    };
+    assert.equal(row.bot_generation_recovery_attempts, 1);
+    assert.equal(row.bot_generation_id, "req-stale");
+    const err = JSON.parse(row.error_json) as Record<string, string>;
+    assert.equal(err.other, "keep");
+    assert.equal(err.bot, undefined);
+    db.close();
+  });
+
+  it("C stale auto recovery failure leaves bot_retry_required and no further auto loop", async () => {
+    const db = memoryDb();
+    let botCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => {
+        botCalls += 1;
+        throw new Error("stale recovery failed");
+      },
+    };
+    const { campaignId, botIds } = await setupWithBots(db, ["유나", "민수"], deps);
+    const roundId = seedLegacyStuckRound(db, {
+      campaignId,
+      botIds,
+      errorMessage: "old failure",
+      recoveryAttempts: 0,
+    });
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET bot_generation_id='stale-owner',
+           bot_generation_started_at=datetime('now', '-130 seconds'),
+           bot_generation_heartbeat_at=datetime('now', '-130 seconds')
+       WHERE id=?`
+    ).run(roundId);
+    db.prepare(
+      `UPDATE trpg_rounds SET error_json=? WHERE id=?`
+    ).run(JSON.stringify({ bot: "old failure", other: "keep" }), roundId);
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(botCalls, 1);
+    const round = loadLatestRound(db, campaignId)!;
+    assert.equal(round.bot_generation_recovery_attempts, 1);
+    assert.equal(roundHasBotGenerateFailed(round.error_json), true);
+    const snap = loadTrpgSnapshot(db, campaignId, 1)!;
+    assert.equal(snap.botRetryRequired, true);
+    for (let i = 0; i < 10; i += 1) {
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    }
+    assert.equal(botCalls, 1);
+    db.close();
+  });
+
+  it("D successful recovery preserves unrelated error_json keys", async () => {
+    const db = memoryDb();
+    let campaignId = 0;
+    let checkRoundGm = false;
+    let checkedAtGm = false;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => {
+        if (!checkRoundGm) return { text: gmText("오프닝") };
+        const round = loadLatestRound(db, campaignId)!;
+        const err = JSON.parse(round.error_json ?? "null") as Record<string, string> | null;
+        assert.equal(err?.other, "keep");
+        assert.equal(err?.bot, undefined);
+        checkedAtGm = true;
+        return { text: gmText("해결") };
+      },
+      botCall: async () => ({ text: "민수는 문고리를 본다.\n\n<<<INTENT>>>\n문고리를 본다." }),
+    };
+    const setup = await setupWithBots(db, ["유나", "민수"], deps);
+    campaignId = setup.campaignId;
+    const { botIds } = setup;
+    const roundId = seedLegacyStuckRound(db, { campaignId, botIds, recoveryAttempts: 0 });
+    db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
+      JSON.stringify({ bot: "old", other: "keep" }),
+      roundId
+    );
+    checkRoundGm = true;
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(checkedAtGm, true);
+    db.close();
+  });
+
+  it("E failed recovery preserves unrelated error_json keys", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => {
+        throw new Error("new failure");
+      },
+    };
+    const { campaignId, botIds } = await setupWithBots(db, ["유나", "민수"], deps);
+    const roundId = seedLegacyStuckRound(db, { campaignId, botIds, recoveryAttempts: 0 });
+    db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
+      JSON.stringify({ bot: "old", other: "keep" }),
+      roundId
+    );
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const round = loadLatestRound(db, campaignId)!;
+    const err = JSON.parse(round.error_json ?? "{}") as Record<string, string>;
+    assert.equal(err.other, "keep");
+    assert.match(err.bot ?? "", /new failure/);
+    db.close();
+  });
+
+  it("error_json helpers preserve unrelated keys", () => {
+    const mixed = JSON.stringify({ bot: "old", other: "keep" });
+    const cleared = clearBotErrorFromErrorJson(mixed);
+    assert.equal(JSON.parse(cleared ?? "{}").other, "keep");
+    assert.equal(JSON.parse(cleared ?? "{}").bot, undefined);
+    const failed = setBotErrorInErrorJson(mixed, "new");
+    const parsed = JSON.parse(failed) as Record<string, string>;
+    assert.equal(parsed.other, "keep");
+    assert.equal(parsed.bot, "new");
   });
 });

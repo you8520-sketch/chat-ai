@@ -72,8 +72,10 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { botGenerationInFlight, refreshBotGenerationHeartbeat, releaseBotGeneration, tryClaimBotGeneration } from "./botGenerationLease";
 import {
   botRecoveryEligible,
+  clearBotErrorFromErrorJson,
   resolveTrpgRoundWork,
   roundHasBotGenerateFailed,
+  setBotErrorInErrorJson,
   tryClaimBotExplicitRetryGeneration,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
@@ -453,11 +455,14 @@ export async function advanceTrpgCampaign(
         requestId: rid,
       });
       releaseBotGeneration(db, round.id, rid);
-      db.prepare(`UPDATE trpg_rounds SET error_json=NULL WHERE id=?`).run(round.id);
+      db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
+        clearBotErrorFromErrorJson(round.error_json),
+        round.id
+      );
     } catch (e) {
       releaseBotGeneration(db, round.id, rid);
       db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
-        JSON.stringify({ bot: (e as Error).message }),
+        setBotErrorInErrorJson(round.error_json, (e as Error).message),
         round.id
       );
       return mustSnapshot(db, opts.campaignId, opts.userId);
@@ -533,11 +538,14 @@ export async function retryTrpgBots(
       requestId: rid,
     });
     releaseBotGeneration(db, round.id, rid);
-    db.prepare(`UPDATE trpg_rounds SET error_json=NULL WHERE id=?`).run(round.id);
+    db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
+      clearBotErrorFromErrorJson(round.error_json),
+      round.id
+    );
   } catch (e) {
     releaseBotGeneration(db, round.id, rid);
     db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
-      JSON.stringify({ bot: (e as Error).message }),
+      setBotErrorInErrorJson(round.error_json, (e as Error).message),
       round.id
     );
     return mustSnapshot(db, opts.campaignId, opts.userId);

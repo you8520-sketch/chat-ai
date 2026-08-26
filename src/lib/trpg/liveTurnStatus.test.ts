@@ -13,6 +13,75 @@ import {
 } from "./liveTurnStatus";
 
 describe("TRPG live turn process status", () => {
+  it("bot_retry_required idle stops live processing and bots stage", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "bot_retry_required",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: false,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: false,
+      }),
+      "none"
+    );
+    assert.equal(
+      isLiveTurnProcessing({
+        waitingOpening: false,
+        narrationRerolling: false,
+        viewerLocked: true,
+        phase: "BOT_ACTION",
+        workType: "bot_retry_required",
+        cinematicMotion: false,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: false,
+      }),
+      false
+    );
+    assert.equal(
+      formatLiveTurnProcessStatus({
+        stage: "none",
+        elapsedSec: 12,
+      }),
+      null
+    );
+  });
+
+  it("generate_bots work type owns bots stage without relying on BOT_ACTION phase alone", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "generate_bots",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: false,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: false,
+      }),
+      "bots"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "bot_retry_required",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: false,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: true,
+      }),
+      "bots"
+    );
+  });
+
   it("keeps elapsed across bot/roll/GM stages and hides during cinematic motion", () => {
     const s1 = liveTurnProcessStage({
       waitingOpening: false,

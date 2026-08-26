@@ -832,6 +832,7 @@ export default function TrpgCampaignRoom({
     cinematicMotion,
     presentationStarting,
     gmTextReady,
+    botGenerationInFlight: snap.botGenerationInFlight,
   });
   const processingActive = isLiveTurnProcessing({
     waitingOpening,
@@ -842,6 +843,7 @@ export default function TrpgCampaignRoom({
     cinematicMotion,
     presentationStarting,
     gmTextReady,
+    botGenerationInFlight: snap.botGenerationInFlight,
   });
   const botProgress = processStage === "bots" ? liveTurnBotProgress(snap.participants) : null;
   const fallbackStartedAtRef = useRef<number | null>(null);
@@ -1728,7 +1730,7 @@ export default function TrpgCampaignRoom({
               <p className="mb-3 text-sm text-zinc-400">동료 행동 생성에 실패했습니다.</p>
               <button
                 type="button"
-                disabled={busy || generating}
+                disabled={busy || snap.botGenerationInFlight}
                 onClick={onRetryBots}
                 className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
               >

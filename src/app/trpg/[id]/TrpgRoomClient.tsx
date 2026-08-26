@@ -28,18 +28,11 @@ import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { trpgBillingModeLabel } from "@/lib/trpg/labels";
+import { trpgRoomGenerating } from "@/lib/trpg/roomClientState";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const POLL_MS = 1500;
-const ACTIVE_PHASES = new Set([
-  "BOT_ACTION",
-  "LOCKING_ACTIONS",
-  "ADJUDICATING",
-  "ROLLING",
-  "GENERATING_NARRATION",
-  "APPLYING_STATE",
-]);
 
 export default function TrpgRoomClient({
   initial,
@@ -86,11 +79,12 @@ export default function TrpgRoomClient({
   const spent = Object.values(stats).reduce((a, b) => a + b, 0);
   const remaining = snap.pointPool - spent;
   const phase = snap.round.phase;
-  const generating =
-    ACTIVE_PHASES.has(String(phase)) ||
-    snap.workType === "generate_bots" ||
-    snap.workType === "acquire_gm_lock" ||
-    snap.narrationRerolling;
+  const generating = trpgRoomGenerating({
+    phase,
+    workType: snap.workType,
+    botGenerationInFlight: snap.botGenerationInFlight,
+    narrationRerolling: snap.narrationRerolling,
+  });
 
   const appliedRoundRef = useRef(initial.round.number);
   const apply = useCallback((next: TrpgCampaignSnapshot) => {

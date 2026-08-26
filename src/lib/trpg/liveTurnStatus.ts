@@ -29,12 +29,14 @@ export function liveTurnProcessStage(opts: {
   cinematicMotion: boolean;
   presentationStarting: boolean;
   gmTextReady: boolean;
+  botGenerationInFlight?: boolean;
 }): LiveTurnProcessStage {
   if (opts.waitingOpening) return "opening";
   if (opts.narrationRerolling) return "reroll";
   if (opts.cinematicMotion || opts.presentationStarting) return "none";
+  if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return "none";
   if (opts.workType === "wait_humans" && opts.viewerLocked) return "wait_humans";
-  if (opts.workType === "generate_bots" || opts.phase === "BOT_ACTION") return "bots";
+  if (opts.workType === "generate_bots" || opts.botGenerationInFlight) return "bots";
   if (
     opts.workType === "acquire_gm_lock" ||
     opts.phase === "LOCKING_ACTIONS" ||
@@ -56,19 +58,18 @@ export function isLiveTurnProcessing(opts: {
   cinematicMotion: boolean;
   presentationStarting: boolean;
   gmTextReady: boolean;
+  botGenerationInFlight?: boolean;
 }): boolean {
   if (opts.waitingOpening || opts.narrationRerolling) return true;
   if (opts.presentationStarting || opts.cinematicMotion) return true;
   if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return true;
-  if (
-    opts.phase === "BOT_ACTION" ||
-    opts.phase === "LOCKING_ACTIONS" ||
-    opts.phase === "ADJUDICATING" ||
-    opts.phase === "ROLLING"
-  ) {
+  if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return false;
+  if (opts.phase === "LOCKING_ACTIONS" || opts.phase === "ADJUDICATING" || opts.phase === "ROLLING") {
     return true;
   }
-  if (opts.workType === "generate_bots" || opts.workType === "acquire_gm_lock") return true;
+  if (opts.workType === "generate_bots" || opts.botGenerationInFlight || opts.workType === "acquire_gm_lock") {
+    return true;
+  }
   return opts.workType === "wait_humans" && opts.viewerLocked;
 }
 
