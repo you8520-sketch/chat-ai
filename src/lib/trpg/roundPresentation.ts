@@ -88,17 +88,6 @@ export const LIVE_ROUND_PRESENTATION_READY_PHASES = new Set<string>([
   "ERROR_RECOVERY",
 ]);
 
-/** Phases where persisted actions may display incrementally before roll-final cinematic. */
-export const LIVE_ROUND_INCREMENTAL_ACTION_PHASES = new Set<string>([
-  "BOT_ACTION",
-  "LOCKING_ACTIONS",
-  "ADJUDICATING",
-]);
-
-export function isIncrementalCanonicalActionPhase(phase: string): boolean {
-  return LIVE_ROUND_INCREMENTAL_ACTION_PHASES.has(phase);
-}
-
 export function isLiveRoundPresentationReady(opts: {
   phase: string;
   hasLockedActorSet: boolean;
@@ -107,79 +96,16 @@ export function isLiveRoundPresentationReady(opts: {
   return LIVE_ROUND_PRESENTATION_READY_PHASES.has(opts.phase);
 }
 
-export function incrementalCanonicalActionIds(
-  actions: readonly { participantId: number }[],
-  resolutionOrder: readonly number[]
-): number[] {
-  const persisted = new Set(actions.map((action) => action.participantId));
-  return uniqueResolutionOrder(resolutionOrder).filter((id) => persisted.has(id));
-}
-
-/** SceneTurn reveal owner for the live row (undefined = all persisted actions). */
-export function resolveLiveRevealedActionIds(opts: {
-  isLiveRow: boolean;
-  mode: RoundPresentationMode;
-  cinematicRevealedIds: readonly number[];
-  incrementalCanonicalVisible: boolean;
-  pinnedVisibleActorIds: readonly number[];
-}): number[] | undefined {
-  if (!opts.isLiveRow) return undefined;
-  if (opts.mode === "cinematic") return [...opts.cinematicRevealedIds];
-  if (opts.incrementalCanonicalVisible) return undefined;
-  if (opts.pinnedVisibleActorIds.length > 0) return [...opts.pinnedVisibleActorIds];
-  return [];
-}
-
-export type SequentialActionRevealQueue = {
-  /** Exactly one AI actor may own decorative action reveal, or null when idle/complete. */
-  activeRevealActorId: number | null;
-  /** Persisted AI actors waiting for prior reveal completion (resolution order). */
-  queuedRevealActorIds: readonly number[];
-};
-
-type SequentialActionRevealInput = {
-  /** Persistence/generation arrival order — NOT final mechanical resolutionOrder. */
-  arrivalOrder: readonly number[];
-  actions: readonly TrpgPublicAction[];
-  completedRevealActorIds: readonly number[];
-  /** In-progress decorative owner; sticky until semantic completion or round boundary. */
-  stickyActiveRevealActorId?: number | null;
-  isFreshAiAction: (participantId: number) => boolean;
-  skipDecorativeReveal: boolean;
-};
-
-function persistedRevealedActions(
-  actions: readonly TrpgPublicAction[]
-): Map<number, TrpgPublicAction> {
-  const persisted = new Map<number, TrpgPublicAction>();
-  for (const action of actions) {
-    if (action.revealed && action.body.trim()) persisted.set(action.participantId, action);
-  }
-  return persisted;
-}
-
-function isEligibleSequentialAiReveal(
-  id: number,
-  persisted: Map<number, TrpgPublicAction>,
-  completed: Set<number>,
-  opts: Pick<SequentialActionRevealInput, "isFreshAiAction" | "skipDecorativeReveal">
-): boolean {
-  const action = persisted.get(id);
-  if (!action || action.kind !== "ai_character") return false;
-  if (!opts.isFreshAiAction(id)) return false;
-  if (opts.skipDecorativeReveal) return false;
-  if (completed.has(id)) return false;
-  return true;
-}
-
-/** Authoritative incremental decorative arrival order from persisted action snapshots. */
-export function incrementalDecorativeRevealArrivalOrder(
-  actions: readonly TrpgPublicAction[]
+/** Derived early-visibility ids — human declarations only, not a pin/queue owner. */
+export function earlyVisibleHumanActionIds(
+  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
 ): number[] {
   const seen = new Set<number>();
   const out: number[] = [];
   for (const action of actions) {
-    if (!action.revealed || !action.body.trim()) continue;
+    if (action.kind !== "human") continue;
+    if (action.revealed === false) continue;
+    if (typeof action.body === "string" && !action.body.trim()) continue;
     if (seen.has(action.participantId)) continue;
     seen.add(action.participantId);
     out.push(action.participantId);
@@ -188,24 +114,29 @@ export function incrementalDecorativeRevealArrivalOrder(
 }
 
 /**
- * #646 pinned canonical visibility — accumulates actors that became incrementally visible.
- * Membership does not depend on final resolutionOrder; prior pins survive ROLLING arrival.
+ * Single live SceneTurn action-id owner.
+ * Historical: undefined = all persisted.
+ * Live / not cinematic: human declarations only.
+ * Live / cinematic: early humans ∪ actors released by roundShow.
  */
-export function mergeIncrementalCanonicalPinIds(
-  previousPins: readonly number[],
-  actions: readonly TrpgPublicAction[]
-): number[] {
-  const persistedIds = new Set(
-    actions.filter((action) => action.revealed && action.body.trim()).map((action) => action.participantId)
-  );
+export function resolveLiveRevealedActionIds(opts: {
+  isLiveRow: boolean;
+  mode: RoundPresentationMode;
+  cinematicRevealedIds: readonly number[];
+  earlyVisibleHumanIds: readonly number[];
+}): number[] | undefined {
+  if (!opts.isLiveRow) return undefined;
+  if (opts.mode === "historical") return undefined;
+  const humans = [...opts.earlyVisibleHumanIds];
+  if (opts.mode !== "cinematic") return humans;
   const seen = new Set<number>();
   const out: number[] = [];
-  for (const id of previousPins) {
-    if (seen.has(id) || !persistedIds.has(id)) continue;
+  for (const id of humans) {
+    if (seen.has(id)) continue;
     seen.add(id);
     out.push(id);
   }
-  for (const id of incrementalDecorativeRevealArrivalOrder(actions)) {
+  for (const id of opts.cinematicRevealedIds) {
     if (seen.has(id)) continue;
     seen.add(id);
     out.push(id);
@@ -213,80 +144,20 @@ export function mergeIncrementalCanonicalPinIds(
   return out;
 }
 
-/** #628 reveal owner extended across incremental BOT_ACTION — one progressive AI at a time. */
-export function resolveSequentialActionRevealQueue(
-  opts: SequentialActionRevealInput
-): SequentialActionRevealQueue {
-  const persisted = persistedRevealedActions(opts.actions);
-  const completed = new Set(opts.completedRevealActorIds);
-  const order = uniqueResolutionOrder(opts.arrivalOrder);
-  const eligible = order.filter((id) =>
-    isEligibleSequentialAiReveal(id, persisted, completed, opts)
-  );
-
-  let active: number | null = null;
-  const sticky = opts.stickyActiveRevealActorId ?? null;
-  if (sticky != null && isEligibleSequentialAiReveal(sticky, persisted, completed, opts)) {
-    active = sticky;
-  } else {
-    active = eligible[0] ?? null;
-  }
-
-  const queued =
-    active == null
-      ? []
-      : eligible.filter((id) => id !== active);
-
-  return { activeRevealActorId: active, queuedRevealActorIds: queued };
-}
-
-export function isSequentialActionRevealPending(opts: SequentialActionRevealInput): boolean {
-  return resolveSequentialActionRevealQueue(opts).activeRevealActorId != null;
-}
-
-/**
- * Single #628 reveal owner resolver.
- * While any fresh AI action reveal remains, the sequential queue owns the active
- * actor — including the ready=false → ROLLING handoff when roundShow is still idle.
- */
-export function resolveActivePresentationActorId(opts: {
-  sequentialActionRevealPending: boolean;
-  sequentialActiveRevealActorId: number | null;
-  cinematicActiveActorId: number | null;
-}): number | null {
-  if (opts.sequentialActionRevealPending) {
-    return opts.sequentialActiveRevealActorId;
-  }
-  return opts.cinematicActiveActorId;
-}
-
-/** Decorative streaming eligibility — separate from incremental canonical card visibility. */
+/** Decorative streaming: current cinematic AI actor-action only. */
 export function shouldDecorativeRevealAction(opts: {
   kind: string;
   participantId: number;
   activeRevealActorId: number | null;
   isFresh: boolean;
   skipDecorativeReveal: boolean;
+  cinematicActorAction?: boolean;
 }): boolean {
   if (opts.kind !== "ai_character") return false;
   if (!opts.isFresh) return false;
   if (opts.skipDecorativeReveal) return false;
+  if (opts.cinematicActorAction === false) return false;
   return opts.activeRevealActorId === opts.participantId;
-}
-
-/** Fresh AI action mounted canonically but queued behind an earlier progressive reveal. */
-export function shouldHoldDecorativeRevealAction(opts: {
-  kind: string;
-  participantId: number;
-  activeRevealActorId: number | null;
-  isFresh: boolean;
-  skipDecorativeReveal: boolean;
-}): boolean {
-  if (opts.kind !== "ai_character") return false;
-  if (!opts.isFresh) return false;
-  if (opts.skipDecorativeReveal) return false;
-  if (opts.activeRevealActorId == null) return false;
-  return opts.participantId !== opts.activeRevealActorId;
 }
 
 /** Humans and already-consumed AI keys do not block cinematic actor-action advance. */
@@ -295,10 +166,12 @@ export function isActorActionRevealBeatSatisfied(opts: {
   isFreshAiAction: boolean;
   alreadyCompleted: boolean;
   effectiveActorRevealComplete: boolean;
+  skipDecorativeReveal?: boolean;
 }): boolean {
   if (opts.actionKind === "human") return true;
   if (!opts.isFreshAiAction) return true;
   if (opts.alreadyCompleted) return true;
+  if (opts.skipDecorativeReveal) return true;
   return opts.effectiveActorRevealComplete;
 }
 
@@ -362,7 +235,6 @@ export function idlePresentation(): RoundPresentationState {
 export function revealedActorIds(opts: {
   actors: readonly PresentationActor[];
   state: RoundPresentationState;
-  pinnedVisibleActorIds?: readonly number[];
 }): number[] {
   if (opts.state.mode === "historical" || opts.state.phase === "gm-narration" || opts.state.phase === "complete") {
     return opts.actors.map((actor) => actor.actorId);
@@ -375,12 +247,9 @@ export function revealedActorIds(opts: {
   ) {
     return [];
   }
-  const cinematicIds = opts.actors
+  return opts.actors
     .slice(0, Math.min(opts.actors.length, opts.state.presentationIndex + 1))
     .map((actor) => actor.actorId);
-  if (!opts.pinnedVisibleActorIds?.length) return cinematicIds;
-  const allowed = new Set([...opts.pinnedVisibleActorIds, ...cinematicIds]);
-  return opts.actors.filter((actor) => allowed.has(actor.actorId)).map((actor) => actor.actorId);
 }
 
 export function shouldShowActorResultLane(opts: {
@@ -497,24 +366,28 @@ export function shouldShowLiveRoundWaitCopy(opts: {
   mode: RoundPresentationMode;
   presentationStarting: boolean;
 }): boolean {
-  if (opts.waitKind === "none") return false;
-  if (opts.waitKind === "reroll") return true;
-  if (opts.mode === "cinematic") return false;
-  if (opts.presentationStarting) return false;
-  return true;
+  if (opts.waitKind === "wait_humans" || opts.waitKind === "reroll") return true;
+  return false;
 }
 
 export function liveRoundCanonicalVisibleCount(opts: {
   gated: boolean;
   mode: RoundPresentationMode;
-  actions: readonly { participantId: number }[];
+  actions: readonly { participantId: number; kind?: string; revealed?: boolean; body?: string }[];
   revealedActorIds: readonly number[];
-  incrementalCanonical?: boolean;
 }): number {
-  if (opts.incrementalCanonical) return opts.actions.length;
   if (!opts.gated) return opts.actions.length;
-  if (opts.mode !== "cinematic") return 0;
-  return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
+  if (opts.mode === "cinematic") {
+    return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
+  }
+  return earlyVisibleHumanActionIds(
+    opts.actions.map((action) => ({
+      participantId: action.participantId,
+      kind: action.kind ?? "human",
+      revealed: action.revealed,
+      body: action.body,
+    }))
+  ).length;
 }
 
 export function isRoundPresentationComplete(state: RoundPresentationState): boolean {
@@ -701,8 +574,6 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
   let prevMode: RoundPresentationMode = "idle";
   let frozen: PresentationActor[] | null = null;
   let frozenRound: number | null = null;
-  let pinnedVisibleActorIds: number[] = [];
-  let pinnedRound: number | null = null;
   let startCount = 0;
   let restartCount = 0;
   const steps = snaps.map((snap) => {
@@ -739,16 +610,7 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
-    const incrementalVisible =
-      !decided.ready && isIncrementalCanonicalActionPhase(snap.phase) && actions.length > 0;
-    if (pinnedRound !== snap.roundNumber) {
-      pinnedRound = snap.roundNumber;
-      pinnedVisibleActorIds = [];
-    }
-    if (incrementalVisible) {
-      pinnedVisibleActorIds = mergeIncrementalCanonicalPinIds(pinnedVisibleActorIds, actions);
-    }
-    const incrementalVisibleActionIds = incrementalVisible ? pinnedVisibleActorIds : [];
+    const incrementalVisibleActionIds = !decided.ready ? earlyVisibleHumanActionIds(actions) : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {

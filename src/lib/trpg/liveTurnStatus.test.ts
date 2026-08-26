@@ -84,7 +84,7 @@ describe("TRPG live turn process status", () => {
     );
   });
 
-  it("keeps elapsed across bot/roll/GM stages and hides during cinematic motion", () => {
+  it("keeps elapsed across bot/roll/GM stages and prefers cinematic AI copy", () => {
     const s1 = liveTurnProcessStage({
       waitingOpening: false,
       narrationRerolling: false,
@@ -133,8 +133,16 @@ describe("TRPG live turn process status", () => {
         cinematicMotion: true,
         presentationStarting: false,
         gmTextReady: false,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: true,
       }),
-      "none"
+      "presenting",
+      "PRESENTATION_STATE_OVERRIDES_BACKEND_STATUS_COPY"
+    );
+    assert.equal(
+      formatLiveTurnProcessStatus({ stage: "presenting", elapsedSec: 19 }),
+      "● 동료 행동 표시 중 · 19초"
     );
     assert.equal(
       liveTurnProcessStage({
@@ -146,6 +154,8 @@ describe("TRPG live turn process status", () => {
         cinematicMotion: false,
         presentationStarting: false,
         gmTextReady: false,
+        presentationMode: "idle",
+        presentationPhase: "idle",
       }),
       "gm"
     );
@@ -205,133 +215,148 @@ describe("TRPG live turn process status", () => {
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     assert.match(room, /formatLiveTurnProcessStatus/);
     assert.match(room, /data-trpg-live-turn-status/);
+    assert.match(room, /cinematicAiActionActive/);
     assert.doesNotMatch(room, /DeepSeek/);
     assert.match(client, /const POLL_MS = 1500/);
   });
 
-  it("T_PROCESS_TIMER_AI_REVEAL: elapsed ticks and stays visible through sequential reveal", () => {
+  it("T_PROCESS_TIMER: elapsed stays; AI actor-action copy wins over GM generation", () => {
     const processStartedAtMs = 1_000_000;
-    const baseStage = {
+    const base = {
       waitingOpening: false,
       narrationRerolling: false,
       workType: "idle",
       viewerLocked: true,
       gmTextReady: false,
       botGenerationInFlight: false,
-      sequentialActionRevealPending: true,
     };
 
-    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs), 0, "0초 at T0");
-    assert.equal(
-      processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 1_000),
-      1,
-      "PROCESS_ELAPSED_SEC_TICKS_WHILE_AI_REVEAL"
-    );
-    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 2_000), 2);
+    assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs), 0);
     assert.equal(processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 3_000), 3);
 
-    const t0Stage = liveTurnProcessStage({
-      ...baseStage,
-      phase: "BOT_ACTION",
-      cinematicMotion: false,
-      presentationStarting: false,
-    });
-    assert.equal(t0Stage, "bots");
     assert.equal(
-      formatLiveTurnProcessStatus({ stage: t0Stage, elapsedSec: 0 }),
-      "● 동료 행동 구성 중 · 0초"
+      liveTurnProcessStage({
+        ...base,
+        phase: "BOT_ACTION",
+        workType: "generate_bots",
+        cinematicMotion: false,
+        presentationStarting: false,
+      }),
+      "bots"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        ...base,
+        phase: "GENERATING_NARRATION",
+        cinematicMotion: true,
+        presentationStarting: false,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: true,
+      }),
+      "presenting"
+    );
+    assert.equal(
+      shouldHideProcessTimerForPresentation({
+        overlayVisible: true,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-dice",
+        gmProseRevealing: false,
+      }),
+      true
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        ...base,
+        phase: "GENERATING_NARRATION",
+        cinematicMotion: true,
+        presentationStarting: false,
+        overlayVisible: true,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-dice",
+      }),
+      "none"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        ...base,
+        phase: "GENERATING_NARRATION",
+        cinematicMotion: true,
+        presentationStarting: false,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-result",
+      }),
+      "none"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        ...base,
+        phase: "GENERATING_NARRATION",
+        cinematicMotion: false,
+        presentationStarting: false,
+        presentationMode: "cinematic",
+        presentationPhase: "gm-narration",
+        gmTextReady: false,
+        gmProseRevealing: false,
+      }),
+      "gm"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        ...base,
+        phase: "GENERATING_NARRATION",
+        cinematicMotion: false,
+        presentationStarting: false,
+        presentationMode: "cinematic",
+        presentationPhase: "gm-narration",
+        gmTextReady: true,
+        gmProseRevealing: true,
+      }),
+      "none"
     );
     assert.equal(
       isLiveTurnProcessing({
-        waitingOpening: baseStage.waitingOpening,
-        narrationRerolling: baseStage.narrationRerolling,
-        viewerLocked: baseStage.viewerLocked,
-        phase: "BOT_ACTION",
-        workType: baseStage.workType,
+        waitingOpening: false,
+        narrationRerolling: false,
+        viewerLocked: true,
+        phase: "GENERATING_NARRATION",
+        workType: "idle",
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+      }),
+      true,
+      "elapsed anchor stays active while pill may hide"
+    );
+  });
+
+  it("WAIT_HUMANS stays a distinct copy owner and does not serialize process timer", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "wait_humans",
+        phase: "ACTION_INPUT",
+        viewerLocked: true,
         cinematicMotion: false,
         presentationStarting: false,
-        gmTextReady: baseStage.gmTextReady,
-        botGenerationInFlight: baseStage.botGenerationInFlight,
-        sequentialActionRevealPending: true,
+        gmTextReady: false,
       }),
-      true
-    );
-
-    const rollsPersistStage = liveTurnProcessStage({
-      ...baseStage,
-      phase: "ROLLING",
-      cinematicMotion: false,
-      presentationStarting: true,
-    });
-    assert.notEqual(rollsPersistStage, "none", "timer STILL visible when presentationStarting during sequential reveal");
-    assert.equal(
-      formatLiveTurnProcessStatus({
-        stage: rollsPersistStage,
-        elapsedSec: processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 2_000),
-      }),
-      "● 라운드 판정 준비 중 · 2초"
+      "wait_humans"
     );
     assert.equal(
-      shouldHideProcessTimerForPresentation({
+      isLiveTurnProcessing({
+        waitingOpening: false,
+        narrationRerolling: false,
+        viewerLocked: false,
+        phase: "ACTION_INPUT",
+        workType: "wait_humans",
         cinematicMotion: false,
-        presentationStarting: true,
-        sequentialActionRevealPending: true,
+        presentationStarting: false,
+        gmTextReady: false,
       }),
       false
     );
-
-    const ai2Stage = liveTurnProcessStage({
-      ...baseStage,
-      phase: "ROLLING",
-      presentationStarting: true,
-      cinematicMotion: false,
-    });
-    assert.notEqual(ai2Stage, "none", "timer STILL visible while AI2 reveal");
-    assert.equal(
-      formatLiveTurnProcessStatus({
-        stage: ai2Stage,
-        elapsedSec: processElapsedSecFromStartedAt(processStartedAtMs, processStartedAtMs + 3_000),
-      }),
-      "● 라운드 판정 준비 중 · 3초"
-    );
-
-    const queueDrainedStage = liveTurnProcessStage({
-      ...baseStage,
-      sequentialActionRevealPending: false,
-      phase: "ROLLING",
-      presentationStarting: true,
-      cinematicMotion: false,
-    });
-    assert.equal(queueDrainedStage, "none", "process status hides after queue drained + presentation owns row");
-    assert.equal(
-      shouldHideProcessTimerForPresentation({
-        cinematicMotion: false,
-        presentationStarting: true,
-        sequentialActionRevealPending: false,
-      }),
-      true
-    );
-
-    const cinematicAfterDrain = liveTurnProcessStage({
-      waitingOpening: false,
-      narrationRerolling: false,
-      workType: "idle",
-      phase: "GENERATING_NARRATION",
-      viewerLocked: true,
-      gmTextReady: false,
-      cinematicMotion: true,
-      presentationStarting: false,
-      sequentialActionRevealPending: false,
-    });
-    assert.equal(cinematicAfterDrain, "none");
-  });
-
-  it("production room passes sequentialActionRevealPending into process timer owners", () => {
-    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /sequentialActionRevealPending,/);
-    assert.match(room, /liveTurnProcessStage\(\{[\s\S]*sequentialActionRevealPending/);
-    assert.match(room, /isLiveTurnProcessing\(\{[\s\S]*sequentialActionRevealPending/);
-    assert.match(room, /!overlayPlayback\.visible/);
   });
 });
 
