@@ -7,9 +7,11 @@
  * Run:
  *   node --conditions=react-server --import tsx scripts/trpg-reply-suggestion-model-bench.ts
  *   node --conditions=react-server --import tsx scripts/trpg-reply-suggestion-model-bench.ts --quality-samples
+ *   node --conditions=react-server --import tsx scripts/trpg-reply-suggestion-model-bench.ts --deepseek-vs-luna
  *
  * Output: sanitized JSON summary path printed to stdout (no persona/scene/completion text).
  * Quality samples mode writes human-review suggestion text to docs/audits/.../QUALITY-SAMPLES-*.md
+ * DeepSeek vs Luna mode writes full parsed suggestions for ChatGPT human review.
  */
 import Module from "node:module";
 
@@ -27,9 +29,19 @@ import Database from "better-sqlite3";
 import { loadEnvLocal } from "./load-env-local";
 import { getDatabasePath } from "../src/lib/dataDir";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
+  isCheaperInferenceDeepSeekV4FlashModel,
   isGeminiFlashOpenRouterModel,
+  isGpt56LunaModel,
 } from "../src/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+  adaptCheaperInferenceChatBody,
+  buildCheaperInferenceHeaders,
+  resolveCheaperInferenceApiKey,
+} from "../src/lib/cheaperInferenceConfig";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
@@ -50,6 +62,7 @@ import {
   loadRecentManualHumanActions,
   validateReplySuggestionCompletion,
   parseReplySuggestions,
+  adaptTrpgReplySuggestionChatBody,
 } from "../src/lib/trpg/replySuggestions";
 import { loadSheetSnapshots } from "../src/lib/trpg/engineSheets";
 import { parseHumanPersona } from "../src/lib/trpg/hostPersona";
@@ -89,6 +102,26 @@ const QUALITY_SAMPLES_INTERLEAVE: Array<(typeof MODELS)[number]["key"]> = [
   "gemini",
   "qwen",
 ];
+
+const CI_MODELS = [
+  {
+    key: "deepseek" as const,
+    label: "DeepSeek V4 Flash",
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    runPrefix: "D",
+  },
+  {
+    key: "luna" as const,
+    label: "GPT-5.6 Luna",
+    modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    runPrefix: "L",
+  },
+];
+
+const DEEPSEEK_LUNA_ORDER: Array<(typeof CI_MODELS)[number]["key"]> = [];
+for (let i = 1; i <= 10; i += 1) {
+  DEEPSEEK_LUNA_ORDER.push("deepseek", "luna");
+}
 
 type PersonaSlice = {
   personaId: number | null;
@@ -149,6 +182,27 @@ type CallResult = {
   suggestions: TrpgReplySuggestion[] | null;
 };
 
+type CiHumanReviewRun = {
+  sampleId: string;
+  modelLabel: string;
+  modelId: string;
+  modelKey: "deepseek" | "luna";
+  runLabel: string;
+  httpStatus: number | null;
+  totalLatencyMs: number | null;
+  success: boolean;
+  validJson: boolean;
+  validSchema: boolean;
+  exactly3: boolean;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  reasoningTokens: number | null;
+  usageCostUsd: number | null;
+  failureClass: string | null;
+  suggestions: TrpgReplySuggestion[] | null;
+  textSaved: boolean;
+};
+
 type QualitySampleRun = {
   sampleId: string;
   modelKey: "gemini" | "qwen";
@@ -165,16 +219,23 @@ type QualitySampleRun = {
 const PERSONA_PUBLIC_SELECT =
   "SELECT id, user_id, name, memo, gender, description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
 
-function parseArgs(): { dbPath: string | null; campaignId: number | null; qualitySamples: boolean } {
+function parseArgs(): {
+  dbPath: string | null;
+  campaignId: number | null;
+  qualitySamples: boolean;
+  deepseekVsLuna: boolean;
+} {
   let dbPath: string | null = null;
   let campaignId: number | null = null;
   let qualitySamples = false;
+  let deepseekVsLuna = false;
   for (const arg of process.argv.slice(2)) {
     if (arg.startsWith("--db=")) dbPath = arg.slice(5);
     if (arg.startsWith("--campaign-id=")) campaignId = Number(arg.slice(14)) || null;
     if (arg === "--quality-samples") qualitySamples = true;
+    if (arg === "--deepseek-vs-luna") deepseekVsLuna = true;
   }
-  return { dbPath, campaignId, qualitySamples };
+  return { dbPath, campaignId, qualitySamples, deepseekVsLuna };
 }
 
 function resolveReadonlyDbPath(explicit: string | null): string | null {
@@ -440,6 +501,37 @@ function buildBenchRequestBody(modelId: string, system: string, user: string): R
   return body;
 }
 
+function describeCiReasoningMode(modelId: string): string {
+  if (isCheaperInferenceDeepSeekV4FlashModel(modelId)) {
+    return "adaptTrpgReplySuggestionChatBody: thinking.type=disabled, reasoning_effort=none";
+  }
+  if (isGpt56LunaModel(modelId)) {
+    return "adaptCheaperInferenceChatBody: reasoning.effort=none, reasoning_effort=none";
+  }
+  return "unspecified";
+}
+
+function buildCiBenchRequestBody(modelId: string, system: string, user: string): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    model: modelId,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    stream: false,
+    temperature: 0.7,
+    max_tokens: TRPG_REPLY_SUGGESTION_MAX_TOKENS,
+    response_format: { type: "json_object" },
+  };
+  if (isCheaperInferenceDeepSeekV4FlashModel(modelId)) {
+    return adaptTrpgReplySuggestionChatBody(base);
+  }
+  if (isGpt56LunaModel(modelId)) {
+    return adaptCheaperInferenceChatBody(base);
+  }
+  throw new Error(`unsupported CI bench model: ${modelId}`);
+}
+
 function extractCompletionText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const choices = (payload as { choices?: unknown }).choices;
@@ -516,6 +608,8 @@ function mean(nums: number[]): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
+type BenchModelRef = { modelId: string; key: string };
+
 async function runSingleCall(opts: {
   model: (typeof MODELS)[number];
   runLabel: string;
@@ -581,8 +675,82 @@ async function runSingleCall(opts: {
   });
 }
 
+async function runCiSingleCall(opts: {
+  model: (typeof CI_MODELS)[number];
+  runLabel: string;
+  prompt: PromptBundle;
+}): Promise<CallResult> {
+  const reasoningMode = describeCiReasoningMode(opts.model.modelId);
+  const body = buildCiBenchRequestBody(opts.model.modelId, opts.prompt.system, opts.prompt.user);
+  const started = Date.now();
+  let ttftMs: number | null = null;
+  let httpStatus: number | null = null;
+  let raw = "";
+  let failureClass: string | null = null;
+  let usage = parseOpenRouterUsage(null);
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+    const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey()),
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    ttftMs = Date.now() - started;
+    httpStatus = res.status;
+    const payload = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!res.ok) {
+      failureClass = `http_${res.status}`;
+      return finalizeRun(
+        { model: opts.model, runLabel: opts.runLabel, prompt: opts.prompt },
+        {
+          httpStatus,
+          ttftMs,
+          totalLatencyMs: Date.now() - started,
+          raw: "",
+          failureClass,
+          usage,
+          reasoningMode,
+        }
+      );
+    }
+    usage = parseOpenRouterUsage(payload?.usage, res.headers);
+    raw = extractCompletionText(payload);
+    if (!raw.trim()) failureClass = "empty_completion";
+  } catch (e) {
+    failureClass =
+      e instanceof Error && e.name === "AbortError" ? "client_timeout" : e instanceof Error ? e.name : "fetch_error";
+    return finalizeRun(
+      { model: opts.model, runLabel: opts.runLabel, prompt: opts.prompt },
+      {
+        httpStatus,
+        ttftMs,
+        totalLatencyMs: Date.now() - started,
+        raw: "",
+        failureClass,
+        usage,
+        reasoningMode,
+      }
+    );
+  }
+  return finalizeRun(
+    { model: opts.model, runLabel: opts.runLabel, prompt: opts.prompt },
+    {
+      httpStatus,
+      ttftMs,
+      totalLatencyMs: Date.now() - started,
+      raw,
+      failureClass,
+      usage,
+      reasoningMode,
+    }
+  );
+}
+
 function finalizeRun(
-  opts: { model: (typeof MODELS)[number]; runLabel: string; prompt: PromptBundle },
+  opts: { model: BenchModelRef; runLabel: string; prompt: PromptBundle },
   result: {
     httpStatus: number | null;
     ttftMs: number | null;
@@ -757,6 +925,199 @@ function writeQualitySamplesArtifact(opts: {
   fs.writeFileSync(opts.outPath, lines.join("\n"));
 }
 
+function suggestionsTextSaved(suggestions: TrpgReplySuggestion[] | null): boolean {
+  return Boolean(
+    suggestions?.length === 3 && suggestions.every((s) => s.stance && s.actionType && s.text.trim())
+  );
+}
+
+function summarizeCiBenchModel(runs: CiHumanReviewRun[]) {
+  const latencies = runs.map((r) => r.totalLatencyMs ?? 0).filter((n) => n > 0);
+  const costs = runs.map((r) => r.usageCostUsd).filter((v): v is number => v != null);
+  return {
+    calls: runs.length,
+    successCount: runs.filter((r) => r.success).length,
+    validSchemaCount: runs.filter((r) => r.validSchema).length,
+    timeoutCount: runs.filter((r) => r.failureClass === "client_timeout").length,
+    minLatencyMs: latencies.length ? Math.min(...latencies) : null,
+    medianLatencyMs: latencies.length ? Math.round(median(latencies)) : null,
+    meanLatencyMs: latencies.length ? Math.round(mean(latencies)) : null,
+    maxLatencyMs: latencies.length ? Math.max(...latencies) : null,
+    le3s: latencies.filter((n) => n <= 3000).length,
+    le5s: latencies.filter((n) => n <= 5000).length,
+    le8s: latencies.filter((n) => n <= 8000).length,
+    gt10s: latencies.filter((n) => n > 10000).length,
+    avgInputTokens: runs.filter((r) => r.inputTokens != null).length
+      ? Math.round(mean(runs.map((r) => r.inputTokens ?? 0)))
+      : null,
+    avgOutputTokens: runs.filter((r) => r.outputTokens != null).length
+      ? Math.round(mean(runs.map((r) => r.outputTokens ?? 0)))
+      : null,
+    avgReasoningTokens: runs.some((r) => r.reasoningTokens != null)
+      ? Math.round(mean(runs.map((r) => r.reasoningTokens ?? 0)))
+      : null,
+    avgActualCostUsd: costs.length ? Number(mean(costs).toFixed(6)) : null,
+    total10CallCostUsd: costs.length ? Number(costs.reduce((a, b) => a + b, 0).toFixed(6)) : null,
+  };
+}
+
+function formatCiHumanReviewSection(run: CiHumanReviewRun): string {
+  const good = findSuggestionByStance(run.suggestions, "good");
+  const neutral = findSuggestionByStance(run.suggestions, "neutral");
+  const evil = findSuggestionByStance(run.suggestions, "evil");
+  const stanceBlock = (label: "GOOD" | "NEUTRAL" | "EVIL", item: TrpgReplySuggestion | null) => {
+    if (!item) return `## ${label}\n- (missing — parse failed)\n`;
+    return [
+      `## ${label}`,
+      `- stance: ${item.stance}`,
+      `- actionType: ${item.actionType}`,
+      `- stage: ${item.stage}`,
+      `- speech: ${item.speech}`,
+      `- composed text: ${item.text}`,
+      "",
+    ].join("\n");
+  };
+  return [
+    `# ${run.modelLabel} — ${run.runLabel}`,
+    "",
+    `- provider: CheaperInference`,
+    `- model: \`${run.modelId}\``,
+    `- httpStatus: ${run.httpStatus ?? "n/a"}`,
+    `- totalLatencyMs: ${run.totalLatencyMs ?? "n/a"}`,
+    `- success: ${run.success}`,
+    `- validJson: ${run.validJson}`,
+    `- validSchema: ${run.validSchema}`,
+    `- exactly3: ${run.exactly3}`,
+    `- failureClass: ${run.failureClass ?? "none"}`,
+    `- textSaved: ${run.textSaved}`,
+    "",
+    stanceBlock("GOOD", good),
+    stanceBlock("NEUTRAL", neutral),
+    stanceBlock("EVIL", evil),
+    "---",
+    "",
+  ].join("\n");
+}
+
+function writeDeepSeekVsLunaArtifacts(opts: {
+  prompt: PromptBundle;
+  runs: CiHumanReviewRun[];
+  mdPath: string;
+  jsonPath: string;
+}): void {
+  const deepseekRuns = opts.runs.filter((r) => r.modelKey === "deepseek");
+  const lunaRuns = opts.runs.filter((r) => r.modelKey === "luna");
+  const mdLines = [
+    "# TRPG reply-suggestion human review — DeepSeek V4 Flash vs GPT-5.6 Luna",
+    "",
+    "CheaperInference only. Same BenchAdmin fixture prompt as #652 OpenRouter benchmark.",
+    "Parsed via canonical `validateReplySuggestionCompletion()` / `parseReplySuggestions()`.",
+    "Model names shown for ChatGPT human review. No automatic quality scores.",
+    "",
+    `- generatedAt: ${new Date().toISOString()}`,
+    `- personaSource: ${opts.prompt.persona.source}`,
+    `- adminPersonaName: ${opts.prompt.persona.name}`,
+    `- promptChars: ${opts.prompt.promptChars}`,
+    `- totalProviderCalls: ${opts.runs.length}`,
+    `- interleave: D1 L1 D2 L2 … D10 L10 (retry 0)`,
+    `- deepseekModel: \`${CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL}\``,
+    `- lunaModel: \`${CHEAPER_INFERENCE_GPT_56_LUNA_MODEL}\``,
+    `- deepseekReasoningMode: ${describeCiReasoningMode(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL)}`,
+    `- lunaReasoningMode: ${describeCiReasoningMode(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL)}`,
+    "",
+    "---",
+    "",
+    ...opts.runs.map((run) => formatCiHumanReviewSection(run)),
+  ];
+  fs.writeFileSync(opts.mdPath, mdLines.join("\n"));
+
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    promptChars: opts.prompt.promptChars,
+    personaSource: opts.prompt.persona.source,
+    adminPersonaName: opts.prompt.persona.name,
+    deepseekModel: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    lunaModel: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    totalProviderCalls: opts.runs.length,
+    deepseekReasoningMode: describeCiReasoningMode(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+    lunaReasoningMode: describeCiReasoningMode(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+    deepseek: summarizeCiBenchModel(deepseekRuns),
+    luna: summarizeCiBenchModel(lunaRuns),
+    runs: opts.runs.map((r) => ({
+      model: r.modelId,
+      modelLabel: r.modelLabel,
+      run: r.runLabel,
+      httpStatus: r.httpStatus,
+      totalLatencyMs: r.totalLatencyMs,
+      success: r.success,
+      validJson: r.validJson,
+      validSchema: r.validSchema,
+      exactly3: r.exactly3,
+      inputTokens: r.inputTokens,
+      outputTokens: r.outputTokens,
+      reasoningTokens: r.reasoningTokens,
+      actualUsageCostUsd: r.usageCostUsd,
+      failureClass: r.failureClass,
+      textSaved: r.textSaved,
+    })),
+  };
+  fs.writeFileSync(opts.jsonPath, JSON.stringify(summary, null, 2));
+}
+
+async function runDeepSeekVsLuna(): Promise<void> {
+  console.log("[bench] deepseek-vs-luna mode (20 provider calls, D1 L1 … D10 L10)");
+  const prompt = await buildFixturePrompt(5770);
+  const runCounters: Record<string, number> = { deepseek: 0, luna: 0 };
+  const allRuns: CiHumanReviewRun[] = [];
+
+  for (const key of DEEPSEEK_LUNA_ORDER) {
+    const model = CI_MODELS.find((m) => m.key === key)!;
+    runCounters[key] += 1;
+    const runLabel = `${model.runPrefix}${runCounters[key]}`;
+    const { metric, suggestions } = await runCiSingleCall({ model, runLabel, prompt });
+    const textSaved = suggestionsTextSaved(suggestions);
+    allRuns.push({
+      sampleId: runLabel,
+      modelLabel: model.label,
+      modelId: model.modelId,
+      modelKey: key,
+      runLabel,
+      httpStatus: metric.httpStatus,
+      totalLatencyMs: metric.totalLatencyMs,
+      success: metric.success,
+      validJson: metric.validJson,
+      validSchema: metric.validSchema,
+      exactly3: metric.exactly3,
+      inputTokens: metric.inputTokens,
+      outputTokens: metric.outputTokens,
+      reasoningTokens: metric.reasoningTokens,
+      usageCostUsd: metric.usageCostUsd,
+      failureClass: metric.failureClass,
+      suggestions,
+      textSaved,
+    });
+    process.stdout.write(
+      `${runLabel} ${model.label} success=${metric.success} textSaved=${textSaved} latency=${metric.totalLatencyMs}ms\n`
+    );
+  }
+
+  const outDir = path.join(process.cwd(), "docs/audits/trpg-reply-suggestion-model-bench");
+  fs.mkdirSync(outDir, { recursive: true });
+  const mdPath = path.join(outDir, "DEEPSEEK-VS-LUNA-HUMAN-REVIEW-2026-08-26.md");
+  const jsonPath = path.join(outDir, "deepseek-vs-luna-2026-08-26.json");
+  writeDeepSeekVsLunaArtifacts({ prompt, runs: allRuns, mdPath, jsonPath });
+  console.log(
+    JSON.stringify({
+      ok: true,
+      mode: "deepseek-vs-luna",
+      mdPath,
+      jsonPath,
+      calls: allRuns.length,
+      textSavedCount: allRuns.filter((r) => r.textSaved).length,
+    })
+  );
+}
+
 async function runQualitySamples(): Promise<void> {
   console.log("[bench] quality-samples mode (4 provider calls, GQGQ)");
   const prompt = await buildFixturePrompt(5770);
@@ -867,6 +1228,10 @@ async function runBenchmark(): Promise<void> {
 
 async function main(): Promise<void> {
   const args = parseArgs();
+  if (args.deepseekVsLuna) {
+    await runDeepSeekVsLuna();
+    return;
+  }
   if (args.qualitySamples) {
     await runQualitySamples();
     return;
