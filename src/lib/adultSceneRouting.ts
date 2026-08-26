@@ -372,6 +372,20 @@ export function parseModelRouteState(value: unknown): ModelRouteState {
   };
 }
 
+/** Adult Mode OFF breaks CNC stickiness without clearing character DB capability. */
+export function resetCncConsentStickinessInRouteState(
+  raw: string | null | undefined
+): string {
+  const state = parseModelRouteState(raw);
+  if (state.activeConsentMode !== "cnc_opt_in") {
+    return serializeModelRouteState(state);
+  }
+  return serializeModelRouteState({
+    ...state,
+    activeConsentMode: "standard",
+  });
+}
+
 export function serializeModelRouteState(state: ModelRouteState): string {
   return JSON.stringify({
     activeModelRoute: state.activeRoute,
@@ -788,6 +802,8 @@ export function resolveRequestedConsentMode(input: {
   currentInput: string;
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
+  /** Server-authorized chat Adult Mode — CNC requires this ON. Default true when omitted. */
+  adultModeEnabled?: boolean;
 }): AdultConsentMode {
   const {
     requested,
@@ -795,6 +811,7 @@ export function resolveRequestedConsentMode(input: {
     currentInput,
     sceneReset = false,
     clearSceneTransition = false,
+    adultModeEnabled = true,
   } = input;
 
   if (
@@ -805,6 +822,11 @@ export function resolveRequestedConsentMode(input: {
   }
 
   if (requested === "standard") return "standard";
+
+  if (!adultModeEnabled) {
+    if (requested === "power_play") return "power_play";
+    return "standard";
+  }
 
   if (sceneReset || clearSceneTransition) {
     return hasExplicitCncOptIn(currentInput) ? "cnc_opt_in" : "standard";
@@ -854,6 +876,7 @@ export function resolveEffectiveConsentMode(input: {
   allowedConsentModes: string[];
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
+  adultModeEnabled?: boolean;
 }): AdultConsentMode {
   const resolved = resolveRequestedConsentMode({
     requested: input.requested,
@@ -861,6 +884,7 @@ export function resolveEffectiveConsentMode(input: {
     currentInput: input.currentInput,
     sceneReset: input.sceneReset,
     clearSceneTransition: input.clearSceneTransition,
+    adultModeEnabled: input.adultModeEnabled,
   });
   if (!input.allowedConsentModes.includes(resolved)) {
     return "standard";

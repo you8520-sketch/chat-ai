@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
+import { resetCncConsentStickinessInRouteState } from "@/lib/adultSceneRouting";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
@@ -79,7 +80,7 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   const chat = db.prepare(
-    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name,
+    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name, ch.model_route_state_json,
             c.name, COALESCE(c.content_kind, 'character') AS content_kind
      FROM chats ch JOIN characters c ON c.id = ch.character_id
      WHERE ch.id=? AND ch.user_id=?`
@@ -87,6 +88,7 @@ export async function PATCH(req: Request) {
     id: number;
     narrative_pov: string | null;
     pov_character_name: string | null;
+    model_route_state_json: string | null;
     name: string;
     content_kind: string;
   } | undefined;
@@ -209,6 +211,15 @@ export async function PATCH(req: Request) {
   if (adultHandoffEnabled !== undefined) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
+    if (!adultHandoffEnabled) {
+      const resetRouteState = resetCncConsentStickinessInRouteState(
+        chat.model_route_state_json
+      );
+      if (resetRouteState !== chat.model_route_state_json) {
+        sets.push("model_route_state_json=?");
+        vals.push(resetRouteState);
+      }
+    }
   }
 
   if (sets.length === 0) {

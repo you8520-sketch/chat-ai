@@ -494,6 +494,7 @@ import {
   normalizeAdultDialogueProfile,
   parseModelRouteState,
   parseAllowedConsentModes,
+  resetCncConsentStickinessInRouteState,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   resolveEffectiveConsentMode,
@@ -1165,16 +1166,30 @@ export async function POST(req: Request) {
     requested: body.adultHandoffEnabled ?? body.adult_handoff_enabled,
     userAdultVerified,
   });
-  if (
-    parseAdultHandoffEnabled(body.adultHandoffEnabled ?? body.adult_handoff_enabled) !==
-    undefined
-  ) {
+  const requestedAdultHandoffToggle = parseAdultHandoffEnabled(
+    body.adultHandoffEnabled ?? body.adult_handoff_enabled
+  );
+  if (requestedAdultHandoffToggle !== undefined) {
     db.prepare("UPDATE chats SET adult_handoff_enabled=? WHERE id=?").run(
       chatAdultHandoffEnabled ? 1 : 0,
       chat.id
     );
     chat.adult_handoff_enabled = chatAdultHandoffEnabled ? 1 : 0;
+    if (!chatAdultHandoffEnabled) {
+      const resetRouteState = resetCncConsentStickinessInRouteState(
+        chat.model_route_state_json
+      );
+      if (resetRouteState !== chat.model_route_state_json) {
+        db.prepare("UPDATE chats SET model_route_state_json=? WHERE id=? AND user_id=?").run(
+          resetRouteState,
+          chat.id,
+          user.id
+        );
+        chat.model_route_state_json = resetRouteState;
+      }
+    }
   }
+  const adultModeAuthorized = userAdultVerified && chatAdultHandoffEnabled;
   const adultRoutingConfig = {
     ...baseAdultRoutingConfig,
     enabled: resolveAdultSceneRoutingEnabledForRequest({
@@ -1199,6 +1214,7 @@ export async function POST(req: Request) {
     allowedConsentModes,
     sceneReset: preSceneReset,
     clearSceneTransition: detectClearSceneTransition(preRoutingText),
+    adultModeEnabled: adultModeAuthorized,
   });
 
   const recentRawForSceneClassification = turnsForRecentHistory

@@ -70,9 +70,10 @@ describe("chat-room adult mode (handoff) preference", () => {
     assert.doesNotMatch(chatClient, /성인 장면 자동 호환 지원/);
     assert.match(chatClient, /ChatRoomAdultModeToggle/);
     assert.match(chatClient, /adultHandoffEnabled/);
+    assert.match(chatClient, /\{isAdult \?\s*\(\s*<ChatRoomAdultModeToggle/);
     assert.match(
       chatClient,
-      /<\/select>\s*<ChatRoomAdultModeToggle/s
+      /<\/select>\s*\{isAdult \?\s*\(\s*<ChatRoomAdultModeToggle/s
     );
     assert.equal((chatClient.match(/<ChatRoomAdultModeToggle/g) ?? []).length, 1);
 
