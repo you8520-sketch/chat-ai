@@ -163,6 +163,18 @@ describe("TRPG display prefs", () => {
         phase: "ACTION_INPUT",
         hasDraft: true,
         locked: false,
+        requestedRound: null,
+        roundNumber: 3,
+        autoAttemptFailed: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldAutoRequestTrpgActionSuggestions({
+        enabled: true,
+        phase: "ACTION_INPUT",
+        hasDraft: true,
+        locked: false,
         requestedRound: 2,
         roundNumber: 3,
       }),

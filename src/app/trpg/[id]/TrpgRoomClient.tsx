@@ -13,13 +13,17 @@ import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import {
   applyReplySuggestionClick,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
+  normalizeTrpgReplySuggestionClientError,
   type TrpgInputOrigin,
   type TrpgReplySuggestion,
 } from "@/lib/trpg/replySuggestionShared";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import {
+  clearTrpgActionSuggestionAttempt,
+  loadTrpgActionSuggestionAttempt,
   loadTrpgActionSuggestionsCache,
   loadTrpgActionSuggestionsEnabled,
+  saveTrpgActionSuggestionAttempt,
   saveTrpgActionSuggestionsCache,
   saveTrpgActionSuggestionsEnabled,
   shouldAutoRequestTrpgActionSuggestions,
@@ -113,6 +117,7 @@ export default function TrpgRoomClient({
       const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
       setSuggestions(cached ?? []);
       autoRequestedRoundRef.current = cached?.length ? snap.round.number : null;
+      setSuggestionsError("");
       setInputOrigin("manual");
       setSuggestionRound(snap.round.number);
     }
@@ -180,15 +185,10 @@ export default function TrpgRoomClient({
       }
       setSuggestions(data.suggestions);
       saveTrpgActionSuggestionsCache(snap.id, snap.round.number, data.suggestions);
+      clearTrpgActionSuggestionAttempt(snap.id);
     } catch (e) {
-      const timedOut =
-        (e instanceof DOMException || e instanceof Error) &&
-        (e.name === "TimeoutError" || e.name === "AbortError");
-      const message = timedOut
-        ? TRPG_REPLY_SUGGESTION_USER_ERROR
-        : e instanceof Error
-          ? e.message
-          : TRPG_REPLY_SUGGESTION_USER_ERROR;
+      saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "failed");
+      const message = normalizeTrpgReplySuggestionClientError(e);
       setSuggestionsError(message);
       setError(message);
       // Keep this round marked as requested. Poll refreshes replace `snap.myDraft`
@@ -206,8 +206,15 @@ export default function TrpgRoomClient({
     if (cached?.length) {
       setSuggestions(cached);
       autoRequestedRoundRef.current = snap.round.number;
+      clearTrpgActionSuggestionAttempt(snap.id);
+      return;
     }
-    // Mount-only: restore this round's cached examples so re-entry never regenerates.
+    const attempt = loadTrpgActionSuggestionAttempt(snap.id, snap.round.number);
+    if (attempt === "failed") {
+      autoRequestedRoundRef.current = snap.round.number;
+      setSuggestionsError(TRPG_REPLY_SUGGESTION_USER_ERROR);
+    }
+    // Mount-only: restore cache or failed auto-attempt marker so reload never re-auto-generates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -217,6 +224,13 @@ export default function TrpgRoomClient({
     if (cached?.length) {
       setSuggestions(cached);
       autoRequestedRoundRef.current = snap.round.number;
+      clearTrpgActionSuggestionAttempt(snap.id);
+      return;
+    }
+    const autoAttempt = loadTrpgActionSuggestionAttempt(snap.id, snap.round.number);
+    if (autoAttempt === "failed") {
+      autoRequestedRoundRef.current = snap.round.number;
+      setSuggestionsError(TRPG_REPLY_SUGGESTION_USER_ERROR);
       return;
     }
     if (
@@ -231,6 +245,7 @@ export default function TrpgRoomClient({
     ) {
       return;
     }
+    saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "pending");
     autoRequestedRoundRef.current = snap.round.number;
     void requestSuggestions();
   }, [phase, requestSuggestions, snap.id, snap.myDraft, snap.round.number, suggestionsEnabled]);
@@ -243,6 +258,7 @@ export default function TrpgRoomClient({
       setSuggestions([]);
       setSuggestionsError("");
       autoRequestedRoundRef.current = null;
+      clearTrpgActionSuggestionAttempt(snap.id);
       return;
     }
     const cached = loadTrpgActionSuggestionsCache(snap.id, snap.round.number);
@@ -268,7 +284,9 @@ export default function TrpgRoomClient({
 
   function retrySuggestions() {
     if (suggestionsBusyRef.current) return;
+    saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "pending");
     autoRequestedRoundRef.current = snap.round.number;
+    setSuggestionsError("");
     void requestSuggestions();
   }
 
