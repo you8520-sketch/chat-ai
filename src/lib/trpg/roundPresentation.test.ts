@@ -11,9 +11,13 @@ import {
   isLiveRoundPresentationReady,
   isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
+  earlyVisibleHumanActionIds,
+  isActorActionRevealBeatSatisfied,
   liveRoundCanonicalVisibleCount,
   liveRoundWaitCopy,
   liveRoundWaitKind,
+  resolveLiveRevealedActionIds,
+  shouldDecorativeRevealAction,
   shouldShowLiveRoundWaitCopy,
   compactRollActorIds,
   resultLaneActorIds,
@@ -524,11 +528,11 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(s2?.ready, false);
     assert.equal(s2?.started, false);
     assert.equal(s2?.restarted, false);
-    assert.deepEqual(s2?.incrementalVisibleActionIds, [10, 20]);
+    assert.deepEqual(s2?.incrementalVisibleActionIds, [10]);
     assert.equal(s3?.ready, false);
     assert.equal(s3?.started, false);
     assert.equal(s3?.restarted, false);
-    assert.deepEqual(s3?.incrementalVisibleActionIds, order);
+    assert.deepEqual(s3?.incrementalVisibleActionIds, [10]);
     assert.equal(s4?.ready, true);
     assert.equal(s4?.mode, "cinematic");
     assert.equal(s4?.started, true);
@@ -680,7 +684,17 @@ describe("TRPG live round presentation readiness", () => {
       actions,
       revealedActorIds: [],
     });
-    assert.equal(firstVisible, 0);
+    assert.equal(firstVisible, 1, "early human declaration remains visible");
+    assert.deepEqual(earlyVisibleHumanActionIds(actions), [10]);
+    assert.deepEqual(
+      resolveLiveRevealedActionIds({
+        isLiveRow: true,
+        mode: "idle",
+        cinematicRevealedIds: [],
+        earlyVisibleHumanIds: [10],
+      }),
+      [10]
+    );
     assert.equal(firstVisible === actions.length, false, "ALL_ACTIONS_FLASH_BEFORE_CINEMATIC");
     assert.equal(
       shouldShowLiveRoundWaitCopy({
@@ -729,6 +743,105 @@ describe("TRPG live round presentation readiness", () => {
       shouldShowLiveRoundWaitCopy({
         waitKind: "gm",
         mode: "cinematic",
+        presentationStarting: false,
+      }),
+      false
+    );
+  });
+
+  it("single live action-id owner: humans early, AI only when cinematic releases", () => {
+    assert.deepEqual(earlyVisibleHumanActionIds([human, bot1, bot2]), [10]);
+    assert.deepEqual(
+      resolveLiveRevealedActionIds({
+        isLiveRow: true,
+        mode: "idle",
+        cinematicRevealedIds: [],
+        earlyVisibleHumanIds: [10],
+      }),
+      [10]
+    );
+    assert.deepEqual(
+      resolveLiveRevealedActionIds({
+        isLiveRow: true,
+        mode: "cinematic",
+        cinematicRevealedIds: [20],
+        earlyVisibleHumanIds: [10],
+      }),
+      [10, 20]
+    );
+    assert.equal(
+      resolveLiveRevealedActionIds({
+        isLiveRow: false,
+        mode: "cinematic",
+        cinematicRevealedIds: [20],
+        earlyVisibleHumanIds: [10],
+      }),
+      undefined
+    );
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 20,
+        activeRevealActorId: 20,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 20,
+        activeRevealActorId: 20,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "human",
+        participantId: 10,
+        activeRevealActorId: 10,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: true,
+      }),
+      false
+    );
+    assert.equal(
+      isActorActionRevealBeatSatisfied({
+        actionKind: "human",
+        isFreshAiAction: false,
+        alreadyCompleted: false,
+        effectiveActorRevealComplete: false,
+      }),
+      true
+    );
+    assert.equal(
+      isActorActionRevealBeatSatisfied({
+        actionKind: "ai_character",
+        isFreshAiAction: true,
+        alreadyCompleted: false,
+        effectiveActorRevealComplete: false,
+      }),
+      false
+    );
+    assert.equal(
+      isActorActionRevealBeatSatisfied({
+        actionKind: "ai_character",
+        isFreshAiAction: true,
+        alreadyCompleted: false,
+        effectiveActorRevealComplete: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowLiveRoundWaitCopy({
+        waitKind: "bots",
+        mode: "idle",
         presentationStarting: false,
       }),
       false
