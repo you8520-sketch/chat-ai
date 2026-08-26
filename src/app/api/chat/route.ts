@@ -125,7 +125,11 @@ import {
 } from "@/lib/memory/memory-manager";
 import { ensureSummaryBarrier } from "@/lib/memory/memory-rolling-summary";
 import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
-import { resolveProviderRawExchangeCount } from "@/lib/memory/memory-5plus4-flag";
+import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/memory/memory-constants";
+import {
+  buildMemoryHealthTelemetry,
+  logMemoryHealthTelemetry,
+} from "@/lib/memory/memory-health-telemetry";
 import {
   analyzeProviderHistoryHealth,
   countRealPlayableHistoryTurns,
@@ -1391,7 +1395,7 @@ export async function POST(req: Request) {
     effectiveSummarizedTurnCount = gate.summarizedThrough;
   }
 
-  const providerRawExchangeCount = resolveProviderRawExchangeCount();
+  const providerRawExchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES;
   const { opening: openingTurn, playable: playableTurnsForOpening } =
     splitOpeningPlayableTurns(turnsForRecentHistory);
   const protectOpening = shouldIncludeOpeningInProviderRaw({
@@ -1707,6 +1711,24 @@ export async function POST(req: Request) {
     lorebookText: lorebookTextForEpisodicMemory,
     triggeredEventText: triggeredScenarioEventsBlock,
   });
+  logMemoryHealthTelemetry(
+    buildMemoryHealthTelemetry({
+      completedPlayableTurns: completedTurnsForMemoryCoverage,
+      summarizedThrough: effectiveSummarizedTurnCount,
+      realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+      openingInRaw: providerHistoryHealth.openingPreludePresent,
+      bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
+      episodicCandidateCount: episodicMemory.debug.length,
+      episodicInjectedCount: episodicMemory.facts.length,
+      episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
+        Boolean(d.duplicate_reason)
+      ).length,
+      episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
+        Boolean(d.budget_reason)
+      ).length,
+      statusExtractCallCount: 0,
+    })
+  );
   const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
     parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
   );
@@ -5261,6 +5283,27 @@ export async function POST(req: Request) {
             ),
           ],
         });
+        logMemoryHealthTelemetry(
+          buildMemoryHealthTelemetry({
+            completedPlayableTurns: completedTurnsForMemoryCoverage,
+            summarizedThrough: effectiveSummarizedTurnCount,
+            realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+            openingInRaw: providerHistoryHealth.openingPreludePresent,
+            bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
+            episodicCandidateCount: episodicMemory.debug.length,
+            episodicInjectedCount: episodicMemory.facts.length,
+            episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
+              Boolean(d.duplicate_reason)
+            ).length,
+            episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
+              Boolean(d.budget_reason)
+            ).length,
+            statusExtractCallCount:
+              widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
+                ? 1
+                : 0,
+          })
+        );
         // Phase B0: derived-state writes are allowed only when this request
         // actually finalized the assistant (not an idempotent duplicate) AND
         // the generation status is canonical. `interrupted` / `failed_partial`

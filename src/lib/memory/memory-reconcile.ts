@@ -57,10 +57,10 @@ export function pruneStaleMemoryRecords(chatId: number, actualTurnCount: number)
 
 /**
  * Soft-delete (`deleteMemoryRecord`) 후 counter·로어북·LTM을 active 행만으로 재정렬하고,
- * 누락 배치가 있고 봉인 조건이 충족되면 [1~6] 등을 다시 봉인한다.
+ * 누락 배치가 있고 봉인 조건이 충족되면 [1~5] 등을 다시 봉인한다.
  *
  * 이전에는 inactive 행이 contiguous coverage / idempotent skip에 남아
- * summarized_turn_count가 내려가지 않고 새 6턴 요약이 영구히 막혔다.
+ * summarized_turn_count가 내려가지 않고 새 5턴 요약이 영구히 막혔다.
  */
 export function reconcileMemoryAfterRecordDelete(opts: {
   chatId: number;
@@ -118,7 +118,7 @@ export function reconcileMemoryAfterRecordDelete(opts: {
 
 /**
  * 마지막 턴 삭제 후 message_count·요약 기록·로어북을 DB 대화와 맞춤.
- * (재생성·삭제·고르기로 6턴 경계가 어긋난 경우 복구)
+ * (재생성·삭제·고르기로 요약 배치 경계가 어긋난 경우 복구)
  */
 export function reconcileMemoryAfterTurnDelete(opts: {
   chatId: number;

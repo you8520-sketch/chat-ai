@@ -2,7 +2,7 @@
  * Cross-row branch control provenance + last-turn deletion rollback (no LLM, no migration).
  */
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   classifyMemoryTurnScope,
   encodeScopePayload,

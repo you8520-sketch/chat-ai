@@ -5,6 +5,7 @@ import type {
   ExtractedStatusFactEvidenceType,
   ExtractedStatusFactImportance,
 } from "@/lib/statusWidget/types";
+import { isMemoryFeatureEnabledIn } from "@/lib/memory/memory-feature";
 import {
   getMemorySourceBoundaryCore,
   isMemorySourceEligible,
@@ -87,7 +88,8 @@ export type EpisodicMemoryDebugFact = EpisodicMemoryFactRecord & {
 const EPISODIC_MEMORY_PROMPT_MAX_FACTS = 8;
 const EPISODIC_MEMORY_PROMPT_MAX_CHARS = 1000;
 const EPISODIC_MEMORY_CANDIDATE_LIMIT = 100;
-const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 3;
+/** RAW4 keeps N-3..N; recall starts at N-4 (= minAgeTurns 5 when currentTurn=N+1). */
+const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 5;
 const DYNAMIC_MEMORY_TOTAL_MAX_CHARS = 2500;
 const IMPORTANCE_RANK: Record<ExtractedStatusFactImportance, number> = {
   critical: 3,
@@ -371,20 +373,38 @@ export function detectAbstractPsychologicalInference(
   return null;
 }
 
-export function episodicMemoryRecallEnabled(env = process.env): boolean {
-  const raw = env.EPISODIC_MEMORY_RECALL_ENABLED?.trim().toLowerCase();
-  if (raw === "0" || raw === "false" || raw === "off" || raw === "disabled") return false;
-  if (raw === "1" || raw === "true" || raw === "on" || raw === "enabled") return true;
-  return env.NODE_ENV !== "production";
+function isTruthyEnvFlag(raw: string | undefined): boolean {
+  const value = raw?.trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on" || value === "enabled";
 }
 
-/** True when production would save facts but not inject them into prompts. */
+function isFalsyEnvFlag(raw: string | undefined): boolean {
+  const value = raw?.trim().toLowerCase();
+  return value === "0" || value === "false" || value === "no" || value === "off" || value === "disabled";
+}
+
+/**
+ * Recall is ON whenever MEMORY_FEATURE_ENABLED is on, unless an emergency
+ * kill switch is set. Compatibility: EPISODIC_MEMORY_RECALL_ENABLED=0 still disables.
+ */
+export function episodicMemoryRecallEnabled(env = process.env): boolean {
+  if (!isMemoryFeatureEnabledIn(env)) return false;
+  if (isTruthyEnvFlag(env.EPISODIC_MEMORY_RECALL_DISABLED)) return false;
+  if (isFalsyEnvFlag(env.EPISODIC_MEMORY_RECALL_ENABLED)) return false;
+  return true;
+}
+
+/** True when memory is on but recall was explicitly killed. */
 export function episodicMemoryRecallDisabledInProduction(env = process.env): boolean {
-  return env.NODE_ENV === "production" && !episodicMemoryRecallEnabled(env);
+  return (
+    env.NODE_ENV === "production" &&
+    isMemoryFeatureEnabledIn(env) &&
+    !episodicMemoryRecallEnabled(env)
+  );
 }
 
 const EPISODIC_RECALL_PROD_WARN =
-  "Episodic memory facts are being saved but recall injection is disabled in production. Set EPISODIC_MEMORY_RECALL_ENABLED=1 on Railway to inject retrieved facts.";
+  "Episodic recall is disabled by EPISODIC_MEMORY_RECALL_DISABLED or EPISODIC_MEMORY_RECALL_ENABLED=0. MEMORY_FEATURE_ENABLED=true now turns recall on by default.";
 
 /** Boot / config warning — call once at server start. */
 export function warnEpisodicMemoryRecallDisabledInProduction(env = process.env): boolean {
@@ -717,6 +737,7 @@ export function persistEpisodicMemoryFactsCore(
   db: Database.Database,
   input: PersistEpisodicMemoryFactsInput
 ): number {
+  if (!isMemoryFeatureEnabledIn()) return 0;
   const chatId = finitePositiveInt(input.chatId);
   const sourceTurn = finitePositiveInt(input.sourceTurn);
   if (!chatId || !sourceTurn) return 0;

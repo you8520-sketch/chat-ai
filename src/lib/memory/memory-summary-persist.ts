@@ -2,12 +2,7 @@
  * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { NEW_ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
-import {
-  isMemory5Plus4Enabled,
-  resolveNewBatchEndForStart,
-  resolveNewBatchSpanLength,
-} from "./memory-5plus4-flag";
+import { LEGACY_SIX_TURN_SPAN, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
 import type { MemoryTier } from "./memory-types";
 import {
@@ -26,7 +21,7 @@ import {
   highestContiguousOccupiedTurn,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
-import { newBatchEndForStart, LEGACY_NULL_TURN_END_OFFSET } from "./memory-summary-range";
+import { newBatchEndForStart } from "./memory-summary-range";
 import {
   encodeScopePayload,
   isEmptyOocScope,
@@ -176,21 +171,17 @@ export function persistValidatedSummaryBatch(opts: {
     return { ok: false, reason: validated.reason };
   }
 
-  const turnEnd = opts.turnEnd ?? resolveNewBatchEndForStart(opts.turnStart);
+  const turnEnd = opts.turnEnd ?? newBatchEndForStart(opts.turnStart);
   const turnSpan = turnEnd - opts.turnStart + 1;
   if (opts.turnStart < 1 || turnSpan < 1) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
-  const legacySpan = LEGACY_NULL_TURN_END_OFFSET + 1;
-  const newSpan = resolveNewBatchSpanLength();
-  // Mixed read accepts legacy 6 + new 5; new writes follow flag (6 when OFF, 5 when ON).
-  if (turnSpan !== NEW_ROLLING_SUMMARY_INTERVAL && turnSpan !== legacySpan) {
+  // Automatic writes (no explicit turnEnd) are 5-turn only.
+  // Explicit turnEnd may refresh a historical 6-turn row; new automatic rows never default to 6.
+  if (opts.turnEnd == null && turnSpan !== ROLLING_SUMMARY_INTERVAL) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
-  if (opts.turnEnd == null && turnSpan !== newSpan) {
-    return { ok: false, reason: "SUMMARY_INVALID" };
-  }
-  if (!isMemory5Plus4Enabled() && opts.turnEnd == null && turnSpan === NEW_ROLLING_SUMMARY_INTERVAL) {
+  if (turnSpan !== ROLLING_SUMMARY_INTERVAL && turnSpan !== LEGACY_SIX_TURN_SPAN) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
 

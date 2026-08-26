@@ -10,7 +10,7 @@
  */
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { calcUsedChars } from "./memory-db";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";

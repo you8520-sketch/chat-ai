@@ -98,7 +98,7 @@ export type MemoryBackfillOpts = {
 };
 
 /**
- * Panel/explicit catch-up: at most one missing 6-turn batch per request (V3 cost cap).
+ * Panel/explicit catch-up: at most one missing 5-turn batch per request (V3 cost cap).
  * Gap repair continues on later explicit backfill or normal turn seal — never mass-fill.
  */
 export const MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST = 1;

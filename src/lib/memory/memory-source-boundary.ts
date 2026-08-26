@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
 import { getDb } from "@/lib/db";
+import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { MemoryTier } from "./memory-types";
 
 export type MemorySourceBoundary = {
@@ -179,6 +180,8 @@ export function executeAtomicMemoryResetCore(
   db.prepare(`DELETE FROM memory_buffer WHERE chat_id=?`).run(opts.chatId);
   db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id=?`).run(opts.chatId);
   db.prepare(`DELETE FROM episodic_memory_facts WHERE chat_id=?`).run(opts.chatId);
+  ensureMemorySummaryMigrationsTable(db);
+  db.prepare(`DELETE FROM memory_summary_migrations WHERE chat_id=?`).run(opts.chatId);
   db.prepare(
     `UPDATE chats SET
        current_summary='', memory='', memory_meta=?,

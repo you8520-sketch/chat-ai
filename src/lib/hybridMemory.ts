@@ -8,6 +8,16 @@ import {
 } from "@/lib/contextTrack";
 import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
 
+import {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  ROLLING_SUMMARY_INTERVAL,
+} from "./memory/memory-constants";
+
+export {
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  ROLLING_SUMMARY_INTERVAL,
+} from "./memory/memory-constants";
+
 /** 하이브리드 메모리 — 슬라이딩 윈도우 + 5턴 롤링 요약 */
 /** Non-provider memory analysis window (batch gap math only — NOT provider RAW). */
 export const MEMORY_ANALYSIS_WINDOW_TURNS = 5;
@@ -15,12 +25,6 @@ export const MEMORY_ANALYSIS_WINDOW_TURNS = 5;
 export const SHORT_TERM_TURNS = MEMORY_ANALYSIS_WINDOW_TURNS;
 /** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 — 전 모델 10K 통일 */
 export const SHORT_TERM_TOKEN_BUDGET = 10_000;
-/** New summary batches seal every 5 complete playable turns. */
-export const ROLLING_SUMMARY_INTERVAL = 5;
-/** Normal provider RAW history — latest N complete playable exchanges (not messages). */
-export const RAW_HISTORY_COMPLETE_EXCHANGES = 4;
-/** @deprecated ROLLING_SUMMARY_INTERVAL 사용 */
-export const BATCH_TURN_SIZE = ROLLING_SUMMARY_INTERVAL;
 export const BATCH_SUMMARY_MAX_CHARS = 300;
 
 export type DialogueTurn = {
@@ -411,7 +415,7 @@ export function nextBatchRange(
   );
   const pendingBeforeWindow = windowStart - archivedTurnCount;
   if (pendingBeforeWindow <= 0) return null;
-  const batchSize = Math.min(BATCH_TURN_SIZE, pendingBeforeWindow);
+  const batchSize = Math.min(ROLLING_SUMMARY_INTERVAL, pendingBeforeWindow);
   return { start: archivedTurnCount, end: archivedTurnCount + batchSize };
 }
 

@@ -7,18 +7,15 @@ import {
 } from "@/lib/hybridMemory";
 import {
   LOREBOOK_COMPACT_FILL_RATIO,
-  NEW_ROLLING_SUMMARY_INTERVAL,
+  ROLLING_SUMMARY_INTERVAL,
+  ROLLING_SUMMARY_MAX_CHARS,
   ROLLING_SUMMARY_MIN_CHARS,
+  resolveSummaryLogLabel,
 } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
-import {
-  isSummaryBarrierActive,
-  resolveActiveSummaryInterval,
-  resolveSummaryLogLabel,
-  resolveSummaryMaxChars,
-} from "./memory-5plus4-flag";
-import { isMemoryFeatureEnabled } from "./memory-feature";
+import { isMemoryFeatureEnabled, isSummaryBarrierActive } from "./memory-feature";
+import { extractAndPersistEpisodicFactsForSealedBatch } from "./memory-episodic-extract";
 import { newBatchEndForStart, resolveNextBatchRange } from "./memory-summary-range";
 import {
   findBatchControlSource,
@@ -86,7 +83,7 @@ import {
 
 export function buildRollingSummarySystemPrompt(
   sourceTurnCount: number,
-  maxChars = resolveSummaryMaxChars()
+  maxChars = ROLLING_SUMMARY_MAX_CHARS
 ): string {
   return `[${sourceTurnCount}턴 히스토리 요약]
 
@@ -138,9 +135,9 @@ ${sourceTurnCount}턴 배치의 사건을 발생 순서대로 요약한다. 사�
 [OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.`;
 }
 
-/** Default prompt for active summary interval at module load. */
+/** Default prompt for the production 5-turn summary interval. */
 export const ROLLING_SUMMARY_SYSTEM_PROMPT = buildRollingSummarySystemPrompt(
-  resolveActiveSummaryInterval()
+  ROLLING_SUMMARY_INTERVAL
 );
 
 export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIRED]
@@ -319,11 +316,11 @@ export async function summarizeTurnBatch(opts: {
   const openingBlock = opts.openingPrelude?.trim()
     ? `${opts.openingPrelude.trim()}\n\n`
     : "";
-  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${resolveSummaryMaxChars()}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
-    return clampMemoryRecordSummary(cleaned, resolveSummaryMaxChars(), ROLLING_SUMMARY_MIN_CHARS);
+    return clampMemoryRecordSummary(cleaned, ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS);
   };
   const callLlm: RollingSummaryLlmCaller =
     summarizeTurnBatchCallerOverride ??
@@ -520,7 +517,7 @@ export function resolveBatchStartTurnForTurnNumber(
 ): number {
   if (records) return resolveBatchStartForTurnNumber(turnNumber, records);
   const n = Math.max(1, Math.floor(turnNumber));
-  const interval = resolveActiveSummaryInterval();
+  const interval = ROLLING_SUMMARY_INTERVAL;
   let start = Math.floor((n - 1) / interval) * interval + 1;
   while (start + interval - 1 < n) {
     start += interval;
@@ -556,7 +553,7 @@ type ComposedBatchScope =
   | { ok: false; reason: string; detail?: string | null };
 
 /**
- * Rebuild every scope for a 6-turn batch from current surviving messages.
+ * Rebuild every scope for a stored summary batch from current surviving messages.
  * seal: first persist (may promote/close other rows from explicit user commands).
  * regen: full payload replace; preserves explicit branch/adopt provenance; no cross-row promote.
  */
@@ -1015,6 +1012,8 @@ async function persistComposedBatchScopes(opts: {
   logLabel: string;
   boundarySnapshot: MemorySourceBoundary;
   sourceUserMessageIds: number[];
+  charName?: string;
+  dialogue?: string;
 }): Promise<boolean> {
   const scopePayload: ScopePayloadV1 = {
     v: 1,
@@ -1121,10 +1120,33 @@ async function persistComposedBatchScopes(opts: {
   console.info(
     `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
   );
+
+  if (opts.dialogue && opts.charName) {
+    try {
+      await extractAndPersistEpisodicFactsForSealedBatch({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        startTurn: opts.batchStart,
+        endTurn: opts.endTurn,
+        dialogue: opts.dialogue,
+        sourceUserMessageId:
+          opts.sourceUserMessageIds[opts.sourceUserMessageIds.length - 1] ?? null,
+        boundarySnapshot: opts.boundarySnapshot,
+        turnTrace: opts.turnTrace,
+      });
+    } catch (e) {
+      console.warn("[memory] episodic seal extract skipped (best-effort)", {
+        chat_id: opts.chatId,
+        error: (e as Error).message?.slice(0, 200) ?? "unknown",
+      });
+    }
+  }
   return true;
 }
 
-/** Rebuild + replace full scopePayload for an existing 6-turn batch (regen paths). */
+/** Rebuild + replace full scopePayload for an existing stored batch (regen paths). */
 async function rebuildExistingBatchScopePayload(opts: {
   chatId: number;
   userId: number;
@@ -1197,10 +1219,15 @@ async function rebuildExistingBatchScopePayload(opts: {
     sourceUserMessageIds: batchMeta
       .map((turn) => turn.userMessageId)
       .filter((id): id is number => id != null),
+    charName: opts.charName,
+    dialogue: formatBatchDialogue(
+      allEntries.map((e) => ({ turnIndex: e.turnIndex, turn: e.turn })),
+      opts.charName
+    ),
   });
 }
 
-/** 재생성 — 해당 턴이 속한 6턴 배치의 scopePayload 전체를 현재 DB 대화 기준으로 재구성 */
+/** 재생성 — 해당 턴이 속한 요약 배치의 scopePayload 전체를 현재 DB 대화 기준으로 재구성 */
 export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   chatId: number;
   userId: number;
@@ -1275,13 +1302,13 @@ export function pickNextSummaryBatch(
   summarizedTurnCount: number
 ): DialogueTurn[] {
   const { playable } = splitOpeningPlayableTurns(turns);
-  const interval = resolveActiveSummaryInterval();
+  const interval = ROLLING_SUMMARY_INTERVAL;
   const pending = playable.length - summarizedTurnCount;
   if (pending < interval) return [];
   return playable.slice(summarizedTurnCount, summarizedTurnCount + interval);
 }
 
-/** 6턴 1배치 → 기억 기록 저장 + 로어북(recent_summary) 누적 (원자적·연속 배치) */
+/** 5턴 1배치 → 기억 기록 저장 + 로어북(recent_summary) 누적 (원자적·연속 배치) */
 export async function processRollingSummaryBatch(opts: {
   chatId: number;
   userId: number;
@@ -1435,6 +1462,11 @@ export async function processRollingSummaryBatch(opts: {
         sourceUserMessageIds: batchMeta
           .map((turn) => turn.userMessageId)
           .filter((id): id is number => id != null),
+        charName: opts.charName,
+        dialogue: formatBatchDialogue(
+          allEntries.map((e) => ({ turnIndex: e.turnIndex, turn: e.turn })),
+          opts.charName
+        ),
       });
     } catch (e) {
       console.error(
@@ -1452,7 +1484,7 @@ export function __getLastSummarizeTurnBatchError(): string | null {
 }
 
 
-/** 패널·API — 특정 6턴 배치 scopePayload 전체를 현재 메시지 기준으로 재구성 (유저 수정본은 건너뜀) */
+/** 패널·API — 특정 요약 배치 scopePayload 전체를 현재 메시지 기준으로 재구성 (유저 수정본은 건너뜀) */
 export async function regenerateMemoryRecordBatch(opts: {
   chatId: number;
   userId: number;
@@ -1533,13 +1565,12 @@ export async function catchUpRollingSummaries(opts: {
 }
 
 export function shouldTriggerRollingSummary(messageCount: number, summarizedTurnCount: number): boolean {
-  const interval = resolveActiveSummaryInterval();
-  return messageCount >= summarizedTurnCount + interval;
+  return messageCount >= summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
 /** Next batch seal completes at this playable turn. */
 export function summarySealAtTurn(summarizedTurnCount = 0): number {
-  return summarizedTurnCount + resolveActiveSummaryInterval();
+  return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
 export function turnsUntilNextSummary(
