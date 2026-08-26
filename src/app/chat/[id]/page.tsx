@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
+import { effectiveIsAdult } from "@/lib/adultVerification";
 import { canShowFullBillingReceipt, stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
 
@@ -521,7 +522,7 @@ export default async function ChatPage({
       initialPersonas={personaList}
       initialSelectedPersonaId={selectedPersonaId}
       nickname={user.nickname}
-      isAdult={!!user.is_adult}
+      isAdult={effectiveIsAdult(user.is_adult)}
       userNsfwOn={!!user.nsfw_on}
       initialAdultHandoffEnabled={!!chat.adult_handoff_enabled}
       initialSelectedAI={globalModelEntry.selectedAI}

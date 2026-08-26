@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { effectiveIsAdult } from "@/lib/adultVerification";
 import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
-import { resetCncConsentStickinessInRouteState } from "@/lib/adultSceneRouting";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
@@ -65,13 +65,14 @@ export async function PATCH(req: Request) {
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
 
   const nsfw = isAdultMode ?? isNsfwMode ?? nsfwMode;
-  if (nsfw === true && !user.is_adult) {
+  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  if (nsfw === true && !userAdultVerified) {
     return Response.json({ error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
   const adultHandoffEnabled = parseAdultHandoffEnabled(
     adultHandoffEnabledInput ?? body.adult_handoff_enabled
   );
-  if (adultHandoffEnabled === true && !user.is_adult) {
+  if (adultHandoffEnabled === true && !userAdultVerified) {
     return Response.json(
       { error: "성인모드는 성인인증 후 이용할 수 있습니다.", needVerify: true },
       { status: 403 }
@@ -80,7 +81,7 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   const chat = db.prepare(
-    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name, ch.model_route_state_json,
+    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name,
             c.name, COALESCE(c.content_kind, 'character') AS content_kind
      FROM chats ch JOIN characters c ON c.id = ch.character_id
      WHERE ch.id=? AND ch.user_id=?`
@@ -88,7 +89,6 @@ export async function PATCH(req: Request) {
     id: number;
     narrative_pov: string | null;
     pov_character_name: string | null;
-    model_route_state_json: string | null;
     name: string;
     content_kind: string;
   } | undefined;
@@ -211,15 +211,6 @@ export async function PATCH(req: Request) {
   if (adultHandoffEnabled !== undefined) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
-    if (!adultHandoffEnabled) {
-      const resetRouteState = resetCncConsentStickinessInRouteState(
-        chat.model_route_state_json
-      );
-      if (resetRouteState !== chat.model_route_state_json) {
-        sets.push("model_route_state_json=?");
-        vals.push(resetRouteState);
-      }
-    }
   }
 
   if (sets.length === 0) {

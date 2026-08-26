@@ -494,10 +494,10 @@ import {
   normalizeAdultDialogueProfile,
   parseModelRouteState,
   parseAllowedConsentModes,
-  resetCncConsentStickinessInRouteState,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   resolveEffectiveConsentMode,
+  resolveWireConsentMode,
   selectAdultHandoffRawVariants,
   serializeModelRouteState,
   type ActiveModelRoute,
@@ -773,7 +773,7 @@ export async function POST(req: Request) {
   const novelModeEnabled = false;
   const autoProgressionEnabled = isContinue === true || legacyNovelModeEnabled;
 
-  if (isAdultMode && !user.is_adult) {
+  if (isAdultMode && !effectiveIsAdult(user.is_adult)) {
     return Response.json(
       { error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true },
       { status: 403 }
@@ -1175,19 +1175,6 @@ export async function POST(req: Request) {
       chat.id
     );
     chat.adult_handoff_enabled = chatAdultHandoffEnabled ? 1 : 0;
-    if (!chatAdultHandoffEnabled) {
-      const resetRouteState = resetCncConsentStickinessInRouteState(
-        chat.model_route_state_json
-      );
-      if (resetRouteState !== chat.model_route_state_json) {
-        db.prepare("UPDATE chats SET model_route_state_json=? WHERE id=? AND user_id=?").run(
-          resetRouteState,
-          chat.id,
-          user.id
-        );
-        chat.model_route_state_json = resetRouteState;
-      }
-    }
   }
   const adultModeAuthorized = userAdultVerified && chatAdultHandoffEnabled;
   const adultRoutingConfig = {
@@ -1207,14 +1194,18 @@ export async function POST(req: Request) {
     preOocIntent === "none"
       ? storedUserMessage
       : extractOocRoutingText(storedUserMessage);
-  const requestedConsentMode = resolveEffectiveConsentMode({
+  const persistedConsentMode = resolveEffectiveConsentMode({
     requested: body.adultConsentMode ?? body.adult_consent_mode,
     previous: priorModelRouteState.activeConsentMode,
     currentInput: storedUserMessage,
     allowedConsentModes,
     sceneReset: preSceneReset,
     clearSceneTransition: detectClearSceneTransition(preRoutingText),
-    adultModeEnabled: adultModeAuthorized,
+    adultModeAuthorized,
+  });
+  const wireConsentMode = resolveWireConsentMode({
+    persistedConsentMode,
+    adultModeAuthorized,
   });
 
   const recentRawForSceneClassification = turnsForRecentHistory
@@ -1230,7 +1221,7 @@ export async function POST(req: Request) {
     adultDialogueProfile: normalizeAdultDialogueProfile(
       ch.adult_dialogue_profile
     ),
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: wireConsentMode,
     previousConsentMode: priorModelRouteState.activeConsentMode,
   });
   // Participant age eligibility uses identity fields only. World lore, cast, and
@@ -2063,7 +2054,7 @@ export async function POST(req: Request) {
     currentUserMessage: promptUserMessage,
     currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
     nsfw: isAdultMode,
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: wireConsentMode,
     gender: resolveCharacterGender(ch.gender),
     assetTags: assetTags.length > 0 ? assetTags : undefined,
     memoryMeta: relationshipMemoryForPrompt,
@@ -2304,7 +2295,7 @@ export async function POST(req: Request) {
       ? sceneClassification.sexualContextActive
       : sceneClassification.sexualContextActive ||
         priorModelRouteState.sexualContextActive === true,
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: wireConsentMode,
     charactersPresent: [ch.name, personaDisplayName],
     currentPov: contextBuildInput.narrativePov,
     sceneReset: sceneClassification.sceneReset,
@@ -4437,7 +4428,7 @@ export async function POST(req: Request) {
               adultDialogueProfile: normalizeAdultDialogueProfile(
                 ch.adult_dialogue_profile
               ),
-              activeConsentMode: requestedConsentMode,
+              activeConsentMode: wireConsentMode,
             })
           : null;
         const sceneModeAfter: SceneMode = postSceneClassification?.sceneMode ??
@@ -4463,7 +4454,7 @@ export async function POST(req: Request) {
               adultDialogueProfile: normalizeAdultDialogueProfile(
                 ch.adult_dialogue_profile
               ),
-              activeConsentMode: requestedConsentMode,
+              activeConsentMode: wireConsentMode,
             })
           );
         const nextModelRouteState = advanceModelRouteState({
@@ -4478,7 +4469,7 @@ export async function POST(req: Request) {
             : adultRouteDecision.routeTriggerReason,
           config: adultRoutingConfig,
           explicitSceneEnd: sceneClassification.hardStop,
-          activeConsentMode: requestedConsentMode,
+          activeConsentMode: persistedConsentMode,
           generalRouteBridge: nextGeneralBridge,
           transientAdultCapableRoute,
           establishedOngoingSexualContext,

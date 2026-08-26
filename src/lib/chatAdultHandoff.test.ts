@@ -51,6 +51,8 @@ describe("chat-room adult mode (handoff) preference", () => {
   it("keeps listing nsfw_on off the chat-route handoff gate", () => {
     const route = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
     assert.doesNotMatch(route, /adultContentVisibilityEnabled = !!user\.nsfw_on/);
+    assert.match(route, /resolveWireConsentMode/);
+    assert.doesNotMatch(route, /resetCncConsentStickinessInRouteState/);
     assert.match(route, /chatAdultHandoffEnabled/);
     assert.doesNotMatch(route, /characterAdultContentEnabled:\s*ch\.nsfw/);
     assert.match(route, /characters\.nsfw is listing\/content-rating only/);
@@ -61,6 +63,8 @@ describe("chat-room adult mode (handoff) preference", () => {
     );
     assert.match(settings, /adultHandoffEnabled/);
     assert.match(settings, /adult_handoff_enabled/);
+    assert.match(settings, /effectiveIsAdult\(user\.is_adult\)/);
+    assert.doesNotMatch(settings, /resetCncConsentStickinessInRouteState/);
 
     const chatClient = readFileSync(
       new URL("../app/chat/[id]/ChatClient.tsx", import.meta.url),

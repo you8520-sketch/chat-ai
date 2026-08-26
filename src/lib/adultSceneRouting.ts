@@ -372,20 +372,6 @@ export function parseModelRouteState(value: unknown): ModelRouteState {
   };
 }
 
-/** Adult Mode OFF breaks CNC stickiness without clearing character DB capability. */
-export function resetCncConsentStickinessInRouteState(
-  raw: string | null | undefined
-): string {
-  const state = parseModelRouteState(raw);
-  if (state.activeConsentMode !== "cnc_opt_in") {
-    return serializeModelRouteState(state);
-  }
-  return serializeModelRouteState({
-    ...state,
-    activeConsentMode: "standard",
-  });
-}
-
 export function serializeModelRouteState(state: ModelRouteState): string {
   return JSON.stringify({
     activeModelRoute: state.activeRoute,
@@ -802,8 +788,12 @@ export function resolveRequestedConsentMode(input: {
   currentInput: string;
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
-  /** Server-authorized chat Adult Mode — CNC requires this ON. Default true when omitted. */
-  adultModeEnabled?: boolean;
+  /**
+   * Server-authorized Adult Mode (effective adult + handoff ON).
+   * When false, new CNC activation is blocked but prior cnc_opt_in may persist
+   * for resume when Adult Mode is enabled again. Default true when omitted.
+   */
+  adultModeAuthorized?: boolean;
 }): AdultConsentMode {
   const {
     requested,
@@ -811,7 +801,7 @@ export function resolveRequestedConsentMode(input: {
     currentInput,
     sceneReset = false,
     clearSceneTransition = false,
-    adultModeEnabled = true,
+    adultModeAuthorized = true,
   } = input;
 
   if (
@@ -823,7 +813,10 @@ export function resolveRequestedConsentMode(input: {
 
   if (requested === "standard") return "standard";
 
-  if (!adultModeEnabled) {
+  if (!adultModeAuthorized) {
+    if (previous === "cnc_opt_in") {
+      return "cnc_opt_in";
+    }
     if (requested === "power_play") return "power_play";
     return "standard";
   }
@@ -876,7 +869,7 @@ export function resolveEffectiveConsentMode(input: {
   allowedConsentModes: string[];
   sceneReset?: boolean;
   clearSceneTransition?: boolean;
-  adultModeEnabled?: boolean;
+  adultModeAuthorized?: boolean;
 }): AdultConsentMode {
   const resolved = resolveRequestedConsentMode({
     requested: input.requested,
@@ -884,12 +877,26 @@ export function resolveEffectiveConsentMode(input: {
     currentInput: input.currentInput,
     sceneReset: input.sceneReset,
     clearSceneTransition: input.clearSceneTransition,
-    adultModeEnabled: input.adultModeEnabled,
+    adultModeAuthorized: input.adultModeAuthorized,
   });
   if (!input.allowedConsentModes.includes(resolved)) {
     return "standard";
   }
   return resolved;
+}
+
+/** Adult Mode OFF suspends CNC on the provider wire without erasing persisted consent. */
+export function resolveWireConsentMode(input: {
+  persistedConsentMode: AdultConsentMode;
+  adultModeAuthorized: boolean;
+}): AdultConsentMode {
+  if (
+    !input.adultModeAuthorized &&
+    input.persistedConsentMode === "cnc_opt_in"
+  ) {
+    return "standard";
+  }
+  return input.persistedConsentMode;
 }
 
 export interface SceneClassification {
