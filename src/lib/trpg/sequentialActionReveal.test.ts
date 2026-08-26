@@ -5,6 +5,7 @@ import {
   buildRoundPresentationActors,
   decideLiveRoundPresentation,
   idlePresentation,
+  incrementalDecorativeRevealArrivalOrder,
   isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
   isLiveRoundPresentationStarting,
@@ -55,14 +56,15 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     assert.match(room, /sequentialRevealCompletedRef/);
     assert.match(room, /mergeActorRevealReport/);
     assert.match(room, /shouldDecorativeRevealAction/);
-    assert.match(room, /shouldHoldDecorativeRevealAction/);
-    assert.doesNotMatch(room, /incrementalRevealQueueRef/);
+    assert.match(room, /stickySequentialRevealActorRef/);
+    assert.match(room, /incrementalDecorativeRevealArrivalOrder/);
     assert.doesNotMatch(room, /secondRevealQueue/);
   });
 
   it("T_SEQ_1: bot2 persists while bot1 progressive — only bot1 reveals, then bot2 starts", () => {
     const fresh = new Set<string>(["a:4:20", "a:4:30"]);
     let completed: number[] = [];
+    let sticky: number | null = null;
     let report: {
       roundNumber: number;
       participantId: number;
@@ -70,22 +72,25 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
       progressive: boolean;
     } | null = null;
 
-    const step = (actions: typeof human[], phase: string) => {
+    const step = (botActions: typeof bot1[], phase: string) => {
       const snap: LiveRoundSnapshotInput = {
         phase,
         roundNumber: 4,
-        actions: [human, ...actions],
+        actions: [human, ...botActions],
         rolls: [],
         resolutionOrder: order,
       };
+      const persistedActions = snap.actions.filter((a) => a.revealed && a.body.trim());
       const input = {
-        resolutionOrder: order,
-        actions: snap.actions.filter((a) => a.revealed && a.body.trim()),
+        arrivalOrder: incrementalDecorativeRevealArrivalOrder(persistedActions),
+        actions: persistedActions,
         completedRevealActorIds: completed,
+        stickyActiveRevealActorId: sticky,
         isFreshAiAction: (id: number) => fresh.has(`a:4:${id}`),
         skipDecorativeReveal: false,
       };
       const queue = resolveSequentialActionRevealQueue(input);
+      if (queue.activeRevealActorId != null) sticky = queue.activeRevealActorId;
       const owners = snap.actions
         .filter((a) =>
           shouldDecorativeRevealAction({
@@ -125,6 +130,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     report = { roundNumber: 4, participantId: 20, complete: true, progressive: false };
     completed = [20];
     fresh.delete("a:4:20");
+    sticky = null;
 
     const afterBot1 = step([bot1, bot2], "BOT_ACTION");
     assert.equal(afterBot1.queue.activeRevealActorId, 30);
@@ -156,10 +162,12 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
       resolutionOrder: order,
     };
 
+    const actions = snapBotAction.actions.filter((a) => a.revealed && a.body.trim());
     const inputPartial = {
-      resolutionOrder: order,
-      actions: snapBotAction.actions.filter((a) => a.revealed && a.body.trim()),
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(actions),
+      actions,
       completedRevealActorIds: completed,
+      stickyActiveRevealActorId: null,
       isFreshAiAction: (id: number) => fresh.has(`a:4:${id}`),
       skipDecorativeReveal: false,
     };
@@ -198,7 +206,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
       actions: snapRolling.actions.filter((a) => a.revealed && a.body.trim()),
       rolls: snapRolling.rolls ?? [],
     });
-    assert.equal(actors.length, 3, "REVEAL_ORDER_FOLLOWS_RESOLUTION_ORDER");
+    assert.equal(actors.length, 3, "FINAL_DICE_ORDER_FOLLOWS_RESOLUTION_ORDER");
     assert.equal(startCinematicPresentation().phase, "actor-action");
   });
 
@@ -249,9 +257,10 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     ];
 
     const sequentialInput = {
-      resolutionOrder: order,
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(actions),
       actions,
       completedRevealActorIds: completed,
+      stickyActiveRevealActorId: 20,
       isFreshAiAction: (id: number) => fresh.has(`a:4:${id}`),
       skipDecorativeReveal: false,
     };
@@ -398,7 +407,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     fresh.delete("a:4:20");
 
     const beforeBot2 = resolveSequentialActionRevealQueue({
-      resolutionOrder: order,
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder([human, bot1]),
       actions: [human, bot1].filter((a) => a.revealed && a.body.trim()),
       completedRevealActorIds: completed,
       isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
@@ -408,7 +417,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
 
     fresh.add("a:4:30");
     const afterBot2 = resolveSequentialActionRevealQueue({
-      resolutionOrder: order,
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder([human, bot1, bot2]),
       actions: [human, bot1, bot2].filter((a) => a.revealed && a.body.trim()),
       completedRevealActorIds: completed,
       isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
@@ -431,7 +440,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     assert.equal(seen.has("a:4:30"), true);
 
     const queue = resolveSequentialActionRevealQueue({
-      resolutionOrder: order,
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder([human, bot1, bot2]),
       actions: [human, bot1, bot2],
       completedRevealActorIds: [],
       isFreshAiAction: (id) => !seen.has(`a:4:${id}`),
@@ -439,5 +448,170 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     });
     assert.equal(queue.activeRevealActorId, null, "NO_AI_ACTION_REPLAY");
     assert.deepEqual(queue.queuedRevealActorIds, []);
+  });
+
+  it("T_SEQ_0_FIRST_ROUND_NO_RESOLUTION_ORDER: empty resolutionOrder still reveals first persisted bot", () => {
+    const fresh = new Set(["a:1:20", "a:1:30"]);
+    const actions = [human, bot1].filter((a) => a.revealed && a.body.trim());
+    const input = {
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(actions),
+      actions,
+      completedRevealActorIds: [],
+      stickyActiveRevealActorId: null,
+      isFreshAiAction: (id: number) => fresh.has(`a:1:${id}`),
+      skipDecorativeReveal: false,
+    };
+    const queue = resolveSequentialActionRevealQueue(input);
+    assert.equal(queue.activeRevealActorId, 20, "FIRST_ROUND_EMPTY_RESOLUTION_ORDER_SAFE");
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: bot1.kind,
+        participantId: 20,
+        activeRevealActorId: queue.activeRevealActorId,
+        isFresh: true,
+        skipDecorativeReveal: false,
+      }),
+      true
+    );
+
+    const bothActions = [human, bot1, bot2].filter((a) => a.revealed && a.body.trim());
+    const withBot2 = resolveSequentialActionRevealQueue({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(bothActions),
+      actions: bothActions,
+      completedRevealActorIds: [],
+      stickyActiveRevealActorId: 20,
+      isFreshAiAction: (id: number) => fresh.has(`a:1:${id}`),
+      skipDecorativeReveal: false,
+    });
+    assert.equal(withBot2.activeRevealActorId, 20);
+    assert.equal(
+      shouldHoldDecorativeRevealAction({
+        kind: bot2.kind,
+        participantId: 30,
+        activeRevealActorId: withBot2.activeRevealActorId,
+        isFresh: true,
+        skipDecorativeReveal: false,
+      }),
+      true
+    );
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: bot2.body, active: false, kind: "bot" },
+        nextSession: { text: bot2.body, active: false, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: true,
+      }),
+      0
+    );
+  });
+
+  it("T_SEQ_GENERATION_ORDER_DIFFERS_FROM_RESOLUTION_ORDER: arrival order wins over resolutionOrder", () => {
+    const fresh = new Set(["a:4:20", "a:4:30"]);
+    let sticky: number | null = null;
+    const completed: number[] = [];
+
+    const step1Actions = [human, bot2].filter((a) => a.revealed && a.body.trim());
+    const step1 = resolveSequentialActionRevealQueue({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(step1Actions),
+      actions: step1Actions,
+      completedRevealActorIds: completed,
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
+      skipDecorativeReveal: false,
+    });
+    assert.equal(step1.activeRevealActorId, 30, "bot2 first by generation/persistence order");
+    sticky = step1.activeRevealActorId;
+
+    const step2Actions = [human, bot2, bot1].filter((a) => a.revealed && a.body.trim());
+    const step2 = resolveSequentialActionRevealQueue({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(step2Actions),
+      actions: step2Actions,
+      completedRevealActorIds: completed,
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
+      skipDecorativeReveal: false,
+    });
+    assert.equal(step2.activeRevealActorId, 30, "ACTIVE_DECORATIVE_REVEAL_IS_STICKY_UNTIL_COMPLETE");
+    assert.equal(
+      shouldHoldDecorativeRevealAction({
+        kind: bot1.kind,
+        participantId: 20,
+        activeRevealActorId: step2.activeRevealActorId,
+        isFresh: true,
+        skipDecorativeReveal: false,
+      }),
+      true
+    );
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: bot1.body, active: false, kind: "bot" },
+        nextSession: { text: bot1.body, active: false, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: true,
+      }),
+      0
+    );
+
+    fresh.delete("a:4:30");
+    completed.push(30);
+    sticky = null;
+    const afterBot2 = resolveSequentialActionRevealQueue({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(step2Actions),
+      actions: step2Actions,
+      completedRevealActorIds: completed,
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
+      skipDecorativeReveal: false,
+    });
+    assert.equal(afterBot2.activeRevealActorId, 20);
+    assert.equal(
+      resolveTrpgRevealVisibleCount({
+        previousSession: { text: bot1.body, active: false, kind: "bot" },
+        nextSession: { text: bot1.body, active: true, kind: "bot" },
+        storedCount: 0,
+        finishOwned: false,
+        reducedMotion: false,
+        held: false,
+      }),
+      0
+    );
+
+    const diceActors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: step2Actions,
+      rolls: [],
+    });
+    assert.deepEqual(
+      diceActors.map((a) => a.actorId),
+      order,
+      "FINAL_DICE_ORDER_FOLLOWS_RESOLUTION_ORDER"
+    );
+  });
+
+  it("T_SEQ_ACTIVE_OWNER_CANNOT_BE_PREEMPTED: resolutionOrder change does not steal active stream", () => {
+    const fresh = new Set(["a:4:20", "a:4:30"]);
+    const actions = [human, bot2, bot1].filter((a) => a.revealed && a.body.trim());
+    const sticky = 30;
+
+    const wrongResolutionFirst = resolveSequentialActionRevealQueue({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(actions),
+      actions,
+      completedRevealActorIds: [],
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id) => fresh.has(`a:4:${id}`),
+      skipDecorativeReveal: false,
+    });
+    assert.equal(wrongResolutionFirst.activeRevealActorId, 30, "NO_ACTIVE_STREAM_PREEMPTION");
+
+    const rollingFrame = resolveActivePresentationActorId({
+      sequentialActionRevealPending: true,
+      sequentialActiveRevealActorId: wrongResolutionFirst.activeRevealActorId,
+      cinematicActiveActorId: 20,
+    });
+    assert.equal(rollingFrame, 30, "ROLLING transition cannot replace active owner");
   });
 });

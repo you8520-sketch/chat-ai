@@ -93,6 +93,7 @@ import {
   historicalPresentation,
   idlePresentation,
   incrementalCanonicalActionIds,
+  incrementalDecorativeRevealArrivalOrder,
   isActorActionRevealBeatSatisfied,
   isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
@@ -354,6 +355,7 @@ export default function TrpgCampaignRoom({
   const consumedActorActionBeatRef = useRef("");
   const consumedSequentialRevealBeatRef = useRef("");
   const sequentialRevealCompletedRef = useRef<number[]>([]);
+  const stickySequentialRevealActorRef = useRef<number | null>(null);
   const narrationFollowRafRef = useRef<number | null>(null);
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
@@ -441,6 +443,7 @@ export default function TrpgCampaignRoom({
     pinnedVisibleActorIdsRef.current = [];
     sequentialRevealCompletedRef.current = [];
     consumedSequentialRevealBeatRef.current = "";
+    stickySequentialRevealActorRef.current = null;
   }
   if (incrementalCanonicalVisible) {
     pinnedVisibleActorIdsRef.current = incrementalCanonicalActionIds(
@@ -730,14 +733,12 @@ export default function TrpgCampaignRoom({
     sessionKey: queueSessionKey,
     hiddenCatchUpActive,
   });
-  const resolutionOrderIds = useMemo(
-    () => (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
-    [snap.resolutionOrder]
-  );
+  const arrivalOrderIds = incrementalDecorativeRevealArrivalOrder(sourceActions);
   const sequentialRevealInput = {
-    resolutionOrder: resolutionOrderIds,
+    arrivalOrder: arrivalOrderIds,
     actions: sourceActions,
     completedRevealActorIds: sequentialRevealCompletedRef.current,
+    stickyActiveRevealActorId: stickySequentialRevealActorRef.current,
     isFreshAiAction: (participantId: number) =>
       isFreshLogKey(`a:${snap.round.number}:${participantId}`),
     skipDecorativeReveal,
@@ -753,6 +754,11 @@ export default function TrpgCampaignRoom({
     sequentialActiveRevealActorId: sequentialRevealQueue.activeRevealActorId,
     cinematicActiveActorId,
   });
+  if (sequentialActionRevealPending && activePresentationActorId != null) {
+    stickySequentialRevealActorRef.current = activePresentationActorId;
+  } else if (!sequentialActionRevealPending) {
+    stickySequentialRevealActorRef.current = null;
+  }
   const activePresentationAction =
     activePresentationActorId != null
       ? sourceActions.find((action) => action.participantId === activePresentationActorId)
@@ -840,6 +846,7 @@ export default function TrpgCampaignRoom({
       if (consumedSequentialRevealBeatRef.current === beatKey) return;
       consumedSequentialRevealBeatRef.current = beatKey;
       sequentialRevealCompletedRef.current = [...sequentialRevealCompletedRef.current, activeId];
+      stickySequentialRevealActorRef.current = null;
       seenLogKeysRef.current!.add(`a:${snap.round.number}:${activeId}`);
       setActorRevealReport({
         roundNumber: null,

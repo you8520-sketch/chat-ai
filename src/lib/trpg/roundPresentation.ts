@@ -138,9 +138,12 @@ export type SequentialActionRevealQueue = {
 };
 
 type SequentialActionRevealInput = {
-  resolutionOrder: readonly number[];
+  /** Persistence/generation arrival order — NOT final mechanical resolutionOrder. */
+  arrivalOrder: readonly number[];
   actions: readonly TrpgPublicAction[];
   completedRevealActorIds: readonly number[];
+  /** In-progress decorative owner; sticky until semantic completion or round boundary. */
+  stickyActiveRevealActorId?: number | null;
   isFreshAiAction: (participantId: number) => boolean;
   skipDecorativeReveal: boolean;
 };
@@ -155,24 +158,58 @@ function persistedRevealedActions(
   return persisted;
 }
 
+function isEligibleSequentialAiReveal(
+  id: number,
+  persisted: Map<number, TrpgPublicAction>,
+  completed: Set<number>,
+  opts: Pick<SequentialActionRevealInput, "isFreshAiAction" | "skipDecorativeReveal">
+): boolean {
+  const action = persisted.get(id);
+  if (!action || action.kind !== "ai_character") return false;
+  if (!opts.isFreshAiAction(id)) return false;
+  if (opts.skipDecorativeReveal) return false;
+  if (completed.has(id)) return false;
+  return true;
+}
+
+/** Authoritative incremental decorative arrival order from persisted action snapshots. */
+export function incrementalDecorativeRevealArrivalOrder(
+  actions: readonly TrpgPublicAction[]
+): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const action of actions) {
+    if (!action.revealed || !action.body.trim()) continue;
+    if (seen.has(action.participantId)) continue;
+    seen.add(action.participantId);
+    out.push(action.participantId);
+  }
+  return out;
+}
+
 /** #628 reveal owner extended across incremental BOT_ACTION — one progressive AI at a time. */
 export function resolveSequentialActionRevealQueue(
   opts: SequentialActionRevealInput
 ): SequentialActionRevealQueue {
   const persisted = persistedRevealedActions(opts.actions);
   const completed = new Set(opts.completedRevealActorIds);
-  const queued: number[] = [];
-  let active: number | null = null;
+  const order = uniqueResolutionOrder(opts.arrivalOrder);
+  const eligible = order.filter((id) =>
+    isEligibleSequentialAiReveal(id, persisted, completed, opts)
+  );
 
-  for (const id of uniqueResolutionOrder(opts.resolutionOrder)) {
-    const action = persisted.get(id);
-    if (!action || action.kind !== "ai_character") continue;
-    if (!opts.isFreshAiAction(id)) continue;
-    if (opts.skipDecorativeReveal) continue;
-    if (completed.has(id)) continue;
-    if (active == null) active = id;
-    else queued.push(id);
+  let active: number | null = null;
+  const sticky = opts.stickyActiveRevealActorId ?? null;
+  if (sticky != null && isEligibleSequentialAiReveal(sticky, persisted, completed, opts)) {
+    active = sticky;
+  } else {
+    active = eligible[0] ?? null;
   }
+
+  const queued =
+    active == null
+      ? []
+      : eligible.filter((id) => id !== active);
 
   return { activeRevealActorId: active, queuedRevealActorIds: queued };
 }

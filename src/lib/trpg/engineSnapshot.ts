@@ -183,7 +183,8 @@ function loadActions(
         `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.locked, s.action_type
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
-         WHERE s.round_id=?`
+         WHERE s.round_id=?
+         ORDER BY s.id ASC`
       )
       .all(roundId) as Array<{
       participant_id: number;
