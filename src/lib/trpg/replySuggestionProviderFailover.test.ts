@@ -17,6 +17,7 @@ import {
   TRPG_REPLY_SUGGESTION_BACKUP_COMPLETION_MS,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
 } from "./replySuggestions";
+import { shouldAutoRequestTrpgActionSuggestions } from "./displayPrefs";
 import { fetchDeepSeekNonStreamCompletion } from "@/lib/deepseekProviderFailover";
 import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { startTrpgCampaign, type TrpgEngineDeps } from "./engineAdvance";
@@ -442,10 +443,15 @@ describe("TRPG reply suggestion provider failover A-N", () => {
     db.close();
   });
 
-  it("N: failed round polling does not add provider calls until manual retry", async () => {
+  it("N: failed auto request max two attempts; client round marker blocks auto retry; explicit retry allowed immediately", async () => {
     resetTrpgReplySuggestionCooldownForTests();
     const db = memoryDb();
     const campaignId = await startedCampaign(db);
+    const roundNumber = (
+      db
+        .prepare(`SELECT round_number FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number DESC LIMIT 1`)
+        .get(campaignId) as { round_number: number }
+    ).round_number;
     let fetchCalls = 0;
     const previousFetch = globalThis.fetch;
     await withKeys(async () => {
@@ -456,17 +462,37 @@ describe("TRPG reply suggestion provider failover A-N", () => {
         }
         return new Response("backup failed", { status: 502 });
       }) as typeof fetch;
+
+      // A: one failed logical request uses OR primary + CI backup (max 2 provider calls).
       await assert.rejects(
         () => requestTrpgReplySuggestions(db, { campaignId, userId: 1 }),
         (error: unknown) =>
           error instanceof Error && error.message === TRPG_REPLY_SUGGESTION_USER_ERROR
       );
-      assert.equal(fetchCalls, 2);
+      assert.equal(fetchCalls, TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX);
+
+      // B: after a failed automatic request the client keeps requestedRound for this turn,
+      // so snapshot polling/refresh does not auto-request again.
+      assert.equal(
+        shouldAutoRequestTrpgActionSuggestions({
+          enabled: true,
+          phase: "ACTION_INPUT",
+          hasDraft: true,
+          locked: false,
+          requestedRound: roundNumber,
+          roundNumber,
+        }),
+        false
+      );
+
+      // C + D: explicit retry is allowed immediately (no server cooldown) and runs one more
+      // logical request with at most two provider attempts — not an automatic retry loop.
       await assert.rejects(
         () => requestTrpgReplySuggestions(db, { campaignId, userId: 1 }),
-        /잠시 후/
+        (error: unknown) =>
+          error instanceof Error && error.message === TRPG_REPLY_SUGGESTION_USER_ERROR
       );
-      assert.equal(fetchCalls, 2);
+      assert.equal(fetchCalls, TRPG_REPLY_SUGGESTION_PROVIDER_ATTEMPTS_MAX * 2);
     });
     globalThis.fetch = previousFetch;
     db.close();
