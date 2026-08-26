@@ -79,6 +79,7 @@ import {
   tryClaimBotExplicitRetryGeneration,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
+import { allRequiredHumanActionsLocked } from "./roundLock";
 import { anchorTrpgProcessTimer, ensureTrpgProcessStage } from "./processTimer";
 import { tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
@@ -331,7 +332,10 @@ export function submitTrpgAction(
     opts.idempotencyKey,
     parseTrpgInputOrigin(opts.inputOrigin)
   );
-  anchorTrpgProcessTimer(db, round.id);
+  const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
+  if (allRequiredHumanActionsLocked(humanActors)) {
+    anchorTrpgProcessTimer(db, round.id);
+  }
 }
 
 function upsertLockedAction(

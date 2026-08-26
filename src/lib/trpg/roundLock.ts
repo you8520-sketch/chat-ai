@@ -15,12 +15,17 @@ export type TrpgRoundWork =
   | { type: "acquire_gm_lock" }
   | { type: "idle" };
 
-function actingIds(actors: TrpgActorReady[]): number[] {
+function actingIds(actors: readonly TrpgActorReady[]): number[] {
   return actors.filter((a) => a.canAct).map((a) => a.id);
 }
 
-function pendingIds(actors: TrpgActorReady[]): number[] {
+function pendingIds(actors: readonly TrpgActorReady[]): number[] {
   return actors.filter((a) => a.canAct && !a.submitted).map((a) => a.id);
+}
+
+/** True when every acting human has a locked submission for this round. */
+export function allRequiredHumanActionsLocked(humans: readonly TrpgActorReady[]): boolean {
+  return actingIds(humans).length > 0 && pendingIds(humans).length === 0;
 }
 
 /**

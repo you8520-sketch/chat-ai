@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
+import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
   startTrpgCampaign,
@@ -17,7 +17,7 @@ import {
 } from "./botGenerationLease";
 import { anchorTrpgProcessTimer, ensureTrpgProcessStage, parseProcessStartedAtMs, processElapsedSecFromStartedAt } from "./processTimer";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
-import { insertParticipant, loadLatestRound } from "./store";
+import { insertParticipant, loadCampaign, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
 
 function gmText(narration = "장면"): string {
@@ -290,6 +290,125 @@ describe("TRPG refresh-safe round work ownership", () => {
     const blocked = tryClaimBotGeneration(db, roundId, "other");
     assert.equal(blocked.claimed, false);
     assert.equal(blocked.reason, "in_flight");
+    db.close();
+  });
+});
+
+async function setupTwoHumansWithBot(db: Database.Database, deps: TrpgEngineDeps) {
+  const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "A", viewerUserId: 1 });
+  const camp = loadCampaign(db, campaignId)!;
+  joinTrpgCampaign(db, { code: camp.invite_code!, userId: 2, nickname: "B" });
+  saveTrpgSheet(db, { campaignId, userId: 1, name: "A", stats: EVEN_STATS });
+  saveTrpgSheet(db, { campaignId, userId: 2, name: "B", stats: EVEN_STATS });
+  const botId = insertParticipant(db, {
+    campaignId,
+    slotIndex: 2,
+    kind: "ai_character",
+    userId: null,
+    characterId: null,
+    displayName: "유나",
+  });
+  writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+  await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+  return campaignId;
+}
+
+describe("TRPG multi-human action boundary", () => {
+  it("O non-final human submit does not anchor process timer", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => ({ text: "유나.\n\n<<<INTENT>>>\n행동." }),
+    };
+    const campaignId = await setupTwoHumansWithBot(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞장선다." });
+    const round = loadLatestRound(db, campaignId)!;
+    assert.equal(parseProcessStartedAtMs(round.process_started_at), null, "NON_FINAL_HUMAN_SUBMIT_DOES_NOT_START_PROCESS_TIMER");
+    const snapA = loadTrpgSnapshot(db, campaignId, 1)!;
+    const snapB = loadTrpgSnapshot(db, campaignId, 2)!;
+    assert.equal(snapA.myDraft?.locked, true);
+    assert.equal(snapB.myDraft?.locked, false, "HUMAN_INPUT_ORDER_DOES_NOT_GATE_OTHER_HUMANS");
+    assert.equal(snapB.workType, "wait_humans");
+    assert.equal(snapB.round.phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("P final required human submit anchors process timer once", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => ({ text: "유나.\n\n<<<INTENT>>>\n행동." }),
+    };
+    const campaignId = await setupTwoHumansWithBot(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞장선다." });
+    assert.equal(parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at), null);
+    submitTrpgAction(db, { campaignId, userId: 2, body: "뒤를 본다." });
+    const startedMs = parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at);
+    assert.ok(startedMs, "ALL_REQUIRED_HUMANS_LOCKED_STARTS_PROCESSING");
+    const snap = loadTrpgSnapshot(db, campaignId, 1)!;
+    assert.equal(snap.workType, "generate_bots");
+    db.close();
+  });
+
+  it("Q simultaneous human submits stay safe and anchor timer once", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => ({ text: "유나.\n\n<<<INTENT>>>\n행동." }),
+    };
+    const campaignId = await setupTwoHumansWithBot(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞장선다.", idempotencyKey: "a-1" });
+    submitTrpgAction(db, { campaignId, userId: 2, body: "뒤를 본다.", idempotencyKey: "b-1" });
+    const roundId = loadLatestRound(db, campaignId)!.id;
+    const rows = db
+      .prepare(
+        `SELECT participant_id, body, locked FROM trpg_action_submissions WHERE round_id=? ORDER BY participant_id`
+      )
+      .all(roundId) as { participant_id: number; body: string; locked: number }[];
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every((row) => row.locked === 1));
+    assert.deepEqual(
+      new Set(rows.map((row) => row.body)),
+      new Set(["앞장선다.", "뒤를 본다."])
+    );
+    const startedMs = parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at);
+    assert.ok(startedMs, "SIMULTANEOUS_SUBMITS_SAFE");
+    db.close();
+  });
+
+  it("R concurrent advance after all humans locked makes one bot generation claim", async () => {
+    const db = memoryDb();
+    let botCalls = 0;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("판정") }),
+      botCall: async () => {
+        botCalls += 1;
+        await gate;
+        return { text: "유나.\n\n<<<INTENT>>>\n행동." };
+      },
+    };
+    const campaignId = await setupTwoHumansWithBot(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞장선다." });
+    submitTrpgAction(db, { campaignId, userId: 2, body: "뒤를 본다." });
+    const first = advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const second = advanceTrpgCampaign(db, { campaignId, userId: 2, deps });
+    await new Promise((r) => setTimeout(r, 25));
+    assert.equal(botCalls, 1, "NO_DUPLICATE_BOT_GENERATION");
+    release();
+    await Promise.all([first, second]);
+    assert.equal(botCalls, 1);
     db.close();
   });
 });
