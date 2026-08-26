@@ -15,7 +15,8 @@ type RouteCtx = { params: Promise<{ id: string }> };
 export async function POST(_req: Request, ctx: RouteCtx) {
   const diagOn = isTrpgSnapshotDiagnosticsEnabled();
   const requestId = diagOn ? newTrpgDiagRequestId() : "";
-  const t0 = diagOn ? performance.now() : 0;
+  const routeT0 = diagOn ? performance.now() : 0;
+  const requestStartedAt = diagOn ? new Date().toISOString() : "";
   const gate = await requireTrpgApi();
   if ("error" in gate) return gate.error;
   const advanceMeta = diagOn ? createAdvanceDiagState() : null;
@@ -33,7 +34,8 @@ export async function POST(_req: Request, ctx: RouteCtx) {
         event: "trpg_advance_start",
         requestId,
         campaignId,
-        timestamp: new Date().toISOString(),
+        requestStartedAt,
+        timestamp: requestStartedAt,
       });
     }
     const campaign = await runWithAdvanceDiag(advanceMeta, () =>
@@ -54,7 +56,7 @@ export async function POST(_req: Request, ctx: RouteCtx) {
         event: "trpg_advance_end",
         requestId,
         campaignId,
-        totalMs: roundDiagMs(performance.now() - t0),
+        totalMs: roundDiagMs(performance.now() - routeT0),
         workTypeBefore: advanceMeta?.workTypeBefore ?? null,
         workTypeAfter: after.workTypeAfter ?? null,
         phaseBefore: advanceMeta?.phaseBefore ?? null,

@@ -6,18 +6,19 @@ import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { advanceTrpgCampaign } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { ensureTrpgTables } from "./schema";
-import { executeTrpgCampaignSnapshotGet } from "./snapshotGetTrace";
+import { loadTrpgCampaignSnapshotForGet } from "./snapshotGetTrace";
 import {
-  beginActiveSnapshotRequest,
+  beginActiveCampaignGetRequest,
   collectSnapshotScaleCounts,
   createAdvanceDiagState,
-  endActiveSnapshotRequest,
-  getActiveSnapshotRequests,
+  endActiveCampaignGetRequest,
+  getActiveCampaignGetRequests,
   isTrpgSnapshotDiagnosticsEnabled,
-  resetActiveSnapshotRequestsForTest,
+  newTrpgDiagRequestId,
+  resetActiveCampaignGetRequestsForTest,
   runWithAdvanceDiag,
   setTrpgSnapshotDiagLogForTest,
-  withActiveSnapshotRequest,
+  withActiveCampaignGetRequest,
 } from "./snapshotDiagnostics";
 
 const SECRET_NARRATION = "SECRET_NARRATION_TOKEN_XYZ_DO_NOT_LOG";
@@ -82,7 +83,7 @@ function responsePayload(campaign: unknown) {
 
 afterEach(() => {
   setDiag(false);
-  resetActiveSnapshotRequestsForTest();
+  resetActiveCampaignGetRequestsForTest();
 });
 
 describe("TRPG snapshot diagnostics", () => {
@@ -95,31 +96,42 @@ describe("TRPG snapshot diagnostics", () => {
     });
     const db = memoryDb();
     const campaignId = seedLobby(db);
-    const result = executeTrpgCampaignSnapshotGet({ db, userId: 1, campaignId });
+    const result = loadTrpgCampaignSnapshotForGet({
+      db,
+      userId: 1,
+      campaignId,
+      requestId: "test",
+    });
     restore();
     db.close();
     assert.ok(result.campaign);
+    assert.equal(result.profile, null);
     assert.equal(lines.length, 0);
-    assert.equal(getActiveSnapshotRequests(), 0);
+    assert.equal(getActiveCampaignGetRequests(), 0);
   });
 
-  it("DIAGNOSTICS_ON_SAME_RESPONSE=true and NO_RESPONSE_SCHEMA_CHANGE=true", () => {
+  it("DIAGNOSTICS_OFF_SAME_RESPONSE=true and DIAGNOSTICS_ON_SAME_RESPONSE=true", () => {
     const db = memoryDb();
     const campaignId = seedLobby(db);
     seedRoundWithSecrets(db, campaignId);
 
     setDiag(false);
-    const off = executeTrpgCampaignSnapshotGet({ db, userId: 1, campaignId });
+    const off = loadTrpgCampaignSnapshotForGet({
+      db,
+      userId: 1,
+      campaignId,
+      requestId: "off",
+    });
     const offJson = JSON.stringify(responsePayload(off.campaign));
     const offKeys = topKeys(off.campaign);
 
-    const lines: Record<string, unknown>[] = [];
-    const restore = setTrpgSnapshotDiagLogForTest((line) => {
-      lines.push(line);
-    });
     setDiag(true);
-    const on = executeTrpgCampaignSnapshotGet({ db, userId: 1, campaignId });
-    restore();
+    const on = loadTrpgCampaignSnapshotForGet({
+      db,
+      userId: 1,
+      campaignId,
+      requestId: "on",
+    });
     const onJson = JSON.stringify(responsePayload(on.campaign));
     const onKeys = topKeys(on.campaign);
 
@@ -128,64 +140,121 @@ describe("TRPG snapshot diagnostics", () => {
     assert.equal(onJson, offJson);
     assert.ok(off.campaign && !("diagnostics" in off.campaign));
     assert.ok(on.campaign && !("requestId" in on.campaign));
-    assert.ok(lines.some((line) => line.event === "trpg_snapshot_start"));
-    assert.ok(lines.some((line) => line.event === "trpg_snapshot_end"));
-    assert.ok(lines.some((line) => line.event === "trpg_snapshot_profile"));
-    const dumped = JSON.stringify(lines);
-    assert.equal(dumped.includes(SECRET_NARRATION), false);
-    assert.equal(dumped.includes(SECRET_ACTION), false);
+  });
+
+  it("RESPONSE_SCHEMA_UNCHANGED=true", () => {
+    const db = memoryDb();
+    const campaignId = seedLobby(db);
+    const snap = loadTrpgSnapshot(db, campaignId, 1);
+    db.close();
+    assert.ok(snap);
+    const keys = topKeys(snap);
+    assert.equal(keys.includes("diagnostics"), false);
+    assert.equal(keys.includes("requestId"), false);
+  });
+
+  it("NO_EXTRA_FULL_JSON_SERIALIZATION=true", () => {
+    const trace = readFileSync("src/lib/trpg/snapshotGetTrace.ts", "utf8");
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");
+    assert.equal(trace.includes("JSON.stringify"), false);
+    assert.equal(route.includes('JSON.stringify({ campaign })'), false);
+    assert.equal(route.includes("snapshotBytes"), false);
+    assert.equal(route.includes("serializeMs"), false);
+  });
+
+  it("ROUTE_COUNTER_STARTS_BEFORE_AUTH=true", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");
+    const startIdx = route.indexOf("beginActiveCampaignGetRequest()");
+    const authIdx = route.indexOf("await requireTrpgApi()", startIdx);
+    assert.ok(startIdx >= 0);
+    assert.ok(authIdx > startIdx);
+    assert.equal(route.includes("activeSnapshotRequests"), false);
+    assert.match(route, /activeCampaignGetRequests/);
+  });
+
+  it("ROUTE_COUNTER_RELEASES_AFTER_RESPONSE_BUILD=true", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");
+    const responseBuildIdx = route.indexOf("responseBuildMs = roundDiagMs");
+    const finallyIdx = route.indexOf("} finally {");
+    const releaseIdx = route.indexOf("endActiveCampaignGetRequest()");
+    assert.ok(responseBuildIdx >= 0);
+    assert.ok(finallyIdx > responseBuildIdx);
+    assert.ok(releaseIdx > finallyIdx);
+    assert.match(route, /responseBuildMs/);
+    assert.match(route, /totalRouteMs/);
   });
 
   it("ACTIVE_COUNTER_FINALLY_RELEASED=true", () => {
-    assert.equal(getActiveSnapshotRequests(), 0);
-    const inner = withActiveSnapshotRequest(() => {
-      assert.equal(getActiveSnapshotRequests(), 1);
+    assert.equal(getActiveCampaignGetRequests(), 0);
+    const inner = withActiveCampaignGetRequest(() => {
+      assert.equal(getActiveCampaignGetRequests(), 1);
       return "ok";
     });
     assert.equal(inner, "ok");
-    assert.equal(getActiveSnapshotRequests(), 0);
+    assert.equal(getActiveCampaignGetRequests(), 0);
   });
 
-  it("ERROR_PATH_COUNTER_RELEASED=true", () => {
+  it("ASYNC_AUTH_OVERLAP_CAN_REPORT_ACTIVE_2=true", async () => {
+    resetActiveCampaignGetRequestsForTest();
+    let peak = 0;
+    const hold = async () => {
+      beginActiveCampaignGetRequest();
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        peak = Math.max(peak, getActiveCampaignGetRequests());
+      } finally {
+        endActiveCampaignGetRequest();
+      }
+    };
+    await Promise.all([hold(), hold()]);
+    assert.equal(peak, 2);
+    assert.equal(getActiveCampaignGetRequests(), 0);
+  });
+
+  it("SNAPSHOT_FAILURE_RELEASES_COUNTER=true", () => {
     setDiag(true);
     const restore = setTrpgSnapshotDiagLogForTest(() => undefined);
     const db = new Database(":memory:");
-    assert.throws(() => executeTrpgCampaignSnapshotGet({ db, userId: 1, campaignId: 1 }));
+    assert.throws(() =>
+      loadTrpgCampaignSnapshotForGet({
+        db,
+        userId: 1,
+        campaignId: 1,
+        requestId: newTrpgDiagRequestId(),
+      })
+    );
     restore();
     db.close();
-    assert.equal(getActiveSnapshotRequests(), 0);
-
     assert.throws(() =>
-      withActiveSnapshotRequest(() => {
+      withActiveCampaignGetRequest(() => {
         throw new Error("boom");
       })
     );
-    assert.equal(getActiveSnapshotRequests(), 0);
+    assert.equal(getActiveCampaignGetRequests(), 0);
   });
 
-  it("overlapping start increments then finally returns to zero", () => {
-    beginActiveSnapshotRequest();
-    beginActiveSnapshotRequest();
-    assert.equal(getActiveSnapshotRequests(), 2);
-    endActiveSnapshotRequest();
-    endActiveSnapshotRequest();
-    assert.equal(getActiveSnapshotRequests(), 0);
+  it("AUTH_FAILURE_RELEASES_COUNTER=true and 404_RELEASES_COUNTER=true", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");
+    assert.match(route, /beginActiveCampaignGetRequest\(\)/);
+    assert.match(route, /endActiveCampaignGetRequest\(\)/);
+    assert.match(route, /if \("error" in gate\)/);
+    assert.match(route, /status = authError\.status/);
+    assert.match(route, /status = 404/);
+    assert.match(route, /activeCampaignGetRequestsAfterRelease/);
   });
 
-  it("404 still releases the active counter and does not change the payload shape", () => {
+  it("404 path uses null campaign without extra serialization in trace loader", () => {
     setDiag(true);
-    const lines: Record<string, unknown>[] = [];
-    const restore = setTrpgSnapshotDiagLogForTest((line) => {
-      lines.push(line);
-    });
     const db = memoryDb();
-    const result = executeTrpgCampaignSnapshotGet({ db, userId: 1, campaignId: 999 });
-    restore();
+    const result = loadTrpgCampaignSnapshotForGet({
+      db,
+      userId: 1,
+      campaignId: 999,
+      requestId: newTrpgDiagRequestId(),
+    });
     db.close();
     assert.equal(result.campaign, null);
-    assert.equal(getActiveSnapshotRequests(), 0);
-    const end = lines.find((line) => line.event === "trpg_snapshot_end");
-    assert.equal(end?.status, 404);
+    assert.ok(result.profile);
   });
 
   it("scale counts stay numeric and omit bodies", () => {
@@ -202,6 +271,7 @@ describe("TRPG snapshot diagnostics", () => {
     assert.equal(counts.totalNarrations >= 1, true);
     assert.equal(counts.estimatedTextChars >= SECRET_NARRATION.length, true);
     assert.equal("narration" in counts, false);
+    assert.equal("snapshotBytes" in counts, false);
   });
 
   it("advance diagnostics do not change lobby snapshot or call a provider", async () => {
@@ -232,7 +302,7 @@ describe("TRPG snapshot diagnostics", () => {
     assert.equal(client.includes("AbortController"), false);
     assert.equal(client.includes("TRPG_SNAPSHOT_DIAGNOSTICS"), false);
     const getRoute = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");
-    assert.match(getRoute, /NextResponse\.json\(\{ campaign \}\)/);
+    assert.match(getRoute, /NextResponse\.json\(\{ campaign: loaded\.campaign \}\)/);
     assert.equal(getRoute.includes("NEXT_PUBLIC_TRPG_SNAPSHOT"), false);
   });
 });

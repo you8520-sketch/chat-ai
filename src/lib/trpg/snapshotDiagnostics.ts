@@ -39,7 +39,8 @@ export type SnapshotScaleCounts = {
 type SnapshotLogLine = Record<string, unknown>;
 type SnapshotLogFn = (line: SnapshotLogLine) => void;
 
-let activeSnapshotRequests = 0;
+/** GET /api/trpg/campaigns/:id requests entered but not yet finished (route-level). */
+let activeCampaignGetRequests = 0;
 let logFn: SnapshotLogFn = defaultSnapshotLog;
 
 const snapshotProfileAls = new AsyncLocalStorage<SnapshotProfileTimings>();
@@ -61,30 +62,30 @@ export function roundDiagMs(ms: number): number {
   return Math.round(ms * 10) / 10;
 }
 
-export function getActiveSnapshotRequests(): number {
-  return activeSnapshotRequests;
+export function getActiveCampaignGetRequests(): number {
+  return activeCampaignGetRequests;
 }
 
-export function beginActiveSnapshotRequest(): number {
-  activeSnapshotRequests += 1;
-  return activeSnapshotRequests;
+export function beginActiveCampaignGetRequest(): number {
+  activeCampaignGetRequests += 1;
+  return activeCampaignGetRequests;
 }
 
-export function endActiveSnapshotRequest(): number {
-  if (activeSnapshotRequests > 0) activeSnapshotRequests -= 1;
-  return activeSnapshotRequests;
+export function endActiveCampaignGetRequest(): number {
+  if (activeCampaignGetRequests > 0) activeCampaignGetRequests -= 1;
+  return activeCampaignGetRequests;
 }
 
-export function resetActiveSnapshotRequestsForTest(): void {
-  activeSnapshotRequests = 0;
+export function resetActiveCampaignGetRequestsForTest(): void {
+  activeCampaignGetRequests = 0;
 }
 
-export function withActiveSnapshotRequest<T>(fn: () => T): T {
-  beginActiveSnapshotRequest();
+export function withActiveCampaignGetRequest<T>(fn: () => T): T {
+  beginActiveCampaignGetRequest();
   try {
     return fn();
   } finally {
-    endActiveSnapshotRequest();
+    endActiveCampaignGetRequest();
   }
 }
 
