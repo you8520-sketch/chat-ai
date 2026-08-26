@@ -1418,15 +1418,25 @@ export default function TrpgCampaignRoom({
           ) : null}
 
           {visibleSceneRows.map((row) => {
-            if (
-              row.roundNumber === snap.round.number &&
-              gateLiveRound &&
-              roundShow.mode !== "cinematic" &&
-              roundShow.mode !== "historical"
-            ) {
-              return null;
-            }
             const gated = holdCurrentRound && row.roundNumber === snap.round.number;
+            const isLiveRow = row.roundNumber === snap.round.number && gateLiveRound;
+            const liveRevealedActorIds = isLiveRow
+              ? roundShow.mode === "cinematic"
+                ? cinematicRevealedIds
+                : presentationStarting && sourceActions.length > 0
+                  ? undefined
+                  : []
+              : undefined;
+            const liveResultLaneIds = isLiveRow
+              ? roundShow.mode === "cinematic"
+                ? cinematicLaneIds
+                : []
+              : undefined;
+            const liveShowGmNarration = isLiveRow
+              ? roundShow.mode === "cinematic"
+                ? cinematicShowGm
+                : false
+              : undefined;
             return (
             <SceneTurn
               key={row.roundNumber}
@@ -1443,27 +1453,9 @@ export default function TrpgCampaignRoom({
               campaignId={snap.id}
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
-              revealedActorIds={
-                row.roundNumber === snap.round.number && gateLiveRound
-                  ? roundShow.mode === "cinematic"
-                    ? cinematicRevealedIds
-                    : []
-                  : undefined
-              }
-              resultLaneActorIds={
-                row.roundNumber === snap.round.number && gateLiveRound
-                  ? roundShow.mode === "cinematic"
-                    ? cinematicLaneIds
-                    : []
-                  : undefined
-              }
-              showGmNarration={
-                row.roundNumber === snap.round.number && gateLiveRound
-                  ? roundShow.mode === "cinematic"
-                    ? cinematicShowGm
-                    : false
-                  : undefined
-              }
+              revealedActorIds={liveRevealedActorIds}
+              resultLaneActorIds={liveResultLaneIds}
+              showGmNarration={liveShowGmNarration}
               partyHumanCount={snap.partyHumanCount}
               partyBotCount={snap.partyBotCount}
               viewerIsHost={snap.viewerIsHost}

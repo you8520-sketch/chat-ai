@@ -55,11 +55,13 @@ export function buildRoundPresentationActors(opts: {
   for (const id of order) leftoverActorIds.delete(id);
 
   const actorIds = [...order, ...[...leftoverActorIds].sort((a, b) => a - b)];
-  return actorIds.map((actorId) => ({
-    actorId,
-    action: opts.actions.find((action) => action.participantId === actorId) ?? null,
-    roll: opts.rolls.find((roll) => roll.participantId === actorId) ?? null,
-  }));
+  return actorIds
+    .map((actorId) => ({
+      actorId,
+      action: opts.actions.find((action) => action.participantId === actorId) ?? null,
+      roll: opts.rolls.find((roll) => roll.participantId === actorId) ?? null,
+    }))
+    .filter((actor) => actor.action != null || actor.roll != null);
 }
 
 export function decideRoundPresentationMode(opts: {
@@ -86,11 +88,19 @@ export const LIVE_ROUND_PRESENTATION_READY_PHASES = new Set<string>([
   "ERROR_RECOVERY",
 ]);
 
+/** Phases where #634-persisted actions may enter live cinematic before rolls commit. */
+export const LIVE_ROUND_INCREMENTAL_PRESENTATION_PHASES = new Set<string>([
+  "BOT_ACTION",
+  "LOCKING_ACTIONS",
+  "ADJUDICATING",
+]);
+
 export function isLiveRoundPresentationReady(opts: {
   phase: string;
   hasLockedActorSet: boolean;
 }): boolean {
   if (!opts.hasLockedActorSet) return false;
+  if (LIVE_ROUND_INCREMENTAL_PRESENTATION_PHASES.has(opts.phase)) return true;
   return LIVE_ROUND_PRESENTATION_READY_PHASES.has(opts.phase);
 }
 
@@ -382,13 +392,12 @@ export function trpgRoundPresentationSessionKey(opts: {
   ready?: boolean;
 }): string {
   if (opts.ready === false) return "";
-  const rollKey = trpgDiceRollSessionKey(opts.roundNumber, opts.rolls);
-  if (rollKey) return rollKey;
   const actionIds = [...new Set(opts.actions.map((action) => action.participantId))]
     .filter((id) => Number.isInteger(id) && id > 0)
     .sort((a, b) => a - b);
-  if (actionIds.length === 0) return "";
-  return `${opts.roundNumber}|actions:${actionIds.join(",")}`;
+  const rollKey = trpgDiceRollSessionKey(opts.roundNumber, opts.rolls);
+  if (actionIds.length === 0 && !rollKey) return "";
+  return `${opts.roundNumber}|live`;
 }
 
 export function freezeLivePresentationActors(opts: {
@@ -400,17 +409,23 @@ export function freezeLivePresentationActors(opts: {
 }): { actors: PresentationActor[]; frozenRound: number | null } {
   if (!opts.ready) return { actors: [...opts.next], frozenRound: null };
   if (opts.previous && opts.frozenRound === opts.roundNumber && opts.previous.length > 0) {
+    const merged = opts.previous.map((actor) => {
+      const fresh = opts.next.find((item) => item.actorId === actor.actorId);
+      return fresh
+        ? {
+            actorId: actor.actorId,
+            action: fresh.action ?? actor.action,
+            roll: fresh.roll ?? actor.roll,
+          }
+        : actor;
+    });
+    for (const actor of opts.next) {
+      if (!merged.some((item) => item.actorId === actor.actorId)) {
+        merged.push(actor);
+      }
+    }
     return {
-      actors: opts.previous.map((actor) => {
-        const fresh = opts.next.find((item) => item.actorId === actor.actorId);
-        return fresh
-          ? {
-              actorId: actor.actorId,
-              action: fresh.action ?? actor.action,
-              roll: fresh.roll ?? actor.roll,
-            }
-          : actor;
-      }),
+      actors: merged,
       frozenRound: opts.roundNumber,
     };
   }

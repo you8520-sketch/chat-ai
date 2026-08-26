@@ -417,7 +417,7 @@ describe("TRPG live round presentation readiness", () => {
   it("does not treat incremental BOT_ACTION actionIds as ready", () => {
     assert.equal(
       isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }),
-      false
+      true
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "ACTION_INPUT", hasLockedActorSet: true }),
@@ -425,7 +425,7 @@ describe("TRPG live round presentation readiness", () => {
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "LOCKING_ACTIONS", hasLockedActorSet: true }),
-      false
+      true
     );
     assert.equal(
       isLiveRoundPresentationReady({ phase: "GENERATING_NARRATION", hasLockedActorSet: true }),
@@ -444,9 +444,9 @@ describe("TRPG live round presentation readiness", () => {
         roundNumber: 3,
         rolls: [],
         actions: [human, bot1],
-        ready: false,
+        ready: true,
       }),
-      ""
+      "3|live"
     );
     assert.equal(liveRoundWaitKind({
       phase: "BOT_ACTION",
@@ -457,7 +457,7 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(liveRoundWaitCopy("rolls"), "라운드 판정 준비 중…");
   });
 
-  it("S1-S5 incremental snapshots hide canonical cards until one ready start", () => {
+  it("S1-S5 incremental snapshots present canonical cards before rolls commit", () => {
     const walked = walkLiveRoundSnapshots([
       {
         phase: "ACTION_INPUT",
@@ -504,22 +504,26 @@ describe("TRPG live round presentation readiness", () => {
     ]);
     const [s0, s1, s2, s3, s4, s5] = walked.steps;
     assert.equal(s0?.ready, false);
-    assert.deepEqual(s1?.visibleCanonicalActionIds, []);
-    assert.equal(s1?.mode, "idle");
-    assert.equal(s1?.started, false);
-    assert.deepEqual(s2?.visibleCanonicalActionIds, []);
+    assert.equal(s1?.ready, true);
+    assert.equal(s1?.mode, "cinematic");
+    assert.equal(s1?.started, true);
+    assert.deepEqual(s1?.visibleCanonicalActionIds, [10]);
+    assert.equal(s2?.ready, true);
     assert.equal(s2?.started, false);
     assert.equal(s2?.restarted, false);
-    assert.deepEqual(s3?.visibleCanonicalActionIds, []);
-    assert.equal(s3?.ready, false);
+    assert.equal(s2?.sessionKey, s1?.sessionKey);
+    assert.deepEqual(s2?.visibleCanonicalActionIds, [10]);
+    assert.equal(s3?.ready, true);
     assert.equal(s3?.started, false);
+    assert.equal(s3?.restarted, false);
+    assert.equal(s3?.sessionKey, s1?.sessionKey);
     assert.equal(s4?.ready, true);
-    assert.equal(s4?.started, true);
-    assert.equal(s4?.mode, "cinematic");
+    assert.equal(s4?.started, false);
+    assert.equal(s4?.restarted, false);
+    assert.equal(s4?.sessionKey, s1?.sessionKey);
     assert.deepEqual(s4?.visibleCanonicalActionIds, [10]);
     assert.equal(s5?.started, false);
     assert.equal(s5?.restarted, false);
-    assert.equal(s5?.sessionKey, s4?.sessionKey);
     assert.equal(walked.startCount, 1);
     assert.equal(walked.restartCount, 0);
     const frames = walkCinematicPresentation(s4!.actors);
@@ -551,7 +555,7 @@ describe("TRPG live round presentation readiness", () => {
       resolutionOrder: order,
     };
     const walked = walkLiveRoundSnapshots([
-      { ...ready, phase: "BOT_ACTION", rolls: [] },
+      ready,
       ready,
       { ...ready, phase: "ROUND_COMPLETE" },
       { ...ready, phase: "ROUND_COMPLETE" },
@@ -586,10 +590,9 @@ describe("TRPG live round presentation readiness", () => {
         resolutionOrder: [10, 20],
       },
     ]);
-    assert.equal(walked.steps[0]?.ready, false);
     assert.equal(walked.steps[1]?.ready, true);
     assert.equal(walked.startCount, 1);
-    assert.match(walked.steps[1]?.sessionKey ?? "", /actions:10,20/);
+    assert.match(walked.steps[1]?.sessionKey ?? "", /^\d+\|live$/);
     const frames = walkCinematicPresentation(walked.steps[1]!.actors);
     assert.equal(frames.some((frame) => frame.phase === "actor-dice"), false);
     assert.deepEqual(frames.map((frame) => frame.phase), [
