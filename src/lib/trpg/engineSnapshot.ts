@@ -37,6 +37,7 @@ import {
 } from "./snapshot";
 import { loadLastSafeRestRounds, loadLatestCompleteMechanics, loadOngoingEffects } from "./mechanicsStore";
 import { evaluateSafeRestEligibility, sameRoundHasCombatAction } from "./mechanicsValidate";
+import { timedSnapshotDiag } from "./snapshotDiagnostics";
 import { formatMechanicsHudLines, recoveryHintKo } from "./sheetHud";
 import { hasPendingGmResult } from "./pendingGmResult";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
@@ -229,7 +230,7 @@ export function loadTrpgSnapshot(
   viewerUserId: number,
   opts?: { includePartyChat?: boolean }
 ): TrpgCampaignSnapshot | null {
-  const campaign = loadCampaign(db, campaignId);
+  const campaign = timedSnapshotDiag("baseMs", () => loadCampaign(db, campaignId));
   if (!campaign) return null;
   if (campaign.host_user_id === viewerUserId && isTrpgLobbyStatus(campaign.status) && !loadLatestRound(db, campaignId)) {
     const humans = db
@@ -239,7 +240,7 @@ export function loadTrpgSnapshot(
       purgeUnstartedSoloDrafts(db, viewerUserId, campaignId);
     }
   }
-  const parts = loadParticipants(db, campaignId);
+  const parts = timedSnapshotDiag("participantsMs", () => loadParticipants(db, campaignId));
   const viewer = parts.find((p) => p.kind === "human" && p.user_id === viewerUserId);
   if (!viewer && campaign.host_user_id !== viewerUserId) return null;
 
@@ -265,13 +266,15 @@ export function loadTrpgSnapshot(
     .prepare(`SELECT widget_template_json FROM trpg_scenarios WHERE campaign_id=?`)
     .get(campaignId) as { widget_template_json: string } | undefined;
   const widget = parseJson(widgetRow?.widget_template_json, DEFAULT_TRPG_SHEET_WIDGET);
-  const sheets = buildPartySheetHud({
-    viewerParticipantId: viewer?.id ?? -1,
-    sheets: loadSheetSnapshots(db, campaignId),
-    widget,
-  });
+  const sheets = timedSnapshotDiag("sheetsMs", () =>
+    buildPartySheetHud({
+      viewerParticipantId: viewer?.id ?? -1,
+      sheets: loadSheetSnapshots(db, campaignId),
+      widget,
+    })
+  );
 
-  const currentRolls = round ? loadRolls(db, round.id) : [];
+  const currentRolls = timedSnapshotDiag("currentRoundMs", () => (round ? loadRolls(db, round.id) : []));
   let currentNarration: string | null = null;
   if (round) {
     const gm = db
@@ -331,12 +334,14 @@ export function loadTrpgSnapshot(
     sheetConfirmed: sheetConfirmed(revisions.get(p.id)),
   }));
 
-  const log = loadLog(db, campaignId, viewer?.id ?? null, {
-    viewerUserId,
-    hostUserId: campaign.host_user_id,
-    mode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
-    humanUserIds: parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!),
-  });
+  const log = timedSnapshotDiag("logMs", () =>
+    loadLog(db, campaignId, viewer?.id ?? null, {
+      viewerUserId,
+      hostUserId: campaign.host_user_id,
+      mode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
+      humanUserIds: parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!),
+    })
+  );
   const myActionType =
     mySub?.action_type && isTrpgActionType(mySub.action_type) ? mySub.action_type : null;
 
@@ -424,7 +429,9 @@ export function loadTrpgSnapshot(
         .get(campaignId, round?.round_number ?? 0)
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
-    aiCharacterAssets: toPublicAiCharacterAssets(loadTrpgAiCharacterContexts(db, parts)),
+    aiCharacterAssets: toPublicAiCharacterAssets(
+      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts))
+    ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
     gmFailureHint:
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
@@ -446,14 +453,16 @@ export function loadTrpgSnapshot(
       campaign.host_user_id === viewerUserId && round?.id
         ? hasPendingGmResult(db, round.id)
         : false,
-    ongoingEffects: loadOngoingEffects(db, campaignId).map((effect) => ({
-      participantId: effect.participantId,
-      label: effect.label,
-      kind: effect.kind,
-      severity: effect.severity,
-      remainingTicks: effect.remainingTicks,
-      recoveryHint: recoveryHintKo(effect),
-    })),
+    ongoingEffects: timedSnapshotDiag("effectsMs", () =>
+      loadOngoingEffects(db, campaignId).map((effect) => ({
+        participantId: effect.participantId,
+        label: effect.label,
+        kind: effect.kind,
+        severity: effect.severity,
+        remainingTicks: effect.remainingTicks,
+        recoveryHint: recoveryHintKo(effect),
+      }))
+    ),
     mechanicsLines: (() => {
       const latest = loadLatestCompleteMechanics(db, campaignId);
       if (!latest) return [];
@@ -464,7 +473,7 @@ export function loadTrpgSnapshot(
         }))
       );
     })(),
-    safeRest: (() => {
+    safeRest: timedSnapshotDiag("safeRestMs", () => {
       const self = sheets.find((card) => card.isSelf)?.sheet;
       if (!self) return { available: false, healAmount: 0, blockedReason: "incapacitated" as const };
       const combatActions = round
@@ -487,7 +496,7 @@ export function loadTrpgSnapshot(
         lastSafeRestRound: lastRests[String(self.participantId)] ?? null,
         currentRound: round?.round_number ?? 0,
       });
-    })(),
+    }),
     showRecoveryHint: phase === "ACTION_INPUT" && (round?.round_number ?? 0) <= 2,
   };
 }

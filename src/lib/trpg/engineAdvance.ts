@@ -61,6 +61,7 @@ import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
+import { getAdvanceDiagState, noteAdvanceDiag } from "./snapshotDiagnostics";
 import { buildCampaignMemoryPrompt, buildCampaignMemoryQuery, buildTrpgBotMemoryBlock, buildTrpgBotRecentContinuity, loadCompletedMemoryRounds } from "./memory";
 import {
   buildBotCompactContinuity,
@@ -383,8 +384,17 @@ export async function advanceTrpgCampaign(
     throw new Error("이 캠페인의 참가자가 아닙니다.");
   }
   const round = loadLatestRound(db, opts.campaignId);
-  if (!round) return mustSnapshot(db, opts.campaignId, opts.userId);
+  if (!round) {
+    noteAdvanceDiag({ phaseBefore: "NONE", workTypeBefore: "idle" });
+    return mustSnapshot(db, opts.campaignId, opts.userId);
+  }
   const phase = asPhase(round.phase);
+  const advanceDiag = getAdvanceDiagState();
+  if (advanceDiag) {
+    advanceDiag.phaseBefore = phase;
+    advanceDiag.gmGenerationInFlight = phase === "GENERATING_NARRATION" && Boolean(round.gm_generation_id);
+    advanceDiag.botGenerationInFlight = botGenerationInFlight(db, round);
+  }
 
   if (phase === "ERROR_RECOVERY" && campaign.host_user_id === opts.userId && round.round_number > 0) {
     if (hasPendingGmResult(db, round.id)) {
@@ -433,6 +443,7 @@ export async function advanceTrpgCampaign(
     errorJson: round.error_json,
     recoveryAttempts: round.bot_generation_recovery_attempts,
   });
+  noteAdvanceDiag({ workTypeBefore: work.type });
 
   if (work.type === "generate_bots") {
     ensureTrpgProcessStage(db, round.id, "bots");

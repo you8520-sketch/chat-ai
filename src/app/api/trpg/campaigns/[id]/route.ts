@@ -2,15 +2,25 @@ import { NextResponse } from "next/server";
 import { deleteTrpgCampaign, loadTrpgSnapshot, renameTrpgCampaign, saveTrpgBillingMode, saveTrpgRelationshipBrief } from "@/lib/trpg/engine";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 import { parseTrpgBillingMode } from "@/lib/trpg/types";
+import { executeTrpgCampaignSnapshotGet } from "@/lib/trpg/snapshotGetTrace";
+import { isTrpgSnapshotDiagnosticsEnabled } from "@/lib/trpg/snapshotDiagnostics";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, ctx: RouteCtx) {
+  const diagOn = isTrpgSnapshotDiagnosticsEnabled();
+  const tAuth0 = diagOn ? performance.now() : 0;
   const gate = await requireTrpgApi();
+  const authMs = diagOn ? Math.round((performance.now() - tAuth0) * 10) / 10 : 0;
   if ("error" in gate) return gate.error;
   try {
     const id = campaignIdFromParams((await ctx.params).id);
-    const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);
+    const { campaign } = executeTrpgCampaignSnapshotGet({
+      db: gate.db,
+      userId: gate.user.id,
+      campaignId: id,
+      authMs,
+    });
     if (!campaign) return NextResponse.json({ error: "캠페인을 찾을 수 없습니다." }, { status: 404 });
     return NextResponse.json({ campaign });
   } catch (e) {
