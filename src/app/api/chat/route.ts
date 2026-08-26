@@ -5369,15 +5369,16 @@ export async function POST(req: Request) {
                 : null,
             };
             if (statusWidgetValuesHasContent(triggerValues)) {
-            evaluateStatusWidgetTriggersBestEffort(db, {
-              chatId: chatRef.id,
-              characterId: ch.id,
-              sourceTurn: playableTurnCount + 1,
-              statusValues: triggerValues,
-              sourceMessageId: aiMessageId,
-              requestId: clientRequestId ?? null,
-              generationSequence: snapshotVariantIndex,
-            });
+              evaluateStatusWidgetTriggersBestEffort(db, {
+                chatId: chatRef.id,
+                characterId: ch.id,
+                sourceTurn: playableTurnCount + 1,
+                statusValues: triggerValues,
+                sourceMessageId: aiMessageId,
+                requestId: clientRequestId ?? null,
+                generationSequence: snapshotVariantIndex,
+              });
+            }
           }
         }
 

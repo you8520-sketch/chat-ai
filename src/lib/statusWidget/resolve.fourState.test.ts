@@ -290,15 +290,15 @@ describe("status widget true 4-state owner", () => {
     });
     const characterValues: Record<string, string> = {};
     for (const key of collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET)) {
-      characterValues[key] = key === "시간" ? "해질녘" : "옥상 정원";
+      characterValues[key] = `값-${key}`;
     }
     let bothCalls = 0;
     const kinds: string[] = [];
-    await extractStatusWidgetValuesForTurn({
+    const bothExtract = await extractStatusWidgetValuesForTurn({
       charName: "레온",
       personaName: "렌",
       userMessage: "안녕",
-      assistantProse: "카페에서 만났다. 지금은 14시.",
+      assistantProse: "두 사람은 옥상 정원에서 이야기를 이었다.",
       resolved: both,
       caller: async (_s, _h, opts) => {
         bothCalls += 1;
@@ -306,13 +306,21 @@ describe("status widget true 4-state owner", () => {
         return {
           text: JSON.stringify({
             character_values: characterValues,
-            user_values: { my_note: "메모" },
+            user_values: { my_note: "짧은 메모" },
             extracted_facts: [],
           }),
+          usage: {
+            inputTokens: 40,
+            outputTokens: 20,
+            estimated: true,
+            finishReason: "stop",
+          },
         };
       },
     });
     assert.equal(bothCalls, 1);
+    assert.equal(bothExtract.meta.actualCallCount, 1);
+    assert.equal(bothExtract.meta.extractMode, "dual_combined");
     assert.deepEqual(kinds, ["background-status-widget-extract-combined"]);
   });
 });
