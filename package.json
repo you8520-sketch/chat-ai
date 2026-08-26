@@ -21,6 +21,7 @@
     "training:analyze": "tsx scripts/training-daily-analysis.ts",
     "training:export": "tsx scripts/training-weekly-export.ts",
     "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",
+    "bench:creative-ooc-html": "tsx --conditions=react-server scripts/creative-ooc-html-bench.ts",
     "prod": "npm run build && npm run start",
     "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
   },
