@@ -10,8 +10,11 @@ import {
   isLiveRoundPresentationReady,
   isLiveRoundPresentationStarting,
   isSequentialActionRevealPending,
+  mergeIncrementalCanonicalPinIds,
   resolveActivePresentationActorId,
+  resolveLiveRevealedActionIds,
   resolveSequentialActionRevealQueue,
+  revealedActorIds,
   shouldDecorativeRevealAction,
   shouldHoldDecorativeRevealAction,
   startCinematicPresentation,
@@ -57,6 +60,7 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
     assert.match(room, /mergeActorRevealReport/);
     assert.match(room, /shouldDecorativeRevealAction/);
     assert.match(room, /stickySequentialRevealActorRef/);
+    assert.match(room, /mergeIncrementalCanonicalPinIds/);
     assert.match(room, /incrementalDecorativeRevealArrivalOrder/);
     assert.doesNotMatch(room, /secondRevealQueue/);
   });
@@ -613,5 +617,194 @@ describe("TRPG sequential action reveal (#628 owner extended for #646)", () => {
       cinematicActiveActorId: 20,
     });
     assert.equal(rollingFrame, 30, "ROLLING transition cannot replace active owner");
+  });
+
+  it("T_SEQ_FIRST_ROUND_PIN_SURVIVES_ROLLING: empty resolutionOrder pins survive ROLLING idle render", () => {
+    const fresh = new Set(["a:1:20", "a:1:30"]);
+    const generationOrderActions = [human, bot2, bot1];
+    const persistedActions = generationOrderActions.filter((a) => a.revealed && a.body.trim());
+    const resolutionOrder = order;
+    let pinnedIds: number[] = [];
+    let pinnedRound: number | null = null;
+    let sticky: number | null = null;
+    const completed: number[] = [];
+
+    const syncPins = (roundNumber: number, actions: typeof generationOrderActions, incremental: boolean) => {
+      if (pinnedRound !== roundNumber) {
+        pinnedRound = roundNumber;
+        pinnedIds = [];
+      }
+      if (incremental) {
+        pinnedIds = mergeIncrementalCanonicalPinIds(pinnedIds, actions);
+      }
+    };
+
+    const queueInput = (actions: typeof persistedActions) => ({
+      arrivalOrder: incrementalDecorativeRevealArrivalOrder(actions),
+      actions,
+      completedRevealActorIds: completed,
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id: number) => fresh.has(`a:1:${id}`),
+      skipDecorativeReveal: false,
+    });
+
+    syncPins(1, generationOrderActions, true);
+    const botActionQueue = resolveSequentialActionRevealQueue(queueInput(persistedActions));
+    if (botActionQueue.activeRevealActorId != null) sticky = botActionQueue.activeRevealActorId;
+
+    assert.deepEqual(
+      pinnedIds,
+      [10, 30, 20],
+      "ALL_INCREMENTALLY_VISIBLE_CANONICAL_ACTIONS_REMAIN_PINNED"
+    );
+    assert.equal(botActionQueue.activeRevealActorId, 30, "sticky active=bot2");
+    assert.equal(
+      shouldHoldDecorativeRevealAction({
+        kind: bot1.kind,
+        participantId: 20,
+        activeRevealActorId: botActionQueue.activeRevealActorId,
+        isFresh: true,
+        skipDecorativeReveal: false,
+      }),
+      true,
+      "bot1 held"
+    );
+
+    const rolls = [
+      {
+        participantId: 10,
+        name: "유저",
+        d20: 14,
+        dc: 12,
+        tier: "SUCCESS" as const,
+        statKey: "dex",
+        finalScore: 16,
+        success: true,
+        actionBody: "",
+        actionType: "free" as const,
+        kind: "human" as const,
+      },
+      {
+        participantId: 20,
+        name: "동료1",
+        d20: 8,
+        dc: 12,
+        tier: "FAILURE" as const,
+        statKey: "dex",
+        finalScore: 10,
+        success: false,
+        actionBody: "",
+        actionType: "talk" as const,
+        kind: "ai_character" as const,
+      },
+      {
+        participantId: 30,
+        name: "동료2",
+        d20: 17,
+        dc: 12,
+        tier: "SUCCESS" as const,
+        statKey: "dex",
+        finalScore: 19,
+        success: true,
+        actionBody: "",
+        actionType: "talk" as const,
+        kind: "ai_character" as const,
+      },
+    ];
+    const liveReady = isLiveRoundPresentationReady({
+      phase: "ROLLING",
+      hasLockedActorSet: persistedActions.length > 0 || rolls.length > 0,
+    });
+    assert.equal(liveReady, true);
+
+    const roundShowIdle = idlePresentation();
+    assert.equal(roundShowIdle.mode, "idle", "roundShow still idle on first ROLLING render");
+
+    syncPins(1, generationOrderActions, false);
+    assert.deepEqual(pinnedIds, [10, 30, 20], "pins unchanged when not incremental");
+
+    const actors = buildRoundPresentationActors({
+      resolutionOrder,
+      actions: persistedActions,
+      rolls,
+    });
+    const cinematicRevealedAtIdle = revealedActorIds({
+      actors,
+      state: roundShowIdle,
+      pinnedVisibleActorIds: pinnedIds,
+    });
+    const resolvedAtIdle = resolveLiveRevealedActionIds({
+      isLiveRow: true,
+      mode: roundShowIdle.mode,
+      cinematicRevealedIds: cinematicRevealedAtIdle,
+      incrementalCanonicalVisible: false,
+      pinnedVisibleActorIds: pinnedIds,
+    });
+    assert.notDeepEqual(resolvedAtIdle, [], "NO_ACTION_CARD_DISAPPEAR_ON_ROLLING");
+    assert.deepEqual(resolvedAtIdle, [10, 30, 20]);
+
+    const rollingQueue = resolveSequentialActionRevealQueue(queueInput(persistedActions));
+    assert.equal(rollingQueue.activeRevealActorId, 30, "active bot2 remains mounted");
+    assert.equal(
+      shouldHoldDecorativeRevealAction({
+        kind: bot1.kind,
+        participantId: 20,
+        activeRevealActorId: rollingQueue.activeRevealActorId,
+        isFresh: true,
+        skipDecorativeReveal: false,
+      }),
+      true,
+      "bot1 remains held"
+    );
+
+    const cinematicRoundShow = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const activeAfterCinematic = resolveActivePresentationActorId({
+      sequentialActionRevealPending: true,
+      sequentialActiveRevealActorId: rollingQueue.activeRevealActorId,
+      cinematicActiveActorId: resolutionOrder[cinematicRoundShow.presentationIndex] ?? null,
+    });
+    assert.equal(activeAfterCinematic, 30, "NO_ACTIVE_CARD_DISAPPEAR");
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: bot2.kind,
+        participantId: 30,
+        activeRevealActorId: activeAfterCinematic,
+        isFresh: fresh.has("a:1:30"),
+        skipDecorativeReveal: false,
+      }),
+      true,
+      "NO_ACTIVE_STREAM_RESET"
+    );
+
+    const cinematicRevealed = revealedActorIds({
+      actors,
+      state: cinematicRoundShow,
+      pinnedVisibleActorIds: pinnedIds,
+    });
+    assert.ok(cinematicRevealed.includes(30), "bot2 still mounted at cinematic start");
+    assert.ok(cinematicRevealed.includes(20), "bot1 still mounted at cinematic start");
+
+    fresh.delete("a:1:30");
+    completed.push(30);
+    sticky = null;
+    const afterBot2 = resolveSequentialActionRevealQueue({
+      ...queueInput(persistedActions),
+      completedRevealActorIds: completed,
+      stickyActiveRevealActorId: sticky,
+      isFreshAiAction: (id: number) => fresh.has(`a:1:${id}`),
+    });
+    assert.equal(afterBot2.activeRevealActorId, 20, "bot1 starts after bot2 complete");
+
+    assert.deepEqual(
+      actors.map((a) => a.actorId),
+      resolutionOrder,
+      "FINAL_DICE_ORDER_FOLLOWS_RESOLUTION_ORDER"
+    );
+
+    const pinnedRoundRef = { current: 1 as number | null };
+    const pinnedIdsRef = { current: [...pinnedIds] };
+    pinnedRoundRef.current = 2;
+    pinnedIdsRef.current = [];
+    assert.deepEqual(pinnedIdsRef.current, [], "PREVIOUS_ROUND_PINS_CANNOT_LEAK");
   });
 });

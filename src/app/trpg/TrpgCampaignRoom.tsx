@@ -92,8 +92,8 @@ import {
   freezeLivePresentationActors,
   historicalPresentation,
   idlePresentation,
-  incrementalCanonicalActionIds,
   incrementalDecorativeRevealArrivalOrder,
+  mergeIncrementalCanonicalPinIds,
   isActorActionRevealBeatSatisfied,
   isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
@@ -446,9 +446,9 @@ export default function TrpgCampaignRoom({
     stickySequentialRevealActorRef.current = null;
   }
   if (incrementalCanonicalVisible) {
-    pinnedVisibleActorIdsRef.current = incrementalCanonicalActionIds(
-      sourceActions,
-      (snap.resolutionOrder ?? []).map((entry) => entry.participantId)
+    pinnedVisibleActorIdsRef.current = mergeIncrementalCanonicalPinIds(
+      pinnedVisibleActorIdsRef.current,
+      sourceActions
     );
   }
   const queueSessionKey = useMemo(

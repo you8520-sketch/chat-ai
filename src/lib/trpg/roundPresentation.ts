@@ -187,6 +187,32 @@ export function incrementalDecorativeRevealArrivalOrder(
   return out;
 }
 
+/**
+ * #646 pinned canonical visibility — accumulates actors that became incrementally visible.
+ * Membership does not depend on final resolutionOrder; prior pins survive ROLLING arrival.
+ */
+export function mergeIncrementalCanonicalPinIds(
+  previousPins: readonly number[],
+  actions: readonly TrpgPublicAction[]
+): number[] {
+  const persistedIds = new Set(
+    actions.filter((action) => action.revealed && action.body.trim()).map((action) => action.participantId)
+  );
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const id of previousPins) {
+    if (seen.has(id) || !persistedIds.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  for (const id of incrementalDecorativeRevealArrivalOrder(actions)) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 /** #628 reveal owner extended across incremental BOT_ACTION — one progressive AI at a time. */
 export function resolveSequentialActionRevealQueue(
   opts: SequentialActionRevealInput
@@ -669,6 +695,8 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
   let prevMode: RoundPresentationMode = "idle";
   let frozen: PresentationActor[] | null = null;
   let frozenRound: number | null = null;
+  let pinnedVisibleActorIds: number[] = [];
+  let pinnedRound: number | null = null;
   let startCount = 0;
   let restartCount = 0;
   const steps = snaps.map((snap) => {
@@ -705,10 +733,16 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
-    const incrementalVisibleActionIds =
-      !decided.ready && isIncrementalCanonicalActionPhase(snap.phase)
-        ? incrementalCanonicalActionIds(actions, snap.resolutionOrder)
-        : [];
+    const incrementalVisible =
+      !decided.ready && isIncrementalCanonicalActionPhase(snap.phase) && actions.length > 0;
+    if (pinnedRound !== snap.roundNumber) {
+      pinnedRound = snap.roundNumber;
+      pinnedVisibleActorIds = [];
+    }
+    if (incrementalVisible) {
+      pinnedVisibleActorIds = mergeIncrementalCanonicalPinIds(pinnedVisibleActorIds, actions);
+    }
+    const incrementalVisibleActionIds = incrementalVisible ? pinnedVisibleActorIds : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {

@@ -3,10 +3,11 @@ import { describe, it } from "node:test";
 import {
   buildRoundPresentationActors,
   decideLiveRoundPresentation,
-  incrementalCanonicalActionIds,
+  incrementalDecorativeRevealArrivalOrder,
   isIncrementalCanonicalActionPhase,
   isLiveRoundPresentationReady,
   liveRoundCanonicalVisibleCount,
+  mergeIncrementalCanonicalPinIds,
   resolveLiveRevealedActionIds,
   revealedActorIds,
   shouldGateLiveRoundPresentation,
@@ -19,6 +20,7 @@ import {
   type LiveRoundSnapshotInput,
   type RoundPresentationState,
 } from "./roundPresentation";
+import type { TrpgPublicAction } from "./snapshot";
 
 const order = [10, 20, 30];
 const human = { participantId: 10, name: "유저", kind: "human" as const, body: "문을 연다.", revealed: true };
@@ -44,6 +46,7 @@ function simulateIncrementalPresentationSteps(
   snaps: readonly { label: string; snap: LiveRoundSnapshotInput }[]
 ): PresentationStep[] {
   let pinnedIds: number[] = [];
+  let pinnedRound: number | null = null;
   let roundShow: RoundPresentationState = idlePresentation();
   let prevKey = "";
   let prevMode = roundShow.mode;
@@ -55,8 +58,12 @@ function simulateIncrementalPresentationSteps(
       !decided.ready && isIncrementalCanonicalActionPhase(snap.phase) && snap.actions.length > 0;
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
 
+    if (pinnedRound !== snap.roundNumber) {
+      pinnedRound = snap.roundNumber;
+      pinnedIds = [];
+    }
     if (incremental) {
-      pinnedIds = incrementalCanonicalActionIds(actions, snap.resolutionOrder);
+      pinnedIds = mergeIncrementalCanonicalPinIds(pinnedIds, actions);
       roundShow = idlePresentation();
     } else if (decided.ready && decided.actorCount > 0) {
       if (roundShow.mode !== "cinematic") {
@@ -85,7 +92,7 @@ function simulateIncrementalPresentationSteps(
     });
     const visibleActionIds =
       resolved == null
-        ? incrementalCanonicalActionIds(actions, snap.resolutionOrder)
+        ? incrementalDecorativeRevealArrivalOrder(actions)
         : resolved;
 
     out.push({
@@ -113,7 +120,7 @@ function syncPinnedVisibleActorIds(opts: {
   pinnedRoundRef: { current: number | null };
   pinnedIdsRef: { current: number[] };
   incrementalCanonicalVisible: boolean;
-  sourceActions: readonly { participantId: number }[];
+  sourceActions: readonly TrpgPublicAction[];
   resolutionOrder: readonly number[];
 }): void {
   if (opts.pinnedRoundRef.current !== opts.roundNumber) {
@@ -121,9 +128,9 @@ function syncPinnedVisibleActorIds(opts: {
     opts.pinnedIdsRef.current = [];
   }
   if (opts.incrementalCanonicalVisible) {
-    opts.pinnedIdsRef.current = incrementalCanonicalActionIds(
-      opts.sourceActions,
-      opts.resolutionOrder
+    opts.pinnedIdsRef.current = mergeIncrementalCanonicalPinIds(
+      opts.pinnedIdsRef.current,
+      opts.sourceActions
     );
   }
 }
