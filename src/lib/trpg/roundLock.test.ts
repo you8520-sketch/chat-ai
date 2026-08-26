@@ -45,14 +45,26 @@ describe("TRPG round work", () => {
     assert.deepEqual(work, { type: "acquire_gm_lock" });
   });
 
-  it("asks the host to fill a bot when generation failed", () => {
+  it("requires explicit AI retry after recovery is exhausted", () => {
     const work = nextTrpgRoundWork({
       phase: "BOT_ACTION",
       humans: [human(1, true)],
       bots: [bot(3, false)],
       botGenerateFailed: true,
+      botRecoveryEligible: false,
     });
-    assert.deepEqual(work, { type: "wait_host_fill", botIds: [3] });
+    assert.deepEqual(work, { type: "bot_retry_required", botIds: [3] });
+  });
+
+  it("auto-recovers pending bots once when generation failed but recovery remains", () => {
+    const work = nextTrpgRoundWork({
+      phase: "BOT_ACTION",
+      humans: [human(1, true)],
+      bots: [bot(3, false)],
+      botGenerateFailed: true,
+      botRecoveryEligible: true,
+    });
+    assert.deepEqual(work, { type: "generate_bots", botIds: [3] });
   });
 
   it("lets a solo human acquire the GM lock immediately", () => {

@@ -213,6 +213,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_rounds", "bot_generation_heartbeat_at", "TEXT");
   addColumn("trpg_rounds", "process_started_at", "TEXT");
   addColumn("trpg_rounds", "process_stage", "TEXT");
+  addColumn("trpg_rounds", "bot_generation_recovery_attempts", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_scenarios", "default_pc_stats_json", "TEXT NOT NULL DEFAULT ''");
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite

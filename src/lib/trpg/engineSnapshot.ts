@@ -4,7 +4,8 @@ import { loadSheetSnapshots } from "./engineSheets";
 import { botGenerationInFlight } from "./botGenerationLease";
 import { parseProcessStartedAtMs } from "./processTimer";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
-import { nextTrpgRoundWork, type TrpgRoundWork } from "./roundLock";
+import { resolveTrpgRoundWork } from "./botGenerationRecovery";
+import type { TrpgRoundWork } from "./roundLock";
 import { buildPartySheetHud } from "./sheetView";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
 import { loadTrpgPartyChat } from "./partyChat";
@@ -102,7 +103,6 @@ function readyOf(
   if (status === "spectating") return "spectating";
   if (p.kind === "ai_character") {
     if (submitted) return "submitted";
-    if (work.type === "wait_host_fill") return "host_fill";
     return "bot_pending";
   }
   return submitted ? "submitted" : "writing";
@@ -252,11 +252,12 @@ export function loadTrpgSnapshot(
     canAct: p.can_act === 1 && p.status === "active",
     submitted: locked.has(p.id),
   }));
-  const work = nextTrpgRoundWork({
+  const work = resolveTrpgRoundWork({
     phase: phase === "NONE" ? "CHARACTER_SETUP" : phase,
     humans: actors.filter((a) => a.kind === "human"),
     bots: actors.filter((a) => a.kind === "ai_character"),
-    botGenerateFailed: round?.error_json?.includes('"bot"') === true,
+    errorJson: round?.error_json,
+    recoveryAttempts: round?.bot_generation_recovery_attempts,
   });
 
   const widgetRow = db
@@ -360,8 +361,7 @@ export function loadTrpgSnapshot(
     viewerParticipantId: viewer?.id ?? null,
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
     viewerIsHost: campaign.host_user_id === viewerUserId,
-    needsHostFill: work.type === "wait_host_fill",
-    hostFillBotIds: work.type === "wait_host_fill" ? work.botIds : [],
+    botRetryRequired: work.type === "bot_retry_required",
     round: {
       id: round?.id ?? null,
       number: round?.round_number ?? 0,

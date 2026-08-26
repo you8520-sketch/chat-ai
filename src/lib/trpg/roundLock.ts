@@ -11,7 +11,7 @@ export type TrpgActorReady = {
 export type TrpgRoundWork =
   | { type: "wait_humans"; pendingIds: number[] }
   | { type: "generate_bots"; botIds: number[] }
-  | { type: "wait_host_fill"; botIds: number[] }
+  | { type: "bot_retry_required"; botIds: number[] }
   | { type: "acquire_gm_lock" }
   | { type: "idle" };
 
@@ -32,8 +32,10 @@ export function nextTrpgRoundWork(opts: {
   humans: TrpgActorReady[];
   bots: TrpgActorReady[];
   botGenerateFailed?: boolean;
+  /** When true, a persisted bot error may still auto-recover pending companions once. */
+  botRecoveryEligible?: boolean;
 }): TrpgRoundWork {
-  const { phase, humans, bots, botGenerateFailed } = opts;
+  const { phase, humans, bots, botGenerateFailed, botRecoveryEligible = false } = opts;
   switch (phase) {
     case "CHARACTER_SETUP":
     case "WAITING_FOR_PLAYERS":
@@ -61,7 +63,9 @@ export function nextTrpgRoundWork(opts: {
       if (stillHuman.length > 0) return { type: "wait_humans", pendingIds: stillHuman };
       const botPending = pendingIds(bots);
       if (botPending.length === 0) return { type: "acquire_gm_lock" };
-      if (botGenerateFailed) return { type: "wait_host_fill", botIds: botPending };
+      if (botGenerateFailed && !botRecoveryEligible) {
+        return { type: "bot_retry_required", botIds: botPending };
+      }
       return { type: "generate_bots", botIds: botPending };
     }
     default: {

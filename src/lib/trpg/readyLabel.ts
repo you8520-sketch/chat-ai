@@ -8,8 +8,6 @@ export function trpgReadyLabel(ready: TrpgReadyState): string {
       return "제출";
     case "bot_pending":
       return "봇 대기";
-    case "host_fill":
-      return "방장 입력";
     case "incapacitated":
       return "행동 불가";
     case "spectating":

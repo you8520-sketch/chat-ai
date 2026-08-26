@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, saveTrpgRelationshipBrief, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
-  hostFillBotAction,
+  retryTrpgBots,
   regenerateTrpgNarration,
   startTrpgCampaign,
   submitTrpgAction,
@@ -491,7 +491,7 @@ describe("TRPG campaign loop", () => {
     db.close();
   });
 
-  it("generates the bot only after the human locks, and host-fill works when the bot model fails", async () => {
+  it("generates the bot only after the human locks, and explicit retry works when the bot model fails", async () => {
     const db = memoryDb();
     let gmCalls = 0;
     let botCalls = 0;
@@ -504,7 +504,8 @@ describe("TRPG campaign loop", () => {
       },
       botCall: async () => {
         botCalls += 1;
-        throw new Error("bot-seat down");
+        if (botCalls <= 2) throw new Error("bot-seat down");
+        return { text: "유나가 창밖을 살핀다.\n\n<<<INTENT>>>\n창밖을 본다." };
       },
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
@@ -527,15 +528,19 @@ describe("TRPG campaign loop", () => {
     });
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
-    const waiting = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const firstFail = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(botCalls, 1);
     assert.equal(gmCalls, 1);
-    assert.equal(waiting.needsHostFill, true);
-    assert.deepEqual(waiting.hostFillBotIds, [botId]);
-    hostFillBotAction(db, { campaignId, userId: 1, participantId: botId, body: "유나가 창밖을 살핀다." });
-    const afterFill = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(firstFail.botRetryRequired, false);
+    assert.equal(firstFail.workType, "generate_bots");
+    const waiting = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(botCalls, 2);
+    assert.equal(waiting.botRetryRequired, true);
+    assert.equal(waiting.workType, "bot_retry_required");
+    const afterRetry = await retryTrpgBots(db, { campaignId, userId: 1, deps });
+    assert.equal(botCalls, 3);
     assert.equal(gmCalls, 2);
-    assert.equal(afterFill.round.phase, "ACTION_INPUT");
+    assert.equal(afterRetry.round.phase, "ACTION_INPUT");
     db.close();
   });
 
