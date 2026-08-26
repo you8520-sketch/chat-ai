@@ -57,6 +57,7 @@ import { applyProductionServerControlsToMessages } from "@/lib/scenePacingContro
 import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
 import type { PromptDebugMeta } from "@/services/promptDebugDump";
+import { normalizeStreamTermination } from "@/lib/providerTermination";
 import { buildControlledPossessionRules } from "@/lib/controlledPossession";
 import {
   detectRpMetaLeakage,
@@ -1486,11 +1487,16 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
           const json = JSON.parse(payload) as {
             model?: string | null;
             id?: string | null;
+            stop_reason?: string | null;
+            stop_details?: { type?: string | null };
             choices?: {
               delta?: { content?: string | null; text?: string | null; reasoning?: string | null };
               message?: { content?: string | null };
               text?: string | null;
               finish_reason?: string | null;
+              stop_reason?: string | null;
+              native_finish_reason?: string | { stop_reason?: string; type?: string } | null;
+              stop_details?: { type?: string | null };
             }[];
             usage?: {
               prompt_tokens?: number;
@@ -1506,7 +1512,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
           }
           const choice = json.choices?.[0];
           if (!choice) continue;
-          if (choice.finish_reason) finishReason = choice.finish_reason;
+          const normalizedFinish = normalizeStreamTermination(
+            choice as Record<string, unknown>,
+            json as Record<string, unknown>
+          );
+          if (normalizedFinish) finishReason = normalizedFinish;
 
           const rawDelta = extractOpenRouterStreamDelta(choice);
           const delta = rawDelta ? prefillStripper.push(rawDelta) : "";
@@ -2408,7 +2418,8 @@ export async function callOpenRouterAdult(
     const data = await res.json();
     console.log("=== [DEBUG] API 호출 성공, 응답 수신됨 ===");
     console.log("=== [DEBUG] USAGE DATA ===", JSON.stringify(data?.usage, null, 2));
-  const finishReason = data.choices?.[0]?.finish_reason as string | undefined;
+  const choice0 = data.choices?.[0] as Record<string, unknown> | undefined;
+  const finishReason = normalizeStreamTermination(choice0, data as Record<string, unknown>);
   console.log("[FINISH REASON]:", finishReason ?? "(none)");
   const completion = streamContentToText(data.choices?.[0]?.message?.content);
   const text = mergePrefillCompletion(prefill, completion);

@@ -118,6 +118,7 @@ export interface RefusalResult {
   refused: boolean;
   reason:
     | "provider_refusal"
+    | "native_refusal"
     | "safety_block"
     | "empty_safety_response"
     | "content_filter"
@@ -2071,14 +2072,17 @@ export function detectModelRefusal(input: {
         : "";
 
   if (
-    /content[_ -]?filter|blocked|safety|recitation/.test(finish) ||
+    /content[_ -]?filter|blocked|safety|recitation|^refusal$/.test(finish) ||
     /content[_ -]?filter|safety[_ -]?block|blocked by safety/.test(errorText)
   ) {
     return {
       refused: true,
-      reason: finish.includes("content") || errorText.includes("content")
-        ? "content_filter"
-        : "safety_block",
+      reason:
+        finish.includes("refusal") || finish === "refused"
+          ? "native_refusal"
+          : finish.includes("content") || errorText.includes("content")
+            ? "content_filter"
+            : "safety_block",
     };
   }
   if (!text && /safety|blocked|filter|refusal/.test(`${finish} ${errorText}`)) {

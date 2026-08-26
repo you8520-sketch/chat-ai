@@ -12,6 +12,7 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
+import { isProviderNativeRefusalSignal } from "./providerTermination";
 import {
   NARRATIVE_DENSITY_BLOCK,
   NO_GENERIC_REACTIONS_BLOCK,
@@ -291,7 +292,8 @@ export type GenerationFailureReason =
   | "safety"
   | "content_filter"
   | "under_length"
-  | "provider_error";
+  | "provider_error"
+  | "model_refusal";
 
 const GENERATION_FAILURE_USER_MESSAGE =
   "AI가 묘사 수위 조절에 실패하여 생성이 중단되었습니다. 대화 방향을 살짝 바꿔서 다시 시도해 주세요.";
@@ -299,12 +301,18 @@ const GENERATION_FAILURE_USER_MESSAGE =
 const PROVIDER_ERROR_USER_MESSAGE =
   "AI 응답 생성 중 오류가 발생해 응답을 저장하지 않았습니다. 포인트는 차감되지 않았습니다. 다시 시도해 주세요.";
 
+const MODEL_REFUSAL_USER_MESSAGE =
+  "선택한 AI가 이번 응답을 생성하지 못했습니다. 응답은 저장되지 않았고 포인트는 차감되지 않았습니다.";
+
 export function generationFailureUserMessage(reason?: GenerationFailureReason | null): string {
   if (reason === "under_length") {
     return "AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.";
   }
   if (reason === "provider_error") {
     return PROVIDER_ERROR_USER_MESSAGE;
+  }
+  if (reason === "model_refusal") {
+    return MODEL_REFUSAL_USER_MESSAGE;
   }
   return GENERATION_FAILURE_USER_MESSAGE;
 }
@@ -420,6 +428,9 @@ export function detectAdultGenerationFailure(
   narrativeBody?: string | null
 ): GenerationFailureReason | null {
   const r = (finishReason ?? "").toUpperCase();
+  if (isProviderNativeRefusalSignal(finishReason)) {
+    return "model_refusal";
+  }
   if (r === "SAFETY" || r === "SAFETY_BLOCK" || r === "RECITATION" || r === "PROHIBITED_CONTENT") {
     return "safety";
   }
