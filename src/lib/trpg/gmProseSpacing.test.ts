@@ -87,7 +87,7 @@ describe("TRPG GM prose spacing policy", () => {
     assert.match(named, /function TrpgGmProseBody/);
     assert.match(named, /paragraphMode="ai"/);
     assert.match(named, /paragraphSpacingMode="gm"/);
-    assert.doesNotMatch(named, /italic font-semibold text-sky-100/);
+    assert.match(named, /proseVariant="gm-table-talk"/);
   });
 
   it("F: streaming progressive reveal keeps committed paragraph boundaries stable", () => {
@@ -204,5 +204,67 @@ describe("TRPG GM scene beat inter-beat spacing (parseTrpgSceneSpeech → SceneT
     assert.equal(withGm.length, 2);
     assert.equal(withGm[1]!.speaker, "GM");
     assert.equal(trpgSceneBeatSpacingClass(withGm[1]!, withGm[0]!), GM_GAP);
+  });
+});
+
+describe("TRPG GM table-talk visual contract (TrpgGmTalk only)", () => {
+  const typography = readFileSync("src/lib/trpg/gmTableTalkTypography.ts", "utf8");
+  const named = readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
+  const novelText = readFileSync("src/components/NovelText.tsx", "utf8");
+  const tagged = readFileSync("src/app/trpg/TrpgTaggedNovelText.tsx", "utf8");
+  const namedProse = readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
+
+  it("A: TrpgGmTalk uses shared NovelText / TrpgTaggedNovelText renderer", () => {
+    assert.match(named, /function TrpgGmProseBody/);
+    assert.match(named, /<NovelText/);
+    assert.match(named, /<TrpgTaggedNovelText/);
+    assert.doesNotMatch(named, /<span className="italic font-semibold text-sky-100\/85">\{body\}<\/span>/);
+  });
+
+  it("B: GM label keeps pre-#644 label styling", () => {
+    assert.match(typography, /TRPG_GM_TALK_LABEL_CLASS = "not-italic font-bold text-sky-300"/);
+    assert.match(named, /TRPG_GM_TALK_LABEL_CLASS/);
+    assert.match(named, /<span className=\{TRPG_GM_TALK_LABEL_CLASS\}>GM:<\/span>/);
+  });
+
+  it("C: GM body keeps table-talk typography via shared policy constant", () => {
+    assert.match(typography, /TRPG_GM_TALK_BODY_CLASS = "italic font-semibold text-sky-100\/85"/);
+    assert.match(novelText, /TRPG_GM_TALK_BODY_CLASS/);
+    assert.match(novelText, /uniformBodyClass/);
+    assert.match(named, /proseVariant="gm-table-talk"/);
+  });
+
+  it("D: GM first prose block stays inline with label (inlineLead owner)", () => {
+    assert.match(novelText, /inlineLead/);
+    assert.match(novelText, /data-trpg-gm-talk-inline-lead/);
+    assert.match(named, /inlineLead/);
+    assert.match(tagged, /inlineLead=\{inlineLead && i === firstTextIndex\}/);
+  });
+
+  it("E: multiple GM paragraphs still use gm spacing mode", () => {
+    const multi =
+      "첫 GM 문장입니다. 어둠 속 복도를 따라 발걸음 소리만이 울려 퍼졌다.\n\n둘째 GM 문장입니다. 문 너머에서 금속성 소리가 들려왔다.";
+    const paragraphs = gmParagraphs(multi);
+    assert.equal(paragraphs.length, 2);
+    assert.equal(gmSpacingBetween(paragraphs[0]!, paragraphs[1]!), GM_GAP);
+    assert.match(named, /paragraphSpacingMode="gm"/);
+  });
+
+  it("F: asset and no-asset GM table-talk share proseVariant typography policy", () => {
+    assert.match(named, /proseVariant="gm-table-talk"/);
+    assert.match(tagged, /proseVariant=\{proseVariant\}/);
+    assert.equal(
+      (named.match(/proseVariant="gm-table-talk"/g) ?? []).length,
+      2
+    );
+  });
+
+  it("G: normal scene narration / named dialogue paths omit gm-table-talk variant", () => {
+    const defaultNamed = namedProse.slice(namedProse.indexOf("export default function TrpgNamedProse"));
+    assert.doesNotMatch(defaultNamed, /proseVariant="gm-table-talk"/);
+    assert.match(defaultNamed, /paragraphSpacingMode = "default"/);
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const actionCard = room.slice(room.indexOf("data-trpg-action-card"));
+    assert.doesNotMatch(actionCard.slice(0, 1200), /proseVariant="gm-table-talk"/);
   });
 });

@@ -9,6 +9,7 @@ import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
+import { TRPG_GM_TALK_LABEL_CLASS } from "@/lib/trpg/gmTableTalkTypography";
 
 const quoteSelectStyle = {
   userSelect: "text" as const,
@@ -48,6 +49,8 @@ function TrpgGmProseBody({
         variant="character"
         paragraphMode="ai"
         paragraphSpacingMode="gm"
+        proseVariant="gm-table-talk"
+        inlineLead
         streaming={streaming}
         dialogueAccent={false}
       />
@@ -60,6 +63,8 @@ function TrpgGmProseBody({
       variant="character"
       paragraphMode="ai"
       paragraphSpacingMode="gm"
+      proseVariant="gm-table-talk"
+      inlineLead
       streaming={streaming}
       dialogueAccent={false}
     />
@@ -112,7 +117,7 @@ export function TrpgGmTalk({
           letterSpacing: "0.01em",
         }}
       >
-        <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
+        <span className={TRPG_GM_TALK_LABEL_CLASS}>GM:</span>{" "}
         <TrpgGmProseBody
           body={body}
           assets={assets}

@@ -17,6 +17,10 @@ import {
   type NovelParagraphKind,
 } from "@/lib/novelParagraphs";
 import { parseUserMessageParts } from "@/lib/userMessageParse";
+import {
+  TRPG_GM_TALK_BODY_CLASS,
+  type TrpgProseVariant,
+} from "@/lib/trpg/gmTableTalkTypography";
 
 type Segment = { kind: "narration" | "dialogue" | "special"; text: string };
 
@@ -38,6 +42,7 @@ function InlineSegments({
   narrationMuted = false,
   preserveRawLineBreaks = false,
   dialogueAccent = true,
+  uniformBodyClass,
 }: {
   text: string;
   paragraphKind?: NovelParagraphKind;
@@ -50,6 +55,8 @@ function InlineSegments({
   preserveRawLineBreaks?: boolean;
   /** Global chat keeps the purple rail. TRPG action cards pass false. */
   dialogueAccent?: boolean;
+  /** TRPG GM table-talk — one typography class for all segments in the beat body. */
+  uniformBodyClass?: string;
 }) {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -57,6 +64,14 @@ function InlineSegments({
   const dialogueText = preserveRawLineBreaks
     ? trimmed
     : collapseDialogueInternalLineBreaks(trimmed);
+
+  if (uniformBodyClass) {
+    return (
+      <span className={`${uniformBodyClass}${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}>
+        {paragraphKind === "dialogue" ? dialogueText : trimmed}
+      </span>
+    );
+  }
 
   if (paragraphKind === "dialogue") {
     return (
@@ -93,6 +108,20 @@ function InlineSegments({
   return (
     <>
       {segments.map((seg, i) => {
+        if (uniformBodyClass) {
+          return (
+            <span
+              key={i}
+              className={`${uniformBodyClass}${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
+            >
+              {preserveRawLineBreaks
+                ? seg.text
+                : seg.kind === "dialogue"
+                  ? collapseDialogueInternalLineBreaks(seg.text)
+                  : seg.text}
+            </span>
+          );
+        }
         if (seg.kind === "dialogue") {
           return (
             <span
@@ -143,6 +172,8 @@ export default function NovelText({
   centered = false,
   paragraphMode = "ai",
   paragraphSpacingMode = "default",
+  proseVariant = "default",
+  inlineLead = false,
   streaming = false,
   dialogueAccent = true,
 }: {
@@ -157,6 +188,10 @@ export default function NovelText({
   paragraphMode?: "ai" | "author";
   /** default: chat/author spacing · gm: TRPG GM scene (~1em between blocks) */
   paragraphSpacingMode?: "default" | "gm";
+  /** gm-table-talk: TRPG GM aside typography only (TrpgGmTalk body). */
+  proseVariant?: TrpgProseVariant;
+  /** First paragraph flows inline after a leading label (GM table-talk). */
+  inlineLead?: boolean;
   /** 스트리밍 중 — 이미 그린 문단은 고정, 마지막 문단만 분리/갱신 */
   streaming?: boolean;
   /** Global chat keeps the purple rail. TRPG action cards pass false. */
@@ -223,6 +258,29 @@ export default function NovelText({
       : chatTypographyStyle;
 
   const useParagraphKindColors = paragraphMode === "ai" && variant === "character";
+  const gmTableTalk = proseVariant === "gm-table-talk";
+  const uniformBodyClass = gmTableTalk ? TRPG_GM_TALK_BODY_CLASS : undefined;
+
+  const renderParagraphBody = (para: string, i: number) => {
+    const empty = !para.trim();
+    if (empty) {
+      return "\u00a0";
+    }
+    return (
+      <InlineSegments
+        text={para}
+        paragraphKind={useParagraphKindColors && !gmTableTalk ? paragraphKinds[i] : undefined}
+        narrationColor={narrationColor}
+        dialogueColor={dialogueColor}
+        specialColor={specialColor}
+        parseSegments={parseSegments}
+        narrationMuted={isAuthorMode}
+        preserveRawLineBreaks={isAuthorMode}
+        dialogueAccent={dialogueAccent}
+        uniformBodyClass={uniformBodyClass}
+      />
+    );
+  };
 
   if (centered) {
     return (
@@ -245,22 +303,50 @@ export default function NovelText({
               {empty ? (
                 <span className="inline-block min-h-[1em]">{"\u00a0"}</span>
               ) : (
-                <InlineSegments
-                  text={para}
-                  paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-                  narrationColor={narrationColor}
-                  dialogueColor={dialogueColor}
-                  specialColor={specialColor}
-                  parseSegments={parseSegments}
-                  narrationMuted={isAuthorMode}
-                  preserveRawLineBreaks={isAuthorMode}
-                  dialogueAccent={dialogueAccent}
-                />
+                renderParagraphBody(para, i)
               )}
             </span>
           );
         })}
       </p>
+    );
+  }
+
+  if (inlineLead && !centered) {
+    return (
+      <>
+        {displayParagraphs.map((para, i) => {
+          const spacing =
+            i > 0
+              ? novelParagraphSpacingClass(
+                  paragraphKinds[i],
+                  paragraphKinds[i - 1],
+                  spacingMode
+                )
+              : "";
+          if (i === 0) {
+            return (
+              <span
+                key={i}
+                className="chat-novel-prose inline"
+                style={typography}
+                data-trpg-gm-talk-inline-lead
+              >
+                {renderParagraphBody(para, i)}
+              </span>
+            );
+          }
+          return (
+            <p
+              key={i}
+              className={["chat-novel-prose m-0 leading-[inherit]", spacing].filter(Boolean).join(" ") || undefined}
+              style={typography}
+            >
+              {renderParagraphBody(para, i)}
+            </p>
+          );
+        })}
+      </>
     );
   }
 
@@ -284,21 +370,7 @@ export default function NovelText({
               .filter(Boolean)
               .join(" ") || undefined}
           >
-            {empty ? (
-              "\u00a0"
-            ) : (
-              <InlineSegments
-                text={para}
-                paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-                narrationColor={narrationColor}
-                dialogueColor={dialogueColor}
-                specialColor={specialColor}
-                parseSegments={parseSegments}
-                narrationMuted={isAuthorMode}
-                preserveRawLineBreaks={isAuthorMode}
-                dialogueAccent={dialogueAccent}
-              />
-            )}
+            {empty ? "\u00a0" : renderParagraphBody(para, i)}
           </p>
         );
       })}
