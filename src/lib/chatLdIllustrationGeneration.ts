@@ -188,9 +188,12 @@ export function buildTrpgIllustrationSituation(opts: {
 function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
   situation: string;
+  subjects?: readonly ChatImageVisualSubject[];
 }): string {
   const count = opts.cast.length;
-  const subjects = visualSubjectsFromCastMembers(opts.cast);
+  const subjects = opts.subjects?.length
+    ? [...opts.subjects]
+    : visualSubjectsFromCastMembers(opts.cast);
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
@@ -263,6 +266,7 @@ export function buildChatLdIllustrationPrompt(opts: {
       situation:
         opts.situation?.trim() ||
         sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
+      subjects: opts.subjects,
     });
   }
   const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);

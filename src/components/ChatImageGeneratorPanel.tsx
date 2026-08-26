@@ -42,7 +42,9 @@ import {
 } from "@/lib/chatImageGeneration";
 import {
   previewVisualAppearance,
+  resolveChatImageAppearanceControlProduct,
   resolveEffectiveAppearanceMode,
+  shouldShowChatImageAppearanceModeControl,
   type ChatImageAppearanceMode,
 } from "@/lib/chatImageVisualIdentity";
 import {
@@ -570,6 +572,16 @@ export default function ChatImageGeneratorPanel({
   });
   const characterAppearanceFull = info?.character.appearancePreview?.trim() || "";
   const characterAppearancePreview = previewVisualAppearance(characterAppearanceFull);
+  const appearanceControlProduct = resolveChatImageAppearanceControlProduct({
+    surface: tab === "sd" ? "sd" : "ld",
+    sdProduct,
+    ldProduct,
+    isTrpgParty: Boolean(campaignId),
+  });
+  const showAppearanceModeControl = shouldShowChatImageAppearanceModeControl({
+    product: appearanceControlProduct,
+    hasSavedAppearance: Boolean(characterAppearanceFull),
+  });
   const partyPickerMember = useMemo(
     () => partyCast.find((row) => row.participantId === partyPickerId) ?? null,
     [partyCast, partyPickerId]
@@ -1482,7 +1494,7 @@ export default function ChatImageGeneratorPanel({
                         </div>
                       </div>
                     ) : null}
-                    {info?.character && !(tab === "comic" && ldProduct === "persona") ? (
+                    {showAppearanceModeControl ? (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
                         <p className="text-[10px] font-semibold text-zinc-400">외형 기준</p>
                         <div className="mt-1.5 space-y-1 text-[11px] text-zinc-300">

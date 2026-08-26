@@ -12,18 +12,24 @@ import {
   syntheticDuoGiftPrimary,
   syntheticEmoticonPlan,
   syntheticLdDuoPlan,
+  syntheticLdPartyAllReferencesAbsent,
   syntheticLdPartyCast,
+  syntheticLdPartyMixedVisualStates,
+  syntheticNoPhotoNoSavedSubject,
+  syntheticNoPhotoSavedSubject,
 } from "./chatImageVisualIdentity.fixtures";
-import { extractAppearanceRawFromSetting } from "./appearanceCompiler";
 import {
+  buildPartyIllustrationReferencePlan,
   defaultAppearanceMode,
   extractVisualAppearance,
   isPrimarySelectableImage,
   previewVisualAppearance,
   resolveCharacterSavedAppearance,
+  resolveChatImageAppearanceControlProduct,
   resolveEffectiveAppearanceMode,
   resolvePersonaSavedAppearance,
   resolveRequestAppearanceModes,
+  shouldShowChatImageAppearanceModeControl,
 } from "./chatImageVisualIdentity";
 import { extractPersonaAppearance } from "./chatPersonaImageGeneration";
 
@@ -77,7 +83,7 @@ describe("chat image visual identity", () => {
 
     const fromCharacter = resolveCharacterSavedAppearance({
       appearanceRaw: "",
-      appearanceSection: extractAppearanceRawFromSetting(SYNTHETIC_PRIVATE_CHARACTER_PROMPT),
+      appearanceSection: "검은 머리, 비대칭 앞머리, 검은 동공과 붉은 홍채, 흰 셔츠, 검은 하네스.",
     });
     assert.match(fromCharacter, /붉은 홍채/);
     assert.doesNotMatch(fromCharacter, /비밀을 절대/);
@@ -88,7 +94,7 @@ describe("chat image visual identity", () => {
   it("does not forward a full system prompt or persona description", () => {
     const appearance = resolveCharacterSavedAppearance({
       appearanceRaw: "",
-      appearanceSection: extractAppearanceRawFromSetting(SYNTHETIC_PRIVATE_CHARACTER_PROMPT),
+      appearanceSection: "검은 머리, 비대칭 앞머리, 검은 동공과 붉은 홍채, 흰 셔츠, 검은 하네스.",
     });
     assert.notEqual(appearance, SYNTHETIC_PRIVATE_CHARACTER_PROMPT);
     assert.ok(appearance.length < SYNTHETIC_PRIVATE_CHARACTER_PROMPT.length);
@@ -149,6 +155,25 @@ describe("chat image visual identity", () => {
         isPrimaryImage: true,
         hasOwnSavedAppearance: true,
         hasOwnReference: true,
+      }),
+      "image_only"
+    );
+    assert.equal(
+      defaultAppearanceMode({
+        sourceKind: "main_character",
+        isPrimaryImage: true,
+        hasOwnSavedAppearance: false,
+        hasOwnReference: true,
+      }),
+      "image_only"
+    );
+    assert.equal(
+      resolveEffectiveAppearanceMode({
+        sourceKind: "main_character",
+        isPrimaryImage: true,
+        hasOwnSavedAppearance: false,
+        hasOwnReference: true,
+        override: "image_plus_saved",
       }),
       "image_only"
     );
@@ -329,5 +354,252 @@ describe("chat image visual identity", () => {
     assert.doesNotMatch(party.prompt, /IgnoredMain/);
     assert.doesNotMatch(party.identity, /IgnoredMain/);
     assert.match(party.prompt, /identity photo for CharacterA only/);
+  });
+
+  it("does not extract Korean non-appearance substrings (NONVISUAL_CLAUSE_LEAK_TEST)", () => {
+    assert.equal(extractVisualAppearance("귀족 가문의 비밀을 알고 있다."), "");
+    assert.equal(extractVisualAppearance("눈앞의 상황을 지켜본다."), "");
+    assert.equal(extractVisualAppearance("점점 마음을 열었다."), "");
+    assert.equal(extractVisualAppearance("시점과 장점을 이야기한다."), "");
+
+    const hairIris = extractVisualAppearance("검은 머리, 붉은 홍채.");
+    assert.match(hairIris, /검은 머리/);
+    assert.match(hairIris, /붉은 홍채/);
+
+    const earTail = extractVisualAppearance("긴 귀, 검은 꼬리.");
+    assert.match(earTail, /긴 귀/);
+    assert.match(earTail, /검은 꼬리/);
+
+    const mixed = extractVisualAppearance("검은 머리이며 비밀 조직의 수장이다.");
+    assert.match(mixed, /검은 머리/);
+    assert.doesNotMatch(mixed, /비밀 조직/);
+    assert.doesNotMatch(mixed, /수장/);
+  });
+
+  it("keeps party provider references 1:1 with numbered prompt owners", () => {
+    const three = syntheticLdPartyCast();
+    assert.equal(three.referenceUrls.length, 3);
+    assert.equal(three.canGenerate, true);
+    assert.equal(three.hiddenIdentityFallback, false);
+    assert.deepEqual(
+      three.subjects
+        .filter((subject) => subject.referenceIndex != null)
+        .map((subject) => subject.referenceImageUrl),
+      three.referenceUrls
+    );
+    assert.match(three.prompt, /Image 1 belongs ONLY to CharacterA/);
+    assert.match(three.prompt, /Image 2 belongs ONLY to CharacterB/);
+    assert.match(three.prompt, /Image 3 belongs ONLY to CharacterC/);
+    assert.doesNotMatch(three.prompt, /Image 4 belongs/);
+
+    const mixed = syntheticLdPartyMixedVisualStates();
+    assert.deepEqual(mixed.referenceUrls, [
+      "/synthetic/character-a-primary.webp",
+      "/synthetic/character-c-alt.webp",
+    ]);
+    assert.equal(mixed.subjects[0]?.referenceIndex, 1);
+    assert.equal(mixed.subjects[1]?.referenceIndex, 2);
+    assert.equal(mixed.subjects[2]?.referenceIndex, null);
+    assert.equal(mixed.subjects[3]?.referenceIndex, null);
+    assert.match(mixed.prompt, /Image 1 belongs ONLY to CharacterA/);
+    assert.match(mixed.prompt, /Image 2 belongs ONLY to CharacterC/);
+    assert.match(mixed.prompt, /No photo for CharacterD/);
+    assert.match(mixed.prompt, /No photo for CharacterE/);
+    assert.match(subjectBlock(mixed.prompt, "A"), /IMAGE_PLUS_SAVED/);
+    assert.match(subjectBlock(mixed.prompt, "B"), /IMAGE_ONLY/);
+    assert.doesNotMatch(subjectBlock(mixed.prompt, "B"), /red irises/);
+    assert.match(subjectBlock(mixed.prompt, "C"), /IMAGE_PLUS_SAVED/);
+    assert.doesNotMatch(subjectBlock(mixed.prompt, "C"), /prefer this subject's selected reference/);
+    assert.match(subjectBlock(mixed.prompt, "D"), /NO_VISUAL_REFERENCE/);
+    assert.doesNotMatch(subjectBlock(mixed.prompt, "D"), /selected reference/);
+    assert.doesNotMatch(subjectBlock(mixed.prompt, "D"), /own reference is authoritative/);
+
+    const stale = buildPartyIllustrationReferencePlan([
+      {
+        name: "CharacterA",
+        gender: "male",
+        role: "companion character",
+        referenceIndex: 1,
+        imageUrl: "/synthetic/character-a-primary.webp",
+        appearanceNote: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      },
+      {
+        name: "CharacterB",
+        gender: "female",
+        role: "player",
+        referenceIndex: null,
+        imageUrl: null,
+        appearanceNote: "",
+      },
+      {
+        name: "CharacterC",
+        gender: "other",
+        role: "companion character",
+        referenceIndex: 9,
+        imageUrl: "/synthetic/character-c-alt.webp",
+        appearanceNote: "",
+        isPrimaryImage: false,
+      },
+    ]);
+    assert.deepEqual(stale.referenceUrls, [
+      "/synthetic/character-a-primary.webp",
+      "/synthetic/character-c-alt.webp",
+    ]);
+    assert.equal(stale.subjects[2]?.referenceIndex, 2);
+    assert.equal(stale.hiddenIdentityFallback, false);
+  });
+
+  it("fails closed when every party cast member has no photo", () => {
+    const absent = syntheticLdPartyAllReferencesAbsent();
+    assert.deepEqual(absent.referenceUrls, []);
+    assert.equal(absent.canGenerate, false);
+    assert.equal(absent.hiddenIdentityFallback, false);
+    assert.deepEqual(absent.referenceOrder, []);
+    for (const url of absent.contextFallbackUrls) {
+      assert.equal(absent.referenceUrls.includes(url), false);
+    }
+    assert.doesNotMatch(absent.prompt, /Image \d+ belongs ONLY/);
+    assert.match(absent.prompt, /No photo for CharacterA/);
+    assert.match(absent.prompt, /No photo for CharacterB/);
+    assert.doesNotMatch(absent.prompt, /chat-main-character/);
+    assert.doesNotMatch(absent.prompt, /user-persona/);
+  });
+
+  it("renders no-photo manifests without selected-reference language", () => {
+    const saved = syntheticNoPhotoSavedSubject();
+    assert.match(saved.prompt, /IMAGE_PLUS_SAVED/);
+    assert.match(saved.prompt, /No photo for CharacterA/);
+    assert.match(saved.prompt, /red irises/);
+    assert.doesNotMatch(saved.prompt, /prefer this subject's selected reference/);
+    assert.doesNotMatch(saved.prompt, /Use this selected reference/);
+    assert.doesNotMatch(saved.prompt, /own reference is authoritative/);
+
+    const empty = syntheticNoPhotoNoSavedSubject();
+    assert.match(empty.prompt, /NO_VISUAL_REFERENCE/);
+    assert.match(empty.prompt, /No visual reference or saved appearance is available/);
+    assert.match(empty.prompt, /Use only the subject's name, gender lock and scene role/);
+    assert.match(empty.prompt, /Never borrow another subject's face or visual traits/);
+    assert.doesNotMatch(empty.prompt, /IMAGE_ONLY/);
+    assert.doesNotMatch(empty.prompt, /selected reference/);
+    assert.doesNotMatch(empty.prompt, /own reference is authoritative/);
+    assert.doesNotMatch(empty.prompt, /No supplemental saved appearance/);
+  });
+
+  it("shows appearance radios only for products that honor the request mode", () => {
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "sd",
+        sdProduct: "gift",
+      }),
+      "gift"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "sd",
+        sdProduct: "emoticon",
+      }),
+      "emoticon"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "sd",
+        sdProduct: "coupleStamp",
+      }),
+      "couple_stamp"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
+        ldProduct: "illustration",
+        isTrpgParty: false,
+      }),
+      "ld_duo"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
+        ldProduct: "illustration",
+        isTrpgParty: true,
+      }),
+      "ld_party"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
+        ldProduct: "comic",
+      }),
+      "comic"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
+        ldProduct: "persona",
+      }),
+      "persona"
+    );
+
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "gift",
+        hasSavedAppearance: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "emoticon",
+        hasSavedAppearance: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "couple_stamp",
+        hasSavedAppearance: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "ld_duo",
+        hasSavedAppearance: true,
+      }),
+      true
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "ld_party",
+        hasSavedAppearance: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "comic",
+        hasSavedAppearance: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "persona",
+        hasSavedAppearance: true,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "gift",
+        hasSavedAppearance: false,
+      }),
+      false
+    );
+    assert.equal(
+      shouldShowChatImageAppearanceModeControl({
+        product: "ld_duo",
+        hasSavedAppearance: false,
+      }),
+      false
+    );
   });
 });

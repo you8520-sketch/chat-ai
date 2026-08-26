@@ -3,8 +3,10 @@ import { buildEmoticonGenerationPlan } from "@/lib/chatEmoticonGeneration";
 import { buildGiftBoxGenerationPlan } from "@/lib/chatImageGeneration";
 import {
   bindChatImageReferencePack,
+  buildPartyIllustrationReferencePlan,
+  describeReferenceOrder,
+  renderChatImageSubjectManifest,
   renderChatImageVisualIdentity,
-  visualSubjectsFromCastMembers,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
 import { buildChatLdIllustrationPrompt } from "@/lib/chatLdIllustrationGeneration";
@@ -230,14 +232,13 @@ export function syntheticLdPartyCast() {
       isPrimaryImage: true,
     },
   ];
-  const subjects = visualSubjectsFromCastMembers(members);
+  const plan = buildPartyIllustrationReferencePlan(members);
   return {
     members,
-    subjects,
-    referenceUrls: subjects
-      .filter((subject) => subject.referenceIndex != null && subject.referenceImageUrl)
-      .sort((a, b) => (a.referenceIndex ?? 0) - (b.referenceIndex ?? 0))
-      .map((subject) => String(subject.referenceImageUrl)),
+    subjects: plan.subjects,
+    referenceUrls: plan.referenceUrls,
+    canGenerate: plan.canGenerate,
+    hiddenIdentityFallback: plan.hiddenIdentityFallback,
     prompt: buildChatLdIllustrationPrompt({
       characterName: "IgnoredMain",
       characterGender: "female",
@@ -246,10 +247,154 @@ export function syntheticLdPartyCast() {
       currentTurn: "The party stands at a ruined gate.",
       situation: "LOCATION: ruined gate\nGM SCENE: The party stands at a ruined gate.",
       cast: members,
+      subjects: plan.subjects,
     }),
     identity: renderChatImageVisualIdentity({
-      subjects,
+      subjects: plan.subjects,
       hasTemplate: false,
+    }),
+  };
+}
+
+export function syntheticNoPhotoSavedSubject() {
+  const subject: ChatImageVisualSubject = {
+    key: "cast-1",
+    role: "companion character",
+    name: "CharacterA",
+    gender: "male",
+    referenceIndex: null,
+    referenceImageUrl: null,
+    appearanceMode: "image_plus_saved",
+    savedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+    sourceKind: "cast_member",
+  };
+  return {
+    subject,
+    prompt: renderChatImageSubjectManifest(subject, 0),
+    referenceUrls: [],
+  };
+}
+
+export function syntheticNoPhotoNoSavedSubject() {
+  const subject: ChatImageVisualSubject = {
+    key: "cast-1",
+    role: "player",
+    name: "CharacterE",
+    gender: "other",
+    referenceIndex: null,
+    referenceImageUrl: null,
+    appearanceMode: "image_only",
+    savedAppearance: "",
+    sourceKind: "cast_member",
+  };
+  return {
+    subject,
+    prompt: renderChatImageSubjectManifest(subject, 0),
+    referenceUrls: [],
+  };
+}
+
+export function syntheticLdPartyMixedVisualStates() {
+  const members = [
+    {
+      name: "CharacterA",
+      gender: "male" as const,
+      role: "companion character",
+      referenceIndex: 1,
+      appearanceNote: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      appearanceMode: "image_plus_saved" as const,
+      imageUrl: "/synthetic/character-a-primary.webp",
+      isPrimaryImage: true,
+    },
+    {
+      name: "CharacterC",
+      gender: "other" as const,
+      role: "companion character",
+      referenceIndex: 2,
+      appearanceNote: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      appearanceMode: "image_only" as const,
+      imageUrl: "/synthetic/character-c-alt.webp",
+      isPrimaryImage: false,
+    },
+    {
+      name: "CharacterD",
+      gender: "male" as const,
+      role: "player",
+      referenceIndex: null,
+      appearanceNote: "short black hair, glasses",
+      appearanceMode: "image_plus_saved" as const,
+      imageUrl: null,
+      isPrimaryImage: true,
+    },
+    {
+      name: "CharacterE",
+      gender: "female" as const,
+      role: "player",
+      referenceIndex: null,
+      appearanceNote: "",
+      appearanceMode: "image_only" as const,
+      imageUrl: null,
+      isPrimaryImage: true,
+    },
+  ];
+  const plan = buildPartyIllustrationReferencePlan(members);
+  return {
+    members,
+    ...plan,
+    prompt: buildChatLdIllustrationPrompt({
+      characterName: "IgnoredMain",
+      characterGender: "female",
+      personaName: "IgnoredPersona",
+      personaGender: "male",
+      currentTurn: "The party waits in the dark.",
+      situation: "LOCATION: dark hall\nGM SCENE: The party waits in the dark.",
+      cast: members,
+      subjects: plan.subjects,
+    }),
+  };
+}
+
+export function syntheticLdPartyAllReferencesAbsent() {
+  const members = [
+    {
+      name: "CharacterA",
+      gender: "male" as const,
+      role: "companion character",
+      referenceIndex: null,
+      appearanceNote: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      appearanceMode: "image_plus_saved" as const,
+      imageUrl: null,
+      isPrimaryImage: true,
+    },
+    {
+      name: "CharacterB",
+      gender: "female" as const,
+      role: "player",
+      referenceIndex: null,
+      appearanceNote: "",
+      appearanceMode: "image_only" as const,
+      imageUrl: null,
+      isPrimaryImage: true,
+    },
+  ];
+  const plan = buildPartyIllustrationReferencePlan(members);
+  return {
+    members,
+    contextFallbackUrls: [
+      "/synthetic/chat-main-character.webp",
+      "/synthetic/user-persona.webp",
+    ],
+    referenceOrder: describeReferenceOrder(plan),
+    ...plan,
+    prompt: buildChatLdIllustrationPrompt({
+      characterName: "IgnoredMain",
+      characterGender: "female",
+      personaName: "IgnoredPersona",
+      personaGender: "male",
+      currentTurn: "No one brought a photo.",
+      situation: "LOCATION: camp\nGM SCENE: No one brought a photo.",
+      cast: members,
+      subjects: plan.subjects,
     }),
   };
 }

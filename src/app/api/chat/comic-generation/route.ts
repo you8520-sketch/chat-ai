@@ -38,13 +38,13 @@ import {
 } from "@/lib/chatLdIllustrationGeneration";
 import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
 import {
+  CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR,
+  buildPartyIllustrationReferencePlan,
   defaultAppearanceMode,
   isPrimarySelectableImage,
-  referenceUrlsFromSubjects,
   resolveCharacterSavedAppearance,
   resolvePersonaSavedAppearance,
   resolveRequestAppearanceModes,
-  visualSubjectsFromCastMembers,
 } from "@/lib/chatImageVisualIdentity";
 import {
   applyTrpgCastImagePicks,
@@ -727,7 +727,6 @@ export async function POST(req: Request) {
         );
       }
 
-      startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const campaignId = positiveInt(body.campaignId);
       const roundNumber = nonNegativeInt(body.roundNumber);
       const appearanceModes = resolveRequestAppearanceModes({
@@ -739,7 +738,8 @@ export async function POST(req: Request) {
         personaOverride: body.personaAppearanceMode,
       });
       let cast: ChatLdIllustrationCastMember[] | undefined;
-      let referenceUrls = [context.characterImageUrl, context.personaImageUrl];
+      let partyPlan: ReturnType<typeof buildPartyIllustrationReferencePlan> | undefined;
+      let referenceUrls: string[] = [];
       let situation: string | undefined;
       let sceneLocation = "";
       let sceneActions: Array<{ name: string; body: string }> = [];
@@ -776,9 +776,24 @@ export async function POST(req: Request) {
             isPrimaryImage: isPrimary,
           };
         });
-        const partySubjects = visualSubjectsFromCastMembers(cast);
-        const partyUrls = referenceUrlsFromSubjects(partySubjects);
-        if (partyUrls.length > 0) referenceUrls = partyUrls;
+        partyPlan = buildPartyIllustrationReferencePlan(cast);
+        if (!partyPlan.canGenerate) {
+          throw new RequestError(CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR);
+        }
+        referenceUrls = partyPlan.referenceUrls;
+        cast = partyPlan.subjects.map((subject, index) => ({
+          ...(cast?.[index] ?? {
+            name: subject.name,
+            gender: subject.gender,
+            role: subject.role,
+            appearanceNote: subject.savedAppearance,
+            aliases: subject.aliases,
+            appearanceMode: subject.appearanceMode,
+            isPrimaryImage: true,
+          }),
+          referenceIndex: subject.referenceIndex,
+          imageUrl: subject.referenceImageUrl,
+        }));
         sceneLocation = scene.location;
         sceneActions = scene.actions;
       }
@@ -801,6 +816,7 @@ export async function POST(req: Request) {
           personaGender: context.personaGender,
           currentTurn: source.turnText,
           cast,
+          subjects: partyPlan?.subjects,
           situation,
         });
       } else {
@@ -820,6 +836,7 @@ export async function POST(req: Request) {
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
       }
+      startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
       );

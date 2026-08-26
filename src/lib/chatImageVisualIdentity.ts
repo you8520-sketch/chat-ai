@@ -31,8 +31,28 @@ export type ChatImageTemplateSlot = {
   role: string;
 };
 
-const APPEARANCE_SIGNAL =
-  /(?:외모|외형|생김새|인상|머리|헤어|앞머리|가르마|반가르마|중앙가르마|사이드\s*파트|묶은\s*머리|장발|단발|짧은\s*머리|머리색|금발|은발|흑발|갈색머리|적발|5\s*:\s*5|눈|눈동자|동공|홍채|벽안|적안|금안|녹안|오드아이|키|신장|체격|체형|피부|얼굴|흉터|문신|점|안경|귀걸이|피어싱|액세서리|장신구|복장|의상|옷|셔츠|교복|정장|드레스|하네스|재킷|후드|코트|유니폼|날개|뿔|귀|꼬리|appearance|hair(?:cut|style|color)?|bangs?|fringe|center[-\s]?part|side[-\s]?part|iris(?:es)?|pupils?|heterochromia|eyes?|height|build|skin|face|scar|tattoo|mole|piercing|accessor(?:y|ies)|outfit|clothes?|clothing|shirt|harness|jacket|hoodie|coat|uniform|suit)/i;
+const VISUAL_PHRASE =
+  /(?:외모|외형|생김새|인상|머리|헤어|앞머리|가르마|반가르마|중앙가르마|사이드\s*파트|묶은\s*머리|장발|단발|짧은\s*머리|머리색|금발|은발|흑발|갈색머리|적발|5\s*:\s*5|눈동자|동공|홍채|벽안|적안|금안|녹안|오드아이|신장|체격|체형|피부|얼굴|흉터|문신|안경|귀걸이|피어싱|액세서리|장신구|복장|의상|셔츠|교복|정장|드레스|하네스|재킷|후드|코트|유니폼|날개|꼬리|\bappearance\b|\bhair(?:cut|style|color)?\b|\bbangs?\b|\bfringe\b|center[-\s]?part|side[-\s]?part|\biris(?:es)?\b|\bpupils?\b|\bheterochromia\b|\beyes?\b|\bheight\b|\bbuild\b|\bskin\b|\bface\b|\bscar\b|\btattoo\b|\bmole\b|\bpiercing\b|\baccessor(?:y|ies)\b|\boutfit\b|\bclothes?\b|\bclothing\b|\bshirt\b|\bharness\b|\bjacket\b|\bhoodie\b|\bcoat\b|\buniform\b|\bsuit\b)/i;
+
+const SHORT_KO_VISUAL = ["눈", "귀", "점", "키", "뿔", "옷"] as const;
+const SHORT_KO_VISUAL_RE = new RegExp(
+  `(?<![가-힣A-Za-z])(?:${SHORT_KO_VISUAL.join("|")})(?:[이가을를은는의과와도만]|부터|까지|로|으로)?(?![가-힣A-Za-z])`
+);
+
+const CLAUSE_SPLIT =
+  /\n+|(?<=[.!?。！？])\s+|,\s*|;\s+|이며\s*|이고\s*|하지만\s*|그리고\s+/;
+
+export const CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR =
+  "파티 구성원 참조 이미지가 없습니다. 채팅 캐릭터나 페르소나 사진을 대신 쓰지 않습니다. 최소 1명의 참조 사진을 선택한 뒤 다시 시도해 주세요.";
+
+export type ChatImageAppearanceControlProduct =
+  | "gift"
+  | "emoticon"
+  | "couple_stamp"
+  | "ld_duo"
+  | "ld_party"
+  | "persona"
+  | "comic";
 
 const SUBJECT_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -53,6 +73,10 @@ export function sanitizeChatImageAppearanceMode(
   return isChatImageAppearanceMode(raw) ? raw : fallback;
 }
 
+function clauseLooksVisual(segment: string): boolean {
+  return VISUAL_PHRASE.test(segment) || SHORT_KO_VISUAL_RE.test(segment);
+}
+
 export function extractVisualAppearance(source: unknown): string {
   const normalized = String(source ?? "")
     .replace(/\r\n?/g, "\n")
@@ -61,9 +85,9 @@ export function extractVisualAppearance(source: unknown): string {
   if (!normalized) return "";
 
   const segments = normalized
-    .split(/\n+|(?<=[.!?。！？])\s+/)
+    .split(CLAUSE_SPLIT)
     .map((segment) => segment.trim())
-    .filter((segment) => segment && APPEARANCE_SIGNAL.test(segment));
+    .filter((segment) => segment && clauseLooksVisual(segment));
   return segments.join("\n").slice(0, CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX).trim();
 }
 
@@ -110,6 +134,7 @@ export function defaultAppearanceMode(input: {
   hasOwnSavedAppearance: boolean;
   hasOwnReference: boolean;
 }): ChatImageAppearanceMode {
+  if (!input.hasOwnSavedAppearance) return "image_only";
   switch (input.sourceKind) {
     case "unknown":
     case "image_only":
@@ -119,7 +144,7 @@ export function defaultAppearanceMode(input: {
       return input.isPrimaryImage ? "image_plus_saved" : "image_only";
     case "cast_member":
       if (input.hasOwnReference && !input.isPrimaryImage) return "image_only";
-      return input.hasOwnSavedAppearance ? "image_plus_saved" : "image_only";
+      return "image_plus_saved";
     default:
       return assertNever(input.sourceKind);
   }
@@ -132,8 +157,45 @@ export function resolveEffectiveAppearanceMode(input: {
   hasOwnReference: boolean;
   override?: ChatImageAppearanceMode | null;
 }): ChatImageAppearanceMode {
+  if (!input.hasOwnSavedAppearance) return "image_only";
   if (isChatImageAppearanceMode(input.override)) return input.override;
   return defaultAppearanceMode(input);
+}
+
+export function resolveChatImageAppearanceControlProduct(opts: {
+  surface: "sd" | "ld";
+  sdProduct?: "gift" | "emoticon" | "coupleStamp";
+  ldProduct?: "comic" | "illustration" | "persona";
+  isTrpgParty?: boolean;
+}): ChatImageAppearanceControlProduct {
+  if (opts.surface === "sd") {
+    if (opts.sdProduct === "emoticon") return "emoticon";
+    if (opts.sdProduct === "coupleStamp") return "couple_stamp";
+    return "gift";
+  }
+  if (opts.ldProduct === "persona") return "persona";
+  if (opts.ldProduct === "comic") return "comic";
+  return opts.isTrpgParty ? "ld_party" : "ld_duo";
+}
+
+export function shouldShowChatImageAppearanceModeControl(opts: {
+  product: ChatImageAppearanceControlProduct;
+  hasSavedAppearance: boolean;
+}): boolean {
+  if (!opts.hasSavedAppearance) return false;
+  switch (opts.product) {
+    case "gift":
+    case "emoticon":
+    case "couple_stamp":
+    case "ld_duo":
+      return true;
+    case "ld_party":
+    case "persona":
+    case "comic":
+      return false;
+    default:
+      return assertNever(opts.product);
+  }
 }
 
 export function resolveRequestAppearanceModes(opts: {
@@ -343,27 +405,46 @@ export function renderChatImageSubjectManifest(
     .map((alias) => alias.trim())
     .filter((alias) => alias && alias !== name);
   const aliasLine = aliases.length ? `Also known as: ${aliases.join(", ")}.` : "";
-  const reference =
-    subject.referenceIndex != null
-      ? `Reference: Image ${subject.referenceIndex} belongs ONLY to ${name}.`
-      : `Reference: No photo for ${name}. Do not borrow another subject's reference or face.`;
-  const mode =
-    subject.appearanceMode === "image_plus_saved"
-      ? "Appearance mode: IMAGE_PLUS_SAVED"
-      : "Appearance mode: IMAGE_ONLY";
+  const hasReference = subject.referenceIndex != null;
   const saved = clipSavedAppearanceForPrompt(subject.savedAppearance);
-  const appearanceBlock =
-    subject.appearanceMode === "image_plus_saved" && saved
-      ? [
-          "Saved visual identity (this subject only):",
-          formatSavedAppearanceLines(saved),
-          "Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.",
-          "For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.",
-        ].join("\n")
-      : [
-          "No supplemental saved appearance.",
-          "Use this selected reference as the authoritative visual identity for this subject only.",
-        ].join("\n");
+  const useSaved = subject.appearanceMode === "image_plus_saved" && Boolean(saved);
+  const reference = hasReference
+    ? `Reference: Image ${subject.referenceIndex} belongs ONLY to ${name}.`
+    : `Reference: No photo for ${name}. Do not borrow another subject's reference or face.`;
+
+  let mode: string;
+  let appearanceBlock: string;
+  if (hasReference && useSaved) {
+    mode = "Appearance mode: IMAGE_PLUS_SAVED";
+    appearanceBlock = [
+      "Saved visual identity (this subject only):",
+      formatSavedAppearanceLines(saved),
+      "Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.",
+      "For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.",
+    ].join("\n");
+  } else if (hasReference) {
+    mode = "Appearance mode: IMAGE_ONLY";
+    appearanceBlock = [
+      "No supplemental saved appearance.",
+      "Use this selected reference as the authoritative visual identity for this subject only.",
+    ].join("\n");
+  } else if (useSaved) {
+    mode = "Appearance mode: IMAGE_PLUS_SAVED";
+    appearanceBlock = [
+      "Saved visual identity (this subject only):",
+      formatSavedAppearanceLines(saved),
+      "Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.",
+      "No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.",
+    ].join("\n");
+  } else {
+    mode = "Appearance mode: NO_VISUAL_REFERENCE";
+    appearanceBlock = [
+      "No visual reference or saved appearance is available for this subject.",
+      "Use only the subject's name, gender lock and scene role.",
+      "Never borrow another subject's face or visual traits.",
+    ].join("\n");
+  }
+
   return [
     header,
     aliasLine,
@@ -375,6 +456,25 @@ export function renderChatImageSubjectManifest(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export function buildPartyIllustrationReferencePlan(
+  members: Parameters<typeof visualSubjectsFromCastMembers>[0]
+): {
+  subjects: ChatImageVisualSubject[];
+  referenceUrls: string[];
+  canGenerate: boolean;
+  hiddenIdentityFallback: false;
+} {
+  const pack = bindChatImageReferencePack({
+    subjectsInImageOrder: visualSubjectsFromCastMembers(members),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    canGenerate: pack.referenceUrls.length > 0,
+    hiddenIdentityFallback: false,
+  };
 }
 
 export function renderChatImageIdentityContract(opts: {

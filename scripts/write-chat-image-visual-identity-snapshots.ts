@@ -7,7 +7,11 @@ import {
   syntheticDuoGiftPrimary,
   syntheticEmoticonPlan,
   syntheticLdDuoPlan,
+  syntheticLdPartyAllReferencesAbsent,
   syntheticLdPartyCast,
+  syntheticLdPartyMixedVisualStates,
+  syntheticNoPhotoNoSavedSubject,
+  syntheticNoPhotoSavedSubject,
 } from "../src/lib/chatImageVisualIdentity.fixtures";
 
 function section(title: string, plan: {
@@ -25,7 +29,19 @@ function section(title: string, plan: {
   const modes = plan.subjects
     .map((subject, index) => {
       const letter = String.fromCharCode(65 + index);
-      return `Subject ${letter} (${subject.name}): ${subject.appearanceMode.toUpperCase()} · ref ${subject.referenceIndex ?? "none"}`;
+      const hasRef = subject.referenceIndex != null;
+      const useSaved =
+        subject.appearanceMode === "image_plus_saved" &&
+        Boolean(String(subject.savedAppearance ?? "").trim());
+      const renderedMode =
+        hasRef && useSaved
+          ? "IMAGE_PLUS_SAVED"
+          : hasRef
+            ? "IMAGE_ONLY"
+            : useSaved
+              ? "IMAGE_PLUS_SAVED"
+              : "NO_VISUAL_REFERENCE";
+      return `Subject ${letter} (${subject.name}): ${renderedMode} · ref ${subject.referenceIndex ?? "none"}`;
     })
     .join("\n");
   return [
@@ -52,6 +68,10 @@ async function main() {
   const stamp = syntheticCoupleStampPlan();
   const ldDuo = syntheticLdDuoPlan();
   const party = syntheticLdPartyCast();
+  const noPhotoSaved = syntheticNoPhotoSavedSubject();
+  const noPhotoNoSaved = syntheticNoPhotoNoSavedSubject();
+  const mixedParty = syntheticLdPartyMixedVisualStates();
+  const allAbsent = syntheticLdPartyAllReferencesAbsent();
 
   const body = [
     "# Chat image visual-identity prompt snapshots",
@@ -68,6 +88,32 @@ async function main() {
       prompt: party.prompt,
       referenceUrls: party.referenceUrls,
       subjects: party.subjects,
+    }),
+    section("7. NO PHOTO + SAVED APPEARANCE", {
+      prompt: noPhotoSaved.prompt,
+      referenceUrls: noPhotoSaved.referenceUrls,
+      subjects: [noPhotoSaved.subject],
+    }),
+    section("8. NO PHOTO + NO SAVED APPEARANCE", {
+      prompt: noPhotoNoSaved.prompt,
+      referenceUrls: noPhotoNoSaved.referenceUrls,
+      subjects: [noPhotoNoSaved.subject],
+    }),
+    section("9. TRPG party mixed visual states", {
+      prompt: mixedParty.prompt,
+      referenceUrls: mixedParty.referenceUrls,
+      subjects: mixedParty.subjects,
+    }),
+    section("10. ALL PARTY REFERENCES ABSENT — provider-bound REFERENCE ORDER", {
+      prompt: [
+        `canGenerate: ${String(allAbsent.canGenerate)}`,
+        `hiddenIdentityFallback: ${String(allAbsent.hiddenIdentityFallback)}`,
+        `contextFallbackUrls (must not be sent): ${allAbsent.contextFallbackUrls.join(", ")}`,
+        "",
+        allAbsent.prompt,
+      ].join("\n"),
+      referenceUrls: allAbsent.referenceUrls,
+      subjects: allAbsent.subjects,
     }),
   ].join("\n");
 

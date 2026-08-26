@@ -449,7 +449,7 @@ Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
 - short black hair, glasses
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
-For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
 Identity ownership: every trait in this block belongs only to CharacterD.
 Never infer SUBJECT D's identity from any other subject.
 
@@ -485,5 +485,219 @@ Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixe
 SELECTED TURN SCENE BRIEF:
 LOCATION: ruined gate
 GM SCENE: The party stands at a ruined gate.
+```
+
+## 7. NO PHOTO + SAVED APPEARANCE
+
+REFERENCE ORDER:
+
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref none
+
+PROMPT:
+```
+[SUBJECT A — COMPANION CHARACTER: CharacterA]
+Reference: No photo for CharacterA. Do not borrow another subject's reference or face.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- black pupils, red irises
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+```
+
+## 8. NO PHOTO + NO SAVED APPEARANCE
+
+REFERENCE ORDER:
+
+
+APPEARANCE MODE:
+Subject A (CharacterE): NO_VISUAL_REFERENCE · ref none
+
+PROMPT:
+```
+[SUBJECT A — PLAYER: CharacterE]
+Reference: No photo for CharacterE. Do not borrow another subject's reference or face.
+Appearance mode: NO_VISUAL_REFERENCE
+No visual reference or saved appearance is available for this subject.
+Use only the subject's name, gender lock and scene role.
+Never borrow another subject's face or visual traits.
+Identity ownership: every trait in this block belongs only to CharacterE.
+Never infer SUBJECT A's identity from any other subject.
+```
+
+## 9. TRPG party mixed visual states
+
+REFERENCE ORDER:
+Image 1: /synthetic/character-a-primary.webp
+Image 2: /synthetic/character-c-alt.webp
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref 1
+Subject B (CharacterC): IMAGE_ONLY · ref 2
+Subject C (CharacterD): IMAGE_PLUS_SAVED · ref none
+Subject D (CharacterE): NO_VISUAL_REFERENCE · ref none
+
+PROMPT:
+```
+Create one polished vertical 2:3 Korean character illustration, not a comic page.
+This is a TRPG party group illustration. Show ALL 4 listed people together in a single scene. Count the people: 4. Do not omit anyone.
+CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):
+1. CharacterA (companion character). Gender: confirmed male. Reference image 1 is the identity photo for CharacterA only. Do not apply this photo to anyone else.
+2. CharacterC (companion character). Gender: confirmed gender-unspecified. Reference image 2 is the identity photo for CharacterC only. Do not apply this photo to anyone else.
+3. CharacterD (player). Gender: confirmed male. No photo for CharacterD. Do not substitute another referenced face.
+4. CharacterE (player). Gender: confirmed female. No photo for CharacterE. Do not substitute another referenced face.
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — COMPANION CHARACTER: CharacterA]
+Reference: Image 1 belongs ONLY to CharacterA.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- black pupils, red irises
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — COMPANION CHARACTER: CharacterC]
+Reference: Image 2 belongs ONLY to CharacterC.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to CharacterC.
+Never infer SUBJECT B's identity from any other subject.
+
+[SUBJECT C — PLAYER: CharacterD]
+Reference: No photo for CharacterD. Do not borrow another subject's reference or face.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- short black hair, glasses
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
+Identity ownership: every trait in this block belongs only to CharacterD.
+Never infer SUBJECT C's identity from any other subject.
+
+[SUBJECT D — PLAYER: CharacterE]
+Reference: No photo for CharacterE. Do not borrow another subject's reference or face.
+Appearance mode: NO_VISUAL_REFERENCE
+No visual reference or saved appearance is available for this subject.
+Use only the subject's name, gender lock and scene role.
+Never borrow another subject's face or visual traits.
+Identity ownership: every trait in this block belongs only to CharacterE.
+Never infer SUBJECT D's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+GENDER LOCK — mandatory identity rule.
+companion character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+companion character CharacterC: gender is unspecified / non-binary. Do not infer or change gender from hair length, cuteness, outfit, pose, blush, eyelashes or body size. Follow the reference identity without adding stereotyped male or female anatomy unless it is clearly present in the reference.
+player CharacterD: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+player CharacterE: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.
+Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
+Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
+Show exactly these 4 people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
+Compose a group shot so every listed face is clearly visible. Prefer a mid-shot or full-body arrangement. Do not hide a listed person behind another, off-canvas, or as a tiny background extra.
+Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.
+
+SELECTED TURN SCENE BRIEF:
+LOCATION: dark hall
+GM SCENE: The party waits in the dark.
+```
+
+## 10. ALL PARTY REFERENCES ABSENT — provider-bound REFERENCE ORDER
+
+REFERENCE ORDER:
+
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref none
+Subject B (CharacterB): NO_VISUAL_REFERENCE · ref none
+
+PROMPT:
+```
+canGenerate: false
+hiddenIdentityFallback: false
+contextFallbackUrls (must not be sent): /synthetic/chat-main-character.webp, /synthetic/user-persona.webp
+
+Create one polished vertical 2:3 Korean character illustration, not a comic page.
+This is a TRPG party group illustration. Show ALL 2 listed people together in a single scene. Count the people: 2. Do not omit anyone.
+CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):
+1. CharacterA (companion character). Gender: confirmed male. No photo for CharacterA. Do not substitute another referenced face.
+2. CharacterB (player). Gender: confirmed female. No photo for CharacterB. Do not substitute another referenced face.
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — COMPANION CHARACTER: CharacterA]
+Reference: No photo for CharacterA. Do not borrow another subject's reference or face.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- black pupils, red irises
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+No selected reference image is available, so do not invent a current-outfit photo or borrow another subject's clothes.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — PLAYER: CharacterB]
+Reference: No photo for CharacterB. Do not borrow another subject's reference or face.
+Appearance mode: NO_VISUAL_REFERENCE
+No visual reference or saved appearance is available for this subject.
+Use only the subject's name, gender lock and scene role.
+Never borrow another subject's face or visual traits.
+Identity ownership: every trait in this block belongs only to CharacterB.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+GENDER LOCK — mandatory identity rule.
+companion character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+player CharacterB: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.
+Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.
+Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.
+Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.
+Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.
+Show exactly these 2 people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.
+Compose a group shot so every listed face is clearly visible. Prefer a mid-shot or full-body arrangement. Do not hide a listed person behind another, off-canvas, or as a tiny background extra.
+Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.
+
+SELECTED TURN SCENE BRIEF:
+LOCATION: camp
+GM SCENE: No one brought a photo.
 ```
 
