@@ -146,9 +146,10 @@ export function getUserSelectedAI(db: Database.Database, userId: number): Select
  */
 export function getUserChatSelectedAI(
   db: Database.Database,
-  userId: number
+  userId: number,
+  opts?: { isAdmin?: boolean }
 ): SelectedAI {
-  return resolveUserChatSelectedAI(getUserSelectedAI(db, userId));
+  return resolveUserChatSelectedAI(getUserSelectedAI(db, userId), opts);
 }
 
 export function setUserSelectedAI(
@@ -196,7 +197,7 @@ export type SelectedAiNoticeKind = "intro" | "changed" | "retired" | null;
 export function consumeSelectedAiEntryNotice(
   db: Database.Database,
   userId: number,
-  _opts?: { isFirstChatVisitEver?: boolean }
+  opts?: { isFirstChatVisitEver?: boolean; isAdmin?: boolean }
 ): { notice: string | null; kind: SelectedAiNoticeKind; selectedAI: SelectedAI } {
   const { selectedAI } = ensureUserSelectedAI(db, userId);
   const row = db.prepare("SELECT ai_model_ux_json FROM users WHERE id=?").get(userId) as
@@ -232,5 +233,5 @@ export function consumeSelectedAiEntryNotice(
     );
   }
 
-  return { notice, kind, selectedAI: resolveUserChatSelectedAI(selectedAI) };
+  return { notice, kind, selectedAI: resolveUserChatSelectedAI(selectedAI, opts) };
 }
