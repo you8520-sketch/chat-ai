@@ -1,5 +1,5 @@
 import type { ChatMsg, TokenUsage } from "@/lib/ai";
-import { callBackgroundMemory, estimateTokens } from "@/lib/ai";
+import { BACKGROUND_CREATIVE_HTML_MODEL, callBackgroundMemory, estimateTokens } from "@/lib/ai";
 import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import {
   extractFencedHtmlBlock,
@@ -33,6 +33,7 @@ import {
   resolveOocMinPlainChars,
   visiblePlainFromHtmlInner,
   oocRequestsAnonymousInbox,
+  resolveOocRequiredContentPairs,
   polishHtmlVisualCardInner,
   resolveHtmlFlashPlacement,
   stripPromotedHtmlVisualCardContent,
@@ -49,7 +50,7 @@ import { normalizeProseText } from "@/lib/responseLength";
 /** 본문 ↔ 상태창(HTML) 사이 빈 줄 2줄 이상 */
 export const STATUS_WINDOW_BODY_GAP = "\n\n\n";
 const PROSE_HTML_SEPARATOR = STATUS_WINDOW_BODY_GAP;
-/** HTML visual card 생성 — RP 후 2차 Flash (prose baseline 있음) */
+/** HTML visual card 생성 — RP 후 2차 백그라운드 GPT-5.6 Luna (prose baseline 있음) */
 const FLASH_ASSISTANT_PROSE_MAX = 12_000;
 const FLASH_CHARACTER_SETTING_MAX = 8_000;
 const FLASH_MEMORY_MAX = 5_000;
@@ -57,8 +58,9 @@ const FLASH_LOREBOOK_MAX = 4_000;
 const FLASH_PREVIOUS_HTML_MAX = 3_000;
 /** RP 후 2차 HTML — 최근 raw 대화 (토큰) */
 export const HTML_FLASH_RECENT_HISTORY_MAX_TOKENS = 3_000;
-/** OOC·HTML 전용 턴 — 조립 목표·API hard cap (system+userBlock) */
+/** OOC·HTML dedicated turn — normal assembly target (system+userBlock budget) */
 export const HTML_OOC_FLASH_INPUT_TARGET_TOKENS = 20_000;
+/** OOC·HTML dedicated turn — API input hard cap (trimBackgroundPayload ceiling) */
 export const HTML_ONLY_TURN_MAX_INPUT_TOKENS = 24_000;
 /** OOC HTML — 섹션별 char/token 상한 (추구미·카테고리 카드 등) */
 export const OOC_FLASH_RECENT_HISTORY_MAX_TOKENS = 8_000;
@@ -68,12 +70,19 @@ const OOC_FLASH_LOREBOOK_MAX = 1_800;
 const OOC_FLASH_USER_NOTE_MAX = 2_500;
 const OOC_FLASH_USER_PERSONA_MAX = 900;
 const OOC_FLASH_MEMORY_HINTS_ONLY_MAX = 1_200;
-/** RP 후 2차 HTML — 출력 상한 (메인 prose cap 보호) */
+/** RP 후 2차 HTML (secondary) — 출력 상한 (메인 prose cap 보호) */
 export const HTML_FLASH_MAX_OUTPUT_TOKENS = 6000;
-/** HTML 요청 전용 턴 — 출력 상한 (실제 출력량으로 과금) */
+/** HTML-only dedicated turn — 출력 상한 */
 export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = 8_000;
-/** 영수증·UI 표시명 (실제 API: DeepSeek V4 Flash) */
+/** 영수증·UI 표시명 (실제 API: BACKGROUND_CREATIVE_HTML_MODEL via callBackgroundMemory) */
 export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
+
+const OOC_FACTUAL_GROUNDING_RULES = `[FACTUAL GROUNDING — Creative OOC HTML]
+- ALLOWED without source: layout, colors, icons, visual labels, non-factual decorative copy.
+- Do NOT invent canonical facts not supplied in context: locations, counts/capacities, ownership, injury effects, relationship states, future outcomes, world facts, thresholds, mission completion, biological properties.
+- Unknown facts must be omitted or clearly non-factual decorative UI — never present invented numbers/states as canonical scene truth.
+- Examples: do NOT mark "필터 확보 2/3" completed unless supplied; do NOT invent a 6-round capacity from "탄약 4발"; do NOT label one locked exit as "Exit C" unless supplied; do NOT add unsupported biological behavior to neural mycelium.
+- Output a chat-safe HTML **fragment** inside ONE \`\`\`html fence — no <!DOCTYPE>, <html>, <head>, or <body> wrappers.`;
 
 /** Flash ```html 카드 블록 크기 — compact 재조립·fallback용 (RP prose cap 아님) */
 export const HTML_FLASH_OUTPUT_RESERVE_MIN_CHARS = 900;
@@ -816,13 +825,14 @@ The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec �
 - Default OOC card style: white rounded card, soft section boxes, indigo category labels — simple and pretty (see REFERENCE in user block when present).
 - When OOC asks for readability (가독성, 줄바꿈, 항목 구분), stack list items as separate \`<p>\` lines inside each section.
 - Dark body text (#111–#333) on light backgrounds; mobile-responsive (max-width, padding, readable font-size).
-- Honor quantitative OOC requirements (e.g. "5+ questions and answers" means at least five of each, detailed and comic).
-- Structure: brief account header (handle, bio) then **separate message-list body** — NEVER stop after the bio.
-- FORBIDDEN — instant rejection: "상태창" banner; field boxes labeled 현재 상황 / 속마음 / 다음 행동; em-dash "—" placeholder fields; REFERENCE template copy; profile-only output with no messages.
+- Honor quantitative OOC requirements only when explicitly stated (e.g. "질문과 답변 각 5개" means five of each).
+- Structure: brief account header (handle, bio) then **separate message-list body** when inbox UI — NEVER stop after the bio when messages were requested.
+- FORBIDDEN — instant rejection: "상태창" banner; field boxes labeled 현재 상황 / 속마음 / 다음 행동; em-dash "—" placeholder fields; REFERENCE template copy; profile-only output with no messages when messages were requested.
 - NEVER reuse RP status-window field slots — build the OOC UI (message threads, cards, inbox rows, Q&A blocks).
 - User note / persona may appear only as lore context — never as the output format when OOC specifies a different UI.
 - Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
-- HTML output budget: up to ${htmlOutputBudget.toLocaleString()} tokens. Write rich, scene-specific Korean content.`;
+- HTML output budget: up to ${htmlOutputBudget.toLocaleString()} tokens. Write rich, scene-specific Korean content.
+${OOC_FACTUAL_GROUNDING_RULES}`;
   }
 
   const cardKind = policy.standing
@@ -886,7 +896,7 @@ export function buildHtmlVisualCardFlashUserBlock(
     oocCreativeBrief?: boolean;
     chatOocExclusive?: boolean;
     htmlOnlyDedicatedTurn?: boolean;
-    /** HTML 전용 — 30k 입력 토큰 fit 시 섹션 char 상한 스케일 (0–1) */
+    /** HTML dedicated — 24k input hard cap fit 시 섹션 char 상한 스케일 (0–1) */
     htmlContextCharScale?: number;
   }
 ): string {
@@ -1099,7 +1109,7 @@ export type GenerateHtmlVisualCardOpts = HtmlVisualCardFlashContext & {
   oocCreativeBrief?: boolean;
   /** 채팅 OOC rp_unrelated — 유저노트 상태창/HTML 무시 */
   chatOocExclusive?: boolean;
-  /** HTML 전용 턴 — 메인 RP 미호출, 30k 입력 컨텍스트·6k 출력 */
+  /** HTML-only dedicated turn — 20k assembly target / 24k input hard cap / 8k output max */
   htmlOnlyDedicatedTurn?: boolean;
 };
 
@@ -1151,18 +1161,24 @@ ${detailed ? `- EACH section except «외형»: ≥5 full-sentence Korean bullet
   }
 
   if (oocRequestsAnonymousInbox(userMessage)) {
+    const required = resolveOocRequiredContentPairs(userMessage);
+    const pairReq =
+      required > 0
+        ? `at least ${required} anonymous fan message(s) AND ${required} admin/account replies`
+        : "the full message-list body from [USER MESSAGE] — every supplied message rendered completely";
     if (attempt === 2) {
       return `[FINAL RETRY — ${reason}]
 Build a Twitter/X-style **anonymous message inbox** UI:
 - Part 1: account header (name, handle, short bio) — brief only.
-- Part 2: **main content** — at least 5 anonymous fan messages AND 5 admin/account replies, each several sentences, comic and detailed Korean.
+- Part 2: **main content** — ${pairReq}, each several sentences, comic and detailed Korean when applicable.
 - Total visible text ≥${minChars} characters.
 - Single-line inline CSS; dark text (#111–#333); mobile-friendly.
-- NO status-window field boxes. NO "—" placeholders.`;
+- NO status-window field boxes. NO "—" placeholders.
+${OOC_FACTUAL_GROUNDING_RULES}`;
     }
     return `[RETRY — ${reason}]
 You returned generic status fields, empty placeholders, OR a profile/header ONLY without the message list body.
-Build the FULL anonymous inbox UI: profile header PLUS at least 5 detailed fan questions AND 5 detailed answers (comic Korean).
+Build the FULL anonymous inbox UI: profile header PLUS ${pairReq}.
 Do NOT stop after the account bio.`;
   }
 
@@ -1170,7 +1186,7 @@ Do NOT stop after the account bio.`;
 Expand OOC HTML — minimum ${minChars} visible Korean characters. Follow [USER MESSAGE] layout; add scene-specific detail.`;
 }
 
-/** DeepSeek V4 Flash — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
+/** GPT-5.6 Luna — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
 export async function generateHtmlVisualCardWithFlash(
   opts: GenerateHtmlVisualCardOpts
 ): Promise<HtmlVisualCardFlashGenerateResult> {
@@ -1263,7 +1279,7 @@ export async function generateHtmlVisualCardWithFlash(
           [{ role: "user", content: userBlock }],
           undefined,
           "background-html-visual-card",
-          { maxTokens }
+          { maxTokens, modelId: BACKGROUND_CREATIVE_HTML_MODEL }
         );
       } catch (e) {
         lastFlashError = (e as Error).message ?? String(e);

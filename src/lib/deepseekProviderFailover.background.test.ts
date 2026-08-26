@@ -21,6 +21,9 @@ import { parseSegmentedResponse } from "./promptTranslation";
 
 const CI_URL = "https://api.cheaperinference.com/v1/chat/completions";
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
+const FLASH_EXPLICIT = {
+  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+} as const;
 
 function completion(text: string, status = 200): Response {
   return new Response(
@@ -62,7 +65,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "system",
           [{ role: "user", content: "기억" }],
           undefined,
-          "background-memory-extract"
+          "background-memory-extract",
+          FLASH_EXPLICIT
         );
         commits += 1;
         assert.equal(result.text.includes("요약"), true);
@@ -93,7 +97,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "system",
           [{ role: "user", content: "full memory source" }],
           undefined,
-          "background-memory-extract"
+          "background-memory-extract",
+          FLASH_EXPLICIT
         );
         assert.equal(result.text, "flash500-rescue");
         assert.deepEqual(urls, [CI_URL, OR_URL]);
@@ -124,7 +129,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "system",
           [{ role: "user", content: "full memory source" }],
           undefined,
-          "background-memory-extract"
+          "background-memory-extract",
+          FLASH_EXPLICIT
         );
         assert.equal(result.text, "fallback summary");
         assert.deepEqual(models, [
@@ -151,7 +157,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "system",
           [{ role: "user", content: "기억" }],
           undefined,
-          "background-memory-rolling-summary"
+          "background-memory-rolling-summary",
+          FLASH_EXPLICIT
         );
         assert.equal(result.text, "socket rescue");
         assert.equal(calls, 2);
@@ -174,7 +181,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
               "system",
               [{ role: "user", content: "기억" }],
               undefined,
-              "background-memory-extract"
+              "background-memory-extract",
+              FLASH_EXPLICIT
             ),
           (error: unknown) => {
             assert.ok(error instanceof CompatibleCompletionError);
@@ -236,7 +244,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "status",
           [{ role: "user", content: "상태" }],
           undefined,
-          "background-status-widget-extract"
+          "background-status-widget-extract",
+          FLASH_EXPLICIT
         );
         commits += 1;
         assert.equal(result.text.includes("hp"), true);
@@ -262,7 +271,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "html",
           [{ role: "user", content: "카드" }],
           undefined,
-          "background-html-visual-card"
+          "background-html-visual-card",
+          FLASH_EXPLICIT
         );
         assert.equal(result.text, "<div>카드</div>");
         assert.equal(calls, 2);
@@ -363,7 +373,8 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           "status",
           [{ role: "user", content: "상태" }],
           undefined,
-          "background-status-widget-extract"
+          "background-status-widget-extract",
+          FLASH_EXPLICIT
         );
         const parsed = extractJsonObjectFromWidgetText(result.text);
         assert.equal(parsed, null);

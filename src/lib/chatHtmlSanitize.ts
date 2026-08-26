@@ -80,15 +80,20 @@ const VISUAL_CARD_ALLOWED_TAGS = [
 
 const VISUAL_CARD_ALLOWED_ATTR = ["style", "class"] as const;
 
-/** 메인 모델이 뱉는 문서/HTML head 누출 — Flash ```html``` 카드 밖에서 제거 */
+/** 메인 모델·Flash HTML — 문서/head 누출 제거, body/card fragment만 유지 */
 export function stripLeakedDocumentMarkup(text: string): string {
-  let out = text;
+  let out = text.trim();
+  const bodyMatch = out.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  if (bodyMatch?.[1]) out = bodyMatch[1].trim();
+
   out = out.replace(/<!DOCTYPE[^>]*>/gi, "");
-  out = out.replace(/<link\b[\s\S]*?(?:>|(?=\n))/gi, "");
-  out = out.replace(/<meta\b[\s\S]*?(?:>|(?=\n))/gi, "");
+  out = out.replace(/<script\b[\s\S]*?<\/script>/gi, "");
   out = out.replace(/<style\b[\s\S]*?<\/style>/gi, "");
+  out = out.replace(/<title\b[\s\S]*?<\/title>/gi, "");
+  out = out.replace(/<link\b[\s\S]*?(?:\/?>|(?=\n))/gi, "");
+  out = out.replace(/<meta\b[\s\S]*?(?:\/?>|(?=\n))/gi, "");
   out = out.replace(/<\/?(?:html|head|body)\b[^>]*>/gi, "");
-  return out;
+  return out.trim();
 }
 
 /** HTML VISUAL CARD MODE — inline-style card template */

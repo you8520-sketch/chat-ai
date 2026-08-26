@@ -27,6 +27,9 @@ import {
   combineFlashLongTermMemoryBody,
   parseOocBracketCategories,
   parseOocMinQaCount,
+  parseOocExplicitItemCount,
+  resolveOocRequiredContentPairs,
+  polishHtmlVisualCardInner,
   visiblePlainFromHtmlInner,
   isDefaultRpStatusWindowFieldSetInner,
   isPlaceholderOnlyStatusWindowInner,
@@ -489,6 +492,54 @@ describe("stripHtmlStatusWindowTitleBanner", () => {
     const headerOnly = `<div style="padding:12px"><h2>@공식계정</h2><p>안녕하세요, 공식 계정입니다. 익명 메시지 환영!</p></div>`;
     assert.equal(isOocCreativeHtmlRichEnough(headerOnly, inboxOoc), false);
     assert.equal(isPreservableOocHtmlInner(headerOnly, inboxOoc), false);
+  });
+
+  it("accepts one supplied anonymous message when OOC requests only one", () => {
+    const inboxOoc = `OOC: 익명 메시지함 HTML. 아래 메시지 1개만 표시:
+Q: 팬이 보낸 익명 질문입니다. ${"오늘 공연 어땠어요? ".repeat(12)}
+A: 고마워요! ${"정말 재밌었어요. ".repeat(12)}`;
+    const oneMessage = `<div><header>@공식계정</header><p>bio</p><section><p>Q: 팬이 보낸 익명 질문입니다. ${"오늘 공연 어땠어요? ".repeat(12)}</p><p>A: 고마워요! ${"정말 재밌었어요. ".repeat(12)}</p></section></div>`;
+    assert.equal(parseOocExplicitItemCount(inboxOoc), 1);
+    assert.equal(resolveOocRequiredContentPairs(inboxOoc), 1);
+    assert.equal(isOocCreativeHtmlRichEnough(oneMessage, inboxOoc), true);
+  });
+
+  it("rejects explicit 5 messages when only 1 is generated", () => {
+    const inboxOoc = `OOC: 익명 메시지함. 질문과 답변을 각각 5개 이상`;
+    const oneOnly = `<div><header>@계정</header><section><p>Q1 ${"질문".repeat(30)}</p><p>A1 ${"답변".repeat(30)}</p></section></div>`;
+    assert.equal(parseOocMinQaCount(inboxOoc), 5);
+    assert.equal(resolveOocRequiredContentPairs(inboxOoc), 5);
+    assert.equal(isOocCreativeHtmlRichEnough(oneOnly, inboxOoc), false);
+  });
+
+  it("accepts complete requested 5 Q/A pairs", () => {
+    const inboxOoc = `OOC: 익명 메시지함. 질문과 답변을 각각 5개 이상`;
+    const rich =
+      `<div><header>@계정</header><p>bio</p>` +
+      `<section><p>Q1 익명 질문 내용 ${"팬덤".repeat(20)}</p><p>A1 답변 ${"코믹".repeat(20)}</p></section>`.repeat(5) +
+      `</div>`;
+    assert.equal(parseOocMinQaCount(inboxOoc), 5);
+    assert.equal(isOocCreativeHtmlRichEnough(rich, inboxOoc), true);
+  });
+
+  it("does not require 5 pairs for anonymous inbox without explicit count", () => {
+    const inboxOoc = `OOC: 익명 메시지함 HTML mockup`;
+    const body = "익명 팬이 보낸 메시지 본문입니다. ".repeat(20);
+    const single = `<div><header>@계정</header><section><p>${body}</p></section></div>`;
+    assert.equal(resolveOocRequiredContentPairs(inboxOoc), 0);
+    assert.ok(visiblePlainFromHtmlInner(single).length >= resolveOocMinPlainChars(inboxOoc));
+    assert.equal(isOocCreativeHtmlRichEnough(single, inboxOoc), true);
+  });
+
+  it("polishHtmlVisualCardInner strips full document wrappers to fragment", () => {
+    const doc =
+      "<!DOCTYPE html><html><head><title>x</title><style>.x{}</style>" +
+      '<meta charset="utf-8"><script>x()</script><link rel="stylesheet" href="/x.css">' +
+      "</head><body><div style=\"padding:12px\">card</div></body></html>";
+    const polished = polishHtmlVisualCardInner(doc);
+    assert.doesNotMatch(polished, /<!DOCTYPE/i);
+    assert.doesNotMatch(polished, /<\/?(?:html|head|body|title|style|script|meta|link)\b/i);
+    assert.match(polished, /card/);
   });
 
   it("accepts rich anonymous inbox HTML with multiple messages", () => {

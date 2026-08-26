@@ -37,6 +37,7 @@ import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
 import { ATTENDANCE_POINTS_VALID_MONTHS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
+import { BACKGROUND_CREATIVE_HTML_MODEL } from "./ai";
 import {
   HTML_FLASH_MAX_OUTPUT_TOKENS,
   HTML_ONLY_MODEL_LABEL,
@@ -289,12 +290,20 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** DeepSeek background/HTML path — V4 Pro pricing uses a separate owner below. */
+/** DeepSeek background paths — V4 Pro pricing uses a separate owner below. */
 export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
   Number(process.env.OPENROUTER_DEEPSEEK_GROSS_MARGIN) || 0.55;
 
 /** @deprecated OPENROUTER_DEEPSEEK_GROSS_MARGIN 사용 */
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
+
+/** Creative HTML dedicated turn — gross margin owner (decoupled from DeepSeek). */
+export const HTML_CREATIVE_GROSS_MARGIN = 0.55;
+
+/** Creative HTML large-input surcharge — excess-only over this threshold. */
+export const HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS = 10_000;
+/** Creative HTML — excess input tokens billed at 0.5P per 1k (model-family agnostic). */
+export const HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS = 0.5;
 
 /**
  * Target no-cache gross margins for dual-rate simple point models.
@@ -788,6 +797,21 @@ function openRouterOpusMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterDeepSeekMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_DEEPSEEK_GROSS_MARGIN);
+}
+
+/** Creative HTML dedicated turn — 55% gross margin (independent of DeepSeek margin owner). */
+export function htmlCreativeGrossMarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, HTML_CREATIVE_GROSS_MARGIN);
+}
+
+/**
+ * Creative HTML large-input surcharge — excess over 10k at 0.5P/1k.
+ * Model-family agnostic: unchanged if HTML routing model changes.
+ */
+export function htmlCreativeInputTokenSurchargeKrw(inputTokens: number): number {
+  if (inputTokens < HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
+  const excess = inputTokens - HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS;
+  return (excess / 1000) * HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS;
 }
 
 function openRouterQwenMarginChargeKrw(rawCostKrw: number): number {
@@ -2151,7 +2175,7 @@ export function billingTierBenchmark() {
   };
 }
 
-/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling (V3 + 55% 마진) 사용 */
+/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling (Creative HTML + 55% 마진) 사용 */
 export const FLASH_HTML_ONLY_OUTPUT_TOKENS_PER_TIER = 1000;
 /** @deprecated */
 export const FLASH_HTML_ONLY_WON_PER_TIER = 10;
@@ -2168,7 +2192,7 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** HTML 전용 턴 — DeepSeek V4 Flash 단독, API 원가 + 55% 마진 */
+/** HTML 전용 턴 — Creative HTML dedicated 55% gross-margin billing (routing model = billing model). */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;
@@ -2190,6 +2214,7 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
   tokensEstimated: boolean;
   rawCostKrw: number;
 } {
+  const htmlModelId = BACKGROUND_CREATIVE_HTML_MODEL;
   const htmlChars = Math.max(0, opts.savedTextChars);
   const estimatedOutputTokens =
     opts.outputTokens != null && opts.outputTokens > 0
@@ -2224,21 +2249,18 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
   const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
     estimatedInputTokens,
     estimatedOutputTokens,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    htmlModelId,
     cache,
     billingBasis
   );
-  const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
-    estimatedInputTokens,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
-  );
+  const costPlusMarginKrw = htmlCreativeGrossMarginChargeKrw(rawCostKrw);
+  const inputSurchargeKrw = htmlCreativeInputTokenSurchargeKrw(estimatedInputTokens);
   const total = Math.max(
     OPENROUTER_MIN_TURN_COST,
     chargePoints(costPlusMarginKrw + inputSurchargeKrw)
   );
   return {
-    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    modelId: htmlModelId,
     modelLabel: HTML_ONLY_MODEL_LABEL,
     baseCost: costPlusMarginKrw,
     contextSurcharge: inputSurchargeKrw,

@@ -2,11 +2,12 @@ import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import {
   callPromptTranslation,
+  resolveBackgroundPrimaryModelId,
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
@@ -79,9 +80,9 @@ Output protocol:
 - The input contains numbered segments delimited by ⟦SEG n⟧ ... ⟦/SEG n⟧. Output EVERY segment in the same order with the SAME delimiters, containing only the English translation.
 - Output nothing outside the segment delimiters.`;
 
-/** Character-save translation primary — canonical CI DeepSeek V4 Flash. */
+/** Character-save translation primary — shared background text primary (CI GPT-5.6 Luna). */
 export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 
 /** Distinct CI Pro fallback — same resolved model is not a fallback. */
 export const DEFAULT_TRANSLATION_FALLBACK_MODEL =
@@ -110,7 +111,7 @@ export function translationModelIdentity(modelId: string): string {
 export function resolveTranslationModels(
   env: NodeJS.ProcessEnv = process.env
 ): string[] {
-  const primary = resolveBackgroundTextModelId(
+  const primary = resolveBackgroundPrimaryModelId(
     env.PROMPT_TRANSLATION_MODEL?.trim() || DEFAULT_TRANSLATION_PRIMARY_MODEL
   );
   const fallbacksRaw = env.PROMPT_TRANSLATION_FALLBACK_MODELS?.trim();

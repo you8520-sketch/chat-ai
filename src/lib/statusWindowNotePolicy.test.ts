@@ -107,7 +107,7 @@ NPC의 낙서 한 줄(카오모지, 이모지 사용)`;
     assert.match(r.formatSpec ?? "", /속마음/);
     assert.match(r.formatSpec ?? "", /낙서/);
     assert.match(r.policyBlock, /FLASH-GENERATED \(BOTTOM\)/);
-    assert.match(r.policyBlock, /background DeepSeek V4 Flash model/);
+    assert.match(r.policyBlock, /background GPT-5.6 Luna model/);
     assert.doesNotMatch(r.policyBlock, /```json/);
     assert.doesNotMatch(r.formatSpec ?? "", /^\|/m);
   });

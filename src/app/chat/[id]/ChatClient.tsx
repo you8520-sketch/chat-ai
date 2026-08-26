@@ -2317,7 +2317,7 @@ export default function ChatClient({
     let softResetPending = false;
     /** OpenRouter 종료·후처리 구간 — 비 instant replace/append 무시 (reveal 큐는 계속 재생) */
     let postStreamLocked = false;
-    /** OOC/HTML 전용 턴 — V3 비스트리밍·대용량 ```html``` 즉시 표시 */
+    /** OOC/HTML 전용 턴 — Creative HTML 비스트리밍·대용량 ```html``` 즉시 표시 */
     let htmlFlashStreamTurn = false;
     const postProcessEvidence: PostProcessPhaseEvidence =
       createEmptyPostProcessPhaseEvidence();

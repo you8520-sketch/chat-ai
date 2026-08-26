@@ -38,7 +38,7 @@ export function isHtmlDisplayOnlyTurn(userMessage: string): boolean {
 }
 
 /**
- * OOC + RP 중단 + HTML 연출 — 메인 모델 RP 생략, HTML 전용 모델(V3)이 OOC 지시대로 UI/내용 생성
+ * OOC + RP 중단 + HTML 연출 — 메인 모델 RP 생략, BACKGROUND_CREATIVE_HTML_MODEL이 OOC 지시대로 UI/내용 생성
  */
 export function isOocCreativeHtmlTurn(userMessage: string): boolean {
   const trimmed = userMessage.trim();
