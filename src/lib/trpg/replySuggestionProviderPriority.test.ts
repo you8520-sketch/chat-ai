@@ -178,7 +178,9 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     const prevInfo = console.info;
     console.info = ((label: unknown, payload: Record<string, unknown>) => {
       if (label === "[trpg-reply-suggestion-provider]") providerLogs.push(payload);
-      if (label === "[trpg-reply-suggestion]") usageLogs.push(payload);
+      if (label === "[trpg-reply-suggestion]" && payload.kind === "trpg_reply_suggestion") {
+        usageLogs.push(payload);
+      }
     }) as typeof console.info;
 
     const previousFetch = globalThis.fetch;
@@ -315,7 +317,9 @@ describe("TRPG reply suggestion provider priority A-F", () => {
     const prevInfo = console.info;
     console.info = ((label: unknown, payload: Record<string, unknown>) => {
       if (label === "[trpg-reply-suggestion-provider]") providerLogs.push(payload);
-      if (label === "[trpg-reply-suggestion]") usageLogs.push(payload);
+      if (label === "[trpg-reply-suggestion]" && payload.kind === "trpg_reply_suggestion") {
+        usageLogs.push(payload);
+      }
     }) as typeof console.info;
 
     const previousOr = process.env.OPENROUTER_API_KEY;
