@@ -33,7 +33,8 @@ export function useRevealedText(
   text: string,
   active: boolean,
   kind: TrpgRevealKind = "bot",
-  streamIntervalMs?: number
+  streamIntervalMs?: number,
+  held = false
 ): TrpgRevealController {
   const chars = Array.from(text);
   const [count, setCount] = useState(() =>
@@ -64,6 +65,7 @@ export function useRevealedText(
     finishOwned: finishRequestedRef.current,
     reducedMotion,
     streamIntervalMs,
+    held,
   });
 
   const clearRevealInterval = useCallback(() => {
@@ -147,6 +149,11 @@ export function useRevealedText(
       previous.kind === kind &&
       trpgRevealTextExtended(previous.text, text);
     sessionRef.current = { text, active, kind };
+    if (held && !active && total > 0) {
+      revealStartedAtRef.current = null;
+      if (countRef.current !== 0) setCount(0);
+      return () => clearRevealInterval();
+    }
     if (
       trpgRevealImmediate({
         active,
@@ -166,6 +173,7 @@ export function useRevealedText(
       finishOwned: finishRequestedRef.current,
       reducedMotion: prefersReducedMotion(),
       streamIntervalMs,
+      held,
     });
     if (sessionChanged && !textExtended) {
       finishRequestedRef.current = false;
@@ -220,7 +228,7 @@ export function useRevealedText(
       if (n >= currentTotal) clearRevealInterval();
     }, TRPG_REVEAL_TICK_MS);
     return () => clearRevealInterval();
-  }, [catchUpCount, clearRevealInterval, text, active, kind, streamIntervalMs, visibleEpoch]);
+  }, [catchUpCount, clearRevealInterval, text, active, kind, streamIntervalMs, visibleEpoch, held]);
 
   const shownText = chars.slice(0, visibleCount).join("");
   const complete = chars.length === 0 || visibleCount >= chars.length;

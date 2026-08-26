@@ -168,8 +168,12 @@ export function resolveTrpgRevealVisibleCount(opts: {
   finishOwned: boolean;
   reducedMotion: boolean;
   streamIntervalMs?: number;
+  held?: boolean;
 }): number {
   const total = Array.from(opts.nextSession.text).length;
+  if (opts.held && !opts.nextSession.active && total > 0) {
+    return 0;
+  }
   if (
     trpgRevealImmediate({
       active: opts.nextSession.active,

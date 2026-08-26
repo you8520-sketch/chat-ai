@@ -92,6 +92,7 @@ export default function TrpgNamedProse({
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
+  revealHeld = false,
   streamIntervalMs,
   paragraphMode = "author",
   dialogueAccent = true,
@@ -111,6 +112,7 @@ export default function TrpgNamedProse({
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
+  revealHeld?: boolean;
   streamIntervalMs?: number;
   /** Default author keeps GM/explicit-speaker paths unchanged. AI PC actions pass ai. */
   paragraphMode?: "ai" | "author";
@@ -122,7 +124,13 @@ export default function TrpgNamedProse({
   resolveSceneAssets?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
 }) {
-  const { shownText: shown, complete } = useRevealedText(text, reveal, "bot", streamIntervalMs);
+  const { shownText: shown, complete } = useRevealedText(
+    text,
+    reveal,
+    "bot",
+    streamIntervalMs,
+    revealHeld
+  );
   useLayoutEffect(() => {
     if (!onRevealChange) return;
     const fullLen = Array.from(text).length;
