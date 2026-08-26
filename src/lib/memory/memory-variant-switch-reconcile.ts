@@ -10,6 +10,7 @@
  */
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
+import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
 import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { calcUsedChars } from "./memory-db";
@@ -244,6 +245,12 @@ export function reconcileMemoryAfterVariantSwitchCore(
       }
     }
   }
+
+  invalidateSummarySealBatchEpisodicFactsForSourceMutation(db, {
+    chatId: opts.chatId,
+    affectedUserMessageIds:
+      opts.sourceUserMessageId != null ? [opts.sourceUserMessageId] : [],
+  });
 
   if (opts.__testThrowAfterInvalidate) {
     throw new Error("TEST_THROW_AFTER_LTM_INVALIDATE");

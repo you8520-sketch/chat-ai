@@ -31,6 +31,15 @@ import {
   isMemoryWriteGuardCurrentCore,
 } from "./memory-source-boundary";
 import {
+  memorySourceFingerprintStillValid,
+  snapshotMemorySourceFingerprint,
+} from "./memory-source-fingerprint";
+import {
+  applyPendingBranchOpsToShadowRecords,
+  resetShadowIdCounterForTests,
+  shadowRecordFromComposed,
+} from "./memory-shadow-state";
+import {
   LEGACY_SIX_TURN_SPAN,
   ROLLING_SUMMARY_INTERVAL,
 } from "./memory-constants";
@@ -129,11 +138,11 @@ export function countLegacySixTurnInventory(
   let inactive = 0;
   let userEditedNullSpan = 0;
   for (const row of rows) {
-    const span = resolveRecordSpan(row);
-    if (row.user_edited && isLegacySixTurnBatch(span)) {
+    if (row.user_edited && row.turn_end == null) {
       userEditedNullSpan += 1;
     }
     if (row.user_edited) continue;
+    const span = resolveRecordSpan(row);
     if (!isLegacySixTurnBatch(span)) continue;
     if (row.inactive) inactive += 1;
     else active += 1;
@@ -146,11 +155,69 @@ export function countLegacySixTurnInventory(
   };
 }
 
-/** Phase C cleanup requires zero automatic legacy 6-turn rows (active or inactive). */
+export function countUserEditedNullSpanRows(
+  db: ReturnType<typeof getDb> = getDb(),
+  chatId?: number
+): number {
+  const rows = chatId
+    ? (db
+        .prepare(
+          `SELECT turn_number, turn_end, user_edited FROM chat_turn_summaries WHERE chat_id=?`
+        )
+        .all(chatId) as Array<{ turn_number: number; turn_end: number | null; user_edited: number }>)
+    : (db
+        .prepare(`SELECT turn_number, turn_end, user_edited FROM chat_turn_summaries`)
+        .all() as Array<{ turn_number: number; turn_end: number | null; user_edited: number }>);
+  return rows.filter((row) => row.user_edited === 1 && row.turn_end == null).length;
+}
+
+export function materializeUserEditedNullSpanRows(
+  db: ReturnType<typeof getDb>,
+  chatId: number
+): number {
+  const info = db
+    .prepare(
+      `UPDATE chat_turn_summaries
+       SET turn_end = turn_number + ?, updated_at=datetime('now')
+       WHERE chat_id=? AND user_edited=1 AND turn_end IS NULL`
+    )
+    .run(ROLLING_SUMMARY_INTERVAL, chatId);
+  return Number(info.changes);
+}
+
+export function deleteInactiveAutomaticLegacySixTurnRows(
+  db: ReturnType<typeof getDb>,
+  chatId: number
+): number {
+  const rows = db
+    .prepare(
+      `SELECT id, turn_number, turn_end, user_edited, inactive
+       FROM chat_turn_summaries WHERE chat_id=? AND user_edited=0 AND inactive=1`
+    )
+    .all(chatId) as Array<{
+    id: number;
+    turn_number: number;
+    turn_end: number | null;
+    user_edited: number;
+    inactive: number;
+  }>;
+  let deleted = 0;
+  for (const row of rows) {
+    if (!isLegacySixTurnBatch(resolveRecordSpan(row))) continue;
+    db.prepare(`DELETE FROM chat_turn_summaries WHERE id=? AND chat_id=?`).run(row.id, chatId);
+    deleted += 1;
+  }
+  return deleted;
+}
+
+/** Phase C cleanup requires zero automatic legacy 6-turn rows and zero NULL user-edited spans. */
 export function isPhaseCLegacyCleanupAllowed(
   inventory: LegacySixTurnInventory = countLegacySixTurnInventory()
 ): boolean {
-  return inventory.TOTAL_AUTOMATIC_LEGACY_6TURN_ROWS === 0;
+  return (
+    inventory.TOTAL_AUTOMATIC_LEGACY_6TURN_ROWS === 0 &&
+    inventory.USER_EDITED_NULL_SPAN_ROWS === 0
+  );
 }
 
 export { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
@@ -466,6 +533,16 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     return { status: "COMPLETED", batchesCompleted: classified.batches.length };
   }
   if (!classified.requiresRebuild) {
+    ensureMemorySummaryMigrationsTable(db);
+    const inactiveLegacy = countLegacySixTurnInventory(db);
+    if (inactiveLegacy.INACTIVE_AUTOMATIC_LEGACY_6TURN_ROWS > 0) {
+      db.transaction(() => {
+        deleteInactiveAutomaticLegacySixTurnRows(db, opts.chatId);
+        materializeUserEditedNullSpanRows(db, opts.chatId);
+      }).immediate();
+    } else {
+      materializeUserEditedNullSpanRows(db, opts.chatId);
+    }
     upsertMigrationState(db, {
       chat_id: opts.chatId,
       status: "COMPLETED",
@@ -519,20 +596,14 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     opts.chatId,
     startBoundary
   );
-  const startIdentity = turnIdentitiesFromEligible(eligible);
-  const generated: Array<{
-    turnStart: number;
-    turnEnd: number;
-    summary: string;
-    summaryKind: MemorySummaryScope;
-    scopePayload: ScopePayloadV1;
-    branchId: string | null;
-    branchStatus: BranchStatus | null;
-    promotedBy: string | null;
-    promotedAt: string | null;
+  const startFingerprint = snapshotMemorySourceFingerprint(eligible, startBoundary);
+  resetShadowIdCounterForTests();
+  let shadowRecords: import("./memory-turn-summary").MemoryRecordView[] = [];
+  const swapRows: Array<{
+    shadow: import("./memory-turn-summary").MemoryRecordView;
     sourceStartUserMessageId: number | null;
     sourceEndUserMessageId: number | null;
-    assistantMessageId: number | null;
+    scopePayload: ScopePayloadV1;
   }> = [];
 
   for (const batch of classified.batches) {
@@ -540,15 +611,6 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       (t) => t.turnNumber >= batch.turnStart && t.turnNumber <= batch.turnEnd
     );
     if (batchTurns.length !== ROLLING_SUMMARY_INTERVAL) {
-      upsertMigrationState(db, {
-        chat_id: opts.chatId,
-        status: "BLOCKED_COVERAGE_GAP",
-        source_completed_turns: classified.completedTurns,
-        target_summarized_through: classified.targetThrough,
-        batches_total: classified.batches.length,
-        batches_completed: generated.length,
-        last_error_code: "BLOCKED_COVERAGE_GAP",
-      });
       return { status: "BLOCKED_COVERAGE_GAP", batchesCompleted: 0 };
     }
     const allEntries = batchTurns.map((meta) => ({
@@ -556,8 +618,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
       userMessageId: meta.userMessageId,
     }));
-    const priorRecords = listMemoryRecordsForChat(opts.chatId);
-    const previousWasNoncanonOrBranch = priorRecords.some(
+    const previousWasNoncanonOrBranch = shadowRecords.some(
       (record) =>
         !record.inactive &&
         (record.summaryKind === "noncanon" ||
@@ -574,19 +635,9 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         mode: "seal",
         existingRecord: null,
         previousWasNoncanonOrBranch,
-        priorRecords,
+        priorRecords: shadowRecords,
       });
     } catch {
-      upsertMigrationState(db, {
-        chat_id: opts.chatId,
-        status: "FAILED_PROVIDER",
-        source_completed_turns: classified.completedTurns,
-        target_summarized_through: classified.targetThrough,
-        batches_total: classified.batches.length,
-        batches_completed: generated.length,
-        last_error_code: "FAILED_PROVIDER",
-        started_at: new Date().toISOString(),
-      });
       return { status: "FAILED_PROVIDER", batchesCompleted: 0 };
     }
     if (!composed.ok) {
@@ -594,21 +645,16 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       const providerFailed =
         composed.reason === "SUMMARY_TIMEOUT" ||
         (lastError.length > 0 && !lastError.startsWith("SUMMARY_"));
-      const status: MemorySummaryMigrationStatus = providerFailed
-        ? "FAILED_PROVIDER"
-        : "FAILED_VALIDATION";
-      upsertMigrationState(db, {
-        chat_id: opts.chatId,
-        status,
-        source_completed_turns: classified.completedTurns,
-        target_summarized_through: classified.targetThrough,
-        batches_total: classified.batches.length,
-        batches_completed: generated.length,
-        last_error_code: providerFailed ? "FAILED_PROVIDER" : composed.reason,
-        started_at: new Date().toISOString(),
-      });
-      return { status, batchesCompleted: 0 };
+      return {
+        status: providerFailed ? "FAILED_PROVIDER" : "FAILED_VALIDATION",
+        batchesCompleted: 0,
+      };
     }
+
+    shadowRecords = applyPendingBranchOpsToShadowRecords(
+      shadowRecords,
+      composed.pendingBranchControlOps
+    );
     const scopePayload: ScopePayloadV1 = {
       v: 1,
       scopes: composed.scopes,
@@ -617,73 +663,57 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       promotedBy: composed.promotedBy,
       promotedAt: composed.promotedAt,
     };
-    generated.push({
+    const shadow = shadowRecordFromComposed({
       turnStart: batch.turnStart,
       turnEnd: batch.turnEnd,
-      summary: composed.displaySummary,
       summaryKind: composed.summaryKind,
-      scopePayload,
+      scopes: composed.scopes,
       branchId: composed.branchId,
       branchStatus: composed.branchStatus,
       promotedBy: composed.promotedBy,
       promotedAt: composed.promotedAt,
+      assistantMessageId: batchTurns[batchTurns.length - 1]?.assistantMessageId ?? null,
+      displaySummary: composed.displaySummary,
+    });
+    shadowRecords = [...shadowRecords, shadow].sort((a, b) => a.turnStart - b.turnStart);
+    swapRows.push({
+      shadow,
       sourceStartUserMessageId: batchTurns[0]?.userMessageId ?? null,
       sourceEndUserMessageId: batchTurns[batchTurns.length - 1]?.userMessageId ?? null,
-      assistantMessageId: batchTurns[batchTurns.length - 1]?.assistantMessageId ?? null,
+      scopePayload,
     });
+
+    const batchBoundary = getMemorySourceBoundaryCore(db, opts.chatId);
+    const batchEligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
+      db,
+      opts.chatId,
+      batchBoundary
+    );
+    if (
+      !memorySourceFingerprintStillValid(startFingerprint, batchEligible, batchBoundary)
+    ) {
+      return { status: "SOURCE_CHANGED", batchesCompleted: 0 };
+    }
   }
 
-  if (generated.length !== classified.batches.length) {
-    upsertMigrationState(db, {
-      chat_id: opts.chatId,
-      status: "FAILED_VALIDATION",
-      source_completed_turns: classified.completedTurns,
-      target_summarized_through: classified.targetThrough,
-      batches_total: classified.batches.length,
-      batches_completed: generated.length,
-      last_error_code: "FAILED_VALIDATION",
-    });
+  if (swapRows.length !== classified.batches.length) {
     return { status: "FAILED_VALIDATION", batchesCompleted: 0 };
   }
 
   const swapBoundary = getMemorySourceBoundaryCore(db, opts.chatId);
-  if (
-    swapBoundary.epoch !== startBoundary.epoch ||
-    swapBoundary.resetAfterMessageId !== startBoundary.resetAfterMessageId
-  ) {
-    upsertMigrationState(db, {
-      chat_id: opts.chatId,
-      status: "BLOCKED_STALE_EPOCH",
-      source_completed_turns: classified.completedTurns,
-      target_summarized_through: classified.targetThrough,
-      batches_total: classified.batches.length,
-      batches_completed: 0,
-      last_error_code: "SOURCE_CHANGED",
-    });
-    return { status: "SOURCE_CHANGED", batchesCompleted: 0 };
-  }
-
   const latestEligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
     db,
     opts.chatId,
     swapBoundary
   );
   if (
-    !memoryEligibleTurnIdentitiesEqual(startIdentity, turnIdentitiesFromEligible(latestEligible))
+    !memorySourceFingerprintStillValid(startFingerprint, latestEligible, swapBoundary)
   ) {
-    upsertMigrationState(db, {
-      chat_id: opts.chatId,
-      status: "SOURCE_CHANGED",
-      source_completed_turns: classified.completedTurns,
-      target_summarized_through: classified.targetThrough,
-      batches_total: classified.batches.length,
-      batches_completed: 0,
-      last_error_code: "SOURCE_CHANGED",
-    });
     return { status: "SOURCE_CHANGED", batchesCompleted: 0 };
   }
 
   const tier = opts.tier ?? "free";
+  ensureMemorySummaryMigrationsTable(db);
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, tier);
 
   try {
@@ -699,8 +729,10 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         });
       }
       db.prepare(
-        `DELETE FROM chat_turn_summaries WHERE chat_id=? AND user_edited=0 AND inactive=0`
+        `DELETE FROM chat_turn_summaries WHERE chat_id=? AND user_edited=0`
       ).run(opts.chatId);
+      deleteInactiveAutomaticLegacySixTurnRows(db, opts.chatId);
+      materializeUserEditedNullSpanRows(db, opts.chatId);
       const insert = db.prepare(
         `INSERT INTO chat_turn_summaries
           (chat_id, turn_number, turn_end, assistant_message_id, summary, summary_kind, user_edited,
@@ -708,21 +740,21 @@ export async function migrateChatSummariesToFiveTurn(opts: {
            branch_id, branch_status, promoted_by, promoted_at)
          VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`
       );
-      for (const row of generated) {
+      for (const row of swapRows) {
         insert.run(
           opts.chatId,
-          row.turnStart,
-          row.turnEnd,
-          row.assistantMessageId,
-          row.summary,
-          row.summaryKind,
+          row.shadow.turnStart,
+          row.shadow.turnEnd,
+          row.shadow.assistantMessageId,
+          row.shadow.summary,
+          row.shadow.summaryKind,
           row.sourceStartUserMessageId,
           row.sourceEndUserMessageId,
           encodeScopePayload(row.scopePayload),
-          row.branchId,
-          row.branchStatus,
-          row.promotedBy,
-          row.promotedAt
+          row.shadow.branchId,
+          row.shadow.branchStatus,
+          row.shadow.promotedBy,
+          row.shadow.promotedAt
         );
       }
       const after = listMemoryRecordsForChat(opts.chatId);
@@ -746,8 +778,8 @@ export async function migrateChatSummariesToFiveTurn(opts: {
         status: "COMPLETED",
         source_completed_turns: latestEligible.length,
         target_summarized_through: targetSummarizedThrough(latestEligible.length),
-        batches_total: generated.length,
-        batches_completed: generated.length,
+        batches_total: swapRows.length,
+        batches_completed: swapRows.length,
       });
     }).immediate();
   } catch (e) {
@@ -776,7 +808,7 @@ export async function migrateChatSummariesToFiveTurn(opts: {
     return { status: "FAILED_VALIDATION", batchesCompleted: 0 };
   }
 
-  return { status: "COMPLETED", batchesCompleted: generated.length };
+  return { status: "COMPLETED", batchesCompleted: swapRows.length };
 }
 
 export function countLegacySixTurnRows(db: ReturnType<typeof getDb> = getDb()): number {

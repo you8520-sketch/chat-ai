@@ -33,6 +33,14 @@ export type PersistPendingBranchControlOp =
       op: "close_active_branches";
       sourceTurn: number;
       control: BranchControlSource;
+    }
+  | {
+      op: "promote_noncanon_records";
+      recordIds: number[];
+      branchId: string;
+      promotedBy: string;
+      sourceTurn: number;
+      control: BranchControlSource;
     };
 
 export type BranchControlRowSnapshot = {

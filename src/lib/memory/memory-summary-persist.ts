@@ -10,6 +10,7 @@ import {
   formatTurnRangeLabel,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  promoteRecordsToBranchCanon,
   reopenClosedBranchCanonCore,
   closeActiveBranchCanonCore,
   type MemoryRecordView,
@@ -252,6 +253,14 @@ export function persistValidatedSummaryBatch(opts: {
             }
           } else if (pending.op === "close_active_branches") {
             closeActiveBranchCanonCore(opts.chatId, pending.control);
+          } else if (pending.op === "promote_noncanon_records") {
+            promoteRecordsToBranchCanon({
+              chatId: opts.chatId,
+              recordIds: pending.recordIds,
+              branchId: pending.branchId,
+              promotedBy: pending.promotedBy,
+              control: pending.control,
+            });
           }
         }
       }

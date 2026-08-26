@@ -20,17 +20,17 @@ import { isLegacySixTurnBatch, newBatchEndForStart, resolveNextBatchRange, resol
 import {
   findBatchControlSource,
   type BranchControlSource,
+  type PersistPendingBranchControlOp,
 } from "./memory-branch-control";
 import {
   rebuildLorebookFromRecords,
   listMemoryRecordsForChat,
-  listDistinctClosedBranchIds,
-  promoteRecordsToBranchCanon,
   resolveSoleClosedContinueReopen,
   isExplicitClosedBranchContinueIntent,
   selectLatestContiguousNoncanonRecordIds,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+import { listClosedBranchIdsFromRecords } from "./memory-shadow-state";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { loadMemoryEligibleChatTurnsWithMessageIds, loadChatTurnsWithMessageIds } from "./memory-turn-loader";
 import {
@@ -38,20 +38,6 @@ import {
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
-
-/** Post-persist branch control ops, ordered by source turn (compose must not apply these). */
-type PendingBranchControlOp =
-  | {
-      op: "reopen_branch";
-      branchId: string;
-      sourceTurn: number;
-      control: BranchControlSource;
-    }
-  | {
-      op: "close_active_branches";
-      sourceTurn: number;
-      control: BranchControlSource;
-    };
 import {
   isTurnEligibleForMemoryRecord,
   stripOocFromMemorySummary,
@@ -81,6 +67,9 @@ import {
   type MemorySummaryScope,
   type ScopePayloadV1,
 } from "./memory-summary-scope";
+
+/** Post-persist branch control ops, ordered by source turn (compose must not apply these). */
+type PendingBranchControlOp = PersistPendingBranchControlOp;
 
 export function buildRollingSummarySystemPrompt(
   sourceTurnCount: number,
@@ -587,7 +576,7 @@ export async function composeBatchScopePayload(opts: {
   const hasPriorDbNoncanon = opts.priorRecords.some(
     (r) => !r.inactive && r.summaryKind === "noncanon"
   );
-  const closedBranchIds = listDistinctClosedBranchIds(opts.chatId);
+  const closedBranchIds = listClosedBranchIdsFromRecords(opts.priorRecords);
   // Active/noncanon "계속" path — keep broad continue (incl. in-scene dialogue).
   const hasContinueIntentEarly = opts.allEntries.some((e) =>
     shouldPromoteBranchContinue(e.turn.user)
@@ -828,16 +817,14 @@ export async function composeBatchScopePayload(opts: {
         promotedBy = "user_continue";
         promotedAt = new Date().toISOString();
         if (opts.mode === "seal") {
-          // P1-B Path B: promote only latest contiguous noncanon group.
-          const toPromote = selectLatestContiguousNoncanonRecordIds(
-            opts.priorRecords
-          );
+          const toPromote = selectLatestContiguousNoncanonRecordIds(opts.priorRecords);
           if (toPromote.length > 0) {
-            promoteRecordsToBranchCanon({
-              chatId: opts.chatId,
+            pendingBranchControlOps.push({
+              op: "promote_noncanon_records",
               recordIds: toPromote,
               branchId,
               promotedBy: "user_continue",
+              sourceTurn: continueSrc?.turnIndex ?? opts.batchStart,
               control: {
                 source: "user_turn",
                 sourceUserMessageId: continueSrc?.userMessageId ?? null,

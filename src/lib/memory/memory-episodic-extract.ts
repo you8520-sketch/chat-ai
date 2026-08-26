@@ -13,8 +13,13 @@ import type {
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { EPISODIC_FACTS_EXTRACT_INSTRUCTIONS } from "./memory-episodic-prompt";
 import {
+  batchSourceMessageIds,
+  isBatchSourceGuardCurrent,
+  snapshotBatchSourceGuard,
+} from "./memory-batch-source-guard";
+import { loadMemoryEligibleChatTurnsWithMessageIdsCore } from "./memory-turn-loader";
+import {
   getMemorySourceBoundaryCore,
-  isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 
@@ -127,6 +132,14 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   if (!isMemoryFeatureEnabled()) {
     return { extracted: 0, persisted: 0, calls: 0 };
   }
+  const db = getDb();
+  const guardBefore = snapshotBatchSourceGuard(db, {
+    chatId: opts.chatId,
+    batchStart: opts.startTurn,
+    batchEnd: opts.endTurn,
+    boundarySnapshot: opts.boundarySnapshot,
+    sourceUserMessageIds: opts.batchUserSources.map((source) => source.messageId),
+  });
   const facts = await extractEpisodicFactsFromSealedBatch({
     dialogue: opts.dialogue,
     charName: opts.charName,
@@ -134,23 +147,24 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     endTurn: opts.endTurn,
     turnTrace: opts.turnTrace,
   });
-  const db = getDb();
-  const snapshot = opts.boundarySnapshot ?? getMemorySourceBoundaryCore(db, opts.chatId);
-  const sourceUserMessageIds = opts.batchUserSources
-    .map((source) => source.messageId)
-    .filter((id): id is number => id != null);
   if (
-    !isMemoryWriteGuardCurrentCore(db, {
-      chatId: opts.chatId,
-      snapshot,
-      sourceUserMessageIds,
-    })
+    !isBatchSourceGuardCurrent(
+      db,
+      {
+        chatId: opts.chatId,
+        batchStart: opts.startTurn,
+        batchEnd: opts.endTurn,
+        boundarySnapshot: guardBefore.boundary,
+        sourceUserMessageIds: opts.batchUserSources.map((source) => source.messageId),
+      },
+      guardBefore
+    )
   ) {
     console.info("EPISODIC_STALE_SOURCE_REJECTED", {
       chat_id: opts.chatId,
       batch_start: opts.startTurn,
       batch_end: opts.endTurn,
-      epoch: snapshot.epoch,
+      epoch: guardBefore.boundary.epoch,
     });
     return {
       extracted: facts.length,
@@ -162,6 +176,12 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   if (facts.length === 0) {
     return { extracted: 0, persisted: 0, calls: 1 };
   }
+  const eligible = loadMemoryEligibleChatTurnsWithMessageIdsCore(
+    db,
+    opts.chatId,
+    guardBefore.boundary
+  );
+  const sourceIds = batchSourceMessageIds(eligible, opts.startTurn, opts.endTurn);
   const persisted = persistEpisodicMemoryFactsBestEffort(db, {
     chatId: opts.chatId,
     characterId: opts.characterId,
@@ -170,13 +190,16 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     sourceUserMessageId:
       opts.batchUserSources[opts.batchUserSources.length - 1]?.messageId ?? null,
     batchUserSources: opts.batchUserSources,
-    boundarySnapshot: snapshot,
+    boundarySnapshot: guardBefore.boundary,
     facts,
     replaceSummarySealBatch: { batchStart: opts.startTurn, batchEnd: opts.endTurn },
     metadata: {
       extraction: "summary_seal_batch",
       batch_start: opts.startTurn,
       batch_end: opts.endTurn,
+      source_user_message_ids: sourceIds.userMessageIds,
+      source_assistant_message_ids: sourceIds.assistantMessageIds,
+      source_fingerprint: guardBefore.batchFingerprint,
     },
   });
   return { extracted: facts.length, persisted, calls: 1 };

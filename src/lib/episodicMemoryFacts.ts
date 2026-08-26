@@ -6,7 +6,6 @@ import type {
   EpisodicFactEvidenceType,
   EpisodicFactImportance,
 } from "@/lib/memory/memory-episodic-types";
-import type { ExtractedStatusFact, ExtractedStatusFactEvidenceType, ExtractedStatusFactImportance } from "@/lib/statusWidget/types";
 import { isMemoryFeatureEnabledIn } from "@/lib/memory/memory-feature";
 import {
   getMemorySourceBoundaryCore,
@@ -50,7 +49,7 @@ export type PersistEpisodicMemoryFactsInput = {
   /** Full 5-turn batch user sources for seal-aligned evidence validation. */
   batchUserSources?: EpisodicBatchUserSource[];
   boundarySnapshot?: MemorySourceBoundary;
-  facts?: ExtractedStatusFact[] | null;
+  facts?: EpisodicExtractedFact[] | null;
   metadata?: Record<string, unknown>;
   /**
    * Regeneration: delete existing facts for this chat/source_turn (same character/user)
@@ -61,7 +60,7 @@ export type PersistEpisodicMemoryFactsInput = {
   replaceSummarySealBatch?: { batchStart: number; batchEnd: number };
 };
 
-export type EpisodicMemoryFactRecord = ExtractedStatusFact & {
+export type EpisodicMemoryFactRecord = EpisodicExtractedFact & {
   id: number;
   chat_id: number;
   character_id: number | null;
@@ -104,7 +103,7 @@ const EPISODIC_MEMORY_CANDIDATE_LIMIT = 100;
 /** RAW4 keeps N-3..N; recall starts at N-4 (= minAgeTurns 5 when currentTurn=N+1). */
 const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 5;
 const DYNAMIC_MEMORY_TOTAL_MAX_CHARS = 2500;
-const IMPORTANCE_RANK: Record<ExtractedStatusFactImportance, number> = {
+const IMPORTANCE_RANK: Record<EpisodicFactImportance, number> = {
   critical: 3,
   important: 2,
   normal: 1,
@@ -172,7 +171,7 @@ export type EpisodicMemoryOwnershipBlockReason =
 
 /** Relationship Durable Ledger is the sole owner of promises and inventory/ownership. */
 export function detectRelationshipLedgerOwnedFact(
-  fact: Pick<ExtractedStatusFact, "category" | "attribute" | "value" | "fact_text">
+  fact: Pick<EpisodicExtractedFact, "category" | "attribute" | "value" | "fact_text">
 ): EpisodicMemoryOwnershipBlockReason | null {
   const attribute = String(fact.attribute ?? "");
   const text = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
@@ -194,7 +193,7 @@ export function detectRelationshipLedgerOwnedFact(
 
 export function detectUnverifiedCanonicalization(
   fact: Pick<
-    ExtractedStatusFact,
+    EpisodicExtractedFact,
     "category" | "attribute" | "value" | "fact_text" | "evidence_type"
   >
 ): "unverified_canonicalization" | "unattributed_character_claim" | null {
@@ -240,7 +239,7 @@ function normalizeEvidenceToken(token: string): string {
 }
 
 function explicitUserStatementHasRawSupport(
-  fact: Pick<ExtractedStatusFact, "value" | "fact_text">,
+  fact: Pick<EpisodicExtractedFact, "value" | "fact_text">,
   sourceUserText: string
 ): boolean {
   const source = normalizeForMemoryDedupe(sourceUserText);
@@ -260,7 +259,7 @@ function explicitUserStatementHasRawSupport(
 }
 
 export function resolveExplicitUserStatementProvenance(
-  fact: Pick<ExtractedStatusFact, "value" | "fact_text" | "evidence_type">,
+  fact: Pick<EpisodicExtractedFact, "value" | "fact_text" | "evidence_type">,
   batchUserSources: readonly EpisodicBatchUserSource[]
 ): { supported: boolean; messageId: number | null; turn: number | null } {
   if (fact.evidence_type !== "explicit_user_statement") {
@@ -275,7 +274,7 @@ export function resolveExplicitUserStatementProvenance(
 }
 
 export function detectUnsupportedEvidenceFact(
-  fact: Pick<ExtractedStatusFact, "value" | "fact_text" | "evidence_type">,
+  fact: Pick<EpisodicExtractedFact, "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
   batchUserSources?: readonly EpisodicBatchUserSource[]
 ): "higher_authority_canon_source" | "unsupported_explicit_user_statement" | null {
@@ -389,7 +388,7 @@ export function hasExplicitPsychologicalResolutionEvidence(factText: string): bo
 }
 
 export function detectAbstractPsychologicalInference(
-  fact: Pick<ExtractedStatusFact, "category" | "attribute" | "value" | "fact_text">
+  fact: Pick<EpisodicExtractedFact, "category" | "attribute" | "value" | "fact_text">
 ): "abstract_psychological_inference" | null {
   const category = String(fact.category ?? "").trim().toLowerCase();
   if (category !== "character" && category !== "relationship") return null;
@@ -491,7 +490,7 @@ export function episodicMemoryDebugApiEnabled(env = process.env): boolean {
 }
 
 export function detectEpisodicMemoryContamination(
-  fact: Pick<ExtractedStatusFact, "value" | "fact_text">
+  fact: Pick<EpisodicExtractedFact, "value" | "fact_text">
 ): string | null {
   const text = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
   for (const { reason, pattern } of EPISODIC_MEMORY_CONTAMINATION_PATTERNS) {
@@ -500,29 +499,29 @@ export function detectEpisodicMemoryContamination(
   return null;
 }
 
-function filterContaminatedFactsForSave(facts: ExtractedStatusFact[]): ExtractedStatusFact[] {
+function filterContaminatedFactsForSave(facts: EpisodicExtractedFact[]): EpisodicExtractedFact[] {
   return facts.filter((fact) => !detectEpisodicMemoryContamination(fact));
 }
 
 function filterRelationshipLedgerOwnedFactsForSave(
-  facts: ExtractedStatusFact[]
-): ExtractedStatusFact[] {
+  facts: EpisodicExtractedFact[]
+): EpisodicExtractedFact[] {
   return facts.filter((fact) => !detectRelationshipLedgerOwnedFact(fact));
 }
 
 function filterUnverifiedCanonicalizationFactsForSave(
-  facts: ExtractedStatusFact[]
-): ExtractedStatusFact[] {
+  facts: EpisodicExtractedFact[]
+): EpisodicExtractedFact[] {
   return facts.filter((fact) => !detectUnverifiedCanonicalization(fact));
 }
 
 function filterUnsupportedEvidenceFactsForSave(
-  facts: ExtractedStatusFact[],
+  facts: EpisodicExtractedFact[],
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
   } = {}
-): ExtractedStatusFact[] {
+): EpisodicExtractedFact[] {
   return facts.filter(
     (fact) =>
       !detectUnsupportedEvidenceFact(fact, opts.sourceUserText, opts.batchUserSources)
@@ -530,8 +529,8 @@ function filterUnsupportedEvidenceFactsForSave(
 }
 
 function filterAbstractPsychologicalInferenceFactsForSave(
-  facts: ExtractedStatusFact[]
-): ExtractedStatusFact[] {
+  facts: EpisodicExtractedFact[]
+): EpisodicExtractedFact[] {
   return facts.filter((fact) => {
     if (fact.category === "preference" || fact.category === "rule") return true;
     return !detectAbstractPsychologicalInference(fact);
@@ -539,12 +538,12 @@ function filterAbstractPsychologicalInferenceFactsForSave(
 }
 
 function filterUnsafeEpisodicFactsForSave(
-  facts: ExtractedStatusFact[],
+  facts: EpisodicExtractedFact[],
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
   } = {}
-): ExtractedStatusFact[] {
+): EpisodicExtractedFact[] {
   return filterUnsupportedEvidenceFactsForSave(
     filterUnverifiedCanonicalizationFactsForSave(
       filterAbstractPsychologicalInferenceFactsForSave(
@@ -567,7 +566,7 @@ export type EpisodicFactPersistSummary = {
   insertableCount: number;
   skippedCount: number;
   skippedReasons: string[];
-  insertable: ExtractedStatusFact[];
+  insertable: EpisodicExtractedFact[];
 };
 
 export function summarizeEpisodicFactPersistCandidates(
@@ -660,8 +659,8 @@ export function ensureEpisodicMemoryFactsTable(db: Database.Database): void {
   }
 }
 
-function dedupeFactsWithinResponse(facts: ExtractedStatusFact[]): ExtractedStatusFact[] {
-  const out: ExtractedStatusFact[] = [];
+function dedupeFactsWithinResponse(facts: EpisodicExtractedFact[]): EpisodicExtractedFact[] {
+  const out: EpisodicExtractedFact[] = [];
   const seen = new Set<string>();
   for (const fact of facts) {
     const key = `${fact.category}:${fact.subject}:${fact.attribute}:${fact.value}`;
@@ -693,21 +692,21 @@ function metadataRequestId(metadata?: Record<string, unknown>): string | null {
   return t || null;
 }
 
-const STORED_FACT_EVIDENCE_TYPES = new Set<ExtractedStatusFactEvidenceType>([
+const STORED_FACT_EVIDENCE_TYPES = new Set<EpisodicFactEvidenceType>([
   "explicit_user_statement",
   "explicit_scene_event",
   "explicit_character_claim",
   "canon",
 ]);
 
-function evidenceTypeFromMetadata(metadata: unknown): ExtractedStatusFactEvidenceType | undefined {
+function evidenceTypeFromMetadata(metadata: unknown): EpisodicFactEvidenceType | undefined {
   if (typeof metadata !== "string" || !metadata.trim()) return undefined;
   try {
     const parsed = JSON.parse(metadata) as { memory_evidence_type?: unknown };
     const raw = parsed.memory_evidence_type;
     return typeof raw === "string" &&
-      STORED_FACT_EVIDENCE_TYPES.has(raw as ExtractedStatusFactEvidenceType)
-      ? (raw as ExtractedStatusFactEvidenceType)
+      STORED_FACT_EVIDENCE_TYPES.has(raw as EpisodicFactEvidenceType)
+      ? (raw as EpisodicFactEvidenceType)
       : undefined;
   } catch {
     return undefined;
@@ -991,7 +990,7 @@ export type ReconcileEpisodicMemoryFactsInput = {
   sourceUserMessageId?: number | null;
   sourceUserText?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
-  facts?: ExtractedStatusFact[] | null;
+  facts?: EpisodicExtractedFact[] | null;
   isRegeneration: boolean;
   metadata?: Record<string, unknown>;
 };
@@ -1084,6 +1083,71 @@ export function deleteEpisodicMemoryFactsByAssistantMessageIds(
   return Number(result.changes) || 0;
 }
 
+function parseMetadataIdArray(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0);
+}
+
+/**
+ * Invalidate summary_seal_batch episodic rows when canonical source mutated
+ * without a guaranteed same-batch rebuild (wrong memory > missing memory).
+ */
+export function invalidateSummarySealBatchEpisodicFactsForSourceMutation(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    affectedUserMessageIds?: readonly number[];
+    affectedAssistantMessageIds?: readonly number[];
+    batchStart?: number;
+    batchEnd?: number;
+    expectedBatchFingerprint?: string | null;
+  }
+): number {
+  const scopedChatId = finitePositiveInt(opts.chatId);
+  if (!scopedChatId) return 0;
+  const affectedUser = new Set(
+    (opts.affectedUserMessageIds ?? [])
+      .map((id) => finitePositiveInt(id))
+      .filter((id): id is number => id != null)
+  );
+  const affectedAssistant = new Set(
+    (opts.affectedAssistantMessageIds ?? [])
+      .map((id) => finitePositiveInt(id))
+      .filter((id): id is number => id != null)
+  );
+  const rows = db
+    .prepare(`SELECT id, metadata FROM episodic_memory_facts WHERE chat_id=?`)
+    .all(scopedChatId) as Array<{ id: number; metadata: string }>;
+  let deleted = 0;
+  for (const row of rows) {
+    try {
+      const meta = JSON.parse(row.metadata) as Record<string, unknown>;
+      if (meta.extraction !== "summary_seal_batch") continue;
+      if (opts.batchStart != null && meta.batch_start !== opts.batchStart) continue;
+      if (opts.batchEnd != null && meta.batch_end !== opts.batchEnd) continue;
+      const userIds = parseMetadataIdArray(meta.source_user_message_ids);
+      const assistantIds = parseMetadataIdArray(meta.source_assistant_message_ids);
+      const hitUser = userIds.some((id) => affectedUser.has(id));
+      const hitAssistant = assistantIds.some((id) => affectedAssistant.has(id));
+      const fingerprintStale =
+        opts.expectedBatchFingerprint != null &&
+        typeof meta.source_fingerprint === "string" &&
+        meta.source_fingerprint !== opts.expectedBatchFingerprint;
+      if (!hitUser && !hitAssistant && !fingerprintStale) continue;
+      db.prepare(`DELETE FROM episodic_memory_facts WHERE id=? AND chat_id=?`).run(
+        row.id,
+        scopedChatId
+      );
+      deleted += 1;
+    } catch {
+      continue;
+    }
+  }
+  return deleted;
+}
+
 function tokenizeForSimpleBoost(text: string): string[] {
   return [
     ...new Set(
@@ -1097,11 +1161,11 @@ function tokenizeForSimpleBoost(text: string): string[] {
   ];
 }
 
-function factSearchText(fact: ExtractedStatusFact): string {
+function factSearchText(fact: EpisodicExtractedFact): string {
   return `${fact.subject} ${fact.attribute} ${fact.value} ${fact.fact_text}`.toLowerCase();
 }
 
-function keywordBoost(fact: ExtractedStatusFact, currentUserMessage: string): number {
+function keywordBoost(fact: EpisodicExtractedFact, currentUserMessage: string): number {
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
   if (tokens.length === 0) return 0;
   const haystack = factSearchText(fact);
