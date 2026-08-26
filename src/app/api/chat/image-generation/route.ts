@@ -22,8 +22,7 @@ import {
   CHAT_COUPLE_STAMP_QUALITY,
   CHAT_COUPLE_STAMP_TEMPLATE_ID,
   CHAT_COUPLE_STAMP_TEMPLATE_NAME,
-  CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
-  buildChatCoupleStampPrompt,
+  buildCoupleStampGenerationPlan,
   resolveChatCoupleStampPrice,
   sanitizeChatCoupleStampOptions,
 } from "@/lib/chatCoupleStampGeneration";
@@ -34,8 +33,7 @@ import {
   CHAT_EMOTICON_QUALITY,
   CHAT_EMOTICON_TEMPLATE_ID,
   CHAT_EMOTICON_TEMPLATE_NAME,
-  CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
-  buildChatEmoticonPrompt,
+  buildEmoticonGenerationPlan,
   resolveChatEmoticonPrice,
   selectRandomChatEmoticonScenes,
 } from "@/lib/chatEmoticonGeneration";
@@ -53,13 +51,19 @@ import {
   CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
   CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
   CHAT_IMAGE_GENERATION_QUALITY,
-  buildChatImageGenerationPrompt,
+  buildGiftBoxGenerationPlan,
   type ImagePromptGender,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
-  resolveChatImageReferenceOrder,
   sanitizeChatImageGenerationOptions,
 } from "@/lib/chatImageGeneration";
+import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
+import {
+  previewVisualAppearance,
+  resolveCharacterSavedAppearance,
+  resolvePersonaSavedAppearance,
+  resolveRequestAppearanceModes,
+} from "@/lib/chatImageVisualIdentity";
 import { CHAT_LD_ILLUSTRATION_TEMPLATE_ID } from "@/lib/chatLdIllustrationGeneration";
 import {
   CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE,
@@ -115,6 +119,8 @@ type CharacterRow = {
   images: string;
   creator_id: number | null;
   visibility: string;
+  appearance_raw: string | null;
+  system_prompt: string | null;
 };
 
 type PersonaRow = {
@@ -140,6 +146,8 @@ type GenerationContext = {
   characterImageUrl: string;
   characterImages: SelectableCharacterImage[];
   personaImageUrl: string;
+  characterSavedAppearance: string;
+  personaSavedAppearance: string;
 };
 
 class RequestError extends Error {
@@ -223,7 +231,7 @@ function resolveGenerationContext(opts: {
 
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -279,6 +287,11 @@ function resolveGenerationContext(opts: {
     characterImageUrl,
     characterImages,
     personaImageUrl,
+    characterSavedAppearance: resolveCharacterSavedAppearance({
+      appearanceRaw: character.appearance_raw,
+      appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
+    }),
+    personaSavedAppearance: resolvePersonaSavedAppearance(persona?.description),
   };
 }
 
@@ -471,6 +484,8 @@ function publicContextResponse(context: GenerationContext) {
       id: context.character.id,
       name: context.character.name,
       imageUrl: context.characterImageUrl,
+      appearancePreview: context.characterSavedAppearance,
+      appearancePreviewShort: previewVisualAppearance(context.characterSavedAppearance).preview,
     },
     characterImages: context.characterImages,
     persona: context.persona
@@ -746,6 +761,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const appearanceModes = resolveRequestAppearanceModes({
+      characterImages: context.characterImages,
+      selectedCharacterImageUrl: context.characterImageUrl,
+      characterSavedAppearance: context.characterSavedAppearance,
+      personaSavedAppearance: context.personaSavedAppearance,
+      characterOverride: body.characterAppearanceMode,
+      personaOverride: body.personaAppearanceMode,
+    });
     let prompt: string;
     let referenceSources: string[];
     let generationOptions: Record<string, unknown>;
@@ -775,41 +798,51 @@ export async function POST(req: Request) {
         characterExpression: body.coupleCharacterExpression,
         personaExpression: body.couplePersonaExpression,
       });
-      prompt = buildChatCoupleStampPrompt({
+      const plan = buildCoupleStampGenerationPlan({
         characterName: context.character.name,
         characterGender: context.characterGender,
         personaName: context.persona.name,
         personaGender: context.personaGender,
+        characterImageUrl: context.characterImageUrl,
+        characterSavedAppearance: context.characterSavedAppearance,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
+        personaImageUrl: context.personaImageUrl,
+        personaSavedAppearance: context.personaSavedAppearance,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
         options: coupleOptions,
       });
-      referenceSources = [
-        CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
-        context.characterImageUrl,
-        context.personaImageUrl,
-      ];
+      prompt = plan.prompt;
+      referenceSources = plan.referenceUrls;
       generationOptions = {
         mode: "couple_stamp",
         quality,
         ...coupleOptions,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
       };
     } else if (isEmoticon) {
       const scenes = selectRandomChatEmoticonScenes();
-      prompt = buildChatEmoticonPrompt({
+      const plan = buildEmoticonGenerationPlan({
         characterName: context.character.name,
         characterGender: context.characterGender,
         personaName: context.persona.name,
         personaGender: context.personaGender,
+        characterImageUrl: context.characterImageUrl,
+        characterSavedAppearance: context.characterSavedAppearance,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
+        personaImageUrl: context.personaImageUrl,
+        personaSavedAppearance: context.personaSavedAppearance,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
         scenes,
       });
-      referenceSources = [
-        CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
-        context.characterImageUrl,
-        context.personaImageUrl,
-      ];
+      prompt = plan.prompt;
+      referenceSources = plan.referenceUrls;
       generationOptions = {
         mode: "emoticon",
         quality,
         scenes,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
       };
     } else {
       const options = sanitizeChatImageGenerationOptions({
@@ -818,29 +851,27 @@ export async function POST(req: Request) {
         bottomExpression: body.bottomExpression,
         mood: body.mood,
       });
-      const order = resolveChatImageReferenceOrder({
-        characterName: context.character.name,
-        characterImageUrl: context.characterImageUrl,
-        personaName: context.persona.name,
-        personaImageUrl: context.personaImageUrl,
-        placement: options.placement,
-      });
-      prompt = buildChatImageGenerationPrompt({
+      const plan = buildGiftBoxGenerationPlan({
         characterName: context.character.name,
         characterGender: context.characterGender,
+        characterImageUrl: context.characterImageUrl,
+        characterSavedAppearance: context.characterSavedAppearance,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
         personaName: context.persona.name,
         personaGender: context.personaGender,
+        personaImageUrl: context.personaImageUrl,
+        personaSavedAppearance: context.personaSavedAppearance,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
         ...options,
       });
-      referenceSources = [
-        CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
-        order.top.imageUrl,
-        order.bottom.imageUrl,
-      ];
+      prompt = plan.prompt;
+      referenceSources = plan.referenceUrls;
       generationOptions = {
         mode: "sd",
         ...options,
         quality,
+        characterAppearanceMode: appearanceModes.characterAppearanceMode,
+        personaAppearanceMode: appearanceModes.personaAppearanceMode,
       };
     }
 

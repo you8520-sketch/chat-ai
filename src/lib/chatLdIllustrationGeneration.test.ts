@@ -33,7 +33,9 @@ describe("chatLdIllustrationGeneration", () => {
     });
     assert.match(prompt, /렌이 태형에게 깻잎을 먹여준다/);
     assert.match(prompt, /SELECTED TURN SCENE BRIEF/);
-    assert.match(prompt, /identity and art-style reference/);
+    assert.match(prompt, /Image 1 belongs ONLY to 태형/);
+    assert.match(prompt, /Image 2 belongs ONLY to 렌/);
+    assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /Do not add extra people/);
     assert.match(prompt, /Do not render speech bubbles/);
     assert.match(prompt, /vertical 2:3/);
@@ -84,6 +86,8 @@ describe("chatLdIllustrationGeneration", () => {
     assert.match(prompt, /1\. 렌 \(player\)\. Gender: confirmed male/);
     assert.match(prompt, /Also known as: 권태현, 태현/);
     assert.match(prompt, /identity photo for 렌 only/);
+    assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
+    assert.match(prompt, /Image 1 belongs ONLY to 렌/);
     assert.match(prompt, /2\. 태형 \(companion character\)\. Gender: confirmed male/);
     assert.match(prompt, /3\. 유나 \(companion character\)\. Gender: confirmed female/);
     assert.match(prompt, /4\. 민호 \(player\)/);

@@ -29,12 +29,23 @@ import {
   CHAT_LD_ILLUSTRATION_QUALITY,
   CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
   buildChatLdIllustrationPrompt,
+  buildLdDuoGenerationPlan,
   buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
   type ChatLdIllustrationCastMember,
   withIllustrationReferenceIndices,
 } from "@/lib/chatLdIllustrationGeneration";
+import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
+import {
+  defaultAppearanceMode,
+  isPrimarySelectableImage,
+  referenceUrlsFromSubjects,
+  resolveCharacterSavedAppearance,
+  resolvePersonaSavedAppearance,
+  resolveRequestAppearanceModes,
+  visualSubjectsFromCastMembers,
+} from "@/lib/chatImageVisualIdentity";
 import {
   applyTrpgCastImagePicks,
   loadTrpgIllustrationScene,
@@ -90,6 +101,8 @@ type CharacterRow = {
   images: string;
   creator_id: number | null;
   visibility: string;
+  appearance_raw: string | null;
+  system_prompt: string | null;
 };
 
 type PersonaRow = {
@@ -97,6 +110,7 @@ type PersonaRow = {
   name: string;
   gender: string | null;
   image_url: string;
+  description: string | null;
 };
 
 type ChatRow = {
@@ -113,6 +127,9 @@ type GenerationContext = {
   personaGender: ImagePromptGender;
   characterImageUrl: string;
   personaImageUrl: string;
+  characterImages: ReturnType<typeof listSelectableCharacterImages>;
+  characterSavedAppearance: string;
+  personaSavedAppearance: string;
 };
 
 class RequestError extends Error {
@@ -200,7 +217,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -212,14 +229,14 @@ function resolveGenerationContext(opts: {
   if (selectedPersonaId) {
     persona = db
       .prepare(
-        "SELECT id, name, gender, image_url FROM user_personas WHERE id=? AND user_id=?"
+        "SELECT id, name, gender, image_url, description FROM user_personas WHERE id=? AND user_id=?"
       )
       .get(selectedPersonaId, opts.userId) as PersonaRow | undefined;
   }
   if (!persona) {
     persona = db
       .prepare(
-        "SELECT id, name, gender, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
+        "SELECT id, name, gender, image_url, description FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
       )
       .get(opts.userId) as PersonaRow | undefined;
   }
@@ -255,6 +272,12 @@ function resolveGenerationContext(opts: {
     personaGender: genders.personaGender,
     characterImageUrl,
     personaImageUrl,
+    characterImages,
+    characterSavedAppearance: resolveCharacterSavedAppearance({
+      appearanceRaw: character.appearance_raw,
+      appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
+    }),
+    personaSavedAppearance: resolvePersonaSavedAppearance(persona.description),
   };
 }
 
@@ -707,12 +730,21 @@ export async function POST(req: Request) {
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const campaignId = positiveInt(body.campaignId);
       const roundNumber = nonNegativeInt(body.roundNumber);
+      const appearanceModes = resolveRequestAppearanceModes({
+        characterImages: context.characterImages,
+        selectedCharacterImageUrl: context.characterImageUrl,
+        characterSavedAppearance: context.characterSavedAppearance,
+        personaSavedAppearance: context.personaSavedAppearance,
+        characterOverride: body.characterAppearanceMode,
+        personaOverride: body.personaAppearanceMode,
+      });
       let cast: ChatLdIllustrationCastMember[] | undefined;
       let referenceUrls = [context.characterImageUrl, context.personaImageUrl];
       let situation: string | undefined;
       let sceneLocation = "";
       let sceneActions: Array<{ name: string; body: string }> = [];
       let campaignTitle = "";
+      let prompt: string;
       if (campaignId) {
         const scene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
@@ -723,18 +755,29 @@ export async function POST(req: Request) {
         campaignTitle = scene.campaignTitle;
         const pickedMembers = applyTrpgCastImagePicks(scene.members, body.castImagePicks);
         const indexed = withIllustrationReferenceIndices(pickedMembers);
-        cast = indexed.map((member) => ({
-          name: member.name,
-          gender: member.gender,
-          role: member.role,
-          referenceIndex: member.referenceIndex,
-          appearanceNote: member.appearanceNote,
-          aliases: member.aliases,
-        }));
-        const partyUrls = indexed
-          .filter((member) => member.referenceIndex != null && member.imageUrl)
-          .sort((a, b) => (a.referenceIndex ?? 0) - (b.referenceIndex ?? 0))
-          .map((member) => member.imageUrl as string);
+        cast = indexed.map((member) => {
+          const isPrimary = isPrimarySelectableImage(member.images, member.imageUrl);
+          const appearanceMode = defaultAppearanceMode({
+            sourceKind: "cast_member",
+            isPrimaryImage: !member.imageUrl || isPrimary,
+            hasOwnSavedAppearance: Boolean(member.appearanceNote?.trim()),
+            hasOwnReference: Boolean(member.imageUrl),
+          });
+          return {
+            name: member.name,
+            gender: member.gender,
+            role: member.role,
+            referenceIndex: member.referenceIndex,
+            appearanceNote:
+              appearanceMode === "image_plus_saved" ? member.appearanceNote : undefined,
+            aliases: member.aliases,
+            appearanceMode,
+            imageUrl: member.imageUrl,
+            isPrimaryImage: isPrimary,
+          };
+        });
+        const partySubjects = visualSubjectsFromCastMembers(cast);
+        const partyUrls = referenceUrlsFromSubjects(partySubjects);
         if (partyUrls.length > 0) referenceUrls = partyUrls;
         sceneLocation = scene.location;
         sceneActions = scene.actions;
@@ -751,16 +794,32 @@ export async function POST(req: Request) {
           actions: sceneActions,
           narration: source.turnText,
         });
+        prompt = buildChatLdIllustrationPrompt({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          currentTurn: source.turnText,
+          cast,
+          situation,
+        });
+      } else {
+        const plan = buildLdDuoGenerationPlan({
+          characterName: context.character.name,
+          characterGender: context.characterGender,
+          personaName: context.persona.name,
+          personaGender: context.personaGender,
+          characterImageUrl: context.characterImageUrl,
+          characterSavedAppearance: context.characterSavedAppearance,
+          characterAppearanceMode: appearanceModes.characterAppearanceMode,
+          personaImageUrl: context.personaImageUrl,
+          personaSavedAppearance: context.personaSavedAppearance,
+          personaAppearanceMode: appearanceModes.personaAppearanceMode,
+          currentTurn: source.turnText,
+        });
+        prompt = plan.prompt;
+        referenceUrls = plan.referenceUrls;
       }
-      const prompt = buildChatLdIllustrationPrompt({
-        characterName: context.character.name,
-        characterGender: context.characterGender,
-        personaName: context.persona.name,
-        personaGender: context.personaGender,
-        currentTurn: source.turnText,
-        cast,
-        situation,
-      });
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
       );

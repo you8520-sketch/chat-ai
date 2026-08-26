@@ -66,11 +66,13 @@ describe("chatImageGeneration", () => {
       mood: "anniversary",
     });
     assert.match(prompt, /Reference image 1 is the composition/);
-    assert.match(prompt, /Reference image 2 is the identity reference for the TOP person, 태형/);
-    assert.match(prompt, /Reference image 3 is the identity reference for the BOTTOM person, 렌/);
+    assert.match(prompt, /TOP person is 태형/);
+    assert.match(prompt, /BOTTOM person is 렌/);
+    assert.match(prompt, /Image 2 belongs ONLY to 태형/);
+    assert.match(prompt, /Image 3 belongs ONLY to 렌/);
     assert.match(prompt, /Exactly two human characters/);
     assert.match(prompt, /Do not crop to faces only/);
-    assert.match(prompt, /Do not blend the two identities/);
+    assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /confirmed MALE/);
   });
