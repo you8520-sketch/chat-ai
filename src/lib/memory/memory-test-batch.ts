@@ -8,6 +8,15 @@ export const GREENFIELD_BATCH2_START = 6;
 /** Third greenfield batch start (was 13 under legacy six-turn cadence). */
 export const GREENFIELD_BATCH3_START = 11;
 
+/** Fourth greenfield batch start (was 19 under legacy six-turn cadence). */
+export const GREENFIELD_BATCH4_START = 16;
+
+/** Fifth greenfield batch start (was 25 under legacy six-turn cadence). */
+export const GREENFIELD_BATCH5_START = 21;
+
+/** Sixth greenfield batch start (was 31 under legacy six-turn cadence). */
+export const GREENFIELD_BATCH6_START = 26;
+
 export function greenfieldBatchEnd(turnStart: number): number {
   return newBatchEndForStart(turnStart);
 }

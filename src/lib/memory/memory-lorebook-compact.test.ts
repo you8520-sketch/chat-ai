@@ -17,9 +17,11 @@ import assert from "node:assert/strict";
 import { describe, it, before, after, beforeEach } from "node:test";
 import { getDb } from "@/lib/db";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { ensureLorebookWithinBudget } from "./memory-lorebook-fit";
 import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import { OOC_ONLY_SUMMARY_MARKER } from "./memory-summary-integrity";
+import { greenfieldBatchEnd } from "./memory-test-batch";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import {
   __setCompactCurrentMemoryTestOverride,
@@ -92,12 +94,13 @@ function seedOverBudgetSummaries(opts?: { withOoc?: boolean }) {
   const body = NARRATIVE_CHUNK.repeat(8);
   let turn = 1;
   for (let i = 0; i < 20; i++) {
-    const summary = `${body} 배치${i} 추�??�술�?길이�??�보?�다.`;
+    const turnEnd = greenfieldBatchEnd(turn);
+    const summary = `${body} 배치${i} 추가서술로 길이를 보강한다.`;
     db.prepare(
-      `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind)
-       VALUES (?,?,?,?)`
-    ).run(CHAT_ID, turn, summary, "main_canon");
-    turn += 6;
+      `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
+       VALUES (?,?,?,?,?)`
+    ).run(CHAT_ID, turn, turnEnd, summary, "main_canon");
+    turn += ROLLING_SUMMARY_INTERVAL;
   }
   if (opts?.withOoc) {
     db.prepare(

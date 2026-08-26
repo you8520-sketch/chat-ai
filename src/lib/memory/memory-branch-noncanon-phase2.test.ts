@@ -19,6 +19,10 @@ import { resolveBatchStartForTurnNumber } from "./memory-summary-integrity";
 import { parseScopePayload, type ScopePayloadV1 } from "./memory-summary-scope";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
+  GREENFIELD_BATCH3_START,
+  insertAutomaticLegacySixTurnSummaryRow,
+} from "./memory-test-batch";
+import {
   closeActiveBranchCanon,
   countDistinctActiveBranchIds,
   listMemoryRecordsForChat,
@@ -356,21 +360,20 @@ describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
   });
 
   it("B2_9 mixed legacy 1-6 / 7-12 + new 13-17 branch across frontier", () => {
-    persistKind({
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
       turnStart: 1,
       turnEnd: 6,
-      kind: "main_canon",
-      text: TEXT_MAIN,
+      summary: TEXT_MAIN,
     });
-    persistKind({
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
       turnStart: 7,
       turnEnd: 12,
-      kind: "main_canon",
-      text: TEXT_MAIN,
+      summary: TEXT_MAIN,
     });
     const branchId = persistKind({
       turnStart: 13,
-      turnEnd: 17,
       kind: "branch_canon",
       text: TEXT_BRANCH,
       branchId: "branch-mixed",
@@ -384,11 +387,20 @@ describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
   });
 
   it("B2_10 regen retains stored legacy 1-6 and new 13-17 spans", async () => {
-    persistKind({ turnStart: 1, turnEnd: 6, kind: "main_canon", text: TEXT_MAIN });
-    persistKind({ turnStart: 7, turnEnd: 12, kind: "main_canon", text: TEXT_MAIN });
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
+      turnStart: 1,
+      turnEnd: 6,
+      summary: TEXT_MAIN,
+    });
+    insertAutomaticLegacySixTurnSummaryRow({
+      chatId: CHAT,
+      turnStart: 7,
+      turnEnd: 12,
+      summary: TEXT_MAIN,
+    });
     persistKind({
       turnStart: 13,
-      turnEnd: 17,
       kind: "branch_canon",
       text: TEXT_BRANCH,
       branchId: "branch-regen",
@@ -400,11 +412,12 @@ describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
       summarized_turn_count: 17,
       membership_tier: "free",
     });
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MOCK_SUMMARY }));
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: TEXT_MAIN }));
     const records = listMemoryRecordsForChat(CHAT);
     assert.equal(resolveBatchStartForTurnNumber(4, records), 1);
     assert.equal(resolveBatchStartForTurnNumber(15, records), 13);
 
+    // Automatic legacy 6-turn rows are read-only under Phase C span policy.
     assert.equal(
       await regenerateMemoryRecordBatch({
         chatId: CHAT,
@@ -415,9 +428,10 @@ describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
         memoryCapacity: 8000,
         turnStart: 1,
       }),
-      true
+      false
     );
     assert.equal(listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 1)!.turnEnd, 6);
+    assert.equal(listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!.turnEnd, 12);
 
     assert.equal(
       await regenerateMemoryRecordBatch({
@@ -431,6 +445,9 @@ describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
       }),
       true
     );
-    assert.equal(listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 13)!.turnEnd, 17);
+    const after = listMemoryRecordsForChat(CHAT);
+    assert.equal(after.find((r) => r.turnStart === 1)!.turnEnd, 6);
+    assert.equal(after.find((r) => r.turnStart === 7)!.turnEnd, 12);
+    assert.equal(after.find((r) => r.turnStart === 13)!.turnEnd, 17);
   });
 });

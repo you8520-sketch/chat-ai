@@ -300,7 +300,7 @@ describe("assistant regeneration rebuilds full scopePayload", () => {
   it("D. empty model output does not overwrite prior valid summary", async () => {
     insertGreeting();
     const ids = insertPlayableTurns(
-      Array.from({ length: 6 }, (_, i) => ({
+      Array.from({ length: 5 }, (_, i) => ({
         user: `본편 행동 ${i + 1}`,
         assistant: `본편 응답 ${i + 1}`,
       }))
@@ -312,12 +312,11 @@ describe("assistant regeneration rebuilds full scopePayload", () => {
       characterId: CHAR,
       tier: "free",
       turnStart: 1,
-      turnEnd: 6,
-      assistantMessageId: ids[5]!,
+      assistantMessageId: ids[4]!,
       summary: MAIN_NARRATIVE_A,
       summaryKind: "main_canon",
       scopePayload: { v: 1, scopes: { main_canon: MAIN_NARRATIVE_A } },
-      playableTurnCount: 6,
+      playableTurnCount: 5,
     });
 
     __setSummarizeTurnBatchCallerForTests(async () => {
@@ -349,7 +348,7 @@ describe("assistant regeneration rebuilds full scopePayload", () => {
     const after = listMemoryRecordsForChat(CHAT)[0]!;
     assert.equal(after.summary, MAIN_NARRATIVE_A);
     assert.equal(after.scopes.main_canon, MAIN_NARRATIVE_A);
-    assert.equal(memSummarized(), 6);
+    assert.equal(memSummarized(), 5);
     assert.equal(listMemoryRecordsForChat(CHAT).length, 1);
     const afterPayload = encodeScopePayload({
       v: 1,
