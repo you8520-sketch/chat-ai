@@ -6,6 +6,7 @@ export type LiveTurnProcessStage =
   | "opening"
   | "wait_humans"
   | "bots"
+  | "presenting"
   | "rolls"
   | "gm"
   | "reroll";
@@ -20,14 +21,19 @@ export function isLiveTurnCinematicMotion(
   );
 }
 
-/** Hide process timer for cinematic handoff unless sequential AI reveal still owns the row. */
+/** Hide the process pill when dice/result or revealing GM owns the screen. */
 export function shouldHideProcessTimerForPresentation(opts: {
-  cinematicMotion: boolean;
-  presentationStarting: boolean;
-  sequentialActionRevealPending: boolean;
+  overlayVisible: boolean;
+  presentationMode: RoundPresentationMode | string;
+  presentationPhase: RoundPresentationPhase | string;
+  gmProseRevealing: boolean;
 }): boolean {
-  if (opts.sequentialActionRevealPending) return false;
-  return opts.cinematicMotion || opts.presentationStarting;
+  if (opts.overlayVisible) return true;
+  if (opts.presentationMode !== "cinematic") return false;
+  if (opts.presentationPhase === "actor-dice" || opts.presentationPhase === "actor-result") return true;
+  if (opts.presentationPhase === "complete") return true;
+  if (opts.presentationPhase === "gm-narration" && opts.gmProseRevealing) return true;
+  return false;
 }
 
 export function liveTurnProcessStage(opts: {
@@ -40,18 +46,33 @@ export function liveTurnProcessStage(opts: {
   presentationStarting: boolean;
   gmTextReady: boolean;
   botGenerationInFlight?: boolean;
-  sequentialActionRevealPending?: boolean;
+  overlayVisible?: boolean;
+  presentationMode?: RoundPresentationMode | string;
+  presentationPhase?: RoundPresentationPhase | string;
+  cinematicAiActionActive?: boolean;
+  gmProseRevealing?: boolean;
 }): LiveTurnProcessStage {
   if (opts.waitingOpening) return "opening";
   if (opts.narrationRerolling) return "reroll";
   if (
     shouldHideProcessTimerForPresentation({
-      cinematicMotion: opts.cinematicMotion,
-      presentationStarting: opts.presentationStarting,
-      sequentialActionRevealPending: opts.sequentialActionRevealPending === true,
+      overlayVisible: opts.overlayVisible === true,
+      presentationMode: opts.presentationMode ?? (opts.cinematicMotion ? "cinematic" : "idle"),
+      presentationPhase: opts.presentationPhase ?? (opts.cinematicMotion ? "actor-action" : "idle"),
+      gmProseRevealing: opts.gmProseRevealing === true,
     })
   ) {
     return "none";
+  }
+  if (opts.cinematicAiActionActive) return "presenting";
+  if (
+    opts.cinematicMotion &&
+    (opts.presentationPhase ?? "actor-action") === "actor-action"
+  ) {
+    return "presenting";
+  }
+  if (opts.presentationMode === "cinematic" && opts.presentationPhase === "gm-narration") {
+    return opts.gmTextReady ? "none" : "gm";
   }
   if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return "none";
   if (opts.workType === "wait_humans" && opts.viewerLocked) return "wait_humans";
@@ -65,7 +86,6 @@ export function liveTurnProcessStage(opts: {
     return "rolls";
   }
   if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return "gm";
-  if (opts.sequentialActionRevealPending) return "bots";
   return "none";
 }
 
@@ -79,10 +99,8 @@ export function isLiveTurnProcessing(opts: {
   presentationStarting: boolean;
   gmTextReady: boolean;
   botGenerationInFlight?: boolean;
-  sequentialActionRevealPending?: boolean;
 }): boolean {
   if (opts.waitingOpening || opts.narrationRerolling) return true;
-  if (opts.sequentialActionRevealPending) return true;
   if (opts.presentationStarting || opts.cinematicMotion) return true;
   if (opts.phase === "GENERATING_NARRATION" && !opts.gmTextReady) return true;
   if (opts.workType === "bot_retry_required" && !opts.botGenerationInFlight) return false;
@@ -120,6 +138,8 @@ export function liveTurnProcessLabel(opts: {
       return opts.botProgress
         ? `동료 행동 구성 중 · ${opts.botProgress.done}/${opts.botProgress.total}`
         : "동료 행동 구성 중";
+    case "presenting":
+      return "동료 행동 표시 중";
     case "rolls":
       return "라운드 판정 준비 중";
     case "gm":
