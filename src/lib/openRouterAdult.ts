@@ -57,7 +57,7 @@ import { applyProductionServerControlsToMessages } from "@/lib/scenePacingContro
 import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
 import type { PromptDebugMeta } from "@/services/promptDebugDump";
-import { normalizeStreamTermination } from "@/lib/providerTermination";
+import { normalizeStreamTermination, accumulateStreamFinishReason } from "@/lib/providerTermination";
 import { buildControlledPossessionRules } from "@/lib/controlledPossession";
 import {
   detectRpMetaLeakage,
@@ -1511,12 +1511,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             providerRequestId = json.id.trim();
           }
           const choice = json.choices?.[0];
-          if (!choice) continue;
           const normalizedFinish = normalizeStreamTermination(
-            choice as Record<string, unknown>,
+            choice as Record<string, unknown> | undefined,
             json as Record<string, unknown>
           );
-          if (normalizedFinish) finishReason = normalizedFinish;
+          if (normalizedFinish) {
+            finishReason = accumulateStreamFinishReason(finishReason, normalizedFinish);
+          }
+          if (!choice) continue;
 
           const rawDelta = extractOpenRouterStreamDelta(choice);
           const delta = rawDelta ? prefillStripper.push(rawDelta) : "";

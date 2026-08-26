@@ -9,10 +9,12 @@ import {
 } from "@/lib/responseLength";
 import { shouldWaiveTurnBilling } from "@/lib/points";
 import {
+  accumulateStreamFinishReason,
   extractStreamChoiceTermination,
   isProviderNativeRefusalSignal,
   normalizeProviderTerminationFinishReason,
   normalizeStreamTermination,
+  normalizeTopLevelStreamTermination,
 } from "@/lib/providerTermination";
 
 const healthyShortProse =
@@ -59,6 +61,83 @@ describe("provider termination field owners (code-only trace)", () => {
       { stop_reason: "refusal" }
     );
     assert.equal(normalized, "refusal");
+  });
+});
+
+describe("stream termination accumulation", () => {
+  function accumulateChunks(
+    chunks: Array<Record<string, unknown>>
+  ): string | undefined {
+    let finish: string | undefined;
+    for (const chunk of chunks) {
+      const choice = (chunk.choices as Record<string, unknown>[] | undefined)?.[0];
+      const normalized = normalizeStreamTermination(choice, chunk);
+      if (normalized) {
+        finish = accumulateStreamFinishReason(finish, normalized);
+      }
+    }
+    return finish;
+  }
+
+  it("A — native_finish_reason=refusal then finish_reason=stop stays refusal", () => {
+    assert.equal(
+      accumulateChunks([
+        { choices: [{ native_finish_reason: "refusal" }] },
+        { choices: [{ finish_reason: "stop" }] },
+      ]),
+      "refusal"
+    );
+  });
+
+  it("B — finish_reason=stop then native_finish_reason=refusal ends refusal", () => {
+    assert.equal(
+      accumulateChunks([
+        { choices: [{ finish_reason: "stop" }] },
+        { choices: [{ native_finish_reason: "refusal" }] },
+      ]),
+      "refusal"
+    );
+  });
+
+  it("C — termination-only top-level stop_reason=refusal without choices", () => {
+    assert.equal(
+      normalizeTopLevelStreamTermination({ stop_reason: "refusal" }),
+      "refusal"
+    );
+    assert.equal(
+      accumulateChunks([{ stop_reason: "refusal" }]),
+      "refusal"
+    );
+  });
+
+  it("D — termination-only top-level stop_details.type=refusal without choices", () => {
+    assert.equal(
+      normalizeTopLevelStreamTermination({ stop_details: { type: "refusal" } }),
+      "refusal"
+    );
+    assert.equal(
+      accumulateChunks([{ stop_details: { type: "refusal" } }]),
+      "refusal"
+    );
+  });
+
+  it("E — normal multi-chunk stop/end_turn success unchanged", () => {
+    assert.equal(
+      accumulateChunks([
+        { choices: [{ finish_reason: "stop" }] },
+        { choices: [{ finish_reason: "stop", native_finish_reason: "end_turn" }] },
+      ]),
+      "stop"
+    );
+    assert.equal(detectAdultGenerationFailure("stop", healthyShortProse, 3500), null);
+  });
+
+  it("detectModelRefusal recognizes unnormalized finishReason=refused", () => {
+    assert.equal(detectModelRefusal({ text: "", finishReason: "refused" }).refused, true);
+    assert.equal(
+      detectModelRefusal({ text: partialRefusalProse, finishReason: "refused" }).refused,
+      true
+    );
   });
 });
 

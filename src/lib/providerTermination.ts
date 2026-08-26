@@ -68,24 +68,75 @@ export function extractStreamChoiceTermination(
   };
 }
 
+function mergeStreamTerminationFields(
+  choice: Record<string, unknown> | undefined,
+  topLevel?: Record<string, unknown> | null
+): ProviderTerminationFields | null {
+  const fields: ProviderTerminationFields = {};
+  let hasTermination = false;
+
+  if (topLevel) {
+    if (typeof topLevel.stop_reason === "string") {
+      fields.stopReason = topLevel.stop_reason;
+      hasTermination = true;
+    }
+    const topStopDetails = topLevel.stop_details as { type?: unknown } | undefined;
+    if (typeof topStopDetails?.type === "string") {
+      fields.stopDetailsType = topStopDetails.type;
+      hasTermination = true;
+    }
+  }
+
+  if (choice) {
+    const extracted = extractStreamChoiceTermination(choice);
+    if (extracted.finishReason) {
+      fields.finishReason = extracted.finishReason;
+      hasTermination = true;
+    }
+    if (extracted.stopReason) {
+      fields.stopReason = extracted.stopReason;
+      hasTermination = true;
+    }
+    if (extracted.nativeFinishReason) {
+      fields.nativeFinishReason = extracted.nativeFinishReason;
+      hasTermination = true;
+    }
+    if (extracted.stopDetailsType) {
+      fields.stopDetailsType = extracted.stopDetailsType;
+      hasTermination = true;
+    }
+  }
+
+  return hasTermination ? fields : null;
+}
+
 /** Merge choice-level and optional top-level stream termination fields. */
 export function normalizeStreamTermination(
   choice: Record<string, unknown> | undefined,
   topLevel?: Record<string, unknown> | null
 ): string | undefined {
-  if (!choice) return undefined;
-  const extracted = extractStreamChoiceTermination(choice);
-  const stopReason =
-    extracted.stopReason ??
-    (typeof topLevel?.stop_reason === "string" ? topLevel.stop_reason : null);
-  const stopDetailsType =
-    extracted.stopDetailsType ??
-    (typeof (topLevel?.stop_details as { type?: unknown } | undefined)?.type === "string"
-      ? ((topLevel!.stop_details as { type: string }).type as string)
-      : null);
-  return normalizeProviderTerminationFinishReason({
-    ...extracted,
-    stopReason,
-    stopDetailsType,
-  });
+  const fields = mergeStreamTerminationFields(choice, topLevel);
+  if (!fields) return undefined;
+  return normalizeProviderTerminationFinishReason(fields);
+}
+
+/** Top-level termination-only SSE chunks (no choices array). */
+export function normalizeTopLevelStreamTermination(
+  topLevel: Record<string, unknown> | null | undefined
+): string | undefined {
+  return normalizeStreamTermination(undefined, topLevel);
+}
+
+/**
+ * Accumulate finish_reason across SSE chunks.
+ * Native refusal is sticky — later benign stop/end_turn must not erase it.
+ */
+export function accumulateStreamFinishReason(
+  previous: string | undefined,
+  incoming: string | undefined
+): string | undefined {
+  if (isProviderNativeRefusalSignal(previous) || incoming === "refusal") {
+    return "refusal";
+  }
+  return incoming ?? previous;
 }
