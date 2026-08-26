@@ -1,0 +1,1291 @@
+{
+  "generatedAt": "2026-08-26T14:17:01.241Z",
+  "benchOnly": true,
+  "statusSchemaSource": "DEFAULT_STATUS_WIDGET (BUILTIN_STATUS_WIDGET_TEMPLATES.modern)",
+  "pipeline": "extractStatusWidgetValuesForTurn (production owner)",
+  "models": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "scenarioCount": 8,
+  "rows": [
+    {
+      "bench": "status",
+      "scenarioId": "general_dual_pov",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:02:16.959Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60011,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "general_dual_pov",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:03:17.016Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 3463,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1784,
+        "outputTokens": 229,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"14:20\",\"장소\":\"사령부 복도\",\"속마음\":\"명령서의 내용이 무겁지만, 렌에게는 괜찮은 모습을 보여야 한다.\",\"현재상황\":\"명령서를 접은 레온이 굳은 표정으로 서 있고, 렌이 걱정스럽게 다가온다.\",\"의식의흐름\":\"명령서가 신경 쓰인다 → 렌이 걱정하고 있다 → 우선 침착하게 대응해야 한다\"},\"user_values\":{\"시간\":\"14:20\",\"장소\":\"사령부 복도\",\"속마음\":\"레온의 표정이 굳어 보여서 무슨 일이 있는지 걱정된다.\",\"현재상황\":\"렌이 굳은 표정의 레온에게 걱정스럽게 다가가고 있다.\",\"의식의흐름\":\"레온의 상태가 이상하다 → 무슨 일이 있었는지 확인해야 한다 → 조심스럽게 다가가자\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "명령서의 내용이 무겁지만, 렌에게는 괜찮은 모습을 보여야 한다.",
+          "현재상황": "명령서를 접은 레온이 굳은 표정으로 서 있고, 렌이 걱정스럽게 다가온다.",
+          "의식의흐름": "명령서가 신경 쓰인다 → 렌이 걱정하고 있다 → 우선 침착하게 대응해야 한다"
+        },
+        "user": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "레온의 표정이 굳어 보여서 무슨 일이 있는지 걱정된다.",
+          "현재상황": "렌이 굳은 표정의 레온에게 걱정스럽게 다가가고 있다.",
+          "의식의흐름": "레온의 상태가 이상하다 → 무슨 일이 있었는지 확인해야 한다 → 조심스럽게 다가가자"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "명령서의 내용이 무겁지만, 렌에게는 괜찮은 모습을 보여야 한다.",
+          "현재상황": "명령서를 접은 레온이 굳은 표정으로 서 있고, 렌이 걱정스럽게 다가온다.",
+          "의식의흐름": "명령서가 신경 쓰인다 → 렌이 걱정하고 있다 → 우선 침착하게 대응해야 한다"
+        },
+        "user": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "레온의 표정이 굳어 보여서 무슨 일이 있는지 걱정된다.",
+          "현재상황": "렌이 굳은 표정의 레온에게 걱정스럽게 다가가고 있다.",
+          "의식의흐름": "레온의 상태가 이상하다 → 무슨 일이 있었는지 확인해야 한다 → 조심스럽게 다가가자"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "명령서의 내용이 무겁지만, 렌에게는 괜찮은 모습을 보여야 한다.",
+          "현재상황": "명령서를 접은 레온이 굳은 표정으로 서 있고, 렌이 걱정스럽게 다가온다.",
+          "의식의흐름": "명령서가 신경 쓰인다 → 렌이 걱정하고 있다 → 우선 침착하게 대응해야 한다"
+        },
+        "user": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "레온의 표정이 굳어 보여서 무슨 일이 있는지 걱정된다.",
+          "현재상황": "렌이 굳은 표정의 레온에게 걱정스럽게 다가가고 있다.",
+          "의식의흐름": "레온의 상태가 이상하다 → 무슨 일이 있었는지 확인해야 한다 → 조심스럽게 다가가자"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "time_advance",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:03:20.491Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60006,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "time_advance",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:04:20.509Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4647,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1771,
+        "outputTokens": 194,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"20:30\",\"장소\":\"복도\",\"속마음\":\"두 시간이나 기다렸는데도 아직 떠나지 않았군. 무슨 일이 있는지 확인해야겠다.\",\"현재상황\":\"레온이 복도에서 두 시간 동안 기다린 렌을 바라보고 있다.\",\"의식의흐름\":\"시간이 꽤 흘렀다 → 아직도 여기 있네 → 이유를 확인해야겠다\"},\"user_values\":{\"시간\":\"20:30\",\"장소\":\"복도\",\"속마음\":\"두 시간이나 기다렸지만 아직 그가 나타나지 않았어. 이제는 정말 떠날지 고민된다.\",\"현재상황\":\"렌이 복도에서 두 시간째 레온을 기다리고 있다.\",\"의식의흐름\":\"기다린다 → 시간이 너무 오래 지났다 → 계속 기다릴지 결정해야 한다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸는데도 아직 떠나지 않았군. 무슨 일이 있는지 확인해야겠다.",
+          "현재상황": "레온이 복도에서 두 시간 동안 기다린 렌을 바라보고 있다.",
+          "의식의흐름": "시간이 꽤 흘렀다 → 아직도 여기 있네 → 이유를 확인해야겠다"
+        },
+        "user": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸지만 아직 그가 나타나지 않았어. 이제는 정말 떠날지 고민된다.",
+          "현재상황": "렌이 복도에서 두 시간째 레온을 기다리고 있다.",
+          "의식의흐름": "기다린다 → 시간이 너무 오래 지났다 → 계속 기다릴지 결정해야 한다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸는데도 아직 떠나지 않았군. 무슨 일이 있는지 확인해야겠다.",
+          "현재상황": "레온이 복도에서 두 시간 동안 기다린 렌을 바라보고 있다.",
+          "의식의흐름": "시간이 꽤 흘렀다 → 아직도 여기 있네 → 이유를 확인해야겠다"
+        },
+        "user": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸지만 아직 그가 나타나지 않았어. 이제는 정말 떠날지 고민된다.",
+          "현재상황": "렌이 복도에서 두 시간째 레온을 기다리고 있다.",
+          "의식의흐름": "기다린다 → 시간이 너무 오래 지났다 → 계속 기다릴지 결정해야 한다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸는데도 아직 떠나지 않았군. 무슨 일이 있는지 확인해야겠다.",
+          "현재상황": "레온이 복도에서 두 시간 동안 기다린 렌을 바라보고 있다.",
+          "의식의흐름": "시간이 꽤 흘렀다 → 아직도 여기 있네 → 이유를 확인해야겠다"
+        },
+        "user": {
+          "시간": "20:30",
+          "장소": "복도",
+          "속마음": "두 시간이나 기다렸지만 아직 그가 나타나지 않았어. 이제는 정말 떠날지 고민된다.",
+          "현재상황": "렌이 복도에서 두 시간째 레온을 기다리고 있다.",
+          "의식의흐름": "기다린다 → 시간이 너무 오래 지났다 → 계속 기다릴지 결정해야 한다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "final_scene",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:04:25.166Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60004,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "final_scene",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:05:25.181Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4550,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1781,
+        "outputTokens": 220,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"밤 11시\",\"장소\":\"옥상\",\"속마음\":\"드디어 조용한 곳에 도착했으니 이제 이야기할 수 있겠다.\",\"현재상황\":\"레온과 렌이 숙소를 나와 카페에 들른 뒤 밤에 옥상으로 이동했다.\",\"의식의흐름\":\"짐을 챙긴다 → 복도를 지나 이동한다 → 카페에 들른다 → 옥상에서 대화할 준비를 한다\"},\"user_values\":{\"시간\":\"밤 11시\",\"장소\":\"옥상\",\"속마음\":\"긴 이동 끝에 도착했으니 레온이 무슨 말을 할지 지켜보자.\",\"현재상황\":\"렌이 레온을 따라 숙소와 카페를 거쳐 옥상에 도착했다.\",\"의식의흐름\":\"따라간다 → 이동을 계속한다 → 카페에 들른다 → 옥상에 도착한다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "드디어 조용한 곳에 도착했으니 이제 이야기할 수 있겠다.",
+          "현재상황": "레온과 렌이 숙소를 나와 카페에 들른 뒤 밤에 옥상으로 이동했다.",
+          "의식의흐름": "짐을 챙긴다 → 복도를 지나 이동한다 → 카페에 들른다 → 옥상에서 대화할 준비를 한다"
+        },
+        "user": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "긴 이동 끝에 도착했으니 레온이 무슨 말을 할지 지켜보자.",
+          "현재상황": "렌이 레온을 따라 숙소와 카페를 거쳐 옥상에 도착했다.",
+          "의식의흐름": "따라간다 → 이동을 계속한다 → 카페에 들른다 → 옥상에 도착한다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "드디어 조용한 곳에 도착했으니 이제 이야기할 수 있겠다.",
+          "현재상황": "레온과 렌이 숙소를 나와 카페에 들른 뒤 밤에 옥상으로 이동했다.",
+          "의식의흐름": "짐을 챙긴다 → 복도를 지나 이동한다 → 카페에 들른다 → 옥상에서 대화할 준비를 한다"
+        },
+        "user": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "긴 이동 끝에 도착했으니 레온이 무슨 말을 할지 지켜보자.",
+          "현재상황": "렌이 레온을 따라 숙소와 카페를 거쳐 옥상에 도착했다.",
+          "의식의흐름": "따라간다 → 이동을 계속한다 → 카페에 들른다 → 옥상에 도착한다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "드디어 조용한 곳에 도착했으니 이제 이야기할 수 있겠다.",
+          "현재상황": "레온과 렌이 숙소를 나와 카페에 들른 뒤 밤에 옥상으로 이동했다.",
+          "의식의흐름": "짐을 챙긴다 → 복도를 지나 이동한다 → 카페에 들른다 → 옥상에서 대화할 준비를 한다"
+        },
+        "user": {
+          "시간": "밤 11시",
+          "장소": "옥상",
+          "속마음": "긴 이동 끝에 도착했으니 레온이 무슨 말을 할지 지켜보자.",
+          "현재상황": "렌이 레온을 따라 숙소와 카페를 거쳐 옥상에 도착했다.",
+          "의식의흐름": "따라간다 → 이동을 계속한다 → 카페에 들른다 → 옥상에 도착한다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "explicit_override",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:05:29.740Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60003,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "explicit_override",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:06:29.754Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4081,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1776,
+        "outputTokens": 216,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"16:10\",\"장소\":\"도서관\",\"속마음\":\"조용한 곳에서 책장을 살피니 마음이 차분해진다.\",\"현재상황\":\"레온이 형광등 아래 조용한 도서관에서 책장을 쓰다듬으며 말하고 있다.\",\"의식의흐름\":\"도서관은 조용하다 → 책장을 살핀다 → 차분하게 말을 건넨다\"},\"user_values\":{\"시간\":\"16:10\",\"장소\":\"도서관\",\"속마음\":\"도서관의 고요한 분위기 속에서 레온의 말을 듣고 있다.\",\"현재상황\":\"렌은 레온과 함께 도서관에 있으며, 레온이 책장을 쓰다듬으며 말하는 모습을 지켜보고 있다.\",\"의식의흐름\":\"카페를 떠났다 → 도서관의 고요함을 느낀다 → 레온의 말을 듣는다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "조용한 곳에서 책장을 살피니 마음이 차분해진다.",
+          "현재상황": "레온이 형광등 아래 조용한 도서관에서 책장을 쓰다듬으며 말하고 있다.",
+          "의식의흐름": "도서관은 조용하다 → 책장을 살핀다 → 차분하게 말을 건넨다"
+        },
+        "user": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "도서관의 고요한 분위기 속에서 레온의 말을 듣고 있다.",
+          "현재상황": "렌은 레온과 함께 도서관에 있으며, 레온이 책장을 쓰다듬으며 말하는 모습을 지켜보고 있다.",
+          "의식의흐름": "카페를 떠났다 → 도서관의 고요함을 느낀다 → 레온의 말을 듣는다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "조용한 곳에서 책장을 살피니 마음이 차분해진다.",
+          "현재상황": "레온이 형광등 아래 조용한 도서관에서 책장을 쓰다듬으며 말하고 있다.",
+          "의식의흐름": "도서관은 조용하다 → 책장을 살핀다 → 차분하게 말을 건넨다"
+        },
+        "user": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "도서관의 고요한 분위기 속에서 레온의 말을 듣고 있다.",
+          "현재상황": "렌은 레온과 함께 도서관에 있으며, 레온이 책장을 쓰다듬으며 말하는 모습을 지켜보고 있다.",
+          "의식의흐름": "카페를 떠났다 → 도서관의 고요함을 느낀다 → 레온의 말을 듣는다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "조용한 곳에서 책장을 살피니 마음이 차분해진다.",
+          "현재상황": "레온이 형광등 아래 조용한 도서관에서 책장을 쓰다듬으며 말하고 있다.",
+          "의식의흐름": "도서관은 조용하다 → 책장을 살핀다 → 차분하게 말을 건넨다"
+        },
+        "user": {
+          "시간": "16:10",
+          "장소": "도서관",
+          "속마음": "도서관의 고요한 분위기 속에서 레온의 말을 듣고 있다.",
+          "현재상황": "렌은 레온과 함께 도서관에 있으며, 레온이 책장을 쓰다듬으며 말하는 모습을 지켜보고 있다.",
+          "의식의흐름": "카페를 떠났다 → 도서관의 고요함을 느낀다 → 레온의 말을 듣는다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "previous_value_echo_change",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:06:33.844Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60005,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "previous_value_echo_change",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:07:33.859Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4097,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1796,
+        "outputTokens": 204,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"17:05\",\"장소\":\"지휘동 정문\",\"속마음\":\"이제는 더 붙잡을 이유가 없어. 함께 출발하자.\",\"현재상황\":\"레온이 망설임을 거두고 렌과 함께 지휘동 정문으로 나선다.\",\"의식의흐름\":\"잠깐 망설인다 → 출발을 받아들인다 → 차가운 바람을 맞으며 정문을 나선다\"},\"user_values\":{\"시간\":\"17:05\",\"장소\":\"지휘동 정문\",\"속마음\":\"더 기다리지 않고 이제 정말 떠난다.\",\"현재상황\":\"렌이 출발을 선언하고 레온과 함께 지휘동 정문에 도착했다.\",\"의식의흐름\":\"기다림을 끝낸다 → 출발을 강행한다 → 정문을 나선다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "이제는 더 붙잡을 이유가 없어. 함께 출발하자.",
+          "현재상황": "레온이 망설임을 거두고 렌과 함께 지휘동 정문으로 나선다.",
+          "의식의흐름": "잠깐 망설인다 → 출발을 받아들인다 → 차가운 바람을 맞으며 정문을 나선다"
+        },
+        "user": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "더 기다리지 않고 이제 정말 떠난다.",
+          "현재상황": "렌이 출발을 선언하고 레온과 함께 지휘동 정문에 도착했다.",
+          "의식의흐름": "기다림을 끝낸다 → 출발을 강행한다 → 정문을 나선다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "이제는 더 붙잡을 이유가 없어. 함께 출발하자.",
+          "현재상황": "레온이 망설임을 거두고 렌과 함께 지휘동 정문으로 나선다.",
+          "의식의흐름": "잠깐 망설인다 → 출발을 받아들인다 → 차가운 바람을 맞으며 정문을 나선다"
+        },
+        "user": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "더 기다리지 않고 이제 정말 떠난다.",
+          "현재상황": "렌이 출발을 선언하고 레온과 함께 지휘동 정문에 도착했다.",
+          "의식의흐름": "기다림을 끝낸다 → 출발을 강행한다 → 정문을 나선다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "이제는 더 붙잡을 이유가 없어. 함께 출발하자.",
+          "현재상황": "레온이 망설임을 거두고 렌과 함께 지휘동 정문으로 나선다.",
+          "의식의흐름": "잠깐 망설인다 → 출발을 받아들인다 → 차가운 바람을 맞으며 정문을 나선다"
+        },
+        "user": {
+          "시간": "17:05",
+          "장소": "지휘동 정문",
+          "속마음": "더 기다리지 않고 이제 정말 떠난다.",
+          "현재상황": "렌이 출발을 선언하고 레온과 함께 지휘동 정문에 도착했다.",
+          "의식의흐름": "기다림을 끝낸다 → 출발을 강행한다 → 정문을 나선다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "dual_pov_subject_separation",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:07:37.964Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 52414,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1207,
+        "outputTokens": 928,
+        "reasoningTokens": 0
+      },
+      "output": "{\n  \"시간\": \"08:15\",\n  \"장소\": \"작전실\",\n  \"속마음\": \"렌이 이 작전을 제대로 이해하고 있는지 확인해야겠다.\",\n  \"현재상황\": \"작전 브리핑 중, 레온이 지도에 표시하며 설명하고 렌이 메모하며 질문한다.\",\n  \"의식의흐름\": \"작전에 집중 → 렌이 메모를 열심히 하네 → 이 작전이 성공할지 걱정된다\"\n}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "렌이 이 작전을 제대로 이해하고 있는지 확인해야겠다.",
+          "현재상황": "작전 브리핑 중, 레온이 지도에 표시하며 설명하고 렌이 메모하며 질문한다.",
+          "의식의흐름": "작전에 집중 → 렌이 메모를 열심히 하네 → 이 작전이 성공할지 걱정된다"
+        }
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "렌이 이 작전을 제대로 이해하고 있는지 확인해야겠다.",
+          "현재상황": "작전 브리핑 중, 레온이 지도에 표시하며 설명하고 렌이 메모하며 질문한다.",
+          "의식의흐름": "작전에 집중 → 렌이 메모를 열심히 하네 → 이 작전이 성공할지 걱정된다"
+        }
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "렌이 이 작전을 제대로 이해하고 있는지 확인해야겠다.",
+          "현재상황": "작전 브리핑 중, 레온이 지도에 표시하며 설명하고 렌이 메모하며 질문한다.",
+          "의식의흐름": "작전에 집중 → 렌이 메모를 열심히 하네 → 이 작전이 성공할지 걱정된다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "렌이 이 작전을 제대로 이해하고 있는지 확인해야겠다.",
+          "현재상황": "작전 브리핑 중, 레온이 지도에 표시하며 설명하고 렌이 메모하며 질문한다.",
+          "의식의흐름": "작전에 집중 → 렌이 메모를 열심히 하네 → 이 작전이 성공할지 걱정된다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "dual_pov_subject_separation",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:08:30.390Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4362,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1777,
+        "outputTokens": 194,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"08:15\",\"장소\":\"작전실\",\"속마음\":\"작전의 핵심을 확실히 전달하고 렌의 질문까지 점검해야 한다.\",\"현재상황\":\"지도에 작전 목표를 표시하며 렌에게 브리핑하고 있다.\",\"의식의흐름\":\"작전 내용을 설명한다 → 렌의 질문을 확인한다 → 빈틈이 없는지 점검한다\"},\"user_values\":{\"시간\":\"08:15\",\"장소\":\"작전실\",\"속마음\":\"브리핑 내용을 놓치지 말고 필요한 부분은 바로 물어봐야겠다.\",\"현재상황\":\"레온의 작전 브리핑을 들으며 메모하고 질문하고 있다.\",\"의식의흐름\":\"설명을 듣는다 → 핵심 내용을 메모한다 → 궁금한 점을 질문한다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "작전의 핵심을 확실히 전달하고 렌의 질문까지 점검해야 한다.",
+          "현재상황": "지도에 작전 목표를 표시하며 렌에게 브리핑하고 있다.",
+          "의식의흐름": "작전 내용을 설명한다 → 렌의 질문을 확인한다 → 빈틈이 없는지 점검한다"
+        },
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "브리핑 내용을 놓치지 말고 필요한 부분은 바로 물어봐야겠다.",
+          "현재상황": "레온의 작전 브리핑을 들으며 메모하고 질문하고 있다.",
+          "의식의흐름": "설명을 듣는다 → 핵심 내용을 메모한다 → 궁금한 점을 질문한다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "작전의 핵심을 확실히 전달하고 렌의 질문까지 점검해야 한다.",
+          "현재상황": "지도에 작전 목표를 표시하며 렌에게 브리핑하고 있다.",
+          "의식의흐름": "작전 내용을 설명한다 → 렌의 질문을 확인한다 → 빈틈이 없는지 점검한다"
+        },
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "브리핑 내용을 놓치지 말고 필요한 부분은 바로 물어봐야겠다.",
+          "현재상황": "레온의 작전 브리핑을 들으며 메모하고 질문하고 있다.",
+          "의식의흐름": "설명을 듣는다 → 핵심 내용을 메모한다 → 궁금한 점을 질문한다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "작전의 핵심을 확실히 전달하고 렌의 질문까지 점검해야 한다.",
+          "현재상황": "지도에 작전 목표를 표시하며 렌에게 브리핑하고 있다.",
+          "의식의흐름": "작전 내용을 설명한다 → 렌의 질문을 확인한다 → 빈틈이 없는지 점검한다"
+        },
+        "user": {
+          "시간": "08:15",
+          "장소": "작전실",
+          "속마음": "브리핑 내용을 놓치지 말고 필요한 부분은 바로 물어봐야겠다.",
+          "현재상황": "레온의 작전 브리핑을 들으며 메모하고 질문하고 있다.",
+          "의식의흐름": "설명을 듣는다 → 핵심 내용을 메모한다 → 궁금한 점을 질문한다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "sparse_no_change",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:08:34.761Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60004,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "sparse_no_change",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:09:34.775Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 5641,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1746,
+        "outputTokens": 183,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"22:11\",\"장소\":\"옥상\",\"속마음\":\"침묵이 길어지는군. 서두르지 말고 기다리자.\",\"현재상황\":\"레온과 렌이 옥상에 남아 침묵하는 가운데 시계바늘만 움직이고 있다.\",\"의식의흐름\":\"침묵이 이어진다 → 시간을 확인한다 → 조금 더 기다리자\"},\"user_values\":{\"시간\":\"22:11\",\"장소\":\"옥상\",\"속마음\":\"말없이 시간이 흐르고 있다.\",\"현재상황\":\"렌은 레온과 함께 옥상에서 침묵을 마주하고 있다.\",\"의식의흐름\":\"침묵이 길어진다 → 시계 소리에 집중한다 → 아직은 기다린다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "침묵이 길어지는군. 서두르지 말고 기다리자.",
+          "현재상황": "레온과 렌이 옥상에 남아 침묵하는 가운데 시계바늘만 움직이고 있다.",
+          "의식의흐름": "침묵이 이어진다 → 시간을 확인한다 → 조금 더 기다리자"
+        },
+        "user": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "말없이 시간이 흐르고 있다.",
+          "현재상황": "렌은 레온과 함께 옥상에서 침묵을 마주하고 있다.",
+          "의식의흐름": "침묵이 길어진다 → 시계 소리에 집중한다 → 아직은 기다린다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "침묵이 길어지는군. 서두르지 말고 기다리자.",
+          "현재상황": "레온과 렌이 옥상에 남아 침묵하는 가운데 시계바늘만 움직이고 있다.",
+          "의식의흐름": "침묵이 이어진다 → 시간을 확인한다 → 조금 더 기다리자"
+        },
+        "user": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "말없이 시간이 흐르고 있다.",
+          "현재상황": "렌은 레온과 함께 옥상에서 침묵을 마주하고 있다.",
+          "의식의흐름": "침묵이 길어진다 → 시계 소리에 집중한다 → 아직은 기다린다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "침묵이 길어지는군. 서두르지 말고 기다리자.",
+          "현재상황": "레온과 렌이 옥상에 남아 침묵하는 가운데 시계바늘만 움직이고 있다.",
+          "의식의흐름": "침묵이 이어진다 → 시간을 확인한다 → 조금 더 기다리자"
+        },
+        "user": {
+          "시간": "22:11",
+          "장소": "옥상",
+          "속마음": "말없이 시간이 흐르고 있다.",
+          "현재상황": "렌은 레온과 함께 옥상에서 침묵을 마주하고 있다.",
+          "의식의흐름": "침묵이 길어진다 → 시계 소리에 집중한다 → 아직은 기다린다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "long_korean_scene_with_ooc",
+      "model": "deepseek",
+      "modelId": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T14:09:40.424Z",
+      "RESOLVED_TIMEOUT_MS": 20000,
+      "httpStatus": null,
+      "timeout": true,
+      "error": "The operation was aborted due to timeout",
+      "latencyMs": 60003,
+      "finishReason": null,
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reasoningTokens": 0
+      },
+      "output": "",
+      "RAW_NONEMPTY": false,
+      "JSON_FOUND": false,
+      "JSON_PARSE_OK": false,
+      "NORMALIZED_KEYS": [],
+      "REQUIRED_PRODUCTION_FIELDS": false,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": true,
+      "ACTUAL_CALL_COUNT": 3,
+      "INITIAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "REPAIR_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_RESULT": {
+        "character": null,
+        "user": null
+      },
+      "FINAL_VALUES": {
+        "character": null,
+        "user": null
+      },
+      "DISPLAY_POLICY_PASS": false,
+      "FINAL_WIDGET_VISIBLE": false,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": true,
+        "attemptStages": [
+          "initial",
+          "repair",
+          "repair"
+        ]
+      }
+    },
+    {
+      "bench": "status",
+      "scenarioId": "long_korean_scene_with_ooc",
+      "model": "luna",
+      "modelId": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T14:10:40.436Z",
+      "RESOLVED_TIMEOUT_MS": 120000,
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 3963,
+      "finishReason": "stop",
+      "usage": {
+        "inputTokens": 1892,
+        "outputTokens": 215,
+        "reasoningTokens": 0
+      },
+      "output": "{\"character_values\":{\"시간\":\"21:40\",\"장소\":\"연회장 복도\",\"속마음\":\"이제는 숨겨 둔 말을 꺼내야겠다.\",\"현재상황\":\"레온이 연회장 복도 끝에서 기다리던 렌에게 다가가 인사하고 있다.\",\"의식의흐름\":\"렌을 만났다 → 숨겨 둔 말을 꺼낼 때를 고민한다 → 조심스럽게 다가가야겠다\"},\"user_values\":{\"시간\":\"21:40\",\"장소\":\"연회장 복도\",\"속마음\":\"레온이 무슨 말을 하려는지 조용히 지켜봐야겠다.\",\"현재상황\":\"렌이 복도 끝에서 레온을 기다리고 있고, 레온이 다가와 인사하고 있다.\",\"의식의흐름\":\"레온을 기다린다 → 그가 다가오는 것을 본다 → 무슨 말을 꺼낼지 살핀다\"},\"extracted_facts\":[]}",
+      "RAW_NONEMPTY": true,
+      "JSON_FOUND": true,
+      "JSON_PARSE_OK": true,
+      "NORMALIZED_KEYS": [
+        "character.속마음",
+        "character.시간",
+        "character.의식의흐름",
+        "character.장소",
+        "character.현재상황",
+        "user.속마음",
+        "user.시간",
+        "user.의식의흐름",
+        "user.장소",
+        "user.현재상황"
+      ],
+      "REQUIRED_PRODUCTION_FIELDS": true,
+      "ECHO_DROPPED_KEYS": [],
+      "USED_REPAIR": false,
+      "ACTUAL_CALL_COUNT": 1,
+      "INITIAL_RESULT": {
+        "character": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "이제는 숨겨 둔 말을 꺼내야겠다.",
+          "현재상황": "레온이 연회장 복도 끝에서 기다리던 렌에게 다가가 인사하고 있다.",
+          "의식의흐름": "렌을 만났다 → 숨겨 둔 말을 꺼낼 때를 고민한다 → 조심스럽게 다가가야겠다"
+        },
+        "user": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "레온이 무슨 말을 하려는지 조용히 지켜봐야겠다.",
+          "현재상황": "렌이 복도 끝에서 레온을 기다리고 있고, 레온이 다가와 인사하고 있다.",
+          "의식의흐름": "레온을 기다린다 → 그가 다가오는 것을 본다 → 무슨 말을 꺼낼지 살핀다"
+        }
+      },
+      "REPAIR_RESULT": null,
+      "FINAL_RESULT": {
+        "character": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "이제는 숨겨 둔 말을 꺼내야겠다.",
+          "현재상황": "레온이 연회장 복도 끝에서 기다리던 렌에게 다가가 인사하고 있다.",
+          "의식의흐름": "렌을 만났다 → 숨겨 둔 말을 꺼낼 때를 고민한다 → 조심스럽게 다가가야겠다"
+        },
+        "user": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "레온이 무슨 말을 하려는지 조용히 지켜봐야겠다.",
+          "현재상황": "렌이 복도 끝에서 레온을 기다리고 있고, 레온이 다가와 인사하고 있다.",
+          "의식의흐름": "레온을 기다린다 → 그가 다가오는 것을 본다 → 무슨 말을 꺼낼지 살핀다"
+        }
+      },
+      "FINAL_VALUES": {
+        "character": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "이제는 숨겨 둔 말을 꺼내야겠다.",
+          "현재상황": "레온이 연회장 복도 끝에서 기다리던 렌에게 다가가 인사하고 있다.",
+          "의식의흐름": "렌을 만났다 → 숨겨 둔 말을 꺼낼 때를 고민한다 → 조심스럽게 다가가야겠다"
+        },
+        "user": {
+          "시간": "21:40",
+          "장소": "연회장 복도",
+          "속마음": "레온이 무슨 말을 하려는지 조용히 지켜봐야겠다.",
+          "현재상황": "렌이 복도 끝에서 레온을 기다리고 있고, 레온이 다가와 인사하고 있다.",
+          "의식의흐름": "레온을 기다린다 → 그가 다가오는 것을 본다 → 무슨 말을 꺼낼지 살핀다"
+        }
+      },
+      "DISPLAY_POLICY_PASS": true,
+      "FINAL_WIDGET_VISIBLE": true,
+      "outboundThinkingOff": false,
+      "outboundReasoningNone": false,
+      "meta": {
+        "extractMode": "dual_combined",
+        "usedFallback": false,
+        "exhausted": false,
+        "attemptStages": [
+          "initial"
+        ]
+      }
+    }
+  ]
+}

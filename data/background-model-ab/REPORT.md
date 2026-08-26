@@ -1,37 +1,83 @@
 # Background model A/B bench report
 
-Generated: 2026-08-26T13:45:28.842Z
+Generated: 2026-08-26T14:17:01.242Z
 
-| Model | Calls | Success | Empty/Timeout | Summary pass | HTML pass | Status pass | P50 ms | P95 ms | Reasoning tokens |
-|-------|------:|--------:|--------------:|-------------:|----------:|------------:|-------:|-------:|-----------------:|
-| deepseek-v4-flash-0731 | 14 | 57% | 6 | 1/5 | 0/5 | 2/4 | 120000 | 156658 | 1774 |
-| gpt-5.6-luna | 14 | 100% | 0 | 5/5 | 5/5 | 4/4 | 3984 | 12453 | 0 |
+## Scope
 
-## Recommendation
+- **PR_659_DRAFT=true** — bench-only correction; no production routing/deploy changes.
+- **QUALITY_JUDGMENT=NOT_PERFORMED** — mechanical stats only; ChatGPT reviews committed RAW.
+- **PRIMARY_RECOMMENDATION=NOT_PERFORMED**
 
-- **Reliability winner:** luna
-- **Quality winner:** luna
-- **Speed winner:** luna
-- **Recommended background PRIMARY (bench only, not applied):** gpt-5.6-luna
+## Deployment context
 
-### Rationale (5 lines max)
+| Field | Value |
+|-------|-------|
+| DEPLOYED_SHA | ef86639 |
+| ORIGIN_MAIN_SHA | ef86639b0314d2f17eb55a431e1668e45a45a136 |
+| DEPLOYED_EQUALS_MAIN | true |
 
-1. Luna completed 14/14 calls with zero empty/timeout; DeepSeek hit the 120s production deadline on 6/14 calls (mostly rolling summary + HTML).
-2. Luna passed 5/5 summary quality (production `validateSummaryNarrative` + grounding) vs DeepSeek 1/5 (four summary timeouts, one partial success).
-3. Luna passed 5/5 HTML/OOC structured outputs; DeepSeek HTML calls timed out under the same production HTML deadline owner.
-4. Luna passed 4/4 status-widget combined extracts vs DeepSeek 2/4 (JSON/field completeness under dual POV scenarios).
-5. Outbound body flags verified: `DEEPSEEK_THINKING_OFF=true`, `LUNA_REASONING_NONE=true`; Luna P50 3984ms vs DeepSeek P50 120000ms.
+## Ownership gate (runtime reachability)
 
-Raw artifacts: `output/background-model-ab/` (gitignored). This file contains aggregate results only; no secrets.
+| Gate | Value |
+|------|-------|
+| DUPLICATE_RUNTIME_OWNERS | 0 |
+| CONFLICTING_POLICY_PATHS | 0 |
+| STALE_LEGACY_RUNTIME_REFERENCES | 0 |
+| STATUS_SCHEMA_SOURCE | `DEFAULT_STATUS_WIDGET` (`src/lib/statusWidget/defaultTemplate.ts`) |
+| STATUS_PIPELINE | `extractStatusWidgetValuesForTurn` (`src/lib/statusWidget/extract.ts`) |
 
-## Sample excerpts (sanitized)
+Status Widget vs Status Meta are mutually exclusive per turn: `chatUsesHtmlVisualStatusWindow` returns false when `statusWidgetActive=true`; `resolveStatusMetaExtractionEnabled` returns false when HTML visual card is enabled/standing.
 
-### Summary — deepseek run 1
-```
-The operation was aborted due to timeout
-```
+## Models (isolated, no cross-model fallback)
 
-### Summary — luna run 1
-```
-연회장 복도에서 레온을 따라 정원 테라스로 이동한 뒤, 유저가 분위기의 이상함을 언급하고 그의 손을 잡으며 할 말을 꺼냄. 레온은 굳은 표정으로 듣던 중 청혼에 가까운 고백을 함. 유저의 마음을 전해 들은 레온은 이를 받아들이는 태도를 보임. 유저가 약속의 증표로 은색 커프링크스 상자를 건네자 레온은 이를 받아 “네가 원하는 대로 하자”고 말함. 유저는 다음 날 아침까지 답을 주겠다고 약속하고 물러났으며, 두 사람의 관계는 아직 미정이나 레온이 커프링크스를 소유하고 답변을 기다리는 상태임.
-```
+| Slot | Model | Provider |
+|------|-------|----------|
+| A | deepseek-v4-flash-0731 | CheaperInference |
+| B | gpt-5.6-luna | CheaperInference |
+
+Outbound flags: DeepSeek `thinking.type=disabled`; Luna `reasoning.effort=none`.
+
+## Resolved timeouts (production owners, unchanged)
+
+Per-call `RESOLVED_TIMEOUT_MS` is recorded in committed RAW. Production owners:
+
+| Task | Outer owner | DeepSeek CI resolved | Luna resolved |
+|------|-------------|---------------------:|--------------:|
+| Rolling summary | 120000 ms | **45000 ms** (longForm flash cap) | 120000 ms |
+| HTML flash | 240000 ms | **45000 ms** (longForm flash cap) | 240000 ms |
+| Status widget | 120000 ms outer | **20000 ms** (short flash cap) | 120000 ms |
+
+Per-call `RESOLVED_TIMEOUT_MS` in RAW reflects the **actual deadline used** (including DeepSeek `resolveBackgroundFlashProviderDeadlines` caps). HTML failures at 45000 ms are **not** 120000 ms memory deadlines.
+
+## Summary (mechanical)
+
+| Model | Calls | Success | Timeout | Format pass | Parser pass | P50 ms | P95 ms |
+|-------|------:|--------:|--------:|------------:|------------:|-------:|-------:|
+| deepseek | 5 | 80% | 1/5 | 4/5 | 4/5 | 12443 | 45003 |
+| luna | 5 | 100% | 0 | 5/5 | 5/5 | 4263 | 4845 |
+
+## HTML (mechanical)
+
+| Model | Calls | Success | Timeout | Format pass | Parser pass | P50 ms | P95 ms |
+|-------|------:|--------:|--------:|------------:|------------:|-------:|-------:|
+| deepseek | 5 | 60% | 2/5 | 3/5 | 0/5 | 14541 | 45002 |
+| luna | 5 | 100% | 0 | 5/5 | 5/5 | 7505 | 16988 |
+
+## Status widget — production pipeline (8 scenarios)
+
+Visibility gate: `FINAL_WIDGET_VISIBLE=false` counts as status failure even when `JSON_PARSE_OK=true`.
+
+| Model | Initial calls | Timeouts | JSON parse OK | Display policy pass | **FINAL_WIDGET_VISIBLE** |
+|-------|-------------:|---------:|--------------:|--------------------:|-------------------------:|
+| deepseek | 8 | 7 | 1/8 | 1/8 | **1/8** |
+| luna | 8 | 0 | 8/8 | 8/8 | **8/8** |
+
+Scenarios: general_dual_pov, time_advance, final_scene, explicit_override, previous_value_echo_change, dual_pov_subject_separation, sparse_no_change, long_korean_scene_with_ooc
+
+## Committed RAW (human review)
+
+- `data/background-model-ab/raw/summary-results.json`
+- `data/background-model-ab/raw/html-results.json`
+- `data/background-model-ab/raw/status-results.json`
+
+No API keys, headers, or private production data included.
