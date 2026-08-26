@@ -130,6 +130,99 @@ export function resolveLiveRevealedActionIds(opts: {
   return [];
 }
 
+export type SequentialActionRevealQueue = {
+  /** Exactly one AI actor may own decorative action reveal, or null when idle/complete. */
+  activeRevealActorId: number | null;
+  /** Persisted AI actors waiting for prior reveal completion (resolution order). */
+  queuedRevealActorIds: readonly number[];
+};
+
+type SequentialActionRevealInput = {
+  resolutionOrder: readonly number[];
+  actions: readonly TrpgPublicAction[];
+  completedRevealActorIds: readonly number[];
+  isFreshAiAction: (participantId: number) => boolean;
+  skipDecorativeReveal: boolean;
+};
+
+function persistedRevealedActions(
+  actions: readonly TrpgPublicAction[]
+): Map<number, TrpgPublicAction> {
+  const persisted = new Map<number, TrpgPublicAction>();
+  for (const action of actions) {
+    if (action.revealed && action.body.trim()) persisted.set(action.participantId, action);
+  }
+  return persisted;
+}
+
+/** #628 reveal owner extended across incremental BOT_ACTION — one progressive AI at a time. */
+export function resolveSequentialActionRevealQueue(
+  opts: SequentialActionRevealInput
+): SequentialActionRevealQueue {
+  const persisted = persistedRevealedActions(opts.actions);
+  const completed = new Set(opts.completedRevealActorIds);
+  const queued: number[] = [];
+  let active: number | null = null;
+
+  for (const id of uniqueResolutionOrder(opts.resolutionOrder)) {
+    const action = persisted.get(id);
+    if (!action || action.kind !== "ai_character") continue;
+    if (!opts.isFreshAiAction(id)) continue;
+    if (opts.skipDecorativeReveal) continue;
+    if (completed.has(id)) continue;
+    if (active == null) active = id;
+    else queued.push(id);
+  }
+
+  return { activeRevealActorId: active, queuedRevealActorIds: queued };
+}
+
+export function isSequentialActionRevealPending(opts: SequentialActionRevealInput): boolean {
+  return resolveSequentialActionRevealQueue(opts).activeRevealActorId != null;
+}
+
+/** Decorative streaming eligibility — separate from incremental canonical card visibility. */
+export function shouldDecorativeRevealAction(opts: {
+  kind: string;
+  participantId: number;
+  activeRevealActorId: number | null;
+  isFresh: boolean;
+  skipDecorativeReveal: boolean;
+}): boolean {
+  if (opts.kind !== "ai_character") return false;
+  if (!opts.isFresh) return false;
+  if (opts.skipDecorativeReveal) return false;
+  return opts.activeRevealActorId === opts.participantId;
+}
+
+/** Fresh AI action mounted canonically but queued behind an earlier progressive reveal. */
+export function shouldHoldDecorativeRevealAction(opts: {
+  kind: string;
+  participantId: number;
+  activeRevealActorId: number | null;
+  isFresh: boolean;
+  skipDecorativeReveal: boolean;
+}): boolean {
+  if (opts.kind !== "ai_character") return false;
+  if (!opts.isFresh) return false;
+  if (opts.skipDecorativeReveal) return false;
+  if (opts.activeRevealActorId == null) return false;
+  return opts.participantId !== opts.activeRevealActorId;
+}
+
+/** Humans and already-consumed AI keys do not block cinematic actor-action advance. */
+export function isActorActionRevealBeatSatisfied(opts: {
+  actionKind: string | null | undefined;
+  isFreshAiAction: boolean;
+  alreadyCompleted: boolean;
+  effectiveActorRevealComplete: boolean;
+}): boolean {
+  if (opts.actionKind === "human") return true;
+  if (!opts.isFreshAiAction) return true;
+  if (opts.alreadyCompleted) return true;
+  return opts.effectiveActorRevealComplete;
+}
+
 export type LiveRoundWaitKind = "none" | "wait_humans" | "bots" | "rolls" | "gm" | "reroll";
 
 export function liveRoundWaitKind(opts: {
