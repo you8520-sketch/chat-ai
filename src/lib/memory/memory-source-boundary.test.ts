@@ -7,7 +7,6 @@ import { ensureMemoryResetBoundaryColumns } from "@/lib/db";
 import { reconcileEpisodicMemoryFactsForGeneration } from "@/lib/episodicMemoryFacts";
 import {
   countMemoryEligibleCompletedTurnsUpToMessageId,
-  forkSummarizedTurnCount,
   remapForkResetBoundary,
 } from "./memory-fork-snapshot";
 import {
@@ -484,9 +483,6 @@ describe("persistent memory reset boundary", () => {
       countMemoryEligibleCompletedTurnsUpToMessageId(turnMessages, 60, 20),
       2
     );
-    assert.equal(forkSummarizedTurnCount(5), 0);
-    assert.equal(forkSummarizedTurnCount(6), 6);
-    assert.equal(forkSummarizedTurnCount(20), 18);
     assert.equal(
       remapForkResetBoundary({
         parentResetAfterMessageId: null,

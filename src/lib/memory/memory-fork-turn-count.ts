@@ -1,7 +1,5 @@
 import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
 
-const FORK_MEMORY_BATCH_TURNS = 6;
-
 type MessageRow = { id: number; role: string; model: string; usage?: unknown };
 
 /** 분기 시점까지 완료된 대화 턴 수 (인사말 assistant 제외) */
@@ -57,10 +55,3 @@ export function countMemoryEligibleCompletedTurnsUpToMessageId(
   }
   return count;
 }
-
-export function forkSummarizedTurnCount(forkTurnCount: number): number {
-  if (forkTurnCount <= 0) return 0;
-  return Math.floor(forkTurnCount / FORK_MEMORY_BATCH_TURNS) * FORK_MEMORY_BATCH_TURNS;
-}
-
-export const FORK_MEMORY_TURN_INTERVAL = FORK_MEMORY_BATCH_TURNS;

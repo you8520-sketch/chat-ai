@@ -281,7 +281,35 @@ describe("Phase C — summary span write invariant (single owner)", () => {
   });
 
   it("validateSummarySpanWrite is the sole span policy export", () => {
-    assert.equal(repoRgCount("validateSummarySpanWrite"), 2);
+    assert.equal(repoRgCount("validateSummarySpanWrite"), 3);
+  });
+});
+
+describe("Phase C — fork memory span ownership", () => {
+  it("no fork-owned interval constants or summarized frontier math remain", () => {
+    assert.equal(repoRgCount("FORK_MEMORY_TURN_INTERVAL"), 0);
+    assert.equal(repoRgCount("FORK_MEMORY_BATCH_TURNS"), 0);
+    assert.equal(repoRgCount("forkSummarizedTurnCount"), 0);
+  });
+
+  it("fork copy path uses explicit turn_end and shared span validator", () => {
+    const forkSnapshot = execSync("cat src/lib/memory/memory-fork-snapshot.ts", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+    assert.match(forkSnapshot, /SELECT turn_number, turn_end/);
+    assert.match(forkSnapshot, /validateSummarySpanWrite/);
+    assert.doesNotMatch(forkSnapshot, /turn_number \+ FORK_MEMORY/);
+    assert.doesNotMatch(forkSnapshot, /Math\.floor\(forkTurnCount/);
+  });
+
+  it("fork API eligibility uses explicit turn_end not inferred interval", () => {
+    const forkRoute = execSync("cat src/app/api/chat/fork/route.ts", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+    assert.match(forkRoute, /turn_end IS NOT NULL AND turn_end <= \?/);
+    assert.doesNotMatch(forkRoute, /FORK_MEMORY_TURN_INTERVAL/);
   });
 });
 

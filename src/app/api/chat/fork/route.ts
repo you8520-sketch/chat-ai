@@ -9,7 +9,6 @@ import {
   countCompletedTurnsUpToMessageId,
   countMemoryEligibleCompletedTurnsUpToMessageId,
   copyForkMemoryArtifacts,
-  FORK_MEMORY_TURN_INTERVAL,
   initializeForkChatMemory,
   remapForkResetBoundary,
   snapshotForkRelationshipMeta,
@@ -90,10 +89,10 @@ export async function POST(req: Request) {
   const eligibleSummaryTexts = db
     .prepare(
       `SELECT summary FROM chat_turn_summaries
-       WHERE chat_id=? AND (turn_number + ?) <= ?
+       WHERE chat_id=? AND turn_end IS NOT NULL AND turn_end <= ?
        ORDER BY turn_number ASC`
     )
-    .all(cId, FORK_MEMORY_TURN_INTERVAL - 1, memoryEligibleForkTurnCount) as { summary: string }[];
+    .all(cId, memoryEligibleForkTurnCount) as { summary: string }[];
   const forkMemoryMeta = snapshotForkRelationshipMeta({
     parentMemoryMeta: typeof source.memory_meta === "string" ? source.memory_meta : "{}",
     copiedContents: [
