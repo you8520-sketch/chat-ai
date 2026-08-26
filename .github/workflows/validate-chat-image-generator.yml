@@ -1,5 +1,4 @@
 name: Validate chat image generator
-# CI retrigger marker for PR #661
 
 on:
   pull_request:
