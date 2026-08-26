@@ -411,7 +411,7 @@ describe("TRPG round presentation queue", () => {
 
 describe("TRPG live round presentation readiness", () => {
   const order = [10, 20, 30];
-  const human = action(10, "권태현");
+  const human = { ...action(10, "권태현"), kind: "human" as const };
   const bot1 = action(20, "렌");
   const bot2 = action(30, "강이현");
   const humanRoll = roll(10, "권태현", 16);
