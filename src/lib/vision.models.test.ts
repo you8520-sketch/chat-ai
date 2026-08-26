@@ -18,6 +18,8 @@ describe("asset vision model wiring", () => {
     assert.match(src, /첨부된 이미지를 직접 보고/);
     assert.match(src, /상상하거나 만들어 내지 않는다/);
     assert.match(src, /미분류/);
+    assert.match(src, /등짝 노출 포함/);
+    assert.match(src, /normalizeVisionModerationFlags/);
     assert.doesNotMatch(src, /demoTag|EMOTION_TAGS\[/);
   });
 
