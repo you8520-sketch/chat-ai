@@ -362,6 +362,8 @@ export function loadTrpgSnapshot(
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     botRetryRequired: work.type === "bot_retry_required",
+    needsHostFill: false,
+    hostFillBotIds: [],
     round: {
       id: round?.id ?? null,
       number: round?.round_number ?? 0,
