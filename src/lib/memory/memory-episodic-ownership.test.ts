@@ -94,7 +94,9 @@ describe("episodic ownership decoupled from status widget", () => {
       startTurn: 1,
       endTurn: 5,
       dialogue: "유저: 커피에 시럽을 두 번 넣어.\n캐릭터: 알겠어.",
-      sourceUserMessageId: null,
+      batchUserSources: [
+        { turn: 1, messageId: null, text: "커피에 시럽을 두 번 넣어." },
+      ],
     });
     assert.equal(result.calls, 1);
     assert.ok(result.persisted >= 1);
@@ -195,6 +197,7 @@ describe("episodic ownership decoupled from status widget", () => {
       startTurn: 1,
       endTurn: 5,
       dialogue: "유저: 안녕\n캐릭터: 안녕",
+      batchUserSources: [{ turn: 1, messageId: null, text: "안녕" }],
     });
     assert.equal(result.persisted, 0);
     const summaries = (

@@ -1,10 +1,12 @@
 import type Database from "better-sqlite3";
-import { sanitizeExtractedFacts } from "@/lib/statusWidget/extractedFacts";
+import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-normalize";
 import type {
-  ExtractedStatusFact,
-  ExtractedStatusFactEvidenceType,
-  ExtractedStatusFactImportance,
-} from "@/lib/statusWidget/types";
+  EpisodicBatchUserSource,
+  EpisodicExtractedFact,
+  EpisodicFactEvidenceType,
+  EpisodicFactImportance,
+} from "@/lib/memory/memory-episodic-types";
+import type { ExtractedStatusFact, ExtractedStatusFactEvidenceType, ExtractedStatusFactImportance } from "@/lib/statusWidget/types";
 import { isMemoryFeatureEnabledIn } from "@/lib/memory/memory-feature";
 import {
   getMemorySourceBoundaryCore,
@@ -30,14 +32,23 @@ export {
 } from "@/lib/episodicMemoryTemporal";
 export type { EpisodicFactTemporalNature } from "@/lib/episodicMemoryTemporal";
 
+export type {
+  EpisodicBatchUserSource,
+  EpisodicExtractedFact,
+  EpisodicFactEvidenceType,
+  EpisodicFactImportance,
+} from "@/lib/memory/memory-episodic-types";
+
 export type PersistEpisodicMemoryFactsInput = {
   chatId: number;
   characterId?: number | null;
   userId?: number | null;
   sourceTurn: number;
   sourceUserMessageId?: number | null;
-  /** Actual RAW user message used to verify explicit_user_statement provenance. */
+  /** Actual RAW user message used to verify explicit_user_statement provenance (single-turn legacy). */
   sourceUserText?: string | null;
+  /** Full 5-turn batch user sources for seal-aligned evidence validation. */
+  batchUserSources?: EpisodicBatchUserSource[];
   boundarySnapshot?: MemorySourceBoundary;
   facts?: ExtractedStatusFact[] | null;
   metadata?: Record<string, unknown>;
@@ -46,6 +57,8 @@ export type PersistEpisodicMemoryFactsInput = {
    * before inserting the new attempt. Unrelated turns are never touched.
    */
   replaceSourceTurn?: boolean;
+  /** Summary-seal batch: replace only rows from the same extractor batch metadata. */
+  replaceSummarySealBatch?: { batchStart: number; batchEnd: number };
 };
 
 export type EpisodicMemoryFactRecord = ExtractedStatusFact & {
@@ -246,17 +259,40 @@ function explicitUserStatementHasRawSupport(
   return matches >= Math.min(2, candidates.length);
 }
 
+export function resolveExplicitUserStatementProvenance(
+  fact: Pick<ExtractedStatusFact, "value" | "fact_text" | "evidence_type">,
+  batchUserSources: readonly EpisodicBatchUserSource[]
+): { supported: boolean; messageId: number | null; turn: number | null } {
+  if (fact.evidence_type !== "explicit_user_statement") {
+    return { supported: true, messageId: null, turn: null };
+  }
+  for (const source of batchUserSources) {
+    if (explicitUserStatementHasRawSupport(fact, source.text)) {
+      return { supported: true, messageId: source.messageId, turn: source.turn };
+    }
+  }
+  return { supported: false, messageId: null, turn: null };
+}
+
 export function detectUnsupportedEvidenceFact(
   fact: Pick<ExtractedStatusFact, "value" | "fact_text" | "evidence_type">,
-  sourceUserText?: string | null
+  sourceUserText?: string | null,
+  batchUserSources?: readonly EpisodicBatchUserSource[]
 ): "higher_authority_canon_source" | "unsupported_explicit_user_statement" | null {
   if (fact.evidence_type === "canon") return "higher_authority_canon_source";
-  if (
-    fact.evidence_type === "explicit_user_statement" &&
-    sourceUserText !== undefined &&
-    !explicitUserStatementHasRawSupport(fact, sourceUserText ?? "")
-  ) {
-    return "unsupported_explicit_user_statement";
+  if (fact.evidence_type === "explicit_user_statement") {
+    if (batchUserSources && batchUserSources.length > 0) {
+      if (!resolveExplicitUserStatementProvenance(fact, batchUserSources).supported) {
+        return "unsupported_explicit_user_statement";
+      }
+      return null;
+    }
+    if (
+      sourceUserText !== undefined &&
+      !explicitUserStatementHasRawSupport(fact, sourceUserText ?? "")
+    ) {
+      return "unsupported_explicit_user_statement";
+    }
   }
   return null;
 }
@@ -418,7 +454,10 @@ export function resolveEpisodicMemoryMinAgeTurns(env = process.env): number {
   if (!raw) return EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS;
-  return Math.max(0, Math.min(100, Math.trunc(parsed)));
+  return Math.max(
+    EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS,
+    Math.min(100, Math.trunc(parsed))
+  );
 }
 
 export function resolveEpisodicMemoryMaxFacts(env = process.env): number {
@@ -479,9 +518,15 @@ function filterUnverifiedCanonicalizationFactsForSave(
 
 function filterUnsupportedEvidenceFactsForSave(
   facts: ExtractedStatusFact[],
-  sourceUserText?: string | null
+  opts: {
+    sourceUserText?: string | null;
+    batchUserSources?: readonly EpisodicBatchUserSource[];
+  } = {}
 ): ExtractedStatusFact[] {
-  return facts.filter((fact) => !detectUnsupportedEvidenceFact(fact, sourceUserText));
+  return facts.filter(
+    (fact) =>
+      !detectUnsupportedEvidenceFact(fact, opts.sourceUserText, opts.batchUserSources)
+  );
 }
 
 function filterAbstractPsychologicalInferenceFactsForSave(
@@ -495,7 +540,10 @@ function filterAbstractPsychologicalInferenceFactsForSave(
 
 function filterUnsafeEpisodicFactsForSave(
   facts: ExtractedStatusFact[],
-  sourceUserText?: string | null
+  opts: {
+    sourceUserText?: string | null;
+    batchUserSources?: readonly EpisodicBatchUserSource[];
+  } = {}
 ): ExtractedStatusFact[] {
   return filterUnsupportedEvidenceFactsForSave(
     filterUnverifiedCanonicalizationFactsForSave(
@@ -503,12 +551,13 @@ function filterUnsafeEpisodicFactsForSave(
         filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
       )
     ),
-    sourceUserText
+    opts
   );
 }
 
 export type SummarizeEpisodicFactPersistCandidatesOptions = {
   sourceUserText?: string | null;
+  batchUserSources?: readonly EpisodicBatchUserSource[];
 };
 
 /** Dev/audit — counts for [StatusMemoryPipeline] without inserting. */
@@ -526,15 +575,12 @@ export function summarizeEpisodicFactPersistCandidates(
   opts: SummarizeEpisodicFactPersistCandidatesOptions = {}
 ): EpisodicFactPersistSummary {
   const rawArr = Array.isArray(raw) ? raw : [];
-  const valid = sanitizeExtractedFacts(raw);
+  const valid = sanitizeEpisodicExtractedFacts(raw);
   const afterContamination = filterContaminatedFactsForSave(valid);
   const afterLedgerOwnership = filterRelationshipLedgerOwnedFactsForSave(afterContamination);
   const afterPsychological = filterAbstractPsychologicalInferenceFactsForSave(afterLedgerOwnership);
   const afterCanonicalization = filterUnverifiedCanonicalizationFactsForSave(afterPsychological);
-  const afterEvidence = filterUnsupportedEvidenceFactsForSave(
-    afterCanonicalization,
-    opts.sourceUserText
-  );
+  const afterEvidence = filterUnsupportedEvidenceFactsForSave(afterCanonicalization, opts);
   const insertable = dedupeFactsWithinResponse(afterEvidence);
   const skippedReasons: string[] = [];
   const schemaRejected = rawArr.length - valid.length;
@@ -777,9 +823,26 @@ export function persistEpisodicMemoryFactsCore(
     if (existing.c > 0) return 0;
   }
 
-  const replaceTurn = shouldReplaceSourceTurn(input);
-  if (replaceTurn) {
-    // Option B: wipe prior attempts for this logical turn only.
+  const replaceTurn = shouldReplaceSourceTurn(input) && !input.replaceSummarySealBatch;
+  if (input.replaceSummarySealBatch) {
+    db.prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'
+         AND json_extract(metadata, '$.batch_start') = ?
+         AND json_extract(metadata, '$.batch_end') = ?
+         AND (? IS NULL OR character_id IS NULL OR character_id = ?)
+         AND (? IS NULL OR user_id IS NULL OR user_id = ?)`
+    ).run(
+      chatId,
+      input.replaceSummarySealBatch.batchStart,
+      input.replaceSummarySealBatch.batchEnd,
+      characterId,
+      characterId,
+      userId,
+      userId
+    );
+  } else if (replaceTurn) {
     db.prepare(
       `DELETE FROM episodic_memory_facts
        WHERE chat_id = ?
@@ -789,8 +852,16 @@ export function persistEpisodicMemoryFactsCore(
     ).run(chatId, sourceTurn, characterId, characterId, userId, userId);
   }
 
+  const batchUserSources = input.batchUserSources ?? [];
+  const evidenceOpts = {
+    sourceUserText,
+    batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
+  };
   const facts = dedupeFactsWithinResponse(
-    filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts), sourceUserText)
+    filterUnsafeEpisodicFactsForSave(
+      sanitizeEpisodicExtractedFacts(input.facts ?? []),
+      evidenceOpts
+    )
   );
   if (facts.length === 0) return 0;
 
@@ -803,16 +874,25 @@ export function persistEpisodicMemoryFactsCore(
   `);
 
   for (const fact of facts) {
+    const provenance =
+      batchUserSources.length > 0
+        ? resolveExplicitUserStatementProvenance(fact, batchUserSources)
+        : { supported: true, messageId: null, turn: null };
+    const factSourceUserMessageId =
+      fact.evidence_type === "explicit_user_statement" && provenance.messageId != null
+        ? provenance.messageId
+        : sourceUserMessageId;
     const metadataJson = JSON.stringify({
       ...(input.metadata ?? {}),
       memory_evidence_type: fact.evidence_type ?? "legacy_unknown",
+      ...(provenance.turn != null ? { evidence_source_turn: provenance.turn } : {}),
     });
     insert.run(
       chatId,
       characterId,
       userId,
       sourceTurn,
-      sourceUserMessageId,
+      factSourceUserMessageId,
       fact.category,
       fact.subject,
       fact.attribute,
@@ -1252,7 +1332,7 @@ export function getEpisodicMemoryForPrompt(
       )
       .all(...params, candidateLimit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
 
-    const validRows = rows.filter((row) => sanitizeExtractedFacts([{
+    const validRows = rows.filter((row) => sanitizeEpisodicExtractedFacts([{
       category: row.category,
       subject: row.subject,
       attribute: row.attribute,
@@ -1518,7 +1598,7 @@ export function inspectEpisodicMemoryFactsForDebug(
 
   const rows = listEpisodicMemoryFactsForDebug(db, opts);
   const inspected: EpisodicMemoryDebugFact[] = rows.map((fact) => {
-    const structurallyValid = sanitizeExtractedFacts([{
+    const structurallyValid = sanitizeEpisodicExtractedFacts([{
       category: fact.category,
       subject: fact.subject,
       attribute: fact.attribute,

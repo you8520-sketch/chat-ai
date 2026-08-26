@@ -5,13 +5,22 @@
 import { callGeminiBackground } from "@/lib/ai";
 import { getDb } from "@/lib/db";
 import { persistEpisodicMemoryFactsBestEffort } from "@/lib/episodicMemoryFacts";
-import { sanitizeExtractedFacts } from "@/lib/statusWidget/extractedFacts";
-import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
+import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-normalize";
+import type {
+  EpisodicBatchUserSource,
+  EpisodicExtractedFact,
+} from "@/lib/memory/memory-episodic-types";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { EPISODIC_FACTS_EXTRACT_INSTRUCTIONS } from "./memory-episodic-prompt";
-import type { MemorySourceBoundary } from "./memory-source-boundary";
+import {
+  getMemorySourceBoundaryCore,
+  isMemoryWriteGuardCurrentCore,
+  type MemorySourceBoundary,
+} from "./memory-source-boundary";
 
 export const EPISODIC_EXTRACT_MAX_PER_SUMMARY_BATCH = 1;
+
+export type { EpisodicBatchUserSource, EpisodicExtractedFact };
 
 type EpisodicExtractLlmCaller = (
   system: string,
@@ -37,7 +46,7 @@ export function __resetEpisodicExtractCallCountForTests(): void {
   extractCallCountForTests = 0;
 }
 
-export function parseEpisodicExtractedFacts(raw: string): ExtractedStatusFact[] {
+export function parseEpisodicExtractedFacts(raw: string): EpisodicExtractedFact[] {
   const text = raw.trim();
   if (!text) return [];
   const fenced = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
@@ -48,7 +57,7 @@ export function parseEpisodicExtractedFacts(raw: string): ExtractedStatusFact[] 
     const parsed = JSON.parse(fenced.slice(start, end + 1)) as {
       extracted_facts?: unknown;
     };
-    return sanitizeExtractedFacts(parsed.extracted_facts, { requireEvidence: true });
+    return sanitizeEpisodicExtractedFacts(parsed.extracted_facts, { requireEvidence: true });
   } catch {
     return [];
   }
@@ -66,7 +75,7 @@ export async function extractEpisodicFactsFromSealedBatch(opts: {
   startTurn: number;
   endTurn: number;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-}): Promise<ExtractedStatusFact[]> {
+}): Promise<EpisodicExtractedFact[]> {
   extractCallCountForTests += 1;
   const runningUnderNodeTest = Boolean(process.env.NODE_TEST_CONTEXT);
   if (
@@ -111,10 +120,10 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   startTurn: number;
   endTurn: number;
   dialogue: string;
-  sourceUserMessageId?: number | null;
+  batchUserSources: EpisodicBatchUserSource[];
   boundarySnapshot?: MemorySourceBoundary;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-}): Promise<{ extracted: number; persisted: number; calls: number }> {
+}): Promise<{ extracted: number; persisted: number; calls: number; staleRejected?: boolean }> {
   if (!isMemoryFeatureEnabled()) {
     return { extracted: 0, persisted: 0, calls: 0 };
   }
@@ -125,18 +134,45 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     endTurn: opts.endTurn,
     turnTrace: opts.turnTrace,
   });
+  const db = getDb();
+  const snapshot = opts.boundarySnapshot ?? getMemorySourceBoundaryCore(db, opts.chatId);
+  const sourceUserMessageIds = opts.batchUserSources
+    .map((source) => source.messageId)
+    .filter((id): id is number => id != null);
+  if (
+    !isMemoryWriteGuardCurrentCore(db, {
+      chatId: opts.chatId,
+      snapshot,
+      sourceUserMessageIds,
+    })
+  ) {
+    console.info("EPISODIC_STALE_SOURCE_REJECTED", {
+      chat_id: opts.chatId,
+      batch_start: opts.startTurn,
+      batch_end: opts.endTurn,
+      epoch: snapshot.epoch,
+    });
+    return {
+      extracted: facts.length,
+      persisted: 0,
+      calls: 1,
+      staleRejected: true,
+    };
+  }
   if (facts.length === 0) {
     return { extracted: 0, persisted: 0, calls: 1 };
   }
-  const persisted = persistEpisodicMemoryFactsBestEffort(getDb(), {
+  const persisted = persistEpisodicMemoryFactsBestEffort(db, {
     chatId: opts.chatId,
     characterId: opts.characterId,
     userId: opts.userId,
     sourceTurn: opts.endTurn,
-    sourceUserMessageId: opts.sourceUserMessageId ?? null,
-    boundarySnapshot: opts.boundarySnapshot,
+    sourceUserMessageId:
+      opts.batchUserSources[opts.batchUserSources.length - 1]?.messageId ?? null,
+    batchUserSources: opts.batchUserSources,
+    boundarySnapshot: snapshot,
     facts,
-    replaceSourceTurn: true,
+    replaceSummarySealBatch: { batchStart: opts.startTurn, batchEnd: opts.endTurn },
     metadata: {
       extraction: "summary_seal_batch",
       batch_start: opts.startTurn,
