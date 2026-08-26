@@ -82,11 +82,10 @@ export async function extractEpisodicFactsFromSealedBatch(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<EpisodicExtractedFact[]> {
   extractCallCountForTests += 1;
+  // Provider/API-key validation belongs to the background caller.
+  // Node-test network suppression only — no provider-specific key gate here.
   const runningUnderNodeTest = Boolean(process.env.NODE_TEST_CONTEXT);
-  if (
-    !extractCallerOverride &&
-    (runningUnderNodeTest || !process.env.OPENROUTER_API_KEY?.trim())
-  ) {
+  if (!extractCallerOverride && runningUnderNodeTest) {
     return [];
   }
   const system = buildEpisodicExtractSystemPrompt();
