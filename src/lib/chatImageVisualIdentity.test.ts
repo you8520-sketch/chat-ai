@@ -254,7 +254,7 @@ describe("chat image visual identity", () => {
     assert.doesNotMatch(blockA, /red irises/);
     assert.doesNotMatch(blockA, /white shirt/);
     assert.doesNotMatch(blockA, /black harness/);
-    assert.match(subjectBlock(prompt, "B"), /red irises|dark gray irises/);
+    assert.match(subjectBlock(prompt, "B"), /dark gray irises/);
     assert.match(subjectBlock(prompt, "B"), /IMAGE_PLUS_SAVED/);
   });
 
@@ -306,7 +306,7 @@ describe("chat image visual identity", () => {
     assert.match(subjectBlock(plan.prompt, "A"), /red irises/);
     assert.doesNotMatch(subjectBlock(plan.prompt, "B"), /red irises/);
     assert.match(plan.prompt, /GENDER LOCK/);
-    assert.doesNotMatch(plan.prompt, SYNTHETIC_PRIVATE_CHARACTER_PROMPT);
+    assert.equal(plan.prompt.includes(SYNTHETIC_PRIVATE_CHARACTER_PROMPT), false);
   });
 
   it("isolates multi-cast LD members and does not inject a global main character", () => {
