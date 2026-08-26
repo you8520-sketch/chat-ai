@@ -9,9 +9,9 @@ export type CharacterAsset = {
   chat?: boolean;
   /** true면 제작자 외 유저에게 블러·가림 처리 */
   viewerBlur?: boolean;
-  /** 일반(전체 이용가) 캐릭터 업로드 차단용 메타. 성인용 캐릭터 공개 저장 판정에는 사용하지 않음. */
+  /** 애매한 선정성 — 관리자 검수 큐 (업로드 차단 아님) */
   adultFlagged?: boolean;
-  /** 하드 반려: 성기·항문 노출, 미성년 성적 묘사, 직접 성행위 등 */
+  /** 하드 반려: 여성 유두·남녀 성기·항문 노출 등 */
   moderationReject?: boolean;
   moderationReason?: string;
   width?: number;

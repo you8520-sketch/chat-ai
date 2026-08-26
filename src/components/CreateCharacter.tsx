@@ -10,9 +10,9 @@ import {
   withAssetSize,
 } from "@/lib/characterAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
+import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
 import {
   allAgesAssetChangeRequest,
-  isAssetBlockedForAllAges,
   partitionAllAgesTaggingBatch,
 } from "@/lib/characterListingModeration";
 import AssetManagerGrid, {
@@ -1825,8 +1825,8 @@ export default function CreateCharacter({
               <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
                 <p className="text-sm font-semibold text-zinc-100">공개 범위</p>
                 <p className="mt-1 text-xs text-zinc-400">
-                  공개·링크 공개 선택 시 노출 이미지가 자동 검수됩니다.
-                  상반신 노출은 허용되고, 성기·항문 노출만 반려됩니다.
+                  공개·링크 공개 선택 시 노출 이미지가 자동 분류됩니다.
+                  유두·성기·항문 노출만 반려되고, 애매한 선정성은 관리자 검수 후 공개됩니다.
                   반려 시 비공개로 저장됩니다.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -1861,8 +1861,8 @@ export default function CreateCharacter({
                   onChange={(e) => {
                     const next = e.target.checked;
                     setForm({ ...form, nsfw: next });
-                    if (!next && assets.some(isAssetBlockedForAllAges)) {
-                      setError(allAgesAssetChangeRequest(assets.filter(isAssetBlockedForAllAges).length));
+                    if (!next && assets.some(isAssetHardRejected)) {
+                      setError(allAgesAssetChangeRequest(assets.filter(isAssetHardRejected).length));
                     }
                   }}
                   className="h-5 w-5 accent-violet-500"

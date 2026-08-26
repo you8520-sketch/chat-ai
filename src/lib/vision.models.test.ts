@@ -22,13 +22,10 @@ describe("asset vision model wiring", () => {
     assert.doesNotMatch(src, /demoTag|EMOTION_TAGS\[/);
   });
 
-  it("single asset vision policy — reject genitals only", () => {
+  it("single asset vision policy — three tiers", () => {
     const prompt = buildAssetVisionPrompt();
-    assert.match(prompt, /성기·항문 노출/);
-    assert.match(prompt, /등짝/);
-    assert.match(prompt, /일반 캐릭터 업로드 필터 전용/);
-    assert.doesNotMatch(prompt, /관리자/);
-
+    assert.match(prompt, /여성 유두/);
+    assert.match(prompt, /관리자 검수/);
     assert.equal(fs.existsSync(new URL("./assetModeration.ts", import.meta.url)), false);
   });
 });

@@ -5,7 +5,7 @@ import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { withRepresentativeAssetPublic } from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
-import { isAssetBlockedForAllAges } from "@/lib/characterListingModeration";
+import { isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
 
 export type ManagedAsset = CharacterAsset;
 
@@ -87,7 +87,11 @@ export default function AssetManagerGrid({
         {note ? <span className="mt-1 block text-zinc-400">{note}</span> : null}
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {assets.map((a, i) => (
+        {assets.map((a, i) => {
+          const hardRejected = isAssetHardRejected(a);
+          const reviewPending = isAssetNeedsAdminReview(a);
+          const blockUpload = allAges && hardRejected;
+          return (
           <div
             key={`${a.url}-${i}`}
             draggable
@@ -100,20 +104,40 @@ export default function AssetManagerGrid({
             }}
             className={cn(
               "group relative cursor-grab overflow-hidden rounded-xl border bg-[#161922] active:cursor-grabbing",
-              allAges && isAssetBlockedForAllAges(a)
+              blockUpload
                 ? "border-rose-500/70 ring-1 ring-rose-500/40"
+                : reviewPending
+                  ? "border-amber-500/50 ring-1 ring-amber-500/30"
+                  : hardRejected
+                    ? "border-rose-500/50 ring-1 ring-rose-500/25"
                 : dragIndex === i
                   ? "border-violet-500/60 opacity-60"
                   : "border-white/10",
             )}
           >
             <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
-            {allAges && isAssetBlockedForAllAges(a) ? (
+            {blockUpload ? (
               <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
                 <p className="rounded-md bg-rose-600/95 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-white">
-                  성인용으로 검열됨
+                  유두·성기·항문 노출
                   <br />
-                  이 에셋을 바꿔 주세요
+                  일반 캐릭터에 넣을 수 없음
+                </p>
+              </div>
+            ) : hardRejected ? (
+              <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
+                <p className="rounded-md bg-rose-600/95 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-white">
+                  유두·성기·항문 노출
+                  <br />
+                  저장 시 비공개 반려
+                </p>
+              </div>
+            ) : reviewPending ? (
+              <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
+                <p className="rounded-md bg-amber-600/95 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-white">
+                  애매한 선정성
+                  <br />
+                  저장 시 관리자 검수
                 </p>
               </div>
             ) : null}
@@ -194,7 +218,8 @@ export default function AssetManagerGrid({
               삭제
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

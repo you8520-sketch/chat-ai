@@ -87,13 +87,13 @@ function insertCharacter(
 }
 
 describe("admin listing moderation queue", () => {
-  it("A. nsfw adultFlagged metadata alone stays approved and out of pending queue", () => {
+  it("A. ambiguous asset is pending, listed, and reviewable", () => {
     const decided = decideCharacterListing({
       requestedVisibility: "public",
       nsfw: true,
       assets: [adultAsset],
     });
-    assert.equal(decided.moderationStatus, "approved");
+    assert.equal(decided.moderationStatus, "pending");
 
     const db = setupDb();
     const id = insertCharacter(db, {
@@ -102,6 +102,12 @@ describe("admin listing moderation queue", () => {
       moderation_note: decided.moderationNote,
       assets: [adultAsset],
     });
+    const pending = listCharactersForModeration(db, "pending");
+    const row = pending.find((item) => item.id === id);
+    assert.ok(row);
+    assert.equal(row.assets.some((asset) => asset.adultFlagged === true), true);
+    const approved = reviewCharacterListing(db, id, 1, "approve", "확인");
+    assert.equal(approved.ok, true);
     assert.equal(listCharactersForModeration(db, "pending").some((item) => item.id === id), false);
   });
 
@@ -129,6 +135,7 @@ describe("admin listing moderation queue", () => {
     });
     assert.equal(decided.moderationStatus, "approved");
     assert.doesNotMatch(decided.moderationNote, /성인 에셋 검열/);
+    assert.match(decided.moderationNote, /레거시/);
     const db = setupDb();
     const id = insertCharacter(db, {
       name: "레거시",
