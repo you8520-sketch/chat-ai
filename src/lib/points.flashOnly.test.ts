@@ -8,8 +8,13 @@ import {
   HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
 } from "@/lib/htmlVisualCardRecovery";
 import {
-  OPENROUTER_DEEPSEEK_GROSS_MARGIN,
+  HTML_CREATIVE_GROSS_MARGIN,
+  HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS,
+  HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS,
   computeHtmlFlashOnlyTurnBilling,
+  htmlCreativeGrossMarginChargeKrw,
+  htmlCreativeInputTokenSurchargeKrw,
+  openRouterInputTokenSurchargeKrw,
 } from "@/lib/points";
 import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { BACKGROUND_CREATIVE_HTML_MODEL } from "@/lib/ai";
@@ -28,6 +33,35 @@ describe("HTML token budget owner", () => {
   it("keeps secondary HTML after RP at 6k output max", () => {
     assert.equal(HTML_FLASH_MAX_OUTPUT_TOKENS, 6000);
     assert.ok(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS >= HTML_FLASH_MAX_OUTPUT_TOKENS);
+  });
+});
+
+describe("HTML Creative billing owner", () => {
+  it("HTML_CREATIVE_GROSS_MARGIN is 0.55 with dedicated charge helper", () => {
+    assert.equal(HTML_CREATIVE_GROSS_MARGIN, 0.55);
+    assert.equal(htmlCreativeGrossMarginChargeKrw(45), 100);
+    assert.notEqual(
+      htmlCreativeGrossMarginChargeKrw.name,
+      "openRouterDeepSeekMarginChargeKrw"
+    );
+  });
+
+  it("htmlCreativeInputTokenSurchargeKrw follows HTML 0.5P/1k excess contract", () => {
+    assert.equal(HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS, 10_000);
+    assert.equal(HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS, 0.5);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(10_000), 0);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(12_000), 1);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(15_000), 2.5);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(20_000), 5);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(24_000), 7);
+  });
+
+  it("HTML surcharge policy differs from Luna model-family surcharge owner", () => {
+    const lunaId = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(12_000), 1);
+    assert.equal(openRouterInputTokenSurchargeKrw(12_000, lunaId), 2);
+    assert.equal(htmlCreativeInputTokenSurchargeKrw(24_000), 7);
+    assert.equal(openRouterInputTokenSurchargeKrw(24_000, lunaId), 14);
   });
 });
 
@@ -51,14 +85,14 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
     assert.ok(flash.total >= flash.baseCost);
   });
 
-  it("applies 55% gross margin (charge ≈ raw / 0.45)", () => {
+  it("applies HTML_CREATIVE_GROSS_MARGIN (charge ≈ raw / 0.45)", () => {
     const flash = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 5000,
       inputTokens: 10_000,
       outputTokens: 8000,
     });
     const expected = Math.ceil(
-      flash.rawCostKrw / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 1e-9
+      flash.rawCostKrw / (1 - HTML_CREATIVE_GROSS_MARGIN) - 1e-9
     );
     assert.equal(flash.baseCost, expected);
     assert.ok(flash.total >= flash.baseCost);
@@ -76,7 +110,7 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
     assert.equal(flash.rawCostKrw, Math.round(expectedRaw * 10) / 10);
     assert.equal(
       flash.baseCost,
-      Math.ceil(flash.rawCostKrw / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 1e-9)
+      Math.ceil(flash.rawCostKrw / (1 - HTML_CREATIVE_GROSS_MARGIN) - 1e-9)
     );
   });
 
@@ -92,19 +126,20 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
     assert.ok(flash.total > 0);
   });
 
-  it("includes input surcharge for large prompts", () => {
-    const small = computeHtmlFlashOnlyTurnBilling({
-      savedTextChars: 800,
-      inputTokens: 4000,
-      outputTokens: 1200,
-    });
-    const large = computeHtmlFlashOnlyTurnBilling({
+  it("applies HTML input surcharge at 20k and 24k (5P / 7P)", () => {
+    const at20k = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 800,
       inputTokens: 20_000,
       outputTokens: 1200,
     });
-    assert.ok(large.contextSurcharge > small.contextSurcharge);
-    assert.ok(large.total > small.total);
+    const at24k = computeHtmlFlashOnlyTurnBilling({
+      savedTextChars: 800,
+      inputTokens: 24_000,
+      outputTokens: 1200,
+    });
+    assert.equal(at20k.contextSurcharge, 5);
+    assert.equal(at24k.contextSurcharge, 7);
+    assert.ok(at24k.total > at20k.total);
   });
 
   it("missing provider usage bills Luna public fallback rates not legacy 1/6 snapshot", () => {

@@ -290,12 +290,20 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** Dedicated 55% gross-margin billing paths (Creative HTML uses this margin owner). */
+/** DeepSeek background paths — V4 Pro pricing uses a separate owner below. */
 export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
   Number(process.env.OPENROUTER_DEEPSEEK_GROSS_MARGIN) || 0.55;
 
 /** @deprecated OPENROUTER_DEEPSEEK_GROSS_MARGIN 사용 */
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
+
+/** Creative HTML dedicated turn — gross margin owner (decoupled from DeepSeek). */
+export const HTML_CREATIVE_GROSS_MARGIN = 0.55;
+
+/** Creative HTML large-input surcharge — excess-only over this threshold. */
+export const HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS = 10_000;
+/** Creative HTML — excess input tokens billed at 0.5P per 1k (model-family agnostic). */
+export const HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS = 0.5;
 
 /**
  * Target no-cache gross margins for dual-rate simple point models.
@@ -789,6 +797,21 @@ function openRouterOpusMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterDeepSeekMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_DEEPSEEK_GROSS_MARGIN);
+}
+
+/** Creative HTML dedicated turn — 55% gross margin (independent of DeepSeek margin owner). */
+export function htmlCreativeGrossMarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, HTML_CREATIVE_GROSS_MARGIN);
+}
+
+/**
+ * Creative HTML large-input surcharge — excess over 10k at 0.5P/1k.
+ * Model-family agnostic: unchanged if HTML routing model changes.
+ */
+export function htmlCreativeInputTokenSurchargeKrw(inputTokens: number): number {
+  if (inputTokens < HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
+  const excess = inputTokens - HTML_CREATIVE_INPUT_SURCHARGE_THRESHOLD_TOKENS;
+  return (excess / 1000) * HTML_CREATIVE_INPUT_SURCHARGE_PER_1000_TOKENS;
 }
 
 function openRouterQwenMarginChargeKrw(rawCostKrw: number): number {
@@ -2230,11 +2253,8 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
     cache,
     billingBasis
   );
-  const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
-    estimatedInputTokens,
-    htmlModelId
-  );
+  const costPlusMarginKrw = htmlCreativeGrossMarginChargeKrw(rawCostKrw);
+  const inputSurchargeKrw = htmlCreativeInputTokenSurchargeKrw(estimatedInputTokens);
   const total = Math.max(
     OPENROUTER_MIN_TURN_COST,
     chargePoints(costPlusMarginKrw + inputSurchargeKrw)
