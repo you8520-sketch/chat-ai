@@ -79,7 +79,7 @@ import {
   tryClaimBotExplicitRetryGeneration,
   tryClaimBotRecoveryGeneration,
 } from "./botGenerationRecovery";
-import { ensureTrpgProcessStage } from "./processTimer";
+import { anchorTrpgProcessTimer, ensureTrpgProcessStage } from "./processTimer";
 import { tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import {
@@ -331,6 +331,7 @@ export function submitTrpgAction(
     opts.idempotencyKey,
     parseTrpgInputOrigin(opts.inputOrigin)
   );
+  anchorTrpgProcessTimer(db, round.id);
 }
 
 function upsertLockedAction(

@@ -427,23 +427,16 @@ export default function TrpgCampaignRoom({
     !liveReady &&
     isIncrementalCanonicalActionPhase(String(phase)) &&
     sourceActions.length > 0;
-  useEffect(() => {
-    if (pinnedRoundRef.current !== snap.round.number) {
-      pinnedRoundRef.current = snap.round.number;
-      pinnedVisibleActorIdsRef.current = [];
-    }
-    if (incrementalCanonicalVisible) {
-      pinnedVisibleActorIdsRef.current = incrementalCanonicalActionIds(
-        sourceActions,
-        (snap.resolutionOrder ?? []).map((entry) => entry.participantId)
-      );
-    }
-  }, [
-    incrementalCanonicalVisible,
-    snap.resolutionOrder,
-    snap.round.number,
-    sourceActions,
-  ]);
+  if (pinnedRoundRef.current !== snap.round.number) {
+    pinnedRoundRef.current = snap.round.number;
+    pinnedVisibleActorIdsRef.current = [];
+  }
+  if (incrementalCanonicalVisible) {
+    pinnedVisibleActorIdsRef.current = incrementalCanonicalActionIds(
+      sourceActions,
+      (snap.resolutionOrder ?? []).map((entry) => entry.participantId)
+    );
+  }
   const queueSessionKey = useMemo(
     () =>
       trpgRoundPresentationSessionKey({

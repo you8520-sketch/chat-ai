@@ -15,7 +15,7 @@ import {
   isBotGenerationLeaseStaleOnDb,
   tryClaimBotGeneration,
 } from "./botGenerationLease";
-import { parseProcessStartedAtMs, processElapsedSecFromStartedAt, ensureTrpgProcessStage } from "./processTimer";
+import { anchorTrpgProcessTimer, ensureTrpgProcessStage, parseProcessStartedAtMs, processElapsedSecFromStartedAt } from "./processTimer";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
 import { insertParticipant, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
@@ -328,7 +328,25 @@ describe("TRPG server-anchored process timer", () => {
     db.close();
   });
 
-  it("L anchors process_started_at when generate_bots begins, before bot1 completes", async () => {
+  it("L anchors process_started_at on submit before advanceTrpgCampaign begins", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => ({ text: "유나는 창틀을 본다.\n\n<<<INTENT>>>\n창틀을 본다." }),
+    };
+    const campaignId = await setupWithBots(db, ["유나"], deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
+    const round = loadLatestRound(db, campaignId)!;
+    const startedMs = parseProcessStartedAtMs(round.process_started_at);
+    assert.ok(startedMs, "TIMER_ANCHORED_WHEN_HUMAN_ACTION_PERSISTS");
+    assert.ok(Date.now() - startedMs! < 5_000);
+    assert.equal(round.process_stage, null);
+    db.close();
+  });
+
+  it("M same process_started_at survives bots → rolls → gm on one round", async () => {
     const db = memoryDb();
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => {
@@ -337,7 +355,7 @@ describe("TRPG server-anchored process timer", () => {
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 12,
-      gmCall: async () => ({ text: gmText("오프닝") }),
+      gmCall: async () => ({ text: gmText("판정 후 장면") }),
       botCall: async () => {
         await gate;
         return { text: "유나는 창틀을 본다.\n\n<<<INTENT>>>\n창틀을 본다." };
@@ -346,21 +364,44 @@ describe("TRPG server-anchored process timer", () => {
     const campaignId = await setupWithBots(db, ["유나"], deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
     const roundId = loadLatestRound(db, campaignId)!.id;
+    const submitMs = parseProcessStartedAtMs(
+      (db.prepare(`SELECT process_started_at FROM trpg_rounds WHERE id=?`).get(roundId) as {
+        process_started_at: string | null;
+      }).process_started_at
+    );
+    assert.ok(submitMs);
     const inFlight = advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     await new Promise((r) => setTimeout(r, 25));
-    const round = db
+    const duringBots = db
       .prepare(`SELECT process_stage, process_started_at FROM trpg_rounds WHERE id=?`)
       .get(roundId) as { process_stage: string | null; process_started_at: string | null };
-    assert.equal(round.process_stage, "bots");
-    const startedMs = parseProcessStartedAtMs(round.process_started_at);
-    assert.ok(startedMs);
-    assert.ok(Date.now() - startedMs! < 5_000, "TIMER_STARTS_AT_HUMAN_SUBMIT");
+    assert.equal(duringBots.process_stage, "bots");
+    assert.equal(parseProcessStartedAtMs(duringBots.process_started_at), submitMs);
     release();
     await inFlight;
     const after = db
       .prepare(`SELECT process_started_at FROM trpg_rounds WHERE id=?`)
       .get(roundId) as { process_started_at: string | null };
-    assert.equal(parseProcessStartedAtMs(after.process_started_at), startedMs, "TIMER_RESETS_ON_BOT1");
+    assert.equal(parseProcessStartedAtMs(after.process_started_at), submitMs, "TIMER_TIMESTAMP_UNCHANGED_BOTS_TO_ROLLS_TO_GM");
+    db.close();
+  });
+
+  it("N reroll alone resets process_started_at", () => {
+    const db = memoryDb();
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    const roundId = Number(
+      db
+        .prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, 1, 'ROUND_COMPLETE')`)
+        .run(campaignId).lastInsertRowid
+    );
+    anchorTrpgProcessTimer(db, roundId);
+    const beforeMs = parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at)!;
+    db.prepare(`UPDATE trpg_rounds SET process_started_at=datetime('now', '-45 seconds') WHERE id=?`).run(roundId);
+    const staleMs = parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at)!;
+    assert.ok(staleMs < beforeMs);
+    ensureTrpgProcessStage(db, roundId, "reroll");
+    const rerollMs = parseProcessStartedAtMs(loadLatestRound(db, campaignId)!.process_started_at)!;
+    assert.ok(rerollMs > staleMs, "REROLL_RESETS_TIMER");
     db.close();
   });
 

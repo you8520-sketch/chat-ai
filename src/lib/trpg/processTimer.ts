@@ -3,6 +3,19 @@ import type { LiveTurnProcessStage } from "./liveTurnStatus";
 
 export type TrpgProcessStage = Exclude<LiveTurnProcessStage, "none" | "wait_humans">;
 
+/** First persisted human action anchors round processing elapsed time. */
+export function anchorTrpgProcessTimer(db: Database.Database, roundId: number): void {
+  db.prepare(
+    `UPDATE trpg_rounds
+     SET process_started_at = CASE
+           WHEN process_started_at IS NULL THEN datetime('now')
+           ELSE process_started_at
+         END,
+         updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(roundId);
+}
+
 export function ensureTrpgProcessStage(
   db: Database.Database,
   roundId: number,

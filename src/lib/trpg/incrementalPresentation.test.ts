@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildRoundPresentationActors,
   decideLiveRoundPresentation,
   incrementalCanonicalActionIds,
   isIncrementalCanonicalActionPhase,
@@ -104,6 +105,27 @@ function simulateIncrementalPresentationSteps(
   }
 
   return out;
+}
+
+/** Mirrors TrpgCampaignRoom pinned-visibility sync (round-boundary safe). */
+function syncPinnedVisibleActorIds(opts: {
+  roundNumber: number;
+  pinnedRoundRef: { current: number | null };
+  pinnedIdsRef: { current: number[] };
+  incrementalCanonicalVisible: boolean;
+  sourceActions: readonly { participantId: number }[];
+  resolutionOrder: readonly number[];
+}): void {
+  if (opts.pinnedRoundRef.current !== opts.roundNumber) {
+    opts.pinnedRoundRef.current = opts.roundNumber;
+    opts.pinnedIdsRef.current = [];
+  }
+  if (opts.incrementalCanonicalVisible) {
+    opts.pinnedIdsRef.current = incrementalCanonicalActionIds(
+      opts.sourceActions,
+      opts.resolutionOrder
+    );
+  }
 }
 
 describe("TRPG incremental partial round presentation state", () => {
@@ -341,5 +363,51 @@ describe("TRPG incremental partial round presentation state", () => {
       assert.equal(step.visibleCanonicalActionIds.length, 0);
       assert.ok(step.incrementalVisibleActionIds.length >= 1);
     }
+  });
+
+  it("round N+1 ROLLING entry does not inherit round N pinned actor ids", () => {
+    const pinnedRoundRef = { current: null as number | null };
+    const pinnedIdsRef = { current: [] as number[] };
+
+    syncPinnedVisibleActorIds({
+      roundNumber: 4,
+      pinnedRoundRef,
+      pinnedIdsRef,
+      incrementalCanonicalVisible: true,
+      sourceActions: [human, bot1, bot2],
+      resolutionOrder: order,
+    });
+    assert.deepEqual(pinnedIdsRef.current, order);
+
+    syncPinnedVisibleActorIds({
+      roundNumber: 5,
+      pinnedRoundRef,
+      pinnedIdsRef,
+      incrementalCanonicalVisible: false,
+      sourceActions: [human, bot1, bot2],
+      resolutionOrder: order,
+    });
+    assert.deepEqual(pinnedIdsRef.current, [], "PREVIOUS_ROUND_PINS_CANNOT_LEAK");
+
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human, bot1, bot2],
+      rolls: [humanRoll, bot1Roll, bot2Roll],
+    });
+    const roundShow = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const cinematicRevealed = revealedActorIds({
+      actors,
+      state: roundShow,
+      pinnedVisibleActorIds: pinnedIdsRef.current,
+    });
+    assert.deepEqual(cinematicRevealed, [10]);
+    const resolved = resolveLiveRevealedActionIds({
+      isLiveRow: true,
+      mode: roundShow.mode,
+      cinematicRevealedIds: cinematicRevealed,
+      incrementalCanonicalVisible: false,
+      pinnedVisibleActorIds: pinnedIdsRef.current,
+    });
+    assert.deepEqual(resolved, [10]);
   });
 });
