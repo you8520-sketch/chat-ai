@@ -14,6 +14,7 @@ import {
 import {
   TRPG_REPLY_SUGGESTION_USER_ERROR,
   normalizeTrpgReplySuggestionClientError,
+  shouldPersistTrpgActionSuggestionAttemptFailed,
 } from "./replySuggestionShared";
 import {
   callTrpgReplySuggestionModel,
@@ -23,6 +24,9 @@ import {
   toTrpgReplySuggestionUserError,
   type TrpgReplySuggestionRouteTelemetry,
 } from "./replySuggestions";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const validJson = JSON.stringify({
   suggestions: [
@@ -183,6 +187,183 @@ describe("TRPG reply suggestion auto-attempt reload + error sanitization", () =>
       clearTrpgActionSuggestionAttempt(7);
       assert.equal(loadTrpgActionSuggestionAttempt(7, 2), null);
     });
+  });
+
+  it("K1. definitive server failure — non-2xx persists failed marker eligibility", () => {
+    assert.equal(shouldPersistTrpgActionSuggestionAttemptFailed(new Response(null, { status: 400 })), true);
+    assert.equal(
+      shouldPersistTrpgActionSuggestionAttemptFailed(
+        new Response(JSON.stringify({ error: TRPG_REPLY_SUGGESTION_USER_ERROR }), { status: 400 })
+      ),
+      true
+    );
+  });
+
+  it("K2. network / abort / timeout — ambiguous transport keeps pending (no failed marker)", () => {
+    assert.equal(shouldPersistTrpgActionSuggestionAttemptFailed(null), false);
+    assert.equal(
+      shouldPersistTrpgActionSuggestionAttemptFailed(new Response(JSON.stringify({ ok: true }), { status: 200 })),
+      false
+    );
+  });
+
+  it("K3. server success + response lost — pending marker, reload durable DB recovery, provider 0", async () => {
+    const db = memoryDb();
+    const campaignId = await startedCampaign(db);
+    let providerCalls = 0;
+    const first = await requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        providerCalls += 1;
+        return { text: validJson, model: "deepseek-v4-flash-0731" };
+      },
+    });
+    assert.equal(providerCalls, 1);
+    assert.equal(first.suggestions.length, 3);
+
+    const store = new MemoryStorage();
+    withLocalStorage(store, () => {
+      saveTrpgActionSuggestionAttempt(campaignId, 1, "pending");
+      assert.equal(loadTrpgActionSuggestionAttempt(campaignId, 1), "pending");
+      assert.notEqual(loadTrpgActionSuggestionAttempt(campaignId, 1), "failed");
+    });
+
+    resetTrpgReplySuggestionCooldownForTests();
+    providerCalls = 0;
+    const recovered = await requestTrpgReplySuggestions(db, {
+      campaignId,
+      userId: 1,
+      complete: async () => {
+        providerCalls += 1;
+        return { text: validJson, model: "deepseek-v4-flash-0731" };
+      },
+    });
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(
+      recovered.suggestions.map((row) => row.text),
+      first.suggestions.map((row) => row.text)
+    );
+    db.close();
+  });
+
+  it("K4. pending reload after ambiguous failure can still reach definitive server failure", async () => {
+    const db = memoryDb();
+    const campaignId = await startedCampaign(db);
+    const store = new MemoryStorage();
+    withLocalStorage(store, () => {
+      saveTrpgActionSuggestionAttempt(campaignId, 1, "pending");
+    });
+    let providerCalls = 0;
+    await assert.rejects(
+      () =>
+        requestTrpgReplySuggestions(db, {
+          campaignId,
+          userId: 1,
+          complete: async () => {
+            providerCalls += 1;
+            throw new Error("completion deadline exceeded");
+          },
+        }),
+      /다시 시도/
+    );
+    assert.equal(providerCalls, 1);
+    db.close();
+  });
+
+  it("K5. concurrent telemetry isolation — route logs never borrow another request telemetry", async () => {
+    const db = memoryDb();
+    const campaignA = await startedCampaign(db);
+    const campaignB = createTrpgCampaign(db, {
+      hostUserId: 2,
+      hostNickname: "이안",
+      viewerUserId: 2,
+      hostPersona: {
+        personaId: 10,
+        name: "이안",
+        description: "조용하다.",
+        gender: "other",
+        speechExamples: "…",
+      },
+    });
+    saveTrpgSheet(db, { campaignId: campaignB, userId: 2, name: "이안", stats: EVEN_STATS });
+    await startTrpgCampaign(db, {
+      campaignId: campaignB,
+      userId: 2,
+      deps: {
+        skipBilling: true,
+        gmCall: async () => ({
+          text: `<<<NARRATION>>>\n항구\n<<<DELTA>>>\n{"players":[],"location":"항구","next_round_context":"출항","campaign_finished":false}`,
+        }),
+      },
+    });
+    assert.notEqual(campaignA, campaignB);
+
+    const routeLogs: Array<Record<string, unknown>> = [];
+    const prevInfo = console.info;
+    console.info = ((label: unknown, payload: Record<string, unknown>) => {
+      if (label === "[trpg-reply-suggestion]" && payload.kind === "trpg_reply_suggestion_route") {
+        routeLogs.push(payload);
+      }
+    }) as typeof console.info;
+
+    const makeTelemetry = (logicalRequestId: string) => ({
+      logical_request_id: logicalRequestId,
+      round_id: 1,
+      primary_provider: "openrouter",
+      primary_model: "deepseek/deepseek-v4-flash-0731",
+      primary_status: null,
+      primary_latency_ms: 100,
+      primary_failure_class: "body_timeout",
+      semantic_failure_class: null,
+      fallback_attempted: true,
+      fallback_provider: "cheaperinference",
+      fallback_model: "deepseek-v4-flash-0731",
+      fallback_latency_ms: 50,
+      fallback_success: false,
+      backup_failure_class: "body_timeout",
+      provider_attempt_count: 2,
+    });
+
+    try {
+      await Promise.allSettled([
+        requestTrpgReplySuggestions(db, {
+          campaignId: campaignA,
+          userId: 1,
+          complete: async () => {
+            throw Object.assign(new Error("provider fail A"), {
+              telemetry: makeTelemetry("req-a"),
+            });
+          },
+        }),
+        requestTrpgReplySuggestions(db, {
+          campaignId: campaignB,
+          userId: 2,
+          complete: async () => {
+            throw Object.assign(new Error("provider fail B"), {
+              telemetry: makeTelemetry("req-b"),
+            });
+          },
+        }),
+      ]);
+
+      const failures = routeLogs.filter(
+        (log) => log.success === false && log.cache_source === "provider"
+      );
+      assert.equal(failures.length, 2);
+      const ids = failures.map((log) => log.logical_request_id).sort();
+      assert.deepEqual(ids, ["req-a", "req-b"]);
+    } finally {
+      console.info = prevInfo;
+      db.close();
+    }
+  });
+
+  it("K6. global last telemetry fallback absent from source", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(join(here, "replySuggestions.ts"), "utf8");
+    assert.doesNotMatch(source, /lastLoggedReplySuggestionProviderTelemetry/);
+    assert.doesNotMatch(source, /peekLastReplySuggestionProviderTelemetryForRoute/);
   });
 
   it("E. pending reload recovery — one API logical request joins inflight without duplicate provider", async () => {

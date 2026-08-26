@@ -107,13 +107,6 @@ type TrpgReplySuggestionGate = {
 };
 
 const inflight = new Map<string, TrpgReplySuggestionGate>();
-let lastLoggedReplySuggestionProviderTelemetry: TrpgReplySuggestionProviderTelemetry | undefined;
-
-export function peekLastReplySuggestionProviderTelemetryForRoute():
-  | TrpgReplySuggestionProviderTelemetry
-  | undefined {
-  return lastLoggedReplySuggestionProviderTelemetry;
-}
 
 function gateKey(campaignId: number, userId: number): string {
   return `${campaignId}:${userId}`;
@@ -579,7 +572,6 @@ function applyBackupResponseTelemetry(
 export function logTrpgReplySuggestionProviderTelemetry(
   telemetry: TrpgReplySuggestionProviderTelemetry
 ): void {
-  lastLoggedReplySuggestionProviderTelemetry = telemetry;
   console.info("[trpg-reply-suggestion-provider]", {
     kind: "trpg_reply_suggestion_provider",
     logical_request_id: telemetry.logical_request_id,
@@ -1443,28 +1435,21 @@ export async function callTrpgReplySuggestionModel(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_SUGGESTIONS, model: TRPG_REPLY_SUGGESTION_MODEL };
   }
-  try {
-    const result = await executeTrpgReplySuggestionProviderRound({
-      system: opts.system,
-      user: opts.user,
-      logicalRequestId: opts.logicalRequestId ?? randomUUID(),
-      roundId: opts.roundId,
-      hooks: opts.hooks,
-      onProviderTelemetry: opts.onProviderTelemetry,
-    });
-    opts.onProviderTelemetry?.(result.telemetry);
-    return {
-      text: result.text,
-      model: result.model,
-      inputTokens: result.inputTokens,
-      outputTokens: result.outputTokens,
-    };
-  } catch (error) {
-    if (error instanceof TrpgReplySuggestionProviderRoundError) {
-      opts.onProviderTelemetry?.(error.telemetry);
-    }
-    throw error;
-  }
+  const result = await executeTrpgReplySuggestionProviderRound({
+    system: opts.system,
+    user: opts.user,
+    logicalRequestId: opts.logicalRequestId ?? randomUUID(),
+    roundId: opts.roundId,
+    hooks: opts.hooks,
+    onProviderTelemetry: opts.onProviderTelemetry,
+  });
+  opts.onProviderTelemetry?.(result.telemetry);
+  return {
+    text: result.text,
+    model: result.model,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+  };
 }
 
 export async function requestTrpgReplySuggestions(
@@ -1642,9 +1627,7 @@ export async function requestTrpgReplySuggestions(
       return settledResult;
     } catch (error) {
       const failureTelemetry =
-        lastProviderTelemetry ??
-        extractProviderRoundTelemetry(error) ??
-        peekLastReplySuggestionProviderTelemetryForRoute();
+        lastProviderTelemetry ?? extractProviderRoundTelemetry(error);
       logTrpgReplySuggestionUsage({
         model: TRPG_REPLY_SUGGESTION_MODEL,
         latencyMs: Date.now() - started,
@@ -1689,5 +1672,4 @@ export async function requestTrpgReplySuggestions(
 
 export function resetTrpgReplySuggestionCooldownForTests(): void {
   inflight.clear();
-  lastLoggedReplySuggestionProviderTelemetry = undefined;
 }

@@ -14,6 +14,7 @@ import {
   applyReplySuggestionClick,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
   normalizeTrpgReplySuggestionClientError,
+  shouldPersistTrpgActionSuggestionAttemptFailed,
   type TrpgInputOrigin,
   type TrpgReplySuggestion,
 } from "@/lib/trpg/replySuggestionShared";
@@ -174,26 +175,35 @@ export default function TrpgRoomClient({
     setSuggestionsBusy(true);
     setSuggestionsError("");
     setError("");
+    let response: Response | null = null;
     try {
-      const res = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, {
+      response = await fetch(`/api/trpg/campaigns/${snap.id}/reply-suggestions`, {
         method: "POST",
         signal: AbortSignal.timeout(50_000),
       });
-      const data = (await res.json().catch(() => null)) as { suggestions?: TrpgReplySuggestion[]; error?: string } | null;
-      if (!res.ok || !data?.suggestions?.length) {
+      const data = (await response.json().catch(() => null)) as {
+        suggestions?: TrpgReplySuggestion[];
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        throw new Error(data?.error || TRPG_REPLY_SUGGESTION_USER_ERROR);
+      }
+      if (!data?.suggestions?.length) {
         throw new Error(data?.error || "행동 예시를 만들지 못했습니다.");
       }
       setSuggestions(data.suggestions);
       saveTrpgActionSuggestionsCache(snap.id, snap.round.number, data.suggestions);
       clearTrpgActionSuggestionAttempt(snap.id);
     } catch (e) {
-      saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "failed");
+      if (shouldPersistTrpgActionSuggestionAttemptFailed(response)) {
+        saveTrpgActionSuggestionAttempt(snap.id, snap.round.number, "failed");
+      }
       const message = normalizeTrpgReplySuggestionClientError(e);
       setSuggestionsError(message);
       setError(message);
-      // Keep this round marked as requested. Poll refreshes replace `snap.myDraft`
-      // every 1.5s; clearing the marker here would turn one failure into an
-      // endless auto-retry/flicker loop. Toggling examples off resets it below.
+      // Definitive server failures persist "failed" so reload won't auto-retry.
+      // Ambiguous transport failures keep "pending" for durable DB / inflight recovery.
+      // Never clear autoRequestedRoundRef on failure — that would cause an endless auto-retry/flicker loop.
     } finally {
       suggestionsBusyRef.current = false;
       setSuggestionsBusy(false);

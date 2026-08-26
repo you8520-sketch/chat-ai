@@ -38,6 +38,15 @@ export function normalizeTrpgReplySuggestionClientError(error: unknown): string 
   return TRPG_REPLY_SUGGESTION_USER_ERROR;
 }
 
+/**
+ * Persist the auto-attempt "failed" marker only when the server returned a definitive
+ * non-2xx response. Ambiguous client transport failures keep "pending" so reload can
+ * recover via durable DB / inflight join (#645).
+ */
+export function shouldPersistTrpgActionSuggestionAttemptFailed(response: Response | null): boolean {
+  return response != null && !response.ok;
+}
+
 export const TRPG_INPUT_ORIGINS = ["manual", "reply_suggestion"] as const;
 export type TrpgInputOrigin = (typeof TRPG_INPUT_ORIGINS)[number];
 
