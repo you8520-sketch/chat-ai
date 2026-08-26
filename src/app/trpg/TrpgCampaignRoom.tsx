@@ -136,6 +136,7 @@ import {
   resolveTrpgLiveFollowOwner,
   resolveEffectiveGmRevealComplete,
   resolveEffectiveActorRevealComplete,
+  mergeActorRevealReport,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
   type ActorRevealReport,
@@ -928,7 +929,7 @@ export default function TrpgCampaignRoom({
     setGmRevealReport(report);
   }, []);
   const handleActiveActorRevealChange = useCallback((report: ActorRevealReport) => {
-    setActorRevealReport(report);
+    setActorRevealReport((prev) => mergeActorRevealReport(prev, report));
   }, []);
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({

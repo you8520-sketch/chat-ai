@@ -9,6 +9,7 @@ import {
 } from "./roundPresentation";
 import {
   resolveEffectiveActorRevealComplete,
+  mergeActorRevealReport,
   type ActorRevealReport,
 } from "./followLatest";
 
@@ -124,5 +125,123 @@ describe("TRPG actor reveal session ownership", () => {
       }),
       false
     );
+  });
+});
+
+describe("TRPG actor reveal report update loop (#185)", () => {
+  const semanticReport: ActorRevealReport = {
+    roundNumber: ROUND,
+    participantId: AI1,
+    complete: false,
+    progressive: true,
+  };
+
+  it("mergeActorRevealReport preserves reference for semantically identical reports", () => {
+    const prev = { ...semanticReport };
+    const next = { ...semanticReport };
+    assert.notEqual(prev, next);
+    assert.equal(mergeActorRevealReport(prev, next), prev);
+  });
+
+  it("mergeActorRevealReport accepts genuine reveal progress updates", () => {
+    const prev: ActorRevealReport = { ...semanticReport, complete: false, progressive: true };
+    const next: ActorRevealReport = { ...semanticReport, complete: true, progressive: false };
+    assert.equal(mergeActorRevealReport(prev, next), next);
+    assert.equal(
+      resolveEffectiveActorRevealComplete({
+        roundNumber: ROUND,
+        activeParticipantId: AI1,
+        report: next,
+      }),
+      true
+    );
+  });
+
+  it("simulates layout-effect loop: identical semantic reports do not cascade parent updates", () => {
+    let report: ActorRevealReport = {
+      roundNumber: null,
+      participantId: null,
+      complete: false,
+      progressive: false,
+    };
+    let parentUpdates = 0;
+
+    const applyParentRevealReport = (next: ActorRevealReport) => {
+      const merged = mergeActorRevealReport(report, next);
+      if (merged !== report) {
+        report = merged;
+        parentUpdates += 1;
+      }
+    };
+
+    const runChildLayoutEffect = (onRevealChange: (report: ActorRevealReport) => void) => {
+      onRevealChange({
+        roundNumber: ROUND,
+        participantId: AI1,
+        complete: false,
+        progressive: true,
+      });
+    };
+
+    // Parent render 1: inline callback identity A
+    runChildLayoutEffect((childReport) =>
+      applyParentRevealReport({
+        roundNumber: childReport.roundNumber ?? ROUND,
+        participantId: childReport.participantId ?? AI1,
+        complete: childReport.complete,
+        progressive: childReport.progressive,
+      })
+    );
+    assert.equal(parentUpdates, 1);
+
+    // Parent render 2: new inline callback identity, same semantic reveal state
+    runChildLayoutEffect((childReport) =>
+      applyParentRevealReport({
+        roundNumber: childReport.roundNumber ?? ROUND,
+        participantId: childReport.participantId ?? AI1,
+        complete: childReport.complete,
+        progressive: childReport.progressive,
+      })
+    );
+    assert.equal(parentUpdates, 1, "IDENTICAL_ACTOR_REVEAL_REPORT_DOES_NOT_TRIGGER_PARENT_STATE_UPDATE");
+
+    // Genuine completion still advances ownership
+    runChildLayoutEffect(() =>
+      applyParentRevealReport({
+        roundNumber: ROUND,
+        participantId: AI1,
+        complete: true,
+        progressive: false,
+      })
+    );
+    assert.equal(parentUpdates, 2);
+    assert.equal(report.complete, true);
+    assert.equal(
+      resolveEffectiveActorRevealComplete({
+        roundNumber: ROUND,
+        activeParticipantId: AI1,
+        report,
+      }),
+      true
+    );
+  });
+
+  it("documents naive setState would re-render on every layout effect callback identity", () => {
+    let naiveUpdates = 0;
+    let report: ActorRevealReport = { ...semanticReport };
+    const naiveSet = (next: ActorRevealReport) => {
+      report = next;
+      naiveUpdates += 1;
+    };
+    for (let i = 0; i < 8; i++) {
+      naiveSet({ ...semanticReport });
+    }
+    assert.equal(naiveUpdates, 8, "unfixed owner accepts duplicate semantic updates");
+  });
+
+  it("room owner uses mergeActorRevealReport in handleActiveActorRevealChange", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /mergeActorRevealReport/);
+    assert.match(room, /setActorRevealReport\(\(prev\) => mergeActorRevealReport\(prev, report\)\)/);
   });
 });

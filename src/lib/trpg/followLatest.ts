@@ -161,6 +161,27 @@ export type ActorRevealReport = {
   progressive?: boolean;
 };
 
+export function actorRevealReportsEqual(
+  a: ActorRevealReport | null | undefined,
+  b: ActorRevealReport | null | undefined
+): boolean {
+  if (a == null || b == null) return a === b;
+  return (
+    a.roundNumber === b.roundNumber &&
+    a.participantId === b.participantId &&
+    a.complete === b.complete &&
+    a.progressive === b.progressive
+  );
+}
+
+/** Preserve report reference when semantic fields are unchanged. */
+export function mergeActorRevealReport(
+  prev: ActorRevealReport,
+  next: ActorRevealReport
+): ActorRevealReport {
+  return actorRevealReportsEqual(prev, next) ? prev : next;
+}
+
 /** Session-scoped GM reveal completion keyed to the reporting row. */
 export function resolveEffectiveGmRevealComplete(opts: {
   freshGmRound: number | null;
