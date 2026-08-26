@@ -183,6 +183,77 @@ export function applyTrpgDiceOverlaySession(
   }
 }
 
+/** Which roll session owns the current overlay play lifecycle state. */
+export function trpgDiceOverlayPlayOwnerSessionKey(
+  action: TrpgDiceOverlaySessionAction,
+  incomingSessionKey: string
+): string {
+  switch (action) {
+    case "start":
+    case "keep":
+      return incomingSessionKey;
+    case "clear":
+      return "";
+    default: {
+      const _never: never = action;
+      return _never;
+    }
+  }
+}
+
+export type TrpgDiceOverlayPlaybackReport = {
+  sessionKey: string;
+  visible: boolean;
+  settled: boolean;
+  dismissed: boolean;
+};
+
+/**
+ * Authoritative overlay playback report for the parent actor-dice owner.
+ * Play dismissed/settled/visible apply only when play state belongs to incomingSessionKey.
+ */
+export function trpgDiceOverlayPlaybackReport(opts: {
+  incomingSessionKey: string;
+  playOwnerSessionKey: string;
+  play: TrpgDiceOverlayPlay;
+  settled: boolean;
+  rollCount: number;
+}): TrpgDiceOverlayPlaybackReport {
+  const aligned =
+    opts.incomingSessionKey !== "" &&
+    opts.playOwnerSessionKey !== "" &&
+    opts.incomingSessionKey === opts.playOwnerSessionKey;
+
+  if (!aligned) {
+    return {
+      sessionKey: opts.incomingSessionKey,
+      visible: false,
+      settled: false,
+      dismissed: false,
+    };
+  }
+
+  return {
+    sessionKey: opts.incomingSessionKey,
+    visible: trpgDiceOverlayVisible(opts.play.started, opts.play.dismissed, opts.rollCount),
+    settled: opts.settled,
+    dismissed: opts.play.dismissed,
+  };
+}
+
+/** Parent actor-dice owner: advance only after authoritative dismissal of the active roll key. */
+export function shouldAdvanceActorDiceAfterOverlayDismiss(opts: {
+  phase: string;
+  mode: string;
+  overlayDismissed: boolean;
+  overlaySessionKey: string;
+  activeRollSessionKey: string;
+}): boolean {
+  if (opts.mode !== "cinematic" || opts.phase !== "actor-dice") return false;
+  if (!opts.activeRollSessionKey) return false;
+  return opts.overlayDismissed && opts.overlaySessionKey === opts.activeRollSessionKey;
+}
+
 export function trpgDiceOverlayActive(_phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
   return rolls.length > 0;
 }

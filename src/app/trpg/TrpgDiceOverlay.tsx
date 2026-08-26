@@ -7,6 +7,8 @@ import {
   orderTrpgDiceRolls,
   shouldConsumeMountRollSession,
   trpgDiceOverlayAfterSettle,
+  trpgDiceOverlayPlaybackReport,
+  trpgDiceOverlayPlayOwnerSessionKey,
   trpgDiceOverlaySessionAction,
   trpgDiceOverlayVisible,
   trpgDiceRollSessionKey,
@@ -123,6 +125,7 @@ export default function TrpgDiceOverlay({
   const [resultPhase, setResultPhase] = useState<ResultPhase>("rolling");
   const [decision, setDecision] = useState<DiceRendererDecision | null>(null);
   const prevKeyRef = useRef("");
+  const playOwnerSessionKeyRef = useRef("");
   const consumedKeysRef = useRef(new Set<string>());
   const firstObservationRef = useRef(true);
   const rendererLoggedRef = useRef(false);
@@ -157,14 +160,21 @@ export default function TrpgDiceOverlay({
   }, []);
 
   useEffect(() => {
-    onPlaybackStateChange?.({
-      visible,
+    const report = trpgDiceOverlayPlaybackReport({
+      incomingSessionKey: sessionKey,
+      playOwnerSessionKey: playOwnerSessionKeyRef.current,
+      play,
       settled,
-      dismissed: play.dismissed,
-      roundNumber,
-      sessionKey,
+      rollCount: ordered.length,
     });
-  }, [onPlaybackStateChange, play.dismissed, roundNumber, sessionKey, settled, visible]);
+    onPlaybackStateChange?.({
+      visible: report.visible,
+      settled: report.settled,
+      dismissed: report.dismissed,
+      roundNumber,
+      sessionKey: report.sessionKey,
+    });
+  }, [onPlaybackStateChange, play, ordered.length, roundNumber, sessionKey, settled]);
 
   useEffect(() => {
     const isFirstObservation = firstObservationRef.current;
@@ -202,6 +212,7 @@ export default function TrpgDiceOverlay({
       });
     }
     prevKeyRef.current = sessionKey;
+    playOwnerSessionKeyRef.current = trpgDiceOverlayPlayOwnerSessionKey(action, sessionKey);
     setPlay((current) => {
       const next = applyTrpgDiceOverlaySession(current, action);
       if (action === "start" || action === "clear") {
