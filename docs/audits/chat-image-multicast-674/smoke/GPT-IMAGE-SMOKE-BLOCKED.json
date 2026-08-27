@@ -1,0 +1,6 @@
+{
+  "reason": "OPENAI_API_KEY is not configured in this environment",
+  "gptImageRealCalls": 0,
+  "promptsGenerated": true,
+  "refsGenerated": true
+}

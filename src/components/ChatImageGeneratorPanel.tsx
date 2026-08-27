@@ -21,6 +21,13 @@ import ChatSceneBuilder, {
   type ScenePanelCountMode,
 } from "@/components/ChatSceneBuilder";
 import {
+  draftCastIntentFromMentions,
+  mergeCastIntentDraft,
+  suggestAssetForSupportingName,
+  type ChatImageCastIntentManifest,
+  type SelectableCastAsset,
+} from "@/lib/chatImageCast";
+import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
   CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
@@ -357,6 +364,7 @@ export default function ChatImageGeneratorPanel({
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const [scenePlanLoading, setScenePlanLoading] = useState(false);
   const scenePlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
+  const [castIntent, setCastIntent] = useState<ChatImageCastIntentManifest | null>(null);
   const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
   );
@@ -534,6 +542,45 @@ export default function ChatImageGeneratorPanel({
 
   const sceneIsIllustration =
     ldProduct === "scene" && (trpgCampaignMode || sceneOutputMode === "illustration");
+  const selectableCastAssets = useMemo((): readonly SelectableCastAsset[] => {
+    return (info?.characterImages ?? []).map((image) => ({
+      url: image.url,
+      tag: image.tag,
+    }));
+  }, [info?.characterImages]);
+  const reservedCastReferenceUrls = useMemo((): readonly string[] => {
+    const urls = [
+      info?.persona?.imageUrl,
+      selectedCharacterImageUrl || info?.character.imageUrl,
+    ]
+      .map((url) => String(url ?? "").trim())
+      .filter(Boolean);
+    return urls;
+  }, [info?.persona?.imageUrl, info?.character.imageUrl, selectedCharacterImageUrl]);
+
+  useEffect(() => {
+    if (!scenePlan || trpgCampaignMode || !info) return;
+    const draft = draftCastIntentFromMentions({
+      personaName: info.persona?.name ?? "persona",
+      mainCharacterName: info.character.name,
+      castMentions: scenePlan.castMentions,
+    });
+    setCastIntent((current) => {
+      const merged = mergeCastIntentDraft(current, draft);
+      return {
+        ...merged,
+        subjects: merged.subjects.map((subject) => {
+          if (subject.role !== "supporting_character" || subject.requestedReferenceAssetUrl) {
+            return subject;
+          }
+          const suggested = suggestAssetForSupportingName(subject.name, selectableCastAssets);
+          return suggested
+            ? { ...subject, requestedReferenceAssetUrl: suggested }
+            : subject;
+        }),
+      };
+    });
+  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets]);
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
@@ -1100,6 +1147,8 @@ export default function ChatImageGeneratorPanel({
               : undefined
             : comicInput || undefined,
           scenePlan: !campaignId ? scenePlan ?? undefined : undefined,
+          castIntent:
+            !campaignId && castIntent ? castIntent : undefined,
           panelCount:
             !isIllustration && scenePlan
               ? scenePanelCountMode === "ai"
@@ -1904,6 +1953,9 @@ export default function ChatImageGeneratorPanel({
                             sourceLoading={summarizing}
                             plan={scenePlan}
                             planLoading={scenePlanLoading}
+                            castManifest={castIntent}
+                            selectableAssets={selectableCastAssets}
+                            reservedReferenceUrls={reservedCastReferenceUrls}
                             outputMode={sceneOutputMode}
                             panelCountMode={scenePanelCountMode}
                             disabled={generating}
@@ -1914,6 +1966,7 @@ export default function ChatImageGeneratorPanel({
                               setScenePlan(reflowScenePlanPanels(scenePlan, mode));
                             }}
                             onPlanChange={setScenePlan}
+                            onCastChange={setCastIntent}
                             onRebuildPlan={() => {
                               void loadScenePlan({
                                 messageId: sourceMessageId,
