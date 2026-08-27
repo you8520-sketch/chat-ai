@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { buildChatComicGenerationPlan } from "./chatComicGeneration";
 import { buildCoupleStampGenerationPlan } from "./chatCoupleStampGeneration";
 import { buildEmoticonGenerationPlan } from "./chatEmoticonGeneration";
 import { buildGiftBoxGenerationPlan } from "./chatImageGeneration";
 import { buildLdDuoGenerationPlan } from "./chatLdIllustrationGeneration";
+import { buildDeterministicScenePlan, buildSceneSourceMessages } from "./chatImageScenePlan";
 import { personaImageBaseUrl, sanitizePersonaImageUrl } from "./userPersonasClient";
 import {
   SYNTHETIC_CHARACTER_A_APPEARANCE,
@@ -591,6 +593,14 @@ describe("chat image visual identity", () => {
     assert.equal(
       resolveChatImageAppearanceControlProduct({
         surface: "ld",
+        ldProduct: "scene",
+        isTrpgParty: false,
+      }),
+      "ld_duo"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
         ldProduct: "persona",
       }),
       "persona"
@@ -850,6 +860,16 @@ describe("chat image visual identity", () => {
       buildLdDuoGenerationPlan({
         ...duoOpts,
         currentTurn: "They stand in the hallway.",
+      }),
+      buildChatComicGenerationPlan({
+        ...duoOpts,
+        plan: buildDeterministicScenePlan(
+          buildSceneSourceMessages([
+            { id: 1, role: "user", content: "*손을 잡는다*" },
+            { id: 2, role: "assistant", content: "태형이 고개를 돌렸다." },
+          ]),
+          3
+        ),
       }),
     ];
 

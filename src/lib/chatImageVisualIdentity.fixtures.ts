@@ -9,7 +9,12 @@ import {
   renderChatImageVisualIdentity,
   type ChatImageVisualSubject,
 } from "@/lib/chatImageVisualIdentity";
+import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildChatLdIllustrationPrompt } from "@/lib/chatLdIllustrationGeneration";
+import {
+  buildDeterministicScenePlan,
+  buildSceneSourceMessages,
+} from "@/lib/chatImageScenePlan";
 
 export const SYNTHETIC_CHARACTER_A_APPEARANCE = [
   "black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5",
@@ -32,6 +37,39 @@ export const SYNTHETIC_PERSONA_APPEARANCE = [
 
 export const EXACT_USER_PERSONA_APPEARANCE =
   "짧은 검은머리 검은눈동자 붉은 동공 흰셔츠 위에 가죽재질 전투 하네스 검은바지 가르마 없음 full bangs";
+
+/** Persona eye contract used by Scene Builder / comic identity regression. */
+export const EXACT_USER_PERSONA_APPEARANCE_WITH_PUPIL_SHAPE =
+  `${EXACT_USER_PERSONA_APPEARANCE} 세로 슬릿 동공`;
+
+export const SCENE_BUILDER_SHARED_DUO = {
+  characterName: "CharacterA",
+  characterGender: "male" as const,
+  personaName: "UserPersona",
+  personaGender: "female" as const,
+  characterImageUrl: "/synthetic/character-a-primary.webp",
+  characterSavedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+  characterAppearanceMode: "image_plus_saved" as const,
+  personaImageUrl: "/synthetic/user-persona-primary.webp",
+  personaSavedAppearance: EXACT_USER_PERSONA_APPEARANCE_WITH_PUPIL_SHAPE,
+  personaAppearanceMode: "image_plus_saved" as const,
+};
+
+const SHARED_SCENE_SOURCE = buildSceneSourceMessages([
+  { id: 1, role: "user", content: '*후드 귀를 만진다*\n"같이 갈래?"' },
+  {
+    id: 2,
+    role: "assistant",
+    content: '렌이 후드를 만지자 태형이 고개를 돌렸다. "그래."',
+  },
+]);
+
+export function syntheticComicPlan(panelCount: 2 | 3 | 4 = 3) {
+  return buildChatComicGenerationPlan({
+    ...SCENE_BUILDER_SHARED_DUO,
+    plan: buildDeterministicScenePlan(SHARED_SCENE_SOURCE, panelCount),
+  });
+}
 
 export const SYNTHETIC_PRIVATE_CHARACTER_PROMPT = [
   "[성격] 비밀을 절대 말하지 않는다.",

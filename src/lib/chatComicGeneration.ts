@@ -1,32 +1,37 @@
 import { type ImagePromptGender } from "@/lib/chatImageGeneration";
 import {
   buildChatImagePairGenderLock,
-  genderWordForImagePrompt,
 } from "@/lib/chatImageGender";
+import {
+  collectApprovedComicText,
+  formatApprovedScenePlanForComic,
+  type ScenePanelCount,
+  type ScenePlan,
+} from "@/lib/chatImageScenePlan";
+import {
+  bindChatImageReferencePack,
+  buildChatDuoVisualSubjects,
+  renderChatImageVisualIdentity,
+  type ChatImageAppearanceMode,
+  type ChatImageVisualSubject,
+} from "@/lib/chatImageVisualIdentity";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
-export const CHAT_COMIC_TEMPLATE_NAME = "2~3컷 가로 만화";
+export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-vertical-sample-hq.webp";
 
-export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
 /** Soft guardrail for pasted prose — selected-turn summaries are not truncated. */
 export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
-/** Kept for older four-panel artifacts; auto planner now only emits 2~3 panels. */
+/** Promoted four-panel page size for the canonical 2|3|4 panel count. */
 export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
 export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
-
-/** Hard floor: speech bubbles + rectangular caption boxes across the page. */
-export const CHAT_COMIC_MIN_TEXT_BOXES = 4;
-/** Soft target when the source has enough quoted lines. */
-export const CHAT_COMIC_TARGET_DIALOGUE = 3;
-/** Soft target when the source has enough unquoted narration / inner thought. */
-export const CHAT_COMIC_TARGET_CAPTIONS = 2;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
   { id: 2, label: "2컷" },
   { id: 3, label: "3컷" },
+  { id: 4, label: "4컷" },
 ] as const;
 
 export const CHAT_COMIC_MOODS = [
@@ -52,32 +57,13 @@ export const CHAT_COMIC_MOODS = [
   },
 ] as const;
 
-export type ChatComicPanelCount = (typeof CHAT_COMIC_PANEL_OPTIONS)[number]["id"];
+export type ChatComicPanelCount = ScenePanelCount;
 export type ChatComicMood = (typeof CHAT_COMIC_MOODS)[number]["id"];
-export type ChatComicSpeaker = "character" | "persona" | "narration";
 
-export type ChatComicDialogue = {
-  speaker: ChatComicSpeaker;
-  text: string;
-};
-
-export type ChatComicPanel = {
-  panel: number;
-  scene: string;
-  characterExpression: string;
-  personaExpression: string;
-  dialogue: ChatComicDialogue[];
-  caption?: string;
-};
-
-export type ChatComicPlan = {
-  title: string;
-  panelCount: ChatComicPanelCount;
-  panels: ChatComicPanel[];
-};
-
-export function resolveChatComicOutputSize(_panelCount: ChatComicPanelCount) {
-  return CHAT_COMIC_IMAGE_OUTPUT_SIZE;
+export function resolveChatComicOutputSize(panelCount: ChatComicPanelCount) {
+  return panelCount === 4
+    ? CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE
+    : CHAT_COMIC_IMAGE_OUTPUT_SIZE;
 }
 
 function toMood(raw: unknown): ChatComicMood {
@@ -89,12 +75,9 @@ function toMood(raw: unknown): ChatComicMood {
 
 export function sanitizeChatComicOptions(raw: {
   mood?: unknown;
-  sourceText?: unknown;
 }) {
-  const sourceText = String(raw.sourceText ?? "").trim();
   return {
     mood: toMood(raw.mood),
-    sourceText,
   };
 }
 
@@ -107,324 +90,38 @@ export function resolveChatComicPrice(
   return CHAT_COMIC_GENERATION_DEFAULT_POINTS;
 }
 
-export function resolveChatComicPlannerModel(
-  env: NodeJS.ProcessEnv = process.env
-): string {
-  return env.OPENAI_COMIC_PLANNER_MODEL?.trim() || CHAT_COMIC_DEFAULT_PLANNER_MODEL;
-}
-
-export function buildChatComicPlannerPrompt(opts: {
+function defaultComicSubjects(opts: {
   characterName: string;
   characterGender: ImagePromptGender;
   personaName: string;
   personaGender: ImagePromptGender;
-  mood: ChatComicMood;
-  sourceText: string;
-}): string {
-  return [
-    "You are a Korean comic storyboard editor.",
-    "Choose the smallest natural panel count from 2 or 3, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
-    "Use 2 panels for a tight setup/payoff. Use 3 panels when a transition or reaction beat is needed. Never stretch a short scene to fill extra panels.",
-    `The chat character is ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}); the user persona is ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
-    "Never change either person's gender. Long pink/soft hair, cute expressions, blush, or romantic mood must not feminize a male subject or masculinize a female subject.",
-    "Infer who is speaking from the prose and preserve their identities throughout.",
-    "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
-    "The SOURCE PROSE contains at least one quoted dialogue line, and the finished comic MUST use at least one of those quoted lines as a speech bubble. Never return a plan where every panel has an empty dialogue array.",
-    "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array for that panel and communicate the reaction visually.",
-    "Narration is also closed-book extraction. A caption may contain only one short verbatim contiguous excerpt from the unquoted descriptive prose in SOURCE PROSE (including lines prefixed with 지문:, *action*, or parenthetical inner thoughts). Never paraphrase or invent narration.",
-    "TEXT QUOTA (mandatory): Across the whole page, speech bubbles + rectangular caption boxes MUST total at least 4. Prefer at least 3 speech bubbles AND at least 2 caption boxes when the source has that much material.",
-    "When quoted dialogue is scarce, fill the remaining quota with verbatim narration / inner-thought rectangular caption boxes so silent panels still carry readable comic text. Do not leave a page with only one or two speech bubbles and empty captions if unquoted prose exists.",
-    "Use at most two speech bubbles and at most one rectangular narration box per panel. Never create labels or sound-effect text.",
-    "Each panel needs a clear action, camera framing, and natural facial expressions. The final panel should land the emotional payoff or comedic punchline.",
-    `Mood: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
-    "Return JSON only, without markdown fences, using this exact schema:",
-    JSON.stringify({
-      title: "short Korean title",
-      panelCount: 3,
-      panels: [
-        {
-          panel: 1,
-          scene: "visual action and framing",
-          characterExpression: "expression and body language",
-          personaExpression: "expression and body language",
-          dialogue: [
-            { speaker: "character", text: "Korean bubble text" },
-            { speaker: "persona", text: "Korean bubble text" },
-          ],
-          caption: "verbatim narration or inner thought",
-        },
-      ],
+  subjects?: readonly ChatImageVisualSubject[];
+  characterImageUrl?: string;
+  characterSavedAppearance?: string;
+  characterAppearanceMode?: ChatImageAppearanceMode;
+  personaImageUrl?: string;
+  personaSavedAppearance?: string;
+  personaAppearanceMode?: ChatImageAppearanceMode;
+}): ChatImageVisualSubject[] {
+  if (opts.subjects?.length) return [...opts.subjects];
+  return bindChatImageReferencePack({
+    template: {
+      url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl || "/character-ref",
+      characterSavedAppearance: opts.characterSavedAppearance ?? "",
+      characterAppearanceMode: opts.characterAppearanceMode ?? "image_only",
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl || "/persona-ref",
+      personaSavedAppearance: opts.personaSavedAppearance ?? "",
+      personaAppearanceMode: opts.personaAppearanceMode ?? "image_only",
     }),
-    "SOURCE PROSE:",
-    opts.sourceText,
-  ].join("\n\n");
-}
-
-function cleanText(raw: unknown, max: number): string {
-  return String(raw ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-}
-
-export function extractQuotedComicDialogue(sourceText: string): string[] {
-  const quoted: string[] = [];
-  const pattern = /“([^”]+)”|"([^"]+)"|‘([^’]+)’|'([^']+)'/g;
-  for (const match of sourceText.matchAll(pattern)) {
-    const text = cleanText(match[1] ?? match[2] ?? match[3] ?? match[4], 400);
-    if (text && !quoted.includes(text)) quoted.push(text);
-  }
-  return quoted;
-}
-
-function isVerbatimQuotedExcerpt(text: string, quotedDialogue: string[]): boolean {
-  return quotedDialogue.some((quote) => quote.includes(text));
-}
-
-export function extractUnquotedComicNarration(sourceText: string): string[] {
-  const segments: string[] = [];
-  const quotedPattern = /“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'/g;
-  let cursor = 0;
-  for (const match of sourceText.matchAll(quotedPattern)) {
-    const index = match.index ?? cursor;
-    const segment = cleanText(sourceText.slice(cursor, index), 1_200);
-    if (segment) segments.push(segment);
-    cursor = index + match[0].length;
-  }
-  const tail = cleanText(sourceText.slice(cursor), 1_200);
-  if (tail) segments.push(tail);
-  return segments;
-}
-
-function isVerbatimNarrationExcerpt(text: string, unquotedNarration: string[]): boolean {
-  return text.length >= 2 && unquotedNarration.some((segment) => segment.includes(text));
-}
-
-/** Short verbatim caption candidates: 지문 / *action* / (속마음) / descriptive sentences. */
-export function extractComicCaptionCandidates(sourceText: string): string[] {
-  const out: string[] = [];
-  const push = (raw: string) => {
-    const text = cleanText(raw, 100);
-    if (text.length < 4) return;
-    if (out.includes(text)) return;
-    if (/^(유저|캐릭터)\s*:/.test(text)) return;
-    if (/라고\s*(말했|했|외치|물었|대답|속삭)/.test(text)) return;
-    out.push(text);
-  };
-
-  for (const match of sourceText.matchAll(/지문\s*:\s*([^\n]{4,120})/g)) {
-    push(match[1] ?? "");
-  }
-  for (const match of sourceText.matchAll(/\*([^*]{4,100})\*/g)) {
-    push(match[1] ?? "");
-  }
-  for (const match of sourceText.matchAll(/[（(]([^）)]{4,100})[）)]/g)) {
-    push(match[1] ?? "");
-  }
-
-  const stripped = sourceText
-    .replace(/“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'/g, " ")
-    .replace(/\*[^*]+\*/g, " ")
-    .replace(/[（(][^）)]+[）)]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  for (const segment of stripped.split(/(?<=[.!?。…])\s+|\n+/)) {
-    let text = cleanText(segment, 100);
-    text = cleanText(text.replace(/^(유저|캐릭터|지문)\s*:/, ""), 100);
-    if (text.length < 8 || text.length > 100) continue;
-    if (/라고\s*(말했|했|외치|물었|대답|속삭)/.test(text)) continue;
-    if (/^[가-힣a-zA-Z]{1,6}은\s/.test(text) && text.length < 20) continue;
-    push(text);
-    if (out.length >= 6) break;
-  }
-  return out.slice(0, 6);
-}
-
-export function countComicTextBoxes(panels: ChatComicPanel[]): number {
-  return panels.reduce(
-    (sum, panel) => sum + panel.dialogue.length + (panel.caption ? 1 : 0),
-    0
-  );
-}
-
-function guessComicSpeaker(sourceText: string, quote: string): ChatComicSpeaker {
-  const idx = sourceText.indexOf(quote);
-  if (idx < 0) return "character";
-  const lastUser = sourceText.lastIndexOf("유저:", idx);
-  const lastCharacter = sourceText.lastIndexOf("캐릭터:", idx);
-  return lastUser > lastCharacter ? "persona" : "character";
-}
-
-function backfillComicPlanText(
-  panels: ChatComicPanel[],
-  sourceText: string,
-  quotedDialogue: string[],
-  unquotedNarration: string[]
-): ChatComicPanel[] {
-  const next = panels.map((panel) => ({
-    ...panel,
-    dialogue: [...panel.dialogue],
-  }));
-
-  const usedDialogue = () =>
-    new Set(next.flatMap((panel) => panel.dialogue.map((line) => line.text)));
-  const dialogueCount = () =>
-    next.reduce((sum, panel) => sum + panel.dialogue.length, 0);
-  const captionCount = () => next.filter((panel) => panel.caption).length;
-
-  // Prefer spreading unused quotes toward the soft dialogue target.
-  for (const quote of quotedDialogue) {
-    if (dialogueCount() >= CHAT_COMIC_TARGET_DIALOGUE) break;
-    const used = usedDialogue();
-    if ([...used].some((text) => quote.includes(text) || text.includes(quote))) {
-      continue;
-    }
-    const excerpt = cleanText(quote, 40);
-    if (!excerpt || !isVerbatimQuotedExcerpt(excerpt, quotedDialogue)) continue;
-    const panel =
-      next.find((item) => item.dialogue.length === 0) ??
-      next.find((item) => item.dialogue.length < 2);
-    if (!panel) break;
-    panel.dialogue.push({
-      speaker: guessComicSpeaker(sourceText, quote),
-      text: excerpt,
-    });
-  }
-
-  const candidates = extractComicCaptionCandidates(sourceText).filter((text) =>
-    isVerbatimNarrationExcerpt(text, unquotedNarration)
-  );
-  const usedCaptions = () =>
-    new Set(next.flatMap((panel) => (panel.caption ? [panel.caption] : [])));
-  const usedAnyText = () =>
-    new Set([
-      ...next.flatMap((panel) => panel.dialogue.map((line) => line.text)),
-      ...usedCaptions(),
-    ]);
-
-  const assignCaption = (text: string): boolean => {
-    if (usedAnyText().has(text)) return false;
-    const panel =
-      next.find((item) => !item.caption && item.dialogue.length === 0) ??
-      next.find((item) => !item.caption);
-    if (!panel) return false;
-    panel.caption = text;
-    return true;
-  };
-
-  // Soft target: at least two caption boxes when narration exists.
-  for (const text of candidates) {
-    if (captionCount() >= CHAT_COMIC_TARGET_CAPTIONS) break;
-    assignCaption(text);
-  }
-
-  // Hard floor: speech + caption boxes >= 4 when source material allows.
-  for (const text of candidates) {
-    if (countComicTextBoxes(next) >= CHAT_COMIC_MIN_TEXT_BOXES) break;
-    assignCaption(text);
-  }
-
-  // If still short and unused quotes remain, keep filling dialogue slots.
-  for (const quote of quotedDialogue) {
-    if (countComicTextBoxes(next) >= CHAT_COMIC_MIN_TEXT_BOXES) break;
-    const used = usedDialogue();
-    if ([...used].some((text) => quote.includes(text) || text.includes(quote))) {
-      continue;
-    }
-    const excerpt = cleanText(quote, 40);
-    if (!excerpt || !isVerbatimQuotedExcerpt(excerpt, quotedDialogue)) continue;
-    const panel =
-      next.find((item) => item.dialogue.length === 0) ??
-      next.find((item) => item.dialogue.length < 2);
-    if (!panel) break;
-    panel.dialogue.push({
-      speaker: guessComicSpeaker(sourceText, quote),
-      text: excerpt,
-    });
-  }
-
-  return next;
-}
-
-export function resolveAutoComicPanelCount(raw: unknown): ChatComicPanelCount {
-  if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
-  const source = raw as { panelCount?: unknown; panels?: unknown };
-  if (!Array.isArray(source.panels)) throw new Error("컷 구성 목록이 없습니다.");
-  const count = source.panels.length;
-  if (count !== 2 && count !== 3) {
-    throw new Error("AI가 선택한 컷 수가 2~3컷 범위를 벗어났습니다.");
-  }
-  const declared = Number(source.panelCount);
-  if (Number.isFinite(declared) && declared !== count) {
-    throw new Error("AI가 선택한 컷 수와 구성 결과가 일치하지 않습니다.");
-  }
-  return count;
-}
-
-export function sanitizeChatComicPlan(
-  raw: unknown,
-  sourceText: string
-): ChatComicPlan {
-  if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
-  const source = raw as { title?: unknown; panels?: unknown };
-  const panelCount = resolveAutoComicPanelCount(raw);
-  if (!Array.isArray(source.panels) || source.panels.length !== panelCount) {
-    throw new Error("요청한 컷 수와 구성 결과가 일치하지 않습니다.");
-  }
-  const quotedDialogue = extractQuotedComicDialogue(sourceText);
-  const unquotedNarration = extractUnquotedComicNarration(sourceText);
-  if (!quotedDialogue.length) {
-    throw new Error("컷만화에는 최소 1개의 대사가 필요합니다. 중요 대사를 입력해 주세요.");
-  }
-
-  const panels = source.panels.map((entry, index): ChatComicPanel => {
-    if (!entry || typeof entry !== "object") {
-      throw new Error("컷 구성 일부가 비어 있습니다.");
-    }
-    const panel = entry as Record<string, unknown>;
-    const rawDialogue = Array.isArray(panel.dialogue) ? panel.dialogue : [];
-    const dialogue = rawDialogue.slice(0, 2).flatMap((item): ChatComicDialogue[] => {
-      if (!item || typeof item !== "object") return [];
-      const row = item as Record<string, unknown>;
-      const speakerRaw = String(row.speaker ?? "");
-      const speaker: ChatComicSpeaker =
-        speakerRaw === "character" || speakerRaw === "persona"
-          ? speakerRaw
-          : "persona";
-      const text = cleanText(row.text, 40);
-      return text && isVerbatimQuotedExcerpt(text, quotedDialogue)
-        ? [{ speaker, text }]
-        : [];
-    });
-    const caption = cleanText(panel.caption, 100);
-    return {
-      panel: index + 1,
-      scene: cleanText(panel.scene, 220) || `Panel ${index + 1}`,
-      characterExpression: cleanText(panel.characterExpression, 100) || "natural expression",
-      personaExpression: cleanText(panel.personaExpression, 100) || "natural expression",
-      dialogue,
-      caption:
-        caption && isVerbatimNarrationExcerpt(caption, unquotedNarration)
-          ? caption
-          : undefined,
-    };
-  });
-
-  const filled = backfillComicPlanText(
-    panels,
-    sourceText,
-    quotedDialogue,
-    unquotedNarration
-  );
-
-  if (!filled.some((panel) => panel.dialogue.length > 0)) {
-    throw new Error(
-      "컷만화 대사가 비어 있습니다. 중요 대사를 최소 1개 넣어 주세요."
-    );
-  }
-
-  return {
-    title: cleanText(source.title, 40) || "우리 둘의 한 장면",
-    panelCount,
-    panels: filled,
-  };
+  }).subjects;
 }
 
 export function buildChatComicImagePrompt(opts: {
@@ -432,72 +129,95 @@ export function buildChatComicImagePrompt(opts: {
   characterGender: ImagePromptGender;
   personaName: string;
   personaGender: ImagePromptGender;
-  mood: ChatComicMood;
-  sourceText: string;
-  plan: ChatComicPlan;
+  mood?: ChatComicMood;
+  plan: ScenePlan;
+  subjects?: readonly ChatImageVisualSubject[];
+  characterImageUrl?: string;
+  characterSavedAppearance?: string;
+  characterAppearanceMode?: ChatImageAppearanceMode;
+  personaImageUrl?: string;
+  personaSavedAppearance?: string;
+  personaAppearanceMode?: ChatImageAppearanceMode;
 }): string {
-  const approvedText = Array.from(
-    new Set(
-      opts.plan.panels.flatMap((panel) => [
-        ...panel.dialogue.map((line) => line.text),
-        ...(panel.caption ? [panel.caption] : []),
-      ])
-    )
-  );
-  const panels = opts.plan.panels
-    .map((panel) => {
-      const dialogue = panel.dialogue.length
-        ? panel.dialogue
-            .map((line) => {
-              const speaker =
-                line.speaker === "character"
-                  ? opts.characterName
-                  : line.speaker === "persona"
-                    ? opts.personaName
-                    : "Narration";
-              return `${speaker}: “${line.text}”`;
-            })
-            .join(" | ")
-        : "No speech bubble";
-      return [
-        `PANEL ${panel.panel}`,
-        `Scene: ${panel.scene}`,
-        `${opts.characterName} expression: ${panel.characterExpression}`,
-        `${opts.personaName} expression: ${panel.personaExpression}`,
-        `Exact Korean text: ${dialogue}`,
-        panel.caption
-          ? `Exact rectangular narration box: “${panel.caption}”`
-          : "No narration box",
-        "No label or sound-effect text",
-      ].join("\n");
-    })
-    .join("\n\n");
-
+  const approvedText = collectApprovedComicText(opts.plan);
+  const subjects = defaultComicSubjects(opts);
   return [
-    `Create one polished Korean manhwa-style page with exactly ${opts.plan.panelCount} wide horizontal panels stacked vertically.`,
+    `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
-    `Reference image 2 is the identity reference for the chat character ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}).`,
-    `Reference image 3 is the identity reference for the user persona ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
+    renderChatImageVisualIdentity({
+      subjects,
+      hasTemplate: true,
+    }),
     buildChatImagePairGenderLock({
       characterName: opts.characterName,
       characterGender: opts.characterGender,
       personaName: opts.personaName,
       personaGender: opts.personaGender,
     }),
-    "Identity separation is critical. Preserve each person's hair color, eye color, hairstyle, facial details, accessories, body build, and signature outfit impression. Never swap or blend them.",
-    `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
+    `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
     "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
     approvedText.length
       ? approvedText.map((text) => `- “${text}”`).join("\n")
       : "- NO TEXT IS ALLOWED",
-    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Only the approved narration explicitly assigned to a panel may appear in a rectangular caption box. Do not create a speech bubble or narration box for a panel marked No speech bubble or No narration box.",
-    "Use proper speech bubbles with tails pointing to the correct speaker. Render approved narration only in a tail-less rectangular narration box. Keep all approved text large, centered, uncropped, and easy to read.",
+    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.",
+    "Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.",
     "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
-    `Story title for internal guidance: ${opts.plan.title}`,
-    panels,
-    "Original prose context is for visual acting only. Do not turn any other prose into visible text:",
-    opts.sourceText,
+    "APPROVED SCENE PLAN",
+    formatApprovedScenePlanForComic(opts.plan),
   ].join("\n\n");
+}
+
+export function buildChatComicGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  mood?: ChatComicMood;
+  plan: ScenePlan;
+}) {
+  const pack = bindChatImageReferencePack({
+    template: {
+      url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatComicImagePrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      mood: opts.mood,
+      plan: opts.plan,
+      subjects: pack.subjects,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  };
 }

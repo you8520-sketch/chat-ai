@@ -12,6 +12,15 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  reflowScenePlanPanels,
+  type ScenePlan,
+  type SceneSourceMessage,
+} from "@/lib/chatImageScenePlan";
+import ChatSceneBuilder, {
+  type SceneOutputMode,
+  type ScenePanelCountMode,
+} from "@/components/ChatSceneBuilder";
+import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
   CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
@@ -62,7 +71,7 @@ let characterIdOverride: number | null = null;
 type Tab = "sd" | "comic";
 type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration" | "persona";
 type SdProduct = "gift" | "emoticon" | "coupleStamp";
-type LdProduct = "comic" | "illustration" | "persona";
+type LdProduct = "scene" | "persona";
 
 const SD_PRODUCTS: readonly SdProduct[] = ["gift", "emoticon", "coupleStamp"];
 
@@ -340,7 +349,14 @@ export default function ChatImageGeneratorPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
-  const [ldProduct, setLdProduct] = useState<LdProduct>("illustration");
+  const [ldProduct, setLdProduct] = useState<LdProduct>("scene");
+  const [sceneOutputMode, setSceneOutputMode] = useState<SceneOutputMode>("illustration");
+  const [scenePanelCountMode, setScenePanelCountMode] =
+    useState<ScenePanelCountMode>("ai");
+  const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
+  const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
+  const [scenePlanLoading, setScenePlanLoading] = useState(false);
+  const scenePlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
   const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
   );
@@ -442,7 +458,8 @@ export default function ChatImageGeneratorPanel({
         setSourceMessageId(messageId);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
-        setLdProduct("illustration");
+        setLdProduct("scene");
+        setSceneOutputMode("illustration");
         setComicText("");
         setComicSummary("");
         setComicLoadedMaxChars(0);
@@ -451,7 +468,8 @@ export default function ChatImageGeneratorPanel({
         setSourceMessageId(null);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
-        setLdProduct("illustration");
+        setLdProduct("scene");
+        setSceneOutputMode("illustration");
         setComicText("");
         setComicSummary(preview.slice(0, CHAT_COMIC_MAX_INPUT_CHARS));
         setComicLoadedMaxChars(Math.min(preview.length, CHAT_COMIC_MAX_INPUT_CHARS));
@@ -465,7 +483,8 @@ export default function ChatImageGeneratorPanel({
   useEffect(() => {
     if (!trpgCampaignMode) return;
     setTab("comic");
-    setLdProduct("illustration");
+    setLdProduct("scene");
+    setSceneOutputMode("illustration");
   }, [trpgCampaignMode]);
 
   useEffect(() => {
@@ -513,11 +532,13 @@ export default function ChatImageGeneratorPanel({
     };
   }, [open, campaignId]);
 
+  const sceneIsIllustration =
+    ldProduct === "scene" && (trpgCampaignMode || sceneOutputMode === "illustration");
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
         ? personaResultUrl
-        : ldProduct === "illustration"
+        : sceneIsIllustration
           ? illustrationResultUrl
           : comicResultUrl
       : sdProduct === "emoticon"
@@ -529,7 +550,7 @@ export default function ChatImageGeneratorPanel({
     tab === "comic"
       ? ldProduct === "persona"
         ? "persona"
-        : ldProduct === "illustration"
+        : sceneIsIllustration
           ? "illustration"
           : "comic"
       : sdProduct === "emoticon"
@@ -936,6 +957,53 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
+  function sceneCacheKey(messageId: number | null, summary: string) {
+    const ids = currentRouteIds();
+    return `${ids.chatId ?? "none"}:${messageId ?? "none"}:${summary}`;
+  }
+
+  async function loadScenePlan(opts: {
+    messageId: number | null;
+    summary: string;
+    messages?: SceneSourceMessage[];
+    force?: boolean;
+  }) {
+    if (trpgCampaignMode) return;
+    const key = sceneCacheKey(opts.messageId, opts.summary);
+    const cached = scenePlanCacheRef.current.get(key);
+    if (cached && !opts.force) {
+      setScenePlan(cached);
+      return;
+    }
+    setScenePlanLoading(true);
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/comic-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...ids,
+          mode: "scene_plan",
+          messageId: opts.messageId ?? undefined,
+          sourceText: opts.messageId ? undefined : opts.summary,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { ok?: boolean; plan?: ScenePlan; error?: string }
+        | null;
+      if (!response.ok || !data?.plan) {
+        throw new Error(data?.error || "장면을 구성하지 못했습니다.");
+      }
+      scenePlanCacheRef.current.set(key, data.plan);
+      setScenePlan(data.plan);
+      setScenePanelCountMode("ai");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "장면을 구성하지 못했습니다.");
+    } finally {
+      setScenePlanLoading(false);
+    }
+  }
+
   async function loadSelectedTurnContent(messageId: number) {
     if (summarizing) return;
     setSummarizing(true);
@@ -953,13 +1021,24 @@ export default function ChatImageGeneratorPanel({
         }),
       });
       const data = (await response.json().catch(() => null)) as
-        | { ok?: boolean; summary?: string; error?: string }
+        | {
+            ok?: boolean;
+            summary?: string;
+            messages?: SceneSourceMessage[];
+            error?: string;
+          }
         | null;
       if (!response.ok || !data?.summary) {
         throw new Error(data?.error || "턴 내용을 불러오지 못했습니다.");
       }
       setComicSummary(data.summary);
       setComicLoadedMaxChars(data.summary.length);
+      setSceneMessages(Array.isArray(data.messages) ? data.messages : []);
+      void loadScenePlan({
+        messageId,
+        summary: data.summary,
+        messages: data.messages,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
@@ -969,7 +1048,7 @@ export default function ChatImageGeneratorPanel({
 
   async function generateComic() {
     if (!info?.ready || generating) return;
-    const isIllustration = ldProduct === "illustration";
+    const isIllustration = sceneIsIllustration;
     if (campaignId && !isIllustration) return;
     const sourceText = comicText.trim();
     const summaryText = comicSummary.trim();
@@ -993,8 +1072,8 @@ export default function ChatImageGeneratorPanel({
       );
       return;
     }
-    if (!isIllustration && !/["“”]/.test(comicInput)) {
-      setError("컷만화에는 최소 1개의 대사가 필요합니다. 대사를 넣어 주세요.");
+    if (!isIllustration && !trpgCampaignMode && !scenePlan) {
+      setError("장면 구성을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
 
@@ -1014,12 +1093,19 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: isIllustration ? "illustration" : "comic",
-          messageId: isIllustration ? sourceMessageId ?? undefined : undefined,
+          messageId: sourceMessageId ?? undefined,
           sourceText: isIllustration
             ? campaignId
               ? comicSummary.trim() || sourceTurnPreview || undefined
               : undefined
             : comicInput || undefined,
+          scenePlan: !campaignId ? scenePlan ?? undefined : undefined,
+          panelCount:
+            !isIllustration && scenePlan
+              ? scenePanelCountMode === "ai"
+                ? scenePlan.recommendedPanelCount
+                : scenePanelCountMode
+              : undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
           roundNumber:
             isIllustration && campaignId && campaignRoundNumber != null
@@ -1063,7 +1149,7 @@ export default function ChatImageGeneratorPanel({
           ? campaignId
             ? `선택 턴 일러스트를 만들어 「${campaignTitle || "TRPG"}」 캠페인 앨범에 추가했습니다.`
             : "선택 턴의 핵심 장면으로 2:3 LD 일러스트를 만들어 캐릭터 앨범에 추가했습니다."
-          : "선택 턴의 중요 대사(원문)와 배경을 추출해 컷만화를 만들고 앨범에 추가했습니다."
+          : "승인된 장면 구성으로 컷만화를 만들고 앨범에 추가했습니다."
       );
       void loadInfo();
     } catch (caught) {
@@ -1199,12 +1285,11 @@ export default function ChatImageGeneratorPanel({
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
                     {tab === "comic" && !trpgCampaignMode ? (
-                      <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
+                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
                         {(
                           [
-                            ["illustration", "선택 턴 일러스트"],
+                            ["scene", "장면 만들기"],
                             ["persona", "페르소나"],
-                            ["comic", "자동 컷만화"],
                           ] as const
                         ).map(([id, label]) => (
                           <button
@@ -1236,7 +1321,7 @@ export default function ChatImageGeneratorPanel({
                         src={
                           activeResultUrl ||
                           (tab === "comic"
-                            ? ldProduct === "illustration" || ldProduct === "persona"
+                            ? ldProduct === "scene" || ldProduct === "persona"
                               ? selectedCharacterInfo?.imageUrl || CHAT_COMIC_TEMPLATE_PREVIEW_URL
                               : CHAT_COMIC_TEMPLATE_PREVIEW_URL
                             : sdProduct === "emoticon"
@@ -1250,7 +1335,7 @@ export default function ChatImageGeneratorPanel({
                             ? tab === "comic"
                               ? ldProduct === "persona"
                                 ? "생성된 페르소나 이미지"
-                                : ldProduct === "illustration"
+                                : sceneIsIllustration
                                 ? "생성된 선택 턴 LD 일러스트"
                                 : "생성된 컷만화"
                               : sdProduct === "emoticon"
@@ -1261,9 +1346,9 @@ export default function ChatImageGeneratorPanel({
                             : tab === "comic"
                               ? ldProduct === "persona"
                                 ? "캐릭터 그림체 참조 이미지"
-                                : ldProduct === "illustration"
+                                : sceneIsIllustration
                                 ? "선택 턴 LD 일러스트 참조 이미지"
-                                : "2~3컷 만화 예시"
+                                : "2~4컷 만화 예시"
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
                                 : sdProduct === "coupleStamp"
@@ -1274,7 +1359,7 @@ export default function ChatImageGeneratorPanel({
                           tab === "comic"
                             ? ldProduct === "persona"
                               ? "aspect-[3/5] h-auto max-w-full"
-                              : ldProduct === "illustration"
+                              : sceneIsIllustration
                                 ? "aspect-[2/3] h-auto max-w-full"
                               : "h-auto max-w-full"
                             : sdProduct === "emoticon" || sdProduct === "coupleStamp"
@@ -1319,11 +1404,11 @@ export default function ChatImageGeneratorPanel({
                         : tab === "comic"
                           ? ldProduct === "persona"
                             ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
-                            : ldProduct === "illustration"
+                            : ldProduct === "scene"
                             ? campaignId
                               ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요. 포인트는 1:1 일러스트와 같습니다.`
-                              : "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
-                            : "본문만 붙여넣으면 핵심 대사·말풍선·지문과 2~3컷 구성을 자동으로 만듭니다."
+                              : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."
+                            : "같은 장면 구성으로 한 장 일러스트 또는 컷만화를 만듭니다."
                           : sdProduct === "emoticon"
                             ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
                             : sdProduct === "coupleStamp"
@@ -1792,120 +1877,52 @@ export default function ChatImageGeneratorPanel({
                             </p>
                           </div>
                         ) : null}
-                        {ldProduct === "comic" ? (
+                        {ldProduct === "scene" && campaignId ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            <p>컷만화로 만들고 싶은 내용만 남기고 생성 버튼을 눌러 주세요.</p>
-                          </div>
-                        ) : ldProduct === "illustration" ? (
-                          <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            {campaignId ? (
-                              <p>
-                                <strong className="text-violet-200">
-                                  「{campaignTitle || "TRPG"}」 캠페인 앨범
-                                </strong>
-                                {" · "}
-                                {partyNames.length
-                                  ? `${partyNames.join(", ")}이(가) 한 장면에 함께 나옵니다.`
-                                  : "유저 포함 파티 전원(최대 4명)이 한 장면에 함께 나옵니다."}
-                                {" "}멤버마다 참조 이미지를 고를 수 있고, 포인트는 1:1 선택 턴 일러스트와 같습니다.
-                                {" "}
-                                <Link
-                                  href={`/albums?campaignId=${campaignId}`}
-                                  className="font-semibold text-violet-200 underline decoration-violet-400/40 underline-offset-2 hover:text-white"
-                                >
-                                  캠페인 앨범 보기
-                                </Link>
-                              </p>
-                            ) : sourceMessageId ? (
-                              <p>
-                                <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                {" · "}현재 채팅의 선택 턴을 기준으로 장면을 잡습니다.
-                              </p>
-                            ) : (
-                              <p>
-                                채팅 메시지 아래 이미지 버튼을 누르면 그 턴 기준으로 장면이 잡힙니다.
-                                {" "}버튼 없이 생성하면 가장 최근 턴을 사용합니다.
-                              </p>
-                            )}
+                            <p>
+                              <strong className="text-violet-200">
+                                「{campaignTitle || "TRPG"}」 캠페인 앨범
+                              </strong>
+                              {" · "}
+                              {partyNames.length
+                                ? `${partyNames.join(", ")}이(가) 한 장면에 함께 나옵니다.`
+                                : "유저 포함 파티 전원(최대 4명)이 한 장면에 함께 나옵니다."}
+                              {" "}멤버마다 참조 이미지를 고를 수 있고, 포인트는 1:1 선택 턴 일러스트와 같습니다.
+                              {" "}
+                              <Link
+                                href={`/albums?campaignId=${campaignId}`}
+                                className="font-semibold text-violet-200 underline decoration-violet-400/40 underline-offset-2 hover:text-white"
+                              >
+                                캠페인 앨범 보기
+                              </Link>
+                            </p>
                           </div>
                         ) : null}
-                        {ldProduct === "comic" ? (
-                          <>
-                            {sourceMessageId ? (
-                              <div className="space-y-2">
-                                {summarizing ? (
-                                  <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-                                    선택 턴 내용을 불러오는 중…
-                                  </p>
-                                ) : null}
-                                {comicSummary || comicLoadedMaxChars > 0 ? (
-                                  <label className="block space-y-1">
-                                    <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                                      <span>
-                                        컷만화로 만들 내용
-                                        {comicLoadedMaxChars > 0
-                                          ? ` (불러온 턴 ${comicLoadedMaxChars.toLocaleString()}자까지)`
-                                          : ""}
-                                      </span>
-                                      <span
-                                        className={
-                                          comicLoadedMaxChars > 0 &&
-                                          comicSummary.length > comicLoadedMaxChars
-                                            ? "text-amber-300"
-                                            : "text-zinc-500"
-                                        }
-                                      >
-                                        {comicSummary.length.toLocaleString()}
-                                        {comicLoadedMaxChars > 0
-                                          ? `/${comicLoadedMaxChars.toLocaleString()}자`
-                                          : "자"}
-                                      </span>
-                                    </span>
-                                    <textarea
-                                      value={comicSummary}
-                                      onChange={(event) => {
-                                        const next = event.target.value;
-                                        setComicSummary(
-                                          comicLoadedMaxChars > 0 &&
-                                            next.length > comicLoadedMaxChars
-                                            ? next.slice(0, comicLoadedMaxChars)
-                                            : next
-                                        );
-                                      }}
-                                      disabled={generating}
-                                      maxLength={
-                                        comicLoadedMaxChars > 0
-                                          ? comicLoadedMaxChars
-                                          : undefined
-                                      }
-                                      rows={8}
-                                      className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
-                                    />
-                                    <p className="text-[10px] text-zinc-500">
-                                      필요 없는 문장은 지운 뒤 생성해 주세요. 대사가 하나도 없으면 생성할 수 없습니다.
-                                    </p>
-                                  </label>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <label className="block space-y-1">
-                                <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                                  <span>만화로 만들 내용</span>
-                                  <span className="text-zinc-500">
-                                    {comicText.length.toLocaleString()}자
-                                  </span>
-                                </span>
-                                <textarea
-                                  value={comicText}
-                                  onChange={(event) => setComicText(event.target.value)}
-                                  disabled={generating}
-                                  rows={9}
-                                  placeholder="장면이나 RP 본문을 붙여넣으세요. 중요 대사는 원문 그대로 살리고 말풍선·표정·컷을 자동 구성합니다."
-                                  className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
-                                />
-                              </label>
-                            )}
-                          </>
+                        {ldProduct === "scene" && !campaignId ? (
+                          <ChatSceneBuilder
+                            sourcePreview={comicSummary || sourceTurnPreview}
+                            sourceLoading={summarizing}
+                            plan={scenePlan}
+                            planLoading={scenePlanLoading}
+                            outputMode={sceneOutputMode}
+                            panelCountMode={scenePanelCountMode}
+                            disabled={generating}
+                            onOutputModeChange={setSceneOutputMode}
+                            onPanelCountModeChange={(mode) => {
+                              setScenePanelCountMode(mode);
+                              if (!scenePlan || mode === "ai") return;
+                              setScenePlan(reflowScenePlanPanels(scenePlan, mode));
+                            }}
+                            onPlanChange={setScenePlan}
+                            onRebuildPlan={() => {
+                              void loadScenePlan({
+                                messageId: sourceMessageId,
+                                summary: comicSummary || sourceTurnPreview,
+                                messages: sceneMessages,
+                                force: true,
+                              });
+                            }}
+                          />
                         ) : null}
                         <PriceBox
                           balance={info?.balance}
@@ -1916,7 +1933,7 @@ export default function ChatImageGeneratorPanel({
                                     label: "페르소나 LD 이미지",
                                     cost: info.averageCosts.persona,
                                   }]
-                                : ldProduct === "illustration"
+                                : sceneIsIllustration
                                 ? [{
                                     label: "선택 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
@@ -1936,8 +1953,9 @@ export default function ChatImageGeneratorPanel({
                             generating ||
                             loadingInfo ||
                             (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
-                            (ldProduct === "comic" &&
-                              (sourceMessageId ? !comicSummary.trim() : !comicText.trim())) ||
+                            (ldProduct === "scene" &&
+                              !campaignId &&
+                              (!scenePlan || scenePlanLoading)) ||
                             (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
@@ -1946,17 +1964,17 @@ export default function ChatImageGeneratorPanel({
                           {generating
                             ? ldProduct === "persona"
                               ? "페르소나 이미지 생성 중…"
-                              : ldProduct === "illustration"
-                                ? "선택 턴 장면 추출·일러스트 생성 중…"
-                                : "중요 대사 추출·컷 구성 중…"
+                              : sceneIsIllustration
+                                ? "장면 일러스트 생성 중…"
+                                : "컷만화 생성 중…"
                             : activeResultUrl
                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
                               : `${
                                   ldProduct === "persona"
                                     ? "페르소나 이미지 생성"
-                                    : ldProduct === "illustration"
-                                    ? "선택 턴 일러스트 생성"
-                                    : "자동 컷만화 생성"
+                                    : sceneIsIllustration
+                                    ? "한 장 일러스트 생성"
+                                    : "컷만화 생성"
                                 } · ${activePrice.toLocaleString()}P`}
                         </button>
                       </>

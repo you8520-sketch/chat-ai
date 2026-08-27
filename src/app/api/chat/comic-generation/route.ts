@@ -13,16 +13,10 @@ import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_ID,
-  CHAT_COMIC_TEMPLATE_NAME,
-  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
-  buildChatComicImagePrompt,
-  buildChatComicPlannerPrompt,
-  resolveChatComicPlannerModel,
+  buildChatComicGenerationPlan,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
-  sanitizeChatComicPlan,
   type ChatComicPanelCount,
-  type ChatComicPlan,
 } from "@/lib/chatComicGeneration";
 import {
   CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
@@ -51,9 +45,18 @@ import {
   loadTrpgIllustrationScene,
 } from "@/lib/trpg/illustrationCast";
 import {
-  formatUserTurnForComicSource,
-  stripChatTurnMarkup,
-} from "@/lib/chatImageSceneBrief";
+  buildDeterministicScenePlan,
+  buildSceneSourceMessages,
+  formatApprovedScenePlanForIllustration,
+  formatSceneSourcePreview,
+  isScenePanelCount,
+  reflowScenePlanPanels,
+  validateScenePlan,
+  type ScenePlan,
+  type SceneSourceMessage,
+} from "@/lib/chatImageScenePlan";
+import { planChatImageScene } from "@/lib/chatImageScenePlanner";
+import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
   resolveChatImageGenerationModel,
   type ImagePromptGender,
@@ -90,7 +93,6 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 
 type CharacterRow = {
@@ -283,27 +285,8 @@ function resolveGenerationContext(opts: {
   };
 }
 
-function formatTurnRows(
-  rows: Array<{ role: "user" | "assistant"; content: string }>
-): string {
-  const cleaned = rows
-    .map((row) => {
-      const content = stripChatTurnMarkup(row.content);
-      if (!content) return "";
-      if (row.role === "user") {
-        // Dialogue only — omit *지문*/(지문). No spoken line ⇒ drop the user row.
-        const body = formatUserTurnForComicSource(content);
-        if (!body) return "";
-        return `유저: ${body}`;
-      }
-      return `캐릭터: ${content}`;
-    })
-    .filter(Boolean);
-  return cleaned.join("\n");
-}
-
 /** Selected assistant message (+ immediately preceding user line when present). */
-function chatTurnByMessageId(chatId: number, messageId: number): string {
+function chatSourceByMessageId(chatId: number, messageId: number): SceneSourceMessage[] {
   const assistant = getDb()
     .prepare(
       `SELECT id, role, content
@@ -319,68 +302,99 @@ function chatTurnByMessageId(chatId: number, messageId: number): string {
   }
   const previous = getDb()
     .prepare(
-      `SELECT role, content
+      `SELECT id, role, content
        FROM messages
        WHERE chat_id=? AND id<? AND role IN ('user', 'assistant')
        ORDER BY id DESC
        LIMIT 1`
     )
     .get(chatId, assistant.id) as
-    | { role: "user" | "assistant"; content: string }
+    | { id: number; role: "user" | "assistant"; content: string }
     | undefined;
-  const rows: Array<{ role: "user" | "assistant"; content: string }> = [];
+  const rows: Array<{ id: number; role: "user" | "assistant"; content: string }> = [];
   if (previous?.role === "user") rows.push(previous);
   rows.push(assistant);
-  const formatted = formatTurnRows(rows);
-  if (!formatted) throw new RequestError("선택한 턴에 그림으로 만들 내용이 없습니다.");
-  return formatted;
+  const messages = buildSceneSourceMessages(rows);
+  if (!messages.length) throw new RequestError("선택한 턴에 그림으로 만들 내용이 없습니다.");
+  return messages;
 }
 
-function latestChatTurn(chatId: number | null): string {
+function latestChatSource(chatId: number | null): SceneSourceMessage[] {
   if (!chatId) throw new RequestError("선택 턴 일러스트는 채팅방에서 만들 수 있습니다.");
   const rows = getDb()
     .prepare(
-      `SELECT role, content
+      `SELECT id, role, content
        FROM messages
        WHERE chat_id=? AND role IN ('user', 'assistant')
        ORDER BY id DESC
        LIMIT 2`
     )
-    .all(chatId) as Array<{ role: "user" | "assistant"; content: string }>;
-  const formatted = formatTurnRows(rows.reverse());
-  if (!formatted) throw new RequestError("그림으로 만들 대화가 없습니다.");
-  return formatted;
+    .all(chatId) as Array<{ id: number; role: "user" | "assistant"; content: string }>;
+  const messages = buildSceneSourceMessages(rows.reverse());
+  if (!messages.length) throw new RequestError("그림으로 만들 대화가 없습니다.");
+  return messages;
 }
 
-function resolveSourceTurn(opts: {
+function resolveSceneSource(opts: {
   chatId: number | null;
   messageId: number | null;
   sourceText?: string;
   requireChat?: boolean;
-}): { turnText: string; messageId: number | null; fromManualText: boolean } {
+}): {
+  messages: SceneSourceMessage[];
+  turnText: string;
+  messageId: number | null;
+  fromManualText: boolean;
+} {
   const manual = String(opts.sourceText ?? "").trim();
   if (opts.messageId && opts.chatId) {
+    const messages = chatSourceByMessageId(opts.chatId, opts.messageId);
     return {
-      turnText: chatTurnByMessageId(opts.chatId, opts.messageId),
+      messages,
+      turnText: formatSceneSourcePreview(messages),
       messageId: opts.messageId,
       fromManualText: false,
     };
   }
   if (manual) {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: stripChatTurnMarkup(manual) },
+    ]);
     return {
-      turnText: stripChatTurnMarkup(manual),
+      messages,
+      turnText: formatSceneSourcePreview(messages),
       messageId: null,
       fromManualText: true,
     };
   }
   if (opts.requireChat !== false) {
+    const messages = latestChatSource(opts.chatId);
     return {
-      turnText: latestChatTurn(opts.chatId),
+      messages,
+      turnText: formatSceneSourcePreview(messages),
       messageId: null,
       fromManualText: false,
     };
   }
-  throw new RequestError("만화로 만들 내용을 입력해 주세요.");
+  throw new RequestError("장면으로 만들 내용을 입력해 주세요.");
+}
+
+function resolveApprovedScenePlan(opts: {
+  bodyPlan: unknown;
+  messages: SceneSourceMessage[];
+  panelCount?: unknown;
+}): ScenePlan {
+  const requestedCount = isScenePanelCount(opts.panelCount) ? opts.panelCount : undefined;
+  const validated = validateScenePlan(opts.bodyPlan, opts.messages, {
+    allowUserEdits: true,
+  });
+  if (validated.ok) {
+    return requestedCount
+      ? reflowScenePlanPanels(validated.plan, requestedCount)
+      : validated.plan;
+  }
+  const fallback = buildDeterministicScenePlan(opts.messages, requestedCount);
+  return fallback;
 }
 
 function safePublicFilePath(url: string): string | null {
@@ -447,125 +461,6 @@ async function imageSourceToDataUrl(source: string): Promise<string> {
     return `data:image/webp;base64,${optimized.toString("base64")}`;
   } catch {
     throw new RequestError("참조 이미지를 처리하지 못했습니다.");
-  }
-}
-
-function openAiHeaders(): Record<string, string> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new RequestError("OpenAI API 키가 설정되지 않았습니다.", 503);
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-}
-
-function upstreamMessage(data: unknown, fallback: string): string {
-  if (!data || typeof data !== "object") return fallback;
-  const error = (data as { error?: unknown }).error;
-  if (typeof error === "string" && error.trim()) return error.slice(0, 240);
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.slice(0, 240);
-  }
-  return fallback;
-}
-
-function stripJsonFence(raw: string): string {
-  return raw
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
-}
-
-function plannerCostUsd(
-  model: string,
-  usage: { prompt_tokens?: unknown; completion_tokens?: unknown } | null | undefined
-): number | null {
-  if (model !== "gpt-4o-mini" || !usage) return null;
-  const promptTokens = Number(usage.prompt_tokens);
-  const completionTokens = Number(usage.completion_tokens);
-  if (
-    !Number.isFinite(promptTokens) ||
-    promptTokens < 0 ||
-    !Number.isFinite(completionTokens) ||
-    completionTokens < 0
-  ) {
-    return null;
-  }
-  return promptTokens * 0.00000015 + completionTokens * 0.0000006;
-}
-
-async function planComic(opts: {
-  characterName: string;
-  characterGender: ImagePromptGender;
-  personaName: string;
-  personaGender: ImagePromptGender;
-  mood: "comic" | "lovely" | "daily" | "serious";
-  sourceText: string;
-}): Promise<{ plan: ChatComicPlan; costUsd: number | null; model: string }> {
-  const model = resolveChatComicPlannerModel();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60_000);
-  try {
-    const response = await fetch(OPENAI_CHAT_URL, {
-      method: "POST",
-      headers: openAiHeaders(),
-      signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 1800,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "user",
-            content: buildChatComicPlannerPrompt(opts),
-          },
-        ],
-      }),
-    });
-    const text = await response.text();
-    let data: unknown = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = null;
-    }
-    if (!response.ok) {
-      throw new RequestError(upstreamMessage(data, "컷 구성을 만들지 못했습니다."), 502);
-    }
-    const content = (data as { choices?: Array<{ message?: { content?: unknown } }> })
-      ?.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) {
-      throw new RequestError("컷 구성 응답이 비어 있습니다.", 502);
-    }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(stripJsonFence(content));
-    } catch {
-      throw new RequestError("컷 구성 응답을 해석하지 못했습니다.", 502);
-    }
-    const costUsd = plannerCostUsd(
-      model,
-      (data as {
-        usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
-      })?.usage
-    );
-    return {
-      plan: sanitizeChatComicPlan(parsed, opts.sourceText),
-      costUsd,
-      model,
-    };
-  } catch (error) {
-    if (error instanceof RequestError) throw error;
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new RequestError("컷 구성 시간이 초과되었습니다.", 504);
-    }
-    throw new RequestError("컷 구성 중 오류가 발생했습니다.", 502);
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -685,7 +580,7 @@ export async function POST(req: Request) {
     }
 
     if (body.mode === "scene_brief") {
-      const source = resolveSourceTurn({
+      const source = resolveSceneSource({
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
@@ -694,6 +589,37 @@ export async function POST(req: Request) {
         mode: "scene_brief",
         messageId: source.messageId,
         summary: source.turnText,
+        messages: source.messages,
+      });
+    }
+
+    if (body.mode === "scene_plan") {
+      const source = resolveSceneSource({
+        chatId: context.chatId,
+        messageId: positiveInt(body.messageId),
+        sourceText: String(body.sourceText ?? ""),
+        requireChat: false,
+      });
+      const planned = await planChatImageScene({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+        messages: source.messages,
+      });
+      const requestedCount = isScenePanelCount(body.panelCount)
+        ? body.panelCount
+        : planned.plan.recommendedPanelCount;
+      const plan =
+        requestedCount === planned.plan.panels.length
+          ? planned.plan
+          : reflowScenePlanPanels(planned.plan, requestedCount);
+      return NextResponse.json({
+        ok: true,
+        mode: "scene_plan",
+        messageId: source.messageId,
+        plan,
+        model: planned.model,
+        usedFallback: planned.usedFallback,
+        attempts: planned.attempts,
       });
     }
 
@@ -799,7 +725,7 @@ export async function POST(req: Request) {
         sceneLocation = scene.location;
         sceneActions = scene.actions;
       }
-      const source = resolveSourceTurn({
+      const source = resolveSceneSource({
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
         sourceText: campaignId ? String(body.sourceText ?? "") : undefined,
@@ -822,6 +748,10 @@ export async function POST(req: Request) {
           situation,
         });
       } else {
+        const scenePlan = resolveApprovedScenePlan({
+          bodyPlan: body.scenePlan,
+          messages: source.messages,
+        });
         const plan = buildLdDuoGenerationPlan({
           characterName: context.character.name,
           characterGender: context.characterGender,
@@ -834,6 +764,7 @@ export async function POST(req: Request) {
           personaSavedAppearance: context.personaSavedAppearance,
           personaAppearanceMode: appearanceModes.personaAppearanceMode,
           currentTurn: source.turnText,
+          approvedScene: formatApprovedScenePlanForIllustration(scenePlan),
         });
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
@@ -971,9 +902,9 @@ export async function POST(req: Request) {
 
     const messageId = positiveInt(body.messageId);
     const manualSourceText = String(body.sourceText ?? "").trim();
-    if (!messageId && !manualSourceText) {
+    if (!messageId && !manualSourceText && !body.scenePlan) {
       throw new RequestError(
-        "만화로 만들 턴을 선택하거나 내용을 입력해 주세요."
+        "장면으로 만들 턴을 선택하거나 내용을 입력해 주세요."
       );
     }
     if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
@@ -982,21 +913,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const source = resolveSourceTurn({
+    const source = resolveSceneSource({
       chatId: context.chatId,
       messageId,
       sourceText: messageId ? undefined : manualSourceText,
       requireChat: false,
     });
-    // Mood is inferred from the selected-turn summary; the UI no longer asks.
     const mood = "comic" as const;
+    const scenePlan = resolveApprovedScenePlan({
+      bodyPlan: body.scenePlan,
+      messages: source.messages,
+      panelCount: body.panelCount,
+    });
+    const panelCount = scenePlan.panels.length as ChatComicPanelCount;
 
     const balanceBefore = getPointBalance(user.id);
-    const pricePoints = resolveChatComicPrice(3);
+    const pricePoints = resolveChatComicPrice(panelCount);
     if (balanceBefore.total < pricePoints) {
       return NextResponse.json(
         {
-          error: `포인트가 부족합니다. 자동 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+          error: `포인트가 부족합니다. 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
           pricePoints,
           remainingPoints: balanceBefore.total,
           paidPoints: balanceBefore.paid,
@@ -1007,40 +943,37 @@ export async function POST(req: Request) {
     }
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
-    // User-edited text (or the raw selected turn) is authoritative — no
-    // DeepSeek re-extraction.
-    const comicSourceText = source.turnText;
-
-    const options = {
+    const appearanceModes = resolveRequestAppearanceModes({
+      characterImages: context.characterImages,
+      selectedCharacterImageUrl: context.characterImageUrl,
+      characterSavedAppearance: context.characterSavedAppearance,
+      personaSavedAppearance: context.personaSavedAppearance,
+      characterOverride: body.characterAppearanceMode,
+      personaOverride: body.personaAppearanceMode,
+    });
+    const identityPack = buildChatComicGenerationPlan({
+      characterName: context.character.name,
+      characterGender: context.characterGender,
+      characterImageUrl: context.characterImageUrl,
+      characterSavedAppearance: context.characterSavedAppearance,
+      characterAppearanceMode: appearanceModes.characterAppearanceMode,
+      personaName: context.persona.name,
+      personaGender: context.personaGender,
+      personaImageUrl: context.personaImageUrl,
+      personaSavedAppearance: context.personaSavedAppearance,
+      personaAppearanceMode: appearanceModes.personaAppearanceMode,
       mood,
-      sourceText: comicSourceText,
-    };
-    const planned = await planComic({
-      characterName: context.character.name,
-      characterGender: context.characterGender,
-      personaName: context.persona.name,
-      personaGender: context.personaGender,
-      ...options,
+      plan: scenePlan,
     });
-    const panelCount = planned.plan.panelCount;
-    const prompt = buildChatComicImagePrompt({
-      characterName: context.character.name,
-      characterGender: context.characterGender,
-      personaName: context.persona.name,
-      personaGender: context.personaGender,
-      plan: planned.plan,
-      ...options,
-    });
-    const [styleReference, characterReference, personaReference] = await Promise.all([
-      imageSourceToDataUrl(CHAT_COMIC_TEMPLATE_PREVIEW_URL),
-      imageSourceToDataUrl(context.characterImageUrl),
-      imageSourceToDataUrl(context.personaImageUrl),
-    ]);
+    const prompt = identityPack.prompt;
+    const references = await Promise.all(
+      identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
+    );
     const model = resolveChatImageGenerationModel();
     const generated = await generateComicImage({
       model,
       prompt,
-      references: [styleReference, characterReference, personaReference],
+      references,
       panelCount,
     });
 
@@ -1081,10 +1014,7 @@ export async function POST(req: Request) {
       throw error;
     }
 
-    const totalCostUsd =
-      generated.costUsd == null
-        ? null
-        : generated.costUsd + (planned.costUsd ?? 0);
+    const totalCostUsd = generated.costUsd == null ? null : generated.costUsd;
     ensureGenerationTable();
     let generationId: number | null = null;
     let savedToCharacterAlbum = false;
@@ -1107,13 +1037,9 @@ export async function POST(req: Request) {
           JSON.stringify({
             mode: "comic",
             panelCount,
-            mood: options.mood,
-            sourceText: options.sourceText,
+            mood,
             messageId: source.messageId,
-            title: planned.plan.title,
-            plan: planned.plan,
-            plannerModel: planned.model,
-            plannerCostUsd: planned.costUsd,
+            plan: scenePlan,
             quality: "medium",
           }),
           resultUrl,
@@ -1151,7 +1077,6 @@ export async function POST(req: Request) {
       personaId: context.persona.id,
       panelCount,
       imageModel: model,
-      plannerModel: planned.model,
       upstreamCostUsd: totalCostUsd,
       upstreamCostKrw: totalCostKrw,
       chargedPoints: deduction.total,
@@ -1164,7 +1089,7 @@ export async function POST(req: Request) {
       generationId,
       imageUrl: resultUrl,
       savedToCharacterAlbum,
-      title: planned.plan.title,
+      title: `장면 ${panelCount}컷`,
       panelCount,
       modelLabel: "GPT Image 2",
       messageId: source.messageId ?? undefined,

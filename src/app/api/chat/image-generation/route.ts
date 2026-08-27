@@ -667,6 +667,7 @@ export async function GET(req: Request) {
             comic: {
               2: averageCost(CHAT_COMIC_TEMPLATE_ID, 2),
               3: averageCost(CHAT_COMIC_TEMPLATE_ID, 3),
+              4: averageCost(CHAT_COMIC_TEMPLATE_ID, 4),
             },
           }
         : undefined,
