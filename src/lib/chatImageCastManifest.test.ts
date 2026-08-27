@@ -268,14 +268,6 @@ describe("chatImageCastManifest", () => {
           visibility: "required_visible",
           requestedReferenceAssetUrl: ASSET_B,
         },
-        {
-          key: "supporting:C",
-          role: "supporting_character",
-          name: "SupportC",
-          included: true,
-          importance: "primary",
-          visibility: "required_visible",
-        },
       ],
     };
     const normalized = normalizeCastPrimaryCap(intent);
@@ -556,14 +548,6 @@ describe("chatImageCastManifest", () => {
           requestedReferenceAssetUrl: ASSET_B,
         },
         {
-          key: "supporting:C",
-          role: "supporting_character",
-          name: "SupportC",
-          included: true,
-          importance: "secondary",
-          visibility: "preferred_visible",
-        },
-        {
           key: "persona",
           role: "persona",
           name: "UserPersona",
@@ -705,7 +689,7 @@ describe("chatImageCastManifest", () => {
       compositionGoal: "duo_focus",
       subjects: fourIntent.subjects,
     };
-    assert.equal(resolveCastCompositionGoal(fourDuoIntent), "duo_focus");
+    assert.equal(resolveCastCompositionGoal(fourDuoIntent), "ensemble_scene");
     const fourDuoGrounded = groundCastIntent(fourDuoIntent, GROUND_CTX);
     assert.equal(fourDuoGrounded.ok, true);
     if (!fourDuoGrounded.ok) throw new Error(fourDuoGrounded.reason);
@@ -715,7 +699,7 @@ describe("chatImageCastManifest", () => {
       selected: fourDuoBound.selected,
       subjects: fourDuoBound.subjects,
     });
-    assert.match(fourDuoBlock, /COMPOSITION GOAL: duo_focus/);
+    assert.match(fourDuoBlock, /COMPOSITION GOAL: ensemble_scene/);
   });
 
   it("DUPLICATE_REFERENCE_URL fails closed for cross-subject reuse", () => {

@@ -2,24 +2,19 @@
 
 import {
   CHAT_IMAGE_CAST_FOUR_PLUS_WARNING,
+  CHAT_IMAGE_CAST_MAX_SELECTED,
   applyUserCastEdits,
   castCandidateSourceLabel,
   castNeedsFourPlusWarning,
   isCastReferenceUrlTaken,
+  isCastSelectionAtMax,
   selectedCastIntentSubjects,
-  type ChatImageCastCompositionGoal,
   type ChatImageCastImportance,
   type ChatImageCastIntentManifest,
   type ChatImageCastVisibility,
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
-
-const GOALS: Array<{ id: ChatImageCastCompositionGoal; label: string }> = [
-  { id: "auto", label: "자동" },
-  { id: "duo_focus", label: "2인 중심" },
-  { id: "trio_group", label: "3인 단체샷" },
-  { id: "ensemble_scene", label: "앙상블" },
-];
+import type { ContentKind } from "@/lib/simulationMode";
 
 const IMPORTANCE: Array<{ id: ChatImageCastImportance; label: string }> = [
   { id: "primary", label: "핵심" },
@@ -37,25 +32,49 @@ type ChatImageCastPickerProps = {
   manifest: ChatImageCastIntentManifest;
   selectableAssets: readonly SelectableCastAsset[];
   reservedReferenceUrls?: readonly string[];
+  contentKind?: ContentKind;
   disabled?: boolean;
   onChange: (manifest: ChatImageCastIntentManifest) => void;
 };
+
+function roleLabel(role: string, contentKind: ContentKind): string {
+  if (role === "persona") return "내 페르소나";
+  if (role === "main_character") return "메인 캐릭터";
+  return contentKind === "simulation" ? "인물" : "조연";
+}
 
 export default function ChatImageCastPicker({
   manifest,
   selectableAssets,
   reservedReferenceUrls = [],
+  contentKind = "character",
   disabled,
   onChange,
 }: ChatImageCastPickerProps) {
   const selectedCount = selectedCastIntentSubjects(manifest).length;
+  const atMax = isCastSelectionAtMax(manifest);
+  const isSimulation = contentKind === "simulation";
+
   return (
     <section className="space-y-3">
       <div className="space-y-2">
-        <h3 className="text-[11px] font-semibold text-zinc-400">출연 인물</h3>
+        <h3 className="text-[11px] font-semibold text-zinc-400">
+          출연 인물 · {selectedCount}/{CHAT_IMAGE_CAST_MAX_SELECTED}
+        </h3>
+        {selectedCount === 0 ? (
+          <p className="text-[11px] text-amber-200">최소 1명을 선택해 주세요.</p>
+        ) : null}
+        {atMax ? (
+          <p className="text-[11px] text-zinc-500">최대 4명까지 선택할 수 있어요.</p>
+        ) : null}
         <div className="space-y-2">
           {manifest.subjects.map((subject) => {
             const selectedAsset = subject.requestedReferenceAssetUrl;
+            const canToggleIncluded =
+              subject.role === "supporting_character" ||
+              (isSimulation && subject.role === "persona");
+            const includeBlocked =
+              !subject.included && atMax && canToggleIncluded;
             return (
               <article
                 key={subject.key}
@@ -65,22 +84,21 @@ export default function ChatImageCastPicker({
                   <input
                     type="checkbox"
                     checked={subject.included}
-                    disabled={disabled || subject.role !== "supporting_character"}
+                    disabled={disabled || !canToggleIncluded || includeBlocked}
                     onChange={(event) =>
                       onChange(
-                        applyUserCastEdits(manifest, subject.key, {
-                          included: event.target.checked,
-                        })
+                        applyUserCastEdits(
+                          manifest,
+                          subject.key,
+                          { included: event.target.checked },
+                          contentKind
+                        )
                       )
                     }
                   />
                   <span className="font-semibold">{subject.name}</span>
                   <span className="text-[10px] text-zinc-500">
-                    {subject.role === "persona"
-                      ? "페르소나"
-                      : subject.role === "main_character"
-                        ? "메인 캐릭터"
-                        : "조연"}
+                    {roleLabel(subject.role, contentKind)}
                     {subject.candidateSources?.length
                       ? ` · ${castCandidateSourceLabel(subject.candidateSources)}`
                       : ""}
@@ -95,9 +113,12 @@ export default function ChatImageCastPicker({
                         disabled={disabled || subject.role !== "supporting_character"}
                         onChange={(event) =>
                           onChange(
-                            applyUserCastEdits(manifest, subject.key, {
-                              importance: event.target.value as ChatImageCastImportance,
-                            })
+                            applyUserCastEdits(
+                              manifest,
+                              subject.key,
+                              { importance: event.target.value as ChatImageCastImportance },
+                              contentKind
+                            )
                           )
                         }
                         className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-zinc-200"
@@ -116,9 +137,12 @@ export default function ChatImageCastPicker({
                         disabled={disabled || subject.role !== "supporting_character"}
                         onChange={(event) =>
                           onChange(
-                            applyUserCastEdits(manifest, subject.key, {
-                              visibility: event.target.value as ChatImageCastVisibility,
-                            })
+                            applyUserCastEdits(
+                              manifest,
+                              subject.key,
+                              { visibility: event.target.value as ChatImageCastVisibility },
+                              contentKind
+                            )
                           )
                         }
                         className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-zinc-200"
@@ -141,9 +165,12 @@ export default function ChatImageCastPicker({
                         disabled={disabled}
                         onClick={() =>
                           onChange(
-                            applyUserCastEdits(manifest, subject.key, {
-                              requestedReferenceAssetUrl: "",
-                            })
+                            applyUserCastEdits(
+                              manifest,
+                              subject.key,
+                              { requestedReferenceAssetUrl: "" },
+                              contentKind
+                            )
                           )
                         }
                         className={`rounded-lg border px-2 py-1 text-[10px] ${
@@ -162,40 +189,43 @@ export default function ChatImageCastPicker({
                           reservedReferenceUrls
                         );
                         return (
-                        <button
-                          key={asset.url}
-                          type="button"
-                          disabled={disabled || (taken && selectedAsset !== asset.url)}
-                          title={
-                            taken && selectedAsset !== asset.url
-                              ? `${asset.tag} · 다른 인물이 이미 사용 중`
-                              : asset.tag
-                          }
-                          onClick={() =>
-                            onChange(
-                              applyUserCastEdits(manifest, subject.key, {
-                                requestedReferenceAssetUrl: asset.url,
-                              })
-                            )
-                          }
-                          className={`overflow-hidden rounded-lg border ${
-                            selectedAsset === asset.url
-                              ? "border-violet-400 ring-1 ring-violet-400/40"
-                              : taken
-                                ? "border-white/5 opacity-40"
-                                : "border-white/10"
-                          }`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={asset.url}
-                            alt={asset.tag}
-                            className="h-12 w-12 object-cover"
-                          />
-                          <span className="block max-w-[72px] truncate px-1 py-0.5 text-[9px] text-zinc-400">
-                            {asset.tag}
-                          </span>
-                        </button>
+                          <button
+                            key={asset.url}
+                            type="button"
+                            disabled={disabled || (taken && selectedAsset !== asset.url)}
+                            title={
+                              taken && selectedAsset !== asset.url
+                                ? `${asset.tag} · 다른 인물이 이미 사용 중`
+                                : asset.tag
+                            }
+                            onClick={() =>
+                              onChange(
+                                applyUserCastEdits(
+                                  manifest,
+                                  subject.key,
+                                  { requestedReferenceAssetUrl: asset.url },
+                                  contentKind
+                                )
+                              )
+                            }
+                            className={`overflow-hidden rounded-lg border ${
+                              selectedAsset === asset.url
+                                ? "border-violet-400 ring-1 ring-violet-400/40"
+                                : taken
+                                  ? "border-white/5 opacity-40"
+                                  : "border-white/10"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={asset.url}
+                              alt={asset.tag}
+                              className="h-12 w-12 object-cover"
+                            />
+                            <span className="block max-w-[72px] truncate px-1 py-0.5 text-[9px] text-zinc-400">
+                              {asset.tag}
+                            </span>
+                          </button>
                         );
                       })}
                     </div>
@@ -204,37 +234,6 @@ export default function ChatImageCastPicker({
               </article>
             );
           })}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-[11px] font-semibold text-zinc-400">구도</h3>
-        <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
-          {GOALS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              disabled={
-                disabled ||
-                (item.id === "trio_group" && selectedCount !== 3)
-              }
-              title={
-                item.id === "trio_group" && selectedCount !== 3
-                  ? `출연 인물 3명일 때 사용할 수 있어요 · 현재 ${selectedCount}명`
-                  : undefined
-              }
-              onClick={() => onChange({ ...manifest, compositionGoal: item.id })}
-              className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                manifest.compositionGoal === item.id
-                  ? "bg-violet-600 text-white"
-                  : item.id === "trio_group" && selectedCount !== 3
-                    ? "cursor-not-allowed text-zinc-600"
-                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
       </div>
 

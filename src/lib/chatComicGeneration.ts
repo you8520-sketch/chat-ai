@@ -14,6 +14,7 @@ import {
   collectApprovedComicText,
   formatApprovedScenePlanForComic,
 } from "@/lib/chatImageScenePlan";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
   buildChatDuoVisualSubjects,
@@ -146,10 +147,11 @@ export function buildChatComicImagePrompt(opts: {
   personaImageUrl?: string;
   personaSavedAppearance?: string;
   personaAppearanceMode?: ChatImageAppearanceMode;
+  contentKind?: ContentKind;
 }): string {
   const approvedText = collectApprovedComicText(opts.plan);
   const subjects = defaultComicSubjects(opts);
-  const multiCast = Boolean(opts.castManifest && opts.castSelected && opts.castSelected.length > 2);
+  const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
   const castBlock =
     opts.castManifest && opts.castSelected?.length
       ? renderApprovedCastManifest({
@@ -157,6 +159,7 @@ export function buildChatComicImagePrompt(opts: {
           selected: opts.castSelected,
           subjects,
           plan: opts.plan,
+          contentKind: opts.contentKind,
         })
       : "";
   return [
@@ -168,7 +171,7 @@ export function buildChatComicImagePrompt(opts: {
       subjects,
       hasTemplate: true,
     }),
-    multiCast
+    castAware
       ? renderCastGenderLock(subjects)
       : buildChatImagePairGenderLock({
           characterName: opts.characterName,
@@ -183,8 +186,8 @@ export function buildChatComicImagePrompt(opts: {
       : "- NO TEXT IS ALLOWED",
     "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.",
     "Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.",
-    multiCast
-      ? `Exactly ${subjects.length} recurring human identities. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
+    castAware
+      ? `Exactly ${opts.castSelected!.length} recurring human ${opts.castSelected!.length === 1 ? "identity" : "identities"}. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
     "APPROVED SCENE PLAN",
@@ -208,11 +211,9 @@ export function buildChatComicGenerationPlan(opts: {
   mood?: ChatComicMood;
   plan: ScenePlan;
   castManifest?: ChatImageCastGroundedManifest | null;
+  contentKind?: ContentKind;
 }) {
-  const useCast = Boolean(
-    opts.castManifest &&
-      opts.castManifest.subjects.filter((subject) => subject.included).length > 2
-  );
+  const useCast = Boolean(opts.castManifest);
   let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
   let castSelected: readonly ChatImageCastGroundedSubject[] | undefined;
   if (useCast) {
@@ -221,6 +222,7 @@ export function buildChatComicGenerationPlan(opts: {
         url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
         role: "layout template",
       },
+      contentKind: opts.contentKind,
     });
     pack = bound;
     castSelected = bound.selected;
@@ -264,6 +266,7 @@ export function buildChatComicGenerationPlan(opts: {
       personaImageUrl: opts.personaImageUrl,
       personaSavedAppearance: opts.personaSavedAppearance,
       personaAppearanceMode: opts.personaAppearanceMode,
+      contentKind: opts.contentKind,
     }),
   };
 }

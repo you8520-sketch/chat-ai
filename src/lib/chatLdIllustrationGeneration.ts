@@ -16,6 +16,7 @@ import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   formatApprovedScenePlanForIllustration,
 } from "@/lib/chatImageScenePlan";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   bindChatImageReferencePack,
   buildChatDuoVisualSubjects,
@@ -365,18 +366,18 @@ export function buildLdSceneGenerationPlan(opts: {
   approvedScenePlan?: ScenePlan;
   approvedScene?: string;
   castManifest?: ChatImageCastGroundedManifest | null;
+  contentKind?: ContentKind;
 }) {
   const approvedScene =
     opts.approvedScene ??
     (opts.approvedScenePlan
       ? formatApprovedScenePlanForIllustration(opts.approvedScenePlan)
       : "");
-  const useCast = Boolean(
-    opts.castManifest &&
-      opts.castManifest.subjects.filter((subject) => subject.included).length > 2
-  );
+  const useCast = Boolean(opts.castManifest);
   if (useCast) {
-    const bound = bindApprovedCastManifest(opts.castManifest!);
+    const bound = bindApprovedCastManifest(opts.castManifest!, {
+      contentKind: opts.contentKind,
+    });
     const selected = bound.selected;
     const prompt = [
       "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
@@ -385,6 +386,7 @@ export function buildLdSceneGenerationPlan(opts: {
         selected,
         subjects: bound.subjects,
         plan: opts.approvedScenePlan,
+        contentKind: opts.contentKind,
       }),
       renderChatImageVisualIdentity({
         subjects: bound.subjects,
@@ -395,9 +397,11 @@ export function buildLdSceneGenerationPlan(opts: {
       "Depict the approved scene plan below as one cinematic scene.",
       "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
       "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
-      selected.length <= 3
-        ? `Show exactly these ${selected.length} people. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`
-        : "Do not add unnamed extras. Background/cameo people may be smaller, but do not invent a new identity.",
+      selected.length === 1
+        ? "Show exactly this one selected person. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks."
+        : selected.length <= 3
+          ? `Show exactly these ${selected.length} people. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`
+          : "Show exactly these four selected people. Do not add unnamed extras. Background/cameo people may be smaller, but do not invent a new identity.",
       "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
       "",
       approvedScene ? ["APPROVED SCENE PLAN", approvedScene].join("\n") : "",

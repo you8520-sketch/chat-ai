@@ -77,6 +77,7 @@ import {
   resolveChatPersonaImagePrice,
 } from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
+import { parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -122,6 +123,7 @@ type CharacterRow = {
   appearance_raw: string | null;
   appearance_compiled: string | null;
   system_prompt: string | null;
+  content_kind: string | null;
 };
 
 type PersonaRow = {
@@ -140,6 +142,7 @@ type ChatRow = {
 
 type GenerationContext = {
   chatId: number | null;
+  contentKind: ContentKind;
   character: CharacterRow;
   persona: PersonaRow | null;
   characterGender: ImagePromptGender;
@@ -232,7 +235,7 @@ function resolveGenerationContext(opts: {
 
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(content_kind, 'character') AS content_kind FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -281,6 +284,7 @@ function resolveGenerationContext(opts: {
   });
   return {
     chatId,
+    contentKind: parseContentKind(character.content_kind),
     character,
     persona: persona ?? null,
     characterGender: genders.characterGender,
@@ -494,6 +498,7 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
       hasSavedAppearance: characterAppearance.hasSavedAppearance,
       appearancePreview: characterAppearance.appearancePreview,
     },
+    contentKind: context.contentKind,
     characterImages: context.characterImages,
     persona: context.persona
       ? {

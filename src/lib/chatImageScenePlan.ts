@@ -11,6 +11,7 @@ import {
   normalizeSceneBriefWhitespace,
   stripChatTurnMarkup,
 } from "@/lib/chatImageSceneBrief";
+import type { ContentKind } from "@/lib/simulationMode";
 
 export const SCENE_PLAN_MAX_SOURCE_CHARS = 24_000;
 export const SCENE_PLAN_MAX_PROVIDER_ATTEMPTS = 2;
@@ -707,6 +708,7 @@ export type ValidateScenePlanOptions = {
   allowUserEdits?: boolean;
   personaName?: string;
   characterName?: string;
+  contentKind?: ContentKind;
 };
 
 export function validateScenePlan(
@@ -895,15 +897,21 @@ export function validateScenePlan(
 }
 
 export function buildScenePlanPrompt(opts: {
+  contentKind?: ContentKind;
   characterName: string;
   personaName: string;
   messages: readonly SceneSourceMessage[];
 }): string {
+  const contentKind = opts.contentKind ?? "character";
   const canonicalEvents = extractDeterministicEvents(opts.messages);
   const visual = visualEvents(canonicalEvents);
+  const identityLines =
+    contentKind === "simulation"
+      ? [`Simulation title (NOT A PERSON): ${opts.characterName}`]
+      : [`Chat character name: ${opts.characterName}`];
   return [
     "You group server-owned canonical events into a Scene Plan for Korean chat-roleplay illustration and comic generation.",
-    `Chat character name: ${opts.characterName}`,
+    ...identityLines,
     `User persona name: ${opts.personaName}`,
     "CANONICAL EVENTS (server-owned timeline — use these IDs only; do not add, omit, reorder, or reclassify):",
     JSON.stringify(canonicalEvents, null, 2),
