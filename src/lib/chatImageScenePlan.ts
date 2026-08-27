@@ -519,105 +519,136 @@ export function applyUserPanelEdits(
   };
 }
 
-function sourceById(
-  messages: readonly SceneSourceMessage[],
-  id: number
-): SceneSourceMessage | undefined {
-  return messages.find((message) => message.id === id);
+type ParsedSubmittedEvents =
+  | { ok: false; reason: string }
+  | { ok: true; events: SceneEvent[] };
+
+function parseSubmittedEvents(
+  eventsRaw: readonly unknown[]
+): ParsedSubmittedEvents {
+  const events: SceneEvent[] = [];
+  const seenIds = new Set<string>();
+  for (const [index, row] of eventsRaw.entries()) {
+    if (!row || typeof row !== "object") return { ok: false, reason: "event invalid" };
+    const item = row as Record<string, unknown>;
+    const id = cleanLine(item.id, 24) || nextEventId(index);
+    if (seenIds.has(id)) return { ok: false, reason: "duplicate event" };
+    seenIds.add(id);
+    const sourceMessageId = Number(item.sourceMessageId);
+    if (!Number.isFinite(sourceMessageId)) {
+      return { ok: false, reason: "sourceMessageId missing" };
+    }
+    const sourceRole = item.sourceRole === "user" || item.sourceRole === "assistant"
+      ? item.sourceRole
+      : null;
+    if (!sourceRole) return { ok: false, reason: "sourceRole mismatch" };
+    const kind = item.kind;
+    if (
+      kind !== "dialogue" &&
+      kind !== "action" &&
+      kind !== "reaction" &&
+      kind !== "environment" &&
+      kind !== "assistant_echo"
+    ) {
+      return { ok: false, reason: "event kind invalid" };
+    }
+    const actor = item.actor;
+    if (
+      actor !== "persona" &&
+      actor !== "character" &&
+      actor !== "other" &&
+      actor !== "environment"
+    ) {
+      return { ok: false, reason: "event actor invalid" };
+    }
+    const text = cleanLine(item.text, 400);
+    if (!text) return { ok: false, reason: "event text empty" };
+    const order = Number(item.order);
+    events.push({
+      id,
+      order: Number.isFinite(order) ? order : index + 1,
+      sourceMessageId,
+      sourceRole,
+      kind,
+      actor,
+      text,
+    });
+  }
+  return { ok: true, events };
 }
 
-type GroundedSceneEvent = {
-  event: SceneEvent;
-  messageOrder: number;
-  sourceStart: number;
-};
-
-function segmentMatchesEvent(
-  segment: SceneSourceSegment,
-  message: SceneSourceMessage,
-  event: SceneEvent
-): boolean {
-  if (segment.text !== event.text) return false;
-  if (event.sourceRole !== message.role) return false;
-  if (segment.kind === "dialogue") {
-    return event.kind === "dialogue" && event.actor === actorForRole(message.role);
-  }
-  if (segment.kind === "action") {
-    return message.role === "user"
-      ? event.kind === "action" && event.actor === "persona"
-      : event.kind === "reaction" && event.actor === "character";
-  }
-  if (message.role === "assistant") {
-    return (
-      (event.kind === "reaction" ||
-        event.kind === "assistant_echo" ||
-        event.kind === "environment") &&
-      (event.actor === "character" || event.actor === "environment")
-    );
-  }
-  return event.kind === "environment" && event.actor === "environment";
-}
-
-function groundSceneEvent(
-  event: SceneEvent,
-  messages: readonly SceneSourceMessage[]
-): GroundedSceneEvent | null {
-  const message = sourceById(messages, event.sourceMessageId);
-  if (!message) return null;
-  const segments = extractOrderedSceneSegments(message.text, message.role);
-  for (const segment of segments) {
-    if (!segmentMatchesEvent(segment, message, event)) continue;
-    return {
-      event,
-      messageOrder: message.order,
-      sourceStart: segment.start,
-    };
-  }
-  return null;
-}
-
-function chronologySignature(items: readonly GroundedSceneEvent[]): string {
-  return items
+function canonicalEventTimelineSignature(events: readonly SceneEvent[]): string {
+  return [...events]
+    .sort((left, right) => left.order - right.order)
     .map(
-      (item) =>
-        `${item.messageOrder}:${item.sourceStart}:${item.event.sourceMessageId}:${item.event.text}`
+      (event) =>
+        `${event.sourceMessageId}:${event.sourceRole}:${event.kind}:${event.actor}:${event.text}`
     )
     .join("\n");
 }
 
-type SourceGroundedEventsResult =
-  | { ok: false; reason: string }
-  | { ok: true; events: SceneEvent[] };
-
-function normalizeSourceGroundedEvents(
-  events: readonly SceneEvent[],
-  messages: readonly SceneSourceMessage[]
-): SourceGroundedEventsResult {
-  const bySubmittedOrder = [...events].sort((left, right) => left.order - right.order);
-  const grounded: GroundedSceneEvent[] = [];
-  for (const event of bySubmittedOrder) {
-    const meta = groundSceneEvent(event, messages);
-    if (!meta) {
-      return { ok: false, reason: "event text not source-backed" };
+function eventsMatchCanonical(
+  submitted: readonly SceneEvent[],
+  canonical: readonly SceneEvent[]
+): boolean {
+  if (submitted.length !== canonical.length) return false;
+  const orderedSubmitted = [...submitted].sort((left, right) => left.order - right.order);
+  const orderedCanonical = [...canonical].sort((left, right) => left.order - right.order);
+  for (let index = 0; index < orderedCanonical.length; index += 1) {
+    const left = orderedSubmitted[index];
+    const right = orderedCanonical[index];
+    if (!left || !right) return false;
+    if (
+      left.id !== right.id ||
+      left.sourceMessageId !== right.sourceMessageId ||
+      left.sourceRole !== right.sourceRole ||
+      left.kind !== right.kind ||
+      left.actor !== right.actor ||
+      left.text !== right.text
+    ) {
+      return false;
     }
-    grounded.push(meta);
+  }
+  return true;
+}
+
+function validatePanelVisualCoverage(
+  panels: readonly ScenePanel[],
+  canonicalEvents: readonly SceneEvent[],
+  eventsById: ReadonlyMap<string, SceneEvent>
+): ScenePlanValidation | { ok: true } {
+  const requiredVisual = visualEvents(canonicalEvents);
+  const requiredIds = new Set(requiredVisual.map((event) => event.id));
+  const usedVisual = new Set<string>();
+  let lastEventOrder = 0;
+
+  for (const panel of panels) {
+    for (const id of panel.sourceEventIds) {
+      const event = eventsById.get(id);
+      if (!event) return { ok: false, reason: "panel sourceEvent missing" };
+      if (event.kind === "assistant_echo") {
+        return { ok: false, reason: "assistant_echo used as visual beat" };
+      }
+      if (event.order < lastEventOrder) {
+        return { ok: false, reason: "panel chronology reversed" };
+      }
+      lastEventOrder = event.order;
+      if (usedVisual.has(event.id)) {
+        return { ok: false, reason: "source event duplicated across panels" };
+      }
+      usedVisual.add(event.id);
+    }
   }
 
-  const canonical = [...grounded].sort(
-    (left, right) =>
-      left.messageOrder - right.messageOrder || left.sourceStart - right.sourceStart
-  );
-  if (chronologySignature(grounded) !== chronologySignature(canonical)) {
-    return { ok: false, reason: "event chronology not source-backed" };
+  if (usedVisual.size !== requiredIds.size) {
+    return { ok: false, reason: "panel visual event omission" };
   }
-
-  return {
-    ok: true,
-    events: canonical.map((item, index) => ({
-      ...item.event,
-      order: index + 1,
-    })),
-  };
+  for (const id of requiredIds) {
+    if (!usedVisual.has(id)) {
+      return { ok: false, reason: "panel visual event omission" };
+    }
+  }
+  return { ok: true };
 }
 
 function dialogueOwnershipMatches(
@@ -652,63 +683,33 @@ export function validateScenePlan(
     return { ok: false, reason: "scene plan missing" };
   }
   const source = raw as Record<string, unknown>;
+  const canonicalEvents = extractDeterministicEvents(messages);
+  const eventsById = new Map(canonicalEvents.map((event) => [event.id, event]));
+
   const eventsRaw = Array.isArray(source.events) ? source.events : null;
-  if (!eventsRaw?.length) return { ok: false, reason: "events missing" };
-
-  const events: SceneEvent[] = [];
-  const seenIds = new Set<string>();
-  for (const [index, row] of eventsRaw.entries()) {
-    if (!row || typeof row !== "object") return { ok: false, reason: "event invalid" };
-    const item = row as Record<string, unknown>;
-    const id = cleanLine(item.id, 24) || nextEventId(index);
-    if (seenIds.has(id)) return { ok: false, reason: "duplicate event" };
-    seenIds.add(id);
-    const sourceMessageId = Number(item.sourceMessageId);
-    const message = sourceById(messages, sourceMessageId);
-    if (!message) return { ok: false, reason: "sourceMessageId missing" };
-    const sourceRole = item.sourceRole === "user" || item.sourceRole === "assistant"
-      ? item.sourceRole
-      : null;
-    if (!sourceRole || sourceRole !== message.role) {
-      return { ok: false, reason: "sourceRole mismatch" };
+  if (eventsRaw?.length) {
+    const parsed = parseSubmittedEvents(eventsRaw);
+    if (!parsed.ok) return parsed;
+    if (!eventsMatchCanonical(parsed.events, canonicalEvents)) {
+      if (parsed.events.length !== canonicalEvents.length) {
+        return { ok: false, reason: "event omission" };
+      }
+      const orderedSubmitted = [...parsed.events].sort((left, right) => left.order - right.order);
+      const orderedCanonical = [...canonicalEvents].sort((left, right) => left.order - right.order);
+      const hasFalseEcho = orderedSubmitted.some((event, index) => {
+        const canonical = orderedCanonical[index];
+        return (
+          canonical &&
+          event.kind === "assistant_echo" &&
+          canonical.kind !== "assistant_echo"
+        );
+      });
+      if (hasFalseEcho) {
+        return { ok: false, reason: "assistant_echo not allowed from planner" };
+      }
+      return { ok: false, reason: "canonical event mismatch" };
     }
-    const kind = item.kind;
-    if (
-      kind !== "dialogue" &&
-      kind !== "action" &&
-      kind !== "reaction" &&
-      kind !== "environment" &&
-      kind !== "assistant_echo"
-    ) {
-      return { ok: false, reason: "event kind invalid" };
-    }
-    const actor = item.actor;
-    if (
-      actor !== "persona" &&
-      actor !== "character" &&
-      actor !== "other" &&
-      actor !== "environment"
-    ) {
-      return { ok: false, reason: "event actor invalid" };
-    }
-    const text = cleanLine(item.text, 400);
-    if (!text) return { ok: false, reason: "event text empty" };
-    const order = Number(item.order);
-    events.push({
-      id,
-      order: Number.isFinite(order) ? order : index + 1,
-      sourceMessageId,
-      sourceRole,
-      kind,
-      actor,
-      text,
-    });
   }
-
-  const grounded = normalizeSourceGroundedEvents(events, messages);
-  if (!grounded.ok) return grounded;
-  const normalizedEvents = grounded.events;
-  const eventsById = new Map(normalizedEvents.map((event) => [event.id, event]));
 
   const panelCount = Number(source.recommendedPanelCount);
   const panelsRaw = Array.isArray(source.panels) ? source.panels : null;
@@ -721,8 +722,6 @@ export function validateScenePlan(
     return { ok: false, reason: "recommendedPanelCount invalid" };
   }
 
-  const usedVisual = new Set<string>();
-  let lastEventOrder = 0;
   const panels: ScenePanel[] = [];
   for (const [index, row] of panelsRaw.entries()) {
     if (!row || typeof row !== "object") return { ok: false, reason: "panel invalid" };
@@ -730,23 +729,6 @@ export function validateScenePlan(
     const sourceEventIds = Array.isArray(item.sourceEventIds)
       ? item.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
       : [];
-    const panelEvents: SceneEvent[] = [];
-    for (const id of sourceEventIds) {
-      const event = eventsById.get(id);
-      if (!event) return { ok: false, reason: "panel sourceEvent missing" };
-      if (event.order < lastEventOrder) {
-        return { ok: false, reason: "panel chronology reversed" };
-      }
-      lastEventOrder = event.order;
-      if (event.kind === "assistant_echo") {
-        return { ok: false, reason: "assistant_echo used as visual beat" };
-      }
-      if (usedVisual.has(event.id)) {
-        return { ok: false, reason: "source event duplicated across panels" };
-      }
-      usedVisual.add(event.id);
-      panelEvents.push(event);
-    }
 
     const dialogueRaw = Array.isArray(item.dialogue) ? item.dialogue : [];
     const dialogue: SceneDialogue[] = [];
@@ -796,13 +778,21 @@ export function validateScenePlan(
     panels.push({
       index: index + 1,
       sourceEventIds,
-      situation: cleanLine(item.situation, 240) || panelEvents.map((event) => event.text).join(" "),
+      situation:
+        cleanLine(item.situation, 240) ||
+        sourceEventIds
+          .map((id) => eventsById.get(id)?.text ?? "")
+          .filter(Boolean)
+          .join(" "),
       backgroundOverride: cleanLine(item.backgroundOverride, 160) || undefined,
       personaAction: cleanLine(item.personaAction, 160) || undefined,
       characterAction: cleanLine(item.characterAction, 160) || undefined,
       dialogue,
     });
   }
+
+  const coverage = validatePanelVisualCoverage(panels, canonicalEvents, eventsById);
+  if (!coverage.ok) return coverage;
 
   const heroEventIds = Array.isArray(source.heroEventIds)
     ? source.heroEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
@@ -818,18 +808,22 @@ export function validateScenePlan(
   const recommended: ScenePanelCount =
     panelCount === 2 || panelCount === 3 || panelCount === 4 ? panelCount : count;
 
+  const usableVisual = visualEvents(canonicalEvents);
+  const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
+
   return {
     ok: true,
     plan: {
       sceneBackground: cleanLine(source.sceneBackground, 200) || "대화가 이어지는 장면",
       atmosphere: cleanLine(source.atmosphere, 120) || undefined,
-      events: normalizedEvents,
-      heroEventIds: heroEventIds.length
-        ? heroEventIds
-        : visualEvents(normalizedEvents)
-            .slice(0, Math.min(3, normalizedEvents.length))
-            .map((event) => event.id),
-      heroScene: cleanLine(source.heroScene, 320) || visualEvents(normalizedEvents).slice(0, 3).map((event) => event.text).join(" "),
+      events: canonicalEvents,
+      heroEventIds: heroEventIds.length ? heroEventIds : defaultHero,
+      heroScene:
+        cleanLine(source.heroScene, 320) ||
+        usableVisual
+          .slice(0, 3)
+          .map((event) => event.text)
+          .join(" "),
       recommendedPanelCount: recommended,
       panels,
     },
@@ -841,41 +835,34 @@ export function buildScenePlanPrompt(opts: {
   personaName: string;
   messages: readonly SceneSourceMessage[];
 }): string {
+  const canonicalEvents = extractDeterministicEvents(opts.messages);
+  const visual = visualEvents(canonicalEvents);
   return [
-    "You extract a chronological Scene Plan for Korean chat-roleplay illustration and comic generation.",
+    "You group server-owned canonical events into a Scene Plan for Korean chat-roleplay illustration and comic generation.",
     `Chat character name: ${opts.characterName}`,
     `User persona name: ${opts.personaName}`,
+    "CANONICAL EVENTS (server-owned timeline — use these IDs only; do not add, omit, reorder, or reclassify):",
+    JSON.stringify(canonicalEvents, null, 2),
     "Return JSON only, no markdown fences, with this exact schema:",
     JSON.stringify({
       sceneBackground: "shared place / time / lighting",
       atmosphere: "optional mood",
-      events: [
-        {
-          id: "E1",
-          order: 1,
-          sourceMessageId: 1,
-          sourceRole: "user",
-          kind: "action",
-          actor: "persona",
-          text: "verbatim contiguous excerpt",
-        },
-      ],
-      heroEventIds: ["E1"],
-      heroScene: "one-image summary of the hero beats",
+      heroEventIds: visual.slice(0, 2).map((event) => event.id),
+      heroScene: "one-image summary of selected hero beats",
       recommendedPanelCount: 2,
       panels: [
         {
           index: 1,
-          sourceEventIds: ["E1"],
+          sourceEventIds: visual.slice(0, 2).map((event) => event.id),
           situation: "what happens in this cut",
           backgroundOverride: "",
-          personaAction: "optional",
-          characterAction: "optional",
+          personaAction: "optional presentation-only action wording",
+          characterAction: "optional presentation-only reaction wording",
           dialogue: [
             {
               speaker: "persona",
-              text: "verbatim spoken line",
-              sourceEventId: "E2",
+              text: "verbatim spoken line from canonical dialogue event",
+              sourceEventId: "E1",
               provenance: "source",
             },
           ],
@@ -883,18 +870,17 @@ export function buildScenePlanPrompt(opts: {
       ],
     }),
     "Rules:",
-    "1. SOURCE FORMAT is already sanitized. Keep chronology. Do not invent new events.",
-    "2. EVENT TEXT must be a verbatim contiguous excerpt from its declared sourceMessageId. Never paraphrase, summarize, or rewrite event text. Summaries belong only in situation, heroScene, sceneBackground, or atmosphere.",
-    "3. Never invent user dialogue. USER spoken dialogue may only be copied from user messages. Never paraphrase, complete, or promote assistant-narrated user speech into persona dialogue.",
-    "4. CHARACTER spoken dialogue may only be copied from assistant messages.",
-    "5. Preserve user actions (*...*, (...), （...）) as action events. Do not drop action-only user turns.",
-    "6. If the assistant only recaps the immediately preceding user action, mark that beat kind=assistant_echo. Do not use assistant_echo as its own visual panel beat. Keep the new assistant reaction/action.",
-    "7. recommendedPanelCount must be 2, 3, or 4. Silent panels with empty dialogue are valid. Do not invent filler speech.",
-    "8. Panel sourceEventIds must stay in chronological order. Do not move a later event before an earlier one.",
-    "9. sceneBackground is the shared default location. Add backgroundOverride only when place/time actually changes.",
-    "10. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
-    "11. heroEventIds / heroScene summarize the same events for a single illustration.",
-    "12. provenance=source dialogue must reference the exact matching dialogue SceneEvent via sourceEventId.",
+    "1. CANONICAL EVENTS are fixed. Do not return an events array. Never invent, omit, reorder, or reclassify events.",
+    "2. assistant_echo classification is server-owned. Never assign or change event kinds.",
+    "3. Group adjacent canonical events into 2, 3, or 4 panels. Every visual canonical event must appear exactly once across panels, in chronological order. assistant_echo is never a panel beat.",
+    "4. Never invent user dialogue. USER spoken dialogue may only reference canonical dialogue events via sourceEventId.",
+    "5. CHARACTER spoken dialogue may only reference canonical dialogue events via sourceEventId.",
+    "6. Silent panels with empty dialogue are valid. Do not invent filler speech.",
+    "7. sceneBackground is the shared default location. Add backgroundOverride only when place/time actually changes.",
+    "8. personaAction / characterAction are presentation-only. They must not rewrite canonical event text.",
+    "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
+    "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
+    "11. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");

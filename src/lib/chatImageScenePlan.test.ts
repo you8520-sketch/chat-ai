@@ -7,6 +7,7 @@ import {
   buildScenePlanPrompt,
   buildSceneSourceMessages,
   extractDeterministicEvents,
+  extractDeterministicEvents,
   extractOrderedSceneSegments,
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
@@ -15,6 +16,7 @@ import {
   sanitizeSceneSourceText,
   scenePlanHasRawChatLeak,
   validateScenePlan,
+  visualEvents,
   type ScenePlan,
   type SceneSourceMessage,
 } from "./chatImageScenePlan";
@@ -278,7 +280,9 @@ describe("chatImageScenePlan panel count and single image", () => {
       messages: sampleMessages(),
     });
     assert.match(prompt, /Never invent user dialogue/);
-    assert.match(prompt, /Never paraphrase, summarize, or rewrite event text/);
+    assert.match(prompt, /CANONICAL EVENTS/);
+    assert.match(prompt, /Do not return an events array/);
+    assert.match(prompt, /assistant_echo classification is server-owned/);
     assert.match(prompt, /Do not describe hair color/);
     assert.match(prompt, /iris, pupil/);
     assert.doesNotMatch(prompt, /TEXT QUOTA/);
@@ -331,7 +335,7 @@ describe("chatImageScenePlan source grounding", () => {
     const validated = validateScenePlan(reordered, messages);
     assert.equal(validated.ok, false);
     if (!validated.ok) {
-      assert.match(validated.reason, /event chronology not source-backed/);
+      assert.match(validated.reason, /canonical event mismatch|event omission/);
     }
   });
 
@@ -353,7 +357,7 @@ describe("chatImageScenePlan source grounding", () => {
     const validated = validateScenePlan(forged, messages);
     assert.equal(validated.ok, false);
     if (!validated.ok) {
-      assert.match(validated.reason, /event text not source-backed/);
+      assert.match(validated.reason, /canonical event mismatch|event omission/);
     }
   });
 
@@ -375,7 +379,7 @@ describe("chatImageScenePlan source grounding", () => {
     const validated = validateScenePlan(forged, messages);
     assert.equal(validated.ok, false);
     if (!validated.ok) {
-      assert.match(validated.reason, /event text not source-backed/);
+      assert.match(validated.reason, /canonical event mismatch|event omission/);
     }
   });
 
@@ -462,7 +466,172 @@ describe("chatImageScenePlan source grounding", () => {
     const validated = validateScenePlan(forged, messages, { allowUserEdits: true });
     assert.equal(validated.ok, false);
     if (!validated.ok) {
-      assert.match(validated.reason, /event text not source-backed/);
+      assert.match(validated.reason, /canonical event mismatch|event omission/);
+    }
+  });
+});
+
+describe("chatImageScenePlan canonical events", () => {
+  const chronologyMessages = () =>
+    buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"잠깐." *문을 연다* "가자."' },
+    ]);
+
+  it("EVENT_OMISSION rejects planner events missing a canonical beat", () => {
+    const messages = chronologyMessages();
+    const canonical = buildDeterministicScenePlan(messages, 2);
+    const byText = new Map(canonical.events.map((event) => [event.text, event]));
+    const omitted = {
+      ...canonical,
+      events: [byText.get("잠깐.")!, byText.get("가자.")!],
+    };
+    const validated = validateScenePlan(omitted, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /event omission/);
+    }
+  });
+
+  it("PANEL_EVENT_OMISSION rejects panels that skip a visual canonical event", () => {
+    const messages = chronologyMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const byId = new Map(plan.events.map((event) => [event.text, event.id]));
+    const omitted = {
+      ...plan,
+      panels: [
+        { ...plan.panels[0]!, sourceEventIds: [byId.get("잠깐.")!], index: 1 },
+        { ...plan.panels[1]!, sourceEventIds: [byId.get("가자.")!], index: 2 },
+      ],
+    };
+    const validated = validateScenePlan(omitted, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /panel visual event omission/);
+    }
+  });
+
+  it("PANEL_EVENT_EXACT_COVERAGE accepts contiguous grouping with full coverage", () => {
+    const messages = chronologyMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const byId = new Map(plan.events.map((event) => [event.text, event.id]));
+    const grouped = {
+      ...plan,
+      panels: [
+        {
+          ...plan.panels[0]!,
+          index: 1,
+          sourceEventIds: [byId.get("잠깐.")!, byId.get("문을 연다")!],
+        },
+        {
+          ...plan.panels[1]!,
+          index: 2,
+          sourceEventIds: [byId.get("가자.")!],
+        },
+      ],
+    };
+    const validated = validateScenePlan(grouped, messages);
+    assert.equal(validated.ok, true);
+  });
+
+  it("FALSE_ASSISTANT_ECHO keeps server reaction when planner claims assistant_echo", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*문을 연다*" },
+      { id: 2, role: "assistant", content: "태형이 렌의 손목을 붙잡았다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const assistantEvent = plan.events.find((event) => event.sourceRole === "assistant");
+    assert.ok(assistantEvent);
+    assert.equal(assistantEvent.kind, "reaction");
+    const forged = {
+      ...plan,
+      events: plan.events.map((event) =>
+        event.id === assistantEvent.id ? { ...event, kind: "assistant_echo" as const } : event
+      ),
+    };
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /assistant_echo not allowed from planner/);
+    }
+  });
+
+  it("TRUE_ASSISTANT_ECHO dedups recap and keeps new reaction", () => {
+    const events = extractDeterministicEvents(
+      buildSceneSourceMessages([
+        { id: 1, role: "user", content: "*손을 잡는다*" },
+        { id: 2, role: "assistant", content: "손을 잡자 태형이 고개를 돌렸다." },
+      ])
+    );
+    const echoes = events.filter((event) => event.kind === "assistant_echo");
+    const visual = visualEvents(events);
+    assert.ok(echoes.length >= 1);
+    assert.ok(visual.some((event) => /고개/.test(event.text)));
+    const grabBeats = visual.filter((event) => /손/.test(event.text) && event.sourceRole === "user");
+    assert.equal(grabBeats.length, 1);
+  });
+
+  it("USER_ACTION_NEVER_DROPPED keeps action-only user beats in canonical and panel coverage", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*문을 연다*" },
+      { id: 2, role: "assistant", content: "태형이 조용히 따라 나선다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.ok(plan.events.some((event) => event.kind === "action" && event.text === "문을 연다"));
+    const validated = validateScenePlan(plan, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      const covered = validated.plan.panels.flatMap((panel) => panel.sourceEventIds);
+      const actionId = plan.events.find((event) => event.text === "문을 연다")!.id;
+      assert.ok(covered.includes(actionId));
+    }
+  });
+
+  it("FOUR_PANEL_COVERAGE reflows all visual events exactly once", () => {
+    const messages = sampleMessages();
+    const three = buildDeterministicScenePlan(messages, 3);
+    const four = reflowScenePlanPanels(three, 4);
+    const validated = validateScenePlan(four, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      const required = visualEvents(validated.plan.events).map((event) => event.id);
+      const covered = validated.plan.panels.flatMap((panel) => panel.sourceEventIds);
+      assert.deepEqual([...new Set(covered)].sort(), [...required].sort());
+      assert.equal(covered.length, required.length);
+    }
+  });
+
+  it("CLIENT_USER_EDIT keeps canonical coverage while allowing panel dialogue edits", () => {
+    const messages = sampleMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const edited = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "persona" as const, text: "지금 갈게", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(edited, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.equal(validated.plan.events.length, plan.events.length);
+    }
+  });
+
+  it("validateScenePlan omits events array and still returns server canonical events", () => {
+    const messages = chronologyMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const { events: _events, ...withoutEvents } = plan;
+    const validated = validateScenePlan(withoutEvents, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.deepEqual(
+        validated.plan.events.map((event) => event.text),
+        ["잠깐.", "문을 연다", "가자."]
+      );
     }
   });
 });

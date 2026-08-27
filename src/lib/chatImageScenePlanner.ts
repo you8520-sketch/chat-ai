@@ -82,7 +82,7 @@ export async function planChatImageScene(opts: {
     try {
       const text = await complete({
         system:
-          "You are a precise closed-book scene planner. Never invent user dialogue. Never reorder chronology. Reasoning: none.",
+          "You are a precise closed-book scene planner. Group server canonical events only. Never invent user dialogue. Never add, omit, reorder, or reclassify events. Reasoning: none.",
         prompt,
         model,
       });
