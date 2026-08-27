@@ -30,6 +30,9 @@ export const SYNTHETIC_PERSONA_APPEARANCE = [
   "cream knit sweater",
 ].join("\n");
 
+export const EXACT_USER_PERSONA_APPEARANCE =
+  "짧은 검은머리 검은눈동자 붉은 동공 흰셔츠 위에 가죽재질 전투 하네스 검은바지 가르마 없음 full bangs";
+
 export const SYNTHETIC_PRIVATE_CHARACTER_PROMPT = [
   "[성격] 비밀을 절대 말하지 않는다.",
   "[세계관] 왕국 음모.",
@@ -125,6 +128,47 @@ export function syntheticEmoticonPlan() {
     personaSavedAppearance: SYNTHETIC_CHARACTER_B_APPEARANCE,
     personaAppearanceMode: "image_plus_saved",
     scenes: FIXED_EMOTICON_SCENES,
+  });
+}
+
+export function syntheticExactUserPersonaGiftPlan() {
+  return buildGiftBoxGenerationPlan({
+    characterName: "CharacterA",
+    characterGender: "male",
+    characterImageUrl: "/synthetic/character-a-primary.webp",
+    characterSavedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+    characterAppearanceMode: "image_plus_saved",
+    personaName: "UserPersona",
+    personaGender: "female",
+    personaImageUrl: "/synthetic/user-persona-primary.webp",
+    personaSavedAppearance: EXACT_USER_PERSONA_APPEARANCE,
+    personaAppearanceMode: "image_plus_saved",
+    placement: "character_top",
+    topExpression: "playful",
+    bottomExpression: "calm",
+    mood: "lovely",
+  });
+}
+
+export function syntheticCoupleStampUserTallerPlan() {
+  return buildCoupleStampGenerationPlan({
+    characterName: "CharacterA",
+    characterGender: "male",
+    personaName: "UserPersona",
+    personaGender: "female",
+    characterImageUrl: "/synthetic/character-a-primary.webp",
+    characterSavedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+    characterAppearanceMode: "image_plus_saved",
+    personaImageUrl: "/synthetic/user-persona-primary.webp",
+    personaSavedAppearance: EXACT_USER_PERSONA_APPEARANCE,
+    personaAppearanceMode: "image_plus_saved",
+    options: {
+      height: "persona_taller",
+      background: "default",
+      border: "none",
+      characterExpression: "calm",
+      personaExpression: "bright",
+    },
   });
 }
 

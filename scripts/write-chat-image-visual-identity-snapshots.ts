@@ -3,8 +3,10 @@ import path from "node:path";
 
 import {
   syntheticCoupleStampPlan,
+  syntheticCoupleStampUserTallerPlan,
   syntheticDuoGiftAlternateImageOnly,
   syntheticDuoGiftPrimary,
+  syntheticExactUserPersonaGiftPlan,
   syntheticEmoticonPlan,
   syntheticLdDuoPlan,
   syntheticLdPartyAllReferencesAbsent,
@@ -120,6 +122,14 @@ async function main() {
       referenceUrls: ldDuo.referenceUrls,
       subjects: ldDuo.subjects,
     }),
+    section(
+      "12. Gift box — exact user persona (dark visible eye + red pupil, full bangs, combat harness)",
+      syntheticExactUserPersonaGiftPlan()
+    ),
+    section(
+      "13. Couple stamps — persona_taller including close-up",
+      syntheticCoupleStampUserTallerPlan()
+    ),
   ].join("\n");
 
   const outDir = path.join(process.cwd(), "docs/audits/chat-image-visual-identity");

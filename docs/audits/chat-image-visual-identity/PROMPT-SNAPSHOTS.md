@@ -26,8 +26,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 2 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -39,8 +43,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 3 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -50,7 +55,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -112,8 +117,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 3 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -123,7 +129,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -177,8 +183,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 2 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -190,8 +200,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 3 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -201,7 +212,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -259,8 +270,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 2 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -272,8 +287,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 3 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -283,7 +299,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -301,20 +317,23 @@ chat character CharacterA: confirmed MALE. Keep him male in face, torso and body
 user persona CharacterB: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
 
+COMPOSITION — relative scale (mandatory):
+Keep CharacterB and CharacterA at the same relative visual stature.
+Match eye-line and shoulder relationship where standing height is visible.
+In every circular badge: equal eye-line inside the circle — neither person taller.
+
 The same two people appear in all four badges.
 
 TOP-LEFT badge: both wear matching cat ears and raise oversized plush paw mittens toward the viewer — one dark paw, one cream paw. Light blue background with paw prints and sparkles.
 TOP-RIGHT badge: no animal ears. They lean together and each holds a plush toy — a brown teddy bear and a white bunny, both with checkered ribbon bows. Lavender background with hearts and a bow.
 BOTTOM-LEFT badge: both wear soft bunny-eared hoodies and together form a single heart shape with their hands in front of their chests. Mint background with stars and comic sparkle marks.
-BOTTOM-RIGHT badge: no animal ears. Tight cheek-to-cheek face close-up, faces noticeably larger and more zoomed-in than the other three badges, one hand raised near the cheek. Pink background with a heart and a ribbon.
+BOTTOM-RIGHT badge: no animal ears. Tight cheek-to-cheek face close-up, both faces zoomed-in tighter than the other three badges (camera zoom only — do not override COMPOSITION relative scale between the two people), one hand raised near the cheek. Pink background with a heart and a ribbon.
 
 Chat character CharacterA expression in every badge: calm, soft expression.
 
 User persona CharacterB expression in every badge: bright open smile.
 
 Keep each person's chosen expression recognizable in all four badges; only small natural variation such as a wink or a wider smile is allowed.
-
-Height / face position in every badge: Keep both faces at the same vertical height inside the circle — equal eye-line, neither person taller.
 
 Background decoration: Keep each badge's own template background: blue, lavender, mint and pink in that order.
 
@@ -344,8 +363,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 1 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -357,8 +380,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 2 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -368,7 +392,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -424,8 +448,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 1 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -437,8 +465,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 2 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -466,7 +495,7 @@ Never infer SUBJECT D's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -512,8 +541,12 @@ PROMPT:
 Reference: No photo for CharacterA. Do not borrow another subject's reference or face.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -569,8 +602,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 1 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -608,7 +645,7 @@ Never infer SUBJECT D's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -666,8 +703,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: No photo for CharacterA. Do not borrow another subject's reference or face.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -687,7 +728,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -736,8 +777,12 @@ SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 Reference: Image 1 belongs ONLY to CharacterA.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- black pupils, red irises
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -749,8 +794,9 @@ Never infer SUBJECT A's identity from any other subject.
 Reference: Image 2 belongs ONLY to CharacterB.
 Appearance mode: IMAGE_PLUS_SAVED
 Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: dark gray.
 - blue-black hair, center-parted hair
-- dark gray irises
 - black suit
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
 For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
@@ -760,7 +806,7 @@ Never infer SUBJECT B's identity from any other subject.
 IDENTITY OWNERSHIP IS STRICT.
 Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
 Each subject owns only the visual traits from their own identity block and own reference.
-NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
 Do not average or homogenize identities even when both subjects look similar.
 Do not assume that a visually striking feature belongs to every person.
 A trait appearing in one subject's reference is NOT a global style property.
@@ -786,5 +832,191 @@ Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixe
 
 SELECTED TURN SCENE BRIEF:
 Setting: cafe Actions: CharacterB hands CharacterA a cup.
+```
+
+## 12. Gift box — exact user persona (dark visible eye + red pupil, full bangs, combat harness)
+
+REFERENCE ORDER:
+Image 1: /image-templates/sd-gift-box-duo-hq.webp
+Image 2: /synthetic/character-a-primary.webp
+Image 3: /synthetic/user-persona-primary.webp
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref 2
+Subject B (UserPersona): IMAGE_PLUS_SAVED · ref 3
+
+PROMPT:
+```
+Create one polished 4:3 two-person SD/chibi fixed-template commission illustration.
+
+Reference image 1 is the composition and decoration template. Preserve its recognizable luxury gift-box layout: a cream gift box with lace trim, sage-green ribbon and heart charm, teddy bear, bunny plush, candies, pearls, floating hearts, curling ribbons and golden sparkles on a clean pale background.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: CharacterA]
+Reference: Image 2 belongs ONLY to CharacterA.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- large healed scar on the back of the neck
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: UserPersona]
+Reference: Image 3 belongs ONLY to UserPersona.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: black.
+- Pupil color: red.
+- Red applies to the small pupil center ONLY — do NOT fill the entire iris red. Keep the iris its own color.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
+- 짧은 검은머리 흰셔츠 위에 가죽재질 전투 하네스 검은바지 가르마 없음 full bangs
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to UserPersona.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+TOP person CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+BOTTOM person UserPersona: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+TOP person is CharacterA. BOTTOM person is UserPersona. Keep those placements exact.
+
+TOP person expression: playful, lively smile. The top person leans over from above and gently hugs or rests both hands on the bottom person's head.
+
+BOTTOM person expression: calm, soft expression. The bottom person sits inside the decorative gift box with both forearms resting naturally on the box edge.
+
+Overall mood: lovely pastel pink and sage-green accents, affectionate and sweet.
+
+Exactly two human characters. No extra person, duplicate face, merged body, extra hands, malformed fingers, text, signature, logo or watermark.
+
+Keep the full gift box and the surrounding decorative objects visible. Do not crop to faces only. Centered, clean, detailed, harmonious, merchandise-quality kawaii anime illustration.
+```
+
+## 13. Couple stamps — persona_taller including close-up
+
+REFERENCE ORDER:
+Image 1: /image-templates/sd-couple-stamps-4.webp
+Image 2: /synthetic/character-a-primary.webp
+Image 3: /synthetic/user-persona-primary.webp
+
+APPEARANCE MODE:
+Subject A (CharacterA): IMAGE_PLUS_SAVED · ref 2
+Subject B (UserPersona): IMAGE_PLUS_SAVED · ref 3
+
+PROMPT:
+```
+Create ONE square couple profile stamp sheet: exactly four circular badges arranged in a 2-by-2 grid on a clean white background, with even gaps and equal badge sizes.
+
+Reference image 1 is the fixed template. Reproduce its layout, its four motifs, its bold thick outlines and its soft chibi / SD illustration finish. Replace only the two people.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — CHAT CHARACTER: CharacterA]
+Reference: Image 2 belongs ONLY to CharacterA.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- Pupil color: black.
+- Red irises do NOT imply red pupils unless pupil color is explicitly red above.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
+- black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
+- large healed scar on the back of the neck
+- white shirt, black harness
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — USER PERSONA: UserPersona]
+Reference: Image 3 belongs ONLY to UserPersona.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: black.
+- Pupil color: red.
+- Red applies to the small pupil center ONLY — do NOT fill the entire iris red. Keep the iris its own color.
+- Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
+- 짧은 검은머리 흰셔츠 위에 가죽재질 전투 하네스 검은바지 가르마 없음 full bangs
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to UserPersona.
+Never infer SUBJECT B's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+chat character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+user persona UserPersona: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+COMPOSITION — relative scale (mandatory):
+UserPersona must read visibly taller than CharacterA.
+Do NOT equalize sizes for cuteness or template symmetry.
+UserPersona: higher visual stature — higher eye-line / shoulder relationship where the pose shows standing height.
+CharacterA: slightly shorter visual stature.
+In ALL four badges including the tight cheek close-up (where standing height is hard to show): the user persona has slightly stronger frame share / presence. The other person stays slightly less dominant even when faces are zoomed in.
+
+The same two people appear in all four badges.
+
+TOP-LEFT badge: both wear matching cat ears and raise oversized plush paw mittens toward the viewer — one dark paw, one cream paw. Light blue background with paw prints and sparkles.
+TOP-RIGHT badge: no animal ears. They lean together and each holds a plush toy — a brown teddy bear and a white bunny, both with checkered ribbon bows. Lavender background with hearts and a bow.
+BOTTOM-LEFT badge: both wear soft bunny-eared hoodies and together form a single heart shape with their hands in front of their chests. Mint background with stars and comic sparkle marks.
+BOTTOM-RIGHT badge: no animal ears. Tight cheek-to-cheek face close-up, both faces zoomed-in tighter than the other three badges (camera zoom only — do not override COMPOSITION relative scale between the two people), one hand raised near the cheek. Pink background with a heart and a ribbon.
+
+Chat character CharacterA expression in every badge: calm, soft expression.
+
+User persona UserPersona expression in every badge: bright open smile.
+
+Keep each person's chosen expression recognizable in all four badges; only small natural variation such as a wink or a wider smile is allowed.
+
+Background decoration: Keep each badge's own template background: blue, lavender, mint and pink in that order.
+
+Border decoration: No extra outer frame beyond each badge's clean circular edge.
+
+Keep both faces and important gestures fully inside each circle. Bold clean line art, pastel digital coloring, merchandise-quality kawaii finish.
+
+Exactly two people per badge and exactly four badges. No extra person, text, letters, signature, logo, watermark, UI, screenshot border or cropping mark.
 ```
 

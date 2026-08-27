@@ -1,4 +1,5 @@
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
+import { normalizeSavedAppearanceForProvider } from "@/lib/chatImageEyeTraits";
 
 export const CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX = 1_600;
 export const CHAT_IMAGE_SAVED_APPEARANCE_PROMPT_MAX = 700;
@@ -339,7 +340,7 @@ export function buildChatDuoVisualSubjects(opts: {
       referenceIndex: null,
       referenceImageUrl: opts.characterImageUrl || null,
       appearanceMode: opts.characterAppearanceMode,
-      savedAppearance: clipSavedAppearanceForPrompt(opts.characterSavedAppearance),
+      savedAppearance: String(opts.characterSavedAppearance ?? "").trim(),
       sourceKind: "main_character",
     },
     {
@@ -350,7 +351,7 @@ export function buildChatDuoVisualSubjects(opts: {
       referenceIndex: null,
       referenceImageUrl: opts.personaImageUrl || null,
       appearanceMode: opts.personaAppearanceMode,
-      savedAppearance: clipSavedAppearanceForPrompt(opts.personaSavedAppearance),
+      savedAppearance: String(opts.personaSavedAppearance ?? "").trim(),
       sourceKind: "persona",
     },
   ];
@@ -407,7 +408,7 @@ export function visualSubjectsFromCastMembers(
 ): ChatImageVisualSubject[] {
   return members.map((member, index) => {
     const imageUrl = String(member.imageUrl ?? "").trim() || null;
-    const savedAppearance = clipSavedAppearanceForPrompt(member.appearanceNote);
+    const savedAppearance = String(member.appearanceNote ?? "").trim();
     const appearanceMode =
       member.appearanceMode ??
       defaultAppearanceMode({
@@ -436,7 +437,7 @@ function formatSavedAppearanceLines(appearance: string): string {
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => `- ${line}`)
+    .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
     .join("\n");
 }
 
@@ -453,7 +454,9 @@ export function renderChatImageSubjectManifest(
     .filter((alias) => alias && alias !== name);
   const aliasLine = aliases.length ? `Also known as: ${aliases.join(", ")}.` : "";
   const hasReference = subject.referenceIndex != null;
-  const saved = clipSavedAppearanceForPrompt(subject.savedAppearance);
+  const saved = clipSavedAppearanceForPrompt(
+    normalizeSavedAppearanceForProvider(subject.savedAppearance ?? "")
+  );
   const useSaved = subject.appearanceMode === "image_plus_saved" && Boolean(saved);
   const reference = hasReference
     ? `Reference: Image ${subject.referenceIndex} belongs ONLY to ${name}.`
@@ -539,7 +542,7 @@ export function renderChatImageIdentityContract(opts: {
     "IDENTITY OWNERSHIP IS STRICT.",
     templateRule,
     "Each subject owns only the visual traits from their own identity block and own reference.",
-    "NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.",
+    "NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.",
     "Do not average or homogenize identities even when both subjects look similar.",
     "Do not assume that a visually striking feature belongs to every person.",
     "A trait appearing in one subject's reference is NOT a global style property.",

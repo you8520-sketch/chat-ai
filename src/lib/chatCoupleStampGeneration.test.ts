@@ -44,7 +44,9 @@ describe("chatCoupleStampGeneration", () => {
       assert.ok(prompt.includes(panel.prompt), `missing panel: ${panel.id}`);
     }
     assert.match(prompt, /bold thick outlines/i);
-    assert.match(prompt, /user persona visibly taller/i);
+    assert.match(prompt, /COMPOSITION — relative scale/);
+    assert.match(prompt, /must read visibly taller/i);
+    assert.match(prompt, /Do NOT equalize sizes/i);
     assert.match(prompt, /태현/);
     assert.match(prompt, /렌/);
     assert.match(prompt, /GENDER LOCK/);
