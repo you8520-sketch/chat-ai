@@ -480,6 +480,14 @@ export function buildDeterministicScenePlan(
   };
 }
 
+export function applyApprovedAiScenePlan(
+  aiPlan: ScenePlan,
+  panelCountMode: "ai" | ScenePanelCount
+): ScenePlan {
+  if (panelCountMode === "ai") return aiPlan;
+  return reflowScenePlanPanels(aiPlan, panelCountMode);
+}
+
 export function reflowScenePlanPanels(
   plan: ScenePlan,
   panelCount: ScenePanelCount
@@ -522,6 +530,26 @@ export function applyUserPanelEdits(
         dialogue,
       };
     }),
+  };
+}
+
+/** Canonical user-edit owner for illustration fields. Does not mutate events. */
+export function applyUserIllustrationEdits(
+  plan: ScenePlan,
+  patch: Partial<
+    Pick<ScenePlan, "heroScene" | "sceneBackground" | "atmosphere" | "heroEventIds">
+  >
+): ScenePlan {
+  const eventIds = new Set(plan.events.map((event) => event.id));
+  const heroEventIds = (patch.heroEventIds ?? plan.heroEventIds).filter((id) =>
+    eventIds.has(id)
+  );
+  return {
+    ...plan,
+    heroScene: patch.heroScene ?? plan.heroScene,
+    sceneBackground: patch.sceneBackground ?? plan.sceneBackground,
+    atmosphere: patch.atmosphere ?? plan.atmosphere,
+    heroEventIds,
   };
 }
 

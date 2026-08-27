@@ -33,6 +33,8 @@ export type ChatImageCastIntentSubject = {
   importance: ChatImageCastImportance;
   visibility: ChatImageCastVisibility;
   requestedReferenceAssetUrl?: string;
+  /** UI-only marker for candidate pool provenance. Never sent to server. */
+  candidateSources?: CastCandidateSourceMarker[];
 };
 
 export type ChatImageCastIntentManifest = {
@@ -57,6 +59,190 @@ export type SelectableCastAsset = {
   url: string;
   tag: string;
 };
+
+export type CastCandidateSourceMarker =
+  | "current_scene"
+  | "character_set"
+  | "ai_suggestion";
+
+export type CastCandidateMeta = {
+  name: string;
+  sources: CastCandidateSourceMarker[];
+};
+
+export function normalizeCastMatchName(name: string): string {
+  return cleanText(name).toLowerCase();
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const KOREAN_CAST_NAME_PARTICLE =
+  /^(?:이|가|은|는|을|를|과|와|의|도|에게|한테|께|아|야|이야|랑|하고|에서|부터|까지|만|이며|이면|이라|입니다|이에요|예요|죠|요|님)(?=[\s.,!?;:'"”’」】)\]*<>]|$)/;
+
+/** Boundary-aware mention check for already-known cast names only. */
+export function containsKnownCastMention(text: string, knownName: string): boolean {
+  const name = cleanText(knownName);
+  if (!name) return false;
+  const haystack = String(text ?? "");
+  if (!haystack.includes(name)) return false;
+
+  if (/^[A-Za-z][A-Za-z0-9'-]*$/.test(name)) {
+    const pattern = new RegExp(`(?<![A-Za-z0-9_])${escapeRegExp(name)}(?![A-Za-z0-9_])`, "i");
+    return pattern.test(haystack);
+  }
+
+  let searchFrom = 0;
+  while (searchFrom < haystack.length) {
+    const idx = haystack.indexOf(name, searchFrom);
+    if (idx === -1) break;
+
+    const before = idx > 0 ? haystack[idx - 1]! : "";
+    if (before && /[가-힣A-Za-z0-9_]/.test(before)) {
+      searchFrom = idx + 1;
+      continue;
+    }
+
+    const after = haystack.slice(idx + name.length);
+    if (!after) return true;
+    if (/^[\s.,!?;:'"”’」】)\]*<>]/.test(after)) return true;
+    if (KOREAN_CAST_NAME_PARTICLE.test(after)) return true;
+    if (/^[가-힣]/.test(after)) {
+      searchFrom = idx + 1;
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+export function filterConfiguredCastNamesForViewer(opts: {
+  configuredNames: readonly string[];
+  sourceTexts: readonly string[];
+  isCreator: boolean;
+}): string[] {
+  const names = opts.configuredNames.map((name) => cleanText(name)).filter(Boolean);
+  if (opts.isCreator) return names;
+  return names.filter((name) =>
+    opts.sourceTexts.some((text) => containsKnownCastMention(text, name))
+  );
+}
+
+export function detectCurrentSceneCastNames(
+  knownNames: readonly string[],
+  events: readonly { text: string }[]
+): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const rawName of knownNames) {
+    const name = cleanText(rawName);
+    if (!name) continue;
+    const normalized = normalizeCastMatchName(name);
+    if (seen.has(normalized)) continue;
+    const inScene = events.some((event) => containsKnownCastMention(event.text, name));
+    if (!inScene) continue;
+    seen.add(normalized);
+    results.push(name);
+  }
+  return results;
+}
+
+export function buildCastCandidatePool(opts: {
+  personaName: string;
+  mainCharacterName: string;
+  configuredCharacterSetNames?: readonly string[];
+  castMentions?: readonly SceneCastMention[];
+  events?: readonly { text: string }[];
+}): CastCandidateMeta[] {
+  const persona = cleanText(opts.personaName) || "persona";
+  const main = cleanText(opts.mainCharacterName) || "character";
+  const reserved = new Set([normalizeCastMatchName(persona), normalizeCastMatchName(main)]);
+  const events = opts.events ?? [];
+  const configured = (opts.configuredCharacterSetNames ?? [])
+    .map((name) => cleanText(name))
+    .filter((name) => Boolean(name));
+  const currentScene = detectCurrentSceneCastNames(configured, events);
+  const currentSet = new Set(currentScene.map(normalizeCastMatchName));
+  const byName = new Map<string, CastCandidateMeta>();
+
+  const add = (rawName: string, source: CastCandidateSourceMarker) => {
+    const name = cleanText(rawName);
+    if (!name) return;
+    const normalized = normalizeCastMatchName(name);
+    if (reserved.has(normalized)) return;
+    const existing = byName.get(normalized);
+    if (existing) {
+      if (!existing.sources.includes(source)) {
+        existing.sources.push(source);
+      }
+      return;
+    }
+    byName.set(normalized, { name, sources: [source] });
+  };
+
+  for (const name of configured) {
+    add(name, currentSet.has(normalizeCastMatchName(name)) ? "current_scene" : "character_set");
+  }
+  for (const mention of opts.castMentions ?? []) {
+    add(mention.name, "ai_suggestion");
+  }
+
+  return [...byName.values()].slice(0, 12);
+}
+
+export function draftCastIntentFromCandidatePool(opts: {
+  personaName: string;
+  mainCharacterName: string;
+  configuredCharacterSetNames?: readonly string[];
+  castMentions?: readonly SceneCastMention[];
+  events?: readonly { text: string }[];
+  compositionGoal?: ChatImageCastCompositionGoal;
+}): ChatImageCastIntentManifest {
+  const pool = buildCastCandidatePool(opts);
+  const supporting = pool.map((candidate) => ({
+    key: `supporting:${normalizeCastMatchName(candidate.name) || candidate.name}`,
+    role: "supporting_character" as const,
+    name: candidate.name,
+    included: candidate.sources.includes("current_scene"),
+    importance: "secondary" as const,
+    visibility: "preferred_visible" as const,
+    candidateSources: candidate.sources,
+  }));
+  return {
+    compositionGoal: opts.compositionGoal ?? "auto",
+    subjects: [
+      {
+        key: "persona",
+        role: "persona",
+        name: cleanText(opts.personaName) || "persona",
+        included: true,
+        importance: "primary",
+        visibility: "required_visible",
+      },
+      {
+        key: "main_character",
+        role: "main_character",
+        name: cleanText(opts.mainCharacterName) || "character",
+        included: true,
+        importance: "primary",
+        visibility: "required_visible",
+      },
+      ...supporting,
+    ],
+  };
+}
+
+export function castCandidateSourceLabel(
+  sources: readonly CastCandidateSourceMarker[] | undefined
+): string {
+  if (!sources?.length) return "";
+  const labels: string[] = [];
+  if (sources.includes("current_scene")) labels.push("현재 장면");
+  if (sources.includes("character_set")) labels.push("캐릭터셋");
+  if (sources.includes("ai_suggestion")) labels.push("AI 제안");
+  return labels.join(" · ");
+}
 
 function cleanText(raw: unknown, max = 48): string {
   return String(raw ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -268,25 +454,38 @@ export function applyUserCastEdits(
   return normalizeCastCompositionGoalIntent(normalizeCastPrimaryCap(next));
 }
 
+export function isManuallyPinnedCastSubject(subject: ChatImageCastIntentSubject): boolean {
+  if (subject.role !== "supporting_character") return false;
+  return subject.included || Boolean(cleanUrl(subject.requestedReferenceAssetUrl));
+}
+
 export function mergeCastIntentDraft(
   current: ChatImageCastIntentManifest | null,
   next: ChatImageCastIntentManifest
 ): ChatImageCastIntentManifest {
   if (!current) return normalizeCastPrimaryCap(next);
   const byKey = new Map(current.subjects.map((subject) => [subject.key, subject]));
+  const nextKeys = new Set(next.subjects.map((subject) => subject.key));
+  const mergedSubjects = next.subjects.map((subject) => {
+    const previous = byKey.get(subject.key);
+    if (!previous) return subject;
+    return {
+      ...subject,
+      included: previous.included,
+      importance: previous.importance,
+      visibility: previous.visibility,
+      requestedReferenceAssetUrl: previous.requestedReferenceAssetUrl,
+      candidateSources: subject.candidateSources ?? previous.candidateSources,
+    };
+  });
+  for (const previous of current.subjects) {
+    if (nextKeys.has(previous.key)) continue;
+    if (!isManuallyPinnedCastSubject(previous)) continue;
+    mergedSubjects.push(previous);
+  }
   return normalizeCastPrimaryCap({
     compositionGoal: current.compositionGoal,
-    subjects: next.subjects.map((subject) => {
-      const previous = byKey.get(subject.key);
-      if (!previous) return subject;
-      return {
-        ...subject,
-        included: previous.included,
-        importance: previous.importance,
-        visibility: previous.visibility,
-        requestedReferenceAssetUrl: previous.requestedReferenceAssetUrl,
-      };
-    }),
+    subjects: mergedSubjects,
   });
 }
 

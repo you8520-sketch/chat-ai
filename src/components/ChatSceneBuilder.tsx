@@ -5,7 +5,9 @@ import { useState } from "react";
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import {
+  applyUserIllustrationEdits,
   applyUserPanelEdits,
+  visualEvents,
   type ScenePanel,
   type ScenePanelCount,
   type ScenePlan,
@@ -19,6 +21,10 @@ type ChatSceneBuilderProps = {
   sourceLoading: boolean;
   plan: ScenePlan | null;
   planLoading: boolean;
+  aiSuggestedPlan: ScenePlan | null;
+  aiSuggestionLoading: boolean;
+  aiSuggestionError: string;
+  hasAiSuggestionSession: boolean;
   castManifest: ChatImageCastIntentManifest | null;
   selectableAssets: readonly SelectableCastAsset[];
   reservedReferenceUrls?: readonly string[];
@@ -29,7 +35,9 @@ type ChatSceneBuilderProps = {
   onPanelCountModeChange: (mode: ScenePanelCountMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
   onCastChange: (manifest: ChatImageCastIntentManifest) => void;
-  onRebuildPlan: () => void;
+  onRequestAiSuggestion: () => void;
+  onApplyAiSuggestion: () => void;
+  onCancelAiSuggestion: () => void;
 };
 
 function speakerLabel(speaker: string): string {
@@ -123,11 +131,97 @@ function PanelEditor({
   );
 }
 
+function IllustrationEditor({
+  plan,
+  disabled,
+  onChange,
+}: {
+  plan: ScenePlan;
+  disabled?: boolean;
+  onChange: (plan: ScenePlan) => void;
+}) {
+  const heroEvents = visualEvents(plan.events);
+  const selectedHeroIds = new Set(plan.heroEventIds);
+  return (
+    <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+      <label className="block space-y-1">
+        <span className="text-[10px] font-semibold text-zinc-500">장면 설명</span>
+        <textarea
+          value={plan.heroScene}
+          disabled={disabled}
+          rows={3}
+          onChange={(event) =>
+            onChange(applyUserIllustrationEdits(plan, { heroScene: event.target.value }))
+          }
+          className="w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[10px] font-semibold text-zinc-500">배경</span>
+        <input
+          value={plan.sceneBackground}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange(applyUserIllustrationEdits(plan, { sceneBackground: event.target.value }))
+          }
+          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+        />
+      </label>
+      <label className="block space-y-1">
+        <span className="text-[10px] font-semibold text-zinc-500">분위기</span>
+        <input
+          value={plan.atmosphere ?? ""}
+          disabled={disabled}
+          onChange={(event) =>
+            onChange(applyUserIllustrationEdits(plan, { atmosphere: event.target.value }))
+          }
+          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+        />
+      </label>
+      {heroEvents.length ? (
+        <div className="space-y-1">
+          <span className="text-[10px] font-semibold text-zinc-500">핵심 장면</span>
+          <div className="max-h-36 space-y-1 overflow-y-auto">
+            {heroEvents.map((sceneEvent) => (
+              <label
+                key={sceneEvent.id}
+                className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5 text-[11px] text-zinc-300"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={selectedHeroIds.has(sceneEvent.id)}
+                  disabled={disabled}
+                  onChange={(changeEvent) => {
+                    const next = new Set(plan.heroEventIds);
+                    if (changeEvent.target.checked) next.add(sceneEvent.id);
+                    else next.delete(sceneEvent.id);
+                    onChange(
+                      applyUserIllustrationEdits(plan, {
+                        heroEventIds: [...next],
+                      })
+                    );
+                  }}
+                />
+                <span>{sceneEvent.text}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ChatSceneBuilder({
   sourcePreview,
   sourceLoading,
   plan,
   planLoading,
+  aiSuggestedPlan,
+  aiSuggestionLoading,
+  aiSuggestionError,
+  hasAiSuggestionSession,
   castManifest,
   selectableAssets,
   reservedReferenceUrls,
@@ -138,9 +232,12 @@ export default function ChatSceneBuilder({
   onPanelCountModeChange,
   onPlanChange,
   onCastChange,
-  onRebuildPlan,
+  onRequestAiSuggestion,
+  onApplyAiSuggestion,
+  onCancelAiSuggestion,
 }: ChatSceneBuilderProps) {
   const [expandedPanel, setExpandedPanel] = useState<number | null>(null);
+  const [showAiPreview, setShowAiPreview] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -158,28 +255,31 @@ export default function ChatSceneBuilder({
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="text-[11px] font-semibold text-zinc-400">
             {outputMode === "illustration" ? "한 장 장면" : "컷 구성"}
           </h3>
           <button
             type="button"
-            disabled={disabled || planLoading || !sourcePreview}
-            onClick={onRebuildPlan}
+            disabled={disabled || aiSuggestionLoading || planLoading || !sourcePreview || !plan}
+            onClick={onRequestAiSuggestion}
             className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
           >
-            AI 다시 구성
+            {hasAiSuggestionSession ? "✨ 새 AI 제안" : "✨ AI 장면 제안"}
           </button>
         </div>
-        {planLoading ? (
+        {aiSuggestionLoading ? (
           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-            장면을 구성하는 중…
+            AI 장면 제안을 불러오는 중…
+          </p>
+        ) : null}
+        {aiSuggestionError ? (
+          <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs leading-relaxed text-rose-200">
+            {aiSuggestionError}
           </p>
         ) : null}
         {plan && outputMode === "illustration" ? (
-          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] px-3 py-2 text-xs leading-relaxed text-zinc-200">
-            {plan.heroScene || plan.sceneBackground}
-          </div>
+          <IllustrationEditor plan={plan} disabled={disabled} onChange={onPlanChange} />
         ) : null}
         {plan && outputMode === "comic"
           ? plan.panels.map((panel) => {
@@ -225,12 +325,53 @@ export default function ChatSceneBuilder({
           : null}
       </section>
 
+      {aiSuggestedPlan ? (
+        <section className="space-y-2 rounded-xl border border-violet-400/25 bg-violet-500/[0.06] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-[11px] font-semibold text-violet-200">AI 제안</h3>
+            <button
+              type="button"
+              className="text-[10px] font-semibold text-violet-100 hover:text-white"
+              onClick={() => setShowAiPreview((current) => !current)}
+            >
+              {showAiPreview ? "미리보기 닫기" : "미리보기"}
+            </button>
+          </div>
+          {showAiPreview ? (
+            <p className="whitespace-pre-wrap text-xs leading-relaxed text-zinc-200">
+              {aiSuggestedPlan.heroScene || aiSuggestedPlan.sceneBackground}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onApplyAiSuggestion}
+              className="rounded-lg bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
+            >
+              제안 적용
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                setShowAiPreview(false);
+                onCancelAiSuggestion();
+              }}
+              className="rounded-lg border border-white/15 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40"
+            >
+              취소
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {castManifest ? (
         <ChatImageCastPicker
           manifest={castManifest}
           selectableAssets={selectableAssets}
           reservedReferenceUrls={reservedReferenceUrls}
-          disabled={disabled || planLoading}
+          disabled={disabled || aiSuggestionLoading}
           onChange={onCastChange}
         />
       ) : null}
@@ -267,7 +408,7 @@ export default function ChatSceneBuilder({
           <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
             {(
               [
-                ["ai", "AI 추천"],
+                ["ai", "자동"],
                 [2, "2컷"],
                 [3, "3컷"],
                 [4, "4컷"],

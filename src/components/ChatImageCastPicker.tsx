@@ -3,6 +3,7 @@
 import {
   CHAT_IMAGE_CAST_FOUR_PLUS_WARNING,
   applyUserCastEdits,
+  castCandidateSourceLabel,
   castNeedsFourPlusWarning,
   isCastReferenceUrlTaken,
   selectedCastIntentSubjects,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/chatImageCast";
 
 const GOALS: Array<{ id: ChatImageCastCompositionGoal; label: string }> = [
-  { id: "auto", label: "AI 추천" },
+  { id: "auto", label: "자동" },
   { id: "duo_focus", label: "2인 중심" },
   { id: "trio_group", label: "3인 단체샷" },
   { id: "ensemble_scene", label: "앙상블" },
@@ -80,6 +81,9 @@ export default function ChatImageCastPicker({
                       : subject.role === "main_character"
                         ? "메인 캐릭터"
                         : "조연"}
+                    {subject.candidateSources?.length
+                      ? ` · ${castCandidateSourceLabel(subject.candidateSources)}`
+                      : ""}
                   </span>
                 </label>
                 {subject.included ? (
@@ -211,7 +215,13 @@ export default function ChatImageCastPicker({
               key={item.id}
               type="button"
               disabled={
-                disabled || (item.id === "trio_group" && selectedCount !== 3)
+                disabled ||
+                (item.id === "trio_group" && selectedCount !== 3)
+              }
+              title={
+                item.id === "trio_group" && selectedCount !== 3
+                  ? `출연 인물 3명일 때 사용할 수 있어요 · 현재 ${selectedCount}명`
+                  : undefined
               }
               onClick={() => onChange({ ...manifest, compositionGoal: item.id })}
               className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
