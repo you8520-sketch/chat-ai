@@ -454,26 +454,38 @@ export function applyUserCastEdits(
   return normalizeCastCompositionGoalIntent(normalizeCastPrimaryCap(next));
 }
 
+export function isManuallyPinnedCastSubject(subject: ChatImageCastIntentSubject): boolean {
+  if (subject.role !== "supporting_character") return false;
+  return subject.included || Boolean(cleanUrl(subject.requestedReferenceAssetUrl));
+}
+
 export function mergeCastIntentDraft(
   current: ChatImageCastIntentManifest | null,
   next: ChatImageCastIntentManifest
 ): ChatImageCastIntentManifest {
   if (!current) return normalizeCastPrimaryCap(next);
   const byKey = new Map(current.subjects.map((subject) => [subject.key, subject]));
+  const nextKeys = new Set(next.subjects.map((subject) => subject.key));
+  const mergedSubjects = next.subjects.map((subject) => {
+    const previous = byKey.get(subject.key);
+    if (!previous) return subject;
+    return {
+      ...subject,
+      included: previous.included,
+      importance: previous.importance,
+      visibility: previous.visibility,
+      requestedReferenceAssetUrl: previous.requestedReferenceAssetUrl,
+      candidateSources: subject.candidateSources ?? previous.candidateSources,
+    };
+  });
+  for (const previous of current.subjects) {
+    if (nextKeys.has(previous.key)) continue;
+    if (!isManuallyPinnedCastSubject(previous)) continue;
+    mergedSubjects.push(previous);
+  }
   return normalizeCastPrimaryCap({
     compositionGoal: current.compositionGoal,
-    subjects: next.subjects.map((subject) => {
-      const previous = byKey.get(subject.key);
-      if (!previous) return subject;
-      return {
-        ...subject,
-        included: previous.included,
-        importance: previous.importance,
-        visibility: previous.visibility,
-        requestedReferenceAssetUrl: previous.requestedReferenceAssetUrl,
-        candidateSources: subject.candidateSources ?? previous.candidateSources,
-      };
-    }),
+    subjects: mergedSubjects,
   });
 }
 

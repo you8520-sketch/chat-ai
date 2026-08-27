@@ -14,6 +14,7 @@ import {
 import {
   applyApprovedAiScenePlan,
   buildDeterministicScenePlan,
+  buildSceneSourceMessages,
   reflowScenePlanPanels,
   type ScenePlan,
   type SceneSourceMessage,
@@ -366,6 +367,9 @@ export default function ChatImageGeneratorPanel({
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
   const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
   const aiPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
+  const sceneSourceEpochRef = useRef(0);
+  const sceneBriefAbortRef = useRef<AbortController | null>(null);
+  const aiSuggestionAbortRef = useRef<AbortController | null>(null);
   const [aiSuggestedPlan, setAiSuggestedPlan] = useState<ScenePlan | null>(null);
   const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
   const [aiSuggestionError, setAiSuggestionError] = useState("");
@@ -470,7 +474,7 @@ export default function ChatImageGeneratorPanel({
       const messageId = Number(detail?.messageId);
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
-        resetSceneSourceState();
+        const epoch = beginSceneSourceChange();
         setSourceMessageId(messageId);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
@@ -479,9 +483,9 @@ export default function ChatImageGeneratorPanel({
         setComicText("");
         setComicSummary("");
         setComicLoadedMaxChars(0);
-        void loadSelectedTurnContent(messageId);
+        void loadSelectedTurnContent(messageId, epoch);
       } else if (preview) {
-        resetSceneSourceState();
+        const epoch = beginSceneSourceChange();
         setSourceMessageId(null);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
@@ -490,6 +494,7 @@ export default function ChatImageGeneratorPanel({
         setComicText("");
         setComicSummary(preview.slice(0, CHAT_COMIC_MAX_INPUT_CHARS));
         setComicLoadedMaxChars(Math.min(preview.length, CHAT_COMIC_MAX_INPUT_CHARS));
+        applyPreviewSceneSource(preview, epoch);
       }
       setOpen(true);
     };
@@ -1020,6 +1025,10 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
+  function isCurrentSceneSourceEpoch(epoch: number): boolean {
+    return sceneSourceEpochRef.current === epoch;
+  }
+
   function resetSceneSourceState() {
     setScenePlan(null);
     setCastIntent(null);
@@ -1029,6 +1038,18 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestionError("");
     setHasAiSuggestionSession(false);
     setScenePanelCountMode("ai");
+    setAiSuggestionLoading(false);
+  }
+
+  function beginSceneSourceChange(): number {
+    sceneBriefAbortRef.current?.abort();
+    aiSuggestionAbortRef.current?.abort();
+    sceneBriefAbortRef.current = null;
+    aiSuggestionAbortRef.current = null;
+    const epoch = sceneSourceEpochRef.current + 1;
+    sceneSourceEpochRef.current = epoch;
+    resetSceneSourceState();
+    return epoch;
   }
 
   function sceneCacheKey(messageId: number | null, summary: string) {
@@ -1039,8 +1060,10 @@ export default function ChatImageGeneratorPanel({
   function applyDeterministicScenePlan(
     messageId: number | null,
     summary: string,
-    messages: SceneSourceMessage[]
+    messages: SceneSourceMessage[],
+    epoch: number
   ) {
+    if (!isCurrentSceneSourceEpoch(epoch)) return;
     const key = sceneCacheKey(messageId, summary);
     const cached = deterministicPlanCacheRef.current.get(key);
     const plan = cached ?? buildDeterministicScenePlan(messages);
@@ -1051,16 +1074,28 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestionError("");
   }
 
+  function applyPreviewSceneSource(preview: string, epoch: number) {
+    if (!isCurrentSceneSourceEpoch(epoch)) return;
+    const trimmed = preview.trim();
+    if (!trimmed) return;
+    const messages = buildSceneSourceMessages([{ id: 1, role: "user", content: trimmed }]);
+    setSceneMessages(messages);
+    setConfiguredCastNames([]);
+    applyDeterministicScenePlan(null, trimmed, messages, epoch);
+  }
+
   async function requestAiSceneSuggestion(opts: {
     messageId: number | null;
     summary: string;
     messages?: SceneSourceMessage[];
     force?: boolean;
+    epoch: number;
   }) {
-    if (trpgCampaignMode) return;
+    if (trpgCampaignMode || !isCurrentSceneSourceEpoch(opts.epoch)) return;
     const key = sceneCacheKey(opts.messageId, opts.summary);
     const cached = !opts.force ? aiPlanCacheRef.current.get(key) : undefined;
     if (cached) {
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
       setAiSuggestedPlan(cached);
       setHasAiSuggestionSession(true);
       setAiSuggestionError("");
@@ -1068,11 +1103,15 @@ export default function ChatImageGeneratorPanel({
     }
     setAiSuggestionLoading(true);
     setAiSuggestionError("");
+    aiSuggestionAbortRef.current?.abort();
+    const controller = new AbortController();
+    aiSuggestionAbortRef.current = controller;
     try {
       const ids = currentRouteIds();
       const response = await fetch("/api/chat/comic-generation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           ...ids,
           mode: "scene_plan",
@@ -1081,6 +1120,7 @@ export default function ChatImageGeneratorPanel({
           panelCount: scenePanelCountMode === "ai" ? undefined : scenePanelCountMode,
         }),
       });
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
       const data = (await response.json().catch(() => null)) as
         | { ok?: boolean; plan?: ScenePlan; error?: string }
         | null;
@@ -1090,17 +1130,22 @@ export default function ChatImageGeneratorPanel({
             "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다."
         );
       }
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
       aiPlanCacheRef.current.set(key, data.plan);
       setAiSuggestedPlan(data.plan);
       setHasAiSuggestionSession(true);
     } catch (caught) {
+      if (!isCurrentSceneSourceEpoch(opts.epoch)) return;
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
       setAiSuggestionError(
         caught instanceof Error
           ? caught.message
           : "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다."
       );
     } finally {
-      setAiSuggestionLoading(false);
+      if (isCurrentSceneSourceEpoch(opts.epoch)) {
+        setAiSuggestionLoading(false);
+      }
     }
   }
 
@@ -1126,23 +1171,27 @@ export default function ChatImageGeneratorPanel({
     setAiSuggestionError("");
   }
 
-  async function loadSelectedTurnContent(messageId: number) {
-    if (summarizing) return;
-    resetSceneSourceState();
+  async function loadSelectedTurnContent(messageId: number, epoch: number) {
+    if (!isCurrentSceneSourceEpoch(epoch)) return;
     setSummarizing(true);
     setError("");
     setNotice("");
+    sceneBriefAbortRef.current?.abort();
+    const controller = new AbortController();
+    sceneBriefAbortRef.current = controller;
     try {
       const ids = currentRouteIds();
       const response = await fetch("/api/chat/comic-generation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           ...ids,
           mode: "scene_brief",
           messageId,
         }),
       });
+      if (!isCurrentSceneSourceEpoch(epoch)) return;
       const data = (await response.json().catch(() => null)) as
         | {
             ok?: boolean;
@@ -1155,6 +1204,7 @@ export default function ChatImageGeneratorPanel({
       if (!response.ok || !data?.summary) {
         throw new Error(data?.error || "턴 내용을 불러오지 못했습니다.");
       }
+      if (!isCurrentSceneSourceEpoch(epoch)) return;
       setComicSummary(data.summary);
       setComicLoadedMaxChars(data.summary.length);
       const messages = Array.isArray(data.messages) ? data.messages : [];
@@ -1164,11 +1214,15 @@ export default function ChatImageGeneratorPanel({
           ? data.configuredCastNames.filter((name) => typeof name === "string" && name.trim())
           : []
       );
-      applyDeterministicScenePlan(messageId, data.summary, messages);
+      applyDeterministicScenePlan(messageId, data.summary, messages, epoch);
     } catch (caught) {
+      if (!isCurrentSceneSourceEpoch(epoch)) return;
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
-      setSummarizing(false);
+      if (isCurrentSceneSourceEpoch(epoch)) {
+        setSummarizing(false);
+      }
     }
   }
 
@@ -1330,6 +1384,7 @@ export default function ChatImageGeneratorPanel({
             setSourceTurnPreview("");
             setComicSummary("");
             setComicLoadedMaxChars(0);
+            beginSceneSourceChange();
             setOpen(true);
           }}
           className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
@@ -2056,6 +2111,7 @@ export default function ChatImageGeneratorPanel({
                                 summary: comicSummary || sourceTurnPreview,
                                 messages: sceneMessages,
                                 force: hasAiSuggestionSession,
+                                epoch: sceneSourceEpochRef.current,
                               });
                             }}
                             onApplyAiSuggestion={applyAiSceneSuggestion}

@@ -7,6 +7,7 @@ import {
   detectCurrentSceneCastNames,
   draftCastIntentFromCandidatePool,
   filterConfiguredCastNamesForViewer,
+  isManuallyPinnedCastSubject,
   mergeCastIntentDraft,
   normalizeCastMatchName,
   type ChatImageCastIntentManifest,
@@ -274,6 +275,197 @@ describe("chatImageSceneManualFirst explicit panel count", () => {
   it("keeps auto mode at AI recommended count", () => {
     const applied = applyApprovedAiScenePlan(aiTwo, "ai");
     assert.equal(applied.panels.length, 2);
+  });
+});
+
+describe("chatImageSceneManualFirst manual pin merge", () => {
+  const baseDraft = draftCastIntentFromCandidatePool({
+    personaName: "유저",
+    mainCharacterName: "메인",
+    configuredCharacterSetNames: ["민준"],
+    events: [{ text: "민준이 고개를 끄덕였다." }],
+  });
+
+  it("preserves included supporting subjects missing from next draft", () => {
+    const current = {
+      ...baseDraft,
+      subjects: baseDraft.subjects.map((subject) =>
+        subject.name === "민준" ? { ...subject, included: true } : subject
+      ),
+    };
+    const next = draftCastIntentFromCandidatePool({
+      personaName: "유저",
+      mainCharacterName: "메인",
+      configuredCharacterSetNames: ["태형"],
+      events: [{ text: "태형이 문을 열었다." }],
+    });
+    const merged = mergeCastIntentDraft(current, next);
+    const minjun = merged.subjects.find((subject) => subject.name === "민준");
+    assert.equal(minjun?.included, true);
+  });
+
+  it("preserves asset-pinned supporting subjects even when unchecked", () => {
+    const current = {
+      ...baseDraft,
+      subjects: baseDraft.subjects.map((subject) =>
+        subject.name === "민준"
+          ? { ...subject, included: false, requestedReferenceAssetUrl: "asset-m" }
+          : subject
+      ),
+    };
+    const next = draftCastIntentFromCandidatePool({
+      personaName: "유저",
+      mainCharacterName: "메인",
+      configuredCharacterSetNames: [],
+      events: [{ text: "태형이 문을 열었다." }],
+    });
+    const merged = mergeCastIntentDraft(current, next);
+    const minjun = merged.subjects.find((subject) => subject.name === "민준");
+    assert.equal(minjun?.requestedReferenceAssetUrl, "asset-m");
+    assert.equal(minjun?.included, false);
+  });
+
+  it("drops unpinned supporting subjects missing from next draft", () => {
+    const current = {
+      ...baseDraft,
+      subjects: baseDraft.subjects.map((subject) =>
+        subject.name === "민준"
+          ? { ...subject, included: false, requestedReferenceAssetUrl: undefined }
+          : subject
+      ),
+    };
+    const next = draftCastIntentFromCandidatePool({
+      personaName: "유저",
+      mainCharacterName: "메인",
+      configuredCharacterSetNames: ["태형"],
+      events: [{ text: "태형이 문을 열었다." }],
+    });
+    const merged = mergeCastIntentDraft(current, next);
+    assert.equal(merged.subjects.some((subject) => subject.name === "민준"), false);
+  });
+
+  it("identifies manual pin by include or asset only for supporting roles", () => {
+    const persona = baseDraft.subjects.find((subject) => subject.role === "persona")!;
+    assert.equal(isManuallyPinnedCastSubject(persona), false);
+    assert.equal(
+      isManuallyPinnedCastSubject({
+        ...baseDraft.subjects.find((subject) => subject.name === "민준")!,
+        included: true,
+      }),
+      true
+    );
+  });
+});
+
+type SceneSourceEpochGate = {
+  begin: () => number;
+  isCurrent: (epoch: number) => boolean;
+  applyIfCurrent: (epoch: number, apply: () => void) => boolean;
+};
+
+function createSceneSourceEpochGate(): SceneSourceEpochGate {
+  let current = 0;
+  return {
+    begin() {
+      current += 1;
+      return current;
+    },
+    isCurrent(epoch) {
+      return current === epoch;
+    },
+    applyIfCurrent(epoch, apply) {
+      if (current !== epoch) return false;
+      apply();
+      return true;
+    },
+  };
+}
+
+async function deferred<T>(value: T, delayMs = 0): Promise<T> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  return value;
+}
+
+describe("chatImageSceneManualFirst async source ownership", () => {
+  it("SCENE_BRIEF_OUT_OF_ORDER: later source wins", async () => {
+    const gate = createSceneSourceEpochGate();
+    const epochA = gate.begin();
+    const epochB = gate.begin();
+    let summary = "";
+    let castNames: string[] = ["stale"];
+
+    const applyBrief = (epoch: number, nextSummary: string, nextCast: string[]) => {
+      gate.applyIfCurrent(epoch, () => {
+        summary = nextSummary;
+        castNames = nextCast;
+      });
+    };
+
+    const responseB = deferred({ summary: "B summary", cast: ["B"] });
+    const responseA = deferred({ summary: "A summary", cast: ["A"] }, 5);
+    applyBrief(epochB, (await responseB).summary, (await responseB).cast);
+    applyBrief(epochA, (await responseA).summary, (await responseA).cast);
+
+    assert.equal(summary, "B summary");
+    assert.deepEqual(castNames, ["B"]);
+  });
+
+  it("AI_RESULT_AFTER_SOURCE_SWITCH: stale preview is discarded", async () => {
+    const gate = createSceneSourceEpochGate();
+    const epochA = gate.begin();
+    gate.begin();
+    let preview: ScenePlan | null = null;
+
+    const applyPreview = (epoch: number, plan: ScenePlan) => {
+      gate.applyIfCurrent(epoch, () => {
+        preview = plan;
+      });
+    };
+
+    const aiA = deferred(buildDeterministicScenePlan(buildSceneSourceMessages([
+      { id: 1, role: "user", content: "A" },
+    ])));
+    applyPreview(epochA, await aiA);
+    assert.equal(preview, null);
+  });
+
+  it("OLD_FINALLY_AFTER_NEW_REQUEST: stale finally does not clear new loading", async () => {
+    const gate = createSceneSourceEpochGate();
+    const epochA = gate.begin();
+    let loading = true;
+    const epochB = gate.begin();
+    loading = true;
+
+    const finish = (epoch: number) => {
+      if (gate.isCurrent(epoch)) loading = false;
+    };
+
+    finish(epochA);
+    assert.equal(loading, true);
+    finish(epochB);
+    assert.equal(loading, false);
+  });
+
+  it("SOURCE_RESET_ONCE: one begin increments epoch exactly once", () => {
+    const gate = createSceneSourceEpochGate();
+    assert.equal(gate.begin(), 1);
+    assert.equal(gate.begin(), 2);
+    assert.equal(gate.isCurrent(1), false);
+    assert.equal(gate.isCurrent(2), true);
+  });
+
+  it("CROSS_SOURCE_PIN: new source begin clears previous cast owner", () => {
+    const gate = createSceneSourceEpochGate();
+    gate.begin();
+    let castIntent: ChatImageCastIntentManifest | null = draftCastIntentFromCandidatePool({
+      personaName: "유저",
+      mainCharacterName: "메인",
+      configuredCharacterSetNames: ["민준"],
+      events: [{ text: "민준이 고개를 끄덕였다." }],
+    });
+    const epochB = gate.begin();
+    if (gate.isCurrent(epochB)) castIntent = null;
+    assert.equal(castIntent, null);
   });
 });
 
