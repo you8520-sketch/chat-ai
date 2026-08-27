@@ -108,10 +108,10 @@ describe("TRPG follow-latest scroll", () => {
   it("keeps #598 speed presets while following persisted GM row N after snap.round advances", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const reveal = readFileSync("src/app/trpg/useRevealedText.ts", "utf8");
-    assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(room, /const narrationReveal = useRevealedText\(pacingSource, revealNarration, "gm", streamIntervalMs\)/);
     assert.match(reveal, /resolveTrpgRevealVisibleCount/);
     assert.match(reveal, /trpgRevealSessionChanged/);
-    assert.match(reveal, /text, active, kind, streamIntervalMs, visibleEpoch\]/);
+    assert.match(reveal, /text, active, kind, streamIntervalMs, visibleEpoch, held\]/);
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     const fast = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "빠름")!;
     const normal = CHAT_STREAM_SPEED_PRESETS.find((p) => p.label === "보통")!;
@@ -177,12 +177,12 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /liveFollowRound/);
     assert.match(room, /resolveTrpgLiveFollowOwner/);
     assert.match(room, /alignNarrationEnd/);
-    assert.match(room, /const narrationReveal = useRevealedText\(row\.narration \?\? "", revealNarration, "gm", streamIntervalMs\)/);
+    assert.match(room, /const narrationReveal = useRevealedText\(pacingSource, revealNarration, "gm", streamIntervalMs\)/);
     assert.match(room, /data-trpg-stream-interval-ms=\{streamIntervalMs\}/);
     assert.match(room, /data-trpg-live-follow-round=\{liveFollowRound\}/);
     assert.match(room, /liveScene=\{row\.roundNumber === liveFollowRound\}/);
     assert.match(room, /resolveTrpgMountSeenKeys/);
-    assert.match(room, /const revealNarration = allowGm && isFreshLogKey\(`n:\$\{row\.roundNumber\}`\)/);
+    assert.match(room, /resolveTrpgGmRevealActive/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
     assert.match(room, /requestAnimationFrame/);
     assert.match(room, /if \(!followLatestRef\.current\) return/);

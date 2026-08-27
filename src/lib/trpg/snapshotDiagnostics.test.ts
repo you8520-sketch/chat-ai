@@ -454,7 +454,8 @@ describe("TRPG snapshot diagnostics", () => {
 
   it("does not change client polling or expose the flag to browser JS", () => {
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
-    assert.match(client, /const POLL_MS = 1500/);
+    assert.match(client, /const POLL_MS = TRPG_SNAPSHOT_POLL_MS/);
+    assert.match(client, /TRPG_SNAPSHOT_POLL_MS/);
     assert.equal(client.includes("AbortController"), false);
     assert.equal(client.includes("TRPG_SNAPSHOT_DIAGNOSTICS"), false);
     const getRoute = readFileSync("src/app/api/trpg/campaigns/[id]/route.ts", "utf8");

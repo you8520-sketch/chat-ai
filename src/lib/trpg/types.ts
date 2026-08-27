@@ -15,7 +15,7 @@ export const TRPG_BOT_RECENT_ROUNDS = 5;
 export const TRPG_BOT_CONTINUITY_MAX_CHARS = 2200;
 export const TRPG_BOT_CONTINUITY_ACTION_CHARS = 80;
 export const TRPG_BOT_CONTINUITY_SCENE_CHARS = 220;
-/** Thinking-on + long Hangul; omit would risk provider-default truncation. */
+/** Thinking disabled + reasoning_effort none; long Hangul needs headroom against provider-default truncation. */
 export const TRPG_GM_MAX_TOKENS = 12288;
 export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
