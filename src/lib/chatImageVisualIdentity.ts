@@ -48,7 +48,7 @@ const EXPLICIT_APPEARANCE_HEADING =
 const EXPLICIT_APPEARANCE_ENGLISH_HEADING =
   /^(?:[-*]\s*)?(?:appearance|looks)\s*[:：]\s*(.*)$/i;
 const KNOWN_CHARACTER_SETTING_HEADING =
-  /^(?:[-*]\s*)?(?:외형|외모|외관|생김새)(?:\s*특징)?\s*[:：]|^(?:[-*]\s*)?(?:appearance|looks|성격|말투|관계|배경|과거|역할|목표|비밀|직업|나이|이름|캐릭터명|인물명)\s*[:：]/i;
+  /^(?:[-*]\s*)?(?:외형|외모|외관|생김새)(?:\s*특징)?\s*[:：]|^(?:[-*]\s*)?(?:appearance|looks|성격|말투|관계|배경|과거|역할|목표|비밀|직업|나이|이름|캐릭터명|인물명|personality|speech|voice|relationship|background|past|role|goal|secret|occupation|age|name)\s*[:：]/i;
 
 export const CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR =
   "파티 구성원 참조 이미지가 없습니다. 채팅 캐릭터나 페르소나 사진을 대신 쓰지 않습니다. 최소 1명의 참조 사진을 선택한 뒤 다시 시도해 주세요.";

@@ -37,7 +37,7 @@ describe("simulation creator simplified UX", () => {
 
   it("demotes rules without changing their form state owner", () => {
     assert.match(creatorSource, /<details className=\{sectionMuted\}>/);
-    assert.match(creatorSource, />고급 진행 규칙</);
+    assert.match(creatorSource, />\s*고급 진행 규칙\s*</);
     assert.match(creatorSource, /보통은 비워도 됩니다/);
     assert.match(creatorSource, /value=\{form\.simulation_rules\}/);
   });
