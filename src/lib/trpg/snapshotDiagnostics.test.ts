@@ -2,24 +2,58 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
-import { advanceTrpgCampaign } from "./engineAdvance";
+import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS, writeSheet } from "./engineCreate";
+import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction } from "./engineAdvance";
+import { insertParticipant } from "./store";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { ensureTrpgTables } from "./schema";
 import { loadTrpgCampaignSnapshotForGet } from "./snapshotGetTrace";
 import {
   beginActiveCampaignGetRequest,
   collectSnapshotScaleCounts,
-  createAdvanceDiagState,
   endActiveCampaignGetRequest,
   getActiveCampaignGetRequests,
   isTrpgSnapshotDiagnosticsEnabled,
   newTrpgDiagRequestId,
   resetActiveCampaignGetRequestsForTest,
-  runWithAdvanceDiag,
   setTrpgSnapshotDiagLogForTest,
   withActiveCampaignGetRequest,
 } from "./snapshotDiagnostics";
+
+function gmText(narration = "장면"): string {
+  return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
+    players: [],
+    location: "문턱",
+    next_round_context: "다음",
+    questsAdd: [],
+    flagsAdd: [],
+    campaign_finished: false,
+  })}`;
+}
+
+function collectDiagLines(fn: () => Promise<void> | void): Promise<Record<string, unknown>[]> {
+  const lines: Record<string, unknown>[] = [];
+  const restore = setTrpgSnapshotDiagLogForTest((line) => {
+    lines.push(line);
+  });
+  return Promise.resolve(fn()).then(
+    () => {
+      restore();
+      return lines;
+    },
+    (error) => {
+      restore();
+      return Promise.reject(error);
+    }
+  );
+}
+
+function advanceEvents(lines: Record<string, unknown>[]) {
+  return lines.filter((line) => {
+    const event = line.event;
+    return event === "trpg_advance_start" || event === "trpg_advance_end";
+  });
+}
 
 const SECRET_NARRATION = "SECRET_NARRATION_TOKEN_XYZ_DO_NOT_LOG";
 const SECRET_ACTION = "SECRET_ACTION_BODY_TOKEN_ABC_DO_NOT_LOG";
@@ -274,26 +308,148 @@ describe("TRPG snapshot diagnostics", () => {
     assert.equal("snapshotBytes" in counts, false);
   });
 
-  it("advance diagnostics do not change lobby snapshot or call a provider", async () => {
+  it("DIAGNOSTICS_OFF_ADVANCE_BEHAVIOR_IDENTICAL: lobby advance unchanged when flag off", async () => {
     const db = memoryDb();
     const campaignId = seedLobby(db);
     setDiag(false);
     const off = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: { skipBilling: true } });
-    const lines: Record<string, unknown>[] = [];
-    const restore = setTrpgSnapshotDiagLogForTest((line) => {
-      lines.push(line);
-    });
     setDiag(true);
-    const meta = createAdvanceDiagState();
-    const on = await runWithAdvanceDiag(meta, () =>
-      advanceTrpgCampaign(db, { campaignId, userId: 1, deps: { skipBilling: true } })
-    );
-    restore();
+    const lines = await collectDiagLines(async () => {
+      setDiag(false);
+      const again = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: { skipBilling: true } });
+      assert.equal(JSON.stringify(again), JSON.stringify(off));
+    });
     db.close();
-    assert.equal(JSON.stringify(on), JSON.stringify(off));
-    assert.equal(meta.phaseBefore, "NONE");
-    assert.equal(meta.workTypeBefore, "idle");
-    assert.equal(lines.length, 0);
+    assert.equal(advanceEvents(lines).length, 0);
+  });
+
+  it("DIRECT_ADVANCE_CALL_DIAGNOSED: engine owner emits one start/end pair", async () => {
+    const db = memoryDb();
+    const campaignId = seedLobby(db);
+    setDiag(true);
+    const lines = await collectDiagLines(async () => {
+      await advanceTrpgCampaign(db, {
+        campaignId,
+        userId: 1,
+        deps: { skipBilling: true },
+        source: "direct_test",
+      });
+    });
+    db.close();
+    const events = advanceEvents(lines);
+    assert.equal(events.filter((e) => e.event === "trpg_advance_start").length, 1);
+    assert.equal(events.filter((e) => e.event === "trpg_advance_end").length, 1);
+    assert.equal(events[0]?.source, "direct_test");
+    assert.equal(events[1]?.success, true);
+    assert.equal(events[1]?.workTypeBefore, "idle");
+    assert.equal(events[1]?.phaseBefore, "NONE");
+  });
+
+  it("POST_ACTION_AFTER_ADVANCE_DIAGNOSED: post_action_after source is observable", async () => {
+    const db = memoryDb();
+    const campaignId = seedLobby(db);
+    setDiag(true);
+    const lines = await collectDiagLines(async () => {
+      await advanceTrpgCampaign(db, {
+        campaignId,
+        userId: 1,
+        deps: { skipBilling: true },
+        source: "post_action_after",
+      });
+    });
+    db.close();
+    const start = advanceEvents(lines).find((e) => e.event === "trpg_advance_start");
+    assert.equal(start?.source, "post_action_after");
+  });
+
+  it("ADVANCE_ROUTE_CALL_DIAGNOSED: poll_advance source wired from advance route", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/advance/route.ts", "utf8");
+    assert.match(route, /source:\s*"poll_advance"/);
+    assert.equal(route.includes("trpg_advance_start"), false);
+    assert.equal(route.includes("logTrpgSnapshotDiag"), false);
+  });
+
+  it("NO_DUPLICATE_ROUTE_AND_ENGINE_LOGGING: advance route has no route-level advance logs", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/advance/route.ts", "utf8");
+    assert.equal(route.includes("runWithAdvanceDiag"), false);
+    assert.equal(route.includes("createAdvanceDiagState"), false);
+    assert.equal(route.includes("trpg_advance_end"), false);
+  });
+
+  it("ONE_ADVANCE_CALL_ONE_START_END_PAIR: bot recursion stays inside one outer pair", async () => {
+    const db = memoryDb();
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    const deps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async () => ({ text: gmText("오프닝") }),
+      botCall: async () => ({ text: "유나는 창틀을 본다.\n\n<<<INTENT>>>\n창틀을 본다." }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
+    setDiag(true);
+    const lines = await collectDiagLines(async () => {
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps, source: "post_action_after" });
+    });
+    db.close();
+    const events = advanceEvents(lines);
+    assert.equal(events.filter((e) => e.event === "trpg_advance_start").length, 1);
+    assert.equal(events.filter((e) => e.event === "trpg_advance_end").length, 1);
+    const end = events.find((e) => e.event === "trpg_advance_end");
+    assert.equal(end?.success, true);
+    assert.equal(typeof end?.totalMs, "number");
+  });
+
+  it("ADVANCE_SUCCESS_END_LOG includes safe phase/work fields", async () => {
+    const db = memoryDb();
+    const campaignId = seedLobby(db);
+    setDiag(true);
+    const lines = await collectDiagLines(async () => {
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: { skipBilling: true } });
+    });
+    db.close();
+    const end = advanceEvents(lines).find((e) => e.event === "trpg_advance_end");
+    assert.equal(end?.success, true);
+    assert.equal(end?.errorClass, null);
+    assert.equal(end?.workTypeAfter, "idle");
+    assert.equal(end?.phaseAfter, "NONE");
+    assert.equal("body" in (end ?? {}), false);
+    assert.equal("narration" in (end ?? {}), false);
+  });
+
+  it("ADVANCE_ERROR_END_LOG records safe errorClass only", async () => {
+    const db = memoryDb();
+    const campaignId = seedLobby(db);
+    setDiag(true);
+    const lines = await collectDiagLines(async () => {
+      await assert.rejects(
+        advanceTrpgCampaign(db, { campaignId, userId: 999, deps: { skipBilling: true } }),
+        /참가자/
+      );
+    });
+    db.close();
+    const end = advanceEvents(lines).find((e) => e.event === "trpg_advance_end");
+    assert.equal(end?.success, false);
+    assert.equal(end?.errorClass, "Error");
+    assert.equal(end?.workTypeAfter, null);
+  });
+
+  it("post-action route keeps after() and labels source without route-level advance logs", () => {
+    const route = readFileSync("src/app/api/trpg/campaigns/[id]/action/route.ts", "utf8");
+    assert.match(route, /after\(async \(\) => \{/);
+    assert.match(route, /source:\s*"post_action_after"/);
+    assert.equal(route.includes("trpg_advance_start"), false);
+    assert.equal(route.includes("logTrpgSnapshotDiag"), false);
   });
 
   it("does not change client polling or expose the flag to browser JS", () => {

@@ -61,7 +61,12 @@ import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
-import { getAdvanceDiagState, noteAdvanceDiag } from "./snapshotDiagnostics";
+import {
+  diagnoseAdvanceTrpgCampaign,
+  getAdvanceDiagState,
+  isTrpgSnapshotDiagnosticsEnabled,
+  noteAdvanceDiag,
+} from "./snapshotDiagnostics";
 import { buildCampaignMemoryPrompt, buildCampaignMemoryQuery, buildTrpgBotMemoryBlock, buildTrpgBotRecentContinuity, loadCompletedMemoryRounds } from "./memory";
 import {
   buildBotCompactContinuity,
@@ -373,9 +378,17 @@ function upsertLockedAction(
   ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin);
 }
 
-export async function advanceTrpgCampaign(
+export type AdvanceTrpgCampaignOpts = {
+  campaignId: number;
+  userId: number;
+  deps?: TrpgEngineDeps;
+  /** Diagnostic-only caller label; ignored when TRPG_SNAPSHOT_DIAGNOSTICS !== "1". */
+  source?: string;
+};
+
+async function advanceTrpgCampaignCore(
   db: Database.Database,
-  opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
+  opts: AdvanceTrpgCampaignOpts
 ): Promise<TrpgCampaignSnapshot> {
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
@@ -484,7 +497,7 @@ export async function advanceTrpgCampaign(
       );
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
-    return advanceTrpgCampaign(db, opts);
+    return advanceTrpgCampaignCore(db, opts);
   }
 
   if (work.type === "acquire_gm_lock") {
@@ -512,6 +525,19 @@ export async function advanceTrpgCampaign(
   }
 
   return mustSnapshot(db, opts.campaignId, opts.userId);
+}
+
+export async function advanceTrpgCampaign(
+  db: Database.Database,
+  opts: AdvanceTrpgCampaignOpts
+): Promise<TrpgCampaignSnapshot> {
+  if (!isTrpgSnapshotDiagnosticsEnabled()) {
+    return advanceTrpgCampaignCore(db, opts);
+  }
+  return diagnoseAdvanceTrpgCampaign(
+    { campaignId: opts.campaignId, source: opts.source },
+    () => advanceTrpgCampaignCore(db, opts)
+  );
 }
 
 /** Host explicit retry for pending AI companions after automatic recovery is exhausted. */
@@ -567,7 +593,7 @@ export async function retryTrpgBots(
     );
     return mustSnapshot(db, opts.campaignId, opts.userId);
   }
-  return advanceTrpgCampaign(db, opts);
+  return advanceTrpgCampaign(db, { ...opts, source: "retry_bots" });
 }
 
 function actorsForRound(
