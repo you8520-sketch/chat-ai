@@ -11,6 +11,7 @@ import {
   CHAT_PORTRAIT_COLUMN_CLASS,
   CHAT_PORTRAIT_DESKTOP_TRACK_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_GRID_MAX_WIDTH_CLASS,
   CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS,
   CHAT_PORTRAIT_INFO_STICKY_CLASS,
   CHAT_PORTRAIT_PANEL_IMG_CLASS,
@@ -230,7 +231,8 @@ describe("mobile chat portrait background", () => {
 
   it("uses intrinsic-width desktop portrait column (flex w-max at 768+)", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[101\.5rem\]/);
+    assert.match(CHAT_PORTRAIT_GRID_MAX_WIDTH_CLASS, /101\.5rem/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[576px\]:flex/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[768px\]:flex-row/);
     assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /min-\[768px\]:w-max/);

@@ -505,6 +505,7 @@ html.chat-room-active .mobile-bottom-nav {
       max(0px, calc(100cqw - 1.5rem - var(--chat-portrait-min-chat-w)))
     );
     --chat-portrait-rail-h: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
+    max-width: min(101.5rem, 100%);
     display: flex !important;
     flex-direction: column;
     align-items: center;
@@ -582,6 +583,7 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .chat-room-portrait-chat-column {
     min-width: var(--chat-portrait-min-chat-w);
     max-width: 780px;
+    flex: 1 1 0%;
   }
 
   html.chat-room-active .chat-room-portrait-rail {

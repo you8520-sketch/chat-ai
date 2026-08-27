@@ -498,8 +498,25 @@ export const CHAT_PORTRAIT_COLUMN_CLASS =
 export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
   "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:max-w-[780px] min-[768px]:min-w-[var(--chat-portrait-min-chat-w)]";
 
-/** Minimum chat column width when portrait is ON (desktop). */
+/** Minimum chat column width when portrait is ON (768+ side layout). */
 export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 360;
+
+/** Chat column max width — matches portrait OFF policy. */
+export const CHAT_PORTRAIT_CHAT_MAX_WIDTH_PX = 780;
+
+/** Portrait panel absolute max width cap. */
+export const CHAT_PORTRAIT_PANEL_ABSOLUTE_MAX_WIDTH_PX = 820;
+
+/** Flex gap between portrait and chat columns (1.5rem). */
+export const CHAT_PORTRAIT_COLUMN_GAP_PX = 24;
+
+/**
+ * Portrait ON grid max — portrait cap + gap + chat cap (820 + 24 + 780 = 1624).
+ * Wider than legacy 75.25rem (1204) so wide PC chat can reach 780px without shrink.
+ */
+export const CHAT_PORTRAIT_GRID_MAX_WIDTH_PX = 1624;
+
+export const CHAT_PORTRAIT_GRID_MAX_WIDTH_CLASS = "max-w-[101.5rem]";
 
 /**
  * PC portrait panel max width — set on `.chat-room-portrait-grid` as `--chat-portrait-max-w`
@@ -529,7 +546,7 @@ export const CHAT_PORTRAIT_PANEL_PLACEHOLDER_CLASS =
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  `chat-room-portrait-grid mx-auto flex w-full max-w-[75.25rem] min-w-0 flex-1 flex-col ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS}`;
+  `chat-room-portrait-grid mx-auto flex w-full ${CHAT_PORTRAIT_GRID_MAX_WIDTH_CLASS} min-w-0 flex-1 flex-col ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS}`;
 
 /**
  * Desktop sticky name/creator/album (portrait ON) — top of portrait column.
