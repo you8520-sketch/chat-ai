@@ -13,6 +13,7 @@ import {
   statusWidgetHasUserSource,
   statusWidgetModeFromToggles,
   statusWidgetTogglesFromMode,
+  resolveStatusWidgetEngineStatusKeys,
 } from "./resolve";
 import { engineModeForDisplay, serializeStatusWidget } from "./serialize";
 import { resolveStatusWidgetReservedChars } from "./contextBudget";
@@ -182,13 +183,33 @@ describe("status widget true 4-state owner", () => {
     assert.doesNotMatch(resolveSrc, /engineModeForDisplay\(/);
   });
 
+  it("creator trigger status keys exclude user widget fields", () => {
+    const resolved = resolveStatusWidgetTurn({
+      characterWidgetJson: creatorJson,
+      userWidgetJson: userJson,
+      chatMode: "both",
+    });
+    const keys = resolveStatusWidgetEngineStatusKeys(resolved);
+    assert.ok(keys.includes("시간"));
+    assert.ok(!keys.includes("my_note"));
+  });
+
+  it("user_only → creator trigger keys empty", () => {
+    const resolved = resolveStatusWidgetTurn({
+      characterWidgetJson: creatorJson,
+      userWidgetJson: userJson,
+      chatMode: "user_only",
+    });
+    assert.equal(resolveStatusWidgetEngineStatusKeys(resolved).length, 0);
+  });
+
   it("chat route does not persist status extracted_facts (PR #666)", () => {
     const route = readFileSync(new URL("../../app/api/chat/route.ts", import.meta.url), "utf8");
     assert.doesNotMatch(route, /reconcileEpisodicMemoryFactsForGeneration/);
     assert.doesNotMatch(route, /persistEpisodicMemoryFactsBestEffort/);
     assert.doesNotMatch(route, /engineModeForDisplay\(/);
-    assert.match(route, /statusWidgetTurn\.needsCharacterValues/);
-    assert.match(route, /statusWidgetTurn\.needsUserValues/);
+    assert.match(route, /needsCharacterValues: statusWidgetTurn\.needsCharacterValues/);
+    assert.match(route, /statusWidgetTurn\.needsCharacterValues &&/);
     assert.match(route, /requested_status_mode/);
     assert.match(route, /effective_status_mode/);
     assert.match(route, /status_extract_call_count/);

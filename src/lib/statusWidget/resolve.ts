@@ -171,20 +171,17 @@ export function orderedWidgetsForRender(
   return items;
 }
 
+/** Creator machine-trigger namespace only (STATUS_TRIGGER_OWNER=CREATOR_SOURCE_ONLY). */
 export function resolveStatusWidgetEngineStatusKeys(
   resolved: ResolvedStatusWidgetTurn
 ): string[] {
+  if (!resolved.needsCharacterValues || !resolved.characterWidget) return [];
   const keys = new Set<string>();
-  const addWidget = (widget: StatusWidget | null) => {
-    if (!widget) return;
-    for (const field of widget.fields) {
-      if (field.id?.trim()) keys.add(field.id.trim());
-      const labelKey = field.label?.trim();
-      if (labelKey) keys.add(labelKey);
-    }
-  };
-  if (resolved.needsCharacterValues) addWidget(resolved.characterWidget);
-  if (resolved.needsUserValues) addWidget(resolved.userWidget);
+  for (const field of resolved.characterWidget.fields) {
+    if (field.id?.trim()) keys.add(field.id.trim());
+    const labelKey = field.label?.trim();
+    if (labelKey) keys.add(labelKey);
+  }
   return [...keys];
 }
 

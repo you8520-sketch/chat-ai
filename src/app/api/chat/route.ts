@@ -1677,7 +1677,7 @@ export async function POST(req: Request) {
     8,
     {
       ...(regenerateMessageId ? { maxSourceTurn: playableTurnCount } : {}),
-      engineActive: statusWidgetTurn.active,
+      needsCharacterValues: statusWidgetTurn.needsCharacterValues,
       allowedStatusKeys: resolveStatusWidgetEngineStatusKeys(statusWidgetTurn),
     }
   );
@@ -5359,14 +5359,14 @@ export async function POST(req: Request) {
             }
           }
 
-          if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
+          if (
+            statusWidgetTurn.needsCharacterValues &&
+            statusWidgetValuesPayload &&
+            statusWidgetValuesHasContent(statusWidgetValuesPayload)
+          ) {
             const triggerValues = {
-              character: statusWidgetTurn.needsCharacterValues
-                ? statusWidgetValuesPayload.character
-                : null,
-              user: statusWidgetTurn.needsUserValues
-                ? statusWidgetValuesPayload.user
-                : null,
+              character: statusWidgetValuesPayload.character ?? null,
+              user: null,
             };
             if (statusWidgetValuesHasContent(triggerValues)) {
               evaluateStatusWidgetTriggersBestEffort(db, {

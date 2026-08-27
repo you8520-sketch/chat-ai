@@ -609,41 +609,60 @@ export function loadQueuedStatusTriggerEventsForPrompt(
   limit = 8,
   opts?: {
     maxSourceTurn?: number | null;
-    engineActive?: boolean;
+    /** Gate on creator machine-trigger owner (needsCharacterValues), not overall engine active. */
+    needsCharacterValues?: boolean;
+    /** Creator widget field keys only — never user widget keys. */
     allowedStatusKeys?: readonly string[];
   }
 ): StatusTriggerEvent[] {
   ensureStatusWidgetTriggerTables(db);
-  if (opts?.engineActive === false) return [];
+  if (opts?.needsCharacterValues === false) return [];
+
+  const allowed = opts?.allowedStatusKeys;
+  const allowedKeys = allowed
+    ? [...new Set(allowed.map((k) => k.trim().toLowerCase()).filter(Boolean))]
+    : null;
+  if (allowedKeys && allowedKeys.length === 0) return [];
+
   const maxSourceTurn =
     opts?.maxSourceTurn != null && Number.isFinite(opts.maxSourceTurn)
       ? Math.trunc(opts.maxSourceTurn)
       : null;
-  const sourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
+  const joinSourceTurnFilter = maxSourceTurn != null ? " AND e.source_turn <= ?" : "";
+  const plainSourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
+  const cappedLimit = Math.max(1, Math.min(20, limit));
+
+  if (allowedKeys && allowedKeys.length > 0) {
+    const keyPlaceholders = allowedKeys.map(() => "?").join(", ");
+    const params: unknown[] = [chatId, ...allowedKeys];
+    if (maxSourceTurn != null) params.push(maxSourceTurn);
+    params.push(cappedLimit);
+    return db
+      .prepare(
+        `SELECT e.* FROM status_trigger_events e
+         INNER JOIN status_widget_triggers t ON t.trigger_id = e.trigger_id
+         WHERE e.chat_id = ?
+           AND e.is_consumed = 0
+           AND e.is_superseded = 0
+           AND lower(t.status_key) IN (${keyPlaceholders})${joinSourceTurnFilter}
+         ORDER BY e.fired_at ASC, e.id ASC
+         LIMIT ?`
+      )
+      .all(...params) as StatusTriggerEvent[];
+  }
+
   const params: unknown[] =
-    maxSourceTurn != null
-      ? [chatId, maxSourceTurn, Math.max(1, Math.min(20, limit))]
-      : [chatId, Math.max(1, Math.min(20, limit))];
-  const events = db
+    maxSourceTurn != null ? [chatId, maxSourceTurn, cappedLimit] : [chatId, cappedLimit];
+  return db
     .prepare(
       `SELECT * FROM status_trigger_events
-       WHERE chat_id=? AND is_consumed=0 AND is_superseded=0${sourceTurnFilter}
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0${plainSourceTurnFilter}
        ORDER BY fired_at ASC, id ASC
        LIMIT ?`
     )
     .all(...params) as StatusTriggerEvent[];
-  const allowed = opts?.allowedStatusKeys;
-  if (!allowed) return events;
-  const allowedSet = new Set(allowed.map((k) => k.trim().toLowerCase()).filter(Boolean));
-  if (allowedSet.size === 0) return [];
-  return events.filter((event) => {
-    const row = db
-      .prepare(
-        `SELECT status_key FROM status_widget_triggers WHERE trigger_id=? LIMIT 1`
-      )
-      .get(event.trigger_id) as { status_key: string } | undefined;
-    return Boolean(row && allowedSet.has(row.status_key.trim().toLowerCase()));
-  });
 }
 
 export function buildTriggeredScenarioEventsPromptBlock(events: StatusTriggerEvent[]): string {

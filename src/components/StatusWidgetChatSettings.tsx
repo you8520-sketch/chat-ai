@@ -106,7 +106,7 @@ export default function StatusWidgetChatSettings({
   const userSourceAvailable = allowUserOverride && hasUserWidget;
   const engineToggles = statusWidgetTogglesFromMode(engineMode);
 
-  const resolvedDisplay = useMemo(
+  const effectiveDisplay = useMemo(
     () =>
       displayModeFromUserChoice({
         hasCharacterWidget,
@@ -131,10 +131,10 @@ export default function StatusWidgetChatSettings({
   useEffect(() => {
     onDraftChange?.({
       mode: engineMode,
-      displayMode: resolvedDisplay,
+      displayMode: effectiveDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [engineMode, resolvedDisplay, userWidget, onDraftChange]);
+  }, [engineMode, effectiveDisplay, userWidget, onDraftChange]);
 
   const widgetReservedBreakdown = useMemo(
     () =>
@@ -143,9 +143,9 @@ export default function StatusWidgetChatSettings({
         chatMode: engineMode,
         userWidgetJson: serializeStatusWidget(userWidget),
         characterAllowUserOverride: allowUserOverride,
-        displayMode: resolvedDisplay,
+        displayMode: effectiveDisplay,
       }),
-    [characterWidgetJson, engineMode, userWidget, allowUserOverride, resolvedDisplay]
+    [characterWidgetJson, engineMode, userWidget, allowUserOverride, effectiveDisplay]
   );
   const widgetBudgetNearLimit =
     widgetReservedBreakdown.characterReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85 ||
@@ -162,7 +162,7 @@ export default function StatusWidgetChatSettings({
       body: JSON.stringify({
         chatId,
         statusWidgetMode: engineMode,
-        statusWidgetDisplayMode: resolvedDisplay,
+        statusWidgetDisplayMode: displayMode,
         userStatusWidgetJson: serializeStatusWidget(userWidget),
       }),
     });
@@ -173,14 +173,14 @@ export default function StatusWidgetChatSettings({
       return;
     }
     const savedDisplay =
-      parseStatusWidgetDisplayMode(data.statusWidgetDisplayMode) ?? resolvedDisplay;
+      parseStatusWidgetDisplayMode(data.statusWidgetDisplayMode) ?? displayMode;
     setMsg("저장되었습니다.");
     onSaved?.({
       mode: engineMode,
       displayMode: savedDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [chatId, engineMode, resolvedDisplay, userWidget, onSaved]);
+  }, [chatId, engineMode, displayMode, userWidget, onSaved]);
 
   function setEngineToggles(next: { creatorOn: boolean; userOn: boolean }) {
     setEngineMode(statusWidgetModeFromToggles(next.creatorOn, next.userOn));

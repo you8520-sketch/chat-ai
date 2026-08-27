@@ -5,11 +5,6 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
-import { fieldPlaceholderKey } from "@/lib/statusWidget/fieldKeys";
-import {
-  statusWidgetHasCreatorSource,
-  statusWidgetHasUserSource,
-} from "@/lib/statusWidget/resolve";
 import {
   displayModeFromEngineMode,
   parseStatusWidgetDisplayMode,
@@ -19,14 +14,9 @@ import {
   resolveStatusWidgetTurn,
   validateStatusWidgetContextBudget,
   serializeStatusWidget,
-  type StatusWidget,
-  type StatusWidgetSourceMode,
 } from "@/lib/statusWidget";
 import { resolveStatusWidgetSettingsWrite } from "@/lib/statusWidget/settingsWrite";
-import {
-  supersedeUnconsumedStatusTriggerEvents,
-  supersedeUnconsumedStatusTriggerEventsForKeys,
-} from "@/lib/statusWidgetTriggers";
+import { persistChatSettingsWithCreatorTriggerSupersede } from "@/lib/statusWidget/settingsPersist";
 
 function loadChatWidgetContext(chatId: number, userId: number) {
   const db = getDb();
@@ -49,51 +39,6 @@ function loadChatWidgetContext(chatId: number, userId: number) {
         status_widget_allow_user_override: number | null;
       }
     | undefined;
-}
-
-function widgetFieldKeys(widget: StatusWidget | null | undefined): string[] {
-  if (!widget) return [];
-  const keys = new Set<string>();
-  for (const field of widget.fields) {
-    if (field.id?.trim()) keys.add(field.id.trim());
-    const placeholder = fieldPlaceholderKey(field);
-    if (placeholder) keys.add(placeholder);
-  }
-  return [...keys];
-}
-
-function supersedeDisabledStatusSources(opts: {
-  chatId: number;
-  prevMode: StatusWidgetSourceMode;
-  nextMode: StatusWidgetSourceMode;
-  characterWidget: StatusWidget | null;
-  userWidget: StatusWidget | null;
-}): void {
-  const db = getDb();
-  if (opts.nextMode === "off" && opts.prevMode !== "off") {
-    supersedeUnconsumedStatusTriggerEvents(db, opts.chatId);
-    return;
-  }
-  if (
-    statusWidgetHasCreatorSource(opts.prevMode) &&
-    !statusWidgetHasCreatorSource(opts.nextMode)
-  ) {
-    supersedeUnconsumedStatusTriggerEventsForKeys(
-      db,
-      opts.chatId,
-      widgetFieldKeys(opts.characterWidget)
-    );
-  }
-  if (
-    statusWidgetHasUserSource(opts.prevMode) &&
-    !statusWidgetHasUserSource(opts.nextMode)
-  ) {
-    supersedeUnconsumedStatusTriggerEventsForKeys(
-      db,
-      opts.chatId,
-      widgetFieldKeys(opts.userWidget)
-    );
-  }
 }
 
 export async function PATCH(req: Request) {
@@ -169,17 +114,11 @@ export async function PATCH(req: Request) {
     incomingMode: statusWidgetMode,
     incomingDisplay: statusWidgetDisplayMode,
   });
+  if (!settingsWrite.ok) {
+    return Response.json({ error: settingsWrite.error }, { status: 400 });
+  }
   const nextMode = settingsWrite.nextMode;
   const nextDisplay = settingsWrite.nextDisplay;
-
-  const resolved = resolveStatusWidgetTurn({
-    characterWidgetJson: widgetCtx?.status_widget_json,
-    chatMode: nextMode,
-    userWidgetJson: nextUserWidgetJson,
-    stackOrder: widgetCtx?.status_widget_stack_order,
-    characterAllowUserOverride: allowUser,
-    displayMode: nextDisplay,
-  });
 
   const prevResolved = resolveStatusWidgetTurn({
     characterWidgetJson: widgetCtx?.status_widget_json,
@@ -188,6 +127,15 @@ export async function PATCH(req: Request) {
     stackOrder: widgetCtx?.status_widget_stack_order,
     characterAllowUserOverride: allowUser,
     displayMode: storedDisplay,
+  });
+
+  const resolved = resolveStatusWidgetTurn({
+    characterWidgetJson: widgetCtx?.status_widget_json,
+    chatMode: nextMode,
+    userWidgetJson: nextUserWidgetJson,
+    stackOrder: widgetCtx?.status_widget_stack_order,
+    characterAllowUserOverride: allowUser,
+    displayMode: nextDisplay,
   });
 
   const widgetReservedBreakdown = resolveStatusWidgetReservedBreakdown({
@@ -273,17 +221,18 @@ export async function PATCH(req: Request) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
   }
 
-  vals.push(chatId);
-  db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=?`).run(...vals);
-
-  if (settingsWrite.writeMode) {
-    supersedeDisabledStatusSources({
+  try {
+    persistChatSettingsWithCreatorTriggerSupersede(db, {
       chatId,
-      prevMode: prevResolved.mode,
-      nextMode: resolved.mode,
-      characterWidget: resolved.characterWidget,
-      userWidget: parseStatusWidgetJson(nextUserWidgetJson),
+      sets,
+      vals,
+      writeMode: settingsWrite.writeMode,
+      prevEffectiveMode: prevResolved.mode,
+      nextEffectiveMode: resolved.mode,
     });
+  } catch (e) {
+    console.error("[StatusWidgetSettings] atomic persist failed:", (e as Error).message);
+    return Response.json({ error: "상태창 설정 저장에 실패했습니다." }, { status: 500 });
   }
 
   return Response.json({
