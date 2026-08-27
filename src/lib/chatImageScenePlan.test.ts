@@ -17,7 +17,6 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "./chatImageScenePlan";
-import { planChatImageScene } from "./chatImageScenePlanner";
 
 const SOURCE_ROWS = [
   {
@@ -159,30 +158,19 @@ describe("chatImageScenePlan dialogue and silent panels", () => {
 });
 
 describe("chatImageScenePlan panel count and single image", () => {
-  it("PANEL_COUNT reflow does not call a provider", async () => {
+  it("PANEL_COUNT reflow is local and keeps the same events", () => {
     const messages = sampleMessages();
-    let calls = 0;
-    const planned = await planChatImageScene({
-      characterName: "태형",
-      personaName: "렌",
-      messages,
-      complete: async () => {
-        calls += 1;
-        throw new Error("provider unavailable");
-      },
-    });
-    assert.equal(planned.usedFallback, true);
-    const two = reflowScenePlanPanels(planned.plan, 2);
-    const three = reflowScenePlanPanels(planned.plan, 3);
-    const four = reflowScenePlanPanels(planned.plan, 4);
+    const planned = buildDeterministicScenePlan(messages, 3);
+    const two = reflowScenePlanPanels(planned, 2);
+    const three = reflowScenePlanPanels(planned, 3);
+    const four = reflowScenePlanPanels(planned, 4);
     assert.equal(two.panels.length, 2);
     assert.equal(three.panels.length, 3);
     assert.equal(four.panels.length, 4);
-    assert.equal(calls, 2);
-    const afterReflowCalls = calls;
-    reflowScenePlanPanels(planned.plan, 4);
-    assert.equal(calls, afterReflowCalls);
-    assert.equal(two.events, planned.plan.events);
+    assert.equal(two.events, planned.events);
+    assert.equal(three.events, planned.events);
+    assert.equal(four.events, planned.events);
+    assert.equal(two.heroScene, planned.heroScene);
   });
 
   it("SINGLE_IMAGE uses the same Scene Plan owner", () => {
@@ -216,27 +204,6 @@ describe("chatImageScenePlan panel count and single image", () => {
     assert.match(prompt, /iris, pupil/);
     assert.doesNotMatch(prompt, /TEXT QUOTA/);
     assert.doesNotMatch(prompt, /gpt-4o-mini/);
-  });
-
-  it("invalid AI plans fail closed without repair and fall back deterministically", async () => {
-    const messages = sampleMessages();
-    const result = await planChatImageScene({
-      characterName: "태형",
-      personaName: "렌",
-      messages,
-      complete: async () =>
-        JSON.stringify({
-          sceneBackground: " dist ",
-          events: [],
-          heroEventIds: [],
-          heroScene: "",
-          recommendedPanelCount: 3,
-          panels: [],
-        }),
-    });
-    assert.equal(result.usedFallback, true);
-    assert.equal(result.model, "deterministic-fallback");
-    assert.ok(result.plan.events.length > 0);
   });
 });
 

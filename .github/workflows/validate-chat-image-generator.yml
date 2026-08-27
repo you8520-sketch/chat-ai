@@ -34,6 +34,7 @@ on:
       - "src/lib/chatImageScenePlan.ts"
       - "src/lib/chatImageScenePlan.test.ts"
       - "src/lib/chatImageScenePlanner.ts"
+      - "src/lib/chatImageScenePlanner.test.ts"
       - "src/components/ChatSceneBuilder.tsx"
       - "src/lib/openAiImageEdit.ts"
       - "src/lib/openAiImageEdit.test.ts"
@@ -66,4 +67,5 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
