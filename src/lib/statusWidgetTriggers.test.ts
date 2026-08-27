@@ -786,4 +786,164 @@ describe("statusWidgetTriggers", () => {
       0
     );
   });
+
+  it("cross-character same trigger_id does not authorize or duplicate queue rows", () => {
+    const rowA = insertStatusWidgetTriggerForTest(db, {
+      character_id: 101,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: false,
+      event_key: "affection_a",
+      effect_text: "A 캐릭터 애정",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 102,
+      trigger_id: "affection_high",
+      status_key: "trust",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "trust_b",
+      effect_text: "B 캐릭터 신뢰",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 200,
+      characterId: 101,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "90" } },
+    });
+    const eventsA = loadQueuedStatusTriggerEventsForPrompt(db, 200, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["affection"],
+    });
+    assert.equal(eventsA.length, 1);
+    assert.equal(eventsA[0]?.trigger_id, "affection_high");
+    assert.equal(JSON.parse(eventsA[0]?.metadata ?? "{}").trigger_row_id, rowA);
+
+    const eventsBKey = loadQueuedStatusTriggerEventsForPrompt(db, 200, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["trust"],
+    });
+    assert.equal(eventsBKey.length, 0);
+
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 201,
+      characterId: 102,
+      sourceTurn: 1,
+      statusValues: { character: { trust: "12" } },
+    });
+    const eventsB = loadQueuedStatusTriggerEventsForPrompt(db, 201, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["trust"],
+    });
+    assert.equal(eventsB.length, 1);
+    assert.equal(eventsB[0]?.trigger_id, "affection_high");
+    assert.notEqual(eventsB[0]?.effect_text, eventsA[0]?.effect_text);
+  });
+
+  it("same trigger_id and status_key across characters returns one row per event (no join fan-out)", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 201,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_201",
+      effect_text: "캐릭터 201",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 202,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_202",
+      effect_text: "캐릭터 202",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 203,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_203",
+      effect_text: "캐릭터 203",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 300,
+      characterId: 202,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "50" } },
+    });
+    const events = loadQueuedStatusTriggerEventsForPrompt(db, 300, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["affection"],
+    });
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.effect_text, "캐릭터 202");
+  });
+
+  it("removed trigger definition does not resurrect old queued event on re-add with same trigger_id", () => {
+    saveCharacterStatusWidgetTriggers(db, 50, [
+      {
+        trigger_id: "affection_high",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: false,
+        event_key: "affection_event",
+        effect_text: "첫 번째 정의",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 400,
+      characterId: 50,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "90" } },
+    });
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      1
+    );
+
+    saveCharacterStatusWidgetTriggers(db, 50, []);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
+
+    saveCharacterStatusWidgetTriggers(db, 50, [
+      {
+        trigger_id: "affection_high",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: false,
+        event_key: "affection_event",
+        effect_text: "두 번째 정의",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
+  });
 });
