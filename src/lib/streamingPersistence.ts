@@ -4,7 +4,6 @@
  */
 
 import type Database from "better-sqlite3";
-import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { mergeIncomingUsageWithStoredSemantics } from "@/lib/oocSceneRender";
 import { markUserMessageCoauthorSemanticsVersion } from "@/lib/userCoauthorState";
 import { normalizeMessageVariants } from "./messageAlternates";
@@ -515,45 +514,6 @@ export function finalizeAssistantMessage(
   opts: FinalizeAssistantMessageOpts
 ): FinalizeAssistantMessageResult {
   return finalizeAssistantMessageCore(db, opts);
-}
-
-export type FinalizeRegenerationAssistantMessageOpts =
-  FinalizeAssistantMessageOpts & {
-    /** @internal test-only */
-    __testThrowAfterS4Activation?: boolean;
-    /** @internal test-only */
-    __testThrowAfterS4Reprojection?: boolean;
-  };
-
-/**
- * Transaction-free regeneration canonical mutation core.
- * Caller owns the transaction: message canonicalization and S4 worldline
- * reconciliation must commit or roll back together.
- */
-export function finalizeRegenerationAssistantMessageCore(
-  db: Database.Database,
-  opts: FinalizeRegenerationAssistantMessageOpts
-): FinalizeAssistantMessageResult {
-  const result = finalizeAssistantMessageCore(db, opts);
-  if (result.wrote) {
-    reconcileS4KnowledgeForVariantSwitch(db, {
-      chatId: opts.chatId,
-      assistantMessageId: opts.assistantMessageId,
-      __testThrowAfterActivation: opts.__testThrowAfterS4Activation,
-      __testThrowAfterReprojection: opts.__testThrowAfterS4Reprojection,
-    });
-  }
-  return result;
-}
-
-/** BEGIN IMMEDIATE owner for nonnumeric regeneration finalization. */
-export function executeAtomicRegenerationFinalize(
-  db: Database.Database,
-  opts: FinalizeRegenerationAssistantMessageOpts
-): FinalizeAssistantMessageResult {
-  return db
-    .transaction(() => finalizeRegenerationAssistantMessageCore(db, opts))
-    .immediate();
 }
 
 /** Safe send wrapper: catch enqueue failures so disconnect never aborts generation/DB work. */

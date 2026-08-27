@@ -41,9 +41,9 @@ import { reprojectObserverSecretKnowledge } from "@/lib/personaSecretKnowledgeRe
 import { ensureChatPersonaSecretRevealsSchema } from "@/lib/personaSecretReveal";
 import { createPersonaSecret } from "@/lib/personaSecrets";
 import { deletePersonaSecretData } from "@/lib/personaSaveWithSecrets";
+import { executeAtomicRegenerationFinalize } from "@/lib/personaSecretRegenerationFinalize";
 import { executeAtomicNumericAssistantFinalize } from "@/lib/rpNumericState/canonicalFinalize";
 import { ensureSceneEvidenceSchema } from "@/lib/sceneEvidenceSchema";
-import { executeAtomicRegenerationFinalize } from "@/lib/streamingPersistence";
 
 const USER = 871001;
 const CHAR_SENDER = 871002;

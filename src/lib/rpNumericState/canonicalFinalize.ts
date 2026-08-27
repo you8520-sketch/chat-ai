@@ -6,10 +6,8 @@
  */
 import type Database from "better-sqlite3";
 import type { GenerationStatus } from "@/lib/streamingPersistence";
-import {
-  finalizeAssistantMessageCore,
-  finalizeRegenerationAssistantMessageCore,
-} from "@/lib/streamingPersistence";
+import { finalizeAssistantMessageCore } from "@/lib/streamingPersistence";
+import { finalizeRegenerationAssistantMessageCore } from "@/lib/personaSecretRegenerationFinalize";
 import { isCanonicalDerivedStateGenerationStatus } from "@/lib/rpDerivedStateLifecycle";
 import type { ParsedStatusWidgetTurnValues, StatusWidget } from "@/lib/statusWidget/types";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
