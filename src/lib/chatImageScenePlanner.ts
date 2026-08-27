@@ -93,7 +93,11 @@ export async function planChatImageScene(opts: {
       } catch {
         continue;
       }
-      const validated = validateScenePlan(parsed, messages, { allowUserEdits: false });
+      const validated = validateScenePlan(parsed, messages, {
+        allowUserEdits: false,
+        personaName: opts.personaName,
+        characterName: opts.characterName,
+      });
       if (validated.ok) {
         return {
           plan: validated.plan,

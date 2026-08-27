@@ -1,0 +1,110 @@
+Create one polished Korean manhwa-style page with exactly 3 wide horizontal panels stacked vertically.
+
+Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.
+
+Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.
+
+APPROVED CAST MANIFEST
+1. UserPersona (user persona) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to UserPersona
+2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to CharacterA
+3. SupportC (supporting character) | importance=primary; visibility=required_visible | Image 4 belongs ONLY to SupportC
+CAST FIDELITY TIERS — do not promise equal detail for every person.
+Subjects with bound identity evidence must stay visually distinct.
+- UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
+- CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
+- SupportC: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
+COMPOSITION GOAL: trio_group. Arrange three distinct people in a stable left / center / right or triangle group shot. Minimize face occlusion. Every listed face must stay readable.
+Never copy the main character's hair, eyes, outfit, or face onto a supporting person.
+Never map a no-photo subject onto another subject's reference image.
+
+SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
+
+[SUBJECT A — USER PERSONA: UserPersona]
+Reference: Image 2 belongs ONLY to UserPersona.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- short black bob, blue eyes, white-blue outfit
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to UserPersona.
+Never infer SUBJECT A's identity from any other subject.
+
+[SUBJECT B — CHAT CHARACTER: CharacterA]
+Reference: Image 3 belongs ONLY to CharacterA.
+Appearance mode: IMAGE_PLUS_SAVED
+Saved visual identity (this subject only):
+- Eyes (explicit iris/pupil ownership):
+- Iris color: red.
+- short white hair, black-red outfit
+Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
+For temporary clothing/outfit, prefer this subject's selected reference image when it clearly shows a different current outfit.
+Identity ownership: every trait in this block belongs only to CharacterA.
+Never infer SUBJECT B's identity from any other subject.
+
+[SUBJECT C — SUPPORTING CHARACTER: SupportC]
+Reference: Image 4 belongs ONLY to SupportC.
+Appearance mode: IMAGE_ONLY
+No supplemental saved appearance.
+Use this selected reference as the authoritative visual identity for this subject only.
+Identity ownership: every trait in this block belongs only to SupportC.
+Never infer SUBJECT C's identity from any other subject.
+
+IDENTITY OWNERSHIP IS STRICT.
+REFERENCE 1 is the layout / composition / decoration template ONLY. It is NEVER a character identity source. Do not copy hair, eyes, iris, pupils, clothes, or face from the template onto any subject.
+Each subject owns only the visual traits from their own identity block and own reference.
+NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.
+Do not average or homogenize identities even when both subjects look similar.
+Do not assume that a visually striking feature belongs to every person.
+A trait appearing in one subject's reference is NOT a global style property.
+Pupil, iris, and overall eye color are distinct traits. Keep each color on the subject that owns it.
+Negative identity constraints are authoritative and belong only to the named subject. Do not drop or invert them.
+A healed, non-graphic scar that is explicitly part of a subject's saved stable identity or own identity reference may be preserved. Do not invent new scars from scene text or another subject.
+STYLE may be harmonized globally. IDENTITY may NOT be harmonized globally.
+Unify art style, not identity. Do not average the subjects' physical traits while harmonizing style.
+Template or another person's appearance must never be treated as a style characteristic.
+PRIORITY: 1) explicit generation product option (pose, expression, temporary costume/prop); 2) this subject's stable saved identity only when IMAGE_PLUS_SAVED; 3) this subject's own reference image; 4) template styling/composition.
+Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
+
+GENDER LOCK — mandatory identity rule.
+user persona UserPersona: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
+chat character CharacterA: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+supporting character SupportC: gender is unspecified / non-binary. Do not infer or change gender from hair length, cuteness, outfit, pose, blush, eyelashes or body size. Follow the reference identity without adding stereotyped male or female anatomy unless it is clearly present in the reference.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+
+Overall tone: light romantic-comedy energy, exaggerated reactions and playful timing.
+
+STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.
+
+- “같이 가자.”
+
+Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.
+
+Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.
+
+Exactly 3 recurring human identities. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.
+
+Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.
+
+APPROVED SCENE PLAN
+
+Shared background: *손을 잡는다* "같이 가자." SupportC가 옆에서 미소 지었다.
+
+Panel count: 3
+
+PANEL 1
+Situation: 손을 잡는다 같이 가자.
+Background: *손을 잡는다* "같이 가자." SupportC가 옆에서 미소 지었다.
+Persona action: 손을 잡는다
+Exact Korean text: persona: “같이 가자.”
+
+PANEL 2
+Situation: SupportC가 옆에서
+Background: *손을 잡는다* "같이 가자." SupportC가 옆에서 미소 지었다.
+Character action: SupportC가 옆에서
+Exact Korean text: No speech bubble
+
+PANEL 3
+Situation: 미소 지었다.
+Background: *손을 잡는다* "같이 가자." SupportC가 옆에서 미소 지었다.
+Character action: 미소 지었다.
+Exact Korean text: No speech bubble

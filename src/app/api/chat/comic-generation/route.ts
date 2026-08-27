@@ -24,6 +24,7 @@ import {
   CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
   buildChatLdIllustrationPrompt,
   buildLdDuoGenerationPlan,
+  buildLdSceneGenerationPlan,
   buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
@@ -56,6 +57,11 @@ import {
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
+import {
+  groundCastIntent,
+  parseChatImageCastManifest,
+  type ChatImageCastGroundedManifest,
+} from "@/lib/chatImageCastManifest";
 import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
   resolveChatImageGenerationModel,
@@ -383,10 +389,14 @@ function resolveApprovedScenePlan(opts: {
   bodyPlan: unknown;
   messages: SceneSourceMessage[];
   panelCount?: unknown;
+  personaName?: string;
+  characterName?: string;
 }): ScenePlan {
   const requestedCount = isScenePanelCount(opts.panelCount) ? opts.panelCount : undefined;
   const validated = validateScenePlan(opts.bodyPlan, opts.messages, {
     allowUserEdits: true,
+    personaName: opts.personaName,
+    characterName: opts.characterName,
   });
   if (validated.ok) {
     return requestedCount
@@ -395,6 +405,42 @@ function resolveApprovedScenePlan(opts: {
   }
   const fallback = buildDeterministicScenePlan(opts.messages, requestedCount);
   return fallback;
+}
+
+function resolveGroundedCastManifest(opts: {
+  castIntentRaw: unknown;
+  context: GenerationContext;
+  scenePlan: ScenePlan;
+}): ChatImageCastGroundedManifest | null {
+  const intent = parseChatImageCastManifest(opts.castIntentRaw);
+  if (!intent) return null;
+  const grounded = groundCastIntent(
+    intent,
+    {
+      persona: {
+        name: opts.context.persona.name,
+        gender: opts.context.personaGender,
+        referenceImageUrl: opts.context.personaImageUrl,
+        savedAppearance: opts.context.personaSavedAppearance,
+      },
+      mainCharacter: {
+        name: opts.context.character.name,
+        gender: opts.context.characterGender,
+        referenceImageUrl: opts.context.characterImageUrl,
+        savedAppearance: opts.context.characterSavedAppearance,
+      },
+      selectableAssets: opts.context.characterImages.map((image) => ({
+        url: image.url,
+        tag: image.tag,
+      })),
+    },
+    opts.scenePlan
+  );
+  if (!grounded.ok) {
+    throw new RequestError(grounded.reason);
+  }
+  const selectedCount = grounded.manifest.subjects.filter((subject) => subject.included).length;
+  return selectedCount > 2 ? grounded.manifest : null;
 }
 
 function safePublicFilePath(url: string): string | null {
@@ -751,8 +797,15 @@ export async function POST(req: Request) {
         const scenePlan = resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
+          personaName: context.persona.name,
+          characterName: context.character.name,
         });
-        const plan = buildLdDuoGenerationPlan({
+        const castManifest = resolveGroundedCastManifest({
+          castIntentRaw: body.castIntent,
+          context,
+          scenePlan,
+        });
+        const plan = buildLdSceneGenerationPlan({
           characterName: context.character.name,
           characterGender: context.characterGender,
           personaName: context.persona.name,
@@ -763,8 +816,8 @@ export async function POST(req: Request) {
           personaImageUrl: context.personaImageUrl,
           personaSavedAppearance: context.personaSavedAppearance,
           personaAppearanceMode: appearanceModes.personaAppearanceMode,
-          currentTurn: source.turnText,
-          approvedScene: formatApprovedScenePlanForIllustration(scenePlan),
+          approvedScenePlan: scenePlan,
+          castManifest,
         });
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
@@ -924,8 +977,15 @@ export async function POST(req: Request) {
       bodyPlan: body.scenePlan,
       messages: source.messages,
       panelCount: body.panelCount,
+      personaName: context.persona.name,
+      characterName: context.character.name,
     });
     const panelCount = scenePlan.panels.length as ChatComicPanelCount;
+    const castManifest = resolveGroundedCastManifest({
+      castIntentRaw: body.castIntent,
+      context,
+      scenePlan,
+    });
 
     const balanceBefore = getPointBalance(user.id);
     const pricePoints = resolveChatComicPrice(panelCount);
@@ -964,6 +1024,7 @@ export async function POST(req: Request) {
       personaAppearanceMode: appearanceModes.personaAppearanceMode,
       mood,
       plan: scenePlan,
+      castManifest,
     });
     const prompt = identityPack.prompt;
     const references = await Promise.all(
