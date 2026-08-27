@@ -210,11 +210,41 @@ describe("TRPG long-GM presentation + observer race", () => {
 
   it("OUT-OF-ORDER GET fold cannot regress generating draft state", () => {
     const final = foldSnapshotObservations([
-      { seq: 10, roundNumber: 5, progress: 4_200_050 },
-      { seq: 9, roundNumber: 5, progress: 2_001_000 },
-      { seq: 8, roundNumber: 5, progress: 100 },
+      {
+        seq: 10,
+        state: {
+          roundNumber: 5,
+          phase: "GENERATING_NARRATION",
+          lockedActions: 2,
+          rolls: 2,
+          narrationLen: 0,
+          draftLen: 50,
+        },
+      },
+      {
+        seq: 9,
+        state: {
+          roundNumber: 5,
+          phase: "BOT_ACTION",
+          lockedActions: 1,
+          rolls: 0,
+          narrationLen: 0,
+          draftLen: 0,
+        },
+      },
+      {
+        seq: 8,
+        state: {
+          roundNumber: 5,
+          phase: "ACTION_INPUT",
+          lockedActions: 0,
+          rolls: 0,
+          narrationLen: 0,
+          draftLen: 0,
+        },
+      },
     ]);
     assert.equal(final?.appliedSeq, 10);
-    assert.ok((final?.progress ?? 0) >= 4_200_050);
+    assert.equal(final?.state.phase, "GENERATING_NARRATION");
   });
 });

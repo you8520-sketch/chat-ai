@@ -1,42 +1,97 @@
 /** Pure helpers for ONE serialized TRPG snapshot observer + advance kick. */
 
+import { TRPG_ROUND_PHASES, type TrpgRoundPhase } from "./types";
+
 export const TRPG_SNAPSHOT_POLL_MS = 1500;
 
 export type SnapshotApplyDecision =
   | { apply: true }
   | { apply: false; reason: "cancelled" | "stale_seq" | "regressive" };
 
+/** Fingerprint used only to reject stale regressions — not a second store. */
+export type SnapshotCompareState = {
+  roundNumber: number;
+  phase: string;
+  lockedActions: number;
+  rolls: number;
+  narrationLen: number;
+  draftLen: number;
+};
+
+/**
+ * Authoritative live-round main path (ERROR_RECOVERY is a side path).
+ * Order matches TRPG_ROUND_PHASES minus ERROR_RECOVERY.
+ */
+export const TRPG_SNAPSHOT_MAIN_PHASE_PATH: readonly TrpgRoundPhase[] = TRPG_ROUND_PHASES.filter(
+  (phase) => phase !== "ERROR_RECOVERY"
+);
+
+function mainPhaseIndex(phase: string): number {
+  return TRPG_SNAPSHOT_MAIN_PHASE_PATH.indexOf(phase as TrpgRoundPhase);
+}
+
+/**
+ * Phase-graph regression predicate.
+ * ERROR_RECOVERY and CAMPAIGN_COMPLETE are never rejected as "lower rank".
+ */
+export function isTrpgSnapshotPhaseRegression(prevPhase: string, nextPhase: string): boolean {
+  if (prevPhase === nextPhase) return false;
+  if (nextPhase === "ERROR_RECOVERY") return false;
+  if (nextPhase === "CAMPAIGN_COMPLETE") return false;
+  if (prevPhase === "ERROR_RECOVERY") return false;
+  if (prevPhase === "CAMPAIGN_COMPLETE") return nextPhase !== "CAMPAIGN_COMPLETE";
+
+  const prevIdx = mainPhaseIndex(prevPhase);
+  const nextIdx = mainPhaseIndex(nextPhase);
+  // Unknown / NONE: do not invent a rejection.
+  if (prevIdx < 0 || nextIdx < 0) return false;
+  return nextIdx < prevIdx;
+}
+
+/** Same-phase content regression — weaker locked/rolls/narration (draft may clear when narr arrives). */
+export function isTrpgSnapshotContentRegression(
+  previous: SnapshotCompareState,
+  next: SnapshotCompareState
+): boolean {
+  if (next.lockedActions < previous.lockedActions) return true;
+  if (next.rolls < previous.rolls) return true;
+  if (next.narrationLen < previous.narrationLen) return true;
+  if (next.narrationLen > previous.narrationLen) return false;
+  if (next.draftLen < previous.draftLen) return true;
+  return false;
+}
+
+export function isTrpgSnapshotRegressive(
+  previous: SnapshotCompareState,
+  next: SnapshotCompareState
+): boolean {
+  if (next.roundNumber < previous.roundNumber) return true;
+  if (next.roundNumber > previous.roundNumber) return false;
+  if (isTrpgSnapshotPhaseRegression(previous.phase, next.phase)) return true;
+  if (previous.phase === next.phase) {
+    return isTrpgSnapshotContentRegression(previous, next);
+  }
+  return false;
+}
+
 /** Observation apply gate — reject cancelled/stale seq and regressive snapshots. */
 export function decideSnapshotApply(opts: {
   cancelled: boolean;
   responseSeq: number;
   appliedSeq: number;
-  previous: { roundNumber: number; progress: number } | null;
-  next: { roundNumber: number; progress: number };
+  previous: SnapshotCompareState | null;
+  next: SnapshotCompareState;
 }): SnapshotApplyDecision {
   if (opts.cancelled) return { apply: false, reason: "cancelled" };
   if (opts.responseSeq <= opts.appliedSeq) return { apply: false, reason: "stale_seq" };
-  if (
-    opts.previous &&
-    opts.next.roundNumber === opts.previous.roundNumber &&
-    opts.next.progress < opts.previous.progress
-  ) {
-    return { apply: false, reason: "regressive" };
-  }
-  if (opts.previous && opts.next.roundNumber < opts.previous.roundNumber) {
+  if (opts.previous && isTrpgSnapshotRegressive(opts.previous, opts.next)) {
     return { apply: false, reason: "regressive" };
   }
   return { apply: true };
 }
 
-/**
- * Monotonic-ish progress within a round. Higher means more advanced live state.
- * Used only to reject stale command/observation regressions — not a second store.
- */
-export function trpgSnapshotProgressScore(snap: {
+export function snapshotCompareState(snap: {
   round: { number: number; phase: string };
-  workType?: string | null;
-  shouldKickAdvance?: boolean;
   currentRolls?: readonly unknown[] | null;
   gmNarrationDraft?: { text?: string } | null;
   log?: readonly {
@@ -44,63 +99,30 @@ export function trpgSnapshotProgressScore(snap: {
     narration?: string | null;
     actions?: readonly { locked?: boolean; revealed?: boolean }[];
   }[];
-}): number {
+}): SnapshotCompareState {
   const row = snap.log?.find((entry) => entry.roundNumber === snap.round.number);
   const actions = row?.actions ?? [];
-  const locked = actions.filter((a) => a.locked).length;
-  const revealed = actions.filter((a) => a.revealed).length;
-  const rolls = snap.currentRolls?.length ?? 0;
-  const draftLen = snap.gmNarrationDraft?.text?.trim().length ?? 0;
-  const narrLen = row?.narration?.trim().length ?? 0;
-  const phaseRank = phaseProgressRank(snap.round.phase);
-  const workRank = workTypeProgressRank(snap.workType);
+  return {
+    roundNumber: snap.round.number,
+    phase: snap.round.phase,
+    lockedActions: actions.filter((a) => a.locked).length,
+    rolls: snap.currentRolls?.length ?? 0,
+    narrationLen: row?.narration?.trim().length ?? 0,
+    draftLen: snap.gmNarrationDraft?.text?.trim().length ?? 0,
+  };
+}
+
+/** @deprecated Prefer snapshotCompareState + isTrpgSnapshotRegressive. */
+export function trpgSnapshotProgressScore(snap: Parameters<typeof snapshotCompareState>[0]): number {
+  const state = snapshotCompareState(snap);
+  const phaseIdx = mainPhaseIndex(state.phase);
   return (
-    phaseRank * 1_000_000 +
-    workRank * 100_000 +
-    locked * 1_000 +
-    revealed * 100 +
-    rolls * 10 +
-    Math.min(draftLen, 50_000) +
-    Math.min(narrLen, 50_000)
+    Math.max(phaseIdx, 0) * 1_000_000 +
+    state.lockedActions * 1_000 +
+    state.rolls * 10 +
+    Math.min(state.narrationLen, 50_000) +
+    Math.min(state.draftLen, 50_000)
   );
-}
-
-function phaseProgressRank(phase: string): number {
-  switch (phase) {
-    case "NONE":
-      return 0;
-    case "ACTION_INPUT":
-      return 1;
-    case "BOT_ACTION":
-      return 2;
-    case "ROLLING":
-      return 3;
-    case "GENERATING_NARRATION":
-      return 4;
-    case "ROUND_COMPLETE":
-      return 5;
-    case "ERROR_RECOVERY":
-      return 2;
-    default:
-      return 0;
-  }
-}
-
-function workTypeProgressRank(workType: string | null | undefined): number {
-  switch (workType) {
-    case "wait_humans":
-      return 1;
-    case "generate_bots":
-      return 2;
-    case "acquire_gm_lock":
-      return 3;
-    case "generate_gm":
-      return 4;
-    case "idle":
-      return 5;
-    default:
-      return 0;
-  }
 }
 
 /** At most one client advance kick may be in flight. */
@@ -146,26 +168,27 @@ export function afterSnapshotObservationSettled(opts: {
 export function foldSnapshotObservations(
   events: Array<{
     seq: number;
-    roundNumber: number;
-    progress: number;
+    state: SnapshotCompareState;
     cancelled?: boolean;
   }>
-): { appliedSeq: number; roundNumber: number; progress: number } | null {
-  let state: { appliedSeq: number; roundNumber: number; progress: number } | null = null;
+): { appliedSeq: number; state: SnapshotCompareState } | null {
+  let folded: { appliedSeq: number; state: SnapshotCompareState } | null = null;
   for (const event of events) {
     const decision = decideSnapshotApply({
       cancelled: event.cancelled === true,
       responseSeq: event.seq,
-      appliedSeq: state?.appliedSeq ?? 0,
-      previous: state,
-      next: { roundNumber: event.roundNumber, progress: event.progress },
+      appliedSeq: folded?.appliedSeq ?? 0,
+      previous: folded?.state ?? null,
+      next: event.state,
     });
     if (!decision.apply) continue;
-    state = {
-      appliedSeq: event.seq,
-      roundNumber: event.roundNumber,
-      progress: event.progress,
-    };
+    // SYNC_COMPARISON_REF — accept immediately in the fold before the next event.
+    folded = { appliedSeq: event.seq, state: event.state };
   }
-  return state;
+  return folded;
+}
+
+export function allocateRequestSeq(current: number): { nextCurrent: number; seq: number } {
+  const seq = current + 1;
+  return { nextCurrent: seq, seq };
 }

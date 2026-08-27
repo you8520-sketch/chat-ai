@@ -36,9 +36,10 @@ import { trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { trpgRoomGenerating } from "@/lib/trpg/roomClientState";
 import {
   afterSnapshotObservationSettled,
+  allocateRequestSeq,
   decideSnapshotApply,
+  snapshotCompareState,
   TRPG_SNAPSHOT_POLL_MS,
-  trpgSnapshotProgressScore,
 } from "@/lib/trpg/snapshotObserver";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
@@ -100,9 +101,10 @@ export default function TrpgRoomClient({
 
   const appliedRoundRef = useRef(initial.round.number);
   const snapRef = useRef(snap);
-  snapRef.current = snap;
   const setupRef = useRef(setup);
   setupRef.current = setup;
+  /** ONE request sequence domain for all snapshot-producing async responses. */
+  const requestSeqRef = useRef(0);
   const appliedSeqRef = useRef(0);
   const advanceKickInFlightRef = useRef(false);
   const apply = useCallback((next: TrpgCampaignSnapshot) => {
@@ -124,22 +126,24 @@ export default function TrpgRoomClient({
         cancelled,
         responseSeq,
         appliedSeq: appliedSeqRef.current,
-        previous: {
-          roundNumber: previous.round.number,
-          progress: trpgSnapshotProgressScore(previous),
-        },
-        next: {
-          roundNumber: next.round.number,
-          progress: trpgSnapshotProgressScore(next),
-        },
+        previous: snapshotCompareState(previous),
+        next: snapshotCompareState(next),
       });
       if (!decision.apply) return false;
       appliedSeqRef.current = responseSeq;
+      // SYNC_COMPARISON_REF — update before setSnap so back-to-back responses compare correctly.
+      snapRef.current = next;
       apply(next);
       return true;
     },
     [apply]
   );
+
+  const nextRequestSeq = useCallback(() => {
+    const allocated = allocateRequestSeq(requestSeqRef.current);
+    requestSeqRef.current = allocated.nextCurrent;
+    return allocated.seq;
+  }, []);
 
   useEffect(() => {
     if (suggestionRound == null) {
@@ -162,20 +166,19 @@ export default function TrpgRoomClient({
   }, [snap.id, snap.myDraft, snap.round.number, suggestionRound]);
 
   const refresh = useCallback(async () => {
+    const seq = nextRequestSeq();
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
     const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
     if (!res.ok || !data.campaign) throw new Error(data.error || "불러오지 못했습니다.");
-    const seq = appliedSeqRef.current + 1;
     applyObservedSnapshot(data.campaign, seq, false);
     return data.campaign;
-  }, [applyObservedSnapshot, snap.id]);
+  }, [applyObservedSnapshot, nextRequestSeq, snap.id]);
 
   // SNAPSHOT_OBSERVER=true — one serialized GET; not restarted by workType/phase.
   useEffect(() => {
     let cancelled = false;
     let timer: number | null = null;
     let inFlight = false;
-    let seq = 0;
     const campaignId = snap.id;
 
     const launchAdvanceKick = (campaignIdToKick: number) => {
@@ -202,7 +205,8 @@ export default function TrpgRoomClient({
     const observeOnce = async () => {
       if (cancelled || inFlight) return;
       inFlight = true;
-      const responseSeq = ++seq;
+      // ONE_REQUEST_SEQ_OWNER — allocate at request START, shared with commands.
+      const responseSeq = nextRequestSeq();
       let shouldKick = false;
       try {
         const res = await fetch(`/api/trpg/campaigns/${campaignId}`, { cache: "no-store" });
@@ -235,11 +239,12 @@ export default function TrpgRoomClient({
       cancelled = true;
       if (timer != null) window.clearTimeout(timer);
     };
-  }, [applyObservedSnapshot, snap.id]);
+  }, [applyObservedSnapshot, nextRequestSeq, snap.id]);
 
   async function run(path: string, body?: unknown) {
     setBusy(true);
     setError("");
+    const seq = nextRequestSeq();
     try {
       const res = await fetch(path, {
         method: "POST",
@@ -248,7 +253,6 @@ export default function TrpgRoomClient({
       });
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
-      const seq = appliedSeqRef.current + 1;
       applyObservedSnapshot(data.campaign, seq, false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
