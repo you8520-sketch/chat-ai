@@ -50,6 +50,7 @@ import {
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
+import { trpgSceneBeatSpacingClass } from "@/lib/trpg/trpgSceneBeatSpacing";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
@@ -2145,33 +2146,40 @@ function SceneTurn({
                 : undefined
             }
           >
-            {beats.map((beat, i) =>
-              beat.speaker === "GM" ? (
-                <TrpgGmTalk
-                  key={`${row.roundNumber}-gm-${i}`}
-                  text={beat.text}
-                  assets={scenarioAssets}
-                  characterCatalog={characterCatalog}
-                  campaignId={campaignId}
-                  roundNumber={row.roundNumber}
-                  quoteAssistantRoot={false}
-                />
-              ) : (
-                <TrpgNamedProse
-                  key={`${row.roundNumber}-gm-${i}`}
-                  name={beat.speaker}
-                  text={beat.text}
-                  variant={speechVariant(beat.speaker, selfNames)}
-                  accent={Boolean(beat.speaker)}
-                  display={display}
-                  assets={scenarioAssets}
-                  characterCatalog={characterCatalog}
-                  campaignId={campaignId}
-                  roundNumber={row.roundNumber}
-                  quoteAssistantRoot={false}
-                />
-              )
-            )}
+            {beats.map((beat, i) => {
+              const spacingClass = trpgSceneBeatSpacingClass(beat, beats[i - 1] ?? null);
+              return (
+                <div key={`${row.roundNumber}-gm-${i}`} className={spacingClass || undefined}>
+                  {beat.speaker === "GM" ? (
+                    <TrpgGmTalk
+                      text={beat.text}
+                      assets={scenarioAssets}
+                      characterCatalog={characterCatalog}
+                      campaignId={campaignId}
+                      roundNumber={row.roundNumber}
+                      quoteAssistantRoot={false}
+                      contentStreaming={revealNarration && gmRevealProgressive}
+                    />
+                  ) : (
+                    <TrpgNamedProse
+                      name={beat.speaker}
+                      text={beat.text}
+                      variant={speechVariant(beat.speaker, selfNames)}
+                      accent={Boolean(beat.speaker)}
+                      display={display}
+                      assets={scenarioAssets}
+                      characterCatalog={characterCatalog}
+                      campaignId={campaignId}
+                      roundNumber={row.roundNumber}
+                      quoteAssistantRoot={false}
+                      paragraphMode="ai"
+                      dialogueAccent={false}
+                      contentStreaming={revealNarration && gmRevealProgressive}
+                    />
+                  )}
+                </div>
+              );
+            })}
             {liveScene && revealNarration ? (
               <span
                 ref={narrationEndRef}

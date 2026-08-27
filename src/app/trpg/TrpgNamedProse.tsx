@@ -7,8 +7,10 @@ import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
+import { novelParagraphSpacingClass } from "@/lib/novelParagraphs";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
+import { splitTrpgGmProseForAssets } from "@/lib/trpg/trpgTaggedProse";
 
 const quoteSelectStyle = {
   userSelect: "text" as const,
@@ -19,6 +21,101 @@ const quoteSelectStyle = {
 
 export { quoteSelectStyle };
 
+const TRPG_GM_TALK_LABEL_CLASS = "not-italic font-bold text-sky-300";
+const TRPG_GM_TALK_BODY_CLASS = "italic font-semibold text-sky-100/85";
+
+function TrpgGmProseBody({
+  body,
+  assets = [],
+  characterCatalog = [],
+  campaignId = 0,
+  roundNumber = 0,
+  contentStreaming = false,
+  inlineFirstParagraph = true,
+}: {
+  body: string;
+  assets?: CharacterAsset[];
+  characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  campaignId?: number;
+  roundNumber?: number;
+  contentStreaming?: boolean;
+  inlineFirstParagraph?: boolean;
+}) {
+  const proseBlocks = body
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const renderBlock = (block: string, blockIndex: number, blockCount: number) => {
+    const hasSceneAssets =
+      assets.length > 0 ||
+      characterCatalog.length > 0 ||
+      /\[(?:캐릭터에셋|태그):/.test(block);
+
+    const blockInlineFirst = inlineFirstParagraph && blockIndex === 0;
+    const blockStreaming = contentStreaming && blockIndex === blockCount - 1;
+
+    if (hasSceneAssets) {
+      const parts = splitTrpgGmProseForAssets(block, {
+        scenarioAssets: assets,
+        characterCatalog,
+        campaignId,
+        roundNumber,
+        streaming: blockStreaming,
+      });
+      const firstTextIndex = parts.findIndex((part) => part.kind === "text");
+      return (
+        <TrpgTaggedNovelText
+          content={block}
+          scenarioAssets={assets}
+          characterCatalog={characterCatalog}
+          campaignId={campaignId}
+          roundNumber={roundNumber}
+          variant="character"
+          paragraphMode="ai"
+          streaming={blockStreaming}
+          dialogueAccent={false}
+          inlineFirstParagraph={blockInlineFirst && firstTextIndex === 0}
+          proseClassName={TRPG_GM_TALK_BODY_CLASS}
+        />
+      );
+    }
+
+    return (
+      <NovelText
+        content={block}
+        variant="character"
+        paragraphMode="ai"
+        streaming={blockStreaming}
+        dialogueAccent={false}
+        inlineFirstParagraph={blockInlineFirst}
+        proseClassName={TRPG_GM_TALK_BODY_CLASS}
+      />
+    );
+  };
+
+  if (proseBlocks.length <= 1) {
+    return renderBlock(body.trim(), 0, 1);
+  }
+
+  return (
+    <>
+      {proseBlocks.map((block, i) => (
+        <div
+          key={`gm-prose-${i}`}
+          className={
+            i > 0
+              ? novelParagraphSpacingClass("narration", "narration", "ai")
+              : undefined
+          }
+        >
+          {renderBlock(block, i, proseBlocks.length)}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function TrpgGmTalk({
   text,
   assets = [],
@@ -26,6 +123,7 @@ export function TrpgGmTalk({
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
+  contentStreaming = false,
   onRevealChange,
   quoteAssistantRoot = true,
 }: {
@@ -35,6 +133,8 @@ export function TrpgGmTalk({
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
+  /** Live GM narration growth hint — does not own reveal; stabilizes paragraph boundaries only. */
+  contentStreaming?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
   /** When false, ancestor owns [data-quote-assistant] (TRPG scene turns). */
   quoteAssistantRoot?: boolean;
@@ -58,28 +158,22 @@ export function TrpgGmTalk({
       style={quoteSelectStyle}
     >
       <div
-        className="whitespace-pre-wrap leading-relaxed"
+        className="leading-relaxed"
         style={{
           fontSize: "var(--font-size-chat)",
           lineHeight: "var(--line-height-chat)",
           letterSpacing: "0.01em",
         }}
       >
-        <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
-        {assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(body) ? (
-          <TrpgTaggedNovelText
-            content={body}
-            scenarioAssets={assets}
-            characterCatalog={characterCatalog}
-            campaignId={campaignId}
-            roundNumber={roundNumber}
-            variant="character"
-            paragraphMode="author"
-            streaming={reveal}
-          />
-        ) : (
-          <span className="italic font-semibold text-sky-100/85">{body}</span>
-        )}
+        <span className={TRPG_GM_TALK_LABEL_CLASS}>GM:</span>{" "}
+        <TrpgGmProseBody
+          body={body}
+          assets={assets}
+          characterCatalog={characterCatalog}
+          campaignId={campaignId}
+          roundNumber={roundNumber}
+          contentStreaming={contentStreaming}
+        />
       </div>
     </div>
   );
@@ -105,6 +199,7 @@ export default function TrpgNamedProse({
   resolveSceneAssets = true,
   onRevealChange,
   quoteAssistantRoot = true,
+  contentStreaming,
 }: {
   name?: string | null;
   hint?: string;
@@ -131,6 +226,8 @@ export default function TrpgNamedProse({
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
   /** When false, ancestor owns [data-quote-assistant] (TRPG scene turns). */
   quoteAssistantRoot?: boolean;
+  /** Live GM narration growth hint — stabilizes paragraph boundaries only; does not own reveal. */
+  contentStreaming?: boolean;
 }) {
   const { shownText: shown, complete } = useRevealedText(
     text,
@@ -149,6 +246,7 @@ export default function TrpgNamedProse({
     });
   }, [complete, onRevealChange, shown, text]);
   if (!shown.trim()) return null;
+  const proseStreaming = contentStreaming ?? reveal;
   const labeled = Boolean(name?.trim());
   const showRail = resolveTrpgSpeakerRail(accent, labeled);
   const rail = showRail
@@ -189,7 +287,7 @@ export default function TrpgNamedProse({
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}
-            streaming={reveal}
+            streaming={proseStreaming}
             dialogueAccent={dialogueAccent}
           />
         ) : (
@@ -198,7 +296,7 @@ export default function TrpgNamedProse({
             display={display}
             variant={variant}
             paragraphMode={paragraphMode}
-            streaming={reveal}
+            streaming={proseStreaming}
             dialogueAccent={dialogueAccent}
           />
         )}

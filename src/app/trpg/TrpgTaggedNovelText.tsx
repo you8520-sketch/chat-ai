@@ -21,6 +21,8 @@ export default function TrpgTaggedNovelText({
   viewerIsCreator = false,
   unlockedUrls,
   dialogueAccent = true,
+  inlineFirstParagraph = false,
+  proseClassName,
 }: {
   content: string;
   scenarioAssets: CharacterAsset[];
@@ -37,6 +39,8 @@ export default function TrpgTaggedNovelText({
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
   dialogueAccent?: boolean;
+  inlineFirstParagraph?: boolean;
+  proseClassName?: string;
 }) {
   const parts = splitTrpgGmProseForAssets(content, {
     scenarioAssets,
@@ -60,6 +64,8 @@ export default function TrpgTaggedNovelText({
                 paragraphMode={paragraphMode}
                 streaming={streaming && i === parts.length - 1}
                 dialogueAccent={dialogueAccent}
+                inlineFirstParagraph={inlineFirstParagraph && i === 0}
+                proseClassName={proseClassName}
               />
             );
           case "scenario":

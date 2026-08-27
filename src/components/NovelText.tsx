@@ -144,6 +144,8 @@ export default function NovelText({
   paragraphMode = "ai",
   streaming = false,
   dialogueAccent = true,
+  inlineFirstParagraph = false,
+  proseClassName,
 }: {
   content: string;
   display?: Pick<
@@ -158,6 +160,10 @@ export default function NovelText({
   streaming?: boolean;
   /** Global chat keeps the purple rail. TRPG action cards pass false. */
   dialogueAccent?: boolean;
+  /** First paragraph renders inline (e.g. TRPG GM table-talk after the GM: label). */
+  inlineFirstParagraph?: boolean;
+  /** Optional presentation class on the prose root (TRPG passes styling; defaults unchanged). */
+  proseClassName?: string;
 }) {
   const streamingParasRef = useRef<string[]>([]);
 
@@ -258,21 +264,29 @@ export default function NovelText({
   }
 
   return (
-    <div className="chat-novel-prose" style={typography}>
+    <div
+      className={["chat-novel-prose", proseClassName].filter(Boolean).join(" ") || "chat-novel-prose"}
+      style={typography}
+    >
       {displayParagraphs.map((para, i) => {
         const empty = !para.trim();
+        const spacingClass =
+          i > 0
+            ? novelParagraphSpacingClass(
+                paragraphKinds[i],
+                paragraphKinds[i - 1],
+                spacingMode
+              )
+            : undefined;
+        const useInlineFirst = inlineFirstParagraph && i === 0;
+        const Tag = useInlineFirst ? "span" : "p";
         return (
-          <p
+          <Tag
             key={i}
             className={[
-              isAuthorMode ? "m-0 leading-[inherit]" : undefined,
-              i > 0
-                ? novelParagraphSpacingClass(
-                    paragraphKinds[i],
-                    paragraphKinds[i - 1],
-                    spacingMode
-                  )
-                : undefined,
+              useInlineFirst ? "inline" : undefined,
+              !useInlineFirst && isAuthorMode ? "m-0 leading-[inherit]" : undefined,
+              spacingClass,
             ]
               .filter(Boolean)
               .join(" ") || undefined}
@@ -292,7 +306,7 @@ export default function NovelText({
                 dialogueAccent={dialogueAccent}
               />
             )}
-          </p>
+          </Tag>
         );
       })}
     </div>
