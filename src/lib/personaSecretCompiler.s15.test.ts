@@ -363,7 +363,7 @@ describe("PR-S1.5 persona secret compiler", () => {
         hashPersonaSecretSource(source).length,
         64
       );
-      assert.equal(PERSONA_SECRET_COMPILER_VERSION, 1);
+      assert.equal(PERSONA_SECRET_COMPILER_VERSION, 2);
     });
 
     it("malformed JSON path is rejected by validator", () => {
@@ -372,8 +372,8 @@ describe("PR-S1.5 persona secret compiler", () => {
     });
   });
 
-  describe("dormant discovery rules", () => {
-    it("stores dormant visual/investigation rules without enabling them", () => {
+  describe("enabled discovery rules (compiler v2)", () => {
+    it("stores enabled visual/investigation rules at compile time", () => {
       const personaId = uniquePersonaId();
       const source = "등에 문신이 있다.";
       const r = compileAndApplyPersonaSecrets({ personaId, source });
@@ -386,8 +386,8 @@ describe("PR-S1.5 persona secret compiler", () => {
       assert.ok(rules.some((x) => x.method === "DIRECT_DISCLOSURE" && x.enabled === 1));
       const visual = rules.find((x) => x.method === "VISUAL_DISCOVERY");
       assert.ok(visual);
-      assert.equal(visual!.enabled, 0);
-      assert.ok(JSON.parse(visual!.conditions_json).dormant === true);
+      assert.equal(visual!.enabled, 1);
+      assert.equal(JSON.parse(visual!.conditions_json).dormant, false);
     });
   });
 });

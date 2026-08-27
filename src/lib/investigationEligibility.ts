@@ -24,7 +24,7 @@ const SUPPORTED = new Set<string>(INVESTIGATION_RESULT_TYPES);
 
 /**
  * Runtime-eligible INVESTIGATION rules.
- * Includes dormant (enabled=0) rows — does NOT bulk-enable DB bits.
+ * enabled=1 is the sole runtime authority — disabled rows are stale/removed.
  */
 export function listEligibleInvestigationDiscoveryRules(
   personaId: number,
@@ -48,6 +48,7 @@ export function listEligibleInvestigationDiscoveryRules(
        JOIN persona_secrets s ON s.id = r.secret_id
        WHERE s.persona_id=? AND s.is_active=1
          AND r.method='INVESTIGATION_DISCOVERY'
+         AND r.enabled=1
        ORDER BY r.priority DESC, r.id ASC`
     )
     .all(personaId) as Array<Record<string, unknown>>;

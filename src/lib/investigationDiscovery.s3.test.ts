@@ -687,7 +687,7 @@ describe("PR-S3 investigation discovery", () => {
       );
     });
 
-    it("eligible investigation rules stay dormant in DB (enabled=0)", () => {
+    it("eligible investigation rules are enabled at compile time (enabled=1 sole authority)", () => {
       const { personaId } = uniqueIds();
       compileAndApplyPersonaSecrets({
         personaId,
@@ -696,7 +696,7 @@ describe("PR-S3 investigation discovery", () => {
       const eligible = listEligibleInvestigationDiscoveryRules(personaId);
       assert.ok(eligible.length >= 1);
       for (const r of eligible) {
-        assert.equal(r.enabled, 0);
+        assert.equal(r.enabled, 1);
       }
     });
 

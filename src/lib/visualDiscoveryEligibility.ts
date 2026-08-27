@@ -21,8 +21,7 @@ export type EligibleVisualRule = PersonaSecretDiscoveryRuleRow & {
 
 /**
  * Runtime-eligible VISUAL rules for a persona.
- * Includes dormant (enabled=0) rows that pass schema/confidence checks.
- * Does NOT flip DB enabled bits (fail-closed activation).
+ * enabled=1 is the sole runtime authority — disabled rows are stale/removed.
  */
 export function listEligibleVisualDiscoveryRules(
   personaId: number,
@@ -46,6 +45,7 @@ export function listEligibleVisualDiscoveryRules(
        JOIN persona_secrets s ON s.id = r.secret_id
        WHERE s.persona_id=? AND s.is_active=1
          AND r.method='VISUAL_DISCOVERY'
+         AND r.enabled=1
        ORDER BY r.priority DESC, r.id ASC`
     )
     .all(personaId) as Array<Record<string, unknown>>;
