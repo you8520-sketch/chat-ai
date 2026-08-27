@@ -160,12 +160,12 @@ describe("resolveTrpgMountSeenKeys", () => {
     },
   ];
 
-  it("pre-ready mount keeps hidden AI fresh while consuming early human", () => {
+  it("pre-ready mount marks declaration-visible AI seen while consuming early human", () => {
     const keys = resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: false });
     assert.ok(keys.includes("a:3:5"));
     assert.ok(keys.includes("n:3"));
     assert.ok(keys.includes("a:4:10"));
-    assert.equal(keys.includes("a:4:20"), false);
+    assert.ok(keys.includes("a:4:20"), "persisted companion declaration consumed on mount");
     assert.equal(keys.includes("n:4"), false);
   });
 

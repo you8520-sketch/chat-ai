@@ -95,6 +95,7 @@ import {
   historicalPresentation,
   idlePresentation,
   earlyVisibleHumanActionIds,
+  preCinematicVisibleActionIds,
   isActorActionRevealBeatSatisfied,
   isLiveRoundPresentationReady,
   resolveLiveRevealedActionIds,
@@ -434,7 +435,7 @@ export default function TrpgCampaignRoom({
     ? { round: snap.round.number, actors: frozenActors.actors }
     : null;
   const presentationActors = frozenActors.actors;
-  const earlyVisibleHumanIds = earlyVisibleHumanActionIds(sourceActions);
+  const preCinematicVisibleIds = preCinematicVisibleActionIds(sourceActions);
   if (presentationRoundRef.current !== snap.round.number) {
     presentationRoundRef.current = snap.round.number;
     consumedActorActionBeatRef.current = "";
@@ -752,12 +753,16 @@ export default function TrpgCampaignRoom({
     activeParticipantId: activePresentationActorId,
     report: actorRevealReport,
   });
+  const activePreCinematicallyDeclared =
+    activePresentationActorId != null &&
+    preCinematicVisibleIds.includes(activePresentationActorId);
   const activeActorRevealBeatSatisfied = isActorActionRevealBeatSatisfied({
     actionKind: activePresentationAction?.kind,
     isFreshAiAction:
       activePresentationAction?.kind === "ai_character" &&
       isFreshLogKey(`a:${snap.round.number}:${activePresentationAction.participantId}`),
     alreadyCompleted: false,
+    preCinematicallyDeclared: activePreCinematicallyDeclared,
     effectiveActorRevealComplete,
     skipDecorativeReveal,
   });
@@ -1489,7 +1494,7 @@ export default function TrpgCampaignRoom({
               isLiveRow,
               mode: roundShow.mode,
               cinematicRevealedIds,
-              earlyVisibleHumanIds,
+              preCinematicVisibleIds,
             });
             const liveResultLaneIds = isLiveRow
               ? roundShow.mode === "cinematic"
@@ -1572,6 +1577,9 @@ export default function TrpgCampaignRoom({
               }
               cinematicActorAction={
                 row.roundNumber === snap.round.number && gateLiveRound ? cinematicActorAction : false
+              }
+              preCinematicVisibleIds={
+                row.roundNumber === snap.round.number && gateLiveRound ? preCinematicVisibleIds : []
               }
             />
             );
@@ -1954,6 +1962,7 @@ function SceneTurn({
   onActiveActorRevealChange,
   skipDecorativeReveal = false,
   cinematicActorAction = false,
+  preCinematicVisibleIds = [],
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -1992,6 +2001,7 @@ function SceneTurn({
   onActiveActorRevealChange?: (report: ActorRevealReport) => void;
   skipDecorativeReveal?: boolean;
   cinematicActorAction?: boolean;
+  preCinematicVisibleIds?: readonly number[];
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
   const pacingSource = resolveTrpgGmPacingSource({
@@ -2097,6 +2107,7 @@ function SceneTurn({
             isFresh: actionIsFresh,
             skipDecorativeReveal,
             cinematicActorAction,
+            preCinematicallyDeclared: (preCinematicVisibleIds ?? []).includes(action.participantId),
           });
           return (
             <div

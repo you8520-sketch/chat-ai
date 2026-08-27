@@ -114,24 +114,52 @@ export function earlyVisibleHumanActionIds(
 }
 
 /**
+ * Canonical persisted actions visible during pre-cinematic declaration.
+ * DECLARATION_ORDER follows persistence order, not resolutionOrder.
+ * Only fully parsed/persisted human + AI companion prose — never partial provider output.
+ *
+ * DECLARATION_ORDER != RESOLUTION_ORDER — this is visibility only, not mechanics.
+ */
+export function preCinematicVisibleActionIds(
+  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
+): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const action of actions) {
+    if (action.kind !== "human" && action.kind !== "ai_character") continue;
+    if (action.revealed === false) continue;
+    if (typeof action.body !== "string" || !action.body.trim()) continue;
+    if (seen.has(action.participantId)) continue;
+    seen.add(action.participantId);
+    out.push(action.participantId);
+  }
+  return out;
+}
+
+/**
  * Single live SceneTurn action-id owner.
  * Historical: undefined = all persisted.
- * Live / not cinematic: human declarations only.
- * Live / cinematic: early humans ∪ actors released by roundShow.
+ * Live / not cinematic: declaration-visible canonical ids (human + persisted AI).
+ * Live / cinematic: declaration-visible ∪ actors released by roundShow.
  */
 export function resolveLiveRevealedActionIds(opts: {
   isLiveRow: boolean;
   mode: RoundPresentationMode;
   cinematicRevealedIds: readonly number[];
-  earlyVisibleHumanIds: readonly number[];
+  preCinematicVisibleIds: readonly number[];
+  /** @deprecated use preCinematicVisibleIds */
+  earlyVisibleHumanIds?: readonly number[];
 }): number[] | undefined {
   if (!opts.isLiveRow) return undefined;
   if (opts.mode === "historical") return undefined;
-  const humans = [...opts.earlyVisibleHumanIds];
-  if (opts.mode !== "cinematic") return humans;
+  const declared =
+    opts.preCinematicVisibleIds.length > 0
+      ? [...opts.preCinematicVisibleIds]
+      : [...(opts.earlyVisibleHumanIds ?? [])];
+  if (opts.mode !== "cinematic") return declared;
   const seen = new Set<number>();
   const out: number[] = [];
-  for (const id of humans) {
+  for (const id of declared) {
     if (seen.has(id)) continue;
     seen.add(id);
     out.push(id);
@@ -152,8 +180,11 @@ export function shouldDecorativeRevealAction(opts: {
   isFresh: boolean;
   skipDecorativeReveal: boolean;
   cinematicActorAction?: boolean;
+  /** AI prose already shown during pre-cinematic declaration — never replay. */
+  preCinematicallyDeclared?: boolean;
 }): boolean {
   if (opts.kind !== "ai_character") return false;
+  if (opts.preCinematicallyDeclared === true) return false;
   if (!opts.isFresh) return false;
   if (opts.skipDecorativeReveal) return false;
   if (opts.cinematicActorAction === false) return false;
@@ -167,8 +198,11 @@ export function isActorActionRevealBeatSatisfied(opts: {
   alreadyCompleted: boolean;
   effectiveActorRevealComplete: boolean;
   skipDecorativeReveal?: boolean;
+  /** AI action prose was visible before resolution cinematic — beat already satisfied. */
+  preCinematicallyDeclared?: boolean;
 }): boolean {
   if (opts.actionKind === "human") return true;
+  if (opts.preCinematicallyDeclared === true) return true;
   if (!opts.isFreshAiAction) return true;
   if (opts.alreadyCompleted) return true;
   if (opts.skipDecorativeReveal) return true;
@@ -380,7 +414,7 @@ export function liveRoundCanonicalVisibleCount(opts: {
   if (opts.mode === "cinematic") {
     return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
   }
-  return earlyVisibleHumanActionIds(
+  return preCinematicVisibleActionIds(
     opts.actions.map((action) => ({
       participantId: action.participantId,
       kind: action.kind ?? "human",
@@ -610,7 +644,7 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
-    const incrementalVisibleActionIds = !decided.ready ? earlyVisibleHumanActionIds(actions) : [];
+    const incrementalVisibleActionIds = !decided.ready ? preCinematicVisibleActionIds(actions) : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {
