@@ -1005,19 +1005,33 @@ function stripPersonaOwnedTexts(raw: string, plan: ScenePlan): string {
   return normalizeSceneBriefWhitespace(text);
 }
 
+function visiblePanelCanonicalEvents(panel: ScenePanel, plan: ScenePlan): string {
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  return panel.sourceEventIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event))
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+}
+
+function visiblePlanCanonicalEvents(plan: ScenePlan): string {
+  return visualEvents(plan.events)
+    .filter((event) => !isPersonaOwnedEvent(event))
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+}
+
 function projectVisibleBackground(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility
 ): string {
   if (visibility.personaVisible) return plan.sceneBackground;
-  const fromEvents = visualEvents(plan.events)
-    .filter((event) => !isPersonaOwnedEvent(event))
-    .map((event) => event.text)
-    .join(" ")
-    .trim();
+  const projectedRaw = stripPersonaOwnedTexts(plan.sceneBackground, plan);
+  if (projectedRaw) return projectedRaw;
+  const fromEvents = visiblePlanCanonicalEvents(plan);
   if (fromEvents) return fromEvents;
-  const stripped = stripPersonaOwnedTexts(plan.sceneBackground, plan);
-  if (stripped) return stripped;
   return PERSONA_EXCLUDED_PANEL_SITUATION_FALLBACK;
 }
 
@@ -1028,19 +1042,27 @@ function projectScenePresentationField(
   visibility: ScenePresentationVisibility
 ): string {
   if (visibility.personaVisible) return raw;
+  const projectedRaw = stripPersonaOwnedTexts(raw, plan);
+  if (projectedRaw) return projectedRaw;
   if (panel) {
-    const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-    const fromPanelEvents = panel.sourceEventIds
-      .map((id) => eventsById.get(id))
-      .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event))
-      .map((event) => event.text)
-      .join(" ")
-      .trim();
+    const fromPanelEvents = visiblePanelCanonicalEvents(panel, plan);
     if (fromPanelEvents) return fromPanelEvents;
   }
-  const stripped = stripPersonaOwnedTexts(raw, plan);
-  if (stripped) return stripped;
   return projectVisibleBackground(plan, visibility);
+}
+
+function projectHeroScene(
+  plan: ScenePlan,
+  visibleHeroEvents: readonly SceneEvent[],
+  projectedBackground: string,
+  visibility: ScenePresentationVisibility
+): string {
+  if (visibility.personaVisible) return plan.heroScene;
+  const projectedRaw = stripPersonaOwnedTexts(plan.heroScene, plan);
+  if (projectedRaw) return projectedRaw;
+  const fromEvents = visibleHeroEvents.map((event) => event.text).join(" ").trim();
+  if (fromEvents) return fromEvents;
+  return projectedBackground;
 }
 
 export function resolveScenePresentationVisibility(opts: {
@@ -1077,9 +1099,7 @@ export function formatApprovedScenePlanForIllustration(
         (visibility.personaVisible || event.actor !== "persona")
     )
     .map((event) => `${event.actor}: “${event.text}”`);
-  const heroScene = visibility.personaVisible
-    ? plan.heroScene
-    : visibleHeroEvents.map((event) => event.text).join(" ").trim() || projectedBackground;
+  const heroScene = projectHeroScene(plan, visibleHeroEvents, projectedBackground, visibility);
   return [
     !visibility.personaVisible ? PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT : "",
     `Background: ${projectedBackground}`,
@@ -1109,15 +1129,10 @@ function visiblePanelSituation(
   visibility: ScenePresentationVisibility
 ): string {
   if (visibility.personaVisible) return panel.situation;
-  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
-  const visibleTexts = panel.sourceEventIds
-    .map((id) => eventsById.get(id))
-    .filter(
-      (event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event)
-    )
-    .map((event) => event.text);
-  const joined = visibleTexts.join(" ").trim();
-  if (joined) return joined;
+  const projectedRaw = stripPersonaOwnedTexts(panel.situation, plan);
+  if (projectedRaw) return projectedRaw;
+  const fromPanelEvents = visiblePanelCanonicalEvents(panel, plan);
+  if (fromPanelEvents) return fromPanelEvents;
   return projectVisibleBackground(plan, visibility);
 }
 

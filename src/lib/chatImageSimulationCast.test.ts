@@ -17,6 +17,8 @@ import {
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildLdSceneGenerationPlan } from "@/lib/chatLdIllustrationGeneration";
 import {
+  applyUserIllustrationEdits,
+  applyUserPanelEdits,
   buildDeterministicScenePlan,
   buildScenePlanPrompt,
   buildSceneSourceMessages,
@@ -84,10 +86,59 @@ function deepClonePlan(plan: ScenePlan): ScenePlan {
   return JSON.parse(JSON.stringify(plan));
 }
 
-function visibleDirectiveLines(formatted: string): string {
-  const offCameraStart = formatted.search(/OFF-CAMERA CONTEXT ONLY|Off-camera context only/i);
-  const visiblePart = offCameraStart >= 0 ? formatted.slice(0, offCameraStart) : formatted;
-  return visiblePart;
+const PERSONA_EXCLUDED_VISIBILITY = resolveScenePresentationVisibility({
+  contentKind: "simulation",
+  castManifest: { subjects: [{ role: "persona", included: false }] },
+});
+
+function extractVisibleField(formatted: string, field: string): string | null {
+  const match = formatted.match(new RegExp(`^${field}:\\s*(.+)$`, "m"));
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractComicPanelBlocks(formatted: string): string[] {
+  return formatted.split(/\n\n(?=PANEL \d+)/).filter((block) => /^PANEL \d+/m.test(block));
+}
+
+function visibleIllustrationSection(formatted: string): string {
+  const cutPoints = [
+    formatted.search(/^Off-camera context only \(do not render as a visible person\):$/m),
+  ].filter((index) => index >= 0);
+  if (cutPoints.length === 0) return formatted;
+  return formatted.slice(0, Math.min(...cutPoints));
+}
+
+function visibleComicSharedSection(formatted: string): string {
+  const cutPoints = [formatted.search(/^OFF-CAMERA CONTEXT ONLY$/m)].filter((index) => index >= 0);
+  if (cutPoints.length === 0) return formatted;
+  return formatted.slice(0, Math.min(...cutPoints));
+}
+
+function assertVisibleFieldEquals(
+  formatted: string,
+  field: string,
+  expected: string
+): void {
+  const value = extractVisibleField(formatted, field);
+  assert.equal(value, expected);
+}
+
+function assertVisibleFieldExcludes(
+  formatted: string,
+  field: string,
+  excluded: string
+): void {
+  const value = extractVisibleField(formatted, field);
+  if (!value) return;
+  assert.doesNotMatch(value, new RegExp(excluded.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+}
+
+function assertAllPanelFieldsExclude(formatted: string, field: string, excluded: string): void {
+  const blocks = extractComicPanelBlocks(formatted);
+  assert.ok(blocks.length > 0);
+  for (const block of blocks) {
+    assertVisibleFieldExcludes(block, field, excluded);
+  }
 }
 
 function simulationDraft() {
@@ -380,34 +431,29 @@ describe("simulation presentation projection regressions", () => {
     assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
 
     const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
-    const visible = visibleDirectiveLines(comic);
-    assert.doesNotMatch(visible, new RegExp(`Situation: ${USER_PERSONA_TEXT}`));
-    assert.doesNotMatch(visible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
-    assert.doesNotMatch(visible, /Persona action:/i);
-    assert.doesNotMatch(visible, /persona: “/i);
+    assertAllPanelFieldsExclude(comic, "Situation", USER_PERSONA_TEXT);
+    assertAllPanelFieldsExclude(comic, "Background", USER_PERSONA_TEXT);
+    assertVisibleFieldExcludes(visibleComicSharedSection(comic), "Shared background", USER_PERSONA_TEXT);
+    assert.doesNotMatch(comic, /Persona action:/i);
+    assert.doesNotMatch(comic, /persona: “/i);
     assert.match(comic, /OFF-CAMERA CONTEXT ONLY/);
     assert.match(comic, new RegExp(USER_PERSONA_TEXT));
     assert.match(comic, /VISIBLE CAST IS AUTHORITATIVE/);
 
     const ld = ldPlanFromGrounded(grounded.manifest, scenePlan);
     assert.match(ld.prompt, /Exactly 3 recurring identities/);
-    const ldVisible = visibleDirectiveLines(ld.prompt.split("APPROVED SCENE PLAN")[1] ?? "");
-    assert.doesNotMatch(ldVisible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
+    const ldScene = ld.prompt.split("APPROVED SCENE PLAN")[1] ?? "";
+    assertVisibleFieldExcludes(visibleIllustrationSection(ldScene), "Background", USER_PERSONA_TEXT);
   });
 
   it("K: projected background removes user text from visible directives but keeps off-camera block", () => {
     const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
     assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
-    const visibility = resolveScenePresentationVisibility({
-      contentKind: "simulation",
-      castManifest: { subjects: [{ role: "persona", included: false }] },
-    });
+    const visibility = PERSONA_EXCLUDED_VISIBILITY;
     const illustration = formatApprovedScenePlanForIllustration(scenePlan, visibility);
     const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
-    const illustrationVisible = visibleDirectiveLines(illustration);
-    const comicVisible = visibleDirectiveLines(comic);
-    assert.doesNotMatch(illustrationVisible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
-    assert.doesNotMatch(comicVisible, new RegExp(`Shared background:.*${USER_PERSONA_TEXT}`));
+    assertVisibleFieldExcludes(visibleIllustrationSection(illustration), "Background", USER_PERSONA_TEXT);
+    assertVisibleFieldExcludes(visibleComicSharedSection(comic), "Shared background", USER_PERSONA_TEXT);
     assert.match(illustration, new RegExp(USER_PERSONA_TEXT));
     assert.match(comic, new RegExp(USER_PERSONA_TEXT));
   });
@@ -473,6 +519,93 @@ describe("simulation presentation projection regressions", () => {
       before.panels.map((panel) => panel.sourceEventIds)
     );
     assert.deepEqual(scenePlan.sceneBackground, before.sceneBackground);
+  });
+});
+
+describe("simulation manual-first presentation preservation", () => {
+  it("A: illustration manual sceneBackground is preserved when persona excluded", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const manualBackground = "비 내리는 서울역 옥상";
+    const plan = applyUserIllustrationEdits(base, { sceneBackground: manualBackground });
+    const illustration = formatApprovedScenePlanForIllustration(plan, PERSONA_EXCLUDED_VISIBILITY);
+    assertVisibleFieldEquals(illustration, "Background", manualBackground);
+  });
+
+  it("B: illustration manual heroScene is preserved when persona excluded", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const manualHeroScene = "이현과 태형이 난간 앞에 마주 선다.";
+    const plan = applyUserIllustrationEdits(base, { heroScene: manualHeroScene });
+    const illustration = formatApprovedScenePlanForIllustration(plan, PERSONA_EXCLUDED_VISIBILITY);
+    assertVisibleFieldEquals(illustration, "Hero scene", manualHeroScene);
+  });
+
+  it("C: comic manual panel backgroundOverride is preserved when persona excluded", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const manualBackground = "폐쇄된 플랫폼";
+    const plan = applyUserPanelEdits(base, 1, { backgroundOverride: manualBackground });
+    const comic = formatApprovedScenePlanForComic(plan, PERSONA_EXCLUDED_VISIBILITY);
+    const panelBlock = comic.split("PANEL 1")[1]?.split("PANEL 2")[0] ?? "";
+    assertVisibleFieldEquals(panelBlock, "Background", manualBackground);
+  });
+
+  it("D: comic manual panel situation is preserved when persona excluded", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const manualSituation = "이현과 태형이 출구를 막아선다.";
+    const plan = applyUserPanelEdits(base, 1, { situation: manualSituation });
+    const comic = formatApprovedScenePlanForComic(plan, PERSONA_EXCLUDED_VISIBILITY);
+    const panelBlock = comic.split("PANEL 1")[1]?.split("PANEL 2")[0] ?? "";
+    assertVisibleFieldEquals(panelBlock, "Situation", manualSituation);
+  });
+
+  it("E: persona-only manual/default field is removed from visible directives", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const plan = applyUserPanelEdits(base, 1, { situation: USER_PERSONA_TEXT });
+    const comic = formatApprovedScenePlanForComic(plan, PERSONA_EXCLUDED_VISIBILITY);
+    const panelBlock = comic.split("PANEL 1")[1]?.split("PANEL 2")[0] ?? "";
+    assertVisibleFieldExcludes(panelBlock, "Situation", USER_PERSONA_TEXT);
+    assert.match(comic, new RegExp(USER_PERSONA_TEXT));
+  });
+
+  it("F: mixed persona text + safe manual text keeps only the safe portion", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const mixed = `${USER_PERSONA_TEXT} 폐허의 복도`;
+    const plan = applyUserPanelEdits(base, 1, { situation: mixed });
+    const comic = formatApprovedScenePlanForComic(plan, PERSONA_EXCLUDED_VISIBILITY);
+    const panelBlock = comic.split("PANEL 1")[1]?.split("PANEL 2")[0] ?? "";
+    assertVisibleFieldEquals(panelBlock, "Situation", "폐허의 복도");
+    assertVisibleFieldExcludes(panelBlock, "Situation", USER_PERSONA_TEXT);
+  });
+
+  it("G: character mode keeps manual fields byte-equivalent", () => {
+    const base = buildDeterministicScenePlan(CHARACTER_DIALOGUE_MESSAGES, 2);
+    const manualBackground = "비 내리는 서울역 옥상";
+    const manualHeroScene = "이현과 태형이 난간 앞에 마주 선다.";
+    const plan = applyUserIllustrationEdits(base, {
+      sceneBackground: manualBackground,
+      heroScene: manualHeroScene,
+      atmosphere: "차가운 밤공기",
+    });
+    const illustration = formatApprovedScenePlanForIllustration(plan);
+    assertVisibleFieldEquals(illustration, "Background", manualBackground);
+    assertVisibleFieldEquals(illustration, "Hero scene", manualHeroScene);
+    assertVisibleFieldEquals(illustration, "Atmosphere", "차가운 밤공기");
+  });
+
+  it("H: simulation persona included keeps manual fields byte-equivalent", () => {
+    const base = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const manualBackground = "비 내리는 서울역 옥상";
+    const manualHeroScene = "이현과 태형이 난간 앞에 마주 선다.";
+    const plan = applyUserIllustrationEdits(base, {
+      sceneBackground: manualBackground,
+      heroScene: manualHeroScene,
+    });
+    const visibility = resolveScenePresentationVisibility({
+      contentKind: "simulation",
+      castManifest: { subjects: [{ role: "persona", included: true }] },
+    });
+    const illustration = formatApprovedScenePlanForIllustration(plan, visibility);
+    assertVisibleFieldEquals(illustration, "Background", manualBackground);
+    assertVisibleFieldEquals(illustration, "Hero scene", manualHeroScene);
   });
 });
 
