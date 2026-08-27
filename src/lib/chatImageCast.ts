@@ -33,6 +33,8 @@ export type ChatImageCastIntentSubject = {
   importance: ChatImageCastImportance;
   visibility: ChatImageCastVisibility;
   requestedReferenceAssetUrl?: string;
+  /** UI-only marker for candidate pool provenance. Never sent to server. */
+  candidateSources?: CastCandidateSourceMarker[];
 };
 
 export type ChatImageCastIntentManifest = {
@@ -57,6 +59,135 @@ export type SelectableCastAsset = {
   url: string;
   tag: string;
 };
+
+export type CastCandidateSourceMarker =
+  | "current_scene"
+  | "character_set"
+  | "ai_suggestion";
+
+export type CastCandidateMeta = {
+  name: string;
+  sources: CastCandidateSourceMarker[];
+};
+
+export function normalizeCastMatchName(name: string): string {
+  return cleanText(name).toLowerCase();
+}
+
+export function detectCurrentSceneCastNames(
+  knownNames: readonly string[],
+  events: readonly { text: string }[]
+): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const rawName of knownNames) {
+    const name = cleanText(rawName);
+    if (!name) continue;
+    const normalized = normalizeCastMatchName(name);
+    if (seen.has(normalized)) continue;
+    const inScene = events.some((event) => event.text.includes(name));
+    if (!inScene) continue;
+    seen.add(normalized);
+    results.push(name);
+  }
+  return results;
+}
+
+export function buildCastCandidatePool(opts: {
+  personaName: string;
+  mainCharacterName: string;
+  configuredCharacterSetNames?: readonly string[];
+  castMentions?: readonly SceneCastMention[];
+  events?: readonly { text: string }[];
+}): CastCandidateMeta[] {
+  const persona = cleanText(opts.personaName) || "persona";
+  const main = cleanText(opts.mainCharacterName) || "character";
+  const reserved = new Set([normalizeCastMatchName(persona), normalizeCastMatchName(main)]);
+  const events = opts.events ?? [];
+  const configured = (opts.configuredCharacterSetNames ?? [])
+    .map((name) => cleanText(name))
+    .filter((name) => Boolean(name));
+  const currentScene = detectCurrentSceneCastNames(configured, events);
+  const currentSet = new Set(currentScene.map(normalizeCastMatchName));
+  const byName = new Map<string, CastCandidateMeta>();
+
+  const add = (rawName: string, source: CastCandidateSourceMarker) => {
+    const name = cleanText(rawName);
+    if (!name) return;
+    const normalized = normalizeCastMatchName(name);
+    if (reserved.has(normalized)) return;
+    const existing = byName.get(normalized);
+    if (existing) {
+      if (!existing.sources.includes(source)) {
+        existing.sources.push(source);
+      }
+      return;
+    }
+    byName.set(normalized, { name, sources: [source] });
+  };
+
+  for (const name of configured) {
+    add(name, currentSet.has(normalizeCastMatchName(name)) ? "current_scene" : "character_set");
+  }
+  for (const mention of opts.castMentions ?? []) {
+    add(mention.name, "ai_suggestion");
+  }
+
+  return [...byName.values()].slice(0, 12);
+}
+
+export function draftCastIntentFromCandidatePool(opts: {
+  personaName: string;
+  mainCharacterName: string;
+  configuredCharacterSetNames?: readonly string[];
+  castMentions?: readonly SceneCastMention[];
+  events?: readonly { text: string }[];
+  compositionGoal?: ChatImageCastCompositionGoal;
+}): ChatImageCastIntentManifest {
+  const pool = buildCastCandidatePool(opts);
+  const supporting = pool.map((candidate) => ({
+    key: `supporting:${normalizeCastMatchName(candidate.name) || candidate.name}`,
+    role: "supporting_character" as const,
+    name: candidate.name,
+    included: candidate.sources.includes("current_scene"),
+    importance: "secondary" as const,
+    visibility: "preferred_visible" as const,
+    candidateSources: candidate.sources,
+  }));
+  return {
+    compositionGoal: opts.compositionGoal ?? "auto",
+    subjects: [
+      {
+        key: "persona",
+        role: "persona",
+        name: cleanText(opts.personaName) || "persona",
+        included: true,
+        importance: "primary",
+        visibility: "required_visible",
+      },
+      {
+        key: "main_character",
+        role: "main_character",
+        name: cleanText(opts.mainCharacterName) || "character",
+        included: true,
+        importance: "primary",
+        visibility: "required_visible",
+      },
+      ...supporting,
+    ],
+  };
+}
+
+export function castCandidateSourceLabel(
+  sources: readonly CastCandidateSourceMarker[] | undefined
+): string {
+  if (!sources?.length) return "";
+  const labels: string[] = [];
+  if (sources.includes("current_scene")) labels.push("현재 장면");
+  if (sources.includes("character_set")) labels.push("캐릭터셋");
+  if (sources.includes("ai_suggestion")) labels.push("AI 제안");
+  return labels.join(" · ");
+}
 
 function cleanText(raw: unknown, max = 48): string {
   return String(raw ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -285,6 +416,7 @@ export function mergeCastIntentDraft(
         importance: previous.importance,
         visibility: previous.visibility,
         requestedReferenceAssetUrl: previous.requestedReferenceAssetUrl,
+        candidateSources: subject.candidateSources ?? previous.candidateSources,
       };
     }),
   });

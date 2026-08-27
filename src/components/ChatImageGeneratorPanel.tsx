@@ -12,6 +12,7 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  buildDeterministicScenePlan,
   reflowScenePlanPanels,
   type ScenePlan,
   type SceneSourceMessage,
@@ -21,7 +22,7 @@ import ChatSceneBuilder, {
   type ScenePanelCountMode,
 } from "@/components/ChatSceneBuilder";
 import {
-  draftCastIntentFromMentions,
+  draftCastIntentFromCandidatePool,
   mergeCastIntentDraft,
   suggestAssetForSupportingName,
   type ChatImageCastIntentManifest,
@@ -362,8 +363,13 @@ export default function ChatImageGeneratorPanel({
     useState<ScenePanelCountMode>("ai");
   const [sceneMessages, setSceneMessages] = useState<SceneSourceMessage[]>([]);
   const [scenePlan, setScenePlan] = useState<ScenePlan | null>(null);
-  const [scenePlanLoading, setScenePlanLoading] = useState(false);
-  const scenePlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
+  const deterministicPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
+  const aiPlanCacheRef = useRef<Map<string, ScenePlan>>(new Map());
+  const [aiSuggestedPlan, setAiSuggestedPlan] = useState<ScenePlan | null>(null);
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [aiSuggestionError, setAiSuggestionError] = useState("");
+  const [hasAiSuggestionSession, setHasAiSuggestionSession] = useState(false);
+  const [configuredCastNames, setConfiguredCastNames] = useState<string[]>([]);
   const [castIntent, setCastIntent] = useState<ChatImageCastIntentManifest | null>(null);
   const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
@@ -560,13 +566,20 @@ export default function ChatImageGeneratorPanel({
 
   useEffect(() => {
     if (!scenePlan || trpgCampaignMode || !info) return;
-    const draft = draftCastIntentFromMentions({
+    const draft = draftCastIntentFromCandidatePool({
       personaName: info.persona?.name ?? "persona",
       mainCharacterName: info.character.name,
-      castMentions: scenePlan.castMentions,
+      configuredCharacterSetNames: configuredCastNames,
+      castMentions: aiSuggestedPlan?.castMentions ?? scenePlan.castMentions,
+      events: scenePlan.events,
     });
     setCastIntent((current) => {
-      const merged = mergeCastIntentDraft(current, draft);
+      const merged = mergeCastIntentDraft(
+        current
+          ? { ...current, compositionGoal: current.compositionGoal }
+          : current,
+        { ...draft, compositionGoal: current?.compositionGoal ?? draft.compositionGoal }
+      );
       return {
         ...merged,
         subjects: merged.subjects.map((subject) => {
@@ -580,7 +593,7 @@ export default function ChatImageGeneratorPanel({
         }),
       };
     });
-  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets]);
+  }, [scenePlan, aiSuggestedPlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames]);
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
@@ -1009,7 +1022,22 @@ export default function ChatImageGeneratorPanel({
     return `${ids.chatId ?? "none"}:${messageId ?? "none"}:${summary}`;
   }
 
-  async function loadScenePlan(opts: {
+  function applyDeterministicScenePlan(
+    messageId: number | null,
+    summary: string,
+    messages: SceneSourceMessage[]
+  ) {
+    const key = sceneCacheKey(messageId, summary);
+    const cached = deterministicPlanCacheRef.current.get(key);
+    const plan = cached ?? buildDeterministicScenePlan(messages);
+    if (!cached) deterministicPlanCacheRef.current.set(key, plan);
+    setScenePlan(plan);
+    setScenePanelCountMode("ai");
+    setAiSuggestedPlan(null);
+    setAiSuggestionError("");
+  }
+
+  async function requestAiSceneSuggestion(opts: {
     messageId: number | null;
     summary: string;
     messages?: SceneSourceMessage[];
@@ -1017,12 +1045,15 @@ export default function ChatImageGeneratorPanel({
   }) {
     if (trpgCampaignMode) return;
     const key = sceneCacheKey(opts.messageId, opts.summary);
-    const cached = scenePlanCacheRef.current.get(key);
-    if (cached && !opts.force) {
-      setScenePlan(cached);
+    const cached = !opts.force ? aiPlanCacheRef.current.get(key) : undefined;
+    if (cached) {
+      setAiSuggestedPlan(cached);
+      setHasAiSuggestionSession(true);
+      setAiSuggestionError("");
       return;
     }
-    setScenePlanLoading(true);
+    setAiSuggestionLoading(true);
+    setAiSuggestionError("");
     try {
       const ids = currentRouteIds();
       const response = await fetch("/api/chat/comic-generation", {
@@ -1039,16 +1070,44 @@ export default function ChatImageGeneratorPanel({
         | { ok?: boolean; plan?: ScenePlan; error?: string }
         | null;
       if (!response.ok || !data?.plan) {
-        throw new Error(data?.error || "장면을 구성하지 못했습니다.");
+        throw new Error(
+          data?.error ||
+            "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다."
+        );
       }
-      scenePlanCacheRef.current.set(key, data.plan);
-      setScenePlan(data.plan);
-      setScenePanelCountMode("ai");
+      aiPlanCacheRef.current.set(key, data.plan);
+      setAiSuggestedPlan(data.plan);
+      setHasAiSuggestionSession(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "장면을 구성하지 못했습니다.");
+      setAiSuggestionError(
+        caught instanceof Error
+          ? caught.message
+          : "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다."
+      );
     } finally {
-      setScenePlanLoading(false);
+      setAiSuggestionLoading(false);
     }
+  }
+
+  function applyAiSceneSuggestion() {
+    if (!aiSuggestedPlan || !info) return;
+    setScenePlan(aiSuggestedPlan);
+    const draft = draftCastIntentFromCandidatePool({
+      personaName: info.persona?.name ?? "persona",
+      mainCharacterName: info.character.name,
+      configuredCharacterSetNames: configuredCastNames,
+      castMentions: aiSuggestedPlan.castMentions,
+      events: aiSuggestedPlan.events,
+      compositionGoal: castIntent?.compositionGoal,
+    });
+    setCastIntent((current) => mergeCastIntentDraft(current, draft));
+    setAiSuggestedPlan(null);
+    setAiSuggestionError("");
+  }
+
+  function cancelAiSceneSuggestion() {
+    setAiSuggestedPlan(null);
+    setAiSuggestionError("");
   }
 
   async function loadSelectedTurnContent(messageId: number) {
@@ -1072,6 +1131,7 @@ export default function ChatImageGeneratorPanel({
             ok?: boolean;
             summary?: string;
             messages?: SceneSourceMessage[];
+            simulationCastNames?: string[];
             error?: string;
           }
         | null;
@@ -1080,12 +1140,17 @@ export default function ChatImageGeneratorPanel({
       }
       setComicSummary(data.summary);
       setComicLoadedMaxChars(data.summary.length);
-      setSceneMessages(Array.isArray(data.messages) ? data.messages : []);
-      void loadScenePlan({
-        messageId,
-        summary: data.summary,
-        messages: data.messages,
-      });
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      setSceneMessages(messages);
+      setConfiguredCastNames(
+        Array.isArray(data.simulationCastNames)
+          ? data.simulationCastNames.filter((name) => typeof name === "string" && name.trim())
+          : []
+      );
+      setHasAiSuggestionSession(false);
+      setAiSuggestedPlan(null);
+      setAiSuggestionError("");
+      applyDeterministicScenePlan(messageId, data.summary, messages);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
@@ -1120,7 +1185,7 @@ export default function ChatImageGeneratorPanel({
       return;
     }
     if (!isIllustration && !trpgCampaignMode && !scenePlan) {
-      setError("장면 구성을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      setError("장면 원본을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
 
@@ -1952,7 +2017,11 @@ export default function ChatImageGeneratorPanel({
                             sourcePreview={comicSummary || sourceTurnPreview}
                             sourceLoading={summarizing}
                             plan={scenePlan}
-                            planLoading={scenePlanLoading}
+                            planLoading={summarizing}
+                            aiSuggestedPlan={aiSuggestedPlan}
+                            aiSuggestionLoading={aiSuggestionLoading}
+                            aiSuggestionError={aiSuggestionError}
+                            hasAiSuggestionSession={hasAiSuggestionSession}
                             castManifest={castIntent}
                             selectableAssets={selectableCastAssets}
                             reservedReferenceUrls={reservedCastReferenceUrls}
@@ -1967,14 +2036,16 @@ export default function ChatImageGeneratorPanel({
                             }}
                             onPlanChange={setScenePlan}
                             onCastChange={setCastIntent}
-                            onRebuildPlan={() => {
-                              void loadScenePlan({
+                            onRequestAiSuggestion={() => {
+                              void requestAiSceneSuggestion({
                                 messageId: sourceMessageId,
                                 summary: comicSummary || sourceTurnPreview,
                                 messages: sceneMessages,
-                                force: true,
+                                force: hasAiSuggestionSession,
                               });
                             }}
+                            onApplyAiSuggestion={applyAiSceneSuggestion}
+                            onCancelAiSuggestion={cancelAiSceneSuggestion}
                           />
                         ) : null}
                         <PriceBox
@@ -2008,7 +2079,7 @@ export default function ChatImageGeneratorPanel({
                             (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
                             (ldProduct === "scene" &&
                               !campaignId &&
-                              (!scenePlan || scenePlanLoading)) ||
+                              (!scenePlan || summarizing)) ||
                             (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
