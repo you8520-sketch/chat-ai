@@ -495,9 +495,42 @@ html.chat-room-active .mobile-bottom-nav {
     left: 0 !important;
   }
 
-  /* Portrait strip: block + inner grid. No-portrait: --row → flex. */
+  /* Portrait ON — desktop flex row (portrait w-max + chat flex-1). */
+  html.chat-room-active .chat-room-portrait-grid {
+    --chat-portrait-max-w: min(820px, calc(100vw - 360px - 4rem));
+    --chat-portrait-rail-h: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
+    display: flex !important;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  html.chat-room-active .chat-room-portrait-column {
+    display: flex !important;
+    flex-direction: column;
+    width: max-content;
+    flex-shrink: 0;
+  }
+
+  html.chat-room-active .chat-room-portrait-chat-column {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1 1 0%;
+    min-width: 0;
+    max-width: 780px;
+  }
+
+  html.chat-room-active .chat-room-portrait-rail {
+    display: flex !important;
+    flex-direction: column;
+    width: max-content;
+    height: var(--chat-portrait-rail-h);
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
   html.chat-room-active .chat-room-desktop-name-strip {
-    display: block !important;
+    display: flex !important;
   }
 
   html.chat-room-active .chat-room-desktop-name-strip.chat-room-desktop-name-strip--row {
@@ -512,34 +545,9 @@ html.chat-room-active .mobile-bottom-nav {
     display: none !important;
   }
 
-  /* 에셋 ON — desktop portrait column + 2-col grid (Tailwind variant fallback). */
-  html.chat-room-active .chat-room-portrait-grid {
-    grid-template-columns: max-content minmax(0, 780px);
-    grid-template-rows: auto minmax(0, 1fr);
-    column-gap: 1.5rem;
-  }
-
-  html.chat-room-active .chat-room-portrait-track {
-    grid-template-columns: max-content minmax(0, 780px);
-    column-gap: 1.5rem;
-  }
-
-  html.chat-room-active .chat-room-portrait-rail {
-    display: flex !important;
-    flex-direction: column;
-    grid-column-start: 1;
-    grid-row-start: 2;
-    position: sticky;
-    top: calc(var(--site-header-height, 44px) + 3.25rem);
-    z-index: 10;
-    width: 100%;
-    height: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
-    align-self: start;
-  }
-
   html.chat-room-active .chat-room-messages-column {
-    grid-column-start: 2;
-    grid-row-start: 2;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   html.chat-room-active .chat-room-mobile-portrait-bg {
@@ -565,6 +573,8 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .chat-room-left-rail-spacer,
   html.chat-room-active aside.chat-room-left-rail,
   html.chat-room-active .chat-room-desktop-name-strip,
+  html.chat-room-active .chat-room-portrait-column,
+  html.chat-room-active .chat-room-portrait-chat-column,
   html.chat-room-active aside.chat-room-right-rail,
   html.chat-room-active .chat-room-portrait-rail {
     display: none !important;

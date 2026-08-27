@@ -7,12 +7,14 @@ import {
   CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   CHAT_MESSAGES_COLUMN_CLASS,
+  CHAT_PORTRAIT_CHAT_COLUMN_CLASS,
+  CHAT_PORTRAIT_COLUMN_CLASS,
   CHAT_PORTRAIT_DESKTOP_TRACK_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS,
+  CHAT_PORTRAIT_INFO_STICKY_CLASS,
   CHAT_PORTRAIT_PANEL_IMG_CLASS,
   CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
-  CHAT_PORTRAIT_INFO_STICKY_CLASS,
-  CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   CHAT_STREAM_SPEED_PRESETS,
@@ -225,21 +227,21 @@ describe("showCharacterPortrait persistence", () => {
 
 describe("mobile chat portrait background", () => {
 
-  it("uses intrinsic-width desktop portrait column (max-content track)", () => {
+  it("uses intrinsic-width desktop portrait column (flex w-max)", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-content/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(0,780px\)/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[576px\]:flex/);
+    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /w-max/);
+    assert.match(CHAT_PORTRAIT_PANEL_IMG_CLASS, /\bh-full\b/);
     assert.match(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-contain/);
     assert.doesNotMatch(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-cover/);
-    assert.match(CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS, /75\.25rem/);
+    assert.match(CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS, /--chat-portrait-max-w/);
   });
 
-  it("keeps desktop portrait and messages below the fixed character info row", () => {
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /min-\[576px\]:grid-rows-\[auto_minmax\(0,1fr\)\]/);
-    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:row-start-2/);
-    assert.match(CHAT_MESSAGES_COLUMN_CLASS, /min-\[576px\]:row-start-2/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:row-start-1/);
+  it("keeps desktop portrait and messages in separate flex columns", () => {
+    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /flex-1/);
+    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /max-w-\[780px\]/);
+    assert.match(CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS, /chat-room-portrait-header-chat/);
     assert.match(
       CHAT_ROOM_HEADER_OFFSET_CLASS,
       /min-\[576px\]:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
@@ -252,24 +254,18 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /overflow-x-clip/);
   });
 
-  it("keeps sticky name/album strip full-grid with album in the portrait track", () => {
-    // Outer strip spans both columns (sticky tab above chat); inner track matches
-    // the portrait grid so name/creator/album stay on the asset column top-right.
-    // Semantic class + min-[576px]:block — globals.css also forces display as fallback.
+  it("keeps sticky name/album in portrait column; chat column flex-1", () => {
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /chat-room-desktop-name-strip/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bhidden\b/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:block/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:col-span-2/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:flex/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:sticky/);
+    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /chat-room-portrait-column/);
+    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /chat-room-portrait-chat-column/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /chat-room-portrait-rail/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:flex/);
-    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /max-content/);
-    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(0,780px\)/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /chat-room-portrait-track/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /max-content/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /flex-row/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /chat-room-portrait-grid/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-content/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /chat-room-messages-column/);
     assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /chat-room-mobile-portrait-bg/);
   });
