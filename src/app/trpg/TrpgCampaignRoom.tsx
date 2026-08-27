@@ -130,16 +130,19 @@ import {
 import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
+  decideManualScrollRejoin,
   isNearBottom,
-  isNearNarrationFollowElement,
   isNearPresentationCard,
+  isNearReadingBandFollowElement,
+  isTrpgScrollIntentKey,
   liveFreshGmNarrationRow,
   livePresentationActivityKey,
-  narrationFollowDeltaFromElement,
+  readingBandFollowDeltaFromElement,
   resolveTrpgLiveFollowOwner,
   resolveEffectiveGmRevealComplete,
   resolveEffectiveActorRevealComplete,
   mergeActorRevealReport,
+  shouldDetachLiveFollowOnUserIntent,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
   type ActorRevealReport,
@@ -354,10 +357,14 @@ export default function TrpgCampaignRoom({
   const bottomRef = useRef<HTMLDivElement>(null);
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
+  const declarationEndRef = useRef<HTMLSpanElement | null>(null);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
   const consumedActorActionBeatRef = useRef("");
   const narrationFollowRafRef = useRef<number | null>(null);
+  const followScrollRafRef = useRef<number | null>(null);
+  const manualScrollDetachedRef = useRef(false);
+  const programmaticScrollRef = useRef(false);
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
   const seenSceneLenRef = useRef(0);
@@ -971,6 +978,7 @@ export default function TrpgCampaignRoom({
   });
   const liveFollowOwner = resolveTrpgLiveFollowOwner({
     cinematicMotion,
+    activeDeclarationReveal: declarationReveal.activeAiId != null,
     freshGmRound: freshGmRow?.roundNumber ?? null,
     gmRevealComplete: effectiveGmRevealComplete,
     nextActionVisible,
@@ -1047,26 +1055,60 @@ export default function TrpgCampaignRoom({
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  const alignNarrationEnd = useCallback((behavior: ScrollBehavior) => {
+  const cancelPendingFollowScroll = useCallback(() => {
+    if (narrationFollowRafRef.current != null) {
+      window.cancelAnimationFrame(narrationFollowRafRef.current);
+      narrationFollowRafRef.current = null;
+    }
+    if (followScrollRafRef.current != null) {
+      window.cancelAnimationFrame(followScrollRafRef.current);
+      followScrollRafRef.current = null;
+    }
+  }, []);
+
+  const detachLiveFollow = useCallback(() => {
+    if (!shouldDetachLiveFollowOnUserIntent()) return;
+    cancelPendingFollowScroll();
+    manualScrollDetachedRef.current = true;
+    followLatestRef.current = false;
+    setFollowLatest(false);
+  }, [cancelPendingFollowScroll]);
+
+  const runProgrammaticScroll = useCallback((fn: () => void) => {
+    programmaticScrollRef.current = true;
+    fn();
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        programmaticScrollRef.current = false;
+      });
+    });
+  }, []);
+
+  const alignReadingBandEnd = useCallback((el: Element, behavior: ScrollBehavior) => {
     const apply = () => {
-      const el = narrationEndRef.current;
-      if (!el) return;
-      const delta = narrationFollowDeltaFromElement(el);
+      const delta = readingBandFollowDeltaFromElement(el);
       if (delta === 0) return;
       window.scrollBy({ top: delta, behavior });
     };
     if (behavior === "smooth") {
-      apply();
+      runProgrammaticScroll(apply);
       return;
     }
-    if (narrationFollowRafRef.current != null) {
-      window.cancelAnimationFrame(narrationFollowRafRef.current);
-    }
+    cancelPendingFollowScroll();
     narrationFollowRafRef.current = window.requestAnimationFrame(() => {
       narrationFollowRafRef.current = null;
-      apply();
+      runProgrammaticScroll(apply);
     });
-  }, []);
+  }, [cancelPendingFollowScroll, runProgrammaticScroll]);
+
+  const alignNarrationEnd = useCallback(
+    (behavior: ScrollBehavior) => {
+      const el = narrationEndRef.current;
+      if (!el) return;
+      alignReadingBandEnd(el, behavior);
+    },
+    [alignReadingBandEnd]
+  );
 
   const scrollToFollowOwner = useCallback(
     (owner: TrpgLiveFollowOwner, behavior: ScrollBehavior = "instant") => {
@@ -1074,37 +1116,52 @@ export default function TrpgCampaignRoom({
         case "GM_NARRATION_END":
           if (narrationEndRef.current) alignNarrationEnd(behavior);
           break;
+        case "ACTIVE_DECLARATION_END":
+          if (declarationEndRef.current) alignReadingBandEnd(declarationEndRef.current, behavior);
+          break;
         case "CURRENT_ACTOR":
           if (activePresentationCardRef.current) {
-            activePresentationCardRef.current.scrollIntoView({
-              behavior,
-              block: "center",
-              inline: "nearest",
+            runProgrammaticScroll(() => {
+              activePresentationCardRef.current?.scrollIntoView({
+                behavior,
+                block: "center",
+                inline: "nearest",
+              });
             });
           } else if (bottomRef.current) {
-            bottomRef.current.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            runProgrammaticScroll(() => {
+              bottomRef.current?.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            });
           }
           break;
         case "NEXT_ACTION": {
           const target = nextActionRef.current ?? suggestionsAnchorRef.current ?? bottomRef.current;
           if (target) {
-            target.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            runProgrammaticScroll(() => {
+              target.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            });
           } else {
-            window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+            runProgrammaticScroll(() => {
+              window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+            });
           }
           break;
         }
         case "NONE":
         default:
           if (bottomRef.current) {
-            bottomRef.current.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            runProgrammaticScroll(() => {
+              bottomRef.current?.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+            });
           } else {
-            window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+            runProgrammaticScroll(() => {
+              window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+            });
           }
           break;
       }
     },
-    [alignNarrationEnd]
+    [alignNarrationEnd, alignReadingBandEnd, runProgrammaticScroll]
   );
 
   const isNearFollowOwner = useCallback((owner: TrpgLiveFollowOwner): boolean => {
@@ -1112,7 +1169,11 @@ export default function TrpgCampaignRoom({
     switch (owner) {
       case "GM_NARRATION_END":
         return narrationEndRef.current
-          ? isNearNarrationFollowElement(narrationEndRef.current)
+          ? isNearReadingBandFollowElement(narrationEndRef.current)
+          : false;
+      case "ACTIVE_DECLARATION_END":
+        return declarationEndRef.current
+          ? isNearReadingBandFollowElement(declarationEndRef.current)
           : false;
       case "CURRENT_ACTOR":
         return activePresentationCardRef.current
@@ -1132,6 +1193,7 @@ export default function TrpgCampaignRoom({
   const scrollToLatest = useCallback(
     (behavior: ScrollBehavior = "instant") => {
       scrollToFollowOwner(liveFollowOwner, behavior);
+      manualScrollDetachedRef.current = false;
       followLatestRef.current = true;
       setFollowLatest(true);
       setUnseenLatest(false);
@@ -1142,6 +1204,7 @@ export default function TrpgCampaignRoom({
   useLayoutEffect(() => {
     hasScrolledToLatestRef.current = null;
     followLatestRef.current = true;
+    manualScrollDetachedRef.current = false;
     setFollowLatest(true);
     setUnseenLatest(false);
     seenSceneLenRef.current = 0;
@@ -1213,8 +1276,12 @@ export default function TrpgCampaignRoom({
     const observer = new ResizeObserver(() => {
       const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
       if (growth.autoFollow) {
-        requestAnimationFrame(() => {
-          if (!followLatestRef.current) return;
+        if (followScrollRafRef.current != null) {
+          window.cancelAnimationFrame(followScrollRafRef.current);
+        }
+        followScrollRafRef.current = window.requestAnimationFrame(() => {
+          followScrollRafRef.current = null;
+          if (!followLatestRef.current || manualScrollDetachedRef.current) return;
           scrollToFollowOwner(liveFollowOwner, "instant");
         });
       } else if (growth.unseenLatest) {
@@ -1235,7 +1302,20 @@ export default function TrpgCampaignRoom({
 
   useEffect(() => {
     const onScroll = () => {
+      if (programmaticScrollRef.current) return;
       const near = isNearFollowOwner(liveFollowOwner);
+      const rejoin = decideManualScrollRejoin({
+        manualDetached: manualScrollDetachedRef.current,
+        nearFollowOwner: near,
+      });
+      if (rejoin.rejoin) {
+        manualScrollDetachedRef.current = false;
+        followLatestRef.current = true;
+        setFollowLatest(true);
+        setUnseenLatest(false);
+        return;
+      }
+      if (manualScrollDetachedRef.current) return;
       followLatestRef.current = near;
       setFollowLatest(near);
       if (near) setUnseenLatest(false);
@@ -1244,6 +1324,72 @@ export default function TrpgCampaignRoom({
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [isNearFollowOwner, liveFollowOwner]);
+
+  useEffect(() => {
+    const liveRevealActive =
+      roundShow.mode === "cinematic" ||
+      presentationStarting ||
+      declarationReveal.activeAiId != null ||
+      Boolean(currentNarrationRef.current);
+    if (!liveRevealActive) return;
+
+    let touchStartY = 0;
+
+    const onWheel = () => {
+      detachLiveFollow();
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? 0;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const y = event.touches[0]?.clientY ?? touchStartY;
+      if (Math.abs(y - touchStartY) > 4) {
+        detachLiveFollow();
+      }
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse") return;
+      const gutter = window.innerWidth - event.clientX;
+      if (gutter <= 24) {
+        detachLiveFollow();
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      if (isTrpgScrollIntentKey(event.key)) {
+        detachLiveFollow();
+      }
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [
+    declarationReveal.activeAiId,
+    detachLiveFollow,
+    presentationStarting,
+    roundShow.mode,
+  ]);
 
   useLayoutEffect(() => {
     if (!followLatestRef.current) return;
@@ -1623,6 +1769,11 @@ export default function TrpgCampaignRoom({
                 row.roundNumber === snap.round.number && gateLiveRound
                   ? declarationReveal.activeAiId
                   : null
+              }
+              declarationEndRef={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? declarationEndRef
+                  : undefined
               }
               consumedDeclarationAiIds={
                 row.roundNumber === snap.round.number && gateLiveRound
@@ -2017,6 +2168,7 @@ function SceneTurn({
   cinematicActorAction = false,
   preCinematicVisibleIds = [],
   activeDeclarationRevealId = null,
+  declarationEndRef,
   consumedDeclarationAiIds = [],
   onDeclarationRevealChange,
 }: {
@@ -2059,6 +2211,7 @@ function SceneTurn({
   cinematicActorAction?: boolean;
   preCinematicVisibleIds?: readonly number[];
   activeDeclarationRevealId?: number | null;
+  declarationEndRef?: Ref<HTMLSpanElement | null>;
   consumedDeclarationAiIds?: readonly number[];
   onDeclarationRevealChange?: (report: ActorRevealReport) => void;
 }) {
@@ -2237,6 +2390,14 @@ function SceneTurn({
                         : undefined
                     }
                   />
+                  {isActiveDeclarationCard && decorativeReveal && declarationEndRef ? (
+                    <span
+                      ref={declarationEndRef}
+                      data-trpg-declaration-end
+                      aria-hidden="true"
+                      className="inline-block h-px w-px"
+                    />
+                  ) : null}
                   {showJudge ? (
                     <div className="mt-1.5 space-y-0.5 font-sans" data-quote-ignore>
                       <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>

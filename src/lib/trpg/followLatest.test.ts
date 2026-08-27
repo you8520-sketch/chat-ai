@@ -151,6 +151,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /narrationEndRef=\{row\.roundNumber === liveFollowRound \? narrationEndRef : undefined\}/);
     assert.match(room, /resolveTrpgLiveFollowOwner/);
     assert.match(room, /case "GM_NARRATION_END"/);
+    assert.match(room, /case "ACTIVE_DECLARATION_END"/);
     assert.match(room, /alignNarrationEnd\(behavior\)/);
     assert.match(room, /scrollToFollowOwner\(liveFollowOwner, "instant"\)/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
@@ -168,10 +169,10 @@ describe("TRPG follow-latest scroll", () => {
   it("settles on the latest scene while preserving manual history browsing", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /isNearBottom/);
-    assert.match(room, /isNearNarrationFollowElement/);
+    assert.match(room, /isNearReadingBandFollowElement/);
     assert.match(room, /followLatest/);
     assert.match(room, /최신으로/);
-    assert.match(room, /bottomRef\.current\.scrollIntoView/);
+    assert.match(room, /bottomRef\.current\?\.scrollIntoView/);
     assert.match(room, /data-trpg-narration-end/);
     assert.match(room, /liveFreshGmNarrationRow/);
     assert.match(room, /liveFollowRound/);
@@ -294,5 +295,7 @@ describe("TRPG follow-latest scroll", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /preCinematicVisibleIds/);
     assert.match(room, /declarationReveal\.activeAiId != null/);
+    assert.match(room, /manualScrollDetachedRef/);
+    assert.match(room, /detachLiveFollow/);
   });
 });

@@ -120,22 +120,65 @@ export function liveFreshGmNarrationRow(opts: {
   return found;
 }
 
-export type TrpgLiveFollowOwner = "CURRENT_ACTOR" | "GM_NARRATION_END" | "NEXT_ACTION" | "NONE";
+export type TrpgLiveFollowOwner =
+  | "CURRENT_ACTOR"
+  | "ACTIVE_DECLARATION_END"
+  | "GM_NARRATION_END"
+  | "NEXT_ACTION"
+  | "NONE";
 
 /** Single resolver for which live element owns auto-follow during a TRPG round. */
 export function resolveTrpgLiveFollowOwner(opts: {
   cinematicMotion: boolean;
+  activeDeclarationReveal?: boolean;
   freshGmRound: number | null;
   gmRevealComplete: boolean;
   nextActionVisible: boolean;
 }): TrpgLiveFollowOwner {
   if (opts.cinematicMotion) return "CURRENT_ACTOR";
+  if (opts.activeDeclarationReveal === true) return "ACTIVE_DECLARATION_END";
   if (opts.freshGmRound != null) {
     if (!opts.gmRevealComplete) return "GM_NARRATION_END";
     return "NEXT_ACTION";
   }
   if (opts.nextActionVisible) return "NEXT_ACTION";
   return "NONE";
+}
+
+/** Lower-reading-band follow delta for any live stream end sentinel (GM or declaration). */
+export function readingBandFollowDeltaFromElement(el: Element): number {
+  return narrationFollowDeltaFromElement(el);
+}
+
+export function isNearReadingBandFollowElement(el: Element): boolean {
+  return isNearNarrationFollowElement(el);
+}
+
+export const TRPG_SCROLL_INTENT_KEYS = new Set([
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  "ArrowUp",
+  "ArrowDown",
+  " ",
+  "Spacebar",
+]);
+
+export function isTrpgScrollIntentKey(key: string): boolean {
+  return TRPG_SCROLL_INTENT_KEYS.has(key);
+}
+
+export function shouldDetachLiveFollowOnUserIntent(): boolean {
+  return true;
+}
+
+export function decideManualScrollRejoin(opts: {
+  manualDetached: boolean;
+  nearFollowOwner: boolean;
+}): { rejoin: boolean } {
+  if (!opts.manualDetached) return { rejoin: false };
+  return { rejoin: opts.nearFollowOwner };
 }
 
 export function shouldShowTrpgReplySuggestions(opts: {
