@@ -41,6 +41,7 @@ export const TRPG_FAILURE_KINDS = [
   "persist_error",
   "parse_state",
   "orphan_generation",
+  "gm_generation_orphan_reclaimed",
   "unknown",
 ] as const;
 export type TrpgFailureKind = (typeof TRPG_FAILURE_KINDS)[number];
@@ -187,7 +188,9 @@ export function classifyTrpgFailureKind(opts: {
     return "billing_insufficient";
   }
   if (stage === "billing") return "billing_error";
-  if (/orphan generation|lease expired without completing/i.test(raw)) return "orphan_generation";
+  if (/orphan generation|lease expired without completing|gm_generation_orphan_reclaimed/i.test(raw)) {
+    return "gm_generation_orphan_reclaimed";
+  }
   if (/empty completion/i.test(raw)) return "empty_completion";
   if (/timeout|AbortError|TimeoutError|aborted/i.test(raw) || name === "TimeoutError" || name === "AbortError") {
     return "provider_timeout";
@@ -307,6 +310,7 @@ export function sanitizeTrpgFailureHint(
     case "parse_state":
       return "GM 생성 실패 · Parse/state error";
     case "orphan_generation":
+    case "gm_generation_orphan_reclaimed":
       return "GM 생성 실패 · Generation lease expired";
     case "unknown":
       return "GM 생성 실패";

@@ -13,11 +13,14 @@ export type TrpgPendingGmResult = {
   nextRoundContext: string;
   delta: ParsedTrpgGmOutput["delta"];
   postGmOngoingSeeds: PostGmOngoingSeed[];
+  /** Generation token that produced this pending result. */
+  generationId?: string;
 };
 
 export function toPendingGmResult(
   parsed: ParsedTrpgGmOutput,
-  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = []
+  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = [],
+  generationId?: string
 ): TrpgPendingGmResult {
   return {
     v: 1,
@@ -27,6 +30,7 @@ export function toPendingGmResult(
     nextRoundContext: parsed.nextRoundContext ?? "",
     delta: parsed.delta,
     postGmOngoingSeeds: parsePostGmOngoingSeeds(postGmOngoingSeeds),
+    ...(generationId ? { generationId } : {}),
   };
 }
 
@@ -44,10 +48,11 @@ export function savePendingGmResult(
   db: Database.Database,
   roundId: number,
   parsed: ParsedTrpgGmOutput,
-  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = []
+  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = [],
+  generationId?: string
 ): void {
   db.prepare(`UPDATE trpg_rounds SET pending_gm_result_json=? WHERE id=?`).run(
-    JSON.stringify(toPendingGmResult(parsed, postGmOngoingSeeds)),
+    JSON.stringify(toPendingGmResult(parsed, postGmOngoingSeeds, generationId)),
     roundId
   );
 }
@@ -77,6 +82,7 @@ export function loadPendingGmResult(db: Database.Database, roundId: number): Trp
       postGmOngoingSeeds: parsePostGmOngoingSeeds(
         parsed.postGmOngoingSeeds ?? parsed.postGmOngoingPromotions
       ),
+      generationId: typeof parsed.generationId === "string" ? parsed.generationId : undefined,
     };
   } catch {
     return null;
@@ -85,4 +91,23 @@ export function loadPendingGmResult(db: Database.Database, roundId: number): Trp
 
 export function hasPendingGmResult(db: Database.Database, roundId: number): boolean {
   return loadPendingGmResult(db, roundId) != null;
+}
+
+/** True when pending salvage belongs to the active stale generation token. */
+export function pendingMatchesGeneration(
+  db: Database.Database,
+  roundId: number,
+  generationId: string
+): boolean {
+  const pending = loadPendingGmResult(db, roundId);
+  if (!pending) return false;
+  return pending.generationId === generationId;
+}
+
+export function hasPendingGmResultForGeneration(
+  db: Database.Database,
+  roundId: number,
+  generationId: string
+): boolean {
+  return pendingMatchesGeneration(db, roundId, generationId);
 }
