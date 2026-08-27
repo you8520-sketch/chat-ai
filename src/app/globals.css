@@ -514,13 +514,13 @@ html.chat-room-active .mobile-bottom-nav {
 
   /* 에셋 ON — desktop portrait column + 2-col grid (Tailwind variant fallback). */
   html.chat-room-active .chat-room-portrait-grid {
-    grid-template-columns: minmax(340px, 400px) minmax(0, 780px);
+    grid-template-columns: max-content minmax(0, 780px);
     grid-template-rows: auto minmax(0, 1fr);
     column-gap: 1.5rem;
   }
 
   html.chat-room-active .chat-room-portrait-track {
-    grid-template-columns: minmax(340px, 400px) minmax(0, 780px);
+    grid-template-columns: max-content minmax(0, 780px);
     column-gap: 1.5rem;
   }
 

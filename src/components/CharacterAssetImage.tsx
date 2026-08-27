@@ -1,9 +1,12 @@
+import type { CSSProperties } from "react";
+
 type Props = {
   src: string;
   alt?: string;
   blurForViewer?: boolean;
   className?: string;
   imgClassName?: string;
+  imgStyle?: CSSProperties;
   imgTestId?: string;
   /** 제작자 미리보기 — 가려짐 설정 표시만 */
   showHiddenBadge?: boolean;
@@ -15,6 +18,7 @@ export default function CharacterAssetImage({
   blurForViewer = false,
   className = "",
   imgClassName = "block aspect-[3/4] w-full object-cover object-top",
+  imgStyle,
   imgTestId,
   showHiddenBadge = false,
 }: Props) {
@@ -25,6 +29,7 @@ export default function CharacterAssetImage({
         src={src}
         alt={alt}
         data-testid={imgTestId}
+        style={imgStyle}
         className={`${imgClassName} ${blurForViewer ? "scale-105 blur-xl" : ""}`}
         draggable={false}
       />

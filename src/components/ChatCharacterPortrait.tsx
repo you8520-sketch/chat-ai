@@ -1,4 +1,10 @@
 import CharacterAssetImage from "@/components/CharacterAssetImage";
+import {
+  CHAT_PORTRAIT_PANEL_FRAME_CLASS,
+  CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS,
+  CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
+  CHAT_PORTRAIT_PANEL_SHELL_CLASS,
+} from "@/lib/chatDisplayPrefs";
 
 type Props = {
   characterName: string;
@@ -8,6 +14,9 @@ type Props = {
   blurForViewer?: boolean;
   size?: "inline" | "panel";
   onPortraitClick?: () => void;
+  /** PC panel — existing asset metadata for aspect-ratio reservation (CLS). */
+  assetWidth?: number;
+  assetHeight?: number;
 };
 
 export default function ChatCharacterPortrait({
@@ -18,16 +27,27 @@ export default function ChatCharacterPortrait({
   blurForViewer = false,
   size = "inline",
   onPortraitClick,
+  assetWidth,
+  assetHeight,
 }: Props) {
   const widthClass =
     size === "panel"
-      ? "w-full max-w-[400px]"
+      ? `h-full w-fit ${CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS}`
       : "w-10 shrink-0 sm:w-11 md:w-12 lg:w-14";
 
   const panelFrameClass =
     size === "panel"
-      ? "relative h-full w-full max-w-[400px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#08080c] shadow-lg shadow-black/10 transition hover:border-violet-400/35"
+      ? CHAT_PORTRAIT_PANEL_FRAME_CLASS
       : "relative aspect-[3/4] w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-violet-500/40";
+
+  const panelAspectRatioStyle =
+    size === "panel" &&
+    Number.isFinite(assetWidth) &&
+    Number.isFinite(assetHeight) &&
+    (assetWidth ?? 0) > 0 &&
+    (assetHeight ?? 0) > 0
+      ? { aspectRatio: `${assetWidth} / ${assetHeight}` }
+      : undefined;
 
   const thumb = portraitUrl ? (
     <div
@@ -50,19 +70,24 @@ export default function ChatCharacterPortrait({
         src={portraitUrl}
         alt={characterName}
         blurForViewer={blurForViewer}
-        className="relative z-10 h-full w-full transition-opacity duration-300"
+        className={
+          size === "panel"
+            ? "relative z-10 max-h-full w-fit max-w-full transition-opacity duration-300"
+            : "relative z-10 h-full w-full transition-opacity duration-300"
+        }
         imgClassName={
           size === "panel"
-            ? "h-full w-full object-cover object-top brightness-95 contrast-95"
+            ? CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS
             : "h-full w-full object-cover object-top"
         }
+        imgStyle={panelAspectRatioStyle}
       />
     </div>
   ) : (
     <span
       className={`flex items-center justify-center rounded-xl text-lg ring-1 ring-white/10 sm:text-2xl md:text-3xl ${
         size === "panel"
-          ? "h-full w-full max-w-[400px] shrink-0"
+          ? `h-full w-fit ${CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS} shrink-0`
           : "aspect-square w-full"
       }`}
       style={{ background: `hsl(${hue} 60% 22%)` }}
@@ -71,8 +96,7 @@ export default function ChatCharacterPortrait({
     </span>
   );
 
-  const panelShellClass =
-    size === "panel" ? "flex h-full w-full min-h-0 items-stretch justify-center" : "";
+  const panelShellClass = size === "panel" ? CHAT_PORTRAIT_PANEL_SHELL_CLASS : "";
 
   if (onPortraitClick) {
     return (

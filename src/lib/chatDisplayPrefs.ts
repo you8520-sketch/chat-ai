@@ -479,7 +479,29 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
 /** Desktop portrait+chat column tracks (shared by main grid and sticky info strip). */
 export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
-  "min-[576px]:grid-cols-[minmax(340px,400px)_minmax(0,780px)] min-[576px]:gap-x-6";
+  "min-[576px]:grid-cols-[max-content_minmax(0,780px)] min-[576px]:gap-x-6";
+
+/**
+ * PC portrait panel max render width — layout budget (grid max − gap − min chat column).
+ * Exceeded only by extremely wide assets; then max-h/max-w + object-contain scales down.
+ */
+export const CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS =
+  "max-w-full min-[576px]:max-w-[min(100%,calc(75.25rem-1.5rem-360px))]";
+
+/** PC portrait panel shell — height from rail, width from image intrinsic ratio. */
+export const CHAT_PORTRAIT_PANEL_SHELL_CLASS =
+  "flex h-full w-fit min-h-0 items-end justify-center";
+
+/** PC portrait image frame — shrink-wraps to rendered image bounds. */
+export const CHAT_PORTRAIT_PANEL_FRAME_CLASS =
+  "relative inline-block max-h-full w-fit max-w-full shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#08080c] shadow-lg shadow-black/10 transition hover:border-violet-400/35";
+
+/** PC portrait img — no crop; height capped by rail, width follows aspect ratio. */
+export const CHAT_PORTRAIT_PANEL_IMG_CLASS =
+  "block max-h-full max-w-full h-auto w-auto object-contain object-top";
+
+export const CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS =
+  `${CHAT_PORTRAIT_PANEL_IMG_CLASS} brightness-95 contrast-95`;
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =

@@ -9,6 +9,8 @@ import {
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_PORTRAIT_DESKTOP_TRACK_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_PANEL_IMG_CLASS,
+  CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
   CHAT_PORTRAIT_INFO_STICKY_CLASS,
   CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
@@ -223,11 +225,14 @@ describe("showCharacterPortrait persistence", () => {
 
 describe("mobile chat portrait background", () => {
 
-  it("uses a wider desktop portrait column to reduce horizontal crop", () => {
+  it("uses intrinsic-width desktop portrait column (max-content track)", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-content/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(0,780px\)/);
+    assert.match(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-contain/);
+    assert.doesNotMatch(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-cover/);
+    assert.match(CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS, /75\.25rem/);
   });
 
   it("keeps desktop portrait and messages below the fixed character info row", () => {
@@ -259,12 +264,12 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /chat-room-portrait-rail/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:flex/);
-    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /max-content/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(0,780px\)/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /chat-room-portrait-track/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /max-content/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /chat-room-portrait-grid/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-content/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /chat-room-messages-column/);
     assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /chat-room-mobile-portrait-bg/);
   });
