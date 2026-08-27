@@ -39,6 +39,18 @@ ${STATUS_VALUES_END}`;
     assert.equal(stripIncompleteStatusWidgetTail(complete), complete);
   });
 
+  it("preserves loose lowercase complete status-tail hiding without parsing authority", () => {
+    const lowercase = `RP 본문.
+
+${STATUS_VALUES_BLOCK.toLowerCase()}
+{"시간":"14:30"}
+${STATUS_VALUES_END.toLowerCase()}`;
+    const split = splitProseAndStatusWidgetValues(lowercase);
+    assert.equal(split.prose, "RP 본문.");
+    assert.equal(split.values.character, undefined);
+    assert.equal(stripAllStatusWindowOutputArtifacts(lowercase), "RP 본문.");
+  });
+
   it("stripAllStatusWindowOutputArtifacts hides incomplete widget tail", () => {
     const partial = `RP 본문.
 
