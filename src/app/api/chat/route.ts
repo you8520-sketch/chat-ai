@@ -2007,8 +2007,9 @@ export async function POST(req: Request) {
     const secretPayload = getPersonaSecretPayload(user.id, resolvedPersonaId);
     personaSecretDescriptionForFacts = secretPayload?.secretDescription ?? "";
 
-    // Legacy blank-line secret_description compatibility (Discovery OFF still allows).
+    // Legacy blank-line secret_description compatibility (Discovery OFF only).
     if (
+      !personaSecretDiscoveryOn &&
       !autoContinueContext &&
       messageText.trim() &&
       !isContinueUserMessage(messageText) &&
@@ -2038,7 +2039,7 @@ export async function POST(req: Request) {
         decision: personaKnowledgePromptDecision,
         chatId: chat.id,
         personaId: resolvedPersonaId,
-        legacySecretDescription: personaSecretDescriptionForFacts,
+        authority: "discovery",
       });
     } else {
       // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
@@ -2600,6 +2601,7 @@ export async function POST(req: Request) {
     });
   }
   if (
+    !personaSecretDiscoveryOn &&
     bootstrapped.userMessageSaved &&
     !oocSceneRenderTurn &&
     personaSecretBoundaryOn &&
@@ -2740,7 +2742,7 @@ export async function POST(req: Request) {
         decision: personaKnowledgePromptDecision,
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
-        legacySecretDescription: personaSecretDescriptionForFacts,
+        authority: "discovery",
       });
 
       // Same-turn reaction: rebuild prompt after visual/investigation/transfer knowledge transitions.

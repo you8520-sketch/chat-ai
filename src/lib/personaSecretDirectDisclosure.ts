@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import type {
   PersonaSecretDiscoveryRuleRow,
   PersonaSecretEvidenceSourceType,
@@ -235,24 +236,27 @@ export function confirmPersonaSecretDisclosure(
     });
 
     // Compatibility row for pre-S1 readers — never assistant_ack.
-    const secret = db
-      .prepare(`SELECT secret_key FROM persona_secrets WHERE id=?`)
-      .get(input.secretId) as { secret_key: string } | undefined;
-    if (secret?.secret_key) {
-      insertChatPersonaSecretReveal(
-        {
-          chatId: input.chatId,
-          personaId: input.personaId,
-          secretKey: secret.secret_key,
-          revealedFactText: fact,
-          revealedAtTurn: input.turnNumber,
-          source:
-            input.sourceType === "USER_EXPLICIT_UI"
-              ? "MANUAL_REVEAL"
-              : "USER_AUTHORED_DISCLOSURE",
-        },
-        db
-      );
+    // Discovery ON: authority chain is evidence → knowledge only; skip chat-scoped reveal dual-write.
+    if (!isPersonaSecretDiscoveryEnabled()) {
+      const secret = db
+        .prepare(`SELECT secret_key FROM persona_secrets WHERE id=?`)
+        .get(input.secretId) as { secret_key: string } | undefined;
+      if (secret?.secret_key) {
+        insertChatPersonaSecretReveal(
+          {
+            chatId: input.chatId,
+            personaId: input.personaId,
+            secretKey: secret.secret_key,
+            revealedFactText: fact,
+            revealedAtTurn: input.turnNumber,
+            source:
+              input.sourceType === "USER_EXPLICIT_UI"
+                ? "MANUAL_REVEAL"
+                : "USER_AUTHORED_DISCLOSURE",
+          },
+          db
+        );
+      }
     }
 
     return { changed: true, knowledgeState: "CONFIRMED", eventId };
