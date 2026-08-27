@@ -25,20 +25,21 @@ describe("orderedWidgetsForRender", () => {
   });
 });
 
-describe("resolveStatusWidgetTurn — creator widget required", () => {
-  it("forces character_only when chat mode is off but character widget exists", () => {
+describe("resolveStatusWidgetTurn — fail-closed engine", () => {
+  it("keeps off when creator widget exists", () => {
     const characterWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson,
       chatMode: "off",
     });
-    assert.equal(resolved.active, true);
-    assert.equal(resolved.mode, "character_only");
-    assert.equal(resolved.needsCharacterValues, true);
-    assert.ok(resolved.characterWidget);
+    assert.equal(resolved.active, false);
+    assert.equal(resolved.mode, "off");
+    assert.equal(resolved.requestedMode, "off");
+    assert.equal(resolved.needsCharacterValues, false);
+    assert.equal(resolved.needsUserValues, false);
   });
 
-  it("upgrades user_only to both when character widget exists", () => {
+  it("does not upgrade user_only to creator/both", () => {
     const characterWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
     const userWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
     const resolved = resolveStatusWidgetTurn({
@@ -46,9 +47,8 @@ describe("resolveStatusWidgetTurn — creator widget required", () => {
       userWidgetJson,
       chatMode: "user_only",
     });
-    assert.equal(resolved.mode, "both");
-    assert.equal(resolved.needsCharacterValues, true);
-    assert.ok(resolved.characterWidget);
-    assert.ok(resolved.userWidget);
+    assert.equal(resolved.mode, "user_only");
+    assert.equal(resolved.needsCharacterValues, false);
+    assert.equal(resolved.needsUserValues, true);
   });
 });

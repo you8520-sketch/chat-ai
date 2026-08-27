@@ -278,6 +278,19 @@ export function saveCharacterStatusWidgetTriggers(
   const tx = db.transaction(() => {
     for (const row of existing) {
       if (!nextIds.has(row.trigger_id)) {
+        const found = db
+          .prepare(
+            "SELECT id FROM status_widget_triggers WHERE character_id=? AND chat_id IS NULL AND trigger_id=? LIMIT 1"
+          )
+          .get(characterId, row.trigger_id) as { id: number } | undefined;
+        if (found) {
+          supersedeEventsForRemovedTriggerDefinition(
+            db,
+            characterId,
+            row.trigger_id,
+            found.id
+          );
+        }
         db.prepare(
           "DELETE FROM status_widget_triggers WHERE character_id=? AND chat_id IS NULL AND trigger_id=?"
         ).run(characterId, row.trigger_id);
@@ -423,29 +436,105 @@ function compareTriggerValues(
   return false;
 }
 
-function alreadyFired(db: Database.Database, chatId: number, triggerId: string): boolean {
-  // Phase B0: superseded events do not count as "fired" — a rejected variant
-  // must not permanently block a fire_once trigger.
+export const STATUS_SOURCE_DISABLED_SUPERSEDE_REASON = "status_source_disabled";
+export const TRIGGER_DEFINITION_REMOVED_SUPERSEDE_REASON = "trigger_definition_removed";
+
+/** Exact event↔definition join: metadata.trigger_row_id first; legacy fallback is chat/character scoped. */
+const QUEUED_EVENT_TRIGGER_IDENTITY_SQL = `
+  (
+    CAST(json_extract(e.metadata, '$.trigger_row_id') AS INTEGER) = t.id
+    OR (
+      json_extract(e.metadata, '$.trigger_row_id') IS NULL
+      AND e.trigger_id = t.trigger_id
+      AND COALESCE(e.character_id, -1) = COALESCE(t.character_id, -1)
+      AND (t.chat_id IS NULL OR t.chat_id = e.chat_id)
+    )
+  )`;
+
+function supersedeEventsForRemovedTriggerDefinition(
+  db: Database.Database,
+  characterId: number,
+  triggerId: string,
+  triggerRowId: number,
+  reason = TRIGGER_DEFINITION_REMOVED_SUPERSEDE_REASON
+): number {
+  ensureStatusWidgetTriggerTables(db);
+  const result = db
+    .prepare(
+      `UPDATE status_trigger_events
+       SET is_superseded = 1,
+           superseded_at = datetime('now'),
+           superseded_reason = ?
+       WHERE is_consumed = 0
+         AND is_superseded = 0
+         AND COALESCE(character_id, -1) = ?
+         AND (
+           CAST(json_extract(metadata, '$.trigger_row_id') AS INTEGER) = ?
+           OR (
+             json_extract(metadata, '$.trigger_row_id') IS NULL
+             AND trigger_id = ?
+           )
+         )`
+    )
+    .run(reason, characterId, triggerRowId, triggerId);
+  return Number(result.changes) || 0;
+}
+
+function triggerEventIdentityMatchesRow(
+  db: Database.Database,
+  chatId: number,
+  triggerRowId: number,
+  triggerId: string,
+  characterId: number | null,
+  extraFilter: string,
+  extraParams: unknown[] = []
+): boolean {
   const row = db
     .prepare(
-      "SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? AND is_superseded=0 LIMIT 1"
+      `SELECT id FROM status_trigger_events
+       WHERE chat_id = ?
+         AND is_superseded = 0
+         AND (
+           CAST(json_extract(metadata, '$.trigger_row_id') AS INTEGER) = ?
+           OR (
+             json_extract(metadata, '$.trigger_row_id') IS NULL
+             AND trigger_id = ?
+             AND COALESCE(character_id, -1) = COALESCE(?, -1)
+           )
+         )${extraFilter}
+       LIMIT 1`
     )
-    .get(chatId, triggerId) as { id: number } | undefined;
+    .get(chatId, triggerRowId, triggerId, characterId, ...extraParams) as { id: number } | undefined;
   return Boolean(row);
+}
+
+function alreadyFired(
+  db: Database.Database,
+  chatId: number,
+  triggerRowId: number,
+  triggerId: string,
+  characterId: number | null
+): boolean {
+  return triggerEventIdentityMatchesRow(db, chatId, triggerRowId, triggerId, characterId, "");
 }
 
 function alreadyQueuedForTurn(
   db: Database.Database,
   chatId: number,
+  triggerRowId: number,
   triggerId: string,
+  characterId: number | null,
   sourceTurn: number
 ): boolean {
-  const row = db
-    .prepare(
-      "SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? AND source_turn=? AND is_superseded=0 LIMIT 1"
-    )
-    .get(chatId, triggerId, sourceTurn) as { id: number } | undefined;
-  return Boolean(row);
+  return triggerEventIdentityMatchesRow(
+    db,
+    chatId,
+    triggerRowId,
+    triggerId,
+    characterId,
+    " AND source_turn = ?",
+    [sourceTurn]
+  );
 }
 
 export function evaluateStatusWidgetTriggers(
@@ -488,8 +577,20 @@ export function evaluateStatusWidgetTriggers(
       expected
     );
     if (!matched) continue;
-    if (row.fire_once === 1 && alreadyFired(db, opts.chatId, row.trigger_id)) continue;
-    if (row.fire_once !== 1 && alreadyQueuedForTurn(db, opts.chatId, row.trigger_id, opts.sourceTurn)) {
+    if (row.fire_once === 1 && alreadyFired(db, opts.chatId, row.id, row.trigger_id, opts.characterId ?? null)) {
+      continue;
+    }
+    if (
+      row.fire_once !== 1 &&
+      alreadyQueuedForTurn(
+        db,
+        opts.chatId,
+        row.id,
+        row.trigger_id,
+        opts.characterId ?? null,
+        opts.sourceTurn
+      )
+    ) {
       continue;
     }
 
@@ -552,26 +653,112 @@ export function evaluateStatusWidgetTriggersBestEffort(
   }
 }
 
+/** Audit-preserving freeze: queued events from a disabled source must not inject later. */
+export function supersedeUnconsumedStatusTriggerEvents(
+  db: Database.Database,
+  chatId: number,
+  reason = STATUS_SOURCE_DISABLED_SUPERSEDE_REASON
+): number {
+  ensureStatusWidgetTriggerTables(db);
+  const result = db
+    .prepare(
+      `UPDATE status_trigger_events
+       SET is_superseded = 1,
+           superseded_at = datetime('now'),
+           superseded_reason = ?
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0`
+    )
+    .run(reason, chatId);
+  return Number(result.changes) || 0;
+}
+
+export function supersedeUnconsumedStatusTriggerEventsForKeys(
+  db: Database.Database,
+  chatId: number,
+  statusKeys: readonly string[],
+  reason = STATUS_SOURCE_DISABLED_SUPERSEDE_REASON
+): number {
+  ensureStatusWidgetTriggerTables(db);
+  const keys = [...new Set(statusKeys.map((k) => k.trim()).filter(Boolean))];
+  if (keys.length === 0) return 0;
+  const placeholders = keys.map(() => "?").join(", ");
+  const result = db
+    .prepare(
+      `UPDATE status_trigger_events
+       SET is_superseded = 1,
+           superseded_at = datetime('now'),
+           superseded_reason = ?
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0
+         AND trigger_id IN (
+           SELECT trigger_id FROM status_widget_triggers
+           WHERE lower(status_key) IN (${placeholders})
+         )`
+    )
+    .run(reason, chatId, ...keys.map((k) => k.toLowerCase()));
+  return Number(result.changes) || 0;
+}
+
 export function loadQueuedStatusTriggerEventsForPrompt(
   db: Database.Database,
   chatId: number,
   limit = 8,
-  opts?: { maxSourceTurn?: number | null }
+  opts?: {
+    maxSourceTurn?: number | null;
+    /** Gate on creator machine-trigger owner (needsCharacterValues), not overall engine active. */
+    needsCharacterValues?: boolean;
+    /** Creator widget field keys only — never user widget keys. */
+    allowedStatusKeys?: readonly string[];
+  }
 ): StatusTriggerEvent[] {
   ensureStatusWidgetTriggerTables(db);
+  if (opts?.needsCharacterValues === false) return [];
+
+  const allowed = opts?.allowedStatusKeys;
+  const allowedKeys = allowed
+    ? [...new Set(allowed.map((k) => k.trim().toLowerCase()).filter(Boolean))]
+    : null;
+  if (allowedKeys && allowedKeys.length === 0) return [];
+
   const maxSourceTurn =
     opts?.maxSourceTurn != null && Number.isFinite(opts.maxSourceTurn)
       ? Math.trunc(opts.maxSourceTurn)
       : null;
-  const sourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
-  const params =
-    maxSourceTurn != null
-      ? [chatId, maxSourceTurn, Math.max(1, Math.min(20, limit))]
-      : [chatId, Math.max(1, Math.min(20, limit))];
+  const joinSourceTurnFilter = maxSourceTurn != null ? " AND e.source_turn <= ?" : "";
+  const plainSourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
+  const cappedLimit = Math.max(1, Math.min(20, limit));
+
+  if (allowedKeys && allowedKeys.length > 0) {
+    const keyPlaceholders = allowedKeys.map(() => "?").join(", ");
+    const params: unknown[] = [chatId, ...allowedKeys];
+    if (maxSourceTurn != null) params.push(maxSourceTurn);
+    params.push(cappedLimit);
+    return db
+      .prepare(
+        `SELECT e.* FROM status_trigger_events e
+         INNER JOIN status_widget_triggers t ON ${QUEUED_EVENT_TRIGGER_IDENTITY_SQL}
+         WHERE e.chat_id = ?
+           AND e.is_consumed = 0
+           AND e.is_superseded = 0
+           AND t.is_enabled = 1
+           AND lower(t.status_key) IN (${keyPlaceholders})${joinSourceTurnFilter}
+         ORDER BY e.fired_at ASC, e.id ASC
+         LIMIT ?`
+      )
+      .all(...params) as StatusTriggerEvent[];
+  }
+
+  const params: unknown[] =
+    maxSourceTurn != null ? [chatId, maxSourceTurn, cappedLimit] : [chatId, cappedLimit];
   return db
     .prepare(
       `SELECT * FROM status_trigger_events
-       WHERE chat_id=? AND is_consumed=0 AND is_superseded=0${sourceTurnFilter}
+       WHERE chat_id = ?
+         AND is_consumed = 0
+         AND is_superseded = 0${plainSourceTurnFilter}
        ORDER BY fired_at ASC, id ASC
        LIMIT ?`
     )

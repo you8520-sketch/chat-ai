@@ -154,7 +154,8 @@ export type TriggerSupersessionReason =
   | "regeneration"
   | "variant_switch"
   | "manual_status_edit"
-  | "turn_delete";
+  | "turn_delete"
+  | "status_source_disabled";
 
 /**
  * Mark all active trigger events produced by the given source assistant

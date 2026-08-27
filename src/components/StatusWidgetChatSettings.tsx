@@ -7,7 +7,6 @@ import {
   characterStatusWidgetOrDefault,
   displayModeFromEngineMode,
   displayModeFromUserChoice,
-  engineModeForDisplay,
   hasCharacterStatusWidget,
   formatCombinedWidgetBudgetHint,
   STATUS_WIDGET_CONTEXT_MAX,
@@ -15,6 +14,8 @@ import {
   parseStatusWidgetJson,
   resolveStatusWidgetReservedBreakdown,
   serializeStatusWidget,
+  statusWidgetModeFromToggles,
+  statusWidgetTogglesFromMode,
   type StatusWidget,
   type StatusWidgetDisplayMode,
   type StatusWidgetSourceMode,
@@ -46,16 +47,18 @@ const DISPLAY_OPTIONS: {
   label: string;
   hint: string;
   needsUser?: boolean;
+  needsCreator?: boolean;
 }[] = [
   {
     id: "creator",
     label: "제작자 기본 상태창 보기",
-    hint: "제작자가 만든 상태창만 화면에 표시합니다.",
+    hint: "제작자 상태창만 화면에 표시합니다.",
+    needsCreator: true,
   },
   {
     id: "user",
     label: "내 커스텀 상태창으로 보기",
-    hint: "내 위젯만 표시합니다. 제작자 상태값은 내부적으로 계속 생성됩니다.",
+    hint: "내 위젯만 화면에 표시합니다.",
     needsUser: true,
   },
   {
@@ -63,11 +66,12 @@ const DISPLAY_OPTIONS: {
     label: "둘 다 보기",
     hint: "제작자 상태창과 내 커스텀 상태창을 함께 표시합니다.",
     needsUser: true,
+    needsCreator: true,
   },
   {
     id: "hidden",
     label: "상태창 화면에서 숨기기",
-    hint: "화면에서만 숨깁니다. 기억·이벤트용 제작자 상태값은 계속 유지됩니다.",
+    hint: "화면에서만 숨깁니다. 상태 추적에는 영향을 주지 않습니다.",
   },
 ];
 
@@ -84,6 +88,7 @@ export default function StatusWidgetChatSettings({
 }: Props) {
   const hasCharacterWidget = hasCharacterStatusWidget(characterWidgetJson);
 
+  const [engineMode, setEngineMode] = useState<StatusWidgetSourceMode>(initialMode);
   const [displayMode, setDisplayMode] = useState<StatusWidgetDisplayMode>(() => {
     if (initialDisplayMode) return initialDisplayMode;
     return displayModeFromEngineMode(initialMode);
@@ -98,27 +103,21 @@ export default function StatusWidgetChatSettings({
   const [linkedPresetId, setLinkedPresetId] = useState<number | null>(null);
 
   const hasUserWidget = Boolean(parseStatusWidgetJson(serializeStatusWidget(userWidget)));
-  const resolvedDisplay = useMemo(
+  const userSourceAvailable = allowUserOverride && hasUserWidget;
+  const engineToggles = statusWidgetTogglesFromMode(engineMode);
+
+  const effectiveDisplay = useMemo(
     () =>
       displayModeFromUserChoice({
         hasCharacterWidget,
-        hasUserWidget: hasUserWidget && allowUserOverride,
+        hasUserWidget: userSourceAvailable,
         preference: displayMode,
       }),
-    [hasCharacterWidget, hasUserWidget, allowUserOverride, displayMode]
-  );
-
-  const engineMode = useMemo(
-    () =>
-      engineModeForDisplay(
-        resolvedDisplay,
-        hasCharacterWidget,
-        hasUserWidget && allowUserOverride
-      ),
-    [resolvedDisplay, hasCharacterWidget, hasUserWidget, allowUserOverride]
+    [hasCharacterWidget, userSourceAvailable, displayMode]
   );
 
   useEffect(() => {
+    setEngineMode(initialMode);
     setDisplayMode(initialDisplayMode ?? displayModeFromEngineMode(initialMode));
     setUserWidget(
       parseStatusWidgetJson(initialUserWidgetJson) ??
@@ -132,10 +131,10 @@ export default function StatusWidgetChatSettings({
   useEffect(() => {
     onDraftChange?.({
       mode: engineMode,
-      displayMode: resolvedDisplay,
+      displayMode: effectiveDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [engineMode, resolvedDisplay, userWidget, onDraftChange]);
+  }, [engineMode, effectiveDisplay, userWidget, onDraftChange]);
 
   const widgetReservedBreakdown = useMemo(
     () =>
@@ -144,11 +143,10 @@ export default function StatusWidgetChatSettings({
         chatMode: engineMode,
         userWidgetJson: serializeStatusWidget(userWidget),
         characterAllowUserOverride: allowUserOverride,
-        displayMode: resolvedDisplay,
+        displayMode: effectiveDisplay,
       }),
-    [characterWidgetJson, engineMode, userWidget, allowUserOverride, resolvedDisplay]
+    [characterWidgetJson, engineMode, userWidget, allowUserOverride, effectiveDisplay]
   );
-  const widgetReservedChars = widgetReservedBreakdown.totalReservedChars;
   const widgetBudgetNearLimit =
     widgetReservedBreakdown.characterReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85 ||
     widgetReservedBreakdown.userReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85;
@@ -164,7 +162,7 @@ export default function StatusWidgetChatSettings({
       body: JSON.stringify({
         chatId,
         statusWidgetMode: engineMode,
-        statusWidgetDisplayMode: resolvedDisplay,
+        statusWidgetDisplayMode: displayMode,
         userStatusWidgetJson: serializeStatusWidget(userWidget),
       }),
     });
@@ -175,14 +173,18 @@ export default function StatusWidgetChatSettings({
       return;
     }
     const savedDisplay =
-      parseStatusWidgetDisplayMode(data.statusWidgetDisplayMode) ?? resolvedDisplay;
+      parseStatusWidgetDisplayMode(data.statusWidgetDisplayMode) ?? displayMode;
     setMsg("저장되었습니다.");
     onSaved?.({
       mode: engineMode,
       displayMode: savedDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [chatId, engineMode, resolvedDisplay, userWidget, onSaved]);
+  }, [chatId, engineMode, displayMode, userWidget, onSaved]);
+
+  function setEngineToggles(next: { creatorOn: boolean; userOn: boolean }) {
+    setEngineMode(statusWidgetModeFromToggles(next.creatorOn, next.userOn));
+  }
 
   function loadPreset(preset: StatusWidgetPresetItem) {
     const parsed = parseStatusWidgetJson(preset.widget_json);
@@ -198,8 +200,6 @@ export default function StatusWidgetChatSettings({
     setErr("");
     setMsg(`「${preset.title}」을(를) 불러왔습니다. 저장을 눌러 적용하세요.`);
   }
-
-  const userToggleLocked = !allowUserOverride;
 
   return (
     <section className="space-y-3 text-xs">
@@ -217,11 +217,67 @@ export default function StatusWidgetChatSettings({
       </div>
 
       <div className="space-y-2">
+        <p className="text-[11px] font-semibold text-zinc-300">상태 추적</p>
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2.5 hover:bg-white/[0.03]">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={engineToggles.creatorOn}
+            disabled={!hasCharacterWidget}
+            onChange={(e) =>
+              setEngineToggles({
+                creatorOn: e.target.checked,
+                userOn: engineToggles.userOn && userSourceAvailable,
+              })
+            }
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-zinc-100">제작자 상태창 사용</span>
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
+              {hasCharacterWidget
+                ? "끄면 제작자 상태 추출·트리거·수치가 멈춥니다. 저장된 값은 유지됩니다."
+                : "제작자 상태창이 없습니다."}
+            </span>
+          </span>
+        </label>
+        <label
+          className={`flex items-start gap-2.5 rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2.5 ${
+            !allowUserOverride ? "cursor-not-allowed opacity-45" : "cursor-pointer hover:bg-white/[0.03]"
+          }`}
+        >
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={engineToggles.userOn && userSourceAvailable}
+            disabled={!allowUserOverride}
+            onChange={(e) =>
+              setEngineToggles({
+                creatorOn: engineToggles.creatorOn && hasCharacterWidget,
+                userOn: e.target.checked,
+              })
+            }
+          />
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold text-zinc-100">내 상태창 사용</span>
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
+              {!allowUserOverride
+                ? "제작자가 커스텀 위젯을 허용하지 않았습니다. 저장된 JSON은 유지됩니다."
+                : "끄면 내 상태창 추출만 멈춥니다. 저장된 위젯은 삭제되지 않습니다."}
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <div className="space-y-2">
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold text-zinc-300">화면 표시</p>
+          <p className="text-[10px] leading-relaxed text-zinc-500">
+            이 설정은 화면 표시만 변경하며 상태 추적에는 영향을 주지 않습니다.
+          </p>
           {DISPLAY_OPTIONS.map((opt) => {
             const disabled =
-              userToggleLocked && (opt.id === "user" || opt.id === "both");
+              (Boolean(opt.needsUser) && !userSourceAvailable) ||
+              (Boolean(opt.needsCreator) && !hasCharacterWidget && opt.id !== "hidden");
             const selected = displayMode === opt.id;
             return (
               <label
@@ -243,7 +299,7 @@ export default function StatusWidgetChatSettings({
                 <span className="min-w-0">
                   <span className="block text-xs font-semibold text-zinc-100">{opt.label}</span>
                   <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
-                    {disabled
+                    {disabled && opt.needsUser && !allowUserOverride
                       ? "제작자가 커스텀 위젯을 허용하지 않았습니다."
                       : opt.hint}
                   </span>
@@ -254,7 +310,7 @@ export default function StatusWidgetChatSettings({
         </div>
       </div>
 
-      {!userToggleLocked && (
+      {allowUserOverride && (
         <div className="space-y-2 rounded-lg border border-violet-500/25 bg-violet-500/5 p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] font-bold text-violet-200">내가 저장한 상태창 불러오기</p>

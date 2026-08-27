@@ -385,9 +385,14 @@ import {
   parseStatusWidgetJson,
   patchOpenRouterSplitForStatusWidget,
   resolveStatusWidgetTurn,
+  resolveStatusWidgetEngineStatusKeys,
   serializeStatusWidgetValuesJson,
   statusWidgetValuesHasContent,
 } from "@/lib/statusWidget";
+import {
+  creatorTriggerValuesFromPayload,
+  shouldEvaluateCreatorStatusTriggers,
+} from "@/lib/statusWidget/creatorTriggerEvaluation";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import {
   logStatusWidgetTurnTelemetry,
@@ -1674,7 +1679,11 @@ export async function POST(req: Request) {
     db,
     chat.id,
     8,
-    regenerateMessageId ? { maxSourceTurn: playableTurnCount } : undefined
+    {
+      ...(regenerateMessageId ? { maxSourceTurn: playableTurnCount } : {}),
+      needsCharacterValues: statusWidgetTurn.needsCharacterValues,
+      allowedStatusKeys: resolveStatusWidgetEngineStatusKeys(statusWidgetTurn),
+    }
   );
   const queuedStatusTriggerEventIds = queuedStatusTriggerEvents.map((event) => event.id);
   const triggeredScenarioEventsBlock =
@@ -4916,6 +4925,7 @@ export async function POST(req: Request) {
         let assistantFinalizedThisRequest = false;
 
         const numericCanonicalEligible =
+          statusWidgetTurn.needsCharacterValues &&
           resolveNumericCanonicalEligibility({
             userId: user.id,
             characterId: ch.id,
@@ -5247,6 +5257,21 @@ export async function POST(req: Request) {
           }
         }
 
+        // Phase B0: trigger derived-state writes are allowed only when this
+        // request actually finalized the assistant (not an idempotent
+        // duplicate) AND the generation status is canonical.
+        // Status Widget must not persist/reconcile long-term episodic facts.
+        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
+        const derivedStateAllowed =
+          assistantFinalizedThisRequest &&
+          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
+          shouldCommitCanonicalTurnState(generationSemantics);
+        const shouldEvaluateCreatorTriggers = shouldEvaluateCreatorStatusTriggers({
+          derivedStateAllowed,
+          needsCharacterValues: statusWidgetTurn.needsCharacterValues,
+          statusValues: statusWidgetValuesPayload,
+        });
+
         // Compatibility telemetry only — Status Widget is not the episodic write owner.
         const extractedFactsForTelemetry = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
@@ -5281,6 +5306,16 @@ export async function POST(req: Request) {
                 .filter((r): r is string => Boolean(r))
             ),
           ],
+          requested_status_mode: statusWidgetTurn.requestedMode,
+          effective_status_mode: statusWidgetTurn.mode,
+          display_mode: statusWidgetTurn.displayMode,
+          needs_character_values: statusWidgetTurn.needsCharacterValues,
+          needs_user_values: statusWidgetTurn.needsUserValues,
+          status_extract_call_count:
+            widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
+              ? 1
+              : 0,
+          status_trigger_evaluated: shouldEvaluateCreatorTriggers,
         });
         logMemoryHealthTelemetry(
           buildMemoryHealthTelemetry({
@@ -5303,15 +5338,6 @@ export async function POST(req: Request) {
                 : 0,
           })
         );
-        // Phase B0: trigger derived-state writes are allowed only when this
-        // request actually finalized the assistant (not an idempotent
-        // duplicate) AND the generation status is canonical.
-        // Status Widget must not persist/reconcile long-term episodic facts.
-        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
-        const derivedStateAllowed =
-          assistantFinalizedThisRequest &&
-          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
-          shouldCommitCanonicalTurnState(generationSemantics);
 
         if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
@@ -5339,12 +5365,12 @@ export async function POST(req: Request) {
             }
           }
 
-          if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
+          if (shouldEvaluateCreatorTriggers) {
             evaluateStatusWidgetTriggersBestEffort(db, {
               chatId: chatRef.id,
               characterId: ch.id,
               sourceTurn: playableTurnCount + 1,
-              statusValues: statusWidgetValuesPayload,
+              statusValues: creatorTriggerValuesFromPayload(statusWidgetValuesPayload),
               sourceMessageId: aiMessageId,
               requestId: clientRequestId ?? null,
               generationSequence: snapshotVariantIndex,

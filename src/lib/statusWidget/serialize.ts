@@ -72,33 +72,59 @@ export function serializeStatusWidget(widget: StatusWidget): string {
   });
 }
 
+const STATUS_WIDGET_SOURCE_MODES = new Set<StatusWidgetSourceMode>([
+  "off",
+  "character_only",
+  "user_only",
+  "both",
+]);
+
+const STATUS_WIDGET_DISPLAY_MODES = new Set<StatusWidgetDisplayMode>([
+  "creator",
+  "user",
+  "both",
+  "hidden",
+]);
+
+/** Forgiving parser for stored DB / legacy rows only. */
 export function parseStatusWidgetMode(raw: string | null | undefined): StatusWidgetSourceMode {
-  switch (raw) {
-    case "off":
-    case "character_only":
-    case "user_only":
-    case "both":
-      return raw;
-    default:
-      return "character_only";
+  if (raw && STATUS_WIDGET_SOURCE_MODES.has(raw as StatusWidgetSourceMode)) {
+    return raw as StatusWidgetSourceMode;
   }
+  return "character_only";
+}
+
+/** Strict parser for incoming PATCH/API writes. Invalid → null (HTTP 400). */
+export function parseIncomingStatusWidgetMode(raw: unknown): StatusWidgetSourceMode | null {
+  if (typeof raw !== "string") return null;
+  return STATUS_WIDGET_SOURCE_MODES.has(raw as StatusWidgetSourceMode)
+    ? (raw as StatusWidgetSourceMode)
+    : null;
 }
 
 export function parseStatusWidgetDisplayMode(
   raw: string | null | undefined
 ): StatusWidgetDisplayMode | null {
-  switch (raw) {
-    case "creator":
-    case "user":
-    case "both":
-    case "hidden":
-      return raw;
-    default:
-      return null;
+  if (raw && STATUS_WIDGET_DISPLAY_MODES.has(raw as StatusWidgetDisplayMode)) {
+    return raw as StatusWidgetDisplayMode;
   }
+  return null;
 }
 
-/** Derive display preference from legacy engine mode when display column is unset. */
+/** Strict parser for incoming PATCH/API writes. Invalid → null (HTTP 400). */
+export function parseIncomingStatusWidgetDisplayMode(
+  raw: unknown
+): StatusWidgetDisplayMode | null {
+  if (typeof raw !== "string") return null;
+  return STATUS_WIDGET_DISPLAY_MODES.has(raw as StatusWidgetDisplayMode)
+    ? (raw as StatusWidgetDisplayMode)
+    : null;
+}
+
+/**
+ * COMPATIBILITY_ONLY_OWNER — one-way legacy display init when
+ * status_widget_display_mode is null/empty. Must not write engine mode.
+ */
 export function displayModeFromEngineMode(mode: StatusWidgetSourceMode): StatusWidgetDisplayMode {
   switch (mode) {
     case "both":
@@ -114,8 +140,8 @@ export function displayModeFromEngineMode(mode: StatusWidgetSourceMode): StatusW
 }
 
 /**
- * Engine mode for persistence: creator widget always stays on when present.
- * Display preference never turns creator generation off.
+ * @deprecated COMPATIBILITY_ONLY_OWNER — do not call from runtime engine or
+ * settings writes. Display must never determine engine mode.
  */
 export function engineModeForDisplay(
   display: StatusWidgetDisplayMode,
@@ -126,7 +152,6 @@ export function engineModeForDisplay(
     if (!hasUserWidget) return "off";
     return display === "hidden" ? "off" : "user_only";
   }
-  // Creator always on for engine
   if (hasUserWidget && (display === "user" || display === "both")) return "both";
   return "character_only";
 }

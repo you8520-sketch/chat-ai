@@ -32,7 +32,7 @@ describe("statusWidget contextBudget", () => {
     assert.equal(estimateStatusWidgetContextCharsFromJson("{}"), 0);
   });
 
-  it("deducts character widget even when stored mode is off (creator always-on)", () => {
+  it("reserves 0 when engine mode is off even if creator widget exists", () => {
     const json = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
     const characterOnly = resolveStatusWidgetReservedChars({
       characterWidgetJson: json,
@@ -44,7 +44,31 @@ describe("statusWidget contextBudget", () => {
       displayMode: "hidden",
     });
     assert.ok(characterOnly > 0);
-    assert.equal(off, characterOnly);
+    assert.equal(off, 0);
+  });
+
+  it("both + hidden still reserves creator + user context", () => {
+    const json = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
+    const userJson = serializeStatusWidget({
+      ...DEFAULT_STATUS_WIDGET,
+      name: "내 위젯",
+      fields: [{ id: "mood", label: "기분", instruction: "캐릭터 기분을 한 단어로." }],
+    });
+    const hidden = resolveStatusWidgetReservedBreakdown({
+      characterWidgetJson: json,
+      userWidgetJson: userJson,
+      chatMode: "both",
+      displayMode: "hidden",
+    });
+    const shown = resolveStatusWidgetReservedBreakdown({
+      characterWidgetJson: json,
+      userWidgetJson: userJson,
+      chatMode: "both",
+      displayMode: "both",
+    });
+    assert.ok(hidden.characterReservedChars > 0);
+    assert.ok(hidden.userReservedChars > 0);
+    assert.equal(hidden.totalReservedChars, shown.totalReservedChars);
   });
 
   it("no character widget and hidden display reserves zero", () => {

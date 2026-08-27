@@ -11,6 +11,8 @@ import {
   loadQueuedStatusTriggerEventsForPrompt,
   markStatusTriggerEventsConsumed,
   saveCharacterStatusWidgetTriggers,
+  STATUS_SOURCE_DISABLED_SUPERSEDE_REASON,
+  supersedeUnconsumedStatusTriggerEvents,
   validateStatusWidgetTriggerInput,
 } from "./statusWidgetTriggers";
 
@@ -573,5 +575,375 @@ describe("statusWidgetTriggers", () => {
       statusValues: { character: { d_day: "—" } },
     });
     assert.equal(result.firedEvents.length, 0);
+  });
+
+  it("disabling a source supersedes queued events without deleting them", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 7,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: true,
+      event_key: "affection_event",
+      effect_text: "애정이 임계점에 도달했다.",
+    });
+    const fired = evaluateStatusWidgetTriggers(db, {
+      chatId: 7,
+      sourceTurn: 4,
+      statusValues: { character: { affection: "90" } },
+    });
+    assert.equal(fired.firedEvents.length, 1);
+    assert.equal(loadQueuedStatusTriggerEventsForPrompt(db, 7).length, 1);
+
+    const superseded = supersedeUnconsumedStatusTriggerEvents(db, 7);
+    assert.equal(superseded, 1);
+    const stored = db
+      .prepare("SELECT is_superseded, superseded_reason, is_consumed FROM status_trigger_events WHERE chat_id=7")
+      .get() as { is_superseded: number; superseded_reason: string; is_consumed: number };
+    assert.equal(stored.is_superseded, 1);
+    assert.equal(stored.superseded_reason, STATUS_SOURCE_DISABLED_SUPERSEDE_REASON);
+    assert.equal(stored.is_consumed, 0);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 7, 8, { needsCharacterValues: true }).length,
+      0
+    );
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 7, 8, { needsCharacterValues: false }).length,
+      0
+    );
+    const remaining = db
+      .prepare("SELECT COUNT(*) AS n FROM status_trigger_events WHERE chat_id=7")
+      .get() as { n: number };
+    assert.equal(remaining.n, 1);
+  });
+
+  it("re-enable does not inject stale pre-disable queued events", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 8,
+      trigger_id: "d_day_zero",
+      status_key: "d_day",
+      operator: "<=",
+      value: 0,
+      fire_once: true,
+      event_key: "deadline",
+      effect_text: "기한이 끝났다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 8,
+      sourceTurn: 3,
+      statusValues: { character: { d_day: "0" } },
+    });
+    supersedeUnconsumedStatusTriggerEvents(db, 8);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 8, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["d_day"],
+      }).length,
+      0
+    );
+  });
+
+  it("creator source disable supersedes all queued creator machine triggers", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 9,
+      trigger_id: "creator_d_day",
+      status_key: "d_day",
+      operator: "<=",
+      value: 0,
+      fire_once: false,
+      event_key: "creator_deadline",
+      effect_text: "제작자 기한 이벤트",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 9,
+      trigger_id: "creator_affection",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: false,
+      event_key: "creator_affection",
+      effect_text: "제작자 애정 이벤트",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 9,
+      sourceTurn: 2,
+      statusValues: { character: { d_day: "0", affection: "90" } },
+    });
+    assert.equal(loadQueuedStatusTriggerEventsForPrompt(db, 9).length, 2);
+    supersedeUnconsumedStatusTriggerEvents(db, 9);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 9, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["d_day", "affection"],
+      }).length,
+      0
+    );
+    const rows = db
+      .prepare("SELECT is_superseded FROM status_trigger_events WHERE chat_id=9")
+      .all() as Array<{ is_superseded: number }>;
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every((r) => r.is_superseded === 1));
+  });
+
+  it("user_only gates creator trigger queue load to zero", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 11,
+      trigger_id: "trust_up",
+      status_key: "trust",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "trust_event",
+      effect_text: "신뢰가 올랐다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 11,
+      sourceTurn: 1,
+      statusValues: { character: { trust: "12" } },
+    });
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 11, 8, { needsCharacterValues: false }).length,
+      0
+    );
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 11, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["trust"],
+      }).length,
+      1
+    );
+  });
+
+  it("filters eligible creator keys in SQL before LIMIT (no N+1)", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 12,
+      trigger_id: "valid_affection",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "valid",
+      effect_text: "valid creator event",
+    });
+    for (let i = 0; i < 9; i += 1) {
+      insertStatusWidgetTriggerForTest(db, {
+        chat_id: 12,
+        trigger_id: `stale_${i}`,
+        status_key: `stale_key_${i}`,
+        operator: ">=",
+        value: 1,
+        fire_once: false,
+        event_key: `stale_${i}`,
+        effect_text: `stale ${i}`,
+      });
+      db.prepare(
+        `INSERT INTO status_trigger_events
+         (chat_id, character_id, trigger_id, event_key, source_turn, effect_text, is_consumed, metadata)
+         VALUES (?, NULL, ?, ?, ?, ?, 0, '{}')`
+      ).run(12, `stale_${i}`, `stale_${i}`, i + 1, `stale ${i}`);
+    }
+    db.prepare(
+      `INSERT INTO status_trigger_events
+       (chat_id, character_id, trigger_id, event_key, source_turn, effect_text, is_consumed, metadata)
+       VALUES (?, NULL, ?, ?, ?, ?, 0, '{}')`
+    ).run(12, "valid_affection", "valid", 99, "valid creator event");
+
+    const events = loadQueuedStatusTriggerEventsForPrompt(db, 12, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["affection"],
+    });
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.trigger_id, "valid_affection");
+    assert.equal(events[0]?.source_turn, 99);
+  });
+
+  it("needsCharacterValues false or disallowed keys never inject queued events", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 10,
+      trigger_id: "trust_up",
+      status_key: "trust",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "trust_event",
+      effect_text: "신뢰가 올랐다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 10,
+      sourceTurn: 1,
+      statusValues: { character: { trust: "12" } },
+    });
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 10, 8, { needsCharacterValues: false }).length,
+      0
+    );
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 10, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
+  });
+
+  it("cross-character same trigger_id does not authorize or duplicate queue rows", () => {
+    const rowA = insertStatusWidgetTriggerForTest(db, {
+      character_id: 101,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: false,
+      event_key: "affection_a",
+      effect_text: "A 캐릭터 애정",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 102,
+      trigger_id: "affection_high",
+      status_key: "trust",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "trust_b",
+      effect_text: "B 캐릭터 신뢰",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 200,
+      characterId: 101,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "90" } },
+    });
+    const eventsA = loadQueuedStatusTriggerEventsForPrompt(db, 200, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["affection"],
+    });
+    assert.equal(eventsA.length, 1);
+    assert.equal(eventsA[0]?.trigger_id, "affection_high");
+    assert.equal(JSON.parse(eventsA[0]?.metadata ?? "{}").trigger_row_id, rowA);
+
+    const eventsBKey = loadQueuedStatusTriggerEventsForPrompt(db, 200, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["trust"],
+    });
+    assert.equal(eventsBKey.length, 0);
+
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 201,
+      characterId: 102,
+      sourceTurn: 1,
+      statusValues: { character: { trust: "12" } },
+    });
+    const eventsB = loadQueuedStatusTriggerEventsForPrompt(db, 201, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["trust"],
+    });
+    assert.equal(eventsB.length, 1);
+    assert.equal(eventsB[0]?.trigger_id, "affection_high");
+    assert.notEqual(eventsB[0]?.effect_text, eventsA[0]?.effect_text);
+  });
+
+  it("same trigger_id and status_key across characters returns one row per event (no join fan-out)", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 201,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_201",
+      effect_text: "캐릭터 201",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 202,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_202",
+      effect_text: "캐릭터 202",
+    });
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 203,
+      trigger_id: "affection_high",
+      status_key: "affection",
+      operator: ">=",
+      value: 1,
+      fire_once: false,
+      event_key: "aff_203",
+      effect_text: "캐릭터 203",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 300,
+      characterId: 202,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "50" } },
+    });
+    const events = loadQueuedStatusTriggerEventsForPrompt(db, 300, 8, {
+      needsCharacterValues: true,
+      allowedStatusKeys: ["affection"],
+    });
+    assert.equal(events.length, 1);
+    assert.equal(events[0]?.effect_text, "캐릭터 202");
+  });
+
+  it("removed trigger definition does not resurrect old queued event on re-add with same trigger_id", () => {
+    saveCharacterStatusWidgetTriggers(db, 50, [
+      {
+        trigger_id: "affection_high",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: false,
+        event_key: "affection_event",
+        effect_text: "첫 번째 정의",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 400,
+      characterId: 50,
+      sourceTurn: 1,
+      statusValues: { character: { affection: "90" } },
+    });
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      1
+    );
+
+    saveCharacterStatusWidgetTriggers(db, 50, []);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
+
+    saveCharacterStatusWidgetTriggers(db, 50, [
+      {
+        trigger_id: "affection_high",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: false,
+        event_key: "affection_event",
+        effect_text: "두 번째 정의",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+    assert.equal(
+      loadQueuedStatusTriggerEventsForPrompt(db, 400, 8, {
+        needsCharacterValues: true,
+        allowedStatusKeys: ["affection"],
+      }).length,
+      0
+    );
   });
 });

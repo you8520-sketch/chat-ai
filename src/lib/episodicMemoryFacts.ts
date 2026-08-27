@@ -620,6 +620,13 @@ export type StatusMemoryPipelineTrace = {
   recallCandidateCount?: number;
   recallInjectedCount?: number;
   recallBlockedReasons?: string[];
+  requested_status_mode?: string;
+  effective_status_mode?: string;
+  display_mode?: string;
+  needs_character_values?: boolean;
+  needs_user_values?: boolean;
+  status_extract_call_count?: number;
+  status_trigger_evaluated?: boolean;
 };
 
 /** Development-only pipeline trace — never logs full prose. */
