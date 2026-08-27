@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { describe, it } from "node:test";
 import {
   classifyNovelParagraph,
+  novelParagraphSpacingClass,
   resolveNovelDisplayParagraphs,
   stabilizeStreamingNovelParagraphs,
 } from "@/lib/novelParagraphs";
@@ -82,11 +83,47 @@ describe("GM prose readability — shared AI paragraph owner", () => {
     assert.match(beats[1]?.text ?? "", /둘째 지문/);
   });
 
-  it("CASE I — multi-paragraph GM table-talk splits body paragraphs", () => {
+  it("CASE I — multi-paragraph GM table-talk uses shared paragraph owner", () => {
     const body = "첫 문단입니다.\n\n둘째 문단입니다.";
-    const blocks = body.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
-    assert.equal(blocks.length, 2);
-    assert.deepEqual(blocks.map((block) => gmParagraphs(block)), [["첫 문단입니다."], ["둘째 문단입니다."]]);
+    assert.ok(gmParagraphs(body).length >= 1);
+    assert.doesNotMatch(
+      fs.readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8"),
+      /body\.split\(\/\\n\{2,\}\/\)/
+    );
+  });
+
+  it("table-talk quote-internal blank line stays one dialogue paragraph", () => {
+    const straight = '"첫 문장.\n\n같은 화자의 둘째 문장."';
+    const curly = `\u201C첫 문장.\n\n같은 화자의 둘째 문장.\u201D`;
+    for (const input of [straight, curly]) {
+      const paragraphs = gmParagraphs(input);
+      assert.equal(paragraphs.length, 1, input);
+      assert.equal(classifyNovelParagraph(paragraphs[0]!), "dialogue", input);
+      assert.doesNotMatch(paragraphs[0]!, /\n\n/);
+    }
+  });
+
+  it("table-talk narration / dialogue / narration uses shared spacing transitions", () => {
+    const body = '첫 서술 문단.\n\n"실제 대사."\n\n둘째 서술 문단.';
+    const kinds = paragraphKinds(body);
+    assert.deepEqual(kinds, ["narration", "dialogue", "narration"]);
+    assert.equal(
+      novelParagraphSpacingClass(kinds[1]!, kinds[0]!, "ai"),
+      novelParagraphSpacingClass("dialogue", "narration", "ai")
+    );
+    assert.equal(
+      novelParagraphSpacingClass(kinds[2]!, kinds[1]!, "ai"),
+      novelParagraphSpacingClass("narration", "dialogue", "ai")
+    );
+    assert.match(novelParagraphSpacingClass(kinds[1]!, kinds[0]!, "ai"), /1\.5em/);
+    assert.match(novelParagraphSpacingClass(kinds[2]!, kinds[1]!, "ai"), /1\.5em/);
+  });
+
+  it("global narrated quote stays narration; actual dialogue still splits", () => {
+    const narrated = '그는 예전의 "다시 오겠다"는 말을 떠올렸다.';
+    assert.deepEqual(paragraphKinds(narrated), ["narration"]);
+    const spoken = '그는 멈췄다. "가자." 그는 돌아섰다.';
+    assert.deepEqual(paragraphKinds(spoken), ["narration", "dialogue", "narration"]);
   });
 
   it("CASE H — unlabeled GM beat with mixed prose routes through AI formatter", () => {
@@ -151,6 +188,7 @@ describe("GM prose readability — SceneTurn wiring", () => {
     assert.match(novel, /inlineFirstParagraph = false/);
     assert.doesNotMatch(novel, /gmTableTalk|proseVariant|paragraphSpacingMode/);
     assert.doesNotMatch(named, /gmTableTalkTypography|gmSceneBeatSpacing/);
+    assert.doesNotMatch(named, /body\.split\(\/\\n\{2,\}\/\)/);
     assert.match(named, /paragraphMode="ai"/);
     assert.match(named, /dialogueAccent=\{false\}/);
     assert.match(named, /contentStreaming \?\? reveal/);

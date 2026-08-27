@@ -135,6 +135,27 @@ const chatTypographyStyle = {
 
 const DEFAULT_SPECIAL_TERM_COLOR = "#c4b5fd";
 
+export type NovelTextRenderStructure =
+  | { layout: "centered" }
+  | { layout: "block" }
+  | { layout: "inline-first"; restParagraphCount: number };
+
+/** Deterministic render structure for inline-first GM/table-talk layouts. */
+export function resolveNovelTextRenderStructure(opts: {
+  centered?: boolean;
+  inlineFirstParagraph?: boolean;
+  paragraphCount: number;
+}): NovelTextRenderStructure {
+  if (opts.centered) return { layout: "centered" };
+  if (opts.inlineFirstParagraph && opts.paragraphCount > 0) {
+    return {
+      layout: "inline-first",
+      restParagraphCount: Math.max(0, opts.paragraphCount - 1),
+    };
+  }
+  return { layout: "block" };
+}
+
 /** AI·유저 응답을 웹소설 형식으로 렌더 */
 export default function NovelText({
   content,
@@ -223,39 +244,49 @@ export default function NovelText({
 
   const useParagraphKindColors = paragraphMode === "ai" && variant === "character";
 
-  if (centered) {
+  const proseClassNameMerged =
+    ["chat-novel-prose", proseClassName].filter(Boolean).join(" ") || "chat-novel-prose";
+
+  const renderParagraphBody = (para: string, i: number) => {
+    const empty = !para.trim();
+    if (empty) return "\u00a0";
+    return (
+      <InlineSegments
+        text={para}
+        paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
+        narrationColor={narrationColor}
+        dialogueColor={dialogueColor}
+        specialColor={specialColor}
+        parseSegments={parseSegments}
+        narrationMuted={isAuthorMode}
+        preserveRawLineBreaks={isAuthorMode}
+        dialogueAccent={dialogueAccent}
+      />
+    );
+  };
+
+  const spacingClassFor = (i: number) =>
+    i > 0
+      ? novelParagraphSpacingClass(paragraphKinds[i], paragraphKinds[i - 1], spacingMode)
+      : undefined;
+
+  const renderStructure = resolveNovelTextRenderStructure({
+    centered,
+    inlineFirstParagraph,
+    paragraphCount: displayParagraphs.length,
+  });
+
+  if (renderStructure.layout === "centered") {
     return (
       <p className="chat-novel-prose text-center" style={typography}>
         {displayParagraphs.map((para, i) => {
-          const empty = !para.trim();
+          const spacingClass = spacingClassFor(i);
           return (
             <span
               key={i}
-              className={
-                i > 0
-                  ? novelParagraphSpacingClass(
-                      paragraphKinds[i],
-                      paragraphKinds[i - 1],
-                      spacingMode
-                    ) + " block"
-                  : undefined
-              }
+              className={spacingClass ? `${spacingClass} block` : undefined}
             >
-              {empty ? (
-                <span className="inline-block min-h-[1em]">{"\u00a0"}</span>
-              ) : (
-                <InlineSegments
-                  text={para}
-                  paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-                  narrationColor={narrationColor}
-                  dialogueColor={dialogueColor}
-                  specialColor={specialColor}
-                  parseSegments={parseSegments}
-                  narrationMuted={isAuthorMode}
-                  preserveRawLineBreaks={isAuthorMode}
-                  dialogueAccent={dialogueAccent}
-                />
-              )}
+              {renderParagraphBody(para, i)}
             </span>
           );
         })}
@@ -263,50 +294,54 @@ export default function NovelText({
     );
   }
 
+  if (renderStructure.layout === "inline-first") {
+    const [firstPara, ...restParagraphs] = displayParagraphs;
+    return (
+      <>
+        <span className={proseClassNameMerged} style={typography}>
+          {renderParagraphBody(firstPara!, 0)}
+        </span>
+        {renderStructure.restParagraphCount > 0 ? (
+          <div className={proseClassNameMerged} style={typography}>
+            {restParagraphs.map((para, i) => {
+              const paragraphIndex = i + 1;
+              const spacingClass = spacingClassFor(paragraphIndex);
+              return (
+                <p
+                  key={paragraphIndex}
+                  className={[
+                    isAuthorMode ? "m-0 leading-[inherit]" : undefined,
+                    spacingClass,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined}
+                >
+                  {renderParagraphBody(para, paragraphIndex)}
+                </p>
+              );
+            })}
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
   return (
-    <div
-      className={["chat-novel-prose", proseClassName].filter(Boolean).join(" ") || "chat-novel-prose"}
-      style={typography}
-    >
+    <div className={proseClassNameMerged} style={typography}>
       {displayParagraphs.map((para, i) => {
-        const empty = !para.trim();
-        const spacingClass =
-          i > 0
-            ? novelParagraphSpacingClass(
-                paragraphKinds[i],
-                paragraphKinds[i - 1],
-                spacingMode
-              )
-            : undefined;
-        const useInlineFirst = inlineFirstParagraph && i === 0;
-        const Tag = useInlineFirst ? "span" : "p";
+        const spacingClass = spacingClassFor(i);
         return (
-          <Tag
+          <p
             key={i}
             className={[
-              useInlineFirst ? "inline" : undefined,
-              !useInlineFirst && isAuthorMode ? "m-0 leading-[inherit]" : undefined,
+              isAuthorMode ? "m-0 leading-[inherit]" : undefined,
               spacingClass,
             ]
               .filter(Boolean)
               .join(" ") || undefined}
           >
-            {empty ? (
-              "\u00a0"
-            ) : (
-              <InlineSegments
-                text={para}
-                paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-                narrationColor={narrationColor}
-                dialogueColor={dialogueColor}
-                specialColor={specialColor}
-                parseSegments={parseSegments}
-                narrationMuted={isAuthorMode}
-                preserveRawLineBreaks={isAuthorMode}
-                dialogueAccent={dialogueAccent}
-              />
-            )}
-          </Tag>
+            {renderParagraphBody(para, i)}
+          </p>
         );
       })}
     </div>

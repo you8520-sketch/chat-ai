@@ -1,4 +1,5 @@
 import {
+  classifyNovelParagraph,
   novelParagraphSpacingClass,
   type NovelParagraphKind,
 } from "@/lib/novelParagraphs";
@@ -8,7 +9,9 @@ import type { TrpgSpeechBeat } from "./sceneSpeech";
 export function classifyTrpgSceneBeatParagraphKind(beat: TrpgSpeechBeat): NovelParagraphKind {
   if (beat.speaker === "GM") return "narration";
   if (beat.speaker) return "dialogue";
-  return "narration";
+  const trimmed = beat.text.trim();
+  if (!trimmed) return "narration";
+  return classifyNovelParagraph(trimmed);
 }
 
 /** Inter-beat gap delegates to the shared AI spacing policy — no local em values. */

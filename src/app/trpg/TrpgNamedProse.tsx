@@ -7,7 +7,6 @@ import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
 import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
-import { novelParagraphSpacingClass } from "@/lib/novelParagraphs";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
 import { splitTrpgGmProseForAssets } from "@/lib/trpg/trpgTaggedProse";
@@ -41,78 +40,47 @@ function TrpgGmProseBody({
   contentStreaming?: boolean;
   inlineFirstParagraph?: boolean;
 }) {
-  const proseBlocks = body
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+  const hasSceneAssets =
+    assets.length > 0 ||
+    characterCatalog.length > 0 ||
+    /\[(?:캐릭터에셋|태그):/.test(body);
 
-  const renderBlock = (block: string, blockIndex: number, blockCount: number) => {
-    const hasSceneAssets =
-      assets.length > 0 ||
-      characterCatalog.length > 0 ||
-      /\[(?:캐릭터에셋|태그):/.test(block);
-
-    const blockInlineFirst = inlineFirstParagraph && blockIndex === 0;
-    const blockStreaming = contentStreaming && blockIndex === blockCount - 1;
-
-    if (hasSceneAssets) {
-      const parts = splitTrpgGmProseForAssets(block, {
-        scenarioAssets: assets,
-        characterCatalog,
-        campaignId,
-        roundNumber,
-        streaming: blockStreaming,
-      });
-      const firstTextIndex = parts.findIndex((part) => part.kind === "text");
-      return (
-        <TrpgTaggedNovelText
-          content={block}
-          scenarioAssets={assets}
-          characterCatalog={characterCatalog}
-          campaignId={campaignId}
-          roundNumber={roundNumber}
-          variant="character"
-          paragraphMode="ai"
-          streaming={blockStreaming}
-          dialogueAccent={false}
-          inlineFirstParagraph={blockInlineFirst && firstTextIndex === 0}
-          proseClassName={TRPG_GM_TALK_BODY_CLASS}
-        />
-      );
-    }
-
+  if (hasSceneAssets) {
+    const parts = splitTrpgGmProseForAssets(body, {
+      scenarioAssets: assets,
+      characterCatalog,
+      campaignId,
+      roundNumber,
+      streaming: contentStreaming,
+    });
+    const firstTextIndex = parts.findIndex((part) => part.kind === "text");
     return (
-      <NovelText
-        content={block}
+      <TrpgTaggedNovelText
+        content={body}
+        scenarioAssets={assets}
+        characterCatalog={characterCatalog}
+        campaignId={campaignId}
+        roundNumber={roundNumber}
         variant="character"
         paragraphMode="ai"
-        streaming={blockStreaming}
+        streaming={contentStreaming}
         dialogueAccent={false}
-        inlineFirstParagraph={blockInlineFirst}
+        inlineFirstParagraph={inlineFirstParagraph && firstTextIndex === 0}
         proseClassName={TRPG_GM_TALK_BODY_CLASS}
       />
     );
-  };
-
-  if (proseBlocks.length <= 1) {
-    return renderBlock(body.trim(), 0, 1);
   }
 
   return (
-    <>
-      {proseBlocks.map((block, i) => (
-        <div
-          key={`gm-prose-${i}`}
-          className={
-            i > 0
-              ? novelParagraphSpacingClass("narration", "narration", "ai")
-              : undefined
-          }
-        >
-          {renderBlock(block, i, proseBlocks.length)}
-        </div>
-      ))}
-    </>
+    <NovelText
+      content={body}
+      variant="character"
+      paragraphMode="ai"
+      streaming={contentStreaming}
+      dialogueAccent={false}
+      inlineFirstParagraph={inlineFirstParagraph}
+      proseClassName={TRPG_GM_TALK_BODY_CLASS}
+    />
   );
 }
 

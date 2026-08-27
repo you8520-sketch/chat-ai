@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { classifyNovelParagraph, novelParagraphSpacingClass } from "@/lib/novelParagraphs";
 import {
   classifyTrpgSceneBeatParagraphKind,
   trpgSceneBeatSpacingClass,
@@ -11,53 +12,70 @@ function beat(speaker: string | null, text: string): TrpgSpeechBeat {
 }
 
 describe("trpgSceneBeatSpacing", () => {
-  it("classifies unlabeled narration and named speakers for spacing", () => {
-    assert.equal(classifyTrpgSceneBeatParagraphKind(beat(null, "지문")), "narration");
-    assert.equal(classifyTrpgSceneBeatParagraphKind(beat("강이현", '"대사"')), "dialogue");
-    assert.equal(classifyTrpgSceneBeatParagraphKind(beat("GM", "table talk")), "narration");
+  it("A — unlabeled dialogue-only beat delegates to shared classifier", () => {
+    assert.equal(classifyTrpgSceneBeatParagraphKind(beat(null, '"정말 갈 거야?"')), "dialogue");
+  });
+
+  it("B — unlabeled narration beat delegates to shared classifier", () => {
+    assert.equal(classifyTrpgSceneBeatParagraphKind(beat(null, "문이 천천히 열린다.")), "narration");
+  });
+
+  it("C — unlabeled mixed beat uses shared NovelParagraphKind semantics", () => {
+    const text = '태현이 고개를 들었다. "멈춰."';
+    assert.equal(
+      classifyTrpgSceneBeatParagraphKind(beat(null, text)),
+      classifyNovelParagraph(text)
+    );
+  });
+
+  it("D — narration → unlabeled dialogue uses AI dialogue-transition spacing", () => {
+    const cls = trpgSceneBeatSpacingClass(beat(null, '"정말 갈 거야?"'), beat(null, "문이 열렸다."));
+    assert.equal(
+      cls,
+      novelParagraphSpacingClass("dialogue", "narration", "ai")
+    );
+    assert.match(cls, /mt-\[calc\(1\.5em/);
+  });
+
+  it("E — unlabeled dialogue → narration uses AI dialogue-transition spacing", () => {
+    const cls = trpgSceneBeatSpacingClass(beat(null, "문이 닫혔다."), beat(null, '"정말 갈 거야?"'));
+    assert.equal(
+      cls,
+      novelParagraphSpacingClass("narration", "dialogue", "ai")
+    );
+    assert.match(cls, /mt-\[calc\(1\.5em/);
+  });
+
+  it("F — named speaker → named speaker spacing unchanged", () => {
+    const cls = trpgSceneBeatSpacingClass(
+      beat("권태현", '"오른쪽."'),
+      beat("강이현", '"왼쪽."')
+    );
+    assert.equal(
+      cls,
+      novelParagraphSpacingClass("dialogue", "dialogue", "ai")
+    );
+    assert.match(cls, /mt-\[calc\(1em/);
+  });
+
+  it("G — scene → GM table-talk spacing preserved", () => {
+    const cls = trpgSceneBeatSpacingClass(
+      beat("GM", "판정 설명"),
+      beat(null, "장면 지문")
+    );
+    assert.equal(
+      cls,
+      novelParagraphSpacingClass("narration", "narration", "ai")
+    );
+    assert.match(cls, /mt-\[calc\(1em/);
   });
 
   it("delegates inter-beat spacing to shared AI policy without leading gap", () => {
     assert.equal(trpgSceneBeatSpacingClass(beat(null, "a"), null), "");
   });
 
-  it("applies narration-to-narration spacing between beats", () => {
-    const cls = trpgSceneBeatSpacingClass(
-      beat(null, "둘째 지문"),
-      beat(null, "첫 지문")
-    );
-    assert.match(cls, /mt-\[calc\(1em/);
-  });
-
-  it("applies narration-to-dialogue spacing between beats", () => {
-    const cls = trpgSceneBeatSpacingClass(
-      beat("강이현", '"대사"'),
-      beat(null, "첫 지문")
-    );
-    assert.match(cls, /mt-\[calc\(1\.5em/);
-  });
-
-  it("applies dialogue-to-dialogue spacing between named beats", () => {
-    const cls = trpgSceneBeatSpacingClass(
-      beat("권태현", '"오른쪽."'),
-      beat("강이현", '"왼쪽."')
-    );
-    assert.match(cls, /mt-\[calc\(1em/);
-  });
-
-  it("applies dialogue-to-narration spacing between beats", () => {
-    const cls = trpgSceneBeatSpacingClass(
-      beat(null, "다음 지문"),
-      beat("강이현", '"대사"')
-    );
-    assert.match(cls, /mt-\[calc\(1\.5em/);
-  });
-
-  it("applies scene-to-GM-table-talk spacing", () => {
-    const cls = trpgSceneBeatSpacingClass(
-      beat("GM", "판정 설명"),
-      beat(null, "장면 지문")
-    );
-    assert.match(cls, /mt-\[calc\(1em/);
+  it("classifies named speakers and GM table-talk beats", () => {
+    assert.equal(classifyTrpgSceneBeatParagraphKind(beat("강이현", '"대사"')), "dialogue");
+    assert.equal(classifyTrpgSceneBeatParagraphKind(beat("GM", "table talk")), "narration");
   });
 });
