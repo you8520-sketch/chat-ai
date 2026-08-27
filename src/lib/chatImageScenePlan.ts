@@ -480,6 +480,14 @@ export function buildDeterministicScenePlan(
   };
 }
 
+export function applyApprovedAiScenePlan(
+  aiPlan: ScenePlan,
+  panelCountMode: "ai" | ScenePanelCount
+): ScenePlan {
+  if (panelCountMode === "ai") return aiPlan;
+  return reflowScenePlanPanels(aiPlan, panelCountMode);
+}
+
 export function reflowScenePlanPanels(
   plan: ScenePlan,
   panelCount: ScenePanelCount

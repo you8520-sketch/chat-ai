@@ -3,25 +3,51 @@ import { describe, it } from "node:test";
 
 import {
   buildCastCandidatePool,
+  containsKnownCastMention,
   detectCurrentSceneCastNames,
   draftCastIntentFromCandidatePool,
+  filterConfiguredCastNamesForViewer,
   mergeCastIntentDraft,
   normalizeCastMatchName,
+  type ChatImageCastIntentManifest,
 } from "./chatImageCast";
 import {
+  applyApprovedAiScenePlan,
   applyUserIllustrationEdits,
   buildDeterministicScenePlan,
   buildSceneSourceMessages,
   reflowScenePlanPanels,
+  type ScenePlan,
 } from "./chatImageScenePlan";
 import {
   assertChatImageScenePlanRateLimit,
+  ChatImageScenePlanRateLimitError,
   releaseChatImageScenePlanRateLimit,
   resetChatImageScenePlanRateLimitForTests,
+  scenePlanRateLimitRowCountForTests,
+  SCENE_PLAN_COOLDOWN_MS,
+  SCENE_PLAN_MAX_IN_WINDOW,
+  SCENE_PLAN_WINDOW_MS,
+  setChatImageScenePlanRateLimitNowForTests,
 } from "./chatImageScenePlanRateLimit";
 import { planChatImageScene } from "./chatImageScenePlanner";
 
 const CONFIGURED = ["태형", "이현", "렌"];
+
+function actualCastDraftFromScenePlan(opts: {
+  scenePlan: ScenePlan;
+  configuredCastNames: readonly string[];
+  current: ChatImageCastIntentManifest | null;
+}): ChatImageCastIntentManifest {
+  const draft = draftCastIntentFromCandidatePool({
+    personaName: "유저",
+    mainCharacterName: "메인",
+    configuredCharacterSetNames: opts.configuredCastNames,
+    castMentions: opts.scenePlan.castMentions,
+    events: opts.scenePlan.events,
+  });
+  return mergeCastIntentDraft(opts.current, draft);
+}
 
 describe("chatImageSceneManualFirst cast pool", () => {
   it("shows configured set, marks current scene, excludes unknown nouns", () => {
@@ -41,7 +67,7 @@ describe("chatImageSceneManualFirst cast pool", () => {
     assert.equal(detectCurrentSceneCastNames(["후드", "소매"], events).length, 0);
   });
 
-  it("dedupes configured and AI mentions", () => {
+  it("dedupes configured and AI mentions on apply-only draft", () => {
     const pool = buildCastCandidatePool({
       personaName: "유저",
       mainCharacterName: "메인",
@@ -55,7 +81,7 @@ describe("chatImageSceneManualFirst cast pool", () => {
     assert.ok(pool[0]?.sources.includes("ai_suggestion"));
   });
 
-  it("adds AI-only candidates without removing configured ones", () => {
+  it("adds AI-only candidates without removing configured ones when applied", () => {
     const base = buildCastCandidatePool({
       personaName: "유저",
       mainCharacterName: "메인",
@@ -112,13 +138,142 @@ describe("chatImageSceneManualFirst cast pool", () => {
     const merged = mergeCastIntentDraft(edited, refreshed);
     assert.equal(merged.subjects.find((row) => row.name === "렌")?.included, true);
   });
+});
 
-  it("uses exact normalized name matching only", () => {
-    assert.equal(normalizeCastMatchName("태형"), "태형");
+describe("chatImageSceneManualFirst known-name boundaries", () => {
+  it("matches Korean particles and rejects substring extensions", () => {
+    assert.equal(containsKnownCastMention("렌이 문을 연다", "렌"), true);
+    assert.equal(containsKnownCastMention("렌즈가 깨졌다", "렌"), false);
+    assert.equal(containsKnownCastMention("이현에게 말했다", "이현"), true);
+  });
+
+  it("matches Latin word boundaries only", () => {
+    assert.equal(containsKnownCastMention("Ash waved.", "Ash"), true);
+    assert.equal(containsKnownCastMention("Ashley waved.", "Ash"), false);
+  });
+
+  it("uses boundary-aware current scene detection", () => {
     assert.deepEqual(detectCurrentSceneCastNames(["태형"], [{ text: "태형이 문을 연다." }]), [
       "태형",
     ]);
-    assert.deepEqual(detectCurrentSceneCastNames(["태형"], [{ text: "후드가 흔들렸다." }]), []);
+    assert.deepEqual(detectCurrentSceneCastNames(["렌"], [{ text: "렌즈가 깨졌다" }]), []);
+    assert.equal(normalizeCastMatchName("태형"), "태형");
+  });
+});
+
+describe("chatImageSceneManualFirst configuredCastNames privacy", () => {
+  const configured = ["이현", "민준"];
+  const sourceTexts = ["이현이 문을 열었다."];
+
+  it("returns only source-mentioned names for non-creators", () => {
+    const safe = filterConfiguredCastNamesForViewer({
+      configuredNames: configured,
+      sourceTexts,
+      isCreator: false,
+    });
+    assert.deepEqual(safe, ["이현"]);
+    assert.equal(safe.includes("민준"), false);
+  });
+
+  it("returns full configured roster for creators", () => {
+    const creator = filterConfiguredCastNamesForViewer({
+      configuredNames: configured,
+      sourceTexts,
+      isCreator: true,
+    });
+    assert.deepEqual(creator.sort(), ["민준", "이현"].sort());
+  });
+});
+
+describe("chatImageSceneManualFirst AI cast non-destructive", () => {
+  const messages = buildSceneSourceMessages([
+    { id: 1, role: "user", content: '"안녕"' },
+    { id: 2, role: "assistant", content: "렌이 손을 흔든다." },
+  ]);
+  const scenePlan = buildDeterministicScenePlan(messages);
+  const configuredCastNames = ["렌"];
+
+  it("does not mutate actual cast before apply or after cancel", () => {
+    const initial = draftCastIntentFromCandidatePool({
+      personaName: "유저",
+      mainCharacterName: "메인",
+      configuredCharacterSetNames: configuredCastNames,
+      events: scenePlan.events,
+    });
+    const manual = {
+      ...initial,
+      subjects: initial.subjects.map((subject) =>
+        subject.name === "렌"
+          ? { ...subject, included: true, requestedReferenceAssetUrl: "asset-r" }
+          : subject
+      ),
+    };
+
+    const aiSuggestedPlan: ScenePlan = {
+      ...scenePlan,
+      castMentions: [{ name: "민준", sourceEventIds: [scenePlan.events[0]?.id ?? "E1"] }],
+    };
+
+    const beforeApply = actualCastDraftFromScenePlan({
+      scenePlan,
+      configuredCastNames,
+      current: manual,
+    });
+    assert.equal(beforeApply.subjects.some((row) => row.name === "민준"), false);
+    assert.equal(
+      beforeApply.subjects.find((row) => row.name === "렌")?.requestedReferenceAssetUrl,
+      "asset-r"
+    );
+    assert.equal(beforeApply.subjects.find((row) => row.name === "렌")?.included, true);
+
+    const afterCancel = actualCastDraftFromScenePlan({
+      scenePlan,
+      configuredCastNames,
+      current: manual,
+    });
+    assert.deepEqual(afterCancel, beforeApply);
+
+    const appliedPlan = applyApprovedAiScenePlan(aiSuggestedPlan, "ai");
+    const afterApply = mergeCastIntentDraft(
+      manual,
+      draftCastIntentFromCandidatePool({
+        personaName: "유저",
+        mainCharacterName: "메인",
+        configuredCharacterSetNames: configuredCastNames,
+        castMentions: appliedPlan.castMentions,
+        events: appliedPlan.events,
+      })
+    );
+    assert.ok(afterApply.subjects.some((row) => row.name === "민준"));
+    assert.equal(
+      afterApply.subjects.find((row) => row.name === "렌")?.requestedReferenceAssetUrl,
+      "asset-r"
+    );
+    assert.equal(afterApply.subjects.find((row) => row.name === "렌")?.included, true);
+  });
+});
+
+describe("chatImageSceneManualFirst explicit panel count", () => {
+  const messages = buildSceneSourceMessages([
+    { id: 11, role: "user", content: '"같이 갈래?"' },
+    { id: 12, role: "assistant", content: "태형이 고개를 끄덕였다." },
+  ]);
+  const aiTwo = buildDeterministicScenePlan(messages, 2);
+  const aiFour = buildDeterministicScenePlan(messages, 4);
+
+  it("keeps user-selected 4 panels when AI suggests 2", () => {
+    const applied = applyApprovedAiScenePlan(aiTwo, 4);
+    assert.equal(applied.panels.length, 4);
+  });
+
+  it("keeps user-selected 3 panels when AI suggests 4", () => {
+    const applied = applyApprovedAiScenePlan(aiFour, 3);
+    assert.equal(applied.panels.length, 3);
+  });
+
+  it("keeps auto mode at AI recommended count", () => {
+    const applied = applyApprovedAiScenePlan(aiTwo, "ai");
+    assert.equal(applied.panels.length, 2);
   });
 });
 
@@ -195,7 +350,10 @@ describe("chatImageScenePlanRateLimit", () => {
   it("blocks concurrent in-flight scene-plan requests per user", () => {
     resetChatImageScenePlanRateLimitForTests();
     assertChatImageScenePlanRateLimit(42);
-    assert.throws(() => assertChatImageScenePlanRateLimit(42));
+    assert.throws(
+      () => assertChatImageScenePlanRateLimit(42),
+      ChatImageScenePlanRateLimitError
+    );
     releaseChatImageScenePlanRateLimit(42);
     assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(43));
     releaseChatImageScenePlanRateLimit(43);
@@ -205,6 +363,65 @@ describe("chatImageScenePlanRateLimit", () => {
     resetChatImageScenePlanRateLimitForTests();
     assertChatImageScenePlanRateLimit(7);
     releaseChatImageScenePlanRateLimit(7);
-    assert.throws(() => assertChatImageScenePlanRateLimit(7));
+    assert.throws(
+      () => assertChatImageScenePlanRateLimit(7),
+      ChatImageScenePlanRateLimitError
+    );
+  });
+
+  it("returns HTTP 429 semantics via typed limiter error", () => {
+    resetChatImageScenePlanRateLimitForTests();
+    try {
+      assertChatImageScenePlanRateLimit(99);
+      assertChatImageScenePlanRateLimit(99);
+      assert.fail("expected in-flight block");
+    } catch (error) {
+      assert.ok(error instanceof ChatImageScenePlanRateLimitError);
+      assert.equal((error as ChatImageScenePlanRateLimitError).statusCode, 429);
+    } finally {
+      releaseChatImageScenePlanRateLimit(99);
+    }
+  });
+
+  it("allows six requests per rolling window then blocks the seventh", () => {
+    resetChatImageScenePlanRateLimitForTests();
+    let now = 1_000_000;
+    setChatImageScenePlanRateLimitNowForTests(() => now);
+    for (let index = 0; index < SCENE_PLAN_MAX_IN_WINDOW; index += 1) {
+      assertChatImageScenePlanRateLimit(5);
+      releaseChatImageScenePlanRateLimit(5);
+      now += SCENE_PLAN_COOLDOWN_MS + 1;
+    }
+    assert.throws(
+      () => assertChatImageScenePlanRateLimit(5),
+      ChatImageScenePlanRateLimitError
+    );
+    now += SCENE_PLAN_WINDOW_MS + 1;
+    assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(5));
+    releaseChatImageScenePlanRateLimit(5);
+  });
+
+  it("clears in-flight lock after failed release once backoff elapses", () => {
+    resetChatImageScenePlanRateLimitForTests();
+    let now = 1_000;
+    setChatImageScenePlanRateLimitNowForTests(() => now);
+    assertChatImageScenePlanRateLimit(8);
+    releaseChatImageScenePlanRateLimit(8, true);
+    now += 1_600;
+    assert.doesNotThrow(() => assertChatImageScenePlanRateLimit(8));
+    releaseChatImageScenePlanRateLimit(8);
+  });
+
+  it("prunes stale rows opportunistically", () => {
+    resetChatImageScenePlanRateLimitForTests();
+    let now = 5_000;
+    setChatImageScenePlanRateLimitNowForTests(() => now);
+    assertChatImageScenePlanRateLimit(1);
+    releaseChatImageScenePlanRateLimit(1);
+    assert.equal(scenePlanRateLimitRowCountForTests(), 1);
+    now += SCENE_PLAN_WINDOW_MS + SCENE_PLAN_COOLDOWN_MS + 1;
+    assertChatImageScenePlanRateLimit(2);
+    releaseChatImageScenePlanRateLimit(2);
+    assert.equal(scenePlanRateLimitRowCountForTests(), 1);
   });
 });

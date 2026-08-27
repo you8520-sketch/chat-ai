@@ -59,9 +59,11 @@ import {
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
   assertChatImageScenePlanRateLimit,
+  ChatImageScenePlanRateLimitError,
   releaseChatImageScenePlanRateLimit,
 } from "@/lib/chatImageScenePlanRateLimit";
 import { extractSimulationCastNames } from "@/lib/simulationMode";
+import { filterConfiguredCastNamesForViewer } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
   parseChatImageCastManifest,
@@ -636,16 +638,18 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
-      const simulationCastNames = extractSimulationCastNames(
-        context.character.simulation_cast ?? ""
-      );
+      const configuredCastNames = filterConfiguredCastNamesForViewer({
+        configuredNames: extractSimulationCastNames(context.character.simulation_cast ?? ""),
+        sourceTexts: source.messages.map((message) => message.text),
+        isCreator: context.character.creator_id === user.id,
+      });
       return NextResponse.json({
         ok: true,
         mode: "scene_brief",
         messageId: source.messageId,
         summary: source.turnText,
         messages: source.messages,
-        simulationCastNames,
+        configuredCastNames,
       });
     }
 
@@ -656,7 +660,14 @@ export async function POST(req: Request) {
         sourceText: String(body.sourceText ?? ""),
         requireChat: false,
       });
-      assertChatImageScenePlanRateLimit(user.id);
+      try {
+        assertChatImageScenePlanRateLimit(user.id);
+      } catch (error) {
+        if (error instanceof ChatImageScenePlanRateLimitError) {
+          return NextResponse.json({ ok: false, error: error.message }, { status: 429 });
+        }
+        throw error;
+      }
       let planned;
       let scenePlanFailed = false;
       try {

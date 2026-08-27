@@ -12,6 +12,7 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  applyApprovedAiScenePlan,
   buildDeterministicScenePlan,
   reflowScenePlanPanels,
   type ScenePlan,
@@ -469,6 +470,7 @@ export default function ChatImageGeneratorPanel({
       const messageId = Number(detail?.messageId);
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
+        resetSceneSourceState();
         setSourceMessageId(messageId);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
@@ -479,6 +481,7 @@ export default function ChatImageGeneratorPanel({
         setComicLoadedMaxChars(0);
         void loadSelectedTurnContent(messageId);
       } else if (preview) {
+        resetSceneSourceState();
         setSourceMessageId(null);
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
@@ -570,7 +573,7 @@ export default function ChatImageGeneratorPanel({
       personaName: info.persona?.name ?? "persona",
       mainCharacterName: info.character.name,
       configuredCharacterSetNames: configuredCastNames,
-      castMentions: aiSuggestedPlan?.castMentions ?? scenePlan.castMentions,
+      castMentions: scenePlan.castMentions,
       events: scenePlan.events,
     });
     setCastIntent((current) => {
@@ -593,7 +596,7 @@ export default function ChatImageGeneratorPanel({
         }),
       };
     });
-  }, [scenePlan, aiSuggestedPlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames]);
+  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames]);
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
@@ -1017,6 +1020,17 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
+  function resetSceneSourceState() {
+    setScenePlan(null);
+    setCastIntent(null);
+    setConfiguredCastNames([]);
+    setSceneMessages([]);
+    setAiSuggestedPlan(null);
+    setAiSuggestionError("");
+    setHasAiSuggestionSession(false);
+    setScenePanelCountMode("ai");
+  }
+
   function sceneCacheKey(messageId: number | null, summary: string) {
     const ids = currentRouteIds();
     return `${ids.chatId ?? "none"}:${messageId ?? "none"}:${summary}`;
@@ -1064,6 +1078,7 @@ export default function ChatImageGeneratorPanel({
           mode: "scene_plan",
           messageId: opts.messageId ?? undefined,
           sourceText: opts.messageId ? undefined : opts.summary,
+          panelCount: scenePanelCountMode === "ai" ? undefined : scenePanelCountMode,
         }),
       });
       const data = (await response.json().catch(() => null)) as
@@ -1091,13 +1106,14 @@ export default function ChatImageGeneratorPanel({
 
   function applyAiSceneSuggestion() {
     if (!aiSuggestedPlan || !info) return;
-    setScenePlan(aiSuggestedPlan);
+    const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCountMode);
+    setScenePlan(nextPlan);
     const draft = draftCastIntentFromCandidatePool({
       personaName: info.persona?.name ?? "persona",
       mainCharacterName: info.character.name,
       configuredCharacterSetNames: configuredCastNames,
-      castMentions: aiSuggestedPlan.castMentions,
-      events: aiSuggestedPlan.events,
+      castMentions: nextPlan.castMentions,
+      events: nextPlan.events,
       compositionGoal: castIntent?.compositionGoal,
     });
     setCastIntent((current) => mergeCastIntentDraft(current, draft));
@@ -1112,6 +1128,7 @@ export default function ChatImageGeneratorPanel({
 
   async function loadSelectedTurnContent(messageId: number) {
     if (summarizing) return;
+    resetSceneSourceState();
     setSummarizing(true);
     setError("");
     setNotice("");
@@ -1131,7 +1148,7 @@ export default function ChatImageGeneratorPanel({
             ok?: boolean;
             summary?: string;
             messages?: SceneSourceMessage[];
-            simulationCastNames?: string[];
+            configuredCastNames?: string[];
             error?: string;
           }
         | null;
@@ -1143,13 +1160,10 @@ export default function ChatImageGeneratorPanel({
       const messages = Array.isArray(data.messages) ? data.messages : [];
       setSceneMessages(messages);
       setConfiguredCastNames(
-        Array.isArray(data.simulationCastNames)
-          ? data.simulationCastNames.filter((name) => typeof name === "string" && name.trim())
+        Array.isArray(data.configuredCastNames)
+          ? data.configuredCastNames.filter((name) => typeof name === "string" && name.trim())
           : []
       );
-      setHasAiSuggestionSession(false);
-      setAiSuggestedPlan(null);
-      setAiSuggestionError("");
       applyDeterministicScenePlan(messageId, data.summary, messages);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");

@@ -74,6 +74,61 @@ export function normalizeCastMatchName(name: string): string {
   return cleanText(name).toLowerCase();
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const KOREAN_CAST_NAME_PARTICLE =
+  /^(?:이|가|은|는|을|를|과|와|의|도|에게|한테|께|아|야|이야|랑|하고|에서|부터|까지|만|이며|이면|이라|입니다|이에요|예요|죠|요|님)(?=[\s.,!?;:'"”’」】)\]*<>]|$)/;
+
+/** Boundary-aware mention check for already-known cast names only. */
+export function containsKnownCastMention(text: string, knownName: string): boolean {
+  const name = cleanText(knownName);
+  if (!name) return false;
+  const haystack = String(text ?? "");
+  if (!haystack.includes(name)) return false;
+
+  if (/^[A-Za-z][A-Za-z0-9'-]*$/.test(name)) {
+    const pattern = new RegExp(`(?<![A-Za-z0-9_])${escapeRegExp(name)}(?![A-Za-z0-9_])`, "i");
+    return pattern.test(haystack);
+  }
+
+  let searchFrom = 0;
+  while (searchFrom < haystack.length) {
+    const idx = haystack.indexOf(name, searchFrom);
+    if (idx === -1) break;
+
+    const before = idx > 0 ? haystack[idx - 1]! : "";
+    if (before && /[가-힣A-Za-z0-9_]/.test(before)) {
+      searchFrom = idx + 1;
+      continue;
+    }
+
+    const after = haystack.slice(idx + name.length);
+    if (!after) return true;
+    if (/^[\s.,!?;:'"”’」】)\]*<>]/.test(after)) return true;
+    if (KOREAN_CAST_NAME_PARTICLE.test(after)) return true;
+    if (/^[가-힣]/.test(after)) {
+      searchFrom = idx + 1;
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+export function filterConfiguredCastNamesForViewer(opts: {
+  configuredNames: readonly string[];
+  sourceTexts: readonly string[];
+  isCreator: boolean;
+}): string[] {
+  const names = opts.configuredNames.map((name) => cleanText(name)).filter(Boolean);
+  if (opts.isCreator) return names;
+  return names.filter((name) =>
+    opts.sourceTexts.some((text) => containsKnownCastMention(text, name))
+  );
+}
+
 export function detectCurrentSceneCastNames(
   knownNames: readonly string[],
   events: readonly { text: string }[]
@@ -85,7 +140,7 @@ export function detectCurrentSceneCastNames(
     if (!name) continue;
     const normalized = normalizeCastMatchName(name);
     if (seen.has(normalized)) continue;
-    const inScene = events.some((event) => event.text.includes(name));
+    const inScene = events.some((event) => containsKnownCastMention(event.text, name));
     if (!inScene) continue;
     seen.add(normalized);
     results.push(name);
