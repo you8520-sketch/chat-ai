@@ -20,6 +20,7 @@ import {
   gmStreamParserComplete,
 } from "./gmStreamParser";
 import type { GmProviderTimings } from "./gmNarrationDraft";
+import { feedGmProviderSseBytes } from "./gmProviderSse";
 
 /** GM transport only: first attempt + one retry on known transient HTTP 5xx. */
 export const GM_MAX_PROVIDER_ATTEMPTS = 2;
@@ -237,7 +238,7 @@ async function readGmProviderSseStream(opts: {
   const reader = opts.response.body?.getReader();
   if (!reader) throw new Error("[TRPG] empty stream body");
   const decoder = new TextDecoder();
-  let sseBuffer = "";
+  const sseState = { buffer: "" };
   let rawText = "";
   let usagePayload: StreamUsagePayload | undefined;
   const parser = createGmStreamParser();
@@ -256,32 +257,22 @@ async function readGmProviderSseStream(opts: {
     if (delta) opts.callbacks?.onNarrationChunk?.(parser.narration, delta);
   };
 
+  const onSsePayload = (payload: unknown) => {
+    const content = deltaContentFromSsePayload(payload);
+    if (content) emitRaw(content);
+    const usage = usageFromSsePayload(payload);
+    if (usage) usagePayload = usage;
+  };
+
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
-    sseBuffer += decoder.decode(value, { stream: true });
-    let lineBreak = sseBuffer.indexOf("\n");
-    while (lineBreak >= 0) {
-      const line = sseBuffer.slice(0, lineBreak).trim();
-      sseBuffer = sseBuffer.slice(lineBreak + 1);
-      if (line.startsWith("data:")) {
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") {
-          lineBreak = sseBuffer.indexOf("\n");
-          continue;
-        }
-        try {
-          const payload = JSON.parse(data) as unknown;
-          const content = deltaContentFromSsePayload(payload);
-          if (content) emitRaw(content);
-          const usage = usageFromSsePayload(payload);
-          if (usage) usagePayload = usage;
-        } catch {
-          // ignore malformed SSE lines
-        }
-      }
-      lineBreak = sseBuffer.indexOf("\n");
+    if (done) {
+      const tail = decoder.decode();
+      if (tail) feedGmProviderSseBytes(sseState, tail, onSsePayload, true);
+      else feedGmProviderSseBytes(sseState, "", onSsePayload, true);
+      break;
     }
+    feedGmProviderSseBytes(sseState, decoder.decode(value, { stream: true }), onSsePayload, false);
   }
 
   gmStreamParserComplete(parser);

@@ -172,7 +172,7 @@ describe("GM prose readability — SceneTurn wiring", () => {
     assert.equal(assistantCount, 1);
     assert.match(sceneTurnBlock, /paragraphMode="ai"/);
     assert.match(sceneTurnBlock, /dialogueAccent=\{false\}/);
-    assert.match(sceneTurnBlock, /contentStreaming=\{revealNarration && gmRevealProgressive\}/);
+    assert.match(sceneTurnBlock, /contentStreaming=\{gmContentStreaming\}/);
     assert.match(sceneTurnBlock, /trpgSceneBeatSpacingClass/);
   });
 

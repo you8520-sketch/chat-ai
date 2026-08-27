@@ -400,9 +400,7 @@ export function loadTrpgSnapshot(
       return prevId ? loadResolutionOrder(db, prevId.id) : [];
     })(),
     currentNarration,
-    gmNarrationDraft: gmNarrationDraft
-      ? { text: gmNarrationDraft.text, generationId: gmNarrationDraft.generationId }
-      : null,
+    gmNarrationDraft: gmNarrationDraft ? { text: gmNarrationDraft.text } : null,
     log,
     workType: work.type,
     shouldKickAdvance: shouldKickTrpgAdvance({

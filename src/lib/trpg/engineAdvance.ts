@@ -162,9 +162,9 @@ import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_M
 import { isTrpgRoundPhase } from "./types";
 import {
   clearGmNarrationDraft,
-  saveGmNarrationDraftForGeneration,
   type GmProviderTimings,
 } from "./gmNarrationDraft";
+import { GmNarrationDraftCoalescer } from "./gmNarrationDraftCoalescer";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
 export type TrpgEngineDeps = {
@@ -1331,25 +1331,25 @@ async function runGmForRound(
   let stage: TrpgFailureStage = "provider_call";
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   let providerTimings: GmProviderTimings | undefined;
+  let draftCoalescer: GmNarrationDraftCoalescer | undefined;
   const streamCallbacks: TrpgGmStreamCallbacks | undefined = opts.requestId
     ? {
         onProviderTimings: (timings) => {
           providerTimings = timings;
         },
         onNarrationChunk: (narrationText) => {
-          if (
-            !saveGmNarrationDraftForGeneration(db, opts.roundId, opts.requestId!, {
-              text: narrationText,
-              updatedAtMs: Date.now(),
-              providerTimings,
-            })
-          ) {
-            logStaleOwnerDiscard(opts.roundId, opts.requestId!, "draft");
-          }
+          draftCoalescer?.noteNarration(narrationText);
         },
       }
     : undefined;
   if (opts.requestId) {
+    draftCoalescer = new GmNarrationDraftCoalescer({
+      db,
+      roundId: opts.roundId,
+      generationId: opts.requestId,
+      providerTimings: () => providerTimings,
+      onStaleDiscard: () => logStaleOwnerDiscard(opts.roundId, opts.requestId!, "draft"),
+    });
     heartbeatTimer = setInterval(() => {
       if (!refreshGmGenerationHeartbeat(db, opts.roundId, opts.requestId!)) {
         logStaleOwnerDiscard(opts.roundId, opts.requestId!, "heartbeat");
@@ -1358,6 +1358,7 @@ async function runGmForRound(
   }
   try {
     const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user, stream: streamCallbacks });
+    draftCoalescer?.flush();
     if (opts.requestId) {
       if (
         !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {

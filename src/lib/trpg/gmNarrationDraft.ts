@@ -34,9 +34,10 @@ export function loadGmNarrationDraft(db: Database.Database, roundId: number): Gm
     .prepare(`SELECT gm_narration_draft_json, gm_generation_id FROM trpg_rounds WHERE id=?`)
     .get(roundId) as { gm_narration_draft_json: string | null; gm_generation_id: string | null } | undefined;
   if (!row?.gm_narration_draft_json) return null;
+  if (!row.gm_generation_id) return null;
   const draft = parseDraft(row.gm_narration_draft_json);
   if (!draft) return null;
-  if (row.gm_generation_id && draft.generationId !== row.gm_generation_id) return null;
+  if (draft.generationId !== row.gm_generation_id) return null;
   return draft;
 }
 

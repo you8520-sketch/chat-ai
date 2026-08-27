@@ -66,6 +66,27 @@ describe("gmNarrationDraft", () => {
     db.close();
   });
 
+  it("returns null when gm_generation_id is absent", () => {
+    const db = memoryDb();
+    const roundId = Number(
+      db
+        .prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (1,1,'GENERATING_NARRATION')`)
+        .run().lastInsertRowid
+    );
+    db.prepare(
+      `UPDATE trpg_rounds SET gm_narration_draft_json=? WHERE id=?`
+    ).run(
+      JSON.stringify({
+        generationId: "token-a",
+        text: "orphan",
+        updatedAtMs: Date.now(),
+      }),
+      roundId
+    );
+    assert.equal(loadGmNarrationDraft(db, roundId), null);
+    db.close();
+  });
+
   it("clears draft on commit path helper", () => {
     const db = memoryDb();
     ensureTrpgTables(db);

@@ -130,7 +130,7 @@ export type TrpgCampaignSnapshot = {
   resolutionOrder?: TrpgResolutionOrderEntry[];
   currentNarration: string | null;
   /** Live provider-stream narration draft during GENERATING_NARRATION. */
-  gmNarrationDraft: { text: string; generationId: string } | null;
+  gmNarrationDraft: { text: string } | null;
   log: TrpgPublicLog[];
   workType: string;
   shouldKickAdvance: boolean;

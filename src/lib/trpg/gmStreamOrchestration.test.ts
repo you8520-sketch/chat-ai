@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { TextDecoder, TextEncoder } from "node:util";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
 import {
   advanceTrpgCampaign,
@@ -54,41 +55,56 @@ async function setupTwoBots(db: Database.Database, deps: TrpgEngineDeps) {
 }
 
 describe("TRPG GM stream orchestration", () => {
-  it("starts GM provider immediately after final bot persist without presentation wait", async () => {
+  it("FINAL_BOT_PERSISTED_BEFORE_GM_CALL without presentation wait", async () => {
     const db = memoryDb();
-    let botPersistCount = 0;
-    let bot2PersistAt: number | null = null;
-    let gmProviderStartAt: number | null = null;
+    let botCalls = 0;
     let gmCalls = 0;
+    let campaignId = 0;
+    const finalBotBody = "민수.\n\n<<<INTENT>>>\n조용히 전진한다.";
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 14,
       botCall: async () => {
-        botPersistCount += 1;
-        if (botPersistCount === 2) bot2PersistAt = Date.now();
-        return { text: `봇${botPersistCount}.\n\n<<<INTENT>>>\n행동.` };
+        botCalls += 1;
+        return {
+          text:
+            botCalls === 1
+              ? "유나.\n\n<<<INTENT>>>\n창틀을 본다."
+              : finalBotBody,
+        };
       },
       gmCall: async () => {
         gmCalls += 1;
         if (gmCalls === 1) return { text: gmText("오프닝") };
-        gmProviderStartAt = Date.now();
+        const round = loadLatestRound(db, campaignId)!;
+        const botSubs = db
+          .prepare(
+            `SELECT s.body, s.locked, p.display_name
+             FROM trpg_action_submissions s
+             JOIN trpg_participants p ON p.id = s.participant_id
+             WHERE s.round_id=? AND p.kind='ai_character'
+             ORDER BY s.id ASC`
+          )
+          .all(round.id) as Array<{ body: string; locked: number; display_name: string }>;
+        assert.equal(botSubs.length, 2, "FINAL_BOT_PERSISTED_BEFORE_GM_CALL=true");
+        assert.equal(botSubs[0]?.locked, 1);
+        assert.equal(botSubs[1]?.locked, 1);
+        assert.match(botSubs[1]?.body ?? "", /조용히 전진/);
         return { text: gmText("해결") };
       },
     };
-    const campaignId = await setupTwoBots(db, deps);
+    campaignId = await setupTwoBots(db, deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.ok(bot2PersistAt, "BOT2_PERSIST_RECORDED");
-    assert.ok(gmProviderStartAt, "GM_PROVIDER_START_RECORDED");
-    const deltaMs = gmProviderStartAt! - bot2PersistAt!;
-    assert.ok(deltaMs >= 0 && deltaMs < 500, `GM_PROVIDER_START_AFTER_BOT2_PERSIST_MS=${deltaMs}`);
-    assert.equal(botPersistCount, 2);
+    assert.equal(botCalls, 2);
+    assert.equal(gmCalls, 2);
     db.close();
   });
 
-  it("persists narration draft chunks during streamed GM generation", async () => {
+  it("coalesces draft DB writes during many stream chunks", async () => {
     const db = memoryDb();
     let gmCalls = 0;
+    let draftWriteCount = 0;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 14,
@@ -96,25 +112,39 @@ describe("TRPG GM stream orchestration", () => {
       gmCall: async (opts) => {
         gmCalls += 1;
         if (gmCalls === 1) return { text: gmText("오프닝") };
-        opts.stream?.onNarrationChunk?.("부분1", "부분1");
-        opts.stream?.onNarrationChunk?.("부분1 텍스트", " 텍스트");
-        return { text: gmText("부분1 텍스트") };
+        const round = loadLatestRound(db, campaignId)!;
+        let lastDraftJson: string | null = null;
+        for (let i = 1; i <= 80; i += 1) {
+          opts.stream?.onNarrationChunk?.("x".repeat(i), "x");
+          const row = db
+            .prepare(`SELECT gm_narration_draft_json FROM trpg_rounds WHERE id=?`)
+            .get(round.id) as { gm_narration_draft_json: string | null } | undefined;
+          if (row?.gm_narration_draft_json && row.gm_narration_draft_json !== lastDraftJson) {
+            draftWriteCount += 1;
+            lastDraftJson = row.gm_narration_draft_json;
+          }
+        }
+        return { text: gmText("x".repeat(80)) };
       },
     };
-    const campaignId = await setupTwoBots(db, deps);
+    let campaignId = 0;
+    campaignId = await setupTwoBots(db, deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const round = loadLatestRound(db, campaignId)!;
     assert.equal(loadGmNarrationDraft(db, round.id), null, "draft cleared after commit");
+    assert.ok(draftWriteCount < 80, `PROVIDER_CHUNK_DB_WRITE=false writes=${draftWriteCount}`);
+    assert.ok(draftWriteCount <= 3, `GM_DRAFT_WRITE_COALESCED=true writes=${draftWriteCount}`);
     const snap = loadTrpgSnapshot(db, campaignId, 1)!;
-    assert.match(snap.currentNarration ?? snap.log.at(-1)?.narration ?? "", /부분1 텍스트/);
+    const gmRound = snap.log.find((entry) => entry.roundNumber === 1);
+    assert.match(gmRound?.narration ?? "", /x{10,}/);
     db.close();
   });
 
-  it("persists draft via stream callback and exposes it on snapshot", async () => {
+  it("persists draft via stream callback and exposes public snapshot without lease token", async () => {
     const db = memoryDb();
-    let draftDuringGm: string | null = null;
     let gmCalls = 0;
+    let campaignId = 0;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 14,
@@ -122,18 +152,16 @@ describe("TRPG GM stream orchestration", () => {
       gmCall: async (opts) => {
         gmCalls += 1;
         if (gmCalls === 1) return { text: gmText("오프닝") };
-        opts.stream?.onNarrationChunk?.("스트리밍 중", "스트리밍 중");
-        const round = loadLatestRound(db, 1)!;
-        draftDuringGm = loadGmNarrationDraft(db, round.id)?.text ?? null;
-        const snap = loadTrpgSnapshot(db, 1, 1)!;
-        assert.equal(snap.gmNarrationDraft?.text, "스트리밍 중");
+        opts.stream?.onNarrationChunk?.("a".repeat(65), "a".repeat(65));
+        const snap = loadTrpgSnapshot(db, campaignId, 1)!;
+        assert.equal(snap.gmNarrationDraft?.text, "a".repeat(65));
+        assert.equal("generationId" in (snap.gmNarrationDraft ?? {}), false, "PUBLIC_GM_LEASE_TOKEN=false");
         return { text: gmText("완료") };
       },
     };
-    const campaignId = await setupTwoBots(db, deps);
+    campaignId = await setupTwoBots(db, deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(draftDuringGm, "스트리밍 중");
     const after = loadTrpgSnapshot(db, campaignId, 1)!;
     assert.equal(after.gmNarrationDraft, null);
     db.close();
@@ -144,6 +172,19 @@ describe("TRPG GM provider SSE stream transport", () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
   const previousMock = process.env.MOCK_MODE;
+
+  function installStreamResponse(chunks: string[]): void {
+    globalThis.fetch = (async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } }
+      )) as typeof fetch;
+  }
 
   it("uses stream=true and records first-chunk timing", async () => {
     delete process.env.MOCK_MODE;
@@ -175,6 +216,36 @@ describe("TRPG GM provider SSE stream transport", () => {
       assert.equal(sawStreamTrue, true, "GM_PROVIDER_STREAM=true");
       assert.match(result.text, /<<<NARRATION>>>/);
       assert.ok(firstChunkMs != null && firstChunkMs >= 0, "GM_FIRST_CHUNK_MEASURABLE=true");
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousMock === undefined) delete process.env.MOCK_MODE;
+      else process.env.MOCK_MODE = previousMock;
+    }
+  });
+
+  it("SSE_NETWORK_SPLIT_PASS + UTF8 + CRLF + EOF tail + final usage", async () => {
+    delete process.env.MOCK_MODE;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    const narration = "<<<NARRATION>>>\n한글 장면\n<<<DELTA>>>\n{}";
+    const payload = JSON.stringify({ choices: [{ delta: { content: narration } }] });
+    const crlfLine = `data: ${payload}\r\n\r\n`;
+    const usageLine = `data: ${JSON.stringify({
+      choices: [{ delta: {}, finish_reason: "stop" }],
+      usage: { prompt_tokens: 4, completion_tokens: 6 },
+    })}\n\n`;
+    const bytes = new TextEncoder().encode(`${crlfLine}${usageLine}data: [DONE]\n\n`);
+    const split = 7;
+    installStreamResponse([
+      new TextDecoder().decode(bytes.slice(0, split)),
+      new TextDecoder().decode(bytes.slice(split)),
+    ]);
+    try {
+      const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
+      assert.match(result.text, /한글 장면/);
+      assert.equal(result.usage?.inputTokens, 4);
+      assert.equal(result.usage?.outputTokens, 6);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
