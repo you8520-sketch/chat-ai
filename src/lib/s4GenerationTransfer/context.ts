@@ -1,5 +1,5 @@
 /**
- * Request-local S4 generation context — facts from sender knowledge rows only.
+ * Request-local S4 generation context — uses exact projected prompt facts only.
  */
 
 import { randomBytes } from "node:crypto";
@@ -9,11 +9,10 @@ import { getActiveChatScene } from "@/lib/chatScenes";
 import { getChatObserver } from "@/lib/observerIdentity";
 import type { PersonaKnowledgePromptDecision } from "@/lib/personaKnowledgePromptPolicy";
 import {
+  buildKnownPersonaFactsProjectionForObserver,
   buildPersonaKnowledgePromptBlock,
-  listKnownObserverSecretKnowledge,
   type PersonaKnowledgePromptAuthority,
 } from "@/lib/personaSecretKnowledge";
-import { sanitizeRevealedFactForPrompt } from "@/lib/personaSecretReveal";
 import {
   canObserveAuditorily,
   listScenePresence,
@@ -30,7 +29,7 @@ import type {
 
 export type { S4GenerationTransferContext } from "./types";
 
-const MAX_S4_FACTS = 8;
+const MAX_S4_RECEIVERS = 8;
 
 function opaqueNonce(): string {
   return randomBytes(8).toString("base64url");
@@ -44,57 +43,32 @@ function nextReceiverRef(index: number): S4ReceiverRef {
   return `R${index + 1}` as S4ReceiverRef;
 }
 
-export function buildS4GenerationTransferContext(opts: {
-  decision: PersonaKnowledgePromptDecision;
+export function isS4LiveProducerTurnAllowed(opts: {
+  oocHtmlMode?: boolean;
+  oocSceneRenderTurn?: boolean;
+  htmlFlashOnlyTurn?: boolean;
+}): boolean {
+  if (opts.oocHtmlMode) return false;
+  if (opts.oocSceneRenderTurn) return false;
+  if (opts.htmlFlashOnlyTurn) return false;
+  return true;
+}
+
+function listEligibleReceivers(opts: {
   chatId: number;
-  personaId: number;
-  db?: Database.Database;
-}): S4GenerationTransferContext | null {
-  if (opts.decision.mode !== "OBSERVER_SPECIFIC") return null;
-  if (!opts.decision.observerType || !opts.decision.observerId) return null;
-
-  const db = opts.db ?? getDb();
-  const sender = {
-    observerType: opts.decision.observerType,
-    observerId: opts.decision.observerId,
-  };
-
-  const knowledge = listKnownObserverSecretKnowledge({
-    chatId: opts.chatId,
-    personaId: opts.personaId,
-    observerType: sender.observerType,
-    observerId: sender.observerId,
-    db,
-  }).filter((row) => row.knowledge_state === "CONFIRMED" || row.knowledge_state === "SUSPECTED");
-
-  const facts = new Map<S4FactRef, S4GenerationFactEntry>();
-  const seenFacts = new Set<string>();
-  let factIndex = 0;
-  for (const row of knowledge) {
-    if (factIndex >= MAX_S4_FACTS) break;
-    const factSnapshot = sanitizeRevealedFactForPrompt(row.fact_snapshot);
-    if (!factSnapshot || seenFacts.has(factSnapshot)) continue;
-    seenFacts.add(factSnapshot);
-    const ref = nextFactRef(factIndex++);
-    facts.set(ref, {
-      factRef: ref,
-      secretId: row.secret_id,
-      senderKnowledgeState: row.knowledge_state,
-      factSnapshot,
-    });
-  }
-  if (facts.size === 0) return null;
-
-  const scene = getActiveChatScene(opts.chatId, db);
-  if (!scene) return null;
+  sender: { observerType: S4GenerationTransferContext["sender"]["observerType"]; observerId: string };
+  db: Database.Database;
+}): Map<S4ReceiverRef, S4GenerationReceiverEntry> {
+  const scene = getActiveChatScene(opts.chatId, opts.db);
+  if (!scene) return new Map();
 
   const receivers = new Map<S4ReceiverRef, S4GenerationReceiverEntry>();
   let receiverIndex = 0;
-  for (const presence of listScenePresence(scene.id, db)) {
-    if (receiverIndex >= MAX_S4_FACTS) break;
+  for (const presence of listScenePresence(scene.id, opts.db)) {
+    if (receiverIndex >= MAX_S4_RECEIVERS) break;
     if (
-      presence.observer_type === sender.observerType &&
-      presence.observer_id === sender.observerId
+      presence.observer_type === opts.sender.observerType &&
+      presence.observer_id === opts.sender.observerId
     ) {
       continue;
     }
@@ -110,7 +84,7 @@ export function buildS4GenerationTransferContext(opts: {
         chatId: opts.chatId,
         observerType: presence.observer_type,
         observerId: presence.observer_id,
-        db,
+        db: opts.db,
       })
     ) {
       continue;
@@ -119,7 +93,7 @@ export function buildS4GenerationTransferContext(opts: {
       chatId: opts.chatId,
       observerType: presence.observer_type,
       observerId: presence.observer_id,
-      db,
+      db: opts.db,
     });
     const ref = nextReceiverRef(receiverIndex++);
     receivers.set(ref, {
@@ -129,7 +103,52 @@ export function buildS4GenerationTransferContext(opts: {
       displayName: obs?.display_name?.trim() || presence.observer_id,
     });
   }
+  return receivers;
+}
+
+export function buildS4GenerationTransferContext(opts: {
+  decision: PersonaKnowledgePromptDecision;
+  chatId: number;
+  personaId: number;
+  legacySecretDescription?: string;
+  authority?: PersonaKnowledgePromptAuthority;
+  db?: Database.Database;
+}): S4GenerationTransferContext | null {
+  if (opts.decision.mode !== "OBSERVER_SPECIFIC") return null;
+  if (!opts.decision.observerType || !opts.decision.observerId) return null;
+
+  const db = opts.db ?? getDb();
+  const sender = {
+    observerType: opts.decision.observerType,
+    observerId: opts.decision.observerId,
+  };
+
+  const projection = buildKnownPersonaFactsProjectionForObserver({
+    chatId: opts.chatId,
+    personaId: opts.personaId,
+    observerType: sender.observerType,
+    observerId: sender.observerId,
+    legacySecretDescription: opts.legacySecretDescription,
+    authority: opts.authority,
+    db,
+  });
+  if (projection.projectedFacts.length === 0) return null;
+
+  const receivers = listEligibleReceivers({ chatId: opts.chatId, sender, db });
   if (receivers.size === 0) return null;
+
+  const factRefBySecretId = new Map<string, S4FactRef>();
+  const facts = new Map<S4FactRef, S4GenerationFactEntry>();
+  projection.projectedFacts.forEach((item, index) => {
+    const ref = nextFactRef(index);
+    factRefBySecretId.set(item.secretId, ref);
+    facts.set(ref, {
+      factRef: ref,
+      secretId: item.secretId,
+      senderKnowledgeState: item.state,
+      factSnapshot: item.fact,
+    });
+  });
 
   const nonce = opaqueNonce();
   const ctx: S4GenerationTransferContext = {
@@ -143,52 +162,72 @@ export function buildS4GenerationTransferContext(opts: {
   return ctx;
 }
 
-/** Map secretId → K ref for inline persona-knowledge line labels. */
-export function s4FactRefBySecretId(ctx: S4GenerationTransferContext): Map<string, S4FactRef> {
-  const out = new Map<string, S4FactRef>();
-  for (const entry of ctx.facts.values()) {
-    out.set(entry.secretId, entry.factRef);
-  }
-  return out;
-}
-
-/**
- * Append S4 contract to persona knowledge block without duplicating fact bodies.
- */
-export function augmentPersonaKnowledgeBlockForS4(
-  baseBlock: string | null,
-  ctx: S4GenerationTransferContext | null
-): string | null {
-  if (!ctx) return baseBlock;
-  if (!baseBlock?.trim()) return null;
-  return `${baseBlock.trimEnd()}\n\n${ctx.promptFragment}`;
-}
-
 export function buildPersonaKnowledgeWithS4ForTurn(opts: {
   decision: PersonaKnowledgePromptDecision;
   chatId: number;
   personaId: number;
   legacySecretDescription?: string;
   authority?: PersonaKnowledgePromptAuthority;
+  allowS4?: boolean;
   db?: Database.Database;
 }): { block: string | null; s4Context: S4GenerationTransferContext | null } {
+  if (opts.allowS4 === false) {
+    return {
+      block: buildPersonaKnowledgePromptBlock({
+        decision: opts.decision,
+        chatId: opts.chatId,
+        personaId: opts.personaId,
+        legacySecretDescription: opts.legacySecretDescription,
+        authority: opts.authority,
+        db: opts.db,
+      }),
+      s4Context: null,
+    };
+  }
+
   const s4Context = buildS4GenerationTransferContext({
-    decision: opts.decision,
-    chatId: opts.chatId,
-    personaId: opts.personaId,
-    db: opts.db,
-  });
-  const block = buildPersonaKnowledgePromptBlock({
     decision: opts.decision,
     chatId: opts.chatId,
     personaId: opts.personaId,
     legacySecretDescription: opts.legacySecretDescription,
     authority: opts.authority,
-    factRefBySecretId: s4Context ? s4FactRefBySecretId(s4Context) : undefined,
     db: opts.db,
   });
+  if (!s4Context) {
+    return {
+      block: buildPersonaKnowledgePromptBlock({
+        decision: opts.decision,
+        chatId: opts.chatId,
+        personaId: opts.personaId,
+        legacySecretDescription: opts.legacySecretDescription,
+        authority: opts.authority,
+        db: opts.db,
+      }),
+      s4Context: null,
+    };
+  }
+
+  const factRefBySecretId = new Map<string, string>();
+  for (const [ref, entry] of s4Context.facts.entries()) {
+    factRefBySecretId.set(entry.secretId, ref);
+  }
+  const block = buildKnownPersonaFactsProjectionForObserver({
+    chatId: opts.chatId,
+    personaId: opts.personaId,
+    observerType: s4Context.sender.observerType,
+    observerId: s4Context.sender.observerId,
+    legacySecretDescription: opts.legacySecretDescription,
+    authority: opts.authority,
+    factRefBySecretId,
+    db: opts.db,
+  }).block;
+
+  if (!block?.trim()) {
+    return { block: null, s4Context: null };
+  }
+
   return {
-    block: augmentPersonaKnowledgeBlockForS4(block, s4Context),
+    block: `${block.trimEnd()}\n\n${s4Context.promptFragment}`,
     s4Context,
   };
 }

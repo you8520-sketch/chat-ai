@@ -17,7 +17,6 @@ import {
 } from "@/lib/personaSecretKnowledge";
 import { createPersonaSecret } from "@/lib/personaSecrets";
 import {
-  canObserveAuditorily,
   upsertScenePresence,
 } from "@/lib/scenePresence";
 import {
@@ -27,14 +26,19 @@ import {
 import {
   buildPersonaKnowledgeWithS4ForTurn,
   buildS4GenerationTransferContext,
+  isS4LiveProducerTurnAllowed,
 } from "@/lib/s4GenerationTransfer/context";
+import {
+  buildKnownPersonaFactsProjectionForObserver,
+  buildPersonaKnowledgePromptBlock,
+} from "@/lib/personaSecretKnowledge";
 import {
   captureS4TransferEnvelopeFromModelText,
   splitProseAndS4TransferEnvelope,
-  stripIncompleteS4TransferTail,
 } from "@/lib/s4GenerationTransfer/controlChannel";
 import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
 import { S4_TRANSFER_BLOCK, S4_TRANSFER_END } from "@/lib/s4GenerationTransfer/types";
+import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import { stripAllStatusWindowOutputArtifacts } from "@/lib/statusMeta/stripArtifacts";
 import { appendMessageVariant } from "@/lib/messageAlternates";
 import {
@@ -255,7 +259,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId,
-      generationSequence: 0,
       db,
     });
     assert.equal(result.applied, 1);
@@ -286,7 +289,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId: 1,
-      generationSequence: 0,
       db,
     });
     const learned = getObserverSecretKnowledge({
@@ -319,7 +321,6 @@ describe("S4 live producer", () => {
         characterId: f.senderId,
         turnNumber: 2,
         assistantMessageId: 1,
-        generationSequence: 0,
         db,
       });
       assert.equal(r.applied, 0);
@@ -344,7 +345,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId: 1,
-      generationSequence: 0,
       db,
     });
     assert.equal(r.applied, 0);
@@ -367,7 +367,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId: 1,
-      generationSequence: 0,
       db,
     });
     assert.equal(r.applied, 0);
@@ -387,7 +386,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId: 1,
-      generationSequence: 0,
       db,
     });
     assert.equal(
@@ -429,25 +427,20 @@ describe("S4 live producer", () => {
     assert.equal(without.block, null);
   });
 
-  it("Y/Z/AA — stream strip: truncated/partial/chunk split leak 0", () => {
+  it("Y/Z/AA — stream strip: raw+=chunk visible=strip leak 0", () => {
     const korean = "한국어 RP 본문입니다.";
-    const partial = `${korean}\n<<<S4_KNOWLEDGE`;
-    assert.equal(stripIncompleteS4TransferTail(partial), korean);
-    assert.equal(stripIncompleteS4TransferTail(`${korean}\n<<<S4_KNOWLEDGE_TRANSFER>>>`), korean);
-
-    const chunks = ["한국", "어 RP\n<<<S4_", "KNOWLEDGE_TRANSFER>>>\n{\"nonce"];
-    let acc = "";
-    for (const c of chunks) {
-      acc += c;
-      acc = stripIncompleteS4TransferTail(acc);
+    let rawBuffer = korean;
+    const chunks = ["\n<<<S4_KNOWLEDGE_TRANS", "FER>>>", "\npartial"];
+    for (const chunk of chunks) {
+      rawBuffer += chunk;
+      const visible = stripS4ServerControlFromText(rawBuffer);
+      assert.ok(!visible.includes("<<<"));
+      assert.ok(!visible.includes(S4_TRANSFER_BLOCK));
     }
-    assert.ok(!acc.includes("<<<S4"));
-    assert.ok(acc.startsWith("한국어"));
+    assert.equal(stripS4ServerControlFromText(rawBuffer), korean);
 
     const full = `${korean}\n${S4_TRANSFER_BLOCK}\n{"nonce":"x"}\n${S4_TRANSFER_END}`;
-    const stripped = stripAllStatusWindowOutputArtifacts(full);
-    assert.equal(stripped, korean);
-    assert.ok(!stripped.includes(S4_TRANSFER_BLOCK));
+    assert.equal(stripAllStatusWindowOutputArtifacts(full), korean);
   });
 
   it("X — malformed metadata preserves visible prose", () => {
@@ -475,7 +468,6 @@ describe("S4 live producer", () => {
       characterId: f.senderId,
       turnNumber: 2,
       assistantMessageId,
-      generationSequence: 0,
       db,
     });
     assert.ok(
@@ -602,6 +594,160 @@ describe("S4 live producer", () => {
     assert.ok(baseOnly.block?.includes("S4 DIRECT STATEMENT"));
     assert.equal(noReceiver.s4Context, null);
     assert.ok(deltaTokens > 0);
+    const contractOnly = (baseOnly.block ?? "").slice((baseOnly.block ?? "").indexOf("[S4 DIRECT STATEMENT]"));
+    assert.ok(contractOnly.length <= 550, `contract chars=${contractOnly.length}`);
+  });
+
+  it("K authority == projected prompt facts (exact set equality)", () => {
+    const f = setupFixture();
+    const db = getDb();
+    for (let i = 0; i < 10; i++) {
+      const s = seedSecret(f.personaId, `bulk_${i}`, `fact-${i}-${"x".repeat(i === 9 ? 400 : 20)}`);
+      upsertObserverSecretKnowledge({
+        chatId: f.chatId,
+        personaId: f.personaId,
+        secretId: s.id,
+        observerType: "CHARACTER",
+        observerId: String(f.senderId),
+        knowledgeState: i % 3 === 0 ? "SUSPECTED" : "CONFIRMED",
+        confidence: 80,
+        factSnapshot: `fact-${i}-${"x".repeat(i === 9 ? 400 : 20)}`,
+        confirmedTurn: 1,
+        firstSuspectedTurn: 1,
+        lastEvidenceEventId: `bulk-${s.id}`,
+        db,
+      });
+    }
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    const built = buildPersonaKnowledgeWithS4ForTurn({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+      db,
+    });
+    assert.ok(built.s4Context);
+    const ctxIds = new Set([...built.s4Context!.facts.values()].map((x) => x.secretId));
+    const projection = buildKnownPersonaFactsProjectionForObserver({
+      chatId: f.chatId,
+      personaId: f.personaId,
+      observerType: "CHARACTER",
+      observerId: String(f.senderId),
+      authority: "discovery",
+      factRefBySecretId: new Map(
+        [...built.s4Context!.facts.values()].map((e) => [e.secretId, e.factRef])
+      ),
+      db,
+    });
+    const projectedIds = new Set(projection.projectedFacts.map((p) => p.secretId));
+    assert.deepEqual(ctxIds, projectedIds);
+    for (const ref of built.s4Context!.facts.keys()) {
+      assert.match(built.block ?? "", new RegExp(`\\[${ref}\\]`));
+    }
+  });
+
+  it("known facts + no eligible receiver → byte-equal prompt block", () => {
+    const f = setupFixture();
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    const scene = getActiveChatScene(f.chatId)!;
+    upsertScenePresence({
+      sceneId: scene.id,
+      chatId: f.chatId,
+      observerType: "CHARACTER",
+      observerId: String(f.receiverId),
+      presenceState: "ABSENT",
+      awarenessState: "AWARE",
+      visualCapability: "NORMAL",
+      auditoryCapability: "NORMAL",
+      joinedTurn: 1,
+      sourceType: "SERVER_SCENE_EVENT",
+    });
+    const plain = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+    });
+    const withAttempt = buildPersonaKnowledgeWithS4ForTurn({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+    });
+    assert.equal(withAttempt.s4Context, null);
+    assert.equal(withAttempt.block, plain);
+  });
+
+  it("OOC turns disable S4 context and commit", () => {
+    assert.equal(isS4LiveProducerTurnAllowed({ oocHtmlMode: true }), false);
+    assert.equal(isS4LiveProducerTurnAllowed({ oocSceneRenderTurn: true }), false);
+    assert.equal(isS4LiveProducerTurnAllowed({ htmlFlashOnlyTurn: true }), false);
+    const f = setupFixture();
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    const gated = buildPersonaKnowledgeWithS4ForTurn({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+      allowS4: false,
+    });
+    assert.equal(gated.s4Context, null);
+    assert.ok(!gated.block?.includes("S4 DIRECT STATEMENT"));
+  });
+
+  it("V1 — missing generationSequence on active variant → write 0", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const asst = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status, alternates, active_variant)
+         VALUES (?,?,?,?,?,?,?)`
+      )
+      .run(f.chatId, "assistant", visible, "test", "completed", "[]", 0);
+    const assistantMessageId = Number(asst.lastInsertRowid);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: `${visible}\n${envelopeJson(ctx, [
+        { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+      ])}`,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 0);
+  });
+
+  it("OOC HTML save path strips S4 markers", () => {
+    const prose = "<div>html</div>";
+    const raw = `${prose}\n${S4_TRANSFER_BLOCK}\n{"nonce":"n"}\n${S4_TRANSFER_END}`;
+    assert.equal(stripS4ServerControlFromText(raw), prose);
   });
 });
 

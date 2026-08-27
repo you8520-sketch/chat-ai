@@ -231,6 +231,205 @@ type RuntimeFact = {
   updatedAt: string;
 };
 
+export type ProjectedPersonaFact = {
+  secretId: string;
+  fact: string;
+  state: "SUSPECTED" | "CONFIRMED";
+};
+
+export type KnownPersonaFactsProjection = {
+  block: string | null;
+  projectedFacts: ProjectedPersonaFact[];
+};
+
+function renderKnownPersonaFactsBlock(
+  rendered: ProjectedPersonaFact[],
+  factRefBySecretId?: Map<string, string>
+): string | null {
+  if (rendered.length === 0) return null;
+
+  const confirmedLines: string[] = [];
+  const suspectedLines: string[] = [];
+  for (const item of rendered) {
+    const ref = factRefBySecretId?.get(item.secretId);
+    const prefix = ref ? `[${ref}] ` : "";
+    const line = `- ${prefix}${item.fact}`;
+    if (item.state === "SUSPECTED") suspectedLines.push(line);
+    else confirmedLines.push(line);
+  }
+
+  const sections: string[] = [
+    "[CHARACTER-KNOWN FACTS ABOUT THE USER]",
+    "아래는 현재 채팅의 현재 캐릭터가 실제로 관찰·확인한 유저 관련 사실이다.",
+    "목록에 없는 비밀은 캐릭터 지식으로 간주하지 않는다.",
+    "반응의 강도와 표현은 캐릭터 성격과 현재 상황에 맞춘다. 이 목록을 중심으로 장면을 강제하지 않는다.",
+  ];
+  if (confirmedLines.length > 0) {
+    sections.push("", "CONFIRMED", ...confirmedLines);
+  }
+  if (suspectedLines.length > 0) {
+    sections.push(
+      "",
+      "SUSPECTED",
+      "다음은 목격·단서로 짐작되는 사실이다. 확정된 원인·명칭·소속·의미로 단정하지 않는다.",
+      ...suspectedLines
+    );
+  }
+  return sections.join("\n");
+}
+
+/**
+ * Single projection owner — selection + render for observer-specific known facts.
+ */
+export function buildKnownPersonaFactsProjectionForObserver(opts: {
+  chatId: number;
+  personaId: number;
+  observerType: PersonaSecretObserverType;
+  observerId: string;
+  legacySecretDescription?: string;
+  authority?: PersonaKnowledgePromptAuthority;
+  factRefBySecretId?: Map<string, string>;
+  db?: Database.Database;
+}): KnownPersonaFactsProjection {
+  assertObserverSpecificKnowledgeQueryAllowed();
+  const db = opts.db ?? getDb();
+  ensurePersonaSecretDiscoverySchema(db);
+  const authority = resolvePromptAuthority(opts.authority);
+
+  const characterIdForLegacy =
+    authority === "legacy" &&
+    opts.observerType === "CHARACTER" &&
+    /^\d+$/.test(opts.observerId)
+      ? Number(opts.observerId)
+      : null;
+
+  const legacyReveals =
+    characterIdForLegacy != null
+      ? listChatPersonaSecretReveals(opts.chatId, opts.personaId, db)
+      : [];
+  const visibleLegacy =
+    characterIdForLegacy != null
+      ? opts.legacySecretDescription
+        ? filterVisiblePersonaSecretReveals(legacyReveals, opts.legacySecretDescription)
+        : legacyReveals
+      : [];
+  if (characterIdForLegacy != null) {
+    for (const reveal of visibleLegacy) {
+      if (String(reveal.source).toLowerCase().includes("assistant")) continue;
+      migrateLegacyRevealIfMatched({
+        chatId: opts.chatId,
+        personaId: opts.personaId,
+        characterId: characterIdForLegacy,
+        reveal,
+        db,
+      });
+    }
+  }
+
+  const knowledge = listKnownObserverSecretKnowledge({
+    chatId: opts.chatId,
+    personaId: opts.personaId,
+    observerType: opts.observerType,
+    observerId: opts.observerId,
+    db,
+  });
+
+  type RuntimeFactWithState = RuntimeFact & { state: "SUSPECTED" | "CONFIRMED" };
+  const facts: RuntimeFactWithState[] = [];
+  const seen = new Set<string>();
+
+  for (const row of knowledge) {
+    const fact = sanitizeRevealedFactForPrompt(row.fact_snapshot);
+    if (!fact || seen.has(fact)) continue;
+    const secret = getPersonaSecretById(row.secret_id, db);
+    const importance = (secret?.importance as PersonaSecretImportance) || "NORMAL";
+    facts.push({
+      secretId: row.secret_id,
+      fact,
+      importance,
+      updatedAt: row.updated_at,
+      state: row.knowledge_state === "SUSPECTED" ? "SUSPECTED" : "CONFIRMED",
+    });
+    seen.add(fact);
+  }
+
+  if (authority !== "legacy") {
+    if (facts.length === 0) return { block: null, projectedFacts: [] };
+  } else for (const reveal of visibleLegacy) {
+    if (String(reveal.source).toLowerCase().includes("assistant")) continue;
+    const fact = sanitizeRevealedFactForPrompt(reveal.revealed_fact_text);
+    if (!fact || seen.has(fact)) continue;
+    const matched = db
+      .prepare(
+        `SELECT id FROM persona_secrets WHERE persona_id=? AND secret_key=? LIMIT 1`
+      )
+      .get(opts.personaId, reveal.secret_key) as { id: string } | undefined;
+    if (matched && knowledge.some((k) => k.secret_id === matched.id)) continue;
+    facts.push({
+      secretId: matched?.id ?? `legacy:${reveal.secret_key}`,
+      fact,
+      importance: "NORMAL",
+      updatedAt: reveal.created_at,
+      state: "CONFIRMED",
+    });
+    seen.add(fact);
+  }
+
+  if (facts.length === 0) return { block: null, projectedFacts: [] };
+
+  facts.sort((a, b) => {
+    if (a.state !== b.state) return a.state === "CONFIRMED" ? -1 : 1;
+    const ia = IMPORTANCE_RANK[a.importance] ?? 2;
+    const ib = IMPORTANCE_RANK[b.importance] ?? 2;
+    if (ia !== ib) return ia - ib;
+    if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
+    return a.secretId.localeCompare(b.secretId);
+  });
+
+  const critical = facts.filter((f) => f.importance === "CRITICAL");
+  const rest = facts.filter((f) => f.importance !== "CRITICAL");
+  const selected = [...critical, ...rest].slice(0, MAX_FACTS);
+
+  const projectedFacts: ProjectedPersonaFact[] = [];
+  let chars = 0;
+  for (const item of selected) {
+    const line = `- ${item.fact}`;
+    if (chars + line.length > MAX_FACT_CHARS && projectedFacts.length > 0) {
+      break;
+    }
+    projectedFacts.push({
+      secretId: item.secretId,
+      fact: item.fact,
+      state: item.state,
+    });
+    chars += line.length + 1;
+  }
+
+  const block = renderKnownPersonaFactsBlock(projectedFacts, opts.factRefBySecretId);
+  return { block, projectedFacts };
+}
+
+/**
+ * Build runtime known-facts block for one authoritative observer.
+ * Never includes canonical_secret_text, titles, or UNKNOWN counts.
+ * Forbidden inside ENSEMBLE_REDACTED assembly scope.
+ */
+export function buildKnownPersonaFactsForObserver(opts: {
+  chatId: number;
+  personaId: number;
+  observerType: PersonaSecretObserverType;
+  observerId: string;
+  /** Optional legacy secret_description for filtering old reveal rows (legacy authority only). */
+  legacySecretDescription?: string;
+  /** discovery = knowledge rows only, no legacy IO. legacy = reveal-table compatibility. */
+  authority?: PersonaKnowledgePromptAuthority;
+  /** S4 opaque fact refs — inline on lines only (secretId → K1). */
+  factRefBySecretId?: Map<string, string>;
+  db?: Database.Database;
+}): string | null {
+  return buildKnownPersonaFactsProjectionForObserver(opts).block;
+}
+
 /**
  * Lazy-migrate a legacy reveal row into S1 knowledge when secret_key matches exactly.
  * Kept local (no disclosure module import) to avoid circular deps.
@@ -316,161 +515,6 @@ export function migrateLegacyRevealIfMatched(opts: {
     db,
   });
   return true;
-}
-
-/**
- * Build runtime known-facts block for one authoritative observer.
- * Never includes canonical_secret_text, titles, or UNKNOWN counts.
- * Forbidden inside ENSEMBLE_REDACTED assembly scope.
- */
-export function buildKnownPersonaFactsForObserver(opts: {
-  chatId: number;
-  personaId: number;
-  observerType: PersonaSecretObserverType;
-  observerId: string;
-  /** Optional legacy secret_description for filtering old reveal rows (legacy authority only). */
-  legacySecretDescription?: string;
-  /** discovery = knowledge rows only, no legacy IO. legacy = reveal-table compatibility. */
-  authority?: PersonaKnowledgePromptAuthority;
-  /** S4 opaque fact refs — inline on lines only (secretId → K1). */
-  factRefBySecretId?: Map<string, string>;
-  db?: Database.Database;
-}): string | null {
-  assertObserverSpecificKnowledgeQueryAllowed();
-  const db = opts.db ?? getDb();
-  ensurePersonaSecretDiscoverySchema(db);
-  const authority = resolvePromptAuthority(opts.authority);
-
-  // Legacy reveal migration only applies to CHARACTER observers with numeric ids.
-  const characterIdForLegacy =
-    authority === "legacy" &&
-    opts.observerType === "CHARACTER" &&
-    /^\d+$/.test(opts.observerId)
-      ? Number(opts.observerId)
-      : null;
-
-  const legacyReveals =
-    characterIdForLegacy != null
-      ? listChatPersonaSecretReveals(opts.chatId, opts.personaId, db)
-      : [];
-  const visibleLegacy =
-    characterIdForLegacy != null
-      ? opts.legacySecretDescription
-        ? filterVisiblePersonaSecretReveals(legacyReveals, opts.legacySecretDescription)
-        : legacyReveals
-      : [];
-  if (characterIdForLegacy != null) {
-    for (const reveal of visibleLegacy) {
-      if (String(reveal.source).toLowerCase().includes("assistant")) continue;
-      migrateLegacyRevealIfMatched({
-        chatId: opts.chatId,
-        personaId: opts.personaId,
-        characterId: characterIdForLegacy,
-        reveal,
-        db,
-      });
-    }
-  }
-
-  const knowledge = listKnownObserverSecretKnowledge({
-    chatId: opts.chatId,
-    personaId: opts.personaId,
-    observerType: opts.observerType,
-    observerId: opts.observerId,
-    db,
-  });
-
-  type RuntimeFactWithState = RuntimeFact & { state: "SUSPECTED" | "CONFIRMED" };
-  const facts: RuntimeFactWithState[] = [];
-  const seen = new Set<string>();
-
-  for (const row of knowledge) {
-    const fact = sanitizeRevealedFactForPrompt(row.fact_snapshot);
-    if (!fact || seen.has(fact)) continue;
-    const secret = getPersonaSecretById(row.secret_id, db);
-    const importance = (secret?.importance as PersonaSecretImportance) || "NORMAL";
-    facts.push({
-      secretId: row.secret_id,
-      fact,
-      importance,
-      updatedAt: row.updated_at,
-      state: row.knowledge_state === "SUSPECTED" ? "SUSPECTED" : "CONFIRMED",
-    });
-    seen.add(fact);
-  }
-
-  // Compatibility: legacy reveals without matching persona_secrets still inject fact snapshots.
-  if (authority !== "legacy") {
-    if (facts.length === 0) return null;
-  } else for (const reveal of visibleLegacy) {
-    if (String(reveal.source).toLowerCase().includes("assistant")) continue;
-    const fact = sanitizeRevealedFactForPrompt(reveal.revealed_fact_text);
-    if (!fact || seen.has(fact)) continue;
-    const matched = db
-      .prepare(
-        `SELECT id FROM persona_secrets WHERE persona_id=? AND secret_key=? LIMIT 1`
-      )
-      .get(opts.personaId, reveal.secret_key) as { id: string } | undefined;
-    if (matched && knowledge.some((k) => k.secret_id === matched.id)) continue;
-    facts.push({
-      secretId: matched?.id ?? `legacy:${reveal.secret_key}`,
-      fact,
-      importance: "NORMAL",
-      updatedAt: reveal.created_at,
-      state: "CONFIRMED",
-    });
-    seen.add(fact);
-  }
-
-  if (facts.length === 0) return null;
-
-  facts.sort((a, b) => {
-    if (a.state !== b.state) return a.state === "CONFIRMED" ? -1 : 1;
-    const ia = IMPORTANCE_RANK[a.importance] ?? 2;
-    const ib = IMPORTANCE_RANK[b.importance] ?? 2;
-    if (ia !== ib) return ia - ib;
-    if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
-    return a.secretId.localeCompare(b.secretId);
-  });
-
-  const critical = facts.filter((f) => f.importance === "CRITICAL");
-  const rest = facts.filter((f) => f.importance !== "CRITICAL");
-  const selected = [...critical, ...rest].slice(0, MAX_FACTS);
-
-  const confirmedLines: string[] = [];
-  const suspectedLines: string[] = [];
-  let chars = 0;
-  for (const item of selected) {
-    const ref = opts.factRefBySecretId?.get(item.secretId);
-    const prefix = ref ? `[${ref}] ` : "";
-    const line = `- ${prefix}${item.fact}`;
-    if (chars + line.length > MAX_FACT_CHARS && confirmedLines.length + suspectedLines.length > 0) {
-      break;
-    }
-    if (item.state === "SUSPECTED") suspectedLines.push(line);
-    else confirmedLines.push(line);
-    chars += line.length + 1;
-  }
-  if (confirmedLines.length + suspectedLines.length === 0) return null;
-
-  const sections: string[] = [
-    "[CHARACTER-KNOWN FACTS ABOUT THE USER]",
-    "아래는 현재 채팅의 현재 캐릭터가 실제로 관찰·확인한 유저 관련 사실이다.",
-    "목록에 없는 비밀은 캐릭터 지식으로 간주하지 않는다.",
-    "반응의 강도와 표현은 캐릭터 성격과 현재 상황에 맞춘다. 이 목록을 중심으로 장면을 강제하지 않는다.",
-  ];
-  if (confirmedLines.length > 0) {
-    sections.push("", "CONFIRMED", ...confirmedLines);
-  }
-  if (suspectedLines.length > 0) {
-    sections.push(
-      "",
-      "SUSPECTED",
-      "다음은 목격·단서로 짐작되는 사실이다. 확정된 원인·명칭·소속·의미로 단정하지 않는다.",
-      ...suspectedLines
-    );
-  }
-  return sections.join("\n");
 }
 
 /**

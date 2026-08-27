@@ -68,27 +68,6 @@ export function applyVariantScopedAuthoritativeKnowledgeTransfer(opts: {
   userMessageId?: number | null;
   db?: Database.Database;
 }): KnowledgeTransferApplyResult {
-  return seedVariantScopedKnowledgeTransfer(opts);
-}
-
-/**
- * @deprecated Prefer applyVariantScopedAuthoritativeKnowledgeTransfer — same behavior.
- * Internal/test seed name retained for existing tests.
- */
-export function seedVariantScopedKnowledgeTransfer(opts: {
-  chatId: number;
-  personaId: number;
-  characterId: number;
-  turnNumber: number;
-  sourceAssistantMessageId: number;
-  sourceGenerationSequence: number;
-  action: Omit<
-    PersonaSecretTransferAction,
-    "sourceAssistantMessageId" | "sourceGenerationSequence" | "actionId"
-  >;
-  userMessageId?: number | null;
-  db?: Database.Database;
-}): KnowledgeTransferApplyResult {
   const action: KnowledgeTransferAuthoritativeAction = {
     ...opts.action,
     sourceAssistantMessageId: opts.sourceAssistantMessageId,
@@ -106,6 +85,26 @@ export function seedVariantScopedKnowledgeTransfer(opts: {
     action,
     db: opts.db,
   });
+}
+
+/**
+ * @deprecated Test compatibility wrapper — delegates to production owner.
+ */
+export function seedVariantScopedKnowledgeTransfer(opts: {
+  chatId: number;
+  personaId: number;
+  characterId: number;
+  turnNumber: number;
+  sourceAssistantMessageId: number;
+  sourceGenerationSequence: number;
+  action: Omit<
+    PersonaSecretTransferAction,
+    "sourceAssistantMessageId" | "sourceGenerationSequence" | "actionId"
+  >;
+  userMessageId?: number | null;
+  db?: Database.Database;
+}): KnowledgeTransferApplyResult {
+  return applyVariantScopedAuthoritativeKnowledgeTransfer(opts);
 }
 
 export function assertS4VariantSwitchAllowed(

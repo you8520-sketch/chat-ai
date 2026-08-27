@@ -290,9 +290,11 @@ import {
 import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
 import {
   buildPersonaKnowledgeWithS4ForTurn,
+  isS4LiveProducerTurnAllowed,
   type S4GenerationTransferContext,
 } from "@/lib/s4GenerationTransfer/context";
 import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
+import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import {
   buildGenerationKnowledgeContext,
   personaKnowledgePromptDecisionMeta,
@@ -2046,6 +2048,7 @@ export async function POST(req: Request) {
         chatId: chat.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
+        allowS4: isS4LiveProducerTurnAllowed({ oocHtmlMode, oocSceneRenderTurn }),
       });
       s4GenerationTransferContext = personaWithS4.s4Context;
       revealedPersonaFactsBlock = personaWithS4.block;
@@ -2744,6 +2747,7 @@ export async function POST(req: Request) {
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
+        allowS4: isS4LiveProducerTurnAllowed({ oocHtmlMode, oocSceneRenderTurn }),
       });
       s4GenerationTransferContext = rebuiltPersonaWithS4.s4Context;
       const updatedKnownFacts = rebuiltPersonaWithS4.block;
@@ -3344,16 +3348,17 @@ export async function POST(req: Request) {
         let relationshipDeltaFromMain: RelationshipMetaDelta | null = null;
 
         if (oocHtmlMode) {
+          const proseWithoutS4 = stripS4ServerControlFromText(fullText);
           statusArtifacts = {
-            prose: fullText,
+            prose: proseWithoutS4,
             capturedTableMarkdown: null,
             capturedHtmlFence: null,
           };
-          afterClampText = fullText;
+          afterClampText = proseWithoutS4;
           savedText = traceStep(
             "stripEmotionTagsForDisplay",
-            fullText,
-            stripEmotionTagsForDisplay(fullText),
+            proseWithoutS4,
+            stripEmotionTagsForDisplay(proseWithoutS4),
             "stripEmotionTagsForDisplay — [태그:…] emotion markers removed for display (oocHtmlMode)"
           );
           savedText = traceStep(
@@ -5387,10 +5392,13 @@ export async function POST(req: Request) {
             s4GenerationTransferContext &&
             resolvedPersonaId &&
             aiMessageId != null &&
-            typeof preStatusPartitionText === "string"
+            typeof preStatusPartitionText === "string" &&
+            isS4LiveProducerTurnAllowed({
+              oocHtmlMode,
+              oocSceneRenderTurn,
+              htmlFlashOnlyTurn,
+            })
           ) {
-            const generationSequence =
-              newVariant.generationSequence ?? snapshotVariantIndex ?? 0;
             try {
               commitAcceptedAssistantS4Transfers({
                 rawModelText: preStatusPartitionText,
@@ -5401,7 +5409,6 @@ export async function POST(req: Request) {
                 characterId: ch.id,
                 turnNumber: playableTurnCount + 1,
                 assistantMessageId: aiMessageId,
-                generationSequence,
                 userMessageId: userMessageId ?? null,
                 db,
               });

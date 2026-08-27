@@ -3,9 +3,11 @@
  */
 
 import type Database from "better-sqlite3";
-import { applyKnowledgeTransferAction } from "@/lib/knowledgeTransferApply";
 import type { KnowledgeTransferApplyResult } from "@/lib/knowledgeTransferTypes";
-import { applyVariantScopedAuthoritativeKnowledgeTransfer } from "@/lib/knowledgeTransferVariant";
+import {
+  applyVariantScopedAuthoritativeKnowledgeTransfer,
+  currentActiveKnowledgeTransferGenerationSequence,
+} from "@/lib/knowledgeTransferVariant";
 import { captureS4TransferEnvelopeFromModelText } from "./controlChannel";
 import {
   S4_MAX_TRANSFER_EVENTS,
@@ -60,6 +62,7 @@ function dedupeEvents(events: S4StructuredTransferEvent[]): S4StructuredTransfer
 /**
  * Parse trusted structured metadata from raw model output, validate against
  * request-local context + final visible prose, delegate to S4 apply owner.
+ * Generation provenance resolved strictly via #684 owner — no caller fallback.
  */
 export function commitAcceptedAssistantS4Transfers(opts: {
   rawModelText: string;
@@ -70,10 +73,18 @@ export function commitAcceptedAssistantS4Transfers(opts: {
   characterId: number;
   turnNumber: number;
   assistantMessageId: number;
-  generationSequence: number;
   userMessageId?: number | null;
   db: Database.Database;
 }): S4LiveCommitResult {
+  const generationSequence = currentActiveKnowledgeTransferGenerationSequence(
+    opts.db,
+    opts.chatId,
+    opts.assistantMessageId
+  );
+  if (generationSequence == null) {
+    return { attempted: 0, applied: 0, results: [] };
+  }
+
   const envelope = captureS4TransferEnvelopeFromModelText(opts.rawModelText);
   if (!envelope) {
     return { attempted: 0, applied: 0, results: [] };
@@ -103,7 +114,7 @@ export function commitAcceptedAssistantS4Transfers(opts: {
       characterId: opts.characterId,
       turnNumber: opts.turnNumber,
       sourceAssistantMessageId: opts.assistantMessageId,
-      sourceGenerationSequence: opts.generationSequence,
+      sourceGenerationSequence: generationSequence,
       userMessageId: opts.userMessageId ?? null,
       action: {
         secretId: fact.secretId,
@@ -122,6 +133,3 @@ export function commitAcceptedAssistantS4Transfers(opts: {
 
   return { attempted: candidates.length, applied, results };
 }
-
-/** Exported for tests — ensures apply owner is reachable (no direct SQL in live path). */
-export { applyKnowledgeTransferAction };

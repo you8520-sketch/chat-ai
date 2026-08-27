@@ -7,7 +7,8 @@ import {
   stripIncompleteStatusWidgetTail,
 } from "@/lib/statusWidget/parseValues";
 import { stripRelationshipMemoryTailForStream } from "@/lib/relationshipMemoryTailParse";
-import { stripIncompleteS4TransferTail, splitProseAndS4TransferEnvelope } from "@/lib/s4GenerationTransfer/controlChannel";
+import { stripIncompleteServerControlTails } from "@/lib/controlChannel/serverControlStrip";
+import { splitProseAndS4TransferEnvelope } from "@/lib/s4GenerationTransfer/controlChannel";
 import type { S4ParsedTransferEnvelope } from "@/lib/s4GenerationTransfer/types";
 import { stripEmojisAndDecorators } from "@/lib/htmlVisualCardPolicy";
 import type { StatusWindowPlacement } from "@/lib/statusWindowPlacement";
@@ -680,6 +681,6 @@ export function stripAllStatusWindowOutputArtifacts(
   if (opts?.stripRelationshipMemoryTail) {
     work = stripRelationshipMemoryTailForStream(work);
   }
-  work = stripIncompleteS4TransferTail(stripIncompleteStatusWidgetTail(work));
+  work = stripIncompleteServerControlTails(work);
   return partitionModelStatusArtifacts(work, opts).prose;
 }

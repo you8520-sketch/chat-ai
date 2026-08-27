@@ -4,15 +4,15 @@
  */
 
 import {
+  projectStreamVisibleWithoutIncompleteControlMarkers,
+} from "@/lib/controlChannel/incompleteMarkerSuffix";
+import {
   S4_TRANSFER_BLOCK,
   S4_TRANSFER_END,
   S4_MAX_TRANSFER_EVENTS,
   type S4ParsedTransferEnvelope,
   type S4StructuredTransferEvent,
 } from "./types";
-
-const S4_PARTIAL_MARKER_RE =
-  /\n?<<<\s*(?:S4(?:_KNOWLEDGE(?:_TRANSFER)?)?(?:\s*>>>?)?)?\s*$/i;
 
 function parseTransferEnvelopeJson(raw: string): S4ParsedTransferEnvelope | null {
   const trimmed = raw.trim();
@@ -58,31 +58,10 @@ function extractBlock(text: string, start: string, end: string): { before: strin
 
 /** Streaming/finalize — strip incomplete S4 tail (partial markers, unclosed block). */
 export function stripIncompleteS4TransferTail(text: string): string {
-  let work = text.trimEnd();
-
-  const idx = work.indexOf(S4_TRANSFER_BLOCK);
-  if (idx >= 0) {
-    const tail = work.slice(idx);
-    if (!tail.includes(S4_TRANSFER_END)) {
-      work = work.slice(0, idx).trimEnd();
-    }
-  }
-
-  const looseMatch = work.match(/<<<S4_KNOWLEDGE_TRANSFER>>>/i);
-  if (looseMatch?.index != null) {
-    const tail = work.slice(looseMatch.index);
-    if (!tail.includes(S4_TRANSFER_END)) {
-      work = work.slice(0, looseMatch.index).trimEnd();
-    }
-  }
-
-  const partial = work.match(S4_PARTIAL_MARKER_RE);
-  if (partial?.index != null) {
-    work = work.slice(0, partial.index).trimEnd();
-  }
-  work = work.replace(/<<<\s*$/, "").trimEnd();
-
-  return work;
+  return projectStreamVisibleWithoutIncompleteControlMarkers(text, {
+    startMarkers: [S4_TRANSFER_BLOCK],
+    blocks: [{ start: S4_TRANSFER_BLOCK, end: S4_TRANSFER_END }],
+  });
 }
 
 function stripTrailingS4Markers(text: string): string {
