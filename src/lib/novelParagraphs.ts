@@ -17,7 +17,7 @@ const DIALOGUE_PAIR_RE = new RegExp(
 const HAS_DIALOGUE_QUOTE_RE = /(?:"|\u201C|\u201D)/;
 /** 닫는 따옴표 직후 — 인용·서술 속 인용(실제 대사 블록 아님) */
 const INLINE_NARRATED_QUOTE_AFTER_RE =
-  /^(?:이)?(?:라고(?:요|만|서|도)?|라며|라는|라던|하고|하며|고\s+말|고\s+(?:외치|속삭|중얼|답|대답|응|설명|묻|되물)|란|처럼|같은|라서|이라서|라니|이라니|라자|이라자)/;
+  /^(?:이)?(?:라고(?:요|만|서|도)?|라며|라는|라던|하고|하며|고\s+말|고\s+(?:외치|속삭|중얼|답|대답|응|설명|묻|되물)|란|처럼|같은|라서|이라서|라니|이라니|라자|이라자|는\s+말)/;
 const QUOTED_ONLY_LINE_RE = /^(?:"([^"\n]+)"|\u201C([^\u201D\n]+)\u201D)$/;
 const PURE_DIALOGUE_LINE_RE = new RegExp(
   `^(?:"${QUOTED_DIALOGUE_BODY}"|\u201C${QUOTED_DIALOGUE_BODY}\u201D)$`

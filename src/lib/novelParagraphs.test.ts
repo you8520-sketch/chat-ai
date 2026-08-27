@@ -341,6 +341,21 @@ describe("groupNovelParagraphs", () => {
     assert.equal(classifyNovelParagraph(input), "narration");
   });
 
+  it("keeps remembered-quote narration as one paragraph", () => {
+    const input = '그는 예전의 "다시 오겠다"는 말을 떠올렸다.';
+    assert.deepEqual(groupNovelParagraphs(input), [input]);
+    assert.equal(classifyNovelParagraph(input), "narration");
+  });
+
+  it("still splits actual inline dialogue after narrated-quote fix", () => {
+    const input = '그는 멈췄다. "가자." 그는 돌아섰다.';
+    assert.deepEqual(groupNovelParagraphs(input), [
+      "그는 멈췄다.",
+      '"가자."',
+      "그는 돌아섰다.",
+    ]);
+  });
+
   it("merges multiline indirect speech quotes into one narration sentence", () => {
     const input = `백하율은 렌의 눈동자에 비친 자신의 모습을 가만히 들여다보았다. 렌이
 
