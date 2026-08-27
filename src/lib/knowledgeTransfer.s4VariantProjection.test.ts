@@ -70,9 +70,10 @@ type Fixture = {
 };
 
 function seedSecret(personaId: number, key: string, fact: string) {
+  const uniqueKey = `${key}_${randomUUID().slice(0, 8)}`;
   const created = createPersonaSecret({
     personaId,
-    secretKey: key,
+    secretKey: uniqueKey,
     canonicalSecretText: `HIDDEN ${key}`,
     confirmedFactText: fact,
     suspectedFactText: fact,
@@ -154,7 +155,15 @@ function setupFixture(): Fixture {
       "test-model",
       "completed",
       userMessageId,
-      "[]",
+      JSON.stringify([
+        {
+          content: "variant 0 prose",
+          model: "test-model",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+      ]),
       0
     );
   const assistantMessageId = Number(asstMsg.lastInsertRowid);
@@ -268,6 +277,74 @@ function countEvidenceRows(chatId: number): number {
     .prepare(`SELECT COUNT(*) AS c FROM persona_secret_evidence_events WHERE chat_id=?`)
     .get(chatId) as { c: number };
   return row.c;
+}
+
+type S4TableCounts = {
+  transferEvents: number;
+  evidenceEvents: number;
+  activations: number;
+  knowledgeRows: number;
+};
+
+function countS4Tables(chatId: number, personaId: number, secretId: string): S4TableCounts {
+  const db = getDb();
+  const transferEvents = (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM knowledge_transfer_events WHERE chat_id=?`)
+      .get(chatId) as { c: number }
+  ).c;
+  const evidenceEvents = (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM persona_secret_evidence_events WHERE chat_id=?`)
+      .get(chatId) as { c: number }
+  ).c;
+  const activations = (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM persona_secret_evidence_activation WHERE chat_id=?`)
+      .get(chatId) as { c: number }
+  ).c;
+  const knowledgeRows = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM chat_character_secret_knowledge
+         WHERE chat_id=? AND persona_id=? AND secret_id=?`
+      )
+      .get(chatId, personaId, secretId) as { c: number }
+  ).c;
+  return { transferEvents, evidenceEvents, activations, knowledgeRows };
+}
+
+function applyTransferWithProvenance(
+  f: Fixture,
+  provenance: {
+    sourceAssistantMessageId?: number | null;
+    sourceGenerationSequence?: number | null;
+    sourceMessageId?: number;
+  }
+) {
+  return applyKnowledgeTransferAction({
+    chatId: f.chatId,
+    personaId: f.personaId,
+    characterId: f.locoId,
+    turnNumber: 2,
+    sourceType: "SERVER_STRUCTURED_TRANSFER",
+    action: {
+      ...transferAction(f),
+      actionId: "test-provenance",
+      ...provenance,
+    },
+  });
+}
+
+function assertZeroS4Delta(
+  before: S4TableCounts,
+  after: S4TableCounts,
+  label: string
+): void {
+  assert.equal(after.transferEvents, before.transferEvents, `${label}: transfer events`);
+  assert.equal(after.evidenceEvents, before.evidenceEvents, `${label}: evidence events`);
+  assert.equal(after.activations, before.activations, `${label}: activations`);
+  assert.equal(after.knowledgeRows, before.knowledgeRows, `${label}: knowledge rows`);
 }
 
 describe("S4 variant projection foundation", () => {
@@ -467,7 +544,6 @@ describe("S4 variant projection foundation", () => {
     });
     assert.equal(receiverKnowledge(f), null);
 
-    seedVariantTransfer(f, 2);
     setAssistantVariants(
       f,
       [
@@ -495,6 +571,7 @@ describe("S4 variant projection foundation", () => {
       ],
       2
     );
+    seedVariantTransfer(f, 2);
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
@@ -531,6 +608,26 @@ describe("S4 variant projection foundation", () => {
 
   it("I: same message different generationSequence → NOT duplicate", () => {
     const f = setupFixture();
+    setAssistantVariants(
+      f,
+      [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ],
+      0
+    );
     const g0 = seedVariantTransfer(f, 0);
     const g1 = seedVariantTransfer(f, 1);
     assert.equal(g0.ok, true);
@@ -772,6 +869,26 @@ describe("S4 variant projection foundation", () => {
   it("activation overlay toggles with generationSequence", () => {
     const f = setupFixture();
     seedVariantTransfer(f, 0);
+    setAssistantVariants(
+      f,
+      [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ],
+      0
+    );
     seedVariantTransfer(f, 1);
     const db = getDb();
     const rows = db
@@ -841,5 +958,180 @@ describe("S4 variant projection foundation", () => {
     assert.equal(evidenceRows.length, 1);
     assert.equal(getEvidenceActivation(evidenceRows[0]!.id), null);
     assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+  });
+
+  describe("variant provenance fail-closed P1–P10", () => {
+    it("P1: assistantMessageId only → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceAssistantMessageId: f.assistantMessageId,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.reason, "INVALID_VARIANT_PROVENANCE");
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P1");
+    });
+
+    it("P2: generation only → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceGenerationSequence: 0,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.reason, "INVALID_VARIANT_PROVENANCE");
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P2");
+    });
+
+    it("P3: nonexistent assistant message → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceAssistantMessageId: 999_999_999,
+        sourceGenerationSequence: 0,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.equal(result.reason, "VARIANT_PROVENANCE_MESSAGE_NOT_FOUND");
+      }
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P3");
+    });
+
+    it("P4: assistant from another chat → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const other = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceAssistantMessageId: other.assistantMessageId,
+        sourceGenerationSequence: 0,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.reason, "VARIANT_PROVENANCE_WRONG_CHAT");
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P4");
+    });
+
+    it("P5: USER-role message id → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceAssistantMessageId: f.userMessageId,
+        sourceGenerationSequence: 0,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.reason, "VARIANT_PROVENANCE_NON_ASSISTANT");
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P5");
+    });
+
+    it("P6: valid assistant + unknown generationSequence → reject, DB delta 0", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const result = applyTransferWithProvenance(f, {
+        sourceAssistantMessageId: f.assistantMessageId,
+        sourceGenerationSequence: 99,
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.equal(result.reason, "VARIANT_PROVENANCE_UNKNOWN_GENERATION");
+      }
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P6");
+    });
+
+    it("P7: valid assistant + generationSequence=0 → PASS", () => {
+      const f = setupFixture();
+      const result = seedVariantTransfer(f, 0);
+      assert.equal(result.ok, true);
+      assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+    });
+
+    it("P8: same assistant + regen generationSequence=1 → PASS, distinct from gen0", () => {
+      const f = setupFixture();
+      setAssistantVariants(
+        f,
+        [
+          {
+            content: "v0",
+            model: "m",
+            usage: null,
+            created_at: "",
+            generationSequence: 0,
+          },
+          {
+            content: "v1",
+            model: "m",
+            usage: null,
+            created_at: "",
+            generationSequence: 1,
+          },
+        ],
+        0
+      );
+      const g0 = seedVariantTransfer(f, 0);
+      const g1 = seedVariantTransfer(f, 1);
+      assert.equal(g0.ok, true);
+      assert.equal(g1.ok, true);
+      if (g0.ok && g1.ok) {
+        assert.notEqual(g0.transferEventId, g1.transferEventId);
+      }
+      const db = getDb();
+      const count = db
+        .prepare(`SELECT COUNT(*) AS c FROM knowledge_transfer_events WHERE chat_id=?`)
+        .get(f.chatId) as { c: number };
+      assert.equal(count.c, 2);
+    });
+
+    it("P9: both provenance fields null → legacy unscoped S4 unchanged", () => {
+      const f = setupFixture();
+      const result = applyKnowledgeTransferAction({
+        chatId: f.chatId,
+        personaId: f.personaId,
+        characterId: f.locoId,
+        turnNumber: 2,
+        sourceType: "USER_EXPLICIT_TRANSFER",
+        action: {
+          ...transferAction(f),
+          sourceMessageId: f.userMessageId,
+        },
+      });
+      assert.equal(result.ok, true);
+      const db = getDb();
+      const row = db
+        .prepare(
+          `SELECT source_assistant_message_id, source_generation_sequence
+           FROM knowledge_transfer_events WHERE chat_id=?`
+        )
+        .get(f.chatId) as {
+        source_assistant_message_id: number | null;
+        source_generation_sequence: number | null;
+      };
+      assert.equal(row.source_assistant_message_id, null);
+      assert.equal(row.source_generation_sequence, null);
+      assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+    });
+
+    it("P10: malformed provenance rejection leaves all S4 tables unchanged", () => {
+      const f = setupFixture();
+      const before = countS4Tables(f.chatId, f.personaId, f.secretId);
+      const cases = [
+        { sourceAssistantMessageId: f.assistantMessageId },
+        { sourceGenerationSequence: 0 },
+        {
+          sourceAssistantMessageId: 999_999_999,
+          sourceGenerationSequence: 0,
+        },
+        {
+          sourceAssistantMessageId: f.userMessageId,
+          sourceGenerationSequence: 0,
+        },
+        {
+          sourceAssistantMessageId: f.assistantMessageId,
+          sourceGenerationSequence: 99,
+        },
+      ] as const;
+      for (const provenance of cases) {
+        const result = applyTransferWithProvenance(f, provenance);
+        assert.equal(result.ok, false);
+      }
+      assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P10");
+    });
   });
 });

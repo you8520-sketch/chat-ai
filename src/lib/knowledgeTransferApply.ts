@@ -18,7 +18,8 @@ import { getChatObserver } from "@/lib/observerIdentity";
 import type { PersonaSecretKnowledgeState } from "@/lib/personaSecretDiscoveryTypes";
 import {
   finalizeVariantScopedTransferActivation,
-  isVariantScopedKnowledgeTransferAction,
+  isVariantScopedProvenance,
+  resolveKnowledgeTransferVariantProvenance,
 } from "@/lib/knowledgeTransferVariant";
 import { insertVariantScopedEvidenceActivation } from "@/lib/personaSecretEvidenceActivation";
 import { reprojectObserverSecretKnowledge } from "@/lib/personaSecretKnowledgeReprojection";
@@ -174,6 +175,17 @@ export function applyKnowledgeTransferAction(opts: {
   }
 
   const { action } = opts;
+
+  const provenanceResult = resolveKnowledgeTransferVariantProvenance({
+    chatId: opts.chatId,
+    sourceAssistantMessageId: action.sourceAssistantMessageId ?? null,
+    sourceGenerationSequence: action.sourceGenerationSequence ?? null,
+    db,
+  });
+  if (!provenanceResult.ok) {
+    return { ok: false, reason: provenanceResult.reason };
+  }
+  const provenance = provenanceResult.provenance;
   // SERVER_DISCLOSURE is reserved for authoritative server/creator paths.
   if (
     action.transferType === "SERVER_DISCLOSURE" &&
@@ -396,18 +408,18 @@ export function applyKnowledgeTransferAction(opts: {
       lastEvidenceEventId = existingEvidence?.id ?? evidenceId;
     }
 
-    if (isVariantScopedKnowledgeTransferAction(action)) {
+    if (isVariantScopedProvenance(provenance)) {
       insertVariantScopedEvidenceActivation({
         evidenceId: lastEvidenceEventId,
         chatId: opts.chatId,
-        assistantMessageId: action.sourceAssistantMessageId!,
-        generationSequence: action.sourceGenerationSequence!,
+        assistantMessageId: provenance.sourceAssistantMessageId,
+        generationSequence: provenance.sourceGenerationSequence,
         isActive: false,
         db,
       });
       finalizeVariantScopedTransferActivation(db, {
         chatId: opts.chatId,
-        assistantMessageId: action.sourceAssistantMessageId!,
+        assistantMessageId: provenance.sourceAssistantMessageId,
         receiver: { observerType: receiverType, observerId: receiverId },
         personaId: opts.personaId,
         secretId: action.secretId,

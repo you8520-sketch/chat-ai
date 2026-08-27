@@ -11,9 +11,9 @@ import type {
   PersonaSecretTransferAction,
 } from "@/lib/knowledgeTransferTypes";
 import {
-  generationSequenceForVariant,
-  normalizeMessageVariants,
-} from "@/lib/messageAlternates";
+  currentActiveKnowledgeTransferGenerationSequence,
+  isVariantScopedProvenance,
+} from "@/lib/knowledgeTransferVariantProvenance";
 import {
   hasVariantScopedS4EvidenceOnAssistant,
   syncVariantScopedS4ActivationsForAssistantMessage,
@@ -31,46 +31,15 @@ export class S4HistoricalVariantReplayUnsupportedError extends Error {
   }
 }
 
-export function isVariantScopedKnowledgeTransferAction(
-  action: Pick<
-    PersonaSecretTransferAction,
-    "sourceAssistantMessageId" | "sourceGenerationSequence"
-  >
-): boolean {
-  return (
-    action.sourceAssistantMessageId != null &&
-    Number.isInteger(action.sourceAssistantMessageId) &&
-    action.sourceGenerationSequence != null &&
-    Number.isInteger(action.sourceGenerationSequence) &&
-    action.sourceGenerationSequence >= 0
-  );
-}
-
-/** Resolve active generation sequence for an assistant message row. */
-export function resolveActiveGenerationSequenceForAssistant(
-  db: Database.Database,
-  chatId: number,
-  assistantMessageId: number
-): number {
-  const row = db
-    .prepare(
-      `SELECT content, model, usage, alternates, active_variant
-       FROM messages WHERE id=? AND chat_id=?`
-    )
-    .get(assistantMessageId, chatId) as
-    | {
-        content: string;
-        model: string;
-        usage: string | null;
-        alternates: string | null;
-        active_variant: number | null;
-      }
-    | undefined;
-  if (!row) return 0;
-  const { variants, activeVariant } = normalizeMessageVariants(row);
-  const active = variants[activeVariant];
-  return generationSequenceForVariant(active, activeVariant);
-}
+export {
+  currentActiveKnowledgeTransferGenerationSequence,
+  isVariantScopedProvenance,
+  resolveKnowledgeTransferVariantProvenance,
+} from "@/lib/knowledgeTransferVariantProvenance";
+export type {
+  KnowledgeTransferVariantProvenanceScope,
+  ResolveKnowledgeTransferVariantProvenanceResult,
+} from "@/lib/knowledgeTransferVariantProvenance";
 
 /**
  * Internal/test-only variant-scoped authoritative transfer seed.
@@ -185,16 +154,18 @@ export function finalizeVariantScopedTransferActivation(
     secretId: string;
   }
 ): void {
-  const activeGenerationSequence = resolveActiveGenerationSequenceForAssistant(
+  const activeGenerationSequence = currentActiveKnowledgeTransferGenerationSequence(
     db,
     input.chatId,
     input.assistantMessageId
   );
-  syncVariantScopedS4ActivationsForAssistantMessage(db, {
-    chatId: input.chatId,
-    assistantMessageId: input.assistantMessageId,
-    activeGenerationSequence,
-  });
+  if (activeGenerationSequence != null) {
+    syncVariantScopedS4ActivationsForAssistantMessage(db, {
+      chatId: input.chatId,
+      assistantMessageId: input.assistantMessageId,
+      activeGenerationSequence,
+    });
+  }
   reprojectObserverSecretKnowledge({
     chatId: input.chatId,
     personaId: input.personaId,
