@@ -287,6 +287,7 @@ try {
       discoveryRuleId: match.rule.id,
       revealedFactText: REVEALED_FACT,
       idempotencyKey, // SAME idempotencyKey
+      authority: "discovery",
     });
     report.retry_changed = retryResult.changed;
     report.retry_evidence_delta =

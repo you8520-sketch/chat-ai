@@ -56,7 +56,7 @@ function restoreEnv(s: Record<string, string | undefined>): void {
 }
 
 function uniqueIds() {
-  const n = Math.floor(Math.random() * 10000);
+  const n = Math.floor(Math.random() * 1_000_000) + (Date.now() % 1_000_000);
   return {
     personaId: 995000 + n,
     chatId: 996000 + n,
@@ -380,7 +380,7 @@ describe("P0 persona secret single authority", () => {
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: created.secret.confirmedFactText,
       authority: "discovery",
-      idempotencyKey: "auth-disc-env-off",
+      idempotencyKey: `auth-disc-env-off-${personaId}-${chatId}`,
     });
 
     const revealRows = getDb()
@@ -403,7 +403,7 @@ describe("P0 persona secret single authority", () => {
     assert.equal(created.ok, true);
     if (!created.ok) return;
 
-    confirmPersonaSecretDisclosure({
+    const result = confirmPersonaSecretDisclosure({
       chatId,
       personaId,
       secretId: created.secret.id,
@@ -412,8 +412,9 @@ describe("P0 persona secret single authority", () => {
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: created.secret.confirmedFactText,
       authority: "legacy",
-      idempotencyKey: "auth-legacy-env-on",
+      idempotencyKey: `auth-legacy-env-on-${personaId}-${chatId}`,
     });
+    assert.equal(result.changed, true);
 
     const revealRows = getDb()
       .prepare(
