@@ -307,7 +307,7 @@ describe("TRPG start failure classification", () => {
 
   it("hides GM retry on billing failures and only recalls GM when no pending result exists", () => {
     const advance = fs.readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
-    assert.match(advance, /hasPendingGmResult\(db, round.id\)/);
+    assert.match(advance, /hasPendingGmResult\(db, reconciledRound\.id\)/);
     assert.match(advance, /applyPendingGmResult/);
     assert.match(advance, /phase === "ERROR_RECOVERY"[\s\S]*runGmForRound/);
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");

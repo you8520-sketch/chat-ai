@@ -6,7 +6,9 @@ export function shouldKickTrpgAdvance(opts: {
   phase: TrpgRoundPhase | "NONE";
   botGenerationInFlight: boolean;
   gmGenerationInFlight: boolean;
+  gmStaleReclaimEligible?: boolean;
 }): boolean {
+  if (opts.gmStaleReclaimEligible) return true;
   switch (opts.workType) {
     case "generate_bots":
       return !opts.botGenerationInFlight;

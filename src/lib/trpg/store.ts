@@ -63,6 +63,11 @@ export type TrpgRoundRow = {
   phase: string;
   lock_holder_request_id: string | null;
   gm_generation_id: string | null;
+  gm_generation_started_at: string | null;
+  gm_generation_heartbeat_at: string | null;
+  gm_committed_generation_id: string | null;
+  gm_reroll_billed_generation_id: string | null;
+  gm_reroll_usage_json: string | null;
   bot_generation_id: string | null;
   bot_generation_started_at: string | null;
   bot_generation_heartbeat_at: string | null;
@@ -101,6 +106,7 @@ export function loadLatestRound(db: Database.Database, campaignId: number): Trpg
     (db
       .prepare(
         `SELECT id, campaign_id, round_number, phase, lock_holder_request_id, gm_generation_id,
+                gm_generation_started_at, gm_generation_heartbeat_at, gm_committed_generation_id,
                 bot_generation_id, bot_generation_started_at, bot_generation_heartbeat_at,
                 process_started_at, process_stage,
                 COALESCE(bot_generation_recovery_attempts, 0) AS bot_generation_recovery_attempts,
