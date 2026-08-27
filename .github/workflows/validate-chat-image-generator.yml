@@ -33,6 +33,7 @@ on:
       - "src/lib/chatImageSceneBrief.test.ts"
       - "src/lib/chatImageScenePlan.ts"
       - "src/lib/chatImageScenePlan.test.ts"
+      - "src/lib/chatImageScenePlanner.ts"
       - "src/components/ChatSceneBuilder.tsx"
       - "src/lib/openAiImageEdit.ts"
       - "src/lib/openAiImageEdit.test.ts"

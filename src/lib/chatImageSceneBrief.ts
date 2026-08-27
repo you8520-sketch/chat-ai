@@ -1,9 +1,22 @@
-import { resolveBackgroundPrimaryModelId } from "@/lib/ai";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
+
+const STALE_SCENE_PRIMARY_ALIASES = new Set([
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase(),
+  "deepseek-v4-flash",
+  "deepseek/deepseek-v4-flash",
+]);
 
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
@@ -15,10 +28,13 @@ export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
 export function resolveChatImageSceneBriefModel(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  return resolveBackgroundPrimaryModelId(
+  const raw =
     env.CHAT_IMAGE_SCENE_BRIEF_MODEL?.trim() ||
-      CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL
-  );
+    CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL;
+  if (!raw || STALE_SCENE_PRIMARY_ALIASES.has(raw.toLowerCase())) {
+    return CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  }
+  return raw;
 }
 
 /** OpenRouter fallback used when the CheaperInference primary is slow/failing. */

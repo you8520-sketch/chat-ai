@@ -53,12 +53,12 @@ import {
   formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
   isScenePanelCount,
-  planChatImageScene,
   reflowScenePlanPanels,
   validateScenePlan,
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
+import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
   resolveChatImageGenerationModel,

@@ -10,7 +10,6 @@ import {
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
-  planChatImageScene,
   reflowScenePlanPanels,
   sanitizeSceneSourceText,
   scenePlanHasRawChatLeak,
@@ -18,6 +17,7 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "./chatImageScenePlan";
+import { planChatImageScene } from "./chatImageScenePlanner";
 
 const SOURCE_ROWS = [
   {
