@@ -159,6 +159,73 @@ export function noteAdvanceDiag(partial: Partial<AdvanceDiagState>): void {
   Object.assign(state, partial);
 }
 
+export type AdvanceTrpgCampaignDiagContext = {
+  campaignId: number;
+  source?: string;
+};
+
+export type AdvanceTrpgCampaignDiagResult = {
+  workType: string;
+  round: { phase: string };
+  botGenerationInFlight: boolean;
+  gmGenerationInFlight: boolean;
+};
+
+function safeAdvanceErrorClass(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  return error.constructor.name || "Error";
+}
+
+/** One authoritative start/end pair per outer advanceTrpgCampaign invocation. */
+export async function diagnoseAdvanceTrpgCampaign<T extends AdvanceTrpgCampaignDiagResult>(
+  ctx: AdvanceTrpgCampaignDiagContext,
+  fn: () => Promise<T>
+): Promise<T> {
+  if (!isTrpgSnapshotDiagnosticsEnabled()) return fn();
+
+  const advanceId = newTrpgDiagRequestId();
+  const startedAt = new Date().toISOString();
+  const t0 = performance.now();
+  const meta = createAdvanceDiagState();
+  let success = true;
+  let errorClass: string | null = null;
+  let result: T | undefined;
+
+  logTrpgSnapshotDiag({
+    event: "trpg_advance_start",
+    advanceId,
+    campaignId: ctx.campaignId,
+    source: ctx.source ?? null,
+    startedAt,
+    timestamp: startedAt,
+  });
+
+  try {
+    result = await runWithAdvanceDiag(meta, fn);
+    return result;
+  } catch (error) {
+    success = false;
+    errorClass = safeAdvanceErrorClass(error);
+    throw error;
+  } finally {
+    logTrpgSnapshotDiag({
+      event: "trpg_advance_end",
+      advanceId,
+      campaignId: ctx.campaignId,
+      source: ctx.source ?? null,
+      totalMs: roundDiagMs(performance.now() - t0),
+      success,
+      errorClass,
+      workTypeBefore: meta.workTypeBefore ?? null,
+      workTypeAfter: result?.workType ?? null,
+      phaseBefore: meta.phaseBefore ?? null,
+      phaseAfter: result?.round.phase ?? null,
+      botGenerationInFlight: result?.botGenerationInFlight ?? meta.botGenerationInFlight ?? null,
+      gmGenerationInFlight: result?.gmGenerationInFlight ?? meta.gmGenerationInFlight ?? null,
+    });
+  }
+}
+
 export function collectSnapshotScaleCounts(campaign: {
   round: { number: number };
   participants: unknown[];

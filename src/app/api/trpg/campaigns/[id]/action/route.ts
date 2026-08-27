@@ -32,7 +32,11 @@ export async function POST(req: Request, ctx: RouteCtx) {
     if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
     after(async () => {
       try {
-        await advanceTrpgCampaign(gate.db, { campaignId: id, userId: gate.user.id });
+        await advanceTrpgCampaign(gate.db, {
+          campaignId: id,
+          userId: gate.user.id,
+          source: "post_action_after",
+        });
       } catch (error) {
         console.error("[trpg] post-action advance failed", error);
       }
