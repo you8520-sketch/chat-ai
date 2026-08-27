@@ -58,6 +58,13 @@ import {
 } from "@/lib/chatImageScenePlan";
 import { planChatImageScene } from "@/lib/chatImageScenePlanner";
 import {
+  assertChatImageScenePlanRateLimit,
+  ChatImageScenePlanRateLimitError,
+  releaseChatImageScenePlanRateLimit,
+} from "@/lib/chatImageScenePlanRateLimit";
+import { extractSimulationCastNames } from "@/lib/simulationMode";
+import { filterConfiguredCastNamesForViewer } from "@/lib/chatImageCast";
+import {
   groundCastIntent,
   parseChatImageCastManifest,
   type ChatImageCastGroundedManifest,
@@ -112,6 +119,7 @@ type CharacterRow = {
   appearance_raw: string | null;
   appearance_compiled: string | null;
   system_prompt: string | null;
+  simulation_cast: string | null;
 };
 
 type PersonaRow = {
@@ -226,7 +234,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(simulation_cast, '') AS simulation_cast FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -630,12 +638,18 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
+      const configuredCastNames = filterConfiguredCastNamesForViewer({
+        configuredNames: extractSimulationCastNames(context.character.simulation_cast ?? ""),
+        sourceTexts: source.messages.map((message) => message.text),
+        isCreator: context.character.creator_id === user.id,
+      });
       return NextResponse.json({
         ok: true,
         mode: "scene_brief",
         messageId: source.messageId,
         summary: source.turnText,
         messages: source.messages,
+        configuredCastNames,
       });
     }
 
@@ -646,11 +660,32 @@ export async function POST(req: Request) {
         sourceText: String(body.sourceText ?? ""),
         requireChat: false,
       });
-      const planned = await planChatImageScene({
-        characterName: context.character.name,
-        personaName: context.persona.name,
-        messages: source.messages,
-      });
+      try {
+        assertChatImageScenePlanRateLimit(user.id);
+      } catch (error) {
+        if (error instanceof ChatImageScenePlanRateLimitError) {
+          return NextResponse.json({ ok: false, error: error.message }, { status: 429 });
+        }
+        throw error;
+      }
+      let planned;
+      let scenePlanFailed = false;
+      try {
+        planned = await planChatImageScene({
+          characterName: context.character.name,
+          personaName: context.persona.name,
+          messages: source.messages,
+        });
+      } catch (error) {
+        scenePlanFailed = true;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "AI 제안을 불러오지 못했습니다. 현재 직접 편집한 장면은 그대로 유지됩니다.";
+        return NextResponse.json({ ok: false, error: message }, { status: 502 });
+      } finally {
+        releaseChatImageScenePlanRateLimit(user.id, scenePlanFailed);
+      }
       const requestedCount = isScenePanelCount(body.panelCount)
         ? body.panelCount
         : planned.plan.recommendedPanelCount;

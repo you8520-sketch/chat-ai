@@ -131,10 +131,37 @@ function mapBodyRegion(fragment: string): BodyRegion | null {
 
 function extractDocumentLabel(text: string): string | null {
   const m = text.match(
-    /(계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권)/
+    /(계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권|파일|독촉장)/
   );
   if (!m?.[1]) return null;
   return m[1].replace(/\s+/g, "");
+}
+
+/**
+ * High-precision USER self-attribution for presented documents.
+ * Secret-blind: never reads persona secrets or canonical text.
+ */
+export function extractDocumentSubjectSelfAttribution(
+  text: string
+): "PERSONA_SELF" | undefined {
+  const msg = text.replace(/\r\n?/g, "\n").trim();
+  if (!msg) return undefined;
+  if (
+    /(?:친구|동료|상대|그(?:의|녀)|누군가|타인|남의|다른\s*사람).{0,20}(?:의|에게|앞으로)/.test(
+      msg
+    )
+  ) {
+    return undefined;
+  }
+  if (
+    /내\s*앞으로\s*온/.test(msg) ||
+    /내\s*이름(?:이)?\s*적힌/.test(msg) ||
+    /내\s*명의(?:의|로)?/.test(msg) ||
+    /(?:나|내)에게\s*온/.test(msg)
+  ) {
+    return "PERSONA_SELF";
+  }
+  return undefined;
 }
 
 function extractItemLabel(text: string): string | null {
@@ -257,23 +284,42 @@ export function extractDeterministicSceneEvidenceFromUserMessage(opts: {
 
   // DOCUMENT_PRESENTED / IDENTITY
   if (
-    /(?:꺼내|건네|내밀|펼쳤|내려놓|제시|보여주)/.test(msg) &&
-    /(?:계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권)/.test(
+    /(?:꺼내|건네|내밀|펼쳤|내려놓|제시|보여주|놓았)/.test(msg) &&
+    /(?:계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권|파일|독촉장)/.test(
       msg
     )
   ) {
     const documentLabel = extractDocumentLabel(msg);
     if (documentLabel) {
       const identity = /주민등록증|신분증|여권/.test(documentLabel);
+      const documentSubject = extractDocumentSubjectSelfAttribution(msg);
       push({
         ...base,
         eventType: identity ? "IDENTITY_DOCUMENT_PRESENTED" : "DOCUMENT_PRESENTED",
         sourceType: "USER_MESSAGE_DETERMINISTIC",
         confidence: CONFIDENCE_DETERMINISTIC_DEFAULT,
-        attributes: { documentLabel },
+        attributes: {
+          documentLabel,
+          ...(documentSubject ? { documentSubject } : {}),
+        },
         visibility: defaultVisibility({ requiresLineOfSight: true }),
       });
     }
+  }
+
+  // "이 파일 좀 봐" — present-for-inspection without hand-off verb bundle above.
+  if (
+    !out.some((e) => e.eventType === "DOCUMENT_PRESENTED" || e.eventType === "IDENTITY_DOCUMENT_PRESENTED") &&
+    /(?:이\s*)?파일.{0,16}(?:좀\s*)?(?:봐|보|확인|봐줘)/.test(msg)
+  ) {
+    push({
+      ...base,
+      eventType: "DOCUMENT_PRESENTED",
+      sourceType: "USER_MESSAGE_DETERMINISTIC",
+      confidence: CONFIDENCE_DETERMINISTIC_DEFAULT,
+      attributes: { documentLabel: "파일" },
+      visibility: defaultVisibility({ requiresLineOfSight: true }),
+    });
   }
 
   // VISIBLE_ITEM_PRESENTED

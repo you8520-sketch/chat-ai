@@ -97,11 +97,11 @@ export const EVENT_ATTRIBUTE_SCHEMA: Record<
   },
   DOCUMENT_PRESENTED: {
     required: ["documentLabel"],
-    allowed: ["documentLabel", ...WITNESS_SCOPE_ATTRIBUTES],
+    allowed: ["documentLabel", "documentSubject", ...WITNESS_SCOPE_ATTRIBUTES],
   },
   IDENTITY_DOCUMENT_PRESENTED: {
     required: ["documentLabel"],
-    allowed: ["documentLabel", ...WITNESS_SCOPE_ATTRIBUTES],
+    allowed: ["documentLabel", "documentSubject", ...WITNESS_SCOPE_ATTRIBUTES],
   },
 };
 

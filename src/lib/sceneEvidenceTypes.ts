@@ -61,6 +61,9 @@ export type SceneEvidenceVisibility = {
 
 export type SceneEvidenceAttributeValue = string | number | boolean;
 
+/** USER-authored high-precision document ownership attribution (secret-blind). */
+export type DocumentSubject = "PERSONA_SELF";
+
 export type SceneEvidenceEvent = {
   id: string;
   idempotencyKey: string;

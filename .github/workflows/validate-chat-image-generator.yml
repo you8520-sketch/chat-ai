@@ -33,6 +33,8 @@ on:
       - "src/lib/chatImageSceneBrief.test.ts"
       - "src/lib/chatImageScenePlan.ts"
       - "src/lib/chatImageScenePlan.test.ts"
+      - "src/lib/chatImageScenePlanRateLimit.ts"
+      - "src/lib/chatImageSceneManualFirst.test.ts"
       - "src/lib/chatImageScenePlanner.ts"
       - "src/lib/chatImageScenePlanner.test.ts"
       - "src/lib/chatImageCast.ts"
@@ -72,6 +74,7 @@ jobs:
       - run: node --import tsx --test src/lib/chatImageEyeTraits.test.ts
       - run: node --import tsx --test src/lib/chatImageSceneBrief.test.ts
       - run: node --import tsx --test src/lib/chatImageScenePlan.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/chatImageSceneManualFirst.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
