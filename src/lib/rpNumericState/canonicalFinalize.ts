@@ -7,6 +7,7 @@
 import type Database from "better-sqlite3";
 import type { GenerationStatus } from "@/lib/streamingPersistence";
 import { finalizeAssistantMessageCore } from "@/lib/streamingPersistence";
+import { finalizeRegenerationAssistantMessageCore } from "@/lib/personaSecretRegenerationFinalize";
 import { isCanonicalDerivedStateGenerationStatus } from "@/lib/rpDerivedStateLifecycle";
 import type { ParsedStatusWidgetTurnValues, StatusWidget } from "@/lib/statusWidget/types";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
@@ -51,6 +52,10 @@ export type AtomicNumericAssistantFinalizeInput = {
   requestId?: string | null;
   generationSequence: number;
   isRegeneration: boolean;
+  /** @internal test-only */
+  __testThrowAfterS4Activation?: boolean;
+  /** @internal test-only */
+  __testThrowAfterS4Reprojection?: boolean;
 };
 
 export type AtomicNumericFieldCommit = {
@@ -228,7 +233,7 @@ export function executeAtomicNumericAssistantFinalize(
         : v
     );
 
-    const finalizeResult = finalizeAssistantMessageCore(db, {
+    const finalizeOpts = {
       assistantMessageId: input.assistantMessageId,
       chatId: input.chatId,
       content: input.content,
@@ -239,7 +244,14 @@ export function executeAtomicNumericAssistantFinalize(
       statusWidgetValuesJson,
       statusWidgetTurnActive: input.statusWidgetTurnActive,
       generationStatus,
-    });
+    };
+    const finalizeResult = input.isRegeneration
+      ? finalizeRegenerationAssistantMessageCore(db, {
+          ...finalizeOpts,
+          __testThrowAfterS4Activation: input.__testThrowAfterS4Activation,
+          __testThrowAfterS4Reprojection: input.__testThrowAfterS4Reprojection,
+        })
+      : finalizeAssistantMessageCore(db, finalizeOpts);
 
     return {
       kind: finalizeResult.wrote ? "WROTE" : "IDEMPOTENT_FINALIZE_NOOP",

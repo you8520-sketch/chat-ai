@@ -10,6 +10,7 @@ import {
   incrementCharacterTotalTurns,
 } from "@/lib/characterEngagementStats";
 import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
+import { rewindPersonaSecretStateForDeletedMessages } from "@/lib/personaSecretLifecycleCleanup";
 import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
 import {
   NumericTurnDeleteChainNotReadyError,
@@ -28,6 +29,8 @@ export type ExecuteLastTurnDeleteInput = {
   revertNumeric: boolean;
   /** @internal test-only — throw after numeric restore, before message deletes */
   __testThrowAfterNumericRestore?: boolean;
+  /** @internal test-only — throw after persona/S3/S4 rewind, before message deletes */
+  __testThrowAfterPersonaSecretRewind?: boolean;
   /** @internal test-only — throw after message deletes start failing mid-way */
   __testThrowAfterMessageDelete?: boolean;
 };
@@ -96,6 +99,16 @@ export function executeLastTurnDeleteTransaction(
         input.chatId,
         input.assistantMessageId
       );
+    }
+    // Rewind persona-secret worldline before messages disappear so
+    // source_message_id / assistant provenance still resolve.
+    rewindPersonaSecretStateForDeletedMessages(db, {
+      chatId: input.chatId,
+      messageIds: idsToDelete,
+      assistantMessageId: input.assistantMessageId,
+    });
+    if (input.__testThrowAfterPersonaSecretRewind) {
+      throw new Error("TEST_THROW_AFTER_PERSONA_SECRET_REWIND");
     }
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(

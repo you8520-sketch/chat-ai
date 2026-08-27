@@ -57,6 +57,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
+import { executeAtomicRegenerationFinalize } from "@/lib/personaSecretRegenerationFinalize";
 import { hashForensicsText, logStreamTurnForensics } from "@/lib/streamTurnForensics";
 import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbeat";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
@@ -5035,7 +5036,7 @@ export async function POST(req: Request) {
               throw numericFinalizeErr;
             }
           } else {
-            const finalizeResult = finalizeAssistantMessage(db, {
+            const finalizeResult = executeAtomicRegenerationFinalize(db, {
               assistantMessageId: regenerateMessageId,
               chatId: chatRef.id,
               content: savedText,
@@ -5423,6 +5424,7 @@ export async function POST(req: Request) {
               );
             }
           }
+
         }
 
         const nextMode: Route = isAdultMode ? "nsfw" : "safe";

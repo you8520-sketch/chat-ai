@@ -19,6 +19,7 @@ import { ensureInvestigationSchema } from "@/lib/investigationSchema";
 import type { CharacterGender } from "@/lib/characterGender";
 import { getPersonaById } from "@/lib/userPersonas";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
+import { deletePersonaSecretActivationRowsForPersona } from "@/lib/personaSecretLifecycleCleanup";
 
 export type PersonaSecretInput =
   | { supplied: false }
@@ -206,6 +207,8 @@ export function deletePersonaSecretData(
 
   db.prepare(`DELETE FROM persona_secret_discovery_rules WHERE secret_id IN (SELECT id FROM persona_secrets WHERE persona_id=?)`).run(personaId);
   db.prepare(`DELETE FROM persona_secret_compilation_runs WHERE persona_id=?`).run(personaId);
+  // Activation overlay must go before evidence wipe (evidence_id PK).
+  deletePersonaSecretActivationRowsForPersona(db, personaId);
   db.prepare(`DELETE FROM persona_secret_evidence_events WHERE persona_id=?`).run(personaId);
   db.prepare(`DELETE FROM chat_character_secret_knowledge WHERE persona_id=?`).run(personaId);
   db.prepare(`DELETE FROM knowledge_transfer_events WHERE persona_id=?`).run(personaId);
