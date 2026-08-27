@@ -5,6 +5,7 @@ import {
   CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
   CHAT_PORTRAIT_PANEL_PLACEHOLDER_CLASS,
   CHAT_PORTRAIT_PANEL_SHELL_CLASS,
+  CHAT_PORTRAIT_PLACEHOLDER_MAX_WIDTH,
   CHAT_PORTRAIT_RAIL_HEIGHT,
 } from "@/lib/chatDisplayPrefs";
 
@@ -30,13 +31,13 @@ function panelAspectRatio(assetWidth?: number, assetHeight?: number): { w: numbe
 }
 
 /** Definite rail height + aspect-ratio → intrinsic width for grid max-content track. */
-function panelFrameStyle(assetWidth?: number, assetHeight?: number) {
+function panelFrameStyle(assetWidth?: number, assetHeight?: number, maxWidth = "var(--chat-portrait-max-w)") {
   const { w, h } = panelAspectRatio(assetWidth, assetHeight);
   return {
     aspectRatio: `${w} / ${h}`,
-    height: `min(${CHAT_PORTRAIT_RAIL_HEIGHT}, calc(var(--chat-portrait-max-w) * ${h} / ${w}))`,
+    height: `min(${CHAT_PORTRAIT_RAIL_HEIGHT}, calc(${maxWidth} * ${h} / ${w}))`,
     width: "auto",
-    maxWidth: "var(--chat-portrait-max-w)",
+    maxWidth,
   } as const;
 }
 
@@ -102,7 +103,7 @@ export default function ChatCharacterPortrait({
       }`}
       style={
         size === "panel"
-          ? panelFrameStyle(3, 4)
+          ? panelFrameStyle(3, 4, CHAT_PORTRAIT_PLACEHOLDER_MAX_WIDTH)
           : { background: `hsl(${hue} 60% 22%)` }
       }
     >

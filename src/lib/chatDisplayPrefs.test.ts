@@ -241,6 +241,7 @@ describe("mobile chat portrait background", () => {
   it("keeps desktop portrait and messages in separate flex columns", () => {
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /flex-1/);
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /max-w-\[780px\]/);
+    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /--chat-portrait-min-chat-w/);
     assert.match(CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS, /chat-room-portrait-header-chat/);
     assert.match(
       CHAT_ROOM_HEADER_OFFSET_CLASS,

@@ -491,11 +491,14 @@ export const CHAT_PORTRAIT_COLUMN_CLASS =
 
 /** Right column — chat header band + messages. */
 export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
-  "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:max-w-[780px]";
+  "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:min-w-[var(--chat-portrait-min-chat-w)] min-[576px]:max-w-[780px]";
+
+/** Minimum chat column width when portrait is ON (desktop). */
+export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 360;
 
 /**
- * PC portrait panel max width — set on `.chat-room-portrait-grid` as `--chat-portrait-max-w`.
- * Frame uses `max-w-[var(--chat-portrait-max-w)]`; when exceeded, aspect-ratio box scales down.
+ * PC portrait panel max width — set on `.chat-room-portrait-grid` as `--chat-portrait-max-w`
+ * from container inline size (100cqw), not viewport.
  */
 export const CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS = "max-w-[var(--chat-portrait-max-w)]";
 
@@ -513,9 +516,11 @@ export const CHAT_PORTRAIT_PANEL_IMG_CLASS = "block h-full w-full object-contain
 export const CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS =
   `${CHAT_PORTRAIT_PANEL_IMG_CLASS} brightness-95 contrast-95`;
 
-/** PC portrait empty-state column footprint (matches legacy ~400px track). */
+/** Empty-state max width — legacy ~340px on wide desktop, shrinks with container max. */
+export const CHAT_PORTRAIT_PLACEHOLDER_MAX_WIDTH = "min(340px, var(--chat-portrait-max-w))";
+/** PC portrait empty-state — wide desktop ≈340px footprint; narrows with available portrait max. */
 export const CHAT_PORTRAIT_PANEL_PLACEHOLDER_CLASS =
-  "flex h-full max-h-full w-auto max-w-[var(--chat-portrait-max-w)] shrink-0 items-center justify-center rounded-[18px] aspect-[3/4] min-w-[340px]";
+  "chat-room-portrait-placeholder flex h-full max-h-full w-auto max-w-[min(340px,var(--chat-portrait-max-w))] shrink-0 items-center justify-center rounded-[18px] aspect-[3/4]";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =

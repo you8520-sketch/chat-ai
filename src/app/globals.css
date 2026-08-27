@@ -497,12 +497,23 @@ html.chat-room-active .mobile-bottom-nav {
 
   /* Portrait ON — desktop flex row (portrait w-max + chat flex-1). */
   html.chat-room-active .chat-room-portrait-grid {
-    --chat-portrait-max-w: min(820px, calc(100vw - 360px - 4rem));
+    container-type: inline-size;
+    container-name: portrait-chat;
+    --chat-portrait-min-chat-w: 360px;
+    --chat-portrait-max-w: min(
+      820px,
+      max(0px, calc(100cqw - 1.5rem - var(--chat-portrait-min-chat-w)))
+    );
     --chat-portrait-rail-h: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
     display: flex !important;
     flex-direction: row;
     align-items: flex-start;
     gap: 1.5rem;
+  }
+
+  html.chat-room-active .chat-room-portrait-placeholder {
+    min-width: min(340px, var(--chat-portrait-max-w));
+    max-width: min(340px, var(--chat-portrait-max-w));
   }
 
   html.chat-room-active .chat-room-portrait-column {
@@ -516,7 +527,7 @@ html.chat-room-active .mobile-bottom-nav {
     display: flex !important;
     flex-direction: column;
     flex: 1 1 0%;
-    min-width: 0;
+    min-width: var(--chat-portrait-min-chat-w);
     max-width: 780px;
   }
 
