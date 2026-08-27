@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   advanceAfterActorAction,
@@ -6,12 +7,14 @@ import {
   decideLiveRoundPresentation,
   isLiveRoundPresentationReady,
   preCinematicVisibleActionIds,
+  resolvePreCinematicDeclarationReveal,
   resolveLiveRevealedActionIds,
   revealedActorIds,
   shouldDecorativeRevealAction,
   isActorActionRevealBeatSatisfied,
   startCinematicPresentation,
   idlePresentation,
+  walkCinematicPresentation,
   type RoundPresentationState,
 } from "./roundPresentation";
 import { resolveTrpgMountSeenKeys } from "../../app/trpg/useRevealedText";
@@ -29,7 +32,12 @@ const humanRoll = { participantId: 10, d20: 14, dc: 12, tier: "SUCCESS" as const
 const bot1Roll = { participantId: 20, d20: 8, dc: 12, tier: "FAILURE" as const, statKey: "dex", finalScore: 10 };
 const bot2Roll = { participantId: 30, d20: 17, dc: 12, tier: "SUCCESS" as const, statKey: "dex", finalScore: 19 };
 
-function visibleAt(actions: typeof human[], rolls: typeof humanRoll[], phase: string) {
+function visibleAt(
+  actions: typeof human[],
+  rolls: typeof humanRoll[],
+  phase: string,
+  consumedAiIds: readonly number[] = []
+) {
   const decided = decideLiveRoundPresentation({
     phase,
     roundNumber: 1,
@@ -37,7 +45,8 @@ function visibleAt(actions: typeof human[], rolls: typeof humanRoll[], phase: st
     rolls,
     resolutionOrder: order,
   });
-  const preIds = preCinematicVisibleActionIds(actions);
+  const declaration = resolvePreCinematicDeclarationReveal({ actions, consumedAiIds });
+  const preIds = declaration.visibleIds;
   const mode = decided.ready ? "cinematic" : "idle";
   const state: RoundPresentationState = decided.ready
     ? { mode: "cinematic", ...startCinematicPresentation() }
@@ -50,10 +59,17 @@ function visibleAt(actions: typeof human[], rolls: typeof humanRoll[], phase: st
       cinematicRevealedIds: cinematicIds,
       preCinematicVisibleIds: preIds,
     }) ?? [];
-  return { decided, preIds, visible, state, mode };
+  return { decided, declaration, preIds, visible, state, mode };
 }
 
 describe("TRPG two-bot production-shape declaration visibility", () => {
+  it("uses the configured reveal interval through the existing prose owner", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /declarationRevealActive: activeDeclarationRevealId === action\.participantId/);
+    assert.match(room, /streamIntervalMs=\{streamIntervalMs\}/);
+    assert.match(room, /onDeclarationRevealChange/);
+  });
+
   it("bot1 visible before bot2 completes; cinematic not roll-ready until rolls persist", () => {
     const t0 = visibleAt([human], [], "BOT_ACTION");
     assert.deepEqual(t0.preIds, [10]);
@@ -63,19 +79,31 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
     const tBot1 = visibleAt([human, bot1], [], "BOT_ACTION");
     assert.deepEqual(tBot1.preIds, [10, 20]);
     assert.deepEqual(tBot1.visible, [10, 20], "BOT1_VISIBLE_BEFORE_BOT2_COMPLETE");
+    assert.equal(tBot1.declaration.activeAiId, 20);
     assert.equal(tBot1.decided.ready, false);
     assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
 
     const tBot2NoRolls = visibleAt([human, bot1, bot2], [], "BOT_ACTION");
-    assert.deepEqual(tBot2NoRolls.visible, [10, 20, 30]);
+    assert.deepEqual(tBot2NoRolls.visible, [10, 20], "bot2 buffered behind bot1 reveal");
+    assert.equal(tBot2NoRolls.declaration.activeAiId, 20);
     assert.equal(tBot2NoRolls.decided.ready, false);
 
-    const tReady = visibleAt([human, bot1, bot2], [humanRoll, bot1Roll, bot2Roll], "GENERATING_NARRATION");
+    const afterBot1Reveal = visibleAt([human, bot1, bot2], [], "BOT_ACTION", [20]);
+    assert.deepEqual(afterBot1Reveal.visible, [10, 20, 30]);
+    assert.equal(afterBot1Reveal.declaration.activeAiId, 30);
+
+    const tReady = visibleAt(
+      [human, bot1, bot2],
+      [humanRoll, bot1Roll, bot2Roll],
+      "GENERATING_NARRATION",
+      [20]
+    );
     assert.equal(tReady.decided.ready, true);
     assert.equal(tReady.mode, "cinematic");
+    assert.equal(tReady.declaration.activeAiId, 30, "mechanical ready does not skip bot2 declaration");
   });
 
-  it("pre-declared bot prose does not replay during resolution cinematic", () => {
+  it("declarations stream one at a time and consumed prose does not replay", () => {
     const actions = [human, bot1, bot2];
     const rolls = [humanRoll, bot1Roll, bot2Roll];
     const preIds = preCinematicVisibleActionIds(actions);
@@ -91,6 +119,56 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
     assert.ok(seen.has("a:1:20"));
     assert.ok(seen.has("a:1:30"));
 
+    const bot1Active = resolvePreCinematicDeclarationReveal({
+      actions,
+      consumedAiIds: [],
+    });
+    assert.equal(bot1Active.activeAiId, 20);
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 20,
+        activeRevealActorId: null,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: false,
+        declarationRevealActive: true,
+      }),
+      true,
+      "BOT1_DECLARATION_STREAMED"
+    );
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 30,
+        activeRevealActorId: null,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: false,
+        declarationRevealActive: false,
+      }),
+      false,
+      "DECLARATION_REVEAL_CONCURRENCY=1"
+    );
+    const bot2Active = resolvePreCinematicDeclarationReveal({
+      actions,
+      consumedAiIds: [20],
+    });
+    assert.equal(bot2Active.activeAiId, 30);
+    assert.equal(
+      shouldDecorativeRevealAction({
+        kind: "ai_character",
+        participantId: 30,
+        activeRevealActorId: null,
+        isFresh: true,
+        skipDecorativeReveal: false,
+        cinematicActorAction: false,
+        declarationRevealActive: true,
+      }),
+      true,
+      "BOT2_DECLARATION_STREAMED"
+    );
+
     for (const id of [20, 30]) {
       assert.equal(
         shouldDecorativeRevealAction({
@@ -100,7 +178,7 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
           isFresh: !seen.has(`a:1:${id}`),
           skipDecorativeReveal: false,
           cinematicActorAction: true,
-          preCinematicallyDeclared: true,
+          resolutionActionAlreadyConsumed: true,
         }),
         false,
         "ALREADY_VISIBLE_ACTION_REPLAY=false"
@@ -111,26 +189,35 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
           isFreshAiAction: !seen.has(`a:1:${id}`),
           alreadyCompleted: false,
           effectiveActorRevealComplete: false,
-          preCinematicallyDeclared: true,
+          resolutionActionAlreadyConsumed: true,
         }),
         true
       );
     }
+
+    const actors = buildRoundPresentationActors({ resolutionOrder: order, actions, rolls });
+    const frames = walkCinematicPresentation(actors);
+    assert.deepEqual(
+      frames.filter((frame) => frame.phase === "actor-dice").map((frame) => frame.activeRollActorId),
+      [10, 20, 30],
+      "DICE_ORDER_PRESERVED"
+    );
+    assert.equal(frames.at(-1)?.phase, "gm-narration");
+    assert.equal(frames.at(-1)?.gmVisible, true, "GM_ORDER_PRESERVED");
   });
 
   it("bot1 no-roll does not block resolution when pre-declared", () => {
     const bot1Talk = { ...bot1, body: "말한다." };
     const actions = [human, bot1Talk, bot2];
     const rolls = [humanRoll, bot2Roll];
-    const preIds = preCinematicVisibleActionIds(actions);
-    assert.deepEqual(preIds, [10, 20, 30]);
+    const consumedAiIds = new Set([20]);
     assert.equal(
       isActorActionRevealBeatSatisfied({
         actionKind: "ai_character",
         isFreshAiAction: true,
         alreadyCompleted: false,
         effectiveActorRevealComplete: false,
-        preCinematicallyDeclared: preIds.includes(20),
+        resolutionActionAlreadyConsumed: consumedAiIds.has(20),
       }),
       true
     );

@@ -222,6 +222,7 @@ describe("TRPG follow-latest scroll", () => {
       revealedActorCount: 1,
       resultLaneCount: 0,
       gmVisible: false,
+      preCinematicVisibleIds: [10],
     });
     const actor2 = livePresentationActivityKey({
       roundNumber: 3,
@@ -231,6 +232,7 @@ describe("TRPG follow-latest scroll", () => {
       revealedActorCount: 2,
       resultLaneCount: 1,
       gmVisible: false,
+      preCinematicVisibleIds: [10],
     });
     assert.notEqual(actor1, actor2);
     assert.deepEqual(decideLiveFollowUpdate({ following: true, activityChanged: true }), {
@@ -253,5 +255,44 @@ describe("TRPG follow-latest scroll", () => {
       autoFollow: false,
       unseenLatest: true,
     });
+  });
+
+  it("tracks same-row pre-cinematic declaration activity without stealing manual scroll", () => {
+    const sceneRowsLength = 2;
+    const humanOnly = livePresentationActivityKey({
+      roundNumber: 3,
+      mode: "idle",
+      phase: "idle",
+      presentationIndex: 0,
+      revealedActorCount: 0,
+      resultLaneCount: 0,
+      gmVisible: false,
+      preCinematicVisibleIds: [10],
+    });
+    const bot1Declared = livePresentationActivityKey({
+      roundNumber: 3,
+      mode: "idle",
+      phase: "idle",
+      presentationIndex: 0,
+      revealedActorCount: 0,
+      resultLaneCount: 0,
+      gmVisible: false,
+      preCinematicVisibleIds: [10, 20],
+    });
+
+    assert.equal(sceneRowsLength, 2, "same scene row count");
+    assert.notEqual(humanOnly, bot1Declared, "PRE_CINEMATIC_DECLARATION_ACTIVITY_TRACKED");
+    assert.deepEqual(decideLiveFollowUpdate({ following: true, activityChanged: true }), {
+      autoFollow: true,
+      unseenLatest: false,
+    });
+    assert.deepEqual(decideLiveFollowUpdate({ following: false, activityChanged: true }), {
+      autoFollow: false,
+      unseenLatest: true,
+    });
+
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /preCinematicVisibleIds/);
+    assert.match(room, /declarationReveal\.activeAiId != null/);
   });
 });

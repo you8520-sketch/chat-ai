@@ -94,8 +94,7 @@ import {
   freezeLivePresentationActors,
   historicalPresentation,
   idlePresentation,
-  earlyVisibleHumanActionIds,
-  preCinematicVisibleActionIds,
+  resolvePreCinematicDeclarationReveal,
   isActorActionRevealBeatSatisfied,
   isLiveRoundPresentationReady,
   resolveLiveRevealedActionIds,
@@ -383,6 +382,7 @@ export default function TrpgCampaignRoom({
   const [hiddenPresentationSession, setHiddenPresentationSession] =
     useState<HiddenPresentationSession | null>(null);
   const [consumedDecorativeSessionKey, setConsumedDecorativeSessionKey] = useState<string | null>(null);
+  const [, setDeclarationRevealEpoch] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -435,7 +435,6 @@ export default function TrpgCampaignRoom({
     ? { round: snap.round.number, actors: frozenActors.actors }
     : null;
   const presentationActors = frozenActors.actors;
-  const preCinematicVisibleIds = preCinematicVisibleActionIds(sourceActions);
   if (presentationRoundRef.current !== snap.round.number) {
     presentationRoundRef.current = snap.round.number;
     consumedActorActionBeatRef.current = "";
@@ -693,6 +692,20 @@ export default function TrpgCampaignRoom({
     );
   }
   const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
+  const consumedDeclarationAiIds = new Set(
+    sourceActions
+      .filter(
+        (action) =>
+          action.kind === "ai_character" &&
+          seenLogKeysRef.current!.has(`a:${snap.round.number}:${action.participantId}`)
+      )
+      .map((action) => action.participantId)
+  );
+  const declarationReveal = resolvePreCinematicDeclarationReveal({
+    actions: sourceActions,
+    consumedAiIds: consumedDeclarationAiIds,
+  });
+  const preCinematicVisibleIds = declarationReveal.visibleIds;
   const waitingOpening =
     visibleSceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
@@ -753,19 +766,21 @@ export default function TrpgCampaignRoom({
     activeParticipantId: activePresentationActorId,
     report: actorRevealReport,
   });
-  const activePreCinematicallyDeclared =
+  const activeResolutionActionAlreadyConsumed =
     activePresentationActorId != null &&
-    preCinematicVisibleIds.includes(activePresentationActorId);
-  const activeActorRevealBeatSatisfied = isActorActionRevealBeatSatisfied({
-    actionKind: activePresentationAction?.kind,
-    isFreshAiAction:
-      activePresentationAction?.kind === "ai_character" &&
-      isFreshLogKey(`a:${snap.round.number}:${activePresentationAction.participantId}`),
-    alreadyCompleted: false,
-    preCinematicallyDeclared: activePreCinematicallyDeclared,
-    effectiveActorRevealComplete,
-    skipDecorativeReveal,
-  });
+    consumedDeclarationAiIds.has(activePresentationActorId);
+  const activeActorRevealBeatSatisfied =
+    declarationReveal.complete &&
+    isActorActionRevealBeatSatisfied({
+      actionKind: activePresentationAction?.kind,
+      isFreshAiAction:
+        activePresentationAction?.kind === "ai_character" &&
+        isFreshLogKey(`a:${snap.round.number}:${activePresentationAction.participantId}`),
+      alreadyCompleted: false,
+      resolutionActionAlreadyConsumed: activeResolutionActionAlreadyConsumed,
+      effectiveActorRevealComplete,
+      skipDecorativeReveal,
+    });
   const cinematicAiActionActive =
     cinematicActorAction && activePresentationAction?.kind === "ai_character";
   useEffect(() => {
@@ -977,6 +992,16 @@ export default function TrpgCampaignRoom({
   const handleActiveActorRevealChange = useCallback((report: ActorRevealReport) => {
     setActorRevealReport((prev) => mergeActorRevealReport(prev, report));
   }, []);
+  const handleDeclarationRevealChange = useCallback(
+    (report: ActorRevealReport) => {
+      if (!report.complete || report.participantId == null) return;
+      const key = `a:${report.roundNumber}:${report.participantId}`;
+      if (seenLogKeysRef.current?.has(key)) return;
+      seenLogKeysRef.current?.add(key);
+      setDeclarationRevealEpoch((epoch) => epoch + 1);
+    },
+    []
+  );
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({
     roundNumber: snap.round.number,
@@ -986,6 +1011,7 @@ export default function TrpgCampaignRoom({
     revealedActorCount: cinematicRevealedIds.length,
     resultLaneCount: cinematicLaneIds.length,
     gmVisible: cinematicShowGm && gmTextReady,
+    preCinematicVisibleIds,
   });
 
   useEffect(() => {
@@ -1179,7 +1205,10 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     const el = liveSceneRef.current;
     const liveRevealActive =
-      roundShow.mode === "cinematic" || presentationStarting || Boolean(currentNarration);
+      roundShow.mode === "cinematic" ||
+      presentationStarting ||
+      declarationReveal.activeAiId != null ||
+      Boolean(currentNarration);
     if (!el || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
       const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
@@ -1194,7 +1223,15 @@ export default function TrpgCampaignRoom({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [currentNarration, liveFollowOwner, presentationStarting, roundShow.mode, scrollToFollowOwner, snap.round.number]);
+  }, [
+    currentNarration,
+    declarationReveal.activeAiId,
+    liveFollowOwner,
+    presentationStarting,
+    roundShow.mode,
+    scrollToFollowOwner,
+    snap.round.number,
+  ]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -1366,6 +1403,7 @@ export default function TrpgCampaignRoom({
         mode: roundShow.mode,
         actions: sourceActions,
         revealedActorIds: cinematicRevealedIds,
+        preCinematicVisibleIds,
       })}
       data-trpg-follow-activity={followActivityKey || undefined}
       data-trpg-follow-latest={followLatest ? "true" : "false"}
@@ -1580,6 +1618,21 @@ export default function TrpgCampaignRoom({
               }
               preCinematicVisibleIds={
                 row.roundNumber === snap.round.number && gateLiveRound ? preCinematicVisibleIds : []
+              }
+              activeDeclarationRevealId={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? declarationReveal.activeAiId
+                  : null
+              }
+              consumedDeclarationAiIds={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? [...consumedDeclarationAiIds]
+                  : []
+              }
+              onDeclarationRevealChange={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? handleDeclarationRevealChange
+                  : undefined
               }
             />
             );
@@ -1963,6 +2016,9 @@ function SceneTurn({
   skipDecorativeReveal = false,
   cinematicActorAction = false,
   preCinematicVisibleIds = [],
+  activeDeclarationRevealId = null,
+  consumedDeclarationAiIds = [],
+  onDeclarationRevealChange,
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
@@ -2002,6 +2058,9 @@ function SceneTurn({
   skipDecorativeReveal?: boolean;
   cinematicActorAction?: boolean;
   preCinematicVisibleIds?: readonly number[];
+  activeDeclarationRevealId?: number | null;
+  consumedDeclarationAiIds?: readonly number[];
+  onDeclarationRevealChange?: (report: ActorRevealReport) => void;
 }) {
   const allowGm = showGmNarration !== false && !revealGateHeld;
   const pacingSource = resolveTrpgGmPacingSource({
@@ -2107,8 +2166,10 @@ function SceneTurn({
             isFresh: actionIsFresh,
             skipDecorativeReveal,
             cinematicActorAction,
-            preCinematicallyDeclared: (preCinematicVisibleIds ?? []).includes(action.participantId),
+            declarationRevealActive: activeDeclarationRevealId === action.participantId,
+            resolutionActionAlreadyConsumed: consumedDeclarationAiIds.includes(action.participantId),
           });
+          const isActiveDeclarationCard = activeDeclarationRevealId === action.participantId;
           return (
             <div
               key={`${row.roundNumber}-${action.participantId}`}
@@ -2157,7 +2218,15 @@ function SceneTurn({
                     reveal={decorativeReveal}
                     streamIntervalMs={streamIntervalMs}
                     onRevealChange={
-                      isActivePresentationCard && onActiveActorRevealChange
+                      isActiveDeclarationCard && onDeclarationRevealChange
+                        ? (report) =>
+                            onDeclarationRevealChange({
+                              roundNumber: row.roundNumber,
+                              participantId: action.participantId,
+                              complete: report.complete,
+                              progressive: report.progressive,
+                            })
+                        : isActivePresentationCard && onActiveActorRevealChange
                         ? (report) =>
                             onActiveActorRevealChange({
                               roundNumber: row.roundNumber,

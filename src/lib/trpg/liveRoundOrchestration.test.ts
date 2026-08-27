@@ -140,7 +140,7 @@ function visibleSurface(opts: {
         isFresh: !preCinematicIds.includes(row.actorId),
         skipDecorativeReveal: false,
         cinematicActorAction: opts.state.mode === "cinematic" && opts.state.phase === "actor-action",
-        preCinematicallyDeclared: preCinematicIds.includes(row.actorId),
+        resolutionActionAlreadyConsumed: preCinematicIds.includes(row.actorId),
       })
     )
     .map((row) => row.actorId);
@@ -279,7 +279,7 @@ function walkCinematicVisibleEvents(opts: {
               isFreshAiAction: true,
               alreadyCompleted: false,
               effectiveActorRevealComplete: false,
-              preCinematicallyDeclared: true,
+              resolutionActionAlreadyConsumed: true,
             }),
             true,
             "pre-declared AI skips decorative actor-action beat"
@@ -377,7 +377,7 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.equal((room.match(/shouldShowGmNarration\(/g) ?? []).length, 1, "NORMAL_GM_VISIBILITY_OWNER_COUNT");
     assert.doesNotMatch(room, /revealGateReleaseReason !== "watchdog"[\s\S]{0,180}phase: "complete"/);
     assert.match(room, /#509 Outcome B/);
-    assert.match(room, /preCinematicVisibleActionIds/);
+    assert.match(room, /resolvePreCinematicDeclarationReveal/);
     assert.match(room, /resolveLiveRevealedActionIds/);
     assert.match(room, /resolveTrpgMountSeenKeys/);
     assert.doesNotMatch(presentation, /computeResolutionOrder/);
@@ -751,7 +751,7 @@ describe("TRPG live round orchestration — single owner", () => {
         isFresh: isFreshLogKey(botKey),
         skipDecorativeReveal: false,
         cinematicActorAction: true,
-        preCinematicallyDeclared: true,
+        resolutionActionAlreadyConsumed: true,
       }),
       false,
       "BOT20_PROGRESSIVE_REVEAL_COUNT=0"
@@ -762,7 +762,7 @@ describe("TRPG live round orchestration — single owner", () => {
         isFreshAiAction: isFreshLogKey(botKey),
         alreadyCompleted: false,
         effectiveActorRevealComplete: false,
-        preCinematicallyDeclared: true,
+        resolutionActionAlreadyConsumed: true,
       }),
       true,
       "BOT20_ACTION_SKIP=true for pre-declared"

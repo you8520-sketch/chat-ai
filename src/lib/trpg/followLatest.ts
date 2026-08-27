@@ -27,6 +27,7 @@ export function livePresentationActivityKey(opts: {
   revealedActorCount: number;
   resultLaneCount: number;
   gmVisible: boolean;
+  preCinematicVisibleIds?: readonly number[];
 }): string {
   return [
     opts.roundNumber,
@@ -36,6 +37,7 @@ export function livePresentationActivityKey(opts: {
     opts.revealedActorCount,
     opts.resultLaneCount,
     opts.gmVisible ? 1 : 0,
+    opts.preCinematicVisibleIds?.join(",") ?? "",
   ].join("|");
 }
 

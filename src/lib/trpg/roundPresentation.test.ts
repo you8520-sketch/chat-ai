@@ -840,7 +840,7 @@ describe("TRPG live round presentation readiness", () => {
         isFresh: true,
         skipDecorativeReveal: false,
         cinematicActorAction: true,
-        preCinematicallyDeclared: true,
+        resolutionActionAlreadyConsumed: true,
       }),
       false
     );
@@ -850,7 +850,7 @@ describe("TRPG live round presentation readiness", () => {
         isFreshAiAction: true,
         alreadyCompleted: false,
         effectiveActorRevealComplete: false,
-        preCinematicallyDeclared: true,
+        resolutionActionAlreadyConsumed: true,
       }),
       true
     );

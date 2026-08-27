@@ -136,6 +136,51 @@ export function preCinematicVisibleActionIds(
   return out;
 }
 
+export type PreCinematicDeclarationReveal = {
+  availableIds: number[];
+  visibleIds: number[];
+  activeAiId: number | null;
+  complete: boolean;
+};
+
+/**
+ * Single declaration reveal owner.
+ * Canonical AI actions remain buffered in persistence order behind the one
+ * active reveal. This controls presentation only; backend generation is never
+ * blocked and resolutionOrder remains authoritative for mechanics.
+ */
+export function resolvePreCinematicDeclarationReveal(opts: {
+  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[];
+  consumedAiIds: ReadonlySet<number> | readonly number[];
+}): PreCinematicDeclarationReveal {
+  const availableIds = preCinematicVisibleActionIds(opts.actions);
+  const consumed =
+    opts.consumedAiIds instanceof Set
+      ? opts.consumedAiIds
+      : new Set(opts.consumedAiIds);
+  const visibleIds: number[] = [];
+  let activeAiId: number | null = null;
+
+  for (const id of availableIds) {
+    const action = opts.actions.find((candidate) => candidate.participantId === id);
+    if (action?.kind === "human" || consumed.has(id)) {
+      visibleIds.push(id);
+      continue;
+    }
+    if (activeAiId == null) {
+      activeAiId = id;
+      visibleIds.push(id);
+    }
+  }
+
+  return {
+    availableIds,
+    visibleIds,
+    activeAiId,
+    complete: activeAiId == null,
+  };
+}
+
 /**
  * Single live SceneTurn action-id owner.
  * Historical: undefined = all persisted.
@@ -180,13 +225,15 @@ export function shouldDecorativeRevealAction(opts: {
   isFresh: boolean;
   skipDecorativeReveal: boolean;
   cinematicActorAction?: boolean;
-  /** AI prose already shown during pre-cinematic declaration — never replay. */
-  preCinematicallyDeclared?: boolean;
+  declarationRevealActive?: boolean;
+  /** The one visible declaration reveal completed before resolution. */
+  resolutionActionAlreadyConsumed?: boolean;
 }): boolean {
   if (opts.kind !== "ai_character") return false;
-  if (opts.preCinematicallyDeclared === true) return false;
   if (!opts.isFresh) return false;
   if (opts.skipDecorativeReveal) return false;
+  if (opts.declarationRevealActive === true) return true;
+  if (opts.resolutionActionAlreadyConsumed === true) return false;
   if (opts.cinematicActorAction === false) return false;
   return opts.activeRevealActorId === opts.participantId;
 }
@@ -198,11 +245,11 @@ export function isActorActionRevealBeatSatisfied(opts: {
   alreadyCompleted: boolean;
   effectiveActorRevealComplete: boolean;
   skipDecorativeReveal?: boolean;
-  /** AI action prose was visible before resolution cinematic — beat already satisfied. */
-  preCinematicallyDeclared?: boolean;
+  /** AI action prose completed its one declaration reveal before resolution. */
+  resolutionActionAlreadyConsumed?: boolean;
 }): boolean {
   if (opts.actionKind === "human") return true;
-  if (opts.preCinematicallyDeclared === true) return true;
+  if (opts.resolutionActionAlreadyConsumed === true) return true;
   if (!opts.isFreshAiAction) return true;
   if (opts.alreadyCompleted) return true;
   if (opts.skipDecorativeReveal) return true;
@@ -409,11 +456,14 @@ export function liveRoundCanonicalVisibleCount(opts: {
   mode: RoundPresentationMode;
   actions: readonly { participantId: number; kind?: string; revealed?: boolean; body?: string }[];
   revealedActorIds: readonly number[];
+  preCinematicVisibleIds?: readonly number[];
 }): number {
   if (!opts.gated) return opts.actions.length;
   if (opts.mode === "cinematic") {
-    return selectVisibleActions(opts.actions, opts.revealedActorIds).length;
+    const ids = [...(opts.preCinematicVisibleIds ?? []), ...opts.revealedActorIds];
+    return selectVisibleActions(opts.actions, ids).length;
   }
+  if (opts.preCinematicVisibleIds) return opts.preCinematicVisibleIds.length;
   return preCinematicVisibleActionIds(
     opts.actions.map((action) => ({
       participantId: action.participantId,
