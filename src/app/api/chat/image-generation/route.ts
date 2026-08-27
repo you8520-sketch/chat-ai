@@ -78,6 +78,7 @@ import {
 } from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
 import { parseContentKind, type ContentKind } from "@/lib/simulationMode";
+import { resolveChatImageSceneBuilderReadiness } from "@/lib/chatImageCast";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -302,11 +303,12 @@ function resolveGenerationContext(opts: {
 }
 
 function readiness(context: GenerationContext) {
-  const missing: string[] = [];
-  if (!context.characterImageUrl) missing.push("캐릭터 대표 이미지");
-  if (!context.persona) missing.push("유저 페르소나");
-  else if (!context.personaImageUrl) missing.push("페르소나 대표 이미지");
-  return { ready: missing.length === 0, missing };
+  return resolveChatImageSceneBuilderReadiness({
+    contentKind: context.contentKind,
+    characterImageUrl: context.characterImageUrl,
+    hasPersona: Boolean(context.persona),
+    personaImageUrl: context.personaImageUrl,
+  });
 }
 
 function safePublicFilePath(url: string): string | null {
@@ -476,13 +478,18 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
     characterCreatorId: context.character.creator_id,
     viewerUserId,
   });
+  const isSimulation = context.contentKind === "simulation";
   return {
     ...state,
-    personaReady: personaState.ready && !!context.characterImageUrl,
-    personaMissing: [
-      ...personaState.missing,
-      ...(!context.characterImageUrl ? ["캐릭터 그림체 참조 이미지"] : []),
-    ],
+    personaReady: isSimulation
+      ? personaState.ready
+      : personaState.ready && !!context.characterImageUrl,
+    personaMissing: isSimulation
+      ? [...personaState.missing]
+      : [
+          ...personaState.missing,
+          ...(!context.characterImageUrl ? ["캐릭터 그림체 참조 이미지"] : []),
+        ],
     pricePoints,
     modelId: resolveChatImageGenerationModel(),
     modelLabel: "GPT Image 2",

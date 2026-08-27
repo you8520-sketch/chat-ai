@@ -15,6 +15,7 @@ import {
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   formatApprovedScenePlanForIllustration,
+  resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
@@ -371,7 +372,13 @@ export function buildLdSceneGenerationPlan(opts: {
   const approvedScene =
     opts.approvedScene ??
     (opts.approvedScenePlan
-      ? formatApprovedScenePlanForIllustration(opts.approvedScenePlan)
+      ? formatApprovedScenePlanForIllustration(
+          opts.approvedScenePlan,
+          resolveScenePresentationVisibility({
+            contentKind: opts.contentKind,
+            castManifest: opts.castManifest,
+          })
+        )
       : "");
   const useCast = Boolean(opts.castManifest);
   if (useCast) {

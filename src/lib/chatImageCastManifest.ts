@@ -405,7 +405,10 @@ export function buildEventBindingsFromCastMentions(
       fromMentions.push({ eventId, subjectKey: key });
     }
   }
-  return mergeCastBindingsWithPersona(plan, fromMentions);
+  const personaIncluded = intent.subjects.some(
+    (subject) => subject.role === "persona" && subject.included
+  );
+  return mergeCastBindingsWithPersona(plan, fromMentions, { personaIncluded });
 }
 
 export function prepareCastIntentForGrounding(
@@ -744,7 +747,11 @@ export function renderCastGenderLock(
   );
 }
 
-export function buildDeterministicPersonaBindings(plan: ScenePlan): SceneEventSubjectBinding[] {
+export function buildDeterministicPersonaBindings(
+  plan: ScenePlan,
+  opts?: { personaIncluded?: boolean }
+): SceneEventSubjectBinding[] {
+  if (opts?.personaIncluded === false) return [];
   const personaKey = "persona";
   return plan.events
     .filter((event) => event.sourceRole === "user")
@@ -753,15 +760,19 @@ export function buildDeterministicPersonaBindings(plan: ScenePlan): SceneEventSu
 
 export function mergeCastBindingsWithPersona(
   plan: ScenePlan,
-  bindings: readonly SceneEventSubjectBinding[]
+  bindings: readonly SceneEventSubjectBinding[],
+  opts?: { personaIncluded?: boolean }
 ): SceneEventSubjectBinding[] {
-  const deterministic = buildDeterministicPersonaBindings(plan);
+  const deterministic = buildDeterministicPersonaBindings(plan, opts);
   const byEvent = new Map<string, SceneEventSubjectBinding>();
   for (const binding of bindings) byEvent.set(binding.eventId, binding);
   for (const binding of deterministic) byEvent.set(binding.eventId, binding);
   return [...byEvent.values()];
 }
 
-export function parseChatImageCastManifest(raw: unknown): ChatImageCastIntentManifest | null {
-  return parseCastIntentManifest(raw);
+export function parseChatImageCastManifest(
+  raw: unknown,
+  contentKind: ContentKind = "character"
+): ChatImageCastIntentManifest | null {
+  return parseCastIntentManifest(raw, contentKind);
 }

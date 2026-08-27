@@ -974,41 +974,106 @@ export function buildScenePlanPrompt(opts: {
   ].join("\n\n");
 }
 
-export function formatApprovedScenePlanForIllustration(plan: ScenePlan): string {
+export type ScenePresentationVisibility = {
+  personaVisible: boolean;
+};
+
+export const DEFAULT_SCENE_PRESENTATION_VISIBILITY: ScenePresentationVisibility = {
+  personaVisible: true,
+};
+
+export function resolveScenePresentationVisibility(opts: {
+  contentKind?: ContentKind;
+  castManifest?: {
+    subjects: readonly { role: string; included: boolean }[];
+  } | null;
+}): ScenePresentationVisibility {
+  if (opts.contentKind !== "simulation") {
+    return DEFAULT_SCENE_PRESENTATION_VISIBILITY;
+  }
+  const personaSelected = opts.castManifest?.subjects.some(
+    (subject) => subject.role === "persona" && subject.included
+  );
+  return { personaVisible: Boolean(personaSelected) };
+}
+
+export function formatApprovedScenePlanForIllustration(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): string {
   const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
-  const dialogue = heroEvents
-    .filter((event) => event.kind === "dialogue")
+  const visibleHeroEvents = visibility.personaVisible
+    ? heroEvents
+    : heroEvents.filter(
+        (event) => !(event.sourceRole === "user" && event.actor === "persona")
+      );
+  const offCameraEvents = visibility.personaVisible
+    ? []
+    : plan.events.filter((event) => event.sourceRole === "user");
+  const dialogue = visibleHeroEvents
+    .filter((event) => event.kind === "dialogue" && event.actor !== "persona")
     .map((event) => `${event.actor}: “${event.text}”`);
+  const heroScene = visibility.personaVisible
+    ? plan.heroScene
+    : visibleHeroEvents.map((event) => event.text).join(" ").trim() || plan.sceneBackground;
   return [
     `Background: ${plan.sceneBackground}`,
     plan.atmosphere ? `Atmosphere: ${plan.atmosphere}` : "",
-    `Hero scene: ${plan.heroScene}`,
-    heroEvents.length
-      ? `Hero beats:\n${heroEvents.map((event) => `- ${event.kind}: ${event.text}`).join("\n")}`
+    `Hero scene: ${heroScene}`,
+    visibleHeroEvents.length
+      ? `Hero beats:\n${visibleHeroEvents.map((event) => `- ${event.kind}: ${event.text}`).join("\n")}`
+      : "",
+    offCameraEvents.length
+      ? `Off-camera context only (do not render as a visible person):\n${offCameraEvents
+          .map((event) => `- ${event.text}`)
+          .join("\n")}`
       : "",
     dialogue.length
       ? `Key dialogue (acting/emotion only — do not render as readable text):\n${dialogue.join("\n")}`
-      : "No spoken dialogue — express the beat through body language.",
+      : visibility.personaVisible
+        ? "No spoken dialogue — express the beat through body language."
+        : "",
   ]
     .filter(Boolean)
     .join("\n");
 }
 
-export function formatApprovedScenePlanForComic(plan: ScenePlan): string {
+function visiblePanelSituation(
+  panel: ScenePanel,
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility
+): string {
+  if (visibility.personaVisible) return panel.situation;
+  const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+  const visibleTexts = panel.sourceEventIds
+    .map((id) => eventsById.get(id))
+    .filter(
+      (event): event is SceneEvent =>
+        Boolean(event) && !(event!.sourceRole === "user" && event!.actor === "persona")
+    )
+    .map((event) => event.text);
+  return visibleTexts.join(" ").trim() || panel.situation;
+}
+
+export function formatApprovedScenePlanForComic(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): string {
   const panels = plan.panels
     .map((panel) => {
-      const dialogue = panel.dialogue.length
-        ? panel.dialogue
-            .map((line) => `${line.speaker}: “${line.text}”`)
-            .join(" | ")
-        : "No speech bubble";
+      const dialogue = panel.dialogue
+        .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+        .map((line) => `${line.speaker}: “${line.text}”`)
+        .join(" | ");
       return [
         `PANEL ${panel.index}`,
-        `Situation: ${panel.situation}`,
+        `Situation: ${visiblePanelSituation(panel, plan, visibility)}`,
         `Background: ${panel.backgroundOverride || plan.sceneBackground}`,
-        panel.personaAction ? `Persona action: ${panel.personaAction}` : "",
+        visibility.personaVisible && panel.personaAction
+          ? `Persona action: ${panel.personaAction}`
+          : "",
         panel.characterAction ? `Character action: ${panel.characterAction}` : "",
-        `Exact Korean text: ${dialogue}`,
+        `Exact Korean text: ${dialogue || "No speech bubble"}`,
       ]
         .filter(Boolean)
         .join("\n");
@@ -1024,10 +1089,18 @@ export function formatApprovedScenePlanForComic(plan: ScenePlan): string {
     .join("\n\n");
 }
 
-export function collectApprovedComicText(plan: ScenePlan): string[] {
+export function collectApprovedComicText(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): string[] {
   return Array.from(
     new Set(
-      plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text).filter(Boolean))
+      plan.panels.flatMap((panel) =>
+        panel.dialogue
+          .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+          .map((line) => line.text)
+          .filter(Boolean)
+      )
     )
   );
 }

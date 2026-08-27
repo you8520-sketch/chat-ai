@@ -13,6 +13,7 @@ import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   collectApprovedComicText,
   formatApprovedScenePlanForComic,
+  resolveScenePresentationVisibility,
 } from "@/lib/chatImageScenePlan";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
@@ -149,7 +150,11 @@ export function buildChatComicImagePrompt(opts: {
   personaAppearanceMode?: ChatImageAppearanceMode;
   contentKind?: ContentKind;
 }): string {
-  const approvedText = collectApprovedComicText(opts.plan);
+  const sceneVisibility = resolveScenePresentationVisibility({
+    contentKind: opts.contentKind,
+    castManifest: opts.castManifest,
+  });
+  const approvedText = collectApprovedComicText(opts.plan, sceneVisibility);
   const subjects = defaultComicSubjects(opts);
   const castAware = Boolean(opts.castManifest && opts.castSelected?.length);
   const castBlock =
@@ -191,7 +196,7 @@ export function buildChatComicImagePrompt(opts: {
       : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
     "APPROVED SCENE PLAN",
-    formatApprovedScenePlanForComic(opts.plan),
+    formatApprovedScenePlanForComic(opts.plan, sceneVisibility),
   ]
     .filter(Boolean)
     .join("\n\n");

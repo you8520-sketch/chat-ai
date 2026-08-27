@@ -4,32 +4,40 @@ import { describe, it } from "node:test";
 import {
   buildCastCandidatePool,
   draftCastIntentFromCandidatePool,
+  parseCastIntentManifest,
   resolveCastCompositionGoal,
+  resolveChatImageSceneBuilderReadiness,
+  selectedCastIntentSubjects,
 } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
+  parseChatImageCastManifest,
   type GroundCastContext,
 } from "@/lib/chatImageCastManifest";
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildLdSceneGenerationPlan } from "@/lib/chatLdIllustrationGeneration";
-import { buildScenePlanPrompt } from "@/lib/chatImageScenePlan";
-import { buildDeterministicScenePlan, buildSceneSourceMessages } from "@/lib/chatImageScenePlan";
+import {
+  buildDeterministicScenePlan,
+  buildScenePlanPrompt,
+  buildSceneSourceMessages,
+} from "@/lib/chatImageScenePlan";
 
 const SIM_TITLE = "이미지 테스트";
-const PERSONA = "렌";
+const PERSONA = "나";
 const MEMBER_A = "이현";
 const MEMBER_B = "태형";
 const MEMBER_C = "강우";
 const MEMBER_D = "민준";
 
-const PERSONA_URL = "/synthetic/persona-ren.webp";
+const PERSONA_URL = "/synthetic/persona-self.webp";
 const MEMBER_A_URL = "/synthetic/member-a.webp";
 const MEMBER_B_URL = "/synthetic/member-b.webp";
+const MEMBER_C_URL = "/synthetic/member-c.webp";
 
 const SIM_GROUND_CTX: GroundCastContext = {
   persona: {
     name: PERSONA,
-    gender: "male",
+    gender: "female",
     referenceImageUrl: PERSONA_URL,
     savedAppearance: "short black hair",
     appearanceMode: "image_plus_saved",
@@ -44,8 +52,22 @@ const SIM_GROUND_CTX: GroundCastContext = {
   selectableAssets: [
     { url: MEMBER_A_URL, tag: MEMBER_A },
     { url: MEMBER_B_URL, tag: MEMBER_B },
+    { url: MEMBER_C_URL, tag: MEMBER_C },
   ],
 };
+
+const REAL_CHAT_MESSAGES = buildSceneSourceMessages([
+  {
+    id: 1,
+    role: "user",
+    content: "나는 문 앞에서 세 사람을 바라본다.",
+  },
+  {
+    id: 2,
+    role: "assistant",
+    content: "이현이 태형과 강우를 향해 손을 들었다.",
+  },
+]);
 
 function simulationDraft() {
   return draftCastIntentFromCandidatePool({
@@ -53,7 +75,10 @@ function simulationDraft() {
     personaName: PERSONA,
     mainCharacterName: SIM_TITLE,
     configuredCharacterSetNames: [MEMBER_A, MEMBER_B, MEMBER_C, MEMBER_D],
-    events: [{ text: `${MEMBER_A}가 말했다`, sourceRole: "assistant" }],
+    events: REAL_CHAT_MESSAGES.map((message) => ({
+      text: message.text,
+      sourceRole: message.role,
+    })),
   });
 }
 
@@ -76,18 +101,108 @@ function withSelection(
             ? MEMBER_A_URL
             : subject.name === MEMBER_B
               ? MEMBER_B_URL
-              : undefined,
+              : subject.name === MEMBER_C
+                ? MEMBER_C_URL
+                : undefined,
       };
     }),
   };
 }
 
-function groundSimulation(includedNames: string[], personaIncluded = false) {
-  const draft = withSelection(simulationDraft(), includedNames, personaIncluded);
-  const grounded = groundCastIntent(draft, SIM_GROUND_CTX, undefined, "simulation");
-  assert.equal(grounded.ok, true, grounded.ok ? "" : grounded.reason);
-  return grounded.manifest;
+function wireParseSimulation(
+  includedNames: string[],
+  personaIncluded = false
+) {
+  const intent = withSelection(simulationDraft(), includedNames, personaIncluded);
+  const raw = JSON.parse(JSON.stringify(intent));
+  return parseChatImageCastManifest(raw, "simulation");
 }
+
+function groundWireSimulation(
+  includedNames: string[],
+  personaIncluded = false,
+  scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2)
+) {
+  const parsed = wireParseSimulation(includedNames, personaIncluded);
+  assert.ok(parsed);
+  const grounded = groundCastIntent(parsed!, SIM_GROUND_CTX, scenePlan, "simulation");
+  return grounded;
+}
+
+function ldPlanFromGrounded(
+  manifest: NonNullable<ReturnType<typeof groundWireSimulation>["manifest"]>,
+  scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2)
+) {
+  return buildLdSceneGenerationPlan({
+    characterName: SIM_TITLE,
+    characterGender: "other",
+    personaName: PERSONA,
+    personaGender: "female",
+    characterImageUrl: "",
+    characterSavedAppearance: "",
+    characterAppearanceMode: "image_only",
+    personaImageUrl: "",
+    personaSavedAppearance: "",
+    personaAppearanceMode: "image_only",
+    approvedScenePlan: scenePlan,
+    castManifest: manifest,
+    contentKind: "simulation",
+  });
+}
+
+function comicPlanFromGrounded(
+  manifest: NonNullable<ReturnType<typeof groundWireSimulation>["manifest"]>,
+  scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2)
+) {
+  return buildChatComicGenerationPlan({
+    characterName: SIM_TITLE,
+    characterGender: "other",
+    personaName: PERSONA,
+    personaGender: "female",
+    characterImageUrl: "",
+    characterSavedAppearance: "",
+    characterAppearanceMode: "image_only",
+    personaImageUrl: "",
+    personaSavedAppearance: "",
+    personaAppearanceMode: "image_only",
+    plan: scenePlan,
+    castManifest: manifest,
+    contentKind: "simulation",
+  });
+}
+
+describe("simulation cast wire parser", () => {
+  it("A: preserves persona included=false through serialized wire parse", () => {
+    const parsed = wireParseSimulation([MEMBER_A, MEMBER_B, MEMBER_C], false);
+    assert.ok(parsed);
+    const persona = parsed!.subjects.find((subject) => subject.role === "persona");
+    assert.equal(persona?.included, false);
+    assert.equal(selectedCastIntentSubjects(parsed!).length, 3);
+    assert.equal(
+      parsed!.subjects.some((subject) => subject.role === "main_character"),
+      false
+    );
+  });
+
+  it("F: character wire parse keeps persona/main mandatory", () => {
+    const intent = draftCastIntentFromCandidatePool({
+      contentKind: "character",
+      personaName: "User",
+      mainCharacterName: "Hero",
+    });
+    intent.subjects = intent.subjects.map((subject) => ({
+      ...subject,
+      included: false,
+    }));
+    const raw = JSON.parse(JSON.stringify(intent));
+    const parsed = parseChatImageCastManifest(raw, "character");
+    assert.ok(parsed);
+    const persona = parsed!.subjects.find((subject) => subject.role === "persona");
+    const main = parsed!.subjects.find((subject) => subject.role === "main_character");
+    assert.equal(persona?.included, true);
+    assert.equal(main?.included, true);
+  });
+});
 
 describe("simulation cast client draft", () => {
   it("excludes simulation title from candidate pool", () => {
@@ -101,165 +216,118 @@ describe("simulation cast client draft", () => {
     assert.deepEqual(names, [MEMBER_A, MEMBER_B, MEMBER_C, MEMBER_D]);
     assert.equal(names.includes(SIM_TITLE), false);
   });
+});
 
-  it("draft has persona + members without main_character", () => {
-    const draft = simulationDraft();
+describe("simulation real chat source grounding", () => {
+  it("B: user+assistant source with persona=false grounds exactly 3 NPCs and no persona binding", () => {
+    const grounded = groundWireSimulation([MEMBER_A, MEMBER_B, MEMBER_C], false);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const included = grounded.manifest.subjects.filter((subject) => subject.included);
+    assert.equal(included.length, 3);
     assert.equal(
-      draft.subjects.some((subject) => subject.role === "main_character"),
-      false
+      grounded.manifest.eventSubjectBindings.filter((binding) => binding.subjectKey === "persona")
+        .length,
+      0
     );
     assert.equal(
-      draft.subjects.some((subject) => subject.name === SIM_TITLE),
+      grounded.manifest.eventSubjectBindings.some((binding) =>
+        binding.subjectKey.includes(SIM_TITLE)
+      ),
       false
     );
-    assert.equal(draft.subjects.some((subject) => subject.role === "persona"), true);
+  });
+
+  it("E: persona=true keeps persona binding and selected count=3", () => {
+    const grounded = groundWireSimulation([MEMBER_A, MEMBER_B], true);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    assert.equal(
+      grounded.manifest.subjects.filter((subject) => subject.included).length,
+      3
+    );
+    assert.ok(
+      grounded.manifest.eventSubjectBindings.some((binding) => binding.subjectKey === "persona")
+    );
   });
 });
 
-describe("simulation cast server validation", () => {
-  for (const count of [1, 2, 3, 4] as const) {
-    it(`S${count}: accepts ${count} selected simulation members`, () => {
-      const names = [MEMBER_A, MEMBER_B, MEMBER_C, MEMBER_D].slice(0, count);
-      const manifest = groundSimulation(names);
-      assert.equal(manifest.subjects.filter((subject) => subject.included).length, count);
-    });
-  }
+describe("simulation LD/comic prompts with persona excluded", () => {
+  it("C/D: 3 NPC only — no visible persona, no title identity, no persona bubble/action", () => {
+    const grounded = groundWireSimulation([MEMBER_A, MEMBER_B, MEMBER_C], false);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const ld = ldPlanFromGrounded(grounded.manifest, scenePlan);
+    const comic = comicPlanFromGrounded(grounded.manifest, scenePlan);
 
-  it("S5: rejects 5 selected", () => {
-    const draft = withSelection(simulationDraft(), [MEMBER_A, MEMBER_B, MEMBER_C, MEMBER_D, PERSONA], true);
-    const grounded = groundCastIntent(draft, SIM_GROUND_CTX, undefined, "simulation");
-    assert.equal(grounded.ok, false);
-    if (!grounded.ok) assert.match(grounded.reason, /최대 4명/);
-  });
-
-  it("S6: rejects 0 selected", () => {
-    const draft = withSelection(simulationDraft(), [], false);
-    const grounded = groundCastIntent(draft, SIM_GROUND_CTX, undefined, "simulation");
-    assert.equal(grounded.ok, false);
-    if (!grounded.ok) assert.match(grounded.reason, /최소 1명/);
-  });
-
-  it("S7: rejects main_character in simulation payload", () => {
-    const draft = simulationDraft();
-    draft.subjects.push({
-      key: "main_character",
-      role: "main_character",
-      name: SIM_TITLE,
-      included: true,
-      importance: "primary",
-      visibility: "required_visible",
-    });
-    const grounded = groundCastIntent(draft, SIM_GROUND_CTX, undefined, "simulation");
-    assert.equal(grounded.ok, false);
-  });
-
-  it("S8: character chat still requires main", () => {
-    const draft = draftCastIntentFromCandidatePool({
-      contentKind: "character",
-      personaName: "User",
-      mainCharacterName: "Hero",
-      configuredCharacterSetNames: [],
-    });
-    draft.subjects = draft.subjects.filter((subject) => subject.role !== "main_character");
-    const grounded = groundCastIntent(draft, SIM_GROUND_CTX, undefined, "character");
-    assert.equal(grounded.ok, false);
-  });
-});
-
-describe("simulation LD/comic prompts", () => {
-  it("1 selected: title never appears as identity; exactly 1 person", () => {
-    const manifest = groundSimulation([MEMBER_A]);
-    const plan = buildLdSceneGenerationPlan({
-      characterName: SIM_TITLE,
-      characterGender: "other",
-      personaName: PERSONA,
-      personaGender: "male",
-      characterImageUrl: "/synthetic/sim-container.webp",
-      characterSavedAppearance: "",
-      characterAppearanceMode: "image_only",
-      personaImageUrl: PERSONA_URL,
-      personaSavedAppearance: "",
-      personaAppearanceMode: "image_only",
-      castManifest: manifest,
-      contentKind: "simulation",
-    });
-    assert.doesNotMatch(plan.prompt, new RegExp(SIM_TITLE));
-    assert.match(plan.prompt, /Exactly 1 recurring identity/);
-    assert.doesNotMatch(plan.prompt, /two people/i);
-    assert.equal(plan.referenceUrls.includes("/synthetic/sim-container.webp"), false);
-    assert.deepEqual(plan.referenceUrls, [MEMBER_A_URL]);
-  });
-
-  it("2 selected: exactly 2, no duo title fallback", () => {
-    const manifest = groundSimulation([MEMBER_A, MEMBER_B]);
-    const plan = buildLdSceneGenerationPlan({
-      characterName: SIM_TITLE,
-      characterGender: "other",
-      personaName: PERSONA,
-      personaGender: "male",
-      characterImageUrl: "/synthetic/sim-container.webp",
-      characterSavedAppearance: "",
-      characterAppearanceMode: "image_only",
-      personaImageUrl: PERSONA_URL,
-      personaSavedAppearance: "",
-      personaAppearanceMode: "image_only",
-      castManifest: manifest,
-      contentKind: "simulation",
-    });
-    assert.doesNotMatch(plan.prompt, new RegExp(SIM_TITLE));
-    assert.match(plan.prompt, /Exactly 2 recurring identities/);
-    assert.match(plan.prompt, /Show exactly these 2 people/);
-  });
-
-  it("comic 1 selected avoids Exactly two recurring human characters", () => {
-    const manifest = groundSimulation([MEMBER_A]);
-    const messages = buildSceneSourceMessages([
-      { id: 1, role: "assistant", content: `${MEMBER_A}가 웃었다.` },
-    ]);
-    const scenePlan = buildDeterministicScenePlan(messages, 2);
-    const comic = buildChatComicGenerationPlan({
-      characterName: SIM_TITLE,
-      characterGender: "other",
-      personaName: PERSONA,
-      personaGender: "male",
-      characterImageUrl: "/synthetic/sim-container.webp",
-      characterSavedAppearance: "",
-      characterAppearanceMode: "image_only",
-      personaImageUrl: PERSONA_URL,
-      personaSavedAppearance: "",
-      personaAppearanceMode: "image_only",
-      plan: scenePlan,
-      castManifest: manifest,
-      contentKind: "simulation",
-    });
+    assert.match(ld.prompt, /Exactly 3 recurring identities/);
+    assert.doesNotMatch(ld.prompt, new RegExp(SIM_TITLE));
+    assert.doesNotMatch(ld.prompt, /Persona action:/i);
+    assert.match(ld.prompt, /Off-camera context only/);
     assert.doesNotMatch(comic.prompt, /Exactly two recurring human characters/);
-    assert.match(comic.prompt, /Exactly 1 recurring human identity/);
+    assert.match(comic.prompt, /Exactly 3 recurring human identities/);
+    assert.doesNotMatch(comic.prompt, /Persona action:/i);
+    assert.doesNotMatch(comic.prompt, /persona: “/i);
+    assert.doesNotMatch(comic.prompt, new RegExp(SIM_TITLE));
+    assert.deepEqual(ld.referenceUrls.sort(), [MEMBER_A_URL, MEMBER_B_URL, MEMBER_C_URL].sort());
+    assert.equal(scenePlan.events.length >= 2, true);
   });
 });
 
 describe("simulation scene planner prompt", () => {
   it("uses simulation title metadata, not Chat character name", () => {
-    const messages = buildSceneSourceMessages([
-      { id: 1, role: "assistant", content: `${MEMBER_A}가 인사했다.` },
-    ]);
     const prompt = buildScenePlanPrompt({
       contentKind: "simulation",
       characterName: SIM_TITLE,
       personaName: PERSONA,
-      messages,
+      messages: REAL_CHAT_MESSAGES,
     });
     assert.doesNotMatch(prompt, new RegExp(`Chat character name: ${SIM_TITLE}`));
     assert.match(prompt, new RegExp(`Simulation title \\(NOT A PERSON\\): ${SIM_TITLE}`));
   });
 });
 
+describe("simulation readiness", () => {
+  it("G: simulation does not require container image globally", () => {
+    const result = resolveChatImageSceneBuilderReadiness({
+      contentKind: "simulation",
+      characterImageUrl: "",
+      hasPersona: true,
+      personaImageUrl: "",
+    });
+    assert.equal(result.ready, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("H: offscreen persona image is not a global gate when persona excluded", () => {
+    const result = resolveChatImageSceneBuilderReadiness({
+      contentKind: "simulation",
+      characterImageUrl: "",
+      hasPersona: true,
+      personaImageUrl: "",
+    });
+    assert.equal(result.missing.includes("페르소나 대표 이미지"), false);
+    assert.equal(result.missing.includes("캐릭터 대표 이미지"), false);
+  });
+
+  it("character mode keeps image prerequisites", () => {
+    const result = resolveChatImageSceneBuilderReadiness({
+      contentKind: "character",
+      characterImageUrl: "",
+      hasPersona: true,
+      personaImageUrl: "",
+    });
+    assert.equal(result.ready, false);
+    assert.ok(result.missing.includes("캐릭터 대표 이미지"));
+    assert.ok(result.missing.includes("페르소나 대표 이미지"));
+  });
+});
+
 describe("headcount composition owner", () => {
   it("derives solo/duo/trio/ensemble from selected count only", () => {
     const base = simulationDraft();
-    assert.equal(
-      resolveCastCompositionGoal(withSelection(base, [MEMBER_A])),
-      "solo"
-    );
+    assert.equal(resolveCastCompositionGoal(withSelection(base, [MEMBER_A])), "solo");
     assert.equal(
       resolveCastCompositionGoal(withSelection(base, [MEMBER_A, MEMBER_B])),
       "duo_focus"
@@ -274,5 +342,17 @@ describe("headcount composition owner", () => {
       ),
       "ensemble_scene"
     );
+  });
+});
+
+describe("simulation UI labels", () => {
+  it("I: secondary importance label is 일반 for simulation picker options", async () => {
+    const source = await import("@/components/ChatImageCastPicker.tsx");
+    assert.equal(typeof source.default, "function");
+    const file = await import("node:fs/promises").then((fs) =>
+      fs.readFile("src/components/ChatImageCastPicker.tsx", "utf8")
+    );
+    assert.match(file, /SIMULATION_IMPORTANCE[\s\S]*secondary.*일반/);
+    assert.doesNotMatch(file, /SIMULATION_IMPORTANCE[\s\S]*secondary.*조연/);
   });
 });

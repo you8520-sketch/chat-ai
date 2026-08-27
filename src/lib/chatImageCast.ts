@@ -616,7 +616,10 @@ export function validateCastMentions(
   return valid.slice(0, 4);
 }
 
-export function parseCastIntentManifest(raw: unknown): ChatImageCastIntentManifest | null {
+export function parseCastIntentManifest(
+  raw: unknown,
+  contentKind: ContentKind = "character"
+): ChatImageCastIntentManifest | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
   const compositionGoal = isChatImageCastCompositionGoal(record.compositionGoal)
@@ -665,6 +668,23 @@ export function parseCastIntentManifest(raw: unknown): ChatImageCastIntentManife
       compositionGoal: "auto",
       subjects,
     },
-    "character"
+    contentKind
   );
+}
+
+export function resolveChatImageSceneBuilderReadiness(opts: {
+  contentKind: ContentKind;
+  characterImageUrl: string;
+  hasPersona: boolean;
+  personaImageUrl: string;
+}): { ready: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (opts.contentKind === "character") {
+    if (!opts.characterImageUrl) missing.push("캐릭터 대표 이미지");
+    if (!opts.hasPersona) missing.push("유저 페르소나");
+    else if (!opts.personaImageUrl) missing.push("페르소나 대표 이미지");
+  } else if (!opts.hasPersona) {
+    missing.push("유저 페르소나");
+  }
+  return { ready: missing.length === 0, missing };
 }

@@ -22,6 +22,12 @@ const IMPORTANCE: Array<{ id: ChatImageCastImportance; label: string }> = [
   { id: "background", label: "배경" },
 ];
 
+const SIMULATION_IMPORTANCE: Array<{ id: ChatImageCastImportance; label: string }> = [
+  { id: "primary", label: "핵심" },
+  { id: "secondary", label: "일반" },
+  { id: "background", label: "배경" },
+];
+
 const VISIBILITY: Array<{ id: ChatImageCastVisibility; label: string }> = [
   { id: "required_visible", label: "필수 노출" },
   { id: "preferred_visible", label: "가능하면 노출" },
@@ -54,6 +60,7 @@ export default function ChatImageCastPicker({
   const selectedCount = selectedCastIntentSubjects(manifest).length;
   const atMax = isCastSelectionAtMax(manifest);
   const isSimulation = contentKind === "simulation";
+  const importanceOptions = isSimulation ? SIMULATION_IMPORTANCE : IMPORTANCE;
 
   return (
     <section className="space-y-3">
@@ -123,7 +130,7 @@ export default function ChatImageCastPicker({
                         }
                         className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-zinc-200"
                       >
-                        {IMPORTANCE.map((item) => (
+                        {importanceOptions.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.label}
                           </option>

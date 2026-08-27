@@ -274,8 +274,11 @@ function resolveGenerationContext(opts: {
     throw new RequestError("선택할 수 없는 캐릭터 이미지입니다.", 403);
   }
   const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
-  if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
-  if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
+  const contentKind = parseContentKind(character.content_kind);
+  if (contentKind === "character") {
+    if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
+    if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
+  }
 
   const genders = resolveChatImageGenderPair({
     characterName: character.name,
@@ -285,7 +288,7 @@ function resolveGenerationContext(opts: {
   });
   return {
     chatId,
-    contentKind: parseContentKind(character.content_kind),
+    contentKind,
     character,
     persona,
     characterGender: genders.characterGender,
@@ -426,7 +429,7 @@ function resolveGroundedCastManifest(opts: {
   scenePlan: ScenePlan;
 }): ChatImageCastGroundedManifest | null {
   const contentKind = opts.context.contentKind;
-  const intent = parseChatImageCastManifest(opts.castIntentRaw);
+  const intent = parseChatImageCastManifest(opts.castIntentRaw, contentKind);
   if (!intent) {
     if (contentKind === "simulation") {
       throw new RequestError("출연 인물을 선택해 주세요.");
