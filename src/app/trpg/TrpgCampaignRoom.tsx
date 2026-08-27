@@ -159,7 +159,7 @@ import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgUserChatPanel from "./TrpgUserChatPanel";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
-import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
+import TrpgNamedProse, { TrpgGmTalk, quoteSelectStyle } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
@@ -1850,7 +1850,6 @@ export default function TrpgCampaignRoom({
       <ChatSelectionQuoteToolbar
         containerRef={quoteSelectContainerRef}
         characterName={quoteCharacterName}
-        disabled={busy || generating}
         onToast={setToast}
       />
 
@@ -2012,10 +2011,14 @@ function SceneTurn({
       data-trpg-live-scene={liveScene ? "true" : undefined}
       className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5"
     >
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500" data-quote-ignore>
         {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
       </p>
-      <div className="space-y-3">
+      <div
+        className="space-y-3 select-text [touch-action:pan-y] [-webkit-user-select:text]"
+        data-quote-assistant
+        style={quoteSelectStyle}
+      >
         {visibleActions.map((action) => {
           const parsed = parseTrpgBotAction(action.body);
           const roll = rollsByParticipant.get(action.participantId);
@@ -2051,17 +2054,21 @@ function SceneTurn({
               data-trpg-presentation-active={isActivePresentationCard ? "true" : undefined}
             >
               {showResultLane && roll && tone && outcome ? (
-                <TrpgRollResultLane
-                  layout="mobile"
-                  d20={roll.d20}
-                  tone={tone}
-                  outcome={outcome}
-                  compactName={trpgActionCardCompactName(action.name, action.kind)}
-                />
+                <div data-quote-ignore>
+                  <TrpgRollResultLane
+                    layout="mobile"
+                    d20={roll.d20}
+                    tone={tone}
+                    outcome={outcome}
+                    compactName={trpgActionCardCompactName(action.name, action.kind)}
+                  />
+                </div>
               ) : null}
               <div className="flex items-start gap-3">
                 {showResultLane && roll && tone && outcome ? (
-                  <TrpgRollResultLane layout="desktop" d20={roll.d20} tone={tone} outcome={outcome} />
+                  <div data-quote-ignore>
+                    <TrpgRollResultLane layout="desktop" d20={roll.d20} tone={tone} outcome={outcome} />
+                  </div>
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <TrpgNamedProse
@@ -2083,6 +2090,7 @@ function SceneTurn({
                     resolveSceneAssets={false}
                     paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
                     hideMobileLabel={showResultLane}
+                    quoteAssistantRoot={false}
                     reveal={decorativeReveal}
                     streamIntervalMs={streamIntervalMs}
                     onRevealChange={
@@ -2098,7 +2106,7 @@ function SceneTurn({
                     }
                   />
                   {showJudge ? (
-                    <div className="mt-1.5 space-y-0.5 font-sans">
+                    <div className="mt-1.5 space-y-0.5 font-sans" data-quote-ignore>
                       <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>
                       {intent ? (
                         <p className="text-xs leading-relaxed text-zinc-400">{intent}</p>
@@ -2146,6 +2154,7 @@ function SceneTurn({
                   characterCatalog={characterCatalog}
                   campaignId={campaignId}
                   roundNumber={row.roundNumber}
+                  quoteAssistantRoot={false}
                 />
               ) : (
                 <TrpgNamedProse
@@ -2159,6 +2168,7 @@ function SceneTurn({
                   characterCatalog={characterCatalog}
                   campaignId={campaignId}
                   roundNumber={row.roundNumber}
+                  quoteAssistantRoot={false}
                 />
               )
             )}

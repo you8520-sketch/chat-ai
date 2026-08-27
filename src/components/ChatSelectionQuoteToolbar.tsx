@@ -25,6 +25,7 @@ import {
   shareQuoteCardPng,
   styleFromQuoteCardTheme,
 } from "@/lib/quoteCardImage";
+import { extractQuoteSelectionText, isSelectionInContainer } from "@/lib/quoteSelectionContainer";
 import { clampQuoteToolbarPosition, createCoalescedSelectionScheduler } from "@/lib/quoteSelectionToolbar";
 
 type PendingCapture = {
@@ -44,25 +45,6 @@ type PreviewState = {
 };
 
 const CURSOR_OFFSET = 14;
-
-function elementFromSelectionNode(node: Node): Element | null {
-  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node instanceof Element ? node : null;
-}
-
-function isSelectionInContainer(container: HTMLElement, range: Range): boolean {
-  const startElement = elementFromSelectionNode(range.startContainer);
-  const endElement = elementFromSelectionNode(range.endContainer);
-  const commonElement = elementFromSelectionNode(range.commonAncestorContainer);
-  if (!startElement || !endElement || !commonElement) return false;
-  if (!container.contains(startElement) || !container.contains(endElement)) return false;
-  if (commonElement.closest("textarea, input, button, [data-quote-ignore], [data-quote-ui]")) {
-    return false;
-  }
-  const startAssistant = startElement.closest("[data-quote-assistant]");
-  const endAssistant = endElement.closest("[data-quote-assistant]");
-  if (!startAssistant || !endAssistant || startAssistant !== endAssistant) return false;
-  return container.contains(startAssistant) && container.contains(endAssistant);
-}
 
 function rangeAnchorPoint(range: Range): { x: number; y: number } {
   const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 || r.height > 0);
@@ -732,7 +714,7 @@ export default function ChatSelectionQuoteToolbar({
         return;
       }
 
-      const text = sel.toString().replace(/\u00a0/g, " ").replace(/\s+\n/g, "\n").trim();
+      const text = extractQuoteSelectionText(container, range);
       if (!text) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
