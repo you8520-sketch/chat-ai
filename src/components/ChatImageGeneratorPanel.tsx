@@ -26,10 +26,12 @@ import ChatSceneBuilder, {
 import {
   draftCastIntentFromCandidatePool,
   mergeCastIntentDraft,
+  selectedCastIntentSubjects,
   suggestAssetForSupportingName,
   type ChatImageCastIntentManifest,
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
@@ -115,6 +117,7 @@ type Preflight = {
     hasSavedAppearance?: boolean;
     appearancePreview?: string;
   };
+  contentKind?: ContentKind;
   characterImages?: Array<{ url: string; tag: string }>;
   persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;
   balance?: { total: number; paid: number; free: number };
@@ -562,7 +565,23 @@ export default function ChatImageGeneratorPanel({
       tag: image.tag,
     }));
   }, [info?.characterImages]);
+  const contentKind: ContentKind = info?.contentKind ?? "character";
   const reservedCastReferenceUrls = useMemo((): readonly string[] => {
+    if (contentKind === "simulation") {
+      const urls: string[] = [];
+      const personaIncluded = castIntent?.subjects.some(
+        (subject) => subject.role === "persona" && subject.included
+      );
+      if (personaIncluded && info?.persona?.imageUrl) {
+        urls.push(info.persona.imageUrl);
+      }
+      for (const subject of castIntent?.subjects ?? []) {
+        if (!subject.included) continue;
+        const assetUrl = String(subject.requestedReferenceAssetUrl ?? "").trim();
+        if (assetUrl) urls.push(assetUrl);
+      }
+      return urls;
+    }
     const urls = [
       info?.persona?.imageUrl,
       selectedCharacterImageUrl || info?.character.imageUrl,
@@ -570,11 +589,18 @@ export default function ChatImageGeneratorPanel({
       .map((url) => String(url ?? "").trim())
       .filter(Boolean);
     return urls;
-  }, [info?.persona?.imageUrl, info?.character.imageUrl, selectedCharacterImageUrl]);
+  }, [
+    contentKind,
+    castIntent,
+    info?.persona?.imageUrl,
+    info?.character.imageUrl,
+    selectedCharacterImageUrl,
+  ]);
 
   useEffect(() => {
     if (!scenePlan || trpgCampaignMode || !info) return;
     const draft = draftCastIntentFromCandidatePool({
+      contentKind,
       personaName: info.persona?.name ?? "persona",
       mainCharacterName: info.character.name,
       configuredCharacterSetNames: configuredCastNames,
@@ -582,12 +608,7 @@ export default function ChatImageGeneratorPanel({
       events: scenePlan.events,
     });
     setCastIntent((current) => {
-      const merged = mergeCastIntentDraft(
-        current
-          ? { ...current, compositionGoal: current.compositionGoal }
-          : current,
-        { ...draft, compositionGoal: current?.compositionGoal ?? draft.compositionGoal }
-      );
+      const merged = mergeCastIntentDraft(current, draft, contentKind);
       return {
         ...merged,
         subjects: merged.subjects.map((subject) => {
@@ -601,7 +622,7 @@ export default function ChatImageGeneratorPanel({
         }),
       };
     });
-  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames]);
+  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames, contentKind]);
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
@@ -1154,14 +1175,14 @@ export default function ChatImageGeneratorPanel({
     const nextPlan = applyApprovedAiScenePlan(aiSuggestedPlan, scenePanelCountMode);
     setScenePlan(nextPlan);
     const draft = draftCastIntentFromCandidatePool({
+      contentKind,
       personaName: info.persona?.name ?? "persona",
       mainCharacterName: info.character.name,
       configuredCharacterSetNames: configuredCastNames,
       castMentions: nextPlan.castMentions,
       events: nextPlan.events,
-      compositionGoal: castIntent?.compositionGoal,
     });
-    setCastIntent((current) => mergeCastIntentDraft(current, draft));
+    setCastIntent((current) => mergeCastIntentDraft(current, draft, contentKind));
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
   }
@@ -1198,6 +1219,7 @@ export default function ChatImageGeneratorPanel({
             summary?: string;
             messages?: SceneSourceMessage[];
             configuredCastNames?: string[];
+            contentKind?: ContentKind;
             error?: string;
           }
         | null;
@@ -1214,6 +1236,11 @@ export default function ChatImageGeneratorPanel({
           ? data.configuredCastNames.filter((name) => typeof name === "string" && name.trim())
           : []
       );
+      if (data.contentKind === "simulation" || data.contentKind === "character") {
+        setInfo((previous) =>
+          previous ? { ...previous, contentKind: data.contentKind } : previous
+        );
+      }
       applyDeterministicScenePlan(messageId, data.summary, messages, epoch);
     } catch (caught) {
       if (!isCurrentSceneSourceEpoch(epoch)) return;
@@ -2094,6 +2121,7 @@ export default function ChatImageGeneratorPanel({
                             castManifest={castIntent}
                             selectableAssets={selectableCastAssets}
                             reservedReferenceUrls={reservedCastReferenceUrls}
+                            contentKind={contentKind}
                             outputMode={sceneOutputMode}
                             panelCountMode={scenePanelCountMode}
                             disabled={generating}

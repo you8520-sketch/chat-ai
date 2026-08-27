@@ -3,10 +3,17 @@
  * Server grounding lives in chatImageCastManifest.ts.
  */
 
+import type { ContentKind } from "@/lib/simulationMode";
+
 export const CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP = 3;
 export const CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP = 3;
+export const CHAT_IMAGE_CAST_MAX_SELECTED = 4;
 export const CHAT_IMAGE_CAST_FOUR_PLUS_WARNING =
-  "다수 인물 장면은 일부 조연의 세부 정확도가 낮아질 수 있습니다. 핵심 인물 2~3명을 권장합니다.";
+  "4인 장면은 일부 인물의 외형 정확도가 낮아질 수 있습니다.";
+export const CHAT_IMAGE_CAST_MIN_SELECTED_ERROR =
+  "이미지에는 최소 1명을 선택해 주세요.";
+export const CHAT_IMAGE_CAST_MAX_SELECTED_ERROR =
+  "이미지에는 최대 4명까지 선택할 수 있습니다.";
 
 export type ChatImageCastRole =
   | "persona"
@@ -19,10 +26,41 @@ export type ChatImageCastVisibility =
   | "preferred_visible"
   | "background_ok";
 export type ChatImageCastCompositionGoal =
+  | "solo"
   | "duo_focus"
   | "trio_group"
   | "ensemble_scene"
   | "auto";
+
+export type ChatImageCastPolicy = {
+  contentKind: ContentKind;
+  allowMainCharacter: boolean;
+  requireMainCharacter: boolean;
+  personaOptional: boolean;
+  minSelected: number;
+  maxSelected: number;
+};
+
+export function resolveChatImageCastPolicy(contentKind: ContentKind): ChatImageCastPolicy {
+  if (contentKind === "simulation") {
+    return {
+      contentKind: "simulation",
+      allowMainCharacter: false,
+      requireMainCharacter: false,
+      personaOptional: true,
+      minSelected: 1,
+      maxSelected: CHAT_IMAGE_CAST_MAX_SELECTED,
+    };
+  }
+  return {
+    contentKind: "character",
+    allowMainCharacter: true,
+    requireMainCharacter: true,
+    personaOptional: false,
+    minSelected: 2,
+    maxSelected: CHAT_IMAGE_CAST_MAX_SELECTED,
+  };
+}
 
 /** User-editable cast intent — no trusted refs, appearance, or gender. */
 export type ChatImageCastIntentSubject = {
@@ -149,15 +187,23 @@ export function detectCurrentSceneCastNames(
 }
 
 export function buildCastCandidatePool(opts: {
+  contentKind?: ContentKind;
   personaName: string;
   mainCharacterName: string;
   configuredCharacterSetNames?: readonly string[];
   castMentions?: readonly SceneCastMention[];
   events?: readonly { text: string }[];
 }): CastCandidateMeta[] {
+  const contentKind = opts.contentKind ?? "character";
   const persona = cleanText(opts.personaName) || "persona";
-  const main = cleanText(opts.mainCharacterName) || "character";
-  const reserved = new Set([normalizeCastMatchName(persona), normalizeCastMatchName(main)]);
+  const reserved = new Set([normalizeCastMatchName(persona)]);
+  if (contentKind === "character") {
+    const main = cleanText(opts.mainCharacterName) || "character";
+    reserved.add(normalizeCastMatchName(main));
+  } else {
+    const title = cleanText(opts.mainCharacterName);
+    if (title) reserved.add(normalizeCastMatchName(title));
+  }
   const events = opts.events ?? [];
   const configured = (opts.configuredCharacterSetNames ?? [])
     .map((name) => cleanText(name))
@@ -192,14 +238,17 @@ export function buildCastCandidatePool(opts: {
 }
 
 export function draftCastIntentFromCandidatePool(opts: {
+  contentKind?: ContentKind;
   personaName: string;
   mainCharacterName: string;
   configuredCharacterSetNames?: readonly string[];
   castMentions?: readonly SceneCastMention[];
-  events?: readonly { text: string }[];
+  events?: readonly { text: string; sourceRole?: string }[];
   compositionGoal?: ChatImageCastCompositionGoal;
 }): ChatImageCastIntentManifest {
+  const contentKind = opts.contentKind ?? "character";
   const pool = buildCastCandidatePool(opts);
+  const userInSource = (opts.events ?? []).some((event) => event.sourceRole === "user");
   const supporting = pool.map((candidate) => ({
     key: `supporting:${normalizeCastMatchName(candidate.name) || candidate.name}`,
     role: "supporting_character" as const,
@@ -209,6 +258,24 @@ export function draftCastIntentFromCandidatePool(opts: {
     visibility: "preferred_visible" as const,
     candidateSources: candidate.sources,
   }));
+
+  if (contentKind === "simulation") {
+    return {
+      compositionGoal: "auto",
+      subjects: [
+        {
+          key: "persona",
+          role: "persona",
+          name: cleanText(opts.personaName) || "persona",
+          included: userInSource,
+          importance: "primary",
+          visibility: "required_visible",
+        },
+        ...supporting,
+      ],
+    };
+  }
+
   return {
     compositionGoal: opts.compositionGoal ?? "auto",
     subjects: [
@@ -256,6 +323,7 @@ export function isChatImageCastCompositionGoal(
   value: unknown
 ): value is ChatImageCastCompositionGoal {
   return (
+    value === "solo" ||
     value === "duo_focus" ||
     value === "trio_group" ||
     value === "ensemble_scene" ||
@@ -289,25 +357,15 @@ export function resolveCastCompositionGoal(
   manifest: ChatImageCastIntentManifest
 ): Exclude<ChatImageCastCompositionGoal, "auto"> {
   const count = selectedCastIntentSubjects(manifest).length;
-  if (manifest.compositionGoal === "auto") {
-    if (count <= 2) return "duo_focus";
-    if (count === 3) return "trio_group";
-    return "ensemble_scene";
-  }
-  if (manifest.compositionGoal === "trio_group") {
-    if (count <= 2) return "duo_focus";
-    if (count >= 4) return "ensemble_scene";
-    return "trio_group";
-  }
-  return manifest.compositionGoal;
+  if (count <= 1) return "solo";
+  if (count === 2) return "duo_focus";
+  if (count === 3) return "trio_group";
+  return "ensemble_scene";
 }
 
 export function normalizeCastCompositionGoalIntent(
   manifest: ChatImageCastIntentManifest
 ): ChatImageCastIntentManifest {
-  if (manifest.compositionGoal !== "trio_group") return manifest;
-  const count = selectedCastIntentSubjects(manifest).length;
-  if (count === 3) return manifest;
   return {
     ...manifest,
     compositionGoal: resolveCastCompositionGoal(manifest),
@@ -335,13 +393,19 @@ export function castNeedsFourPlusWarning(manifest: ChatImageCastIntentManifest):
   return selectedCastIntentSubjects(manifest).length >= 4;
 }
 
+export function isCastSelectionAtMax(manifest: ChatImageCastIntentManifest): boolean {
+  return selectedCastIntentSubjects(manifest).length >= CHAT_IMAGE_CAST_MAX_SELECTED;
+}
+
 export function normalizeCastPrimaryCap(
-  manifest: ChatImageCastIntentManifest
+  manifest: ChatImageCastIntentManifest,
+  contentKind: ContentKind = "character"
 ): ChatImageCastIntentManifest {
+  const policy = resolveChatImageCastPolicy(contentKind);
   const withCore = {
     ...manifest,
     subjects: manifest.subjects.map((subject) => {
-      if (subject.role === "persona") {
+      if (subject.role === "persona" && !policy.personaOptional) {
         return {
           ...subject,
           key: "persona",
@@ -350,7 +414,7 @@ export function normalizeCastPrimaryCap(
           visibility: "required_visible" as const,
         };
       }
-      if (subject.role === "main_character") {
+      if (subject.role === "main_character" && policy.requireMainCharacter) {
         return {
           ...subject,
           key: "main_character",
@@ -423,13 +487,21 @@ export function applyUserCastEdits(
       ChatImageCastIntentSubject,
       "included" | "importance" | "visibility" | "requestedReferenceAssetUrl"
     >
-  >
+  >,
+  contentKind: ContentKind = "character"
 ): ChatImageCastIntentManifest {
+  const policy = resolveChatImageCastPolicy(contentKind);
   const next = {
     ...manifest,
     subjects: manifest.subjects.map((subject) => {
       if (subject.key !== key) return subject;
-      if (subject.role === "persona" || subject.role === "main_character") {
+      if (subject.role === "main_character") return subject;
+      if (subject.role === "persona" && !policy.personaOptional) return subject;
+      if (
+        patch.included === true &&
+        !subject.included &&
+        isCastSelectionAtMax(manifest)
+      ) {
         return subject;
       }
       const importance = patch.importance ?? subject.importance;
@@ -451,7 +523,7 @@ export function applyUserCastEdits(
       };
     }),
   };
-  return normalizeCastCompositionGoalIntent(normalizeCastPrimaryCap(next));
+  return normalizeCastCompositionGoalIntent(normalizeCastPrimaryCap(next, contentKind));
 }
 
 export function isManuallyPinnedCastSubject(subject: ChatImageCastIntentSubject): boolean {
@@ -461,9 +533,10 @@ export function isManuallyPinnedCastSubject(subject: ChatImageCastIntentSubject)
 
 export function mergeCastIntentDraft(
   current: ChatImageCastIntentManifest | null,
-  next: ChatImageCastIntentManifest
+  next: ChatImageCastIntentManifest,
+  contentKind: ContentKind = "character"
 ): ChatImageCastIntentManifest {
-  if (!current) return normalizeCastPrimaryCap(next);
+  if (!current) return normalizeCastPrimaryCap(next, contentKind);
   const byKey = new Map(current.subjects.map((subject) => [subject.key, subject]));
   const nextKeys = new Set(next.subjects.map((subject) => subject.key));
   const mergedSubjects = next.subjects.map((subject) => {
@@ -483,10 +556,13 @@ export function mergeCastIntentDraft(
     if (!isManuallyPinnedCastSubject(previous)) continue;
     mergedSubjects.push(previous);
   }
-  return normalizeCastPrimaryCap({
-    compositionGoal: current.compositionGoal,
-    subjects: mergedSubjects,
-  });
+  return normalizeCastPrimaryCap(
+    {
+      compositionGoal: "auto",
+      subjects: mergedSubjects,
+    },
+    contentKind
+  );
 }
 
 export function suggestAssetForSupportingName(
@@ -540,7 +616,10 @@ export function validateCastMentions(
   return valid.slice(0, 4);
 }
 
-export function parseCastIntentManifest(raw: unknown): ChatImageCastIntentManifest | null {
+export function parseCastIntentManifest(
+  raw: unknown,
+  contentKind: ContentKind = "character"
+): ChatImageCastIntentManifest | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
   const compositionGoal = isChatImageCastCompositionGoal(record.compositionGoal)
@@ -584,8 +663,28 @@ export function parseCastIntentManifest(raw: unknown): ChatImageCastIntentManife
     })
     .filter((subject): subject is ChatImageCastIntentSubject => Boolean(subject));
   if (!subjects.length) return null;
-  return normalizeCastPrimaryCap({
-    compositionGoal,
-    subjects,
-  });
+  return normalizeCastPrimaryCap(
+    {
+      compositionGoal: "auto",
+      subjects,
+    },
+    contentKind
+  );
+}
+
+export function resolveChatImageSceneBuilderReadiness(opts: {
+  contentKind: ContentKind;
+  characterImageUrl: string;
+  hasPersona: boolean;
+  personaImageUrl: string;
+}): { ready: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (opts.contentKind === "character") {
+    if (!opts.characterImageUrl) missing.push("캐릭터 대표 이미지");
+    if (!opts.hasPersona) missing.push("유저 페르소나");
+    else if (!opts.personaImageUrl) missing.push("페르소나 대표 이미지");
+  } else if (!opts.hasPersona) {
+    missing.push("유저 페르소나");
+  }
+  return { ready: missing.length === 0, missing };
 }

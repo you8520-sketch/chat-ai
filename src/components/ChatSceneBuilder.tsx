@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   applyUserIllustrationEdits,
   applyUserPanelEdits,
@@ -28,6 +29,7 @@ type ChatSceneBuilderProps = {
   castManifest: ChatImageCastIntentManifest | null;
   selectableAssets: readonly SelectableCastAsset[];
   reservedReferenceUrls?: readonly string[];
+  contentKind?: ContentKind;
   outputMode: SceneOutputMode;
   panelCountMode: ScenePanelCountMode;
   disabled?: boolean;
@@ -50,10 +52,12 @@ function PanelEditor({
   panel,
   disabled,
   onChange,
+  contentKind = "character",
 }: {
   panel: ScenePanel;
   disabled?: boolean;
   onChange: (patch: Partial<ScenePanel>) => void;
+  contentKind?: ContentKind;
 }) {
   return (
     <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-2">
@@ -77,7 +81,9 @@ function PanelEditor({
         />
       </label>
       <label className="block space-y-1">
-        <span className="text-[10px] font-semibold text-zinc-500">캐릭터 행동 / 표정</span>
+        <span className="text-[10px] font-semibold text-zinc-500">
+          {contentKind === "simulation" ? "AI 인물 행동 / 표정" : "캐릭터 행동 / 표정"}
+        </span>
         <input
           value={panel.characterAction ?? ""}
           disabled={disabled}
@@ -225,6 +231,7 @@ export default function ChatSceneBuilder({
   castManifest,
   selectableAssets,
   reservedReferenceUrls,
+  contentKind = "character",
   outputMode,
   panelCountMode,
   disabled,
@@ -314,6 +321,7 @@ export default function ChatSceneBuilder({
                     <PanelEditor
                       panel={panel}
                       disabled={disabled}
+                      contentKind={contentKind}
                       onChange={(patch) => {
                         onPlanChange(applyUserPanelEdits(plan, panel.index, patch));
                       }}
@@ -371,6 +379,7 @@ export default function ChatSceneBuilder({
           manifest={castManifest}
           selectableAssets={selectableAssets}
           reservedReferenceUrls={reservedReferenceUrls}
+          contentKind={contentKind}
           disabled={disabled || aiSuggestionLoading}
           onChange={onCastChange}
         />

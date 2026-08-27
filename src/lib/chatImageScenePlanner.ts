@@ -16,6 +16,7 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
+import type { ContentKind } from "@/lib/simulationMode";
 
 export type ScenePlanCompleter = (opts: {
   system: string;
@@ -50,6 +51,7 @@ async function defaultComplete(opts: {
 }
 
 export async function planChatImageScene(opts: {
+  contentKind?: ContentKind;
   characterName: string;
   personaName: string;
   messages: readonly SceneSourceMessage[];
@@ -66,6 +68,7 @@ export async function planChatImageScene(opts: {
   }
 
   const prompt = buildScenePlanPrompt({
+    contentKind: opts.contentKind,
     characterName: opts.characterName,
     personaName: opts.personaName,
     messages,
@@ -97,6 +100,7 @@ export async function planChatImageScene(opts: {
         allowUserEdits: false,
         personaName: opts.personaName,
         characterName: opts.characterName,
+        contentKind: opts.contentKind,
       });
       if (validated.ok) {
         return {

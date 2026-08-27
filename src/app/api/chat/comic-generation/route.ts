@@ -62,7 +62,7 @@ import {
   ChatImageScenePlanRateLimitError,
   releaseChatImageScenePlanRateLimit,
 } from "@/lib/chatImageScenePlanRateLimit";
-import { extractSimulationCastNames } from "@/lib/simulationMode";
+import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import { filterConfiguredCastNamesForViewer } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
@@ -120,6 +120,7 @@ type CharacterRow = {
   appearance_compiled: string | null;
   system_prompt: string | null;
   simulation_cast: string | null;
+  content_kind: string | null;
 };
 
 type PersonaRow = {
@@ -138,6 +139,7 @@ type ChatRow = {
 
 type GenerationContext = {
   chatId: number | null;
+  contentKind: ContentKind;
   character: CharacterRow;
   persona: PersonaRow;
   characterGender: ImagePromptGender;
@@ -234,7 +236,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(simulation_cast, '') AS simulation_cast FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(simulation_cast, '') AS simulation_cast, COALESCE(content_kind, 'character') AS content_kind FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -272,8 +274,11 @@ function resolveGenerationContext(opts: {
     throw new RequestError("선택할 수 없는 캐릭터 이미지입니다.", 403);
   }
   const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
-  if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
-  if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
+  const contentKind = parseContentKind(character.content_kind);
+  if (contentKind === "character") {
+    if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
+    if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
+  }
 
   const genders = resolveChatImageGenderPair({
     characterName: character.name,
@@ -283,6 +288,7 @@ function resolveGenerationContext(opts: {
   });
   return {
     chatId,
+    contentKind,
     character,
     persona,
     characterGender: genders.characterGender,
@@ -399,12 +405,14 @@ function resolveApprovedScenePlan(opts: {
   panelCount?: unknown;
   personaName?: string;
   characterName?: string;
+  contentKind?: ContentKind;
 }): ScenePlan {
   const requestedCount = isScenePanelCount(opts.panelCount) ? opts.panelCount : undefined;
   const validated = validateScenePlan(opts.bodyPlan, opts.messages, {
     allowUserEdits: true,
     personaName: opts.personaName,
     characterName: opts.characterName,
+    contentKind: opts.contentKind,
   });
   if (validated.ok) {
     return requestedCount
@@ -420,8 +428,14 @@ function resolveGroundedCastManifest(opts: {
   context: GenerationContext;
   scenePlan: ScenePlan;
 }): ChatImageCastGroundedManifest | null {
-  const intent = parseChatImageCastManifest(opts.castIntentRaw);
-  if (!intent) return null;
+  const contentKind = opts.context.contentKind;
+  const intent = parseChatImageCastManifest(opts.castIntentRaw, contentKind);
+  if (!intent) {
+    if (contentKind === "simulation") {
+      throw new RequestError("출연 인물을 선택해 주세요.");
+    }
+    return null;
+  }
   const grounded = groundCastIntent(
     intent,
     {
@@ -442,12 +456,16 @@ function resolveGroundedCastManifest(opts: {
         tag: image.tag,
       })),
     },
-    opts.scenePlan
+    opts.scenePlan,
+    contentKind
   );
   if (!grounded.ok) {
     throw new RequestError(grounded.reason);
   }
   const selectedCount = grounded.manifest.subjects.filter((subject) => subject.included).length;
+  if (contentKind === "simulation") {
+    return grounded.manifest;
+  }
   return selectedCount > 2 ? grounded.manifest : null;
 }
 
@@ -650,6 +668,7 @@ export async function POST(req: Request) {
         summary: source.turnText,
         messages: source.messages,
         configuredCastNames,
+        contentKind: context.contentKind,
       });
     }
 
@@ -672,6 +691,7 @@ export async function POST(req: Request) {
       let scenePlanFailed = false;
       try {
         planned = await planChatImageScene({
+          contentKind: context.contentKind,
           characterName: context.character.name,
           personaName: context.persona.name,
           messages: source.messages,
@@ -834,6 +854,7 @@ export async function POST(req: Request) {
           messages: source.messages,
           personaName: context.persona.name,
           characterName: context.character.name,
+          contentKind: context.contentKind,
         });
         const castManifest = resolveGroundedCastManifest({
           castIntentRaw: body.castIntent,
@@ -853,6 +874,7 @@ export async function POST(req: Request) {
           personaAppearanceMode: appearanceModes.personaAppearanceMode,
           approvedScenePlan: scenePlan,
           castManifest,
+          contentKind: context.contentKind,
         });
         prompt = plan.prompt;
         referenceUrls = plan.referenceUrls;
@@ -1014,6 +1036,7 @@ export async function POST(req: Request) {
       panelCount: body.panelCount,
       personaName: context.persona.name,
       characterName: context.character.name,
+      contentKind: context.contentKind,
     });
     const panelCount = scenePlan.panels.length as ChatComicPanelCount;
     const castManifest = resolveGroundedCastManifest({
@@ -1060,6 +1083,7 @@ export async function POST(req: Request) {
       mood,
       plan: scenePlan,
       castManifest,
+      contentKind: context.contentKind,
     });
     const prompt = identityPack.prompt;
     const references = await Promise.all(

@@ -7,6 +7,9 @@ import {
   CHAT_IMAGE_CAST_FOUR_PLUS_WARNING,
   CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP,
   CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP,
+  CHAT_IMAGE_CAST_MAX_SELECTED_ERROR,
+  CHAT_IMAGE_CAST_MIN_SELECTED_ERROR,
+  resolveChatImageCastPolicy,
   validateCastMentions,
   type ChatImageCastCompositionGoal,
   type ChatImageCastImportance,
@@ -23,6 +26,7 @@ import {
   selectedCastIntentSubjects,
   castNeedsFourPlusWarning,
 } from "@/lib/chatImageCast";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
@@ -130,8 +134,10 @@ export function validateUniqueCastReferenceOwnership(
 }
 
 export function normalizeCastIntentCore(
-  intent: ChatImageCastIntentManifest
+  intent: ChatImageCastIntentManifest,
+  contentKind: ContentKind = "character"
 ): { ok: true; intent: ChatImageCastIntentManifest } | { ok: false; reason: string } {
+  const policy = resolveChatImageCastPolicy(contentKind);
   const keys = new Set<string>();
   let personaCount = 0;
   let mainCount = 0;
@@ -157,22 +163,30 @@ export function normalizeCastIntentCore(
     if (subject.role === "main_character") mainCount += 1;
   }
 
-  if (personaCount !== 1) {
-    return {
-      ok: false,
-      reason: personaCount === 0 ? "persona missing" : "duplicate persona role",
-    };
+  if (contentKind === "simulation" && mainCount > 0) {
+    return { ok: false, reason: "simulation cast cannot include main character" };
   }
-  if (mainCount !== 1) {
-    return {
-      ok: false,
-      reason:
-        mainCount === 0 ? "main character missing" : "duplicate main character role",
-    };
+
+  if (policy.requireMainCharacter) {
+    if (personaCount !== 1) {
+      return {
+        ok: false,
+        reason: personaCount === 0 ? "persona missing" : "duplicate persona role",
+      };
+    }
+    if (mainCount !== 1) {
+      return {
+        ok: false,
+        reason:
+          mainCount === 0 ? "main character missing" : "duplicate main character role",
+      };
+    }
+  } else if (personaCount > 1) {
+    return { ok: false, reason: "duplicate persona role" };
   }
 
   const normalizedSubjects = intent.subjects.map((subject) => {
-    if (subject.role === "persona") {
+    if (subject.role === "persona" && !policy.personaOptional) {
       return {
         ...subject,
         key: "persona",
@@ -181,7 +195,7 @@ export function normalizeCastIntentCore(
         visibility: "required_visible" as const,
       };
     }
-    if (subject.role === "main_character") {
+    if (subject.role === "main_character" && policy.requireMainCharacter) {
       return {
         ...subject,
         key: "main_character",
@@ -196,6 +210,14 @@ export function normalizeCastIntentCore(
   const selectedCount = normalizedSubjects.filter(
     (subject) => subject.included && cleanText(subject.name)
   ).length;
+
+  if (selectedCount < policy.minSelected) {
+    return { ok: false, reason: CHAT_IMAGE_CAST_MIN_SELECTED_ERROR };
+  }
+  if (selectedCount > policy.maxSelected) {
+    return { ok: false, reason: CHAT_IMAGE_CAST_MAX_SELECTED_ERROR };
+  }
+
   let supportingPrimaryCount = 0;
   const cappedSubjects =
     selectedCount >= 4
@@ -205,7 +227,7 @@ export function normalizeCastIntentCore(
           }
           if (subject.importance !== "primary") return subject;
           supportingPrimaryCount += 1;
-          if (supportingPrimaryCount <= 1) return subject;
+          if (contentKind === "simulation" || supportingPrimaryCount <= 1) return subject;
           return { ...subject, importance: "secondary" as const };
         })
       : normalizedSubjects;
@@ -213,16 +235,31 @@ export function normalizeCastIntentCore(
   return {
     ok: true,
     intent: {
-      compositionGoal: intent.compositionGoal,
+      compositionGoal: resolveCastCompositionGoal({
+        compositionGoal: "auto",
+        subjects: cappedSubjects,
+      }),
       subjects: cappedSubjects,
     },
   };
 }
 
 function canonicalCastSelectionOrder(
-  subjects: readonly ChatImageCastGroundedSubject[]
+  subjects: readonly ChatImageCastGroundedSubject[],
+  contentKind: ContentKind = "character"
 ): ChatImageCastGroundedSubject[] {
   const included = subjects.filter((subject) => subject.included && subject.name);
+  if (contentKind === "simulation") {
+    const persona = included.find((subject) => subject.role === "persona");
+    const members = included
+      .filter((subject) => subject.role === "supporting_character")
+      .sort(
+        (left, right) => IMPORTANCE_RANK[left.importance] - IMPORTANCE_RANK[right.importance]
+      );
+    return [persona, ...members].filter(
+      (subject): subject is ChatImageCastGroundedSubject => Boolean(subject)
+    );
+  }
   const persona = included.find((subject) => subject.role === "persona");
   const main = included.find((subject) => subject.role === "main_character");
   const supporting = included
@@ -236,18 +273,21 @@ function canonicalCastSelectionOrder(
 function resolveReferenceAttachment(
   subject: ChatImageCastGroundedSubject,
   selectedCount: number,
-  identityRefsUsed: number
+  identityRefsUsed: number,
+  contentKind: ContentKind = "character"
 ): { attach: boolean; nextRefsUsed: number } {
   const url = cleanUrl(subject.referenceImageUrl);
   if (!url) return { attach: false, nextRefsUsed: identityRefsUsed };
-  const isCore = subject.role === "persona" || subject.role === "main_character";
-  if (isCore) {
-    return { attach: true, nextRefsUsed: identityRefsUsed + 1 };
+  if (contentKind === "character") {
+    const isCore = subject.role === "persona" || subject.role === "main_character";
+    if (isCore) {
+      return { attach: true, nextRefsUsed: identityRefsUsed + 1 };
+    }
   }
   if (subject.importance === "background") {
     return { attach: false, nextRefsUsed: identityRefsUsed };
   }
-  if (selectedCount >= 4 && identityRefsUsed >= CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP) {
+  if (identityRefsUsed >= CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP) {
     return { attach: false, nextRefsUsed: identityRefsUsed };
   }
   return { attach: true, nextRefsUsed: identityRefsUsed + 1 };
@@ -292,7 +332,8 @@ export { validateCastMentions } from "@/lib/chatImageCast";
 
 function groundedCoreSubject(
   intent: ChatImageCastIntentSubject,
-  ctx: GroundCastContext
+  ctx: GroundCastContext,
+  contentKind: ContentKind = "character"
 ): ChatImageCastGroundedSubject {
   if (intent.role === "persona") {
     const savedAppearance = String(ctx.persona.savedAppearance ?? "").trim() || undefined;
@@ -307,7 +348,7 @@ function groundedCoreSubject(
       importance: "primary",
       visibility: "required_visible",
       sourceKind: "persona",
-      included: true,
+      included: contentKind === "simulation" ? intent.included : true,
     };
   }
   if (intent.role === "main_character") {
@@ -364,13 +405,17 @@ export function buildEventBindingsFromCastMentions(
       fromMentions.push({ eventId, subjectKey: key });
     }
   }
-  return mergeCastBindingsWithPersona(plan, fromMentions);
+  const personaIncluded = intent.subjects.some(
+    (subject) => subject.role === "persona" && subject.included
+  );
+  return mergeCastBindingsWithPersona(plan, fromMentions, { personaIncluded });
 }
 
 export function prepareCastIntentForGrounding(
-  intent: ChatImageCastIntentManifest
+  intent: ChatImageCastIntentManifest,
+  contentKind: ContentKind = "character"
 ): ChatImageCastIntentManifest {
-  const normalized = normalizeCastIntentCore(intent);
+  const normalized = normalizeCastIntentCore(intent, contentKind);
   if (!normalized.ok) {
     throw new Error(normalized.reason);
   }
@@ -388,12 +433,15 @@ export function resolveCastEventBindings(
 export function groundCastIntent(
   intent: ChatImageCastIntentManifest,
   ctx: GroundCastContext,
-  plan?: ScenePlan
+  plan?: ScenePlan,
+  contentKind: ContentKind = "character"
 ): GroundCastResult {
-  const core = normalizeCastIntentCore(intent);
+  const core = normalizeCastIntentCore(intent, contentKind);
   if (!core.ok) return core;
   const normalized = core.intent;
-  const subjects = normalized.subjects.map((subject) => groundedCoreSubject(subject, ctx));
+  const subjects = normalized.subjects.map((subject) =>
+    groundedCoreSubject(subject, ctx, contentKind)
+  );
 
   for (const intentSubject of normalized.subjects) {
     if (!intentSubject.included || intentSubject.role !== "supporting_character") continue;
@@ -537,13 +585,14 @@ function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVi
 
 export function bindApprovedCastManifest(
   manifest: ChatImageCastGroundedManifest,
-  opts?: { template?: ChatImageTemplateSlot | null }
+  opts?: { template?: ChatImageTemplateSlot | null; contentKind?: ContentKind }
 ): {
   subjects: ChatImageVisualSubject[];
   referenceUrls: string[];
   selected: ChatImageCastGroundedSubject[];
 } {
-  const selected = canonicalCastSelectionOrder(manifest.subjects);
+  const contentKind = opts?.contentKind ?? "character";
+  const selected = canonicalCastSelectionOrder(manifest.subjects, contentKind);
   const selectedCount = selected.length;
 
   let identityRefsUsed = 0;
@@ -551,7 +600,8 @@ export function bindApprovedCastManifest(
     const { attach, nextRefsUsed } = resolveReferenceAttachment(
       subject,
       selectedCount,
-      identityRefsUsed
+      identityRefsUsed,
+      contentKind
     );
     identityRefsUsed = nextRefsUsed;
     const nextSubject = attach
@@ -595,13 +645,15 @@ export function renderCastCompositionGoal(
   count: number
 ): string {
   switch (goal) {
+    case "solo":
+      return "COMPOSITION GOAL: solo. Keep exactly one selected person centered and readable.";
     case "duo_focus":
-      return "COMPOSITION GOAL: duo_focus. Keep the main two people centered and large. Anyone else is a supporting/background presence only.";
+      return "COMPOSITION GOAL: duo_focus. Keep the two selected people centered and large. Do not add unnamed extras.";
     case "trio_group":
       return "COMPOSITION GOAL: trio_group. Arrange three distinct people in a stable left / center / right or triangle group shot. Minimize face occlusion. Every listed face must stay readable.";
     case "ensemble_scene":
       return count >= 4
-        ? "COMPOSITION GOAL: ensemble_scene. Keep the primary 2-3 people in the foreground. Remaining people may recede as background presence. Do not hide a required_visible face."
+        ? "COMPOSITION GOAL: ensemble_scene. Keep all four selected people visible in one coherent group frame. Do not add unnamed extras."
         : "COMPOSITION GOAL: ensemble_scene. Keep the named people clearly separated in one coherent group frame.";
     default: {
       const exhaustive: never = goal;
@@ -635,9 +687,10 @@ export function renderApprovedCastManifest(opts: {
   selected: readonly ChatImageCastGroundedSubject[];
   subjects: readonly ChatImageVisualSubject[];
   plan?: ScenePlan;
+  contentKind?: ContentKind;
 }): string {
   const goal = resolveCastCompositionGoal({
-    compositionGoal: opts.manifest.compositionGoal,
+    compositionGoal: "auto",
     subjects: opts.selected.map((subject) => ({
       key: subject.key,
       role: subject.role,
@@ -648,8 +701,13 @@ export function renderApprovedCastManifest(opts: {
     })),
   });
   const subjectByKey = new Map(opts.subjects.map((subject) => [subject.key, subject]));
+  const countLine =
+    opts.selected.length === 1
+      ? "Exactly 1 recurring identity. No extra person."
+      : `Exactly ${opts.selected.length} recurring identities. Do not add unnamed extras.`;
   const blocks = [
     "APPROVED CAST MANIFEST",
+    countLine,
     ...opts.selected.map((castSubject, index) => {
       const visual = subjectByKey.get(castSubject.key) ?? opts.subjects[index];
       const image = castSubjectImageLine(castSubject, visual);
@@ -661,7 +719,9 @@ export function renderApprovedCastManifest(opts: {
     }),
     renderCastFidelityTiers(opts.selected, opts.subjects),
     renderCastCompositionGoal(goal, opts.selected.length),
-    "Never copy the main character's hair, eyes, outfit, or face onto a supporting person.",
+    opts.contentKind === "simulation"
+      ? "Never copy one simulation member's hair, eyes, outfit, or face onto another person."
+      : "Never copy the main character's hair, eyes, outfit, or face onto a supporting person.",
     "Never map a no-photo subject onto another subject's reference image.",
   ];
   if (opts.plan) {
@@ -687,7 +747,11 @@ export function renderCastGenderLock(
   );
 }
 
-export function buildDeterministicPersonaBindings(plan: ScenePlan): SceneEventSubjectBinding[] {
+export function buildDeterministicPersonaBindings(
+  plan: ScenePlan,
+  opts?: { personaIncluded?: boolean }
+): SceneEventSubjectBinding[] {
+  if (opts?.personaIncluded === false) return [];
   const personaKey = "persona";
   return plan.events
     .filter((event) => event.sourceRole === "user")
@@ -696,15 +760,19 @@ export function buildDeterministicPersonaBindings(plan: ScenePlan): SceneEventSu
 
 export function mergeCastBindingsWithPersona(
   plan: ScenePlan,
-  bindings: readonly SceneEventSubjectBinding[]
+  bindings: readonly SceneEventSubjectBinding[],
+  opts?: { personaIncluded?: boolean }
 ): SceneEventSubjectBinding[] {
-  const deterministic = buildDeterministicPersonaBindings(plan);
+  const deterministic = buildDeterministicPersonaBindings(plan, opts);
   const byEvent = new Map<string, SceneEventSubjectBinding>();
   for (const binding of bindings) byEvent.set(binding.eventId, binding);
   for (const binding of deterministic) byEvent.set(binding.eventId, binding);
   return [...byEvent.values()];
 }
 
-export function parseChatImageCastManifest(raw: unknown): ChatImageCastIntentManifest | null {
-  return parseCastIntentManifest(raw);
+export function parseChatImageCastManifest(
+  raw: unknown,
+  contentKind: ContentKind = "character"
+): ChatImageCastIntentManifest | null {
+  return parseCastIntentManifest(raw, contentKind);
 }
