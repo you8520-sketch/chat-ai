@@ -74,8 +74,8 @@ export default function ChatEmotionPortraitPanel({
 
   return (
     <>
-      <div className="flex h-full min-h-0 w-full flex-col items-center">
-        <div className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-end">
+      <div className="flex h-full min-h-0 w-max flex-col items-center justify-end">
+        <div className="relative h-full w-max">
           <ChatCharacterPortrait
             characterName={characterName}
             emoji={emoji}
@@ -83,6 +83,8 @@ export default function ChatEmotionPortraitPanel({
             portraitUrl={displayUrl}
             blurForViewer={blur}
             size="panel"
+            assetWidth={displayAsset?.width}
+            assetHeight={displayAsset?.height}
             onPortraitClick={visibleAssets.length > 0 ? openLightbox : undefined}
           />
           {visibleAssets.length > 0 && (

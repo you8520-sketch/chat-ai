@@ -444,6 +444,11 @@ export const CHAT_DESKTOP_MEDIA_QUERY = `(min-width: ${CHAT_DESKTOP_MIN_WIDTH_PX
 /** Tailwind arbitrary variant for chat desktop layout */
 export const CHAT_DESKTOP = "min-[576px]" as const;
 
+/** Side-by-side portrait image rail — requires enough central width (768+). */
+export const CHAT_PORTRAIT_SIDE_MIN_WIDTH_PX = 768;
+export const CHAT_PORTRAIT_SIDE_MEDIA_QUERY = `(min-width: ${CHAT_PORTRAIT_SIDE_MIN_WIDTH_PX}px)`;
+export const CHAT_PORTRAIT_SIDE = "min-[768px]" as const;
+
 /** 채팅 좌측 에셋 열 — 2:3 비율 이미지 너비(auto) */
 export const CHAT_PORTRAIT_COLUMN_WIDTH_CLASS = "w-auto shrink-0";
 
@@ -471,29 +476,70 @@ export const CHAT_ROOM_TITLE_BAR_CLASS =
 export const CHAT_PORTRAIT_TITLE_STACK_REM = "2.75rem";
 export const CHAT_PORTRAIT_TITLE_STACK_MD_REM = "5.25rem";
 
+/** PC portrait rail / frame height — definite calc (not %), drives intrinsic width via aspect-ratio. */
+export const CHAT_PORTRAIT_RAIL_HEIGHT =
+  "calc(100dvh - var(--site-header-height, 44px) - 3.25rem)";
+
 /** 에셋 패널 높이 — 제목 아래부터 뷰포트 하단(입력창 sticky bottom과 동일 선) */
 export const CHAT_PORTRAIT_PANEL_HEIGHT = `calc(100dvh - ${CHAT_PORTRAIT_TITLE_STACK_MD_REM})`;
 
 /** 채팅 입력창 하단 안내문 위쪽에 맞춰 좌측 에셋이 화면 바닥까지 꽉 차지 않도록 남기는 여백 */
 export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
-/** Desktop portrait+chat column tracks (shared by main grid and sticky info strip). */
+/** Desktop portrait+chat — stacked header at 576–767; side-by-side flex row at 768+. */
 export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
-  "min-[576px]:grid-cols-[minmax(340px,400px)_minmax(0,780px)] min-[576px]:gap-x-6";
+  "min-[576px]:flex min-[576px]:flex-col min-[576px]:items-center min-[768px]:flex-row min-[768px]:items-start min-[768px]:gap-x-6";
+
+/** Left column — name header (+ portrait panel at 768+). */
+export const CHAT_PORTRAIT_COLUMN_CLASS =
+  "chat-room-portrait-column hidden min-[576px]:flex min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:shrink-0 min-[576px]:flex-col min-[768px]:w-max min-[768px]:max-w-none min-[768px]:self-start";
+
+/** Right column — chat header band + messages. */
+export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
+  "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:max-w-[780px] min-[768px]:min-w-[var(--chat-portrait-min-chat-w)]";
+
+/** Minimum chat column width when portrait is ON (desktop). */
+export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 360;
+
+/**
+ * PC portrait panel max width — set on `.chat-room-portrait-grid` as `--chat-portrait-max-w`
+ * from container inline size (100cqw), not viewport.
+ */
+export const CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS = "max-w-[var(--chat-portrait-max-w)]";
+
+/** PC portrait panel shell — rail height is definite; image sits bottom-aligned in column. */
+export const CHAT_PORTRAIT_PANEL_SHELL_CLASS =
+  "flex h-full w-max min-h-0 items-end justify-center overflow-hidden";
+
+/** PC portrait frame — definite height calc + aspect-ratio; width is intrinsic (flex w-max track). */
+export const CHAT_PORTRAIT_PANEL_FRAME_CLASS =
+  "relative shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#08080c] shadow-lg shadow-black/10 transition hover:border-violet-400/35";
+
+/** PC portrait img — fills frame; frame aspect matches asset so contain shows full image. */
+export const CHAT_PORTRAIT_PANEL_IMG_CLASS = "block h-full w-full object-contain object-top";
+
+export const CHAT_PORTRAIT_PANEL_IMG_ENHANCED_CLASS =
+  `${CHAT_PORTRAIT_PANEL_IMG_CLASS} brightness-95 contrast-95`;
+
+/** Empty-state max width — legacy ~340px on wide desktop, shrinks with container max. */
+export const CHAT_PORTRAIT_PLACEHOLDER_MAX_WIDTH = "min(340px, var(--chat-portrait-max-w))";
+/** PC portrait empty-state — wide desktop ≈340px footprint; narrows with available portrait max. */
+export const CHAT_PORTRAIT_PANEL_PLACEHOLDER_CLASS =
+  "chat-room-portrait-placeholder flex h-full max-h-full w-auto max-w-[min(340px,var(--chat-portrait-max-w))] shrink-0 items-center justify-center rounded-[18px] aspect-[3/4]";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  `chat-room-portrait-grid mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} min-[576px]:grid-rows-[auto_minmax(0,1fr)]`;
+  `chat-room-portrait-grid mx-auto flex w-full max-w-[75.25rem] min-w-0 flex-1 flex-col ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS}`;
 
 /**
- * Desktop sticky name/creator/album strip (portrait ON) — spans both grid columns
- * so the tab sits above chat; album content stays in the portrait track only.
+ * Desktop sticky name/creator/album (portrait ON) — top of portrait column.
  */
 export const CHAT_PORTRAIT_INFO_STICKY_CLASS =
-  "chat-room-desktop-name-strip hidden min-[576px]:col-span-2 min-[576px]:col-start-1 min-[576px]:row-start-1 min-[576px]:block min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
+  "chat-room-desktop-name-strip hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:shrink-0 min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
 
-export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
-  `chat-room-portrait-track grid h-full w-full ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} pl-0 pr-1`;
+/** Desktop header continuation over chat column (768+ side portrait only). */
+export const CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS =
+  "chat-room-portrait-header-chat hidden min-[768px]:block min-[768px]:h-[3.25rem] min-[768px]:shrink-0 min-[768px]:border-b min-[768px]:border-white/5 min-[768px]:bg-[#121212]/95 min-[768px]:backdrop-blur";
 
 /**
  * Desktop sticky name/creator/album strip (portrait OFF) — same fixed top bar as
@@ -502,12 +548,9 @@ export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
 export const CHAT_INFO_STICKY_NO_PORTRAIT_CLASS =
   "chat-room-desktop-name-strip chat-room-desktop-name-strip--row hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:mx-auto min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:pl-0 min-[576px]:pr-1 min-[576px]:backdrop-blur";
 
-/** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), chat desktop+: 에셋 열 */
+/** Side portrait image rail — hidden 576–767 (name strip stays); visible 768+. */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "chat-room-portrait-rail hidden min-[576px]:col-start-1 min-[576px]:row-start-2 min-[576px]:sticky min-[576px]:top-[calc(var(--site-header-height,44px)+3.25rem)] min-[576px]:z-10 min-[576px]:flex min-[576px]:h-[calc(100dvh-var(--site-header-height,44px)-3.25rem)] min-[576px]:w-full min-[576px]:flex-col min-[576px]:self-start";
-
-/** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
-export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
+  "chat-room-portrait-rail hidden min-[768px]:flex min-[768px]:h-[var(--chat-portrait-rail-h)] min-[768px]:w-max min-[768px]:flex-col min-[768px]:items-start min-[768px]:justify-end min-[768px]:self-start";
 
 /**
  * 채팅 본문 열 — 이미지와 같은 시작 높이.
@@ -515,7 +558,7 @@ export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
  * so the composer scrolls away with the message list. Clip X only if needed.
  */
 export const CHAT_MESSAGES_COLUMN_CLASS =
-  "chat-room-messages-column relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-x-clip min-[576px]:col-start-2 min-[576px]:row-start-2";
+  "chat-room-messages-column relative flex min-w-0 flex-1 flex-col overflow-x-clip";
 
 /** Mobile portrait background is pinned to the stable viewport, never the growing message list. */
 export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
