@@ -1,6 +1,8 @@
 /**
  * Persona Secret System — READ-ONLY design verification (Scenarios 0–4, H–L).
  * Synthetic fixtures only; no production user data; no model calls.
+ *
+ * Baseline: #677 single-authority (49ee38e3) + #680 S3 attribution (ded3a2a0).
  */
 import Module from "module";
 import { randomUUID } from "node:crypto";
@@ -40,8 +42,12 @@ import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { upsertChatObserver } from "@/lib/observerIdentity";
 import { applyKnowledgeTransferAction } from "@/lib/knowledgeTransferApply";
 import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
-import { upsertInvestigationTarget } from "@/lib/investigationTargets";
+import { buildSecretBlindDocumentTargetPayload } from "@/lib/investigationDocumentTargetPayload";
+import {
+  registerPresentedDocumentTarget,
+} from "@/lib/investigationTargets";
 import { runInvestigationDiscoveryForTurn } from "@/lib/investigationDiscovery";
+import { insertChatPersonaSecretReveal } from "@/lib/personaSecretReveal";
 import { extractAndPersistSceneEvidence } from "@/lib/sceneEvidence";
 import { listSceneEvidenceEventsForChatTurn } from "@/lib/sceneEvidencePersist";
 import { upsertScenePresence } from "@/lib/scenePresence";
@@ -78,6 +84,13 @@ function uniqueIds() {
     charA: 17,
     charB: 29,
   };
+}
+
+function countRows(table: string, where = ""): number {
+  const row = getDb()
+    .prepare(`SELECT COUNT(*) AS c FROM ${table}${where ? ` WHERE ${where}` : ""}`)
+    .get() as { c: number };
+  return row.c;
 }
 
 /** Synthetic secret contract needles — canonical vs projections. */
@@ -137,6 +150,7 @@ function promptForObserver(opts: {
     decision,
     chatId: opts.chatId,
     personaId: opts.personaId,
+    authority: "discovery",
   });
   const publicPersona = formatPublicPersonaForPrompt(
     "렌",
@@ -350,7 +364,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
     assert.doesNotMatch(JSON.stringify(publicDto), /성채/);
   });
 
-  it("Scenario 1 — S1 direct disclosure: A CONFIRMED, B unknown, no canonical leak", () => {
+  it("Scenario 1 — S1 direct disclosure: A CONFIRMED, B UNKNOWN, no cross-observer leak", () => {
     const { personaId, chatId, otherChatId, charA, charB } = uniqueIds();
     const secret = seedMainSecret(personaId);
     setupTwoCharacterChat({ chatId, charA, charB });
@@ -369,6 +383,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
       sourceMessageId: 101,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: matches[0]!.revealedFactText,
+      authority: "discovery",
       idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
         chatId,
         personaId,
@@ -385,25 +400,69 @@ describe("Persona Secret design verification — synthetic integration", () => {
     assert.equal(knowledge(chatId, personaId, charB, secret.id), null);
     assert.equal(knowledge(otherChatId, personaId, charA, secret.id), null);
 
+    const revealRows = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS c FROM chat_persona_secret_reveals WHERE chat_id=? AND persona_id=?`
+      )
+      .get(chatId, personaId) as { c: number };
+    assert.equal(revealRows.c, 0, "Discovery ON: no legacy reveal dual-write");
+
+    const tables = [
+      "chat_character_secret_knowledge",
+      "persona_secret_evidence_events",
+      "chat_persona_secret_reveals",
+    ] as const;
+    const beforePrompt = Object.fromEntries(
+      tables.map((t) => [t, countRows(t, `chat_id=${chatId}`)])
+    ) as Record<(typeof tables)[number], number>;
+
     const promptA = promptForObserver({ chatId, personaId, characterId: charA });
     const promptB = promptForObserver({ chatId, personaId, characterId: charB });
     assert.match(promptA.knownFacts!, /CONFIRMED/);
     assert.match(promptA.knownFacts!, /017/);
+    assert.equal(promptB.knownFacts, null, "B prompt must not receive A private facts");
     assertNoNeedles(promptA.assembled, [CANONICAL_SECRET], "S1 known observer");
     assertNoNeedles(promptB.assembled, [CANONICAL_SECRET], "S1 unknown observer canonical");
 
-    // DESIGN GAP (verified): S1 writes chat-scoped chat_persona_secret_reveals;
-    // buildKnownPersonaFactsForObserver calls migrateLegacyRevealIfMatched for every
-    // numeric CHARACTER observer, which creates CONFIRMED knowledge rows for B/C/etc.
-    const kB = knowledge(chatId, personaId, charB, secret.id);
-    assert.equal(kB?.knowledge_state, "CONFIRMED", "legacy migration writes B knowledge (gap)");
-    assert.equal(kB?.fact_snapshot, CONFIRMED_PROJECTION);
-    assert.ok(
-      promptB.knownFacts?.includes("017"),
-      "observer B prompt also receives migrated fact"
+    for (const t of tables) {
+      assert.equal(
+        countRows(t, `chat_id=${chatId}`),
+        beforePrompt[t],
+        `${t} row count unchanged after prompt build`
+      );
+    }
+
+    assert.equal(knowledge(chatId, personaId, charB, secret.id), null, "B remains UNKNOWN");
+    assert.equal(
+      getCharacterSecretKnowledge({
+        chatId,
+        personaId,
+        secretId: secret.id,
+        characterId: charB,
+        db: getDb(),
+      }),
+      null,
+      "B knowledge unchanged on fresh read"
     );
 
-    // Later turn persistence
+    const ensembleDecision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "simulation",
+        simulationCast: "A, B",
+        characterId: charA,
+      }),
+      { chatId }
+    );
+    const ensembleBlock = withEnsembleRedactedPromptAssembly(() =>
+      buildPersonaKnowledgePromptBlock({
+        decision: ensembleDecision,
+        chatId,
+        personaId,
+        authority: "discovery",
+      })
+    );
+    assert.equal(ensembleBlock, null, "ensemble must not share private facts across observers");
+
     const kA2 = knowledge(chatId, personaId, charA, secret.id);
     assert.equal(kA2?.knowledge_state, "CONFIRMED");
   });
@@ -510,7 +569,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
     assertNoNeedles(promptA.assembled, [CANONICAL_SECRET], "S2 prompt");
   });
 
-  it("Scenario 3 — S3 investigation discovery", () => {
+  it("Scenario 3 — S3 investigation: document attribution + observer isolation (#680 baseline)", () => {
     const { personaId, chatId, otherChatId, charA, charB } = uniqueIds();
     compileAndApplyPersonaSecrets({
       personaId,
@@ -522,24 +581,26 @@ describe("Persona Secret design verification — synthetic integration", () => {
     assert.ok(debtSecret);
     setupTwoCharacterChat({ chatId, charA, charB });
 
-    assert.equal(knowledge(chatId, personaId, charA, debtSecret.id), null);
+    assert.deepEqual(
+      buildSecretBlindDocumentTargetPayload({ documentLabel: "독촉장" }).resultTags,
+      ["debt_notice"],
+      "plain document type must not imply debtor_identity_match"
+    );
+    assert.deepEqual(
+      buildSecretBlindDocumentTargetPayload({
+        documentLabel: "독촉장",
+        documentSubject: "PERSONA_SELF",
+      }).resultTags,
+      ["debt_notice", "debtor_identity_match"]
+    );
 
-    upsertInvestigationTarget({
-      ownerScope: "CHAT",
-      ownerId: String(chatId),
-      targetType: "DOCUMENT",
-      targetKey: "doc:독촉장",
-      displayLabel: "독촉장",
-      payload: {
-        resultType: "DOCUMENT_CONTENT_VERIFIED",
-        resultState: "VERIFIED",
-        resultTags: ["debt_notice", "debtor_identity_match"],
-        observableFacts: ["채무 금액과 채무자 이름이 기재되어 있다."],
-        requiredAccess: { allowedActions: ["READ_DOCUMENT"] },
-      },
+    registerPresentedDocumentTarget({
+      chatId,
+      documentLabel: "독촉장",
+      payload: buildSecretBlindDocumentTargetPayload({ documentLabel: "독촉장" }),
     });
 
-    const inv = runInvestigationDiscoveryForTurn({
+    const plainInv = runInvestigationDiscoveryForTurn({
       chatId,
       personaId,
       characterId: charA,
@@ -547,28 +608,45 @@ describe("Persona Secret design verification — synthetic integration", () => {
       sourceMessageId: 401,
       explicitActions: [{ actionType: "READ_DOCUMENT", targetKey: "doc:독촉장" }],
     });
-    assert.ok(inv.changedCount >= 1);
-    assert.equal(
-      knowledge(chatId, personaId, charA, debtSecret.id)?.knowledge_state,
-      "CONFIRMED"
-    );
+    assert.ok(plainInv.resultCount >= 1, "plain read produces investigation result");
+    assert.equal(plainInv.changedCount, 0, "plain debt_notice alone must not CONFIRM debt secret");
+    assert.equal(knowledge(chatId, personaId, charA, debtSecret.id), null);
     assert.equal(knowledge(chatId, personaId, charB, debtSecret.id), null);
-    assert.equal(knowledge(otherChatId, personaId, charA, debtSecret.id), null);
 
-    // Invalid investigation → no new knowledge
-    const invFail = runInvestigationDiscoveryForTurn({
+    registerPresentedDocumentTarget({
+      chatId,
+      documentLabel: "독촉장",
+      payload: buildSecretBlindDocumentTargetPayload({
+        documentLabel: "독촉장",
+        documentSubject: "PERSONA_SELF",
+      }),
+    });
+
+    const selfInv = runInvestigationDiscoveryForTurn({
       chatId,
       personaId,
       characterId: charA,
       turnNumber: 2,
       sourceMessageId: 402,
-      explicitActions: [{ actionType: "READ_DOCUMENT", targetKey: "doc:nonexistent" }],
+      explicitActions: [{ actionType: "READ_DOCUMENT", targetKey: "doc:독촉장" }],
     });
-    assert.equal(invFail.resultCount, 0);
+    assert.ok(selfInv.changedCount >= 1, "self-attributed read may CONFIRM debt secret");
     assert.equal(
       knowledge(chatId, personaId, charA, debtSecret.id)?.knowledge_state,
       "CONFIRMED"
     );
+    assert.equal(knowledge(chatId, personaId, charB, debtSecret.id), null);
+
+    const crossChatInv = runInvestigationDiscoveryForTurn({
+      chatId: otherChatId,
+      personaId,
+      characterId: charA,
+      turnNumber: 1,
+      sourceMessageId: 403,
+      explicitActions: [{ actionType: "READ_DOCUMENT", targetKey: "doc:독촉장" }],
+    });
+    assert.equal(crossChatInv.resultCount, 0, "cross-chat target access must be 0");
+    assert.equal(knowledge(otherChatId, personaId, charA, debtSecret.id), null);
   });
 
   it("Scenario 4 — S4 knowledge transfer with negative controls", () => {
@@ -743,6 +821,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
       turnNumber: 1,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: CONFIRMED_PROJECTION,
+      authority: "discovery",
       idempotencyKey: `persist-${chatId}-${secret.id}`,
     });
 
@@ -792,6 +871,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
       turnNumber: 1,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: CONFIRMED_PROJECTION,
+      authority: "discovery",
       idempotencyKey: `edit-${chatId}-${secret.id}`,
     });
 
@@ -827,6 +907,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
       turnNumber: 1,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: CONFIRMED_PROJECTION,
+      authority: "discovery",
       idempotencyKey: `del-${chatId}-${secret.id}`,
     });
 
@@ -868,14 +949,87 @@ describe("Persona Secret design verification — synthetic integration", () => {
     );
   });
 
+  it("Invariant — legacy archive: Discovery ON skips reveal runtime authority", () => {
+    const { personaId, chatId, charA } = uniqueIds();
+    const secret = seedMainSecret(personaId);
+    setupTwoCharacterChat({ chatId, charA, charB: 29 });
+
+    insertChatPersonaSecretReveal({
+      chatId,
+      personaId,
+      secretKey: secret.secretKey,
+      revealedFactText: CONFIRMED_PROJECTION,
+      revealedAtTurn: 1,
+      source: "USER_AUTHORED_DISCLOSURE",
+    });
+
+    const tables = [
+      "chat_character_secret_knowledge",
+      "persona_secret_evidence_events",
+    ] as const;
+    const before = Object.fromEntries(
+      tables.map((t) => [t, countRows(t, `chat_id=${chatId}`)])
+    ) as Record<(typeof tables)[number], number>;
+
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({ contentKind: "character", characterId: charA }),
+      { chatId }
+    );
+    const block = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId,
+      personaId,
+      authority: "discovery",
+    });
+    assert.equal(block, null, "Discovery ON: legacy reveal must not project into prompt");
+
+    for (const t of tables) {
+      assert.equal(
+        countRows(t, `chat_id=${chatId}`),
+        before[t],
+        `${t} unchanged — no auto legacy migration under discovery authority`
+      );
+    }
+    assert.equal(knowledge(chatId, personaId, charA, secret.id), null);
+  });
+
+  it("Invariant — legacy archive: Discovery OFF preserves legacy projection", () => {
+    const saved = saveEnv();
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "0";
+    try {
+      const { personaId, chatId, charA } = uniqueIds();
+      const secret = seedMainSecret(personaId);
+
+      insertChatPersonaSecretReveal({
+        chatId,
+        personaId,
+        secretKey: secret.secretKey,
+        revealedFactText: CONFIRMED_PROJECTION,
+        revealedAtTurn: 1,
+        source: "USER_AUTHORED_DISCLOSURE",
+      });
+
+      const block = buildCharacterKnownFactsBlock({
+        chatId,
+        personaId,
+        characterId: charA,
+        authority: "legacy",
+      });
+      assert.ok(block, "Discovery OFF: legacy authority may project archived reveals");
+      assert.match(block!, /017/);
+      assertNoNeedles(block!, [CANONICAL_SECRET], "legacy projection uses fact snapshot only");
+    } finally {
+      restoreEnv(saved);
+    }
+  });
+
   it("Scenario L — /api/chat route wiring static audit", () => {
     const route = readFileSync("src/app/api/chat/route.ts", "utf8");
     const checks: Array<[string, RegExp]> = [
       ["S1 detect", /detectDeterministicDirectDisclosures\s*\(/],
       ["S1 confirm", /confirmPersonaSecretDisclosure\s*\(/],
-      ["S2 evidence", /extractAndPersistSceneEvidence\s*\(/],
-      ["S2 visual", /runVisualDiscoveryForTurn\s*\(/],
-      ["S3 investigation", /runInvestigationDiscoveryForTurn\s*\(/],
+      ["S2/S3 home turn", /runHomeDiscoveryTurn\s*\(/],
+      ["S2 evidence fallback", /extractAndPersistSceneEvidence\s*\(/],
       ["S4 transfer", /runKnowledgeTransfersForTurn\s*\(/],
       ["observer bootstrap", /bootstrapChatObservers\s*\(/],
       ["prompt decision", /resolvePersonaKnowledgePromptDecisionForChat\s*\(/],
