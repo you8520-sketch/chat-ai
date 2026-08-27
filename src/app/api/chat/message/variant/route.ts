@@ -22,6 +22,11 @@ import {
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
+  assertS4VariantSwitchAllowed,
+  S4HistoricalVariantReplayUnsupportedError,
+  S4VariantProvenanceInvalidError,
+} from "@/lib/knowledgeTransferVariant";
+import {
   executeAtomicNumericVariantSwitch,
   listCanonicalEligibleNumericFields,
   NumericHistoricalVariantReplayUnsupportedError,
@@ -136,6 +141,26 @@ export async function PATCH(req: Request) {
   const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
   const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId);
 
+  try {
+    assertS4VariantSwitchAllowed(
+      db,
+      msg.chat_id,
+      messageId,
+      hasLaterCanonicalTurn(db, msg.chat_id, messageId)
+    );
+  } catch (e) {
+    if (e instanceof S4HistoricalVariantReplayUnsupportedError) {
+      return NextResponse.json(
+        {
+          error: "이후 대화가 있는 과거 턴의 S4 버전 전환은 지원하지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
+
   // ─── Numeric-enabled path (B1-D2) ───
   if (numericEligible) {
     if (hasLaterCanonicalTurn(db, msg.chat_id, messageId)) {
@@ -204,6 +229,15 @@ export async function PATCH(req: Request) {
         return NextResponse.json(
           {
             error: "선택한 버전의 숫자 상태 원본을 찾을 수 없습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
+      if (e instanceof S4VariantProvenanceInvalidError) {
+        return NextResponse.json(
+          {
+            error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
             code: e.code,
           },
           { status: 409 }
@@ -296,6 +330,15 @@ export async function PATCH(req: Request) {
         selectedGenerationSequence: selectedVariant?.generationSequence ?? null,
       });
     } catch (e) {
+      if (e instanceof S4VariantProvenanceInvalidError) {
+        return NextResponse.json(
+          {
+            error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
       console.error(
         "[DerivedState] atomic variant switch core failed:",
         (e as Error).message

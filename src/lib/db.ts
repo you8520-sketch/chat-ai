@@ -924,6 +924,17 @@ function migrate(db: Database.Database) {
         created_at
       );
 
+    CREATE TABLE IF NOT EXISTS persona_secret_evidence_activation (
+      evidence_id TEXT PRIMARY KEY,
+      chat_id INTEGER NOT NULL,
+      assistant_message_id INTEGER NOT NULL,
+      generation_sequence INTEGER NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_evidence_activation_assistant
+      ON persona_secret_evidence_activation(chat_id, assistant_message_id, generation_sequence);
+
     CREATE TABLE IF NOT EXISTS persona_secret_compilation_runs (
       id TEXT PRIMARY KEY,
       persona_id INTEGER NOT NULL,
@@ -1595,6 +1606,26 @@ function migrate(db: Database.Database) {
       ON portone_checkouts(status, created_at DESC);
   `);
   addColumn("characters", "total_turns", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("knowledge_transfer_events", "source_assistant_message_id", "INTEGER");
+  addColumn("knowledge_transfer_events", "source_generation_sequence", "INTEGER");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS persona_secret_evidence_activation (
+      evidence_id TEXT PRIMARY KEY,
+      chat_id INTEGER NOT NULL,
+      assistant_message_id INTEGER NOT NULL,
+      generation_sequence INTEGER NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_evidence_activation_assistant
+      ON persona_secret_evidence_activation(chat_id, assistant_message_id, generation_sequence);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_transfer_variant_provenance
+      ON knowledge_transfer_events(
+        chat_id,
+        source_assistant_message_id,
+        source_generation_sequence
+      );
+  `);
   ensureCharacterClicksTable(db);
   // Phase B1-A — empty numeric tables only; no chat backfill / no route wiring.
   ensureRpNumericStateTables(db);

@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { ensureObserverSchema } from "@/lib/observerSchema";
+import { ensurePersonaSecretEvidenceActivationSchema } from "@/lib/personaSecretEvidenceActivation";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
 
 /** Runtime twin of boot migration — safe for handlers/tests. */
@@ -46,6 +47,15 @@ export function ensureKnowledgeTransferSchema(
       receiver_type,
       receiver_id,
       created_at
+    );
+  `);
+  ensurePersonaSecretEvidenceActivationSchema(db);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_knowledge_transfer_variant_provenance
+    ON knowledge_transfer_events(
+      chat_id,
+      source_assistant_message_id,
+      source_generation_sequence
     );
   `);
 }
