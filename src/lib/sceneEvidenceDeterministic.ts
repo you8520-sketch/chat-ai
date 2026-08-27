@@ -137,6 +137,33 @@ function extractDocumentLabel(text: string): string | null {
   return m[1].replace(/\s+/g, "");
 }
 
+/**
+ * High-precision USER self-attribution for presented documents.
+ * Secret-blind: never reads persona secrets or canonical text.
+ */
+export function extractDocumentSubjectSelfAttribution(
+  text: string
+): "PERSONA_SELF" | undefined {
+  const msg = text.replace(/\r\n?/g, "\n").trim();
+  if (!msg) return undefined;
+  if (
+    /(?:친구|동료|상대|그(?:의|녀)|누군가|타인|남의|다른\s*사람).{0,20}(?:의|에게|앞으로)/.test(
+      msg
+    )
+  ) {
+    return undefined;
+  }
+  if (
+    /내\s*앞으로\s*온/.test(msg) ||
+    /내\s*이름(?:이)?\s*적힌/.test(msg) ||
+    /내\s*명의(?:의|로)?/.test(msg) ||
+    /(?:나|내)에게\s*온/.test(msg)
+  ) {
+    return "PERSONA_SELF";
+  }
+  return undefined;
+}
+
 function extractItemLabel(text: string): string | null {
   // Prefer concrete presented items; avoid inventing from secrets.
   const m = text.match(
@@ -265,12 +292,16 @@ export function extractDeterministicSceneEvidenceFromUserMessage(opts: {
     const documentLabel = extractDocumentLabel(msg);
     if (documentLabel) {
       const identity = /주민등록증|신분증|여권/.test(documentLabel);
+      const documentSubject = extractDocumentSubjectSelfAttribution(msg);
       push({
         ...base,
         eventType: identity ? "IDENTITY_DOCUMENT_PRESENTED" : "DOCUMENT_PRESENTED",
         sourceType: "USER_MESSAGE_DETERMINISTIC",
         confidence: CONFIDENCE_DETERMINISTIC_DEFAULT,
-        attributes: { documentLabel },
+        attributes: {
+          documentLabel,
+          ...(documentSubject ? { documentSubject } : {}),
+        },
         visibility: defaultVisibility({ requiresLineOfSight: true }),
       });
     }

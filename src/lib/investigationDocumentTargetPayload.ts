@@ -16,16 +16,24 @@ function normalizeDocumentLabel(label: string): string {
 export function buildSecretBlindDocumentTargetPayload(opts: {
   documentLabel: string;
   identityDocument?: boolean;
+  /** High-precision USER self-attribution only — never inferred from document type or secrets. */
+  documentSubject?: "PERSONA_SELF";
 }): InvestigationResultPayload {
   const label = normalizeDocumentLabel(opts.documentLabel);
   const identity = opts.identityDocument === true || /신분증|주민등록|여권/.test(label);
+  const personaSelf = opts.documentSubject === "PERSONA_SELF";
 
   if (/독촉장/.test(label)) {
+    const resultTags = personaSelf
+      ? (["debt_notice", "debtor_identity_match"] as const)
+      : (["debt_notice"] as const);
     return {
       resultType: "DOCUMENT_CONTENT_VERIFIED",
       resultState: "VERIFIED",
-      resultTags: ["debt_notice", "debtor_identity_match"],
-      observableFacts: ["독촉장에 채무 관련 기재가 확인된다."],
+      resultTags: [...resultTags],
+      observableFacts: personaSelf
+        ? ["독촉장에 채무 관련 기재가 확인되며 수신인이 장면 주체와 일치한다."]
+        : ["독촉장에 채무 관련 기재가 확인된다."],
     };
   }
 

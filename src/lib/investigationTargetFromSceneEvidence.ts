@@ -34,6 +34,14 @@ function documentLabelFromEvent(event: SceneEvidenceEvent): string | null {
   return label.length >= 1 ? label : null;
 }
 
+function documentSubjectFromEvent(
+  event: SceneEvidenceEvent
+): "PERSONA_SELF" | undefined {
+  return event.attributes.documentSubject === "PERSONA_SELF"
+    ? "PERSONA_SELF"
+    : undefined;
+}
+
 /**
  * After S2A persist, upsert chat-scoped document targets for USER-authored presentations.
  * Assistant/server/creator scene events are ignored — they must not create trusted targets.
@@ -83,6 +91,7 @@ export function registerInvestigationTargetsFromPresentedDocuments(opts: {
     const payload = buildSecretBlindDocumentTargetPayload({
       documentLabel,
       identityDocument: event.eventType === "IDENTITY_DOCUMENT_PRESENTED",
+      documentSubject: documentSubjectFromEvent(event),
     });
 
     registerPresentedDocumentTarget({

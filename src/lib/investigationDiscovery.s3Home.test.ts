@@ -8,7 +8,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
-import { findInvestigationTarget } from "@/lib/investigationTargets";
+import { buildSecretBlindDocumentTargetPayload } from "@/lib/investigationDocumentTargetPayload";
+import {
+  findInvestigationTarget,
+  parseTargetPayload,
+  registerPresentedDocumentTarget,
+} from "@/lib/investigationTargets";
 import { ensureInvestigationSchema } from "@/lib/investigationSchema";
 import { compileAndApplyPersonaSecrets } from "@/lib/personaSecretCompiler";
 import { listExistingPersonaSecrets } from "@/lib/personaSecretCompilerApply";
@@ -17,7 +22,8 @@ import { getCharacterSecretKnowledge } from "@/lib/personaSecretKnowledge";
 import { registerInvestigationTargetsFromPresentedDocuments } from "@/lib/investigationTargetFromSceneEvidence";
 import { runHomeDiscoveryTurn } from "@/lib/personaSecretDiscoveryHomeTurn";
 import { ensureSceneEvidenceSchema } from "@/lib/sceneEvidenceSchema";
-import { extractAndPersistSceneEvidence } from "@/lib/sceneEvidence";
+import type { SceneEvidenceEvent } from "@/lib/sceneEvidenceTypes";
+import { SCENE_EVIDENCE_EXTRACTOR_VERSION } from "@/lib/sceneEvidenceTypes";
 
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -93,6 +99,43 @@ function runHomeChatDiscoveryTurn(opts: {
   });
 }
 
+function targetPayloadTags(chatId: number, targetKey: string): string[] {
+  const target = findInvestigationTarget({
+    ownerScope: "CHAT",
+    ownerId: String(chatId),
+    targetKey,
+  });
+  if (!target) return [];
+  return parseTargetPayload(target).resultTags ?? [];
+}
+
+function makeDocumentPresentedEvent(opts: {
+  chatId: number;
+  sourceType: SceneEvidenceEvent["sourceType"];
+  documentLabel?: string;
+  documentSubject?: "PERSONA_SELF";
+}): SceneEvidenceEvent {
+  return {
+    id: "fixture-event",
+    idempotencyKey: "fixture-key",
+    chatId: opts.chatId,
+    turnNumber: 1,
+    eventType: "DOCUMENT_PRESENTED",
+    subjectType: "USER",
+    subjectId: "persona-user",
+    actorType: "USER",
+    actorId: "persona-user",
+    sourceType: opts.sourceType,
+    confidence: 95,
+    attributes: {
+      documentLabel: opts.documentLabel ?? "독촉장",
+      ...(opts.documentSubject ? { documentSubject: opts.documentSubject } : {}),
+    },
+    visibility: { mode: "CURRENT_CHARACTER", requiresLineOfSight: true },
+    extractorVersion: SCENE_EVIDENCE_EXTRACTOR_VERSION,
+  };
+}
+
 describe("PR-S3 home live investigation path", () => {
   let env: Record<string, string | undefined>;
   beforeEach(() => {
@@ -119,52 +162,58 @@ describe("PR-S3 home live investigation path", () => {
     }
   });
 
-  it("A. user presents document → target created → same-turn read → debt CONFIRMED", () => {
+  it("payload: document type alone must not emit debtor_identity_match", () => {
+    const plain = buildSecretBlindDocumentTargetPayload({ documentLabel: "독촉장" });
+    assert.deepEqual(plain.resultTags, ["debt_notice"]);
+    const selfOwned = buildSecretBlindDocumentTargetPayload({
+      documentLabel: "독촉장",
+      documentSubject: "PERSONA_SELF",
+    });
+    assert.deepEqual(selfOwned.resultTags, ["debt_notice", "debtor_identity_match"]);
+  });
+
+  it("A. plain 독촉장 → target + read → no identity match → debt NOT CONFIRMED", () => {
     const { personaId, chatId, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({
       personaId,
       source: "렌은 거액의 빚이 있다.",
     });
+    const secretId = debtSecretId(personaId);
 
-    const turn = runHomeChatDiscoveryTurn({
+    runHomeChatDiscoveryTurn({
       chatId,
       personaId,
       characterId,
       turnNumber: 1,
       sourceMessageId: 101,
-      userMessage: "렌은 구겨진 독촉장을 꺼내 테이블 위에 놓았다.",
+      userMessage: "렌은 독촉장을 꺼내 건넸다.",
+    });
+    assert.deepEqual(targetPayloadTags(chatId, "doc:독촉장"), ["debt_notice"]);
+
+    const inv = runHomeChatDiscoveryTurn({
+      chatId,
+      personaId,
+      characterId,
+      turnNumber: 2,
+      sourceMessageId: 102,
+      userMessage: "독촉장 내용을 확인한다.",
       body: {
         investigationActions: [
           { actionType: "READ_DOCUMENT", targetKey: "doc:독촉장" },
         ],
       },
     });
-
-    assert.ok(turn.documentTargets.registered >= 1);
-    assert.ok(
-      turn.sceneEvidence.inserted.some((e) => e.eventType === "DOCUMENT_PRESENTED")
-    );
-    const target = findInvestigationTarget({
-      ownerScope: "CHAT",
-      ownerId: String(chatId),
-      targetKey: "doc:독촉장",
-    });
-    assert.ok(target, "chat-scoped target must exist after presentation");
-    assert.ok(turn.investigation.changedCount >= 1);
-
-    const secretId = debtSecretId(personaId);
-    assert.equal(
-      knowledgeOf(chatId, personaId, characterId, secretId)?.knowledge_state,
-      "CONFIRMED"
-    );
+    assert.ok(inv.investigation.resultCount >= 1);
+    assert.equal(knowledgeOf(chatId, personaId, characterId, secretId), null);
   });
 
-  it("B. presentation turn 1 → investigation turn 2 → S3 discovery", () => {
+  it("B. self-owned 독촉장 → target + read → identity match → debt CONFIRMED", () => {
     const { personaId, chatId, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({
       personaId,
       source: "렌은 거액의 빚이 있다.",
     });
+    const secretId = debtSecretId(personaId);
 
     runHomeChatDiscoveryTurn({
       chatId,
@@ -172,8 +221,12 @@ describe("PR-S3 home live investigation path", () => {
       characterId,
       turnNumber: 1,
       sourceMessageId: 201,
-      userMessage: "렌은 독촉장을 꺼내 건넸다.",
+      userMessage: "렌은 내 앞으로 온 독촉장을 꺼내 건넸다.",
     });
+    assert.deepEqual(targetPayloadTags(chatId, "doc:독촉장"), [
+      "debt_notice",
+      "debtor_identity_match",
+    ]);
 
     const inv = runHomeChatDiscoveryTurn({
       chatId,
@@ -190,43 +243,116 @@ describe("PR-S3 home live investigation path", () => {
     });
     assert.ok(inv.investigation.changedCount >= 1);
     assert.equal(
-      knowledgeOf(chatId, personaId, characterId, debtSecretId(personaId))
-        ?.knowledge_state,
+      knowledgeOf(chatId, personaId, characterId, secretId)?.knowledge_state,
       "CONFIRMED"
     );
   });
 
-  it("C. assistant-style prose without user presentation does not create trusted target", () => {
+  it("C. pure prose two-turn — no investigationActions → S3 CONFIRMED", () => {
     const { personaId, chatId, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({
       personaId,
       source: "렌은 거액의 빚이 있다.",
     });
+    const secretId = debtSecretId(personaId);
 
-    const scene = extractAndPersistSceneEvidence({
+    runHomeChatDiscoveryTurn({
       chatId,
+      personaId,
       characterId,
       turnNumber: 1,
       sourceMessageId: 301,
-      userMessage: "책상 위에 파일이 있었다.",
-      publicPersonaId: personaId,
+      userMessage: "내 앞으로 온 독촉장을 꺼내 건넸다.",
     });
+
+    const inv = runHomeChatDiscoveryTurn({
+      chatId,
+      personaId,
+      characterId,
+      turnNumber: 2,
+      sourceMessageId: 302,
+      userMessage: "독촉장 내용을 확인해 봐.",
+    });
+    assert.ok(inv.investigation.changedCount >= 1);
+    assert.equal(
+      knowledgeOf(chatId, personaId, characterId, secretId)?.knowledge_state,
+      "CONFIRMED"
+    );
+  });
+
+  it("C'. same-turn pure prose — presentation + investigation without body actions", () => {
+    const { personaId, chatId, characterId } = uniqueIds();
+    compileAndApplyPersonaSecrets({
+      personaId,
+      source: "렌은 거액의 빚이 있다.",
+    });
+    const secretId = debtSecretId(personaId);
+
+    const turn = runHomeChatDiscoveryTurn({
+      chatId,
+      personaId,
+      characterId,
+      turnNumber: 1,
+      sourceMessageId: 311,
+      userMessage:
+        "내 앞으로 온 독촉장을 꺼내 건네며 독촉장 내용을 확인해 보라고 했다.",
+    });
+    assert.ok(turn.documentTargets.registered >= 1);
+    assert.ok(turn.investigation.changedCount >= 1);
+    assert.equal(
+      knowledgeOf(chatId, personaId, characterId, secretId)?.knowledge_state,
+      "CONFIRMED"
+    );
+  });
+
+  it("D. SERVER_SCENE_EVENT DOCUMENT_PRESENTED → registered=0, target=0", () => {
+    const { personaId, chatId } = uniqueIds();
+    compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
+
     const reg = registerInvestigationTargetsFromPresentedDocuments({
       chatId,
-      events: [...scene.inserted, ...scene.reused],
+      events: [
+        makeDocumentPresentedEvent({
+          chatId,
+          sourceType: "SERVER_SCENE_EVENT",
+        }),
+      ],
     });
     assert.equal(reg.registered, 0);
     assert.equal(
       findInvestigationTarget({
         ownerScope: "CHAT",
         ownerId: String(chatId),
-        targetKey: "doc:파일",
+        targetKey: "doc:독촉장",
       }),
       null
     );
   });
 
-  it("D. unrelated document presentation → investigation 0 for debt secret", () => {
+  it("E. USER_MESSAGE_DETERMINISTIC DOCUMENT_PRESENTED → target=1", () => {
+    const { personaId, chatId } = uniqueIds();
+    compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
+
+    const reg = registerInvestigationTargetsFromPresentedDocuments({
+      chatId,
+      events: [
+        makeDocumentPresentedEvent({
+          chatId,
+          sourceType: "USER_MESSAGE_DETERMINISTIC",
+        }),
+      ],
+    });
+    assert.equal(reg.registered, 1);
+    assert.ok(
+      findInvestigationTarget({
+        ownerScope: "CHAT",
+        ownerId: String(chatId),
+        targetKey: "doc:독촉장",
+      })
+    );
+  });
+
+  it("F. unrelated document presentation → investigation 0 for debt secret", () => {
     const { personaId, chatId, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({
       personaId,
@@ -259,7 +385,7 @@ describe("PR-S3 home live investigation path", () => {
     assert.equal(knowledgeOf(chatId, personaId, characterId, debtSecretId(personaId)), null);
   });
 
-  it("E. duplicate presentation is idempotent (one target row)", () => {
+  it("G. duplicate presentation is idempotent (one target row)", () => {
     const { personaId, chatId, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
 
@@ -290,7 +416,7 @@ describe("PR-S3 home live investigation path", () => {
     assert.equal(count.c, 1);
   });
 
-  it("F. cross-chat isolation — target in chat A invisible to chat B", () => {
+  it("H. cross-chat isolation — target in chat A invisible to chat B", () => {
     const { personaId, chatId, chat2, characterId } = uniqueIds();
     compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
 
@@ -300,7 +426,7 @@ describe("PR-S3 home live investigation path", () => {
       characterId,
       turnNumber: 1,
       sourceMessageId: 601,
-      userMessage: "렌은 독촉장을 꺼내 건넸다.",
+      userMessage: "내 앞으로 온 독촉장을 꺼내 건넸다.",
     });
 
     const invB = runHomeChatDiscoveryTurn({
@@ -320,7 +446,7 @@ describe("PR-S3 home live investigation path", () => {
     assert.equal(knowledgeOf(chat2, personaId, characterId, debtSecretId(personaId)), null);
   });
 
-  it("G. observer isolation — investigating character only receives knowledge", () => {
+  it("I. observer isolation — investigating character only receives knowledge", () => {
     const { personaId, chatId, characterId, otherCharacterId } = uniqueIds();
     compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
     const secretId = debtSecretId(personaId);
@@ -331,7 +457,7 @@ describe("PR-S3 home live investigation path", () => {
       characterId,
       turnNumber: 1,
       sourceMessageId: 701,
-      userMessage: "렌은 독촉장을 꺼내 건넸다.",
+      userMessage: "내 앞으로 온 독촉장을 꺼내 건넸다.",
     });
     runHomeChatDiscoveryTurn({
       chatId,
@@ -352,6 +478,51 @@ describe("PR-S3 home live investigation path", () => {
       "CONFIRMED"
     );
     assert.equal(knowledgeOf(chatId, personaId, otherCharacterId, secretId), null);
+  });
+
+  it("J. wrong action type on document target → rejected / result 0", () => {
+    const { personaId, chatId, characterId } = uniqueIds();
+    compileAndApplyPersonaSecrets({ personaId, source: "렌은 거액의 빚이 있다." });
+
+    runHomeChatDiscoveryTurn({
+      chatId,
+      personaId,
+      characterId,
+      turnNumber: 1,
+      sourceMessageId: 801,
+      userMessage: "렌은 독촉장을 꺼내 건넸다.",
+    });
+
+    const inv = runHomeChatDiscoveryTurn({
+      chatId,
+      personaId,
+      characterId,
+      turnNumber: 2,
+      sourceMessageId: 802,
+      userMessage: "의료 검사를 받는다.",
+      body: {
+        investigationActions: [
+          { actionType: "RUN_MEDICAL_EXAM", targetKey: "doc:독촉장" },
+        ],
+      },
+    });
+    assert.equal(inv.investigation.resultCount, 0);
+    assert.equal(knowledgeOf(chatId, personaId, characterId, debtSecretId(personaId)), null);
+  });
+
+  it("registerPresentedDocumentTarget keeps document action access contract", () => {
+    const { chatId } = uniqueIds();
+    const row = registerPresentedDocumentTarget({
+      chatId,
+      documentLabel: "독촉장",
+      payload: buildSecretBlindDocumentTargetPayload({ documentLabel: "독촉장" }),
+    });
+    const payload = parseTargetPayload(row);
+    assert.equal(payload.requiredAccess?.requiresPresentedDocument, true);
+    assert.deepEqual(payload.requiredAccess?.allowedActions, [
+      "READ_DOCUMENT",
+      "VERIFY_DOCUMENT",
+    ]);
   });
 
   it("route.ts references runHomeDiscoveryTurn (home wiring)", () => {
