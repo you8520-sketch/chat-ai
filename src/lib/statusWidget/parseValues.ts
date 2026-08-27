@@ -67,7 +67,7 @@ export function stripIncompleteStatusWidgetTail(text: string): string {
     }
   }
 
-  return work;
+  return work.trimEnd();
 }
 
 function stripTrailingStatusWidgetMarkers(text: string): string {

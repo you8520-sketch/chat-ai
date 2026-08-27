@@ -39,7 +39,16 @@ import {
 import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
 import { S4_TRANSFER_BLOCK, S4_TRANSFER_END } from "@/lib/s4GenerationTransfer/types";
 import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
-import { stripAllStatusWindowOutputArtifacts } from "@/lib/statusMeta/stripArtifacts";
+import {
+  partitionModelStatusArtifacts,
+  stripAllStatusWindowOutputArtifacts,
+} from "@/lib/statusMeta/stripArtifacts";
+import {
+  captureStatusWidgetValuesFromModelText,
+  STATUS_VALUES_BLOCK,
+  STATUS_VALUES_END,
+} from "@/lib/statusWidget/parseValues";
+import { currentActiveKnowledgeTransferGenerationSequence } from "@/lib/knowledgeTransferVariant";
 import { appendMessageVariant } from "@/lib/messageAlternates";
 import {
   applyVariantScopedAuthoritativeKnowledgeTransfer,
@@ -748,6 +757,419 @@ describe("S4 live producer", () => {
     const prose = "<div>html</div>";
     const raw = `${prose}\n${S4_TRANSFER_BLOCK}\n{"nonce":"n"}\n${S4_TRANSFER_END}`;
     assert.equal(stripS4ServerControlFromText(raw), prose);
+  });
+
+  it("OOC HTML incomplete S4 block — stream leak 0, commit 0", () => {
+    const prose = "<p>html</p>";
+    let rawBuffer = prose;
+    for (const chunk of ["\n<<<S4_KNOWLEDGE", "_TRANSFER>>>"]) {
+      rawBuffer += chunk;
+      assert.ok(!stripS4ServerControlFromText(rawBuffer).includes("<<<"));
+    }
+    const f = setupFixture();
+    const ctx = buildCtx(f);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: rawBuffer,
+      finalVisibleText: prose,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId: 1,
+      db: getDb(),
+    });
+    assert.equal(r.applied, 0);
+  });
+
+  it("V2 — active variant index 1 without generationSequence → write 0 (no index inference)", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const asst = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status, alternates, active_variant)
+         VALUES (?,?,?,?,?,?,?)`
+      )
+      .run(
+        f.chatId,
+        "assistant",
+        visible,
+        "test",
+        "completed",
+        JSON.stringify([
+          {
+            content: visible,
+            model: "test",
+            usage: null,
+            created_at: "",
+            generationSequence: 0,
+          },
+          { content: "regen", model: "test", usage: null, created_at: "" },
+        ]),
+        1
+      );
+    const assistantMessageId = Number(asst.lastInsertRowid);
+    assert.equal(
+      currentActiveKnowledgeTransferGenerationSequence(db, f.chatId, assistantMessageId),
+      null
+    );
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: `${visible}\n${envelopeJson(ctx, [
+        { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+      ])}`,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 0);
+  });
+
+  it("V3 — explicit generationSequence 0 → PASS", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    assert.equal(
+      currentActiveKnowledgeTransferGenerationSequence(db, f.chatId, assistantMessageId),
+      0
+    );
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: `${visible}\n${envelopeJson(ctx, [
+        { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+      ])}`,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 1);
+  });
+
+  it("V4 — explicit regen generationSequence 1 → PASS", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, "gen0", 0);
+    setAssistantVariants(
+      assistantMessageId,
+      [
+        { content: "gen0", model: "test", generationSequence: 0 },
+        { content: visible, model: "test", generationSequence: 1 },
+      ],
+      1
+    );
+    assert.equal(
+      currentActiveKnowledgeTransferGenerationSequence(db, f.chatId, assistantMessageId),
+      1
+    );
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: `${visible}\n${envelopeJson(ctx, [
+        { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+      ])}`,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 1);
+  });
+
+  it("V5 — same generation replay → idempotent (0 additional)", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    const raw = `${visible}\n${envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+    ])}`;
+    const opts = {
+      rawModelText: raw,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    };
+    assert.equal(commitAcceptedAssistantS4Transfers(opts).applied, 1);
+    assert.equal(commitAcceptedAssistantS4Transfers(opts).applied, 0);
+  });
+
+  it("AB — failed attempt S4 metadata ignored when accepted final has no proof", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const failedRaw = `${f.fact}\n${envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+    ])}`;
+    const acceptedVisible = "fallback prose without disclosure.";
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, acceptedVisible, 0);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: failedRaw,
+      finalVisibleText: acceptedVisible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 0);
+    assert.equal(
+      getObserverSecretKnowledge({
+        chatId: f.chatId,
+        personaId: f.personaId,
+        secretId: f.secretId,
+        observerType: "CHARACTER",
+        observerId: String(f.receiverId),
+        db,
+      }),
+      null
+    );
+  });
+
+  it("AC — accepted fallback with valid S4 event → exactly one transfer", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const acceptedRaw = `${visible}\n${envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+    ])}`;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: acceptedRaw,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 1);
+    assert.equal(r.attempted, 1);
+  });
+
+  it("AD — interrupted partial S4 block → transfer 0", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const partialRaw = `${visible}\n${S4_TRANSFER_BLOCK}\n{"nonce":"${ctx.nonce}"`;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: partialRaw,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 0);
+  });
+
+  it("AE — duplicate finalize → 0 additional transfer", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    const opts = {
+      rawModelText: `${visible}\n${envelopeJson(ctx, [
+        { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+      ])}`,
+      finalVisibleText: visible,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    };
+    assert.equal(commitAcceptedAssistantS4Transfers(opts).applied, 1);
+    const second = commitAcceptedAssistantS4Transfers(opts);
+    assert.equal(second.applied, 0);
+    assert.ok(second.results.some((x) => x.reason === "DUPLICATE"));
+  });
+
+  it("stored/client leak — saved prose and alternates contain no S4 control", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const raw = `${visible}\n${S4_TRANSFER_BLOCK}\n${JSON.stringify({
+      nonce: ctx.nonce,
+      events: [{ factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact }],
+    })}\n${S4_TRANSFER_END}`;
+    const saved = stripS4ServerControlFromText(raw);
+    assert.equal(saved, visible);
+    assert.doesNotMatch(saved, /S4_KNOWLEDGE/);
+    assert.doesNotMatch(saved, /<<<END_S4>>>/);
+    assert.doesNotMatch(saved, new RegExp(ctx.nonce));
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, saved, 0);
+    commitAcceptedAssistantS4Transfers({
+      rawModelText: raw,
+      finalVisibleText: saved,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    const row = db
+      .prepare(`SELECT content, alternates FROM messages WHERE id=?`)
+      .get(assistantMessageId) as { content: string; alternates: string };
+    assert.doesNotMatch(row.content, /S4_KNOWLEDGE/);
+    assert.doesNotMatch(row.alternates, /S4_KNOWLEDGE/);
+    assert.doesNotMatch(row.content, /K1|R1/);
+  });
+});
+
+describe("STATUS + S4 coexistence", () => {
+  it("A — status + S4 valid → both captured, saved prose clean, S4 applies", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const statusJson = `${STATUS_VALUES_BLOCK}\n{"시간":"14:30"}\n${STATUS_VALUES_END}`;
+    const s4Json = envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+    ]);
+    const raw = `${visible}\n\n${statusJson}\n\n${s4Json}`;
+    const partitioned = partitionModelStatusArtifacts(raw);
+    assert.equal(partitioned.prose.trim(), visible);
+    assert.ok(partitioned.capturedStatusWidgetValues?.character?.["시간"]);
+    assert.equal(partitioned.capturedS4TransferEnvelope?.nonce, ctx.nonce);
+    assert.ok(captureStatusWidgetValuesFromModelText(raw));
+    const saved = stripAllStatusWindowOutputArtifacts(raw);
+    assert.equal(saved.trim(), visible);
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, saved, 0);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: raw,
+      finalVisibleText: saved,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 1);
+  });
+
+  it("B — reversed malformed ordering → visible control leak 0, S4 write 0", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = "본문.";
+    const statusJson = `${STATUS_VALUES_BLOCK}\n{"시간":"14:30"}\n${STATUS_VALUES_END}`;
+    const s4Json = envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: "missing" },
+    ]);
+    const raw = `${visible}\n\n${s4Json}\n\n${statusJson}`;
+    const saved = stripAllStatusWindowOutputArtifacts(raw);
+    assert.doesNotMatch(saved, /S4_KNOWLEDGE/);
+    assert.doesNotMatch(saved, /STATUS_VALUES/);
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, saved, 0);
+    const r = commitAcceptedAssistantS4Transfers({
+      rawModelText: raw,
+      finalVisibleText: saved,
+      ctx,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      characterId: f.senderId,
+      turnNumber: 2,
+      assistantMessageId,
+      db,
+    });
+    assert.equal(r.applied, 0);
+  });
+
+  it("C — status valid / S4 malformed → status survives, S4 write 0", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = "본문.";
+    const statusJson = `${STATUS_VALUES_BLOCK}\n{"시간":"14:30"}\n${STATUS_VALUES_END}`;
+    const raw = `${visible}\n\n${statusJson}\n\n${S4_TRANSFER_BLOCK}\n{bad-json\n${S4_TRANSFER_END}`;
+    const partitioned = partitionModelStatusArtifacts(raw);
+    assert.equal(partitioned.prose.trim(), visible);
+    assert.ok(partitioned.capturedStatusWidgetValues?.character?.["시간"]);
+    assert.equal(partitioned.capturedS4TransferEnvelope, null);
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    assert.equal(
+      commitAcceptedAssistantS4Transfers({
+        rawModelText: raw,
+        finalVisibleText: visible,
+        ctx,
+        chatId: f.chatId,
+        personaId: f.personaId,
+        characterId: f.senderId,
+        turnNumber: 2,
+        assistantMessageId,
+        db,
+      }).applied,
+      0
+    );
+  });
+
+  it("D — S4 valid / status malformed → S4 binds when proof valid", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const badStatus = `${STATUS_VALUES_BLOCK}\n{not-json\n${STATUS_VALUES_END}`;
+    const s4Json = envelopeJson(ctx, [
+      { factRef: "K1", receiverRef: "R1", transferType: "DIRECT_STATEMENT", completed: true, proofText: f.fact },
+    ]);
+    const raw = `${visible}\n\n${badStatus}\n\n${s4Json}`;
+    const saved = stripAllStatusWindowOutputArtifacts(raw);
+    assert.equal(saved.trim(), visible);
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, saved, 0);
+    assert.equal(
+      commitAcceptedAssistantS4Transfers({
+        rawModelText: raw,
+        finalVisibleText: saved,
+        ctx,
+        chatId: f.chatId,
+        personaId: f.personaId,
+        characterId: f.senderId,
+        turnNumber: 2,
+        assistantMessageId,
+        db,
+      }).applied,
+      1
+    );
   });
 });
 

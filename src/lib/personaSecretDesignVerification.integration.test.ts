@@ -1033,7 +1033,7 @@ describe("Persona Secret design verification — synthetic integration", () => {
       ["S4 transfer", /runKnowledgeTransfersForTurn\s*\(/],
       ["observer bootstrap", /bootstrapChatObservers\s*\(/],
       ["prompt decision", /resolvePersonaKnowledgePromptDecisionForChat\s*\(/],
-      ["prompt block", /buildPersonaKnowledgePromptBlock\s*\(/],
+      ["prompt block", /buildPersonaKnowledgeWithS4ForTurn\s*\(/],
       ["discovery gate", /discoveryWritesAllowed/],
       ["same-turn rebuild", /updatedKnownFacts !== revealedPersonaFactsBlock/],
     ];

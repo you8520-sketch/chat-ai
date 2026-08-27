@@ -128,7 +128,9 @@ export function commitAcceptedAssistantS4Transfers(opts: {
       db: opts.db,
     });
     results.push(result);
-    if (result.ok && result.transferEventId) applied += 1;
+    if (result.ok && result.transferEventId && result.reason !== "DUPLICATE") {
+      applied += 1;
+    }
   }
 
   return { attempted: candidates.length, applied, results };

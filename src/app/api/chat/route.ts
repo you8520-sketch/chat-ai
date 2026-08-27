@@ -287,7 +287,6 @@ import {
   confirmPersonaSecretDisclosure,
   detectDeterministicDirectDisclosures,
 } from "@/lib/personaSecretDirectDisclosure";
-import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
 import {
   buildPersonaKnowledgeWithS4ForTurn,
   isS4LiveProducerTurnAllowed,
