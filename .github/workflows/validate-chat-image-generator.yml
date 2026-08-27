@@ -44,10 +44,15 @@ on:
       - "src/lib/simulationVisualSubjects.test.ts"
       - "src/lib/simulationVisualSubjectsSave.test.ts"
       - "src/lib/characterAssets.ts"
+      - "src/lib/characterAssets.test.ts"
       - "src/lib/characterFormSave.ts"
       - "src/lib/db.ts"
-      - "src/components/SimulationVisualSubjectEditor.tsx"
+      - "src/components/AssetManagerGrid.tsx"
       - "src/components/CreateCharacter.tsx"
+      - "src/lib/simulationMode.ts"
+      - "src/lib/simulationMode.test.ts"
+      - "src/lib/simulationCreatorUx.test.ts"
+      - "src/lib/simulationCreatorAssetBoundary.test.ts"
       - "src/app/api/characters/[id]/route.ts"
       - "src/lib/chatImageCastManifest.test.ts"
       - "src/lib/chatImageCast.clientBoundary.test.ts"
@@ -88,6 +93,10 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageSimulationCast.test.ts
       - run: node --import tsx --test src/lib/simulationVisualSubjects.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/simulationVisualSubjectsSave.test.ts
+      - run: node --import tsx --test src/lib/simulationMode.test.ts
+      - run: node --import tsx --test src/lib/simulationCreatorUx.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/simulationCreatorAssetBoundary.test.ts
+      - run: node --import tsx --test src/lib/characterAssets.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts

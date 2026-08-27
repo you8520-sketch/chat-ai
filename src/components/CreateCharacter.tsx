@@ -7,6 +7,7 @@ import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
   defaultAssetFlags,
+  normalizeCharacterAssets,
   withAssetSize,
 } from "@/lib/characterAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
@@ -18,7 +19,6 @@ import {
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
-import SimulationVisualSubjectEditor from "@/components/SimulationVisualSubjectEditor";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
@@ -116,24 +116,6 @@ type SelectedImport = {
 
 function fallbackAssetTag(index: number): string {
   return `에셋 ${index + 1}`;
-}
-
-function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
-  return list.map((a, i) => ({
-    url: a.url,
-    tag: a.tag,
-    public: true,
-    chat: true,
-    viewerBlur: typeof a.viewerBlur === "boolean" ? a.viewerBlur : i !== 0,
-    ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
-    ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
-    ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
-      ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
-      : {}),
-    ...(typeof a.width === "number" && a.width > 0 ? { width: a.width } : {}),
-    ...(typeof a.height === "number" && a.height > 0 ? { height: a.height } : {}),
-    ...(a.orientation ? { orientation: a.orientation } : {}),
-  }));
 }
 
 export default function CreateCharacter({
@@ -290,7 +272,7 @@ export default function CreateCharacter({
       participant_min_age: draft.form.participant_min_age ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
-    setAssets(normalizeManagedAssets(draft.assets));
+    setAssets(normalizeCharacterAssets(draft.assets));
     setSelectedWorldId(draft.selectedWorldId);
     setSelectedLorebookId(draft.selectedLorebookId);
     setPageTab(
@@ -375,7 +357,7 @@ export default function CreateCharacter({
   }
 
   function removeAsset(i: number) {
-    setAssets((a) => normalizeManagedAssets(a.filter((_, idx) => idx !== i)));
+    setAssets((a) => normalizeCharacterAssets(a.filter((_, idx) => idx !== i)));
   }
 
   async function uploadAssetBatch(
@@ -484,7 +466,7 @@ export default function CreateCharacter({
       });
       const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
       if (accepted.length > 0) {
-        setAssets((prev) => normalizeManagedAssets([...prev, ...accepted]));
+        setAssets((prev) => normalizeCharacterAssets([...prev, ...accepted]));
       }
       if (options.clearPendingFiles) setFiles([]);
       if (rejected.length > 0) {
@@ -500,10 +482,6 @@ export default function CreateCharacter({
 
   async function tagPendingFiles() {
     await uploadAssetBatch(files, { clearPendingFiles: true });
-  }
-
-  async function uploadAssetsForSubject(subjectFiles: File[], subjectKey: string) {
-    await uploadAssetBatch(subjectFiles, { visualSubjectKey: subjectKey });
   }
 
   function removeFile(i: number) {
@@ -590,7 +568,7 @@ export default function CreateCharacter({
         });
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
         setAssets(
-          normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
+          normalizeCharacterAssets(Array.isArray(data.assets) ? data.assets : []),
         );
         setVisualSubjects(
           data.simulation_visual_subjects
@@ -800,7 +778,7 @@ export default function CreateCharacter({
       return;
     }
     if (!promptUnchangedForEdit && form.content_kind === "simulation" && !form.simulation_cast.trim()) {
-      setError("등장 캐릭터 설정을 입력해 주세요.");
+      setError("캐릭터 설정을 입력해 주세요.");
       return;
     }
     if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
@@ -886,7 +864,7 @@ export default function CreateCharacter({
     setLoading(true);
     setError("");
 
-    const finalAssets = normalizeManagedAssets(assets);
+    const finalAssets = normalizeCharacterAssets(assets);
     const description = form.description.trim();
     const payload = {
       ...form,
@@ -1441,9 +1419,14 @@ export default function CreateCharacter({
               </div>
               </> : <>
                 <div>
-                  <label className={label}>등장 캐릭터 설정 *</label>
+                  <label className={label}>캐릭터 설정 *</label>
                   <p className="mb-1 text-xs leading-relaxed text-zinc-400">
-                    캐릭터를 따로 등록할 필요 없이 이름·성격·말투·목표·관계를 원하는 형식으로 이어서 작성하세요.
+                    캐릭터를 따로 등록할 필요 없이 이름, 외형, 성격, 말투, 관계,
+                    배경(과거) 등을 원하는 형식으로 작성하세요.
+                    <span className="mt-1 block text-zinc-300">
+                      이미지 생성에는 &apos;외형:&apos; / &apos;외모:&apos; /
+                      &apos;외관:&apos;처럼 적은 내용을 우선 참고합니다.
+                    </span>
                   </p>
                   <textarea
                     required
@@ -1463,31 +1446,6 @@ export default function CreateCharacter({
                     </button>
                   )}
                 </div>
-
-                <div>
-                  <label className={label}>시뮬레이션 추가 규칙</label>
-                  <p className="mb-1 text-xs text-zinc-400">
-                    장면 전환, 사건 발생, 승패 처리처럼 전체 진행에만 적용할 규칙입니다.
-                  </p>
-                  <textarea
-                    rows={6}
-                    className={cls}
-                    placeholder="예: 인물은 자신이 직접 알게 된 정보만 사용한다. 위험은 유저에게 유리하게 자동 해결하지 않는다."
-                    value={form.simulation_rules}
-                    onChange={(e) => setForm({ ...form, simulation_rules: e.target.value })}
-                  />
-                </div>
-
-                <SimulationVisualSubjectEditor
-                  simulationTitle={form.name}
-                  simulationCast={form.simulation_cast}
-                  assets={assets}
-                  visualSubjects={visualSubjects}
-                  onVisualSubjectsChange={setVisualSubjects}
-                  onAssetsChange={(next) => setAssets(normalizeManagedAssets(next))}
-                  onUploadBatch={uploadAssetsForSubject}
-                  uploading={loading}
-                />
 
                 <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <div>
@@ -1709,11 +1667,39 @@ export default function CreateCharacter({
                 <AssetManagerGrid
                   assets={assets}
                   allAges={!form.nsfw}
-                  onChange={(next) => setAssets(normalizeManagedAssets(next))}
+                  onChange={(next) => setAssets(normalizeCharacterAssets(next))}
                   onRemove={removeAsset}
+                  visualSubjects={
+                    form.content_kind === "simulation"
+                      ? visualSubjects.subjects
+                      : undefined
+                  }
                 />
               )}
             </section>
+
+            {form.content_kind === "simulation" && (
+              <details className={sectionMuted}>
+                <summary className="cursor-pointer text-sm font-semibold text-zinc-200">
+                  고급 진행 규칙
+                </summary>
+                <div className="mt-3">
+                  <p className="mb-2 text-xs text-zinc-400">
+                    보통은 비워도 됩니다. 시뮬레이션 전체 진행에만 적용할 특별 규칙이
+                    있을 때 사용하세요.
+                  </p>
+                  <textarea
+                    rows={5}
+                    className={cls}
+                    placeholder="예: 인물은 자신이 직접 알게 된 정보만 사용한다."
+                    value={form.simulation_rules}
+                    onChange={(event) =>
+                      setForm({ ...form, simulation_rules: event.target.value })
+                    }
+                  />
+                </div>
+              </details>
+            )}
 
             {/* 3. 부가 설정 (비공개) */}
             {form.content_kind === "character" && (

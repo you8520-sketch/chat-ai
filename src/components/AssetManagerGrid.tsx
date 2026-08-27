@@ -3,9 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { withRepresentativeAssetPublic } from "@/lib/characterAssets";
+import {
+  reorderCharacterAssets,
+  toggleCharacterAssetViewerBlur,
+  updateCharacterAssetTag,
+} from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
 import { isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
+import {
+  assignAssetsToVisualSubject,
+  unassignVisualAssets,
+  type SimulationVisualSubject,
+} from "@/lib/simulationVisualSubjects";
 
 export type ManagedAsset = CharacterAsset;
 
@@ -17,6 +26,7 @@ type Props = {
   onChange: (assets: ManagedAsset[]) => void;
   onRemove: (index: number) => void;
   note?: string;
+  visualSubjects?: readonly SimulationVisualSubject[];
 };
 
 export default function AssetManagerGrid({
@@ -25,10 +35,13 @@ export default function AssetManagerGrid({
   onChange,
   onRemove,
   note,
+  visualSubjects,
 }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftTag, setDraftTag] = useState("");
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
+  const [bulkSubjectKey, setBulkSubjectKey] = useState("");
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,19 +52,11 @@ export default function AssetManagerGrid({
 
   function reorder(from: number, to: number) {
     if (from === to || from < 0 || to < 0 || from >= assets.length || to >= assets.length) return;
-    const next = [...assets];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange(withRepresentativeAssetPublic(next));
+    onChange(reorderCharacterAssets(assets, from, to));
   }
 
   function toggleViewerBlur(index: number) {
-    if (index === 0) return; // 대표(1번)는 항상 공개
-    onChange(
-      withRepresentativeAssetPublic(
-        assets.map((a, i) => (i === index ? { ...a, viewerBlur: !a.viewerBlur } : a)),
-      ),
-    );
+    onChange(toggleCharacterAssetViewerBlur(assets, index));
   }
 
   function startTagEdit(index: number) {
@@ -70,7 +75,24 @@ export default function AssetManagerGrid({
     setEditingIndex(null);
     setDraftTag("");
     if (!trimmed || trimmed === current) return;
-    onChange(assets.map((a, i) => (i === index ? { ...a, tag: trimmed } : a)));
+    onChange(updateCharacterAssetTag(assets, index, trimmed));
+  }
+
+  function assignUrls(urls: readonly string[], subjectKey: string) {
+    onChange(
+      subjectKey
+        ? assignAssetsToVisualSubject(assets, urls, subjectKey)
+        : unassignVisualAssets(assets, urls)
+    );
+  }
+
+  function toggleSelected(url: string) {
+    setSelectedUrls((current) => {
+      const next = new Set(current);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
   }
 
   const hiddenCount = assets.filter((a) => a.viewerBlur === true).length;
@@ -86,6 +108,51 @@ export default function AssetManagerGrid({
         )}
         {note ? <span className="mt-1 block text-zinc-400">{note}</span> : null}
       </p>
+      {visualSubjects && visualSubjects.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedUrls(
+                  selectedUrls.size === assets.length
+                    ? new Set()
+                    : new Set(assets.map((asset) => asset.url))
+                )
+              }
+              className="min-h-11 rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-200"
+            >
+              {selectedUrls.size === assets.length ? "전체 선택 해제" : "전체 선택"}
+            </button>
+            <select
+              value={bulkSubjectKey}
+              onChange={(event) => setBulkSubjectKey(event.target.value)}
+              className="min-h-11 rounded-lg border border-zinc-700 bg-[#080a14] px-3 text-xs text-zinc-100"
+            >
+              <option value="">미지정으로 설정</option>
+              {visualSubjects.map((subject) => (
+                <option key={subject.subjectKey} value={subject.subjectKey}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={selectedUrls.size === 0}
+              onClick={() => {
+                assignUrls([...selectedUrls], bulkSubjectKey);
+                setSelectedUrls(new Set());
+              }}
+              className="min-h-11 rounded-lg bg-cyan-700 px-3 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              선택 이미지 일괄 지정
+            </button>
+          </div>
+          <p className="text-xs text-zinc-400">
+            이미지를 선택한 뒤 인물을 한 번에 지정하거나 미지정으로 되돌릴 수 있습니다.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {assets.map((a, i) => {
           const hardRejected = isAssetHardRejected(a);
@@ -116,6 +183,17 @@ export default function AssetManagerGrid({
             )}
           >
             <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
+            {visualSubjects && visualSubjects.length > 0 && (
+              <label className="absolute right-12 top-2 z-[4] flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg bg-black/80">
+                <input
+                  type="checkbox"
+                  checked={selectedUrls.has(a.url)}
+                  onChange={() => toggleSelected(a.url)}
+                  aria-label={`${a.tag || i + 1} 이미지 선택`}
+                  className="h-4 w-4 accent-cyan-500"
+                />
+              </label>
+            )}
             {blockUpload ? (
               <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
                 <p className="rounded-md bg-rose-600/95 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-white">
@@ -187,6 +265,28 @@ export default function AssetManagerGrid({
                 </button>
               )}
             </div>
+            {visualSubjects && visualSubjects.length > 0 && (
+              <div
+                className="border-t border-white/10 bg-black/35 px-2 py-2"
+                onPointerDown={(event) => event.stopPropagation()}
+              >
+                <label className="mb-1 block text-[10px] font-medium text-zinc-400">
+                  이미지 인물
+                </label>
+                <select
+                  value={a.visualSubjectKey ?? ""}
+                  onChange={(event) => assignUrls([a.url], event.target.value)}
+                  className="min-h-11 w-full rounded-lg border border-white/10 bg-black/50 px-2 text-xs text-zinc-100"
+                >
+                  <option value="">미지정</option>
+                  {visualSubjects.map((subject) => (
+                    <option key={subject.subjectKey} value={subject.subjectKey}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => toggleViewerBlur(i)}

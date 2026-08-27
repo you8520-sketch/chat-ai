@@ -120,7 +120,7 @@ describe("simulationVisualSubjects data", () => {
     const key = createSimulationVisualSubjectKey();
     assert.ok(isSimulationVisualSubjectKey(key));
     const prepared = prepareSimulationVisualSubjectsForSave({
-      simulationCast: `[${MEMBER_A}]\n- 역할: 리더`,
+      simulationCast: `[${MEMBER_A}]\n외형: 검은 머리\n- 역할: 리더`,
       simulationTitle: SIM_TITLE,
       submittedRaw: serializeSimulationVisualSubjectsJson({
         version: 1,
@@ -154,7 +154,7 @@ describe("simulationVisualSubjects data", () => {
   it("D4: unrelated simulation_cast edit keeps existing visual subject keys", () => {
     const key = createSimulationVisualSubjectKey();
     const first = prepareSimulationVisualSubjectsForSave({
-      simulationCast: `[${MEMBER_A}]\n- 성격: 리더`,
+      simulationCast: `[${MEMBER_A}]\n외형: 검은 머리\n- 성격: 리더`,
       simulationTitle: SIM_TITLE,
       submittedRaw: serializeSimulationVisualSubjectsJson({
         version: 1,
@@ -164,7 +164,7 @@ describe("simulationVisualSubjects data", () => {
       assets: [],
     });
     const second = prepareSimulationVisualSubjectsForSave({
-      simulationCast: `[${MEMBER_A}]\n- 성격: 리더\n- 목표: 생존`,
+      simulationCast: `[${MEMBER_A}]\n외형: 검은 머리\n- 성격: 리더\n- 목표: 생존`,
       simulationTitle: SIM_TITLE,
       submittedRaw: serializeSimulationVisualSubjectsJson(first),
       storedRaw: serializeSimulationVisualSubjectsJson(first),
@@ -172,7 +172,7 @@ describe("simulationVisualSubjects data", () => {
     });
     const saved = second.subjects.find((row) => row.name === MEMBER_A);
     assert.equal(saved?.subjectKey, key);
-    assert.equal(saved?.savedAppearance, "유지 외형");
+    assert.equal(saved?.savedAppearance, "검은 머리");
   });
 
   it("G6: simulation title is never a configured visual subject name", () => {
@@ -182,6 +182,36 @@ describe("simulationVisualSubjects data", () => {
     );
     assert.deepEqual(names, [MEMBER_A]);
     assert.equal(resolveVisualSubjectByName([subject(MEMBER_A)], SIM_TITLE), null);
+  });
+
+  it("derives each subject appearance only from explicit character settings", () => {
+    const keyA = createSimulationVisualSubjectKey();
+    const keyB = createSimulationVisualSubjectKey();
+    const prepared = prepareSimulationVisualSubjectsForSave({
+      simulationCast: [
+        `[${MEMBER_A}]`,
+        "외형: 짧은 검은 머리, 붉은 눈",
+        "성격: 무뚝뚝함",
+        `[${MEMBER_B}]`,
+        "성격: 다정함",
+        "관계: 이현의 동료",
+      ].join("\n"),
+      simulationTitle: SIM_TITLE,
+      storedRaw: "",
+      submittedRaw: serializeSimulationVisualSubjectsJson({
+        version: 1,
+        subjects: [subject(MEMBER_A, keyA), subject(MEMBER_B, keyB)],
+      }),
+      assets: [],
+    });
+    assert.equal(
+      prepared.subjects.find((row) => row.name === MEMBER_A)?.savedAppearance,
+      "짧은 검은 머리, 붉은 눈"
+    );
+    assert.equal(
+      prepared.subjects.find((row) => row.name === MEMBER_B)?.savedAppearance,
+      ""
+    );
   });
 
   it("existing stored key remains authoritative over a forged submitted key", () => {
@@ -199,7 +229,7 @@ describe("simulationVisualSubjects data", () => {
       assets: [],
     });
     assert.equal(prepared.subjects[0]?.subjectKey, storedKey);
-    assert.equal(prepared.subjects[0]?.savedAppearance, "회색 눈");
+    assert.equal(prepared.subjects[0]?.savedAppearance, "검은 머리");
   });
 
   it("rejects malformed and duplicate submitted subject keys", () => {

@@ -11,24 +11,57 @@ export type SimulationImportSnapshot = {
   exampleDialog: string;
 };
 
-export const SIMULATION_CAST_EXAMPLE = `[서윤]
-- 역할: 폐쇄된 연구소의 경비 책임자
-- 성격: 냉정하고 현실적이지만 동료를 버리지 못한다.
-- 말투: 짧은 반말. 위기에는 명령조가 된다.
-- 목표: 생존자들을 지상으로 탈출시킨다.
-- 비밀: 사고 발생 전 경보를 무시한 적이 있다.
+export const SIMULATION_CAST_EXAMPLE = `[김태환]
+외형: 짧은 검은 머리, 붉은 눈, 큰 체격
+성격: 무뚝뚝하고 거친 편
+말투: 짧은 반말 위주
+관계: 김성찬과 오래된 악연
+배경: 과거 조직에서 실험을 당함
 
-[도진]
-- 역할: 원인을 조사하는 감염학자
-- 성격: 호기심이 강하고 위험 앞에서도 관찰을 멈추지 않는다.
-- 말투: 평소 존댓말. 흥분하면 전문용어가 늘어난다.
-- 목표: 감염원을 확보하고 치료법의 단서를 찾는다.
-- 비밀: 연구소의 비공개 실험에 참여했다.
+[김성찬]
+외형: 갈색 장발, 회색 눈, 마른 체형
+성격: 침착하지만 집요함
+말투: 낮고 차분한 존댓말
+관계: 김태환을 오래 추적해 옴
+배경: 전직 수사관`;
 
-[관리 AI 라움]
-- 역할: 연구소 시설과 봉쇄 절차를 통제하는 인공지능
-- 성격·말투: 정중하고 감정이 없는 안내 방송체
-- 목표: 격리 규정을 어떤 희생을 치르더라도 유지한다.`;
+export type SimulationCastEntry = {
+  name: string;
+  settings: string;
+};
+
+function simulationCastHeadingName(line: string): string | null {
+  const match =
+    line.match(/^\[([^\]\r\n]{1,80})\]$/) ??
+    line.match(/^#{1,4}\s+(.{1,80})$/) ??
+    line.match(/^(?:이름|캐릭터명|인물명)\s*[:：]\s*(.{1,80})$/);
+  const name = match?.[1]?.replace(/[*_`#\[\]]/g, "").trim().slice(0, 80) ?? "";
+  return name || null;
+}
+
+export function extractSimulationCastEntries(cast: string): SimulationCastEntry[] {
+  const entries: SimulationCastEntry[] = [];
+  const seen = new Set<string>();
+  let current: SimulationCastEntry | null = null;
+  for (const rawLine of cast.split(/\r?\n/)) {
+    const headingName = simulationCastHeadingName(rawLine.trim());
+    if (headingName) {
+      const normalized = headingName.toLowerCase();
+      if (seen.has(normalized) || entries.length >= 24) {
+        current = null;
+        continue;
+      }
+      seen.add(normalized);
+      current = { name: headingName, settings: "" };
+      entries.push(current);
+      continue;
+    }
+    if (current) {
+      current.settings = `${current.settings}${current.settings ? "\n" : ""}${rawLine}`;
+    }
+  }
+  return entries.map((entry) => ({ ...entry, settings: entry.settings.trim() }));
+}
 
 export function parseContentKind(value: unknown): ContentKind {
   return value === "simulation" ? "simulation" : "character";
@@ -36,23 +69,7 @@ export function parseContentKind(value: unknown): ContentKind {
 
 /** Best-effort suggestions only. Creators may keep using completely free-form text. */
 export function extractSimulationCastNames(cast: string): string[] {
-  const names: string[] = [];
-  const seen = new Set<string>();
-  const add = (raw: string) => {
-    const name = raw.replace(/[*_`#\[\]]/g, "").trim().slice(0, 80);
-    if (!name || seen.has(name.toLowerCase())) return;
-    seen.add(name.toLowerCase());
-    names.push(name);
-  };
-  for (const line of cast.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    const match = trimmed.match(/^\[([^\]\r\n]{1,80})\]$/)
-      ?? trimmed.match(/^#{1,4}\s+(.{1,80})$/)
-      ?? trimmed.match(/^(?:이름|캐릭터명|인물명)\s*[:：]\s*(.{1,80})$/);
-    if (match?.[1]) add(match[1]);
-    if (names.length >= 24) break;
-  }
-  return names;
+  return extractSimulationCastEntries(cast).map((entry) => entry.name);
 }
 
 export function buildSimulationSystemPrompt(input: {

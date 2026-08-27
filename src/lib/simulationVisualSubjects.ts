@@ -8,9 +8,12 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetByUrl } from "@/lib/characterAssets";
 import {
   clipSavedAppearanceForPrompt,
-  extractVisualAppearance,
+  extractExplicitVisualAppearanceSection,
 } from "@/lib/chatImageVisualIdentity";
-import { extractSimulationCastNames } from "@/lib/simulationMode";
+import {
+  extractSimulationCastEntries,
+  extractSimulationCastNames,
+} from "@/lib/simulationMode";
 
 export const SIMULATION_VISUAL_SUBJECTS_VERSION = 1 as const;
 
@@ -56,7 +59,7 @@ export function emptySimulationVisualSubjectsDocument(): SimulationVisualSubject
 }
 
 export function normalizeSubjectSavedAppearance(raw: unknown): string {
-  return clipSavedAppearanceForPrompt(extractVisualAppearance(raw));
+  return clipSavedAppearanceForPrompt(String(raw ?? ""));
 }
 
 function cleanSubjectName(raw: unknown): string {
@@ -387,19 +390,34 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
     configuredNames,
     storedSubjects: stored.subjects,
   });
+  const extractedAppearanceByName = new Map(
+    extractSimulationCastEntries(opts.simulationCast).map((entry) => [
+      entry.name.toLowerCase(),
+      extractExplicitVisualAppearanceSection(entry.settings),
+    ])
+  );
 
   const submittedByName = new Map(submitted.subjects.map((row) => [row.name.toLowerCase(), row]));
   const active = reconciled.active.map((subject) => {
     const override = submittedByName.get(subject.name.toLowerCase());
-    if (!override) return subject;
     const isStoredSubject = stored.subjects.some(
       (storedSubject) => storedSubject.subjectKey === subject.subjectKey
     );
+    const extractedAppearance =
+      extractedAppearanceByName.get(subject.name.toLowerCase()) ??
+      ({ found: false, text: "" } as const);
+    const savedAppearance = extractedAppearance.found
+      ? normalizeSubjectSavedAppearance(extractedAppearance.text)
+      : isStoredSubject
+        ? subject.savedAppearance
+        : "";
     return {
-      subjectKey: isStoredSubject ? subject.subjectKey : override.subjectKey,
+      subjectKey:
+        isStoredSubject || !override ? subject.subjectKey : override.subjectKey,
       name: subject.name,
-      savedAppearance: normalizeSubjectSavedAppearance(override.savedAppearance),
-      representativeAssetUrl: override.representativeAssetUrl,
+      savedAppearance,
+      representativeAssetUrl:
+        override?.representativeAssetUrl ?? subject.representativeAssetUrl,
       sourceCharacterId: isStoredSubject ? subject.sourceCharacterId : null,
     };
   });
