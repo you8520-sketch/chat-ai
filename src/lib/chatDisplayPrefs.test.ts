@@ -15,6 +15,7 @@ import {
   CHAT_PORTRAIT_INFO_STICKY_CLASS,
   CHAT_PORTRAIT_PANEL_IMG_CLASS,
   CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS,
+  CHAT_PORTRAIT_SIDE,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   CHAT_STREAM_SPEED_PRESETS,
@@ -227,22 +228,24 @@ describe("showCharacterPortrait persistence", () => {
 
 describe("mobile chat portrait background", () => {
 
-  it("uses intrinsic-width desktop portrait column (flex w-max)", () => {
+  it("uses intrinsic-width desktop portrait column (flex w-max at 768+)", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[576px\]:flex/);
-    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /w-max/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[768px\]:flex-row/);
+    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /min-\[768px\]:w-max/);
     assert.match(CHAT_PORTRAIT_PANEL_IMG_CLASS, /\bh-full\b/);
     assert.match(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-contain/);
     assert.doesNotMatch(CHAT_PORTRAIT_PANEL_IMG_CLASS, /object-cover/);
     assert.match(CHAT_PORTRAIT_PANEL_MAX_WIDTH_CLASS, /--chat-portrait-max-w/);
   });
 
-  it("keeps desktop portrait and messages in separate flex columns", () => {
+  it("keeps desktop portrait and messages in separate flex columns at 768+", () => {
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /flex-1/);
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /max-w-\[780px\]/);
-    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /--chat-portrait-min-chat-w/);
+    assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /min-\[768px\]:min-w-\[var\(--chat-portrait-min-chat-w\)\]/);
     assert.match(CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS, /chat-room-portrait-header-chat/);
+    assert.match(CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS, /min-\[768px\]:block/);
     assert.match(
       CHAT_ROOM_HEADER_OFFSET_CLASS,
       /min-\[576px\]:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
@@ -255,7 +258,7 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /overflow-x-clip/);
   });
 
-  it("keeps sticky name/album in portrait column; chat column flex-1", () => {
+  it("keeps sticky name/album in portrait column; side rail only at 768+", () => {
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /chat-room-desktop-name-strip/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bhidden\b/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:flex/);
@@ -264,11 +267,17 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /chat-room-portrait-chat-column/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /chat-room-portrait-rail/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
-    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:flex/);
-    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /flex-row/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[768px\]:flex/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[768px\]:flex-row/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /chat-room-portrait-grid/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /chat-room-messages-column/);
     assert.match(CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS, /chat-room-mobile-portrait-bg/);
+  });
+
+  it("hides side portrait rail below 768 while keeping desktop name strip from 576", () => {
+    assert.match(CHAT_PORTRAIT_SIDE, /min-\[768px\]/);
+    assert.doesNotMatch(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:flex/);
+    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /min-\[576px\]:flex/);
   });
 
   it("keeps desktop name/creator/album sticky when portrait assets are off", () => {

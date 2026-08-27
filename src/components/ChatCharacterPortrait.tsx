@@ -30,7 +30,7 @@ function panelAspectRatio(assetWidth?: number, assetHeight?: number): { w: numbe
   return { w: 3, h: 4 };
 }
 
-/** Definite rail height + aspect-ratio → intrinsic width for grid max-content track. */
+/** Definite rail height + aspect-ratio → intrinsic width for flex w-max portrait track. */
 function panelFrameStyle(assetWidth?: number, assetHeight?: number, maxWidth = "var(--chat-portrait-max-w)") {
   const { w, h } = panelAspectRatio(assetWidth, assetHeight);
   return {

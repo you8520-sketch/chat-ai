@@ -495,7 +495,7 @@ html.chat-room-active .mobile-bottom-nav {
     left: 0 !important;
   }
 
-  /* Portrait ON — desktop flex row (portrait w-max + chat flex-1). */
+  /* Portrait ON — 576–767: stacked name + chat; 768+: side portrait flex row. */
   html.chat-room-active .chat-room-portrait-grid {
     container-type: inline-size;
     container-name: portrait-chat;
@@ -506,9 +506,9 @@ html.chat-room-active .mobile-bottom-nav {
     );
     --chat-portrait-rail-h: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
     display: flex !important;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 1.5rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
   }
 
   html.chat-room-active .chat-room-portrait-placeholder {
@@ -519,7 +519,8 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .chat-room-portrait-column {
     display: flex !important;
     flex-direction: column;
-    width: max-content;
+    width: 100%;
+    max-width: 780px;
     flex-shrink: 0;
   }
 
@@ -527,17 +528,17 @@ html.chat-room-active .mobile-bottom-nav {
     display: flex !important;
     flex-direction: column;
     flex: 1 1 0%;
-    min-width: var(--chat-portrait-min-chat-w);
+    min-width: 0;
+    width: 100%;
     max-width: 780px;
   }
 
   html.chat-room-active .chat-room-portrait-rail {
-    display: flex !important;
-    flex-direction: column;
-    width: max-content;
-    height: var(--chat-portrait-rail-h);
-    align-items: flex-start;
-    justify-content: flex-end;
+    display: none !important;
+  }
+
+  html.chat-room-active .chat-room-portrait-header-chat {
+    display: none !important;
   }
 
   html.chat-room-active .chat-room-desktop-name-strip {
@@ -563,6 +564,37 @@ html.chat-room-active .mobile-bottom-nav {
 
   html.chat-room-active .chat-room-mobile-portrait-bg {
     display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  html.chat-room-active .chat-room-portrait-grid {
+    flex-direction: row !important;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  html.chat-room-active .chat-room-portrait-column {
+    width: max-content !important;
+    max-width: none;
+  }
+
+  html.chat-room-active .chat-room-portrait-chat-column {
+    min-width: var(--chat-portrait-min-chat-w);
+    max-width: 780px;
+  }
+
+  html.chat-room-active .chat-room-portrait-rail {
+    display: flex !important;
+    flex-direction: column;
+    width: max-content;
+    height: var(--chat-portrait-rail-h);
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  html.chat-room-active .chat-room-portrait-header-chat {
+    display: block !important;
   }
 }
 

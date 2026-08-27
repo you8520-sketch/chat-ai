@@ -4312,7 +4312,7 @@ export default function ChatClient({
                 </button>
               </div>
             </div>
-            <div className={`${CHAT_PORTRAIT_STICKY_CLASS} min-[576px]:sticky min-[576px]:top-[calc(var(--site-header-height,44px)+3.25rem)] min-[576px]:z-10`}>
+            <div className={`${CHAT_PORTRAIT_STICKY_CLASS} min-[768px]:sticky min-[768px]:top-[calc(var(--site-header-height,44px)+3.25rem)] min-[768px]:z-10`}>
               <ChatEmotionPortraitPanel
                 characterName={character.name}
                 emoji={character.emoji}
@@ -4375,7 +4375,7 @@ export default function ChatClient({
         >
         {showCharacterPortrait && (
           <div
-            className={`${CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS} min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30`}
+            className={`${CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS} min-[768px]:sticky min-[768px]:top-[var(--site-header-height,44px)] min-[768px]:z-30`}
             aria-hidden
           />
         )}
