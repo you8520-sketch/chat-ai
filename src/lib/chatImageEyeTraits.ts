@@ -148,32 +148,54 @@ function extractEyeTraits(text: string): ParsedEyeTraits {
   return traits;
 }
 
-function stripEyePhrases(text: string): string {
+function lineHasSemanticContent(line: string): boolean {
+  const withoutBullet = line.replace(/^\s*-\s*/, "").trim();
+  if (!withoutBullet) return false;
+  return /[\p{L}\p{N}]/u.test(withoutBullet);
+}
+
+function stripPunctuationOnlyResidue(text: string): string {
   return text
-    .replace(KO_ANATOMY_RE, " ")
-    .replace(EN_IRIS_RE, " ")
-    .replace(EN_PUPIL_COLOR_RE, " ")
-    .replace(HETERO_EN, " ")
-    .replace(HETERO_KO, " ")
-    .replace(NOT_RED_EYE, " ")
-    .replace(POSITIVE_RED_EYE_KO, " ")
-    .replace(POSITIVE_RED_EYE_EN, " ")
-    .replace(/vertical\s+slit(?:\s+pupils?)?/gi, " ")
-    .replace(/horizontal\s+slit(?:\s+pupils?)?/gi, " ")
-    .replace(/cross[-\s]?shaped\s+pupils?/gi, " ")
-    .replace(/star[-\s]?shaped\s+pupils?/gi, " ")
-    .replace(/round(?:\s+shaped)?\s+pupils?/gi, " ")
-    .replace(/세로\s*(?:슬릿|동공)/gi, " ")
-    .replace(/가로\s*(?:슬릿|동공)/gi, " ")
-    .replace(/십자(?:\s*모양)?\s*동공/gi, " ")
-    .replace(/별(?:\s*모양)?\s*동공/gi, " ")
-    .replace(/원형\s*동공/gi, " ")
-    .replace(/[,;·]\s*[,;·]+/g, ", ")
-    .replace(/^\s*[,;·]\s*/g, "")
-    .replace(/\s*[,;·]\s*$/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
+    .split(/\n/)
+    .map((line) =>
+      line
+        .replace(/,\s*,+/g, ", ")
+        .replace(/[,;·]\s*[,;·]+/g, ", ")
+        .replace(/^\s*[,;·\-–—]+\s*/, "")
+        .replace(/\s*[,;·\-–—]+\s*$/, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .trim()
+    )
+    .filter((line) => lineHasSemanticContent(line))
+    .join("\n")
     .trim();
+}
+
+function stripEyePhrases(text: string): string {
+  return stripPunctuationOnlyResidue(
+    text
+      .replace(KO_ANATOMY_RE, " ")
+      .replace(EN_IRIS_RE, " ")
+      .replace(EN_PUPIL_COLOR_RE, " ")
+      .replace(HETERO_EN, " ")
+      .replace(HETERO_KO, " ")
+      .replace(NOT_RED_EYE, " ")
+      .replace(POSITIVE_RED_EYE_KO, " ")
+      .replace(POSITIVE_RED_EYE_EN, " ")
+      .replace(/vertical\s+slit(?:\s+pupils?)?/gi, " ")
+      .replace(/horizontal\s+slit(?:\s+pupils?)?/gi, " ")
+      .replace(/cross[-\s]?shaped\s+pupils?/gi, " ")
+      .replace(/star[-\s]?shaped\s+pupils?/gi, " ")
+      .replace(/round(?:\s+shaped)?\s+pupils?/gi, " ")
+      .replace(/세로\s*(?:슬릿|동공)/gi, " ")
+      .replace(/가로\s*(?:슬릿|동공)/gi, " ")
+      .replace(/십자(?:\s*모양)?\s*동공/gi, " ")
+      .replace(/별(?:\s*모양)?\s*동공/gi, " ")
+      .replace(/원형\s*동공/gi, " ")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
 }
 
 export function parseEyeTraitsFromClause(clause: string): ParsedEyeTraits {

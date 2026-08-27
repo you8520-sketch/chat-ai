@@ -139,4 +139,24 @@ describe("chatImageEyeTraits", () => {
     assert.match(normalized, /Pupil color: black/);
     assert.doesNotMatch(normalized, /dark\/black/);
   });
+
+  it("EYE_BULLET_RESIDUE strips punctuation-only bullets after eye phrase removal", () => {
+    const input = "- black hair\n- black pupils, red irises\n- white shirt";
+    const normalized = normalizeSavedAppearanceForProvider(input);
+    assert.match(normalized, /Eyes \(explicit iris\/pupil ownership\):/);
+    assert.match(normalized, /Iris color: red/);
+    assert.match(normalized, /Pupil color: black/);
+    assert.match(normalized, /black hair/);
+    assert.match(normalized, /white shirt/);
+    assert.doesNotMatch(normalized, /^\s*-\s*[,;·-]?\s*$/m);
+    assert.doesNotMatch(normalized, /black pupils, red irises/);
+  });
+
+  it("EYE_BULLET_RESIDUE keeps valid comma-separated outfit phrases", () => {
+    const input = "- black hair\n- black pupils, red irises\n- white shirt, harness\n- scar";
+    const normalized = normalizeSavedAppearanceForProvider(input);
+    assert.match(normalized, /white shirt, harness/);
+    assert.match(normalized, /scar/);
+    assert.doesNotMatch(normalized, /^\s*-\s*[,;·-]?\s*$/m);
+  });
 });

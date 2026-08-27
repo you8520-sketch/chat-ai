@@ -32,7 +32,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -190,7 +189,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -278,7 +276,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -372,7 +369,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -458,7 +454,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -552,7 +547,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -614,7 +608,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -716,7 +709,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -791,7 +783,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -872,7 +863,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
@@ -958,7 +948,6 @@ Saved visual identity (this subject only):
 - Red irises do NOT imply red pupils unless pupil color is explicitly red above.
 - Iris color and pupil color are distinct; do not merge them into one 'red eyes' simplification.
 - black hair, asymmetric fringe, explicitly NOT center-parted / NOT 5:5
-- ,
 - large healed scar on the back of the neck
 - white shirt, black harness
 Saved stable identity traits (hair, eyes, iris, pupils, face, scars, skin, body, species marks) are authoritative for this subject.
