@@ -1035,8 +1035,8 @@ describe("Persona Secret design verification — synthetic integration", () => {
       ["prompt decision", /resolvePersonaKnowledgePromptDecisionForChat\s*\(/],
       ["prompt block", /buildPersonaKnowledgeWithS4ForTurn\s*\(/],
       [
-        "HTML flash-only S4 context gate",
-        /allowS4:\s*isS4LiveProducerTurnAllowed\s*\(\s*\{[\s\S]*?htmlFlashOnlyTurn[\s\S]*?\}\s*\)/,
+        "single S4 rollout predicate",
+        /const s4LiveProducerAllowed\s*=\s*personaSecretDiscoveryOn\s*&&\s*isPersonaSecretS4LiveProducerEnabled\(\)\s*&&\s*isS4LiveProducerTurnAllowed\s*\(\s*\{[\s\S]*?htmlFlashOnlyTurn[\s\S]*?\}\s*\)/,
       ],
       ["discovery gate", /discoveryWritesAllowed/],
       ["same-turn rebuild", /updatedKnownFacts !== revealedPersonaFactsBlock/],
@@ -1044,6 +1044,26 @@ describe("Persona Secret design verification — synthetic integration", () => {
     for (const [label, re] of checks) {
       assert.match(route, re, `${label} must be wired in chat route`);
     }
+    assert.equal(
+      route.match(/isPersonaSecretS4LiveProducerEnabled\(\)/g)?.length,
+      1,
+      "route must evaluate the rollout policy once"
+    );
+    assert.equal(
+      route.match(/allowS4:\s*s4LiveProducerAllowed/g)?.length,
+      2,
+      "initial and rebuilt prompt must reuse the rollout predicate"
+    );
+    assert.match(
+      route,
+      /typeof preStatusPartitionText === "string"\s*&&\s*s4LiveProducerAllowed/,
+      "post-finalize commit must reuse the rollout predicate"
+    );
+    assert.doesNotMatch(
+      route,
+      /process\.env\.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED/,
+      "route must not read rollout env directly"
+    );
     const codeLines = route
       .split("\n")
       .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"));

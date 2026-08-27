@@ -272,6 +272,7 @@ import {
   isPersonaSecretBoundaryEnabled,
   isPersonaSecretDiscoveryEnabled,
 } from "@/lib/personaSecretBoundaryPolicy";
+import { isPersonaSecretS4LiveProducerEnabled } from "@/lib/personaSecretS4LiveProducerPolicy";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
@@ -1123,6 +1124,14 @@ export async function POST(req: Request) {
   const chatOocRpUnrelated = chatOocSuppressesUserNoteExtras(storedUserMessage);
   const htmlFlashOnlyTurn =
     chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
+  const s4LiveProducerAllowed =
+    personaSecretDiscoveryOn &&
+    isPersonaSecretS4LiveProducerEnabled() &&
+    isS4LiveProducerTurnAllowed({
+      oocHtmlMode,
+      oocSceneRenderTurn,
+      htmlFlashOnlyTurn,
+    });
   const promptUserMessage = oocSceneRenderTurn
     ? buildOocSceneRenderUserPrompt(displayUserMessage)
     : autoContinueContext
@@ -2049,11 +2058,7 @@ export async function POST(req: Request) {
         chatId: chat.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
-        allowS4: isS4LiveProducerTurnAllowed({
-          oocHtmlMode,
-          oocSceneRenderTurn,
-          htmlFlashOnlyTurn,
-        }),
+        allowS4: s4LiveProducerAllowed,
       });
       s4GenerationTransferContext = personaWithS4.s4Context;
       revealedPersonaFactsBlock = personaWithS4.block;
@@ -2752,11 +2757,7 @@ export async function POST(req: Request) {
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
-        allowS4: isS4LiveProducerTurnAllowed({
-          oocHtmlMode,
-          oocSceneRenderTurn,
-          htmlFlashOnlyTurn,
-        }),
+        allowS4: s4LiveProducerAllowed,
       });
       s4GenerationTransferContext = rebuiltPersonaWithS4.s4Context;
       const updatedKnownFacts = rebuiltPersonaWithS4.block;
@@ -5400,11 +5401,7 @@ export async function POST(req: Request) {
             resolvedPersonaId &&
             aiMessageId != null &&
             typeof preStatusPartitionText === "string" &&
-            isS4LiveProducerTurnAllowed({
-              oocHtmlMode,
-              oocSceneRenderTurn,
-              htmlFlashOnlyTurn,
-            })
+            s4LiveProducerAllowed
           ) {
             try {
               commitAcceptedAssistantS4Transfers({

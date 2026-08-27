@@ -55,6 +55,7 @@ import {
   reconcileS4KnowledgeForVariantSwitch,
 } from "@/lib/knowledgeTransferVariant";
 import { ensureKnowledgeTransferSchema } from "@/lib/knowledgeTransferSchema";
+import { isPersonaSecretS4LiveProducerEnabled } from "@/lib/personaSecretS4LiveProducerPolicy";
 
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -65,6 +66,7 @@ Module._load = function (request, parent, isMain) {
 const ENV_KEYS = [
   "PERSONA_SECRET_BOUNDARY_ENABLED",
   "PERSONA_SECRET_DISCOVERY_ENABLED",
+  "PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED",
 ] as const;
 
 function saveEnv(): Record<string, string | undefined> {
@@ -240,6 +242,7 @@ describe("S4 live producer", () => {
     env = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
     process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    process.env.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED = "1";
     prepareDb();
   });
   afterEach(() => restoreEnv(env));
@@ -699,6 +702,104 @@ describe("S4 live producer", () => {
     });
     assert.equal(withAttempt.s4Context, null);
     assert.equal(withAttempt.block, plain);
+  });
+
+  it("D — rollout OFF keeps ordinary knowledge prompt byte-equivalent and S4 context null", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const writesBefore = (
+      db
+        .prepare(`SELECT COUNT(*) AS count FROM knowledge_transfer_events WHERE chat_id=?`)
+        .get(f.chatId) as { count: number }
+    ).count;
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    process.env.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED = "0";
+    const plain = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+    });
+    const gated = buildPersonaKnowledgeWithS4ForTurn({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+      allowS4:
+        isPersonaSecretS4LiveProducerEnabled() &&
+        isS4LiveProducerTurnAllowed({}),
+    });
+    assert.equal(gated.block, plain);
+    assert.equal(gated.s4Context, null);
+    assert.doesNotMatch(gated.block ?? "", /\[K\d+\]|\[R\d+\]|S4 DIRECT STATEMENT/);
+    assert.doesNotMatch(gated.block ?? "", /nonce|S4_KNOWLEDGE_TRANSFER/);
+    const writesAfter = (
+      db
+        .prepare(`SELECT COUNT(*) AS count FROM knowledge_transfer_events WHERE chat_id=?`)
+        .get(f.chatId) as { count: number }
+    ).count;
+    assert.equal(writesAfter, writesBefore);
+  });
+
+  it("E — rollout ON preserves current K/R contract behavior", () => {
+    const f = setupFixture();
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    process.env.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED = "1";
+    const enabled = buildPersonaKnowledgeWithS4ForTurn({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+      allowS4:
+        isPersonaSecretS4LiveProducerEnabled() &&
+        isS4LiveProducerTurnAllowed({}),
+    });
+    assert.ok(enabled.s4Context);
+    assert.match(enabled.block ?? "", /\[K1\]/);
+    assert.match(enabled.block ?? "", /\[R1\]/);
+    assert.match(enabled.block ?? "", /S4 DIRECT STATEMENT/);
+  });
+
+  it("F — rollout flag has zero effect on ordinary S1/S2/S3 knowledge projection", () => {
+    const f = setupFixture();
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind: "character",
+        simulationCast: null,
+        characterId: f.senderId,
+      }),
+      { chatId: f.chatId }
+    );
+    process.env.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED = "0";
+    const projectionOff = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+    });
+    process.env.PERSONA_SECRET_S4_LIVE_PRODUCER_ENABLED = "1";
+    const projectionOn = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId: f.chatId,
+      personaId: f.personaId,
+      authority: "discovery",
+    });
+    assert.equal(projectionOff, projectionOn);
+    assert.match(projectionOff ?? "", /비밀 사실을 직접 말함/);
   });
 
   it("OOC turns disable S4 context and commit", () => {
