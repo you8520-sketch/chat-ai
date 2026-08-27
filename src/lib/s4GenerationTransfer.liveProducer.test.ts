@@ -782,6 +782,48 @@ describe("S4 live producer", () => {
     assert.equal(r.applied, 0);
   });
 
+  it("lowercase/mixed-case complete S4 is hidden but gains no commit authority", () => {
+    const f = setupFixture();
+    const db = getDb();
+    const ctx = buildCtx(f);
+    const visible = f.fact;
+    const assistantMessageId = insertAssistantWithVariant(db, f.chatId, visible, 0);
+    const payload = JSON.stringify({
+      nonce: ctx.nonce,
+      events: [
+        {
+          factRef: "K1",
+          receiverRef: "R1",
+          transferType: "DIRECT_STATEMENT",
+          completed: true,
+          proofText: f.fact,
+        },
+      ],
+    });
+    const malformedMarkers = [
+      [S4_TRANSFER_BLOCK.toLowerCase(), S4_TRANSFER_END.toLowerCase()],
+      ["<<<s4_Knowledge_Transfer>>>", "<<<End_S4>>>"],
+    ] as const;
+
+    for (const [start, end] of malformedMarkers) {
+      const raw = `${visible}\n${start}\n${payload}\n${end}`;
+      assert.equal(stripS4ServerControlFromText(raw), visible);
+      const result = commitAcceptedAssistantS4Transfers({
+        rawModelText: raw,
+        finalVisibleText: visible,
+        ctx,
+        chatId: f.chatId,
+        personaId: f.personaId,
+        characterId: f.senderId,
+        turnNumber: 2,
+        assistantMessageId,
+        db,
+      });
+      assert.equal(result.applied, 0);
+      assert.equal(result.attempted, 0);
+    }
+  });
+
   it("V2 — active variant index 1 without generationSequence → write 0 (no index inference)", () => {
     const f = setupFixture();
     const db = getDb();

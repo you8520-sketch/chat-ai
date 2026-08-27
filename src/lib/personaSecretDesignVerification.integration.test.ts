@@ -1034,6 +1034,10 @@ describe("Persona Secret design verification — synthetic integration", () => {
       ["observer bootstrap", /bootstrapChatObservers\s*\(/],
       ["prompt decision", /resolvePersonaKnowledgePromptDecisionForChat\s*\(/],
       ["prompt block", /buildPersonaKnowledgeWithS4ForTurn\s*\(/],
+      [
+        "HTML flash-only S4 context gate",
+        /allowS4:\s*isS4LiveProducerTurnAllowed\s*\(\s*\{[\s\S]*?htmlFlashOnlyTurn[\s\S]*?\}\s*\)/,
+      ],
       ["discovery gate", /discoveryWritesAllowed/],
       ["same-turn rebuild", /updatedKnownFacts !== revealedPersonaFactsBlock/],
     ];

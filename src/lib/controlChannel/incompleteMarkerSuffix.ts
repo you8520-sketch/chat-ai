@@ -8,6 +8,13 @@ export type ControlBlockMarker = {
   end: string;
 };
 
+/** ASCII-only case fold for control syntax comparison; original text is never rewritten. */
+function foldControlAscii(value: string): string {
+  return value.replace(/[A-Z]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) + 32)
+  );
+}
+
 /** Deterministic proper-prefix set for a control start marker. */
 export function properPrefixesOfControlMarker(marker: string): string[] {
   const out: string[] = [];
@@ -39,9 +46,10 @@ export function stripIncompleteControlMarkerSuffix(
   let changed = true;
   while (changed) {
     changed = false;
+    const foldedWork = foldControlAscii(work);
     const prefixes = uniqueStartMarkerPrefixes(startMarkers);
     for (const prefix of prefixes) {
-      if (work.endsWith(prefix)) {
+      if (foldedWork.endsWith(foldControlAscii(prefix))) {
         work = work.slice(0, work.length - prefix.length);
         changed = true;
         break;
@@ -58,10 +66,11 @@ export function stripUnclosedControlBlocks(
 ): string {
   let work = raw;
   for (const { start, end } of blocks) {
-    const idx = work.lastIndexOf(start);
+    const foldedWork = foldControlAscii(work);
+    const idx = foldedWork.lastIndexOf(foldControlAscii(start));
     if (idx < 0) continue;
-    const tail = work.slice(idx);
-    if (!tail.includes(end)) {
+    const foldedTail = foldedWork.slice(idx);
+    if (!foldedTail.includes(foldControlAscii(end))) {
       work = work.slice(0, idx);
     }
   }

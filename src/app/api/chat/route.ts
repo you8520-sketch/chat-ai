@@ -1121,6 +1121,8 @@ export async function POST(req: Request) {
     user.nickname
   );
   const chatOocRpUnrelated = chatOocSuppressesUserNoteExtras(storedUserMessage);
+  const htmlFlashOnlyTurn =
+    chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
   const promptUserMessage = oocSceneRenderTurn
     ? buildOocSceneRenderUserPrompt(displayUserMessage)
     : autoContinueContext
@@ -2047,7 +2049,11 @@ export async function POST(req: Request) {
         chatId: chat.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
-        allowS4: isS4LiveProducerTurnAllowed({ oocHtmlMode, oocSceneRenderTurn }),
+        allowS4: isS4LiveProducerTurnAllowed({
+          oocHtmlMode,
+          oocSceneRenderTurn,
+          htmlFlashOnlyTurn,
+        }),
       });
       s4GenerationTransferContext = personaWithS4.s4Context;
       revealedPersonaFactsBlock = personaWithS4.block;
@@ -2746,7 +2752,11 @@ export async function POST(req: Request) {
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
-        allowS4: isS4LiveProducerTurnAllowed({ oocHtmlMode, oocSceneRenderTurn }),
+        allowS4: isS4LiveProducerTurnAllowed({
+          oocHtmlMode,
+          oocSceneRenderTurn,
+          htmlFlashOnlyTurn,
+        }),
       });
       s4GenerationTransferContext = rebuiltPersonaWithS4.s4Context;
       const updatedKnownFacts = rebuiltPersonaWithS4.block;
@@ -2959,8 +2969,6 @@ export async function POST(req: Request) {
         const htmlDisplayOnlyTurn = isHtmlDisplayOnlyTurn(storedUserMessage);
         const oocCreativeHtmlTurn =
           isOocCreativeHtmlTurn(storedUserMessage) || chatOocRpUnrelated;
-        const htmlFlashOnlyTurn =
-          chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
 
         try {
           if (htmlFlashOnlyTurn) {
