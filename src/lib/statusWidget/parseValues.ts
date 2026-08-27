@@ -14,6 +14,9 @@ import type {
   StatusWidget,
   StatusWidgetValues,
 } from "./types";
+import {
+  projectStreamVisibleWithoutIncompleteControlMarkers,
+} from "@/lib/controlChannel/incompleteMarkerSuffix";
 
 export const STATUS_VALUES_BLOCK = "<<<STATUS_VALUES>>>";
 export const STATUS_VALUES_CHAR_BLOCK = "<<<STATUS_VALUES char>>>";
@@ -38,19 +41,10 @@ export function stripIncompleteStatusWidgetTail(text: string): string {
     work = work.slice(0, idx).trimEnd();
   }
 
-  const looseMatch = work.match(/<<<STATUS_VALUES(?:\s+[^>]+)?>>>/i);
-  if (looseMatch?.index != null) {
-    const tail = work.slice(looseMatch.index);
-    if (!tail.includes(STATUS_VALUES_END)) {
-      work = work.slice(0, looseMatch.index).trimEnd();
-    }
-  }
-
-  const partialMarker = work.match(/\n?<<<\s*(?:STATUS(?:_VALUES(?:\s+(?:char|user))?)?(?:\s*>>>?)?)?\s*$/i);
-  if (partialMarker?.index != null) {
-    work = work.slice(0, partialMarker.index).trimEnd();
-  }
-  work = work.replace(/<<<\s*$/, "").trimEnd();
+  work = projectStreamVisibleWithoutIncompleteControlMarkers(work, {
+    startMarkers: STATUS_VALUES_MARKERS,
+    blocks: STATUS_VALUES_MARKERS.map((start) => ({ start, end: STATUS_VALUES_END })),
+  });
 
   const jsonOpen = work.search(/(?:^|\n)```json\b/i);
   if (jsonOpen >= 0) {
@@ -73,7 +67,7 @@ export function stripIncompleteStatusWidgetTail(text: string): string {
     }
   }
 
-  return work;
+  return work.trimEnd();
 }
 
 function stripTrailingStatusWidgetMarkers(text: string): string {

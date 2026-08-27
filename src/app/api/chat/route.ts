@@ -272,6 +272,7 @@ import {
   isPersonaSecretBoundaryEnabled,
   isPersonaSecretDiscoveryEnabled,
 } from "@/lib/personaSecretBoundaryPolicy";
+import { isPersonaSecretS4LiveProducerEnabled } from "@/lib/personaSecretS4LiveProducerPolicy";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
@@ -287,7 +288,13 @@ import {
   confirmPersonaSecretDisclosure,
   detectDeterministicDirectDisclosures,
 } from "@/lib/personaSecretDirectDisclosure";
-import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
+import {
+  buildPersonaKnowledgeWithS4ForTurn,
+  isS4LiveProducerTurnAllowed,
+  type S4GenerationTransferContext,
+} from "@/lib/s4GenerationTransfer/context";
+import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
+import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import {
   buildGenerationKnowledgeContext,
   personaKnowledgePromptDecisionMeta,
@@ -1115,6 +1122,8 @@ export async function POST(req: Request) {
     user.nickname
   );
   const chatOocRpUnrelated = chatOocSuppressesUserNoteExtras(storedUserMessage);
+  const htmlFlashOnlyTurn =
+    chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
   const promptUserMessage = oocSceneRenderTurn
     ? buildOocSceneRenderUserPrompt(displayUserMessage)
     : autoContinueContext
@@ -1664,6 +1673,14 @@ export async function POST(req: Request) {
     !autoContinueContext &&
     isOocHtmlRequest(storedUserMessage) &&
     !htmlVisualCardPolicy.enabled;
+  const s4LiveProducerAllowed =
+    personaSecretDiscoveryOn &&
+    isPersonaSecretS4LiveProducerEnabled() &&
+    isS4LiveProducerTurnAllowed({
+      oocHtmlMode,
+      oocSceneRenderTurn,
+      htmlFlashOnlyTurn,
+    });
   const globalLorebookScanText = [
     policyUserMessage,
     userNotePrompt,
@@ -2002,6 +2019,7 @@ export async function POST(req: Request) {
     mode: "ENSEMBLE_REDACTED",
     reasonCode: "MISSING_AUTHORITATIVE_SPEAKER",
   };
+  let s4GenerationTransferContext: S4GenerationTransferContext | null = null;
   let personaSecretDescriptionForFacts = "";
   if (personaSecretBoundaryOn && resolvedPersonaId) {
     const secretPayload = getPersonaSecretPayload(user.id, resolvedPersonaId);
@@ -2035,12 +2053,15 @@ export async function POST(req: Request) {
       // so evidence stores the real sourceMessageId and knowledge writes stay 0 on
       // regenerate/continue/save-failed requests.
 
-      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
+      const personaWithS4 = buildPersonaKnowledgeWithS4ForTurn({
         decision: personaKnowledgePromptDecision,
         chatId: chat.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
+        allowS4: s4LiveProducerAllowed,
       });
+      s4GenerationTransferContext = personaWithS4.s4Context;
+      revealedPersonaFactsBlock = personaWithS4.block;
     } else {
       // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
       revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
@@ -2731,12 +2752,15 @@ export async function POST(req: Request) {
       }
 
       // PR-S4C: reuse the same request decision (never re-resolve to main-character fallback).
-      const updatedKnownFacts = buildPersonaKnowledgePromptBlock({
+      const rebuiltPersonaWithS4 = buildPersonaKnowledgeWithS4ForTurn({
         decision: personaKnowledgePromptDecision,
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
+        allowS4: s4LiveProducerAllowed,
       });
+      s4GenerationTransferContext = rebuiltPersonaWithS4.s4Context;
+      const updatedKnownFacts = rebuiltPersonaWithS4.block;
 
       // Same-turn reaction: rebuild prompt after visual/investigation/transfer knowledge transitions.
       if (updatedKnownFacts !== revealedPersonaFactsBlock) {
@@ -2946,8 +2970,6 @@ export async function POST(req: Request) {
         const htmlDisplayOnlyTurn = isHtmlDisplayOnlyTurn(storedUserMessage);
         const oocCreativeHtmlTurn =
           isOocCreativeHtmlTurn(storedUserMessage) || chatOocRpUnrelated;
-        const htmlFlashOnlyTurn =
-          chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
 
         try {
           if (htmlFlashOnlyTurn) {
@@ -3334,16 +3356,17 @@ export async function POST(req: Request) {
         let relationshipDeltaFromMain: RelationshipMetaDelta | null = null;
 
         if (oocHtmlMode) {
+          const proseWithoutS4 = stripS4ServerControlFromText(fullText);
           statusArtifacts = {
-            prose: fullText,
+            prose: proseWithoutS4,
             capturedTableMarkdown: null,
             capturedHtmlFence: null,
           };
-          afterClampText = fullText;
+          afterClampText = proseWithoutS4;
           savedText = traceStep(
             "stripEmotionTagsForDisplay",
-            fullText,
-            stripEmotionTagsForDisplay(fullText),
+            proseWithoutS4,
+            stripEmotionTagsForDisplay(proseWithoutS4),
             "stripEmotionTagsForDisplay — [태그:…] emotion markers removed for display (oocHtmlMode)"
           );
           savedText = traceStep(
@@ -5370,6 +5393,35 @@ export async function POST(req: Request) {
               requestId: clientRequestId ?? null,
               generationSequence: snapshotVariantIndex,
             });
+          }
+
+          // S4 live producer: post-finalize SERVER_STRUCTURED_TRANSFER only.
+          if (
+            s4GenerationTransferContext &&
+            resolvedPersonaId &&
+            aiMessageId != null &&
+            typeof preStatusPartitionText === "string" &&
+            s4LiveProducerAllowed
+          ) {
+            try {
+              commitAcceptedAssistantS4Transfers({
+                rawModelText: preStatusPartitionText,
+                finalVisibleText: savedText,
+                ctx: s4GenerationTransferContext,
+                chatId: chatRef.id,
+                personaId: resolvedPersonaId,
+                characterId: ch.id,
+                turnNumber: playableTurnCount + 1,
+                assistantMessageId: aiMessageId,
+                userMessageId: userMessageId ?? null,
+                db,
+              });
+            } catch (s4CommitErr) {
+              console.error(
+                "[S4LiveProducer] commit failed:",
+                (s4CommitErr as Error).message
+              );
+            }
           }
         }
 

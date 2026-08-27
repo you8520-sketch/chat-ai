@@ -51,10 +51,10 @@ export type {
 } from "@/lib/knowledgeTransferVariantProvenance";
 
 /**
- * Internal/test-only variant-scoped authoritative transfer seed.
- * Not exposed via public HTTP.
+ * Production + test variant-scoped authoritative transfer apply.
+ * Delegates to applyKnowledgeTransferAction (no direct SQL).
  */
-export function seedVariantScopedKnowledgeTransfer(opts: {
+export function applyVariantScopedAuthoritativeKnowledgeTransfer(opts: {
   chatId: number;
   personaId: number;
   characterId: number;
@@ -85,6 +85,26 @@ export function seedVariantScopedKnowledgeTransfer(opts: {
     action,
     db: opts.db,
   });
+}
+
+/**
+ * @deprecated Test compatibility wrapper — delegates to production owner.
+ */
+export function seedVariantScopedKnowledgeTransfer(opts: {
+  chatId: number;
+  personaId: number;
+  characterId: number;
+  turnNumber: number;
+  sourceAssistantMessageId: number;
+  sourceGenerationSequence: number;
+  action: Omit<
+    PersonaSecretTransferAction,
+    "sourceAssistantMessageId" | "sourceGenerationSequence" | "actionId"
+  >;
+  userMessageId?: number | null;
+  db?: Database.Database;
+}): KnowledgeTransferApplyResult {
+  return applyVariantScopedAuthoritativeKnowledgeTransfer(opts);
 }
 
 export function assertS4VariantSwitchAllowed(

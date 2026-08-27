@@ -95,6 +95,7 @@ import {
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
 import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
+import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import { peelIncompleteTailForLengthCap } from "@/lib/statusWindowTemplate";
@@ -155,10 +156,21 @@ function proseOnlyForClient(
 ): string {
   const normalized = normalizeAiNovelProseLayout(rawMerged);
   const prose = clampResponseLength(
-    stripAllStatusWindowOutputArtifacts(normalized, statusArtifactsOpts),
+    stripStreamVisibleProse(normalized, statusArtifactsOpts, false),
     targetResponseChars
   );
   return stripLiveStreamForClient(prose);
+}
+
+function stripStreamVisibleProse(
+  rawMerged: string,
+  statusArtifactsOpts?: StripStatusArtifactsOptions,
+  oocHtmlMode?: boolean
+): string {
+  const withoutS4 = stripS4ServerControlFromText(rawMerged);
+  return oocHtmlMode
+    ? withoutS4
+    : stripAllStatusWindowOutputArtifacts(withoutS4, statusArtifactsOpts);
 }
 
 /** 스트리밍 중 — append-only 유지 (문단 재구성·분량 clamp는 최종 1회만) */
@@ -170,9 +182,7 @@ function liveStreamProse(
   const sanitized = stripInternalTagLeakage(
     stripTrailingEmotionTagStreamCandidate(sanitizeStreamArtifacts(rawMerged))
   );
-  const prose = oocHtmlMode
-    ? sanitized
-    : stripAllStatusWindowOutputArtifacts(sanitized, statusArtifactsOpts);
+  const prose = stripStreamVisibleProse(sanitized, statusArtifactsOpts, oocHtmlMode);
   return stripLiveStreamForClient(stripLeakedDocumentMarkup(prose));
 }
 
