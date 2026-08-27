@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
+import { deletePersonaSecretRowsForChat } from "@/lib/personaSecretLifecycleCleanup";
 
 /** Whole-chat derived-data wipe. Caller owns the surrounding transaction. */
 export function deleteChatOwnedDerivedRows(
@@ -26,6 +27,7 @@ export function deleteChatOwnedDerivedRows(
   db.prepare("DELETE FROM preference_events WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM reports WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM report_refunds WHERE chat_id=?").run(chatId);
+  deletePersonaSecretRowsForChat(db, chatId);
   db.prepare("DELETE FROM messages WHERE chat_id=?").run(chatId);
   if (userId != null) {
     db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(chatId, userId);

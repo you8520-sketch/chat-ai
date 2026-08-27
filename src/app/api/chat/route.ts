@@ -294,6 +294,7 @@ import {
   type S4GenerationTransferContext,
 } from "@/lib/s4GenerationTransfer/context";
 import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
+import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import {
   buildGenerationKnowledgeContext,
@@ -5420,6 +5421,23 @@ export async function POST(req: Request) {
               console.error(
                 "[S4LiveProducer] commit failed:",
                 (s4CommitErr as Error).message
+              );
+            }
+          }
+
+          // Regenerate always switches active_variant; reconcile S4 activations
+          // even when the new generation commits zero transfers (otherwise
+          // discarded-gen knowledge stays live).
+          if (regenerateMessageId) {
+            try {
+              reconcileS4KnowledgeForVariantSwitch(db, {
+                chatId: chatRef.id,
+                assistantMessageId: regenerateMessageId,
+              });
+            } catch (s4ReconcileErr) {
+              console.error(
+                "[S4LiveProducer] regen reconcile failed:",
+                (s4ReconcileErr as Error).message
               );
             }
           }

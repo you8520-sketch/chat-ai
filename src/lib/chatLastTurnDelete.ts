@@ -10,6 +10,7 @@ import {
   incrementCharacterTotalTurns,
 } from "@/lib/characterEngagementStats";
 import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
+import { rewindPersonaSecretStateForDeletedMessages } from "@/lib/personaSecretLifecycleCleanup";
 import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
 import {
   NumericTurnDeleteChainNotReadyError,
@@ -97,6 +98,13 @@ export function executeLastTurnDeleteTransaction(
         input.assistantMessageId
       );
     }
+    // Rewind persona-secret worldline before messages disappear so
+    // source_message_id / assistant provenance still resolve.
+    rewindPersonaSecretStateForDeletedMessages(db, {
+      chatId: input.chatId,
+      messageIds: idsToDelete,
+      assistantMessageId: input.assistantMessageId,
+    });
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(
         id,
