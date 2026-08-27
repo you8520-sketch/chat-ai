@@ -15,7 +15,6 @@ const CHALLENGE =
   /문을?\s|창문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|막으려|막아|가로막|방어|집어|던지|부순|연다|민다|뽑는다|베|찌르|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
 
 /** Actor physically engages a hazard — ambient hazard nouns alone do not qualify. */
-const HAZARD_ACTION_VERBS = /(?:뛰(?:어)?(?:넘)?|넘(?:어)?|밀(?:어)?|들(?:어)?|밟|가로질|통과|파(?:고)?)/;
 const HAZARD_ENGAGEMENT =
   /무너지(?:는|는|진)?[^.]{0,24}(?:뛰|넘|밀|들)|(?:뛰(?:어)?(?:넘)?|넘(?:어)?|밀(?:어)?|들(?:어)?|밟|가로질|통과|파(?:고)?)[^.]{0,24}(?:잔해|틈|포자(?:층|낭| 구역| 지대)?)|(?:잔해|틈|포자(?:층|낭| 구역| 지대)?)[^.]{0,24}(?:뛰(?:어)?(?:넘)?|넘(?:어)?|밀(?:어)?|들(?:어)?|밟|가로질|통과|파(?:고)?)|맨(?:손|몸)[^.]{0,20}(?:집|잡|만|붙|쥐|넣|닿)|잠긴[^.]{0,20}(?:문|창)[^.]{0,20}(?:연|밀|딴|부|억)|(?:억지|강제)[^.]{0,16}(?:연|밀|딴|부)/;
 
@@ -106,8 +105,18 @@ export function stripTalkWrappers(body: string): string {
     .trim();
 }
 
-function visiblePhysicalText(body: string): string {
-  return stripTalkWrappers(normalizeBody(body));
+/** Quoted dialogue only — preserves *stage/action* wrappers and unquoted action prose. */
+export function stripQuotedDialogue(body: string): string {
+  return normalizeBody(body)
+    .replace(/「[^」]{0,400}」/g, " ")
+    .replace(/『[^』]{0,400}』/g, " ")
+    .replace(/["“”][^"“”]{0,400}["“”]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function visibleActorActionText(body: string): string {
+  return stripQuotedDialogue(body);
 }
 
 function isQuestionLike(text: string): boolean {
@@ -138,11 +147,6 @@ function isNonCommittingHazardProbe(text: string): boolean {
   );
 }
 
-function hasPhysicalEntry(text: string): boolean {
-  return PHYSICAL_ENTRY.test(normalizeBody(text));
-}
-
-/** Physical entry by the acting character — not third-party observational narration. */
 function hasActorPhysicalEntry(text: string): boolean {
   const normalized = normalizeBody(text);
   if (!PHYSICAL_ENTRY.test(normalized)) return false;
@@ -221,7 +225,7 @@ export function isTalkOnlyAction(body: string): boolean {
 }
 
 function isPassiveObservationOrPositioning(body: string): boolean {
-  const visible = visiblePhysicalText(body);
+  const visible = visibleActorActionText(body);
   if (!visible) return false;
   if (classifyChallengeKind(visible)) return false;
   return PASSIVE_OBSERVATION.test(visible);
@@ -235,16 +239,11 @@ function supportTreatmentRisk(text: string): TrpgActionCheckReason | null {
 }
 
 function resolveVisibleActorRisk(body: string): TrpgActionCheckReason | null {
-  const visible = visiblePhysicalText(body);
-  if (visible) {
-    const visibleKind = classifyChallengeKind(visible);
-    if (visibleKind) return visibleKind;
-    const supportRisk = supportTreatmentRisk(visible);
-    if (supportRisk) return supportRisk;
-  }
-  const fullKind = classifyChallengeKind(body);
-  if (fullKind) return fullKind;
-  return supportTreatmentRisk(body);
+  const visible = visibleActorActionText(body);
+  if (!visible) return null;
+  const visibleKind = classifyChallengeKind(visible);
+  if (visibleKind) return visibleKind;
+  return supportTreatmentRisk(visible);
 }
 
 function resolveIntentDisambiguation(body: string, intent: string): TrpgActionCheckReason | null {

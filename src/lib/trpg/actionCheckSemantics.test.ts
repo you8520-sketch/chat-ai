@@ -7,6 +7,7 @@ import {
   hasChallengeSignal,
   isTalkOnlyAction,
   resolveTrpgActionCheckDecision,
+  stripQuotedDialogue,
   stripTalkWrappers,
 } from "./actionCheck";
 import { parseTrpgBotAction } from "./botActionParse";
@@ -185,6 +186,37 @@ describe("TRPG action-check semantic alignment", () => {
     assert.equal(hasChallengeSignal(action), true);
     assert.equal(stripTalkWrappers("「포자 위험해.」"), "");
     assert.equal(isTalkOnlyAction("「포자 위험해.」"), true);
+  });
+
+  it("PURE_SPOKEN_HAZARD_WITH_ACTION_VERB: warning dialogue is not an actor hazard attempt", () => {
+    const body = "「포자 지대로 들어가면 위험해.」";
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body, actionType: "support" }), false);
+    assert.equal(stripQuotedDialogue(body), "");
+  });
+
+  it("SPOKEN_FORCED_DOOR: warning about forcing a door is not a roll", () => {
+    const body = "「잠긴 문을 억지로 열면 위험해.」";
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body, actionType: "support" }), false);
+  });
+
+  it("STAGE_DIRECTION_REAL_HAZARD: *stage* hazard action still rolls", () => {
+    const body = "*포자 지대로 들어간다* 「뒤따라와.」";
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), true);
+    assert.equal(classifyChallengeKind(stripQuotedDialogue(body)), "hazard");
+  });
+
+  it("STAGE_DIRECTION_FORCED_DOOR: *stage* forced entry still rolls", () => {
+    const body = "*잠긴 문을 억지로 연다.*";
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), true);
+    assert.equal(classifyChallengeKind(stripQuotedDialogue(body)), "hazard");
+  });
+
+  it("MIXED_HARMLESS_ACTION_PLUS_RISK_SPEECH: flavor action with quoted hazard talk skips check", () => {
+    const body = "고개를 끄덕인다. 「포자 지대로 들어가야 할 것 같아.」";
+    assert.equal(actionNeedsCheck({ body, actionType: "free" }), false);
+    assert.equal(classifyChallengeKind(stripQuotedDialogue(body)), null);
   });
 });
 
