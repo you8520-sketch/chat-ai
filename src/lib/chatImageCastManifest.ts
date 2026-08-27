@@ -27,6 +27,12 @@ import {
   castNeedsFourPlusWarning,
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { CharacterAsset } from "@/lib/characterAssets";
+import {
+  resolveSimulationMemberVisualMetadata,
+  resolveVisualSubjectByName,
+  type SimulationVisualSubject,
+} from "@/lib/simulationVisualSubjects";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
@@ -68,6 +74,7 @@ export type ChatImageCastGroundedSubject = {
   gender: ImagePromptGender;
   referenceImageUrl?: string;
   savedAppearance?: string;
+  trustedSavedAppearance?: boolean;
   appearanceMode: ChatImageAppearanceMode;
   importance: ChatImageCastImportance;
   visibility: ChatImageCastVisibility;
@@ -97,6 +104,8 @@ export type GroundCastContext = {
     appearanceMode?: ChatImageAppearanceMode;
   };
   selectableAssets: readonly SelectableCastAsset[];
+  simulationVisualSubjects?: readonly SimulationVisualSubject[];
+  characterAssets?: readonly CharacterAsset[];
 };
 
 const CORE_CAST_KEYS = new Set(["persona", "main_character"]);
@@ -106,7 +115,7 @@ export function hasBoundIdentityEvidence(
 ): boolean {
   if (visual.referenceIndex != null) return true;
   if (
-    visual.sourceKind !== "cast_member" &&
+    (visual.sourceKind !== "cast_member" || visual.trustedSavedAppearance === true) &&
     String(visual.savedAppearance ?? "").trim()
   ) {
     return true;
@@ -369,14 +378,29 @@ function groundedCoreSubject(
     };
   }
   const trustedUrl = whitelistAssetUrl(intent.requestedReferenceAssetUrl, ctx.selectableAssets);
+  const visualSubject =
+    contentKind === "simulation"
+      ? resolveVisualSubjectByName(ctx.simulationVisualSubjects ?? [], intent.name)
+      : null;
+  const visualMeta =
+    contentKind === "simulation" && visualSubject
+      ? resolveSimulationMemberVisualMetadata({
+          memberName: intent.name,
+          castSubjectKey: intent.key,
+          visualSubjects: ctx.simulationVisualSubjects ?? [],
+          assets: ctx.characterAssets ?? [],
+        })
+      : { appearanceMode: "image_only" as const, savedAppearance: undefined };
   return {
     key: intent.key,
     role: "supporting_character",
     name: intent.name,
     gender: "other",
     referenceImageUrl: trustedUrl,
-    savedAppearance: undefined,
-    appearanceMode: "image_only",
+    savedAppearance: visualMeta.savedAppearance,
+    trustedSavedAppearance:
+      contentKind === "simulation" && Boolean(visualMeta.savedAppearance),
+    appearanceMode: visualMeta.appearanceMode,
     importance: intent.importance,
     visibility: intent.visibility,
     sourceKind: "cast_member",
@@ -451,6 +475,22 @@ export function groundCastIntent(
         ok: false,
         reason: "선택한 참고 에셋을 사용할 수 없습니다.",
       };
+    }
+    if (contentKind === "simulation" && requested) {
+      const visualSubject = resolveVisualSubjectByName(
+        ctx.simulationVisualSubjects ?? [],
+        intentSubject.name
+      );
+      const asset = ctx.characterAssets?.find((row) => row.url === requested);
+      const ownerKey = asset?.visualSubjectKey?.trim();
+      if (ownerKey) {
+        if (!visualSubject || ownerKey !== visualSubject.subjectKey) {
+          return {
+            ok: false,
+            reason: "다른 인물에 연결된 이미지는 해당 인물 reference로 사용할 수 없습니다.",
+          };
+        }
+      }
     }
   }
 
@@ -579,6 +619,7 @@ function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVi
     referenceImageUrl: cleanUrl(subject.referenceImageUrl) || null,
     appearanceMode: subject.appearanceMode,
     savedAppearance: ownAppearance || undefined,
+    trustedSavedAppearance: subject.trustedSavedAppearance,
     sourceKind: subject.sourceKind,
   };
 }

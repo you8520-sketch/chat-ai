@@ -509,6 +509,7 @@ function migrate(db: Database.Database) {
   addColumn("characters", "simulation_reuse_allowed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "simulation_nsfw_allowed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "trpg_reuse_allowed", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("characters", "simulation_visual_subjects_json", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_turn_summaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

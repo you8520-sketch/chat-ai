@@ -18,6 +18,7 @@ import {
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
+import SimulationVisualSubjectEditor from "@/components/SimulationVisualSubjectEditor";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
@@ -81,6 +82,13 @@ import {
   SIMULATION_CAST_EXAMPLE,
   type ContentKind,
 } from "@/lib/simulationMode";
+import {
+  configuredSimulationCastNames,
+  emptySimulationVisualSubjectsDocument,
+  materializeSimulationVisualSubjectsForEditor,
+  parseSimulationVisualSubjectsJson,
+  type SimulationVisualSubjectsDocument,
+} from "@/lib/simulationVisualSubjects";
 
 const MAX_IMAGES = 100;
 
@@ -179,6 +187,9 @@ export default function CreateCharacter({
     simulation_rules: "",
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
+  const [visualSubjects, setVisualSubjects] = useState<SimulationVisualSubjectsDocument>(
+    emptySimulationVisualSubjectsDocument()
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -207,6 +218,21 @@ export default function CreateCharacter({
 
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
   const editPromptBaselineRef = useRef<string | null>(null);
+
+  const configuredVisualSubjectNames = useMemo(
+    () => configuredSimulationCastNames(form.simulation_cast, form.name),
+    [form.simulation_cast, form.name]
+  );
+
+  useEffect(() => {
+    if (form.content_kind !== "simulation") return;
+    setVisualSubjects((current) =>
+      materializeSimulationVisualSubjectsForEditor({
+        configuredNames: configuredVisualSubjectNames,
+        document: current,
+      })
+    );
+  }, [configuredVisualSubjectNames, form.content_kind]);
 
   function buildPromptEditSignature(input = form) {
     return JSON.stringify({
@@ -352,15 +378,22 @@ export default function CreateCharacter({
     setAssets((a) => normalizeManagedAssets(a.filter((_, idx) => idx !== i)));
   }
 
-  async function tagPendingFiles() {
-    if (files.length === 0) return;
+  async function uploadAssetBatch(
+    batchFiles: File[],
+    options: { visualSubjectKey?: string; clearPendingFiles?: boolean } = {}
+  ) {
+    if (batchFiles.length === 0) return;
     setLoading(true);
     setError("");
-    setProgress(`에셋 ${files.length}장 업로드 중…`);
+    setProgress(
+      options.visualSubjectKey
+        ? `인물 이미지 ${batchFiles.length}장 업로드 중…`
+        : `에셋 ${batchFiles.length}장 업로드 중…`
+    );
 
     try {
       const fd = new FormData();
-      files.forEach((f) => fd.append("files", f));
+      batchFiles.forEach((file) => fd.append("files", file));
       const up = await fetch("/api/upload", { method: "POST", body: fd });
       const upData = await up.json();
       if (!up.ok) {
@@ -435,6 +468,9 @@ export default function CreateCharacter({
           {
             url,
             tag: tagged?.tag || fallbackAssetTag(assets.length + i),
+            ...(options.visualSubjectKey
+              ? { visualSubjectKey: options.visualSubjectKey }
+              : {}),
             ...defaultAssetFlags(assets, i),
             ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
             ...(typeof tagged?.moderationReject === "boolean"
@@ -450,7 +486,7 @@ export default function CreateCharacter({
       if (accepted.length > 0) {
         setAssets((prev) => normalizeManagedAssets([...prev, ...accepted]));
       }
-      setFiles([]);
+      if (options.clearPendingFiles) setFiles([]);
       if (rejected.length > 0) {
         setError(allAgesAssetChangeRequest(rejected.length));
       }
@@ -460,6 +496,14 @@ export default function CreateCharacter({
       setLoading(false);
       setProgress("");
     }
+  }
+
+  async function tagPendingFiles() {
+    await uploadAssetBatch(files, { clearPendingFiles: true });
+  }
+
+  async function uploadAssetsForSubject(subjectFiles: File[], subjectKey: string) {
+    await uploadAssetBatch(subjectFiles, { visualSubjectKey: subjectKey });
   }
 
   function removeFile(i: number) {
@@ -547,6 +591,20 @@ export default function CreateCharacter({
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
         setAssets(
           normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
+        );
+        setVisualSubjects(
+          data.simulation_visual_subjects
+            ? {
+                version: 1,
+                subjects: Array.isArray(data.simulation_visual_subjects.subjects)
+                  ? data.simulation_visual_subjects.subjects
+                  : [],
+              }
+            : parseSimulationVisualSubjectsJson(
+                typeof data.simulation_visual_subjects_json === "string"
+                  ? data.simulation_visual_subjects_json
+                  : ""
+              )
         );
         setSelectedWorldId(data.world_id ?? "");
         setSelectedLorebookId(data.lorebook_id ?? "");
@@ -843,6 +901,7 @@ export default function CreateCharacter({
       status_widget_json: serializeStatusWidget(statusWidget),
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
+      simulation_visual_subjects: form.content_kind === "simulation" ? visualSubjects : undefined,
       world_id: selectedWorldId === "" ? undefined : selectedWorldId,
       lorebook_id:
         selectedLorebookId === "" ? undefined : selectedLorebookId,
@@ -1418,6 +1477,17 @@ export default function CreateCharacter({
                     onChange={(e) => setForm({ ...form, simulation_rules: e.target.value })}
                   />
                 </div>
+
+                <SimulationVisualSubjectEditor
+                  simulationTitle={form.name}
+                  simulationCast={form.simulation_cast}
+                  assets={assets}
+                  visualSubjects={visualSubjects}
+                  onVisualSubjectsChange={setVisualSubjects}
+                  onAssetsChange={(next) => setAssets(normalizeManagedAssets(next))}
+                  onUploadBatch={uploadAssetsForSubject}
+                  uploading={loading}
+                />
 
                 <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <div>
