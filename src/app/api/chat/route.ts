@@ -289,6 +289,11 @@ import {
 } from "@/lib/personaSecretDirectDisclosure";
 import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
 import {
+  buildPersonaKnowledgeWithS4ForTurn,
+  type S4GenerationTransferContext,
+} from "@/lib/s4GenerationTransfer/context";
+import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
+import {
   buildGenerationKnowledgeContext,
   personaKnowledgePromptDecisionMeta,
   resolvePersonaKnowledgePromptDecisionForChat,
@@ -2002,6 +2007,7 @@ export async function POST(req: Request) {
     mode: "ENSEMBLE_REDACTED",
     reasonCode: "MISSING_AUTHORITATIVE_SPEAKER",
   };
+  let s4GenerationTransferContext: S4GenerationTransferContext | null = null;
   let personaSecretDescriptionForFacts = "";
   if (personaSecretBoundaryOn && resolvedPersonaId) {
     const secretPayload = getPersonaSecretPayload(user.id, resolvedPersonaId);
@@ -2035,12 +2041,14 @@ export async function POST(req: Request) {
       // so evidence stores the real sourceMessageId and knowledge writes stay 0 on
       // regenerate/continue/save-failed requests.
 
-      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
+      const personaWithS4 = buildPersonaKnowledgeWithS4ForTurn({
         decision: personaKnowledgePromptDecision,
         chatId: chat.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
       });
+      s4GenerationTransferContext = personaWithS4.s4Context;
+      revealedPersonaFactsBlock = personaWithS4.block;
     } else {
       // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
       revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
@@ -2731,12 +2739,14 @@ export async function POST(req: Request) {
       }
 
       // PR-S4C: reuse the same request decision (never re-resolve to main-character fallback).
-      const updatedKnownFacts = buildPersonaKnowledgePromptBlock({
+      const rebuiltPersonaWithS4 = buildPersonaKnowledgeWithS4ForTurn({
         decision: personaKnowledgePromptDecision,
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
         authority: personaSecretAuthority,
       });
+      s4GenerationTransferContext = rebuiltPersonaWithS4.s4Context;
+      const updatedKnownFacts = rebuiltPersonaWithS4.block;
 
       // Same-turn reaction: rebuild prompt after visual/investigation/transfer knowledge transitions.
       if (updatedKnownFacts !== revealedPersonaFactsBlock) {
@@ -5370,6 +5380,37 @@ export async function POST(req: Request) {
               requestId: clientRequestId ?? null,
               generationSequence: snapshotVariantIndex,
             });
+          }
+
+          // S4 live producer: post-finalize SERVER_STRUCTURED_TRANSFER only.
+          if (
+            s4GenerationTransferContext &&
+            resolvedPersonaId &&
+            aiMessageId != null &&
+            typeof preStatusPartitionText === "string"
+          ) {
+            const generationSequence =
+              newVariant.generationSequence ?? snapshotVariantIndex ?? 0;
+            try {
+              commitAcceptedAssistantS4Transfers({
+                rawModelText: preStatusPartitionText,
+                finalVisibleText: savedText,
+                ctx: s4GenerationTransferContext,
+                chatId: chatRef.id,
+                personaId: resolvedPersonaId,
+                characterId: ch.id,
+                turnNumber: playableTurnCount + 1,
+                assistantMessageId: aiMessageId,
+                generationSequence,
+                userMessageId: userMessageId ?? null,
+                db,
+              });
+            } catch (s4CommitErr) {
+              console.error(
+                "[S4LiveProducer] commit failed:",
+                (s4CommitErr as Error).message
+              );
+            }
           }
         }
 

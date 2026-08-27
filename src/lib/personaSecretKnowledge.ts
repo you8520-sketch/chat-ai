@@ -332,6 +332,8 @@ export function buildKnownPersonaFactsForObserver(opts: {
   legacySecretDescription?: string;
   /** discovery = knowledge rows only, no legacy IO. legacy = reveal-table compatibility. */
   authority?: PersonaKnowledgePromptAuthority;
+  /** S4 opaque fact refs — inline on lines only (secretId → K1). */
+  factRefBySecretId?: Map<string, string>;
   db?: Database.Database;
 }): string | null {
   assertObserverSpecificKnowledgeQueryAllowed();
@@ -439,7 +441,9 @@ export function buildKnownPersonaFactsForObserver(opts: {
   const suspectedLines: string[] = [];
   let chars = 0;
   for (const item of selected) {
-    const line = `- ${item.fact}`;
+    const ref = opts.factRefBySecretId?.get(item.secretId);
+    const prefix = ref ? `[${ref}] ` : "";
+    const line = `- ${prefix}${item.fact}`;
     if (chars + line.length > MAX_FACT_CHARS && confirmedLines.length + suspectedLines.length > 0) {
       break;
     }
@@ -500,6 +504,7 @@ export function buildPersonaKnowledgePromptBlock(opts: {
   personaId: number;
   legacySecretDescription?: string;
   authority?: PersonaKnowledgePromptAuthority;
+  factRefBySecretId?: Map<string, string>;
   db?: Database.Database;
 }): string | null {
   if (opts.decision.mode === "ENSEMBLE_REDACTED") return null;
@@ -513,6 +518,7 @@ export function buildPersonaKnowledgePromptBlock(opts: {
     legacySecretDescription:
       authority === "legacy" ? opts.legacySecretDescription : undefined,
     authority,
+    factRefBySecretId: opts.factRefBySecretId,
     db: opts.db,
   });
 }

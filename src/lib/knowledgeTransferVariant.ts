@@ -51,8 +51,29 @@ export type {
 } from "@/lib/knowledgeTransferVariantProvenance";
 
 /**
- * Internal/test-only variant-scoped authoritative transfer seed.
- * Not exposed via public HTTP.
+ * Production + test variant-scoped authoritative transfer apply.
+ * Delegates to applyKnowledgeTransferAction (no direct SQL).
+ */
+export function applyVariantScopedAuthoritativeKnowledgeTransfer(opts: {
+  chatId: number;
+  personaId: number;
+  characterId: number;
+  turnNumber: number;
+  sourceAssistantMessageId: number;
+  sourceGenerationSequence: number;
+  action: Omit<
+    PersonaSecretTransferAction,
+    "sourceAssistantMessageId" | "sourceGenerationSequence" | "actionId"
+  >;
+  userMessageId?: number | null;
+  db?: Database.Database;
+}): KnowledgeTransferApplyResult {
+  return seedVariantScopedKnowledgeTransfer(opts);
+}
+
+/**
+ * @deprecated Prefer applyVariantScopedAuthoritativeKnowledgeTransfer — same behavior.
+ * Internal/test seed name retained for existing tests.
  */
 export function seedVariantScopedKnowledgeTransfer(opts: {
   chatId: number;

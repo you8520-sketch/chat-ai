@@ -7,6 +7,8 @@ import {
   stripIncompleteStatusWidgetTail,
 } from "@/lib/statusWidget/parseValues";
 import { stripRelationshipMemoryTailForStream } from "@/lib/relationshipMemoryTailParse";
+import { stripIncompleteS4TransferTail, splitProseAndS4TransferEnvelope } from "@/lib/s4GenerationTransfer/controlChannel";
+import type { S4ParsedTransferEnvelope } from "@/lib/s4GenerationTransfer/types";
 import { stripEmojisAndDecorators } from "@/lib/htmlVisualCardPolicy";
 import type { StatusWindowPlacement } from "@/lib/statusWindowPlacement";
 import { isPlainTextStatusFormatSpec, plainTextStatusFieldLines } from "./formatSpec";
@@ -604,6 +606,8 @@ export type PartitionModelStatusResult = {
   capturedHtmlFence: string | null;
   /** <<<STATUS_VALUES>>> 블록 — stripStatusWindowJsonBlock 전에 추출 */
   capturedStatusWidgetValues?: ParsedStatusWidgetTurnValues | null;
+  /** <<<S4_KNOWLEDGE_TRANSFER>>> — server-only; never client/store */
+  capturedS4TransferEnvelope?: S4ParsedTransferEnvelope | null;
 };
 
 /** RP 본문과 모델이 넣은 상태창(표·HTML) 분리 — 제거 전 캡처 */
@@ -611,7 +615,9 @@ export function partitionModelStatusArtifacts(
   text: string,
   opts?: StripStatusArtifactsOptions
 ): PartitionModelStatusResult {
-  const widgetSplit = splitProseAndStatusWidgetValues(text);
+  const s4Split = splitProseAndS4TransferEnvelope(text);
+  const capturedS4TransferEnvelope = s4Split.envelope;
+  const widgetSplit = splitProseAndStatusWidgetValues(s4Split.prose);
   const capturedStatusWidgetValues =
     widgetSplit.values.character || widgetSplit.values.user ? widgetSplit.values : null;
   let working = widgetSplit.prose;
@@ -626,6 +632,7 @@ export function partitionModelStatusArtifacts(
       capturedTableMarkdown: tables.length > 0 ? tables[tables.length - 1]! : null,
       capturedHtmlFence: null,
       capturedStatusWidgetValues,
+      capturedS4TransferEnvelope,
     };
   }
 
@@ -639,6 +646,7 @@ export function partitionModelStatusArtifacts(
       capturedHtmlFence:
         extracted.fences.length > 0 ? extracted.fences[extracted.fences.length - 1]! : null,
       capturedStatusWidgetValues,
+      capturedS4TransferEnvelope,
     };
   }
 
@@ -659,6 +667,7 @@ export function partitionModelStatusArtifacts(
     capturedTableMarkdown: tables.length > 0 ? tables[tables.length - 1]! : null,
     capturedHtmlFence,
     capturedStatusWidgetValues,
+    capturedS4TransferEnvelope,
   };
 }
 
@@ -671,5 +680,6 @@ export function stripAllStatusWindowOutputArtifacts(
   if (opts?.stripRelationshipMemoryTail) {
     work = stripRelationshipMemoryTailForStream(work);
   }
-  return partitionModelStatusArtifacts(stripIncompleteStatusWidgetTail(work), opts).prose;
+  work = stripIncompleteS4TransferTail(stripIncompleteStatusWidgetTail(work));
+  return partitionModelStatusArtifacts(work, opts).prose;
 }
