@@ -526,15 +526,111 @@ function sourceById(
   return messages.find((message) => message.id === id);
 }
 
-function dialogueAllowedForSpeaker(
-  messages: readonly SceneSourceMessage[],
-  speaker: SceneDialogueSpeaker
-): string[] {
-  const roles: SceneSourceRole[] =
-    speaker === "persona" ? ["user"] : speaker === "character" ? ["assistant"] : ["user", "assistant"];
-  return messages
-    .filter((message) => roles.includes(message.role))
-    .flatMap((message) => spokenLinesForMessage(message));
+type GroundedSceneEvent = {
+  event: SceneEvent;
+  messageOrder: number;
+  sourceStart: number;
+};
+
+function segmentMatchesEvent(
+  segment: SceneSourceSegment,
+  message: SceneSourceMessage,
+  event: SceneEvent
+): boolean {
+  if (segment.text !== event.text) return false;
+  if (event.sourceRole !== message.role) return false;
+  if (segment.kind === "dialogue") {
+    return event.kind === "dialogue" && event.actor === actorForRole(message.role);
+  }
+  if (segment.kind === "action") {
+    return message.role === "user"
+      ? event.kind === "action" && event.actor === "persona"
+      : event.kind === "reaction" && event.actor === "character";
+  }
+  if (message.role === "assistant") {
+    return (
+      (event.kind === "reaction" ||
+        event.kind === "assistant_echo" ||
+        event.kind === "environment") &&
+      (event.actor === "character" || event.actor === "environment")
+    );
+  }
+  return event.kind === "environment" && event.actor === "environment";
+}
+
+function groundSceneEvent(
+  event: SceneEvent,
+  messages: readonly SceneSourceMessage[]
+): GroundedSceneEvent | null {
+  const message = sourceById(messages, event.sourceMessageId);
+  if (!message) return null;
+  const segments = extractOrderedSceneSegments(message.text, message.role);
+  for (const segment of segments) {
+    if (!segmentMatchesEvent(segment, message, event)) continue;
+    return {
+      event,
+      messageOrder: message.order,
+      sourceStart: segment.start,
+    };
+  }
+  return null;
+}
+
+function chronologySignature(items: readonly GroundedSceneEvent[]): string {
+  return items
+    .map(
+      (item) =>
+        `${item.messageOrder}:${item.sourceStart}:${item.event.sourceMessageId}:${item.event.text}`
+    )
+    .join("\n");
+}
+
+type SourceGroundedEventsResult =
+  | { ok: false; reason: string }
+  | { ok: true; events: SceneEvent[] };
+
+function normalizeSourceGroundedEvents(
+  events: readonly SceneEvent[],
+  messages: readonly SceneSourceMessage[]
+): SourceGroundedEventsResult {
+  const bySubmittedOrder = [...events].sort((left, right) => left.order - right.order);
+  const grounded: GroundedSceneEvent[] = [];
+  for (const event of bySubmittedOrder) {
+    const meta = groundSceneEvent(event, messages);
+    if (!meta) {
+      return { ok: false, reason: "event text not source-backed" };
+    }
+    grounded.push(meta);
+  }
+
+  const canonical = [...grounded].sort(
+    (left, right) =>
+      left.messageOrder - right.messageOrder || left.sourceStart - right.sourceStart
+  );
+  if (chronologySignature(grounded) !== chronologySignature(canonical)) {
+    return { ok: false, reason: "event chronology not source-backed" };
+  }
+
+  return {
+    ok: true,
+    events: canonical.map((item, index) => ({
+      ...item.event,
+      order: index + 1,
+    })),
+  };
+}
+
+function dialogueOwnershipMatches(
+  speaker: SceneDialogueSpeaker,
+  event: SceneEvent
+): boolean {
+  if (speaker === "persona") {
+    return event.actor === "persona" && event.sourceRole === "user";
+  }
+  if (speaker === "character") {
+    return event.actor === "character" && event.sourceRole === "assistant";
+  }
+  return true;
 }
 
 export type ScenePlanValidation =
@@ -609,12 +705,10 @@ export function validateScenePlan(
     });
   }
 
-  const ordered = [...events].sort((a, b) => a.order - b.order);
-  for (let index = 1; index < ordered.length; index += 1) {
-    if (ordered[index]!.order <= ordered[index - 1]!.order) {
-      return { ok: false, reason: "event order invalid" };
-    }
-  }
+  const grounded = normalizeSourceGroundedEvents(events, messages);
+  if (!grounded.ok) return grounded;
+  const normalizedEvents = grounded.events;
+  const eventsById = new Map(normalizedEvents.map((event) => [event.id, event]));
 
   const panelCount = Number(source.recommendedPanelCount);
   const panelsRaw = Array.isArray(source.panels) ? source.panels : null;
@@ -638,7 +732,7 @@ export function validateScenePlan(
       : [];
     const panelEvents: SceneEvent[] = [];
     for (const id of sourceEventIds) {
-      const event = events.find((candidate) => candidate.id === id);
+      const event = eventsById.get(id);
       if (!event) return { ok: false, reason: "panel sourceEvent missing" };
       if (event.order < lastEventOrder) {
         return { ok: false, reason: "panel chronology reversed" };
@@ -671,18 +765,30 @@ export function validateScenePlan(
           return { ok: false, reason: "user_edit not allowed from planner" };
         }
       } else {
-        const allowed = dialogueAllowedForSpeaker(messages, speaker);
-        if (speaker === "persona" && !allowed.some((itemText) => itemText.includes(text) || text.includes(itemText))) {
-          return { ok: false, reason: "persona dialogue not in user source" };
+        const sourceEventId = cleanLine(line.sourceEventId, 24);
+        if (!sourceEventId) {
+          return { ok: false, reason: "dialogue sourceEventId missing" };
         }
-        if (speaker === "character" && !allowed.some((itemText) => itemText.includes(text) || text.includes(itemText))) {
-          return { ok: false, reason: "character dialogue not in assistant source" };
+        const linked = eventsById.get(sourceEventId);
+        if (!linked || linked.kind !== "dialogue") {
+          return { ok: false, reason: "dialogue sourceEvent mismatch" };
+        }
+        if (linked.text !== text) {
+          return { ok: false, reason: "dialogue text mismatch" };
+        }
+        if (!dialogueOwnershipMatches(speaker, linked)) {
+          return { ok: false, reason: "dialogue speaker ownership mismatch" };
         }
       }
       dialogue.push({
         speaker,
         text,
-        sourceEventId: typeof line.sourceEventId === "string" ? line.sourceEventId : undefined,
+        sourceEventId:
+          provenance === "source"
+            ? cleanLine(line.sourceEventId, 24) || undefined
+            : typeof line.sourceEventId === "string"
+              ? line.sourceEventId
+              : undefined,
         provenance,
       });
     }
@@ -702,7 +808,7 @@ export function validateScenePlan(
     ? source.heroEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
     : [];
   for (const id of heroEventIds) {
-    const hero = events.find((event) => event.id === id);
+    const hero = eventsById.get(id);
     if (!hero) return { ok: false, reason: "heroEventIds invalid" };
     if (hero.kind === "assistant_echo") {
       return { ok: false, reason: "hero uses assistant_echo" };
@@ -717,13 +823,13 @@ export function validateScenePlan(
     plan: {
       sceneBackground: cleanLine(source.sceneBackground, 200) || "대화가 이어지는 장면",
       atmosphere: cleanLine(source.atmosphere, 120) || undefined,
-      events,
+      events: normalizedEvents,
       heroEventIds: heroEventIds.length
         ? heroEventIds
-        : visualEvents(events)
-            .slice(0, Math.min(3, events.length))
+        : visualEvents(normalizedEvents)
+            .slice(0, Math.min(3, normalizedEvents.length))
             .map((event) => event.id),
-      heroScene: cleanLine(source.heroScene, 320) || visualEvents(events).slice(0, 3).map((event) => event.text).join(" "),
+      heroScene: cleanLine(source.heroScene, 320) || visualEvents(normalizedEvents).slice(0, 3).map((event) => event.text).join(" "),
       recommendedPanelCount: recommended,
       panels,
     },
@@ -751,7 +857,7 @@ export function buildScenePlanPrompt(opts: {
           sourceRole: "user",
           kind: "action",
           actor: "persona",
-          text: "verbatim or tightly grounded beat",
+          text: "verbatim contiguous excerpt",
         },
       ],
       heroEventIds: ["E1"],
@@ -778,15 +884,17 @@ export function buildScenePlanPrompt(opts: {
     }),
     "Rules:",
     "1. SOURCE FORMAT is already sanitized. Keep chronology. Do not invent new events.",
-    "2. Never invent user dialogue. USER spoken dialogue may only be copied from user messages. Never paraphrase, complete, or promote assistant-narrated user speech into persona dialogue.",
-    "3. CHARACTER spoken dialogue may only be copied from assistant messages.",
-    "4. Preserve user actions (*...*, (...), （...）) as action events. Do not drop action-only user turns.",
-    "5. If the assistant only recaps the immediately preceding user action, mark that beat kind=assistant_echo. Do not use assistant_echo as its own visual panel beat. Keep the new assistant reaction/action.",
-    "6. recommendedPanelCount must be 2, 3, or 4. Silent panels with empty dialogue are valid. Do not invent filler speech.",
-    "7. Panel sourceEventIds must stay in chronological order. Do not move a later event before an earlier one.",
-    "8. sceneBackground is the shared default location. Add backgroundOverride only when place/time actually changes.",
-    "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
-    "10. heroEventIds / heroScene summarize the same events for a single illustration.",
+    "2. EVENT TEXT must be a verbatim contiguous excerpt from its declared sourceMessageId. Never paraphrase, summarize, or rewrite event text. Summaries belong only in situation, heroScene, sceneBackground, or atmosphere.",
+    "3. Never invent user dialogue. USER spoken dialogue may only be copied from user messages. Never paraphrase, complete, or promote assistant-narrated user speech into persona dialogue.",
+    "4. CHARACTER spoken dialogue may only be copied from assistant messages.",
+    "5. Preserve user actions (*...*, (...), （...）) as action events. Do not drop action-only user turns.",
+    "6. If the assistant only recaps the immediately preceding user action, mark that beat kind=assistant_echo. Do not use assistant_echo as its own visual panel beat. Keep the new assistant reaction/action.",
+    "7. recommendedPanelCount must be 2, 3, or 4. Silent panels with empty dialogue are valid. Do not invent filler speech.",
+    "8. Panel sourceEventIds must stay in chronological order. Do not move a later event before an earlier one.",
+    "9. sceneBackground is the shared default location. Add backgroundOverride only when place/time actually changes.",
+    "10. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
+    "11. heroEventIds / heroScene summarize the same events for a single illustration.",
+    "12. provenance=source dialogue must reference the exact matching dialogue SceneEvent via sourceEventId.",
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");

@@ -90,6 +90,34 @@ describe("chatImageScenePlanner", () => {
     assert.equal(result.plan.panels.length, 2);
   });
 
+  it("AI_VALID_SHAPE_BUT_REORDERED fails planner validation and falls back deterministically", async () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"잠깐." *문을 연다* "가자."' },
+    ]);
+    const base = buildDeterministicScenePlan(messages, 2);
+    const byText = new Map(base.events.map((event) => [event.text, event]));
+    const reordered = {
+      ...base,
+      events: [
+        { ...byText.get("가자.")!, order: 1 },
+        { ...byText.get("문을 연다")!, order: 2 },
+        { ...byText.get("잠깐.")!, order: 3 },
+      ],
+    };
+    const result = await planChatImageScene({
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      complete: async () => JSON.stringify(reordered),
+    });
+    assert.equal(result.usedFallback, true);
+    assert.equal(result.model, "deterministic-fallback");
+    assert.deepEqual(
+      result.plan.events.map((event) => event.text),
+      ["잠깐.", "문을 연다", "가자."]
+    );
+  });
+
   it("AI_INVENTED_USER_EDIT fails planner validation and falls back deterministically", async () => {
     const messages = buildSceneSourceMessages(SOURCE_ROWS);
     const forged = buildDeterministicScenePlan(messages, 2);

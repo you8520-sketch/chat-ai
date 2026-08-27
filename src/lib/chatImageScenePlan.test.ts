@@ -189,7 +189,10 @@ describe("chatImageScenePlan chronology and echo", () => {
     );
     assert.equal(validated.ok, false);
     if (!validated.ok) {
-      assert.match(validated.reason, /persona dialogue not in user source/);
+      assert.match(
+        validated.reason,
+        /dialogue sourceEventId missing|dialogue sourceEvent mismatch|dialogue text mismatch|dialogue speaker ownership mismatch/
+      );
     }
   });
 });
@@ -275,10 +278,192 @@ describe("chatImageScenePlan panel count and single image", () => {
       messages: sampleMessages(),
     });
     assert.match(prompt, /Never invent user dialogue/);
+    assert.match(prompt, /Never paraphrase, summarize, or rewrite event text/);
     assert.match(prompt, /Do not describe hair color/);
     assert.match(prompt, /iris, pupil/);
     assert.doesNotMatch(prompt, /TEXT QUOTA/);
     assert.doesNotMatch(prompt, /gpt-4o-mini/);
+  });
+});
+
+describe("chatImageScenePlan source grounding", () => {
+  const chronologyMessages = () =>
+    buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"잠깐." *문을 연다* "가자."' },
+    ]);
+
+  function planFromEvents(
+    messages: SceneSourceMessage[],
+    events: ScenePlan["events"]
+  ): ScenePlan {
+    const base = buildDeterministicScenePlan(messages, 2);
+    const groups = [[events[0]], events.slice(1)].filter((group) => group.length);
+    return {
+      ...base,
+      events,
+      heroEventIds: events.filter((event) => event.kind !== "assistant_echo").map((event) => event.id),
+      heroScene: events.map((event) => event.text).join(" "),
+      panels: groups.map((group, index) => ({
+        index: index + 1,
+        sourceEventIds: group.map((event) => event.id),
+        situation: group.map((event) => event.text).join(" "),
+        dialogue: group
+          .filter((event) => event.kind === "dialogue")
+          .map((event) => ({
+            speaker: event.actor === "persona" ? ("persona" as const) : ("character" as const),
+            text: event.text,
+            sourceEventId: event.id,
+            provenance: "source" as const,
+          })),
+      })),
+    };
+  }
+
+  it("AI_VALID_SHAPE_BUT_REORDERED rejects chronology that ignores source span order", () => {
+    const messages = chronologyMessages();
+    const base = buildDeterministicScenePlan(messages, 2);
+    const byText = new Map(base.events.map((event) => [event.text, event]));
+    const reordered = planFromEvents(messages, [
+      { ...byText.get("가자.")!, order: 1 },
+      { ...byText.get("문을 연다")!, order: 2 },
+      { ...byText.get("잠깐.")!, order: 3 },
+    ]);
+    const validated = validateScenePlan(reordered, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /event chronology not source-backed/);
+    }
+  });
+
+  it("AI_INVENTED_ACTION rejects non-source action text", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*문을 연다*" },
+    ]);
+    const forged = planFromEvents(messages, [
+      {
+        id: "E1",
+        order: 1,
+        sourceMessageId: 1,
+        sourceRole: "user",
+        kind: "action",
+        actor: "persona",
+        text: "칼을 꺼낸다",
+      },
+    ]);
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /event text not source-backed/);
+    }
+  });
+
+  it("AI_INVENTED_REACTION rejects paraphrased assistant reaction text", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "태형이 고개를 든다." },
+    ]);
+    const forged = planFromEvents(messages, [
+      {
+        id: "E1",
+        order: 1,
+        sourceMessageId: 1,
+        sourceRole: "assistant",
+        kind: "reaction",
+        actor: "character",
+        text: "태형이 렌을 끌어안는다.",
+      },
+    ]);
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /event text not source-backed/);
+    }
+  });
+
+  it("WRONG_DIALOGUE_SOURCE_EVENT rejects persona dialogue bound to the wrong event", () => {
+    const messages = sampleMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const personaEvent = plan.events.find(
+      (event) => event.kind === "dialogue" && event.actor === "persona"
+    );
+    const characterEvent = plan.events.find(
+      (event) => event.kind === "dialogue" && event.actor === "character"
+    );
+    assert.ok(personaEvent && characterEvent);
+    const forged = {
+      ...plan,
+      panels: plan.panels.map((panel) => ({
+        ...panel,
+        dialogue: panel.dialogue.map((line) =>
+          line.speaker === "persona"
+            ? {
+                ...line,
+                sourceEventId: characterEvent.id,
+              }
+            : line
+        ),
+      })),
+    };
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(
+        validated.reason,
+        /dialogue text mismatch|dialogue speaker ownership mismatch|dialogue sourceEvent mismatch/
+      );
+    }
+  });
+
+  it("VALID_EXACT_ORDER accepts exact source order and verbatim excerpts", () => {
+    const messages = chronologyMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const validated = validateScenePlan(plan, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.deepEqual(
+        validated.plan.events.map((event) => event.text),
+        ["잠깐.", "문을 연다", "가자."]
+      );
+      assert.deepEqual(
+        validated.plan.events.map((event) => event.order),
+        [1, 2, 3]
+      );
+    }
+  });
+
+  it("CLIENT_USER_EDIT allows panel dialogue edits while canonical events stay source-backed", () => {
+    const messages = sampleMessages();
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const edited = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [{ speaker: "persona" as const, text: "지금 갈게", provenance: "user_edit" as const }],
+            }
+          : panel
+      ),
+    };
+    const validated = validateScenePlan(edited, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, true);
+  });
+
+  it("CLIENT_EVENT_REWRITE rejects canonical event rewrites even with allowUserEdits", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*문을 연다*" },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const forged = {
+      ...plan,
+      events: plan.events.map((event) =>
+        event.kind === "action" ? { ...event, text: "창문을 연다" } : event
+      ),
+    };
+    const validated = validateScenePlan(forged, messages, { allowUserEdits: true });
+    assert.equal(validated.ok, false);
+    if (!validated.ok) {
+      assert.match(validated.reason, /event text not source-backed/);
+    }
   });
 });
 
