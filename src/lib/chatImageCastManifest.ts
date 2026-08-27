@@ -74,6 +74,7 @@ export type ChatImageCastGroundedSubject = {
   gender: ImagePromptGender;
   referenceImageUrl?: string;
   savedAppearance?: string;
+  trustedSavedAppearance?: boolean;
   appearanceMode: ChatImageAppearanceMode;
   importance: ChatImageCastImportance;
   visibility: ChatImageCastVisibility;
@@ -114,7 +115,7 @@ export function hasBoundIdentityEvidence(
 ): boolean {
   if (visual.referenceIndex != null) return true;
   if (
-    visual.sourceKind !== "cast_member" &&
+    (visual.sourceKind !== "cast_member" || visual.trustedSavedAppearance === true) &&
     String(visual.savedAppearance ?? "").trim()
   ) {
     return true;
@@ -397,6 +398,8 @@ function groundedCoreSubject(
     gender: "other",
     referenceImageUrl: trustedUrl,
     savedAppearance: visualMeta.savedAppearance,
+    trustedSavedAppearance:
+      contentKind === "simulation" && Boolean(visualMeta.savedAppearance),
     appearanceMode: visualMeta.appearanceMode,
     importance: intent.importance,
     visibility: intent.visibility,
@@ -616,6 +619,7 @@ function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVi
     referenceImageUrl: cleanUrl(subject.referenceImageUrl) || null,
     appearanceMode: subject.appearanceMode,
     savedAppearance: ownAppearance || undefined,
+    trustedSavedAppearance: subject.trustedSavedAppearance,
     sourceKind: subject.sourceKind,
   };
 }

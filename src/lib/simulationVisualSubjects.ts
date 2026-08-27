@@ -4,8 +4,6 @@
  * separate from narrative cast and scene inclusion (#685).
  */
 
-import { randomUUID } from "node:crypto";
-
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetByUrl } from "@/lib/characterAssets";
 import {
@@ -35,13 +33,22 @@ export type ReconciledSimulationVisualSubjects = {
 };
 
 const SUBJECT_KEY_PREFIX = "simvis_";
+const SUBJECT_KEY_PATTERN =
+  /^simvis_[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export class SimulationVisualSubjectsInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SimulationVisualSubjectsInputError";
+  }
+}
 
 export function createSimulationVisualSubjectKey(): string {
-  return `${SUBJECT_KEY_PREFIX}${randomUUID()}`;
+  return `${SUBJECT_KEY_PREFIX}${globalThis.crypto.randomUUID()}`;
 }
 
 export function isSimulationVisualSubjectKey(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith(SUBJECT_KEY_PREFIX);
+  return typeof value === "string" && SUBJECT_KEY_PATTERN.test(value);
 }
 
 export function emptySimulationVisualSubjectsDocument(): SimulationVisualSubjectsDocument {
@@ -92,10 +99,7 @@ export function parseSimulationVisualSubjectsJson(
           .map(normalizeStoredSubject)
           .filter((subject): subject is SimulationVisualSubject => Boolean(subject))
       : [];
-    return {
-      version: SIMULATION_VISUAL_SUBJECTS_VERSION,
-      subjects: dedupeSubjectsByKey(subjects),
-    };
+    return { version: SIMULATION_VISUAL_SUBJECTS_VERSION, subjects };
   } catch {
     return emptySimulationVisualSubjectsDocument();
   }
@@ -125,6 +129,45 @@ function dedupeSubjectsByKey(subjects: SimulationVisualSubject[]): SimulationVis
     result.push(subject);
   }
   return result;
+}
+
+function parseSubmittedSimulationVisualSubjectsJson(
+  raw: string | null | undefined
+): SimulationVisualSubjectsDocument {
+  if (!raw?.trim()) return emptySimulationVisualSubjectsDocument();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new SimulationVisualSubjectsInputError("이미지 인물 설정 형식이 올바르지 않습니다.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new SimulationVisualSubjectsInputError("이미지 인물 설정 형식이 올바르지 않습니다.");
+  }
+  const row = parsed as Record<string, unknown>;
+  if (row.version !== SIMULATION_VISUAL_SUBJECTS_VERSION || !Array.isArray(row.subjects)) {
+    throw new SimulationVisualSubjectsInputError("이미지 인물 설정 버전이 올바르지 않습니다.");
+  }
+
+  const subjects = row.subjects.map(normalizeStoredSubject);
+  if (subjects.some((subject) => !subject)) {
+    throw new SimulationVisualSubjectsInputError("이미지 인물 식별 키가 올바르지 않습니다.");
+  }
+  const validSubjects = subjects as SimulationVisualSubject[];
+  const keys = new Set<string>();
+  const names = new Set<string>();
+  for (const subject of validSubjects) {
+    const exactName = subject.name.toLowerCase();
+    if (keys.has(subject.subjectKey)) {
+      throw new SimulationVisualSubjectsInputError("이미지 인물 식별 키가 중복되었습니다.");
+    }
+    if (names.has(exactName)) {
+      throw new SimulationVisualSubjectsInputError("같은 이름의 이미지 인물 설정이 중복되었습니다.");
+    }
+    keys.add(subject.subjectKey);
+    names.add(exactName);
+  }
+  return { version: SIMULATION_VISUAL_SUBJECTS_VERSION, subjects: validSubjects };
 }
 
 export function configuredSimulationCastNames(
@@ -177,6 +220,29 @@ export function reconcileSimulationVisualSubjects(opts: {
   // Preserve orphaned subjects even if their name reappears under ambiguous duplicate storage.
   void configuredLower;
   return { active, orphaned };
+}
+
+export function materializeSimulationVisualSubjectsForEditor(opts: {
+  configuredNames: readonly string[];
+  document: SimulationVisualSubjectsDocument;
+}): SimulationVisualSubjectsDocument {
+  const normalizedNames = opts.configuredNames.map(cleanSubjectName).filter(Boolean);
+  const alreadyMaterialized = normalizedNames.every((name) => {
+    const matches = opts.document.subjects.filter(
+      (subject) => subject.name.toLowerCase() === name.toLowerCase()
+    );
+    return matches.length === 1;
+  });
+  if (alreadyMaterialized) return opts.document;
+
+  const reconciled = reconcileSimulationVisualSubjects({
+    configuredNames: normalizedNames,
+    storedSubjects: opts.document.subjects,
+  });
+  return {
+    version: SIMULATION_VISUAL_SUBJECTS_VERSION,
+    subjects: dedupeSubjectsByKey([...reconciled.active, ...reconciled.orphaned]),
+  };
 }
 
 export function resolveVisualSubjectByName(
@@ -232,7 +298,7 @@ export function validateRepresentativeAsset(
   if (!url) return null;
   const owned = assetByUrl([...assets], url);
   if (!owned) return null;
-  if (owned.visualSubjectKey && owned.visualSubjectKey !== subject.subjectKey) return null;
+  if (owned.visualSubjectKey !== subject.subjectKey) return null;
   return url;
 }
 
@@ -314,7 +380,7 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
   storedRaw: string | null | undefined;
   assets: readonly CharacterAsset[];
 }): SimulationVisualSubjectsDocument {
-  const submitted = parseSimulationVisualSubjectsJson(opts.submittedRaw);
+  const submitted = parseSubmittedSimulationVisualSubjectsJson(opts.submittedRaw);
   const stored = parseSimulationVisualSubjectsJson(opts.storedRaw);
   const configuredNames = configuredSimulationCastNames(opts.simulationCast, opts.simulationTitle);
   const reconciled = reconcileSimulationVisualSubjects({
@@ -322,30 +388,24 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
     storedSubjects: stored.subjects,
   });
 
-  const submittedByKey = new Map(submitted.subjects.map((row) => [row.subjectKey, row]));
   const submittedByName = new Map(submitted.subjects.map((row) => [row.name.toLowerCase(), row]));
   const active = reconciled.active.map((subject) => {
-    const override =
-      submittedByKey.get(subject.subjectKey) ??
-      submittedByName.get(subject.name.toLowerCase());
+    const override = submittedByName.get(subject.name.toLowerCase());
     if (!override) return subject;
+    const isStoredSubject = stored.subjects.some(
+      (storedSubject) => storedSubject.subjectKey === subject.subjectKey
+    );
     return {
-      subjectKey: override.subjectKey,
-      name: cleanSubjectName(override.name) || subject.name,
+      subjectKey: isStoredSubject ? subject.subjectKey : override.subjectKey,
+      name: subject.name,
       savedAppearance: normalizeSubjectSavedAppearance(override.savedAppearance),
       representativeAssetUrl: override.representativeAssetUrl,
-      sourceCharacterId: override.sourceCharacterId,
+      sourceCharacterId: isStoredSubject ? subject.sourceCharacterId : null,
     };
   });
 
-  const activeKeys = new Set(active.map((subject) => subject.subjectKey));
-  const orphaned = [
-    ...reconciled.orphaned,
-    ...submitted.subjects.filter((subject) => !activeKeys.has(subject.subjectKey)),
-  ];
-
   const subjects = clearStaleRepresentativeAssets(
-    dedupeSubjectsByKey([...active, ...orphaned]),
+    [...active, ...reconciled.orphaned],
     opts.assets
   );
   return { version: SIMULATION_VISUAL_SUBJECTS_VERSION, subjects };

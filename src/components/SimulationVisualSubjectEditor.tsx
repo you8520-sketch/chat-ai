@@ -9,7 +9,6 @@ import {
   assignAssetsToVisualSubject,
   assetsForVisualSubject,
   configuredSimulationCastNames,
-  reconcileSimulationVisualSubjects,
   unassignVisualAssets,
   type SimulationVisualSubject,
   type SimulationVisualSubjectsDocument,
@@ -41,7 +40,9 @@ export default function SimulationVisualSubjectEditor({
   uploading = false,
 }: Props) {
   const [selectedUnassigned, setSelectedUnassigned] = useState<Set<string>>(new Set());
+  const [selectedOwned, setSelectedOwned] = useState<Record<string, Set<string>>>({});
   const [bulkTargetKey, setBulkTargetKey] = useState("");
+  const [moveTargetBySubject, setMoveTargetBySubject] = useState<Record<string, string>>({});
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const configuredNames = useMemo(
@@ -49,17 +50,24 @@ export default function SimulationVisualSubjectEditor({
     [simulationCast, simulationTitle]
   );
 
-  const reconciled = useMemo(
+  const activeSubjects = useMemo(
     () =>
-      reconcileSimulationVisualSubjects({
-        configuredNames,
-        storedSubjects: visualSubjects.subjects,
+      configuredNames.flatMap((name) => {
+        const matches = visualSubjects.subjects.filter(
+          (subject) => subject.name.toLowerCase() === name.toLowerCase()
+        );
+        return matches.length === 1 ? [matches[0]!] : [];
       }),
     [configuredNames, visualSubjects.subjects]
   );
-
-  const activeSubjects = reconciled.active;
-  const orphanedSubjects = reconciled.orphaned;
+  const activeKeys = useMemo(
+    () => new Set(activeSubjects.map((subject) => subject.subjectKey)),
+    [activeSubjects]
+  );
+  const orphanedSubjects = useMemo(
+    () => visualSubjects.subjects.filter((subject) => !activeKeys.has(subject.subjectKey)),
+    [activeKeys, visualSubjects.subjects]
+  );
 
   const unassignedAssets = useMemo(
     () => assets.filter((asset) => !asset.visualSubjectKey),
@@ -85,6 +93,130 @@ export default function SimulationVisualSubjectEditor({
       else next.add(url);
       return next;
     });
+  }
+
+  function toggleOwned(subjectKey: string, url: string) {
+    setSelectedOwned((current) => {
+      const nextForSubject = new Set(current[subjectKey] ?? []);
+      if (nextForSubject.has(url)) nextForSubject.delete(url);
+      else nextForSubject.add(url);
+      return { ...current, [subjectKey]: nextForSubject };
+    });
+  }
+
+  function changeOwnedAssetAssignments(
+    sourceSubject: SimulationVisualSubject,
+    targetSubjectKey?: string
+  ) {
+    const urls = [...(selectedOwned[sourceSubject.subjectKey] ?? [])];
+    if (urls.length === 0) return;
+    const nextAssets = targetSubjectKey
+      ? assignAssetsToVisualSubject(assets, urls, targetSubjectKey)
+      : unassignVisualAssets(assets, urls);
+    onAssetsChange(nextAssets);
+    if (
+      sourceSubject.representativeAssetUrl &&
+      urls.includes(sourceSubject.representativeAssetUrl)
+    ) {
+      updateSubject(sourceSubject.subjectKey, { representativeAssetUrl: null });
+    }
+    setSelectedOwned((current) => ({ ...current, [sourceSubject.subjectKey]: new Set() }));
+  }
+
+  function renderOwnedAssetManager(
+    subject: SimulationVisualSubject,
+    allowRepresentative: boolean
+  ) {
+    const owned = assetsForVisualSubject(assets, subject.subjectKey);
+    const selected = selectedOwned[subject.subjectKey] ?? new Set<string>();
+    const moveTarget = moveTargetBySubject[subject.subjectKey] ?? "";
+    if (owned.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {owned.map((asset, index) => (
+            <div key={asset.url} className="space-y-1">
+              <label
+                className={cn(
+                  "relative block h-16 w-12 cursor-pointer overflow-hidden rounded-lg border",
+                  selected.has(asset.url) ? "border-cyan-400" : "border-zinc-700",
+                  allowRepresentative && subject.representativeAssetUrl === asset.url
+                    ? "ring-2 ring-amber-400/50"
+                    : ""
+                )}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={selected.has(asset.url)}
+                  onChange={() => toggleOwned(subject.subjectKey, asset.url)}
+                />
+                <CharacterAssetImage
+                  src={asset.url}
+                  alt=""
+                  className="h-full w-full"
+                  imgClassName="h-full w-full object-cover object-top"
+                />
+                <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] text-zinc-200">
+                  {subjectLetter(index)}
+                </span>
+              </label>
+              {allowRepresentative && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateSubject(subject.subjectKey, {
+                      representativeAssetUrl: asset.url,
+                    })
+                  }
+                  className="block w-12 truncate text-[10px] text-amber-300"
+                  title="대표 이미지로 지정"
+                >
+                  {subject.representativeAssetUrl === asset.url ? "대표" : "대표 지정"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={selected.size === 0}
+            onClick={() => changeOwnedAssetAssignments(subject)}
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-zinc-200 disabled:opacity-40"
+          >
+            미지정으로 이동
+          </button>
+          <select
+            value={moveTarget}
+            onChange={(event) =>
+              setMoveTargetBySubject((current) => ({
+                ...current,
+                [subject.subjectKey]: event.target.value,
+              }))
+            }
+            className="rounded-lg border border-zinc-700 bg-[#080a14] px-2.5 py-1.5 text-xs text-zinc-100"
+          >
+            <option value="">다른 인물에게 이동</option>
+            {activeSubjects
+              .filter((target) => target.subjectKey !== subject.subjectKey)
+              .map((target) => (
+                <option key={target.subjectKey} value={target.subjectKey}>
+                  {target.name}
+                </option>
+              ))}
+          </select>
+          <button
+            type="button"
+            disabled={selected.size === 0 || !moveTarget}
+            onClick={() => changeOwnedAssetAssignments(subject, moveTarget)}
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-zinc-200 disabled:opacity-40"
+          >
+            이동
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (configuredNames.length === 0) {
@@ -133,29 +265,7 @@ export default function SimulationVisualSubjectEditor({
                 placeholder="짧은 검은 머리, 회색 눈, 넓은 어깨..."
               />
 
-              <div className="flex flex-wrap gap-2">
-                {owned.map((asset, index) => (
-                  <button
-                    key={asset.url}
-                    type="button"
-                    onClick={() =>
-                      updateSubject(subject.subjectKey, { representativeAssetUrl: asset.url })
-                    }
-                    className={cn(
-                      "relative h-16 w-12 overflow-hidden rounded-lg border",
-                      stored.representativeAssetUrl === asset.url
-                        ? "border-amber-400 ring-2 ring-amber-400/40"
-                        : "border-zinc-700"
-                    )}
-                    title="대표 이미지로 지정"
-                  >
-                    <CharacterAssetImage src={asset.url} alt="" className="h-full w-full" imgClassName="h-full w-full object-cover object-top" />
-                    <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] text-zinc-200">
-                      {subjectLetter(index)}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {renderOwnedAssetManager(stored, true)}
 
               <input
                 ref={(node) => {
@@ -253,17 +363,6 @@ export default function SimulationVisualSubjectEditor({
             >
               일괄 지정
             </button>
-            <button
-              type="button"
-              disabled={selectedUnassigned.size === 0}
-              onClick={() => {
-                onAssetsChange(unassignVisualAssets(assets, [...selectedUnassigned]));
-                setSelectedUnassigned(new Set());
-              }}
-              className="rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-xs font-semibold text-zinc-200 hover:border-violet-400/40 disabled:opacity-40"
-            >
-              지정 해제
-            </button>
           </div>
         </div>
       )}
@@ -273,11 +372,14 @@ export default function SimulationVisualSubjectEditor({
           <summary className="cursor-pointer font-medium text-zinc-300">
             현재 캐스트에서 빠진 인물 · {orphanedSubjects.length}
           </summary>
-          <ul className="mt-2 space-y-1">
+          <div className="mt-3 space-y-4">
             {orphanedSubjects.map((subject) => (
-              <li key={subject.subjectKey}>{subject.name}</li>
+              <div key={subject.subjectKey} className="space-y-2 border-t border-zinc-800 pt-3">
+                <div className="font-medium text-zinc-300">{subject.name}</div>
+                {renderOwnedAssetManager(subject, false)}
+              </div>
             ))}
-          </ul>
+          </div>
         </details>
       )}
     </section>

@@ -7,7 +7,9 @@ import {
   type ChatImageCastIntentManifest,
 } from "@/lib/chatImageCast";
 import {
+  bindApprovedCastManifest,
   groundCastIntent,
+  renderCastFidelityTiers,
   type GroundCastContext,
 } from "@/lib/chatImageCastManifest";
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
@@ -19,6 +21,7 @@ import {
   createSimulationVisualSubjectKey,
   emptySimulationVisualSubjectsDocument,
   isSimulationVisualSubjectKey,
+  materializeSimulationVisualSubjectsForEditor,
   parseSimulationVisualSubjectsJson,
   prepareSimulationVisualSubjectsForSave,
   reconcileSimulationVisualSubjects,
@@ -40,6 +43,7 @@ const MEMBER_C = "렌";
 const URL_A = "/uploads/a.webp";
 const URL_B = "/uploads/b.webp";
 const URL_C = "/uploads/c.webp";
+const URL_D = "/uploads/d.webp";
 const URL_U = "/uploads/unassigned.webp";
 
 function asset(url: string, tag: string, visualSubjectKey?: string): CharacterAsset {
@@ -179,6 +183,82 @@ describe("simulationVisualSubjects data", () => {
     assert.deepEqual(names, [MEMBER_A]);
     assert.equal(resolveVisualSubjectByName([subject(MEMBER_A)], SIM_TITLE), null);
   });
+
+  it("existing stored key remains authoritative over a forged submitted key", () => {
+    const storedKey = createSimulationVisualSubjectKey();
+    const forgedKey = createSimulationVisualSubjectKey();
+    const stored = { version: 1 as const, subjects: [subject(MEMBER_A, storedKey, "검은 머리")] };
+    const prepared = prepareSimulationVisualSubjectsForSave({
+      simulationCast: `[${MEMBER_A}]`,
+      simulationTitle: SIM_TITLE,
+      storedRaw: serializeSimulationVisualSubjectsJson(stored),
+      submittedRaw: serializeSimulationVisualSubjectsJson({
+        version: 1,
+        subjects: [subject(MEMBER_A, forgedKey, "회색 눈")],
+      }),
+      assets: [],
+    });
+    assert.equal(prepared.subjects[0]?.subjectKey, storedKey);
+    assert.equal(prepared.subjects[0]?.savedAppearance, "회색 눈");
+  });
+
+  it("rejects malformed and duplicate submitted subject keys", () => {
+    assert.throws(() =>
+      prepareSimulationVisualSubjectsForSave({
+        simulationCast: `[${MEMBER_A}]`,
+        simulationTitle: SIM_TITLE,
+        storedRaw: "",
+        submittedRaw: JSON.stringify({
+          version: 1,
+          subjects: [{ ...subject(MEMBER_A), subjectKey: "simvis_bad" }],
+        }),
+        assets: [],
+      })
+    );
+    const duplicateKey = createSimulationVisualSubjectKey();
+    assert.throws(() =>
+      prepareSimulationVisualSubjectsForSave({
+        simulationCast: `[${MEMBER_A}]\n[${MEMBER_B}]`,
+        simulationTitle: SIM_TITLE,
+        storedRaw: "",
+        submittedRaw: JSON.stringify({
+          version: 1,
+          subjects: [subject(MEMBER_A, duplicateKey), subject(MEMBER_B, duplicateKey)],
+        }),
+        assets: [],
+      })
+    );
+  });
+
+  it("keeps stored orphans but ignores client-created title and fake subjects", () => {
+    const orphan = subject("기존 인물", createSimulationVisualSubjectKey(), "은발");
+    const materialized = materializeSimulationVisualSubjectsForEditor({
+      configuredNames: [MEMBER_A],
+      document: emptySimulationVisualSubjectsDocument(),
+    });
+    const active = materialized.subjects[0]!;
+    const prepared = prepareSimulationVisualSubjectsForSave({
+      simulationCast: `[${MEMBER_A}]`,
+      simulationTitle: SIM_TITLE,
+      storedRaw: serializeSimulationVisualSubjectsJson({
+        version: 1,
+        subjects: [orphan],
+      }),
+      submittedRaw: serializeSimulationVisualSubjectsJson({
+        version: 1,
+        subjects: [
+          active,
+          subject(SIM_TITLE),
+          subject("가짜인물"),
+        ],
+      }),
+      assets: [],
+    });
+    assert.deepEqual(
+      prepared.subjects.map((row) => row.name),
+      [MEMBER_A, "기존 인물"]
+    );
+  });
 });
 
 describe("simulationVisualSubjects asset ownership", () => {
@@ -212,6 +292,23 @@ describe("simulationVisualSubjects asset ownership", () => {
     assets = assignAssetsToVisualSubject(assets, [URL_A], keyB);
     assert.equal(assets[0]?.visualSubjectKey, keyB);
     assert.notEqual(assets[0]?.visualSubjectKey, keyA);
+  });
+
+  it("owned bulk unassign and reassignment operate on owned selections", () => {
+    let assets = [
+      asset(URL_A, "a", keyA),
+      asset(URL_B, "b", keyA),
+      asset(URL_C, "c", keyA),
+    ];
+    assets = unassignVisualAssets(assets, [URL_A, URL_B]);
+    assert.equal(assetBy(assets, URL_A)?.visualSubjectKey, undefined);
+    assert.equal(assetBy(assets, URL_B)?.visualSubjectKey, undefined);
+    assert.equal(assetBy(assets, URL_C)?.visualSubjectKey, keyA);
+
+    assets = assignAssetsToVisualSubject(assets, [URL_A, URL_B], keyB);
+    assert.equal(assetBy(assets, URL_A)?.visualSubjectKey, keyB);
+    assert.equal(assetBy(assets, URL_B)?.visualSubjectKey, keyB);
+    assert.equal(assetBy(assets, URL_C)?.visualSubjectKey, keyA);
   });
 });
 
@@ -247,6 +344,17 @@ describe("simulationVisualSubjects representative consistency", () => {
       assets
     );
     assert.equal(subjects[0]?.representativeAssetUrl, null);
+  });
+
+  it("unassigned assets cannot be representative images", () => {
+    const key = createSimulationVisualSubjectKey();
+    const candidate = { ...subject(MEMBER_A, key), representativeAssetUrl: URL_U };
+    assert.equal(validateRepresentativeAsset(candidate, [asset(URL_U, "u")]), null);
+    assert.equal(
+      clearStaleRepresentativeAssets([candidate], [asset(URL_U, "u")])[0]
+        ?.representativeAssetUrl,
+      null
+    );
   });
 });
 
@@ -369,6 +477,54 @@ describe("simulationVisualSubjects generation grounding", () => {
     assert.match(ld.prompt, /appearance A/);
     assert.match(ld.prompt, /appearance B/);
     assert.match(ld.prompt, /appearance C/);
+  });
+
+  it("4-person regression: fourth subject keeps trusted saved appearance after ref cap", () => {
+    const names = [MEMBER_A, MEMBER_B, MEMBER_C, "도윤"];
+    const urls = [URL_A, URL_B, URL_C, URL_D];
+    const subjects = names.map((name, index) =>
+      subject(name, createSimulationVisualSubjectKey(), `appearance ${index + 1}`)
+    );
+    const assets = subjects.map((row, index) =>
+      asset(urls[index]!, `asset ${index + 1}`, row.subjectKey)
+    );
+    const intent: ChatImageCastIntentManifest = {
+      compositionGoal: "ensemble_scene",
+      subjects: [
+        {
+          key: "persona",
+          role: "persona",
+          name: "나",
+          included: false,
+          importance: "primary",
+          visibility: "required_visible",
+        },
+        ...names.map((name, index) => ({
+          key: `supporting:${name}`,
+          role: "supporting_character" as const,
+          name,
+          included: true,
+          importance: "primary" as const,
+          visibility: "required_visible" as const,
+          requestedReferenceAssetUrl: urls[index],
+        })),
+      ],
+    };
+    const grounded = groundCastIntent(intent, simGroundCtx(subjects, assets), undefined, "simulation");
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const bound = bindApprovedCastManifest(grounded.manifest, {
+      contentKind: "simulation",
+    });
+    assert.equal(bound.selected.length, 4);
+    assert.equal(bound.referenceUrls.length, 3);
+    const fourth = bound.subjects.find((row) => row.name === "도윤");
+    assert.equal(fourth?.referenceIndex, null);
+    assert.equal(fourth?.savedAppearance, "appearance 4");
+    assert.equal(fourth?.trustedSavedAppearance, true);
+    const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
+    assert.match(fidelity, /도윤: Saved appearance only; no photo attached/);
+    assert.doesNotMatch(fidelity, /도윤: BACKGROUND \/ CAMEO\. No bound identity evidence/);
   });
 });
 

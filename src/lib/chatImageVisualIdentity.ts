@@ -23,6 +23,7 @@ export type ChatImageVisualSubject = {
   referenceImageUrl?: string | null;
   appearanceMode: ChatImageAppearanceMode;
   savedAppearance?: string;
+  trustedSavedAppearance?: boolean;
   sourceKind: ChatImageVisualSourceKind;
   aliases?: string[];
 };

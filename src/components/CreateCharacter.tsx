@@ -83,8 +83,9 @@ import {
   type ContentKind,
 } from "@/lib/simulationMode";
 import {
-  assignAssetsToVisualSubject,
+  configuredSimulationCastNames,
   emptySimulationVisualSubjectsDocument,
+  materializeSimulationVisualSubjectsForEditor,
   parseSimulationVisualSubjectsJson,
   type SimulationVisualSubjectsDocument,
 } from "@/lib/simulationVisualSubjects";
@@ -217,6 +218,21 @@ export default function CreateCharacter({
 
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
   const editPromptBaselineRef = useRef<string | null>(null);
+
+  const configuredVisualSubjectNames = useMemo(
+    () => configuredSimulationCastNames(form.simulation_cast, form.name),
+    [form.simulation_cast, form.name]
+  );
+
+  useEffect(() => {
+    if (form.content_kind !== "simulation") return;
+    setVisualSubjects((current) =>
+      materializeSimulationVisualSubjectsForEditor({
+        configuredNames: configuredVisualSubjectNames,
+        document: current,
+      })
+    );
+  }, [configuredVisualSubjectNames, form.content_kind]);
 
   function buildPromptEditSignature(input = form) {
     return JSON.stringify({
@@ -362,15 +378,22 @@ export default function CreateCharacter({
     setAssets((a) => normalizeManagedAssets(a.filter((_, idx) => idx !== i)));
   }
 
-  async function tagPendingFiles() {
-    if (files.length === 0) return;
+  async function uploadAssetBatch(
+    batchFiles: File[],
+    options: { visualSubjectKey?: string; clearPendingFiles?: boolean } = {}
+  ) {
+    if (batchFiles.length === 0) return;
     setLoading(true);
     setError("");
-    setProgress(`에셋 ${files.length}장 업로드 중…`);
+    setProgress(
+      options.visualSubjectKey
+        ? `인물 이미지 ${batchFiles.length}장 업로드 중…`
+        : `에셋 ${batchFiles.length}장 업로드 중…`
+    );
 
     try {
       const fd = new FormData();
-      files.forEach((f) => fd.append("files", f));
+      batchFiles.forEach((file) => fd.append("files", file));
       const up = await fetch("/api/upload", { method: "POST", body: fd });
       const upData = await up.json();
       if (!up.ok) {
@@ -445,6 +468,9 @@ export default function CreateCharacter({
           {
             url,
             tag: tagged?.tag || fallbackAssetTag(assets.length + i),
+            ...(options.visualSubjectKey
+              ? { visualSubjectKey: options.visualSubjectKey }
+              : {}),
             ...defaultAssetFlags(assets, i),
             ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
             ...(typeof tagged?.moderationReject === "boolean"
@@ -460,7 +486,7 @@ export default function CreateCharacter({
       if (accepted.length > 0) {
         setAssets((prev) => normalizeManagedAssets([...prev, ...accepted]));
       }
-      setFiles([]);
+      if (options.clearPendingFiles) setFiles([]);
       if (rejected.length > 0) {
         setError(allAgesAssetChangeRequest(rejected.length));
       }
@@ -472,88 +498,12 @@ export default function CreateCharacter({
     }
   }
 
+  async function tagPendingFiles() {
+    await uploadAssetBatch(files, { clearPendingFiles: true });
+  }
+
   async function uploadAssetsForSubject(subjectFiles: File[], subjectKey: string) {
-    if (subjectFiles.length === 0 || !subjectKey) return;
-    setLoading(true);
-    setError("");
-    setProgress(`인물 이미지 ${subjectFiles.length}장 업로드 중…`);
-    try {
-      const fd = new FormData();
-      subjectFiles.forEach((file) => fd.append("files", file));
-      const up = await fetch("/api/upload", { method: "POST", body: fd });
-      const upData = await up.json();
-      if (!up.ok) {
-        setError(upData.error || "에셋 업로드에 실패했습니다.");
-        return;
-      }
-      const uploadedUrls: string[] = Array.isArray(upData.urls)
-        ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
-        : [];
-      if (uploadedUrls.length === 0) {
-        setError("업로드된 이미지 URL을 확인하지 못했습니다.");
-        return;
-      }
-      setProgress("이미지 표정·자세 태그 분석 중…");
-      let taggedAssets: Array<{ url: string; tag: string; adultFlagged?: boolean; moderationReject?: boolean; moderationReason?: string }> = [];
-      try {
-        const tagRes = await fetch("/api/assets/tag", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ urls: uploadedUrls }),
-        });
-        const tagData = (await tagRes.json()) as { assets?: unknown; error?: string };
-        if (tagRes.ok && Array.isArray(tagData.assets)) {
-          taggedAssets = tagData.assets
-            .filter((a: unknown): a is { url: string; tag: string; adultFlagged?: boolean; moderationReject?: boolean; moderationReason?: string } =>
-              !!a && typeof a === "object" && typeof (a as { url?: unknown }).url === "string" && typeof (a as { tag?: unknown }).tag === "string"
-            )
-            .map((a, i) => ({
-              url: a.url,
-              tag: a.tag.trim() || fallbackAssetTag(assets.length + i),
-              ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
-              ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
-              ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
-                ? { moderationReason: a.moderationReason.trim() }
-                : {}),
-            }));
-        }
-      } catch {
-        setError("자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
-      }
-      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
-      const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
-      const batch = uploadedUrls.map((url, i) => {
-        const tagged = byUrl.get(url);
-        const size = measured[i];
-        return withAssetSize(
-          {
-            url,
-            tag: tagged?.tag || fallbackAssetTag(assets.length + i),
-            visualSubjectKey: subjectKey,
-            ...defaultAssetFlags(assets, i),
-            ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
-            ...(typeof tagged?.moderationReject === "boolean" ? { moderationReject: tagged.moderationReject } : {}),
-            ...(tagged?.moderationReason ? { moderationReason: tagged.moderationReason } : {}),
-          },
-          size?.width,
-          size?.height
-        );
-      });
-      const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
-      if (accepted.length > 0) {
-        setAssets((prev) =>
-          normalizeManagedAssets(assignAssetsToVisualSubject([...prev, ...accepted], accepted.map((asset) => asset.url), subjectKey))
-        );
-      }
-      if (rejected.length > 0) {
-        setError(allAgesAssetChangeRequest(rejected.length));
-      }
-    } catch {
-      setError("에셋 업로드 중 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-      setProgress("");
-    }
+    await uploadAssetBatch(subjectFiles, { visualSubjectKey: subjectKey });
   }
 
   function removeFile(i: number) {

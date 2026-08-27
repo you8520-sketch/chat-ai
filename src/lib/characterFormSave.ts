@@ -73,6 +73,7 @@ import {
   prepareSimulationVisualSubjectsForSave,
   sanitizeAssetVisualSubjectKeys,
   serializeSimulationVisualSubjectsJson,
+  SimulationVisualSubjectsInputError,
   validateSimulationVisualSubjectsDocument,
 } from "@/lib/simulationVisualSubjects";
 import {
@@ -477,18 +478,26 @@ export function parseCharacterFormBody(
         : b.simulation_visual_subjects != null
           ? JSON.stringify(b.simulation_visual_subjects)
           : "";
-    const prepared = prepareSimulationVisualSubjectsForSave({
-      simulationCast,
-      simulationTitle: name,
-      submittedRaw: submittedSubjectsRaw,
-      storedRaw:
-        typeof b._stored_simulation_visual_subjects_json === "string"
-          ? b._stored_simulation_visual_subjects_json
-          : typeof b.stored_simulation_visual_subjects_json === "string"
-            ? b.stored_simulation_visual_subjects_json
-            : "",
-      assets: assetsRaw,
-    });
+    let prepared;
+    try {
+      prepared = prepareSimulationVisualSubjectsForSave({
+        simulationCast,
+        simulationTitle: name,
+        submittedRaw: submittedSubjectsRaw,
+        storedRaw:
+          typeof b._stored_simulation_visual_subjects_json === "string"
+            ? b._stored_simulation_visual_subjects_json
+            : typeof b.stored_simulation_visual_subjects_json === "string"
+              ? b.stored_simulation_visual_subjects_json
+              : "",
+        assets: assetsRaw,
+      });
+    } catch (error) {
+      if (error instanceof SimulationVisualSubjectsInputError) {
+        return { ok: false, error: error.message, status: 400 };
+      }
+      throw error;
+    }
     assets = sanitizeAssetVisualSubjectKeys(assetsRaw, prepared.subjects);
     const validated = validateSimulationVisualSubjectsDocument(prepared, assets);
     if (!validated.ok) {
