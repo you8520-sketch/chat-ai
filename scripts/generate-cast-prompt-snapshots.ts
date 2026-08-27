@@ -281,6 +281,7 @@ bindPlan.castMentions = [
   {
     name: "SupportA",
     sourceEventIds: [bindPlan.events.find((event) => event.text.includes("SupportA"))!.id],
+    actorEventIds: [bindPlan.events.find((event) => event.text.includes("SupportA"))!.id],
   },
 ];
 let bindIntent = draftCastIntentFromMentions({

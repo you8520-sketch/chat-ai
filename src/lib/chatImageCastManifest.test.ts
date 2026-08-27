@@ -350,7 +350,7 @@ describe("chatImageCastManifest", () => {
     assert.ok(supportEvent);
     const plan: ScenePlan = {
       ...basePlan,
-      castMentions: [{ name: "이현", sourceEventIds: [supportEvent!] }],
+      castMentions: [{ name: "이현", sourceEventIds: [supportEvent!], actorEventIds: [supportEvent!] }],
     };
     const intent = draftCastIntentFromMentions({
       personaName: "UserPersona",
@@ -778,6 +778,189 @@ describe("chatImageCastManifest", () => {
       (url) => url !== CHAT_COMIC_TEMPLATE_PREVIEW_URL
     );
     assert.equal(new Set(identityRefs).size, identityRefs.length);
+  });
+
+  it("CAST_ATTRIBUTION separates source evidence from actor bindings", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "태형이 이현을 바라보며 웃었다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const eventId = plan.events.find((event) => event.text.includes("이현"))?.id;
+    assert.ok(eventId);
+    const targetOnly = validateCastMentions(
+      [{ name: "이현", sourceEventIds: [eventId!], actorEventIds: [] }],
+      plan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(targetOnly.length, 1);
+    const intent = draftCastIntentFromMentions({
+      personaName: "UserPersona",
+      mainCharacterName: "CharacterA",
+      castMentions: targetOnly,
+    });
+    const included = applyUserCastEdits(
+      applyUserCastEdits(intent, intent.subjects.find((s) => s.name === "이현")!.key, {
+        included: true,
+        requestedReferenceAssetUrl: SUPPORT_URL,
+      }),
+      intent.subjects.find((s) => s.name === "이현")!.key,
+      { importance: "primary" }
+    );
+    const bindings = buildEventBindingsFromCastMentions(
+      { ...plan, castMentions: targetOnly },
+      included
+    );
+    assert.equal(bindings.some((binding) => binding.eventId === eventId), false);
+
+    const actorMessages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "이현이 손을 흔들었다." },
+    ]);
+    const actorPlan = buildDeterministicScenePlan(actorMessages, 2);
+    const actorEvent = actorPlan.events.find((event) => event.text.includes("이현"))?.id;
+    assert.ok(actorEvent);
+    const actorMention = validateCastMentions(
+      [{ name: "이현", sourceEventIds: [actorEvent!], actorEventIds: [actorEvent!] }],
+      actorPlan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(actorMention.length, 1);
+    const actorIntent = applyUserCastEdits(
+      draftCastIntentFromMentions({
+        personaName: "UserPersona",
+        mainCharacterName: "CharacterA",
+        castMentions: actorMention,
+      }),
+      draftCastIntentFromMentions({
+        personaName: "UserPersona",
+        mainCharacterName: "CharacterA",
+        castMentions: actorMention,
+      }).subjects.find((s) => s.name === "이현")!.key,
+      { included: true, requestedReferenceAssetUrl: SUPPORT_URL }
+    );
+    const actorBindings = buildEventBindingsFromCastMentions(
+      { ...actorPlan, castMentions: actorMention },
+      actorIntent
+    );
+    assert.ok(actorBindings.some((binding) => binding.eventId === actorEvent));
+
+    const objectMessages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "태형이 이현의 어깨를 붙잡았다." },
+    ]);
+    const objectPlan = buildDeterministicScenePlan(objectMessages, 2);
+    const objectEvent = objectPlan.events.find((event) => event.text.includes("이현"))?.id;
+    assert.ok(objectEvent);
+    const objectMention = validateCastMentions(
+      [{ name: "이현", sourceEventIds: [objectEvent!], actorEventIds: [] }],
+      objectPlan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(objectMention.length, 1);
+    const objectBindings = buildEventBindingsFromCastMentions(
+      { ...objectPlan, castMentions: objectMention },
+      actorIntent
+    );
+    assert.equal(objectBindings.some((binding) => binding.eventId === objectEvent), false);
+
+    const invalidActor = validateCastMentions(
+      [{ name: "이현", sourceEventIds: [actorEvent!], actorEventIds: ["E99"] }],
+      actorPlan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(invalidActor.length, 0);
+
+    const mixedMessages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "태형이 이현을 바라보며 웃었다." },
+      { id: 2, role: "assistant", content: "이현이 손을 흔들었다." },
+    ]);
+    const mixedPlan = buildDeterministicScenePlan(mixedMessages, 2);
+    const targetEvent = mixedPlan.events.find((event) => event.text.includes("바라"))?.id;
+    const actorOnlyEvent = mixedPlan.events.find((event) => event.text.includes("흔들"))?.id;
+    assert.ok(targetEvent && actorOnlyEvent);
+    const actorOutsideSource = validateCastMentions(
+      [
+        {
+          name: "이현",
+          sourceEventIds: [actorOnlyEvent!],
+          actorEventIds: [targetEvent!],
+        },
+      ],
+      mixedPlan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(actorOutsideSource.length, 0);
+
+    const userMessages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '*손을 흔든다*' },
+      { id: 2, role: "assistant", content: "이현이 고개를 끄덕였다." },
+    ]);
+    const userPlan = buildDeterministicScenePlan(userMessages, 2);
+    const userEvent = userPlan.events.find((event) => event.sourceRole === "user")?.id;
+    const supportEvent = userPlan.events.find((event) => event.text.includes("이현"))?.id;
+    assert.ok(userEvent && supportEvent);
+    const personaOverrideMentions = validateCastMentions(
+      [
+        {
+          name: "이현",
+          sourceEventIds: [supportEvent!, userEvent!],
+          actorEventIds: [userEvent!, supportEvent!],
+        },
+      ],
+      userPlan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(personaOverrideMentions.length, 1);
+    const personaIntent = applyUserCastEdits(
+      draftCastIntentFromMentions({
+        personaName: "UserPersona",
+        mainCharacterName: "CharacterA",
+        castMentions: personaOverrideMentions,
+      }),
+      draftCastIntentFromMentions({
+        personaName: "UserPersona",
+        mainCharacterName: "CharacterA",
+        castMentions: personaOverrideMentions,
+      }).subjects.find((s) => s.name === "이현")!.key,
+      { included: true, requestedReferenceAssetUrl: SUPPORT_URL }
+    );
+    const personaBindings = buildEventBindingsFromCastMentions(
+      { ...userPlan, castMentions: personaOverrideMentions },
+      personaIntent
+    );
+    assert.equal(
+      personaBindings.find((binding) => binding.eventId === userEvent)?.subjectKey,
+      "persona"
+    );
+    assert.equal(
+      personaBindings.find((binding) => binding.eventId === supportEvent)?.subjectKey,
+      personaIntent.subjects.find((subject) => subject.name === "이현")?.key
+    );
+  });
+
+  it("SOURCE_EVENT_IDS alone never create event bindings", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: "태형이 이현을 바라보며 웃었다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const eventId = plan.events[0]?.id;
+    assert.ok(eventId);
+    const mentions = validateCastMentions(
+      [{ name: "이현", sourceEventIds: [eventId] }],
+      plan.events,
+      ["UserPersona", "CharacterA"]
+    );
+    assert.equal(mentions.length, 1);
+    const intent = draftCastIntentFromMentions({
+      personaName: "UserPersona",
+      mainCharacterName: "CharacterA",
+      castMentions: mentions,
+    });
+    const included = applyUserCastEdits(
+      intent,
+      intent.subjects.find((subject) => subject.name === "이현")!.key,
+      { included: true }
+    );
+    const bindings = buildEventBindingsFromCastMentions({ ...plan, castMentions: mentions }, included);
+    assert.equal(bindings.some((binding) => binding.eventId === eventId), false);
   });
 
   it("POST_CAP_IDENTITY_TRUTH does not claim saved appearance or recognizable without bound evidence", () => {

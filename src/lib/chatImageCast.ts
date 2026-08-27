@@ -47,7 +47,10 @@ export type SceneEventSubjectBinding = {
 
 export type SceneCastMention = {
   name: string;
+  /** Canonical events where the supporting character is present, named, or scene-relevant. */
   sourceEventIds: string[];
+  /** Events where the supporting character is the actual acting or speaking subject only. */
+  actorEventIds?: string[];
 };
 
 export type SelectableCastAsset = {
@@ -316,13 +319,24 @@ export function validateCastMentions(
       .map((id) => cleanText(id, 24))
       .filter((id) => eventsById.has(id));
     if (!sourceEventIds.length) continue;
+    const sourceSet = new Set(sourceEventIds);
+    const actorRaw = (mention.actorEventIds ?? []).map((id) => cleanText(id, 24)).filter(Boolean);
+    const actorEventIds = actorRaw.filter((id) => eventsById.has(id));
+    if (actorRaw.length > 0) {
+      if (actorEventIds.length !== actorRaw.length) continue;
+      if (!actorEventIds.every((id) => sourceSet.has(id))) continue;
+    }
     const appearsInSource = sourceEventIds.some((id) => {
       const event = eventsById.get(id);
       return event?.text.includes(name) ?? false;
     });
     if (!appearsInSource) continue;
     seen.add(normalized);
-    valid.push({ name, sourceEventIds });
+    valid.push({
+      name,
+      sourceEventIds,
+      ...(actorEventIds.length ? { actorEventIds } : {}),
+    });
   }
   return valid.slice(0, 4);
 }

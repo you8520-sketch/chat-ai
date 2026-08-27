@@ -360,7 +360,7 @@ export function buildEventBindingsFromCastMentions(
   for (const mention of plan.castMentions ?? []) {
     const key = supportingByName.get(cleanText(mention.name));
     if (!key) continue;
-    for (const eventId of mention.sourceEventIds) {
+    for (const eventId of mention.actorEventIds ?? []) {
       fromMentions.push({ eventId, subjectKey: key });
     }
   }

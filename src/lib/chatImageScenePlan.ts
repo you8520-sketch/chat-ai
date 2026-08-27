@@ -828,8 +828,15 @@ export function validateScenePlan(
       const sourceEventIds = Array.isArray(row.sourceEventIds)
         ? row.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
         : [];
+      const actorEventIds = Array.isArray(row.actorEventIds)
+        ? row.actorEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+        : [];
       if (!name || !sourceEventIds.length) return null;
-      return { name, sourceEventIds };
+      return {
+        name,
+        sourceEventIds,
+        ...(actorEventIds.length ? { actorEventIds } : {}),
+      };
     })
     .filter((item): item is SceneCastMention => Boolean(item));
   const reservedNames = [opts.personaName, opts.characterName].filter(
@@ -879,7 +886,13 @@ export function buildScenePlanPrompt(opts: {
       heroEventIds: visual.slice(0, 2).map((event) => event.id),
       heroScene: "one-image summary of selected hero beats",
       recommendedPanelCount: 2,
-      castMentions: [{ name: "supporting name from source only", sourceEventIds: ["E2"] }],
+      castMentions: [
+        {
+          name: "supporting name from source only",
+          sourceEventIds: ["E2"],
+          actorEventIds: ["E2"],
+        },
+      ],
       panels: [
         {
           index: 1,
@@ -911,7 +924,15 @@ export function buildScenePlanPrompt(opts: {
     "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
     "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
     "11. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
-    "12. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in linked canonical event text. Never force inclusion.",
+    "12. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
+    "13. CAST MENTIONS — separate presence evidence from actor attribution:",
+    "   sourceEventIds: events where the supporting character is present, named, addressed, targeted, or otherwise scene-relevant (candidate detection evidence).",
+    "   actorEventIds: ONLY events where that supporting character is the actual acting or speaking subject (final event-subject binding input).",
+    "   actorEventIds must be a subset of sourceEventIds. Omit actorEventIds or use [] when the character is only looked at, touched, spoken to, mentioned, observed, or the object of another person's action.",
+    '   Example — "태형이 이현을 바라봤다." for 이현: sourceEventIds=[that event id], actorEventIds=[].',
+    '   Example — "이현이 손을 흔들었다." for 이현: sourceEventIds=[that event id], actorEventIds=[that event id].',
+    "   Example — pronoun continuation: when coreference to the same supporting character is unambiguous across two canonical events, both ids may appear in sourceEventIds and actorEventIds.",
+    "   Do NOT put an event in actorEventIds merely because the character is looked at, touched, spoken to, mentioned, observed, or acted upon by someone else.",
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");
