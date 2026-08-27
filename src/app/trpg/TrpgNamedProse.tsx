@@ -17,6 +17,8 @@ const quoteSelectStyle = {
   WebkitTouchCallout: "default" as const,
 };
 
+export { quoteSelectStyle };
+
 export function TrpgGmTalk({
   text,
   assets = [],
@@ -25,6 +27,7 @@ export function TrpgGmTalk({
   roundNumber = 0,
   reveal = false,
   onRevealChange,
+  quoteAssistantRoot = true,
 }: {
   text: string;
   assets?: CharacterAsset[];
@@ -33,6 +36,8 @@ export function TrpgGmTalk({
   roundNumber?: number;
   reveal?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
+  /** When false, ancestor owns [data-quote-assistant] (TRPG scene turns). */
+  quoteAssistantRoot?: boolean;
 }) {
   const { shownText: shown, complete } = useRevealedText(text, reveal);
   const body = shown.trim();
@@ -49,7 +54,7 @@ export function TrpgGmTalk({
   return (
     <div
       className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
-      data-quote-assistant
+      {...(quoteAssistantRoot ? { "data-quote-assistant": true } : {})}
       style={quoteSelectStyle}
     >
       <div
@@ -99,6 +104,7 @@ export default function TrpgNamedProse({
   hideMobileLabel = false,
   resolveSceneAssets = true,
   onRevealChange,
+  quoteAssistantRoot = true,
 }: {
   name?: string | null;
   hint?: string;
@@ -123,6 +129,8 @@ export default function TrpgNamedProse({
   /** GM narration may resolve scene images. Action cards must stay prose-only. */
   resolveSceneAssets?: boolean;
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
+  /** When false, ancestor owns [data-quote-assistant] (TRPG scene turns). */
+  quoteAssistantRoot?: boolean;
 }) {
   const { shownText: shown, complete } = useRevealedText(
     text,
@@ -167,7 +175,7 @@ export default function TrpgNamedProse({
       </div>
       <div
         className={`min-w-0 ${rail} ${showRail ? "pl-3 sm:pl-4" : "sm:pl-4"} select-text [touch-action:pan-y] [-webkit-user-select:text]`}
-        data-quote-assistant
+        {...(quoteAssistantRoot ? { "data-quote-assistant": true } : {})}
         style={quoteSelectStyle}
       >
         {resolveSceneAssets &&
