@@ -3,10 +3,13 @@ import { describe, it } from "node:test";
 import {
   markTrpgProviderStreamSeen,
   resolveTrpgGmContentStreaming,
+  resolveTrpgGmLiveAssetResolution,
   resolveTrpgGmRevealComplete,
   resolveTrpgGmShownNarration,
   resolveTrpgGmStreamNarrationSource,
+  stripLiveGmNarrationText,
 } from "./gmProviderStreamDisplay";
+import { enforceGmSceneAssetMarkers } from "./gmSceneAssets";
 
 describe("gmProviderStreamDisplay", () => {
   it("marks provider stream seen when hidden draft arrives before GM slot", () => {
@@ -81,5 +84,42 @@ describe("gmProviderStreamDisplay", () => {
       }),
       false
     );
+  });
+
+  it("LIVE_ASSET_RESOLUTION=false during provider draft; canonical owner enforces max", () => {
+    const raw =
+      "장면.\n[캐릭터에셋: 12|분노]\n[캐릭터에셋: 13|웃음]\n[태그: 대합실]";
+    const live = stripLiveGmNarrationText(raw);
+    assert.match(live, /장면/, "LIVE_TEXT_STREAMING=true");
+    assert.doesNotMatch(live, /캐릭터에셋/, "LIVE_ASSET_RESOLUTION=false");
+    assert.doesNotMatch(live, /\[태그:/, "LIVE_ASSET_RESOLUTION=false");
+    assert.equal(
+      resolveTrpgGmLiveAssetResolution({ directProviderStream: true, canonicalCommitted: false }),
+      false
+    );
+    assert.equal(
+      resolveTrpgGmLiveAssetResolution({ directProviderStream: true, canonicalCommitted: true }),
+      true,
+      "CANONICAL_ASSET_RESOLUTION=true"
+    );
+    const canonical = enforceGmSceneAssetMarkers(raw, {
+      aiParticipantIds: new Set([12, 13]),
+      characterTagsByParticipant: new Map([
+        [12, new Set(["분노"])],
+        [13, new Set(["웃음"])],
+      ]),
+      scenarioTags: new Set(["대합실"]),
+    });
+    assert.equal(canonical.kept.length, 2, "ONE_ASSET_ENFORCEMENT_OWNER=true");
+    assert.doesNotMatch(canonical.text, /\[태그: 대합실\]/);
+    assert.match(canonical.text, /장면/);
+    assert.match(live, /^장면/, "NO_GM_DISAPPEAR=true");
+  });
+
+  it("never shows malformed partial asset marker in live prose", () => {
+    const partial = "hello [캐릭터에셋: 12|분";
+    const live = stripLiveGmNarrationText(partial);
+    assert.doesNotMatch(live, /캐릭터에셋/);
+    assert.match(live, /hello/);
   });
 });

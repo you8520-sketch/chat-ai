@@ -3,6 +3,7 @@ import {
   saveGmNarrationDraftForGeneration,
   type GmProviderTimings,
 } from "./gmNarrationDraft";
+import { stripTrpgAssetControlMarkers } from "./gmSceneAssets";
 
 /** Coalesced draft refresh — aligned with snapshot poll cadence, not per provider token. */
 export const GM_NARRATION_DRAFT_COALESCE_MS = 400;
@@ -49,19 +50,30 @@ export class GmNarrationDraftCoalescer {
     if (this.latestText && !narrationText.startsWith(this.latestText)) return;
     if (this.firstNoteAtMs === 0) this.firstNoteAtMs = Date.now();
     this.latestText = narrationText;
+    if (this.lastPersistedText === "") {
+      this.maybeFlush(true);
+      return;
+    }
     this.maybeFlush(false);
+  }
+
+  /** Live draft prose only — asset markers resolve on canonical commit. */
+  private draftTextForPersist(): string {
+    return stripTrpgAssetControlMarkers(this.latestText);
   }
 
   maybeFlush(force: boolean): boolean {
     if (this.staleLatched) return false;
     if (!this.latestText) return false;
-    if (!force && this.latestText === this.lastPersistedText) return false;
+    const textToPersist = this.draftTextForPersist();
+    if (!textToPersist) return false;
+    if (textToPersist === this.lastPersistedText) return false;
 
     const now = Date.now();
     if (!force) {
       const elapsed =
         this.lastFlushAtMs > 0 ? now - this.lastFlushAtMs : this.firstNoteAtMs > 0 ? now - this.firstNoteAtMs : 0;
-      const growth = this.latestText.length - this.lastPersistedText.length;
+      const growth = textToPersist.length - this.lastPersistedText.length;
       if (elapsed < GM_NARRATION_DRAFT_COALESCE_MS && growth < GM_NARRATION_DRAFT_GROWTH_CHARS) {
         return false;
       }
@@ -72,7 +84,7 @@ export class GmNarrationDraftCoalescer {
       this.opts.roundId,
       this.opts.generationId,
       {
-        text: this.latestText,
+        text: textToPersist,
         updatedAtMs: now,
         providerTimings: this.opts.providerTimings?.(),
       }
@@ -85,7 +97,7 @@ export class GmNarrationDraftCoalescer {
       this.staleLatched = true;
       return false;
     }
-    this.lastPersistedText = this.latestText;
+    this.lastPersistedText = textToPersist;
     this.lastFlushAtMs = now;
     this.dbWriteCount += 1;
     return true;

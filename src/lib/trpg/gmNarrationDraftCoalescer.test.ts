@@ -43,10 +43,25 @@ describe("gmNarrationDraftCoalescer", () => {
       coalescer.noteNarration("a".repeat(i));
     }
     assert.ok(coalescer.writeCount < 100, `PROVIDER_CHUNK_DB_WRITE=false writes=${coalescer.writeCount}`);
-    assert.ok(coalescer.writeCount <= 3, `GM_DRAFT_WRITE_COALESCED=true writes=${coalescer.writeCount}`);
+    assert.ok(coalescer.writeCount <= 4, `GM_DRAFT_WRITE_COALESCED=true writes=${coalescer.writeCount}`);
     coalescer.flush();
     assert.equal(coalescer.text, "a".repeat(100));
     assert.equal(staleLogs, 0);
+    db.close();
+  });
+
+  it("persists first short narration immediately without waiting for growth threshold", () => {
+    const db = memoryDb();
+    const roundId = insertRound(db, "token-a");
+    const coalescer = new GmNarrationDraftCoalescer({
+      db,
+      roundId,
+      generationId: "token-a",
+    });
+    coalescer.noteNarration("짧은");
+    assert.equal(coalescer.writeCount, 1, "FIRST_NONEMPTY_DRAFT_IMMEDIATE=true");
+    const draft = loadGmNarrationDraft(db, roundId);
+    assert.match(draft?.text ?? "", /짧은/);
     db.close();
   });
 
@@ -59,13 +74,29 @@ describe("gmNarrationDraftCoalescer", () => {
       generationId: "token-a",
     });
     coalescer.noteNarration("부분");
-    assert.equal(coalescer.writeCount, 0);
+    assert.equal(coalescer.writeCount, 1, "FIRST_NONEMPTY_DRAFT_IMMEDIATE=true");
     coalescer.flush();
-    assert.equal(coalescer.writeCount, 1, "GM_DRAFT_FINAL_FLUSH=true");
+    assert.equal(coalescer.writeCount, 1, "GM_DRAFT_FINAL_FLUSH=true idempotent when unchanged");
     const row = db
       .prepare(`SELECT gm_narration_draft_json FROM trpg_rounds WHERE id=?`)
       .get(roundId) as { gm_narration_draft_json: string };
     assert.match(row.gm_narration_draft_json, /부분/);
+    db.close();
+  });
+
+  it("strips asset markers from persisted live draft without enforcing", () => {
+    const db = memoryDb();
+    const roundId = insertRound(db, "token-a");
+    const coalescer = new GmNarrationDraftCoalescer({
+      db,
+      roundId,
+      generationId: "token-a",
+    });
+    coalescer.noteNarration("장면.\n[캐릭터에셋: 12|분노]\n[태그: 대합실]");
+    const draft = loadGmNarrationDraft(db, roundId);
+    assert.match(draft?.text ?? "", /장면/);
+    assert.doesNotMatch(draft?.text ?? "", /캐릭터에셋/);
+    assert.doesNotMatch(draft?.text ?? "", /\[태그:/);
     db.close();
   });
 

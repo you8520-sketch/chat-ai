@@ -58,11 +58,12 @@ describe("gmNarrationDraft", () => {
     saveGmNarrationDraftForGeneration(db, roundId, "token-a", {
       text: "partial narration",
       updatedAtMs: 100,
-      providerTimings: { startAtMs: 10, firstChunkAtMs: 20, completeAtMs: null },
+      providerTimings: { startAtMs: 10, firstChunkAtMs: 20, firstNarrationAtMs: 25, completeAtMs: null },
     });
     const reloaded = loadGmNarrationDraft(db, roundId);
     assert.equal(reloaded?.text, "partial narration");
     assert.equal(reloaded?.providerTimings?.firstChunkAtMs, 20);
+    assert.equal(reloaded?.providerTimings?.firstNarrationAtMs, 25);
     db.close();
   });
 

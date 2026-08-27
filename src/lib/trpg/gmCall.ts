@@ -243,6 +243,7 @@ async function readGmProviderSseStream(opts: {
   let usagePayload: StreamUsagePayload | undefined;
   const parser = createGmStreamParser();
   let sawFirstChunk = false;
+  let sawFirstNarration = false;
 
   const emitRaw = (piece: string) => {
     if (!piece) return;
@@ -254,7 +255,14 @@ async function readGmProviderSseStream(opts: {
       opts.callbacks?.onProviderTimings?.({ ...opts.timings });
     }
     const delta = feedGmStreamParser(parser, piece);
-    if (delta) opts.callbacks?.onNarrationChunk?.(parser.narration, delta);
+    if (delta) {
+      if (!sawFirstNarration && parser.narration.trim()) {
+        sawFirstNarration = true;
+        opts.timings.firstNarrationAtMs = Date.now();
+        opts.callbacks?.onProviderTimings?.({ ...opts.timings });
+      }
+      opts.callbacks?.onNarrationChunk?.(parser.narration, delta);
+    }
   };
 
   const onSsePayload = (payload: unknown) => {
@@ -272,7 +280,20 @@ async function readGmProviderSseStream(opts: {
       else feedGmProviderSseBytes(sseState, "", onSsePayload, true);
       break;
     }
-    feedGmProviderSseBytes(sseState, decoder.decode(value, { stream: true }), onSsePayload, false);
+    const semanticDone = feedGmProviderSseBytes(
+      sseState,
+      decoder.decode(value, { stream: true }),
+      onSsePayload,
+      false
+    );
+    if (semanticDone) {
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore cancel errors — semantic [DONE] already received
+      }
+      break;
+    }
   }
 
   gmStreamParserComplete(parser);
@@ -305,6 +326,7 @@ async function postTrpgGmStream(opts: {
   const timings: GmProviderTimings = {
     startAtMs: started,
     firstChunkAtMs: null,
+    firstNarrationAtMs: null,
     completeAtMs: null,
   };
   opts.callbacks?.onProviderTimings?.({ ...timings });
@@ -324,6 +346,7 @@ async function postTrpgGmStream(opts: {
         await waitGmProviderRetryDelay();
         timings.startAtMs = Date.now();
         timings.firstChunkAtMs = null;
+        timings.firstNarrationAtMs = null;
         timings.completeAtMs = null;
         opts.callbacks?.onProviderTimings?.({ ...timings });
       }
@@ -355,8 +378,10 @@ async function postTrpgGmStream(opts: {
         model: opts.model,
         elapsedMs,
         reasoningTokens: streamResult.reasoningTokens,
-        firstChunkMs:
+        firstContentMs:
           timings.firstChunkAtMs != null ? timings.firstChunkAtMs - timings.startAtMs : null,
+        firstNarrationMs:
+          timings.firstNarrationAtMs != null ? timings.firstNarrationAtMs - timings.startAtMs : null,
         totalProviderMs:
           timings.completeAtMs != null ? timings.completeAtMs - timings.startAtMs : null,
       });
@@ -382,17 +407,25 @@ function simulateMockGmStream(
   const timings: GmProviderTimings = {
     startAtMs: Date.now(),
     firstChunkAtMs: null,
+    firstNarrationAtMs: null,
     completeAtMs: null,
   };
   callbacks?.onProviderTimings?.({ ...timings });
   const parser = createGmStreamParser();
+  let sawFirstNarration = false;
   const chunkSize = Math.max(8, Math.ceil(text.length / 4));
   for (let i = 0; i < text.length; i += chunkSize) {
     const piece = text.slice(i, i + chunkSize);
     callbacks?.onProviderChunk?.(piece);
     if (timings.firstChunkAtMs == null) timings.firstChunkAtMs = Date.now();
     const delta = feedGmStreamParser(parser, piece);
-    if (delta) callbacks?.onNarrationChunk?.(parser.narration, delta);
+    if (delta) {
+      if (!sawFirstNarration && parser.narration.trim()) {
+        sawFirstNarration = true;
+        timings.firstNarrationAtMs = Date.now();
+      }
+      callbacks?.onNarrationChunk?.(parser.narration, delta);
+    }
   }
   gmStreamParserComplete(parser);
   timings.completeAtMs = Date.now();

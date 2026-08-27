@@ -6,28 +6,30 @@ export function feedGmProviderSseBytes(
   chunk: string,
   onData: GmSseDataHandler,
   eof = false
-): void {
+): boolean {
   state.buffer += chunk;
-  drainGmProviderSseBuffer(state, onData, eof);
+  return drainGmProviderSseBuffer(state, onData, eof);
 }
 
 function drainGmProviderSseBuffer(
   state: { buffer: string },
   onData: GmSseDataHandler,
   eof: boolean
-): void {
+): boolean {
+  let done = false;
   while (true) {
     const newline = findSseLineBreak(state.buffer);
     if (newline < 0) {
       if (eof && state.buffer.trim()) {
-        consumeSseLine(state.buffer.trim(), onData);
+        done = consumeSseLine(state.buffer.trim(), onData) || done;
         state.buffer = "";
       }
-      return;
+      return done;
     }
     const line = state.buffer.slice(0, newline);
     state.buffer = state.buffer.slice(newline + lineBreakWidth(state.buffer, newline));
-    consumeSseLine(line.replace(/\r$/, "").trim(), onData);
+    done = consumeSseLine(line.replace(/\r$/, "").trim(), onData) || done;
+    if (done) return true;
   }
 }
 
@@ -44,13 +46,15 @@ function lineBreakWidth(buffer: string, index: number): number {
   return 1;
 }
 
-function consumeSseLine(line: string, onData: GmSseDataHandler): void {
-  if (!line.startsWith("data:")) return;
+function consumeSseLine(line: string, onData: GmSseDataHandler): boolean {
+  if (!line.startsWith("data:")) return false;
   const data = line.slice(5).trim();
-  if (!data || data === "[DONE]") return;
+  if (!data) return false;
+  if (data === "[DONE]") return true;
   try {
     onData(JSON.parse(data) as unknown);
   } catch {
     // ignore malformed SSE JSON
   }
+  return false;
 }

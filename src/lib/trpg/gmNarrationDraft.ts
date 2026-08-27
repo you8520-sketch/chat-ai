@@ -2,7 +2,10 @@ import type Database from "better-sqlite3";
 
 export type GmProviderTimings = {
   startAtMs: number;
+  /** First provider content delta (may be marker-only). */
   firstChunkAtMs: number | null;
+  /** First non-empty narration emitted by gmStreamParser. */
+  firstNarrationAtMs: number | null;
   completeAtMs: number | null;
 };
 
@@ -69,13 +72,16 @@ export function clearGmNarrationDraft(db: Database.Database, roundId: number): v
 }
 
 export function gmProviderTimingMetrics(timings: GmProviderTimings | undefined): {
-  firstChunkMs: number | null;
+  firstContentMs: number | null;
+  firstNarrationMs: number | null;
   totalProviderMs: number | null;
 } {
-  if (!timings) return { firstChunkMs: null, totalProviderMs: null };
-  const firstChunkMs =
+  if (!timings) return { firstContentMs: null, firstNarrationMs: null, totalProviderMs: null };
+  const firstContentMs =
     timings.firstChunkAtMs != null ? Math.max(0, timings.firstChunkAtMs - timings.startAtMs) : null;
+  const firstNarrationMs =
+    timings.firstNarrationAtMs != null ? Math.max(0, timings.firstNarrationAtMs - timings.startAtMs) : null;
   const totalProviderMs =
     timings.completeAtMs != null ? Math.max(0, timings.completeAtMs - timings.startAtMs) : null;
-  return { firstChunkMs, totalProviderMs };
+  return { firstContentMs, firstNarrationMs, totalProviderMs };
 }

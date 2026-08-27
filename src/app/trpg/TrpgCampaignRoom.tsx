@@ -167,9 +167,11 @@ import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import {
   markTrpgProviderStreamSeen,
   resolveTrpgGmContentStreaming,
+  resolveTrpgGmLiveAssetResolution,
   resolveTrpgGmRevealComplete,
   resolveTrpgGmShownNarration,
   resolveTrpgGmStreamNarrationSource,
+  stripLiveGmNarrationText,
 } from "@/lib/trpg/gmProviderStreamDisplay";
 
 function useCampaignDicePreview(
@@ -2031,6 +2033,16 @@ function SceneTurn({
     canonicalNarration: row.narration,
     decorativeShownLen: shownNarrationLen,
   });
+  const canonicalCommitted = Boolean(row.narration?.trim());
+  const liveAssetResolution = resolveTrpgGmLiveAssetResolution({
+    directProviderStream,
+    canonicalCommitted,
+  });
+  const gmDisplayNarration = liveAssetResolution
+    ? shownNarration
+    : stripLiveGmNarrationText(shownNarration);
+  const gmScenarioAssets = liveAssetResolution ? scenarioAssets : [];
+  const gmCharacterCatalog = liveAssetResolution ? (characterCatalog ?? []) : [];
   useLayoutEffect(() => {
     if (!liveGmRevealStateRef) return;
     liveGmRevealStateRef.current = {
@@ -2048,7 +2060,7 @@ function SceneTurn({
     liveGmRevealStateRef,
     onLiveGmRevealChange,
   ]);
-  const beats = allowGm && shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
+  const beats = allowGm && gmDisplayNarration ? parseTrpgSceneSpeech(gmDisplayNarration, knownNames) : [];
   const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });
   const revealedActions = row.actions.filter((a) => a.revealed && a.body.trim());
   const visibleActions =
@@ -2201,8 +2213,8 @@ function SceneTurn({
                   {beat.speaker === "GM" ? (
                     <TrpgGmTalk
                       text={beat.text}
-                      assets={scenarioAssets}
-                      characterCatalog={characterCatalog}
+                      assets={gmScenarioAssets}
+                      characterCatalog={gmCharacterCatalog}
                       campaignId={campaignId}
                       roundNumber={row.roundNumber}
                       quoteAssistantRoot={false}
