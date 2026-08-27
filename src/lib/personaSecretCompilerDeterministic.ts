@@ -352,14 +352,14 @@ function buildDiscoveryRules(
           resultState,
           revealedFactText: revealed,
           evidenceKinds: [evidenceKind as (typeof kinds)[number]],
-          dormant: true,
+          dormant: false,
           conditions,
         });
       }
       continue;
     }
 
-    // INVESTIGATION — dormant storage; runtime eligibility activates.
+    // INVESTIGATION — enabled at compile time; runtime eligibility gates on enabled=1.
     const invList = buildInvestigationConditionVariants(category, quote);
     for (const inv of invList) {
       const resultState =
@@ -374,7 +374,7 @@ function buildDiscoveryRules(
         resultState,
         revealedFactText: revealed,
         evidenceKinds: suggestedEvidenceKinds(method, category),
-        dormant: true,
+        dormant: false,
         conditions: inv,
       });
     }

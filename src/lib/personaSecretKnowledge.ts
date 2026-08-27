@@ -18,6 +18,16 @@ import {
 } from "@/lib/personaSecretReveal";
 import { getPersonaSecretById } from "@/lib/personaSecrets";
 
+/** Discovery ON uses knowledge rows only (read-only prompt build). Legacy uses reveal-table compat. */
+export type PersonaKnowledgePromptAuthority = "discovery" | "legacy";
+
+/** Omitted authority defaults to legacy (test/compatibility callers only — production must pass explicit). */
+function resolvePromptAuthority(
+  authority?: PersonaKnowledgePromptAuthority
+): PersonaKnowledgePromptAuthority {
+  return authority ?? "legacy";
+}
+
 const MAX_FACTS = 8;
 const MAX_FACT_CHARS = 1200;
 
@@ -318,17 +328,22 @@ export function buildKnownPersonaFactsForObserver(opts: {
   personaId: number;
   observerType: PersonaSecretObserverType;
   observerId: string;
-  /** Optional legacy secret_description for filtering old reveal rows. */
+  /** Optional legacy secret_description for filtering old reveal rows (legacy authority only). */
   legacySecretDescription?: string;
+  /** discovery = knowledge rows only, no legacy IO. legacy = reveal-table compatibility. */
+  authority?: PersonaKnowledgePromptAuthority;
   db?: Database.Database;
 }): string | null {
   assertObserverSpecificKnowledgeQueryAllowed();
   const db = opts.db ?? getDb();
   ensurePersonaSecretDiscoverySchema(db);
+  const authority = resolvePromptAuthority(opts.authority);
 
   // Legacy reveal migration only applies to CHARACTER observers with numeric ids.
   const characterIdForLegacy =
-    opts.observerType === "CHARACTER" && /^\d+$/.test(opts.observerId)
+    authority === "legacy" &&
+    opts.observerType === "CHARACTER" &&
+    /^\d+$/.test(opts.observerId)
       ? Number(opts.observerId)
       : null;
 
@@ -383,7 +398,9 @@ export function buildKnownPersonaFactsForObserver(opts: {
   }
 
   // Compatibility: legacy reveals without matching persona_secrets still inject fact snapshots.
-  for (const reveal of visibleLegacy) {
+  if (authority !== "legacy") {
+    if (facts.length === 0) return null;
+  } else for (const reveal of visibleLegacy) {
     if (String(reveal.source).toLowerCase().includes("assistant")) continue;
     const fact = sanitizeRevealedFactForPrompt(reveal.revealed_fact_text);
     if (!fact || seen.has(fact)) continue;
@@ -460,6 +477,7 @@ export function buildCharacterKnownFactsBlock(opts: {
   personaId: number;
   characterId: number;
   legacySecretDescription?: string;
+  authority?: PersonaKnowledgePromptAuthority;
   db?: Database.Database;
 }): string | null {
   return buildKnownPersonaFactsForObserver({
@@ -468,6 +486,7 @@ export function buildCharacterKnownFactsBlock(opts: {
     observerType: "CHARACTER",
     observerId: String(opts.characterId),
     legacySecretDescription: opts.legacySecretDescription,
+    authority: opts.authority,
     db: opts.db,
   });
 }
@@ -480,16 +499,20 @@ export function buildPersonaKnowledgePromptBlock(opts: {
   chatId: number;
   personaId: number;
   legacySecretDescription?: string;
+  authority?: PersonaKnowledgePromptAuthority;
   db?: Database.Database;
 }): string | null {
   if (opts.decision.mode === "ENSEMBLE_REDACTED") return null;
   if (!opts.decision.observerType || !opts.decision.observerId) return null;
+  const authority = resolvePromptAuthority(opts.authority);
   return buildKnownPersonaFactsForObserver({
     chatId: opts.chatId,
     personaId: opts.personaId,
     observerType: opts.decision.observerType,
     observerId: opts.decision.observerId,
-    legacySecretDescription: opts.legacySecretDescription,
+    legacySecretDescription:
+      authority === "legacy" ? opts.legacySecretDescription : undefined,
+    authority,
     db: opts.db,
   });
 }

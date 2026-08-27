@@ -242,6 +242,7 @@ try {
       discoveryRuleId: match.rule.id,
       revealedFactText: REVEALED_FACT,
       idempotencyKey,
+      authority: "discovery",
     });
     report.s1_disclosure_changed = result.changed;
     report.s1_knowledge_state = result.knowledgeState;
@@ -286,6 +287,7 @@ try {
       discoveryRuleId: match.rule.id,
       revealedFactText: REVEALED_FACT,
       idempotencyKey, // SAME idempotencyKey
+      authority: "discovery",
     });
     report.retry_changed = retryResult.changed;
     report.retry_evidence_delta =
@@ -305,6 +307,7 @@ try {
       discoveryRuleId: match.rule.id,
       revealedFactText: REVEALED_FACT,
       idempotencyKey: idempotencyKey + "_new_turn",
+      authority: "discovery",
     });
     report.new_key_knowledge_delta =
       countKnowledge(CHAT_ID, PERSONA_ID, match.secret.id) - beforeKnowledgeRows;
@@ -320,6 +323,7 @@ try {
       decision: knownDecision,
       chatId: CHAT_ID,
       personaId: PERSONA_ID,
+      authority: "discovery",
     });
     report.known_observer_prompt_has_fact = Boolean(knownBlock && knownBlock.includes(REVEALED_FACT));
     report.known_observer_prompt_has_canonical = Boolean(knownBlock && knownBlock.includes(CANONICAL));
@@ -335,6 +339,7 @@ try {
       decision: unknownDecision,
       chatId: CHAT_ID,
       personaId: PERSONA_ID,
+      authority: "discovery",
     });
     report.unknown_observer_decision_mode = unknownDecision.mode;
     report.unknown_observer_prompt_has_fact = Boolean(
@@ -354,6 +359,7 @@ try {
       decision: ensembleDecision,
       chatId: CHAT_ID,
       personaId: PERSONA_ID,
+      authority: "discovery",
     });
     report.ensemble_decision_mode = ensembleDecision.mode;
     report.ensemble_decision_reason = ensembleDecision.reasonCode;

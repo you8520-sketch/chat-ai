@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
+import type { PersonaKnowledgePromptAuthority } from "@/lib/personaSecretKnowledge";
 import type {
   PersonaSecretDiscoveryRuleRow,
   PersonaSecretEvidenceSourceType,
@@ -133,6 +134,11 @@ export type ConfirmPersonaSecretDisclosureInput = {
   evidenceJson?: Record<string, unknown>;
   /** Stable across retries for the same logical disclosure. */
   idempotencyKey: string;
+  /**
+   * Write authority — explicit caller contract; never re-read from env.
+   * discovery = evidence + knowledge only; legacy = also dual-write chat reveal row.
+   */
+  authority?: PersonaKnowledgePromptAuthority;
 };
 
 export type DisclosureResult = {
@@ -235,24 +241,28 @@ export function confirmPersonaSecretDisclosure(
     });
 
     // Compatibility row for pre-S1 readers — never assistant_ack.
-    const secret = db
-      .prepare(`SELECT secret_key FROM persona_secrets WHERE id=?`)
-      .get(input.secretId) as { secret_key: string } | undefined;
-    if (secret?.secret_key) {
-      insertChatPersonaSecretReveal(
-        {
-          chatId: input.chatId,
-          personaId: input.personaId,
-          secretKey: secret.secret_key,
-          revealedFactText: fact,
-          revealedAtTurn: input.turnNumber,
-          source:
-            input.sourceType === "USER_EXPLICIT_UI"
-              ? "MANUAL_REVEAL"
-              : "USER_AUTHORED_DISCLOSURE",
-        },
-        db
-      );
+    // Explicit legacy authority only; discovery authority skips chat-scoped reveal dual-write.
+    const writeAuthority: PersonaKnowledgePromptAuthority = input.authority ?? "legacy";
+    if (writeAuthority === "legacy") {
+      const secret = db
+        .prepare(`SELECT secret_key FROM persona_secrets WHERE id=?`)
+        .get(input.secretId) as { secret_key: string } | undefined;
+      if (secret?.secret_key) {
+        insertChatPersonaSecretReveal(
+          {
+            chatId: input.chatId,
+            personaId: input.personaId,
+            secretKey: secret.secret_key,
+            revealedFactText: fact,
+            revealedAtTurn: input.turnNumber,
+            source:
+              input.sourceType === "USER_EXPLICIT_UI"
+                ? "MANUAL_REVEAL"
+                : "USER_AUTHORED_DISCLOSURE",
+          },
+          db
+        );
+      }
     }
 
     return { changed: true, knowledgeState: "CONFIRMED", eventId };

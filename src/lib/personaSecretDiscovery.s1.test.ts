@@ -347,6 +347,7 @@ describe("PR-S1 persona secret discovery core", () => {
       chatId,
       personaId,
       characterId,
+      authority: "legacy",
     });
     assert.ok(block);
     assert.match(block!, /이계에서 왔/);
