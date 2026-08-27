@@ -982,6 +982,67 @@ export const DEFAULT_SCENE_PRESENTATION_VISIBILITY: ScenePresentationVisibility 
   personaVisible: true,
 };
 
+const PERSONA_EXCLUDED_PANEL_SITUATION_FALLBACK =
+  "Off-camera context only; no additional visible person.";
+
+const PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT = [
+  "VISIBLE CAST IS AUTHORITATIVE.",
+  "The user/persona is off-camera and must not appear as a body, face, silhouette, reflection, duplicate, or additional person.",
+  "Any user/persona mention in context/background is off-camera context only.",
+].join(" ");
+
+function isPersonaOwnedEvent(event: SceneEvent): boolean {
+  return event.sourceRole === "user" && event.actor === "persona";
+}
+
+function stripPersonaOwnedTexts(raw: string, plan: ScenePlan): string {
+  let text = raw;
+  for (const event of plan.events) {
+    if (isPersonaOwnedEvent(event) && event.text) {
+      text = text.split(event.text).join(" ");
+    }
+  }
+  return normalizeSceneBriefWhitespace(text);
+}
+
+function projectVisibleBackground(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility
+): string {
+  if (visibility.personaVisible) return plan.sceneBackground;
+  const fromEvents = visualEvents(plan.events)
+    .filter((event) => !isPersonaOwnedEvent(event))
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+  if (fromEvents) return fromEvents;
+  const stripped = stripPersonaOwnedTexts(plan.sceneBackground, plan);
+  if (stripped) return stripped;
+  return PERSONA_EXCLUDED_PANEL_SITUATION_FALLBACK;
+}
+
+function projectScenePresentationField(
+  raw: string,
+  plan: ScenePlan,
+  panel: ScenePanel | null,
+  visibility: ScenePresentationVisibility
+): string {
+  if (visibility.personaVisible) return raw;
+  if (panel) {
+    const eventsById = new Map(plan.events.map((event) => [event.id, event]));
+    const fromPanelEvents = panel.sourceEventIds
+      .map((id) => eventsById.get(id))
+      .filter((event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event))
+      .map((event) => event.text)
+      .join(" ")
+      .trim();
+    if (fromPanelEvents) return fromPanelEvents;
+  }
+  const stripped = stripPersonaOwnedTexts(raw, plan);
+  if (stripped) return stripped;
+  return projectVisibleBackground(plan, visibility);
+}
+
 export function resolveScenePresentationVisibility(opts: {
   contentKind?: ContentKind;
   castManifest?: {
@@ -1004,20 +1065,24 @@ export function formatApprovedScenePlanForIllustration(
   const heroEvents = plan.events.filter((event) => plan.heroEventIds.includes(event.id));
   const visibleHeroEvents = visibility.personaVisible
     ? heroEvents
-    : heroEvents.filter(
-        (event) => !(event.sourceRole === "user" && event.actor === "persona")
-      );
+    : heroEvents.filter((event) => !isPersonaOwnedEvent(event));
   const offCameraEvents = visibility.personaVisible
     ? []
     : plan.events.filter((event) => event.sourceRole === "user");
+  const projectedBackground = projectVisibleBackground(plan, visibility);
   const dialogue = visibleHeroEvents
-    .filter((event) => event.kind === "dialogue" && event.actor !== "persona")
+    .filter(
+      (event) =>
+        event.kind === "dialogue" &&
+        (visibility.personaVisible || event.actor !== "persona")
+    )
     .map((event) => `${event.actor}: “${event.text}”`);
   const heroScene = visibility.personaVisible
     ? plan.heroScene
-    : visibleHeroEvents.map((event) => event.text).join(" ").trim() || plan.sceneBackground;
+    : visibleHeroEvents.map((event) => event.text).join(" ").trim() || projectedBackground;
   return [
-    `Background: ${plan.sceneBackground}`,
+    !visibility.personaVisible ? PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT : "",
+    `Background: ${projectedBackground}`,
     plan.atmosphere ? `Atmosphere: ${plan.atmosphere}` : "",
     `Hero scene: ${heroScene}`,
     visibleHeroEvents.length
@@ -1048,27 +1113,38 @@ function visiblePanelSituation(
   const visibleTexts = panel.sourceEventIds
     .map((id) => eventsById.get(id))
     .filter(
-      (event): event is SceneEvent =>
-        Boolean(event) && !(event!.sourceRole === "user" && event!.actor === "persona")
+      (event): event is SceneEvent => event !== undefined && !isPersonaOwnedEvent(event)
     )
     .map((event) => event.text);
-  return visibleTexts.join(" ").trim() || panel.situation;
+  const joined = visibleTexts.join(" ").trim();
+  if (joined) return joined;
+  return projectVisibleBackground(plan, visibility);
 }
 
 export function formatApprovedScenePlanForComic(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
+  const projectedSharedBackground = projectVisibleBackground(plan, visibility);
+  const offCameraEvents = visibility.personaVisible
+    ? []
+    : plan.events.filter((event) => event.sourceRole === "user");
   const panels = plan.panels
     .map((panel) => {
       const dialogue = panel.dialogue
         .filter((line) => visibility.personaVisible || line.speaker !== "persona")
         .map((line) => `${line.speaker}: “${line.text}”`)
         .join(" | ");
+      const panelBackground = projectScenePresentationField(
+        panel.backgroundOverride || plan.sceneBackground,
+        plan,
+        panel,
+        visibility
+      );
       return [
         `PANEL ${panel.index}`,
         `Situation: ${visiblePanelSituation(panel, plan, visibility)}`,
-        `Background: ${panel.backgroundOverride || plan.sceneBackground}`,
+        `Background: ${panelBackground}`,
         visibility.personaVisible && panel.personaAction
           ? `Persona action: ${panel.personaAction}`
           : "",
@@ -1080,8 +1156,16 @@ export function formatApprovedScenePlanForComic(
     })
     .join("\n\n");
   return [
-    `Shared background: ${plan.sceneBackground}`,
+    !visibility.personaVisible ? PERSONA_EXCLUDED_VISIBLE_CAST_CONTRACT : "",
+    `Shared background: ${projectedSharedBackground}`,
     plan.atmosphere ? `Atmosphere: ${plan.atmosphere}` : "",
+    offCameraEvents.length
+      ? [
+          "OFF-CAMERA CONTEXT ONLY",
+          "Do not render the user/persona as a visible person.",
+          offCameraEvents.map((event) => `- ${event.text}`).join("\n"),
+        ].join("\n")
+      : "",
     `Panel count: ${plan.panels.length}`,
     panels,
   ]

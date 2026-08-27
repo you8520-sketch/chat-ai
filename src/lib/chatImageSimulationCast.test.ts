@@ -20,6 +20,10 @@ import {
   buildDeterministicScenePlan,
   buildScenePlanPrompt,
   buildSceneSourceMessages,
+  formatApprovedScenePlanForComic,
+  formatApprovedScenePlanForIllustration,
+  resolveScenePresentationVisibility,
+  type ScenePlan,
 } from "@/lib/chatImageScenePlan";
 
 const SIM_TITLE = "이미지 테스트";
@@ -56,11 +60,13 @@ const SIM_GROUND_CTX: GroundCastContext = {
   ],
 };
 
+const USER_PERSONA_TEXT = "나는 문 앞에서 세 사람을 바라본다.";
+
 const REAL_CHAT_MESSAGES = buildSceneSourceMessages([
   {
     id: 1,
     role: "user",
-    content: "나는 문 앞에서 세 사람을 바라본다.",
+    content: USER_PERSONA_TEXT,
   },
   {
     id: 2,
@@ -68,6 +74,21 @@ const REAL_CHAT_MESSAGES = buildSceneSourceMessages([
     content: "이현이 태형과 강우를 향해 손을 들었다.",
   },
 ]);
+
+const CHARACTER_DIALOGUE_MESSAGES = buildSceneSourceMessages([
+  { id: 1, role: "user", content: '"여기서 기다릴게."' },
+  { id: 2, role: "assistant", content: "*미소 지으며 고개를 끄덕인다.*" },
+]);
+
+function deepClonePlan(plan: ScenePlan): ScenePlan {
+  return JSON.parse(JSON.stringify(plan));
+}
+
+function visibleDirectiveLines(formatted: string): string {
+  const offCameraStart = formatted.search(/OFF-CAMERA CONTEXT ONLY|Off-camera context only/i);
+  const visiblePart = offCameraStart >= 0 ? formatted.slice(0, offCameraStart) : formatted;
+  return visiblePart;
+}
 
 function simulationDraft() {
   return draftCastIntentFromCandidatePool({
@@ -342,6 +363,116 @@ describe("headcount composition owner", () => {
       ),
       "ensemble_scene"
     );
+  });
+});
+
+describe("simulation presentation projection regressions", () => {
+  it("J: persona-only panel — comic must not leak excluded persona situation/background", () => {
+    const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const grounded = groundWireSimulation([MEMBER_A, MEMBER_B, MEMBER_C], false, scenePlan);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const visibility = resolveScenePresentationVisibility({
+      contentKind: "simulation",
+      castManifest: grounded.manifest,
+    });
+    assert.equal(visibility.personaVisible, false);
+    assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
+
+    const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
+    const visible = visibleDirectiveLines(comic);
+    assert.doesNotMatch(visible, new RegExp(`Situation: ${USER_PERSONA_TEXT}`));
+    assert.doesNotMatch(visible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
+    assert.doesNotMatch(visible, /Persona action:/i);
+    assert.doesNotMatch(visible, /persona: “/i);
+    assert.match(comic, /OFF-CAMERA CONTEXT ONLY/);
+    assert.match(comic, new RegExp(USER_PERSONA_TEXT));
+    assert.match(comic, /VISIBLE CAST IS AUTHORITATIVE/);
+
+    const ld = ldPlanFromGrounded(grounded.manifest, scenePlan);
+    assert.match(ld.prompt, /Exactly 3 recurring identities/);
+    const ldVisible = visibleDirectiveLines(ld.prompt.split("APPROVED SCENE PLAN")[1] ?? "");
+    assert.doesNotMatch(ldVisible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
+  });
+
+  it("K: projected background removes user text from visible directives but keeps off-camera block", () => {
+    const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
+    const visibility = resolveScenePresentationVisibility({
+      contentKind: "simulation",
+      castManifest: { subjects: [{ role: "persona", included: false }] },
+    });
+    const illustration = formatApprovedScenePlanForIllustration(scenePlan, visibility);
+    const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
+    const illustrationVisible = visibleDirectiveLines(illustration);
+    const comicVisible = visibleDirectiveLines(comic);
+    assert.doesNotMatch(illustrationVisible, new RegExp(`Background:.*${USER_PERSONA_TEXT}`));
+    assert.doesNotMatch(comicVisible, new RegExp(`Shared background:.*${USER_PERSONA_TEXT}`));
+    assert.match(illustration, new RegExp(USER_PERSONA_TEXT));
+    assert.match(comic, new RegExp(USER_PERSONA_TEXT));
+  });
+
+  it("L: character mode keeps persona dialogue in Key dialogue", () => {
+    const scenePlan = buildDeterministicScenePlan(CHARACTER_DIALOGUE_MESSAGES, 2);
+    const illustration = formatApprovedScenePlanForIllustration(scenePlan);
+    assert.match(illustration, /Key dialogue/);
+    assert.match(illustration, /여기서 기다릴게/);
+    assert.match(illustration, /persona:/);
+    assert.doesNotMatch(illustration, /VISIBLE CAST IS AUTHORITATIVE/);
+
+    const ld = buildLdSceneGenerationPlan({
+      characterName: "Hero",
+      characterGender: "male",
+      personaName: "User",
+      personaGender: "female",
+      characterImageUrl: "/synthetic/hero.webp",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaImageUrl: "/synthetic/user.webp",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+      approvedScenePlan: scenePlan,
+      contentKind: "character",
+    });
+    assert.match(ld.prompt, /여기서 기다릴게/);
+  });
+
+  it("M: simulation persona included keeps persona dialogue and does not over-project background", () => {
+    const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const grounded = groundWireSimulation([MEMBER_A, MEMBER_B], true, scenePlan);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const visibility = resolveScenePresentationVisibility({
+      contentKind: "simulation",
+      castManifest: grounded.manifest,
+    });
+    assert.equal(visibility.personaVisible, true);
+    const illustration = formatApprovedScenePlanForIllustration(scenePlan, visibility);
+    const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
+    assert.doesNotMatch(illustration, /VISIBLE CAST IS AUTHORITATIVE/);
+    assert.doesNotMatch(comic, /OFF-CAMERA CONTEXT ONLY/);
+    assert.match(illustration, new RegExp(USER_PERSONA_TEXT));
+    assert.match(comic, new RegExp(USER_PERSONA_TEXT));
+
+    const ld = ldPlanFromGrounded(grounded.manifest, scenePlan);
+    assert.match(ld.prompt, /Exactly 3 recurring identities/);
+  });
+
+  it("N: formatting does not mutate canonical ScenePlan events", () => {
+    const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
+    const before = deepClonePlan(scenePlan);
+    const visibility = resolveScenePresentationVisibility({
+      contentKind: "simulation",
+      castManifest: { subjects: [{ role: "persona", included: false }] },
+    });
+    formatApprovedScenePlanForIllustration(scenePlan, visibility);
+    formatApprovedScenePlanForComic(scenePlan, visibility);
+    assert.deepEqual(scenePlan.events, before.events);
+    assert.deepEqual(
+      scenePlan.panels.map((panel) => panel.sourceEventIds),
+      before.panels.map((panel) => panel.sourceEventIds)
+    );
+    assert.deepEqual(scenePlan.sceneBackground, before.sceneBackground);
   });
 });
 
