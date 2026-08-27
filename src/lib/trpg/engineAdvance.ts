@@ -78,18 +78,21 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { botGenerationInFlight, refreshBotGenerationHeartbeat, releaseBotGeneration, tryClaimBotGeneration } from "./botGenerationLease";
 import {
   beginGmGenerationLease,
-  clearGmGenerationLease,
+  finalizeGmRoundForGeneration,
+  finalizeRerollForGeneration,
   gmGenerationInFlight as gmLeaseInFlight,
   gmGenerationOwnsToken,
   GM_HEARTBEAT_REFRESH_INTERVAL_MS,
   isRerollGmGeneration,
   logStaleOwnerDiscard,
   markGmGenerationCommitted,
-  reconcileStaleRerollGeneration,
   refreshGmGenerationHeartbeat,
   resolveGmLeaseState,
   StaleGmGenerationOwnerError,
+  tryClaimLegacyErrorRecoverySalvage,
+  tryClaimStaleGmRecovery,
   tryPersistGmRoundFailure,
+  tryRevertStaleRerollGeneration,
   tryTerminalizeStaleOrphan,
 } from "./gmGenerationLease";
 import {
@@ -131,6 +134,7 @@ import {
   loadPendingGmResult,
   parsedFromPending,
   savePendingGmResult,
+  savePendingGmResultForGeneration,
 } from "./pendingGmResult";
 import { attachTrpgCallFailureMeta, buildTrpgRoundErrorJson, type TrpgFailureStage } from "./startFailure";
 import {
@@ -257,8 +261,18 @@ export async function startTrpgCampaign(
       deps: { ...opts.deps, skipBilling: true },
     });
     const campaign = loadCampaign(db, opts.campaignId)!;
-    const round = loadLatestRound(db, opts.campaignId)!;
-    await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
+    await finalizeCommittedGmRound(
+      db,
+      campaign,
+      {
+        roundId,
+        roundNumber: 0,
+        leaseOwnerId: rid,
+        committedGenerationId: rid,
+        campaignFinished: gm.campaignFinished,
+      },
+      opts.deps
+    );
   } catch (e) {
     if (!(e instanceof StaleGmGenerationOwnerError)) {
       persistGmRoundFailure(db, roundId, e, rid);
@@ -321,17 +335,19 @@ export async function regenerateTrpgNarration(
       requestId: rid,
       deps: opts.deps,
     });
+    if (!gmGenerationOwnsToken(db, target.id, rid)) {
+      logStaleOwnerDiscard(target.id, rid, "billing");
+      throw new StaleGmGenerationOwnerError();
+    }
     const extra = loadRoundUsage(db, target.id).slice(usageBefore);
     chargeTrpgCalls(db, campaign, target.id, extra, {
       addToBilled: true,
       skip: opts.deps?.skipBilling === true,
     });
-    clearGmGenerationLease(db, target.id, rid);
-    db.prepare(
-      `UPDATE trpg_rounds
-       SET phase='ROUND_COMPLETE', lock_holder_request_id=NULL, updated_at=datetime('now')
-       WHERE id=? AND gm_generation_id IS NULL`
-    ).run(target.id);
+    if (!finalizeRerollForGeneration(db, target.id, rid, rid)) {
+      logStaleOwnerDiscard(target.id, rid, "finalize");
+      throw new StaleGmGenerationOwnerError();
+    }
   } catch (e) {
     if (e instanceof StaleGmGenerationOwnerError) {
       throw e;
@@ -444,34 +460,32 @@ export type AdvanceTrpgCampaignOpts = {
   source?: string;
 };
 
-async function reconcileStaleCommittedGeneration(
+async function finalizeCommittedGmRound(
   db: Database.Database,
   campaign: TrpgCampaignRow,
-  round: TrpgRoundRow,
+  opts: {
+    roundId: number;
+    roundNumber: number;
+    leaseOwnerId: string;
+    committedGenerationId: string;
+    campaignFinished: boolean;
+  },
   deps?: TrpgEngineDeps
 ): Promise<void> {
-  if (isRerollGmGeneration(db, round.id)) {
-    clearGmGenerationLease(db, round.id, round.gm_generation_id);
-    db.prepare(
-      `UPDATE trpg_rounds
-       SET phase='ROUND_COMPLETE',
-           lock_holder_request_id=NULL,
-           gm_generation_id=NULL,
-           gm_generation_started_at=NULL,
-           gm_generation_heartbeat_at=NULL,
-           pending_gm_result_json=NULL,
-           updated_at=datetime('now')
-       WHERE id=?`
-    ).run(round.id);
-    return;
+  if (
+    !finalizeGmRoundForGeneration(db, {
+      campaignId: campaign.id,
+      roundId: opts.roundId,
+      roundNumber: opts.roundNumber,
+      leaseOwnerId: opts.leaseOwnerId,
+      committedGenerationId: opts.committedGenerationId,
+      campaignFinished: opts.campaignFinished,
+    })
+  ) {
+    logStaleOwnerDiscard(opts.roundId, opts.leaseOwnerId, "finalize");
+    throw new StaleGmGenerationOwnerError();
   }
-  const row = db
-    .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
-    .get(round.id) as { structured_json: string | null } | undefined;
-  const parsed = parseJson(row?.structured_json, {} as { campaign_finished?: boolean; campaignFinished?: boolean });
-  const campaignFinished = parsed.campaign_finished === true || parsed.campaignFinished === true;
-  clearGmGenerationLease(db, round.id, round.gm_generation_id);
-  await completeGmRound(db, campaign, round, campaignFinished, deps);
+  await sealDroppedTrpgRounds(db, campaign.id, deps?.memoryCall);
 }
 
 type ReconcileGmResult = {
@@ -491,33 +505,90 @@ async function reconcileStaleGmGenerationIfNeeded(
     case "healthy":
       return { round, reclaimed: false };
     case "stale_pending": {
-      if (!round.gm_generation_id || !hasPendingGmResultForGeneration(db, round.id, round.gm_generation_id)) {
+      const provenanceId = round.gm_generation_id;
+      if (!provenanceId || !hasPendingGmResultForGeneration(db, round.id, provenanceId)) {
+        return { round, reclaimed: false };
+      }
+      const recoveryId = newRequestId();
+      if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, "pending")) {
         return { round, reclaimed: false };
       }
       try {
         const gm = applyPendingGmResult(db, {
           campaignId: campaign.id,
           roundId: round.id,
-          requestId: round.gm_generation_id,
+          leaseOwnerId: recoveryId,
+          provenanceGenerationId: provenanceId,
           deps: opts.deps,
         });
-        clearGmGenerationLease(db, round.id, round.gm_generation_id);
-        await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
+        await finalizeCommittedGmRound(
+          db,
+          campaign,
+          {
+            roundId: round.id,
+            roundNumber: round.round_number,
+            leaseOwnerId: recoveryId,
+            committedGenerationId: provenanceId,
+            campaignFinished: gm.campaignFinished,
+          },
+          opts.deps
+        );
       } catch (e) {
-        persistGmRoundFailure(db, round.id, e, round.gm_generation_id ?? undefined);
+        if (!(e instanceof StaleGmGenerationOwnerError)) {
+          persistGmRoundFailure(db, round.id, e, recoveryId);
+        }
       }
       return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
     }
     case "stale_committed": {
+      const provenanceId = round.gm_generation_id;
+      if (!provenanceId) return { round, reclaimed: false };
+      const recoveryId = newRequestId();
       try {
-        await reconcileStaleCommittedGeneration(db, campaign, round, opts.deps);
+        if (isRerollGmGeneration(db, round.id)) {
+          if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, "committed")) {
+            return { round, reclaimed: false };
+          }
+          if (!finalizeRerollForGeneration(db, round.id, recoveryId, provenanceId)) {
+            throw new StaleGmGenerationOwnerError();
+          }
+        } else {
+          const kind = round.phase === "APPLYING_STATE" ? "applying_state" : "committed";
+          if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, kind)) {
+            return { round, reclaimed: false };
+          }
+          const row = db
+            .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
+            .get(round.id) as { structured_json: string | null } | undefined;
+          const parsed = parseJson(row?.structured_json, {} as {
+            campaign_finished?: boolean;
+            campaignFinished?: boolean;
+          });
+          const campaignFinished =
+            parsed.campaign_finished === true || parsed.campaignFinished === true;
+          await finalizeCommittedGmRound(
+            db,
+            campaign,
+            {
+              roundId: round.id,
+              roundNumber: round.round_number,
+              leaseOwnerId: recoveryId,
+              committedGenerationId: provenanceId,
+              campaignFinished,
+            },
+            opts.deps
+          );
+        }
       } catch (e) {
-        persistGmRoundFailure(db, round.id, e, round.gm_generation_id ?? undefined);
+        if (!(e instanceof StaleGmGenerationOwnerError)) {
+          persistGmRoundFailure(db, round.id, e, recoveryId);
+        }
       }
       return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
     }
     case "stale_reroll_orphan": {
-      reconcileStaleRerollGeneration(db, round.id);
+      if (!round.gm_generation_id) return { round, reclaimed: false };
+      tryRevertStaleRerollGeneration(db, round.id, round.gm_generation_id);
       return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
     }
     case "stale_orphan": {
@@ -565,15 +636,40 @@ async function advanceTrpgCampaignCore(
 
   if (phase === "ERROR_RECOVERY" && campaign.host_user_id === opts.userId && reconciledRound.round_number > 0) {
     if (hasPendingGmResult(db, reconciledRound.id)) {
+      const pending = loadPendingGmResult(db, reconciledRound.id);
+      let leaseOwnerId = reconciledRound.gm_generation_id;
+      if (!leaseOwnerId) {
+        const recoveryId = newRequestId();
+        if (!tryClaimLegacyErrorRecoverySalvage(db, reconciledRound.id, recoveryId)) {
+          return mustSnapshot(db, opts.campaignId, opts.userId);
+        }
+        leaseOwnerId = recoveryId;
+      }
+      const provenanceId = pending?.generationId ?? leaseOwnerId;
       try {
         const gm = applyPendingGmResult(db, {
           campaignId: campaign.id,
           roundId: reconciledRound.id,
+          leaseOwnerId,
+          provenanceGenerationId: provenanceId,
           deps: opts.deps,
         });
-        await completeGmRound(db, campaign, reconciledRound, gm.campaignFinished, opts.deps);
+        await finalizeCommittedGmRound(
+          db,
+          campaign,
+          {
+            roundId: reconciledRound.id,
+            roundNumber: reconciledRound.round_number,
+            leaseOwnerId,
+            committedGenerationId: provenanceId,
+            campaignFinished: gm.campaignFinished,
+          },
+          opts.deps
+        );
       } catch (e) {
-        persistGmRoundFailure(db, reconciledRound.id, e);
+        if (!(e instanceof StaleGmGenerationOwnerError)) {
+          persistGmRoundFailure(db, reconciledRound.id, e, leaseOwnerId ?? undefined);
+        }
       }
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
@@ -597,9 +693,22 @@ async function advanceTrpgCampaignCore(
         requestId: rid,
         deps: opts.deps,
       });
-      await completeGmRound(db, campaign, reconciledRound, gm.campaignFinished, opts.deps);
+      await finalizeCommittedGmRound(
+        db,
+        campaign,
+        {
+          roundId: reconciledRound.id,
+          roundNumber: reconciledRound.round_number,
+          leaseOwnerId: rid,
+          committedGenerationId: rid,
+          campaignFinished: gm.campaignFinished,
+        },
+        opts.deps
+      );
     } catch (e) {
-      persistGmRoundFailure(db, reconciledRound.id, e, rid);
+      if (!(e instanceof StaleGmGenerationOwnerError)) {
+        persistGmRoundFailure(db, reconciledRound.id, e, rid);
+      }
     }
     return mustSnapshot(db, opts.campaignId, opts.userId);
   }
@@ -678,7 +787,18 @@ async function advanceTrpgCampaignCore(
         requestId: rid,
         deps: opts.deps,
       });
-      await completeGmRound(db, campaign, reconciledRound, gm.campaignFinished, opts.deps);
+      await finalizeCommittedGmRound(
+        db,
+        campaign,
+        {
+          roundId: reconciledRound.id,
+          roundNumber: reconciledRound.round_number,
+          leaseOwnerId: rid,
+          committedGenerationId: rid,
+          campaignFinished: gm.campaignFinished,
+        },
+        opts.deps
+      );
     } catch (e) {
       if (!(e instanceof StaleGmGenerationOwnerError)) {
         persistGmRoundFailure(db, reconciledRound.id, e, rid);
@@ -1180,11 +1300,14 @@ async function runGmForRound(
   }
   try {
     const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
-    if (opts.requestId && !gmGenerationOwnsToken(db, opts.roundId, opts.requestId)) {
-      logStaleOwnerDiscard(opts.roundId, opts.requestId, "usage");
-      throw new StaleGmGenerationOwnerError();
+    if (opts.requestId) {
+      if (!appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK)) {
+        logStaleOwnerDiscard(opts.roundId, opts.requestId, "usage");
+        throw new StaleGmGenerationOwnerError();
+      }
+    } else {
+      appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
     }
-    appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
     stage = "gm_output_parse";
     const parsed = parseTrpgGmOutput(text);
     stage = "asset_tagging";
@@ -1204,11 +1327,23 @@ async function runGmForRound(
           });
     logPostGmOngoingCandidates(postGmOngoingSeeds);
     if (!opts.regenerate) {
-      if (opts.requestId && !gmGenerationOwnsToken(db, opts.roundId, opts.requestId)) {
-        logStaleOwnerDiscard(opts.roundId, opts.requestId, "pending");
-        throw new StaleGmGenerationOwnerError();
+      if (opts.requestId) {
+        if (
+          !savePendingGmResultForGeneration(
+            db,
+            opts.roundId,
+            opts.requestId,
+            parsed,
+            postGmOngoingSeeds,
+            opts.requestId
+          )
+        ) {
+          logStaleOwnerDiscard(opts.roundId, opts.requestId, "pending");
+          throw new StaleGmGenerationOwnerError();
+        }
+      } else {
+        savePendingGmResult(db, opts.roundId, parsed, postGmOngoingSeeds);
       }
-      savePendingGmResult(db, opts.roundId, parsed, postGmOngoingSeeds, opts.requestId);
     }
     return commitPendingGmResult(db, {
       campaign,
@@ -1218,7 +1353,8 @@ async function runGmForRound(
       parsed,
       postGmOngoingSeeds,
       deps: opts.deps,
-      requestId: opts.requestId,
+      leaseOwnerId: opts.requestId,
+      provenanceGenerationId: opts.requestId,
     });
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
@@ -1229,13 +1365,20 @@ async function runGmForRound(
 
 function applyPendingGmResult(
   db: Database.Database,
-  opts: { campaignId: number; roundId: number; requestId?: string; deps?: TrpgEngineDeps }
+  opts: {
+    campaignId: number;
+    roundId: number;
+    leaseOwnerId: string;
+    provenanceGenerationId?: string;
+    deps?: TrpgEngineDeps;
+  }
 ): { campaignFinished: boolean } {
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const pending = loadPendingGmResult(db, opts.roundId);
   if (!pending) throw new Error("재사용할 GM 결과가 없습니다.");
-  if (opts.requestId && pending.generationId && pending.generationId !== opts.requestId) {
+  const provenanceId = opts.provenanceGenerationId ?? pending.generationId ?? opts.leaseOwnerId;
+  if (pending.generationId && pending.generationId !== provenanceId) {
     throw new Error("pending GM result generation mismatch");
   }
   return commitPendingGmResult(db, {
@@ -1246,7 +1389,8 @@ function applyPendingGmResult(
     parsed: parsedFromPending(pending),
     postGmOngoingSeeds: pending.postGmOngoingSeeds,
     deps: opts.deps,
-    requestId: opts.requestId ?? pending.generationId,
+    leaseOwnerId: opts.leaseOwnerId,
+    provenanceGenerationId: provenanceId,
   });
 }
 
@@ -1260,11 +1404,14 @@ function commitPendingGmResult(
     parsed: ParsedTrpgGmOutput;
     postGmOngoingSeeds?: readonly PostGmOngoingSeed[];
     deps?: TrpgEngineDeps;
-    requestId?: string;
+    leaseOwnerId?: string;
+    provenanceGenerationId?: string;
   }
 ): { campaignFinished: boolean } {
-  if (opts.requestId && !gmGenerationOwnsToken(db, opts.roundId, opts.requestId)) {
-    logStaleOwnerDiscard(opts.roundId, opts.requestId, "commit");
+  const leaseOwnerId = opts.leaseOwnerId;
+  const provenanceId = opts.provenanceGenerationId ?? leaseOwnerId;
+  if (leaseOwnerId && !gmGenerationOwnsToken(db, opts.roundId, leaseOwnerId)) {
+    logStaleOwnerDiscard(opts.roundId, leaseOwnerId, "commit");
     throw new StaleGmGenerationOwnerError();
   }
   const campaign = opts.campaign;
@@ -1291,8 +1438,10 @@ function commitPendingGmResult(
   });
   try {
     db.transaction(() => {
-      if (opts.requestId && !markGmGenerationCommitted(db, opts.roundId, opts.requestId)) {
-        throw new StaleGmGenerationOwnerError();
+      if (leaseOwnerId && provenanceId) {
+        if (!markGmGenerationCommitted(db, opts.roundId, leaseOwnerId, provenanceId)) {
+          throw new StaleGmGenerationOwnerError();
+        }
       }
       stage = "gm_persist";
       db.prepare(
@@ -1351,37 +1500,22 @@ function commitPendingGmResult(
   }
 }
 
-async function completeGmRound(
+function appendGmRoundUsageForGeneration(
   db: Database.Database,
-  campaign: TrpgCampaignRow,
-  round: TrpgRoundRow,
-  campaignFinished: boolean,
-  deps?: TrpgEngineDeps
-): Promise<void> {
-  clearGmGenerationLease(db, round.id, round.gm_generation_id);
-  if (campaignFinished) {
-    db.transaction(() => {
-      setRoundPhase(db, round.id, "ROUND_COMPLETE");
-      db.prepare(`UPDATE trpg_campaigns SET status='CAMPAIGN_COMPLETE', updated_at=datetime('now') WHERE id=?`).run(
-        campaign.id
-      );
-    })();
-  } else {
-    beginNextActionRound(db, campaign, round);
-  }
-  await sealDroppedTrpgRounds(db, campaign.id, deps?.memoryCall);
-}
-
-function beginNextActionRound(db: Database.Database, campaign: TrpgCampaignRow, round: TrpgRoundRow): void {
-  db.transaction(() => {
-    setRoundPhase(db, round.id, "ROUND_COMPLETE");
-    db.prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, ?, 'ACTION_INPUT')`).run(
-      campaign.id,
-      round.round_number + 1
-    );
-    db.prepare(`UPDATE trpg_campaigns SET status='ACTION_INPUT', updated_at=datetime('now') WHERE id=?`).run(
-      campaign.id
-    );
+  roundId: number,
+  generationId: string,
+  usage: TrpgModelUsage
+): boolean {
+  return db.transaction(() => {
+    const row = db
+      .prepare(`SELECT usage_json FROM trpg_rounds WHERE id=? AND gm_generation_id=?`)
+      .get(roundId, generationId) as { usage_json: string | null } | undefined;
+    if (!row) return false;
+    const next = [...parseJson(row.usage_json, [] as TrpgModelUsage[]), usage];
+    const info = db
+      .prepare(`UPDATE trpg_rounds SET usage_json=? WHERE id=? AND gm_generation_id=?`)
+      .run(JSON.stringify(next), roundId, generationId);
+    return info.changes === 1;
   })();
 }
 

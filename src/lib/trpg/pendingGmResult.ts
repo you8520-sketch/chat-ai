@@ -44,6 +44,26 @@ export function parsedFromPending(pending: TrpgPendingGmResult): ParsedTrpgGmOut
   };
 }
 
+/** Generation-scoped pending write: fails if lease owner changed. */
+export function savePendingGmResultForGeneration(
+  db: Database.Database,
+  roundId: number,
+  leaseOwnerId: string,
+  parsed: ParsedTrpgGmOutput,
+  postGmOngoingSeeds: readonly PostGmOngoingSeed[] = [],
+  provenanceGenerationId?: string
+): boolean {
+  const generationId = provenanceGenerationId ?? leaseOwnerId;
+  const info = db
+    .prepare(`UPDATE trpg_rounds SET pending_gm_result_json=? WHERE id=? AND gm_generation_id=?`)
+    .run(
+      JSON.stringify(toPendingGmResult(parsed, postGmOngoingSeeds, generationId)),
+      roundId,
+      leaseOwnerId
+    );
+  return info.changes === 1;
+}
+
 export function savePendingGmResult(
   db: Database.Database,
   roundId: number,

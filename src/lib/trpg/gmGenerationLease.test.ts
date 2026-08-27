@@ -10,6 +10,7 @@ import {
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
+  regenerateTrpgNarration,
   startTrpgCampaign,
   submitTrpgAction,
   type TrpgEngineDeps,
@@ -19,6 +20,8 @@ import {
   buildTrpgOrphanGenerationErrorJson,
   clearGmGenerationLease,
   currentGenerationCommitted,
+  finalizeGmRoundForGeneration,
+  finalizeRerollForGeneration,
   gmGenerationInFlight,
   gmGenerationOwnsToken,
   GM_HEARTBEAT_STALE_MS,
@@ -27,13 +30,14 @@ import {
   gmStaleReclaimEligible,
   isGmGenerationLeaseStaleOnDb,
   markGmGenerationCommitted,
-  reconcileStaleRerollGeneration,
   refreshGmGenerationHeartbeat,
   resolveGmLeaseState,
+  tryClaimStaleGmRecovery,
   tryPersistGmRoundFailure,
+  tryRevertStaleRerollGeneration,
   tryTerminalizeStaleOrphan,
 } from "./gmGenerationLease";
-import { savePendingGmResult, toPendingGmResult } from "./pendingGmResult";
+import { savePendingGmResult, savePendingGmResultForGeneration } from "./pendingGmResult";
 import { parseTrpgGmOutput } from "./gmPrompt";
 import { ensureTrpgTables } from "./schema";
 import { parseTrpgStartFailureJson } from "./startFailure";
@@ -512,7 +516,7 @@ describe("GM generation lease and fencing", () => {
        SET phase='GENERATING_NARRATION', gm_generation_id='token-b', lock_holder_request_id='token-b'
        WHERE id=?`
     ).run(roundId);
-    assert.equal(markGmGenerationCommitted(db, roundId, requestId), false);
+    assert.equal(markGmGenerationCommitted(db, roundId, requestId, requestId), false);
     assert.equal(gmGenerationOwnsToken(db, roundId, requestId), false);
     db.close();
   });
@@ -552,7 +556,7 @@ describe("GM generation lease and fencing", () => {
     ).run(tokenB, tokenB, roundId);
     assert.equal(refreshGmGenerationHeartbeat(db, roundId, tokenA), false);
     assert.equal(gmGenerationOwnsToken(db, roundId, tokenA), false);
-    assert.equal(markGmGenerationCommitted(db, roundId, tokenA), false);
+    assert.equal(markGmGenerationCommitted(db, roundId, tokenA, tokenA), false);
     assert.equal(tryPersistGmRoundFailure(db, roundId, tokenA, buildTrpgOrphanGenerationErrorJson()), false);
     assert.equal(gmGenerationOwnsToken(db, roundId, tokenB), true);
     db.close();
@@ -730,13 +734,13 @@ describe("GM generation lease and fencing", () => {
       db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ROUND_COMPLETE')`).run()
         .lastInsertRowid
     );
-    const { roundId } = seedStuckGmRound(db, {
+    const { roundId, requestId } = seedStuckGmRound(db, {
       campaignId,
       heartbeatAgeSec: 500,
       gmMessage: true,
       processStage: "reroll",
     });
-    reconcileStaleRerollGeneration(db, roundId);
+    assert.equal(tryRevertStaleRerollGeneration(db, roundId, requestId), true);
     const row = db.prepare(`SELECT phase, gm_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
       phase: string;
       gm_generation_id: string | null;
@@ -750,5 +754,342 @@ describe("GM generation lease and fencing", () => {
     const parsed = JSON.parse(buildTrpgOrphanGenerationErrorJson()) as { kind: string; class: string };
     assert.equal(parsed.kind, "gm_generation_orphan_reclaimed");
     assert.equal(parsed.class, "B");
+  });
+});
+
+describe("GM generation lifecycle races", () => {
+  it("A normal complete uses explicit generation token and creates next round once", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 15,
+      gmCall: async () => ({ text: gmText("done") }),
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: { ...deps, gmCall: async () => ({ text: gmText("open") }) },
+    });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다" });
+    const beforeRounds = (
+      db.prepare(`SELECT COUNT(*) AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }
+    ).n;
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const afterRounds = (
+      db.prepare(`SELECT COUNT(*) AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }
+    ).n;
+    assert.equal(afterRounds, beforeRounds + 1);
+    const latest = loadLatestRound(db, campaignId)!;
+    assert.equal(latest.phase, "ACTION_INPUT");
+    assert.equal(latest.gm_generation_id, null);
+    db.close();
+  });
+
+  it("B crash after canonical commit recovers via stale committed path", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    const deps: TrpgEngineDeps = { skipBilling: true };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId } = seedStuckGmRound(db, {
+      campaignId,
+      heartbeatAgeSec: 500,
+      gmMessage: true,
+      committedGenerationId: "req-stuck",
+    });
+    db.prepare(`UPDATE trpg_rounds SET phase='APPLYING_STATE' WHERE id=?`).run(roundId);
+    const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("C APPLYING_STATE without owner gap is not produced by finalize", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id)
+           VALUES (?, 1, 'APPLYING_STATE', 'token-a', 'token-a')`
+        )
+        .run(campaignId).lastInsertRowid
+    );
+    assert.equal(
+      finalizeGmRoundForGeneration(db, {
+        campaignId,
+        roundId,
+        roundNumber: 1,
+        leaseOwnerId: "token-a",
+        committedGenerationId: "token-a",
+        campaignFinished: false,
+      }),
+      true
+    );
+    const row = db.prepare(`SELECT phase, gm_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+      phase: string;
+      gm_generation_id: string | null;
+    };
+    assert.equal(row.phase, "ROUND_COMPLETE");
+    assert.equal(row.gm_generation_id, null);
+    const gap = db
+      .prepare(
+        `SELECT 1 FROM trpg_rounds WHERE id=? AND phase='APPLYING_STATE' AND gm_generation_id IS NULL`
+      )
+      .get(roundId);
+    assert.equal(gap, undefined);
+    db.close();
+  });
+
+  it("D stale pending recovery: only recovery owner B may commit", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    const deps: TrpgEngineDeps = { skipBilling: true };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId: tokenA } = seedStuckGmRound(db, {
+      campaignId,
+      heartbeatAgeSec: 500,
+      pending: true,
+      pendingGenerationId: "req-stuck",
+    });
+    assert.equal(gmGenerationOwnsToken(db, roundId, tokenA), true);
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(gmGenerationOwnsToken(db, roundId, tokenA), false);
+    assert.equal(currentGenerationCommitted(db, roundId, tokenA), true);
+    db.close();
+  });
+
+  it("E stale committed recovery rejects old owner finalization", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id)
+           VALUES (?, 1, 'APPLYING_STATE', 'token-a', 'token-a')`
+        )
+        .run(campaignId).lastInsertRowid
+    );
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET gm_generation_heartbeat_at=datetime('now', '-600 seconds'),
+           updated_at=datetime('now', '-600 seconds')
+       WHERE id=?`
+    ).run(roundId);
+    const tokenB = "token-b";
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, "token-a", tokenB, "applying_state"), true);
+    assert.equal(
+      finalizeGmRoundForGeneration(db, {
+        campaignId,
+        roundId,
+        roundNumber: 1,
+        leaseOwnerId: "token-a",
+        committedGenerationId: "token-a",
+        campaignFinished: false,
+      }),
+      false
+    );
+    assert.equal(
+      finalizeGmRoundForGeneration(db, {
+        campaignId,
+        roundId,
+        roundNumber: 1,
+        leaseOwnerId: tokenB,
+        committedGenerationId: "token-a",
+        campaignFinished: false,
+      }),
+      true
+    );
+    db.close();
+  });
+
+  it("F heartbeat refresh beats orphan reclaim CAS", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId } = seedStuckGmRound(db, { campaignId, heartbeatAgeSec: 500 });
+    assert.equal(isGmGenerationLeaseStaleOnDb(db, roundId), true);
+    assert.equal(refreshGmGenerationHeartbeat(db, roundId, requestId), true);
+    assert.equal(isGmGenerationLeaseStaleOnDb(db, roundId), false);
+    assert.equal(tryTerminalizeStaleOrphan(db, roundId), false);
+    db.close();
+  });
+
+  it("G pending save beats orphan terminalization CAS", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId } = seedStuckGmRound(db, { campaignId, heartbeatAgeSec: 500 });
+    savePendingGmResultForGeneration(
+      db,
+      roundId,
+      requestId,
+      parseTrpgGmOutput(GM_TEXT),
+      [],
+      requestId
+    );
+    assert.equal(tryTerminalizeStaleOrphan(db, roundId), false);
+    assert.equal(resolveGmLeaseState(db, roundId, "GENERATING_NARRATION", requestId).status, "stale_pending");
+    db.close();
+  });
+
+  it("H usage write is atomically fenced after reclaim", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId: tokenA } = seedStuckGmRound(db, { campaignId, heartbeatAgeSec: 500 });
+    const tokenB = "token-b";
+    db.prepare(`UPDATE trpg_rounds SET gm_generation_id=? WHERE id=?`).run(tokenB, roundId);
+    const row = db
+      .prepare(`SELECT usage_json FROM trpg_rounds WHERE id=? AND gm_generation_id=?`)
+      .get(roundId, tokenA) as { usage_json: string | null } | undefined;
+    assert.equal(row, undefined);
+    const info = db
+      .prepare(`UPDATE trpg_rounds SET usage_json='[{"model":"x"}]' WHERE id=? AND gm_generation_id=?`)
+      .run(roundId, tokenA);
+    assert.equal(info.changes, 0);
+    db.close();
+  });
+
+  it("I pending write is atomically fenced after reclaim", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const { roundId, requestId: tokenA } = seedStuckGmRound(db, { campaignId, heartbeatAgeSec: 5 });
+    const tokenB = "token-b";
+    db.prepare(`UPDATE trpg_rounds SET gm_generation_id=? WHERE id=?`).run(tokenB, roundId);
+    assert.equal(
+      savePendingGmResultForGeneration(db, roundId, tokenA, parseTrpgGmOutput(GM_TEXT), [], tokenA),
+      false
+    );
+    const pending = db
+      .prepare(`SELECT pending_gm_result_json FROM trpg_rounds WHERE id=?`)
+      .get(roundId) as { pending_gm_result_json: string | null };
+    assert.equal(pending.pending_gm_result_json, null);
+    db.close();
+  });
+
+  it("J ERROR_RECOVERY pending salvage completes without provider recall", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 15,
+      gmCall: async () => {
+        throw new Error("provider must not be called");
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: { ...deps, gmCall: async () => ({ text: gmText("open") }) },
+    });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다" });
+    const round = loadLatestRound(db, campaignId)!;
+    const tokenA = "salvage-a";
+    db.prepare(`UPDATE trpg_rounds SET gm_generation_id=? WHERE id=?`).run(tokenA, round.id);
+    savePendingGmResultForGeneration(
+      db,
+      round.id,
+      tokenA,
+      parseTrpgGmOutput(gmText("pending salvage")),
+      [],
+      tokenA
+    );
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET phase='ERROR_RECOVERY', error_json='{"class":"B","error":"x","kind":"persist_error","model":"m","elapsedMs":null,"trueOffRequested":true,"httpStatus":null,"reasoningTokens":"unavailable"}'
+       WHERE id=?`
+    ).run(round.id);
+    const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ACTION_INPUT");
+    assert.match(snap.currentNarration ?? "", /pending salvage/);
+    db.close();
+  });
+
+  it("K legacy pending without generationId recovers in ERROR_RECOVERY", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => {
+        throw new Error("provider must not be called");
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: { ...deps, gmCall: async () => ({ text: gmText("open") }) },
+    });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다" });
+    const round = loadLatestRound(db, campaignId)!;
+    savePendingGmResult(db, round.id, parseTrpgGmOutput(gmText("legacy pending")));
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET phase='ERROR_RECOVERY', gm_generation_id=NULL, error_json='{"class":"B","error":"x","kind":"persist_error","model":"m","elapsedMs":null,"trueOffRequested":true,"httpStatus":null,"reasoningTokens":"unavailable"}'
+       WHERE id=?`
+    ).run(round.id);
+    const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ACTION_INPUT");
+    assert.match(snap.currentNarration ?? "", /legacy pending/);
+    db.close();
+  });
+
+  it("L reroll billing rejects stale owner after lease loss", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => ({ text: gmText("rerolled") }),
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: { ...deps, gmCall: async () => ({ text: gmText("open") }) },
+    });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const round = loadLatestRound(db, campaignId)!;
+    const prevRound = db
+      .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
+      .get(campaignId, round.round_number - 1) as { id: number };
+    const tokenA = "reroll-a";
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET phase='GENERATING_NARRATION', gm_generation_id=?, gm_committed_generation_id=?,
+           process_stage='reroll', gm_generation_heartbeat_at=datetime('now', '-600 seconds'),
+           updated_at=datetime('now', '-600 seconds')
+       WHERE id=?`
+    ).run(tokenA, tokenA, prevRound.id);
+    const tokenB = "reroll-b";
+    assert.equal(tryClaimStaleGmRecovery(db, prevRound.id, tokenA, tokenB, "committed"), true);
+    assert.equal(gmGenerationOwnsToken(db, prevRound.id, tokenA), false);
+    assert.equal(finalizeRerollForGeneration(db, prevRound.id, tokenA, tokenA), false);
+    assert.equal(finalizeRerollForGeneration(db, prevRound.id, tokenB, tokenA), true);
+    db.close();
   });
 });

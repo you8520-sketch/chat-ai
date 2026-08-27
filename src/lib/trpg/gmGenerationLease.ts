@@ -27,6 +27,8 @@ const GM_ACTIVE_PHASES = [
   "APPLYING_STATE",
 ] as const;
 
+const GM_ACTIVE_PHASE_SQL = `('ROLLING', 'LOCKING_ACTIONS', 'ADJUDICATING', 'GENERATING_NARRATION', 'APPLYING_STATE')`;
+
 export type GmLeaseStatus =
   | "inactive"
   | "healthy"
@@ -44,7 +46,11 @@ export type GmStaleOwnerDiscardReason =
   | "usage"
   | "pending"
   | "commit"
-  | "failure";
+  | "failure"
+  | "finalize"
+  | "billing";
+
+export type StaleRecoveryKind = "pending" | "committed" | "applying_state";
 
 /** Thrown when a stale generation owner attempts a fenced mutation after lease loss. */
 export class StaleGmGenerationOwnerError extends Error {
@@ -61,6 +67,7 @@ type RoundLeaseRow = {
   gm_committed_generation_id: string | null;
   updated_at: string;
   process_stage: string | null;
+  phase: string;
 };
 
 function heartbeatStaleSeconds(): number {
@@ -69,6 +76,26 @@ function heartbeatStaleSeconds(): number {
 
 function legacyStaleSeconds(): number {
   return Math.ceil(GM_LEGACY_STALE_MS / 1000);
+}
+
+/** SQL fragment: row heartbeat/updated_at proves lease is stale at write time. */
+function staleAtWriteSql(alias = ""): string {
+  const p = alias ? `${alias}.` : "";
+  return `(
+    (${p}gm_generation_heartbeat_at IS NOT NULL
+      AND datetime(${p}gm_generation_heartbeat_at) < datetime('now', '-${heartbeatStaleSeconds()} seconds'))
+    OR (${p}gm_generation_heartbeat_at IS NULL
+      AND datetime(${p}updated_at) < datetime('now', '-${legacyStaleSeconds()} seconds'))
+  )`;
+}
+
+/** SQL fragment: heartbeat is fresh (reclaim must lose). */
+export function freshHeartbeatSql(alias = ""): string {
+  const p = alias ? `${alias}.` : "";
+  return `(
+    ${p}gm_generation_heartbeat_at IS NOT NULL
+    AND datetime(${p}gm_generation_heartbeat_at) >= datetime('now', '-${heartbeatStaleSeconds()} seconds')
+  )`;
 }
 
 export function isGmGenerationActivePhase(phase: string): boolean {
@@ -80,11 +107,11 @@ function loadRoundLeaseRow(db: Database.Database, roundId: number): RoundLeaseRo
     (db
       .prepare(
         `SELECT gm_generation_id, gm_generation_heartbeat_at, gm_generation_started_at,
-                gm_committed_generation_id, updated_at, process_stage
+                gm_committed_generation_id, updated_at, process_stage, phase
          FROM trpg_rounds
          WHERE id = ?
            AND gm_generation_id IS NOT NULL
-           AND phase IN ('ROLLING', 'LOCKING_ACTIONS', 'ADJUDICATING', 'GENERATING_NARRATION', 'APPLYING_STATE')`
+           AND phase IN ${GM_ACTIVE_PHASE_SQL}`
       )
       .get(roundId) as RoundLeaseRow | undefined) ?? null
   );
@@ -140,20 +167,21 @@ export function refreshGmGenerationHeartbeat(
        SET gm_generation_heartbeat_at = datetime('now'),
            updated_at = datetime('now')
        WHERE id = ?
-         AND phase IN ('ROLLING', 'LOCKING_ACTIONS', 'ADJUDICATING', 'GENERATING_NARRATION', 'APPLYING_STATE')
+         AND phase IN ${GM_ACTIVE_PHASE_SQL}
          AND gm_generation_id = ?`
     )
     .run(roundId, requestId);
   return info.changes === 1;
 }
 
+/** Token-scoped lease clear. Unscoped clear is forbidden for active generation flows. */
 export function clearGmGenerationLease(
   db: Database.Database,
   roundId: number,
-  requestId?: string | null
-): void {
-  if (requestId) {
-    db.prepare(
+  requestId: string
+): boolean {
+  const info = db
+    .prepare(
       `UPDATE trpg_rounds
        SET gm_generation_id = NULL,
            lock_holder_request_id = CASE WHEN lock_holder_request_id = ? THEN NULL ELSE lock_holder_request_id END,
@@ -162,17 +190,9 @@ export function clearGmGenerationLease(
            updated_at = datetime('now')
        WHERE id = ?
          AND gm_generation_id = ?`
-    ).run(requestId, roundId, requestId);
-    return;
-  }
-  db.prepare(
-    `UPDATE trpg_rounds
-     SET gm_generation_id = NULL,
-         gm_generation_started_at = NULL,
-         gm_generation_heartbeat_at = NULL,
-         updated_at = datetime('now')
-     WHERE id = ?`
-  ).run(roundId);
+    )
+    .run(requestId, roundId, requestId);
+  return info.changes === 1;
 }
 
 export function isGmGenerationLeaseStaleOnDb(db: Database.Database, roundId: number): boolean {
@@ -191,7 +211,6 @@ export function isGmGenerationLeaseStaleOnDb(db: Database.Database, roundId: num
     return Boolean(stale);
   }
 
-  // Legacy pre-migration / pre-heartbeat row: use updated_at with full provider grace.
   const legacyStale = db
     .prepare(
       `SELECT 1
@@ -279,11 +298,65 @@ export function buildTrpgOrphanGenerationErrorJson(): string {
   });
 }
 
-/** CAS orphan terminalization: never calls the provider. Exactly one reclaim wins. */
+/**
+ * CAS reclaim stale generation to a NEW recovery owner B, revoking old owner A.
+ * Provenance (pending/committed) remains tied to A.
+ */
+export function tryClaimStaleGmRecovery(
+  db: Database.Database,
+  roundId: number,
+  staleOwnerId: string,
+  recoveryOwnerId: string,
+  kind: StaleRecoveryKind
+): boolean {
+  return db.transaction(() => {
+    if (kind === "pending" && !pendingMatchesGeneration(db, roundId, staleOwnerId)) {
+      return false;
+    }
+    if (kind === "committed" && !currentGenerationCommitted(db, roundId, staleOwnerId)) {
+      return false;
+    }
+
+    let extra = "";
+    const params: Array<string | number> = [recoveryOwnerId, recoveryOwnerId, roundId, staleOwnerId];
+
+    if (kind === "pending") {
+      extra = `AND pending_gm_result_json IS NOT NULL
+               AND json_extract(pending_gm_result_json, '$.generationId') = ?`;
+      params.push(staleOwnerId);
+    } else if (kind === "committed" || kind === "applying_state") {
+      extra = `AND gm_committed_generation_id = ?`;
+      params.push(staleOwnerId);
+      if (kind === "applying_state") {
+        extra += ` AND phase = 'APPLYING_STATE'`;
+      }
+    }
+
+    const info = db
+      .prepare(
+        `UPDATE trpg_rounds
+         SET gm_generation_id = ?,
+             lock_holder_request_id = ?,
+             gm_generation_started_at = datetime('now'),
+             gm_generation_heartbeat_at = datetime('now'),
+             updated_at = datetime('now')
+         WHERE id = ?
+           AND gm_generation_id = ?
+           AND phase IN ${GM_ACTIVE_PHASE_SQL}
+           AND ${staleAtWriteSql()}
+           ${extra}`
+      )
+      .run(...params);
+    return info.changes === 1;
+  })();
+}
+
+/** CAS orphan terminalization with stale/pending/commit guards in the UPDATE itself. */
 export function tryTerminalizeStaleOrphan(db: Database.Database, roundId: number): boolean {
   const row = loadRoundLeaseRow(db, roundId);
-  if (!row || !isGmGenerationLeaseStaleOnDb(db, roundId)) return false;
+  if (!row) return false;
 
+  const staleOwnerId = row.gm_generation_id;
   const info = db
     .prepare(
       `UPDATE trpg_rounds
@@ -296,19 +369,49 @@ export function tryTerminalizeStaleOrphan(db: Database.Database, roundId: number
            updated_at = datetime('now')
        WHERE id = ?
          AND gm_generation_id = ?
-         AND phase IN ('ROLLING', 'LOCKING_ACTIONS', 'ADJUDICATING', 'GENERATING_NARRATION', 'APPLYING_STATE')`
+         AND phase IN ${GM_ACTIVE_PHASE_SQL}
+         AND ${staleAtWriteSql()}
+         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id != ?)
+         AND NOT (
+           pending_gm_result_json IS NOT NULL
+           AND json_extract(pending_gm_result_json, '$.generationId') = ?
+         )`
     )
-    .run(buildTrpgOrphanGenerationErrorJson(), roundId, row.gm_generation_id);
+    .run(
+      buildTrpgOrphanGenerationErrorJson(),
+      roundId,
+      staleOwnerId,
+      staleOwnerId,
+      staleOwnerId
+    );
   return info.changes === 1;
 }
 
-/** Failure persistence fenced by generation token. Returns false when owner lost. */
+/** Failure persistence fenced by generation token. Preserves salvage authority when pending exists. */
 export function tryPersistGmRoundFailure(
   db: Database.Database,
   roundId: number,
   requestId: string,
   errorJson: string
 ): boolean {
+  const preserveSalvage = pendingMatchesGeneration(db, roundId, requestId);
+  if (preserveSalvage) {
+    const info = db
+      .prepare(
+        `UPDATE trpg_rounds
+         SET phase = 'ERROR_RECOVERY',
+             error_json = ?,
+             lock_holder_request_id = NULL,
+             gm_generation_started_at = NULL,
+             gm_generation_heartbeat_at = NULL,
+             updated_at = datetime('now')
+         WHERE id = ?
+           AND gm_generation_id = ?`
+      )
+      .run(errorJson, roundId, requestId);
+    return info.changes === 1;
+  }
+
   const info = db
     .prepare(
       `UPDATE trpg_rounds
@@ -319,18 +422,45 @@ export function tryPersistGmRoundFailure(
            gm_generation_started_at = NULL,
            gm_generation_heartbeat_at = NULL,
            updated_at = datetime('now')
-       WHERE id = ?
-         AND gm_generation_id = ?`
+         WHERE id = ?
+           AND gm_generation_id = ?`
     )
     .run(errorJson, roundId, requestId);
   return info.changes === 1;
 }
 
-/** Mark canonical commit ownership for the current generation (inside commit transaction). */
+/** One-time legacy ERROR_RECOVERY pending salvage claim when gm_generation_id was cleared. */
+export function tryClaimLegacyErrorRecoverySalvage(
+  db: Database.Database,
+  roundId: number,
+  recoveryOwnerId: string
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET gm_generation_id = ?,
+           lock_holder_request_id = ?,
+           gm_generation_started_at = NULL,
+           gm_generation_heartbeat_at = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND phase = 'ERROR_RECOVERY'
+         AND pending_gm_result_json IS NOT NULL
+         AND gm_generation_id IS NULL`
+    )
+    .run(recoveryOwnerId, recoveryOwnerId, roundId);
+  return info.changes === 1;
+}
+
+/**
+ * Mark canonical commit provenance (may differ from lease owner during recovery).
+ * Sets gm_committed_generation_id = provenanceGenerationId while leaseOwnerId holds the lease.
+ */
 export function markGmGenerationCommitted(
   db: Database.Database,
   roundId: number,
-  requestId: string
+  leaseOwnerId: string,
+  provenanceGenerationId: string
 ): boolean {
   const info = db
     .prepare(
@@ -338,9 +468,102 @@ export function markGmGenerationCommitted(
        SET gm_committed_generation_id = ?,
            updated_at = datetime('now')
        WHERE id = ?
-         AND gm_generation_id = ?`
+         AND gm_generation_id = ?
+         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id = ?)`
     )
-    .run(requestId, roundId, requestId);
+    .run(provenanceGenerationId, roundId, leaseOwnerId, provenanceGenerationId);
+  return info.changes === 1;
+}
+
+export type FinalizeGmRoundOpts = {
+  campaignId: number;
+  roundId: number;
+  roundNumber: number;
+  leaseOwnerId: string;
+  committedGenerationId: string;
+  campaignFinished: boolean;
+};
+
+/**
+ * Atomically terminalize a committed GM generation: verify owner + provenance,
+ * complete round, clear lease, and create next round or finish campaign.
+ */
+export function finalizeGmRoundForGeneration(db: Database.Database, opts: FinalizeGmRoundOpts): boolean {
+  return db.transaction(() => {
+    if (opts.campaignFinished) {
+      const info = db
+        .prepare(
+          `UPDATE trpg_rounds
+           SET phase = 'ROUND_COMPLETE',
+               gm_generation_id = NULL,
+               lock_holder_request_id = NULL,
+               gm_generation_started_at = NULL,
+               gm_generation_heartbeat_at = NULL,
+               updated_at = datetime('now')
+           WHERE id = ?
+             AND gm_generation_id = ?
+             AND gm_committed_generation_id = ?
+             AND phase IN ${GM_ACTIVE_PHASE_SQL}`
+        )
+        .run(opts.roundId, opts.leaseOwnerId, opts.committedGenerationId);
+      if (info.changes !== 1) return false;
+      db.prepare(`UPDATE trpg_campaigns SET status='CAMPAIGN_COMPLETE', updated_at=datetime('now') WHERE id=?`).run(
+        opts.campaignId
+      );
+      return true;
+    }
+
+    const info = db
+      .prepare(
+        `UPDATE trpg_rounds
+         SET phase = 'ROUND_COMPLETE',
+             gm_generation_id = NULL,
+             lock_holder_request_id = NULL,
+             gm_generation_started_at = NULL,
+             gm_generation_heartbeat_at = NULL,
+             updated_at = datetime('now')
+         WHERE id = ?
+           AND gm_generation_id = ?
+           AND gm_committed_generation_id = ?
+           AND phase IN ${GM_ACTIVE_PHASE_SQL}`
+      )
+      .run(opts.roundId, opts.leaseOwnerId, opts.committedGenerationId);
+    if (info.changes !== 1) return false;
+
+    db.prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, ?, 'ACTION_INPUT')`).run(
+      opts.campaignId,
+      opts.roundNumber + 1
+    );
+    db.prepare(`UPDATE trpg_campaigns SET status='ACTION_INPUT', updated_at=datetime('now') WHERE id=?`).run(
+      opts.campaignId
+    );
+    return true;
+  })();
+}
+
+/** Atomically finish a successful narration reroll after canonical commit. */
+export function finalizeRerollForGeneration(
+  db: Database.Database,
+  roundId: number,
+  leaseOwnerId: string,
+  committedGenerationId: string
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET phase = 'ROUND_COMPLETE',
+           lock_holder_request_id = NULL,
+           gm_generation_id = NULL,
+           gm_generation_started_at = NULL,
+           gm_generation_heartbeat_at = NULL,
+           pending_gm_result_json = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND gm_generation_id = ?
+         AND gm_committed_generation_id = ?
+         AND process_stage = 'reroll'`
+    )
+    .run(roundId, leaseOwnerId, committedGenerationId);
   return info.changes === 1;
 }
 
@@ -351,30 +574,51 @@ export function isRerollGmGeneration(db: Database.Database, roundId: number): bo
   return row?.process_stage === "reroll";
 }
 
-/** Revert a stale narration reroll without calling the provider again. Preserves old GM message. */
+/** CAS revert stale narration reroll; preserves old GM message. */
+export function tryRevertStaleRerollGeneration(
+  db: Database.Database,
+  roundId: number,
+  staleOwnerId: string
+): boolean {
+  const errorJson = JSON.stringify({
+    class: "B",
+    error: "Narration reroll lease expired (old scene preserved)",
+    kind: "gm_generation_orphan_reclaimed",
+    model: TRPG_GM_MODEL,
+    elapsedMs: null,
+    trueOffRequested: true,
+    httpStatus: null,
+    reasoningTokens: "unavailable",
+  });
+
+  const info = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET phase = 'ROUND_COMPLETE',
+           lock_holder_request_id = NULL,
+           gm_generation_id = NULL,
+           gm_generation_started_at = NULL,
+           gm_generation_heartbeat_at = NULL,
+           pending_gm_result_json = NULL,
+           error_json = COALESCE(error_json, ?),
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND gm_generation_id = ?
+         AND process_stage = 'reroll'
+         AND phase IN ${GM_ACTIVE_PHASE_SQL}
+         AND ${staleAtWriteSql()}
+         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id != ?)`
+    )
+    .run(errorJson, roundId, staleOwnerId, staleOwnerId);
+  return info.changes === 1;
+}
+
+/** @deprecated Use tryRevertStaleRerollGeneration */
 export function reconcileStaleRerollGeneration(db: Database.Database, roundId: number): void {
-  db.prepare(
-    `UPDATE trpg_rounds
-     SET phase = 'ROUND_COMPLETE',
-         lock_holder_request_id = NULL,
-         gm_generation_id = NULL,
-         gm_generation_started_at = NULL,
-         gm_generation_heartbeat_at = NULL,
-         pending_gm_result_json = NULL,
-         error_json = COALESCE(error_json, ?),
-         updated_at = datetime('now')
-     WHERE id = ?`
-  ).run(
-    JSON.stringify({
-      class: "B",
-      error: "Narration reroll lease expired (old scene preserved)",
-      kind: "gm_generation_orphan_reclaimed",
-      model: TRPG_GM_MODEL,
-      elapsedMs: null,
-      trueOffRequested: true,
-      httpStatus: null,
-      reasoningTokens: "unavailable",
-    }),
-    roundId
-  );
+  const row = db
+    .prepare(`SELECT gm_generation_id FROM trpg_rounds WHERE id = ?`)
+    .get(roundId) as { gm_generation_id: string | null } | undefined;
+  if (row?.gm_generation_id) {
+    tryRevertStaleRerollGeneration(db, roundId, row.gm_generation_id);
+  }
 }
