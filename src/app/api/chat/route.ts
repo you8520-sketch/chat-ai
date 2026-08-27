@@ -1124,14 +1124,6 @@ export async function POST(req: Request) {
   const chatOocRpUnrelated = chatOocSuppressesUserNoteExtras(storedUserMessage);
   const htmlFlashOnlyTurn =
     chatOocRpUnrelated || isHtmlFlashOnlyTurn(storedUserMessage);
-  const s4LiveProducerAllowed =
-    personaSecretDiscoveryOn &&
-    isPersonaSecretS4LiveProducerEnabled() &&
-    isS4LiveProducerTurnAllowed({
-      oocHtmlMode,
-      oocSceneRenderTurn,
-      htmlFlashOnlyTurn,
-    });
   const promptUserMessage = oocSceneRenderTurn
     ? buildOocSceneRenderUserPrompt(displayUserMessage)
     : autoContinueContext
@@ -1681,6 +1673,14 @@ export async function POST(req: Request) {
     !autoContinueContext &&
     isOocHtmlRequest(storedUserMessage) &&
     !htmlVisualCardPolicy.enabled;
+  const s4LiveProducerAllowed =
+    personaSecretDiscoveryOn &&
+    isPersonaSecretS4LiveProducerEnabled() &&
+    isS4LiveProducerTurnAllowed({
+      oocHtmlMode,
+      oocSceneRenderTurn,
+      htmlFlashOnlyTurn,
+    });
   const globalLorebookScanText = [
     policyUserMessage,
     userNotePrompt,
