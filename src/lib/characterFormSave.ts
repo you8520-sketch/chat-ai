@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { assetUrls } from "@/lib/characterAssets";
+import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveAndTranslateCharacterChunks } from "@/lib/characterChunks";
 import {
@@ -148,48 +148,20 @@ export type ParsedCharacterForm = {
 };
 
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
-  const parsed = Array.isArray(rawAssets)
-    ? rawAssets
-        .filter((a: unknown) => a && typeof a === "object" && "url" in (a as object) && "tag" in (a as object))
-        .map((a: {
-          url: string;
-          tag: string;
-          visualSubjectKey?: string;
-          public?: boolean;
-          chat?: boolean;
-          viewerBlur?: boolean;
-          adultFlagged?: boolean;
-          moderationReject?: boolean;
-          moderationReason?: string;
-          width?: number;
-          height?: number;
-          orientation?: "landscape" | "portrait" | "square";
-        }, index: number) => ({
-          url: String(a.url),
-          tag: String(a.tag).slice(0, 32),
-          public: true,
-          chat: true,
-          // 1번 대표 이미지는 항상 공개
-          viewerBlur: index === 0 ? false : a.viewerBlur === true,
-          ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
-          ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
-          ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
-            ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
-            : {}),
-          ...(Number(a.width) > 0 ? { width: Math.round(Number(a.width)) } : {}),
-          ...(Number(a.height) > 0 ? { height: Math.round(Number(a.height)) } : {}),
-          ...(a.orientation === "landscape" || a.orientation === "portrait" || a.orientation === "square"
-            ? { orientation: a.orientation }
-            : {}),
-          ...(typeof a.visualSubjectKey === "string" && a.visualSubjectKey.trim()
-            ? { visualSubjectKey: a.visualSubjectKey.trim() }
-            : {}),
-        }))
-        .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
-        .slice(0, 100)
-    : [];
-  if (parsed[0]) parsed[0] = { ...parsed[0], viewerBlur: false };
-  return parsed;
+  if (!Array.isArray(rawAssets)) return [];
+  const candidates = rawAssets
+    .filter(
+      (asset): asset is Record<string, unknown> =>
+        Boolean(asset && typeof asset === "object" && "url" in asset && "tag" in asset)
+    )
+    .map((asset) => ({
+      ...asset,
+      url: String(asset.url),
+      tag: String(asset.tag).slice(0, 32),
+    }))
+    .filter((asset) => asset.url.startsWith("/uploads/") || asset.url.startsWith("http"))
+    .slice(0, 100);
+  return normalizeCharacterAssets(candidates);
 }
 
 function parseAdultConsentModes(value: unknown): AdultConsentMode[] {

@@ -7,6 +7,7 @@ import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
   defaultAssetFlags,
+  normalizeCharacterAssets,
   withAssetSize,
 } from "@/lib/characterAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
@@ -115,24 +116,6 @@ type SelectedImport = {
 
 function fallbackAssetTag(index: number): string {
   return `에셋 ${index + 1}`;
-}
-
-function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
-  return list.map((a, i) => ({
-    url: a.url,
-    tag: a.tag,
-    public: true,
-    chat: true,
-    viewerBlur: typeof a.viewerBlur === "boolean" ? a.viewerBlur : i !== 0,
-    ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
-    ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
-    ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
-      ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
-      : {}),
-    ...(typeof a.width === "number" && a.width > 0 ? { width: a.width } : {}),
-    ...(typeof a.height === "number" && a.height > 0 ? { height: a.height } : {}),
-    ...(a.orientation ? { orientation: a.orientation } : {}),
-  }));
 }
 
 export default function CreateCharacter({
@@ -289,7 +272,7 @@ export default function CreateCharacter({
       participant_min_age: draft.form.participant_min_age ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
-    setAssets(normalizeManagedAssets(draft.assets));
+    setAssets(normalizeCharacterAssets(draft.assets));
     setSelectedWorldId(draft.selectedWorldId);
     setSelectedLorebookId(draft.selectedLorebookId);
     setPageTab(
@@ -374,7 +357,7 @@ export default function CreateCharacter({
   }
 
   function removeAsset(i: number) {
-    setAssets((a) => normalizeManagedAssets(a.filter((_, idx) => idx !== i)));
+    setAssets((a) => normalizeCharacterAssets(a.filter((_, idx) => idx !== i)));
   }
 
   async function uploadAssetBatch(
@@ -483,7 +466,7 @@ export default function CreateCharacter({
       });
       const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
       if (accepted.length > 0) {
-        setAssets((prev) => normalizeManagedAssets([...prev, ...accepted]));
+        setAssets((prev) => normalizeCharacterAssets([...prev, ...accepted]));
       }
       if (options.clearPendingFiles) setFiles([]);
       if (rejected.length > 0) {
@@ -585,7 +568,7 @@ export default function CreateCharacter({
         });
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
         setAssets(
-          normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
+          normalizeCharacterAssets(Array.isArray(data.assets) ? data.assets : []),
         );
         setVisualSubjects(
           data.simulation_visual_subjects
@@ -881,7 +864,7 @@ export default function CreateCharacter({
     setLoading(true);
     setError("");
 
-    const finalAssets = normalizeManagedAssets(assets);
+    const finalAssets = normalizeCharacterAssets(assets);
     const description = form.description.trim();
     const payload = {
       ...form,
@@ -1684,7 +1667,7 @@ export default function CreateCharacter({
                 <AssetManagerGrid
                   assets={assets}
                   allAges={!form.nsfw}
-                  onChange={(next) => setAssets(normalizeManagedAssets(next))}
+                  onChange={(next) => setAssets(normalizeCharacterAssets(next))}
                   onRemove={removeAsset}
                   visualSubjects={
                     form.content_kind === "simulation"

@@ -116,6 +116,15 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
   };
 }
 
+/** Creator/editor asset list normalization — single owner for metadata preservation. */
+export function normalizeCharacterAssets(
+  list: readonly Partial<CharacterAsset>[]
+): CharacterAsset[] {
+  return list
+    .filter((asset) => asset && typeof asset.url === "string" && typeof asset.tag === "string")
+    .map((asset, index) => normalizeAsset(asset, index));
+}
+
 /** 대표(인덱스 0)는 항상 비가림. 순서 변경·저장 직후 호출 */
 export function withRepresentativeAssetPublic(assets: CharacterAsset[]): CharacterAsset[] {
   if (assets.length === 0) return assets;
@@ -165,9 +174,7 @@ export function parseAssets(raw: string | null | undefined): CharacterAsset[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((a) => a && typeof a.url === "string" && typeof a.tag === "string")
-      .map((a, i) => normalizeAsset(a, i));
+    return normalizeCharacterAssets(parsed);
   } catch {
     return [];
   }
