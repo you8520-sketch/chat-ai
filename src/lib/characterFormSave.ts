@@ -289,6 +289,7 @@ export function parseCharacterFormBody(
   options?: {
     existingParticipantMinAge?: number | null;
     requireStructuredAge?: boolean;
+    trustedStoredSimulationVisualSubjectsJson?: string;
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
   if (!user.is_adult) {
@@ -484,12 +485,7 @@ export function parseCharacterFormBody(
         simulationCast,
         simulationTitle: name,
         submittedRaw: submittedSubjectsRaw,
-        storedRaw:
-          typeof b._stored_simulation_visual_subjects_json === "string"
-            ? b._stored_simulation_visual_subjects_json
-            : typeof b.stored_simulation_visual_subjects_json === "string"
-              ? b.stored_simulation_visual_subjects_json
-              : "",
+        storedRaw: options?.trustedStoredSimulationVisualSubjectsJson ?? "",
         assets: assetsRaw,
       });
     } catch (error) {
@@ -952,15 +948,10 @@ export async function updateCharacterFromForm(
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
 
-  const parsed = parseCharacterFormBody(
-    {
-      ...b,
-      stored_simulation_visual_subjects_json: row.simulation_visual_subjects_json,
-    },
-    user,
-    {
+  const parsed = parseCharacterFormBody(b, user, {
     existingParticipantMinAge: row.participant_min_age,
     requireStructuredAge: false,
+    trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
   });
   if (!parsed.ok) return parsed;
 
