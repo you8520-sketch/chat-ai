@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
-import { earlyVisibleHumanActionIds } from "@/lib/trpg/roundPresentation";
+import { preCinematicVisibleActionIds } from "@/lib/trpg/roundPresentation";
 import {
   trpgRevealCountForElapsed,
   trpgRevealTick,
@@ -284,8 +284,8 @@ export function resolveTrpgMountSeenKeys(opts: {
     }
 
     const visibleActions = row.actions.filter((action) => action.revealed && action.body.trim());
-    const earlyHumans = new Set(
-      earlyVisibleHumanActionIds(
+    const declaredVisible = new Set(
+      preCinematicVisibleActionIds(
         visibleActions.map((action) => ({
           participantId: action.participantId,
           kind: action.kind ?? "human",
@@ -295,7 +295,7 @@ export function resolveTrpgMountSeenKeys(opts: {
       )
     );
     for (const action of visibleActions) {
-      if (earlyHumans.has(action.participantId)) {
+      if (declaredVisible.has(action.participantId)) {
         keys.push(`a:${row.roundNumber}:${action.participantId}`);
       }
     }

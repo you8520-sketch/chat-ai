@@ -7,6 +7,7 @@ import {
   advanceAfterDiceDismiss,
   buildRoundPresentationActors,
   earlyVisibleHumanActionIds,
+  preCinematicVisibleActionIds,
   idlePresentation,
   isActorActionRevealBeatSatisfied,
   isLiveRoundPresentationReady,
@@ -117,14 +118,14 @@ function visibleSurface(opts: {
   gmText?: string;
   gmProseRevealing?: boolean;
 }) {
-  const earlyHumans = earlyVisibleHumanActionIds(opts.persisted.map(publicAction));
+  const preCinematicIds = preCinematicVisibleActionIds(opts.persisted.map(publicAction));
   const cinematicIds = revealedActorIds({ actors: opts.actors, state: opts.state });
   const visibleIds =
     resolveLiveRevealedActionIds({
       isLiveRow: true,
       mode: opts.state.mode,
       cinematicRevealedIds: cinematicIds,
-      earlyVisibleHumanIds: earlyHumans,
+      preCinematicVisibleIds: preCinematicIds,
     }) ?? [];
   const laneIds =
     opts.state.mode === "cinematic" ? resultLaneActorIds({ actors: opts.actors, state: opts.state }) : [];
@@ -136,9 +137,10 @@ function visibleSurface(opts: {
         kind: row.kind,
         participantId: row.actorId,
         activeRevealActorId: current?.actorId ?? null,
-        isFresh: true,
+        isFresh: !preCinematicIds.includes(row.actorId),
         skipDecorativeReveal: false,
         cinematicActorAction: opts.state.mode === "cinematic" && opts.state.phase === "actor-action",
+        resolutionActionAlreadyConsumed: preCinematicIds.includes(row.actorId),
       })
     )
     .map((row) => row.actorId);
@@ -193,6 +195,8 @@ function walkCinematicVisibleEvents(opts: {
   persisted: readonly FixtureAction[];
   phase?: string;
   gmText?: string;
+  preReadyVisibleDeclarationIds?: readonly number[];
+  /** @deprecated use preReadyVisibleDeclarationIds */
   preReadyVisibleHumanIds?: readonly number[];
 }): { events: VisibleEvent[]; frames: RoundPresentationState[] } {
   const actors = actorsFrom(opts.order, opts.persisted);
@@ -200,8 +204,11 @@ function walkCinematicVisibleEvents(opts: {
   const events: VisibleEvent[] = [];
   const frames: RoundPresentationState[] = [];
   const seenHumanAction = new Set<number>();
-  if (opts.preReadyVisibleHumanIds) {
-    for (const id of opts.preReadyVisibleHumanIds) {
+  const preDeclared = new Set(
+    opts.preReadyVisibleDeclarationIds ?? opts.preReadyVisibleHumanIds ?? []
+  );
+  for (const id of preDeclared) {
+    if (opts.persisted.some((row) => row.actorId === id && row.kind === "human")) {
       events.push(`human-action:${id}`);
       seenHumanAction.add(id);
     }
@@ -237,31 +244,47 @@ function walkCinematicVisibleEvents(opts: {
         );
         state = { ...state, ...advanceAfterActorAction({ actors, presentationIndex: state.presentationIndex }) };
       } else {
-        assert.equal(surface.decorativeIds.includes(current.actorId), true);
-        assert.equal(surface.diceActorId, null);
-        if (!seenAiAction.has(current.actorId)) {
-          events.push(`ai-action-progressive:${current.actorId}`);
-          seenAiAction.add(current.actorId);
+        const preDeclaredAi = preDeclared.has(current.actorId);
+        if (!preDeclaredAi) {
+          assert.equal(surface.decorativeIds.includes(current.actorId), true);
+          assert.equal(surface.diceActorId, null);
+          if (!seenAiAction.has(current.actorId)) {
+            events.push(`ai-action-progressive:${current.actorId}`);
+            seenAiAction.add(current.actorId);
+          }
+          assert.equal(
+            isActorActionRevealBeatSatisfied({
+              actionKind: "ai_character",
+              isFreshAiAction: true,
+              alreadyCompleted: false,
+              effectiveActorRevealComplete: false,
+            }),
+            false,
+            "dice cannot start before #628 complete"
+          );
+          assert.equal(
+            isActorActionRevealBeatSatisfied({
+              actionKind: "ai_character",
+              isFreshAiAction: true,
+              alreadyCompleted: false,
+              effectiveActorRevealComplete: true,
+            }),
+            true
+          );
+        } else {
+          assert.equal(surface.decorativeIds.includes(current.actorId), false);
+          assert.equal(
+            isActorActionRevealBeatSatisfied({
+              actionKind: "ai_character",
+              isFreshAiAction: true,
+              alreadyCompleted: false,
+              effectiveActorRevealComplete: false,
+              resolutionActionAlreadyConsumed: true,
+            }),
+            true,
+            "pre-declared AI skips decorative actor-action beat"
+          );
         }
-        assert.equal(
-          isActorActionRevealBeatSatisfied({
-            actionKind: "ai_character",
-            isFreshAiAction: true,
-            alreadyCompleted: false,
-            effectiveActorRevealComplete: false,
-          }),
-          false,
-          "dice cannot start before #628 complete"
-        );
-        assert.equal(
-          isActorActionRevealBeatSatisfied({
-            actionKind: "ai_character",
-            isFreshAiAction: true,
-            alreadyCompleted: false,
-            effectiveActorRevealComplete: true,
-          }),
-          true
-        );
         state = { ...state, ...advanceAfterActorAction({ actors, presentationIndex: state.presentationIndex }) };
         const after = visibleSurface({
           persisted: opts.persisted,
@@ -354,13 +377,13 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.equal((room.match(/shouldShowGmNarration\(/g) ?? []).length, 1, "NORMAL_GM_VISIBILITY_OWNER_COUNT");
     assert.doesNotMatch(room, /revealGateReleaseReason !== "watchdog"[\s\S]{0,180}phase: "complete"/);
     assert.match(room, /#509 Outcome B/);
-    assert.match(room, /earlyVisibleHumanActionIds/);
+    assert.match(room, /resolvePreCinematicDeclarationReveal/);
     assert.match(room, /resolveLiveRevealedActionIds/);
     assert.match(room, /resolveTrpgMountSeenKeys/);
     assert.doesNotMatch(presentation, /computeResolutionOrder/);
   });
 
-  it("T_NO_AI_PRE_READY: persisted AI stays hidden during BOT_ACTION", () => {
+  it("T_AI_DECLARATION_VISIBLE_DURING_BOT_ACTION: persisted AI companion visible before liveReady", () => {
     const persisted = [HUMAN_10, BOT_30_ATTACK];
     const actors = actorsFrom([10, 20, 30], persisted);
     const surface = visibleSurface({
@@ -370,12 +393,10 @@ describe("TRPG live round orchestration — single owner", () => {
       actors,
       phase: "BOT_ACTION",
     });
-    assert.deepEqual(surface.visibleIds, [10]);
+    assert.deepEqual(surface.visibleIds, [10, 30]);
     assert.deepEqual(surface.decorativeIds, []);
     assert.deepEqual(surface.laneIds, []);
     assert.equal(surface.gm, false);
-    assert.equal(surface.diceActorId, null);
-    assert.deepEqual(surface.judgeIds, []);
 
     const afterBot20 = visibleSurface({
       persisted: [HUMAN_10, BOT_30_ATTACK, BOT_20_TALK],
@@ -384,10 +405,9 @@ describe("TRPG live round orchestration — single owner", () => {
       actors: actorsFrom([10, 20, 30], [HUMAN_10, BOT_30_ATTACK, BOT_20_TALK]),
       phase: "BOT_ACTION",
     });
-    assert.deepEqual(afterBot20.visibleIds, [10]);
-    assert.equal(afterBot20.visibleIds.includes(20), false);
-    assert.equal(afterBot20.visibleIds.includes(30), false);
+    assert.deepEqual(afterBot20.visibleIds, [10, 30, 20]);
     assert.deepEqual(afterBot20.decorativeIds, []);
+    assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
   });
 
   it("T_FULL_ROUND_SINGLE_OWNER: resolutionOrder wins over arrival order", () => {
@@ -401,7 +421,7 @@ describe("TRPG live round orchestration — single owner", () => {
       actors: actorsFrom(order, persisted),
       phase: "BOT_ACTION",
     });
-    assert.deepEqual(pre.visibleIds, [10]);
+    assert.deepEqual(pre.visibleIds, [10, 30, 20]);
     assert.equal(pre.gm, false);
     assert.deepEqual(pre.laneIds, []);
 
@@ -411,25 +431,25 @@ describe("TRPG live round orchestration — single owner", () => {
       persisted,
       phase: "GENERATING_NARRATION",
       gmText: "장면",
-      preReadyVisibleHumanIds: [10],
+      preReadyVisibleDeclarationIds: [10, 20, 30],
     });
     assert.equal(events.filter((event) => event === "human-action:10").length, 1);
     assert.equal(events.includes("human-action-replay:10"), false);
+    assert.equal(events.includes("ai-action-progressive:20"), false);
+    assert.equal(events.includes("ai-action-progressive:30"), false);
     assert.deepEqual(events, [
       "human-action:10",
       "actor-dice:10",
       "actor-result:10",
       "judge-meta:10",
-      "ai-action-progressive:20",
       "no-roll-meta:20",
-      "ai-action-progressive:30",
       "actor-dice:30",
       "actor-result:30",
       "judge-meta:30",
       "gm",
     ]);
-    const ai30 = events.indexOf("ai-action-progressive:30");
-    const ai20 = events.indexOf("ai-action-progressive:20");
+    const ai30 = events.indexOf("actor-dice:30");
+    const ai20 = events.indexOf("no-roll-meta:20");
     const humanDice = events.indexOf("actor-dice:10");
     assert.ok(humanDice >= 0 && ai20 > humanDice && ai30 > humanDice);
     assert.ok(ai20 < ai30, "PERSISTENCE_ORDER_NOT_DISPLAY_ORDER");
@@ -446,22 +466,22 @@ describe("TRPG live round orchestration — single owner", () => {
       actors: actorsFrom(order, persisted),
       phase: "BOT_ACTION",
     });
-    assert.deepEqual(pre.visibleIds, [10], "human body visible pre-ready");
+    assert.deepEqual(pre.visibleIds, [10, 20, 30], "declaration-visible pre-ready");
 
     const { events, frames } = walkCinematicVisibleEvents({
       order,
       roster: persisted,
       persisted,
       gmText: "장면",
-      preReadyVisibleHumanIds: [10],
+      preReadyVisibleDeclarationIds: [10, 20, 30],
     });
     assert.equal(events.filter((event) => event === "human-action:10").length, 1);
     assert.equal(events[0], "human-action:10");
-    assert.equal(events[1], "ai-action-progressive:20");
+    assert.equal(events.includes("ai-action-progressive:20"), false);
     assert.equal(events.includes("human-action-replay:10"), false);
     const humanDice = events.indexOf("actor-dice:10");
-    const bot20 = events.indexOf("ai-action-progressive:20");
-    assert.ok(bot20 >= 0 && humanDice > bot20, "HUMAN_BODY_EARLY != HUMAN_RESULT_EARLY");
+    const bot20Meta = events.indexOf("no-roll-meta:20");
+    assert.ok(bot20Meta >= 0 && humanDice > bot20Meta, "HUMAN_BODY_EARLY != HUMAN_RESULT_EARLY");
     const first = frames[0]!;
     const firstSurface = visibleSurface({
       persisted,
@@ -471,17 +491,18 @@ describe("TRPG live round orchestration — single owner", () => {
     });
     assert.ok(firstSurface.visibleIds.includes(10), "human body stays visible");
     assert.ok(firstSurface.visibleIds.includes(20));
-    assert.equal(firstSurface.visibleIds.includes(30), false);
+    assert.ok(firstSurface.visibleIds.includes(30), "declaration-visible actors stay on screen");
     assert.equal(first.presentationIndex, 0);
     assert.equal(actorsFrom(order, persisted)[0]?.actorId, 20);
   });
 
-  it("T_AI_ATTACK: progressive reveal, then same-actor dice, then result", () => {
+  it("T_AI_ATTACK: pre-declared companion skips decorative reveal, then dice/result", () => {
     const roster = [BOT_30_ATTACK];
     const actors = actorsFrom([30], roster);
     let state: RoundPresentationState = { mode: "cinematic", ...startCinematicPresentation() };
     const duringAction = visibleSurface({ persisted: roster, liveReady: true, state, actors });
-    assert.deepEqual(duringAction.decorativeIds, [30]);
+    assert.deepEqual(duringAction.decorativeIds, [], "pre-declared AI skips decorative streaming");
+    assert.deepEqual(duringAction.visibleIds, [30]);
     assert.equal(duringAction.diceActorId, null);
     assert.deepEqual(duringAction.laneIds, []);
     state = { ...state, ...advanceAfterActorAction({ actors, presentationIndex: 0 }) };
@@ -538,7 +559,7 @@ describe("TRPG live round orchestration — single owner", () => {
     });
     assert.ok(surface.visibleIds.includes(10));
     assert.ok(surface.visibleIds.includes(20));
-    assert.equal(surface.visibleIds.includes(30), false);
+    assert.ok(surface.visibleIds.includes(30), "declaration-visible bot3 stays visible");
     assert.equal(surface.gm, false);
     assert.equal(surface.laneIds.includes(30), false);
     assert.equal(surface.status, "presenting");
@@ -634,7 +655,7 @@ describe("TRPG live round orchestration — single owner", () => {
       phase: "ROLLING",
       gmText: "장면",
     });
-    assert.deepEqual(first.visibleIds, [10]);
+    assert.deepEqual(first.visibleIds, [10, 20, 30]);
     assert.equal(first.gm, false);
     assert.deepEqual(first.laneIds, []);
     assert.deepEqual(first.decorativeIds, []);
@@ -697,7 +718,7 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.match(ownership, /tryClaimBotGeneration/);
   });
 
-  it("T_REFRESH_PRE_READY_HIDDEN_AI: refresh must not consume never-visible AI", () => {
+  it("T_REFRESH_PRE_READY_DECLARED_AI: refresh marks declared AI seen, no replay", () => {
     const log = [
       {
         roundNumber: 4,
@@ -718,10 +739,10 @@ describe("TRPG live round orchestration — single owner", () => {
     const isFreshLogKey = (key: string) => !seenKeys.has(key);
 
     assert.ok(seenKeys.has("a:4:10"), "human early visibility may be consumed on mount");
-    assert.equal(seenKeys.has("a:4:20"), false, "PRE_READY_HIDDEN_AI_MARKED_SEEN=false");
+    assert.ok(seenKeys.has("a:4:20"), "PRE_READY_DECLARED_AI_MARKED_SEEN=true");
 
     const botKey = "a:4:20";
-    assert.equal(isFreshLogKey(botKey), true);
+    assert.equal(isFreshLogKey(botKey), false);
     assert.equal(
       shouldDecorativeRevealAction({
         kind: "ai_character",
@@ -730,9 +751,10 @@ describe("TRPG live round orchestration — single owner", () => {
         isFresh: isFreshLogKey(botKey),
         skipDecorativeReveal: false,
         cinematicActorAction: true,
+        resolutionActionAlreadyConsumed: true,
       }),
-      true,
-      "BOT20_PROGRESSIVE_REVEAL_COUNT=1"
+      false,
+      "BOT20_PROGRESSIVE_REVEAL_COUNT=0"
     );
     assert.equal(
       isActorActionRevealBeatSatisfied({
@@ -740,18 +762,10 @@ describe("TRPG live round orchestration — single owner", () => {
         isFreshAiAction: isFreshLogKey(botKey),
         alreadyCompleted: false,
         effectiveActorRevealComplete: false,
+        resolutionActionAlreadyConsumed: true,
       }),
-      false,
-      "BOT20_ACTION_SKIP=false before #628"
-    );
-    assert.equal(
-      isActorActionRevealBeatSatisfied({
-        actionKind: "ai_character",
-        isFreshAiAction: isFreshLogKey(botKey),
-        alreadyCompleted: false,
-        effectiveActorRevealComplete: true,
-      }),
-      true
+      true,
+      "BOT20_ACTION_SKIP=true for pre-declared"
     );
 
     const actors = actorsFrom([10, 20], [HUMAN_10, BOT_20_TALK]);
@@ -790,7 +804,7 @@ describe("TRPG live round orchestration — single owner", () => {
       resolveTrpgMountSeenKeys({ log, currentRoundNumber: 4, liveReady: true })
     );
 
-    assert.equal(seenPreReady.has("a:4:20"), false);
+    assert.ok(seenPreReady.has("a:4:20"), "PRE_READY_DECLARED_AI_MARKED_SEEN=true");
     assert.ok(seenReady.has("a:4:20"), "READY_MOUNT_DOES_NOT_REPLAY via mount-consume");
     assert.ok(seenReady.has("n:4"));
 

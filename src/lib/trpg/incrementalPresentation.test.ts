@@ -6,6 +6,7 @@ import {
   earlyVisibleHumanActionIds,
   isLiveRoundPresentationReady,
   liveRoundCanonicalVisibleCount,
+  preCinematicVisibleActionIds,
   resolveLiveRevealedActionIds,
   revealedActorIds,
   shouldGateLiveRoundPresentation,
@@ -50,6 +51,7 @@ function simulateLivePresentationSteps(
     const decided = decideLiveRoundPresentation(snap);
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
     const earlyHumans = earlyVisibleHumanActionIds(actions);
+    const preCinematicIds = preCinematicVisibleActionIds(actions);
 
     if (!decided.ready) {
       roundShow = idlePresentation();
@@ -72,7 +74,7 @@ function simulateLivePresentationSteps(
       isLiveRow: true,
       mode: roundShow.mode,
       cinematicRevealedIds,
-      earlyVisibleHumanIds: earlyHumans,
+      preCinematicVisibleIds: preCinematicIds,
     });
 
     out.push({
@@ -143,7 +145,7 @@ describe("TRPG live pre-ready action visibility", () => {
     );
   });
 
-  it("T1: human + bot1 — only human visible before liveReady", () => {
+  it("T1: human + bot1 — bot1 visible on persist before liveReady", () => {
     const steps = simulateLivePresentationSteps([
       {
         label: "T0",
@@ -167,15 +169,15 @@ describe("TRPG live pre-ready action visibility", () => {
       },
     ]);
     const t1 = steps[1]!;
-    assert.deepEqual(t1.visibleActionIds, [10]);
-    assert.equal(t1.visibleActionIds.includes(20), false);
+    assert.deepEqual(t1.visibleActionIds, [10, 20]);
     assert.equal(t1.roundShow.mode, "idle");
     assert.equal(t1.gmVisible, false);
     assert.equal(t1.diceActive, false);
     assert.equal(t1.cinematicStarted, false);
+    assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
   });
 
-  it("T2: arrival of bot2 still cannot leak AI before ROLLING+", () => {
+  it("T2: bot2 persist adds bot2 while bot1 stays visible", () => {
     const steps = simulateLivePresentationSteps([
       {
         label: "T0",
@@ -203,11 +205,10 @@ describe("TRPG live pre-ready action visibility", () => {
       },
     ]);
     const t2 = steps[2]!;
-    assert.deepEqual(t2.visibleActionIds, [10]);
-    assert.equal(t2.visibleActionIds.includes(20), false);
-    assert.equal(t2.visibleActionIds.includes(30), false);
+    assert.deepEqual(t2.visibleActionIds, [10, 20, 30]);
     assert.equal(t2.gmVisible, false);
     assert.equal(t2.diceActive, false);
+    assert.equal(t2.roundShow.mode, "idle");
   });
 
   it("T3: rolls final — cinematic starts once, human stays, AI wait for release", () => {
@@ -230,7 +231,7 @@ describe("TRPG live pre-ready action visibility", () => {
     const [partial, rolling] = walked.steps;
     assert.equal(partial?.ready, false);
     assert.equal(partial?.mode, "idle");
-    assert.deepEqual(partial?.incrementalVisibleActionIds, [10]);
+    assert.deepEqual(partial?.incrementalVisibleActionIds, [10, 20, 30]);
     assert.equal(rolling?.ready, true);
     assert.equal(rolling?.mode, "cinematic");
     assert.equal(rolling?.started, true);
@@ -243,9 +244,9 @@ describe("TRPG live pre-ready action visibility", () => {
       isLiveRow: true,
       mode: startState.mode,
       cinematicRevealedIds: firstCinematic,
-      earlyVisibleHumanIds: [10],
+      preCinematicVisibleIds: [10, 20, 30],
     });
-    assert.deepEqual(firstVisible, [10], "human stays; AI not released yet");
+    assert.deepEqual(firstVisible, [10, 20, 30], "declaration-visible actors stay; resolution releases dice");
 
     const frames = walkCinematicPresentation(actors);
     assert.equal(frames.filter((frame) => frame.gmVisible).length, 1);
@@ -296,10 +297,12 @@ describe("TRPG live pre-ready action visibility", () => {
       },
     ]);
     assert.equal(walked.startCount, 0, "PARTIAL_BOT_SNAPSHOT_CANNOT_START_ACTOR_CINEMATIC");
+    assert.deepEqual(walked.steps[0]?.incrementalVisibleActionIds, [10]);
+    assert.deepEqual(walked.steps[1]?.incrementalVisibleActionIds, [10, 20]);
+    assert.deepEqual(walked.steps[2]?.incrementalVisibleActionIds, [10, 20, 30]);
     for (const step of walked.steps) {
       assert.equal(step.mode, "idle");
       assert.equal(step.ready, false);
-      assert.deepEqual(step.incrementalVisibleActionIds, [10]);
       assert.deepEqual(step.visibleCanonicalActionIds, []);
     }
   });
@@ -317,8 +320,8 @@ describe("TRPG live pre-ready action visibility", () => {
       isLiveRow: true,
       mode: roundShow.mode,
       cinematicRevealedIds: cinematicRevealed,
-      earlyVisibleHumanIds: [10],
+      preCinematicVisibleIds: [10, 20, 30],
     });
-    assert.deepEqual(resolved, [10]);
+    assert.deepEqual(resolved, [10, 20, 30]);
   });
 });
