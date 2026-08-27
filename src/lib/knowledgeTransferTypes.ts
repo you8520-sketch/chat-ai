@@ -34,6 +34,10 @@ export type PersonaSecretTransferAction = {
   transferType: KnowledgeTransferType;
   /** Server-assigned for user transfers; never trust client-chosen ids on public body. */
   sourceMessageId?: number;
+  /** Variant-scoped assistant provenance (authoritative S4 only). */
+  sourceAssistantMessageId?: number;
+  /** Variant-scoped generation sequence (authoritative S4 only). */
+  sourceGenerationSequence?: number;
   /** Server-generated action id for idempotency (authoritative path). */
   actionId?: string;
   /** Alias for authoritative internal event id → stored as actionId. */
@@ -50,6 +54,8 @@ export type KnowledgeTransferEventRow = {
   chat_id: number;
   turn_number: number;
   source_message_id: number | null;
+  source_assistant_message_id: number | null;
+  source_generation_sequence: number | null;
   persona_id: number;
   secret_id: string;
   sender_type: PersonaSecretObserverType;

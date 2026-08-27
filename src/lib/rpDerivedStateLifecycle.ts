@@ -16,6 +16,8 @@ import {
   deleteEpisodicMemoryFactsByAssistantMessageIds,
   replaceEpisodicMemoryFactsForCanonicalMutation,
 } from "@/lib/episodicMemoryFacts";
+import { generationSequenceForVariant } from "@/lib/messageAlternates";
+import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
 
 /** Generation statuses that may anchor canonical derived state. */
@@ -277,6 +279,10 @@ export type AtomicVariantSwitchInput = {
   __testThrowAfterEpisodic?: boolean;
   /** @internal test-only failure injection */
   __testThrowAfterTriggerSupersession?: boolean;
+  /** @internal test-only failure injection */
+  __testThrowAfterS4Activation?: boolean;
+  /** @internal test-only failure injection */
+  __testThrowAfterS4Reprojection?: boolean;
 };
 
 /**
@@ -351,6 +357,21 @@ export function executeVariantSwitchMutationCore(
   if (input.__testThrowAfterEpisodic) {
     throw new Error("TEST_THROW_AFTER_EPISODIC_REPLACE");
   }
+
+  const variants = JSON.parse(input.variantsJson) as Array<{
+    generationSequence?: number;
+  }>;
+  const selectedGenerationSequence = generationSequenceForVariant(
+    variants[input.variantIndex],
+    input.variantIndex
+  );
+  reconcileS4KnowledgeForVariantSwitch(db, {
+    chatId: input.chatId,
+    assistantMessageId: input.messageId,
+    selectedGenerationSequence,
+    __testThrowAfterActivation: input.__testThrowAfterS4Activation,
+    __testThrowAfterReprojection: input.__testThrowAfterS4Reprojection,
+  });
 }
 
 /**

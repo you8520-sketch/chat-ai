@@ -17,9 +17,12 @@ import {
 import { getChatObserver } from "@/lib/observerIdentity";
 import type { PersonaSecretKnowledgeState } from "@/lib/personaSecretDiscoveryTypes";
 import {
-  getObserverSecretKnowledge,
-  upsertObserverSecretKnowledge,
-} from "@/lib/personaSecretKnowledge";
+  finalizeVariantScopedTransferActivation,
+  isVariantScopedKnowledgeTransferAction,
+} from "@/lib/knowledgeTransferVariant";
+import { insertVariantScopedEvidenceActivation } from "@/lib/personaSecretEvidenceActivation";
+import { reprojectObserverSecretKnowledge } from "@/lib/personaSecretKnowledgeReprojection";
+import { getObserverSecretKnowledge } from "@/lib/personaSecretKnowledge";
 import { getPersonaSecretById } from "@/lib/personaSecrets";
 import { sanitizeRevealedFactForPrompt } from "@/lib/personaSecretReveal";
 import {
@@ -27,7 +30,6 @@ import {
   canObserveVisually,
   getActiveScenePresenceForObserver,
 } from "@/lib/scenePresence";
-import { knowledgeStateRank } from "@/lib/visualDiscoveryCatalog";
 
 const ALLOWED_SOURCES = new Set<KnowledgeTransferSource>([
   "USER_EXPLICIT_TRANSFER",
@@ -35,24 +37,22 @@ const ALLOWED_SOURCES = new Set<KnowledgeTransferSource>([
   "CREATOR_STRUCTURED_TRANSFER",
 ]);
 
-function resolveMergedState(
-  existing: PersonaSecretKnowledgeState | "UNKNOWN",
-  incoming: PersonaSecretKnowledgeState
-): PersonaSecretKnowledgeState {
-  if (knowledgeStateRank(incoming) > knowledgeStateRank(existing)) return incoming;
-  if (existing === "UNKNOWN") return incoming;
-  return existing === "CONFIRMED"
-    ? "CONFIRMED"
-    : existing === "SUSPECTED"
-      ? "SUSPECTED"
-      : incoming;
-}
-
 export function resolveKnowledgeTransferActionRef(opts: {
   sourceMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
+  sourceGenerationSequence?: number | null;
   actionId?: string | null;
   authoritativeEventId?: string | null;
 }): string | null {
+  if (
+    opts.sourceAssistantMessageId != null &&
+    Number.isFinite(opts.sourceAssistantMessageId) &&
+    opts.sourceGenerationSequence != null &&
+    Number.isInteger(opts.sourceGenerationSequence) &&
+    opts.sourceGenerationSequence >= 0
+  ) {
+    return `asst:${Math.floor(opts.sourceAssistantMessageId)}:g${opts.sourceGenerationSequence}`;
+  }
   if (opts.sourceMessageId != null && Number.isFinite(opts.sourceMessageId)) {
     return String(Math.floor(opts.sourceMessageId));
   }
@@ -68,6 +68,8 @@ export function buildKnowledgeTransferIdempotencyKey(opts: {
   receiverType: string;
   receiverId: string;
   sourceMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
+  sourceGenerationSequence?: number | null;
   actionId?: string | null;
   authoritativeEventId?: string | null;
   transferType: KnowledgeTransferType;
@@ -182,6 +184,8 @@ export function applyKnowledgeTransferAction(opts: {
 
   const actionRef = resolveKnowledgeTransferActionRef({
     sourceMessageId: action.sourceMessageId,
+    sourceAssistantMessageId: action.sourceAssistantMessageId,
+    sourceGenerationSequence: action.sourceGenerationSequence,
     actionId: action.actionId,
     authoritativeEventId: action.authoritativeEventId,
   });
@@ -271,6 +275,8 @@ export function applyKnowledgeTransferAction(opts: {
     receiverType,
     receiverId,
     sourceMessageId: action.sourceMessageId,
+    sourceAssistantMessageId: action.sourceAssistantMessageId,
+    sourceGenerationSequence: action.sourceGenerationSequence,
     actionId: action.actionId,
     authoritativeEventId: action.authoritativeEventId,
     transferType: action.transferType,
@@ -322,17 +328,20 @@ export function applyKnowledgeTransferAction(opts: {
     db.prepare(
       `INSERT INTO knowledge_transfer_events (
          id, idempotency_key, chat_id, turn_number, source_message_id,
+         source_assistant_message_id, source_generation_sequence,
          persona_id, secret_id,
          sender_type, sender_id, receiver_type, receiver_id,
          sender_state_snapshot, resulting_state, fact_snapshot,
          transfer_type, source_type, channel_type, evidence_json
-       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       transferEventId,
       idempotencyKey,
       opts.chatId,
       opts.turnNumber,
       action.sourceMessageId ?? null,
+      action.sourceAssistantMessageId ?? null,
+      action.sourceGenerationSequence ?? null,
       opts.personaId,
       action.secretId,
       senderType,
@@ -387,70 +396,39 @@ export function applyKnowledgeTransferAction(opts: {
       lastEvidenceEventId = existingEvidence?.id ?? evidenceId;
     }
 
-    const receiverKnowledge = getObserverSecretKnowledge({
-      chatId: opts.chatId,
-      personaId: opts.personaId,
-      secretId: action.secretId,
-      observerType: receiverType,
-      observerId: receiverId,
-      db,
-    });
-    const currentState: PersonaSecretKnowledgeState | "UNKNOWN" =
-      receiverKnowledge?.knowledge_state ?? "UNKNOWN";
-    const nextState = resolveMergedState(currentState, resultingState);
-
-    const knowledgeChanged =
-      !receiverKnowledge || receiverKnowledge.knowledge_state !== nextState;
-
-    if (
-      receiverKnowledge &&
-      receiverKnowledge.knowledge_state === nextState &&
-      knowledgeStateRank(currentState) >= knowledgeStateRank(resultingState)
-    ) {
-      result = {
-        ok: true,
-        changed: false,
-        transferEventId,
-        resultingState,
-        reason: "ALREADY_AT_LEAST",
-      };
-      return;
+    if (isVariantScopedKnowledgeTransferAction(action)) {
+      insertVariantScopedEvidenceActivation({
+        evidenceId: lastEvidenceEventId,
+        chatId: opts.chatId,
+        assistantMessageId: action.sourceAssistantMessageId!,
+        generationSequence: action.sourceGenerationSequence!,
+        isActive: false,
+        db,
+      });
+      finalizeVariantScopedTransferActivation(db, {
+        chatId: opts.chatId,
+        assistantMessageId: action.sourceAssistantMessageId!,
+        receiver: { observerType: receiverType, observerId: receiverId },
+        personaId: opts.personaId,
+        secretId: action.secretId,
+      });
     }
 
-    const storeFact =
-      receiverKnowledge?.knowledge_state === "CONFIRMED" &&
-      nextState === "CONFIRMED"
-        ? sanitizeRevealedFactForPrompt(receiverKnowledge.fact_snapshot) ||
-          factSnapshot
-        : factSnapshot;
-
-    upsertObserverSecretKnowledge({
+    const projected = reprojectObserverSecretKnowledge({
       chatId: opts.chatId,
       personaId: opts.personaId,
       secretId: action.secretId,
       observerType: receiverType,
       observerId: receiverId,
-      knowledgeState: nextState,
-      confidence: nextState === "CONFIRMED" ? 100 : 70,
-      factSnapshot: storeFact,
-      firstSuspectedTurn:
-        nextState === "SUSPECTED" || currentState === "UNKNOWN"
-          ? opts.turnNumber
-          : receiverKnowledge?.first_suspected_turn ?? opts.turnNumber,
-      confirmedTurn: nextState === "CONFIRMED" ? opts.turnNumber : null,
-      lastEvidenceEventId,
       db,
     });
-
-    // Provenance lives on knowledge_transfer_events + persona_secret_evidence_events
-    // (method KNOWLEDGE_TRANSFER). Do not write legacy chat_persona_secret_reveals
-    // with USER_AUTHORED_DISCLOSURE — that mislabels transfer success.
 
     result = {
       ok: true,
-      changed: knowledgeChanged,
+      changed: projected.changed,
       transferEventId,
-      resultingState: nextState,
+      resultingState:
+        projected.state === "UNKNOWN" ? resultingState : projected.state,
     };
   });
 

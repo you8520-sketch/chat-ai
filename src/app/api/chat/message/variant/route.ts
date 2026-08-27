@@ -22,6 +22,10 @@ import {
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
+  assertS4VariantSwitchAllowed,
+  S4HistoricalVariantReplayUnsupportedError,
+} from "@/lib/knowledgeTransferVariant";
+import {
   executeAtomicNumericVariantSwitch,
   listCanonicalEligibleNumericFields,
   NumericHistoricalVariantReplayUnsupportedError,
@@ -135,6 +139,26 @@ export async function PATCH(req: Request) {
 
   const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
   const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId);
+
+  try {
+    assertS4VariantSwitchAllowed(
+      db,
+      msg.chat_id,
+      messageId,
+      hasLaterCanonicalTurn(db, msg.chat_id, messageId)
+    );
+  } catch (e) {
+    if (e instanceof S4HistoricalVariantReplayUnsupportedError) {
+      return NextResponse.json(
+        {
+          error: "이후 대화가 있는 과거 턴의 S4 버전 전환은 지원하지 않습니다.",
+          code: e.code,
+        },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
 
   // ─── Numeric-enabled path (B1-D2) ───
   if (numericEligible) {
