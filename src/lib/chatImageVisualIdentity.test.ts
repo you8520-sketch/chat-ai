@@ -30,6 +30,7 @@ import {
   buildPartyIllustrationReferencePlan,
   canRevealChatImageAppearancePreview,
   defaultAppearanceMode,
+  extractExplicitVisualAppearanceSection,
   extractVisualAppearance,
   isPrimarySelectableImage,
   previewVisualAppearance,
@@ -80,6 +81,40 @@ describe("chat image visual identity", () => {
     assert.match(extracted, /5:5 가르마가 아니다/);
     assert.doesNotMatch(extracted, /중심 가르마를 한다/);
     assert.doesNotMatch(extracted, /is center-parted/);
+  });
+
+  it("extracts only an explicitly labeled appearance section", () => {
+    const extracted = extractExplicitVisualAppearanceSection(
+      [
+        "성격: 질투가 심함",
+        "외형: 블루블랙 머리카락, 붉은 눈, 큰 체격",
+        "말투: 무뚝뚝함",
+      ].join("\n")
+    );
+    assert.equal(extracted, "블루블랙 머리카락, 붉은 눈, 큰 체격");
+    assert.doesNotMatch(extracted, /질투|무뚝뚝/);
+  });
+
+  it("does not speculate about appearance without a supported heading", () => {
+    assert.equal(
+      extractExplicitVisualAppearanceSection("김태환은 과묵하고 쉽게 마음을 열지 않는다."),
+      ""
+    );
+  });
+
+  it("supports appearance aliases and stops at nonvisual headings", () => {
+    assert.equal(
+      extractExplicitVisualAppearanceSection(
+        "Looks: short silver hair\npale skin\nRelationship: longtime rival"
+      ),
+      "short silver hair\npale skin"
+    );
+    assert.equal(
+      extractExplicitVisualAppearanceSection(
+        "외모 특징: 짧은 검은 머리\n왼쪽 눈썹 흉터\n배경: 연구소 출신"
+      ),
+      "짧은 검은 머리\n왼쪽 눈썹 흉터"
+    );
   });
 
   it("uses one extractor for persona and character sources", () => {

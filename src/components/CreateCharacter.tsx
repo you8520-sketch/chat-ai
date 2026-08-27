@@ -18,7 +18,6 @@ import {
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
-import SimulationVisualSubjectEditor from "@/components/SimulationVisualSubjectEditor";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
@@ -502,10 +501,6 @@ export default function CreateCharacter({
     await uploadAssetBatch(files, { clearPendingFiles: true });
   }
 
-  async function uploadAssetsForSubject(subjectFiles: File[], subjectKey: string) {
-    await uploadAssetBatch(subjectFiles, { visualSubjectKey: subjectKey });
-  }
-
   function removeFile(i: number) {
     setFiles((f) => f.filter((_, idx) => idx !== i));
   }
@@ -800,7 +795,7 @@ export default function CreateCharacter({
       return;
     }
     if (!promptUnchangedForEdit && form.content_kind === "simulation" && !form.simulation_cast.trim()) {
-      setError("등장 캐릭터 설정을 입력해 주세요.");
+      setError("캐릭터 설정을 입력해 주세요.");
       return;
     }
     if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
@@ -1441,9 +1436,14 @@ export default function CreateCharacter({
               </div>
               </> : <>
                 <div>
-                  <label className={label}>등장 캐릭터 설정 *</label>
+                  <label className={label}>캐릭터 설정 *</label>
                   <p className="mb-1 text-xs leading-relaxed text-zinc-400">
-                    캐릭터를 따로 등록할 필요 없이 이름·성격·말투·목표·관계를 원하는 형식으로 이어서 작성하세요.
+                    캐릭터를 따로 등록할 필요 없이 이름, 외형, 성격, 말투, 관계,
+                    배경(과거) 등을 원하는 형식으로 작성하세요.
+                    <span className="mt-1 block text-zinc-300">
+                      이미지 생성에는 &apos;외형:&apos; / &apos;외모:&apos; /
+                      &apos;외관:&apos;처럼 적은 내용을 우선 참고합니다.
+                    </span>
                   </p>
                   <textarea
                     required
@@ -1463,31 +1463,6 @@ export default function CreateCharacter({
                     </button>
                   )}
                 </div>
-
-                <div>
-                  <label className={label}>시뮬레이션 추가 규칙</label>
-                  <p className="mb-1 text-xs text-zinc-400">
-                    장면 전환, 사건 발생, 승패 처리처럼 전체 진행에만 적용할 규칙입니다.
-                  </p>
-                  <textarea
-                    rows={6}
-                    className={cls}
-                    placeholder="예: 인물은 자신이 직접 알게 된 정보만 사용한다. 위험은 유저에게 유리하게 자동 해결하지 않는다."
-                    value={form.simulation_rules}
-                    onChange={(e) => setForm({ ...form, simulation_rules: e.target.value })}
-                  />
-                </div>
-
-                <SimulationVisualSubjectEditor
-                  simulationTitle={form.name}
-                  simulationCast={form.simulation_cast}
-                  assets={assets}
-                  visualSubjects={visualSubjects}
-                  onVisualSubjectsChange={setVisualSubjects}
-                  onAssetsChange={(next) => setAssets(normalizeManagedAssets(next))}
-                  onUploadBatch={uploadAssetsForSubject}
-                  uploading={loading}
-                />
 
                 <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <div>
@@ -1711,9 +1686,37 @@ export default function CreateCharacter({
                   allAges={!form.nsfw}
                   onChange={(next) => setAssets(normalizeManagedAssets(next))}
                   onRemove={removeAsset}
+                  visualSubjects={
+                    form.content_kind === "simulation"
+                      ? visualSubjects.subjects
+                      : undefined
+                  }
                 />
               )}
             </section>
+
+            {form.content_kind === "simulation" && (
+              <details className={sectionMuted}>
+                <summary className="cursor-pointer text-sm font-semibold text-zinc-200">
+                  고급 진행 규칙
+                </summary>
+                <div className="mt-3">
+                  <p className="mb-2 text-xs text-zinc-400">
+                    보통은 비워도 됩니다. 시뮬레이션 전체 진행에만 적용할 특별 규칙이
+                    있을 때 사용하세요.
+                  </p>
+                  <textarea
+                    rows={5}
+                    className={cls}
+                    placeholder="예: 인물은 자신이 직접 알게 된 정보만 사용한다."
+                    value={form.simulation_rules}
+                    onChange={(event) =>
+                      setForm({ ...form, simulation_rules: event.target.value })
+                    }
+                  />
+                </div>
+              </details>
+            )}
 
             {/* 3. 부가 설정 (비공개) */}
             {form.content_kind === "character" && (

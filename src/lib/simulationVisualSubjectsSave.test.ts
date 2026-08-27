@@ -115,7 +115,7 @@ describe("simulation visual subjects save boundary", () => {
     if (!parsed.ok) throw new Error(parsed.error);
     const saved = parseSimulationVisualSubjectsJson(parsed.data.simulationVisualSubjectsJson);
     assert.equal(saved.subjects[0]?.subjectKey, storedKey);
-    assert.equal(saved.subjects[0]?.savedAppearance, "회색 눈");
+    assert.equal(saved.subjects[0]?.savedAppearance, "검은 머리");
   });
 
   it("ignores fake stored orphan fields on create", () => {
@@ -174,5 +174,32 @@ describe("simulation visual subjects save boundary", () => {
     const saved = parseSimulationVisualSubjectsJson(parsed.data.simulationVisualSubjectsJson);
     assert.deepEqual(saved.subjects.map((subject) => subject.name), ["이현"]);
     assert.equal(saved.subjects[0]?.subjectKey, activeKey);
+  });
+
+  it("preserves advanced simulation rules through the save boundary", () => {
+    const rules = "각 인물은 자신이 직접 확인한 정보만 사용한다.";
+    const parsed = parseCharacterFormBody(
+      simulationBody({
+        simulation_rules: rules,
+        assets: [{ url: "/uploads/a.webp", tag: "표정" }],
+        simulation_visual_subjects: {
+          version: 1,
+          subjects: [
+            {
+              subjectKey: createSimulationVisualSubjectKey(),
+              name: "이현",
+              savedAppearance: "",
+              representativeAssetUrl: null,
+              sourceCharacterId: null,
+            },
+          ],
+        },
+      }),
+      adultCreator
+    );
+    assert.equal(parsed.ok, true, parsed.ok ? undefined : parsed.error);
+    if (!parsed.ok) throw new Error(parsed.error);
+    assert.equal(parsed.data.simulationRules, rules);
+    assert.match(parsed.data.systemPrompt, new RegExp(rules));
   });
 });

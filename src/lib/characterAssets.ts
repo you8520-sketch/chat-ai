@@ -123,6 +123,43 @@ export function withRepresentativeAssetPublic(assets: CharacterAsset[]): Charact
   return assets.map((a, i) => (i === 0 ? { ...a, viewerBlur: false } : a));
 }
 
+export function reorderCharacterAssets(
+  assets: CharacterAsset[],
+  from: number,
+  to: number
+): CharacterAsset[] {
+  if (from === to || from < 0 || to < 0 || from >= assets.length || to >= assets.length) {
+    return assets;
+  }
+  const next = [...assets];
+  const [item] = next.splice(from, 1);
+  if (!item) return assets;
+  next.splice(to, 0, item);
+  return withRepresentativeAssetPublic(next);
+}
+
+export function updateCharacterAssetTag(
+  assets: CharacterAsset[],
+  index: number,
+  tag: string
+): CharacterAsset[] {
+  return assets.map((asset, assetIndex) =>
+    assetIndex === index ? { ...asset, tag } : asset
+  );
+}
+
+export function toggleCharacterAssetViewerBlur(
+  assets: CharacterAsset[],
+  index: number
+): CharacterAsset[] {
+  if (index === 0 || index < 0 || index >= assets.length) return assets;
+  return withRepresentativeAssetPublic(
+    assets.map((asset, assetIndex) =>
+      assetIndex === index ? { ...asset, viewerBlur: !asset.viewerBlur } : asset
+    )
+  );
+}
+
 export function parseAssets(raw: string | null | undefined): CharacterAsset[] {
   if (!raw) return [];
   try {

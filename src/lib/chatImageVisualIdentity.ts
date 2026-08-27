@@ -43,6 +43,12 @@ const SHORT_KO_VISUAL_RE = new RegExp(
 
 const CLAUSE_SPLIT =
   /\n+|(?<=[.!?。！？])\s+|,\s*|;\s+|이며\s*|이고\s*|하지만\s*|그리고\s+/;
+const EXPLICIT_APPEARANCE_HEADING =
+  /^(?:[-*]\s*)?(?:외형|외모|외관|생김새)(?:\s*특징)?\s*[:：]\s*(.*)$/i;
+const EXPLICIT_APPEARANCE_ENGLISH_HEADING =
+  /^(?:[-*]\s*)?(?:appearance|looks)\s*[:：]\s*(.*)$/i;
+const KNOWN_CHARACTER_SETTING_HEADING =
+  /^(?:[-*]\s*)?(?:외형|외모|외관|생김새)(?:\s*특징)?\s*[:：]|^(?:[-*]\s*)?(?:appearance|looks|성격|말투|관계|배경|과거|역할|목표|비밀|직업|나이|이름|캐릭터명|인물명)\s*[:：]/i;
 
 export const CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR =
   "파티 구성원 참조 이미지가 없습니다. 채팅 캐릭터나 페르소나 사진을 대신 쓰지 않습니다. 최소 1명의 참조 사진을 선택한 뒤 다시 시도해 주세요.";
@@ -84,6 +90,33 @@ export function extractVisualAppearance(source: unknown): string {
     .map((segment) => segment.trim())
     .filter((segment) => segment && clauseLooksVisual(segment));
   return segments.join("\n").slice(0, CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX).trim();
+}
+
+/**
+ * Extracts only an explicitly labeled appearance section from one character's
+ * free-form settings. It intentionally performs no inference when no heading exists.
+ */
+export function extractExplicitVisualAppearanceSection(source: unknown): string {
+  const lines = String(source ?? "").replace(/\r\n?/g, "\n").split("\n");
+  const collected: string[] = [];
+  let collecting = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const appearance =
+      line.match(EXPLICIT_APPEARANCE_HEADING) ??
+      line.match(EXPLICIT_APPEARANCE_ENGLISH_HEADING);
+    if (appearance) {
+      if (collecting) break;
+      collecting = true;
+      if (appearance[1]?.trim()) collected.push(appearance[1].trim());
+      continue;
+    }
+    if (!collecting) continue;
+    if (KNOWN_CHARACTER_SETTING_HEADING.test(line)) break;
+    if (line) collected.push(line.replace(/^[-*]\s*/, "").trim());
+  }
+  if (!collecting) return "";
+  return clipSavedAppearanceForPrompt(collected.join("\n"));
 }
 
 const COMPILED_APPEARANCE_FIELDS = [

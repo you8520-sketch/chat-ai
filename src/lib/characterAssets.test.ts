@@ -6,6 +6,9 @@ import {
   isPortraitDisplayAsset,
   isWideInlineAsset,
   parseAssets,
+  reorderCharacterAssets,
+  toggleCharacterAssetViewerBlur,
+  updateCharacterAssetTag,
   withAssetSize,
 } from "@/lib/characterAssets";
 
@@ -41,5 +44,24 @@ describe("asset orientation", () => {
     ];
     const def = getDefaultChatAsset(assets);
     assert.equal(def?.url, "/tall.webp");
+  });
+});
+
+describe("asset management metadata preservation", () => {
+  it("preserves visualSubjectKey through tag, reorder, blur, and JSON roundtrip", () => {
+    const subjectKey = "simvis_123e4567-e89b-42d3-a456-426614174000";
+    let assets = [
+      { url: "/a.webp", tag: "기본", visualSubjectKey: subjectKey, viewerBlur: false },
+      { url: "/b.webp", tag: "미소", visualSubjectKey: subjectKey, viewerBlur: true },
+    ];
+    assets = updateCharacterAssetTag(assets, 1, "전투");
+    assets = toggleCharacterAssetViewerBlur(assets, 1);
+    assets = reorderCharacterAssets(assets, 1, 0);
+    assert.equal(assets[0]?.visualSubjectKey, subjectKey);
+    assert.equal(assets[0]?.tag, "전투");
+    assert.equal(assets[0]?.viewerBlur, false);
+
+    const reloaded = parseAssets(JSON.stringify(assets));
+    assert.equal(reloaded.every((asset) => asset.visualSubjectKey === subjectKey), true);
   });
 });
