@@ -305,48 +305,54 @@ snap(
   bindBound.referenceUrls
 );
 
-const reorderIntent = applyUserCastEdits(
-  applyUserCastEdits(
+const reorderBase: ChatImageCastIntentManifest = {
+  compositionGoal: "trio_group",
+  subjects: [
     {
-      compositionGoal: "trio_group",
-      subjects: [
-        {
-          key: "persona",
-          role: "persona",
-          name: "UserPersona",
-          included: true,
-          importance: "primary",
-          visibility: "required_visible",
-        },
-        {
-          key: "main_character",
-          role: "main_character",
-          name: "CharacterA",
-          included: true,
-          importance: "primary",
-          visibility: "required_visible",
-        },
-        {
-          key: "supporting:A",
-          role: "supporting_character",
-          name: "SupportA",
-          included: true,
-          importance: "secondary",
-          visibility: "preferred_visible",
-          requestedReferenceAssetUrl: "/synthetic/support-a.webp",
-        },
-      ],
+      key: "persona",
+      role: "persona",
+      name: "UserPersona",
+      included: true,
+      importance: "primary",
+      visibility: "required_visible",
     },
-    "supporting:A",
-    { importance: "primary" }
-  ),
-  "main_character",
-  { importance: "background" }
+    {
+      key: "main_character",
+      role: "main_character",
+      name: "CharacterA",
+      included: true,
+      importance: "primary",
+      visibility: "required_visible",
+    },
+    {
+      key: "supporting:A",
+      role: "supporting_character",
+      name: "SupportA",
+      included: true,
+      importance: "primary",
+      visibility: "required_visible",
+      requestedReferenceAssetUrl: "/synthetic/support-a.webp",
+    },
+    {
+      key: "supporting:B",
+      role: "supporting_character",
+      name: "SupportB",
+      included: true,
+      importance: "secondary",
+      visibility: "preferred_visible",
+      requestedReferenceAssetUrl: "/synthetic/asset-b.webp",
+    },
+  ],
+};
+const reorderIntent = applyUserCastEdits(
+  applyUserCastEdits(reorderBase, "supporting:A", { importance: "secondary" }),
+  "supporting:B",
+  { importance: "primary" }
 );
 const reorder = mustGround(reorderIntent, ctx);
 const reorderBound = bindApprovedCastManifest(reorder);
 snap(
-  "8. Importance reorder reference order",
+  "8. Supporting importance reorder reference order",
   renderApprovedCastManifest({
     manifest: reorder,
     selected: reorderBound.selected,

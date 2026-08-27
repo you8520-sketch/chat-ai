@@ -104,7 +104,7 @@ export default function ChatImageCastPicker({
                       <span className="text-[10px] font-semibold text-zinc-500">노출</span>
                       <select
                         value={subject.visibility}
-                        disabled={disabled}
+                        disabled={disabled || subject.role !== "supporting_character"}
                         onChange={(event) =>
                           onChange(
                             applyUserCastEdits(manifest, subject.key, {

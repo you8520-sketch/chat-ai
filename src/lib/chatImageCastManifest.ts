@@ -95,6 +95,145 @@ export type GroundCastContext = {
   selectableAssets: readonly SelectableCastAsset[];
 };
 
+const CORE_CAST_KEYS = new Set(["persona", "main_character"]);
+
+export function hasTrustedIdentityEvidence(
+  subject: ChatImageCastGroundedSubject
+): boolean {
+  if (cleanUrl(subject.referenceImageUrl)) return true;
+  if (
+    subject.role !== "supporting_character" &&
+    String(subject.savedAppearance ?? "").trim()
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function normalizeCastIntentCore(
+  intent: ChatImageCastIntentManifest
+): { ok: true; intent: ChatImageCastIntentManifest } | { ok: false; reason: string } {
+  const keys = new Set<string>();
+  let personaCount = 0;
+  let mainCount = 0;
+
+  for (const subject of intent.subjects) {
+    if (keys.has(subject.key)) {
+      return { ok: false, reason: "duplicate cast key" };
+    }
+    keys.add(subject.key);
+    if (
+      (subject.key === "persona" && subject.role !== "persona") ||
+      (subject.key === "main_character" && subject.role !== "main_character")
+    ) {
+      return { ok: false, reason: "cast key conflicts with core role" };
+    }
+    if (
+      CORE_CAST_KEYS.has(subject.key) &&
+      subject.role === "supporting_character"
+    ) {
+      return { ok: false, reason: "cast key conflicts with core role" };
+    }
+    if (subject.role === "persona") personaCount += 1;
+    if (subject.role === "main_character") mainCount += 1;
+  }
+
+  if (personaCount !== 1) {
+    return {
+      ok: false,
+      reason: personaCount === 0 ? "persona missing" : "duplicate persona role",
+    };
+  }
+  if (mainCount !== 1) {
+    return {
+      ok: false,
+      reason:
+        mainCount === 0 ? "main character missing" : "duplicate main character role",
+    };
+  }
+
+  const normalizedSubjects = intent.subjects.map((subject) => {
+    if (subject.role === "persona") {
+      return {
+        ...subject,
+        key: "persona",
+        included: true,
+        importance: "primary" as const,
+        visibility: "required_visible" as const,
+      };
+    }
+    if (subject.role === "main_character") {
+      return {
+        ...subject,
+        key: "main_character",
+        included: true,
+        importance: "primary" as const,
+        visibility: "required_visible" as const,
+      };
+    }
+    return subject;
+  });
+
+  const selectedCount = normalizedSubjects.filter(
+    (subject) => subject.included && cleanText(subject.name)
+  ).length;
+  let supportingPrimaryCount = 0;
+  const cappedSubjects =
+    selectedCount >= 4
+      ? normalizedSubjects.map((subject) => {
+          if (subject.role !== "supporting_character" || !subject.included) {
+            return subject;
+          }
+          if (subject.importance !== "primary") return subject;
+          supportingPrimaryCount += 1;
+          if (supportingPrimaryCount <= 1) return subject;
+          return { ...subject, importance: "secondary" as const };
+        })
+      : normalizedSubjects;
+
+  return {
+    ok: true,
+    intent: {
+      compositionGoal: intent.compositionGoal,
+      subjects: cappedSubjects,
+    },
+  };
+}
+
+function canonicalCastSelectionOrder(
+  subjects: readonly ChatImageCastGroundedSubject[]
+): ChatImageCastGroundedSubject[] {
+  const included = subjects.filter((subject) => subject.included && subject.name);
+  const persona = included.find((subject) => subject.role === "persona");
+  const main = included.find((subject) => subject.role === "main_character");
+  const supporting = included
+    .filter((subject) => subject.role === "supporting_character")
+    .sort((left, right) => IMPORTANCE_RANK[left.importance] - IMPORTANCE_RANK[right.importance]);
+  return [persona, main, ...supporting].filter(
+    (subject): subject is ChatImageCastGroundedSubject => Boolean(subject)
+  );
+}
+
+function resolveReferenceAttachment(
+  subject: ChatImageCastGroundedSubject,
+  selectedCount: number,
+  identityRefsUsed: number
+): { attach: boolean; nextRefsUsed: number } {
+  const url = cleanUrl(subject.referenceImageUrl);
+  if (!url) return { attach: false, nextRefsUsed: identityRefsUsed };
+  const isCore = subject.role === "persona" || subject.role === "main_character";
+  if (isCore) {
+    return { attach: true, nextRefsUsed: identityRefsUsed + 1 };
+  }
+  if (subject.importance === "background") {
+    return { attach: false, nextRefsUsed: identityRefsUsed };
+  }
+  if (selectedCount >= 4 && identityRefsUsed >= CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP) {
+    return { attach: false, nextRefsUsed: identityRefsUsed };
+  }
+  return { attach: true, nextRefsUsed: identityRefsUsed + 1 };
+}
+
 const IMPORTANCE_RANK: Record<ChatImageCastImportance, number> = {
   primary: 0,
   secondary: 1,
@@ -139,23 +278,23 @@ function groundedCoreSubject(
   if (intent.role === "persona") {
     const savedAppearance = String(ctx.persona.savedAppearance ?? "").trim() || undefined;
     return {
-      key: intent.key || "persona",
+      key: "persona",
       role: "persona",
       name: cleanText(ctx.persona.name) || intent.name,
       gender: ctx.persona.gender,
       referenceImageUrl: cleanUrl(ctx.persona.referenceImageUrl) || undefined,
       savedAppearance,
       appearanceMode: ctx.persona.appearanceMode ?? (savedAppearance ? "image_plus_saved" : "image_only"),
-      importance: intent.importance,
-      visibility: intent.visibility,
+      importance: "primary",
+      visibility: "required_visible",
       sourceKind: "persona",
-      included: intent.included,
+      included: true,
     };
   }
   if (intent.role === "main_character") {
     const savedAppearance = String(ctx.mainCharacter.savedAppearance ?? "").trim() || undefined;
     return {
-      key: intent.key || "main_character",
+      key: "main_character",
       role: "main_character",
       name: cleanText(ctx.mainCharacter.name) || intent.name,
       gender: ctx.mainCharacter.gender,
@@ -163,10 +302,10 @@ function groundedCoreSubject(
       savedAppearance,
       appearanceMode:
         ctx.mainCharacter.appearanceMode ?? (savedAppearance ? "image_plus_saved" : "image_only"),
-      importance: intent.importance,
-      visibility: intent.visibility,
+      importance: "primary",
+      visibility: "required_visible",
       sourceKind: "main_character",
-      included: intent.included,
+      included: true,
     };
   }
   const trustedUrl = whitelistAssetUrl(intent.requestedReferenceAssetUrl, ctx.selectableAssets);
@@ -210,15 +349,21 @@ export function buildEventBindingsFromCastMentions(
 }
 
 export function prepareCastIntentForGrounding(
+  intent: ChatImageCastIntentManifest
+): ChatImageCastIntentManifest {
+  const normalized = normalizeCastIntentCore(intent);
+  if (!normalized.ok) {
+    throw new Error(normalized.reason);
+  }
+  return normalized.intent;
+}
+
+export function resolveCastEventBindings(
   intent: ChatImageCastIntentManifest,
   plan?: ScenePlan
-): ChatImageCastIntentManifest {
-  const normalized = normalizeCastPrimaryCap(intent);
-  if (normalized.eventSubjectBindings?.length || !plan) return normalized;
-  return {
-    ...normalized,
-    eventSubjectBindings: buildEventBindingsFromCastMentions(plan, normalized),
-  };
+): SceneEventSubjectBinding[] {
+  if (!plan) return [];
+  return buildEventBindingsFromCastMentions(plan, intent);
 }
 
 export function groundCastIntent(
@@ -226,7 +371,9 @@ export function groundCastIntent(
   ctx: GroundCastContext,
   plan?: ScenePlan
 ): GroundCastResult {
-  const normalized = prepareCastIntentForGrounding(intent, plan);
+  const core = normalizeCastIntentCore(intent);
+  if (!core.ok) return core;
+  const normalized = core.intent;
   const subjects = normalized.subjects.map((subject) => groundedCoreSubject(subject, ctx));
 
   for (const intentSubject of normalized.subjects) {
@@ -264,7 +411,7 @@ export function groundCastIntent(
   }
 
   const bindings = validateEventSubjectBindings(
-    normalized.eventSubjectBindings ?? [],
+    resolveCastEventBindings(normalized, plan),
     plan,
     subjects
   );
@@ -309,18 +456,41 @@ export function validateEventSubjectBindings(
   return { ok: true, bindings: validated };
 }
 
-function shouldAttachReference(
+function castSubjectFidelityLine(
   subject: ChatImageCastGroundedSubject,
-  selectedCount: number,
-  refsAttached: number
-): boolean {
-  const url = cleanUrl(subject.referenceImageUrl);
-  if (!url) return false;
-  if (subject.importance === "background") return false;
-  if (selectedCount >= 4 && refsAttached >= CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP) {
-    return false;
+  selectedCount: number
+): string {
+  const name = subject.name;
+  if (!hasTrustedIdentityEvidence(subject)) {
+    return `- ${name}: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: ${subject.visibility}.`;
   }
-  return true;
+  if (selectedCount >= 4) {
+    if (
+      subject.role === "persona" ||
+      subject.role === "main_character" ||
+      subject.importance === "primary"
+    ) {
+      return `- ${name}: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: ${subject.visibility}.`;
+    }
+    if (subject.importance === "secondary") {
+      return `- ${name}: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: ${subject.visibility}.`;
+    }
+    return `- ${name}: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: ${subject.visibility}.`;
+  }
+  return `- ${name}: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: ${subject.visibility}.`;
+}
+
+function castSubjectImageLine(
+  castSubject: ChatImageCastGroundedSubject,
+  visual: ChatImageVisualSubject | undefined
+): string {
+  if (visual?.referenceIndex != null) {
+    return `Image ${visual.referenceIndex} belongs ONLY to ${castSubject.name}`;
+  }
+  if (hasTrustedIdentityEvidence(castSubject)) {
+    return "No photo attached — use saved appearance only. Do not borrow another subject's picture.";
+  }
+  return "No identity reference available — background/cameo only. Do not borrow another subject's picture.";
 }
 
 function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVisualSubject {
@@ -346,18 +516,20 @@ export function bindApprovedCastManifest(
   referenceUrls: string[];
   selected: ChatImageCastGroundedSubject[];
 } {
-  const selected = manifest.subjects
-    .filter((subject) => subject.included && subject.name)
-    .slice()
-    .sort((left, right) => IMPORTANCE_RANK[left.importance] - IMPORTANCE_RANK[right.importance]);
+  const selected = canonicalCastSelectionOrder(manifest.subjects);
+  const selectedCount = selected.length;
 
-  let refsAttached = 0;
+  let identityRefsUsed = 0;
   const visualInput = selected.map((subject) => {
-    const attach = shouldAttachReference(subject, selected.length, refsAttached);
+    const { attach, nextRefsUsed } = resolveReferenceAttachment(
+      subject,
+      selectedCount,
+      identityRefsUsed
+    );
+    identityRefsUsed = nextRefsUsed;
     const nextSubject = attach
       ? subject
       : { ...subject, referenceImageUrl: undefined };
-    if (attach && cleanUrl(nextSubject.referenceImageUrl)) refsAttached += 1;
     return castSubjectToVisual(nextSubject);
   });
 
@@ -377,24 +549,12 @@ export function renderCastFidelityTiers(
   selected: readonly ChatImageCastGroundedSubject[]
 ): string {
   const count = selected.length;
-  const lines = selected.map((subject) => {
-    const name = subject.name;
-    if (count <= CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP) {
-      return `- ${name}: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: ${subject.visibility}.`;
-    }
-    if (subject.importance === "primary") {
-      return `- ${name}: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: ${subject.visibility}.`;
-    }
-    if (subject.importance === "secondary") {
-      return `- ${name}: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: ${subject.visibility}.`;
-    }
-    return `- ${name}: BACKGROUND / CAMEO. Presence only; exact facial detail is not guaranteed. Own reference only. Visibility: ${subject.visibility}.`;
-  });
+  const lines = selected.map((subject) => castSubjectFidelityLine(subject, count));
   return [
     "CAST FIDELITY TIERS — do not promise equal detail for every person.",
     count >= 4
-      ? `Four or more people: guarantee exact identity for at most ${CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP}. Others are support/cameo.`
-      : "Two or three people: every listed person is high fidelity and must stay visually distinct.",
+      ? `Four or more people: guarantee exact identity for at most ${CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP} subjects with trusted identity evidence.`
+      : "Subjects with trusted identity evidence must stay visually distinct.",
     ...lines,
   ].join("\n");
 }
@@ -461,10 +621,7 @@ export function renderApprovedCastManifest(opts: {
     "APPROVED CAST MANIFEST",
     ...opts.selected.map((castSubject, index) => {
       const visual = subjectByKey.get(castSubject.key) ?? opts.subjects[index];
-      const image =
-        visual?.referenceIndex != null
-          ? `Image ${visual.referenceIndex} belongs ONLY to ${castSubject.name}`
-          : "No photo — background/cameo only. Do not borrow another subject's picture.";
+      const image = castSubjectImageLine(castSubject, visual);
       return [
         `${index + 1}. ${castSubject.name} (${visualRole(castSubject.role)})`,
         `importance=${castSubject.importance}; visibility=${castSubject.visibility}`,

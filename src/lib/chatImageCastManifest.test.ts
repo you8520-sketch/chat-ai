@@ -214,31 +214,44 @@ describe("chatImageCastManifest", () => {
     assert.match(block, /COMPOSITION GOAL: trio_group/);
   });
 
-  it("IMPORTANCE_REORDER keeps manifest order aligned with bound subjects", () => {
-    let intent = trioIntent();
-    intent = applyUserCastEdits(intent, "supporting:SupportA", {
-      importance: "primary",
-    });
-    intent = applyUserCastEdits(intent, "main_character", {
-      importance: "background",
-    });
+  it("IMPORTANCE_REORDER keeps supporting order stable without evicting core refs", () => {
+    let intent: ChatImageCastIntentManifest = {
+      ...trioIntent(),
+      subjects: [
+        ...trioIntent().subjects,
+        {
+          key: "supporting:B",
+          role: "supporting_character",
+          name: "SupportB",
+          included: true,
+          importance: "secondary",
+          visibility: "preferred_visible",
+          requestedReferenceAssetUrl: ASSET_B,
+        },
+      ],
+    };
+    intent = applyUserCastEdits(intent, "supporting:SupportA", { importance: "secondary" });
+    intent = applyUserCastEdits(intent, "supporting:B", { importance: "primary" });
     const manifest = groundCastIntent(intent, GROUND_CTX);
     assert.equal(manifest.ok, true);
     if (!manifest.ok) throw new Error(manifest.reason);
     const bound = bindApprovedCastManifest(manifest.manifest);
     assert.deepEqual(
-      bound.selected.map((subject) => subject.key),
-      ["persona", "supporting:SupportA", "main_character"]
+      bound.selected.slice(0, 2).map((subject) => subject.key),
+      ["persona", "main_character"]
     );
-    const block = renderApprovedCastManifest({
-      manifest: manifest.manifest,
-      selected: bound.selected,
-      subjects: bound.subjects,
-    });
-    assert.match(block, /1\. UserPersona/);
-    assert.match(block, /2\. SupportA/);
-    assert.match(block, /3\. CharacterA/);
-    assert.match(block, /Image 2 belongs ONLY to SupportA/);
+    assert.equal(
+      bound.selected.filter(
+        (subject) => subject.role === "supporting_character" && subject.importance === "primary"
+      ).length,
+      1
+    );
+    assert.deepEqual(bound.referenceUrls.slice(0, 2), [PERSONA_URL, MAIN_URL]);
+    assert.equal(bound.subjects[0]?.referenceIndex, 1);
+    assert.equal(bound.subjects[1]?.referenceIndex, 2);
+    const main = manifest.manifest.subjects.find((subject) => subject.role === "main_character");
+    assert.equal(main?.importance, "primary");
+    assert.equal(main?.referenceImageUrl, MAIN_URL);
   });
 
   it("FOUR_PLUS caps primary fidelity and identity references at runtime", () => {
@@ -331,8 +344,10 @@ describe("chatImageCastManifest", () => {
       selected: bound.selected,
       subjects: bound.subjects,
     });
-    assert.match(block, /No photo — background\/cameo only/);
-    assert.doesNotMatch(block, /Image 3 belongs ONLY to SupportC/);
+    assert.match(block, /SupportC.*BACKGROUND \/ CAMEO/);
+    assert.doesNotMatch(block, /SupportC.*HIGH FIDELITY/);
+    assert.match(block, /UserPersona.*HIGH FIDELITY/);
+    assert.match(block, /CharacterA.*HIGH FIDELITY/);
   });
 
   it("EVENT_SUBJECT_BINDING maps supporting mention events and rejects excluded keys", () => {
@@ -370,16 +385,227 @@ describe("chatImageCastManifest", () => {
     });
     assert.match(block, /EVENT SUBJECT BINDINGS/);
     assert.match(block, new RegExp(`${supportEvent}.*→.*이현`));
+  });
 
-    const excluded = groundCastIntent(
-      {
-        ...included,
-        eventSubjectBindings: [{ eventId: supportEvent!, subjectKey: "missing" }],
-      },
-      GROUND_CTX,
-      plan
+  it("CLIENT_EVENT_BINDING_OVERRIDE ignores forged client event bindings", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*손을 잡는다*" },
+      { id: 2, role: "assistant", content: 'CharacterA가 고개를 돌렸다. "그래."' },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const assistantEvent = plan.events.find((event) => event.sourceRole === "assistant")?.id;
+    assert.ok(assistantEvent);
+    const intent = draftCastIntentFromMentions({
+      personaName: "UserPersona",
+      mainCharacterName: "CharacterA",
+      castMentions: [],
+    });
+    const parsed = parseCastIntentManifest({
+      ...intent,
+      eventSubjectBindings: [{ eventId: assistantEvent!, subjectKey: "supporting:SupportA" }],
+    });
+    assert.ok(parsed);
+    const grounded = groundCastIntent(parsed!, GROUND_CTX, plan);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const block = renderApprovedCastManifest({
+      manifest: grounded.manifest,
+      selected: bindApprovedCastManifest(grounded.manifest).selected,
+      subjects: bindApprovedCastManifest(grounded.manifest).subjects,
+      plan,
+    });
+    assert.doesNotMatch(block, new RegExp(`${assistantEvent}.*SupportA`));
+  });
+
+  it("DUO_APPROVED_SCENE preserves Scene Plan in buildLdSceneGenerationPlan", () => {
+    const scenePlan = {
+      ...buildDeterministicScenePlan(
+        buildSceneSourceMessages([{ id: 1, role: "user", content: "*문 앞에 선다*" }]),
+        2
+      ),
+      heroScene: "두 사람이 문 앞에서 마주 선다",
+    };
+    const plan = buildLdSceneGenerationPlan({
+      ...SCENE_BUILDER_SHARED_DUO,
+      approvedScenePlan: scenePlan,
+      castManifest: null,
+    });
+    assert.match(plan.prompt, /APPROVED SCENE PLAN/);
+    assert.match(plan.prompt, /두 사람이 문 앞에서 마주 선다/);
+    assert.doesNotMatch(plan.prompt, /SELECTED TURN SCENE BRIEF/);
+    assert.equal(plan.referenceUrls.length, 2);
+    assert.ok(plan.referenceUrls.includes(PERSONA_URL));
+    assert.ok(plan.referenceUrls.includes(MAIN_URL));
+  });
+
+  it("CORE_ROLE_ATTACKS fail closed and preserve server core semantics", () => {
+    const duo = draftCastIntentFromMentions({
+      personaName: "UserPersona",
+      mainCharacterName: "CharacterA",
+    });
+    assert.equal(
+      groundCastIntent(
+        {
+          compositionGoal: "auto",
+          subjects: [
+            duo.subjects[0]!,
+            { ...duo.subjects[0]!, key: "persona-copy" },
+            duo.subjects[1]!,
+          ],
+        },
+        GROUND_CTX
+      ).ok,
+      false
     );
-    assert.equal(excluded.ok, false);
+    assert.equal(
+      groundCastIntent(
+        {
+          ...duo,
+          subjects: [
+            ...duo.subjects,
+            {
+              key: "main:clone",
+              role: "main_character",
+              name: "CloneMain",
+              included: true,
+              importance: "primary",
+              visibility: "required_visible",
+            },
+          ],
+        },
+        GROUND_CTX
+      ).ok,
+      false
+    );
+    assert.equal(
+      groundCastIntent(
+        {
+          compositionGoal: "auto",
+          subjects: duo.subjects.filter((subject) => subject.role !== "persona"),
+        },
+        GROUND_CTX
+      ).ok,
+      false
+    );
+    assert.equal(
+      groundCastIntent(
+        {
+          compositionGoal: "auto",
+          subjects: duo.subjects.filter((subject) => subject.role !== "main_character"),
+        },
+        GROUND_CTX
+      ).ok,
+      false
+    );
+    assert.equal(
+      groundCastIntent(
+        {
+          compositionGoal: "auto",
+          subjects: [
+            ...duo.subjects,
+            {
+              key: "persona",
+              role: "supporting_character",
+              name: "Evil",
+              included: true,
+              importance: "secondary",
+              visibility: "preferred_visible",
+            },
+          ],
+        },
+        GROUND_CTX
+      ).ok,
+      false
+    );
+    const attacked = groundCastIntent(
+      {
+        compositionGoal: "auto",
+        subjects: duo.subjects.map((subject) =>
+          subject.role === "persona" || subject.role === "main_character"
+            ? {
+                ...subject,
+                included: false,
+                importance: "background" as const,
+                visibility: "background_ok" as const,
+              }
+            : subject
+        ),
+      },
+      GROUND_CTX
+    );
+    assert.equal(attacked.ok, true);
+    if (!attacked.ok) throw new Error(attacked.reason);
+    const persona = attacked.manifest.subjects.find((subject) => subject.role === "persona");
+    const main = attacked.manifest.subjects.find((subject) => subject.role === "main_character");
+    assert.equal(persona?.included, true);
+    assert.equal(persona?.importance, "primary");
+    assert.equal(main?.included, true);
+    assert.equal(main?.importance, "primary");
+  });
+
+  it("FOUR_PLUS_CORE_FIRST keeps persona/main primary regardless of client order", () => {
+    const intent: ChatImageCastIntentManifest = {
+      compositionGoal: "ensemble_scene",
+      subjects: [
+        {
+          key: "supporting:A",
+          role: "supporting_character",
+          name: "SupportA",
+          included: true,
+          importance: "primary",
+          visibility: "required_visible",
+          requestedReferenceAssetUrl: SUPPORT_URL,
+        },
+        {
+          key: "supporting:B",
+          role: "supporting_character",
+          name: "SupportB",
+          included: true,
+          importance: "primary",
+          visibility: "required_visible",
+          requestedReferenceAssetUrl: ASSET_B,
+        },
+        {
+          key: "supporting:C",
+          role: "supporting_character",
+          name: "SupportC",
+          included: true,
+          importance: "secondary",
+          visibility: "preferred_visible",
+        },
+        {
+          key: "persona",
+          role: "persona",
+          name: "UserPersona",
+          included: true,
+          importance: "background",
+          visibility: "background_ok",
+        },
+        {
+          key: "main_character",
+          role: "main_character",
+          name: "CharacterA",
+          included: true,
+          importance: "background",
+          visibility: "background_ok",
+        },
+      ],
+    };
+    const grounded = groundCastIntent(intent, GROUND_CTX);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const primary = grounded.manifest.subjects.filter(
+      (subject) => subject.included && subject.importance === "primary"
+    );
+    assert.equal(primary.length, 3);
+    assert.equal(primary.filter((subject) => subject.role === "persona").length, 1);
+    assert.equal(primary.filter((subject) => subject.role === "main_character").length, 1);
+    assert.equal(
+      primary.filter((subject) => subject.role === "supporting_character").length,
+      1
+    );
+    const bound = bindApprovedCastManifest(grounded.manifest);
+    assert.deepEqual(bound.referenceUrls.slice(0, 2), [PERSONA_URL, MAIN_URL]);
   });
 
   it("SINGLE_AND_COMIC_PARITY share cast ownership across formats", () => {

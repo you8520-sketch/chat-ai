@@ -38,7 +38,6 @@ export type ChatImageCastIntentSubject = {
 export type ChatImageCastIntentManifest = {
   compositionGoal: ChatImageCastCompositionGoal;
   subjects: ChatImageCastIntentSubject[];
-  eventSubjectBindings?: SceneEventSubjectBinding[];
 };
 
 export type SceneEventSubjectBinding = {
@@ -114,15 +113,40 @@ export function castNeedsFourPlusWarning(manifest: ChatImageCastIntentManifest):
 export function normalizeCastPrimaryCap(
   manifest: ChatImageCastIntentManifest
 ): ChatImageCastIntentManifest {
-  const selectedCount = selectedCastIntentSubjects(manifest).length;
-  if (selectedCount < 4) return manifest;
-  let primaryCount = 0;
-  return {
+  const withCore = {
     ...manifest,
     subjects: manifest.subjects.map((subject) => {
-      if (!subject.included || subject.importance !== "primary") return subject;
-      primaryCount += 1;
-      if (primaryCount <= CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP) return subject;
+      if (subject.role === "persona") {
+        return {
+          ...subject,
+          key: "persona",
+          included: true,
+          importance: "primary" as const,
+          visibility: "required_visible" as const,
+        };
+      }
+      if (subject.role === "main_character") {
+        return {
+          ...subject,
+          key: "main_character",
+          included: true,
+          importance: "primary" as const,
+          visibility: "required_visible" as const,
+        };
+      }
+      return subject;
+    }),
+  };
+  const selectedCount = selectedCastIntentSubjects(withCore).length;
+  if (selectedCount < 4) return withCore;
+  let supportingPrimaryCount = 0;
+  return {
+    ...withCore,
+    subjects: withCore.subjects.map((subject) => {
+      if (subject.role !== "supporting_character" || !subject.included) return subject;
+      if (subject.importance !== "primary") return subject;
+      supportingPrimaryCount += 1;
+      if (supportingPrimaryCount <= 1) return subject;
       return { ...subject, importance: "secondary" as const };
     }),
   };
@@ -180,6 +204,9 @@ export function applyUserCastEdits(
     ...manifest,
     subjects: manifest.subjects.map((subject) => {
       if (subject.key !== key) return subject;
+      if (subject.role === "persona" || subject.role === "main_character") {
+        return subject;
+      }
       const importance = patch.importance ?? subject.importance;
       return {
         ...subject,
@@ -210,7 +237,6 @@ export function mergeCastIntentDraft(
   const byKey = new Map(current.subjects.map((subject) => [subject.key, subject]));
   return normalizeCastPrimaryCap({
     compositionGoal: current.compositionGoal,
-    eventSubjectBindings: current.eventSubjectBindings ?? next.eventSubjectBindings,
     subjects: next.subjects.map((subject) => {
       const previous = byKey.get(subject.key);
       if (!previous) return subject;
@@ -309,22 +335,8 @@ export function parseCastIntentManifest(raw: unknown): ChatImageCastIntentManife
     })
     .filter((subject): subject is ChatImageCastIntentSubject => Boolean(subject));
   if (!subjects.length) return null;
-  const bindingsRaw = Array.isArray(record.eventSubjectBindings)
-    ? record.eventSubjectBindings
-    : [];
-  const eventSubjectBindings = bindingsRaw
-    .map((item): SceneEventSubjectBinding | null => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const eventId = cleanText(row.eventId, 24);
-      const subjectKey = cleanText(row.subjectKey, 48);
-      if (!eventId || !subjectKey) return null;
-      return { eventId, subjectKey };
-    })
-    .filter((item): item is SceneEventSubjectBinding => Boolean(item));
   return normalizeCastPrimaryCap({
     compositionGoal,
     subjects,
-    eventSubjectBindings: eventSubjectBindings.length ? eventSubjectBindings : undefined,
   });
 }

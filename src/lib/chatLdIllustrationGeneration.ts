@@ -366,6 +366,11 @@ export function buildLdSceneGenerationPlan(opts: {
   approvedScene?: string;
   castManifest?: ChatImageCastGroundedManifest | null;
 }) {
+  const approvedScene =
+    opts.approvedScene ??
+    (opts.approvedScenePlan
+      ? formatApprovedScenePlanForIllustration(opts.approvedScenePlan)
+      : "");
   const useCast = Boolean(
     opts.castManifest &&
       opts.castManifest.subjects.filter((subject) => subject.included).length > 2
@@ -373,11 +378,6 @@ export function buildLdSceneGenerationPlan(opts: {
   if (useCast) {
     const bound = bindApprovedCastManifest(opts.castManifest!);
     const selected = bound.selected;
-    const approved =
-      opts.approvedScene ??
-      (opts.approvedScenePlan
-        ? formatApprovedScenePlanForIllustration(opts.approvedScenePlan)
-        : "");
     const prompt = [
       "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
       renderApprovedCastManifest({
@@ -400,7 +400,7 @@ export function buildLdSceneGenerationPlan(opts: {
         : "Do not add unnamed extras. Background/cameo people may be smaller, but do not invent a new identity.",
       "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
       "",
-      approved ? ["APPROVED SCENE PLAN", approved].join("\n") : "",
+      approvedScene ? ["APPROVED SCENE PLAN", approvedScene].join("\n") : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -422,6 +422,6 @@ export function buildLdSceneGenerationPlan(opts: {
     personaSavedAppearance: opts.personaSavedAppearance,
     personaAppearanceMode: opts.personaAppearanceMode,
     currentTurn: "",
-    approvedScene: opts.approvedScene,
+    approvedScene,
   });
 }
