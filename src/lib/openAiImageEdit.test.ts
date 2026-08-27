@@ -33,7 +33,11 @@ describe("openAiImageEdit", () => {
       assert.equal(init.body.get("model"), "gpt-image-2");
       assert.equal(init.body.get("size"), "1200x800");
       assert.equal(init.body.get("quality"), "high");
-      assert.equal(init.body.getAll("image[]").length, 2);
+      const images = init.body.getAll("image[]");
+      assert.equal(images.length, 3);
+      assert.equal((images[0] as File).name, "reference-1.webp");
+      assert.equal((images[1] as File).name, "reference-2.webp");
+      assert.equal((images[2] as File).name, "reference-3.webp");
       return new Response(
         JSON.stringify({
           data: [{ b64_json: Buffer.from("generated").toString("base64") }],
@@ -51,8 +55,9 @@ describe("openAiImageEdit", () => {
         model: "gpt-image-2",
         prompt: "test",
         references: [
-          `data:image/webp;base64,${Buffer.from("one").toString("base64")}`,
-          `data:image/webp;base64,${Buffer.from("two").toString("base64")}`,
+          `data:image/webp;base64,${Buffer.from("template").toString("base64")}`,
+          `data:image/webp;base64,${Buffer.from("character").toString("base64")}`,
+          `data:image/webp;base64,${Buffer.from("persona").toString("base64")}`,
         ],
         size: "1200x800",
         quality: "high",

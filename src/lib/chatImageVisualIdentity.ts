@@ -340,7 +340,7 @@ export function buildChatDuoVisualSubjects(opts: {
       referenceIndex: null,
       referenceImageUrl: opts.characterImageUrl || null,
       appearanceMode: opts.characterAppearanceMode,
-      savedAppearance: clipSavedAppearanceForPrompt(opts.characterSavedAppearance),
+      savedAppearance: String(opts.characterSavedAppearance ?? "").trim(),
       sourceKind: "main_character",
     },
     {
@@ -351,7 +351,7 @@ export function buildChatDuoVisualSubjects(opts: {
       referenceIndex: null,
       referenceImageUrl: opts.personaImageUrl || null,
       appearanceMode: opts.personaAppearanceMode,
-      savedAppearance: clipSavedAppearanceForPrompt(opts.personaSavedAppearance),
+      savedAppearance: String(opts.personaSavedAppearance ?? "").trim(),
       sourceKind: "persona",
     },
   ];
@@ -408,7 +408,7 @@ export function visualSubjectsFromCastMembers(
 ): ChatImageVisualSubject[] {
   return members.map((member, index) => {
     const imageUrl = String(member.imageUrl ?? "").trim() || null;
-    const savedAppearance = clipSavedAppearanceForPrompt(member.appearanceNote);
+    const savedAppearance = String(member.appearanceNote ?? "").trim();
     const appearanceMode =
       member.appearanceMode ??
       defaultAppearanceMode({
@@ -433,28 +433,12 @@ export function visualSubjectsFromCastMembers(
 }
 
 function formatSavedAppearanceLines(appearance: string): string {
-  const eyeMarker = "Eyes (explicit iris/pupil ownership):";
-  const eyeIndex = appearance.indexOf(eyeMarker);
-  const body = eyeIndex >= 0 ? appearance.slice(0, eyeIndex).trim() : appearance;
-  const eyeBlock = eyeIndex >= 0 ? appearance.slice(eyeIndex).trim() : "";
-
-  const bodyLines = body
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => `- ${line}`)
-    .join("\n");
-
-  if (!eyeBlock) return bodyLines;
-
-  const eyeLines = eyeBlock
+  return appearance
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
     .join("\n");
-
-  return [bodyLines, eyeLines].filter(Boolean).join("\n");
 }
 
 export function renderChatImageSubjectManifest(
@@ -558,7 +542,7 @@ export function renderChatImageIdentityContract(opts: {
     "IDENTITY OWNERSHIP IS STRICT.",
     templateRule,
     "Each subject owns only the visual traits from their own identity block and own reference.",
-    "NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.",
+    "NEVER transfer between subjects: hair color, haircut, bangs, hair part, center part / 5:5 part, eye color, iris color, pupil color, pupil shape, heterochromia, facial marks, scars, tattoos, accessories, body traits, or signature clothes.",
     "Do not average or homogenize identities even when both subjects look similar.",
     "Do not assume that a visually striking feature belongs to every person.",
     "A trait appearing in one subject's reference is NOT a global style property.",

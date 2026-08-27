@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { buildCoupleStampGenerationPlan } from "./chatCoupleStampGeneration";
 import {
   coupleStampHeightToRelativeScale,
   renderChatImageCompositionBlock,
@@ -14,39 +15,50 @@ describe("chatImageComposition", () => {
     assert.equal(coupleStampHeightToRelativeScale("invalid"), "same_height");
   });
 
-  it("renders user_taller with stronger frame-share semantics for couple stamps", () => {
+  it("renders user_taller as stature plus close-up frame-share translation", () => {
     const block = renderChatImageCompositionBlock({
       scale: "user_taller",
-      product: "couple_stamp",
       characterName: "CharacterA",
       personaName: "CharacterB",
     });
     assert.match(block, /COMPOSITION — relative scale/);
-    assert.match(block, /CharacterB must read visibly LARGER than CharacterA/);
+    assert.match(block, /CharacterB must read visibly taller than CharacterA/);
+    assert.match(block, /Do NOT equalize sizes/i);
+    assert.match(block, /higher eye-line \/ shoulder relationship/);
     assert.match(block, /ALL four badges/i);
-    assert.match(block, /user persona must occupy more of the circle/i);
-    assert.doesNotMatch(block, /equalize sizes/i);
+    assert.match(block, /tight cheek close-up/);
+    assert.match(block, /frame share \/ presence/);
+    assert.doesNotMatch(block, /larger head\/body silhouette/i);
   });
 
   it("renders same_height without dominance language", () => {
     const block = renderChatImageCompositionBlock({
       scale: "same_height",
-      product: "couple_stamp",
       characterName: "A",
       personaName: "B",
     });
-    assert.match(block, /same relative scale/i);
-    assert.doesNotMatch(block, /visibly LARGER/i);
+    assert.match(block, /same relative visual stature/i);
+    assert.doesNotMatch(block, /visibly taller/i);
   });
 
-  it("uses full-body semantics for LD duo", () => {
-    const block = renderChatImageCompositionBlock({
-      scale: "user_taller",
-      product: "ld_duo",
-      characterName: "A",
-      personaName: "B",
+  it("keeps persona_taller on all four couple-stamp badges including close-up", () => {
+    const plan = buildCoupleStampGenerationPlan({
+      characterName: "CharacterA",
+      characterGender: "male",
+      personaName: "CharacterB",
+      personaGender: "female",
+      characterImageUrl: "/synthetic/character-a-primary.webp",
+      characterSavedAppearance: "",
+      characterAppearanceMode: "image_only",
+      personaImageUrl: "/synthetic/character-b-primary.webp",
+      personaSavedAppearance: "",
+      personaAppearanceMode: "image_only",
+      options: { height: "persona_taller" },
     });
-    assert.match(block, /Full-body or mid-shot/i);
-    assert.match(block, /visibly taller/i);
+    assert.match(plan.prompt, /CharacterB must read visibly taller than CharacterA/);
+    assert.match(plan.prompt, /Do NOT equalize sizes/i);
+    assert.match(plan.prompt, /ALL four badges including the tight cheek close-up/);
+    assert.match(plan.prompt, /do not override COMPOSITION relative scale/i);
+    assert.doesNotMatch(plan.prompt, /Height \/ face position in every badge/);
   });
 });

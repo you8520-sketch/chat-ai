@@ -239,7 +239,6 @@ export function buildChatCoupleStampPrompt(opts: {
   const options = sanitizeChatCoupleStampOptions(opts.options);
   const compositionBlock = renderChatImageCompositionBlock({
     scale: coupleStampHeightToRelativeScale(options.height),
-    product: "couple_stamp",
     characterName: opts.characterName,
     personaName: opts.personaName,
   });

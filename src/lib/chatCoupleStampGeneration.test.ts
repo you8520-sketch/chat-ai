@@ -45,7 +45,8 @@ describe("chatCoupleStampGeneration", () => {
     }
     assert.match(prompt, /bold thick outlines/i);
     assert.match(prompt, /COMPOSITION — relative scale/);
-    assert.match(prompt, /must read visibly LARGER/i);
+    assert.match(prompt, /must read visibly taller/i);
+    assert.match(prompt, /Do NOT equalize sizes/i);
     assert.match(prompt, /태현/);
     assert.match(prompt, /렌/);
     assert.match(prompt, /GENDER LOCK/);

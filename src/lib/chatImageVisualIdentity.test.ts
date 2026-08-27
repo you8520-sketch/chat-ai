@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { buildCoupleStampGenerationPlan } from "./chatCoupleStampGeneration";
+import { buildEmoticonGenerationPlan } from "./chatEmoticonGeneration";
 import { buildGiftBoxGenerationPlan } from "./chatImageGeneration";
+import { buildLdDuoGenerationPlan } from "./chatLdIllustrationGeneration";
+import { personaImageBaseUrl, sanitizePersonaImageUrl } from "./userPersonasClient";
 import {
   SYNTHETIC_CHARACTER_A_APPEARANCE,
   SYNTHETIC_CHARACTER_B_APPEARANCE,
@@ -253,7 +257,7 @@ describe("chat image visual identity", () => {
     const blockA = subjectBlock(prompt, "A");
     assert.match(blockA, /Pupil color: red/);
     assert.match(blockA, /do NOT fill the entire iris red/i);
-    assert.match(blockA, /Iris color: dark\/black/);
+    assert.match(blockA, /Iris color: black/);
     assert.doesNotMatch(subjectBlock(prompt, "B"), /Pupil color: red/);
   });
 
@@ -264,16 +268,16 @@ describe("chat image visual identity", () => {
 
     assert.match(blockA, /CharacterA/);
     assert.match(blockA, /Iris color: red/);
-    assert.match(blockA, /Pupil color: dark\/black/);
+    assert.match(blockA, /Pupil color: black/);
     assert.match(blockA, /NOT center-parted \/ NOT 5:5/);
     assert.match(blockA, /white shirt/);
     assert.match(blockA, /black harness/);
-    assert.doesNotMatch(blockA, /dark gray irises/);
+    assert.doesNotMatch(blockA, /Iris color: dark gray/);
     assert.doesNotMatch(blockA, /center-parted hair/);
     assert.doesNotMatch(blockA, /black suit/);
 
     assert.match(blockB, /CharacterB/);
-    assert.match(blockB, /Iris color: dark\/black/);
+    assert.match(blockB, /Iris color: dark gray/);
     assert.match(blockB, /center-parted hair/);
     assert.match(blockB, /black suit/);
     assert.doesNotMatch(blockB, /Pupil color: red/);
@@ -306,7 +310,7 @@ describe("chat image visual identity", () => {
     assert.doesNotMatch(blockA, /Iris color: red/);
     assert.doesNotMatch(blockA, /white shirt/);
     assert.doesNotMatch(blockA, /black harness/);
-    assert.match(subjectBlock(prompt, "B"), /Iris color: dark\/black/);
+    assert.match(subjectBlock(prompt, "B"), /Iris color: dark gray/);
     assert.match(subjectBlock(prompt, "B"), /IMAGE_PLUS_SAVED/);
   });
 
@@ -324,7 +328,7 @@ describe("chat image visual identity", () => {
     assert.match(prompt, /TOP person is CharacterB/);
     assert.match(prompt, /BOTTOM person is CharacterA/);
     assert.match(subjectBlock(prompt, "A"), /Image 2 belongs ONLY to CharacterB/);
-    assert.match(subjectBlock(prompt, "A"), /Iris color: dark\/black/);
+    assert.match(subjectBlock(prompt, "A"), /Iris color: dark gray/);
     assert.match(subjectBlock(prompt, "B"), /Image 3 belongs ONLY to CharacterA/);
     assert.match(subjectBlock(prompt, "B"), /Iris color: red/);
   });
@@ -776,5 +780,97 @@ describe("chat image visual identity", () => {
     assert.match(rawWins, /검은 머리/);
     assert.doesNotMatch(rawWins, /은발/);
     assert.doesNotMatch(rawWins, /녹색 눈/);
+  });
+
+  it("CROSS_SUBJECT_EYE_MORPHOLOGY does not leak color or pupil shape", () => {
+    const plan = buildGiftBoxGenerationPlan({
+      characterName: "SubjectA",
+      characterGender: "female",
+      characterImageUrl: "/synthetic/a.webp",
+      characterSavedAppearance: "dark irises red round pupil",
+      characterAppearanceMode: "image_plus_saved",
+      personaName: "SubjectB",
+      personaGender: "male",
+      personaImageUrl: "/synthetic/b.webp",
+      personaSavedAppearance: "black pupils vertical slit pupil",
+      personaAppearanceMode: "image_plus_saved",
+      placement: "character_top",
+      topExpression: "calm",
+      bottomExpression: "calm",
+      mood: "warm",
+    });
+    const blockA = subjectBlock(plan.prompt, "A");
+    const blockB = subjectBlock(plan.prompt, "B");
+    assert.match(blockA, /Pupil color: red/);
+    assert.match(blockA, /Pupil shape: round/);
+    assert.doesNotMatch(blockA, /vertical slit/);
+    assert.match(blockB, /Pupil shape: vertical slit/);
+    assert.match(blockB, /Pupil color: black/);
+    assert.doesNotMatch(blockB, /Pupil color: red/);
+    assert.doesNotMatch(blockB, /Pupil shape: round/);
+  });
+
+  it("EXACT_PERSONA_REFERENCE_PLAN keeps persona URL once with matching Image N", () => {
+    const personaDbUrl = "/uploads/persona-abc-123.webp#zoom=1.50";
+    const personaUrl = personaImageBaseUrl(sanitizePersonaImageUrl(personaDbUrl));
+    const characterUrl = "/synthetic/character-a-primary.webp";
+    assert.equal(personaUrl, "/uploads/persona-abc-123.webp");
+
+    const duoOpts = {
+      characterName: "CharacterA",
+      characterGender: "male" as const,
+      personaName: "UserPersona",
+      personaGender: "female" as const,
+      characterImageUrl: characterUrl,
+      characterSavedAppearance: SYNTHETIC_CHARACTER_A_APPEARANCE,
+      characterAppearanceMode: "image_plus_saved" as const,
+      personaImageUrl: personaUrl,
+      personaSavedAppearance: SYNTHETIC_CHARACTER_B_APPEARANCE,
+      personaAppearanceMode: "image_plus_saved" as const,
+    };
+
+    const plans = [
+      buildGiftBoxGenerationPlan({
+        ...duoOpts,
+        placement: "character_top",
+        topExpression: "calm",
+        bottomExpression: "calm",
+        mood: "warm",
+      }),
+      buildCoupleStampGenerationPlan({
+        ...duoOpts,
+        options: { height: "persona_taller" },
+      }),
+      buildEmoticonGenerationPlan({
+        ...duoOpts,
+        scenes: [
+          { text: "안녕", subject: "duo", action: "waving" },
+        ],
+      }),
+      buildLdDuoGenerationPlan({
+        ...duoOpts,
+        currentTurn: "They stand in the hallway.",
+      }),
+    ];
+
+    for (const plan of plans) {
+      const personaHits = plan.referenceUrls.filter((url) => url === personaUrl);
+      assert.equal(personaHits.length, 1);
+      const personaSubject = plan.subjects.find((subject) => subject.key === "persona");
+      assert.ok(personaSubject);
+      assert.equal(personaSubject?.referenceImageUrl, personaUrl);
+      assert.equal(personaSubject?.referenceIndex, plan.referenceUrls.indexOf(personaUrl) + 1);
+      assert.match(
+        plan.prompt,
+        new RegExp(`Image ${personaSubject?.referenceIndex} belongs ONLY to UserPersona`)
+      );
+      const characterSubject = plan.subjects.find((subject) => subject.key === "character");
+      assert.equal(characterSubject?.referenceImageUrl, characterUrl);
+      assert.notEqual(characterSubject?.referenceIndex, personaSubject?.referenceIndex);
+      assert.equal(plan.referenceUrls.includes(characterUrl), true);
+      if (plan.referenceUrls[0]?.startsWith("/image-templates/")) {
+        assert.match(plan.prompt, /NEVER a character identity source/);
+      }
+    }
   });
 });
