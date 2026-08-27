@@ -131,6 +131,10 @@ import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   decideManualScrollRejoin,
+  updateManualDetachFollowZone,
+  beginTrpgProgrammaticScroll,
+  cancelTrpgProgrammaticScroll,
+  createTrpgProgrammaticScrollHandle,
   isNearBottom,
   isNearPresentationCard,
   isNearReadingBandFollowElement,
@@ -364,7 +368,9 @@ export default function TrpgCampaignRoom({
   const narrationFollowRafRef = useRef<number | null>(null);
   const followScrollRafRef = useRef<number | null>(null);
   const manualScrollDetachedRef = useRef(false);
+  const hasLeftFollowZoneSinceDetachRef = useRef(false);
   const programmaticScrollRef = useRef(false);
+  const programmaticScrollHandleRef = useRef(createTrpgProgrammaticScrollHandle());
   const hasScrolledToLatestRef = useRef<number | null>(null);
   const followLatestRef = useRef(true);
   const seenSceneLenRef = useRef(0);
@@ -1066,40 +1072,67 @@ export default function TrpgCampaignRoom({
     }
   }, []);
 
+  const syncProgrammaticScrollActive = useCallback((active: boolean) => {
+    programmaticScrollRef.current = active;
+  }, []);
+
+  const cancelProgrammaticScrollOwnership = useCallback(() => {
+    cancelTrpgProgrammaticScroll({
+      handle: programmaticScrollHandleRef.current,
+      onActiveChange: syncProgrammaticScrollActive,
+      removeScrollEndListener: (handler) => {
+        window.removeEventListener("scrollend", handler);
+      },
+    });
+  }, [syncProgrammaticScrollActive]);
+
   const detachLiveFollow = useCallback(() => {
     if (!shouldDetachLiveFollowOnUserIntent()) return;
     cancelPendingFollowScroll();
+    cancelProgrammaticScrollOwnership();
     manualScrollDetachedRef.current = true;
+    hasLeftFollowZoneSinceDetachRef.current = false;
     followLatestRef.current = false;
     setFollowLatest(false);
-  }, [cancelPendingFollowScroll]);
+  }, [cancelPendingFollowScroll, cancelProgrammaticScrollOwnership]);
 
-  const runProgrammaticScroll = useCallback((fn: () => void) => {
-    programmaticScrollRef.current = true;
-    fn();
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        programmaticScrollRef.current = false;
+  const runProgrammaticScroll = useCallback(
+    (fn: () => void, behavior: ScrollBehavior = "instant") => {
+      beginTrpgProgrammaticScroll({
+        handle: programmaticScrollHandleRef.current,
+        behavior,
+        onActiveChange: syncProgrammaticScrollActive,
+        addScrollEndListener: (handler) => {
+          window.addEventListener("scrollend", handler, { once: true, passive: true });
+        },
+        removeScrollEndListener: (handler) => {
+          window.removeEventListener("scrollend", handler);
+        },
       });
-    });
-  }, []);
+      fn();
+    },
+    [syncProgrammaticScrollActive]
+  );
 
-  const alignReadingBandEnd = useCallback((el: Element, behavior: ScrollBehavior) => {
-    const apply = () => {
-      const delta = readingBandFollowDeltaFromElement(el);
-      if (delta === 0) return;
-      window.scrollBy({ top: delta, behavior });
-    };
-    if (behavior === "smooth") {
-      runProgrammaticScroll(apply);
-      return;
-    }
-    cancelPendingFollowScroll();
-    narrationFollowRafRef.current = window.requestAnimationFrame(() => {
-      narrationFollowRafRef.current = null;
-      runProgrammaticScroll(apply);
-    });
-  }, [cancelPendingFollowScroll, runProgrammaticScroll]);
+  const alignReadingBandEnd = useCallback(
+    (el: Element, behavior: ScrollBehavior) => {
+      const apply = () => {
+        const delta = readingBandFollowDeltaFromElement(el);
+        if (delta === 0) return;
+        window.scrollBy({ top: delta, behavior });
+      };
+      if (behavior === "smooth") {
+        runProgrammaticScroll(apply, behavior);
+        return;
+      }
+      cancelPendingFollowScroll();
+      narrationFollowRafRef.current = window.requestAnimationFrame(() => {
+        narrationFollowRafRef.current = null;
+        runProgrammaticScroll(apply, behavior);
+      });
+    },
+    [cancelPendingFollowScroll, runProgrammaticScroll]
+  );
 
   const alignNarrationEnd = useCallback(
     (behavior: ScrollBehavior) => {
@@ -1127,11 +1160,11 @@ export default function TrpgCampaignRoom({
                 block: "center",
                 inline: "nearest",
               });
-            });
+            }, behavior);
           } else if (bottomRef.current) {
             runProgrammaticScroll(() => {
               bottomRef.current?.scrollIntoView({ behavior, block: "end", inline: "nearest" });
-            });
+            }, behavior);
           }
           break;
         case "NEXT_ACTION": {
@@ -1139,11 +1172,11 @@ export default function TrpgCampaignRoom({
           if (target) {
             runProgrammaticScroll(() => {
               target.scrollIntoView({ behavior, block: "end", inline: "nearest" });
-            });
+            }, behavior);
           } else {
             runProgrammaticScroll(() => {
               window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
-            });
+            }, behavior);
           }
           break;
         }
@@ -1152,11 +1185,11 @@ export default function TrpgCampaignRoom({
           if (bottomRef.current) {
             runProgrammaticScroll(() => {
               bottomRef.current?.scrollIntoView({ behavior, block: "end", inline: "nearest" });
-            });
+            }, behavior);
           } else {
             runProgrammaticScroll(() => {
               window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
-            });
+            }, behavior);
           }
           break;
       }
@@ -1194,6 +1227,7 @@ export default function TrpgCampaignRoom({
     (behavior: ScrollBehavior = "instant") => {
       scrollToFollowOwner(liveFollowOwner, behavior);
       manualScrollDetachedRef.current = false;
+      hasLeftFollowZoneSinceDetachRef.current = false;
       followLatestRef.current = true;
       setFollowLatest(true);
       setUnseenLatest(false);
@@ -1205,13 +1239,15 @@ export default function TrpgCampaignRoom({
     hasScrolledToLatestRef.current = null;
     followLatestRef.current = true;
     manualScrollDetachedRef.current = false;
+    hasLeftFollowZoneSinceDetachRef.current = false;
+    cancelProgrammaticScrollOwnership();
     setFollowLatest(true);
     setUnseenLatest(false);
     seenSceneLenRef.current = 0;
     seenActivityKeyRef.current = "";
     liveGmRevealStateRef.current = { complete: false, progressive: false };
     setGmRevealReport({ roundNumber: null, complete: false, progressive: false });
-  }, [snap.id]);
+  }, [cancelProgrammaticScrollOwnership, snap.id]);
 
   useLayoutEffect(() => {
     if (waitingOpening && sceneRows.length === 0) return;
@@ -1304,18 +1340,27 @@ export default function TrpgCampaignRoom({
     const onScroll = () => {
       if (programmaticScrollRef.current) return;
       const near = isNearFollowOwner(liveFollowOwner);
-      const rejoin = decideManualScrollRejoin({
-        manualDetached: manualScrollDetachedRef.current,
-        nearFollowOwner: near,
-      });
-      if (rejoin.rejoin) {
-        manualScrollDetachedRef.current = false;
-        followLatestRef.current = true;
-        setFollowLatest(true);
-        setUnseenLatest(false);
+      if (manualScrollDetachedRef.current) {
+        const zone = updateManualDetachFollowZone({
+          manualDetached: true,
+          nearFollowOwner: near,
+          hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
+        });
+        hasLeftFollowZoneSinceDetachRef.current = zone.hasLeftFollowZoneSinceDetach;
+        const rejoin = decideManualScrollRejoin({
+          manualDetached: true,
+          hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
+          nearFollowOwner: near,
+        });
+        if (rejoin.rejoin) {
+          manualScrollDetachedRef.current = false;
+          hasLeftFollowZoneSinceDetachRef.current = false;
+          followLatestRef.current = true;
+          setFollowLatest(true);
+          setUnseenLatest(false);
+        }
         return;
       }
-      if (manualScrollDetachedRef.current) return;
       followLatestRef.current = near;
       setFollowLatest(near);
       if (near) setUnseenLatest(false);
@@ -1395,15 +1440,15 @@ export default function TrpgCampaignRoom({
     if (!followLatestRef.current) return;
     if (liveFollowOwner !== "NEXT_ACTION") return;
     if (!showReplySuggestions && !nextActionVisible) return;
-    const target = showReplySuggestions
-      ? suggestionsAnchorRef.current ?? nextActionRef.current
-      : nextActionRef.current;
-    target?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-      inline: "nearest",
-    });
-  }, [liveFollowOwner, nextActionVisible, showReplySuggestions, suggestions, suggestionsError]);
+    scrollToFollowOwner("NEXT_ACTION", "smooth");
+  }, [
+    liveFollowOwner,
+    nextActionVisible,
+    scrollToFollowOwner,
+    showReplySuggestions,
+    suggestions,
+    suggestionsError,
+  ]);
 
   const changeDisplayPrefs = useCallback((next: ChatDisplayPrefs) => {
     const current = loadChatDisplayPrefs();

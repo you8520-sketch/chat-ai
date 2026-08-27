@@ -296,6 +296,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /preCinematicVisibleIds/);
     assert.match(room, /declarationReveal\.activeAiId != null/);
     assert.match(room, /manualScrollDetachedRef/);
+    assert.match(room, /hasLeftFollowZoneSinceDetachRef/);
     assert.match(room, /detachLiveFollow/);
   });
 });
