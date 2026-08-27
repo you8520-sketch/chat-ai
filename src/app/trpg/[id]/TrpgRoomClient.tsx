@@ -404,6 +404,7 @@ export default function TrpgRoomClient({
   async function runPatch(body: unknown) {
     setBusy(true);
     setError("");
+    const seq = nextRequestSeq();
     try {
       const res = await fetch(`/api/trpg/campaigns/${snap.id}`, {
         method: "PATCH",
@@ -412,7 +413,7 @@ export default function TrpgRoomClient({
       });
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
-      apply(data.campaign);
+      applyObservedSnapshot(data.campaign, seq, false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
     } finally {
@@ -443,6 +444,7 @@ export default function TrpgRoomClient({
     if (!text) return;
     setBusy(true);
     setError("");
+    const seq = nextRequestSeq();
     try {
       const res = await fetch(`/api/trpg/campaigns/${snap.id}/party-chat`, {
         method: "POST",
@@ -452,7 +454,7 @@ export default function TrpgRoomClient({
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "보내지 못했습니다.");
       setPartyBody("");
-      apply(data.campaign);
+      applyObservedSnapshot(data.campaign, seq, false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
     } finally {
@@ -477,6 +479,7 @@ export default function TrpgRoomClient({
     window.scrollTo(0, 0);
     try {
       if (snap.viewerIsHost) {
+        const seq = nextRequestSeq();
         const relRes = await fetch(`/api/trpg/campaigns/${snap.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -486,9 +489,10 @@ export default function TrpgRoomClient({
         if (!relRes.ok || !relData.campaign) {
           throw new Error(relData.error || "관계 설정을 저장하지 못했습니다.");
         }
-        apply(relData.campaign);
+        applyObservedSnapshot(relData.campaign, seq, false);
       }
       if (editing && remaining >= 0) {
+        const seq = nextRequestSeq();
         const sheetRes = await fetch(`/api/trpg/campaigns/${snap.id}/sheet`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -506,14 +510,15 @@ export default function TrpgRoomClient({
         if (!sheetRes.ok || !sheetData.campaign) {
           throw new Error(sheetData.error || "시트를 저장하지 못했습니다.");
         }
-        apply(sheetData.campaign);
+        applyObservedSnapshot(sheetData.campaign, seq, false);
       }
+      const seq = nextRequestSeq();
       const startRes = await fetch(`/api/trpg/campaigns/${snap.id}/start`, { method: "POST" });
       const startData = (await startRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!startRes.ok || !startData.campaign) {
         throw new Error(startData.error || "시작하지 못했습니다.");
       }
-      apply(startData.campaign);
+      applyObservedSnapshot(startData.campaign, seq, false);
       setStarting(false);
     } catch (e) {
       setStarting(false);

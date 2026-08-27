@@ -215,7 +215,9 @@ describe("TRPG long-GM presentation + observer race", () => {
         state: {
           roundNumber: 5,
           phase: "GENERATING_NARRATION",
-          lockedActions: 2,
+          processStage: "gm",
+          narrationRerolling: false,
+          revealedActionIds: [1, 2],
           rolls: 2,
           narrationLen: 0,
           draftLen: 50,
@@ -226,7 +228,9 @@ describe("TRPG long-GM presentation + observer race", () => {
         state: {
           roundNumber: 5,
           phase: "BOT_ACTION",
-          lockedActions: 1,
+          processStage: null,
+          narrationRerolling: false,
+          revealedActionIds: [1],
           rolls: 0,
           narrationLen: 0,
           draftLen: 0,
@@ -237,7 +241,9 @@ describe("TRPG long-GM presentation + observer race", () => {
         state: {
           roundNumber: 5,
           phase: "ACTION_INPUT",
-          lockedActions: 0,
+          processStage: null,
+          narrationRerolling: false,
+          revealedActionIds: [],
           rolls: 0,
           narrationLen: 0,
           draftLen: 0,
