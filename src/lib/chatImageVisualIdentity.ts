@@ -92,11 +92,20 @@ export function extractVisualAppearance(source: unknown): string {
   return segments.join("\n").slice(0, CHAT_IMAGE_VISUAL_APPEARANCE_EXTRACT_MAX).trim();
 }
 
+export type ExplicitVisualAppearanceExtraction = {
+  /** True when an explicit appearance heading was present in settings. */
+  found: boolean;
+  /** Extracted appearance text; empty when heading exists with no content (explicit clear). */
+  text: string;
+};
+
 /**
  * Extracts only an explicitly labeled appearance section from one character's
  * free-form settings. It intentionally performs no inference when no heading exists.
  */
-export function extractExplicitVisualAppearanceSection(source: unknown): string {
+export function extractExplicitVisualAppearanceSection(
+  source: unknown
+): ExplicitVisualAppearanceExtraction {
   const lines = String(source ?? "").replace(/\r\n?/g, "\n").split("\n");
   const collected: string[] = [];
   let collecting = false;
@@ -115,8 +124,8 @@ export function extractExplicitVisualAppearanceSection(source: unknown): string 
     if (KNOWN_CHARACTER_SETTING_HEADING.test(line)) break;
     if (line) collected.push(line.replace(/^[-*]\s*/, "").trim());
   }
-  if (!collecting) return "";
-  return clipSavedAppearanceForPrompt(collected.join("\n"));
+  if (!collecting) return { found: false, text: "" };
+  return { found: true, text: clipSavedAppearanceForPrompt(collected.join("\n")) };
 }
 
 const COMPILED_APPEARANCE_FIELDS = [

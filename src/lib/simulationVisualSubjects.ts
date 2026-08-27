@@ -393,9 +393,7 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
   const extractedAppearanceByName = new Map(
     extractSimulationCastEntries(opts.simulationCast).map((entry) => [
       entry.name.toLowerCase(),
-      normalizeSubjectSavedAppearance(
-        extractExplicitVisualAppearanceSection(entry.settings)
-      ),
+      extractExplicitVisualAppearanceSection(entry.settings),
     ])
   );
 
@@ -406,13 +404,18 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
       (storedSubject) => storedSubject.subjectKey === subject.subjectKey
     );
     const extractedAppearance =
-      extractedAppearanceByName.get(subject.name.toLowerCase()) ?? "";
+      extractedAppearanceByName.get(subject.name.toLowerCase()) ??
+      ({ found: false, text: "" } as const);
+    const savedAppearance = extractedAppearance.found
+      ? normalizeSubjectSavedAppearance(extractedAppearance.text)
+      : isStoredSubject
+        ? subject.savedAppearance
+        : "";
     return {
       subjectKey:
         isStoredSubject || !override ? subject.subjectKey : override.subjectKey,
       name: subject.name,
-      savedAppearance:
-        extractedAppearance || (isStoredSubject ? subject.savedAppearance : ""),
+      savedAppearance,
       representativeAssetUrl:
         override?.representativeAssetUrl ?? subject.representativeAssetUrl,
       sourceCharacterId: isStoredSubject ? subject.sourceCharacterId : null,

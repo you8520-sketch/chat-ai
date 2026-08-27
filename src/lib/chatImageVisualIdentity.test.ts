@@ -91,29 +91,45 @@ describe("chat image visual identity", () => {
         "말투: 무뚝뚝함",
       ].join("\n")
     );
-    assert.equal(extracted, "블루블랙 머리카락, 붉은 눈, 큰 체격");
-    assert.doesNotMatch(extracted, /질투|무뚝뚝/);
+    assert.equal(extracted.found, true);
+    assert.equal(extracted.text, "블루블랙 머리카락, 붉은 눈, 큰 체격");
+    assert.doesNotMatch(extracted.text, /질투|무뚝뚝/);
   });
 
   it("does not speculate about appearance without a supported heading", () => {
-    assert.equal(
+    assert.deepEqual(
       extractExplicitVisualAppearanceSection("김태환은 과묵하고 쉽게 마음을 열지 않는다."),
-      ""
+      { found: false, text: "" }
     );
   });
 
   it("supports appearance aliases and stops at nonvisual headings", () => {
-    assert.equal(
+    assert.deepEqual(
       extractExplicitVisualAppearanceSection(
         "Looks: short silver hair\npale skin\nRelationship: longtime rival"
       ),
-      "short silver hair\npale skin"
+      { found: true, text: "short silver hair\npale skin" }
     );
-    assert.equal(
+    assert.deepEqual(
       extractExplicitVisualAppearanceSection(
         "외모 특징: 짧은 검은 머리\n왼쪽 눈썹 흉터\n배경: 연구소 출신"
       ),
-      "짧은 검은 머리\n왼쪽 눈썹 흉터"
+      { found: true, text: "짧은 검은 머리\n왼쪽 눈썹 흉터" }
+    );
+  });
+
+  it("distinguishes explicit clear from missing appearance heading", () => {
+    assert.deepEqual(
+      extractExplicitVisualAppearanceSection("성격: 냉정함"),
+      { found: false, text: "" }
+    );
+    assert.deepEqual(
+      extractExplicitVisualAppearanceSection("외형: 검은 머리"),
+      { found: true, text: "검은 머리" }
+    );
+    assert.deepEqual(
+      extractExplicitVisualAppearanceSection("외형:\n성격: 냉정함"),
+      { found: true, text: "" }
     );
   });
 
