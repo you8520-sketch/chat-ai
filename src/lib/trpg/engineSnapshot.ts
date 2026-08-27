@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { loadSheetSnapshots } from "./engineSheets";
 import { botGenerationInFlight } from "./botGenerationLease";
+import { gmGenerationInFlight as gmLeaseInFlight, gmStaleReclaimEligible } from "./gmGenerationLease";
 import { parseProcessStartedAtMs } from "./processTimer";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
 import { resolveTrpgRoundWork } from "./botGenerationRecovery";
@@ -402,10 +403,13 @@ export function loadTrpgSnapshot(
       workType: work.type,
       phase,
       botGenerationInFlight: round ? botGenerationInFlight(db, round) : false,
-      gmGenerationInFlight: phase === "GENERATING_NARRATION" && Boolean(round?.gm_generation_id),
+      gmGenerationInFlight: round ? gmLeaseInFlight(db, round) : false,
+      gmStaleReclaimEligible: round
+        ? gmStaleReclaimEligible(db, round.id, phase, round.gm_generation_id)
+        : false,
     }),
     botGenerationInFlight: round ? botGenerationInFlight(db, round) : false,
-    gmGenerationInFlight: phase === "GENERATING_NARRATION" && Boolean(round?.gm_generation_id),
+    gmGenerationInFlight: round ? gmLeaseInFlight(db, round) : false,
     processStartedAtMs: parseProcessStartedAtMs(round?.process_started_at),
     processStage: round?.process_stage ?? null,
     lastBilledPoints: lastBilled?.billed_points ?? null,

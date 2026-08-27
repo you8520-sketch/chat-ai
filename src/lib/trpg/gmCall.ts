@@ -19,7 +19,17 @@ import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL 
 export const GM_MAX_PROVIDER_ATTEMPTS = 2;
 /** Bot-seat stays one provider attempt. Do not add a 5xx retry here. */
 export const BOT_MAX_PROVIDER_ATTEMPTS = 1;
+export const GM_PROVIDER_TIMEOUT_MS = 180_000;
 export const GM_PROVIDER_5XX_RETRY_DELAY_MS = 1000;
+
+/** Max wall-clock for a healthy GM provider attempt sequence (both tries + retry delay). */
+export function healthyGmProviderWallMs(
+  timeoutMs: number = GM_PROVIDER_TIMEOUT_MS,
+  maxAttempts: number = GM_MAX_PROVIDER_ATTEMPTS,
+  retryDelayMs: number = GM_PROVIDER_5XX_RETRY_DELAY_MS
+): number {
+  return timeoutMs * maxAttempts + retryDelayMs;
+}
 export const GM_RETRYABLE_HTTP_STATUSES = [500, 502, 503, 504] as const;
 
 export type TrpgGmCallResult = {
@@ -206,7 +216,7 @@ export async function callTrpgGm(opts: {
     temperature: 0.7,
     max_tokens: TRPG_GM_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 180_000, role: "gm" });
+  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS, role: "gm" });
 }
 
 /** Bot-seat Pro call (thinking off). Separate from GM narration. */
