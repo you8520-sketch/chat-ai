@@ -25,7 +25,7 @@ import {
   shareQuoteCardPng,
   styleFromQuoteCardTheme,
 } from "@/lib/quoteCardImage";
-import { isSelectionInContainer } from "@/lib/quoteSelectionContainer";
+import { extractQuoteSelectionText, isSelectionInContainer } from "@/lib/quoteSelectionContainer";
 import { clampQuoteToolbarPosition, createCoalescedSelectionScheduler } from "@/lib/quoteSelectionToolbar";
 
 type PendingCapture = {
@@ -714,7 +714,7 @@ export default function ChatSelectionQuoteToolbar({
         return;
       }
 
-      const text = sel.toString().replace(/\u00a0/g, " ").replace(/\s+\n/g, "\n").trim();
+      const text = extractQuoteSelectionText(container, range);
       if (!text) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
