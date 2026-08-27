@@ -194,6 +194,162 @@ function splitKoreanClauses(text: string): string[] {
     .filter(Boolean);
 }
 
+export type SceneSourceSegmentKind = "dialogue" | "action" | "narration";
+
+export type SceneSourceSegment = {
+  start: number;
+  end: number;
+  kind: SceneSourceSegmentKind;
+  text: string;
+};
+
+type MarkedSpan = {
+  start: number;
+  end: number;
+  kind: "dialogue" | "action";
+  text: string;
+};
+
+function collectMarkedSpans(text: string): MarkedSpan[] {
+  const spans: MarkedSpan[] = [];
+  const patterns: Array<{ kind: MarkedSpan["kind"]; re: RegExp }> = [
+    { kind: "action", re: /\*([^*]+)\*/g },
+    { kind: "action", re: /\(([^)]+)\)/g },
+    { kind: "action", re: /（([^）]+)）/g },
+    { kind: "dialogue", re: /“([^”]+)”/g },
+    { kind: "dialogue", re: /"([^"]+)"/g },
+    { kind: "dialogue", re: /‘([^’]+)’/g },
+    { kind: "dialogue", re: /'([^']+)'/g },
+  ];
+  for (const { kind, re } of patterns) {
+    for (const match of text.matchAll(re)) {
+      const full = match[0] ?? "";
+      const inner = cleanLine(match[1] ?? "");
+      const start = match.index ?? 0;
+      if (!inner || !full) continue;
+      if (kind === "dialogue" && isSceneActionText(inner)) continue;
+      spans.push({ start, end: start + full.length, kind, text: inner });
+    }
+  }
+  spans.sort((left, right) => left.start - right.start || left.end - right.end);
+  const filtered: MarkedSpan[] = [];
+  let cursor = 0;
+  for (const span of spans) {
+    if (span.start < cursor) continue;
+    filtered.push(span);
+    cursor = span.end;
+  }
+  return filtered;
+}
+
+function gapSegments(
+  text: string,
+  start: number,
+  end: number,
+  role: SceneSourceRole
+): SceneSourceSegment[] {
+  const gap = text.slice(start, end);
+  const trimmed = gap.trim();
+  if (!trimmed) return [];
+  const gapStart = start + gap.indexOf(trimmed);
+  const gapEnd = gapStart + trimmed.length;
+  if (role === "user") {
+    const spoken = cleanLine(trimmed);
+    if (!spoken || isSceneActionText(spoken)) return [];
+    return [{ start: gapStart, end: gapEnd, kind: "dialogue", text: spoken }];
+  }
+  const narration = cleanLine(trimmed);
+  if (!narration) return [];
+  return [{ start: gapStart, end: gapEnd, kind: "narration", text: narration }];
+}
+
+/** Canonical intra-message segmenter — events follow source span order, not bucket order. */
+export function extractOrderedSceneSegments(
+  text: string,
+  role: SceneSourceRole
+): SceneSourceSegment[] {
+  const marked = collectMarkedSpans(text);
+  if (!marked.length) {
+    if (role === "user") {
+      const spoken = spokenLinesForMessage({ id: 0, order: 0, role, text });
+      if (!spoken.length) return [];
+      return spoken.map((line, index) => ({
+        start: index,
+        end: index + line.length,
+        kind: "dialogue" as const,
+        text: line,
+      }));
+    }
+    const narration = remainderNarration(text);
+    if (!narration) return [];
+    return splitKoreanClauses(narration).map((clause, index) => ({
+      start: index,
+      end: index + clause.length,
+      kind: "narration" as const,
+      text: clause,
+    }));
+  }
+
+  const segments: SceneSourceSegment[] = [];
+  let cursor = 0;
+  for (const span of marked) {
+    if (span.start > cursor) {
+      segments.push(...gapSegments(text, cursor, span.start, role));
+    }
+    segments.push({
+      start: span.start,
+      end: span.end,
+      kind: span.kind,
+      text: span.text,
+    });
+    cursor = span.end;
+  }
+  if (cursor < text.length) {
+    segments.push(...gapSegments(text, cursor, text.length, role));
+  }
+  return segments;
+}
+
+function segmentToEvent(
+  message: SceneSourceMessage,
+  segment: SceneSourceSegment,
+  previousUserAction: SceneEvent | undefined
+): Omit<SceneEvent, "id" | "order"> {
+  if (segment.kind === "action") {
+    return {
+      sourceMessageId: message.id,
+      sourceRole: message.role,
+      kind: message.role === "assistant" ? "reaction" : "action",
+      actor: actorForRole(message.role),
+      text: segment.text,
+    };
+  }
+  if (segment.kind === "dialogue") {
+    return {
+      sourceMessageId: message.id,
+      sourceRole: message.role,
+      kind: "dialogue",
+      actor: actorForRole(message.role),
+      text: segment.text,
+    };
+  }
+  const isEcho =
+    message.role === "assistant" &&
+    previousUserAction != null &&
+    textsOverlap(previousUserAction.text, segment.text);
+  return {
+    sourceMessageId: message.id,
+    sourceRole: message.role,
+    kind: isEcho
+      ? "assistant_echo"
+      : message.role === "assistant"
+        ? "reaction"
+        : "environment",
+    actor: message.role === "assistant" ? "character" : "environment",
+    text: segment.text,
+  };
+}
+
 export function extractDeterministicEvents(
   messages: readonly SceneSourceMessage[]
 ): SceneEvent[] {
@@ -207,58 +363,12 @@ export function extractDeterministicEvents(
   };
 
   for (const message of messages) {
-    const actions = extractActionSegments(message.text);
-    const spoken = spokenLinesForMessage(message);
-    const narration = remainderNarration(message.text);
-
-    for (const action of actions) {
-      push({
-        sourceMessageId: message.id,
-        sourceRole: message.role,
-        kind: message.role === "assistant" ? "reaction" : "action",
-        actor: actorForRole(message.role),
-        text: action,
-      });
-    }
-    for (const line of spoken) {
-      push({
-        sourceMessageId: message.id,
-        sourceRole: message.role,
-        kind: "dialogue",
-        actor: actorForRole(message.role),
-        text: line,
-      });
-    }
-    if (
-      narration &&
-      !spoken.includes(narration) &&
-      !actions.includes(narration) &&
-      !isSceneActionText(narration)
-    ) {
+    const segments = extractOrderedSceneSegments(message.text, message.role);
+    for (const segment of segments) {
       const previousUserAction = [...events]
         .reverse()
         .find((event) => event.sourceRole === "user" && event.kind === "action");
-      const clauses =
-        message.role === "assistant" && previousUserAction
-          ? splitKoreanClauses(narration)
-          : [narration];
-      for (const clause of clauses) {
-        const isEcho =
-          message.role === "assistant" &&
-          previousUserAction &&
-          textsOverlap(previousUserAction.text, clause);
-        push({
-          sourceMessageId: message.id,
-          sourceRole: message.role,
-          kind: isEcho
-            ? "assistant_echo"
-            : message.role === "assistant"
-              ? "reaction"
-              : "environment",
-          actor: message.role === "assistant" ? "character" : "environment",
-          text: clause,
-        });
-      }
+      push(segmentToEvent(message, segment, previousUserAction));
     }
   }
 
@@ -431,10 +541,17 @@ export type ScenePlanValidation =
   | { ok: true; plan: ScenePlan }
   | { ok: false; reason: string };
 
+export type ValidateScenePlanOptions = {
+  /** When false (default), AI/planner output may not declare provenance=user_edit. */
+  allowUserEdits?: boolean;
+};
+
 export function validateScenePlan(
   raw: unknown,
-  messages: readonly SceneSourceMessage[]
+  messages: readonly SceneSourceMessage[],
+  opts: ValidateScenePlanOptions = {}
 ): ScenePlanValidation {
+  const allowUserEdits = opts.allowUserEdits === true;
   if (!raw || typeof raw !== "object") {
     return { ok: false, reason: "scene plan missing" };
   }
@@ -549,7 +666,11 @@ export function validateScenePlan(
       const text = cleanLine(line.text, 160);
       if (!text) continue;
       const provenance = line.provenance === "user_edit" ? "user_edit" : "source";
-      if (provenance === "source") {
+      if (provenance === "user_edit") {
+        if (!allowUserEdits) {
+          return { ok: false, reason: "user_edit not allowed from planner" };
+        }
+      } else {
         const allowed = dialogueAllowedForSpeaker(messages, speaker);
         if (speaker === "persona" && !allowed.some((itemText) => itemText.includes(text) || text.includes(itemText))) {
           return { ok: false, reason: "persona dialogue not in user source" };

@@ -7,6 +7,7 @@ import {
   buildScenePlanPrompt,
   buildSceneSourceMessages,
   extractDeterministicEvents,
+  extractOrderedSceneSegments,
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
@@ -62,6 +63,77 @@ describe("chatImageScenePlan source", () => {
     assert.doesNotMatch(text, /STATUS_VALUES/);
     assert.doesNotMatch(text, /<b>/);
     assert.doesNotMatch(text, /<!--/);
+  });
+});
+
+describe("chatImageScenePlan intra-message source order", () => {
+  function userKinds(text: string): string[] {
+    return extractOrderedSceneSegments(text, "user").map((segment) => segment.kind);
+  }
+
+  it("CASE A action before dialogue preserves source order", () => {
+    const segments = extractOrderedSceneSegments('*두리번거린다* "같이 갈래?"', "user");
+    assert.deepEqual(
+      segments.map((segment) => segment.kind),
+      ["action", "dialogue"]
+    );
+    assert.ok(segments[0]!.start < segments[1]!.start);
+    const events = extractDeterministicEvents(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: '*두리번거린다* "같이 갈래?"' }])
+    );
+    assert.equal(events[0]?.kind, "action");
+    assert.equal(events[1]?.kind, "dialogue");
+  });
+
+  it("CASE B dialogue before action preserves source order", () => {
+    const segments = extractOrderedSceneSegments('"같이 갈래?" *두리번거린다*', "user");
+    assert.deepEqual(
+      segments.map((segment) => segment.kind),
+      ["dialogue", "action"]
+    );
+    assert.ok(segments[0]!.start < segments[1]!.start);
+    assert.deepEqual(userKinds('"같이 갈래?" *두리번거린다*'), ["dialogue", "action"]);
+  });
+
+  it("CASE C dialogue-action-dialogue preserves source order", () => {
+    const text = '"잠깐." *문을 연다* "가자."';
+    assert.deepEqual(userKinds(text), ["dialogue", "action", "dialogue"]);
+    const events = extractDeterministicEvents(
+      buildSceneSourceMessages([{ id: 1, role: "user", content: text }])
+    );
+    assert.deepEqual(
+      events.map((event) => event.kind),
+      ["dialogue", "action", "dialogue"]
+    );
+  });
+
+  it("CASE D assistant narration-dialogue-reaction preserves source order", () => {
+    const text = '태형이 고개를 든다. "그래." 자리에서 일어난다.';
+    const segments = extractOrderedSceneSegments(text, "assistant");
+    assert.deepEqual(
+      segments.map((segment) => segment.kind),
+      ["narration", "dialogue", "narration"]
+    );
+    const events = extractDeterministicEvents(
+      buildSceneSourceMessages([{ id: 1, role: "assistant", content: text }])
+    );
+    assert.equal(events[0]?.kind, "reaction");
+    assert.equal(events[1]?.kind, "dialogue");
+    assert.equal(events[2]?.kind, "reaction");
+    assert.ok(events[0]!.order < events[1]!.order && events[1]!.order < events[2]!.order);
+  });
+
+  it("CASE E assistant dialogue before reaction preserves source order", () => {
+    const text = '"그래." 태형이 자리에서 일어난다.';
+    assert.deepEqual(
+      extractOrderedSceneSegments(text, "assistant").map((segment) => segment.kind),
+      ["dialogue", "narration"]
+    );
+    const events = extractDeterministicEvents(
+      buildSceneSourceMessages([{ id: 1, role: "assistant", content: text }])
+    );
+    assert.equal(events[0]?.kind, "dialogue");
+    assert.equal(events[1]?.kind, "reaction");
   });
 });
 
@@ -140,7 +212,10 @@ describe("chatImageScenePlan dialogue and silent panels", () => {
       dialogue: [{ speaker: "persona", text: "지금 갈게", provenance: "source" }],
     });
     assert.equal(edited.panels[0]?.dialogue[0]?.provenance, "user_edit");
-    assert.equal(validateScenePlan(edited, messages).ok, true);
+    assert.equal(
+      validateScenePlan(edited, messages, { allowUserEdits: true }).ok,
+      true
+    );
   });
 
   it("SILENT_SCENE allows 0 dialogue for 2/3/4 panels", () => {
@@ -208,6 +283,34 @@ describe("chatImageScenePlan panel count and single image", () => {
 });
 
 describe("chatImageScenePlan validator", () => {
+  it("AI_INVENTED_USER_EDIT rejects planner provenance without source backing", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*손을 잡는다*" },
+      { id: 2, role: "assistant", content: "태형이 고개를 숙인다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    const forged = {
+      ...plan,
+      panels: plan.panels.map((panel, index) =>
+        index === 0
+          ? {
+              ...panel,
+              dialogue: [
+                { speaker: "persona", text: "그래 좋아", provenance: "user_edit" },
+              ],
+            }
+          : panel
+      ),
+    };
+    const plannerCheck = validateScenePlan(forged, messages, { allowUserEdits: false });
+    assert.equal(plannerCheck.ok, false);
+    if (!plannerCheck.ok) {
+      assert.match(plannerCheck.reason, /user_edit not allowed from planner/);
+    }
+    const clientCheck = validateScenePlan(forged, messages, { allowUserEdits: true });
+    assert.equal(clientCheck.ok, true);
+  });
+
   it("rejects reversed panel chronology", () => {
     const messages = sampleMessages();
     const plan = buildDeterministicScenePlan(messages, 2);

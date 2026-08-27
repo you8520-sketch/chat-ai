@@ -78,6 +78,7 @@ export async function planChatImageScene(opts: {
 
   for (const model of models.slice(0, SCENE_PLAN_MAX_PROVIDER_ATTEMPTS)) {
     attempts += 1;
+    const usedFallbackModel = model !== primary;
     try {
       const text = await complete({
         system:
@@ -92,12 +93,12 @@ export async function planChatImageScene(opts: {
       } catch {
         continue;
       }
-      const validated = validateScenePlan(parsed, messages);
+      const validated = validateScenePlan(parsed, messages, { allowUserEdits: false });
       if (validated.ok) {
         return {
           plan: validated.plan,
           model,
-          usedFallback: false,
+          usedFallback: usedFallbackModel,
           attempts,
         };
       }

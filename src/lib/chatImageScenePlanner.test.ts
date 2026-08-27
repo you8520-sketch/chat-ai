@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildSceneSourceMessages, reflowScenePlanPanels } from "./chatImageScenePlan";
+import {
+  buildDeterministicScenePlan,
+  buildSceneSourceMessages,
+  reflowScenePlanPanels,
+} from "./chatImageScenePlan";
 import { planChatImageScene } from "./chatImageScenePlanner";
 
 const SOURCE_ROWS = [
@@ -60,5 +64,50 @@ describe("chatImageScenePlanner", () => {
     assert.equal(four.panels.length, 4);
     assert.equal(calls, afterPlannerCalls);
     assert.equal(two.events, planned.plan.events);
+  });
+
+  it("FALLBACK_SUCCESS marks usedFallback when the secondary model validates", async () => {
+    const messages = buildSceneSourceMessages(SOURCE_ROWS);
+    const goodPlan = buildDeterministicScenePlan(messages, 2);
+    let call = 0;
+    let secondModel = "";
+    const result = await planChatImageScene({
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      complete: async ({ model }) => {
+        call += 1;
+        if (call === 1) {
+          return JSON.stringify({ events: [], panels: [] });
+        }
+        secondModel = model;
+        return JSON.stringify(goodPlan);
+      },
+    });
+    assert.equal(call, 2);
+    assert.equal(result.model, secondModel);
+    assert.equal(result.usedFallback, true);
+    assert.equal(result.plan.panels.length, 2);
+  });
+
+  it("AI_INVENTED_USER_EDIT fails planner validation and falls back deterministically", async () => {
+    const messages = buildSceneSourceMessages(SOURCE_ROWS);
+    const forged = buildDeterministicScenePlan(messages, 2);
+    forged.panels[0]!.dialogue = [
+      { speaker: "persona", text: "그래 좋아", provenance: "user_edit" },
+    ];
+    const result = await planChatImageScene({
+      characterName: "태형",
+      personaName: "렌",
+      messages,
+      complete: async () => JSON.stringify(forged),
+    });
+    assert.equal(result.usedFallback, true);
+    assert.equal(result.model, "deterministic-fallback");
+    assert.ok(result.plan.events.length > 0);
+    assert.doesNotMatch(
+      result.plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text)).join(" "),
+      /그래 좋아/
+    );
   });
 });

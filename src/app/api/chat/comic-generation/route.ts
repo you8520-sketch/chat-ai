@@ -385,7 +385,9 @@ function resolveApprovedScenePlan(opts: {
   panelCount?: unknown;
 }): ScenePlan {
   const requestedCount = isScenePanelCount(opts.panelCount) ? opts.panelCount : undefined;
-  const validated = validateScenePlan(opts.bodyPlan, opts.messages);
+  const validated = validateScenePlan(opts.bodyPlan, opts.messages, {
+    allowUserEdits: true,
+  });
   if (validated.ok) {
     return requestedCount
       ? reflowScenePlanPanels(validated.plan, requestedCount)
