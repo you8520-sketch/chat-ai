@@ -32,7 +32,7 @@ export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<strin
  * Bot-seat Pro call — Thinking OFF is the product contract.
  * DeepSeek V4 Pro 0813 does not actually disable reasoning from
  * `thinking: { type: "disabled" }` alone; `reasoning_effort: "none"` must
- * be sent with it. Isolated from GM (thinking on) and RP chat.
+ * be sent with it. Isolated from GM (also thinking disabled / true OFF) and RP chat.
  */
 export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<string, unknown> {
   const adapted = { ...body };

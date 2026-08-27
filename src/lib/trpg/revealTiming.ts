@@ -190,8 +190,10 @@ export function resolveTrpgRevealVisibleCount(opts: {
     opts.previousSession.active === opts.nextSession.active &&
     opts.previousSession.kind === opts.nextSession.kind &&
     trpgRevealTextExtended(opts.previousSession.text, opts.nextSession.text);
+  // Prefix extensions keep the visible cursor (finish-owned or live draft growth).
+  // Non-prefix replacements restart from 0.
   return trpgRevealContinueCount({
-    sessionChanged: sessionChanged && !(textExtended && opts.finishOwned),
+    sessionChanged: sessionChanged && !textExtended,
     shownCount: opts.storedCount,
     total,
   });

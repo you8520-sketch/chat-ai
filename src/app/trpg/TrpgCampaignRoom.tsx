@@ -165,13 +165,12 @@ import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import {
-  markTrpgProviderStreamSeen,
   resolveTrpgGmContentStreaming,
   resolveTrpgGmLiveAssetResolution,
+  resolveTrpgGmPacingSource,
+  resolveTrpgGmRevealActive,
   resolveTrpgGmRevealComplete,
   resolveTrpgGmShownNarration,
-  resolveTrpgGmStreamNarrationSource,
-  stripLiveGmNarrationText,
 } from "@/lib/trpg/gmProviderStreamDisplay";
 
 function useCampaignDicePreview(
@@ -1994,53 +1993,45 @@ function SceneTurn({
   skipDecorativeReveal?: boolean;
   cinematicActorAction?: boolean;
 }) {
-  const providerStreamSeenRef = useRef(false);
-  providerStreamSeenRef.current = markTrpgProviderStreamSeen(
-    providerStreamSeenRef.current,
-    gmStreamDraft
-  );
-  const directProviderStream = providerStreamSeenRef.current;
   const allowGm = showGmNarration !== false && !revealGateHeld;
-  const narrationSource = resolveTrpgGmStreamNarrationSource({
-    providerStreamSeen: directProviderStream,
+  const pacingSource = resolveTrpgGmPacingSource({
     gmStreamDraft,
     canonicalNarration: row.narration,
   });
-  const revealNarration =
-    allowGm && !directProviderStream && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
-  const narrationReveal = useRevealedText(narrationSource, revealNarration, "gm", streamIntervalMs);
-  const shownNarration = resolveTrpgGmShownNarration({
-    directProviderStream,
+  const revealNarration = resolveTrpgGmRevealActive({
     allowGm,
-    narrationSource,
-    decorativeShownText: narrationReveal.shownText,
+    skipDecorativeReveal,
+    isFreshLogKey: isFreshLogKey(`n:${row.roundNumber}`),
   });
-  const fullNarrationLen = Array.from(narrationSource).length;
+  const narrationReveal = useRevealedText(pacingSource, revealNarration, "gm", streamIntervalMs);
+  const shownNarration = resolveTrpgGmShownNarration({
+    allowGm,
+    skipDecorativeReveal,
+    pacingSource,
+    visibleCursorText: narrationReveal.shownText,
+  });
+  const fullNarrationLen = Array.from(pacingSource).length;
   const shownNarrationLen = Array.from(shownNarration).length;
-  const gmRevealProgressive =
-    !directProviderStream && shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
+  const gmRevealProgressive = shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
   const gmContentStreaming = resolveTrpgGmContentStreaming({
-    directProviderStream,
     allowGm,
     canonicalNarration: row.narration,
-    narrationSource,
+    pacingSource,
     decorativeRevealActive: revealNarration,
     decorativeProgressive: gmRevealProgressive,
   });
   const gmRevealComplete = resolveTrpgGmRevealComplete({
-    directProviderStream,
-    narrationSource,
-    canonicalNarration: row.narration,
+    allowGm,
+    skipDecorativeReveal,
+    pacingSource,
     decorativeShownLen: shownNarrationLen,
   });
   const canonicalCommitted = Boolean(row.narration?.trim());
   const liveAssetResolution = resolveTrpgGmLiveAssetResolution({
-    directProviderStream,
     canonicalCommitted,
+    revealComplete: gmRevealComplete,
   });
-  const gmDisplayNarration = liveAssetResolution
-    ? shownNarration
-    : stripLiveGmNarrationText(shownNarration);
+  const gmDisplayNarration = liveAssetResolution ? (row.narration ?? shownNarration) : shownNarration;
   const gmScenarioAssets = liveAssetResolution ? scenarioAssets : [];
   const gmCharacterCatalog = liveAssetResolution ? (characterCatalog ?? []) : [];
   useLayoutEffect(() => {

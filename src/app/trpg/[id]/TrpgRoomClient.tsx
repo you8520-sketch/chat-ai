@@ -34,10 +34,17 @@ import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { trpgRoomGenerating } from "@/lib/trpg/roomClientState";
+import {
+  afterSnapshotObservationSettled,
+  decideSnapshotApply,
+  TRPG_SNAPSHOT_POLL_MS,
+  trpgSnapshotProgressScore,
+} from "@/lib/trpg/snapshotObserver";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
-const POLL_MS = 1500;
+/** Serialized snapshot observer cadence — ONE GET in flight. */
+const POLL_MS = TRPG_SNAPSHOT_POLL_MS;
 
 export default function TrpgRoomClient({
   initial,
@@ -92,6 +99,12 @@ export default function TrpgRoomClient({
   });
 
   const appliedRoundRef = useRef(initial.round.number);
+  const snapRef = useRef(snap);
+  snapRef.current = snap;
+  const setupRef = useRef(setup);
+  setupRef.current = setup;
+  const appliedSeqRef = useRef(0);
+  const advanceKickInFlightRef = useRef(false);
   const apply = useCallback((next: TrpgCampaignSnapshot) => {
     const reset = trpgActionComposerForRound(appliedRoundRef.current, next.round.number, next.myDraft);
     appliedRoundRef.current = next.round.number;
@@ -103,6 +116,30 @@ export default function TrpgRoomClient({
       setActionBody(next.myDraft.body);
     }
   }, []);
+
+  const applyObservedSnapshot = useCallback(
+    (next: TrpgCampaignSnapshot, responseSeq: number, cancelled: boolean) => {
+      const previous = snapRef.current;
+      const decision = decideSnapshotApply({
+        cancelled,
+        responseSeq,
+        appliedSeq: appliedSeqRef.current,
+        previous: {
+          roundNumber: previous.round.number,
+          progress: trpgSnapshotProgressScore(previous),
+        },
+        next: {
+          roundNumber: next.round.number,
+          progress: trpgSnapshotProgressScore(next),
+        },
+      });
+      if (!decision.apply) return false;
+      appliedSeqRef.current = responseSeq;
+      apply(next);
+      return true;
+    },
+    [apply]
+  );
 
   useEffect(() => {
     if (suggestionRound == null) {
@@ -128,27 +165,77 @@ export default function TrpgRoomClient({
     const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { cache: "no-store" });
     const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
     if (!res.ok || !data.campaign) throw new Error(data.error || "불러오지 못했습니다.");
-    apply(data.campaign);
+    const seq = appliedSeqRef.current + 1;
+    applyObservedSnapshot(data.campaign, seq, false);
     return data.campaign;
-  }, [apply, snap.id]);
+  }, [applyObservedSnapshot, snap.id]);
 
+  // SNAPSHOT_OBSERVER=true — one serialized GET; not restarted by workType/phase.
   useEffect(() => {
-    const id = window.setInterval(() => {
+    let cancelled = false;
+    let timer: number | null = null;
+    let inFlight = false;
+    let seq = 0;
+    const campaignId = snap.id;
+
+    const launchAdvanceKick = (campaignIdToKick: number) => {
+      advanceKickInFlightRef.current = true;
       void (async () => {
         try {
-          const next = await refresh();
-          if (setup) return;
-          if (next.shouldKickAdvance) {
-            await fetch(`/api/trpg/campaigns/${next.id}/advance`, { method: "POST" });
-            await refresh();
-          }
+          // ADVANCE_RESPONSE_OWNS_PRESENTATION=false — observer GET owns live state.
+          await fetch(`/api/trpg/campaigns/${campaignIdToKick}/advance`, { method: "POST" });
         } catch {
-          /* ignore poll errors */
+          /* ignore kick errors; lease/CAS remain server authority */
+        } finally {
+          advanceKickInFlightRef.current = false;
         }
       })();
-    }, POLL_MS);
-    return () => window.clearInterval(id);
-  }, [refresh, setup, snap.workType]);
+    };
+
+    const scheduleNext = (delayMs: number) => {
+      if (cancelled) return;
+      timer = window.setTimeout(() => {
+        void observeOnce();
+      }, delayMs);
+    };
+
+    const observeOnce = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      const responseSeq = ++seq;
+      let shouldKick = false;
+      try {
+        const res = await fetch(`/api/trpg/campaigns/${campaignId}`, { cache: "no-store" });
+        const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+        if (!cancelled && res.ok && data.campaign) {
+          applyObservedSnapshot(data.campaign, responseSeq, cancelled);
+          shouldKick = data.campaign.shouldKickAdvance === true;
+        }
+      } catch {
+        /* ignore poll errors */
+      } finally {
+        inFlight = false;
+        if (cancelled) return;
+        const tick = afterSnapshotObservationSettled({
+          setup: setupRef.current,
+          shouldKickAdvance: shouldKick,
+          advanceKickInFlight: advanceKickInFlightRef.current,
+          pollMs: POLL_MS,
+        });
+        // SNAPSHOT_OBSERVER_WAITS_FOR_ADVANCE=false
+        if (tick.launchAdvanceKick) {
+          launchAdvanceKick(campaignId);
+        }
+        scheduleNext(tick.scheduleNextMs);
+      }
+    };
+
+    scheduleNext(POLL_MS);
+    return () => {
+      cancelled = true;
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [applyObservedSnapshot, snap.id]);
 
   async function run(path: string, body?: unknown) {
     setBusy(true);
@@ -161,7 +248,8 @@ export default function TrpgRoomClient({
       });
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
-      apply(data.campaign);
+      const seq = appliedSeqRef.current + 1;
+      applyObservedSnapshot(data.campaign, seq, false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
     } finally {

@@ -217,7 +217,8 @@ describe("TRPG live turn process status", () => {
     assert.match(room, /data-trpg-live-turn-status/);
     assert.match(room, /cinematicAiActionActive/);
     assert.doesNotMatch(room, /DeepSeek/);
-    assert.match(client, /const POLL_MS = 1500/);
+    assert.match(client, /const POLL_MS = TRPG_SNAPSHOT_POLL_MS/);
+    assert.match(client, /TRPG_SNAPSHOT_POLL_MS/);
   });
 
   it("T_PROCESS_TIMER: elapsed stays; AI actor-action copy wins over GM generation", () => {
