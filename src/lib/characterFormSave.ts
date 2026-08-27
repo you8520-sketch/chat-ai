@@ -70,6 +70,12 @@ import {
   type SimulationImportSnapshot,
 } from "@/lib/simulationMode";
 import {
+  prepareSimulationVisualSubjectsForSave,
+  sanitizeAssetVisualSubjectKeys,
+  serializeSimulationVisualSubjectsJson,
+  validateSimulationVisualSubjectsDocument,
+} from "@/lib/simulationVisualSubjects";
+import {
   normalizeAdultDialogueProfile,
   type AdultConsentMode,
   type AdultDialogueProfile,
@@ -134,6 +140,7 @@ export type ParsedCharacterForm = {
   simulationReuseAllowed: number;
   simulationNsfwAllowed: number;
   trpgReuseAllowed: number;
+  simulationVisualSubjectsJson: string;
   emoji: string;
   hue: number;
   tagsJson: string;
@@ -146,6 +153,7 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
         .map((a: {
           url: string;
           tag: string;
+          visualSubjectKey?: string;
           public?: boolean;
           chat?: boolean;
           viewerBlur?: boolean;
@@ -171,6 +179,9 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
           ...(Number(a.height) > 0 ? { height: Math.round(Number(a.height)) } : {}),
           ...(a.orientation === "landscape" || a.orientation === "portrait" || a.orientation === "square"
             ? { orientation: a.orientation }
+            : {}),
+          ...(typeof a.visualSubjectKey === "string" && a.visualSubjectKey.trim()
+            ? { visualSubjectKey: a.visualSubjectKey.trim() }
             : {}),
         }))
         .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
@@ -456,7 +467,35 @@ export function parseCharacterFormBody(
     return { ok: false, error: "장르를 1개 이상 선택해 주세요.", status: 400 };
   }
 
-  const assets = parseAssetsFromFormBody(b.assets);
+  const assetsRaw = parseAssetsFromFormBody(b.assets);
+  let assets = assetsRaw;
+  let simulationVisualSubjectsJson = "";
+  if (contentKind === "simulation") {
+    const submittedSubjectsRaw =
+      typeof b.simulation_visual_subjects_json === "string"
+        ? b.simulation_visual_subjects_json
+        : b.simulation_visual_subjects != null
+          ? JSON.stringify(b.simulation_visual_subjects)
+          : "";
+    const prepared = prepareSimulationVisualSubjectsForSave({
+      simulationCast,
+      simulationTitle: name,
+      submittedRaw: submittedSubjectsRaw,
+      storedRaw:
+        typeof b._stored_simulation_visual_subjects_json === "string"
+          ? b._stored_simulation_visual_subjects_json
+          : typeof b.stored_simulation_visual_subjects_json === "string"
+            ? b.stored_simulation_visual_subjects_json
+            : "",
+      assets: assetsRaw,
+    });
+    assets = sanitizeAssetVisualSubjectKeys(assetsRaw, prepared.subjects);
+    const validated = validateSimulationVisualSubjectsDocument(prepared, assets);
+    if (!validated.ok) {
+      return { ok: false, error: validated.reason, status: 400 };
+    }
+    simulationVisualSubjectsJson = serializeSimulationVisualSubjectsJson(prepared);
+  }
 
   if (assets.length === 0) {
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
@@ -504,6 +543,7 @@ export function parseCharacterFormBody(
       simulationReuseAllowed: 0,
       simulationNsfwAllowed: 0,
       trpgReuseAllowed: b.trpg_reuse_allowed === true ? 1 : 0,
+      simulationVisualSubjectsJson,
       emoji: String(b.emoji || "✨"),
       hue: Number(b.hue) || 260,
       tagsJson: JSON.stringify(parseCharacterTagsInput(b.tags)),
@@ -742,8 +782,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
          recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
-         content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, simulation_visual_subjects_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -790,7 +830,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.simulationImportsJson,
       data.simulationReuseAllowed,
       data.simulationNsfwAllowed,
-      data.trpgReuseAllowed
+      data.trpgReuseAllowed,
+      data.simulationVisualSubjectsJson
     );
 
   const characterId = Number(info.lastInsertRowid);
@@ -858,7 +899,8 @@ export async function updateCharacterFromForm(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
               creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
-              content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json, participant_min_age
+              content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json, participant_min_age,
+              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -889,6 +931,7 @@ export async function updateCharacterFromForm(
         adult_status: string | null;
         adult_consent_modes_json: string | null;
         participant_min_age: number | null;
+        simulation_visual_subjects_json: string;
       }
     | undefined;
 
@@ -900,7 +943,13 @@ export async function updateCharacterFromForm(
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
 
-  const parsed = parseCharacterFormBody(b, user, {
+  const parsed = parseCharacterFormBody(
+    {
+      ...b,
+      stored_simulation_visual_subjects_json: row.simulation_visual_subjects_json,
+    },
+    user,
+    {
     existingParticipantMinAge: row.participant_min_age,
     requireStructuredAge: false,
   });
@@ -965,7 +1014,7 @@ export async function updateCharacterFromForm(
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
-      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?
+      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?
      WHERE id=?`
   ).run(
     data.name,
@@ -1011,6 +1060,7 @@ export async function updateCharacterFromForm(
     data.simulationReuseAllowed,
     data.simulationNsfwAllowed,
     data.trpgReuseAllowed,
+    data.simulationVisualSubjectsJson,
     characterId
   );
   const adultProfileWasProvided =

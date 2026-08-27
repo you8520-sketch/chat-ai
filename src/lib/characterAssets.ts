@@ -3,6 +3,8 @@ export type AssetOrientation = "landscape" | "portrait" | "square";
 export type CharacterAsset = {
   url: string;
   tag: string;
+  /** Simulation-only: stable visual subject this asset depicts. */
+  visualSubjectKey?: string;
   /** 소개·카드 등에 노출 */
   public?: boolean;
   /** 대화 중 감정 태그로 전환 가능 */
@@ -97,6 +99,9 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
   return {
     url: String(raw.url),
     tag: String(raw.tag),
+    ...(typeof raw.visualSubjectKey === "string" && raw.visualSubjectKey.trim()
+      ? { visualSubjectKey: raw.visualSubjectKey.trim() }
+      : {}),
     // 업로드한 에셋은 모두 소개·대화 풀에 포함. UI에서 고르는 것은 가림(viewerBlur)뿐.
     public: true,
     chat: true,

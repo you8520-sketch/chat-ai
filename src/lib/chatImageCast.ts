@@ -96,6 +96,7 @@ export type SceneCastMention = {
 export type SelectableCastAsset = {
   url: string;
   tag: string;
+  visualSubjectKey?: string;
 };
 
 export type CastCandidateSourceMarker =

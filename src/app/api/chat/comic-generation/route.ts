@@ -6,6 +6,7 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
@@ -63,6 +64,10 @@ import {
   releaseChatImageScenePlanRateLimit,
 } from "@/lib/chatImageScenePlanRateLimit";
 import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
+import {
+  parseSimulationVisualSubjectsJson,
+  type SimulationVisualSubject,
+} from "@/lib/simulationVisualSubjects";
 import { filterConfiguredCastNamesForViewer } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
@@ -121,6 +126,7 @@ type CharacterRow = {
   system_prompt: string | null;
   simulation_cast: string | null;
   content_kind: string | null;
+  simulation_visual_subjects_json: string | null;
 };
 
 type PersonaRow = {
@@ -147,6 +153,8 @@ type GenerationContext = {
   characterImageUrl: string;
   personaImageUrl: string;
   characterImages: ReturnType<typeof listSelectableCharacterImages>;
+  characterAssets: CharacterAsset[];
+  simulationVisualSubjects: SimulationVisualSubject[];
   characterSavedAppearance: string;
   personaSavedAppearance: string;
 };
@@ -236,7 +244,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(simulation_cast, '') AS simulation_cast, COALESCE(content_kind, 'character') AS content_kind FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(simulation_cast, '') AS simulation_cast, COALESCE(content_kind, 'character') AS content_kind, COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -286,6 +294,11 @@ function resolveGenerationContext(opts: {
     personaName: persona.name,
     personaGender: persona.gender,
   });
+  const characterAssets = parseAssets(character.assets);
+  const simulationVisualSubjects =
+    contentKind === "simulation"
+      ? parseSimulationVisualSubjectsJson(character.simulation_visual_subjects_json).subjects
+      : [];
   return {
     chatId,
     contentKind,
@@ -296,6 +309,8 @@ function resolveGenerationContext(opts: {
     characterImageUrl,
     personaImageUrl,
     characterImages,
+    characterAssets,
+    simulationVisualSubjects,
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,
       appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
@@ -454,7 +469,11 @@ function resolveGroundedCastManifest(opts: {
       selectableAssets: opts.context.characterImages.map((image) => ({
         url: image.url,
         tag: image.tag,
+        visualSubjectKey: opts.context.characterAssets.find((asset) => asset.url === image.url)
+          ?.visualSubjectKey,
       })),
+      simulationVisualSubjects: opts.context.simulationVisualSubjects,
+      characterAssets: opts.context.characterAssets,
     },
     opts.scenePlan,
     contentKind

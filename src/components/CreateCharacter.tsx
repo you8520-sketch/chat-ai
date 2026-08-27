@@ -18,6 +18,7 @@ import {
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
+import SimulationVisualSubjectEditor from "@/components/SimulationVisualSubjectEditor";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
@@ -81,6 +82,12 @@ import {
   SIMULATION_CAST_EXAMPLE,
   type ContentKind,
 } from "@/lib/simulationMode";
+import {
+  assignAssetsToVisualSubject,
+  emptySimulationVisualSubjectsDocument,
+  parseSimulationVisualSubjectsJson,
+  type SimulationVisualSubjectsDocument,
+} from "@/lib/simulationVisualSubjects";
 
 const MAX_IMAGES = 100;
 
@@ -179,6 +186,9 @@ export default function CreateCharacter({
     simulation_rules: "",
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
+  const [visualSubjects, setVisualSubjects] = useState<SimulationVisualSubjectsDocument>(
+    emptySimulationVisualSubjectsDocument()
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -462,6 +472,90 @@ export default function CreateCharacter({
     }
   }
 
+  async function uploadAssetsForSubject(subjectFiles: File[], subjectKey: string) {
+    if (subjectFiles.length === 0 || !subjectKey) return;
+    setLoading(true);
+    setError("");
+    setProgress(`인물 이미지 ${subjectFiles.length}장 업로드 중…`);
+    try {
+      const fd = new FormData();
+      subjectFiles.forEach((file) => fd.append("files", file));
+      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const upData = await up.json();
+      if (!up.ok) {
+        setError(upData.error || "에셋 업로드에 실패했습니다.");
+        return;
+      }
+      const uploadedUrls: string[] = Array.isArray(upData.urls)
+        ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
+        : [];
+      if (uploadedUrls.length === 0) {
+        setError("업로드된 이미지 URL을 확인하지 못했습니다.");
+        return;
+      }
+      setProgress("이미지 표정·자세 태그 분석 중…");
+      let taggedAssets: Array<{ url: string; tag: string; adultFlagged?: boolean; moderationReject?: boolean; moderationReason?: string }> = [];
+      try {
+        const tagRes = await fetch("/api/assets/tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: uploadedUrls }),
+        });
+        const tagData = (await tagRes.json()) as { assets?: unknown; error?: string };
+        if (tagRes.ok && Array.isArray(tagData.assets)) {
+          taggedAssets = tagData.assets
+            .filter((a: unknown): a is { url: string; tag: string; adultFlagged?: boolean; moderationReject?: boolean; moderationReason?: string } =>
+              !!a && typeof a === "object" && typeof (a as { url?: unknown }).url === "string" && typeof (a as { tag?: unknown }).tag === "string"
+            )
+            .map((a, i) => ({
+              url: a.url,
+              tag: a.tag.trim() || fallbackAssetTag(assets.length + i),
+              ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
+              ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
+              ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
+                ? { moderationReason: a.moderationReason.trim() }
+                : {}),
+            }));
+        }
+      } catch {
+        setError("자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
+      }
+      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
+      const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
+      const batch = uploadedUrls.map((url, i) => {
+        const tagged = byUrl.get(url);
+        const size = measured[i];
+        return withAssetSize(
+          {
+            url,
+            tag: tagged?.tag || fallbackAssetTag(assets.length + i),
+            visualSubjectKey: subjectKey,
+            ...defaultAssetFlags(assets, i),
+            ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
+            ...(typeof tagged?.moderationReject === "boolean" ? { moderationReject: tagged.moderationReject } : {}),
+            ...(tagged?.moderationReason ? { moderationReason: tagged.moderationReason } : {}),
+          },
+          size?.width,
+          size?.height
+        );
+      });
+      const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
+      if (accepted.length > 0) {
+        setAssets((prev) =>
+          normalizeManagedAssets(assignAssetsToVisualSubject([...prev, ...accepted], accepted.map((asset) => asset.url), subjectKey))
+        );
+      }
+      if (rejected.length > 0) {
+        setError(allAgesAssetChangeRequest(rejected.length));
+      }
+    } catch {
+      setError("에셋 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+      setProgress("");
+    }
+  }
+
   function removeFile(i: number) {
     setFiles((f) => f.filter((_, idx) => idx !== i));
   }
@@ -547,6 +641,20 @@ export default function CreateCharacter({
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
         setAssets(
           normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
+        );
+        setVisualSubjects(
+          data.simulation_visual_subjects
+            ? {
+                version: 1,
+                subjects: Array.isArray(data.simulation_visual_subjects.subjects)
+                  ? data.simulation_visual_subjects.subjects
+                  : [],
+              }
+            : parseSimulationVisualSubjectsJson(
+                typeof data.simulation_visual_subjects_json === "string"
+                  ? data.simulation_visual_subjects_json
+                  : ""
+              )
         );
         setSelectedWorldId(data.world_id ?? "");
         setSelectedLorebookId(data.lorebook_id ?? "");
@@ -843,6 +951,7 @@ export default function CreateCharacter({
       status_widget_json: serializeStatusWidget(statusWidget),
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
+      simulation_visual_subjects: form.content_kind === "simulation" ? visualSubjects : undefined,
       world_id: selectedWorldId === "" ? undefined : selectedWorldId,
       lorebook_id:
         selectedLorebookId === "" ? undefined : selectedLorebookId,
@@ -1418,6 +1527,17 @@ export default function CreateCharacter({
                     onChange={(e) => setForm({ ...form, simulation_rules: e.target.value })}
                   />
                 </div>
+
+                <SimulationVisualSubjectEditor
+                  simulationTitle={form.name}
+                  simulationCast={form.simulation_cast}
+                  assets={assets}
+                  visualSubjects={visualSubjects}
+                  onVisualSubjectsChange={setVisualSubjects}
+                  onAssetsChange={(next) => setAssets(normalizeManagedAssets(next))}
+                  onUploadBatch={uploadAssetsForSubject}
+                  uploading={loading}
+                />
 
                 <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <div>
