@@ -706,11 +706,14 @@ export default function TrpgCampaignRoom({
     log: snap.log,
     seenKeys: seenLogKeysRef.current!,
   });
+  const liveGmStreamDraft =
+    phase === "GENERATING_NARRATION" ? snap.gmNarrationDraft?.text?.trim() ?? "" : "";
   const liveFollowRound = freshGmRow?.roundNumber ?? snap.round.number;
-  const currentNarration = (freshGmRow?.narration ?? currentLogRow?.narration)?.trim() || "";
+  const currentNarration =
+    (freshGmRow?.narration ?? (liveGmStreamDraft || currentLogRow?.narration))?.trim() || "";
   currentNarrationRef.current = currentNarration;
   liveFreshGmRoundRef.current = freshGmRow?.roundNumber ?? null;
-  const gmTextReady = cinematicShowGm && currentNarration.length > 0;
+  const gmTextReady = cinematicShowGm && (currentNarration.length > 0 || liveGmStreamDraft.length > 0);
   const hiddenCatchUpActive = isHiddenPresentationCatchUpActive({
     documentHidden,
     session: hiddenPresentationSession,
@@ -1490,6 +1493,10 @@ export default function TrpgCampaignRoom({
                 ? cinematicShowGm
                 : false
               : undefined;
+            const liveGmStreamDraft =
+              isLiveRow && phase === "GENERATING_NARRATION"
+                ? snap.gmNarrationDraft?.text?.trim() ?? ""
+                : "";
             return (
             <SceneTurn
               key={row.roundNumber}
@@ -1499,7 +1506,7 @@ export default function TrpgCampaignRoom({
               statDefs={snap.statDefs}
               display={displayPrefs}
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
-              canImage={Boolean(imageId) && Boolean(row.narration)}
+              canImage={Boolean(imageId) && Boolean(row.narration || liveGmStreamDraft)}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
               characterCatalog={snap.aiCharacterAssets ?? []}
@@ -1509,6 +1516,8 @@ export default function TrpgCampaignRoom({
               revealedActorIds={liveRevealedActorIds}
               resultLaneActorIds={liveResultLaneIds}
               showGmNarration={liveShowGmNarration}
+              gmStreamDraft={liveGmStreamDraft || undefined}
+              gmStreamLive={Boolean(liveGmStreamDraft) && liveShowGmNarration === true}
               partyHumanCount={snap.partyHumanCount}
               partyBotCount={snap.partyBotCount}
               viewerIsHost={snap.viewerIsHost}
@@ -1918,6 +1927,8 @@ function SceneTurn({
   revealedActorIds: revealedIds,
   resultLaneActorIds: laneIds,
   showGmNarration,
+  gmStreamDraft,
+  gmStreamLive = false,
   partyHumanCount,
   partyBotCount,
   viewerIsHost,
@@ -1954,6 +1965,9 @@ function SceneTurn({
   revealedActorIds?: number[];
   resultLaneActorIds?: number[];
   showGmNarration?: boolean;
+  /** Server-owned live narration draft during GENERATING_NARRATION. */
+  gmStreamDraft?: string;
+  gmStreamLive?: boolean;
   partyHumanCount?: number;
   partyBotCount?: number;
   viewerIsHost: boolean;
@@ -1974,15 +1988,24 @@ function SceneTurn({
   skipDecorativeReveal?: boolean;
   cinematicActorAction?: boolean;
 }) {
+  const providerStreamSeenRef = useRef(false);
+  if (gmStreamLive) providerStreamSeenRef.current = true;
+  const directProviderStream = providerStreamSeenRef.current;
   const allowGm = showGmNarration !== false && !revealGateHeld;
-  const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
-  const narrationReveal = useRevealedText(row.narration ?? "", revealNarration, "gm", streamIntervalMs);
-  const shownNarration = narrationReveal.shownText;
-  const fullNarrationLen = Array.from(row.narration ?? "").length;
+  const narrationSource = directProviderStream
+    ? (gmStreamDraft ?? row.narration ?? "")
+    : (row.narration ?? "");
+  const revealNarration =
+    allowGm && !directProviderStream && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
+  const narrationReveal = useRevealedText(narrationSource, revealNarration, "gm", streamIntervalMs);
+  const shownNarration = directProviderStream ? narrationSource : narrationReveal.shownText;
+  const fullNarrationLen = Array.from(narrationSource).length;
   const shownNarrationLen = Array.from(shownNarration).length;
-  const gmRevealProgressive = shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
+  const gmRevealProgressive =
+    !directProviderStream && shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
   const gmRevealComplete =
-    fullNarrationLen > 0 && shownNarrationLen >= fullNarrationLen;
+    fullNarrationLen > 0 &&
+    (directProviderStream ? Boolean(row.narration?.trim()) : shownNarrationLen >= fullNarrationLen);
   useLayoutEffect(() => {
     if (!liveGmRevealStateRef) return;
     liveGmRevealStateRef.current = {

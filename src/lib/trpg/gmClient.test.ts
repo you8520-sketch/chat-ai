@@ -79,20 +79,20 @@ describe("TRPG DeepSeek Pro true-OFF contract", () => {
     assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
   });
 
-  it("keeps stream=false and true-OFF on the actual GM request contract", () => {
+  it("keeps stream=true on GM transport and true-OFF on the request contract", () => {
     const gm = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,
       messages: [{ role: "user", content: "장면" }],
-      stream: false,
+      stream: true,
       temperature: 0.7,
     });
     const contract = trpgProviderRequestContract(gm);
     assert.equal(contract.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(contract.thinkingType, "disabled");
     assert.equal(contract.reasoningEffort, "none");
-    assert.equal(contract.stream, false);
+    assert.equal(contract.stream, true);
     assert.equal(isTrpgTrueOffRequest(contract), true);
-    assert.equal(gm.stream, false);
+    assert.equal(gm.stream, true);
   });
 
   it("does not invent reasoning tokens when the provider omits them", () => {

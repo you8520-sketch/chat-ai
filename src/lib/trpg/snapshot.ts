@@ -129,6 +129,8 @@ export type TrpgCampaignSnapshot = {
   currentRolls: TrpgPublicRoll[];
   resolutionOrder?: TrpgResolutionOrderEntry[];
   currentNarration: string | null;
+  /** Live provider-stream narration draft during GENERATING_NARRATION. */
+  gmNarrationDraft: { text: string; generationId: string } | null;
   log: TrpgPublicLog[];
   workType: string;
   shouldKickAdvance: boolean;

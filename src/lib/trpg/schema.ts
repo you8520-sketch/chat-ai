@@ -216,6 +216,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_rounds", "gm_committed_generation_id", "TEXT");
   addColumn("trpg_rounds", "gm_reroll_billed_generation_id", "TEXT");
   addColumn("trpg_rounds", "gm_reroll_usage_json", "TEXT");
+  addColumn("trpg_rounds", "gm_narration_draft_json", "TEXT");
   addColumn("trpg_rounds", "process_started_at", "TEXT");
   addColumn("trpg_rounds", "process_stage", "TEXT");
   addColumn("trpg_rounds", "bot_generation_recovery_attempts", "INTEGER NOT NULL DEFAULT 0");

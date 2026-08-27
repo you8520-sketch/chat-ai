@@ -12,6 +12,7 @@ import {
 } from "./gmCall";
 import { isTrpgTrueOffRequest, trpgProviderRequestContract } from "./gmClient";
 import { extractTrpgHttpStatus } from "./startFailure";
+import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
 import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 const GM_OK = `<<<NARRATION>>>
@@ -55,6 +56,21 @@ function httpError(status: number, text = "provider down"): Response {
   return new Response(text, { status, headers: { "Content-Type": "text/plain" } });
 }
 
+function sseCompletion(text: string, usage = { prompt_tokens: 20, completion_tokens: 12 }): Response {
+  const chunks = [
+    ...buildMockOpenRouterStreamChunks(text, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL).slice(0, 1),
+    `data: ${JSON.stringify({
+      choices: [{ delta: {}, finish_reason: "stop" }],
+      usage,
+    })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+  return new Response(mockReadableStreamFromText(chunks), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
 function completion(text: string): Response {
   return new Response(
     JSON.stringify({
@@ -65,16 +81,16 @@ function completion(text: string): Response {
   );
 }
 
-function assertTrueOff(body: Record<string, unknown>): void {
+function assertGmStreamTrue(body: Record<string, unknown>): void {
   const contract = trpgProviderRequestContract(body);
   assert.equal(contract.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
   assert.equal(contract.thinkingType, "disabled");
   assert.equal(contract.reasoningEffort, "none");
-  assert.equal(contract.stream, false);
+  assert.equal(contract.stream, true);
   assert.equal(isTrpgTrueOffRequest(contract), true);
   assert.deepEqual(body.thinking, { type: "disabled" });
   assert.equal(body.reasoning_effort, "none");
-  assert.equal(body.stream, false);
+  assert.equal(body.stream, true);
   assert.equal(body.max_tokens, TRPG_GM_MAX_TOKENS);
 }
 
@@ -91,7 +107,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
   });
 
   it("A: retries GM 502 then succeeds on 200", async () => {
-    const { calls } = installProvider((n) => (n === 1 ? httpError(502) : completion(GM_OK)));
+    const { calls } = installProvider((n) => (n === 1 ? httpError(502) : sseCompletion(GM_OK)));
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.equal(calls.length, 2);
     assert.equal(result.text, GM_OK);
@@ -124,7 +140,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
   });
 
   it("D: first-call GM 200 uses one attempt", async () => {
-    const { calls } = installProvider(() => completion(GM_OK));
+    const { calls } = installProvider(() => sseCompletion(GM_OK));
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
     assert.equal(result.text, GM_OK);
@@ -151,15 +167,15 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
       }
       previousInfo.apply(console, args as []);
     }) as typeof console.info;
-    const { calls } = installProvider((n) => (n === 1 ? httpError(502) : completion(GM_OK)));
+    const { calls } = installProvider((n) => (n === 1 ? httpError(502) : sseCompletion(GM_OK)));
     try {
       await callTrpgGm({ system: "sys", user: "같은 입력", timeoutMs: 5_000 });
     } finally {
       console.info = previousInfo;
     }
     assert.equal(calls.length, 2);
-    assertTrueOff(calls[0]!.body);
-    assertTrueOff(calls[1]!.body);
+    assertGmStreamTrue(calls[0]!.body);
+    assertGmStreamTrue(calls[1]!.body);
     assert.deepEqual(calls[0]!.body, calls[1]!.body);
     assert.equal(calls[0]!.body.model, calls[1]!.body.model);
     assert.deepEqual(calls[0]!.body.messages, calls[1]!.body.messages);
@@ -171,7 +187,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
   });
 
   it("does not retry empty completion after HTTP 200", async () => {
-    const { calls } = installProvider(() => completion("   "));
+    const { calls } = installProvider(() => sseCompletion("   "));
     await assert.rejects(() => callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 }), /empty completion/);
     assert.equal(calls.length, 1);
   });
