@@ -13,6 +13,7 @@ import {
   reconcileS4KnowledgeForVariantSwitch,
   seedVariantScopedKnowledgeTransfer,
   S4HistoricalVariantReplayUnsupportedError,
+  S4VariantProvenanceInvalidError,
   assertS4VariantSwitchAllowed,
 } from "@/lib/knowledgeTransferVariant";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
@@ -347,6 +348,101 @@ function assertZeroS4Delta(
   assert.equal(after.knowledgeRows, before.knowledgeRows, `${label}: knowledge rows`);
 }
 
+type VariantSwitchSnapshot = {
+  message: {
+    content: string;
+    model: string;
+    usage: string | null;
+    active_variant: number | null;
+    alternates: string | null;
+  };
+  activations: Array<{ generation_sequence: number; is_active: number }>;
+  knowledge: {
+    state: string;
+    fact: string;
+    confidence: number;
+  } | null;
+  episodicCount: number;
+  triggerCount: number;
+};
+
+function knowledgeSnapshot(f: Fixture): VariantSwitchSnapshot["knowledge"] {
+  const k = receiverKnowledge(f);
+  return k
+    ? {
+        state: k.knowledge_state,
+        fact: k.fact_snapshot,
+        confidence: k.confidence,
+      }
+    : null;
+}
+
+function captureVariantSwitchSnapshot(f: Fixture): VariantSwitchSnapshot {
+  const db = getDb();
+  const message = db
+    .prepare(
+      `SELECT content, model, usage, active_variant, alternates FROM messages WHERE id=?`
+    )
+    .get(f.assistantMessageId) as VariantSwitchSnapshot["message"];
+  const activations = db
+    .prepare(
+      `SELECT generation_sequence, is_active FROM persona_secret_evidence_activation
+       WHERE assistant_message_id=? ORDER BY generation_sequence`
+    )
+    .all(f.assistantMessageId) as VariantSwitchSnapshot["activations"];
+  const episodicCount = (
+    db
+      .prepare(`SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE chat_id=?`)
+      .get(f.chatId) as { c: number }
+  ).c;
+  const triggerCount = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM status_trigger_events WHERE source_message_id=?`
+      )
+      .get(f.assistantMessageId) as { c: number }
+  ).c;
+  return {
+    message,
+    activations,
+    knowledge: knowledgeSnapshot(f),
+    episodicCount,
+    triggerCount,
+  };
+}
+
+function attemptAtomicVariantSwitch(
+  f: Fixture,
+  variants: MessageVariant[],
+  variantIndex: number
+): void {
+  const db = getDb();
+  const selected = variants[variantIndex]!;
+  executeAtomicVariantSwitchCore(db, {
+    chatId: f.chatId,
+    messageId: f.assistantMessageId,
+    content: selected.content,
+    model: selected.model,
+    usageJson: selected.usage ? JSON.stringify(selected.usage) : null,
+    adultRouteMetaJson: "",
+    variantsJson: JSON.stringify(variants),
+    variantIndex,
+    sourceTurn: 2,
+    selectedFacts: [],
+    selectedRequestId: null,
+    selectedGenerationSequence: selected.generationSequence ?? null,
+  });
+}
+
+function setupLegacyVariantsWithoutGeneration(f: Fixture): MessageVariant[] {
+  const variants: MessageVariant[] = [
+    { content: "legacy v0", model: "m", usage: null, created_at: "" },
+    { content: "legacy v1", model: "m", usage: null, created_at: "" },
+  ];
+  setAssistantVariants(f, variants, 0);
+  return variants;
+}
+
 describe("S4 variant projection foundation", () => {
   let env: Record<string, string | undefined>;
 
@@ -387,7 +483,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(receiverKnowledge(f), null);
   });
@@ -427,7 +522,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(receiverKnowledge(f)?.knowledge_state, "SUSPECTED");
   });
@@ -467,7 +561,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
     assert.equal(receiverKnowledge(f)?.fact_snapshot, before);
@@ -508,7 +601,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
     assert.equal(receiverKnowledge(f)?.fact_snapshot, before);
@@ -540,7 +632,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(receiverKnowledge(f), null);
 
@@ -575,14 +666,39 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 2,
     });
     assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
 
+    setAssistantVariants(
+      f,
+      [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+        {
+          content: "v2",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 2,
+        },
+      ],
+      0
+    );
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 0,
     });
     assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
   });
@@ -817,7 +933,6 @@ describe("S4 variant projection foundation", () => {
     reconcileS4KnowledgeForVariantSwitch(getDb(), {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     assert.equal(countEvidenceRows(f.chatId), afterSeedCount);
     const db = getDb();
@@ -901,10 +1016,29 @@ describe("S4 variant projection foundation", () => {
       is_active: number;
     }>;
     assert.equal(rows.length, 2);
+    setAssistantVariants(
+      f,
+      [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ],
+      1
+    );
     reconcileS4KnowledgeForVariantSwitch(db, {
       chatId: f.chatId,
       assistantMessageId: f.assistantMessageId,
-      selectedGenerationSequence: 1,
     });
     const refreshed = db
       .prepare(
@@ -1132,6 +1266,218 @@ describe("S4 variant projection foundation", () => {
         assert.equal(result.ok, false);
       }
       assertZeroS4Delta(before, countS4Tables(f.chatId, f.personaId, f.secretId), "P10");
+    });
+  });
+
+  describe("variant switch provenance fail-closed Q1–Q6", () => {
+    it("Q1: S4 exists + selected variant generation missing → reject + rollback", () => {
+      const f = setupFixture();
+      const variants: MessageVariant[] = [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        { content: "v1", model: "m", usage: null, created_at: "" },
+      ];
+      setAssistantVariants(f, variants, 0);
+      seedVariantTransfer(f, 0);
+      const before = captureVariantSwitchSnapshot(f);
+
+      assert.throws(
+        () => attemptAtomicVariantSwitch(f, variants, 1),
+        S4VariantProvenanceInvalidError
+      );
+
+      const after = captureVariantSwitchSnapshot(f);
+      assert.deepEqual(after.message, before.message);
+      assert.deepEqual(after.activations, before.activations);
+      assert.deepEqual(after.knowledge, before.knowledge);
+    });
+
+    it("Q2: index collision must not activate generation-1 S4 evidence", () => {
+      const f = setupFixture();
+      const variants: MessageVariant[] = [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        { content: "v1", model: "m", usage: null, created_at: "" },
+        {
+          content: "v2",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ];
+      setAssistantVariants(f, variants, 2);
+      seedVariantTransfer(f, 1);
+      assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+      const before = captureVariantSwitchSnapshot(f);
+
+      assert.throws(
+        () => attemptAtomicVariantSwitch(f, variants, 1),
+        S4VariantProvenanceInvalidError
+      );
+
+      const after = captureVariantSwitchSnapshot(f);
+      assert.deepEqual(after.message, before.message);
+      assert.deepEqual(after.activations, before.activations);
+      assert.deepEqual(after.knowledge, before.knowledge);
+      const gen1Active = after.activations.find((row) => row.generation_sequence === 1);
+      assert.ok(gen1Active);
+      assert.equal(gen1Active.is_active, 1, "generation-1 evidence must stay on gen2 selection");
+    });
+
+    it("Q3: legacy message without S4 evidence switches without generationSequence", () => {
+      const f = setupFixture();
+      const variants = setupLegacyVariantsWithoutGeneration(f);
+      assert.equal(
+        hasVariantScopedS4EvidenceOnAssistant(getDb(), f.chatId, f.assistantMessageId),
+        false
+      );
+      const before = captureVariantSwitchSnapshot(f);
+
+      assert.doesNotThrow(() => attemptAtomicVariantSwitch(f, variants, 1));
+
+      const after = captureVariantSwitchSnapshot(f);
+      assert.equal(after.message.active_variant, 1);
+      assert.equal(after.message.content, "legacy v1");
+      assert.equal(after.knowledge, before.knowledge);
+    });
+
+    it("Q4: valid explicit generationSequence=0 with S4 → switch PASS", () => {
+      const f = setupFixture();
+      const variants: MessageVariant[] = [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ];
+      setAssistantVariants(f, variants, 1);
+      seedVariantTransfer(f, 0);
+      assert.equal(receiverKnowledge(f), null);
+
+      assert.doesNotThrow(() => attemptAtomicVariantSwitch(f, variants, 0));
+      assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+      const db = getDb();
+      const active = db
+        .prepare(`SELECT active_variant FROM messages WHERE id=?`)
+        .get(f.assistantMessageId) as { active_variant: number };
+      assert.equal(active.active_variant, 0);
+    });
+
+    it("Q5: valid explicit generationSequence=1 with S4 → switch PASS + correct activation", () => {
+      const f = setupFixture();
+      const variants: MessageVariant[] = [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        {
+          content: "v1",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 1,
+        },
+      ];
+      setAssistantVariants(f, variants, 0);
+      seedVariantTransfer(f, 0);
+      seedVariantTransfer(f, 1);
+
+      assert.doesNotThrow(() => attemptAtomicVariantSwitch(f, variants, 1));
+      assert.equal(receiverKnowledge(f)?.knowledge_state, "CONFIRMED");
+      const db = getDb();
+      const activations = db
+        .prepare(
+          `SELECT generation_sequence, is_active FROM persona_secret_evidence_activation
+           WHERE assistant_message_id=? ORDER BY generation_sequence`
+        )
+        .all(f.assistantMessageId) as Array<{
+        generation_sequence: number;
+        is_active: number;
+      }>;
+      assert.deepEqual(
+        activations.map((row) => [row.generation_sequence, row.is_active]),
+        [
+          [0, 0],
+          [1, 1],
+        ]
+      );
+    });
+
+    it("Q6: S4 provenance failure leaves derived state identical to pre-switch snapshot", () => {
+      const f = setupFixture();
+      const variants: MessageVariant[] = [
+        {
+          content: "v0",
+          model: "m",
+          usage: null,
+          created_at: "",
+          generationSequence: 0,
+        },
+        { content: "v1", model: "m", usage: null, created_at: "" },
+      ];
+      setAssistantVariants(f, variants, 0);
+      seedVariantTransfer(f, 0);
+      const db = getDb();
+      db.prepare(
+        `INSERT INTO episodic_memory_facts
+           (chat_id, character_id, user_id, source_turn, source_user_message_id,
+            category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).run(
+        f.chatId,
+        f.locoId,
+        1,
+        2,
+        f.userMessageId,
+        "scene",
+        "user",
+        "note",
+        "before-switch",
+        "normal",
+        "episodic-before-switch",
+        "{}"
+      );
+      db.prepare(
+        `INSERT INTO status_trigger_events
+           (chat_id, character_id, trigger_id, event_key, source_turn, effect_text, source_message_id)
+         VALUES (?,?,?,?,?,?,?)`
+      ).run(f.chatId, f.locoId, "test-trigger", "evt-before-switch", 2, "effect", f.assistantMessageId);
+      const before = captureVariantSwitchSnapshot(f);
+
+      assert.throws(
+        () => attemptAtomicVariantSwitch(f, variants, 1),
+        S4VariantProvenanceInvalidError
+      );
+
+      const after = captureVariantSwitchSnapshot(f);
+      assert.deepEqual(after.message, before.message);
+      assert.deepEqual(after.activations, before.activations);
+      assert.deepEqual(after.knowledge, before.knowledge);
+      assert.equal(after.episodicCount, before.episodicCount);
+      assert.equal(after.triggerCount, before.triggerCount);
     });
   });
 });

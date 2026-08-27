@@ -16,7 +16,6 @@ import {
   deleteEpisodicMemoryFactsByAssistantMessageIds,
   replaceEpisodicMemoryFactsForCanonicalMutation,
 } from "@/lib/episodicMemoryFacts";
-import { generationSequenceForVariant } from "@/lib/messageAlternates";
 import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
 
@@ -358,17 +357,9 @@ export function executeVariantSwitchMutationCore(
     throw new Error("TEST_THROW_AFTER_EPISODIC_REPLACE");
   }
 
-  const variants = JSON.parse(input.variantsJson) as Array<{
-    generationSequence?: number;
-  }>;
-  const selectedGenerationSequence = generationSequenceForVariant(
-    variants[input.variantIndex],
-    input.variantIndex
-  );
   reconcileS4KnowledgeForVariantSwitch(db, {
     chatId: input.chatId,
     assistantMessageId: input.messageId,
-    selectedGenerationSequence,
     __testThrowAfterActivation: input.__testThrowAfterS4Activation,
     __testThrowAfterReprojection: input.__testThrowAfterS4Reprojection,
   });

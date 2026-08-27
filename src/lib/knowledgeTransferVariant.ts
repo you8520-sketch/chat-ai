@@ -31,6 +31,15 @@ export class S4HistoricalVariantReplayUnsupportedError extends Error {
   }
 }
 
+export class S4VariantProvenanceInvalidError extends Error {
+  readonly code = "s4_variant_provenance_invalid";
+
+  constructor(message = "s4_variant_provenance_invalid") {
+    super(message);
+    this.name = "S4VariantProvenanceInvalidError";
+  }
+}
+
 export {
   currentActiveKnowledgeTransferGenerationSequence,
   isVariantScopedProvenance,
@@ -109,13 +118,16 @@ function reprojectAffectedKeys(
   }
 }
 
-/** Variant-switch S4 reconciliation — call inside existing variant txn owner. */
+/**
+ * Variant-switch S4 reconciliation — call inside existing variant txn owner,
+ * after messages.active_variant has been updated. Resolves active generation via
+ * currentActiveKnowledgeTransferGenerationSequence (never index fallback).
+ */
 export function reconcileS4KnowledgeForVariantSwitch(
   db: Database.Database,
   input: {
     chatId: number;
     assistantMessageId: number;
-    selectedGenerationSequence: number;
     __testThrowAfterActivation?: boolean;
     __testThrowAfterReprojection?: boolean;
   }
@@ -124,10 +136,19 @@ export function reconcileS4KnowledgeForVariantSwitch(
     return { affectedKeys: [] };
   }
 
+  const activeGenerationSequence = currentActiveKnowledgeTransferGenerationSequence(
+    db,
+    input.chatId,
+    input.assistantMessageId
+  );
+  if (activeGenerationSequence == null) {
+    throw new S4VariantProvenanceInvalidError();
+  }
+
   const affectedKeys = syncVariantScopedS4ActivationsForAssistantMessage(db, {
     chatId: input.chatId,
     assistantMessageId: input.assistantMessageId,
-    activeGenerationSequence: input.selectedGenerationSequence,
+    activeGenerationSequence,
   });
 
   if (input.__testThrowAfterActivation) {

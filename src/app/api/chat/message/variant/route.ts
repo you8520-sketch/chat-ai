@@ -24,6 +24,7 @@ import {
 import {
   assertS4VariantSwitchAllowed,
   S4HistoricalVariantReplayUnsupportedError,
+  S4VariantProvenanceInvalidError,
 } from "@/lib/knowledgeTransferVariant";
 import {
   executeAtomicNumericVariantSwitch,
@@ -233,6 +234,15 @@ export async function PATCH(req: Request) {
           { status: 409 }
         );
       }
+      if (e instanceof S4VariantProvenanceInvalidError) {
+        return NextResponse.json(
+          {
+            error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
       console.error(
         "[DerivedState] atomic numeric variant switch failed:",
         (e as Error).message
@@ -320,6 +330,15 @@ export async function PATCH(req: Request) {
         selectedGenerationSequence: selectedVariant?.generationSequence ?? null,
       });
     } catch (e) {
+      if (e instanceof S4VariantProvenanceInvalidError) {
+        return NextResponse.json(
+          {
+            error: "선택한 버전의 S4 출처 정보가 유효하지 않습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
       console.error(
         "[DerivedState] atomic variant switch core failed:",
         (e as Error).message
