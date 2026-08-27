@@ -120,15 +120,22 @@ export function liveFreshGmNarrationRow(opts: {
   return found;
 }
 
-export type TrpgLiveFollowOwner = "CURRENT_ACTOR" | "GM_NARRATION_END" | "NEXT_ACTION" | "NONE";
+export type TrpgLiveFollowOwner =
+  | "CURRENT_ACTOR"
+  | "ACTIVE_DECLARATION_END"
+  | "GM_NARRATION_END"
+  | "NEXT_ACTION"
+  | "NONE";
 
 /** Single resolver for which live element owns auto-follow during a TRPG round. */
 export function resolveTrpgLiveFollowOwner(opts: {
   cinematicMotion: boolean;
+  activeDeclarationReveal?: boolean;
   freshGmRound: number | null;
   gmRevealComplete: boolean;
   nextActionVisible: boolean;
 }): TrpgLiveFollowOwner {
+  if (opts.activeDeclarationReveal === true) return "ACTIVE_DECLARATION_END";
   if (opts.cinematicMotion) return "CURRENT_ACTOR";
   if (opts.freshGmRound != null) {
     if (!opts.gmRevealComplete) return "GM_NARRATION_END";
@@ -136,6 +143,155 @@ export function resolveTrpgLiveFollowOwner(opts: {
   }
   if (opts.nextActionVisible) return "NEXT_ACTION";
   return "NONE";
+}
+
+/** Lower-reading-band follow delta for any live stream end sentinel (GM or declaration). */
+export function readingBandFollowDeltaFromElement(el: Element): number {
+  return narrationFollowDeltaFromElement(el);
+}
+
+export function isNearReadingBandFollowElement(el: Element): boolean {
+  return isNearNarrationFollowElement(el);
+}
+
+export const TRPG_SCROLL_INTENT_KEYS = new Set([
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  "ArrowUp",
+  "ArrowDown",
+  " ",
+  "Spacebar",
+]);
+
+export function isTrpgScrollIntentKey(key: string): boolean {
+  return TRPG_SCROLL_INTENT_KEYS.has(key);
+}
+
+export function shouldDetachLiveFollowOnUserIntent(): boolean {
+  return true;
+}
+
+export function decideManualScrollRejoin(opts: {
+  manualDetached: boolean;
+  hasLeftFollowZoneSinceDetach: boolean;
+  nearFollowOwner: boolean;
+}): { rejoin: boolean } {
+  if (!opts.manualDetached) return { rejoin: false };
+  if (!opts.hasLeftFollowZoneSinceDetach) return { rejoin: false };
+  return { rejoin: opts.nearFollowOwner };
+}
+
+export function updateManualDetachFollowZone(opts: {
+  manualDetached: boolean;
+  nearFollowOwner: boolean;
+  hasLeftFollowZoneSinceDetach: boolean;
+}): { hasLeftFollowZoneSinceDetach: boolean } {
+  if (!opts.manualDetached) {
+    return { hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach };
+  }
+  if (!opts.nearFollowOwner) {
+    return { hasLeftFollowZoneSinceDetach: true };
+  }
+  return { hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach };
+}
+
+export const TRPG_PROGRAMMATIC_SCROLL_SMOOTH_FALLBACK_MS = 800;
+export const TRPG_PROGRAMMATIC_SCROLL_INSTANT_SETTLE_MS = 48;
+
+export type TrpgProgrammaticScrollHandle = {
+  active: boolean;
+  settleTimer: ReturnType<typeof setTimeout> | null;
+  scrollEndHandler: (() => void) | null;
+};
+
+export function createTrpgProgrammaticScrollHandle(): TrpgProgrammaticScrollHandle {
+  return { active: false, settleTimer: null, scrollEndHandler: null };
+}
+
+export function trpgProgrammaticScrollScrollEndSupported(): boolean {
+  return typeof window !== "undefined" && "onscrollend" in window;
+}
+
+export function beginTrpgProgrammaticScroll(opts: {
+  handle: TrpgProgrammaticScrollHandle;
+  behavior: ScrollBehavior;
+  scrollEndSupported?: boolean;
+  smoothFallbackMs?: number;
+  instantSettleMs?: number;
+  onActiveChange: (active: boolean) => void;
+  scheduleTimeout?: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  addScrollEndListener?: (handler: () => void) => void;
+  removeScrollEndListener?: (handler: () => void) => void;
+}): void {
+  cancelTrpgProgrammaticScroll({
+    handle: opts.handle,
+    onActiveChange: opts.onActiveChange,
+    removeScrollEndListener: opts.removeScrollEndListener,
+    clearTimeoutFn: opts.scheduleTimeout ? clearTimeout : undefined,
+  });
+
+  opts.handle.active = true;
+  opts.onActiveChange(true);
+
+  const finish = () => {
+    cancelTrpgProgrammaticScroll({
+      handle: opts.handle,
+      onActiveChange: opts.onActiveChange,
+      removeScrollEndListener: opts.removeScrollEndListener,
+      clearTimeoutFn: opts.scheduleTimeout ? clearTimeout : undefined,
+    });
+  };
+
+  const useScrollEnd =
+    opts.behavior === "smooth" &&
+    (opts.scrollEndSupported ?? trpgProgrammaticScrollScrollEndSupported()) &&
+    opts.addScrollEndListener != null;
+
+  if (useScrollEnd && opts.addScrollEndListener) {
+    const addScrollEndListener = opts.addScrollEndListener;
+    const handler = () => finish();
+    opts.handle.scrollEndHandler = handler;
+    addScrollEndListener(handler);
+  }
+
+  const delay =
+    opts.behavior === "smooth"
+      ? opts.smoothFallbackMs ?? TRPG_PROGRAMMATIC_SCROLL_SMOOTH_FALLBACK_MS
+      : opts.instantSettleMs ?? TRPG_PROGRAMMATIC_SCROLL_INSTANT_SETTLE_MS;
+
+  const schedule = opts.scheduleTimeout ?? setTimeout;
+  opts.handle.settleTimer = schedule(finish, delay);
+}
+
+export function cancelTrpgProgrammaticScroll(opts: {
+  handle: TrpgProgrammaticScrollHandle;
+  onActiveChange: (active: boolean) => void;
+  removeScrollEndListener?: (handler: () => void) => void;
+  clearTimeoutFn?: (id: ReturnType<typeof setTimeout>) => void;
+}): void {
+  const clearTimeoutFn = opts.clearTimeoutFn ?? clearTimeout;
+  if (opts.handle.settleTimer != null) {
+    clearTimeoutFn(opts.handle.settleTimer);
+    opts.handle.settleTimer = null;
+  }
+  if (opts.handle.scrollEndHandler != null) {
+    opts.removeScrollEndListener?.(opts.handle.scrollEndHandler);
+    opts.handle.scrollEndHandler = null;
+  }
+  if (opts.handle.active) {
+    opts.handle.active = false;
+    opts.onActiveChange(false);
+  }
+}
+
+/** Count scrollIntoView({ behavior: "smooth" }) calls outside scrollToFollowOwner. */
+export function countRawSmoothScrollBypass(source: string): number {
+  const ownerFn = source.match(/const scrollToFollowOwner = useCallback\([\s\S]*?\n  \);/);
+  const outside = ownerFn ? source.replace(ownerFn[0]!, "") : source;
+  const matches = outside.match(/scrollIntoView\(\{[^}]*behavior:\s*"smooth"/g);
+  return matches?.length ?? 0;
 }
 
 export function shouldShowTrpgReplySuggestions(opts: {

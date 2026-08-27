@@ -777,7 +777,7 @@ describe("TRPG live round presentation readiness", () => {
         isLiveRow: false,
         mode: "cinematic",
         cinematicRevealedIds: [20],
-        earlyVisibleHumanIds: [10],
+        preCinematicVisibleIds: [10],
       }),
       undefined
     );

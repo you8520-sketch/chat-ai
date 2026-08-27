@@ -192,15 +192,10 @@ export function resolveLiveRevealedActionIds(opts: {
   mode: RoundPresentationMode;
   cinematicRevealedIds: readonly number[];
   preCinematicVisibleIds: readonly number[];
-  /** @deprecated use preCinematicVisibleIds */
-  earlyVisibleHumanIds?: readonly number[];
 }): number[] | undefined {
   if (!opts.isLiveRow) return undefined;
   if (opts.mode === "historical") return undefined;
-  const declared =
-    opts.preCinematicVisibleIds.length > 0
-      ? [...opts.preCinematicVisibleIds]
-      : [...(opts.earlyVisibleHumanIds ?? [])];
+  const declared = [...opts.preCinematicVisibleIds];
   if (opts.mode !== "cinematic") return declared;
   const seen = new Set<number>();
   const out: number[] = [];
