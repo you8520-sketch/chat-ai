@@ -23,6 +23,7 @@ import {
   resolvePersonaKnowledgePromptDecisionForChat,
 } from "@/lib/personaKnowledgePromptPolicy";
 import { createPersonaSecret } from "@/lib/personaSecrets";
+import { insertChatPersonaSecretReveal } from "@/lib/personaSecretReveal";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { upsertChatObserver } from "@/lib/observerIdentity";
 import { upsertScenePresence } from "@/lib/scenePresence";
@@ -138,6 +139,7 @@ describe("P0 persona secret single authority", () => {
       turnNumber: 1,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: created.secret.confirmedFactText,
+      authority: "discovery",
       idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
         chatId,
         personaId,
@@ -229,6 +231,7 @@ describe("P0 persona secret single authority", () => {
       turnNumber: 1,
       sourceType: "USER_MESSAGE_DETERMINISTIC",
       revealedFactText: created.secret.confirmedFactText,
+      authority: "discovery",
       idempotencyKey: "delta-check",
     });
 
@@ -354,5 +357,120 @@ describe("P0 persona secret single authority", () => {
       explicitActions: [{ actionType: "READ_DOCUMENT", targetKey: "doc:독촉장" }],
     });
     assert.equal(second.changedCount, 0);
+  });
+
+  it("confirm authority=discovery skips legacy reveal dual-write even when env Discovery=0", () => {
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "0";
+    const { personaId, chatId, charA } = uniqueIds();
+    const created = createPersonaSecret({
+      personaId,
+      secretKey: "authority_discovery_env_off",
+      canonicalSecretText: "HIDDEN",
+      confirmedFactText: "렌이 확인한 사실.",
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+
+    confirmPersonaSecretDisclosure({
+      chatId,
+      personaId,
+      secretId: created.secret.id,
+      characterId: charA,
+      turnNumber: 1,
+      sourceType: "USER_MESSAGE_DETERMINISTIC",
+      revealedFactText: created.secret.confirmedFactText,
+      authority: "discovery",
+      idempotencyKey: "auth-disc-env-off",
+    });
+
+    const revealRows = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS c FROM chat_persona_secret_reveals WHERE chat_id=? AND persona_id=?`
+      )
+      .get(chatId, personaId) as { c: number };
+    assert.equal(revealRows.c, 0, "explicit discovery authority: no legacy reveal row");
+  });
+
+  it("confirm authority=legacy dual-writes reveal row even when env Discovery=1", () => {
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    const { personaId, chatId, charA } = uniqueIds();
+    const created = createPersonaSecret({
+      personaId,
+      secretKey: "authority_legacy_env_on",
+      canonicalSecretText: "HIDDEN",
+      confirmedFactText: "렌이 확인한 사실.",
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+
+    confirmPersonaSecretDisclosure({
+      chatId,
+      personaId,
+      secretId: created.secret.id,
+      characterId: charA,
+      turnNumber: 1,
+      sourceType: "USER_MESSAGE_DETERMINISTIC",
+      revealedFactText: created.secret.confirmedFactText,
+      authority: "legacy",
+      idempotencyKey: "auth-legacy-env-on",
+    });
+
+    const revealRows = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS c FROM chat_persona_secret_reveals WHERE chat_id=? AND persona_id=?`
+      )
+      .get(chatId, personaId) as { c: number };
+    assert.equal(revealRows.c, 1, "explicit legacy authority: compat reveal row written");
+  });
+
+  it("prompt authority=discovery skips legacy migration/injection regardless of env", () => {
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "0";
+    const { personaId, chatId, charA } = uniqueIds();
+    const created = createPersonaSecret({
+      personaId,
+      secretKey: "prompt_auth_discovery",
+      canonicalSecretText: "HIDDEN canonical",
+      confirmedFactText: "렌이 확인한 사실.",
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+
+    insertChatPersonaSecretReveal({
+      chatId,
+      personaId,
+      secretKey: created.secret.secretKey,
+      revealedFactText: created.secret.confirmedFactText,
+      revealedAtTurn: 1,
+      source: "USER_AUTHORED_DISCLOSURE",
+    });
+
+    const tables = [
+      "chat_character_secret_knowledge",
+      "persona_secret_evidence_events",
+      "chat_persona_secret_reveals",
+    ] as const;
+    const before = Object.fromEntries(
+      tables.map((t) => [t, countRows(t, `chat_id=${chatId}`)])
+    ) as Record<(typeof tables)[number], number>;
+
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({ contentKind: "character", characterId: charA }),
+      { chatId }
+    );
+    const block = buildPersonaKnowledgePromptBlock({
+      decision,
+      chatId,
+      personaId,
+      authority: "discovery",
+    });
+    assert.equal(block, null, "discovery authority: no legacy injection without knowledge rows");
+
+    for (const t of tables) {
+      assert.equal(
+        countRows(t, `chat_id=${chatId}`),
+        before[t],
+        `${t} unchanged — discovery authority skips legacy migration`
+      );
+    }
   });
 });

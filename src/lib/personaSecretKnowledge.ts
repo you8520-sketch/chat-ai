@@ -16,17 +16,16 @@ import {
   sanitizeRevealedFactForPrompt,
   type ChatPersonaSecretRevealRow,
 } from "@/lib/personaSecretReveal";
-import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import { getPersonaSecretById } from "@/lib/personaSecrets";
 
 /** Discovery ON uses knowledge rows only (read-only prompt build). Legacy uses reveal-table compat. */
 export type PersonaKnowledgePromptAuthority = "discovery" | "legacy";
 
+/** Omitted authority defaults to legacy (test/compatibility callers only — production must pass explicit). */
 function resolvePromptAuthority(
   authority?: PersonaKnowledgePromptAuthority
 ): PersonaKnowledgePromptAuthority {
-  if (authority) return authority;
-  return isPersonaSecretDiscoveryEnabled() ? "discovery" : "legacy";
+  return authority ?? "legacy";
 }
 
 const MAX_FACTS = 8;

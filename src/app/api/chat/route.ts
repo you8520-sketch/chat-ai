@@ -737,6 +737,7 @@ export async function POST(req: Request) {
   const personaSecretDiscoveryOn = isPersonaSecretDiscoveryEnabled({
     userId: user.id,
   });
+  const personaSecretAuthority = personaSecretDiscoveryOn ? "discovery" : "legacy";
 
   // PR-S4A: lazy bootstrap main character observer + active scene (idempotent).
   // Discovery kill switch — no observer/scene writes when OFF.
@@ -2039,7 +2040,7 @@ export async function POST(req: Request) {
         decision: personaKnowledgePromptDecision,
         chatId: chat.id,
         personaId: resolvedPersonaId,
-        authority: "discovery",
+        authority: personaSecretAuthority,
       });
     } else {
       // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
@@ -2648,6 +2649,7 @@ export async function POST(req: Request) {
         sourceType: "USER_MESSAGE_DETERMINISTIC",
         discoveryRuleId: match.rule.id,
         revealedFactText: match.revealedFactText,
+        authority: personaSecretAuthority,
         idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
           chatId: chatRef.id,
           personaId: resolvedPersonaId,
@@ -2742,7 +2744,7 @@ export async function POST(req: Request) {
         decision: personaKnowledgePromptDecision,
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
-        authority: "discovery",
+        authority: personaSecretAuthority,
       });
 
       // Same-turn reaction: rebuild prompt after visual/investigation/transfer knowledge transitions.
