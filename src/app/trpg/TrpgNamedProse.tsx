@@ -9,7 +9,6 @@ import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
 import { useRevealedText } from "./useRevealedText";
-import { splitTrpgGmProseForAssets } from "@/lib/trpg/trpgTaggedProse";
 
 const quoteSelectStyle = {
   userSelect: "text" as const,
@@ -46,14 +45,6 @@ function TrpgGmProseBody({
     /\[(?:캐릭터에셋|태그):/.test(body);
 
   if (hasSceneAssets) {
-    const parts = splitTrpgGmProseForAssets(body, {
-      scenarioAssets: assets,
-      characterCatalog,
-      campaignId,
-      roundNumber,
-      streaming: contentStreaming,
-    });
-    const firstTextIndex = parts.findIndex((part) => part.kind === "text");
     return (
       <TrpgTaggedNovelText
         content={body}
@@ -65,7 +56,7 @@ function TrpgGmProseBody({
         paragraphMode="ai"
         streaming={contentStreaming}
         dialogueAccent={false}
-        inlineFirstParagraph={inlineFirstParagraph && firstTextIndex === 0}
+        inlineFirstParagraph={inlineFirstParagraph}
         proseClassName={TRPG_GM_TALK_BODY_CLASS}
       />
     );

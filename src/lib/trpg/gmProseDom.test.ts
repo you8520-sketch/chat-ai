@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  resolveNovelTextRenderStructure,
-} from "@/components/NovelText";
-import { resolveTrpgTaggedNovelInlineFlow } from "@/app/trpg/TrpgTaggedNovelText";
+import { resolveNovelTextRenderStructure } from "@/components/NovelText";
+import { resolveTrpgTaggedNovelInlineFlowFromParts } from "@/app/trpg/TrpgTaggedNovelText";
+import type { TrpgInlineProsePart } from "@/lib/trpg/trpgTaggedProse";
+
+function part(kind: TrpgInlineProsePart["kind"]): TrpgInlineProsePart {
+  switch (kind) {
+    case "text":
+      return { kind: "text", text: "본문" };
+    case "scenario":
+      return { kind: "scenario", tag: "폐역", asset: { url: "/a.png", tag: "폐역" } as never };
+    case "character":
+      return {
+        kind: "character",
+        participantId: 1,
+        tag: "분노",
+        asset: { url: "/b.png", tag: "분노" } as never,
+      };
+  }
+}
 
 describe("GM prose render structure — inline-first DOM contract", () => {
   it("plain inline-first uses span root for first paragraph (no blocking div)", () => {
@@ -27,33 +42,55 @@ describe("GM prose render structure — inline-first DOM contract", () => {
     );
   });
 
-  it("tagged text-first path avoids block wrapper between GM label and prose", () => {
-    assert.equal(
-      resolveTrpgTaggedNovelInlineFlow({
+  it("tagged inline adjacency uses first rendered part kind from split parts", () => {
+    const cases: Array<{
+      name: string;
+      parts: TrpgInlineProsePart[];
+      inlineFirstParagraph: boolean;
+      expected: "fragment" | "block-wrapper";
+    }> = [
+      { name: "text only", parts: [part("text")], inlineFirstParagraph: true, expected: "fragment" },
+      {
+        name: "text then asset",
+        parts: [part("text"), part("scenario")],
         inlineFirstParagraph: true,
-        firstPartKind: "text",
-      }),
-      "fragment"
-    );
-  });
+        expected: "fragment",
+      },
+      {
+        name: "asset then text",
+        parts: [part("scenario"), part("text")],
+        inlineFirstParagraph: true,
+        expected: "block-wrapper",
+      },
+      {
+        name: "character then text",
+        parts: [part("character"), part("text")],
+        inlineFirstParagraph: true,
+        expected: "block-wrapper",
+      },
+      {
+        name: "multiple assets before text",
+        parts: [part("scenario"), part("character"), part("text")],
+        inlineFirstParagraph: true,
+        expected: "block-wrapper",
+      },
+      {
+        name: "text first but inline disabled",
+        parts: [part("text")],
+        inlineFirstParagraph: false,
+        expected: "block-wrapper",
+      },
+    ];
 
-  it("tagged asset-first path does not fake inline adjacency", () => {
-    assert.equal(
-      resolveTrpgTaggedNovelInlineFlow({
-        inlineFirstParagraph: true,
-        firstPartKind: "scenario",
-      }),
-      "block-wrapper"
-    );
-    assert.equal(
-      resolveTrpgTaggedNovelInlineFlow({
-        inlineFirstParagraph: true,
-        firstPartKind: "character",
-      }),
-      "block-wrapper"
-    );
+    for (const { name, parts, inlineFirstParagraph, expected } of cases) {
+      assert.equal(
+        resolveTrpgTaggedNovelInlineFlowFromParts(parts, inlineFirstParagraph),
+        expected,
+        name
+      );
+    }
   });
 });
 
 // Full react-dom/server markup is unavailable under --conditions=react-server in this repo.
-// These structure helpers mirror the actual NovelText / TrpgTaggedNovelText render branches.
+// resolveTrpgTaggedNovelInlineFlowFromParts mirrors TrpgTaggedNovelText after splitTrpgGmProseForAssets.

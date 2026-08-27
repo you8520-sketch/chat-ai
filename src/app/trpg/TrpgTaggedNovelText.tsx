@@ -6,14 +6,24 @@ import TrpgCharacterSceneAsset from "@/components/TrpgCharacterSceneAsset";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
-import { splitTrpgGmProseForAssets } from "@/lib/trpg/trpgTaggedProse";
+import { splitTrpgGmProseForAssets, type TrpgInlineProsePart } from "@/lib/trpg/trpgTaggedProse";
 
 export function resolveTrpgTaggedNovelInlineFlow(opts: {
   inlineFirstParagraph: boolean;
-  firstPartKind: "text" | "scenario" | "character" | null;
+  firstRenderedPartKind: TrpgInlineProsePart["kind"] | null;
 }): "fragment" | "block-wrapper" {
-  if (opts.inlineFirstParagraph && opts.firstPartKind === "text") return "fragment";
+  if (opts.inlineFirstParagraph && opts.firstRenderedPartKind === "text") return "fragment";
   return "block-wrapper";
+}
+
+export function resolveTrpgTaggedNovelInlineFlowFromParts(
+  parts: readonly TrpgInlineProsePart[],
+  inlineFirstParagraph: boolean
+): "fragment" | "block-wrapper" {
+  return resolveTrpgTaggedNovelInlineFlow({
+    inlineFirstParagraph,
+    firstRenderedPartKind: parts[0]?.kind ?? null,
+  });
 }
 
 export default function TrpgTaggedNovelText({
@@ -59,10 +69,10 @@ export default function TrpgTaggedNovelText({
   });
   if (parts.length === 0) return null;
 
-  const firstTextIndex = parts.findIndex((part) => part.kind === "text");
+  const firstRenderedPartKind = parts[0]?.kind ?? null;
   const inlineFlow = resolveTrpgTaggedNovelInlineFlow({
     inlineFirstParagraph,
-    firstPartKind: firstTextIndex >= 0 ? parts[firstTextIndex]!.kind : null,
+    firstRenderedPartKind,
   });
   const renderedParts = parts.map((part, i) => {
     switch (part.kind) {
@@ -76,7 +86,7 @@ export default function TrpgTaggedNovelText({
             paragraphMode={paragraphMode}
             streaming={streaming && i === parts.length - 1}
             dialogueAccent={dialogueAccent}
-            inlineFirstParagraph={inlineFirstParagraph && i === firstTextIndex}
+            inlineFirstParagraph={inlineFirstParagraph && i === 0}
             proseClassName={proseClassName}
           />
         );

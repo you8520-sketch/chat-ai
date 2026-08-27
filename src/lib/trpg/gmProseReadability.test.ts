@@ -189,6 +189,7 @@ describe("GM prose readability — SceneTurn wiring", () => {
     assert.doesNotMatch(novel, /gmTableTalk|proseVariant|paragraphSpacingMode/);
     assert.doesNotMatch(named, /gmTableTalkTypography|gmSceneBeatSpacing/);
     assert.doesNotMatch(named, /body\.split\(\/\\n\{2,\}\/\)/);
+    assert.doesNotMatch(named, /splitTrpgGmProseForAssets/);
     assert.match(named, /paragraphMode="ai"/);
     assert.match(named, /dialogueAccent=\{false\}/);
     assert.match(named, /contentStreaming \?\? reveal/);
