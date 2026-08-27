@@ -84,6 +84,7 @@ import {
   gmGenerationOwnsToken,
   GM_HEARTBEAT_REFRESH_INTERVAL_MS,
   isRerollGmGeneration,
+  isRerollGenerationBilled,
   logStaleOwnerDiscard,
   markGmGenerationCommitted,
   refreshGmGenerationHeartbeat,
@@ -325,7 +326,6 @@ export async function regenerateTrpgNarration(
   }
   ensureTrpgProcessStage(db, target.id, "reroll");
   beginGmGenerationLease(db, target.id, rid);
-  const usageBefore = loadRoundUsage(db, target.id).length;
   try {
     await runGmForRound(db, {
       campaignId: campaign.id,
@@ -335,15 +335,12 @@ export async function regenerateTrpgNarration(
       requestId: rid,
       deps: opts.deps,
     });
-    if (!gmGenerationOwnsToken(db, target.id, rid)) {
+    if (
+      !billRerollGenerationExactlyOnce(db, campaign, target.id, rid, rid, opts.deps)
+    ) {
       logStaleOwnerDiscard(target.id, rid, "billing");
       throw new StaleGmGenerationOwnerError();
     }
-    const extra = loadRoundUsage(db, target.id).slice(usageBefore);
-    chargeTrpgCalls(db, campaign, target.id, extra, {
-      addToBilled: true,
-      skip: opts.deps?.skipBilling === true,
-    });
     if (!finalizeRerollForGeneration(db, target.id, rid, rid)) {
       logStaleOwnerDiscard(target.id, rid, "finalize");
       throw new StaleGmGenerationOwnerError();
@@ -505,12 +502,18 @@ async function reconcileStaleGmGenerationIfNeeded(
     case "healthy":
       return { round, reclaimed: false };
     case "stale_pending": {
-      const provenanceId = round.gm_generation_id;
-      if (!provenanceId || !hasPendingGmResultForGeneration(db, round.id, provenanceId)) {
-        return { round, reclaimed: false };
-      }
+      const { leaseOwnerId, provenanceGenerationId } = resolution;
       const recoveryId = newRequestId();
-      if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, "pending")) {
+      if (
+        !tryClaimStaleGmRecovery(
+          db,
+          round.id,
+          leaseOwnerId,
+          provenanceGenerationId,
+          recoveryId,
+          "pending"
+        )
+      ) {
         return { round, reclaimed: false };
       }
       try {
@@ -518,7 +521,7 @@ async function reconcileStaleGmGenerationIfNeeded(
           campaignId: campaign.id,
           roundId: round.id,
           leaseOwnerId: recoveryId,
-          provenanceGenerationId: provenanceId,
+          provenanceGenerationId,
           deps: opts.deps,
         });
         await finalizeCommittedGmRound(
@@ -528,7 +531,7 @@ async function reconcileStaleGmGenerationIfNeeded(
             roundId: round.id,
             roundNumber: round.round_number,
             leaseOwnerId: recoveryId,
-            committedGenerationId: provenanceId,
+            committedGenerationId: provenanceGenerationId,
             campaignFinished: gm.campaignFinished,
           },
           opts.deps
@@ -541,20 +544,51 @@ async function reconcileStaleGmGenerationIfNeeded(
       return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
     }
     case "stale_committed": {
-      const provenanceId = round.gm_generation_id;
-      if (!provenanceId) return { round, reclaimed: false };
+      const { leaseOwnerId, provenanceGenerationId } = resolution;
       const recoveryId = newRequestId();
       try {
         if (isRerollGmGeneration(db, round.id)) {
-          if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, "committed")) {
+          if (
+            !tryClaimStaleGmRecovery(
+              db,
+              round.id,
+              leaseOwnerId,
+              provenanceGenerationId,
+              recoveryId,
+              "committed"
+            )
+          ) {
             return { round, reclaimed: false };
           }
-          if (!finalizeRerollForGeneration(db, round.id, recoveryId, provenanceId)) {
+          if (!isRerollGenerationBilled(db, round.id, provenanceGenerationId)) {
+            if (
+              !billRerollGenerationExactlyOnce(
+                db,
+                campaign,
+                round.id,
+                recoveryId,
+                provenanceGenerationId,
+                opts.deps
+              )
+            ) {
+              throw new StaleGmGenerationOwnerError();
+            }
+          }
+          if (!finalizeRerollForGeneration(db, round.id, recoveryId, provenanceGenerationId)) {
             throw new StaleGmGenerationOwnerError();
           }
         } else {
           const kind = round.phase === "APPLYING_STATE" ? "applying_state" : "committed";
-          if (!tryClaimStaleGmRecovery(db, round.id, provenanceId, recoveryId, kind)) {
+          if (
+            !tryClaimStaleGmRecovery(
+              db,
+              round.id,
+              leaseOwnerId,
+              provenanceGenerationId,
+              recoveryId,
+              kind
+            )
+          ) {
             return { round, reclaimed: false };
           }
           const row = db
@@ -573,7 +607,7 @@ async function reconcileStaleGmGenerationIfNeeded(
               roundId: round.id,
               roundNumber: round.round_number,
               leaseOwnerId: recoveryId,
-              committedGenerationId: provenanceId,
+              committedGenerationId: provenanceGenerationId,
               campaignFinished,
             },
             opts.deps
@@ -594,10 +628,6 @@ async function reconcileStaleGmGenerationIfNeeded(
     case "stale_orphan": {
       tryTerminalizeStaleOrphan(db, round.id);
       return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
-    }
-    default: {
-      const _exhaustive: never = resolution.status;
-      return _exhaustive;
     }
   }
 }
@@ -1301,7 +1331,11 @@ async function runGmForRound(
   try {
     const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
     if (opts.requestId) {
-      if (!appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK)) {
+      if (
+        !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {
+          trackRerollUsage: opts.regenerate === true,
+        })
+      ) {
         logStaleOwnerDiscard(opts.roundId, opts.requestId, "usage");
         throw new StaleGmGenerationOwnerError();
       }
@@ -1504,19 +1538,98 @@ function appendGmRoundUsageForGeneration(
   db: Database.Database,
   roundId: number,
   generationId: string,
-  usage: TrpgModelUsage
+  usage: TrpgModelUsage,
+  opts?: { trackRerollUsage?: boolean }
 ): boolean {
   return db.transaction(() => {
     const row = db
-      .prepare(`SELECT usage_json FROM trpg_rounds WHERE id=? AND gm_generation_id=?`)
-      .get(roundId, generationId) as { usage_json: string | null } | undefined;
+      .prepare(`SELECT usage_json, gm_reroll_usage_json FROM trpg_rounds WHERE id=? AND gm_generation_id=?`)
+      .get(roundId, generationId) as
+      | { usage_json: string | null; gm_reroll_usage_json: string | null }
+      | undefined;
     if (!row) return false;
     const next = [...parseJson(row.usage_json, [] as TrpgModelUsage[]), usage];
     const info = db
       .prepare(`UPDATE trpg_rounds SET usage_json=? WHERE id=? AND gm_generation_id=?`)
       .run(JSON.stringify(next), roundId, generationId);
-    return info.changes === 1;
+    if (info.changes !== 1) return false;
+    if (!opts?.trackRerollUsage) return true;
+    const rerollNext = [...parseJson(row.gm_reroll_usage_json, [] as TrpgModelUsage[]), usage];
+    const rerollInfo = db
+      .prepare(`UPDATE trpg_rounds SET gm_reroll_usage_json=? WHERE id=? AND gm_generation_id=?`)
+      .run(JSON.stringify(rerollNext), roundId, generationId);
+    return rerollInfo.changes === 1;
   })();
+}
+
+/** Atomically bill a narration reroll generation exactly once by provenance token. */
+export function billRerollGenerationExactlyOnce(
+  db: Database.Database,
+  campaign: TrpgCampaignRow,
+  roundId: number,
+  leaseOwnerId: string,
+  provenanceGenerationId: string,
+  deps?: TrpgEngineDeps
+): boolean {
+  if (isRerollGenerationBilled(db, roundId, provenanceGenerationId)) {
+    return gmGenerationOwnsToken(db, roundId, leaseOwnerId);
+  }
+
+  if (deps?.skipBilling) {
+    const info = db
+      .prepare(
+        `UPDATE trpg_rounds
+         SET gm_reroll_billed_generation_id=?
+         WHERE id=?
+           AND gm_generation_id=?
+           AND gm_committed_generation_id=?
+           AND (gm_reroll_billed_generation_id IS NULL OR gm_reroll_billed_generation_id != ?)`
+      )
+      .run(provenanceGenerationId, roundId, leaseOwnerId, provenanceGenerationId, provenanceGenerationId);
+    return info.changes === 1;
+  }
+
+  try {
+    return db.transaction(() => {
+      const row = db
+        .prepare(
+          `SELECT gm_generation_id, gm_committed_generation_id, gm_reroll_billed_generation_id, gm_reroll_usage_json
+           FROM trpg_rounds WHERE id=?`
+        )
+        .get(roundId) as {
+        gm_generation_id: string | null;
+        gm_committed_generation_id: string | null;
+        gm_reroll_billed_generation_id: string | null;
+        gm_reroll_usage_json: string | null;
+      };
+      if (!row) return false;
+      if (row.gm_generation_id !== leaseOwnerId) return false;
+      if (row.gm_committed_generation_id !== provenanceGenerationId) return false;
+      if (row.gm_reroll_billed_generation_id === provenanceGenerationId) return true;
+
+      const usage = parseJson(row.gm_reroll_usage_json, [] as TrpgModelUsage[]);
+      chargeTrpgCalls(db, campaign, roundId, usage.length ? usage : [TRPG_GM_USAGE_FALLBACK], {
+        addToBilled: true,
+        skip: false,
+        billingFault: deps?.billingFault,
+      });
+
+      const info = db
+        .prepare(
+          `UPDATE trpg_rounds
+           SET gm_reroll_billed_generation_id=?
+           WHERE id=?
+             AND gm_generation_id=?
+             AND gm_committed_generation_id=?
+             AND (gm_reroll_billed_generation_id IS NULL OR gm_reroll_billed_generation_id != ?)`
+        )
+        .run(provenanceGenerationId, roundId, leaseOwnerId, provenanceGenerationId, provenanceGenerationId);
+      return info.changes === 1;
+    })();
+  } catch (error) {
+    if (error instanceof StaleGmGenerationOwnerError) return false;
+    throw error;
+  }
 }
 
 function loadRoundUsage(db: Database.Database, roundId: number): TrpgModelUsage[] {

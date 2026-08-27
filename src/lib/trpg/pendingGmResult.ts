@@ -131,3 +131,13 @@ export function hasPendingGmResultForGeneration(
 ): boolean {
   return pendingMatchesGeneration(db, roundId, generationId);
 }
+
+/** Provider result provenance from pending JSON, independent of current lease owner. */
+export function loadPendingProvenanceGenerationId(
+  db: Database.Database,
+  roundId: number
+): string | null {
+  const pending = loadPendingGmResult(db, roundId);
+  if (!pending) return null;
+  return pending.generationId ?? null;
+}

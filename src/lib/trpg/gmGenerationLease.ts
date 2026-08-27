@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import { healthyGmProviderWallMs } from "./gmCall";
-import { pendingMatchesGeneration } from "./pendingGmResult";
+import { hasPendingGmResult, loadPendingProvenanceGenerationId, pendingMatchesGeneration } from "./pendingGmResult";
 import type { TrpgRoundRow } from "./store";
 import { TRPG_GM_MODEL } from "./types";
 
@@ -37,9 +37,13 @@ export type GmLeaseStatus =
   | "stale_reroll_orphan"
   | "stale_orphan";
 
-export type GmLeaseResolution = {
-  status: GmLeaseStatus;
-};
+export type GmLeaseResolution =
+  | { status: "inactive" | "healthy" | "stale_orphan" | "stale_reroll_orphan" }
+  | {
+      status: "stale_pending" | "stale_committed";
+      leaseOwnerId: string;
+      provenanceGenerationId: string;
+    };
 
 export type GmStaleOwnerDiscardReason =
   | "heartbeat"
@@ -150,6 +154,8 @@ export function beginGmGenerationLease(db: Database.Database, roundId: number, r
      SET gm_generation_started_at = datetime('now'),
          gm_generation_heartbeat_at = datetime('now'),
          gm_committed_generation_id = NULL,
+         gm_reroll_billed_generation_id = NULL,
+         gm_reroll_usage_json = NULL,
          updated_at = datetime('now')
      WHERE id = ?
        AND gm_generation_id = ?`
@@ -256,6 +262,28 @@ export function currentGenerationCommitted(
   return row?.gm_committed_generation_id === generationId;
 }
 
+/** Committed result provenance, independent of current lease owner. */
+export function loadCommittedProvenanceGenerationId(
+  db: Database.Database,
+  roundId: number
+): string | null {
+  const row = db
+    .prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE id = ?`)
+    .get(roundId) as { gm_committed_generation_id: string | null } | undefined;
+  return row?.gm_committed_generation_id ?? null;
+}
+
+export function isRerollGenerationBilled(
+  db: Database.Database,
+  roundId: number,
+  provenanceGenerationId: string
+): boolean {
+  const row = db
+    .prepare(`SELECT gm_reroll_billed_generation_id FROM trpg_rounds WHERE id = ?`)
+    .get(roundId) as { gm_reroll_billed_generation_id: string | null } | undefined;
+  return row?.gm_reroll_billed_generation_id === provenanceGenerationId;
+}
+
 export function resolveGmLeaseState(
   db: Database.Database,
   roundId: number,
@@ -269,12 +297,24 @@ export function resolveGmLeaseState(
     return { status: "healthy" };
   }
 
-  if (pendingMatchesGeneration(db, roundId, gmGenerationId)) {
-    return { status: "stale_pending" };
+  const leaseOwnerId = gmGenerationId;
+
+  if (hasPendingGmResult(db, roundId)) {
+    const pendingProvenance = loadPendingProvenanceGenerationId(db, roundId) ?? leaseOwnerId;
+    return {
+      status: "stale_pending",
+      leaseOwnerId,
+      provenanceGenerationId: pendingProvenance,
+    };
   }
 
-  if (currentGenerationCommitted(db, roundId, gmGenerationId)) {
-    return { status: "stale_committed" };
+  const committedProvenance = loadCommittedProvenanceGenerationId(db, roundId);
+  if (committedProvenance) {
+    return {
+      status: "stale_committed",
+      leaseOwnerId,
+      provenanceGenerationId: committedProvenance,
+    };
   }
 
   const row = loadRoundLeaseRow(db, roundId);
@@ -299,34 +339,43 @@ export function buildTrpgOrphanGenerationErrorJson(): string {
 }
 
 /**
- * CAS reclaim stale generation to a NEW recovery owner B, revoking old owner A.
- * Provenance (pending/committed) remains tied to A.
+ * CAS reclaim stale lease to a NEW recovery owner, revoking stale lease holder.
+ * Result provenance (pending/committed) remains on provenanceGenerationId.
  */
 export function tryClaimStaleGmRecovery(
   db: Database.Database,
   roundId: number,
-  staleOwnerId: string,
+  staleLeaseOwnerId: string,
+  provenanceGenerationId: string,
   recoveryOwnerId: string,
   kind: StaleRecoveryKind
 ): boolean {
   return db.transaction(() => {
-    if (kind === "pending" && !pendingMatchesGeneration(db, roundId, staleOwnerId)) {
-      return false;
-    }
-    if (kind === "committed" && !currentGenerationCommitted(db, roundId, staleOwnerId)) {
+    if (kind === "pending") {
+      const pendingProv = loadPendingProvenanceGenerationId(db, roundId);
+      if (!hasPendingGmResult(db, roundId)) return false;
+      const effectiveProv = pendingProv ?? staleLeaseOwnerId;
+      if (effectiveProv !== provenanceGenerationId) return false;
+    } else if (
+      (kind === "committed" || kind === "applying_state") &&
+      loadCommittedProvenanceGenerationId(db, roundId) !== provenanceGenerationId
+    ) {
       return false;
     }
 
     let extra = "";
-    const params: Array<string | number> = [recoveryOwnerId, recoveryOwnerId, roundId, staleOwnerId];
+    const params: Array<string | number> = [
+      recoveryOwnerId,
+      recoveryOwnerId,
+      roundId,
+      staleLeaseOwnerId,
+    ];
 
     if (kind === "pending") {
-      extra = `AND pending_gm_result_json IS NOT NULL
-               AND json_extract(pending_gm_result_json, '$.generationId') = ?`;
-      params.push(staleOwnerId);
+      extra = `AND pending_gm_result_json IS NOT NULL`;
     } else if (kind === "committed" || kind === "applying_state") {
       extra = `AND gm_committed_generation_id = ?`;
-      params.push(staleOwnerId);
+      params.push(provenanceGenerationId);
       if (kind === "applying_state") {
         extra += ` AND phase = 'APPLYING_STATE'`;
       }
@@ -371,19 +420,10 @@ export function tryTerminalizeStaleOrphan(db: Database.Database, roundId: number
          AND gm_generation_id = ?
          AND phase IN ${GM_ACTIVE_PHASE_SQL}
          AND ${staleAtWriteSql()}
-         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id != ?)
-         AND NOT (
-           pending_gm_result_json IS NOT NULL
-           AND json_extract(pending_gm_result_json, '$.generationId') = ?
-         )`
+         AND gm_committed_generation_id IS NULL
+         AND pending_gm_result_json IS NULL`
     )
-    .run(
-      buildTrpgOrphanGenerationErrorJson(),
-      roundId,
-      staleOwnerId,
-      staleOwnerId,
-      staleOwnerId
-    );
+    .run(buildTrpgOrphanGenerationErrorJson(), roundId, staleOwnerId);
   return info.changes === 1;
 }
 
@@ -607,9 +647,10 @@ export function tryRevertStaleRerollGeneration(
          AND process_stage = 'reroll'
          AND phase IN ${GM_ACTIVE_PHASE_SQL}
          AND ${staleAtWriteSql()}
-         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id != ?)`
+         AND gm_committed_generation_id IS NULL
+         AND pending_gm_result_json IS NULL`
     )
-    .run(errorJson, roundId, staleOwnerId, staleOwnerId);
+    .run(errorJson, roundId, staleOwnerId);
   return info.changes === 1;
 }
 

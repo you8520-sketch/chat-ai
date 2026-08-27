@@ -8,13 +8,17 @@ import {
   healthyGmProviderWallMs,
 } from "./gmCall";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
+import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import {
   advanceTrpgCampaign,
+  billRerollGenerationExactlyOnce,
   regenerateTrpgNarration,
   startTrpgCampaign,
   submitTrpgAction,
   type TrpgEngineDeps,
 } from "./engineAdvance";
+import { computeTrpgRoundPoints, TRPG_GM_USAGE_FALLBACK } from "./billing";
 import {
   beginGmGenerationLease,
   buildTrpgOrphanGenerationErrorJson,
@@ -29,6 +33,7 @@ import {
   GM_LEGACY_STALE_SAFETY_BUFFER_MS,
   gmStaleReclaimEligible,
   isGmGenerationLeaseStaleOnDb,
+  isRerollGenerationBilled,
   markGmGenerationCommitted,
   refreshGmGenerationHeartbeat,
   resolveGmLeaseState,
@@ -42,7 +47,7 @@ import { parseTrpgGmOutput } from "./gmPrompt";
 import { ensureTrpgTables } from "./schema";
 import { parseTrpgStartFailureJson } from "./startFailure";
 import { shouldKickTrpgAdvance } from "./roundWorkKick";
-import { loadLatestRound } from "./store";
+import { loadCampaign, loadLatestRound } from "./store";
 
 const NARRATION = "문이 천천히 열린다.";
 const GM_TEXT = `<<<NARRATION>>>
@@ -95,6 +100,45 @@ function memoryDb(): Database.Database {
   ensureTrpgTables(db);
   installLedger(db);
   return db;
+}
+
+function creditUser(db: Database.Database, userId: number, amount: number, type: "PAID" | "FREE" = "PAID"): void {
+  db.prepare(`INSERT OR IGNORE INTO users (id, email, nickname, points, creator_points) VALUES (?,?,?,0,0)`).run(
+    userId,
+    `u${userId}@test.local`,
+    `u${userId}`,
+    0,
+    0
+  );
+  creditPointsWithIds(db, userId, amount, type, `test-credit-${userId}-${type}`);
+}
+
+function rerollUsage(): typeof TRPG_GM_USAGE_FALLBACK {
+  return {
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    inputTokens: TRPG_GM_USAGE_FALLBACK.inputTokens,
+    outputTokens: TRPG_GM_USAGE_FALLBACK.outputTokens,
+  };
+}
+
+function rerollChargePoints(): number {
+  return computeTrpgRoundPoints([rerollUsage()]);
+}
+
+function staleHeartbeat(db: Database.Database, roundId: number, ageSec = 600): void {
+  db.prepare(
+    `UPDATE trpg_rounds
+     SET gm_generation_heartbeat_at=datetime('now', ?),
+         updated_at=datetime('now', ?)
+     WHERE id=?`
+  ).run(`-${ageSec} seconds`, `-${ageSec} seconds`, roundId);
+}
+
+function creatorEarnings(db: Database.Database, roundId: number): number {
+  const row = db
+    .prepare(`SELECT COALESCE(SUM(reward_amount),0) AS n FROM trpg_creator_earnings WHERE round_id=?`)
+    .get(roundId) as { n: number };
+  return Number(row.n);
 }
 
 type SeedOpts = {
@@ -755,6 +799,33 @@ describe("GM generation lease and fencing", () => {
     assert.equal(parsed.kind, "gm_generation_orphan_reclaimed");
     assert.equal(parsed.class, "B");
   });
+
+  it("26 stale lease owner B with committed provenance A is stale_committed not orphan", () => {
+    const db = memoryDb();
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const tokenA = "prov-a";
+    const tokenB = "recv-b";
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id)
+           VALUES (?, 1, 'APPLYING_STATE', ?, ?)`
+        )
+        .run(campaignId, tokenB, tokenA).lastInsertRowid
+    );
+    staleHeartbeat(db, roundId);
+    const resolution = resolveGmLeaseState(db, roundId, "APPLYING_STATE", tokenB);
+    assert.equal(resolution.status, "stale_committed");
+    if (resolution.status === "stale_committed") {
+      assert.equal(resolution.leaseOwnerId, tokenB);
+      assert.equal(resolution.provenanceGenerationId, tokenA);
+    }
+    assert.notEqual(resolution.status, "stale_orphan");
+    db.close();
+  });
 });
 
 describe("GM generation lifecycle races", () => {
@@ -889,7 +960,7 @@ describe("GM generation lifecycle races", () => {
        WHERE id=?`
     ).run(roundId);
     const tokenB = "token-b";
-    assert.equal(tryClaimStaleGmRecovery(db, roundId, "token-a", tokenB, "applying_state"), true);
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, "token-a", "token-a", tokenB, "applying_state"), true);
     assert.equal(
       finalizeGmRoundForGeneration(db, {
         campaignId,
@@ -1060,19 +1131,19 @@ describe("GM generation lifecycle races", () => {
   it("L reroll billing rejects stale owner after lease loss", async () => {
     const db = memoryDb();
     db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
-    const deps: TrpgEngineDeps = {
-      skipBilling: true,
-      gmCall: async () => ({ text: gmText("rerolled") }),
-    };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
     await startTrpgCampaign(db, {
       campaignId,
       userId: 1,
-      deps: { ...deps, gmCall: async () => ({ text: gmText("open") }) },
+      deps: { skipBilling: true, gmCall: async () => ({ text: gmText("open") }) },
     });
     submitTrpgAction(db, { campaignId, userId: 1, body: "앞으로 간다" });
-    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await advanceTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: { skipBilling: true, gmCall: async () => ({ text: gmText("done") }) },
+    });
     const round = loadLatestRound(db, campaignId)!;
     const prevRound = db
       .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
@@ -1086,10 +1157,388 @@ describe("GM generation lifecycle races", () => {
        WHERE id=?`
     ).run(tokenA, tokenA, prevRound.id);
     const tokenB = "reroll-b";
-    assert.equal(tryClaimStaleGmRecovery(db, prevRound.id, tokenA, tokenB, "committed"), true);
+    assert.equal(tryClaimStaleGmRecovery(db, prevRound.id, tokenA, tokenA, tokenB, "committed"), true);
     assert.equal(gmGenerationOwnsToken(db, prevRound.id, tokenA), false);
     assert.equal(finalizeRerollForGeneration(db, prevRound.id, tokenA, tokenA), false);
     assert.equal(finalizeRerollForGeneration(db, prevRound.id, tokenB, tokenA), true);
+    db.close();
+  });
+});
+
+describe("GM chained recovery lineage", () => {
+  it("A pending A stale B dies before commit C commits pending A once without provider", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    let providerCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => {
+        providerCalls += 1;
+        return { text: gmText("should not run") };
+      },
+    };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const tokenA = "prov-a";
+    const tokenB = "recv-b";
+    const { roundId } = seedStuckGmRound(db, {
+      campaignId,
+      requestId: tokenA,
+      heartbeatAgeSec: 500,
+      pending: true,
+      pendingGenerationId: tokenA,
+    });
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, tokenA, tokenA, tokenB, "pending"), true);
+    staleHeartbeat(db, roundId);
+    const mid = resolveGmLeaseState(db, roundId, "GENERATING_NARRATION", tokenB);
+    assert.equal(mid.status, "stale_pending");
+    assert.notEqual(mid.status, "stale_orphan");
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(providerCalls, 0);
+    assert.equal(currentGenerationCommitted(db, roundId, tokenA), true);
+    assert.equal(gmGenerationOwnsToken(db, roundId, tokenB), false);
+    db.close();
+  });
+
+  it("B recovery B commits APPLYING_STATE with B/A provenance C finalizes once without provider", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    let providerCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => {
+        providerCalls += 1;
+        return { text: gmText("should not run") };
+      },
+    };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const tokenA = "prov-a";
+    const tokenB = "recv-b";
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id)
+           VALUES (?, 1, 'APPLYING_STATE', ?, ?)`
+        )
+        .run(campaignId, tokenB, tokenA).lastInsertRowid
+    );
+    db.prepare(`INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)`).run(
+      roundId,
+      NARRATION,
+      JSON.stringify(parseTrpgGmOutput(GM_TEXT))
+    );
+    staleHeartbeat(db, roundId);
+    const mid = resolveGmLeaseState(db, roundId, "APPLYING_STATE", tokenB);
+    assert.equal(mid.status, "stale_committed");
+    assert.notEqual(mid.status, "stale_orphan");
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(providerCalls, 0);
+    const row = db.prepare(`SELECT phase, gm_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+      phase: string;
+      gm_generation_id: string | null;
+    };
+    assert.equal(row.phase, "ROUND_COMPLETE");
+    assert.equal(row.gm_generation_id, null);
+    db.close();
+  });
+
+  it("C committed reroll A recovery B dies C finalizes A without provider", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    let providerCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => {
+        providerCalls += 1;
+        return { text: gmText("should not run") };
+      },
+    };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const tokenA = "prov-a";
+    const tokenB = "recv-b";
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id, process_stage)
+           VALUES (?, 1, 'GENERATING_NARRATION', ?, ?, 'reroll')`
+        )
+        .run(campaignId, tokenB, tokenA).lastInsertRowid
+    );
+    db.prepare(`INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)`).run(
+      roundId,
+      NARRATION,
+      JSON.stringify(parseTrpgGmOutput(GM_TEXT))
+    );
+    staleHeartbeat(db, roundId);
+    const mid = resolveGmLeaseState(db, roundId, "GENERATING_NARRATION", tokenB);
+    assert.equal(mid.status, "stale_committed");
+    assert.notEqual(mid.status, "stale_orphan");
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(providerCalls, 0);
+    const row = db.prepare(`SELECT phase, gm_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+      phase: string;
+      gm_generation_id: string | null;
+    };
+    assert.equal(row.phase, "ROUND_COMPLETE");
+    assert.equal(row.gm_generation_id, null);
+    db.close();
+  });
+
+  it("D chained recovery never classifies B/A state as stale_orphan", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    const deps: TrpgEngineDeps = { skipBilling: true };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ACTION_INPUT')`).run()
+        .lastInsertRowid
+    );
+    const tokenA = "prov-a";
+    const tokenB = "recv-b";
+    const tokenC = "recv-c";
+    const { roundId } = seedStuckGmRound(db, {
+      campaignId,
+      requestId: tokenA,
+      heartbeatAgeSec: 500,
+      pending: true,
+      pendingGenerationId: tokenA,
+    });
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, tokenA, tokenA, tokenB, "pending"), true);
+    staleHeartbeat(db, roundId);
+    const bState = resolveGmLeaseState(db, roundId, "GENERATING_NARRATION", tokenB);
+    assert.notEqual(bState.status, "stale_orphan");
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, tokenB, tokenA, tokenC, "pending"), true);
+    staleHeartbeat(db, roundId);
+    const cState = resolveGmLeaseState(db, roundId, "GENERATING_NARRATION", tokenC);
+    assert.notEqual(cState.status, "stale_orphan");
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(currentGenerationCommitted(db, roundId, tokenA), true);
+    db.close();
+  });
+});
+
+describe("GM reroll billing fencing", () => {
+  function soloCampaign(db: Database.Database, opts?: { characterCreatorId?: number }): number {
+    creditUser(db, 1, 50_000);
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    if (opts?.characterCreatorId) {
+      creditUser(db, opts.characterCreatorId, 0);
+      db.prepare(`INSERT INTO characters (id, name, creator_id, official) VALUES (10, '동료', ?, 0)`).run(
+        opts.characterCreatorId
+      );
+      db.prepare(`UPDATE trpg_participants SET character_id=10 WHERE campaign_id=? AND user_id=1`).run(campaignId);
+    }
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    return campaignId;
+  }
+
+  function seedRerollCommitted(
+    db: Database.Database,
+    campaignId: number,
+    opts: {
+      provenanceId: string;
+      leaseOwnerId: string;
+      billed?: boolean;
+      usageJson?: string;
+      billedPoints?: number;
+    }
+  ): number {
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id, process_stage, billed_points)
+           VALUES (?, 1, 'GENERATING_NARRATION', ?, ?, 'reroll', ?)`
+        )
+        .run(campaignId, opts.leaseOwnerId, opts.provenanceId, opts.billedPoints ?? 100).lastInsertRowid
+    );
+    db.prepare(`INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)`).run(
+      roundId,
+      NARRATION,
+      JSON.stringify(parseTrpgGmOutput(GM_TEXT))
+    );
+    if (opts.usageJson) {
+      db.prepare(`UPDATE trpg_rounds SET gm_reroll_usage_json=? WHERE id=?`).run(opts.usageJson, roundId);
+    }
+    if (opts.billed) {
+      db.prepare(`UPDATE trpg_rounds SET gm_reroll_billed_generation_id=? WHERE id=?`).run(
+        opts.provenanceId,
+        roundId
+      );
+    }
+    return roundId;
+  }
+
+  it("L1 stale owner A before billing charges zero and leaves balance unchanged", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      usageJson: JSON.stringify([rerollUsage()]),
+    });
+    const before = getPointBalanceOnDb(db, 1).total;
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenA, tokenA), false);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before);
+    assert.equal(isRerollGenerationBilled(db, roundId, tokenA), false);
+    db.close();
+  });
+
+  it("L2 committed not billed recovery B bills provenance A exactly once", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      usageJson: JSON.stringify([rerollUsage()]),
+    });
+    const before = getPointBalanceOnDb(db, 1).total;
+    const expected = rerollChargePoints();
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before - expected);
+    assert.equal(isRerollGenerationBilled(db, roundId, tokenA), true);
+    db.close();
+  });
+
+  it("L3 billed A crash before finalize recovery B adds zero second deduction", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      billed: true,
+      usageJson: JSON.stringify([rerollUsage()]),
+      billedPoints: 100 + rerollChargePoints(),
+    });
+    const before = getPointBalanceOnDb(db, 1).total;
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before);
+    assert.equal(finalizeRerollForGeneration(db, roundId, tokenB, tokenA), true);
+    db.close();
+  });
+
+  it("L4 chained recovery B to C keeps billing exactly once", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const tokenC = "reroll-c";
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      usageJson: JSON.stringify([rerollUsage()]),
+    });
+    staleHeartbeat(db, roundId);
+    const before = getPointBalanceOnDb(db, 1).total;
+    const expected = rerollChargePoints();
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before - expected);
+    assert.equal(tryClaimStaleGmRecovery(db, roundId, tokenB, tokenA, tokenC, "committed"), true);
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenC, tokenA), true);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before - expected);
+    assert.equal(finalizeRerollForGeneration(db, roundId, tokenC, tokenA), true);
+    db.close();
+  });
+
+  it("L5 creator rewards credited exactly once for reroll provenance A", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db, { characterCreatorId: 2 });
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      usageJson: JSON.stringify([rerollUsage()]),
+    });
+    const before = creatorEarnings(db, roundId);
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    const after = creatorEarnings(db, roundId);
+    assert.ok(after > before);
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    assert.equal(creatorEarnings(db, roundId), after);
+    db.close();
+  });
+
+  it("L6 billed_points increments exactly once for provenance A", () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    const campaign = loadCampaign(db, campaignId)!;
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const baseBilled = 250;
+    const roundId = seedRerollCommitted(db, campaignId, {
+      provenanceId: tokenA,
+      leaseOwnerId: tokenB,
+      usageJson: JSON.stringify([rerollUsage()]),
+      billedPoints: baseBilled,
+    });
+    const expected = rerollChargePoints();
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    const row = db
+      .prepare(`SELECT billed_points FROM trpg_rounds WHERE id=?`)
+      .get(roundId) as { billed_points: number };
+    assert.equal(row.billed_points, baseBilled + expected);
+    assert.equal(billRerollGenerationExactlyOnce(db, campaign, roundId, tokenB, tokenA), true);
+    const row2 = db
+      .prepare(`SELECT billed_points FROM trpg_rounds WHERE id=?`)
+      .get(roundId) as { billed_points: number };
+    assert.equal(row2.billed_points, baseBilled + expected);
+    db.close();
+  });
+
+  it("L7 commit crash recovery B bills unbilled A once via advance without provider", async () => {
+    const db = memoryDb();
+    const campaignId = soloCampaign(db);
+    let providerCalls = 0;
+    const deps: TrpgEngineDeps = {
+      gmCall: async () => {
+        providerCalls += 1;
+        return { text: gmText("should not run") };
+      },
+    };
+    const tokenA = "reroll-a";
+    const tokenB = "reroll-b";
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id, gm_committed_generation_id, process_stage, gm_reroll_usage_json, billed_points)
+           VALUES (?, 1, 'GENERATING_NARRATION', ?, ?, 'reroll', ?, 100)`
+        )
+        .run(campaignId, tokenB, tokenA, JSON.stringify([rerollUsage()])).lastInsertRowid
+    );
+    db.prepare(`INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)`).run(
+      roundId,
+      NARRATION,
+      JSON.stringify(parseTrpgGmOutput(GM_TEXT))
+    );
+    staleHeartbeat(db, roundId);
+    const before = getPointBalanceOnDb(db, 1).total;
+    const expected = rerollChargePoints();
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(providerCalls, 0);
+    assert.equal(getPointBalanceOnDb(db, 1).total, before - expected);
+    assert.equal(isRerollGenerationBilled(db, roundId, tokenA), true);
     db.close();
   });
 });

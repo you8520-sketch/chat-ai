@@ -66,6 +66,8 @@ export type TrpgRoundRow = {
   gm_generation_started_at: string | null;
   gm_generation_heartbeat_at: string | null;
   gm_committed_generation_id: string | null;
+  gm_reroll_billed_generation_id: string | null;
+  gm_reroll_usage_json: string | null;
   bot_generation_id: string | null;
   bot_generation_started_at: string | null;
   bot_generation_heartbeat_at: string | null;
