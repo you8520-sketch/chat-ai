@@ -5,7 +5,10 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { buildSecretBlindDocumentTargetPayload } from "@/lib/investigationDocumentTargetPayload";
-import { registerPresentedDocumentTarget } from "@/lib/investigationTargets";
+import {
+  buildPresentedDocumentTargetKey,
+  registerPresentedDocumentTarget,
+} from "@/lib/investigationTargets";
 import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import type {
   SceneEvidenceEvent,
@@ -27,11 +30,26 @@ export type RegisterDocumentTargetsFromSceneEvidenceResult = {
   skipped: number;
 };
 
-function documentLabelFromEvent(event: SceneEvidenceEvent): string | null {
+export function documentLabelFromPresentedEvidence(
+  event: { attributes: Record<string, unknown> }
+): string | null {
   const raw = event.attributes.documentLabel;
   if (typeof raw !== "string") return null;
   const label = raw.trim().slice(0, 64);
   return label.length >= 1 ? label : null;
+}
+
+export function presentedDocumentTargetKeyFromEvidence(
+  event: {
+    eventType: SceneEvidenceEvent["eventType"];
+    sourceType: SceneEvidenceEvent["sourceType"];
+    attributes: Record<string, unknown>;
+  }
+): string | null {
+  if (!DOCUMENT_EVENT_TYPES.has(event.eventType)) return null;
+  if (!TRUSTED_USER_SOURCES.has(event.sourceType)) return null;
+  const label = documentLabelFromPresentedEvidence(event);
+  return label ? buildPresentedDocumentTargetKey(label) : null;
 }
 
 function documentSubjectFromEvent(
@@ -66,22 +84,14 @@ export function registerInvestigationTargetsFromPresentedDocuments(opts: {
       skipped++;
       continue;
     }
-    if (!DOCUMENT_EVENT_TYPES.has(event.eventType)) {
-      skipped++;
-      continue;
-    }
-    if (!TRUSTED_USER_SOURCES.has(event.sourceType)) {
-      skipped++;
-      continue;
-    }
-
-    const documentLabel = documentLabelFromEvent(event);
-    if (!documentLabel) {
+    const targetKey = presentedDocumentTargetKeyFromEvidence(event);
+    const documentLabel = documentLabelFromPresentedEvidence(event);
+    if (!targetKey || !documentLabel) {
       skipped++;
       continue;
     }
 
-    const dedupeKey = `${event.eventType}:${documentLabel.toLowerCase()}`;
+    const dedupeKey = `${event.eventType}:${targetKey}`;
     if (seen.has(dedupeKey)) {
       skipped++;
       continue;

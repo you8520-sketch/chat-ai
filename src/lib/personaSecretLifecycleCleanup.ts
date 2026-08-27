@@ -6,6 +6,7 @@
 
 import type Database from "better-sqlite3";
 import { ensureInvestigationSchema } from "@/lib/investigationSchema";
+import { presentedDocumentTargetKeyFromEvidence } from "@/lib/investigationTargetFromSceneEvidence";
 import { ensureKnowledgeTransferSchema } from "@/lib/knowledgeTransferSchema";
 import { ensureObserverSchema } from "@/lib/observerSchema";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
@@ -14,6 +15,10 @@ import type { PersonaSecretObserverType } from "@/lib/personaSecretDiscoveryType
 import { reprojectObserverSecretKnowledge } from "@/lib/personaSecretKnowledgeReprojection";
 import { ensureChatPersonaSecretRevealsSchema } from "@/lib/personaSecretReveal";
 import { ensureSceneEvidenceSchema } from "@/lib/sceneEvidenceSchema";
+import type {
+  SceneEvidenceEventType,
+  SceneEvidenceSource,
+} from "@/lib/sceneEvidenceTypes";
 
 type ProjectionKey = {
   personaId: number;
@@ -64,6 +69,64 @@ function reprojectKeys(
       db,
     });
   }
+}
+
+function placeholders(values: unknown[]): string {
+  return values.map(() => "?").join(",");
+}
+
+function parseObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+type PresentedEvidenceRow = {
+  event_type: SceneEvidenceEventType;
+  source_type: SceneEvidenceSource;
+  attributes_json: string;
+};
+
+function targetKeyFromSceneRow(row: PresentedEvidenceRow): string | null {
+  return presentedDocumentTargetKeyFromEvidence({
+    eventType: row.event_type,
+    sourceType: row.source_type,
+    attributes: parseObject(row.attributes_json),
+  });
+}
+
+function deleteInvestigationAttemptsByIds(
+  db: Database.Database,
+  attemptIds: string[]
+): void {
+  if (attemptIds.length === 0) return;
+  const ph = placeholders(attemptIds);
+  db.prepare(
+    `DELETE FROM investigation_results WHERE attempt_id IN (${ph})`
+  ).run(...attemptIds);
+  db.prepare(`DELETE FROM investigation_attempts WHERE id IN (${ph})`).run(
+    ...attemptIds
+  );
+}
+
+function deleteInvestigationTargetById(
+  db: Database.Database,
+  targetId: string
+): void {
+  const attempts = db
+    .prepare(`SELECT id FROM investigation_attempts WHERE target_id=?`)
+    .all(targetId) as Array<{ id: string }>;
+  deleteInvestigationAttemptsByIds(
+    db,
+    attempts.map((row) => row.id)
+  );
+  db.prepare(`DELETE FROM investigation_results WHERE target_id=?`).run(targetId);
+  db.prepare(`DELETE FROM investigation_targets WHERE id=?`).run(targetId);
 }
 
 /** Whole-chat wipe of persona-secret / scene / investigation derived rows. */
@@ -157,9 +220,13 @@ export function rewindPersonaSecretStateForDeletedMessages(
   ensurePersonaSecretEvidenceActivationSchema(db);
   ensureKnowledgeTransferSchema(db);
   ensureSceneEvidenceSchema(db);
+  ensureInvestigationSchema(db);
 
   const keys: ProjectionKey[] = [];
   const msgPh = messageIds.map(() => "?").join(",");
+  const transferIds = new Set<string>();
+  const s4EvidenceIds = new Set<string>();
+  const affectedDocumentTargetKeys = new Set<string>();
 
   if (messageIds.length > 0) {
     keys.push(
@@ -181,6 +248,25 @@ export function rewindPersonaSecretStateForDeletedMessages(
         [input.chatId, ...messageIds]
       )
     );
+    const transferRows = db
+      .prepare(
+        `SELECT id FROM knowledge_transfer_events
+         WHERE chat_id=? AND source_message_id IN (${msgPh})`
+      )
+      .all(input.chatId, ...messageIds) as Array<{ id: string }>;
+    for (const row of transferRows) transferIds.add(row.id);
+
+    const sceneRows = db
+      .prepare(
+        `SELECT event_type, source_type, attributes_json
+         FROM scene_evidence_events
+         WHERE chat_id=? AND source_message_id IN (${msgPh})`
+      )
+      .all(input.chatId, ...messageIds) as PresentedEvidenceRow[];
+    for (const row of sceneRows) {
+      const targetKey = targetKeyFromSceneRow(row);
+      if (targetKey) affectedDocumentTargetKeys.add(targetKey);
+    }
   }
 
   if (input.assistantMessageId != null) {
@@ -205,24 +291,81 @@ export function rewindPersonaSecretStateForDeletedMessages(
         [input.chatId, input.assistantMessageId]
       )
     );
+    const transferRows = db
+      .prepare(
+        `SELECT id FROM knowledge_transfer_events
+         WHERE chat_id=? AND source_assistant_message_id=?`
+      )
+      .all(input.chatId, input.assistantMessageId) as Array<{ id: string }>;
+    for (const row of transferRows) transferIds.add(row.id);
   }
 
-  if (input.assistantMessageId != null) {
+  if (transferIds.size > 0) {
+    const transferIdSet = new Set(transferIds);
+    const rows = db
+      .prepare(
+        `SELECT id, persona_id, secret_id, observer_type, observer_id, evidence_json
+         FROM persona_secret_evidence_events
+         WHERE chat_id=? AND method='KNOWLEDGE_TRANSFER'`
+      )
+      .all(input.chatId) as Array<{
+      id: string;
+      persona_id: number;
+      secret_id: string;
+      observer_type: string;
+      observer_id: string;
+      evidence_json: string;
+    }>;
+    for (const row of rows) {
+      const transferEventId = parseObject(row.evidence_json)
+        .knowledgeTransferEventId;
+      if (
+        typeof transferEventId === "string" &&
+        transferIdSet.has(transferEventId)
+      ) {
+        s4EvidenceIds.add(row.id);
+        keys.push({
+          personaId: row.persona_id,
+          secretId: row.secret_id,
+          observerType: row.observer_type,
+          observerId: row.observer_id,
+        });
+      }
+    }
+  }
+
+  if (s4EvidenceIds.size > 0) {
+    const evidenceIds = [...s4EvidenceIds];
+    const ph = placeholders(evidenceIds);
     db.prepare(
       `DELETE FROM persona_secret_evidence_activation
-       WHERE chat_id=? AND assistant_message_id=?`
-    ).run(input.chatId, input.assistantMessageId);
+       WHERE evidence_id IN (${ph})`
+    ).run(...evidenceIds);
+    db.prepare(
+      `DELETE FROM persona_secret_evidence_events WHERE id IN (${ph})`
+    ).run(...evidenceIds);
+  }
+
+  if (transferIds.size > 0) {
+    const ids = [...transferIds];
     db.prepare(
       `DELETE FROM knowledge_transfer_events
-       WHERE chat_id=? AND source_assistant_message_id=?`
-    ).run(input.chatId, input.assistantMessageId);
+       WHERE id IN (${placeholders(ids)})`
+    ).run(...ids);
   }
 
   if (messageIds.length > 0) {
-    db.prepare(
-      `DELETE FROM knowledge_transfer_events
-       WHERE chat_id=? AND source_message_id IN (${msgPh})`
-    ).run(input.chatId, ...messageIds);
+    const attempts = db
+      .prepare(
+        `SELECT id FROM investigation_attempts
+         WHERE chat_id=? AND source_message_id IN (${msgPh})`
+      )
+      .all(input.chatId, ...messageIds) as Array<{ id: string }>;
+    deleteInvestigationAttemptsByIds(
+      db,
+      attempts.map((row) => row.id)
+    );
+
     db.prepare(
       `DELETE FROM persona_secret_evidence_events
        WHERE chat_id=? AND source_message_id IN (${msgPh})`
@@ -231,6 +374,30 @@ export function rewindPersonaSecretStateForDeletedMessages(
       `DELETE FROM scene_evidence_events
        WHERE chat_id=? AND source_message_id IN (${msgPh})`
     ).run(input.chatId, ...messageIds);
+  }
+
+  if (affectedDocumentTargetKeys.size > 0) {
+    const remainingRows = db
+      .prepare(
+        `SELECT event_type, source_type, attributes_json
+         FROM scene_evidence_events WHERE chat_id=?`
+      )
+      .all(input.chatId) as PresentedEvidenceRow[];
+    const supportedKeys = new Set(
+      remainingRows
+        .map(targetKeyFromSceneRow)
+        .filter((key): key is string => key != null)
+    );
+    for (const targetKey of affectedDocumentTargetKeys) {
+      if (supportedKeys.has(targetKey)) continue;
+      const target = db
+        .prepare(
+          `SELECT id FROM investigation_targets
+           WHERE owner_scope='CHAT' AND owner_id=? AND target_key=?`
+        )
+        .get(String(input.chatId), targetKey) as { id: string } | undefined;
+      if (target) deleteInvestigationTargetById(db, target.id);
+    }
   }
 
   reprojectKeys(db, input.chatId, keys);
@@ -249,10 +416,23 @@ export function deletePersonaSecretActivationRowsForPersona(
        SELECT id FROM persona_secret_evidence_events WHERE persona_id=?
      )`
   ).run(personaId);
-  db.prepare(
-    `DELETE FROM persona_secret_evidence_activation
-     WHERE chat_id IN (
-       SELECT DISTINCT chat_id FROM chat_character_secret_knowledge WHERE persona_id=?
-     )`
-  ).run(personaId);
+  deleteTrueOrphanPersonaSecretActivations(db);
+}
+
+/** Global hygiene sweep with exact orphan semantics only. */
+export function deleteTrueOrphanPersonaSecretActivations(
+  db: Database.Database
+): number {
+  ensurePersonaSecretEvidenceActivationSchema(db);
+  ensurePersonaSecretDiscoverySchema(db);
+  return db
+    .prepare(
+      `DELETE FROM persona_secret_evidence_activation
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM persona_secret_evidence_events e
+         WHERE e.id = persona_secret_evidence_activation.evidence_id
+       )`
+    )
+    .run().changes;
 }

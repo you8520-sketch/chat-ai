@@ -216,13 +216,17 @@ export function hashInvestigationTags(tags: string[]): string {
  * Register a chat-scoped document target only after the document was actually presented
  * in-scene (caller must gate on DOCUMENT_PRESENTED / explicit present). Never from secrets.
  */
+export function buildPresentedDocumentTargetKey(documentLabel: string): string {
+  return `doc:${documentLabel.trim().toLowerCase()}`;
+}
+
 export function registerPresentedDocumentTarget(opts: {
   chatId: number;
   documentLabel: string;
   payload: InvestigationResultPayload;
   db?: Database.Database;
 }): InvestigationTargetRow {
-  const key = `doc:${opts.documentLabel.trim().toLowerCase()}`;
+  const key = buildPresentedDocumentTargetKey(opts.documentLabel);
   return upsertInvestigationTarget(
     {
       ownerScope: "CHAT",

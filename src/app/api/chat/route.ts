@@ -47,6 +47,7 @@ import {
   bootstrapStreamingTurn,
   createDisconnectSafeSend,
   createPartialSaveThrottler,
+  executeAtomicRegenerationFinalize,
   findTurnByRequestId,
   finalizeAssistantMessage,
   logStreamingPersistence,
@@ -294,7 +295,6 @@ import {
   type S4GenerationTransferContext,
 } from "@/lib/s4GenerationTransfer/context";
 import { commitAcceptedAssistantS4Transfers } from "@/lib/s4GenerationTransfer/commit";
-import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
 import {
   buildGenerationKnowledgeContext,
@@ -5036,7 +5036,7 @@ export async function POST(req: Request) {
               throw numericFinalizeErr;
             }
           } else {
-            const finalizeResult = finalizeAssistantMessage(db, {
+            const finalizeResult = executeAtomicRegenerationFinalize(db, {
               assistantMessageId: regenerateMessageId,
               chatId: chatRef.id,
               content: savedText,
@@ -5425,22 +5425,6 @@ export async function POST(req: Request) {
             }
           }
 
-          // Regenerate always switches active_variant; reconcile S4 activations
-          // even when the new generation commits zero transfers (otherwise
-          // discarded-gen knowledge stays live).
-          if (regenerateMessageId) {
-            try {
-              reconcileS4KnowledgeForVariantSwitch(db, {
-                chatId: chatRef.id,
-                assistantMessageId: regenerateMessageId,
-              });
-            } catch (s4ReconcileErr) {
-              console.error(
-                "[S4LiveProducer] regen reconcile failed:",
-                (s4ReconcileErr as Error).message
-              );
-            }
-          }
         }
 
         const nextMode: Route = isAdultMode ? "nsfw" : "safe";
