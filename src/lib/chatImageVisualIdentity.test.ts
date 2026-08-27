@@ -591,6 +591,14 @@ describe("chat image visual identity", () => {
     assert.equal(
       resolveChatImageAppearanceControlProduct({
         surface: "ld",
+        ldProduct: "scene",
+        isTrpgParty: false,
+      }),
+      "ld_duo"
+    );
+    assert.equal(
+      resolveChatImageAppearanceControlProduct({
+        surface: "ld",
         ldProduct: "persona",
       }),
       "persona"

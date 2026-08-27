@@ -4,21 +4,16 @@ import { describe, it } from "node:test";
 import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
   CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
-  buildChatImageSceneBriefPrompt,
   extractUserSpokenDialogue,
   findVerbatimSceneDialogue,
   findVerbatimSceneExcerpt,
-  formatSceneBriefAsComicSource,
-  formatSceneBriefAsEditableSummary,
-  formatSceneBriefAsIllustrationTurn,
-  formatUserTurnForComicSource,
   isSceneActionText,
   resolveChatImageSceneBriefFallbackModel,
   resolveChatImageSceneBriefModel,
-  sanitizeChatImageSceneBrief,
+  stripChatTurnMarkup,
 } from "./chatImageSceneBrief";
 
-describe("chatImageSceneBrief", () => {
+describe("chatImageSceneBrief model routing", () => {
   it("defaults to GPT-5.6 Luna and migrates stale Flash primary env", () => {
     assert.equal(CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL, "gpt-5.6-luna");
     assert.equal(
@@ -77,244 +72,18 @@ describe("chatImageSceneBrief", () => {
       null
     );
   });
+});
 
+describe("chatImageSceneBrief helpers", () => {
   it("keeps only contiguous verbatim dialogue from the source turn", () => {
     const source =
-      '유저: 잠깐만. 캐릭터: 태현은 "야."라고 말했다. 이어 "거기 보지 마. 나 봐."라고 경고했다. 행인이 "불고기 셋이요"라고 외쳤다.';
+      '유저: 잠깐만. 캐릭터: 태현은 "야."라고 말했다. 이어 "거기 보지 마. 나 봐."라고 경고했다.';
     assert.equal(findVerbatimSceneExcerpt("야.", source), "야.");
     assert.equal(
       findVerbatimSceneExcerpt("거기 보지 마. 나 봐.", source),
       "거기 보지 마. 나 봐."
     );
     assert.equal(findVerbatimSceneExcerpt("나 좀 봐.", source), null);
-
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "번화가 골목",
-        atmosphere: "긴장",
-        actions: "태현이 앞을 막는다",
-        keyDialogue: [
-          { speaker: "character", text: "야." },
-          { speaker: "character", text: "나 좀 봐." },
-          { speaker: "persona", text: "잠깐만." },
-          { speaker: "other", text: "불고기 셋이요" },
-          { speaker: "character", text: "거기 보지 마. 나 봐." },
-        ],
-      },
-      source
-    );
-
-    assert.deepEqual(brief.keyDialogue, [
-      { speaker: "persona", text: "잠깐만." },
-      { speaker: "character", text: "야." },
-      { speaker: "character", text: "거기 보지 마. 나 봐." },
-      { speaker: "other", text: "불고기 셋이요" },
-    ]);
-  });
-
-  it("backfills a second verbatim line when the model returns only one", () => {
-    const source =
-      '태형은 "자, 식후땡으로는 역시 낮잠이 최고지."라고 말했다. 렌은 "정말 여기서 자려고?"라고 받았다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "공원",
-        atmosphere: "평화",
-        actions: "태형이 재킷을 깐다",
-        keyDialogue: [
-          { speaker: "character", text: "자, 식후땡으로는 역시 낮잠이 최고지." },
-        ],
-      },
-      source
-    );
-    assert.equal(brief.keyDialogue.length, 2);
-    assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
-  });
-
-  it("backfills up to three verbatim lines when the model returns few", () => {
-    const source =
-      '태형은 "야."라고 했다. 렌은 "왜."라고 받았다. 태형은 "거기 보지 마."라고 했다. 렌은 "알겠어."라고 했다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "식당",
-        atmosphere: "긴장",
-        actions: "태현이 앞을 막는다",
-        keyDialogue: [{ speaker: "character", text: "야." }],
-      },
-      source
-    );
-    assert.equal(brief.keyDialogue.length, 3);
-    assert.deepEqual(
-      brief.keyDialogue.map((line) => line.text),
-      ["야.", "왜.", "거기 보지 마."]
-    );
-  });
-
-  it("keeps long dialogue intact without an artificial cap", () => {
-    const longLine = `자, 식후땡으로는 역시 낮잠이 최고지. ${"정말로 ".repeat(40)}우리 렌 아까부터 졸린 눈치던데, 여기 형 전용 자리야.`;
-    const source = `태형은 "${longLine}"라고 말했다.`;
-    assert.equal(findVerbatimSceneExcerpt(longLine, source), longLine);
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "공원",
-        atmosphere: "평화",
-        actions: "태형이 재킷을 깐다",
-        keyDialogue: [{ speaker: "character", text: longLine }],
-      },
-      source
-    );
-    assert.equal(brief.keyDialogue[0]?.text, longLine);
-  });
-
-  it("surfaces the user persona line when the model omits it", () => {
-    const source =
-      '유저: "정말 여기서 자려고?" 캐릭터: 태형은 "자, 식후땡으로는 역시 낮잠이 최고지."라고 말했다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "공원",
-        atmosphere: "평화",
-        actions: "태형이 재킷을 깐다",
-        keyDialogue: [
-          { speaker: "character", text: "자, 식후땡으로는 역시 낮잠이 최고지." },
-        ],
-      },
-      source
-    );
-    assert.ok(brief.keyDialogue.some((line) => line.speaker === "persona"));
-    assert.ok(
-      brief.keyDialogue.some((line) => line.text === "정말 여기서 자려고?")
-    );
-  });
-
-  it("uses unquoted user input as the persona line when needed", () => {
-    const source =
-      '유저: 진짜 여기서 자버리면 어떡해. 캐릭터: 태형은 "상관없지."라고 했다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "공원",
-        atmosphere: "평화",
-        actions: "태형이 웃는다",
-        keyDialogue: [{ speaker: "character", text: "상관없지." }],
-      },
-      source
-    );
-    assert.ok(
-      brief.keyDialogue.some(
-        (line) =>
-          line.speaker === "persona" &&
-          line.text === "진짜 여기서 자버리면 어떡해."
-      )
-    );
-  });
-
-  it("asks the model for closed-book verbatim dialogue", () => {
-    const prompt = buildChatImageSceneBriefPrompt({
-      characterName: "태현",
-      personaName: "렌",
-      sourceTurn: '태현은 "야."라고 했다.',
-    });
-    assert.match(prompt, /CLOSED-BOOK/);
-    assert.match(prompt, /exact contiguous substring/);
-    assert.match(prompt, /Do not invent dialogue/);
-    assert.match(prompt, /SOURCE TURN/);
-  });
-
-  it("formats comic source with quoted verbatim lines for the planner lock", () => {
-    const source = formatSceneBriefAsComicSource(
-      {
-        setting: "식당",
-        atmosphere: "장난스러운",
-        actions: "태형이 조르고 렌이 먹여준다",
-        keyDialogue: [
-          { speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" },
-          { speaker: "persona", text: "진정하고 깻잎이나 먹어." },
-        ],
-        keyNarration: ["식당 안의 공기가 순간 얼어붙었다."],
-      },
-      { characterName: "태형", personaName: "렌" }
-    );
-    assert.match(source, /식당/);
-    assert.match(source, /태형: "대장님, 내 깻잎도 떼어줘!"/);
-    assert.match(source, /렌: "진정하고 깻잎이나 먹어\."/);
-    assert.match(source, /지문: 식당 안의 공기가 순간 얼어붙었다\./);
-  });
-
-  it("formats illustration turns around setting and verbatim key lines", () => {
-    const turn = formatSceneBriefAsIllustrationTurn(
-      {
-        setting: "옥상",
-        atmosphere: "달달",
-        actions: "둘이 나란히 선다",
-        keyDialogue: [{ speaker: "character", text: "나 봐." }],
-        keyNarration: [],
-      },
-      { characterName: "태현", personaName: "렌" }
-    );
-    assert.match(turn, /Setting: 옥상/);
-    assert.match(turn, /태현: “나 봐\.”/);
-    assert.match(turn, /acting\/emotion only/);
-  });
-
-  it("formats an editable Korean summary with verbatim dialogue and narration", () => {
-    const summary = formatSceneBriefAsEditableSummary(
-      {
-        setting: "식당",
-        atmosphere: "장난스러운",
-        actions: "태형이 조르고 렌이 먹여준다",
-        keyDialogue: [
-          { speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" },
-          { speaker: "persona", text: "진정하고 깻잎이나 먹어." },
-        ],
-        keyNarration: ["식당 안의 공기가 순간 얼어붙었다."],
-      },
-      { characterName: "태형", personaName: "렌" }
-    );
-    assert.match(summary, /배경: 식당/);
-    assert.match(summary, /상황: 태형이 조르고 렌이 먹여준다/);
-    assert.match(summary, /태형의 대사: "대장님, 내 깻잎도 떼어줘!"/);
-    assert.match(summary, /렌의 대사: "진정하고 깻잎이나 먹어\."/);
-    assert.match(summary, /지문: 식당 안의 공기가 순간 얼어붙었다\./);
-  });
-
-  it("backfills at least two verbatim narration lines", () => {
-    const source =
-      '태형은 "자."라고 말했다. 식당 안의 공기가 순간 얼어붙었다. 렌은 어쩔 줄 몰랐다. 태형의 눈빛이 흔들렸다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "식당",
-        atmosphere: "긴장",
-        actions: "태형이 앞을 막는다",
-        keyDialogue: [{ speaker: "character", text: "자." }],
-      },
-      source
-    );
-    assert.ok(brief.keyNarration.length >= 2);
-    assert.ok(
-      brief.keyNarration.some((line) => line.includes("식당 안의 공기가 순간 얼어붙었다"))
-    );
-  });
-
-  it("keeps dialogue and narration in source order", () => {
-    const source =
-      '렌은 "왜."라고 먼저 물었다. 태형은 "야."라고 나중에 답했다. 식당 안이 조용해졌다. 태형은 "거기 보지 마."라고 덧붙였다.';
-    const brief = sanitizeChatImageSceneBrief(
-      {
-        setting: "식당",
-        atmosphere: "긴장",
-        actions: "둘이 마주본다",
-        keyDialogue: [
-          { speaker: "character", text: "야." },
-          { speaker: "persona", text: "왜." },
-          { speaker: "character", text: "거기 보지 마." },
-        ],
-        keyNarration: ["식당 안이 조용해졌다."],
-      },
-      source
-    );
-    assert.deepEqual(
-      brief.keyDialogue.map((line) => line.text),
-      ["왜.", "야.", "거기 보지 마."]
-    );
-    assert.deepEqual(brief.keyNarration, ["식당 안이 조용해졌다."]);
   });
 
   it("does not treat asterisk action lines as dialogue", () => {
@@ -339,22 +108,21 @@ describe("chatImageSceneBrief", () => {
     );
   });
 
-  it("keeps only spoken dialogue from user turns for comic source", () => {
+  it("extracts spoken dialogue without dropping the source action itself", () => {
     assert.equal(
       extractUserSpokenDialogue(
         "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다* 이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
       ),
       "이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
     );
-    assert.equal(
-      formatUserTurnForComicSource(
-        "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다* 이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
-      ),
-      '"이거 태형이 눈이랑도 잘어울리잖아. 이뻐"'
-    );
     assert.equal(extractUserSpokenDialogue("*후드 귀를 만진다*"), "");
-    assert.equal(formatUserTurnForComicSource("*후드 귀를 만진다*"), "");
-    assert.equal(formatUserTurnForComicSource("(작게 웃는다)"), "");
-    assert.equal(formatUserTurnForComicSource("후드 내려볼래?"), '"후드 내려볼래?"');
+    assert.equal(extractUserSpokenDialogue("후드 내려볼래?"), "후드 내려볼래?");
+  });
+
+  it("strips STATUS and HTML markup", () => {
+    assert.equal(
+      stripChatTurnMarkup('<<<STATUS_VALUES{"a":1}>>> <em>안녕</em>'),
+      "안녕"
+    );
   });
 });

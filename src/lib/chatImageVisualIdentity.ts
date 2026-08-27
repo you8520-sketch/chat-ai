@@ -232,7 +232,7 @@ export function resolveEffectiveAppearanceMode(input: {
 export function resolveChatImageAppearanceControlProduct(opts: {
   surface: "sd" | "ld";
   sdProduct?: "gift" | "emoticon" | "coupleStamp";
-  ldProduct?: "comic" | "illustration" | "persona";
+  ldProduct?: "comic" | "illustration" | "persona" | "scene";
   isTrpgParty?: boolean;
 }): ChatImageAppearanceControlProduct {
   if (opts.surface === "sd") {
@@ -242,6 +242,9 @@ export function resolveChatImageAppearanceControlProduct(opts: {
   }
   if (opts.ldProduct === "persona") return "persona";
   if (opts.ldProduct === "comic") return "comic";
+  if (opts.ldProduct === "scene") {
+    return opts.isTrpgParty ? "ld_party" : "ld_duo";
+  }
   return opts.isTrpgParty ? "ld_party" : "ld_duo";
 }
 

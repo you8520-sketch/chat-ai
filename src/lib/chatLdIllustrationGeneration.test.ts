@@ -24,6 +24,22 @@ describe("chatLdIllustrationGeneration", () => {
     assert.equal(resolveChatLdIllustrationPrice({} as NodeJS.ProcessEnv), 200);
   });
 
+  it("uses an approved Scene Plan instead of raw chat when provided", () => {
+    const prompt = buildChatLdIllustrationPrompt({
+      characterName: "태형",
+      characterGender: "male",
+      personaName: "렌",
+      personaGender: "male",
+      currentTurn: "THIS RAW TURN MUST NOT APPEAR IN THE PROMPT",
+      approvedScene: "Hero scene: 렌이 태형에게 깻잎을 먹여준다.",
+    });
+    assert.match(prompt, /APPROVED SCENE PLAN/);
+    assert.match(prompt, /렌이 태형에게 깻잎을 먹여준다/);
+    assert.doesNotMatch(prompt, /THIS RAW TURN MUST NOT APPEAR/);
+    assert.doesNotMatch(prompt, /SELECTED TURN SCENE BRIEF/);
+    assert.match(prompt, /IDENTITY OWNERSHIP IS STRICT/);
+  });
+
   it("uses the selected-turn scene brief and forbids comic text or identity mixing", () => {
     const prompt = buildChatLdIllustrationPrompt({
       characterName: "태형",

@@ -250,6 +250,8 @@ export function buildChatLdIllustrationPrompt(opts: {
   personaName: string;
   personaGender: ImagePromptGender;
   currentTurn: string;
+  /** Approved Scene Plan text. Regular chat Scene Builder uses this instead of raw turn prose. */
+  approvedScene?: string;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
   /** Pre-formatted TRPG situation (location, round actions, GM scene). */
@@ -265,7 +267,13 @@ export function buildChatLdIllustrationPrompt(opts: {
       subjects: opts.subjects,
     });
   }
-  const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);
+  const approved = String(opts.approvedScene ?? "").trim();
+  const sceneBlock = approved
+    ? ["APPROVED SCENE PLAN", approved]
+    : [
+        "SELECTED TURN SCENE BRIEF:",
+        sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
+      ];
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     renderChatImageVisualIdentity({
@@ -279,15 +287,14 @@ export function buildChatLdIllustrationPrompt(opts: {
       personaGender: opts.personaGender,
     }),
     ILLUSTRATION_SAFETY,
-    "Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.",
+    "Depict the approved scene plan below as one cinematic, emotionally accurate scene.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, keep one coherent polished style.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",
     "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
     "",
-    "SELECTED TURN SCENE BRIEF:",
-    turn,
+    ...sceneBlock,
   ].join("\n");
 }
 
@@ -303,6 +310,7 @@ export function buildLdDuoGenerationPlan(opts: {
   personaSavedAppearance: string;
   personaAppearanceMode: ChatImageAppearanceMode;
   currentTurn: string;
+  approvedScene?: string;
 }) {
   const pack = bindChatImageReferencePack({
     subjectsInImageOrder: buildChatDuoVisualSubjects({
@@ -327,6 +335,7 @@ export function buildLdDuoGenerationPlan(opts: {
       personaName: opts.personaName,
       personaGender: opts.personaGender,
       currentTurn: opts.currentTurn,
+      approvedScene: opts.approvedScene,
       subjects: pack.subjects,
     }),
   };
