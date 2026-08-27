@@ -298,17 +298,7 @@ describe("chatImageCastManifest", () => {
       3
     );
 
-    const grounded = groundCastIntent(
-      {
-        ...capped,
-        subjects: capped.subjects.map((subject) =>
-          subject.name === "SupportC"
-            ? { ...subject, requestedReferenceAssetUrl: ASSET_B }
-            : subject
-        ),
-      },
-      GROUND_CTX
-    );
+    const grounded = groundCastIntent(capped, GROUND_CTX);
     assert.equal(grounded.ok, true);
     if (!grounded.ok) throw new Error(grounded.reason);
     const bound = bindApprovedCastManifest(grounded.manifest);
@@ -654,5 +644,181 @@ describe("chatImageCastManifest", () => {
       { importance: "primary" }
     );
     assert.equal(resolveCastCompositionGoal(withSupport), "trio_group");
+  });
+
+  it("COMPOSITION_CARDINALITY keeps trio exact for three and normalizes forged goals", () => {
+    const trio = trioIntent();
+    assert.equal(resolveCastCompositionGoal(trio), "trio_group");
+    const trioBlock = renderApprovedCastManifest({
+      manifest: groundTrio(),
+      ...bindApprovedCastManifest(groundTrio()),
+    });
+    assert.match(trioBlock, /COMPOSITION GOAL: trio_group/);
+    assert.match(trioBlock, /Arrange three distinct people/);
+
+    const fourIntent: ChatImageCastIntentManifest = {
+      compositionGoal: "trio_group",
+      subjects: [
+        ...trioIntent().subjects,
+        {
+          key: "supporting:B",
+          role: "supporting_character",
+          name: "SupportB",
+          included: true,
+          importance: "secondary",
+          visibility: "preferred_visible",
+          requestedReferenceAssetUrl: ASSET_B,
+        },
+      ],
+    };
+    assert.equal(resolveCastCompositionGoal(fourIntent), "ensemble_scene");
+    const fourGrounded = groundCastIntent(fourIntent, GROUND_CTX);
+    assert.equal(fourGrounded.ok, true);
+    if (!fourGrounded.ok) throw new Error(fourGrounded.reason);
+    const fourBound = bindApprovedCastManifest(fourGrounded.manifest);
+    const fourBlock = renderApprovedCastManifest({
+      manifest: fourGrounded.manifest,
+      selected: fourBound.selected,
+      subjects: fourBound.subjects,
+    });
+    assert.match(fourBlock, /COMPOSITION GOAL: ensemble_scene/);
+    assert.doesNotMatch(fourBlock, /Arrange three distinct people/);
+
+    const duoIntent: ChatImageCastIntentManifest = {
+      compositionGoal: "trio_group",
+      subjects: trioIntent().subjects.slice(0, 2),
+    };
+    assert.equal(resolveCastCompositionGoal(duoIntent), "duo_focus");
+    const duoGrounded = groundCastIntent(duoIntent, GROUND_CTX);
+    assert.equal(duoGrounded.ok, true);
+    if (!duoGrounded.ok) throw new Error(duoGrounded.reason);
+    const duoBound = bindApprovedCastManifest(duoGrounded.manifest);
+    const duoBlock = renderApprovedCastManifest({
+      manifest: duoGrounded.manifest,
+      selected: duoBound.selected,
+      subjects: duoBound.subjects,
+    });
+    assert.match(duoBlock, /COMPOSITION GOAL: duo_focus/);
+    assert.doesNotMatch(duoBlock, /Arrange three distinct people/);
+
+    const fourDuoIntent: ChatImageCastIntentManifest = {
+      compositionGoal: "duo_focus",
+      subjects: fourIntent.subjects,
+    };
+    assert.equal(resolveCastCompositionGoal(fourDuoIntent), "duo_focus");
+    const fourDuoGrounded = groundCastIntent(fourDuoIntent, GROUND_CTX);
+    assert.equal(fourDuoGrounded.ok, true);
+    if (!fourDuoGrounded.ok) throw new Error(fourDuoGrounded.reason);
+    const fourDuoBound = bindApprovedCastManifest(fourDuoGrounded.manifest);
+    const fourDuoBlock = renderApprovedCastManifest({
+      manifest: fourDuoGrounded.manifest,
+      selected: fourDuoBound.selected,
+      subjects: fourDuoBound.subjects,
+    });
+    assert.match(fourDuoBlock, /COMPOSITION GOAL: duo_focus/);
+  });
+
+  it("DUPLICATE_REFERENCE_URL fails closed for cross-subject reuse", () => {
+    const dupSupport = groundCastIntent(
+      {
+        ...trioIntent(),
+        subjects: [
+          ...trioIntent().subjects,
+          {
+            key: "supporting:B",
+            role: "supporting_character",
+            name: "SupportB",
+            included: true,
+            importance: "secondary",
+            visibility: "preferred_visible",
+            requestedReferenceAssetUrl: SUPPORT_URL,
+          },
+        ],
+      },
+      GROUND_CTX
+    );
+    assert.equal(dupSupport.ok, false);
+    if (dupSupport.ok) throw new Error("expected duplicate support failure");
+
+    const dupMain = groundCastIntent(
+      {
+        ...trioIntent(),
+        subjects: trioIntent().subjects.map((subject) =>
+          subject.key === "supporting:SupportA"
+            ? { ...subject, requestedReferenceAssetUrl: MAIN_URL }
+            : subject
+        ),
+      },
+      GROUND_CTX
+    );
+    assert.equal(dupMain.ok, false);
+    if (dupMain.ok) throw new Error("expected main/support duplicate failure");
+
+    const dupCore = groundCastIntent(
+      {
+        compositionGoal: "duo_focus",
+        subjects: trioIntent().subjects.slice(0, 2),
+      },
+      {
+        ...GROUND_CTX,
+        mainCharacter: {
+          ...GROUND_CTX.mainCharacter,
+          referenceImageUrl: PERSONA_URL,
+        },
+      }
+    );
+    assert.equal(dupCore.ok, false);
+    if (dupCore.ok) throw new Error("expected persona/main duplicate failure");
+
+    const distinct = groundCastIntent(trioIntent(), GROUND_CTX);
+    assert.equal(distinct.ok, true);
+    if (!distinct.ok) throw new Error(distinct.reason);
+    const bound = bindApprovedCastManifest(distinct.manifest);
+    const identityRefs = bound.referenceUrls.filter(
+      (url) => url !== CHAT_COMIC_TEMPLATE_PREVIEW_URL
+    );
+    assert.equal(new Set(identityRefs).size, identityRefs.length);
+  });
+
+  it("POST_CAP_IDENTITY_TRUTH does not claim saved appearance or recognizable without bound evidence", () => {
+    let intent: ChatImageCastIntentManifest = {
+      compositionGoal: "trio_group",
+      subjects: [
+        ...trioIntent().subjects,
+        {
+          key: "supporting:B",
+          role: "supporting_character",
+          name: "SupportB",
+          included: true,
+          importance: "secondary",
+          visibility: "preferred_visible",
+          requestedReferenceAssetUrl: ASSET_B,
+        },
+      ],
+    };
+    intent = applyUserCastEdits(intent, "supporting:SupportA", { importance: "secondary" });
+    intent = applyUserCastEdits(intent, "supporting:B", { importance: "primary" });
+    const grounded = groundCastIntent(intent, GROUND_CTX);
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error(grounded.reason);
+    const bound = bindApprovedCastManifest(grounded.manifest);
+    assert.deepEqual(bound.referenceUrls, [PERSONA_URL, MAIN_URL, ASSET_B]);
+    const supportAVisual = bound.subjects.find((subject) => subject.name === "SupportA");
+    assert.equal(supportAVisual?.referenceIndex, null);
+    const block = renderApprovedCastManifest({
+      manifest: grounded.manifest,
+      selected: bound.selected,
+      subjects: bound.subjects,
+    });
+    assert.match(block, /Image 1 belongs ONLY to UserPersona/);
+    assert.match(block, /Image 2 belongs ONLY to CharacterA/);
+    assert.match(block, /Image 3 belongs ONLY to SupportB/);
+    assert.match(block, /SupportA.*No bound identity reference/);
+    assert.match(block, /SupportA.*No bound identity evidence/);
+    assert.doesNotMatch(block, /SupportA.*use saved appearance only/);
+    assert.doesNotMatch(block, /SupportA.*Recognizable/);
+    assert.doesNotMatch(block, /SupportA.*HIGH FIDELITY/);
+    assert.match(block, /COMPOSITION GOAL: ensemble_scene/);
+    assert.doesNotMatch(block, /Arrange three distinct people/);
   });
 });

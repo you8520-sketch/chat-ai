@@ -21,6 +21,7 @@ type ChatSceneBuilderProps = {
   planLoading: boolean;
   castManifest: ChatImageCastIntentManifest | null;
   selectableAssets: readonly SelectableCastAsset[];
+  reservedReferenceUrls?: readonly string[];
   outputMode: SceneOutputMode;
   panelCountMode: ScenePanelCountMode;
   disabled?: boolean;
@@ -129,6 +130,7 @@ export default function ChatSceneBuilder({
   planLoading,
   castManifest,
   selectableAssets,
+  reservedReferenceUrls,
   outputMode,
   panelCountMode,
   disabled,
@@ -227,6 +229,7 @@ export default function ChatSceneBuilder({
         <ChatImageCastPicker
           manifest={castManifest}
           selectableAssets={selectableAssets}
+          reservedReferenceUrls={reservedReferenceUrls}
           disabled={disabled || planLoading}
           onChange={onCastChange}
         />

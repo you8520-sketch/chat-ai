@@ -99,11 +99,47 @@ export function selectedCastIntentSubjects(
 export function resolveCastCompositionGoal(
   manifest: ChatImageCastIntentManifest
 ): Exclude<ChatImageCastCompositionGoal, "auto"> {
-  if (manifest.compositionGoal !== "auto") return manifest.compositionGoal;
   const count = selectedCastIntentSubjects(manifest).length;
-  if (count <= 2) return "duo_focus";
-  if (count === 3) return "trio_group";
-  return "ensemble_scene";
+  if (manifest.compositionGoal === "auto") {
+    if (count <= 2) return "duo_focus";
+    if (count === 3) return "trio_group";
+    return "ensemble_scene";
+  }
+  if (manifest.compositionGoal === "trio_group") {
+    if (count <= 2) return "duo_focus";
+    if (count >= 4) return "ensemble_scene";
+    return "trio_group";
+  }
+  return manifest.compositionGoal;
+}
+
+export function normalizeCastCompositionGoalIntent(
+  manifest: ChatImageCastIntentManifest
+): ChatImageCastIntentManifest {
+  if (manifest.compositionGoal !== "trio_group") return manifest;
+  const count = selectedCastIntentSubjects(manifest).length;
+  if (count === 3) return manifest;
+  return {
+    ...manifest,
+    compositionGoal: resolveCastCompositionGoal(manifest),
+  };
+}
+
+export function isCastReferenceUrlTaken(
+  manifest: ChatImageCastIntentManifest,
+  subjectKey: string,
+  url: string,
+  reservedUrls: readonly string[] = []
+): boolean {
+  const needle = cleanUrl(url);
+  if (!needle) return false;
+  if (reservedUrls.some((reserved) => cleanUrl(reserved) === needle)) return true;
+  for (const subject of manifest.subjects) {
+    if (!subject.included) continue;
+    if (subject.key === subjectKey) continue;
+    if (cleanUrl(subject.requestedReferenceAssetUrl) === needle) return true;
+  }
+  return false;
 }
 
 export function castNeedsFourPlusWarning(manifest: ChatImageCastIntentManifest): boolean {
@@ -226,7 +262,7 @@ export function applyUserCastEdits(
       };
     }),
   };
-  return normalizeCastPrimaryCap(next);
+  return normalizeCastCompositionGoalIntent(normalizeCastPrimaryCap(next));
 }
 
 export function mergeCastIntentDraft(

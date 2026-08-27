@@ -15,7 +15,7 @@ APPROVED CAST MANIFEST
 1. UserPersona (user persona) | importance=primary; visibility=required_visible | Image 1 belongs ONLY to UserPersona
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 COMPOSITION GOAL: duo_focus. Keep the main two people centered and large. Anyone else is a supporting/background presence only.
@@ -38,7 +38,7 @@ APPROVED CAST MANIFEST
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 3. SupportA (supporting character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to SupportA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - SupportA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
@@ -69,7 +69,7 @@ APPROVED CAST MANIFEST
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to CharacterA
 3. SupportA (supporting character) | importance=primary; visibility=required_visible | Image 4 belongs ONLY to SupportA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - SupportA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
@@ -179,7 +179,7 @@ APPROVED CAST MANIFEST
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to CharacterA
 3. SupportA (supporting character) | importance=primary; visibility=required_visible | Image 4 belongs ONLY to SupportA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - SupportA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
@@ -281,13 +281,13 @@ APPROVED CAST MANIFEST
 1. UserPersona (user persona) | importance=primary; visibility=required_visible | Image 1 belongs ONLY to UserPersona
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 3. SupportB (supporting character) | importance=secondary; visibility=preferred_visible | Image 3 belongs ONLY to SupportB
-4. Extra2 (supporting character) | importance=background; visibility=background_ok | No identity reference available — background/cameo only. Do not borrow another subject's picture.
+4. Extra2 (supporting character) | importance=background; visibility=background_ok | No bound identity reference. Exact visual identity is not guaranteed. Do not borrow another subject's picture.
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Four or more people: guarantee exact identity for at most 3 subjects with trusted identity evidence.
+Four or more people: guarantee exact identity for at most 3 subjects with bound identity evidence.
 - UserPersona: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: required_visible.
 - SupportB: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: preferred_visible.
-- Extra2: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: background_ok.
+- Extra2: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: background_ok.
 COMPOSITION GOAL: ensemble_scene. Keep the primary 2-3 people in the foreground. Remaining people may recede as background presence. Do not hide a required_visible face.
 Never copy the main character's hair, eyes, outfit, or face onto a supporting person.
 Never map a no-photo subject onto another subject's reference image.
@@ -305,12 +305,12 @@ Never map a no-photo subject onto another subject's reference image.
 APPROVED CAST MANIFEST
 1. UserPersona (user persona) | importance=primary; visibility=required_visible | Image 1 belongs ONLY to UserPersona
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
-3. SupportC (supporting character) | importance=background; visibility=background_ok | No identity reference available — background/cameo only. Do not borrow another subject's picture.
+3. SupportC (supporting character) | importance=background; visibility=background_ok | No bound identity reference. Exact visual identity is not guaranteed. Do not borrow another subject's picture.
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
-- SupportC: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: background_ok.
+- SupportC: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: background_ok.
 COMPOSITION GOAL: duo_focus. Keep the main two people centered and large. Anyone else is a supporting/background presence only.
 Never copy the main character's hair, eyes, outfit, or face onto a supporting person.
 Never map a no-photo subject onto another subject's reference image.
@@ -331,7 +331,7 @@ APPROVED CAST MANIFEST
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 3. SupportA (supporting character) | importance=secondary; visibility=preferred_visible | Image 3 belongs ONLY to SupportA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - SupportA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: preferred_visible.
@@ -357,14 +357,14 @@ APPROVED CAST MANIFEST
 1. UserPersona (user persona) | importance=primary; visibility=required_visible | Image 1 belongs ONLY to UserPersona
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 3. SupportB (supporting character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to SupportB
-4. SupportA (supporting character) | importance=secondary; visibility=preferred_visible | No photo attached — use saved appearance only. Do not borrow another subject's picture.
+4. SupportA (supporting character) | importance=secondary; visibility=preferred_visible | No bound identity reference. Exact visual identity is not guaranteed. Do not borrow another subject's picture.
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Four or more people: guarantee exact identity for at most 3 subjects with trusted identity evidence.
+Four or more people: guarantee exact identity for at most 3 subjects with bound identity evidence.
 - UserPersona: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: required_visible.
 - SupportB: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: required_visible.
-- SupportA: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: preferred_visible.
-COMPOSITION GOAL: trio_group. Arrange three distinct people in a stable left / center / right or triangle group shot. Minimize face occlusion. Every listed face must stay readable.
+- SupportA: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: preferred_visible.
+COMPOSITION GOAL: ensemble_scene. Keep the primary 2-3 people in the foreground. Remaining people may recede as background presence. Do not hide a required_visible face.
 Never copy the main character's hair, eyes, outfit, or face onto a supporting person.
 Never map a no-photo subject onto another subject's reference image.
 ```
@@ -385,7 +385,7 @@ APPROVED CAST MANIFEST
 2. CharacterA (chat character) | importance=primary; visibility=required_visible | Image 2 belongs ONLY to CharacterA
 3. SupportA (supporting character) | importance=primary; visibility=required_visible | Image 3 belongs ONLY to SupportA
 CAST FIDELITY TIERS — do not promise equal detail for every person.
-Subjects with trusted identity evidence must stay visually distinct.
+Subjects with bound identity evidence must stay visually distinct.
 - UserPersona: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - CharacterA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.
 - SupportA: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: required_visible.

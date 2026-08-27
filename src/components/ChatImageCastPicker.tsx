@@ -4,6 +4,8 @@ import {
   CHAT_IMAGE_CAST_FOUR_PLUS_WARNING,
   applyUserCastEdits,
   castNeedsFourPlusWarning,
+  isCastReferenceUrlTaken,
+  selectedCastIntentSubjects,
   type ChatImageCastCompositionGoal,
   type ChatImageCastImportance,
   type ChatImageCastIntentManifest,
@@ -33,6 +35,7 @@ const VISIBILITY: Array<{ id: ChatImageCastVisibility; label: string }> = [
 type ChatImageCastPickerProps = {
   manifest: ChatImageCastIntentManifest;
   selectableAssets: readonly SelectableCastAsset[];
+  reservedReferenceUrls?: readonly string[];
   disabled?: boolean;
   onChange: (manifest: ChatImageCastIntentManifest) => void;
 };
@@ -40,9 +43,11 @@ type ChatImageCastPickerProps = {
 export default function ChatImageCastPicker({
   manifest,
   selectableAssets,
+  reservedReferenceUrls = [],
   disabled,
   onChange,
 }: ChatImageCastPickerProps) {
+  const selectedCount = selectedCastIntentSubjects(manifest).length;
   return (
     <section className="space-y-3">
       <div className="space-y-2">
@@ -145,12 +150,23 @@ export default function ChatImageCastPicker({
                       >
                         없음
                       </button>
-                      {selectableAssets.map((asset) => (
+                      {selectableAssets.map((asset) => {
+                        const taken = isCastReferenceUrlTaken(
+                          manifest,
+                          subject.key,
+                          asset.url,
+                          reservedReferenceUrls
+                        );
+                        return (
                         <button
                           key={asset.url}
                           type="button"
-                          disabled={disabled}
-                          title={asset.tag}
+                          disabled={disabled || (taken && selectedAsset !== asset.url)}
+                          title={
+                            taken && selectedAsset !== asset.url
+                              ? `${asset.tag} · 다른 인물이 이미 사용 중`
+                              : asset.tag
+                          }
                           onClick={() =>
                             onChange(
                               applyUserCastEdits(manifest, subject.key, {
@@ -161,7 +177,9 @@ export default function ChatImageCastPicker({
                           className={`overflow-hidden rounded-lg border ${
                             selectedAsset === asset.url
                               ? "border-violet-400 ring-1 ring-violet-400/40"
-                              : "border-white/10"
+                              : taken
+                                ? "border-white/5 opacity-40"
+                                : "border-white/10"
                           }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -174,7 +192,8 @@ export default function ChatImageCastPicker({
                             {asset.tag}
                           </span>
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
@@ -191,12 +210,16 @@ export default function ChatImageCastPicker({
             <button
               key={item.id}
               type="button"
-              disabled={disabled}
+              disabled={
+                disabled || (item.id === "trio_group" && selectedCount !== 3)
+              }
               onClick={() => onChange({ ...manifest, compositionGoal: item.id })}
               className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
                 manifest.compositionGoal === item.id
                   ? "bg-violet-600 text-white"
-                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                  : item.id === "trio_group" && selectedCount !== 3
+                    ? "cursor-not-allowed text-zinc-600"
+                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
               }`}
             >
               {item.label}

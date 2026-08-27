@@ -97,17 +97,36 @@ export type GroundCastContext = {
 
 const CORE_CAST_KEYS = new Set(["persona", "main_character"]);
 
-export function hasTrustedIdentityEvidence(
-  subject: ChatImageCastGroundedSubject
+export function hasBoundIdentityEvidence(
+  visual: ChatImageVisualSubject
 ): boolean {
-  if (cleanUrl(subject.referenceImageUrl)) return true;
+  if (visual.referenceIndex != null) return true;
   if (
-    subject.role !== "supporting_character" &&
-    String(subject.savedAppearance ?? "").trim()
+    visual.sourceKind !== "cast_member" &&
+    String(visual.savedAppearance ?? "").trim()
   ) {
     return true;
   }
   return false;
+}
+
+export function validateUniqueCastReferenceOwnership(
+  subjects: readonly ChatImageCastGroundedSubject[]
+): { ok: true } | { ok: false; reason: string } {
+  const urlToKey = new Map<string, string>();
+  for (const subject of subjects) {
+    if (!subject.included) continue;
+    const url = cleanUrl(subject.referenceImageUrl);
+    if (!url) continue;
+    if (urlToKey.has(url)) {
+      return {
+        ok: false,
+        reason: "같은 참고 이미지를 여러 인물에 동시에 사용할 수 없습니다.",
+      };
+    }
+    urlToKey.set(url, subject.key);
+  }
+  return { ok: true };
 }
 
 export function normalizeCastIntentCore(
@@ -417,6 +436,9 @@ export function groundCastIntent(
   );
   if (!bindings.ok) return bindings;
 
+  const uniqueRefs = validateUniqueCastReferenceOwnership(subjects);
+  if (!uniqueRefs.ok) return uniqueRefs;
+
   return {
     ok: true,
     manifest: {
@@ -457,27 +479,32 @@ export function validateEventSubjectBindings(
 }
 
 function castSubjectFidelityLine(
-  subject: ChatImageCastGroundedSubject,
+  castSubject: ChatImageCastGroundedSubject,
+  visual: ChatImageVisualSubject | undefined,
   selectedCount: number
 ): string {
-  const name = subject.name;
-  if (!hasTrustedIdentityEvidence(subject)) {
-    return `- ${name}: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: ${subject.visibility}.`;
+  const name = castSubject.name;
+  const hasEvidence = visual ? hasBoundIdentityEvidence(visual) : false;
+  if (!hasEvidence) {
+    return `- ${name}: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: ${castSubject.visibility}.`;
   }
-  if (selectedCount >= 4) {
-    if (
-      subject.role === "persona" ||
-      subject.role === "main_character" ||
-      subject.importance === "primary"
-    ) {
-      return `- ${name}: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: ${subject.visibility}.`;
+  if (visual?.referenceIndex != null) {
+    if (selectedCount >= 4) {
+      if (
+        castSubject.role === "persona" ||
+        castSubject.role === "main_character" ||
+        castSubject.importance === "primary"
+      ) {
+        return `- ${name}: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: ${castSubject.visibility}.`;
+      }
+      if (castSubject.importance === "secondary") {
+        return `- ${name}: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: ${castSubject.visibility}.`;
+      }
+      return `- ${name}: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: ${castSubject.visibility}.`;
     }
-    if (subject.importance === "secondary") {
-      return `- ${name}: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: ${subject.visibility}.`;
-    }
-    return `- ${name}: BACKGROUND / CAMEO. No identity reference available. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another person's reference. Visibility: ${subject.visibility}.`;
+    return `- ${name}: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: ${castSubject.visibility}.`;
   }
-  return `- ${name}: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: ${subject.visibility}.`;
+  return `- ${name}: Saved appearance only; no photo attached. Preserve face, hair, eyes, and outfit from saved appearance text. Visibility: ${castSubject.visibility}.`;
 }
 
 function castSubjectImageLine(
@@ -487,10 +514,10 @@ function castSubjectImageLine(
   if (visual?.referenceIndex != null) {
     return `Image ${visual.referenceIndex} belongs ONLY to ${castSubject.name}`;
   }
-  if (hasTrustedIdentityEvidence(castSubject)) {
-    return "No photo attached — use saved appearance only. Do not borrow another subject's picture.";
+  if (visual && hasBoundIdentityEvidence(visual)) {
+    return "Saved appearance only; no photo attached. Do not borrow another subject's picture.";
   }
-  return "No identity reference available — background/cameo only. Do not borrow another subject's picture.";
+  return "No bound identity reference. Exact visual identity is not guaranteed. Do not borrow another subject's picture.";
 }
 
 function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVisualSubject {
@@ -546,15 +573,19 @@ export function bindApprovedCastManifest(
 }
 
 export function renderCastFidelityTiers(
-  selected: readonly ChatImageCastGroundedSubject[]
+  selected: readonly ChatImageCastGroundedSubject[],
+  visualSubjects: readonly ChatImageVisualSubject[]
 ): string {
   const count = selected.length;
-  const lines = selected.map((subject) => castSubjectFidelityLine(subject, count));
+  const visualByKey = new Map(visualSubjects.map((subject) => [subject.key, subject]));
+  const lines = selected.map((subject) =>
+    castSubjectFidelityLine(subject, visualByKey.get(subject.key), count)
+  );
   return [
     "CAST FIDELITY TIERS — do not promise equal detail for every person.",
     count >= 4
-      ? `Four or more people: guarantee exact identity for at most ${CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP} subjects with trusted identity evidence.`
-      : "Subjects with trusted identity evidence must stay visually distinct.",
+      ? `Four or more people: guarantee exact identity for at most ${CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP} subjects with bound identity evidence.`
+      : "Subjects with bound identity evidence must stay visually distinct.",
     ...lines,
   ].join("\n");
 }
@@ -628,7 +659,7 @@ export function renderApprovedCastManifest(opts: {
         image,
       ].join(" | ");
     }),
-    renderCastFidelityTiers(opts.selected),
+    renderCastFidelityTiers(opts.selected, opts.subjects),
     renderCastCompositionGoal(goal, opts.selected.length),
     "Never copy the main character's hair, eyes, outfit, or face onto a supporting person.",
     "Never map a no-photo subject onto another subject's reference image.",

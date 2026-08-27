@@ -548,6 +548,15 @@ export default function ChatImageGeneratorPanel({
       tag: image.tag,
     }));
   }, [info?.characterImages]);
+  const reservedCastReferenceUrls = useMemo((): readonly string[] => {
+    const urls = [
+      info?.persona?.imageUrl,
+      selectedCharacterImageUrl || info?.character.imageUrl,
+    ]
+      .map((url) => String(url ?? "").trim())
+      .filter(Boolean);
+    return urls;
+  }, [info?.persona?.imageUrl, info?.character.imageUrl, selectedCharacterImageUrl]);
 
   useEffect(() => {
     if (!scenePlan || trpgCampaignMode || !info) return;
@@ -1946,6 +1955,7 @@ export default function ChatImageGeneratorPanel({
                             planLoading={scenePlanLoading}
                             castManifest={castIntent}
                             selectableAssets={selectableCastAssets}
+                            reservedReferenceUrls={reservedCastReferenceUrls}
                             outputMode={sceneOutputMode}
                             panelCountMode={scenePanelCountMode}
                             disabled={generating}
