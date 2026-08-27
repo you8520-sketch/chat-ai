@@ -389,6 +389,10 @@ import {
   serializeStatusWidgetValuesJson,
   statusWidgetValuesHasContent,
 } from "@/lib/statusWidget";
+import {
+  creatorTriggerValuesFromPayload,
+  shouldEvaluateCreatorStatusTriggers,
+} from "@/lib/statusWidget/creatorTriggerEvaluation";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import {
   logStatusWidgetTurnTelemetry,
@@ -5253,6 +5257,21 @@ export async function POST(req: Request) {
           }
         }
 
+        // Phase B0: trigger derived-state writes are allowed only when this
+        // request actually finalized the assistant (not an idempotent
+        // duplicate) AND the generation status is canonical.
+        // Status Widget must not persist/reconcile long-term episodic facts.
+        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
+        const derivedStateAllowed =
+          assistantFinalizedThisRequest &&
+          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
+          shouldCommitCanonicalTurnState(generationSemantics);
+        const shouldEvaluateCreatorTriggers = shouldEvaluateCreatorStatusTriggers({
+          derivedStateAllowed,
+          needsCharacterValues: statusWidgetTurn.needsCharacterValues,
+          statusValues: statusWidgetValuesPayload,
+        });
+
         // Compatibility telemetry only — Status Widget is not the episodic write owner.
         const extractedFactsForTelemetry = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
@@ -5296,11 +5315,7 @@ export async function POST(req: Request) {
             widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
               ? 1
               : 0,
-          status_trigger_evaluated: Boolean(
-            statusWidgetActive &&
-              statusWidgetValuesPayload &&
-              statusWidgetValuesHasContent(statusWidgetValuesPayload)
-          ),
+          status_trigger_evaluated: shouldEvaluateCreatorTriggers,
         });
         logMemoryHealthTelemetry(
           buildMemoryHealthTelemetry({
@@ -5323,15 +5338,6 @@ export async function POST(req: Request) {
                 : 0,
           })
         );
-        // Phase B0: trigger derived-state writes are allowed only when this
-        // request actually finalized the assistant (not an idempotent
-        // duplicate) AND the generation status is canonical.
-        // Status Widget must not persist/reconcile long-term episodic facts.
-        // EPISODIC_WRITE_OWNER = 5_TURN_SUMMARY_SEAL.
-        const derivedStateAllowed =
-          assistantFinalizedThisRequest &&
-          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus) &&
-          shouldCommitCanonicalTurnState(generationSemantics);
 
         if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
@@ -5359,26 +5365,16 @@ export async function POST(req: Request) {
             }
           }
 
-          if (
-            statusWidgetTurn.needsCharacterValues &&
-            statusWidgetValuesPayload &&
-            statusWidgetValuesHasContent(statusWidgetValuesPayload)
-          ) {
-            const triggerValues = {
-              character: statusWidgetValuesPayload.character ?? null,
-              user: null,
-            };
-            if (statusWidgetValuesHasContent(triggerValues)) {
-              evaluateStatusWidgetTriggersBestEffort(db, {
-                chatId: chatRef.id,
-                characterId: ch.id,
-                sourceTurn: playableTurnCount + 1,
-                statusValues: triggerValues,
-                sourceMessageId: aiMessageId,
-                requestId: clientRequestId ?? null,
-                generationSequence: snapshotVariantIndex,
-              });
-            }
+          if (shouldEvaluateCreatorTriggers) {
+            evaluateStatusWidgetTriggersBestEffort(db, {
+              chatId: chatRef.id,
+              characterId: ch.id,
+              sourceTurn: playableTurnCount + 1,
+              statusValues: creatorTriggerValuesFromPayload(statusWidgetValuesPayload),
+              sourceMessageId: aiMessageId,
+              requestId: clientRequestId ?? null,
+              generationSequence: snapshotVariantIndex,
+            });
           }
         }
 
