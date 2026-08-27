@@ -14,6 +14,13 @@ import type { TrpgModelUsage } from "./billing";
 import { parseProviderUsageCostUsd } from "./roundEconomics";
 import { attachTrpgCallFailureMeta } from "./startFailure";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import {
+  createGmStreamParser,
+  feedGmStreamParser,
+  gmStreamParserComplete,
+} from "./gmStreamParser";
+import type { GmProviderTimings } from "./gmNarrationDraft";
+import { feedGmProviderSseBytes } from "./gmProviderSse";
 
 /** GM transport only: first attempt + one retry on known transient HTTP 5xx. */
 export const GM_MAX_PROVIDER_ATTEMPTS = 2;
@@ -37,6 +44,13 @@ export type TrpgGmCallResult = {
   usage?: TrpgModelUsage;
   elapsedMs?: number;
   reasoningTokens?: number | "unavailable";
+  providerTimings?: GmProviderTimings;
+};
+
+export type TrpgGmStreamCallbacks = {
+  onProviderChunk?: (rawChunk: string) => void;
+  onNarrationChunk?: (narrationText: string, delta: string) => void;
+  onProviderTimings?: (timings: GmProviderTimings) => void;
 };
 
 export function isGmRetryableHttpStatus(status: number): boolean {
@@ -99,6 +113,8 @@ function usageFromResponse(
       cost_usd?: unknown;
       total_cost_usd?: unknown;
       cost_details?: unknown;
+      completion_tokens_details?: { reasoning_tokens?: unknown };
+      reasoning_tokens?: unknown;
     };
   }
 ): TrpgModelUsage | undefined {
@@ -196,14 +212,237 @@ async function postTrpgChat(opts: {
   }
 }
 
+type StreamUsagePayload = Parameters<typeof usageFromResponse>[1];
+
+function deltaContentFromSsePayload(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const obj = payload as {
+    choices?: Array<{ delta?: { content?: unknown; reasoning?: unknown; reasoning_content?: unknown } }>;
+  };
+  const delta = obj.choices?.[0]?.delta;
+  if (!delta || typeof delta.content !== "string") return "";
+  return delta.content;
+}
+
+function usageFromSsePayload(payload: unknown): StreamUsagePayload | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const usage = (payload as { usage?: StreamUsagePayload["usage"] }).usage;
+  return usage ? { usage } : undefined;
+}
+
+async function readGmProviderSseStream(opts: {
+  response: Response;
+  callbacks?: TrpgGmStreamCallbacks;
+  timings: GmProviderTimings;
+}): Promise<{ text: string; usage?: TrpgModelUsage; reasoningTokens: number | "unavailable" }> {
+  const reader = opts.response.body?.getReader();
+  if (!reader) throw new Error("[TRPG] empty stream body");
+  const decoder = new TextDecoder();
+  const sseState = { buffer: "" };
+  let rawText = "";
+  let usagePayload: StreamUsagePayload | undefined;
+  const parser = createGmStreamParser();
+  let sawFirstChunk = false;
+  let sawFirstNarration = false;
+
+  const emitRaw = (piece: string) => {
+    if (!piece) return;
+    rawText += piece;
+    opts.callbacks?.onProviderChunk?.(piece);
+    if (!sawFirstChunk) {
+      sawFirstChunk = true;
+      opts.timings.firstChunkAtMs = Date.now();
+      opts.callbacks?.onProviderTimings?.({ ...opts.timings });
+    }
+    const delta = feedGmStreamParser(parser, piece);
+    if (delta) {
+      if (!sawFirstNarration && parser.narration.trim()) {
+        sawFirstNarration = true;
+        opts.timings.firstNarrationAtMs = Date.now();
+        opts.callbacks?.onProviderTimings?.({ ...opts.timings });
+      }
+      opts.callbacks?.onNarrationChunk?.(parser.narration, delta);
+    }
+  };
+
+  const onSsePayload = (payload: unknown) => {
+    const content = deltaContentFromSsePayload(payload);
+    if (content) emitRaw(content);
+    const usage = usageFromSsePayload(payload);
+    if (usage) usagePayload = usage;
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      const tail = decoder.decode();
+      if (tail) feedGmProviderSseBytes(sseState, tail, onSsePayload, true);
+      else feedGmProviderSseBytes(sseState, "", onSsePayload, true);
+      break;
+    }
+    const semanticDone = feedGmProviderSseBytes(
+      sseState,
+      decoder.decode(value, { stream: true }),
+      onSsePayload,
+      false
+    );
+    if (semanticDone) {
+      try {
+        await reader.cancel();
+      } catch {
+        // ignore cancel errors — semantic [DONE] already received
+      }
+      break;
+    }
+  }
+
+  gmStreamParserComplete(parser);
+  opts.timings.completeAtMs = Date.now();
+  opts.callbacks?.onProviderTimings?.({ ...opts.timings });
+
+  const reasoningTokens = reasoningTokensFromProviderUsage(usagePayload?.usage);
+  const text = rawText.trim();
+  if (!text) {
+    throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+      reasoningTokens,
+    });
+  }
+  return {
+    text,
+    usage: usagePayload ? usageFromResponse(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, usagePayload) : undefined,
+    reasoningTokens,
+  };
+}
+
+async function postTrpgGmStream(opts: {
+  model: string;
+  body: Record<string, unknown>;
+  timeoutMs: number;
+  callbacks?: TrpgGmStreamCallbacks;
+}): Promise<{ text: string; usage?: TrpgModelUsage; elapsedMs: number; reasoningTokens: number | "unavailable"; providerTimings: GmProviderTimings }> {
+  const contract = trpgProviderRequestContract(opts.body);
+  console.info("[TRPG][gm] request_contract", contract);
+  const started = Date.now();
+  const timings: GmProviderTimings = {
+    startAtMs: started,
+    firstChunkAtMs: null,
+    firstNarrationAtMs: null,
+    completeAtMs: null,
+  };
+  opts.callbacks?.onProviderTimings?.({ ...timings });
+  const serializedBody = JSON.stringify(opts.body);
+  const headers = buildCheaperInferenceHeaders(resolveCheaperInferenceApiKey());
+  const maxAttempts = GM_MAX_PROVIDER_ATTEMPTS;
+  try {
+    let previousHttpStatus: number | undefined;
+    let lastHttpError: Error | undefined;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1) {
+        console.info("[TRPG][gm] provider_retry", {
+          attempt,
+          previousHttpStatus,
+          delayMs: GM_PROVIDER_5XX_RETRY_DELAY_MS,
+        });
+        await waitGmProviderRetryDelay();
+        timings.startAtMs = Date.now();
+        timings.firstChunkAtMs = null;
+        timings.firstNarrationAtMs = null;
+        timings.completeAtMs = null;
+        opts.callbacks?.onProviderTimings?.({ ...timings });
+      }
+      const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers,
+        body: serializedBody,
+        signal: AbortSignal.timeout(opts.timeoutMs),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        lastHttpError = attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
+          httpStatus: res.status,
+          reasoningTokens: "unavailable",
+        });
+        if (attempt < maxAttempts && isGmRetryableHttpStatus(res.status)) {
+          previousHttpStatus = res.status;
+          continue;
+        }
+        throw lastHttpError;
+      }
+      const streamResult = await readGmProviderSseStream({
+        response: res,
+        callbacks: opts.callbacks,
+        timings,
+      });
+      const elapsedMs = Date.now() - started;
+      console.info("[TRPG][gm] response_meta", {
+        model: opts.model,
+        elapsedMs,
+        reasoningTokens: streamResult.reasoningTokens,
+        firstContentMs:
+          timings.firstChunkAtMs != null ? timings.firstChunkAtMs - timings.startAtMs : null,
+        firstNarrationMs:
+          timings.firstNarrationAtMs != null ? timings.firstNarrationAtMs - timings.startAtMs : null,
+        totalProviderMs:
+          timings.completeAtMs != null ? timings.completeAtMs - timings.startAtMs : null,
+      });
+      return {
+        text: streamResult.text,
+        usage: streamResult.usage,
+        elapsedMs,
+        reasoningTokens: streamResult.reasoningTokens,
+        providerTimings: timings,
+      };
+    }
+    throw lastHttpError ?? new Error("[TRPG] provider retry exhausted");
+  } catch (error) {
+    const elapsedMs = Date.now() - started;
+    throw attachTrpgCallFailureMeta(error, { elapsedMs });
+  }
+}
+
+function simulateMockGmStream(
+  text: string,
+  callbacks?: TrpgGmStreamCallbacks
+): GmProviderTimings {
+  const timings: GmProviderTimings = {
+    startAtMs: Date.now(),
+    firstChunkAtMs: null,
+    firstNarrationAtMs: null,
+    completeAtMs: null,
+  };
+  callbacks?.onProviderTimings?.({ ...timings });
+  const parser = createGmStreamParser();
+  let sawFirstNarration = false;
+  const chunkSize = Math.max(8, Math.ceil(text.length / 4));
+  for (let i = 0; i < text.length; i += chunkSize) {
+    const piece = text.slice(i, i + chunkSize);
+    callbacks?.onProviderChunk?.(piece);
+    if (timings.firstChunkAtMs == null) timings.firstChunkAtMs = Date.now();
+    const delta = feedGmStreamParser(parser, piece);
+    if (delta) {
+      if (!sawFirstNarration && parser.narration.trim()) {
+        sawFirstNarration = true;
+        timings.firstNarrationAtMs = Date.now();
+      }
+      callbacks?.onNarrationChunk?.(parser.narration, delta);
+    }
+  }
+  gmStreamParserComplete(parser);
+  timings.completeAtMs = Date.now();
+  callbacks?.onProviderTimings?.({ ...timings });
+  return timings;
+}
+
 /** Isolated GM Pro call. Must not go through RP adaptCheaperInferenceChatBody. */
 export async function callTrpgGm(opts: {
   system: string;
   user: string;
   timeoutMs?: number;
+  stream?: TrpgGmStreamCallbacks;
 }): Promise<TrpgGmCallResult> {
   if (isMockApiMode()) {
-    return { text: MOCK_GM };
+    const timings = simulateMockGmStream(MOCK_GM, opts.stream);
+    return { text: MOCK_GM, providerTimings: timings };
   }
   const model = resolveTrpgProModel(TRPG_GM_MODEL);
   const body = adaptTrpgGmChatBody({
@@ -212,11 +451,23 @@ export async function callTrpgGm(opts: {
       { role: "system", content: opts.system },
       { role: "user", content: opts.user },
     ],
-    stream: false,
+    stream: true,
     temperature: 0.7,
     max_tokens: TRPG_GM_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS, role: "gm" });
+  const result = await postTrpgGmStream({
+    model,
+    body,
+    timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS,
+    callbacks: opts.stream,
+  });
+  return {
+    text: result.text,
+    usage: result.usage,
+    elapsedMs: result.elapsedMs,
+    reasoningTokens: result.reasoningTokens,
+    providerTimings: result.providerTimings,
+  };
 }
 
 /** Bot-seat Pro call (thinking off). Separate from GM narration. */

@@ -49,6 +49,7 @@ export type GmStaleOwnerDiscardReason =
   | "heartbeat"
   | "usage"
   | "pending"
+  | "draft"
   | "commit"
   | "failure"
   | "finalize"

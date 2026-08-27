@@ -41,6 +41,7 @@ import { evaluateSafeRestEligibility, sameRoundHasCombatAction } from "./mechani
 import { timedSnapshotDiag } from "./snapshotDiagnostics";
 import { formatMechanicsHudLines, recoveryHintKo } from "./sheetHud";
 import { hasPendingGmResult } from "./pendingGmResult";
+import { loadGmNarrationDraft } from "./gmNarrationDraft";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
   DEFAULT_TRPG_BILLING_MODE,
@@ -345,6 +346,8 @@ export function loadTrpgSnapshot(
   );
   const myActionType =
     mySub?.action_type && isTrpgActionType(mySub.action_type) ? mySub.action_type : null;
+  const gmNarrationDraft =
+    round && phase === "GENERATING_NARRATION" ? loadGmNarrationDraft(db, round.id) : null;
 
   return {
     id: campaign.id,
@@ -397,6 +400,7 @@ export function loadTrpgSnapshot(
       return prevId ? loadResolutionOrder(db, prevId.id) : [];
     })(),
     currentNarration,
+    gmNarrationDraft: gmNarrationDraft ? { text: gmNarrationDraft.text } : null,
     log,
     workType: work.type,
     shouldKickAdvance: shouldKickTrpgAdvance({

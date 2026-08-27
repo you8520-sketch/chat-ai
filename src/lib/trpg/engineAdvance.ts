@@ -38,7 +38,7 @@ import {
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
-import { callTrpgBot, callTrpgGm } from "./gmCall";
+import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
 import {
   buildAiCharacterImageTagCatalog,
   buildAiPartyIdentityBlock,
@@ -160,10 +160,19 @@ import {
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
+import {
+  clearGmNarrationDraft,
+  type GmProviderTimings,
+} from "./gmNarrationDraft";
+import { GmNarrationDraftCoalescer } from "./gmNarrationDraftCoalescer";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
 export type TrpgEngineDeps = {
-  gmCall?: (opts: { system: string; user: string }) => Promise<{ text: string; usage?: TrpgModelUsage }>;
+  gmCall?: (opts: {
+    system: string;
+    user: string;
+    stream?: TrpgGmStreamCallbacks;
+  }) => Promise<{ text: string; usage?: TrpgModelUsage; providerTimings?: GmProviderTimings }>;
   botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
   directorCall?: TrpgDirectorDeps["directorCall"];
   memoryCall?: TrpgMemoryCall;
@@ -1321,7 +1330,26 @@ async function runGmForRound(
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
   let stage: TrpgFailureStage = "provider_call";
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  let providerTimings: GmProviderTimings | undefined;
+  let draftCoalescer: GmNarrationDraftCoalescer | undefined;
+  const streamCallbacks: TrpgGmStreamCallbacks | undefined = opts.requestId
+    ? {
+        onProviderTimings: (timings) => {
+          providerTimings = timings;
+        },
+        onNarrationChunk: (narrationText) => {
+          draftCoalescer?.noteNarration(narrationText);
+        },
+      }
+    : undefined;
   if (opts.requestId) {
+    draftCoalescer = new GmNarrationDraftCoalescer({
+      db,
+      roundId: opts.roundId,
+      generationId: opts.requestId,
+      providerTimings: () => providerTimings,
+      onStaleDiscard: () => logStaleOwnerDiscard(opts.roundId, opts.requestId!, "draft"),
+    });
     heartbeatTimer = setInterval(() => {
       if (!refreshGmGenerationHeartbeat(db, opts.roundId, opts.requestId!)) {
         logStaleOwnerDiscard(opts.roundId, opts.requestId!, "heartbeat");
@@ -1329,7 +1357,8 @@ async function runGmForRound(
     }, GM_HEARTBEAT_REFRESH_INTERVAL_MS);
   }
   try {
-    const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
+    const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user, stream: streamCallbacks });
+    draftCoalescer?.flush();
     if (opts.requestId) {
       if (
         !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {
@@ -1478,6 +1507,7 @@ function commitPendingGmResult(
         }
       }
       stage = "gm_persist";
+      clearGmNarrationDraft(db, opts.roundId);
       db.prepare(
         `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
          ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`

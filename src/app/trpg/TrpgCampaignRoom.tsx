@@ -161,9 +161,18 @@ import TrpgUserChatPanel from "./TrpgUserChatPanel";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk, quoteSelectStyle } from "./TrpgNamedProse";
+import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
-import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
+import {
+  markTrpgProviderStreamSeen,
+  resolveTrpgGmContentStreaming,
+  resolveTrpgGmLiveAssetResolution,
+  resolveTrpgGmRevealComplete,
+  resolveTrpgGmShownNarration,
+  resolveTrpgGmStreamNarrationSource,
+  stripLiveGmNarrationText,
+} from "@/lib/trpg/gmProviderStreamDisplay";
 
 function useCampaignDicePreview(
   snap: TrpgCampaignSnapshot,
@@ -706,11 +715,14 @@ export default function TrpgCampaignRoom({
     log: snap.log,
     seenKeys: seenLogKeysRef.current!,
   });
+  const liveGmStreamDraft =
+    phase === "GENERATING_NARRATION" ? snap.gmNarrationDraft?.text?.trim() ?? "" : "";
   const liveFollowRound = freshGmRow?.roundNumber ?? snap.round.number;
-  const currentNarration = (freshGmRow?.narration ?? currentLogRow?.narration)?.trim() || "";
+  const currentNarration =
+    (freshGmRow?.narration ?? (liveGmStreamDraft || currentLogRow?.narration))?.trim() || "";
   currentNarrationRef.current = currentNarration;
   liveFreshGmRoundRef.current = freshGmRow?.roundNumber ?? null;
-  const gmTextReady = cinematicShowGm && currentNarration.length > 0;
+  const gmTextReady = cinematicShowGm && (currentNarration.length > 0 || liveGmStreamDraft.length > 0);
   const hiddenCatchUpActive = isHiddenPresentationCatchUpActive({
     documentHidden,
     session: hiddenPresentationSession,
@@ -1490,6 +1502,10 @@ export default function TrpgCampaignRoom({
                 ? cinematicShowGm
                 : false
               : undefined;
+            const liveGmStreamDraft =
+              isLiveRow && phase === "GENERATING_NARRATION"
+                ? snap.gmNarrationDraft?.text?.trim() ?? ""
+                : "";
             return (
             <SceneTurn
               key={row.roundNumber}
@@ -1499,7 +1515,7 @@ export default function TrpgCampaignRoom({
               statDefs={snap.statDefs}
               display={displayPrefs}
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
-              canImage={Boolean(imageId) && Boolean(row.narration)}
+              canImage={Boolean(imageId) && Boolean(row.narration || liveGmStreamDraft)}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
               characterCatalog={snap.aiCharacterAssets ?? []}
@@ -1509,6 +1525,7 @@ export default function TrpgCampaignRoom({
               revealedActorIds={liveRevealedActorIds}
               resultLaneActorIds={liveResultLaneIds}
               showGmNarration={liveShowGmNarration}
+              gmStreamDraft={liveGmStreamDraft || undefined}
               partyHumanCount={snap.partyHumanCount}
               partyBotCount={snap.partyBotCount}
               viewerIsHost={snap.viewerIsHost}
@@ -1918,6 +1935,7 @@ function SceneTurn({
   revealedActorIds: revealedIds,
   resultLaneActorIds: laneIds,
   showGmNarration,
+  gmStreamDraft,
   partyHumanCount,
   partyBotCount,
   viewerIsHost,
@@ -1954,6 +1972,8 @@ function SceneTurn({
   revealedActorIds?: number[];
   resultLaneActorIds?: number[];
   showGmNarration?: boolean;
+  /** Server-owned live narration draft during GENERATING_NARRATION. */
+  gmStreamDraft?: string;
   partyHumanCount?: number;
   partyBotCount?: number;
   viewerIsHost: boolean;
@@ -1974,15 +1994,55 @@ function SceneTurn({
   skipDecorativeReveal?: boolean;
   cinematicActorAction?: boolean;
 }) {
+  const providerStreamSeenRef = useRef(false);
+  providerStreamSeenRef.current = markTrpgProviderStreamSeen(
+    providerStreamSeenRef.current,
+    gmStreamDraft
+  );
+  const directProviderStream = providerStreamSeenRef.current;
   const allowGm = showGmNarration !== false && !revealGateHeld;
-  const revealNarration = allowGm && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
-  const narrationReveal = useRevealedText(row.narration ?? "", revealNarration, "gm", streamIntervalMs);
-  const shownNarration = narrationReveal.shownText;
-  const fullNarrationLen = Array.from(row.narration ?? "").length;
+  const narrationSource = resolveTrpgGmStreamNarrationSource({
+    providerStreamSeen: directProviderStream,
+    gmStreamDraft,
+    canonicalNarration: row.narration,
+  });
+  const revealNarration =
+    allowGm && !directProviderStream && isFreshLogKey(`n:${row.roundNumber}`) && !skipDecorativeReveal;
+  const narrationReveal = useRevealedText(narrationSource, revealNarration, "gm", streamIntervalMs);
+  const shownNarration = resolveTrpgGmShownNarration({
+    directProviderStream,
+    allowGm,
+    narrationSource,
+    decorativeShownText: narrationReveal.shownText,
+  });
+  const fullNarrationLen = Array.from(narrationSource).length;
   const shownNarrationLen = Array.from(shownNarration).length;
-  const gmRevealProgressive = shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
-  const gmRevealComplete =
-    fullNarrationLen > 0 && shownNarrationLen >= fullNarrationLen;
+  const gmRevealProgressive =
+    !directProviderStream && shownNarrationLen > 0 && shownNarrationLen < fullNarrationLen;
+  const gmContentStreaming = resolveTrpgGmContentStreaming({
+    directProviderStream,
+    allowGm,
+    canonicalNarration: row.narration,
+    narrationSource,
+    decorativeRevealActive: revealNarration,
+    decorativeProgressive: gmRevealProgressive,
+  });
+  const gmRevealComplete = resolveTrpgGmRevealComplete({
+    directProviderStream,
+    narrationSource,
+    canonicalNarration: row.narration,
+    decorativeShownLen: shownNarrationLen,
+  });
+  const canonicalCommitted = Boolean(row.narration?.trim());
+  const liveAssetResolution = resolveTrpgGmLiveAssetResolution({
+    directProviderStream,
+    canonicalCommitted,
+  });
+  const gmDisplayNarration = liveAssetResolution
+    ? shownNarration
+    : stripLiveGmNarrationText(shownNarration);
+  const gmScenarioAssets = liveAssetResolution ? scenarioAssets : [];
+  const gmCharacterCatalog = liveAssetResolution ? (characterCatalog ?? []) : [];
   useLayoutEffect(() => {
     if (!liveGmRevealStateRef) return;
     liveGmRevealStateRef.current = {
@@ -2000,7 +2060,7 @@ function SceneTurn({
     liveGmRevealStateRef,
     onLiveGmRevealChange,
   ]);
-  const beats = allowGm && shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
+  const beats = allowGm && gmDisplayNarration ? parseTrpgSceneSpeech(gmDisplayNarration, knownNames) : [];
   const rollsByParticipant = mergeTrpgActionRolls({ rowRolls: row.rolls, liveRolls });
   const revealedActions = row.actions.filter((a) => a.revealed && a.body.trim());
   const visibleActions =
@@ -2153,12 +2213,12 @@ function SceneTurn({
                   {beat.speaker === "GM" ? (
                     <TrpgGmTalk
                       text={beat.text}
-                      assets={scenarioAssets}
-                      characterCatalog={characterCatalog}
+                      assets={gmScenarioAssets}
+                      characterCatalog={gmCharacterCatalog}
                       campaignId={campaignId}
                       roundNumber={row.roundNumber}
                       quoteAssistantRoot={false}
-                      contentStreaming={revealNarration && gmRevealProgressive}
+                      contentStreaming={gmContentStreaming}
                     />
                   ) : (
                     <TrpgNamedProse
@@ -2174,7 +2234,7 @@ function SceneTurn({
                       quoteAssistantRoot={false}
                       paragraphMode="ai"
                       dialogueAccent={false}
-                      contentStreaming={revealNarration && gmRevealProgressive}
+                      contentStreaming={gmContentStreaming}
                     />
                   )}
                 </div>
