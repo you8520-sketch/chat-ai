@@ -271,7 +271,7 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
         decision,
         chatId: chat.id,
         personaId: Number(personaId),
-        legacySecretDescription: secretPayload?.secretDescription ?? "",
+        authority: "discovery",
       });
     }
     if (decision.mode === "ENSEMBLE_REDACTED") {

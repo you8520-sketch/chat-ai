@@ -1,6 +1,6 @@
 /** Fixed discovery catalog — compiler may not invent kinds outside this set. */
 
-export const PERSONA_SECRET_COMPILER_VERSION = 1;
+export const PERSONA_SECRET_COMPILER_VERSION = 2;
 export const PERSONA_SECRET_OUTPUT_SCHEMA_VERSION = 1;
 
 export const COMPILER_MAX_SOURCE_CHARS = 4000;
