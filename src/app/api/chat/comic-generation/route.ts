@@ -13,8 +13,7 @@ import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_ID,
-  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
-  buildChatComicImagePrompt,
+  buildChatComicGenerationPlan,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
   type ChatComicPanelCount,
@@ -34,8 +33,6 @@ import {
 import { extractAppearanceRawFromSetting } from "@/lib/appearanceCompiler";
 import {
   CHAT_IMAGE_PARTY_NO_REFERENCE_ERROR,
-  bindChatImageReferencePack,
-  buildChatDuoVisualSubjects,
   buildPartyIllustrationReferencePlan,
   defaultAppearanceMode,
   isPrimarySelectableImage,
@@ -952,38 +949,29 @@ export async function POST(req: Request) {
       characterOverride: body.characterAppearanceMode,
       personaOverride: body.personaAppearanceMode,
     });
-    const identityPack = bindChatImageReferencePack({
-      subjectsInImageOrder: buildChatDuoVisualSubjects({
-        characterName: context.character.name,
-        characterGender: context.characterGender,
-        characterImageUrl: context.characterImageUrl,
-        characterSavedAppearance: context.characterSavedAppearance,
-        characterAppearanceMode: appearanceModes.characterAppearanceMode,
-        personaName: context.persona.name,
-        personaGender: context.personaGender,
-        personaImageUrl: context.personaImageUrl,
-        personaSavedAppearance: context.personaSavedAppearance,
-        personaAppearanceMode: appearanceModes.personaAppearanceMode,
-      }),
-    });
-    const prompt = buildChatComicImagePrompt({
+    const identityPack = buildChatComicGenerationPlan({
       characterName: context.character.name,
       characterGender: context.characterGender,
+      characterImageUrl: context.characterImageUrl,
+      characterSavedAppearance: context.characterSavedAppearance,
+      characterAppearanceMode: appearanceModes.characterAppearanceMode,
       personaName: context.persona.name,
       personaGender: context.personaGender,
+      personaImageUrl: context.personaImageUrl,
+      personaSavedAppearance: context.personaSavedAppearance,
+      personaAppearanceMode: appearanceModes.personaAppearanceMode,
       mood,
       plan: scenePlan,
-      subjects: identityPack.subjects,
     });
-    const [styleReference, ...identityReferences] = await Promise.all([
-      imageSourceToDataUrl(CHAT_COMIC_TEMPLATE_PREVIEW_URL),
-      ...identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url)),
-    ]);
+    const prompt = identityPack.prompt;
+    const references = await Promise.all(
+      identityPack.referenceUrls.map((url) => imageSourceToDataUrl(url))
+    );
     const model = resolveChatImageGenerationModel();
     const generated = await generateComicImage({
       model,
       prompt,
-      references: [styleReference, ...identityReferences],
+      references,
       panelCount,
     });
 

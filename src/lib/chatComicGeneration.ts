@@ -96,20 +96,30 @@ function defaultComicSubjects(opts: {
   personaName: string;
   personaGender: ImagePromptGender;
   subjects?: readonly ChatImageVisualSubject[];
+  characterImageUrl?: string;
+  characterSavedAppearance?: string;
+  characterAppearanceMode?: ChatImageAppearanceMode;
+  personaImageUrl?: string;
+  personaSavedAppearance?: string;
+  personaAppearanceMode?: ChatImageAppearanceMode;
 }): ChatImageVisualSubject[] {
   if (opts.subjects?.length) return [...opts.subjects];
   return bindChatImageReferencePack({
+    template: {
+      url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
     subjectsInImageOrder: buildChatDuoVisualSubjects({
       characterName: opts.characterName,
       characterGender: opts.characterGender,
-      characterImageUrl: "/character-ref",
-      characterSavedAppearance: "",
-      characterAppearanceMode: "image_only",
+      characterImageUrl: opts.characterImageUrl || "/character-ref",
+      characterSavedAppearance: opts.characterSavedAppearance ?? "",
+      characterAppearanceMode: opts.characterAppearanceMode ?? "image_only",
       personaName: opts.personaName,
       personaGender: opts.personaGender,
-      personaImageUrl: "/persona-ref",
-      personaSavedAppearance: "",
-      personaAppearanceMode: "image_only",
+      personaImageUrl: opts.personaImageUrl || "/persona-ref",
+      personaSavedAppearance: opts.personaSavedAppearance ?? "",
+      personaAppearanceMode: opts.personaAppearanceMode ?? "image_only",
     }),
   }).subjects;
 }
@@ -122,8 +132,10 @@ export function buildChatComicImagePrompt(opts: {
   mood?: ChatComicMood;
   plan: ScenePlan;
   subjects?: readonly ChatImageVisualSubject[];
+  characterImageUrl?: string;
   characterSavedAppearance?: string;
   characterAppearanceMode?: ChatImageAppearanceMode;
+  personaImageUrl?: string;
   personaSavedAppearance?: string;
   personaAppearanceMode?: ChatImageAppearanceMode;
 }): string {
@@ -155,4 +167,57 @@ export function buildChatComicImagePrompt(opts: {
     "APPROVED SCENE PLAN",
     formatApprovedScenePlanForComic(opts.plan),
   ].join("\n\n");
+}
+
+export function buildChatComicGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  mood?: ChatComicMood;
+  plan: ScenePlan;
+}) {
+  const pack = bindChatImageReferencePack({
+    template: {
+      url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+      role: "layout template",
+    },
+    subjectsInImageOrder: buildChatDuoVisualSubjects({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  });
+  return {
+    subjects: pack.subjects,
+    referenceUrls: pack.referenceUrls,
+    prompt: buildChatComicImagePrompt({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+      mood: opts.mood,
+      plan: opts.plan,
+      subjects: pack.subjects,
+      characterImageUrl: opts.characterImageUrl,
+      characterSavedAppearance: opts.characterSavedAppearance,
+      characterAppearanceMode: opts.characterAppearanceMode,
+      personaImageUrl: opts.personaImageUrl,
+      personaSavedAppearance: opts.personaSavedAppearance,
+      personaAppearanceMode: opts.personaAppearanceMode,
+    }),
+  };
 }
