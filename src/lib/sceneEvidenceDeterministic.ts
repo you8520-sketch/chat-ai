@@ -131,7 +131,7 @@ function mapBodyRegion(fragment: string): BodyRegion | null {
 
 function extractDocumentLabel(text: string): string | null {
   const m = text.match(
-    /(계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권)/
+    /(계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권|파일|독촉장)/
   );
   if (!m?.[1]) return null;
   return m[1].replace(/\s+/g, "");
@@ -257,8 +257,8 @@ export function extractDeterministicSceneEvidenceFromUserMessage(opts: {
 
   // DOCUMENT_PRESENTED / IDENTITY
   if (
-    /(?:꺼내|건네|내밀|펼쳤|내려놓|제시|보여주)/.test(msg) &&
-    /(?:계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권)/.test(
+    /(?:꺼내|건네|내밀|펼쳤|내려놓|제시|보여주|놓았)/.test(msg) &&
+    /(?:계약서|검사\s*결과지|결과지|진단서|서류|문서|처방전|주민등록증|신분증|여권|파일|독촉장)/.test(
       msg
     )
   ) {
@@ -274,6 +274,21 @@ export function extractDeterministicSceneEvidenceFromUserMessage(opts: {
         visibility: defaultVisibility({ requiresLineOfSight: true }),
       });
     }
+  }
+
+  // "이 파일 좀 봐" — present-for-inspection without hand-off verb bundle above.
+  if (
+    !out.some((e) => e.eventType === "DOCUMENT_PRESENTED" || e.eventType === "IDENTITY_DOCUMENT_PRESENTED") &&
+    /(?:이\s*)?파일.{0,16}(?:좀\s*)?(?:봐|보|확인|봐줘)/.test(msg)
+  ) {
+    push({
+      ...base,
+      eventType: "DOCUMENT_PRESENTED",
+      sourceType: "USER_MESSAGE_DETERMINISTIC",
+      confidence: CONFIDENCE_DETERMINISTIC_DEFAULT,
+      attributes: { documentLabel: "파일" },
+      visibility: defaultVisibility({ requiresLineOfSight: true }),
+    });
   }
 
   // VISIBLE_ITEM_PRESENTED

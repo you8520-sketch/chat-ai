@@ -299,8 +299,7 @@ import {
   extractAndPersistSceneEvidence,
   parseSceneEvidenceExplicitActions,
 } from "@/lib/sceneEvidence";
-import { runVisualDiscoveryForTurn } from "@/lib/visualDiscovery";
-import { runInvestigationDiscoveryForTurn } from "@/lib/investigationDiscovery";
+import { runHomeDiscoveryTurn } from "@/lib/personaSecretDiscoveryHomeTurn";
 import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
@@ -2681,40 +2680,32 @@ export async function POST(req: Request) {
   // never persisted cannot write evidence/knowledge with a null sourceMessageId.
   if (discoveryWritesAllowed) {
     const sceneActions = parseSceneEvidenceExplicitActions(body.sceneActions);
-    extractAndPersistSceneEvidence({
-      chatId: chatRef.id,
-      characterId: ch.id,
-      turnNumber: playableTurnCount + 1,
-      sourceMessageId: userMessageId,
-      userMessage: messageText,
-      explicitActions: sceneActions,
-      publicPersonaId: resolvedPersonaId,
-      userId: user.id,
-    });
-
     if (resolvedPersonaId) {
-      runVisualDiscoveryForTurn({
+      runHomeDiscoveryTurn({
         chatId: chatRef.id,
-        personaId: resolvedPersonaId,
         characterId: ch.id,
+        personaId: resolvedPersonaId,
         turnNumber: playableTurnCount + 1,
         sourceMessageId: userMessageId,
+        userMessage: messageText,
+        explicitSceneActions: sceneActions,
+        investigationActions: publicDiscoveryInputs.investigationActions,
         userId: user.id,
       });
-
-      runInvestigationDiscoveryForTurn({
+    } else {
+      extractAndPersistSceneEvidence({
         chatId: chatRef.id,
-        personaId: resolvedPersonaId,
         characterId: ch.id,
         turnNumber: playableTurnCount + 1,
         sourceMessageId: userMessageId,
         userMessage: messageText,
-        explicitActions: publicDiscoveryInputs.investigationActions,
-        // Internal-only — never body.investigationOutcomes.
-        authoritativeOutcomes: [],
+        explicitActions: sceneActions,
+        publicPersonaId: resolvedPersonaId,
         userId: user.id,
       });
+    }
 
+    if (resolvedPersonaId) {
       // PR-S4D: user transfers only; server assigns sourceMessageId from saved turn.
       if (
         publicDiscoveryInputs.knowledgeTransferActions.length > 0 &&
