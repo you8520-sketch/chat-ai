@@ -218,6 +218,30 @@ describe("TRPG action-check semantic alignment", () => {
     assert.equal(actionNeedsCheck({ body, actionType: "free" }), false);
     assert.equal(classifyChallengeKind(stripQuotedDialogue(body)), null);
   });
+
+  it("USE_ITEM_SPOKEN_HAZARD: quoted warning about forcing a door is not a roll", () => {
+    const body = "「잠긴 문에 공구를 억지로 들이밀면 위험해.」";
+    assert.equal(resolveTrpgActionCheckDecision({ body, actionType: "use_item" }).needsCheck, false);
+  });
+
+  it("USE_ITEM_SPOKEN_TREATMENT: quoted treatment talk is not a roll", () => {
+    const body = "「상처를 응급처치해야겠어.」";
+    assert.equal(resolveTrpgActionCheckDecision({ body, actionType: "use_item" }).needsCheck, false);
+  });
+
+  it("USE_ITEM_STAGE_HAZARD: *stage* forced item application still rolls", () => {
+    const body = "*잠긴 문에 공구를 억지로 들이민다.*";
+    assert.equal(resolveTrpgActionCheckDecision({ body, actionType: "use_item" }).needsCheck, true);
+  });
+
+  it("USE_ITEM_STAGE_THERAPEUTIC: *stage* ordinary therapeutic use skips check", () => {
+    const body = "*붕대를 사용한다.*";
+    assert.equal(resolveTrpgActionCheckDecision({ body, actionType: "use_item" }).needsCheck, false);
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body, actionType: "use_item" }).reason,
+      "ordinary_item_use"
+    );
+  });
 });
 
 describe("TRPG persistRolls presentation integration", () => {

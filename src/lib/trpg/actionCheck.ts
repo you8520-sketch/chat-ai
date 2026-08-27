@@ -291,17 +291,23 @@ function isOrdinaryPreparation(text: string): boolean {
 }
 
 function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDecision {
-  if (isHazardousItemUse(body)) {
-    const kind = classifyChallengeKind(body);
-    if (kind === "contested") return { needsCheck: true, reason: "contested" };
-    if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
-    return { needsCheck: true, reason: "challenge" };
+  const visible = visibleActorActionText(body);
+  if (visible) {
+    if (isHazardousItemUse(visible)) {
+      const kind = classifyChallengeKind(visible);
+      if (kind === "contested") return { needsCheck: true, reason: "contested" };
+      if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
+      return { needsCheck: true, reason: "challenge" };
+    }
+    if (isOrdinaryTherapeuticItemUse(visible)) {
+      return { needsCheck: false, reason: "ordinary_item_use" };
+    }
+    if (isSkillTreatmentWithoutItem(visible)) {
+      return { needsCheck: true, reason: "challenge" };
+    }
   }
-  if (isOrdinaryTherapeuticItemUse(body)) {
-    return { needsCheck: false, reason: "ordinary_item_use" };
-  }
-  if (isSkillTreatmentWithoutItem(body)) {
-    return { needsCheck: true, reason: "challenge" };
+  if (isTalkOnlyAction(body)) {
+    return { needsCheck: false, reason: "talk" };
   }
   const intentReason = intent ? resolveIntentDisambiguation(body, intent) : null;
   if (intentReason && isHazardousItemUse(intent)) {
