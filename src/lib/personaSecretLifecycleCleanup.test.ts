@@ -83,6 +83,7 @@ function cleanup() {
     `DELETE FROM scene_observer_presence WHERE chat_id=?`,
     `DELETE FROM chat_scenes WHERE chat_id=?`,
     `DELETE FROM chat_observers WHERE chat_id=?`,
+    `DELETE FROM investigation_results WHERE chat_id=?`,
     `DELETE FROM investigation_attempts WHERE chat_id=?`,
     `DELETE FROM messages WHERE chat_id=?`,
     `DELETE FROM chats WHERE id=?`,

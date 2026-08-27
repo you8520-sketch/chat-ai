@@ -186,6 +186,7 @@ export function deletePersonaSecretRowsForChat(
   }
 
   // Chat-scoped attempts that never bound a target (or orphaned by chat_id).
+  db.prepare(`DELETE FROM investigation_results WHERE chat_id=?`).run(chatId);
   const orphanAttempts = db
     .prepare(`SELECT id FROM investigation_attempts WHERE chat_id=?`)
     .all(chatId) as Array<{ id: string }>;
