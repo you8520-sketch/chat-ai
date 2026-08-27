@@ -208,8 +208,29 @@ async function main() {
   writeFileSync(join(OUT_DIR, "G2-prompt.txt"), comicPlan.prompt);
   writeFileSync(
     join(OUT_DIR, "G2-reference-order.json"),
-    JSON.stringify(comicPlan.referenceUrls, null, 2)
+    JSON.stringify(comicRefs, null, 2)
   );
+
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    writeFileSync(
+      join(OUT_DIR, "GPT-IMAGE-SMOKE-BLOCKED.json"),
+      JSON.stringify(
+        {
+          reason: "OPENAI_API_KEY is not configured in this environment",
+          gptImageRealCalls: 0,
+          promptsGenerated: true,
+          refsGenerated: true,
+        },
+        null,
+        2
+      )
+    );
+    console.error(
+      "OPENAI_API_KEY missing — saved prompts/refs only under docs/audits/chat-image-multicast-674/smoke/"
+    );
+    process.exit(1);
+  }
 
   const g1 = await callOpenAiImageEdit({
     model: process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1",
