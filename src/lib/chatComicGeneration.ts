@@ -3,10 +3,16 @@ import {
   buildChatImagePairGenderLock,
 } from "@/lib/chatImageGender";
 import {
+  bindApprovedCastManifest,
+  renderApprovedCastManifest,
+  renderCastGenderLock,
+  type ChatImageCastGroundedManifest,
+  type ChatImageCastGroundedSubject,
+} from "@/lib/chatImageCastManifest";
+import type { ScenePanelCount, ScenePlan } from "@/lib/chatImageScenePlan";
+import {
   collectApprovedComicText,
   formatApprovedScenePlanForComic,
-  type ScenePanelCount,
-  type ScenePlan,
 } from "@/lib/chatImageScenePlan";
 import {
   bindChatImageReferencePack,
@@ -132,6 +138,8 @@ export function buildChatComicImagePrompt(opts: {
   mood?: ChatComicMood;
   plan: ScenePlan;
   subjects?: readonly ChatImageVisualSubject[];
+  castManifest?: ChatImageCastGroundedManifest | null;
+  castSelected?: readonly ChatImageCastGroundedSubject[];
   characterImageUrl?: string;
   characterSavedAppearance?: string;
   characterAppearanceMode?: ChatImageAppearanceMode;
@@ -141,20 +149,33 @@ export function buildChatComicImagePrompt(opts: {
 }): string {
   const approvedText = collectApprovedComicText(opts.plan);
   const subjects = defaultComicSubjects(opts);
+  const multiCast = Boolean(opts.castManifest && opts.castSelected && opts.castSelected.length > 2);
+  const castBlock =
+    opts.castManifest && opts.castSelected?.length
+      ? renderApprovedCastManifest({
+          manifest: opts.castManifest,
+          selected: opts.castSelected,
+          subjects,
+          plan: opts.plan,
+        })
+      : "";
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
+    castBlock,
     renderChatImageVisualIdentity({
       subjects,
       hasTemplate: true,
     }),
-    buildChatImagePairGenderLock({
-      characterName: opts.characterName,
-      characterGender: opts.characterGender,
-      personaName: opts.personaName,
-      personaGender: opts.personaGender,
-    }),
+    multiCast
+      ? renderCastGenderLock(subjects)
+      : buildChatImagePairGenderLock({
+          characterName: opts.characterName,
+          characterGender: opts.characterGender,
+          personaName: opts.personaName,
+          personaGender: opts.personaGender,
+        }),
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === (opts.mood ?? "comic"))?.prompt ?? "comic"}.`,
     "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
     approvedText.length
@@ -162,11 +183,15 @@ export function buildChatComicImagePrompt(opts: {
       : "- NO TEXT IS ALLOWED",
     "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Silent panels with no speech are valid. Do not create a speech bubble for a panel marked No speech bubble.",
     "Use proper speech bubbles with tails pointing to the correct speaker. Keep all approved text large, centered, uncropped, and easy to read.",
-    "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
+    multiCast
+      ? `Exactly ${subjects.length} recurring human identities. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.`
+      : "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
     "APPROVED SCENE PLAN",
     formatApprovedScenePlanForComic(opts.plan),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 export function buildChatComicGenerationPlan(opts: {
@@ -182,25 +207,44 @@ export function buildChatComicGenerationPlan(opts: {
   personaAppearanceMode: ChatImageAppearanceMode;
   mood?: ChatComicMood;
   plan: ScenePlan;
+  castManifest?: ChatImageCastGroundedManifest | null;
 }) {
-  const pack = bindChatImageReferencePack({
-    template: {
-      url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
-      role: "layout template",
-    },
-    subjectsInImageOrder: buildChatDuoVisualSubjects({
-      characterName: opts.characterName,
-      characterGender: opts.characterGender,
-      characterImageUrl: opts.characterImageUrl,
-      characterSavedAppearance: opts.characterSavedAppearance,
-      characterAppearanceMode: opts.characterAppearanceMode,
-      personaName: opts.personaName,
-      personaGender: opts.personaGender,
-      personaImageUrl: opts.personaImageUrl,
-      personaSavedAppearance: opts.personaSavedAppearance,
-      personaAppearanceMode: opts.personaAppearanceMode,
-    }),
-  });
+  const useCast = Boolean(
+    opts.castManifest &&
+      opts.castManifest.subjects.filter((subject) => subject.included).length > 2
+  );
+  let pack: { subjects: ChatImageVisualSubject[]; referenceUrls: string[] };
+  let castSelected: readonly ChatImageCastGroundedSubject[] | undefined;
+  if (useCast) {
+    const bound = bindApprovedCastManifest(opts.castManifest!, {
+      template: {
+        url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+        role: "layout template",
+      },
+    });
+    pack = bound;
+    castSelected = bound.selected;
+  } else {
+    pack = bindChatImageReferencePack({
+      template: {
+        url: CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+        role: "layout template",
+      },
+      subjectsInImageOrder: buildChatDuoVisualSubjects({
+        characterName: opts.characterName,
+        characterGender: opts.characterGender,
+        characterImageUrl: opts.characterImageUrl,
+        characterSavedAppearance: opts.characterSavedAppearance,
+        characterAppearanceMode: opts.characterAppearanceMode,
+        personaName: opts.personaName,
+        personaGender: opts.personaGender,
+        personaImageUrl: opts.personaImageUrl,
+        personaSavedAppearance: opts.personaSavedAppearance,
+        personaAppearanceMode: opts.personaAppearanceMode,
+      }),
+    });
+    castSelected = undefined;
+  }
   return {
     subjects: pack.subjects,
     referenceUrls: pack.referenceUrls,
@@ -212,6 +256,8 @@ export function buildChatComicGenerationPlan(opts: {
       mood: opts.mood,
       plan: opts.plan,
       subjects: pack.subjects,
+      castManifest: useCast ? opts.castManifest : null,
+      castSelected,
       characterImageUrl: opts.characterImageUrl,
       characterSavedAppearance: opts.characterSavedAppearance,
       characterAppearanceMode: opts.characterAppearanceMode,

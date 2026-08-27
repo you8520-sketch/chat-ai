@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import ChatImageCastPicker from "@/components/ChatImageCastPicker";
+import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import {
   applyUserPanelEdits,
   type ScenePanel,
@@ -17,12 +19,15 @@ type ChatSceneBuilderProps = {
   sourceLoading: boolean;
   plan: ScenePlan | null;
   planLoading: boolean;
+  castManifest: ChatImageCastIntentManifest | null;
+  selectableAssets: readonly SelectableCastAsset[];
   outputMode: SceneOutputMode;
   panelCountMode: ScenePanelCountMode;
   disabled?: boolean;
   onOutputModeChange: (mode: SceneOutputMode) => void;
   onPanelCountModeChange: (mode: ScenePanelCountMode) => void;
   onPlanChange: (plan: ScenePlan) => void;
+  onCastChange: (manifest: ChatImageCastIntentManifest) => void;
   onRebuildPlan: () => void;
 };
 
@@ -122,12 +127,15 @@ export default function ChatSceneBuilder({
   sourceLoading,
   plan,
   planLoading,
+  castManifest,
+  selectableAssets,
   outputMode,
   panelCountMode,
   disabled,
   onOutputModeChange,
   onPanelCountModeChange,
   onPlanChange,
+  onCastChange,
   onRebuildPlan,
 }: ChatSceneBuilderProps) {
   const [expandedPanel, setExpandedPanel] = useState<number | null>(null);
@@ -146,62 +154,6 @@ export default function ChatSceneBuilder({
           </p>
         )}
       </section>
-
-      <section className="space-y-2">
-        <h3 className="text-[11px] font-semibold text-zinc-400">형식</h3>
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
-          {(
-            [
-              ["illustration", "한 장 일러스트"],
-              ["comic", "컷만화"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              disabled={disabled}
-              onClick={() => onOutputModeChange(id)}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                outputMode === id
-                  ? "bg-violet-600 text-white"
-                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {outputMode === "comic" ? (
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
-          <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
-            {(
-              [
-                ["ai", "AI 추천"],
-                [2, "2컷"],
-                [3, "3컷"],
-                [4, "4컷"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={String(id)}
-                type="button"
-                disabled={disabled || !plan}
-                onClick={() => onPanelCountModeChange(id)}
-                className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                  panelCountMode === id
-                    ? "bg-violet-600 text-white"
-                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <section className="space-y-2">
         <div className="flex items-center justify-between">
@@ -270,6 +222,71 @@ export default function ChatSceneBuilder({
             })
           : null}
       </section>
+
+      {castManifest ? (
+        <ChatImageCastPicker
+          manifest={castManifest}
+          selectableAssets={selectableAssets}
+          disabled={disabled || planLoading}
+          onChange={onCastChange}
+        />
+      ) : null}
+
+      <section className="space-y-2">
+        <h3 className="text-[11px] font-semibold text-zinc-400">형식</h3>
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+          {(
+            [
+              ["illustration", "한 장 일러스트"],
+              ["comic", "컷만화"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onOutputModeChange(id)}
+              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                outputMode === id
+                  ? "bg-violet-600 text-white"
+                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {outputMode === "comic" ? (
+        <section className="space-y-2">
+          <h3 className="text-[11px] font-semibold text-zinc-400">컷 수</h3>
+          <div className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
+            {(
+              [
+                ["ai", "AI 추천"],
+                [2, "2컷"],
+                [3, "3컷"],
+                [4, "4컷"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={String(id)}
+                type="button"
+                disabled={disabled || !plan}
+                onClick={() => onPanelCountModeChange(id)}
+                className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
+                  panelCountMode === id
+                    ? "bg-violet-600 text-white"
+                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

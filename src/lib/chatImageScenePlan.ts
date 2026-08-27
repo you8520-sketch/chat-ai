@@ -66,6 +66,11 @@ export type ScenePanel = {
   dialogue: SceneDialogue[];
 };
 
+import type { SceneCastMention } from "@/lib/chatImageCast";
+import { validateCastMentions } from "@/lib/chatImageCast";
+
+export type { SceneCastMention } from "@/lib/chatImageCast";
+
 export type ScenePlan = {
   sceneBackground: string;
   atmosphere?: string;
@@ -74,6 +79,7 @@ export type ScenePlan = {
   heroScene: string;
   recommendedPanelCount: ScenePanelCount;
   panels: ScenePanel[];
+  castMentions?: SceneCastMention[];
 };
 
 function cleanLine(raw: unknown, max = 400): string {
@@ -671,6 +677,8 @@ export type ScenePlanValidation =
 export type ValidateScenePlanOptions = {
   /** When false (default), AI/planner output may not declare provenance=user_edit. */
   allowUserEdits?: boolean;
+  personaName?: string;
+  characterName?: string;
 };
 
 export function validateScenePlan(
@@ -811,6 +819,26 @@ export function validateScenePlan(
   const usableVisual = visualEvents(canonicalEvents);
   const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
 
+  const castMentionsRaw = Array.isArray(source.castMentions) ? source.castMentions : [];
+  const castMentionsParsed = castMentionsRaw
+    .map((item): SceneCastMention | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const name = cleanLine(row.name, 24);
+      const sourceEventIds = Array.isArray(row.sourceEventIds)
+        ? row.sourceEventIds.map((id) => cleanLine(id, 24)).filter(Boolean)
+        : [];
+      if (!name || !sourceEventIds.length) return null;
+      return { name, sourceEventIds };
+    })
+    .filter((item): item is SceneCastMention => Boolean(item));
+  const reservedNames = [opts.personaName, opts.characterName].filter(
+    (name): name is string => Boolean(name?.trim())
+  );
+  const castMentions = castMentionsParsed.length
+    ? validateCastMentions(castMentionsParsed, canonicalEvents, reservedNames)
+    : undefined;
+
   return {
     ok: true,
     plan: {
@@ -826,6 +854,7 @@ export function validateScenePlan(
           .join(" "),
       recommendedPanelCount: recommended,
       panels,
+      castMentions,
     },
   };
 }
@@ -850,6 +879,7 @@ export function buildScenePlanPrompt(opts: {
       heroEventIds: visual.slice(0, 2).map((event) => event.id),
       heroScene: "one-image summary of selected hero beats",
       recommendedPanelCount: 2,
+      castMentions: [{ name: "supporting name from source only", sourceEventIds: ["E2"] }],
       panels: [
         {
           index: 1,
@@ -881,6 +911,7 @@ export function buildScenePlanPrompt(opts: {
     "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
     "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
     "11. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
+    "12. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in linked canonical event text. Never force inclusion.",
     "SOURCE MESSAGES:",
     JSON.stringify(opts.messages, null, 2),
   ].join("\n\n");

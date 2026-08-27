@@ -7,6 +7,16 @@ import {
   genderWordForImagePrompt,
 } from "@/lib/chatImageGender";
 import {
+  bindApprovedCastManifest,
+  renderApprovedCastManifest,
+  renderCastGenderLock,
+  type ChatImageCastGroundedManifest,
+} from "@/lib/chatImageCastManifest";
+import type { ScenePlan } from "@/lib/chatImageScenePlan";
+import {
+  formatApprovedScenePlanForIllustration,
+} from "@/lib/chatImageScenePlan";
+import {
   bindChatImageReferencePack,
   buildChatDuoVisualSubjects,
   renderChatImageVisualIdentity,
@@ -339,4 +349,79 @@ export function buildLdDuoGenerationPlan(opts: {
       subjects: pack.subjects,
     }),
   };
+}
+
+export function buildLdSceneGenerationPlan(opts: {
+  characterName: string;
+  characterGender: ImagePromptGender;
+  personaName: string;
+  personaGender: ImagePromptGender;
+  characterImageUrl: string;
+  characterSavedAppearance: string;
+  characterAppearanceMode: ChatImageAppearanceMode;
+  personaImageUrl: string;
+  personaSavedAppearance: string;
+  personaAppearanceMode: ChatImageAppearanceMode;
+  approvedScenePlan?: ScenePlan;
+  approvedScene?: string;
+  castManifest?: ChatImageCastGroundedManifest | null;
+}) {
+  const useCast = Boolean(
+    opts.castManifest &&
+      opts.castManifest.subjects.filter((subject) => subject.included).length > 2
+  );
+  if (useCast) {
+    const bound = bindApprovedCastManifest(opts.castManifest!);
+    const selected = bound.selected;
+    const approved =
+      opts.approvedScene ??
+      (opts.approvedScenePlan
+        ? formatApprovedScenePlanForIllustration(opts.approvedScenePlan)
+        : "");
+    const prompt = [
+      "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
+      renderApprovedCastManifest({
+        manifest: opts.castManifest!,
+        selected,
+        subjects: bound.subjects,
+        plan: opts.approvedScenePlan,
+      }),
+      renderChatImageVisualIdentity({
+        subjects: bound.subjects,
+        hasTemplate: false,
+      }),
+      renderCastGenderLock(bound.subjects),
+      ILLUSTRATION_SAFETY,
+      "Depict the approved scene plan below as one cinematic scene.",
+      "Match the drawing style of the supplied identity references. Harmonize style, not identity.",
+      "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
+      selected.length <= 3
+        ? `Show exactly these ${selected.length} people. Do not add extras, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.`
+        : "Do not add unnamed extras. Background/cameo people may be smaller, but do not invent a new identity.",
+      "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
+      "",
+      approved ? ["APPROVED SCENE PLAN", approved].join("\n") : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return {
+      subjects: bound.subjects,
+      referenceUrls: bound.referenceUrls,
+      prompt,
+    };
+  }
+  return buildLdDuoGenerationPlan({
+    characterName: opts.characterName,
+    characterGender: opts.characterGender,
+    personaName: opts.personaName,
+    personaGender: opts.personaGender,
+    characterImageUrl: opts.characterImageUrl,
+    characterSavedAppearance: opts.characterSavedAppearance,
+    characterAppearanceMode: opts.characterAppearanceMode,
+    personaImageUrl: opts.personaImageUrl,
+    personaSavedAppearance: opts.personaSavedAppearance,
+    personaAppearanceMode: opts.personaAppearanceMode,
+    currentTurn: "",
+    approvedScene: opts.approvedScene,
+  });
 }

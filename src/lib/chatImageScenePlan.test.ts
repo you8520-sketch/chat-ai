@@ -7,7 +7,6 @@ import {
   buildScenePlanPrompt,
   buildSceneSourceMessages,
   extractDeterministicEvents,
-  extractDeterministicEvents,
   extractOrderedSceneSegments,
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
@@ -20,6 +19,7 @@ import {
   type ScenePlan,
   type SceneSourceMessage,
 } from "./chatImageScenePlan";
+import { validateCastMentions } from "./chatImageCast";
 
 const SOURCE_ROWS = [
   {
@@ -677,5 +677,19 @@ describe("chatImageScenePlan validator", () => {
     };
     const validated = validateScenePlan(reversed, messages);
     assert.equal(validated.ok, false);
+  });
+
+  it("castMentions exclude persona/main reserved names and unknown events", () => {
+    const messages = sampleMessages();
+    const canonical = extractDeterministicEvents(messages);
+    const mentions = validateCastMentions(
+      [
+        { name: "태형", sourceEventIds: [canonical[1]!.id] },
+        { name: "Unknown", sourceEventIds: ["E999"] },
+      ],
+      canonical,
+      ["태형", "렌"]
+    );
+    assert.deepEqual(mentions, []);
   });
 });
