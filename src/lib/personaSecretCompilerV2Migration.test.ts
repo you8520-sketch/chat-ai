@@ -19,9 +19,13 @@ import { findSuccessfulCompilationRun } from "@/lib/personaSecretCompilerApply";
 import { PERSONA_SECRET_COMPILER_VERSION } from "@/lib/personaSecretCompilerCatalog";
 import {
   countEnabledDiscoveryRules,
+  countRuleEnableDeltas,
   countV1DormantDiscoveryRules,
+  listPlannedStaleRuleIds,
   migratePersonaSecretCompilerV2,
+  planPersonaSecretCompilerV2Migration,
   PERSONA_SECRET_COMPILER_V1,
+  type DiscoveryRuleRow,
 } from "@/lib/personaSecretCompilerV2Migration";
 import {
   getCharacterSecretKnowledge,
@@ -169,6 +173,161 @@ function countKnowledgeSnapshots(chatId: number, personaId: number): string {
     .all(chatId, personaId) as Array<Record<string, string>>;
   return JSON.stringify(rows);
 }
+
+function snapshotDiscoveryRules(personaId: number): DiscoveryRuleRow[] {
+  return getDb()
+    .prepare(
+      `SELECT r.id, r.secret_id, r.method, r.rule_key, r.enabled
+       FROM persona_secret_discovery_rules r
+       JOIN persona_secrets s ON s.id = r.secret_id
+       WHERE s.persona_id=?`
+    )
+    .all(personaId) as DiscoveryRuleRow[];
+}
+
+function assertDryRunExecuteParity(opts: {
+  personaId: number;
+  userId: number;
+}) {
+  const dry = migratePersonaSecretCompilerV2({
+    personaId: opts.personaId,
+    execute: false,
+    userId: opts.userId,
+  });
+  assert.equal(dry.status, "dry_run");
+  assert.ok(dry.plan);
+
+  const beforeRules = snapshotDiscoveryRules(opts.personaId);
+  const staleIds = listPlannedStaleRuleIds({ personaId: opts.personaId });
+  assert.equal(staleIds.length, dry.plan!.wouldDisableStale);
+
+  const exec = migratePersonaSecretCompilerV2({
+    personaId: opts.personaId,
+    execute: true,
+    userId: opts.userId,
+  });
+  assert.equal(exec.status, "migrated");
+  assert.deepEqual(exec.plan, dry.plan);
+
+  const afterRules = snapshotDiscoveryRules(opts.personaId);
+  const enables = countRuleEnableDeltas({ before: beforeRules, after: afterRules });
+  assert.equal(enables.wouldEnableVisual, dry.plan!.wouldEnableVisual);
+  assert.equal(enables.wouldEnableInvestigation, dry.plan!.wouldEnableInvestigation);
+
+  const afterById = new Map(afterRules.map((r) => [r.id, r]));
+  for (const staleId of staleIds) {
+    assert.equal(Number(afterById.get(staleId)?.enabled ?? -1), 0);
+  }
+  return dry.plan!;
+}
+
+describe("Persona Secret compiler v1 → v2 migration dry-run parity", () => {
+  let env: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    env = saveEnv();
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+  });
+  afterEach(() => restoreEnv(env));
+
+  it("A: current source keeps VISUAL — dry-run enable count matches execute", () => {
+    const { userId, personaId } = uniqueIds();
+    const source = "렌의 등에 실험체 시절 생긴 017 문신이 있다.";
+    insertPersona({ userId, personaId, source });
+    assert.equal(compileAndApplyPersonaSecrets({ personaId, source }).ok, true);
+    downgradeRulesToCompilerV1(personaId);
+
+    const plan = assertDryRunExecuteParity({ personaId, userId });
+    assert.ok(plan.wouldEnableVisual >= 1);
+    assert.equal(plan.wouldEnableInvestigation, 0);
+  });
+
+  it("B: current source keeps INVESTIGATION — dry-run enable count matches execute", () => {
+    const { userId, personaId } = uniqueIds();
+    const source = "렌은 거액의 빚이 있다.";
+    insertPersona({ userId, personaId, source });
+    assert.equal(compileAndApplyPersonaSecrets({ personaId, source }).ok, true);
+    downgradeRulesToCompilerV1(personaId);
+
+    const plan = assertDryRunExecuteParity({ personaId, userId });
+    assert.ok(plan.wouldEnableInvestigation >= 1);
+    assert.equal(plan.wouldEnableVisual, 0);
+  });
+
+  it("C: stale removed VISUAL — dry-run wouldEnableVisual=0, wouldDisableStale>=1", () => {
+    const { userId, personaId } = uniqueIds();
+    const markSource = "렌의 등에 실험체 시절 생긴 017 문신이 있다.";
+    const plainSource = "렌은 평범한 가이드다.";
+    insertPersona({ userId, personaId, source: markSource });
+    assert.equal(compileAndApplyPersonaSecrets({ personaId, source: markSource }).ok, true);
+    downgradeRulesToCompilerV1(personaId);
+    getDb()
+      .prepare(`UPDATE user_personas SET secret_description=? WHERE id=?`)
+      .run(plainSource, personaId);
+
+    const dry = migratePersonaSecretCompilerV2({ personaId, execute: false, userId });
+    assert.equal(dry.status, "dry_run");
+    assert.equal(dry.plan!.wouldEnableVisual, 0);
+    assert.ok(dry.plan!.wouldDisableStale >= 1);
+
+    const plan = assertDryRunExecuteParity({ personaId, userId });
+    assert.equal(plan.wouldEnableVisual, 0);
+    assert.ok(plan.wouldDisableStale >= 1);
+  });
+
+  it("D: mixed keep + stale — dry-run enable/disable matches execute deltas", () => {
+    const { userId, personaId } = uniqueIds();
+    const combinedSource =
+      "렌의 등에 실험체 시절 생긴 017 문신이 있다.\n\n렌은 거액의 빚이 있다.";
+    const debtOnlySource = "렌은 거액의 빚이 있다.";
+    insertPersona({ userId, personaId, source: combinedSource });
+    assert.equal(compileAndApplyPersonaSecrets({ personaId, source: combinedSource }).ok, true);
+    downgradeRulesToCompilerV1(personaId);
+    getDb()
+      .prepare(`UPDATE user_personas SET secret_description=? WHERE id=?`)
+      .run(debtOnlySource, personaId);
+
+    const plan = assertDryRunExecuteParity({ personaId, userId });
+    assert.ok(plan.wouldEnableInvestigation >= 1);
+    assert.ok(plan.wouldDisableStale >= 1);
+    assert.equal(plan.wouldEnableVisual, 0);
+  });
+
+  it("E: second dry-run — candidateCount=0, wouldRecompile=0, DB delta=0", () => {
+    const { userId, personaId } = uniqueIds();
+    const source = "렌의 등에 실험체 시절 생긴 017 문신이 있다.";
+    insertPersona({ userId, personaId, source });
+    assert.equal(compileAndApplyPersonaSecrets({ personaId, source }).ok, true);
+    downgradeRulesToCompilerV1(personaId);
+    assert.equal(
+      migratePersonaSecretCompilerV2({ personaId, execute: true, userId }).status,
+      "migrated"
+    );
+
+    assert.equal(planPersonaSecretCompilerV2Migration({ personaId }), null);
+
+    const tables = [
+      "persona_secrets",
+      "persona_secret_discovery_rules",
+      "persona_secret_compilation_runs",
+    ] as const;
+    const before = Object.fromEntries(
+      tables.map((t) => [t, countPersonaTableRows(t, personaId)])
+    ) as Record<(typeof tables)[number], number>;
+
+    const secondDry = migratePersonaSecretCompilerV2({ personaId, execute: false, userId });
+    assert.equal(secondDry.status, "skipped");
+    assert.equal(secondDry.reason, "not_a_candidate");
+
+    const secondExec = migratePersonaSecretCompilerV2({ personaId, execute: true, userId });
+    assert.equal(secondExec.status, "skipped");
+
+    for (const t of tables) {
+      assert.equal(countPersonaTableRows(t, personaId), before[t], `${t} unchanged`);
+    }
+  });
+});
 
 describe("Persona Secret compiler v1 → v2 migration", () => {
   let env: Record<string, string | undefined>;

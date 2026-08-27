@@ -4,11 +4,23 @@ import {
   compileAndApplyPersonaSecrets,
   hashPersonaSecretSource,
 } from "@/lib/personaSecretCompiler";
-import { findSuccessfulCompilationRun } from "@/lib/personaSecretCompilerApply";
+import { compilePersonaSecretsDeterministic } from "@/lib/personaSecretCompilerDeterministic";
+import {
+  findSuccessfulCompilationRun,
+  listExistingPersonaSecrets,
+} from "@/lib/personaSecretCompilerApply";
+import { diffCompiledPersonaSecrets } from "@/lib/personaSecretCompilerDiff";
 import {
   PERSONA_SECRET_COMPILER_VERSION,
 } from "@/lib/personaSecretCompilerCatalog";
+import type {
+  CompiledDiscoveryRule,
+  CompiledPersonaSecret,
+  SecretStableDiff,
+} from "@/lib/personaSecretCompilerTypes";
+import { validatePersonaSecretCompilerResult } from "@/lib/personaSecretCompilerValidate";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
+import type { PersonaSecretRow } from "@/lib/personaSecretDiscoveryTypes";
 
 export const PERSONA_SECRET_COMPILER_V1 = 1;
 
@@ -27,11 +39,24 @@ export type PersonaCompilerV2MigrationCandidate = {
   hasV2SuccessRun: boolean;
 };
 
+export type PersonaCompilerV2MigrationPlanCounts = {
+  wouldRecompile: boolean;
+  wouldEnableVisual: number;
+  wouldEnableInvestigation: number;
+  wouldDisableStale: number;
+};
+
+export type PersonaCompilerV2MigrationPlan = PersonaCompilerV2MigrationPlanCounts & {
+  personaId: number;
+  candidate: PersonaCompilerV2MigrationCandidate;
+};
+
 export type PersonaCompilerV2MigrationResult = {
   personaId: number;
   status: "skipped" | "dry_run" | "migrated" | "failed";
   reason?: string;
   errorCode?: string;
+  plan?: PersonaCompilerV2MigrationPlanCounts;
   enabledVisualAfter?: number;
   enabledInvestigationAfter?: number;
 };
@@ -60,6 +85,14 @@ type PersonaRow = {
   secret_description: string | null;
 };
 
+type DiscoveryRuleRow = {
+  id: string;
+  secret_id: string;
+  method: string;
+  rule_key: string;
+  enabled: number;
+};
+
 function parseDormantFlag(conditionsJson: string): boolean {
   try {
     const parsed = JSON.parse(conditionsJson) as { dormant?: unknown };
@@ -67,6 +100,25 @@ function parseDormantFlag(conditionsJson: string): boolean {
   } catch {
     return false;
   }
+}
+
+function plannedEnabledForRule(rule: CompiledDiscoveryRule): number {
+  return rule.dormant ? 0 : 1;
+}
+
+function listPersonaDiscoveryRules(
+  personaId: number,
+  db: Database.Database
+): DiscoveryRuleRow[] {
+  ensurePersonaSecretDiscoverySchema(db);
+  return db
+    .prepare(
+      `SELECT r.id, r.secret_id, r.method, r.rule_key, r.enabled
+       FROM persona_secret_discovery_rules r
+       JOIN persona_secrets s ON s.id = r.secret_id
+       WHERE s.persona_id=?`
+    )
+    .all(personaId) as DiscoveryRuleRow[];
 }
 
 /** v1 artifact: VISUAL/INVESTIGATION rows stored with enabled=0 (dormant compile). */
@@ -136,6 +188,125 @@ function loadPersonaSource(
       )
       .get(personaId) as PersonaRow | undefined) ?? null
   );
+}
+
+/**
+ * Mirror upsertDiscoveryRulesStable + inactivate without DB writes.
+ * Uses v2 deterministic compile + stable diff against current persona_secrets.
+ */
+export function computeMigrationRulePlanCounts(opts: {
+  existing: PersonaSecretRow[];
+  diff: SecretStableDiff;
+  currentRules: DiscoveryRuleRow[];
+}): PersonaCompilerV2MigrationPlanCounts {
+  const plannedByRuleId = new Map<string, number>();
+  for (const row of opts.currentRules) {
+    plannedByRuleId.set(row.id, Number(row.enabled));
+  }
+
+  let wouldEnableVisual = 0;
+  let wouldEnableInvestigation = 0;
+  let wouldDisableStale = 0;
+
+  const countNewEnable = (rule: CompiledDiscoveryRule) => {
+    const enabled = plannedEnabledForRule(rule);
+    if (rule.method === "VISUAL_DISCOVERY" && enabled === 1) wouldEnableVisual += 1;
+    if (rule.method === "INVESTIGATION_DISCOVERY" && enabled === 1) {
+      wouldEnableInvestigation += 1;
+    }
+  };
+
+  const applyUpsertPlan = (secretId: string, compiled: CompiledPersonaSecret) => {
+    const incomingKeys = new Set(compiled.discoveryRules.map((r) => r.ruleKey));
+    for (const rule of compiled.discoveryRules) {
+      const enabled = plannedEnabledForRule(rule);
+      const existingRule = opts.currentRules.find(
+        (r) => r.secret_id === secretId && r.rule_key === rule.ruleKey
+      );
+      if (existingRule) {
+        const before = Number(existingRule.enabled);
+        plannedByRuleId.set(existingRule.id, enabled);
+        if (rule.method === "VISUAL_DISCOVERY" && before === 0 && enabled === 1) {
+          wouldEnableVisual += 1;
+        }
+        if (rule.method === "INVESTIGATION_DISCOVERY" && before === 0 && enabled === 1) {
+          wouldEnableInvestigation += 1;
+        }
+      } else {
+        countNewEnable(rule);
+      }
+    }
+    for (const row of opts.currentRules.filter((r) => r.secret_id === secretId)) {
+      if (!incomingKeys.has(row.rule_key)) {
+        plannedByRuleId.set(row.id, 0);
+        wouldDisableStale += 1;
+      }
+    }
+  };
+
+  for (const action of opts.diff.actions) {
+    if (action.kind === "create") {
+      for (const rule of action.compiled.discoveryRules) countNewEnable(rule);
+      continue;
+    }
+    if (action.kind === "inactivate") {
+      for (const row of opts.currentRules.filter((r) => r.secret_id === action.existingId)) {
+        plannedByRuleId.set(row.id, 0);
+        wouldDisableStale += 1;
+      }
+      continue;
+    }
+    applyUpsertPlan(action.existingId, action.compiled);
+  }
+
+  return {
+    wouldRecompile: true,
+    wouldEnableVisual,
+    wouldEnableInvestigation,
+    wouldDisableStale,
+  };
+}
+
+export function planPersonaSecretCompilerV2Migration(opts: {
+  personaId: number;
+  db?: Database.Database;
+}):
+  | PersonaCompilerV2MigrationPlan
+  | { personaId: number; errorCode: string }
+  | null {
+  const db = opts.db ?? getDb();
+  const candidate = personaNeedsCompilerV2Migration(opts.personaId, db);
+  if (!candidate) return null;
+
+  const persona = loadPersonaSource(opts.personaId, db);
+  if (!persona) return { personaId: opts.personaId, errorCode: "PERSONA_NOT_FOUND" };
+
+  const source = String(persona.secret_description ?? "");
+  const trimmed = source.trim();
+  if (!trimmed) return { personaId: opts.personaId, errorCode: "EMPTY_SOURCE" };
+
+  let compiled;
+  try {
+    compiled = compilePersonaSecretsDeterministic(source);
+  } catch {
+    return { personaId: opts.personaId, errorCode: "COMPILER_THROW" };
+  }
+
+  const validated = validatePersonaSecretCompilerResult(compiled, source);
+  if (!validated.ok) {
+    return { personaId: opts.personaId, errorCode: validated.errorCode };
+  }
+
+  const existing = listExistingPersonaSecrets(opts.personaId, db);
+  const diff = diffCompiledPersonaSecrets(existing, validated.result.secrets);
+  const currentRules = listPersonaDiscoveryRules(opts.personaId, db);
+  const counts = computeMigrationRulePlanCounts({ existing, diff, currentRules });
+
+  return {
+    personaId: opts.personaId,
+    candidate,
+    ...counts,
+  };
 }
 
 export function personaNeedsCompilerV2Migration(
@@ -210,6 +381,92 @@ export function findPersonasNeedingCompilerV2Migration(
   return out.sort((a, b) => a.personaId - b.personaId);
 }
 
+/** Enabled transitions + new rows — pairs with plan wouldEnable* counts. */
+export function countRuleEnableDeltas(opts: {
+  before: DiscoveryRuleRow[];
+  after: DiscoveryRuleRow[];
+}): Pick<
+  PersonaCompilerV2MigrationPlanCounts,
+  "wouldEnableVisual" | "wouldEnableInvestigation"
+> {
+  const afterById = new Map(opts.after.map((r) => [r.id, r]));
+  const beforeIds = new Set(opts.before.map((r) => r.id));
+  let wouldEnableVisual = 0;
+  let wouldEnableInvestigation = 0;
+
+  for (const before of opts.before) {
+    const after = afterById.get(before.id);
+    if (!after) continue;
+    if (Number(before.enabled) === 0 && Number(after.enabled) === 1) {
+      if (before.method === "VISUAL_DISCOVERY") wouldEnableVisual += 1;
+      if (before.method === "INVESTIGATION_DISCOVERY") wouldEnableInvestigation += 1;
+    }
+  }
+  for (const after of opts.after) {
+    if (beforeIds.has(after.id)) continue;
+    if (after.method === "VISUAL_DISCOVERY" && Number(after.enabled) === 1) {
+      wouldEnableVisual += 1;
+    }
+    if (after.method === "INVESTIGATION_DISCOVERY" && Number(after.enabled) === 1) {
+      wouldEnableInvestigation += 1;
+    }
+  }
+  return { wouldEnableVisual, wouldEnableInvestigation };
+}
+
+export function listPlannedStaleRuleIds(opts: {
+  personaId: number;
+  db?: Database.Database;
+}): string[] {
+  const db = opts.db ?? getDb();
+  const persona = loadPersonaSource(opts.personaId, db);
+  if (!persona) return [];
+  const source = String(persona.secret_description ?? "").trim();
+  if (!source) return [];
+
+  let compiled;
+  try {
+    compiled = compilePersonaSecretsDeterministic(source);
+  } catch {
+    return [];
+  }
+  const validated = validatePersonaSecretCompilerResult(compiled, source);
+  if (!validated.ok) return [];
+
+  const existing = listExistingPersonaSecrets(opts.personaId, db);
+  const diff = diffCompiledPersonaSecrets(existing, validated.result.secrets);
+  const currentRules = listPersonaDiscoveryRules(opts.personaId, db);
+
+  const staleIds: string[] = [];
+  for (const action of diff.actions) {
+    if (action.kind === "inactivate") {
+      for (const row of currentRules.filter((r) => r.secret_id === action.existingId)) {
+        staleIds.push(row.id);
+      }
+      continue;
+    }
+    if (action.kind === "create") continue;
+    const incomingKeys = new Set(action.compiled.discoveryRules.map((r) => r.ruleKey));
+    for (const row of currentRules.filter((r) => r.secret_id === action.existingId)) {
+      if (!incomingKeys.has(row.rule_key)) staleIds.push(row.id);
+    }
+  }
+  return staleIds;
+}
+
+/** @deprecated Prefer countRuleEnableDeltas + listPlannedStaleRuleIds for parity checks. */
+export function measureExecutedRuleDeltas(opts: {
+  before: DiscoveryRuleRow[];
+  after: DiscoveryRuleRow[];
+}): PersonaCompilerV2MigrationPlanCounts {
+  const enables = countRuleEnableDeltas(opts);
+  return {
+    wouldRecompile: true,
+    ...enables,
+    wouldDisableStale: 0,
+  };
+}
+
 export function migratePersonaSecretCompilerV2(opts: {
   personaId: number;
   execute: boolean;
@@ -217,19 +474,34 @@ export function migratePersonaSecretCompilerV2(opts: {
   userId?: number | null;
 }): PersonaCompilerV2MigrationResult {
   const db = opts.db ?? getDb();
-  const candidate = personaNeedsCompilerV2Migration(opts.personaId, db);
-  if (!candidate) {
+  const planned = planPersonaSecretCompilerV2Migration({
+    personaId: opts.personaId,
+    db,
+  });
+
+  if (planned == null) {
     return { personaId: opts.personaId, status: "skipped", reason: "not_a_candidate" };
   }
+  if ("errorCode" in planned) {
+    return {
+      personaId: opts.personaId,
+      status: "failed",
+      errorCode: planned.errorCode,
+    };
+  }
+
+  const planCounts: PersonaCompilerV2MigrationPlanCounts = {
+    wouldRecompile: planned.wouldRecompile,
+    wouldEnableVisual: planned.wouldEnableVisual,
+    wouldEnableInvestigation: planned.wouldEnableInvestigation,
+    wouldDisableStale: planned.wouldDisableStale,
+  };
 
   if (!opts.execute) {
-    const enabledBefore = countEnabledDiscoveryRules(opts.personaId, db);
     return {
       personaId: opts.personaId,
       status: "dry_run",
-      enabledVisualAfter: enabledBefore.visual + candidate.v1DormantRules.visual,
-      enabledInvestigationAfter:
-        enabledBefore.investigation + candidate.v1DormantRules.investigation,
+      plan: planCounts,
     };
   }
 
@@ -255,6 +527,7 @@ export function migratePersonaSecretCompilerV2(opts: {
       personaId: opts.personaId,
       status: "failed",
       errorCode: result.errorCode,
+      plan: planCounts,
     };
   }
 
@@ -262,6 +535,7 @@ export function migratePersonaSecretCompilerV2(opts: {
   return {
     personaId: opts.personaId,
     status: "migrated",
+    plan: planCounts,
     enabledVisualAfter: enabledAfter.visual,
     enabledInvestigationAfter: enabledAfter.investigation,
   };
@@ -277,26 +551,26 @@ export function migrateAllPersonaSecretCompilerV2(opts: {
 
   let v1VisualRules = 0;
   let v1InvestigationRules = 0;
+  let wouldEnableVisual = 0;
+  let wouldEnableInvestigation = 0;
+  let wouldDisableStale = 0;
+
   for (const c of candidates) {
     v1VisualRules += c.v1DormantRules.visual;
     v1InvestigationRules += c.v1DormantRules.investigation;
-    results.push(
-      migratePersonaSecretCompilerV2({
-        personaId: c.personaId,
-        execute: opts.execute,
-        userId: c.userId,
-        db,
-      })
-    );
+    const result = migratePersonaSecretCompilerV2({
+      personaId: c.personaId,
+      execute: opts.execute,
+      userId: c.userId,
+      db,
+    });
+    results.push(result);
+    if (result.plan) {
+      wouldEnableVisual += result.plan.wouldEnableVisual;
+      wouldEnableInvestigation += result.plan.wouldEnableInvestigation;
+      wouldDisableStale += result.plan.wouldDisableStale;
+    }
   }
-
-  const enabledAfterDry = candidates.map((c) => {
-    const enabled = countEnabledDiscoveryRules(c.personaId, db);
-    return {
-      visual: enabled.visual + c.v1DormantRules.visual,
-      investigation: enabled.investigation + c.v1DormantRules.investigation,
-    };
-  });
 
   const migrated = results.filter((r) => r.status === "migrated").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
@@ -314,9 +588,11 @@ export function migrateAllPersonaSecretCompilerV2(opts: {
       failed,
       v1VisualRules,
       v1InvestigationRules,
-      wouldEnableVisual: enabledAfterDry.reduce((n, x) => n + x.visual, 0),
-      wouldEnableInvestigation: enabledAfterDry.reduce((n, x) => n + x.investigation, 0),
-      wouldDisableStale: 0,
+      wouldEnableVisual,
+      wouldEnableInvestigation,
+      wouldDisableStale,
     },
   };
 }
+
+export type { DiscoveryRuleRow };
