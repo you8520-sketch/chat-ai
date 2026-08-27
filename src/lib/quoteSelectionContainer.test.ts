@@ -103,14 +103,17 @@ class MockDocument {
   }
 
   createTreeWalker(root: MockNode, _whatToShow: number): { nextNode(): MockText | null } {
-    const textNodes: MockText[] = [];
+    if (root.nodeType === 3) {
+      return { nextNode() { return null; } };
+    }
+    const descendants: MockText[] = [];
     walkNodes(root, (node) => {
-      if (node.nodeType === 3) textNodes.push(node);
+      if (node.nodeType === 3) descendants.push(node);
     });
     let index = 0;
     return {
       nextNode() {
-        return textNodes[index++] ?? null;
+        return descendants[index++] ?? null;
       },
     };
   }
@@ -224,7 +227,13 @@ function txt(doc: MockDocument, value: string): MockText {
   };
 }
 
-function asRange(start: MockText, startOffset: number, end: MockText, endOffset: number, common: MockEl): Range {
+function asRange(
+  start: MockText,
+  startOffset: number,
+  end: MockText,
+  endOffset: number,
+  common: MockNode
+): Range {
   return new MockRange(
     { container: start, offset: startOffset },
     { container: end, offset: endOffset },
@@ -234,6 +243,12 @@ function asRange(start: MockText, startOffset: number, end: MockText, endOffset:
 
 function wholeRange(start: MockText, end: MockText, common: MockEl): Range {
   return asRange(start, 0, end, end.textContent.length, common);
+}
+
+function quoteAssistantFixture(doc: MockDocument, prose: MockText) {
+  const root = el(doc, "div", { "data-quote-assistant": true }, el(doc, "div", {}, prose));
+  const container = el(doc, "div", {}, root) as unknown as HTMLElement;
+  return { container, root, prose };
 }
 
 function buildScene(doc: MockDocument) {
@@ -307,12 +322,37 @@ describe("quote selection semantics", () => {
     assert.doesNotMatch(resolved.text, /GM 판정용|hidden intent/);
   });
 
+  it("1. SAME_TEXT_NODE_PARTIAL uses Text commonAncestor and captures offset slice", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "abcdef");
+    const { container } = quoteAssistantFixture(doc, prose);
+    const selection = asRange(prose, 2, prose, 5, prose);
+    const resolved = resolveQuoteSelection(container, selection);
+    assert.equal(resolved.eligible, true);
+    assert.equal(resolved.text, "cde");
+    assert.equal(extractQuoteSelectionText(container, selection), "cde");
+  });
+
+  it("2. SAME_TEXT_NODE_FULL uses Text commonAncestor for whole-node selection", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "hello world");
+    const { container } = quoteAssistantFixture(doc, prose);
+    const selection = asRange(prose, 0, prose, prose.textContent.length, prose);
+    assert.equal(resolveQuoteSelection(container, selection).text, "hello world");
+  });
+
+  it("mock TreeWalker skips Text root like the browser API", () => {
+    const doc = createDocument();
+    const prose = txt(doc, "abcdef");
+    const walker = doc.createTreeWalker(prose, 4);
+    assert.equal(walker.nextNode(), null);
+  });
+
   it("H. PARTIAL_TEXT_RANGE preserves Range offsets", () => {
     const doc = createDocument();
     const prose = txt(doc, "abcdef");
-    const root = el(doc, "div", { "data-quote-assistant": true }, el(doc, "div", {}, prose));
-    const container = el(doc, "div", {}, root) as unknown as HTMLElement;
-    assert.equal(extractQuoteSelectionText(container, asRange(prose, 2, prose, 5, root)), "cde");
+    const { container } = quoteAssistantFixture(doc, prose);
+    assert.equal(extractQuoteSelectionText(container, asRange(prose, 2, prose, 5, prose)), "cde");
   });
 
   it("I. MULTIPLE_IGNORED_NODES_IN_MIDDLE omits all ignored text", () => {

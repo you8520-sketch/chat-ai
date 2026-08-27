@@ -98,11 +98,42 @@ function blockElementForText(textNode: Text): Element {
   return parent.closest(BLOCK_BREAK_SELECTOR) ?? parent;
 }
 
+function appendTextNodeSlice(
+  container: HTMLElement,
+  range: Range,
+  textNode: Text,
+  parts: string[],
+  lastBlock: { value: Element | null }
+): void {
+  const parent = textNode.parentElement;
+  if (!parent || !container.contains(parent) || isBlockedElement(parent)) return;
+  if (!isTextNodeWithinRange(textNode, range)) return;
+  const slice = sliceTextNodeInRange(textNode, range);
+  if (!slice) return;
+  const block = blockElementForText(textNode);
+  if (lastBlock.value && block !== lastBlock.value) {
+    parts.push("\n");
+  }
+  lastBlock.value = block;
+  parts.push(slice);
+}
+
+function collectDescendantTextNodes(root: Node, ownerDocument: Document): Text[] {
+  const nodes: Text[] = [];
+  const walker = ownerDocument.createTreeWalker(root, SHOW_TEXT);
+  let textNode = walker.nextNode() as Text | null;
+  while (textNode) {
+    nodes.push(textNode);
+    textNode = walker.nextNode() as Text | null;
+  }
+  return nodes;
+}
+
 export function extractQuoteSelectionText(container: HTMLElement, range: Range): string {
   if (!isSelectionInContainer(container, range)) return "";
 
   const parts: string[] = [];
-  let lastBlock: Element | null = null;
+  const lastBlock = { value: null as Element | null };
   const root = range.commonAncestorContainer;
   const ownerDocument =
     container.ownerDocument ??
@@ -110,22 +141,11 @@ export function extractQuoteSelectionText(container: HTMLElement, range: Range):
     null;
   if (!ownerDocument) return "";
 
-  const walker = ownerDocument.createTreeWalker(root, SHOW_TEXT);
-  let textNode = walker.nextNode() as Text | null;
-  while (textNode) {
-    const parent = textNode.parentElement;
-    if (parent && container.contains(parent) && !isBlockedElement(parent) && isTextNodeWithinRange(textNode, range)) {
-      const slice = sliceTextNodeInRange(textNode, range);
-      if (slice) {
-        const block = blockElementForText(textNode);
-        if (lastBlock && block !== lastBlock) {
-          parts.push("\n");
-        }
-        lastBlock = block;
-        parts.push(slice);
-      }
-    }
-    textNode = walker.nextNode() as Text | null;
+  const textNodes =
+    root.nodeType === TEXT_NODE ? [root as Text] : collectDescendantTextNodes(root, ownerDocument);
+
+  for (const textNode of textNodes) {
+    appendTextNodeSlice(container, range, textNode, parts, lastBlock);
   }
 
   return normalizeQuoteSelectionText(parts.join(""));
