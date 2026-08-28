@@ -22,6 +22,9 @@ import {
   TRPG_RESULT_ENTER_MS,
   TRPG_RESULT_EXIT_MS,
   TRPG_RESULT_HOLD_MS,
+  TRPG_STATIC_SETTLE_MS,
+  isTrpgStaticSettleTimerStale,
+  shouldScheduleTrpgStaticSettle,
 } from "@/lib/trpg/diceRollUx";
 import {
   PRODUCTION_D20_THEME,
@@ -142,9 +145,12 @@ export default function TrpgDiceOverlay({
   const rendererLoggedRef = useRef(false);
   const playRef = useRef(play);
   playRef.current = play;
+  const sessionKeyRef = useRef(sessionKey);
+  sessionKeyRef.current = sessionKey;
   const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered, phase, sessionKey });
   instrumentRef.current = { previewInstrument, roundNumber, theme, ordered, phase, sessionKey };
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
+  const use3d = decision?.renderer === "dice-box-threejs";
 
   useEffect(() => {
     if (typeof window === "undefined" || rendererLoggedRef.current) return;
@@ -266,9 +272,59 @@ export default function TrpgDiceOverlay({
     }
   }, [resultPhase, ordered.length, sessionKey]);
 
-  // Watchdog: if 3D physics takes too long, force settle
+  // Static renderer: deterministic settle lifecycle (no physics owner)
   useEffect(() => {
-    if (!visible || ordered.length === 0) return;
+    if (
+      !shouldScheduleTrpgStaticSettle({
+        visible,
+        renderer: decision?.renderer,
+        resultPhase,
+        settled,
+      })
+    ) {
+      return;
+    }
+    const scheduledSessionKey = sessionKey;
+    const scheduledPlayIndex = play.index;
+    const timer = window.setTimeout(() => {
+      if (
+        isTrpgStaticSettleTimerStale({
+          scheduledSessionKey,
+          scheduledPlayIndex,
+          currentSessionKey: sessionKeyRef.current,
+          currentPlayIndex: playRef.current.index,
+        })
+      ) {
+        return;
+      }
+      if (previewInstrument) {
+        logTrpgDiceRuntimeInstrument({
+          event: "DICE_SETTLE_SOURCE",
+          data: {
+            source: "static",
+            sessionKey: scheduledSessionKey,
+            playIndex: scheduledPlayIndex,
+            staticSettleMs: TRPG_STATIC_SETTLE_MS,
+          },
+        });
+      }
+      onDieSettled("static");
+    }, TRPG_STATIC_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [
+    visible,
+    decision?.renderer,
+    resultPhase,
+    settled,
+    sessionKey,
+    play.index,
+    onDieSettled,
+    previewInstrument,
+  ]);
+
+  // Watchdog: if 3D physics takes too long, force settle (WebGL only — static uses TRPG_STATIC_SETTLE_MS)
+  useEffect(() => {
+    if (!visible || ordered.length === 0 || !use3d) return;
     const watchdog = window.setTimeout(() => {
       if (!settled) {
         if (previewInstrument) {
@@ -281,9 +337,8 @@ export default function TrpgDiceOverlay({
       }
     }, 10000);
     return () => window.clearTimeout(watchdog);
-  }, [visible, play.index, ordered.length, settled, onDieSettled, previewInstrument, sessionKey]);
+  }, [visible, play.index, ordered.length, settled, onDieSettled, previewInstrument, sessionKey, use3d]);
 
-  const use3d = decision?.renderer === "dice-box-threejs";
   const rendererDiagnostic = decision ? (
     <div
       hidden
@@ -337,6 +392,7 @@ export default function TrpgDiceOverlay({
       data-trpg-dice-hold-ms={0}
       data-trpg-dice-total-ms={timing.totalMs}
       data-trpg-dice-result-phase={resultPhase}
+      data-trpg-dice-static-settle-ms={!use3d ? TRPG_STATIC_SETTLE_MS : undefined}
       data-trpg-dice-roll-ordinal={context.rollOrdinal}
       data-trpg-dice-roll-total={context.rollTotal}
       data-trpg-dice-actor-id={context.actorId}

@@ -245,13 +245,17 @@ describe("TRPG contextual dice HUD", () => {
     assert.doesNotMatch(overlay, /data-trpg-dice-numeral/);
   });
 
-  it("N: contextual HUD is outside renderer branches for WebGL/static/reduced motion parity", () => {
+  it("N: contextual HUD and static settle lifecycle share renderer parity across WebGL/static/reduced motion", () => {
     const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     const contextAt = overlay.indexOf("data-trpg-dice-context");
     const rendererBranchAt = overlay.indexOf("decision && use3d");
     assert.ok(contextAt > 0 && contextAt < rendererBranchAt);
     assert.match(overlay, /decision && !use3d/);
     assert.match(overlay, /data-trpg-dice-reduced-motion/);
+    assert.match(overlay, /shouldScheduleTrpgStaticSettle/);
+    assert.match(overlay, /onDieSettled\("static"\)/);
+    assert.match(overlay, /if \(!visible \|\| ordered\.length === 0 \|\| !use3d\) return/);
+    assert.match(overlay, /data-trpg-dice-static-settle-ms/);
   });
 
   it("O: preserves existing nat20 and nat1 visual effects", () => {

@@ -170,13 +170,14 @@ type TrpgDiceRuntimeEventData = {
     diceListLength: number;
   };
   DICE_SETTLE_SOURCE: {
-    source: "physics" | "watchdog" | "init-error";
+    source: "physics" | "watchdog" | "init-error" | "static";
     boxId?: string;
     diceListLength?: number;
     operation?: "initialize" | "roll";
     sessionKey?: string;
     playIndex?: number;
     watchdogMs?: number;
+    staticSettleMs?: number;
   };
   DICE_ERROR_CODE: TrpgDiceCanvasDimensions & {
     boxId: string;
@@ -244,7 +245,12 @@ export function isTrpgDiceRuntimeInstrument(value: unknown): value is TrpgDiceRu
         && typeof data.diceListLength === "number"
         && hasCanvasDimensions(data);
     case "DICE_SETTLE_SOURCE":
-      return data.source === "physics" || data.source === "watchdog" || data.source === "init-error";
+      return (
+        data.source === "physics" ||
+        data.source === "watchdog" ||
+        data.source === "init-error" ||
+        data.source === "static"
+      );
     case "DICE_ERROR_CODE":
       return hasBox
         && (data.code === "DICE_INIT_ERROR" || data.code === "DICE_ROLL_ERROR")

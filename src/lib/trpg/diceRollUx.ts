@@ -55,6 +55,8 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
 export const TRPG_RESULT_ENTER_MS = 180 as const;
 export const TRPG_RESULT_HOLD_MS = { 1: 850, 2: 650, 3: 500, 4: 500 } as const;
 export const TRPG_RESULT_EXIT_MS = 200 as const;
+/** Deterministic static-renderer settle delay (accessibility-friendly, no physics). */
+export const TRPG_STATIC_SETTLE_MS = 320 as const;
 /** Max 3D physics roll time per die (watchdog budget). */
 export const TRPG_ROLL_MAX_MS = 7000 as const;
 export const TRPG_EMERALD_WATCHDOG_MARGIN_MS = 2000;
@@ -92,6 +94,36 @@ export function trpgDiceRevealWatchdogMs(rollCount: number): number {
 
 export function shouldAnimateTrpgDice3d(opts: { webgl: boolean; reducedMotion: boolean }): boolean {
   return decideTrpgDiceRenderer(opts).renderer === "dice-box-threejs";
+}
+
+export type TrpgDiceResultPhase = "rolling" | "entering" | "holding" | "exiting";
+
+/** Static / reduced-motion / no-WebGL: schedule a short deterministic settle instead of physics. */
+export function shouldScheduleTrpgStaticSettle(opts: {
+  visible: boolean;
+  renderer: "dice-box-threejs" | "static" | null | undefined;
+  resultPhase: TrpgDiceResultPhase;
+  settled: boolean;
+}): boolean {
+  return (
+    opts.visible &&
+    opts.renderer === "static" &&
+    opts.resultPhase === "rolling" &&
+    !opts.settled
+  );
+}
+
+/** Guard against a stale static timer settling a later roll session or index. */
+export function isTrpgStaticSettleTimerStale(opts: {
+  scheduledSessionKey: string;
+  scheduledPlayIndex: number;
+  currentSessionKey: string;
+  currentPlayIndex: number;
+}): boolean {
+  return (
+    opts.scheduledSessionKey !== opts.currentSessionKey ||
+    opts.scheduledPlayIndex !== opts.currentPlayIndex
+  );
 }
 
 export type TrpgDiceOverlaySessionAction = "start" | "keep" | "clear";

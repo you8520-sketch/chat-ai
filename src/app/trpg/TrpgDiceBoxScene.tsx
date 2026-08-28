@@ -8,7 +8,7 @@ import {
 } from "@/lib/trpg/diceVisual";
 import { logTrpgDiceRuntimeInstrument } from "@/lib/trpg/dicePreviewTheme";
 
-export type TrpgDiceSettleSource = "physics" | "watchdog" | "init-error";
+export type TrpgDiceSettleSource = "physics" | "watchdog" | "init-error" | "static";
 
 async function ensureCinzelLoaded(): Promise<void> {
   if (typeof document === "undefined" || !(document as { fonts?: FontFaceSet }).fonts) return;
