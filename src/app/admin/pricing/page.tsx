@@ -34,7 +34,7 @@ export default async function AdminPricingPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
-      <h1 className="text-xl font-bold">Pricing Diagnostics — Shadow Only (Phase 2)</h1>
+      <h1 className="text-xl font-bold">Pricing Diagnostics ??Shadow Only (Phase 2)</h1>
       <p className="mt-2 text-zinc-400">USER BILLING BEHAVIOR_CHANGED: false · Published pricing is shadow only. Live discount does NOT control standard price.</p>
       <section className="mt-6">
         <h2 className="font-semibold">Published Catalog (v1)</h2>
@@ -43,13 +43,13 @@ export default async function AdminPricingPage() {
           <tbody>
             {models.map((id) => {
               const p = getPublishedPricing(id);
-              return <tr key={id} className="border-b border-white/5"><td>{id}</td><td>{p.pricingVersion}</td><td>{p.referenceInputRateKrw.toFixed(5)}</td><td>{p.referenceOutputRateKrw.toFixed(5)}</td><td>{(p.targetMargin*100).toFixed(1)}%</td><td>{(p.minimumMarginFloor*100).toFixed(1)}%</td></tr>;
+              return <tr key={id} className="border-b border-white/5"><td>{id}</td><td>{p.pricingVersion}</td><td>{p.billingReferenceInputRateKrw.toFixed(5)}</td><td>{p.billingReferenceOutputRateKrw.toFixed(5)}</td><td>{(p.targetMargin*100).toFixed(1)}%</td><td>{(p.minimumMarginFloor*100).toFixed(1)}%</td></tr>;
             })}
           </tbody>
         </table>
       </section>
       <section className="mt-6">
-        <h2 className="font-semibold">Gemini 3.1 Pro — {COMPETITOR_BENCHMARKS.gemini31.inputTokens} in / {COMPETITOR_BENCHMARKS.gemini31.outputTokens} out / benchmark {COMPETITOR_BENCHMARKS.gemini31.chargeP}P</h2>
+        <h2 className="font-semibold">Gemini 3.1 Pro ??{COMPETITOR_BENCHMARKS.gemini31.inputTokens} in / {COMPETITOR_BENCHMARKS.gemini31.outputTokens} out / benchmark {COMPETITOR_BENCHMARKS.gemini31.chargeP}P</h2>
         <p className="text-xs text-zinc-500">Reference cost: {geminiSim.referenceCostKrw.toFixed(1)} KRW</p>
         <table className="mt-2 w-full border-collapse text-xs">
           <thead><tr className="border-b border-white/10"><th>margin</th><th>shadow charge</th><th>gross profit</th><th>deviation</th><th>flag</th></tr></thead>
@@ -57,7 +57,7 @@ export default async function AdminPricingPage() {
         </table>
       </section>
       <section className="mt-6">
-        <h2 className="font-semibold">Opus 5 — {COMPETITOR_BENCHMARKS.opus5.inputTokens} in / {COMPETITOR_BENCHMARKS.opus5.outputTokens} out / benchmark {COMPETITOR_BENCHMARKS.opus5.chargeP}P</h2>
+        <h2 className="font-semibold">Opus 5 ??{COMPETITOR_BENCHMARKS.opus5.inputTokens} in / {COMPETITOR_BENCHMARKS.opus5.outputTokens} out / benchmark {COMPETITOR_BENCHMARKS.opus5.chargeP}P</h2>
         <p className="text-xs text-zinc-500">Reference cost: {opusSim.referenceCostKrw.toFixed(1)} KRW · thinking-inclusive status unknown for competitor displayed output</p>
         <table className="mt-2 w-full border-collapse text-xs">
           <thead><tr className="border-b border-white/10"><th>margin</th><th>shadow charge</th><th>gross profit</th><th>deviation</th><th>flag</th></tr></thead>

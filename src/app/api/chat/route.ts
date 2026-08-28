@@ -4850,8 +4850,8 @@ export async function POST(req: Request) {
           });
           (baseUsageRecord as unknown as Record<string, unknown>).shadowPricing = {
             pricingVersion: shadow.pricingVersion,
-            referenceInputRateKrw: shadow.referenceInputRateKrw,
-            referenceOutputRateKrw: shadow.referenceOutputRateKrw,
+            billingReferenceInputRateKrw: shadow.billingReferenceInputRateKrw,
+            billingReferenceOutputRateKrw: shadow.billingReferenceOutputRateKrw,
             billingReferenceCostKrw: shadow.billingReferenceCostKrw,
             actualProviderCostKrw: shadow.actualProviderCostKrw,
             actualCostSource: shadow.actualCostSource,

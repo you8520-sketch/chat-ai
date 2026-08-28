@@ -1,10 +1,10 @@
 /**
- * Phase 2 Shadow Pricing — canonical owner for unified cost & charge simulation.
+ * Phase 2 Shadow Pricing ??canonical owner for unified cost & charge simulation.
  * USER BILLING UNCHANGED: deductPoints() still uses legacy `points.ts` path.
  * This module is shadow-only, used for admin diagnostics and usage JSON enrichment.
  *
  * Three costs: actualProviderCost / providerListCost / billingReferenceCost
- * One charge:  shadowStandardCharge → promo → finalShadowCharge
+ * One charge:  shadowStandardCharge ??promo ??finalShadowCharge
  */
 
 import type { OpenRouterBillingInput } from "@/lib/billingRawCost";
@@ -39,8 +39,8 @@ export type ShadowCostBreakdown = {
   cacheReadCostKrw: number;
   cacheWriteCostKrw: number;
   // published snapshot
-  referenceInputRateKrw: number;
-  referenceOutputRateKrw: number;
+  billingReferenceInputRateKrw: number;
+  billingReferenceOutputRateKrw: number;
   pricingVersion: number;
   targetMargin: number;
   minimumMarginFloor: number;
@@ -52,7 +52,7 @@ export type ShadowChargeBreakdown = ShadowCostBreakdown & {
   promoGivebackKrw: number;
   finalShadowChargeKrw: number;
   finalShadowPoints: number; // ceil
-  // margin & reserve components (KRW, 1P=1원 normalization via canonical owner)
+  // margin & reserve components (KRW, 1P=1??normalization via canonical owner)
   actualRealizedMargin: number | null;
   providerSavingsKrw: number;
   providerOverrunKrw: number;
@@ -80,10 +80,10 @@ function resolvePriceKindRates(modelId: string, kind: "live" | "list") {
   // so we compute via fallback constants directly: use published reference as list proxy
   // To avoid live contamination, we read raw fallback by calling with modelId that is not in live map?
   // Simpler: compute USD from published snapshot would be equivalent.
-  // Here we still need list USD for providerListCost — use fallback snapshot rates.
+  // Here we still need list USD for providerListCost ??use fallback snapshot rates.
   // We achieve by temporarily reading published rates and converting back to USD for openRouterUsdCostFromRates?
   // Easiest: use resolveOpenRouterModelRates but if live exists we want list, so we reconstruct list USD cost manually
-  // Fallback: use publishedModelPricing reference rates → USD
+  // Fallback: use publishedModelPricing reference rates ??USD
   return resolveOpenRouterModelRates(modelId); // TODO: priceKind separation pending catalog semantics verification
 }
 
@@ -109,7 +109,7 @@ export function computeShadowCosts(opts: {
   const snapshot = resolveBillingExchangeRateSnapshot();
   const effectiveRate = snapshot.effectiveKrwPerUsd;
 
-  // actualProviderCost: upstream 우선, 없으면 live catalog×usage, 없으면 published fallback
+  // actualProviderCost: upstream ?�선, ?�으�?live catalog×usage, ?�으�?published fallback
   let actualProviderCostKrw = 0;
   let actualCostSource: ActualCostSource = "unavailable";
   let actualCostUsd: number | undefined;
@@ -161,20 +161,20 @@ export function computeShadowCosts(opts: {
   // For Phase 2 shadow, we compute list via published reference rates as proxy for undiscounted.
   const listViaPublishedKrw = (() => {
     const r = pub;
-    const inCost = standardInputTokens * r.referenceInputRateKrw;
-    const crCost = cacheReadTokens * (r.referenceCacheReadRateKrw ?? r.referenceInputRateKrw * 0.1);
-    const cwCost = cacheWriteTokens * (r.referenceCacheWriteRateKrw ?? r.referenceInputRateKrw);
-    const outCost = (outputTokens + reasoningTokens) * r.referenceOutputRateKrw;
+    const inCost = standardInputTokens * r.billingReferenceInputRateKrw;
+    const crCost = cacheReadTokens * (r.billingReferenceCacheReadRateKrw ?? r.billingReferenceInputRateKrw * 0.1);
+    const cwCost = cacheWriteTokens * (r.billingReferenceCacheWriteRateKrw ?? r.billingReferenceInputRateKrw);
+    const outCost = (outputTokens + reasoningTokens) * r.billingReferenceOutputRateKrw;
     return round1(inCost + crCost + cwCost + outCost);
   })();
   const providerListCostKrw = listViaPublishedKrw > 0 ? listViaPublishedKrw : round1(convertUsdToKrw(listUsdCost, effectiveRate));
 
   // billingReferenceCost: published reference rates × usage (stable)
-  const inputCostKrw = round1(standardInputTokens * pub.referenceInputRateKrw);
-  const cacheReadCostKrw = round1(cacheReadTokens * (pub.referenceCacheReadRateKrw ?? pub.referenceInputRateKrw * 0.1));
-  const cacheWriteCostKrw = round1(cacheWriteTokens * (pub.referenceCacheWriteRateKrw ?? pub.referenceInputRateKrw));
-  const outputCostKrw = round1(outputTokens * pub.referenceOutputRateKrw);
-  const reasoningCostKrw = round1(reasoningTokens * pub.referenceOutputRateKrw);
+  const inputCostKrw = round1(standardInputTokens * pub.billingReferenceInputRateKrw);
+  const cacheReadCostKrw = round1(cacheReadTokens * (pub.billingReferenceCacheReadRateKrw ?? pub.billingReferenceInputRateKrw * 0.1));
+  const cacheWriteCostKrw = round1(cacheWriteTokens * (pub.billingReferenceCacheWriteRateKrw ?? pub.billingReferenceInputRateKrw));
+  const outputCostKrw = round1(outputTokens * pub.billingReferenceOutputRateKrw);
+  const reasoningCostKrw = round1(reasoningTokens * pub.billingReferenceOutputRateKrw);
   const billingReferenceCostKrw = round1(inputCostKrw + cacheReadCostKrw + cacheWriteCostKrw + outputCostKrw + reasoningCostKrw);
 
   return {
@@ -194,8 +194,8 @@ export function computeShadowCosts(opts: {
     reasoningCostKrw,
     cacheReadCostKrw,
     cacheWriteCostKrw,
-    referenceInputRateKrw: pub.referenceInputRateKrw,
-    referenceOutputRateKrw: pub.referenceOutputRateKrw,
+    billingReferenceInputRateKrw: pub.billingReferenceInputRateKrw,
+    billingReferenceOutputRateKrw: pub.billingReferenceOutputRateKrw,
     pricingVersion: pub.pricingVersion,
     targetMargin: pub.targetMargin,
     minimumMarginFloor: pub.minimumMarginFloor,
@@ -214,7 +214,7 @@ export function computeShadowCharge(
   const finalShadowChargeKrw = round1(standardUserChargeKrw * (1 - clampedPromo));
   const finalShadowPoints = chargePoints(finalShadowChargeKrw);
   const promoGivebackKrw = round1(Math.max(0, standardUserChargeKrw - finalShadowChargeKrw));
-  // Reserve components (KRW, 1P=1원)
+  // Reserve components (KRW, 1P=1??
   const providerSavingsKrw = Math.max(0, round1(cost.providerListCostKrw - cost.actualProviderCostKrw));
   const providerOverrunKrw = Math.max(0, round1(cost.actualProviderCostKrw - cost.providerListCostKrw));
   const promoGivebackForReserveKrw = promoGivebackKrw;
