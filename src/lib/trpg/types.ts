@@ -1,9 +1,12 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+} from "@/lib/chatModels";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
-export const TRPG_GM_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+export const TRPG_GM_MODEL = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 export const TRPG_MAX_SLOTS = 4;
 /** Each AI companion is its own model call, so bots stay at two. */
 export const TRPG_MAX_BOTS = 2;
@@ -38,7 +41,7 @@ export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
 export const TRPG_GM_GROSS_MARGIN = 0.65;
 /** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
-export const TRPG_BOT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+export const TRPG_BOT_MODEL = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 export const TRPG_ACTION_MAX_CHARS = 800;
 /** Host-written party bonds, applied before campaign start. */
 export const TRPG_RELATIONSHIP_MAX_CHARS = 800;
