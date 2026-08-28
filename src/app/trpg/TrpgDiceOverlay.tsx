@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveTrpgD20Tone, trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
   buildTrpgDiceContextViewModel,
+  trpgDiceActorStatLine,
   trpgDiceA11yStatus,
+  trpgDiceResultFormulaLine,
   trpgDiceResultVisible,
+  trpgDiceTargetDcLine,
 } from "@/lib/trpg/diceContextHud";
 import {
   applyTrpgDiceOverlaySession,
@@ -408,20 +411,36 @@ export default function TrpgDiceOverlay({
         <div
           className="absolute inset-x-3 top-[max(1rem,env(safe-area-inset-top))] z-20 mx-auto max-w-xl rounded-2xl border border-white/10 bg-[#111522]/80 px-4 py-3 text-center shadow-lg backdrop-blur-sm sm:px-5"
           data-trpg-dice-context
+          data-trpg-dice-context-phase={showResult ? "result" : "rolling"}
         >
           <p className="text-[11px] font-semibold tracking-[0.16em] text-zinc-400 sm:text-xs">
             판정 {context.rollOrdinal} / {context.rollTotal}
           </p>
-          <p className="mt-1 text-lg font-bold text-white sm:text-xl">{context.actorName}</p>
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 text-xs font-semibold sm:text-sm">
-            <span className="text-sky-200">{context.statLabel} 판정</span>
-            {context.actionTypeLabel ? (
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-zinc-300">
+          <p
+            className="mt-1 text-lg font-bold text-white sm:text-xl"
+            data-trpg-dice-actor-stat-line
+          >
+            {trpgDiceActorStatLine(context)}
+          </p>
+          {!showResult && context.actionTypeLabel ? (
+            <p className="mt-1">
+              <span
+                className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-zinc-300 sm:text-sm"
+                data-trpg-dice-action-type-label
+              >
                 {context.actionTypeLabel}
               </span>
-            ) : null}
-          </div>
-          {context.actionSummary ? (
+            </p>
+          ) : null}
+          {!showResult ? (
+            <p
+              className="mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
+              data-trpg-dice-target-dc
+            >
+              {trpgDiceTargetDcLine(context.dc)}
+            </p>
+          ) : null}
+          {!showResult && context.actionSummary ? (
             <p
               className="mx-auto mt-2 max-w-lg overflow-hidden text-xs leading-5 text-zinc-200 sm:text-sm"
               style={{
@@ -434,9 +453,6 @@ export default function TrpgDiceOverlay({
               「{context.actionSummary}」
             </p>
           ) : null}
-          <p className="mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm">
-            DC {context.dc}
-          </p>
         </div>
       </div>
       <div aria-hidden="true" className="flex h-full w-full items-center justify-center pt-28 md:-translate-y-[2%]">
@@ -569,7 +585,19 @@ export default function TrpgDiceOverlay({
                   {face}
                 </span>
                 <p
-                  className="relative mt-3 rounded-full bg-black/40 px-2.5 py-0.5 text-center text-[14px] font-medium tracking-wide"
+                  className="relative mt-3 max-w-[min(92vw,20rem)] text-center text-xs font-medium tracking-wide text-zinc-100 sm:text-sm"
+                  data-trpg-dice-result-formula
+                >
+                  {trpgDiceResultFormulaLine(context)}
+                </p>
+                <p
+                  className="relative mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
+                  data-trpg-dice-target-dc
+                >
+                  {trpgDiceTargetDcLine(context.dc)}
+                </p>
+                <p
+                  className="relative mt-2 rounded-full bg-black/40 px-2.5 py-0.5 text-center text-[14px] font-medium tracking-wide"
                   style={{
                     color: roll.success ? "#7ac4a0" : "#d4848e",
                     textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
@@ -577,19 +605,10 @@ export default function TrpgDiceOverlay({
                     paintOrder: "stroke fill",
                   }}
                   data-trpg-dice-result-outcome={outcome}
+                  data-trpg-dice-result-tier
                 >
                   {context.tierLabel}
                 </p>
-                <div
-                  className="relative mt-2 space-y-0.5 rounded-xl border border-white/10 bg-black/45 px-4 py-2 text-center text-xs text-zinc-200 sm:text-sm"
-                  data-trpg-dice-result-formula
-                >
-                  <p>d20 {context.d20}</p>
-                  <p>합산 보정 {context.combinedModifierLabel}</p>
-                  <p>
-                    최종 {context.finalScore} · DC {context.dc}
-                  </p>
-                </div>
               </div>
             ) : null}
           </div>
