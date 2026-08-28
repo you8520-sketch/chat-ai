@@ -52,6 +52,14 @@ export type WorldListItem = {
   shareAvailable?: boolean;
 };
 
+/** Live borrow references with revoked/deleted shares cannot be used for new character/simulation creation. */
+export function isBorrowAvailableForNewUse(
+  item: Pick<WorldListItem, "libraryKind" | "shareAvailable">
+): boolean {
+  if (item.libraryKind !== "borrowed") return true;
+  return item.shareAvailable !== false;
+}
+
 export type WorldStudioKind = "world" | "scenario";
 
 export function parseWorldStudioKind(raw: unknown): WorldStudioKind {

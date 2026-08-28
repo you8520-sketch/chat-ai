@@ -40,6 +40,7 @@ import {
 } from "@/lib/statusWidget";
 
 import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
+import { isBorrowAvailableForNewUse } from "@/lib/worlds";
 import type { WorldListItem } from "@/lib/worlds";
 import {
   isReadOnlyWorldLibraryRef,
@@ -191,6 +192,7 @@ export default function CreateCharacter({
   const [selectedWorldRef, setSelectedWorldRef] = useState<string>("");
   const [worldSourceKind, setWorldSourceKind] = useState<CharacterWorldSourceKind | null>(null);
   const [worldDetach, setWorldDetach] = useState(false);
+  const [initialBorrowUnavailable, setInitialBorrowUnavailable] = useState(false);
   const [worldsLoading, setWorldsLoading] = useState(true);
   const [savedLorebooks, setSavedLorebooks] = useState<
     KeywordLorebookListItem[]
@@ -734,13 +736,18 @@ export default function CreateCharacter({
     if (selectedWorldRef) return;
     if (initialWorldBorrowId != null && initialWorldBorrowId > 0) {
       const picked = savedWorlds.find((w) => w.borrowId === initialWorldBorrowId);
-      if (picked) {
+      if (picked && isBorrowAvailableForNewUse(picked)) {
         const ref = worldLibraryRef(picked);
         setSelectedWorldRef(ref);
+        setWorldSourceKind("borrowed_snapshot");
         setForm((f) => ({ ...f, world: picked.content }));
+        setInitialBorrowUnavailable(false);
+      } else if (picked) {
+        setInitialBorrowUnavailable(true);
       }
       return;
     }
+    setInitialBorrowUnavailable(false);
     if (initialWorldId != null && initialWorldId > 0) {
       const picked = savedWorlds.find((w) => w.id === initialWorldId && w.libraryKind !== "borrowed");
       if (picked) {
@@ -759,9 +766,10 @@ export default function CreateCharacter({
       setForm((f) => ({ ...f, world: "" }));
       return;
     }
+    const picked = savedWorlds.find((w) => worldLibraryRef(w) === ref);
+    if (picked && !isBorrowAvailableForNewUse(picked)) return;
     setWorldDetach(false);
     setSelectedWorldRef(ref);
-    const picked = savedWorlds.find((w) => worldLibraryRef(w) === ref);
     if (picked) {
       setWorldSourceKind(
         picked.libraryKind === "borrowed"
@@ -1224,16 +1232,30 @@ export default function CreateCharacter({
                     }}
                   >
                     <option value="">직접 입력</option>
-                    {savedWorlds.map((w) => (
-                      <option key={worldLibraryRef(w)} value={worldLibraryRef(w)}>
-                        {w.name}
-                        {w.libraryKind === "borrowed" || w.libraryKind === "legacy_borrowed"
-                          ? " (빌림·읽기 전용)"
-                          : ""}
-                        {w.summary ? ` — ${w.summary}` : ""}
-                      </option>
-                    ))}
+                    {savedWorlds.map((w) => {
+                      const unavailable = !isBorrowAvailableForNewUse(w);
+                      return (
+                        <option
+                          key={worldLibraryRef(w)}
+                          value={worldLibraryRef(w)}
+                          disabled={unavailable}
+                        >
+                          {w.name}
+                          {unavailable
+                            ? " (공유 종료 · 사용 불가)"
+                            : w.libraryKind === "borrowed" || w.libraryKind === "legacy_borrowed"
+                              ? " (빌림·읽기 전용)"
+                              : ""}
+                          {w.summary ? ` — ${w.summary}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
+                  {initialBorrowUnavailable && (
+                    <span className="text-[11px] text-rose-400">
+                      선택한 빌린 세계관은 공유가 종료되어 자동 적용할 수 없습니다.
+                    </span>
+                  )}
                   {!worldsLoading && savedWorlds.length === 0 && (
                     <Link
                       href="/world/create"

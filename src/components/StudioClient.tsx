@@ -259,6 +259,7 @@ function WorldCard({ world }: { world: WorldListItem }) {
   const isBorrowed = world.libraryKind === "borrowed";
   const isLegacyBorrowed = world.libraryKind === "legacy_borrowed";
   const readOnly = world.readOnly === true || isBorrowed || isLegacyBorrowed;
+  const borrowUnavailable = isBorrowed && world.shareAvailable === false;
 
   async function shareWorld() {
     if (readOnly || world.id <= 0) return;
@@ -343,9 +344,15 @@ function WorldCard({ world }: { world: WorldListItem }) {
               <span className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
                 빌린 세계관
               </span>
-              <span className="shrink-0 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
-                읽기 전용
-              </span>
+              {borrowUnavailable ? (
+                <span className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-200">
+                  공유 종료 · 신규 제작 불가
+                </span>
+              ) : (
+                <span className="shrink-0 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
+                  읽기 전용
+                </span>
+              )}
             </>
           ) : isLegacyBorrowed ? (
             <>
@@ -383,12 +390,21 @@ function WorldCard({ world }: { world: WorldListItem }) {
       <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
         {readOnly ? (
           <>
-            <StudioButton href={createHref} size="sm" className="w-full sm:w-auto">
-              캐릭터 제작에 사용
-            </StudioButton>
-            <StudioButton href={simulationHref} variant="secondary" size="sm" className="w-full sm:w-auto">
-              시뮬레이션 제작에 사용
-            </StudioButton>
+            {borrowUnavailable ? (
+              <p className="w-full text-[11px] leading-relaxed text-rose-200/90">
+                원본 공유가 종료되어 캐릭터·시뮬레이션 신규 제작에 사용할 수 없습니다. 라이브러리에서 제거할 수
+                있습니다.
+              </p>
+            ) : (
+              <>
+                <StudioButton href={createHref} size="sm" className="w-full sm:w-auto">
+                  캐릭터 제작에 사용
+                </StudioButton>
+                <StudioButton href={simulationHref} variant="secondary" size="sm" className="w-full sm:w-auto">
+                  시뮬레이션 제작에 사용
+                </StudioButton>
+              </>
+            )}
             <StudioButton
               type="button"
               variant="secondary"

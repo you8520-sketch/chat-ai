@@ -7,6 +7,7 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
@@ -15,10 +16,11 @@ import {
   parseCharacterFormBody,
   updateCharacterFromForm,
 } from "@/lib/characterFormSave";
-import { canUseWorldForTrpg } from "@/lib/trpg/catalog";
+import { canUseWorldForTrpg } from "@/lib/trpg/worldAccess";
 import { insertScenarioTemplate } from "@/lib/trpg/scenarioTemplates";
 import { canEditWorld, canShareWorld, loadOwnedWorldRow } from "@/lib/worldPermissions";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
+import { isBorrowAvailableForNewUse } from "@/lib/worlds";
 import {
   borrowWorldShareToUser,
   createWorldShare,
@@ -734,5 +736,123 @@ describe("world borrow ownership foundation", () => {
       { id: 1028, nickname: "attacker-c", is_adult: 1 }
     );
     assert.equal(forged.ok, false);
+  });
+
+  it("U2 source-deleted borrow is unavailable for new use but remains in library", () => {
+    seedUser(1053, "share-a");
+    seedUser(1054, "borrower-b");
+    const worldId = seedOwnedWorld(1053, "삭제 후 빌림", "삭제 전 본문");
+    const created = createWorldShare(1053, worldId);
+    assert.ok(!("error" in created));
+    borrowWorldShareToUser(1054, created.share.share_slug);
+    getDb().prepare("DELETE FROM worlds WHERE id = ?").run(worldId);
+
+    const library = loadUserWorldLibrary(1054);
+    const borrowed = library.find((w) => w.libraryKind === "borrowed");
+    assert.ok(borrowed);
+    assert.equal(borrowed!.shareAvailable, false);
+    assert.equal(isBorrowAvailableForNewUse(borrowed!), false);
+
+    const blocked = parseCharacterFormBody(
+      minimalCharacterBody({ world_borrow_id: borrowed!.borrowId, name: "차단" }),
+      { id: 1054, nickname: "borrower-b", is_adult: 1 }
+    );
+    assert.equal(blocked.ok, false);
+  });
+
+  it("U3 unavailable borrow entries are not selectable for new creation", () => {
+    seedUser(1055, "share-a");
+    seedUser(1056, "borrower-b");
+    const worldId = seedOwnedWorld(1055, "UI 차단", "본문");
+    const created = createWorldShare(1055, worldId);
+    assert.ok(!("error" in created));
+    borrowWorldShareToUser(1056, created.share.share_slug);
+    revokeWorldShare(1055, created.share.share_slug);
+
+    const library = loadUserWorldLibrary(1056);
+    const borrowed = library.find((w) => w.libraryKind === "borrowed");
+    assert.ok(borrowed);
+    assert.equal(isBorrowAvailableForNewUse(borrowed!), false);
+
+    const createCharacter = fs.readFileSync("src/components/CreateCharacter.tsx", "utf8");
+    assert.match(createCharacter, /isBorrowAvailableForNewUse/);
+    assert.match(createCharacter, /공유 종료 · 사용 불가/);
+    assert.match(createCharacter, /disabled=\{unavailable\}/);
+  });
+
+  it("U4 initialWorldBorrowId unavailable does not auto-apply content", () => {
+    seedUser(1057, "share-a");
+    seedUser(1058, "borrower-b");
+    const worldId = seedOwnedWorld(1057, "URL 차단", "자동 주입 금지");
+    const created = createWorldShare(1057, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1058, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+    revokeWorldShare(1057, created.share.share_slug);
+
+    const item = loadUserWorldLibrary(1058).find((w) => w.borrowId === borrowed.borrow.id);
+    assert.ok(item);
+    assert.equal(isBorrowAvailableForNewUse(item!), false);
+
+    const createCharacter = fs.readFileSync("src/components/CreateCharacter.tsx", "utf8");
+    assert.match(createCharacter, /initialBorrowUnavailable/);
+    assert.match(createCharacter, /isBorrowAvailableForNewUse\(picked\)/);
+  });
+
+  it("U5 saved character snapshot edit still passes after share revoke", async () => {
+    seedUser(1059, "share-a");
+    seedUser(1060, "borrower-b");
+    const worldId = seedOwnedWorld(1059, "U5 스냅샷", "U5 고정 본문");
+    const created = createWorldShare(1059, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1060, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1060, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({ world_borrow_id: borrowed.borrow.id, name: "U5 캐릭터" })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    revokeWorldShare(1059, created.share.share_slug);
+
+    const updated = await updateCharacterFromForm(
+      { id: 1060, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "U5 캐릭터",
+        tagline: "U5 수정됨",
+        world_library_ref: `saved-share:${created.share.id}`,
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null };
+    assert.equal(row.world, "U5 고정 본문");
+    assert.equal(row.source_world_share_id, created.share.id);
+  });
+
+  it("U6 WorldApply success CTA links create with borrowId preselect", () => {
+    const worldApply = fs.readFileSync("src/components/WorldApplyClient.tsx", "utf8");
+    assert.match(worldApply, /borrowId/);
+    assert.match(worldApply, /\/create\?worldBorrowId=\$\{borrowId\}/);
+    assert.match(worldApply, /kind=simulation&worldBorrowId=\$\{borrowId\}/);
+  });
+
+  it("T1 trpg catalog and scenarioTemplates have no static import cycle", () => {
+    const catalog = fs.readFileSync("src/lib/trpg/catalog.ts", "utf8");
+    const scenario = fs.readFileSync("src/lib/trpg/scenarioTemplates.ts", "utf8");
+    const worldAccess = fs.readFileSync("src/lib/trpg/worldAccess.ts", "utf8");
+    assert.doesNotMatch(worldAccess, /scenarioTemplates/);
+    assert.doesNotMatch(worldAccess, /from "\.\/catalog"/);
+    assert.doesNotMatch(scenario, /from "\.\/catalog"/);
+    assert.match(scenario, /from "@\/lib\/trpg\/worldAccess"/);
+    assert.match(catalog, /from "\.\/worldAccess"/);
   });
 });

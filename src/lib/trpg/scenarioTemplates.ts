@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKeysFromStored } from "./stats";
-import { canUseWorldForTrpg, loadWorldForTrpg } from "@/lib/trpg/catalog";
+import { canUseWorldForTrpg, loadWorldForTrpg } from "@/lib/trpg/worldAccess";
 import { parseJson } from "./store";
 import { parseScenarioAssets } from "./scenarioAssets";
 import { parseTrpgScenarioPlan, publicTrpgScenarioPlan } from "./scenarioPlan";

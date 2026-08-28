@@ -12,6 +12,7 @@ on:
       - "src/lib/characterFormSave.ts"
       - "src/lib/db.ts"
       - "src/lib/trpg/catalog.ts"
+      - "src/lib/trpg/worldAccess.ts"
       - "src/lib/trpg/scenarioTemplates.ts"
       - "src/app/api/worlds/**"
       - "src/app/api/world-shares/**"

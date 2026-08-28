@@ -26,6 +26,7 @@ export default function WorldApplyClient({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [alreadyInLibrary, setAlreadyInLibrary] = useState(false);
+  const [borrowId, setBorrowId] = useState<number | null>(null);
 
   async function addToLibrary() {
     if (!loggedIn) {
@@ -44,11 +45,13 @@ export default function WorldApplyClient({
         error?: string;
         alreadyInLibrary?: boolean;
         message?: string;
+        borrowId?: number;
       };
       if (!res.ok) {
         setError(data.error || "추가에 실패했습니다.");
         return;
       }
+      setBorrowId(typeof data.borrowId === "number" && data.borrowId > 0 ? data.borrowId : null);
       setAlreadyInLibrary(Boolean(data.alreadyInLibrary));
       setDone(true);
     } catch {
@@ -121,11 +124,19 @@ export default function WorldApplyClient({
               내 라이브러리 보기
             </Link>
             <Link
-              href="/create"
+              href={borrowId ? `/create?worldBorrowId=${borrowId}` : "/create"}
               className="rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-300 hover:bg-white/5"
             >
               캐릭터 제작에 사용
             </Link>
+            {borrowId ? (
+              <Link
+                href={`/create?kind=simulation&worldBorrowId=${borrowId}`}
+                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-300 hover:bg-white/5"
+              >
+                시뮬레이션 제작에 사용
+              </Link>
+            ) : null}
           </div>
         </div>
       )}
