@@ -84,7 +84,7 @@ export type Usage = {
   exchangeRateKrwPerUsd?: number;
   exchangeRateDateKey?: string;
   exchangeRateMode?: "daily_kst" | "realtime";
-  exchangeRateSource?: "api" | "fallback";
+  exchangeRateSource?: "api" | "fallback" | "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
   breakdown: { label: string; tokens: number; pct: number }[];
   stages?: { stage: string; model: string; input: number; output: number; cost: number }[];
   fallback?: string | null;
@@ -186,4 +186,44 @@ export type Usage = {
   canonical?: boolean;
   canonAdopted?: boolean;
   canonAdoptedAt?: string;
+  /** Phase 2 shadow pricing — admin-only, never billed. Stored for diagnostics/aggregate. */
+  shadowPricing?: {
+    pricingVersion: number;
+    billingReferenceInputUsdPerMillion: number;
+    billingReferenceOutputUsdPerMillion: number;
+    billingReferenceCostKrw: number;
+    billingReferenceCostUsd: number;
+    fxSnapshot: {
+      dateKey: string;
+      source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
+      baseUsdKrw: number;
+      overseasFeeRate: number;
+      effectiveKrwPerUsd: number;
+    };
+    providerListCostStatus: string;
+    reserveStatus: string;
+    actualTurnCostCoverage?: "complete" | "partial";
+    actualProviderCostKrw: number;
+    actualCostSource: string;
+    providerListCostKrw: number;
+    inputCostKrw: number;
+    outputCostKrw: number;
+    reasoningCostKrw: number;
+    cacheReadCostKrw: number;
+    cacheWriteCostKrw: number;
+    targetMargin: number;
+    minimumMarginFloor: number;
+    standardUserChargeKrw: number;
+    promoPercent: number;
+    finalShadowChargeKrw: number;
+    finalShadowPoints: number;
+    providerSavingsKrw: number | null;
+    providerOverrunKrw: number | null;
+    promoGivebackKrw: number;
+    netPricingBufferDeltaKrw: number | null;
+    actualGrossProfitKrw: number;
+    actualRealizedMargin: number | null;
+    worstCasePromoMargin: number | null;
+    marginFloorViolated: boolean | null;
+  };
 };

@@ -11,7 +11,7 @@ import {
   adaptCheaperInferenceChatBody,
 } from "@/lib/cheaperInferenceConfig";
 import { isCheaperInferenceModel } from "@/lib/chatModels";
-import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
+import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { recordApiCost } from "@/lib/adminFinance";
 import {
   getMockResponseText,
@@ -41,6 +41,8 @@ export type OpenRouterCompletionUsage = {
   cacheWriteTokens?: number;
   standardInputTokens?: number;
   reasoningOutputTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
   debugRawUsage?: unknown;
 };
 
@@ -216,9 +218,10 @@ export async function callOpenRouterCompletion(opts: {
   const data = (await res.json()) as {
     choices?: { message?: { content?: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
+    cheaper_inference?: { billing?: { billed_cost_usd?: unknown }; billed_cost_usd?: unknown };
   };
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-  const parsedUsage = parseOpenRouterUsage(data.usage, res.headers);
+  const parsedUsage = parseCompatibleUsage({ usage: data.usage, cheaperInference: (data as Record<string, unknown>).cheaper_inference, headers: res.headers });
   const promptTokens = parsedUsage.promptTokens || undefined;
   const completionTokens = parsedUsage.completionTokens || undefined;
   const resolvedInputTokens =
@@ -234,6 +237,8 @@ export async function callOpenRouterCompletion(opts: {
     cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
     standardInputTokens: parsedUsage.standardInputTokens || undefined,
     reasoningOutputTokens: parsedUsage.reasoningTokens || undefined,
+    cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
+    upstreamCostUsd: parsedUsage.upstreamCostUsd,
     debugRawUsage: data.usage,
   };
   try {

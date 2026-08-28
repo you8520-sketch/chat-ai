@@ -41,6 +41,8 @@ import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAud
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
+import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -597,6 +599,8 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  warmShadowBillingFxPrefetch();
 
   const db = getDb();
   const userAdminRow = db
@@ -4836,6 +4840,63 @@ export async function POST(req: Request) {
         let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
           baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
+        }
+
+        // Shadow pricing — admin-only diagnostics, never affects deductPoints(cost)
+        try {
+          const actualTurnCostCoverage = resolveActualTurnCostCoverage({
+            totalStageCount: stages.length,
+            fallbackAttempted: adultFallbackAttempted,
+            hiddenFallbackOverheadCostUsd,
+            lengthRecoveryPasses: primaryStage?.lengthRecoveryPasses,
+            lengthContinuationPasses,
+          });
+          const shadow = computeShadowPricing({
+            modelId: deliveredModelId,
+            promptTokens: apiInputTokens,
+            cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens ?? 0,
+            cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
+            outputTokens: apiContentOutputTokens ?? apiOutputTokens ?? totalOutput,
+            reasoningTokens: apiReasoningOutputTokens ?? 0,
+            cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd,
+            upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
+            actualTurnCostCoverage,
+          });
+          (baseUsageRecord as unknown as Record<string, unknown>).shadowPricing = {
+            pricingVersion: shadow.pricingVersion,
+            billingReferenceInputUsdPerMillion: shadow.billingReferenceInputUsdPerMillion,
+            billingReferenceOutputUsdPerMillion: shadow.billingReferenceOutputUsdPerMillion,
+            billingReferenceCostKrw: shadow.billingReferenceCostKrw,
+            billingReferenceCostUsd: shadow.billingReferenceCostUsd,
+            fxSnapshot: shadow.fxSnapshot,
+            providerListCostStatus: shadow.providerListCostStatus,
+            reserveStatus: shadow.reserveStatus,
+            actualTurnCostCoverage: shadow.actualTurnCostCoverage,
+            actualProviderCostKrw: shadow.actualProviderCostKrw,
+            actualCostSource: shadow.actualCostSource,
+            providerListCostKrw: shadow.providerListCostKrw,
+            inputCostKrw: shadow.inputCostKrw,
+            outputCostKrw: shadow.outputCostKrw,
+            reasoningCostKrw: shadow.reasoningCostKrw,
+            cacheReadCostKrw: shadow.cacheReadCostKrw,
+            cacheWriteCostKrw: shadow.cacheWriteCostKrw,
+            targetMargin: shadow.targetMargin,
+            minimumMarginFloor: shadow.minimumMarginFloor,
+            standardUserChargeKrw: shadow.standardUserChargeKrw,
+            promoPercent: 0,
+            finalShadowChargeKrw: shadow.finalShadowChargeKrw,
+            finalShadowPoints: shadow.finalShadowPoints,
+            providerSavingsKrw: shadow.providerSavingsKrw,
+            providerOverrunKrw: shadow.providerOverrunKrw,
+            promoGivebackKrw: shadow.promoGivebackKrw,
+            netPricingBufferDeltaKrw: shadow.netPricingBufferDeltaKrw,
+            actualGrossProfitKrw: shadow.actualGrossProfitKrw,
+            actualRealizedMargin: shadow.actualRealizedMargin,
+            worstCasePromoMargin: shadow.worstCasePromoMargin,
+            marginFloorViolated: shadow.marginFloorViolated,
+          };
+        } catch (e) {
+          console.warn("[shadowPricing] compute failed:", (e as Error).message);
         }
 
         // Muse 1-pass acceptance telemetry — DB/context only; never client SSE/variants.

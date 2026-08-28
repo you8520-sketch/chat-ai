@@ -67,7 +67,7 @@ import {
   stripInternalTagLeakage,
   trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
-import { parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
+import { parseCompatibleUsage, parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
 import {
@@ -1453,6 +1453,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   let cacheWriteTokens = 0;
   let finishReason: string | undefined;
   let lastStreamUsage: unknown = null;
+  let lastStreamCheaperInference: unknown = null;
   let usageDebugLogged = false;
   let responseModelId: string | undefined;
   let providerRequestId: string | undefined;
@@ -1513,12 +1514,26 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               completion_tokens?: number;
               prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
             };
+            cheaper_inference?: unknown;
           };
           if (typeof json.model === "string" && json.model.trim()) {
             responseModelId = json.model.trim();
           }
           if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
             providerRequestId = json.id.trim();
+          }
+          if (json.usage != null) {
+            lastStreamUsage = json.usage;
+            usageDebugLogged = true;
+            const usageObj = json.usage as { prompt_tokens?: number; completion_tokens?: number };
+            inputTokens = usageObj.prompt_tokens ?? inputTokens;
+            outputTokens = usageObj.completion_tokens ?? outputTokens;
+            const partial = parseCompatibleUsage({ usage: json.usage, cheaperInference: json.cheaper_inference });
+            if (partial.cacheReadTokens > 0) cacheReadTokens = partial.cacheReadTokens;
+            if (partial.cacheWriteTokens > 0) cacheWriteTokens = partial.cacheWriteTokens;
+          }
+          if (json.cheaper_inference != null) {
+            lastStreamCheaperInference = json.cheaper_inference;
           }
           const choice = json.choices?.[0];
           const normalizedFinish = normalizeStreamTermination(
@@ -1624,18 +1639,6 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             const outbound = yieldWithPrefill(emitDelta);
             if (outbound) yield outbound;
           }
-          if (json.usage) {
-            lastStreamUsage = json.usage;
-            // [서버 전용] Node.js dev server 터미널 — 스트림 usage 청크 수신 시 (ChatClient fetch는 브라우저)
-            console.log("=== [DEBUG] API 호출 성공, 응답 수신됨 ===");
-            console.log("=== [DEBUG] USAGE DATA ===", JSON.stringify(json.usage, null, 2));
-            usageDebugLogged = true;
-            inputTokens = json.usage.prompt_tokens ?? inputTokens;
-            outputTokens = json.usage.completion_tokens ?? outputTokens;
-            const partial = parseOpenRouterUsage(json.usage);
-            if (partial.cacheReadTokens > 0) cacheReadTokens = partial.cacheReadTokens;
-            if (partial.cacheWriteTokens > 0) cacheWriteTokens = partial.cacheWriteTokens;
-          }
         } catch {
           /* 불완전 JSON */
         }
@@ -1691,7 +1694,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     break emptyStreamRetry;
   }
 
-  const usageBreakdown = parseOpenRouterUsage(lastStreamUsage, res.headers);
+  const usageBreakdown = parseCompatibleUsage({
+    usage: lastStreamUsage,
+    cheaperInference: lastStreamCheaperInference,
+    headers: res.headers,
+  });
   if (lastStreamUsage && !usageDebugLogged) {
     // usage 청크가 루프에서 누락된 경우 스트림 종료 시 한 번 더 출력
     console.log("=== [DEBUG] API 호출 성공, 응답 수신됨 (stream end) ===");
@@ -1720,6 +1727,10 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     estimated: !lastStreamUsage && (!inputTokens || !outputTokens),
     ...(usageBreakdown.upstreamCostUsd != null && usageBreakdown.upstreamCostUsd > 0
       ? { upstreamCostUsd: usageBreakdown.upstreamCostUsd }
+      : {}),
+    ...(usageBreakdown.cheaperInferenceBilledCostUsd != null &&
+    usageBreakdown.cheaperInferenceBilledCostUsd > 0
+      ? { cheaperInferenceBilledCostUsd: usageBreakdown.cheaperInferenceBilledCostUsd }
       : {}),
     ...(usageBreakdown.cacheDiscountUsd != null && usageBreakdown.cacheDiscountUsd !== 0
       ? { cacheDiscountUsd: usageBreakdown.cacheDiscountUsd }
@@ -2264,6 +2275,9 @@ export async function streamOpenRouterAdultToClient(
       ...(usage.upstreamCostUsd != null && usage.upstreamCostUsd > 0
         ? { upstreamCostUsd: usage.upstreamCostUsd }
         : {}),
+      ...(usage.cheaperInferenceBilledCostUsd != null && usage.cheaperInferenceBilledCostUsd > 0
+        ? { cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd }
+        : {}),
       ...(usage.cacheDiscountUsd != null && usage.cacheDiscountUsd !== 0
         ? { cacheDiscountUsd: usage.cacheDiscountUsd }
         : {}),
@@ -2446,7 +2460,11 @@ export async function callOpenRouterAdult(
     });
   }
 
-  const usageBreakdown = parseOpenRouterUsage(data.usage, res.headers);
+  const usageBreakdown = parseCompatibleUsage({
+    usage: data.usage,
+    cheaperInference: (data as Record<string, unknown>).cheaper_inference,
+    headers: res.headers,
+  });
   const usage: TokenUsage = data.usage
     ? {
         ...tokenUsageFromOpenRouterBreakdown({

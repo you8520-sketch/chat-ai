@@ -118,4 +118,20 @@ describe("tokenUsageFromOpenRouterBreakdown", () => {
     });
     assert.equal(usage.reasoningOutputTokens, undefined);
   });
+
+  it("preserves cheaperInferenceBilledCostUsd on TokenUsage", () => {
+    const usage = tokenUsageFromOpenRouterBreakdown({
+      promptTokens: 1000,
+      completionTokens: 200,
+      reasoningTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      standardInputTokens: 1000,
+      estimated: false,
+      upstreamCostUsd: 0.01,
+      cheaperInferenceBilledCostUsd: 0.008,
+    });
+    assert.equal(usage.cheaperInferenceBilledCostUsd, 0.008);
+    assert.equal(usage.upstreamCostUsd, 0.01);
+  });
 });

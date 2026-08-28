@@ -224,3 +224,66 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.canonAdoptedAt, undefined);
   });
 });
+
+describe("billingReceiptAccess shadow privacy", () => {
+  it("strips shadowPricing from public receipt", () => {
+    const usage = {
+      input: 100,
+      output: 200,
+      model: "claude-opus-5",
+      route: "safe" as const,
+      cost: 100,
+      breakdown: [],
+      shadowPricing: {
+        pricingVersion: 1,
+        billingReferenceInputUsdPerMillion: 5,
+        billingReferenceOutputUsdPerMillion: 25,
+        billingReferenceCostKrw: 10,
+        billingReferenceCostUsd: 0.01,
+        fxSnapshot: { dateKey: "2026-08-28", source: "api_daily", baseUsdKrw: 1530, overseasFeeRate: 0.02, effectiveKrwPerUsd: 1560.6 },
+        providerListCostStatus: "complete",
+        reserveStatus: "complete",
+        actualProviderCostKrw: 5,
+        actualCostSource: "cheaper_inference_billed",
+        providerListCostKrw: 8,
+        inputCostKrw: 5,
+        outputCostKrw: 5,
+        reasoningCostKrw: 0,
+        cacheReadCostKrw: 0,
+        cacheWriteCostKrw: 0,
+        targetMargin: 0.2,
+        minimumMarginFloor: 0.1,
+        standardUserChargeKrw: 12,
+        promoPercent: 0,
+        finalShadowChargeKrw: 12,
+        finalShadowPoints: 12,
+        providerSavingsKrw: 3,
+        providerOverrunKrw: 0,
+        promoGivebackKrw: 0,
+        netPricingBufferDeltaKrw: 3,
+        actualGrossProfitKrw: 7,
+        actualRealizedMargin: 0.5,
+        worstCasePromoMargin: 0.3,
+        marginFloorViolated: false,
+      },
+    } as unknown as Usage;
+    const pub = sanitizeUsageForPublicReceipt(usage);
+    assert.equal((pub as unknown as Record<string, unknown>).shadowPricing, undefined);
+  });
+
+  it("also strips via stripAdultRoutingForClient without keepInternal", () => {
+    const usage = {
+      input: 10,
+      output: 20,
+      model: "test",
+      route: "safe" as const,
+      cost: 1,
+      breakdown: [],
+      shadowPricing: { pricingVersion: 1 } as unknown as Usage["shadowPricing"],
+    } as unknown as Usage;
+    const client = stripAdultRoutingForClient(usage);
+    assert.equal((client as unknown as Record<string, unknown>).shadowPricing, undefined);
+    const admin = stripAdultRoutingForClient(usage, { keepInternal: true });
+    assert.ok((admin as unknown as Record<string, unknown>).shadowPricing != null);
+  });
+});

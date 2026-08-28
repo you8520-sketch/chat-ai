@@ -17,6 +17,7 @@ function baseUsage(over: Partial<Usage> = {}): Usage {
     output: 500,
     model: "gpt-5.6-terra",
     provider: "cheaperinference",
+    route: "safe",
     cost: 100,
     apiInputTokens: 1000,
     apiOutputTokens: 500,
