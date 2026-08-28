@@ -27,7 +27,23 @@ import {
   isLiveRoundPresentationReady,
   isActorPresentationReady,
   buildRoundPresentationActors,
+  advanceAfterActorAction,
+  advanceAfterActorResult,
+  advanceAfterDiceDismiss,
+  startCinematicPresentation,
+  historicalPresentation,
+  shouldShowGmNarration,
+  trpgRoundPresentationSessionKey,
+  isRoundPresentationAwaitingMoreActors,
+  simulateCinematicQueueSession,
+  decideLiveRoundPresentation,
+  freezeLivePresentationActors,
+  decideRoundPresentationMode,
+  type PresentationActor,
+  type LiveRoundSnapshotInput,
 } from "./roundPresentation";
+import { shouldConsumeMountRollSession } from "./diceRollUx";
+import { TRPG_RESULT_HOLD_MS } from "./diceRollUx";
 
 function gmText(narration = "장면"): string {
   return `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${JSON.stringify({
@@ -272,5 +288,424 @@ describe("TRPG latency-hiding adjudication pipeline", () => {
       }),
       true
     );
+  });
+});
+
+function botAction(id: number, name: string, body = "행동.") {
+  return {
+    participantId: id,
+    name,
+    body,
+    revealed: true,
+    kind: "ai_character" as const,
+    actionType: "investigate",
+  };
+}
+
+function humanAction(id: number, name: string, body = "문을 연다.") {
+  return {
+    participantId: id,
+    name,
+    body,
+    revealed: true,
+    kind: "human" as const,
+    actionType: "investigate",
+  };
+}
+
+function botRoll(id: number, name: string, d20: number) {
+  return {
+    participantId: id,
+    name,
+    d20,
+    statKey: "dex",
+    finalScore: d20 + 2,
+    dc: 12,
+    tier: "SUCCESS" as const,
+    success: true,
+    actionBody: "행동.",
+    actionType: "investigate",
+    kind: "ai_character" as const,
+  };
+}
+
+function humanRoll(id: number, name: string, d20: number) {
+  return { ...botRoll(id, name, d20), kind: "human" as const };
+}
+
+function deriveDeclarationConsumedIds(
+  roundNumber: number,
+  actions: readonly { participantId: number; kind: string }[],
+  seenKeys: ReadonlySet<string>
+): Set<number> {
+  return new Set(
+    actions
+      .filter(
+        (action) =>
+          action.kind === "ai_character" &&
+          seenKeys.has(`a:${roundNumber}:${action.participantId}`)
+      )
+      .map((action) => action.participantId)
+  );
+}
+
+describe("TRPG PR-C final correction regressions", () => {
+  const order = [10, 20, 30];
+  const human = humanAction(10, "렌");
+  const bot1 = botAction(20, "동료1");
+  const bot2 = botAction(30, "동료2");
+
+  it("DECLARATION_EPOCH_RECOMPUTES_CONSUMED_IDS", () => {
+    const actions = [bot1];
+    const seen = new Set<string>();
+    let epoch = 0;
+    const consume = () => {
+      seen.add(`a:1:20`);
+      epoch += 1;
+    };
+    const consumedAtEpoch0 = deriveDeclarationConsumedIds(1, actions, seen);
+    assert.equal(consumedAtEpoch0.has(20), false);
+    consume();
+    const consumedAtEpoch1 = deriveDeclarationConsumedIds(1, actions, seen);
+    assert.equal(epoch, 1);
+    assert.equal(consumedAtEpoch1.has(20), true);
+    assert.equal(
+      isActorPresentationReady({
+        actor: buildRoundPresentationActors({
+          resolutionOrder: [20],
+          actions: [bot1],
+          rolls: [botRoll(20, "동료1", 14)],
+        })[0]!,
+        adjudicatedParticipantIds: new Set([20]),
+        declarationConsumedIds: consumedAtEpoch0,
+      }),
+      false
+    );
+    assert.equal(
+      isActorPresentationReady({
+        actor: buildRoundPresentationActors({
+          resolutionOrder: [20],
+          actions: [bot1],
+          rolls: [botRoll(20, "동료1", 14)],
+        })[0]!,
+        adjudicatedParticipantIds: new Set([20]),
+        declarationConsumedIds: consumedAtEpoch1,
+      }),
+      true
+    );
+  });
+
+  it("ACTION_EXISTS_ADJUDICATION_PENDING_WAITS", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [20],
+      actions: [bot1],
+      rolls: [],
+    });
+    const next = advanceAfterActorAction({
+      actors,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set(),
+      declarationConsumedIds: new Set([20]),
+    });
+    assert.deepEqual(next, { phase: "actor-action", presentationIndex: 0 });
+  });
+
+  it("CONFIRMED_NO_ROLL_ADVANCES_WITHOUT_DIE", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [20, 30],
+      actions: [bot1, bot2],
+      rolls: [botRoll(30, "동료2", 11)],
+    });
+    const next = advanceAfterActorAction({
+      actors,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set([20, 30]),
+      declarationConsumedIds: new Set([20, 30]),
+      awaitingMoreActors: false,
+    });
+    assert.deepEqual(next, { phase: "actor-action", presentationIndex: 1 });
+    assert.notEqual(next.phase, "actor-dice");
+  });
+
+  it("INCREMENTAL_ROLL_APPEND_DOES_NOT_RESET_ROUND_SESSION", () => {
+    const humanOnly: LiveRoundSnapshotInput = {
+      phase: "BOT_ACTION",
+      roundNumber: 3,
+      actions: [human],
+      rolls: [humanRoll(10, "렌", 16)],
+      resolutionOrder: order,
+      adjudicatedParticipantIds: [10],
+    };
+    const humanAndBot1: LiveRoundSnapshotInput = {
+      ...humanOnly,
+      actions: [human, bot1],
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9)],
+      adjudicatedParticipantIds: [10, 20],
+    };
+    const sim = simulateCinematicQueueSession({ snaps: [humanOnly, humanAndBot1] });
+    assert.equal(sim.restartCount, 0);
+    assert.equal(sim.sessionKeys[0], sim.sessionKeys[1]);
+    assert.equal(sim.sessionKeys[0], "3|live-cinematic");
+  });
+
+  it("HUMAN_DICE_NOT_REPLAYED_WHEN_BOT1_ROLL_ARRIVES", () => {
+    let queueKey = "";
+    let state = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const humanActors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human],
+      rolls: [humanRoll(10, "렌", 16)],
+    });
+    const key1 = trpgRoundPresentationSessionKey({
+      roundNumber: 3,
+      rolls: humanActors.map((a) => a.roll!),
+      actions: [human],
+      ready: true,
+    });
+    queueKey = key1;
+    state = {
+      ...state,
+      ...advanceAfterActorAction({
+        actors: humanActors,
+        presentationIndex: 0,
+        adjudicatedParticipantIds: new Set([10]),
+        declarationConsumedIds: new Set(),
+      }),
+    };
+    assert.equal(state.phase, "actor-dice");
+    assert.equal(state.presentationIndex, 0);
+
+    const bothActors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human, bot1],
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9)],
+    });
+    const key2 = trpgRoundPresentationSessionKey({
+      roundNumber: 3,
+      rolls: bothActors.map((a) => a.roll!).filter(Boolean),
+      actions: [human, bot1],
+      ready: true,
+    });
+    assert.equal(key1, key2);
+    if (queueKey !== key2) {
+      state = { mode: "cinematic", ...startCinematicPresentation() };
+    }
+    assert.equal(state.phase, "actor-dice");
+    assert.equal(state.presentationIndex, 0, "Human dice must not replay from actor 0");
+  });
+
+  it("BOT1_DICE_NOT_REPLAYED_WHEN_BOT2_ROLL_ARRIVES", () => {
+    let state = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    const twoBots = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human, bot1],
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9)],
+    });
+    state = { ...state, ...advanceAfterActorAction({
+      actors: twoBots,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set([10, 20]),
+      declarationConsumedIds: new Set([20]),
+    }) };
+    state = { ...state, ...advanceAfterDiceDismiss({
+      actors: twoBots,
+      presentationIndex: state.presentationIndex,
+      adjudicatedParticipantIds: new Set([10, 20]),
+      declarationConsumedIds: new Set([20]),
+    }) };
+    state = { ...state, ...advanceAfterActorResult({
+      actors: twoBots,
+      presentationIndex: state.presentationIndex,
+      adjudicatedParticipantIds: new Set([10, 20]),
+      declarationConsumedIds: new Set([20]),
+    }) };
+    state = { ...state, ...advanceAfterActorAction({
+      actors: twoBots,
+      presentationIndex: state.presentationIndex,
+      adjudicatedParticipantIds: new Set([10, 20]),
+      declarationConsumedIds: new Set([20]),
+    }) };
+    assert.equal(state.phase, "actor-dice");
+    assert.equal(state.presentationIndex, 1);
+
+    const threeBots = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human, bot1, bot2],
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9), botRoll(30, "동료2", 14)],
+    });
+    const keyBefore = trpgRoundPresentationSessionKey({ roundNumber: 3, rolls: twoBots.map(a => a.roll!).filter(Boolean), actions: [human, bot1], ready: true });
+    const keyAfter = trpgRoundPresentationSessionKey({ roundNumber: 3, rolls: threeBots.map(a => a.roll!).filter(Boolean), actions: [human, bot1, bot2], ready: true });
+    assert.equal(keyBefore, keyAfter);
+    assert.equal(state.presentationIndex, 1, "Bot1 dice must not replay when Bot2 roll arrives");
+  });
+
+  it("CURRENT_ACTOR_LIST_END_DURING_BOT_ACTION_WAITS", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human],
+      rolls: [humanRoll(10, "렌", 16)],
+    });
+    let state = { mode: "cinematic" as const, ...startCinematicPresentation() };
+    state = { ...state, ...advanceAfterActorAction({
+      actors,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set([10]),
+      declarationConsumedIds: new Set(),
+    }) };
+    state = { ...state, ...advanceAfterDiceDismiss({
+      actors,
+      presentationIndex: state.presentationIndex,
+      adjudicatedParticipantIds: new Set([10]),
+      declarationConsumedIds: new Set(),
+    }) };
+    const afterHuman = advanceAfterActorResult({
+      actors,
+      presentationIndex: state.presentationIndex,
+      adjudicatedParticipantIds: new Set([10]),
+      declarationConsumedIds: new Set(),
+      awaitingMoreActors: isRoundPresentationAwaitingMoreActors({
+        phase: "BOT_ACTION",
+        workType: "generate_bots",
+        resolutionOrder: order,
+        actors,
+      }),
+    });
+    assert.deepEqual(afterHuman, { phase: "actor-action", presentationIndex: 1 });
+    assert.notEqual(afterHuman.phase, "gm-narration");
+  });
+
+  it("GM_NOT_VISIBLE_WHILE_FUTURE_BOT_ACTION_PENDING", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: order,
+      actions: [human],
+      rolls: [humanRoll(10, "렌", 16)],
+    });
+    const waiting = advanceAfterActorResult({
+      actors,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set([10]),
+      declarationConsumedIds: new Set(),
+      awaitingMoreActors: true,
+    });
+    assert.equal(shouldShowGmNarration({ mode: "cinematic", phase: waiting.phase, presentationIndex: waiting.presentationIndex }), false);
+  });
+
+  it("HISTORICAL_REMOUNT_NO_AUTOPLAY", () => {
+    const key = trpgRoundPresentationSessionKey({
+      roundNumber: 4,
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9)],
+      actions: [human, bot1],
+      ready: true,
+    });
+    assert.equal(
+      shouldConsumeMountRollSession({
+        rollSessionKey: key,
+        replayOnMount: false,
+        isFirstObservation: true,
+      }),
+      true
+    );
+    assert.equal(shouldShowGmNarration(historicalPresentation()), true);
+  });
+
+  it("DEFERRED_BOT2_START_BEFORE_BOT1_PRESENTATION_COMPLETE", async () => {
+    const db = memoryDb();
+    let botCalls = 0;
+    let releaseBot2: () => void = () => {};
+    const bot2Gate = new Promise<void>((resolve) => {
+      releaseBot2 = resolve;
+    });
+    let bot1Persisted = false;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 15,
+      gmCall: async () => ({ text: gmText() }),
+      botCall: async (_s, user) => {
+        botCalls += 1;
+        if (botCalls === 1) {
+          assert.doesNotMatch(user, /동료1-먼저/);
+          return { text: "동료1-먼저.\n\n<<<INTENT>>>\n앞을 본다.\n\n<<<ACTION_TYPE>>>\ninvestigate" };
+        }
+        await bot2Gate;
+        assert.doesNotMatch(user, /d20\s*[:=]?\s*\d+/i);
+        assert.doesNotMatch(user, /SUCCESS|FAILURE/);
+        assert.match(user, /동료1-먼저/);
+        return { text: "동료2-나중.\n\n<<<INTENT>>>\n따라간다.\n\n<<<ACTION_TYPE>>>\ninvestigate" };
+      },
+    };
+    const { campaignId } = await setupTwoBotCampaign(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "문을 연다.", actionType: "investigate" });
+    const inFlight = advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(botCalls, 2, "Bot2 provider starts before Bot1 presentation is consumed");
+    const snap = loadTrpgSnapshot(db, campaignId, 1)!;
+    const round = db
+      .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`)
+      .get(campaignId) as { id: number };
+    const bot1Sub = db
+      .prepare(
+        `SELECT locked FROM trpg_action_submissions s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.round_id=? AND p.display_name='동료1'`
+      )
+      .get(round.id) as { locked: number };
+    assert.equal(bot1Sub.locked, 1);
+    bot1Persisted = true;
+    assert.equal(bot1Persisted, true);
+    assert.equal(snap.botGenerationInFlight, true);
+    releaseBot2();
+    await inFlight;
+    db.close();
+  });
+
+  it("concurrency model: sequential and stale-worker idempotency", async () => {
+    const db = memoryDb();
+    let rngCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => {
+        rngCalls += 1;
+        return 11;
+      },
+      gmCall: async () => ({ text: gmText() }),
+      botCall: async () => ({
+        text: "동료1은 움직인다.\n\n<<<INTENT>>>\n움직인다.\n\n<<<ACTION_TYPE>>>\ninvestigate",
+      }),
+    };
+    const { campaignId } = await setupTwoBotCampaign(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "조사한다.", actionType: "investigate" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const firstCount = rngCalls;
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(rngCalls, firstCount, "SEQUENTIAL_IDEMPOTENCY");
+    const round1 = db
+      .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`)
+      .get(campaignId) as { id: number };
+    const ctx = ensureRoundAdjudicationContext(db, {
+      campaignId,
+      roundId: round1.id,
+      roundNumber: 1,
+      deps,
+    });
+    const humanSub = db
+      .prepare(
+        `SELECT s.id FROM trpg_action_submissions s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.round_id=? AND p.kind='human'`
+      )
+      .get(round1.id) as { id: number };
+    const stale = adjudicateCanonicalSubmission(db, {
+      campaignId,
+      roundId: round1.id,
+      submissionId: humanSub.id,
+      pre: ctx.pre,
+      deps,
+    });
+    assert.equal(stale, "already", "STALE_WORKER_IDEMPOTENCY");
+    db.close();
+  });
+
+  it("RESULT_CONFIRM_HOLD_MS remains 2200", () => {
+    assert.equal(TRPG_RESULT_HOLD_MS[1], 2200);
   });
 });

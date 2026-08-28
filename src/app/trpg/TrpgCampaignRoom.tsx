@@ -99,6 +99,7 @@ import {
   isLiveRoundPresentationReady,
   resolveLiveRevealedActionIds,
   shouldDecorativeRevealAction,
+  isRoundPresentationAwaitingMoreActors,
   isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
   liveRoundCanonicalVisibleCount,
@@ -388,7 +389,7 @@ export default function TrpgCampaignRoom({
   const [hiddenPresentationSession, setHiddenPresentationSession] =
     useState<HiddenPresentationSession | null>(null);
   const [consumedDecorativeSessionKey, setConsumedDecorativeSessionKey] = useState<string | null>(null);
-  const [, setDeclarationRevealEpoch] = useState(0);
+  const [declarationRevealEpoch, setDeclarationRevealEpoch] = useState(0);
   const [followLatest, setFollowLatest] = useState(true);
   const [unseenLatest, setUnseenLatest] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -445,7 +446,7 @@ export default function TrpgCampaignRoom({
           )
           .map((action) => action.participantId)
       ),
-    [snap.round.number, sourceActions]
+    [declarationRevealEpoch, snap.round.number, sourceActions]
   );
   const liveActors = useMemo(
     () =>
@@ -470,6 +471,13 @@ export default function TrpgCampaignRoom({
     ? { round: snap.round.number, actors: frozenActors.actors }
     : null;
   const presentationActors = frozenActors.actors;
+  const awaitingMorePresentationActors = isRoundPresentationAwaitingMoreActors({
+    phase: String(phase),
+    workType: snap.workType,
+    botGenerationInFlight: snap.botGenerationInFlight,
+    resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
+    actors: presentationActors,
+  });
   if (presentationRoundRef.current !== snap.round.number) {
     presentationRoundRef.current = snap.round.number;
     consumedActorActionBeatRef.current = "";
@@ -577,6 +585,7 @@ export default function TrpgCampaignRoom({
           presentationIndex: prev.presentationIndex,
           adjudicatedParticipantIds,
           declarationConsumedIds,
+          awaitingMoreActors: awaitingMorePresentationActors,
         }),
       }));
       return;
@@ -602,6 +611,7 @@ export default function TrpgCampaignRoom({
           presentationIndex: prev.presentationIndex,
           adjudicatedParticipantIds,
           declarationConsumedIds,
+          awaitingMoreActors: awaitingMorePresentationActors,
         }),
       };
     });
@@ -609,6 +619,7 @@ export default function TrpgCampaignRoom({
     overlayPlayback.dismissed,
     overlayPlayback.sessionKey,
     adjudicatedParticipantIds,
+    awaitingMorePresentationActors,
     declarationConsumedIds,
     presentationActors,
     roundShow.mode,
@@ -872,10 +883,10 @@ export default function TrpgCampaignRoom({
     if (hiddenCatchUpActive) return;
     if (roundShow.mode !== "cinematic") return;
     if (roundShow.phase === "actor-action") {
-      if (!activeActorRevealBeatSatisfied) return;
       const current = presentationActors[roundShow.presentationIndex];
+      if (!current?.action) return;
+      if (!activeActorRevealBeatSatisfied) return;
       if (
-        current?.roll &&
         !isActorPresentationReady({
           actor: current,
           adjudicatedParticipantIds,
@@ -896,6 +907,7 @@ export default function TrpgCampaignRoom({
             presentationIndex: prev.presentationIndex,
             adjudicatedParticipantIds,
             declarationConsumedIds,
+            awaitingMoreActors: awaitingMorePresentationActors,
           }),
         };
       });
@@ -912,6 +924,7 @@ export default function TrpgCampaignRoom({
               presentationIndex: prev.presentationIndex,
               adjudicatedParticipantIds,
               declarationConsumedIds,
+              awaitingMoreActors: awaitingMorePresentationActors,
             }),
           };
         });
@@ -927,6 +940,7 @@ export default function TrpgCampaignRoom({
               presentationIndex: prev.presentationIndex,
               adjudicatedParticipantIds,
               declarationConsumedIds,
+              awaitingMoreActors: awaitingMorePresentationActors,
             }),
           };
         });
@@ -936,6 +950,7 @@ export default function TrpgCampaignRoom({
   }, [
     activeActorRevealBeatSatisfied,
     adjudicatedParticipantIds,
+    awaitingMorePresentationActors,
     declarationConsumedIds,
     hiddenCatchUpActive,
     presentationActorKey,

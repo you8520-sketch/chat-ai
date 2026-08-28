@@ -3,7 +3,6 @@ import {
   TRPG_EMERALD_WATCHDOG_MARGIN_MS,
   TRPG_ROLL_MAX_MS,
   trpgDiceRevealWatchdogMs,
-  trpgDiceRollSessionKey,
   trpgResultConfirmPerDieMs,
 } from "./diceRollUx";
 
@@ -589,31 +588,38 @@ export function advanceAfterActorAction(opts: {
   presentationIndex: number;
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
+  awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   const gatesProvided =
     opts.adjudicatedParticipantIds != null && opts.declarationConsumedIds != null;
-  if (actor?.roll) {
-    if (!gatesProvided) {
-      return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+  if (gatesProvided) {
+    if (!actor?.action) {
+      return { phase: "actor-action", presentationIndex: opts.presentationIndex };
     }
     if (
-      isActorPresentationReady({
+      !isActorPresentationReady({
         actor,
         adjudicatedParticipantIds: opts.adjudicatedParticipantIds!,
         declarationConsumedIds: opts.declarationConsumedIds!,
       })
     ) {
+      return { phase: "actor-action", presentationIndex: opts.presentationIndex };
+    }
+    if (actor.roll) {
       return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
     }
     return advanceToNextActor(opts.actors, opts.presentationIndex, {
       adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
       declarationConsumedIds: opts.declarationConsumedIds,
+      awaitingMoreActors: opts.awaitingMoreActors,
     });
   }
+  if (actor?.roll) {
+    return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+  }
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
-    adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
-    declarationConsumedIds: opts.declarationConsumedIds,
+    awaitingMoreActors: opts.awaitingMoreActors,
   });
 }
 
@@ -622,10 +628,12 @@ export function advanceAfterActorResult(opts: {
   presentationIndex: number;
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
+  awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
     declarationConsumedIds: opts.declarationConsumedIds,
+    awaitingMoreActors: opts.awaitingMoreActors,
   });
 }
 
@@ -634,6 +642,7 @@ export function advanceAfterDiceDismiss(opts: {
   presentationIndex: number;
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
+  awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   if (actor?.roll) {
@@ -642,7 +651,28 @@ export function advanceAfterDiceDismiss(opts: {
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
     declarationConsumedIds: opts.declarationConsumedIds,
+    awaitingMoreActors: opts.awaitingMoreActors,
   });
+}
+
+/** True while canonical actors for this round may still arrive (bot generation, locking, etc.). */
+export function isRoundPresentationAwaitingMoreActors(opts: {
+  phase: string;
+  workType: string;
+  botGenerationInFlight?: boolean;
+  resolutionOrder: readonly number[];
+  actors: readonly PresentationActor[];
+}): boolean {
+  if (opts.botGenerationInFlight) return true;
+  if (opts.workType === "generate_bots" || opts.phase === "BOT_ACTION") return true;
+  if (opts.workType === "acquire_gm_lock" || opts.phase === "LOCKING_ACTIONS") return true;
+  const order = uniqueResolutionOrder(opts.resolutionOrder);
+  if (order.length === 0) return false;
+  const actorIds = new Set(opts.actors.map((actor) => actor.actorId));
+  for (const id of order) {
+    if (!actorIds.has(id)) return true;
+  }
+  return false;
 }
 
 function advanceToNextActor(
@@ -651,10 +681,14 @@ function advanceToNextActor(
   opts?: {
     adjudicatedParticipantIds?: ReadonlySet<number>;
     declarationConsumedIds?: ReadonlySet<number>;
+    awaitingMoreActors?: boolean;
   }
 ): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const candidate = presentationIndex + 1;
   if (candidate >= actors.length) {
+    if (opts?.awaitingMoreActors) {
+      return { phase: "actor-action", presentationIndex: candidate };
+    }
     return { phase: "gm-narration", presentationIndex: Math.max(0, actors.length - 1) };
   }
   const gatesProvided =
@@ -684,18 +718,13 @@ export function actorOrderEqualsResolutionOrder(
 
 export function trpgRoundPresentationSessionKey(opts: {
   roundNumber: number;
-  rolls: readonly { participantId: number; d20: number; dc: number; tier: string }[];
-  actions: readonly { participantId: number }[];
+  rolls?: readonly { participantId: number; d20: number; dc: number; tier: string }[];
+  actions?: readonly { participantId: number }[];
   ready?: boolean;
 }): string {
   if (opts.ready === false) return "";
-  const rollKey = trpgDiceRollSessionKey(opts.roundNumber, opts.rolls);
-  if (rollKey) return rollKey;
-  const actionIds = [...new Set(opts.actions.map((action) => action.participantId))]
-    .filter((id) => Number.isInteger(id) && id > 0)
-    .sort((a, b) => a - b);
-  if (actionIds.length === 0) return "";
-  return `${opts.roundNumber}|actions:${actionIds.join(",")}`;
+  if (opts.roundNumber <= 0) return "";
+  return `${opts.roundNumber}|live-cinematic`;
 }
 
 export function freezeLivePresentationActors(opts: {
@@ -855,6 +884,52 @@ export function trpgRoundPresentationWatchdogMs(opts: {
     rolls * (TRPG_ROLL_MAX_MS + trpgResultConfirmPerDieMs(1) + ROUND_RESULT_HOLD_MS) +
     TRPG_EMERALD_WATCHDOG_MARGIN_MS;
   return Math.max(trpgDiceRevealWatchdogMs(rolls), sequential, 10_000);
+}
+
+export function simulateCinematicQueueSession(opts: {
+  snaps: readonly LiveRoundSnapshotInput[];
+}): {
+  sessionKeys: string[];
+  restartCount: number;
+  finalPresentationIndex: number;
+} {
+  let queueKey = "";
+  let state: RoundPresentationState = idlePresentation();
+  let restartCount = 0;
+  let frozen: PresentationActor[] | null = null;
+  let frozenRound: number | null = null;
+  const sessionKeys: string[] = [];
+
+  for (const snap of opts.snaps) {
+    const decided = decideLiveRoundPresentation(snap);
+    const frozenNext = freezeLivePresentationActors({
+      previous: frozen,
+      next: decided.actors,
+      ready: decided.ready,
+      roundNumber: snap.roundNumber,
+      frozenRound,
+    });
+    frozen = frozenNext.actors;
+    frozenRound = frozenNext.frozenRound;
+    sessionKeys.push(decided.sessionKey);
+
+    if (decided.sessionKey && queueKey !== decided.sessionKey) {
+      if (queueKey !== "" && state.mode === "cinematic") restartCount += 1;
+      queueKey = decided.sessionKey;
+      const mode = decideRoundPresentationMode({
+        consumeOnMount: snap.consumeOnMount === true,
+        actorCount: decided.actorCount,
+      });
+      if (mode === "cinematic") {
+        state = { mode: "cinematic", ...startCinematicPresentation() };
+      } else if (mode === "historical") {
+        state = historicalPresentation();
+      } else {
+        state = idlePresentation();
+      }
+    }
+  }
+  return { sessionKeys, restartCount, finalPresentationIndex: state.presentationIndex };
 }
 
 export type RoundPresentationFrame = {
