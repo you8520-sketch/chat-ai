@@ -208,7 +208,7 @@ describe("TRPG declaration scroll ownership", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /if \(declarationGrowthEl\) observer\.observe\(declarationGrowthEl\)/);
     assert.match(room, /scrollToFollowOwner\("ACTIVE_DECLARATION_END"/);
-    assert.match(room, /declarationReveal\.activeAiId/);
+    assert.match(room, /liveDeclaration\.activeDeclarationActorId/);
   });
 
   it("Human result to Bot declaration keeps ACTIVE_DECLARATION_END owner", () => {

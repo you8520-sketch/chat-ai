@@ -3,7 +3,10 @@ import { describe, it } from "node:test";
 import {
   decideLiveFollowOnGrowth,
   decidePassiveScrollFollowUpdate,
+  shouldDetachLiveFollowOnKey,
+  shouldDetachLiveFollowOnTouchDelta,
   shouldDetachLiveFollowOnUserIntent,
+  shouldDetachLiveFollowOnWheel,
 } from "./followLatest";
 
 describe("POST-705 passive scroll follow ownership", () => {
@@ -36,6 +39,27 @@ describe("POST-705 passive scroll follow ownership", () => {
     });
     assert.equal(passiveWhileDetached.following, false);
     assert.equal(passiveWhileDetached.unseenLatest, true);
+  });
+
+  it("downward wheel does not detach follow", () => {
+    assert.equal(shouldDetachLiveFollowOnWheel(120), false);
+    assert.equal(shouldDetachLiveFollowOnWheel(1), false);
+  });
+
+  it("upward wheel detaches follow", () => {
+    assert.equal(shouldDetachLiveFollowOnWheel(-1), true);
+    assert.equal(shouldDetachLiveFollowOnWheel(-80), true);
+    assert.equal(shouldDetachLiveFollowOnKey("ArrowUp"), true);
+    assert.equal(shouldDetachLiveFollowOnKey("PageUp"), true);
+    assert.equal(shouldDetachLiveFollowOnKey("PageDown"), false);
+  });
+
+  it("touch swipe up toward newest preserves follow; swipe down toward older detaches", () => {
+    const startY = 500;
+    const towardNewestDelta = startY - 400;
+    const towardOlderDelta = startY - 600;
+    assert.equal(shouldDetachLiveFollowOnTouchDelta(towardNewestDelta), false);
+    assert.equal(shouldDetachLiveFollowOnTouchDelta(towardOlderDelta), true);
   });
 
   it("explicit rejoin restores follow after manual detach", () => {

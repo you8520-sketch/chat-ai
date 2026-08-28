@@ -300,9 +300,9 @@ describe("TRPG contextual dice HUD", () => {
 
   it("Q: keeps declaration streaming and the single scroll owner untouched", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /resolvePreCinematicDeclarationReveal/);
+    assert.match(room, /resolveLiveActorDeclarationPresentation/);
     assert.match(room, /resolveTrpgLiveFollowOwner/);
-    assert.match(room, /activeDeclarationReveal: declarationReveal\.activeAiId != null/);
+    assert.match(room, /activeDeclarationReveal: liveDeclaration\.activeDeclarationActorId != null/);
     assert.match(room, /data-trpg-live-follow-owner/);
   });
 
