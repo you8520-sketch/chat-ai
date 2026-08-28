@@ -185,6 +185,55 @@ describe("TRPG declaration scroll ownership", () => {
     assert.match(room, /programmaticScrollRef\.current\) return/);
   });
 
+  it("DECLARATION_SCROLL_TARGET and growth observer use different refs", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /declarationEndRef/);
+    assert.match(room, /declarationGrowthRef/);
+    assert.match(room, /data-trpg-declaration-end/);
+    assert.match(room, /data-trpg-declaration-growth/);
+    assert.match(room, /scrollToFollowOwner\("ACTIVE_DECLARATION_END"/);
+    assert.match(room, /alignReadingBandEnd\(declarationEndRef\.current/);
+    assert.match(room, /declarationGrowthEl/);
+    assert.doesNotMatch(
+      room,
+      /observer\.observe\(declarationEndRef\.current\)/
+    );
+  });
+
+  it("FOLLOWING + ACTIVE_DECLARATION_GROWTH autoFollows via declaration growth observer", () => {
+    const growth = decideLiveFollowOnGrowth({ following: true });
+    assert.equal(growth.autoFollow, true);
+    assert.equal(growth.unseenLatest, false);
+
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /if \(declarationGrowthEl\) observer\.observe\(declarationGrowthEl\)/);
+    assert.match(room, /scrollToFollowOwner\("ACTIVE_DECLARATION_END"/);
+    assert.match(room, /declarationReveal\.activeAiId/);
+  });
+
+  it("Human result to Bot declaration keeps ACTIVE_DECLARATION_END owner", () => {
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        activeDeclarationReveal: true,
+        freshGmRound: null,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "ACTIVE_DECLARATION_END"
+    );
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        activeDeclarationReveal: false,
+        freshGmRound: null,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
+  });
+
   it("GM follow owner unchanged when no active declaration", () => {
     assert.equal(
       resolveTrpgLiveFollowOwner({

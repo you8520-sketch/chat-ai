@@ -290,6 +290,30 @@ export function shouldAdvanceActorDiceAfterOverlayDismiss(opts: {
   return opts.overlayDismissed && opts.overlaySessionKey === opts.activeRollSessionKey;
 }
 
+/** Per-actor dice session during cinematic actor-dice; aggregate key otherwise. */
+export function activePresentationDiceSessionKey(opts: {
+  roundNumber: number;
+  mode: string;
+  phase: string;
+  activeRoll: TrpgDiceRollSessionFields | null | undefined;
+  aggregateRollSessionKey: string;
+}): string {
+  if (opts.mode === "cinematic" && opts.phase === "actor-dice" && opts.activeRoll) {
+    return trpgDiceRollSessionKey(opts.roundNumber, [opts.activeRoll]);
+  }
+  return opts.aggregateRollSessionKey;
+}
+
+/** Presentation gate: overlay dismiss applies only to the active dice session owner. */
+export function overlayPresentationDismissed(opts: {
+  overlayDismissed: boolean;
+  overlaySessionKey: string;
+  presentationDiceSessionKey: string;
+}): boolean {
+  if (!opts.presentationDiceSessionKey) return false;
+  return opts.overlayDismissed && opts.overlaySessionKey === opts.presentationDiceSessionKey;
+}
+
 export function trpgDiceOverlayActive(_phase: string, rolls: readonly TrpgPublicRoll[]): boolean {
   return rolls.length > 0;
 }

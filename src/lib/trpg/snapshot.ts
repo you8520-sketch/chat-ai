@@ -101,6 +101,7 @@ export type TrpgCampaignSnapshot = {
   suggestedPcStats: Record<string, number> | null;
   viewerParticipantId: number | null;
   viewerPersonaId: number | null;
+  viewerUserId: number;
   viewerIsHost: boolean;
   botRetryRequired: boolean;
   /**

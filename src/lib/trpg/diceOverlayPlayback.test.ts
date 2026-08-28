@@ -3,19 +3,24 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   applyTrpgDiceOverlaySession,
+  activePresentationDiceSessionKey,
+  overlayPresentationDismissed,
   shouldAdvanceActorDiceAfterOverlayDismiss,
   trpgDiceOverlayPlaybackReport,
   trpgDiceOverlayPlayOwnerSessionKey,
   trpgDiceOverlaySessionAction,
   trpgDiceRollSessionKey,
+  trpgDiceOverlayVisible,
 } from "./diceRollUx";
 import {
+  advanceAfterActorAction,
   advanceAfterDiceDismiss,
   buildRoundPresentationActors,
   shouldShowActorResultLane,
   startCinematicPresentation,
   type PresentationActor,
 } from "./roundPresentation";
+import { IDLE_DICE_PRESENTATION, nextDicePresentation } from "./diceRevealGate";
 
 const rollA = {
   participantId: 10,
@@ -284,5 +289,180 @@ describe("TRPG dice overlay playback session handshake", () => {
       false,
       "aligned report blocks premature advance"
     );
+  });
+
+  it("T_DICE_H_B1_B2_CHAIN: human dismiss cannot satisfy bot overlays", () => {
+    const round = 5;
+    const keyH = sessionKey(round, rollA);
+    const keyB1 = sessionKey(round, rollB);
+    const rollC = {
+      ...rollB,
+      participantId: 30,
+      name: "동료2",
+      d20: 14,
+    };
+    const keyB2 = sessionKey(round, rollC);
+    assert.notEqual(keyH, keyB1);
+    assert.notEqual(keyB1, keyB2);
+
+    let playOwner = "";
+    let play = { started: false, dismissed: false, index: 0 };
+
+    const startOverlay = (key: string, prevKey: string) => {
+      const action = trpgDiceOverlaySessionAction({
+        rollSessionKey: key,
+        prevRollSessionKey: prevKey,
+        consumed: false,
+        started: play.started,
+        dismissed: play.dismissed,
+      });
+      assert.equal(action, "start");
+      play = applyTrpgDiceOverlaySession(play, action);
+      playOwner = trpgDiceOverlayPlayOwnerSessionKey(action, key);
+      const started = trpgDiceOverlayPlaybackReport({
+        incomingSessionKey: key,
+        playOwnerSessionKey: playOwner,
+        play,
+        settled: false,
+        rollCount: 1,
+      });
+      assert.equal(started.visible, true, "overlay started visible");
+      assert.equal(trpgDiceOverlayVisible(play.started, play.dismissed, 1), true);
+      return started;
+    };
+
+    const dismissOverlay = (key: string) => {
+      play = { ...play, dismissed: true };
+      return trpgDiceOverlayPlaybackReport({
+        incomingSessionKey: key,
+        playOwnerSessionKey: playOwner,
+        play,
+        settled: true,
+        rollCount: 1,
+      });
+    };
+
+    const humanStarted = startOverlay(keyH, "");
+    assert.equal(humanStarted.dismissed, false);
+    const humanDismissed = dismissOverlay(keyH);
+    assert.equal(humanDismissed.dismissed, true);
+    assert.equal(
+      shouldAdvanceActorDiceAfterOverlayDismiss({
+        phase: "actor-dice",
+        mode: "cinematic",
+        overlayDismissed: humanDismissed.dismissed,
+        overlaySessionKey: humanDismissed.sessionKey,
+        activeRollSessionKey: keyB1,
+      }),
+      false,
+      "HUMAN_DISMISS_DOES_NOT_DISMISS_BOT1"
+    );
+
+    play = { started: false, dismissed: false, index: 0 };
+    playOwner = "";
+    const bot1Started = startOverlay(keyB1, keyH);
+    assert.equal(bot1Started.visible, true, "BOT1_OVERLAY_STARTED");
+    assert.equal(
+      shouldShowActorResultLane({
+        actorId: rollB.participantId,
+        actors: buildRoundPresentationActors({
+          resolutionOrder: [10, 20, 30],
+          actions: [
+            { participantId: 10, name: "유저", kind: "human", body: "a", revealed: true },
+            { participantId: 20, name: "동료", kind: "ai_character", body: "b", revealed: true },
+          ],
+          rolls: [rollA, rollB],
+        }),
+        state: { mode: "cinematic", phase: "actor-dice", presentationIndex: 1 },
+      }),
+      false,
+      "BOT1_RESULT_BEFORE_OVERLAY_DISMISS"
+    );
+    const bot1Dismissed = dismissOverlay(keyB1);
+    assert.equal(
+      shouldAdvanceActorDiceAfterOverlayDismiss({
+        phase: "actor-dice",
+        mode: "cinematic",
+        overlayDismissed: bot1Dismissed.dismissed,
+        overlaySessionKey: bot1Dismissed.sessionKey,
+        activeRollSessionKey: keyB1,
+      }),
+      true
+    );
+    assert.equal(
+      shouldAdvanceActorDiceAfterOverlayDismiss({
+        phase: "actor-dice",
+        mode: "cinematic",
+        overlayDismissed: bot1Dismissed.dismissed,
+        overlaySessionKey: bot1Dismissed.sessionKey,
+        activeRollSessionKey: keyB2,
+      }),
+      false,
+      "BOT1_DISMISS_DOES_NOT_DISMISS_BOT2"
+    );
+
+    play = { started: false, dismissed: false, index: 0 };
+    playOwner = "";
+    const bot2Started = startOverlay(keyB2, keyB1);
+    assert.equal(bot2Started.visible, true, "BOT2_OVERLAY_STARTED");
+    const bot2Dismissed = dismissOverlay(keyB2);
+    assert.equal(bot2Dismissed.dismissed, true);
+
+    const aggregate = trpgDiceRollSessionKey(round, [rollA, rollB, rollC]);
+    assert.notEqual(aggregate, keyB1);
+    assert.equal(
+      overlayPresentationDismissed({
+        overlayDismissed: bot1Dismissed.dismissed,
+        overlaySessionKey: bot1Dismissed.sessionKey,
+        presentationDiceSessionKey: activePresentationDiceSessionKey({
+          roundNumber: round,
+          mode: "cinematic",
+          phase: "actor-dice",
+          activeRoll: rollB,
+          aggregateRollSessionKey: aggregate,
+        }),
+      }),
+      true,
+      "per-actor presentation dismiss owner matches overlay playback"
+    );
+    assert.equal(
+      overlayPresentationDismissed({
+        overlayDismissed: bot1Dismissed.dismissed,
+        overlaySessionKey: bot1Dismissed.sessionKey,
+        presentationDiceSessionKey: aggregate,
+      }),
+      false,
+      "aggregate key must not accidentally dismiss per-actor overlay"
+    );
+
+    let presentation = IDLE_DICE_PRESENTATION;
+    presentation = nextDicePresentation(presentation, {
+      rollSessionKey: aggregate,
+      roundNumber: round,
+      overlayVisible: false,
+      overlaySettled: false,
+      overlayDismissed: false,
+      mountConsume: false,
+    });
+    assert.equal(presentation.state, "pending");
+    presentation = nextDicePresentation(presentation, {
+      rollSessionKey: aggregate,
+      roundNumber: round,
+      overlayVisible: bot1Started.visible,
+      overlaySettled: false,
+      overlayDismissed: overlayPresentationDismissed({
+        overlayDismissed: bot1Dismissed.dismissed,
+        overlaySessionKey: bot1Dismissed.sessionKey,
+        presentationDiceSessionKey: activePresentationDiceSessionKey({
+          roundNumber: round,
+          mode: "cinematic",
+          phase: "actor-dice",
+          activeRoll: rollB,
+          aggregateRollSessionKey: aggregate,
+        }),
+      }),
+      mountConsume: false,
+    });
+    assert.equal(presentation.state, "playing");
   });
 });

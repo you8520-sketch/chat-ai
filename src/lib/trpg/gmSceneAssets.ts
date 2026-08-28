@@ -112,6 +112,42 @@ export function eligibleTrpgCharacterAssets(assets: CharacterAsset[]): Character
   return chatAssets(assets).filter((asset) => asset.moderationReject !== true && asset.tag.trim());
 }
 
+/** Viewer-facing TRPG scene visibility — canonical eligibility plus unlock/creator/public rules. */
+export function isTrpgCharacterAssetVisibleToViewer(
+  asset: CharacterAsset,
+  opts: {
+    viewerIsCreator: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+  }
+): boolean {
+  if (opts.viewerIsCreator) return true;
+  if (opts.unlockedUrls?.has(asset.url)) return true;
+  return asset.viewerBlur !== true;
+}
+
+export function viewerVisibleTrpgCharacterAssets(
+  assets: CharacterAsset[],
+  opts: {
+    viewerIsCreator: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+  }
+): CharacterAsset[] {
+  return eligibleTrpgCharacterAssets(assets).filter((asset) =>
+    isTrpgCharacterAssetVisibleToViewer(asset, opts)
+  );
+}
+
+/** Final TRPG scene render gate — matches TrpgCharacterSceneAsset (no blur fallback). */
+export function shouldRenderTrpgCharacterSceneAsset(
+  asset: CharacterAsset,
+  opts: {
+    viewerIsCreator: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+  }
+): boolean {
+  return isTrpgCharacterAssetVisibleToViewer(asset, opts);
+}
+
 export function uniqueCharacterAssetTags(assets: CharacterAsset[]): string[] {
   const seen = new Set<string>();
   const tags: string[] = [];
@@ -242,6 +278,21 @@ export function selectStableTaggedAsset(
   seed: string
 ): CharacterAsset | null {
   const matches = findAssetsByTag(eligibleTrpgCharacterAssets(assets), tag);
+  if (matches.length === 0) return null;
+  return matches[stablePickIndex(seed, matches.length)] ?? null;
+}
+
+export function selectStableViewerVisibleTaggedAsset(
+  assets: CharacterAsset[],
+  tag: string,
+  seed: string,
+  opts: {
+    viewerIsCreator: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+  }
+): CharacterAsset | null {
+  const visible = viewerVisibleTrpgCharacterAssets(assets, opts);
+  const matches = findAssetsByTag(visible, tag);
   if (matches.length === 0) return null;
   return matches[stablePickIndex(seed, matches.length)] ?? null;
 }

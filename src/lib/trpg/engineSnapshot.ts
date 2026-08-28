@@ -371,6 +371,7 @@ export function loadTrpgSnapshot(
     suggestedPcStats: scenario.defaultPcStats,
     viewerParticipantId: viewer?.id ?? null,
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
+    viewerUserId,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     botRetryRequired: work.type === "bot_retry_required",
     needsHostFill: false,
@@ -440,7 +441,8 @@ export function loadTrpgSnapshot(
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
     aiCharacterAssets: toPublicAiCharacterAssets(
-      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts))
+      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts)),
+      viewerUserId
     ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
     gmFailureHint:
