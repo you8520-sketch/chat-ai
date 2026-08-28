@@ -15,6 +15,8 @@ import { getDb } from "@/lib/db";
 import { createCharacterFromForm, updateCharacterFromForm } from "@/lib/characterFormSave";
 import {
   loadCharacterChunksForPrompt,
+  buildCharacterChunksFromSafeRuntimeCanon,
+  casPublishCharacterSettingChunks,
   type CharacterSettingRow,
 } from "@/lib/characterChunks";
 import { deserializeCharacterChunks } from "@/utils/characterParser";
@@ -765,7 +767,7 @@ describe("english hash semantics (E1/E2/E3)", () => {
 });
 
 describe("race — stale worker CAS (R1/R2/R3)", () => {
-  it("R1 — character translation v1 job, save v2, v1 completes — no publish", async () => {
+  it("R1 — three-stage: v1 suspended, v2 publishes, v1 release cannot clobber v2 English", async () => {
     const userId = 92201;
     process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
     process.env.CHEAPER_INFERENCE_API_KEY = "test";
@@ -779,32 +781,128 @@ describe("race — stale worker CAS (R1/R2/R3)", () => {
     const characterId = (created as { id: number }).id;
 
     const db = getDb();
-    const job = claimJobForEntity(db, {
+    const v1Job = claimJobForEntity(db, {
       jobKind: "character_derived_refresh",
       entityType: "character",
       entityId: characterId,
     });
-    assert.ok(job);
+    assert.ok(v1Job);
 
-    const deferred = installDeferredProviderFetch();
+    type RacePhase = "v1-blocked" | "v2-run" | "v1-release";
+    let phase: RacePhase = "v1-blocked";
+    const deferred = installDeferredProviderFetch((body) => {
+      if (isAppearanceFetchBody(body)) {
+        return mockAppearanceCompileResponse("compiled appearance EN");
+      }
+      if (phase === "v1-blocked") return null;
+      if (phase === "v2-run") {
+        return mockTranslationResponseForBody(body, "V2_CURRENT_EN");
+      }
+      return mockTranslationResponseForBody(body, "V1_STALE_EN");
+    });
+
     try {
-      await runDeferredRaceAfterSave({
-        db,
-        job: job!,
-        deferred,
-        save: () =>
-          updateCharacterFromForm(
-            { id: userId, nickname: `user${userId}`, is_adult: 1 },
-            characterId,
-            simulationBody({ name: "r1-v2", simulation_cast: `${LONG_PROMPT}\nR1` })
-          ),
+      const v1WorkerPromise = processDerivedCacheJob(db, v1Job!);
+      await waitFor(() => deferred.pendingCount > 0);
+
+      const saveV2 = await updateCharacterFromForm(
+        { id: userId, nickname: `user${userId}`, is_adult: 1 },
+        characterId,
+        simulationBody({ name: "r1-v2", simulation_cast: `${LONG_PROMPT}\nR1-V2-UNIQUE` })
+      );
+      assert.equal(saveV2.ok, true);
+
+      phase = "v2-run";
+      const v2Row = loadCharacterSettingRow(db, characterId)!;
+      const v2Fingerprint = characterCanonicalSourceFingerprintFromRow(v2Row);
+      const v2Job = claimJobForEntity(db, {
+        jobKind: "character_derived_refresh",
+        entityType: "character",
+        entityId: characterId,
+        sourceFingerprint: v2Fingerprint,
       });
+      assert.ok(v2Job);
+      await processDerivedCacheJob(db, v2Job!);
+
+      const snapshotRow = loadCharacterRow(characterId);
+      const snapshotKorean = deserializeCharacterChunks(snapshotRow.setting_chunks ?? "[]");
+      const snapshotEnglish = loadEnglishChunks(snapshotRow, snapshotKorean);
+      assert.ok(snapshotEnglish, "v2 English must be current before v1 release");
+      assert.ok(
+        snapshotEnglish!.some((c) => c.content.includes("V2_CURRENT_EN")),
+        "v2 English must contain V2_CURRENT_EN marker"
+      );
+      const snapshotHash = snapshotRow.prompt_translation_hash ?? "";
+      const snapshotEnJson = snapshotRow.setting_chunks_en ?? "";
+      assert.equal(
+        snapshotHash,
+        koreanChunksTranslationFingerprint(snapshotKorean),
+        "v2 hash must match v2 Korean fingerprint"
+      );
+
+      phase = "v1-release";
+      while (deferred.pendingCount > 0) {
+        const body = deferred.bodies[deferred.calls - deferred.pendingCount] ?? "";
+        resolveDeferredFetchBody(deferred, body);
+      }
+      await v1WorkerPromise;
+
+      const afterRow = loadCharacterRow(characterId);
+      const afterKorean = deserializeCharacterChunks(afterRow.setting_chunks ?? "[]");
+      assert.equal(afterRow.setting_chunks, snapshotRow.setting_chunks, "R1_V2_SETTING_CHUNKS_PRESERVED");
+      assert.equal(afterRow.setting_chunks_en, snapshotEnJson, "R1_V2_ENGLISH_PRESERVED");
+      assert.equal(afterRow.prompt_translation_hash, snapshotHash, "R1_V2_HASH_PRESERVED");
+      assert.ok(!afterRow.setting_chunks_en?.includes("V1_STALE_EN"), "R1_OLD_RESULT_UPDATE_CHANGES=0");
+      const afterEnglish = loadEnglishChunks(afterRow, afterKorean);
+      assert.ok(afterEnglish?.some((c) => c.content.includes("V2_CURRENT_EN")));
+      assert.ok(!afterEnglish?.some((c) => c.content.includes("V1_STALE_EN")));
     } finally {
       deferred.restore();
     }
+  });
 
-    const row = loadCharacterRow(characterId);
-    assert.ok(!row.setting_chunks_en?.includes("R1-STALE"));
+  it("R1B — stale worker CAS cannot restore v1 setting_chunks over v2", async () => {
+    const userId = 92204;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    seedUser(userId);
+
+    const created = await createCharacterFromForm(
+      { id: userId, nickname: `user${userId}`, is_adult: 1 },
+      simulationBody({ name: "r1b-v1" })
+    );
+    assert.equal(created.ok, true);
+    const characterId = (created as { id: number }).id;
+
+    const db = getDb();
+    const v1Row = loadCharacterSettingRow(db, characterId)!;
+    const v1ExpectedChunks = v1Row.setting_chunks?.trim() || "[]";
+    const v1Rebuilt = buildCharacterChunksFromSafeRuntimeCanon(characterId, {
+      name: v1Row.name,
+      gender: "other",
+      safeRuntimeCanon: v1Row.system_prompt ?? LONG_PROMPT,
+      exampleDialog: v1Row.example_dialog ?? "",
+    });
+
+    await updateCharacterFromForm(
+      { id: userId, nickname: `user${userId}`, is_adult: 1 },
+      characterId,
+      simulationBody({ name: "r1b-v2", simulation_cast: `${LONG_PROMPT}\nR1B-V2-MARKER` })
+    );
+
+    const v2Row = loadCharacterSettingRow(db, characterId)!;
+    const v2ChunksJson = v2Row.setting_chunks ?? "[]";
+    assert.notEqual(v2ChunksJson, v1ExpectedChunks);
+
+    const published = casPublishCharacterSettingChunks(characterId, {
+      expectedExistingSettingChunks: v1ExpectedChunks,
+      rebuiltChunks: v1Rebuilt,
+      canonicalRow: v1Row,
+    });
+    assert.equal(published, false);
+
+    const after = loadCharacterSettingRow(db, characterId)!;
+    assert.equal(after.setting_chunks, v2ChunksJson);
+    assert.equal(after.name, "r1b-v2");
   });
 
   it("R2 — world translation v1, save v2 content, v1 completes — no publish", async () => {
@@ -1390,10 +1488,11 @@ describe("share world english consumer", () => {
     assert.equal(borrowed.ok, true);
     if (!borrowed.ok) return;
 
-    let dedicatedWorldCalls = 0;
+    let providerCalls = 0;
     const deferred = installDeferredProviderFetch((body) => {
+      providerCalls += 1;
       if (countDedicatedWorldTranslationCalls([body], "공유 미번역") > 0) {
-        dedicatedWorldCalls += 1;
+        return mockTranslationResponseForBody(body, "should-not-run");
       }
       return mockTranslationResponseForBody(body, "borrower identity only");
     });
@@ -1412,8 +1511,8 @@ describe("share world english consumer", () => {
       const ok = await translateCharacterChunksForDerivedRefresh(characterId, chunks);
       if (chunks.some((chunk) => chunk.category === "world")) {
         assert.equal(ok, false);
+        assert.equal(providerCalls, 0, "LINKED_WORLD_PENDING_CHARACTER_TRANSLATION_CALLS_BEFORE_WORLD_READY=0");
       }
-      assert.equal(dedicatedWorldCalls, 0);
 
       const shareJobsAfter = db
         .prepare(

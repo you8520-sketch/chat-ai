@@ -1,10 +1,11 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import {
-  rebuildAndSaveCharacterChunksOnly,
-  loadCharacterChunks,
+  buildCharacterChunksFromSafeRuntimeCanon,
+  casPublishCharacterSettingChunks,
   type CharacterSettingRow,
 } from "@/lib/characterChunks";
+import { deserializeCharacterChunks } from "@/utils/characterParser";
 import {
   compileAppearanceForChat,
   hashAppearanceRaw,
@@ -131,15 +132,37 @@ async function processCharacterDerivedRefresh(
 
   const safeRuntimeCanon = rebuildSafeRuntimeCanon(refreshed);
   const gender = parseCharacterGender(refreshed.gender) ?? "other";
-
-  const rebuilt = rebuildAndSaveCharacterChunksOnly(job.entity_id, {
+  const expectedExistingSettingChunks = refreshed.setting_chunks?.trim() || "[]";
+  const rebuiltChunks = buildCharacterChunksFromSafeRuntimeCanon(job.entity_id, {
     name: refreshed.name,
     gender,
     safeRuntimeCanon,
     exampleDialog: refreshed.example_dialog ?? "",
   });
 
-  const translated = await translateCharacterChunksForDerivedRefresh(job.entity_id, rebuilt);
+  const published = casPublishCharacterSettingChunks(job.entity_id, {
+    expectedExistingSettingChunks,
+    rebuiltChunks,
+    canonicalRow: refreshed,
+  });
+
+  let chunksForTranslation = rebuiltChunks;
+  if (!published) {
+    const reloaded = loadCharacterSettingRow(db, job.entity_id);
+    if (!reloaded || characterCanonicalSourceFingerprintFromRow(reloaded) !== job.source_fingerprint) {
+      return { ok: true };
+    }
+    const currentChunks = deserializeCharacterChunks(reloaded.setting_chunks ?? "[]");
+    if (currentChunks.length === 0) {
+      return { ok: false, error: "character_translation_failed", retryable: true };
+    }
+    chunksForTranslation = currentChunks;
+  }
+
+  const translated = await translateCharacterChunksForDerivedRefresh(
+    job.entity_id,
+    chunksForTranslation
+  );
   if (!translated) {
     return { ok: false, error: "character_translation_failed", retryable: true };
   }

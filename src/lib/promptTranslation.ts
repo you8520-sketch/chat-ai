@@ -360,16 +360,17 @@ export async function translateAndSaveCharacterPromptEn(
       return true;
     }
 
+    const expectedSettingChunks = serializeCharacterChunks(chunks);
+    const expectedTranslationFingerprint = koreanChunksTranslationFingerprint(chunks);
+
     const english = await translateChunksToEnglish(chunks);
     if (english === null) return false;
 
-    const expectedSettingChunks =
-      row.setting_chunks?.trim() || serializeCharacterChunks(chunks);
     const updated = db
       .prepare(
         "UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=? AND setting_chunks=?"
       )
-      .run(JSON.stringify(english), fingerprint, characterId, expectedSettingChunks);
+      .run(JSON.stringify(english), expectedTranslationFingerprint, characterId, expectedSettingChunks);
     return updated.changes > 0;
   } catch (e) {
     console.warn("[promptTranslation] save failed:", (e as Error).message);

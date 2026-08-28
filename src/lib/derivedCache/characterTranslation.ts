@@ -77,18 +77,13 @@ export async function translateCharacterChunksForDerivedRefresh(
   const translatable = koreanChunks.filter(isTranslatableChunk);
   if (translatable.length === 0) return true;
 
+  const expectedSettingChunks = serializeCharacterChunks(koreanChunks);
+  const expectedTranslationFingerprint = koreanChunksTranslationFingerprint(koreanChunks);
+
   const worldChunks = translatable.filter((c) => c.category === "world");
   const nonWorldChunks = translatable.filter((c) => c.category !== "world");
 
   const translatedById = new Map<string, CharacterChunk>();
-
-  if (nonWorldChunks.length > 0) {
-    const nonWorldEnglish = await translateChunksToEnglish(nonWorldChunks);
-    if (nonWorldEnglish === null) return false;
-    for (const chunk of nonWorldEnglish) {
-      translatedById.set(chunk.id, chunk);
-    }
-  }
 
   if (worldChunks.length > 0) {
     const worldResolution = resolveWorldEnglishForCharacter(characterId);
@@ -108,27 +103,31 @@ export async function translateCharacterChunksForDerivedRefresh(
     }
   }
 
+  if (nonWorldChunks.length > 0) {
+    const nonWorldEnglish = await translateChunksToEnglish(nonWorldChunks);
+    if (nonWorldEnglish === null) return false;
+    for (const chunk of nonWorldEnglish) {
+      translatedById.set(chunk.id, chunk);
+    }
+  }
+
   const englishLayer = mergeTranslatedChunksInOrder(
     koreanChunks.filter(isTranslatableChunk),
     translatedById
   );
 
   const db = getDb();
-  const row = db
-    .prepare(`SELECT setting_chunks FROM characters WHERE id = ?`)
-    .get(characterId) as { setting_chunks: string | null } | undefined;
-  if (!row) return false;
-
-  const expectedSettingChunks =
-    row.setting_chunks?.trim() || serializeCharacterChunks(koreanChunks);
-  const fingerprint = koreanChunksTranslationFingerprint(koreanChunks);
-
   const result = db
     .prepare(
       `UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=?
        WHERE id=? AND setting_chunks=?`
     )
-    .run(JSON.stringify(englishLayer), fingerprint, characterId, expectedSettingChunks);
+    .run(
+      JSON.stringify(englishLayer),
+      expectedTranslationFingerprint,
+      characterId,
+      expectedSettingChunks
+    );
   return result.changes > 0;
 }
 

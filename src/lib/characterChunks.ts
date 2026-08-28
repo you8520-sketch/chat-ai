@@ -236,6 +236,62 @@ export function rebuildAndSaveCharacterChunksOnly(
   return chunks;
 }
 
+export type CharacterSettingChunksCanonicalRow = {
+  name: string;
+  gender?: string | null;
+  system_prompt?: string | null;
+  world?: string | null;
+  example_dialog?: string | null;
+  appearance_raw?: string | null;
+  creator_compiled_description_json?: string | null;
+  content_kind?: string | null;
+};
+
+/**
+ * Atomically publish rebuilt setting_chunks only when canonical source and prior chunks match.
+ * Never SELECT→unconditional UPDATE.
+ */
+export function casPublishCharacterSettingChunks(
+  characterId: number,
+  input: {
+    expectedExistingSettingChunks: string;
+    rebuiltChunks: CharacterChunk[];
+    canonicalRow: CharacterSettingChunksCanonicalRow;
+  }
+): boolean {
+  const db = getDb();
+  const serialized = serializeCharacterChunks(input.rebuiltChunks);
+  const row = input.canonicalRow;
+  const updated = db
+    .prepare(
+      `UPDATE characters SET setting_chunks = ?
+       WHERE id = ?
+         AND setting_chunks = ?
+         AND name = ?
+         AND COALESCE(gender, 'other') = ?
+         AND COALESCE(system_prompt, '') = ?
+         AND COALESCE(world, '') = ?
+         AND COALESCE(example_dialog, '') = ?
+         AND COALESCE(appearance_raw, '') = ?
+         AND COALESCE(creator_compiled_description_json, '') = ?
+         AND COALESCE(content_kind, 'character') = ?`
+    )
+    .run(
+      serialized,
+      characterId,
+      input.expectedExistingSettingChunks,
+      row.name,
+      row.gender ?? "other",
+      row.system_prompt ?? "",
+      row.world ?? "",
+      row.example_dialog ?? "",
+      row.appearance_raw ?? "",
+      row.creator_compiled_description_json ?? "",
+      row.content_kind ?? "character"
+    );
+  return updated.changes > 0;
+}
+
 /** 저장 후 Korean chunks + durable derived refresh job enqueue (no provider await). */
 export function buildSaveCharacterChunksAndEnqueueDerivedRefresh(
   characterId: number,
