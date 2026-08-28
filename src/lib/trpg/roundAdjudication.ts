@@ -13,6 +13,9 @@ import { statModifier } from "./stats";
 
 export type AdjudicationMark = "no_roll" | "skipped";
 
+/** Viewer-safe adjudication outcome per participant (derived from rolls + marks). */
+export type TrpgParticipantAdjudicationOutcome = "roll" | "no_roll" | "skipped";
+
 export type RoundAdjudicationSnapshot = {
   submissions?: Array<{ id: number; body: string }>;
   resolutionOrder?: TrpgResolutionOrderEntry[];
@@ -321,6 +324,46 @@ export function loadAdjudicatedParticipantIds(db: Database.Database, roundId: nu
     }
   }
   return [...ids];
+}
+
+export function loadParticipantAdjudicationOutcomes(
+  db: Database.Database,
+  roundId: number
+): Record<number, TrpgParticipantAdjudicationOutcome> {
+  const outcomes: Record<number, TrpgParticipantAdjudicationOutcome> = {};
+
+  const marks = loadRoundAdjudicationSnapshot(db, roundId).adjudicationMarks ?? {};
+  if (Object.keys(marks).length > 0) {
+    const subs = db
+      .prepare(`SELECT id, participant_id FROM trpg_action_submissions WHERE round_id=?`)
+      .all(roundId) as Array<{ id: number; participant_id: number }>;
+    const byId = new Map(subs.map((sub) => [sub.id, sub.participant_id]));
+    for (const [submissionId, mark] of Object.entries(marks)) {
+      if (mark !== "no_roll" && mark !== "skipped") continue;
+      const participantId = byId.get(Number(submissionId));
+      if (participantId != null) outcomes[participantId] = mark;
+    }
+  }
+
+  const rolled = db
+    .prepare(
+      `SELECT s.participant_id AS participantId
+       FROM trpg_dice_rolls r
+       JOIN trpg_action_submissions s ON s.id = r.submission_id
+       WHERE r.round_id=?`
+    )
+    .all(roundId) as Array<{ participantId: number }>;
+  for (const row of rolled) {
+    outcomes[row.participantId] = "roll";
+  }
+
+  return outcomes;
+}
+
+export function deriveAdjudicatedParticipantIds(
+  outcomes: Record<number, TrpgParticipantAdjudicationOutcome>
+): number[] {
+  return Object.keys(outcomes).map(Number);
 }
 
 /** Legacy batch entry — thin wrapper over the per-submission canonical owner. */
