@@ -2,6 +2,7 @@ import {
   peekShadowBillingFxDailySnapshot,
   previewShadowBillingFxSnapshot,
 } from "@/lib/shadowBillingExchangeRate";
+import { getMarketBenchmarks } from "@/lib/marketUsageBenchmarks";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
   computeShadowCharge,
@@ -61,9 +62,28 @@ export const PREMIUM_MARGIN_CANDIDATES = {
   opus5: [0.08, 0.1, 0.12, 0.13, 0.135, 0.14, 0.15, 0.175, 0.2] as const,
 };
 
+function primaryBenchmark(modelId: string) {
+  const rows = getMarketBenchmarks(modelId);
+  return rows[0] ?? null;
+}
+
+const gemini31Primary = primaryBenchmark("gemini-3.1-pro-preview");
+const opus5Primary = primaryBenchmark("claude-opus-5");
+
+/** Legacy single-benchmark view — canonical owner is MODEL_MARKET_BENCHMARKS. */
 export const TOKEN_USAGE_COMPETITOR_BENCHMARKS = {
-  gemini31: { inputTokens: 40689, outputTokens: 4307, chargeP: 244.2, label: "Gemini 3.1 Pro Preview" },
-  opus5: { inputTokens: 63749, outputTokens: 3629, chargeP: 741.5, label: "Claude Opus 5" },
+  gemini31: {
+    inputTokens: gemini31Primary?.inputTokens ?? 40_689,
+    outputTokens: gemini31Primary?.displayedOutputTokens ?? 4_307,
+    chargeP: gemini31Primary?.competitorChargePoints ?? 244.2,
+    label: "Gemini 3.1 Pro Preview",
+  },
+  opus5: {
+    inputTokens: opus5Primary?.inputTokens ?? 63_749,
+    outputTokens: opus5Primary?.displayedOutputTokens ?? 3_629,
+    chargeP: opus5Primary?.competitorChargePoints ?? 741.5,
+    label: "Claude Opus 5",
+  },
 } as const;
 
 export const SECONDARY_CHAR_BENCHMARKS = {
