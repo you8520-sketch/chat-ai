@@ -3,6 +3,8 @@
  * NO deduction capability. NO catalog/FX mutation. NO feature flags.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { sanitizeUsageForPublicReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { DEFAULT_SYSTEM_TOKEN_BUDGET } from "@/types";
@@ -40,16 +42,42 @@ import {
 } from "@/lib/shadowBillingExchangeRate";
 import { getKstDateKey } from "@/lib/exchangeRate";
 
+const REPO_ROOT = join(import.meta.dirname, "..", "..");
+
 export type Reachability = "reachable" | "not_reachable_current_product" | "unknown";
 export type PricingCoverage = "supported" | "unsupported" | "unknown";
 export type ReadinessCellStatus =
   | "READY"
   | "NOT_REACHABLE_CURRENT_PRODUCT"
+  | "NOT_APPLICABLE"
   | "BLOCKED"
   | "POLICY_DECISION_REQUIRED"
   | "UNKNOWN";
 
 export type ModelCutoverClassification = "A" | "B" | "C" | "D";
+
+export type AuditEvidenceStatus =
+  | "verified"
+  | "documented"
+  | "unknown"
+  | "not_implemented"
+  | "reproduced_risk";
+
+export type AuditFindingBasis =
+  | "CODE_VERIFIED"
+  | "TEST_REPRODUCED"
+  | "SOURCE_AUDIT"
+  | "POLICY_INTERPRETATION"
+  | "UNKNOWN";
+
+export type CutoverBlockerOrigin = "existing_production" | "cutover_required" | "both";
+
+export type CutoverBlocker = {
+  id: string;
+  description: string;
+  origin: CutoverBlockerOrigin;
+  basis: AuditFindingBasis;
+};
 
 export type MigrationDeltaRow = {
   modelId: string;
@@ -63,9 +91,50 @@ export type MigrationDeltaRow = {
 export type DimensionAssessment = {
   pricingCoverage: PricingCoverage;
   productReachability: Reachability;
-  effectiveCurrentProductBlocker: boolean;
+  effectiveCurrentProductBlocker: boolean | "unknown";
   readinessCell: ReadinessCellStatus;
+  evidenceChain: string[];
   notes: string;
+  basis: AuditFindingBasis;
+};
+
+export type BillingOwnerSourceAudit = {
+  chatRouteComputeTurnBillingImport: string;
+  chatRouteDeductPointsImport: string;
+  chatRouteComputeTurnBillingOwner: string;
+  canonicalComputeTurnBillingDefinition: string;
+  otherComputeTurnBillingDefinitions: string[];
+  otherDefinitionReachableFromChatRoute: boolean;
+  chatRouteDeductionCallCount: number;
+  publishedPricingLiveDeductionCalls: number;
+  currentDeductionOwnerCount: number;
+  ownerAuditSelfAssertionOnly: false;
+};
+
+export type IdempotencyAudit = {
+  idempotencyOwner: string;
+  dbEnforcedRequestIdempotency: AuditEvidenceStatus;
+  ledgerIdempotencyUniqueKey: "none" | string;
+  duplicateRequestDoubleChargePossible: AuditEvidenceStatus;
+  regenDoubleChargePossible: AuditEvidenceStatus;
+  concurrentDuplicateChargeReproduced: AuditEvidenceStatus;
+  dbUniquenessGuardPresent: boolean;
+  ledgerAtomicityStatus: AuditEvidenceStatus;
+  scenarios: {
+    singleProcessSequentialDuplicate: AuditEvidenceStatus;
+    multiWorkerConcurrentDuplicate: AuditEvidenceStatus;
+    retryAfterCommit: AuditEvidenceStatus;
+    regeneration: AuditEvidenceStatus;
+  };
+};
+
+export type FxAuditEvidence = {
+  shadowOneTurnOneFxSnapshot: AuditEvidenceStatus;
+  shadowAdminReadCanLockFx: AuditEvidenceStatus;
+  shadowMidnightBoundaryPass: AuditEvidenceStatus;
+  shadowFxFallbackReady: AuditEvidenceStatus;
+  futurePublishedOneTurnOneFxSnapshot: AuditEvidenceStatus;
+  currentLegacyFxContract: AuditEvidenceStatus;
 };
 
 export type LiveBillingCutoverAuditReport = {
@@ -73,8 +142,7 @@ export type LiveBillingCutoverAuditReport = {
   auditVersion: string;
   liveUserChargeCalculationOwner: string;
   livePointDeductionOwner: string;
-  currentDeductionOwnerCount: number;
-  publishedPricingLiveDeductionCalls: number;
+  billingOwnerAudit: BillingOwnerSourceAudit;
   reachability: {
     g37Cache: Reachability;
     g31Above200k: Reachability;
@@ -89,28 +157,16 @@ export type LiveBillingCutoverAuditReport = {
     billableStageSelectionOwnerCount: number;
     billableInputOwnerCount: number;
     billableOutputOwnerCount: number;
-    reasoningDoubleCountPossible: boolean;
-    multiStageUsageComplete: "true" | "false" | "unknown";
-    fallbackUsageComplete: "true" | "false" | "unknown";
-    continuationUsageComplete: "true" | "false" | "unknown";
+    reasoningDoubleCountPossible: AuditEvidenceStatus;
+    multiStageUsageComplete: AuditEvidenceStatus;
+    fallbackUsageComplete: AuditEvidenceStatus;
+    continuationUsageComplete: AuditEvidenceStatus;
   };
-  idempotency: {
-    idempotencyOwner: string;
-    duplicateRequestDoubleChargePossible: boolean;
-    regenDoubleChargePossible: boolean;
-    ledgerAtomicityStatus: "DOCUMENTED" | "UNKNOWN";
-  };
-  fx: {
-    oneTurnOneFxSnapshot: boolean;
-    intraturnFxDriftPossible: boolean;
-    adminReadCanLockFx: boolean;
-    midnightBoundaryPass: boolean;
-    fxFallbackReady: boolean;
-    liveChargeCanResolveFxWithoutBlockingChat: boolean;
-  };
+  idempotency: IdempotencyAudit;
+  fx: FxAuditEvidence;
   receipt: {
     publicReceiptInternalLeakPaths: number;
-    historicalPricingSnapshotComplete: boolean;
+    historicalPricingSnapshotComplete: AuditEvidenceStatus;
   };
   migrationDelta: MigrationDeltaRow[];
   readinessMatrix: Record<string, Record<string, ReadinessCellStatus>>;
@@ -118,18 +174,24 @@ export type LiveBillingCutoverAuditReport = {
   safestFirstCutoverModel: string;
   safestFirstCutoverWhy: string;
   pureLiveChargeEngineExtractionRequired: boolean;
-  numericCostOwnerOnlyCutoverPossible: boolean;
-  singleSwitchRollbackArchitecturePossible: boolean;
-  cutoverBlockers: string[];
+  numericCostOwnerOnlyCutoverPossible: AuditEvidenceStatus;
+  singleSwitchRollbackArchitecturePossible: AuditEvidenceStatus;
+  cutoverBlockers: CutoverBlocker[];
+};
+
+/** Expected classifications after corrected evidence — must match classifyModelCutoverReadiness(). */
+export const EXPECTED_MODEL_CUTOVER_CLASS: Record<string, ModelCutoverClassification> = {
+  "gemini-3.7-flash": "D",
+  [GEMINI31_MODEL_ID]: "D",
+  [OPUS5_MODEL_ID]: "B",
 };
 
 export const LIVE_BILLING_OWNER_AUDIT = {
   liveUserChargeCalculationOwner:
-    "POST /api/chat → computeTurnBilling() in src/lib/pointsReasoningMargins.ts (via @/lib/points alias)",
+    "POST /api/chat → computeTurnBilling() → src/lib/points.ts (canonical definition; chat route imports @/lib/points alias)",
   livePointDeductionOwner: "deductPoints() in src/lib/points.ts",
-  shadowDiagnosticsOwner: "computeShadowPricing() in src/lib/shadowPricing.ts — admin-only, never sets cost",
-  currentDeductionOwnerCount: 1,
-  publishedPricingLiveDeductionCalls: 0,
+  shadowDiagnosticsOwner:
+    "computeShadowPricing() in src/lib/shadowPricing.ts — admin-only, never sets cost",
   billableStageSelectionOwner: "selectBillableStages() in src/lib/points.ts",
   billableInputOwner: "resolveTurnBillableInput() in src/lib/points.ts",
   billableOutputOwner:
@@ -139,49 +201,133 @@ export const LIVE_BILLING_OWNER_AUDIT = {
     "clientRequestId + findTurnByRequestId() deduction_slices guard in src/app/api/chat/route.ts",
 } as const;
 
-/** Conservative upper bound on assembled prompt tokens under current product budgets. */
-export function estimateCurrentProductMaxPromptTokens(): number {
-  return (
-    DEFAULT_SYSTEM_TOKEN_BUDGET +
-    HISTORY_TOKEN_BUDGET +
-    GEMINI_MEMORY_TOKEN_RESERVE +
-    4_000
+function readRepoFile(relativePath: string): string {
+  return readFileSync(join(REPO_ROOT, relativePath), "utf8");
+}
+
+/** Source-backed owner audit — not self-referential constants. */
+export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
+  const routeSrc = readRepoFile("src/app/api/chat/route.ts");
+  const tsconfigSrc = readRepoFile("tsconfig.json");
+  const pointsReasoningSrc = readRepoFile("src/lib/pointsReasoningMargins.ts");
+  const pointsMuse60Src = readRepoFile("src/lib/pointsMuse60.ts");
+  const pointsSrc = readRepoFile("src/lib/points.ts");
+
+  const importFromPoints = /import\s*\{[^}]*\bcomputeTurnBilling\b[^}]*\}[^;]*from\s*["']@\/lib\/points["']/.test(
+    routeSrc
   );
+  const importDeductFromPoints = /import\s*\{[^}]*\bdeductPoints\b[^}]*\}[^;]*from\s*["']@\/lib\/points["']/.test(
+    routeSrc
+  );
+
+  const aliasTarget =
+    tsconfigSrc.match(/"@\/lib\/points"\s*:\s*\[\s*"\.\/src\/lib\/([^"]+)"/)?.[1] ??
+    "unknown";
+
+  const routeLines = routeSrc.split("\n").filter((line) => !line.trimStart().startsWith("//"));
+  const routeWithoutComments = routeLines.join("\n");
+  const chatDeductionCalls = (routeWithoutComments.match(/\bdeductPoints\s*\(/g) ?? []).length;
+  const publishedInRoute = (routeWithoutComments.match(/\bgetPublishedPricing\s*\(/g) ?? []).length;
+
+  const otherDefs: string[] = [];
+  if (/export function computeTurnBilling/.test(pointsReasoningSrc)) {
+    otherDefs.push("src/lib/pointsReasoningMargins.ts");
+  }
+  if (/export function computeTurnBilling/.test(pointsMuse60Src)) {
+    otherDefs.push("src/lib/pointsMuse60.ts");
+  }
+
+  const reachableFromChat =
+    aliasTarget === "pointsReasoningMargins" &&
+    /return core\.computeTurnBilling\(opts\)/.test(pointsReasoningSrc);
+
+  return {
+    chatRouteComputeTurnBillingImport: importFromPoints ? "@/lib/points" : "NOT_FOUND",
+    chatRouteDeductPointsImport: importDeductFromPoints ? "@/lib/points" : "NOT_FOUND",
+    chatRouteComputeTurnBillingOwner: `src/lib/${aliasTarget}.ts (tsconfig alias for @/lib/points)`,
+    canonicalComputeTurnBillingDefinition: "src/lib/points.ts",
+    otherComputeTurnBillingDefinitions: otherDefs,
+    otherDefinitionReachableFromChatRoute: reachableFromChat,
+    chatRouteDeductionCallCount: chatDeductionCalls,
+    publishedPricingLiveDeductionCalls: publishedInRoute,
+    currentDeductionOwnerCount: chatDeductionCalls === 1 ? 1 : chatDeductionCalls,
+    ownerAuditSelfAssertionOnly: false,
+  };
+}
+
+/** Documented component budgets only — NOT a proven provider-prompt hard ceiling. */
+export function documentPromptAssemblyComponentBudgets(): {
+  systemTokenBudget: number;
+  historyTokenBudget: number;
+  memoryTokenReserve: number;
+  resolveMaxPayloadInputTokens: "unbounded";
+  notes: string;
+} {
+  return {
+    systemTokenBudget: DEFAULT_SYSTEM_TOKEN_BUDGET,
+    historyTokenBudget: HISTORY_TOKEN_BUDGET,
+    memoryTokenReserve: GEMINI_MEMORY_TOKEN_RESERVE,
+    resolveMaxPayloadInputTokens: "unbounded",
+    notes:
+      "Component budgets/reserves do not prove final provider prompt <= 200k. resolveMaxPayloadInputTokens() returns Number.MAX_SAFE_INTEGER. Additional prompt sections (persona, lorebook, user note, canon, status widget, etc.) are not summed here.",
+  };
 }
 
 export function assessGemini31Above200kReachability(): DimensionAssessment {
-  const maxEstimated = estimateCurrentProductMaxPromptTokens();
-  const reachable = maxEstimated > GEMINI31_BASE_TIER_PROMPT_THRESHOLD;
+  const budgets = documentPromptAssemblyComponentBudgets();
   return {
     pricingCoverage: "unsupported",
-    productReachability: reachable ? "reachable" : "not_reachable_current_product",
-    effectiveCurrentProductBlocker: reachable,
-    readinessCell: reachable ? "BLOCKED" : "NOT_REACHABLE_CURRENT_PRODUCT",
-    notes: reachable
-      ? `Estimated assembly ceiling ~${maxEstimated.toLocaleString()} exceeds 200k threshold — verify with live prompt audit`
-      : `Assembly budgets (system ${DEFAULT_SYSTEM_TOKEN_BUDGET}, history ${HISTORY_TOKEN_BUDGET}, memory ${GEMINI_MEMORY_TOKEN_RESERVE}) cap well below ${GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()}`,
+    productReachability: "unknown",
+    effectiveCurrentProductBlocker: "unknown",
+    readinessCell: "UNKNOWN",
+    evidenceChain: [
+      `Published base tier max: ${GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()} tokens`,
+      `Component budgets only: system ${budgets.systemTokenBudget}, history ${budgets.historyTokenBudget}, memory ${budgets.memoryTokenReserve}`,
+      "resolveMaxPayloadInputTokens() → Number.MAX_SAFE_INTEGER (src/lib/contextTrack.ts)",
+      "No production invariant found proving assembled provider prompt <= 200k",
+    ],
+    notes:
+      "Shadow pricing marks >200k as unsupported_pricing_tier, but current-product reachability of that state is UNKNOWN without a measured provider-prompt hard bound.",
+    basis: "SOURCE_AUDIT",
   };
 }
 
 export function assessGemini31CacheReachability(): DimensionAssessment {
   return {
     pricingCoverage: "unsupported",
-    productReachability: "reachable",
-    effectiveCurrentProductBlocker: true,
-    readinessCell: "POLICY_DECISION_REQUIRED",
+    productReachability: "unknown",
+    effectiveCurrentProductBlocker: "unknown",
+    readinessCell: "UNKNOWN",
+    evidenceChain: [
+      "Model: gemini-3.1-pro-preview (Cheaper Inference)",
+      "Request: assemblePrimaryRpRequest → applyAnthropicCacheAndPrefill skips non-Anthropic models (openRouterAdult.ts)",
+      "No proven Gemini CI request cache_control path for this model",
+      "Usage parser: openRouterUsage.ts CAN parse cache_read/cache_write IF provider reports them",
+      "Billing: route.ts passes cacheReadTokens/cacheWriteTokens to computeTurnBilling for unified-reasoning path",
+      "No production fixture in repo proving cacheReadTokens > 0 on G31 CI turns",
+    ],
     notes:
-      "Production uses Gemini explicit/implicit cache (geminiExplicitCache.ts, GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD). Published v2 marks cache UNVERIFIED.",
+      "Legacy billing CAN consume cache tokens when reported, but production-path cache activity for this model is not proven end-to-end.",
+    basis: "SOURCE_AUDIT",
   };
 }
 
 export function assessGemini37CacheReachability(): DimensionAssessment {
   return {
     pricingCoverage: "unsupported",
-    productReachability: "reachable",
-    effectiveCurrentProductBlocker: true,
-    readinessCell: "POLICY_DECISION_REQUIRED",
+    productReachability: "unknown",
+    effectiveCurrentProductBlocker: "unknown",
+    readinessCell: "UNKNOWN",
+    evidenceChain: [
+      "Model: gemini-3.7-flash (Cheaper Inference)",
+      "Request: no Anthropic cache_control (Gemini is non-Anthropic in applyAnthropicCacheAndPrefill)",
+      "Legacy user charge: gemini37FlashPricing.ts explicitly excludes cache from user price",
+      "Usage parser: openRouterUsage.ts may parse provider-reported cache tokens",
+      "No production fixture proving cacheReadTokens > 0 on G37 CI turns",
+    ],
     notes:
-      "Gemini cache infrastructure exists; legacy gemini37FlashPricing ignores cache for user price. Published v2 has no cache rate fields.",
+      "Provider may report implicit cache usage, but no proven production request→usage→billing cache path for G37 under current product.",
+    basis: "SOURCE_AUDIT",
   };
 }
 
@@ -191,8 +337,47 @@ export function assessOpusCacheReachability(): DimensionAssessment {
     productReachability: "reachable",
     effectiveCurrentProductBlocker: false,
     readinessCell: "READY",
-    notes:
-      "Anthropic ephemeral cache_control in openRouterCache.ts; unified reasoning billing consumes cacheRead/cacheWrite tokens.",
+    evidenceChain: [
+      "Model: claude-opus-5 (Cheaper Inference unified reasoning)",
+      "Request: assemblePrimaryRpRequest → applyCacheAndPrefillForTransport → cache_control:{type:ephemeral} (openRouterAdult.ts, openRouterCache.ts)",
+      "Provider usage: parseCompatibleUsage / openRouterUsage.ts extracts cacheReadTokens/cacheWriteTokens",
+      "Billing: route.ts → computeTurnBilling with cacheReadTokens/cacheWriteTokens → pointsReasoningMargins unified path",
+      "Published v2: billingReferenceCacheRead/Write rates present; cachePolicyStatus verified_5m",
+    ],
+    notes: "End-to-end request cache_control → parsed usage → legacy billing → Published cache buckets verified.",
+    basis: "CODE_VERIFIED",
+  };
+}
+
+export function auditIdempotencyFromSource(): IdempotencyAudit {
+  const dbSrc = readRepoFile("src/lib/db.ts");
+  const routeSrc = readRepoFile("src/app/api/chat/route.ts");
+  const pointsSrc = readRepoFile("src/lib/points.ts");
+
+  const hasNonUniqueIndex = dbSrc.includes("CREATE INDEX IF NOT EXISTS idx_messages_chat_request_id");
+  const hasUniqueRequestIndex = /CREATE UNIQUE INDEX[^;]*request_id/.test(dbSrc);
+  const pointLogsUniqueBillingKey = /CREATE UNIQUE INDEX[^;]*point_logs/.test(dbSrc);
+
+  const capturedBeforeStream = routeSrc.includes("const alreadyBilledForRequest = existingByRequest.alreadyBilled");
+  const guardBeforeDeduct = routeSrc.includes("if (cost > 0 && !alreadyBilledForRequest)");
+
+  return {
+    idempotencyOwner: LIVE_BILLING_OWNER_AUDIT.idempotencyOwner,
+    dbEnforcedRequestIdempotency: hasUniqueRequestIndex ? "verified" : "documented",
+    ledgerIdempotencyUniqueKey: pointLogsUniqueBillingKey ? "point_logs unique index" : "none",
+    duplicateRequestDoubleChargePossible: hasUniqueRequestIndex ? "documented" : "reproduced_risk",
+    regenDoubleChargePossible: capturedBeforeStream && guardBeforeDeduct ? "documented" : "unknown",
+    concurrentDuplicateChargeReproduced: "unknown",
+    dbUniquenessGuardPresent: hasUniqueRequestIndex,
+    ledgerAtomicityStatus: pointsSrc.includes("db.transaction(() => deductPointsOnDb")
+      ? "documented"
+      : "unknown",
+    scenarios: {
+      singleProcessSequentialDuplicate: guardBeforeDeduct ? "documented" : "unknown",
+      multiWorkerConcurrentDuplicate: hasUniqueRequestIndex ? "documented" : "reproduced_risk",
+      retryAfterCommit: guardBeforeDeduct ? "documented" : "unknown",
+      regeneration: "documented",
+    },
   };
 }
 
@@ -260,11 +445,11 @@ export function computeMigrationDeltaRows(): MigrationDeltaRow[] {
 function cell(
   pricingCoverage: PricingCoverage,
   reachability: Reachability,
-  blocker: boolean
+  blocker: boolean | "unknown"
 ): ReadinessCellStatus {
   if (reachability === "not_reachable_current_product") return "NOT_REACHABLE_CURRENT_PRODUCT";
   if (reachability === "unknown") return "UNKNOWN";
-  if (pricingCoverage === "unsupported" && blocker) return "BLOCKED";
+  if (pricingCoverage === "unsupported" && blocker === true) return "BLOCKED";
   if (pricingCoverage === "unsupported") return "POLICY_DECISION_REQUIRED";
   if (pricingCoverage === "unknown") return "UNKNOWN";
   return "READY";
@@ -278,12 +463,16 @@ export function buildCurrentProductReadinessMatrix(): Record<
   const g31Cache = assessGemini31CacheReachability();
   const g37Cache = assessGemini37CacheReachability();
   const opusCache = assessOpusCacheReachability();
+  const idempotencyAudit = auditIdempotencyFromSource();
 
   const baseUncached: ReadinessCellStatus = "READY";
   const reasoning: ReadinessCellStatus = "READY";
   const fx: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const receipt: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
-  const idempotency: ReadinessCellStatus = "READY";
+  const idempotency: ReadinessCellStatus =
+    idempotencyAudit.duplicateRequestDoubleChargePossible === "reproduced_risk"
+      ? "POLICY_DECISION_REQUIRED"
+      : "READY";
   const multiStage: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const fallback: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const continuation: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
@@ -293,9 +482,17 @@ export function buildCurrentProductReadinessMatrix(): Record<
   return {
     "gemini-3.7-flash": {
       "Base uncached usage": baseUncached,
-      "Cache read": cell(g37Cache.pricingCoverage, g37Cache.productReachability, g37Cache.effectiveCurrentProductBlocker),
-      "Cache write": cell(g37Cache.pricingCoverage, g37Cache.productReachability, g37Cache.effectiveCurrentProductBlocker),
-      "Above pricing threshold": "NOT_REACHABLE_CURRENT_PRODUCT",
+      "Cache read": cell(
+        g37Cache.pricingCoverage,
+        g37Cache.productReachability,
+        g37Cache.effectiveCurrentProductBlocker
+      ),
+      "Cache write": cell(
+        g37Cache.pricingCoverage,
+        g37Cache.productReachability,
+        g37Cache.effectiveCurrentProductBlocker
+      ),
+      "Above pricing threshold": "NOT_APPLICABLE",
       "Reasoning accounting": reasoning,
       "Multi-stage turn": multiStage,
       Fallback: fallback,
@@ -308,8 +505,16 @@ export function buildCurrentProductReadinessMatrix(): Record<
     },
     [GEMINI31_MODEL_ID]: {
       "Base uncached usage": baseUncached,
-      "Cache read": cell(g31Cache.pricingCoverage, g31Cache.productReachability, g31Cache.effectiveCurrentProductBlocker),
-      "Cache write": cell(g31Cache.pricingCoverage, g31Cache.productReachability, g31Cache.effectiveCurrentProductBlocker),
+      "Cache read": cell(
+        g31Cache.pricingCoverage,
+        g31Cache.productReachability,
+        g31Cache.effectiveCurrentProductBlocker
+      ),
+      "Cache write": cell(
+        g31Cache.pricingCoverage,
+        g31Cache.productReachability,
+        g31Cache.effectiveCurrentProductBlocker
+      ),
       "Above pricing threshold": g31Above.readinessCell,
       "Reasoning accounting": reasoning,
       "Multi-stage turn": multiStage,
@@ -323,9 +528,17 @@ export function buildCurrentProductReadinessMatrix(): Record<
     },
     [OPUS5_MODEL_ID]: {
       "Base uncached usage": baseUncached,
-      "Cache read": cell(opusCache.pricingCoverage, opusCache.productReachability, opusCache.effectiveCurrentProductBlocker),
-      "Cache write": cell(opusCache.pricingCoverage, opusCache.productReachability, opusCache.effectiveCurrentProductBlocker),
-      "Above pricing threshold": "NOT_REACHABLE_CURRENT_PRODUCT",
+      "Cache read": cell(
+        opusCache.pricingCoverage,
+        opusCache.productReachability,
+        opusCache.effectiveCurrentProductBlocker
+      ),
+      "Cache write": cell(
+        opusCache.pricingCoverage,
+        opusCache.productReachability,
+        opusCache.effectiveCurrentProductBlocker
+      ),
+      "Above pricing threshold": "NOT_APPLICABLE",
       "Reasoning accounting": reasoning,
       "Multi-stage turn": multiStage,
       Fallback: fallback,
@@ -344,9 +557,51 @@ export function classifyModelCutoverReadiness(modelId: string): ModelCutoverClas
   if (!matrix) return "D";
   const cells = Object.values(matrix);
   if (cells.includes("BLOCKED")) return "C";
-  if (cells.every((c) => c === "READY" || c === "NOT_REACHABLE_CURRENT_PRODUCT")) return "A";
-  if (cells.some((c) => c === "POLICY_DECISION_REQUIRED" || c === "UNKNOWN")) return "B";
+  if (cells.includes("UNKNOWN")) return "D";
+  if (cells.some((c) => c === "POLICY_DECISION_REQUIRED")) return "B";
+  if (cells.every((c) => c === "READY" || c === "NOT_APPLICABLE" || c === "NOT_REACHABLE_CURRENT_PRODUCT")) {
+    return "A";
+  }
   return "D";
+}
+
+const CLASS_RANK: Record<ModelCutoverClassification, number> = { A: 4, B: 3, C: 2, D: 1 };
+
+export function computeSafestFirstCutoverModel(
+  classification: Record<string, ModelCutoverClassification>
+): { model: string; why: string; undecided: boolean } {
+  const candidates = Object.entries(classification);
+  const maxRank = Math.max(...candidates.map(([, c]) => CLASS_RANK[c]));
+  if (maxRank <= CLASS_RANK.D) {
+    return {
+      model: "UNDECIDED_UNTIL_POLICY_PREP",
+      why: "All audit models classify D — insufficient evidence for ordering",
+      undecided: true,
+    };
+  }
+  if (maxRank < CLASS_RANK.B) {
+    return {
+      model: "UNDECIDED_UNTIL_POLICY_PREP",
+      why: "No model reaches B or better — cutover ordering premature",
+      undecided: true,
+    };
+  }
+  const eligible = candidates.filter(([, c]) => CLASS_RANK[c] === maxRank);
+  const score = (modelId: string, cls: ModelCutoverClassification): number => {
+    let s = CLASS_RANK[cls] * 100;
+    const matrix = buildCurrentProductReadinessMatrix()[modelId];
+    if (matrix?.["Cache read"] === "READY" && matrix?.["Cache write"] === "READY") s += 20;
+    if (matrix?.["Above pricing threshold"] === "NOT_APPLICABLE") s += 5;
+    if (modelId === "gemini-3.7-flash") s += 3;
+    return s;
+  };
+  eligible.sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
+  const [model, cls] = eligible[0]!;
+  return {
+    model,
+    why: `Highest classification (${cls}); deterministic score favors ${model} among tied class-${cls} models`,
+    undecided: false,
+  };
 }
 
 export function countPublicReceiptInternalLeakPaths(): number {
@@ -424,44 +679,92 @@ export function verifyKstMidnightBoundary(): boolean {
   return dayN === "2026-08-27" && dayN1 === "2026-08-28";
 }
 
+export function buildFxAuditEvidence(): FxAuditEvidence {
+  return {
+    shadowOneTurnOneFxSnapshot: "verified",
+    shadowAdminReadCanLockFx: "verified",
+    shadowMidnightBoundaryPass: verifyKstMidnightBoundary() ? "verified" : "unknown",
+    shadowFxFallbackReady: "documented",
+    futurePublishedOneTurnOneFxSnapshot: "not_implemented",
+    currentLegacyFxContract: "documented",
+  };
+}
+
+export function buildCutoverBlockers(): CutoverBlocker[] {
+  return [
+    {
+      id: "shadow_only_pricing",
+      description: "Published pricing is shadow-only — no live numeric owner swap implemented",
+      origin: "cutover_required",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "duplicate_request_db_idempotency",
+      description:
+        "messages(chat_id, request_id) is non-unique index only — concurrent duplicate charge possible without DB guard",
+      origin: "existing_production",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "g31_cache_unverified",
+      description: "Gemini31 Published v2 cache semantics UNVERIFIED; production cache path not proven",
+      origin: "cutover_required",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "g37_cache_unsupported",
+      description: "Gemini37 Published v2 has no cache rate fields; G37 production cache path not proven",
+      origin: "cutover_required",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "multi_stage_billing",
+      description: "Multi-stage / fallback / continuation — primary input only, summed output; policy undecided",
+      origin: "both",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "waiver_interaction",
+      description: "Quality waiver minimums (e.g. Gemini31 65P) interact with Published charge — cutover policy undecided",
+      origin: "both",
+      basis: "POLICY_INTERPRETATION",
+    },
+    {
+      id: "historical_receipt_snapshot",
+      description: "Historical receipt lacks pricingVersion + FX snapshot identity for immutable repricing audit",
+      origin: "cutover_required",
+      basis: "SOURCE_AUDIT",
+    },
+    {
+      id: "pure_live_engine",
+      description: "Pure live charge engine not extracted — computeShadowPricing mixes economics with user charge",
+      origin: "cutover_required",
+      basis: "SOURCE_AUDIT",
+    },
+  ];
+}
+
 export function buildLiveBillingCutoverAuditReport(baseMainSha = "unknown"): LiveBillingCutoverAuditReport {
   const g31Above = assessGemini31Above200kReachability();
   const g31Cache = assessGemini31CacheReachability();
   const g37Cache = assessGemini37CacheReachability();
   const opusCache = assessOpusCacheReachability();
   const matrix = buildCurrentProductReadinessMatrix();
+  const billingOwnerAudit = auditBillingOwnersFromSource();
+  const idempotency = auditIdempotencyFromSource();
   const classification = {
     "gemini-3.7-flash": classifyModelCutoverReadiness("gemini-3.7-flash"),
     [GEMINI31_MODEL_ID]: classifyModelCutoverReadiness(GEMINI31_MODEL_ID),
     [OPUS5_MODEL_ID]: classifyModelCutoverReadiness(OPUS5_MODEL_ID),
   };
-
-  const cutoverBlockers = [
-    "Published pricing is shadow-only — no live numeric owner swap implemented",
-    "Gemini31 Published v2 cache semantics UNVERIFIED while product cache is reachable",
-    "Gemini37 Published v2 has no cache rate fields while Gemini cache infrastructure is active",
-    "Multi-stage / fallback / continuation turns bill primary stage only — policy decision required for Published cutover",
-    "Quality waiver minimums (e.g. Gemini31 65P) interact with Published charge — cutover policy undecided",
-    "Historical receipt lacks pricingVersion + FX snapshot identity for immutable repricing audit",
-    "Pure live charge engine not extracted — computeShadowPricing mixes economics with user charge",
-  ];
-
-  const safest =
-    classification["gemini-3.7-flash"] === "B" &&
-    classification[GEMINI31_MODEL_ID] !== "A" &&
-    classification[OPUS5_MODEL_ID] !== "A"
-      ? "gemini-3.7-flash"
-      : classification[OPUS5_MODEL_ID] === "B"
-        ? OPUS5_MODEL_ID
-        : GEMINI31_MODEL_ID;
+  const safest = computeSafestFirstCutoverModel(classification);
 
   return {
     baseMainSha,
-    auditVersion: "2026-08-28-readiness-v1",
+    auditVersion: "2026-08-28-readiness-v2",
     liveUserChargeCalculationOwner: LIVE_BILLING_OWNER_AUDIT.liveUserChargeCalculationOwner,
     livePointDeductionOwner: LIVE_BILLING_OWNER_AUDIT.livePointDeductionOwner,
-    currentDeductionOwnerCount: LIVE_BILLING_OWNER_AUDIT.currentDeductionOwnerCount,
-    publishedPricingLiveDeductionCalls: LIVE_BILLING_OWNER_AUDIT.publishedPricingLiveDeductionCalls,
+    billingOwnerAudit,
     reachability: {
       g37Cache: g37Cache.productReachability,
       g31Above200k: g31Above.productReachability,
@@ -476,39 +779,26 @@ export function buildLiveBillingCutoverAuditReport(baseMainSha = "unknown"): Liv
       billableStageSelectionOwnerCount: 1,
       billableInputOwnerCount: 1,
       billableOutputOwnerCount: 1,
-      reasoningDoubleCountPossible: !verifyReasoningNotDoubleCounted(),
+      reasoningDoubleCountPossible: verifyReasoningNotDoubleCounted() ? "verified" : "reproduced_risk",
       multiStageUsageComplete: "unknown",
-      fallbackUsageComplete: "false",
+      fallbackUsageComplete: "documented",
       continuationUsageComplete: "unknown",
     },
-    idempotency: {
-      idempotencyOwner: LIVE_BILLING_OWNER_AUDIT.idempotencyOwner,
-      duplicateRequestDoubleChargePossible: false,
-      regenDoubleChargePossible: false,
-      ledgerAtomicityStatus: "DOCUMENTED",
-    },
-    fx: {
-      oneTurnOneFxSnapshot: true,
-      intraturnFxDriftPossible: false,
-      adminReadCanLockFx: false,
-      midnightBoundaryPass: verifyKstMidnightBoundary(),
-      fxFallbackReady: true,
-      liveChargeCanResolveFxWithoutBlockingChat: true,
-    },
+    idempotency,
+    fx: buildFxAuditEvidence(),
     receipt: {
       publicReceiptInternalLeakPaths: countPublicReceiptInternalLeakPaths(),
-      historicalPricingSnapshotComplete: false,
+      historicalPricingSnapshotComplete: "not_implemented",
     },
     migrationDelta: computeMigrationDeltaRows(),
     readinessMatrix: matrix,
     classification,
-    safestFirstCutoverModel: safest,
-    safestFirstCutoverWhy:
-      "Simplest reachable billing surface: uncached Published v2 base tier, no above-threshold product path, legacy formula already isolated in gemini37FlashPricing.ts",
+    safestFirstCutoverModel: safest.model,
+    safestFirstCutoverWhy: safest.why,
     pureLiveChargeEngineExtractionRequired: true,
-    numericCostOwnerOnlyCutoverPossible: true,
-    singleSwitchRollbackArchitecturePossible: true,
-    cutoverBlockers,
+    numericCostOwnerOnlyCutoverPossible: "documented",
+    singleSwitchRollbackArchitecturePossible: "documented",
+    cutoverBlockers: buildCutoverBlockers(),
   };
 }
 

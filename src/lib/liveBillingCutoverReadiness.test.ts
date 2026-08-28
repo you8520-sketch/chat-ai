@@ -1,24 +1,33 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
   assessGemini31Above200kReachability,
+  assessGemini31CacheReachability,
+  assessGemini37CacheReachability,
+  assessOpusCacheReachability,
+  auditBillingOwnersFromSource,
+  auditIdempotencyFromSource,
   buildCurrentProductReadinessMatrix,
   buildLiveBillingCutoverAuditReport,
   classifyModelCutoverReadiness,
   computeMigrationDeltaRows,
+  computeSafestFirstCutoverModel,
   countPublicReceiptInternalLeakPaths,
   evaluateLiveBillingCutoverReadiness,
+  EXPECTED_MODEL_CUTOVER_CLASS,
   GEMINI31_MODEL_ID,
-  LIVE_BILLING_OWNER_AUDIT,
   OPUS5_MODEL_ID,
   verifyFxReadOnlyPreviewPath,
   verifyKstMidnightBoundary,
   verifyModelAliasResolvesToSinglePublishedPolicy,
   verifyReasoningNotDoubleCounted,
 } from "./liveBillingCutoverReadiness";
+import { deductPointsOnDb } from "./points";
+import { findTurnByRequestId } from "./streamingPersistence";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
 import {
   clearCheaperInferenceCatalogPricingForTest,
@@ -41,11 +50,53 @@ import { computeShadowPricing } from "./shadowPricing";
 import { GEMINI31_BASE_TIER_PROMPT_THRESHOLD } from "./premiumModelIds";
 import { parseCatalogPricing } from "./cheaperInferenceCatalogPricing.server";
 import { GEMINI31_BASE_TIER_ONLY_CATALOG_FIXTURE } from "./fixtures/cheaperInferenceGemini31TierCatalog.fixture";
-import {
-  _insertShadowBillingFxDailyRowForTest,
-} from "./shadowBillingExchangeRate";
+import { _insertShadowBillingFxDailyRowForTest } from "./shadowBillingExchangeRate";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
+
+function createConcurrentIdempotencyDb(dbPath: string): Database.Database {
+  const db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+  db.exec(`
+    CREATE TABLE users (
+      id INTEGER PRIMARY KEY,
+      points REAL NOT NULL DEFAULT 0
+    );
+    CREATE TABLE point_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      point_type TEXT NOT NULL,
+      remaining_amount REAL NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE point_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      delta REAL NOT NULL,
+      reason TEXT NOT NULL,
+      message_id INTEGER,
+      chat_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      request_id TEXT,
+      deduction_slices TEXT,
+      generation_status TEXT,
+      user_message_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_messages_chat_request_id ON messages(chat_id, request_id);
+    INSERT INTO users (id, points) VALUES (1, 10000);
+    INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+      VALUES (1, 'PAID', 10000, '2030-01-01');
+  `);
+  return db;
+}
 
 describe("liveBillingCutoverReadiness — production boundary", () => {
   it("readiness module has no deductPoints, ForTest, or computeShadowPricing imports", () => {
@@ -59,18 +110,55 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
     assert.ok(!/\bdeductPoints\s*\(/.test(withoutOwnerAudit));
   });
 
-  it("owner audit invariants", () => {
-    assert.equal(LIVE_BILLING_OWNER_AUDIT.currentDeductionOwnerCount, 1);
-    assert.equal(LIVE_BILLING_OWNER_AUDIT.publishedPricingLiveDeductionCalls, 0);
+  it("owner audit is source-backed, not self-assertion only", () => {
+    const audit = auditBillingOwnersFromSource();
+    assert.equal(audit.ownerAuditSelfAssertionOnly, false);
+    assert.equal(audit.chatRouteComputeTurnBillingImport, "@/lib/points");
+    assert.equal(audit.chatRouteDeductPointsImport, "@/lib/points");
+    assert.equal(audit.canonicalComputeTurnBillingDefinition, "src/lib/points.ts");
+    assert.ok(audit.chatRouteComputeTurnBillingOwner.includes("pointsReasoningMargins.ts"));
+    assert.ok(audit.otherComputeTurnBillingDefinitions.includes("src/lib/pointsReasoningMargins.ts"));
+    assert.ok(audit.otherComputeTurnBillingDefinitions.includes("src/lib/pointsMuse60.ts"));
+    assert.equal(audit.otherDefinitionReachableFromChatRoute, true);
+    assert.equal(audit.chatRouteDeductionCallCount, 1);
+    assert.equal(audit.publishedPricingLiveDeductionCalls, 0);
+    assert.equal(audit.currentDeductionOwnerCount, 1);
+  });
+
+  it("idempotency audit documents missing DB uniqueness guard", () => {
+    const audit = auditIdempotencyFromSource();
+    assert.equal(audit.dbEnforcedRequestIdempotency, "documented");
+    assert.equal(audit.dbUniquenessGuardPresent, false);
+    assert.equal(audit.ledgerIdempotencyUniqueKey, "none");
+    assert.equal(audit.duplicateRequestDoubleChargePossible, "reproduced_risk");
+    assert.equal(audit.scenarios.multiWorkerConcurrentDuplicate, "reproduced_risk");
+    assert.equal(audit.scenarios.singleProcessSequentialDuplicate, "documented");
   });
 });
 
 describe("liveBillingCutoverReadiness — reachability", () => {
-  it("Gemini31 >200k not reachable under current assembly budgets", () => {
+  it("Gemini31 >200k reachability is UNKNOWN without hard provider cap", () => {
     const a = assessGemini31Above200kReachability();
-    assert.equal(a.productReachability, "not_reachable_current_product");
-    assert.equal(a.effectiveCurrentProductBlocker, false);
+    assert.equal(a.productReachability, "unknown");
+    assert.equal(a.effectiveCurrentProductBlocker, "unknown");
     assert.equal(a.pricingCoverage, "unsupported");
+    assert.equal(a.readinessCell, "UNKNOWN");
+  });
+
+  it("Gemini31/G37 cache reachability is UNKNOWN without production-path proof", () => {
+    const g31 = assessGemini31CacheReachability();
+    const g37 = assessGemini37CacheReachability();
+    assert.equal(g31.productReachability, "unknown");
+    assert.equal(g31.readinessCell, "UNKNOWN");
+    assert.equal(g37.productReachability, "unknown");
+    assert.equal(g37.readinessCell, "UNKNOWN");
+  });
+
+  it("Opus5 cache reachability is REACHABLE with end-to-end evidence chain", () => {
+    const opus = assessOpusCacheReachability();
+    assert.equal(opus.productReachability, "reachable");
+    assert.equal(opus.readinessCell, "READY");
+    assert.ok(opus.evidenceChain.some((line) => line.includes("cache_control")));
   });
 
   it("Gemini31 tier boundary shadow invariants retained", () => {
@@ -103,7 +191,7 @@ describe("liveBillingCutoverReadiness — reachability", () => {
 });
 
 describe("liveBillingCutoverReadiness — migration delta @1530", () => {
-  it("golden planned Published fixtures", () => {
+  it("golden planned and legacy Published fixtures", () => {
     const rows = computeMigrationDeltaRows();
     const g37a = rows.find((r) => r.benchmarkId === "gemini37_competitor_a")!;
     const g37b = rows.find((r) => r.benchmarkId === "gemini37_competitor_b")!;
@@ -114,8 +202,47 @@ describe("liveBillingCutoverReadiness — migration delta @1530", () => {
     assert.equal(g37b.plannedPublishedFinalPoints, 80);
     assert.equal(g31.plannedPublishedFinalPoints, 229);
     assert.equal(opus.plannedPublishedFinalPoints, 695);
-    assert.ok(g37a.legacyFinalPoints !== g37a.plannedPublishedFinalPoints);
-    assert.ok(g31.legacyFinalPoints !== g31.plannedPublishedFinalPoints);
+    assert.equal(g37a.legacyFinalPoints, 35);
+    assert.equal(g37b.legacyFinalPoints, 62);
+    assert.equal(g31.legacyFinalPoints, 286);
+    assert.equal(opus.legacyFinalPoints, 798);
+  });
+});
+
+describe("liveBillingCutoverReadiness — idempotency concurrency", () => {
+  it("concurrent duplicate charge can commit twice without DB uniqueness guard", () => {
+    const dir = mkdtempSync(join(tmpdir(), "billing-audit-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db1 = createConcurrentIdempotencyDb(dbPath);
+      const db2 = new Database(dbPath);
+      db2.pragma("journal_mode = WAL");
+
+      db1
+        .prepare(
+          `INSERT INTO messages (chat_id, role, content, request_id, deduction_slices, generation_status)
+           VALUES (?, 'assistant', ?, ?, NULL, 'complete')`
+        )
+        .run(1, "answer", "req_concurrent_1");
+
+      const read1 = findTurnByRequestId(db1, 1, "req_concurrent_1");
+      const read2 = findTurnByRequestId(db2, 1, "req_concurrent_1");
+      assert.equal(read1.alreadyBilled, false);
+      assert.equal(read2.alreadyBilled, false);
+
+      deductPointsOnDb(db1, 1, 100, "worker A charge", { messageId: read1.assistantMessageId!, chatId: 1 });
+      deductPointsOnDb(db2, 1, 100, "worker B charge", { messageId: read2.assistantMessageId!, chatId: 1 });
+
+      const logCount = (
+        db1.prepare(`SELECT COUNT(*) AS c FROM point_logs WHERE user_id=1 AND delta<0`).get() as { c: number }
+      ).c;
+      assert.equal(logCount, 2);
+
+      db1.close();
+      db2.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -183,47 +310,59 @@ describe("liveBillingCutoverReadiness — usage / receipt / FX", () => {
     assert.equal(before, after);
     clearCheaperInferenceCatalogPricingForTest();
   });
+
+  it("FX audit separates shadow contract from future Published live contract", () => {
+    const report = buildLiveBillingCutoverAuditReport("test-sha");
+    assert.equal(report.fx.shadowOneTurnOneFxSnapshot, "verified");
+    assert.equal(report.fx.shadowAdminReadCanLockFx, "verified");
+    assert.equal(report.fx.futurePublishedOneTurnOneFxSnapshot, "not_implemented");
+  });
 });
 
 describe("liveBillingCutoverReadiness — matrix and classification", () => {
-  it("readiness matrix is complete for three audit models", () => {
+  it("readiness matrix cache cells match evidence", () => {
     const matrix = buildCurrentProductReadinessMatrix();
-    const requiredRows = [
-      "Base uncached usage",
-      "Cache read",
-      "Cache write",
-      "Above pricing threshold",
-      "Reasoning accounting",
-      "Multi-stage turn",
-      "Fallback",
-      "Continuation/recovery",
-      "Missing usage",
-      "Quality waiver",
-      "Receipt",
-      "Idempotency",
-      "FX snapshot",
-    ] as const;
-    for (const modelId of ["gemini-3.7-flash", GEMINI31_MODEL_ID, OPUS5_MODEL_ID]) {
-      assert.ok(matrix[modelId], `missing matrix for ${modelId}`);
-      for (const row of requiredRows) {
-        assert.ok(matrix[modelId][row], `${modelId} missing ${row}`);
-      }
-    }
+    assert.equal(matrix["gemini-3.7-flash"]!["Cache read"], "UNKNOWN");
+    assert.equal(matrix["gemini-3.7-flash"]!["Cache write"], "UNKNOWN");
+    assert.equal(matrix["gemini-3.7-flash"]!["Above pricing threshold"], "NOT_APPLICABLE");
+    assert.equal(matrix[GEMINI31_MODEL_ID]!["Cache read"], "UNKNOWN");
+    assert.equal(matrix[GEMINI31_MODEL_ID]!["Above pricing threshold"], "UNKNOWN");
+    assert.equal(matrix[OPUS5_MODEL_ID]!["Cache read"], "READY");
+    assert.equal(matrix[OPUS5_MODEL_ID]!["Above pricing threshold"], "NOT_APPLICABLE");
   });
 
-  it("no model is CURRENT PRODUCT CUTOVER READY (A) without policy work", () => {
-    assert.notEqual(classifyModelCutoverReadiness("gemini-3.7-flash"), "A");
-    assert.notEqual(classifyModelCutoverReadiness(GEMINI31_MODEL_ID), "A");
-    assert.notEqual(classifyModelCutoverReadiness(OPUS5_MODEL_ID), "A");
+  it("exact model classifications match runtime and expected constants", () => {
+    assert.equal(classifyModelCutoverReadiness("gemini-3.7-flash"), EXPECTED_MODEL_CUTOVER_CLASS["gemini-3.7-flash"]);
+    assert.equal(classifyModelCutoverReadiness(GEMINI31_MODEL_ID), EXPECTED_MODEL_CUTOVER_CLASS[GEMINI31_MODEL_ID]);
+    assert.equal(classifyModelCutoverReadiness(OPUS5_MODEL_ID), EXPECTED_MODEL_CUTOVER_CLASS[OPUS5_MODEL_ID]);
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS["gemini-3.7-flash"], "D");
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[GEMINI31_MODEL_ID], "D");
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[OPUS5_MODEL_ID], "B");
   });
 
-  it("audit report enumerates cutover blockers", () => {
+  it("report classification matches runtime classification", () => {
+    const report = buildLiveBillingCutoverAuditReport("test-sha");
+    assert.equal(report.classification["gemini-3.7-flash"], classifyModelCutoverReadiness("gemini-3.7-flash"));
+    assert.equal(report.classification[GEMINI31_MODEL_ID], classifyModelCutoverReadiness(GEMINI31_MODEL_ID));
+    assert.equal(report.classification[OPUS5_MODEL_ID], classifyModelCutoverReadiness(OPUS5_MODEL_ID));
+  });
+
+  it("safest-first is recomputed from classification, not hardcoded G37", () => {
+    const report = buildLiveBillingCutoverAuditReport("test-sha");
+    const safest = computeSafestFirstCutoverModel(report.classification);
+    assert.equal(report.safestFirstCutoverModel, safest.model);
+    assert.equal(safest.model, OPUS5_MODEL_ID);
+    assert.equal(safest.undecided, false);
+  });
+
+  it("audit report enumerates cutover blockers with origin", () => {
     const report = buildLiveBillingCutoverAuditReport("test-sha");
     assert.ok(report.cutoverBlockers.length >= 3);
+    assert.ok(report.cutoverBlockers.some((b) => b.origin === "existing_production"));
+    assert.ok(report.cutoverBlockers.some((b) => b.origin === "cutover_required"));
     assert.equal(report.receipt.publicReceiptInternalLeakPaths, 0);
-    assert.equal(report.idempotency.duplicateRequestDoubleChargePossible, false);
-    assert.equal(report.fx.adminReadCanLockFx, false);
+    assert.equal(report.idempotency.dbUniquenessGuardPresent, false);
     assert.equal(report.pureLiveChargeEngineExtractionRequired, true);
-    assert.equal(report.numericCostOwnerOnlyCutoverPossible, true);
+    assert.equal(report.billingOwnerAudit.canonicalComputeTurnBillingDefinition, "src/lib/points.ts");
   });
 });
