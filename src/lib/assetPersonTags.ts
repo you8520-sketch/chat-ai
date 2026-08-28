@@ -56,6 +56,34 @@ export function isAssetPersonTag(value: string): value is AssetPersonTag {
   return PERSON_TAG_SET.has(value);
 }
 
+/** Obvious non-place visual/meta descriptors — conservative substring guard. */
+const BACKGROUND_META_DESCRIPTOR_TERMS = [
+  "역광",
+  "조명",
+  "색감",
+  "화풍",
+  "스타일",
+  "고화질",
+  "저화질",
+  "클로즈업",
+  "전신샷",
+  "구도",
+  "앵글",
+  "렌즈",
+  "보케",
+  "블러",
+  "분위기",
+] as const;
+
+const BACKGROUND_META_DESCRIPTOR_LATIN = [
+  /high\s*quality/i,
+  /low\s*quality/i,
+  /close\s*up/i,
+  /bokeh/i,
+  /\bblur\b/i,
+] as const;
+
+/** Canonical background place-tag normalizer (syntactic + semantic guard). */
 export function normalizeBackgroundTag(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const tag = raw.trim();
@@ -63,6 +91,13 @@ export function normalizeBackgroundTag(raw: unknown): string | null {
   if (/[,/\n]/.test(tag)) return null;
   if (/[.!?。]/.test(tag)) return null;
   if (/\s{2,}/.test(tag)) return null;
+  if (!/[\uAC00-\uD7A3]/.test(tag)) return null;
+  for (const term of BACKGROUND_META_DESCRIPTOR_TERMS) {
+    if (tag.includes(term)) return null;
+  }
+  for (const pattern of BACKGROUND_META_DESCRIPTOR_LATIN) {
+    if (pattern.test(tag)) return null;
+  }
   return tag;
 }
 

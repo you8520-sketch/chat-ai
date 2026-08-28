@@ -12,6 +12,7 @@ import {
   resolveBackgroundPrimaryModelId,
   resolveBackgroundTextModelId,
 } from "./ai";
+import { resolveAssetVisionPrimaryModel } from "./assetVisionModels";
 import { adaptCheaperInferenceChatBody } from "./cheaperInferenceConfig";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
@@ -221,14 +222,9 @@ test("explicit DeepSeek modelId on callBackgroundMemory stays DeepSeek", async (
 
 test("background vision PRIMARY is Qwen3.8 Flash for asset tagging", () => {
   assert.equal(OPENROUTER_QWEN38_FLASH_MODEL, "qwen/qwen3.8-flash");
-  assert.equal(
-    BACKGROUND_VISION_OPENROUTER_MODEL,
-    process.env.BACKGROUND_VISION_MODEL?.trim() ||
-      process.env.ASSET_VISION_MODEL?.trim() ||
-      OPENROUTER_QWEN38_FLASH_MODEL
-  );
+  assert.equal(BACKGROUND_VISION_OPENROUTER_MODEL, resolveAssetVisionPrimaryModel());
   const visionSrc = readFileSync(new URL("./vision.ts", import.meta.url), "utf8");
-  assert.match(visionSrc, /OPENROUTER_QWEN38_FLASH_MODEL/);
+  assert.match(visionSrc, /resolveAssetVisionModels/);
   assert.doesNotMatch(visionSrc, /CHEAPER_INFERENCE_GPT_56_LUNA_MODEL/);
 });
 

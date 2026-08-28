@@ -5,10 +5,8 @@ import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
 } from "@/lib/openRouterConfig";
-import {
-  OPENROUTER_QWEN38_FLASH_MODEL,
-  OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
-} from "@/lib/chatModels";
+import { OPENROUTER_QWEN38_FLASH_MODEL } from "@/lib/chatModels";
+import { resolveAssetVisionModels } from "@/lib/assetVisionModels";
 import { buildAssetVisionPrompt } from "@/lib/assetVisionPolicy";
 import {
   buildAssetVisionJsonSchema,
@@ -18,18 +16,10 @@ import {
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 
-const DEFAULT_VISION_MODEL = OPENROUTER_QWEN38_FLASH_MODEL;
-const DEFAULT_VISION_FALLBACK_MODEL = OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL;
 const VISION_BATCH_CONCURRENCY = 4;
 
 export function visionModels(): string[] {
-  const primary =
-    process.env.ASSET_VISION_MODEL?.trim() ||
-    process.env.BACKGROUND_VISION_MODEL?.trim() ||
-    DEFAULT_VISION_MODEL;
-  const fallback =
-    process.env.ASSET_VISION_MODEL_FALLBACK?.trim() || DEFAULT_VISION_FALLBACK_MODEL;
-  return primary === fallback ? [primary] : [primary, fallback];
+  return resolveAssetVisionModels();
 }
 
 const VISION_PROMPT = buildAssetVisionPrompt();
@@ -110,8 +100,9 @@ type VisionAttempt = {
   retryable: boolean;
 };
 
-function buildVisionRequestBody(model: string, dataUrl: string) {
-  return {
+/** Build OpenRouter chat-completions body for asset vision (exported for deterministic tests). */
+export function buildAssetVisionRequestBody(model: string, dataUrl: string) {
+  const body: Record<string, unknown> = {
     model,
     messages: [
       {
@@ -132,7 +123,16 @@ function buildVisionRequestBody(model: string, dataUrl: string) {
         schema: buildAssetVisionJsonSchema(),
       },
     },
+    provider: {
+      require_parameters: true,
+    },
   };
+
+  if (model === OPENROUTER_QWEN38_FLASH_MODEL) {
+    body.reasoning = { effort: "none" };
+  }
+
+  return body;
 }
 
 async function analyzeWithModel(
@@ -145,7 +145,7 @@ async function analyzeWithModel(
     res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: buildOpenRouterHeaders(apiKey),
-      body: JSON.stringify(buildVisionRequestBody(model, dataUrl)),
+      body: JSON.stringify(buildAssetVisionRequestBody(model, dataUrl)),
     });
   } catch (err) {
     console.error("[vision] OpenRouter fetch failed:", model, err);

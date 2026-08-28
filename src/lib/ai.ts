@@ -14,10 +14,10 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_QWEN38_FLASH_MODEL,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
+import { resolveAssetVisionPrimaryModel } from "@/lib/assetVisionModels";
 import {
   GeminiTrafficOverloadError,
   GEMINI_TRAFFIC_OVERLOAD_MESSAGE,
@@ -163,10 +163,7 @@ export function resolveBackgroundMemoryFallbackModel(
 }
 
 /** 백그라운드 비전 1차 — 이미지 검열·에셋 태그 (실패 시 Qwen3-VL-8B Instruct) */
-export const BACKGROUND_VISION_OPENROUTER_MODEL =
-  process.env.BACKGROUND_VISION_MODEL?.trim() ||
-  process.env.ASSET_VISION_MODEL?.trim() ||
-  OPENROUTER_QWEN38_FLASH_MODEL;
+export const BACKGROUND_VISION_OPENROUTER_MODEL = resolveAssetVisionPrimaryModel();
 /** @deprecated BACKGROUND_OPENROUTER_MODEL 사용 */
 export const DRAFT_FLASH_MODEL = BACKGROUND_OPENROUTER_MODEL;
 /** @deprecated BACKGROUND_OPENROUTER_MODEL 사용 */

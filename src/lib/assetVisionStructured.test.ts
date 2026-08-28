@@ -10,8 +10,10 @@ import {
 import {
   finalizeStructuredVisionResult,
   parseAssetVisionResponseText,
+  buildAssetVisionRequestBody,
   visionModels,
 } from "@/lib/vision";
+import { resolveAssetVisionPrimaryModel } from "@/lib/assetVisionModels";
 import {
   OPENROUTER_QWEN38_FLASH_MODEL,
   OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
@@ -88,14 +90,27 @@ describe("assetPersonTags validation", () => {
     assert.equal(deriveFinalAssetTag(validated!), "미소");
   });
 
-  it("accepts bounded background tags", () => {
-    const validated = validateStructuredAssetVisionResult(backgroundPayload("침실"));
-    assert.ok(validated);
-    assert.equal(deriveFinalAssetTag(validated!), "침실");
+  it("accepts bounded background place tags", () => {
+    for (const tag of ["침실", "도시 거리", "우주선 내부"] as const) {
+      assert.equal(normalizeBackgroundTag(tag), tag);
+      const validated = validateStructuredAssetVisionResult(backgroundPayload(tag));
+      assert.ok(validated);
+      assert.equal(deriveFinalAssetTag(validated!), tag);
+    }
+  });
 
-    const street = validateStructuredAssetVisionResult(backgroundPayload("도시 거리"));
-    assert.ok(street);
-    assert.equal(deriveFinalAssetTag(street!), "도시 거리");
+  it("rejects background meta/visual garbage descriptors", () => {
+    for (const tag of [
+      "역광",
+      "푸른 조명",
+      "고화질",
+      "클로즈업",
+      "몽환적 분위기",
+      "high quality",
+    ] as const) {
+      assert.equal(normalizeBackgroundTag(tag), null, tag);
+      assert.equal(validateStructuredAssetVisionResult(backgroundPayload(tag)), null, tag);
+    }
   });
 
   it("rejects long or compound background tags", () => {
@@ -169,6 +184,45 @@ describe("asset vision prompt contract", () => {
       assert.match(prompt, new RegExp(tag));
     }
   });
+
+  it("explicitly prioritizes salient pose over neutral face", () => {
+    const prompt = buildAssetVisionPrompt();
+    assert.match(prompt, /salient emotion\/expression/);
+    assert.match(prompt, /salient pose\/action/);
+    assert.match(prompt, /무표정\+누움→누움/);
+    assert.match(prompt, /무표정\+앉음→앉음/);
+    assert.match(prompt, /무표정\+전투자세→전투자세/);
+  });
+});
+
+describe("asset vision request body contract", () => {
+  const dataUrl = "data:image/png;base64,abc";
+
+  it("Qwen3.8 disables reasoning and requires structured-output provider", () => {
+    const body = buildAssetVisionRequestBody(OPENROUTER_QWEN38_FLASH_MODEL, dataUrl);
+    assert.equal(body.model, OPENROUTER_QWEN38_FLASH_MODEL);
+    assert.equal(body.temperature, 0.1);
+    assert.deepEqual(body.reasoning, { effort: "none" });
+    assert.deepEqual(body.provider, { require_parameters: true });
+    assert.equal(
+      (body.response_format as { type?: string }).type,
+      "json_schema"
+    );
+  });
+
+  it("Qwen3-VL fallback omits reasoning but keeps structured provider routing", () => {
+    const body = buildAssetVisionRequestBody(
+      OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
+      dataUrl
+    );
+    assert.equal(body.model, OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL);
+    assert.equal("reasoning" in body, false);
+    assert.deepEqual(body.provider, { require_parameters: true });
+    assert.equal(
+      (body.response_format as { type?: string }).type,
+      "json_schema"
+    );
+  });
 });
 
 describe("asset vision model routing", () => {
@@ -191,6 +245,22 @@ describe("asset vision model routing", () => {
       else process.env.BACKGROUND_VISION_MODEL = prevBackground;
       if (prevFallback === undefined) delete process.env.ASSET_VISION_MODEL_FALLBACK;
       else process.env.ASSET_VISION_MODEL_FALLBACK = prevFallback;
+    }
+  });
+
+  it("ASSET_VISION_MODEL wins over BACKGROUND_VISION_MODEL for vision.ts and ai export", () => {
+    const prevPrimary = process.env.ASSET_VISION_MODEL;
+    const prevBackground = process.env.BACKGROUND_VISION_MODEL;
+    process.env.ASSET_VISION_MODEL = "model/A";
+    process.env.BACKGROUND_VISION_MODEL = "model/B";
+    try {
+      assert.deepEqual(visionModels(), ["model/A", OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL]);
+      assert.equal(resolveAssetVisionPrimaryModel(), "model/A");
+    } finally {
+      if (prevPrimary === undefined) delete process.env.ASSET_VISION_MODEL;
+      else process.env.ASSET_VISION_MODEL = prevPrimary;
+      if (prevBackground === undefined) delete process.env.BACKGROUND_VISION_MODEL;
+      else process.env.BACKGROUND_VISION_MODEL = prevBackground;
     }
   });
 });

@@ -29,6 +29,7 @@ describe("assetVisionPolicy", () => {
     assert.match(prompt, /성인용·일반용 공통/);
     assert.match(prompt, /imageType="person"/);
     assert.match(prompt, /PERSON_TAGS:/);
+    assert.match(prompt, /무표정\+누움→누움/);
     assert.doesNotMatch(prompt, /좋은 예:/);
   });
 

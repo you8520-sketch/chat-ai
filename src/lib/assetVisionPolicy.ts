@@ -28,7 +28,9 @@ TASK 1 — IMAGE TYPE
 TASK 2 — TAG (moderation과 별개)
 PERSON (imageType=person):
 - personTag: 아래 PERSON_TAGS 중 정확히 하나만 선택한다. backgroundTag=null.
-- 우선순위: (1) 명확한 얼굴 표정/감정 (2) 눈에 띄는 자세/행동 (3) 전체적인 인물 분위기 (4) 애매하면 "무표정".
+- 우선순위: (1) salient emotion/expression (2) salient pose/action (3) useful mood (4) neutral fallback.
+- "무표정"은 얼굴이 중립적이고 자세·행동·분위기도 뚜렷하지 않을 때만 선택한다. 얼굴이 무표정이어도 누움·앉음·전투자세 등 눈에 띄는 자세/행동이 보이면 personTag는 자세/행동 태그를 선택한다.
+- 예: 무표정+누움→누움, 무표정+앉음→앉음, 무표정+전투자세→전투자세, 중립 얼굴+뚜렷한 자세 없음→무표정.
 - PERSON tag에는 옷, 헤어, 성별, 신체, 장소, 배경, 소품, 무기, 색상, 조명, 카메라, 화풍, 품질 정보를 절대 사용하지 않는다.
 
 PERSON_TAGS:

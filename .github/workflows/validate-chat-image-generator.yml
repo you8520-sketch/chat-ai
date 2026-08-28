@@ -55,6 +55,16 @@ on:
       - "src/lib/chatImageSceneVisualScope.test.ts"
       - "src/lib/characterAssets.ts"
       - "src/lib/characterAssets.test.ts"
+      - "src/lib/assetPersonTags.ts"
+      - "src/lib/assetVisionPolicy.ts"
+      - "src/lib/assetVisionModels.ts"
+      - "src/lib/assetVisionStructured.test.ts"
+      - "src/lib/assetVisionPolicy.test.ts"
+      - "src/lib/assetVisionModels.test.ts"
+      - "src/lib/vision.ts"
+      - "src/lib/vision.models.test.ts"
+      - "src/lib/visionModerationNormalize.ts"
+      - "src/lib/visionModerationNormalize.test.ts"
       - "src/lib/characterFormSave.ts"
       - "src/lib/db.ts"
       - "src/components/AssetManagerGrid.tsx"
@@ -115,6 +125,11 @@ jobs:
       - run: node --import tsx --test src/lib/simulationCreatorUx.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/simulationCreatorAssetBoundary.test.ts
       - run: node --import tsx --test src/lib/characterAssets.test.ts
+      - run: node --import tsx --test src/lib/assetVisionStructured.test.ts
+      - run: node --import tsx --test src/lib/assetVisionPolicy.test.ts
+      - run: node --import tsx --test src/lib/assetVisionModels.test.ts
+      - run: node --import tsx --test src/lib/vision.models.test.ts
+      - run: node --import tsx --test src/lib/visionModerationNormalize.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
       - run: node --import tsx --test src/lib/chatImageCastPromptDedup.test.ts
