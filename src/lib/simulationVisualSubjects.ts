@@ -29,6 +29,7 @@ import {
   sanitizeAssetVisualSubjectKeys,
   serializeVisualSubjectsJson,
   unassignVisualAssets,
+  unassignedVisualAssets,
   validateAssetVisualSubjectOwnership,
   validateRepresentativeAsset,
   validateVisualSubjectsDocument,
@@ -75,6 +76,7 @@ export {
   resolveVisualSubjectByName,
   sanitizeAssetVisualSubjectKeys,
   unassignVisualAssets,
+  unassignedVisualAssets,
   validateAssetVisualSubjectOwnership,
   validateRepresentativeAsset,
 };
