@@ -64,8 +64,6 @@ import {
   previewDiceRollKey,
   resolveCampaignDicePreviewOverlay,
 } from "@/lib/trpg/dicePreviewTheme";
-import type { TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
-import { PRODUCTION_D20_THEME } from "@/lib/trpg/diceVisual";
 import {
   hideCurrentRoundResults,
   holdCurrentRoundReveal,
@@ -182,10 +180,8 @@ import {
 } from "@/lib/trpg/gmProviderStreamDisplay";
 
 function useCampaignDicePreview(
-  snap: TrpgCampaignSnapshot,
-  savedTheme: TrpgD20ThemeId
+  snap: TrpgCampaignSnapshot
 ): {
-  theme: TrpgD20ThemeId;
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   inject: boolean;
@@ -194,7 +190,6 @@ function useCampaignDicePreview(
 } {
   const [query, setQuery] = useState<{
     previewEnabled: boolean;
-    queryTheme: string | null;
     queryPreview: string | null;
     queryPreviewD20: string | null;
   } | null>(null);
@@ -206,7 +201,6 @@ function useCampaignDicePreview(
         previewFlag: process.env.NEXT_PUBLIC_TRPG_DICE_PREVIEW,
         hostname: window.location.hostname,
       }),
-      queryTheme: params.get("diceTheme"),
       queryPreview: params.get("dicePreview"),
       queryPreviewD20: params.get("dicePreviewD20"),
     });
@@ -217,7 +211,6 @@ function useCampaignDicePreview(
     "권태현";
   if (!query) {
     return {
-      theme: savedTheme,
       phase: snap.round.phase,
       rolls: snap.currentRolls,
       inject: false,
@@ -227,10 +220,8 @@ function useCampaignDicePreview(
   }
   const resolved = resolveCampaignDicePreviewOverlay({
     previewEnabled: query.previewEnabled,
-    queryTheme: query.queryTheme,
     queryPreview: query.queryPreview,
     queryPreviewD20: query.queryPreviewD20,
-    savedTheme,
     phase: snap.round.phase,
     currentRolls: snap.currentRolls,
     fixtureName,
@@ -404,7 +395,7 @@ export default function TrpgCampaignRoom({
     null
   );
   const phase = snap.round.phase;
-  const dicePreview = useCampaignDicePreview(snap, PRODUCTION_D20_THEME);
+  const dicePreview = useCampaignDicePreview(snap);
   const rollSessionKey = useMemo(
     () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
     [snap.currentRolls, snap.round.number]
@@ -1550,12 +1541,10 @@ export default function TrpgCampaignRoom({
       firstNarrationVisibleAt: times.firstNarrationVisibleAt || undefined,
       incomingSessionHidden,
       watchdogMs: revealWatchdogMs,
-      theme: dicePreview.theme,
       overlayMounted: overlayPlayback.visible,
     });
   }, [
     dicePreview.instrument,
-    dicePreview.theme,
     holdCurrentRound,
     incomingSessionHidden,
     orphanRolls.length,
@@ -2136,7 +2125,6 @@ export default function TrpgCampaignRoom({
         phase={dicePreview.phase}
         rolls={overlayRolls}
         resolutionOrder={snap.resolutionOrder}
-        theme={dicePreview.theme}
         previewInstrument={dicePreview.instrument}
         roundNumber={snap.round.number}
         replayOnMount={dicePreview.inject}

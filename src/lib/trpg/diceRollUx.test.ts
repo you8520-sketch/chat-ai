@@ -5,7 +5,6 @@ import { resolveTrpgD20Tone } from "./actionCardUi";
 import {
   TRPG_D20_HOLD_AFTER_SETTLE_MS,
   TRPG_D20_PER_DIE_MS,
-  TRPG_D20_THEME,
   TRPG_D20_TOTAL_CAP_MS,
   TRPG_DICE_BOX_THREEJS_ASSETS_COPIED,
   TRPG_DICE_BOX_THREEJS_REVIEWED,
@@ -178,7 +177,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(overlay, /trpgDiceRollSessionKey/);
     assert.match(overlay, /trpgDiceOverlayVisible/);
     assert.match(overlay, /trpgEmeraldDiceTiming/);
-    assert.match(overlay, /trpgD20StaticOverlaySpec/);
+    assert.match(overlay, /trpgProductionDiceStaticFallback/);
     assert.match(overlay, /data-trpg-dice-engine=\{use3d/);
     assert.match(overlay, /data-trpg-dice-webgl/);
     assert.match(overlay, /data-trpg-dice-reduced-motion/);
@@ -221,7 +220,7 @@ describe("TRPG 3D dice overlay contracts", () => {
     assert.match(room, /holdCurrentRoundReveal/);
     assert.match(room, /activePresentationRoll/);
     assert.match(room, /rolls=\{overlayRolls\}/);
-    assert.match(room, /useCampaignDicePreview\(snap, PRODUCTION_D20_THEME\)/);
+    assert.match(room, /useCampaignDicePreview\(snap\)/);
     assert.doesNotMatch(rail, /TrpgDiceThemeSettings/);
     assert.match(lane, /data-trpg-roll-result="desktop"/);
     assert.ok(fs.existsSync("public/d20-result/obsidian-royal.webp"), "missing obsidian-royal D20 art");

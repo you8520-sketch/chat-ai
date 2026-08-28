@@ -1,9 +1,6 @@
 import type { TrpgPublicRoll } from "./snapshot";
-import { resolveTrpgDiceTheme } from "./diceThemePrefs";
-import { normalizeTrpgD20ThemeId, type TrpgD20ThemeId } from "./diceVisual";
 
-/** Query keys allowed on preview/dev hosts only. */
-export const TRPG_DICE_PREVIEW_THEME_QUERY = "diceTheme";
+/** Query key for explicit preview fixture injection on dev/preview hosts only. */
 export const TRPG_DICE_PREVIEW_PLAY_QUERY = "dicePreview";
 
 /** Live production Railway host. Preview flags must never apply here. */
@@ -32,26 +29,9 @@ export function isTrpgDicePreviewRuntime(opts: {
   return false;
 }
 
-export function parseDiceThemeQuery(value: string | null | undefined): TrpgD20ThemeId | null {
-  return normalizeTrpgD20ThemeId(value ?? undefined);
-}
-
-export function resolveCampaignOverlayDiceTheme(opts: {
-  previewEnabled: boolean;
-  queryTheme?: string | null;
-  savedTheme?: TrpgD20ThemeId | null;
-}): TrpgD20ThemeId {
-  return resolveTrpgDiceTheme({
-    previewEnabled: opts.previewEnabled,
-    queryTheme: opts.queryTheme,
-    savedTheme: opts.savedTheme ?? null,
-  });
-}
-
-/** Fixture injection requires an explicit dicePreview=1/true, never the theme query alone. */
+/** Fixture injection requires an explicit dicePreview=1/true, never a theme query alone. */
 export function shouldInjectPreviewDiceOverlay(opts: {
   previewEnabled: boolean;
-  queryTheme?: string | null;
   queryPreview?: string | null;
 }): boolean {
   if (!opts.previewEnabled) return false;
@@ -61,35 +41,25 @@ export function shouldInjectPreviewDiceOverlay(opts: {
 
 export function resolveCampaignDicePreviewOverlay(opts: {
   previewEnabled: boolean;
-  queryTheme?: string | null;
   queryPreview?: string | null;
   queryPreviewD20?: string | null;
-  savedTheme?: TrpgD20ThemeId | null;
   phase: string;
   currentRolls: readonly TrpgPublicRoll[];
   fixtureName?: string;
 }): {
-  theme: TrpgD20ThemeId;
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   inject: boolean;
 } {
-  const theme = resolveCampaignOverlayDiceTheme({
-    previewEnabled: opts.previewEnabled,
-    queryTheme: opts.queryTheme,
-    savedTheme: opts.savedTheme ?? null,
-  });
   const inject = shouldInjectPreviewDiceOverlay({
     previewEnabled: opts.previewEnabled,
-    queryTheme: opts.queryTheme,
     queryPreview: opts.queryPreview,
   });
   if (!inject) {
-    return { theme, phase: opts.phase, rolls: opts.currentRolls, inject: false };
+    return { phase: opts.phase, rolls: opts.currentRolls, inject: false };
   }
   const previewD20 = parseDicePreviewD20(opts.queryPreviewD20);
   return {
-    theme,
     phase: "ROLLING",
     rolls:
       previewD20 == null && opts.currentRolls.length > 0
@@ -123,7 +93,6 @@ export type TrpgDicePreviewInstrument = {
   firstNarrationVisibleAt?: number;
   incomingSessionHidden?: boolean;
   watchdogMs?: number;
-  theme: TrpgD20ThemeId;
   overlayMounted?: boolean;
   webglAvailable?: boolean;
   prefersReducedMotion?: boolean;

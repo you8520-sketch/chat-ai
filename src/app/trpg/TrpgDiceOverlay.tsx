@@ -27,15 +27,13 @@ import {
   shouldScheduleTrpgStaticSettle,
 } from "@/lib/trpg/diceRollUx";
 import {
-  PRODUCTION_D20_THEME,
   PRODUCTION_DICE_PROTO,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
   TRPG_DICE_PHYSICS_ENGINE,
   trpgD20ResultHudStyle,
-  trpgD20StaticOverlaySpec,
+  trpgProductionDiceStaticFallback,
   type TrpgD20StaticOverlayTone,
-  type TrpgD20ThemeId,
 } from "@/lib/trpg/diceVisual";
 import TrpgDiceBoxScene, { type TrpgDiceSettleSource } from "./TrpgDiceBoxScene";
 
@@ -111,7 +109,6 @@ export default function TrpgDiceOverlay({
   phase,
   rolls,
   resolutionOrder,
-  theme = PRODUCTION_D20_THEME,
   previewInstrument = false,
   roundNumber = 0,
   replayOnMount = false,
@@ -122,7 +119,6 @@ export default function TrpgDiceOverlay({
   phase: string;
   rolls: readonly TrpgPublicRoll[];
   resolutionOrder?: readonly TrpgResolutionOrderEntry[];
-  theme?: TrpgD20ThemeId;
   previewInstrument?: boolean;
   roundNumber?: number;
   replayOnMount?: boolean;
@@ -130,7 +126,7 @@ export default function TrpgDiceOverlay({
   statDefs?: readonly TrpgStatDefinition[];
   onPlaybackStateChange?: (state: TrpgDiceOverlayPlaybackState) => void;
 }) {
-  const overlay = useMemo(() => trpgD20StaticOverlaySpec(theme), [theme]);
+  const overlay = useMemo(() => trpgProductionDiceStaticFallback(), []);
   const ordered = useMemo(() => orderTrpgDiceRolls(rolls, resolutionOrder), [resolutionOrder, rolls]);
   const sessionKey = useMemo(() => trpgDiceRollSessionKey(roundNumber, ordered), [ordered, roundNumber]);
   const timing = trpgEmeraldDiceTiming(ordered.length);
@@ -147,8 +143,8 @@ export default function TrpgDiceOverlay({
   playRef.current = play;
   const sessionKeyRef = useRef(sessionKey);
   sessionKeyRef.current = sessionKey;
-  const instrumentRef = useRef({ previewInstrument, roundNumber, theme, ordered, phase, sessionKey });
-  instrumentRef.current = { previewInstrument, roundNumber, theme, ordered, phase, sessionKey };
+  const instrumentRef = useRef({ previewInstrument, roundNumber, ordered, phase, sessionKey });
+  instrumentRef.current = { previewInstrument, roundNumber, ordered, phase, sessionKey };
   const visible = trpgDiceOverlayVisible(play.started, play.dismissed, ordered.length);
   const use3d = decision?.renderer === "dice-box-threejs";
 
@@ -166,7 +162,6 @@ export default function TrpgDiceOverlay({
         currentRollsLength: inst.ordered.length,
         rollKey: previewDiceRollKey(inst.ordered),
         rollSessionKey: inst.sessionKey,
-        theme: inst.theme,
         overlayMounted: false,
         webglAvailable: next.webgl,
         prefersReducedMotion: next.reducedMotion,
@@ -224,7 +219,6 @@ export default function TrpgDiceOverlay({
         overlaySessionAction: action,
         overlayStarted: next.started,
         overlayDismissed: next.dismissed,
-        theme: inst.theme,
         overlayMounted: trpgDiceOverlayVisible(next.started, next.dismissed, ordered.length),
       });
     }
@@ -368,7 +362,7 @@ export default function TrpgDiceOverlay({
     resultPhase === "entering" ? 0.92 :
     resultPhase === "holding" ? 1 :
     resultPhase === "exiting" ? 1 : 1;
-  const resultHud = trpgD20ResultHudStyle(theme, tone, face);
+  const resultHud = trpgD20ResultHudStyle(tone, face);
 
   return (
     <div
@@ -380,8 +374,8 @@ export default function TrpgDiceOverlay({
       data-trpg-dice-reduced-motion={decision?.reducedMotion ? "true" : "false"}
       data-trpg-dice-fallback-reason={decision?.fallbackReason ?? "no-webgl"}
       data-trpg-dice-engine={use3d ? "dice-box-threejs" : "static-result"}
-      data-trpg-dice-theme={theme}
-      data-trpg-dice-theme-label={overlay.label}
+      data-trpg-dice-visual="production-d20"
+      data-trpg-dice-visual-label={overlay.label}
       data-trpg-dice-mode={use3d ? "physics" : "static"}
       data-trpg-dice-renderer={use3d ? "dice-box-threejs" : "static"}
       data-trpg-dice-physics={use3d ? "cannon-es" : TRPG_DICE_PHYSICS_ENGINE}
