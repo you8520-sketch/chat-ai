@@ -26,6 +26,7 @@ import {
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
+import { loadAdjudicatedParticipantIds } from "./roundAdjudication";
 import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
@@ -370,6 +371,7 @@ export function loadTrpgSnapshot(
     suggestedPcStats: scenario.defaultPcStats,
     viewerParticipantId: viewer?.id ?? null,
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
+    viewerUserId,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     botRetryRequired: work.type === "bot_retry_required",
     needsHostFill: false,
@@ -390,6 +392,7 @@ export function loadTrpgSnapshot(
         }
       : null,
     currentRolls,
+    adjudicatedParticipantIds: round ? loadAdjudicatedParticipantIds(db, round.id) : [],
     resolutionOrder: (() => {
       const current = round ? loadResolutionOrder(db, round.id) : [];
       if (current.length > 0) return current;
@@ -438,7 +441,8 @@ export function loadTrpgSnapshot(
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
     aiCharacterAssets: toPublicAiCharacterAssets(
-      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts))
+      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts)),
+      viewerUserId
     ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
     gmFailureHint:

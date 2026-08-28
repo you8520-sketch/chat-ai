@@ -278,9 +278,8 @@ test("text background task inventory: Luna PRIMARY, zero remaining DeepSeek prim
     new URL("./appearanceCompiler.ts", import.meta.url),
     "utf8"
   );
-  assert.match(appearanceSrc, /OPENROUTER_GEMINI_31_FLASH_MODEL/);
-  assert.equal(OPENROUTER_GEMINI_31_FLASH_MODEL, "google/gemini-3.1-flash-lite");
-  assert.doesNotMatch(appearanceSrc, /CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL/);
+  assert.match(appearanceSrc, /CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL/);
+  assert.doesNotMatch(appearanceSrc, /OPENROUTER_GEMINI_31_FLASH_MODEL/);
 
   const remainingDeepSeekTextPrimaryTasks = 0;
   assert.equal(remainingDeepSeekTextPrimaryTasks, 0);

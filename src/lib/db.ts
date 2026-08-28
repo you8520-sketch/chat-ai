@@ -26,6 +26,7 @@ import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
+import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
@@ -598,6 +599,7 @@ function migrate(db: Database.Database) {
   addColumn("chats", "user_impersonation", "INTEGER NOT NULL DEFAULT 0");
   addColumn("chats", "target_response_chars", "INTEGER NOT NULL DEFAULT 2000");
   addColumn("characters", "recommended_writing_style", "TEXT NOT NULL DEFAULT 'balanced'");
+  addColumn("characters", "narration_style_instructions", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "writing_style_override", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "narrative_pov", "TEXT NOT NULL DEFAULT 'third_person'");
   addColumn("chats", "pov_character_name", "TEXT NOT NULL DEFAULT ''");
@@ -1651,6 +1653,11 @@ function migrate(db: Database.Database) {
   migrateUnifiedTargetResponseChars3200(db);
   migrateBoardPostsOnce(db);
   seedGlobalLorebookEntries(db);
+  ensureDerivedCacheJobsTable(db);
+  addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
+  addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+  addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
+  addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
 }
 
 function migrateBoardPostsOnce(db: Database.Database) {

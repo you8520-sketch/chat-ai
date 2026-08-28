@@ -50,7 +50,7 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
  * control only the post-settle RESULT_CONFIRM HUD duration.
  */
 export const TRPG_RESULT_ENTER_MS = 180 as const;
-export const TRPG_RESULT_HOLD_MS = { 1: 850, 2: 650, 3: 500, 4: 500 } as const;
+export const TRPG_RESULT_HOLD_MS = { 1: 2200, 2: 650, 3: 500, 4: 500 } as const;
 export const TRPG_RESULT_EXIT_MS = 200 as const;
 /** Deterministic static-renderer settle delay (accessibility-friendly, no physics). */
 export const TRPG_STATIC_SETTLE_MS = 320 as const;
@@ -64,6 +64,13 @@ export function trpgResultConfirmPerDieMs(rollCount: number): number {
   if (n <= 0) return 0;
   const bucket = n === 1 ? 1 : n === 2 ? 2 : n === 3 ? 3 : 4;
   return TRPG_RESULT_ENTER_MS + TRPG_RESULT_HOLD_MS[bucket] + TRPG_RESULT_EXIT_MS;
+}
+
+/** Readable RESULT_CONFIRM hold (excludes enter/exit), derived from canonical confirm timing. */
+export function trpgResultHoldMs(rollCount: number): number {
+  const confirmMs = trpgResultConfirmPerDieMs(rollCount);
+  if (confirmMs <= 0) return 0;
+  return confirmMs - TRPG_RESULT_ENTER_MS - TRPG_RESULT_EXIT_MS;
 }
 
 export function trpgEmeraldDiceTiming(rollCount: number): {
@@ -281,6 +288,30 @@ export function shouldAdvanceActorDiceAfterOverlayDismiss(opts: {
   if (opts.mode !== "cinematic" || opts.phase !== "actor-dice") return false;
   if (!opts.activeRollSessionKey) return false;
   return opts.overlayDismissed && opts.overlaySessionKey === opts.activeRollSessionKey;
+}
+
+/** Per-actor dice session during cinematic actor-dice; aggregate key otherwise. */
+export function activePresentationDiceSessionKey(opts: {
+  roundNumber: number;
+  mode: string;
+  phase: string;
+  activeRoll: TrpgDiceRollSessionFields | null | undefined;
+  aggregateRollSessionKey: string;
+}): string {
+  if (opts.mode === "cinematic" && opts.phase === "actor-dice" && opts.activeRoll) {
+    return trpgDiceRollSessionKey(opts.roundNumber, [opts.activeRoll]);
+  }
+  return opts.aggregateRollSessionKey;
+}
+
+/** Presentation gate: overlay dismiss applies only to the active dice session owner. */
+export function overlayPresentationDismissed(opts: {
+  overlayDismissed: boolean;
+  overlaySessionKey: string;
+  presentationDiceSessionKey: string;
+}): boolean {
+  if (!opts.presentationDiceSessionKey) return false;
+  return opts.overlayDismissed && opts.overlaySessionKey === opts.presentationDiceSessionKey;
 }
 
 export function trpgDiceOverlayActive(_phase: string, rolls: readonly TrpgPublicRoll[]): boolean {

@@ -19,7 +19,12 @@ import {
   trpgDiceRevealWatchdogMs,
   trpgEmeraldDiceTiming,
   trpgResultConfirmPerDieMs,
+  trpgResultHoldMs,
   TRPG_EMERALD_MULTI_ROLL_CAP_MS,
+  TRPG_RESULT_ENTER_MS,
+  TRPG_RESULT_EXIT_MS,
+  TRPG_RESULT_HOLD_MS,
+  TRPG_STATIC_SETTLE_MS,
   trpgDiceOverlayActive,
   trpgDiceOverlayAfterSettle,
   trpgDiceOverlaySessionAction,
@@ -229,22 +234,27 @@ describe("TRPG 3D dice overlay contracts", () => {
   it("hides roll outcome until the centered result-confirm HUD", () => {
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     assert.doesNotMatch(overlay, /\{roll\.name\} · D20 \{roll\.d20\} · \{outcome\}/);
-    assert.doesNotMatch(overlay, /!showResult \?/);
     assert.match(overlay, /trpgRollOutcomeLabel\(roll\.tier\)/);
     assert.match(overlay, /data-trpg-dice-result-confirm/);
     assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
     assert.match(overlay, /data-trpg-dice-result-outcome=\{outcome\}/);
     assert.match(overlay, /\{showResult \? \(/);
     assert.match(overlay, /TRPG_RESULT_ENTER_MS/);
-    assert.match(overlay, /TRPG_RESULT_HOLD_MS/);
+    assert.match(overlay, /trpgResultHoldMs/);
     assert.match(overlay, /TRPG_RESULT_EXIT_MS/);
   });
 
   it("paces result-confirm multi-roll so overlay finishes before the watchdog", () => {
+    assert.equal(TRPG_RESULT_ENTER_MS, 180);
+    assert.equal(TRPG_RESULT_HOLD_MS[1], 2200);
+    assert.equal(TRPG_RESULT_EXIT_MS, 200);
+    assert.equal(trpgResultHoldMs(1), 2200);
+    assert.equal(trpgResultConfirmPerDieMs(1), 2580);
+
     const one = trpgEmeraldDiceTiming(1);
     assert.equal(one.perDieMs, trpgResultConfirmPerDieMs(1));
-    assert.equal(one.perDieMs, 1230);
-    assert.equal(one.totalMs, 1230);
+    assert.equal(one.perDieMs, 2580);
+    assert.equal(one.totalMs, 2580);
     const two = trpgEmeraldDiceTiming(2);
     assert.equal(two.perDieMs, trpgResultConfirmPerDieMs(2));
     assert.equal(two.totalMs, 2060);
@@ -261,7 +271,7 @@ describe("TRPG 3D dice overlay contracts", () => {
       assert.ok(timing.totalMs <= TRPG_EMERALD_MULTI_ROLL_CAP_MS);
       assert.ok(watchdog >= 10_000);
     }
-    assert.equal(trpgDiceRevealWatchdogMs(1), 10_230);
+    assert.equal(trpgDiceRevealWatchdogMs(1), 11_580);
     const four = trpgEmeraldDiceTiming(4);
     assert.equal(four.perDieMs, trpgResultConfirmPerDieMs(4));
     assert.equal(four.perDieMs, 880);
@@ -275,5 +285,29 @@ describe("TRPG 3D dice overlay contracts", () => {
     const advance = fs.readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
     assert.match(advance, /resolveTrpgActionCheckDecision/);
     assert.doesNotMatch(advance, /subs\.slice\(0,\s*3\)/);
+  });
+
+  it("blocks sequential live rolls until each RESULT_CONFIRM lifecycle completes", () => {
+    const perRollConfirmMs = trpgResultConfirmPerDieMs(1);
+    assert.equal(perRollConfirmMs, TRPG_RESULT_ENTER_MS + TRPG_RESULT_HOLD_MS[1] + TRPG_RESULT_EXIT_MS);
+    assert.equal(TRPG_STATIC_SETTLE_MS, 320);
+
+    const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /trpgDiceOverlayAfterSettle/);
+    assert.match(overlay, /setResultPhase\("rolling"\)/);
+    assert.match(overlay, /TRPG_RESULT_EXIT_MS/);
+
+    assert.deepEqual(trpgDiceOverlayAfterSettle(0, 1), { index: 0, dismissed: true });
+    assert.deepEqual(trpgDiceOverlayAfterSettle(0, 3), { index: 1, dismissed: false });
+    assert.deepEqual(trpgDiceOverlayAfterSettle(1, 3), { index: 2, dismissed: false });
+    assert.deepEqual(trpgDiceOverlayAfterSettle(2, 3), { index: 2, dismissed: true });
+
+    const roll1EndMs = perRollConfirmMs;
+    const roll2EarliestStartMs = roll1EndMs;
+    const roll2EndMs = roll2EarliestStartMs + perRollConfirmMs;
+    const roll3EarliestStartMs = roll2EndMs;
+    assert.ok(roll2EarliestStartMs >= roll1EndMs);
+    assert.ok(roll3EarliestStartMs >= roll2EndMs);
+    assert.equal(roll3EarliestStartMs + perRollConfirmMs, perRollConfirmMs * 3);
   });
 });

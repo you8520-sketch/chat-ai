@@ -14,7 +14,7 @@ describe("TRPG tagged GM prose", () => {
   it("T. accepts a portrait character asset on the TRPG renderer path", () => {
     const parts = splitTrpgGmProseForAssets("태현이 이를 악문다.\n[캐릭터에셋: 12|분노]\n문이 운다.", {
       scenarioAssets: [scenarioWide],
-      characterCatalog: [{ participantId: 12, characterId: 15, name: "권태현", assets: [portrait] }],
+      characterCatalog: [{ participantId: 12, characterId: 15, viewerIsCreator: false, name: "권태현", assets: [portrait] }],
       campaignId: 9,
       roundNumber: 3,
     });
@@ -49,6 +49,7 @@ describe("TRPG tagged GM prose", () => {
     const catalog = [{
       participantId: 12,
       characterId: 15,
+      viewerIsCreator: false,
       name: "권태현",
       assets: [
         withAssetSize({ url: "/anger-a.webp", tag: "분노", chat: true }, 800, 1200),
@@ -77,7 +78,7 @@ describe("TRPG tagged GM prose", () => {
   it("X. drops malformed markers from visible prose", () => {
     const parts = splitTrpgGmProseForAssets("앞.\n[캐릭터에셋: 화남]\n[태그: 없는장면]\n뒤.", {
       scenarioAssets: [scenarioWide],
-      characterCatalog: [{ participantId: 12, characterId: 15, name: "권태현", assets: [portrait] }],
+      characterCatalog: [{ participantId: 12, characterId: 15, viewerIsCreator: false, name: "권태현", assets: [portrait] }],
       campaignId: 9,
       roundNumber: 3,
     });
@@ -87,5 +88,68 @@ describe("TRPG tagged GM prose", () => {
     assert.match(text, /앞/);
     assert.match(text, /뒤/);
     assert.equal(visibleTrpgGmProse("[캐릭터에셋: 12|분노] 문이 운다.").includes("캐릭터에셋"), false);
+  });
+
+  it("LOCKED_BLURRED_ASSET_NOT_RENDERED while unlocked asset renders", () => {
+    const locked = withAssetSize(
+      { url: "/locked.webp", tag: "분노", chat: true, viewerBlur: true },
+      800,
+      1200
+    );
+    const unlocked = withAssetSize(
+      { url: "/open.webp", tag: "분노", chat: true, viewerBlur: false },
+      800,
+      1200
+    );
+    const lockedOnlyCatalog = [
+      {
+        participantId: 12,
+        characterId: 15,
+        viewerIsCreator: false,
+        name: "권태현",
+        assets: [locked],
+      },
+    ];
+    const lockedOnly = splitTrpgGmProseForAssets("[캐릭터에셋: 12|분노]", {
+      scenarioAssets: [],
+      characterCatalog: lockedOnlyCatalog,
+      campaignId: 9,
+      roundNumber: 3,
+      unlockedUrlsByCharacterId: new Map([[15, new Set()]]),
+    });
+    assert.equal(lockedOnly.some((part) => part.kind === "character"), false, "LOCKED_BLURRED_ASSET_NOT_RENDERED");
+    const catalog = [
+      {
+        participantId: 12,
+        characterId: 15,
+        viewerIsCreator: false,
+        name: "권태현",
+        assets: [locked, unlocked],
+      },
+    ];
+    const unlockedPick = splitTrpgGmProseForAssets("[캐릭터에셋: 12|분노]", {
+      scenarioAssets: [],
+      characterCatalog: catalog,
+      campaignId: 9,
+      roundNumber: 3,
+      unlockedUrlsByCharacterId: new Map([[15, new Set(["/locked.webp"])]]),
+    });
+    const rendered = unlockedPick.find((part) => part.kind === "character");
+    assert.equal(rendered?.kind, "character");
+    if (rendered?.kind === "character") {
+      assert.equal(rendered.asset.url, "/locked.webp", "UNLOCKED_ASSET_RENDERED");
+    }
+    const publicPick = splitTrpgGmProseForAssets("[캐릭터에셋: 12|분노]", {
+      scenarioAssets: [],
+      characterCatalog: catalog,
+      campaignId: 9,
+      roundNumber: 3,
+      unlockedUrlsByCharacterId: new Map([[15, new Set()]]),
+    });
+    const publicRendered = publicPick.find((part) => part.kind === "character");
+    assert.equal(publicRendered?.kind, "character");
+    if (publicRendered?.kind === "character") {
+      assert.equal(publicRendered.asset.url, "/open.webp", "PUBLIC_REPRESENTATIVE_RENDERED");
+    }
   });
 });

@@ -2090,6 +2090,8 @@ export async function POST(req: Request) {
     speechPersonality: (ch as { speech_personality?: string }).speech_personality,
     speechTraits: (ch as { speech_traits?: string }).speech_traits,
     characterPersonality: ch.description,
+    creatorNarrationStyle: (ch as { narration_style_instructions?: string | null })
+      .narration_style_instructions ?? "",
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
     revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,

@@ -24,7 +24,7 @@ import {
   trpgPredeterminedD20Notation,
   TRPG_RESULT_ENTER_MS,
   TRPG_RESULT_EXIT_MS,
-  TRPG_RESULT_HOLD_MS,
+  trpgResultHoldMs,
   TRPG_STATIC_SETTLE_MS,
   isTrpgStaticSettleTimerStale,
   shouldScheduleTrpgStaticSettle,
@@ -250,8 +250,7 @@ export default function TrpgDiceOverlay({
       return () => window.clearTimeout(enter);
     }
     if (resultPhase === "holding") {
-      const bucket = ordered.length === 1 ? 1 : ordered.length === 2 ? 2 : ordered.length === 3 ? 3 : 4;
-      const holdMs = TRPG_RESULT_HOLD_MS[bucket];
+      const holdMs = trpgResultHoldMs(ordered.length);
       const exit = window.setTimeout(() => setResultPhase("exiting"), holdMs);
       return () => window.clearTimeout(exit);
     }

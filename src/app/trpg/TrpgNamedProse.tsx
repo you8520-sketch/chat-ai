@@ -30,6 +30,8 @@ function TrpgGmProseBody({
   roundNumber = 0,
   contentStreaming = false,
   inlineFirstParagraph = true,
+  viewerUserId,
+  unlockedUrlsByCharacterId,
 }: {
   body: string;
   assets?: CharacterAsset[];
@@ -38,6 +40,8 @@ function TrpgGmProseBody({
   roundNumber?: number;
   contentStreaming?: boolean;
   inlineFirstParagraph?: boolean;
+  viewerUserId?: number;
+  unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
 }) {
   const hasSceneAssets =
     assets.length > 0 ||
@@ -58,6 +62,8 @@ function TrpgGmProseBody({
         dialogueAccent={false}
         inlineFirstParagraph={inlineFirstParagraph}
         proseClassName={TRPG_GM_TALK_BODY_CLASS}
+        viewerUserId={viewerUserId}
+        unlockedUrlsByCharacterId={unlockedUrlsByCharacterId}
       />
     );
   }
@@ -85,6 +91,8 @@ export function TrpgGmTalk({
   contentStreaming = false,
   onRevealChange,
   quoteAssistantRoot = true,
+  viewerUserId,
+  unlockedUrlsByCharacterId,
 }: {
   text: string;
   assets?: CharacterAsset[];
@@ -97,6 +105,8 @@ export function TrpgGmTalk({
   onRevealChange?: (report: { complete: boolean; progressive: boolean }) => void;
   /** When false, ancestor owns [data-quote-assistant] (TRPG scene turns). */
   quoteAssistantRoot?: boolean;
+  viewerUserId?: number;
+  unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
 }) {
   const { shownText: shown, complete } = useRevealedText(text, reveal);
   const body = shown.trim();
@@ -132,6 +142,8 @@ export function TrpgGmTalk({
           campaignId={campaignId}
           roundNumber={roundNumber}
           contentStreaming={contentStreaming}
+          viewerUserId={viewerUserId}
+          unlockedUrlsByCharacterId={unlockedUrlsByCharacterId}
         />
       </div>
     </div>

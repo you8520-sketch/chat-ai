@@ -4,7 +4,7 @@ import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
-import { buildSaveAndTranslateCharacterChunks } from "@/lib/characterChunks";
+import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
   characterAdultTextBlob,
   findAdultTermsInText,
@@ -27,6 +27,12 @@ import {
 import { CHARACTER_NAME_LIMIT, CREATOR_COMMENT_LIMIT } from "@/lib/characters";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { normalizeCreatorRecommendedStyle } from "@/lib/writingStylePreset";
+import {
+  effectivePromptAuthoringCharCount,
+  normalizeNarrationStyleInstructions,
+  substantiveAiLearningCharCount,
+  validateNarrationStyleInstructions,
+} from "@/lib/creatorNarrationStyle";
 import {
   composeExampleDialog,
   parseSpeechCreatorFromBody,
@@ -58,13 +64,11 @@ import {
 import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
 import {
   APPEARANCE_COMPILED_VERSION,
-  appearancePromptText,
-  compileAppearanceForChat,
   extractAppearanceRawFromSetting,
   hashAppearanceRaw,
   replaceAppearanceInSetting,
-  serializeAppearanceCompiledJson,
 } from "@/lib/appearanceCompiler";
+import { isAppearanceCompiledCurrent, resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import {
   buildSimulationSystemPrompt,
   parseContentKind,
@@ -129,7 +133,7 @@ export type ParsedCharacterForm = {
   gender: NonNullable<ReturnType<typeof parseCharacterGender>>;
   genres: ReturnType<typeof sanitizeCharacterGenres>;
   primaryGenre: string;
-  recommendedWritingStyle: ReturnType<typeof normalizeCreatorRecommendedStyle>;
+  narrationStyleInstructions: string;
   assets: CharacterAsset[];
   images: string[];
   audience: string;
@@ -459,10 +463,21 @@ export function parseCharacterFormBody(
       status: 400,
     };
   }
-  if (
-    world.length + systemPrompt.length + speechCreatorCharCount(speechInput) <
-    AI_LEARNING_MIN
-  ) {
+  const narrationStyleErr = validateNarrationStyleInstructions(
+    b.narration_style_instructions ?? b.narrationStyleInstructions
+  );
+  if (narrationStyleErr) {
+    return { ok: false, error: narrationStyleErr, status: 400 };
+  }
+  const narrationStyleInstructions = normalizeNarrationStyleInstructions(
+    b.narration_style_instructions ?? b.narrationStyleInstructions
+  );
+  const substantiveAiLearningChars = substantiveAiLearningCharCount({
+    world,
+    systemPrompt,
+    speechInput,
+  });
+  if (substantiveAiLearningChars < AI_LEARNING_MIN) {
     return {
       ok: false,
       error: `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
@@ -470,7 +485,7 @@ export function parseCharacterFormBody(
     };
   }
   if (
-    world.length + systemPrompt.length + speechCreatorCharCount(speechInput) >
+    effectivePromptAuthoringCharCount(substantiveAiLearningChars, narrationStyleInstructions) >
     AI_LEARNING_LIMIT
   ) {
     return {
@@ -561,9 +576,7 @@ export function parseCharacterFormBody(
       gender,
       genres,
       primaryGenre: primaryCharacterGenre(genres),
-      recommendedWritingStyle: normalizeCreatorRecommendedStyle(
-        b.recommended_writing_style ?? b.recommendedWritingStyle
-      ),
+      narrationStyleInstructions,
       assets,
       images: assetUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
@@ -646,34 +659,71 @@ export function buildCanonPlanJsonForSave(
 }
 
 
-async function buildAppearanceForSave(
+function prepareAppearanceForSave(
   raw: string,
-  existing?: { appearance_raw?: string | null; appearance_compiled?: string | null; appearance_compiled_source_hash?: string | null; appearance_compiled_version?: number | null },
-  force = false
-) {
+  existing?: {
+    appearance_raw?: string | null;
+    appearance_compiled?: string | null;
+    appearance_compiled_source_hash?: string | null;
+    appearance_compiled_version?: number | null;
+  },
+  forceRecompile = false
+): {
+  raw: string;
+  compiled: string;
+  sourceHash: string;
+  version: number;
+} {
   const sourceHash = hashAppearanceRaw(raw);
-  const canReuse =
-    !force &&
-    (existing?.appearance_raw ?? "") === raw &&
-    existing?.appearance_compiled_source_hash === sourceHash &&
-    existing?.appearance_compiled_version === APPEARANCE_COMPILED_VERSION;
-  if (canReuse) {
-    return { raw, compiled: existing?.appearance_compiled ?? "", sourceHash, version: APPEARANCE_COMPILED_VERSION, called: false };
+  if (!raw.trim()) {
+    return { raw: "", compiled: "", sourceHash, version: APPEARANCE_COMPILED_VERSION };
   }
-  const compiledJson = await compileAppearanceForChat(raw);
-  const compiled = serializeAppearanceCompiledJson(compiledJson);
-  return {
+
+  const rawUnchanged = (existing?.appearance_raw ?? "") === raw;
+  const compiledCurrent = isAppearanceCompiledCurrent({
     raw,
-    // Compile failure must not wipe a previously good compiled cache.
-    compiled: compiled || (existing?.appearance_compiled ?? ""),
-    sourceHash,
-    version: APPEARANCE_COMPILED_VERSION,
-    called: Boolean(raw.trim()),
-  };
+    compiledJson: existing?.appearance_compiled,
+    compiledSourceHash: existing?.appearance_compiled_source_hash,
+    compiledVersion: existing?.appearance_compiled_version,
+  });
+
+  if (rawUnchanged && compiledCurrent && !forceRecompile) {
+    return {
+      raw,
+      compiled: existing?.appearance_compiled ?? "",
+      sourceHash,
+      version: APPEARANCE_COMPILED_VERSION,
+    };
+  }
+
+  // Same raw + force refresh: SWR — keep serving current compiled until background CAS publish.
+  if (rawUnchanged && compiledCurrent && forceRecompile) {
+    return {
+      raw,
+      compiled: existing?.appearance_compiled ?? "",
+      sourceHash,
+      version: APPEARANCE_COMPILED_VERSION,
+    };
+  }
+
+  // Raw change invalidates stale compiled in DB — runtime falls back to raw until background CAS publish.
+  const compiled = "";
+  return { raw, compiled, sourceHash, version: APPEARANCE_COMPILED_VERSION };
 }
 
-function applyCompiledAppearanceToCanon(safeRuntimeCanon: string, appearanceRaw: string, appearanceCompiled: string): string {
-  const promptAppearance = appearancePromptText({ raw: appearanceRaw, compiledJson: appearanceCompiled });
+function applyAppearanceToRuntimeCanon(
+  safeRuntimeCanon: string,
+  appearanceRaw: string,
+  appearanceCompiled: string,
+  appearanceCompiledSourceHash: string,
+  appearanceCompiledVersion: number
+): string {
+  const promptAppearance = resolveAppearancePromptText({
+    raw: appearanceRaw,
+    compiledJson: appearanceCompiled,
+    compiledSourceHash: appearanceCompiledSourceHash,
+    compiledVersion: appearanceCompiledVersion,
+  });
   return replaceAppearanceInSetting(safeRuntimeCanon, promptAppearance);
 }
 
@@ -809,8 +859,14 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     appearanceRaw,
   } = buildCompiledCreatorDescriptionForSave(data);
   const canonPlanSave = buildCanonPlanJsonForSave(data);
-  const appearance = await buildAppearanceForSave(appearanceRaw);
-  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
+  const appearance = prepareAppearanceForSave(appearanceRaw);
+  const runtimeCanonWithAppearance = applyAppearanceToRuntimeCanon(
+    safeRuntimeCanon,
+    appearance.raw,
+    appearance.compiled,
+    appearance.sourceHash,
+    appearance.version
+  );
 
   const db = getDb();
   const info = db
@@ -818,9 +874,9 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
+         recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
          content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, simulation_visual_subjects_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -852,7 +908,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       moderationStatus,
       moderationNote,
       shareSlug,
-      data.recommendedWritingStyle,
+      normalizeCreatorRecommendedStyle(null),
+      data.narrationStyleInstructions,
       data.commentsEnabled,
       data.creatorComment,
       creatorRawDescription,
@@ -889,7 +946,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     characterId,
     mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
   );
-  await buildSaveAndTranslateCharacterChunks(characterId, {
+  buildSaveCharacterChunksAndEnqueueDerivedRefresh(characterId, {
     name: data.name,
     gender: data.gender,
     systemPrompt: data.systemPrompt,
@@ -1036,8 +1093,14 @@ export async function updateCharacterFromForm(
     ]);
   const canonPlanSave = buildCanonPlanJsonForSave(data, row.creator_canon_plan_json);
   const forceAppearanceCompile = b.regenerate_appearance === true || b.regenerateAppearance === true;
-  const appearance = await buildAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
-  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
+  const appearance = prepareAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
+  const runtimeCanonWithAppearance = applyAppearanceToRuntimeCanon(
+    safeRuntimeCanon,
+    appearance.raw,
+    appearance.compiled,
+    appearance.sourceHash,
+    appearance.version
+  );
   const currentPromptRow = db
     .prepare("SELECT name, gender, system_prompt, world, example_dialog FROM characters WHERE id=?")
     .get(characterId) as
@@ -1052,7 +1115,7 @@ export async function updateCharacterFromForm(
       name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, source_world_share_id=?, lorebook_id=?,
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
-      share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
+      share_slug=?, recommended_writing_style=?, narration_style_instructions=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
       content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?
      WHERE id=?`
@@ -1083,7 +1146,8 @@ export async function updateCharacterFromForm(
     moderationStatus,
     moderationNote,
     shareSlug,
-    data.recommendedWritingStyle,
+    normalizeCreatorRecommendedStyle(null),
+    data.narrationStyleInstructions,
     data.commentsEnabled,
     data.creatorComment,
     user.nickname,
@@ -1132,16 +1196,20 @@ export async function updateCharacterFromForm(
   const promptInputsChanged = characterPromptInputsChanged(row, data);
 
   if (promptInputsChanged || forceAppearanceCompile) {
-    await buildSaveAndTranslateCharacterChunks(characterId, {
-      name: data.name,
-      gender: data.gender,
-      systemPrompt: data.systemPrompt,
-      world: data.world,
-      exampleDialog: data.exampleDialog,
-      statusWindowPrompt: data.statusWindowPrompt,
-      speechInput: data.speechInput,
-      safeRuntimeCanon: runtimeCanonWithAppearance,
-    });
+    buildSaveCharacterChunksAndEnqueueDerivedRefresh(
+      characterId,
+      {
+        name: data.name,
+        gender: data.gender,
+        systemPrompt: data.systemPrompt,
+        world: data.world,
+        exampleDialog: data.exampleDialog,
+        statusWindowPrompt: data.statusWindowPrompt,
+        speechInput: data.speechInput,
+        safeRuntimeCanon: runtimeCanonWithAppearance,
+      },
+      forceAppearanceCompile ? { forceAppearanceRefresh: true } : undefined
+    );
   } else if (process.env.NODE_ENV !== "production") {
     console.log(`[characterFormSave] skipped prompt chunk rebuild for asset-only update: ${characterId}`);
   }

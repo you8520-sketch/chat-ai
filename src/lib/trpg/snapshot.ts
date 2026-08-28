@@ -101,6 +101,7 @@ export type TrpgCampaignSnapshot = {
   suggestedPcStats: Record<string, number> | null;
   viewerParticipantId: number | null;
   viewerPersonaId: number | null;
+  viewerUserId: number;
   viewerIsHost: boolean;
   botRetryRequired: boolean;
   /**
@@ -128,6 +129,8 @@ export type TrpgCampaignSnapshot = {
   } | null;
   currentRolls: TrpgPublicRoll[];
   resolutionOrder?: TrpgResolutionOrderEntry[];
+  /** Participant ids with completed server adjudication (roll, no-roll, or skipped). */
+  adjudicatedParticipantIds?: number[];
   currentNarration: string | null;
   /** Live provider-stream narration draft during GENERATING_NARRATION. */
   gmNarrationDraft: { text: string } | null;
