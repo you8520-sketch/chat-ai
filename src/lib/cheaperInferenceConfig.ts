@@ -83,6 +83,61 @@ export function applyDeepSeekAdultHandoffTrueOff(
   return next;
 }
 
+/**
+ * Canonical per-model reasoning/thinking policy for Cheaper Inference chat completions.
+ * Shared by RP `adaptCheaperInferenceChatBody` and TRPG transport adapters.
+ */
+export function applyCheaperInferenceModelReasoningPolicy(
+  body: Record<string, unknown>
+): Record<string, unknown> {
+  const adapted = { ...body };
+  if (typeof adapted.model !== "string") return adapted;
+
+  const model = normalizeDeepSeekV4FlashModelId(normalizeDeepSeekV4ProModelId(adapted.model));
+  adapted.model = model;
+  if (
+    isCheaperInferenceDeepSeekV4FlashModel(model) ||
+    isCheaperInferenceDeepSeekV4ProModel(model)
+  ) {
+    if (isCheaperInferenceDeepSeekV4ProModel(model)) {
+      adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+    } else {
+      adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+    }
+    delete adapted.reasoning_effort;
+    adapted.thinking = { type: "disabled" };
+    return adapted;
+  }
+  if (isCheaperInferenceClaudeOpus5Model(model)) {
+    adapted.thinking = { type: "disabled" };
+    adapted.output_config = { effort: "low" };
+    adapted.reasoning_effort = "low";
+    return adapted;
+  }
+  if (isGpt56LunaModel(model) || isGpt56TerraModel(model)) {
+    adapted.reasoning = { effort: "none" };
+    adapted.reasoning_effort = "none";
+    delete adapted.thinking;
+    return adapted;
+  }
+  if (isCheaperInferenceGemini37FlashModel(model)) {
+    adapted.reasoning_effort = "low";
+    delete adapted.thinking;
+    delete adapted.reasoning;
+    return adapted;
+  }
+  if (isCheaperInferenceQwen38MaxModel(model)) {
+    delete adapted.thinking;
+    adapted.reasoning_effort = "none";
+    delete adapted.reasoning;
+    return adapted;
+  }
+  adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(model) ? "low" : "none";
+  delete adapted.thinking;
+  delete adapted.reasoning;
+  return adapted;
+}
+
 /** Strip OpenRouter-only extensions before sending an OpenAI-compatible request. */
 export function adaptCheaperInferenceChatBody(
   body: Record<string, unknown>,
@@ -97,63 +152,14 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.include_reasoning;
 
   if (typeof adapted.model === "string") {
-    const model = normalizeDeepSeekV4FlashModelId(
-      normalizeDeepSeekV4ProModelId(adapted.model)
-    );
-    adapted.model = model;
+    const withPolicy = applyCheaperInferenceModelReasoningPolicy(adapted);
     if (
-      isCheaperInferenceDeepSeekV4FlashModel(model) ||
-      isCheaperInferenceDeepSeekV4ProModel(model)
+      opts?.deepSeekAdultHandoffTrueOff === true &&
+      isCheaperInferenceDeepSeekV4ProModel(String(withPolicy.model))
     ) {
-      if (isCheaperInferenceDeepSeekV4ProModel(model)) {
-        adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
-      } else {
-        adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
-      }
-      delete adapted.reasoning_effort;
-      adapted.thinking = { type: "disabled" };
-      if (
-        opts?.deepSeekAdultHandoffTrueOff === true &&
-        isCheaperInferenceDeepSeekV4ProModel(model)
-      ) {
-        return applyDeepSeekAdultHandoffTrueOff(adapted);
-      }
-      return adapted;
+      return applyDeepSeekAdultHandoffTrueOff(withPolicy);
     }
-    if (isCheaperInferenceClaudeOpus5Model(model)) {
-      // Anthropic Opus 5: adaptive thinking is ON unless thinking is disabled.
-      // Disabled is allowed only at effort high or below; low is the speed/cost floor.
-      adapted.thinking = { type: "disabled" };
-      adapted.output_config = { effort: "low" };
-      adapted.reasoning_effort = "low";
-      return adapted;
-    }
-    if (isGpt56LunaModel(model) || isGpt56TerraModel(model)) {
-      // OpenAI GPT-5.6: default effort is medium. Official off is
-      // reasoning.effort "none" (Luna/Terra support it). Cheaper Inference
-      // chat completions forwards `reasoning`; keep reasoning_effort as the
-      // Chat Completions alias some serving routes still read.
-      adapted.reasoning = { effort: "none" };
-      adapted.reasoning_effort = "none";
-      return adapted;
-    }
-    // Cheaper Inference may default to hidden reasoning. All app calls use
-    // visible output only. Gemini 3.1 Pro cannot disable thinking, so use its
-    // lowest supported effort; every other compatible model is explicitly off.
-    // Gemini 3.7 Flash: compatibility probe confirmed reasoning_effort=low.
-    // Do not inherit the generic "none" fallback or Gemini 3.1-only extras.
-    if (isCheaperInferenceGemini37FlashModel(model)) {
-      adapted.reasoning_effort = "low";
-      return adapted;
-    }
-    if (isCheaperInferenceQwen38MaxModel(model)) {
-      delete adapted.thinking;
-      adapted.reasoning_effort = "none";
-      return adapted;
-    }
-    adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(model)
-      ? "low"
-      : "none";
+    return withPolicy;
   }
   return adapted;
 }

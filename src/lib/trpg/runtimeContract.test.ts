@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { TRPG_SCENARIO_DRAFT_MODEL, TRPG_SANDBOX_DIRECTOR_MODEL } from "./scenarioDraft";
 import { TRPG_REPLY_SUGGESTION_MODEL } from "./replySuggestions";
 import { isTrpgMechanicsRefereeEnabled, TRPG_MECHANICS_REFEREE_MODEL } from "./mechanicsTypes";
@@ -13,10 +13,10 @@ import {
 } from "./types";
 
 describe("TRPG runtime contract (P0)", () => {
-  it("keeps two independent AI character seats and the existing Pro models", () => {
+  it("keeps two independent AI character seats and the production Luna/Gemini models", () => {
     assert.equal(TRPG_MAX_BOTS, 2);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.notEqual(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
   });
