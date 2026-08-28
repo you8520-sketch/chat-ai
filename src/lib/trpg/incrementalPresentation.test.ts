@@ -51,7 +51,7 @@ function simulateLivePresentationSteps(
     const decided = decideLiveRoundPresentation(snap);
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
     const earlyHumans = earlyVisibleHumanActionIds(actions);
-    const preCinematicIds = preCinematicVisibleActionIds(actions);
+    const preCinematicIds = earlyHumans;
 
     if (!decided.ready) {
       roundShow = idlePresentation();
@@ -145,7 +145,7 @@ describe("TRPG live pre-ready action visibility", () => {
     );
   });
 
-  it("T1: human + bot1 — bot1 visible on persist before liveReady", () => {
+  it("T1: human + bot1 — bot1 buffered before liveReady", () => {
     const steps = simulateLivePresentationSteps([
       {
         label: "T0",
@@ -169,7 +169,7 @@ describe("TRPG live pre-ready action visibility", () => {
       },
     ]);
     const t1 = steps[1]!;
-    assert.deepEqual(t1.visibleActionIds, [10, 20]);
+    assert.deepEqual(t1.visibleActionIds, [10]);
     assert.equal(t1.roundShow.mode, "idle");
     assert.equal(t1.gmVisible, false);
     assert.equal(t1.diceActive, false);
@@ -177,7 +177,7 @@ describe("TRPG live pre-ready action visibility", () => {
     assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
   });
 
-  it("T2: bot2 persist adds bot2 while bot1 stays visible", () => {
+  it("T2: bot2 persist does not reveal AI pre-cinematic", () => {
     const steps = simulateLivePresentationSteps([
       {
         label: "T0",
@@ -205,13 +205,13 @@ describe("TRPG live pre-ready action visibility", () => {
       },
     ]);
     const t2 = steps[2]!;
-    assert.deepEqual(t2.visibleActionIds, [10, 20, 30]);
+    assert.deepEqual(t2.visibleActionIds, [10]);
     assert.equal(t2.gmVisible, false);
     assert.equal(t2.diceActive, false);
     assert.equal(t2.roundShow.mode, "idle");
   });
 
-  it("T3: rolls final — cinematic starts once, human stays, AI wait for release", () => {
+  it("T3: rolls final — cinematic starts once, human early visibility only pre-ready", () => {
     const walked = walkLiveRoundSnapshots([
       {
         phase: "BOT_ACTION",
@@ -231,7 +231,7 @@ describe("TRPG live pre-ready action visibility", () => {
     const [partial, rolling] = walked.steps;
     assert.equal(partial?.ready, false);
     assert.equal(partial?.mode, "idle");
-    assert.deepEqual(partial?.incrementalVisibleActionIds, [10, 20, 30]);
+    assert.deepEqual(partial?.incrementalVisibleActionIds, [10]);
     assert.equal(rolling?.ready, true);
     assert.equal(rolling?.mode, "cinematic");
     assert.equal(rolling?.started, true);
@@ -244,9 +244,9 @@ describe("TRPG live pre-ready action visibility", () => {
       isLiveRow: true,
       mode: startState.mode,
       cinematicRevealedIds: firstCinematic,
-      preCinematicVisibleIds: [10, 20, 30],
+      preCinematicVisibleIds: [10],
     });
-    assert.deepEqual(firstVisible, [10, 20, 30], "declaration-visible actors stay; resolution releases dice");
+    assert.deepEqual(firstVisible, [10], "only human visible at cinematic start");
 
     const frames = walkCinematicPresentation(actors);
     assert.equal(frames.filter((frame) => frame.gmVisible).length, 1);
@@ -298,8 +298,8 @@ describe("TRPG live pre-ready action visibility", () => {
     ]);
     assert.equal(walked.startCount, 0, "PARTIAL_BOT_SNAPSHOT_CANNOT_START_ACTOR_CINEMATIC");
     assert.deepEqual(walked.steps[0]?.incrementalVisibleActionIds, [10]);
-    assert.deepEqual(walked.steps[1]?.incrementalVisibleActionIds, [10, 20]);
-    assert.deepEqual(walked.steps[2]?.incrementalVisibleActionIds, [10, 20, 30]);
+    assert.deepEqual(walked.steps[1]?.incrementalVisibleActionIds, [10]);
+    assert.deepEqual(walked.steps[2]?.incrementalVisibleActionIds, [10]);
     for (const step of walked.steps) {
       assert.equal(step.mode, "idle");
       assert.equal(step.ready, false);
@@ -320,8 +320,8 @@ describe("TRPG live pre-ready action visibility", () => {
       isLiveRow: true,
       mode: roundShow.mode,
       cinematicRevealedIds: cinematicRevealed,
-      preCinematicVisibleIds: [10, 20, 30],
+      preCinematicVisibleIds: [10],
     });
-    assert.deepEqual(resolved, [10, 20, 30]);
+    assert.deepEqual(resolved, [10]);
   });
 });

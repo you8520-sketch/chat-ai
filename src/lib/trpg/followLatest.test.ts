@@ -294,7 +294,7 @@ describe("TRPG follow-latest scroll", () => {
 
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /preCinematicVisibleIds/);
-    assert.match(room, /declarationReveal\.activeAiId != null/);
+    assert.match(room, /liveDeclaration\.activeDeclarationActorId != null/);
     assert.match(room, /manualScrollDetachedRef/);
     assert.match(room, /hasLeftFollowZoneSinceDetachRef/);
     assert.match(room, /detachLiveFollow/);

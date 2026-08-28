@@ -5,9 +5,9 @@ import {
   advanceAfterActorAction,
   buildRoundPresentationActors,
   decideLiveRoundPresentation,
+  earlyVisibleHumanActionIds,
   isLiveRoundPresentationReady,
-  preCinematicVisibleActionIds,
-  resolvePreCinematicDeclarationReveal,
+  resolveLiveActorDeclarationPresentation,
   resolveLiveRevealedActionIds,
   revealedActorIds,
   shouldDecorativeRevealAction,
@@ -22,7 +22,7 @@ import { resolveTrpgMountSeenKeys } from "../../app/trpg/useRevealedText";
 /**
  * Production-shape regression (campaign 38):
  * human@t0, bot1@t+10s, bot2+rolls@t+35s, cinematic@rolls-ready.
- * DECLARATION_ORDER (persistence) != RESOLUTION_ORDER (mechanics).
+ * Pre-cinematic: human early visibility only. AI declarations buffer until cinematic slot.
  */
 const order = [10, 20, 30];
 const human = { participantId: 10, name: "Human", kind: "human" as const, body: "조사한다.", revealed: true };
@@ -36,7 +36,8 @@ function visibleAt(
   actions: typeof human[],
   rolls: typeof humanRoll[],
   phase: string,
-  consumedAiIds: readonly number[] = []
+  consumedAiIds: readonly number[] = [],
+  cinematicState?: RoundPresentationState
 ) {
   const decided = decideLiveRoundPresentation({
     phase,
@@ -45,12 +46,19 @@ function visibleAt(
     rolls,
     resolutionOrder: order,
   });
-  const declaration = resolvePreCinematicDeclarationReveal({ actions, consumedAiIds });
-  const preIds = declaration.visibleIds;
-  const mode = decided.ready ? "cinematic" : "idle";
-  const state: RoundPresentationState = decided.ready
-    ? { mode: "cinematic", ...startCinematicPresentation() }
-    : idlePresentation();
+  const declaration = resolveLiveActorDeclarationPresentation({
+    mode: cinematicState?.mode ?? (decided.ready ? "cinematic" : "idle"),
+    phase: cinematicState?.phase ?? "idle",
+    presentationIndex: cinematicState?.presentationIndex ?? 0,
+    presentationActors: decided.actors,
+    actions,
+    consumedAiIds: new Set(consumedAiIds),
+  });
+  const preIds = declaration.visibleActionIds;
+  const mode = cinematicState?.mode ?? (decided.ready ? "cinematic" : "idle");
+  const state: RoundPresentationState =
+    cinematicState ??
+    (decided.ready ? { mode: "cinematic", ...startCinematicPresentation() } : idlePresentation());
   const cinematicIds = revealedActorIds({ actors: decided.actors, state });
   const visible =
     resolveLiveRevealedActionIds({
@@ -70,44 +78,38 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
     assert.match(room, /onDeclarationRevealChange/);
   });
 
-  it("bot1 visible before bot2 completes; cinematic not roll-ready until rolls persist", () => {
+  it("pre-cinematic exposes human only; AI buffered until cinematic slot", () => {
     const t0 = visibleAt([human], [], "BOT_ACTION");
     assert.deepEqual(t0.preIds, [10]);
     assert.deepEqual(t0.visible, [10]);
     assert.equal(t0.decided.ready, false);
 
     const tBot1 = visibleAt([human, bot1], [], "BOT_ACTION");
-    assert.deepEqual(tBot1.preIds, [10, 20]);
-    assert.deepEqual(tBot1.visible, [10, 20], "BOT1_VISIBLE_BEFORE_BOT2_COMPLETE");
-    assert.equal(tBot1.declaration.activeAiId, 20);
+    assert.deepEqual(tBot1.preIds, [10], "BOT1 buffered pre-cinematic");
+    assert.deepEqual(tBot1.visible, [10]);
+    assert.equal(tBot1.declaration.activeDeclarationActorId, null);
     assert.equal(tBot1.decided.ready, false);
-    assert.equal(isLiveRoundPresentationReady({ phase: "BOT_ACTION", hasLockedActorSet: true }), false);
 
     const tBot2NoRolls = visibleAt([human, bot1, bot2], [], "BOT_ACTION");
-    assert.deepEqual(tBot2NoRolls.visible, [10, 20], "bot2 buffered behind bot1 reveal");
-    assert.equal(tBot2NoRolls.declaration.activeAiId, 20);
+    assert.deepEqual(tBot2NoRolls.visible, [10], "bot2 buffered pre-cinematic");
+    assert.equal(tBot2NoRolls.declaration.activeDeclarationActorId, null);
     assert.equal(tBot2NoRolls.decided.ready, false);
 
-    const afterBot1Reveal = visibleAt([human, bot1, bot2], [], "BOT_ACTION", [20]);
-    assert.deepEqual(afterBot1Reveal.visible, [10, 20, 30]);
-    assert.equal(afterBot1Reveal.declaration.activeAiId, 30);
-
-    const tReady = visibleAt(
+    const cinematicBot1 = visibleAt(
       [human, bot1, bot2],
       [humanRoll, bot1Roll, bot2Roll],
       "GENERATING_NARRATION",
-      [20]
+      [],
+      { mode: "cinematic", phase: "actor-action", presentationIndex: 1 }
     );
-    assert.equal(tReady.decided.ready, true);
-    assert.equal(tReady.mode, "cinematic");
-    assert.equal(tReady.declaration.activeAiId, 30, "mechanical ready does not skip bot2 declaration");
+    assert.equal(cinematicBot1.declaration.activeDeclarationActorId, 20, "bot1 owns cinematic declaration slot");
+    assert.ok(!cinematicBot1.preIds.includes(30), "bot2 still buffered during bot1 slot");
   });
 
-  it("declarations stream one at a time and consumed prose does not replay", () => {
+  it("declarations stream one at a time during cinematic actor-action only", () => {
     const actions = [human, bot1, bot2];
     const rolls = [humanRoll, bot1Roll, bot2Roll];
-    const preIds = preCinematicVisibleActionIds(actions);
-    assert.deepEqual(preIds, [10, 20, 30]);
+    assert.deepEqual(earlyVisibleHumanActionIds(actions), [10]);
 
     const seen = new Set(
       resolveTrpgMountSeenKeys({
@@ -116,22 +118,27 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
         liveReady: false,
       })
     );
-    assert.ok(seen.has("a:1:20"));
-    assert.ok(seen.has("a:1:30"));
+    assert.ok(seen.has("a:1:10"));
+    assert.equal(seen.has("a:1:20"), false, "bot1 not pre-marked seen");
+    assert.equal(seen.has("a:1:30"), false, "bot2 not pre-marked seen");
 
-    const bot1Active = resolvePreCinematicDeclarationReveal({
+    const bot1Active = resolveLiveActorDeclarationPresentation({
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 1,
+      presentationActors: buildRoundPresentationActors({ resolutionOrder: order, actions, rolls }),
       actions,
-      consumedAiIds: [],
+      consumedAiIds: new Set(),
     });
-    assert.equal(bot1Active.activeAiId, 20);
+    assert.equal(bot1Active.activeDeclarationActorId, 20);
     assert.equal(
       shouldDecorativeRevealAction({
         kind: "ai_character",
         participantId: 20,
-        activeRevealActorId: null,
+        activeRevealActorId: 20,
         isFresh: true,
         skipDecorativeReveal: false,
-        cinematicActorAction: false,
+        cinematicActorAction: true,
         declarationRevealActive: true,
       }),
       true,
@@ -141,33 +148,25 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
       shouldDecorativeRevealAction({
         kind: "ai_character",
         participantId: 30,
-        activeRevealActorId: null,
+        activeRevealActorId: 20,
         isFresh: true,
         skipDecorativeReveal: false,
-        cinematicActorAction: false,
+        cinematicActorAction: true,
         declarationRevealActive: false,
       }),
       false,
       "DECLARATION_REVEAL_CONCURRENCY=1"
     );
-    const bot2Active = resolvePreCinematicDeclarationReveal({
+
+    const bot2Active = resolveLiveActorDeclarationPresentation({
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 2,
+      presentationActors: buildRoundPresentationActors({ resolutionOrder: order, actions, rolls }),
       actions,
-      consumedAiIds: [20],
+      consumedAiIds: new Set([20]),
     });
-    assert.equal(bot2Active.activeAiId, 30);
-    assert.equal(
-      shouldDecorativeRevealAction({
-        kind: "ai_character",
-        participantId: 30,
-        activeRevealActorId: null,
-        isFresh: true,
-        skipDecorativeReveal: false,
-        cinematicActorAction: false,
-        declarationRevealActive: true,
-      }),
-      true,
-      "BOT2_DECLARATION_STREAMED"
-    );
+    assert.equal(bot2Active.activeDeclarationActorId, 30);
 
     for (const id of [20, 30]) {
       assert.equal(
@@ -231,7 +230,7 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
     assert.equal(state.phase, "actor-dice");
   });
 
-  it("refresh after bot1 persist keeps bot1 visible and marked seen", () => {
+  it("refresh after bot1 persist keeps human visible; bots not pre-seen", () => {
     const log = [
       {
         roundNumber: 1,
@@ -241,7 +240,7 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
     ];
     const seen = resolveTrpgMountSeenKeys({ log, currentRoundNumber: 1, liveReady: false });
     assert.ok(seen.includes("a:1:10"));
-    assert.ok(seen.includes("a:1:20"));
+    assert.equal(seen.includes("a:1:20"), false);
     assert.equal(seen.includes("a:1:30"), false);
 
     const afterBot2Log = [
@@ -256,7 +255,7 @@ describe("TRPG two-bot production-shape declaration visibility", () => {
       currentRoundNumber: 1,
       liveReady: false,
     });
-    assert.ok(seenAfter.includes("a:1:20"));
-    assert.ok(seenAfter.includes("a:1:30"));
+    assert.equal(seenAfter.includes("a:1:20"), false);
+    assert.equal(seenAfter.includes("a:1:30"), false);
   });
 });

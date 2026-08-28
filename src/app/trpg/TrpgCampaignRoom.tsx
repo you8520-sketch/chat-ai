@@ -93,7 +93,7 @@ import {
   freezeLivePresentationActors,
   historicalPresentation,
   idlePresentation,
-  resolvePreCinematicDeclarationReveal,
+  resolveLiveActorDeclarationPresentation,
   isActorActionRevealBeatSatisfied,
   isActorPresentationReady,
   isLiveRoundPresentationReady,
@@ -134,6 +134,9 @@ import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   decidePassiveScrollFollowUpdate,
+  shouldDetachLiveFollowOnKey,
+  shouldDetachLiveFollowOnTouchDelta,
+  shouldDetachLiveFollowOnWheel,
   beginTrpgProgrammaticScroll,
   cancelTrpgProgrammaticScroll,
   createTrpgProgrammaticScrollHandle,
@@ -753,11 +756,15 @@ export default function TrpgCampaignRoom({
       });
   const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
   const consumedDeclarationAiIds = declarationConsumedIds;
-  const declarationReveal = resolvePreCinematicDeclarationReveal({
+  const liveDeclaration = resolveLiveActorDeclarationPresentation({
+    mode: roundShow.mode,
+    phase: roundShow.phase,
+    presentationIndex: roundShow.presentationIndex,
+    presentationActors,
     actions: sourceActions,
-    consumedAiIds: consumedDeclarationAiIds,
+    consumedAiIds: declarationConsumedIds,
   });
-  const preCinematicVisibleIds = declarationReveal.visibleIds;
+  const preCinematicVisibleIds = liveDeclaration.visibleActionIds;
   const waitingOpening =
     visibleSceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
@@ -822,7 +829,7 @@ export default function TrpgCampaignRoom({
     activePresentationActorId != null &&
     consumedDeclarationAiIds.has(activePresentationActorId);
   const activeActorRevealBeatSatisfied =
-    declarationReveal.complete &&
+    liveDeclaration.currentActorDeclarationComplete &&
     isActorActionRevealBeatSatisfied({
       actionKind: activePresentationAction?.kind,
       isFreshAiAction:
@@ -1048,7 +1055,7 @@ export default function TrpgCampaignRoom({
   });
   const liveFollowOwner = resolveTrpgLiveFollowOwner({
     cinematicMotion,
-    activeDeclarationReveal: declarationReveal.activeAiId != null,
+    activeDeclarationReveal: liveDeclaration.activeDeclarationActorId != null,
     freshGmRound: freshGmRow?.roundNumber ?? null,
     gmRevealComplete: effectiveGmRevealComplete,
     nextActionVisible,
@@ -1308,6 +1315,15 @@ export default function TrpgCampaignRoom({
   );
 
   useLayoutEffect(() => {
+    if (!queueSessionKey) return;
+    manualScrollDetachedRef.current = false;
+    hasLeftFollowZoneSinceDetachRef.current = false;
+    followLatestRef.current = true;
+    setFollowLatest(true);
+    setUnseenLatest(false);
+  }, [queueSessionKey]);
+
+  useLayoutEffect(() => {
     hasScrolledToLatestRef.current = null;
     followLatestRef.current = true;
     manualScrollDetachedRef.current = false;
@@ -1380,7 +1396,7 @@ export default function TrpgCampaignRoom({
     const liveRevealActive =
       roundShow.mode === "cinematic" ||
       presentationStarting ||
-      declarationReveal.activeAiId != null ||
+      liveDeclaration.activeDeclarationActorId != null ||
       Boolean(currentNarration);
     if (!sceneEl || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
@@ -1403,7 +1419,7 @@ export default function TrpgCampaignRoom({
     return () => observer.disconnect();
   }, [
     currentNarration,
-    declarationReveal.activeAiId,
+    liveDeclaration.activeDeclarationActorId,
     liveFollowOwner,
     presentationStarting,
     roundShow.mode,
@@ -1413,9 +1429,9 @@ export default function TrpgCampaignRoom({
 
   useLayoutEffect(() => {
     if (!followLatestRef.current || manualScrollDetachedRef.current) return;
-    if (declarationReveal.activeAiId == null) return;
+    if (liveDeclaration.activeDeclarationActorId == null) return;
     scrollToFollowOwner("ACTIVE_DECLARATION_END", "instant");
-  }, [declarationReveal.activeAiId, scrollToFollowOwner]);
+  }, [liveDeclaration.activeDeclarationActorId, scrollToFollowOwner]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -1448,14 +1464,16 @@ export default function TrpgCampaignRoom({
     const liveRevealActive =
       roundShow.mode === "cinematic" ||
       presentationStarting ||
-      declarationReveal.activeAiId != null ||
+      liveDeclaration.activeDeclarationActorId != null ||
       Boolean(currentNarrationRef.current);
     if (!liveRevealActive) return;
 
     let touchStartY = 0;
 
-    const onWheel = () => {
-      detachLiveFollow();
+    const onWheel = (event: WheelEvent) => {
+      if (shouldDetachLiveFollowOnWheel(event.deltaY)) {
+        detachLiveFollow();
+      }
     };
 
     const onTouchStart = (event: TouchEvent) => {
@@ -1464,7 +1482,8 @@ export default function TrpgCampaignRoom({
 
     const onTouchMove = (event: TouchEvent) => {
       const y = event.touches[0]?.clientY ?? touchStartY;
-      if (Math.abs(y - touchStartY) > 4) {
+      const deltaY = touchStartY - y;
+      if (Math.abs(deltaY) > 4 && shouldDetachLiveFollowOnTouchDelta(deltaY)) {
         detachLiveFollow();
       }
     };
@@ -1486,7 +1505,7 @@ export default function TrpgCampaignRoom({
       ) {
         return;
       }
-      if (isTrpgScrollIntentKey(event.key)) {
+      if (shouldDetachLiveFollowOnKey(event.key)) {
         detachLiveFollow();
       }
     };
@@ -1504,7 +1523,7 @@ export default function TrpgCampaignRoom({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [
-    declarationReveal.activeAiId,
+    liveDeclaration.activeDeclarationActorId,
     detachLiveFollow,
     presentationStarting,
     roundShow.mode,
@@ -1643,7 +1662,7 @@ export default function TrpgCampaignRoom({
   ]);
 
   const declarationGrowthObserverAttached =
-    liveFollowOwner === "ACTIVE_DECLARATION_END" && declarationReveal.activeAiId != null;
+    liveFollowOwner === "ACTIVE_DECLARATION_END" && liveDeclaration.activeDeclarationActorId != null;
 
   return (
     <div
@@ -1898,7 +1917,7 @@ export default function TrpgCampaignRoom({
               }
               activeDeclarationRevealId={
                 row.roundNumber === snap.round.number && gateLiveRound
-                  ? declarationReveal.activeAiId
+                  ? liveDeclaration.activeDeclarationActorId
                   : null
               }
               declarationEndRef={

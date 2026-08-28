@@ -204,41 +204,105 @@ export type PreCinematicDeclarationReveal = {
   complete: boolean;
 };
 
+export type LiveActorDeclarationPresentation = {
+  visibleActionIds: number[];
+  activeDeclarationActorId: number | null;
+  currentActorDeclarationComplete: boolean;
+};
+
 /**
- * Single declaration reveal owner.
- * Canonical AI actions remain buffered in persistence order behind the one
- * active reveal. This controls presentation only; backend generation is never
- * blocked and resolutionOrder remains authoritative for mechanics.
+ * Single live declaration presentation owner.
+ * Pre-cinematic: human early visibility only — AI actions stay buffered.
+ * Cinematic: only presentationActors[presentationIndex] may progressively reveal.
  */
+export function resolveLiveActorDeclarationPresentation(opts: {
+  mode: RoundPresentationMode;
+  phase: RoundPresentationPhase;
+  presentationIndex: number;
+  presentationActors: readonly PresentationActor[];
+  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[];
+  consumedAiIds: ReadonlySet<number>;
+}): LiveActorDeclarationPresentation {
+  const earlyHumanIds = earlyVisibleHumanActionIds(opts.actions);
+  const visibleActionIds: number[] = [];
+  const seen = new Set<number>();
+
+  const pushVisible = (id: number) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    visibleActionIds.push(id);
+  };
+
+  for (const id of earlyHumanIds) pushVisible(id);
+
+  if (opts.mode !== "cinematic") {
+    for (const action of opts.actions) {
+      if (action.kind === "ai_character" && opts.consumedAiIds.has(action.participantId)) {
+        pushVisible(action.participantId);
+      }
+    }
+    return {
+      visibleActionIds,
+      activeDeclarationActorId: null,
+      currentActorDeclarationComplete: true,
+    };
+  }
+
+  for (let i = 0; i < opts.presentationIndex; i++) {
+    const actor = opts.presentationActors[i];
+    if (actor?.action) pushVisible(actor.actorId);
+  }
+  for (const id of opts.consumedAiIds) pushVisible(id);
+
+  const currentActor = opts.presentationActors[opts.presentationIndex];
+  const currentActorId = currentActor?.actorId ?? null;
+
+  if (opts.phase === "actor-action" && currentActor?.action?.kind === "ai_character") {
+    pushVisible(currentActor.actorId);
+    if (opts.consumedAiIds.has(currentActor.actorId)) {
+      return {
+        visibleActionIds,
+        activeDeclarationActorId: null,
+        currentActorDeclarationComplete: true,
+      };
+    }
+    return {
+      visibleActionIds,
+      activeDeclarationActorId: currentActor.actorId,
+      currentActorDeclarationComplete: false,
+    };
+  }
+
+  if (currentActor?.action) {
+    pushVisible(currentActor.actorId);
+  }
+
+  return {
+    visibleActionIds,
+    activeDeclarationActorId: null,
+    currentActorDeclarationComplete: true,
+  };
+}
+
+/** @deprecated Use resolveLiveActorDeclarationPresentation — retained for test migration only. */
 export function resolvePreCinematicDeclarationReveal(opts: {
   actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[];
   consumedAiIds: ReadonlySet<number> | readonly number[];
 }): PreCinematicDeclarationReveal {
-  const availableIds = preCinematicVisibleActionIds(opts.actions);
-  const consumed =
-    opts.consumedAiIds instanceof Set
-      ? opts.consumedAiIds
-      : new Set(opts.consumedAiIds);
-  const visibleIds: number[] = [];
-  let activeAiId: number | null = null;
-
-  for (const id of availableIds) {
-    const action = opts.actions.find((candidate) => candidate.participantId === id);
-    if (action?.kind === "human" || consumed.has(id)) {
-      visibleIds.push(id);
-      continue;
-    }
-    if (activeAiId == null) {
-      activeAiId = id;
-      visibleIds.push(id);
-    }
-  }
-
+  const presentation = resolveLiveActorDeclarationPresentation({
+    mode: "idle",
+    phase: "idle",
+    presentationIndex: 0,
+    presentationActors: [],
+    actions: opts.actions,
+    consumedAiIds:
+      opts.consumedAiIds instanceof Set ? opts.consumedAiIds : new Set(opts.consumedAiIds),
+  });
   return {
-    availableIds,
-    visibleIds,
-    activeAiId,
-    complete: activeAiId == null,
+    availableIds: preCinematicVisibleActionIds(opts.actions),
+    visibleIds: presentation.visibleActionIds,
+    activeAiId: presentation.activeDeclarationActorId,
+    complete: presentation.currentActorDeclarationComplete,
   };
 }
 
@@ -1055,7 +1119,7 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
-    const incrementalVisibleActionIds = !decided.ready ? preCinematicVisibleActionIds(actions) : [];
+    const incrementalVisibleActionIds = !decided.ready ? earlyVisibleHumanActionIds(actions) : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {
