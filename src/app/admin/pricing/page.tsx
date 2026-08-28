@@ -3,11 +3,12 @@ import { isAdminUser } from "@/lib/isAdminUser";
 import { getDb } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { listPublishedModelIds, getPublishedPricing } from "@/lib/publishedModelPricing";
-import { simulatePremiumCompetitive, TOKEN_USAGE_COMPETITOR_BENCHMARKS, PREMIUM_MARGIN_CANDIDATES } from "@/lib/shadowSimulations";
+import { simulatePremiumCompetitive, TOKEN_USAGE_COMPETITOR_BENCHMARKS } from "@/lib/shadowSimulations";
 import {
   GEMINI37_BENCHMARK_A_ID,
   GEMINI37_BENCHMARK_B_ID,
   getMarketBenchmarks,
+  requirePrimaryBenchmark,
 } from "@/lib/marketUsageBenchmarks";
 import {
   CACHE_POLICY_VERIFICATION,
@@ -15,6 +16,44 @@ import {
   GEMINI37_CALIBRATION_RATE_EVIDENCE,
 } from "@/lib/gemini37CalibrationEvidence";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import {
+  computeUserPricePer1000VisibleChars,
+  getOpaqueMarketReferences,
+} from "@/lib/opaqueMarketReferences";
+import {
+  GEMINI31_CI_OBSERVED_DISCOUNT_EVIDENCE,
+  GEMINI31_OFFICIAL_BASE_TIER_EVIDENCE,
+  OPUS5_CI_OBSERVED_DISCOUNT_EVIDENCE,
+  OPUS5_OFFICIAL_BASE_EVIDENCE,
+  evaluatePremiumLiveReferenceDrift,
+} from "@/lib/premiumPricingCalibrationEvidence";
+import {
+  GEMINI31_BASE_TIER_PROMPT_THRESHOLD,
+  getModelShadowPricingPolicy,
+} from "@/lib/modelShadowPricingPolicy";
+import {
+  buildPremiumFxSensitivity,
+  buildPremiumMarginMatrix,
+  computeBenchmarkImpliedMaxMargin,
+  computeCompetitiveFxCeiling,
+  evaluateFxMarketStatus,
+  evaluateHardComparableStatus,
+  evaluatePremiumPricingGates,
+  GEMINI31_MODEL_ID,
+  GEMINI31_V1_PUBLISHED,
+  GEMINI31_V2_PROPOSED,
+  getPremiumCacheEvidenceReports,
+  isPremiumCacheReadyForLiveCutover,
+  OPUS5_MODEL_ID,
+  OPUS5_V1_PUBLISHED,
+  OPUS5_V2_PROPOSED,
+  PREMIUM_MARGIN_CANDIDATES,
+  simulatePremiumPricingPolicy,
+} from "@/lib/premiumPricingCalibration";
+import {
+  peekShadowBillingFxDailySnapshot,
+  previewShadowBillingFxSnapshot,
+} from "@/lib/shadowBillingExchangeRate";
 import {
   buildGemini37FxSensitivityMatrix,
   buildGemini37MarginMatrix,
@@ -29,12 +68,169 @@ import {
   simulateGemini37PolicyRow,
 } from "@/lib/gemini37PricingPolicy";
 
+function PremiumModelPolicyHeader(props: {
+  title: string;
+  modelId: string;
+  v1Published: typeof GEMINI31_V1_PUBLISHED;
+  v2Proposed: typeof GEMINI31_V2_PROPOSED;
+}) {
+  const { title, modelId, v1Published, v2Proposed } = props;
+  const pub = getPublishedPricing(modelId);
+  const hardBenchmark = requirePrimaryBenchmark(modelId);
+  const v1Row = simulatePremiumPricingPolicy({
+    modelId,
+    published: v1Published,
+    targetMargin: v1Published.targetMargin,
+    baseFx: 1530,
+  });
+  const v2Row = simulatePremiumPricingPolicy({
+    modelId,
+    published: v2Proposed,
+    targetMargin: v2Proposed.targetMargin,
+    baseFx: 1530,
+  });
+  const fxCeiling = computeCompetitiveFxCeiling({
+    modelId,
+    published: v2Proposed,
+    targetMargin: v2Proposed.targetMargin,
+  });
+  const currentFx = peekShadowBillingFxDailySnapshot()?.usdToKrw ?? previewShadowBillingFxSnapshot().usdToKrw;
+  const fxStatus = evaluateFxMarketStatus({ currentBaseFx: currentFx, competitiveFxCeiling: fxCeiling });
+  const hardStatus = evaluateHardComparableStatus({ modelId, published: pub, baseFx: 1530 });
+  const impliedMax = computeBenchmarkImpliedMaxMargin({ modelId, baseFx: 1530 });
+  const gates = evaluatePremiumPricingGates();
+  const cacheReports = getPremiumCacheEvidenceReports();
+  const cacheReport = cacheReports[modelId];
+
+  return (
+    <div className="mt-4 space-y-3 text-xs text-zinc-300">
+      <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3">
+        <h3 className="font-semibold text-amber-100">{title} — Economics</h3>
+        <p className="mt-1">Published v{pub.pricingVersion}: ${pub.billingReferenceInputUsdPerMillion}/{pub.billingReferenceOutputUsdPerMillion} · target {(pub.targetMargin * 100).toFixed(0)}% · floor {(pub.minimumMarginFloor * 100).toFixed(0)}%</p>
+        {pub.pricingApplicability === "base_tier_only" ? (
+          <p className="mt-1 text-amber-200">BASE TIER ONLY — applies to prompt &lt;= {pub.publishedBaseTierMaxPromptTokens?.toLocaleString() ?? GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()} tokens</p>
+        ) : null}
+        <p className="mt-2 text-zinc-400">Proposed v2: ${v2Proposed.billingReferenceInputUsdPerMillion}/{v2Proposed.billingReferenceOutputUsdPerMillion} · target {(v2Proposed.targetMargin * 100).toFixed(0)}% · floor {(v2Proposed.minimumMarginFloor * 100).toFixed(0)}%</p>
+        <p className="mt-1 text-zinc-500">v1 @1530: {v1Row.finalPoints}P vs {hardBenchmark.competitorChargePoints}P ({v1Row.strictMarketPass ? "PASS" : "FAIL"}) · v2 @1530: {v2Row.finalPoints}P ({v2Row.strictMarketPass ? "PASS" : "FAIL"})</p>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+          <div><dt className="text-zinc-500">HARD_COMPARABLE_STATUS</dt><dd>{hardStatus}</dd></div>
+          <div><dt className="text-zinc-500">competitive FX ceiling</dt><dd>{fxCeiling}</dd></div>
+          <div><dt className="text-zinc-500">current FX market status</dt><dd>{fxStatus}</dd></div>
+          <div><dt className="text-zinc-500">competitor implied max margin @1530</dt><dd>{impliedMax != null ? `${(impliedMax * 100).toFixed(2)}%` : "Unavailable"}</dd></div>
+          <div><dt className="text-zinc-500">v2 acceptance gates</dt><dd>{gates.allPass ? "ALL PASS" : "BLOCKED"}</dd></div>
+          <div><dt className="text-zinc-500">PREMIUM_CACHE_READY_FOR_LIVE_CUTOVER</dt><dd>{isPremiumCacheReadyForLiveCutover() ? "true" : "false"}</dd></div>
+          <div><dt className="text-zinc-500">cache evidence</dt><dd>{cacheReport?.status ?? "UNAVAILABLE"}</dd></div>
+        </dl>
+        <p className="mt-2 text-zinc-500">Selected v2 target is below competitor implied max to preserve FX buffer through base FX 1625.</p>
+      </div>
+    </div>
+  );
+}
+
+function PremiumProviderSection(props: { modelId: string; v2Proposed: typeof GEMINI31_V2_PROPOSED }) {
+  const official =
+    props.modelId === GEMINI31_MODEL_ID ? GEMINI31_OFFICIAL_BASE_TIER_EVIDENCE : OPUS5_OFFICIAL_BASE_EVIDENCE;
+  const observed =
+    props.modelId === GEMINI31_MODEL_ID ? GEMINI31_CI_OBSERVED_DISCOUNT_EVIDENCE : OPUS5_CI_OBSERVED_DISCOUNT_EVIDENCE;
+  const liveCatalog = resolveCheaperInferenceCatalogPricing(props.modelId);
+  const liveDrift = evaluatePremiumLiveReferenceDrift(props.modelId, props.v2Proposed);
+  const cacheReports = getPremiumCacheEvidenceReports();
+  const cacheReport = cacheReports[props.modelId];
+  const policy = getModelShadowPricingPolicy(props.modelId);
+
+  return (
+    <div className="rounded border border-white/10 p-3 text-xs text-zinc-300">
+      <h3 className="font-semibold text-zinc-100">Provider</h3>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+        <div><dt className="text-zinc-500">official reference</dt><dd>${official.inputUsdPerMillion}/{official.outputUsdPerMillion} ({official.sourceLabel})</dd></div>
+        <div><dt className="text-zinc-500">CI observed current</dt><dd>${observed.inputUsdPerMillion}/{observed.outputUsdPerMillion} · {observed.observedDiscountPercent ?? 0}% discount (calibration only)</dd></div>
+        <div><dt className="text-zinc-500">LIVE_REFERENCE_STATUS</dt><dd>{liveDrift.status}</dd></div>
+        {props.modelId === GEMINI31_MODEL_ID ? (
+          <div><dt className="text-zinc-500">above-threshold CI evidence</dt><dd>{liveCatalog?.aboveThreshold?.referenceInputUsdPerMillion != null ? `$${liveCatalog.aboveThreshold.referenceInputUsdPerMillion}/${liveCatalog.aboveThreshold.referenceOutputUsdPerMillion}` : "UNVERIFIED / unavailable"}</dd></div>
+        ) : null}
+        {policy?.opusCacheTtlMode ? (
+          <div><dt className="text-zinc-500">OPUS_CACHE_TTL_MODE</dt><dd>{policy.opusCacheTtlMode}</dd></div>
+        ) : null}
+      </dl>
+      <h4 className="mt-3 font-medium text-zinc-200">Live provider catalog</h4>
+      {liveCatalog ? (
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+          <div><dt className="text-zinc-500">current input/output</dt><dd>${liveCatalog.inputUsdPerMillion}/{liveCatalog.outputUsdPerMillion}</dd></div>
+          <div><dt className="text-zinc-500">reference input/output</dt><dd>{liveCatalog.referenceInputUsdPerMillion != null ? `$${liveCatalog.referenceInputUsdPerMillion}/${liveCatalog.referenceOutputUsdPerMillion}` : "Unavailable"}</dd></div>
+          <div><dt className="text-zinc-500">discount</dt><dd>{liveCatalog.discountPercent != null ? `${liveCatalog.discountPercent}%` : "Unavailable"}</dd></div>
+        </dl>
+      ) : (
+        <p className="mt-2 text-zinc-500">Unavailable</p>
+      )}
+      <h4 className="mt-3 font-medium text-zinc-200">Cache evidence audit</h4>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+        <div><dt className="text-zinc-500">status</dt><dd>{cacheReport?.status ?? "UNAVAILABLE"}</dd></div>
+        <div><dt className="text-zinc-500">published cache read/write</dt><dd>{cacheReport?.publishedCacheReadUsdPerMillion ?? "—"}/{cacheReport?.publishedCacheWriteUsdPerMillion ?? "—"}</dd></div>
+        <div><dt className="text-zinc-500">catalog cache read/write</dt><dd>{cacheReport?.catalogCacheReadUsdPerMillion ?? "—"}/{cacheReport?.catalogCacheWriteUsdPerMillion ?? "—"}</dd></div>
+      </dl>
+    </div>
+  );
+}
+
+function PremiumMarketPositionSection(props: { modelId: string }) {
+  const hardBenchmark = requirePrimaryBenchmark(props.modelId);
+  const opaqueRefs = getOpaqueMarketReferences().filter(
+    (ref) => ref.modelId == null || ref.modelId === props.modelId
+  );
+  const pub = getPublishedPricing(props.modelId);
+  const v2Row = simulatePremiumPricingPolicy({
+    modelId: props.modelId,
+    published: pub,
+    targetMargin: pub.targetMargin,
+    baseFx: 1530,
+  });
+  const hardStatus = v2Row.strictMarketPass ? "PASS" : "FAIL";
+
+  return (
+    <div className="space-y-3 text-xs text-zinc-300">
+      <div className="rounded border border-emerald-500/30 bg-emerald-950/20 p-3">
+        <h3 className="font-semibold text-emerald-100">HARD COMPARABLE — used for pricing selection</h3>
+        <p className="mt-1">{hardBenchmark.inputTokens.toLocaleString()} input · {hardBenchmark.displayedOutputTokens.toLocaleString()} output · {hardBenchmark.competitorChargePoints}P</p>
+        <p className="mt-1 text-zinc-400">Our v2 @1530: {v2Row.finalPoints}P · HARD_COMPARABLE_STATUS: {hardStatus}</p>
+        {props.modelId === GEMINI31_MODEL_ID ? (
+          <p className="mt-1 text-zinc-500">ABOVE THRESHOLD &gt;{GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()} · market benchmark: UNAVAILABLE · shadow pricing: unsupported_pricing_tier</p>
+        ) : null}
+      </div>
+      <div className="rounded border border-sky-500/30 bg-sky-950/20 p-3">
+        <h3 className="font-semibold text-sky-100">OPAQUE MARKET REFERENCES — NOT USED FOR MARGIN GATE</h3>
+        {opaqueRefs.map((ref) => {
+          const anchor = computeUserPricePer1000VisibleChars(ref);
+          return (
+            <div key={ref.id} className="mt-2 border-t border-white/5 pt-2">
+              <p className="font-medium text-zinc-100">{ref.providerOrProductLabel}</p>
+              <p>{ref.visibleOutputChars != null ? `~${ref.visibleOutputChars.toLocaleString()} visible chars` : "visible chars unknown"} · ~{ref.userChargePoints}P · {ref.pricingMode}</p>
+              <p className="text-zinc-500">input/cache/reasoning/provider contract: unknown</p>
+              {anchor != null ? <p className="mt-1">~{anchor}P / 1,000 visible chars (consumer price anchor)</p> : null}
+              {ref.note ? <p className="mt-1 text-zinc-500">{ref.note}</p> : null}
+            </div>
+          );
+        })}
+        {hardStatus === "PASS" ? (
+          <p className="mt-3 text-zinc-400">
+            OPAQUE_MARKET_WARNING: same-model or turn-based consumer price anchors may be materially lower,
+            but unit economics are not comparable (unknown token, cache, and provider-contract conditions).
+          </p>
+        ) : null}
+        <p className="mt-2 text-zinc-500">OPAQUE_REFERENCE_CAN_CHANGE_TARGET_MARGIN: false</p>
+      </div>
+    </div>
+  );
+}
+
 export const dynamic = "force-dynamic";
 
 function formatCostStatus(status: string): string {
   if (status === "complete") return "Complete";
   if (status === "partial_missing_cache_rate") return "Partial";
   if (status === "reference_rates_unavailable") return "Unavailable";
+  if (status === "tier_reference_rates_unavailable") return "Tier unavailable";
+  if (status === "unsupported_cache_semantics") return "Unsupported cache";
+  if (status === "unsupported_pricing_tier") return "Unsupported tier";
   return status;
 }
 
@@ -74,6 +270,7 @@ function EconomicsHeader(props: {
         <div><dt className="text-zinc-500">effective FX</dt><dd>{sim.fxSnapshot.effectiveKrwPerUsd.toFixed(1)}</dd></div>
         <div><dt className="text-zinc-500">providerListCost</dt><dd>{sim.providerListCostKrw > 0 ? `${sim.providerListCostKrw.toFixed(1)} KRW` : "Unavailable"}</dd></div>
         <div><dt className="text-zinc-500">providerListCostStatus</dt><dd>{formatCostStatus(sim.providerListCostStatus)}</dd></div>
+        <div><dt className="text-zinc-500">billingReferenceCostStatus</dt><dd>{formatCostStatus(sim.billingReferenceCostStatus)}</dd></div>
         <div><dt className="text-zinc-500">billingReferenceCost</dt><dd>{sim.billingReferenceCostKrw.toFixed(1)} KRW</dd></div>
         <div><dt className="text-zinc-500">actualProviderCost</dt><dd>{sim.actualProviderCostKrw > 0 ? `${sim.actualProviderCostKrw.toFixed(1)} KRW` : "Unavailable"}</dd></div>
         <div><dt className="text-zinc-500">actualCostSource</dt><dd>{formatActualCostSource(sim.actualCostSource)}</dd></div>
@@ -199,6 +396,10 @@ export default async function AdminPricingPage() {
       baseFx: 1530,
     })
   );
+  const gemini31MarginMatrix = buildPremiumMarginMatrix({ modelId: GEMINI31_MODEL_ID, published: GEMINI31_V2_PROPOSED });
+  const opus5MarginMatrix = buildPremiumMarginMatrix({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
+  const gemini31FxMatrix = buildPremiumFxSensitivity({ modelId: GEMINI31_MODEL_ID, published: GEMINI31_V2_PROPOSED });
+  const opus5FxMatrix = buildPremiumFxSensitivity({ modelId: OPUS5_MODEL_ID, published: OPUS5_V2_PROPOSED });
 
   return (
     <div className="mx-auto max-w-6xl p-6 text-sm text-zinc-100">
@@ -275,16 +476,80 @@ export default async function AdminPricingPage() {
       </section>
 
       <section className="mt-6">
-        <h2 className="font-semibold">Gemini 3.1 Pro — {TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.inputTokens} in / {TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.outputTokens} out / benchmark {TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.chargeP}P</h2>
-        <EconomicsHeader title="Premium economics header" sim={geminiSim} modelId="gemini-3.1-pro-preview" />
+        <h2 className="font-semibold">Gemini 3.1 Pro Preview — premium v2 calibration (shadow)</h2>
+        <PremiumModelPolicyHeader title="Gemini 3.1 Pro Preview" modelId={GEMINI31_MODEL_ID} v1Published={GEMINI31_V1_PUBLISHED} v2Proposed={GEMINI31_V2_PROPOSED} />
+        <PremiumProviderSection modelId={GEMINI31_MODEL_ID} v2Proposed={GEMINI31_V2_PROPOSED} />
+        <div className="mt-4">
+          <h3 className="font-medium text-zinc-200">Market positioning</h3>
+          <PremiumMarketPositionSection modelId={GEMINI31_MODEL_ID} />
+        </div>
+        <EconomicsHeader title="Live shadow pipeline (admin FX snapshot)" sim={geminiSim} modelId={GEMINI31_MODEL_ID} />
+        <h3 className="mt-4 font-medium text-zinc-200">Margin matrix — v2 proposed @1530</h3>
+        <table className="mt-2 w-full border-collapse text-xs">
+          <thead><tr className="border-b border-white/10 text-left"><th>targetMargin</th><th>finalPoints</th><th>deviation</th><th>noDiscountMargin</th><th>strictPass</th><th>floorPass</th></tr></thead>
+          <tbody>
+            {gemini31MarginMatrix.map((r) => (
+              <tr key={r.targetMargin} className="border-b border-white/5">
+                <td>{(r.targetMargin * 100).toFixed(1)}%</td><td>{r.finalPoints}P</td><td>{r.competitiveDeviationPct}%</td>
+                <td>{r.noDiscountRealizedMargin != null ? `${(r.noDiscountRealizedMargin * 100).toFixed(1)}%` : "—"}</td>
+                <td>{r.strictMarketPass ? "PASS" : "FAIL"}</td><td>{r.minimumFloorPass ? "PASS" : "FAIL"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="mt-4 font-medium text-zinc-200">FX sensitivity — v2 @ 9%</h3>
+        <table className="mt-2 w-full border-collapse text-xs">
+          <thead><tr className="border-b border-white/10 text-left"><th>base FX</th><th>effective</th><th>finalPoints</th><th>competitor</th><th>deviation</th><th>strictPass</th></tr></thead>
+          <tbody>
+            {gemini31FxMatrix.map((c) => (
+              <tr key={c.baseFx} className="border-b border-white/5">
+                <td>{c.baseFx}</td><td>{c.effectiveFx.toFixed(1)}</td><td>{c.finalPoints}P</td>
+                <td>{c.competitorChargePoints}P</td><td>{c.competitiveDeviationPct}%</td><td>{c.strictMarketPass ? "PASS" : "FAIL"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="mt-4 font-medium text-zinc-200">Admin competitive simulation rows</h3>
         <table className="mt-2 w-full border-collapse text-xs">
           <thead><tr className="border-b border-white/10 text-left"><th>targetMargin</th><th>finalPoints</th><th>competitiveDeviation</th><th>noDiscountGrossProfit</th><th>noDiscountRealizedMargin</th><th>currentActualGrossProfit</th><th>currentActualRealizedMargin</th><th>providerSavings</th><th>flag</th><th>flagReason</th></tr></thead>
           <tbody>{geminiSim.rows.map((r)=><tr key={r.targetMargin} className="border-b border-white/5"><td>{(r.targetMargin*100).toFixed(1)}%</td><td>{r.finalPoints}P</td><td>{r.competitiveDeviationPct != null ? `${r.competitiveDeviationPct}%` : "Unavailable"}</td><td>{r.noDiscountGrossProfitKrw != null ? r.noDiscountGrossProfitKrw : "Unavailable"}</td><td>{r.noDiscountRealizedMargin != null ? `${r.noDiscountRealizedMargin}%` : "Unavailable"}</td><td>{r.currentActualGrossProfitKrw != null ? r.currentActualGrossProfitKrw : "Unavailable"}</td><td>{r.currentActualRealizedMargin != null ? `${r.currentActualRealizedMargin}%` : "Unavailable"}</td><td>{r.providerSavingsKrw != null ? r.providerSavingsKrw : "Unavailable"}</td><td>{r.flag}</td><td>{r.flagReason}</td></tr>)}</tbody>
         </table>
       </section>
       <section className="mt-6">
-        <h2 className="font-semibold">Opus 5 — {TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.inputTokens} in / {TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.outputTokens} out / benchmark {TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.chargeP}P</h2>
-        <EconomicsHeader title="Premium economics header" sim={opusSim} modelId="claude-opus-5" />
+        <h2 className="font-semibold">Claude Opus 5 — premium v2 calibration (shadow)</h2>
+        <PremiumModelPolicyHeader title="Claude Opus 5" modelId={OPUS5_MODEL_ID} v1Published={OPUS5_V1_PUBLISHED} v2Proposed={OPUS5_V2_PROPOSED} />
+        <PremiumProviderSection modelId={OPUS5_MODEL_ID} v2Proposed={OPUS5_V2_PROPOSED} />
+        <div className="mt-4">
+          <h3 className="font-medium text-zinc-200">Market positioning</h3>
+          <PremiumMarketPositionSection modelId={OPUS5_MODEL_ID} />
+        </div>
+        <EconomicsHeader title="Live shadow pipeline (admin FX snapshot)" sim={opusSim} modelId={OPUS5_MODEL_ID} />
+        <h3 className="mt-4 font-medium text-zinc-200">Margin matrix — v2 proposed @1530</h3>
+        <table className="mt-2 w-full border-collapse text-xs">
+          <thead><tr className="border-b border-white/10 text-left"><th>targetMargin</th><th>finalPoints</th><th>deviation</th><th>noDiscountMargin</th><th>strictPass</th><th>floorPass</th></tr></thead>
+          <tbody>
+            {opus5MarginMatrix.map((r) => (
+              <tr key={r.targetMargin} className="border-b border-white/5">
+                <td>{(r.targetMargin * 100).toFixed(1)}%</td><td>{r.finalPoints}P</td><td>{r.competitiveDeviationPct}%</td>
+                <td>{r.noDiscountRealizedMargin != null ? `${(r.noDiscountRealizedMargin * 100).toFixed(1)}%` : "—"}</td>
+                <td>{r.strictMarketPass ? "PASS" : "FAIL"}</td><td>{r.minimumFloorPass ? "PASS" : "FAIL"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="mt-4 font-medium text-zinc-200">FX sensitivity — v2 @ 8%</h3>
+        <table className="mt-2 w-full border-collapse text-xs">
+          <thead><tr className="border-b border-white/10 text-left"><th>base FX</th><th>effective</th><th>finalPoints</th><th>competitor</th><th>deviation</th><th>strictPass</th></tr></thead>
+          <tbody>
+            {opus5FxMatrix.map((c) => (
+              <tr key={c.baseFx} className="border-b border-white/5">
+                <td>{c.baseFx}</td><td>{c.effectiveFx.toFixed(1)}</td><td>{c.finalPoints}P</td>
+                <td>{c.competitorChargePoints}P</td><td>{c.competitiveDeviationPct}%</td><td>{c.strictMarketPass ? "PASS" : "FAIL"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3 className="mt-4 font-medium text-zinc-200">Admin competitive simulation rows</h3>
         <table className="mt-2 w-full border-collapse text-xs">
           <thead><tr className="border-b border-white/10 text-left"><th>targetMargin</th><th>finalPoints</th><th>competitiveDeviation</th><th>noDiscountGrossProfit</th><th>noDiscountRealizedMargin</th><th>currentActualGrossProfit</th><th>currentActualRealizedMargin</th><th>providerSavings</th><th>flag</th><th>flagReason</th></tr></thead>
           <tbody>{opusSim.rows.map((r)=><tr key={r.targetMargin} className="border-b border-white/5"><td>{(r.targetMargin*100).toFixed(1)}%</td><td>{r.finalPoints}P</td><td>{r.competitiveDeviationPct != null ? `${r.competitiveDeviationPct}%` : "Unavailable"}</td><td>{r.noDiscountGrossProfitKrw != null ? r.noDiscountGrossProfitKrw : "Unavailable"}</td><td>{r.noDiscountRealizedMargin != null ? `${r.noDiscountRealizedMargin}%` : "Unavailable"}</td><td>{r.currentActualGrossProfitKrw != null ? r.currentActualGrossProfitKrw : "Unavailable"}</td><td>{r.currentActualRealizedMargin != null ? `${r.currentActualRealizedMargin}%` : "Unavailable"}</td><td>{r.providerSavingsKrw != null ? r.providerSavingsKrw : "Unavailable"}</td><td>{r.flag}</td><td>{r.flagReason}</td></tr>)}</tbody>

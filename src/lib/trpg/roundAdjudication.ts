@@ -20,7 +20,26 @@ export type RoundAdjudicationSnapshot = {
   submissions?: Array<{ id: number; body: string }>;
   resolutionOrder?: TrpgResolutionOrderEntry[];
   adjudicationMarks?: Record<string, AdjudicationMark>;
+  /** Server-frozen current-round presentation roster, ordered by resolution order. */
+  expectedPresentationActorIds?: number[];
 };
+
+export type ExpectedPresentationActorParticipant = {
+  id: number;
+  can_act: number;
+  status: string;
+};
+
+/** Active round actors expected to receive a presentation slot this round. */
+export function computeExpectedPresentationActorIds(
+  participants: readonly ExpectedPresentationActorParticipant[],
+  resolutionOrder: readonly TrpgResolutionOrderEntry[]
+): number[] {
+  const expectedSet = new Set(
+    participants.filter((part) => part.can_act === 1 && part.status === "active").map((part) => part.id)
+  );
+  return resolutionOrder.map((entry) => entry.participantId).filter((id) => expectedSet.has(id));
+}
 
 export type AdjudicationOutcome = "roll" | "no_roll" | "skipped" | "already";
 
@@ -112,6 +131,7 @@ export function ensureRoundAdjudicationContext(
     }),
     scenario.statDefs
   );
+  const expectedPresentationActorIds = computeExpectedPresentationActorIds(parts, resolutionOrder);
   const subs = db
     .prepare(
       `SELECT id, body FROM trpg_action_submissions WHERE round_id=? AND locked=1 ORDER BY id ASC`
@@ -120,8 +140,24 @@ export function ensureRoundAdjudicationContext(
   saveRoundAdjudicationSnapshot(db, opts.roundId, {
     resolutionOrder,
     submissions: subs.map((sub) => ({ id: sub.id, body: sub.body })),
+    expectedPresentationActorIds,
   });
   return { pre, resolutionOrder };
+}
+
+/** Viewer-safe server-frozen expected presentation roster for the round. */
+export function loadExpectedPresentationActorIds(
+  db: Database.Database,
+  opts: { roundId: number; campaignId: number }
+): number[] {
+  const snapshot = loadRoundAdjudicationSnapshot(db, opts.roundId);
+  if (snapshot.expectedPresentationActorIds?.length) {
+    return snapshot.expectedPresentationActorIds;
+  }
+  const parts = loadParticipants(db, opts.campaignId);
+  const resolutionOrder = snapshot.resolutionOrder ?? [];
+  if (resolutionOrder.length === 0) return [];
+  return computeExpectedPresentationActorIds(parts, resolutionOrder);
 }
 
 export function adjudicateCanonicalSubmission(
