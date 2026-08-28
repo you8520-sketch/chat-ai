@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
 import {
@@ -69,7 +71,7 @@ describe("translation model chain", () => {
     assert.equal(resolveBackgroundMaxOutputTokens("generateContent"), 3072);
   });
 
-  it("defaults to distinct CI Luna primary and CI V4 Flash fallback", () => {
+  it("T1 defaults to distinct CI Luna primary and CI Gemini 3.1 Flash-Lite fallback", () => {
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     const prevBg = process.env.BACKGROUND_MEMORY_MODEL;
@@ -80,15 +82,16 @@ describe("translation model chain", () => {
       const models = resolveTranslationModels();
       assert.deepEqual(models, [
         CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+        CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
       ]);
+      assert.equal(models.length, 2);
       assert.equal(
         DEFAULT_TRANSLATION_PRIMARY_MODEL,
         CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
       );
       assert.equal(
         DEFAULT_TRANSLATION_FALLBACK_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+        CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL
       );
       assert.notEqual(
         translationModelIdentity(models[0]!),
@@ -104,6 +107,29 @@ describe("translation model chain", () => {
     }
   });
 
+  it("T2 translationModelIdentity uses CheaperInference for Luna and Gemini Flash-Lite", () => {
+    assert.equal(
+      translationModelIdentity(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+      "cheaperinference:gpt-5.6-luna"
+    );
+    assert.equal(
+      translationModelIdentity(CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL),
+      "cheaperinference:gemini-3.1-flash-lite"
+    );
+    assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL), true);
+    assert.equal(isCheaperInferenceModel("google/gemini-3.1-flash-lite"), false);
+  });
+
+  it("T3 hasPromptTranslationTransport with CI key only and no OpenRouter key", () => {
+    assert.equal(
+      hasPromptTranslationTransport({
+        CHEAPER_INFERENCE_API_KEY: "test",
+        OPENROUTER_API_KEY: "",
+      } as NodeJS.ProcessEnv),
+      true
+    );
+  });
+
   it("migrates stale Flash primary env to Luna and keeps explicit Flash fallback", () => {
     const models = resolveTranslationModels({
       PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
@@ -115,7 +141,17 @@ describe("translation model chain", () => {
     ]);
   });
 
-  it("does not treat the same resolved Luna model as a fallback", () => {
+  it("T7 explicit env override replaces default Gemini fallback", () => {
+    const models = resolveTranslationModels({
+      PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    } as NodeJS.ProcessEnv);
+    assert.deepEqual(models, [
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    ]);
+  });
+
+  it("T8 does not treat the same resolved Luna model as a fallback", () => {
     const models = resolveTranslationModels({
       PROMPT_TRANSLATION_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       PROMPT_TRANSLATION_FALLBACK_MODELS: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
@@ -230,6 +266,126 @@ describe("english layer status and stale load", () => {
       }),
       "NO_TRANSLATABLE_CONTENT"
     );
+  });
+});
+
+describe("translation fallback semantics", () => {
+  function installCiFetchMock(
+    handler: (requestedModel: string, callIndex: number) => Response | "throw"
+  ): { modelsCalled: string[]; restore: () => void } {
+    const modelsCalled: string[] = [];
+    let callIndex = 0;
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      const requestedModel = String(body.model ?? "");
+      modelsCalled.push(requestedModel);
+      callIndex += 1;
+      const outcome = handler(requestedModel, callIndex);
+      if (outcome === "throw") {
+        throw new Error(`mock transport failure for ${requestedModel}`);
+      }
+      return outcome;
+    }) as typeof fetch;
+    return {
+      modelsCalled,
+      restore() {
+        globalThis.fetch = previousFetch;
+      },
+    };
+  }
+
+  function successResponse(content: string): Response {
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: { content },
+            finish_reason: "stop",
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 4 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  it("T4 primary Luna succeeds without calling Gemini fallback", async () => {
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    const previousOr = process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    delete process.env.OPENROUTER_API_KEY;
+    const mock = installCiFetchMock((requestedModel) => {
+      assert.equal(requestedModel, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+      return successResponse("⟦SEG 1⟧\nHello\n⟦/SEG 1⟧");
+    });
+    try {
+      const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
+      assert.equal(result?.[0]?.content, "Hello");
+      assert.deepEqual(mock.modelsCalled, [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]);
+    } finally {
+      mock.restore();
+      if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+      if (previousOr === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOr;
+    }
+  });
+
+  it("T5 Luna failure then Gemini fallback succeeds with exact CI model id", async () => {
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    const previousOr = process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    delete process.env.OPENROUTER_API_KEY;
+    const mock = installCiFetchMock((requestedModel) => {
+      if (requestedModel === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+        return successResponse("not segmented");
+      }
+      assert.equal(requestedModel, CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL);
+      return successResponse("⟦SEG 1⟧\nGemini hello\n⟦/SEG 1⟧");
+    });
+    try {
+      const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
+      assert.equal(result?.[0]?.content, "Gemini hello");
+      assert.deepEqual(mock.modelsCalled, [
+        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
+      ]);
+    } finally {
+      mock.restore();
+      if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+      if (previousOr === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOr;
+    }
+  });
+
+  it("T6 Luna and Gemini both fail returns null (Korean fallback remains authoritative)", async () => {
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    const previousOr = process.env.OPENROUTER_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    delete process.env.OPENROUTER_API_KEY;
+    const mock = installCiFetchMock((requestedModel) => {
+      if (requestedModel === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+        return "throw";
+      }
+      assert.equal(requestedModel, CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL);
+      return successResponse("not segmented");
+    });
+    try {
+      const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
+      assert.equal(result, null);
+      assert.deepEqual(mock.modelsCalled, [
+        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
+      ]);
+    } finally {
+      mock.restore();
+      if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+      if (previousOr === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousOr;
+    }
   });
 });
 

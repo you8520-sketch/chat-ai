@@ -102,6 +102,10 @@ export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
   "gemini-3.1-pro-preview";
 
+/** Cheaper Inference OpenAI-compatible API — Gemini 3.1 Flash-Lite (background translation fallback). */
+export const CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL =
+  "gemini-3.1-flash-lite";
+
 /** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 
@@ -324,6 +328,12 @@ export function isCheaperInferenceGemini31ProModel(modelId: string): boolean {
   );
 }
 
+export function isCheaperInferenceGemini31FlashLiteModel(modelId: string): boolean {
+  return (
+    modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL
+  );
+}
+
 export function isCheaperInferenceGemini37FlashModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 }
@@ -360,6 +370,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL ||

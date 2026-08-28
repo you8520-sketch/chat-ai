@@ -15,7 +15,7 @@ Without `RUN_REAL_TRANSLATION_AB=1`, the harness exits without provider calls.
 Completed or partial real runs are preserved under `runs/`:
 
 - `runs/run-01/` — first real run (transport failure at request 10; immutable)
-- `runs/run-02/` — reserved for the next full real run (not executed yet)
+- `runs/run-02/` — **cancelled by product decision** (Luna vs DeepSeek V4 Flash no longer required; see `docs/audits/pr2-luna-vs-gemini31-micro/decision.md`)
 
 ## Active harness output (latest run)
 

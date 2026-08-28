@@ -144,3 +144,48 @@ test("unbounded background calls omit max_tokens and disable reasoning on both p
     else process.env.OPENROUTER_API_KEY = previousOpenRouterKey;
   }
 });
+
+test("gemini-3.1-flash-lite routes through CheaperInference with CI model id", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  const previousOr = process.env.OPENROUTER_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+  delete process.env.OPENROUTER_API_KEY;
+
+  let requestedUrl = "";
+  let requestedBody: Record<string, unknown> | null = null;
+  globalThis.fetch = (async (input, init) => {
+    requestedUrl = String(input);
+    requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        model: "google/gemini-3.1-flash-lite",
+        choices: [{ message: { content: "OK" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 10, completion_tokens: 4 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await callOpenRouterCompletion({
+      model: "gemini-3.1-flash-lite",
+      system: "system",
+      history: [{ role: "user", content: "hello" }],
+      maxTokens: 128,
+    });
+
+    assert.equal(
+      requestedUrl,
+      "https://api.cheaperinference.com/v1/chat/completions"
+    );
+    assert.equal(requestedBody?.model, "gemini-3.1-flash-lite");
+    assert.equal(result.text, "OK");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+    if (previousOr == null) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = previousOr;
+  }
+});
