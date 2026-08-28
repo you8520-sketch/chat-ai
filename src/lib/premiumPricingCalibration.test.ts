@@ -8,6 +8,8 @@ import {
   OPUS5_V1_PUBLISHED,
   OPUS5_V2_PROPOSED,
   PREMIUM_MARGIN_CANDIDATES,
+  getPremiumCacheEvidenceReports,
+  isPremiumCacheReadyForLiveCutover,
   selectPremiumTargetMargin,
   simulatePremiumPricingPolicy,
 } from "./premiumPricingCalibration";
@@ -243,6 +245,14 @@ describe("premiumPricingCalibration", () => {
     assert.equal(gates.allPass, true);
     assert.equal(gates.GEMINI31_REFERENCE_EVIDENCE_VERIFIED, true);
     assert.equal(gates.OPUS5_REFERENCE_EVIDENCE_VERIFIED, true);
+  });
+
+  it("reports cache evidence status without faking verified", () => {
+    const reports = getPremiumCacheEvidenceReports();
+    for (const modelId of ["gemini-3.1-pro-preview", "claude-opus-5"] as const) {
+      assert.ok(["VERIFIED", "PARTIAL", "UNAVAILABLE"].includes(reports[modelId]?.status ?? "UNAVAILABLE"));
+    }
+    assert.equal(isPremiumCacheReadyForLiveCutover(), false);
   });
 
   it("hard benchmark implied max margin @1530", () => {
