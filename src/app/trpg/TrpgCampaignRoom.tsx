@@ -96,8 +96,6 @@ import {
   resolveLiveActorDeclarationPresentation,
   isActorActionRevealBeatSatisfied,
   isActorPresentationReady,
-  isLiveRoundPresentationReady,
-  resolveLiveRevealedActionIds,
   shouldDecorativeRevealAction,
   isRoundPresentationAwaitingMoreActors,
   isLiveRoundPresentationStarting,
@@ -184,6 +182,26 @@ import {
   resolveTrpgGmRevealComplete,
   resolveTrpgGmShownNarration,
 } from "@/lib/trpg/gmProviderStreamDisplay";
+import {
+  createPresentationSession,
+  deriveAdjudicatedParticipantIdsFromLogRow,
+  deriveExpectedPresentationActorIdsFromLogRow,
+  deriveParticipantAdjudicationOutcomesFromLogRow,
+  derivePresentationSceneTurnLiveProps,
+  deriveResolutionOrderFromLogRow,
+  filterRevealedActions,
+  findPresentationLogRow,
+  inferHeldPresentationRoundFromLog,
+  isPresentationSessionReleased,
+  nextReleasedPresentationRoundWatermark,
+  presentationSessionMetadata,
+  resolvePresentationLiveReady,
+  resolvePresentationRoundNumber,
+  resolvePresentationSourceRolls,
+  shouldLatchPresentationRound,
+  shouldShowNextActionInput,
+  type LivePresentationSession,
+} from "@/lib/trpg/presentationSession";
 
 function useCampaignDicePreview(
   snap: TrpgCampaignSnapshot
@@ -400,43 +418,107 @@ export default function TrpgCampaignRoom({
   const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
     null
   );
+  const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
+  const serverRoundNumber = snap.round.number;
   const phase = snap.round.phase;
   const dicePreview = useCampaignDicePreview(snap);
-  const rollSessionKey = useMemo(
-    () => trpgDiceRollSessionKey(snap.round.number, snap.currentRolls),
-    [snap.currentRolls, snap.round.number]
+  const [presentationSession, setPresentationSession] = useState<LivePresentationSession | null>(null);
+  const releasedPresentationRoundRef = useRef(0);
+  const latchedPresentationSessionKeyRef = useRef<string | null>(null);
+  const releasedPresentationRoundWatermark = releasedPresentationRoundRef.current;
+  const inferredHeldPresentationRound = inferHeldPresentationRoundFromLog({
+    serverRoundNumber,
+    serverPhase: String(phase),
+    log: snap.log,
+    roundShow,
+    releasedPresentationRoundWatermark,
+  });
+  const presentationRoundNumber = resolvePresentationRoundNumber({
+    serverRoundNumber,
+    session: presentationSession,
+    roundShow,
+    inferredHeldRound: inferredHeldPresentationRound,
+    releasedPresentationRoundWatermark,
+  });
+  const presentationLogRow = useMemo(
+    () => findPresentationLogRow(snap.log, presentationRoundNumber),
+    [snap.log, presentationRoundNumber]
   );
   const currentLogRow = useMemo(
-    () => snap.log.find((row) => row.roundNumber === snap.round.number) ?? null,
-    [snap.log, snap.round.number]
+    () => snap.log.find((row) => row.roundNumber === serverRoundNumber) ?? null,
+    [snap.log, serverRoundNumber]
   );
-  const sourceActions = useMemo(
-    () => (currentLogRow?.actions ?? []).filter((action) => action.revealed && action.body.trim()),
-    [currentLogRow]
-  );
-  const sourceRolls = useMemo(() => {
-    if (dicePreview.rolls.length > 0) return dicePreview.rolls;
-    if (snap.currentRolls.length > 0) return snap.currentRolls;
-    return currentLogRow?.rolls ?? [];
-  }, [currentLogRow, dicePreview.rolls, snap.currentRolls]);
-  const liveReady = isLiveRoundPresentationReady({
-    phase,
-    hasLockedActorSet: sourceActions.length > 0 || sourceRolls.length > 0,
-    resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
-    adjudicatedParticipantIds: snap.adjudicatedParticipantIds ?? [],
+  const sessionMeta = presentationSessionMetadata({
+    session: presentationSession,
+    presentationRoundNumber,
+    serverRoundNumber,
+    serverExpectedPresentationActorIds: snap.round.expectedPresentationActorIds ?? [],
+    serverResolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
   });
+  const presentationResolutionOrder = sessionMeta.resolutionOrder;
+  const expectedPresentationActorIds = sessionMeta.expectedPresentationActorIds;
+  const sourceActions = useMemo(() => {
+    if (presentationRoundNumber !== serverRoundNumber) {
+      return filterRevealedActions(presentationLogRow?.actions ?? []);
+    }
+    return filterRevealedActions(currentLogRow?.actions ?? []);
+  }, [currentLogRow, presentationLogRow, presentationRoundNumber, serverRoundNumber]);
+  const sourceRolls = useMemo(
+    () =>
+      resolvePresentationSourceRolls({
+        presentationRoundNumber,
+        serverRoundNumber,
+        presentationLogRow,
+        serverCurrentRolls: snap.currentRolls,
+        dicePreviewRolls: dicePreview.rolls,
+      }),
+    [
+      dicePreview.rolls,
+      presentationLogRow,
+      presentationRoundNumber,
+      serverRoundNumber,
+      snap.currentRolls,
+    ]
+  );
+  const presentationAdjudicatedIds = useMemo((): number[] =>
+    presentationRoundNumber !== serverRoundNumber
+      ? deriveAdjudicatedParticipantIdsFromLogRow(presentationLogRow)
+      : (snap.adjudicatedParticipantIds ?? []),
+    [presentationLogRow, presentationRoundNumber, serverRoundNumber, snap.adjudicatedParticipantIds]
+  );
+  const liveReady = resolvePresentationLiveReady({
+    presentationRoundNumber,
+    serverRoundNumber,
+    serverPhase: String(phase),
+    sourceActions,
+    sourceRolls,
+    resolutionOrder: presentationResolutionOrder,
+    adjudicatedParticipantIds: presentationAdjudicatedIds,
+  });
+  const rollSessionKey = useMemo(
+    () => trpgDiceRollSessionKey(presentationRoundNumber, sourceRolls),
+    [presentationRoundNumber, sourceRolls]
+  );
   const adjudicatedParticipantIds = useMemo(
-    () => new Set(snap.adjudicatedParticipantIds ?? []),
-    [snap.adjudicatedParticipantIds]
+    () => new Set(presentationAdjudicatedIds),
+    [presentationAdjudicatedIds]
   );
-  const expectedPresentationActorIds = useMemo(
-    () => snap.round.expectedPresentationActorIds ?? [],
-    [snap.round.expectedPresentationActorIds]
-  );
-  const participantAdjudicationOutcomes = useMemo(
-    () => new Map(Object.entries(snap.participantAdjudicationOutcomes ?? {}).map(([id, outcome]) => [Number(id), outcome])),
-    [snap.participantAdjudicationOutcomes]
-  );
+  const participantAdjudicationOutcomes = useMemo(() => {
+    if (presentationRoundNumber !== serverRoundNumber) {
+      return deriveParticipantAdjudicationOutcomesFromLogRow(presentationLogRow);
+    }
+    return new Map(
+      Object.entries(snap.participantAdjudicationOutcomes ?? {}).map(([id, outcome]) => [
+        Number(id),
+        outcome,
+      ])
+    );
+  }, [
+    presentationLogRow,
+    presentationRoundNumber,
+    serverRoundNumber,
+    snap.participantAdjudicationOutcomes,
+  ]);
   const seenLogKeysRef = useRef<Set<string> | null>(null);
   if (seenLogKeysRef.current === null) {
     seenLogKeysRef.current = new Set(
@@ -454,54 +536,54 @@ export default function TrpgCampaignRoom({
           .filter(
             (action) =>
               action.kind === "ai_character" &&
-              seenLogKeysRef.current!.has(`a:${snap.round.number}:${action.participantId}`)
+              seenLogKeysRef.current!.has(`a:${presentationRoundNumber}:${action.participantId}`)
           )
           .map((action) => action.participantId)
       ),
-    [declarationRevealEpoch, snap.round.number, sourceActions]
+    [declarationRevealEpoch, presentationRoundNumber, sourceActions]
   );
+  const frozenActorsRef = useRef<{ round: number; actors: PresentationActor[] } | null>(null);
   const liveActors = useMemo(
     () =>
       buildRoundPresentationActors({
-        resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
+        resolutionOrder: presentationResolutionOrder,
         actions: sourceActions,
         rolls: sourceRolls,
       }),
-    [sourceActions, sourceRolls, snap.resolutionOrder]
+    [presentationResolutionOrder, sourceActions, sourceRolls]
   );
-  const frozenActorsRef = useRef<{ round: number; actors: PresentationActor[] } | null>(null);
-  const presentationRoundRef = useRef<number | null>(null);
   const frozenActors = freezeLivePresentationActors({
     previous:
-      frozenActorsRef.current?.round === snap.round.number ? frozenActorsRef.current.actors : null,
+      frozenActorsRef.current?.round === presentationRoundNumber ? frozenActorsRef.current.actors : null,
     next: liveActors,
     ready: liveReady,
-    roundNumber: snap.round.number,
+    roundNumber: presentationRoundNumber,
     frozenRound: frozenActorsRef.current?.round ?? null,
   });
   frozenActorsRef.current = liveReady
-    ? { round: snap.round.number, actors: frozenActors.actors }
-    : null;
+    ? { round: presentationRoundNumber, actors: frozenActors.actors }
+    : frozenActorsRef.current?.round === presentationRoundNumber
+      ? frozenActorsRef.current
+      : null;
   const presentationActors = frozenActors.actors;
-  const awaitingMorePresentationActors = isRoundPresentationAwaitingMoreActors({
-    phase: String(phase),
-    workType: snap.workType,
-    botGenerationInFlight: snap.botGenerationInFlight,
-  });
-  if (presentationRoundRef.current !== snap.round.number) {
-    presentationRoundRef.current = snap.round.number;
-  }
+  const awaitingMorePresentationActors =
+    presentationRoundNumber !== serverRoundNumber
+      ? false
+      : isRoundPresentationAwaitingMoreActors({
+          phase: String(phase),
+          workType: snap.workType,
+          botGenerationInFlight: snap.botGenerationInFlight,
+        });
   const queueSessionKey = useMemo(
     () =>
       trpgRoundPresentationSessionKey({
-        roundNumber: snap.round.number,
+        roundNumber: presentationRoundNumber,
         rolls: sourceRolls,
         actions: sourceActions,
         ready: liveReady,
       }),
-    [liveReady, sourceActions, sourceRolls, snap.round.number]
+    [liveReady, presentationRoundNumber, sourceActions, sourceRolls]
   );
-  const [roundShow, setRoundShow] = useState<RoundPresentationState>(idlePresentation());
   const queueKeyRef = useRef("");
   const presentationActorKey = presentationActors
     .map((actor) => `${actor.actorId}:${actor.roll?.participantId ?? 0}:${actor.roll?.d20 ?? 0}`)
@@ -510,7 +592,7 @@ export default function TrpgCampaignRoom({
     visible: false,
     settled: false,
     dismissed: true,
-    roundNumber: snap.round.number,
+    roundNumber: presentationRoundNumber,
     sessionKey: "",
   });
   const handleOverlayPlaybackChange = useCallback((state: TrpgDiceOverlayPlaybackState) => {
@@ -534,13 +616,13 @@ export default function TrpgCampaignRoom({
   const presentationDiceSessionKey = useMemo(
     () =>
       activePresentationDiceSessionKey({
-        roundNumber: snap.round.number,
+        roundNumber: presentationRoundNumber,
         mode: roundShow.mode,
         phase: roundShow.phase,
         activeRoll: cinematicActiveRoll,
         aggregateRollSessionKey: rollSessionKey,
       }),
-    [cinematicActiveRoll, rollSessionKey, roundShow.mode, roundShow.phase, snap.round.number]
+    [cinematicActiveRoll, presentationRoundNumber, rollSessionKey, roundShow.mode, roundShow.phase]
   );
   useEffect(() => {
     if (!dicePreview.ready) return;
@@ -566,7 +648,7 @@ export default function TrpgCampaignRoom({
     setPresentation((prev) =>
       nextDicePresentation(prev, {
         rollSessionKey,
-        roundNumber: snap.round.number,
+        roundNumber: presentationRoundNumber,
         overlayVisible: overlayPlayback.visible,
         overlaySettled: overlayPlayback.settled,
         overlayDismissed: overlayPresentationDismissed({
@@ -600,13 +682,56 @@ export default function TrpgCampaignRoom({
     queueSessionKey,
     rollSessionKey,
     roundShow,
-    snap.round.number,
+    presentationRoundNumber,
+  ]);
+  useEffect(() => {
+    if (
+      !shouldLatchPresentationRound({
+        latchRound: presentationRoundNumber,
+        releasedPresentationRoundWatermark,
+        roundShow,
+        queueSessionKey,
+        latchedPresentationSessionKey: latchedPresentationSessionKeyRef.current,
+      })
+    ) {
+      if (roundShow.mode !== "cinematic") {
+        latchedPresentationSessionKeyRef.current = null;
+      }
+      return;
+    }
+    latchedPresentationSessionKeyRef.current = queueSessionKey;
+    const latchRound = presentationRoundNumber;
+    const latchLogRow = findPresentationLogRow(snap.log, latchRound);
+    const latchResolutionOrder =
+      latchRound === serverRoundNumber
+        ? (snap.resolutionOrder ?? []).map((entry) => entry.participantId)
+        : deriveResolutionOrderFromLogRow(latchLogRow);
+    const latchExpected =
+      latchRound === serverRoundNumber
+        ? (snap.round.expectedPresentationActorIds ?? [])
+        : deriveExpectedPresentationActorIdsFromLogRow(latchLogRow, latchResolutionOrder);
+    setPresentationSession(
+      createPresentationSession({
+        roundNumber: latchRound,
+        expectedPresentationActorIds: latchExpected,
+        resolutionOrder: latchResolutionOrder,
+      })
+    );
+  }, [
+    presentationRoundNumber,
+    queueSessionKey,
+    releasedPresentationRoundWatermark,
+    roundShow.mode,
+    serverRoundNumber,
+    snap.log,
+    snap.resolutionOrder,
+    snap.round.expectedPresentationActorIds,
   ]);
   useEffect(() => {
     if (roundShow.mode !== "cinematic" || roundShow.phase !== "actor-dice") return;
     const current = presentationActors[roundShow.presentationIndex];
     const activeKey = current?.roll
-      ? trpgDiceRollSessionKey(snap.round.number, [current.roll])
+      ? trpgDiceRollSessionKey(presentationRoundNumber, [current.roll])
       : "";
     const decision = resolveLiveActorPresentationTransition({
       mode: roundShow.mode,
@@ -650,7 +775,7 @@ export default function TrpgCampaignRoom({
     replayOnMount: dicePreview.inject,
   });
   const hideCurrentResults =
-    hideCurrentRoundResults(presentation, snap.round.number) || incomingSessionHidden;
+    hideCurrentRoundResults(presentation, presentationRoundNumber) || incomingSessionHidden;
   const revealWatchdogMs = Math.max(
     trpgDiceRevealWatchdogMs(snap.currentRolls.length),
     trpgRoundPresentationWatchdogMs({
@@ -666,11 +791,11 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     setRevealGate((prev) =>
       nextDiceRevealGateState(prev, {
-        roundNumber: snap.round.number,
+        roundNumber: presentationRoundNumber,
         presentation,
       })
     );
-  }, [presentation, snap.round.number]);
+  }, [presentation, presentationRoundNumber]);
   useEffect(() => {
     if (!hideCurrentResults) {
       if (presentation.state === "dismissed") {
@@ -693,10 +818,10 @@ export default function TrpgCampaignRoom({
   // Must not own actor order, action-beat advance, dice, result, or GM.
   const holdCurrentRound = holdCurrentRoundReveal({
     incomingSessionHidden,
-    presentationHidesRound: hideCurrentRoundResults(presentation, snap.round.number),
+    presentationHidesRound: hideCurrentRoundResults(presentation, presentationRoundNumber),
     revealGateReleased,
   });
-  const gatedRoundNumber = holdCurrentRound ? snap.round.number : null;
+  const gatedRoundNumber = holdCurrentRound ? presentationRoundNumber : null;
   const waitingOthers = snap.workType === "wait_humans";
   const livePending =
     !liveReady &&
@@ -752,7 +877,7 @@ export default function TrpgCampaignRoom({
       )
     : undefined;
   const liveRevealedActionIds = visibleSceneRows
-    .filter((row) => row.roundNumber === snap.round.number)
+    .filter((row) => row.roundNumber === serverRoundNumber)
     .flatMap((row) => row.actions.filter((a) => a.revealed && a.body.trim()).map((a) => a.participantId));
   const orphanRolls = holdCurrentRound
     ? []
@@ -794,10 +919,17 @@ export default function TrpgCampaignRoom({
     seenKeys: seenLogKeysRef.current!,
   });
   const liveGmStreamDraft =
-    phase === "GENERATING_NARRATION" ? snap.gmNarrationDraft?.text?.trim() ?? "" : "";
-  const liveFollowRound = freshGmRow?.roundNumber ?? snap.round.number;
-  const currentNarration =
-    (freshGmRow?.narration ?? (liveGmStreamDraft || currentLogRow?.narration))?.trim() || "";
+    presentationRoundNumber === serverRoundNumber && phase === "GENERATING_NARRATION"
+      ? snap.gmNarrationDraft?.text?.trim() ?? ""
+      : "";
+  const liveFollowRound = freshGmRow?.roundNumber ?? presentationRoundNumber;
+  const heldPresentationActive = presentationRoundNumber !== serverRoundNumber;
+  const presentationCanonicalNarration = presentationLogRow?.narration?.trim() ?? "";
+  const currentNarration = heldPresentationActive
+    ? roundShow.phase === "gm-narration" || roundShow.phase === "complete"
+      ? presentationCanonicalNarration
+      : ""
+    : (freshGmRow?.narration ?? (liveGmStreamDraft || currentLogRow?.narration))?.trim() || "";
   currentNarrationRef.current = currentNarration;
   liveFreshGmRoundRef.current = freshGmRow?.roundNumber ?? null;
   const gmTextReady = cinematicShowGm && (currentNarration.length > 0 || liveGmStreamDraft.length > 0);
@@ -827,7 +959,7 @@ export default function TrpgCampaignRoom({
       ? sourceActions.find((action) => action.participantId === activePresentationActorId)
       : null;
   const effectiveActorRevealComplete = resolveEffectiveActorRevealComplete({
-    roundNumber: snap.round.number,
+    roundNumber: presentationRoundNumber,
     activeParticipantId: activePresentationActorId,
     report: actorRevealReport,
   });
@@ -840,7 +972,7 @@ export default function TrpgCampaignRoom({
       actionKind: activePresentationAction?.kind,
       isFreshAiAction:
         activePresentationAction?.kind === "ai_character" &&
-        isFreshLogKey(`a:${snap.round.number}:${activePresentationAction.participantId}`),
+        isFreshLogKey(`a:${presentationRoundNumber}:${activePresentationAction.participantId}`),
       alreadyCompleted: false,
       resolutionActionAlreadyConsumed: activeResolutionActionAlreadyConsumed,
       effectiveActorRevealComplete,
@@ -857,7 +989,7 @@ export default function TrpgCampaignRoom({
         setHiddenPresentationSession(
           beginHiddenPresentationSession({
             sessionKey: queueSessionKey,
-            roundNumber: snap.round.number,
+            roundNumber: presentationRoundNumber,
           })
         );
       }
@@ -865,7 +997,7 @@ export default function TrpgCampaignRoom({
     document.addEventListener("visibilitychange", syncHidden);
     syncHidden();
     return () => document.removeEventListener("visibilitychange", syncHidden);
-  }, [queueSessionKey, snap.round.number]);
+  }, [presentationRoundNumber, queueSessionKey]);
   useEffect(() => {
     if (!hiddenCatchUpActive) return;
     if (roundShow.mode !== "cinematic") return;
@@ -1058,11 +1190,33 @@ export default function TrpgCampaignRoom({
           botProgress,
         })
       : null;
-  const nextActionVisible = phase === "ACTION_INPUT" && Boolean(snap.myDraft && !snap.myDraft.locked);
+  const presentationGmRevealRound =
+    roundShow.mode === "cinematic" &&
+    (roundShow.phase === "gm-narration" || roundShow.phase === "complete")
+      ? presentationRoundNumber
+      : freshGmRow?.roundNumber ?? null;
   const effectiveGmRevealComplete = resolveEffectiveGmRevealComplete({
-    freshGmRound: freshGmRow?.roundNumber ?? null,
+    freshGmRound: presentationGmRevealRound,
     report: gmRevealReport,
   });
+  const nextActionVisible = shouldShowNextActionInput({
+    serverPhase: String(phase),
+    hasUnlockedDraft: Boolean(snap.myDraft && !snap.myDraft.locked),
+    session: presentationSession,
+    roundShow,
+    gmRevealComplete: effectiveGmRevealComplete,
+  });
+  useEffect(() => {
+    if (presentationSession == null) return;
+    if (isPresentationSessionReleased({ roundShow, gmRevealComplete: effectiveGmRevealComplete })) {
+      releasedPresentationRoundRef.current = nextReleasedPresentationRoundWatermark(
+        releasedPresentationRoundRef.current,
+        presentationSession.roundNumber
+      );
+      setPresentationSession(null);
+      setRoundShow(idlePresentation());
+    }
+  }, [effectiveGmRevealComplete, presentationSession, roundShow]);
   const liveFollowOwner = resolveTrpgLiveFollowOwner({
     cinematicMotion,
     activeDeclarationReveal: liveDeclaration.activeDeclarationActorId != null,
@@ -1107,7 +1261,7 @@ export default function TrpgCampaignRoom({
   );
   const showInlineWait = Boolean(waitCopy) && !processStatus;
   const followActivityKey = livePresentationActivityKey({
-    roundNumber: snap.round.number,
+    roundNumber: presentationRoundNumber,
     mode: roundShow.mode,
     phase: roundShow.phase,
     presentationIndex: roundShow.presentationIndex,
@@ -1830,28 +1984,29 @@ export default function TrpgCampaignRoom({
           ) : null}
 
           {visibleSceneRows.map((row) => {
-            const gated = holdCurrentRound && row.roundNumber === snap.round.number;
-            const isLiveRow = row.roundNumber === snap.round.number && gateLiveRound;
-            const liveRevealedActorIds = resolveLiveRevealedActionIds({
-              isLiveRow,
-              mode: roundShow.mode,
+            const gated = holdCurrentRound && row.roundNumber === presentationRoundNumber;
+            const sceneLive = derivePresentationSceneTurnLiveProps({
+              rowRoundNumber: row.roundNumber,
+              presentationRoundNumber,
+              gateLiveRound,
+              roundShow,
               cinematicRevealedIds,
+              cinematicLaneIds,
+              cinematicShowGm,
               preCinematicVisibleIds,
+              serverGmStreamDraft:
+                presentationRoundNumber === serverRoundNumber && phase === "GENERATING_NARRATION"
+                  ? snap.gmNarrationDraft?.text?.trim() ?? ""
+                  : "",
+              presentationLogNarration: row.narration,
             });
-            const liveResultLaneIds = isLiveRow
-              ? roundShow.mode === "cinematic"
-                ? cinematicLaneIds
-                : []
-              : undefined;
-            const liveShowGmNarration = isLiveRow
-              ? roundShow.mode === "cinematic"
-                ? cinematicShowGm
-                : false
-              : undefined;
-            const liveGmStreamDraft =
-              isLiveRow && phase === "GENERATING_NARRATION"
-                ? snap.gmNarrationDraft?.text?.trim() ?? ""
-                : "";
+            const isLiveRow = sceneLive.isLiveRow;
+            const liveRevealedActorIds = sceneLive.revealedActorIds;
+            const liveResultLaneIds = sceneLive.resultLaneActorIds;
+            const liveShowGmNarration = sceneLive.showGmNarration;
+            const liveGmStreamDraft = sceneLive.gmStreamDraft;
+            const presentationRowRolls =
+              row.roundNumber === presentationRoundNumber ? sourceRolls : [];
             return (
             <SceneTurn
               key={row.roundNumber}
@@ -1869,7 +2024,7 @@ export default function TrpgCampaignRoom({
               unlockedUrlsByCharacterId={unlockedUrlsByCharacterId}
               campaignId={snap.id}
               isFreshLogKey={isFreshLogKey}
-              liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
+              liveRolls={presentationRowRolls}
               revealedActorIds={liveRevealedActorIds}
               resultLaneActorIds={liveResultLaneIds}
               showGmNarration={liveShowGmNarration}
@@ -1902,51 +2057,51 @@ export default function TrpgCampaignRoom({
                 row.roundNumber === liveFollowRound ? handleLiveGmRevealChange : undefined
               }
               activePresentationActorId={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? activePresentationActorId
                   : undefined
               }
               activePresentationCardRef={
-                row.roundNumber === snap.round.number && activePresentationActorId != null
+                row.roundNumber === presentationRoundNumber && activePresentationActorId != null
                   ? activePresentationCardRef
                   : undefined
               }
               onActiveActorRevealChange={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? handleActiveActorRevealChange
                   : undefined
               }
               skipDecorativeReveal={
-                row.roundNumber === snap.round.number && gateLiveRound ? skipDecorativeReveal : false
+                row.roundNumber === presentationRoundNumber && gateLiveRound ? skipDecorativeReveal : false
               }
               cinematicActorAction={
-                row.roundNumber === snap.round.number && gateLiveRound ? cinematicActorAction : false
+                row.roundNumber === presentationRoundNumber && gateLiveRound ? cinematicActorAction : false
               }
               preCinematicVisibleIds={
-                row.roundNumber === snap.round.number && gateLiveRound ? preCinematicVisibleIds : []
+                row.roundNumber === presentationRoundNumber && gateLiveRound ? preCinematicVisibleIds : []
               }
               activeDeclarationRevealId={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? liveDeclaration.activeDeclarationActorId
                   : null
               }
               declarationEndRef={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? declarationEndRef
                   : undefined
               }
               declarationGrowthRef={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? declarationGrowthRef
                   : undefined
               }
               consumedDeclarationAiIds={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? [...consumedDeclarationAiIds]
                   : []
               }
               onDeclarationRevealChange={
-                row.roundNumber === snap.round.number && gateLiveRound
+                row.roundNumber === presentationRoundNumber && gateLiveRound
                   ? handleDeclarationRevealChange
                   : undefined
               }
@@ -1954,7 +2109,7 @@ export default function TrpgCampaignRoom({
             );
           })}
 
-          {phase === "ACTION_INPUT" && snap.myDraft && !snap.myDraft.locked ? (
+          {nextActionVisible ? (
             <div ref={nextActionRef} data-trpg-next-action>
             <AppSectionCard title="시나리오 행동">
               <p className="mb-3 text-sm text-zinc-400">
@@ -2252,7 +2407,7 @@ export default function TrpgCampaignRoom({
         rolls={overlayRolls}
         resolutionOrder={snap.resolutionOrder}
         previewInstrument={dicePreview.instrument}
-        roundNumber={snap.round.number}
+        roundNumber={presentationRoundNumber}
         replayOnMount={dicePreview.inject}
         rollProgress={activeRollProgress}
         statDefs={snap.statDefs}

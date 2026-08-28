@@ -393,7 +393,7 @@ describe("TRPG live round orchestration — single owner", () => {
     assert.doesNotMatch(room, /revealGateReleaseReason !== "watchdog"[\s\S]{0,180}phase: "complete"/);
     assert.match(room, /#509 Outcome B/);
     assert.match(room, /resolveLiveActorDeclarationPresentation/);
-    assert.match(room, /resolveLiveRevealedActionIds/);
+    assert.match(room, /derivePresentationSceneTurnLiveProps/);
     assert.match(room, /resolveTrpgMountSeenKeys/);
     assert.doesNotMatch(presentation, /computeResolutionOrder/);
   });

@@ -379,7 +379,7 @@ describe("TRPG round presentation queue", () => {
     assert.match(room, /revealedActorIds/);
     assert.match(room, /showGmNarration/);
     assert.match(room, /shouldGateLiveRoundPresentation/);
-    assert.match(room, /isLiveRoundPresentationReady/);
+    assert.match(room, /resolvePresentationLiveReady/);
     assert.match(room, /isLiveRoundPresentationStarting/);
     assert.match(room, /livePending/);
     assert.match(room, /presentationStarting/);
