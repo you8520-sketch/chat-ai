@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 
 import {
   ASSET_PERSON_TAGS,
+  buildAssetVisionJsonSchema,
   deriveFinalAssetTag,
   normalizeBackgroundTag,
   validateStructuredAssetVisionResult,
@@ -61,6 +62,7 @@ describe("assetPersonTags validation", () => {
     assert.equal(validateStructuredAssetVisionResult(personPayload("검은 옷")), null);
     assert.equal(validateStructuredAssetVisionResult(personPayload("침실")), null);
     assert.equal(validateStructuredAssetVisionResult(personPayload("역광")), null);
+    assert.equal(validateStructuredAssetVisionResult(personPayload("젖은 상의")), null);
   });
 
   it("rejects multi-value person tags", () => {
@@ -134,6 +136,68 @@ describe("assetPersonTags validation", () => {
   });
 });
 
+const ADULT_RP_TAGS = [
+  "키스",
+  "밀착",
+  "유혹",
+  "도발",
+  "욕망",
+  "황홀",
+  "애정",
+  "흥분",
+] as const;
+
+describe("adult-RP person tag taxonomy", () => {
+  it("includes all 8 adult-RP tags in canonical ASSET_PERSON_TAGS", () => {
+    assert.equal(ASSET_PERSON_TAGS.length, 36);
+    for (const tag of ADULT_RP_TAGS) {
+      assert.equal(ASSET_PERSON_TAGS.includes(tag), true, tag);
+    }
+  });
+
+  it("reflects new tags in JSON Schema enum from canonical owner", () => {
+    const schema = buildAssetVisionJsonSchema();
+    const personTagProp = (schema.properties as Record<string, unknown>)
+      .personTag as { anyOf: { enum?: string[] }[] };
+    const enumValues = personTagProp.anyOf[0]?.enum ?? [];
+    for (const tag of ADULT_RP_TAGS) {
+      assert.equal(enumValues.includes(tag), true, tag);
+    }
+    assert.equal(enumValues.length, ASSET_PERSON_TAGS.length);
+  });
+
+  it("accepts each adult-RP tag as valid structured personTag", () => {
+    for (const tag of ADULT_RP_TAGS) {
+      const validated = validateStructuredAssetVisionResult(personPayload(tag));
+      assert.ok(validated, tag);
+      assert.equal(deriveFinalAssetTag(validated!), tag);
+    }
+  });
+
+  it("keeps tag and moderation independent", () => {
+    const kissClear = validateStructuredAssetVisionResult(
+      personPayload("키스", { adult: false, reject: false })
+    );
+    assert.ok(kissClear);
+    assert.equal(finalizeStructuredVisionResult(kissClear!).adultFlagged, false);
+    assert.equal(finalizeStructuredVisionResult(kissClear!).moderationReject, false);
+
+    const seduceClear = validateStructuredAssetVisionResult(
+      personPayload("유혹", { adult: false, reject: false })
+    );
+    assert.ok(seduceClear);
+    assert.equal(finalizeStructuredVisionResult(seduceClear!).adultFlagged, false);
+
+    const ecstasyReview = validateStructuredAssetVisionResult(
+      personPayload("황홀", { adult: true, reject: false, reason: "선정성 애매" })
+    );
+    assert.ok(ecstasyReview);
+    assert.equal(finalizeStructuredVisionResult(ecstasyReview!).adultFlagged, true);
+    assert.equal(finalizeStructuredVisionResult(ecstasyReview!).moderationReject, false);
+    assert.equal(deriveFinalAssetTag(ecstasyReview!), "황홀");
+  });
+});
+
 describe("asset vision moderation invariants", () => {
   it("preserves three-tier moderation semantics", () => {
     const normal = finalizeStructuredVisionResult(
@@ -185,13 +249,30 @@ describe("asset vision prompt contract", () => {
     }
   });
 
-  it("explicitly prioritizes salient pose over neutral face", () => {
+  it("explicitly prioritizes relation action and pose over neutral face", () => {
     const prompt = buildAssetVisionPrompt();
-    assert.match(prompt, /salient emotion\/expression/);
-    assert.match(prompt, /salient pose\/action/);
+    assert.match(prompt, /명확한 관계\/상호작용 행동/);
+    assert.match(prompt, /키스\+부끄러움→키스/);
+    assert.match(prompt, /밀착\+미소→밀착/);
     assert.match(prompt, /무표정\+누움→누움/);
     assert.match(prompt, /무표정\+앉음→앉음/);
     assert.match(prompt, /무표정\+전투자세→전투자세/);
+    assert.match(prompt, /tag 선택이 adult\/reject를 자동으로 정하지 않는다/);
+  });
+
+  it("documents short meanings for adult-RP tags without moderation terms", () => {
+    const prompt = buildAssetVisionPrompt();
+    const tagSection = prompt.split("TASK 3 — MODERATION")[0] ?? prompt;
+    assert.match(prompt, /키스 = 입맞춤이 명확히 보임/);
+    assert.match(prompt, /밀착 = 두 인물이 몸을 붙이거나/);
+    assert.match(prompt, /유혹 = 상대를 끌어들이려는/);
+    assert.match(prompt, /도발 = 상대를 자극하거나/);
+    assert.match(prompt, /욕망 = 무엇\/누군가를 강하게 원하는/);
+    assert.match(prompt, /황홀 = 강한 감각·감정에 빠져/);
+    assert.match(prompt, /애정 = 다정함·사랑스러움/);
+    assert.match(prompt, /흥분 = 감정\/신체적으로 고조/);
+    assert.doesNotMatch(tagSection, /personTag=키스.*adult=true/s);
+    assert.doesNotMatch(tagSection, /성관계|신체부위/);
   });
 });
 
