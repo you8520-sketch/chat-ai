@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { computeShadowPricing, normalizeBillableUsage } from "./shadowPricing";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
-import { _clearShadowBillingFxMemoryForTest, _insertShadowBillingFxDailyRowForTest, _setShadowBillingFxTestDb } from "./shadowBillingExchangeRate";
+import {
+  _clearShadowBillingFxMemoryForTest,
+  _insertShadowBillingFxDailyRowForTest,
+  _setShadowBillingFxKstNowForTest,
+  _setShadowBillingFxTestDb,
+} from "./shadowBillingExchangeRate";
 import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
 import Database from "better-sqlite3";
 
@@ -12,6 +17,7 @@ describe("shadowPricing fxSnapshot", () => {
     ensureShadowBillingFxTables(db);
     _setShadowBillingFxTestDb(db);
     _clearShadowBillingFxMemoryForTest();
+    _setShadowBillingFxKstNowForTest(Date.parse("2026-08-28T00:00:00.000Z"));
     _insertShadowBillingFxDailyRowForTest({
       dateKey: "2026-08-28",
       baseUsdKrw: 1530,
@@ -23,6 +29,7 @@ describe("shadowPricing fxSnapshot", () => {
     assert.equal(s.fxSnapshot.baseUsdKrw, 1530);
     _setShadowBillingFxTestDb(null);
     _clearShadowBillingFxMemoryForTest();
+    _setShadowBillingFxKstNowForTest(null);
     db.close();
   });
 });

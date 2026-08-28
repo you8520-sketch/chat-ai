@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
   computeCompetitiveFxCeiling,
@@ -19,8 +20,36 @@ import {
   OPAQUE_MARKET_REFERENCES,
 } from "./opaqueMarketReferences";
 import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
+import {
+  _clearShadowBillingFxMemoryForTest,
+  _insertShadowBillingFxDailyRowForTest,
+  _setShadowBillingFxKstNowForTest,
+  _setShadowBillingFxTestDb,
+} from "./shadowBillingExchangeRate";
+import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
 
-describe("premiumPricingCalibration", () => {
+function setupShadowFxIsolationForGatesTest() {
+  const db = new Database(":memory:");
+  ensureShadowBillingFxTables(db);
+  _setShadowBillingFxTestDb(db);
+  _clearShadowBillingFxMemoryForTest();
+  _setShadowBillingFxKstNowForTest(Date.parse("2026-08-28T00:00:00.000Z"));
+  _insertShadowBillingFxDailyRowForTest({
+    dateKey: "2026-08-28",
+    baseUsdKrw: 1530,
+    source: "api_daily",
+  });
+  return db;
+}
+
+function teardownShadowFxIsolationForGatesTest(db: Database.Database) {
+  _setShadowBillingFxTestDb(null);
+  _clearShadowBillingFxMemoryForTest();
+  _setShadowBillingFxKstNowForTest(null);
+  db.close();
+}
+
+describe("premiumPricingCalibration — base-tier uncached hard comparable", () => {
   it("v1 diagnostics fail hard comparable @1530", () => {
     const g31 = simulatePremiumPricingPolicy({
       modelId: "gemini-3.1-pro-preview",
@@ -240,18 +269,24 @@ describe("premiumPricingCalibration", () => {
     assert.ok(Math.abs(o.noDiscountRealizedMargin! - 0.08) < 0.02);
   });
 
-  it("acceptance gates all pass for v2 proposed", () => {
-    const gates = evaluatePremiumPricingGates();
-    assert.equal(gates.allPass, true);
-    assert.equal(gates.GEMINI31_REFERENCE_EVIDENCE_VERIFIED, true);
-    assert.equal(gates.OPUS5_REFERENCE_EVIDENCE_VERIFIED, true);
+  it("acceptance gates all pass for v2 proposed base-tier uncached", () => {
+    const fxDb = setupShadowFxIsolationForGatesTest();
+    try {
+      const gates = evaluatePremiumPricingGates();
+      assert.equal(gates.allPass, true);
+      assert.equal(gates.GEMINI31_BASE_TIER_REFERENCE_VERIFIED, true);
+      assert.equal(gates.OPUS5_BASE_REFERENCE_VERIFIED, true);
+      assert.equal(gates.GEMINI31_CACHE_SEMANTICS_VERIFIED, false);
+      assert.equal(gates.UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE, true);
+    } finally {
+      teardownShadowFxIsolationForGatesTest(fxDb);
+    }
   });
 
-  it("reports cache evidence status without faking verified", () => {
+  it("reports Gemini cache as UNVERIFIED — not presented as verified v2 policy", () => {
     const reports = getPremiumCacheEvidenceReports();
-    for (const modelId of ["gemini-3.1-pro-preview", "claude-opus-5"] as const) {
-      assert.ok(["VERIFIED", "PARTIAL", "UNAVAILABLE"].includes(reports[modelId]?.status ?? "UNAVAILABLE"));
-    }
+    assert.equal(reports["gemini-3.1-pro-preview"]?.status, "UNVERIFIED");
+    assert.equal(reports["claude-opus-5"]?.status, "VERIFIED_5M");
     assert.equal(isPremiumCacheReadyForLiveCutover(), false);
   });
 

@@ -6,7 +6,12 @@ import {
 } from "./shadowSimulations";
 import { PREMIUM_MARGIN_CANDIDATES } from "./premiumPricingCalibration";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
-import { _insertShadowBillingFxDailyRowForTest, _setShadowBillingFxTestDb, _clearShadowBillingFxMemoryForTest } from "./shadowBillingExchangeRate";
+import {
+  _clearShadowBillingFxMemoryForTest,
+  _insertShadowBillingFxDailyRowForTest,
+  _setShadowBillingFxKstNowForTest,
+  _setShadowBillingFxTestDb,
+} from "./shadowBillingExchangeRate";
 import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
 import Database from "better-sqlite3";
 
@@ -43,11 +48,18 @@ function setupFxFixture() {
   ensureShadowBillingFxTables(db);
   _setShadowBillingFxTestDb(db);
   _clearShadowBillingFxMemoryForTest();
+  _setShadowBillingFxKstNowForTest(Date.parse("2026-08-28T00:00:00.000Z"));
   _insertShadowBillingFxDailyRowForTest({
     dateKey: "2026-08-28",
     baseUsdKrw: TEST_BASE_FX,
     source: "api_daily",
   });
+}
+
+function teardownFxFixture() {
+  _setShadowBillingFxTestDb(null);
+  _clearShadowBillingFxMemoryForTest();
+  _setShadowBillingFxKstNowForTest(null);
 }
 
 function setupCatalogFixture() {
@@ -126,6 +138,7 @@ describe("shadowSimulations benchmark isolation", () => {
       assertRowMatchesFixture(r.rows[i], GEMINI_ROW_FIXTURES[i]);
     }
     clearCheaperInferenceCatalogPricingForTest();
+    teardownFxFixture();
   });
 
   it("opus benchmark isolated — 9 candidate rows match deterministic fixture", () => {
@@ -147,6 +160,7 @@ describe("shadowSimulations benchmark isolation", () => {
       assertRowMatchesFixture(r.rows[i], OPUS_ROW_FIXTURES[i]);
     }
     clearCheaperInferenceCatalogPricingForTest();
+    teardownFxFixture();
   });
 
   it("candidate counts are canonical", () => {
