@@ -1,6 +1,10 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  isCheaperInferenceDeepSeekV4FlashModel,
+  isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceModel,
+  normalizeDeepSeekV4FlashModelId,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
 import {
@@ -94,11 +98,18 @@ const MOCK_GM = `<<<NARRATION>>>
 
 const MOCK_BOT = `*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."`;
 
-function resolveTrpgProModel(modelId: string): string {
-  const normalized = normalizeDeepSeekV4ProModelId(modelId);
-  return isCheaperInferenceModel(normalized)
-    ? normalized
-    : CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+export function resolveTrpgCheaperInferenceModel(modelId: string): string {
+  const normalized = normalizeDeepSeekV4FlashModelId(normalizeDeepSeekV4ProModelId(modelId.trim()));
+  if (!isCheaperInferenceModel(normalized)) {
+    throw new Error(`[TRPG] unsupported Cheaper Inference model: ${JSON.stringify(modelId)}`);
+  }
+  if (isCheaperInferenceDeepSeekV4ProModel(normalized)) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  }
+  if (isCheaperInferenceDeepSeekV4FlashModel(normalized)) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  }
+  return normalized;
 }
 
 function usageFromResponse(
@@ -231,6 +242,7 @@ function usageFromSsePayload(payload: unknown): StreamUsagePayload | undefined {
 }
 
 async function readGmProviderSseStream(opts: {
+  model: string;
   response: Response;
   callbacks?: TrpgGmStreamCallbacks;
   timings: GmProviderTimings;
@@ -309,7 +321,7 @@ async function readGmProviderSseStream(opts: {
   }
   return {
     text,
-    usage: usagePayload ? usageFromResponse(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, usagePayload) : undefined,
+    usage: usagePayload ? usageFromResponse(opts.model, usagePayload) : undefined,
     reasoningTokens,
   };
 }
@@ -369,6 +381,7 @@ async function postTrpgGmStream(opts: {
         throw lastHttpError;
       }
       const streamResult = await readGmProviderSseStream({
+        model: opts.model,
         response: res,
         callbacks: opts.callbacks,
         timings,
@@ -444,7 +457,7 @@ export async function callTrpgGm(opts: {
     const timings = simulateMockGmStream(MOCK_GM, opts.stream);
     return { text: MOCK_GM, providerTimings: timings };
   }
-  const model = resolveTrpgProModel(TRPG_GM_MODEL);
+  const model = resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL);
   const body = adaptTrpgGmChatBody({
     model,
     messages: [
@@ -479,7 +492,7 @@ export async function callTrpgBot(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_BOT };
   }
-  const model = resolveTrpgProModel(TRPG_BOT_MODEL);
+  const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
   const body = adaptTrpgBotChatBody({
     model,
     messages: [

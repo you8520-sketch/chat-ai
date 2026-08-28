@@ -1,55 +1,53 @@
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
-  normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
+import { applyCheaperInferenceModelReasoningPolicy } from "@/lib/cheaperInferenceConfig";
 
-/**
- * TRPG GM body adapter — isolated from RP `adaptCheaperInferenceChatBody`.
- * DeepSeek V4 Pro 0813 does not disable reasoning from `thinking.disabled`
- * alone. True OFF is both fields together.
- */
-export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<string, unknown> {
+function stripTrpgTransportExtensions(body: Record<string, unknown>): Record<string, unknown> {
   const adapted = { ...body };
   delete adapted.session_id;
   delete adapted.frequency_penalty;
   delete adapted.presence_penalty;
   delete adapted.repetition_penalty;
   delete adapted.include_reasoning;
-
-  if (typeof adapted.model === "string") {
-    const model = normalizeDeepSeekV4ProModelId(adapted.model);
-    adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
-      ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-      : model;
-  }
-  adapted.thinking = { type: "disabled" };
-  adapted.reasoning_effort = "none";
   return adapted;
 }
 
+/** Legacy DeepSeek TRPG paths still require explicit true-off beyond the generic adapter. */
+function applyTrpgDeepSeekTrueOffOverlay(body: Record<string, unknown>): Record<string, unknown> {
+  const model = String(body.model ?? "");
+  if (!isCheaperInferenceDeepSeekV4ProModel(model) && !isCheaperInferenceDeepSeekV4FlashModel(model)) {
+    return body;
+  }
+  const next = { ...body };
+  delete next.reasoning;
+  next.thinking = { type: "disabled" };
+  next.reasoning_effort = "none";
+  return next;
+}
+
+function adaptTrpgChatBody(body: Record<string, unknown>): Record<string, unknown> {
+  const stripped = stripTrpgTransportExtensions(body);
+  delete stripped.reasoning;
+  const withPolicy = applyCheaperInferenceModelReasoningPolicy(stripped);
+  return applyTrpgDeepSeekTrueOffOverlay(withPolicy);
+}
+
 /**
- * Bot-seat Pro call — Thinking OFF is the product contract.
- * DeepSeek V4 Pro 0813 does not actually disable reasoning from
- * `thinking: { type: "disabled" }` alone; `reasoning_effort: "none"` must
- * be sent with it. Isolated from GM (also thinking disabled / true OFF) and RP chat.
+ * TRPG GM body adapter — isolated from RP `adaptCheaperInferenceChatBody`.
+ * Model reasoning policy is owned by applyCheaperInferenceModelReasoningPolicy.
+ */
+export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<string, unknown> {
+  return adaptTrpgChatBody(body);
+}
+
+/**
+ * Bot-seat body adapter — Luna true-off via canonical policy.
+ * DeepSeek legacy paths retain explicit true-off overlay.
  */
 export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<string, unknown> {
-  const adapted = { ...body };
-  delete adapted.session_id;
-  delete adapted.frequency_penalty;
-  delete adapted.presence_penalty;
-  delete adapted.repetition_penalty;
-  delete adapted.include_reasoning;
-  if (typeof adapted.model === "string") {
-    const model = normalizeDeepSeekV4ProModelId(adapted.model);
-    adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
-      ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-      : model;
-  }
-  adapted.thinking = { type: "disabled" };
-  adapted.reasoning_effort = "none";
-  return adapted;
+  return adaptTrpgChatBody(body);
 }
 
 export type TrpgProviderRequestContract = {
@@ -58,6 +56,15 @@ export type TrpgProviderRequestContract = {
   reasoningEffort: unknown;
   stream: boolean;
 };
+
+function reasoningEffortFromBody(body: Record<string, unknown>): unknown {
+  if (body.reasoning_effort != null) return body.reasoning_effort;
+  const reasoning = body.reasoning;
+  if (reasoning && typeof reasoning === "object" && !Array.isArray(reasoning)) {
+    return (reasoning as { effort?: unknown }).effort;
+  }
+  return undefined;
+}
 
 /** Safe request fields only — never log prompts or keys. */
 export function trpgProviderRequestContract(body: Record<string, unknown>): TrpgProviderRequestContract {
@@ -69,11 +76,15 @@ export function trpgProviderRequestContract(body: Record<string, unknown>): Trpg
   return {
     model: String(body.model ?? ""),
     thinkingType,
-    reasoningEffort: body.reasoning_effort,
+    reasoningEffort: reasoningEffortFromBody(body),
     stream: body.stream === true,
   };
 }
 
 export function isTrpgTrueOffRequest(contract: TrpgProviderRequestContract): boolean {
-  return contract.thinkingType === "disabled" && contract.reasoningEffort === "none";
+  return contract.reasoningEffort === "none" && contract.thinkingType !== "enabled";
+}
+
+export function isTrpgGeminiLowReasoningRequest(contract: TrpgProviderRequestContract): boolean {
+  return contract.reasoningEffort === "low" && contract.thinkingType === "";
 }

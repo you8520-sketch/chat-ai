@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { TextEncoder } from "node:util";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import {
   BOT_MAX_PROVIDER_ATTEMPTS,
   callTrpgBot,
@@ -11,7 +11,7 @@ import {
   GM_RETRYABLE_HTTP_STATUSES,
   isGmRetryableHttpStatus,
 } from "./gmCall";
-import { isTrpgTrueOffRequest, trpgProviderRequestContract } from "./gmClient";
+import { isTrpgGeminiLowReasoningRequest, trpgProviderRequestContract } from "./gmClient";
 import { extractTrpgHttpStatus } from "./startFailure";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
 import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
@@ -57,9 +57,13 @@ function httpError(status: number, text = "provider down"): Response {
   return new Response(text, { status, headers: { "Content-Type": "text/plain" } });
 }
 
-function sseCompletion(text: string, usage = { prompt_tokens: 20, completion_tokens: 12 }): Response {
+function sseCompletion(
+  text: string,
+  usage = { prompt_tokens: 20, completion_tokens: 12 },
+  modelId: string = TRPG_GM_MODEL
+): Response {
   const chunks = [
-    ...buildMockOpenRouterStreamChunks(text, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL).slice(0, 1),
+    ...buildMockOpenRouterStreamChunks(text, modelId).slice(0, 1),
     `data: ${JSON.stringify({
       choices: [{ delta: {}, finish_reason: "stop" }],
       usage,
@@ -82,15 +86,13 @@ function completion(text: string): Response {
   );
 }
 
-function assertGmStreamTrue(body: Record<string, unknown>): void {
+function assertGmStreamGemini(body: Record<string, unknown>): void {
   const contract = trpgProviderRequestContract(body);
-  assert.equal(contract.model, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-  assert.equal(contract.thinkingType, "disabled");
-  assert.equal(contract.reasoningEffort, "none");
+  assert.equal(contract.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+  assert.equal(contract.thinkingType, "");
+  assert.equal(contract.reasoningEffort, "low");
   assert.equal(contract.stream, true);
-  assert.equal(isTrpgTrueOffRequest(contract), true);
-  assert.deepEqual(body.thinking, { type: "disabled" });
-  assert.equal(body.reasoning_effort, "none");
+  assert.equal(isTrpgGeminiLowReasoningRequest(contract), true);
   assert.equal(body.stream, true);
   assert.equal(body.max_tokens, TRPG_GM_MAX_TOKENS);
 }
@@ -101,8 +103,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
     assert.equal(GM_PROVIDER_5XX_RETRY_DELAY_MS, 1000);
     assert.deepEqual([...GM_RETRYABLE_HTTP_STATUSES], [500, 502, 503, 504]);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     for (const status of [500, 502, 503, 504]) assert.equal(isGmRetryableHttpStatus(status), true);
     for (const status of [400, 401, 403, 404, 422, 429]) assert.equal(isGmRetryableHttpStatus(status), false);
   });
@@ -175,8 +177,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
       console.info = previousInfo;
     }
     assert.equal(calls.length, 2);
-    assertGmStreamTrue(calls[0]!.body);
-    assertGmStreamTrue(calls[1]!.body);
+    assertGmStreamGemini(calls[0]!.body);
+    assertGmStreamGemini(calls[1]!.body);
     assert.deepEqual(calls[0]!.body, calls[1]!.body);
     assert.equal(calls[0]!.body.model, calls[1]!.body.model);
     assert.deepEqual(calls[0]!.body.messages, calls[1]!.body.messages);
@@ -191,6 +193,26 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     const { calls } = installProvider(() => sseCompletion("   "));
     await assert.rejects(() => callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 }), /empty completion/);
     assert.equal(calls.length, 1);
+  });
+
+  it("GM SSE usage.modelId matches the actual Gemini model used for the call", async () => {
+    const { calls } = installProvider(() => sseCompletion(GM_OK));
+    const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+  });
+
+  it("Bot usage.modelId matches Luna", async () => {
+    const { calls } = installProvider(() =>
+      completion(`행동 prose\n\n<<<ACTION_TYPE>>>\nfree\n\n<<<INTENT>>>\n조사한다.`)
+    );
+    const result = await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000 });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(calls[0]!.body.stream, false);
+    assert.deepEqual(calls[0]!.body.reasoning, { effort: "none" });
   });
 
   it("does not retry a provider timeout / network throw", async () => {

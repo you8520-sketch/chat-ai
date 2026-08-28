@@ -1,5 +1,6 @@
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 } from "@/lib/chatModels";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
@@ -16,16 +17,16 @@ export type TrpgModelUsage = {
   upstreamCostUsd?: number;
 };
 
-/** Typical GM scene when the provider omits usage — Pro 65% still applies. */
+/** Typical GM scene when the provider omits usage — Gemini 3.7 Flash 65% still applies. */
 export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   inputTokens: 10_000,
   outputTokens: 3_500,
 };
 
-/** Typical bot-seat Pro action when usage is missing. */
+/** Typical bot-seat Luna action when usage is missing. */
 export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   inputTokens: 2_500,
   outputTokens: 400,
 };

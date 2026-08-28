@@ -164,8 +164,8 @@ function longHorizonEvents(totalRounds: number): TrpgMemoryEvent[] {
 
 describe("TRPG long-horizon memory invariants", () => {
   it("keeps GM/Bot models, recent RAW=3, and a single MEMORY owner", () => {
-    assert.equal(TRPG_GM_MODEL, "deepseek-v4-pro-0813");
-    assert.equal(TRPG_BOT_MODEL, "deepseek-v4-pro-0813");
+    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     assert.equal(TRPG_RECENT_ROUND_RAW, 3);
     assert.deepEqual(roundsDueForSeal([0, 1, 2, 3], -1), [0]);
     const memoryMentions = TRPG_GM_SYSTEM.match(/MEMORY:/g) ?? [];
