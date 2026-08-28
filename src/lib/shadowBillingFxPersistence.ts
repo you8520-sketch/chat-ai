@@ -52,6 +52,29 @@ export function readLatestShadowBillingFxDailySnapshotBefore(
   return row ?? null;
 }
 
+/** Previous FX candidate — excludes emergency_fallback provenance rows. */
+export function readLatestNonEmergencyShadowBillingFxSnapshotBefore(
+  db: Database.Database,
+  dateKey: string
+): ShadowBillingFxDailyRow | null {
+  const row = db
+    .prepare(
+      `SELECT date_key, base_usd_krw, source, fetched_at, created_at
+       FROM billing_fx_daily_snapshots
+       WHERE date_key < ?
+         AND source IN ('api_daily', 'previous_daily_snapshot')
+       ORDER BY date_key DESC
+       LIMIT 1`
+    )
+    .get(dateKey) as ShadowBillingFxDailyRow | undefined;
+  return row ?? null;
+}
+
+export function countAllShadowBillingFxDailySnapshots(db: Database.Database): number {
+  const row = db.prepare(`SELECT COUNT(*) AS c FROM billing_fx_daily_snapshots`).get() as { c: number };
+  return row.c;
+}
+
 /** INSERT OR IGNORE — returns true when this caller created the row. */
 export function insertShadowBillingFxDailySnapshotIgnore(
   db: Database.Database,

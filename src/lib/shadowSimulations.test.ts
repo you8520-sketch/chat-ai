@@ -84,7 +84,14 @@ function assertRowMatchesFixture(
     flag: string;
     flagReason: string;
   },
-  fixture: (typeof GEMINI_ROW_FIXTURES)[number]
+  fixture: {
+    targetMargin: number;
+    finalPoints: number;
+    competitiveDeviationPct: number | null;
+    noDiscountRealizedMargin: number | null;
+    flag: string;
+    flagReason: string;
+  }
 ) {
   assert.equal(row.targetMargin, fixture.targetMargin);
   assert.equal(row.finalPoints, fixture.finalPoints);

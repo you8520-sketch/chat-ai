@@ -42,6 +42,7 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { computeShadowPricing } from "@/lib/shadowPricing";
+import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -598,6 +599,8 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+
+  warmShadowBillingFxPrefetch();
 
   const db = getDb();
   const userAdminRow = db

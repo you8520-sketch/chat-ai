@@ -11,32 +11,37 @@ import {
   OVERSEAS_CARD_FEE_PERCENT,
   applyOverseasCardFee,
 } from "@/lib/billingFxPolicy";
-import {
-  EXCHANGE_RATE_FALLBACK_KRW,
-  EXCHANGE_RATE_TTL_MS,
-  getKstDateKey,
-  resolveExchangeRateMode,
-  type ExchangeRateMode,
-} from "@/lib/exchangeRate";
+import { getKstDateKey } from "@/lib/exchangeRate";
 import {
   countShadowBillingFxDailySnapshots,
   ensureShadowBillingFxTables,
   insertShadowBillingFxDailySnapshotIgnore,
-  readLatestShadowBillingFxDailySnapshotBefore,
+  readLatestNonEmergencyShadowBillingFxSnapshotBefore,
   readShadowBillingFxDailySnapshot,
   type ShadowBillingFxSource,
 } from "@/lib/shadowBillingFxPersistence";
 
 export type BillingFxSource = ShadowBillingFxSource;
 
+export const SHADOW_BILLING_FX_MODE = "daily_kst" as const;
+export const SHADOW_BILLING_EMERGENCY_FX_KRW = 1500;
+
 export type ShadowBillingExchangeRateSnapshot = {
-  mode: ExchangeRateMode;
+  mode: typeof SHADOW_BILLING_FX_MODE;
   dateKey: string;
   usdToKrw: number;
   effectiveKrwPerUsd: number;
   source: BillingFxSource;
   overseasFeeRate: number;
+  locked: boolean;
 };
+
+export class ShadowBillingFxPersistenceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ShadowBillingFxPersistenceError";
+  }
+}
 
 type PrefetchedCandidate = {
   dateKey: string;
@@ -99,18 +104,22 @@ async function fetchUsdToKrwFromApi(): Promise<number> {
   return krw;
 }
 
-function rowToSnapshot(row: {
-  date_key: string;
-  base_usd_krw: number;
-  source: ShadowBillingFxSource;
-}): ShadowBillingExchangeRateSnapshot {
+function rowToSnapshot(
+  row: {
+    date_key: string;
+    base_usd_krw: number;
+    source: ShadowBillingFxSource;
+  },
+  locked: boolean
+): ShadowBillingExchangeRateSnapshot {
   return {
-    mode: resolveExchangeRateMode(),
+    mode: SHADOW_BILLING_FX_MODE,
     dateKey: row.date_key,
     usdToKrw: row.base_usd_krw,
     effectiveKrwPerUsd: applyOverseasCardFee(row.base_usd_krw),
     source: row.source,
     overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+    locked,
   };
 }
 
@@ -136,19 +145,75 @@ function buildInsertCandidate(dateKey: string): {
   }
 
   const db = getPersistenceDb();
-  const previous = readLatestShadowBillingFxDailySnapshotBefore(db, dateKey);
+  const previous = readLatestNonEmergencyShadowBillingFxSnapshotBefore(db, dateKey);
   if (previous && previous.base_usd_krw > 0) {
     return {
       baseUsdKrw: previous.base_usd_krw,
       source: "previous_daily_snapshot",
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: previous.fetched_at,
     };
   }
 
   return {
-    baseUsdKrw: EXCHANGE_RATE_FALLBACK_KRW,
+    baseUsdKrw: SHADOW_BILLING_EMERGENCY_FX_KRW,
     source: "emergency_fallback",
     fetchedAt: new Date().toISOString(),
+  };
+}
+
+/** Read-only: return today's persisted daily row if locked, else null. */
+export function peekShadowBillingFxDailySnapshot(
+  now = resolveNow()
+): ShadowBillingExchangeRateSnapshot | null {
+  const dateKey = resolveDateKey(now);
+  const existing = readShadowBillingFxDailySnapshot(getPersistenceDb(), dateKey);
+  if (!existing) return null;
+  return rowToSnapshot(existing, true);
+}
+
+/** Read-only preview — never INSERT. */
+export function previewShadowBillingFxSnapshot(
+  now = resolveNow()
+): ShadowBillingExchangeRateSnapshot {
+  const dateKey = resolveDateKey(now);
+  const persisted = peekShadowBillingFxDailySnapshot(now);
+  if (persisted) return persisted;
+
+  const freshSource = candidateSourceForDate(dateKey);
+  if (freshSource === "api_daily" && prefetchedCandidate) {
+    return {
+      mode: SHADOW_BILLING_FX_MODE,
+      dateKey,
+      usdToKrw: prefetchedCandidate.usdToKrw,
+      effectiveKrwPerUsd: applyOverseasCardFee(prefetchedCandidate.usdToKrw),
+      source: "api_daily",
+      overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+      locked: false,
+    };
+  }
+
+  const db = getPersistenceDb();
+  const previous = readLatestNonEmergencyShadowBillingFxSnapshotBefore(db, dateKey);
+  if (previous && previous.base_usd_krw > 0) {
+    return {
+      mode: SHADOW_BILLING_FX_MODE,
+      dateKey,
+      usdToKrw: previous.base_usd_krw,
+      effectiveKrwPerUsd: applyOverseasCardFee(previous.base_usd_krw),
+      source: "previous_daily_snapshot",
+      overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+      locked: false,
+    };
+  }
+
+  return {
+    mode: SHADOW_BILLING_FX_MODE,
+    dateKey,
+    usdToKrw: SHADOW_BILLING_EMERGENCY_FX_KRW,
+    effectiveKrwPerUsd: applyOverseasCardFee(SHADOW_BILLING_EMERGENCY_FX_KRW),
+    source: "emergency_fallback",
+    overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+    locked: false,
   };
 }
 
@@ -160,7 +225,7 @@ export function resolveShadowBillingExchangeRateSnapshot(
   const db = getPersistenceDb();
 
   const existing = readShadowBillingFxDailySnapshot(db, dateKey);
-  if (existing) return rowToSnapshot(existing);
+  if (existing) return rowToSnapshot(existing, true);
 
   const candidate = buildInsertCandidate(dateKey);
   insertShadowBillingFxDailySnapshotIgnore(db, {
@@ -172,16 +237,11 @@ export function resolveShadowBillingExchangeRateSnapshot(
 
   const locked = readShadowBillingFxDailySnapshot(db, dateKey);
   if (!locked) {
-    return {
-      mode: resolveExchangeRateMode(),
-      dateKey,
-      usdToKrw: candidate.baseUsdKrw,
-      effectiveKrwPerUsd: applyOverseasCardFee(candidate.baseUsdKrw),
-      source: candidate.source,
-      overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
-    };
+    throw new ShadowBillingFxPersistenceError(
+      `Failed to persist shadow billing FX daily snapshot for ${dateKey}`
+    );
   }
-  return rowToSnapshot(locked);
+  return rowToSnapshot(locked, true);
 }
 
 async function prefetchFreshCandidate(dateKey: string): Promise<void> {
@@ -206,23 +266,25 @@ export function warmShadowBillingFxPrefetch(): void {
   schedulePrefetchIfNeeded(resolveDateKey());
 }
 
-export function primeShadowBillingFxResolution(): ShadowBillingExchangeRateSnapshot {
-  schedulePrefetchIfNeeded(resolveDateKey());
-  return resolveShadowBillingExchangeRateSnapshot();
-}
-
-export function getShadowBillingFxCacheStatus() {
-  const snapshot = resolveShadowBillingExchangeRateSnapshot();
+export function getShadowBillingFxCacheStatus(now = resolveNow()) {
+  const dateKey = resolveDateKey(now);
+  const db = getPersistenceDb();
+  const persisted = readShadowBillingFxDailySnapshot(db, dateKey);
+  const preview = previewShadowBillingFxSnapshot(now);
   return {
-    mode: snapshot.mode,
-    dateKey: snapshot.dateKey,
-    usdToKrw: snapshot.usdToKrw,
-    effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
-    source: snapshot.source,
-    overseasFeeRate: snapshot.overseasFeeRate,
+    mode: SHADOW_BILLING_FX_MODE,
+    dateKey,
+    locked: persisted != null,
+    usdToKrw: persisted?.base_usd_krw ?? preview.usdToKrw,
+    effectiveKrwPerUsd: persisted
+      ? applyOverseasCardFee(persisted.base_usd_krw)
+      : preview.effectiveKrwPerUsd,
+    source: persisted?.source ?? preview.source,
+    overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
     prefetchedCandidateDateKey: prefetchedCandidate?.dateKey ?? null,
     prefetchedCandidateUsdToKrw: prefetchedCandidate?.usdToKrw ?? null,
-    persistedRowCount: countShadowBillingFxDailySnapshots(getPersistenceDb(), snapshot.dateKey),
+    persistedRowCount: countShadowBillingFxDailySnapshots(db, dateKey),
+    previewLocked: preview.locked,
   };
 }
 
@@ -269,5 +331,3 @@ export function _insertShadowBillingFxDailyRowForTest(row: {
     fetchedAt: row.fetchedAt ?? new Date().toISOString(),
   });
 }
-
-export { EXCHANGE_RATE_TTL_MS };

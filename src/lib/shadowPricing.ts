@@ -8,6 +8,7 @@ import {
   normalizeBillingFxSource,
   resolveShadowBillingExchangeRateSnapshot,
   type BillingFxSource,
+  type ShadowBillingExchangeRateSnapshot,
 } from "@/lib/shadowBillingExchangeRate";
 import { convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
@@ -67,6 +68,7 @@ export type ShadowCostBreakdown = {
     baseUsdKrw: number;
     overseasFeeRate: number;
     effectiveKrwPerUsd: number;
+    locked: boolean;
   };
 };
 
@@ -160,20 +162,22 @@ function computeProviderListCostKrw(
   return { costKrw: 0, status: "reference_rates_unavailable" };
 }
 
-export function computeShadowCosts(opts: {
-  modelId: string;
-  promptTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  outputTokens: number;
-  reasoningTokens?: number;
-  cheaperInferenceBilledCostUsd?: number;
-  upstreamCostUsd?: number;
-  publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
-}): ShadowCostBreakdown {
+export function computeShadowCostsWithSnapshot(
+  opts: {
+    modelId: string;
+    promptTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    outputTokens: number;
+    reasoningTokens?: number;
+    cheaperInferenceBilledCostUsd?: number;
+    upstreamCostUsd?: number;
+    publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
+  },
+  snapshot: ShadowBillingExchangeRateSnapshot
+): ShadowCostBreakdown {
   const usage = normalizeBillableUsage(opts);
   const pub = opts.publishedPricingOverride ?? getPublishedPricing(opts.modelId ?? "");
-  const snapshot = resolveShadowBillingExchangeRateSnapshot();
   const effectiveRate = snapshot.effectiveKrwPerUsd;
 
   let actualProviderCostKrw = 0;
@@ -221,7 +225,6 @@ export function computeShadowCosts(opts: {
   const reserveStatus: ShadowCostBreakdown["reserveStatus"] =
     providerListCostStatus === "complete" && isSettledActual ? "complete" : providerListCostStatus === "reference_rates_unavailable" ? "unavailable" : "estimated";
 
-  // Published USD → KRW via daily FX (not baked)
   const billingReferenceCostUsd =
     (usage.standardInputTokens / 1_000_000) * pub.billingReferenceInputUsdPerMillion +
     (usage.cacheReadTokens / 1_000_000) * (pub.billingReferenceCacheReadUsdPerMillion ?? pub.billingReferenceInputUsdPerMillion * 0.1) +
@@ -268,8 +271,24 @@ export function computeShadowCosts(opts: {
       baseUsdKrw: snapshot.usdToKrw,
       overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
       effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
+      locked: snapshot.locked,
     },
   };
+}
+
+export function computeShadowCosts(opts: {
+  modelId: string;
+  promptTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  outputTokens: number;
+  reasoningTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
+}): ShadowCostBreakdown {
+  const snapshot = resolveShadowBillingExchangeRateSnapshot();
+  return computeShadowCostsWithSnapshot(opts, snapshot);
 }
 
 export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPercent?: number; now?: Date }): ShadowChargeBreakdown {

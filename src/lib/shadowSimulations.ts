@@ -1,6 +1,15 @@
-import type { BillingFxSource } from "@/lib/shadowBillingExchangeRate";
+import {
+  peekShadowBillingFxDailySnapshot,
+  previewShadowBillingFxSnapshot,
+} from "@/lib/shadowBillingExchangeRate";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
-import { computeShadowPricing } from "@/lib/shadowPricing";
+import {
+  computeShadowCharge,
+  computeShadowCostsWithSnapshot,
+  type ActualCostSource,
+  type ProviderListCostStatus,
+  type ShadowCostBreakdown,
+} from "@/lib/shadowPricing";
 
 export type CompetitiveFlagReason =
   | "competitive_and_safe"
@@ -26,26 +35,25 @@ export type SimulationRow = {
 
 export type PremiumSimulationResult = {
   providerListCostKrw: number;
-  providerListCostStatus: string;
+  providerListCostStatus: ProviderListCostStatus;
   billingReferenceCostKrw: number;
   actualProviderCostKrw: number;
-  actualCostSource: string;
+  actualCostSource: ActualCostSource;
   benchmarkChargeP: number;
   benchmarkImpliedMaxMarginFromList: number | null;
   minimumSafePrice: number | null;
-  fxSnapshot: {
-    dateKey: string;
-    source: BillingFxSource;
-    baseUsdKrw: number;
-    overseasFeeRate: number;
-    effectiveKrwPerUsd: number;
-  };
+  reserveStatus: ShadowCostBreakdown["reserveStatus"];
+  fxSnapshot: ShadowCostBreakdown["fxSnapshot"];
   rows: SimulationRow[];
 };
 
 function benchmarkImpliedMaxMargin(providerListCostKrw: number, benchmarkChargeP: number): number | null {
   if (benchmarkChargeP <= 0 || providerListCostKrw <= 0) return null;
   return 1 - providerListCostKrw / benchmarkChargeP;
+}
+
+function resolveFxForAdminSimulation() {
+  return peekShadowBillingFxDailySnapshot() ?? previewShadowBillingFxSnapshot();
 }
 
 export const PREMIUM_MARGIN_CANDIDATES = {
@@ -70,7 +78,16 @@ export function simulatePremiumCompetitive(params: {
   candidateMargins: readonly number[];
   minimumMarginFloor: number;
 }): PremiumSimulationResult {
-  const base = computeShadowPricing({ modelId: params.modelId, promptTokens: params.inputTokens, outputTokens: params.outputTokens });
+  const fxSnapshot = resolveFxForAdminSimulation();
+  const cost = computeShadowCostsWithSnapshot(
+    {
+      modelId: params.modelId,
+      promptTokens: params.inputTokens,
+      outputTokens: params.outputTokens,
+    },
+    fxSnapshot
+  );
+  const base = computeShadowCharge(cost);
   const providerListCostKrw = base.providerListCostKrw;
   const billingReferenceCostKrw = base.billingReferenceCostKrw;
   const actualProviderCostKrw = base.actualProviderCostKrw;
@@ -129,6 +146,7 @@ export function simulatePremiumCompetitive(params: {
     benchmarkChargeP: params.benchmarkChargeP,
     benchmarkImpliedMaxMarginFromList,
     minimumSafePrice: minimumSafePrice != null ? Math.round(minimumSafePrice * 10) / 10 : null,
+    reserveStatus: base.reserveStatus,
     fxSnapshot: base.fxSnapshot,
     rows,
   };

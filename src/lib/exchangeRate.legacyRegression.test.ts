@@ -58,6 +58,11 @@ describe("legacy production billing regression vs main fixtures", () => {
     assert.equal(getEffectiveKrwPerUsd(), LEGACY_EFFECTIVE_FX);
   });
 
+  it("applyOverseasCardFee matches legacy base × 1.02", async () => {
+    const { applyOverseasCardFee } = await import("./billingFxPolicy");
+    assert.equal(applyOverseasCardFee(LEGACY_BASE_FX), LEGACY_EFFECTIVE_FX);
+  });
+
   it("DeepSeek token-cost path uses legacy FX per turn", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;

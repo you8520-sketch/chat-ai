@@ -75,7 +75,7 @@ describe("reserve math", () => {
     if (s.reserveStatus === "complete") {
       assert.ok(s.providerSavingsKrw != null && s.providerSavingsKrw >= 0);
     } else {
-      assert.equal(s.reserveStatus !== "complete", true);
+      assert.ok(s.reserveStatus === "unavailable" || s.reserveStatus === "estimated");
     }
   });
   it("unknown list zero disguise false — unavailable list gives null savings", () => {
