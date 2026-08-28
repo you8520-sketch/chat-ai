@@ -422,6 +422,24 @@ export default function TrpgDiceOverlay({
           >
             {trpgDiceActorStatLine(context)}
           </p>
+          {!showResult && context.actionTypeLabel ? (
+            <p className="mt-1">
+              <span
+                className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-zinc-300 sm:text-sm"
+                data-trpg-dice-action-type-label
+              >
+                {context.actionTypeLabel}
+              </span>
+            </p>
+          ) : null}
+          {!showResult ? (
+            <p
+              className="mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
+              data-trpg-dice-target-dc
+            >
+              {trpgDiceTargetDcLine(context.dc)}
+            </p>
+          ) : null}
           {!showResult && context.actionSummary ? (
             <p
               className="mx-auto mt-2 max-w-lg overflow-hidden text-xs leading-5 text-zinc-200 sm:text-sm"
@@ -433,14 +451,6 @@ export default function TrpgDiceOverlay({
               data-trpg-dice-action-summary-visible
             >
               「{context.actionSummary}」
-            </p>
-          ) : null}
-          {!showResult ? (
-            <p
-              className="mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
-              data-trpg-dice-target-dc
-            >
-              {trpgDiceTargetDcLine(context.dc)}
             </p>
           ) : null}
         </div>

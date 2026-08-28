@@ -259,6 +259,7 @@ describe("TRPG contextual dice HUD", () => {
     assert.match(overlay, /data-trpg-dice-target-dc/);
     assert.match(overlay, /data-trpg-dice-context-phase=\{showResult \? "result" : "rolling"\}/);
     assert.match(overlay, /!showResult && context\.actionSummary/);
+    assert.match(overlay, /!showResult && context\.actionTypeLabel/);
     assert.doesNotMatch(overlay, /data-trpg-dice-numeral/);
     assert.doesNotMatch(overlay, /주사위.*이상.*성공/);
     assert.doesNotMatch(overlay, /스탯 보너스/);
@@ -322,6 +323,7 @@ describe("TRPG contextual dice HUD", () => {
       "dc",
       "tier",
       "actor-stat-line",
+      "action-type-label",
       "target-dc",
       "context-phase",
       "result-tier",
@@ -386,5 +388,41 @@ describe("TRPG contextual dice HUD", () => {
     assert.match(overlay, /!showResult && context\.actionSummary/);
     assert.match(overlay, /data-trpg-dice-context-phase/);
     assert.match(overlay, /pt-28 md:-translate-y-\[2%\]/);
+  });
+
+  it("identity: action type visible during rolling when present and omitted when null", () => {
+    const withType = buildTrpgDiceContextViewModel({
+      roll: roll(2, { actionType: "support" }),
+      progress: null,
+      statDefs,
+    });
+    assert.equal(withType.actionTypeLabel, "지원");
+    const withoutType = buildTrpgDiceContextViewModel({
+      roll: roll(1, { actionType: undefined }),
+      progress: null,
+      statDefs,
+    });
+    assert.equal(withoutType.actionTypeLabel, null);
+
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /!showResult && context\.actionTypeLabel/);
+    assert.match(overlay, /data-trpg-dice-action-type-label/);
+  });
+
+  it("identity: preserves #696 single production dice style without theme selector code", () => {
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /trpgProductionDiceStaticFallback/);
+    assert.match(overlay, /data-trpg-dice-visual="production-d20"/);
+    assert.doesNotMatch(overlay, /TrpgD20ThemeId/);
+    assert.doesNotMatch(overlay, /PRODUCTION_D20_THEME/);
+    assert.doesNotMatch(overlay, /data-trpg-dice-theme/);
+    assert.doesNotMatch(overlay, /theme=/);
+  });
+
+  it("identity: large d20 result numeral styling preserved from production fallback owner", () => {
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /trpgD20ResultHudStyle\(tone, face\)/);
+    assert.match(overlay, /style=\{resultHud\.numeral\}/);
+    assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
   });
 });
