@@ -196,3 +196,53 @@ test("gemini-3.1-flash-lite routes through CheaperInference with CI model id", a
     else process.env.OPENROUTER_API_KEY = previousOr;
   }
 });
+
+async function assertCheaperInferenceRouting(model: string, expectedOutboundModel: string) {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+
+  let requestedUrl = "";
+  let requestedBody: Record<string, unknown> | null = null;
+  globalThis.fetch = (async (input, init) => {
+    requestedUrl = String(input);
+    requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        model: expectedOutboundModel,
+        choices: [{ message: { content: "OK" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 10, completion_tokens: 4 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }) as typeof fetch;
+
+  try {
+    await callOpenRouterCompletion({
+      model,
+      system: "system",
+      history: [{ role: "user", content: "hello" }],
+      maxTokens: 128,
+    });
+    assert.equal(requestedUrl, "https://api.cheaperinference.com/v1/chat/completions");
+    assert.ok(requestedBody != null);
+    assert.equal(requestedBody.model, expectedOutboundModel);
+    assert.ok(!String(requestedBody.model).includes("google/"), "must not rewrite to OpenRouter google/ slug");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  }
+}
+
+test("gemini-3.7-flash routes through CheaperInference with bare CI model id", async () => {
+  await assertCheaperInferenceRouting("gemini-3.7-flash", "gemini-3.7-flash");
+});
+
+test("gemini-3.1-pro-preview routes through CheaperInference with bare CI model id", async () => {
+  await assertCheaperInferenceRouting("gemini-3.1-pro-preview", "gemini-3.1-pro-preview");
+});
+
+test("claude-opus-5 routes through CheaperInference with bare CI model id", async () => {
+  await assertCheaperInferenceRouting("claude-opus-5", "claude-opus-5");
+});

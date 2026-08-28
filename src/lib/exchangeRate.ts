@@ -1,5 +1,18 @@
-/** 해외 결제 수수료 (Visa/Master + 국내 카드사 + 전신환매도율 등) */
-export const OVERSEAS_CARD_FEE_RATE = 1.02;
+/**
+ * Legacy production billing FX owner.
+ * Used by points.ts / production charge paths — behavior must match main.
+ */
+
+import {
+  OVERSEAS_CARD_FEE_RATE,
+  applyOverseasCardFee,
+} from "@/lib/billingFxPolicy";
+
+export {
+  OVERSEAS_CARD_FEE_PERCENT,
+  OVERSEAS_CARD_FEE_RATE,
+  applyOverseasCardFee,
+} from "@/lib/billingFxPolicy";
 
 /** USD→KRW 메모리 캐시 TTL — 1시간 (realtime 모드·API 폴링) */
 export const EXCHANGE_RATE_TTL_MS = 3600 * 1000;
@@ -89,7 +102,7 @@ async function refreshExchangeRateInternal(): Promise<number> {
         mode: resolveExchangeRateMode(),
         dateKey: getKstDateKey(),
         usdToKrw,
-        effectiveKrwPerUsd: usdToKrw * OVERSEAS_CARD_FEE_RATE,
+        effectiveKrwPerUsd: applyOverseasCardFee(usdToKrw),
       });
     }
     return applyFetchedRate(usdToKrw, "api");
@@ -191,7 +204,7 @@ export function resolveBillingExchangeRateSnapshot(): BillingExchangeRateSnapsho
     mode,
     dateKey: getKstDateKey(),
     usdToKrw,
-    effectiveKrwPerUsd: usdToKrw * OVERSEAS_CARD_FEE_RATE,
+    effectiveKrwPerUsd: applyOverseasCardFee(usdToKrw),
     source,
   };
 }
@@ -201,13 +214,21 @@ export function getEffectiveKrwPerUsd(): number {
   return resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
 }
 
-/** USD → KRW (effective rate = USD×KRW × 2% 수수료) */
+/** USD → KRW (effective rate = USD×KRW × card fee) */
+/** USD → KRW (effective rate = USD×KRW × card fee) */
 export function convertUsdToKrw(
   usd: number,
   effectiveKrwPerUsd = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd
 ): number {
   if (!Number.isFinite(usd) || usd <= 0) return 0;
   return Math.round(usd * effectiveKrwPerUsd * 10) / 10;
+}
+
+export function normalizeLegacyExchangeRateSource(
+  source: BillingExchangeRateSnapshot["source"] | "api_daily" | "previous_daily_snapshot" | "emergency_fallback" | undefined
+): BillingExchangeRateSnapshot["source"] {
+  if (source === "api" || source === "api_daily" || source === "previous_daily_snapshot") return "api";
+  return "fallback";
 }
 
 export function formatExchangeRateLabel(snapshot: BillingExchangeRateSnapshot): string {
@@ -235,4 +256,29 @@ export function getExchangeRateCacheStatus() {
     source: snapshot.source,
     fetchedAt: dailyCache?.fetchedAt ?? memoryCache?.fetchedAt ?? null,
   };
+}
+
+// Test injection — legacy production cache only
+export function _setLegacyExchangeRateCacheForTest(opts: {
+  dateKey?: string;
+  usdToKrw: number;
+  source: "api" | "fallback";
+  fetchedAt?: number;
+}): void {
+  const fetchedAt = opts.fetchedAt ?? Date.now();
+  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt, source: opts.source };
+  if (opts.dateKey) {
+    dailyCache = {
+      dateKey: opts.dateKey,
+      usdToKrw: opts.usdToKrw,
+      fetchedAt,
+      source: opts.source,
+    };
+  }
+}
+
+export function _clearLegacyExchangeRateCacheForTest(): void {
+  memoryCache = null;
+  dailyCache = null;
+  refreshPromise = null;
 }

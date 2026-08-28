@@ -20,6 +20,10 @@ type CatalogModel = {
     cache_read_input_per_million?: unknown;
     cache_write_input_per_million?: unknown;
     output_per_million?: unknown;
+    reference_input_per_million?: unknown;
+    reference_cache_read_input_per_million?: unknown;
+    reference_cache_write_input_per_million?: unknown;
+    reference_output_per_million?: unknown;
     discount_percent?: unknown;
   };
 };
@@ -48,6 +52,10 @@ function parseCatalogPricing(
     positiveNumber(pricing.cache_write_input_per_million) ??
     inputUsdPerMillion;
   const discountPercent = positiveNumber(pricing.discount_percent);
+  const referenceInputUsdPerMillion = positiveNumber(pricing.reference_input_per_million);
+  const referenceCacheReadUsdPerMillion = positiveNumber(pricing.reference_cache_read_input_per_million);
+  const referenceCacheWriteUsdPerMillion = positiveNumber(pricing.reference_cache_write_input_per_million);
+  const referenceOutputUsdPerMillion = positiveNumber(pricing.reference_output_per_million);
 
   return {
     modelId,
@@ -55,6 +63,10 @@ function parseCatalogPricing(
     cacheReadUsdPerMillion,
     cacheWriteUsdPerMillion,
     outputUsdPerMillion,
+    ...(referenceInputUsdPerMillion != null ? { referenceInputUsdPerMillion } : {}),
+    ...(referenceCacheReadUsdPerMillion != null ? { referenceCacheReadUsdPerMillion } : {}),
+    ...(referenceCacheWriteUsdPerMillion != null ? { referenceCacheWriteUsdPerMillion } : {}),
+    ...(referenceOutputUsdPerMillion != null ? { referenceOutputUsdPerMillion } : {}),
     ...(discountPercent != null ? { discountPercent } : {}),
     fetchedAt,
   };

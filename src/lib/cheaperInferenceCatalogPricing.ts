@@ -1,9 +1,15 @@
 export type CheaperInferenceCatalogPricing = {
   modelId: string;
+  /** Current customer-facing discounted rate */
   inputUsdPerMillion: number;
   cacheReadUsdPerMillion: number;
   cacheWriteUsdPerMillion: number;
   outputUsdPerMillion: number;
+  /** Undiscounted list/reference rate — canonical for providerListCost */
+  referenceInputUsdPerMillion?: number;
+  referenceCacheReadUsdPerMillion?: number;
+  referenceCacheWriteUsdPerMillion?: number;
+  referenceOutputUsdPerMillion?: number;
   discountPercent?: number;
   fetchedAt: number;
 };

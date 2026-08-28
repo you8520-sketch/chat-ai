@@ -66,6 +66,7 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     canonical: _canonical,
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
+    shadowPricing: _shadowPricing,
     ...rest
   } = usage;
   void _canonAdopted;
@@ -96,6 +97,7 @@ export function stripAdultRoutingForClient(
     canonical: _canonical,
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
+    shadowPricing: _shadowPricing,
     ...rest
   } = usage;
   void _canonAdopted;
@@ -113,6 +115,7 @@ export function stripAdultRoutingForClient(
     if (usage.canonical != null) client.canonical = usage.canonical;
     if (usage.canonAdopted != null) client.canonAdopted = usage.canonAdopted;
     if (usage.canonAdoptedAt) client.canonAdoptedAt = usage.canonAdoptedAt;
+    if (usage.shadowPricing) client.shadowPricing = usage.shadowPricing;
   }
   return client;
 }
