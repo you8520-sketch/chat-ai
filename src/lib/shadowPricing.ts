@@ -22,6 +22,21 @@ export type ActualCostSource =
   | "published_fallback_estimated"
   | "unavailable";
 
+export type ActualTurnCostCoverage = "complete" | "partial";
+
+export function resolveActualTurnCostCoverage(opts: {
+  totalStageCount?: number;
+  hiddenFallbackOverheadCostUsd?: number;
+  lengthRecoveryPasses?: number;
+  lengthContinuationPasses?: number;
+}): ActualTurnCostCoverage {
+  if ((opts.totalStageCount ?? 1) > 1) return "partial";
+  if ((opts.hiddenFallbackOverheadCostUsd ?? 0) > 0) return "partial";
+  if ((opts.lengthRecoveryPasses ?? 0) > 0) return "partial";
+  if ((opts.lengthContinuationPasses ?? 0) > 0) return "partial";
+  return "complete";
+}
+
 export type ReasoningAccounting = "included_in_output" | "separate" | "none" | "unknown";
 
 export type NormalizedBillableUsage = {
@@ -50,6 +65,7 @@ export type ShadowCostBreakdown = {
   providerListCostKrw: number;
   providerListCostStatus: ProviderListCostStatus;
   reserveStatus: "unavailable" | "estimated" | "complete";
+  actualTurnCostCoverage: ActualTurnCostCoverage;
   billingReferenceCostKrw: number;
   billingReferenceCostUsd: number;
   inputCostKrw: number;
@@ -173,6 +189,7 @@ export function computeShadowCostsWithSnapshot(
     cheaperInferenceBilledCostUsd?: number;
     upstreamCostUsd?: number;
     publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
+    actualTurnCostCoverage?: ActualTurnCostCoverage;
   },
   snapshot: ShadowBillingExchangeRateSnapshot
 ): ShadowCostBreakdown {
@@ -221,9 +238,14 @@ export function computeShadowCostsWithSnapshot(
   const providerListResult = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
   const providerListCostKrw = providerListResult.costKrw;
   const providerListCostStatus = providerListResult.status;
+  const actualTurnCostCoverage = opts.actualTurnCostCoverage ?? "complete";
   const isSettledActual = actualCostSource === "cheaper_inference_billed" || actualCostSource === "provider_reported";
   const reserveStatus: ShadowCostBreakdown["reserveStatus"] =
-    providerListCostStatus === "complete" && isSettledActual ? "complete" : providerListCostStatus === "reference_rates_unavailable" ? "unavailable" : "estimated";
+    providerListCostStatus === "complete" && isSettledActual && actualTurnCostCoverage === "complete"
+      ? "complete"
+      : providerListCostStatus === "reference_rates_unavailable"
+        ? "unavailable"
+        : "estimated";
 
   const billingReferenceCostUsd =
     (usage.standardInputTokens / 1_000_000) * pub.billingReferenceInputUsdPerMillion +
@@ -253,6 +275,7 @@ export function computeShadowCostsWithSnapshot(
     providerListCostKrw,
     providerListCostStatus,
     reserveStatus,
+    actualTurnCostCoverage,
     billingReferenceCostKrw,
     billingReferenceCostUsd,
     inputCostKrw,
@@ -286,6 +309,7 @@ export function computeShadowCosts(opts: {
   cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
+  actualTurnCostCoverage?: ActualTurnCostCoverage;
 }): ShadowCostBreakdown {
   const snapshot = resolveShadowBillingExchangeRateSnapshot();
   return computeShadowCostsWithSnapshot(opts, snapshot);
@@ -304,7 +328,12 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
   const promoGivebackForReserveKrw = promoGivebackKrw;
   const netPricingBufferDeltaKrw = isReserveComplete && providerSavingsKrw != null && providerOverrunKrw != null ? round1(providerSavingsKrw - providerOverrunKrw - promoGivebackForReserveKrw) : null;
   const actualGrossProfitKrw = round1(finalShadowChargeKrw - cost.actualProviderCostKrw);
-  const actualRealizedMargin = finalShadowChargeKrw > 0 ? round1(actualGrossProfitKrw / finalShadowChargeKrw) : null;
+  const actualRealizedMargin =
+    cost.actualTurnCostCoverage === "partial"
+      ? null
+      : finalShadowChargeKrw > 0
+        ? round1(actualGrossProfitKrw / finalShadowChargeKrw)
+        : null;
   const worstCasePromoMargin = cost.providerListCostStatus === "complete" && finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;
   const marginFloorViolated: boolean | null = worstCasePromoMargin == null ? null : worstCasePromoMargin < cost.minimumMarginFloor;
   return {
@@ -335,6 +364,7 @@ export function computeShadowPricing(opts: {
   cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   promoPercent?: number;
+  actualTurnCostCoverage?: ActualTurnCostCoverage;
 }): ShadowChargeBreakdown {
   const cost = computeShadowCosts(opts);
   return computeShadowCharge(cost, { promoPercent: opts.promoPercent });

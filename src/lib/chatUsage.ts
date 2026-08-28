@@ -202,6 +202,7 @@ export type Usage = {
     };
     providerListCostStatus: string;
     reserveStatus: string;
+    actualTurnCostCoverage?: "complete" | "partial";
     actualProviderCostKrw: number;
     actualCostSource: string;
     providerListCostKrw: number;

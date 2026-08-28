@@ -286,6 +286,9 @@ export function tokenUsageFromOpenRouterBreakdown(b: OpenRouterUsageBreakdown): 
     ...(b.upstreamCostUsd != null && b.upstreamCostUsd > 0
       ? { upstreamCostUsd: b.upstreamCostUsd }
       : {}),
+    ...(b.cheaperInferenceBilledCostUsd != null && b.cheaperInferenceBilledCostUsd > 0
+      ? { cheaperInferenceBilledCostUsd: b.cheaperInferenceBilledCostUsd }
+      : {}),
     ...(b.cacheDiscountUsd != null && b.cacheDiscountUsd !== 0
       ? { cacheDiscountUsd: b.cacheDiscountUsd }
       : {}),

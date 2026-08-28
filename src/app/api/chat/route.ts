@@ -41,7 +41,7 @@ import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAud
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
-import { computeShadowPricing } from "@/lib/shadowPricing";
+import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
@@ -4844,6 +4844,12 @@ export async function POST(req: Request) {
 
         // Shadow pricing — admin-only diagnostics, never affects deductPoints(cost)
         try {
+          const actualTurnCostCoverage = resolveActualTurnCostCoverage({
+            totalStageCount: stages.length,
+            hiddenFallbackOverheadCostUsd,
+            lengthRecoveryPasses: primaryStage?.lengthRecoveryPasses,
+            lengthContinuationPasses,
+          });
           const shadow = computeShadowPricing({
             modelId: deliveredModelId,
             promptTokens: apiInputTokens,
@@ -4853,6 +4859,7 @@ export async function POST(req: Request) {
             reasoningTokens: apiReasoningOutputTokens ?? 0,
             cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd,
             upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
+            actualTurnCostCoverage,
           });
           (baseUsageRecord as unknown as Record<string, unknown>).shadowPricing = {
             pricingVersion: shadow.pricingVersion,
@@ -4863,6 +4870,7 @@ export async function POST(req: Request) {
             fxSnapshot: shadow.fxSnapshot,
             providerListCostStatus: shadow.providerListCostStatus,
             reserveStatus: shadow.reserveStatus,
+            actualTurnCostCoverage: shadow.actualTurnCostCoverage,
             actualProviderCostKrw: shadow.actualProviderCostKrw,
             actualCostSource: shadow.actualCostSource,
             providerListCostKrw: shadow.providerListCostKrw,
