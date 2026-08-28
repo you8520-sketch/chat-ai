@@ -120,6 +120,25 @@ describe("narration style form persistence", () => {
     assert.equal(row.narration_style_instructions, "서사 밀도 낮게");
   });
 
+  it("simulation edit roundtrip updates narration_style_instructions", async () => {
+    seedUser(93006);
+    const created = await createCharacterFromForm(
+      { id: 93006, nickname: "user93006", is_adult: 1 },
+      simulationBody()
+    );
+    assert.equal(created.ok, true);
+    const updated = await updateCharacterFromForm(
+      { id: 93006, nickname: "user93006", is_adult: 1 },
+      (created as { id: number }).id,
+      simulationBody({ narration_style_instructions: "대화 위주 서술" })
+    );
+    assert.equal(updated.ok, true);
+    const row = getDb()
+      .prepare("SELECT narration_style_instructions FROM characters WHERE id = ?")
+      .get((created as { id: number }).id) as { narration_style_instructions: string };
+    assert.equal(row.narration_style_instructions, "대화 위주 서술");
+  });
+
   it("301 chars rejected on parse", () => {
     const parsed = parseCharacterFormBody(
       characterBody({ narration_style_instructions: "가".repeat(301) }),

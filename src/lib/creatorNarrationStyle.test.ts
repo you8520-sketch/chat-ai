@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { CharacterCreateDraft } from "@/lib/characterCreateDraft";
 import {
   buildCreatorNarrationStyleBlock,
   effectivePromptAuthoringCharCount,
@@ -8,6 +9,10 @@ import {
   substantiveAiLearningCharCount,
   validateNarrationStyleInstructions,
 } from "./creatorNarrationStyle";
+
+function draftNarrationStyleInstructions(draft: CharacterCreateDraft): string {
+  return draft.form.narration_style_instructions ?? "";
+}
 
 describe("creatorNarrationStyle", () => {
   it("empty accepted and produces no block", () => {
@@ -30,6 +35,73 @@ describe("creatorNarrationStyle", () => {
     assert.match(block, /Platform prose/i);
     assert.match(block, /3인칭 제한 시점/);
     assert.equal(block.split("3인칭 제한 시점").length, 2);
+  });
+
+  it("old local draft without field loads as empty", () => {
+    const legacy = {
+      savedAt: Date.now(),
+      form: {
+        name: "Legacy",
+        tagline: "",
+        description: "",
+        greeting: "",
+        system_prompt: "",
+        world: "",
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        status_window_prompt: "",
+        genres: [],
+        tags: [],
+        nsfw: false,
+        emoji: "",
+        hue: 0,
+        audience: "all",
+        gender: "",
+        visibility: "private",
+        comments_enabled: true,
+        creator_comment: "",
+      },
+      assets: [],
+      selectedWorldRef: "",
+      selectedLorebookId: "",
+    } as CharacterCreateDraft;
+    assert.equal(draftNarrationStyleInstructions(legacy), "");
+  });
+
+  it("new local draft preserves narration_style_instructions", () => {
+    const draft = {
+      savedAt: Date.now(),
+      form: {
+        name: "Draft",
+        tagline: "",
+        description: "",
+        greeting: "",
+        system_prompt: "",
+        world: "",
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        status_window_prompt: "",
+        genres: [],
+        tags: [],
+        nsfw: false,
+        emoji: "",
+        hue: 0,
+        audience: "all",
+        gender: "",
+        visibility: "private",
+        comments_enabled: true,
+        creator_comment: "",
+        narration_style_instructions: "짧은 문장 위주",
+      },
+      assets: [],
+      selectedWorldRef: "",
+      selectedLorebookId: "",
+    } as CharacterCreateDraft;
+    assert.equal(draftNarrationStyleInstructions(draft), "짧은 문장 위주");
   });
 
   it("narration style counts toward max budget only", () => {
