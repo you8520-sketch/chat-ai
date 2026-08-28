@@ -186,4 +186,33 @@ export type Usage = {
   canonical?: boolean;
   canonAdopted?: boolean;
   canonAdoptedAt?: string;
+  /** Phase 2 shadow pricing — admin-only, never billed. Stored for diagnostics/aggregate. */
+  shadowPricing?: {
+    pricingVersion: number;
+    referenceInputRateKrw: number;
+    referenceOutputRateKrw: number;
+    billingReferenceCostKrw: number;
+    actualProviderCostKrw: number;
+    actualCostSource: string;
+    providerListCostKrw: number;
+    inputCostKrw: number;
+    outputCostKrw: number;
+    reasoningCostKrw: number;
+    cacheReadCostKrw: number;
+    cacheWriteCostKrw: number;
+    targetMargin: number;
+    minimumMarginFloor: number;
+    standardUserChargeKrw: number;
+    promoPercent: number;
+    finalShadowChargeKrw: number;
+    finalShadowPoints: number;
+    providerSavingsKrw: number;
+    providerOverrunKrw: number;
+    promoGivebackKrw: number;
+    netPricingBufferDeltaKrw: number;
+    actualGrossProfitKrw: number;
+    actualRealizedMargin: number | null;
+    worstCasePromoMargin: number | null;
+    marginFloorViolated: boolean;
+  };
 };
