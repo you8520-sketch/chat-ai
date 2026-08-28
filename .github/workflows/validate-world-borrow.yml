@@ -1,0 +1,45 @@
+name: Validate world borrow ownership
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/worldShares.ts"
+      - "src/lib/worldShares.test.ts"
+      - "src/lib/worldShares.borrow.test.ts"
+      - "src/lib/worldPermissions.ts"
+      - "src/lib/worldLibrary.ts"
+      - "src/lib/worlds.ts"
+      - "src/lib/characterFormSave.ts"
+      - "src/lib/db.ts"
+      - "src/lib/trpg/catalog.ts"
+      - "src/lib/trpg/scenarioTemplates.ts"
+      - "src/app/api/worlds/**"
+      - "src/app/api/world-shares/**"
+      - "src/app/api/world-borrows/**"
+      - "src/components/StudioClient.tsx"
+      - "src/components/WorldApplyClient.tsx"
+      - "src/components/CreateCharacter.tsx"
+      - "src/components/studioWorldActions.regression.test.ts"
+      - "src/app/studio/page.tsx"
+      - "src/app/world/apply/**"
+      - "src/app/create/page.tsx"
+      - ".github/workflows/validate-world-borrow.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:app
+      - run: node --conditions=react-server --import tsx --test src/lib/worldShares.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/worldShares.borrow.test.ts
+      - run: node --import tsx --test src/components/studioWorldActions.regression.test.ts

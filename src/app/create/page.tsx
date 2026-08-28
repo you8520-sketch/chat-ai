@@ -11,15 +11,18 @@ export const dynamic = "force-dynamic";
 export default async function CreatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string; kind?: string }>;
+  searchParams: Promise<{ edit?: string; kind?: string; worldId?: string; worldBorrowId?: string }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/create");
 
-  const { edit: editParam, kind } = await searchParams;
+  const { edit: editParam, kind, worldId: worldIdParam, worldBorrowId: worldBorrowIdParam } =
+    await searchParams;
   const editId = editParam ? Number(editParam) : null;
   const editCharacterId =
     editId != null && Number.isFinite(editId) && editId > 0 ? editId : null;
+  const initialWorldId = worldIdParam ? Number(worldIdParam) : null;
+  const initialWorldBorrowId = worldBorrowIdParam ? Number(worldBorrowIdParam) : null;
 
   if (!user.is_adult) {
     return (
@@ -40,6 +43,18 @@ export default async function CreatePage({
       creatorIsPartner={creatorIsPartner}
       userId={user.id}
       initialContentKind={kind === "simulation" ? "simulation" : "character"}
+      initialWorldId={
+        initialWorldId != null && Number.isFinite(initialWorldId) && initialWorldId > 0
+          ? initialWorldId
+          : null
+      }
+      initialWorldBorrowId={
+        initialWorldBorrowId != null &&
+        Number.isFinite(initialWorldBorrowId) &&
+        initialWorldBorrowId > 0
+          ? initialWorldBorrowId
+          : null
+      }
     />
   );
 }

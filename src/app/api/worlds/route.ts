@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { parseGenresJson } from "@/lib/characterGenres";
+import { loadUserWorldLibrary } from "@/lib/worldLibrary";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -17,15 +18,7 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT ${WORLD_SELECT_COLUMNS}
-       FROM worlds WHERE creator_id = ? ORDER BY updated_at DESC, id DESC`
-    )
-    .all(user.id) as WorldRow[];
-
-  return NextResponse.json({ worlds: rows.map(rowToWorldListItem) });
+  return NextResponse.json({ worlds: loadUserWorldLibrary(user.id) });
 }
 
 export async function POST(req: Request) {

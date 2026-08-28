@@ -26,6 +26,7 @@ export default async function WorldApplyPage({
         content={share.content}
         authorNickname={share.authorNickname}
         loggedIn={Boolean(user)}
+        available={share.available}
       />
     </main>
   );

@@ -3,6 +3,12 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { parseGenresJson } from "@/lib/characterGenres";
 import {
+  canDeleteWorldFromLibrary,
+  canEditWorld,
+  loadOwnedWorldRow,
+} from "@/lib/worldPermissions";
+import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
+import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
   WORLD_SELECT_COLUMNS,
@@ -16,12 +22,7 @@ import {
 type RouteCtx = { params: Promise<{ id: string }> };
 
 function loadOwnedWorld(db: ReturnType<typeof getDb>, userId: number, id: number): WorldRow | undefined {
-  return db
-    .prepare(
-      `SELECT ${WORLD_SELECT_COLUMNS}
-       FROM worlds WHERE id = ? AND creator_id = ?`
-    )
-    .get(id, userId) as WorldRow | undefined;
+  return loadOwnedWorldRow(userId, id);
 }
 
 export async function GET(_req: Request, ctx: RouteCtx) {
@@ -50,6 +51,9 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   const db = getDb();
   const existing = loadOwnedWorld(db, user.id, id);
   if (!existing) return NextResponse.json({ error: "세계관을 찾을 수 없습니다." }, { status: 404 });
+  if (!canEditWorld(user.id, id)) {
+    return NextResponse.json({ error: "읽기 전용 세계관은 수정할 수 없습니다." }, { status: 403 });
+  }
 
   const b = await req.json();
   const name = b.name != null ? String(b.name).trim().slice(0, WORLD_NAME_LIMIT) : existing.name;
@@ -100,7 +104,11 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
   const db = getDb();
   const existing = loadOwnedWorld(db, user.id, id);
   if (!existing) return NextResponse.json({ error: "세계관을 찾을 수 없습니다." }, { status: 404 });
+  if (!canDeleteWorldFromLibrary(user.id, id)) {
+    return NextResponse.json({ error: "세계관을 찾을 수 없습니다." }, { status: 404 });
+  }
 
+  revokeWorldSharesForDeletedWorld(id);
   db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(id, user.id);
   return NextResponse.json({ ok: true });
 }
