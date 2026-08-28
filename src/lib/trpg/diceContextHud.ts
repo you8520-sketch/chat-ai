@@ -78,14 +78,31 @@ export function buildTrpgDiceContextViewModel(opts: {
   };
 }
 
+/** Rolling + result: actor and stat stay paired for unmistakable identity. */
+export function trpgDiceActorStatLine(context: Pick<TrpgDiceContextViewModel, "actorName" | "statLabel">): string {
+  return `${context.actorName} · ${context.statLabel} 판정`;
+}
+
+export function trpgDiceTargetDcLine(dc: number): string {
+  return `목표 DC ${dc}`;
+}
+
+/** Single-line result formula; uses combined modifier only (no component breakdown). */
+export function trpgDiceResultFormulaLine(
+  context: Pick<TrpgDiceContextViewModel, "d20" | "combinedModifierLabel" | "finalScore">
+): string {
+  return `d20 ${context.d20} · 총 보정 ${context.combinedModifierLabel} → 최종 ${context.finalScore}`;
+}
+
 export function trpgDiceA11yStatus(
   context: TrpgDiceContextViewModel,
   resultVisible: boolean
 ): string {
+  const identity = `${context.actorName}, ${context.statLabel} 판정`;
   if (!resultVisible) {
-    return `판정 ${context.rollOrdinal}/${context.rollTotal}, ${context.actorName}, ${context.statLabel} 판정, DC ${context.dc}`;
+    return `판정 ${context.rollOrdinal}/${context.rollTotal}, ${identity}, ${trpgDiceTargetDcLine(context.dc)}`;
   }
-  return `${context.d20}, 합산 보정 ${context.combinedModifierLabel}, 최종 ${context.finalScore}, DC ${context.dc}, ${context.tierLabel}`;
+  return `${identity}, ${context.d20}, 총 보정 ${context.combinedModifierLabel}, 최종 ${context.finalScore}, ${trpgDiceTargetDcLine(context.dc)}, ${context.tierLabel}`;
 }
 
 export function trpgDiceResultVisible(

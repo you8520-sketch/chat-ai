@@ -3,8 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   buildTrpgDiceContextViewModel,
+  trpgDiceActorStatLine,
   trpgDiceA11yStatus,
+  trpgDiceResultFormulaLine,
   trpgDiceResultVisible,
+  trpgDiceTargetDcLine,
 } from "./diceContextHud";
 import {
   activePresentationRollProgress,
@@ -184,19 +187,19 @@ describe("TRPG contextual dice HUD", () => {
     assert.ok(Array.from(vm.actionSummary).length <= 140);
   });
 
-  it("I/J/K: derives positive, negative, and zero combined modifiers", () => {
+  it("I/J/K: derives positive, negative, and zero combined modifiers with sign-safe formula", () => {
     const positive = buildTrpgDiceContextViewModel({
       roll: roll(1, { d20: 17, finalScore: 20 }),
       progress: null,
       statDefs,
     });
     const negative = buildTrpgDiceContextViewModel({
-      roll: roll(1, { d20: 8, finalScore: 6 }),
+      roll: roll(1, { d20: 17, finalScore: 15 }),
       progress: null,
       statDefs,
     });
     const zero = buildTrpgDiceContextViewModel({
-      roll: roll(1, { d20: 12, finalScore: 12 }),
+      roll: roll(1, { d20: 17, finalScore: 17 }),
       progress: null,
       statDefs,
     });
@@ -204,6 +207,9 @@ describe("TRPG contextual dice HUD", () => {
       [positive.combinedModifierLabel, negative.combinedModifierLabel, zero.combinedModifierLabel],
       ["+3", "-2", "+0"]
     );
+    assert.equal(trpgDiceResultFormulaLine(positive), "d20 17 · 총 보정 +3 → 최종 20");
+    assert.equal(trpgDiceResultFormulaLine(negative), "d20 17 · 총 보정 -2 → 최종 15");
+    assert.equal(trpgDiceResultFormulaLine(zero), "d20 17 · 총 보정 +0 → 최종 17");
   });
 
   it("L: exposes every exact tier through the shared successLabelKo owner", () => {
@@ -226,23 +232,40 @@ describe("TRPG contextual dice HUD", () => {
     }
   });
 
-  it("M: preserves suspense until settle and then exposes formula + exact tier", () => {
+  it("M: preserves suspense until settle and then exposes formula + exact tier with actor identity", () => {
     const vm = buildTrpgDiceContextViewModel({
-      roll: roll(1, { d20: 17, finalScore: 20, tier: "GREAT_SUCCESS" }),
+      roll: roll(1, { d20: 17, finalScore: 20, tier: "GREAT_SUCCESS", name: "권태현", statKey: "body" }),
       progress: { rollOrdinal: 2, rollTotal: 3 },
       statDefs,
     });
+    vm.statLabel = "힘";
+    const actorStat = trpgDiceActorStatLine(vm);
+    assert.equal(actorStat, "권태현 · 힘 판정");
     assert.equal(trpgDiceResultVisible("rolling"), false);
     assert.equal(trpgDiceResultVisible("entering"), true);
     assert.doesNotMatch(trpgDiceA11yStatus(vm, false), /17|최종|대성공/);
-    assert.match(trpgDiceA11yStatus(vm, false), /판정 2\/3.*담력 판정.*DC 11/);
-    assert.match(trpgDiceA11yStatus(vm, true), /17.*합산 보정 \+3.*최종 20.*대성공/);
+    assert.match(trpgDiceA11yStatus(vm, false), /판정 2\/3.*권태현.*힘 판정.*목표 DC 11/);
+    assert.match(
+      trpgDiceA11yStatus(vm, true),
+      /권태현.*힘 판정.*17.*총 보정 \+3.*최종 20.*목표 DC 11.*대성공/
+    );
+    assert.equal(trpgDiceResultFormulaLine(vm), "d20 17 · 총 보정 +3 → 최종 20");
+    assert.equal(trpgDiceTargetDcLine(vm.dc), "목표 DC 11");
 
     const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     assert.match(overlay, /trpgDiceResultVisible\(resultPhase\)/);
     assert.match(overlay, /\{showResult \? \(/);
+    assert.match(overlay, /trpgDiceActorStatLine\(context\)/);
+    assert.match(overlay, /data-trpg-dice-actor-stat-line/);
+    assert.match(overlay, /trpgDiceResultFormulaLine\(context\)/);
     assert.match(overlay, /data-trpg-dice-result-formula/);
+    assert.match(overlay, /data-trpg-dice-target-dc/);
+    assert.match(overlay, /data-trpg-dice-context-phase=\{showResult \? "result" : "rolling"\}/);
+    assert.match(overlay, /!showResult && context\.actionSummary/);
+    assert.match(overlay, /!showResult && context\.actionTypeLabel/);
     assert.doesNotMatch(overlay, /data-trpg-dice-numeral/);
+    assert.doesNotMatch(overlay, /주사위.*이상.*성공/);
+    assert.doesNotMatch(overlay, /스탯 보너스/);
   });
 
   it("N: contextual HUD and static settle lifecycle share renderer parity across WebGL/static/reduced motion", () => {
@@ -302,8 +325,107 @@ describe("TRPG contextual dice HUD", () => {
       "final-score",
       "dc",
       "tier",
+      "actor-stat-line",
+      "action-type-label",
+      "target-dc",
+      "context-phase",
+      "result-tier",
     ]) {
       assert.match(overlay, new RegExp(`data-trpg-dice-${attribute}`));
     }
+  });
+
+  it("identity: actor name visible during rolling and result phases", () => {
+    const vm = buildTrpgDiceContextViewModel({
+      roll: roll(1, { name: "권태현" }),
+      progress: { rollOrdinal: 2, rollTotal: 3 },
+      statDefs,
+    });
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(trpgDiceA11yStatus(vm, false), /권태현/);
+    assert.match(trpgDiceA11yStatus(vm, true), /권태현/);
+    assert.match(overlay, /data-trpg-dice-actor-stat-line/);
+    assert.match(overlay, /data-trpg-dice-actor-name=\{context\.actorName\}/);
+  });
+
+  it("identity: stat label visible during rolling and result phases", () => {
+    const vm = buildTrpgDiceContextViewModel({
+      roll: roll(1, { statKey: "body" }),
+      progress: { rollOrdinal: 1, rollTotal: 1 },
+      statDefs,
+    });
+    assert.equal(vm.statLabel, "육체");
+    assert.match(trpgDiceActorStatLine(vm), /육체 판정/);
+    assert.match(trpgDiceA11yStatus(vm, false), /육체 판정/);
+    assert.match(trpgDiceA11yStatus(vm, true), /육체 판정/);
+  });
+
+  it("identity: d20 hidden pre-settle and visible post-settle with final score, target DC, and tier", () => {
+    const vm = buildTrpgDiceContextViewModel({
+      roll: roll(1, { d20: 17, finalScore: 20, dc: 12, tier: "GREAT_SUCCESS" }),
+      progress: null,
+      statDefs,
+    });
+    assert.equal(trpgDiceResultVisible("rolling"), false);
+    assert.equal(trpgDiceResultVisible("holding"), true);
+    assert.match(trpgDiceResultFormulaLine(vm), /d20 17 · 총 보정 \+3 → 최종 20/);
+    assert.equal(trpgDiceTargetDcLine(12), "목표 DC 12");
+    assert.equal(vm.tierLabel, "대성공");
+
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
+    assert.match(overlay, /\{face\}/);
+    assert.match(overlay, /data-trpg-dice-result-tier/);
+  });
+
+  it("identity: long rolling action summary is clamped and hidden during result to avoid covering die", () => {
+    const longBody = `렌의 옆으로 파고들어 무너지는 문을 받친다. ${"긴 행동 ".repeat(40)}`;
+    const vm = buildTrpgDiceContextViewModel({
+      roll: roll(1, { actionBody: longBody }),
+      progress: null,
+      statDefs,
+    });
+    assert.ok(Array.from(vm.actionSummary).length <= 140);
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /WebkitLineClamp: 2/);
+    assert.match(overlay, /!showResult && context\.actionSummary/);
+    assert.match(overlay, /data-trpg-dice-context-phase/);
+    assert.match(overlay, /pt-28 md:-translate-y-\[2%\]/);
+  });
+
+  it("identity: action type visible during rolling when present and omitted when null", () => {
+    const withType = buildTrpgDiceContextViewModel({
+      roll: roll(2, { actionType: "support" }),
+      progress: null,
+      statDefs,
+    });
+    assert.equal(withType.actionTypeLabel, "지원");
+    const withoutType = buildTrpgDiceContextViewModel({
+      roll: roll(1, { actionType: undefined }),
+      progress: null,
+      statDefs,
+    });
+    assert.equal(withoutType.actionTypeLabel, null);
+
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /!showResult && context\.actionTypeLabel/);
+    assert.match(overlay, /data-trpg-dice-action-type-label/);
+  });
+
+  it("identity: preserves #696 single production dice style without theme selector code", () => {
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /trpgProductionDiceStaticFallback/);
+    assert.match(overlay, /data-trpg-dice-visual="production-d20"/);
+    assert.doesNotMatch(overlay, /TrpgD20ThemeId/);
+    assert.doesNotMatch(overlay, /PRODUCTION_D20_THEME/);
+    assert.doesNotMatch(overlay, /data-trpg-dice-theme/);
+    assert.doesNotMatch(overlay, /theme=/);
+  });
+
+  it("identity: large d20 result numeral styling preserved from production fallback owner", () => {
+    const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
+    assert.match(overlay, /trpgD20ResultHudStyle\(tone, face\)/);
+    assert.match(overlay, /style=\{resultHud\.numeral\}/);
+    assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
   });
 });

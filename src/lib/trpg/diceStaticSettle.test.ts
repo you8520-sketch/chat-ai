@@ -67,9 +67,9 @@ describe("TRPG static renderer settle lifecycle", () => {
     assert.equal(trpgDiceResultVisible("entering"), true);
     assert.equal(trpgDiceResultVisible("holding"), true);
     assert.match(overlay, /data-trpg-dice-result-formula/);
+    assert.match(overlay, /trpgDiceResultFormulaLine\(context\)/);
     assert.match(overlay, /\{context\.tierLabel\}/);
-    assert.match(overlay, /d20 \{context\.d20\}/);
-    assert.match(overlay, /최종 \{context\.finalScore\}/);
+    assert.match(overlay, /trpgDiceTargetDcLine\(context\.dc\)/);
   });
 
   it("6: reduced-motion renderer uses the same static settle lifecycle", () => {
