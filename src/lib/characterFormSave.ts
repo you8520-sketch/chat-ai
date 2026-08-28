@@ -4,7 +4,7 @@ import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
-import { buildSaveAndTranslateCharacterChunks } from "@/lib/characterChunks";
+import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
   characterAdultTextBlob,
   findAdultTermsInText,
@@ -58,13 +58,11 @@ import {
 import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
 import {
   APPEARANCE_COMPILED_VERSION,
-  appearancePromptText,
-  compileAppearanceForChat,
   extractAppearanceRawFromSetting,
   hashAppearanceRaw,
   replaceAppearanceInSetting,
-  serializeAppearanceCompiledJson,
 } from "@/lib/appearanceCompiler";
+import { isAppearanceCompiledCurrent, resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import {
   buildSimulationSystemPrompt,
   parseContentKind,
@@ -646,34 +644,61 @@ export function buildCanonPlanJsonForSave(
 }
 
 
-async function buildAppearanceForSave(
+function prepareAppearanceForSave(
   raw: string,
-  existing?: { appearance_raw?: string | null; appearance_compiled?: string | null; appearance_compiled_source_hash?: string | null; appearance_compiled_version?: number | null },
-  force = false
-) {
+  existing?: {
+    appearance_raw?: string | null;
+    appearance_compiled?: string | null;
+    appearance_compiled_source_hash?: string | null;
+    appearance_compiled_version?: number | null;
+  },
+  forceRecompile = false
+): {
+  raw: string;
+  compiled: string;
+  sourceHash: string;
+  version: number;
+} {
   const sourceHash = hashAppearanceRaw(raw);
-  const canReuse =
-    !force &&
-    (existing?.appearance_raw ?? "") === raw &&
-    existing?.appearance_compiled_source_hash === sourceHash &&
-    existing?.appearance_compiled_version === APPEARANCE_COMPILED_VERSION;
-  if (canReuse) {
-    return { raw, compiled: existing?.appearance_compiled ?? "", sourceHash, version: APPEARANCE_COMPILED_VERSION, called: false };
+  if (!raw.trim()) {
+    return { raw: "", compiled: "", sourceHash, version: APPEARANCE_COMPILED_VERSION };
   }
-  const compiledJson = await compileAppearanceForChat(raw);
-  const compiled = serializeAppearanceCompiledJson(compiledJson);
-  return {
+
+  const rawUnchanged = (existing?.appearance_raw ?? "") === raw;
+  const compiledCurrent = isAppearanceCompiledCurrent({
     raw,
-    // Compile failure must not wipe a previously good compiled cache.
-    compiled: compiled || (existing?.appearance_compiled ?? ""),
-    sourceHash,
-    version: APPEARANCE_COMPILED_VERSION,
-    called: Boolean(raw.trim()),
-  };
+    compiledJson: existing?.appearance_compiled,
+    compiledSourceHash: existing?.appearance_compiled_source_hash,
+    compiledVersion: existing?.appearance_compiled_version,
+  });
+
+  if (rawUnchanged && compiledCurrent && !forceRecompile) {
+    return {
+      raw,
+      compiled: existing?.appearance_compiled ?? "",
+      sourceHash,
+      version: APPEARANCE_COMPILED_VERSION,
+    };
+  }
+
+  // Raw change invalidates stale compiled in DB — runtime falls back to raw until background CAS publish.
+  const compiled = rawUnchanged && compiledCurrent ? (existing?.appearance_compiled ?? "") : "";
+  return { raw, compiled, sourceHash, version: APPEARANCE_COMPILED_VERSION };
 }
 
-function applyCompiledAppearanceToCanon(safeRuntimeCanon: string, appearanceRaw: string, appearanceCompiled: string): string {
-  const promptAppearance = appearancePromptText({ raw: appearanceRaw, compiledJson: appearanceCompiled });
+function applyAppearanceToRuntimeCanon(
+  safeRuntimeCanon: string,
+  appearanceRaw: string,
+  appearanceCompiled: string,
+  appearanceCompiledSourceHash: string,
+  appearanceCompiledVersion: number
+): string {
+  const promptAppearance = resolveAppearancePromptText({
+    raw: appearanceRaw,
+    compiledJson: appearanceCompiled,
+    compiledSourceHash: appearanceCompiledSourceHash,
+    compiledVersion: appearanceCompiledVersion,
+  });
   return replaceAppearanceInSetting(safeRuntimeCanon, promptAppearance);
 }
 
@@ -809,8 +834,14 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     appearanceRaw,
   } = buildCompiledCreatorDescriptionForSave(data);
   const canonPlanSave = buildCanonPlanJsonForSave(data);
-  const appearance = await buildAppearanceForSave(appearanceRaw);
-  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
+  const appearance = prepareAppearanceForSave(appearanceRaw);
+  const runtimeCanonWithAppearance = applyAppearanceToRuntimeCanon(
+    safeRuntimeCanon,
+    appearance.raw,
+    appearance.compiled,
+    appearance.sourceHash,
+    appearance.version
+  );
 
   const db = getDb();
   const info = db
@@ -889,7 +920,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     characterId,
     mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
   );
-  await buildSaveAndTranslateCharacterChunks(characterId, {
+  buildSaveCharacterChunksAndEnqueueDerivedRefresh(characterId, {
     name: data.name,
     gender: data.gender,
     systemPrompt: data.systemPrompt,
@@ -1036,8 +1067,14 @@ export async function updateCharacterFromForm(
     ]);
   const canonPlanSave = buildCanonPlanJsonForSave(data, row.creator_canon_plan_json);
   const forceAppearanceCompile = b.regenerate_appearance === true || b.regenerateAppearance === true;
-  const appearance = await buildAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
-  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
+  const appearance = prepareAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
+  const runtimeCanonWithAppearance = applyAppearanceToRuntimeCanon(
+    safeRuntimeCanon,
+    appearance.raw,
+    appearance.compiled,
+    appearance.sourceHash,
+    appearance.version
+  );
   const currentPromptRow = db
     .prepare("SELECT name, gender, system_prompt, world, example_dialog FROM characters WHERE id=?")
     .get(characterId) as
@@ -1132,7 +1169,7 @@ export async function updateCharacterFromForm(
   const promptInputsChanged = characterPromptInputsChanged(row, data);
 
   if (promptInputsChanged || forceAppearanceCompile) {
-    await buildSaveAndTranslateCharacterChunks(characterId, {
+    buildSaveCharacterChunksAndEnqueueDerivedRefresh(characterId, {
       name: data.name,
       gender: data.gender,
       systemPrompt: data.systemPrompt,

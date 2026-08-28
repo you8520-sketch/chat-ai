@@ -8,9 +8,9 @@ import type { CharacterChunk } from "@/types";
 import type { CharacterGender } from "@/lib/characterGender";
 import {
   hashKoreanChunks,
+  koreanChunksTranslationFingerprint,
   loadEnglishChunks,
   scheduleEnglishBackfill,
-  translateAndSaveCharacterPromptEn,
 } from "@/lib/promptTranslation";
 import { replaceUserPlaceholderInChunks } from "@/lib/userPlaceholder";
 import {
@@ -29,7 +29,10 @@ import {
   compiledPublicCanonText,
   parseCreatorDescriptionCompiled,
 } from "@/lib/creatorDescriptionTriggerCompiler";
-import { appearancePromptText, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
+import { replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import { enqueueCharacterDerivedRefreshJob } from "@/lib/derivedCache/characterEnqueue";
+import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 
 export type CharacterSettingRow = {
   id: number;
@@ -46,6 +49,8 @@ export type CharacterSettingRow = {
   creator_compiled_description_json?: string | null;
   appearance_raw?: string | null;
   appearance_compiled?: string | null;
+  appearance_compiled_source_hash?: string | null;
+  appearance_compiled_version?: number | null;
 };
 
 function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
@@ -54,7 +59,12 @@ function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
   if (storedPublicCanon) {
     return replaceAppearanceInSetting(
       storedPublicCanon,
-      appearancePromptText({ raw: row.appearance_raw ?? "", compiledJson: row.appearance_compiled })
+      resolveAppearancePromptText({
+        raw: row.appearance_raw ?? "",
+        compiledJson: row.appearance_compiled,
+        compiledSourceHash: row.appearance_compiled_source_hash,
+        compiledVersion: row.appearance_compiled_version,
+      })
     );
   }
 
@@ -69,7 +79,12 @@ function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
   }
   return replaceAppearanceInSetting(
     fallbackPublicCanon,
-    appearancePromptText({ raw: row.appearance_raw ?? "", compiledJson: row.appearance_compiled })
+    resolveAppearancePromptText({
+      raw: row.appearance_raw ?? "",
+      compiledJson: row.appearance_compiled,
+      compiledSourceHash: row.appearance_compiled_source_hash,
+      compiledVersion: row.appearance_compiled_version,
+    })
   );
 }
 
@@ -202,14 +217,28 @@ export function buildAndSaveCharacterChunks(
   return chunks;
 }
 
-/** 저장 후 OpenRouter flash(+폴백)로 한→영 번역 레이어 생성 (실패해도 throw 안 함) */
+/** 저장 후 Korean chunks + durable derived refresh job enqueue (no provider await). */
+export function buildSaveCharacterChunksAndEnqueueDerivedRefresh(
+  characterId: number,
+  input: Parameters<typeof buildAndSaveCharacterChunks>[1]
+): CharacterChunk[] {
+  const chunks = buildAndSaveCharacterChunks(characterId, input);
+  const db = getDb();
+  const fingerprint = enqueueCharacterDerivedRefreshJob(db, characterId, chunks);
+  db.prepare("UPDATE characters SET prompt_translation_hash=? WHERE id=?").run(
+    fingerprint,
+    characterId
+  );
+  kickDerivedCacheWorker();
+  return chunks;
+}
+
+/** @deprecated Use buildSaveCharacterChunksAndEnqueueDerivedRefresh for save paths. */
 export async function buildSaveAndTranslateCharacterChunks(
   characterId: number,
   input: Parameters<typeof buildAndSaveCharacterChunks>[1]
 ): Promise<CharacterChunk[]> {
-  const chunks = buildAndSaveCharacterChunks(characterId, input);
-  await translateAndSaveCharacterPromptEn(characterId, chunks);
-  return chunks;
+  return buildSaveCharacterChunksAndEnqueueDerivedRefresh(characterId, input);
 }
 
 /**

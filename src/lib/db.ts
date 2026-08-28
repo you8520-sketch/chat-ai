@@ -25,6 +25,7 @@ import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
+import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
@@ -1648,6 +1649,11 @@ function migrate(db: Database.Database) {
   migrateUnifiedTargetResponseChars3200(db);
   migrateBoardPostsOnce(db);
   seedGlobalLorebookEntries(db);
+  ensureDerivedCacheJobsTable(db);
+  addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
+  addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+  addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
+  addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
 }
 
 function migrateBoardPostsOnce(db: Database.Database) {

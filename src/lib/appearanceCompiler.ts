@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
-import { OPENROUTER_GEMINI_31_FLASH_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 
 export const APPEARANCE_COMPILED_VERSION = 1;
 export const DEEPSEEK_APPEARANCE_VARIATION_RULE =
@@ -68,10 +69,13 @@ export function parseAppearanceCompiledJson(raw: string | null | undefined): App
   try { return validateAppearanceCompiledJson(JSON.parse(raw)); } catch { return null; }
 }
 
-export function appearancePromptText(input: { raw: string; compiledJson?: string | null }): string {
-  const compiled = parseAppearanceCompiledJson(input.compiledJson);
-  const compiledText = compiled?.compiled_text.trim() || KEYS.filter((k) => k !== "compiled_text").map((k) => compiled?.[k]).filter(Boolean).join(", ");
-  return (compiledText || input.raw).trim();
+export function appearancePromptText(input: {
+  raw: string;
+  compiledJson?: string | null;
+  compiledSourceHash?: string | null;
+  compiledVersion?: number | null;
+}): string {
+  return resolveAppearancePromptText(input);
 }
 
 export function extractAppearanceRawFromSetting(systemPrompt: string): string {
@@ -129,9 +133,11 @@ export async function compileAppearanceForChat(raw: string): Promise<AppearanceC
   if (!normalized) return emptyAppearanceCompiled();
   try {
     const { text } = await callOpenRouterCompletion({
-      model: process.env.APPEARANCE_COMPILER_MODEL?.trim() || OPENROUTER_GEMINI_31_FLASH_MODEL,
+      model:
+        process.env.APPEARANCE_COMPILER_MODEL?.trim() || CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       temperature: 0.1,
       maxTokens: 500,
+      disableReasoning: true,
       requestKind: "background-appearance-compile",
       timeoutMs: 30_000,
       system: `캐릭터 외형 원문을 채팅 모델용의 짧고 자연스러운 외형 속성 JSON으로 정리한다. 입력에 없는 사실·성격·행동·감정을 추가하지 않는다. 브랜드/고유명사가 설정상 중요하면 보존하고, 단순 스타일 용어만 외관상 의미로 풀어쓴다. 원문보다 길어지지 않게 한다. JSON만 출력한다. 키: ${KEYS.join(", ")}`,

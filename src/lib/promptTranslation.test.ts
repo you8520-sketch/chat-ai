@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
@@ -19,6 +18,7 @@ import {
   DEFAULT_TRANSLATION_PRIMARY_MODEL,
   ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS,
   hashKoreanChunks,
+  koreanChunksTranslationFingerprint,
   hasPromptTranslationTransport,
   isTranslatableChunk,
   loadEnglishChunks,
@@ -69,7 +69,7 @@ describe("translation model chain", () => {
     assert.equal(resolveBackgroundMaxOutputTokens("generateContent"), 3072);
   });
 
-  it("defaults to distinct CI Luna primary and CI Pro 0813 fallback", () => {
+  it("defaults to distinct CI Luna primary and CI V4 Flash fallback", () => {
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     const prevBg = process.env.BACKGROUND_MEMORY_MODEL;
@@ -80,7 +80,7 @@ describe("translation model chain", () => {
       const models = resolveTranslationModels();
       assert.deepEqual(models, [
         CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       ]);
       assert.equal(
         DEFAULT_TRANSLATION_PRIMARY_MODEL,
@@ -88,7 +88,7 @@ describe("translation model chain", () => {
       );
       assert.equal(
         DEFAULT_TRANSLATION_FALLBACK_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
       );
       assert.notEqual(
         translationModelIdentity(models[0]!),
@@ -189,7 +189,7 @@ describe("translation batching and parser", () => {
 describe("english layer status and stale load", () => {
   it("returns null for stale hash and classifies STALE vs MISSING", () => {
     const korean = [chunk("c-1", "최신 한국어")];
-    const currentHash = hashKoreanChunks(korean);
+    const currentHash = koreanChunksTranslationFingerprint(korean);
     const stale = loadEnglishChunks(
       {
         setting_chunks_en: JSON.stringify([
@@ -345,18 +345,12 @@ describe("atomic translate + save", () => {
   });
 });
 
-describe("backfill cooldown", () => {
-  it("does not immediately reschedule after a failed backfill", () => {
+describe("backfill durable enqueue", () => {
+  it("can schedule backfill when CI transport is available", () => {
     const prevCi = process.env.CHEAPER_INFERENCE_API_KEY;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
     try {
       assert.equal(canScheduleEnglishBackfill(9), true);
-      markEnglishBackfillFailureForTests(9);
-      assert.equal(canScheduleEnglishBackfill(9), false);
-      assert.equal(
-        canScheduleEnglishBackfill(9, Date.now() + ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS + 1),
-        true
-      );
     } finally {
       if (prevCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
       else process.env.CHEAPER_INFERENCE_API_KEY = prevCi;
