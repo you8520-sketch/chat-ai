@@ -78,7 +78,6 @@ import {
   type TrpgDiceRevealGateState,
 } from "@/lib/trpg/diceRevealGate";
 import {
-  shouldAdvanceActorDiceAfterOverlayDismiss,
   shouldConsumeMountRollSession,
   activePresentationDiceSessionKey,
   overlayPresentationDismissed,
@@ -88,9 +87,7 @@ import {
 import {
   activePresentationRollProgress,
   activePresentationRoll,
-  advanceAfterActorAction,
   advanceAfterActorResult,
-  advanceAfterDiceDismiss,
   buildRoundPresentationActors,
   decideRoundPresentationMode,
   freezeLivePresentationActors,
@@ -113,6 +110,7 @@ import {
   revealedActorIds,
   shouldShowActionJudgeBlock,
   ROUND_RESULT_HOLD_MS,
+  resolveLiveActorPresentationTransition,
   resolveParticipantAdjudicationOutcome,
   selectVisibleActions,
   shouldGateLiveRoundPresentation,
@@ -604,54 +602,27 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     if (roundShow.mode !== "cinematic" || roundShow.phase !== "actor-dice") return;
     const current = presentationActors[roundShow.presentationIndex];
-    if (!current?.roll) {
-      const outcome = resolveParticipantAdjudicationOutcome(
-        current.actorId,
-        participantAdjudicationOutcomes
-      );
-      if (outcome === "roll") {
-        return;
-      }
-      setRoundShow((prev) => ({
-        ...prev,
-        ...advanceAfterDiceDismiss({
-          actors: presentationActors,
-          presentationIndex: prev.presentationIndex,
-          rolls: sourceRolls,
-          adjudicatedParticipantIds,
-          declarationConsumedIds,
-          participantAdjudicationOutcomes,
-          awaitingMoreActors: awaitingMorePresentationActors,
-        }),
-      }));
-      return;
-    }
-    const activeKey = trpgDiceRollSessionKey(snap.round.number, [current.roll]);
-    if (
-      !shouldAdvanceActorDiceAfterOverlayDismiss({
-        mode: roundShow.mode,
-        phase: roundShow.phase,
-        overlayDismissed: overlayPlayback.dismissed,
-        overlaySessionKey: overlayPlayback.sessionKey,
-        activeRollSessionKey: activeKey,
-      })
-    ) {
-      return;
-    }
+    const activeKey = current?.roll
+      ? trpgDiceRollSessionKey(snap.round.number, [current.roll])
+      : "";
+    const decision = resolveLiveActorPresentationTransition({
+      mode: roundShow.mode,
+      phase: roundShow.phase,
+      presentationIndex: roundShow.presentationIndex,
+      actors: presentationActors,
+      rolls: sourceRolls,
+      adjudicatedParticipantIds,
+      declarationConsumedIds,
+      participantAdjudicationOutcomes,
+      awaitingMoreActors: awaitingMorePresentationActors,
+      overlayDismissed: overlayPlayback.dismissed,
+      overlaySessionKey: overlayPlayback.sessionKey,
+      activeRollSessionKey: activeKey,
+    });
+    if (decision.kind !== "transition") return;
     setRoundShow((prev) => {
       if (prev.mode !== "cinematic" || prev.phase !== "actor-dice") return prev;
-      return {
-        ...prev,
-        ...advanceAfterDiceDismiss({
-          actors: presentationActors,
-          presentationIndex: prev.presentationIndex,
-          rolls: sourceRolls,
-          adjudicatedParticipantIds,
-          declarationConsumedIds,
-          participantAdjudicationOutcomes,
-          awaitingMoreActors: awaitingMorePresentationActors,
-        }),
-      };
+      return { ...prev, ...decision.next };
     });
   }, [
     overlayPlayback.dismissed,
@@ -659,7 +630,6 @@ export default function TrpgCampaignRoom({
     adjudicatedParticipantIds,
     awaitingMorePresentationActors,
     declarationConsumedIds,
-    participantAdjudicationOutcomes,
     participantAdjudicationOutcomes,
     presentationActors,
     roundShow.mode,
@@ -946,20 +916,22 @@ export default function TrpgCampaignRoom({
       const beatKey = `${snap.round.number}|${roundShow.presentationIndex}|actor-action|${presentationActors[roundShow.presentationIndex]?.roll?.participantId ?? 0}:${presentationActors[roundShow.presentationIndex]?.roll?.d20 ?? 0}`;
       if (consumedActorActionBeatRef.current === beatKey) return;
       consumedActorActionBeatRef.current = beatKey;
+      const decision = resolveLiveActorPresentationTransition({
+        mode: roundShow.mode,
+        phase: roundShow.phase,
+        presentationIndex: roundShow.presentationIndex,
+        actors: presentationActors,
+        rolls: sourceRolls,
+        adjudicatedParticipantIds,
+        declarationConsumedIds,
+        participantAdjudicationOutcomes,
+        awaitingMoreActors: awaitingMorePresentationActors,
+        actionRevealComplete: true,
+      });
+      if (decision.kind !== "transition") return;
       setRoundShow((prev) => {
         if (prev.mode !== "cinematic" || prev.phase !== "actor-action") return prev;
-        return {
-          ...prev,
-          ...advanceAfterActorAction({
-            actors: presentationActors,
-            presentationIndex: prev.presentationIndex,
-            rolls: sourceRolls,
-            adjudicatedParticipantIds,
-            declarationConsumedIds,
-            participantAdjudicationOutcomes,
-            awaitingMoreActors: awaitingMorePresentationActors,
-          }),
-        };
+        return { ...prev, ...decision.next };
       });
       return;
     }
@@ -1723,9 +1695,7 @@ export default function TrpgCampaignRoom({
       data-trpg-overlay-roll-count={overlayRolls.length}
       data-trpg-overlay-visible={overlayPlayback.visible ? "true" : "false"}
       data-trpg-overlay-playback-session-key={overlayPlayback.sessionKey || undefined}
-      data-trpg-manual-scroll-detached={manualScrollDetachedRef.current ? "true" : "false"}
       data-trpg-declaration-growth-observer-attached={declarationGrowthObserverAttached ? "true" : "false"}
-      data-trpg-declaration-growth-callback-count={declarationGrowthCallbackCountRef.current || undefined}
     >
       <aside
         className="fixed left-3 right-3 top-[4.5rem] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"

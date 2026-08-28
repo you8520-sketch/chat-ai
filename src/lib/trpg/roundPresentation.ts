@@ -3,6 +3,7 @@ import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
 import {
   TRPG_EMERALD_WATCHDOG_MARGIN_MS,
   TRPG_ROLL_MAX_MS,
+  shouldAdvanceActorDiceAfterOverlayDismiss,
   trpgDiceRevealWatchdogMs,
   trpgResultConfirmPerDieMs,
 } from "./diceRollUx";
@@ -611,6 +612,7 @@ function actorAwaitingAuthoritativeRoll(
   const outcome = resolveParticipantAdjudicationOutcome(actorId, outcomes);
   if (outcome === "roll") return actorRoll == null;
   if (outcome === "no_roll" || outcome === "skipped") return false;
+  if (outcomes) return true;
   return actorRoll == null && actorExpectsPresentationRoll(actorId, rolls);
 }
 
@@ -622,6 +624,7 @@ function actorPresentationRequiresDice(
   const outcome = resolveParticipantAdjudicationOutcome(actorId, outcomes);
   if (outcome === "roll") return actorRoll != null;
   if (outcome === "no_roll" || outcome === "skipped") return false;
+  if (outcomes) return false;
   return actorRoll != null;
 }
 
@@ -737,6 +740,106 @@ export function advanceAfterDiceDismiss(opts: {
     awaitingMoreActors: opts.awaitingMoreActors,
     participantAdjudicationOutcomes: outcomes,
   });
+}
+
+export type LiveActorPresentationTransition =
+  | { kind: "hold" }
+  | { kind: "transition"; next: Pick<RoundPresentationState, "phase" | "presentationIndex"> };
+
+/** Single production owner for live actor-action / actor-dice phase transitions. */
+export function resolveLiveActorPresentationTransition(opts: {
+  mode: RoundPresentationMode;
+  phase: RoundPresentationPhase;
+  presentationIndex: number;
+  actors: readonly PresentationActor[];
+  rolls?: readonly { participantId: number }[];
+  adjudicatedParticipantIds?: ReadonlySet<number>;
+  declarationConsumedIds?: ReadonlySet<number>;
+  participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
+  awaitingMoreActors?: boolean;
+  actionRevealComplete?: boolean;
+  overlayDismissed?: boolean;
+  overlaySessionKey?: string;
+  activeRollSessionKey?: string;
+}): LiveActorPresentationTransition {
+  if (opts.mode !== "cinematic") return { kind: "hold" };
+
+  if (opts.phase === "actor-action") {
+    const current = opts.actors[opts.presentationIndex];
+    if (!current?.action) return { kind: "hold" };
+    if (opts.actionRevealComplete === false) return { kind: "hold" };
+    if (
+      opts.adjudicatedParticipantIds != null &&
+      opts.declarationConsumedIds != null &&
+      !isActorPresentationReady({
+        actor: current,
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+        declarationConsumedIds: opts.declarationConsumedIds,
+      })
+    ) {
+      return { kind: "hold" };
+    }
+    return {
+      kind: "transition",
+      next: advanceAfterActorAction({
+        actors: opts.actors,
+        presentationIndex: opts.presentationIndex,
+        rolls: opts.rolls,
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+        declarationConsumedIds: opts.declarationConsumedIds,
+        participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
+        awaitingMoreActors: opts.awaitingMoreActors,
+      }),
+    };
+  }
+
+  if (opts.phase === "actor-dice") {
+    const current = opts.actors[opts.presentationIndex];
+    if (!current?.roll) {
+      const outcome = resolveParticipantAdjudicationOutcome(
+        current?.actorId ?? -1,
+        opts.participantAdjudicationOutcomes
+      );
+      if (outcome === "roll") return { kind: "hold" };
+      return {
+        kind: "transition",
+        next: advanceAfterDiceDismiss({
+          actors: opts.actors,
+          presentationIndex: opts.presentationIndex,
+          rolls: opts.rolls,
+          adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+          declarationConsumedIds: opts.declarationConsumedIds,
+          participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
+          awaitingMoreActors: opts.awaitingMoreActors,
+        }),
+      };
+    }
+    if (
+      !shouldAdvanceActorDiceAfterOverlayDismiss({
+        mode: opts.mode,
+        phase: opts.phase,
+        overlayDismissed: opts.overlayDismissed === true,
+        overlaySessionKey: opts.overlaySessionKey ?? "",
+        activeRollSessionKey: opts.activeRollSessionKey ?? "",
+      })
+    ) {
+      return { kind: "hold" };
+    }
+    return {
+      kind: "transition",
+      next: advanceAfterDiceDismiss({
+        actors: opts.actors,
+        presentationIndex: opts.presentationIndex,
+        rolls: opts.rolls,
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+        declarationConsumedIds: opts.declarationConsumedIds,
+        participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
+        awaitingMoreActors: opts.awaitingMoreActors,
+      }),
+    };
+  }
+
+  return { kind: "hold" };
 }
 
 /** Work types where new canonical locked submissions may still arrive this round. */

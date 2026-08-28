@@ -12,8 +12,10 @@ import { insertParticipant, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
 import {
   adjudicateLockedHumanSubmissions,
+  deriveAdjudicatedParticipantIds,
   ensureRoundAdjudicationContext,
   loadAdjudicatedParticipantIds,
+  loadParticipantAdjudicationOutcomes,
 } from "./roundAdjudication";
 
 function memoryDb(): Database.Database {
@@ -74,6 +76,41 @@ describe("roundAdjudication human pre-bot", () => {
     };
     assert.equal(rolls.n, 1);
     assert.ok(loadAdjudicatedParticipantIds(db, round.id).length >= 1);
+    db.close();
+  });
+
+  it("PERSISTED_ROLL_PRECEDENCE: physical roll row wins over stale no_roll mark", () => {
+    const db = memoryDb();
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const humanId = (
+      db
+        .prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND slot_index=0`)
+        .get(campaignId) as { id: number }
+    ).id;
+    db.prepare(
+      `INSERT INTO trpg_rounds (campaign_id, round_number, phase, input_snapshot_json) VALUES (?, 1, 'ROLLING', '{}')`
+    ).run(campaignId);
+    const roundId = (
+      db.prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { id: number }
+    ).id;
+    db.prepare(
+      `INSERT INTO trpg_action_submissions (round_id, participant_id, body, action_type, locked, source) VALUES (?, ?, 'acts', 'investigate', 1, 'human')`
+    ).run(roundId, humanId);
+    const submissionId = (
+      db.prepare(`SELECT id FROM trpg_action_submissions WHERE round_id=?`).get(roundId) as { id: number }
+    ).id;
+    db.prepare(
+      `INSERT INTO trpg_dice_rolls (round_id, submission_id, d20, stat_key, final_score, dc, tier) VALUES (?, ?, 14, 'nerve', 14, 11, 'SUCCESS')`
+    ).run(roundId, submissionId);
+    db.prepare(`UPDATE trpg_rounds SET input_snapshot_json=? WHERE id=?`).run(
+      JSON.stringify({ adjudicationMarks: { [submissionId]: "no_roll" } }),
+      roundId
+    );
+
+    const outcomes = loadParticipantAdjudicationOutcomes(db, roundId);
+    assert.equal(outcomes[humanId], "roll");
+    assert.deepEqual(deriveAdjudicatedParticipantIds(outcomes), [humanId]);
     db.close();
   });
 });
