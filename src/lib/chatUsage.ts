@@ -193,7 +193,13 @@ export type Usage = {
     billingReferenceOutputUsdPerMillion: number;
     billingReferenceCostKrw: number;
     billingReferenceCostUsd: number;
-    fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
+    fxSnapshot: {
+      dateKey: string;
+      source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
+      baseUsdKrw: number;
+      overseasFeeRate: number;
+      effectiveKrwPerUsd: number;
+    };
     providerListCostStatus: string;
     reserveStatus: string;
     actualProviderCostKrw: number;

@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { computeShadowPricing, normalizeBillableUsage } from "./shadowPricing";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
+import { _clearExchangeRateCacheForTest, _setExchangeRateForTest } from "./exchangeRate";
+
+describe("shadowPricing fxSnapshot", () => {
+  it("includes billing FX source in historical shadow snapshot", () => {
+    _setExchangeRateForTest({ dateKey: "2026-08-28", usdToKrw: 1530, source: "api_daily" });
+    const s = computeShadowPricing({ modelId: "gemini-3.7-flash", promptTokens: 1000, outputTokens: 1000 });
+    assert.equal(s.fxSnapshot.source, "api_daily");
+    assert.equal(s.fxSnapshot.dateKey, "2026-08-28");
+    assert.equal(s.fxSnapshot.baseUsdKrw, 1530);
+    _clearExchangeRateCacheForTest();
+  });
+});
 
 describe("shadowPricing catalog semantics", () => {
   it("reference rate is list, current is discounted", () => {
@@ -24,7 +36,6 @@ describe("shadowPricing catalog semantics", () => {
   it("no discount list == actual", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const s = computeShadowPricing({ modelId: "gemini-3.7-flash", promptTokens: 1000, outputTokens: 1000 });
-    // without catalog, both fallback => close
     assert.ok(s.providerListCostKrw >= 0);
   });
 });
@@ -49,7 +60,6 @@ describe("reasoning double-count", () => {
 describe("reserve math", () => {
   it("30% discount reserve — only when complete", () => {
     const s = computeShadowPricing({ modelId: "claude-opus-5", promptTokens: 40689, outputTokens: 4307, cheaperInferenceBilledCostUsd: 0.01, upstreamCostUsd: 0.02 });
-    // billed actual is settled, list may be unavailable → reserveStatus estimated; savings null when not complete is valid
     if (s.reserveStatus === "complete") {
       assert.ok(s.providerSavingsKrw != null && s.providerSavingsKrw >= 0);
     } else {

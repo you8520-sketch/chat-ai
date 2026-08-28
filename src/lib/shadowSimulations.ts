@@ -1,3 +1,4 @@
+import type { BillingFxSource } from "@/lib/exchangeRate";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { computeShadowPricing } from "@/lib/shadowPricing";
 
@@ -32,7 +33,13 @@ export type PremiumSimulationResult = {
   benchmarkChargeP: number;
   benchmarkImpliedMaxMarginFromList: number | null;
   minimumSafePrice: number | null;
-  fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
+  fxSnapshot: {
+    dateKey: string;
+    source: BillingFxSource;
+    baseUsdKrw: number;
+    overseasFeeRate: number;
+    effectiveKrwPerUsd: number;
+  };
   rows: SimulationRow[];
 };
 

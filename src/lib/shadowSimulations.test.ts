@@ -1,11 +1,38 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { simulatePremiumCompetitive, TOKEN_USAGE_COMPETITOR_BENCHMARKS, PREMIUM_MARGIN_CANDIDATES, SECONDARY_CHAR_BENCHMARKS } from "./shadowSimulations";
+import {
+  simulatePremiumCompetitive,
+  TOKEN_USAGE_COMPETITOR_BENCHMARKS,
+  PREMIUM_MARGIN_CANDIDATES,
+} from "./shadowSimulations";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
 import { _setExchangeRateForTest } from "./exchangeRate";
 
 const TEST_BASE_FX = 1530;
 const TEST_EFFECTIVE_FX = 1560.6;
+
+const GEMINI_ROW_FIXTURES = [
+  { targetMargin: 0.1, finalPoints: 231, competitiveDeviationPct: -5.4, noDiscountRealizedMargin: 10.1, flag: "GREEN" as const, flagReason: "competitive_and_safe" as const },
+  { targetMargin: 0.125, finalPoints: 238, competitiveDeviationPct: -2.5, noDiscountRealizedMargin: 12.7, flag: "GREEN" as const, flagReason: "competitive_and_safe" as const },
+  { targetMargin: 0.14, finalPoints: 242, competitiveDeviationPct: -0.9, noDiscountRealizedMargin: 14.2, flag: "GREEN" as const, flagReason: "competitive_and_safe" as const },
+  { targetMargin: 0.145, finalPoints: 243, competitiveDeviationPct: -0.5, noDiscountRealizedMargin: 14.5, flag: "GREEN" as const, flagReason: "competitive_and_safe" as const },
+  { targetMargin: 0.15, finalPoints: 245, competitiveDeviationPct: 0.3, noDiscountRealizedMargin: 15.2, flag: "YELLOW" as const, flagReason: "margin_can_be_reduced_to_match_market" as const },
+  { targetMargin: 0.175, finalPoints: 252, competitiveDeviationPct: 3.2, noDiscountRealizedMargin: 17.6, flag: "YELLOW" as const, flagReason: "margin_can_be_reduced_to_match_market" as const },
+  { targetMargin: 0.2, finalPoints: 260, competitiveDeviationPct: 6.5, noDiscountRealizedMargin: 20.1, flag: "YELLOW" as const, flagReason: "margin_can_be_reduced_to_match_market" as const },
+];
+
+const OPUS_ROW_FIXTURES = [
+  { targetMargin: 0.08, finalPoints: 695, competitiveDeviationPct: -6.3, noDiscountRealizedMargin: 8.1, flag: "YELLOW" as const, flagReason: "competitive_but_below_floor" as const },
+  { targetMargin: 0.1, finalPoints: 710, competitiveDeviationPct: -4.2, noDiscountRealizedMargin: 10, flag: "YELLOW" as const, flagReason: "competitive_but_below_floor" as const },
+  { targetMargin: 0.12, finalPoints: 727, competitiveDeviationPct: -2, noDiscountRealizedMargin: 12.1, flag: "YELLOW" as const, flagReason: "competitive_but_below_floor" as const },
+  { targetMargin: 0.13, finalPoints: 735, competitiveDeviationPct: -0.9, noDiscountRealizedMargin: 13.1, flag: "YELLOW" as const, flagReason: "competitive_but_below_floor" as const },
+  { targetMargin: 0.135, finalPoints: 739, competitiveDeviationPct: -0.3, noDiscountRealizedMargin: 13.5, flag: "YELLOW" as const, flagReason: "competitive_but_below_floor" as const },
+  { targetMargin: 0.14, finalPoints: 744, competitiveDeviationPct: 0.3, noDiscountRealizedMargin: 14.1, flag: "RED" as const, flagReason: "minimum_safe_price_above_market" as const },
+  { targetMargin: 0.15, finalPoints: 752, competitiveDeviationPct: 1.4, noDiscountRealizedMargin: 15, flag: "RED" as const, flagReason: "minimum_safe_price_above_market" as const },
+  { targetMargin: 0.175, finalPoints: 775, competitiveDeviationPct: 4.5, noDiscountRealizedMargin: 17.5, flag: "RED" as const, flagReason: "minimum_safe_price_above_market" as const },
+  { targetMargin: 0.2, finalPoints: 799, competitiveDeviationPct: 7.8, noDiscountRealizedMargin: 20, flag: "RED" as const, flagReason: "minimum_safe_price_above_market" as const },
+];
+
 function setupFxFixture() {
   _setExchangeRateForTest({ dateKey: "2026-08-28", usdToKrw: TEST_BASE_FX, source: "api_daily" });
 }
@@ -38,8 +65,27 @@ function setupCatalogFixture() {
   });
 }
 
+function assertRowMatchesFixture(
+  row: {
+    targetMargin: number;
+    finalPoints: number;
+    competitiveDeviationPct: number | null;
+    noDiscountRealizedMargin: number | null;
+    flag: string;
+    flagReason: string;
+  },
+  fixture: (typeof GEMINI_ROW_FIXTURES)[number]
+) {
+  assert.equal(row.targetMargin, fixture.targetMargin);
+  assert.equal(row.finalPoints, fixture.finalPoints);
+  assert.equal(row.competitiveDeviationPct, fixture.competitiveDeviationPct);
+  assert.equal(row.noDiscountRealizedMargin, fixture.noDiscountRealizedMargin);
+  assert.equal(row.flag, fixture.flag);
+  assert.equal(row.flagReason, fixture.flagReason);
+}
+
 describe("shadowSimulations benchmark isolation", () => {
-  it("gemini benchmark isolated — uses token benchmark only", () => {
+  it("gemini benchmark isolated — 7 candidate rows match deterministic fixture", () => {
     setupCatalogFixture();
     setupFxFixture();
     const r = simulatePremiumCompetitive({
@@ -51,14 +97,18 @@ describe("shadowSimulations benchmark isolation", () => {
       minimumMarginFloor: 0.1,
     });
     assert.equal(r.rows.length, 7);
-    // deterministic: 40689*2 +4307*12 =133062 tokens USD 0.133062 *1560.6 =207.6566
-    assert.ok(Math.abs(r.providerListCostKrw - 207.6566) < 1, `providerList ${r.providerListCostKrw} vs 207.65`);
+    assert.equal(r.providerListCostKrw, 207.7);
+    assert.equal(r.fxSnapshot.source, "api_daily");
+    assert.equal(r.fxSnapshot.baseUsdKrw, TEST_BASE_FX);
+    assert.ok(Math.abs(r.fxSnapshot.effectiveKrwPerUsd - TEST_EFFECTIVE_FX) < 1e-9);
     assert.ok(r.benchmarkImpliedMaxMarginFromList != null && Math.abs(r.benchmarkImpliedMaxMarginFromList! - 0.1496) < 0.01);
-    // verify 7 candidates exact ordering
-    for (let i = 1; i < r.rows.length; i++) assert.ok(r.rows[i].targetMargin > r.rows[i-1].targetMargin);
+    for (let i = 0; i < GEMINI_ROW_FIXTURES.length; i++) {
+      assertRowMatchesFixture(r.rows[i], GEMINI_ROW_FIXTURES[i]);
+    }
     clearCheaperInferenceCatalogPricingForTest();
   });
-  it("opus benchmark isolated from char benchmark — types separate", () => {
+
+  it("opus benchmark isolated — 9 candidate rows match deterministic fixture", () => {
     setupCatalogFixture();
     setupFxFixture();
     const r = simulatePremiumCompetitive({
@@ -70,20 +120,20 @@ describe("shadowSimulations benchmark isolation", () => {
       minimumMarginFloor: 0.15,
     });
     assert.equal(r.rows.length, 9);
-    // deterministic: 63749*5 +3629*25 =409470 USD 0.40947 *1560.6 =639.0189
-    assert.ok(Math.abs(r.providerListCostKrw - 639.0189) < 1, `providerList ${r.providerListCostKrw} vs 639.01`);
+    assert.equal(r.providerListCostKrw, 639);
+    assert.equal(r.fxSnapshot.source, "api_daily");
     assert.ok(r.benchmarkImpliedMaxMarginFromList != null && Math.abs(r.benchmarkImpliedMaxMarginFromList! - 0.1382) < 0.01);
-    for (const row of r.rows) {
-      assert.ok(typeof row.flagReason === "string");
-      assert.ok(typeof row.finalPoints === "number");
-      assert.ok(typeof row.competitiveDeviationPct === "number" || row.competitiveDeviationPct === null);
+    for (let i = 0; i < OPUS_ROW_FIXTURES.length; i++) {
+      assertRowMatchesFixture(r.rows[i], OPUS_ROW_FIXTURES[i]);
     }
     clearCheaperInferenceCatalogPricingForTest();
   });
+
   it("candidate counts are canonical", () => {
     assert.equal(PREMIUM_MARGIN_CANDIDATES.gemini31.length, 7);
     assert.equal(PREMIUM_MARGIN_CANDIDATES.opus5.length, 9);
   });
+
   it("providerList unavailable gives provider_list_unavailable", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const r = simulatePremiumCompetitive({

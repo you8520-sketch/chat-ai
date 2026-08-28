@@ -4,7 +4,13 @@
  * Three costs: actualProviderCost / providerListCost / billingReferenceCost
  */
 
-import { resolveBillingExchangeRateSnapshot, convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
+import {
+  resolveBillingExchangeRateSnapshot,
+  convertUsdToKrw,
+  OVERSEAS_CARD_FEE_PERCENT,
+  normalizeBillingFxSource,
+  type BillingFxSource,
+} from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
@@ -56,7 +62,13 @@ export type ShadowCostBreakdown = {
   pricingVersion: number;
   targetMargin: number;
   minimumMarginFloor: number;
-  fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
+  fxSnapshot: {
+    dateKey: string;
+    source: BillingFxSource;
+    baseUsdKrw: number;
+    overseasFeeRate: number;
+    effectiveKrwPerUsd: number;
+  };
 };
 
 export type ShadowChargeBreakdown = ShadowCostBreakdown & {
@@ -251,7 +263,13 @@ export function computeShadowCosts(opts: {
     pricingVersion: pub.pricingVersion,
     targetMargin: pub.targetMargin,
     minimumMarginFloor: pub.minimumMarginFloor,
-    fxSnapshot: { dateKey: snapshot.dateKey, baseUsdKrw: snapshot.usdToKrw, overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT, effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd },
+    fxSnapshot: {
+      dateKey: snapshot.dateKey,
+      source: normalizeBillingFxSource(snapshot.source),
+      baseUsdKrw: snapshot.usdToKrw,
+      overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
+      effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
+    },
   };
 }
 

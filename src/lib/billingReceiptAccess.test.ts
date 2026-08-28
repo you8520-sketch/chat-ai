@@ -240,7 +240,7 @@ describe("billingReceiptAccess shadow privacy", () => {
         billingReferenceOutputUsdPerMillion: 25,
         billingReferenceCostKrw: 10,
         billingReferenceCostUsd: 0.01,
-        fxSnapshot: { dateKey: "2026-08-28", baseUsdKrw: 1530, overseasFeeRate: 0.02, effectiveKrwPerUsd: 1560.6 },
+        fxSnapshot: { dateKey: "2026-08-28", source: "api_daily", baseUsdKrw: 1530, overseasFeeRate: 0.02, effectiveKrwPerUsd: 1560.6 },
         providerListCostStatus: "complete",
         reserveStatus: "complete",
         actualProviderCostKrw: 5,

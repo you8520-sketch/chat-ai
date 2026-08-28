@@ -16,6 +16,27 @@ export const EXCHANGE_RATE_FALLBACK_KRW =
 /** daily_kst = KST 자정 기준 당일 고정 · realtime = 1시간 캐시 실시간 */
 export type ExchangeRateMode = "daily_kst" | "realtime";
 
+export type BillingFxSource = "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
+
+export function normalizeBillingFxSource(
+  source: BillingFxSource | "api" | "fallback"
+): BillingFxSource {
+  switch (source) {
+    case "api_daily":
+    case "previous_daily_snapshot":
+    case "emergency_fallback":
+      return source;
+    case "api":
+      return "api_daily";
+    case "fallback":
+      return "emergency_fallback";
+    default: {
+      const _exhaustive: never = source;
+      return _exhaustive;
+    }
+  }
+}
+
 export function resolveExchangeRateMode(): ExchangeRateMode {
   const raw = (process.env.EXCHANGE_RATE_MODE ?? "daily_kst").trim().toLowerCase();
   return raw === "realtime" ? "realtime" : "daily_kst";
@@ -27,14 +48,20 @@ const FETCH_TIMEOUT_MS = 8000;
 type RateCache = {
   usdToKrw: number;
   fetchedAt: number;
-  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
+  source: BillingFxSource;
 };
 
-type DailyRateCache = {
+type LockedDailyBillingSnapshot = {
   dateKey: string;
   usdToKrw: number;
   fetchedAt: number;
-  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
+  source: BillingFxSource;
+};
+
+type PrefetchedCandidate = {
+  dateKey: string;
+  usdToKrw: number;
+  fetchedAt: number;
 };
 
 export type BillingExchangeRateSnapshot = {
@@ -42,21 +69,28 @@ export type BillingExchangeRateSnapshot = {
   dateKey: string;
   usdToKrw: number;
   effectiveKrwPerUsd: number;
-  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback" | "api" | "fallback";
+  /** Daily lock sources; legacy stored receipts may still carry api/fallback. */
+  source: BillingFxSource | "api" | "fallback";
   overseasFeeRate?: number;
 };
 
 let memoryCache: RateCache | null = null;
-let dailyCache: DailyRateCache | null = null;
-let refreshPromise: Promise<number> | null = null;
+/** Immutable billing lock for the current KST date — never mutated after first sync lock. */
+let lockedDailyBillingSnapshot: LockedDailyBillingSnapshot | null = null;
+/** Latest successful API fetch candidate — may differ from lockedDailyBillingSnapshot same day. */
+let prefetchedCandidate: PrefetchedCandidate | null = null;
+/** Last locked snapshot from a prior KST date (successful carry-forward source). */
+let previousSuccessfulDailySnapshot: LockedDailyBillingSnapshot | null = null;
+let refreshPromise: Promise<void> | null = null;
+let testNowOverride: number | null = null;
 
 /** KST 달력일 YYYY-MM-DD */
-export function getKstDateKey(now = Date.now()): string {
+export function getKstDateKey(now = testNowOverride ?? Date.now()): string {
   const kst = new Date(now + 9 * 60 * 60 * 1000);
   return kst.toISOString().slice(0, 10);
 }
 
-function isMemoryCacheFresh(now = Date.now()): boolean {
+function isMemoryCacheFresh(now = testNowOverride ?? Date.now()): boolean {
   return memoryCache != null && now - memoryCache.fetchedAt < EXCHANGE_RATE_TTL_MS;
 }
 
@@ -72,44 +106,99 @@ async function fetchUsdToKrwFromApi(): Promise<number> {
   return krw;
 }
 
-function applyFetchedRate(usdToKrw: number, source: DailyRateCache["source"], fetchedAt = Date.now()): number {
-  memoryCache = { usdToKrw, fetchedAt, source };
-  // daily lock is set only via ensureDailySnapshot — not here
-  return usdToKrw;
+function rememberPreviousSuccessfulSnapshot(snapshot: LockedDailyBillingSnapshot): void {
+  if (snapshot.source === "emergency_fallback") return;
+  previousSuccessfulDailySnapshot = snapshot;
 }
 
-async function ensureDailySnapshot(dateKey: string): Promise<DailyRateCache> {
-  if (dailyCache?.dateKey === dateKey) return dailyCache;
-  // Try fresh fetch
+/** Sync lock — first billing resolution for dateKey sets immutable lockedDailyBillingSnapshot. */
+function lockDailyBillingSnapshot(dateKey: string): LockedDailyBillingSnapshot {
+  if (lockedDailyBillingSnapshot?.dateKey === dateKey) {
+    return lockedDailyBillingSnapshot;
+  }
+
+  let snap: LockedDailyBillingSnapshot;
+  if (prefetchedCandidate?.dateKey === dateKey && prefetchedCandidate.usdToKrw > 0) {
+    snap = {
+      dateKey,
+      usdToKrw: prefetchedCandidate.usdToKrw,
+      fetchedAt: prefetchedCandidate.fetchedAt,
+      source: "api_daily",
+    };
+  } else if (lockedDailyBillingSnapshot && lockedDailyBillingSnapshot.usdToKrw > 0) {
+    snap = {
+      dateKey,
+      usdToKrw: lockedDailyBillingSnapshot.usdToKrw,
+      fetchedAt: Date.now(),
+      source: "previous_daily_snapshot",
+    };
+  } else if (previousSuccessfulDailySnapshot && previousSuccessfulDailySnapshot.usdToKrw > 0) {
+    snap = {
+      dateKey,
+      usdToKrw: previousSuccessfulDailySnapshot.usdToKrw,
+      fetchedAt: Date.now(),
+      source: "previous_daily_snapshot",
+    };
+  } else if (memoryCache && memoryCache.usdToKrw > 0) {
+    snap = {
+      dateKey,
+      usdToKrw: memoryCache.usdToKrw,
+      fetchedAt: Date.now(),
+      source: "previous_daily_snapshot",
+    };
+  } else {
+    snap = {
+      dateKey,
+      usdToKrw: EXCHANGE_RATE_FALLBACK_KRW,
+      fetchedAt: Date.now(),
+      source: "emergency_fallback",
+    };
+  }
+
+  lockedDailyBillingSnapshot = snap;
+  rememberPreviousSuccessfulSnapshot(snap);
+  return snap;
+}
+
+async function prefetchFreshCandidate(dateKey: string): Promise<void> {
   try {
     const usdToKrw = await fetchUsdToKrwFromApi();
-    const snap: DailyRateCache = { dateKey, usdToKrw, fetchedAt: Date.now(), source: "api_daily" };
-    dailyCache = snap;
-    memoryCache = { usdToKrw, fetchedAt: snap.fetchedAt, source: "api_daily" };
-    return snap;
-  } catch {
-    if (dailyCache && dailyCache.dateKey !== dateKey) {
-      // carry previous successful daily
-      const snap: DailyRateCache = { dateKey, usdToKrw: dailyCache.usdToKrw, fetchedAt: Date.now(), source: "previous_daily_snapshot" };
-      dailyCache = snap;
-      return snap;
+    const fetchedAt = Date.now();
+    prefetchedCandidate = { dateKey, usdToKrw, fetchedAt };
+    memoryCache = { usdToKrw, fetchedAt, source: "api_daily" };
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[exchangeRate] prefetched candidate", {
+        dateKey,
+        usdToKrw,
+        lockedDateKey: lockedDailyBillingSnapshot?.dateKey ?? null,
+      });
     }
-    if (memoryCache) {
-      const snap: DailyRateCache = { dateKey, usdToKrw: memoryCache.usdToKrw, fetchedAt: Date.now(), source: "previous_daily_snapshot" };
-      dailyCache = snap;
-      return snap;
-    }
-    const snap: DailyRateCache = { dateKey, usdToKrw: EXCHANGE_RATE_FALLBACK_KRW, fetchedAt: Date.now(), source: "emergency_fallback" };
-    dailyCache = snap;
-    memoryCache = { usdToKrw: EXCHANGE_RATE_FALLBACK_KRW, fetchedAt: snap.fetchedAt, source: "emergency_fallback" };
-    return snap;
+  } catch (err) {
+    console.warn("[exchangeRate] prefetch failed — candidate unchanged", (err as Error).message);
   }
+}
+
+function schedulePrefetchIfNeeded(dateKey: string): void {
+  if (refreshPromise) return;
+  const needsPrefetch =
+    resolveExchangeRateMode() === "daily_kst"
+      ? prefetchedCandidate?.dateKey !== dateKey
+      : !isMemoryCacheFresh();
+  if (!needsPrefetch) return;
+  refreshPromise = prefetchFreshCandidate(dateKey).finally(() => {
+    refreshPromise = null;
+  });
 }
 
 async function refreshExchangeRateInternal(): Promise<number> {
   const dateKey = getKstDateKey();
-  const snap = await ensureDailySnapshot(dateKey);
-  return snap.usdToKrw;
+  schedulePrefetchIfNeeded(dateKey);
+  if (resolveExchangeRateMode() === "daily_kst") {
+    return lockDailyBillingSnapshot(dateKey).usdToKrw;
+  }
+  if (isMemoryCacheFresh() && memoryCache) return memoryCache.usdToKrw;
+  await prefetchFreshCandidate(dateKey);
+  return memoryCache?.usdToKrw ?? EXCHANGE_RATE_FALLBACK_KRW;
 }
 
 /**
@@ -118,25 +207,28 @@ async function refreshExchangeRateInternal(): Promise<number> {
  */
 export async function getRealTimeExchangeRate(): Promise<number> {
   const dateKey = getKstDateKey();
-  if (resolveExchangeRateMode() === "daily_kst" && dailyCache?.dateKey === dateKey) {
-    return dailyCache.usdToKrw;
+  if (resolveExchangeRateMode() === "daily_kst") {
+    schedulePrefetchIfNeeded(dateKey);
+    return lockDailyBillingSnapshot(dateKey).usdToKrw;
   }
-  if (isMemoryCacheFresh() && resolveExchangeRateMode() === "realtime" && memoryCache) return memoryCache.usdToKrw;
-  if (!refreshPromise) refreshPromise = refreshExchangeRateInternal().finally(() => { refreshPromise = null; });
-  return refreshPromise;
+  if (isMemoryCacheFresh() && memoryCache) return memoryCache.usdToKrw;
+  if (!refreshPromise) {
+    refreshPromise = prefetchFreshCandidate(dateKey).finally(() => {
+      refreshPromise = null;
+    });
+  }
+  await refreshPromise;
+  return memoryCache?.usdToKrw ?? EXCHANGE_RATE_FALLBACK_KRW;
 }
 
 function resolveDailyKstUsdToKrw(): number {
   const dateKey = getKstDateKey();
-  if (dailyCache?.dateKey === dateKey) return dailyCache.usdToKrw;
-  // lazy init without blocking — return previous or fallback, refresh in background non-blocking for shadow
-  void ensureDailySnapshot(dateKey).catch(() => {});
-  if (dailyCache) return dailyCache.usdToKrw;
-  if (memoryCache) return memoryCache.usdToKrw;
-  return EXCHANGE_RATE_FALLBACK_KRW;
+  schedulePrefetchIfNeeded(dateKey);
+  return lockDailyBillingSnapshot(dateKey).usdToKrw;
 }
 
 function resolveRealtimeUsdToKrw(): number {
+  schedulePrefetchIfNeeded(getKstDateKey());
   if (isMemoryCacheFresh() && memoryCache) return memoryCache.usdToKrw;
   if (memoryCache) return memoryCache.usdToKrw;
   return EXCHANGE_RATE_FALLBACK_KRW;
@@ -147,21 +239,25 @@ export function getCachedUsdToKrwRate(): number {
   return resolveExchangeRateMode() === "daily_kst" ? resolveDailyKstUsdToKrw() : resolveRealtimeUsdToKrw();
 }
 
-/** 과금·영수증 스냅샷 — USD→KRW×2% 단일 적용, 동일 턴에서는 1 snapshot만 사용 */
+/** 과금·영수증 스냅샷 — USD→KRW×2% 단일 적용, 동일 KST date에서는 1 snapshot만 사용 */
 export function resolveBillingExchangeRateSnapshot(): BillingExchangeRateSnapshot {
   const mode = resolveExchangeRateMode();
-  const usdToKrw = getCachedUsdToKrwRate();
   const dateKey = getKstDateKey();
-  // Ensure daily lock exists; source reflects actual lock source
-  let source: BillingExchangeRateSnapshot["source"] = "emergency_fallback";
-  if (dailyCache?.dateKey === dateKey) source = dailyCache.source;
-  else if (memoryCache) source = memoryCache.source as BillingExchangeRateSnapshot["source"];
+  const locked =
+    mode === "daily_kst"
+      ? lockDailyBillingSnapshot(dateKey)
+      : {
+          dateKey,
+          usdToKrw: resolveRealtimeUsdToKrw(),
+          fetchedAt: memoryCache?.fetchedAt ?? Date.now(),
+          source: (memoryCache?.source ?? "emergency_fallback") as BillingFxSource,
+        };
   return {
     mode,
     dateKey,
-    usdToKrw,
-    effectiveKrwPerUsd: applyOverseasCardFee(usdToKrw),
-    source,
+    usdToKrw: locked.usdToKrw,
+    effectiveKrwPerUsd: applyOverseasCardFee(locked.usdToKrw),
+    source: locked.source,
     overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
   };
 }
@@ -182,7 +278,12 @@ export function convertUsdToKrw(
 
 export function formatExchangeRateLabel(snapshot: BillingExchangeRateSnapshot): string {
   const modeLabel = snapshot.mode === "daily_kst" ? `KST ${snapshot.dateKey} 고정` : "실시간(1h 캐시)";
-  const sourceLabel = snapshot.source === "api_daily" ? "API" : snapshot.source === "previous_daily_snapshot" ? "previous" : "fallback";
+  const sourceLabel =
+    snapshot.source === "api_daily"
+      ? "API"
+      : snapshot.source === "previous_daily_snapshot"
+        ? "previous"
+        : "fallback";
   return `${modeLabel} · ₩${Math.round(snapshot.effectiveKrwPerUsd).toLocaleString()}/USD (${sourceLabel})`;
 }
 
@@ -196,21 +297,57 @@ export function getExchangeRateCacheStatus() {
   return {
     mode: snapshot.mode,
     dateKey: snapshot.dateKey,
-    valid: isMemoryCacheFresh() || dailyCache?.dateKey === snapshot.dateKey,
+    valid: isMemoryCacheFresh() || lockedDailyBillingSnapshot?.dateKey === snapshot.dateKey,
     usdToKrw: snapshot.usdToKrw,
     effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
     source: snapshot.source,
     overseasFeeRate: snapshot.overseasFeeRate,
-    fetchedAt: dailyCache?.fetchedAt ?? memoryCache?.fetchedAt ?? null,
+    fetchedAt: lockedDailyBillingSnapshot?.fetchedAt ?? memoryCache?.fetchedAt ?? null,
+    prefetchedCandidateDateKey: prefetchedCandidate?.dateKey ?? null,
+    prefetchedCandidateUsdToKrw: prefetchedCandidate?.usdToKrw ?? null,
   };
 }
 
 // Test injection — does not affect production behavior when unused
-export function _setExchangeRateForTest(opts: { dateKey: string; usdToKrw: number; source: DailyRateCache["source"] }): void {
-  dailyCache = { dateKey: opts.dateKey, usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: opts.source };
-  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: opts.source };
+export function _setKstNowForTest(now: number | null): void {
+  testNowOverride = now;
 }
+
+export function _setExchangeRateForTest(opts: { dateKey: string; usdToKrw: number; source: BillingFxSource }): void {
+  lockedDailyBillingSnapshot = {
+    dateKey: opts.dateKey,
+    usdToKrw: opts.usdToKrw,
+    fetchedAt: Date.now(),
+    source: opts.source,
+  };
+  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: opts.source };
+  rememberPreviousSuccessfulSnapshot(lockedDailyBillingSnapshot);
+}
+
+export function _setPrefetchedCandidateForTest(opts: { dateKey: string; usdToKrw: number }): void {
+  prefetchedCandidate = { dateKey: opts.dateKey, usdToKrw: opts.usdToKrw, fetchedAt: Date.now() };
+  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: "api_daily" };
+}
+
+export function _setPreviousDailySnapshotForTest(opts: { dateKey: string; usdToKrw: number }): void {
+  previousSuccessfulDailySnapshot = {
+    dateKey: opts.dateKey,
+    usdToKrw: opts.usdToKrw,
+    fetchedAt: Date.now(),
+    source: "api_daily",
+  };
+}
+
+export function _simulateBackgroundFetchSuccessForTest(opts: { dateKey: string; usdToKrw: number }): void {
+  prefetchedCandidate = { dateKey: opts.dateKey, usdToKrw: opts.usdToKrw, fetchedAt: Date.now() };
+  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: "api_daily" };
+}
+
 export function _clearExchangeRateCacheForTest(): void {
-  dailyCache = null;
+  lockedDailyBillingSnapshot = null;
+  prefetchedCandidate = null;
+  previousSuccessfulDailySnapshot = null;
   memoryCache = null;
+  refreshPromise = null;
+  testNowOverride = null;
 }
