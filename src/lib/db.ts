@@ -27,6 +27,7 @@ import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
+import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlement";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
@@ -1269,6 +1270,7 @@ function migrate(db: Database.Database) {
       ON point_transactions(user_id, point_type, expires_at);
   `);
   migratePointsLedger(db);
+  ensureChatBillingSettlementSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS comments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

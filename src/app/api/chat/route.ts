@@ -40,7 +40,8 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
@@ -5580,22 +5581,24 @@ export async function POST(req: Request) {
 
         let balanceAfter = getPointBalance(user.id);
         let deductSlices: DeductionSlice[] = [];
-        if (cost > 0 && !alreadyBilledForRequest) {
-          const modelName = usageRecord.modelLabel ?? usageRecord.model ?? "알 수 없음";
-          const deducted = deductPoints(
-            user.id,
-            cost,
-            `대화 · ${modelName} (입력토큰 ${totalInput.toLocaleString()} / 출력토큰 ${totalOutput.toLocaleString()})`,
-            { messageId: aiMessageId, chatId: chatRef.id }
-          );
-          balanceAfter = deducted.balance;
-          deductSlices = deducted.slices;
-          db.prepare("UPDATE messages SET deduction_slices=? WHERE id=?").run(
-            JSON.stringify(deductSlices),
-            aiMessageId
-          );
+        const modelName = usageRecord.modelLabel ?? usageRecord.model ?? "알 수 없음";
+        const billingReason =
+          cost > 0
+            ? `대화 · ${modelName} (입력토큰 ${totalInput.toLocaleString()} / 출력토큰 ${totalOutput.toLocaleString()})`
+            : `대화 · ${modelName} (0P)`;
+        const settlement = settleChatTurnBillingExactlyOnce(db, {
+          userId: user.id,
+          chatId: chatRef.id,
+          requestId: clientRequestId,
+          assistantMessageId: aiMessageId,
+          requestedPoints: cost,
+          reason: billingReason,
+        });
+        balanceAfter = settlement.balance;
+        deductSlices = settlement.slices;
+        if (settlement.appliedNewCharge) {
           try {
-            const paidRewardSpend = paidCreatorRewardSpend(deductSlices);
+            const paidRewardSpend = paidCreatorRewardSpend(settlement.slices);
             maybeCreditCreatorReward({
               creatorId: ch.creator_id,
               official: ch.official ?? 0,
@@ -5607,12 +5610,15 @@ export async function POST(req: Request) {
           } catch (rewardErr) {
             console.error("[/api/chat] creator reward skipped:", (rewardErr as Error).message);
           }
-        } else if (alreadyBilledForRequest) {
+        } else if (settlement.duplicate) {
           console.info("[StreamingPersistence] skip duplicate billing", {
             requestId: clientRequestId,
             messageId: aiMessageId,
+            settledPoints: settlement.settledPoints,
+            source: settlement.source,
           });
         }
+        const canonicalBillingCost = settlement.settledPoints;
 
         if (adultHandoffCanaryAccess && userMessageId != null) {
           try {
@@ -5647,10 +5653,8 @@ export async function POST(req: Request) {
               visibleCharacters: savedText.length,
               finishReason: primaryStage?.finishReason ?? undefined,
               assistantRowsWritten,
-              pointChargeCount:
-                cost > 0 && !alreadyBilledForRequest ? 1 : 0,
-              chargedPoints:
-                cost > 0 && !alreadyBilledForRequest ? cost : 0,
+              pointChargeCount: settlement.appliedNewCharge ? 1 : 0,
+              chargedPoints: settlement.appliedNewCharge ? settlement.settledPoints : 0,
               promptLeakDetected: detectAdultSceneHandoffPromptLeak(savedText),
               duplicateStreamDetected: assistantRowsWritten !== 1,
               totalLatencyMs: Date.now() - requestStartedAt,
@@ -5804,8 +5808,8 @@ export async function POST(req: Request) {
           userMessageId,
           requestId: clientRequestId,
           mode: nextMode,
-          cost,
-          totalPointsCost: cost,
+          cost: canonicalBillingCost,
+          totalPointsCost: canonicalBillingCost,
           remainingPoints: balanceAfter.total,
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,

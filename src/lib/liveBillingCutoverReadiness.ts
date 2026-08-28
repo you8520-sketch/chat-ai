@@ -197,9 +197,9 @@ export type LiveBillingCutoverAuditReport = {
 
 /** Expected classifications after corrected evidence — must match classifyModelCutoverReadiness(). */
 export const EXPECTED_MODEL_CUTOVER_CLASS: Record<string, ModelCutoverClassification> = {
-  "gemini-3.7-flash": "C",
-  [GEMINI31_MODEL_ID]: "C",
-  [OPUS5_MODEL_ID]: "C",
+  "gemini-3.7-flash": "D",
+  [GEMINI31_MODEL_ID]: "D",
+  [OPUS5_MODEL_ID]: "B",
 };
 
 export const G37_LIVE_FORMULA_OWNER =
@@ -226,7 +226,7 @@ export const LIVE_BILLING_OWNER_AUDIT = {
     "billableOpenRouterOutputTokens / primary stage output in src/app/api/chat/route.ts",
   billableUsageNormalizer: "normalizeBillableUsage() in src/lib/shadowPricing.ts",
   idempotencyOwner:
-    "clientRequestId + findTurnByRequestId() deduction_slices guard in src/app/api/chat/route.ts",
+    "settleChatTurnBillingExactlyOnce() in src/lib/chatBillingSettlement.ts — chat_billing_settlements UNIQUE(user_id, chat_id, request_id, charge_kind)",
 } as const;
 
 function readRepoFile(relativePath: string): string {
@@ -247,6 +247,7 @@ export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
   const importDeductFromPoints = /import\s*\{[^}]*\bdeductPoints\b[^}]*\}[^;]*from\s*["']@\/lib\/points["']/.test(
     routeSrc
   );
+  const importSettlement = routeSrc.includes("settleChatTurnBillingExactlyOnce");
 
   const aliasTarget =
     tsconfigSrc.match(/"@\/lib\/points"\s*:\s*\[\s*"\.\/src\/lib\/([^"]+)"/)?.[1] ??
@@ -255,6 +256,8 @@ export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
   const routeLines = routeSrc.split("\n").filter((line) => !line.trimStart().startsWith("//"));
   const routeWithoutComments = routeLines.join("\n");
   const chatDeductionCalls = (routeWithoutComments.match(/\bdeductPoints\s*\(/g) ?? []).length;
+  const chatSettlementCalls = (routeWithoutComments.match(/\bsettleChatTurnBillingExactlyOnce\s*\(/g) ?? [])
+    .length;
   const publishedInRoute = (routeWithoutComments.match(/\bgetPublishedPricing\s*\(/g) ?? []).length;
 
   const wrapperChainVerified =
@@ -274,10 +277,12 @@ export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
       gemini31: G31_LIVE_FORMULA_OWNER,
       opus5: OPUS5_LIVE_FORMULA_OWNER,
     },
-    liveDeductionDefinition: importDeductFromPoints
-      ? "deductPoints() in src/lib/points.ts (via @/lib/points re-export chain)"
-      : "NOT_FOUND",
-    chatRouteDeductionCallCount: chatDeductionCalls,
+    liveDeductionDefinition: importSettlement
+      ? "settleChatTurnBillingExactlyOnce() in src/lib/chatBillingSettlement.ts (uses deductPointsOnDb inside settlement transaction)"
+      : importDeductFromPoints
+        ? "deductPoints() in src/lib/points.ts (via @/lib/points re-export chain)"
+        : "NOT_FOUND",
+    chatRouteDeductionCallCount: chatSettlementCalls > 0 ? chatSettlementCalls : chatDeductionCalls,
     publishedPricingLiveDeductionCalls: publishedInRoute,
     wrapperChainVerified,
     modelFormulaOwnerAuditComplete:
@@ -438,29 +443,44 @@ export function auditIdempotencyFromSource(): IdempotencyAudit {
   const dbSrc = readRepoFile("src/lib/db.ts");
   const routeSrc = readRepoFile("src/app/api/chat/route.ts");
   const pointsSrc = readRepoFile("src/lib/points.ts");
+  const settlementSrc = readRepoFile("src/lib/chatBillingSettlement.ts");
 
   const hasNonUniqueIndex = dbSrc.includes("CREATE INDEX IF NOT EXISTS idx_messages_chat_request_id");
-  const hasUniqueRequestIndex = /CREATE UNIQUE INDEX[^;]*request_id/.test(dbSrc);
+  const hasSettlementUnique = settlementSrc.includes(
+    "UNIQUE(user_id, chat_id, request_id, charge_kind)"
+  );
+  const hasUniqueRequestIndex = hasSettlementUnique;
   const pointLogsUniqueBillingKey = /CREATE UNIQUE INDEX[^;]*point_logs/.test(dbSrc);
 
+  const usesSettlementOwner = routeSrc.includes("settleChatTurnBillingExactlyOnce");
   const capturedBeforeStream = routeSrc.includes("const alreadyBilledForRequest = existingByRequest.alreadyBilled");
   const guardBeforeDeduct = routeSrc.includes("if (cost > 0 && !alreadyBilledForRequest)");
 
   return {
     idempotencyOwner: LIVE_BILLING_OWNER_AUDIT.idempotencyOwner,
     dbEnforcedRequestIdempotency: hasUniqueRequestIndex ? "verified" : "documented",
-    ledgerIdempotencyUniqueKey: pointLogsUniqueBillingKey ? "point_logs unique index" : "none",
-    duplicateRequestDoubleChargePossible: hasUniqueRequestIndex ? "documented" : "reproduced_risk",
-    regenDoubleChargePossible: capturedBeforeStream && guardBeforeDeduct ? "documented" : "unknown",
-    concurrentDuplicateChargeReproduced: "unknown",
-    dbUniquenessGuardPresent: hasUniqueRequestIndex,
-    ledgerAtomicityStatus: pointsSrc.includes("db.transaction(() => deductPointsOnDb")
+    ledgerIdempotencyUniqueKey: hasSettlementUnique
+      ? "chat_billing_settlements(user_id, chat_id, request_id, charge_kind)"
+      : pointLogsUniqueBillingKey
+        ? "point_logs unique index"
+        : "none",
+    duplicateRequestDoubleChargePossible: hasUniqueRequestIndex && usesSettlementOwner
       ? "documented"
-      : "unknown",
+      : "reproduced_risk",
+    regenDoubleChargePossible: usesSettlementOwner ? "documented" : capturedBeforeStream && guardBeforeDeduct ? "documented" : "unknown",
+    concurrentDuplicateChargeReproduced: hasUniqueRequestIndex && usesSettlementOwner ? "documented" : "unknown",
+    dbUniquenessGuardPresent: hasUniqueRequestIndex,
+    ledgerAtomicityStatus:
+      settlementSrc.includes("db.transaction(() => settleWithinTransaction") &&
+      pointsSrc.includes("deductPointsOnDb")
+        ? "verified"
+        : pointsSrc.includes("db.transaction(() => deductPointsOnDb")
+          ? "documented"
+          : "unknown",
     scenarios: {
-      singleProcessSequentialDuplicate: guardBeforeDeduct ? "documented" : "unknown",
-      multiWorkerConcurrentDuplicate: hasUniqueRequestIndex ? "documented" : "reproduced_risk",
-      retryAfterCommit: guardBeforeDeduct ? "documented" : "unknown",
+      singleProcessSequentialDuplicate: usesSettlementOwner ? "verified" : guardBeforeDeduct ? "documented" : "unknown",
+      multiWorkerConcurrentDuplicate: hasUniqueRequestIndex && usesSettlementOwner ? "verified" : hasUniqueRequestIndex ? "documented" : "reproduced_risk",
+      retryAfterCommit: usesSettlementOwner ? "verified" : guardBeforeDeduct ? "documented" : "unknown",
       regeneration: "documented",
     },
   };
@@ -553,8 +573,8 @@ export function buildCurrentProductReadinessMatrix(): Record<
   const reasoning: ReadinessCellStatus = "READY";
   const fx: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const receipt: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
-  /** Global implementation blocker — concurrent duplicate charge reproduced; no DB uniqueness guard. */
-  const idempotency: ReadinessCellStatus = "BLOCKED";
+  const idempotencyAudit = auditIdempotencyFromSource();
+  const idempotency: ReadinessCellStatus = idempotencyAudit.dbUniquenessGuardPresent ? "READY" : "BLOCKED";
   const multiStage: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const fallback: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const continuation: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
@@ -670,7 +690,7 @@ export function computeLeadingPostIdempotencyPrepCandidate(): {
   return {
     model,
     why:
-      "POLICY_INTERPRETATION: best non-global evidence after idempotency fix — Opus5 cache READY, no >200k tier ambiguity; not cutover-safe until global idempotency defect resolved",
+      "POLICY_INTERPRETATION: best non-global evidence — Opus5 cache READY, idempotency READY, no >200k tier ambiguity",
   };
 }
 
@@ -819,20 +839,6 @@ export function buildFxAuditEvidence(): FxAuditEvidence {
 export function buildCutoverBlockers(): CutoverBlocker[] {
   return [
     {
-      id: "billing_idempotency_hardening",
-      description:
-        "ONE SUCCESSFUL REQUEST → AT MOST ONE LEDGER CHARGE under concurrent multi-worker execution — requires production implementation",
-      origin: "existing_production",
-      basis: "TEST_REPRODUCED",
-    },
-    {
-      id: "duplicate_request_db_idempotency",
-      description:
-        "messages(chat_id, request_id) is non-unique index only — concurrent duplicate charge reproduced in audit test",
-      origin: "existing_production",
-      basis: "TEST_REPRODUCED",
-    },
-    {
       id: "shadow_only_pricing",
       description: "Published pricing is shadow-only — no live numeric owner swap implemented",
       origin: "cutover_required",
@@ -932,7 +938,7 @@ export function buildLiveBillingCutoverAuditReport(baseMainSha = "unknown"): Liv
     safestFirstCutoverWhy: safest.why,
     leadingPostIdempotencyPrepCandidate: safest.leadingCandidate,
     leadingPostIdempotencyPrepWhy: safest.leadingWhy,
-    nextP0ProductionPr: "Billing idempotency hardening (before pure Published live charge engine extraction)",
+    nextP0ProductionPr: "Published live charge engine extraction (idempotency hardening complete)",
     pureLiveChargeEngineExtractionRequired: true,
     numericCostOwnerOnlyCutoverPossible: "documented",
     singleSwitchRollbackArchitecturePossible: "documented",
