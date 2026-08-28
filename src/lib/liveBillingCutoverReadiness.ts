@@ -99,16 +99,27 @@ export type DimensionAssessment = {
 };
 
 export type BillingOwnerSourceAudit = {
-  chatRouteComputeTurnBillingImport: string;
-  chatRouteDeductPointsImport: string;
-  chatRouteComputeTurnBillingOwner: string;
-  canonicalComputeTurnBillingDefinition: string;
-  otherComputeTurnBillingDefinitions: string[];
-  otherDefinitionReachableFromChatRoute: boolean;
+  chatRouteImportSpecifier: string;
+  runtimeEntrypointModule: string;
+  fallbackChain: string[];
+  modelFormulaOwners: {
+    gemini37: string;
+    gemini31: string;
+    opus5: string;
+  };
+  liveDeductionDefinition: string;
   chatRouteDeductionCallCount: number;
   publishedPricingLiveDeductionCalls: number;
-  currentDeductionOwnerCount: number;
+  wrapperChainVerified: boolean;
+  modelFormulaOwnerAuditComplete: boolean;
   ownerAuditSelfAssertionOnly: false;
+};
+
+export type ModelBillingDispatchAudit = {
+  gemini37UsesUnifiedReasoningBranch: boolean;
+  gemini31UsesUnifiedReasoningBranch: boolean;
+  opus5UsesUnifiedReasoningBranch: boolean;
+  gemini37HasGemini37FlashPricingBreakdown: boolean;
 };
 
 export type IdempotencyAudit = {
@@ -140,7 +151,9 @@ export type FxAuditEvidence = {
 export type LiveBillingCutoverAuditReport = {
   baseMainSha: string;
   auditVersion: string;
-  liveUserChargeCalculationOwner: string;
+  liveBillingImportSpecifier: string;
+  liveBillingRuntimeEntrypoint: string;
+  liveBillingFallbackChain: readonly string[];
   livePointDeductionOwner: string;
   billingOwnerAudit: BillingOwnerSourceAudit;
   reachability: {
@@ -173,6 +186,9 @@ export type LiveBillingCutoverAuditReport = {
   classification: Record<string, ModelCutoverClassification>;
   safestFirstCutoverModel: string;
   safestFirstCutoverWhy: string;
+  leadingPostIdempotencyPrepCandidate: string;
+  leadingPostIdempotencyPrepWhy: string;
+  nextP0ProductionPr: string;
   pureLiveChargeEngineExtractionRequired: boolean;
   numericCostOwnerOnlyCutoverPossible: AuditEvidenceStatus;
   singleSwitchRollbackArchitecturePossible: AuditEvidenceStatus;
@@ -181,15 +197,27 @@ export type LiveBillingCutoverAuditReport = {
 
 /** Expected classifications after corrected evidence — must match classifyModelCutoverReadiness(). */
 export const EXPECTED_MODEL_CUTOVER_CLASS: Record<string, ModelCutoverClassification> = {
-  "gemini-3.7-flash": "D",
-  [GEMINI31_MODEL_ID]: "D",
-  [OPUS5_MODEL_ID]: "B",
+  "gemini-3.7-flash": "C",
+  [GEMINI31_MODEL_ID]: "C",
+  [OPUS5_MODEL_ID]: "C",
 };
 
+export const G37_LIVE_FORMULA_OWNER =
+  "pointsReasoningMargins.ts → not unified → pointsMuse60.ts → points.ts → gemini37FlashPricing.ts (computeGemini37FlashUserChargePoints)";
+export const G31_LIVE_FORMULA_OWNER =
+  "pointsReasoningMargins.ts → unified reasoning branch (computeReasoningPointCost / computeOpenRouterTurnBilling)";
+export const OPUS5_LIVE_FORMULA_OWNER =
+  "pointsReasoningMargins.ts → unified reasoning branch (computeReasoningPointCost / computeOpenRouterTurnBilling)";
+
 export const LIVE_BILLING_OWNER_AUDIT = {
-  liveUserChargeCalculationOwner:
-    "POST /api/chat → computeTurnBilling() → src/lib/points.ts (canonical definition; chat route imports @/lib/points alias)",
-  livePointDeductionOwner: "deductPoints() in src/lib/points.ts",
+  liveBillingImportSpecifier: "@/lib/points",
+  liveBillingRuntimeEntrypoint: "src/lib/pointsReasoningMargins.ts",
+  liveBillingFallbackChain: [
+    "pointsReasoningMargins.ts",
+    "pointsMuse60.ts",
+    "points.ts",
+  ] as const,
+  livePointDeductionOwner: "deductPoints() in src/lib/points.ts (re-exported via wrapper chain)",
   shadowDiagnosticsOwner:
     "computeShadowPricing() in src/lib/shadowPricing.ts — admin-only, never sets cost",
   billableStageSelectionOwner: "selectBillableStages() in src/lib/points.ts",
@@ -229,29 +257,86 @@ export function auditBillingOwnersFromSource(): BillingOwnerSourceAudit {
   const chatDeductionCalls = (routeWithoutComments.match(/\bdeductPoints\s*\(/g) ?? []).length;
   const publishedInRoute = (routeWithoutComments.match(/\bgetPublishedPricing\s*\(/g) ?? []).length;
 
-  const otherDefs: string[] = [];
-  if (/export function computeTurnBilling/.test(pointsReasoningSrc)) {
-    otherDefs.push("src/lib/pointsReasoningMargins.ts");
-  }
-  if (/export function computeTurnBilling/.test(pointsMuse60Src)) {
-    otherDefs.push("src/lib/pointsMuse60.ts");
-  }
-
-  const reachableFromChat =
+  const wrapperChainVerified =
     aliasTarget === "pointsReasoningMargins" &&
+    /import \* as core from "\.\/pointsMuse60"/.test(pointsReasoningSrc) &&
+    /import \* as core from "\.\/points"/.test(pointsMuse60Src) &&
     /return core\.computeTurnBilling\(opts\)/.test(pointsReasoningSrc);
 
+  const dispatch = auditModelBillingDispatchFromFixtures();
+
   return {
-    chatRouteComputeTurnBillingImport: importFromPoints ? "@/lib/points" : "NOT_FOUND",
-    chatRouteDeductPointsImport: importDeductFromPoints ? "@/lib/points" : "NOT_FOUND",
-    chatRouteComputeTurnBillingOwner: `src/lib/${aliasTarget}.ts (tsconfig alias for @/lib/points)`,
-    canonicalComputeTurnBillingDefinition: "src/lib/points.ts",
-    otherComputeTurnBillingDefinitions: otherDefs,
-    otherDefinitionReachableFromChatRoute: reachableFromChat,
+    chatRouteImportSpecifier: importFromPoints ? "@/lib/points" : "NOT_FOUND",
+    runtimeEntrypointModule: `src/lib/${aliasTarget}.ts`,
+    fallbackChain: ["pointsReasoningMargins.ts", "pointsMuse60.ts", "points.ts"],
+    modelFormulaOwners: {
+      gemini37: G37_LIVE_FORMULA_OWNER,
+      gemini31: G31_LIVE_FORMULA_OWNER,
+      opus5: OPUS5_LIVE_FORMULA_OWNER,
+    },
+    liveDeductionDefinition: importDeductFromPoints
+      ? "deductPoints() in src/lib/points.ts (via @/lib/points re-export chain)"
+      : "NOT_FOUND",
     chatRouteDeductionCallCount: chatDeductionCalls,
     publishedPricingLiveDeductionCalls: publishedInRoute,
-    currentDeductionOwnerCount: chatDeductionCalls === 1 ? 1 : chatDeductionCalls,
+    wrapperChainVerified,
+    modelFormulaOwnerAuditComplete:
+      wrapperChainVerified &&
+      !dispatch.gemini37UsesUnifiedReasoningBranch &&
+      dispatch.gemini31UsesUnifiedReasoningBranch &&
+      dispatch.opus5UsesUnifiedReasoningBranch &&
+      dispatch.gemini37HasGemini37FlashPricingBreakdown,
     ownerAuditSelfAssertionOnly: false,
+  };
+}
+
+/** Deterministic billing fixture dispatch — proves model-specific formula routing. */
+export function auditModelBillingDispatchFromFixtures(): ModelBillingDispatchAudit {
+  const fixture = {
+    provider: "cheaperinference" as const,
+    inputTokens: 40_000,
+    outputTokens: 4_000,
+    completedTurnsBeforeRequest: 0,
+  };
+  const g37 = computeTurnBilling({
+    ...fixture,
+    openRouterModelId: "gemini-3.7-flash",
+  });
+  const g31 = computeTurnBilling({
+    ...fixture,
+    openRouterModelId: GEMINI31_MODEL_ID,
+  });
+  const opus = computeTurnBilling({
+    ...fixture,
+    openRouterModelId: OPUS5_MODEL_ID,
+  });
+  return {
+    gemini37UsesUnifiedReasoningBranch: g37.gemini37FlashPricing == null,
+    gemini37HasGemini37FlashPricingBreakdown: g37.gemini37FlashPricing != null,
+    gemini31UsesUnifiedReasoningBranch:
+      g31.gemini37FlashPricing == null && g31.modelId === GEMINI31_MODEL_ID,
+    opus5UsesUnifiedReasoningBranch:
+      opus.gemini37FlashPricing == null && opus.modelId === OPUS5_MODEL_ID,
+  };
+}
+
+/** Source-backed wrapper chain verification for tests. */
+export function auditWrapperChainFromSource(): {
+  tsconfigAliasTarget: string;
+  pointsReasoningImportsMuse60: boolean;
+  pointsMuse60ImportsPoints: boolean;
+  pointsReasoningDelegatesToCore: boolean;
+} {
+  const tsconfigSrc = readRepoFile("tsconfig.json");
+  const pointsReasoningSrc = readRepoFile("src/lib/pointsReasoningMargins.ts");
+  const pointsMuse60Src = readRepoFile("src/lib/pointsMuse60.ts");
+  const aliasTarget =
+    tsconfigSrc.match(/"@\/lib\/points"\s*:\s*\[\s*"\.\/src\/lib\/([^"]+)"/)?.[1] ?? "";
+  return {
+    tsconfigAliasTarget: aliasTarget,
+    pointsReasoningImportsMuse60: /import \* as core from "\.\/pointsMuse60"/.test(pointsReasoningSrc),
+    pointsMuse60ImportsPoints: /import \* as core from "\.\/points"/.test(pointsMuse60Src),
+    pointsReasoningDelegatesToCore: /return core\.computeTurnBilling\(opts\)/.test(pointsReasoningSrc),
   };
 }
 
@@ -463,16 +548,13 @@ export function buildCurrentProductReadinessMatrix(): Record<
   const g31Cache = assessGemini31CacheReachability();
   const g37Cache = assessGemini37CacheReachability();
   const opusCache = assessOpusCacheReachability();
-  const idempotencyAudit = auditIdempotencyFromSource();
 
   const baseUncached: ReadinessCellStatus = "READY";
   const reasoning: ReadinessCellStatus = "READY";
   const fx: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const receipt: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
-  const idempotency: ReadinessCellStatus =
-    idempotencyAudit.duplicateRequestDoubleChargePossible === "reproduced_risk"
-      ? "POLICY_DECISION_REQUIRED"
-      : "READY";
+  /** Global implementation blocker — concurrent duplicate charge reproduced; no DB uniqueness guard. */
+  const idempotency: ReadinessCellStatus = "BLOCKED";
   const multiStage: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const fallback: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const continuation: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
@@ -567,9 +649,48 @@ export function classifyModelCutoverReadiness(modelId: string): ModelCutoverClas
 
 const CLASS_RANK: Record<ModelCutoverClassification, number> = { A: 4, B: 3, C: 2, D: 1 };
 
+export function computeLeadingPostIdempotencyPrepCandidate(): {
+  model: string;
+  why: string;
+} {
+  const matrix = buildCurrentProductReadinessMatrix();
+  const score = (modelId: string): number => {
+    const row = matrix[modelId];
+    if (!row) return 0;
+    let s = 0;
+    if (row["Cache read"] === "READY" && row["Cache write"] === "READY") s += 30;
+    if (row["Above pricing threshold"] === "NOT_APPLICABLE") s += 10;
+    if (row["Base uncached usage"] === "READY") s += 5;
+    return s;
+  };
+  const ranked = [OPUS5_MODEL_ID, GEMINI31_MODEL_ID, "gemini-3.7-flash"].sort(
+    (a, b) => score(b) - score(a)
+  );
+  const model = ranked[0]!;
+  return {
+    model,
+    why:
+      "POLICY_INTERPRETATION: best non-global evidence after idempotency fix — Opus5 cache READY, no >200k tier ambiguity; not cutover-safe until global idempotency defect resolved",
+  };
+}
+
 export function computeSafestFirstCutoverModel(
   classification: Record<string, ModelCutoverClassification>
-): { model: string; why: string; undecided: boolean } {
+): { model: string; why: string; undecided: boolean; leadingCandidate: string; leadingWhy: string } {
+  const matrix = buildCurrentProductReadinessMatrix();
+  const globalIdempotencyBlocked = Object.values(matrix).every((row) => row.Idempotency === "BLOCKED");
+  const leading = computeLeadingPostIdempotencyPrepCandidate();
+
+  if (globalIdempotencyBlocked) {
+    return {
+      model: "NONE_GLOBAL_BLOCKER",
+      why: "Global concurrent duplicate-charge implementation blocker — no model is cutover-safe",
+      undecided: true,
+      leadingCandidate: leading.model,
+      leadingWhy: leading.why,
+    };
+  }
+
   const candidates = Object.entries(classification);
   const maxRank = Math.max(...candidates.map(([, c]) => CLASS_RANK[c]));
   if (maxRank <= CLASS_RANK.D) {
@@ -577,6 +698,8 @@ export function computeSafestFirstCutoverModel(
       model: "UNDECIDED_UNTIL_POLICY_PREP",
       why: "All audit models classify D — insufficient evidence for ordering",
       undecided: true,
+      leadingCandidate: leading.model,
+      leadingWhy: leading.why,
     };
   }
   if (maxRank < CLASS_RANK.B) {
@@ -584,15 +707,16 @@ export function computeSafestFirstCutoverModel(
       model: "UNDECIDED_UNTIL_POLICY_PREP",
       why: "No model reaches B or better — cutover ordering premature",
       undecided: true,
+      leadingCandidate: leading.model,
+      leadingWhy: leading.why,
     };
   }
   const eligible = candidates.filter(([, c]) => CLASS_RANK[c] === maxRank);
   const score = (modelId: string, cls: ModelCutoverClassification): number => {
     let s = CLASS_RANK[cls] * 100;
-    const matrix = buildCurrentProductReadinessMatrix()[modelId];
-    if (matrix?.["Cache read"] === "READY" && matrix?.["Cache write"] === "READY") s += 20;
-    if (matrix?.["Above pricing threshold"] === "NOT_APPLICABLE") s += 5;
-    if (modelId === "gemini-3.7-flash") s += 3;
+    const row = matrix[modelId];
+    if (row?.["Cache read"] === "READY" && row?.["Cache write"] === "READY") s += 20;
+    if (row?.["Above pricing threshold"] === "NOT_APPLICABLE") s += 5;
     return s;
   };
   eligible.sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
@@ -601,6 +725,8 @@ export function computeSafestFirstCutoverModel(
     model,
     why: `Highest classification (${cls}); deterministic score favors ${model} among tied class-${cls} models`,
     undecided: false,
+    leadingCandidate: leading.model,
+    leadingWhy: leading.why,
   };
 }
 
@@ -693,16 +819,23 @@ export function buildFxAuditEvidence(): FxAuditEvidence {
 export function buildCutoverBlockers(): CutoverBlocker[] {
   return [
     {
-      id: "shadow_only_pricing",
-      description: "Published pricing is shadow-only — no live numeric owner swap implemented",
-      origin: "cutover_required",
-      basis: "SOURCE_AUDIT",
+      id: "billing_idempotency_hardening",
+      description:
+        "ONE SUCCESSFUL REQUEST → AT MOST ONE LEDGER CHARGE under concurrent multi-worker execution — requires production implementation",
+      origin: "existing_production",
+      basis: "TEST_REPRODUCED",
     },
     {
       id: "duplicate_request_db_idempotency",
       description:
-        "messages(chat_id, request_id) is non-unique index only — concurrent duplicate charge possible without DB guard",
+        "messages(chat_id, request_id) is non-unique index only — concurrent duplicate charge reproduced in audit test",
       origin: "existing_production",
+      basis: "TEST_REPRODUCED",
+    },
+    {
+      id: "shadow_only_pricing",
+      description: "Published pricing is shadow-only — no live numeric owner swap implemented",
+      origin: "cutover_required",
       basis: "SOURCE_AUDIT",
     },
     {
@@ -761,8 +894,10 @@ export function buildLiveBillingCutoverAuditReport(baseMainSha = "unknown"): Liv
 
   return {
     baseMainSha,
-    auditVersion: "2026-08-28-readiness-v2",
-    liveUserChargeCalculationOwner: LIVE_BILLING_OWNER_AUDIT.liveUserChargeCalculationOwner,
+    auditVersion: "2026-08-28-readiness-v3",
+    liveBillingImportSpecifier: LIVE_BILLING_OWNER_AUDIT.liveBillingImportSpecifier,
+    liveBillingRuntimeEntrypoint: LIVE_BILLING_OWNER_AUDIT.liveBillingRuntimeEntrypoint,
+    liveBillingFallbackChain: LIVE_BILLING_OWNER_AUDIT.liveBillingFallbackChain,
     livePointDeductionOwner: LIVE_BILLING_OWNER_AUDIT.livePointDeductionOwner,
     billingOwnerAudit,
     reachability: {
@@ -795,6 +930,9 @@ export function buildLiveBillingCutoverAuditReport(baseMainSha = "unknown"): Liv
     classification,
     safestFirstCutoverModel: safest.model,
     safestFirstCutoverWhy: safest.why,
+    leadingPostIdempotencyPrepCandidate: safest.leadingCandidate,
+    leadingPostIdempotencyPrepWhy: safest.leadingWhy,
+    nextP0ProductionPr: "Billing idempotency hardening (before pure Published live charge engine extraction)",
     pureLiveChargeEngineExtractionRequired: true,
     numericCostOwnerOnlyCutoverPossible: "documented",
     singleSwitchRollbackArchitecturePossible: "documented",

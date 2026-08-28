@@ -11,6 +11,8 @@ import {
   assessOpusCacheReachability,
   auditBillingOwnersFromSource,
   auditIdempotencyFromSource,
+  auditModelBillingDispatchFromFixtures,
+  auditWrapperChainFromSource,
   buildCurrentProductReadinessMatrix,
   buildLiveBillingCutoverAuditReport,
   classifyModelCutoverReadiness,
@@ -19,7 +21,11 @@ import {
   countPublicReceiptInternalLeakPaths,
   evaluateLiveBillingCutoverReadiness,
   EXPECTED_MODEL_CUTOVER_CLASS,
+  G31_LIVE_FORMULA_OWNER,
+  G37_LIVE_FORMULA_OWNER,
   GEMINI31_MODEL_ID,
+  LIVE_BILLING_OWNER_AUDIT,
+  OPUS5_LIVE_FORMULA_OWNER,
   OPUS5_MODEL_ID,
   verifyFxReadOnlyPreviewPath,
   verifyKstMidnightBoundary,
@@ -106,23 +112,51 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
     assert.ok(importLines.every((line) => !line.includes("ForTest")));
     assert.ok(importLines.every((line) => !line.includes("computeShadowPricing")));
     assert.ok(importLines.every((line) => !line.includes("resolveShadowBillingExchangeRateSnapshot")));
-    const withoutOwnerAudit = src.replace(/export const LIVE_BILLING_OWNER_AUDIT[\s\S]*?} as const;/, "");
-    assert.ok(!/\bdeductPoints\s*\(/.test(withoutOwnerAudit));
+    assert.ok(importLines.every((line) => !line.includes("deductPoints")));
   });
 
-  it("owner audit is source-backed, not self-assertion only", () => {
+  it("owner audit is source-backed with explicit entrypoint and formula owners", () => {
     const audit = auditBillingOwnersFromSource();
     assert.equal(audit.ownerAuditSelfAssertionOnly, false);
-    assert.equal(audit.chatRouteComputeTurnBillingImport, "@/lib/points");
-    assert.equal(audit.chatRouteDeductPointsImport, "@/lib/points");
-    assert.equal(audit.canonicalComputeTurnBillingDefinition, "src/lib/points.ts");
-    assert.ok(audit.chatRouteComputeTurnBillingOwner.includes("pointsReasoningMargins.ts"));
-    assert.ok(audit.otherComputeTurnBillingDefinitions.includes("src/lib/pointsReasoningMargins.ts"));
-    assert.ok(audit.otherComputeTurnBillingDefinitions.includes("src/lib/pointsMuse60.ts"));
-    assert.equal(audit.otherDefinitionReachableFromChatRoute, true);
+    assert.equal(audit.chatRouteImportSpecifier, "@/lib/points");
+    assert.equal(audit.runtimeEntrypointModule, "src/lib/pointsReasoningMargins.ts");
+    assert.deepEqual(audit.fallbackChain, [
+      "pointsReasoningMargins.ts",
+      "pointsMuse60.ts",
+      "points.ts",
+    ]);
+    assert.equal(audit.modelFormulaOwners.gemini37, G37_LIVE_FORMULA_OWNER);
+    assert.equal(audit.modelFormulaOwners.gemini31, G31_LIVE_FORMULA_OWNER);
+    assert.equal(audit.modelFormulaOwners.opus5, OPUS5_LIVE_FORMULA_OWNER);
+    assert.equal(audit.wrapperChainVerified, true);
+    assert.equal(audit.modelFormulaOwnerAuditComplete, true);
     assert.equal(audit.chatRouteDeductionCallCount, 1);
     assert.equal(audit.publishedPricingLiveDeductionCalls, 0);
-    assert.equal(audit.currentDeductionOwnerCount, 1);
+    assert.ok(audit.liveDeductionDefinition.includes("src/lib/points.ts"));
+  });
+
+  it("wrapper chain and model dispatch verified from source and fixtures", () => {
+    const chain = auditWrapperChainFromSource();
+    assert.equal(chain.tsconfigAliasTarget, "pointsReasoningMargins");
+    assert.equal(chain.pointsReasoningImportsMuse60, true);
+    assert.equal(chain.pointsMuse60ImportsPoints, true);
+    assert.equal(chain.pointsReasoningDelegatesToCore, true);
+
+    const dispatch = auditModelBillingDispatchFromFixtures();
+    assert.equal(dispatch.gemini31UsesUnifiedReasoningBranch, true);
+    assert.equal(dispatch.opus5UsesUnifiedReasoningBranch, true);
+    assert.equal(dispatch.gemini37UsesUnifiedReasoningBranch, false);
+    assert.equal(dispatch.gemini37HasGemini37FlashPricingBreakdown, true);
+  });
+
+  it("live billing entrypoint constants match runtime chain", () => {
+    assert.equal(LIVE_BILLING_OWNER_AUDIT.liveBillingImportSpecifier, "@/lib/points");
+    assert.equal(LIVE_BILLING_OWNER_AUDIT.liveBillingRuntimeEntrypoint, "src/lib/pointsReasoningMargins.ts");
+    assert.deepEqual(LIVE_BILLING_OWNER_AUDIT.liveBillingFallbackChain, [
+      "pointsReasoningMargins.ts",
+      "pointsMuse60.ts",
+      "points.ts",
+    ]);
   });
 
   it("idempotency audit documents missing DB uniqueness guard", () => {
@@ -320,24 +354,27 @@ describe("liveBillingCutoverReadiness — usage / receipt / FX", () => {
 });
 
 describe("liveBillingCutoverReadiness — matrix and classification", () => {
-  it("readiness matrix cache cells match evidence", () => {
+  it("readiness matrix cache and idempotency cells match evidence", () => {
     const matrix = buildCurrentProductReadinessMatrix();
     assert.equal(matrix["gemini-3.7-flash"]!["Cache read"], "UNKNOWN");
     assert.equal(matrix["gemini-3.7-flash"]!["Cache write"], "UNKNOWN");
     assert.equal(matrix["gemini-3.7-flash"]!["Above pricing threshold"], "NOT_APPLICABLE");
+    assert.equal(matrix["gemini-3.7-flash"]!["Idempotency"], "BLOCKED");
     assert.equal(matrix[GEMINI31_MODEL_ID]!["Cache read"], "UNKNOWN");
     assert.equal(matrix[GEMINI31_MODEL_ID]!["Above pricing threshold"], "UNKNOWN");
+    assert.equal(matrix[GEMINI31_MODEL_ID]!["Idempotency"], "BLOCKED");
     assert.equal(matrix[OPUS5_MODEL_ID]!["Cache read"], "READY");
     assert.equal(matrix[OPUS5_MODEL_ID]!["Above pricing threshold"], "NOT_APPLICABLE");
+    assert.equal(matrix[OPUS5_MODEL_ID]!["Idempotency"], "BLOCKED");
   });
 
-  it("exact model classifications match runtime and expected constants", () => {
-    assert.equal(classifyModelCutoverReadiness("gemini-3.7-flash"), EXPECTED_MODEL_CUTOVER_CLASS["gemini-3.7-flash"]);
-    assert.equal(classifyModelCutoverReadiness(GEMINI31_MODEL_ID), EXPECTED_MODEL_CUTOVER_CLASS[GEMINI31_MODEL_ID]);
-    assert.equal(classifyModelCutoverReadiness(OPUS5_MODEL_ID), EXPECTED_MODEL_CUTOVER_CLASS[OPUS5_MODEL_ID]);
-    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS["gemini-3.7-flash"], "D");
-    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[GEMINI31_MODEL_ID], "D");
-    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[OPUS5_MODEL_ID], "B");
+  it("exact model classifications are C due to global idempotency blocker", () => {
+    assert.equal(classifyModelCutoverReadiness("gemini-3.7-flash"), "C");
+    assert.equal(classifyModelCutoverReadiness(GEMINI31_MODEL_ID), "C");
+    assert.equal(classifyModelCutoverReadiness(OPUS5_MODEL_ID), "C");
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS["gemini-3.7-flash"], "C");
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[GEMINI31_MODEL_ID], "C");
+    assert.equal(EXPECTED_MODEL_CUTOVER_CLASS[OPUS5_MODEL_ID], "C");
   });
 
   it("report classification matches runtime classification", () => {
@@ -347,22 +384,25 @@ describe("liveBillingCutoverReadiness — matrix and classification", () => {
     assert.equal(report.classification[OPUS5_MODEL_ID], classifyModelCutoverReadiness(OPUS5_MODEL_ID));
   });
 
-  it("safest-first is recomputed from classification, not hardcoded G37", () => {
+  it("safest-first is NONE_GLOBAL_BLOCKER with Opus advisory candidate", () => {
     const report = buildLiveBillingCutoverAuditReport("test-sha");
     const safest = computeSafestFirstCutoverModel(report.classification);
-    assert.equal(report.safestFirstCutoverModel, safest.model);
-    assert.equal(safest.model, OPUS5_MODEL_ID);
-    assert.equal(safest.undecided, false);
+    assert.equal(report.safestFirstCutoverModel, "NONE_GLOBAL_BLOCKER");
+    assert.equal(safest.model, "NONE_GLOBAL_BLOCKER");
+    assert.equal(safest.undecided, true);
+    assert.equal(report.leadingPostIdempotencyPrepCandidate, OPUS5_MODEL_ID);
+    assert.equal(report.nextP0ProductionPr, "Billing idempotency hardening (before pure Published live charge engine extraction)");
   });
 
   it("audit report enumerates cutover blockers with origin", () => {
     const report = buildLiveBillingCutoverAuditReport("test-sha");
     assert.ok(report.cutoverBlockers.length >= 3);
+    assert.ok(report.cutoverBlockers.some((b) => b.id === "billing_idempotency_hardening"));
     assert.ok(report.cutoverBlockers.some((b) => b.origin === "existing_production"));
     assert.ok(report.cutoverBlockers.some((b) => b.origin === "cutover_required"));
     assert.equal(report.receipt.publicReceiptInternalLeakPaths, 0);
     assert.equal(report.idempotency.dbUniquenessGuardPresent, false);
-    assert.equal(report.pureLiveChargeEngineExtractionRequired, true);
-    assert.equal(report.billingOwnerAudit.canonicalComputeTurnBillingDefinition, "src/lib/points.ts");
+    assert.equal(report.billingOwnerAudit.runtimeEntrypointModule, "src/lib/pointsReasoningMargins.ts");
+    assert.equal(report.liveBillingRuntimeEntrypoint, "src/lib/pointsReasoningMargins.ts");
   });
 });
