@@ -77,21 +77,8 @@ function optionalSizeFields(raw: Partial<CharacterAsset>): Pick<CharacterAsset, 
   };
 }
 
-export const EMOTION_TAGS = [
-  "기쁨",
-  "슬픔",
-  "분노",
-  "당황",
-  "부끄러움",
-  "대화",
-  "전투",
-  "침실",
-  "놀람",
-  "무표정",
-  "슬픔",
-  "사랑",
-  "공포",
-] as const;
+export { ASSET_PERSON_TAGS as EMOTION_TAGS } from "@/lib/assetPersonTags";
+export type { AssetPersonTag } from "@/lib/assetPersonTags";
 
 function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterAsset {
   const storedBlur =

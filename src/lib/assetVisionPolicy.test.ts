@@ -23,10 +23,14 @@ describe("assetVisionPolicy", () => {
     assert.match(ASSET_VISION_REVIEW_RULES, /후면 등짝/);
   });
 
-  it("prompt documents three-tier flow for both ratings", () => {
+  it("prompt documents three-tier flow and person/background split", () => {
     const prompt = buildAssetVisionPrompt();
     assert.match(prompt, /관리자 검수/);
     assert.match(prompt, /성인용·일반용 공통/);
+    assert.match(prompt, /imageType="person"/);
+    assert.match(prompt, /PERSON_TAGS:/);
+    assert.match(prompt, /무표정\+누움→누움/);
+    assert.doesNotMatch(prompt, /좋은 예:/);
   });
 
   it("helpers distinguish hard reject vs admin review", () => {

@@ -7,33 +7,51 @@
  * 3. both false   — auto approve
  */
 
+import { ASSET_PERSON_TAGS } from "@/lib/assetPersonTags";
+
 export const ASSET_VISION_REJECT_RULES = `- reject=true (하드 반려): 여성 유두(젖꼭지)가 명확히 보임, 남성·여성 성기·항문 노출, 미성년 성적 묘사, 삽입·구강성교 등 직접 성행위, 불법촬영·학대·고어
 - reject=false: 유두·성기·항문이 명확하지 않으면 반려하지 말 것`;
 
 export const ASSET_VISION_REVIEW_RULES = `- adult=true (관리자 검수): 선정성이 애매함 — 유두·성기·항문은 보이지 않지만 전면 노출·선정적 포즈·속옷·젖은 상의·키스·엉덩 강조 등 경계 케이스. reject=false일 때만 adult=true
 - adult=false: 명확히 무방 — 일상·표정·전신 옷·후면 등짝·뒤돌아섬(유두·성기·항문 비노출)`;
 
+const PERSON_TAG_LIST = ASSET_PERSON_TAGS.join(", ");
+
 export function buildAssetVisionPrompt(): string {
-  return `너는 캐릭터 일러스트 이미지 분석기다.
-첨부된 이미지를 직접 보고, 그 이미지에 실제로 보이는 표정·자세·상황만 짧은 한국어 태그 하나로 요약한다.
+  return `너는 캐릭터/배경 에셋 분류기다. 첨부 이미지를 직접 보고 JSON Schema에 맞게만 응답한다.
 
-필수:
-- 반드시 첨부 이미지의 시각 정보(얼굴 표정, 몸의 자세, 배경/장소, 소품)에만 근거한다.
-- 이미지에 없는 표정·장소·행동을 상상하거나 만들어 내지 않는다.
+TASK 1 — IMAGE TYPE
+- 사람 또는 캐릭터가 한 명이라도 보이면 imageType="person".
+- 한 명도 없으면 imageType="background".
+- 배경이 아무리 눈에 띄어도 인물이 있으면 person이다.
 
-좋은 예: 기쁨, 슬픔, 부끄러움, 대화, 등짝, 뒤돌아섬, 젖은 상의, 침실
-태그는 2~12자 내외.
+TASK 2 — TAG (moderation과 별개)
+PERSON (imageType=person):
+- personTag: 아래 PERSON_TAGS 중 정확히 하나만 선택한다. backgroundTag=null.
+- 우선순위: (1) salient emotion/expression (2) salient pose/action (3) useful mood (4) neutral fallback.
+- "무표정"은 얼굴이 중립적이고 자세·행동·분위기도 뚜렷하지 않을 때만 선택한다. 얼굴이 무표정이어도 누움·앉음·전투자세 등 눈에 띄는 자세/행동이 보이면 personTag는 자세/행동 태그를 선택한다.
+- 예: 무표정+누움→누움, 무표정+앉음→앉음, 무표정+전투자세→전투자세, 중립 얼굴+뚜렷한 자세 없음→무표정.
+- PERSON tag에는 옷, 헤어, 성별, 신체, 장소, 배경, 소품, 무기, 색상, 조명, 카메라, 화풍, 품질 정보를 절대 사용하지 않는다.
+
+PERSON_TAGS:
+${PERSON_TAG_LIST}
+
+BACKGROUND (imageType=background):
+- personTag=null. backgroundTag: 장소/환경을 나타내는 짧은 한국어 명사구 한 개 (2~10자 권장, 최대 12자).
+- 쉼표, 슬래시, 문장, 조명/색감/화풍/카메라 표현 금지.
+- 예: 침실, 교실, 카페, 도시 거리, 도시 야경, 숲, 해변
+
+TASK 3 — MODERATION (tag와 별개 판정)
+- 선정성/노출 정보는 moderation 판단에만 사용하고 asset tag에는 사용하지 않는다.
 
 하드 반려(reject):
 ${ASSET_VISION_REJECT_RULES}
 
-관리자 검수(adult) — 애매한 선정성:
+관리자 검수(adult):
 ${ASSET_VISION_REVIEW_RULES}
 
-성인용·일반용 공통: reject=하드 반려 규칙, adult=애매한 선정성, 나머지는 adult=false·reject=false.
-
-결과는 JSON만:
-{ "tag": "태그명", "adult": true|false, "reject": true|false, "reason": "한국어 한 줄" }`;
+성인용·일반용 공통: reject=하드 반려, adult=애매한 선정성, 나머지는 adult=false·reject=false.
+reason은 moderation 검토용 한국어 한 줄(160자 이내).`;
 }
 
 /** Hard reject — female nipples or genitals (blocks upload for all-ages). */
