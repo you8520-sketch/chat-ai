@@ -6,6 +6,7 @@ import {
   resolveNovelDisplayParagraphs,
 } from "@/lib/novelParagraphs";
 import { buildTrpgBotActionUserBlock, TRPG_BOT_SYSTEM } from "./botActions";
+import { TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_MIN_CHARS } from "./types";
 
 const DENSE = `이현은 몸을 낮췄다. "야, 렌. 기다려." 그는 골목을 봤다.`;
 const SPACED = `이현은 몸을 낮췄다.\n\n"야, 렌. 기다려."\n\n그는 골목을 봤다.`;
@@ -21,7 +22,6 @@ describe("TRPG bot prose layout", () => {
   it("owns paragraph rules in one PROSE LAYOUT system block", () => {
     assert.equal((TRPG_BOT_SYSTEM.match(/\[PROSE LAYOUT\]/g) ?? []).length, 1);
     assert.match(TRPG_BOT_SYSTEM, /Narration and actual spoken dialogue are separate paragraphs/);
-    assert.match(TRPG_BOT_SYSTEM, /300–800 character contract/);
     const user = buildTrpgBotActionUserBlock({
       characterName: "이현",
       description: "신중",
@@ -33,6 +33,12 @@ describe("TRPG bot prose layout", () => {
     });
     assert.doesNotMatch(user, /\[PROSE LAYOUT\]/);
     assert.doesNotMatch(user, /Narration and actual spoken dialogue/);
+    const proseLayout = TRPG_BOT_SYSTEM.slice(
+      TRPG_BOT_SYSTEM.indexOf("[PROSE LAYOUT]"),
+      TRPG_BOT_SYSTEM.indexOf("After the finished prose")
+    );
+    assert.doesNotMatch(proseLayout, /character contract/);
+    assert.doesNotMatch(proseLayout, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
   });
 
   it("splits dense spoken dialogue with the regular-chat paragraph rules", () => {
