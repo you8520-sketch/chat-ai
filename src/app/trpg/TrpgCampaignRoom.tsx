@@ -358,10 +358,8 @@ export default function TrpgCampaignRoom({
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
   const declarationEndRef = useRef<HTMLSpanElement | null>(null);
   const declarationGrowthRef = useRef<HTMLDivElement | null>(null);
-  const declarationGrowthCallbackCountRef = useRef(0);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
-  const consumedActorActionBeatRef = useRef("");
   const narrationFollowRafRef = useRef<number | null>(null);
   const followScrollRafRef = useRef<number | null>(null);
   const manualScrollDetachedRef = useRef(false);
@@ -485,7 +483,6 @@ export default function TrpgCampaignRoom({
   });
   if (presentationRoundRef.current !== snap.round.number) {
     presentationRoundRef.current = snap.round.number;
-    consumedActorActionBeatRef.current = "";
   }
   const queueSessionKey = useMemo(
     () =>
@@ -553,7 +550,6 @@ export default function TrpgCampaignRoom({
     });
     if (queueKeyRef.current !== queueSessionKey || (roundShow.mode === "idle" && mode !== "idle")) {
       queueKeyRef.current = queueSessionKey;
-      consumedActorActionBeatRef.current = "";
       setHiddenPresentationSession(null);
       setConsumedDecorativeSessionKey(null);
       if (mode === "historical") setRoundShow(historicalPresentation());
@@ -913,9 +909,6 @@ export default function TrpgCampaignRoom({
       ) {
         return;
       }
-      const beatKey = `${snap.round.number}|${roundShow.presentationIndex}|actor-action|${presentationActors[roundShow.presentationIndex]?.roll?.participantId ?? 0}:${presentationActors[roundShow.presentationIndex]?.roll?.d20 ?? 0}`;
-      if (consumedActorActionBeatRef.current === beatKey) return;
-      consumedActorActionBeatRef.current = beatKey;
       const decision = resolveLiveActorPresentationTransition({
         mode: roundShow.mode,
         phase: roundShow.phase,
@@ -1391,9 +1384,6 @@ export default function TrpgCampaignRoom({
       Boolean(currentNarration);
     if (!sceneEl || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
-      if (declarationGrowthEl) {
-        declarationGrowthCallbackCountRef.current += 1;
-      }
       const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
       if (growth.autoFollow) {
         if (followScrollRafRef.current != null) {

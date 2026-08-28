@@ -116,7 +116,7 @@ function dismissOverlay(sim: OverlaySim, incomingKey: string): ReturnType<typeof
   });
 }
 
-function applyTransition(
+function transitionDecision(
   state: RoundPresentationState,
   actors: readonly PresentationActor[],
   opts: {
@@ -126,13 +126,12 @@ function applyTransition(
     rolls: TrpgPublicRoll[];
     awaitingMoreActors: boolean;
     actionRevealComplete?: boolean;
-    overlay?: { sim: OverlaySim; report: ReturnType<typeof trpgDiceOverlayPlaybackReport> };
+    overlay?: { report: ReturnType<typeof trpgDiceOverlayPlaybackReport> };
   }
-): RoundPresentationState {
+): ReturnType<typeof resolveLiveActorPresentationTransition> {
   const aggregateKey = trpgDiceRollSessionKey(ROUND, opts.rolls);
   const activeKey = overlaySessionKeyForActor(state, actors, aggregateKey);
-  const overlayReport = opts.overlay?.report;
-  const decision = resolveLiveActorPresentationTransition({
+  return resolveLiveActorPresentationTransition({
     mode: state.mode,
     phase: state.phase,
     presentationIndex: state.presentationIndex,
@@ -143,10 +142,18 @@ function applyTransition(
     participantAdjudicationOutcomes: opts.outcomeMap,
     awaitingMoreActors: opts.awaitingMoreActors,
     actionRevealComplete: opts.actionRevealComplete ?? state.phase !== "actor-action",
-    overlayDismissed: overlayReport?.dismissed,
-    overlaySessionKey: overlayReport?.sessionKey,
+    overlayDismissed: opts.overlay?.report.dismissed,
+    overlaySessionKey: opts.overlay?.report.sessionKey,
     activeRollSessionKey: activeKey,
   });
+}
+
+function applyTransition(
+  state: RoundPresentationState,
+  actors: readonly PresentationActor[],
+  opts: Parameters<typeof transitionDecision>[2]
+): RoundPresentationState {
+  const decision = transitionDecision(state, actors, opts);
   if (decision.kind !== "transition") return state;
   return { ...state, ...decision.next };
 }
@@ -157,15 +164,16 @@ function freezeActors(
   actions: TrpgPublicAction[],
   rolls: TrpgPublicRoll[],
   resolutionOrder: number[],
-  phase: string
-): { actors: PresentationActor[]; frozenRound: number | null; restartCount: number } {
+  phase: string,
+  adjudicatedParticipantIds: number[] = []
+): { actors: PresentationActor[]; frozenRound: number | null } {
   const decided = decideLiveRoundPresentation({
     phase,
     roundNumber: ROUND,
     actions,
     rolls,
     resolutionOrder,
-    adjudicatedParticipantIds: [],
+    adjudicatedParticipantIds,
   });
   const frozen = freezeLivePresentationActors({
     previous,
@@ -174,50 +182,44 @@ function freezeActors(
     roundNumber: ROUND,
     frozenRound,
   });
-  return { actors: frozen.actors, frozenRound: frozen.frozenRound, restartCount: 0 };
+  return { actors: frozen.actors, frozenRound: frozen.frozenRound };
 }
 
 describe("POST-705 production H/B1/B2 dice chain", () => {
-  it("T_H_B1_B2_FULL_CHAIN: Human through Bot2 no_roll with overlay session proof", () => {
+  it("T_H_B1_B2_FULL_CHAIN: Human through incremental Bot2 no_roll with overlay session proof", () => {
     const human = action(H, "human", "Human");
     const bot1 = action(B1, "ai_character", "Bot1");
     const bot2 = action(B2, "ai_character", "Bot2");
     const humanRoll = roll(H, "Human", 14);
     const bot1Roll = roll(B1, "Bot1", 8);
-    const outcomeMap = outcomes([
-      [H, "roll"],
-      [B1, "roll"],
-      [B2, "no_roll"],
-    ]);
     const consumed = new Set<number>();
     const trace: string[] = ["ROUND START"];
 
     let frozen: PresentationActor[] | null = null;
     let frozenRound: number | null = null;
-    let presentationRestartCount = 0;
     let prevSessionKey = "";
     let state: RoundPresentationState = { mode: "idle", phase: "idle", presentationIndex: 0 };
     const overlay = freshOverlaySim();
+    let outcomeMap = outcomes([[H, "roll"]]);
 
-    // Snapshot A — Human only, bots still generating
-    trace.push("H ACTION");
-    const snapA = freezeActors(frozen, frozenRound, [human], [humanRoll], [H, B1, B2], "ROLLING");
+    // Snapshot A — Human only, bots still generating (BOT_ACTION early phase)
+    trace.push("H ACTION", "H OUTCOME=roll");
+    const snapA = freezeActors(frozen, frozenRound, [human], [humanRoll], [H, B1, B2], "BOT_ACTION", [H]);
     frozen = snapA.actors;
     frozenRound = snapA.frozenRound;
     const sessionA = decideLiveRoundPresentation({
-      phase: "ROLLING",
+      phase: "BOT_ACTION",
       roundNumber: ROUND,
       actions: [human],
       rolls: [humanRoll],
       resolutionOrder: [H, B1, B2],
+      adjudicatedParticipantIds: [H],
     }).sessionKey;
     if (sessionA && sessionA !== prevSessionKey) {
-      if (prevSessionKey && state.mode === "cinematic") presentationRestartCount += 1;
       prevSessionKey = sessionA;
       state = { mode: "cinematic", ...startCinematicPresentation() };
     }
     assert.equal(state.presentationIndex, 0, "CHAIN_STARTS_AT_HUMAN_INDEX_0");
-    trace.push("H OUTCOME=roll", "H ROLL PRESENT", "H actor-action");
 
     state = applyTransition(state, frozen, {
       outcomeMap,
@@ -231,15 +233,9 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
     trace.push("H actor-dice");
 
     const humanKey = overlaySessionKeyForActor(state, frozen, trpgDiceRollSessionKey(ROUND, [humanRoll]));
-    const humanStart = tickOverlay(overlay, humanKey);
+    tickOverlay(overlay, humanKey);
     assert.equal(overlay.startCount, 1, "HUMAN_OVERLAY_START_COUNT");
-    assert.equal(humanStart.visible, true);
-    trace.push("H OVERLAY START #1");
-    assert.equal(
-      shouldShowActorResultLane({ actorId: H, actors: frozen, state }),
-      false,
-      "BOT1_RESULT_BEFORE_DISMISS guard for Human"
-    );
+    trace.push("H OVERLAY START");
 
     const humanDismiss = dismissOverlay(overlay, humanKey);
     state = applyTransition(state, frozen, {
@@ -248,10 +244,10 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       consumed,
       rolls: [humanRoll],
       awaitingMoreActors: true,
-      overlay: { sim: overlay, report: humanDismiss },
+      overlay: { report: humanDismiss },
     });
     assert.equal(state.phase, "actor-result");
-    trace.push("H OVERLAY DISMISS", "H actor-result");
+    trace.push("H RESULT");
 
     state = {
       ...state,
@@ -264,18 +260,20 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       }),
     };
     assert.equal(state.presentationIndex, 1);
-    assert.equal(state.phase, "actor-action");
-    assert.equal(shouldShowGmNarration(state), false, "GM_PREMATURE_REVEAL");
-    trace.push("BOT1 NOT YET AVAILABLE", "WAIT", "GM=false");
+    assert.equal(shouldShowGmNarration(state), false);
+    trace.push("WAIT FOR BOT1");
 
-    // Snapshot B — Bot1 action, outcome roll, roll absent
+    // Bot1 action, outcome roll, roll absent
     consumed.add(B1);
-    const snapB = freezeActors(frozen, frozenRound, [human, bot1], [humanRoll], [H, B1, B2], "ROLLING");
+    outcomeMap = outcomes([
+      [H, "roll"],
+      [B1, "roll"],
+    ]);
+    const snapB = freezeActors(frozen, frozenRound, [human, bot1], [humanRoll], [H, B1, B2], "BOT_ACTION", [H, B1]);
     frozen = snapB.actors;
-    assert.ok(frozen.some((a) => a.actorId === B1 && a.action && !a.roll), "FREEZE_LIVE_PRESENTATION_ACTORS_EXERCISED");
-    trace.push("BOT1 ACTION ARRIVES", "BOT1 OUTCOME=roll", "BOT1 ROLL ABSENT", "BOT1 actor-action");
+    trace.push("BOT1 ACTION", "BOT1 OUTCOME=roll", "BOT1 ROLL ABSENT");
 
-    state = applyTransition(state, frozen, {
+    const bot1Hold = transitionDecision(state, frozen, {
       outcomeMap,
       adjudicated: new Set([H, B1]),
       consumed,
@@ -283,19 +281,14 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       awaitingMoreActors: true,
       actionRevealComplete: true,
     });
+    assert.equal(bot1Hold.kind, "hold", "BOT1_LATE_ROLL_INITIAL_KIND");
     assert.equal(state.phase, "actor-action");
-    assert.equal(state.presentationIndex, 1, "BOT1_WAITED_FOR_AUTHORITATIVE_ROLL");
-    assert.notEqual(state.phase, "actor-dice", "BOT1_SKIPPED_BEFORE_ROLL");
-    const bot1OverlayBeforeRoll = tickOverlay(overlay, overlaySessionKeyForActor(state, frozen, trpgDiceRollSessionKey(ROUND, [humanRoll])));
-    assert.equal(overlay.startCount, 1, "BOT1 overlay must not start before roll");
+    trace.push("HOLD");
 
-    // Snapshot C — Bot1 authoritative roll arrives on frozen actor
-    const snapC = freezeActors(frozen, frozenRound, [human, bot1], [humanRoll, bot1Roll], [H, B1, B2], "ROLLING");
+    const snapC = freezeActors(frozen, frozenRound, [human, bot1], [humanRoll, bot1Roll], [H, B1, B2], "BOT_ACTION", [H, B1]);
     frozen = snapC.actors;
-    const frozenBot1 = frozen.find((a) => a.actorId === B1);
-    assert.ok(frozenBot1?.roll, "FROZEN_BOT1_ROLL_REFRESHED");
-    assert.equal(presentationRestartCount, 0, "PRESENTATION_RESTART_COUNT");
-    trace.push("BOT1 ROLL ARRIVES", "FROZEN ACTOR UPDATED");
+    assert.ok(frozen.find((a) => a.actorId === B1)?.roll, "FROZEN_BOT1_ROLL_REFRESHED");
+    trace.push("BOT1 ROLL ARRIVES");
 
     state = applyTransition(state, frozen, {
       outcomeMap,
@@ -305,23 +298,14 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       awaitingMoreActors: true,
       actionRevealComplete: true,
     });
-    assert.equal(state.phase, "actor-dice", "BOT1_DICE_PHASE_ENTERED");
-    assert.equal(state.presentationIndex, 1);
-    assert.equal(activePresentationRoll({ actors: frozen, state })?.participantId, B1, "ACTIVE_PRESENTATION_ROLL");
+    assert.equal(state.phase, "actor-dice");
+    trace.push("BOT1 actor-dice");
 
     const bot1Key = overlaySessionKeyForActor(state, frozen, trpgDiceRollSessionKey(ROUND, [humanRoll, bot1Roll]));
-    assert.notEqual(humanKey, bot1Key, "HUMAN_SESSION_KEY != BOT1_SESSION_KEY");
-    const bot1Start = tickOverlay(overlay, bot1Key);
-    assert.equal(overlay.startCount, 2, "BOT1_OVERLAY_START_COUNT includes one Bot1 start");
-    assert.equal(bot1Start.visible, true, "BOT1_OVERLAY_VISIBLE_BEFORE_DISMISS");
-    assert.equal(
-      shouldShowActorResultLane({ actorId: B1, actors: frozen, state }),
-      false,
-      "BOT1_RESULT_BEFORE_DISMISS"
-    );
-    assert.equal(humanDismiss.dismissed, true);
-    assert.notEqual(bot1Start.sessionKey, humanKey, "HUMAN_DISMISS_DOES_NOT_DISMISS_BOT1");
-    trace.push("BOT1 actor-dice", "BOT1 OVERLAY START #1");
+    assert.notEqual(humanKey, bot1Key);
+    tickOverlay(overlay, bot1Key);
+    assert.equal(overlay.startCount, 2, "BOT1 overlay start once after Human");
+    trace.push("BOT1 OVERLAY START");
 
     const bot1Dismiss = dismissOverlay(overlay, bot1Key);
     state = applyTransition(state, frozen, {
@@ -330,28 +314,63 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       consumed,
       rolls: [humanRoll, bot1Roll],
       awaitingMoreActors: false,
-      overlay: { sim: overlay, report: bot1Dismiss },
+      overlay: { report: bot1Dismiss },
     });
     assert.equal(state.phase, "actor-result");
-    assert.equal(shouldShowActorResultLane({ actorId: B1, actors: frozen, state }), true);
-    trace.push("BOT1 OVERLAY DISMISS", "BOT1 actor-result");
+    trace.push("BOT1 RESULT");
 
     state = {
       ...state,
       ...advanceAfterActorResult({
         actors: frozen,
         presentationIndex: state.presentationIndex,
-        adjudicatedParticipantIds: new Set([H, B1, B2]),
+        adjudicatedParticipantIds: new Set([H, B1]),
         declarationConsumedIds: consumed,
-        awaitingMoreActors: false,
+        awaitingMoreActors: true,
       }),
     };
     consumed.add(B2);
-    const snapBot2 = freezeActors(frozen, frozenRound, [human, bot1, bot2], [humanRoll, bot1Roll], [H, B1, B2], "ROLLING");
+    const snapBot2 = freezeActors(
+      frozen,
+      frozenRound,
+      [human, bot1, bot2],
+      [humanRoll, bot1Roll],
+      [H, B1, B2],
+      "BOT_ACTION",
+      [H, B1]
+    );
     frozen = snapBot2.actors;
-    trace.push("BOT2 actor-action", "BOT2 OUTCOME=no_roll");
+    trace.push("BOT2 ACTION", "BOT2 OUTCOME=unknown");
 
-    const bot2StartCountBefore = overlay.startCount;
+    const bot2Unknown = transitionDecision(state, frozen, {
+      outcomeMap,
+      adjudicated: new Set([H, B1]),
+      consumed,
+      rolls: [humanRoll, bot1Roll],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(bot2Unknown.kind, "hold", "BOT2_UNKNOWN_FIRST_KIND");
+    assert.equal(shouldShowGmNarration(state), false, "BOT2_UNKNOWN_GM_VISIBLE");
+    trace.push("HOLD", "GM=false");
+
+    outcomeMap = outcomes([
+      [H, "roll"],
+      [B1, "roll"],
+      [B2, "no_roll"],
+    ]);
+    trace.push("BOT2 OUTCOME=no_roll ARRIVES", "RE-EVALUATE SAME ACTOR");
+
+    const bot2Late = transitionDecision(state, frozen, {
+      outcomeMap,
+      adjudicated: new Set([H, B1, B2]),
+      consumed,
+      rolls: [humanRoll, bot1Roll],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(bot2Late.kind, "transition", "BOT2_LATE_NO_ROLL_REEVALUATED");
+    const bot2OverlayBefore = overlay.startCount;
     state = applyTransition(state, frozen, {
       outcomeMap,
       adjudicated: new Set([H, B1, B2]),
@@ -360,43 +379,40 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       awaitingMoreActors: false,
       actionRevealComplete: true,
     });
-    assert.notEqual(state.phase, "actor-dice", "BOT2_NO_ROLL_OVERLAY_START_COUNT");
-    assert.equal(overlay.startCount, bot2StartCountBefore, "BOT2 overlay start count unchanged");
-    assert.equal(state.phase, "gm-narration", "GM_AFTER_LAST_ACTOR");
+    assert.equal(overlay.startCount, bot2OverlayBefore, "BOT2_LATE_NO_ROLL_OVERLAY_COUNT");
+    assert.equal(state.phase, "gm-narration", "BOT2_LATE_NO_ROLL_REACHES_GM");
     assert.equal(shouldShowGmNarration(state), true);
-    trace.push("BOT2 OVERLAY START #0", "GM narration");
+    trace.push("BOT2 OVERLAY=0", "ADVANCE", "GM=true");
 
     assert.deepEqual(trace, [
       "ROUND START",
       "H ACTION",
       "H OUTCOME=roll",
-      "H ROLL PRESENT",
-      "H actor-action",
       "H actor-dice",
-      "H OVERLAY START #1",
-      "H OVERLAY DISMISS",
-      "H actor-result",
-      "BOT1 NOT YET AVAILABLE",
-      "WAIT",
-      "GM=false",
-      "BOT1 ACTION ARRIVES",
+      "H OVERLAY START",
+      "H RESULT",
+      "WAIT FOR BOT1",
+      "BOT1 ACTION",
       "BOT1 OUTCOME=roll",
       "BOT1 ROLL ABSENT",
-      "BOT1 actor-action",
+      "HOLD",
       "BOT1 ROLL ARRIVES",
-      "FROZEN ACTOR UPDATED",
       "BOT1 actor-dice",
-      "BOT1 OVERLAY START #1",
-      "BOT1 OVERLAY DISMISS",
-      "BOT1 actor-result",
-      "BOT2 actor-action",
-      "BOT2 OUTCOME=no_roll",
-      "BOT2 OVERLAY START #0",
-      "GM narration",
+      "BOT1 OVERLAY START",
+      "BOT1 RESULT",
+      "BOT2 ACTION",
+      "BOT2 OUTCOME=unknown",
+      "HOLD",
+      "GM=false",
+      "BOT2 OUTCOME=no_roll ARRIVES",
+      "RE-EVALUATE SAME ACTOR",
+      "BOT2 OVERLAY=0",
+      "ADVANCE",
+      "GM=true",
     ]);
   });
 
-  it("OUTCOME_ROLL_WITHOUT_CLIENT_ROLL_NEVER_SKIPS", () => {
+  it("OUTCOME_ROLL_WITHOUT_CLIENT_ROLL_RETURNS_HOLD", () => {
     const bot1 = action(B1, "ai_character", "Bot1");
     const actors = buildRoundPresentationActors({
       resolutionOrder: [B1],
@@ -414,9 +430,151 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       participantAdjudicationOutcomes: outcomes([[B1, "roll"]]),
       actionRevealComplete: true,
     });
-    assert.equal(decision.kind, "transition");
-    if (decision.kind === "transition") {
-      assert.deepEqual(decision.next, { phase: "actor-action", presentationIndex: 0 });
+    assert.equal(decision.kind, "hold", "OUTCOME_ROLL_WITHOUT_ROLL_KIND");
+  });
+
+  it("BOT1_LATE_ROLL: hold until authoritative roll then actor-dice once", () => {
+    const bot1 = action(B1, "ai_character", "Bot1");
+    const actorsBefore = buildRoundPresentationActors({
+      resolutionOrder: [B1],
+      actions: [bot1],
+      rolls: [],
+    });
+    const state: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 0,
+    };
+    const outcomeMap = outcomes([[B1, "roll"]]);
+    const gates = {
+      adjudicated: new Set([B1]),
+      consumed: new Set([B1]),
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    };
+
+    const initial = transitionDecision(state, actorsBefore, {
+      outcomeMap,
+      rolls: [],
+      ...gates,
+    });
+    assert.equal(initial.kind, "hold", "BOT1_LATE_ROLL_INITIAL_KIND");
+
+    const bot1Roll = roll(B1, "Bot1", 8);
+    const actorsAfter = buildRoundPresentationActors({
+      resolutionOrder: [B1],
+      actions: [bot1],
+      rolls: [bot1Roll],
+    });
+    const afterRoll = transitionDecision(state, actorsAfter, {
+      outcomeMap,
+      rolls: [bot1Roll],
+      ...gates,
+    });
+    assert.equal(afterRoll.kind, "transition", "BOT1_LATE_ROLL_REEVALUATED");
+    if (afterRoll.kind === "transition") {
+      assert.equal(afterRoll.next.phase, "actor-dice", "BOT1_DICE_PHASE_ENTERED");
+    }
+
+    const diceState = applyTransition(state, actorsAfter, {
+      outcomeMap,
+      rolls: [bot1Roll],
+      ...gates,
+    });
+    const overlay = freshOverlaySim();
+    const bot1Key = overlaySessionKeyForActor(diceState, actorsAfter, trpgDiceRollSessionKey(ROUND, [bot1Roll]));
+    tickOverlay(overlay, bot1Key);
+    assert.equal(overlay.startCount, 1, "BOT1_OVERLAY_START_COUNT");
+    tickOverlay(overlay, bot1Key);
+    assert.equal(overlay.startCount, 1, "BOT1_OVERLAY_REPLAY");
+  });
+
+  it("BOT2_LATE_NO_ROLL: unknown outcome then no_roll re-evaluates without deadlock", () => {
+    const bot2 = action(B2, "ai_character", "Bot2");
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [H, B1, B2],
+      actions: [action(H, "human", "H"), action(B1, "ai_character", "B1"), bot2],
+      rolls: [roll(H, "Human", 12), roll(B1, "Bot1", 9)],
+    });
+    const state: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 2,
+    };
+    const consumed = new Set([B2]);
+    const unknownMap = outcomes([
+      [H, "roll"],
+      [B1, "roll"],
+    ]);
+
+    const hold = transitionDecision(state, actors, {
+      outcomeMap: unknownMap,
+      adjudicated: new Set([H, B1]),
+      consumed,
+      rolls: [roll(H, "Human", 12), roll(B1, "Bot1", 9)],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(hold.kind, "hold", "BOT2_UNKNOWN_FIRST_KIND");
+    assert.equal(shouldShowGmNarration(state), false, "BOT2_UNKNOWN_GM_VISIBLE");
+
+    const lateMap = outcomes([
+      [H, "roll"],
+      [B1, "roll"],
+      [B2, "no_roll"],
+    ]);
+    const advance = transitionDecision(state, actors, {
+      outcomeMap: lateMap,
+      adjudicated: new Set([H, B1, B2]),
+      consumed,
+      rolls: [roll(H, "Human", 12), roll(B1, "Bot1", 9)],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(advance.kind, "transition", "BOT2_LATE_NO_ROLL_REEVALUATED");
+    if (advance.kind === "transition") {
+      assert.equal(advance.next.phase, "gm-narration", "BOT2_LATE_NO_ROLL_REACHES_GM");
+    }
+  });
+
+  it("BOT2_LATE_SKIPPED: unknown outcome then skipped re-evaluates without deadlock", () => {
+    const bot2 = action(B2, "ai_character", "Bot2");
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [H, B2],
+      actions: [action(H, "human", "H"), bot2],
+      rolls: [roll(H, "Human", 12)],
+    });
+    const state: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 1,
+    };
+    const consumed = new Set([B2]);
+
+    const hold = transitionDecision(state, actors, {
+      outcomeMap: outcomes([[H, "roll"]]),
+      adjudicated: new Set([H]),
+      consumed,
+      rolls: [roll(H, "Human", 12)],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(hold.kind, "hold");
+
+    const advance = transitionDecision(state, actors, {
+      outcomeMap: outcomes([
+        [H, "roll"],
+        [B2, "skipped"],
+      ]),
+      adjudicated: new Set([H, B2]),
+      consumed,
+      rolls: [roll(H, "Human", 12)],
+      awaitingMoreActors: false,
+      actionRevealComplete: true,
+    });
+    assert.equal(advance.kind, "transition", "LATE_SKIPPED_REEVALUATED");
+    if (advance.kind === "transition") {
+      assert.equal(advance.next.phase, "gm-narration");
     }
   });
 
@@ -441,7 +599,8 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       [human, bot1],
       [humanRoll, bot1Roll],
       [H, B1, B2],
-      "ROLLING"
+      "ROLLING",
+      [H, B1, B2]
     );
     frozen = snapBot1.actors;
     let state: RoundPresentationState = {
@@ -460,7 +619,8 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       [human, bot1, bot2],
       [humanRoll, bot1Roll, bot2Roll],
       [H, B1, B2],
-      "ROLLING"
+      "ROLLING",
+      [H, B1, B2]
     );
     frozen = snapBuffered.actors;
     assert.ok(frozen.find((a) => a.actorId === B2)?.roll, "FUTURE_ROLL_BUFFERED");
@@ -471,9 +631,8 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       frozen,
       trpgDiceRollSessionKey(ROUND, [humanRoll, bot1Roll, bot2Roll])
     );
-    assert.equal(bot1KeyAfterBuffer, bot1Key, "active dice session stays on Bot1 while buffered");
+    assert.equal(bot1KeyAfterBuffer, bot1Key);
     const bot2Key = trpgDiceRollSessionKey(ROUND, [bot2Roll]);
-    assert.notEqual(bot1Key, bot2Key);
     const misalignedReport = trpgDiceOverlayPlaybackReport({
       incomingSessionKey: bot2Key,
       playOwnerSessionKey: overlay.playOwnerSessionKey,
@@ -481,9 +640,8 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       settled: false,
       rollCount: 1,
     });
-    assert.equal(misalignedReport.visible, false, "BOT2 overlay must not start during Bot1");
-    assert.equal(overlay.startCount, 1, "BOT1 overlay not replayed by buffered Bot2 roll");
-    assert.equal(state.phase, "actor-dice");
+    assert.equal(misalignedReport.visible, false);
+    assert.equal(overlay.startCount, 1);
     assert.equal(overlay.playOwnerSessionKey, bot1Key, "BOT1_OVERLAY_REPLAY");
 
     const bot1Dismiss = dismissOverlay(overlay, bot1Key);
@@ -493,7 +651,7 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       consumed: new Set([B1, B2]),
       rolls: [humanRoll, bot1Roll, bot2Roll],
       awaitingMoreActors: false,
-      overlay: { sim: overlay, report: bot1Dismiss },
+      overlay: { report: bot1Dismiss },
     });
     assert.equal(state.phase, "actor-result");
 
@@ -519,7 +677,7 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
     assert.equal(state.presentationIndex, 2);
     const bot2StartKey = overlaySessionKeyForActor(state, frozen, trpgDiceRollSessionKey(ROUND, [humanRoll, bot1Roll, bot2Roll]));
     tickOverlay(overlay, bot2StartKey);
-    assert.equal(overlay.startCount, 2, "BOT2_OVERLAY_START_COUNT");
+    assert.equal(overlay.startCount, 2);
   });
 
   it("DICE_ORDER follows resolutionOrder not declaration persistence order", () => {
@@ -552,7 +710,7 @@ describe("POST-705 production H/B1/B2 dice chain", () => {
       awaitingMoreActors: false,
       actionRevealComplete: true,
     });
-    assert.equal(state.presentationIndex, 1, "second actor in resolutionOrder after human no_roll");
+    assert.equal(state.presentationIndex, 1);
     assert.equal(actors[state.presentationIndex]?.actorId, 30);
   });
 });

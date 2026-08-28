@@ -746,6 +746,16 @@ export type LiveActorPresentationTransition =
   | { kind: "hold" }
   | { kind: "transition"; next: Pick<RoundPresentationState, "phase" | "presentationIndex"> };
 
+function normalizeLiveActorPresentationTransition(
+  current: Pick<RoundPresentationState, "phase" | "presentationIndex">,
+  next: Pick<RoundPresentationState, "phase" | "presentationIndex">
+): LiveActorPresentationTransition {
+  if (next.phase === current.phase && next.presentationIndex === current.presentationIndex) {
+    return { kind: "hold" };
+  }
+  return { kind: "transition", next };
+}
+
 /** Single production owner for live actor-action / actor-dice phase transitions. */
 export function resolveLiveActorPresentationTransition(opts: {
   mode: RoundPresentationMode;
@@ -779,9 +789,9 @@ export function resolveLiveActorPresentationTransition(opts: {
     ) {
       return { kind: "hold" };
     }
-    return {
-      kind: "transition",
-      next: advanceAfterActorAction({
+    return normalizeLiveActorPresentationTransition(
+      { phase: opts.phase, presentationIndex: opts.presentationIndex },
+      advanceAfterActorAction({
         actors: opts.actors,
         presentationIndex: opts.presentationIndex,
         rolls: opts.rolls,
@@ -789,8 +799,8 @@ export function resolveLiveActorPresentationTransition(opts: {
         declarationConsumedIds: opts.declarationConsumedIds,
         participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
         awaitingMoreActors: opts.awaitingMoreActors,
-      }),
-    };
+      })
+    );
   }
 
   if (opts.phase === "actor-dice") {
@@ -801,9 +811,9 @@ export function resolveLiveActorPresentationTransition(opts: {
         opts.participantAdjudicationOutcomes
       );
       if (outcome === "roll") return { kind: "hold" };
-      return {
-        kind: "transition",
-        next: advanceAfterDiceDismiss({
+      return normalizeLiveActorPresentationTransition(
+        { phase: opts.phase, presentationIndex: opts.presentationIndex },
+        advanceAfterDiceDismiss({
           actors: opts.actors,
           presentationIndex: opts.presentationIndex,
           rolls: opts.rolls,
@@ -811,8 +821,8 @@ export function resolveLiveActorPresentationTransition(opts: {
           declarationConsumedIds: opts.declarationConsumedIds,
           participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
           awaitingMoreActors: opts.awaitingMoreActors,
-        }),
-      };
+        })
+      );
     }
     if (
       !shouldAdvanceActorDiceAfterOverlayDismiss({
@@ -825,9 +835,9 @@ export function resolveLiveActorPresentationTransition(opts: {
     ) {
       return { kind: "hold" };
     }
-    return {
-      kind: "transition",
-      next: advanceAfterDiceDismiss({
+    return normalizeLiveActorPresentationTransition(
+      { phase: opts.phase, presentationIndex: opts.presentationIndex },
+      advanceAfterDiceDismiss({
         actors: opts.actors,
         presentationIndex: opts.presentationIndex,
         rolls: opts.rolls,
@@ -835,8 +845,8 @@ export function resolveLiveActorPresentationTransition(opts: {
         declarationConsumedIds: opts.declarationConsumedIds,
         participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
         awaitingMoreActors: opts.awaitingMoreActors,
-      }),
-    };
+      })
+    );
   }
 
   return { kind: "hold" };
