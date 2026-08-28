@@ -26,7 +26,10 @@ import {
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
-import { loadAdjudicatedParticipantIds, loadParticipantAdjudicationOutcomes } from "./roundAdjudication";
+import {
+  deriveAdjudicatedParticipantIds,
+  loadParticipantAdjudicationOutcomes,
+} from "./roundAdjudication";
 import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
@@ -349,6 +352,10 @@ export function loadTrpgSnapshot(
     mySub?.action_type && isTrpgActionType(mySub.action_type) ? mySub.action_type : null;
   const gmNarrationDraft =
     round && phase === "GENERATING_NARRATION" ? loadGmNarrationDraft(db, round.id) : null;
+  const participantAdjudicationOutcomes = round
+    ? loadParticipantAdjudicationOutcomes(db, round.id)
+    : {};
+  const adjudicatedParticipantIds = deriveAdjudicatedParticipantIds(participantAdjudicationOutcomes);
 
   return {
     id: campaign.id,
@@ -392,8 +399,8 @@ export function loadTrpgSnapshot(
         }
       : null,
     currentRolls,
-    adjudicatedParticipantIds: round ? loadAdjudicatedParticipantIds(db, round.id) : [],
-    participantAdjudicationOutcomes: round ? loadParticipantAdjudicationOutcomes(db, round.id) : {},
+    participantAdjudicationOutcomes,
+    adjudicatedParticipantIds,
     resolutionOrder: (() => {
       const current = round ? loadResolutionOrder(db, round.id) : [];
       if (current.length > 0) return current;

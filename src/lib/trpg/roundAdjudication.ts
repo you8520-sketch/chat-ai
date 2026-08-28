@@ -331,6 +331,20 @@ export function loadParticipantAdjudicationOutcomes(
   roundId: number
 ): Record<number, TrpgParticipantAdjudicationOutcome> {
   const outcomes: Record<number, TrpgParticipantAdjudicationOutcome> = {};
+
+  const marks = loadRoundAdjudicationSnapshot(db, roundId).adjudicationMarks ?? {};
+  if (Object.keys(marks).length > 0) {
+    const subs = db
+      .prepare(`SELECT id, participant_id FROM trpg_action_submissions WHERE round_id=?`)
+      .all(roundId) as Array<{ id: number; participant_id: number }>;
+    const byId = new Map(subs.map((sub) => [sub.id, sub.participant_id]));
+    for (const [submissionId, mark] of Object.entries(marks)) {
+      if (mark !== "no_roll" && mark !== "skipped") continue;
+      const participantId = byId.get(Number(submissionId));
+      if (participantId != null) outcomes[participantId] = mark;
+    }
+  }
+
   const rolled = db
     .prepare(
       `SELECT s.participant_id AS participantId
@@ -343,19 +357,13 @@ export function loadParticipantAdjudicationOutcomes(
     outcomes[row.participantId] = "roll";
   }
 
-  const marks = loadRoundAdjudicationSnapshot(db, roundId).adjudicationMarks ?? {};
-  if (Object.keys(marks).length === 0) return outcomes;
-
-  const subs = db
-    .prepare(`SELECT id, participant_id FROM trpg_action_submissions WHERE round_id=?`)
-    .all(roundId) as Array<{ id: number; participant_id: number }>;
-  const byId = new Map(subs.map((sub) => [sub.id, sub.participant_id]));
-  for (const [submissionId, mark] of Object.entries(marks)) {
-    if (mark !== "no_roll" && mark !== "skipped") continue;
-    const participantId = byId.get(Number(submissionId));
-    if (participantId != null) outcomes[participantId] = mark;
-  }
   return outcomes;
+}
+
+export function deriveAdjudicatedParticipantIds(
+  outcomes: Record<number, TrpgParticipantAdjudicationOutcome>
+): number[] {
+  return Object.keys(outcomes).map(Number);
 }
 
 /** Legacy batch entry — thin wrapper over the per-submission canonical owner. */
