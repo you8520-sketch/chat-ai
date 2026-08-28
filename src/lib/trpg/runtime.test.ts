@@ -46,9 +46,11 @@ describe("TRPG bot actions", () => {
     assert.match(TRPG_BOT_SYSTEM, /Do not declare a finished result/);
     assert.equal((TRPG_BOT_SYSTEM.match(/\[PROSE LAYOUT\]/g) ?? []).length, 1);
     assert.doesNotMatch(block, /\[PROSE LAYOUT\]/);
-    assert.match(block, /300/);
-    assert.match(block, /550/);
-    assert.match(block, /800/);
+    assert.match(TRPG_BOT_SYSTEM, /300/);
+    assert.match(TRPG_BOT_SYSTEM, /550/);
+    assert.match(TRPG_BOT_SYSTEM, /800/);
+    assert.match(block, /Follow the system length contract/);
+    assert.doesNotMatch(block, /aim ~550/);
     assert.doesNotMatch(block, /Flash/i);
     const second = buildTrpgBotActionUserBlock({
       characterName: "카이",

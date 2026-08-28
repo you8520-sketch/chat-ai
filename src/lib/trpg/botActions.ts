@@ -66,9 +66,7 @@ If this character actually speaks:
 - do not place narration before or after it in the same paragraph
 Use meaningful narration paragraphs rather than one giant wall of text.
 Do not create a new paragraph for every sentence.
-Keep the existing 300–800 character contract.
-
-Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.
+Keep the ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} character contract.
 
 After the finished prose, emit compact mechanical metadata then one third-person concrete attempt. Do not declare a finished result. Do not write only a quoted question.
 ${TRPG_BOT_ACTION_TYPE_OPEN}
@@ -165,8 +163,8 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     : TRPG_BOT_SCENE_MAX_CHARS;
   const scene = clipTrpgChars(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
   return [
-    "[TRPG BOT ACTION — you are this PC. Finished beat, then INTENT.]",
-    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_ACTION_TYPE_OPEN} and ${TRPG_BOT_INTENT_OPEN} — one attempt, not a finished result.`,
+    "[TRPG BOT ACTION — you are this PC.]",
+    `[LENGTH] Follow the system length contract; finish the last sentence; then emit ${TRPG_BOT_ACTION_TYPE_OPEN} and ${TRPG_BOT_INTENT_OPEN}.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
     ctx.campaignWorld?.trim()
