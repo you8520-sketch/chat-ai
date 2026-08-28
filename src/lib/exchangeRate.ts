@@ -1,5 +1,10 @@
-/** 해외 결제 수수료 (Visa/Master + 국내 카드사 + 전신환매도율 등) */
-export const OVERSEAS_CARD_FEE_RATE = 1.02;
+/** 해외 결제 수수료 2% — canonical owner */
+export const OVERSEAS_CARD_FEE_PERCENT = 0.02;
+export const OVERSEAS_CARD_FEE_RATE = 1 + OVERSEAS_CARD_FEE_PERCENT;
+
+export function applyOverseasCardFee(baseUsdKrw: number): number {
+  return baseUsdKrw * (1 + OVERSEAS_CARD_FEE_PERCENT);
+}
 
 /** USD→KRW 메모리 캐시 TTL — 1시간 (realtime 모드·API 폴링) */
 export const EXCHANGE_RATE_TTL_MS = 3600 * 1000;
@@ -22,14 +27,14 @@ const FETCH_TIMEOUT_MS = 8000;
 type RateCache = {
   usdToKrw: number;
   fetchedAt: number;
-  source: "api" | "fallback";
+  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
 };
 
 type DailyRateCache = {
   dateKey: string;
   usdToKrw: number;
   fetchedAt: number;
-  source: "api" | "fallback";
+  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
 };
 
 export type BillingExchangeRateSnapshot = {
@@ -37,7 +42,8 @@ export type BillingExchangeRateSnapshot = {
   dateKey: string;
   usdToKrw: number;
   effectiveKrwPerUsd: number;
-  source: "api" | "fallback";
+  source: "api_daily" | "previous_daily_snapshot" | "emergency_fallback" | "api" | "fallback";
+  overseasFeeRate?: number;
 };
 
 let memoryCache: RateCache | null = null;
@@ -59,140 +65,104 @@ async function fetchUsdToKrwFromApi(): Promise<number> {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     headers: { Accept: "application/json" },
   });
-  if (!res.ok) {
-    throw new Error(`Exchange API HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Exchange API HTTP ${res.status}`);
   const data = (await res.json()) as { rates?: { KRW?: number } };
   const krw = data?.rates?.KRW;
-  if (typeof krw !== "number" || !Number.isFinite(krw) || krw <= 0) {
-    throw new Error("Exchange API: invalid KRW rate");
-  }
+  if (typeof krw !== "number" || !Number.isFinite(krw) || krw <= 0) throw new Error("Exchange API: invalid KRW rate");
   return krw;
 }
 
-function applyFetchedRate(usdToKrw: number, source: "api" | "fallback", fetchedAt = Date.now()): number {
+function applyFetchedRate(usdToKrw: number, source: DailyRateCache["source"], fetchedAt = Date.now()): number {
   memoryCache = { usdToKrw, fetchedAt, source };
-  dailyCache = {
-    dateKey: getKstDateKey(fetchedAt),
-    usdToKrw,
-    fetchedAt,
-    source,
-  };
+  // daily lock is set only via ensureDailySnapshot — not here
   return usdToKrw;
 }
 
-async function refreshExchangeRateInternal(): Promise<number> {
+async function ensureDailySnapshot(dateKey: string): Promise<DailyRateCache> {
+  if (dailyCache?.dateKey === dateKey) return dailyCache;
+  // Try fresh fetch
   try {
     const usdToKrw = await fetchUsdToKrwFromApi();
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[exchangeRate] refreshed", {
-        mode: resolveExchangeRateMode(),
-        dateKey: getKstDateKey(),
-        usdToKrw,
-        effectiveKrwPerUsd: usdToKrw * OVERSEAS_CARD_FEE_RATE,
-      });
+    const snap: DailyRateCache = { dateKey, usdToKrw, fetchedAt: Date.now(), source: "api_daily" };
+    dailyCache = snap;
+    memoryCache = { usdToKrw, fetchedAt: snap.fetchedAt, source: "api_daily" };
+    return snap;
+  } catch {
+    if (dailyCache && dailyCache.dateKey !== dateKey) {
+      // carry previous successful daily
+      const snap: DailyRateCache = { dateKey, usdToKrw: dailyCache.usdToKrw, fetchedAt: Date.now(), source: "previous_daily_snapshot" };
+      dailyCache = snap;
+      return snap;
     }
-    return applyFetchedRate(usdToKrw, "api");
-  } catch (err) {
-    console.warn("[exchangeRate] fetch failed — using last known or fallback", (err as Error).message);
-    const carry =
-      dailyCache?.usdToKrw ??
-      memoryCache?.usdToKrw ??
-      EXCHANGE_RATE_FALLBACK_KRW;
-    return applyFetchedRate(carry, dailyCache || memoryCache ? "api" : "fallback");
-  } finally {
-    refreshPromise = null;
+    if (memoryCache) {
+      const snap: DailyRateCache = { dateKey, usdToKrw: memoryCache.usdToKrw, fetchedAt: Date.now(), source: "previous_daily_snapshot" };
+      dailyCache = snap;
+      return snap;
+    }
+    const snap: DailyRateCache = { dateKey, usdToKrw: EXCHANGE_RATE_FALLBACK_KRW, fetchedAt: Date.now(), source: "emergency_fallback" };
+    dailyCache = snap;
+    memoryCache = { usdToKrw: EXCHANGE_RATE_FALLBACK_KRW, fetchedAt: snap.fetchedAt, source: "emergency_fallback" };
+    return snap;
   }
+}
+
+async function refreshExchangeRateInternal(): Promise<number> {
+  const dateKey = getKstDateKey();
+  const snap = await ensureDailySnapshot(dateKey);
+  return snap.usdToKrw;
 }
 
 /**
  * USD→KRW 실시간 환율 (수수료 미포함).
- * 메모리 캐시 TTL 1시간.
+ * daily_kst에서는 하루 하나의 snapshot만 확정 — same-day drift 없음.
  */
 export async function getRealTimeExchangeRate(): Promise<number> {
   const dateKey = getKstDateKey();
   if (resolveExchangeRateMode() === "daily_kst" && dailyCache?.dateKey === dateKey) {
     return dailyCache.usdToKrw;
   }
-  if (isMemoryCacheFresh()) return memoryCache!.usdToKrw;
-  if (!refreshPromise) {
-    refreshPromise = refreshExchangeRateInternal();
-  }
+  if (isMemoryCacheFresh() && resolveExchangeRateMode() === "realtime" && memoryCache) return memoryCache.usdToKrw;
+  if (!refreshPromise) refreshPromise = refreshExchangeRateInternal().finally(() => { refreshPromise = null; });
   return refreshPromise;
-}
-
-function scheduleRefreshIfStale(): void {
-  const mode = resolveExchangeRateMode();
-  if (mode === "daily_kst") {
-    const dateKey = getKstDateKey();
-    if (dailyCache?.dateKey === dateKey && dailyCache.source === "api") return;
-  } else if (isMemoryCacheFresh() || refreshPromise) {
-    return;
-  }
-  void getRealTimeExchangeRate().catch(() => {});
 }
 
 function resolveDailyKstUsdToKrw(): number {
   const dateKey = getKstDateKey();
-  if (dailyCache && dailyCache.dateKey === dateKey && dailyCache.usdToKrw > 0) {
-    return dailyCache.usdToKrw;
-  }
-  if (memoryCache && getKstDateKey(memoryCache.fetchedAt) === dateKey && memoryCache.usdToKrw > 0) {
-    dailyCache = {
-      dateKey,
-      usdToKrw: memoryCache.usdToKrw,
-      fetchedAt: memoryCache.fetchedAt,
-      source: memoryCache.source,
-    };
-    scheduleRefreshIfStale();
-    return dailyCache.usdToKrw;
-  }
-  if (dailyCache && dailyCache.usdToKrw > 0) {
-    scheduleRefreshIfStale();
-    return dailyCache.usdToKrw;
-  }
-  if (memoryCache && memoryCache.usdToKrw > 0) {
-    dailyCache = {
-      dateKey,
-      usdToKrw: memoryCache.usdToKrw,
-      fetchedAt: memoryCache.fetchedAt,
-      source: memoryCache.source,
-    };
-    scheduleRefreshIfStale();
-    return dailyCache.usdToKrw;
-  }
-  scheduleRefreshIfStale();
+  if (dailyCache?.dateKey === dateKey) return dailyCache.usdToKrw;
+  // lazy init without blocking — return previous or fallback, refresh in background non-blocking for shadow
+  void ensureDailySnapshot(dateKey).catch(() => {});
+  if (dailyCache) return dailyCache.usdToKrw;
+  if (memoryCache) return memoryCache.usdToKrw;
   return EXCHANGE_RATE_FALLBACK_KRW;
 }
 
 function resolveRealtimeUsdToKrw(): number {
-  scheduleRefreshIfStale();
   if (isMemoryCacheFresh() && memoryCache) return memoryCache.usdToKrw;
-  if (memoryCache && memoryCache.usdToKrw > 0) return memoryCache.usdToKrw;
+  if (memoryCache) return memoryCache.usdToKrw;
   return EXCHANGE_RATE_FALLBACK_KRW;
 }
 
 /** sync 과금·영수증 — 모드별 단일 환율 (USD, 수수료 미포함) */
 export function getCachedUsdToKrwRate(): number {
-  return resolveExchangeRateMode() === "daily_kst"
-    ? resolveDailyKstUsdToKrw()
-    : resolveRealtimeUsdToKrw();
+  return resolveExchangeRateMode() === "daily_kst" ? resolveDailyKstUsdToKrw() : resolveRealtimeUsdToKrw();
 }
 
-/** 과금·영수증 스냅샷 — USD→KRW×2% 단일 적용 */
+/** 과금·영수증 스냅샷 — USD→KRW×2% 단일 적용, 동일 턴에서는 1 snapshot만 사용 */
 export function resolveBillingExchangeRateSnapshot(): BillingExchangeRateSnapshot {
   const mode = resolveExchangeRateMode();
   const usdToKrw = getCachedUsdToKrwRate();
-  const source =
-    mode === "daily_kst"
-      ? dailyCache?.source ?? memoryCache?.source ?? "fallback"
-      : memoryCache?.source ?? "fallback";
+  const dateKey = getKstDateKey();
+  // Ensure daily lock exists; source reflects actual lock source
+  let source: BillingExchangeRateSnapshot["source"] = "emergency_fallback";
+  if (dailyCache?.dateKey === dateKey) source = dailyCache.source;
+  else if (memoryCache) source = memoryCache.source as BillingExchangeRateSnapshot["source"];
   return {
     mode,
-    dateKey: getKstDateKey(),
+    dateKey,
     usdToKrw,
-    effectiveKrwPerUsd: usdToKrw * OVERSEAS_CARD_FEE_RATE,
+    effectiveKrwPerUsd: applyOverseasCardFee(usdToKrw),
     source,
+    overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
   };
 }
 
@@ -201,7 +171,7 @@ export function getEffectiveKrwPerUsd(): number {
   return resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
 }
 
-/** USD → KRW (effective rate = USD×KRW × 2% 수수료) */
+/** USD → KRW (effective rate = USD×KRW × card fee) */
 export function convertUsdToKrw(
   usd: number,
   effectiveKrwPerUsd = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd
@@ -211,11 +181,8 @@ export function convertUsdToKrw(
 }
 
 export function formatExchangeRateLabel(snapshot: BillingExchangeRateSnapshot): string {
-  const modeLabel =
-    snapshot.mode === "daily_kst"
-      ? `KST ${snapshot.dateKey} 고정`
-      : "실시간(1h 캐시)";
-  const sourceLabel = snapshot.source === "api" ? "API" : "fallback";
+  const modeLabel = snapshot.mode === "daily_kst" ? `KST ${snapshot.dateKey} 고정` : "실시간(1h 캐시)";
+  const sourceLabel = snapshot.source === "api_daily" ? "API" : snapshot.source === "previous_daily_snapshot" ? "previous" : "fallback";
   return `${modeLabel} · ₩${Math.round(snapshot.effectiveKrwPerUsd).toLocaleString()}/USD (${sourceLabel})`;
 }
 
@@ -233,6 +200,17 @@ export function getExchangeRateCacheStatus() {
     usdToKrw: snapshot.usdToKrw,
     effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
     source: snapshot.source,
+    overseasFeeRate: snapshot.overseasFeeRate,
     fetchedAt: dailyCache?.fetchedAt ?? memoryCache?.fetchedAt ?? null,
   };
+}
+
+// Test injection — does not affect production behavior when unused
+export function _setExchangeRateForTest(opts: { dateKey: string; usdToKrw: number; source: DailyRateCache["source"] }): void {
+  dailyCache = { dateKey: opts.dateKey, usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: opts.source };
+  memoryCache = { usdToKrw: opts.usdToKrw, fetchedAt: Date.now(), source: opts.source };
+}
+export function _clearExchangeRateCacheForTest(): void {
+  dailyCache = null;
+  memoryCache = null;
 }

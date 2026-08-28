@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { simulatePremiumCompetitive, TOKEN_USAGE_COMPETITOR_BENCHMARKS, PREMIUM_MARGIN_CANDIDATES, SECONDARY_CHAR_BENCHMARKS } from "./shadowSimulations";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
+import { _setExchangeRateForTest } from "./exchangeRate";
+
+const TEST_BASE_FX = 1530;
+const TEST_EFFECTIVE_FX = 1560.6;
+function setupFxFixture() {
+  _setExchangeRateForTest({ dateKey: "2026-08-28", usdToKrw: TEST_BASE_FX, source: "api_daily" });
+}
 
 function setupCatalogFixture() {
   clearCheaperInferenceCatalogPricingForTest();
@@ -34,6 +41,7 @@ function setupCatalogFixture() {
 describe("shadowSimulations benchmark isolation", () => {
   it("gemini benchmark isolated — uses token benchmark only", () => {
     setupCatalogFixture();
+    setupFxFixture();
     const r = simulatePremiumCompetitive({
       modelId: "gemini-3.1-pro-preview",
       inputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.inputTokens,
@@ -43,15 +51,16 @@ describe("shadowSimulations benchmark isolation", () => {
       minimumMarginFloor: 0.1,
     });
     assert.equal(r.rows.length, 7);
-    assert.ok(r.providerListCostKrw > 0);
-    assert.ok(r.billingReferenceCostKrw > 0);
-    // providerList should be ~207.7 with FX ~1560, allow 20% tolerance for live FX drift
-    assert.ok(r.providerListCostKrw > 150 && r.providerListCostKrw < 300);
-    assert.ok(r.benchmarkImpliedMaxMarginFromList != null);
+    // deterministic: 40689*2 +4307*12 =133062 tokens USD 0.133062 *1560.6 =207.6566
+    assert.ok(Math.abs(r.providerListCostKrw - 207.6566) < 1, `providerList ${r.providerListCostKrw} vs 207.65`);
+    assert.ok(r.benchmarkImpliedMaxMarginFromList != null && Math.abs(r.benchmarkImpliedMaxMarginFromList! - 0.1496) < 0.01);
+    // verify 7 candidates exact ordering
+    for (let i = 1; i < r.rows.length; i++) assert.ok(r.rows[i].targetMargin > r.rows[i-1].targetMargin);
     clearCheaperInferenceCatalogPricingForTest();
   });
   it("opus benchmark isolated from char benchmark — types separate", () => {
     setupCatalogFixture();
+    setupFxFixture();
     const r = simulatePremiumCompetitive({
       modelId: "claude-opus-5",
       inputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.inputTokens,
@@ -61,10 +70,14 @@ describe("shadowSimulations benchmark isolation", () => {
       minimumMarginFloor: 0.15,
     });
     assert.equal(r.rows.length, 9);
-    // secondary char benchmark must not be usable as token input
-    assert.equal((SECONDARY_CHAR_BENCHMARKS as Record<string, unknown>).opus5 != null, true);
-    // ensure flagReason exists
-    for (const row of r.rows) assert.ok(typeof row.flagReason === "string");
+    // deterministic: 63749*5 +3629*25 =409470 USD 0.40947 *1560.6 =639.0189
+    assert.ok(Math.abs(r.providerListCostKrw - 639.0189) < 1, `providerList ${r.providerListCostKrw} vs 639.01`);
+    assert.ok(r.benchmarkImpliedMaxMarginFromList != null && Math.abs(r.benchmarkImpliedMaxMarginFromList! - 0.1382) < 0.01);
+    for (const row of r.rows) {
+      assert.ok(typeof row.flagReason === "string");
+      assert.ok(typeof row.finalPoints === "number");
+      assert.ok(typeof row.competitiveDeviationPct === "number" || row.competitiveDeviationPct === null);
+    }
     clearCheaperInferenceCatalogPricingForTest();
   });
   it("candidate counts are canonical", () => {

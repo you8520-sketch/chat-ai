@@ -84,7 +84,7 @@ export type Usage = {
   exchangeRateKrwPerUsd?: number;
   exchangeRateDateKey?: string;
   exchangeRateMode?: "daily_kst" | "realtime";
-  exchangeRateSource?: "api" | "fallback";
+  exchangeRateSource?: "api" | "fallback" | "api_daily" | "previous_daily_snapshot" | "emergency_fallback";
   breakdown: { label: string; tokens: number; pct: number }[];
   stages?: { stage: string; model: string; input: number; output: number; cost: number }[];
   fallback?: string | null;
@@ -217,6 +217,6 @@ export type Usage = {
     actualGrossProfitKrw: number;
     actualRealizedMargin: number | null;
     worstCasePromoMargin: number | null;
-    marginFloorViolated: boolean;
+    marginFloorViolated: boolean | null;
   };
 };

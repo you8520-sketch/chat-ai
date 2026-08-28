@@ -4,11 +4,10 @@
  * Three costs: actualProviderCost / providerListCost / billingReferenceCost
  */
 
-import { resolveBillingExchangeRateSnapshot, convertUsdToKrw } from "@/lib/exchangeRate";
+import { resolveBillingExchangeRateSnapshot, convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
-import { isDeepSeekModel, isQwenModel, isAnthropicModel } from "@/lib/chatModels";
 
 export type ActualCostSource =
   | "cheaper_inference_billed"
@@ -252,7 +251,7 @@ export function computeShadowCosts(opts: {
     pricingVersion: pub.pricingVersion,
     targetMargin: pub.targetMargin,
     minimumMarginFloor: pub.minimumMarginFloor,
-    fxSnapshot: { dateKey: snapshot.dateKey, baseUsdKrw: snapshot.usdToKrw, overseasFeeRate: 0.02, effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd },
+    fxSnapshot: { dateKey: snapshot.dateKey, baseUsdKrw: snapshot.usdToKrw, overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT, effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd },
   };
 }
 
