@@ -660,4 +660,26 @@ describe("POST-706 production presentation timeline", () => {
   it("single-die result hold is 3500ms", () => {
     assert.equal(TRPG_RESULT_HOLD_MS[1], 3500);
   });
+
+  it("STALE_GLOBAL_DECLARATION_OWNER_REMOVED: no deprecated pre-cinematic queue API", () => {
+    const sources = [
+      readFileSync("src/lib/trpg/roundPresentation.ts", "utf8"),
+      readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8"),
+      readFileSync("src/app/trpg/useRevealedText.ts", "utf8"),
+    ];
+    const deprecated = [
+      "resolvePreCinematicDeclarationReveal",
+      "preCinematicVisibleActionIds",
+      "PreCinematicDeclarationReveal",
+    ];
+    for (const source of sources) {
+      for (const symbol of deprecated) {
+        assert.doesNotMatch(source, new RegExp(symbol));
+      }
+    }
+    assert.match(sources[0]!, /resolveLiveActorDeclarationPresentation/);
+    assert.match(sources[1]!, /resolveLiveActorDeclarationPresentation/);
+    assert.doesNotMatch(sources[1]!, /declarationReveal\.complete/);
+    assert.doesNotMatch(sources[1]!, /declarationReveal\.activeAiId/);
+  });
 });

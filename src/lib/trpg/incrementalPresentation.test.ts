@@ -6,7 +6,6 @@ import {
   earlyVisibleHumanActionIds,
   isLiveRoundPresentationReady,
   liveRoundCanonicalVisibleCount,
-  preCinematicVisibleActionIds,
   resolveLiveRevealedActionIds,
   revealedActorIds,
   shouldGateLiveRoundPresentation,

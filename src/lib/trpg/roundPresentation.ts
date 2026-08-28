@@ -157,7 +157,7 @@ export function nextReadyPresentationIndex(opts: {
   return next;
 }
 
-/** Derived early-visibility ids — human declarations only, not a pin/queue owner. */
+/** Derived early-visibility ids — human declarations only before cinematic starts. */
 export function earlyVisibleHumanActionIds(
   actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
 ): number[] {
@@ -173,36 +173,6 @@ export function earlyVisibleHumanActionIds(
   }
   return out;
 }
-
-/**
- * Canonical persisted actions visible during pre-cinematic declaration.
- * DECLARATION_ORDER follows persistence order, not resolutionOrder.
- * Only fully parsed/persisted human + AI companion prose — never partial provider output.
- *
- * DECLARATION_ORDER != RESOLUTION_ORDER — this is visibility only, not mechanics.
- */
-export function preCinematicVisibleActionIds(
-  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
-): number[] {
-  const seen = new Set<number>();
-  const out: number[] = [];
-  for (const action of actions) {
-    if (action.kind !== "human" && action.kind !== "ai_character") continue;
-    if (action.revealed === false) continue;
-    if (typeof action.body !== "string" || !action.body.trim()) continue;
-    if (seen.has(action.participantId)) continue;
-    seen.add(action.participantId);
-    out.push(action.participantId);
-  }
-  return out;
-}
-
-export type PreCinematicDeclarationReveal = {
-  availableIds: number[];
-  visibleIds: number[];
-  activeAiId: number | null;
-  complete: boolean;
-};
 
 export type LiveActorDeclarationPresentation = {
   visibleActionIds: number[];
@@ -284,33 +254,11 @@ export function resolveLiveActorDeclarationPresentation(opts: {
   };
 }
 
-/** @deprecated Use resolveLiveActorDeclarationPresentation — retained for test migration only. */
-export function resolvePreCinematicDeclarationReveal(opts: {
-  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[];
-  consumedAiIds: ReadonlySet<number> | readonly number[];
-}): PreCinematicDeclarationReveal {
-  const presentation = resolveLiveActorDeclarationPresentation({
-    mode: "idle",
-    phase: "idle",
-    presentationIndex: 0,
-    presentationActors: [],
-    actions: opts.actions,
-    consumedAiIds:
-      opts.consumedAiIds instanceof Set ? opts.consumedAiIds : new Set(opts.consumedAiIds),
-  });
-  return {
-    availableIds: preCinematicVisibleActionIds(opts.actions),
-    visibleIds: presentation.visibleActionIds,
-    activeAiId: presentation.activeDeclarationActorId,
-    complete: presentation.currentActorDeclarationComplete,
-  };
-}
-
 /**
  * Single live SceneTurn action-id owner.
  * Historical: undefined = all persisted.
- * Live / not cinematic: declaration-visible canonical ids (human + persisted AI).
- * Live / cinematic: declaration-visible ∪ actors released by roundShow.
+ * Live / not cinematic: early human visibility (+ consumed AI on idle remount).
+ * Live / cinematic: declaration-visible ids ∪ actors released by roundShow.
  */
 export function resolveLiveRevealedActionIds(opts: {
   isLiveRow: boolean;
@@ -337,16 +285,19 @@ export function resolveLiveRevealedActionIds(opts: {
   return out;
 }
 
-/** Decorative streaming: current cinematic AI actor-action only. */
+/** Decorative streaming during cinematic actor-action for the current AI declaration slot. */
 export function shouldDecorativeRevealAction(opts: {
   kind: string;
   participantId: number;
+  /** Fallback presentation-actor match when declarationRevealActive is unset (tests/legacy). */
   activeRevealActorId: number | null;
   isFresh: boolean;
   skipDecorativeReveal: boolean;
+  /** Must be true during cinematic actor-action phase. */
   cinematicActorAction?: boolean;
+  /** Current live declaration slot from resolveLiveActorDeclarationPresentation. */
   declarationRevealActive?: boolean;
-  /** The one visible declaration reveal completed before resolution. */
+  /** Declaration already consumed — do not replay decorative streaming. */
   resolutionActionAlreadyConsumed?: boolean;
 }): boolean {
   if (opts.kind !== "ai_character") return false;
@@ -584,7 +535,7 @@ export function liveRoundCanonicalVisibleCount(opts: {
     return selectVisibleActions(opts.actions, ids).length;
   }
   if (opts.preCinematicVisibleIds) return opts.preCinematicVisibleIds.length;
-  return preCinematicVisibleActionIds(
+  return earlyVisibleHumanActionIds(
     opts.actions.map((action) => ({
       participantId: action.participantId,
       kind: action.kind ?? "human",
