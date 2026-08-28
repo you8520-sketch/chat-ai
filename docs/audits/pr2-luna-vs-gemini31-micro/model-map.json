@@ -1,0 +1,22 @@
+{
+  "M01": {
+    "A": "gpt-5.6-luna",
+    "B": "gemini-3.1-flash-lite"
+  },
+  "M02": {
+    "A": "gemini-3.1-flash-lite",
+    "B": "gpt-5.6-luna"
+  },
+  "M03": {
+    "A": "gpt-5.6-luna",
+    "B": "gemini-3.1-flash-lite"
+  },
+  "M04": {
+    "A": "gemini-3.1-flash-lite",
+    "B": "gpt-5.6-luna"
+  },
+  "M05": {
+    "A": "gpt-5.6-luna",
+    "B": "gemini-3.1-flash-lite"
+  }
+}
