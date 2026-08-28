@@ -4846,6 +4846,7 @@ export async function POST(req: Request) {
         try {
           const actualTurnCostCoverage = resolveActualTurnCostCoverage({
             totalStageCount: stages.length,
+            fallbackAttempted: adultFallbackAttempted,
             hiddenFallbackOverheadCostUsd,
             lengthRecoveryPasses: primaryStage?.lengthRecoveryPasses,
             lengthContinuationPasses,

@@ -26,10 +26,12 @@ export type ActualTurnCostCoverage = "complete" | "partial";
 
 export function resolveActualTurnCostCoverage(opts: {
   totalStageCount?: number;
+  fallbackAttempted?: boolean;
   hiddenFallbackOverheadCostUsd?: number;
   lengthRecoveryPasses?: number;
   lengthContinuationPasses?: number;
 }): ActualTurnCostCoverage {
+  if (opts.fallbackAttempted === true) return "partial";
   if ((opts.totalStageCount ?? 1) > 1) return "partial";
   if ((opts.hiddenFallbackOverheadCostUsd ?? 0) > 0) return "partial";
   if ((opts.lengthRecoveryPasses ?? 0) > 0) return "partial";

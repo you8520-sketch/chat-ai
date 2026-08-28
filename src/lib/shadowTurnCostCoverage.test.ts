@@ -59,6 +59,7 @@ describe("actual turn cost coverage gate", () => {
     assert.equal(
       resolveActualTurnCostCoverage({
         totalStageCount: 1,
+        fallbackAttempted: false,
         hiddenFallbackOverheadCostUsd: 0,
         lengthRecoveryPasses: 0,
         lengthContinuationPasses: 0,
@@ -132,5 +133,27 @@ describe("actual turn cost coverage gate", () => {
       }),
       "partial"
     );
+  });
+
+  it("primary error followed by fallback success remains partial even with zero known overhead", () => {
+    assert.equal(
+      resolveActualTurnCostCoverage({
+        totalStageCount: 1,
+        fallbackAttempted: true,
+        hiddenFallbackOverheadCostUsd: 0,
+        lengthRecoveryPasses: 0,
+        lengthContinuationPasses: 0,
+      }),
+      "partial"
+    );
+    const s = computeShadowPricing({
+      modelId: "claude-opus-5",
+      promptTokens: 1000,
+      outputTokens: 1000,
+      cheaperInferenceBilledCostUsd: 0.008,
+      actualTurnCostCoverage: "partial",
+    });
+    assert.notEqual(s.reserveStatus, "complete");
+    assert.equal(s.actualRealizedMargin, null);
   });
 });
