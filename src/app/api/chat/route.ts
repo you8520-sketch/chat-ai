@@ -61,6 +61,12 @@ import {
 } from "@/lib/streamingPersistence";
 import { executeAtomicRegenerationFinalize } from "@/lib/personaSecretRegenerationFinalize";
 import { hashForensicsText, logStreamTurnForensics } from "@/lib/streamTurnForensics";
+import {
+  beginTurnPhaseAudit,
+  clearActiveTurnPhaseAudit,
+  wrapSendForPhaseAudit,
+  type TurnPhaseLatencyAudit,
+} from "@/lib/turnPhaseLatencyAudit";
 import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbeat";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
@@ -568,6 +574,7 @@ export async function POST(req: Request) {
   const requestStartedAt = Date.now();
   const user = await getSessionUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const authDoneMs = Date.now();
 
   const body = await req.json();
   const { characterId, chatId, message, userNote, selectedPersonaId } = body;
@@ -576,6 +583,11 @@ export async function POST(req: Request) {
   const clientRequestId =
     normalizeClientRequestId(body.clientRequestId ?? body.requestId) ??
     `srv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  const phaseAudit: TurnPhaseLatencyAudit | null = beginTurnPhaseAudit(
+    clientRequestId,
+    requestStartedAt
+  );
+  phaseAudit?.backfillMark("T1_AUTH_DONE", authDoneMs);
   const isAdultModeInput =
     body.isAdultMode ?? body.isNsfwMode ?? body.nsfwMode;
   const targetResponseCharsInput = body.targetResponseChars ?? body.targetResponseLength;
@@ -743,6 +755,7 @@ export async function POST(req: Request) {
   if (!chat) {
     return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
   }
+  phaseAudit?.mark("T2_SESSION_LOADED");
 
   const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const personaSecretDiscoveryOn = isPersonaSecretDiscoveryEnabled({
@@ -1349,6 +1362,7 @@ export async function POST(req: Request) {
   const memoryCapacity = getChatMemoryCapacity(chat.id);
   const memoryFeatureOn = isMemoryFeatureEnabled();
   if (memoryFeatureOn) {
+    phaseAudit?.mark("T3_MEMORY_SYNC_START");
     syncMemoryFromChat({
       userId: user.id,
       characterId: ch.id,
@@ -1361,6 +1375,7 @@ export async function POST(req: Request) {
   const chatMemory = memoryFeatureOn
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
+  phaseAudit?.mark("T4_MEMORY_SYNC_DONE");
 
   const effectiveSelectedAI =
     adultDeliveryPlan.primaryModelId as SelectedAI;
@@ -1576,6 +1591,7 @@ export async function POST(req: Request) {
 
   const settingText = collectCharacterSettingText(characterChunks);
 
+  phaseAudit?.mark("T5_CANON_START");
   const canonLazyCompileResult = shouldRunCanonInjectionSideEffects(canonInjectionPolicy)
     ? ensureCanonPlanOnAccess(db, ch.id, {
         creator_raw_description: (ch as { creator_raw_description?: string }).creator_raw_description,
@@ -1584,6 +1600,7 @@ export async function POST(req: Request) {
         system_prompt: ch.system_prompt,
       })
     : null;
+  phaseAudit?.mark("T6_CANON_DONE");
 
   const policyUserMessage = displayUserMessage;
 
@@ -2173,15 +2190,21 @@ export async function POST(req: Request) {
       ? withEnsembleRedactedPromptAssembly(fn)
       : fn();
 
-  let built = assembleContext(() =>
-    buildContext({
+  let built = assembleContext(() => {
+    phaseAudit?.mark("T7_CONTEXT_BUILD_START");
+    return buildContext({
       ...contextBuildInput,
       statusWidgetActive: statusWidgetActive,
       mainModelOwnsRelationshipExtract,
       promptDumpSource: "db",
       promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
-    })
-  );
+    });
+  });
+  phaseAudit?.mark("T8_CONTEXT_BUILD_DONE");
+  phaseAudit?.setTokens({
+    estimated_input_tokens: built.meta.estimatedInputTokens,
+    estimated: true,
+  });
   if (memoryFeatureOn) {
     const reconciliation = await reconcileMemoryCoverageFixedPoint({
       initialBuild: built,
@@ -2805,6 +2828,8 @@ export async function POST(req: Request) {
     }
   }
 
+  phaseAudit?.mark("T9_REQUEST_ASSEMBLY_DONE");
+
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
 
   const stream = new ReadableStream({
@@ -2814,7 +2839,7 @@ export async function POST(req: Request) {
         (chunk) => controller.enqueue(chunk),
         sseEncode
       );
-      const send = safe.send;
+      const send = wrapSendForPhaseAudit(safe.send, phaseAudit);
       const postprocessHeartbeat = createStreamPostprocessHeartbeat((obj) => send(obj));
       // Immediate heartbeat — mobile clients otherwise sit on a dark/idle screen
       // while prompt assembly + model connect can take tens of seconds.
@@ -2860,6 +2885,14 @@ export async function POST(req: Request) {
           content_length: forensicsContent.length,
           content_hash: hashForensicsText(forensicsContent),
         });
+      };
+
+      const emitPhaseLatencyAudit = () => {
+        if (!phaseAudit) return;
+        phaseAudit.mark("T18_REQUEST_COMPLETE");
+        const report = phaseAudit.log();
+        send({ type: "phase_latency_audit", report });
+        clearActiveTurnPhaseAudit(phaseAudit);
       };
 
       const partialSaver = createPartialSaveThrottler();
@@ -3039,6 +3072,7 @@ export async function POST(req: Request) {
                 oocHtmlMode: oocHtmlMode || undefined,
                 statusArtifactsOpts: statusArtifactOpts,
                 requestKind: input.requestKind,
+                phaseAudit,
                 sceneServerControls: {
                   contentKind:
                     ch.content_kind === "simulation" ? "simulation" : "character",
@@ -3126,6 +3160,7 @@ export async function POST(req: Request) {
             ReturnType<typeof streamOpenRouterAdultToClient>
           >;
           try {
+            phaseAudit?.mark("T10_PROVIDER_FETCH_START");
             result = await runStream({
               send: streamGate.send,
               system: systemRef,
@@ -3179,6 +3214,15 @@ export async function POST(req: Request) {
           stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
+          if (phaseAudit && result.stage) {
+            phaseAudit.setTokens({
+              prompt_tokens: result.stage.apiReportedInputTokens ?? result.stage.input,
+              cached_tokens: result.stage.cacheReadTokens,
+              completion_tokens: result.stage.apiOutputTokens ?? result.stage.output,
+              reasoning_tokens: result.stage.apiReasoningOutputTokens ?? result.stage.thoughtsTokens,
+              estimated: result.stage.estimated,
+            });
+          }
           try {
             persistStreamCompleteContent(db, persistedAssistantId, streamVisibleTextRef || fullText);
             persistenceDiag.lastPartialChars = (streamVisibleTextRef || fullText).length;
@@ -5759,6 +5803,7 @@ export async function POST(req: Request) {
           ...variantPayload,
         });
         emitStreamTurnForensics(persistedGenerationStatus);
+        emitPhaseLatencyAudit();
         controller.close();
 
         void (async () => {
@@ -5884,6 +5929,7 @@ export async function POST(req: Request) {
         emitStreamTurnForensics(
           partialOnError.trim() ? "completed_with_postprocess_error" : "interrupted"
         );
+        emitPhaseLatencyAudit();
         controller.close();
       }
       };
