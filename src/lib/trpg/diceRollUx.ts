@@ -50,7 +50,7 @@ export function trpgDiceDurationMs(rollCount: number): { perDie: number; total: 
  * control only the post-settle RESULT_CONFIRM HUD duration.
  */
 export const TRPG_RESULT_ENTER_MS = 180 as const;
-export const TRPG_RESULT_HOLD_MS = { 1: 2200, 2: 650, 3: 500, 4: 500 } as const;
+export const TRPG_RESULT_HOLD_MS = { 1: 3500, 2: 650, 3: 500, 4: 500 } as const;
 export const TRPG_RESULT_EXIT_MS = 200 as const;
 /** Deterministic static-renderer settle delay (accessibility-friendly, no physics). */
 export const TRPG_STATIC_SETTLE_MS = 320 as const;

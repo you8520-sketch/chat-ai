@@ -20,7 +20,6 @@ export type PublishedModelPricing = {
     allowBelowMarginFloor: boolean;
   };
   marketBenchmark?: { outputChars: number; points: number };
-  marketUsageBenchmark?: { inputTokens: number; outputTokens: number; userChargePoints: number; sourceLabel: string };
 };
 
 const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
@@ -35,7 +34,6 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 1,
     publishedAt: "2026-08-28T00:00:00.000Z",
     marketBenchmark: { outputChars: 1800, points: 250 },
-    marketUsageBenchmark: { inputTokens: 63749, outputTokens: 3629, userChargePoints: 741.5, sourceLabel: "competitor observed Opus5" },
   },
   "anthropic/claude-opus-4.5": {
     modelId: "anthropic/claude-opus-4.5",
@@ -95,7 +93,6 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     minimumMarginFloor: 0.1,
     pricingVersion: 1,
     publishedAt: "2026-08-28T00:00:00.000Z",
-    marketUsageBenchmark: { inputTokens: 40689, outputTokens: 4307, userChargePoints: 244.2, sourceLabel: "competitor observed Gemini31" },
   },
   "google/gemini-3.1-pro-preview": {
     modelId: "google/gemini-3.1-pro-preview",
@@ -105,16 +102,15 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     minimumMarginFloor: 0.1,
     pricingVersion: 1,
     publishedAt: "2026-08-28T00:00:00.000Z",
-    marketUsageBenchmark: { inputTokens: 40689, outputTokens: 4307, userChargePoints: 244.2, sourceLabel: "competitor observed Gemini31" },
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",
-    billingReferenceInputUsdPerMillion: 0.53,
-    billingReferenceOutputUsdPerMillion: 2.63,
-    targetMargin: 0.4,
-    minimumMarginFloor: 0.25,
-    pricingVersion: 1,
-    publishedAt: "2026-08-28T00:00:00.000Z",
+    billingReferenceInputUsdPerMillion: 0.375,
+    billingReferenceOutputUsdPerMillion: 1.875,
+    targetMargin: 0.55,
+    minimumMarginFloor: 0.5,
+    pricingVersion: 2,
+    publishedAt: "2026-08-28T14:00:00.000Z",
   },
   "qwen-3-8-max": {
     modelId: "qwen-3-8-max",

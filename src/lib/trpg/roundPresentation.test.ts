@@ -12,7 +12,6 @@ import {
   isLiveRoundPresentationStarting,
   isRoundPresentationComplete,
   earlyVisibleHumanActionIds,
-  preCinematicVisibleActionIds,
   isActorActionRevealBeatSatisfied,
   liveRoundCanonicalVisibleCount,
   liveRoundWaitCopy,
@@ -529,11 +528,11 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(s2?.ready, false);
     assert.equal(s2?.started, false);
     assert.equal(s2?.restarted, false);
-    assert.deepEqual(s2?.incrementalVisibleActionIds, [10, 20]);
+    assert.deepEqual(s2?.incrementalVisibleActionIds, [10]);
     assert.equal(s3?.ready, false);
     assert.equal(s3?.started, false);
     assert.equal(s3?.restarted, false);
-    assert.deepEqual(s3?.incrementalVisibleActionIds, [10, 20, 30]);
+    assert.deepEqual(s3?.incrementalVisibleActionIds, [10]);
     assert.equal(s4?.ready, true);
     assert.equal(s4?.mode, "cinematic");
     assert.equal(s4?.started, true);
@@ -685,19 +684,18 @@ describe("TRPG live round presentation readiness", () => {
       actions,
       revealedActorIds: [],
     });
-    assert.equal(firstVisible, 3, "declaration-visible actions remain visible at first ready render");
+    assert.equal(firstVisible, 1, "early human visibility only before cinematic starts");
     assert.deepEqual(earlyVisibleHumanActionIds(actions), [10]);
-    assert.deepEqual(preCinematicVisibleActionIds(actions), [10, 20, 30]);
     assert.deepEqual(
       resolveLiveRevealedActionIds({
         isLiveRow: true,
         mode: "idle",
         cinematicRevealedIds: [],
-        preCinematicVisibleIds: [10, 20, 30],
+        preCinematicVisibleIds: [10],
       }),
-      [10, 20, 30]
+      [10]
     );
-    assert.equal(firstVisible === actions.length, true, "ALL_DECLARATION_VISIBLE_AT_READY");
+    assert.equal(firstVisible === 1, true, "HUMAN_ONLY_AT_PRE_CINEMATIC");
     assert.equal(
       shouldShowLiveRoundWaitCopy({
         waitKind: "gm",
@@ -751,17 +749,16 @@ describe("TRPG live round presentation readiness", () => {
     );
   });
 
-  it("single live action-id owner: declaration visible pre-cinematic, cinematic releases resolution", () => {
+  it("single live action-id owner: early human pre-cinematic, cinematic releases resolution", () => {
     assert.deepEqual(earlyVisibleHumanActionIds([human, bot1, bot2]), [10]);
-    assert.deepEqual(preCinematicVisibleActionIds([human, bot1, bot2]), [10, 20, 30]);
     assert.deepEqual(
       resolveLiveRevealedActionIds({
         isLiveRow: true,
         mode: "idle",
         cinematicRevealedIds: [],
-        preCinematicVisibleIds: [10, 20],
+        preCinematicVisibleIds: [10],
       }),
-      [10, 20]
+      [10]
     );
     assert.deepEqual(
       resolveLiveRevealedActionIds({

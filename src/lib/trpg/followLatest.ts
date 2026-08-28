@@ -169,6 +169,18 @@ export function isTrpgScrollIntentKey(key: string): boolean {
   return TRPG_SCROLL_INTENT_KEYS.has(key);
 }
 
+export function shouldDetachLiveFollowOnWheel(deltaY: number): boolean {
+  return deltaY < 0;
+}
+
+export function shouldDetachLiveFollowOnKey(key: string): boolean {
+  return key === "PageUp" || key === "Home" || key === "ArrowUp";
+}
+
+export function shouldDetachLiveFollowOnTouchDelta(deltaY: number): boolean {
+  return deltaY < 0;
+}
+
 export function shouldDetachLiveFollowOnUserIntent(): boolean {
   return true;
 }

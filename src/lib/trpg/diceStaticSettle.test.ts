@@ -155,7 +155,7 @@ describe("TRPG static renderer settle lifecycle", () => {
     assert.match(overlay, /data-trpg-dice-burst-ring="nat1"/);
     assert.match(overlay, /data-trpg-dice-burst-vignette="nat1"/);
     assert.equal(TRPG_RESULT_ENTER_MS, 180);
-    assert.deepEqual(TRPG_RESULT_HOLD_MS, { 1: 2200, 2: 650, 3: 500, 4: 500 });
+    assert.deepEqual(TRPG_RESULT_HOLD_MS, { 1: 3500, 2: 650, 3: 500, 4: 500 });
     assert.equal(TRPG_RESULT_EXIT_MS, 200);
   });
 });

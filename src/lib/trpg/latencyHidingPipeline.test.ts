@@ -808,7 +808,7 @@ describe("TRPG PR-C final correction regressions", () => {
     db.close();
   });
 
-  it("RESULT_CONFIRM_HOLD_MS remains 2200", () => {
-    assert.equal(TRPG_RESULT_HOLD_MS[1], 2200);
+  it("RESULT_CONFIRM_HOLD_MS remains 3500", () => {
+    assert.equal(TRPG_RESULT_HOLD_MS[1], 3500);
   });
 });

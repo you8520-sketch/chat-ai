@@ -157,7 +157,7 @@ export function nextReadyPresentationIndex(opts: {
   return next;
 }
 
-/** Derived early-visibility ids — human declarations only, not a pin/queue owner. */
+/** Derived early-visibility ids — human declarations only before cinematic starts. */
 export function earlyVisibleHumanActionIds(
   actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
 ): number[] {
@@ -174,79 +174,91 @@ export function earlyVisibleHumanActionIds(
   return out;
 }
 
-/**
- * Canonical persisted actions visible during pre-cinematic declaration.
- * DECLARATION_ORDER follows persistence order, not resolutionOrder.
- * Only fully parsed/persisted human + AI companion prose — never partial provider output.
- *
- * DECLARATION_ORDER != RESOLUTION_ORDER — this is visibility only, not mechanics.
- */
-export function preCinematicVisibleActionIds(
-  actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[]
-): number[] {
-  const seen = new Set<number>();
-  const out: number[] = [];
-  for (const action of actions) {
-    if (action.kind !== "human" && action.kind !== "ai_character") continue;
-    if (action.revealed === false) continue;
-    if (typeof action.body !== "string" || !action.body.trim()) continue;
-    if (seen.has(action.participantId)) continue;
-    seen.add(action.participantId);
-    out.push(action.participantId);
-  }
-  return out;
-}
-
-export type PreCinematicDeclarationReveal = {
-  availableIds: number[];
-  visibleIds: number[];
-  activeAiId: number | null;
-  complete: boolean;
+export type LiveActorDeclarationPresentation = {
+  visibleActionIds: number[];
+  activeDeclarationActorId: number | null;
+  currentActorDeclarationComplete: boolean;
 };
 
 /**
- * Single declaration reveal owner.
- * Canonical AI actions remain buffered in persistence order behind the one
- * active reveal. This controls presentation only; backend generation is never
- * blocked and resolutionOrder remains authoritative for mechanics.
+ * Single live declaration presentation owner.
+ * Pre-cinematic: human early visibility only — AI actions stay buffered.
+ * Cinematic: only presentationActors[presentationIndex] may progressively reveal.
  */
-export function resolvePreCinematicDeclarationReveal(opts: {
+export function resolveLiveActorDeclarationPresentation(opts: {
+  mode: RoundPresentationMode;
+  phase: RoundPresentationPhase;
+  presentationIndex: number;
+  presentationActors: readonly PresentationActor[];
   actions: readonly { participantId: number; kind: string; revealed?: boolean; body?: string }[];
-  consumedAiIds: ReadonlySet<number> | readonly number[];
-}): PreCinematicDeclarationReveal {
-  const availableIds = preCinematicVisibleActionIds(opts.actions);
-  const consumed =
-    opts.consumedAiIds instanceof Set
-      ? opts.consumedAiIds
-      : new Set(opts.consumedAiIds);
-  const visibleIds: number[] = [];
-  let activeAiId: number | null = null;
+  consumedAiIds: ReadonlySet<number>;
+}): LiveActorDeclarationPresentation {
+  const earlyHumanIds = earlyVisibleHumanActionIds(opts.actions);
+  const visibleActionIds: number[] = [];
+  const seen = new Set<number>();
 
-  for (const id of availableIds) {
-    const action = opts.actions.find((candidate) => candidate.participantId === id);
-    if (action?.kind === "human" || consumed.has(id)) {
-      visibleIds.push(id);
-      continue;
+  const pushVisible = (id: number) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    visibleActionIds.push(id);
+  };
+
+  for (const id of earlyHumanIds) pushVisible(id);
+
+  if (opts.mode !== "cinematic") {
+    for (const action of opts.actions) {
+      if (action.kind === "ai_character" && opts.consumedAiIds.has(action.participantId)) {
+        pushVisible(action.participantId);
+      }
     }
-    if (activeAiId == null) {
-      activeAiId = id;
-      visibleIds.push(id);
+    return {
+      visibleActionIds,
+      activeDeclarationActorId: null,
+      currentActorDeclarationComplete: true,
+    };
+  }
+
+  for (let i = 0; i < opts.presentationIndex; i++) {
+    const actor = opts.presentationActors[i];
+    if (actor?.action) pushVisible(actor.actorId);
+  }
+  for (const id of opts.consumedAiIds) pushVisible(id);
+
+  const currentActor = opts.presentationActors[opts.presentationIndex];
+  const currentActorId = currentActor?.actorId ?? null;
+
+  if (opts.phase === "actor-action" && currentActor?.action?.kind === "ai_character") {
+    pushVisible(currentActor.actorId);
+    if (opts.consumedAiIds.has(currentActor.actorId)) {
+      return {
+        visibleActionIds,
+        activeDeclarationActorId: null,
+        currentActorDeclarationComplete: true,
+      };
     }
+    return {
+      visibleActionIds,
+      activeDeclarationActorId: currentActor.actorId,
+      currentActorDeclarationComplete: false,
+    };
+  }
+
+  if (currentActor?.action) {
+    pushVisible(currentActor.actorId);
   }
 
   return {
-    availableIds,
-    visibleIds,
-    activeAiId,
-    complete: activeAiId == null,
+    visibleActionIds,
+    activeDeclarationActorId: null,
+    currentActorDeclarationComplete: true,
   };
 }
 
 /**
  * Single live SceneTurn action-id owner.
  * Historical: undefined = all persisted.
- * Live / not cinematic: declaration-visible canonical ids (human + persisted AI).
- * Live / cinematic: declaration-visible ∪ actors released by roundShow.
+ * Live / not cinematic: early human visibility (+ consumed AI on idle remount).
+ * Live / cinematic: declaration-visible ids ∪ actors released by roundShow.
  */
 export function resolveLiveRevealedActionIds(opts: {
   isLiveRow: boolean;
@@ -273,16 +285,19 @@ export function resolveLiveRevealedActionIds(opts: {
   return out;
 }
 
-/** Decorative streaming: current cinematic AI actor-action only. */
+/** Decorative streaming during cinematic actor-action for the current AI declaration slot. */
 export function shouldDecorativeRevealAction(opts: {
   kind: string;
   participantId: number;
+  /** Fallback presentation-actor match when declarationRevealActive is unset (tests/legacy). */
   activeRevealActorId: number | null;
   isFresh: boolean;
   skipDecorativeReveal: boolean;
+  /** Must be true during cinematic actor-action phase. */
   cinematicActorAction?: boolean;
+  /** Current live declaration slot from resolveLiveActorDeclarationPresentation. */
   declarationRevealActive?: boolean;
-  /** The one visible declaration reveal completed before resolution. */
+  /** Declaration already consumed — do not replay decorative streaming. */
   resolutionActionAlreadyConsumed?: boolean;
 }): boolean {
   if (opts.kind !== "ai_character") return false;
@@ -520,7 +535,7 @@ export function liveRoundCanonicalVisibleCount(opts: {
     return selectVisibleActions(opts.actions, ids).length;
   }
   if (opts.preCinematicVisibleIds) return opts.preCinematicVisibleIds.length;
-  return preCinematicVisibleActionIds(
+  return earlyVisibleHumanActionIds(
     opts.actions.map((action) => ({
       participantId: action.participantId,
       kind: action.kind ?? "human",
@@ -1055,7 +1070,7 @@ export function walkLiveRoundSnapshots(snaps: readonly LiveRoundSnapshotInput[])
         ? []
         : revealedActorIds({ actors: frozenNext.actors, state });
     const actions = snap.actions.filter((action) => action.revealed && action.body.trim());
-    const incrementalVisibleActionIds = !decided.ready ? preCinematicVisibleActionIds(actions) : [];
+    const incrementalVisibleActionIds = !decided.ready ? earlyVisibleHumanActionIds(actions) : [];
     prevKey = decided.sessionKey;
     prevMode = mode;
     return {
