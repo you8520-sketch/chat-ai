@@ -4,6 +4,14 @@
  * Requires RUN_REAL_TRANSLATION_AB=1 and CHEAPER_INFERENCE_API_KEY.
  * Does NOT change production defaults.
  */
+import Module from "module";
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
 import fs from "node:fs";
 import path from "node:path";
 import {
