@@ -91,9 +91,69 @@ export const LIVE_ROUND_PRESENTATION_READY_PHASES = new Set<string>([
 export function isLiveRoundPresentationReady(opts: {
   phase: string;
   hasLockedActorSet: boolean;
+  resolutionOrder?: readonly number[];
+  adjudicatedParticipantIds?: readonly number[];
 }): boolean {
   if (!opts.hasLockedActorSet) return false;
+  const order = uniqueResolutionOrder(opts.resolutionOrder ?? []);
+  const adjudicated = new Set(opts.adjudicatedParticipantIds ?? []);
+  if (order.length > 0 && adjudicated.size > 0) {
+    const firstId = order[0];
+    if (firstId != null && adjudicated.has(firstId)) {
+      return true;
+    }
+  }
   return LIVE_ROUND_PRESENTATION_READY_PHASES.has(opts.phase);
+}
+
+/** Whether an actor has server adjudication complete (roll, no-roll, or skipped). */
+export function isActorAdjudicationReady(
+  actorId: number,
+  adjudicatedParticipantIds: ReadonlySet<number>
+): boolean {
+  return adjudicatedParticipantIds.has(actorId);
+}
+
+/** AI actors require declaration reveal consumption before dice/result presentation. */
+export function isActorDeclarationReady(opts: {
+  actor: PresentationActor;
+  declarationConsumedIds: ReadonlySet<number>;
+}): boolean {
+  if (!opts.actor.action) return false;
+  if (opts.actor.action.kind === "human") return true;
+  return opts.declarationConsumedIds.has(opts.actor.actorId);
+}
+
+export function isActorPresentationReady(opts: {
+  actor: PresentationActor | null | undefined;
+  adjudicatedParticipantIds: ReadonlySet<number>;
+  declarationConsumedIds: ReadonlySet<number>;
+}): boolean {
+  if (!opts.actor?.action) return false;
+  if (!isActorDeclarationReady({ actor: opts.actor, declarationConsumedIds: opts.declarationConsumedIds })) {
+    return false;
+  }
+  return isActorAdjudicationReady(opts.actor.actorId, opts.adjudicatedParticipantIds);
+}
+
+/** Next actor index in resolution order, or null if the immediate successor is not yet ready. */
+export function nextReadyPresentationIndex(opts: {
+  actors: readonly PresentationActor[];
+  fromIndex: number;
+  adjudicatedParticipantIds: ReadonlySet<number>;
+  declarationConsumedIds: ReadonlySet<number>;
+}): number | null {
+  const next = opts.fromIndex + 1;
+  if (next >= opts.actors.length) return null;
+  const actor = opts.actors[next];
+  if (!isActorPresentationReady({
+    actor,
+    adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+    declarationConsumedIds: opts.declarationConsumedIds,
+  })) {
+    return null;
+  }
+  return next;
 }
 
 /** Derived early-visibility ids — human declarations only, not a pin/queue owner. */
@@ -527,41 +587,91 @@ export function selectVisibleActions<T extends { participantId: number }>(
 export function advanceAfterActorAction(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
+  adjudicatedParticipantIds?: ReadonlySet<number>;
+  declarationConsumedIds?: ReadonlySet<number>;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
+  const gatesProvided =
+    opts.adjudicatedParticipantIds != null && opts.declarationConsumedIds != null;
   if (actor?.roll) {
-    return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+    if (!gatesProvided) {
+      return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+    }
+    if (
+      isActorPresentationReady({
+        actor,
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds!,
+        declarationConsumedIds: opts.declarationConsumedIds!,
+      })
+    ) {
+      return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+    }
+    return advanceToNextActor(opts.actors, opts.presentationIndex, {
+      adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+      declarationConsumedIds: opts.declarationConsumedIds,
+    });
   }
-  return advanceToNextActor(opts.actors, opts.presentationIndex);
+  return advanceToNextActor(opts.actors, opts.presentationIndex, {
+    adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+    declarationConsumedIds: opts.declarationConsumedIds,
+  });
 }
 
 export function advanceAfterActorResult(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
+  adjudicatedParticipantIds?: ReadonlySet<number>;
+  declarationConsumedIds?: ReadonlySet<number>;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
-  return advanceToNextActor(opts.actors, opts.presentationIndex);
+  return advanceToNextActor(opts.actors, opts.presentationIndex, {
+    adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+    declarationConsumedIds: opts.declarationConsumedIds,
+  });
 }
 
 export function advanceAfterDiceDismiss(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
+  adjudicatedParticipantIds?: ReadonlySet<number>;
+  declarationConsumedIds?: ReadonlySet<number>;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   if (actor?.roll) {
     return { phase: "actor-result", presentationIndex: opts.presentationIndex };
   }
-  return advanceToNextActor(opts.actors, opts.presentationIndex);
+  return advanceToNextActor(opts.actors, opts.presentationIndex, {
+    adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+    declarationConsumedIds: opts.declarationConsumedIds,
+  });
 }
 
 function advanceToNextActor(
   actors: readonly PresentationActor[],
-  presentationIndex: number
+  presentationIndex: number,
+  opts?: {
+    adjudicatedParticipantIds?: ReadonlySet<number>;
+    declarationConsumedIds?: ReadonlySet<number>;
+  }
 ): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
-  const next = presentationIndex + 1;
-  if (next >= actors.length) {
+  const candidate = presentationIndex + 1;
+  if (candidate >= actors.length) {
     return { phase: "gm-narration", presentationIndex: Math.max(0, actors.length - 1) };
   }
-  return { phase: "actor-action", presentationIndex: next };
+  const gatesProvided =
+    opts?.adjudicatedParticipantIds != null && opts?.declarationConsumedIds != null;
+  if (gatesProvided) {
+    const actor = actors[candidate];
+    if (
+      !isActorPresentationReady({
+        actor,
+        adjudicatedParticipantIds: opts!.adjudicatedParticipantIds!,
+        declarationConsumedIds: opts!.declarationConsumedIds!,
+      })
+    ) {
+      return { phase: "actor-action", presentationIndex: candidate };
+    }
+  }
+  return { phase: "actor-action", presentationIndex: candidate };
 }
 
 export function actorOrderEqualsResolutionOrder(
@@ -626,6 +736,7 @@ export type LiveRoundSnapshotInput = {
   actions: readonly TrpgPublicAction[];
   rolls: readonly TrpgPublicRoll[];
   resolutionOrder: readonly number[];
+  adjudicatedParticipantIds?: readonly number[];
   consumeOnMount?: boolean;
 };
 
@@ -655,6 +766,8 @@ export function decideLiveRoundPresentation(input: LiveRoundSnapshotInput): {
   const ready = isLiveRoundPresentationReady({
     phase: input.phase,
     hasLockedActorSet: actions.length > 0 || input.rolls.length > 0,
+    resolutionOrder: input.resolutionOrder,
+    adjudicatedParticipantIds: input.adjudicatedParticipantIds,
   });
   return {
     ready,

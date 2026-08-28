@@ -95,6 +95,7 @@ import {
   idlePresentation,
   resolvePreCinematicDeclarationReveal,
   isActorActionRevealBeatSatisfied,
+  isActorPresentationReady,
   isLiveRoundPresentationReady,
   resolveLiveRevealedActionIds,
   shouldDecorativeRevealAction,
@@ -416,7 +417,36 @@ export default function TrpgCampaignRoom({
   const liveReady = isLiveRoundPresentationReady({
     phase,
     hasLockedActorSet: sourceActions.length > 0 || sourceRolls.length > 0,
+    resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
+    adjudicatedParticipantIds: snap.adjudicatedParticipantIds ?? [],
   });
+  const adjudicatedParticipantIds = useMemo(
+    () => new Set(snap.adjudicatedParticipantIds ?? []),
+    [snap.adjudicatedParticipantIds]
+  );
+  const seenLogKeysRef = useRef<Set<string> | null>(null);
+  if (seenLogKeysRef.current === null) {
+    seenLogKeysRef.current = new Set(
+      resolveTrpgMountSeenKeys({
+        log: snap.log,
+        currentRoundNumber: snap.round.number,
+        liveReady,
+      })
+    );
+  }
+  const declarationConsumedIds = useMemo(
+    () =>
+      new Set(
+        sourceActions
+          .filter(
+            (action) =>
+              action.kind === "ai_character" &&
+              seenLogKeysRef.current!.has(`a:${snap.round.number}:${action.participantId}`)
+          )
+          .map((action) => action.participantId)
+      ),
+    [snap.round.number, sourceActions]
+  );
   const liveActors = useMemo(
     () =>
       buildRoundPresentationActors({
@@ -545,6 +575,8 @@ export default function TrpgCampaignRoom({
         ...advanceAfterDiceDismiss({
           actors: presentationActors,
           presentationIndex: prev.presentationIndex,
+          adjudicatedParticipantIds,
+          declarationConsumedIds,
         }),
       }));
       return;
@@ -568,12 +600,16 @@ export default function TrpgCampaignRoom({
         ...advanceAfterDiceDismiss({
           actors: presentationActors,
           presentationIndex: prev.presentationIndex,
+          adjudicatedParticipantIds,
+          declarationConsumedIds,
         }),
       };
     });
   }, [
     overlayPlayback.dismissed,
     overlayPlayback.sessionKey,
+    adjudicatedParticipantIds,
+    declarationConsumedIds,
     presentationActors,
     roundShow.mode,
     roundShow.phase,
@@ -690,26 +726,8 @@ export default function TrpgCampaignRoom({
         currentRolls: snap.currentRolls,
         revealedActionParticipantIds: liveRevealedActionIds,
       });
-  const seenLogKeysRef = useRef<Set<string> | null>(null);
-  if (seenLogKeysRef.current === null) {
-    seenLogKeysRef.current = new Set(
-      resolveTrpgMountSeenKeys({
-        log: snap.log,
-        currentRoundNumber: snap.round.number,
-        liveReady,
-      })
-    );
-  }
   const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
-  const consumedDeclarationAiIds = new Set(
-    sourceActions
-      .filter(
-        (action) =>
-          action.kind === "ai_character" &&
-          seenLogKeysRef.current!.has(`a:${snap.round.number}:${action.participantId}`)
-      )
-      .map((action) => action.participantId)
-  );
+  const consumedDeclarationAiIds = declarationConsumedIds;
   const declarationReveal = resolvePreCinematicDeclarationReveal({
     actions: sourceActions,
     consumedAiIds: consumedDeclarationAiIds,
@@ -855,6 +873,17 @@ export default function TrpgCampaignRoom({
     if (roundShow.mode !== "cinematic") return;
     if (roundShow.phase === "actor-action") {
       if (!activeActorRevealBeatSatisfied) return;
+      const current = presentationActors[roundShow.presentationIndex];
+      if (
+        current?.roll &&
+        !isActorPresentationReady({
+          actor: current,
+          adjudicatedParticipantIds,
+          declarationConsumedIds,
+        })
+      ) {
+        return;
+      }
       const beatKey = `${snap.round.number}|${roundShow.presentationIndex}|actor-action`;
       if (consumedActorActionBeatRef.current === beatKey) return;
       consumedActorActionBeatRef.current = beatKey;
@@ -865,6 +894,8 @@ export default function TrpgCampaignRoom({
           ...advanceAfterActorAction({
             actors: presentationActors,
             presentationIndex: prev.presentationIndex,
+            adjudicatedParticipantIds,
+            declarationConsumedIds,
           }),
         };
       });
@@ -879,6 +910,8 @@ export default function TrpgCampaignRoom({
             ...advanceAfterActorResult({
               actors: presentationActors,
               presentationIndex: prev.presentationIndex,
+              adjudicatedParticipantIds,
+              declarationConsumedIds,
             }),
           };
         });
@@ -892,6 +925,8 @@ export default function TrpgCampaignRoom({
             ...advanceAfterActorResult({
               actors: presentationActors,
               presentationIndex: prev.presentationIndex,
+              adjudicatedParticipantIds,
+              declarationConsumedIds,
             }),
           };
         });
@@ -900,6 +935,8 @@ export default function TrpgCampaignRoom({
     }
   }, [
     activeActorRevealBeatSatisfied,
+    adjudicatedParticipantIds,
+    declarationConsumedIds,
     hiddenCatchUpActive,
     presentationActorKey,
     presentationActors,
