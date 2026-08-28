@@ -8,6 +8,11 @@ import {
 } from "@/lib/worldPermissions";
 import { loadBorrowForUser } from "@/lib/worldLibrary";
 import {
+  copyWorldEnglishToShareIfCurrent,
+  enqueueWorldShareTranslationJob,
+} from "@/lib/derivedCache/worldTranslation";
+import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
+import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
   WORLD_SUMMARY_LIMIT,
@@ -108,6 +113,12 @@ export function createWorldShare(
     world.summary,
     world.content
   );
+  const db = getDb();
+  const copied = copyWorldEnglishToShareIfCurrent(db, share.id, world.id, world.content);
+  if (!copied) {
+    enqueueWorldShareTranslationJob(db, share.id, world.content);
+    kickDerivedCacheWorker();
+  }
   return { share, applyPath: worldShareApplyPath(share.share_slug) };
 }
 

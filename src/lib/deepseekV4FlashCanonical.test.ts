@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
@@ -244,14 +245,17 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     );
   });
 
-  it("8. character-save KO→EN translation uses Luna PRIMARY", () => {
+  it("8. character-save KO→EN translation uses Luna PRIMARY and Gemini Flash-Lite fallback", () => {
     assert.equal(DEFAULT_TRANSLATION_PRIMARY_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     delete process.env.PROMPT_TRANSLATION_MODEL;
     delete process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     try {
-      assert.equal(resolveTranslationModels()[0], CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+      assert.deepEqual(resolveTranslationModels(), [
+        CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+        CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
+      ]);
     } finally {
       if (prevPrimary === undefined) delete process.env.PROMPT_TRANSLATION_MODEL;
       else process.env.PROMPT_TRANSLATION_MODEL = prevPrimary;

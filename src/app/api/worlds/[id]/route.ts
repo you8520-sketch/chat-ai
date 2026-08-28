@@ -8,6 +8,8 @@ import {
   loadOwnedWorldRow,
 } from "@/lib/worldPermissions";
 import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
+import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
+import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -86,9 +88,31 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     );
   }
 
+  const contentChanged = b.content != null && content !== existing.content;
+
   db.prepare(
-    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now') WHERE id = ? AND creator_id = ?`
-  ).run(name, summary, content, trpgFlags.trpgEnabled, trpgFlags.trpgVisibility, genresJson, coverUrl, id, user.id);
+    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
+     content_en = CASE WHEN ? THEN '' ELSE content_en END,
+     content_translation_fingerprint = CASE WHEN ? THEN '' ELSE content_translation_fingerprint END
+     WHERE id = ? AND creator_id = ?`
+  ).run(
+    name,
+    summary,
+    content,
+    trpgFlags.trpgEnabled,
+    trpgFlags.trpgVisibility,
+    genresJson,
+    coverUrl,
+    contentChanged ? 1 : 0,
+    contentChanged ? 1 : 0,
+    id,
+    user.id
+  );
+
+  if (contentChanged) {
+    enqueueWorldTranslationJob(db, id, content);
+    kickDerivedCacheWorker();
+  }
 
   const row = loadOwnedWorld(db, user.id, id)!;
   return NextResponse.json({ ok: true, world: rowToWorldListItem(row) });
