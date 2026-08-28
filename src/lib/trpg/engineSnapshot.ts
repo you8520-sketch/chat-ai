@@ -371,6 +371,7 @@ export function loadTrpgSnapshot(
     suggestedPcStats: scenario.defaultPcStats,
     viewerParticipantId: viewer?.id ?? null,
     viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
+    viewerUserId,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     botRetryRequired: work.type === "bot_retry_required",
     needsHostFill: false,

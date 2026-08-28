@@ -417,12 +417,43 @@ describe("TRPG PR-C final correction regressions", () => {
     const next = advanceAfterActorAction({
       actors,
       presentationIndex: 0,
+      rolls: [botRoll(30, "동료2", 11)],
       adjudicatedParticipantIds: new Set([20, 30]),
       declarationConsumedIds: new Set([20, 30]),
       awaitingMoreActors: false,
     });
     assert.deepEqual(next, { phase: "actor-action", presentationIndex: 1 });
     assert.notEqual(next.phase, "actor-dice");
+  });
+
+  it("ROLL_PENDING_WAITS_FOR_DICE_NOT_SKIP", () => {
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [20],
+      actions: [bot1],
+      rolls: [],
+    });
+    const pendingRoll = botRoll(20, "동료1", 9);
+    const next = advanceAfterActorAction({
+      actors,
+      presentationIndex: 0,
+      rolls: [pendingRoll],
+      adjudicatedParticipantIds: new Set([20]),
+      declarationConsumedIds: new Set([20]),
+    });
+    assert.deepEqual(next, { phase: "actor-action", presentationIndex: 0 });
+    const actorsWithRoll = buildRoundPresentationActors({
+      resolutionOrder: [20],
+      actions: [bot1],
+      rolls: [pendingRoll],
+    });
+    const diceReady = advanceAfterActorAction({
+      actors: actorsWithRoll,
+      presentationIndex: 0,
+      rolls: [pendingRoll],
+      adjudicatedParticipantIds: new Set([20]),
+      declarationConsumedIds: new Set([20]),
+    });
+    assert.deepEqual(diceReady, { phase: "actor-dice", presentationIndex: 0 });
   });
 
   it("INCREMENTAL_ROLL_APPEND_DOES_NOT_RESET_ROUND_SESSION", () => {

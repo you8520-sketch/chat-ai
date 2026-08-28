@@ -8,9 +8,14 @@ import {
   MAX_SCENARIO_IMAGES_WITHOUT_AI,
   buildAiCharacterImageTagCatalog,
   enforceGmSceneAssetMarkers,
+  gmCatalogTrpgCharacterAssets,
+  isTrpgCharacterAssetVisibleToViewer,
   selectStableTaggedAsset,
+  selectStableViewerVisibleTaggedAsset,
   uniqueCharacterAssetTags,
+  viewerVisibleTrpgCharacterAssets,
 } from "./gmSceneAssets";
+import { filterTrpgCharacterCatalogForViewer } from "./aiCharacterContext";
 import { playableScenarioAssets } from "./scenarioAssets";
 
 function enforce(
@@ -179,5 +184,49 @@ describe("TRPG GM scene asset budget", () => {
     assert.equal(first?.url, second?.url);
     const other = selectStableTaggedAsset(assets, "분노", "9:4:12:분노");
     assert.ok(other);
+  });
+
+  it("LOCKED_BLURRED_ASSET_NOT_IN_TRPG_CANDIDATES", () => {
+    const publicAsset = withAssetSize({ url: "/public.webp", tag: "분노", chat: true, viewerBlur: false }, 800, 1200);
+    const lockedAsset = withAssetSize({ url: "/locked.webp", tag: "분노", chat: true, viewerBlur: true }, 800, 1200);
+    const visible = viewerVisibleTrpgCharacterAssets([publicAsset, lockedAsset], {
+      viewerIsCreator: false,
+      unlockedUrls: new Set(),
+    });
+    assert.equal(visible.length, 1);
+    assert.equal(visible[0]?.url, "/public.webp");
+    const tags = uniqueCharacterAssetTags(gmCatalogTrpgCharacterAssets([publicAsset, lockedAsset]));
+    assert.deepEqual(tags, ["분노"]);
+    const catalog = filterTrpgCharacterCatalogForViewer(
+      [{ participantId: 12, characterId: 15, creatorUserId: 99, name: "권태현", assets: [publicAsset, lockedAsset] }],
+      { viewerUserId: 1, unlockedUrlsByCharacterId: new Map([[15, new Set()]]) }
+    );
+    assert.equal(catalog[0]?.assets.length, 1);
+    assert.equal(catalog[0]?.assets[0]?.url, "/public.webp");
+  });
+
+  it("UNLOCKED_AND_CREATOR_ASSETS_REMAIN_VISIBLE", () => {
+    const lockedAsset = withAssetSize({ url: "/locked.webp", tag: "웃음", chat: true, viewerBlur: true }, 800, 1200);
+    assert.equal(
+      isTrpgCharacterAssetVisibleToViewer(lockedAsset, {
+        viewerIsCreator: false,
+        unlockedUrls: new Set(["/locked.webp"]),
+      }),
+      true
+    );
+    assert.equal(
+      isTrpgCharacterAssetVisibleToViewer(lockedAsset, {
+        viewerIsCreator: true,
+        unlockedUrls: new Set(),
+      }),
+      true
+    );
+    const picked = selectStableViewerVisibleTaggedAsset(
+      [lockedAsset],
+      "웃음",
+      "seed",
+      { viewerIsCreator: true, unlockedUrls: new Set() }
+    );
+    assert.equal(picked?.url, "/locked.webp");
   });
 });

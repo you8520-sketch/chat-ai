@@ -38,6 +38,8 @@ export default function TrpgTaggedNovelText({
   streaming = false,
   viewerIsCreator = false,
   unlockedUrls,
+  viewerUserId,
+  unlockedUrlsByCharacterId,
   dialogueAccent = true,
   inlineFirstParagraph = false,
   proseClassName,
@@ -56,6 +58,8 @@ export default function TrpgTaggedNovelText({
   streaming?: boolean;
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
+  viewerUserId?: number;
+  unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
   dialogueAccent?: boolean;
   inlineFirstParagraph?: boolean;
   proseClassName?: string;
@@ -66,6 +70,8 @@ export default function TrpgTaggedNovelText({
     campaignId,
     roundNumber,
     streaming,
+    viewerUserId,
+    unlockedUrlsByCharacterId,
   });
   if (parts.length === 0) return null;
 

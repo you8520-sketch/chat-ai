@@ -12,7 +12,9 @@ export default function TrpgCharacterSceneAsset({
   viewerIsCreator?: boolean;
   unlockedUrls?: ReadonlySet<string>;
 }) {
-  const blur = shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
+  if (shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls)) {
+    return null;
+  }
   const landscape = isWideInlineAsset(asset);
   const ratio =
     asset.width && asset.height && asset.width > 0 && asset.height > 0
@@ -33,7 +35,7 @@ export default function TrpgCharacterSceneAsset({
       <CharacterAssetImage
         src={asset.url}
         alt={asset.tag}
-        blurForViewer={blur}
+        blurForViewer={false}
         className="h-full w-full max-w-full overflow-hidden rounded-lg"
         imgClassName="block h-full w-full max-w-full object-contain object-center"
       />

@@ -185,6 +185,40 @@ describe("TRPG declaration scroll ownership", () => {
     assert.match(room, /programmaticScrollRef\.current\) return/);
   });
 
+  it("FOLLOWING + ACTIVE_DECLARATION_GROWTH autoFollows via declaration end observer", () => {
+    const growth = decideLiveFollowOnGrowth({ following: true });
+    assert.equal(growth.autoFollow, true);
+    assert.equal(growth.unseenLatest, false);
+
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /if \(declarationEl\) observer\.observe\(declarationEl\)/);
+    assert.match(room, /scrollToFollowOwner\("ACTIVE_DECLARATION_END"/);
+    assert.match(room, /declarationReveal\.activeAiId/);
+  });
+
+  it("Human result to Bot declaration keeps ACTIVE_DECLARATION_END owner", () => {
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        activeDeclarationReveal: true,
+        freshGmRound: null,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "ACTIVE_DECLARATION_END"
+    );
+    assert.equal(
+      resolveTrpgLiveFollowOwner({
+        cinematicMotion: true,
+        activeDeclarationReveal: false,
+        freshGmRound: null,
+        gmRevealComplete: false,
+        nextActionVisible: false,
+      }),
+      "CURRENT_ACTOR"
+    );
+  });
+
   it("GM follow owner unchanged when no active declaration", () => {
     assert.equal(
       resolveTrpgLiveFollowOwner({

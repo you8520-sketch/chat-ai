@@ -24,7 +24,7 @@ import {
 } from "./billing";
 import {
   aiParticipantIdSet,
-  characterTagsByParticipant,
+  gmCatalogCharacterTagsByParticipant,
   loadTrpgAiCharacterContexts,
   readCharacterRowFields,
 } from "./aiCharacterContext";
@@ -43,6 +43,7 @@ import {
   buildAiCharacterImageTagCatalog,
   buildAiPartyIdentityBlock,
   enforceGmSceneAssetMarkers,
+  gmCatalogTrpgCharacterAssets,
   uniqueCharacterAssetTags,
 } from "./gmSceneAssets";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
@@ -1220,7 +1221,7 @@ async function runGmForRound(
     aiContexts.map((row) => ({
       participantId: row.participantId,
       name: row.name,
-      tags: uniqueCharacterAssetTags(row.assets),
+      tags: uniqueCharacterAssetTags(gmCatalogTrpgCharacterAssets(row.assets)),
     }))
   );
   const campaignContext = loadCampaignContext(db, opts.campaignId);
@@ -1314,7 +1315,7 @@ async function runGmForRound(
     stage = "asset_tagging";
     parsed.narration = enforceGmSceneAssetMarkers(parsed.narration, {
       aiParticipantIds: aiParticipantIdSet(aiContexts),
-      characterTagsByParticipant: characterTagsByParticipant(aiContexts),
+      characterTagsByParticipant: gmCatalogCharacterTagsByParticipant(aiContexts),
       scenarioTags: new Set(playableScenarioAssets(scenarioAssets).map((asset) => asset.tag.trim()).filter(Boolean)),
     }).text;
     stage = "state_validation";

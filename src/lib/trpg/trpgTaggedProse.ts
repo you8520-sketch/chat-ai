@@ -5,6 +5,7 @@ import {
   gmSceneAssetSeed,
   parseCharacterAssetMarkerPayload,
   selectStableTaggedAsset,
+  selectStableViewerVisibleTaggedAsset,
   stripMalformedTrpgAssetControlMarkers,
   stripTrpgAssetControlMarkers,
   TRPG_CHARACTER_ASSET_MARKER_PREFIX,
@@ -46,6 +47,8 @@ export function splitTrpgGmProseForAssets(
     campaignId: number;
     roundNumber: number;
     streaming?: boolean;
+    viewerUserId?: number;
+    unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
   }
 ): TrpgInlineProsePart[] {
   const source = stripMalformedTrpgAssetControlMarkers(
@@ -66,7 +69,7 @@ export function splitTrpgGmProseForAssets(
         : undefined;
       const asset =
         parsed && entry
-          ? selectStableTaggedAsset(
+          ? selectStableViewerVisibleTaggedAsset(
               entry.assets,
               parsed.tag,
               gmSceneAssetSeed({
@@ -75,7 +78,14 @@ export function splitTrpgGmProseForAssets(
                 participantId: parsed.participantId,
                 tag: parsed.tag,
                 kind: "character",
-              })
+              }),
+              {
+                viewerIsCreator:
+                  entry.creatorUserId != null &&
+                  opts.viewerUserId != null &&
+                  entry.creatorUserId === opts.viewerUserId,
+                unlockedUrls: opts.unlockedUrlsByCharacterId?.get(entry.characterId),
+              }
             )
           : null;
       if (parsed && asset) {

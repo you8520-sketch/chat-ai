@@ -16,7 +16,7 @@ import { splitTrpgGmProseForAssets } from "./trpgTaggedProse";
 
 const hall = withAssetSize({ url: "/hall.webp", tag: "대합실", chat: true }, 1600, 900);
 const anger = withAssetSize({ url: "/anger.webp", tag: "분노", chat: true }, 800, 1200);
-const catalog = [{ participantId: 12, characterId: 15, name: "권태현", assets: [anger] }];
+const catalog = [{ participantId: 12, characterId: 15, creatorUserId: null, name: "권태현", assets: [anger] }];
 
 function actionCardParts(raw: string) {
   const display = sanitizeTrpgActionDisplayText(raw);

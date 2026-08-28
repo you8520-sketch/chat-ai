@@ -583,14 +583,23 @@ export function selectVisibleActions<T extends { participantId: number }>(
   return ordered;
 }
 
+export function actorExpectsPresentationRoll(
+  actorId: number,
+  rolls: readonly { participantId: number }[]
+): boolean {
+  return rolls.some((roll) => roll.participantId === actorId);
+}
+
 export function advanceAfterActorAction(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
+  rolls?: readonly { participantId: number }[];
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
   awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
+  const rolls = opts.rolls ?? [];
   const gatesProvided =
     opts.adjudicatedParticipantIds != null && opts.declarationConsumedIds != null;
   if (gatesProvided) {
@@ -609,6 +618,9 @@ export function advanceAfterActorAction(opts: {
     if (actor.roll) {
       return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
     }
+    if (actorExpectsPresentationRoll(actor.actorId, rolls)) {
+      return { phase: "actor-action", presentationIndex: opts.presentationIndex };
+    }
     return advanceToNextActor(opts.actors, opts.presentationIndex, {
       adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
       declarationConsumedIds: opts.declarationConsumedIds,
@@ -617,6 +629,9 @@ export function advanceAfterActorAction(opts: {
   }
   if (actor?.roll) {
     return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+  }
+  if (actor && actorExpectsPresentationRoll(actor.actorId, rolls)) {
+    return { phase: "actor-action", presentationIndex: opts.presentationIndex };
   }
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     awaitingMoreActors: opts.awaitingMoreActors,
@@ -640,13 +655,18 @@ export function advanceAfterActorResult(opts: {
 export function advanceAfterDiceDismiss(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
+  rolls?: readonly { participantId: number }[];
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
   awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
+  const rolls = opts.rolls ?? [];
   if (actor?.roll) {
     return { phase: "actor-result", presentationIndex: opts.presentationIndex };
+  }
+  if (actor && actorExpectsPresentationRoll(actor.actorId, rolls)) {
+    return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
   }
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
