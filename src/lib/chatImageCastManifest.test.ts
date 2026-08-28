@@ -254,9 +254,10 @@ describe("chatImageCastManifest", () => {
       selected: bound.selected,
       subjects: bound.subjects,
     });
-    assert.match(block, /Image 1 belongs ONLY to UserPersona/);
-    assert.match(block, /Image 2 belongs ONLY to CharacterA/);
-    assert.match(block, /Image 3 belongs ONLY to SupportA/);
+    assert.doesNotMatch(block, /belongs ONLY/);
+    assert.match(block, /1\. UserPersona \(user persona\) \| importance=primary; visibility=required_visible/);
+    assert.match(block, /2\. CharacterA \(chat character\) \| importance=primary; visibility=required_visible/);
+    assert.match(block, /3\. SupportA \(supporting character\) \| importance=primary; visibility=required_visible/);
     assert.match(block, /COMPOSITION GOAL: trio_group/);
   });
 
@@ -1033,12 +1034,10 @@ describe("chatImageCastManifest", () => {
       selected: bound.selected,
       subjects: bound.subjects,
     });
-    assert.match(block, /Image 1 belongs ONLY to UserPersona/);
-    assert.match(block, /Image 2 belongs ONLY to CharacterA/);
-    assert.match(block, /Image 3 belongs ONLY to SupportB/);
-    assert.match(block, /SupportA.*Saved appearance only; no photo attached/);
+    assert.match(block, /SupportA: SAVED-ONLY fidelity/);
     assert.doesNotMatch(block, /SupportA.*Recognizable/);
     assert.doesNotMatch(block, /SupportA.*HIGH FIDELITY/);
+    assert.doesNotMatch(block, /은색 단발/);
     assert.match(block, /COMPOSITION GOAL: ensemble_scene/);
     assert.doesNotMatch(block, /Arrange three distinct people/);
   });

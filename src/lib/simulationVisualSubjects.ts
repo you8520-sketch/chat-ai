@@ -103,7 +103,6 @@ export function reconcileSimulationVisualSubjects(opts: {
   simulationTitle?: string;
 }): ReconciledSimulationVisualSubjects {
   const configured = opts.configuredNames.map(cleanVisualSubjectName).filter(Boolean);
-  const configuredLower = new Set(configured.map((name) => name.toLowerCase()));
   const storedByExactName = new Map<string, SimulationVisualSubject[]>();
   for (const subject of opts.storedSubjects) {
     const key = subject.name.toLowerCase();
@@ -133,7 +132,6 @@ export function reconcileSimulationVisualSubjects(opts: {
   }
 
   const orphaned = opts.storedSubjects.filter((subject) => !usedKeys.has(subject.subjectKey));
-  void configuredLower;
   return { active, orphaned };
 }
 

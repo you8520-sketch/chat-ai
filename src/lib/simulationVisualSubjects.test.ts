@@ -572,7 +572,7 @@ describe("simulationVisualSubjects generation grounding", () => {
     assert.equal(fourth?.savedAppearance, "appearance 4");
     assert.equal(fourth?.trustedSavedAppearance, true);
     const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
-    assert.match(fidelity, /도윤: Saved appearance only; no photo attached/);
+    assert.match(fidelity, /도윤: SAVED-ONLY fidelity/);
     assert.doesNotMatch(fidelity, /도윤: BACKGROUND \/ CAMEO\. No bound identity evidence/);
   });
 });

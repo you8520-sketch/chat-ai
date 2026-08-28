@@ -101,15 +101,15 @@ import {
 } from "@/lib/characterVisualSubjects";
 import {
   configuredSimulationCastNames,
-  emptySimulationVisualSubjectsDocument,
   materializeSimulationVisualSubjectsForEditor,
   parseSimulationVisualSubjectsJson,
-  type SimulationVisualSubjectsDocument,
 } from "@/lib/simulationVisualSubjects";
 import {
   assetsForVisualSubject,
+  emptyVisualSubjectsDocument,
   validateRepresentativeAsset,
   VISUAL_SUBJECT_NAME_LIMIT,
+  type VisualSubjectsDocument,
 } from "@/lib/visualSubjects";
 
 const MAX_IMAGES = 100;
@@ -195,8 +195,8 @@ export default function CreateCharacter({
     simulation_rules: "",
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
-  const [visualSubjects, setVisualSubjects] = useState<SimulationVisualSubjectsDocument>(
-    emptySimulationVisualSubjectsDocument()
+  const [visualSubjects, setVisualSubjects] = useState<VisualSubjectsDocument>(
+    emptyVisualSubjectsDocument()
   );
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
@@ -431,7 +431,7 @@ export default function CreateCharacter({
 
   function updateCharacterVisualSubject(
     index: number,
-    patch: Partial<SimulationVisualSubjectsDocument["subjects"][number]>
+    patch: Partial<VisualSubjectsDocument["subjects"][number]>
   ) {
     setVisualSubjects((current) => ({
       ...current,
