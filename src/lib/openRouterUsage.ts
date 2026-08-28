@@ -14,6 +14,8 @@ export type OpenRouterUsageBreakdown = {
   standardInputTokens: number;
   /** OpenRouter upstream_inference_cost (USD) */
   upstreamCostUsd?: number;
+  /** CheaperInference canonical billed_cost_usd (USD) — actual provider charge */
+  cheaperInferenceBilledCostUsd?: number;
   /** cost_details.upstream_inference_prompt_cost */
   upstreamPromptCostUsd?: number;
   /** cost_details.upstream_inference_completions_cost */
@@ -166,6 +168,7 @@ export function parseOpenRouterUsage(
   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
 
   let upstreamCostUsd: number | undefined;
+  let cheaperInferenceBilledCostUsd: number | undefined;
   let upstreamPromptCostUsd: number | undefined;
   let upstreamCompletionCostUsd: number | undefined;
   const costDetails =
@@ -174,8 +177,22 @@ export function parseOpenRouterUsage(
       : null;
   if (costDetails) {
     upstreamCostUsd = readPositiveUsd(costDetails.upstream_inference_cost);
+    cheaperInferenceBilledCostUsd =
+      readPositiveUsd((costDetails as Record<string, unknown>).cheaper_inference_billed_cost_usd) ??
+      readPositiveUsd((costDetails as Record<string, unknown>).billed_cost_usd);
     upstreamPromptCostUsd = readSignedUsd(costDetails.upstream_inference_prompt_cost);
     upstreamCompletionCostUsd = readSignedUsd(costDetails.upstream_inference_completions_cost);
+  }
+  // CheaperInference top-level billed cost (canonical)
+  if (!cheaperInferenceBilledCostUsd) {
+    cheaperInferenceBilledCostUsd =
+      readPositiveUsd(u.cheaper_inference_billed_cost_usd) ??
+      readPositiveUsd(u.billed_cost_usd) ??
+      readPositiveUsd((u.cheaper_inference as Record<string, unknown> | undefined)?.billed_cost_usd);
+    // Avoid double-count if same as upstream
+    if (cheaperInferenceBilledCostUsd != null && cheaperInferenceBilledCostUsd === upstreamCostUsd) {
+      // keep both, precedence will handle
+    }
   }
   if (!upstreamCostUsd) {
     upstreamCostUsd = readPositiveUsd(u.cost);
@@ -191,6 +208,7 @@ export function parseOpenRouterUsage(
     cacheWriteTokens,
     standardInputTokens,
     ...(upstreamCostUsd != null ? { upstreamCostUsd } : {}),
+    ...(cheaperInferenceBilledCostUsd != null ? { cheaperInferenceBilledCostUsd } : {}),
     ...(upstreamPromptCostUsd != null ? { upstreamPromptCostUsd } : {}),
     ...(upstreamCompletionCostUsd != null ? { upstreamCompletionCostUsd } : {}),
     ...(cacheDiscountUsd != null ? { cacheDiscountUsd } : {}),

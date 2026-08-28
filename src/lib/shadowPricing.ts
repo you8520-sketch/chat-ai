@@ -1,33 +1,44 @@
 /**
- * Phase 2 Shadow Pricing ??canonical owner for unified cost & charge simulation.
+ * Phase 2 Shadow Pricing â€” canonical owner for unified cost & charge simulation.
  * USER BILLING UNCHANGED: deductPoints() still uses legacy `points.ts` path.
- * This module is shadow-only, used for admin diagnostics and usage JSON enrichment.
- *
  * Three costs: actualProviderCost / providerListCost / billingReferenceCost
- * One charge:  shadowStandardCharge ??promo ??finalShadowCharge
  */
 
-import type { OpenRouterBillingInput } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot, convertUsdToKrw } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import { isDeepSeekModel, isQwenModel, isAnthropicModel } from "@/lib/chatModels";
 
 export type ActualCostSource =
+  | "cheaper_inference_billed"
   | "provider_reported"
   | "live_catalog_estimated"
   | "published_fallback_estimated"
   | "unavailable";
 
+export type ReasoningAccounting = "included_in_output" | "separate" | "none" | "unknown";
+
+export type NormalizedBillableUsage = {
+  promptTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  standardInputTokens: number;
+  visibleOutputTokens: number;
+  reasoningTokens: number;
+  billableOutputTokens: number;
+  reasoningAccounting: ReasoningAccounting;
+};
+
 export type ShadowCostBreakdown = {
-  // raw token inputs
   promptTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   standardInputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
-  // KRW costs
+  billableOutputTokens: number;
+  reasoningAccounting: ReasoningAccounting;
   actualProviderCostKrw: number;
   actualCostSource: ActualCostSource;
   actualCostUsd?: number;
@@ -38,7 +49,6 @@ export type ShadowCostBreakdown = {
   reasoningCostKrw: number;
   cacheReadCostKrw: number;
   cacheWriteCostKrw: number;
-  // published snapshot
   billingReferenceInputRateKrw: number;
   billingReferenceOutputRateKrw: number;
   pricingVersion: number;
@@ -47,20 +57,18 @@ export type ShadowCostBreakdown = {
 };
 
 export type ShadowChargeBreakdown = ShadowCostBreakdown & {
-  standardUserChargeKrw: number; // billingReferenceCost / (1 - targetMargin)
+  standardUserChargeKrw: number;
   promoPercent: number;
   promoGivebackKrw: number;
   finalShadowChargeKrw: number;
-  finalShadowPoints: number; // ceil
-  // margin & reserve components (KRW, 1P=1??normalization via canonical owner)
+  finalShadowPoints: number;
   actualRealizedMargin: number | null;
   providerSavingsKrw: number;
   providerOverrunKrw: number;
   promoGivebackForReserveKrw: number;
   netPricingBufferDeltaKrw: number;
   actualGrossProfitKrw: number;
-  // safety
-  worstCasePromoMargin: number | null; // (promoCharge - providerListCost)/promoCharge
+  worstCasePromoMargin: number | null;
   marginFloorViolated: boolean;
 };
 
@@ -73,18 +81,78 @@ function chargePoints(n: number): number {
   return Math.ceil(n - 1e-9);
 }
 
-function resolvePriceKindRates(modelId: string, kind: "live" | "list") {
-  if (kind === "live") return resolveOpenRouterModelRates(modelId);
-  // list: bypass live catalog, use fallback snapshot directly
-  // temporarily clear live map effect by constructing from fallback via priceKind is not exposed,
-  // so we compute via fallback constants directly: use published reference as list proxy
-  // To avoid live contamination, we read raw fallback by calling with modelId that is not in live map?
-  // Simpler: compute USD from published snapshot would be equivalent.
-  // Here we still need list USD for providerListCost ??use fallback snapshot rates.
-  // We achieve by temporarily reading published rates and converting back to USD for openRouterUsdCostFromRates?
-  // Easiest: use resolveOpenRouterModelRates but if live exists we want list, so we reconstruct list USD cost manually
-  // Fallback: use publishedModelPricing reference rates ??USD
-  return resolveOpenRouterModelRates(modelId); // TODO: priceKind separation pending catalog semantics verification
+/** Canonical billable usage normalizer â€” single owner for reasoning accounting */
+export function normalizeBillableUsage(opts: {
+  modelId: string;
+  promptTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  outputTokens: number;
+  reasoningTokens?: number;
+}): NormalizedBillableUsage {
+  const promptTokens = Math.max(0, opts.promptTokens);
+  const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
+  const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
+  const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
+  const visibleOutputTokens = Math.max(0, opts.outputTokens);
+  const reasoningTokens = Math.max(0, opts.reasoningTokens ?? 0);
+  const modelId = (opts.modelId ?? "").toLowerCase();
+  let reasoningAccounting: ReasoningAccounting = "none";
+  let billableOutputTokens = visibleOutputTokens;
+  if (reasoningTokens <= 0) {
+    reasoningAccounting = "none";
+    billableOutputTokens = visibleOutputTokens;
+  } else if (isAnthropicModel(modelId) || modelId.includes("gemini")) {
+    // Opus 5 adaptive thinking and Gemini: output_tokens already includes thinking
+    reasoningAccounting = "included_in_output";
+    billableOutputTokens = visibleOutputTokens;
+  } else if (isDeepSeekModel(modelId) || isQwenModel(modelId)) {
+    reasoningAccounting = "separate";
+    billableOutputTokens = visibleOutputTokens + reasoningTokens;
+  } else {
+    reasoningAccounting = "unknown";
+    // Conservative: do not double count when unknown
+    billableOutputTokens = visibleOutputTokens;
+  }
+  return {
+    promptTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    standardInputTokens,
+    visibleOutputTokens,
+    reasoningTokens,
+    billableOutputTokens,
+    reasoningAccounting,
+  };
+}
+
+function computeProviderListCostKrw(usage: NormalizedBillableUsage, modelId: string, effectiveRate: number): number {
+  const catalog = resolveCheaperInferenceCatalogPricing(modelId);
+  if (catalog?.referenceInputUsdPerMillion != null && catalog?.referenceOutputUsdPerMillion != null) {
+    // Use reference_* as canonical list
+    const refInput = catalog.referenceInputUsdPerMillion;
+    const refOutput = catalog.referenceOutputUsdPerMillion;
+    const refCacheRead = catalog.referenceCacheReadUsdPerMillion ?? refInput * 0.1;
+    const refCacheWrite = catalog.referenceCacheWriteUsdPerMillion ?? refInput;
+    const usd =
+      (usage.standardInputTokens / 1_000_000) * refInput +
+      (usage.cacheReadTokens / 1_000_000) * refCacheRead +
+      (usage.cacheWriteTokens / 1_000_000) * refCacheWrite +
+      (usage.billableOutputTokens / 1_000_000) * refOutput;
+    return round1(convertUsdToKrw(usd, effectiveRate));
+  }
+  // Fallback: use fallback snapshot rates without live discount (resolveOpenRouterModelRates with live cleared is not available, so use USD via generic)
+  // Use published fallback via openRouterModelPricing without live: temporarily compute via rates that include live but for list we approximate via published billing reference? Instead use generic USD 0.4 as last resort
+  const fallback = openRouterUsdCostFromRates({
+    promptTokens: usage.promptTokens,
+    outputTokens: usage.billableOutputTokens,
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens,
+    modelId,
+  });
+  // If catalog exists but no reference, treat as unavailable rather than guessing 0.1
+  // Return estimated via current rates only if reference missing -> caller will see but we mark as estimated
+  return round1(convertUsdToKrw(fallback.usdCost, effectiveRate));
 }
 
 export function computeShadowCosts(opts: {
@@ -94,51 +162,46 @@ export function computeShadowCosts(opts: {
   cacheWriteTokens?: number;
   outputTokens: number;
   reasoningTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   publishedPricingOverride?: ReturnType<typeof getPublishedPricing>;
 }): ShadowCostBreakdown {
-  const modelId = opts.modelId ?? "";
-  const promptTokens = Math.max(0, opts.promptTokens);
-  const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
-  const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
-  const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
-  const outputTokens = Math.max(0, opts.outputTokens);
-  const reasoningTokens = Math.max(0, opts.reasoningTokens ?? 0);
-
-  const pub = opts.publishedPricingOverride ?? getPublishedPricing(modelId);
+  const usage = normalizeBillableUsage(opts);
+  const pub = opts.publishedPricingOverride ?? getPublishedPricing(opts.modelId ?? "");
   const snapshot = resolveBillingExchangeRateSnapshot();
   const effectiveRate = snapshot.effectiveKrwPerUsd;
 
-  // actualProviderCost: upstream ?°ì„ , ?†ìœ¼ë©?live catalogÃ—usage, ?†ìœ¼ë©?published fallback
   let actualProviderCostKrw = 0;
   let actualCostSource: ActualCostSource = "unavailable";
   let actualCostUsd: number | undefined;
-  if (opts.upstreamCostUsd != null && opts.upstreamCostUsd > 0) {
+  if (opts.cheaperInferenceBilledCostUsd != null && opts.cheaperInferenceBilledCostUsd > 0) {
+    actualCostUsd = opts.cheaperInferenceBilledCostUsd;
+    actualProviderCostKrw = round1(convertUsdToKrw(actualCostUsd, effectiveRate));
+    actualCostSource = "cheaper_inference_billed";
+  } else if (opts.upstreamCostUsd != null && opts.upstreamCostUsd > 0) {
     actualCostUsd = opts.upstreamCostUsd;
     actualProviderCostKrw = round1(convertUsdToKrw(actualCostUsd, effectiveRate));
     actualCostSource = "provider_reported";
   } else {
-    const livePricing = resolveCheaperInferenceCatalogPricing(modelId);
+    const livePricing = resolveCheaperInferenceCatalogPricing(opts.modelId ?? "");
     if (livePricing) {
-      const liveRates = resolveOpenRouterModelRates(modelId);
       const { usdCost } = openRouterUsdCostFromRates({
-        promptTokens,
-        outputTokens: outputTokens + reasoningTokens,
-        cacheReadTokens,
-        cacheWriteTokens,
-        modelId,
+        promptTokens: usage.promptTokens,
+        outputTokens: usage.billableOutputTokens,
+        cacheReadTokens: usage.cacheReadTokens,
+        cacheWriteTokens: usage.cacheWriteTokens,
+        modelId: opts.modelId,
       });
       actualProviderCostKrw = round1(convertUsdToKrw(usdCost, effectiveRate));
       actualCostSource = "live_catalog_estimated";
       actualCostUsd = usdCost;
     } else {
-      // fallback to published reference (stable)
       const fallbackUsd = openRouterUsdCostFromRates({
-        promptTokens,
-        outputTokens: outputTokens + reasoningTokens,
-        cacheReadTokens,
-        cacheWriteTokens,
-        modelId,
+        promptTokens: usage.promptTokens,
+        outputTokens: usage.billableOutputTokens,
+        cacheReadTokens: usage.cacheReadTokens,
+        cacheWriteTokens: usage.cacheWriteTokens,
+        modelId: opts.modelId,
       }).usdCost;
       actualProviderCostKrw = round1(convertUsdToKrw(fallbackUsd, effectiveRate));
       actualCostSource = fallbackUsd > 0 ? "published_fallback_estimated" : "unavailable";
@@ -146,44 +209,25 @@ export function computeShadowCosts(opts: {
     }
   }
 
-  // providerListCost: undiscounted list (fallback snapshot, no live discount)
-  // For now list = actual with live stripped: use fallback USD cost
-  // If live pricing meaning is confirmed as discounted, list would be discounted/(1-discount)
-  // Until verified, list = fallback snapshot cost (same as published reference for now)
-  const listUsdCost = openRouterUsdCostFromRates({
-    promptTokens,
-    outputTokens: outputTokens + reasoningTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    modelId,
-  }).usdCost;
-  // If live discount is applied, listUsdCost above already uses live (overridden). To get true list we would need un-discounted.
-  // For Phase 2 shadow, we compute list via published reference rates as proxy for undiscounted.
-  const listViaPublishedKrw = (() => {
-    const r = pub;
-    const inCost = standardInputTokens * r.billingReferenceInputRateKrw;
-    const crCost = cacheReadTokens * (r.billingReferenceCacheReadRateKrw ?? r.billingReferenceInputRateKrw * 0.1);
-    const cwCost = cacheWriteTokens * (r.billingReferenceCacheWriteRateKrw ?? r.billingReferenceInputRateKrw);
-    const outCost = (outputTokens + reasoningTokens) * r.billingReferenceOutputRateKrw;
-    return round1(inCost + crCost + cwCost + outCost);
-  })();
-  const providerListCostKrw = listViaPublishedKrw > 0 ? listViaPublishedKrw : round1(convertUsdToKrw(listUsdCost, effectiveRate));
+  const providerListCostKrw = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
 
-  // billingReferenceCost: published reference rates Ã— usage (stable)
-  const inputCostKrw = round1(standardInputTokens * pub.billingReferenceInputRateKrw);
-  const cacheReadCostKrw = round1(cacheReadTokens * (pub.billingReferenceCacheReadRateKrw ?? pub.billingReferenceInputRateKrw * 0.1));
-  const cacheWriteCostKrw = round1(cacheWriteTokens * (pub.billingReferenceCacheWriteRateKrw ?? pub.billingReferenceInputRateKrw));
-  const outputCostKrw = round1(outputTokens * pub.billingReferenceOutputRateKrw);
-  const reasoningCostKrw = round1(reasoningTokens * pub.billingReferenceOutputRateKrw);
+  const inputCostKrw = round1(usage.standardInputTokens * pub.billingReferenceInputRateKrw);
+  const cacheReadCostKrw = round1(usage.cacheReadTokens * (pub.billingReferenceCacheReadRateKrw ?? pub.billingReferenceInputRateKrw * 0.1));
+  const cacheWriteCostKrw = round1(usage.cacheWriteTokens * (pub.billingReferenceCacheWriteRateKrw ?? pub.billingReferenceInputRateKrw));
+  const outputCostKrw = round1(usage.visibleOutputTokens * pub.billingReferenceOutputRateKrw);
+  // reasoningCostKrw only if separate accounting; otherwise 0 to avoid double count
+  const reasoningCostKrw = usage.reasoningAccounting === "separate" ? round1(usage.reasoningTokens * pub.billingReferenceOutputRateKrw) : 0;
   const billingReferenceCostKrw = round1(inputCostKrw + cacheReadCostKrw + cacheWriteCostKrw + outputCostKrw + reasoningCostKrw);
 
   return {
-    promptTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    standardInputTokens,
-    outputTokens,
-    reasoningTokens,
+    promptTokens: usage.promptTokens,
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens,
+    standardInputTokens: usage.standardInputTokens,
+    outputTokens: usage.visibleOutputTokens,
+    reasoningTokens: usage.reasoningTokens,
+    billableOutputTokens: usage.billableOutputTokens,
+    reasoningAccounting: usage.reasoningAccounting,
     actualProviderCostKrw,
     actualCostSource,
     actualCostUsd,
@@ -202,31 +246,21 @@ export function computeShadowCosts(opts: {
   };
 }
 
-export function computeShadowCharge(
-  cost: ShadowCostBreakdown,
-  opts?: { promoPercent?: number; now?: Date }
-): ShadowChargeBreakdown {
+export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPercent?: number; now?: Date }): ShadowChargeBreakdown {
   const promoPercent = opts?.promoPercent ?? 0;
   const clampedPromo = Math.min(0.9, Math.max(0, promoPercent));
-  const standardUserChargeKrw = cost.billingReferenceCostKrw > 0
-    ? round1(cost.billingReferenceCostKrw / (1 - Math.min(0.95, Math.max(0, cost.targetMargin))))
-    : 0;
+  const standardUserChargeKrw = cost.billingReferenceCostKrw > 0 ? round1(cost.billingReferenceCostKrw / (1 - Math.min(0.95, Math.max(0, cost.targetMargin)))) : 0;
   const finalShadowChargeKrw = round1(standardUserChargeKrw * (1 - clampedPromo));
   const finalShadowPoints = chargePoints(finalShadowChargeKrw);
   const promoGivebackKrw = round1(Math.max(0, standardUserChargeKrw - finalShadowChargeKrw));
-  // Reserve components (KRW, 1P=1??
   const providerSavingsKrw = Math.max(0, round1(cost.providerListCostKrw - cost.actualProviderCostKrw));
   const providerOverrunKrw = Math.max(0, round1(cost.actualProviderCostKrw - cost.providerListCostKrw));
   const promoGivebackForReserveKrw = promoGivebackKrw;
   const netPricingBufferDeltaKrw = round1(providerSavingsKrw - providerOverrunKrw - promoGivebackForReserveKrw);
   const actualGrossProfitKrw = round1(finalShadowChargeKrw - cost.actualProviderCostKrw);
-  const actualRealizedMargin =
-    finalShadowChargeKrw > 0 ? round1(actualGrossProfitKrw / finalShadowChargeKrw) : null;
-  const worstCasePromoMargin =
-    finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;
-  const marginFloorViolated =
-    worstCasePromoMargin != null ? worstCasePromoMargin < cost.minimumMarginFloor : false;
-
+  const actualRealizedMargin = finalShadowChargeKrw > 0 ? round1(actualGrossProfitKrw / finalShadowChargeKrw) : null;
+  const worstCasePromoMargin = finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;
+  const marginFloorViolated = worstCasePromoMargin != null ? worstCasePromoMargin < cost.minimumMarginFloor : false;
   return {
     ...cost,
     standardUserChargeKrw,
@@ -245,7 +279,6 @@ export function computeShadowCharge(
   };
 }
 
-/** Convenience: one-call */
 export function computeShadowPricing(opts: {
   modelId: string;
   promptTokens: number;
@@ -253,6 +286,7 @@ export function computeShadowPricing(opts: {
   cacheWriteTokens?: number;
   outputTokens: number;
   reasoningTokens?: number;
+  cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   promoPercent?: number;
 }): ShadowChargeBreakdown {

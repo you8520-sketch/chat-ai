@@ -4846,6 +4846,7 @@ export async function POST(req: Request) {
             cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
             outputTokens: apiContentOutputTokens ?? apiOutputTokens ?? totalOutput,
             reasoningTokens: apiReasoningOutputTokens ?? 0,
+            cheaperInferenceBilledCostUsd: (primaryStage as unknown as { cheaperInferenceBilledCostUsd?: number })?.cheaperInferenceBilledCostUsd,
             upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
           });
           (baseUsageRecord as unknown as Record<string, unknown>).shadowPricing = {
