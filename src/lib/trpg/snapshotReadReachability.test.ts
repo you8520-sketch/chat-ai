@@ -20,7 +20,7 @@ import {
   advanceAfterActorResult,
   buildRoundPresentationActors,
   freezeLivePresentationActors,
-  isPresentationActorRosterMaterialized,
+  isExpectedPresentationRosterMaterialized,
   shouldShowGmNarration,
 } from "./roundPresentation";
 import { catchUpHiddenPresentationState, isHiddenPresentationCatchUpActive } from "./presentationHiddenCatchUp";
@@ -132,12 +132,13 @@ function assertSnapshotAdjudicatedImpliesAction(snap: TrpgCampaignSnapshot): voi
   }
 }
 
-function assertNormalRenderMaterializesAdjudicated(snap: TrpgCampaignSnapshot): void {
+function assertNormalRenderMaterializesExpected(snap: TrpgCampaignSnapshot): void {
   const room = deriveRoomPresentationFromSnap(snap);
+  const expected = snap.round.expectedPresentationActorIds ?? [];
   assert.equal(
-    isPresentationActorRosterMaterialized({
+    isExpectedPresentationRosterMaterialized({
       actors: room.presentationActors,
-      adjudicatedParticipantIds: room.adjudicatedParticipantIds,
+      expectedPresentationActorIds: expected,
     }),
     true
   );
@@ -293,13 +294,14 @@ describe("TRPG snapshot read reachability audit", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const snap = loadTrpgSnapshot(db, campaignId, 1)!;
     assertSnapshotAdjudicatedImpliesAction(snap);
-    assertNormalRenderMaterializesAdjudicated(snap);
+    assertNormalRenderMaterializesExpected(snap);
     db.close();
   });
 
-  it("PREMATURE_GM_WITHOUT_B2_ADJUDICATED reproduces visible symptom without snapshot skew", () => {
+  it("PREMATURE_GM_WITHOUT_B2_ADJUDICATED fixed by expected roster", () => {
     const H = 47;
     const B1 = 49;
+    const B2 = 48;
     const human = {
       participantId: H,
       name: "Human",
@@ -317,7 +319,7 @@ describe("TRPG snapshot read reachability audit", () => {
       actionType: "investigate" as const,
     };
     const actors = buildRoundPresentationActors({
-      resolutionOrder: [H, B1, 48],
+      resolutionOrder: [H, B1, B2],
       actions: [human, bot1],
       rolls: [
         { participantId: H, name: "Human", d20: 12, statKey: "nerve", finalScore: 12, dc: 11, tier: "SUCCESS", success: true, actionBody: "", actionType: "investigate", kind: "human" },
@@ -330,17 +332,10 @@ describe("TRPG snapshot read reachability audit", () => {
       adjudicatedParticipantIds: new Set([H, B1]),
       declarationConsumedIds: new Set([H, B1]),
       awaitingMoreActors: false,
+      expectedPresentationActorIds: [H, B1, B2],
     });
-    assert.equal(afterB1.phase, "gm-narration");
-    assert.equal(shouldShowGmNarration({ mode: "cinematic", ...afterB1 }), true);
-    assert.equal(
-      isPresentationActorRosterMaterialized({
-        actors,
-        adjudicatedParticipantIds: new Set([H, B1]),
-      }),
-      true,
-      "712 guard does not apply when adjudicated excludes future Bot2"
-    );
+    assert.deepEqual(afterB1, { phase: "actor-action", presentationIndex: 2 });
+    assert.notEqual(afterB1.phase, "gm-narration");
   });
 
   it("HIDDEN_CATCHUP_CAN_PRODUCE_EXACT_SYMPTOM without dice overlay", () => {

@@ -116,20 +116,16 @@ export function isActorAdjudicationReady(
 }
 
 /**
- * True when every authoritatively adjudicated participant has a materialized
- * PresentationActor in the current client roster. Adjudicated ids come from
- * locked submission outcomes (roll / no_roll / skipped) — not resolutionOrder.
+ * True when every server-frozen expected presentation actor has a materialized
+ * PresentationActor in the current client roster.
  */
-export function isPresentationActorRosterMaterialized(opts: {
+export function isExpectedPresentationRosterMaterialized(opts: {
   actors: readonly PresentationActor[];
-  adjudicatedParticipantIds: ReadonlySet<number>;
+  expectedPresentationActorIds: readonly number[];
 }): boolean {
-  if (opts.adjudicatedParticipantIds.size === 0) return true;
+  if (opts.expectedPresentationActorIds.length === 0) return true;
   const actorIds = new Set(opts.actors.map((actor) => actor.actorId));
-  for (const id of opts.adjudicatedParticipantIds) {
-    if (!actorIds.has(id)) return false;
-  }
-  return true;
+  return opts.expectedPresentationActorIds.every((id) => actorIds.has(id));
 }
 
 /** AI actors require declaration reveal consumption before dice/result presentation. */
@@ -676,6 +672,7 @@ export function advanceAfterActorAction(opts: {
   declarationConsumedIds?: ReadonlySet<number>;
   participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
   awaitingMoreActors?: boolean;
+  expectedPresentationActorIds?: readonly number[];
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   const rolls = opts.rolls ?? [];
@@ -701,6 +698,7 @@ export function advanceAfterActorAction(opts: {
         declarationConsumedIds: opts.declarationConsumedIds,
         awaitingMoreActors: opts.awaitingMoreActors,
         participantAdjudicationOutcomes: outcomes,
+        expectedPresentationActorIds: opts.expectedPresentationActorIds,
       });
     }
     if (actorPresentationRequiresDice(actor.actorId, actor.roll, outcomes)) {
@@ -720,6 +718,7 @@ export function advanceAfterActorAction(opts: {
       declarationConsumedIds: opts.declarationConsumedIds,
       awaitingMoreActors: opts.awaitingMoreActors,
       participantAdjudicationOutcomes: outcomes,
+      expectedPresentationActorIds: opts.expectedPresentationActorIds,
     });
   }
   if (actor?.roll) {
@@ -731,6 +730,7 @@ export function advanceAfterActorAction(opts: {
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     awaitingMoreActors: opts.awaitingMoreActors,
     participantAdjudicationOutcomes: outcomes,
+    expectedPresentationActorIds: opts.expectedPresentationActorIds,
   });
 }
 
@@ -740,11 +740,13 @@ export function advanceAfterActorResult(opts: {
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
   awaitingMoreActors?: boolean;
+  expectedPresentationActorIds?: readonly number[];
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
     declarationConsumedIds: opts.declarationConsumedIds,
     awaitingMoreActors: opts.awaitingMoreActors,
+    expectedPresentationActorIds: opts.expectedPresentationActorIds,
   });
 }
 
@@ -756,6 +758,7 @@ export function advanceAfterDiceDismiss(opts: {
   declarationConsumedIds?: ReadonlySet<number>;
   participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
   awaitingMoreActors?: boolean;
+  expectedPresentationActorIds?: readonly number[];
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   const rolls = opts.rolls ?? [];
@@ -771,6 +774,7 @@ export function advanceAfterDiceDismiss(opts: {
     declarationConsumedIds: opts.declarationConsumedIds,
     awaitingMoreActors: opts.awaitingMoreActors,
     participantAdjudicationOutcomes: outcomes,
+    expectedPresentationActorIds: opts.expectedPresentationActorIds,
   });
 }
 
@@ -799,6 +803,7 @@ export function resolveLiveActorPresentationTransition(opts: {
   declarationConsumedIds?: ReadonlySet<number>;
   participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
   awaitingMoreActors?: boolean;
+  expectedPresentationActorIds?: readonly number[];
   actionRevealComplete?: boolean;
   overlayDismissed?: boolean;
   overlaySessionKey?: string;
@@ -831,6 +836,7 @@ export function resolveLiveActorPresentationTransition(opts: {
         declarationConsumedIds: opts.declarationConsumedIds,
         participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
         awaitingMoreActors: opts.awaitingMoreActors,
+        expectedPresentationActorIds: opts.expectedPresentationActorIds,
       })
     );
   }
@@ -853,6 +859,7 @@ export function resolveLiveActorPresentationTransition(opts: {
           declarationConsumedIds: opts.declarationConsumedIds,
           participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
           awaitingMoreActors: opts.awaitingMoreActors,
+          expectedPresentationActorIds: opts.expectedPresentationActorIds,
         })
       );
     }
@@ -877,6 +884,7 @@ export function resolveLiveActorPresentationTransition(opts: {
         declarationConsumedIds: opts.declarationConsumedIds,
         participantAdjudicationOutcomes: opts.participantAdjudicationOutcomes,
         awaitingMoreActors: opts.awaitingMoreActors,
+        expectedPresentationActorIds: opts.expectedPresentationActorIds,
       })
     );
   }
@@ -913,16 +921,18 @@ function advanceToNextActor(
     declarationConsumedIds?: ReadonlySet<number>;
     participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
     awaitingMoreActors?: boolean;
+    expectedPresentationActorIds?: readonly number[];
   }
 ): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const candidate = presentationIndex + 1;
   if (candidate >= actors.length) {
     const holdForMoreActors = opts?.awaitingMoreActors === true;
     const holdForRosterGap =
-      opts?.adjudicatedParticipantIds != null &&
-      !isPresentationActorRosterMaterialized({
+      opts?.expectedPresentationActorIds != null &&
+      opts.expectedPresentationActorIds.length > 0 &&
+      !isExpectedPresentationRosterMaterialized({
         actors,
-        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+        expectedPresentationActorIds: opts.expectedPresentationActorIds,
       });
     if (holdForMoreActors || holdForRosterGap) {
       return { phase: "actor-action", presentationIndex: candidate };

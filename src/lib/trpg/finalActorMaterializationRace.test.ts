@@ -17,7 +17,7 @@ import {
   buildRoundPresentationActors,
   decideLiveRoundPresentation,
   freezeLivePresentationActors,
-  isPresentationActorRosterMaterialized,
+  isExpectedPresentationRosterMaterialized,
   isRoundPresentationAwaitingMoreActors,
   resolveLiveActorDeclarationPresentation,
   resolveLiveActorPresentationTransition,
@@ -32,6 +32,7 @@ import type { TrpgPublicAction, TrpgPublicRoll } from "./snapshot";
 const H = 47;
 const B1 = 49;
 const B2 = 48;
+const EXPECTED_THREE = [H, B1, B2] as const;
 const ROUND = 45;
 
 function action(participantId: number, kind: TrpgPublicAction["kind"], name: string): TrpgPublicAction {
@@ -189,10 +190,12 @@ function transitionDecision(
     consumed: Set<number>;
     rolls: TrpgPublicRoll[];
     awaitingMoreActors: boolean;
+    expectedPresentationActorIds?: readonly number[];
     actionRevealComplete?: boolean;
     overlay?: { report: ReturnType<typeof trpgDiceOverlayPlaybackReport> };
   }
 ): ReturnType<typeof resolveLiveActorPresentationTransition> {
+  const expected = opts.expectedPresentationActorIds ?? EXPECTED_THREE;
   if (state.phase === "actor-dice" && opts.overlay) {
     const aggregateKey = trpgDiceRollSessionKey(ROUND, opts.rolls);
     const activeKey = overlaySessionKeyForActor(state, actors, aggregateKey);
@@ -206,6 +209,7 @@ function transitionDecision(
       declarationConsumedIds: opts.consumed,
       participantAdjudicationOutcomes: opts.outcomeMap,
       awaitingMoreActors: opts.awaitingMoreActors,
+      expectedPresentationActorIds: expected,
       overlayDismissed: opts.overlay.report.dismissed,
       overlaySessionKey: opts.overlay.report.sessionKey,
       activeRollSessionKey: activeKey,
@@ -221,12 +225,48 @@ function transitionDecision(
     declarationConsumedIds: opts.consumed,
     participantAdjudicationOutcomes: opts.outcomeMap,
     awaitingMoreActors: opts.awaitingMoreActors,
+    expectedPresentationActorIds: expected,
     actionRevealComplete: opts.actionRevealComplete ?? true,
   });
 }
 
 describe("final actor roster materialization race", () => {
-  it("PRODUCTION_RACE: short actor array with full adjudication must not enter gm-narration", () => {
+  it("EXPECTED_B2_PREVENTS_PREMATURE_GM_BEFORE_B2_ADJUDICATION", () => {
+    const human = action(H, "human", "Human");
+    const bot1 = action(B1, "ai_character", "Bot1");
+    const humanRoll = roll(H, "Human", 4, "FAILURE");
+    const bot1Roll = roll(B1, "Bot1", 4, "FAILURE");
+    const adjudicated = new Set([H, B1]);
+    const consumed = new Set([H, B1]);
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [...EXPECTED_THREE],
+      actions: [human, bot1],
+      rolls: [humanRoll, bot1Roll],
+    });
+    assert.equal(actors.length, 2);
+    assert.equal(
+      isExpectedPresentationRosterMaterialized({
+        actors,
+        expectedPresentationActorIds: EXPECTED_THREE,
+      }),
+      false
+    );
+
+    const afterB1Result = advanceAfterActorResult({
+      actors,
+      presentationIndex: 1,
+      adjudicatedParticipantIds: adjudicated,
+      declarationConsumedIds: consumed,
+      awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
+    });
+
+    assert.notEqual(afterB1Result.phase, "gm-narration", "PREMATURE_GM_BEFORE_B2_ADJUDICATION_FIXED");
+    assert.deepEqual(afterB1Result, { phase: "actor-action", presentationIndex: 2 });
+    assert.equal(shouldShowGmNarration({ mode: "cinematic", ...afterB1Result }), false);
+  });
+
+  it("SNAPSHOT_SKEW: expected roster holds when adjudicated ahead of materialized actors", () => {
     const human = action(H, "human", "Human");
     const bot1 = action(B1, "ai_character", "Bot1");
     const humanRoll = roll(H, "Human", 4, "FAILURE");
@@ -248,9 +288,12 @@ describe("final actor roster materialization race", () => {
     let actors = snap.actors;
     assert.equal(actors.length, 2, "PRODUCTION_FAILURE_SHAPE_REPRODUCED");
     assert.equal(
-      isPresentationActorRosterMaterialized({ actors, adjudicatedParticipantIds: adjudicated }),
+      isExpectedPresentationRosterMaterialized({
+        actors,
+        expectedPresentationActorIds: EXPECTED_THREE,
+      }),
       false,
-      "ADJUDICATED_ROSTER_MATERIALIZATION_GUARD"
+      "EXPECTED_ROSTER_INCOMPLETE"
     );
 
     const state: RoundPresentationState = {
@@ -265,6 +308,7 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: consumed,
       awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
     });
 
     assert.notEqual(afterB1Result.phase, "gm-narration", "PREMATURE_GM_FROM_SHORT_ACTOR_ARRAY_FIXED");
@@ -355,6 +399,7 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: consumed,
       awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
     });
     assert.equal(afterB2Result.phase, "gm-narration");
     assert.equal(shouldShowGmNarration({ mode: "cinematic", ...afterB2Result }), true);
@@ -384,6 +429,7 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: consumed,
       awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
     });
     assert.deepEqual(held, { phase: "actor-action", presentationIndex: 2 });
 
@@ -435,6 +481,7 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: consumed,
       awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
     });
     assert.deepEqual(held, { phase: "actor-action", presentationIndex: 2 });
 
@@ -478,6 +525,7 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: new Set([H, B1]),
       awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED_THREE,
     });
     assert.equal(held.presentationIndex, 2);
     assert.notEqual(held.phase, "gm-narration", "B2_LATE_ACTION_PASS");
@@ -486,9 +534,9 @@ describe("final actor roster materialization race", () => {
     const snapLate = freezeActors(snap.actors, snap.frozenRound, [human, bot1, bot2], [humanRoll, bot1Roll, bot2Roll], [H, B1, B2], "GENERATING_NARRATION", [H, B1, B2]);
     assert.ok(snapLate.actors.some((a) => a.actorId === B2));
     assert.equal(
-      isPresentationActorRosterMaterialized({
+      isExpectedPresentationRosterMaterialized({
         actors: snapLate.actors,
-        adjudicatedParticipantIds: adjudicated,
+        expectedPresentationActorIds: EXPECTED_THREE,
       }),
       true
     );
@@ -547,6 +595,7 @@ describe("final actor roster materialization race", () => {
 
   it("NON_ADJUDICATED_RESOLUTION_ORDER_MEMBER_DOES_NOT_BLOCK_GM", () => {
     const spectatorOrder = [H, 15, B1];
+    const expectedTwo = [H, B1];
     const human = action(H, "human", "Human");
     const bot1 = action(B1, "ai_character", "Bot1");
     const humanRoll = roll(H, "Human", 12, "SUCCESS");
@@ -559,7 +608,7 @@ describe("final actor roster materialization race", () => {
     assert.equal(actors.some((a) => a.actorId === 15), false);
     const adjudicated = new Set([H, B1]);
     assert.equal(
-      isPresentationActorRosterMaterialized({ actors, adjudicatedParticipantIds: adjudicated }),
+      isExpectedPresentationRosterMaterialized({ actors, expectedPresentationActorIds: expectedTwo }),
       true
     );
     const afterBot1 = advanceAfterActorResult({
@@ -568,23 +617,36 @@ describe("final actor roster materialization race", () => {
       adjudicatedParticipantIds: adjudicated,
       declarationConsumedIds: new Set([H, B1]),
       awaitingMoreActors: false,
+      expectedPresentationActorIds: expectedTwo,
     });
     assert.equal(afterBot1.phase, "gm-narration");
   });
 
   it("STATIC_OWNER_AUDIT: single presentation transition owners", () => {
     const roundPresentation = readFileSync("src/lib/trpg/roundPresentation.ts", "utf8");
+    const roundAdjudication = readFileSync("src/lib/trpg/roundAdjudication.ts", "utf8");
+    const engineSnapshot = readFileSync("src/lib/trpg/engineSnapshot.ts", "utf8");
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
 
     const lastActorToGmMatches = roundPresentation.match(/phase:\s*"gm-narration"/g) ?? [];
     assert.equal(lastActorToGmMatches.length, 1, "LAST_ACTOR_TO_GM_OWNER_COUNT");
 
-    assert.match(roundPresentation, /export function isPresentationActorRosterMaterialized/);
     assert.equal(
-      (roundPresentation.match(/export function isPresentationActorRosterMaterialized/g) ?? []).length,
+      (roundAdjudication.match(/export function computeExpectedPresentationActorIds/g) ?? []).length,
+      1,
+      "ROUND_EXPECTED_ACTOR_ROSTER_OWNER_COUNT"
+    );
+    assert.match(engineSnapshot, /expectedPresentationActorIds/);
+    assert.match(room, /expectedPresentationActorIds/);
+
+    assert.match(roundPresentation, /export function isExpectedPresentationRosterMaterialized/);
+    assert.equal(
+      (roundPresentation.match(/export function isExpectedPresentationRosterMaterialized/g) ?? []).length,
       1,
       "PRESENTATION_ROSTER_COMPLETENESS_OWNER_COUNT"
     );
+    assert.doesNotMatch(roundPresentation, /isPresentationActorRosterMaterialized/);
+    assert.doesNotMatch(roundPresentation, /adjudicatedParticipantIds[\s\S]{0,80}isExpectedPresentationRosterMaterialized/);
 
     assert.equal(
       (roundPresentation.match(/export function isRoundPresentationAwaitingMoreActors/g) ?? []).length,

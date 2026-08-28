@@ -119,6 +119,8 @@ export type TrpgCampaignSnapshot = {
     id: number | null;
     number: number;
     phase: TrpgRoundPhase | "NONE";
+    /** Server-frozen current-round presentation roster, ordered by resolution order. */
+    expectedPresentationActorIds?: number[];
   };
   participants: TrpgPublicParticipant[];
   sheets: TrpgSheetHudCard[];

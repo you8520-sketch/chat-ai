@@ -429,6 +429,10 @@ export default function TrpgCampaignRoom({
     () => new Set(snap.adjudicatedParticipantIds ?? []),
     [snap.adjudicatedParticipantIds]
   );
+  const expectedPresentationActorIds = useMemo(
+    () => snap.round.expectedPresentationActorIds ?? [],
+    [snap.round.expectedPresentationActorIds]
+  );
   const participantAdjudicationOutcomes = useMemo(
     () => new Map(Object.entries(snap.participantAdjudicationOutcomes ?? {}).map(([id, outcome]) => [Number(id), outcome])),
     [snap.participantAdjudicationOutcomes]
@@ -614,6 +618,7 @@ export default function TrpgCampaignRoom({
       declarationConsumedIds,
       participantAdjudicationOutcomes,
       awaitingMoreActors: awaitingMorePresentationActors,
+      expectedPresentationActorIds,
       overlayDismissed: overlayPlayback.dismissed,
       overlaySessionKey: overlayPlayback.sessionKey,
       activeRollSessionKey: activeKey,
@@ -629,6 +634,7 @@ export default function TrpgCampaignRoom({
     adjudicatedParticipantIds,
     awaitingMorePresentationActors,
     declarationConsumedIds,
+    expectedPresentationActorIds,
     participantAdjudicationOutcomes,
     presentationActors,
     roundShow.mode,
@@ -926,6 +932,7 @@ export default function TrpgCampaignRoom({
         declarationConsumedIds,
         participantAdjudicationOutcomes,
         awaitingMoreActors: awaitingMorePresentationActors,
+        expectedPresentationActorIds,
         actionRevealComplete: true,
       });
       if (decision.kind !== "transition") return;
@@ -947,6 +954,7 @@ export default function TrpgCampaignRoom({
               adjudicatedParticipantIds,
               declarationConsumedIds,
               awaitingMoreActors: awaitingMorePresentationActors,
+              expectedPresentationActorIds,
             }),
           };
         });
@@ -963,6 +971,7 @@ export default function TrpgCampaignRoom({
               adjudicatedParticipantIds,
               declarationConsumedIds,
               awaitingMoreActors: awaitingMorePresentationActors,
+              expectedPresentationActorIds,
             }),
           };
         });
@@ -974,6 +983,7 @@ export default function TrpgCampaignRoom({
     adjudicatedParticipantIds,
     awaitingMorePresentationActors,
     declarationConsumedIds,
+    expectedPresentationActorIds,
     hiddenCatchUpActive,
     participantAdjudicationOutcomes,
     presentationActorKey,
