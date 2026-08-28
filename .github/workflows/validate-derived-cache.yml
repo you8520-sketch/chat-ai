@@ -11,6 +11,7 @@ on:
       - "src/lib/appearanceCompiler.ts"
       - "src/lib/worldShares.borrow.test.ts"
       - "src/components/studioWorldActions.regression.test.ts"
+      - "scripts/bench-luna-vs-gemini31-flash-lite.ts"
       - "scripts/bench-pr2-translation-ab.ts"
       - "scripts/bench-pr2-translation-ab.failure-resilience.test.ts"
       - "scripts/lib/pr2TranslationAbHarness.ts"
@@ -35,6 +36,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck:app
       - run: npx tsx scripts/bench-pr2-translation-ab.ts
+      - run: npx tsx scripts/bench-luna-vs-gemini31-flash-lite.ts
       - run: node --conditions=react-server --import tsx --test scripts/bench-pr2-translation-ab.failure-resilience.test.ts
       - run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/derivedCache.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/promptTranslation.test.ts
