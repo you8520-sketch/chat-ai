@@ -15,6 +15,9 @@ import {
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildLdSceneGenerationPlan } from "@/lib/chatLdIllustrationGeneration";
 import {
+  createVisualSubjectKey,
+} from "@/lib/visualSubjects";
+import {
   assignAssetsToVisualSubject,
   assetsForVisualSubject,
   clearStaleRepresentativeAssets,
@@ -254,6 +257,22 @@ describe("simulationVisualSubjects data", () => {
         submittedRaw: JSON.stringify({
           version: 1,
           subjects: [subject(MEMBER_A, duplicateKey), subject(MEMBER_B, duplicateKey)],
+        }),
+        assets: [],
+      })
+    );
+  });
+
+  it("rejects client-submitted vis_* for new simulation identity materialization", () => {
+    const visKey = createVisualSubjectKey();
+    assert.throws(() =>
+      prepareSimulationVisualSubjectsForSave({
+        simulationCast: `[${MEMBER_A}]`,
+        simulationTitle: SIM_TITLE,
+        storedRaw: "",
+        submittedRaw: serializeSimulationVisualSubjectsJson({
+          version: 1,
+          subjects: [subject(MEMBER_A, visKey, "은발")],
         }),
         assets: [],
       })

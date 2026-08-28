@@ -15,6 +15,7 @@ import type { ContentKind } from "@/lib/simulationMode";
 import {
   assignAssetsToVisualSubject,
   unassignVisualAssets,
+  validateCharacterPrimarySlotCandidate,
   type VisualSubject,
 } from "@/lib/visualSubjects";
 
@@ -72,10 +73,24 @@ export default function AssetManagerGrid({
 
   function reorder(from: number, to: number) {
     if (from === to || from < 0 || to < 0 || from >= assets.length || to >= assets.length) return;
-    if (contentKind === "character" && to === 0 && assets[from]?.visualSubjectKey?.trim()) {
-      return;
+    const candidate = reorderCharacterAssets(assets, from, to);
+    if (contentKind === "character") {
+      const check = validateCharacterPrimarySlotCandidate(candidate);
+      if (!check.ok) return;
     }
-    onChange(reorderCharacterAssets(assets, from, to));
+    onChange(candidate);
+  }
+
+  function handleRemove(index: number) {
+    if (contentKind === "character") {
+      const candidate = assets.filter((_, i) => i !== index);
+      const check = validateCharacterPrimarySlotCandidate(candidate);
+      if (!check.ok) {
+        window.alert(check.reason);
+        return;
+      }
+    }
+    onRemove(index);
   }
 
   function toggleViewerBlur(index: number) {
@@ -395,7 +410,7 @@ export default function AssetManagerGrid({
             </button>
             <button
               type="button"
-              onClick={() => onRemove(i)}
+              onClick={() => handleRemove(i)}
               title="에셋 삭제"
               className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/80 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-rose-600/90"
             >

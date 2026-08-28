@@ -66,14 +66,14 @@ import {
 import { configuredCharacterVisualSubjectNames, parseCharacterVisualSubjectsJson } from "@/lib/characterVisualSubjects";
 import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import {
-  buildClientScopedCastImageMetadata,
   parseVisualSubjectsJson,
   type VisualSubject,
 } from "@/lib/visualSubjects";
-import { filterConfiguredCastNamesForViewer, type SelectableCastAsset } from "@/lib/chatImageCast";
+import { type SelectableCastAsset } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
   parseChatImageCastManifest,
+  resolveServerVisualSubjectScope,
   type ChatImageCastGroundedManifest,
 } from "@/lib/chatImageCastManifest";
 import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
@@ -454,6 +454,9 @@ function resolveGroundedCastManifest(opts: {
   castIntentRaw: unknown;
   context: GenerationContext;
   scenePlan: ScenePlan;
+  userId: number;
+  sourceMessages: SceneSourceMessage[];
+  fromManualText: boolean;
 }): ChatImageCastGroundedManifest | null {
   const contentKind = opts.context.contentKind;
   const intent = parseChatImageCastManifest(opts.castIntentRaw, contentKind);
@@ -463,6 +466,27 @@ function resolveGroundedCastManifest(opts: {
     }
     return null;
   }
+  const isCreator = opts.context.character.creator_id === opts.userId;
+  const configuredNames =
+    contentKind === "character"
+      ? configuredCharacterVisualSubjectNames(
+          parseCharacterVisualSubjectsJson(
+            opts.context.character.simulation_visual_subjects_json ?? ""
+          )
+        )
+      : extractSimulationCastNames(opts.context.character.simulation_cast ?? "");
+  const scope = resolveServerVisualSubjectScope({
+    contentKind,
+    isCreator,
+    allSubjects: opts.context.visualSubjects,
+    assets: opts.context.characterAssets,
+    allCastSelectableAssets: opts.context.castSelectableAssets,
+    configuredNames,
+    canonicalSourceTexts:
+      opts.fromManualText && !isCreator
+        ? []
+        : opts.sourceMessages.map((message) => message.text),
+  });
   const grounded = groundCastIntent(
     intent,
     {
@@ -478,8 +502,8 @@ function resolveGroundedCastManifest(opts: {
         referenceImageUrl: opts.context.characterImageUrl,
         savedAppearance: opts.context.characterSavedAppearance,
       },
-      selectableAssets: opts.context.castSelectableAssets,
-      visualSubjects: opts.context.visualSubjects,
+      selectableAssets: scope.viewerSelectableAssets,
+      visualSubjects: scope.trustedSubjects,
       characterAssets: opts.context.characterAssets,
     },
     opts.scenePlan,
@@ -688,19 +712,17 @@ export async function POST(req: Request) {
               parseCharacterVisualSubjectsJson(context.character.simulation_visual_subjects_json ?? "")
             )
           : extractSimulationCastNames(context.character.simulation_cast ?? "");
-      const configuredCastNames = filterConfiguredCastNamesForViewer({
-        configuredNames,
-        sourceTexts: source.messages.map((message) => message.text),
-        isCreator: context.character.creator_id === user.id,
-      });
-      const scopedCast = buildClientScopedCastImageMetadata({
+      const isCreator = context.character.creator_id === user.id;
+      const scope = resolveServerVisualSubjectScope({
         contentKind: context.contentKind,
-        isCreator: context.character.creator_id === user.id,
-        subjects: context.visualSubjects,
+        isCreator,
+        allSubjects: context.visualSubjects,
         assets: context.characterAssets,
-        castSelectableAssets: context.castSelectableAssets,
-        visibleNames: configuredCastNames,
-        scope: "source_scoped",
+        allCastSelectableAssets: context.castSelectableAssets,
+        configuredNames,
+        canonicalSourceTexts: source.fromManualText && !isCreator
+          ? []
+          : source.messages.map((message) => message.text),
       });
       return NextResponse.json({
         ok: true,
@@ -708,9 +730,9 @@ export async function POST(req: Request) {
         messageId: source.messageId,
         summary: source.turnText,
         messages: source.messages,
-        configuredCastNames: scopedCast.configuredCastNames,
-        visualSubjects: scopedCast.visualSubjects,
-        castSelectableAssets: scopedCast.castSelectableAssets,
+        configuredCastNames: scope.clientSubjects.map((subject) => subject.name),
+        visualSubjects: scope.clientSubjects,
+        castSelectableAssets: scope.viewerSelectableAssets,
         contentKind: context.contentKind,
       });
     }
@@ -903,6 +925,9 @@ export async function POST(req: Request) {
           castIntentRaw: body.castIntent,
           context,
           scenePlan,
+          userId: user.id,
+          sourceMessages: source.messages,
+          fromManualText: source.fromManualText,
         });
         const plan = buildLdSceneGenerationPlan({
           characterName: context.character.name,
@@ -1086,6 +1111,9 @@ export async function POST(req: Request) {
       castIntentRaw: body.castIntent,
       context,
       scenePlan,
+      userId: user.id,
+      sourceMessages: source.messages,
+      fromManualText: source.fromManualText,
     });
 
     const balanceBefore = getPointBalance(user.id);

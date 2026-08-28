@@ -141,15 +141,96 @@ describe("chatImageCharacterSupportCast", () => {
     assert.equal(support?.trustedSavedAppearance, false);
   });
 
-  it("rejects configured ref request for unconfigured support when URL is not whitelisted", () => {
+  it("rejects configured ref request for unconfigured support", () => {
     const keyA = createVisualSubjectKey();
     const result = groundCastIntent(
-      trioIntent("https://evil.example/x.png", "미등록NPC"),
+      trioIntent(SUPPORT_A_URL, "미등록NPC"),
       characterGroundCtx({ keyA }),
       undefined,
       "character"
     );
     assert.equal(result.ok, false);
+  });
+
+  it("rejects configured support ref when asset is owned but not viewer-authorized", () => {
+    const keyA = createVisualSubjectKey();
+    const ctx = characterGroundCtx({ keyA });
+    const narrowedSelectable = ctx.selectableAssets.filter((asset) => asset.url !== SUPPORT_A_URL);
+    const result = groundCastIntent(
+      trioIntent(SUPPORT_A_URL),
+      { ...ctx, selectableAssets: narrowedSelectable },
+      undefined,
+      "character"
+    );
+    assert.equal(result.ok, false);
+  });
+
+  it("blocks hidden configured subject trust when scoped trustedSubjects exclude it", () => {
+    const keyVisible = createVisualSubjectKey();
+    const keyHidden = createVisualSubjectKey();
+    const assets = [
+      asset(MAIN_URL, "main"),
+      asset(SUPPORT_A_URL, "태현", keyVisible),
+      asset(SUPPORT_B_URL, "비밀NPC", keyHidden),
+    ];
+    const ctx: GroundCastContext = {
+      persona: characterGroundCtx({ keyA: keyVisible }).persona,
+      mainCharacter: characterGroundCtx({ keyA: keyVisible }).mainCharacter,
+      selectableAssets: assets.map((row) => ({
+        url: row.url,
+        tag: row.tag,
+        visualSubjectKey: row.visualSubjectKey,
+      })),
+      visualSubjects: [
+        {
+          subjectKey: keyVisible,
+          name: "태현",
+          savedAppearance: "공개",
+          representativeAssetUrl: SUPPORT_A_URL,
+          sourceCharacterId: null,
+        },
+      ],
+      characterAssets: assets,
+    };
+    const forged = trioIntent(undefined, "비밀NPC");
+    const grounded = groundCastIntent(forged, ctx, undefined, "character");
+    assert.equal(grounded.ok, true);
+    if (!grounded.ok) throw new Error("expected pass");
+    const hidden = grounded.manifest.subjects.find((row) => row.name === "비밀NPC");
+    assert.equal(hidden?.referenceImageUrl, undefined);
+    assert.equal(hidden?.savedAppearance, undefined);
+    assert.equal(hidden?.trustedSavedAppearance, false);
+  });
+
+  it("rejects forged hidden configured subject when client supplies a reference URL", () => {
+    const keyVisible = createVisualSubjectKey();
+    const keyHidden = createVisualSubjectKey();
+    const assets = [
+      asset(MAIN_URL, "main"),
+      asset(SUPPORT_A_URL, "태현", keyVisible),
+      asset(SUPPORT_B_URL, "비밀NPC", keyHidden),
+    ];
+    const ctx: GroundCastContext = {
+      persona: characterGroundCtx({ keyA: keyVisible }).persona,
+      mainCharacter: characterGroundCtx({ keyA: keyVisible }).mainCharacter,
+      selectableAssets: assets.map((row) => ({
+        url: row.url,
+        tag: row.tag,
+        visualSubjectKey: row.visualSubjectKey,
+      })),
+      visualSubjects: [
+        {
+          subjectKey: keyVisible,
+          name: "태현",
+          savedAppearance: "공개",
+          representativeAssetUrl: SUPPORT_A_URL,
+          sourceCharacterId: null,
+        },
+      ],
+      characterAssets: assets,
+    };
+    const forged = trioIntent(SUPPORT_B_URL, "비밀NPC");
+    assert.equal(groundCastIntent(forged, ctx, undefined, "character").ok, false);
   });
 
   it("keeps persona and main character unchanged", () => {

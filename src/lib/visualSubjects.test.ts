@@ -16,6 +16,7 @@ import {
   serializeVisualSubjectsJson,
   validateAssetVisualSubjectOwnership,
   validateCharacterPrimaryAssetAssignment,
+  validateCharacterPrimarySlotCandidate,
   validateRepresentativeAsset,
   VisualSubjectsInputError,
   assetsForMainCharacterPool,
@@ -239,5 +240,50 @@ describe("visualSubjects domain", () => {
       assetsForMainCharacterPool(assets, "character").map((row) => row.url),
       ["/uploads/main.webp", "/uploads/extra.webp"]
     );
+  });
+
+  it("keeps simulation unassigned assets in viewer source-scoped pool", () => {
+    const key = createVisualSubjectKey();
+    const assets = [
+      asset("/uploads/general.webp", "general"),
+      asset("/uploads/support.webp", "support", key),
+    ];
+    const scoped = buildClientScopedCastImageMetadata({
+      contentKind: "simulation",
+      isCreator: false,
+      subjects: [
+        {
+          subjectKey: key,
+          name: "조연",
+          savedAppearance: "",
+          representativeAssetUrl: null,
+          sourceCharacterId: null,
+        },
+      ],
+      assets,
+      castSelectableAssets: assets.map((row) => ({
+        url: row.url,
+        tag: row.tag,
+        visualSubjectKey: row.visualSubjectKey,
+      })),
+      visibleNames: ["조연"],
+      scope: "source_scoped",
+    });
+    assert.equal(
+      scoped.castSelectableAssets.some((row) => row.url === "/uploads/general.webp"),
+      true
+    );
+  });
+
+  it("blocks character reorder that would expose support-owned asset at index 0", () => {
+    const key = createVisualSubjectKey();
+    const assets = [
+      asset("/uploads/main.webp", "main"),
+      asset("/uploads/support.webp", "support", key),
+      asset("/uploads/main2.webp", "main2"),
+    ];
+    const candidate = [assets[1]!, assets[2]!, assets[0]!];
+    const check = validateCharacterPrimarySlotCandidate(candidate);
+    assert.equal(check.ok, false);
   });
 });

@@ -19,6 +19,7 @@ import {
   clearStaleRepresentativeAssets,
   createLegacySimulationVisualSubjectKey,
   emptyVisualSubjectsDocument,
+  isGenericVisualSubjectKey,
   isLegacySimulationVisualSubjectKey,
   isVisualSubjectKey,
   normalizeVisualSubjectSavedAppearance,
@@ -224,6 +225,11 @@ export function prepareSimulationVisualSubjectsForSave(opts: {
     const isStoredSubject = stored.subjects.some(
       (storedSubject) => storedSubject.subjectKey === subject.subjectKey
     );
+    if (override && !isStoredSubject && isGenericVisualSubjectKey(override.subjectKey)) {
+      throw new SimulationVisualSubjectsInputError(
+        "새 Simulation 이미지 인물은 simvis_* 키만 사용할 수 있습니다."
+      );
+    }
     const extractedAppearance =
       extractedAppearanceByName.get(subject.name.toLowerCase()) ??
       ({ found: false, text: "" } as const);

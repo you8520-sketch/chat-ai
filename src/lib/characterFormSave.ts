@@ -210,9 +210,6 @@ function prepareVisualSubjectsForSave(opts: {
   }
 
   try {
-    if (!provided && !opts.trustedStoredJson.trim()) {
-      return { ok: true, assets: opts.assets, json: "" };
-    }
     const prepared = prepareCharacterVisualSubjectsForSave({
       submittedRaw: raw,
       submittedProvided: provided,
@@ -220,12 +217,11 @@ function prepareVisualSubjectsForSave(opts: {
       assets: opts.assets,
       mainCharacterName: opts.mainCharacterName,
     });
-    const assets = sanitizeAssetVisualSubjectKeys(opts.assets, prepared.subjects);
-    const validated = validateCharacterVisualSubjectsDocument(prepared, assets);
+    const validated = validateCharacterVisualSubjectsDocument(prepared, opts.assets);
     if (!validated.ok) return { ok: false, error: validated.reason };
     return {
       ok: true,
-      assets,
+      assets: opts.assets,
       json: serializeCharacterVisualSubjectsJson(prepared),
     };
   } catch (error) {
@@ -610,6 +606,7 @@ export function parseCharacterFormBody(
     options?.trustedStoredSimulationVisualSubjectsJson ??
     "";
   if (
+    contentKind === "character" ||
     contentKind === "simulation" ||
     submittedVisualField.provided ||
     trustedStoredVisualSubjectsJson.trim()
@@ -1400,6 +1397,7 @@ export async function updateCharacterPublicProfileFromForm(
   const submittedVisualField = extractVisualSubjectsFromBody(b);
   let visualSubjectsJson = row.simulation_visual_subjects_json;
   if (
+    contentKind === "character" ||
     submittedVisualField.provided ||
     row.simulation_visual_subjects_json.trim() ||
     contentKind === "simulation"

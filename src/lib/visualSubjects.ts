@@ -91,6 +91,8 @@ export function buildClientVisibleVisualSubjects(opts: {
   subjects: readonly VisualSubject[];
   assets: readonly CharacterAsset[];
   visibleNames: readonly string[];
+  /** When set, representative URLs are emitted only if present in this viewer-authorized pool. */
+  viewerAuthorizedAssetUrls?: ReadonlySet<string>;
 }): ClientVisibleVisualSubject[] {
   const visible = new Set(
     opts.visibleNames.map((name) => cleanVisualSubjectName(name).toLowerCase()).filter(Boolean)
@@ -99,7 +101,13 @@ export function buildClientVisibleVisualSubjects(opts: {
   return opts.subjects
     .filter((subject) => visible.has(subject.name.toLowerCase()))
     .map((subject) => {
-      const representativeAssetUrl = validateRepresentativeAsset(subject, opts.assets) ?? undefined;
+      const ownedRepresentative = validateRepresentativeAsset(subject, opts.assets);
+      const representativeAssetUrl =
+        ownedRepresentative &&
+        (!opts.viewerAuthorizedAssetUrls ||
+          opts.viewerAuthorizedAssetUrls.has(ownedRepresentative))
+          ? ownedRepresentative
+          : undefined;
       return {
         subjectKey: subject.subjectKey,
         name: subject.name,
@@ -126,7 +134,9 @@ export function filterCastSelectableAssetsForViewer(opts: {
   if (opts.isCreator) return [...opts.assets];
   return opts.assets.filter((asset) => {
     const ownerKey = asset.visualSubjectKey?.trim();
-    if (!ownerKey) return false;
+    if (!ownerKey) {
+      return opts.contentKind === "simulation";
+    }
     return opts.visibleSubjectKeys.has(ownerKey);
   });
 }
@@ -159,12 +169,15 @@ export function buildClientScopedCastImageMetadata(opts: {
     };
   }
   const configuredCastNames = opts.visibleNames.map((name) => cleanVisualSubjectName(name)).filter(Boolean);
-  const visualSubjects = buildClientVisibleVisualSubjects({
-    subjects: opts.subjects,
-    assets: opts.assets,
-    visibleNames: configuredCastNames,
-  });
-  const visibleSubjectKeys = new Set(visualSubjects.map((subject) => subject.subjectKey));
+  const visibleSubjectKeys = new Set(
+    opts.subjects
+      .filter((subject) =>
+        configuredCastNames.some(
+          (name) => name.toLowerCase() === subject.name.toLowerCase()
+        )
+      )
+      .map((subject) => subject.subjectKey)
+  );
   const castSelectableAssets = filterCastSelectableAssetsForViewer({
     assets: opts.castSelectableAssets,
     visibleSubjectKeys,
@@ -172,8 +185,20 @@ export function buildClientScopedCastImageMetadata(opts: {
     contentKind: opts.contentKind,
     scope: "source_scoped",
   });
+  const viewerAuthorizedAssetUrls = new Set(
+    castSelectableAssets.map((asset) => asset.url)
+  );
+  const visualSubjects = buildClientVisibleVisualSubjects({
+    subjects: opts.subjects,
+    assets: opts.assets,
+    visibleNames: configuredCastNames,
+    viewerAuthorizedAssetUrls,
+  });
   return { configuredCastNames, visualSubjects, castSelectableAssets };
 }
+
+export const CHARACTER_PRIMARY_SLOT_SUPPORT_MESSAGE =
+  "다음 이미지가 조연에 지정되어 있어 대표 이미지로 올 수 없습니다. 먼저 이미지 인물 지정을 변경해 주세요.";
 
 export function validateCharacterPrimaryAssetAssignment(
   assets: readonly CharacterAsset[]
@@ -184,6 +209,17 @@ export function validateCharacterPrimaryAssetAssignment(
       ok: false,
       reason: "대표(1번) 이미지는 주인공 전용입니다. 조연 인물 지정을 해제해 주세요.",
     };
+  }
+  return { ok: true };
+}
+
+/** Validates a candidate asset order after Character reorder/delete. */
+export function validateCharacterPrimarySlotCandidate(
+  assets: readonly CharacterAsset[]
+): { ok: true } | { ok: false; reason: string } {
+  const primaryKey = assets[0]?.visualSubjectKey?.trim();
+  if (primaryKey) {
+    return { ok: false, reason: CHARACTER_PRIMARY_SLOT_SUPPORT_MESSAGE };
   }
   return { ok: true };
 }

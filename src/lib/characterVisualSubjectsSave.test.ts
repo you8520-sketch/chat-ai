@@ -143,7 +143,7 @@ describe("characterVisualSubjects save integration", () => {
     assert.equal(saved.subjects[0]?.name, "민준");
   });
 
-  it("explicit empty visual_subjects doc clears registry", () => {
+  it("explicit empty visual_subjects with owned assets is rejected", () => {
     const key = createCharacterVisualSubjectKey();
     const parsed = parseCharacterFormBody(
       characterBody({
@@ -169,10 +169,151 @@ describe("characterVisualSubjects save integration", () => {
         }),
       }
     );
+    assert.equal(parsed.ok, false);
+  });
+
+  it("explicit empty visual_subjects passes after explicit asset reassignment", () => {
+    const key = createCharacterVisualSubjectKey();
+    const parsed = parseCharacterFormBody(
+      characterBody({
+        visual_subjects: { version: 1, subjects: [] },
+        assets: [
+          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/support.webp", tag: "민준" },
+        ],
+      }),
+      adultCreator,
+      {
+        trustedStoredVisualSubjectsJson: JSON.stringify({
+          version: 1,
+          subjects: [
+            {
+              subjectKey: key,
+              name: "민준",
+              savedAppearance: "단발",
+              representativeAssetUrl: null,
+              sourceCharacterId: null,
+            },
+          ],
+        }),
+      }
+    );
     assert.equal(parsed.ok, true, parsed.ok ? undefined : parsed.error);
     if (!parsed.ok) throw new Error(parsed.error);
     const saved = parseCharacterVisualSubjectsJson(parsed.data.simulationVisualSubjectsJson);
     assert.equal(saved.subjects.length, 0);
+  });
+
+  it("rejects forged visualSubjectKey when visual_subjects field is absent on create", () => {
+    const forgedKey = createCharacterVisualSubjectKey();
+    const parsed0 = parseCharacterFormBody(
+      characterBody({
+        assets: [{ url: "/uploads/main.webp", tag: "main", visualSubjectKey: forgedKey }],
+      }),
+      adultCreator
+    );
+    assert.equal(parsed0.ok, false);
+
+    const parsed1 = parseCharacterFormBody(
+      characterBody({
+        assets: [
+          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
+        ],
+      }),
+      adultCreator
+    );
+    assert.equal(parsed1.ok, false);
+  });
+
+  it("rejects forged visualSubjectKey on fast save with empty stored registry", async () => {
+    const forgedKey = createCharacterVisualSubjectKey();
+    const insert = db
+      .prepare(
+        `INSERT INTO characters
+          (creator_id, assets, images, simulation_visual_subjects_json, content_kind)
+         VALUES (?, ?, ?, '', 'character')`
+      )
+      .run(
+        1,
+        JSON.stringify([
+          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
+        ]),
+        JSON.stringify(["/uploads/main.webp", "/uploads/support.webp"])
+      );
+    const characterId = Number(insert.lastInsertRowid);
+    const result = await updateCharacterPublicProfileFromForm(adultCreator, characterId, {
+      tagline: "업데이트",
+      description: "설명",
+      genres: ["로맨스"],
+      assets: [
+        { url: "/uploads/main.webp", tag: "main" },
+        { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
+      ],
+    });
+    assert.equal(result.ok, false);
+  });
+
+  it("fast save keeps registry and assets coherent after rename and main reassignment", async () => {
+    const key = createCharacterVisualSubjectKey();
+    const storedDoc = {
+      version: 1 as const,
+      subjects: [
+        {
+          subjectKey: key,
+          name: "민준",
+          savedAppearance: "단발",
+          representativeAssetUrl: null,
+          sourceCharacterId: null,
+        },
+      ],
+    };
+    const insert = db
+      .prepare(
+        `INSERT INTO characters
+          (creator_id, assets, images, simulation_visual_subjects_json, content_kind)
+         VALUES (?, ?, ?, ?, 'character')`
+      )
+      .run(
+        1,
+        JSON.stringify([
+          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
+        ]),
+        JSON.stringify(["/uploads/main.webp", "/uploads/support.webp"]),
+        JSON.stringify(storedDoc)
+      );
+    const characterId = Number(insert.lastInsertRowid);
+    const result = await updateCharacterPublicProfileFromForm(adultCreator, characterId, {
+      tagline: "업데이트",
+      description: "설명",
+      genres: ["로맨스"],
+      visual_subjects: {
+        version: 1,
+        subjects: [
+          {
+            subjectKey: key,
+            name: "민준(개명)",
+            savedAppearance: "단발",
+            representativeAssetUrl: null,
+            sourceCharacterId: null,
+          },
+        ],
+      },
+      assets: [
+        { url: "/uploads/main.webp", tag: "main" },
+        { url: "/uploads/support.webp", tag: "민준(개명)" },
+      ],
+    });
+    assert.equal(result.ok, true, result.ok ? undefined : result.error);
+    const row = db
+      .prepare("SELECT simulation_visual_subjects_json, assets FROM characters WHERE id=?")
+      .get(characterId) as { simulation_visual_subjects_json: string; assets: string };
+    const saved = parseCharacterVisualSubjectsJson(row.simulation_visual_subjects_json);
+    const savedAssets = JSON.parse(row.assets) as Array<{ visualSubjectKey?: string }>;
+    assert.equal(saved.subjects[0]?.name, "민준(개명)");
+    assert.equal(savedAssets[1]?.visualSubjectKey, undefined);
   });
 
   it("forces sourceCharacterId null for new character support subjects", () => {

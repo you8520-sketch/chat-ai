@@ -33,6 +33,7 @@ import {
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
+import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
@@ -1070,6 +1071,9 @@ export default function ChatImageGeneratorPanel({
     setScenePlan(null);
     setCastIntent(null);
     setConfiguredCastNames([]);
+    const clearedScope = emptySceneVisualScopeState();
+    setSceneVisualSubjects(clearedScope.visualSubjects);
+    setSceneCastSelectableAssets(clearedScope.castSelectableAssets);
     setSceneMessages([]);
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
