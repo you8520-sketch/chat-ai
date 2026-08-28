@@ -11,7 +11,6 @@ type Props = {
   content: string;
   authorNickname: string;
   loggedIn: boolean;
-  available: boolean;
 };
 
 export default function WorldApplyClient({
@@ -21,7 +20,6 @@ export default function WorldApplyClient({
   content,
   authorNickname,
   loggedIn,
-  available,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -81,11 +79,7 @@ export default function WorldApplyClient({
         </pre>
       </div>
 
-      {!available ? (
-        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-center">
-          <p className="text-sm font-bold text-rose-300">더 이상 사용할 수 없는 공유 링크입니다.</p>
-        </div>
-      ) : !done ? (
+      {!done ? (
         <div className="mt-6 space-y-4 rounded-2xl border border-violet-500/25 bg-violet-950/10 p-5">
           <p className="text-sm leading-relaxed text-zinc-300">
             이 세계관을 <span className="font-semibold text-violet-200">내 라이브러리</span>에 추가하면

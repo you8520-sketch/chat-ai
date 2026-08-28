@@ -39,8 +39,14 @@ import {
   type StatusWidget,
 } from "@/lib/statusWidget";
 
+import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
 import type { WorldListItem } from "@/lib/worlds";
-import { parseWorldLibraryRef, worldLibraryRef } from "@/lib/worlds";
+import {
+  isReadOnlyWorldLibraryRef,
+  parseWorldLibraryRef,
+  savedShareWorldLibraryRef,
+  worldLibraryRef,
+} from "@/lib/worlds";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import GenrePicker from "@/components/GenrePicker";
 import ToggleSwitch from "@/components/ToggleSwitch";
@@ -183,6 +189,8 @@ export default function CreateCharacter({
   const [progress, setProgress] = useState("");
   const [savedWorlds, setSavedWorlds] = useState<WorldListItem[]>([]);
   const [selectedWorldRef, setSelectedWorldRef] = useState<string>("");
+  const [worldSourceKind, setWorldSourceKind] = useState<CharacterWorldSourceKind | null>(null);
+  const [worldDetach, setWorldDetach] = useState(false);
   const [worldsLoading, setWorldsLoading] = useState(true);
   const [savedLorebooks, setSavedLorebooks] = useState<
     KeywordLorebookListItem[]
@@ -205,6 +213,17 @@ export default function CreateCharacter({
 
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
   const editPromptBaselineRef = useRef<string | null>(null);
+
+  const selectedWorldItem = useMemo(
+    () => savedWorlds.find((w) => worldLibraryRef(w) === selectedWorldRef),
+    [savedWorlds, selectedWorldRef]
+  );
+  const isWorldFieldReadOnly =
+    selectedWorldRef.startsWith("saved-share:") ||
+    selectedWorldItem?.readOnly === true ||
+    worldSourceKind === "borrowed_snapshot" ||
+    worldSourceKind === "legacy_borrowed_snapshot" ||
+    isReadOnlyWorldLibraryRef(selectedWorldRef);
 
   const configuredVisualSubjectNames = useMemo(
     () => configuredSimulationCastNames(form.simulation_cast, form.name),
@@ -595,7 +614,15 @@ export default function CreateCharacter({
                   : ""
               )
         );
-        setSelectedWorldRef(data.world_id ? `world:${data.world_id}` : "");
+        setSelectedWorldRef(
+          data.source_world_share_id
+            ? savedShareWorldLibraryRef(Number(data.source_world_share_id))
+            : data.world_id
+              ? `world:${data.world_id}`
+              : ""
+        );
+        setWorldSourceKind((data.world_source_kind as CharacterWorldSourceKind | undefined) ?? null);
+        setWorldDetach(false);
         setSelectedLorebookId(data.lorebook_id ?? "");
         editPromptBaselineRef.current = JSON.stringify({
           name: String(data.name ?? "").trim(),
@@ -725,11 +752,27 @@ export default function CreateCharacter({
   }, [worldsLoading, savedWorlds, selectedWorldRef, initialWorldBorrowId, initialWorldId]);
 
   function applySavedWorld(ref: string) {
+    if (ref === "") {
+      setSelectedWorldRef("");
+      setWorldSourceKind(null);
+      setWorldDetach(true);
+      setForm((f) => ({ ...f, world: "" }));
+      return;
+    }
+    setWorldDetach(false);
     setSelectedWorldRef(ref);
-    if (ref === "") return;
     const picked = savedWorlds.find((w) => worldLibraryRef(w) === ref);
     if (picked) {
+      setWorldSourceKind(
+        picked.libraryKind === "borrowed"
+          ? "borrowed_snapshot"
+          : picked.libraryKind === "legacy_borrowed"
+            ? "legacy_borrowed_snapshot"
+            : "owned"
+      );
       setForm((f) => ({ ...f, world: picked.content }));
+    } else if (ref.startsWith("saved-share:")) {
+      setWorldSourceKind("borrowed_snapshot");
     }
   }
 
@@ -914,6 +957,8 @@ export default function CreateCharacter({
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
       simulation_visual_subjects: form.content_kind === "simulation" ? visualSubjects : undefined,
+      world_library_ref: selectedWorldRef,
+      world_detach: worldDetach && selectedWorldRef === "",
       world_id: worldSelection.worldId,
       world_borrow_id: worldSelection.borrowId,
       lorebook_id:
@@ -1199,7 +1244,11 @@ export default function CreateCharacter({
                   )}
                   {selectedWorldRef !== "" && (
                     <span className="text-[11px] text-cyan-400/80">
-                      저장된 세계관 불러옴 · 아래에서 수정 가능
+                      {isWorldFieldReadOnly
+                        ? worldSourceKind === "borrowed_snapshot"
+                          ? "공유 세계관 스냅샷 · 읽기 전용"
+                          : "빌린 세계관 적용 중 · 읽기 전용"
+                        : "저장된 세계관 불러옴 · 아래에서 수정 가능"}
                     </span>
                   )}
                 </div>
@@ -1208,8 +1257,12 @@ export default function CreateCharacter({
                   className={cls}
                   placeholder="이야기의 배경, 시대, 장소, 세력, 규칙 등"
                   value={form.world}
+                  readOnly={isWorldFieldReadOnly}
                   onChange={(e) => {
+                    if (isWorldFieldReadOnly) return;
+                    setWorldDetach(true);
                     setSelectedWorldRef("");
+                    setWorldSourceKind(null);
                     setForm({ ...form, world: e.target.value });
                   }}
                 />

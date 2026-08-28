@@ -1,8 +1,20 @@
+import Module from "module";
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
-import { parseCharacterFormBody } from "@/lib/characterFormSave";
+import {
+  createCharacterFromForm,
+  parseCharacterFormBody,
+  updateCharacterFromForm,
+} from "@/lib/characterFormSave";
 import { canUseWorldForTrpg } from "@/lib/trpg/catalog";
 import { insertScenarioTemplate } from "@/lib/trpg/scenarioTemplates";
 import { canEditWorld, canShareWorld, loadOwnedWorldRow } from "@/lib/worldPermissions";
@@ -340,6 +352,370 @@ describe("world borrow ownership foundation", () => {
     assert.equal(legacy!.readOnly, true);
     assert.equal(canEditWorld(1025, legacyId), false);
     assert.equal(canShareWorld(1025, legacyId), false);
+  });
+
+  it("C1 forged modified borrow content is rejected for character save", () => {
+    seedUser(1030, "share-a");
+    seedUser(1031, "borrower-b");
+    const worldId = seedOwnedWorld(1030, "위조 테스트", "원본 세계관");
+    const created = createWorldShare(1030, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1031, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const parsed = parseCharacterFormBody(
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        world: "공격자가 수정한 세계관",
+      }),
+      { id: 1031, nickname: "borrower-b", is_adult: 1 }
+    );
+    assert.equal(parsed.ok, true, !parsed.ok ? parsed.error : "");
+    if (!parsed.ok) return;
+    assert.equal(parsed.data.world, "원본 세계관");
+    assert.notEqual(parsed.data.world, "공격자가 수정한 세계관");
+  });
+
+  it("C2 forged modified borrow content is rejected for simulation save", () => {
+    seedUser(1032, "share-a");
+    seedUser(1033, "borrower-b");
+    const worldId = seedOwnedWorld(1032, "시뮬 위조", "원본 시뮬 세계관");
+    const created = createWorldShare(1032, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1033, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const parsed = parseCharacterFormBody(
+      minimalSimulationBody({
+        world_borrow_id: borrowed.borrow.id,
+        world: "공격자가 수정한 세계관",
+      }),
+      { id: 1033, nickname: "borrower-b", is_adult: 1 }
+    );
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    assert.equal(parsed.data.world, "원본 시뮬 세계관");
+  });
+
+  it("C3 createCharacterFromForm persists borrowed snapshot and provenance", async () => {
+    seedUser(1034, "share-a");
+    seedUser(1035, "borrower-b");
+    const worldId = seedOwnedWorld(1034, "DB 생성", "DB 스냅샷 본문");
+    const created = createWorldShare(1034, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1035, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const result = await createCharacterFromForm(
+      { id: 1035, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        world: "위조 시도 본문",
+        name: "빌린 스냅샷 캐릭터",
+      })
+    );
+    assert.equal(result.ok, true, !result.ok ? result.error : "");
+    if (!result.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id, world_id FROM characters WHERE id = ?")
+      .get(result.id) as { world: string; source_world_share_id: number | null; world_id: number | null };
+    assert.equal(row.world, "DB 스냅샷 본문");
+    assert.equal(row.source_world_share_id, created.share.id);
+    assert.equal(row.world_id, null);
+  });
+
+  it("C4 saved borrowed snapshot edit survives share revoke", async () => {
+    seedUser(1036, "share-a");
+    seedUser(1037, "borrower-b");
+    const worldId = seedOwnedWorld(1036, "철회 후 편집", "철회 전 스냅샷");
+    const created = createWorldShare(1036, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1037, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1037, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        name: "철회 생존 캐릭터",
+      })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    revokeWorldShare(1036, created.share.share_slug);
+
+    const updated = await updateCharacterFromForm(
+      { id: 1037, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "철회 생존 캐릭터",
+        tagline: "수정된 한 줄 소개",
+        world_library_ref: `saved-share:${created.share.id}`,
+        world: "위조 수정 시도",
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id, tagline FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null; tagline: string };
+    assert.equal(row.world, "철회 전 스냅샷");
+    assert.equal(row.source_world_share_id, created.share.id);
+    assert.equal(row.tagline, "수정된 한 줄 소개");
+  });
+
+  it("C5 saved borrowed snapshot edit survives source world delete", async () => {
+    seedUser(1038, "share-a");
+    seedUser(1039, "borrower-b");
+    const worldId = seedOwnedWorld(1038, "삭제 후 편집", "삭제 전 스냅샷");
+    const created = createWorldShare(1038, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1039, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1039, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        name: "삭제 생존 캐릭터",
+      })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    getDb().prepare("DELETE FROM worlds WHERE id = ?").run(worldId);
+
+    const updated = await updateCharacterFromForm(
+      { id: 1039, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "삭제 생존 캐릭터",
+        tagline: "소스 삭제 후 수정",
+        world_library_ref: `saved-share:${created.share.id}`,
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null };
+    assert.equal(row.world, "삭제 전 스냅샷");
+    assert.equal(row.source_world_share_id, created.share.id);
+  });
+
+  it("C6 explicit owned world replacement clears borrow provenance", async () => {
+    seedUser(1040, "share-a");
+    seedUser(1041, "borrower-b");
+    const sharedWorldId = seedOwnedWorld(1040, "공유 원본", "빌린 본문");
+    const ownedWorldId = seedOwnedWorld(1041, "내 세계", "내 소유 본문");
+    const created = createWorldShare(1040, sharedWorldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1041, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1041, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        name: "교체 테스트",
+      })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    const updated = await updateCharacterFromForm(
+      { id: 1041, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "교체 테스트",
+        world_library_ref: `world:${ownedWorldId}`,
+        world: "내 소유 본문",
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id, world_id FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null; world_id: number | null };
+    assert.equal(row.world, "내 소유 본문");
+    assert.equal(row.source_world_share_id, null);
+    assert.equal(row.world_id, ownedWorldId);
+  });
+
+  it("C7 explicit borrowed S1 to S2 replacement updates snapshot and provenance", async () => {
+    seedUser(1042, "share-a");
+    seedUser(1043, "borrower-b");
+    const world1 = seedOwnedWorld(1042, "S1 세계", "S1 본문");
+    const world2 = seedOwnedWorld(1042, "S2 세계", "S2 본문");
+    const share1 = createWorldShare(1042, world1);
+    const share2 = createWorldShare(1042, world2);
+    assert.ok(!("error" in share1));
+    assert.ok(!("error" in share2));
+    const borrow1 = borrowWorldShareToUser(1043, share1.share.share_slug);
+    const borrow2 = borrowWorldShareToUser(1043, share2.share.share_slug);
+    assert.equal(borrow1.ok, true);
+    assert.equal(borrow2.ok, true);
+    if (!borrow1.ok || !borrow2.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1043, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrow1.borrow.id,
+        name: "S1→S2 교체",
+      })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    const updated = await updateCharacterFromForm(
+      { id: 1043, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "S1→S2 교체",
+        world_borrow_id: borrow2.borrow.id,
+        world_library_ref: `borrow:${borrow2.borrow.id}`,
+        world: "위조 S2",
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null };
+    assert.equal(row.world, "S2 본문");
+    assert.equal(row.source_world_share_id, share2.share.id);
+  });
+
+  it("C8 explicit direct input detach clears borrowed snapshot without auto-copy", async () => {
+    seedUser(1044, "share-a");
+    seedUser(1045, "borrower-b");
+    const worldId = seedOwnedWorld(1044, "분리 테스트", "빌린 고정 본문");
+    const created = createWorldShare(1044, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1045, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const createdChar = await createCharacterFromForm(
+      { id: 1045, nickname: "borrower-b", is_adult: 1 },
+      minimalCharacterBody({
+        world_borrow_id: borrowed.borrow.id,
+        name: "직접입력 전환",
+      })
+    );
+    assert.equal(createdChar.ok, true);
+    if (!createdChar.ok) return;
+
+    const updated = await updateCharacterFromForm(
+      { id: 1045, nickname: "borrower-b", is_adult: 1 },
+      createdChar.id,
+      minimalCharacterBody({
+        name: "직접입력 전환",
+        world_library_ref: "",
+        world_detach: true,
+        world: "새 직접 입력 본문",
+      })
+    );
+    assert.equal(updated.ok, true, !updated.ok ? updated.error : "");
+    if (!updated.ok) return;
+
+    const row = getDb()
+      .prepare("SELECT world, source_world_share_id, world_id FROM characters WHERE id = ?")
+      .get(createdChar.id) as { world: string; source_world_share_id: number | null; world_id: number | null };
+    assert.equal(row.world, "새 직접 입력 본문");
+    assert.equal(row.source_world_share_id, null);
+    assert.equal(row.world_id, null);
+    assert.notEqual(row.world, "빌린 고정 본문");
+  });
+
+  it("C9 revoked public share is unavailable for apply page boundary", () => {
+    seedUser(1046, "share-a");
+    const worldId = seedOwnedWorld(1046, "공개 철회", "비공개 본문");
+    const created = createWorldShare(1046, worldId);
+    assert.ok(!("error" in created));
+
+    const live = getWorldShareBySlug(created.share.share_slug);
+    assert.ok(live?.available);
+
+    revokeWorldShare(1046, created.share.share_slug);
+    const revoked = getWorldShareBySlug(created.share.share_slug);
+    assert.ok(revoked);
+    assert.equal(revoked!.available, false);
+  });
+
+  it("T2 other user public trpg-enabled world passes scenario create", () => {
+    seedUser(1047, "world-owner");
+    seedUser(1048, "scenario-author");
+    const db = getDb();
+    const publicWorldId = Number(
+      db
+        .prepare(
+          `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, updated_at)
+           VALUES (?, ?, ?, ?, 1, 'public', datetime('now'))`
+        )
+        .run(1047, "공개 TRPG", "요약", "TRPG 본문").lastInsertRowid
+    );
+    const row = loadOwnedWorldRow(1047, publicWorldId)!;
+    assert.equal(canUseWorldForTrpg(row, 1048), true);
+    const id = insertScenarioTemplate(db, 1048, {
+      title: "공개 세계 시나리오",
+      summary: "요약",
+      content: "내용",
+      worldId: publicWorldId,
+    });
+    assert.ok(id > 0);
+  });
+
+  it("T3 other user private world fails scenario create", () => {
+    seedUser(1049, "world-owner");
+    seedUser(1050, "scenario-author");
+    const db = getDb();
+    const privateWorldId = seedOwnedWorld(1049, "비공개 TRPG", "본문");
+    assert.throws(
+      () =>
+        insertScenarioTemplate(db, 1050, {
+          title: "거부 시나리오",
+          summary: "요약",
+          content: "내용",
+          worldId: privateWorldId,
+        }),
+      /TRPG/
+    );
+  });
+
+  it("T5 forged borrow id as worldId fails scenario create", () => {
+    seedUser(1051, "share-a");
+    seedUser(1052, "attacker");
+    const worldId = seedOwnedWorld(1051, "위조 대상", "본문");
+    const created = createWorldShare(1051, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1052, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const db = getDb();
+    assert.throws(
+      () =>
+        insertScenarioTemplate(db, 1052, {
+          title: "위조 worldId",
+          summary: "요약",
+          content: "내용",
+          worldId: borrowed.borrow.id,
+        }),
+      /TRPG/
+    );
   });
 
   it("security: forged borrow id for another user fails closed", () => {

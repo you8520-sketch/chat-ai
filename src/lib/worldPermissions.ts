@@ -1,13 +1,13 @@
-import crypto from "crypto";
-
 import { getDb } from "@/lib/db";
 import type { WorldRow } from "@/lib/worlds";
 
 export type WorldLibraryKind = "owned" | "borrowed" | "legacy_borrowed";
 
-export function hashWorldSnapshot(content: string): string {
-  return crypto.createHash("sha256").update(content.trim()).digest("hex");
-}
+export type CharacterWorldSourceKind =
+  | "direct"
+  | "owned"
+  | "borrowed_snapshot"
+  | "legacy_borrowed_snapshot";
 
 export function isLegacyBorrowedWorld(row: Pick<WorldRow, "shared_from_nickname">): boolean {
   return Boolean((row.shared_from_nickname ?? "").trim());
@@ -51,10 +51,19 @@ export function canShareWorld(userId: number, worldId: number): boolean {
   return !isLegacyBorrowedWorld(row);
 }
 
-export function canUseWorldForTrpgOwned(userId: number, worldId: number): boolean {
-  const row = loadOwnedWorldRow(userId, worldId);
-  if (!row) return false;
-  return !isLegacyBorrowedWorld(row);
+export function deriveCharacterWorldSourceKind(row: {
+  source_world_share_id?: number | null;
+  world_id?: number | null;
+  shared_from_nickname?: string | null;
+}): CharacterWorldSourceKind {
+  if (row.source_world_share_id != null && row.source_world_share_id > 0) {
+    return "borrowed_snapshot";
+  }
+  if (row.world_id != null && row.world_id > 0) {
+    if ((row.shared_from_nickname ?? "").trim()) return "legacy_borrowed_snapshot";
+    return "owned";
+  }
+  return "direct";
 }
 
 export type WorldShareAvailability = {

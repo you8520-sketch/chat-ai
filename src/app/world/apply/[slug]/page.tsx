@@ -13,7 +13,7 @@ export default async function WorldApplyPage({
 }) {
   const { slug } = await params;
   const share = getWorldShareBySlug(slug);
-  if (!share) notFound();
+  if (!share || !share.available) notFound();
 
   const user = await getSessionUser();
 
@@ -26,7 +26,6 @@ export default async function WorldApplyPage({
         content={share.content}
         authorNickname={share.authorNickname}
         loggedIn={Boolean(user)}
-        available={share.available}
       />
     </main>
   );

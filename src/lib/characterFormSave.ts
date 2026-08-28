@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
+import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
@@ -264,6 +265,11 @@ export function parseCharacterFormBody(
     existingParticipantMinAge?: number | null;
     requireStructuredAge?: boolean;
     trustedStoredSimulationVisualSubjectsJson?: string;
+    existingCharacter?: {
+      world: string | null;
+      worldId: number | null;
+      sourceWorldShareId: number | null;
+    };
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
   if (!user.is_adult) {
@@ -339,9 +345,11 @@ export function parseCharacterFormBody(
 
   let worldId: number | null = null;
   let sourceWorldShareId: number | null = null;
-  const rawWorldId = b.world_id ?? b.worldId;
-  const rawBorrowId = b.world_borrow_id ?? b.worldBorrowId;
-  const rawShareId = b.world_share_id ?? b.worldShareId;
+  const worldLibraryRefRaw = String(b.world_library_ref ?? b.worldLibraryRef ?? "").trim();
+  const parsedLibraryRef = worldLibraryRefRaw ? parseWorldLibraryRef(worldLibraryRefRaw) : {};
+  const rawWorldId = b.world_id ?? b.worldId ?? parsedLibraryRef.worldId;
+  const rawBorrowId = b.world_borrow_id ?? b.worldBorrowId ?? parsedLibraryRef.borrowId;
+  const rawShareId = b.world_share_id ?? b.worldShareId ?? parsedLibraryRef.savedShareId;
 
   let borrowId: number | null = null;
   if (rawBorrowId != null && rawBorrowId !== "") {
@@ -367,12 +375,43 @@ export function parseCharacterFormBody(
   }
 
   const db = getDb();
-  if (borrowId != null || shareId != null || worldId != null) {
+  const existingCharacter = options?.existingCharacter;
+  const explicitDirectInput =
+    worldLibraryRefRaw === "" &&
+    (!existingCharacter || b.world_detach === true || b.worldDetach === true);
+  const explicitSavedSnapshot =
+    worldLibraryRefRaw.startsWith("saved-share:") ||
+    (shareId != null &&
+      existingCharacter?.sourceWorldShareId != null &&
+      shareId === existingCharacter.sourceWorldShareId);
+  const explicitLibrarySelection =
+    borrowId != null || (shareId != null && !explicitSavedSnapshot) || worldId != null;
+
+  if (explicitSavedSnapshot && existingCharacter) {
+    world = existingCharacter.world ?? "";
+    worldId = existingCharacter.worldId;
+    sourceWorldShareId = existingCharacter.sourceWorldShareId;
+  } else if (explicitDirectInput && (existingCharacter || !explicitLibrarySelection)) {
+    world = String(b.world ?? "");
+    worldId = null;
+    sourceWorldShareId = null;
+  } else if (explicitLibrarySelection) {
     const resolved = resolveWorldSelectionForUser(user.id, { worldId, borrowId, shareId });
     if (!resolved.ok) return { ok: false, error: resolved.error, status: 404 };
-    if (!world.trim()) world = resolved.content;
+    // Borrowed / legacy_borrowed: server-resolved snapshot only — client body.world has zero authority.
+    if (resolved.libraryKind === "borrowed" || resolved.libraryKind === "legacy_borrowed") {
+      world = resolved.content;
+    } else if (String(b.world ?? "").trim()) {
+      world = String(b.world ?? "").trim();
+    } else {
+      world = resolved.content;
+    }
     worldId = resolved.worldId;
     sourceWorldShareId = resolved.sourceWorldShareId;
+  } else if (existingCharacter) {
+    world = existingCharacter.world ?? "";
+    worldId = existingCharacter.worldId;
+    sourceWorldShareId = existingCharacter.sourceWorldShareId;
   }
 
   let lorebookId: number | null = null;
@@ -896,7 +935,7 @@ export async function updateCharacterFromForm(
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
-              name, gender, system_prompt, world, example_dialog, status_widget_json,
+              name, gender, system_prompt, world, world_id, source_world_share_id, example_dialog, status_widget_json,
               creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
               content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json
@@ -915,6 +954,8 @@ export async function updateCharacterFromForm(
         gender: string | null;
         system_prompt: string | null;
         world: string | null;
+        world_id: number | null;
+        source_world_share_id: number | null;
         example_dialog: string | null;
         status_widget_json: string | null;
         creator_compiled_description_json: string | null;
@@ -946,6 +987,11 @@ export async function updateCharacterFromForm(
     existingParticipantMinAge: row.participant_min_age,
     requireStructuredAge: false,
     trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
+    existingCharacter: {
+      world: row.world,
+      worldId: row.world_id,
+      sourceWorldShareId: row.source_world_share_id,
+    },
   });
   if (!parsed.ok) return parsed;
 

@@ -105,7 +105,19 @@ export function worldLibraryRef(world: WorldListItem): string {
   return `world:${world.id}`;
 }
 
-export function parseWorldLibraryRef(ref: string): { worldId?: number; borrowId?: number } {
+export function savedShareWorldLibraryRef(shareId: number): string {
+  return `saved-share:${shareId}`;
+}
+
+export function parseWorldLibraryRef(ref: string): {
+  worldId?: number;
+  borrowId?: number;
+  savedShareId?: number;
+} {
+  if (ref.startsWith("saved-share:")) {
+    const savedShareId = Number(ref.slice("saved-share:".length));
+    return Number.isInteger(savedShareId) && savedShareId > 0 ? { savedShareId } : {};
+  }
   if (ref.startsWith("borrow:")) {
     const borrowId = Number(ref.slice("borrow:".length));
     return Number.isInteger(borrowId) && borrowId > 0 ? { borrowId } : {};
@@ -115,4 +127,11 @@ export function parseWorldLibraryRef(ref: string): { worldId?: number; borrowId?
     return Number.isInteger(worldId) && worldId > 0 ? { worldId } : {};
   }
   return {};
+}
+
+export function isReadOnlyWorldLibraryRef(ref: string): boolean {
+  if (ref.startsWith("saved-share:")) return true;
+  const parsed = parseWorldLibraryRef(ref);
+  if (parsed.borrowId) return true;
+  return false;
 }

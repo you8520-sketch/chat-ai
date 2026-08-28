@@ -2,7 +2,7 @@ import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKeysFromStored } from "./stats";
-import { canUseWorldForTrpgOwned } from "@/lib/worldPermissions";
+import { canUseWorldForTrpg, loadWorldForTrpg } from "@/lib/trpg/catalog";
 import { parseJson } from "./store";
 import { parseScenarioAssets } from "./scenarioAssets";
 import { parseTrpgScenarioPlan, publicTrpgScenarioPlan } from "./scenarioPlan";
@@ -182,15 +182,25 @@ function assertScenarioBundleFits(
   );
 }
 
+function assertScenarioWorldAccess(
+  db: Database.Database,
+  creatorId: number,
+  worldId: number | null
+): void {
+  if (worldId == null) return;
+  const world = loadWorldForTrpg(db, worldId);
+  if (!world || !canUseWorldForTrpg(world, creatorId)) {
+    throw new Error("읽기 전용 또는 빌린 세계관은 TRPG에 사용할 수 없습니다.");
+  }
+}
+
 export function insertScenarioTemplate(
   db: Database.Database,
   creatorId: number,
   input: TrpgScenarioTemplateInput
 ): number {
   const n = normalizeScenarioTemplateInput(input);
-  if (n.worldId != null && !canUseWorldForTrpgOwned(creatorId, n.worldId)) {
-    throw new Error("읽기 전용 또는 빌린 세계관은 TRPG에 사용할 수 없습니다.");
-  }
+  assertScenarioWorldAccess(db, creatorId, n.worldId);
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
   assertScenarioBundleFits(db, n);
   const info = db
@@ -236,9 +246,7 @@ export function updateScenarioTemplate(
     parseJson(existing.stat_keys_json, [] as unknown[])
   );
   const n = normalizeScenarioTemplateInput(input, { preservedLegacyStatKeys });
-  if (n.worldId != null && !canUseWorldForTrpgOwned(creatorId, n.worldId)) {
-    throw new Error("읽기 전용 또는 빌린 세계관은 TRPG에 사용할 수 없습니다.");
-  }
+  assertScenarioWorldAccess(db, creatorId, n.worldId);
   const statDefs = defsFromKeys(n.statKeys);
   const defaultPcStats = restoreDefaultPcStatsOnUpdate(
     input.defaultPcStats,
