@@ -85,6 +85,7 @@ import {
   trpgDiceRollSessionKey,
 } from "@/lib/trpg/diceRollUx";
 import {
+  activePresentationRollProgress,
   activePresentationRoll,
   advanceAfterActorAction,
   advanceAfterActorResult,
@@ -684,6 +685,10 @@ export default function TrpgCampaignRoom({
   const cinematicLaneIds = resultLaneActorIds({ actors: presentationActors, state: roundShow });
   const cinematicShowGm = shouldShowGmNarration(roundShow);
   const activeRoll = activePresentationRoll({ actors: presentationActors, state: roundShow });
+  const activeRollProgress = activePresentationRollProgress({
+    actors: presentationActors,
+    state: roundShow,
+  });
   const overlayRolls = activeRoll ? [activeRoll] : [];
   const liveRevealedActionIds = visibleSceneRows
     .filter((row) => row.roundNumber === snap.round.number)
@@ -2135,6 +2140,8 @@ export default function TrpgCampaignRoom({
         previewInstrument={dicePreview.instrument}
         roundNumber={snap.round.number}
         replayOnMount={dicePreview.inject}
+        rollProgress={activeRollProgress}
+        statDefs={snap.statDefs}
         onPlaybackStateChange={handleOverlayPlaybackChange}
       />
 
