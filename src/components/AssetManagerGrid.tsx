@@ -10,6 +10,7 @@ import {
 } from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
 import { isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
+import { pruneSelectedUrls } from "@/lib/assetManagerGridSelection";
 import {
   assignAssetsToVisualSubject,
   unassignVisualAssets,
@@ -43,12 +44,28 @@ export default function AssetManagerGrid({
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [bulkSubjectKey, setBulkSubjectKey] = useState("");
   const tagInputRef = useRef<HTMLInputElement>(null);
+  const suppressSelectionClickRef = useRef(false);
+
+  const assetUrlsList = assets.map((asset) => asset.url);
 
   useEffect(() => {
     if (editingIndex === null) return;
     tagInputRef.current?.focus();
     tagInputRef.current?.select();
   }, [editingIndex]);
+
+  useEffect(() => {
+    setSelectedUrls((current) => {
+      const pruned = pruneSelectedUrls(current, assetUrlsList);
+      if (pruned.size === current.size) {
+        for (const url of current) {
+          if (!pruned.has(url)) return pruned;
+        }
+        return current;
+      }
+      return pruned;
+    });
+  }, [assetUrlsList.join("\u0001")]);
 
   function reorder(from: number, to: number) {
     if (from === to || from < 0 || to < 0 || from >= assets.length || to >= assets.length) return;
@@ -95,7 +112,23 @@ export default function AssetManagerGrid({
     });
   }
 
+  function handleImageSelectionToggle(url: string) {
+    if (suppressSelectionClickRef.current) return;
+    toggleSelected(url);
+  }
+
+  function handleImageSelectionKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    url: string
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleImageSelectionToggle(url);
+    }
+  }
+
   const hiddenCount = assets.filter((a) => a.viewerBlur === true).length;
+  const selectionEnabled = Boolean(visualSubjects && visualSubjects.length > 0);
 
   return (
     <div className="space-y-3">
@@ -103,12 +136,18 @@ export default function AssetManagerGrid({
         <span className="text-zinc-200">태그 클릭</span>하여 수정 · 드래그로 순서 변경 ·{" "}
         <span className="text-zinc-200">1번</span>이 카드 대표 이미지 ·{" "}
         <span className="text-zinc-200">가리기</span>는 타 유저 블러(소개·갤러리)
+        {selectionEnabled ? (
+          <>
+            {" "}
+            · <span className="text-zinc-200">이미지 클릭</span>으로 일괄 선택
+          </>
+        ) : null}
         {hiddenCount > 0 && (
           <span className="ml-2 text-zinc-300">가림 {hiddenCount}장</span>
         )}
         {note ? <span className="mt-1 block text-zinc-400">{note}</span> : null}
       </p>
-      {visualSubjects && visualSubjects.length > 0 && (
+      {selectionEnabled && (
         <div className="space-y-2 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -130,7 +169,7 @@ export default function AssetManagerGrid({
               className="min-h-11 rounded-lg border border-zinc-700 bg-[#080a14] px-3 text-xs text-zinc-100"
             >
               <option value="">미지정으로 설정</option>
-              {visualSubjects.map((subject) => (
+              {visualSubjects!.map((subject) => (
                 <option key={subject.subjectKey} value={subject.subjectKey}>
                   {subject.name}
                 </option>
@@ -149,7 +188,8 @@ export default function AssetManagerGrid({
             </button>
           </div>
           <p className="text-xs text-zinc-400">
-            이미지를 선택한 뒤 인물을 한 번에 지정하거나 미지정으로 되돌릴 수 있습니다.
+            이미지 미리보기를 클릭해 선택한 뒤 인물을 한 번에 지정하거나 미지정으로
+            되돌릴 수 있습니다.
           </p>
         </div>
       )}
@@ -158,16 +198,29 @@ export default function AssetManagerGrid({
           const hardRejected = isAssetHardRejected(a);
           const reviewPending = isAssetNeedsAdminReview(a);
           const blockUpload = allAges && hardRejected;
+          const isSelected = selectedUrls.has(a.url);
           return (
           <div
             key={`${a.url}-${i}`}
             draggable
-            onDragStart={() => setDragIndex(i)}
-            onDragEnd={() => setDragIndex(null)}
+            onDragStart={() => {
+              suppressSelectionClickRef.current = true;
+              setDragIndex(i);
+            }}
+            onDragEnd={() => {
+              setDragIndex(null);
+              window.setTimeout(() => {
+                suppressSelectionClickRef.current = false;
+              }, 0);
+            }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => {
               if (dragIndex !== null) reorder(dragIndex, i);
               setDragIndex(null);
+              suppressSelectionClickRef.current = true;
+              window.setTimeout(() => {
+                suppressSelectionClickRef.current = false;
+              }, 0);
             }}
             className={cn(
               "group relative cursor-grab overflow-hidden rounded-xl border bg-[#161922] active:cursor-grabbing",
@@ -182,17 +235,32 @@ export default function AssetManagerGrid({
                   : "border-white/10",
             )}
           >
-            <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
-            {visualSubjects && visualSubjects.length > 0 && (
-              <label className="absolute right-12 top-2 z-[4] flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg bg-black/80">
-                <input
-                  type="checkbox"
-                  checked={selectedUrls.has(a.url)}
-                  onChange={() => toggleSelected(a.url)}
-                  aria-label={`${a.tag || i + 1} 이미지 선택`}
-                  className="h-4 w-4 accent-cyan-500"
-                />
-              </label>
+            {selectionEnabled ? (
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                aria-label={`${a.tag || i + 1} 이미지 ${isSelected ? "선택됨" : "선택"}`}
+                onClick={() => handleImageSelectionToggle(a.url)}
+                onKeyDown={(event) => handleImageSelectionKeyDown(event, a.url)}
+                className={cn(
+                  "relative block w-full cursor-pointer overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#161922]",
+                  isSelected && "ring-2 ring-inset ring-cyan-400/90"
+                )}
+              >
+                <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
+                {isSelected ? (
+                  <span className="pointer-events-none absolute right-2 top-2 z-[5] flex h-7 w-7 items-center justify-center rounded-full bg-cyan-600 text-sm font-bold text-white shadow-lg ring-2 ring-white/20">
+                    ✓
+                  </span>
+                ) : null}
+                {isSelected ? (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 z-[4] bg-cyan-500/25 py-1 text-center text-[10px] font-semibold text-cyan-50">
+                    선택됨
+                  </span>
+                ) : null}
+              </button>
+            ) : (
+              <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
             )}
             {blockUpload ? (
               <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
