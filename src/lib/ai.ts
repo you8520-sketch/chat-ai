@@ -47,6 +47,7 @@ export type TokenUsage = {
   cacheWriteTokens?: number;
   standardInputTokens?: number;
   upstreamCostUsd?: number;
+  cheaperInferenceBilledCostUsd?: number;
   cacheDiscountUsd?: number;
   cachePaddingTokens?: number;
   billableInputTokens?: number;
@@ -293,6 +294,7 @@ export type StageUsage = {
   cacheWriteTokens?: number;
   standardInputTokens?: number;
   upstreamCostUsd?: number;
+  cheaperInferenceBilledCostUsd?: number;
   cacheDiscountUsd?: number;
   apiReportedInputTokens?: number;
   cachePaddingTokens?: number;

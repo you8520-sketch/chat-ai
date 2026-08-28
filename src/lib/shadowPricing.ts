@@ -67,10 +67,10 @@ export type ShadowChargeBreakdown = ShadowCostBreakdown & {
   finalShadowChargeKrw: number;
   finalShadowPoints: number;
   actualRealizedMargin: number | null;
-  providerSavingsKrw: number;
-  providerOverrunKrw: number;
+  providerSavingsKrw: number | null;
+  providerOverrunKrw: number | null;
   promoGivebackForReserveKrw: number;
-  netPricingBufferDeltaKrw: number;
+  netPricingBufferDeltaKrw: number | null;
   actualGrossProfitKrw: number;
   worstCasePromoMargin: number | null;
   marginFloorViolated: boolean;
@@ -262,10 +262,11 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
   const finalShadowChargeKrw = round1(standardUserChargeKrw * (1 - clampedPromo));
   const finalShadowPoints = chargePoints(finalShadowChargeKrw);
   const promoGivebackKrw = round1(Math.max(0, standardUserChargeKrw - finalShadowChargeKrw));
-  const providerSavingsKrw = Math.max(0, round1(cost.providerListCostKrw - cost.actualProviderCostKrw));
-  const providerOverrunKrw = Math.max(0, round1(cost.actualProviderCostKrw - cost.providerListCostKrw));
+  const isReserveComplete = cost.reserveStatus === "complete";
+  const providerSavingsKrw = isReserveComplete ? Math.max(0, round1(cost.providerListCostKrw - cost.actualProviderCostKrw)) : null;
+  const providerOverrunKrw = isReserveComplete ? Math.max(0, round1(cost.actualProviderCostKrw - cost.providerListCostKrw)) : null;
   const promoGivebackForReserveKrw = promoGivebackKrw;
-  const netPricingBufferDeltaKrw = round1(providerSavingsKrw - providerOverrunKrw - promoGivebackForReserveKrw);
+  const netPricingBufferDeltaKrw = isReserveComplete && providerSavingsKrw != null && providerOverrunKrw != null ? round1(providerSavingsKrw - providerOverrunKrw - promoGivebackForReserveKrw) : null;
   const actualGrossProfitKrw = round1(finalShadowChargeKrw - cost.actualProviderCostKrw);
   const actualRealizedMargin = finalShadowChargeKrw > 0 ? round1(actualGrossProfitKrw / finalShadowChargeKrw) : null;
   const worstCasePromoMargin = finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;

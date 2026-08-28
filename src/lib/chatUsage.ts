@@ -210,10 +210,10 @@ export type Usage = {
     promoPercent: number;
     finalShadowChargeKrw: number;
     finalShadowPoints: number;
-    providerSavingsKrw: number;
-    providerOverrunKrw: number;
+    providerSavingsKrw: number | null;
+    providerOverrunKrw: number | null;
     promoGivebackKrw: number;
-    netPricingBufferDeltaKrw: number;
+    netPricingBufferDeltaKrw: number | null;
     actualGrossProfitKrw: number;
     actualRealizedMargin: number | null;
     worstCasePromoMargin: number | null;
