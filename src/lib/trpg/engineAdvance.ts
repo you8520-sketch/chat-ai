@@ -157,6 +157,12 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
+import {
+  adjudicateLockedHumanSubmissions,
+  adjudicateSubmissionForParticipant,
+  ensureRoundAdjudicationContext,
+  finalizeRoundAdjudication,
+} from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
@@ -166,6 +172,7 @@ import {
 } from "./gmNarrationDraft";
 import { GmNarrationDraftCoalescer } from "./gmNarrationDraftCoalescer";
 import type { TrpgCampaignSnapshot } from "./snapshot";
+import type { MechanicsResolution } from "./mechanicsTypes";
 
 export type TrpgEngineDeps = {
   gmCall?: (opts: {
@@ -783,12 +790,25 @@ async function advanceTrpgCampaignCore(
       /* stage + started_at already anchored above for human-submit processing */
     }
     try {
+      const adjudicationCtx = ensureRoundAdjudicationContext(db, {
+        campaignId: campaign.id,
+        roundId: reconciledRound.id,
+        roundNumber: reconciledRound.round_number,
+        deps: opts.deps,
+      });
+      adjudicateLockedHumanSubmissions(db, {
+        campaignId: campaign.id,
+        roundId: reconciledRound.id,
+        pre: adjudicationCtx.pre,
+        deps: opts.deps,
+      });
       await generateBotActions(db, {
         campaign,
         roundId: reconciledRound.id,
         botIds: work.botIds,
         deps: opts.deps,
         requestId: rid,
+        adjudicationPre: adjudicationCtx.pre,
       });
       releaseBotGeneration(db, reconciledRound.id, rid);
       db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
@@ -812,7 +832,7 @@ async function advanceTrpgCampaignCore(
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
     ensureTrpgProcessStage(db, reconciledRound.id, "rolls");
-    persistRolls(db, campaign.id, reconciledRound.id, opts.deps);
+    finalizeRoundAdjudication(db, campaign.id, reconciledRound.id, opts.deps);
     if (!tryBeginGmGeneration(db, reconciledRound.id, rid)) {
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
@@ -893,14 +913,27 @@ export async function retryTrpgBots(
   if (!claim.claimed) {
     return mustSnapshot(db, opts.campaignId, opts.userId);
   }
-  try {
-    await generateBotActions(db, {
-      campaign,
-      roundId: round.id,
-      botIds: work.botIds,
-      deps: opts.deps,
-      requestId: rid,
-    });
+    try {
+      const adjudicationCtx = ensureRoundAdjudicationContext(db, {
+        campaignId: campaign.id,
+        roundId: round.id,
+        roundNumber: round.round_number,
+        deps: opts.deps,
+      });
+      adjudicateLockedHumanSubmissions(db, {
+        campaignId: campaign.id,
+        roundId: round.id,
+        pre: adjudicationCtx.pre,
+        deps: opts.deps,
+      });
+      await generateBotActions(db, {
+        campaign,
+        roundId: round.id,
+        botIds: work.botIds,
+        deps: opts.deps,
+        requestId: rid,
+        adjudicationPre: adjudicationCtx.pre,
+      });
     releaseBotGeneration(db, round.id, rid);
     db.prepare(`UPDATE trpg_rounds SET error_json=? WHERE id=?`).run(
       clearBotErrorFromErrorJson(round.error_json),
@@ -945,8 +978,20 @@ async function generateBotActions(
     botIds: number[];
     deps?: TrpgEngineDeps;
     requestId: string;
+    adjudicationPre?: MechanicsResolution;
   }
 ): Promise<void> {
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+  ).round_number;
+  const adjudicationPre =
+    opts.adjudicationPre ??
+    ensureRoundAdjudicationContext(db, {
+      campaignId: opts.campaign.id,
+      roundId: opts.roundId,
+      roundNumber,
+      deps: opts.deps,
+    }).pre;
   const prev = previousNarration(db, opts.campaign.id);
   const humans = db
     .prepare(
@@ -1057,6 +1102,13 @@ async function generateBotActions(
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`
     );
     upsertLockedAction(db, opts.roundId, bot.id, body, parseTrpgBotAction(body).actionType, null, "bot_model");
+    adjudicateSubmissionForParticipant(db, {
+      campaignId: opts.campaign.id,
+      roundId: opts.roundId,
+      participantId: bot.id,
+      pre: adjudicationPre,
+      deps: opts.deps,
+    });
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
     refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
     earlier.push({ name: bot.display_name, text: body });
@@ -1080,121 +1132,7 @@ function persistRolls(
   roundId: number,
   deps?: TrpgEngineDeps
 ): void {
-  const existing = db.prepare(`SELECT 1 FROM trpg_dice_rolls WHERE round_id=? LIMIT 1`).get(roundId);
-  if (existing) return;
-  const roundNumber = (
-    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(roundId) as { round_number: number }
-  ).round_number;
-  const pre = ensurePreActionMechanics(db, { campaignId, roundId, roundNumber, deps });
-  const scenario = loadScenario(db, campaignId);
-  const subs = db
-    .prepare(
-      `SELECT s.id, s.participant_id, s.action_type, s.selected_stat, s.body
-       FROM trpg_action_submissions s WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
-    )
-    .all(roundId) as {
-    id: number;
-    participant_id: number;
-    action_type: string | null;
-    selected_stat: string | null;
-    body: string;
-  }[];
-  const ins = db.prepare(
-    `INSERT INTO trpg_dice_rolls
-      (round_id, submission_id, d20, stat_key, stat_modifier, condition_modifier, final_score, dc, tier)
-     VALUES (?,?,?,?,?,?,?,?,?)`
-  );
-  db.transaction(() => {
-    for (const sub of subs) {
-      const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
-      const parsed = parseTrpgBotAction(sub.body);
-      const checkBody = parsed.intent || parsed.prose || sub.body;
-      const decision = resolveTrpgActionCheckDecision({
-        body: parsed.prose || sub.body,
-        actionType,
-        intent: parsed.intent,
-      });
-      if (!decision.needsCheck) {
-        logTrpgMechanicsCheckTelemetry({
-          action_type: actionType,
-          check_required: false,
-          check_reason: decision.reason,
-        });
-        continue;
-      }
-      const preHp = pre.hpAfter[String(sub.participant_id)];
-      const downed =
-        (typeof preHp === "number" && preHp <= 0) ||
-        (pre.incapacitated ?? []).some((row) => row.participantId === sub.participant_id);
-      if (downed) continue;
-      const statKey = pickStatForAction({
-        actionType,
-        selectedStat: sub.selected_stat,
-        body: checkBody,
-        defs: scenario.statDefs,
-      });
-      const statRow = db
-        .prepare(
-          `SELECT st.value FROM trpg_character_stats st
-           JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
-           WHERE sh.participant_id=? AND st.stat_key=?`
-        )
-        .get(sub.participant_id, statKey) as { value: number } | undefined;
-      const d20 = deps?.rollD20?.() ?? rollServerD20();
-      const conditionModifier = pre.actionModifiers[String(sub.participant_id)] ?? 0;
-      const result = resolveTrpgRoll({
-        d20,
-        statModifier: statModifier(statRow?.value ?? 5),
-        conditionModifier,
-        dc: scenario.diceRules.dc,
-        rules: scenario.diceRules,
-      });
-      ins.run(
-        roundId,
-        sub.id,
-        result.d20,
-        statKey,
-        statModifier(statRow?.value ?? 5),
-        conditionModifier,
-        result.finalScore,
-        result.dc,
-        result.tier
-      );
-      logTrpgMechanicsCheckTelemetry({
-        action_type: actionType,
-        check_required: true,
-        check_reason: decision.reason,
-        stat_key: statKey,
-        stat_modifier: statModifier(statRow?.value ?? 5),
-        condition_modifier: conditionModifier,
-        final_score: result.finalScore,
-        dc: result.dc,
-        tier: result.tier,
-      });
-    }
-    setRoundPhase(db, roundId, "ROLLING");
-    const parts = loadParticipants(db, campaignId);
-    const sheets = loadSheetSnapshots(db, campaignId);
-    const resolutionOrder = computeResolutionOrder(
-      parts.map((part) => {
-        const sheet = sheets.find((row) => row.participantId === part.id);
-        return {
-          participantId: part.id,
-          name: sheet?.name || part.display_name,
-          slotIndex: part.slot_index,
-          stats: sheet?.stats ?? {},
-        };
-      }),
-      scenario.statDefs
-    );
-    db.prepare(`UPDATE trpg_rounds SET input_snapshot_json=? WHERE id=?`).run(
-      JSON.stringify({
-        submissions: subs.map((s) => ({ id: s.id, body: s.body })),
-        resolutionOrder,
-      }),
-      roundId
-    );
-  })();
+  finalizeRoundAdjudication(db, campaignId, roundId, deps);
 }
 
 function loadCampaignGenres(db: Database.Database, campaign: TrpgCampaignRow): string[] {

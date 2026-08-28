@@ -128,6 +128,8 @@ export type TrpgCampaignSnapshot = {
   } | null;
   currentRolls: TrpgPublicRoll[];
   resolutionOrder?: TrpgResolutionOrderEntry[];
+  /** Participant ids with completed server adjudication (roll, no-roll, or skipped). */
+  adjudicatedParticipantIds?: number[];
   currentNarration: string | null;
   /** Live provider-stream narration draft during GENERATING_NARRATION. */
   gmNarrationDraft: { text: string } | null;
