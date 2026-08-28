@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TRPG_D20_THEME_OPTIONS } from "@/lib/trpg/diceThemePrefs";
-import type { TrpgDiceLabRenderer } from "@/lib/trpg/diceRollUx";
-import { isTrpgD20ThemeId, PRODUCTION_D20_THEME, type TrpgD20ThemeId } from "@/lib/trpg/diceVisual";
 import type { TrpgPublicRoll } from "@/lib/trpg/snapshot";
-import TrpgDiceBoxScene from "../TrpgDiceBoxScene";
 import TrpgDiceOverlay from "../TrpgDiceOverlay";
 import TrpgRollResultLane from "../TrpgRollResultLane";
 
@@ -23,24 +19,9 @@ const FIXTURE: TrpgPublicRoll = {
   kind: "human",
 };
 
-type LabMode = TrpgD20ThemeId | "dice-box-threejs";
-
-function initialMode(renderer: TrpgDiceLabRenderer, theme: string | undefined): LabMode {
-  if (renderer === "dice-box-threejs") return "dice-box-threejs";
-  return isTrpgD20ThemeId(theme) ? theme : PRODUCTION_D20_THEME;
-}
-
-export default function TrpgDiceLabClient({
-  initialRenderer,
-  initialTheme,
-}: {
-  initialRenderer: TrpgDiceLabRenderer;
-  initialTheme?: string;
-}) {
-  const [mode, setMode] = useState<LabMode>(() => initialMode(initialRenderer, initialTheme));
+export default function TrpgDiceLabClient() {
   const [playKey, setPlayKey] = useState(0);
   const rolls = useMemo(() => [{ ...FIXTURE }], [playKey]);
-  const customTheme: TrpgD20ThemeId = isTrpgD20ThemeId(mode) ? mode : PRODUCTION_D20_THEME;
 
   useEffect(() => {
     document.documentElement.classList.add("dice-lab-active");
@@ -60,35 +41,11 @@ export default function TrpgDiceLabClient({
         </p>
       </div>
       <div className="pointer-events-auto relative z-[70] m-4 flex max-w-md flex-col gap-2 rounded-2xl bg-black/45 px-3 py-3 backdrop-blur-sm">
-        <h1 className="text-lg font-semibold">TRPG D20 visual lab</h1>
+        <h1 className="text-lg font-semibold">TRPG production dice lab</h1>
         <p className="text-sm text-zinc-400">
-          Fixture server d20 = 6. Production overlay is one static result system with swappable themes.
-          Prototype B stays on this lab page and is not wired into the campaign overlay.
+          Fixture server d20 = 6. Single production overlay owner with renderer diagnostics only.
         </p>
         <div className="flex flex-wrap gap-2">
-          {TRPG_D20_THEME_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={`rounded-full px-3 py-1.5 text-sm ${mode === option.id ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
-              onClick={() => {
-                setMode(option.id);
-                setPlayKey((key) => key + 1);
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`rounded-full px-3 py-1.5 text-sm ${mode === "dice-box-threejs" ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800"}`}
-            onClick={() => {
-              setMode("dice-box-threejs");
-              setPlayKey((key) => key + 1);
-            }}
-          >
-            Physics B
-          </button>
           <button
             type="button"
             className="rounded-full bg-zinc-800 px-3 py-1.5 text-sm"
@@ -102,32 +59,7 @@ export default function TrpgDiceLabClient({
           <TrpgRollResultLane layout="desktop" d20={6} tone="fail" outcome="실패" />
         </div>
       </div>
-      {mode === "dice-box-threejs" ? (
-        <div
-          key={`b-${playKey}`}
-          className="pointer-events-none fixed inset-0 z-[65] bg-black/15"
-          data-trpg-dice-lab-proto="B"
-        >
-          <TrpgDiceBoxScene
-            value={6}
-            tone="fail"
-            reducedQuality={false}
-            previewInstrument
-            onSettled={() => undefined}
-          />
-          <p className="absolute inset-x-0 bottom-[11%] text-center text-[13px] font-medium tracking-wide text-zinc-200/90">
-            권태현 · D20 6 · 실패
-          </p>
-        </div>
-      ) : (
-        <TrpgDiceOverlay
-          key={`${customTheme}-${playKey}`}
-          phase="ROLLING"
-          rolls={rolls}
-          theme={customTheme}
-          replayOnMount
-        />
-      )}
+      <TrpgDiceOverlay key={playKey} phase="ROLLING" rolls={rolls} replayOnMount previewInstrument />
     </div>
   );
 }
