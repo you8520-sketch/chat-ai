@@ -441,7 +441,8 @@ export function loadTrpgSnapshot(
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
     aiCharacterAssets: toPublicAiCharacterAssets(
-      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts))
+      timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts)),
+      viewerUserId
     ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
     gmFailureHint:

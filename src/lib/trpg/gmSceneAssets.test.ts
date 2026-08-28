@@ -7,15 +7,14 @@ import {
   MAX_SCENARIO_IMAGES_WITH_AI,
   MAX_SCENARIO_IMAGES_WITHOUT_AI,
   buildAiCharacterImageTagCatalog,
+  eligibleTrpgCharacterAssets,
   enforceGmSceneAssetMarkers,
-  gmCatalogTrpgCharacterAssets,
   isTrpgCharacterAssetVisibleToViewer,
   selectStableTaggedAsset,
   selectStableViewerVisibleTaggedAsset,
   uniqueCharacterAssetTags,
   viewerVisibleTrpgCharacterAssets,
 } from "./gmSceneAssets";
-import { filterTrpgCharacterCatalogForViewer } from "./aiCharacterContext";
 import { playableScenarioAssets } from "./scenarioAssets";
 
 function enforce(
@@ -195,14 +194,13 @@ describe("TRPG GM scene asset budget", () => {
     });
     assert.equal(visible.length, 1);
     assert.equal(visible[0]?.url, "/public.webp");
-    const tags = uniqueCharacterAssetTags(gmCatalogTrpgCharacterAssets([publicAsset, lockedAsset]));
-    assert.deepEqual(tags, ["분노"]);
-    const catalog = filterTrpgCharacterCatalogForViewer(
-      [{ participantId: 12, characterId: 15, creatorUserId: 99, name: "권태현", assets: [publicAsset, lockedAsset] }],
-      { viewerUserId: 1, unlockedUrlsByCharacterId: new Map([[15, new Set()]]) }
-    );
-    assert.equal(catalog[0]?.assets.length, 1);
-    assert.equal(catalog[0]?.assets[0]?.url, "/public.webp");
+    const tags = uniqueCharacterAssetTags(eligibleTrpgCharacterAssets([publicAsset, lockedAsset]));
+    assert.deepEqual(tags, ["분노"], "GM semantic tag catalog includes locked-only tags");
+    const splitVisible = viewerVisibleTrpgCharacterAssets([publicAsset, lockedAsset], {
+      viewerIsCreator: false,
+      unlockedUrls: new Set(["/locked.webp"]),
+    });
+    assert.equal(splitVisible.length, 2);
   });
 
   it("UNLOCKED_AND_CREATOR_ASSETS_REMAIN_VISIBLE", () => {

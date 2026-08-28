@@ -53,7 +53,6 @@ import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import { trpgSceneBeatSpacingClass } from "@/lib/trpg/trpgSceneBeatSpacing";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
-import { filterTrpgCharacterCatalogForViewer } from "@/lib/trpg/aiCharacterContext";
 import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
@@ -361,6 +360,7 @@ export default function TrpgCampaignRoom({
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
   const declarationEndRef = useRef<HTMLSpanElement | null>(null);
+  const declarationGrowthRef = useRef<HTMLDivElement | null>(null);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
   const consumedActorActionBeatRef = useRef("");
@@ -1074,14 +1074,7 @@ export default function TrpgCampaignRoom({
     }
     return map;
   }, [snap.aiCharacterAssets]);
-  const viewerCharacterCatalog = useMemo(
-    () =>
-      filterTrpgCharacterCatalogForViewer(snap.aiCharacterAssets ?? [], {
-        viewerUserId: snap.viewerUserId,
-        unlockedUrlsByCharacterId,
-      }),
-    [snap.aiCharacterAssets, snap.viewerUserId, unlockedUrlsByCharacterId]
-  );
+  const characterCatalog = snap.aiCharacterAssets ?? [];
   const showReplySuggestions = shouldShowTrpgReplySuggestions({
     suggestionsEnabled,
     freshGmRound: freshGmRow?.roundNumber ?? null,
@@ -1396,8 +1389,8 @@ export default function TrpgCampaignRoom({
 
   useEffect(() => {
     const sceneEl = liveSceneRef.current;
-    const declarationEl =
-      liveFollowOwner === "ACTIVE_DECLARATION_END" ? declarationEndRef.current : null;
+    const declarationGrowthEl =
+      liveFollowOwner === "ACTIVE_DECLARATION_END" ? declarationGrowthRef.current : null;
     const liveRevealActive =
       roundShow.mode === "cinematic" ||
       presentationStarting ||
@@ -1420,7 +1413,7 @@ export default function TrpgCampaignRoom({
       }
     });
     observer.observe(sceneEl);
-    if (declarationEl) observer.observe(declarationEl);
+    if (declarationGrowthEl) observer.observe(declarationGrowthEl);
     return () => observer.disconnect();
   }, [
     currentNarration,
@@ -1852,7 +1845,7 @@ export default function TrpgCampaignRoom({
               canImage={Boolean(imageId) && Boolean(row.narration || liveGmStreamDraft)}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
-              characterCatalog={viewerCharacterCatalog}
+              characterCatalog={characterCatalog}
               viewerUserId={snap.viewerUserId}
               unlockedUrlsByCharacterId={unlockedUrlsByCharacterId}
               campaignId={snap.id}
@@ -1921,6 +1914,11 @@ export default function TrpgCampaignRoom({
               declarationEndRef={
                 row.roundNumber === snap.round.number && gateLiveRound
                   ? declarationEndRef
+                  : undefined
+              }
+              declarationGrowthRef={
+                row.roundNumber === snap.round.number && gateLiveRound
+                  ? declarationGrowthRef
                   : undefined
               }
               consumedDeclarationAiIds={
@@ -2320,6 +2318,7 @@ function SceneTurn({
   preCinematicVisibleIds = [],
   activeDeclarationRevealId = null,
   declarationEndRef,
+  declarationGrowthRef,
   consumedDeclarationAiIds = [],
   onDeclarationRevealChange,
 }: {
@@ -2365,6 +2364,7 @@ function SceneTurn({
   preCinematicVisibleIds?: readonly number[];
   activeDeclarationRevealId?: number | null;
   declarationEndRef?: Ref<HTMLSpanElement | null>;
+  declarationGrowthRef?: Ref<HTMLDivElement | null>;
   consumedDeclarationAiIds?: readonly number[];
   onDeclarationRevealChange?: (report: ActorRevealReport) => void;
 }) {
@@ -2501,56 +2501,65 @@ function SceneTurn({
                   </div>
                 ) : null}
                 <div className="min-w-0 flex-1">
-                  <TrpgNamedProse
-                    name={action.name}
-                    hint={
-                      action.kind === "ai_character"
-                        ? action.actionType
-                          ? `AI · ${actionTypeLabelKo(action.actionType)}`
-                          : "AI 캐릭터"
-                        : action.actionType
-                          ? actionTypeLabelKo(action.actionType)
-                          : undefined
-                    }
-                    text={sanitizeTrpgActionDisplayText(parsed.prose || action.body)}
-                    variant={action.kind === "human" ? "user" : "character"}
-                    display={display}
-                    accent={false}
-                    dialogueAccent={false}
-                    resolveSceneAssets={false}
-                    paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
-                    hideMobileLabel={showResultLane}
-                    quoteAssistantRoot={false}
-                    reveal={decorativeReveal}
-                    streamIntervalMs={streamIntervalMs}
-                    onRevealChange={
-                      isActiveDeclarationCard && onDeclarationRevealChange
-                        ? (report) =>
-                            onDeclarationRevealChange({
-                              roundNumber: row.roundNumber,
-                              participantId: action.participantId,
-                              complete: report.complete,
-                              progressive: report.progressive,
-                            })
-                        : isActivePresentationCard && onActiveActorRevealChange
-                        ? (report) =>
-                            onActiveActorRevealChange({
-                              roundNumber: row.roundNumber,
-                              participantId: action.participantId,
-                              complete: report.complete,
-                              progressive: report.progressive,
-                            })
+                  <div
+                    ref={
+                      isActiveDeclarationCard && decorativeReveal && declarationGrowthRef
+                        ? declarationGrowthRef
                         : undefined
                     }
-                  />
-                  {isActiveDeclarationCard && decorativeReveal && declarationEndRef ? (
-                    <span
-                      ref={declarationEndRef}
-                      data-trpg-declaration-end
-                      aria-hidden="true"
-                      className="inline-block h-px w-px"
+                    data-trpg-declaration-growth={isActiveDeclarationCard ? "true" : undefined}
+                  >
+                    <TrpgNamedProse
+                      name={action.name}
+                      hint={
+                        action.kind === "ai_character"
+                          ? action.actionType
+                            ? `AI · ${actionTypeLabelKo(action.actionType)}`
+                            : "AI 캐릭터"
+                          : action.actionType
+                            ? actionTypeLabelKo(action.actionType)
+                            : undefined
+                      }
+                      text={sanitizeTrpgActionDisplayText(parsed.prose || action.body)}
+                      variant={action.kind === "human" ? "user" : "character"}
+                      display={display}
+                      accent={false}
+                      dialogueAccent={false}
+                      resolveSceneAssets={false}
+                      paragraphMode={action.kind === "ai_character" ? "ai" : "author"}
+                      hideMobileLabel={showResultLane}
+                      quoteAssistantRoot={false}
+                      reveal={decorativeReveal}
+                      streamIntervalMs={streamIntervalMs}
+                      onRevealChange={
+                        isActiveDeclarationCard && onDeclarationRevealChange
+                          ? (report) =>
+                              onDeclarationRevealChange({
+                                roundNumber: row.roundNumber,
+                                participantId: action.participantId,
+                                complete: report.complete,
+                                progressive: report.progressive,
+                              })
+                          : isActivePresentationCard && onActiveActorRevealChange
+                          ? (report) =>
+                              onActiveActorRevealChange({
+                                roundNumber: row.roundNumber,
+                                participantId: action.participantId,
+                                complete: report.complete,
+                                progressive: report.progressive,
+                              })
+                          : undefined
+                      }
                     />
-                  ) : null}
+                    {isActiveDeclarationCard && decorativeReveal && declarationEndRef ? (
+                      <span
+                        ref={declarationEndRef}
+                        data-trpg-declaration-end
+                        aria-hidden="true"
+                        className="inline-block h-px w-px"
+                      />
+                    ) : null}
+                  </div>
                   {showJudge ? (
                     <div className="mt-1.5 space-y-0.5 font-sans" data-quote-ignore>
                       <p className="text-[11px] font-medium text-zinc-500">GM 판정용</p>

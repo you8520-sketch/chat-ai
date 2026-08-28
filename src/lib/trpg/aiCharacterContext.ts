@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import { resolveCharacterGender, type CharacterGender } from "@/lib/characterGender";
-import { eligibleTrpgCharacterAssets, gmCatalogTrpgCharacterAssets, uniqueCharacterAssetTags, viewerVisibleTrpgCharacterAssets } from "./gmSceneAssets";
+import { eligibleTrpgCharacterAssets, uniqueCharacterAssetTags, viewerVisibleTrpgCharacterAssets } from "./gmSceneAssets";
 import type { TrpgParticipantRow } from "./store";
 
 export type TrpgAiCharacterContext = {
@@ -16,7 +16,7 @@ export type TrpgAiCharacterContext = {
 export type TrpgPublicAiCharacterAssets = {
   participantId: number;
   characterId: number;
-  creatorUserId: number | null;
+  viewerIsCreator: boolean;
   name: string;
   assets: CharacterAsset[];
 };
@@ -94,44 +94,18 @@ export function loadTrpgAiCharacterContexts(
 }
 
 export function toPublicAiCharacterAssets(
-  contexts: readonly TrpgAiCharacterContext[]
+  contexts: readonly TrpgAiCharacterContext[],
+  viewerUserId: number
 ): TrpgPublicAiCharacterAssets[] {
   return contexts
     .filter((row): row is TrpgAiCharacterContext & { characterId: number } => row.characterId != null && row.characterId > 0)
     .map((row) => ({
       participantId: row.participantId,
       characterId: row.characterId,
-      creatorUserId: row.creatorUserId,
+      viewerIsCreator: row.creatorUserId != null && row.creatorUserId === viewerUserId,
       name: row.name,
       assets: row.assets,
     }));
-}
-
-export function filterTrpgCharacterCatalogForViewer(
-  catalog: readonly TrpgPublicAiCharacterAssets[],
-  opts: {
-    viewerUserId: number;
-    unlockedUrlsByCharacterId: ReadonlyMap<number, ReadonlySet<string>>;
-  }
-): TrpgPublicAiCharacterAssets[] {
-  return catalog.map((row) => ({
-    ...row,
-    assets: viewerVisibleTrpgCharacterAssets(row.assets, {
-      viewerIsCreator: row.creatorUserId != null && row.creatorUserId === opts.viewerUserId,
-      unlockedUrls: opts.unlockedUrlsByCharacterId.get(row.characterId),
-    }),
-  }));
-}
-
-export function gmCatalogCharacterTagsByParticipant(
-  contexts: readonly TrpgAiCharacterContext[]
-): Map<number, Set<string>> {
-  return new Map(
-    contexts.map((row) => [
-      row.participantId,
-      new Set(uniqueCharacterAssetTags(gmCatalogTrpgCharacterAssets(row.assets))),
-    ])
-  );
 }
 
 export function characterTagsByParticipant(

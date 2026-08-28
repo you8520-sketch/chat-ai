@@ -137,9 +137,15 @@ export function viewerVisibleTrpgCharacterAssets(
   );
 }
 
-/** GM prompt/catalog tags: public representative assets only (no viewer-locked tags). */
-export function gmCatalogTrpgCharacterAssets(assets: CharacterAsset[]): CharacterAsset[] {
-  return eligibleTrpgCharacterAssets(assets).filter((asset) => asset.viewerBlur !== true);
+/** Final TRPG scene render gate — matches TrpgCharacterSceneAsset (no blur fallback). */
+export function shouldRenderTrpgCharacterSceneAsset(
+  asset: CharacterAsset,
+  opts: {
+    viewerIsCreator: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+  }
+): boolean {
+  return isTrpgCharacterAssetVisibleToViewer(asset, opts);
 }
 
 export function uniqueCharacterAssetTags(assets: CharacterAsset[]): string[] {

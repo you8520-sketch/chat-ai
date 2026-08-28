@@ -6,6 +6,7 @@ import TrpgCharacterSceneAsset from "@/components/TrpgCharacterSceneAsset";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
+import { resolveTrpgCharacterAssetViewerContext } from "@/lib/trpg/trpgCharacterAssetViewerContext";
 import { splitTrpgGmProseForAssets, type TrpgInlineProsePart } from "@/lib/trpg/trpgTaggedProse";
 
 export function resolveTrpgTaggedNovelInlineFlow(opts: {
@@ -70,7 +71,6 @@ export default function TrpgTaggedNovelText({
     campaignId,
     roundNumber,
     streaming,
-    viewerUserId,
     unlockedUrlsByCharacterId,
   });
   if (parts.length === 0) return null;
@@ -105,15 +105,21 @@ export default function TrpgTaggedNovelText({
             unlockedUrls={unlockedUrls}
           />
         );
-      case "character":
+      case "character": {
+        const viewerContext = resolveTrpgCharacterAssetViewerContext(
+          characterCatalog,
+          part.participantId,
+          unlockedUrlsByCharacterId
+        );
         return (
           <TrpgCharacterSceneAsset
             key={`character-${part.participantId}-${part.asset.url}-${i}`}
             asset={part.asset}
-            viewerIsCreator={viewerIsCreator}
-            unlockedUrls={unlockedUrls}
+            viewerIsCreator={viewerContext.viewerIsCreator}
+            unlockedUrls={viewerContext.unlockedUrls}
           />
         );
+      }
       default: {
         const exhaustive: never = part;
         return exhaustive;

@@ -47,7 +47,6 @@ export function splitTrpgGmProseForAssets(
     campaignId: number;
     roundNumber: number;
     streaming?: boolean;
-    viewerUserId?: number;
     unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
   }
 ): TrpgInlineProsePart[] {
@@ -80,10 +79,7 @@ export function splitTrpgGmProseForAssets(
                 kind: "character",
               }),
               {
-                viewerIsCreator:
-                  entry.creatorUserId != null &&
-                  opts.viewerUserId != null &&
-                  entry.creatorUserId === opts.viewerUserId,
+                viewerIsCreator: entry.viewerIsCreator,
                 unlockedUrls: opts.unlockedUrlsByCharacterId?.get(entry.characterId),
               }
             )

@@ -14,7 +14,7 @@ describe("TRPG tagged GM prose", () => {
   it("T. accepts a portrait character asset on the TRPG renderer path", () => {
     const parts = splitTrpgGmProseForAssets("태현이 이를 악문다.\n[캐릭터에셋: 12|분노]\n문이 운다.", {
       scenarioAssets: [scenarioWide],
-      characterCatalog: [{ participantId: 12, characterId: 15, creatorUserId: null, name: "권태현", assets: [portrait] }],
+      characterCatalog: [{ participantId: 12, characterId: 15, viewerIsCreator: false, name: "권태현", assets: [portrait] }],
       campaignId: 9,
       roundNumber: 3,
     });
@@ -49,6 +49,7 @@ describe("TRPG tagged GM prose", () => {
     const catalog = [{
       participantId: 12,
       characterId: 15,
+      viewerIsCreator: false,
       name: "권태현",
       assets: [
         withAssetSize({ url: "/anger-a.webp", tag: "분노", chat: true }, 800, 1200),
@@ -77,7 +78,7 @@ describe("TRPG tagged GM prose", () => {
   it("X. drops malformed markers from visible prose", () => {
     const parts = splitTrpgGmProseForAssets("앞.\n[캐릭터에셋: 화남]\n[태그: 없는장면]\n뒤.", {
       scenarioAssets: [scenarioWide],
-      characterCatalog: [{ participantId: 12, characterId: 15, creatorUserId: null, name: "권태현", assets: [portrait] }],
+      characterCatalog: [{ participantId: 12, characterId: 15, viewerIsCreator: false, name: "권태현", assets: [portrait] }],
       campaignId: 9,
       roundNumber: 3,
     });
@@ -104,7 +105,7 @@ describe("TRPG tagged GM prose", () => {
       {
         participantId: 12,
         characterId: 15,
-        creatorUserId: 99,
+        viewerIsCreator: false,
         name: "권태현",
         assets: [locked],
       },
@@ -114,7 +115,6 @@ describe("TRPG tagged GM prose", () => {
       characterCatalog: lockedOnlyCatalog,
       campaignId: 9,
       roundNumber: 3,
-      viewerUserId: 1,
       unlockedUrlsByCharacterId: new Map([[15, new Set()]]),
     });
     assert.equal(lockedOnly.some((part) => part.kind === "character"), false, "LOCKED_BLURRED_ASSET_NOT_RENDERED");
@@ -122,7 +122,7 @@ describe("TRPG tagged GM prose", () => {
       {
         participantId: 12,
         characterId: 15,
-        creatorUserId: 99,
+        viewerIsCreator: false,
         name: "권태현",
         assets: [locked, unlocked],
       },
@@ -132,7 +132,6 @@ describe("TRPG tagged GM prose", () => {
       characterCatalog: catalog,
       campaignId: 9,
       roundNumber: 3,
-      viewerUserId: 1,
       unlockedUrlsByCharacterId: new Map([[15, new Set(["/locked.webp"])]]),
     });
     const rendered = unlockedPick.find((part) => part.kind === "character");
@@ -145,7 +144,6 @@ describe("TRPG tagged GM prose", () => {
       characterCatalog: catalog,
       campaignId: 9,
       roundNumber: 3,
-      viewerUserId: 1,
       unlockedUrlsByCharacterId: new Map([[15, new Set()]]),
     });
     const publicRendered = publicPick.find((part) => part.kind === "character");
