@@ -26,7 +26,7 @@ import {
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
-import { loadAdjudicatedParticipantIds } from "./roundAdjudication";
+import { loadAdjudicatedParticipantIds, loadParticipantAdjudicationOutcomes } from "./roundAdjudication";
 import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
@@ -393,6 +393,7 @@ export function loadTrpgSnapshot(
       : null,
     currentRolls,
     adjudicatedParticipantIds: round ? loadAdjudicatedParticipantIds(db, round.id) : [],
+    participantAdjudicationOutcomes: round ? loadParticipantAdjudicationOutcomes(db, round.id) : {},
     resolutionOrder: (() => {
       const current = round ? loadResolutionOrder(db, round.id) : [];
       if (current.length > 0) return current;

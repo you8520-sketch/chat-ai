@@ -88,7 +88,6 @@ import {
 import {
   activePresentationRollProgress,
   activePresentationRoll,
-  actorExpectsPresentationRoll,
   advanceAfterActorAction,
   advanceAfterActorResult,
   advanceAfterDiceDismiss,
@@ -114,6 +113,7 @@ import {
   revealedActorIds,
   shouldShowActionJudgeBlock,
   ROUND_RESULT_HOLD_MS,
+  resolveParticipantAdjudicationOutcome,
   selectVisibleActions,
   shouldGateLiveRoundPresentation,
   shouldShowGmNarration,
@@ -135,8 +135,7 @@ import {
 import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
-  decideManualScrollRejoin,
-  updateManualDetachFollowZone,
+  decidePassiveScrollFollowUpdate,
   beginTrpgProgrammaticScroll,
   cancelTrpgProgrammaticScroll,
   createTrpgProgrammaticScrollHandle,
@@ -361,6 +360,7 @@ export default function TrpgCampaignRoom({
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
   const declarationEndRef = useRef<HTMLSpanElement | null>(null);
   const declarationGrowthRef = useRef<HTMLDivElement | null>(null);
+  const declarationGrowthCallbackCountRef = useRef(0);
   const activePresentationCardRef = useRef<HTMLDivElement | null>(null);
   const liveGmRevealStateRef = useRef({ complete: false, progressive: false });
   const consumedActorActionBeatRef = useRef("");
@@ -429,6 +429,10 @@ export default function TrpgCampaignRoom({
   const adjudicatedParticipantIds = useMemo(
     () => new Set(snap.adjudicatedParticipantIds ?? []),
     [snap.adjudicatedParticipantIds]
+  );
+  const participantAdjudicationOutcomes = useMemo(
+    () => new Map(Object.entries(snap.participantAdjudicationOutcomes ?? {}).map(([id, outcome]) => [Number(id), outcome])),
+    [snap.participantAdjudicationOutcomes]
   );
   const seenLogKeysRef = useRef<Set<string> | null>(null);
   if (seenLogKeysRef.current === null) {
@@ -601,7 +605,11 @@ export default function TrpgCampaignRoom({
     if (roundShow.mode !== "cinematic" || roundShow.phase !== "actor-dice") return;
     const current = presentationActors[roundShow.presentationIndex];
     if (!current?.roll) {
-      if (current && actorExpectsPresentationRoll(current.actorId, sourceRolls)) {
+      const outcome = resolveParticipantAdjudicationOutcome(
+        current.actorId,
+        participantAdjudicationOutcomes
+      );
+      if (outcome === "roll") {
         return;
       }
       setRoundShow((prev) => ({
@@ -612,6 +620,7 @@ export default function TrpgCampaignRoom({
           rolls: sourceRolls,
           adjudicatedParticipantIds,
           declarationConsumedIds,
+          participantAdjudicationOutcomes,
           awaitingMoreActors: awaitingMorePresentationActors,
         }),
       }));
@@ -639,6 +648,7 @@ export default function TrpgCampaignRoom({
           rolls: sourceRolls,
           adjudicatedParticipantIds,
           declarationConsumedIds,
+          participantAdjudicationOutcomes,
           awaitingMoreActors: awaitingMorePresentationActors,
         }),
       };
@@ -649,6 +659,8 @@ export default function TrpgCampaignRoom({
     adjudicatedParticipantIds,
     awaitingMorePresentationActors,
     declarationConsumedIds,
+    participantAdjudicationOutcomes,
+    participantAdjudicationOutcomes,
     presentationActors,
     roundShow.mode,
     roundShow.phase,
@@ -757,6 +769,13 @@ export default function TrpgCampaignRoom({
     state: roundShow,
   });
   const overlayRolls = activeRoll ? [activeRoll] : [];
+  const activePresentationActor = presentationActors[roundShow.presentationIndex] ?? null;
+  const activeActorAdjudicationOutcome = activePresentationActor
+    ? resolveParticipantAdjudicationOutcome(
+        activePresentationActor.actorId,
+        participantAdjudicationOutcomes
+      )
+    : undefined;
   const liveRevealedActionIds = visibleSceneRows
     .filter((row) => row.roundNumber === snap.round.number)
     .flatMap((row) => row.actions.filter((a) => a.revealed && a.body.trim()).map((a) => a.participantId));
@@ -937,6 +956,7 @@ export default function TrpgCampaignRoom({
             rolls: sourceRolls,
             adjudicatedParticipantIds,
             declarationConsumedIds,
+            participantAdjudicationOutcomes,
             awaitingMoreActors: awaitingMorePresentationActors,
           }),
         };
@@ -983,6 +1003,7 @@ export default function TrpgCampaignRoom({
     awaitingMorePresentationActors,
     declarationConsumedIds,
     hiddenCatchUpActive,
+    participantAdjudicationOutcomes,
     presentationActorKey,
     presentationActors,
     roundShow.mode,
@@ -1398,6 +1419,9 @@ export default function TrpgCampaignRoom({
       Boolean(currentNarration);
     if (!sceneEl || !liveRevealActive) return;
     const observer = new ResizeObserver(() => {
+      if (declarationGrowthEl) {
+        declarationGrowthCallbackCountRef.current += 1;
+      }
       const growth = decideLiveFollowOnGrowth({ following: followLatestRef.current });
       if (growth.autoFollow) {
         if (followScrollRafRef.current != null) {
@@ -1435,31 +1459,24 @@ export default function TrpgCampaignRoom({
     const onScroll = () => {
       if (programmaticScrollRef.current) return;
       const near = isNearFollowOwner(liveFollowOwner);
-      if (manualScrollDetachedRef.current) {
-        const zone = updateManualDetachFollowZone({
-          manualDetached: true,
-          nearFollowOwner: near,
-          hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
-        });
-        hasLeftFollowZoneSinceDetachRef.current = zone.hasLeftFollowZoneSinceDetach;
-        const rejoin = decideManualScrollRejoin({
-          manualDetached: true,
-          hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
-          nearFollowOwner: near,
-        });
-        if (rejoin.rejoin) {
-          manualScrollDetachedRef.current = false;
-          hasLeftFollowZoneSinceDetachRef.current = false;
-          followLatestRef.current = true;
-          setFollowLatest(true);
-          setUnseenLatest(false);
-        }
+      const update = decidePassiveScrollFollowUpdate({
+        manualDetached: manualScrollDetachedRef.current,
+        following: followLatestRef.current,
+        nearFollowOwner: near,
+        hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
+      });
+      hasLeftFollowZoneSinceDetachRef.current = update.hasLeftFollowZoneSinceDetach;
+      if (update.rejoin) {
+        manualScrollDetachedRef.current = false;
+        followLatestRef.current = true;
+        setFollowLatest(true);
+        setUnseenLatest(false);
         return;
       }
-      followLatestRef.current = near;
-      setFollowLatest(near);
-      if (near) setUnseenLatest(false);
-      else setUnseenLatest(true);
+      if (manualScrollDetachedRef.current) {
+        if (update.unseenLatest) setUnseenLatest(true);
+        return;
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -1663,6 +1680,9 @@ export default function TrpgCampaignRoom({
     activeRoll?.participantId,
   ]);
 
+  const declarationGrowthObserverAttached =
+    liveFollowOwner === "ACTIVE_DECLARATION_END" && declarationReveal.activeAiId != null;
+
   return (
     <div
       className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0 pt-[5.25rem] min-[576px]:pt-0"
@@ -1696,6 +1716,16 @@ export default function TrpgCampaignRoom({
       data-trpg-live-follow-round={liveFollowRound}
       data-trpg-live-follow-owner={liveFollowOwner}
       data-trpg-unseen-latest={unseenLatest ? "true" : "false"}
+      data-trpg-active-actor-id={activePresentationActor?.actorId ?? undefined}
+      data-trpg-active-actor-adjudication-outcome={activeActorAdjudicationOutcome ?? undefined}
+      data-trpg-active-actor-has-roll={activePresentationActor?.roll ? "true" : "false"}
+      data-trpg-active-dice-session-key={presentationDiceSessionKey || undefined}
+      data-trpg-overlay-roll-count={overlayRolls.length}
+      data-trpg-overlay-visible={overlayPlayback.visible ? "true" : "false"}
+      data-trpg-overlay-playback-session-key={overlayPlayback.sessionKey || undefined}
+      data-trpg-manual-scroll-detached={manualScrollDetachedRef.current ? "true" : "false"}
+      data-trpg-declaration-growth-observer-attached={declarationGrowthObserverAttached ? "true" : "false"}
+      data-trpg-declaration-growth-callback-count={declarationGrowthCallbackCountRef.current || undefined}
     >
       <aside
         className="fixed left-3 right-3 top-[4.5rem] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"

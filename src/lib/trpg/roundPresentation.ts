@@ -1,4 +1,5 @@
 import type { TrpgPublicAction, TrpgPublicRoll } from "./snapshot";
+import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
 import {
   TRPG_EMERALD_WATCHDOG_MARGIN_MS,
   TRPG_ROLL_MAX_MS,
@@ -590,16 +591,60 @@ export function actorExpectsPresentationRoll(
   return rolls.some((roll) => roll.participantId === actorId);
 }
 
+export function resolveParticipantAdjudicationOutcome(
+  actorId: number,
+  outcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome> | Readonly<Record<number, TrpgParticipantAdjudicationOutcome>>
+): TrpgParticipantAdjudicationOutcome | undefined {
+  if (!outcomes) return undefined;
+  if (outcomes instanceof Map) return outcomes.get(actorId);
+  return Object.prototype.hasOwnProperty.call(outcomes, actorId)
+    ? outcomes[actorId as keyof typeof outcomes]
+    : undefined;
+}
+
+function actorAwaitingAuthoritativeRoll(
+  actorId: number,
+  actorRoll: TrpgPublicRoll | null,
+  rolls: readonly { participantId: number }[],
+  outcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>
+): boolean {
+  const outcome = resolveParticipantAdjudicationOutcome(actorId, outcomes);
+  if (outcome === "roll") return actorRoll == null;
+  if (outcome === "no_roll" || outcome === "skipped") return false;
+  return actorRoll == null && actorExpectsPresentationRoll(actorId, rolls);
+}
+
+function actorPresentationRequiresDice(
+  actorId: number,
+  actorRoll: TrpgPublicRoll | null,
+  outcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>
+): boolean {
+  const outcome = resolveParticipantAdjudicationOutcome(actorId, outcomes);
+  if (outcome === "roll") return actorRoll != null;
+  if (outcome === "no_roll" || outcome === "skipped") return false;
+  return actorRoll != null;
+}
+
+function actorConfirmedWithoutDice(
+  actorId: number,
+  outcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>
+): boolean {
+  const outcome = resolveParticipantAdjudicationOutcome(actorId, outcomes);
+  return outcome === "no_roll" || outcome === "skipped";
+}
+
 export function advanceAfterActorAction(opts: {
   actors: readonly PresentationActor[];
   presentationIndex: number;
   rolls?: readonly { participantId: number }[];
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
+  participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
   awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   const rolls = opts.rolls ?? [];
+  const outcomes = opts.participantAdjudicationOutcomes;
   const gatesProvided =
     opts.adjudicatedParticipantIds != null && opts.declarationConsumedIds != null;
   if (gatesProvided) {
@@ -615,8 +660,22 @@ export function advanceAfterActorAction(opts: {
     ) {
       return { phase: "actor-action", presentationIndex: opts.presentationIndex };
     }
-    if (actor.roll) {
+    if (actorConfirmedWithoutDice(actor.actorId, outcomes)) {
+      return advanceToNextActor(opts.actors, opts.presentationIndex, {
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+        declarationConsumedIds: opts.declarationConsumedIds,
+        awaitingMoreActors: opts.awaitingMoreActors,
+        participantAdjudicationOutcomes: outcomes,
+      });
+    }
+    if (actorPresentationRequiresDice(actor.actorId, actor.roll, outcomes)) {
       return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
+    }
+    if (actorAwaitingAuthoritativeRoll(actor.actorId, actor.roll, rolls, outcomes)) {
+      return { phase: "actor-action", presentationIndex: opts.presentationIndex };
+    }
+    if (outcomes) {
+      return { phase: "actor-action", presentationIndex: opts.presentationIndex };
     }
     if (actorExpectsPresentationRoll(actor.actorId, rolls)) {
       return { phase: "actor-action", presentationIndex: opts.presentationIndex };
@@ -625,6 +684,7 @@ export function advanceAfterActorAction(opts: {
       adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
       declarationConsumedIds: opts.declarationConsumedIds,
       awaitingMoreActors: opts.awaitingMoreActors,
+      participantAdjudicationOutcomes: outcomes,
     });
   }
   if (actor?.roll) {
@@ -635,6 +695,7 @@ export function advanceAfterActorAction(opts: {
   }
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     awaitingMoreActors: opts.awaitingMoreActors,
+    participantAdjudicationOutcomes: outcomes,
   });
 }
 
@@ -658,20 +719,23 @@ export function advanceAfterDiceDismiss(opts: {
   rolls?: readonly { participantId: number }[];
   adjudicatedParticipantIds?: ReadonlySet<number>;
   declarationConsumedIds?: ReadonlySet<number>;
+  participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
   awaitingMoreActors?: boolean;
 }): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const actor = opts.actors[opts.presentationIndex];
   const rolls = opts.rolls ?? [];
+  const outcomes = opts.participantAdjudicationOutcomes;
   if (actor?.roll) {
     return { phase: "actor-result", presentationIndex: opts.presentationIndex };
   }
-  if (actor && actorExpectsPresentationRoll(actor.actorId, rolls)) {
+  if (actorAwaitingAuthoritativeRoll(actor?.actorId ?? -1, actor?.roll ?? null, rolls, outcomes)) {
     return { phase: "actor-dice", presentationIndex: opts.presentationIndex };
   }
   return advanceToNextActor(opts.actors, opts.presentationIndex, {
     adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
     declarationConsumedIds: opts.declarationConsumedIds,
     awaitingMoreActors: opts.awaitingMoreActors,
+    participantAdjudicationOutcomes: outcomes,
   });
 }
 
@@ -702,6 +766,7 @@ function advanceToNextActor(
   opts?: {
     adjudicatedParticipantIds?: ReadonlySet<number>;
     declarationConsumedIds?: ReadonlySet<number>;
+    participantAdjudicationOutcomes?: ReadonlyMap<number, TrpgParticipantAdjudicationOutcome>;
     awaitingMoreActors?: boolean;
   }
 ): Pick<RoundPresentationState, "phase" | "presentationIndex"> {

@@ -60,7 +60,7 @@ describe("TRPG declaration scroll ownership", () => {
 
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /hasLeftFollowZoneSinceDetachRef/);
-    assert.match(room, /updateManualDetachFollowZone/);
+    assert.match(room, /decidePassiveScrollFollowUpdate/);
   });
 
   it("4: leave follow zone then return → rejoin", () => {

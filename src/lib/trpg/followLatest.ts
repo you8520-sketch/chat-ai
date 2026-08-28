@@ -197,6 +197,44 @@ export function updateManualDetachFollowZone(opts: {
   return { hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach };
 }
 
+/** Passive layout scroll must not detach follow — only explicit user intent may. */
+export function decidePassiveScrollFollowUpdate(opts: {
+  manualDetached: boolean;
+  following: boolean;
+  nearFollowOwner: boolean;
+  hasLeftFollowZoneSinceDetach: boolean;
+}): {
+  following: boolean;
+  unseenLatest: boolean;
+  hasLeftFollowZoneSinceDetach: boolean;
+  rejoin: boolean;
+} {
+  if (!opts.manualDetached) {
+    return {
+      following: opts.following,
+      unseenLatest: false,
+      hasLeftFollowZoneSinceDetach: false,
+      rejoin: false,
+    };
+  }
+  const zone = updateManualDetachFollowZone({
+    manualDetached: true,
+    nearFollowOwner: opts.nearFollowOwner,
+    hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach,
+  });
+  const rejoin = decideManualScrollRejoin({
+    manualDetached: true,
+    hasLeftFollowZoneSinceDetach: zone.hasLeftFollowZoneSinceDetach,
+    nearFollowOwner: opts.nearFollowOwner,
+  });
+  return {
+    following: rejoin.rejoin ? true : opts.following,
+    unseenLatest: rejoin.rejoin ? false : !opts.nearFollowOwner,
+    hasLeftFollowZoneSinceDetach: zone.hasLeftFollowZoneSinceDetach,
+    rejoin: rejoin.rejoin,
+  };
+}
+
 export const TRPG_PROGRAMMATIC_SCROLL_SMOOTH_FALLBACK_MS = 800;
 export const TRPG_PROGRAMMATIC_SCROLL_INSTANT_SETTLE_MS = 48;
 

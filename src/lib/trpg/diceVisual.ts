@@ -53,7 +53,7 @@ export const TRPG_PRODUCTION_DICE_STATIC_FALLBACK: TrpgD20StaticOverlaySpec = {
   baseAsset: "/d20-result/obsidian-royal.webp",
   assetReady: true,
   label: "Production D20",
-  overlayDimClass: "bg-black/15",
+  overlayDimClass: "bg-black/55",
   numeral: {
     fontFamily: "'Cinzel', Georgia, 'Times New Roman', serif",
     weight: 600,
@@ -162,6 +162,14 @@ export const TRPG_D20_STAGE_DESKTOP = { width: 250, height: 218 } as const;
 export const TRPG_D20_STAGE_MOBILE = { width: 186, height: 168 } as const;
 
 export const TRPG_D20_OVERLAY_DIM_CLASS = TRPG_PRODUCTION_DICE_STATIC_FALLBACK.overlayDimClass;
+
+/** Upper dice context HUD — separated dark glass surface over the dimmed scene. */
+export const TRPG_DICE_CONTEXT_PANEL_CLASS =
+  "rounded-2xl border border-white/20 bg-[#0a0d14]/95 px-4 py-3 text-center shadow-[0_16px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:px-5";
+
+/** Compact result-confirm detail card below the cinematic d20 numeral. */
+export const TRPG_DICE_RESULT_DETAIL_PANEL_CLASS =
+  "mx-auto mt-3 max-w-[min(92vw,20rem)] rounded-2xl border border-white/20 bg-[#0a0d14]/94 px-4 py-3 text-center shadow-[0_14px_36px_rgba(0,0,0,0.58)] backdrop-blur-md sm:px-5";
 
 export const TRPG_DICE_BOX_NOTATION = (value: number) => `1d20@${value}`;
 

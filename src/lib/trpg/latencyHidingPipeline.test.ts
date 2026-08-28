@@ -420,6 +420,10 @@ describe("TRPG PR-C final correction regressions", () => {
       rolls: [botRoll(30, "동료2", 11)],
       adjudicatedParticipantIds: new Set([20, 30]),
       declarationConsumedIds: new Set([20, 30]),
+      participantAdjudicationOutcomes: new Map([
+        [20, "no_roll"],
+        [30, "roll"],
+      ]),
       awaitingMoreActors: false,
     });
     assert.deepEqual(next, { phase: "actor-action", presentationIndex: 1 });
@@ -433,14 +437,15 @@ describe("TRPG PR-C final correction regressions", () => {
       rolls: [],
     });
     const pendingRoll = botRoll(20, "동료1", 9);
-    const next = advanceAfterActorAction({
+    const waiting = advanceAfterActorAction({
       actors,
       presentationIndex: 0,
-      rolls: [pendingRoll],
+      rolls: [],
       adjudicatedParticipantIds: new Set([20]),
       declarationConsumedIds: new Set([20]),
+      participantAdjudicationOutcomes: new Map([[20, "roll"]]),
     });
-    assert.deepEqual(next, { phase: "actor-action", presentationIndex: 0 });
+    assert.deepEqual(waiting, { phase: "actor-action", presentationIndex: 0 });
     const actorsWithRoll = buildRoundPresentationActors({
       resolutionOrder: [20],
       actions: [bot1],
@@ -452,6 +457,7 @@ describe("TRPG PR-C final correction regressions", () => {
       rolls: [pendingRoll],
       adjudicatedParticipantIds: new Set([20]),
       declarationConsumedIds: new Set([20]),
+      participantAdjudicationOutcomes: new Map([[20, "roll"]]),
     });
     assert.deepEqual(diceReady, { phase: "actor-dice", presentationIndex: 0 });
   });
