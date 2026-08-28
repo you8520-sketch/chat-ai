@@ -21,9 +21,16 @@ import {
   getOpaqueMarketReferences,
 } from "@/lib/opaqueMarketReferences";
 import {
-  PREMIUM_PRICING_CALIBRATION_EVIDENCE,
+  GEMINI31_CI_OBSERVED_DISCOUNT_EVIDENCE,
+  GEMINI31_OFFICIAL_BASE_TIER_EVIDENCE,
+  OPUS5_CI_OBSERVED_DISCOUNT_EVIDENCE,
+  OPUS5_OFFICIAL_BASE_EVIDENCE,
   evaluatePremiumLiveReferenceDrift,
 } from "@/lib/premiumPricingCalibrationEvidence";
+import {
+  GEMINI31_BASE_TIER_PROMPT_THRESHOLD,
+  getModelShadowPricingPolicy,
+} from "@/lib/modelShadowPricingPolicy";
 import {
   buildPremiumFxSensitivity,
   buildPremiumMarginMatrix,
@@ -100,6 +107,9 @@ function PremiumModelPolicyHeader(props: {
       <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3">
         <h3 className="font-semibold text-amber-100">{title} — Economics</h3>
         <p className="mt-1">Published v{pub.pricingVersion}: ${pub.billingReferenceInputUsdPerMillion}/{pub.billingReferenceOutputUsdPerMillion} · target {(pub.targetMargin * 100).toFixed(0)}% · floor {(pub.minimumMarginFloor * 100).toFixed(0)}%</p>
+        {pub.pricingApplicability === "base_tier_only" ? (
+          <p className="mt-1 text-amber-200">BASE TIER ONLY — applies to prompt &lt;= {pub.publishedBaseTierMaxPromptTokens?.toLocaleString() ?? GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()} tokens</p>
+        ) : null}
         <p className="mt-2 text-zinc-400">Proposed v2: ${v2Proposed.billingReferenceInputUsdPerMillion}/{v2Proposed.billingReferenceOutputUsdPerMillion} · target {(v2Proposed.targetMargin * 100).toFixed(0)}% · floor {(v2Proposed.minimumMarginFloor * 100).toFixed(0)}%</p>
         <p className="mt-1 text-zinc-500">v1 @1530: {v1Row.finalPoints}P vs {hardBenchmark.competitorChargePoints}P ({v1Row.strictMarketPass ? "PASS" : "FAIL"}) · v2 @1530: {v2Row.finalPoints}P ({v2Row.strictMarketPass ? "PASS" : "FAIL"})</p>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
@@ -118,22 +128,29 @@ function PremiumModelPolicyHeader(props: {
 }
 
 function PremiumProviderSection(props: { modelId: string; v2Proposed: typeof GEMINI31_V2_PROPOSED }) {
-  const evidence = PREMIUM_PRICING_CALIBRATION_EVIDENCE[props.modelId];
+  const official =
+    props.modelId === GEMINI31_MODEL_ID ? GEMINI31_OFFICIAL_BASE_TIER_EVIDENCE : OPUS5_OFFICIAL_BASE_EVIDENCE;
+  const observed =
+    props.modelId === GEMINI31_MODEL_ID ? GEMINI31_CI_OBSERVED_DISCOUNT_EVIDENCE : OPUS5_CI_OBSERVED_DISCOUNT_EVIDENCE;
   const liveCatalog = resolveCheaperInferenceCatalogPricing(props.modelId);
   const liveDrift = evaluatePremiumLiveReferenceDrift(props.modelId, props.v2Proposed);
   const cacheReports = getPremiumCacheEvidenceReports();
   const cacheReport = cacheReports[props.modelId];
+  const policy = getModelShadowPricingPolicy(props.modelId);
 
   return (
     <div className="rounded border border-white/10 p-3 text-xs text-zinc-300">
       <h3 className="font-semibold text-zinc-100">Provider</h3>
       <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
-        <div><dt className="text-zinc-500">reference input/output</dt><dd>${evidence?.referenceInputUsdPerMillion}/{evidence?.referenceOutputUsdPerMillion}</dd></div>
-        <div><dt className="text-zinc-500">observed current</dt><dd>${evidence?.observedCurrentInputUsdPerMillion}/{evidence?.observedCurrentOutputUsdPerMillion}</dd></div>
-        <div><dt className="text-zinc-500">observed discount</dt><dd>{evidence?.observedDiscountPercent != null ? `${evidence.observedDiscountPercent}%` : "Unavailable"}</dd></div>
-        <div><dt className="text-zinc-500">observedAt</dt><dd>{evidence?.observedAt ?? "Unavailable"}</dd></div>
-        <div><dt className="text-zinc-500">sourceKind</dt><dd>{evidence?.sourceKind ?? "Unavailable"}</dd></div>
+        <div><dt className="text-zinc-500">official reference</dt><dd>${official.inputUsdPerMillion}/{official.outputUsdPerMillion} ({official.sourceLabel})</dd></div>
+        <div><dt className="text-zinc-500">CI observed current</dt><dd>${observed.inputUsdPerMillion}/{observed.outputUsdPerMillion} · {observed.observedDiscountPercent ?? 0}% discount (calibration only)</dd></div>
         <div><dt className="text-zinc-500">LIVE_REFERENCE_STATUS</dt><dd>{liveDrift.status}</dd></div>
+        {props.modelId === GEMINI31_MODEL_ID ? (
+          <div><dt className="text-zinc-500">above-threshold CI evidence</dt><dd>{liveCatalog?.aboveThreshold?.referenceInputUsdPerMillion != null ? `$${liveCatalog.aboveThreshold.referenceInputUsdPerMillion}/${liveCatalog.aboveThreshold.referenceOutputUsdPerMillion}` : "UNVERIFIED / unavailable"}</dd></div>
+        ) : null}
+        {policy?.opusCacheTtlMode ? (
+          <div><dt className="text-zinc-500">OPUS_CACHE_TTL_MODE</dt><dd>{policy.opusCacheTtlMode}</dd></div>
+        ) : null}
       </dl>
       <h4 className="mt-3 font-medium text-zinc-200">Live provider catalog</h4>
       {liveCatalog ? (
@@ -175,6 +192,9 @@ function PremiumMarketPositionSection(props: { modelId: string }) {
         <h3 className="font-semibold text-emerald-100">HARD COMPARABLE — used for pricing selection</h3>
         <p className="mt-1">{hardBenchmark.inputTokens.toLocaleString()} input · {hardBenchmark.displayedOutputTokens.toLocaleString()} output · {hardBenchmark.competitorChargePoints}P</p>
         <p className="mt-1 text-zinc-400">Our v2 @1530: {v2Row.finalPoints}P · HARD_COMPARABLE_STATUS: {hardStatus}</p>
+        {props.modelId === GEMINI31_MODEL_ID ? (
+          <p className="mt-1 text-zinc-500">ABOVE THRESHOLD &gt;{GEMINI31_BASE_TIER_PROMPT_THRESHOLD.toLocaleString()} · market benchmark: UNAVAILABLE · shadow pricing: unsupported_pricing_tier</p>
+        ) : null}
       </div>
       <div className="rounded border border-sky-500/30 bg-sky-950/20 p-3">
         <h3 className="font-semibold text-sky-100">OPAQUE MARKET REFERENCES — NOT USED FOR MARGIN GATE</h3>
@@ -208,6 +228,9 @@ function formatCostStatus(status: string): string {
   if (status === "complete") return "Complete";
   if (status === "partial_missing_cache_rate") return "Partial";
   if (status === "reference_rates_unavailable") return "Unavailable";
+  if (status === "tier_reference_rates_unavailable") return "Tier unavailable";
+  if (status === "unsupported_cache_semantics") return "Unsupported cache";
+  if (status === "unsupported_pricing_tier") return "Unsupported tier";
   return status;
 }
 
@@ -247,6 +270,7 @@ function EconomicsHeader(props: {
         <div><dt className="text-zinc-500">effective FX</dt><dd>{sim.fxSnapshot.effectiveKrwPerUsd.toFixed(1)}</dd></div>
         <div><dt className="text-zinc-500">providerListCost</dt><dd>{sim.providerListCostKrw > 0 ? `${sim.providerListCostKrw.toFixed(1)} KRW` : "Unavailable"}</dd></div>
         <div><dt className="text-zinc-500">providerListCostStatus</dt><dd>{formatCostStatus(sim.providerListCostStatus)}</dd></div>
+        <div><dt className="text-zinc-500">billingReferenceCostStatus</dt><dd>{formatCostStatus(sim.billingReferenceCostStatus)}</dd></div>
         <div><dt className="text-zinc-500">billingReferenceCost</dt><dd>{sim.billingReferenceCostKrw.toFixed(1)} KRW</dd></div>
         <div><dt className="text-zinc-500">actualProviderCost</dt><dd>{sim.actualProviderCostKrw > 0 ? `${sim.actualProviderCostKrw.toFixed(1)} KRW` : "Unavailable"}</dd></div>
         <div><dt className="text-zinc-500">actualCostSource</dt><dd>{formatActualCostSource(sim.actualCostSource)}</dd></div>

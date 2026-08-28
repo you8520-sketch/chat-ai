@@ -9,13 +9,17 @@ import type { CheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatal
 import {
   GEMINI31_MODEL_ID,
   OPUS5_MODEL_ID,
+} from "@/lib/premiumModelIds";
+import {
   PREMIUM_PRICING_CALIBRATION_EVIDENCE,
-  referenceEvidenceMatchesPublished,
   type CacheEvidenceAudit,
   auditPremiumCacheEvidence,
+  evaluateAboveThresholdReferenceVerified,
+  referenceEvidenceMatchesPublishedBaseTier,
 } from "@/lib/premiumPricingCalibrationEvidence";
 import { requirePrimaryBenchmark, type MarketUsageBenchmark } from "@/lib/marketUsageBenchmarks";
 import type { PublishedModelPricing } from "@/lib/publishedModelPricing";
+import { computeShadowPricing } from "@/lib/shadowPricing";
 import {
   SHADOW_BILLING_FX_MODE,
   type ShadowBillingExchangeRateSnapshot,
@@ -40,12 +44,12 @@ export const GEMINI31_V1_PUBLISHED: PublishedModelPricing = {
   modelId: GEMINI31_MODEL_ID,
   billingReferenceInputUsdPerMillion: 2,
   billingReferenceOutputUsdPerMillion: 12,
-  billingReferenceCacheReadUsdPerMillion: 0.5,
-  billingReferenceCacheWriteUsdPerMillion: 2,
   targetMargin: 0.2,
   minimumMarginFloor: 0.1,
   pricingVersion: 1,
   publishedAt: "2026-08-28T00:00:00.000Z",
+  pricingApplicability: "base_tier_only",
+  publishedBaseTierMaxPromptTokens: 200_000,
 };
 
 export const OPUS5_V1_PUBLISHED: PublishedModelPricing = {
@@ -64,12 +68,12 @@ export const GEMINI31_V2_PROPOSED: PublishedModelPricing = {
   modelId: GEMINI31_MODEL_ID,
   billingReferenceInputUsdPerMillion: 2,
   billingReferenceOutputUsdPerMillion: 12,
-  billingReferenceCacheReadUsdPerMillion: 0.5,
-  billingReferenceCacheWriteUsdPerMillion: 2,
   targetMargin: 0.09,
   minimumMarginFloor: 0.05,
   pricingVersion: 2,
   publishedAt: "2026-08-28T15:00:00.000Z",
+  pricingApplicability: "base_tier_only",
+  publishedBaseTierMaxPromptTokens: 200_000,
 };
 
 export const OPUS5_V2_PROPOSED: PublishedModelPricing = {
@@ -114,8 +118,12 @@ export type PremiumFxSensitivityCell = {
 export type FxMarketStatus = "SAFE" | "NEAR_LIMIT" | "REVIEW_REQUIRED";
 
 export type PremiumAcceptanceGates = {
-  GEMINI31_REFERENCE_EVIDENCE_VERIFIED: boolean;
-  OPUS5_REFERENCE_EVIDENCE_VERIFIED: boolean;
+  GEMINI31_BASE_TIER_REFERENCE_VERIFIED: boolean;
+  GEMINI31_ABOVE_THRESHOLD_REFERENCE_VERIFIED: boolean;
+  GEMINI31_CACHE_SEMANTICS_VERIFIED: boolean;
+  OPUS5_BASE_REFERENCE_VERIFIED: boolean;
+  OPUS5_CACHE_READ_VERIFIED: boolean;
+  OPUS5_CACHE_WRITE_TTL_VERIFIED: boolean;
   GEMINI31_BASE1530_PASS: boolean;
   GEMINI31_BASE1600_PASS: boolean;
   GEMINI31_BASE1625_PASS: boolean;
@@ -126,6 +134,7 @@ export type PremiumAcceptanceGates = {
   OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH: boolean;
   GEMINI31_FX_CEILING_GTE_1625: boolean;
   OPUS5_FX_CEILING_GTE_1625: boolean;
+  UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE: boolean;
   allPass: boolean;
 };
 
@@ -151,7 +160,12 @@ export function buildPremiumFxSnapshot(baseUsdKrw: number): ShadowBillingExchang
 }
 
 export function buildPremiumUncachedCatalogFixture(modelId: string): CheaperInferenceCatalogPricing {
-  const evidence = PREMIUM_PRICING_CALIBRATION_EVIDENCE[modelId];
+  const evidence =
+    modelId === GEMINI31_MODEL_ID
+      ? PREMIUM_PRICING_CALIBRATION_EVIDENCE[GEMINI31_MODEL_ID]
+      : modelId === OPUS5_MODEL_ID
+        ? PREMIUM_PRICING_CALIBRATION_EVIDENCE[OPUS5_MODEL_ID]
+        : null;
   if (!evidence) throw new Error(`Missing premium calibration evidence: ${modelId}`);
   return {
     modelId,
@@ -355,6 +369,33 @@ export function selectPremiumTargetMargin(params: {
   return null;
 }
 
+export function verifyUnsupportedDimensionShadowSafety(): boolean {
+  const geminiAbove = computeShadowPricing({
+    modelId: GEMINI31_MODEL_ID,
+    promptTokens: 200_001,
+    outputTokens: 1_000,
+  });
+  const geminiCached = computeShadowPricing({
+    modelId: GEMINI31_MODEL_ID,
+    promptTokens: 10_000,
+    cacheReadTokens: 1_000,
+    outputTokens: 500,
+  });
+  const geminiUncached = computeShadowPricing({
+    modelId: GEMINI31_MODEL_ID,
+    promptTokens: 40_689,
+    outputTokens: 4_307,
+  });
+  return (
+    geminiAbove.billingReferenceCostStatus !== "complete" &&
+    geminiCached.billingReferenceCostStatus !== "complete" &&
+    geminiUncached.billingReferenceCostStatus === "complete" &&
+    geminiAbove.worstCasePromoMargin == null &&
+    geminiCached.worstCasePromoMargin == null &&
+    geminiAbove.reserveStatus !== "complete"
+  );
+}
+
 export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
   const g31 = simulatePremiumPricingPolicy({
     modelId: GEMINI31_MODEL_ID,
@@ -409,9 +450,19 @@ export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
     targetMargin: OPUS5_V2_PROPOSED.targetMargin,
   });
 
+  const g31Cache = auditPremiumCacheEvidence(GEMINI31_MODEL_ID, GEMINI31_V2_PROPOSED);
+  const o5Cache = auditPremiumCacheEvidence(OPUS5_MODEL_ID, OPUS5_V2_PROPOSED);
+
   const gates: PremiumAcceptanceGates = {
-    GEMINI31_REFERENCE_EVIDENCE_VERIFIED: referenceEvidenceMatchesPublished(GEMINI31_MODEL_ID, GEMINI31_V2_PROPOSED),
-    OPUS5_REFERENCE_EVIDENCE_VERIFIED: referenceEvidenceMatchesPublished(OPUS5_MODEL_ID, OPUS5_V2_PROPOSED),
+    GEMINI31_BASE_TIER_REFERENCE_VERIFIED: referenceEvidenceMatchesPublishedBaseTier(
+      GEMINI31_MODEL_ID,
+      GEMINI31_V2_PROPOSED
+    ),
+    GEMINI31_ABOVE_THRESHOLD_REFERENCE_VERIFIED: evaluateAboveThresholdReferenceVerified(GEMINI31_MODEL_ID),
+    GEMINI31_CACHE_SEMANTICS_VERIFIED: g31Cache.status === "VERIFIED",
+    OPUS5_BASE_REFERENCE_VERIFIED: referenceEvidenceMatchesPublishedBaseTier(OPUS5_MODEL_ID, OPUS5_V2_PROPOSED),
+    OPUS5_CACHE_READ_VERIFIED: o5Cache.status === "VERIFIED_5M" || o5Cache.status === "VERIFIED",
+    OPUS5_CACHE_WRITE_TTL_VERIFIED: o5Cache.status === "VERIFIED_5M",
     GEMINI31_BASE1530_PASS: g31.strictMarketPass,
     GEMINI31_BASE1600_PASS: g31_1600.strictMarketPass,
     GEMINI31_BASE1625_PASS: g31_1625.strictMarketPass,
@@ -422,11 +473,12 @@ export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
     OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH: o5Semantics,
     GEMINI31_FX_CEILING_GTE_1625: g31Ceiling >= 1625,
     OPUS5_FX_CEILING_GTE_1625: o5Ceiling >= 1625,
+    UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE: verifyUnsupportedDimensionShadowSafety(),
     allPass: false,
   };
   gates.allPass =
-    gates.GEMINI31_REFERENCE_EVIDENCE_VERIFIED &&
-    gates.OPUS5_REFERENCE_EVIDENCE_VERIFIED &&
+    gates.GEMINI31_BASE_TIER_REFERENCE_VERIFIED &&
+    gates.OPUS5_BASE_REFERENCE_VERIFIED &&
     gates.GEMINI31_BASE1530_PASS &&
     gates.GEMINI31_BASE1600_PASS &&
     gates.GEMINI31_BASE1625_PASS &&
@@ -436,7 +488,8 @@ export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
     gates.GEMINI31_UNCACHED_TARGET_SEMANTICS_MATCH &&
     gates.OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH &&
     gates.GEMINI31_FX_CEILING_GTE_1625 &&
-    gates.OPUS5_FX_CEILING_GTE_1625;
+    gates.OPUS5_FX_CEILING_GTE_1625 &&
+    gates.UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE;
   return gates;
 }
 
@@ -449,7 +502,7 @@ export function getPremiumCacheEvidenceReports(): Record<string, CacheEvidenceAu
 
 export function isPremiumCacheReadyForLiveCutover(): boolean {
   const reports = getPremiumCacheEvidenceReports();
-  return Object.values(reports).every((r) => r.status === "VERIFIED");
+  return Object.entries(reports).every(([, r]) => r.status === "VERIFIED" || r.status === "VERIFIED_5M");
 }
 
 export type HardComparableStatus = "PASS" | "FAIL";

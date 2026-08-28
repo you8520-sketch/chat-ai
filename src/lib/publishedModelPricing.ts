@@ -13,6 +13,9 @@ export type PublishedModelPricing = {
   minimumMarginFloor: number;
   pricingVersion: number;
   publishedAt: string;
+  /** Shadow-only: published rates apply only at or below this prompt size. */
+  pricingApplicability?: "base_tier_only";
+  publishedBaseTierMaxPromptTokens?: number;
   promo?: {
     percent: number;
     startsAt: string;
@@ -90,12 +93,12 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     modelId: "gemini-3.1-pro-preview",
     billingReferenceInputUsdPerMillion: 2,
     billingReferenceOutputUsdPerMillion: 12,
-    billingReferenceCacheReadUsdPerMillion: 0.5,
-    billingReferenceCacheWriteUsdPerMillion: 2,
     targetMargin: 0.09,
     minimumMarginFloor: 0.05,
     pricingVersion: 2,
     publishedAt: "2026-08-28T15:00:00.000Z",
+    pricingApplicability: "base_tier_only",
+    publishedBaseTierMaxPromptTokens: 200_000,
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",

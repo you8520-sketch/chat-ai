@@ -8,6 +8,7 @@ import {
   computeShadowCharge,
   computeShadowCostsWithSnapshot,
   type ActualCostSource,
+  type BillingReferenceCostStatus,
   type ProviderListCostStatus,
   type ShadowCostBreakdown,
 } from "@/lib/shadowPricing";
@@ -37,6 +38,7 @@ export type SimulationRow = {
 export type PremiumSimulationResult = {
   providerListCostKrw: number;
   providerListCostStatus: ProviderListCostStatus;
+  billingReferenceCostStatus: BillingReferenceCostStatus;
   billingReferenceCostKrw: number;
   actualProviderCostKrw: number;
   actualCostSource: ActualCostSource;
@@ -148,6 +150,7 @@ export function simulatePremiumCompetitive(params: {
   return {
     providerListCostKrw,
     providerListCostStatus: base.providerListCostStatus,
+    billingReferenceCostStatus: base.billingReferenceCostStatus,
     billingReferenceCostKrw,
     actualProviderCostKrw,
     actualCostSource: base.actualCostSource,
