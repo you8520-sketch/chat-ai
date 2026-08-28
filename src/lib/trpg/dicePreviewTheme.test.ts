@@ -190,6 +190,11 @@ describe("preview-only campaign dice theme", () => {
       timestamp: 4,
     }), true);
     assert.equal(isTrpgDiceRuntimeInstrument({
+      event: "DICE_SETTLE_SOURCE",
+      data: { source: "static", staticSettleMs: 320, sessionKey: "4|1:12:11:SUCCESS", playIndex: 0 },
+      timestamp: 5,
+    }), true);
+    assert.equal(isTrpgDiceRuntimeInstrument({
       event: "DICE_RENDERER_DECISION",
       data: {
         WEBGL_AVAILABLE: true,

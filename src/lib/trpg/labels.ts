@@ -1,5 +1,14 @@
 import type { TrpgBillingMode, TrpgSuccessTier } from "./types";
 
+/** Authoritative public-roll modifier. Individual modifier components are not public. */
+export function trpgCombinedModifier(opts: { d20: number; finalScore: number }): number {
+  return opts.finalScore - opts.d20;
+}
+
+export function formatTrpgSignedModifier(modifier: number): string {
+  return modifier >= 0 ? `+${modifier}` : String(modifier);
+}
+
 /** Display-only. Uses server d20 / finalScore / DC / tier; does not reroll. */
 export function formatTrpgRollCompact(opts: {
   statLabel: string;
@@ -8,8 +17,8 @@ export function formatTrpgRollCompact(opts: {
   dc: number;
   tier: TrpgSuccessTier;
 }): string {
-  const modifier = opts.finalScore - opts.d20;
-  const modText = modifier >= 0 ? `+${modifier}` : String(modifier);
+  const modifier = trpgCombinedModifier(opts);
+  const modText = formatTrpgSignedModifier(modifier);
   return `${opts.statLabel} · d20 ${opts.d20} ${modText} = ${opts.finalScore} vs DC ${opts.dc} · ${successLabelKo(opts.tier)}`;
 }
 

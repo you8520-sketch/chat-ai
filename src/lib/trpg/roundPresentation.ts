@@ -481,6 +481,31 @@ export function activePresentationRoll(opts: {
   return opts.actors[opts.state.presentationIndex]?.roll ?? null;
 }
 
+export type ActivePresentationRollProgress = {
+  rollOrdinal: number;
+  rollTotal: number;
+};
+
+/**
+ * Roll progress follows the round presentation actor order (resolutionOrder),
+ * counting only actors with authoritative rolls.
+ */
+export function activePresentationRollProgress(opts: {
+  actors: readonly PresentationActor[];
+  state: RoundPresentationState;
+}): ActivePresentationRollProgress | null {
+  if (opts.state.mode !== "cinematic" || opts.state.phase !== "actor-dice") return null;
+  const active = opts.actors[opts.state.presentationIndex];
+  if (!active?.roll) return null;
+  const rollActors = opts.actors.filter((actor) => actor.roll != null);
+  const rollIndex = rollActors.findIndex((actor) => actor.actorId === active.actorId);
+  if (rollIndex < 0) return null;
+  return {
+    rollOrdinal: rollIndex + 1,
+    rollTotal: rollActors.length,
+  };
+}
+
 export function selectVisibleActions<T extends { participantId: number }>(
   actions: readonly T[],
   revealedIds: readonly number[]
