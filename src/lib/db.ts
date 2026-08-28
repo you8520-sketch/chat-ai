@@ -560,8 +560,19 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_world_shares_slug ON world_shares(share_slug);
+    CREATE TABLE IF NOT EXISTS world_borrows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      world_share_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, world_share_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_world_borrows_user ON world_borrows(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_world_borrows_share ON world_borrows(world_share_id);
   `);
   addColumn("worlds", "shared_from_nickname", "TEXT NOT NULL DEFAULT ''");
+  addColumn("world_shares", "revoked_at", "TEXT");
+  addColumn("characters", "source_world_share_id", "INTEGER");
   addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
   addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
   addColumn("worlds", "genres", "TEXT NOT NULL DEFAULT '[]'");

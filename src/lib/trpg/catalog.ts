@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import { isLegacyBorrowedWorld } from "@/lib/worldPermissions";
 import { sanitizeWorldCoverUrl } from "@/lib/worlds";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
@@ -150,12 +151,19 @@ export type TrpgWorldAccessRow = {
   content: string;
   trpg_enabled: number;
   trpg_visibility: string;
+  shared_from_nickname?: string;
 };
 
 export function canUseWorldForTrpg(
-  world: { creator_id: number; trpg_enabled?: number | null; trpg_visibility?: string | null },
+  world: {
+    creator_id: number;
+    trpg_enabled?: number | null;
+    trpg_visibility?: string | null;
+    shared_from_nickname?: string | null;
+  },
   viewerUserId: number
 ): boolean {
+  if (isLegacyBorrowedWorld({ shared_from_nickname: world.shared_from_nickname ?? "" })) return false;
   if (world.creator_id === viewerUserId) return true;
   return world.trpg_enabled === 1 && parseTrpgVisibility(world.trpg_visibility) === "public";
 }
@@ -167,7 +175,8 @@ export function loadWorldForTrpg(db: Database.Database, id: number): TrpgWorldAc
       .prepare(
         `SELECT id, creator_id, name, summary, content,
                 COALESCE(trpg_enabled, 0) AS trpg_enabled,
-                COALESCE(trpg_visibility, 'private') AS trpg_visibility
+                COALESCE(trpg_visibility, 'private') AS trpg_visibility,
+                COALESCE(shared_from_nickname, '') AS shared_from_nickname
          FROM worlds WHERE id=?`
       )
       .get(id) as TrpgWorldAccessRow | undefined) ?? null
@@ -231,6 +240,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
               1 AS mine
        FROM worlds w
        WHERE w.creator_id=?
+         AND COALESCE(w.shared_from_nickname, '') = ''
        ORDER BY w.updated_at DESC, w.id DESC
        LIMIT 80`
     )

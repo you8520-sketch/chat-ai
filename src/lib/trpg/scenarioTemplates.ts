@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKeysFromStored } from "./stats";
+import { canUseWorldForTrpgOwned } from "@/lib/worldPermissions";
 import { parseJson } from "./store";
 import { parseScenarioAssets } from "./scenarioAssets";
 import { parseTrpgScenarioPlan, publicTrpgScenarioPlan } from "./scenarioPlan";
@@ -187,6 +188,9 @@ export function insertScenarioTemplate(
   input: TrpgScenarioTemplateInput
 ): number {
   const n = normalizeScenarioTemplateInput(input);
+  if (n.worldId != null && !canUseWorldForTrpgOwned(creatorId, n.worldId)) {
+    throw new Error("읽기 전용 또는 빌린 세계관은 TRPG에 사용할 수 없습니다.");
+  }
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
   assertScenarioBundleFits(db, n);
   const info = db
@@ -232,6 +236,9 @@ export function updateScenarioTemplate(
     parseJson(existing.stat_keys_json, [] as unknown[])
   );
   const n = normalizeScenarioTemplateInput(input, { preservedLegacyStatKeys });
+  if (n.worldId != null && !canUseWorldForTrpgOwned(creatorId, n.worldId)) {
+    throw new Error("읽기 전용 또는 빌린 세계관은 TRPG에 사용할 수 없습니다.");
+  }
   const statDefs = defsFromKeys(n.statKeys);
   const defaultPcStats = restoreDefaultPcStatsOnUpdate(
     input.defaultPcStats,

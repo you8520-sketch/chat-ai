@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
@@ -117,6 +118,7 @@ export type ParsedCharacterForm = {
   systemPrompt: string;
   world: string;
   worldId: number | null;
+  sourceWorldShareId: number | null;
   lorebookId: number | null;
   statusWindowPrompt: string;
   statusWidgetJson: string;
@@ -336,12 +338,41 @@ export function parseCharacterFormBody(
   );
 
   let worldId: number | null = null;
+  let sourceWorldShareId: number | null = null;
   const rawWorldId = b.world_id ?? b.worldId;
+  const rawBorrowId = b.world_borrow_id ?? b.worldBorrowId;
+  const rawShareId = b.world_share_id ?? b.worldShareId;
+
+  let borrowId: number | null = null;
+  if (rawBorrowId != null && rawBorrowId !== "") {
+    borrowId = Number(rawBorrowId);
+    if (!Number.isFinite(borrowId) || borrowId <= 0) {
+      return { ok: false, error: "잘못된 빌린 세계관 ID입니다.", status: 400 };
+    }
+  }
+
+  let shareId: number | null = null;
+  if (rawShareId != null && rawShareId !== "") {
+    shareId = Number(rawShareId);
+    if (!Number.isFinite(shareId) || shareId <= 0) {
+      return { ok: false, error: "잘못된 공유 세계관 ID입니다.", status: 400 };
+    }
+  }
+
   if (rawWorldId != null && rawWorldId !== "") {
     worldId = Number(rawWorldId);
     if (!Number.isFinite(worldId) || worldId <= 0) {
       return { ok: false, error: "잘못된 세계관 ID입니다.", status: 400 };
     }
+  }
+
+  const db = getDb();
+  if (borrowId != null || shareId != null || worldId != null) {
+    const resolved = resolveWorldSelectionForUser(user.id, { worldId, borrowId, shareId });
+    if (!resolved.ok) return { ok: false, error: resolved.error, status: 404 };
+    if (!world.trim()) world = resolved.content;
+    worldId = resolved.worldId;
+    sourceWorldShareId = resolved.sourceWorldShareId;
   }
 
   let lorebookId: number | null = null;
@@ -351,17 +382,6 @@ export function parseCharacterFormBody(
     if (!Number.isFinite(lorebookId) || lorebookId <= 0) {
       return { ok: false, error: "잘못된 로어북 ID입니다.", status: 400 };
     }
-  }
-
-  const db = getDb();
-  if (worldId != null) {
-    const worldRow = db
-      .prepare("SELECT id, content FROM worlds WHERE id = ? AND creator_id = ?")
-      .get(worldId, user.id) as { id: number; content: string } | undefined;
-    if (!worldRow) {
-      return { ok: false, error: "선택한 세계관을 찾을 수 없습니다.", status: 404 };
-    }
-    if (!world.trim()) world = worldRow.content;
   }
 
   if (lorebookId != null) {
@@ -492,6 +512,7 @@ export function parseCharacterFormBody(
       systemPrompt,
       world,
       worldId,
+      sourceWorldShareId,
       lorebookId,
       statusWindowPrompt,
       statusWidgetJson,
@@ -756,11 +777,11 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   const info = db
     .prepare(
       `INSERT INTO characters
-        (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
+        (name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
          recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
          content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, simulation_visual_subjects_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -770,6 +791,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.systemPrompt,
       data.world,
       data.worldId,
+      data.sourceWorldShareId,
       data.lorebookId,
       data.exampleDialog,
       data.statusWindowPrompt,
@@ -981,7 +1003,7 @@ export async function updateCharacterFromForm(
 
   db.prepare(
     `UPDATE characters SET
-      name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, lorebook_id=?,
+      name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, source_world_share_id=?, lorebook_id=?,
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
@@ -996,6 +1018,7 @@ export async function updateCharacterFromForm(
     data.systemPrompt,
     data.world,
     data.worldId,
+    data.sourceWorldShareId,
     data.lorebookId,
     data.exampleDialog,
     data.statusWindowPrompt,
