@@ -32,7 +32,9 @@ export type CharacterCreateDraft = {
     audience: string;
     gender: "" | CharacterGender;
     visibility: "public" | "link" | "private";
-    recommended_writing_style: string;
+    /** @deprecated legacy draft field — ignored on load */
+    recommended_writing_style?: string;
+    narration_style_instructions?: string;
     comments_enabled: boolean;
     creator_comment: string;
     /** Optional for drafts created before TRPG reuse permissions. */

@@ -54,6 +54,10 @@ import ToggleSwitch from "@/components/ToggleSwitch";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { CHARACTER_NAME_LIMIT, CREATOR_COMMENT_LIMIT } from "@/lib/characters";
 import {
+  NARRATION_STYLE_INSTRUCTIONS_LIMIT,
+  substantiveAiLearningCharCount,
+} from "@/lib/creatorNarrationStyle";
+import {
   AI_LEARNING_LIMIT,
   AI_LEARNING_MIN,
   GREETING_LIMIT,
@@ -171,7 +175,7 @@ export default function CreateCharacter({
     audience: "all",
     gender: "" as "" | CharacterGender,
     visibility: "public" as "public" | "link" | "private",
-    recommended_writing_style: "balanced",
+    narration_style_instructions: "",
     comments_enabled: true,
     creator_comment: "",
     simulation_reuse_allowed: false,
@@ -261,7 +265,7 @@ export default function CreateCharacter({
       world_id: selectedWorldRef.startsWith("world:") ? selectedWorldRef.slice(6) : "",
       world_borrow_id: selectedWorldRef.startsWith("borrow:") ? selectedWorldRef.slice(7) : "",
       lorebook_id: selectedLorebookId === "" ? "" : Number(selectedLorebookId),
-      recommended_writing_style: input.recommended_writing_style,
+      narration_style_instructions: input.narration_style_instructions,
     });
   }
 
@@ -297,6 +301,7 @@ export default function CreateCharacter({
       simulation_cast: draft.form.simulation_cast ?? "",
       simulation_rules: draft.form.simulation_rules ?? "",
       participant_min_age: draft.form.participant_min_age ?? "",
+      narration_style_instructions: draft.form.narration_style_instructions ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(normalizeCharacterAssets(draft.assets));
@@ -347,15 +352,23 @@ export default function CreateCharacter({
     cast: form.simulation_cast,
     rules: form.simulation_rules,
   }).length + simulationImports.reduce((sum, item) => sum + item.promptChars + 80, 0);
-  const aiLearningTotal = form.content_kind === "simulation"
-    ? form.world.length + simulationPromptChars
-    : form.world.length + form.system_prompt.length + speechCreatorCharCount({
-        speech_personality: form.speech_personality,
-        speech_traits: form.speech_traits,
-        speech_examples: form.speech_examples,
-        speech_forbidden: form.speech_forbidden,
-        speech_contextual_registers: form.speech_contextual_registers,
-      });
+  const substantiveAiLearningTotal =
+    form.content_kind === "simulation"
+      ? form.world.length + simulationPromptChars
+      : substantiveAiLearningCharCount({
+          contentKind: "character",
+          world: form.world,
+          systemPrompt: form.system_prompt,
+          speechInput: {
+            speech_personality: form.speech_personality,
+            speech_traits: form.speech_traits,
+            speech_examples: form.speech_examples,
+            speech_forbidden: form.speech_forbidden,
+            speech_contextual_registers: form.speech_contextual_registers,
+          },
+        });
+  const aiLearningTotal =
+    substantiveAiLearningTotal + form.narration_style_instructions.trim().length;
   const speechContextualTotal = speechContextualCharCount(
     form.speech_contextual_registers,
   );
@@ -363,7 +376,7 @@ export default function CreateCharacter({
   const createRequirements = useMemo(
     () => ({
       hasAsset: assets.length >= 1 && files.length === 0,
-      hasMinAiText: aiLearningTotal >= AI_LEARNING_MIN,
+      hasMinAiText: substantiveAiLearningTotal >= AI_LEARNING_MIN,
       hasGender: form.content_kind === "simulation" || !!form.gender,
       hasGreeting: !!form.greeting.trim(),
       hasGenre: form.genres.length >= 1,
@@ -371,7 +384,7 @@ export default function CreateCharacter({
     [
       assets.length,
       files.length,
-      aiLearningTotal,
+      substantiveAiLearningTotal,
       form.gender,
       form.content_kind,
       form.greeting,
@@ -588,8 +601,7 @@ export default function CreateCharacter({
           audience: data.audience ?? "all",
           gender: data.gender ?? "",
           visibility: data.visibility ?? "public",
-          recommended_writing_style:
-            data.recommended_writing_style ?? "balanced",
+          narration_style_instructions: data.narration_style_instructions ?? "",
           comments_enabled: data.comments_enabled !== false,
           creator_comment: data.creator_comment ?? "",
           simulation_reuse_allowed: false,
@@ -647,8 +659,7 @@ export default function CreateCharacter({
           gender: data.gender ?? "",
           world_id: data.world_id ?? "",
           lorebook_id: data.lorebook_id ?? "",
-          recommended_writing_style:
-            data.recommended_writing_style ?? "balanced",
+          narration_style_instructions: data.narration_style_instructions ?? "",
         });
         const parsedWidget = parseStatusWidgetJson(data.status_widget_json);
         setStatusWidget(parsedWidget ?? characterStatusWidgetOrDefault(null));
@@ -865,7 +876,7 @@ export default function CreateCharacter({
       setError("캐릭터 설정을 입력해 주세요.");
       return;
     }
-    if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
+    if (!promptUnchangedForEdit && substantiveAiLearningTotal < AI_LEARNING_MIN) {
       setError(
         `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
       );
@@ -881,6 +892,12 @@ export default function CreateCharacter({
     }
     if (!promptUnchangedForEdit && !form.greeting.trim()) {
       setError("첫 메세지를 입력해 주세요.");
+      return;
+    }
+    if (form.narration_style_instructions.length > NARRATION_STYLE_INSTRUCTIONS_LIMIT) {
+      setError(
+        `서술·문체 지침은 ${NARRATION_STYLE_INSTRUCTIONS_LIMIT}자 이하여야 합니다.`,
+      );
       return;
     }
     if (!promptUnchangedForEdit && aiLearningTotal > AI_LEARNING_LIMIT) {
@@ -1514,7 +1531,7 @@ export default function CreateCharacter({
                   세계관 + 캐릭터 설정 + 기본 말투 합계{" "}
                   <span
                     className={
-                      aiLearningTotal < AI_LEARNING_MIN
+                      substantiveAiLearningTotal < AI_LEARNING_MIN
                         ? "font-semibold text-amber-400"
                         : ""
                     }
@@ -1625,7 +1642,7 @@ export default function CreateCharacter({
 
                 <p className="text-right text-xs text-zinc-400">
                   세계관 + 등장 캐릭터 + 추가 규칙 합계{" "}
-                  <span className={aiLearningTotal < AI_LEARNING_MIN ? "font-semibold text-amber-400" : ""}>
+                  <span className={substantiveAiLearningTotal < AI_LEARNING_MIN ? "font-semibold text-amber-400" : ""}>
                     {aiLearningTotal.toLocaleString()}
                   </span>{" "}
                   / {AI_LEARNING_LIMIT.toLocaleString()}자 · 최소 {AI_LEARNING_MIN.toLocaleString()}자
@@ -1845,6 +1862,48 @@ export default function CreateCharacter({
               </div>
             </section>
             )}
+
+            {/* 서술·문체 지침 (Character + Simulation) */}
+            <section className={sectionMuted}>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-zinc-100">
+                  서술·문체 지침 <span className="font-normal text-zinc-500">· 선택</span>
+                </h2>
+                <VisibilityBadge kind="private" />
+              </div>
+              <div>
+                <div className="mb-2 flex items-baseline justify-between gap-3">
+                  <p className="text-xs text-zinc-400">
+                    응답의 서술 방식과 문체를 세부 조정할 수 있습니다. 비우면 플랫폼
+                    기본 문체가 적용됩니다.
+                  </p>
+                  <Counter
+                    now={form.narration_style_instructions.length}
+                    max={NARRATION_STYLE_INSTRUCTIONS_LIMIT}
+                  />
+                </div>
+                <textarea
+                  rows={3}
+                  className={cls}
+                  maxLength={NARRATION_STYLE_INSTRUCTIONS_LIMIT}
+                  placeholder="예: 3인칭 제한 시점, 건조한 문장, 감정을 직접 설명하지 않고 행동으로 표현"
+                  value={form.narration_style_instructions}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      narration_style_instructions: event.target.value.slice(
+                        0,
+                        NARRATION_STYLE_INSTRUCTIONS_LIMIT
+                      ),
+                    })
+                  }
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  10,000자 합산 한도에 포함 · 최소 작성 분량(세계관+설정+말투)에는
+                  포함되지 않음
+                </p>
+              </div>
+            </section>
 
             {/* 4. 첫 메세지 (비공개) */}
             <section className={sectionGreeting}>

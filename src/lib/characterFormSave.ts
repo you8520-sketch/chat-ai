@@ -28,6 +28,12 @@ import { CHARACTER_NAME_LIMIT, CREATOR_COMMENT_LIMIT } from "@/lib/characters";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { normalizeCreatorRecommendedStyle } from "@/lib/writingStylePreset";
 import {
+  effectivePromptAuthoringCharCount,
+  normalizeNarrationStyleInstructions,
+  substantiveAiLearningCharCount,
+  validateNarrationStyleInstructions,
+} from "@/lib/creatorNarrationStyle";
+import {
   composeExampleDialog,
   parseSpeechCreatorFromBody,
   speechCreatorCharCount,
@@ -127,7 +133,7 @@ export type ParsedCharacterForm = {
   gender: NonNullable<ReturnType<typeof parseCharacterGender>>;
   genres: ReturnType<typeof sanitizeCharacterGenres>;
   primaryGenre: string;
-  recommendedWritingStyle: ReturnType<typeof normalizeCreatorRecommendedStyle>;
+  narrationStyleInstructions: string;
   assets: CharacterAsset[];
   images: string[];
   audience: string;
@@ -458,8 +464,14 @@ export function parseCharacterFormBody(
     };
   }
   if (
-    world.length + systemPrompt.length + speechCreatorCharCount(speechInput) <
-    AI_LEARNING_MIN
+    substantiveAiLearningCharCount({
+      contentKind,
+      world,
+      systemPrompt,
+      simulationCast,
+      simulationRules,
+      speechInput,
+    }) < AI_LEARNING_MIN
   ) {
     return {
       ok: false,
@@ -467,9 +479,27 @@ export function parseCharacterFormBody(
       status: 400,
     };
   }
+  const narrationStyleInstructions = normalizeNarrationStyleInstructions(
+    b.narration_style_instructions ?? b.narrationStyleInstructions
+  );
+  const narrationStyleErr = validateNarrationStyleInstructions(
+    b.narration_style_instructions ?? b.narrationStyleInstructions
+  );
+  if (narrationStyleErr) {
+    return { ok: false, error: narrationStyleErr, status: 400 };
+  }
   if (
-    world.length + systemPrompt.length + speechCreatorCharCount(speechInput) >
-    AI_LEARNING_LIMIT
+    effectivePromptAuthoringCharCount(
+      substantiveAiLearningCharCount({
+        contentKind,
+        world,
+        systemPrompt,
+        simulationCast,
+        simulationRules,
+        speechInput,
+      }),
+      narrationStyleInstructions
+    ) > AI_LEARNING_LIMIT
   ) {
     return {
       ok: false,
@@ -559,9 +589,7 @@ export function parseCharacterFormBody(
       gender,
       genres,
       primaryGenre: primaryCharacterGenre(genres),
-      recommendedWritingStyle: normalizeCreatorRecommendedStyle(
-        b.recommended_writing_style ?? b.recommendedWritingStyle
-      ),
+      narrationStyleInstructions,
       assets,
       images: assetUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
@@ -859,9 +887,9 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
+         recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
          content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, simulation_visual_subjects_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -893,7 +921,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       moderationStatus,
       moderationNote,
       shareSlug,
-      data.recommendedWritingStyle,
+      normalizeCreatorRecommendedStyle(null),
+      data.narrationStyleInstructions,
       data.commentsEnabled,
       data.creatorComment,
       creatorRawDescription,
@@ -1099,7 +1128,7 @@ export async function updateCharacterFromForm(
       name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, source_world_share_id=?, lorebook_id=?,
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
-      share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
+      share_slug=?, recommended_writing_style=?, narration_style_instructions=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
       content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?
      WHERE id=?`
@@ -1130,7 +1159,8 @@ export async function updateCharacterFromForm(
     moderationStatus,
     moderationNote,
     shareSlug,
-    data.recommendedWritingStyle,
+    normalizeCreatorRecommendedStyle(null),
+    data.narrationStyleInstructions,
     data.commentsEnabled,
     data.creatorComment,
     user.nickname,

@@ -48,7 +48,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const c = db
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
-              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
+              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
               content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json, creator_id
        FROM characters WHERE id=?`
@@ -77,6 +77,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     visibility: string;
     assets: string;
     recommended_writing_style: string;
+    narration_style_instructions: string;
     comments_enabled: number;
     creator_comment: string;
     appearance_raw: string;
@@ -182,6 +183,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     gender: parseCharacterGender(c.gender) ?? "other",
     visibility: c.visibility,
     recommended_writing_style: normalizeCreatorRecommendedStyle(c.recommended_writing_style),
+    narration_style_instructions: c.narration_style_instructions ?? "",
     comments_enabled: c.comments_enabled !== 0,
     creator_comment: c.creator_comment ?? "",
     appearance_raw: c.appearance_raw ?? "",

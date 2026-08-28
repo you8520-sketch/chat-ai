@@ -102,6 +102,8 @@ export type ContextBuildInput = {
   chatId?: number;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
+  /** Optional creator narration/style refinement (Korean, not translated). */
+  creatorNarrationStyle?: string | null;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
   completedTurns?: number;
   /** Reset-boundary eligible completed turns; used only by memory coverage math. */

@@ -597,6 +597,7 @@ function migrate(db: Database.Database) {
   addColumn("chats", "user_impersonation", "INTEGER NOT NULL DEFAULT 0");
   addColumn("chats", "target_response_chars", "INTEGER NOT NULL DEFAULT 2000");
   addColumn("characters", "recommended_writing_style", "TEXT NOT NULL DEFAULT 'balanced'");
+  addColumn("characters", "narration_style_instructions", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "writing_style_override", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "narrative_pov", "TEXT NOT NULL DEFAULT 'third_person'");
   addColumn("chats", "pov_character_name", "TEXT NOT NULL DEFAULT ''");
