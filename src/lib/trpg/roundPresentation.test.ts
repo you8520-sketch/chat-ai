@@ -464,7 +464,7 @@ describe("TRPG live round presentation readiness", () => {
         actions: [human, bot1],
         ready: true,
       }),
-      "3|actions:10,20"
+      "3|live-cinematic"
     );
     assert.equal(liveRoundWaitKind({
       phase: "BOT_ACTION",
@@ -611,7 +611,7 @@ describe("TRPG live round presentation readiness", () => {
     assert.equal(walked.steps[0]?.mode, "idle");
     assert.equal(walked.steps[1]?.ready, true);
     assert.equal(walked.startCount, 1);
-    assert.match(walked.steps[1]?.sessionKey ?? "", /^2\|actions:10,20$/);
+    assert.match(walked.steps[1]?.sessionKey ?? "", /^2\|live-cinematic$/);
     const frames = walkCinematicPresentation(walked.steps[1]!.actors);
     assert.equal(frames.some((frame) => frame.phase === "actor-dice"), false);
     assert.deepEqual(frames.map((frame) => frame.phase), [
