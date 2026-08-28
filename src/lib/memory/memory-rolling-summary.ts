@@ -1718,6 +1718,10 @@ export function prepareNonBlockingSummaryForMainRp(opts: {
         memoryCapacity: opts.memoryCapacity,
         userPersona: opts.userPersona,
         turnTrace: opts.turnTrace,
+        maxRounds:
+          unsummarizedTurns > RAW_HISTORY_COMPLETE_EXCHANGES + ROLLING_SUMMARY_INTERVAL
+            ? 8
+            : 5,
       })
     : false;
 

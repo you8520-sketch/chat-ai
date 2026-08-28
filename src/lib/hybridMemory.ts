@@ -138,10 +138,11 @@ export function resolveHistoryMinTurnFloor(opts: {
 }
 
 /**
- * Provider RAW pool size for main RP — expands beyond RAW4 while summary catch-up is pending
- * so unsummarized turns stay in RAW until sealed into lorebook (token budget trim downstream).
+ * Provider RAW pool size for main RP — unsummarized suffix when summary lag exists.
+ * SOURCE: full turn history remains in DB. INJECTION: trimProviderHistoryToBudget
+ * enforces HISTORY_TOKEN_BUDGET with resolveProviderRawTrimFloorExchanges() floor.
  */
-export function resolveProviderRawExchangeCountForChat(opts: {
+export function resolveProviderRawPoolExchangeCount(opts: {
   memoryFeatureEnabled: boolean;
   completedTurns: number;
   summarizedTurnCount?: number | null;
@@ -152,7 +153,46 @@ export function resolveProviderRawExchangeCountForChat(opts: {
   const completedTurns = normalizeNonNegativeInteger(opts.completedTurns);
   const summarizedTurnCount = normalizeNonNegativeInteger(opts.summarizedTurnCount);
   const unsummarizedTurns = Math.max(0, completedTurns - summarizedTurnCount);
-  return Math.max(RAW_HISTORY_COMPLETE_EXCHANGES, unsummarizedTurns);
+  if (unsummarizedTurns <= RAW_HISTORY_COMPLETE_EXCHANGES) {
+    return Math.min(RAW_HISTORY_COMPLETE_EXCHANGES, completedTurns);
+  }
+  return Math.min(unsummarizedTurns, completedTurns);
+}
+
+/** Trim floor for provider RAW — always RAW4; must not scale with unsummarized backlog. */
+export function resolveProviderRawTrimFloorExchanges(): number {
+  return RAW_HISTORY_COMPLETE_EXCHANGES;
+}
+
+export type SummaryHealthState =
+  | "SUMMARY_HEALTHY"
+  | "SUMMARY_ONE_BATCH_BEHIND"
+  | "SUMMARY_BACKLOGGED"
+  | "SUMMARY_FAILED";
+
+export function resolveSummaryHealthState(opts: {
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+  summaryFailed?: boolean;
+}): SummaryHealthState {
+  if (opts.summaryFailed) return "SUMMARY_FAILED";
+  const completedTurns = normalizeNonNegativeInteger(opts.completedTurns);
+  const summarizedTurnCount = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  const unsummarizedTurns = Math.max(0, completedTurns - summarizedTurnCount);
+  if (unsummarizedTurns <= RAW_HISTORY_COMPLETE_EXCHANGES) return "SUMMARY_HEALTHY";
+  if (unsummarizedTurns <= RAW_HISTORY_COMPLETE_EXCHANGES + ROLLING_SUMMARY_INTERVAL) {
+    return "SUMMARY_ONE_BATCH_BEHIND";
+  }
+  return "SUMMARY_BACKLOGGED";
+}
+
+/** @deprecated Use resolveProviderRawPoolExchangeCount + resolveProviderRawTrimFloorExchanges */
+export function resolveProviderRawExchangeCountForChat(opts: {
+  memoryFeatureEnabled: boolean;
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+}): number {
+  return resolveProviderRawPoolExchangeCount(opts);
 }
 
 /** first RAW playable turn과 sealed summary 사이의 미보존 구간. */

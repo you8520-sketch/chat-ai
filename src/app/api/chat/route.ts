@@ -147,7 +147,9 @@ import {
   trimProviderHistoryToBudget,
 } from "@/lib/providerHistoryPolicy";
 import {
-  resolveProviderRawExchangeCountForChat,
+  resolveProviderRawPoolExchangeCount,
+  resolveProviderRawTrimFloorExchanges,
+  resolveSummaryHealthState,
   shouldIncludeOpeningInProviderRaw,
   splitOpeningPlayableTurns,
 } from "@/lib/hybridMemory";
@@ -1427,13 +1429,31 @@ export async function POST(req: Request) {
     effectiveSummarizedTurnCount = summaryPrep.summarizedThrough;
   }
 
-  const providerRawExchangeCount = memoryFeatureOn
-    ? resolveProviderRawExchangeCountForChat({
+  const providerRawPoolExchangeCount = memoryFeatureOn
+    ? resolveProviderRawPoolExchangeCount({
         memoryFeatureEnabled: true,
         completedTurns: completedTurnsForMemoryCoverage,
         summarizedTurnCount: effectiveSummarizedTurnCount,
       })
     : RAW_HISTORY_COMPLETE_EXCHANGES;
+  const providerRawTrimFloor = RAW_HISTORY_COMPLETE_EXCHANGES;
+  const summaryHealthState = memoryFeatureOn
+    ? resolveSummaryHealthState({
+        completedTurns: completedTurnsForMemoryCoverage,
+        summarizedTurnCount: effectiveSummarizedTurnCount,
+      })
+    : null;
+  if (memoryFeatureOn && summaryHealthState && summaryHealthState !== "SUMMARY_HEALTHY") {
+    console.info("MEMORY_SUMMARY_HEALTH", {
+      chat_id: chat.id,
+      state: summaryHealthState,
+      summarized_through: effectiveSummarizedTurnCount,
+      completed_turns: completedTurnsForMemoryCoverage,
+      raw_pool_exchanges: providerRawPoolExchangeCount,
+      raw_trim_floor: providerRawTrimFloor,
+      history_token_budget: historyTokenBudget,
+    });
+  }
   const { opening: openingTurn, playable: playableTurnsForOpening } =
     splitOpeningPlayableTurns(turnsForRecentHistory);
   const protectOpening = shouldIncludeOpeningInProviderRaw({
@@ -1448,7 +1468,7 @@ export async function POST(req: Request) {
   };
   const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(
     turnsForRecentHistory,
-    providerRawExchangeCount,
+    providerRawPoolExchangeCount,
     providerRawOpts
   ).map((m) => ({
       ...m,
@@ -1456,11 +1476,11 @@ export async function POST(req: Request) {
     })
   );
   const providerTrimOpts = {
-    minRealPlayableExchanges: providerRawExchangeCount,
+    minRealPlayableExchanges: providerRawTrimFloor,
     protectOpening,
   };
   const providerHistoryAbsoluteTurnFloor = resolveProviderHistoryTurnFloor({
-    minRealPlayableExchanges: providerRawExchangeCount,
+    minRealPlayableExchanges: providerRawTrimFloor,
     protectOpening,
     history: canonicalRecentHistoryFull,
   });
@@ -1524,7 +1544,7 @@ export async function POST(req: Request) {
   ) {
     providerRecentHistoryFull = trimProviderHistoryToBudget(
       buildGeneralProviderContext(
-        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawExchangeCount, {
+        boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawPoolExchangeCount, {
           includeOpening: protectOpening,
         }),
         priorModelRouteState.generalRouteBridge
@@ -1556,11 +1576,11 @@ export async function POST(req: Request) {
     chars: rawHistoryChars,
     internal_estimate: rawHistoryInternalEstimate,
   });
-  if (rawCompleteExchanges > providerRawExchangeCount) {
+  if (rawCompleteExchanges > providerRawPoolExchangeCount) {
     console.warn("RAW_HISTORY_POLICY_VIOLATION", {
       chat_id: chat.id,
       raw_complete_exchanges: rawCompleteExchanges,
-      expected: providerRawExchangeCount,
+      expected: providerRawPoolExchangeCount,
     });
   }
 
@@ -2146,7 +2166,7 @@ export async function POST(req: Request) {
     historyMinTurnFloor,
     providerHistoryAbsoluteTurnFloor,
     providerHistoryProtectOpening: protectOpening,
-    providerHistoryMinRealPlayableExchanges: providerRawExchangeCount,
+    providerHistoryMinRealPlayableExchanges: providerRawTrimFloor,
     adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
@@ -4641,7 +4661,7 @@ export async function POST(req: Request) {
             openingPreludeChars: providerHistoryHealth.openingPreludeChars,
             generalRouteBridgePresent: providerHistoryHealth.generalRouteBridgePresent,
             generalRouteBridgeChars: providerHistoryHealth.generalRouteBridgeChars,
-            ...(rawCompleteExchanges > providerRawExchangeCount
+            ...(rawCompleteExchanges > providerRawPoolExchangeCount
               ? { policyViolation: true }
               : {}),
           },
