@@ -65,6 +65,7 @@ on:
       - "src/lib/simulationCreatorAssetBoundary.test.ts"
       - "src/app/api/characters/[id]/route.ts"
       - "src/lib/chatImageCastManifest.test.ts"
+      - "src/lib/chatImageCastPromptDedup.test.ts"
       - "src/lib/chatImageCast.clientBoundary.test.ts"
       - "src/components/ChatImageCastPicker.tsx"
       - "src/components/ChatSceneBuilder.tsx"
@@ -116,5 +117,6 @@ jobs:
       - run: node --import tsx --test src/lib/characterAssets.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
+      - run: node --import tsx --test src/lib/chatImageCastPromptDedup.test.ts
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
