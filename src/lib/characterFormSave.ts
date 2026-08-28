@@ -89,6 +89,10 @@ import {
   validateSimulationVisualSubjectsDocument,
 } from "@/lib/simulationVisualSubjects";
 import {
+  extractVisualSubjectsFromBody,
+  type VisualSubjectsBodyField,
+} from "@/lib/visualSubjects";
+import {
   normalizeAdultDialogueProfile,
   type AdultConsentMode,
   type AdultDialogueProfile,
@@ -161,31 +165,27 @@ export type ParsedCharacterForm = {
 };
 
 function extractVisualSubjectsRawFromBody(b: Record<string, unknown>): string {
-  if (typeof b.visual_subjects_json === "string") return b.visual_subjects_json;
-  if (b.visual_subjects != null) return JSON.stringify(b.visual_subjects);
-  if (typeof b.simulation_visual_subjects_json === "string") {
-    return b.simulation_visual_subjects_json;
-  }
-  if (b.simulation_visual_subjects != null) return JSON.stringify(b.simulation_visual_subjects);
-  return "";
+  return extractVisualSubjectsFromBody(b).raw;
 }
 
 function prepareVisualSubjectsForSave(opts: {
   contentKind: ContentKind;
-  submittedRaw: string;
+  submittedField: VisualSubjectsBodyField;
   trustedStoredJson: string;
   assets: CharacterAsset[];
   simulationCast?: string;
   simulationTitle?: string;
+  mainCharacterName?: string;
 }):
   | { ok: true; assets: CharacterAsset[]; json: string }
   | { ok: false; error: string } {
+  const { provided, raw } = opts.submittedField;
   if (opts.contentKind === "simulation") {
     try {
       const prepared = prepareSimulationVisualSubjectsForSave({
         simulationCast: opts.simulationCast ?? "",
         simulationTitle: opts.simulationTitle ?? "",
-        submittedRaw: opts.submittedRaw,
+        submittedRaw: provided ? raw : "",
         storedRaw: opts.trustedStoredJson,
         assets: opts.assets,
       });
@@ -210,10 +210,15 @@ function prepareVisualSubjectsForSave(opts: {
   }
 
   try {
+    if (!provided && !opts.trustedStoredJson.trim()) {
+      return { ok: true, assets: opts.assets, json: "" };
+    }
     const prepared = prepareCharacterVisualSubjectsForSave({
-      submittedRaw: opts.submittedRaw,
+      submittedRaw: raw,
+      submittedProvided: provided,
       storedRaw: opts.trustedStoredJson,
       assets: opts.assets,
+      mainCharacterName: opts.mainCharacterName,
     });
     const assets = sanitizeAssetVisualSubjectKeys(opts.assets, prepared.subjects);
     const validated = validateCharacterVisualSubjectsDocument(prepared, assets);
@@ -599,19 +604,24 @@ export function parseCharacterFormBody(
   const assetsRaw = parseAssetsFromFormBody(b.assets);
   let assets = assetsRaw;
   let simulationVisualSubjectsJson = "";
-  const submittedSubjectsRaw = extractVisualSubjectsRawFromBody(b);
+  const submittedVisualField = extractVisualSubjectsFromBody(b);
   const trustedStoredVisualSubjectsJson =
     options?.trustedStoredVisualSubjectsJson ??
     options?.trustedStoredSimulationVisualSubjectsJson ??
     "";
-  if (contentKind === "simulation" || submittedSubjectsRaw.trim() || trustedStoredVisualSubjectsJson.trim()) {
+  if (
+    contentKind === "simulation" ||
+    submittedVisualField.provided ||
+    trustedStoredVisualSubjectsJson.trim()
+  ) {
     const preparedVisual = prepareVisualSubjectsForSave({
       contentKind,
-      submittedRaw: submittedSubjectsRaw,
+      submittedField: submittedVisualField,
       trustedStoredJson: trustedStoredVisualSubjectsJson,
       assets: assetsRaw,
       simulationCast,
       simulationTitle: name,
+      mainCharacterName: name,
     });
     if (!preparedVisual.ok) {
       return { ok: false, error: preparedVisual.error, status: 400 };
@@ -1387,20 +1397,21 @@ export async function updateCharacterPublicProfileFromForm(
   }
 
   const contentKind = parseContentKind(row.content_kind);
-  const submittedSubjectsRaw = extractVisualSubjectsRawFromBody(b);
+  const submittedVisualField = extractVisualSubjectsFromBody(b);
   let visualSubjectsJson = row.simulation_visual_subjects_json;
   if (
-    submittedSubjectsRaw.trim() ||
+    submittedVisualField.provided ||
     row.simulation_visual_subjects_json.trim() ||
     contentKind === "simulation"
   ) {
     const preparedVisual = prepareVisualSubjectsForSave({
       contentKind,
-      submittedRaw: submittedSubjectsRaw,
+      submittedField: submittedVisualField,
       trustedStoredJson: row.simulation_visual_subjects_json,
       assets,
       simulationCast: row.simulation_cast,
       simulationTitle: row.name,
+      mainCharacterName: row.name,
     });
     if (!preparedVisual.ok) {
       return { ok: false as const, error: preparedVisual.error, status: 400 };

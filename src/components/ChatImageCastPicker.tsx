@@ -14,6 +14,7 @@ import {
   type ChatImageCastVisibility,
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
+import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import type { ContentKind } from "@/lib/simulationMode";
 
 const IMPORTANCE: Array<{ id: ChatImageCastImportance; label: string }> = [
@@ -37,11 +38,35 @@ const VISIBILITY: Array<{ id: ChatImageCastVisibility; label: string }> = [
 type ChatImageCastPickerProps = {
   manifest: ChatImageCastIntentManifest;
   selectableAssets: readonly SelectableCastAsset[];
+  visualSubjects?: readonly ClientVisibleVisualSubject[];
   reservedReferenceUrls?: readonly string[];
   contentKind?: ContentKind;
   disabled?: boolean;
   onChange: (manifest: ChatImageCastIntentManifest) => void;
 };
+
+function findVisibleSubjectByName(
+  subjects: readonly ClientVisibleVisualSubject[],
+  name: string
+): ClientVisibleVisualSubject | null {
+  const target = name.trim().toLowerCase();
+  if (!target) return null;
+  const matches = subjects.filter((subject) => subject.name.toLowerCase() === target);
+  return matches.length === 1 ? (matches[0] ?? null) : null;
+}
+
+function selectableAssetsForSubject(
+  subject: ChatImageCastIntentManifest["subjects"][number],
+  selectableAssets: readonly SelectableCastAsset[],
+  visualSubjects?: readonly ClientVisibleVisualSubject[]
+): readonly SelectableCastAsset[] {
+  if (subject.role !== "supporting_character") return [];
+  const configured = visualSubjects?.length
+    ? findVisibleSubjectByName(visualSubjects, subject.name)
+    : null;
+  if (!configured) return [];
+  return selectableAssets.filter((asset) => asset.visualSubjectKey === configured.subjectKey);
+}
 
 function roleLabel(role: string, contentKind: ContentKind): string {
   if (role === "persona") return "내 페르소나";
@@ -52,6 +77,7 @@ function roleLabel(role: string, contentKind: ContentKind): string {
 export default function ChatImageCastPicker({
   manifest,
   selectableAssets,
+  visualSubjects,
   reservedReferenceUrls = [],
   contentKind = "character",
   disabled,
@@ -188,7 +214,7 @@ export default function ChatImageCastPicker({
                       >
                         없음
                       </button>
-                      {selectableAssets.map((asset) => {
+                      {selectableAssetsForSubject(subject, selectableAssets, visualSubjects).map((asset) => {
                         const taken = isCastReferenceUrlTaken(
                           manifest,
                           subject.key,

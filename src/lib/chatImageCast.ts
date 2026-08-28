@@ -570,24 +570,27 @@ export function mergeCastIntentDraft(
 export function suggestAssetForSupportingName(
   name: string,
   assets: readonly SelectableCastAsset[],
-  visualSubjects?: readonly Pick<
-    VisualSubject,
-    "subjectKey" | "name" | "representativeAssetUrl" | "savedAppearance"
-  >[]
+  visualSubjects?: readonly {
+    subjectKey: string;
+    name: string;
+    representativeAssetUrl?: string | null;
+  }[]
 ): string | undefined {
   const subject = visualSubjects?.length
     ? resolveVisualSubjectByName(visualSubjects as readonly VisualSubject[], name)
     : null;
-  if (subject?.representativeAssetUrl) {
-    const representative = assets.find((asset) => asset.url === subject.representativeAssetUrl);
-    if (representative) return representative.url;
-  }
   if (subject) {
-    const owned = assets.find((asset) => asset.visualSubjectKey === subject.subjectKey);
-    if (owned) return owned.url;
+    const authorized = assets.filter((asset) => asset.visualSubjectKey === subject.subjectKey);
+    if (subject.representativeAssetUrl) {
+      const representative = authorized.find(
+        (asset) => asset.url === subject.representativeAssetUrl
+      );
+      if (representative) return representative.url;
+    }
+    return authorized[0]?.url;
   }
   const needle = cleanText(name);
-  if (!needle) return undefined;
+  if (!needle || visualSubjects?.length) return undefined;
   const exact = assets.find((asset) => cleanText(asset.tag) === needle);
   return exact?.url;
 }

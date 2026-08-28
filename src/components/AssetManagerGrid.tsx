@@ -72,6 +72,9 @@ export default function AssetManagerGrid({
 
   function reorder(from: number, to: number) {
     if (from === to || from < 0 || to < 0 || from >= assets.length || to >= assets.length) return;
+    if (contentKind === "character" && to === 0 && assets[from]?.visualSubjectKey?.trim()) {
+      return;
+    }
     onChange(reorderCharacterAssets(assets, from, to));
   }
 
@@ -101,7 +104,8 @@ export default function AssetManagerGrid({
   function assignUrls(urls: readonly string[], subjectKey: string) {
     const filteredUrls = urls.filter((url) => {
       const index = assets.findIndex((asset) => asset.url === url);
-      return index !== 0;
+      if (contentKind === "character" && index === 0) return false;
+      return true;
     });
     onChange(
       subjectKey
@@ -352,7 +356,7 @@ export default function AssetManagerGrid({
                 </label>
                 <select
                   value={a.visualSubjectKey ?? ""}
-                  disabled={i === 0}
+                  disabled={contentKind === "character" && i === 0}
                   onChange={(event) => assignUrls([a.url], event.target.value)}
                   className="min-h-11 w-full rounded-lg border border-white/10 bg-black/50 px-2 text-xs text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >

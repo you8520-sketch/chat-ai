@@ -30,10 +30,13 @@ import type { ContentKind } from "@/lib/simulationMode";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import {
   resolveSimulationMemberVisualMetadata,
-  resolveVisualSubjectByName,
-  type SimulationVisualSubject,
 } from "@/lib/simulationVisualSubjects";
-import { resolveSupportMemberVisualMetadata } from "@/lib/visualSubjects";
+import {
+  resolveSupportMemberVisualMetadata,
+  resolveVisualSubjectByName,
+  validateAssetVisualSubjectOwnership,
+  type VisualSubject,
+} from "@/lib/visualSubjects";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
@@ -105,7 +108,7 @@ export type GroundCastContext = {
     appearanceMode?: ChatImageAppearanceMode;
   };
   selectableAssets: readonly SelectableCastAsset[];
-  simulationVisualSubjects?: readonly SimulationVisualSubject[];
+  visualSubjects?: readonly VisualSubject[];
   characterAssets?: readonly CharacterAsset[];
 };
 
@@ -378,29 +381,44 @@ function groundedCoreSubject(
       included: true,
     };
   }
-  const trustedUrl = whitelistAssetUrl(intent.requestedReferenceAssetUrl, ctx.selectableAssets);
-  const visualSubject = resolveVisualSubjectByName(
-    ctx.simulationVisualSubjects ?? [],
-    intent.name
-  );
+  const visualSubject = resolveVisualSubjectByName(ctx.visualSubjects ?? [], intent.name);
+  const requestedUrl = cleanUrl(intent.requestedReferenceAssetUrl);
+  let trustedUrl: string | undefined;
+  if (contentKind === "character") {
+    if (visualSubject && requestedUrl) {
+      const ownership = validateAssetVisualSubjectOwnership({
+        contentKind: "character",
+        assetUrl: requestedUrl,
+        subjectKey: visualSubject.subjectKey,
+        assets: ctx.characterAssets ?? [],
+        requireExactSubjectOwner: true,
+      });
+      trustedUrl = ownership.ok ? requestedUrl : undefined;
+    } else if (!visualSubject && requestedUrl) {
+      trustedUrl = whitelistAssetUrl(requestedUrl, ctx.selectableAssets);
+    }
+  } else {
+    trustedUrl = whitelistAssetUrl(requestedUrl, ctx.selectableAssets);
+  }
   const visualMeta =
     visualSubject && contentKind === "simulation"
       ? resolveSimulationMemberVisualMetadata({
           memberName: intent.name,
           castSubjectKey: intent.key,
-          visualSubjects: ctx.simulationVisualSubjects ?? [],
+          visualSubjects: ctx.visualSubjects ?? [],
           assets: ctx.characterAssets ?? [],
         })
       : visualSubject && contentKind === "character"
         ? resolveSupportMemberVisualMetadata({
             memberName: intent.name,
             castSubjectKey: intent.key,
-            visualSubjects: ctx.simulationVisualSubjects ?? [],
+            visualSubjects: ctx.visualSubjects ?? [],
           })
         : {
             appearanceMode: "image_only" as const,
             savedAppearance: undefined,
             trustedSavedAppearance: false,
+            visualSubject: null,
           };
   return {
     key: intent.key,
@@ -411,7 +429,8 @@ function groundedCoreSubject(
     savedAppearance: visualMeta.savedAppearance,
     trustedSavedAppearance:
       contentKind === "character"
-        ? "trustedSavedAppearance" in visualMeta && Boolean(visualMeta.trustedSavedAppearance)
+        ? "trustedSavedAppearance" in visualMeta &&
+          Boolean(visualMeta.trustedSavedAppearance && visualSubject)
         : Boolean(visualMeta.savedAppearance),
     appearanceMode: visualMeta.appearanceMode,
     importance: intent.importance,
@@ -483,17 +502,38 @@ export function groundCastIntent(
   for (const intentSubject of normalized.subjects) {
     if (!intentSubject.included || intentSubject.role !== "supporting_character") continue;
     const requested = cleanUrl(intentSubject.requestedReferenceAssetUrl);
-    if (requested && !whitelistAssetUrl(requested, ctx.selectableAssets)) {
+    if (!requested) continue;
+    const visualSubject = resolveVisualSubjectByName(
+      ctx.visualSubjects ?? [],
+      intentSubject.name
+    );
+    if (contentKind === "character") {
+      if (!visualSubject) {
+        if (requested && !whitelistAssetUrl(requested, ctx.selectableAssets)) {
+          return {
+            ok: false,
+            reason: "선택한 참고 에셋을 사용할 수 없습니다.",
+          };
+        }
+        continue;
+      }
+      const ownership = validateAssetVisualSubjectOwnership({
+        contentKind: "character",
+        assetUrl: requested,
+        subjectKey: visualSubject.subjectKey,
+        assets: ctx.characterAssets ?? [],
+        requireExactSubjectOwner: true,
+      });
+      if (!ownership.ok) return ownership;
+      continue;
+    }
+    if (!whitelistAssetUrl(requested, ctx.selectableAssets)) {
       return {
         ok: false,
         reason: "선택한 참고 에셋을 사용할 수 없습니다.",
       };
     }
-    if (contentKind === "simulation" && requested) {
-      const visualSubject = resolveVisualSubjectByName(
-        ctx.simulationVisualSubjects ?? [],
-        intentSubject.name
-      );
+    if (contentKind === "simulation") {
       const asset = ctx.characterAssets?.find((row) => row.url === requested);
       const ownerKey = asset?.visualSubjectKey?.trim();
       if (ownerKey) {

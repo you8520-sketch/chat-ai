@@ -77,7 +77,12 @@ import {
   resolveChatPersonaImagePrice,
 } from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
-import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
+import { parseAssets } from "@/lib/characterAssets";
+import {
+  buildClientScopedCastImageMetadata,
+  parseVisualSubjectsJson,
+  type ClientVisibleVisualSubject,
+} from "@/lib/visualSubjects";
 import { parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import { resolveChatImageSceneBuilderReadiness, type SelectableCastAsset } from "@/lib/chatImageCast";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
@@ -153,12 +158,9 @@ type GenerationContext = {
   characterImageUrl: string;
   characterImages: SelectableCharacterImage[];
   castSelectableAssets: SelectableCastAsset[];
-  visualSubjects: Array<{
-    subjectKey: string;
-    name: string;
-    savedAppearance: string;
-    representativeAssetUrl: string | null;
-  }>;
+  visualSubjects: ClientVisibleVisualSubject[];
+  allVisualSubjects: ReturnType<typeof parseVisualSubjectsJson>["subjects"];
+  characterAssets: ReturnType<typeof parseAssets>;
   personaImageUrl: string;
   characterSavedAppearance: string;
   personaSavedAppearance: string;
@@ -302,6 +304,20 @@ function resolveGenerationContext(opts: {
     personaName: persona?.name ?? "",
     personaGender: persona?.gender,
   });
+  const characterAssets = parseAssets(character.assets);
+  const allVisualSubjects = parseVisualSubjectsJson(
+    character.simulation_visual_subjects_json ?? ""
+  ).subjects;
+  const isCreator = character.creator_id === opts.userId;
+  const preflightCast = buildClientScopedCastImageMetadata({
+    contentKind,
+    isCreator,
+    subjects: allVisualSubjects,
+    assets: characterAssets,
+    castSelectableAssets,
+    visibleNames: [],
+    scope: "preflight",
+  });
   return {
     chatId,
     contentKind,
@@ -311,15 +327,10 @@ function resolveGenerationContext(opts: {
     personaGender: genders.personaGender,
     characterImageUrl,
     characterImages,
-    castSelectableAssets,
-    visualSubjects: parseVisualSubjectsJson(character.simulation_visual_subjects_json ?? "").subjects.map(
-      (subject) => ({
-        subjectKey: subject.subjectKey,
-        name: subject.name,
-        savedAppearance: subject.savedAppearance,
-        representativeAssetUrl: subject.representativeAssetUrl,
-      })
-    ),
+    castSelectableAssets: [...preflightCast.castSelectableAssets],
+    visualSubjects: preflightCast.visualSubjects,
+    allVisualSubjects,
+    characterAssets,
     personaImageUrl,
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,

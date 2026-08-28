@@ -55,6 +55,139 @@ export function isVisualSubjectKey(value: unknown): value is string {
   );
 }
 
+export function isGenericVisualSubjectKey(value: unknown): value is string {
+  return typeof value === "string" && GENERIC_VIS_KEY_PATTERN.test(value);
+}
+
+export type ClientVisibleVisualSubject = {
+  subjectKey: string;
+  name: string;
+  representativeAssetUrl?: string;
+};
+
+export type VisualSubjectsBodyField = {
+  provided: boolean;
+  raw: string;
+};
+
+export function extractVisualSubjectsFromBody(b: Record<string, unknown>): VisualSubjectsBodyField {
+  if (typeof b.visual_subjects_json === "string") {
+    return { provided: true, raw: b.visual_subjects_json };
+  }
+  if (b.visual_subjects != null) {
+    return { provided: true, raw: JSON.stringify(b.visual_subjects) };
+  }
+  if (typeof b.simulation_visual_subjects_json === "string") {
+    return { provided: true, raw: b.simulation_visual_subjects_json };
+  }
+  if (b.simulation_visual_subjects != null) {
+    return { provided: true, raw: JSON.stringify(b.simulation_visual_subjects) };
+  }
+  return { provided: false, raw: "" };
+}
+
+/** Single owner for client-safe visual identity views (no savedAppearance / sourceCharacterId). */
+export function buildClientVisibleVisualSubjects(opts: {
+  subjects: readonly VisualSubject[];
+  assets: readonly CharacterAsset[];
+  visibleNames: readonly string[];
+}): ClientVisibleVisualSubject[] {
+  const visible = new Set(
+    opts.visibleNames.map((name) => cleanVisualSubjectName(name).toLowerCase()).filter(Boolean)
+  );
+  if (visible.size === 0) return [];
+  return opts.subjects
+    .filter((subject) => visible.has(subject.name.toLowerCase()))
+    .map((subject) => {
+      const representativeAssetUrl = validateRepresentativeAsset(subject, opts.assets) ?? undefined;
+      return {
+        subjectKey: subject.subjectKey,
+        name: subject.name,
+        ...(representativeAssetUrl ? { representativeAssetUrl } : {}),
+      };
+    });
+}
+
+export function filterCastSelectableAssetsForViewer(opts: {
+  assets: readonly { url: string; tag: string; visualSubjectKey?: string }[];
+  visibleSubjectKeys: ReadonlySet<string>;
+  isCreator: boolean;
+  contentKind: ContentKind;
+  /** Preflight = main pool only; source_scoped = viewer-authorized support assets. */
+  scope?: "preflight" | "source_scoped";
+}): typeof opts.assets {
+  const scope = opts.scope ?? "source_scoped";
+  if (scope === "preflight") {
+    if (opts.contentKind === "character") {
+      return opts.assets.filter((asset) => !asset.visualSubjectKey?.trim());
+    }
+    return opts.isCreator ? [...opts.assets] : [];
+  }
+  if (opts.isCreator) return [...opts.assets];
+  return opts.assets.filter((asset) => {
+    const ownerKey = asset.visualSubjectKey?.trim();
+    if (!ownerKey) return false;
+    return opts.visibleSubjectKeys.has(ownerKey);
+  });
+}
+
+/** Single owner for source-scoped client cast image metadata (names, safe identities, assets). */
+export function buildClientScopedCastImageMetadata(opts: {
+  contentKind: ContentKind;
+  isCreator: boolean;
+  subjects: readonly VisualSubject[];
+  assets: readonly CharacterAsset[];
+  castSelectableAssets: readonly { url: string; tag: string; visualSubjectKey?: string }[];
+  visibleNames: readonly string[];
+  scope: "preflight" | "source_scoped";
+}): {
+  configuredCastNames: string[];
+  visualSubjects: ClientVisibleVisualSubject[];
+  castSelectableAssets: typeof opts.castSelectableAssets;
+} {
+  if (opts.scope === "preflight") {
+    return {
+      configuredCastNames: [],
+      visualSubjects: [],
+      castSelectableAssets: filterCastSelectableAssetsForViewer({
+        assets: opts.castSelectableAssets,
+        visibleSubjectKeys: new Set(),
+        isCreator: opts.isCreator,
+        contentKind: opts.contentKind,
+        scope: "preflight",
+      }),
+    };
+  }
+  const configuredCastNames = opts.visibleNames.map((name) => cleanVisualSubjectName(name)).filter(Boolean);
+  const visualSubjects = buildClientVisibleVisualSubjects({
+    subjects: opts.subjects,
+    assets: opts.assets,
+    visibleNames: configuredCastNames,
+  });
+  const visibleSubjectKeys = new Set(visualSubjects.map((subject) => subject.subjectKey));
+  const castSelectableAssets = filterCastSelectableAssetsForViewer({
+    assets: opts.castSelectableAssets,
+    visibleSubjectKeys,
+    isCreator: opts.isCreator,
+    contentKind: opts.contentKind,
+    scope: "source_scoped",
+  });
+  return { configuredCastNames, visualSubjects, castSelectableAssets };
+}
+
+export function validateCharacterPrimaryAssetAssignment(
+  assets: readonly CharacterAsset[]
+): { ok: true } | { ok: false; reason: string } {
+  const primaryKey = assets[0]?.visualSubjectKey?.trim();
+  if (primaryKey) {
+    return {
+      ok: false,
+      reason: "대표(1번) 이미지는 주인공 전용입니다. 조연 인물 지정을 해제해 주세요.",
+    };
+  }
+  return { ok: true };
+}
+
 export function emptyVisualSubjectsDocument(): VisualSubjectsDocument {
   return { version: VISUAL_SUBJECTS_VERSION, subjects: [] };
 }
@@ -241,15 +374,28 @@ export function clearStaleRepresentativeAssets(
 }
 
 export function validateAssetVisualSubjectOwnership(opts: {
+  contentKind?: ContentKind;
   assetUrl: string;
   subjectKey: string;
   assets: readonly CharacterAsset[];
+  requireExactSubjectOwner?: boolean;
 }): { ok: true } | { ok: false; reason: string } {
   const asset = assetByUrl([...opts.assets], opts.assetUrl);
   if (!asset) {
     return { ok: false, reason: "선택한 참고 에셋을 사용할 수 없습니다." };
   }
   const ownerKey = asset.visualSubjectKey?.trim();
+  const exactRequired =
+    opts.requireExactSubjectOwner === true || opts.contentKind === "character";
+  if (exactRequired) {
+    if (!ownerKey || ownerKey !== opts.subjectKey) {
+      return {
+        ok: false,
+        reason: "다른 인물에 연결된 이미지는 해당 인물 reference로 사용할 수 없습니다.",
+      };
+    }
+    return { ok: true };
+  }
   if (!ownerKey) return { ok: true };
   if (ownerKey === opts.subjectKey) return { ok: true };
   return {
@@ -272,6 +418,13 @@ export function sanitizeAssetVisualSubjectKeys(
 }
 
 export function validateVisualSubjectsDocument(
+  doc: VisualSubjectsDocument,
+  assets: readonly CharacterAsset[]
+): { ok: true } | { ok: false; reason: string } {
+  return validateVisualSubjectsDocumentCore(doc, assets);
+}
+
+function validateVisualSubjectsDocumentCore(
   doc: VisualSubjectsDocument,
   assets: readonly CharacterAsset[]
 ): { ok: true } | { ok: false; reason: string } {

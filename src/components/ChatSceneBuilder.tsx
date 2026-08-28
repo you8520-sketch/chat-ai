@@ -5,6 +5,7 @@ import { useState } from "react";
 import ChatImageCastPicker from "@/components/ChatImageCastPicker";
 import type { ChatImageCastIntentManifest, SelectableCastAsset } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import {
   applyUserIllustrationEdits,
   applyUserPanelEdits,
@@ -28,6 +29,7 @@ type ChatSceneBuilderProps = {
   hasAiSuggestionSession: boolean;
   castManifest: ChatImageCastIntentManifest | null;
   selectableAssets: readonly SelectableCastAsset[];
+  visualSubjects?: readonly ClientVisibleVisualSubject[];
   reservedReferenceUrls?: readonly string[];
   contentKind?: ContentKind;
   outputMode: SceneOutputMode;
@@ -230,6 +232,7 @@ export default function ChatSceneBuilder({
   hasAiSuggestionSession,
   castManifest,
   selectableAssets,
+  visualSubjects,
   reservedReferenceUrls,
   contentKind = "character",
   outputMode,
@@ -378,6 +381,7 @@ export default function ChatSceneBuilder({
         <ChatImageCastPicker
           manifest={castManifest}
           selectableAssets={selectableAssets}
+          visualSubjects={visualSubjects}
           reservedReferenceUrls={reservedReferenceUrls}
           contentKind={contentKind}
           disabled={disabled || aiSuggestionLoading}

@@ -63,15 +63,13 @@ import {
   ChatImageScenePlanRateLimitError,
   releaseChatImageScenePlanRateLimit,
 } from "@/lib/chatImageScenePlanRateLimit";
-import {
-  configuredCharacterVisualSubjectNames,
-  parseCharacterVisualSubjectsJson,
-} from "@/lib/characterVisualSubjects";
+import { configuredCharacterVisualSubjectNames, parseCharacterVisualSubjectsJson } from "@/lib/characterVisualSubjects";
 import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import {
-  parseSimulationVisualSubjectsJson,
-  type SimulationVisualSubject,
-} from "@/lib/simulationVisualSubjects";
+  buildClientScopedCastImageMetadata,
+  parseVisualSubjectsJson,
+  type VisualSubject,
+} from "@/lib/visualSubjects";
 import { filterConfiguredCastNamesForViewer, type SelectableCastAsset } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
@@ -159,7 +157,7 @@ type GenerationContext = {
   characterImages: ReturnType<typeof listSelectableCharacterImages>;
   castSelectableAssets: SelectableCastAsset[];
   characterAssets: CharacterAsset[];
-  simulationVisualSubjects: SimulationVisualSubject[];
+  visualSubjects: VisualSubject[];
   characterSavedAppearance: string;
   personaSavedAppearance: string;
 };
@@ -309,7 +307,7 @@ function resolveGenerationContext(opts: {
     personaGender: persona.gender,
   });
   const characterAssets = parseAssets(character.assets);
-  const simulationVisualSubjects = parseSimulationVisualSubjectsJson(
+  const visualSubjects = parseVisualSubjectsJson(
     character.simulation_visual_subjects_json ?? ""
   ).subjects;
   return {
@@ -324,7 +322,7 @@ function resolveGenerationContext(opts: {
     characterImages,
     castSelectableAssets,
     characterAssets,
-    simulationVisualSubjects,
+    visualSubjects,
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,
       appearanceSection: extractAppearanceRawFromSetting(character.system_prompt ?? ""),
@@ -481,7 +479,7 @@ function resolveGroundedCastManifest(opts: {
         savedAppearance: opts.context.characterSavedAppearance,
       },
       selectableAssets: opts.context.castSelectableAssets,
-      simulationVisualSubjects: opts.context.simulationVisualSubjects,
+      visualSubjects: opts.context.visualSubjects,
       characterAssets: opts.context.characterAssets,
     },
     opts.scenePlan,
@@ -695,13 +693,24 @@ export async function POST(req: Request) {
         sourceTexts: source.messages.map((message) => message.text),
         isCreator: context.character.creator_id === user.id,
       });
+      const scopedCast = buildClientScopedCastImageMetadata({
+        contentKind: context.contentKind,
+        isCreator: context.character.creator_id === user.id,
+        subjects: context.visualSubjects,
+        assets: context.characterAssets,
+        castSelectableAssets: context.castSelectableAssets,
+        visibleNames: configuredCastNames,
+        scope: "source_scoped",
+      });
       return NextResponse.json({
         ok: true,
         mode: "scene_brief",
         messageId: source.messageId,
         summary: source.turnText,
         messages: source.messages,
-        configuredCastNames,
+        configuredCastNames: scopedCast.configuredCastNames,
+        visualSubjects: scopedCast.visualSubjects,
+        castSelectableAssets: scopedCast.castSelectableAssets,
         contentKind: context.contentKind,
       });
     }

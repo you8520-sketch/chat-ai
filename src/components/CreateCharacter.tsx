@@ -96,6 +96,7 @@ import {
 } from "@/lib/simulationMode";
 import {
   CHARACTER_VISUAL_SUBJECT_LIMIT,
+  countCharacterVisualSubjectOwnedAssets,
   createCharacterVisualSubjectKey,
 } from "@/lib/characterVisualSubjects";
 import {
@@ -108,6 +109,7 @@ import {
 import {
   assetsForVisualSubject,
   validateRepresentativeAsset,
+  VISUAL_SUBJECT_NAME_LIMIT,
 } from "@/lib/visualSubjects";
 
 const MAX_IMAGES = 100;
@@ -440,21 +442,17 @@ export default function CreateCharacter({
   }
 
   function removeCharacterVisualSubject(index: number) {
-    const subjectKey = visualSubjects.subjects[index]?.subjectKey;
+    const subject = visualSubjects.subjects[index];
+    if (!subject) return;
+    const ownedCount = countCharacterVisualSubjectOwnedAssets(subject.subjectKey, assets);
+    if (ownedCount > 0) {
+      setError("이 인물에 연결된 이미지를 먼저 주인공 또는 다른 인물로 재지정해 주세요.");
+      return;
+    }
     setVisualSubjects((current) => ({
       ...current,
       subjects: current.subjects.filter((_, subjectIndex) => subjectIndex !== index),
     }));
-    if (!subjectKey) return;
-    setAssets((current) =>
-      normalizeCharacterAssets(
-        current.map((asset) =>
-          asset.visualSubjectKey === subjectKey
-            ? { ...asset, visualSubjectKey: undefined }
-            : asset
-        )
-      )
-    );
   }
 
   function pickFiles(list: FileList | null) {
@@ -1803,7 +1801,7 @@ export default function CreateCharacter({
                         <input
                           className={cls}
                           value={subject.name}
-                          maxLength={80}
+                          maxLength={VISUAL_SUBJECT_NAME_LIMIT}
                           placeholder="예: 민준"
                           onChange={(event) =>
                             updateCharacterVisualSubject(index, {

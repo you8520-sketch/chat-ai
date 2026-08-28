@@ -80,7 +80,7 @@ function simGroundCtx(
       tag: row.tag,
       visualSubjectKey: row.visualSubjectKey,
     })),
-    simulationVisualSubjects: visualSubjects,
+    visualSubjects,
     characterAssets: assets,
   };
 }
