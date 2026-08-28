@@ -17,6 +17,7 @@ import path from "node:path";
 import type { CharacterChunk } from "@/types";
 
 const OUT_DIR = path.join(process.cwd(), "docs/audits/pr2-translation-ab");
+const REQUEST_BUDGET_MAX = 40;
 
 type FixtureInvariants = {
   exactTokens?: string[];
@@ -31,6 +32,22 @@ type Fixture = {
   category: string;
   chunks: CharacterChunk[];
   invariants?: FixtureInvariants;
+};
+
+type TranslationPlanAudit = {
+  f12SourceChars: number;
+  f12ProductionChunkCount: number;
+  f12BatchCountPerModel: number;
+  maxBatchSourceChars: number;
+  oversizedBatchCount: number;
+  oversizedBatches: Array<{
+    fixtureId: string;
+    batchIndex: number;
+    sourceChars: number;
+    chunks: Array<{ id: string; category: string; chars: number }>;
+  }>;
+  plannedProviderRequestCount: number;
+  requestBudgetLe40: boolean;
 };
 
 function buildF12LongMixedSource(): string {
@@ -99,12 +116,23 @@ function buildF12LongMixedSource(): string {
     "# 대화/슬랭",
     "야 뭐해? ㅋㅋ 말 좀 가려. 진지할 땐 존댓말 금지.",
     '{"trait":"cold","mood":"angry","likes":["tea","rain"]}',
+    "캐릭터: 은우. 목표: 실버헤이븐 왕실 기록실 침입.",
+    "추가 규칙: NPC는 {{user}} 선택 존중.",
   ];
 
   let text = sections.join("\n\n");
   let padIndex = 0;
-  while (text.length < 8000) {
-    text += `\n\n[부록-${padIndex}] 고유 사실: ${locations[padIndex % locations.length]}의 ${factions[padIndex % factions.length]} 협상 기록 #${1247 + padIndex}.`;
+  while (text.length < 8000 && padIndex < 16) {
+    const blockLines = [`# 부록 기록 ${padIndex}`];
+    for (let j = 0; j < 7; j += 1) {
+      const loc = locations[(padIndex + j) % locations.length];
+      const fac = factions[(padIndex + j) % factions.length];
+      const who = characters[(padIndex + j) % characters.length];
+      blockLines.push(
+        `- ${loc} / ${fac}: ${1247 + padIndex + j}년 협상 메모. ${who} 관련 인물·조직·장소 교차 기록.`
+      );
+    }
+    text += `\n\n${blockLines.join("\n")}`;
     padIndex += 1;
   }
   if (text.length > 10000) {
@@ -114,108 +142,6 @@ function buildF12LongMixedSource(): string {
 }
 
 const F12_SOURCE = buildF12LongMixedSource();
-
-const FIXTURES: Fixture[] = [
-  {
-    id: "F01",
-    category: "general_character",
-    chunks: [
-      chunk("f01-1", "이름: 은우. 나이: 24. 직업: 대학생.", "identity"),
-      chunk("f01-2", "성격: 겉으로는 차갑지만 가까운 사람에게는 다정함.", "personality"),
-    ],
-  },
-  {
-    id: "F02",
-    category: "dense_personality",
-    chunks: [
-      chunk("f02-1", "성격: 자존심이 강하고 승부욕이 큼.", "personality"),
-      chunk("f02-2", "관계: {{user}}는 어릴 적 소꿉친구.", "relationship"),
-      chunk("f02-3", "트라우마: 왼손 화상 흉터.", "background"),
-    ],
-    invariants: { placeholders: ["{{user}}", "{{char}}"] },
-  },
-  {
-    id: "F03",
-    category: "world_lore",
-    chunks: [chunk("f03-1", "【세계관】 마법 왕국 엘라리아. 달의 신전이 중심지.", "world")],
-    invariants: { requiredBracketLabels: ["【세계관】"] },
-  },
-  {
-    id: "F04",
-    category: "strict_rules",
-    chunks: [
-      chunk("f04-1", "규칙: HP가 0이면 전투 불능.", "rules"),
-      chunk("f04-2", "금지: OOC 메타 발언, {{user}} 행동 대리.", "rules"),
-    ],
-    invariants: { placeholders: ["{{user}}"] },
-  },
-  {
-    id: "F05",
-    category: "korean_proper_nouns",
-    chunks: [
-      chunk("f05-1", "인물: 강이현, 권태현, 지명: 하늘 도시, 조직: 검은 장미단.", "identity"),
-    ],
-    invariants: { properNouns: ["강이현", "권태현", "하늘 도시", "검은 장미단"] },
-  },
-  {
-    id: "F06",
-    category: "placeholders",
-    chunks: [
-      chunk("f06-1", "{{user}}가 {{char}}에게 말했다. {{user}} {{char}}", "identity"),
-    ],
-    invariants: { placeholders: ["{{user}}", "{{char}}"] },
-  },
-  {
-    id: "F07",
-    category: "markdown",
-    chunks: [chunk("f07-1", "# 배경\n- 항목1: 폐허 도시\n- 항목2: 마법 학원", "background")],
-    invariants: { requiredHeadings: ["# 배경"] },
-  },
-  {
-    id: "F08",
-    category: "brackets_status",
-    chunks: [chunk("f08-1", "[상태] HP: 100 / MP: 50 （특수） 【버프】가속", "rules")],
-    invariants: { requiredBracketLabels: ["[상태]", "【버프】"] },
-  },
-  {
-    id: "F09",
-    category: "json_wpp_like",
-    chunks: [
-      chunk("f09-1", '{"trait":"cold","mood":"angry","likes":["tea","rain"]}', "personality"),
-    ],
-  },
-  {
-    id: "F10",
-    category: "numbers_dates_units",
-    chunks: [
-      chunk("f10-1", "사건 날짜: 2026-08-28. 거리: 3km. 확률: 42%. 온도: -12°C.", "background"),
-    ],
-    invariants: {
-      exactTokens: ["2026-08-28", "3km", "42%", "-12°C"],
-    },
-  },
-  {
-    id: "F11",
-    category: "slang_crude",
-    chunks: [chunk("f11-1", "야 뭐해? ㅋㅋ 진짜 미친듯이 웃김. 말 좀 가려 씨.", "speech_style")],
-  },
-  {
-    id: "F12",
-    category: "long_mixed_8k",
-    chunks: [
-      chunk("f12-1", F12_SOURCE, "world"),
-      chunk("f12-2", "캐릭터: 은우. 목표: 실버헤이븐 왕실 기록실 침입.", "identity"),
-      chunk("f12-3", "추가 규칙: NPC는 {{user}} 선택 존중.", "rules"),
-    ],
-    invariants: {
-      placeholders: ["{{user}}", "{{char}}"],
-      requiredHeadings: ["# 배경"],
-      requiredBracketLabels: ["[상태]", "【버프】"],
-      exactTokens: ["2026-08-28", "3km", "42%", "-12°C"],
-      properNouns: ["강이현", "권태현", "검은 장미단", "실버헤이븐"],
-    },
-  },
-];
 
 function chunk(
   id: string,
@@ -231,6 +157,195 @@ function chunk(
     tokenCount: Math.max(1, content.length),
     keywords: [],
   };
+}
+
+function buildManualFixtures(): Fixture[] {
+  return [
+    {
+      id: "F01",
+      category: "general_character",
+      chunks: [
+        chunk("f01-1", "이름: 은우. 나이: 24. 직업: 대학생.", "identity"),
+        chunk("f01-2", "성격: 겉으로는 차갑지만 가까운 사람에게는 다정함.", "personality"),
+      ],
+    },
+    {
+      id: "F02",
+      category: "dense_personality",
+      chunks: [
+        chunk("f02-1", "성격: 자존심이 강하고 승부욕이 큼.", "personality"),
+        chunk("f02-2", "관계: {{user}}는 어릴 적 소꿉친구.", "relationship"),
+        chunk("f02-3", "트라우마: 왼손 화상 흉터.", "background"),
+      ],
+      invariants: { placeholders: ["{{user}}", "{{char}}"] },
+    },
+    {
+      id: "F03",
+      category: "world_lore",
+      chunks: [chunk("f03-1", "【세계관】 마법 왕국 엘라리아. 달의 신전이 중심지.", "world")],
+      invariants: { requiredBracketLabels: ["【세계관】"] },
+    },
+    {
+      id: "F04",
+      category: "strict_rules",
+      chunks: [
+        chunk("f04-1", "규칙: HP가 0이면 전투 불능.", "rules"),
+        chunk("f04-2", "금지: OOC 메타 발언, {{user}} 행동 대리.", "rules"),
+      ],
+      invariants: { placeholders: ["{{user}}"] },
+    },
+    {
+      id: "F05",
+      category: "korean_proper_nouns",
+      chunks: [
+        chunk("f05-1", "인물: 강이현, 권태현, 지명: 하늘 도시, 조직: 검은 장미단.", "identity"),
+      ],
+      invariants: { properNouns: ["강이현", "권태현", "하늘 도시", "검은 장미단"] },
+    },
+    {
+      id: "F06",
+      category: "placeholders",
+      chunks: [
+        chunk("f06-1", "{{user}}가 {{char}}에게 말했다. {{user}} {{char}}", "identity"),
+      ],
+      invariants: { placeholders: ["{{user}}", "{{char}}"] },
+    },
+    {
+      id: "F07",
+      category: "markdown",
+      chunks: [chunk("f07-1", "# 배경\n- 항목1: 폐허 도시\n- 항목2: 마법 학원", "background")],
+      invariants: { requiredHeadings: ["# 배경"] },
+    },
+    {
+      id: "F08",
+      category: "brackets_status",
+      chunks: [chunk("f08-1", "[상태] HP: 100 / MP: 50 （특수） 【버프】가속", "rules")],
+      invariants: { requiredBracketLabels: ["[상태]", "【버프】"] },
+    },
+    {
+      id: "F09",
+      category: "json_wpp_like",
+      chunks: [
+        chunk("f09-1", '{"trait":"cold","mood":"angry","likes":["tea","rain"]}', "personality"),
+      ],
+    },
+    {
+      id: "F10",
+      category: "numbers_dates_units",
+      chunks: [
+        chunk("f10-1", "사건 날짜: 2026-08-28. 거리: 3km. 확률: 42%. 온도: -12°C.", "background"),
+      ],
+      invariants: {
+        exactTokens: ["2026-08-28", "3km", "42%", "-12°C"],
+      },
+    },
+    {
+      id: "F11",
+      category: "slang_crude",
+      chunks: [chunk("f11-1", "야 뭐해? ㅋㅋ 진짜 미친듯이 웃김. 말 좀 가려 씨.", "speech_style")],
+    },
+  ];
+}
+
+async function buildFixtures(): Promise<Fixture[]> {
+  const { parseCharacterSetting } = await import("@/utils/characterParser");
+  const f12ProductionChunks = parseCharacterSetting({
+    characterId: "f12",
+    systemPrompt: F12_SOURCE,
+    world: "",
+    exampleDialog: "",
+    characterName: "은우",
+    gender: "other",
+  });
+
+  const manual = buildManualFixtures();
+  const f12: Fixture = {
+    id: "F12",
+    category: "long_mixed_8k",
+    chunks: f12ProductionChunks,
+    invariants: {
+      placeholders: ["{{user}}", "{{char}}"],
+      requiredHeadings: ["# 배경"],
+      requiredBracketLabels: ["[상태]", "【버프】"],
+      exactTokens: ["2026-08-28", "3km", "42%", "-12°C"],
+      properNouns: ["강이현", "권태현", "검은 장미단", "실버헤이븐"],
+    },
+  };
+
+  return [...manual, f12];
+}
+
+function batchSourceChars(batch: CharacterChunk[]): number {
+  return batch.reduce((sum, c) => sum + c.content.length, 0);
+}
+
+async function auditTranslationPlan(fixtures: Fixture[]): Promise<TranslationPlanAudit> {
+  const promptTranslation = await import("@/lib/promptTranslation");
+  const { splitTranslationBatches, isTranslatableChunk, TRANSLATION_BATCH_MAX_SOURCE_CHARS } =
+    promptTranslation;
+
+  let maxBatchSourceChars = 0;
+  let oversizedBatchCount = 0;
+  const oversizedBatches: TranslationPlanAudit["oversizedBatches"] = [];
+  let totalBatchesAllFixtures = 0;
+
+  let f12ProductionChunkCount = 0;
+  let f12BatchCountPerModel = 0;
+
+  for (const fixture of fixtures) {
+    const translatable = fixture.chunks.filter(isTranslatableChunk);
+    const batches = splitTranslationBatches(translatable);
+    totalBatchesAllFixtures += batches.length;
+
+    if (fixture.id === "F12") {
+      f12ProductionChunkCount = translatable.length;
+      f12BatchCountPerModel = batches.length;
+    }
+
+    batches.forEach((batch, batchIndex) => {
+      const sourceChars = batchSourceChars(batch);
+      maxBatchSourceChars = Math.max(maxBatchSourceChars, sourceChars);
+      if (sourceChars > TRANSLATION_BATCH_MAX_SOURCE_CHARS) {
+        oversizedBatchCount += 1;
+        oversizedBatches.push({
+          fixtureId: fixture.id,
+          batchIndex,
+          sourceChars,
+          chunks: batch.map((c) => ({ id: c.id, category: c.category, chars: c.content.length })),
+        });
+      }
+    });
+  }
+
+  const plannedProviderRequestCount = totalBatchesAllFixtures * 2;
+
+  return {
+    f12SourceChars: F12_SOURCE.length,
+    f12ProductionChunkCount,
+    f12BatchCountPerModel,
+    maxBatchSourceChars,
+    oversizedBatchCount,
+    oversizedBatches,
+    plannedProviderRequestCount,
+    requestBudgetLe40: plannedProviderRequestCount <= REQUEST_BUDGET_MAX,
+  };
+}
+
+function validateF12SourceChars(): void {
+  if (F12_SOURCE.length < 8000 || F12_SOURCE.length > 10000) {
+    throw new Error(`F12 source length ${F12_SOURCE.length} outside required 8000-10000 range`);
+  }
+}
+
+function printAuditReport(audit: TranslationPlanAudit, promptTranslation: typeof import("@/lib/promptTranslation")): void {
+  console.log(`F12_SOURCE_CHARS=${audit.f12SourceChars}`);
+  console.log(`F12_PRODUCTION_CHUNK_COUNT=${audit.f12ProductionChunkCount}`);
+  console.log(`F12_BATCH_COUNT_PER_MODEL=${audit.f12BatchCountPerModel}`);
+  console.log(`TRANSLATION_BATCH_MAX_SOURCE_CHARS=${promptTranslation.TRANSLATION_BATCH_MAX_SOURCE_CHARS}`);
+  console.log(`MAX_BATCH_SOURCE_CHARS=${audit.maxBatchSourceChars}`);
+  console.log(`OVERSIZED_BATCH_COUNT=${audit.oversizedBatchCount}`);
+  console.log(`PLANNED_PROVIDER_REQUEST_COUNT=${audit.plannedProviderRequestCount}`);
+  console.log(`REQUEST_BUDGET_LE_40=${audit.requestBudgetLe40}`);
 }
 
 function countOccurrences(text: string, token: string): number {
@@ -303,18 +418,33 @@ function fixtureModelRuns(
       ];
 }
 
-function validateF12SourceChars(): number {
-  const f12 = FIXTURES.find((fixture) => fixture.id === "F12");
-  const chars = f12?.chunks.map((c) => c.content).join("\n\n").length ?? 0;
-  console.log(`F12_SOURCE_CHARS=${chars}`);
-  if (chars < 8000 || chars > 10000) {
-    throw new Error(`F12 source length ${chars} outside required 8000-10000 range`);
-  }
-  return chars;
-}
-
 async function main() {
   validateF12SourceChars();
+  const fixtures = await buildFixtures();
+
+  const f12Fixture = fixtures.find((fixture) => fixture.id === "F12");
+  if (!f12Fixture || f12Fixture.chunks.length <= 1) {
+    throw new Error("F12 must produce more than one production CharacterChunk");
+  }
+
+  const promptTranslation = await import("@/lib/promptTranslation");
+  const audit = await auditTranslationPlan(fixtures);
+  printAuditReport(audit, promptTranslation);
+
+  if (audit.oversizedBatchCount > 0) {
+    console.log("AB_STATUS=BLOCKED_PRODUCTION_BATCH_INVARIANT");
+    for (const batch of audit.oversizedBatches) {
+      console.error(
+        `oversized batch fixture=${batch.fixtureId} index=${batch.batchIndex} chars=${batch.sourceChars} chunks=${JSON.stringify(batch.chunks)}`
+      );
+    }
+    process.exit(1);
+  }
+
+  if (!audit.requestBudgetLe40) {
+    console.log("AB_STATUS=BLOCKED_REQUEST_BUDGET");
+    process.exit(1);
+  }
 
   if (process.env.RUN_REAL_TRANSLATION_AB !== "1") {
     console.log("AB_STATUS=NOT_RUN — set RUN_REAL_TRANSLATION_AB=1 to execute");
@@ -329,26 +459,26 @@ async function main() {
 
   const { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } =
     await import("@/lib/chatModels");
-  const promptTranslation = await import("@/lib/promptTranslation");
   const { callPromptTranslation } = await import("@/lib/ai");
 
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(
     path.join(OUT_DIR, "fixtures.json"),
     JSON.stringify(
-      FIXTURES.map((f) => ({
+      fixtures.map((f) => ({
         id: f.id,
         category: f.category,
         source: f.chunks.map((c) => c.content).join("\n\n"),
         invariants: f.invariants ?? null,
+        productionChunkCount: f.chunks.filter(promptTranslation.isTranslatableChunk).length,
       })),
       null,
       2
     )
   );
 
-  const logicalChunkCount = FIXTURES.reduce((n, f) => n + f.chunks.length, 0);
-  const batchCount = FIXTURES.reduce(
+  const logicalChunkCount = fixtures.reduce((n, f) => n + f.chunks.length, 0);
+  const batchCount = fixtures.reduce(
     (n, f) =>
       n +
       promptTranslation.splitTranslationBatches(f.chunks.filter(promptTranslation.isTranslatableChunk))
@@ -357,9 +487,13 @@ async function main() {
   );
 
   const perFixtureModelMap: Record<string, { A: string; B: string }> = {};
-  for (let i = 0; i < FIXTURES.length; i++) {
-    const runs = fixtureModelRuns(i, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
-    perFixtureModelMap[FIXTURES[i]!.id] = {
+  for (let i = 0; i < fixtures.length; i++) {
+    const runs = fixtureModelRuns(
+      i,
+      CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    );
+    perFixtureModelMap[fixtures[i]!.id] = {
       A: runs.find((run) => run.label === "A")!.model,
       B: runs.find((run) => run.label === "B")!.model,
     };
@@ -371,8 +505,8 @@ async function main() {
   const rawResults: unknown[] = [];
   let providerRequestCount = 0;
 
-  for (let i = 0; i < FIXTURES.length; i++) {
-    const fixture = FIXTURES[i]!;
+  for (let i = 0; i < fixtures.length; i++) {
+    const fixture = fixtures[i]!;
     const translatable = fixture.chunks.filter(promptTranslation.isTranslatableChunk);
     const batches = promptTranslation.splitTranslationBatches(translatable);
     const sourceText = fixture.chunks.map((c) => c.content).join("\n\n");
@@ -454,7 +588,7 @@ async function main() {
     }
   }
 
-  for (const fixture of FIXTURES) {
+  for (const fixture of fixtures) {
     const mapping = perFixtureModelMap[fixture.id]!;
     assert(mapping.A !== mapping.B, `fixture ${fixture.id}: A and B must differ`);
     const fixtureResults = rawResults.filter(
@@ -470,10 +604,18 @@ async function main() {
   }
   console.log("AB_PER_FIXTURE_MODEL_MAP_TEST=PASS");
 
+  if (providerRequestCount !== audit.plannedProviderRequestCount) {
+    console.warn(
+      `ACTUAL_PROVIDER_REQUEST_COUNT=${providerRequestCount} differs from PLANNED_PROVIDER_REQUEST_COUNT=${audit.plannedProviderRequestCount}`
+    );
+  } else {
+    console.log(`ACTUAL_PROVIDER_REQUEST_COUNT=${providerRequestCount}`);
+  }
+
   fs.writeFileSync(path.join(OUT_DIR, "raw-results.jsonl"), rawResults.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
   const blindLines: string[] = [];
-  for (const fixture of FIXTURES) {
+  for (const fixture of fixtures) {
     const slot = blindByFixture.get(fixture.id)!;
     blindLines.push(`Fixture ${fixture.id}`);
     blindLines.push("SOURCE:");
@@ -491,17 +633,20 @@ async function main() {
     [
       "# PR-2 Translation A/B Summary",
       "",
-      `- fixture_count: ${FIXTURES.length}`,
+      `- fixture_count: ${fixtures.length}`,
       `- logical_chunk_count: ${logicalChunkCount}`,
       `- batch_count: ${batchCount}`,
       `- provider_request_count: ${providerRequestCount}`,
-      `- F12_SOURCE_CHARS: ${F12_SOURCE.length}`,
+      `- F12_SOURCE_CHARS: ${audit.f12SourceChars}`,
+      `- F12_PRODUCTION_CHUNK_COUNT: ${audit.f12ProductionChunkCount}`,
+      `- F12_BATCH_COUNT_PER_MODEL: ${audit.f12BatchCountPerModel}`,
+      `- PLANNED_PROVIDER_REQUEST_COUNT: ${audit.plannedProviderRequestCount}`,
       `- AB_PER_FIXTURE_MODEL_MAP_TEST: PASS`,
     ].join("\n")
   );
 
   console.log(
-    `fixture_count=${FIXTURES.length} logical_chunk_count=${logicalChunkCount} batch_count=${batchCount} provider_request_count=${providerRequestCount}`
+    `fixture_count=${fixtures.length} logical_chunk_count=${logicalChunkCount} batch_count=${batchCount} provider_request_count=${providerRequestCount}`
   );
   console.log("AB_STATUS=RUN complete");
 }
