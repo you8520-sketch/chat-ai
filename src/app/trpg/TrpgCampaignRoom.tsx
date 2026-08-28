@@ -475,8 +475,6 @@ export default function TrpgCampaignRoom({
     phase: String(phase),
     workType: snap.workType,
     botGenerationInFlight: snap.botGenerationInFlight,
-    resolutionOrder: (snap.resolutionOrder ?? []).map((entry) => entry.participantId),
-    actors: presentationActors,
   });
   if (presentationRoundRef.current !== snap.round.number) {
     presentationRoundRef.current = snap.round.number;

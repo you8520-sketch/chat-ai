@@ -655,24 +655,25 @@ export function advanceAfterDiceDismiss(opts: {
   });
 }
 
-/** True while canonical actors for this round may still arrive (bot generation, locking, etc.). */
+/** Work types where new canonical locked submissions may still arrive this round. */
+const AWAITING_MORE_CANONICAL_ACTION_WORK = new Set<string>([
+  "generate_bots",
+  "bot_retry_required",
+  "wait_humans",
+]);
+
+/**
+ * True while new canonical actions for this round may still arrive.
+ * Uses authoritative server work/phase signals only — never resolutionOrder gaps
+ * (resolutionOrder includes all campaign participants; round locking uses canAct).
+ */
 export function isRoundPresentationAwaitingMoreActors(opts: {
   phase: string;
   workType: string;
   botGenerationInFlight?: boolean;
-  resolutionOrder: readonly number[];
-  actors: readonly PresentationActor[];
 }): boolean {
   if (opts.botGenerationInFlight) return true;
-  if (opts.workType === "generate_bots" || opts.phase === "BOT_ACTION") return true;
-  if (opts.workType === "acquire_gm_lock" || opts.phase === "LOCKING_ACTIONS") return true;
-  const order = uniqueResolutionOrder(opts.resolutionOrder);
-  if (order.length === 0) return false;
-  const actorIds = new Set(opts.actors.map((actor) => actor.actorId));
-  for (const id of order) {
-    if (!actorIds.has(id)) return true;
-  }
-  return false;
+  return AWAITING_MORE_CANONICAL_ACTION_WORK.has(opts.workType);
 }
 
 function advanceToNextActor(

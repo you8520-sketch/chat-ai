@@ -36,12 +36,10 @@ import {
   trpgRoundPresentationSessionKey,
   isRoundPresentationAwaitingMoreActors,
   simulateCinematicQueueSession,
-  decideLiveRoundPresentation,
-  freezeLivePresentationActors,
-  decideRoundPresentationMode,
-  type PresentationActor,
+  walkCinematicPresentation,
   type LiveRoundSnapshotInput,
 } from "./roundPresentation";
+import { nextTrpgRoundWork } from "./roundLock";
 import { shouldConsumeMountRollSession } from "./diceRollUx";
 import { TRPG_RESULT_HOLD_MS } from "./diceRollUx";
 
@@ -566,8 +564,6 @@ describe("TRPG PR-C final correction regressions", () => {
       awaitingMoreActors: isRoundPresentationAwaitingMoreActors({
         phase: "BOT_ACTION",
         workType: "generate_bots",
-        resolutionOrder: order,
-        actors,
       }),
     });
     assert.deepEqual(afterHuman, { phase: "actor-action", presentationIndex: 1 });
@@ -608,14 +604,85 @@ describe("TRPG PR-C final correction regressions", () => {
     assert.equal(shouldShowGmNarration(historicalPresentation()), true);
   });
 
+  it("NON_ACTING_PARTICIPANT_DOES_NOT_BLOCK_GM", () => {
+    const spectatorOrder = [10, 15, 20];
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: spectatorOrder,
+      actions: [human, bot1],
+      rolls: [humanRoll(10, "렌", 16), botRoll(20, "동료1", 9)],
+    });
+    assert.equal(actors.some((actor) => actor.actorId === 15), false);
+    assert.equal(
+      isRoundPresentationAwaitingMoreActors({
+        phase: "ROLLING",
+        workType: "idle",
+      }),
+      false
+    );
+    const frames = walkCinematicPresentation(actors);
+    assert.deepEqual(
+      frames.filter((frame) => frame.phase === "actor-dice").map((frame) => frame.activeRollActorId),
+      [10, 20]
+    );
+    assert.equal(frames.at(-1)?.gmVisible, true);
+    assert.equal(frames.at(-1)?.phase, "gm-narration");
+  });
+
+  it("DISCONNECTED_OR_NON_ACTING_PARTICIPANT_DOES_NOT_WAIT_FOREVER", () => {
+    const spectatorOrder = [10, 15, 20];
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: spectatorOrder,
+      actions: [human],
+      rolls: [humanRoll(10, "렌", 16)],
+    });
+    assert.equal(
+      isRoundPresentationAwaitingMoreActors({
+        phase: "GENERATING_NARRATION",
+        workType: "idle",
+      }),
+      false
+    );
+    const afterHuman = advanceAfterActorResult({
+      actors,
+      presentationIndex: 0,
+      adjudicatedParticipantIds: new Set([10]),
+      declarationConsumedIds: new Set(),
+      awaitingMoreActors: false,
+    });
+    assert.equal(afterHuman.phase, "gm-narration");
+    assert.notEqual(afterHuman.presentationIndex, 1);
+  });
+
+  it("resolutionOrder uses all participants while round work gates on canAct only", () => {
+    const work = nextTrpgRoundWork({
+      phase: "BOT_ACTION",
+      humans: [
+        { id: 10, kind: "human", canAct: true, submitted: true },
+        { id: 15, kind: "human", canAct: false, submitted: false },
+      ],
+      bots: [{ id: 20, kind: "ai_character", canAct: true, submitted: true }],
+    });
+    assert.deepEqual(work, { type: "acquire_gm_lock" });
+    assert.equal(
+      isRoundPresentationAwaitingMoreActors({
+        phase: "BOT_ACTION",
+        workType: "acquire_gm_lock",
+      }),
+      false
+    );
+  });
+
   it("DEFERRED_BOT2_START_BEFORE_BOT1_PRESENTATION_COMPLETE", async () => {
     const db = memoryDb();
     let botCalls = 0;
-    let releaseBot2: () => void = () => {};
+    let bot2StartedResolve!: () => void;
+    const bot2Started = new Promise<void>((resolve) => {
+      bot2StartedResolve = resolve;
+    });
+    let releaseBot2!: () => void;
     const bot2Gate = new Promise<void>((resolve) => {
       releaseBot2 = resolve;
     });
-    let bot1Persisted = false;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 15,
@@ -626,6 +693,7 @@ describe("TRPG PR-C final correction regressions", () => {
           assert.doesNotMatch(user, /동료1-먼저/);
           return { text: "동료1-먼저.\n\n<<<INTENT>>>\n앞을 본다.\n\n<<<ACTION_TYPE>>>\ninvestigate" };
         }
+        bot2StartedResolve();
         await bot2Gate;
         assert.doesNotMatch(user, /d20\s*[:=]?\s*\d+/i);
         assert.doesNotMatch(user, /SUCCESS|FAILURE/);
@@ -635,10 +703,9 @@ describe("TRPG PR-C final correction regressions", () => {
     };
     const { campaignId } = await setupTwoBotCampaign(db, deps);
     submitTrpgAction(db, { campaignId, userId: 1, body: "문을 연다.", actionType: "investigate" });
-    const inFlight = advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await new Promise((r) => setTimeout(r, 30));
+    const advancePromise = advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await bot2Started;
     assert.equal(botCalls, 2, "Bot2 provider starts before Bot1 presentation is consumed");
-    const snap = loadTrpgSnapshot(db, campaignId, 1)!;
     const round = db
       .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`)
       .get(campaignId) as { id: number };
@@ -650,11 +717,10 @@ describe("TRPG PR-C final correction regressions", () => {
       )
       .get(round.id) as { locked: number };
     assert.equal(bot1Sub.locked, 1);
-    bot1Persisted = true;
-    assert.equal(bot1Persisted, true);
+    const snap = loadTrpgSnapshot(db, campaignId, 1)!;
     assert.equal(snap.botGenerationInFlight, true);
     releaseBot2();
-    await inFlight;
+    await advancePromise;
     db.close();
   });
 
