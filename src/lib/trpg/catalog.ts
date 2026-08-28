@@ -5,6 +5,7 @@ import { sanitizeWorldCoverUrl } from "@/lib/worlds";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
+import { canUseWorldForTrpg } from "./worldAccess";
 import {
   EMPTY_TRPG_CATALOG_PLAY_SCORES,
   type TrpgCatalogPlayScore,
@@ -163,11 +164,12 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     ? `COALESCE((SELECT nickname FROM users WHERE id = w.creator_id), '')`
     : `''`;
 
-  const publicWorlds = db
+  const publicWorldCandidates = db
     .prepare(
       `SELECT w.id, w.creator_id, w.name, w.summary, w.content,
               COALESCE(w.trpg_enabled, 0) AS trpg_enabled,
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
+              COALESCE(w.shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(w.genres, '[]') AS genres,
               COALESCE(w.cover_url, '') AS cover_url,
               COALESCE(w.updated_at, '') AS updated_at,
@@ -186,12 +188,15 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     content: string | null;
     trpg_enabled: number;
     trpg_visibility: string;
+    shared_from_nickname: string;
     creator_name: string | null;
     mine: number;
     genres: string | null;
     cover_url: string | null;
     updated_at: string | null;
   }>;
+
+  const publicWorlds = publicWorldCandidates.filter((row) => canUseWorldForTrpg(row, userId));
 
   const myWorlds = db
     .prepare(

@@ -17,6 +17,7 @@ import {
   updateCharacterFromForm,
 } from "@/lib/characterFormSave";
 import { canUseWorldForTrpg } from "@/lib/trpg/worldAccess";
+import { loadTrpgCatalog } from "@/lib/trpg/catalog";
 import { insertScenarioTemplate } from "@/lib/trpg/scenarioTemplates";
 import { canEditWorld, canShareWorld, loadOwnedWorldRow } from "@/lib/worldPermissions";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
@@ -401,6 +402,44 @@ describe("world borrow ownership foundation", () => {
     assert.equal(parsed.data.world, "원본 시뮬 세계관");
   });
 
+  it("C2b createCharacterFromForm persists forged simulation borrow as canonical snapshot", async () => {
+    seedUser(1066, "share-a");
+    seedUser(1067, "borrower-b");
+    const worldId = seedOwnedWorld(1066, "시뮬 DB", "원본 시뮬 스냅샷");
+    const created = createWorldShare(1066, worldId);
+    assert.ok(!("error" in created));
+    const borrowed = borrowWorldShareToUser(1067, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
+
+    const result = await createCharacterFromForm(
+      { id: 1067, nickname: "borrower-b", is_adult: 1 },
+      minimalSimulationBody({
+        world_borrow_id: borrowed.borrow.id,
+        world: "공격자가 수정한 본문",
+        name: "시뮬 스냅샷",
+      })
+    );
+    assert.equal(result.ok, true, !result.ok ? result.error : "");
+    if (!result.ok) return;
+
+    const row = getDb()
+      .prepare(
+        "SELECT content_kind, world, source_world_share_id, world_id FROM characters WHERE id = ?"
+      )
+      .get(result.id) as {
+      content_kind: string;
+      world: string;
+      source_world_share_id: number | null;
+      world_id: number | null;
+    };
+    assert.equal(row.content_kind, "simulation");
+    assert.equal(row.world, "원본 시뮬 스냅샷");
+    assert.notEqual(row.world, "공격자가 수정한 본문");
+    assert.equal(row.source_world_share_id, created.share.id);
+    assert.equal(row.world_id, null);
+  });
+
   it("C3 createCharacterFromForm persists borrowed snapshot and provenance", async () => {
     seedUser(1034, "share-a");
     seedUser(1035, "borrower-b");
@@ -695,6 +734,57 @@ describe("world borrow ownership foundation", () => {
         }),
       /TRPG/
     );
+  });
+
+  it("T-catalog-A legacy borrowed public TRPG world is hidden from publicWorlds catalog", () => {
+    seedUser(1068, "legacy-owner");
+    seedUser(1069, "viewer");
+    const db = getDb();
+    const legacyId = Number(
+      db
+        .prepare(
+          `INSERT INTO worlds (creator_id, name, summary, content, shared_from_nickname, trpg_enabled, trpg_visibility, updated_at)
+           VALUES (?, ?, ?, ?, ?, 1, 'public', datetime('now'))`
+        )
+        .run(1068, "레거시 공개 TRPG", "요약", "레거시 본문", "old-author").lastInsertRowid
+    );
+    assert.equal(
+      canUseWorldForTrpg(
+        {
+          creator_id: 1068,
+          trpg_enabled: 1,
+          trpg_visibility: "public",
+          shared_from_nickname: "old-author",
+        },
+        1069
+      ),
+      false
+    );
+    const catalog = loadTrpgCatalog(db, 1069);
+    assert.equal(catalog.publicWorlds.some((w) => w.id === legacyId), false);
+  });
+
+  it("T-catalog-B normal other-user public TRPG world stays in publicWorlds catalog", () => {
+    seedUser(1070, "pub-owner");
+    seedUser(1071, "viewer");
+    const db = getDb();
+    const publicId = Number(
+      db
+        .prepare(
+          `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, updated_at)
+           VALUES (?, ?, ?, ?, 1, 'public', datetime('now'))`
+        )
+        .run(1070, "정상 공개 TRPG", "요약", "공개 본문").lastInsertRowid
+    );
+    const catalog = loadTrpgCatalog(db, 1071);
+    assert.ok(catalog.publicWorlds.some((w) => w.id === publicId));
+  });
+
+  it("T-catalog-C own normal world stays in myWorlds catalog", () => {
+    seedUser(1072, "owner");
+    const ownId = seedOwnedWorld(1072, "내 TRPG 세계", "소유 본문");
+    const catalog = loadTrpgCatalog(getDb(), 1072);
+    assert.ok(catalog.myWorlds.some((w) => w.id === ownId));
   });
 
   it("T5 forged borrow id as worldId fails scenario create", () => {
