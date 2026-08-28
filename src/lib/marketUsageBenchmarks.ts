@@ -91,6 +91,14 @@ export function getMarketBenchmark(modelId: string, benchmarkId: string): Market
   return getMarketBenchmarks(modelId).find((b) => b.id === benchmarkId);
 }
 
+export function requirePrimaryBenchmark(modelId: string): MarketUsageBenchmark {
+  const benchmark = getMarketBenchmarks(modelId)[0];
+  if (!benchmark) {
+    throw new Error(`Missing canonical market benchmark: ${modelId}`);
+  }
+  return benchmark;
+}
+
 export function sumInputBreakdown(benchmark: MarketUsageBenchmark): number | null {
   if (!benchmark.inputBreakdown) return null;
   return Object.values(benchmark.inputBreakdown).reduce((sum, n) => sum + n, 0);

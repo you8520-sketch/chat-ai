@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { getPublishedPricing } from "./publishedModelPricing";
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
+import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
 
 describe("publishedModelPricing", () => {
   it("billingReference is independent of provider list", () => {
@@ -10,10 +11,12 @@ describe("publishedModelPricing", () => {
     assert.equal(typeof p.targetMargin, "number");
     assert.equal(p.pricingVersion, 1);
   });
-  it("has benchmark for premium", () => {
+
+  it("does not duplicate market usage benchmarks on published entries", () => {
     const g = getPublishedPricing("gemini-3.1-pro-preview");
-    assert.ok(g.marketUsageBenchmark);
-    assert.equal(g.marketUsageBenchmark!.inputTokens, 40689);
+    assert.equal("marketUsageBenchmark" in g, false);
+    const benchmark = requirePrimaryBenchmark("gemini-3.1-pro-preview");
+    assert.equal(benchmark.inputTokens, 40_689);
   });
 
   it("gemini 3.7 flash published v2 shadow calibration", () => {

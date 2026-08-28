@@ -7,6 +7,21 @@ import { applyOverseasCardFee } from "@/lib/billingFxPolicy";
 import { convertUsdToKrw } from "@/lib/exchangeRate";
 import type { CheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
 import {
+  CACHE_POLICY_VERIFICATION,
+  calibrationReferenceEvidenceMatchesV2,
+  GEMINI37_CALIBRATION_RATE_EVIDENCE,
+} from "@/lib/gemini37CalibrationEvidence";
+import {
+  FX_FIXTURE_BASE_1530,
+  FX_FIXTURE_BASE_1600,
+  FX_FIXTURE_CARD_FEE,
+  FX_SENSITIVITY_BASES,
+  GEMINI37_MARGIN_CANDIDATES,
+  GEMINI37_MODEL_ID,
+  GOOGLE_STANDARD_INTRO_VALID_THROUGH,
+  GOOGLE_STANDARD_STRESS_RATES,
+} from "@/lib/gemini37PricingPolicy.constants";
+import {
   GEMINI37_BENCHMARK_A_ID,
   GEMINI37_BENCHMARK_B_ID,
   getMarketBenchmark,
@@ -23,7 +38,18 @@ import {
   type ShadowBillingExchangeRateSnapshot,
 } from "@/lib/shadowBillingExchangeRate";
 
-export const GEMINI37_MODEL_ID = "gemini-3.7-flash";
+export {
+  FX_FIXTURE_BASE_1530,
+  FX_FIXTURE_BASE_1600,
+  FX_FIXTURE_CARD_FEE,
+  FX_SENSITIVITY_BASES,
+  GEMINI37_MARGIN_CANDIDATES,
+  GEMINI37_MODEL_ID,
+  GOOGLE_STANDARD_INTRO_VALID_THROUGH,
+  GOOGLE_STANDARD_STRESS_RATES,
+} from "@/lib/gemini37PricingPolicy.constants";
+
+export { GEMINI37_CALIBRATION_RATE_EVIDENCE, CACHE_POLICY_VERIFICATION } from "@/lib/gemini37CalibrationEvidence";
 
 export const GEMINI37_V1_PUBLISHED: PublishedModelPricing = {
   modelId: GEMINI37_MODEL_ID,
@@ -44,35 +70,6 @@ export const GEMINI37_V2_PROPOSED: PublishedModelPricing = {
   pricingVersion: 2,
   publishedAt: "2026-08-28T14:00:00.000Z",
 };
-
-/** CI reference rates — canonical providerList owner (not Google Standard). */
-export const GEMINI37_CI_REFERENCE_RATES = {
-  inputUsdPerMillion: 0.375,
-  outputUsdPerMillion: 1.875,
-} as const;
-
-export const GEMINI37_CI_CURRENT_DISCOUNTED_RATES = {
-  inputUsdPerMillion: 0.2625,
-  outputUsdPerMillion: 1.3125,
-} as const;
-
-export const GEMINI37_CI_DISCOUNT_PERCENT = 0.3;
-
-/** Google Standard direct-provider stress diagnostic only — NOT providerList canonical. */
-export const GOOGLE_STANDARD_STRESS_RATES = {
-  inputUsdPerMillion: 0.75,
-  outputUsdPerMillion: 3.75,
-} as const;
-
-export const GEMINI37_MARGIN_CANDIDATES = [
-  0.5, 0.525, 0.55, 0.56, 0.565, 0.57, 0.575, 0.58, 0.6,
-] as const;
-
-export const FX_SENSITIVITY_BASES = [1400, 1450, 1500, 1530, 1550, 1600] as const;
-
-export const FX_FIXTURE_BASE_1530 = 1530;
-export const FX_FIXTURE_BASE_1600 = 1600;
-export const FX_FIXTURE_CARD_FEE = 0.02;
 
 export type Gemini37CompetitiveFlagReason =
   | "competitive_and_safe"
@@ -114,14 +111,22 @@ export type Gemini37FxSensitivityCell = {
 };
 
 export type Gemini37AcceptanceGates = {
-  REFERENCE_RATE_SOURCE_VERIFIED: boolean;
+  CALIBRATION_REFERENCE_EVIDENCE_MATCHES_V2: boolean;
   BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1530: boolean;
   BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1530: boolean;
   BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1600: boolean;
   BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1600: boolean;
-  TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST: boolean;
-  CURRENT_DISCOUNT_DOES_NOT_CONTROL_PUBLISHED_RATE: boolean;
+  UNCACHED_TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST: boolean;
+  PUBLISHED_RATE_INDEPENDENT_OF_OBSERVED_DISCOUNT: boolean;
+  CACHE_POLICY_VERIFICATION: typeof CACHE_POLICY_VERIFICATION;
+  LIVE_PROVIDER_PRICE_CHANGE_AUTO_MUTATES_PUBLISHED_V2: false;
   allPass: boolean;
+};
+
+export type DirectStandardStressResult = {
+  margin: number | null;
+  validThrough: typeof GOOGLE_STANDARD_INTRO_VALID_THROUGH;
+  rates: typeof GOOGLE_STANDARD_STRESS_RATES;
 };
 
 function round1(n: number): number {
@@ -145,22 +150,30 @@ export function buildFxSnapshotFromBase(baseUsdKrw: number): ShadowBillingExchan
   };
 }
 
-export function buildGemini37CatalogFixture(
+/**
+ * Uncached benchmark catalog fixture — cache token fields are type placeholders only.
+ * All calibration workloads use cacheReadTokens=0 and cacheWriteTokens=0.
+ */
+export function buildGemini37UncachedCatalogFixture(
   overrides?: Partial<CheaperInferenceCatalogPricing>
 ): CheaperInferenceCatalogPricing {
+  const evidence = GEMINI37_CALIBRATION_RATE_EVIDENCE;
   return {
     modelId: GEMINI37_MODEL_ID,
-    inputUsdPerMillion: GEMINI37_CI_CURRENT_DISCOUNTED_RATES.inputUsdPerMillion,
-    outputUsdPerMillion: GEMINI37_CI_CURRENT_DISCOUNTED_RATES.outputUsdPerMillion,
-    cacheReadUsdPerMillion: 0.02625,
-    cacheWriteUsdPerMillion: 0.017708,
-    referenceInputUsdPerMillion: GEMINI37_CI_REFERENCE_RATES.inputUsdPerMillion,
-    referenceOutputUsdPerMillion: GEMINI37_CI_REFERENCE_RATES.outputUsdPerMillion,
-    discountPercent: GEMINI37_CI_DISCOUNT_PERCENT * 100,
-    fetchedAt: Date.now(),
+    inputUsdPerMillion: evidence.observedCurrentInputUsdPerMillion,
+    outputUsdPerMillion: evidence.observedCurrentOutputUsdPerMillion,
+    cacheReadUsdPerMillion: 0,
+    cacheWriteUsdPerMillion: 0,
+    referenceInputUsdPerMillion: evidence.referenceInputUsdPerMillion,
+    referenceOutputUsdPerMillion: evidence.referenceOutputUsdPerMillion,
+    discountPercent: evidence.observedDiscountPercent,
+    fetchedAt: Date.parse(evidence.observedAt),
     ...overrides,
   };
 }
+
+/** @deprecated Use buildGemini37UncachedCatalogFixture */
+export const buildGemini37CatalogFixture = buildGemini37UncachedCatalogFixture;
 
 function computeProviderListCostKrw(
   benchmark: MarketUsageBenchmark,
@@ -226,7 +239,7 @@ export function simulateGemini37PolicyRow(params: {
   catalog?: CheaperInferenceCatalogPricing;
 }): Gemini37PolicyRow {
   const fxSnapshot = buildFxSnapshotFromBase(params.baseFx);
-  const catalog = params.catalog ?? buildGemini37CatalogFixture();
+  const catalog = params.catalog ?? buildGemini37UncachedCatalogFixture();
   const billingReferenceCostKrw = computeBillingReferenceCostKrw(params.benchmark, params.published, fxSnapshot);
   const rawStandardChargeKrw = round1(billingReferenceCostKrw / (1 - params.targetMargin));
   const finalPoints = chargePoints(rawStandardChargeKrw);
@@ -342,7 +355,7 @@ export function computeDirectStandardStressMargin(params: {
   benchmark: MarketUsageBenchmark;
   published: PublishedModelPricing;
   baseFx?: number;
-}): number | null {
+}): DirectStandardStressResult {
   const baseFx = params.baseFx ?? FX_FIXTURE_BASE_1530;
   const fxSnapshot = buildFxSnapshotFromBase(baseFx);
   const billingReferenceCostKrw = computeBillingReferenceCostKrw(params.benchmark, params.published, fxSnapshot);
@@ -351,14 +364,21 @@ export function computeDirectStandardStressMargin(params: {
     (params.benchmark.inputTokens / 1_000_000) * GOOGLE_STANDARD_STRESS_RATES.inputUsdPerMillion +
     (params.benchmark.displayedOutputTokens / 1_000_000) * GOOGLE_STANDARD_STRESS_RATES.outputUsdPerMillion;
   const directStandardCostKrw = round1(convertUsdToKrw(directStandardUsd, fxSnapshot.effectiveKrwPerUsd));
-  if (userPriceKrw <= 0) return null;
-  return round1((userPriceKrw - directStandardCostKrw) / userPriceKrw);
+  const margin = userPriceKrw > 0 ? round1((userPriceKrw - directStandardCostKrw) / userPriceKrw) : null;
+  return {
+    margin,
+    validThrough: GOOGLE_STANDARD_INTRO_VALID_THROUGH,
+    rates: GOOGLE_STANDARD_STRESS_RATES,
+  };
 }
 
-export function computeCurrentDiscountTheoreticalMargin(targetMargin: number): number {
-  const discountMultiplier = 1 - GEMINI37_CI_DISCOUNT_PERCENT;
+export function computeCalibrationDiscountTheoreticalMargin(targetMargin: number): number {
+  const discountMultiplier = 1 - GEMINI37_CALIBRATION_RATE_EVIDENCE.observedDiscountPercent / 100;
   return Math.round((1 - discountMultiplier * (1 - targetMargin)) * 1000) / 1000;
 }
+
+/** @deprecated Use computeCalibrationDiscountTheoreticalMargin */
+export const computeCurrentDiscountTheoreticalMargin = computeCalibrationDiscountTheoreticalMargin;
 
 export function diagnoseGemini37V1AtBaseFx(baseFx: number = FX_FIXTURE_BASE_1530): {
   benchmarkA: Gemini37PolicyRow;
@@ -389,11 +409,6 @@ export function diagnoseGemini37V1AtBaseFx(baseFx: number = FX_FIXTURE_BASE_1530
 }
 
 export function evaluateGemini37V2AcceptanceGates(): Gemini37AcceptanceGates {
-  const catalog = buildGemini37CatalogFixture();
-  const referenceVerified =
-    catalog.referenceInputUsdPerMillion === GEMINI37_CI_REFERENCE_RATES.inputUsdPerMillion &&
-    catalog.referenceOutputUsdPerMillion === GEMINI37_CI_REFERENCE_RATES.outputUsdPerMillion;
-
   const benchmarkA = getMarketBenchmark(GEMINI37_MODEL_ID, GEMINI37_BENCHMARK_A_ID)!;
   const benchmarkB = getMarketBenchmark(GEMINI37_MODEL_ID, GEMINI37_BENCHMARK_B_ID)!;
   const targetMargin = GEMINI37_V2_PROPOSED.targetMargin;
@@ -429,34 +444,36 @@ export function evaluateGemini37V2AcceptanceGates(): Gemini37AcceptanceGates {
     targetMargin,
     baseFx: FX_FIXTURE_BASE_1530,
   });
-  const targetMarginSemanticsMatch =
+  const uncachedTargetMarginSemanticsMatch =
     semanticsRow.noDiscountRealizedMargin != null &&
-    GEMINI37_V2_PROPOSED.billingReferenceInputUsdPerMillion === GEMINI37_CI_REFERENCE_RATES.inputUsdPerMillion &&
-    GEMINI37_V2_PROPOSED.billingReferenceOutputUsdPerMillion === GEMINI37_CI_REFERENCE_RATES.outputUsdPerMillion &&
+    calibrationReferenceEvidenceMatchesV2(GEMINI37_V2_PROPOSED) &&
     Math.abs(semanticsRow.noDiscountRealizedMargin - targetMargin) < 0.02;
 
-  const discountDoesNotControlPublished =
-    GEMINI37_V2_PROPOSED.billingReferenceInputUsdPerMillion !== GEMINI37_CI_CURRENT_DISCOUNTED_RATES.inputUsdPerMillion &&
-    GEMINI37_V2_PROPOSED.billingReferenceOutputUsdPerMillion !== GEMINI37_CI_CURRENT_DISCOUNTED_RATES.outputUsdPerMillion;
+  const evidence = GEMINI37_CALIBRATION_RATE_EVIDENCE;
+  const publishedIndependentOfObservedDiscount =
+    GEMINI37_V2_PROPOSED.billingReferenceInputUsdPerMillion !== evidence.observedCurrentInputUsdPerMillion &&
+    GEMINI37_V2_PROPOSED.billingReferenceOutputUsdPerMillion !== evidence.observedCurrentOutputUsdPerMillion;
 
   const gates: Gemini37AcceptanceGates = {
-    REFERENCE_RATE_SOURCE_VERIFIED: referenceVerified,
+    CALIBRATION_REFERENCE_EVIDENCE_MATCHES_V2: calibrationReferenceEvidenceMatchesV2(GEMINI37_V2_PROPOSED),
     BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1530: a1530.strictMarketPass,
     BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1530: b1530.strictMarketPass,
     BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1600: a1600.strictMarketPass,
     BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1600: b1600.strictMarketPass,
-    TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST: targetMarginSemanticsMatch,
-    CURRENT_DISCOUNT_DOES_NOT_CONTROL_PUBLISHED_RATE: discountDoesNotControlPublished,
+    UNCACHED_TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST: uncachedTargetMarginSemanticsMatch,
+    PUBLISHED_RATE_INDEPENDENT_OF_OBSERVED_DISCOUNT: publishedIndependentOfObservedDiscount,
+    CACHE_POLICY_VERIFICATION,
+    LIVE_PROVIDER_PRICE_CHANGE_AUTO_MUTATES_PUBLISHED_V2: false,
     allPass: false,
   };
   gates.allPass =
-    gates.REFERENCE_RATE_SOURCE_VERIFIED &&
+    gates.CALIBRATION_REFERENCE_EVIDENCE_MATCHES_V2 &&
     gates.BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1530 &&
     gates.BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1530 &&
     gates.BENCHMARK_A_55_MARGIN_PASS_AT_BASE_1600 &&
     gates.BENCHMARK_B_55_MARGIN_PASS_AT_BASE_1600 &&
-    gates.TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST &&
-    gates.CURRENT_DISCOUNT_DOES_NOT_CONTROL_PUBLISHED_RATE;
+    gates.UNCACHED_TARGET_MARGIN_SEMANTICS_MATCH_PROVIDER_LIST &&
+    gates.PUBLISHED_RATE_INDEPENDENT_OF_OBSERVED_DISCOUNT;
   return gates;
 }
 

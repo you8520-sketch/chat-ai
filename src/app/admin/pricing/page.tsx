@@ -7,22 +7,25 @@ import { simulatePremiumCompetitive, TOKEN_USAGE_COMPETITOR_BENCHMARKS, PREMIUM_
 import {
   GEMINI37_BENCHMARK_A_ID,
   GEMINI37_BENCHMARK_B_ID,
-  getMarketBenchmark,
   getMarketBenchmarks,
 } from "@/lib/marketUsageBenchmarks";
 import {
+  CACHE_POLICY_VERIFICATION,
+  evaluateLiveReferenceDrift,
+  GEMINI37_CALIBRATION_RATE_EVIDENCE,
+} from "@/lib/gemini37CalibrationEvidence";
+import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import {
   buildGemini37FxSensitivityMatrix,
   buildGemini37MarginMatrix,
-  computeCurrentDiscountTheoreticalMargin,
+  computeCalibrationDiscountTheoreticalMargin,
   computeDirectStandardStressMargin,
   diagnoseGemini37V1AtBaseFx,
   evaluateGemini37V2AcceptanceGates,
-  GEMINI37_CI_CURRENT_DISCOUNTED_RATES,
-  GEMINI37_CI_DISCOUNT_PERCENT,
-  GEMINI37_CI_REFERENCE_RATES,
   GEMINI37_MODEL_ID,
   GEMINI37_V1_PUBLISHED,
   GEMINI37_V2_PROPOSED,
+  GOOGLE_STANDARD_INTRO_VALID_THROUGH,
   simulateGemini37PolicyRow,
 } from "@/lib/gemini37PricingPolicy";
 
@@ -87,26 +90,75 @@ function Gemini37PolicyHeader() {
   const pub = getPublishedPricing(GEMINI37_MODEL_ID);
   const v1Diag = diagnoseGemini37V1AtBaseFx();
   const gates = evaluateGemini37V2AcceptanceGates();
-  const theoreticalDiscountMargin = computeCurrentDiscountTheoreticalMargin(GEMINI37_V2_PROPOSED.targetMargin);
-  const benchmarkA = getMarketBenchmark(GEMINI37_MODEL_ID, GEMINI37_BENCHMARK_A_ID)!;
-  const directStressA = computeDirectStandardStressMargin({ benchmark: benchmarkA, published: GEMINI37_V2_PROPOSED });
+  const evidence = GEMINI37_CALIBRATION_RATE_EVIDENCE;
+  const liveCatalog = resolveCheaperInferenceCatalogPricing(GEMINI37_MODEL_ID);
+  const liveDrift = evaluateLiveReferenceDrift(pub);
+  const theoreticalDiscountMargin = computeCalibrationDiscountTheoreticalMargin(GEMINI37_V2_PROPOSED.targetMargin);
+  const benchmarkA = getMarketBenchmarks(GEMINI37_MODEL_ID)[0];
+  const directStress = benchmarkA
+    ? computeDirectStandardStressMargin({ benchmark: benchmarkA, published: GEMINI37_V2_PROPOSED })
+    : null;
 
   return (
-    <div className="mt-4 rounded border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-zinc-300">
-      <h3 className="font-semibold text-amber-100">Gemini 3.7 Flash — shadow policy calibration</h3>
-      <p className="mt-2 text-zinc-400">
-        v1 used elevated billing reference (${GEMINI37_V1_PUBLISHED.billingReferenceInputUsdPerMillion}/{GEMINI37_V1_PUBLISHED.billingReferenceOutputUsdPerMillion} @ {(GEMINI37_V1_PUBLISHED.targetMargin * 100).toFixed(0)}% target).
-        v2 aligns published reference with CI no-discount (${GEMINI37_V2_PROPOSED.billingReferenceInputUsdPerMillion}/{GEMINI37_V2_PROPOSED.billingReferenceOutputUsdPerMillion}) and {(GEMINI37_V2_PROPOSED.targetMargin * 100).toFixed(0)}% target — prices can be lower despite higher margin semantics.
-      </p>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-4">
-        <div><dt className="text-zinc-500">Published (live shadow)</dt><dd>v{pub.pricingVersion} · ${pub.billingReferenceInputUsdPerMillion}/{pub.billingReferenceOutputUsdPerMillion} · {(pub.targetMargin * 100).toFixed(0)}% / floor {(pub.minimumMarginFloor * 100).toFixed(0)}%</dd></div>
-        <div><dt className="text-zinc-500">v1 diagnostic @1530</dt><dd>A {v1Diag.benchmarkA.finalPoints}P vs {v1Diag.benchmarkA.competitorChargePoints}P · B {v1Diag.benchmarkB.finalPoints}P vs {v1Diag.benchmarkB.competitorChargePoints}P</dd></div>
-        <div><dt className="text-zinc-500">CI current discounted</dt><dd>${GEMINI37_CI_CURRENT_DISCOUNTED_RATES.inputUsdPerMillion}/{GEMINI37_CI_CURRENT_DISCOUNTED_RATES.outputUsdPerMillion} ({(GEMINI37_CI_DISCOUNT_PERCENT * 100).toFixed(0)}% off)</dd></div>
-        <div><dt className="text-zinc-500">CI reference (providerList)</dt><dd>${GEMINI37_CI_REFERENCE_RATES.inputUsdPerMillion}/{GEMINI37_CI_REFERENCE_RATES.outputUsdPerMillion}</dd></div>
-        <div><dt className="text-zinc-500">current discount theoretical margin @55%</dt><dd>{(theoreticalDiscountMargin * 100).toFixed(1)}%</dd></div>
-        <div><dt className="text-zinc-500">DIRECT_STANDARD_STRESS margin (A)</dt><dd>{directStressA != null ? `${(directStressA * 100).toFixed(1)}%` : "Unavailable"}</dd></div>
-        <div><dt className="text-zinc-500">v2 acceptance gates</dt><dd>{gates.allPass ? "ALL PASS" : "BLOCKED — see tests"}</dd></div>
-      </dl>
+    <div className="mt-4 space-y-3 text-xs text-zinc-300">
+      <div className="rounded border border-amber-500/30 bg-amber-950/20 p-3">
+        <h3 className="font-semibold text-amber-100">Published v2 policy (shadow)</h3>
+        <p className="mt-1">${pub.billingReferenceInputUsdPerMillion}/{pub.billingReferenceOutputUsdPerMillion} · target {(pub.targetMargin * 100).toFixed(0)}% · floor {(pub.minimumMarginFloor * 100).toFixed(0)}% · v{pub.pricingVersion}</p>
+        <p className="mt-2 text-zinc-400">
+          v1 used elevated billing reference (${GEMINI37_V1_PUBLISHED.billingReferenceInputUsdPerMillion}/{GEMINI37_V1_PUBLISHED.billingReferenceOutputUsdPerMillion} @ {(GEMINI37_V1_PUBLISHED.targetMargin * 100).toFixed(0)}% target).
+          v2 aligns published reference with calibration evidence and {(GEMINI37_V2_PROPOSED.targetMargin * 100).toFixed(0)}% target — prices can be lower despite higher margin semantics.
+        </p>
+        <p className="mt-1 text-zinc-500">v1 diagnostic @1530: A {v1Diag.benchmarkA.finalPoints}P vs {v1Diag.benchmarkA.competitorChargePoints}P · B {v1Diag.benchmarkB.finalPoints}P vs {v1Diag.benchmarkB.competitorChargePoints}P</p>
+      </div>
+
+      <div className="rounded border border-white/10 p-3">
+        <h3 className="font-semibold text-zinc-100">Calibration evidence snapshot</h3>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+          <div><dt className="text-zinc-500">observed reference</dt><dd>${evidence.referenceInputUsdPerMillion}/{evidence.referenceOutputUsdPerMillion}</dd></div>
+          <div><dt className="text-zinc-500">observed current</dt><dd>${evidence.observedCurrentInputUsdPerMillion}/{evidence.observedCurrentOutputUsdPerMillion}</dd></div>
+          <div><dt className="text-zinc-500">observed discount</dt><dd>{evidence.observedDiscountPercent}%</dd></div>
+          <div><dt className="text-zinc-500">observedAt</dt><dd>{evidence.observedAt}</dd></div>
+          <div><dt className="text-zinc-500">sourceKind</dt><dd>{evidence.sourceKind}</dd></div>
+          <div><dt className="text-zinc-500">calibration theoretical margin @55%</dt><dd>{(theoreticalDiscountMargin * 100).toFixed(1)}%</dd></div>
+        </dl>
+      </div>
+
+      <div className="rounded border border-white/10 p-3">
+        <h3 className="font-semibold text-zinc-100">Live CI catalog</h3>
+        {liveCatalog ? (
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+            <div><dt className="text-zinc-500">current input</dt><dd>${liveCatalog.inputUsdPerMillion}</dd></div>
+            <div><dt className="text-zinc-500">current output</dt><dd>${liveCatalog.outputUsdPerMillion}</dd></div>
+            <div><dt className="text-zinc-500">reference input</dt><dd>{liveCatalog.referenceInputUsdPerMillion != null ? `$${liveCatalog.referenceInputUsdPerMillion}` : "Unavailable"}</dd></div>
+            <div><dt className="text-zinc-500">reference output</dt><dd>{liveCatalog.referenceOutputUsdPerMillion != null ? `$${liveCatalog.referenceOutputUsdPerMillion}` : "Unavailable"}</dd></div>
+            <div><dt className="text-zinc-500">discount</dt><dd>{liveCatalog.discountPercent != null ? `${liveCatalog.discountPercent}%` : "Unavailable"}</dd></div>
+            <div><dt className="text-zinc-500">fetchedAt</dt><dd>{new Date(liveCatalog.fetchedAt).toISOString()}</dd></div>
+          </dl>
+        ) : (
+          <p className="mt-2 text-zinc-500">Unavailable</p>
+        )}
+      </div>
+
+      <div className="rounded border border-white/10 p-3">
+        <h3 className="font-semibold text-zinc-100">Live reference drift</h3>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+          <div><dt className="text-zinc-500">LIVE_REFERENCE_STATUS</dt><dd>{liveDrift.status}</dd></div>
+          <div><dt className="text-zinc-500">liveReferenceMatchesPublished</dt><dd>{liveDrift.liveReferenceMatchesPublished == null ? "Unavailable" : liveDrift.liveReferenceMatchesPublished ? "true" : "false"}</dd></div>
+          <div><dt className="text-zinc-500">input deviation</dt><dd>{liveDrift.inputDeviationPct != null ? `${liveDrift.inputDeviationPct}%` : "Unavailable"}</dd></div>
+          <div><dt className="text-zinc-500">output deviation</dt><dd>{liveDrift.outputDeviationPct != null ? `${liveDrift.outputDeviationPct}%` : "Unavailable"}</dd></div>
+          <div><dt className="text-zinc-500">LIVE_PROVIDER_PRICE_CHANGE_AUTO_MUTATES_PUBLISHED_V2</dt><dd>false</dd></div>
+        </dl>
+      </div>
+
+      <div className="rounded border border-white/10 p-3">
+        <h3 className="font-semibold text-zinc-100">Diagnostics</h3>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
+          <div><dt className="text-zinc-500">DIRECT_STANDARD_STRESS</dt><dd>{directStress?.margin != null ? `≈${(directStress.margin * 100).toFixed(0)}% margin` : "Unavailable"}</dd></div>
+          <div><dt className="text-zinc-500">intro pricing through</dt><dd>{GOOGLE_STANDARD_INTRO_VALID_THROUGH}</dd></div>
+          <div><dt className="text-zinc-500">CACHE_POLICY_VERIFICATION</dt><dd>{CACHE_POLICY_VERIFICATION}</dd></div>
+          <div><dt className="text-zinc-500">v2 acceptance gates</dt><dd>{gates.allPass ? "ALL PASS" : "BLOCKED — see tests"}</dd></div>
+        </dl>
+      </div>
     </div>
   );
 }
