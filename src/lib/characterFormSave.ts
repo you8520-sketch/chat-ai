@@ -463,43 +463,30 @@ export function parseCharacterFormBody(
       status: 400,
     };
   }
-  if (
-    substantiveAiLearningCharCount({
-      contentKind,
-      world,
-      systemPrompt,
-      simulationCast,
-      simulationRules,
-      speechInput,
-    }) < AI_LEARNING_MIN
-  ) {
-    return {
-      ok: false,
-      error: `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
-      status: 400,
-    };
-  }
-  const narrationStyleInstructions = normalizeNarrationStyleInstructions(
-    b.narration_style_instructions ?? b.narrationStyleInstructions
-  );
   const narrationStyleErr = validateNarrationStyleInstructions(
     b.narration_style_instructions ?? b.narrationStyleInstructions
   );
   if (narrationStyleErr) {
     return { ok: false, error: narrationStyleErr, status: 400 };
   }
+  const narrationStyleInstructions = normalizeNarrationStyleInstructions(
+    b.narration_style_instructions ?? b.narrationStyleInstructions
+  );
+  const substantiveAiLearningChars = substantiveAiLearningCharCount({
+    world,
+    systemPrompt,
+    speechInput,
+  });
+  if (substantiveAiLearningChars < AI_LEARNING_MIN) {
+    return {
+      ok: false,
+      error: `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
+      status: 400,
+    };
+  }
   if (
-    effectivePromptAuthoringCharCount(
-      substantiveAiLearningCharCount({
-        contentKind,
-        world,
-        systemPrompt,
-        simulationCast,
-        simulationRules,
-        speechInput,
-      }),
-      narrationStyleInstructions
-    ) > AI_LEARNING_LIMIT
+    effectivePromptAuthoringCharCount(substantiveAiLearningChars, narrationStyleInstructions) >
+    AI_LEARNING_LIMIT
   ) {
     return {
       ok: false,

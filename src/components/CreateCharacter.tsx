@@ -356,7 +356,6 @@ export default function CreateCharacter({
     form.content_kind === "simulation"
       ? form.world.length + simulationPromptChars
       : substantiveAiLearningCharCount({
-          contentKind: "character",
           world: form.world,
           systemPrompt: form.system_prompt,
           speechInput: {
@@ -1528,7 +1527,7 @@ export default function CreateCharacter({
                   </p>
                 </div>
                 <p className="text-right text-xs text-zinc-400">
-                  세계관 + 캐릭터 설정 + 기본 말투 합계{" "}
+                  AI 프롬프트 합계 (세계관 + 설정 + 기본 말투 + 서술·문체 지침){" "}
                   <span
                     className={
                       substantiveAiLearningTotal < AI_LEARNING_MIN
@@ -1641,7 +1640,7 @@ export default function CreateCharacter({
                 </div>
 
                 <p className="text-right text-xs text-zinc-400">
-                  세계관 + 등장 캐릭터 + 추가 규칙 합계{" "}
+                  AI 프롬프트 합계 (세계관 + 등장 캐릭터 + 규칙 + 서술·문체 지침){" "}
                   <span className={substantiveAiLearningTotal < AI_LEARNING_MIN ? "font-semibold text-amber-400" : ""}>
                     {aiLearningTotal.toLocaleString()}
                   </span>{" "}

@@ -7,7 +7,12 @@ import {
   parseCharacterFormBody,
 } from "@/lib/characterFormSave";
 import { borrowWorldShareToUser, createWorldShare } from "@/lib/worldShares";
-import { NARRATION_STYLE_INSTRUCTIONS_LIMIT } from "@/lib/creatorNarrationStyle";
+import {
+  NARRATION_STYLE_INSTRUCTIONS_LIMIT,
+  substantiveAiLearningCharCount,
+} from "@/lib/creatorNarrationStyle";
+import { buildSimulationSystemPrompt } from "@/lib/simulationMode";
+import { AI_LEARNING_LIMIT, AI_LEARNING_MIN } from "@/lib/characterFormLimits";
 
 const LONG_PROMPT = "설정".repeat(800);
 
@@ -263,6 +268,244 @@ describe("borrow snapshot style-only edit", () => {
     assert.equal(after.source_world_share_id, before.source_world_share_id);
     assert.equal(after.world_id, before.world_id);
     assert.equal(after.narration_style_instructions, "차분한 서술");
+  });
+});
+
+describe("simulation import budget validation", () => {
+  const emptySpeech = {
+    speech_personality: "",
+    speech_traits: "",
+    speech_examples: "",
+    speech_forbidden: "",
+    speech_contextual_registers: [] as [],
+  };
+
+  async function seedImportSourceCharacter(
+    ownerId: number,
+    systemPrompt: string
+  ): Promise<number> {
+    seedUser(ownerId);
+    const created = await createCharacterFromForm(
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 },
+      characterBody({
+        name: `Import${ownerId}`,
+        world: "세".repeat(600),
+        system_prompt: `[외형]\n검은\n\n${"P".repeat(1000)}`,
+        speech_personality: "말".repeat(50),
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+      })
+    );
+    if (!created.ok) {
+      assert.fail(`import source create failed: ${created.error}`);
+    }
+    getDb()
+      .prepare("UPDATE characters SET system_prompt=?, world='', example_dialog='' WHERE id=?")
+      .run(systemPrompt, created.id);
+    return created.id;
+  }
+
+  function importSnapshot(
+    importId: number,
+    ownerId: number,
+    prompt: string
+  ) {
+    return {
+      characterId: importId,
+      name: `Import${ownerId}`,
+      creatorId: ownerId,
+      creatorName: `user${ownerId}`,
+      systemPrompt: prompt,
+      world: "",
+      exampleDialog: "",
+    };
+  }
+
+  function simulationBudgetBody(importId: number, overrides: Record<string, unknown> = {}) {
+    return simulationBody({
+      name: "BudgetSim",
+      simulation_cast: "[주인공]\n" + "가".repeat(250),
+      world: "세".repeat(500),
+      simulation_import_ids: [importId],
+      simulation_visual_subjects: { version: 1, subjects: [] },
+      ...overrides,
+    });
+  }
+
+  it("imported character content counts toward substantive MIN and MAX via parseCharacterFormBody", async () => {
+    const ownerId = 93100;
+    const importPrompt = "I".repeat(7000);
+    const importId = await seedImportSourceCharacter(ownerId, importPrompt);
+    const world = "세".repeat(500);
+    const cast = "[주인공]\n" + "가".repeat(250);
+    const withoutImportPrompt = buildSimulationSystemPrompt({ cast, rules: "" });
+    const withImportPrompt = buildSimulationSystemPrompt({
+      cast,
+      rules: "",
+      imports: [importSnapshot(importId, ownerId, importPrompt)],
+    });
+    const withoutImport = substantiveAiLearningCharCount({
+      world,
+      systemPrompt: withoutImportPrompt,
+      speechInput: emptySpeech,
+    });
+    const withImport = substantiveAiLearningCharCount({
+      world,
+      systemPrompt: withImportPrompt,
+      speechInput: emptySpeech,
+    });
+    assert.ok(withImport > withoutImport);
+    assert.ok(withImport - withoutImport > 6000);
+
+    const underMin = parseCharacterFormBody(
+      simulationBudgetBody(importId, {
+        world: "세".repeat(100),
+        simulation_cast: "[A]\n짧음",
+        simulation_import_ids: [],
+      }),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(underMin.ok, false);
+    if (underMin.ok) return;
+    assert.match(underMin.error, /1,500/);
+
+    const accepted = parseCharacterFormBody(
+      simulationBudgetBody(importId),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(accepted.ok, true);
+  });
+
+  it("FINAL_COMPILED_PROMPT_AT_LIMIT accepted and OVER_LIMIT_BY_1 rejected (import-driven excess)", async () => {
+    const ownerId = 93111;
+    seedUser(ownerId);
+    const world = "세".repeat(500);
+    const cast = "[주인공]\n" + "가".repeat(250);
+    const importId = await seedImportSourceCharacter(ownerId, "x");
+
+    const importSnapshotForLen = (prompt: string) =>
+      importSnapshot(importId, ownerId, prompt);
+
+    const substantiveForImportLen = (importLen: number) =>
+      substantiveAiLearningCharCount({
+        world,
+        systemPrompt: buildSimulationSystemPrompt({
+          cast,
+          rules: "",
+          imports: [importSnapshotForLen("I".repeat(importLen))],
+        }),
+        speechInput: emptySpeech,
+      });
+
+    let lo = 0;
+    let hi = 12000;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (substantiveForImportLen(mid) < AI_LEARNING_LIMIT) lo = mid + 1;
+      else hi = mid;
+    }
+    const importLenAtLimit = lo;
+    let importPrompt = "I".repeat(importLenAtLimit);
+    assert.equal(substantiveForImportLen(importLenAtLimit), AI_LEARNING_LIMIT);
+
+    getDb()
+      .prepare("UPDATE characters SET system_prompt=? WHERE id=?")
+      .run(importPrompt, importId);
+
+    const atLimit = parseCharacterFormBody(
+      simulationBudgetBody(importId),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(atLimit.ok, true);
+
+    importPrompt += "X";
+    getDb()
+      .prepare("UPDATE characters SET system_prompt=? WHERE id=?")
+      .run(importPrompt, importId);
+
+    const overLimit = parseCharacterFormBody(
+      simulationBudgetBody(importId),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(overLimit.ok, false);
+    if (overLimit.ok) return;
+    assert.match(overLimit.error, /10,000/);
+  });
+
+  it("style excluded from minimum and included in maximum", () => {
+    const ownerId = 93102;
+    seedUser(ownerId);
+    const world = "세".repeat(700);
+    const systemPrompt = "설".repeat(799);
+    assert.equal(
+      substantiveAiLearningCharCount({ world, systemPrompt, speechInput: emptySpeech }),
+      AI_LEARNING_MIN - 1
+    );
+
+    const belowMinWithStyle = parseCharacterFormBody(
+      {
+        ...characterBody({
+          world,
+          system_prompt: systemPrompt,
+          speech_personality: "",
+          speech_traits: "",
+          speech_examples: "",
+          speech_forbidden: "",
+        }),
+        narration_style_instructions: "가".repeat(200),
+      },
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(belowMinWithStyle.ok, false);
+    if (belowMinWithStyle.ok) return;
+    assert.match(belowMinWithStyle.error, /1,500/);
+
+    const atMin = parseCharacterFormBody(
+      characterBody({
+        world,
+        system_prompt: systemPrompt + "설",
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        narration_style_instructions: "가".repeat(300),
+      }),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(atMin.ok, true);
+
+    const nearMaxWorld = "세".repeat(1000);
+    const nearMaxPrompt = "설".repeat(8700);
+    const atMax = parseCharacterFormBody(
+      characterBody({
+        world: nearMaxWorld,
+        system_prompt: nearMaxPrompt,
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        narration_style_instructions: "가".repeat(300),
+      }),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(atMax.ok, true);
+
+    const overMax = parseCharacterFormBody(
+      characterBody({
+        world: nearMaxWorld,
+        system_prompt: nearMaxPrompt + "설",
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        narration_style_instructions: "가".repeat(300),
+      }),
+      { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
+    );
+    assert.equal(overMax.ok, false);
+    if (overMax.ok) return;
+    assert.match(overMax.error, /10,000/);
   });
 });
 

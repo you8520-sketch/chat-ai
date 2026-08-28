@@ -29,6 +29,14 @@ describe("creatorNarrationStyle", () => {
     assert.equal(validateNarrationStyleInstructions(over)?.includes("300"), true);
   });
 
+  it("non-string narration style rejected", () => {
+    assert.match(
+      validateNarrationStyleInstructions({ bad: true }) ?? "",
+      /문자열/
+    );
+    assert.equal(validateNarrationStyleInstructions(123), "서술·문체 지침은 문자열이어야 합니다.");
+  });
+
   it("nonempty style block appears once with hierarchy wrapper", () => {
     const block = buildCreatorNarrationStyleBlock("3인칭 제한 시점");
     assert.match(block, /refinement only/i);
@@ -106,7 +114,6 @@ describe("creatorNarrationStyle", () => {
 
   it("narration style counts toward max budget only", () => {
     const substantive = substantiveAiLearningCharCount({
-      contentKind: "character",
       world: "w".repeat(1000),
       systemPrompt: "s".repeat(600),
       speechInput: {
