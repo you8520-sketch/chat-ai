@@ -14,6 +14,7 @@ import {
 import {
   convertUsdToKrw,
   formatExchangeRateLabel,
+  normalizeLegacyExchangeRateSource,
   OVERSEAS_CARD_FEE_RATE,
   resolveBillingExchangeRateSnapshot,
 } from "@/lib/exchangeRate";
@@ -186,7 +187,7 @@ export function resolveApiRawCostKrw(usage: Usage): number | null {
             effectiveKrwPerUsd: usage.exchangeRateKrwPerUsd,
             dateKey: usage.exchangeRateDateKey ?? "",
             mode: usage.exchangeRateMode ?? "daily_kst",
-            source: usage.exchangeRateSource ?? "fallback",
+            source: normalizeLegacyExchangeRateSource(usage.exchangeRateSource),
           }
         : undefined,
   });
@@ -214,7 +215,7 @@ export function resolveExchangeRateReceiptLabel(usage: Usage): string {
       dateKey: usage.exchangeRateDateKey,
       usdToKrw: usage.exchangeRateKrwPerUsd / OVERSEAS_CARD_FEE_RATE,
       effectiveKrwPerUsd: usage.exchangeRateKrwPerUsd,
-      source: usage.exchangeRateSource ?? "fallback",
+      source: normalizeLegacyExchangeRateSource(usage.exchangeRateSource),
     });
   }
   return formatExchangeRateLabel(resolveBillingExchangeRateSnapshot());

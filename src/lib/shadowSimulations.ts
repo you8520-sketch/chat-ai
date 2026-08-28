@@ -1,4 +1,4 @@
-import type { BillingFxSource } from "@/lib/exchangeRate";
+import type { BillingFxSource } from "@/lib/shadowBillingExchangeRate";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { computeShadowPricing } from "@/lib/shadowPricing";
 

@@ -6,7 +6,9 @@ import {
   PREMIUM_MARGIN_CANDIDATES,
 } from "./shadowSimulations";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
-import { _setExchangeRateForTest } from "./exchangeRate";
+import { _insertShadowBillingFxDailyRowForTest, _setShadowBillingFxTestDb, _clearShadowBillingFxMemoryForTest } from "./shadowBillingExchangeRate";
+import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
+import Database from "better-sqlite3";
 
 const TEST_BASE_FX = 1530;
 const TEST_EFFECTIVE_FX = 1560.6;
@@ -34,7 +36,15 @@ const OPUS_ROW_FIXTURES = [
 ];
 
 function setupFxFixture() {
-  _setExchangeRateForTest({ dateKey: "2026-08-28", usdToKrw: TEST_BASE_FX, source: "api_daily" });
+  const db = new Database(":memory:");
+  ensureShadowBillingFxTables(db);
+  _setShadowBillingFxTestDb(db);
+  _clearShadowBillingFxMemoryForTest();
+  _insertShadowBillingFxDailyRowForTest({
+    dateKey: "2026-08-28",
+    baseUsdKrw: TEST_BASE_FX,
+    source: "api_daily",
+  });
 }
 
 function setupCatalogFixture() {

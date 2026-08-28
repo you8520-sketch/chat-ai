@@ -2,16 +2,28 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { computeShadowPricing, normalizeBillableUsage } from "./shadowPricing";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
-import { _clearExchangeRateCacheForTest, _setExchangeRateForTest } from "./exchangeRate";
+import { _clearShadowBillingFxMemoryForTest, _insertShadowBillingFxDailyRowForTest, _setShadowBillingFxTestDb } from "./shadowBillingExchangeRate";
+import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
+import Database from "better-sqlite3";
 
 describe("shadowPricing fxSnapshot", () => {
   it("includes billing FX source in historical shadow snapshot", () => {
-    _setExchangeRateForTest({ dateKey: "2026-08-28", usdToKrw: 1530, source: "api_daily" });
+    const db = new Database(":memory:");
+    ensureShadowBillingFxTables(db);
+    _setShadowBillingFxTestDb(db);
+    _clearShadowBillingFxMemoryForTest();
+    _insertShadowBillingFxDailyRowForTest({
+      dateKey: "2026-08-28",
+      baseUsdKrw: 1530,
+      source: "api_daily",
+    });
     const s = computeShadowPricing({ modelId: "gemini-3.7-flash", promptTokens: 1000, outputTokens: 1000 });
     assert.equal(s.fxSnapshot.source, "api_daily");
     assert.equal(s.fxSnapshot.dateKey, "2026-08-28");
     assert.equal(s.fxSnapshot.baseUsdKrw, 1530);
-    _clearExchangeRateCacheForTest();
+    _setShadowBillingFxTestDb(null);
+    _clearShadowBillingFxMemoryForTest();
+    db.close();
   });
 });
 

@@ -5,12 +5,11 @@
  */
 
 import {
-  resolveBillingExchangeRateSnapshot,
-  convertUsdToKrw,
-  OVERSEAS_CARD_FEE_PERCENT,
   normalizeBillingFxSource,
+  resolveShadowBillingExchangeRateSnapshot,
   type BillingFxSource,
-} from "@/lib/exchangeRate";
+} from "@/lib/shadowBillingExchangeRate";
+import { convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
@@ -174,7 +173,7 @@ export function computeShadowCosts(opts: {
 }): ShadowCostBreakdown {
   const usage = normalizeBillableUsage(opts);
   const pub = opts.publishedPricingOverride ?? getPublishedPricing(opts.modelId ?? "");
-  const snapshot = resolveBillingExchangeRateSnapshot();
+  const snapshot = resolveShadowBillingExchangeRateSnapshot();
   const effectiveRate = snapshot.effectiveKrwPerUsd;
 
   let actualProviderCostKrw = 0;
