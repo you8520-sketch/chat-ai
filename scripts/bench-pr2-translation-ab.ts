@@ -14,18 +14,6 @@ Module._load = function (request, parent, isMain) {
 
 import fs from "node:fs";
 import path from "node:path";
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-} from "@/lib/chatModels";
-import {
-  CHARACTER_TRANSLATION_SYSTEM_PROMPT,
-  parseSegmentedResponse,
-  splitTranslationBatches,
-  translationPlaceholderCounts,
-  validateTranslationPlaceholderPreservation,
-} from "@/lib/promptTranslation";
-import { callPromptTranslation } from "@/lib/ai";
 
 const OUT_DIR = path.join(process.cwd(), "docs/audits/pr2-translation-ab");
 
@@ -58,21 +46,25 @@ const FIXTURES: Fixture[] = [
   },
 ];
 
-function fixtureOrder(i: number): [string, string] {
-  return i % 2 === 0
-    ? [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]
-    : [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL];
-}
-
-async function evaluateSingleModel(fixture: Fixture, model: string) {
+async function evaluateSingleModel(
+  fixture: Fixture,
+  model: string,
+  deps: {
+    callPromptTranslation: typeof import("@/lib/ai").callPromptTranslation;
+    CHARACTER_TRANSLATION_SYSTEM_PROMPT: string;
+    parseSegmentedResponse: typeof import("@/lib/promptTranslation").parseSegmentedResponse;
+    validateTranslationPlaceholderPreservation: typeof import("@/lib/promptTranslation").validateTranslationPlaceholderPreservation;
+    translationPlaceholderCounts: typeof import("@/lib/promptTranslation").translationPlaceholderCounts;
+  }
+) {
   const payload = `⟦SEG 1⟧\n${fixture.source}\n⟦/SEG 1⟧`;
   const started = Date.now();
-  const { text, usage } = await callPromptTranslation(
-    CHARACTER_TRANSLATION_SYSTEM_PROMPT,
+  const { text, usage } = await deps.callPromptTranslation(
+    deps.CHARACTER_TRANSLATION_SYSTEM_PROMPT,
     [{ role: "user", content: payload }],
     model
   );
-  const parsed = parseSegmentedResponse(text, 1);
+  const parsed = deps.parseSegmentedResponse(text, 1);
   const output = parsed?.[0] ?? "";
   return {
     fixtureId: fixture.id,
@@ -85,13 +77,31 @@ async function evaluateSingleModel(fixture: Fixture, model: string) {
     reasoningTokens: usage.reasoningOutputTokens ?? null,
     actualCost: "unavailable" as const,
     rawOutput: output,
-    placeholdersOk: validateTranslationPlaceholderPreservation(fixture.source, output),
-    placeholderCounts: translationPlaceholderCounts(output),
+    placeholdersOk: deps.validateTranslationPlaceholderPreservation(fixture.source, output),
+    placeholderCounts: deps.translationPlaceholderCounts(output),
     segmentComplete: parsed !== null,
   };
 }
 
 async function main() {
+  const { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } =
+    await import("@/lib/chatModels");
+  const promptTranslation = await import("@/lib/promptTranslation");
+  const { callPromptTranslation } = await import("@/lib/ai");
+  const deps = {
+    callPromptTranslation,
+    CHARACTER_TRANSLATION_SYSTEM_PROMPT: promptTranslation.CHARACTER_TRANSLATION_SYSTEM_PROMPT,
+    parseSegmentedResponse: promptTranslation.parseSegmentedResponse,
+    validateTranslationPlaceholderPreservation:
+      promptTranslation.validateTranslationPlaceholderPreservation,
+    translationPlaceholderCounts: promptTranslation.translationPlaceholderCounts,
+  };
+
+  function fixtureOrder(i: number): [string, string] {
+    return i % 2 === 0
+      ? [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]
+      : [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL];
+  }
   if (process.env.RUN_REAL_TRANSLATION_AB !== "1") {
     console.log("AB_STATUS=NOT_RUN — set RUN_REAL_TRANSLATION_AB=1 to execute");
     process.exit(0);
@@ -105,7 +115,19 @@ async function main() {
   fs.writeFileSync(path.join(OUT_DIR, "fixtures.json"), JSON.stringify(FIXTURES, null, 2));
 
   const batchEstimate = FIXTURES.reduce(
-    (sum, f) => sum + splitTranslationBatches([{ id: "x", characterId: "0", content: f.source, category: "identity", importance: "CRITICAL", tokenCount: f.source.length, keywords: [] }]).length,
+    (sum, f) =>
+      sum +
+      promptTranslation.splitTranslationBatches([
+        {
+          id: "x",
+          characterId: "0",
+          content: f.source,
+          category: "identity",
+          importance: "CRITICAL",
+          tokenCount: f.source.length,
+          keywords: [],
+        },
+      ]).length,
     0
   );
   console.log(`fixture count=${FIXTURES.length} expected single-segment batches~=${batchEstimate} expected provider requests~=${FIXTURES.length * 2}`);
@@ -120,7 +142,7 @@ async function main() {
         console.warn("AB safety cap reached — stopping");
         break;
       }
-      results.push(await evaluateSingleModel(fixture, model));
+      results.push(await evaluateSingleModel(fixture, model, deps));
     }
   }
 
