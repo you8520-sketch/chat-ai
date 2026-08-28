@@ -4856,6 +4856,8 @@ export async function POST(req: Request) {
             billingReferenceCostKrw: shadow.billingReferenceCostKrw,
             billingReferenceCostUsd: shadow.billingReferenceCostUsd,
             fxSnapshot: shadow.fxSnapshot,
+            providerListCostStatus: shadow.providerListCostStatus,
+            reserveStatus: shadow.reserveStatus,
             actualProviderCostKrw: shadow.actualProviderCostKrw,
             actualCostSource: shadow.actualCostSource,
             providerListCostKrw: shadow.providerListCostKrw,

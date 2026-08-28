@@ -79,6 +79,26 @@ export function parseReasoningTokens(usage: unknown): number {
   return pickUsageField(u, ["reasoning_tokens"]);
 }
 
+/** Envelope-aware parser — canonical helper for both stream/non-stream CheaperInference */
+export function parseCompatibleUsage(opts: {
+  usage: unknown;
+  cheaperInference?: unknown;
+  headers?: Headers | null;
+}): OpenRouterUsageBreakdown {
+  const envelopeBilled =
+    opts.cheaperInference && typeof opts.cheaperInference === "object"
+      ? readPositiveUsd(
+          ((opts.cheaperInference as Record<string, unknown>).billing as Record<string, unknown> | undefined)?.billed_cost_usd ??
+            (opts.cheaperInference as Record<string, unknown>).billed_cost_usd
+        )
+      : undefined;
+  const base = parseOpenRouterUsage(opts.usage, opts.headers);
+  if (envelopeBilled != null && base.cheaperInferenceBilledCostUsd == null) {
+    return { ...base, cheaperInferenceBilledCostUsd: envelopeBilled };
+  }
+  return base;
+}
+
 /** usage 객체·응답 헤더에서 cache read / creation 토큰 분리 파싱 */
 export function parseOpenRouterUsage(
   usage: unknown,
@@ -183,16 +203,13 @@ export function parseOpenRouterUsage(
     upstreamPromptCostUsd = readSignedUsd(costDetails.upstream_inference_prompt_cost);
     upstreamCompletionCostUsd = readSignedUsd(costDetails.upstream_inference_completions_cost);
   }
-  // CheaperInference top-level billed cost (canonical)
+  // CheaperInference top-level billed cost (canonical) — also check envelope cheaperInference.billing
   if (!cheaperInferenceBilledCostUsd) {
     cheaperInferenceBilledCostUsd =
       readPositiveUsd(u.cheaper_inference_billed_cost_usd) ??
       readPositiveUsd(u.billed_cost_usd) ??
-      readPositiveUsd((u.cheaper_inference as Record<string, unknown> | undefined)?.billed_cost_usd);
-    // Avoid double-count if same as upstream
-    if (cheaperInferenceBilledCostUsd != null && cheaperInferenceBilledCostUsd === upstreamCostUsd) {
-      // keep both, precedence will handle
-    }
+      readPositiveUsd((u.cheaper_inference as Record<string, unknown> | undefined)?.billed_cost_usd) ??
+      readPositiveUsd(((u.cheaper_inference as Record<string, unknown> | undefined)?.billing as Record<string, unknown> | undefined)?.billed_cost_usd);
   }
   if (!upstreamCostUsd) {
     upstreamCostUsd = readPositiveUsd(u.cost);

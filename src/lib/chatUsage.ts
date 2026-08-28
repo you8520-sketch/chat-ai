@@ -194,6 +194,8 @@ export type Usage = {
     billingReferenceCostKrw: number;
     billingReferenceCostUsd: number;
     fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
+    providerListCostStatus: string;
+    reserveStatus: string;
     actualProviderCostKrw: number;
     actualCostSource: string;
     providerListCostKrw: number;

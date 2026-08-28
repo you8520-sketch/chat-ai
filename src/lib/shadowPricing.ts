@@ -43,6 +43,8 @@ export type ShadowCostBreakdown = {
   actualCostSource: ActualCostSource;
   actualCostUsd?: number;
   providerListCostKrw: number;
+  providerListCostStatus: ProviderListCostStatus;
+  reserveStatus: "unavailable" | "estimated" | "complete";
   billingReferenceCostKrw: number;
   billingReferenceCostUsd: number;
   inputCostKrw: number;
@@ -98,22 +100,14 @@ export function normalizeBillableUsage(opts: {
   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
   const visibleOutputTokens = Math.max(0, opts.outputTokens);
   const reasoningTokens = Math.max(0, opts.reasoningTokens ?? 0);
-  const modelId = (opts.modelId ?? "").toLowerCase();
+  // Contract: reasoning_tokens from completion_tokens_details is subset of completion_tokens (included)
   let reasoningAccounting: ReasoningAccounting = "none";
   let billableOutputTokens = visibleOutputTokens;
   if (reasoningTokens <= 0) {
     reasoningAccounting = "none";
     billableOutputTokens = visibleOutputTokens;
-  } else if (isAnthropicModel(modelId) || modelId.includes("gemini")) {
-    // Opus 5 adaptive thinking and Gemini: output_tokens already includes thinking
-    reasoningAccounting = "included_in_output";
-    billableOutputTokens = visibleOutputTokens;
-  } else if (isDeepSeekModel(modelId) || isQwenModel(modelId)) {
-    reasoningAccounting = "separate";
-    billableOutputTokens = visibleOutputTokens + reasoningTokens;
   } else {
-    reasoningAccounting = "unknown";
-    // Conservative: do not double count when unknown
+    reasoningAccounting = "included_in_output";
     billableOutputTokens = visibleOutputTokens;
   }
   return {
@@ -128,33 +122,32 @@ export function normalizeBillableUsage(opts: {
   };
 }
 
-function computeProviderListCostKrw(usage: NormalizedBillableUsage, modelId: string, effectiveRate: number): number {
+export type ProviderListCostStatus = "complete" | "partial_missing_cache_rate" | "reference_rates_unavailable";
+
+function computeProviderListCostKrw(
+  usage: NormalizedBillableUsage,
+  modelId: string,
+  effectiveRate: number
+): { costKrw: number; status: ProviderListCostStatus } {
   const catalog = resolveCheaperInferenceCatalogPricing(modelId);
   if (catalog?.referenceInputUsdPerMillion != null && catalog?.referenceOutputUsdPerMillion != null) {
-    // Use reference_* as canonical list
+    const hasCacheRead = catalog.referenceCacheReadUsdPerMillion != null;
+    const hasCacheWrite = catalog.referenceCacheWriteUsdPerMillion != null;
+    if ((usage.cacheReadTokens > 0 && !hasCacheRead) || (usage.cacheWriteTokens > 0 && !hasCacheWrite)) {
+      return { costKrw: 0, status: "partial_missing_cache_rate" };
+    }
     const refInput = catalog.referenceInputUsdPerMillion;
     const refOutput = catalog.referenceOutputUsdPerMillion;
-    const refCacheRead = catalog.referenceCacheReadUsdPerMillion ?? refInput * 0.1;
-    const refCacheWrite = catalog.referenceCacheWriteUsdPerMillion ?? refInput;
+    const refCacheRead = catalog.referenceCacheReadUsdPerMillion;
+    const refCacheWrite = catalog.referenceCacheWriteUsdPerMillion;
     const usd =
       (usage.standardInputTokens / 1_000_000) * refInput +
-      (usage.cacheReadTokens / 1_000_000) * refCacheRead +
-      (usage.cacheWriteTokens / 1_000_000) * refCacheWrite +
+      (refCacheRead != null ? (usage.cacheReadTokens / 1_000_000) * refCacheRead : 0) +
+      (refCacheWrite != null ? (usage.cacheWriteTokens / 1_000_000) * refCacheWrite : 0) +
       (usage.billableOutputTokens / 1_000_000) * refOutput;
-    return round1(convertUsdToKrw(usd, effectiveRate));
+    return { costKrw: round1(convertUsdToKrw(usd, effectiveRate)), status: "complete" };
   }
-  // Fallback: use fallback snapshot rates without live discount (resolveOpenRouterModelRates with live cleared is not available, so use USD via generic)
-  // Use published fallback via openRouterModelPricing without live: temporarily compute via rates that include live but for list we approximate via published billing reference? Instead use generic USD 0.4 as last resort
-  const fallback = openRouterUsdCostFromRates({
-    promptTokens: usage.promptTokens,
-    outputTokens: usage.billableOutputTokens,
-    cacheReadTokens: usage.cacheReadTokens,
-    cacheWriteTokens: usage.cacheWriteTokens,
-    modelId,
-  });
-  // If catalog exists but no reference, treat as unavailable rather than guessing 0.1
-  // Return estimated via current rates only if reference missing -> caller will see but we mark as estimated
-  return round1(convertUsdToKrw(fallback.usdCost, effectiveRate));
+  return { costKrw: 0, status: "reference_rates_unavailable" };
 }
 
 export function computeShadowCosts(opts: {
@@ -211,7 +204,11 @@ export function computeShadowCosts(opts: {
     }
   }
 
-  const providerListCostKrw = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
+  const providerListResult = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
+  const providerListCostKrw = providerListResult.costKrw;
+  const providerListCostStatus = providerListResult.status;
+  const reserveStatus: ShadowCostBreakdown["reserveStatus"] =
+    providerListCostStatus === "complete" && actualCostSource !== "unavailable" ? "complete" : providerListCostStatus === "reference_rates_unavailable" ? "unavailable" : "estimated";
 
   // Published USD → KRW via daily FX (not baked)
   const billingReferenceCostUsd =
@@ -240,13 +237,15 @@ export function computeShadowCosts(opts: {
     actualCostSource,
     actualCostUsd,
     providerListCostKrw,
+    providerListCostStatus,
+    reserveStatus,
     billingReferenceCostKrw,
+    billingReferenceCostUsd,
     inputCostKrw,
     outputCostKrw,
     reasoningCostKrw,
     cacheReadCostKrw,
     cacheWriteCostKrw,
-    billingReferenceCostUsd,
     billingReferenceInputUsdPerMillion: pub.billingReferenceInputUsdPerMillion,
     billingReferenceOutputUsdPerMillion: pub.billingReferenceOutputUsdPerMillion,
     pricingVersion: pub.pricingVersion,
