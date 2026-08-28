@@ -17,6 +17,7 @@ export type DerivedCacheJobRow = {
   entity_id: number;
   source_fingerprint: string;
   derivation_version: number;
+  job_flags: string;
   status: DerivedJobStatus;
   attempts: number;
   run_after: string;
@@ -38,6 +39,7 @@ export function ensureDerivedCacheJobsTable(db: Database.Database): void {
       entity_id INTEGER NOT NULL,
       source_fingerprint TEXT NOT NULL,
       derivation_version INTEGER NOT NULL,
+      job_flags TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'pending'
         CHECK(status IN ('pending','processing','done','failed')),
       attempts INTEGER NOT NULL DEFAULT 0,
@@ -53,6 +55,11 @@ export function ensureDerivedCacheJobsTable(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_derived_cache_jobs_entity
       ON derived_cache_jobs(entity_type, entity_id, job_kind);
   `);
+  try {
+    db.exec(`ALTER TABLE derived_cache_jobs ADD COLUMN job_flags TEXT NOT NULL DEFAULT ''`);
+  } catch {
+    // column already exists
+  }
 }
 
 export function enqueueDerivedCacheJob(
@@ -63,13 +70,44 @@ export function enqueueDerivedCacheJob(
     entityId: number;
     sourceFingerprint: string;
     derivationVersion: number;
+    jobFlags?: string;
+  }
+): boolean {
+  ensureDerivedCacheJobsTable(db);
+  const result = db
+    .prepare(
+      `INSERT OR IGNORE INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`
+    )
+    .run(
+      input.jobKind,
+      input.entityType,
+      input.entityId,
+      input.sourceFingerprint,
+      input.derivationVersion,
+      input.jobFlags ?? ""
+    );
+  return result.changes > 0;
+}
+
+/** Explicit force requeue — used for regenerate_appearance and manual refresh only. */
+export function forceRequeueDerivedCacheJob(
+  db: Database.Database,
+  input: {
+    jobKind: DerivedJobKind;
+    entityType: DerivedEntityType;
+    entityId: number;
+    sourceFingerprint: string;
+    derivationVersion: number;
+    jobFlags?: string;
   }
 ): void {
   ensureDerivedCacheJobsTable(db);
   db.prepare(
     `INSERT INTO derived_cache_jobs
-      (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, run_after, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+      (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
      ON CONFLICT(job_kind, entity_type, entity_id, source_fingerprint, derivation_version)
      DO UPDATE SET
        status = CASE
@@ -80,14 +118,15 @@ export function enqueueDerivedCacheJob(
          WHEN derived_cache_jobs.status = 'processing' THEN derived_cache_jobs.run_after
          ELSE datetime('now')
        END,
-       last_error = '',
+       job_flags = excluded.job_flags,
        updated_at = datetime('now')`
   ).run(
     input.jobKind,
     input.entityType,
     input.entityId,
     input.sourceFingerprint,
-    input.derivationVersion
+    input.derivationVersion,
+    input.jobFlags ?? ""
   );
 }
 

@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import {
-  buildAndSaveCharacterChunks,
+  rebuildAndSaveCharacterChunksOnly,
   loadCharacterChunks,
   type CharacterSettingRow,
 } from "@/lib/characterChunks";
@@ -13,6 +13,8 @@ import {
   replaceAppearanceInSetting,
 } from "@/lib/appearanceCompiler";
 import { isAppearanceCompiledCurrent, resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
+import { characterCanonicalSourceFingerprintFromRow } from "@/lib/derivedCache/characterSourceFingerprint";
+import { FORCE_APPEARANCE_JOB_FLAG } from "@/lib/derivedCache/characterEnqueue";
 import { completeDerivedCacheJob, type DerivedCacheJobRow } from "@/lib/derivedCache/jobs";
 import { translateCharacterChunksForDerivedRefresh } from "@/lib/derivedCache/characterTranslation";
 import { refreshWorldEnglishCache, refreshWorldShareEnglishCache } from "@/lib/derivedCache/worldTranslation";
@@ -22,8 +24,6 @@ import {
   compiledPublicCanonText,
   parseCreatorDescriptionCompiled,
 } from "@/lib/creatorDescriptionTriggerCompiler";
-import { speechCreatorFromLegacyExampleDialog } from "@/lib/speechCreatorFields";
-import { koreanChunksTranslationFingerprint } from "@/lib/promptTranslation";
 
 type CharacterDerivedRow = CharacterSettingRow & {
   content_kind?: string | null;
@@ -44,27 +44,30 @@ function loadCharacterSettingRow(db: Database.Database, characterId: number): Ch
   );
 }
 
+function jobHasForceAppearance(job: DerivedCacheJobRow): boolean {
+  return (job.job_flags ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .includes(FORCE_APPEARANCE_JOB_FLAG);
+}
+
 function casPublishAppearanceCompiled(
   db: Database.Database,
   characterId: number,
-  expectedSourceHash: string,
+  expectedRaw: string,
   compiledJson: string
 ): boolean {
-  const row = db
-    .prepare(`SELECT appearance_raw FROM characters WHERE id = ?`)
-    .get(characterId) as { appearance_raw: string | null } | undefined;
-  if (!row || hashAppearanceRaw(row.appearance_raw ?? "") !== expectedSourceHash) {
-    return false;
-  }
+  const sourceHash = hashAppearanceRaw(expectedRaw);
   const updated = db
     .prepare(
       `UPDATE characters
        SET appearance_compiled = ?,
            appearance_compiled_source_hash = ?,
            appearance_compiled_version = ?
-       WHERE id = ?`
+       WHERE id = ?
+         AND appearance_raw = ?`
     )
-    .run(compiledJson, expectedSourceHash, APPEARANCE_COMPILED_VERSION, characterId);
+    .run(compiledJson, sourceHash, APPEARANCE_COMPILED_VERSION, characterId, expectedRaw);
   return updated.changes > 0;
 }
 
@@ -87,30 +90,31 @@ async function processCharacterDerivedRefresh(
   const row = loadCharacterSettingRow(db, job.entity_id);
   if (!row) return { ok: false, error: "character_not_found", retryable: false };
 
-  const chunks = loadCharacterChunks(row);
-  const currentFingerprint = koreanChunksTranslationFingerprint(chunks);
-  if (currentFingerprint !== job.source_fingerprint) {
+  const canonicalFingerprint = characterCanonicalSourceFingerprintFromRow(row);
+  if (canonicalFingerprint !== job.source_fingerprint) {
     return { ok: true };
   }
 
   const contentKind = row.content_kind ?? "character";
   const appearanceRaw = row.appearance_raw ?? "";
+  const forceAppearance = jobHasForceAppearance(job);
 
   if (contentKind !== "simulation" && appearanceRaw.trim()) {
-    const needsCompile = !isAppearanceCompiledCurrent({
-      raw: appearanceRaw,
-      compiledJson: row.appearance_compiled,
-      compiledSourceHash: row.appearance_compiled_source_hash,
-      compiledVersion: row.appearance_compiled_version,
-    });
+    const needsCompile =
+      forceAppearance ||
+      !isAppearanceCompiledCurrent({
+        raw: appearanceRaw,
+        compiledJson: row.appearance_compiled,
+        compiledSourceHash: row.appearance_compiled_source_hash,
+        compiledVersion: row.appearance_compiled_version,
+      });
     if (needsCompile) {
-      const sourceHash = hashAppearanceRaw(appearanceRaw);
       const compiled = await compileAppearanceForChat(appearanceRaw);
       if (compiled) {
         casPublishAppearanceCompiled(
           db,
           job.entity_id,
-          sourceHash,
+          appearanceRaw,
           serializeAppearanceCompiledJson(compiled)
         );
       }
@@ -120,29 +124,20 @@ async function processCharacterDerivedRefresh(
   const refreshed = loadCharacterSettingRow(db, job.entity_id);
   if (!refreshed) return { ok: false, error: "character_not_found", retryable: false };
 
-  const safeRuntimeCanon = rebuildSafeRuntimeCanon(refreshed);
-  const gender = parseCharacterGender(refreshed.gender) ?? "other";
-  const speech = speechCreatorFromLegacyExampleDialog(refreshed.example_dialog ?? "");
-
-  const rebuilt = buildAndSaveCharacterChunks(job.entity_id, {
-    name: refreshed.name,
-    gender,
-    systemPrompt: refreshed.system_prompt ?? "",
-    world: refreshed.world ?? "",
-    exampleDialog: refreshed.example_dialog ?? "",
-    safeRuntimeCanon,
-    speechInput: speech,
-  });
-
-  const rebuiltFingerprint = koreanChunksTranslationFingerprint(rebuilt);
-  if (rebuiltFingerprint !== job.source_fingerprint) {
+  const refreshedCanonical = characterCanonicalSourceFingerprintFromRow(refreshed);
+  if (refreshedCanonical !== job.source_fingerprint) {
     return { ok: true };
   }
 
-  db.prepare(`UPDATE characters SET prompt_translation_hash=? WHERE id=?`).run(
-    rebuiltFingerprint,
-    job.entity_id
-  );
+  const safeRuntimeCanon = rebuildSafeRuntimeCanon(refreshed);
+  const gender = parseCharacterGender(refreshed.gender) ?? "other";
+
+  const rebuilt = rebuildAndSaveCharacterChunksOnly(job.entity_id, {
+    name: refreshed.name,
+    gender,
+    safeRuntimeCanon,
+    exampleDialog: refreshed.example_dialog ?? "",
+  });
 
   const translated = await translateCharacterChunksForDerivedRefresh(job.entity_id, rebuilt);
   if (!translated) {
@@ -202,3 +197,5 @@ export async function drainDerivedCacheJobsForTests(db = getDb(), maxJobs = 10):
   }
   return processed;
 }
+
+export { casPublishAppearanceCompiled, loadCharacterSettingRow };

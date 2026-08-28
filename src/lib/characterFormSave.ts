@@ -681,8 +681,18 @@ function prepareAppearanceForSave(
     };
   }
 
+  // Same raw + force refresh: SWR — keep serving current compiled until background CAS publish.
+  if (rawUnchanged && compiledCurrent && forceRecompile) {
+    return {
+      raw,
+      compiled: existing?.appearance_compiled ?? "",
+      sourceHash,
+      version: APPEARANCE_COMPILED_VERSION,
+    };
+  }
+
   // Raw change invalidates stale compiled in DB — runtime falls back to raw until background CAS publish.
-  const compiled = rawUnchanged && compiledCurrent ? (existing?.appearance_compiled ?? "") : "";
+  const compiled = "";
   return { raw, compiled, sourceHash, version: APPEARANCE_COMPILED_VERSION };
 }
 
@@ -1169,16 +1179,20 @@ export async function updateCharacterFromForm(
   const promptInputsChanged = characterPromptInputsChanged(row, data);
 
   if (promptInputsChanged || forceAppearanceCompile) {
-    buildSaveCharacterChunksAndEnqueueDerivedRefresh(characterId, {
-      name: data.name,
-      gender: data.gender,
-      systemPrompt: data.systemPrompt,
-      world: data.world,
-      exampleDialog: data.exampleDialog,
-      statusWindowPrompt: data.statusWindowPrompt,
-      speechInput: data.speechInput,
-      safeRuntimeCanon: runtimeCanonWithAppearance,
-    });
+    buildSaveCharacterChunksAndEnqueueDerivedRefresh(
+      characterId,
+      {
+        name: data.name,
+        gender: data.gender,
+        systemPrompt: data.systemPrompt,
+        world: data.world,
+        exampleDialog: data.exampleDialog,
+        statusWindowPrompt: data.statusWindowPrompt,
+        speechInput: data.speechInput,
+        safeRuntimeCanon: runtimeCanonWithAppearance,
+      },
+      forceAppearanceCompile ? { forceAppearanceRefresh: true } : undefined
+    );
   } else if (process.env.NODE_ENV !== "production") {
     console.log(`[characterFormSave] skipped prompt chunk rebuild for asset-only update: ${characterId}`);
   }

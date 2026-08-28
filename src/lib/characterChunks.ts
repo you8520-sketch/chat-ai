@@ -31,7 +31,11 @@ import {
 } from "@/lib/creatorDescriptionTriggerCompiler";
 import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
-import { enqueueCharacterDerivedRefreshJob } from "@/lib/derivedCache/characterEnqueue";
+import {
+  enqueueCharacterDerivedRefreshJob,
+  forceRequeueCharacterDerivedRefreshJob,
+  FORCE_APPEARANCE_JOB_FLAG,
+} from "@/lib/derivedCache/characterEnqueue";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 
 export type CharacterSettingRow = {
@@ -217,18 +221,36 @@ export function buildAndSaveCharacterChunks(
   return chunks;
 }
 
+/** Rebuild + persist setting_chunks only — no speech_profile side effects. */
+export function rebuildAndSaveCharacterChunksOnly(
+  characterId: number,
+  input: {
+    name: string;
+    gender: CharacterGender;
+    safeRuntimeCanon: string;
+    exampleDialog?: string;
+  }
+): CharacterChunk[] {
+  const chunks = buildCharacterChunksFromSafeRuntimeCanon(characterId, input);
+  saveCharacterChunks(characterId, chunks);
+  return chunks;
+}
+
 /** 저장 후 Korean chunks + durable derived refresh job enqueue (no provider await). */
 export function buildSaveCharacterChunksAndEnqueueDerivedRefresh(
   characterId: number,
-  input: Parameters<typeof buildAndSaveCharacterChunks>[1]
+  input: Parameters<typeof buildAndSaveCharacterChunks>[1],
+  options?: { forceAppearanceRefresh?: boolean }
 ): CharacterChunk[] {
   const chunks = buildAndSaveCharacterChunks(characterId, input);
   const db = getDb();
-  const fingerprint = enqueueCharacterDerivedRefreshJob(db, characterId, chunks);
-  db.prepare("UPDATE characters SET prompt_translation_hash=? WHERE id=?").run(
-    fingerprint,
-    characterId
-  );
+  if (options?.forceAppearanceRefresh) {
+    forceRequeueCharacterDerivedRefreshJob(db, characterId, {
+      jobFlags: FORCE_APPEARANCE_JOB_FLAG,
+    });
+  } else {
+    enqueueCharacterDerivedRefreshJob(db, characterId);
+  }
   kickDerivedCacheWorker();
   return chunks;
 }

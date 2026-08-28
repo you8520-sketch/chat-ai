@@ -11,7 +11,7 @@ import {
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
-import { deserializeCharacterChunks } from "@/utils/characterParser";
+import { deserializeCharacterChunks, serializeCharacterChunks } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
 import { enqueueCharacterDerivedRefreshJob } from "@/lib/derivedCache/characterEnqueue";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
@@ -349,21 +349,27 @@ export async function translateAndSaveCharacterPromptEn(
     const db = getDb();
     const fingerprint = koreanChunksTranslationFingerprint(chunks);
     const row = db
-      .prepare("SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?")
-      .get(characterId) as { setting_chunks_en?: string; prompt_translation_hash?: string } | undefined;
+      .prepare("SELECT setting_chunks, setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?")
+      .get(characterId) as {
+      setting_chunks?: string;
+      setting_chunks_en?: string;
+      prompt_translation_hash?: string;
+    } | undefined;
     if (!row) return false;
     if (row.prompt_translation_hash === fingerprint && row.setting_chunks_en?.trim()) {
-      return true; // Korean source unchanged — no retranslation
+      return true;
     }
 
     const english = await translateChunksToEnglish(chunks);
     if (english === null) return false;
 
+    const expectedSettingChunks =
+      row.setting_chunks?.trim() || serializeCharacterChunks(chunks);
     const updated = db
       .prepare(
-        "UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=? AND prompt_translation_hash=?"
+        "UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=? AND setting_chunks=?"
       )
-      .run(JSON.stringify(english), fingerprint, characterId, fingerprint);
+      .run(JSON.stringify(english), fingerprint, characterId, expectedSettingChunks);
     return updated.changes > 0;
   } catch (e) {
     console.warn("[promptTranslation] save failed:", (e as Error).message);
@@ -451,9 +457,9 @@ export function canScheduleEnglishBackfill(characterId: number, _now = Date.now(
 }
 
 /** Enqueue durable derived refresh — never starts provider work on the caller stack. */
-export function scheduleEnglishBackfill(characterId: number, chunks: CharacterChunk[]): void {
+export function scheduleEnglishBackfill(characterId: number, _chunks?: CharacterChunk[]): void {
   if (!hasPromptTranslationTransport()) return;
   const db = getDb();
-  enqueueCharacterDerivedRefreshJob(db, characterId, chunks);
+  enqueueCharacterDerivedRefreshJob(db, characterId);
   kickDerivedCacheWorker();
 }
