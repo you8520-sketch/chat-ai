@@ -15,10 +15,15 @@ import { after, afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
   RAW_HISTORY_COMPLETE_EXCHANGES,
+  RAW_HISTORY_COMPLETE_EXCHANGES,
+  countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
-  resolveProviderRawExchangeCountForChat,
+  resolveProviderRawPoolExchangeCount,
+  resolveProviderRawTrimFloorExchanges,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
+import { trimProviderHistoryToBudget } from "@/lib/providerHistoryPolicy";
+import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -252,7 +257,7 @@ describe("Phase 3-A non-blocking summary", () => {
     assert.equal(isRollingSummaryInFlight(chat), false);
   });
 
-  it("TEST 4 — unsummarized raw preservation: expands RAW pool beyond 4 when pending", () => {
+  it("TEST 4 — unsummarized raw source retained; provider injection bounded by budget", () => {
     const { chat, user, char } = ids();
     seed(chat, user, char);
     seedPlayableTurns(chat, user, char, 18);
@@ -261,23 +266,31 @@ describe("Phase 3-A non-blocking summary", () => {
     const summarized = highestContiguousCompletedTurn(listMemoryRecordsForChat(chat), 18);
     assert.equal(summarized, 5);
 
-    const rawCount = resolveProviderRawExchangeCountForChat({
+    const pool = resolveProviderRawPoolExchangeCount({
       memoryFeatureEnabled: true,
       completedTurns: 18,
       summarizedTurnCount: summarized,
     });
-    assert.equal(rawCount, 13);
+    assert.equal(pool, 13);
 
     const turns: DialogueTurn[] = Array.from({ length: 18 }, (_, i) => ({
-      user: `u${i + 1}`,
-      assistant: `a${i + 1}`,
+      user: `u${i + 1}:${"가".repeat(200)}`,
+      assistant: `a${i + 1}:${"나".repeat(2500)}`,
     }));
-    const history = rawRecentTurnsToHistory(turns, rawCount, {
+    const full = rawRecentTurnsToHistory(turns, pool, {
       memoryFeatureEnabled: true,
       summarizedTurnCount: summarized,
     });
-    assert.equal(history.length, 26, "13 exchanges = 26 messages");
-    assert.equal(history[0]?.content, "u6");
+    const trimmed = trimProviderHistoryToBudget(full, HISTORY_TOKEN_BUDGET, {
+      minRealPlayableExchanges: resolveProviderRawTrimFloorExchanges(),
+      protectOpening: false,
+    });
+    assert.ok(countPlayableHistoryTurns(trimmed) < pool);
+    assert.ok(countPlayableHistoryTurns(trimmed) >= RAW_HISTORY_COMPLETE_EXCHANGES);
+    const dbRows = getDb()
+      .prepare(`SELECT COUNT(*) AS c FROM messages WHERE chat_id=? AND role='user'`)
+      .get(chat) as { c: number };
+    assert.ok(dbRows.c >= 18, "source messages retained in DB");
   });
 
   it("TEST 5 — concurrent requests: same range active LLM calls <= 1", async () => {
@@ -315,6 +328,82 @@ describe("Phase 3-A non-blocking summary", () => {
     });
     assert.equal(processed, 3);
     assert.equal(callCount, 3);
+
+    const records = listMemoryRecordsForChat(chat)
+      .filter((r) => !r.inactive)
+      .sort((a, b) => a.turnStart - b.turnStart);
+    assert.deepEqual(
+      records.map((r) => r.turnStart),
+      [1, 6, 11]
+    );
+    assert.equal(highestContiguousCompletedTurn(records, 18), 15);
+  });
+
+  it("TEST 10 — summary provider failure: chat prep succeeds; source retained; bounded injection", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    seedPlayableTurns(chat, user, char, 18);
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      throw new Error("provider down");
+    });
+
+    const prep = prepareNonBlockingSummaryForMainRp(prepOpts(chat, user, char, 18));
+    assert.equal(prep.catchUpScheduled, true);
+
+    for (let i = 0; i < 40 && isRollingSummaryInFlight(chat); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    const pool = resolveProviderRawPoolExchangeCount({
+      memoryFeatureEnabled: true,
+      completedTurns: 18,
+      summarizedTurnCount: prep.summarizedThrough,
+    });
+    const turns: DialogueTurn[] = Array.from({ length: 18 }, (_, i) => ({
+      user: `u${i + 1}:${"가".repeat(200)}`,
+      assistant: `a${i + 1}:${"나".repeat(2500)}`,
+    }));
+    const trimmed = trimProviderHistoryToBudget(
+      rawRecentTurnsToHistory(turns, pool, {
+        memoryFeatureEnabled: true,
+        summarizedTurnCount: prep.summarizedThrough,
+      }),
+      HISTORY_TOKEN_BUDGET,
+      { minRealPlayableExchanges: resolveProviderRawTrimFloorExchanges(), protectOpening: false }
+    );
+    assert.ok(countPlayableHistoryTurns(trimmed) < pool);
+    const dbRows = getDb()
+      .prepare(`SELECT COUNT(*) AS c FROM messages WHERE chat_id=? AND role='user'`)
+      .get(chat) as { c: number };
+    assert.ok(dbRows.c >= 18);
+    assert.equal(listMemoryRecordsForChat(chat).filter((r) => !r.inactive).length, 0);
+  });
+
+  it("TEST 11 — restart recovery: pending backlog catch-up without duplicate commits", async () => {
+    const { chat, user, char } = ids();
+    seed(chat, user, char);
+    seedPlayableTurns(chat, user, char, 18);
+    sealThroughTurn5(chat, user, char);
+
+    let callCount = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      callCount += 1;
+      return { text: MOCK_SUMMARY };
+    });
+
+    const round1 = await catchUpRollingSummaries({
+      ...prepOpts(chat, user, char, 18),
+      maxRounds: 1,
+    });
+    assert.equal(round1, 1);
+    assert.equal(callCount, 1);
+
+    const round2 = await catchUpRollingSummaries({
+      ...prepOpts(chat, user, char, 18),
+      maxRounds: 2,
+    });
+    assert.equal(round2, 1);
+    assert.equal(callCount, 2);
 
     const records = listMemoryRecordsForChat(chat)
       .filter((r) => !r.inactive)

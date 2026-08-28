@@ -11,6 +11,7 @@ import crypto from "node:crypto";
 import Database from "better-sqlite3";
 import { loadEnvLocal } from "../scripts/load-env-local";
 import { getDatabasePath } from "../src/lib/dataDir";
+import { creditPointsWithIds } from "../src/lib/points";
 import { CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL } from "../src/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "../src/lib/responseLengthConstants";
 import { TERRA_PROMPT_CANARY_GREETING_NEUTRAL } from "../src/lib/terraPromptCanary";
@@ -73,6 +74,23 @@ function cookieFromSetCookie(header: string | null): string {
   return m[1];
 }
 
+function ensureE2ePointBalance(db: Database.Database, userId: number, minTotal = 2_000_000) {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(remaining_amount), 0) AS total
+       FROM point_transactions
+       WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')`
+    )
+    .get(userId) as { total: number };
+  const current = Number(row?.total ?? 0);
+  if (current >= minTotal) return;
+  creditPointsWithIds(db, userId, minTotal - current, "FREE", "gemini31-e2e-audit top-up");
+  db.prepare("UPDATE users SET points = MAX(points, ?), is_adult = 1, nsfw_on = 1 WHERE id = ?").run(
+    minTotal,
+    userId
+  );
+}
+
 async function ensureAuth(): Promise<{ token: string; userId: number }> {
   for (const attempt of ["login", "signup"]) {
     if (attempt === "signup") {
@@ -101,6 +119,9 @@ async function ensureAuth(): Promise<{ token: string; userId: number }> {
     const meJson = (await me.json()) as { id?: number; user?: { id: number } };
     const userId = meJson.id ?? meJson.user?.id;
     if (!userId) throw new Error("me missing id");
+    const db = new Database(getDatabasePath());
+    ensureE2ePointBalance(db, userId);
+    db.close();
     return { token, userId };
   }
   throw new Error("auth failed");
@@ -115,13 +136,86 @@ function loadAssistantRaw(turn: number): string {
   return fs.readFileSync(p, "utf8").trim();
 }
 
-function seedCharacterAndHistory(userId: number, runIndex: number): number {
+const FIXTURE = (process.env.E2E_FIXTURE ?? "all").toLowerCase();
+const FIXTURES_TO_RUN =
+  FIXTURE === "all" ? (["A", "B", "C"] as const) : ([FIXTURE.toUpperCase()] as ("A" | "B" | "C")[]);
+
+const MOCK_SUMMARY =
+  "짧지만 중요한 사건 하나만 기록함. 이후 전개에 영향을 주는 약속과 관계 변화만 남김. " +
+  "추가 장식 없이 사실만 압축. 반복 묘사는 생략. 핵심만 유지.";
+
+type FixtureKind = "A" | "B" | "C";
+
+function fixtureLabel(kind: FixtureKind): string {
+  if (kind === "A") return "steady-state (~23k class)";
+  if (kind === "B") return "cold-backlog (0 summaries)";
+  return "one-batch-behind (summarized through 10)";
+}
+
+function sealSummaryBatch(
+  db: Database.Database,
+  chatId: number,
+  userId: number,
+  charId: number,
+  turnStart: number,
+  playableTurnCount: number
+) {
+  const turnEnd = turnStart + 4;
+  db.prepare(
+    `INSERT INTO chat_turn_summaries (
+        chat_id, turn_number, turn_end, summary, summary_kind, scope_payload,
+        branch_id, branch_status, inactive, user_edited
+      ) VALUES (?, ?, ?, ?, 'main_canon', ?, NULL, NULL, 0, 0)
+      ON CONFLICT(chat_id, turn_number) DO UPDATE SET
+        turn_end=excluded.turn_end,
+        summary=excluded.summary,
+        summary_kind=excluded.summary_kind,
+        scope_payload=excluded.scope_payload,
+        inactive=0`
+  ).run(
+    chatId,
+    turnStart,
+    turnEnd,
+    MOCK_SUMMARY,
+    JSON.stringify({
+      v: 1,
+      scopes: { main_canon: MOCK_SUMMARY },
+      branchId: null,
+      branchStatus: null,
+      promotedBy: null,
+      promotedAt: null,
+    })
+  );
+  db.prepare(
+    `UPDATE chat_memories SET summarized_turn_count=?, message_count=?, recent_summary=COALESCE(recent_summary,'') || ? WHERE chat_id=? AND user_id=?`
+  ).run(turnEnd, playableTurnCount, `\n\n${MOCK_SUMMARY}`, chatId, userId);
+  void charId;
+}
+
+function applyFixtureSummaries(
+  db: Database.Database,
+  kind: FixtureKind,
+  chatId: number,
+  userId: number,
+  charId: number
+) {
+  const playable = USER_TURNS.length;
+  if (kind === "B") return;
+  sealSummaryBatch(db, chatId, userId, charId, 1, playable);
+  sealSummaryBatch(db, chatId, userId, charId, 6, playable);
+  if (kind === "C") return;
+  sealSummaryBatch(db, chatId, userId, charId, 11, playable);
+}
+
+function seedCharacterAndHistory(userId: number, runIndex: number, fixture: FixtureKind): number {
   const dbPath = getDatabasePath();
   const db = new Database(dbPath);
 
-  db.prepare(
-    `UPDATE users SET points = MAX(points, 500000), is_adult = 1, nsfw_on = 1, selected_ai = ? WHERE id = ?`
-  ).run(MODEL, userId);
+  ensureE2ePointBalance(db, userId);
+  db.prepare(`UPDATE users SET is_adult = 1, nsfw_on = 1, selected_ai = ? WHERE id = ?`).run(
+    MODEL,
+    userId
+  );
 
   const charRow = db
     .prepare(
@@ -162,12 +256,15 @@ function seedCharacterAndHistory(userId: number, runIndex: number): number {
     insertMsg.run(chatId, "assistant", assistant, MODEL);
   }
 
+  applyFixtureSummaries(db, fixture, chatId, userId, charId);
+
   db.close();
   return chatId;
 }
 
 type SseRunResult = {
   run: number;
+  fixture: FixtureKind;
   chatId: number;
   clientSubmitMs: number;
   firstDeltaMs: number | null;
@@ -180,7 +277,8 @@ async function consumeChatSse(
   token: string,
   characterId: number,
   chatId: number,
-  run: number
+  run: number,
+  fixture: FixtureKind
 ): Promise<SseRunResult> {
   const clientSubmitMs = Date.now();
   const clientRequestId = `e2e-g31-${run}-${crypto.randomUUID().slice(0, 8)}`;
@@ -204,6 +302,7 @@ async function consumeChatSse(
   if (!res.ok || !res.body) {
     return {
       run,
+      fixture,
       chatId,
       clientSubmitMs,
       firstDeltaMs: null,
@@ -253,7 +352,7 @@ async function consumeChatSse(
     (phaseReport as { client_submit_epoch_ms?: number }).client_submit_epoch_ms = clientSubmitMs;
   }
 
-  return { run, chatId, clientSubmitMs, firstDeltaMs, phaseReport, httpStatus: res.status };
+  return { run, fixture, chatId, clientSubmitMs, firstDeltaMs, phaseReport, httpStatus: res.status };
 }
 
 async function waitForServer(maxMs = 120_000): Promise<void> {
@@ -268,6 +367,67 @@ async function waitForServer(maxMs = 120_000): Promise<void> {
     await new Promise((r) => setTimeout(r, 2000));
   }
   throw new Error(`server not ready at ${BASE}`);
+}
+
+async function runFixture(token: string, userId: number, fixture: FixtureKind) {
+  console.log(`\n######## FIXTURE ${fixture} — ${fixtureLabel(fixture)} ########`);
+  const results: SseRunResult[] = [];
+  for (let run = 1; run <= RUNS; run++) {
+    console.log(`\n=== E2E ${fixture} run ${run}/${RUNS} ===`);
+    const chatId = seedCharacterAndHistory(userId, run + fixture.charCodeAt(0) * 100, fixture);
+    const db = new Database(getDatabasePath(), { readonly: true });
+    const charRow = db
+      .prepare(`SELECT character_id FROM chats WHERE id=?`)
+      .get(chatId) as { character_id: number };
+    db.close();
+    const characterId = charRow.character_id;
+    process.stdout.write(`  chatId=${chatId} calling /api/chat...`);
+    const r = await consumeChatSse(token, characterId, chatId, run, fixture);
+    results.push(r);
+    fs.appendFileSync(
+      path.join(OUT_DIR, `runs-${fixture}.jsonl`),
+      JSON.stringify(r) + "\n"
+    );
+    const pr = r.phaseReport as {
+      PRE_PROVIDER_TOTAL_MS?: number;
+      PROVIDER_VISIBLE_TTFT_MS?: number;
+      USER_VISIBLE_TTFT_MS?: number;
+      SUMMARY_BARRIER_WAIT_MS?: number;
+      tokens?: { prompt_tokens?: number; cached_tokens?: number };
+    } | null;
+    console.log(
+      ` delta=${r.firstDeltaMs ?? "n/a"}ms pre=${pr?.PRE_PROVIDER_TOTAL_MS ?? "n/a"} barrier=${pr?.SUMMARY_BARRIER_WAIT_MS ?? "n/a"} provider=${pr?.PROVIDER_VISIBLE_TTFT_MS ?? "n/a"} prompt=${pr?.tokens?.prompt_tokens ?? "n/a"}`
+    );
+    if (run < RUNS) await new Promise((res) => setTimeout(res, 5000));
+  }
+
+  const phaseRows = results
+    .map((r) => r.phaseReport)
+    .filter(Boolean) as Array<Record<string, unknown>>;
+  const num = (key: string) =>
+    phaseRows.map((p) => Number(p[key])).filter((n) => Number.isFinite(n));
+  const clientDeltas = results.map((r) => r.firstDeltaMs).filter((n): n is number => n != null);
+
+  return {
+    fixture,
+    label: fixtureLabel(fixture),
+    runCount: RUNS,
+    summary: {
+      MEDIAN_PROMPT_TOKENS: median(
+        phaseRows.map((p) => Number((p.tokens as { prompt_tokens?: number })?.prompt_tokens ?? 0))
+      ),
+      MEDIAN_CACHED_TOKENS: median(
+        phaseRows.map((p) => Number((p.tokens as { cached_tokens?: number })?.cached_tokens ?? 0))
+      ),
+      MEDIAN_CLIENT_FIRST_DELTA_MS: stats(clientDeltas),
+      MEDIAN_PRE_PROVIDER_MS: stats(num("PRE_PROVIDER_TOTAL_MS")),
+      MEDIAN_PROVIDER_VISIBLE_TTFT_MS: stats(num("PROVIDER_VISIBLE_TTFT_MS")),
+      MEDIAN_USER_VISIBLE_TTFT_MS: stats(num("USER_VISIBLE_TTFT_MS")),
+      MEDIAN_SUMMARY_BARRIER_WAIT_MS: stats(num("SUMMARY_BARRIER_WAIT_MS")),
+      MEDIAN_SUMMARY_PREP_MS: stats(num("SUMMARY_PREP_MS")),
+    },
+    runs: results,
+  };
 }
 
 async function main() {
@@ -288,71 +448,35 @@ async function main() {
     console.warn("selected-ai patch", patchAi.status, await patchAi.text());
   }
 
-  const results: SseRunResult[] = [];
-  for (let run = 1; run <= RUNS; run++) {
-    console.log(`\n=== E2E run ${run}/${RUNS} ===`);
-    const chatId = seedCharacterAndHistory(userId, run);
-    const db = new Database(getDatabasePath(), { readonly: true });
-    const charRow = db
-      .prepare(`SELECT character_id FROM chats WHERE id=?`)
-      .get(chatId) as { character_id: number };
-    db.close();
-    const characterId = charRow.character_id;
-    process.stdout.write(`  chatId=${chatId} calling /api/chat...`);
-    const r = await consumeChatSse(token, characterId, chatId, run);
-    results.push(r);
-    fs.appendFileSync(path.join(OUT_DIR, "runs.jsonl"), JSON.stringify(r) + "\n");
-    const pr = r.phaseReport as {
-      PRE_PROVIDER_TOTAL_MS?: number;
-      PROVIDER_VISIBLE_TTFT_MS?: number;
-      USER_VISIBLE_TTFT_MS?: number;
-      tokens?: { prompt_tokens?: number; cached_tokens?: number };
-    } | null;
-    console.log(
-      ` delta=${r.firstDeltaMs ?? "n/a"}ms pre=${pr?.PRE_PROVIDER_TOTAL_MS ?? "n/a"} provider=${pr?.PROVIDER_VISIBLE_TTFT_MS ?? "n/a"} prompt=${pr?.tokens?.prompt_tokens ?? "n/a"}`
-    );
-    if (run < RUNS) await new Promise((res) => setTimeout(res, 5000));
+  const fixtureReports = [];
+  for (const fixture of FIXTURES_TO_RUN) {
+    fixtureReports.push(await runFixture(token, userId, fixture));
   }
-
-  const phaseRows = results
-    .map((r) => r.phaseReport)
-    .filter(Boolean) as Array<Record<string, unknown>>;
-
-  const num = (key: string) =>
-    phaseRows.map((p) => Number(p[key])).filter((n) => Number.isFinite(n));
-
-  const clientDeltas = results.map((r) => r.firstDeltaMs).filter((n): n is number => n != null);
 
   const report = {
     generatedAt: new Date().toISOString(),
-    runCount: RUNS,
+    phase: "3-A.1",
     model: MODEL,
     measureUserMessage: MEASURE_USER,
     historyTurns: USER_TURNS.length,
     targetResponseChars: DEFAULT_TARGET_RESPONSE_CHARS,
-    phase1BaselineProviderTtftMs: 24662,
-    summary: {
-      MEDIAN_PROMPT_TOKENS: median(
-        phaseRows.map((p) => Number((p.tokens as { prompt_tokens?: number })?.prompt_tokens ?? 0))
-      ),
-      MEDIAN_CACHED_TOKENS: median(
-        phaseRows.map((p) => Number((p.tokens as { cached_tokens?: number })?.cached_tokens ?? 0))
-      ),
-      MEDIAN_CLIENT_FIRST_DELTA_MS: stats(clientDeltas),
-      MEDIAN_PRE_PROVIDER_MS: stats(num("PRE_PROVIDER_TOTAL_MS")),
-      MEDIAN_PROVIDER_VISIBLE_TTFT_MS: stats(num("PROVIDER_VISIBLE_TTFT_MS")),
-      MEDIAN_MEMORY_SYNC_MS: stats(num("MEMORY_SYNC_MS")),
-      MEDIAN_CANON_MS: stats(num("CANON_MS")),
-      MEDIAN_CONTEXT_BUILD_MS: stats(num("CONTEXT_BUILD_MS")),
-      MEDIAN_SUMMARY_BARRIER_WAIT_MS: stats(num("SUMMARY_BARRIER_WAIT_MS")),
-      MEDIAN_SUMMARY_PREP_MS: stats(num("SUMMARY_PREP_MS")),
+    phase2Baseline: {
+      MEDIAN_PROMPT_TOKENS: 22955,
+      MEDIAN_PRE_PROVIDER_MS: 78825,
+      MEDIAN_PROVIDER_TTFT_MS: 63688,
+      MEDIAN_SERVER_T14_MS: 136673,
     },
-    runs: results,
+    phase3aRegression: {
+      MEDIAN_PROMPT_TOKENS: 66793,
+      rootCause: "minRealPlayableExchanges=unsummarized bypassed HISTORY_TOKEN_BUDGET trim",
+    },
+    fixtures: fixtureReports,
   };
 
+  fs.writeFileSync(path.join(OUT_DIR, "phase3a1-report.json"), JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
-  console.log("\nWrote", path.join(OUT_DIR, "report.json"));
-  console.log(JSON.stringify(report.summary, null, 2));
+  console.log("\nWrote", path.join(OUT_DIR, "phase3a1-report.json"));
+  console.log(JSON.stringify(fixtureReports.map((f) => ({ fixture: f.fixture, summary: f.summary })), null, 2));
 }
 
 main().catch((e) => {
