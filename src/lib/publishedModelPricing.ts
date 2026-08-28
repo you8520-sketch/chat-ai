@@ -22,6 +22,10 @@ export type PublishedModelPricing = {
   marketBenchmark?: { outputChars: number; points: number };
 };
 
+const PUBLISHED_MODEL_ALIASES: Record<string, string> = {
+  "google/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+};
+
 const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   "claude-opus-5": {
     modelId: "claude-opus-5",
@@ -29,11 +33,10 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     billingReferenceOutputUsdPerMillion: 25,
     billingReferenceCacheReadUsdPerMillion: 0.5,
     billingReferenceCacheWriteUsdPerMillion: 6.25,
-    targetMargin: 0.25,
-    minimumMarginFloor: 0.15,
-    pricingVersion: 1,
-    publishedAt: "2026-08-28T00:00:00.000Z",
-    marketBenchmark: { outputChars: 1800, points: 250 },
+    targetMargin: 0.08,
+    minimumMarginFloor: 0.05,
+    pricingVersion: 2,
+    publishedAt: "2026-08-28T15:00:00.000Z",
   },
   "anthropic/claude-opus-4.5": {
     modelId: "anthropic/claude-opus-4.5",
@@ -89,19 +92,10 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     billingReferenceOutputUsdPerMillion: 12,
     billingReferenceCacheReadUsdPerMillion: 0.5,
     billingReferenceCacheWriteUsdPerMillion: 2,
-    targetMargin: 0.2,
-    minimumMarginFloor: 0.1,
-    pricingVersion: 1,
-    publishedAt: "2026-08-28T00:00:00.000Z",
-  },
-  "google/gemini-3.1-pro-preview": {
-    modelId: "google/gemini-3.1-pro-preview",
-    billingReferenceInputUsdPerMillion: 2,
-    billingReferenceOutputUsdPerMillion: 12,
-    targetMargin: 0.2,
-    minimumMarginFloor: 0.1,
-    pricingVersion: 1,
-    publishedAt: "2026-08-28T00:00:00.000Z",
+    targetMargin: 0.09,
+    minimumMarginFloor: 0.05,
+    pricingVersion: 2,
+    publishedAt: "2026-08-28T15:00:00.000Z",
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",
@@ -193,7 +187,8 @@ function normalizeId(id: string): string {
 
 export function getPublishedPricing(modelId: string): PublishedModelPricing {
   const n = normalizeId(modelId);
-  return PUBLISHED_CATALOG[n] ?? { ...GENERIC_PUBLISHED, modelId: n };
+  const canonical = PUBLISHED_MODEL_ALIASES[n] ?? n;
+  return PUBLISHED_CATALOG[canonical] ?? { ...GENERIC_PUBLISHED, modelId: canonical };
 }
 
 export function getTargetMargin(modelId: string): number {

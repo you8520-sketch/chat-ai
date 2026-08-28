@@ -57,10 +57,7 @@ function resolveFxForAdminSimulation() {
   return peekShadowBillingFxDailySnapshot() ?? previewShadowBillingFxSnapshot();
 }
 
-export const PREMIUM_MARGIN_CANDIDATES = {
-  gemini31: [0.1, 0.125, 0.14, 0.145, 0.15, 0.175, 0.2] as const,
-  opus5: [0.08, 0.1, 0.12, 0.13, 0.135, 0.14, 0.15, 0.175, 0.2] as const,
-};
+export { PREMIUM_MARGIN_CANDIDATES } from "@/lib/premiumPricingCalibration";
 
 const gemini31Primary = requirePrimaryBenchmark("gemini-3.1-pro-preview");
 const opus5Primary = requirePrimaryBenchmark("claude-opus-5");
@@ -79,10 +76,6 @@ export const TOKEN_USAGE_COMPETITOR_BENCHMARKS = {
     chargeP: opus5Primary.competitorChargePoints,
     label: "Claude Opus 5",
   },
-} as const;
-
-export const SECONDARY_CHAR_BENCHMARKS = {
-  opus5: { outputChars: 1800, chargeP: 250, label: "Opus 1800chars secondary" },
 } as const;
 
 export function simulatePremiumCompetitive(params: {

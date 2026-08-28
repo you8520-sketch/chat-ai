@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 import {
   simulatePremiumCompetitive,
   TOKEN_USAGE_COMPETITOR_BENCHMARKS,
-  PREMIUM_MARGIN_CANDIDATES,
 } from "./shadowSimulations";
+import { PREMIUM_MARGIN_CANDIDATES } from "./premiumPricingCalibration";
 import { clearCheaperInferenceCatalogPricingForTest, updateCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
 import { _insertShadowBillingFxDailyRowForTest, _setShadowBillingFxTestDb, _clearShadowBillingFxMemoryForTest } from "./shadowBillingExchangeRate";
 import { ensureShadowBillingFxTables } from "./shadowBillingFxPersistence";
@@ -12,6 +12,9 @@ import Database from "better-sqlite3";
 
 const TEST_BASE_FX = 1530;
 const TEST_EFFECTIVE_FX = 1560.6;
+
+const LEGACY_GEMINI_MARGIN_CANDIDATES = [0.1, 0.125, 0.14, 0.145, 0.15, 0.175, 0.2] as const;
+const LEGACY_OPUS_MARGIN_CANDIDATES = [0.08, 0.1, 0.12, 0.13, 0.135, 0.14, 0.15, 0.175, 0.2] as const;
 
 const GEMINI_ROW_FIXTURES = [
   { targetMargin: 0.1, finalPoints: 231, competitiveDeviationPct: -5.4, noDiscountRealizedMargin: 10.1, flag: "GREEN" as const, flagReason: "competitive_and_safe" as const },
@@ -110,7 +113,7 @@ describe("shadowSimulations benchmark isolation", () => {
       inputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.inputTokens,
       outputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.outputTokens,
       benchmarkChargeP: TOKEN_USAGE_COMPETITOR_BENCHMARKS.gemini31.chargeP,
-      candidateMargins: PREMIUM_MARGIN_CANDIDATES.gemini31,
+      candidateMargins: LEGACY_GEMINI_MARGIN_CANDIDATES,
       minimumMarginFloor: 0.1,
     });
     assert.equal(r.rows.length, 7);
@@ -133,7 +136,7 @@ describe("shadowSimulations benchmark isolation", () => {
       inputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.inputTokens,
       outputTokens: TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.outputTokens,
       benchmarkChargeP: TOKEN_USAGE_COMPETITOR_BENCHMARKS.opus5.chargeP,
-      candidateMargins: PREMIUM_MARGIN_CANDIDATES.opus5,
+      candidateMargins: LEGACY_OPUS_MARGIN_CANDIDATES,
       minimumMarginFloor: 0.15,
     });
     assert.equal(r.rows.length, 9);
@@ -147,8 +150,8 @@ describe("shadowSimulations benchmark isolation", () => {
   });
 
   it("candidate counts are canonical", () => {
-    assert.equal(PREMIUM_MARGIN_CANDIDATES.gemini31.length, 7);
-    assert.equal(PREMIUM_MARGIN_CANDIDATES.opus5.length, 9);
+    assert.equal(PREMIUM_MARGIN_CANDIDATES.gemini31.length, 11);
+    assert.equal(PREMIUM_MARGIN_CANDIDATES.opus5.length, 14);
   });
 
   it("providerList unavailable gives provider_list_unavailable", () => {
