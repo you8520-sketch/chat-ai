@@ -2,6 +2,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
 import type { TrpgActionType } from "./actionTypes";
 import type { TrpgResolutionOrderEntry } from "./initiative";
+import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type {
   TrpgActionSource,
@@ -131,6 +132,8 @@ export type TrpgCampaignSnapshot = {
   resolutionOrder?: TrpgResolutionOrderEntry[];
   /** Participant ids with completed server adjudication (roll, no-roll, or skipped). */
   adjudicatedParticipantIds?: number[];
+  /** Authoritative per-participant adjudication outcome for the active round. */
+  participantAdjudicationOutcomes?: Record<number, TrpgParticipantAdjudicationOutcome>;
   currentNarration: string | null;
   /** Live provider-stream narration draft during GENERATING_NARRATION. */
   gmNarrationDraft: { text: string } | null;

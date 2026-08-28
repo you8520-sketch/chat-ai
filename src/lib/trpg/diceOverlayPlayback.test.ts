@@ -62,9 +62,9 @@ describe("TRPG dice overlay playback session handshake", () => {
     assert.match(overlay, /trpgDiceOverlayPlayOwnerSessionKey/);
   });
 
-  it("production room uses single actor-dice dismiss gate helper", () => {
+  it("production room uses single live actor transition owner", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /shouldAdvanceActorDiceAfterOverlayDismiss/);
+    assert.match(room, /resolveLiveActorPresentationTransition/);
     assert.doesNotMatch(
       room,
       /overlayPlayback\.dismissed \|\| overlayPlayback\.sessionKey !== activeKey/

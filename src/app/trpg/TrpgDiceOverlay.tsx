@@ -33,7 +33,9 @@ import {
   PRODUCTION_DICE_PROTO,
   TRPG_D20_STAGE_DESKTOP,
   TRPG_D20_STAGE_MOBILE,
+  TRPG_DICE_CONTEXT_PANEL_CLASS,
   TRPG_DICE_PHYSICS_ENGINE,
+  TRPG_DICE_RESULT_DETAIL_PANEL_CLASS,
   trpgD20ResultHudStyle,
   trpgProductionDiceStaticFallback,
   type TrpgD20StaticOverlayTone,
@@ -408,11 +410,11 @@ export default function TrpgDiceOverlay({
       </p>
       <div aria-hidden="true" className="absolute inset-0">
         <div
-          className="absolute inset-x-3 top-[max(1rem,env(safe-area-inset-top))] z-20 mx-auto max-w-xl rounded-2xl border border-white/10 bg-[#111522]/80 px-4 py-3 text-center shadow-lg backdrop-blur-sm sm:px-5"
+          className={`absolute inset-x-3 top-[max(1rem,env(safe-area-inset-top))] z-20 mx-auto max-w-xl ${TRPG_DICE_CONTEXT_PANEL_CLASS}`}
           data-trpg-dice-context
           data-trpg-dice-context-phase={showResult ? "result" : "rolling"}
         >
-          <p className="text-[11px] font-semibold tracking-[0.16em] text-zinc-400 sm:text-xs">
+          <p className="text-[11px] font-semibold tracking-[0.16em] text-zinc-300 sm:text-xs">
             판정 {context.rollOrdinal} / {context.rollTotal}
           </p>
           <p
@@ -424,7 +426,7 @@ export default function TrpgDiceOverlay({
           {!showResult && context.actionTypeLabel ? (
             <p className="mt-1">
               <span
-                className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-zinc-300 sm:text-sm"
+                className="inline-flex rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-xs font-semibold text-zinc-100 sm:text-sm"
                 data-trpg-dice-action-type-label
               >
                 {context.actionTypeLabel}
@@ -433,7 +435,7 @@ export default function TrpgDiceOverlay({
           ) : null}
           {!showResult ? (
             <p
-              className="mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
+              className="mt-1.5 text-xs font-semibold text-amber-50 sm:text-sm"
               data-trpg-dice-target-dc
             >
               {trpgDiceTargetDcLine(context.dc)}
@@ -583,31 +585,33 @@ export default function TrpgDiceOverlay({
                 >
                   {face}
                 </span>
-                <p
-                  className="relative mt-3 max-w-[min(92vw,20rem)] text-center text-xs font-medium tracking-wide text-zinc-100 sm:text-sm"
-                  data-trpg-dice-result-formula
-                >
-                  {trpgDiceResultFormulaLine(context)}
-                </p>
-                <p
-                  className="relative mt-1.5 text-xs font-semibold text-amber-100/90 sm:text-sm"
-                  data-trpg-dice-target-dc
-                >
-                  {trpgDiceTargetDcLine(context.dc)}
-                </p>
-                <p
-                  className="relative mt-2 rounded-full bg-black/40 px-2.5 py-0.5 text-center text-[14px] font-medium tracking-wide"
-                  style={{
-                    color: roll.success ? "#7ac4a0" : "#d4848e",
-                    textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
-                    WebkitTextStroke: "0.65px rgba(6,6,8,0.7)",
-                    paintOrder: "stroke fill",
-                  }}
-                  data-trpg-dice-result-outcome={outcome}
-                  data-trpg-dice-result-tier
-                >
-                  {context.tierLabel}
-                </p>
+                <div className={TRPG_DICE_RESULT_DETAIL_PANEL_CLASS} data-trpg-dice-result-detail-panel>
+                  <p
+                    className="text-xs font-medium tracking-wide text-zinc-100 sm:text-sm"
+                    data-trpg-dice-result-formula
+                  >
+                    {trpgDiceResultFormulaLine(context)}
+                  </p>
+                  <p
+                    className="mt-1.5 text-xs font-semibold text-amber-50 sm:text-sm"
+                    data-trpg-dice-target-dc
+                  >
+                    {trpgDiceTargetDcLine(context.dc)}
+                  </p>
+                  <p
+                    className="mt-2 inline-flex rounded-full border border-white/15 bg-black/35 px-2.5 py-0.5 text-center text-[14px] font-medium tracking-wide"
+                    style={{
+                      color: roll.success ? "#7ac4a0" : "#d4848e",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
+                      WebkitTextStroke: "0.65px rgba(6,6,8,0.7)",
+                      paintOrder: "stroke fill",
+                    }}
+                    data-trpg-dice-result-outcome={outcome}
+                    data-trpg-dice-result-tier
+                  >
+                    {context.tierLabel}
+                  </p>
+                </div>
               </div>
             ) : null}
           </div>

@@ -19,7 +19,7 @@ describe("TRPG single production dice visual", () => {
     assert.equal(TRPG_DICE_ENGINE, "production-d20");
     assert.equal(TRPG_D20_NUMERAL_WEIGHT, 600);
     assert.equal(TRPG_D20_NUMERAL, "#e8dcc0");
-    assert.equal(TRPG_D20_OVERLAY_DIM_CLASS, "bg-black/15");
+    assert.equal(TRPG_D20_OVERLAY_DIM_CLASS, "bg-black/55");
     assert.equal(trpgProductionDiceStaticFallback(), TRPG_PRODUCTION_DICE_STATIC_FALLBACK);
     assert.equal(TRPG_PRODUCTION_DICE_STATIC_FALLBACK.baseAsset, "/d20-result/obsidian-royal.webp");
     assert.equal(TRPG_PRODUCTION_DICE_STATIC_FALLBACK.assetReady, true);
