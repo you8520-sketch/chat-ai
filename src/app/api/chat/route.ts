@@ -4851,9 +4851,11 @@ export async function POST(req: Request) {
           });
           (baseUsageRecord as unknown as Record<string, unknown>).shadowPricing = {
             pricingVersion: shadow.pricingVersion,
-            billingReferenceInputRateKrw: shadow.billingReferenceInputRateKrw,
-            billingReferenceOutputRateKrw: shadow.billingReferenceOutputRateKrw,
+            billingReferenceInputUsdPerMillion: shadow.billingReferenceInputUsdPerMillion,
+            billingReferenceOutputUsdPerMillion: shadow.billingReferenceOutputUsdPerMillion,
             billingReferenceCostKrw: shadow.billingReferenceCostKrw,
+            billingReferenceCostUsd: shadow.billingReferenceCostUsd,
+            fxSnapshot: shadow.fxSnapshot,
             actualProviderCostKrw: shadow.actualProviderCostKrw,
             actualCostSource: shadow.actualCostSource,
             providerListCostKrw: shadow.providerListCostKrw,

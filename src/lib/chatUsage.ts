@@ -189,9 +189,11 @@ export type Usage = {
   /** Phase 2 shadow pricing — admin-only, never billed. Stored for diagnostics/aggregate. */
   shadowPricing?: {
     pricingVersion: number;
-    billingReferenceInputRateKrw: number;
-    billingReferenceOutputRateKrw: number;
+    billingReferenceInputUsdPerMillion: number;
+    billingReferenceOutputUsdPerMillion: number;
     billingReferenceCostKrw: number;
+    billingReferenceCostUsd: number;
+    fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
     actualProviderCostKrw: number;
     actualCostSource: string;
     providerListCostKrw: number;

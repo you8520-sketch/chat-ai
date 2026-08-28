@@ -1,21 +1,14 @@
 /**
- * Published Model Pricing — canonical owner for billing reference cost & target margins.
- *
- * Shadow mode only (Phase 2): actual user deduction still uses legacy `points.ts` path.
- * New helpers are used for shadow simulation, admin diagnostics, and future cutover.
- *
- * PricingVersion: increment when published rates/margins change. Stored per-message in usage JSON
- * for reproducible history. Live CheaperInference discount NEVER mutates this.
+ * Published Model Pricing — canonical owner for billing reference USD rates & target margins.
+ * Source-of-truth is USD per million. KRW is computed via daily KST FX (not baked-in).
  */
 
 export type PublishedModelPricing = {
   modelId: string;
-  /** KRW per input token — billing reference (stable, independent of provider list) */
-  billingReferenceInputRateKrw: number;
-  /** KRW per output token — billing reference */
-  billingReferenceOutputRateKrw: number;
-  billingReferenceCacheReadRateKrw?: number;
-  billingReferenceCacheWriteRateKrw?: number;
+  billingReferenceInputUsdPerMillion: number;
+  billingReferenceOutputUsdPerMillion: number;
+  billingReferenceCacheReadUsdPerMillion?: number;
+  billingReferenceCacheWriteUsdPerMillion?: number;
   targetMargin: number;
   minimumMarginFloor: number;
   pricingVersion: number;
@@ -26,31 +19,17 @@ export type PublishedModelPricing = {
     endsAt: string;
     allowBelowMarginFloor: boolean;
   };
-  marketBenchmark?: {
-    outputChars: number;
-    points: number;
-  };
-  marketUsageBenchmark?: {
-    inputTokens: number;
-    outputTokens: number;
-    userChargePoints: number;
-    sourceLabel: string;
-  };
+  marketBenchmark?: { outputChars: number; points: number };
+  marketUsageBenchmark?: { inputTokens: number; outputTokens: number; userChargePoints: number; sourceLabel: string };
 };
-
-const EFFECTIVE_KRW_PER_USD_SNAPSHOT = 1530 * 1.02;
-
-function usdPerMToKrwPerToken(usdPerM: number): number {
-  return (usdPerM / 1_000_000) * EFFECTIVE_KRW_PER_USD_SNAPSHOT;
-}
 
 const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   "claude-opus-5": {
     modelId: "claude-opus-5",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(3.5),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(17.5),
-    billingReferenceCacheReadRateKrw: usdPerMToKrwPerToken(0.35),
-    billingReferenceCacheWriteRateKrw: usdPerMToKrwPerToken(4.375),
+    billingReferenceInputUsdPerMillion: 5,
+    billingReferenceOutputUsdPerMillion: 25,
+    billingReferenceCacheReadUsdPerMillion: 0.5,
+    billingReferenceCacheWriteUsdPerMillion: 6.25,
     targetMargin: 0.25,
     minimumMarginFloor: 0.15,
     pricingVersion: 1,
@@ -60,8 +39,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "anthropic/claude-opus-4.5": {
     modelId: "anthropic/claude-opus-4.5",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(5),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(25),
+    billingReferenceInputUsdPerMillion: 5,
+    billingReferenceOutputUsdPerMillion: 25,
     targetMargin: 0.25,
     minimumMarginFloor: 0.15,
     pricingVersion: 1,
@@ -70,10 +49,10 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-pro-0813": {
     modelId: "deepseek-v4-pro-0813",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.3045),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(0.609),
-    billingReferenceCacheReadRateKrw: usdPerMToKrwPerToken(0.231),
-    billingReferenceCacheWriteRateKrw: usdPerMToKrwPerToken(0.3045),
+    billingReferenceInputUsdPerMillion: 0.435,
+    billingReferenceOutputUsdPerMillion: 0.87,
+    billingReferenceCacheReadUsdPerMillion: 0.0435,
+    billingReferenceCacheWriteUsdPerMillion: 0.435,
     targetMargin: 0.45,
     minimumMarginFloor: 0.3,
     pricingVersion: 1,
@@ -81,8 +60,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-pro": {
     modelId: "deepseek-v4-pro",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.3045),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(0.609),
+    billingReferenceInputUsdPerMillion: 0.435,
+    billingReferenceOutputUsdPerMillion: 0.87,
     targetMargin: 0.45,
     minimumMarginFloor: 0.3,
     pricingVersion: 1,
@@ -90,8 +69,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "meta/muse-spark-1.1": {
     modelId: "meta/muse-spark-1.1",
-    billingReferenceInputRateKrw: 0.0042,
-    billingReferenceOutputRateKrw: 0.0062,
+    billingReferenceInputUsdPerMillion: 0.435,
+    billingReferenceOutputUsdPerMillion: 0.87,
     targetMargin: 0.55,
     minimumMarginFloor: 0.4,
     pricingVersion: 1,
@@ -99,8 +78,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "google/gemini-3.6-flash": {
     modelId: "google/gemini-3.6-flash",
-    billingReferenceInputRateKrw: 0.0042,
-    billingReferenceOutputRateKrw: 0.0209,
+    billingReferenceInputUsdPerMillion: 0.5,
+    billingReferenceOutputUsdPerMillion: 2.5,
     targetMargin: 0.45,
     minimumMarginFloor: 0.3,
     pricingVersion: 1,
@@ -108,10 +87,10 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.1-pro-preview": {
     modelId: "gemini-3.1-pro-preview",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(1.4),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(8.4),
-    billingReferenceCacheReadRateKrw: usdPerMToKrwPerToken(0.4375),
-    billingReferenceCacheWriteRateKrw: usdPerMToKrwPerToken(1.4),
+    billingReferenceInputUsdPerMillion: 2,
+    billingReferenceOutputUsdPerMillion: 12,
+    billingReferenceCacheReadUsdPerMillion: 0.5,
+    billingReferenceCacheWriteUsdPerMillion: 2,
     targetMargin: 0.2,
     minimumMarginFloor: 0.1,
     pricingVersion: 1,
@@ -120,8 +99,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "google/gemini-3.1-pro-preview": {
     modelId: "google/gemini-3.1-pro-preview",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(1.4),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(8.4),
+    billingReferenceInputUsdPerMillion: 2,
+    billingReferenceOutputUsdPerMillion: 12,
     targetMargin: 0.2,
     minimumMarginFloor: 0.1,
     pricingVersion: 1,
@@ -130,8 +109,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gemini-3.7-flash": {
     modelId: "gemini-3.7-flash",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.53),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(2.63),
+    billingReferenceInputUsdPerMillion: 0.53,
+    billingReferenceOutputUsdPerMillion: 2.63,
     targetMargin: 0.4,
     minimumMarginFloor: 0.25,
     pricingVersion: 1,
@@ -139,8 +118,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "qwen-3-8-max": {
     modelId: "qwen-3-8-max",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(1.4),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(4.2),
+    billingReferenceInputUsdPerMillion: 1.4,
+    billingReferenceOutputUsdPerMillion: 4.2,
     targetMargin: 0.5,
     minimumMarginFloor: 0.35,
     pricingVersion: 1,
@@ -148,8 +127,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "z-ai/glm-5.2": {
     modelId: "z-ai/glm-5.2",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.532),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(1.672),
+    billingReferenceInputUsdPerMillion: 0.532,
+    billingReferenceOutputUsdPerMillion: 1.672,
     targetMargin: 0.5,
     minimumMarginFloor: 0.35,
     pricingVersion: 1,
@@ -157,8 +136,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "glm-5.2": {
     modelId: "glm-5.2",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.532),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(1.672),
+    billingReferenceInputUsdPerMillion: 0.532,
+    billingReferenceOutputUsdPerMillion: 1.672,
     targetMargin: 0.5,
     minimumMarginFloor: 0.35,
     pricingVersion: 1,
@@ -166,8 +145,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "moonshotai/kimi-k3": {
     modelId: "moonshotai/kimi-k3",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(3),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(15),
+    billingReferenceInputUsdPerMillion: 3,
+    billingReferenceOutputUsdPerMillion: 15,
     targetMargin: 0.4,
     minimumMarginFloor: 0.25,
     pricingVersion: 1,
@@ -175,8 +154,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "deepseek-v4-flash-0731": {
     modelId: "deepseek-v4-flash-0731",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.098),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(0.196),
+    billingReferenceInputUsdPerMillion: 0.098,
+    billingReferenceOutputUsdPerMillion: 0.196,
     targetMargin: 0.55,
     minimumMarginFloor: 0.4,
     pricingVersion: 1,
@@ -184,8 +163,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gpt-5.6-luna": {
     modelId: "gpt-5.6-luna",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.08),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(0.48),
+    billingReferenceInputUsdPerMillion: 0.08,
+    billingReferenceOutputUsdPerMillion: 0.48,
     targetMargin: 0.5,
     minimumMarginFloor: 0.35,
     pricingVersion: 1,
@@ -193,8 +172,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "gpt-5.6-terra": {
     modelId: "gpt-5.6-terra",
-    billingReferenceInputRateKrw: usdPerMToKrwPerToken(2.5),
-    billingReferenceOutputRateKrw: usdPerMToKrwPerToken(15),
+    billingReferenceInputUsdPerMillion: 2.5,
+    billingReferenceOutputUsdPerMillion: 15,
     targetMargin: 0.3,
     minimumMarginFloor: 0.15,
     pricingVersion: 1,
@@ -204,8 +183,8 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
 
 const GENERIC_PUBLISHED: PublishedModelPricing = {
   modelId: "__generic__",
-  billingReferenceInputRateKrw: usdPerMToKrwPerToken(0.4),
-  billingReferenceOutputRateKrw: usdPerMToKrwPerToken(0.4),
+  billingReferenceInputUsdPerMillion: 0.4,
+  billingReferenceOutputUsdPerMillion: 0.4,
   targetMargin: 0.4,
   minimumMarginFloor: 0.25,
   pricingVersion: 1,

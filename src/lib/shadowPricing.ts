@@ -44,16 +44,18 @@ export type ShadowCostBreakdown = {
   actualCostUsd?: number;
   providerListCostKrw: number;
   billingReferenceCostKrw: number;
+  billingReferenceCostUsd: number;
   inputCostKrw: number;
   outputCostKrw: number;
   reasoningCostKrw: number;
   cacheReadCostKrw: number;
   cacheWriteCostKrw: number;
-  billingReferenceInputRateKrw: number;
-  billingReferenceOutputRateKrw: number;
+  billingReferenceInputUsdPerMillion: number;
+  billingReferenceOutputUsdPerMillion: number;
   pricingVersion: number;
   targetMargin: number;
   minimumMarginFloor: number;
+  fxSnapshot: { dateKey: string; baseUsdKrw: number; overseasFeeRate: number; effectiveKrwPerUsd: number };
 };
 
 export type ShadowChargeBreakdown = ShadowCostBreakdown & {
@@ -211,13 +213,19 @@ export function computeShadowCosts(opts: {
 
   const providerListCostKrw = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
 
-  const inputCostKrw = round1(usage.standardInputTokens * pub.billingReferenceInputRateKrw);
-  const cacheReadCostKrw = round1(usage.cacheReadTokens * (pub.billingReferenceCacheReadRateKrw ?? pub.billingReferenceInputRateKrw * 0.1));
-  const cacheWriteCostKrw = round1(usage.cacheWriteTokens * (pub.billingReferenceCacheWriteRateKrw ?? pub.billingReferenceInputRateKrw));
-  const outputCostKrw = round1(usage.visibleOutputTokens * pub.billingReferenceOutputRateKrw);
-  // reasoningCostKrw only if separate accounting; otherwise 0 to avoid double count
-  const reasoningCostKrw = usage.reasoningAccounting === "separate" ? round1(usage.reasoningTokens * pub.billingReferenceOutputRateKrw) : 0;
-  const billingReferenceCostKrw = round1(inputCostKrw + cacheReadCostKrw + cacheWriteCostKrw + outputCostKrw + reasoningCostKrw);
+  // Published USD → KRW via daily FX (not baked)
+  const billingReferenceCostUsd =
+    (usage.standardInputTokens / 1_000_000) * pub.billingReferenceInputUsdPerMillion +
+    (usage.cacheReadTokens / 1_000_000) * (pub.billingReferenceCacheReadUsdPerMillion ?? pub.billingReferenceInputUsdPerMillion * 0.1) +
+    (usage.cacheWriteTokens / 1_000_000) * (pub.billingReferenceCacheWriteUsdPerMillion ?? pub.billingReferenceInputUsdPerMillion) +
+    (usage.visibleOutputTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion +
+    (usage.reasoningAccounting === "separate" ? (usage.reasoningTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion : 0);
+  const billingReferenceCostKrw = round1(convertUsdToKrw(billingReferenceCostUsd, effectiveRate));
+  const inputCostKrw = round1(convertUsdToKrw((usage.standardInputTokens / 1_000_000) * pub.billingReferenceInputUsdPerMillion, effectiveRate));
+  const cacheReadCostKrw = round1(convertUsdToKrw((usage.cacheReadTokens / 1_000_000) * (pub.billingReferenceCacheReadUsdPerMillion ?? pub.billingReferenceInputUsdPerMillion * 0.1), effectiveRate));
+  const cacheWriteCostKrw = round1(convertUsdToKrw((usage.cacheWriteTokens / 1_000_000) * (pub.billingReferenceCacheWriteUsdPerMillion ?? pub.billingReferenceInputUsdPerMillion), effectiveRate));
+  const outputCostKrw = round1(convertUsdToKrw((usage.visibleOutputTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion, effectiveRate));
+  const reasoningCostKrw = usage.reasoningAccounting === "separate" ? round1(convertUsdToKrw((usage.reasoningTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion, effectiveRate)) : 0;
 
   return {
     promptTokens: usage.promptTokens,
@@ -238,11 +246,13 @@ export function computeShadowCosts(opts: {
     reasoningCostKrw,
     cacheReadCostKrw,
     cacheWriteCostKrw,
-    billingReferenceInputRateKrw: pub.billingReferenceInputRateKrw,
-    billingReferenceOutputRateKrw: pub.billingReferenceOutputRateKrw,
+    billingReferenceCostUsd,
+    billingReferenceInputUsdPerMillion: pub.billingReferenceInputUsdPerMillion,
+    billingReferenceOutputUsdPerMillion: pub.billingReferenceOutputUsdPerMillion,
     pricingVersion: pub.pricingVersion,
     targetMargin: pub.targetMargin,
     minimumMarginFloor: pub.minimumMarginFloor,
+    fxSnapshot: { dateKey: snapshot.dateKey, baseUsdKrw: snapshot.usdToKrw, overseasFeeRate: 0.02, effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd },
   };
 }
 

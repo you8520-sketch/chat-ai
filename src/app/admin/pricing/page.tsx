@@ -43,7 +43,7 @@ export default async function AdminPricingPage() {
           <tbody>
             {models.map((id) => {
               const p = getPublishedPricing(id);
-              return <tr key={id} className="border-b border-white/5"><td>{id}</td><td>{p.pricingVersion}</td><td>{p.billingReferenceInputRateKrw.toFixed(5)}</td><td>{p.billingReferenceOutputRateKrw.toFixed(5)}</td><td>{(p.targetMargin*100).toFixed(1)}%</td><td>{(p.minimumMarginFloor*100).toFixed(1)}%</td></tr>;
+              return <tr key={id} className="border-b border-white/5"><td>{id}</td><td>{p.pricingVersion}</td><td>${p.billingReferenceInputUsdPerMillion}/M</td><td>${p.billingReferenceOutputUsdPerMillion}/M</td><td>{(p.targetMargin*100).toFixed(1)}%</td><td>{(p.minimumMarginFloor*100).toFixed(1)}%</td></tr>;
             })}
           </tbody>
         </table>
