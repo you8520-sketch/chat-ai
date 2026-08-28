@@ -42,7 +42,7 @@ import {
   selectCharacterImageUrl,
   type SelectableCharacterImage,
 } from "@/lib/chatCharacterImageSelection";
-import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
+import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/chatCharacterImageSelection.server";
 import {
   CHAT_IMAGE_TEMPLATE_ID,
   CHAT_IMAGE_TEMPLATE_NAME,
@@ -77,8 +77,9 @@ import {
   resolveChatPersonaImagePrice,
 } from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
+import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
 import { parseContentKind, type ContentKind } from "@/lib/simulationMode";
-import { resolveChatImageSceneBuilderReadiness } from "@/lib/chatImageCast";
+import { resolveChatImageSceneBuilderReadiness, type SelectableCastAsset } from "@/lib/chatImageCast";
 import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -125,6 +126,7 @@ type CharacterRow = {
   appearance_compiled: string | null;
   system_prompt: string | null;
   content_kind: string | null;
+  simulation_visual_subjects_json: string | null;
 };
 
 type PersonaRow = {
@@ -150,6 +152,13 @@ type GenerationContext = {
   personaGender: ImagePromptGender;
   characterImageUrl: string;
   characterImages: SelectableCharacterImage[];
+  castSelectableAssets: SelectableCastAsset[];
+  visualSubjects: Array<{
+    subjectKey: string;
+    name: string;
+    savedAppearance: string;
+    representativeAssetUrl: string | null;
+  }>;
   personaImageUrl: string;
   characterSavedAppearance: string;
   personaSavedAppearance: string;
@@ -236,7 +245,7 @@ function resolveGenerationContext(opts: {
 
   const character = db
     .prepare(
-      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(content_kind, 'character') AS content_kind FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility, COALESCE(appearance_raw, '') AS appearance_raw, COALESCE(appearance_compiled, '') AS appearance_compiled, COALESCE(system_prompt, '') AS system_prompt, COALESCE(content_kind, 'character') AS content_kind, COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -261,12 +270,22 @@ function resolveGenerationContext(opts: {
       .get(opts.userId) as PersonaRow | undefined;
   }
 
+  const contentKind = parseContentKind(character.content_kind);
   const characterImages = listSelectableCharacterImages({
     userId: opts.userId,
     characterId: character.id,
     creatorId: character.creator_id,
     assetsRaw: character.assets,
     imagesRaw: character.images,
+    contentKind,
+  });
+  const castSelectableAssets = listCastSelectableAssets({
+    userId: opts.userId,
+    characterId: character.id,
+    creatorId: character.creator_id,
+    assetsRaw: character.assets,
+    imagesRaw: character.images,
+    contentKind,
   });
   const characterImageUrl =
     selectCharacterImageUrl(characterImages, opts.requestedCharacterImageUrl) ?? "";
@@ -285,13 +304,22 @@ function resolveGenerationContext(opts: {
   });
   return {
     chatId,
-    contentKind: parseContentKind(character.content_kind),
+    contentKind,
     character,
     persona: persona ?? null,
     characterGender: genders.characterGender,
     personaGender: genders.personaGender,
     characterImageUrl,
     characterImages,
+    castSelectableAssets,
+    visualSubjects: parseVisualSubjectsJson(character.simulation_visual_subjects_json ?? "").subjects.map(
+      (subject) => ({
+        subjectKey: subject.subjectKey,
+        name: subject.name,
+        savedAppearance: subject.savedAppearance,
+        representativeAssetUrl: subject.representativeAssetUrl,
+      })
+    ),
     personaImageUrl,
     characterSavedAppearance: resolveCharacterSavedAppearance({
       appearanceRaw: character.appearance_raw,
@@ -507,6 +535,8 @@ function publicContextResponse(context: GenerationContext, viewerUserId: number)
     },
     contentKind: context.contentKind,
     characterImages: context.characterImages,
+    castSelectableAssets: context.castSelectableAssets,
+    visualSubjects: context.visualSubjects,
     persona: context.persona
       ? {
           id: context.persona.id,

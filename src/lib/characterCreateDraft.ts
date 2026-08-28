@@ -4,6 +4,7 @@ import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { SpeechContextualRegister } from "@/lib/speechCreatorFields";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { VisualSubjectsDocument } from "@/lib/visualSubjects";
 
 const STORAGE_PREFIX = "hobbyai.characterCreateDraft.v1";
 
@@ -49,6 +50,7 @@ export type CharacterCreateDraft = {
     promptChars: number;
   }>;
   assets: CharacterAsset[];
+  visualSubjects?: VisualSubjectsDocument;
   selectedWorldRef: string;
   /** @deprecated legacy draft field */
   selectedWorldId?: number | "";

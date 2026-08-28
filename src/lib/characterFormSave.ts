@@ -76,6 +76,12 @@ import {
   type SimulationImportSnapshot,
 } from "@/lib/simulationMode";
 import {
+  prepareCharacterVisualSubjectsForSave,
+  serializeCharacterVisualSubjectsJson,
+  validateCharacterVisualSubjectsDocument,
+  CharacterVisualSubjectsInputError,
+} from "@/lib/characterVisualSubjects";
+import {
   prepareSimulationVisualSubjectsForSave,
   sanitizeAssetVisualSubjectKeys,
   serializeSimulationVisualSubjectsJson,
@@ -153,6 +159,80 @@ export type ParsedCharacterForm = {
   hue: number;
   tagsJson: string;
 };
+
+function extractVisualSubjectsRawFromBody(b: Record<string, unknown>): string {
+  if (typeof b.visual_subjects_json === "string") return b.visual_subjects_json;
+  if (b.visual_subjects != null) return JSON.stringify(b.visual_subjects);
+  if (typeof b.simulation_visual_subjects_json === "string") {
+    return b.simulation_visual_subjects_json;
+  }
+  if (b.simulation_visual_subjects != null) return JSON.stringify(b.simulation_visual_subjects);
+  return "";
+}
+
+function prepareVisualSubjectsForSave(opts: {
+  contentKind: ContentKind;
+  submittedRaw: string;
+  trustedStoredJson: string;
+  assets: CharacterAsset[];
+  simulationCast?: string;
+  simulationTitle?: string;
+}):
+  | { ok: true; assets: CharacterAsset[]; json: string }
+  | { ok: false; error: string } {
+  if (opts.contentKind === "simulation") {
+    try {
+      const prepared = prepareSimulationVisualSubjectsForSave({
+        simulationCast: opts.simulationCast ?? "",
+        simulationTitle: opts.simulationTitle ?? "",
+        submittedRaw: opts.submittedRaw,
+        storedRaw: opts.trustedStoredJson,
+        assets: opts.assets,
+      });
+      const assets = sanitizeAssetVisualSubjectKeys(opts.assets, prepared.subjects);
+      const validated = validateSimulationVisualSubjectsDocument(prepared, assets);
+      if (!validated.ok) return { ok: false, error: validated.reason };
+      return {
+        ok: true,
+        assets,
+        json: serializeSimulationVisualSubjectsJson(prepared),
+      };
+    } catch (error) {
+      if (error instanceof SimulationVisualSubjectsInputError) {
+        return { ok: false, error: error.message };
+      }
+      throw error;
+    }
+  }
+
+  if (opts.contentKind !== "character") {
+    return { ok: true, assets: opts.assets, json: "" };
+  }
+
+  try {
+    const prepared = prepareCharacterVisualSubjectsForSave({
+      submittedRaw: opts.submittedRaw,
+      storedRaw: opts.trustedStoredJson,
+      assets: opts.assets,
+    });
+    const assets = sanitizeAssetVisualSubjectKeys(opts.assets, prepared.subjects);
+    const validated = validateCharacterVisualSubjectsDocument(prepared, assets);
+    if (!validated.ok) return { ok: false, error: validated.reason };
+    return {
+      ok: true,
+      assets,
+      json: serializeCharacterVisualSubjectsJson(prepared),
+    };
+  } catch (error) {
+    if (
+      error instanceof CharacterVisualSubjectsInputError ||
+      error instanceof SimulationVisualSubjectsInputError
+    ) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
+}
 
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
   if (!Array.isArray(rawAssets)) return [];
@@ -269,6 +349,7 @@ export function parseCharacterFormBody(
     existingParticipantMinAge?: number | null;
     requireStructuredAge?: boolean;
     trustedStoredSimulationVisualSubjectsJson?: string;
+    trustedStoredVisualSubjectsJson?: string;
     existingCharacter?: {
       world: string | null;
       worldId: number | null;
@@ -518,34 +599,25 @@ export function parseCharacterFormBody(
   const assetsRaw = parseAssetsFromFormBody(b.assets);
   let assets = assetsRaw;
   let simulationVisualSubjectsJson = "";
-  if (contentKind === "simulation") {
-    const submittedSubjectsRaw =
-      typeof b.simulation_visual_subjects_json === "string"
-        ? b.simulation_visual_subjects_json
-        : b.simulation_visual_subjects != null
-          ? JSON.stringify(b.simulation_visual_subjects)
-          : "";
-    let prepared;
-    try {
-      prepared = prepareSimulationVisualSubjectsForSave({
-        simulationCast,
-        simulationTitle: name,
-        submittedRaw: submittedSubjectsRaw,
-        storedRaw: options?.trustedStoredSimulationVisualSubjectsJson ?? "",
-        assets: assetsRaw,
-      });
-    } catch (error) {
-      if (error instanceof SimulationVisualSubjectsInputError) {
-        return { ok: false, error: error.message, status: 400 };
-      }
-      throw error;
+  const submittedSubjectsRaw = extractVisualSubjectsRawFromBody(b);
+  const trustedStoredVisualSubjectsJson =
+    options?.trustedStoredVisualSubjectsJson ??
+    options?.trustedStoredSimulationVisualSubjectsJson ??
+    "";
+  if (contentKind === "simulation" || submittedSubjectsRaw.trim() || trustedStoredVisualSubjectsJson.trim()) {
+    const preparedVisual = prepareVisualSubjectsForSave({
+      contentKind,
+      submittedRaw: submittedSubjectsRaw,
+      trustedStoredJson: trustedStoredVisualSubjectsJson,
+      assets: assetsRaw,
+      simulationCast,
+      simulationTitle: name,
+    });
+    if (!preparedVisual.ok) {
+      return { ok: false, error: preparedVisual.error, status: 400 };
     }
-    assets = sanitizeAssetVisualSubjectKeys(assetsRaw, prepared.subjects);
-    const validated = validateSimulationVisualSubjectsDocument(prepared, assets);
-    if (!validated.ok) {
-      return { ok: false, error: validated.reason, status: 400 };
-    }
-    simulationVisualSubjectsJson = serializeSimulationVisualSubjectsJson(prepared);
+    assets = preparedVisual.assets;
+    simulationVisualSubjectsJson = preparedVisual.json;
   }
 
   if (assets.length === 0) {
@@ -1044,6 +1116,7 @@ export async function updateCharacterFromForm(
     existingParticipantMinAge: row.participant_min_age,
     requireStructuredAge: false,
     trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
+    trustedStoredVisualSubjectsJson: row.simulation_visual_subjects_json,
     existingCharacter: {
       world: row.world,
       worldId: row.world_id,
@@ -1254,7 +1327,10 @@ export async function updateCharacterPublicProfileFromForm(
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
-              images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status
+              images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status,
+              COALESCE(content_kind, 'character') AS content_kind,
+              COALESCE(simulation_cast, '') AS simulation_cast,
+              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1274,6 +1350,9 @@ export async function updateCharacterPublicProfileFromForm(
         tags: string | null;
         participant_min_age: number | null;
         adult_status: string | null;
+        content_kind: string | null;
+        simulation_cast: string;
+        simulation_visual_subjects_json: string;
       }
     | undefined;
 
@@ -1302,9 +1381,32 @@ export async function updateCharacterPublicProfileFromForm(
     return { ok: false as const, error: "장르를 1개 이상 선택해 주세요.", status: 400 };
   }
 
-  const assets = parseAssetsFromFormBody(b.assets);
+  let assets = parseAssetsFromFormBody(b.assets);
   if (assets.length === 0) {
     return { ok: false as const, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
+  }
+
+  const contentKind = parseContentKind(row.content_kind);
+  const submittedSubjectsRaw = extractVisualSubjectsRawFromBody(b);
+  let visualSubjectsJson = row.simulation_visual_subjects_json;
+  if (
+    submittedSubjectsRaw.trim() ||
+    row.simulation_visual_subjects_json.trim() ||
+    contentKind === "simulation"
+  ) {
+    const preparedVisual = prepareVisualSubjectsForSave({
+      contentKind,
+      submittedRaw: submittedSubjectsRaw,
+      trustedStoredJson: row.simulation_visual_subjects_json,
+      assets,
+      simulationCast: row.simulation_cast,
+      simulationTitle: row.name,
+    });
+    if (!preparedVisual.ok) {
+      return { ok: false as const, error: preparedVisual.error, status: 400 };
+    }
+    assets = preparedVisual.assets;
+    visualSubjectsJson = preparedVisual.json;
   }
 
   const nsfw = !!b.nsfw;
@@ -1374,7 +1476,7 @@ export async function updateCharacterPublicProfileFromForm(
       audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?,
       simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?,
-      participant_min_age=?, adult_status=?
+      participant_min_age=?, adult_status=?, simulation_visual_subjects_json=?
      WHERE id=?`
   ).run(
     tagline,
@@ -1401,6 +1503,7 @@ export async function updateCharacterPublicProfileFromForm(
     b.trpg_reuse_allowed === true ? 1 : 0,
     participantMinAge,
     adultStatus,
+    visualSubjectsJson,
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);

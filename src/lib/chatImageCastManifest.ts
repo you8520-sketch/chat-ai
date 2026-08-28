@@ -33,6 +33,7 @@ import {
   resolveVisualSubjectByName,
   type SimulationVisualSubject,
 } from "@/lib/simulationVisualSubjects";
+import { resolveSupportMemberVisualMetadata } from "@/lib/visualSubjects";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
@@ -378,19 +379,29 @@ function groundedCoreSubject(
     };
   }
   const trustedUrl = whitelistAssetUrl(intent.requestedReferenceAssetUrl, ctx.selectableAssets);
-  const visualSubject =
-    contentKind === "simulation"
-      ? resolveVisualSubjectByName(ctx.simulationVisualSubjects ?? [], intent.name)
-      : null;
+  const visualSubject = resolveVisualSubjectByName(
+    ctx.simulationVisualSubjects ?? [],
+    intent.name
+  );
   const visualMeta =
-    contentKind === "simulation" && visualSubject
+    visualSubject && contentKind === "simulation"
       ? resolveSimulationMemberVisualMetadata({
           memberName: intent.name,
           castSubjectKey: intent.key,
           visualSubjects: ctx.simulationVisualSubjects ?? [],
           assets: ctx.characterAssets ?? [],
         })
-      : { appearanceMode: "image_only" as const, savedAppearance: undefined };
+      : visualSubject && contentKind === "character"
+        ? resolveSupportMemberVisualMetadata({
+            memberName: intent.name,
+            castSubjectKey: intent.key,
+            visualSubjects: ctx.simulationVisualSubjects ?? [],
+          })
+        : {
+            appearanceMode: "image_only" as const,
+            savedAppearance: undefined,
+            trustedSavedAppearance: false,
+          };
   return {
     key: intent.key,
     role: "supporting_character",
@@ -399,7 +410,9 @@ function groundedCoreSubject(
     referenceImageUrl: trustedUrl,
     savedAppearance: visualMeta.savedAppearance,
     trustedSavedAppearance:
-      contentKind === "simulation" && Boolean(visualMeta.savedAppearance),
+      contentKind === "character"
+        ? "trustedSavedAppearance" in visualMeta && Boolean(visualMeta.trustedSavedAppearance)
+        : Boolean(visualMeta.savedAppearance),
     appearanceMode: visualMeta.appearanceMode,
     importance: intent.importance,
     visibility: intent.visibility,

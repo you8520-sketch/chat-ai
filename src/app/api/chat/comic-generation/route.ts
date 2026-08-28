@@ -10,7 +10,7 @@ import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
-import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
+import { listSelectableCharacterImages, listCastSelectableAssets } from "@/lib/chatCharacterImageSelection.server";
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_ID,
@@ -63,12 +63,16 @@ import {
   ChatImageScenePlanRateLimitError,
   releaseChatImageScenePlanRateLimit,
 } from "@/lib/chatImageScenePlanRateLimit";
+import {
+  configuredCharacterVisualSubjectNames,
+  parseCharacterVisualSubjectsJson,
+} from "@/lib/characterVisualSubjects";
 import { extractSimulationCastNames, parseContentKind, type ContentKind } from "@/lib/simulationMode";
 import {
   parseSimulationVisualSubjectsJson,
   type SimulationVisualSubject,
 } from "@/lib/simulationVisualSubjects";
-import { filterConfiguredCastNamesForViewer } from "@/lib/chatImageCast";
+import { filterConfiguredCastNamesForViewer, type SelectableCastAsset } from "@/lib/chatImageCast";
 import {
   groundCastIntent,
   parseChatImageCastManifest,
@@ -153,6 +157,7 @@ type GenerationContext = {
   characterImageUrl: string;
   personaImageUrl: string;
   characterImages: ReturnType<typeof listSelectableCharacterImages>;
+  castSelectableAssets: SelectableCastAsset[];
   characterAssets: CharacterAsset[];
   simulationVisualSubjects: SimulationVisualSubject[];
   characterSavedAppearance: string;
@@ -269,20 +274,29 @@ function resolveGenerationContext(opts: {
   }
   if (!persona) throw new RequestError("유저 페르소나가 필요합니다.");
 
+  const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
+  const contentKind = parseContentKind(character.content_kind);
   const characterImages = listSelectableCharacterImages({
     userId: opts.userId,
     characterId: character.id,
     creatorId: character.creator_id,
     assetsRaw: character.assets,
     imagesRaw: character.images,
+    contentKind,
+  });
+  const castSelectableAssets = listCastSelectableAssets({
+    userId: opts.userId,
+    characterId: character.id,
+    creatorId: character.creator_id,
+    assetsRaw: character.assets,
+    imagesRaw: character.images,
+    contentKind,
   });
   const characterImageUrl =
     selectCharacterImageUrl(characterImages, opts.requestedCharacterImageUrl) ?? "";
   if (opts.requestedCharacterImageUrl && !characterImageUrl) {
     throw new RequestError("선택할 수 없는 캐릭터 이미지입니다.", 403);
   }
-  const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
-  const contentKind = parseContentKind(character.content_kind);
   if (contentKind === "character") {
     if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
     if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
@@ -295,10 +309,9 @@ function resolveGenerationContext(opts: {
     personaGender: persona.gender,
   });
   const characterAssets = parseAssets(character.assets);
-  const simulationVisualSubjects =
-    contentKind === "simulation"
-      ? parseSimulationVisualSubjectsJson(character.simulation_visual_subjects_json).subjects
-      : [];
+  const simulationVisualSubjects = parseSimulationVisualSubjectsJson(
+    character.simulation_visual_subjects_json ?? ""
+  ).subjects;
   return {
     chatId,
     contentKind,
@@ -309,6 +322,7 @@ function resolveGenerationContext(opts: {
     characterImageUrl,
     personaImageUrl,
     characterImages,
+    castSelectableAssets,
     characterAssets,
     simulationVisualSubjects,
     characterSavedAppearance: resolveCharacterSavedAppearance({
@@ -466,12 +480,7 @@ function resolveGroundedCastManifest(opts: {
         referenceImageUrl: opts.context.characterImageUrl,
         savedAppearance: opts.context.characterSavedAppearance,
       },
-      selectableAssets: opts.context.characterImages.map((image) => ({
-        url: image.url,
-        tag: image.tag,
-        visualSubjectKey: opts.context.characterAssets.find((asset) => asset.url === image.url)
-          ?.visualSubjectKey,
-      })),
+      selectableAssets: opts.context.castSelectableAssets,
       simulationVisualSubjects: opts.context.simulationVisualSubjects,
       characterAssets: opts.context.characterAssets,
     },
@@ -675,8 +684,14 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
+      const configuredNames =
+        context.contentKind === "character"
+          ? configuredCharacterVisualSubjectNames(
+              parseCharacterVisualSubjectsJson(context.character.simulation_visual_subjects_json ?? "")
+            )
+          : extractSimulationCastNames(context.character.simulation_cast ?? "");
       const configuredCastNames = filterConfiguredCastNamesForViewer({
-        configuredNames: extractSimulationCastNames(context.character.simulation_cast ?? ""),
+        configuredNames,
         sourceTexts: source.messages.map((message) => message.text),
         isCreator: context.character.creator_id === user.id,
       });

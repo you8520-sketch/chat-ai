@@ -11,11 +11,12 @@ import {
 import { cn, studioType } from "@/lib/studioDesign";
 import { isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
 import { pruneSelectedUrls } from "@/lib/assetManagerGridSelection";
+import type { ContentKind } from "@/lib/simulationMode";
 import {
   assignAssetsToVisualSubject,
   unassignVisualAssets,
-  type SimulationVisualSubject,
-} from "@/lib/simulationVisualSubjects";
+  type VisualSubject,
+} from "@/lib/visualSubjects";
 
 export type ManagedAsset = CharacterAsset;
 
@@ -27,7 +28,8 @@ type Props = {
   onChange: (assets: ManagedAsset[]) => void;
   onRemove: (index: number) => void;
   note?: string;
-  visualSubjects?: readonly SimulationVisualSubject[];
+  visualSubjects?: readonly VisualSubject[];
+  contentKind?: ContentKind;
 };
 
 export default function AssetManagerGrid({
@@ -37,6 +39,7 @@ export default function AssetManagerGrid({
   onRemove,
   note,
   visualSubjects,
+  contentKind = "character",
 }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -96,10 +99,14 @@ export default function AssetManagerGrid({
   }
 
   function assignUrls(urls: readonly string[], subjectKey: string) {
+    const filteredUrls = urls.filter((url) => {
+      const index = assets.findIndex((asset) => asset.url === url);
+      return index !== 0;
+    });
     onChange(
       subjectKey
-        ? assignAssetsToVisualSubject(assets, urls, subjectKey)
-        : unassignVisualAssets(assets, urls)
+        ? assignAssetsToVisualSubject(assets, filteredUrls, subjectKey)
+        : unassignVisualAssets(assets, filteredUrls)
     );
   }
 
@@ -168,7 +175,9 @@ export default function AssetManagerGrid({
               onChange={(event) => setBulkSubjectKey(event.target.value)}
               className="min-h-11 rounded-lg border border-zinc-700 bg-[#080a14] px-3 text-xs text-zinc-100"
             >
-              <option value="">미지정으로 설정</option>
+              <option value="">
+                {contentKind === "character" ? "주인공(메인)" : "미지정"}
+              </option>
               {visualSubjects!.map((subject) => (
                 <option key={subject.subjectKey} value={subject.subjectKey}>
                   {subject.name}
@@ -343,10 +352,13 @@ export default function AssetManagerGrid({
                 </label>
                 <select
                   value={a.visualSubjectKey ?? ""}
+                  disabled={i === 0}
                   onChange={(event) => assignUrls([a.url], event.target.value)}
-                  className="min-h-11 w-full rounded-lg border border-white/10 bg-black/50 px-2 text-xs text-zinc-100"
+                  className="min-h-11 w-full rounded-lg border border-white/10 bg-black/50 px-2 text-xs text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="">미지정</option>
+                  <option value="">
+                    {contentKind === "character" ? "주인공(메인)" : "미지정"}
+                  </option>
                   {visualSubjects.map((subject) => (
                     <option key={subject.subjectKey} value={subject.subjectKey}>
                       {subject.name}

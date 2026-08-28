@@ -119,6 +119,13 @@ type Preflight = {
   };
   contentKind?: ContentKind;
   characterImages?: Array<{ url: string; tag: string }>;
+  castSelectableAssets?: SelectableCastAsset[];
+  visualSubjects?: Array<{
+    subjectKey: string;
+    name: string;
+    savedAppearance: string;
+    representativeAssetUrl: string | null;
+  }>;
   persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;
   balance?: { total: number; paid: number; free: number };
   averageCosts?: {
@@ -560,11 +567,12 @@ export default function ChatImageGeneratorPanel({
   const sceneIsIllustration =
     ldProduct === "scene" && (trpgCampaignMode || sceneOutputMode === "illustration");
   const selectableCastAssets = useMemo((): readonly SelectableCastAsset[] => {
+    if (info?.castSelectableAssets?.length) return info.castSelectableAssets;
     return (info?.characterImages ?? []).map((image) => ({
       url: image.url,
       tag: image.tag,
     }));
-  }, [info?.characterImages]);
+  }, [info?.castSelectableAssets, info?.characterImages]);
   const contentKind: ContentKind = info?.contentKind ?? "character";
   const reservedCastReferenceUrls = useMemo((): readonly string[] => {
     if (contentKind === "simulation") {
@@ -615,7 +623,11 @@ export default function ChatImageGeneratorPanel({
           if (subject.role !== "supporting_character" || subject.requestedReferenceAssetUrl) {
             return subject;
           }
-          const suggested = suggestAssetForSupportingName(subject.name, selectableCastAssets);
+          const suggested = suggestAssetForSupportingName(
+            subject.name,
+            selectableCastAssets,
+            info?.visualSubjects
+          );
           return suggested
             ? { ...subject, requestedReferenceAssetUrl: suggested }
             : subject;
