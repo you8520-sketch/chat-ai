@@ -29,8 +29,18 @@ describe("assetVisionPolicy", () => {
     assert.match(prompt, /성인용·일반용 공통/);
     assert.match(prompt, /imageType="person"/);
     assert.match(prompt, /PERSON_TAGS:/);
-    assert.match(prompt, /무표정\+누움→누움/);
+    assert.match(prompt, /키스\+부끄러움→키스/);
+    assert.match(prompt, /tag 선택이 adult\/reject를 자동으로 정하지 않는다/);
     assert.doesNotMatch(prompt, /좋은 예:/);
+  });
+
+  it("documents adult-RP tag semantics without changing moderation rules", () => {
+    assert.equal(ASSET_VISION_REJECT_RULES.includes("여성 유두"), true);
+    assert.equal(ASSET_VISION_REVIEW_RULES.includes("키스"), true);
+    const prompt = buildAssetVisionPrompt();
+    assert.match(prompt, /키스 = 입맞춤이 명확히 보임/);
+    assert.match(prompt, /애정 = 다정함·사랑스러움/);
+    assert.match(prompt, /로맨틱=장면 전체 분위기/);
   });
 
   it("helpers distinguish hard reject vs admin review", () => {

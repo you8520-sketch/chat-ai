@@ -107,7 +107,7 @@ export function buildEmotionTagPrompt(allowedTags: string[]): string {
   const list = unique.join(", ");
   const fallback = unique.includes("대화") ? "대화" : unique[0]!;
   return `[DISPLAY ASSET TAG — UPLOADED IMAGES ONLY]
-Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 침대에 누움, 대화).
+Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 키스, 밀착).
 Allowed tags ONLY (copy spelling exactly): ${list}
 Insert [태그: tagname] in the body at the moment that image should appear. Wide/landscape images render inline in the message at that position. Tall/portrait images update the left portrait (and mobile chat background).
 You may use more than one tag. Prefer a portrait tag for expression and landscape tags for scene images.
