@@ -4,6 +4,7 @@ import {
   decideLiveFollowOnGrowth,
   decidePassiveScrollFollowUpdate,
   shouldDetachLiveFollowOnKey,
+  shouldDetachLiveFollowOnTouchDelta,
   shouldDetachLiveFollowOnUserIntent,
   shouldDetachLiveFollowOnWheel,
 } from "./followLatest";
@@ -51,6 +52,14 @@ describe("POST-705 passive scroll follow ownership", () => {
     assert.equal(shouldDetachLiveFollowOnKey("ArrowUp"), true);
     assert.equal(shouldDetachLiveFollowOnKey("PageUp"), true);
     assert.equal(shouldDetachLiveFollowOnKey("PageDown"), false);
+  });
+
+  it("touch swipe up toward newest preserves follow; swipe down toward older detaches", () => {
+    const startY = 500;
+    const towardNewestDelta = startY - 400;
+    const towardOlderDelta = startY - 600;
+    assert.equal(shouldDetachLiveFollowOnTouchDelta(towardNewestDelta), false);
+    assert.equal(shouldDetachLiveFollowOnTouchDelta(towardOlderDelta), true);
   });
 
   it("explicit rejoin restores follow after manual detach", () => {

@@ -178,7 +178,7 @@ export function shouldDetachLiveFollowOnKey(key: string): boolean {
 }
 
 export function shouldDetachLiveFollowOnTouchDelta(deltaY: number): boolean {
-  return deltaY > 0;
+  return deltaY < 0;
 }
 
 export function shouldDetachLiveFollowOnUserIntent(): boolean {

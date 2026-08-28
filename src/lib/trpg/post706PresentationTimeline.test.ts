@@ -645,16 +645,34 @@ describe("POST-706 production presentation timeline", () => {
     assert.match(room, /\}, \[queueSessionKey\]\)/);
   });
 
-  it("directional wheel detach: downward preserves, upward detaches", () => {
-    assert.equal(shouldDetachLiveFollowOnWheel(120), false, "downward wheel preserves follow");
-    assert.equal(shouldDetachLiveFollowOnWheel(-1), true, "upward wheel detaches");
+  it("directional wheel and touch detach match TrpgCampaignRoom convention", () => {
+    assert.equal(shouldDetachLiveFollowOnWheel(120), false, "MOUSE_WHEEL_DOWN_TOWARD_NEWEST_PRESERVES_FOLLOW");
+    assert.equal(shouldDetachLiveFollowOnWheel(-1), true, "MOUSE_WHEEL_UP_TOWARD_OLDER_DETACHES");
+
     assert.equal(shouldDetachLiveFollowOnKey("ArrowDown"), false);
     assert.equal(shouldDetachLiveFollowOnKey("PageDown"), false);
     assert.equal(shouldDetachLiveFollowOnKey("End"), false);
     assert.equal(shouldDetachLiveFollowOnKey("ArrowUp"), true);
     assert.equal(shouldDetachLiveFollowOnKey("PageUp"), true);
-    assert.equal(shouldDetachLiveFollowOnTouchDelta(-40), false, "touch toward newest preserves follow");
-    assert.equal(shouldDetachLiveFollowOnTouchDelta(40), true, "touch toward older detaches");
+
+    const startY = 500;
+    const swipeUpCurrentY = 400;
+    const towardNewestDelta = startY - swipeUpCurrentY;
+    assert.equal(towardNewestDelta > 0, true);
+    assert.equal(
+      shouldDetachLiveFollowOnTouchDelta(towardNewestDelta),
+      false,
+      "TOUCH_SWIPE_UP_TOWARD_NEWEST_PRESERVES_FOLLOW"
+    );
+
+    const swipeDownCurrentY = 600;
+    const towardOlderDelta = startY - swipeDownCurrentY;
+    assert.equal(towardOlderDelta < 0, true);
+    assert.equal(
+      shouldDetachLiveFollowOnTouchDelta(towardOlderDelta),
+      true,
+      "TOUCH_SWIPE_DOWN_TOWARD_OLDER_DETACHES"
+    );
   });
 
   it("single-die result hold is 3500ms", () => {
