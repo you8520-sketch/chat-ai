@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F07",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 13,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7946,
+  "output_token_count": 350,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 8642,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "벽면을 따라 흐르는 푸른 마력 잔광이 석실 틈새로 일렁였다. 문틈 사이로 스쳐 지나간 망토의 윤곽과 희미하게 뿜어져 나오는 냉기는 예사롭지 않았지만, 무작정 무기를 들이대는 것만이 능사는 아니었다. \n\n세라는 가볍게 숨을 고른 뒤, 손에 쥐고 있던 양피지와 필기도구를 조심스럽게 갈무리했다. 실버크로우의 첩자일 가능성도 배제할 수는 없었으나, 이 지하에 얽힌 고대의 지식이나 길을 아는 존재라면 대화로 얻어낼 수 있는 정보의 가치는 막대했다. 그녀는 유저의 뜻에 동의하듯 고개를 끄덕이며 한 걸음 앞으로 나섰다.\n\n\"현명한 판단이십니다. 불필요한 충돌은 피하는 편이 이롭겠지요.\"\n\n세라는 적의가 없음을 보이듯 손을 가슴께에 얹고 예를 갖추며, 문 너머의 형체를 향해 차분하고 정중한 어조로 말을 건넸다.\n\n\"저희는 해를 끼치려는 자들이 아닙니다. 왕좌의 흔적을 쫓는 학자로서 길을 찾고 있을 뿐이니, 잠시 말씀 나누시겠습니까?\"\n\n<<<ACTION_TYPE>>>\npersuade\n<<<INTENT>>>\n세라는 문 너머의 정체불명의 형체에게 적의가 없음을 알리며 대화를 시도해 우호적인 반응을 이끌어내려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 565,
+    "outputTokenEstimate": 314,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "벽면을 따라 흐르는 푸른 마력 잔광이 석실 틈새로 일렁였다. 문틈 사이로 스쳐 지나간 망토의 윤곽과 희미하게 뿜어져 나오는 냉기는 예사롭지 않았지만, 무작정 무기를 들이대는 것만이 능사는 아니었다.\n\n세라는 가볍게 숨을 고른 뒤, 손에 쥐고 있던 양피지와 필기도구를 조심스럽게 갈무리했다. 실버크로우의 첩자일 가능성도 배제할 수는 없었으나, 이 지하에 얽힌 고대의 지식이나 길을 아는 존재라면 대화로 얻어낼 수 있는 정보의 가치는 막대했다. 그녀는 유저의 뜻에 동의하듯 고개를 끄덕이며 한 걸음 앞으로 나섰다.\n\n\"현명한 판단이십니다. 불필요한 충돌은 피하는 편이 이롭겠지요.\"\n\n세라는 적의가 없음을 보이듯 손을 가슴께에 얹고 예를 갖추며, 문 너머의 형체를 향해 차분하고 정중한 어조로 말을 건넸다.\n\n\"저희는 해를 끼치려는 자들이 아닙니다. 왕좌의 흔적을 쫓는 학자로서 길을 찾고 있을 뿐이니, 잠시 말씀 나누시겠습니까?\"",
+    "parsedActionType": "persuade",
+    "parsedIntent": "세라는 문 너머의 정체불명의 형체에게 적의가 없음을 알리며 대화를 시도해 우호적인 반응을 이끌어내려 했다."
+  }
+}

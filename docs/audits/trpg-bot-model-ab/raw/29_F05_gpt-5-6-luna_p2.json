@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F05",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 29,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8274,
+  "output_token_count": 409,
+  "cached_input_tokens": 8271,
+  "reasoning_tokens": 0,
+  "latency_ms": 5730,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "천장 틈에서 돌가루가 우수수 쏟아졌다. 유저가 몸을 밀어 넣는 순간, 카일의 시선이 문틈과 등 뒤 통로를 번갈아 훑었다. 차가운 바람은 석실 안쪽에서만 부는 게 아니었다. 무너진 바닥 아래 어딘가에서 공기가 빨려 들어가고 있었다. 왕실 지하 통로를 떠돈다는 실버크로우의 스카우트가 이 길을 찾았다면, 지금처럼 소리 나는 움직임은 흔적을 남기기 딱 좋았다.\n\n카일은 피로로 뻐근한 다리를 낮추고, 허리의 단검을 뽑아 칼끝으로 바닥의 잔해를 살짝 밀었다. 유저가 내려가려는 틈 주변, 금이 간 석재와 녹슨 철제 버팀쇠가 서로 얽혀 있었다. 손을 뻗으면 닿을 거리였다. 무모한 건 여전하지만, 혼자 떨어지게 둘 생각은 없었다.\n\n\"야, 먼저 내려가진 마. 발 디딜 곳부터 잡아줄게.\"\n\n카일은 벽의 돌출된 문양석을 발판 삼아 틈 옆으로 미끄러지듯 붙었다. 한 손으로 흔들리는 버팀쇠를 붙들고, 다른 손은 유저가 몸을 옮길 때 잡을 수 있도록 내밀었다. 동시에 고개를 돌려 뒤쪽 어둠의 금속음이 다시 들리는지 살폈다.\n\n<<<ACTION_TYPE>>>\nsupport\n\n<<<INTENT>>>\n카일은 무너진 천장 틈 옆의 버팀쇠를 붙들고 유저가 아래층으로 내려갈 때 손을 잡아 지지하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 606,
+    "outputTokenEstimate": 337,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "천장 틈에서 돌가루가 우수수 쏟아졌다. 유저가 몸을 밀어 넣는 순간, 카일의 시선이 문틈과 등 뒤 통로를 번갈아 훑었다. 차가운 바람은 석실 안쪽에서만 부는 게 아니었다. 무너진 바닥 아래 어딘가에서 공기가 빨려 들어가고 있었다. 왕실 지하 통로를 떠돈다는 실버크로우의 스카우트가 이 길을 찾았다면, 지금처럼 소리 나는 움직임은 흔적을 남기기 딱 좋았다.\n\n카일은 피로로 뻐근한 다리를 낮추고, 허리의 단검을 뽑아 칼끝으로 바닥의 잔해를 살짝 밀었다. 유저가 내려가려는 틈 주변, 금이 간 석재와 녹슨 철제 버팀쇠가 서로 얽혀 있었다. 손을 뻗으면 닿을 거리였다. 무모한 건 여전하지만, 혼자 떨어지게 둘 생각은 없었다.\n\n\"야, 먼저 내려가진 마. 발 디딜 곳부터 잡아줄게.\"\n\n카일은 벽의 돌출된 문양석을 발판 삼아 틈 옆으로 미끄러지듯 붙었다. 한 손으로 흔들리는 버팀쇠를 붙들고, 다른 손은 유저가 몸을 옮길 때 잡을 수 있도록 내밀었다. 동시에 고개를 돌려 뒤쪽 어둠의 금속음이 다시 들리는지 살폈다.",
+    "parsedActionType": "support",
+    "parsedIntent": "카일은 무너진 천장 틈 옆의 버팀쇠를 붙들고 유저가 아래층으로 내려갈 때 손을 잡아 지지하려 했다."
+  }
+}

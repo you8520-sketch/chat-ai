@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F03",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 26,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 8009,
+  "output_token_count": 289,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 7775,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "렌은 혀를 차며 검자루를 고쳐 쥐었다. 안쪽에서 흘러나오는 마력 잔광과 서늘한 한기가 심상치 않은데, 역시나 저 인간은 고민 따윈 사치라는 듯 발부터 뻗고 본다.\n\n\"하, 성질 급한 건 여전하군. 앞장서서 죽어주겠다면 말리진 않겠지만.\"\n\n투덜거리면서도 발걸음은 유저보다 반 보 앞서 나갔다. 손등에 감아둔 붕대 틈으로 피가 살짝 배어 나왔지만, 지금 신경 쓸 건 그따위 경미한 통증이 아니었다. 문틈 너머로 금속 긁히는 소리가 멎은 직후다. 문이 부서지며 열리는 순간 튀어나올 함정이나 기습에 대비해, 렌은 어깨를 낮추고 방패를 단단히 치켜세우며 유저의 앞을 가로막듯 석실 안으로 몸을 밀어 넣었다.\n\n<<<ACTION_TYPE>>>\ndefend\n<<<INTENT>>>\n렌은 문을 박차고 들어가는 유저보다 앞서 돌입하며, 내부에서 날아올 기습이나 함정에 대비해 방패를 세우고 전방을 방어하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 447,
+    "outputTokenEstimate": 248,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "렌은 혀를 차며 검자루를 고쳐 쥐었다. 안쪽에서 흘러나오는 마력 잔광과 서늘한 한기가 심상치 않은데, 역시나 저 인간은 고민 따윈 사치라는 듯 발부터 뻗고 본다.\n\n\"하, 성질 급한 건 여전하군. 앞장서서 죽어주겠다면 말리진 않겠지만.\"\n\n투덜거리면서도 발걸음은 유저보다 반 보 앞서 나갔다. 손등에 감아둔 붕대 틈으로 피가 살짝 배어 나왔지만, 지금 신경 쓸 건 그따위 경미한 통증이 아니었다. 문틈 너머로 금속 긁히는 소리가 멎은 직후다. 문이 부서지며 열리는 순간 튀어나올 함정이나 기습에 대비해, 렌은 어깨를 낮추고 방패를 단단히 치켜세우며 유저의 앞을 가로막듯 석실 안으로 몸을 밀어 넣었다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 문을 박차고 들어가는 유저보다 앞서 돌입하며, 내부에서 날아올 기습이나 함정에 대비해 방패를 세우고 전방을 방어하려 했다."
+  }
+}

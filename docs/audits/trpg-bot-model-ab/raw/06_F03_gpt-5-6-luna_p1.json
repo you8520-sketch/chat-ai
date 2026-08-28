@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F03",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 6,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8320,
+  "output_token_count": 405,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 8313,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "문이 안쪽으로 튕겨 나가며 차가운 바람과 눅눅한 쇳내가 한꺼번에 쏟아졌다. 나는 반사적으로 검을 뽑아 유저의 옆으로 파고들었다. 경미한 출혈이 욱신거렸지만, 지금 물러설 만큼 한가하진 않았다. 문턱 너머 바닥에는 희미한 마력진이 끊긴 채 남아 있었고, 그 너머 어둠 속에서 무언가 금속을 긁는 소리가 다시 낮게 울렸다. 수호자 고스트인지, 실버크로우가 먼저 손을 쓴 건지는 아직 보이지 않는다. 보이지 않는 칼끝이 제일 성가신 법이다. 나는 유저보다 반 걸음 앞에 서서 검끝을 석실 안으로 겨누고, 무너진 천장과 양옆 벽의 사각을 훑었다. 등 뒤 통로는 카일에게 맡긴다. 세라가 룬을 읽을 틈이 필요하다면, 그 틈부터 내가 벌어야 했다.\n\n\"하, 대단하시네. 문을 열 방법을 찾더니 이젠 몸으로 부수는군.\"\n\n말은 비꼬았지만, 발은 문턱을 완전히 막았다. 안쪽에서 무언가 튀어나오면 먼저 부딪히는 자리였다. 나는 피 묻은 붕대를 다시 조여 쥐고, 검을 낮춰 석실 내부의 첫 움직임을 받아칠 준비를 했다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n렌은 석실 문턱을 막아 서서 안쪽에서 튀어나올 위협을 검으로 받아내고 일행이 진입할 틈을 만들려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 603,
+    "outputTokenEstimate": 335,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "문이 안쪽으로 튕겨 나가며 차가운 바람과 눅눅한 쇳내가 한꺼번에 쏟아졌다. 나는 반사적으로 검을 뽑아 유저의 옆으로 파고들었다. 경미한 출혈이 욱신거렸지만, 지금 물러설 만큼 한가하진 않았다. 문턱 너머 바닥에는 희미한 마력진이 끊긴 채 남아 있었고, 그 너머 어둠 속에서 무언가 금속을 긁는 소리가 다시 낮게 울렸다. 수호자 고스트인지, 실버크로우가 먼저 손을 쓴 건지는 아직 보이지 않는다. 보이지 않는 칼끝이 제일 성가신 법이다. 나는 유저보다 반 걸음 앞에 서서 검끝을 석실 안으로 겨누고, 무너진 천장과 양옆 벽의 사각을 훑었다. 등 뒤 통로는 카일에게 맡긴다. 세라가 룬을 읽을 틈이 필요하다면, 그 틈부터 내가 벌어야 했다.\n\n\"하, 대단하시네. 문을 열 방법을 찾더니 이젠 몸으로 부수는군.\"\n\n말은 비꼬았지만, 발은 문턱을 완전히 막았다. 안쪽에서 무언가 튀어나오면 먼저 부딪히는 자리였다. 나는 피 묻은 붕대를 다시 조여 쥐고, 검을 낮춰 석실 내부의 첫 움직임을 받아칠 준비를 했다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 석실 문턱을 막아 서서 안쪽에서 튀어나올 위협을 검으로 받아내고 일행이 진입할 틈을 만들려 했다."
+  }
+}
