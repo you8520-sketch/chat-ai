@@ -180,6 +180,13 @@ test("gemini-3.1-flash-lite routes through CheaperInference with CI model id", a
       "https://api.cheaperinference.com/v1/chat/completions"
     );
     assert.equal(requestedBody?.model, "gemini-3.1-flash-lite");
+    assert.equal(requestedBody?.reasoning_effort, "none");
+    assert.equal(requestedBody?.thinking, undefined);
+    assert.equal(requestedBody?.reasoning, undefined);
+    assert.ok(
+      !String(requestedUrl).includes("openrouter.ai"),
+      "OpenRouter calls=0"
+    );
     assert.equal(result.text, "OK");
   } finally {
     globalThis.fetch = previousFetch;
