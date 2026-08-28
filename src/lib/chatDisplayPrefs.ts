@@ -486,9 +486,9 @@ export const CHAT_PORTRAIT_PANEL_HEIGHT = `calc(100dvh - ${CHAT_PORTRAIT_TITLE_S
 /** 채팅 입력창 하단 안내문 위쪽에 맞춰 좌측 에셋이 화면 바닥까지 꽉 차지 않도록 남기는 여백 */
 export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
-/** Desktop portrait+chat — stacked header at 576–767; side-by-side flex row at 768+. */
+/** Desktop portrait+chat — stacked header at 576–767; side-by-side flex row at 768+ (centered). */
 export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
-  "min-[576px]:flex min-[576px]:flex-col min-[576px]:items-center min-[768px]:flex-row min-[768px]:items-start min-[768px]:gap-x-6";
+  "min-[576px]:flex min-[576px]:flex-col min-[576px]:items-center min-[768px]:flex-row min-[768px]:items-start min-[768px]:justify-center min-[768px]:gap-x-6";
 
 /** Left column — name header (+ portrait panel at 768+). */
 export const CHAT_PORTRAIT_COLUMN_CLASS =
