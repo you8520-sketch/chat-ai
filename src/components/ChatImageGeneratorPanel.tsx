@@ -32,6 +32,8 @@ import {
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
+import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
@@ -119,6 +121,8 @@ type Preflight = {
   };
   contentKind?: ContentKind;
   characterImages?: Array<{ url: string; tag: string }>;
+  castSelectableAssets?: SelectableCastAsset[];
+  visualSubjects?: ClientVisibleVisualSubject[];
   persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;
   balance?: { total: number; paid: number; free: number };
   averageCosts?: {
@@ -378,6 +382,10 @@ export default function ChatImageGeneratorPanel({
   const [aiSuggestionError, setAiSuggestionError] = useState("");
   const [hasAiSuggestionSession, setHasAiSuggestionSession] = useState(false);
   const [configuredCastNames, setConfiguredCastNames] = useState<string[]>([]);
+  const [sceneVisualSubjects, setSceneVisualSubjects] = useState<ClientVisibleVisualSubject[]>([]);
+  const [sceneCastSelectableAssets, setSceneCastSelectableAssets] = useState<SelectableCastAsset[]>(
+    []
+  );
   const [castIntent, setCastIntent] = useState<ChatImageCastIntentManifest | null>(null);
   const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
@@ -560,11 +568,16 @@ export default function ChatImageGeneratorPanel({
   const sceneIsIllustration =
     ldProduct === "scene" && (trpgCampaignMode || sceneOutputMode === "illustration");
   const selectableCastAssets = useMemo((): readonly SelectableCastAsset[] => {
+    if (sceneCastSelectableAssets.length) return sceneCastSelectableAssets;
+    if (info?.castSelectableAssets?.length) return info.castSelectableAssets;
     return (info?.characterImages ?? []).map((image) => ({
       url: image.url,
       tag: image.tag,
     }));
-  }, [info?.characterImages]);
+  }, [info?.castSelectableAssets, info?.characterImages, sceneCastSelectableAssets]);
+  const activeVisualSubjects = sceneVisualSubjects.length
+    ? sceneVisualSubjects
+    : info?.visualSubjects;
   const contentKind: ContentKind = info?.contentKind ?? "character";
   const reservedCastReferenceUrls = useMemo((): readonly string[] => {
     if (contentKind === "simulation") {
@@ -615,14 +628,18 @@ export default function ChatImageGeneratorPanel({
           if (subject.role !== "supporting_character" || subject.requestedReferenceAssetUrl) {
             return subject;
           }
-          const suggested = suggestAssetForSupportingName(subject.name, selectableCastAssets);
+          const suggested = suggestAssetForSupportingName(
+            subject.name,
+            selectableCastAssets,
+            activeVisualSubjects
+          );
           return suggested
             ? { ...subject, requestedReferenceAssetUrl: suggested }
             : subject;
         }),
       };
     });
-  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, configuredCastNames, contentKind]);
+  }, [scenePlan, trpgCampaignMode, info, selectableCastAssets, activeVisualSubjects, configuredCastNames, contentKind]);
   const activeResultUrl =
     tab === "comic"
       ? ldProduct === "persona"
@@ -1054,6 +1071,9 @@ export default function ChatImageGeneratorPanel({
     setScenePlan(null);
     setCastIntent(null);
     setConfiguredCastNames([]);
+    const clearedScope = emptySceneVisualScopeState();
+    setSceneVisualSubjects(clearedScope.visualSubjects);
+    setSceneCastSelectableAssets(clearedScope.castSelectableAssets);
     setSceneMessages([]);
     setAiSuggestedPlan(null);
     setAiSuggestionError("");
@@ -1219,6 +1239,8 @@ export default function ChatImageGeneratorPanel({
             summary?: string;
             messages?: SceneSourceMessage[];
             configuredCastNames?: string[];
+            visualSubjects?: ClientVisibleVisualSubject[];
+            castSelectableAssets?: SelectableCastAsset[];
             contentKind?: ContentKind;
             error?: string;
           }
@@ -1235,6 +1257,10 @@ export default function ChatImageGeneratorPanel({
         Array.isArray(data.configuredCastNames)
           ? data.configuredCastNames.filter((name) => typeof name === "string" && name.trim())
           : []
+      );
+      setSceneVisualSubjects(Array.isArray(data.visualSubjects) ? data.visualSubjects : []);
+      setSceneCastSelectableAssets(
+        Array.isArray(data.castSelectableAssets) ? data.castSelectableAssets : []
       );
       if (data.contentKind === "simulation" || data.contentKind === "character") {
         setInfo((previous) =>
@@ -2120,6 +2146,7 @@ export default function ChatImageGeneratorPanel({
                             hasAiSuggestionSession={hasAiSuggestionSession}
                             castManifest={castIntent}
                             selectableAssets={selectableCastAssets}
+                            visualSubjects={activeVisualSubjects}
                             reservedReferenceUrls={reservedCastReferenceUrls}
                             contentKind={contentKind}
                             outputMode={sceneOutputMode}

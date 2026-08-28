@@ -29,11 +29,13 @@ import {
   SCENE_BUILDER_SHARED_DUO,
   SYNTHETIC_CHARACTER_A_APPEARANCE,
 } from "@/lib/chatImageVisualIdentity.fixtures";
+import { createVisualSubjectKey } from "@/lib/visualSubjects";
 
 const PERSONA_URL = "/synthetic/user-persona-primary.webp";
 const MAIN_URL = "/synthetic/character-a-primary.webp";
 const SUPPORT_URL = "/synthetic/support-a.webp";
 const ASSET_B = "/synthetic/character-b-primary.webp";
+const SUPPORT_A_SUBJECT_KEY = createVisualSubjectKey();
 
 const GROUND_CTX: GroundCastContext = {
   persona: {
@@ -51,10 +53,54 @@ const GROUND_CTX: GroundCastContext = {
     appearanceMode: "image_plus_saved",
   },
   selectableAssets: [
-    { url: SUPPORT_URL, tag: "SupportA" },
+    { url: SUPPORT_URL, tag: "SupportA", visualSubjectKey: SUPPORT_A_SUBJECT_KEY },
+    { url: ASSET_B, tag: "전투" },
+  ],
+  visualSubjects: [
+    {
+      subjectKey: SUPPORT_A_SUBJECT_KEY,
+      name: "SupportA",
+      savedAppearance: "은색 단발",
+      representativeAssetUrl: SUPPORT_URL,
+      sourceCharacterId: null,
+    },
+  ],
+  characterAssets: [
+    { url: MAIN_URL, tag: "CharacterA" },
+    { url: SUPPORT_URL, tag: "SupportA", visualSubjectKey: SUPPORT_A_SUBJECT_KEY },
     { url: ASSET_B, tag: "전투" },
   ],
 };
+
+function withConfiguredSupport(
+  ctx: GroundCastContext,
+  name: string,
+  url: string,
+  appearance = ""
+): GroundCastContext {
+  const subjectKey = createVisualSubjectKey();
+  return {
+    ...ctx,
+    selectableAssets: [
+      ...ctx.selectableAssets.filter((asset) => asset.url !== url),
+      { url, tag: name, visualSubjectKey: subjectKey },
+    ],
+    visualSubjects: [
+      ...(ctx.visualSubjects ?? []),
+      {
+        subjectKey,
+        name,
+        savedAppearance: appearance,
+        representativeAssetUrl: url,
+        sourceCharacterId: null,
+      },
+    ],
+    characterAssets: [
+      ...(ctx.characterAssets ?? []).filter((asset) => asset.url !== url),
+      { url, tag: name, visualSubjectKey: subjectKey },
+    ],
+  };
+}
 
 function trioIntent(): ChatImageCastIntentManifest {
   return {
@@ -208,9 +254,10 @@ describe("chatImageCastManifest", () => {
       selected: bound.selected,
       subjects: bound.subjects,
     });
-    assert.match(block, /Image 1 belongs ONLY to UserPersona/);
-    assert.match(block, /Image 2 belongs ONLY to CharacterA/);
-    assert.match(block, /Image 3 belongs ONLY to SupportA/);
+    assert.doesNotMatch(block, /belongs ONLY/);
+    assert.match(block, /1\. UserPersona \(user persona\) \| importance=primary; visibility=required_visible/);
+    assert.match(block, /2\. CharacterA \(chat character\) \| importance=primary; visibility=required_visible/);
+    assert.match(block, /3\. SupportA \(supporting character\) \| importance=primary; visibility=required_visible/);
     assert.match(block, /COMPOSITION GOAL: trio_group/);
   });
 
@@ -232,7 +279,7 @@ describe("chatImageCastManifest", () => {
     };
     intent = applyUserCastEdits(intent, "supporting:SupportA", { importance: "secondary" });
     intent = applyUserCastEdits(intent, "supporting:B", { importance: "primary" });
-    const manifest = groundCastIntent(intent, GROUND_CTX);
+    const manifest = groundCastIntent(intent, withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B));
     assert.equal(manifest.ok, true);
     if (!manifest.ok) throw new Error(manifest.reason);
     const bound = bindApprovedCastManifest(manifest.manifest);
@@ -290,7 +337,7 @@ describe("chatImageCastManifest", () => {
       3
     );
 
-    const grounded = groundCastIntent(capped, GROUND_CTX);
+    const grounded = groundCastIntent(capped, withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B));
     assert.equal(grounded.ok, true);
     if (!grounded.ok) throw new Error(grounded.reason);
     const bound = bindApprovedCastManifest(grounded.manifest);
@@ -335,21 +382,21 @@ describe("chatImageCastManifest", () => {
   it("EVENT_SUBJECT_BINDING maps supporting mention events and rejects excluded keys", () => {
     const messages = buildSceneSourceMessages([
       { id: 1, role: "user", content: "*손을 흔든다*'여기 있었네.'" },
-      { id: 2, role: "assistant", content: "이현이 고개를 끄덕였다." },
+      { id: 2, role: "assistant", content: "SupportA가 고개를 끄덕였다." },
     ]);
     const basePlan = buildDeterministicScenePlan(messages, 2);
-    const supportEvent = basePlan.events.find((event) => event.text.includes("이현"))?.id;
+    const supportEvent = basePlan.events.find((event) => event.text.includes("SupportA"))?.id;
     assert.ok(supportEvent);
     const plan: ScenePlan = {
       ...basePlan,
-      castMentions: [{ name: "이현", sourceEventIds: [supportEvent!], actorEventIds: [supportEvent!] }],
+      castMentions: [{ name: "SupportA", sourceEventIds: [supportEvent!], actorEventIds: [supportEvent!] }],
     };
     const intent = draftCastIntentFromMentions({
       personaName: "UserPersona",
       mainCharacterName: "CharacterA",
-      castMentions: [{ name: "이현", sourceEventIds: [supportEvent!] }],
+      castMentions: [{ name: "SupportA", sourceEventIds: [supportEvent!] }],
     });
-    const supportKey = intent.subjects.find((subject) => subject.name === "이현")!.key;
+    const supportKey = intent.subjects.find((subject) => subject.name === "SupportA")!.key;
     const included = applyUserCastEdits(intent, supportKey, {
       included: true,
       requestedReferenceAssetUrl: SUPPORT_URL,
@@ -366,7 +413,7 @@ describe("chatImageCastManifest", () => {
       plan,
     });
     assert.match(block, /EVENT SUBJECT BINDINGS/);
-    assert.match(block, new RegExp(`${supportEvent}.*→.*이현`));
+    assert.match(block, new RegExp(`${supportEvent}.*→.*SupportA`));
   });
 
   it("CLIENT_EVENT_BINDING_OVERRIDE ignores forged client event bindings", () => {
@@ -565,7 +612,10 @@ describe("chatImageCastManifest", () => {
         },
       ],
     };
-    const grounded = groundCastIntent(intent, GROUND_CTX);
+    const grounded = groundCastIntent(
+      intent,
+      withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B)
+    );
     assert.equal(grounded.ok, true);
     if (!grounded.ok) throw new Error(grounded.reason);
     const primary = grounded.manifest.subjects.filter(
@@ -656,7 +706,10 @@ describe("chatImageCastManifest", () => {
       ],
     };
     assert.equal(resolveCastCompositionGoal(fourIntent), "ensemble_scene");
-    const fourGrounded = groundCastIntent(fourIntent, GROUND_CTX);
+    const fourGrounded = groundCastIntent(
+      fourIntent,
+      withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B)
+    );
     assert.equal(fourGrounded.ok, true);
     if (!fourGrounded.ok) throw new Error(fourGrounded.reason);
     const fourBound = bindApprovedCastManifest(fourGrounded.manifest);
@@ -690,7 +743,10 @@ describe("chatImageCastManifest", () => {
       subjects: fourIntent.subjects,
     };
     assert.equal(resolveCastCompositionGoal(fourDuoIntent), "ensemble_scene");
-    const fourDuoGrounded = groundCastIntent(fourDuoIntent, GROUND_CTX);
+    const fourDuoGrounded = groundCastIntent(
+      fourDuoIntent,
+      withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B)
+    );
     assert.equal(fourDuoGrounded.ok, true);
     if (!fourDuoGrounded.ok) throw new Error(fourDuoGrounded.reason);
     const fourDuoBound = bindApprovedCastManifest(fourDuoGrounded.manifest);
@@ -948,6 +1004,7 @@ describe("chatImageCastManifest", () => {
   });
 
   it("POST_CAP_IDENTITY_TRUTH does not claim saved appearance or recognizable without bound evidence", () => {
+    const ctx = withConfiguredSupport(GROUND_CTX, "SupportB", ASSET_B);
     let intent: ChatImageCastIntentManifest = {
       compositionGoal: "trio_group",
       subjects: [
@@ -965,7 +1022,7 @@ describe("chatImageCastManifest", () => {
     };
     intent = applyUserCastEdits(intent, "supporting:SupportA", { importance: "secondary" });
     intent = applyUserCastEdits(intent, "supporting:B", { importance: "primary" });
-    const grounded = groundCastIntent(intent, GROUND_CTX);
+    const grounded = groundCastIntent(intent, ctx);
     assert.equal(grounded.ok, true);
     if (!grounded.ok) throw new Error(grounded.reason);
     const bound = bindApprovedCastManifest(grounded.manifest);
@@ -977,14 +1034,10 @@ describe("chatImageCastManifest", () => {
       selected: bound.selected,
       subjects: bound.subjects,
     });
-    assert.match(block, /Image 1 belongs ONLY to UserPersona/);
-    assert.match(block, /Image 2 belongs ONLY to CharacterA/);
-    assert.match(block, /Image 3 belongs ONLY to SupportB/);
-    assert.match(block, /SupportA.*No bound identity reference/);
-    assert.match(block, /SupportA.*No bound identity evidence/);
-    assert.doesNotMatch(block, /SupportA.*use saved appearance only/);
+    assert.match(block, /SupportA: SAVED-ONLY fidelity/);
     assert.doesNotMatch(block, /SupportA.*Recognizable/);
     assert.doesNotMatch(block, /SupportA.*HIGH FIDELITY/);
+    assert.doesNotMatch(block, /은색 단발/);
     assert.match(block, /COMPOSITION GOAL: ensemble_scene/);
     assert.doesNotMatch(block, /Arrange three distinct people/);
   });

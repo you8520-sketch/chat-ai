@@ -4,6 +4,8 @@ import {
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
+import type { ContentKind } from "@/lib/simulationMode";
+import { assetsForMainCharacterPool } from "@/lib/visualSubjects";
 
 export type SelectableCharacterImage = {
   url: string;
@@ -15,8 +17,15 @@ export function resolveSelectableCharacterImages(input: {
   representativeUrl: string | null;
   isCharacterCreator: boolean;
   assistantMessages: string[];
+  contentKind?: ContentKind;
+  poolMode?: "main_character" | "all";
 }): SelectableCharacterImage[] {
-  const pool = chatAssets(input.assets);
+  const contentKind = input.contentKind ?? "character";
+  const poolMode = input.poolMode ?? "main_character";
+  let pool = chatAssets(input.assets);
+  if (contentKind === "character" && poolMode === "main_character") {
+    pool = assetsForMainCharacterPool(pool, contentKind);
+  }
   const unlockedUrls = new Set<string>();
 
   if (!input.isCharacterCreator) {

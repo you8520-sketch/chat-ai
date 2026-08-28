@@ -14,6 +14,7 @@ import { deleteUserCharacter } from "@/lib/deleteCharacter";
 import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import type { SimulationImportSnapshot } from "@/lib/simulationMode";
 import { parseSimulationVisualSubjectsJson } from "@/lib/simulationVisualSubjects";
+import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
 import { deriveCharacterWorldSourceKind } from "@/lib/worldPermissions";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -196,11 +197,16 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     simulation_nsfw_allowed: false,
     trpg_reuse_allowed: c.trpg_reuse_allowed === 1,
     assets,
-    ...(c.content_kind === "simulation" && c.creator_id === user.id
+    ...(c.creator_id === user.id
       ? {
-          simulation_visual_subjects: parseSimulationVisualSubjectsJson(
-            c.simulation_visual_subjects_json
-          ),
+          visual_subjects: parseVisualSubjectsJson(c.simulation_visual_subjects_json),
+          ...(c.content_kind === "simulation"
+            ? {
+                simulation_visual_subjects: parseSimulationVisualSubjectsJson(
+                  c.simulation_visual_subjects_json
+                ),
+              }
+            : {}),
         }
       : {}),
   });

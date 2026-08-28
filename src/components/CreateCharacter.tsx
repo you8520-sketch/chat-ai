@@ -95,12 +95,22 @@ import {
   type ContentKind,
 } from "@/lib/simulationMode";
 import {
+  CHARACTER_VISUAL_SUBJECT_LIMIT,
+  countCharacterVisualSubjectOwnedAssets,
+  createCharacterVisualSubjectKey,
+} from "@/lib/characterVisualSubjects";
+import {
   configuredSimulationCastNames,
-  emptySimulationVisualSubjectsDocument,
   materializeSimulationVisualSubjectsForEditor,
   parseSimulationVisualSubjectsJson,
-  type SimulationVisualSubjectsDocument,
 } from "@/lib/simulationVisualSubjects";
+import {
+  assetsForVisualSubject,
+  emptyVisualSubjectsDocument,
+  validateRepresentativeAsset,
+  VISUAL_SUBJECT_NAME_LIMIT,
+  type VisualSubjectsDocument,
+} from "@/lib/visualSubjects";
 
 const MAX_IMAGES = 100;
 
@@ -185,8 +195,8 @@ export default function CreateCharacter({
     simulation_rules: "",
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
-  const [visualSubjects, setVisualSubjects] = useState<SimulationVisualSubjectsDocument>(
-    emptySimulationVisualSubjectsDocument()
+  const [visualSubjects, setVisualSubjects] = useState<VisualSubjectsDocument>(
+    emptyVisualSubjectsDocument()
   );
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
@@ -274,6 +284,7 @@ export default function CreateCharacter({
       savedAt: Date.now(),
       form,
       assets,
+      visualSubjects,
       selectedWorldRef,
       selectedLorebookId,
       pageTab,
@@ -305,6 +316,12 @@ export default function CreateCharacter({
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(normalizeCharacterAssets(draft.assets));
+    if (draft.visualSubjects) {
+      setVisualSubjects({
+        version: 1,
+        subjects: Array.isArray(draft.visualSubjects.subjects) ? draft.visualSubjects.subjects : [],
+      });
+    }
     setSelectedWorldRef(
       draft.selectedWorldRef ||
         (draft.selectedWorldId !== "" && draft.selectedWorldId != null
@@ -392,6 +409,51 @@ export default function CreateCharacter({
   );
 
   const createReady = Object.values(createRequirements).every(Boolean);
+
+  function addCharacterVisualSubject() {
+    setVisualSubjects((current) => {
+      if (current.subjects.length >= CHARACTER_VISUAL_SUBJECT_LIMIT) return current;
+      return {
+        version: 1,
+        subjects: [
+          ...current.subjects,
+          {
+            subjectKey: createCharacterVisualSubjectKey(),
+            name: "",
+            savedAppearance: "",
+            representativeAssetUrl: null,
+            sourceCharacterId: null,
+          },
+        ],
+      };
+    });
+  }
+
+  function updateCharacterVisualSubject(
+    index: number,
+    patch: Partial<VisualSubjectsDocument["subjects"][number]>
+  ) {
+    setVisualSubjects((current) => ({
+      ...current,
+      subjects: current.subjects.map((subject, subjectIndex) =>
+        subjectIndex === index ? { ...subject, ...patch } : subject
+      ),
+    }));
+  }
+
+  function removeCharacterVisualSubject(index: number) {
+    const subject = visualSubjects.subjects[index];
+    if (!subject) return;
+    const ownedCount = countCharacterVisualSubjectOwnedAssets(subject.subjectKey, assets);
+    if (ownedCount > 0) {
+      setError("이 인물에 연결된 이미지를 먼저 주인공 또는 다른 인물로 재지정해 주세요.");
+      return;
+    }
+    setVisualSubjects((current) => ({
+      ...current,
+      subjects: current.subjects.filter((_, subjectIndex) => subjectIndex !== index),
+    }));
+  }
 
   function pickFiles(list: FileList | null) {
     if (!list) return;
@@ -614,7 +676,14 @@ export default function CreateCharacter({
           normalizeCharacterAssets(Array.isArray(data.assets) ? data.assets : []),
         );
         setVisualSubjects(
-          data.simulation_visual_subjects
+          data.visual_subjects
+            ? {
+                version: 1,
+                subjects: Array.isArray(data.visual_subjects.subjects)
+                  ? data.visual_subjects.subjects
+                  : [],
+              }
+            : data.simulation_visual_subjects
             ? {
                 version: 1,
                 subjects: Array.isArray(data.simulation_visual_subjects.subjects)
@@ -980,6 +1049,7 @@ export default function CreateCharacter({
       status_widget_json: serializeStatusWidget(statusWidget),
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
+      visual_subjects: visualSubjects,
       simulation_visual_subjects: form.content_kind === "simulation" ? visualSubjects : undefined,
       world_library_ref: selectedWorldRef,
       world_detach: worldDetach && selectedWorldRef === "",
@@ -1692,6 +1762,107 @@ export default function CreateCharacter({
               </div>
             </section>
 
+            {form.content_kind === "character" && (
+              <section className={sectionMuted}>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold text-zinc-100">
+                      이미지 인물 설정{" "}
+                      <span className="font-normal text-zinc-500">· 선택</span>
+                    </h2>
+                    <VisibilityBadge kind="private" />
+                  </div>
+                  <span className="text-xs text-zinc-400">
+                    {visualSubjects.subjects.length} / {CHARACTER_VISUAL_SUBJECT_LIMIT}명
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400">
+                  멀티 캐스트 이미지 생성에 등장할 조연·NPC의 이름과 외형 메모, 전용
+                  참고 이미지를 등록합니다. 주인공(1번 이미지)과 별도로 관리됩니다.
+                </p>
+                <div className="space-y-3">
+                  {visualSubjects.subjects.map((subject, index) => {
+                    const ownedAssets = assetsForVisualSubject(assets, subject.subjectKey);
+                    return (
+                      <div
+                        key={subject.subjectKey}
+                        className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <label className={label}>인물 이름</label>
+                          <button
+                            type="button"
+                            onClick={() => removeCharacterVisualSubject(index)}
+                            className="text-xs font-semibold text-rose-300 hover:text-rose-200"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                        <input
+                          className={cls}
+                          value={subject.name}
+                          maxLength={VISUAL_SUBJECT_NAME_LIMIT}
+                          placeholder="예: 민준"
+                          onChange={(event) =>
+                            updateCharacterVisualSubject(index, {
+                              name: event.target.value,
+                            })
+                          }
+                        />
+                        <div>
+                          <label className={label}>저장 외형 메모</label>
+                          <textarea
+                            rows={2}
+                            className={cls}
+                            value={subject.savedAppearance}
+                            placeholder="예: 검은 단발, 날카로운 눈매, 교복"
+                            onChange={(event) =>
+                              updateCharacterVisualSubject(index, {
+                                savedAppearance: event.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className={label}>대표 참고 이미지</label>
+                          <select
+                            className={selectCls}
+                            value={subject.representativeAssetUrl ?? ""}
+                            onChange={(event) =>
+                              updateCharacterVisualSubject(index, {
+                                representativeAssetUrl: event.target.value || null,
+                              })
+                            }
+                          >
+                            <option value="">선택 안 함</option>
+                            {ownedAssets.map((asset) => (
+                              <option key={asset.url} value={asset.url}>
+                                {asset.tag || asset.url}
+                              </option>
+                            ))}
+                          </select>
+                          {subject.representativeAssetUrl &&
+                          !validateRepresentativeAsset(subject, assets) ? (
+                            <p className="mt-1 text-xs text-amber-400">
+                              해당 인물에 연결된 이미지만 대표로 선택할 수 있습니다.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={visualSubjects.subjects.length >= CHARACTER_VISUAL_SUBJECT_LIMIT}
+                    onClick={addCharacterVisualSubject}
+                    className="min-h-11 w-full rounded-xl border border-dashed border-cyan-500/30 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:opacity-40"
+                  >
+                    + 이미지 인물 추가
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* 2. 감정 에셋 (비공개) */}
             <section className={sectionMuted}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -1798,10 +1969,11 @@ export default function CreateCharacter({
                   onChange={(next) => setAssets(normalizeCharacterAssets(next))}
                   onRemove={removeAsset}
                   visualSubjects={
-                    form.content_kind === "simulation"
+                    form.content_kind === "simulation" || form.content_kind === "character"
                       ? visualSubjects.subjects
                       : undefined
                   }
+                  contentKind={form.content_kind}
                 />
               )}
             </section>

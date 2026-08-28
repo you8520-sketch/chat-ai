@@ -3,7 +3,7 @@ export type AssetOrientation = "landscape" | "portrait" | "square";
 export type CharacterAsset = {
   url: string;
   tag: string;
-  /** Simulation-only: stable visual subject this asset depicts. */
+  /** Stable visual subject identity this asset depicts. */
   visualSubjectKey?: string;
   /** 소개·카드 등에 노출 */
   public?: boolean;

@@ -15,6 +15,9 @@ import {
 import { buildChatComicGenerationPlan } from "@/lib/chatComicGeneration";
 import { buildLdSceneGenerationPlan } from "@/lib/chatLdIllustrationGeneration";
 import {
+  createVisualSubjectKey,
+} from "@/lib/visualSubjects";
+import {
   assignAssetsToVisualSubject,
   assetsForVisualSubject,
   clearStaleRepresentativeAssets,
@@ -80,7 +83,7 @@ function simGroundCtx(
       tag: row.tag,
       visualSubjectKey: row.visualSubjectKey,
     })),
-    simulationVisualSubjects: visualSubjects,
+    visualSubjects,
     characterAssets: assets,
   };
 }
@@ -254,6 +257,22 @@ describe("simulationVisualSubjects data", () => {
         submittedRaw: JSON.stringify({
           version: 1,
           subjects: [subject(MEMBER_A, duplicateKey), subject(MEMBER_B, duplicateKey)],
+        }),
+        assets: [],
+      })
+    );
+  });
+
+  it("rejects client-submitted vis_* for new simulation identity materialization", () => {
+    const visKey = createVisualSubjectKey();
+    assert.throws(() =>
+      prepareSimulationVisualSubjectsForSave({
+        simulationCast: `[${MEMBER_A}]`,
+        simulationTitle: SIM_TITLE,
+        storedRaw: "",
+        submittedRaw: serializeSimulationVisualSubjectsJson({
+          version: 1,
+          subjects: [subject(MEMBER_A, visKey, "은발")],
         }),
         assets: [],
       })
@@ -553,7 +572,7 @@ describe("simulationVisualSubjects generation grounding", () => {
     assert.equal(fourth?.savedAppearance, "appearance 4");
     assert.equal(fourth?.trustedSavedAppearance, true);
     const fidelity = renderCastFidelityTiers(bound.selected, bound.subjects);
-    assert.match(fidelity, /도윤: Saved appearance only; no photo attached/);
+    assert.match(fidelity, /도윤: SAVED-ONLY fidelity/);
     assert.doesNotMatch(fidelity, /도윤: BACKGROUND \/ CAMEO\. No bound identity evidence/);
   });
 });

@@ -4,6 +4,7 @@
  */
 
 import type { ContentKind } from "@/lib/simulationMode";
+import { resolveVisualSubjectByName, type VisualSubject } from "@/lib/visualSubjects";
 
 export const CHAT_IMAGE_CAST_HIGH_FIDELITY_CAP = 3;
 export const CHAT_IMAGE_CAST_IDENTITY_REFERENCE_CAP = 3;
@@ -568,10 +569,28 @@ export function mergeCastIntentDraft(
 
 export function suggestAssetForSupportingName(
   name: string,
-  assets: readonly SelectableCastAsset[]
+  assets: readonly SelectableCastAsset[],
+  visualSubjects?: readonly {
+    subjectKey: string;
+    name: string;
+    representativeAssetUrl?: string | null;
+  }[]
 ): string | undefined {
+  const subject = visualSubjects?.length
+    ? resolveVisualSubjectByName(visualSubjects as readonly VisualSubject[], name)
+    : null;
+  if (subject) {
+    const authorized = assets.filter((asset) => asset.visualSubjectKey === subject.subjectKey);
+    if (subject.representativeAssetUrl) {
+      const representative = authorized.find(
+        (asset) => asset.url === subject.representativeAssetUrl
+      );
+      if (representative) return representative.url;
+    }
+    return authorized[0]?.url;
+  }
   const needle = cleanText(name);
-  if (!needle) return undefined;
+  if (!needle || visualSubjects?.length) return undefined;
   const exact = assets.find((asset) => cleanText(asset.tag) === needle);
   return exact?.url;
 }

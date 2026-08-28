@@ -11,6 +11,7 @@ import {
   CHAT_IMAGE_CAST_MIN_SELECTED_ERROR,
   resolveChatImageCastPolicy,
   validateCastMentions,
+  filterConfiguredCastNamesForViewer,
   type ChatImageCastCompositionGoal,
   type ChatImageCastImportance,
   type ChatImageCastIntentManifest,
@@ -30,9 +31,15 @@ import type { ContentKind } from "@/lib/simulationMode";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import {
   resolveSimulationMemberVisualMetadata,
-  resolveVisualSubjectByName,
-  type SimulationVisualSubject,
 } from "@/lib/simulationVisualSubjects";
+import {
+  resolveSupportMemberVisualMetadata,
+  resolveVisualSubjectByName,
+  validateAssetVisualSubjectOwnership,
+  buildClientScopedCastImageMetadata,
+  type ClientVisibleVisualSubject,
+  type VisualSubject,
+} from "@/lib/visualSubjects";
 import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
@@ -40,7 +47,6 @@ import {
 import type { ScenePlan } from "@/lib/chatImageScenePlan";
 import {
   bindChatImageReferencePack,
-  renderChatImageVisualIdentity,
   type ChatImageAppearanceMode,
   type ChatImageTemplateSlot,
   type ChatImageVisualSourceKind,
@@ -104,9 +110,51 @@ export type GroundCastContext = {
     appearanceMode?: ChatImageAppearanceMode;
   };
   selectableAssets: readonly SelectableCastAsset[];
-  simulationVisualSubjects?: readonly SimulationVisualSubject[];
+  visualSubjects?: readonly VisualSubject[];
   characterAssets?: readonly CharacterAsset[];
 };
+
+export type ScopedVisualSubjectAuthority = {
+  trustedSubjects: VisualSubject[];
+  viewerSelectableAssets: SelectableCastAsset[];
+  clientSubjects: ClientVisibleVisualSubject[];
+};
+
+/** Single server-scoped visual identity authority for generation and scene brief. */
+export function resolveServerVisualSubjectScope(opts: {
+  contentKind: ContentKind;
+  isCreator: boolean;
+  allSubjects: readonly VisualSubject[];
+  assets: readonly CharacterAsset[];
+  allCastSelectableAssets: readonly SelectableCastAsset[];
+  configuredNames: readonly string[];
+  /** Canonical chat-source texts only; manual preview must pass [] for non-creators. */
+  canonicalSourceTexts: readonly string[];
+}): ScopedVisualSubjectAuthority {
+  const visibleNames = filterConfiguredCastNamesForViewer({
+    configuredNames: opts.configuredNames,
+    sourceTexts: opts.canonicalSourceTexts,
+    isCreator: opts.isCreator,
+  });
+  const scoped = buildClientScopedCastImageMetadata({
+    contentKind: opts.contentKind,
+    isCreator: opts.isCreator,
+    subjects: opts.allSubjects,
+    assets: opts.assets,
+    castSelectableAssets: opts.allCastSelectableAssets,
+    visibleNames,
+    scope: "source_scoped",
+  });
+  const visibleNameSet = new Set(visibleNames.map((name) => name.toLowerCase()));
+  const trustedSubjects = opts.isCreator
+    ? [...opts.allSubjects]
+    : opts.allSubjects.filter((subject) => visibleNameSet.has(subject.name.toLowerCase()));
+  return {
+    trustedSubjects,
+    viewerSelectableAssets: [...scoped.castSelectableAssets],
+    clientSubjects: scoped.visualSubjects,
+  };
+}
 
 const CORE_CAST_KEYS = new Set(["persona", "main_character"]);
 
@@ -337,6 +385,22 @@ function whitelistAssetUrl(
   return assets.some((asset) => asset.url === url) ? url : undefined;
 }
 
+function validateConfiguredCharacterSupportReference(opts: {
+  requestedUrl: string;
+  subjectKey: string;
+  ctx: GroundCastContext;
+}): boolean {
+  if (!whitelistAssetUrl(opts.requestedUrl, opts.ctx.selectableAssets)) return false;
+  const ownership = validateAssetVisualSubjectOwnership({
+    contentKind: "character",
+    assetUrl: opts.requestedUrl,
+    subjectKey: opts.subjectKey,
+    assets: opts.ctx.characterAssets ?? [],
+    requireExactSubjectOwner: true,
+  });
+  return ownership.ok;
+}
+
 export { validateCastMentions } from "@/lib/chatImageCast";
 
 function groundedCoreSubject(
@@ -377,20 +441,42 @@ function groundedCoreSubject(
       included: true,
     };
   }
-  const trustedUrl = whitelistAssetUrl(intent.requestedReferenceAssetUrl, ctx.selectableAssets);
-  const visualSubject =
-    contentKind === "simulation"
-      ? resolveVisualSubjectByName(ctx.simulationVisualSubjects ?? [], intent.name)
-      : null;
+  const visualSubject = resolveVisualSubjectByName(ctx.visualSubjects ?? [], intent.name);
+  const requestedUrl = cleanUrl(intent.requestedReferenceAssetUrl);
+  let trustedUrl: string | undefined;
+  if (contentKind === "character") {
+    if (visualSubject && requestedUrl) {
+      trustedUrl = validateConfiguredCharacterSupportReference({
+        requestedUrl,
+        subjectKey: visualSubject.subjectKey,
+        ctx,
+      })
+        ? requestedUrl
+        : undefined;
+    }
+  } else {
+    trustedUrl = whitelistAssetUrl(requestedUrl, ctx.selectableAssets);
+  }
   const visualMeta =
-    contentKind === "simulation" && visualSubject
+    visualSubject && contentKind === "simulation"
       ? resolveSimulationMemberVisualMetadata({
           memberName: intent.name,
           castSubjectKey: intent.key,
-          visualSubjects: ctx.simulationVisualSubjects ?? [],
+          visualSubjects: ctx.visualSubjects ?? [],
           assets: ctx.characterAssets ?? [],
         })
-      : { appearanceMode: "image_only" as const, savedAppearance: undefined };
+      : visualSubject && contentKind === "character"
+        ? resolveSupportMemberVisualMetadata({
+            memberName: intent.name,
+            castSubjectKey: intent.key,
+            visualSubjects: ctx.visualSubjects ?? [],
+          })
+        : {
+            appearanceMode: "image_only" as const,
+            savedAppearance: undefined,
+            trustedSavedAppearance: false,
+            visualSubject: null,
+          };
   return {
     key: intent.key,
     role: "supporting_character",
@@ -399,7 +485,10 @@ function groundedCoreSubject(
     referenceImageUrl: trustedUrl,
     savedAppearance: visualMeta.savedAppearance,
     trustedSavedAppearance:
-      contentKind === "simulation" && Boolean(visualMeta.savedAppearance),
+      contentKind === "character"
+        ? "trustedSavedAppearance" in visualMeta &&
+          Boolean(visualMeta.trustedSavedAppearance && visualSubject)
+        : Boolean(visualMeta.savedAppearance),
     appearanceMode: visualMeta.appearanceMode,
     importance: intent.importance,
     visibility: intent.visibility,
@@ -470,17 +559,43 @@ export function groundCastIntent(
   for (const intentSubject of normalized.subjects) {
     if (!intentSubject.included || intentSubject.role !== "supporting_character") continue;
     const requested = cleanUrl(intentSubject.requestedReferenceAssetUrl);
-    if (requested && !whitelistAssetUrl(requested, ctx.selectableAssets)) {
+    if (!requested) continue;
+    const visualSubject = resolveVisualSubjectByName(
+      ctx.visualSubjects ?? [],
+      intentSubject.name
+    );
+    if (contentKind === "character") {
+      if (!visualSubject) {
+        if (requested) {
+          return {
+            ok: false,
+            reason: "선택한 참고 에셋을 사용할 수 없습니다.",
+          };
+        }
+        continue;
+      }
+      if (
+        requested &&
+        !validateConfiguredCharacterSupportReference({
+          requestedUrl: requested,
+          subjectKey: visualSubject.subjectKey,
+          ctx,
+        })
+      ) {
+        return {
+          ok: false,
+          reason: "선택한 참고 에셋을 사용할 수 없습니다.",
+        };
+      }
+      continue;
+    }
+    if (!whitelistAssetUrl(requested, ctx.selectableAssets)) {
       return {
         ok: false,
         reason: "선택한 참고 에셋을 사용할 수 없습니다.",
       };
     }
-    if (contentKind === "simulation" && requested) {
-      const visualSubject = resolveVisualSubjectByName(
-        ctx.simulationVisualSubjects ?? [],
-        intentSubject.name
-      );
+    if (contentKind === "simulation") {
       const asset = ctx.characterAssets?.find((row) => row.url === requested);
       const ownerKey = asset?.visualSubjectKey?.trim();
       if (ownerKey) {
@@ -574,7 +689,7 @@ function castSubjectFidelityLine(
   const name = castSubject.name;
   const hasEvidence = visual ? hasBoundIdentityEvidence(visual) : false;
   if (!hasEvidence) {
-    return `- ${name}: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: ${castSubject.visibility}.`;
+    return `- ${name}: BACKGROUND / CAMEO fidelity. Exact identity detail is not guaranteed. Visibility: ${castSubject.visibility}.`;
   }
   if (visual?.referenceIndex != null) {
     if (selectedCount >= 4) {
@@ -583,29 +698,16 @@ function castSubjectFidelityLine(
         castSubject.role === "main_character" ||
         castSubject.importance === "primary"
       ) {
-        return `- ${name}: HIGH FIDELITY primary. Strongly preserve face, hair, eyes, iris/pupil, and outfit. Visibility: ${castSubject.visibility}.`;
+        return `- ${name}: HIGH FIDELITY primary. Visibility: ${castSubject.visibility}.`;
       }
       if (castSubject.importance === "secondary") {
-        return `- ${name}: SECONDARY. Recognizable but may be smaller. Do not steal another subject's traits. Visibility: ${castSubject.visibility}.`;
+        return `- ${name}: SECONDARY fidelity. Recognizable, may be smaller. Visibility: ${castSubject.visibility}.`;
       }
-      return `- ${name}: BACKGROUND / CAMEO. No bound identity evidence. Presence is allowed, but exact face/hair/eye/outfit fidelity is not guaranteed. Never borrow another subject's reference. Visibility: ${castSubject.visibility}.`;
+      return `- ${name}: BACKGROUND / CAMEO fidelity. Exact identity detail is not guaranteed. Visibility: ${castSubject.visibility}.`;
     }
-    return `- ${name}: HIGH FIDELITY. Face, hair, eyes, and outfit must stay distinct and accurate. Visibility: ${castSubject.visibility}.`;
+    return `- ${name}: HIGH FIDELITY. Visibility: ${castSubject.visibility}.`;
   }
-  return `- ${name}: Saved appearance only; no photo attached. Preserve face, hair, eyes, and outfit from saved appearance text. Visibility: ${castSubject.visibility}.`;
-}
-
-function castSubjectImageLine(
-  castSubject: ChatImageCastGroundedSubject,
-  visual: ChatImageVisualSubject | undefined
-): string {
-  if (visual?.referenceIndex != null) {
-    return `Image ${visual.referenceIndex} belongs ONLY to ${castSubject.name}`;
-  }
-  if (visual && hasBoundIdentityEvidence(visual)) {
-    return "Saved appearance only; no photo attached. Do not borrow another subject's picture.";
-  }
-  return "No bound identity reference. Exact visual identity is not guaranteed. Do not borrow another subject's picture.";
+  return `- ${name}: SAVED-ONLY fidelity. Visibility: ${castSubject.visibility}.`;
 }
 
 function castSubjectToVisual(subject: ChatImageCastGroundedSubject): ChatImageVisualSubject {
@@ -741,7 +843,6 @@ export function renderApprovedCastManifest(opts: {
       visibility: subject.visibility,
     })),
   });
-  const subjectByKey = new Map(opts.subjects.map((subject) => [subject.key, subject]));
   const countLine =
     opts.selected.length === 1
       ? "Exactly 1 recurring identity. No extra person."
@@ -749,21 +850,12 @@ export function renderApprovedCastManifest(opts: {
   const blocks = [
     "APPROVED CAST MANIFEST",
     countLine,
-    ...opts.selected.map((castSubject, index) => {
-      const visual = subjectByKey.get(castSubject.key) ?? opts.subjects[index];
-      const image = castSubjectImageLine(castSubject, visual);
-      return [
-        `${index + 1}. ${castSubject.name} (${visualRole(castSubject.role)})`,
-        `importance=${castSubject.importance}; visibility=${castSubject.visibility}`,
-        image,
-      ].join(" | ");
-    }),
+    ...opts.selected.map(
+      (castSubject, index) =>
+        `${index + 1}. ${castSubject.name} (${visualRole(castSubject.role)}) | importance=${castSubject.importance}; visibility=${castSubject.visibility}`
+    ),
     renderCastFidelityTiers(opts.selected, opts.subjects),
     renderCastCompositionGoal(goal, opts.selected.length),
-    opts.contentKind === "simulation"
-      ? "Never copy one simulation member's hair, eyes, outfit, or face onto another person."
-      : "Never copy the main character's hair, eyes, outfit, or face onto a supporting person.",
-    "Never map a no-photo subject onto another subject's reference image.",
   ];
   if (opts.plan) {
     const bindingBlock = renderEventSubjectBindings(

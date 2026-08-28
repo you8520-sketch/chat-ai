@@ -43,6 +43,16 @@ on:
       - "src/lib/simulationVisualSubjects.ts"
       - "src/lib/simulationVisualSubjects.test.ts"
       - "src/lib/simulationVisualSubjectsSave.test.ts"
+      - "src/lib/visualSubjects.ts"
+      - "src/lib/visualSubjects.test.ts"
+      - "src/lib/characterVisualSubjects.ts"
+      - "src/lib/characterVisualSubjects.test.ts"
+      - "src/lib/characterVisualSubjectsSave.test.ts"
+      - "src/lib/chatImageCharacterSupportCast.test.ts"
+      - "src/lib/chatImageClientPrivacy.test.ts"
+      - "src/lib/chatImageServerVisualScope.test.ts"
+      - "src/lib/chatImageSceneVisualScope.ts"
+      - "src/lib/chatImageSceneVisualScope.test.ts"
       - "src/lib/characterAssets.ts"
       - "src/lib/characterAssets.test.ts"
       - "src/lib/characterFormSave.ts"
@@ -55,6 +65,7 @@ on:
       - "src/lib/simulationCreatorAssetBoundary.test.ts"
       - "src/app/api/characters/[id]/route.ts"
       - "src/lib/chatImageCastManifest.test.ts"
+      - "src/lib/chatImageCastPromptDedup.test.ts"
       - "src/lib/chatImageCast.clientBoundary.test.ts"
       - "src/components/ChatImageCastPicker.tsx"
       - "src/components/ChatSceneBuilder.tsx"
@@ -93,11 +104,19 @@ jobs:
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageSimulationCast.test.ts
       - run: node --import tsx --test src/lib/simulationVisualSubjects.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/simulationVisualSubjectsSave.test.ts
+      - run: node --import tsx --test src/lib/visualSubjects.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/characterVisualSubjects.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/characterVisualSubjectsSave.test.ts
+      - run: node --import tsx --test src/lib/chatImageCharacterSupportCast.test.ts
+      - run: node --import tsx --test src/lib/chatImageClientPrivacy.test.ts
+      - run: node --import tsx --test src/lib/chatImageServerVisualScope.test.ts
+      - run: node --import tsx --test src/lib/chatImageSceneVisualScope.test.ts
       - run: node --import tsx --test src/lib/simulationMode.test.ts
       - run: node --import tsx --test src/lib/simulationCreatorUx.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/simulationCreatorAssetBoundary.test.ts
       - run: node --import tsx --test src/lib/characterAssets.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/chatImageScenePlanner.test.ts
       - run: node --import tsx --test src/lib/chatImageCastManifest.test.ts
+      - run: node --import tsx --test src/lib/chatImageCastPromptDedup.test.ts
       - run: node --import tsx --test src/lib/chatImageCast.clientBoundary.test.ts
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
