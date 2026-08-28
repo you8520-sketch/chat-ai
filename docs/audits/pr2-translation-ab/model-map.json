@@ -1,0 +1,50 @@
+{
+  "F01": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F02": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "F03": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F04": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "F05": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F06": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "F07": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F08": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "F09": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F10": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  },
+  "F11": {
+    "A": "gpt-5.6-luna",
+    "B": "deepseek-v4-flash-0731"
+  },
+  "F12": {
+    "A": "deepseek-v4-flash-0731",
+    "B": "gpt-5.6-luna"
+  }
+}
