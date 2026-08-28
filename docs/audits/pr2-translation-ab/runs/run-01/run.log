@@ -1,0 +1,108 @@
+F12_SOURCE_CHARS=8296
+F12_PRODUCTION_CHUNK_COUNT=25
+F12_BATCH_COUNT_PER_MODEL=9
+TRANSLATION_BATCH_MAX_SOURCE_CHARS=1800
+MAX_BATCH_SOURCE_CHARS=1554
+OVERSIZED_BATCH_COUNT=0
+PLANNED_PROVIDER_REQUEST_COUNT=40
+REQUEST_BUDGET_LE_40=true
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/workspace/data',
+  databasePath: '/workspace/data/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-08-28',
+  usdToKrw: 1381.567326,
+  effectiveKrwPerUsd: 1409.1986725200002
+}
+[deepseek-provider-failover] {
+  logical_model: 'deepseek-v4-flash-0731',
+  route_kind: 'background_flash',
+  primary_provider: 'cheaperinference',
+  backup_provider: 'openrouter',
+  primary_failure_class: null,
+  primary_http_status: 200,
+  primary_headers_ms: 4090,
+  primary_first_visible_ms: null,
+  failover_trigger: null,
+  backup_headers_ms: null,
+  backup_first_visible_ms: null,
+  backup_success: false,
+  provider_attempt_count: 1
+}
+[deepseek-provider-failover] {
+  logical_model: 'deepseek-v4-flash-0731',
+  route_kind: 'background_flash',
+  primary_provider: 'cheaperinference',
+  backup_provider: 'openrouter',
+  primary_failure_class: null,
+  primary_http_status: 200,
+  primary_headers_ms: 4628,
+  primary_first_visible_ms: null,
+  failover_trigger: null,
+  backup_headers_ms: null,
+  backup_first_visible_ms: null,
+  backup_success: false,
+  provider_attempt_count: 1
+}
+[deepseek-provider-failover] {
+  logical_model: 'deepseek-v4-flash-0731',
+  route_kind: 'background_flash',
+  primary_provider: 'cheaperinference',
+  backup_provider: 'openrouter',
+  primary_failure_class: null,
+  primary_http_status: 200,
+  primary_headers_ms: 9047,
+  primary_first_visible_ms: null,
+  failover_trigger: null,
+  backup_headers_ms: null,
+  backup_first_visible_ms: null,
+  backup_success: false,
+  provider_attempt_count: 1
+}
+[deepseek-provider-failover] {
+  logical_model: 'deepseek-v4-flash-0731',
+  route_kind: 'background_flash',
+  primary_provider: 'cheaperinference',
+  backup_provider: 'openrouter',
+  primary_failure_class: null,
+  primary_http_status: 200,
+  primary_headers_ms: 6657,
+  primary_first_visible_ms: null,
+  failover_trigger: null,
+  backup_headers_ms: null,
+  backup_first_visible_ms: null,
+  backup_success: false,
+  provider_attempt_count: 1
+}
+[deepseek-provider-failover] {
+  logical_model: 'deepseek-v4-flash-0731',
+  route_kind: 'background_flash',
+  primary_provider: 'cheaperinference',
+  backup_provider: 'openrouter',
+  primary_failure_class: 'body_timeout',
+  primary_http_status: null,
+  primary_headers_ms: 20002,
+  primary_first_visible_ms: null,
+  failover_trigger: 'body_timeout',
+  backup_headers_ms: null,
+  backup_first_visible_ms: null,
+  backup_success: false,
+  provider_attempt_count: 1
+}
+CompatibleCompletionError: NO_OPENROUTER_KEY
+    at callOpenRouterCompletion (/workspace/src/lib/openRouterCompletion.ts:189:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/workspace/scripts/bench-pr2-translation-ab.ts:532:33) {
+  provider: 'OpenRouter',
+  httpStatus: null,
+  finishReason: null,
+  usage: null
+}

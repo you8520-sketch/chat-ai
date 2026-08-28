@@ -1,5 +1,7 @@
 import Module from "module";
 
+process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === "server-only") return {};

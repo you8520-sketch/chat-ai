@@ -3,6 +3,8 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
+import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
+import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -61,6 +63,9 @@ export async function POST(req: Request) {
        FROM worlds WHERE id = ?`
     )
     .get(id) as WorldRow;
+
+  enqueueWorldTranslationJob(db, id, content);
+  kickDerivedCacheWorker();
 
   return NextResponse.json({ ok: true, world: rowToWorldListItem(row) });
 }

@@ -6,13 +6,16 @@ import {
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
-import { deserializeCharacterChunks } from "@/utils/characterParser";
+import { deserializeCharacterChunks, serializeCharacterChunks } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
+import { enqueueCharacterDerivedRefreshJob } from "@/lib/derivedCache/characterEnqueue";
+import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
+import { translationSourceFingerprint } from "@/lib/derivedCache/versions";
 
 /**
  * Save-time Korean→English translation of character prompt data.
@@ -84,9 +87,12 @@ Output protocol:
 export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 
-/** Distinct CI Pro fallback — same resolved model is not a fallback. */
+/** Distinct CI Gemini Flash-Lite fallback — same resolved model is not a fallback. */
 export const DEFAULT_TRANSLATION_FALLBACK_MODEL =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL;
+
+/** Invariant template placeholders — count must match after translation. */
+export const TRANSLATION_PLACEHOLDER_TOKENS = ["{{user}}", "{{char}}"] as const;
 
 export const TRANSLATION_BATCH_MAX_CHUNKS = 3;
 export const TRANSLATION_BATCH_MAX_SOURCE_CHARS = 1800;
@@ -144,6 +150,59 @@ export function hasPromptTranslationTransport(
 export function hashKoreanChunks(chunks: CharacterChunk[]): string {
   const src = chunks.map((c) => `${c.id}\u0000${c.content}`).join("\u0001");
   return crypto.createHash("sha256").update(src, "utf8").digest("hex");
+}
+
+/** Composite source fingerprint including derivation contract version. */
+export function koreanChunksTranslationFingerprint(chunks: CharacterChunk[]): string {
+  return translationSourceFingerprint(hashKoreanChunks(chunks));
+}
+
+function countPlaceholderOccurrences(text: string, token: string): number {
+  let count = 0;
+  let idx = 0;
+  while (idx <= text.length) {
+    const found = text.indexOf(token, idx);
+    if (found < 0) break;
+    count += 1;
+    idx = found + token.length;
+  }
+  return count;
+}
+
+export function translationPlaceholderCounts(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const token of TRANSLATION_PLACEHOLDER_TOKENS) {
+    out[token] = countPlaceholderOccurrences(text, token);
+  }
+  return out;
+}
+
+export function validateTranslationPlaceholderPreservation(
+  source: string,
+  translated: string
+): boolean {
+  for (const token of TRANSLATION_PLACEHOLDER_TOKENS) {
+    if (
+      countPlaceholderOccurrences(source, token) !==
+      countPlaceholderOccurrences(translated, token)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function validateTranslatedBatch(
+  source: CharacterChunk[],
+  translated: CharacterChunk[]
+): boolean {
+  if (source.length !== translated.length) return false;
+  for (let i = 0; i < source.length; i++) {
+    if (!validateTranslationPlaceholderPreservation(source[i]!.content, translated[i]!.content)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function isTranslatableChunk(c: CharacterChunk): boolean {
@@ -215,7 +274,14 @@ async function translateChunksWithModel(
   }
   const parsed = parseSegmentedResponse(text, targets.length);
   if (!parsed) return null;
-  return targets.map((c, i) => ({ ...c, content: parsed[i] }));
+  const batch = targets.map((c, i) => ({ ...c, content: parsed[i]! }));
+  if (!validateTranslatedBatch(targets, batch)) {
+    console.warn(
+      `[promptTranslation] placeholder preservation failed (${toOpenRouterModelId(modelId)})`
+    );
+    return null;
+  }
+  return batch;
 }
 
 /**
@@ -281,25 +347,31 @@ export async function translateAndSaveCharacterPromptEn(
 ): Promise<boolean> {
   try {
     const db = getDb();
-    const hash = hashKoreanChunks(chunks);
+    const fingerprint = koreanChunksTranslationFingerprint(chunks);
     const row = db
-      .prepare("SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?")
-      .get(characterId) as { setting_chunks_en?: string; prompt_translation_hash?: string } | undefined;
+      .prepare("SELECT setting_chunks, setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?")
+      .get(characterId) as {
+      setting_chunks?: string;
+      setting_chunks_en?: string;
+      prompt_translation_hash?: string;
+    } | undefined;
     if (!row) return false;
-    if (row.prompt_translation_hash === hash && row.setting_chunks_en?.trim()) {
-      return true; // Korean source unchanged — no retranslation
+    if (row.prompt_translation_hash === fingerprint && row.setting_chunks_en?.trim()) {
+      return true;
     }
+
+    const expectedSettingChunks = serializeCharacterChunks(chunks);
+    const expectedTranslationFingerprint = koreanChunksTranslationFingerprint(chunks);
 
     const english = await translateChunksToEnglish(chunks);
     if (english === null) return false;
 
-    // Atomic: write English layer + Korean hash together only after every segment succeeds.
-    db.prepare("UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=?").run(
-      JSON.stringify(english),
-      hash,
-      characterId
-    );
-    return true;
+    const updated = db
+      .prepare(
+        "UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=? AND setting_chunks=?"
+      )
+      .run(JSON.stringify(english), expectedTranslationFingerprint, characterId, expectedSettingChunks);
+    return updated.changes > 0;
   } catch (e) {
     console.warn("[promptTranslation] save failed:", (e as Error).message);
     return false;
@@ -317,7 +389,7 @@ export function loadEnglishChunks(
 ): CharacterChunk[] | null {
   const raw = row.setting_chunks_en;
   if (!raw?.trim()) return null;
-  if (row.prompt_translation_hash !== hashKoreanChunks(koreanChunks)) return null;
+  if (row.prompt_translation_hash !== koreanChunksTranslationFingerprint(koreanChunks)) return null;
   const parsed = deserializeCharacterChunks(raw);
   return parsed.length > 0 ? parsed : null;
 }
@@ -339,7 +411,7 @@ export function classifyEnglishLayer(opts: {
   if (english) return "CURRENT";
   const storedHash = opts.promptTranslationHash?.trim() ?? "";
   const hasStoredEn = !!opts.settingChunksEn?.trim() && opts.settingChunksEn.trim() !== "[]";
-  if (hasStoredEn && storedHash && storedHash !== hashKoreanChunks(opts.koreanChunks)) {
+  if (hasStoredEn && storedHash && storedHash !== koreanChunksTranslationFingerprint(opts.koreanChunks)) {
     return "STALE";
   }
   return "MISSING";
@@ -351,72 +423,44 @@ export function characterPromptLanguageFromUsedEnglish(
   return usedEnglish ? "english" : "korean_fallback";
 }
 
-// ---------- Opportunistic background backfill (legacy characters) ----------
-const inflightBackfill = new Set<number>();
-const backfillFailedAt = new Map<number, number>();
+/** World/share single-blob KO→EN translation using the same policy owner. */
+export async function translateWorldContentToEnglish(content: string): Promise<string | null> {
+  const trimmed = content.trim();
+  if (!trimmed) return "";
+  const chunk: CharacterChunk = {
+    id: "world-0",
+    characterId: "0",
+    content: trimmed,
+    category: "world",
+    importance: "CRITICAL",
+    tokenCount: Math.max(1, trimmed.length),
+    keywords: [],
+  };
+  const translated = await translateChunksToEnglish([chunk]);
+  if (!translated || translated.length === 0) return null;
+  return translated[0]!.content.trim() || null;
+}
+
+// ---------- Durable derived refresh scheduling (replaces in-memory backfill) ----------
 
 export function resetEnglishBackfillStateForTests(): void {
-  inflightBackfill.clear();
-  backfillFailedAt.clear();
+  // Legacy test hook — durable queue has no process-memory inflight state.
 }
 
-export function markEnglishBackfillFailureForTests(
-  characterId: number,
-  at = Date.now()
-): void {
-  backfillFailedAt.set(characterId, at);
+export function markEnglishBackfillFailureForTests(_characterId: number, _at = Date.now()): void {
+  // Legacy test hook — no-op under durable derived jobs.
 }
 
-export function canScheduleEnglishBackfill(
-  characterId: number,
-  now = Date.now()
-): boolean {
+export function canScheduleEnglishBackfill(characterId: number, _now = Date.now()): boolean {
   if (!hasPromptTranslationTransport()) return false;
-  if (inflightBackfill.has(characterId)) return false;
-  const failedAt = backfillFailedAt.get(characterId);
-  if (
-    failedAt != null &&
-    now - failedAt < ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS
-  ) {
-    return false;
-  }
+  void characterId;
   return true;
 }
 
-/** Fire-and-forget background translation. One in-flight job per character; failed jobs cool down. */
-export function scheduleEnglishBackfill(characterId: number, chunks: CharacterChunk[]): void {
-  if (!canScheduleEnglishBackfill(characterId)) {
-    if (
-      hasPromptTranslationTransport() &&
-      !inflightBackfill.has(characterId)
-    ) {
-      console.warn(
-        `[promptTranslation] skip backfill character ${characterId} — cooldown after failure`
-      );
-    }
-    return;
-  }
-  inflightBackfill.add(characterId);
-  setTimeout(() => {
-    translateAndSaveCharacterPromptEn(characterId, chunks)
-      .then((ok) => {
-        if (ok) {
-          backfillFailedAt.delete(characterId);
-          console.log(`[promptTranslation] backfilled English layer for character ${characterId}`);
-        } else {
-          backfillFailedAt.set(characterId, Date.now());
-          console.warn(
-            `[promptTranslation] backfill failed for character ${characterId} — Korean source kept, stale English unused`
-          );
-        }
-      })
-      .catch((e) => {
-        backfillFailedAt.set(characterId, Date.now());
-        console.warn(
-          `[promptTranslation] backfill error for character ${characterId}:`,
-          (e as Error).message
-        );
-      })
-      .finally(() => inflightBackfill.delete(characterId));
-  }, 10);
+/** Enqueue durable derived refresh — never starts provider work on the caller stack. */
+export function scheduleEnglishBackfill(characterId: number, _chunks?: CharacterChunk[]): void {
+  if (!hasPromptTranslationTransport()) return;
+  const db = getDb();
+  enqueueCharacterDerivedRefreshJob(db, characterId);
+  kickDerivedCacheWorker();
 }

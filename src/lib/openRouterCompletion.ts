@@ -90,8 +90,9 @@ export async function callOpenRouterCompletion(opts: {
   requestKind?: string;
   timeoutMs?: number;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
-  const model = toOpenRouterModelId(opts.model);
-  const useCheaperInference = isCheaperInferenceModel(model);
+  const rawModel = opts.model.trim();
+  const useCheaperInference = isCheaperInferenceModel(rawModel);
+  const model = useCheaperInference ? rawModel : toOpenRouterModelId(opts.model);
   const providerLabel = useCheaperInference ? "CheaperInference" : "OpenRouter";
   const messages: OpenRouterChatMsg[] = [
     { role: "system", content: opts.system.trim() },

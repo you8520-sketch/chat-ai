@@ -1,0 +1,12 @@
+{
+  "runNumber": 1,
+  "startingHead": "f1e144a716dea58077ff800728cff9ab6792c975",
+  "status": "TRANSPORT_FAILURE",
+  "attemptedRequests": 9,
+  "failedAtRequest": 10,
+  "failedFixture": "F05",
+  "failedLabel": "B",
+  "failedModel": "deepseek-v4-flash-0731",
+  "failureClass": "body_timeout",
+  "openrouterBackupSuccess": 0
+}

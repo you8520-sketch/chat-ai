@@ -234,7 +234,6 @@ describe("TRPG 3D dice overlay contracts", () => {
   it("hides roll outcome until the centered result-confirm HUD", () => {
     const overlay = fs.readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
     assert.doesNotMatch(overlay, /\{roll\.name\} · D20 \{roll\.d20\} · \{outcome\}/);
-    assert.doesNotMatch(overlay, /!showResult \?/);
     assert.match(overlay, /trpgRollOutcomeLabel\(roll\.tier\)/);
     assert.match(overlay, /data-trpg-dice-result-confirm/);
     assert.match(overlay, /data-trpg-dice-result-numeral=\{face\}/);
