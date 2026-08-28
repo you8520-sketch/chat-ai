@@ -146,8 +146,11 @@ export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
-/** OpenRouter — Gemini 2.0 Flash (백그라운드 비전: 이미지 검열·에셋 태그) */
+/** OpenRouter — Gemini 2.0 Flash (legacy 백그라운드 비전 상수 — asset vision default는 Qwen3.8 Flash) */
 export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
+
+/** OpenRouter — Qwen3.8 Flash (에셋 태그·검열 Vision primary) */
+export const OPENROUTER_QWEN38_FLASH_MODEL = "qwen/qwen3.8-flash";
 
 /** OpenRouter — Qwen3 VL 8B Instruct (에셋 태그·검열 Vision fallback) */
 export const OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL = "qwen/qwen3-vl-8b-instruct";

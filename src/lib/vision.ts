@@ -6,16 +6,23 @@ import {
   buildOpenRouterHeaders,
 } from "@/lib/openRouterConfig";
 import {
-  OPENROUTER_GEMINI_20_FLASH_MODEL,
+  OPENROUTER_QWEN38_FLASH_MODEL,
   OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
 } from "@/lib/chatModels";
 import { buildAssetVisionPrompt } from "@/lib/assetVisionPolicy";
+import {
+  buildAssetVisionJsonSchema,
+  deriveFinalAssetTag,
+  validateStructuredAssetVisionResult,
+  type AssetVisionStructuredResult,
+} from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 
-const DEFAULT_VISION_MODEL = OPENROUTER_GEMINI_20_FLASH_MODEL;
+const DEFAULT_VISION_MODEL = OPENROUTER_QWEN38_FLASH_MODEL;
 const DEFAULT_VISION_FALLBACK_MODEL = OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL;
+const VISION_BATCH_CONCURRENCY = 4;
 
-function visionModels(): string[] {
+export function visionModels(): string[] {
   const primary =
     process.env.ASSET_VISION_MODEL?.trim() ||
     process.env.BACKGROUND_VISION_MODEL?.trim() ||
@@ -26,6 +33,42 @@ function visionModels(): string[] {
 }
 
 const VISION_PROMPT = buildAssetVisionPrompt();
+
+export type ParsedVisionTag = {
+  tag: string;
+  adultFlagged: boolean;
+  moderationReject: boolean;
+  moderationReason: string;
+};
+
+function extractJsonCandidate(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return (fenced ? fenced[1] : trimmed).trim();
+}
+
+export function parseAssetVisionResponseText(raw: string): AssetVisionStructuredResult | null {
+  const candidate = extractJsonCandidate(raw);
+  try {
+    return validateStructuredAssetVisionResult(JSON.parse(candidate));
+  } catch {
+    return null;
+  }
+}
+
+export function finalizeStructuredVisionResult(
+  structured: AssetVisionStructuredResult
+): ParsedVisionTag {
+  let adultFlagged = structured.adult;
+  const moderationReject = structured.reject;
+  if (moderationReject) adultFlagged = true;
+  return normalizeVisionModerationFlags({
+    tag: deriveFinalAssetTag(structured),
+    adultFlagged,
+    moderationReject,
+    moderationReason: structured.reason.slice(0, 160),
+  });
+}
 
 async function loadImageBase64(url: string): Promise<{ mime: string; data: string }> {
   let buf: Buffer;
@@ -57,51 +100,7 @@ async function loadImageBase64(url: string): Promise<{ mime: string; data: strin
   return { mime, data: buf.toString("base64") };
 }
 
-type ParsedVisionTag = {
-  tag: string;
-  adultFlagged: boolean;
-  moderationReject: boolean;
-  moderationReason: string;
-};
-
-function parseTagJson(raw: string): ParsedVisionTag {
-  const trimmed = raw.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = (fenced ? fenced[1] : trimmed).trim();
-  let tag = "";
-  let adultFlagged = false;
-  let moderationReject = false;
-  let moderationReason = "";
-  try {
-    const json = JSON.parse(candidate) as {
-      tag?: unknown;
-      adult?: unknown;
-      reject?: unknown;
-      reason?: unknown;
-    };
-    if (typeof json.tag === "string" && json.tag.trim()) tag = json.tag.trim();
-    if (typeof json.adult === "boolean") adultFlagged = json.adult;
-    if (typeof json.reject === "boolean") moderationReject = json.reject;
-    if (typeof json.reason === "string") moderationReason = json.reason.trim();
-  } catch {
-    const m = trimmed.match(/"tag"\s*:\s*"([^"]+)"/);
-    if (m?.[1]) tag = m[1].trim();
-    const adult = trimmed.match(/"adult"\s*:\s*(true|false)/i);
-    if (adult) adultFlagged = adult[1].toLowerCase() === "true";
-    const reject = trimmed.match(/"reject"\s*:\s*(true|false)/i);
-    if (reject) moderationReject = reject[1].toLowerCase() === "true";
-  }
-  if (!tag) throw new Error("태그 JSON 파싱 실패");
-  if (moderationReject) adultFlagged = true;
-  return normalizeVisionModerationFlags({
-    tag,
-    adultFlagged,
-    moderationReject,
-    moderationReason: moderationReason.slice(0, 200),
-  });
-}
-
-/** API·파싱 전부 실패 시 — 감정 목록 순환이 아니라 중립 라벨 (이미지와 무관한 가짜 태그 방지) */
+/** API·파싱 전부 실패 시 — 중립 라벨 (이미지와 무관한 가짜 태그 방지) */
 function unresolvedTag(index: number): string {
   return `미분류 ${index + 1}`;
 }
@@ -110,6 +109,31 @@ type VisionAttempt = {
   parsed: ParsedVisionTag | null;
   retryable: boolean;
 };
+
+function buildVisionRequestBody(model: string, dataUrl: string) {
+  return {
+    model,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: VISION_PROMPT },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    max_tokens: 128,
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "asset_vision_result",
+        strict: true,
+        schema: buildAssetVisionJsonSchema(),
+      },
+    },
+  };
+}
 
 async function analyzeWithModel(
   model: string,
@@ -121,20 +145,7 @@ async function analyzeWithModel(
     res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: buildOpenRouterHeaders(apiKey),
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: VISION_PROMPT },
-              { type: "image_url", image_url: { url: dataUrl } },
-            ],
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 128,
-      }),
+      body: JSON.stringify(buildVisionRequestBody(model, dataUrl)),
     });
   } catch (err) {
     console.error("[vision] OpenRouter fetch failed:", model, err);
@@ -156,15 +167,16 @@ async function analyzeWithModel(
     return { parsed: null, retryable: true };
   }
 
-  try {
-    return { parsed: parseTagJson(text), retryable: false };
-  } catch {
-    console.warn("[vision] unparseable response:", model, text.slice(0, 200));
+  const structured = parseAssetVisionResponseText(text);
+  if (!structured) {
+    console.warn("[vision] invalid structured response:", model, text.slice(0, 200));
     return { parsed: null, retryable: true };
   }
+
+  return { parsed: finalizeStructuredVisionResult(structured), retryable: false };
 }
 
-/** OpenRouter vision으로 캐릭터 에셋 감정·자세·상황 태그 추출 (이미지 첨부 필수) */
+/** OpenRouter vision으로 캐릭터 에셋 분류 태그 + moderation (이미지 첨부 필수) */
 export async function analyzeAssetImage(
   url: string,
   index = 0
@@ -224,19 +236,38 @@ export async function analyzeAssetImage(
   };
 }
 
-/** 여러 에셋 일괄 태깅 */
-export async function analyzeAssetBatch(urls: string[]) {
-  const results: Array<{
-    url: string;
-    tag: string;
-    estimated: boolean;
-    adultFlagged: boolean;
-    moderationReject: boolean;
-    moderationReason: string;
-  }> = [];
-  for (let i = 0; i < urls.length; i++) {
-    const result = await analyzeAssetImage(urls[i], i);
-    results.push({ url: urls[i], ...result });
+async function mapWithBoundedConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const current = nextIndex;
+      nextIndex += 1;
+      if (current >= items.length) return;
+      results[current] = await mapper(items[current]!, current);
+    }
   }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
   return results;
+}
+
+/** 여러 에셋 일괄 태깅 (bounded concurrency, 순서 보존) */
+export async function analyzeAssetBatch(urls: string[]) {
+  const analyzed = await mapWithBoundedConcurrency(
+    urls,
+    VISION_BATCH_CONCURRENCY,
+    async (url, index) => {
+      const result = await analyzeAssetImage(url, index);
+      return { url, ...result };
+    }
+  );
+  return analyzed;
 }

@@ -22,7 +22,7 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_GEMINI_20_FLASH_MODEL,
+  OPENROUTER_QWEN38_FLASH_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
@@ -219,16 +219,16 @@ test("explicit DeepSeek modelId on callBackgroundMemory stays DeepSeek", async (
   }
 });
 
-test("background vision PRIMARY is unchanged Gemini 2.0 Flash", () => {
-  assert.equal(OPENROUTER_GEMINI_20_FLASH_MODEL, "google/gemini-2.0-flash-001");
+test("background vision PRIMARY is Qwen3.8 Flash for asset tagging", () => {
+  assert.equal(OPENROUTER_QWEN38_FLASH_MODEL, "qwen/qwen3.8-flash");
   assert.equal(
     BACKGROUND_VISION_OPENROUTER_MODEL,
     process.env.BACKGROUND_VISION_MODEL?.trim() ||
       process.env.ASSET_VISION_MODEL?.trim() ||
-      OPENROUTER_GEMINI_20_FLASH_MODEL
+      OPENROUTER_QWEN38_FLASH_MODEL
   );
   const visionSrc = readFileSync(new URL("./vision.ts", import.meta.url), "utf8");
-  assert.match(visionSrc, /OPENROUTER_GEMINI_20_FLASH_MODEL/);
+  assert.match(visionSrc, /OPENROUTER_QWEN38_FLASH_MODEL/);
   assert.doesNotMatch(visionSrc, /CHEAPER_INFERENCE_GPT_56_LUNA_MODEL/);
 });
 
