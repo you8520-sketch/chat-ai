@@ -115,6 +115,23 @@ export function isActorAdjudicationReady(
   return adjudicatedParticipantIds.has(actorId);
 }
 
+/**
+ * True when every authoritatively adjudicated participant has a materialized
+ * PresentationActor in the current client roster. Adjudicated ids come from
+ * locked submission outcomes (roll / no_roll / skipped) — not resolutionOrder.
+ */
+export function isPresentationActorRosterMaterialized(opts: {
+  actors: readonly PresentationActor[];
+  adjudicatedParticipantIds: ReadonlySet<number>;
+}): boolean {
+  if (opts.adjudicatedParticipantIds.size === 0) return true;
+  const actorIds = new Set(opts.actors.map((actor) => actor.actorId));
+  for (const id of opts.adjudicatedParticipantIds) {
+    if (!actorIds.has(id)) return false;
+  }
+  return true;
+}
+
 /** AI actors require declaration reveal consumption before dice/result presentation. */
 export function isActorDeclarationReady(opts: {
   actor: PresentationActor;
@@ -900,7 +917,14 @@ function advanceToNextActor(
 ): Pick<RoundPresentationState, "phase" | "presentationIndex"> {
   const candidate = presentationIndex + 1;
   if (candidate >= actors.length) {
-    if (opts?.awaitingMoreActors) {
+    const holdForMoreActors = opts?.awaitingMoreActors === true;
+    const holdForRosterGap =
+      opts?.adjudicatedParticipantIds != null &&
+      !isPresentationActorRosterMaterialized({
+        actors,
+        adjudicatedParticipantIds: opts.adjudicatedParticipantIds,
+      });
+    if (holdForMoreActors || holdForRosterGap) {
       return { phase: "actor-action", presentationIndex: candidate };
     }
     return { phase: "gm-narration", presentationIndex: Math.max(0, actors.length - 1) };
