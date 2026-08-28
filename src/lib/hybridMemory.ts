@@ -137,6 +137,24 @@ export function resolveHistoryMinTurnFloor(opts: {
   );
 }
 
+/**
+ * Provider RAW pool size for main RP — expands beyond RAW4 while summary catch-up is pending
+ * so unsummarized turns stay in RAW until sealed into lorebook (token budget trim downstream).
+ */
+export function resolveProviderRawExchangeCountForChat(opts: {
+  memoryFeatureEnabled: boolean;
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+}): number {
+  if (!opts.memoryFeatureEnabled) {
+    return RAW_HISTORY_COMPLETE_EXCHANGES;
+  }
+  const completedTurns = normalizeNonNegativeInteger(opts.completedTurns);
+  const summarizedTurnCount = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  const unsummarizedTurns = Math.max(0, completedTurns - summarizedTurnCount);
+  return Math.max(RAW_HISTORY_COMPLETE_EXCHANGES, unsummarizedTurns);
+}
+
 /** first RAW playable turn과 sealed summary 사이의 미보존 구간. */
 export function resolveMemoryCoverageGap(opts: {
   firstRawPlayableTurn: number | null | undefined;

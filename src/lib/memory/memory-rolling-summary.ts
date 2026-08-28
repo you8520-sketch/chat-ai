@@ -140,6 +140,9 @@ export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIR
 /** Single-flight per chat — concurrent callers await the same in-flight seal/rebuild. */
 const inflight = new Map<number, Promise<boolean>>();
 
+/** Catch-up schedules registered before async work claims inflight. */
+const catchUpScheduledChats = new Set<number>();
+
 export function isRollingSummaryInFlight(chatId: number): boolean {
   return inflight.has(chatId);
 }
@@ -1592,6 +1595,139 @@ export function turnsUntilNextSummary(
 export type SummaryBarrierResult =
   | { ok: true; summarizedThrough: number }
   | { ok: false; reason: string; pendingRange: string };
+
+export type NonBlockingSummaryPrepResult = {
+  summarizedThrough: number;
+  unsummarizedTurns: number;
+  pendingRange: string | null;
+  catchUpScheduled: boolean;
+};
+
+/** Read committed summary frontier — no LLM, no await. */
+export function resolveCommittedSummaryFrontier(
+  chatId: number,
+  completedTurns: number
+): number {
+  if (!isMemoryFeatureEnabled()) return 0;
+  const records = listMemoryRecordsForChat(chatId);
+  return highestContiguousCompletedTurn(records, completedTurns);
+}
+
+/**
+ * Schedule durable summary catch-up off the main RP critical path.
+ * Reuses DB rows + single-flight lock — not a separate queue system.
+ */
+export function scheduleSummaryCatchUpDurable(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  characterIdentity?: string | null;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userPersona?: string | null;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  maxRounds?: number;
+}): boolean {
+  if (!isMemoryFeatureEnabled()) return false;
+
+  if (
+    isRollingSummaryInFlight(opts.chatId) ||
+    catchUpScheduledChats.has(opts.chatId)
+  ) {
+    console.info("MEMORY_SUMMARY_CATCHUP_COALESCED", { chat_id: opts.chatId });
+    return true;
+  }
+
+  catchUpScheduledChats.add(opts.chatId);
+  void catchUpRollingSummaries({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    charName: opts.charName,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    maxRounds: opts.maxRounds ?? 5,
+  })
+    .catch((e) => {
+      console.error("[memory] summary catch-up failed (non-blocking):", {
+        chat_id: opts.chatId,
+        error: (e as Error).message,
+      });
+    })
+    .finally(() => {
+      catchUpScheduledChats.delete(opts.chatId);
+    });
+
+  return true;
+}
+
+/**
+ * Non-blocking summary prep for main RP — reads committed frontier, schedules catch-up,
+ * never awaits summary LLM on the chat critical path.
+ */
+export function prepareNonBlockingSummaryForMainRp(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  characterIdentity?: string | null;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userPersona?: string | null;
+  completedTurns: number;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+}): NonBlockingSummaryPrepResult {
+  if (!isMemoryFeatureEnabled()) {
+    return {
+      summarizedThrough: 0,
+      unsummarizedTurns: opts.completedTurns,
+      pendingRange: null,
+      catchUpScheduled: false,
+    };
+  }
+
+  const summarizedThrough = resolveCommittedSummaryFrontier(
+    opts.chatId,
+    opts.completedTurns
+  );
+  const unsummarizedTurns = Math.max(0, opts.completedTurns - summarizedThrough);
+  const needsCatchUp = unsummarizedTurns > RAW_HISTORY_COMPLETE_EXCHANGES;
+  const next = resolveNextBatchRange(summarizedThrough, opts.completedTurns);
+  const pendingRange =
+    needsCatchUp && next ? `${next.turnStart}~${next.turnEnd}` : null;
+
+  if (needsCatchUp) {
+    console.info("MEMORY_SUMMARY_CATCHUP_SCHEDULED", {
+      chat_id: opts.chatId,
+      summarized_through: summarizedThrough,
+      completed_turns: opts.completedTurns,
+      unsummarized: unsummarizedTurns,
+      pending_range: pendingRange,
+    });
+  }
+
+  const catchUpScheduled = needsCatchUp
+    ? scheduleSummaryCatchUpDurable({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+      })
+    : false;
+
+  return {
+    summarizedThrough,
+    unsummarizedTurns,
+    pendingRange,
+    catchUpScheduled,
+  };
+}
 
 /** Await/coalesce pending summary seals before main-model context assembly. */
 export async function ensureSummaryBarrier(opts: {

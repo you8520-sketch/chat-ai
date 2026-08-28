@@ -132,8 +132,9 @@ import {
   resolveMemoryTier,
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
-import { ensureSummaryBarrier } from "@/lib/memory/memory-rolling-summary";
-import { gateChatOnSummaryBarrier } from "@/lib/memory/memory-barrier-route-gate";
+import {
+  prepareNonBlockingSummaryForMainRp,
+} from "@/lib/memory/memory-rolling-summary";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/memory/memory-constants";
 import {
   buildMemoryHealthTelemetry,
@@ -146,6 +147,7 @@ import {
   trimProviderHistoryToBudget,
 } from "@/lib/providerHistoryPolicy";
 import {
+  resolveProviderRawExchangeCountForChat,
   shouldIncludeOpeningInProviderRaw,
   splitOpeningPlayableTurns,
 } from "@/lib/hybridMemory";
@@ -1410,7 +1412,8 @@ export async function POST(req: Request) {
     : playableTurnCount;
 
   if (memoryFeatureOn) {
-    const barrier = await ensureSummaryBarrier({
+    phaseAudit?.mark("T4a_SUMMARY_PREP_START");
+    const summaryPrep = prepareNonBlockingSummaryForMainRp({
       chatId: chat.id,
       userId: user.id,
       characterId: ch.id,
@@ -1420,14 +1423,17 @@ export async function POST(req: Request) {
       userPersona: personaDisplayName,
       completedTurns: completedTurnsForMemoryCoverage,
     });
-    const gate = gateChatOnSummaryBarrier(barrier);
-    if (!gate.proceed) {
-      return Response.json(gate.response.body, { status: gate.response.status });
-    }
-    effectiveSummarizedTurnCount = gate.summarizedThrough;
+    phaseAudit?.mark("T4b_SUMMARY_PREP_DONE");
+    effectiveSummarizedTurnCount = summaryPrep.summarizedThrough;
   }
 
-  const providerRawExchangeCount = RAW_HISTORY_COMPLETE_EXCHANGES;
+  const providerRawExchangeCount = memoryFeatureOn
+    ? resolveProviderRawExchangeCountForChat({
+        memoryFeatureEnabled: true,
+        completedTurns: completedTurnsForMemoryCoverage,
+        summarizedTurnCount: effectiveSummarizedTurnCount,
+      })
+    : RAW_HISTORY_COMPLETE_EXCHANGES;
   const { opening: openingTurn, playable: playableTurnsForOpening } =
     splitOpeningPlayableTurns(turnsForRecentHistory);
   const protectOpening = shouldIncludeOpeningInProviderRaw({

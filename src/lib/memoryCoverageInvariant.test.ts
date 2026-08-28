@@ -11,6 +11,7 @@ import {
   resolveLorebookExcludeFromTrimmedHistory,
   resolveMemoryCoverageGap,
   resolveMemoryCoverageTurnFloor,
+  resolveProviderRawExchangeCountForChat,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
   type DialogueTurn,
@@ -66,16 +67,8 @@ describe("resolveMemoryCoverageTurnFloor (diagnostics only)", () => {
   });
 });
 
-describe("provider RAW policy", () => {
-  it("memory ON and OFF both keep four-exchange floor", () => {
-    assert.equal(
-      resolveHistoryMinTurnFloor({
-        memoryFeatureEnabled: true,
-        completedTurns: 20,
-        summarizedTurnCount: 0,
-      }),
-      RAW_HISTORY_COMPLETE_EXCHANGES
-    );
+describe("provider RAW policy (non-blocking summary)", () => {
+  it("memory OFF keeps four-exchange floor", () => {
     assert.equal(
       resolveHistoryMinTurnFloor({
         memoryFeatureEnabled: false,
@@ -86,27 +79,60 @@ describe("provider RAW policy", () => {
     );
   });
 
-  it("never sends more than four complete exchanges to provider RAW", () => {
-    for (const completed of [5, 7, 12, 20]) {
-      const result = analyzeRawPolicy({ completedTurns: completed, summarizedTurnCount: 0 });
-      assert.equal(result.playableTurns, Math.min(RAW_HISTORY_COMPLETE_EXCHANGES, completed));
-    }
+  it("memory ON expands RAW pool to cover unsummarized turns while summary pending", () => {
+    assert.equal(
+      resolveProviderRawExchangeCountForChat({
+        memoryFeatureEnabled: true,
+        completedTurns: 20,
+        summarizedTurnCount: 6,
+      }),
+      14
+    );
+    assert.equal(
+      resolveProviderRawExchangeCountForChat({
+        memoryFeatureEnabled: true,
+        completedTurns: 18,
+        summarizedTurnCount: 15,
+      }),
+      RAW_HISTORY_COMPLETE_EXCHANGES
+    );
   });
 
-  it("summary lag does not expand provider RAW beyond four exchanges", () => {
-    const lagging = analyzeRawPolicy({ completedTurns: 20, summarizedTurnCount: 6 });
-    assert.equal(lagging.floor, RAW_HISTORY_COMPLETE_EXCHANGES);
-    assert.equal(lagging.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
+  it("expanded RAW covers unsummarized span without coverage gap", () => {
+    const rawCount = resolveProviderRawExchangeCountForChat({
+      memoryFeatureEnabled: true,
+      completedTurns: 20,
+      summarizedTurnCount: 6,
+    });
+    const playable = makePlayableTurns(20);
+    const full = rawRecentTurnsToHistory(playable, rawCount, {
+      memoryFeatureEnabled: true,
+      summarizedTurnCount: 6,
+    });
+    const firstRawPlayableTurn =
+      resolveLorebookExcludeFromTrimmedHistory(playable, full) ?? 1;
+    const gap = resolveMemoryCoverageGap({
+      firstRawPlayableTurn,
+      summarizedTurnCount: 6,
+    });
+    assert.equal(rawCount, 14);
+    assert.equal(countPlayableHistoryTurns(full), 14);
+    assert.equal(gap, 0);
   });
 
   it("opening greeting is excluded from playable RAW count", () => {
-    const result = analyzeRawPolicy({
+    const rawCount = resolveProviderRawExchangeCountForChat({
+      memoryFeatureEnabled: true,
       completedTurns: 7,
       summarizedTurnCount: 0,
-      opening: true,
     });
-    assert.equal(result.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
-    assert.equal(result.firstRawPlayableTurn, 4);
+    const playable = makePlayableTurns(7);
+    const turns = [{ user: OPENING_TURN_USER, assistant: "오프닝 장면" }, ...playable];
+    const full = rawRecentTurnsToHistory(turns, rawCount, {
+      memoryFeatureEnabled: true,
+      summarizedTurnCount: 0,
+    });
+    assert.equal(countPlayableHistoryTurns(full), 7);
   });
 });
 

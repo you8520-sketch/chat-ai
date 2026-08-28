@@ -19,6 +19,8 @@ export type TurnPhaseLatencyReport = {
   deltas_ms: Record<string, number | null>;
   PRE_PROVIDER_TOTAL_MS: number | null;
   MEMORY_SYNC_MS: number | null;
+  SUMMARY_PREP_MS: number | null;
+  SUMMARY_BARRIER_WAIT_MS: number | null;
   CANON_MS: number | null;
   CONTEXT_BUILD_MS: number | null;
   REQUEST_ASSEMBLY_MS: number | null;
@@ -92,6 +94,8 @@ export class TurnPhaseLatencyAudit {
       deltas_ms: {},
       PRE_PROVIDER_TOTAL_MS: d("T0_REQUEST_IN", "T10_PROVIDER_FETCH_START"),
       MEMORY_SYNC_MS: d("T3_MEMORY_SYNC_START", "T4_MEMORY_SYNC_DONE"),
+      SUMMARY_PREP_MS: d("T4a_SUMMARY_PREP_START", "T4b_SUMMARY_PREP_DONE"),
+      SUMMARY_BARRIER_WAIT_MS: d("T4_MEMORY_SYNC_DONE", "T5_CANON_START"),
       CANON_MS: d("T5_CANON_START", "T6_CANON_DONE"),
       CONTEXT_BUILD_MS: d("T7_CONTEXT_BUILD_START", "T8_CONTEXT_BUILD_DONE"),
       REQUEST_ASSEMBLY_MS: d("T8_CONTEXT_BUILD_DONE", "T9_REQUEST_ASSEMBLY_DONE"),

@@ -344,7 +344,8 @@ async function main() {
       MEDIAN_MEMORY_SYNC_MS: stats(num("MEMORY_SYNC_MS")),
       MEDIAN_CANON_MS: stats(num("CANON_MS")),
       MEDIAN_CONTEXT_BUILD_MS: stats(num("CONTEXT_BUILD_MS")),
-      MEDIAN_SERVER_STREAM_MS: stats(num("SERVER_STREAM_MS")),
+      MEDIAN_SUMMARY_BARRIER_WAIT_MS: stats(num("SUMMARY_BARRIER_WAIT_MS")),
+      MEDIAN_SUMMARY_PREP_MS: stats(num("SUMMARY_PREP_MS")),
     },
     runs: results,
   };
