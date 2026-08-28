@@ -187,19 +187,19 @@ describe("TRPG contextual dice HUD", () => {
     assert.ok(Array.from(vm.actionSummary).length <= 140);
   });
 
-  it("I/J/K: derives positive, negative, and zero combined modifiers", () => {
+  it("I/J/K: derives positive, negative, and zero combined modifiers with sign-safe formula", () => {
     const positive = buildTrpgDiceContextViewModel({
       roll: roll(1, { d20: 17, finalScore: 20 }),
       progress: null,
       statDefs,
     });
     const negative = buildTrpgDiceContextViewModel({
-      roll: roll(1, { d20: 8, finalScore: 6 }),
+      roll: roll(1, { d20: 17, finalScore: 15 }),
       progress: null,
       statDefs,
     });
     const zero = buildTrpgDiceContextViewModel({
-      roll: roll(1, { d20: 12, finalScore: 12 }),
+      roll: roll(1, { d20: 17, finalScore: 17 }),
       progress: null,
       statDefs,
     });
@@ -207,6 +207,9 @@ describe("TRPG contextual dice HUD", () => {
       [positive.combinedModifierLabel, negative.combinedModifierLabel, zero.combinedModifierLabel],
       ["+3", "-2", "+0"]
     );
+    assert.equal(trpgDiceResultFormulaLine(positive), "d20 17 · 총 보정 +3 → 최종 20");
+    assert.equal(trpgDiceResultFormulaLine(negative), "d20 17 · 총 보정 -2 → 최종 15");
+    assert.equal(trpgDiceResultFormulaLine(zero), "d20 17 · 총 보정 +0 → 최종 17");
   });
 
   it("L: exposes every exact tier through the shared successLabelKo owner", () => {
@@ -246,7 +249,7 @@ describe("TRPG contextual dice HUD", () => {
       trpgDiceA11yStatus(vm, true),
       /권태현.*힘 판정.*17.*총 보정 \+3.*최종 20.*목표 DC 11.*대성공/
     );
-    assert.equal(trpgDiceResultFormulaLine(vm), "d20 17 + 총 보정 +3 = 최종 20");
+    assert.equal(trpgDiceResultFormulaLine(vm), "d20 17 · 총 보정 +3 → 최종 20");
     assert.equal(trpgDiceTargetDcLine(vm.dc), "목표 DC 11");
 
     const overlay = readFileSync("src/app/trpg/TrpgDiceOverlay.tsx", "utf8");
@@ -365,7 +368,7 @@ describe("TRPG contextual dice HUD", () => {
     });
     assert.equal(trpgDiceResultVisible("rolling"), false);
     assert.equal(trpgDiceResultVisible("holding"), true);
-    assert.match(trpgDiceResultFormulaLine(vm), /d20 17 \+ 총 보정 \+3 = 최종 20/);
+    assert.match(trpgDiceResultFormulaLine(vm), /d20 17 · 총 보정 \+3 → 최종 20/);
     assert.equal(trpgDiceTargetDcLine(12), "목표 DC 12");
     assert.equal(vm.tierLabel, "대성공");
 

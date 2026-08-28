@@ -91,7 +91,7 @@ export function trpgDiceTargetDcLine(dc: number): string {
 export function trpgDiceResultFormulaLine(
   context: Pick<TrpgDiceContextViewModel, "d20" | "combinedModifierLabel" | "finalScore">
 ): string {
-  return `d20 ${context.d20} + 총 보정 ${context.combinedModifierLabel} = 최종 ${context.finalScore}`;
+  return `d20 ${context.d20} · 총 보정 ${context.combinedModifierLabel} → 최종 ${context.finalScore}`;
 }
 
 export function trpgDiceA11yStatus(
