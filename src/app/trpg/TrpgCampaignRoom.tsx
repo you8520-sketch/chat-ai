@@ -193,10 +193,12 @@ import {
   findPresentationLogRow,
   inferHeldPresentationRoundFromLog,
   isPresentationSessionReleased,
+  nextReleasedPresentationRoundWatermark,
   presentationSessionMetadata,
   resolvePresentationLiveReady,
   resolvePresentationRoundNumber,
   resolvePresentationSourceRolls,
+  shouldLatchPresentationRound,
   shouldShowNextActionInput,
   type LivePresentationSession,
 } from "@/lib/trpg/presentationSession";
@@ -421,17 +423,22 @@ export default function TrpgCampaignRoom({
   const phase = snap.round.phase;
   const dicePreview = useCampaignDicePreview(snap);
   const [presentationSession, setPresentationSession] = useState<LivePresentationSession | null>(null);
+  const releasedPresentationRoundRef = useRef(0);
+  const latchedPresentationSessionKeyRef = useRef<string | null>(null);
+  const releasedPresentationRoundWatermark = releasedPresentationRoundRef.current;
   const inferredHeldPresentationRound = inferHeldPresentationRoundFromLog({
     serverRoundNumber,
     serverPhase: String(phase),
     log: snap.log,
     roundShow,
+    releasedPresentationRoundWatermark,
   });
   const presentationRoundNumber = resolvePresentationRoundNumber({
     serverRoundNumber,
     session: presentationSession,
     roundShow,
     inferredHeldRound: inferredHeldPresentationRound,
+    releasedPresentationRoundWatermark,
   });
   const presentationLogRow = useMemo(
     () => findPresentationLogRow(snap.log, presentationRoundNumber),
@@ -677,15 +684,21 @@ export default function TrpgCampaignRoom({
     roundShow,
     presentationRoundNumber,
   ]);
-  const latchedPresentationSessionKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (roundShow.mode !== "cinematic" || !queueSessionKey) {
+    if (
+      !shouldLatchPresentationRound({
+        latchRound: presentationRoundNumber,
+        releasedPresentationRoundWatermark,
+        roundShow,
+        queueSessionKey,
+        latchedPresentationSessionKey: latchedPresentationSessionKeyRef.current,
+      })
+    ) {
       if (roundShow.mode !== "cinematic") {
         latchedPresentationSessionKeyRef.current = null;
       }
       return;
     }
-    if (latchedPresentationSessionKeyRef.current === queueSessionKey) return;
     latchedPresentationSessionKeyRef.current = queueSessionKey;
     const latchRound = presentationRoundNumber;
     const latchLogRow = findPresentationLogRow(snap.log, latchRound);
@@ -707,6 +720,7 @@ export default function TrpgCampaignRoom({
   }, [
     presentationRoundNumber,
     queueSessionKey,
+    releasedPresentationRoundWatermark,
     roundShow.mode,
     serverRoundNumber,
     snap.log,
@@ -1195,8 +1209,12 @@ export default function TrpgCampaignRoom({
   useEffect(() => {
     if (presentationSession == null) return;
     if (isPresentationSessionReleased({ roundShow, gmRevealComplete: effectiveGmRevealComplete })) {
+      releasedPresentationRoundRef.current = nextReleasedPresentationRoundWatermark(
+        releasedPresentationRoundRef.current,
+        presentationSession.roundNumber
+      );
       setPresentationSession(null);
-      latchedPresentationSessionKeyRef.current = null;
+      setRoundShow(idlePresentation());
     }
   }, [effectiveGmRevealComplete, presentationSession, roundShow]);
   const liveFollowOwner = resolveTrpgLiveFollowOwner({

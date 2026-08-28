@@ -38,12 +38,19 @@ export function isPresentationSessionReleased(opts: {
   return false;
 }
 
-export function shouldLatchPresentationSession(opts: {
-  roundShow: RoundPresentationState;
-  session: LivePresentationSession | null;
-}): boolean {
-  if (opts.session != null) return false;
-  return opts.roundShow.mode === "cinematic";
+/** Monotonic tombstone: released rounds must never be inferred or latched again this mount. */
+export function nextReleasedPresentationRoundWatermark(
+  currentWatermark: number,
+  releasedRound: number
+): number {
+  return Math.max(currentWatermark, releasedRound);
+}
+
+export function isPresentationRoundBlockedByRelease(
+  roundNumber: number,
+  releasedPresentationRoundWatermark: number
+): boolean {
+  return roundNumber > 0 && roundNumber <= releasedPresentationRoundWatermark;
 }
 
 export function createPresentationSession(opts: {
@@ -64,6 +71,7 @@ export function inferHeldPresentationRoundFromLog(opts: {
   serverPhase: string;
   log: readonly PresentationLogRowLike[];
   roundShow: RoundPresentationState;
+  releasedPresentationRoundWatermark?: number;
 }): number | null {
   if (opts.roundShow.mode !== "cinematic") return null;
   if (opts.serverRoundNumber <= 1) return null;
@@ -71,6 +79,14 @@ export function inferHeldPresentationRoundFromLog(opts: {
     return null;
   }
   const previousRound = opts.serverRoundNumber - 1;
+  if (
+    isPresentationRoundBlockedByRelease(
+      previousRound,
+      opts.releasedPresentationRoundWatermark ?? 0
+    )
+  ) {
+    return null;
+  }
   const prevRow = findPresentationLogRow(opts.log, previousRound);
   if (!prevRow || filterRevealedActions(prevRow.actions).length === 0) return null;
   if (opts.serverPhase === "ACTION_INPUT" || opts.serverPhase === "BOT_ACTION") {
@@ -118,14 +134,39 @@ export function resolvePresentationRoundNumber(opts: {
   session: LivePresentationSession | null;
   roundShow: RoundPresentationState;
   inferredHeldRound?: number | null;
+  releasedPresentationRoundWatermark?: number;
 }): number {
+  const watermark = opts.releasedPresentationRoundWatermark ?? 0;
   if (opts.session != null && opts.roundShow.mode === "cinematic") {
+    if (isPresentationRoundBlockedByRelease(opts.session.roundNumber, watermark)) {
+      return opts.serverRoundNumber;
+    }
     return opts.session.roundNumber;
   }
-  if (opts.roundShow.mode === "cinematic" && opts.inferredHeldRound != null) {
+  if (
+    opts.roundShow.mode === "cinematic" &&
+    opts.inferredHeldRound != null &&
+    !isPresentationRoundBlockedByRelease(opts.inferredHeldRound, watermark)
+  ) {
     return opts.inferredHeldRound;
   }
   return opts.serverRoundNumber;
+}
+
+/** True when a cinematic queue session may latch for the given round. */
+export function shouldLatchPresentationRound(opts: {
+  latchRound: number;
+  releasedPresentationRoundWatermark: number;
+  roundShow: RoundPresentationState;
+  queueSessionKey: string;
+  latchedPresentationSessionKey: string | null;
+}): boolean {
+  if (opts.roundShow.mode !== "cinematic" || !opts.queueSessionKey) return false;
+  if (opts.latchedPresentationSessionKey === opts.queueSessionKey) return false;
+  if (isPresentationRoundBlockedByRelease(opts.latchRound, opts.releasedPresentationRoundWatermark)) {
+    return false;
+  }
+  return true;
 }
 
 export function filterRevealedActions(actions: readonly TrpgPublicAction[]): TrpgPublicAction[] {
@@ -162,6 +203,8 @@ export function deriveParticipantAdjudicationOutcomesFromLogRow(
   const rollIds = new Set(row.rolls.map((roll) => roll.participantId));
   for (const action of row.actions) {
     if (!action.revealed || !action.body.trim()) continue;
+    // Public log rows expose rolls only; skipped and no_roll both appear roll-less.
+    // Presentation treats both as non-dice paths — HELD_SKIPPED_COLLAPSE_SAFE.
     outcomes.set(action.participantId, rollIds.has(action.participantId) ? "roll" : "no_roll");
   }
   return outcomes;

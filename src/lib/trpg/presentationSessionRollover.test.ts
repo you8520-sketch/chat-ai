@@ -30,10 +30,12 @@ import {
   inferHeldPresentationRoundFromLog,
   isPresentationLiveRow,
   isPresentationSessionReleased,
+  nextReleasedPresentationRoundWatermark,
   presentationSessionMetadata,
   resolvePresentationLiveReady,
   resolvePresentationRoundNumber,
   resolvePresentationSourceRolls,
+  shouldLatchPresentationRound,
   shouldShowNextActionInput,
 } from "./presentationSession";
 import type { TrpgPublicAction, TrpgPublicLog, TrpgPublicRoll } from "./snapshot";
@@ -91,6 +93,57 @@ function visibility(opts: {
     actorCount: opts.actors.length,
     activeActor: opts.actors[opts.state.presentationIndex]?.actorId ?? null,
   };
+}
+
+function resolveIdentity(opts: {
+  serverRoundNumber: number;
+  serverPhase: string;
+  log: TrpgPublicLog[];
+  roundShow: RoundPresentationState;
+  session: ReturnType<typeof createPresentationSession> | null;
+  releasedPresentationRoundWatermark: number;
+  latchedPresentationSessionKey?: string | null;
+}) {
+  const inferred = inferHeldPresentationRoundFromLog({
+    serverRoundNumber: opts.serverRoundNumber,
+    serverPhase: opts.serverPhase,
+    log: opts.log,
+    roundShow: opts.roundShow,
+    releasedPresentationRoundWatermark: opts.releasedPresentationRoundWatermark,
+  });
+  const presentationRoundNumber = resolvePresentationRoundNumber({
+    serverRoundNumber: opts.serverRoundNumber,
+    session: opts.session,
+    roundShow: opts.roundShow,
+    inferredHeldRound: inferred,
+    releasedPresentationRoundWatermark: opts.releasedPresentationRoundWatermark,
+  });
+  const row48 = findPresentationLogRow(opts.log, ROUND_48);
+  const sourceActions =
+    presentationRoundNumber !== opts.serverRoundNumber
+      ? filterRevealedActions(row48?.actions ?? [])
+      : [];
+  const sourceRolls = resolvePresentationSourceRolls({
+    presentationRoundNumber,
+    serverRoundNumber: opts.serverRoundNumber,
+    presentationLogRow: findPresentationLogRow(opts.log, presentationRoundNumber),
+    serverCurrentRolls: [],
+    dicePreviewRolls: [],
+  });
+  const queueSessionKey = trpgRoundPresentationSessionKey({
+    roundNumber: presentationRoundNumber,
+    rolls: sourceRolls,
+    actions: sourceActions.length > 0 ? sourceActions : filterRevealedActions(row48?.actions ?? []),
+    ready: sourceActions.length > 0 || sourceRolls.length > 0,
+  });
+  const shouldLatch = shouldLatchPresentationRound({
+    latchRound: presentationRoundNumber,
+    releasedPresentationRoundWatermark: opts.releasedPresentationRoundWatermark,
+    roundShow: opts.roundShow,
+    queueSessionKey,
+    latchedPresentationSessionKey: opts.latchedPresentationSessionKey ?? null,
+  });
+  return { inferred, presentationRoundNumber, queueSessionKey, shouldLatch };
 }
 
 describe("presentation session server-round rollover", () => {
@@ -345,6 +398,7 @@ describe("presentation session server-round rollover", () => {
     assert.match(room, /presentationSession/);
     assert.match(room, /derivePresentationSceneTurnLiveProps/);
     assert.match(sessionModule, /export function resolvePresentationRoundNumber/);
+    assert.match(room, /releasedPresentationRoundRef/);
     assert.match(sessionModule, /export function derivePresentationSceneTurnLiveProps/);
     assert.doesNotMatch(room, /presentationRoundRef\.current !== snap\.round\.number/);
     const liveRowServerRound = room.match(/row\.roundNumber === snap\.round\.number && gateLiveRound/g) ?? [];
@@ -353,6 +407,236 @@ describe("presentation session server-round rollover", () => {
 });
 
 describe("presentation session release", () => {
+  it("RELEASED_ROUND_DOES_NOT_RELATCH across sequential renders", () => {
+    const log = [logRow48()];
+    const roundShowReleased: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "gm-narration",
+      presentationIndex: 2,
+    };
+    const session = createPresentationSession({
+      roundNumber: ROUND_48,
+      expectedPresentationActorIds: [...EXPECTED],
+      resolutionOrder: [...EXPECTED],
+    });
+    assert.equal(
+      isPresentationSessionReleased({ roundShow: roundShowReleased, gmRevealComplete: true }),
+      true
+    );
+
+    let watermark = nextReleasedPresentationRoundWatermark(0, session.roundNumber);
+    assert.equal(watermark, ROUND_48);
+
+    const renderB = resolveIdentity({
+      serverRoundNumber: ROUND_49,
+      serverPhase: "ACTION_INPUT",
+      log,
+      roundShow: roundShowReleased,
+      session: null,
+      releasedPresentationRoundWatermark: watermark,
+      latchedPresentationSessionKey: null,
+    });
+    assert.equal(renderB.inferred, null, "inferHeldRound=null after release");
+    assert.equal(renderB.presentationRoundNumber, ROUND_49);
+    assert.equal(renderB.shouldLatch, false, "SHOULD_LATCH_48=false");
+
+    const sequence: number[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      sequence.push(
+        resolveIdentity({
+          serverRoundNumber: ROUND_49,
+          serverPhase: "ACTION_INPUT",
+          log,
+          roundShow: roundShowReleased,
+          session: null,
+          releasedPresentationRoundWatermark: watermark,
+          latchedPresentationSessionKey: `${ROUND_48}|live-cinematic`,
+        }).presentationRoundNumber
+      );
+    }
+    assert.deepEqual(sequence, [49, 49, 49, 49, 49], "no 48→49→48 oscillation");
+    assert.equal(sequence.includes(ROUND_48), false);
+
+    const renderC = resolveIdentity({
+      serverRoundNumber: ROUND_49,
+      serverPhase: "ACTION_INPUT",
+      log,
+      roundShow: { mode: "idle", phase: "idle", presentationIndex: 0 },
+      session: null,
+      releasedPresentationRoundWatermark: watermark,
+    });
+    assert.equal(renderC.presentationRoundNumber, ROUND_49);
+    assert.equal(
+      shouldShowNextActionInput({
+        serverPhase: "ACTION_INPUT",
+        hasUnlockedDraft: true,
+        session: null,
+        roundShow: { mode: "idle", phase: "idle", presentationIndex: 0 },
+        gmRevealComplete: true,
+      }),
+      true,
+      "ROUND49_INPUT_STABLE_AFTER_RELEASE"
+    );
+  });
+
+  it("NEWER_ROUND_CAN_LATCH_AFTER_RELEASE watermark only blocks old rounds", () => {
+    const watermark = nextReleasedPresentationRoundWatermark(0, ROUND_48);
+    const roundShow: RoundPresentationState = {
+      mode: "cinematic",
+      phase: "actor-action",
+      presentationIndex: 0,
+    };
+    assert.equal(
+      shouldLatchPresentationRound({
+        latchRound: ROUND_48,
+        releasedPresentationRoundWatermark: watermark,
+        roundShow,
+        queueSessionKey: `${ROUND_48}|live-cinematic`,
+        latchedPresentationSessionKey: null,
+      }),
+      false
+    );
+    assert.equal(
+      shouldLatchPresentationRound({
+        latchRound: ROUND_49,
+        releasedPresentationRoundWatermark: watermark,
+        roundShow,
+        queueSessionKey: `${ROUND_49}|live-cinematic`,
+        latchedPresentationSessionKey: null,
+      }),
+      true,
+      "NEWER_ROUND_CAN_LATCH_AFTER_RELEASE"
+    );
+    assert.equal(
+      shouldLatchPresentationRound({
+        latchRound: 50,
+        releasedPresentationRoundWatermark: watermark,
+        roundShow,
+        queueSessionKey: "50|live-cinematic",
+        latchedPresentationSessionKey: null,
+      }),
+      true
+    );
+  });
+
+  it("PRODUCTION_FULL_LIFECYCLE presentation round sequence 48 then 49 once", () => {
+    const log = [logRow48()];
+    const watermarkStart = 0;
+    const sequence: number[] = [];
+    const session48 = createPresentationSession({
+      roundNumber: ROUND_48,
+      expectedPresentationActorIds: [...EXPECTED],
+      resolutionOrder: [...EXPECTED],
+    });
+
+    const stageA = resolveIdentity({
+      serverRoundNumber: ROUND_48,
+      serverPhase: "GENERATING_NARRATION",
+      log,
+      roundShow: { mode: "cinematic", phase: "actor-action", presentationIndex: 2 },
+      session: session48,
+      releasedPresentationRoundWatermark: watermarkStart,
+    });
+    sequence.push(stageA.presentationRoundNumber);
+
+    const stageB = resolveIdentity({
+      serverRoundNumber: ROUND_49,
+      serverPhase: "ACTION_INPUT",
+      log,
+      roundShow: { mode: "cinematic", phase: "actor-action", presentationIndex: 2 },
+      session: session48,
+      releasedPresentationRoundWatermark: watermarkStart,
+      latchedPresentationSessionKey: `${ROUND_48}|live-cinematic`,
+    });
+    sequence.push(stageB.presentationRoundNumber);
+
+    const row48 = logRow48();
+    const actions = filterRevealedActions(row48.actions);
+    const actors = buildRoundPresentationActors({
+      resolutionOrder: [...EXPECTED],
+      actions,
+      rolls: row48.rolls,
+    });
+    let state: RoundPresentationState = { mode: "cinematic", phase: "actor-action", presentationIndex: 2 };
+    const diceTransition = resolveLiveActorPresentationTransition({
+      mode: state.mode,
+      phase: state.phase,
+      presentationIndex: state.presentationIndex,
+      actors,
+      rolls: row48.rolls,
+      adjudicatedParticipantIds: new Set([H, B1, B2]),
+      declarationConsumedIds: new Set([H, B1, B2]),
+      participantAdjudicationOutcomes: new Map([
+        [H, "roll"],
+        [B1, "roll"],
+        [B2, "roll"],
+      ]),
+      awaitingMoreActors: false,
+      expectedPresentationActorIds: EXPECTED,
+      actionRevealComplete: true,
+    });
+    assert.equal(diceTransition.kind, "transition");
+    if (diceTransition.kind === "transition") {
+      state = { ...state, ...diceTransition.next };
+    }
+    assert.equal(state.phase, "actor-dice");
+    sequence.push(
+      resolveIdentity({
+        serverRoundNumber: ROUND_49,
+        serverPhase: "ACTION_INPUT",
+        log,
+        roundShow: state,
+        session: session48,
+        releasedPresentationRoundWatermark: watermarkStart,
+        latchedPresentationSessionKey: `${ROUND_48}|live-cinematic`,
+      }).presentationRoundNumber
+    );
+
+    state = { ...state, phase: "actor-result" };
+    sequence.push(
+      resolveIdentity({
+        serverRoundNumber: ROUND_49,
+        serverPhase: "ACTION_INPUT",
+        log,
+        roundShow: state,
+        session: session48,
+        releasedPresentationRoundWatermark: watermarkStart,
+        latchedPresentationSessionKey: `${ROUND_48}|live-cinematic`,
+      }).presentationRoundNumber
+    );
+
+    state = { mode: "cinematic", phase: "gm-narration", presentationIndex: 2 };
+    sequence.push(
+      resolveIdentity({
+        serverRoundNumber: ROUND_49,
+        serverPhase: "ACTION_INPUT",
+        log,
+        roundShow: state,
+        session: session48,
+        releasedPresentationRoundWatermark: watermarkStart,
+        latchedPresentationSessionKey: `${ROUND_48}|live-cinematic`,
+      }).presentationRoundNumber
+    );
+
+    const watermark = nextReleasedPresentationRoundWatermark(0, ROUND_48);
+    const afterRelease = resolveIdentity({
+      serverRoundNumber: ROUND_49,
+      serverPhase: "ACTION_INPUT",
+      log,
+      roundShow: { mode: "idle", phase: "idle", presentationIndex: 0 },
+      session: null,
+      releasedPresentationRoundWatermark: watermark,
+    });
+    sequence.push(afterRelease.presentationRoundNumber);
+
+    assert.deepEqual(sequence, [48, 48, 48, 48, 48, 49], "PRESENTATION_ROUND_SEQUENCE");
+    assert.equal(sequence.filter((round) => round === ROUND_48).length, 5);
+    assert.equal(sequence.at(-1), ROUND_49);
+    assert.equal(sequence.includes(ROUND_48) && sequence.at(-1) === ROUND_49, true);
+    assert.equal(afterRelease.inferred, null);
+    assert.equal(afterRelease.shouldLatch, false);
+  });
+
   it("ROUND49_INPUT_VISIBLE_AFTER_ROUND48_PRESENTATION_COMPLETE", () => {
     const session = createPresentationSession({
       roundNumber: ROUND_48,
