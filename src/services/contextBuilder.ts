@@ -53,6 +53,7 @@ import {
 } from "@/lib/interactiveUserOwnershipLock";
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
+import { buildCreatorNarrationStyleBlock } from "@/lib/creatorNarrationStyle";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 import { resolveDeepSeekLengthAdapterSection } from "@/lib/sharedNovelProseModelAdapters";
@@ -965,6 +966,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       input.nsfw ? "[1.4] Advanced prose & NSFW guidelines" : "[1.4] Advanced prose guidelines",
       "systemRules",
       buildAdvancedProseNsfwGuidelines(proseGuidelinesOpts),
+      proseStyleTarget
+    );
+  }
+
+  const creatorNarrationStyleBlock = buildCreatorNarrationStyleBlock(
+    input.creatorNarrationStyle ?? ""
+  );
+  if (creatorNarrationStyleBlock) {
+    pushSection(
+      "creator-narration-style",
+      "[1.45] Creator narration & style refinement",
+      "systemRules",
+      creatorNarrationStyleBlock,
       proseStyleTarget
     );
   }
