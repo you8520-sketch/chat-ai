@@ -5,7 +5,7 @@ import { getPublishedPricing } from "./publishedModelPricing";
 describe("publishedModelPricing", () => {
   it("billingReference is independent of provider list", () => {
     const p = getPublishedPricing("claude-opus-5");
-    assert.equal(p.billingReferenceInputRateKrw > 0, true);
+    assert.equal(p.billingReferenceInputUsdPerMillion > 0, true);
     assert.equal(typeof p.targetMargin, "number");
     assert.equal(p.pricingVersion, 1);
   });

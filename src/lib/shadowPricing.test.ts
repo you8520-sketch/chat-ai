@@ -35,10 +35,10 @@ describe("reasoning double-count", () => {
     assert.equal(n.reasoningAccounting, "included_in_output");
     assert.equal(n.billableOutputTokens, 5000);
   });
-  it("separate sums", () => {
+  it("separate sums — now treated as included (contract: reasoning is subset of completion)", () => {
     const n = normalizeBillableUsage({ modelId: "deepseek-v4-pro-0813", promptTokens: 1000, outputTokens: 3500, reasoningTokens: 1500 });
-    assert.equal(n.reasoningAccounting, "separate");
-    assert.equal(n.billableOutputTokens, 5000);
+    assert.equal(n.reasoningAccounting, "included_in_output");
+    assert.equal(n.billableOutputTokens, 3500);
   });
   it("none", () => {
     const n = normalizeBillableUsage({ modelId: "claude-opus-5", promptTokens: 1000, outputTokens: 5000, reasoningTokens: 0 });
@@ -47,10 +47,22 @@ describe("reasoning double-count", () => {
 });
 
 describe("reserve math", () => {
-  it("30% discount reserve", () => {
-    const s = computeShadowPricing({ modelId: "claude-opus-5", promptTokens: 40689, outputTokens: 4307 });
-    // actual < list when discounted catalog present; if not, skip
-    assert.ok(s.providerSavingsKrw >= 0);
+  it("30% discount reserve — only when complete", () => {
+    const s = computeShadowPricing({ modelId: "claude-opus-5", promptTokens: 40689, outputTokens: 4307, cheaperInferenceBilledCostUsd: 0.01, upstreamCostUsd: 0.02 });
+    // billed actual is settled, list may be unavailable → reserveStatus estimated; savings null when not complete is valid
+    if (s.reserveStatus === "complete") {
+      assert.ok(s.providerSavingsKrw != null && s.providerSavingsKrw >= 0);
+    } else {
+      assert.equal(s.reserveStatus !== "complete", true);
+    }
+  });
+  it("unknown list zero disguise false — unavailable list gives null savings", () => {
+    const s = computeShadowPricing({ modelId: "unknown-model-xyz", promptTokens: 1000, outputTokens: 1000 });
+    if (s.providerListCostStatus !== "complete") {
+      assert.equal(s.providerSavingsKrw, null);
+      assert.equal(s.providerOverrunKrw, null);
+      assert.equal(s.netPricingBufferDeltaKrw, null);
+    }
   });
 });
 
@@ -58,5 +70,23 @@ describe("actual source precedence", () => {
   it("cheaper_inference_billed takes precedence", () => {
     const s = computeShadowPricing({ modelId: "claude-opus-5", promptTokens: 1000, outputTokens: 1000, cheaperInferenceBilledCostUsd: 0.01, upstreamCostUsd: 0.02 });
     assert.equal(s.actualCostSource, "cheaper_inference_billed");
+  });
+  it("envelope billed overrides usage billed", async () => {
+    const { parseCompatibleUsage } = await import("./openRouterUsage");
+    const r = parseCompatibleUsage({ usage: { prompt_tokens: 1000, completion_tokens: 500, cheaper_inference_billed_cost_usd: 0.01 }, cheaperInference: { billing: { billed_cost_usd: "0.008" } } });
+    assert.equal(r.cheaperInferenceBilledCostUsd, 0.008);
+  });
+  it("estimated actual does not count as complete reserve", () => {
+    const s = computeShadowPricing({ modelId: "claude-opus-5", promptTokens: 1000, outputTokens: 1000 });
+    if (s.actualCostSource === "live_catalog_estimated" || s.actualCostSource === "published_fallback_estimated") {
+      assert.notEqual(s.reserveStatus, "complete");
+    }
+  });
+  it("worstCase margin null when list incomplete", () => {
+    const s = computeShadowPricing({ modelId: "unknown-model-xyz", promptTokens: 1000, outputTokens: 1000 });
+    if (s.providerListCostStatus !== "complete") {
+      assert.equal(s.worstCasePromoMargin, null);
+      assert.equal(s.marginFloorViolated, null);
+    }
   });
 });

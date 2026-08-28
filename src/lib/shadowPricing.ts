@@ -73,7 +73,7 @@ export type ShadowChargeBreakdown = ShadowCostBreakdown & {
   netPricingBufferDeltaKrw: number | null;
   actualGrossProfitKrw: number;
   worstCasePromoMargin: number | null;
-  marginFloorViolated: boolean;
+  marginFloorViolated: boolean | null;
 };
 
 function round1(n: number): number {
@@ -207,8 +207,9 @@ export function computeShadowCosts(opts: {
   const providerListResult = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
   const providerListCostKrw = providerListResult.costKrw;
   const providerListCostStatus = providerListResult.status;
+  const isSettledActual = actualCostSource === "cheaper_inference_billed" || actualCostSource === "provider_reported";
   const reserveStatus: ShadowCostBreakdown["reserveStatus"] =
-    providerListCostStatus === "complete" && actualCostSource !== "unavailable" ? "complete" : providerListCostStatus === "reference_rates_unavailable" ? "unavailable" : "estimated";
+    providerListCostStatus === "complete" && isSettledActual ? "complete" : providerListCostStatus === "reference_rates_unavailable" ? "unavailable" : "estimated";
 
   // Published USD → KRW via daily FX (not baked)
   const billingReferenceCostUsd =
@@ -269,8 +270,8 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
   const netPricingBufferDeltaKrw = isReserveComplete && providerSavingsKrw != null && providerOverrunKrw != null ? round1(providerSavingsKrw - providerOverrunKrw - promoGivebackForReserveKrw) : null;
   const actualGrossProfitKrw = round1(finalShadowChargeKrw - cost.actualProviderCostKrw);
   const actualRealizedMargin = finalShadowChargeKrw > 0 ? round1(actualGrossProfitKrw / finalShadowChargeKrw) : null;
-  const worstCasePromoMargin = finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;
-  const marginFloorViolated = worstCasePromoMargin != null ? worstCasePromoMargin < cost.minimumMarginFloor : false;
+  const worstCasePromoMargin = cost.providerListCostStatus === "complete" && finalShadowChargeKrw > 0 ? round1((finalShadowChargeKrw - cost.providerListCostKrw) / finalShadowChargeKrw) : null;
+  const marginFloorViolated: boolean | null = worstCasePromoMargin == null ? null : worstCasePromoMargin < cost.minimumMarginFloor;
   return {
     ...cost,
     standardUserChargeKrw,

@@ -93,7 +93,7 @@ export function parseCompatibleUsage(opts: {
         )
       : undefined;
   const base = parseOpenRouterUsage(opts.usage, opts.headers);
-  if (envelopeBilled != null && base.cheaperInferenceBilledCostUsd == null) {
+  if (envelopeBilled != null) {
     return { ...base, cheaperInferenceBilledCostUsd: envelopeBilled };
   }
   return base;
