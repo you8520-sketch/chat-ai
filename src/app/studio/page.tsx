@@ -9,7 +9,7 @@ import {
   rowToLorebookListItem,
   type KeywordLorebookRow,
 } from "@/lib/keywordLorebooks";
-import { rowToWorldListItem, WORLD_SELECT_COLUMNS, type WorldRow } from "@/lib/worlds";
+import { loadUserWorldLibrary } from "@/lib/worldLibrary";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +35,7 @@ export default async function StudioPage() {
   const simulations = db
     .prepare(`SELECT * FROM characters WHERE creator_id = ? AND content_kind = 'simulation' ORDER BY created_at DESC, id DESC`)
     .all(user.id) as MyCharacterRow[];
-  const worlds = (
-    db
-      .prepare(
-        `SELECT ${WORLD_SELECT_COLUMNS}
-         FROM worlds WHERE creator_id = ? ORDER BY updated_at DESC, id DESC`
-      )
-      .all(user.id) as WorldRow[]
-  ).map(rowToWorldListItem);
+  const worlds = loadUserWorldLibrary(user.id);
   const lorebooks = (
     db
       .prepare(

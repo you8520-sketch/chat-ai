@@ -1,4 +1,5 @@
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import type { WorldLibraryKind } from "@/lib/worldPermissions";
 import { isVercelPublicBlobUrl } from "@/lib/uploadUrls";
 
 export const WORLD_NAME_LIMIT = 40;
@@ -40,7 +41,24 @@ export type WorldListItem = {
   trpgVisibility: "public" | "private";
   genres: CharacterGenre[];
   coverUrl: string;
+  /** owned = 직접 제작, borrowed = world_borrows 참조, legacy_borrowed = 예전 import 복사본 */
+  libraryKind?: WorldLibraryKind;
+  /** UI/서버 공통 읽기 전용 플래그 */
+  readOnly?: boolean;
+  borrowId?: number;
+  shareId?: number;
+  shareSlug?: string;
+  /** revoked/source_deleted 시 false — 기존 캐릭터 스냅샷에는 영향 없음 */
+  shareAvailable?: boolean;
 };
+
+/** Live borrow references with revoked/deleted shares cannot be used for new character/simulation creation. */
+export function isBorrowAvailableForNewUse(
+  item: Pick<WorldListItem, "libraryKind" | "shareAvailable">
+): boolean {
+  if (item.libraryKind !== "borrowed") return true;
+  return item.shareAvailable !== false;
+}
 
 export type WorldStudioKind = "world" | "scenario";
 
@@ -88,4 +106,40 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     genres: parseGenresJson(row.genres),
     coverUrl: sanitizeWorldCoverUrl(row.cover_url),
   };
+}
+
+export function worldLibraryRef(world: WorldListItem): string {
+  if (world.libraryKind === "borrowed" && world.borrowId) return `borrow:${world.borrowId}`;
+  return `world:${world.id}`;
+}
+
+export function savedShareWorldLibraryRef(shareId: number): string {
+  return `saved-share:${shareId}`;
+}
+
+export function parseWorldLibraryRef(ref: string): {
+  worldId?: number;
+  borrowId?: number;
+  savedShareId?: number;
+} {
+  if (ref.startsWith("saved-share:")) {
+    const savedShareId = Number(ref.slice("saved-share:".length));
+    return Number.isInteger(savedShareId) && savedShareId > 0 ? { savedShareId } : {};
+  }
+  if (ref.startsWith("borrow:")) {
+    const borrowId = Number(ref.slice("borrow:".length));
+    return Number.isInteger(borrowId) && borrowId > 0 ? { borrowId } : {};
+  }
+  if (ref.startsWith("world:")) {
+    const worldId = Number(ref.slice("world:".length));
+    return Number.isInteger(worldId) && worldId > 0 ? { worldId } : {};
+  }
+  return {};
+}
+
+export function isReadOnlyWorldLibraryRef(ref: string): boolean {
+  if (ref.startsWith("saved-share:")) return true;
+  const parsed = parseWorldLibraryRef(ref);
+  if (parsed.borrowId) return true;
+  return false;
 }

@@ -223,8 +223,8 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
     <section>
       <h2 className="sr-only">내 제작 세계관</h2>
       <p className={studioType.helper}>
-        저장한 세계관입니다. 카드를 누르거나 「수정하기」로 고칠 수 있습니다. 장르는 만들기·수정 화면에서만 고르고, TRPG 탭
-        카드에만 표시됩니다. TRPG 시나리오는 세계관 제작 화면에서 만듭니다.
+        직접 만든 세계관과 라이브러리에 추가한 빌린 세계관입니다. 빌린 세계관은 읽기 전용이며 캐릭터·시뮬레이션
+        제작에만 사용할 수 있습니다. TRPG 시나리오는 직접 소유한 세계관에서만 만듭니다.
       </p>
       {worlds.length === 0 ? (
         <StudioEmptyState
@@ -236,7 +236,10 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
       ) : (
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {worlds.map((world) => (
-            <WorldCard key={world.id} world={world} />
+            <WorldCard
+              key={world.borrowId ? `borrow-${world.borrowId}` : `world-${world.id}`}
+              world={world}
+            />
           ))}
         </div>
       )}
@@ -245,12 +248,21 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
 }
 
 function WorldCard({ world }: { world: WorldListItem }) {
+  const router = useRouter();
   const [shareBusy, setShareBusy] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState("");
+
+  const isBorrowed = world.libraryKind === "borrowed";
+  const isLegacyBorrowed = world.libraryKind === "legacy_borrowed";
+  const readOnly = world.readOnly === true || isBorrowed || isLegacyBorrowed;
+  const borrowUnavailable = isBorrowed && world.shareAvailable === false;
 
   async function shareWorld() {
+    if (readOnly || world.id <= 0) return;
     setShareBusy(true);
     setShareError("");
     try {
@@ -276,6 +288,26 @@ function WorldCard({ world }: { world: WorldListItem }) {
     }
   }
 
+  async function removeFromLibrary() {
+    setRemoveBusy(true);
+    setRemoveError("");
+    try {
+      const res = isBorrowed
+        ? await fetch(`/api/world-borrows/${world.borrowId}`, { method: "DELETE" })
+        : await fetch(`/api/worlds/${world.id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setRemoveError(data.error || "제거에 실패했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setRemoveError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setRemoveBusy(false);
+    }
+  }
+
   async function copyShareLink() {
     if (!shareUrl) return;
     try {
@@ -287,51 +319,123 @@ function WorldCard({ world }: { world: WorldListItem }) {
     }
   }
 
-  return (
-    <article className={cn(studioSurface.card, "overflow-hidden")}>
-      <Link
-        href={`/world/${world.id}/edit`}
-        className="flex items-start gap-3 p-4 transition hover:bg-white/[0.03]"
-      >
-        <div className="aspect-square w-14 shrink-0 overflow-hidden rounded-lg bg-black">
-          {world.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={world.coverUrl} alt="" className="h-full w-full object-cover" />
-          ) : null}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
-            {world.sharedFromNickname ? (
+  const createHref =
+    isBorrowed && world.borrowId
+      ? `/create?worldBorrowId=${world.borrowId}`
+      : `/create?worldId=${world.id}`;
+  const simulationHref =
+    isBorrowed && world.borrowId
+      ? `/create?kind=simulation&worldBorrowId=${world.borrowId}`
+      : `/create?kind=simulation&worldId=${world.id}`;
+
+  const headerInner = (
+    <>
+      <div className="aspect-square w-14 shrink-0 overflow-hidden rounded-lg bg-black">
+        {world.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={world.coverUrl} alt="" className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
+          {isBorrowed ? (
+            <>
+              <span className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+                빌린 세계관
+              </span>
+              {borrowUnavailable ? (
+                <span className="shrink-0 rounded-md border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-rose-200">
+                  공유 종료 · 신규 제작 불가
+                </span>
+              ) : (
+                <span className="shrink-0 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
+                  읽기 전용
+                </span>
+              )}
+            </>
+          ) : isLegacyBorrowed ? (
+            <>
               <span className="shrink-0 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
                 공유받은 세계관
               </span>
-            ) : null}
-          </div>
-          {world.sharedFromNickname ? (
-            <p className={cn(studioType.caption, "mt-0.5")}>@{world.sharedFromNickname}님 공유</p>
+              <span className="shrink-0 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
+                읽기 전용
+              </span>
+            </>
           ) : null}
-          <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
-            {world.summary || world.content}
-          </p>
         </div>
-      </Link>
-      <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
-        <StudioButton href={`/world/${world.id}/edit`} size="sm" className="w-full sm:w-auto">
-          수정하기
-        </StudioButton>
-        <StudioButton
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full sm:w-auto"
-          disabled={shareBusy}
-          onClick={() => void shareWorld()}
+        {world.sharedFromNickname ? (
+          <p className={cn(studioType.caption, "mt-0.5")}>by @{world.sharedFromNickname}</p>
+        ) : null}
+        <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
+          {world.summary || world.content}
+        </p>
+      </div>
+    </>
+  );
+
+  return (
+    <article className={cn(studioSurface.card, "overflow-hidden")}>
+      {readOnly ? (
+        <div className="flex items-start gap-3 p-4">{headerInner}</div>
+      ) : (
+        <Link
+          href={`/world/${world.id}/edit`}
+          className="flex items-start gap-3 p-4 transition hover:bg-white/[0.03]"
         >
-          {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
-        </StudioButton>
+          {headerInner}
+        </Link>
+      )}
+      <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
+        {readOnly ? (
+          <>
+            {borrowUnavailable ? (
+              <p className="w-full text-[11px] leading-relaxed text-rose-200/90">
+                원본 공유가 종료되어 캐릭터·시뮬레이션 신규 제작에 사용할 수 없습니다. 라이브러리에서 제거할 수
+                있습니다.
+              </p>
+            ) : (
+              <>
+                <StudioButton href={createHref} size="sm" className="w-full sm:w-auto">
+                  캐릭터 제작에 사용
+                </StudioButton>
+                <StudioButton href={simulationHref} variant="secondary" size="sm" className="w-full sm:w-auto">
+                  시뮬레이션 제작에 사용
+                </StudioButton>
+              </>
+            )}
+            <StudioButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              disabled={removeBusy}
+              onClick={() => void removeFromLibrary()}
+            >
+              {removeBusy ? "제거 중…" : "라이브러리에서 제거"}
+            </StudioButton>
+          </>
+        ) : (
+          <>
+            <StudioButton href={`/world/${world.id}/edit`} size="sm" className="w-full sm:w-auto">
+              수정하기
+            </StudioButton>
+            <StudioButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              disabled={shareBusy}
+              onClick={() => void shareWorld()}
+            >
+              {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
+            </StudioButton>
+          </>
+        )}
       </div>
       {shareError ? <p className="px-4 pb-3 text-xs text-rose-400">{shareError}</p> : null}
+      {removeError ? <p className="px-4 pb-3 text-xs text-rose-400">{removeError}</p> : null}
       {shareUrl ? (
         <div className="mx-4 mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
           <p className="text-[11px] font-semibold text-zinc-400">공유 링크</p>

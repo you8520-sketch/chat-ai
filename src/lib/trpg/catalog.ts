@@ -5,11 +5,18 @@ import { sanitizeWorldCoverUrl } from "@/lib/worlds";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
+import { canUseWorldForTrpg } from "./worldAccess";
 import {
   EMPTY_TRPG_CATALOG_PLAY_SCORES,
   type TrpgCatalogPlayScore,
   type TrpgCatalogPlayScores,
 } from "./catalogPlayScores";
+
+export {
+  canUseWorldForTrpg,
+  loadWorldForTrpg,
+  type TrpgWorldAccessRow,
+} from "./worldAccess";
 
 export type { TrpgCatalogPlayScore, TrpgCatalogPlayScores } from "./catalogPlayScores";
 export { EMPTY_TRPG_CATALOG_PLAY_SCORES } from "./catalogPlayScores";
@@ -142,38 +149,6 @@ function mapWorld(row: {
   };
 }
 
-export type TrpgWorldAccessRow = {
-  id: number;
-  creator_id: number;
-  name: string;
-  summary: string;
-  content: string;
-  trpg_enabled: number;
-  trpg_visibility: string;
-};
-
-export function canUseWorldForTrpg(
-  world: { creator_id: number; trpg_enabled?: number | null; trpg_visibility?: string | null },
-  viewerUserId: number
-): boolean {
-  if (world.creator_id === viewerUserId) return true;
-  return world.trpg_enabled === 1 && parseTrpgVisibility(world.trpg_visibility) === "public";
-}
-
-export function loadWorldForTrpg(db: Database.Database, id: number): TrpgWorldAccessRow | null {
-  if (!tableExists(db, "worlds")) return null;
-  return (
-    (db
-      .prepare(
-        `SELECT id, creator_id, name, summary, content,
-                COALESCE(trpg_enabled, 0) AS trpg_enabled,
-                COALESCE(trpg_visibility, 'private') AS trpg_visibility
-         FROM worlds WHERE id=?`
-      )
-      .get(id) as TrpgWorldAccessRow | undefined) ?? null
-  );
-}
-
 export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCatalog {
   const empty: TrpgCatalog = {
     publicWorlds: [],
@@ -189,11 +164,12 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     ? `COALESCE((SELECT nickname FROM users WHERE id = w.creator_id), '')`
     : `''`;
 
-  const publicWorlds = db
+  const publicWorldCandidates = db
     .prepare(
       `SELECT w.id, w.creator_id, w.name, w.summary, w.content,
               COALESCE(w.trpg_enabled, 0) AS trpg_enabled,
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
+              COALESCE(w.shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(w.genres, '[]') AS genres,
               COALESCE(w.cover_url, '') AS cover_url,
               COALESCE(w.updated_at, '') AS updated_at,
@@ -212,12 +188,15 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     content: string | null;
     trpg_enabled: number;
     trpg_visibility: string;
+    shared_from_nickname: string;
     creator_name: string | null;
     mine: number;
     genres: string | null;
     cover_url: string | null;
     updated_at: string | null;
   }>;
+
+  const publicWorlds = publicWorldCandidates.filter((row) => canUseWorldForTrpg(row, userId));
 
   const myWorlds = db
     .prepare(
@@ -231,6 +210,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
               1 AS mine
        FROM worlds w
        WHERE w.creator_id=?
+         AND COALESCE(w.shared_from_nickname, '') = ''
        ORDER BY w.updated_at DESC, w.id DESC
        LIMIT 80`
     )

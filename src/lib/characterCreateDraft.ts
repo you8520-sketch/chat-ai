@@ -47,7 +47,9 @@ export type CharacterCreateDraft = {
     promptChars: number;
   }>;
   assets: CharacterAsset[];
-  selectedWorldId: number | "";
+  selectedWorldRef: string;
+  /** @deprecated legacy draft field */
+  selectedWorldId?: number | "";
   selectedLorebookId: number | "";
   /** @deprecated legacy draft field — ignored */
   statusWindowSystemEnabled?: boolean;

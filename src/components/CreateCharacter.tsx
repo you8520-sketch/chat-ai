@@ -39,7 +39,15 @@ import {
   type StatusWidget,
 } from "@/lib/statusWidget";
 
+import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
+import { isBorrowAvailableForNewUse } from "@/lib/worlds";
 import type { WorldListItem } from "@/lib/worlds";
+import {
+  isReadOnlyWorldLibraryRef,
+  parseWorldLibraryRef,
+  savedShareWorldLibraryRef,
+  worldLibraryRef,
+} from "@/lib/worlds";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import GenrePicker from "@/components/GenrePicker";
 import ToggleSwitch from "@/components/ToggleSwitch";
@@ -125,6 +133,8 @@ export default function CreateCharacter({
   creatorIsPartner = false,
   userId,
   initialContentKind = "character",
+  initialWorldId = null,
+  initialWorldBorrowId = null,
 }: {
   editCharacterId?: number | null;
   viewerDisplayName?: string;
@@ -132,6 +142,8 @@ export default function CreateCharacter({
   creatorIsPartner?: boolean;
   userId: number;
   initialContentKind?: ContentKind;
+  initialWorldId?: number | null;
+  initialWorldBorrowId?: number | null;
 }) {
   const router = useRouter();
   const isEditMode = editCharacterId != null && editCharacterId > 0;
@@ -177,7 +189,10 @@ export default function CreateCharacter({
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [savedWorlds, setSavedWorlds] = useState<WorldListItem[]>([]);
-  const [selectedWorldId, setSelectedWorldId] = useState<number | "">("");
+  const [selectedWorldRef, setSelectedWorldRef] = useState<string>("");
+  const [worldSourceKind, setWorldSourceKind] = useState<CharacterWorldSourceKind | null>(null);
+  const [worldDetach, setWorldDetach] = useState(false);
+  const [initialBorrowUnavailable, setInitialBorrowUnavailable] = useState(false);
   const [worldsLoading, setWorldsLoading] = useState(true);
   const [savedLorebooks, setSavedLorebooks] = useState<
     KeywordLorebookListItem[]
@@ -200,6 +215,17 @@ export default function CreateCharacter({
 
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
   const editPromptBaselineRef = useRef<string | null>(null);
+
+  const selectedWorldItem = useMemo(
+    () => savedWorlds.find((w) => worldLibraryRef(w) === selectedWorldRef),
+    [savedWorlds, selectedWorldRef]
+  );
+  const isWorldFieldReadOnly =
+    selectedWorldRef.startsWith("saved-share:") ||
+    selectedWorldItem?.readOnly === true ||
+    worldSourceKind === "borrowed_snapshot" ||
+    worldSourceKind === "legacy_borrowed_snapshot" ||
+    isReadOnlyWorldLibraryRef(selectedWorldRef);
 
   const configuredVisualSubjectNames = useMemo(
     () => configuredSimulationCastNames(form.simulation_cast, form.name),
@@ -232,7 +258,8 @@ export default function CreateCharacter({
       speech_forbidden: input.speech_forbidden,
       speech_contextual_registers: input.speech_contextual_registers,
       gender: input.gender,
-      world_id: selectedWorldId === "" ? "" : Number(selectedWorldId),
+      world_id: selectedWorldRef.startsWith("world:") ? selectedWorldRef.slice(6) : "",
+      world_borrow_id: selectedWorldRef.startsWith("borrow:") ? selectedWorldRef.slice(7) : "",
       lorebook_id: selectedLorebookId === "" ? "" : Number(selectedLorebookId),
       recommended_writing_style: input.recommended_writing_style,
     });
@@ -243,7 +270,7 @@ export default function CreateCharacter({
       savedAt: Date.now(),
       form,
       assets,
-      selectedWorldId,
+      selectedWorldRef,
       selectedLorebookId,
       pageTab,
       simulationImports,
@@ -273,7 +300,12 @@ export default function CreateCharacter({
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(normalizeCharacterAssets(draft.assets));
-    setSelectedWorldId(draft.selectedWorldId);
+    setSelectedWorldRef(
+      draft.selectedWorldRef ||
+        (draft.selectedWorldId !== "" && draft.selectedWorldId != null
+          ? `world:${draft.selectedWorldId}`
+          : "")
+    );
     setSelectedLorebookId(draft.selectedLorebookId);
     setPageTab(
       draft.pageTab === "preview"
@@ -584,7 +616,15 @@ export default function CreateCharacter({
                   : ""
               )
         );
-        setSelectedWorldId(data.world_id ?? "");
+        setSelectedWorldRef(
+          data.source_world_share_id
+            ? savedShareWorldLibraryRef(Number(data.source_world_share_id))
+            : data.world_id
+              ? `world:${data.world_id}`
+              : ""
+        );
+        setWorldSourceKind((data.world_source_kind as CharacterWorldSourceKind | undefined) ?? null);
+        setWorldDetach(false);
         setSelectedLorebookId(data.lorebook_id ?? "");
         editPromptBaselineRef.current = JSON.stringify({
           name: String(data.name ?? "").trim(),
@@ -691,12 +731,56 @@ export default function CreateCharacter({
     };
   }, []);
 
-  function applySavedWorld(worldId: number | "") {
-    setSelectedWorldId(worldId);
-    if (worldId === "") return;
-    const picked = savedWorlds.find((w) => w.id === worldId);
+  useEffect(() => {
+    if (worldsLoading || savedWorlds.length === 0) return;
+    if (selectedWorldRef) return;
+    if (initialWorldBorrowId != null && initialWorldBorrowId > 0) {
+      const picked = savedWorlds.find((w) => w.borrowId === initialWorldBorrowId);
+      if (picked && isBorrowAvailableForNewUse(picked)) {
+        const ref = worldLibraryRef(picked);
+        setSelectedWorldRef(ref);
+        setWorldSourceKind("borrowed_snapshot");
+        setForm((f) => ({ ...f, world: picked.content }));
+        setInitialBorrowUnavailable(false);
+      } else if (picked) {
+        setInitialBorrowUnavailable(true);
+      }
+      return;
+    }
+    setInitialBorrowUnavailable(false);
+    if (initialWorldId != null && initialWorldId > 0) {
+      const picked = savedWorlds.find((w) => w.id === initialWorldId && w.libraryKind !== "borrowed");
+      if (picked) {
+        const ref = worldLibraryRef(picked);
+        setSelectedWorldRef(ref);
+        setForm((f) => ({ ...f, world: picked.content }));
+      }
+    }
+  }, [worldsLoading, savedWorlds, selectedWorldRef, initialWorldBorrowId, initialWorldId]);
+
+  function applySavedWorld(ref: string) {
+    if (ref === "") {
+      setSelectedWorldRef("");
+      setWorldSourceKind(null);
+      setWorldDetach(true);
+      setForm((f) => ({ ...f, world: "" }));
+      return;
+    }
+    const picked = savedWorlds.find((w) => worldLibraryRef(w) === ref);
+    if (picked && !isBorrowAvailableForNewUse(picked)) return;
+    setWorldDetach(false);
+    setSelectedWorldRef(ref);
     if (picked) {
+      setWorldSourceKind(
+        picked.libraryKind === "borrowed"
+          ? "borrowed_snapshot"
+          : picked.libraryKind === "legacy_borrowed"
+            ? "legacy_borrowed_snapshot"
+            : "owned"
+      );
       setForm((f) => ({ ...f, world: picked.content }));
+    } else if (ref.startsWith("saved-share:")) {
+      setWorldSourceKind("borrowed_snapshot");
     }
   }
 
@@ -866,6 +950,7 @@ export default function CreateCharacter({
 
     const finalAssets = normalizeCharacterAssets(assets);
     const description = form.description.trim();
+    const worldSelection = parseWorldLibraryRef(selectedWorldRef);
     const payload = {
       ...form,
       participant_min_age: ageParsed.value,
@@ -880,7 +965,10 @@ export default function CreateCharacter({
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
       simulation_visual_subjects: form.content_kind === "simulation" ? visualSubjects : undefined,
-      world_id: selectedWorldId === "" ? undefined : selectedWorldId,
+      world_library_ref: selectedWorldRef,
+      world_detach: worldDetach && selectedWorldRef === "",
+      world_id: worldSelection.worldId,
+      world_borrow_id: worldSelection.borrowId,
       lorebook_id:
         selectedLorebookId === "" ? undefined : selectedLorebookId,
     };
@@ -1137,21 +1225,37 @@ export default function CreateCharacter({
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <select
                     className={selectCls}
-                    value={selectedWorldId}
+                    value={selectedWorldRef}
                     disabled={worldsLoading}
                     onChange={(e) => {
-                      const v = e.target.value;
-                      applySavedWorld(v === "" ? "" : Number(v));
+                      applySavedWorld(e.target.value);
                     }}
                   >
                     <option value="">직접 입력</option>
-                    {savedWorlds.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name}
-                        {w.summary ? ` — ${w.summary}` : ""}
-                      </option>
-                    ))}
+                    {savedWorlds.map((w) => {
+                      const unavailable = !isBorrowAvailableForNewUse(w);
+                      return (
+                        <option
+                          key={worldLibraryRef(w)}
+                          value={worldLibraryRef(w)}
+                          disabled={unavailable}
+                        >
+                          {w.name}
+                          {unavailable
+                            ? " (공유 종료 · 사용 불가)"
+                            : w.libraryKind === "borrowed" || w.libraryKind === "legacy_borrowed"
+                              ? " (빌림·읽기 전용)"
+                              : ""}
+                          {w.summary ? ` — ${w.summary}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
+                  {initialBorrowUnavailable && (
+                    <span className="text-[11px] text-rose-400">
+                      선택한 빌린 세계관은 공유가 종료되어 자동 적용할 수 없습니다.
+                    </span>
+                  )}
                   {!worldsLoading && savedWorlds.length === 0 && (
                     <Link
                       href="/world/create"
@@ -1160,9 +1264,13 @@ export default function CreateCharacter({
                       세계관 먼저 만들기
                     </Link>
                   )}
-                  {selectedWorldId !== "" && (
+                  {selectedWorldRef !== "" && (
                     <span className="text-[11px] text-cyan-400/80">
-                      저장된 세계관 불러옴 · 아래에서 수정 가능
+                      {isWorldFieldReadOnly
+                        ? worldSourceKind === "borrowed_snapshot"
+                          ? "공유 세계관 스냅샷 · 읽기 전용"
+                          : "빌린 세계관 적용 중 · 읽기 전용"
+                        : "저장된 세계관 불러옴 · 아래에서 수정 가능"}
                     </span>
                   )}
                 </div>
@@ -1171,8 +1279,12 @@ export default function CreateCharacter({
                   className={cls}
                   placeholder="이야기의 배경, 시대, 장소, 세력, 규칙 등"
                   value={form.world}
+                  readOnly={isWorldFieldReadOnly}
                   onChange={(e) => {
-                    setSelectedWorldId("");
+                    if (isWorldFieldReadOnly) return;
+                    setWorldDetach(true);
+                    setSelectedWorldRef("");
+                    setWorldSourceKind(null);
                     setForm({ ...form, world: e.target.value });
                   }}
                 />

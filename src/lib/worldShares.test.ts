@@ -3,22 +3,22 @@ import { describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
 import {
+  borrowWorldShareToUser,
   createWorldShare,
   getWorldShareBySlug,
-  importWorldShareToUser,
   worldShareApplyPath,
 } from "@/lib/worldShares";
 
 function seedUser(id: number, nickname: string) {
   getDb()
     .prepare(
-      "INSERT OR IGNORE INTO users (id, email, nickname, pw_hash, points) VALUES (?,?,?,?,0)"
+      "INSERT OR IGNORE INTO users (id, email, nickname, pw_hash, points, is_adult) VALUES (?,?,?,?,0,1)"
     )
     .run(id, `user${id}@test.local`, nickname, "hash");
 }
 
 describe("worldShares", () => {
-  it("creates share slug and imports as shared world for another user", () => {
+  it("creates share slug and borrows as read-only library reference", () => {
     seedUser(911, "world-sharer");
     seedUser(912, "world-importer");
     const db = getDb();
@@ -41,25 +41,25 @@ describe("worldShares", () => {
     assert.equal(pub!.name, "테스트 세계");
     assert.equal(pub!.content, "본문 내용입니다.");
 
-    const imported = importWorldShareToUser(912, created.share.share_slug, "내 복사본");
-    assert.equal(imported.ok, true);
-    if (!imported.ok) return;
+    const borrowed = borrowWorldShareToUser(912, created.share.share_slug);
+    assert.equal(borrowed.ok, true);
+    if (!borrowed.ok) return;
 
-    assert.equal(imported.world.name, "내 복사본");
-    assert.equal(imported.world.sharedFromNickname, "world-sharer");
-    assert.equal(imported.world.content, "본문 내용입니다.");
+    assert.equal(borrowed.world.name, "테스트 세계");
+    assert.equal(borrowed.world.sharedFromNickname, "world-sharer");
+    assert.equal(borrowed.world.content, "본문 내용입니다.");
+    assert.equal(borrowed.world.libraryKind, "borrowed");
+    assert.equal(borrowed.world.readOnly, true);
 
-    const row = db
-      .prepare(
-        `SELECT creator_id, name, shared_from_nickname FROM worlds WHERE id = ?`
-      )
-      .get(imported.world.id) as {
-      creator_id: number;
-      name: string;
-      shared_from_nickname: string;
-    };
-    assert.equal(row.creator_id, 912);
-    assert.equal(row.name, "내 복사본");
-    assert.equal(row.shared_from_nickname, "world-sharer");
+    const importerWorldRows = db
+      .prepare(`SELECT id FROM worlds WHERE creator_id = ?`)
+      .all(912) as Array<{ id: number }>;
+    assert.equal(importerWorldRows.length, 0);
+
+    const borrowRow = db
+      .prepare(`SELECT user_id, world_share_id FROM world_borrows WHERE id = ?`)
+      .get(borrowed.borrow.id) as { user_id: number; world_share_id: number };
+    assert.equal(borrowRow.user_id, 912);
+    assert.equal(borrowRow.world_share_id, created.share.id);
   });
 });
