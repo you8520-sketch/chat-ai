@@ -28,6 +28,7 @@ import { loadCampaignContext } from "./campaignContext";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
 import {
   deriveAdjudicatedParticipantIds,
+  loadExpectedPresentationActorIds,
   loadParticipantAdjudicationOutcomes,
 } from "./roundAdjudication";
 import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
@@ -356,6 +357,10 @@ export function loadTrpgSnapshot(
     ? loadParticipantAdjudicationOutcomes(db, round.id)
     : {};
   const adjudicatedParticipantIds = deriveAdjudicatedParticipantIds(participantAdjudicationOutcomes);
+  const expectedPresentationActorIds =
+    round != null
+      ? loadExpectedPresentationActorIds(db, { roundId: round.id, campaignId })
+      : [];
 
   return {
     id: campaign.id,
@@ -387,6 +392,7 @@ export function loadTrpgSnapshot(
       id: round?.id ?? null,
       number: round?.round_number ?? 0,
       phase,
+      expectedPresentationActorIds,
     },
     participants,
     sheets,

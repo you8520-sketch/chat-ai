@@ -12,9 +12,11 @@ import { insertParticipant, loadLatestRound } from "./store";
 import { ensureTrpgTables } from "./schema";
 import {
   adjudicateLockedHumanSubmissions,
+  computeExpectedPresentationActorIds,
   deriveAdjudicatedParticipantIds,
   ensureRoundAdjudicationContext,
   loadAdjudicatedParticipantIds,
+  loadExpectedPresentationActorIds,
   loadParticipantAdjudicationOutcomes,
 } from "./roundAdjudication";
 
@@ -112,5 +114,93 @@ describe("roundAdjudication human pre-bot", () => {
     assert.equal(outcomes[humanId], "roll");
     assert.deepEqual(deriveAdjudicatedParticipantIds(outcomes), [humanId]);
     db.close();
+  });
+});
+
+describe("expected presentation actor roster", () => {
+  it("EXPECTED_ROSTER_EXCLUDES_NON_ACTORS and orders by resolutionOrder", async () => {
+    const db = memoryDb();
+    const deps = {
+      skipBilling: true,
+      rollD20: () => 14,
+      gmCall: async () => ({
+        text: `<<<NARRATION>>>x\n<<<DELTA>>>\n${JSON.stringify({
+          players: [],
+          location: "",
+          next_round_context: "",
+          questsAdd: [],
+          flagsAdd: [],
+          campaign_finished: false,
+        })}`,
+      }),
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const humanId = (
+      db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND kind='human'`).get(campaignId) as {
+        id: number;
+      }
+    ).id;
+    const bot1 = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "Bot1",
+    });
+    const bot2 = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "Bot2",
+    });
+    const spectator = insertParticipant(db, {
+      campaignId,
+      slotIndex: 3,
+      kind: "human",
+      userId: null,
+      characterId: null,
+      displayName: "Spectator",
+    });
+    writeSheet(db, campaignId, bot1, "Bot1", EVEN_STATS, "");
+    writeSheet(db, campaignId, bot2, "Bot2", EVEN_STATS, "");
+    writeSheet(db, campaignId, spectator, "Spectator", EVEN_STATS, "");
+    db.prepare(`UPDATE trpg_participants SET can_act=0, status='spectating' WHERE id=?`).run(spectator);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "acts", actionType: "investigate" });
+    const round = loadLatestRound(db, campaignId)!;
+    const ctx = ensureRoundAdjudicationContext(db, {
+      campaignId,
+      roundId: round.id,
+      roundNumber: round.round_number,
+      deps,
+    });
+    const expected = loadExpectedPresentationActorIds(db, { roundId: round.id, campaignId });
+    assert.deepEqual(expected, [humanId, bot1, bot2]);
+    assert.equal(expected.includes(spectator), false, "EXPECTED_ROSTER_EXCLUDES_NON_ACTORS");
+    assert.ok(ctx.resolutionOrder.some((entry) => entry.participantId === spectator));
+    db.close();
+  });
+
+  it("computeExpectedPresentationActorIds filters resolutionOrder by active can_act", () => {
+    const resolutionOrder = [
+      { participantId: 10, name: "H", slotIndex: 0 },
+      { participantId: 15, name: "Spec", slotIndex: 1 },
+      { participantId: 20, name: "B1", slotIndex: 2 },
+      { participantId: 30, name: "B2", slotIndex: 3 },
+    ];
+    const expected = computeExpectedPresentationActorIds(
+      [
+        { id: 10, can_act: 1, status: "active" },
+        { id: 15, can_act: 0, status: "spectating" },
+        { id: 20, can_act: 1, status: "active" },
+        { id: 30, can_act: 1, status: "disconnected" },
+      ],
+      resolutionOrder
+    );
+    assert.deepEqual(expected, [10, 20]);
   });
 });
