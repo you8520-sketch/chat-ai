@@ -59,6 +59,9 @@ describe("shadowPricing tier and cache strictness", () => {
   });
 
   it("Gemini31 cached turn → unsupported_cache_semantics", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const parsed = parseCatalogPricing(GEMINI31_BASE_TIER_ONLY_CATALOG_FIXTURE, Date.now())!;
+    updateCheaperInferenceCatalogPricing(parsed);
     setupFxFixture();
     const s = computeShadowPricing({
       modelId: "gemini-3.1-pro-preview",
@@ -67,7 +70,34 @@ describe("shadowPricing tier and cache strictness", () => {
       outputTokens: 500,
     });
     assert.equal(s.billingReferenceCostStatus, "unsupported_cache_semantics");
+    assert.equal(s.finalShadowPoints, 0);
+    assert.equal(s.actualCostSource, "unavailable");
+    assert.equal(s.actualProviderCostKrw, 0);
+    assert.equal(s.actualCostUsd, undefined);
     assert.notEqual(s.reserveStatus, "complete");
+    assert.equal(s.worstCasePromoMargin, null);
+    clearCheaperInferenceCatalogPricingForTest();
+    teardownFxFixture();
+  });
+
+  it("Gemini31 cached + exact billed cost retains settled actual but billing reference unsupported", () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const parsed = parseCatalogPricing(GEMINI31_BASE_TIER_ONLY_CATALOG_FIXTURE, Date.now())!;
+    updateCheaperInferenceCatalogPricing(parsed);
+    setupFxFixture();
+    const s = computeShadowPricing({
+      modelId: "gemini-3.1-pro-preview",
+      promptTokens: 10_000,
+      cacheReadTokens: 5_000,
+      outputTokens: 500,
+      cheaperInferenceBilledCostUsd: 0.012345,
+    });
+    assert.equal(s.actualCostSource, "cheaper_inference_billed");
+    assert.equal(s.actualCostUsd, 0.012345);
+    assert.equal(s.billingReferenceCostStatus, "unsupported_cache_semantics");
+    assert.equal(s.finalShadowPoints, 0);
+    assert.notEqual(s.reserveStatus, "complete");
+    clearCheaperInferenceCatalogPricingForTest();
     teardownFxFixture();
   });
 

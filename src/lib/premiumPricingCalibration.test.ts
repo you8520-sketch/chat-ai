@@ -277,7 +277,9 @@ describe("premiumPricingCalibration — base-tier uncached hard comparable", () 
       assert.equal(gates.GEMINI31_BASE_TIER_REFERENCE_VERIFIED, true);
       assert.equal(gates.OPUS5_BASE_REFERENCE_VERIFIED, true);
       assert.equal(gates.GEMINI31_CACHE_SEMANTICS_VERIFIED, false);
-      assert.equal(gates.UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE, true);
+      assert.equal(gates.UNSUPPORTED_DIMENSION_IS_BLOCKED, true);
+      assert.equal(gates.UNVERIFIED_CACHE_LIVE_CATALOG_ACTUAL_ESTIMATE_BLOCKED, true);
+      assert.equal(gates.EXACT_SETTLED_COST_SURVIVES_UNSUPPORTED_BILLING_REFERENCE, true);
     } finally {
       teardownShadowFxIsolationForGatesTest(fxDb);
     }

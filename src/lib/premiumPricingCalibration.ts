@@ -21,6 +21,12 @@ import { requirePrimaryBenchmark, type MarketUsageBenchmark } from "@/lib/market
 import type { PublishedModelPricing } from "@/lib/publishedModelPricing";
 import { computeShadowPricing } from "@/lib/shadowPricing";
 import {
+  clearCheaperInferenceCatalogPricingForTest,
+  updateCheaperInferenceCatalogPricing,
+} from "@/lib/cheaperInferenceCatalogPricing";
+import { parseCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
+import { GEMINI31_BASE_TIER_ONLY_CATALOG_FIXTURE } from "@/lib/fixtures/cheaperInferenceGemini31TierCatalog.fixture";
+import {
   SHADOW_BILLING_FX_MODE,
   type ShadowBillingExchangeRateSnapshot,
 } from "@/lib/shadowBillingExchangeRate";
@@ -134,7 +140,9 @@ export type PremiumAcceptanceGates = {
   OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH: boolean;
   GEMINI31_FX_CEILING_GTE_1625: boolean;
   OPUS5_FX_CEILING_GTE_1625: boolean;
-  UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE: boolean;
+  UNSUPPORTED_DIMENSION_IS_BLOCKED: boolean;
+  UNVERIFIED_CACHE_LIVE_CATALOG_ACTUAL_ESTIMATE_BLOCKED: boolean;
+  EXACT_SETTLED_COST_SURVIVES_UNSUPPORTED_BILLING_REFERENCE: boolean;
   allPass: boolean;
 };
 
@@ -396,6 +404,58 @@ export function verifyUnsupportedDimensionShadowSafety(): boolean {
   );
 }
 
+function withGemini31CatalogNoExplicitCache<T>(fn: () => T): T {
+  clearCheaperInferenceCatalogPricingForTest();
+  const parsed = parseCatalogPricing(GEMINI31_BASE_TIER_ONLY_CATALOG_FIXTURE, Date.now());
+  if (parsed) updateCheaperInferenceCatalogPricing(parsed);
+  try {
+    return fn();
+  } finally {
+    clearCheaperInferenceCatalogPricingForTest();
+  }
+}
+
+/** Gemini31 unverified cache must not produce live_catalog_estimated actual cost. */
+export function verifyUnverifiedCacheBlocksLiveCatalogActualEstimate(): boolean {
+  return withGemini31CatalogNoExplicitCache(() => {
+    const s = computeShadowPricing({
+      modelId: GEMINI31_MODEL_ID,
+      promptTokens: 10_000,
+      cacheReadTokens: 5_000,
+      outputTokens: 500,
+    });
+    return (
+      s.billingReferenceCostStatus === "unsupported_cache_semantics" &&
+      s.actualCostSource === "unavailable" &&
+      s.actualProviderCostKrw === 0 &&
+      s.actualCostUsd === undefined &&
+      s.finalShadowPoints === 0 &&
+      s.reserveStatus !== "complete" &&
+      s.worstCasePromoMargin == null
+    );
+  });
+}
+
+/** Exact settled provider cost survives even when billing reference is unsupported. */
+export function verifyExactSettledCostSurvivesUnsupportedBillingReference(): boolean {
+  return withGemini31CatalogNoExplicitCache(() => {
+    const s = computeShadowPricing({
+      modelId: GEMINI31_MODEL_ID,
+      promptTokens: 10_000,
+      cacheReadTokens: 5_000,
+      outputTokens: 500,
+      cheaperInferenceBilledCostUsd: 0.012345,
+    });
+    return (
+      s.actualCostSource === "cheaper_inference_billed" &&
+      s.actualCostUsd === 0.012345 &&
+      s.billingReferenceCostStatus === "unsupported_cache_semantics" &&
+      s.finalShadowPoints === 0 &&
+      s.reserveStatus !== "complete"
+    );
+  });
+}
+
 export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
   const g31 = simulatePremiumPricingPolicy({
     modelId: GEMINI31_MODEL_ID,
@@ -473,7 +533,11 @@ export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
     OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH: o5Semantics,
     GEMINI31_FX_CEILING_GTE_1625: g31Ceiling >= 1625,
     OPUS5_FX_CEILING_GTE_1625: o5Ceiling >= 1625,
-    UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE: verifyUnsupportedDimensionShadowSafety(),
+    UNSUPPORTED_DIMENSION_IS_BLOCKED: verifyUnsupportedDimensionShadowSafety(),
+    UNVERIFIED_CACHE_LIVE_CATALOG_ACTUAL_ESTIMATE_BLOCKED:
+      verifyUnverifiedCacheBlocksLiveCatalogActualEstimate(),
+    EXACT_SETTLED_COST_SURVIVES_UNSUPPORTED_BILLING_REFERENCE:
+      verifyExactSettledCostSurvivesUnsupportedBillingReference(),
     allPass: false,
   };
   gates.allPass =
@@ -489,7 +553,9 @@ export function evaluatePremiumPricingGates(): PremiumAcceptanceGates {
     gates.OPUS5_UNCACHED_TARGET_SEMANTICS_MATCH &&
     gates.GEMINI31_FX_CEILING_GTE_1625 &&
     gates.OPUS5_FX_CEILING_GTE_1625 &&
-    gates.UNSUPPORTED_DIMENSION_CAN_REPORT_COMPLETE;
+    gates.UNSUPPORTED_DIMENSION_IS_BLOCKED &&
+    gates.UNVERIFIED_CACHE_LIVE_CATALOG_ACTUAL_ESTIMATE_BLOCKED &&
+    gates.EXACT_SETTLED_COST_SURVIVES_UNSUPPORTED_BILLING_REFERENCE;
   return gates;
 }
 

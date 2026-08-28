@@ -326,6 +326,11 @@ function estimateActualCostFromCatalog(
   usage: NormalizedBillableUsage,
   modelId: string
 ): { usdCost: number; source: ActualCostSource } {
+  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
+  if (hasCacheUsage && requiresStrictCachePolicy(modelId)) {
+    return { usdCost: 0, source: "unavailable" };
+  }
+
   const catalog = resolveCheaperInferenceCatalogPricing(modelId);
   if (!catalog) {
     return { usdCost: 0, source: "unavailable" };
