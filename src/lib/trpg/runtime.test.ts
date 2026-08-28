@@ -49,7 +49,8 @@ describe("TRPG bot actions", () => {
     assert.match(TRPG_BOT_SYSTEM, /300/);
     assert.match(TRPG_BOT_SYSTEM, /550/);
     assert.match(TRPG_BOT_SYSTEM, /800/);
-    assert.match(block, /Follow the system length contract/);
+    assert.doesNotMatch(block, /\[LENGTH\]/);
+    assert.doesNotMatch(block, /Follow the system length contract/);
     assert.doesNotMatch(block, /aim ~550/);
     assert.doesNotMatch(block, /Flash/i);
     const second = buildTrpgBotActionUserBlock({

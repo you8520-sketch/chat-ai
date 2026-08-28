@@ -94,12 +94,63 @@ function countRegex(hay: string, re: RegExp): number {
   return hay.match(re)?.length ?? 0;
 }
 
+function proseLayoutBlock(): string {
+  const start = TRPG_BOT_SYSTEM.indexOf("[PROSE LAYOUT]");
+  const end = TRPG_BOT_SYSTEM.indexOf("After the finished prose");
+  return TRPG_BOT_SYSTEM.slice(start, end);
+}
+
 describe("TRPG prompt owner cleanup", () => {
-  it("BOT_LENGTH_BEHAVIOR_OWNER_COUNT = 1 (system owns numbers; user pointer only)", () => {
+  it("combined system + user owner counts (semantic dedup regression)", () => {
+    const user = bot1User();
+    const user2 = bot2User();
+    const combined = `${TRPG_BOT_SYSTEM}\n${user}\n${user2}`;
+    const proseLayout = proseLayoutBlock();
+
+    assert.equal(
+      countRegex(combined, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`)),
+      1,
+      "BOT_NUMERIC_LENGTH_RANGE_OCCURRENCE"
+    );
+    assert.equal(
+      countRegex(proseLayout, /character contract|Korean characters|\d+–\d+/g),
+      0,
+      "BOT_PROSE_LAYOUT_LENGTH_RULE_COUNT"
+    );
+    assert.equal(countRegex(user, /\[LENGTH\]/g), 0, "BOT_USER_LENGTH_BLOCK_COUNT");
+    assert.equal(countRegex(user2, /\[LENGTH\]/g), 0);
+    assert.doesNotMatch(user, /finish the last sentence/i);
+    assert.doesNotMatch(user, /emit .*INTENT/i);
+    assert.equal(
+      countRegex(TRPG_BOT_SYSTEM, /^Length:/m),
+      1,
+      "BOT_FINISH_BEHAVIOR_OWNER_COUNT"
+    );
+    assert.equal(countRegex(user, /\[SPEAK ORDER\]/g), 1, "BOT_TURN_ORDER_BEHAVIOR_OWNER_COUNT");
+    assert.equal(countRegex(user2, /\[SPEAK ORDER\]/g), 1);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /\[SPEAK ORDER\]/);
+    assert.equal(
+      countRegex(TRPG_BOT_SYSTEM, /Do not declare a finished result/g),
+      1,
+      "BOT_NO_RESULT_AUTHORITY_OWNER_COUNT"
+    );
+    assert.doesNotMatch(user, /finished result|resolve the round/i);
+    assert.equal(
+      countRegex(TRPG_BOT_SYSTEM, new RegExp(TRPG_BOT_ACTION_TYPE_OPEN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")),
+      1,
+      "BOT_INTENT_METADATA_OWNER_COUNT"
+    );
+    assert.ok(TRPG_BOT_SYSTEM.includes(TRPG_BOT_INTENT_OPEN));
+    assert.doesNotMatch(user, new RegExp(TRPG_BOT_ACTION_TYPE_OPEN));
+    assert.doesNotMatch(user, new RegExp(TRPG_BOT_INTENT_OPEN));
+  });
+
+  it("BOT_LENGTH_BEHAVIOR_OWNER_COUNT = 1 (system owns numbers; user has no length block)", () => {
     const user = bot1User();
     assert.match(TRPG_BOT_SYSTEM, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
     assert.match(TRPG_BOT_SYSTEM, new RegExp(`aim about ${TRPG_BOT_AIM_CHARS}`));
-    assert.match(user, /Follow the system length contract/);
+    assert.doesNotMatch(user, /\[LENGTH\]/);
+    assert.doesNotMatch(user, /Follow the system length contract/);
     assert.doesNotMatch(user, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
     assert.doesNotMatch(user, /aim ~\d+/);
     assert.equal(countRegex(TRPG_BOT_SYSTEM, /Korean characters/g), 1);
@@ -121,6 +172,7 @@ describe("TRPG prompt owner cleanup", () => {
     assert.match(TRPG_BOT_SYSTEM, /mechanical outcomes remain open until round resolution/);
     assert.doesNotMatch(user, /one attempt, not a finished result/);
     assert.doesNotMatch(user, /Finished beat, then INTENT/);
+    assert.doesNotMatch(user, /then emit/i);
   });
 
   it("BOT_PROSE_CONTRACT and BOT_INTENT_METADATA stay system-owned", () => {

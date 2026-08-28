@@ -66,7 +66,6 @@ If this character actually speaks:
 - do not place narration before or after it in the same paragraph
 Use meaningful narration paragraphs rather than one giant wall of text.
 Do not create a new paragraph for every sentence.
-Keep the ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} character contract.
 
 After the finished prose, emit compact mechanical metadata then one third-person concrete attempt. Do not declare a finished result. Do not write only a quoted question.
 ${TRPG_BOT_ACTION_TYPE_OPEN}
@@ -164,7 +163,6 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const scene = clipTrpgChars(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
   return [
     "[TRPG BOT ACTION — you are this PC.]",
-    `[LENGTH] Follow the system length contract; finish the last sentence; then emit ${TRPG_BOT_ACTION_TYPE_OPEN} and ${TRPG_BOT_INTENT_OPEN}.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
     ctx.campaignWorld?.trim()
