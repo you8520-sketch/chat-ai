@@ -147,6 +147,21 @@ export function isRollingSummaryInFlight(chatId: number): boolean {
   return inflight.has(chatId);
 }
 
+/** Read-only contention snapshot for main-RP vs background summary telemetry. */
+export function getRollingSummaryContentionSnapshot(): {
+  summaryActiveCount: number;
+  catchUpScheduledCount: number;
+  activeChatIds: number[];
+  catchUpScheduledChatIds: number[];
+} {
+  return {
+    summaryActiveCount: inflight.size,
+    catchUpScheduledCount: catchUpScheduledChats.size,
+    activeChatIds: [...inflight.keys()],
+    catchUpScheduledChatIds: [...catchUpScheduledChats],
+  };
+}
+
 /**
  * Run exclusive rolling-summary work for a chat.
  * If another job is already running:

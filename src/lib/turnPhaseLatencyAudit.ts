@@ -11,6 +11,16 @@ export type TurnPhaseTokenSnapshot = {
   reasoning_tokens?: number;
   estimated_input_tokens?: number;
   estimated?: boolean;
+  /** Local estimateTokens() total — diagnostic only; provider prompt_tokens is canonical. */
+  local_estimated_input_tokens?: number;
+};
+
+export type SummaryContentionSnapshot = {
+  summaryBackgroundActiveAtProviderStart: boolean;
+  summaryActiveCount: number;
+  catchUpScheduledCount: number;
+  /** Chat ids with in-flight rolling summary (diagnostic). */
+  summaryActiveChatIds?: number[];
 };
 
 export type TurnPhaseLatencyReport = {
@@ -31,6 +41,16 @@ export type TurnPhaseLatencyReport = {
   UI_REVEAL_DELAY_MS: number | null;
   USER_VISIBLE_TTFT_MS: number | null;
   tokens: TurnPhaseTokenSnapshot;
+  summary_contention?: SummaryContentionSnapshot;
+  /** Section fingerprint telemetry — hashes only, no prompt bodies. */
+  prompt_section_fingerprint?: {
+    first_changed_section: string | null;
+    first_changed_position?: number | null;
+    order_change_detected?: boolean;
+    unchanged_count: number;
+    unchanged_prefix_sections?: number;
+    section_count: number;
+  };
 };
 
 let activeAudit: TurnPhaseLatencyAudit | null = null;
@@ -44,6 +64,9 @@ export class TurnPhaseLatencyAudit {
   readonly originMs: number;
   private marksInternal: Record<string, number> = {};
   private tokensInternal: TurnPhaseTokenSnapshot = {};
+  private summaryContentionInternal: SummaryContentionSnapshot | null = null;
+  private sectionFingerprintInternal: TurnPhaseLatencyReport["prompt_section_fingerprint"] | null =
+    null;
 
   constructor(requestId: string, originMs?: number) {
     this.requestId = requestId;
@@ -70,6 +93,14 @@ export class TurnPhaseLatencyAudit {
       this.tokensInternal.cache_ratio =
         Math.round((snapshot.cached_tokens / snapshot.prompt_tokens) * 1000) / 1000;
     }
+  }
+
+  setSummaryContention(snapshot: SummaryContentionSnapshot): void {
+    this.summaryContentionInternal = snapshot;
+  }
+
+  setSectionFingerprint(snapshot: NonNullable<TurnPhaseLatencyReport["prompt_section_fingerprint"]>): void {
+    this.sectionFingerprintInternal = snapshot;
   }
 
   delta(from: string, to: string): number | null {
@@ -117,6 +148,12 @@ export class TurnPhaseLatencyAudit {
             ? this.deltaFromOrigin("T15_BROWSER_FIRST_VISIBLE_RECEIVE")
             : this.deltaFromOrigin("T14_SERVER_FIRST_VISIBLE_WRITE"),
       tokens: { ...this.tokensInternal },
+      ...(this.summaryContentionInternal
+        ? { summary_contention: this.summaryContentionInternal }
+        : {}),
+      ...(this.sectionFingerprintInternal
+        ? { prompt_section_fingerprint: this.sectionFingerprintInternal }
+        : {}),
     };
     for (const key of Object.keys(m)) {
       report.deltas_ms[`${key}_from_T0`] = this.deltaFromOrigin(key);

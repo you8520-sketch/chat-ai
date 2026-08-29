@@ -134,8 +134,10 @@ import {
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
 import {
+  getRollingSummaryContentionSnapshot,
   prepareNonBlockingSummaryForMainRp,
 } from "@/lib/memory/memory-rolling-summary";
+import { auditTokenAccounting } from "@/lib/promptTokenAccounting";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/memory/memory-constants";
 import {
   buildMemoryHealthTelemetry,
@@ -2228,10 +2230,6 @@ export async function POST(req: Request) {
     });
   });
   phaseAudit?.mark("T8_CONTEXT_BUILD_DONE");
-  phaseAudit?.setTokens({
-    estimated_input_tokens: built.meta.estimatedInputTokens,
-    estimated: true,
-  });
   if (memoryFeatureOn) {
     const reconciliation = await reconcileMemoryCoverageFixedPoint({
       initialBuild: built,
@@ -2283,6 +2281,25 @@ export async function POST(req: Request) {
       });
     }
   }
+
+  if (phaseAudit) {
+    phaseAudit.setTokens({
+      estimated_input_tokens: built.meta.estimatedInputTokens,
+      local_estimated_input_tokens: built.meta.estimatedInputTokens,
+      estimated: true,
+    });
+    if (built.meta.sectionFingerprint) {
+      phaseAudit.setSectionFingerprint({
+        first_changed_section: built.meta.sectionFingerprint.firstChangedSection,
+        unchanged_count: built.meta.sectionFingerprint.unchangedCount,
+        section_count: built.meta.sectionFingerprint.sectionCount,
+        first_changed_position: built.meta.sectionFingerprint.firstChangedPosition ?? null,
+        order_change_detected: built.meta.sectionFingerprint.orderChangeDetected ?? false,
+        unchanged_prefix_sections: built.meta.sectionFingerprint.unchangedPrefixSections ?? 0,
+      });
+    }
+  }
+
   if (terraPromptCanary) {
     const assembledUserTurn =
       [...(built.history ?? [])].reverse().find((m) => m.role === "user")?.content ??
@@ -3188,6 +3205,15 @@ export async function POST(req: Request) {
           >;
           try {
             phaseAudit?.mark("T10_PROVIDER_FETCH_START");
+            const contention = getRollingSummaryContentionSnapshot();
+            phaseAudit?.setSummaryContention({
+              summaryBackgroundActiveAtProviderStart:
+                contention.summaryActiveCount > 0 || contention.catchUpScheduledCount > 0,
+              summaryActiveCount: contention.summaryActiveCount,
+              catchUpScheduledCount: contention.catchUpScheduledCount,
+              summaryActiveChatIds:
+                contention.summaryActiveCount > 0 ? contention.activeChatIds : undefined,
+            });
             result = await runStream({
               send: streamGate.send,
               system: systemRef,
@@ -3242,13 +3268,31 @@ export async function POST(req: Request) {
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
           if (phaseAudit && result.stage) {
+            const providerPrompt =
+              result.stage.apiReportedInputTokens ?? result.stage.input ?? null;
+            const providerCached = result.stage.cacheReadTokens ?? null;
             phaseAudit.setTokens({
-              prompt_tokens: result.stage.apiReportedInputTokens ?? result.stage.input,
-              cached_tokens: result.stage.cacheReadTokens,
+              prompt_tokens: providerPrompt ?? undefined,
+              cached_tokens: providerCached ?? undefined,
               completion_tokens: result.stage.apiOutputTokens ?? result.stage.output,
               reasoning_tokens: result.stage.apiReasoningOutputTokens ?? result.stage.thoughtsTokens,
               estimated: result.stage.estimated,
             });
+            if (
+              process.env.GEMINI_TTFT_PHASE_AUDIT === "1" &&
+              providerPrompt != null &&
+              built.meta.estimatedInputTokens != null
+            ) {
+              const tokenAudit = auditTokenAccounting({
+                localEstimatedTotal: built.meta.estimatedInputTokens,
+                localSystemTokens: built.meta.estimatedSystemTokens,
+                localHistoryTokens: built.meta.estimatedHistoryTokens,
+                localUserTurnTokens: built.meta.promptAudit?.currentUserTurnTokens ?? 0,
+                providerPromptTokens: providerPrompt,
+                providerCachedTokens: providerCached,
+              });
+              console.info("[TOKEN_ACCOUNTING_AUDIT]", tokenAudit);
+            }
           }
           try {
             persistStreamCompleteContent(db, persistedAssistantId, streamVisibleTextRef || fullText);

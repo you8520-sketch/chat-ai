@@ -323,6 +323,15 @@ export type BuiltContext = {
     momentumActivation?: import("@/lib/sceneMomentum/predicate").MomentumActivationObservability | null;
     /** Effective runtime mode used for owner + CURRENT USER INPUT wrapper. */
     runtimeMode?: ChatRuntimeMode;
+    /** Section SHA256 fingerprints — hashes only, no prompt bodies. */
+    sectionFingerprint?: {
+      firstChangedSection: string | null;
+      firstChangedPosition?: number | null;
+      orderChangeDetected?: boolean;
+      unchangedCount: number;
+      unchangedPrefixSections?: number;
+      sectionCount: number;
+    };
   };
 };
 
