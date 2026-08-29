@@ -440,17 +440,21 @@ export function assessOpusCacheReachability(): DimensionAssessment {
 }
 
 export function auditIdempotencyFromSource(): IdempotencyAudit {
-  const dbSrc = readRepoFile("src/lib/db.ts");
   const routeSrc = readRepoFile("src/app/api/chat/route.ts");
   const pointsSrc = readRepoFile("src/lib/points.ts");
   const settlementSrc = readRepoFile("src/lib/chatBillingSettlement.ts");
+  const schemaSrc = readRepoFile("src/lib/chatBillingSettlementSchema.ts");
+  const remoteBootstrapSrc = readRepoFile("src/lib/remoteSchemaBootstrap.ts");
+  const settlementTestSrc = readRepoFile("src/lib/chatBillingSettlement.test.ts");
+  const remoteTestSrc = readRepoFile("src/lib/remoteSchemaBootstrap.test.ts");
 
-  const hasNonUniqueIndex = dbSrc.includes("CREATE INDEX IF NOT EXISTS idx_messages_chat_request_id");
-  const hasSettlementUnique = settlementSrc.includes(
+  const hasSettlementUnique = schemaSrc.includes(
     "UNIQUE(user_id, chat_id, request_id, charge_kind)"
   );
-  const hasUniqueRequestIndex = hasSettlementUnique;
-  const pointLogsUniqueBillingKey = /CREATE UNIQUE INDEX[^;]*point_logs/.test(dbSrc);
+  const hasRemoteV2Upgrade = remoteBootstrapSrc.includes("turso-v2-chat-billing-settlement");
+  const remoteUpgradeTestPresent = remoteTestSrc.includes("OLD_REMOTE_V1_DB_UPGRADE_PASS");
+  const trueConcurrentTestPresent = settlementTestSrc.includes("true overlapping duplicate workers");
+  const claimFirstPresent = settlementSrc.includes("ON CONFLICT(user_id, chat_id, request_id, charge_kind) DO NOTHING");
 
   const usesSettlementOwner = routeSrc.includes("settleChatTurnBillingExactlyOnce");
   const capturedBeforeStream = routeSrc.includes("const alreadyBilledForRequest = existingByRequest.alreadyBilled");
@@ -458,28 +462,26 @@ export function auditIdempotencyFromSource(): IdempotencyAudit {
 
   return {
     idempotencyOwner: LIVE_BILLING_OWNER_AUDIT.idempotencyOwner,
-    dbEnforcedRequestIdempotency: hasUniqueRequestIndex ? "verified" : "documented",
+    dbEnforcedRequestIdempotency:
+      hasSettlementUnique && hasRemoteV2Upgrade && remoteUpgradeTestPresent ? "verified" : "documented",
     ledgerIdempotencyUniqueKey: hasSettlementUnique
       ? "chat_billing_settlements(user_id, chat_id, request_id, charge_kind)"
-      : pointLogsUniqueBillingKey
-        ? "point_logs unique index"
-        : "none",
-    duplicateRequestDoubleChargePossible: hasUniqueRequestIndex && usesSettlementOwner
+      : "none",
+    duplicateRequestDoubleChargePossible: usesSettlementOwner && claimFirstPresent
       ? "documented"
       : "reproduced_risk",
     regenDoubleChargePossible: usesSettlementOwner ? "documented" : capturedBeforeStream && guardBeforeDeduct ? "documented" : "unknown",
-    concurrentDuplicateChargeReproduced: hasUniqueRequestIndex && usesSettlementOwner ? "documented" : "unknown",
-    dbUniquenessGuardPresent: hasUniqueRequestIndex,
+    concurrentDuplicateChargeReproduced: trueConcurrentTestPresent ? "verified" : "unknown",
+    dbUniquenessGuardPresent: hasSettlementUnique && remoteUpgradeTestPresent,
     ledgerAtomicityStatus:
-      settlementSrc.includes("db.transaction(() => settleWithinTransaction") &&
-      pointsSrc.includes("deductPointsOnDb")
+      claimFirstPresent &&
+      settlementSrc.includes("BEGIN IMMEDIATE") &&
+      settlementSrc.includes("deductPointsOnDb")
         ? "verified"
-        : pointsSrc.includes("db.transaction(() => deductPointsOnDb")
-          ? "documented"
-          : "unknown",
+        : "documented",
     scenarios: {
       singleProcessSequentialDuplicate: usesSettlementOwner ? "verified" : guardBeforeDeduct ? "documented" : "unknown",
-      multiWorkerConcurrentDuplicate: hasUniqueRequestIndex && usesSettlementOwner ? "verified" : hasUniqueRequestIndex ? "documented" : "reproduced_risk",
+      multiWorkerConcurrentDuplicate: trueConcurrentTestPresent ? "verified" : "documented",
       retryAfterCommit: usesSettlementOwner ? "verified" : guardBeforeDeduct ? "documented" : "unknown",
       regeneration: "documented",
     },
@@ -574,7 +576,11 @@ export function buildCurrentProductReadinessMatrix(): Record<
   const fx: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const receipt: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const idempotencyAudit = auditIdempotencyFromSource();
-  const idempotency: ReadinessCellStatus = idempotencyAudit.dbUniquenessGuardPresent ? "READY" : "BLOCKED";
+  const idempotency: ReadinessCellStatus =
+    idempotencyAudit.dbUniquenessGuardPresent &&
+    idempotencyAudit.scenarios.multiWorkerConcurrentDuplicate === "verified"
+      ? "READY"
+      : "BLOCKED";
   const multiStage: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const fallback: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";
   const continuation: ReadinessCellStatus = "POLICY_DECISION_REQUIRED";

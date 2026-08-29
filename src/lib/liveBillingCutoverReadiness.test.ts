@@ -159,7 +159,7 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
     ]);
   });
 
-  it("idempotency audit documents DB-enforced settlement uniqueness", () => {
+  it("idempotency audit separates source, remote upgrade, and concurrent test evidence", () => {
     const audit = auditIdempotencyFromSource();
     assert.equal(audit.dbEnforcedRequestIdempotency, "verified");
     assert.equal(audit.dbUniquenessGuardPresent, true);
@@ -167,9 +167,10 @@ describe("liveBillingCutoverReadiness — production boundary", () => {
       audit.ledgerIdempotencyUniqueKey,
       "chat_billing_settlements(user_id, chat_id, request_id, charge_kind)"
     );
-    assert.equal(audit.duplicateRequestDoubleChargePossible, "documented");
     assert.equal(audit.scenarios.multiWorkerConcurrentDuplicate, "verified");
+    assert.equal(audit.concurrentDuplicateChargeReproduced, "verified");
     assert.equal(audit.scenarios.singleProcessSequentialDuplicate, "verified");
+    assert.equal(audit.duplicateRequestDoubleChargePossible, "documented");
   });
 });
 
