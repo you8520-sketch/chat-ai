@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getPublishedPricing } from "./publishedModelPricing";
+import { getPublishedPricing, listExactPublishedCatalogEntries } from "./publishedModelPricing";
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
 import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
@@ -55,5 +55,16 @@ describe("publishedModelPricing", () => {
     assert.equal(g.billingReferenceOutputUsdPerMillion, 1.875);
     assert.equal(g.targetMargin, 0.55);
     assert.equal(g.minimumMarginFloor, 0.5);
+  });
+
+  it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {
+    for (const entry of listExactPublishedCatalogEntries()) {
+      assert.equal(
+        entry.pricing.modelId,
+        entry.canonicalModelId,
+        `catalog identity mismatch for ${entry.canonicalModelId}`
+      );
+      assert.equal(entry.canonicalModelId, entry.pricing.modelId.trim());
+    }
   });
 });

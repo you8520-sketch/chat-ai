@@ -6,11 +6,18 @@ import {
   CHARGE_SNAPSHOT_SCHEMA_VERSION,
   computePublishedUserChargeFromResolvedPolicy,
   computePublishedUserChargeWithSnapshot,
+  isLiveGradePublishedUserChargeSnapshot,
   isPublishedUserChargeSnapshot,
+  recomputeSnapshotTotalsFromEmbeddedValues,
   validateAdjustment,
   type PublishedUserChargeSnapshot,
 } from "@/lib/publishedUserCharge";
-import { resolvePublishedPricingExact, type PublishedModelPricing } from "@/lib/publishedModelPricing";
+import {
+  listExactPublishedCatalogEntries,
+  resolvePublishedPricingExact,
+  _setPublishedPricingForTest,
+  type PublishedModelPricing,
+} from "@/lib/publishedModelPricing";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import { getModelPublishedPricingPolicy } from "@/lib/modelPublishedPricingPolicy";
 import { GEMINI37_V2_PROPOSED } from "@/lib/gemini37PricingPolicy";
@@ -242,15 +249,17 @@ describe("publishedUserCharge — determinism and serialization", () => {
     assert.deepEqual(a, b);
   });
 
-  it("snapshot JSON round-trip deep equal", () => {
+  it("snapshot JSON round-trip deep equal + live-grade valid", () => {
     const r = completeCharge("gemini-3.1-pro-preview", 40_689, 4_307);
     assert.equal(r.status, "complete");
     if (r.status === "complete") {
       const parsed = JSON.parse(JSON.stringify(r.snapshot)) as PublishedUserChargeSnapshot;
       assert.deepEqual(parsed, r.snapshot);
       assert.equal(isPublishedUserChargeSnapshot(parsed), true);
+      assert.equal(isLiveGradePublishedUserChargeSnapshot(parsed), true);
       assert.equal(parsed.chargeSnapshotSchemaVersion, CHARGE_SNAPSHOT_SCHEMA_VERSION);
       assert.equal(Number.isInteger(parsed.finalPoints), true);
+      assert.ok(parsed.applicability);
     }
   });
 
@@ -546,5 +555,198 @@ describe("publishedUserCharge — live-grade contract hardening", () => {
     assert.ok(policy);
     assert.equal(pricing!.canonicalModelId, canonicalizePublishedModelId(alias));
     assert.equal(policy!.modelId, pricing!.canonicalModelId);
+  });
+});
+
+describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
+  function requireCompleteSnapshot(modelId: string, prompt: number, output: number, cache?: { read?: number; write?: number }) {
+    const r = completeCharge(modelId, prompt, output, cache);
+    assert.equal(r.status, "complete");
+    if (r.status !== "complete") throw new Error("expected complete charge");
+    return r.snapshot;
+  }
+
+  it("public catalog pricing.modelId mismatch → blocked (fail closed)", () => {
+    const canonical = resolvePublishedPricingExact("gemini-3.7-flash")!;
+    _setPublishedPricingForTest(
+      {
+        ...canonical.pricing,
+        modelId: "wrong-model-id",
+      },
+      "gemini-3.7-flash"
+    );
+    try {
+      const resolved = resolvePublishedPricingExact("gemini-3.7-flash");
+      assert.equal(resolved, null);
+      const r = computePublishedUserChargeWithSnapshot({
+        modelId: "gemini-3.7-flash",
+        usage: usage("gemini-3.7-flash", 1000, 500),
+        usageCoverage: "complete",
+        fxSnapshot: FX_1530,
+        adjustment: { kind: "none" },
+      });
+      assert.equal(r.status, "blocked");
+      if (r.status === "blocked") {
+        assert.equal(r.reason, "unsupported_model");
+        assert.equal(r.finalPoints, null);
+      }
+    } finally {
+      _setPublishedPricingForTest(canonical.pricing, "gemini-3.7-flash");
+    }
+  });
+
+  it("valid snapshot with usageCoverage partial → live-grade false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 40_689, 4_307);
+    const partial = { ...snap, usageCoverage: "partial" as const };
+    assert.equal(isPublishedUserChargeSnapshot(partial), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(partial), false);
+  });
+
+  it("valid snapshot with usageCoverage unknown → live-grade false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 40_689, 4_307);
+    const unknown = { ...snap, usageCoverage: "unknown" as const };
+    assert.equal(isPublishedUserChargeSnapshot(unknown), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(unknown), false);
+  });
+
+  it("valid snapshot with fxLocked false → live-grade false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 40_689, 4_307);
+    const unlocked = { ...snap, fxLocked: false };
+    assert.equal(isPublishedUserChargeSnapshot(unlocked), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(unlocked), false);
+  });
+
+  it("valid snapshot with requested/canonical mismatch → live-grade false", () => {
+    const snap = requireCompleteSnapshot("google/gemini-3.1-pro-preview", 40_689, 4_307);
+    const mismatched = { ...snap, requestedModelId: "claude-opus-5" };
+    assert.equal(isPublishedUserChargeSnapshot(mismatched), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(mismatched), false);
+  });
+
+  it("G31 self-consistent 200001 tokens → live-grade false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 200_000, 100);
+    const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
+      ...snap,
+      promptTokens: 200_001,
+      standardInputTokens: 200_001,
+    });
+    assert.equal(isPublishedUserChargeSnapshot(tampered), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+  });
+
+  it("G31 self-consistent cache snapshot → live-grade false (unverified policy)", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 10_000, 500);
+    const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
+      ...snap,
+      promptTokens: 15_000,
+      standardInputTokens: 10_000,
+      cacheReadTokens: 5_000,
+      billingReferenceCacheReadUsdPerMillion: 0.5,
+    });
+    assert.equal(snap.applicability.cacheSemanticStatus, "unverified");
+    assert.equal(isPublishedUserChargeSnapshot(tampered), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+  });
+
+  it("G37 self-consistent cache snapshot → live-grade false (unknown policy)", () => {
+    const snap = requireCompleteSnapshot("gemini-3.7-flash", 10_000, 500);
+    const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
+      ...snap,
+      promptTokens: 15_000,
+      standardInputTokens: 10_000,
+      cacheReadTokens: 5_000,
+      billingReferenceCacheReadUsdPerMillion: 0.1,
+    });
+    assert.equal(snap.applicability.cacheSemanticStatus, "unknown");
+    assert.equal(isPublishedUserChargeSnapshot(tampered), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+  });
+
+  it("valid Opus5 cache snapshot → live-grade true", () => {
+    const snap = requireCompleteSnapshot("claude-opus-5", 10_000, 500, { read: 5_000, write: 1_000 });
+    assert.equal(snap.applicability.cacheSemanticStatus, "verified_5m");
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(snap), true);
+  });
+
+  it("policy tampering without internal coherence → live-grade false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 10_000, 500);
+    const withCache = recomputeSnapshotTotalsFromEmbeddedValues({
+      ...snap,
+      promptTokens: 15_000,
+      standardInputTokens: 10_000,
+      cacheReadTokens: 5_000,
+      billingReferenceCacheReadUsdPerMillion: 0.5,
+    });
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(withCache), false);
+    const policyTampered = {
+      ...withCache,
+      applicability: {
+        ...withCache.applicability,
+        cacheSemanticStatus: "verified" as const,
+      },
+      billingReferenceCacheReadUsdPerMillion: null,
+    };
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(policyTampered), false);
+  });
+
+  it("historical snapshot validation uses embedded policy not current map", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 40_689, 4_307);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(snap), true);
+    const stricterEmbedded = {
+      ...snap,
+      applicability: {
+        ...snap.applicability,
+        pricingApplicability: "base_tier_only" as const,
+        publishedBaseTierMaxPromptTokens: 1000,
+      },
+    };
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(stricterEmbedded), false);
+  });
+
+  it("non-ISO publishedAt → structure validation false", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 40_689, 4_307);
+    const looseDate = { ...snap, publishedAt: "2026-08-28" };
+    assert.equal(isPublishedUserChargeSnapshot(looseDate), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(looseDate), false);
+  });
+
+  it("diagnostic snapshot can differ from live-grade (partial coverage tolerated structurally)", () => {
+    const snap = requireCompleteSnapshot("gemini-3.7-flash", 24_952, 2_367);
+    const diagnostic = { ...snap, usageCoverage: "partial" as const };
+    assert.equal(isPublishedUserChargeSnapshot(diagnostic), true);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(diagnostic), false);
+  });
+});
+
+describe("publishedUserCharge — raw usage normalization policy audit", () => {
+  it("fractional raw tokens are silently floored at normalize time", () => {
+    const u = normalizeBillableUsage({
+      modelId: "gemini-3.7-flash",
+      promptTokens: 1000.9,
+      outputTokens: 500,
+    });
+    assert.equal(u.promptTokens, 1000);
+  });
+
+  it("negative raw tokens are silently clamped to zero at normalize time", () => {
+    const u = normalizeBillableUsage({
+      modelId: "gemini-3.7-flash",
+      promptTokens: -5,
+      outputTokens: 500,
+    });
+    assert.equal(u.promptTokens, 0);
+  });
+
+  it("engine rejects fractional tokens after normalization tamper", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.promptTokens = 1000.5;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
   });
 });

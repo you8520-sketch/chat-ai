@@ -14,8 +14,13 @@ import {
   validateNormalizedBillableUsage,
 } from "@/lib/billingUsage";
 import {
+  buildPublishedApplicabilitySnapshot,
+  evaluateCacheEligibilityFromApplicabilitySnapshot,
+  evaluateTierEligibilityFromApplicabilitySnapshot,
   getModelPublishedPricingPolicy,
   type ModelPublishedPricingPolicy,
+  type PublishedApplicabilitySnapshot,
+  PUBLISHED_POLICY_SCHEMA_VERSION,
 } from "@/lib/modelPublishedPricingPolicy";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import {
@@ -31,8 +36,12 @@ import {
 } from "@/lib/publishedModelPricing";
 
 export { PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION } from "@/lib/publishedChargeRounding";
+export { PUBLISHED_POLICY_SCHEMA_VERSION } from "@/lib/modelPublishedPricingPolicy";
+export type { PublishedApplicabilitySnapshot } from "@/lib/modelPublishedPricingPolicy";
 
 export const CHARGE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
+
+const ISO_UTC_MS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export type PublishedChargeBlockedReason =
   | "unsupported_model"
@@ -91,6 +100,7 @@ export type PublishedUserChargeSnapshot = {
   billingReferenceCacheWriteUsdPerMillion: number | null;
   targetMargin: number;
   minimumMarginFloor: number;
+  applicability: PublishedApplicabilitySnapshot;
   promptTokens: number;
   standardInputTokens: number;
   cacheReadTokens: number;
@@ -131,15 +141,15 @@ const NUMERIC_TOLERANCE = 1e-6;
 
 function isValidIsoTimestamp(value: string): boolean {
   if (!value || typeof value !== "string") return false;
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed);
+  if (!ISO_UTC_MS_RE.test(value)) return false;
+  return Number.isFinite(Date.parse(value));
 }
 
 function isValidUsdRate(rate: number): boolean {
   return Number.isFinite(rate) && rate > 0;
 }
 
-function isValidOptionalCacheRate(rate: number | undefined): boolean {
+function isValidOptionalCacheRate(rate: number | undefined | null): boolean {
   if (rate == null) return true;
   return Number.isFinite(rate) && rate >= 0;
 }
@@ -200,6 +210,46 @@ export function validateResolvedPricingIdentity(
   }
   if (expectedCanonicalModelId == null && canonicalFromRequest !== resolved.canonicalModelId) {
     return false;
+  }
+  return true;
+}
+
+function validateApplicabilitySnapshotStructure(applicability: PublishedApplicabilitySnapshot): boolean {
+  if (applicability.publishedPolicySchemaVersion !== PUBLISHED_POLICY_SCHEMA_VERSION) return false;
+  switch (applicability.pricingApplicability) {
+    case "base_tier_only":
+    case "tier_aware":
+    case "not_applicable":
+      break;
+    default:
+      return false;
+  }
+  switch (applicability.cacheSemanticStatus) {
+    case "verified":
+    case "verified_5m":
+    case "unverified":
+    case "unknown":
+    case "not_applicable":
+      break;
+    default:
+      return false;
+  }
+  if (
+    applicability.publishedBaseTierMaxPromptTokens != null &&
+    (!Number.isSafeInteger(applicability.publishedBaseTierMaxPromptTokens) ||
+      applicability.publishedBaseTierMaxPromptTokens <= 0)
+  ) {
+    return false;
+  }
+  if (applicability.opusCacheTtlMode != null) {
+    switch (applicability.opusCacheTtlMode) {
+      case "5M_ONLY":
+      case "VARIABLE":
+      case "UNKNOWN":
+        break;
+      default:
+        return false;
+    }
   }
   return true;
 }
@@ -287,6 +337,7 @@ function buildSnapshot(
   adjustment: PublishedChargeAdjustment
 ): PublishedUserChargeSnapshot {
   const pricing = resolved.pricing;
+  const applicability = buildPublishedApplicabilitySnapshot(resolved.canonicalModelId, pricing);
   const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
   const billingReferenceCostKrw = roundKrwTenths(
     convertUsdToKrwPure(billingReferenceCostUsd, fxSnapshot.effectiveKrwPerUsd)
@@ -326,6 +377,7 @@ function buildSnapshot(
     billingReferenceCacheWriteUsdPerMillion: pricing.billingReferenceCacheWriteUsdPerMillion ?? null,
     targetMargin: pricing.targetMargin,
     minimumMarginFloor: pricing.minimumMarginFloor,
+    applicability,
     promptTokens: usage.promptTokens,
     standardInputTokens: usage.standardInputTokens,
     cacheReadTokens: usage.cacheReadTokens,
@@ -456,8 +508,7 @@ export function computePublishedUserChargeWithSnapshot(
     return { status: "blocked", reason: "unsupported_model", finalPoints: null };
   }
 
-  const canonicalFromRequest = canonicalizePublishedModelId(input.modelId);
-  if (canonicalFromRequest !== resolved.canonicalModelId) {
+  if (!validateResolvedPricingIdentity(input.modelId, resolved)) {
     return {
       status: "blocked",
       reason: "model_pricing_identity_mismatch",
@@ -547,11 +598,8 @@ function approxEqual(a: number, b: number): boolean {
   return Math.abs(a - b) <= NUMERIC_TOLERANCE;
 }
 
-function validateSnapshotDerivedFields(snapshot: PublishedUserChargeSnapshot): boolean {
-  const usage = snapshotUsageFromSnapshot(snapshot);
-  if (!validateNormalizedBillableUsage(usage)) return false;
-
-  const pricing: PublishedModelPricing = {
+function pricingFromSnapshot(snapshot: PublishedUserChargeSnapshot): PublishedModelPricing {
+  return {
     modelId: snapshot.canonicalModelId,
     billingReferenceInputUsdPerMillion: snapshot.billingReferenceInputUsdPerMillion,
     billingReferenceOutputUsdPerMillion: snapshot.billingReferenceOutputUsdPerMillion,
@@ -562,7 +610,54 @@ function validateSnapshotDerivedFields(snapshot: PublishedUserChargeSnapshot): b
     pricingVersion: snapshot.pricingVersion,
     publishedAt: snapshot.publishedAt,
   };
+}
 
+/** Structural snapshot shape — diagnostic-tolerant (no live-grade eligibility). */
+export function validatePublishedChargeSnapshotStructure(
+  value: unknown
+): value is PublishedUserChargeSnapshot {
+  if (value == null || typeof value !== "object") return false;
+  const s = value as PublishedUserChargeSnapshot;
+
+  if (s.chargeSnapshotSchemaVersion !== CHARGE_SNAPSHOT_SCHEMA_VERSION) return false;
+  if (s.roundingPolicyVersion !== PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION) return false;
+  if (typeof s.requestedModelId !== "string" || s.requestedModelId.length === 0) return false;
+  if (typeof s.canonicalModelId !== "string" || s.canonicalModelId.length === 0) return false;
+  if (!Number.isSafeInteger(s.pricingVersion) || s.pricingVersion <= 0) return false;
+  if (typeof s.publishedAt !== "string" || !isValidIsoTimestamp(s.publishedAt)) return false;
+  if (!isValidUsdRate(s.billingReferenceInputUsdPerMillion)) return false;
+  if (!isValidUsdRate(s.billingReferenceOutputUsdPerMillion)) return false;
+  if (!isValidOptionalCacheRate(s.billingReferenceCacheReadUsdPerMillion)) return false;
+  if (!isValidOptionalCacheRate(s.billingReferenceCacheWriteUsdPerMillion)) return false;
+  if (!Number.isFinite(s.targetMargin) || s.targetMargin < 0 || s.targetMargin >= 1) return false;
+  if (!Number.isFinite(s.minimumMarginFloor) || s.minimumMarginFloor < 0 || s.minimumMarginFloor >= 1) return false;
+  if (s.applicability == null || !validateApplicabilitySnapshotStructure(s.applicability)) return false;
+  if (s.usageCoverage !== "complete" && s.usageCoverage !== "partial" && s.usageCoverage !== "unknown") {
+    return false;
+  }
+  if (s.fxMode !== "daily_kst") return false;
+  if (typeof s.fxDateKey !== "string") return false;
+  if (s.fxSource !== "api_daily" && s.fxSource !== "previous_daily_snapshot" && s.fxSource !== "emergency_fallback") {
+    return false;
+  }
+  if (!Number.isFinite(s.usdToKrw) || s.usdToKrw <= 0) return false;
+  if (!Number.isFinite(s.effectiveKrwPerUsd) || s.effectiveKrwPerUsd <= 0) return false;
+  if (!Number.isFinite(s.overseasFeeRate) || s.overseasFeeRate < 0) return false;
+  if (typeof s.fxLocked !== "boolean") return false;
+  if (!Number.isFinite(s.billingReferenceCostUsd) || !Number.isFinite(s.billingReferenceCostKrw)) return false;
+  if (!Number.isFinite(s.standardUserChargeKrw) || !Number.isFinite(s.finalUserChargeKrw)) return false;
+  if (!Number.isInteger(s.finalPoints) || s.finalPoints < 0) return false;
+  if (!validateAdjustment(s.adjustment)) return false;
+
+  return validateNormalizedBillableUsage(snapshotUsageFromSnapshot(s));
+}
+
+/** Arithmetic coherence from embedded snapshot values only. */
+export function validatePublishedChargeSnapshotArithmetic(snapshot: PublishedUserChargeSnapshot): boolean {
+  const usage = snapshotUsageFromSnapshot(snapshot);
+  if (!validateNormalizedBillableUsage(usage)) return false;
+
+  const pricing = pricingFromSnapshot(snapshot);
   if (!validatePublishedModelPricingForLiveGrade(pricing)) return false;
 
   const expectedCostUsd = computeBillingReferenceCostUsd(usage, pricing);
@@ -603,42 +698,75 @@ function validateSnapshotDerivedFields(snapshot: PublishedUserChargeSnapshot): b
   return true;
 }
 
+/** Policy eligibility from embedded applicability only — no current policy map lookup. */
+export function validateEmbeddedPublishedApplicability(snapshot: PublishedUserChargeSnapshot): boolean {
+  if (!validateApplicabilitySnapshotStructure(snapshot.applicability)) return false;
+
+  const usage = snapshotUsageFromSnapshot(snapshot);
+  if (!evaluateTierEligibilityFromApplicabilitySnapshot(usage, snapshot.applicability)) {
+    return false;
+  }
+
+  return evaluateCacheEligibilityFromApplicabilitySnapshot(
+    usage,
+    snapshot.applicability,
+    snapshot.billingReferenceCacheReadUsdPerMillion,
+    snapshot.billingReferenceCacheWriteUsdPerMillion
+  );
+}
+
+/** Diagnostic snapshot validator — structure + arithmetic, not persistence-ready. */
 export function isPublishedUserChargeSnapshot(value: unknown): value is PublishedUserChargeSnapshot {
-  if (value == null || typeof value !== "object") return false;
-  const s = value as PublishedUserChargeSnapshot;
+  if (!validatePublishedChargeSnapshotStructure(value)) return false;
+  return validatePublishedChargeSnapshotArithmetic(value);
+}
 
-  if (s.chargeSnapshotSchemaVersion !== CHARGE_SNAPSHOT_SCHEMA_VERSION) return false;
-  if (s.roundingPolicyVersion !== PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION) return false;
-  if (typeof s.requestedModelId !== "string" || s.requestedModelId.length === 0) return false;
-  if (typeof s.canonicalModelId !== "string" || s.canonicalModelId.length === 0) return false;
-  if (!Number.isSafeInteger(s.pricingVersion) || s.pricingVersion <= 0) return false;
-  if (typeof s.publishedAt !== "string" || !isValidIsoTimestamp(s.publishedAt)) return false;
-  if (!isValidUsdRate(s.billingReferenceInputUsdPerMillion)) return false;
-  if (!isValidUsdRate(s.billingReferenceOutputUsdPerMillion)) return false;
-  if (s.billingReferenceCacheReadUsdPerMillion != null && !Number.isFinite(s.billingReferenceCacheReadUsdPerMillion)) {
-    return false;
-  }
-  if (s.billingReferenceCacheWriteUsdPerMillion != null && !Number.isFinite(s.billingReferenceCacheWriteUsdPerMillion)) {
-    return false;
-  }
-  if (!Number.isFinite(s.targetMargin) || s.targetMargin < 0 || s.targetMargin >= 1) return false;
-  if (!Number.isFinite(s.minimumMarginFloor) || s.minimumMarginFloor < 0 || s.minimumMarginFloor >= 1) return false;
-  if (s.usageCoverage !== "complete" && s.usageCoverage !== "partial" && s.usageCoverage !== "unknown") {
-    return false;
-  }
-  if (s.fxMode !== "daily_kst") return false;
-  if (typeof s.fxDateKey !== "string") return false;
-  if (s.fxSource !== "api_daily" && s.fxSource !== "previous_daily_snapshot" && s.fxSource !== "emergency_fallback") {
-    return false;
-  }
-  if (!Number.isFinite(s.usdToKrw) || s.usdToKrw <= 0) return false;
-  if (!Number.isFinite(s.effectiveKrwPerUsd) || s.effectiveKrwPerUsd <= 0) return false;
-  if (!Number.isFinite(s.overseasFeeRate) || s.overseasFeeRate < 0) return false;
-  if (typeof s.fxLocked !== "boolean") return false;
-  if (!Number.isFinite(s.billingReferenceCostUsd) || !Number.isFinite(s.billingReferenceCostKrw)) return false;
-  if (!Number.isFinite(s.standardUserChargeKrw) || !Number.isFinite(s.finalUserChargeKrw)) return false;
-  if (!Number.isInteger(s.finalPoints) || s.finalPoints < 0) return false;
-  if (!validateAdjustment(s.adjustment)) return false;
+/** Live-grade / persistence-ready charge snapshot validator. */
+export function isLiveGradePublishedUserChargeSnapshot(
+  value: unknown
+): value is PublishedUserChargeSnapshot {
+  if (!isPublishedUserChargeSnapshot(value)) return false;
+  const s = value;
+  if (s.usageCoverage !== "complete") return false;
+  if (s.fxLocked !== true) return false;
+  if (canonicalizePublishedModelId(s.requestedModelId) !== s.canonicalModelId) return false;
+  return validateEmbeddedPublishedApplicability(s);
+}
 
-  return validateSnapshotDerivedFields(s);
+/** Recompute cost/points for adversarial tamper tests — uses snapshot embedded rates only. */
+export function recomputeSnapshotTotalsFromEmbeddedValues(
+  snapshot: PublishedUserChargeSnapshot
+): PublishedUserChargeSnapshot {
+  const usage = snapshotUsageFromSnapshot(snapshot);
+  const pricing = pricingFromSnapshot(snapshot);
+  const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
+  const billingReferenceCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(billingReferenceCostUsd, snapshot.effectiveKrwPerUsd)
+  );
+  const standardUserChargeKrw = roundKrwTenths(
+    billingReferenceCostKrw / (1 - snapshot.targetMargin)
+  );
+  let finalUserChargeKrw = standardUserChargeKrw;
+  switch (snapshot.adjustment.kind) {
+    case "none":
+      break;
+    case "waiver":
+      finalUserChargeKrw = 0;
+      break;
+    case "self_funded_promo":
+      finalUserChargeKrw = roundKrwTenths(standardUserChargeKrw * (1 - snapshot.adjustment.percent));
+      break;
+    default: {
+      const _exhaustive: never = snapshot.adjustment;
+      throw new Error(`Unhandled adjustment: ${String(_exhaustive)}`);
+    }
+  }
+  return {
+    ...snapshot,
+    billingReferenceCostUsd,
+    billingReferenceCostKrw,
+    standardUserChargeKrw,
+    finalUserChargeKrw,
+    finalPoints: ceilPublishedChargePoints(finalUserChargeKrw),
+  };
 }

@@ -74,3 +74,73 @@ export function isCacheSemanticVerified(modelId: string): boolean {
   if (!policy) return false;
   return policy.cacheSemanticStatus === "verified" || policy.cacheSemanticStatus === "verified_5m";
 }
+
+export const PUBLISHED_POLICY_SCHEMA_VERSION = 1 as const;
+
+export type PublishedApplicabilitySnapshot = {
+  publishedPolicySchemaVersion: typeof PUBLISHED_POLICY_SCHEMA_VERSION;
+  pricingApplicability: PricingApplicability | "not_applicable";
+  publishedBaseTierMaxPromptTokens: number | null;
+  cacheSemanticStatus: CacheSemanticStatus;
+  opusCacheTtlMode: OpusCacheTtlMode | null;
+};
+
+export function buildPublishedApplicabilitySnapshot(
+  canonicalModelId: string,
+  pricing: {
+    pricingApplicability?: "base_tier_only";
+    publishedBaseTierMaxPromptTokens?: number;
+  }
+): PublishedApplicabilitySnapshot {
+  const policy = getModelPublishedPricingPolicy(canonicalModelId);
+  if (policy) {
+    return {
+      publishedPolicySchemaVersion: PUBLISHED_POLICY_SCHEMA_VERSION,
+      pricingApplicability: policy.pricingApplicability,
+      publishedBaseTierMaxPromptTokens: policy.publishedBaseTierMaxPromptTokens ?? null,
+      cacheSemanticStatus: policy.cacheSemanticStatus,
+      opusCacheTtlMode: policy.opusCacheTtlMode ?? null,
+    };
+  }
+  if (pricing.pricingApplicability === "base_tier_only" && pricing.publishedBaseTierMaxPromptTokens != null) {
+    return {
+      publishedPolicySchemaVersion: PUBLISHED_POLICY_SCHEMA_VERSION,
+      pricingApplicability: "base_tier_only",
+      publishedBaseTierMaxPromptTokens: pricing.publishedBaseTierMaxPromptTokens,
+      cacheSemanticStatus: "unknown",
+      opusCacheTtlMode: null,
+    };
+  }
+  return {
+    publishedPolicySchemaVersion: PUBLISHED_POLICY_SCHEMA_VERSION,
+    pricingApplicability: "not_applicable",
+    publishedBaseTierMaxPromptTokens: null,
+    cacheSemanticStatus: "unknown",
+    opusCacheTtlMode: null,
+  };
+}
+
+export function evaluateTierEligibilityFromApplicabilitySnapshot(
+  usage: { promptTokens: number },
+  applicability: PublishedApplicabilitySnapshot
+): boolean {
+  if (applicability.pricingApplicability !== "base_tier_only") return true;
+  if (applicability.publishedBaseTierMaxPromptTokens == null) return true;
+  return usage.promptTokens <= applicability.publishedBaseTierMaxPromptTokens;
+}
+
+export function evaluateCacheEligibilityFromApplicabilitySnapshot(
+  usage: { cacheReadTokens: number; cacheWriteTokens: number },
+  applicability: PublishedApplicabilitySnapshot,
+  cacheReadRate: number | null,
+  cacheWriteRate: number | null
+): boolean {
+  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
+  if (!hasCacheUsage) return true;
+  if (applicability.cacheSemanticStatus === "unverified" || applicability.cacheSemanticStatus === "unknown") {
+    return false;
+  }
+  if (usage.cacheReadTokens > 0 && cacheReadRate == null) return false;
+  if (usage.cacheWriteTokens > 0 && cacheWriteRate == null) return false;
+  return true;
+}

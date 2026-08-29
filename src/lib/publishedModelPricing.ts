@@ -197,6 +197,7 @@ export function resolvePublishedPricingExact(modelId: string): ResolvedPublished
   const canonicalModelId = canonicalizePublishedModelId(requestedModelId);
   const pricing = PUBLISHED_CATALOG[canonicalModelId];
   if (!pricing) return null;
+  if (pricing.modelId !== canonicalModelId) return null;
   return { requestedModelId, canonicalModelId, pricing };
 }
 
@@ -234,6 +235,15 @@ export function listPublishedModelIds(): string[] {
   return Object.keys(PUBLISHED_CATALOG);
 }
 
-export function _setPublishedPricingForTest(entry: PublishedModelPricing): void {
-  PUBLISHED_CATALOG[normalizeId(entry.modelId)] = entry;
+/** Exact catalog entries for integrity regression tests. */
+export function listExactPublishedCatalogEntries(): ResolvedPublishedPricing[] {
+  return listPublishedModelIds().map((canonicalModelId) => ({
+    requestedModelId: canonicalModelId,
+    canonicalModelId,
+    pricing: PUBLISHED_CATALOG[canonicalModelId],
+  }));
+}
+
+export function _setPublishedPricingForTest(entry: PublishedModelPricing, catalogKey?: string): void {
+  PUBLISHED_CATALOG[catalogKey ?? normalizeId(entry.modelId)] = entry;
 }

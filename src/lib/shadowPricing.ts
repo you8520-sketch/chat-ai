@@ -143,11 +143,6 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function chargePoints(n: number): number {
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.ceil(n - 1e-9);
-}
-
 function toBillingFxSnapshot(snapshot: ShadowBillingExchangeRateSnapshot): BillingFxSnapshot {
   return {
     mode: snapshot.mode,

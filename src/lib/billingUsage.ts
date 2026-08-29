@@ -46,7 +46,12 @@ function validateReasoningAccountingInvariants(usage: NormalizedBillableUsage): 
   }
 }
 
-/** Canonical billable usage normalizer — single owner for reasoning accounting */
+/**
+ * Raw usage normalization policy: sanitize (not strict).
+ * Provider parsers may supply fractional/negative raw counts; we floor to integers and clamp negatives to 0.
+ * Billing-critical paths must pass validateNormalizedBillableUsage() after normalization — tampered or
+ * non-integer fields fail closed at validation time.
+ */
 export function normalizeBillableUsage(opts: {
   modelId: string;
   promptTokens: number;
