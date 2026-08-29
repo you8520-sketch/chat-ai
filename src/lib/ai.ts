@@ -54,6 +54,8 @@ export type TokenUsage = {
   apiReportedInputTokens?: number;
   /** OpenRouter completion_tokens_details.reasoning_tokens */
   reasoningOutputTokens?: number;
+  /** Provider reporting-presence evidence (parallel to numeric buckets). */
+  usageReportingEvidence?: import("@/lib/usageReportingEvidence").UsageReportingEvidence;
   /** Dev-only — raw OpenRouter usage payload for diagnostics */
   debugRawUsage?: unknown;
   /** Provider-reported model id from stream/completion payload (when present) */
@@ -300,6 +302,8 @@ export type StageUsage = {
   apiOutputTokens?: number;
   /** OpenRouter reasoning_tokens 합산 (표시 RP 제외) */
   apiReasoningOutputTokens?: number;
+  /** Provider reporting-presence evidence (parallel to numeric buckets). */
+  usageReportingEvidence?: import("@/lib/usageReportingEvidence").UsageReportingEvidence;
   lengthRecoveryPasses?: number;
   savedOutputChars?: number;
   loopAborted?: boolean;

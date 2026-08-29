@@ -15,6 +15,7 @@ import {
   NARRATIVE_LENGTH_CONTINUATION_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
+import { stageUsageReportingEvidenceFromTokenUsage } from "@/lib/usageReportingEvidence";
 
 /** tier minimum(글자) 미달일 때만 이어쓰기 — target 미달·단어 부족만으로는 금지 */
 export function needsVisibleLengthContinuation(
@@ -141,6 +142,7 @@ export async function continueNarrativeIfUnderMinimum(
       ...(result.usage.reasoningOutputTokens != null && result.usage.reasoningOutputTokens > 0
         ? { apiReasoningOutputTokens: result.usage.reasoningOutputTokens }
         : {}),
+      ...stageUsageReportingEvidenceFromTokenUsage(result.usage),
     },
   };
 }

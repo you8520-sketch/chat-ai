@@ -1,5 +1,12 @@
 import type { TokenUsage } from "@/lib/ai";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import {
+  isInvalidReportedTokenValue,
+  isValidReportedTokenValue,
+  type UsageFieldReportingStatus,
+  type UsageReportingEvidence,
+  unreportedUsageReportingEvidence,
+} from "@/lib/usageReportingEvidence";
 
 /** OpenRouter / Anthropic usage — cache 분리 정산용 */
 export type OpenRouterUsageBreakdown = {
@@ -24,6 +31,8 @@ export type OpenRouterUsageBreakdown = {
   cacheDiscountUsd?: number;
   /** Unparsed prompt_tokens_details keys for provider-specific fields */
   promptTokensDetailsRaw?: Record<string, number>;
+  /** Reporting-presence evidence parallel to numeric buckets (does not alter numeric values). */
+  reportingEvidence: UsageReportingEvidence;
   estimated: boolean;
 };
 
@@ -63,6 +72,111 @@ function pickUsageField(obj: Record<string, unknown>, keys: string[]): number {
     if (v > 0) return v;
   }
   return 0;
+}
+
+const CACHE_READ_BODY_KEYS = [
+  "cached_tokens",
+  "cache_read_tokens",
+  "cache_read_input_tokens",
+] as const;
+
+const CACHE_WRITE_BODY_KEYS = [
+  "cache_write_tokens",
+  "cache_creation_tokens",
+  "cache_creation_input_tokens",
+] as const;
+
+const CACHE_READ_HEADER_NAMES = [
+  "x-cache-read-tokens",
+  "x-anthropic-cache-read-input-tokens",
+] as const;
+
+const CACHE_WRITE_HEADER_NAMES = [
+  "x-cache-write-tokens",
+  "x-cache-creation-tokens",
+  "x-anthropic-cache-creation-input-tokens",
+] as const;
+
+const REASONING_DETAIL_KEYS = ["reasoning_tokens", "reasoning"] as const;
+
+function collectPresentRawValues(
+  obj: Record<string, unknown> | null | undefined,
+  keys: readonly string[]
+): unknown[] {
+  if (!obj) return [];
+  const out: unknown[] = [];
+  for (const key of keys) {
+    if (key in obj) out.push(obj[key]);
+  }
+  return out;
+}
+
+function collectPresentHeaderValues(
+  headers: Headers | null | undefined,
+  names: readonly string[]
+): unknown[] {
+  if (!headers) return [];
+  const out: unknown[] = [];
+  for (const name of names) {
+    if (headers.has(name)) out.push(headers.get(name));
+  }
+  return out;
+}
+
+function detectFieldReportingEvidence(rawValues: unknown[]): UsageFieldReportingStatus {
+  if (rawValues.length === 0) return "unreported";
+  let hasValid = false;
+  let hasInvalid = false;
+  for (const raw of rawValues) {
+    if (isValidReportedTokenValue(raw)) hasValid = true;
+    else if (isInvalidReportedTokenValue(raw)) hasInvalid = true;
+  }
+  if (hasValid) return "reported_valid";
+  if (hasInvalid) return "reported_invalid";
+  return "unreported";
+}
+
+/** Parallel to numeric cache/reasoning parsing — preserves reporting presence without changing numbers. */
+export function detectOpenRouterUsageReportingEvidence(
+  usage: unknown,
+  headers?: Headers | null
+): UsageReportingEvidence {
+  if (!usage || typeof usage !== "object") {
+    return unreportedUsageReportingEvidence();
+  }
+  const u = usage as Record<string, unknown>;
+  const details =
+    u.prompt_tokens_details && typeof u.prompt_tokens_details === "object"
+      ? (u.prompt_tokens_details as Record<string, unknown>)
+      : null;
+  const completionDetails =
+    u.completion_tokens_details && typeof u.completion_tokens_details === "object"
+      ? (u.completion_tokens_details as Record<string, unknown>)
+      : null;
+
+  const cacheReadRaw = [
+    ...collectPresentRawValues(details, CACHE_READ_BODY_KEYS),
+    ...collectPresentRawValues(u, CACHE_READ_BODY_KEYS),
+    ...collectPresentHeaderValues(headers, CACHE_READ_HEADER_NAMES),
+  ];
+  const cacheWriteRaw = [
+    ...collectPresentRawValues(details, CACHE_WRITE_BODY_KEYS),
+    ...collectPresentRawValues(u, CACHE_WRITE_BODY_KEYS),
+    ...collectPresentHeaderValues(headers, CACHE_WRITE_HEADER_NAMES),
+  ];
+
+  let reasoningRaw: unknown[];
+  if (completionDetails) {
+    reasoningRaw = collectPresentRawValues(completionDetails, REASONING_DETAIL_KEYS);
+  } else {
+    reasoningRaw = collectPresentRawValues(u, ["reasoning_tokens"]);
+  }
+
+  return {
+    cacheRead: detectFieldReportingEvidence(cacheReadRaw),
+    cacheWrite: detectFieldReportingEvidence(cacheWriteRaw),
+    reasoning: detectFieldReportingEvidence(reasoningRaw),
+  };
 }
 
 /** completion_tokens_details.reasoning_tokens 등 */
@@ -111,6 +225,7 @@ export function parseOpenRouterUsage(
     cacheReadTokens: 0,
     cacheWriteTokens: 0,
     standardInputTokens: 0,
+    reportingEvidence: unreportedUsageReportingEvidence(),
     estimated: true,
   };
   if (!usage || typeof usage !== "object") return empty;
@@ -216,6 +331,7 @@ export function parseOpenRouterUsage(
   }
   const cacheDiscountUsd = readSignedUsd(u.cache_discount);
   const promptTokensDetailsRaw = extractPromptTokensDetailsRaw(details);
+  const reportingEvidence = detectOpenRouterUsageReportingEvidence(u, headers);
 
   return {
     promptTokens,
@@ -224,6 +340,7 @@ export function parseOpenRouterUsage(
     cacheReadTokens,
     cacheWriteTokens,
     standardInputTokens,
+    reportingEvidence,
     ...(upstreamCostUsd != null ? { upstreamCostUsd } : {}),
     ...(cheaperInferenceBilledCostUsd != null ? { cheaperInferenceBilledCostUsd } : {}),
     ...(upstreamPromptCostUsd != null ? { upstreamPromptCostUsd } : {}),
@@ -279,6 +396,7 @@ export function tokenUsageFromOpenRouterBreakdown(b: OpenRouterUsageBreakdown): 
     inputTokens: b.promptTokens,
     outputTokens: b.completionTokens,
     estimated: b.estimated,
+    usageReportingEvidence: b.reportingEvidence,
     ...(b.reasoningTokens > 0 ? { reasoningOutputTokens: b.reasoningTokens } : {}),
     ...(b.cacheReadTokens > 0 ? { cacheReadTokens: b.cacheReadTokens } : {}),
     ...(b.cacheWriteTokens > 0 ? { cacheWriteTokens: b.cacheWriteTokens } : {}),

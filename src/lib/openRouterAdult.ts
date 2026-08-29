@@ -68,6 +68,7 @@ import {
   trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
 import { parseCompatibleUsage, parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
+import { mergeUsageReportingEvidence, stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
 import {
@@ -675,6 +676,7 @@ function logTurnOpenRouterCacheDiagnostics(
         cacheReadTokens: usage.cacheReadTokens ?? 0,
         cacheWriteTokens: usage.cacheWriteTokens ?? 0,
         standardInputTokens: usage.standardInputTokens ?? usage.inputTokens,
+        reportingEvidence: usage.usageReportingEvidence ?? unreportedUsageReportingEvidence(),
         estimated: usage.estimated,
         ...(usage.upstreamCostUsd != null && usage.upstreamCostUsd > 0
           ? { upstreamCostUsd: usage.upstreamCostUsd }
@@ -1732,6 +1734,9 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       usageBreakdown.promptTokens > 0
         ? usageBreakdown.standardInputTokens
         : Math.max(0, inputTokens - cacheReadTokens - cacheWriteTokens),
+    reportingEvidence: lastStreamUsage
+      ? usageBreakdown.reportingEvidence
+      : unreportedUsageReportingEvidence(),
     estimated: !lastStreamUsage && (!inputTokens || !outputTokens),
     ...(usageBreakdown.upstreamCostUsd != null && usageBreakdown.upstreamCostUsd > 0
       ? { upstreamCostUsd: usageBreakdown.upstreamCostUsd }
@@ -1808,6 +1813,7 @@ function mergeOpenRouterUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
   const primaryBillable = a.billableInputTokens ?? a.inputTokens;
   const summedUpstream = (a.upstreamCostUsd ?? 0) + (b.upstreamCostUsd ?? 0);
   const summedCacheDiscount = (a.cacheDiscountUsd ?? 0) + (b.cacheDiscountUsd ?? 0);
+  const mergedEvidence = mergeUsageReportingEvidence(a.usageReportingEvidence, b.usageReportingEvidence);
   return {
     inputTokens: primaryBillable,
     billableInputTokens: primaryBillable,
@@ -1826,6 +1832,7 @@ function mergeOpenRouterUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
     cacheWriteTokens: (a.cacheWriteTokens ?? 0) + (b.cacheWriteTokens ?? 0) || undefined,
     ...(summedUpstream > 0 ? { upstreamCostUsd: summedUpstream } : {}),
     ...(summedCacheDiscount !== 0 ? { cacheDiscountUsd: summedCacheDiscount } : {}),
+    ...(mergedEvidence ? { usageReportingEvidence: mergedEvidence } : {}),
   };
 }
 
@@ -2285,6 +2292,7 @@ export async function streamOpenRouterAdultToClient(
       ...(usage.cacheWriteTokens != null && usage.cacheWriteTokens > 0
         ? { cacheWriteTokens: usage.cacheWriteTokens }
         : {}),
+      ...stageUsageReportingEvidenceFromTokenUsage(usage),
       standardInputTokens: Math.max(
         0,
         usage.inputTokens - (usage.cacheReadTokens ?? 0) - (usage.cacheWriteTokens ?? 0)
