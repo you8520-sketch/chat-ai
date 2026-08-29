@@ -65,3 +65,15 @@ test("layout metrics — detects mixed dialogue/narration paragraph", () => {
   assert.ok(m.totalParagraphs >= 2);
   assert.ok(m.mixedDialogueNarrationParagraphs >= 0);
 });
+
+test("layout metrics — blank-line separated speakers are not violations", () => {
+  const text = `"조태형"\n\n"렌"`;
+  const m = computeLayoutAbParagraphMetrics(text);
+  assert.equal(m.speakerChangeWithoutParagraphBreak, 0);
+});
+
+test("layout metrics — same-paragraph speaker change is a violation", () => {
+  const text = `"조태형"\n"렌"`;
+  const m = computeLayoutAbParagraphMetrics(text);
+  assert.ok(m.speakerChangeWithoutParagraphBreak >= 1);
+});

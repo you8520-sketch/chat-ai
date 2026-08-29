@@ -36,7 +36,9 @@ import { compareLayoutAbPayloadParity } from "../src/lib/gemini31LayoutAbParity"
 import { computeLayoutAbParagraphMetrics } from "../src/lib/gemini31LayoutAbMetrics";
 import {
   aggregateFixtureVerdict,
+  isGradedFixtureVerdict,
   scoreLayoutAbQualityRubric,
+  type FixtureVerdict,
   type LayoutAbQualityRubric,
 } from "../src/lib/gemini31LayoutAbRubric";
 import type { ChatMsg } from "../src/lib/ai";
@@ -166,6 +168,22 @@ function median(nums: number[]): number {
   const s = [...nums].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
+}
+
+function medianPositive(nums: Array<number | null | undefined>): number | null {
+  const valid = nums.filter((n): n is number => n != null && n > 0);
+  if (!valid.length) return null;
+  return median(valid);
+}
+
+function hasPerformanceMetadata(meta: Partial<RunRecord> | null): boolean {
+  if (!meta) return false;
+  return (
+    typeof meta.providerPromptTokens === "number" &&
+    meta.providerPromptTokens > 0 &&
+    typeof meta.totalMs === "number" &&
+    meta.totalMs > 0
+  );
 }
 
 function buildBaseHistory(): ChatMsg[] {
@@ -358,17 +376,73 @@ type RunRecord = {
   variant: "A" | "B";
   runIndex: number;
   visibleChars: number;
-  visibleTokens: number;
+  visibleTokens: number | null;
   layoutMetrics: ReturnType<typeof computeLayoutAbParagraphMetrics>;
-  providerPromptTokens: number;
-  cachedTokens: number;
+  providerPromptTokens: number | null;
+  cachedTokens: number | null;
   cacheRatio: number | null;
   ttftMs: number | null;
-  totalMs: number;
-  costUsd: number;
+  totalMs: number | null;
+  costUsd: number | null;
   textPreview: string;
   parityValid: boolean;
+  qualityArtifactAvailable: boolean;
+  performanceMetadataAvailable: boolean;
 };
+
+function buildQualityOnlyCachedRecord(
+  fixtureId: FixtureId,
+  variant: "A" | "B",
+  runIndex: number,
+  text: string
+): RunRecord {
+  return {
+    fixtureId,
+    variant,
+    runIndex,
+    visibleChars: visibleAssistantDisplayCharCount(text),
+    visibleTokens: null,
+    layoutMetrics: computeLayoutAbParagraphMetrics(text),
+    providerPromptTokens: null,
+    cachedTokens: null,
+    cacheRatio: null,
+    ttftMs: null,
+    totalMs: null,
+    costUsd: null,
+    textPreview: text.slice(0, 500),
+    parityValid: true,
+    qualityArtifactAvailable: true,
+    performanceMetadataAvailable: false,
+  };
+}
+
+function buildCachedRecordFromMeta(
+  fixtureId: FixtureId,
+  variant: "A" | "B",
+  runIndex: number,
+  text: string,
+  meta: Partial<RunRecord>
+): RunRecord {
+  const perfOk = hasPerformanceMetadata(meta);
+  return {
+    fixtureId,
+    variant,
+    runIndex,
+    visibleChars: meta.visibleChars ?? visibleAssistantDisplayCharCount(text),
+    visibleTokens: perfOk ? (meta.visibleTokens ?? null) : null,
+    layoutMetrics: meta.layoutMetrics ?? computeLayoutAbParagraphMetrics(text),
+    providerPromptTokens: perfOk ? (meta.providerPromptTokens ?? null) : null,
+    cachedTokens: perfOk ? (meta.cachedTokens ?? null) : null,
+    cacheRatio: perfOk ? (meta.cacheRatio ?? null) : null,
+    ttftMs: perfOk ? (meta.ttftMs ?? null) : null,
+    totalMs: perfOk ? (meta.totalMs ?? null) : null,
+    costUsd: perfOk ? (meta.costUsd ?? null) : null,
+    textPreview: text.slice(0, 500),
+    parityValid: true,
+    qualityArtifactAvailable: true,
+    performanceMetadataAvailable: perfOk,
+  };
+}
 
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -425,28 +499,16 @@ async function main() {
         const priorText = loadPriorRunText(fixture.id, variant, r + 1);
         const priorMeta = loadPriorRunMeta(fixture.id, variant, r + 1);
         if (priorText) {
-          const rec: RunRecord = {
-            fixtureId: fixture.id,
-            variant,
-            runIndex: r + 1,
-            visibleChars:
-              priorMeta?.visibleChars ?? visibleAssistantDisplayCharCount(priorText),
-            visibleTokens: priorMeta?.visibleTokens ?? 0,
-            layoutMetrics:
-              priorMeta?.layoutMetrics ?? computeLayoutAbParagraphMetrics(priorText),
-            providerPromptTokens: priorMeta?.providerPromptTokens ?? 0,
-            cachedTokens: priorMeta?.cachedTokens ?? 0,
-            cacheRatio: priorMeta?.cacheRatio ?? null,
-            ttftMs: priorMeta?.ttftMs ?? null,
-            totalMs: priorMeta?.totalMs ?? 0,
-            costUsd: priorMeta?.costUsd ?? 0,
-            textPreview: priorText.slice(0, 500),
-            parityValid: true,
-          };
+          const rec = priorMeta
+            ? buildCachedRecordFromMeta(fixture.id, variant, r + 1, priorText, priorMeta)
+            : buildQualityOnlyCachedRecord(fixture.id, variant, r + 1, priorText);
           runs.push(rec);
           if (variant === "A") aRuns.push(rec);
           else bRuns.push(rec);
-          console.info(`[cached] ${fixture.id} ${variant} run ${r + 1}/${RUNS}`);
+          console.info(
+            `[cached] ${fixture.id} ${variant} run ${r + 1}/${RUNS}` +
+              (rec.performanceMetadataAvailable ? "" : " (quality-only, no performance meta)")
+          );
           continue;
         }
 
@@ -473,6 +535,8 @@ async function main() {
           costUsd: resp.costUsd,
           textPreview: resp.text.slice(0, 500),
           parityValid: true,
+          qualityArtifactAvailable: true,
+          performanceMetadataAvailable: true,
         };
         runs.push(rec);
         if (variant === "A") aRuns.push(rec);
@@ -497,34 +561,68 @@ async function main() {
     }
   }
 
-  const fixtureVerdicts: Record<FixtureId, string> = {} as Record<FixtureId, string>;
+  const fixtureVerdicts: Record<FixtureId, FixtureVerdict> = {
+    Q1: "NOT_RUN",
+    Q2: "NOT_RUN",
+    Q3: "NOT_RUN",
+    Q4: "NOT_RUN",
+  };
+  const executedFixtures =
+    FIXTURE_FILTER.length > 0
+      ? FIXTURE_FILTER
+      : (["Q1", "Q2", "Q3", "Q4"] as FixtureId[]);
+
   for (const id of ["Q1", "Q2", "Q3", "Q4"] as FixtureId[]) {
+    if (!executedFixtures.includes(id)) {
+      fixtureVerdicts[id] = "NOT_RUN";
+      continue;
+    }
+    if (rubricsByFixture[id].length === 0) {
+      fixtureVerdicts[id] = "INCOMPLETE";
+      continue;
+    }
     fixtureVerdicts[id] = aggregateFixtureVerdict(rubricsByFixture[id]);
   }
 
-  const aPromptTokens = runs.filter((r) => r.variant === "A").map((r) => r.providerPromptTokens);
-  const bPromptTokens = runs.filter((r) => r.variant === "B").map((r) => r.providerPromptTokens);
+  const gradedFixtures = (["Q1", "Q2", "Q3", "Q4"] as FixtureId[]).filter((id) =>
+    isGradedFixtureVerdict(fixtureVerdicts[id])
+  );
+  const allRequiredGraded = gradedFixtures.length === 4;
+
+  const perfRuns = runs.filter((r) => r.performanceMetadataAvailable);
+  const aPromptTokens = perfRuns
+    .filter((r) => r.variant === "A")
+    .map((r) => r.providerPromptTokens);
+  const bPromptTokens = perfRuns
+    .filter((r) => r.variant === "B")
+    .map((r) => r.providerPromptTokens);
   const layoutTokenSaving =
     aPromptTokens.length && bPromptTokens.length
-      ? Math.round((median(aPromptTokens) - median(bPromptTokens)) * 10) / 10
+      ? Math.round((median(aPromptTokens.filter((n): n is number => n != null)) -
+          median(bPromptTokens.filter((n): n is number => n != null))) *
+          10) /
+        10
       : null;
 
-  const allPass = (["Q1", "Q2", "Q3", "Q4"] as FixtureId[]).every(
-    (id) => fixtureVerdicts[id] === "PASS"
-  );
-  const anyFail = (["Q1", "Q2", "Q3", "Q4"] as FixtureId[]).some(
-    (id) => fixtureVerdicts[id] === "FAIL"
-  );
+  const allPass =
+    allRequiredGraded && gradedFixtures.every((id) => fixtureVerdicts[id] === "PASS");
+  const anyFail = gradedFixtures.some((id) => fixtureVerdicts[id] === "FAIL");
   const anyMinorOnly =
+    allRequiredGraded &&
     !anyFail &&
-    (["Q1", "Q2", "Q3", "Q4"] as FixtureId[]).some((id) => fixtureVerdicts[id] === "MINOR");
+    gradedFixtures.some((id) => fixtureVerdicts[id] === "MINOR");
 
   let mergeCase: "A" | "B" | "C";
   let paragraphLayoutOwner: string;
   let layoutSystemDuplicateRemoved: boolean;
   let trueD2After: number;
 
-  if (allPass) {
+  if (!allRequiredGraded) {
+    mergeCase = "C";
+    paragraphLayoutOwner = "INTENTIONAL_MULTI_INJECTION";
+    layoutSystemDuplicateRemoved = false;
+    trueD2After = 0;
+  } else if (allPass) {
     mergeCase = "A";
     paragraphLayoutOwner = "USER_TAIL_TERMINAL";
     layoutSystemDuplicateRemoved = true;
@@ -547,7 +645,14 @@ async function main() {
     GEMINI31_LAYOUT_OWNER_LIVE_AB: {
       generatedAt: new Date().toISOString(),
       runsPerVariant: RUNS,
-      totalLiveRuns: runs.length,
+      totalRuns: runs.length,
+      totalLiveRuns: runs.filter((r) => r.performanceMetadataAvailable).length,
+      QUALITY_SAMPLE_N: runs.filter((r) => r.qualityArtifactAvailable).length,
+      PERFORMANCE_SAMPLE_N: perfRuns.length,
+      MISSING_METADATA_N: runs.filter(
+        (r) => r.qualityArtifactAvailable && !r.performanceMetadataAvailable
+      ).length,
+      executedFixtures,
       parityReports,
       runs,
       rubricsByFixture,
@@ -559,13 +664,13 @@ async function main() {
       LAYOUT_SYSTEM_PROVIDER_TOKENS_SAVED: layoutTokenSaving,
       PR_724_READY_TO_MERGE: allPass ? "YES" : "NO",
       secondaryMetrics: {
-        ttftA: median(runs.filter((r) => r.variant === "A").map((r) => r.ttftMs ?? 0)),
-        ttftB: median(runs.filter((r) => r.variant === "B").map((r) => r.ttftMs ?? 0)),
-        cacheRatioA: median(
-          runs.filter((r) => r.variant === "A").map((r) => r.cacheRatio ?? 0)
+        ttftA: medianPositive(perfRuns.filter((r) => r.variant === "A").map((r) => r.ttftMs)),
+        ttftB: medianPositive(perfRuns.filter((r) => r.variant === "B").map((r) => r.ttftMs)),
+        cacheRatioA: medianPositive(
+          perfRuns.filter((r) => r.variant === "A").map((r) => r.cacheRatio)
         ),
-        cacheRatioB: median(
-          runs.filter((r) => r.variant === "B").map((r) => r.cacheRatio ?? 0)
+        cacheRatioB: medianPositive(
+          perfRuns.filter((r) => r.variant === "B").map((r) => r.cacheRatio)
         ),
       },
     },

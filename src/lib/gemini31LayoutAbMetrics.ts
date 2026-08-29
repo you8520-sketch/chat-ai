@@ -42,14 +42,18 @@ function sentenceCount(p: string): number {
   return Math.max(1, marks?.length ?? (p.length > 40 ? 2 : 1));
 }
 
+/** Count dialogue speaker changes within the same paragraph (blank-line separated paragraphs are OK). */
 function countSpeakerChangesWithoutBreak(text: string): number {
-  const lines = text.replace(/\r/g, "").split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const paragraphs = splitParagraphs(text);
   let violations = 0;
-  for (let i = 1; i < lines.length; i++) {
-    const prevDialogue = isDialogueLine(lines[i - 1]!);
-    const currDialogue = isDialogueLine(lines[i]!);
-    if (prevDialogue && currDialogue && lines[i - 1] !== lines[i]) {
-      violations++;
+  for (const paragraph of paragraphs) {
+    const lines = paragraph.split(/\n/).map((l) => l.trim()).filter(Boolean);
+    for (let i = 1; i < lines.length; i++) {
+      const prevDialogue = isDialogueLine(lines[i - 1]!);
+      const currDialogue = isDialogueLine(lines[i]!);
+      if (prevDialogue && currDialogue && lines[i - 1] !== lines[i]) {
+        violations++;
+      }
     }
   }
   return violations;

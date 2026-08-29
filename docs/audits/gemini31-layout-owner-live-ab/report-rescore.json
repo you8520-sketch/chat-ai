@@ -1,5 +1,5 @@
 {
-  "GEMINI31_LAYOUT_OWNER_LIVE_AB": {
+  "GEMINI31_LAYOUT_OWNER_LIVE_AB_RESCORE": {
     "generatedAt": "2026-08-29T13:24:50.898Z",
     "rescoreOnly": true,
     "OLD_MERGE_CASE_NOTE": "Prior report may contain synthetic-zero performance rows",
@@ -641,8 +641,6 @@
         "qualityArtifactAvailable": true,
         "performanceMetadataAvailable": true
       }
-    ],
-    "canonicalNote": "Regenerated after review-correction R1/R2/R6 fixes. Q1 has no saved artifacts (INCOMPLETE). Synthetic-zero performance rows removed.",
-    "supersededReport": "pre-review-correction report.json contained synthetic-zero metadata for text-only cache hits"
+    ]
   }
 }

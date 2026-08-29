@@ -1,6 +1,7 @@
 import type { LayoutAbParagraphMetrics } from "@/lib/gemini31LayoutAbMetrics";
 
 export type RubricGrade = "PASS" | "MINOR" | "FAIL";
+export type FixtureVerdict = RubricGrade | "NOT_RUN" | "INCOMPLETE";
 
 export type LayoutAbQualityRubric = {
   readsLikeNovel: RubricGrade;
@@ -147,8 +148,14 @@ export function scoreLayoutAbQualityRubric(opts: {
 
 export function aggregateFixtureVerdict(
   rubrics: LayoutAbQualityRubric[]
-): RubricGrade {
+): FixtureVerdict {
+  if (rubrics.length === 0) return "NOT_RUN";
   if (rubrics.some((r) => r.overall === "FAIL")) return "FAIL";
   if (rubrics.some((r) => r.overall === "MINOR")) return "MINOR";
   return "PASS";
+}
+
+/** Merge-case gate — only fixtures with a graded verdict participate. */
+export function isGradedFixtureVerdict(verdict: FixtureVerdict): verdict is RubricGrade {
+  return verdict === "PASS" || verdict === "MINOR" || verdict === "FAIL";
 }
