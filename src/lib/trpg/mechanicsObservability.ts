@@ -7,7 +7,11 @@ export type TrpgMechanicsCheckTelemetry = {
   action_type: TrpgActionType;
   check_required: boolean;
   check_reason: TrpgActionCheckReason;
+  difficulty_band?: string | null;
+  base_dc?: number | null;
+  effective_dc?: number | null;
   stat_key?: string | null;
+  stat_selection_reason?: string | null;
   stat_modifier?: number | null;
   condition_modifier?: number | null;
   final_score?: number | null;
@@ -21,7 +25,11 @@ export function logTrpgMechanicsCheckTelemetry(row: TrpgMechanicsCheckTelemetry)
     action_type: row.action_type,
     check_required: row.check_required,
     check_reason: row.check_reason,
+    difficulty_band: row.difficulty_band ?? null,
+    base_dc: row.base_dc ?? null,
+    effective_dc: row.effective_dc ?? null,
     stat_key: row.stat_key ?? null,
+    stat_selection_reason: row.stat_selection_reason ?? null,
     stat_modifier: row.stat_modifier ?? null,
     condition_modifier: row.condition_modifier ?? null,
     final_score: row.final_score ?? null,

@@ -224,7 +224,7 @@ export const LIVE_BILLING_OWNER_AUDIT = {
   billableInputOwner: "resolveTurnBillableInput() in src/lib/points.ts",
   billableOutputOwner:
     "billableOpenRouterOutputTokens / primary stage output in src/app/api/chat/route.ts",
-  billableUsageNormalizer: "normalizeBillableUsage() in src/lib/shadowPricing.ts",
+  billableUsageNormalizer: "normalizeBillableUsage() in src/lib/billingUsage.ts",
   idempotencyOwner:
     "settleChatTurnBillingExactlyOnce() in src/lib/chatBillingSettlement.ts — chat_billing_settlements UNIQUE(user_id, chat_id, request_id, charge_kind)",
 } as const;

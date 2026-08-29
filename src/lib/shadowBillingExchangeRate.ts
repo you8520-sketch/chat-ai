@@ -36,6 +36,9 @@ export type ShadowBillingExchangeRateSnapshot = {
   locked: boolean;
 };
 
+/** Backward-compatible alias for neutral BillingFxSnapshot contract */
+export type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
+
 export class ShadowBillingFxPersistenceError extends Error {
   constructor(message: string) {
     super(message);

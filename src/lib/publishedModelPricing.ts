@@ -3,6 +3,8 @@
  * Source-of-truth is USD per million. KRW is computed via daily KST FX (not baked-in).
  */
 
+import { canonicalizePublishedModelId, normalizePublishedModelId } from "@/lib/publishedModelAliases";
+
 export type PublishedModelPricing = {
   modelId: string;
   billingReferenceInputUsdPerMillion: number;
@@ -23,10 +25,6 @@ export type PublishedModelPricing = {
     allowBelowMarginFloor: boolean;
   };
   marketBenchmark?: { outputChars: number; points: number };
-};
-
-const PUBLISHED_MODEL_ALIASES: Record<string, string> = {
-  "google/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
 };
 
 const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
@@ -185,12 +183,26 @@ const GENERIC_PUBLISHED: PublishedModelPricing = {
 };
 
 function normalizeId(id: string): string {
-  return id.trim().toLowerCase();
+  return normalizePublishedModelId(id);
+}
+
+export type ResolvedPublishedPricing = {
+  requestedModelId: string;
+  canonicalModelId: string;
+  pricing: PublishedModelPricing;
+};
+
+export function resolvePublishedPricingExact(modelId: string): ResolvedPublishedPricing | null {
+  const requestedModelId = modelId.trim();
+  const canonicalModelId = canonicalizePublishedModelId(requestedModelId);
+  const pricing = PUBLISHED_CATALOG[canonicalModelId];
+  if (!pricing) return null;
+  if (pricing.modelId !== canonicalModelId) return null;
+  return { requestedModelId, canonicalModelId, pricing };
 }
 
 export function getPublishedPricing(modelId: string): PublishedModelPricing {
-  const n = normalizeId(modelId);
-  const canonical = PUBLISHED_MODEL_ALIASES[n] ?? n;
+  const canonical = canonicalizePublishedModelId(modelId);
   return PUBLISHED_CATALOG[canonical] ?? { ...GENERIC_PUBLISHED, modelId: canonical };
 }
 
@@ -223,6 +235,15 @@ export function listPublishedModelIds(): string[] {
   return Object.keys(PUBLISHED_CATALOG);
 }
 
-export function _setPublishedPricingForTest(entry: PublishedModelPricing): void {
-  PUBLISHED_CATALOG[normalizeId(entry.modelId)] = entry;
+/** Exact catalog entries for integrity regression tests. */
+export function listExactPublishedCatalogEntries(): ResolvedPublishedPricing[] {
+  return listPublishedModelIds().map((canonicalModelId) => ({
+    requestedModelId: canonicalModelId,
+    canonicalModelId,
+    pricing: PUBLISHED_CATALOG[canonicalModelId],
+  }));
+}
+
+export function _setPublishedPricingForTest(entry: PublishedModelPricing, catalogKey?: string): void {
+  PUBLISHED_CATALOG[catalogKey ?? normalizeId(entry.modelId)] = entry;
 }

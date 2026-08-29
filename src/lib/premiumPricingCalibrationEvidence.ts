@@ -135,7 +135,7 @@ export function auditPremiumCacheEvidence(
   published: PublishedModelPricing
 ): CacheEvidenceAudit {
   const policy = getModelShadowPricingPolicy(modelId);
-  if (policy?.cachePolicyStatus === "unverified") {
+  if (policy?.cacheSemanticStatus === "unverified") {
     return {
       status: "UNVERIFIED",
       publishedCacheReadUsdPerMillion: published.billingReferenceCacheReadUsdPerMillion ?? null,
@@ -152,7 +152,7 @@ export function auditPremiumCacheEvidence(
   const catRead = live?.referenceCacheReadUsdPerMillion ?? null;
   const catWrite = live?.referenceCacheWriteUsdPerMillion ?? null;
 
-  if (policy?.cachePolicyStatus === "verified_5m") {
+  if (policy?.cacheSemanticStatus === "verified_5m") {
     const readOk = pubRead == null || pubRead === 0.5;
     const writeOk = pubWrite == null || pubWrite === 6.25;
     return {
