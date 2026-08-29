@@ -79,6 +79,26 @@ const cases: ProbeCase[] = [
     }),
     action: "보스의 다음 패턴을 읽으려 한다.",
   },
+  {
+    id: "P7",
+    label: "objective wording refinement same scene",
+    progress: applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+      resolvedObstaclesAdd: ["균사벽 제거"],
+    }),
+    action: "환풍구 주변을 더 자세히 살핀다.",
+  },
+  {
+    id: "P8",
+    label: "genuine scene transition",
+    progress: applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+      resolvedObstaclesAdd: ["균사벽 제거"],
+    }),
+    action: "환풍구를 타고 유지보수 터널로 진입한다.",
+  },
 ];
 
 function scoreCase(text: string, probe: ProbeCase) {
@@ -98,11 +118,20 @@ function scoreCase(text: string, probe: ProbeCase) {
     probe.progress.sceneState === "active" &&
     probe.id === "P6" &&
     parsed.delta.localScene?.sceneStateSet === "transition_ready";
+  const objectiveRephraseLost =
+    probe.id === "P7" &&
+    parsed.delta.localScene?.sceneTransitionTo != null &&
+    !parsed.delta.localScene?.openRoutesAdd?.length;
+  const silentSceneReset =
+    probe.id === "P7" &&
+    parsed.delta.localScene?.sceneTransitionTo != null;
   return {
     openRouteForgotten,
     resolvedRecreated,
     playerForced,
     prematureAdvance,
+    objectiveRephraseLost,
+    silentSceneReset,
     deltaLocalScene: parsed.delta.localScene ?? null,
     narrationExcerpt: narration.slice(0, 280),
   };
@@ -147,6 +176,8 @@ async function main() {
     RESOLVED_OBSTACLE_RECREATED: casesArr.filter((c) => c.scored.resolvedRecreated).length,
     PLAYER_AGENCY_VIOLATION: casesArr.filter((c) => c.scored.playerForced).length,
     PREMATURE_TRANSITION: casesArr.filter((c) => c.scored.prematureAdvance).length,
+    OBJECTIVE_REPHRASE_PROGRESS_LOST: casesArr.filter((c) => c.scored.objectiveRephraseLost).length,
+    SILENT_SCENE_RESET: casesArr.filter((c) => c.scored.silentSceneReset).length,
   };
   const out = "/opt/cursor/artifacts/trpg-local-scene-progress-probe.json";
   writeFileSync(out, JSON.stringify(results, null, 2));

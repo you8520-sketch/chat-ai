@@ -118,11 +118,87 @@ describe("TRPG local scene progress", () => {
       resolvedObstaclesAdd: ["균사벽 제거"],
     });
     const sceneB = applyLocalSceneProgressDelta(sceneA, {
-      objectiveSet: "유지보수 터널 안전 통과",
+      sceneTransitionTo: "유지보수 터널 안전 통과",
     });
     assert.equal(sceneB.objective, "유지보수 터널 안전 통과");
     assert.deepEqual(sceneB.openRoutes, []);
     assert.deepEqual(sceneB.resolvedObstacles, []);
+  });
+
+  it("T1 objective rephrase via objectiveSet preserves progress (BEFORE_OBJECTIVE_REPHRASE_RESETS_PROGRESS: fixed)", () => {
+    const state = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      resolvedObstaclesAdd: ["균사벽 제거"],
+      openRoutesAdd: ["우측 환풍구"],
+      remainingBlockersAdd: ["기생종 접근"],
+    });
+    const refined = applyLocalSceneProgressDelta(state, {
+      objectiveSet: "건물에서 안전한 탈출구 확보",
+    });
+    assert.equal(refined.objective, "건물에서 안전한 탈출구 확보");
+    assert.deepEqual(refined.resolvedObstacles, ["균사벽 제거"]);
+    assert.deepEqual(refined.openRoutes, ["우측 환풍구"]);
+    assert.deepEqual(refined.remainingBlockers, ["기생종 접근"]);
+  });
+
+  it("T2 explicit sceneTransitionTo resets old collections", () => {
+    const sceneA = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "편의점 탈출",
+      openRoutesAdd: ["환풍구"],
+      resolvedObstaclesAdd: ["균사벽 제거"],
+    });
+    const sceneB = applyLocalSceneProgressDelta(sceneA, {
+      sceneTransitionTo: "유지보수 터널 안전 통과",
+    });
+    assert.equal(sceneB.objective, "유지보수 터널 안전 통과");
+    assert.deepEqual(sceneB.openRoutes, []);
+    assert.deepEqual(sceneB.resolvedObstacles, []);
+    assert.deepEqual(sceneB.remainingBlockers, []);
+    assert.equal(sceneB.sceneState, "active");
+  });
+
+  it("T3 transition plus new-scene additions in same delta", () => {
+    const sceneA = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "편의점 탈출",
+      openRoutesAdd: ["환풍구"],
+    });
+    const sceneB = applyLocalSceneProgressDelta(sceneA, {
+      sceneTransitionTo: "유지보수 터널 안전 통과",
+      openRoutesAdd: ["동쪽 정비통로"],
+      remainingBlockersAdd: ["붕괴 구간"],
+    });
+    assert.equal(sceneB.objective, "유지보수 터널 안전 통과");
+    assert.deepEqual(sceneB.openRoutes, ["동쪽 정비통로"]);
+    assert.deepEqual(sceneB.remainingBlockers, ["붕괴 구간"]);
+  });
+
+  it("T4 repeated identical objectiveSet does not reset collections", () => {
+    const state = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+    });
+    const again = applyLocalSceneProgressDelta(state, { objectiveSet: "건물 탈출" });
+    assert.deepEqual(again.openRoutes, ["환풍구"]);
+  });
+
+  it("T5 omitted objectiveSet leaves objective and collections unchanged", () => {
+    const state = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+    });
+    const next = applyLocalSceneProgressDelta(state, { remainingBlockersAdd: ["기생종"] });
+    assert.equal(next.objective, "건물 탈출");
+    assert.deepEqual(next.openRoutes, ["환풍구"]);
+  });
+
+  it("exact remove requires matching label — partial remove is no-op", () => {
+    const state = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      openRoutesAdd: ["우측 환풍구"],
+    });
+    const partial = applyLocalSceneProgressDelta(state, { openRoutesRemove: ["환풍구"] });
+    assert.deepEqual(partial.openRoutes, ["우측 환풍구"]);
+    const exact = applyLocalSceneProgressDelta(state, { openRoutesRemove: ["우측 환풍구"] });
+    assert.deepEqual(exact.openRoutes, []);
   });
 
   it("L9 omission is not deletion for open routes", () => {
@@ -135,7 +211,7 @@ describe("TRPG local scene progress", () => {
     assert.deepEqual(next.openRoutes, ["환풍구"]);
   });
 
-  it("L10 regen applies only the accepted canonical delta once", () => {
+  it("unit: delta replace semantics for open routes", () => {
     const original = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
       openRoutesAdd: ["정면"],
     });
@@ -147,7 +223,7 @@ describe("TRPG local scene progress", () => {
     assert.notDeepEqual(accepted.openRoutes, original.openRoutes);
   });
 
-  it("L11 stale commit with no localScene delta leaves accepted state unchanged", () => {
+  it("unit: omitted delta leaves prior local scene unchanged", () => {
     const current = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
       objectiveSet: "탈출",
       openRoutesAdd: ["환풍구"],
@@ -195,6 +271,18 @@ describe("TRPG local scene progress", () => {
     const loaded = loadCampaignContext(db, 7);
     assert.equal(loaded?.localSceneProgress.objective, "탈출");
     assert.deepEqual(loaded?.localSceneProgress.openRoutes, ["환풍구"]);
+  });
+
+  it("serializeLocalSceneStateForGm is data-only (no behavior prose)", () => {
+    const block = serializeLocalSceneStateForGm(
+      applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        openRoutesAdd: ["환풍구"],
+        sceneStateSet: "transition_ready",
+      })
+    );
+    assert.match(block, /\[LOCAL SCENE STATE\]/);
+    assert.doesNotMatch(block, /canon|PC 이동|transition_ready는/);
   });
 
   it("serializeLocalSceneStateForGm renders compact Korean block", () => {

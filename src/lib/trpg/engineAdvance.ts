@@ -51,7 +51,6 @@ import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemp
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
-  emptyCampaignContext,
   loadCampaignContext,
   persistCampaignContext,
   resolvedCampaignPlan,
@@ -1481,8 +1480,8 @@ function commitPendingGmResult(
       }
       persistCampaignLedger(db, campaign.id, roundNumber, ledger);
       const hasLocalSceneDelta = hasLocalSceneProgressDelta(parsed.delta.localScene);
-      if (hasLocalSceneDelta || (campaignContext && resolvedPlan)) {
-        let ctx = campaignContext ?? emptyCampaignContext(campaign.id);
+      if (campaignContext && (hasLocalSceneDelta || resolvedPlan)) {
+        let ctx = campaignContext;
         if (hasLocalSceneDelta) {
           ctx = applyLocalSceneProgressToContext(ctx, parsed.delta.localScene);
         }

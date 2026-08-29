@@ -17,7 +17,10 @@ export type TrpgLocalSceneProgressV1 = {
 };
 
 export type TrpgLocalSceneProgressDelta = {
+  /** Refine current local objective without resetting collections. */
   objectiveSet?: string;
+  /** Explicit new local dramatic situation — replaces objective and resets collections. */
+  sceneTransitionTo?: string;
   resolvedObstaclesAdd?: string[];
   resolvedObstaclesRemove?: string[];
   openRoutesAdd?: string[];
@@ -116,6 +119,8 @@ export function parseLocalSceneProgressDelta(raw: unknown): TrpgLocalSceneProgre
   const delta: TrpgLocalSceneProgressDelta = {};
   if (typeof obj.objectiveSet === "string") delta.objectiveSet = obj.objectiveSet;
   else if (typeof obj.objective_set === "string") delta.objectiveSet = obj.objective_set;
+  if (typeof obj.sceneTransitionTo === "string") delta.sceneTransitionTo = obj.sceneTransitionTo;
+  else if (typeof obj.scene_transition_to === "string") delta.sceneTransitionTo = obj.scene_transition_to;
   const resolvedAdd =
     boundedStringList(obj.resolvedObstaclesAdd, TRPG_LOCAL_SCENE_LIST_MAX) ??
     boundedStringList(obj.resolved_obstacles_add, TRPG_LOCAL_SCENE_LIST_MAX);
@@ -155,16 +160,19 @@ export function applyLocalSceneProgressDelta(
 ): TrpgLocalSceneProgressV1 {
   if (!hasLocalSceneProgressDelta(delta)) return current;
   const d = delta!;
-  let base = { ...current };
-  if (d.objectiveSet != null) {
-    const nextObjective = clipObjective(d.objectiveSet);
-    if (nextObjective && nextObjective !== current.objective) {
-      base = {
-        ...emptyLocalSceneProgress(),
-        objective: nextObjective,
-      };
-    } else if (nextObjective) {
-      base.objective = nextObjective;
+  let base: TrpgLocalSceneProgressV1;
+  if (d.sceneTransitionTo != null) {
+    const nextObjective = clipObjective(d.sceneTransitionTo);
+    base = {
+      ...emptyLocalSceneProgress(),
+      objective: nextObjective,
+      sceneState: d.sceneStateSet ?? "active",
+    };
+  } else {
+    base = { ...current };
+    if (d.objectiveSet != null) {
+      const nextObjective = clipObjective(d.objectiveSet);
+      if (nextObjective) base.objective = nextObjective;
     }
   }
   return {
@@ -183,7 +191,7 @@ export function applyLocalSceneProgressDelta(
       d.remainingBlockersRemove,
       TRPG_LOCAL_SCENE_LIST_MAX
     ),
-    sceneState: d.sceneStateSet ?? base.sceneState,
+    sceneState: d.sceneTransitionTo == null && d.sceneStateSet ? d.sceneStateSet : base.sceneState,
   };
 }
 
@@ -211,16 +219,14 @@ export function serializeLocalSceneStateForGm(progress: TrpgLocalSceneProgressV1
     lines.push(`남은 장애:\n${progress.remainingBlockers.map((item) => `- ${item}`).join("\n")}`);
   }
   lines.push(`상태:\n${progress.sceneState}`);
-  lines.push(
-    "해결된 장애와 열린 경로는 확립된 세계 canon. 새 결과가 명시적으로 닫지 않는 한 유지. transition_ready는 국소 목적이 충분히 소진되어 바깥으로 열릴 준비가 됐다는 뜻이지, PC 이동 허가가 아님."
-  );
   return lines.join("\n\n");
 }
 
 export function serializeLocalSceneDeltaContract(): string {
   return `[LOCAL SCENE DELTA CONTRACT]
 Optional nested "localScene" in <<<DELTA>>> JSON. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
-Fields: objectiveSet, resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
+Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
+When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
 Record world/scene availability only — not unsubmitted PC decisions or movement.
 Example:
 {"players":[],"location":"","next_round_context":"","localScene":{"objectiveSet":"건물 탈출 경로 확보","openRoutesAdd":["우측 환풍구"],"remainingBlockersAdd":["환풍구 앞 기생종"],"sceneStateSet":"active"}}`;
