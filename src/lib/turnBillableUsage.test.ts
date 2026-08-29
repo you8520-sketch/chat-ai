@@ -14,7 +14,7 @@ import {
 } from "@/lib/chatModels";
 import { computePublishedUserChargeWithSnapshot } from "@/lib/publishedUserCharge";
 import { computeTurnBilling } from "@/lib/points";
-import { parseOpenRouterUsage, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
+import { parseOpenRouterUsage, parseReasoningTokens, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
 import type { TokenUsage } from "@/lib/tokenUsage";
 import {
   billableOpenRouterOutputTokens,
@@ -111,6 +111,9 @@ function productionStageUsageFromTokenUsage(
       : {}),
     ...(usage.cacheWriteTokens != null && usage.cacheWriteTokens > 0
       ? { cacheWriteTokens: usage.cacheWriteTokens }
+      : {}),
+    ...(usage.reasoningOutputTokens != null && usage.reasoningOutputTokens > 0
+      ? { apiReasoningOutputTokens: usage.reasoningOutputTokens }
       : {}),
   };
 }
@@ -537,6 +540,113 @@ describe("turnBillableUsage — cache production reachability", () => {
     assert.equal(r.usageCoverage, "partial");
     assert.equal(r.diagnostics.cacheReadReported, false);
     assert.equal(r.diagnostics.cacheWriteReported, false);
+  });
+});
+
+describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachability", () => {
+  function resolveCandidateFromRawUsage(rawUsage: Record<string, unknown>) {
+    const parsed = parseOpenRouterUsage(rawUsage);
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    stageUsage.apiOutputTokens = parsed.completionTokens;
+    const candidate = resolveTurnBillableUsage({
+      stages: [
+        {
+          ...stageUsage,
+          cacheReadTokens: 100,
+          cacheWriteTokens: 50,
+        },
+      ],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    });
+    return { parsed, tokenUsage, stageUsage, candidate };
+  }
+
+  it("A — reasoning field absent", () => {
+    const raw = { prompt_tokens: 5000, completion_tokens: 400 };
+    assert.equal(parseReasoningTokens(raw), 0);
+    const { parsed, tokenUsage, stageUsage, candidate } = resolveCandidateFromRawUsage(raw);
+    assert.equal(parsed.reasoningTokens, 0);
+    assert.equal("reasoningOutputTokens" in tokenUsage, false);
+    assert.equal(stageUsage.apiReasoningOutputTokens, undefined);
+    assert.equal(candidate.diagnostics.reasoningReported, false);
+    assert.equal(candidate.diagnostics.fieldSources.reasoning, "MISSING_AND_UNKNOWN");
+    assert.equal(candidate.usage!.reasoningTokens, 0);
+    assert.equal(candidate.usage!.reasoningAccounting, "none");
+    assert.equal(candidate.usageCoverage, "complete");
+  });
+
+  it("B — reasoning field explicitly present as 0", () => {
+    const raw = {
+      prompt_tokens: 5000,
+      completion_tokens: 400,
+      completion_tokens_details: { reasoning_tokens: 0 },
+    };
+    assert.equal(parseReasoningTokens(raw), 0);
+    const { parsed, tokenUsage, stageUsage, candidate } = resolveCandidateFromRawUsage(raw);
+    assert.equal(parsed.reasoningTokens, 0);
+    assert.equal("reasoningOutputTokens" in tokenUsage, false);
+    assert.equal(stageUsage.apiReasoningOutputTokens, undefined);
+    assert.equal(candidate.diagnostics.reasoningReported, false);
+    assert.equal(candidate.diagnostics.fieldSources.reasoning, "MISSING_AND_UNKNOWN");
+    assert.notEqual(candidate.diagnostics.fieldSources.reasoning, "MISSING_BUT_PROVEN_ZERO");
+    assert.equal(candidate.usageCoverage, "complete");
+  });
+
+  it("C — reasoning field present > 0", () => {
+    const raw = {
+      prompt_tokens: 5000,
+      completion_tokens: 400,
+      completion_tokens_details: { reasoning_tokens: 120 },
+    };
+    assert.equal(parseReasoningTokens(raw), 120);
+    const { parsed, tokenUsage, stageUsage, candidate } = resolveCandidateFromRawUsage(raw);
+    assert.equal(parsed.reasoningTokens, 120);
+    assert.equal(tokenUsage.reasoningOutputTokens, 120);
+    assert.equal(stageUsage.apiReasoningOutputTokens, 120);
+    assert.equal(candidate.diagnostics.reasoningReported, true);
+    assert.equal(candidate.diagnostics.fieldSources.reasoning, "PROVIDER_REPORTED_EXACT");
+    assert.equal(candidate.usage!.reasoningTokens, 120);
+    assert.equal(candidate.usage!.reasoningAccounting, "included_in_output");
+    assert.equal(candidate.usageCoverage, "complete");
+  });
+
+  it("PRODUCTION_STAGE_CAN_CONTAIN_EXPLICIT_ZERO_REASONING_FIELD is false", () => {
+    const parsed = parseOpenRouterUsage({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      completion_tokens_details: { reasoning_tokens: 0 },
+    });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    assert.equal(stageUsage.apiReasoningOutputTokens, undefined);
+  });
+
+  it("UNPROVEN_ZERO_SOURCE_COUNT is 0 — reasoning absent is not labeled proven zero", () => {
+    const r = resolveTurnBillableUsage({
+      stages: [
+        stage({
+          stage: "primary",
+          model: OPENROUTER_QWEN_37_MAX_MODEL,
+          input: 5000,
+          output: 400,
+          apiOutputTokens: 400,
+          cacheReadTokens: 100,
+          cacheWriteTokens: 50,
+        }),
+      ],
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+    });
+    assert.equal(r.diagnostics.fieldSources.reasoning, "MISSING_AND_UNKNOWN");
+    assert.notEqual(r.diagnostics.fieldSources.reasoning, "MISSING_BUT_PROVEN_ZERO");
   });
 });
 

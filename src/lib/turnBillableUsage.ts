@@ -52,6 +52,7 @@ export type TurnBillableUsageDiagnostics = {
   promptAuditCapApplied: boolean;
   cacheReadReported: boolean;
   cacheWriteReported: boolean;
+  reasoningReported: boolean;
   fieldSources: TurnBillableUsageFieldSources;
   coverageReasons: string[];
 };
@@ -91,6 +92,7 @@ function emptyDiagnostics(): TurnBillableUsageDiagnostics {
     promptAuditCapApplied: false,
     cacheReadReported: false,
     cacheWriteReported: false,
+    reasoningReported: false,
     fieldSources: {
       prompt: "MISSING_AND_UNKNOWN",
       cacheRead: "MISSING_AND_UNKNOWN",
@@ -252,12 +254,17 @@ export function resolveTurnBillableUsage(
     coverageReasons.push("completion_api_missing");
   }
 
+  const reasoningReported = openRouterStages.some((s) => s.apiReasoningOutputTokens != null);
+  diagnostics.reasoningReported = reasoningReported;
+
   const reasoningSource =
     summedApiReasoning > 0
       ? anyEstimatedInComposition
         ? "ESTIMATED"
         : "PROVIDER_REPORTED_EXACT"
-      : "MISSING_BUT_PROVEN_ZERO";
+      : reasoningReported
+        ? "PROVIDER_REPORTED_EXACT"
+        : "MISSING_AND_UNKNOWN";
 
   const routeChargeOutputTokens = billableOpenRouterOutputTokens(
     input.modelId,

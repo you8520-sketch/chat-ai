@@ -56,9 +56,50 @@ Candidate coverage: unreported cache → `partial`, not `complete` (fail-closed)
 
 Integration tests that set `cacheReadTokens: 0` / `cacheWriteTokens: 0` on `StageUsage` are **SYNTHETIC_COMPLETE_CONTRACT** fixtures — not production-reachable shapes.
 
+## Reasoning evidence
+
+Production chain:
+
+```text
+raw usage → parseReasoningTokens → OpenRouterUsageBreakdown.reasoningTokens
+→ tokenUsageFromOpenRouterBreakdown → TokenUsage.reasoningOutputTokens
+→ openRouterAdult stage writer → StageUsage.apiReasoningOutputTokens
+→ sumOpenRouterStageReasoningTokens → resolveTurnBillableUsage
+→ normalizeBillableUsage
+```
+
+| Raw state | Parsed | TokenUsage field | StageUsage field | Candidate source (absent path) |
+|-----------|--------|------------------|------------------|--------------------------------|
+| A. `reasoning_tokens` absent | 0 | omitted | omitted | `MISSING_AND_UNKNOWN` |
+| B. `reasoning_tokens` explicitly 0 | 0 | omitted | omitted | `MISSING_AND_UNKNOWN` |
+| C. `reasoning_tokens` > 0 | >0 | present (>0 only) | present (>0 only) | `PROVIDER_REPORTED_EXACT` |
+
+```text
+REASONING_ABSENT_VS_EXPLICIT_ZERO_DISTINGUISHABLE_AT_PARSER: false
+REASONING_ABSENT_VS_EXPLICIT_ZERO_DISTINGUISHABLE_AT_TOKEN_USAGE: false
+REASONING_ABSENT_VS_EXPLICIT_ZERO_DISTINGUISHABLE_AT_STAGE: false
+PRODUCTION_STAGE_CAN_CONTAIN_EXPLICIT_ZERO_REASONING_FIELD: false
+```
+
+`parseReasoningTokens` uses `readNum` (>0 only); absent and explicit zero both collapse to numeric 0 with no reporting-presence preserved.
+
+### Coverage contract (MIXED)
+
+- **Cache:** `UserBillableUsageCoverage = complete` requires reporting-presence evidence (fail-closed partial when unreported).
+- **Reasoning:** completion total is authoritative for charge; reasoning breakdown unreported does **not** currently block `complete` (same as pre-audit live/Published path).
+- **Field sources:** must be truthful — unreported reasoning is `MISSING_AND_UNKNOWN`, not `MISSING_BUT_PROVEN_ZERO`.
+
+```text
+USER_BILLABLE_USAGE_COVERAGE_SEMANTIC: MIXED
+BILLABLE_OUTPUT_TOTAL_KNOWN_WHEN_REASONING_DETAIL_MISSING: true (completion_tokens authoritative)
+REASONING_BREAKDOWN_KNOWN_WHEN_DETAIL_MISSING: false
+UNREPORTED_REASONING_CAN_BE_PERSISTED_AS_CONFIRMED_ZERO: true (P0 before live-grade persistence)
+UNREPORTED_REASONING_COULD_APPEAR_TO_USER_AS_ZERO: false (receipt shows thinking only when > 0)
+```
+
 ## Recommended next PR
 
-**Cache usage reporting-presence evidence preservation** (parser → TokenUsage → StageUsage) before any production observational canary. Current production no-cache turns will mostly emit `not_comparable` in dev canary because upstream evidence is lost.
+**Cache + reasoning reporting-presence evidence preservation** (parser → TokenUsage → StageUsage) before production observational canary or live-grade snapshot persistence. Reasoning absence is non-critical for charge exactness today but must not be persisted as confirmed zero without upstream evidence.
 
 ## Published proof concepts (separate)
 
