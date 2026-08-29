@@ -65,6 +65,7 @@ import {
   resolveNoGodmoddingMode,
 } from "@/lib/noGodmodding";
 import { appendGemini31UserAgencySupplement } from "@/lib/gemini31UserAgencyAdapter";
+import { shouldInjectSystemLayoutRecency } from "@/lib/gemini31LayoutOwnerPolicy";
 import {
   buildCoreMasterPrompt,
   buildCoreMasterEarlyTurnHint,
@@ -142,6 +143,7 @@ import {
   auditAssembledPrompt,
   type TrackedPromptSection,
 } from "@/services/promptAudit";
+import { logPromptSectionFingerprints } from "@/lib/promptSectionFingerprint";
 import { resolvePromptDumpSource, writePromptBuildDump } from "@/services/promptDebugDump";
 import {
   buildBilingualDialoguePromptBlock,
@@ -1122,18 +1124,25 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  pushSection(
-    "rule-output-layout-recency",
-    "Output layout recency (Korean webnovel paragraph breaks)",
-    "systemRules",
-    rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
-      ? COMMON_LAYOUT_MINIMAL_OWNER
-      : buildWebnovelOutputLayoutRecencyBlock({
-          dialogueIntentUnit:
-            input.terraPromptCanary?.variant === "dialogue_intent_unit",
-        }),
-    "dynamic"
-  );
+  if (
+    shouldInjectSystemLayoutRecency({
+      isOpenRouter,
+      modelId: input.modelId,
+    })
+  ) {
+    pushSection(
+      "rule-output-layout-recency",
+      "Output layout recency (Korean webnovel paragraph breaks)",
+      "systemRules",
+      rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
+        ? COMMON_LAYOUT_MINIMAL_OWNER
+        : buildWebnovelOutputLayoutRecencyBlock({
+            dialogueIntentUnit:
+              input.terraPromptCanary?.variant === "dialogue_intent_unit",
+          }),
+      "dynamic"
+    );
+  }
 
   const globalLorebookBlock = sanitizeRuntimePromptSource(input.globalLorebookBlock);
   if (globalLorebookBlock) {
@@ -1685,6 +1694,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     deepSeekXmlMode,
   });
 
+  const sectionFingerprintScope = `chat:${input.chatId ?? "preview"}:model:${input.modelId ?? "unknown"}`;
+  const fingerprintLog = logPromptSectionFingerprints({
+    scopeKey: sectionFingerprintScope,
+    sections: trackedSections,
+  });
+
   if (deepSeekXmlMode && process.env.NODE_ENV !== "production") {
     logDeepSeekContextStructure({ systemPrompt: systemPromptOut, history: historyWithCurrent });
   }
@@ -1737,6 +1752,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       truncatedMemory,
       promptAudit,
       trackedSections,
+      sectionFingerprint: {
+        firstChangedSection: fingerprintLog.firstChangedSection,
+        unchangedCount: fingerprintLog.unchangedCount,
+        sectionCount: fingerprintLog.fingerprints.length,
+      },
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
       momentumActivation,
