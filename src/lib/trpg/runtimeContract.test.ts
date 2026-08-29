@@ -13,9 +13,9 @@ import {
 } from "./types";
 
 describe("TRPG runtime contract (P0)", () => {
-  it("keeps two independent AI character seats and the production Luna/Gemini models", () => {
+  it("keeps two independent AI character seats and the production Gemini Bot/GM models", () => {
     assert.equal(TRPG_MAX_BOTS, 2);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.notEqual(TRPG_BOT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
     assert.notEqual(TRPG_GM_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);

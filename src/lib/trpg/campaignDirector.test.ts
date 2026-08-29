@@ -452,7 +452,7 @@ describe("TRPG sandbox director and plan security", () => {
   it("keeps 0/1/2 bot-seat calls independent of director and uses the original models", async () => {
     assert.equal(TRPG_MAX_BOTS, 2);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
 
     const db = memoryDb();

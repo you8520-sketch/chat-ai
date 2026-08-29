@@ -1,0 +1,139 @@
+{
+  "botModel": "gemini-3.7-flash",
+  "calls": 6,
+  "parsePass": 6,
+  "contractPass": 6,
+  "latencyMedian": 10048,
+  "latencyMax": 14472,
+  "avgInputTokens": null,
+  "avgOutputTokens": null,
+  "avgProviderCostUsd": null,
+  "samples": [
+    {
+      "fixtureId": "G01",
+      "character": "권태현",
+      "scenario": "combat_retreat",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 9002,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "불길이 치솟는 잔해 틈으로 망설임 없이 파고드는 뒷모습을 보며 권태현은 짓씹듯 숨을 뱉었다. 앞뒤 가리지 않고 몸부터 던지는 버릇은 몇 년이 지나도 조금도 고쳐지지 않았다. \n\n\"죽으면 내가 대신 사과할 일은 없어.\"\n\n짧게 내뱉은 목소리와 함께 그의 손이 허리춤에 걸린 마체테 자루를 거칠게 낚아챘다. \n\n묵직한 칼날이 칼집을 빠져나오며 차가운 쇳소리를 냈다. 통로를 가로막은 검은 갑주 병사들의 시선이 불길을 뚫고 쇄도하는 렌에게 쏠리는 바로 그 찰나였다.\n\n권태현은 지체 없이 바닥을 박차고 나갔다. 렌이 파고든 반대편 사각을 메우듯 파고들며, 선두에 선 병사의 창날이 렌을 향해 뻗어나오기 전에 그 궤적을 마체테로 내리쳐 꺾어버릴 기세로 도약했다.\n\n<<<ACTION_TYPE>>>\nattack\n<<<INTENT>>>\n권태현은 돌진하는 렌의 측면을 엄호하기 위해 마체테를 뽑아 들고 선두의 검은 갑주 병사를 내리치려 했다.",
+      "parsedActionType": "attack",
+      "parsedIntent": "권태현은 돌진하는 렌의 측면을 엄호하기 위해 마체테를 뽑아 들고 선두의 검은 갑주 병사를 내리치려 했다."
+    },
+    {
+      "fixtureId": "G02",
+      "character": "권태현",
+      "scenario": "investigate",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 11635,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "어두컴컴하고 서늘한 폐허 지하의 공기가 피부에 닿았다. 렌이 바닥을 가리키자, 나는 반사적으로 허리춤의 검자루에 가볍게 손을 얹은 채 그가 가리킨 곳으로 시선을 내렸다. \n\n언제나처럼 앞장서는 녀석의 등 뒤를 지키는 것은 익숙한 일이었지만, 이런 잊힌 유적에서는 사소한 방심 하나가 치명적인 덫으로 이어지기 마련이었다.\n\n\"…또 먼저 나설 생각이야?\"\n\n낮게 가라앉은 목소리로 핀잔을 던지면서도, 나는 한 걸음 다가가 몸을 낮췄다. 렌이 발견한 바닥의 기이한 흔적과 벽면에 새겨진 낡은 문양 사이의 연관성을 살피기 시작했다. \n\n단순한 풍화의 흔적인지, 아니면 무언가 지나간 발자국이나 함정의 기동 장치인지 확인해야 했다. 날 선 감각으로 주변의 미세한 공기 흐름까지 짚어가며 바닥과 벽면의 문양을 신중하게 뜯어보았다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n권태현은 렌이 가리킨 바닥의 흔적과 벽의 낡은 문양을 면밀히 관찰하여 그것이 함정이나 생명체의 흔적인지 분석하려 했다.",
+      "parsedActionType": "investigate",
+      "parsedIntent": "권태현은 렌이 가리킨 바닥의 흔적과 벽의 낡은 문양을 면밀히 관찰하여 그것이 함정이나 생명체의 흔적인지 분석하려 했다."
+    },
+    {
+      "fixtureId": "G03",
+      "character": "권태현",
+      "scenario": "relationship",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 14472,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "창문을 두드리는 빗소리 사이로 손바닥 위에 내려앉은 펜던트의 감촉이 서늘하게 감돌았다. 손때 묻은 은색 표면은 여전히 낯익었고, 그 무게만큼이나 오래된 기억들이 불쑥 머릿속을 스쳤다.\n\n권태현은 굳은살 박인 손가락으로 펜던트의 모서리를 느릿하게 매만졌다. 돌려받을 생각 따위는 애초에 없었던 물건이었다. 렌의 손에 쥐여주었을 때도, 그리고 지금 이렇게 다시 마주하게 되었을 때도 차마 입 밖으로 내지 못한 말들이 혀끝에 맴돌았다.\n\n하지만 그는 끝내 묵직하게 가라앉은 감정을 드러내는 대신, 늘 그러했듯 희미한 쓴웃음을 흘리며 시선을 들었다.\n\n\"…이걸 아직도 들고 있었나.\"\n\n태현은 펜던트를 쥔 손을 가볍게 쥐어 품속에 갈무리하며 담담한 어조로 말을 이었다.\n\n\"부적 삼아 가지고 있으랬더니, 기어코 돌려주는군. 네 고집은 여전해.\"\n\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n권태현은 렌이 돌려준 펜던트를 품에 넣으며 애써 덤덤한 태도로 대화를 이어가려 했다.",
+      "parsedActionType": "free",
+      "parsedIntent": "권태현은 렌이 돌려준 펜던트를 품에 넣으며 애써 덤덤한 태도로 대화를 이어가려 했다."
+    },
+    {
+      "fixtureId": "G04",
+      "character": "강이현",
+      "scenario": "combat_retreat",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 9762,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "매캐한 연기 속으로 렌의 그림자가 망설임 없이 파고들었다. 붉게 타오르는 불길이 시야를 어지럽히고, 잔해 사이로 열기가 훅 끼쳤다.\n\n늘 그렇듯 한발 먼저 나가는 버릇은 고쳐지지 않는다. 한숨을 삼키며 허리춤의 검자루를 고쳐 쥐었다. 무작정 뛰어든 길목 좌우로 숨겨진 위험이 없는지 날카롭게 시선을 던졌다.\n\n\"…앞만 보지 마.\"\n\n나직하게 중얼거리며 렌의 뒤를 바짝 쫓았다. 불길 속에서 튈지 모를 파편이나 기습에 대비해 칼날을 반쯤 뽑아 든 채, 렌의 사각을 메우며 잔해 틈새로 발을 디뎠다.\n\n<<<ACTION_TYPE>>>\nsupport\n<<<INTENT>>>\n강이현은 앞서 뛰어든 렌의 뒤를 바짝 따르며 사각지대에서 올지 모를 기습을 엄호하려 했다.",
+      "parsedActionType": "support",
+      "parsedIntent": "강이현은 앞서 뛰어든 렌의 뒤를 바짝 따르며 사각지대에서 올지 모를 기습을 엄호하려 했다."
+    },
+    {
+      "fixtureId": "G05",
+      "character": "강이현",
+      "scenario": "investigate",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 9434,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "지하의 눅눅하고 차가운 공기가 폐부를 찔렀다. 발밑에서 바스러지는 돌가루 소리조차 조심스러울 만큼 폐허 내부는 기분 나쁜 정적으로 가라앉아 있었다. \n\n렌이 손짓으로 바닥의 흔적을 가리키자, 나는 반사적으로 허리춤의 무기에 손을 얹으며 그의 곁으로 다가섰다. 오래도록 합을 맞춰온 사이답게 굳이 긴 설명이 없어도 그가 무엇을 경계하는지 알 수 있었다. \n\n\"…기다려.\"\n\n낮게 가라앉은 목소리로 주의를 준 뒤, 한쪽 무릎을 꿇고 앉아 렌이 가리킨 지면을 천천히 훑었다. 먼지 위에 엷게 남은 자국이 단순한 풍화에 의한 것인지, 아니면 최근에 이곳을 지나간 자들의 발자취인지 분간하기 위해 신경을 곤두세웠다.\n\n\"괜찮아, 내가 볼게.\"\n\n어둠 속으로 이어지는 통로 쪽으로도 시선을 힐끗 던지며, 혹시 모를 불시의 기습에 대비해 주변의 기척을 함께 살폈다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n강이현은 렌이 가리킨 바닥의 흔적이 무엇인지 조심스럽게 식별하며 주변의 기척을 확인하려 했다.",
+      "parsedActionType": "investigate",
+      "parsedIntent": "강이현은 렌이 가리킨 바닥의 흔적이 무엇인지 조심스럽게 식별하며 주변의 기척을 확인하려 했다."
+    },
+    {
+      "fixtureId": "G06",
+      "character": "강이현",
+      "scenario": "relationship",
+      "model": "gemini-3.7-flash",
+      "contract": {
+        "model": "gemini-3.7-flash",
+        "thinkingType": "",
+        "reasoningEffort": "low",
+        "stream": false
+      },
+      "latencyMs": 10334,
+      "inputTokens": null,
+      "outputTokens": null,
+      "providerCostUsd": null,
+      "parseSuccess": true,
+      "contractPass": true,
+      "outputRaw": "희미한 등불 아래로 렌이 불쑥 내민 펜던트가 그림자를 길게 늘어뜨렸다. 금속 표면에 반사된 주황빛 불씨가 조용히 일렁였다. \n\n강이현은 잠시 시선을 내린 채 굳은 침묵을 지켰다. 굳이 말하지 않아도 이 물건이 어떤 무게를 지니고 있는지 잘 알고 있었다. 조심스럽게 손을 뻗는 그의 손끝이 미세하게 떨려왔으나, 이내 주먹을 쥐어 흔들림을 억누르고는 물건을 받아들었다. 차가운 금속의 감촉이 손바닥을 파고들었다.\n\n\"…기다려.\"\n\n그는 낮게 가라앉은 목소리로 중얼거리며 펜던트를 손안에 쥐고 렌의 얼굴을 똑바로 응시했다. 무언가 묻고 싶은 말이 목 끝까지 차올랐지만, 결국 삼켜낸 채 묵직한 한숨만을 내뱉었다.\n\n\"별일 아니야. 그러니 무리하지 마라.\"\n\n강이현은 펜던트를 품 안쪽에 깊숙이 갈무리하고는, 주변의 기척에 신경을 곤두세우며 한 걸음 물러서 방 안쪽을 살폈다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n강이현은 렌이 건넨 펜던트를 받아 품에 넣고, 여관 2층 주변의 수상한 기척이나 위험이 없는지 살피려 했다.",
+      "parsedActionType": "investigate",
+      "parsedIntent": "강이현은 렌이 건넨 펜던트를 받아 품에 넣고, 여관 2층 주변의 수상한 기척이나 위험이 없는지 살피려 했다."
+    }
+  ]
+}

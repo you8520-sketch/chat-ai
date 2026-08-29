@@ -59,7 +59,7 @@ describe("TRPG GM call path vs regular chat", () => {
 });
 
 describe("TRPG production model request contracts", () => {
-  it("pins Bot Luna and GM Gemini adapter fields", () => {
+  it("pins Bot Gemini and GM Gemini adapter fields", () => {
     const gm = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,
       messages: [{ role: "user", content: "장면" }],
@@ -76,9 +76,9 @@ describe("TRPG production model request contracts", () => {
     assert.equal(gm.reasoning_effort, "low");
     assert.equal(gm.thinking, undefined);
     assert.equal(bot.model, TRPG_BOT_MODEL);
-    assert.deepEqual(bot.reasoning, { effort: "none" });
-    assert.equal(bot.reasoning_effort, "none");
+    assert.equal(bot.reasoning_effort, "low");
     assert.equal(bot.thinking, undefined);
+    assert.equal(bot.reasoning, undefined);
   });
 
   it("keeps stream=true on GM transport with Gemini low reasoning contract", () => {

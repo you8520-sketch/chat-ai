@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { TextEncoder } from "node:util";
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import {
   BOT_MAX_PROVIDER_ATTEMPTS,
   callTrpgBot,
@@ -104,7 +104,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(GM_PROVIDER_5XX_RETRY_DELAY_MS, 1000);
     assert.deepEqual([...GM_RETRYABLE_HTTP_STATUSES], [500, 502, 503, 504]);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     for (const status of [500, 502, 503, 504]) assert.equal(isGmRetryableHttpStatus(status), true);
     for (const status of [400, 401, 403, 404, 422, 429]) assert.equal(isGmRetryableHttpStatus(status), false);
   });
@@ -203,16 +203,18 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
   });
 
-  it("Bot usage.modelId matches Luna", async () => {
+  it("Bot usage.modelId matches Gemini 3.7 Flash", async () => {
     const { calls } = installProvider(() =>
       completion(`행동 prose\n\n<<<ACTION_TYPE>>>\nfree\n\n<<<INTENT>>>\n조사한다.`)
     );
     const result = await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
-    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(calls[0]!.body.stream, false);
-    assert.deepEqual(calls[0]!.body.reasoning, { effort: "none" });
+    assert.equal(calls[0]!.body.reasoning_effort, "low");
+    assert.equal(calls[0]!.body.thinking, undefined);
+    assert.equal(calls[0]!.body.reasoning, undefined);
   });
 
   it("does not retry a provider timeout / network throw", async () => {
