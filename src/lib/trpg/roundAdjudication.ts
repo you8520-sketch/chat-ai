@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { resolveTrpgActionCheckDecision } from "./actionCheck";
-import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
+import { isTrpgActionType, pickStatForActionDetailed } from "./actionTypes";
 import { parseTrpgBotAction } from "./botActions";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { loadSheetSnapshots } from "./engineSheets";
@@ -210,11 +211,18 @@ export function adjudicateCanonicalSubmission(
     return "skipped";
   }
 
-  const statKey = pickStatForAction({
+  const statSelection = pickStatForActionDetailed({
     actionType,
     selectedStat: sub.selected_stat,
     body: checkBody,
     defs: scenario.statDefs,
+  });
+  const statKey = statSelection.statKey;
+  const difficulty = resolveTrpgAdjudicationDifficulty({
+    anchorDc: scenario.diceRules.dc,
+    actionType,
+    checkReason: decision.reason,
+    intent: checkBody,
   });
   const statRow = db
     .prepare(
@@ -229,7 +237,7 @@ export function adjudicateCanonicalSubmission(
     d20,
     statModifier: statModifier(statRow?.value ?? 5),
     conditionModifier,
-    dc: scenario.diceRules.dc,
+    dc: difficulty.effectiveDc,
     rules: scenario.diceRules,
   });
   db.prepare(
@@ -251,7 +259,11 @@ export function adjudicateCanonicalSubmission(
     action_type: actionType,
     check_required: true,
     check_reason: decision.reason,
+    difficulty_band: difficulty.band,
+    base_dc: difficulty.anchorDc,
+    effective_dc: result.dc,
     stat_key: statKey,
+    stat_selection_reason: statSelection.reason,
     stat_modifier: statModifier(statRow?.value ?? 5),
     condition_modifier: conditionModifier,
     final_score: result.finalScore,

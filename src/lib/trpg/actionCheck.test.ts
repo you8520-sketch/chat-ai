@@ -179,7 +179,10 @@ describe("TRPG M1 roll economy fixtures", () => {
 
   it("explicit attack / investigate / persuade / dangerous defense roll", () => {
     assert.equal(resolveTrpgActionCheckDecision({ body: "형체를 벤다.", actionType: "attack" }).reason, "explicit_resolution");
-    assert.equal(resolveTrpgActionCheckDecision({ body: "발자국을 살핀다.", actionType: "investigate" }).reason, "explicit_resolution");
+    assert.equal(
+      resolveTrpgActionCheckDecision({ body: "발자국을 살핀다.", actionType: "investigate" }).reason,
+      "challenge"
+    );
     assert.equal(resolveTrpgActionCheckDecision({ body: "경비병을 설득한다.", actionType: "persuade" }).reason, "explicit_resolution");
     assert.equal(resolveTrpgActionCheckDecision({ body: "출입구를 가로막는다.", actionType: "defend" }).needsCheck, true);
   });
