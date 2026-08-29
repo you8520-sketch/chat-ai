@@ -142,14 +142,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(readiness.status, "playable");
     assert.equal(readiness.canPlay, true);
     assert.equal(readiness.blockers.length, 0);
-    assert.deepEqual([...FIRST_CREATE_VISIBLE_FIELDS], [
-      "title",
-      "startingSituation",
-      "centralConflict",
-      "goal",
-      "endingConditions",
-    ]);
-    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 5);
+    assert.deepEqual([...FIRST_CREATE_VISIBLE_FIELDS], ["title", "startingSituation", "goal"]);
+    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 3);
   });
 
   it("TEST 6: blocked scenario cannot play and names the first missing field", () => {
@@ -171,8 +165,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
       firstCreateRemaining: FIRST_CREATE_REMAINING,
     });
     assert.equal(FIRST_CREATE_FILLED, 0);
-    assert.equal(FIRST_CREATE_REMAINING, 5);
-    assert.equal(HEADLINE, "아직 5개 항목이 필요합니다");
+    assert.equal(FIRST_CREATE_REMAINING, 3);
+    assert.equal(HEADLINE, "아직 3개 항목이 필요합니다");
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     assert.match(editor, /scenarioReadinessHeadline\(readiness, \{ firstCreateRemaining \}\)/);
   });
@@ -609,33 +603,29 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
 
   it("Phase 2: first-create labels, helpers, and AI chrome stay collapsed", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 5);
-    assert.equal(SCENARIO_STORY_FIELD_COPY.startingSituation.label, "시작 장면");
-    assert.equal(SCENARIO_STORY_FIELD_COPY.centralConflict.label, "핵심 문제");
+    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 3);
+    assert.equal(SCENARIO_STORY_FIELD_COPY.summary.label, "플레이어 공개 소개");
+    assert.equal(SCENARIO_STORY_FIELD_COPY.startingSituation.label, "시작 상황");
     assert.equal(SCENARIO_STORY_FIELD_COPY.goal.label, "플레이어 목표");
-    assert.equal(SCENARIO_STORY_FIELD_COPY.endingConditions.label, "마무리 기준");
+    assert.equal(SCENARIO_STORY_FIELD_COPY.gmNotes.label, "GM 추가 설정 (선택)");
     assert.ok(SCENARIO_STORY_FIELD_COPY.startingSituation.helper);
-    assert.ok(SCENARIO_STORY_FIELD_COPY.centralConflict.helper);
     assert.ok(SCENARIO_STORY_FIELD_COPY.goal.helper);
-    assert.ok(SCENARIO_STORY_FIELD_COPY.endingConditions.helper);
+    assert.ok(SCENARIO_STORY_FIELD_COPY.gmNotes.helper);
     assert.match(editor, /data-scenario-ai-primary-cta/);
-    assert.match(editor, /직접 작성하려면 아래 핵심 5개만 채우면 됩니다/);
+    assert.match(editor, /직접 작성하려면 아래 기본 항목만 채우면 됩니다/);
     assert.match(editor, /data-scenario-field-helper="startingSituation"/);
-    assert.match(editor, /data-scenario-field-helper="centralConflict"/);
     assert.match(editor, /data-scenario-field-helper="goal"/);
-    assert.match(editor, /data-scenario-field-helper="endingConditions"/);
+    assert.match(editor, /data-scenario-field-helper="secretContent"/);
     assert.match(editor, /data-scenario-ai-tools/);
-    assert.match(editor, /useState\(false\)/);
-    assert.match(editor, /showAiFieldChrome/);
-    assert.doesNotMatch(editor, /data-scenario-field="endingConditions"[\s\S]{0,180}종료 조건/);
+    assert.match(editor, /data-scenario-story-details/);
     const storyStart = editor.indexOf('AppSectionCard title="이야기"');
     const detailsStart = editor.indexOf("data-scenario-story-details");
     const story = editor.slice(storyStart, detailsStart);
     assert.equal(story.includes("종료 조건"), false);
-    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.endingConditions\.label/);
+    assert.match(editor, /SCENARIO_STORY_FIELD_COPY\.endingConditions\.label/);
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.startingSituation\.label/);
-    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.centralConflict\.label/);
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.goal\.label/);
+    assert.match(story, /SCENARIO_STORY_FIELD_COPY\.summary\.label/);
     assert.match(story, /data-scenario-ai-primary-cta/);
     assert.equal(/data-scenario-ai-regen-all/.test(story), true);
     assert.match(editor, /if \(!showAiFieldChrome\) return null;/);
@@ -701,36 +691,31 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     const filledTwo = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: twoFilledPlan });
     const remainingTwo = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: twoFilledPlan });
     assert.equal(filledTwo, 2);
-    assert.equal(remainingTwo, 3);
+    assert.equal(remainingTwo, 1);
     assert.equal(
       scenarioReadinessHeadline(twoFilled, { firstCreateRemaining: remainingTwo }),
-      "아직 3개 항목이 필요합니다"
+      "아직 1개 항목이 필요합니다"
     );
 
-    const fourFilledPlan = {
-      ...emptyTrpgScenarioPlan(),
-      startingSituation: "폐도시에 들어간다",
-      centralConflict: "코어와 인간 세력이 충돌한다",
-      goal: "코어를 봉쇄한다",
-    };
-    const fourFilled = evaluateScenarioReadiness({
+    const titleOnlyPlan = emptyTrpgScenarioPlan();
+    const titleOnly = evaluateScenarioReadiness({
       title: "폐역",
       content: "",
-      scenarioPlan: fourFilledPlan,
+      scenarioPlan: titleOnlyPlan,
     });
-    assert.equal(fourFilled.status, "blocked");
-    assert.equal(fourFilled.canPlay, false);
-    const filledFour = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: fourFilledPlan });
-    const remainingFour = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: fourFilledPlan });
-    assert.equal(filledFour, 4);
-    assert.equal(remainingFour, 1);
+    assert.equal(titleOnly.status, "blocked");
+    assert.equal(titleOnly.canPlay, false);
+    const filledOne = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: titleOnlyPlan });
+    const remainingOne = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: titleOnlyPlan });
+    assert.equal(filledOne, 1);
+    assert.equal(remainingOne, 2);
     assert.equal(
-      scenarioReadinessHeadline(fourFilled, { firstCreateRemaining: remainingFour }),
-      "아직 1개 항목이 필요합니다"
+      scenarioReadinessHeadline(titleOnly, { firstCreateRemaining: remainingOne }),
+      "아직 2개 항목이 필요합니다"
     );
   });
 
-  it("Phase 2: manual 5-field author is playable without AI chrome", () => {
+  it("Phase 2: manual basic author is playable without AI chrome", () => {
     const readiness = evaluateScenarioReadiness({
       title: "[SMOKE] 최소 시나리오",
       content: "",
@@ -743,7 +728,7 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
         title: "[SMOKE] 최소 시나리오",
         scenarioPlan: playablePlan(),
       }),
-      5
+      3
     );
     assert.equal(scenarioReadinessHeadline(readiness), "플레이 가능");
     const payload = scenarioEditorSavePayload({

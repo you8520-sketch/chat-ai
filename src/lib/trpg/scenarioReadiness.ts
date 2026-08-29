@@ -4,11 +4,14 @@ import {
   TRPG_SCENARIO_MAX_NPCS,
   scenarioBundleLimitError,
 } from "./scenarioTypes";
+import { SCENARIO_PUBLIC_INTRO_REQUIRED, validateScenarioPublicIntro } from "./trpgPublication";
+import type { TrpgVisibility } from "./types";
 
 export type ScenarioReadinessStatus = "playable" | "recommended" | "blocked";
 
 export type ScenarioReadinessField =
   | "title"
+  | "summary"
   | "startingSituation"
   | "centralConflict"
   | "goal"
@@ -29,6 +32,7 @@ export type ScenarioReadinessInput = {
   title: string;
   content: string;
   summary?: string;
+  visibility?: TrpgVisibility;
   scenarioPlan: TrpgScenarioPlan | null | undefined;
   npcs?: unknown;
   startInventory?: unknown;
@@ -44,14 +48,8 @@ export type ScenarioReadiness = {
   canPlay: boolean;
 };
 
-/** First-create writing decisions. Soft target 3–5; these five are the save spine. */
-export const FIRST_CREATE_VISIBLE_FIELDS = [
-  "title",
-  "startingSituation",
-  "centralConflict",
-  "goal",
-  "endingConditions",
-] as const;
+/** First-create writing decisions for the simplified basic authoring UI. */
+export const FIRST_CREATE_VISIBLE_FIELDS = ["title", "startingSituation", "goal"] as const;
 
 export function namedNpcCount(raw: unknown): number {
   if (!Array.isArray(raw)) return 0;
@@ -62,9 +60,7 @@ export function namedNpcCount(raw: unknown): number {
 
 function firstMissingPlanField(plan: TrpgScenarioPlan | null | undefined): ScenarioReadinessField {
   if (!plan || !plan.startingSituation.trim()) return "startingSituation";
-  if (!plan.centralConflict.trim()) return "centralConflict";
   if (!plan.goal.trim()) return "goal";
-  if (!plan.endingConditions.some((item) => item.trim())) return "endingConditions";
   return "startingSituation";
 }
 
@@ -93,6 +89,7 @@ function fieldForLintCode(code: string): ScenarioReadinessField {
 function sectionForField(field: ScenarioReadinessField): ScenarioReadinessItem["section"] {
   switch (field) {
     case "title":
+    case "summary":
     case "startingSituation":
     case "centralConflict":
     case "goal":
@@ -123,11 +120,24 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
       section: "story",
     });
   }
+  try {
+    validateScenarioPublicIntro({
+      visibility: input.visibility ?? "private",
+      summary: String(input.summary ?? ""),
+    });
+  } catch (error) {
+    blockers.push({
+      id: "missing_public_intro",
+      message: error instanceof Error ? error.message : SCENARIO_PUBLIC_INTRO_REQUIRED,
+      field: "summary",
+      section: "story",
+    });
+  }
   if (!content && !hasPlayableScenarioPlan(plan)) {
     const field = firstMissingPlanField(plan);
     blockers.push({
       id: "missing_plan_or_content",
-      message: "시작 장면, 핵심 문제, 플레이어 목표, 마무리 기준을 입력해 주세요.",
+      message: "시작 상황과 플레이어 목표를 입력해 주세요.",
       field,
       section: sectionForField(field),
     });
@@ -199,9 +209,7 @@ export function countFirstCreateFilledFields(input: {
   return [
     Boolean(String(input.title ?? "").trim()),
     Boolean(plan?.startingSituation.trim()),
-    Boolean(plan?.centralConflict.trim()),
     Boolean(plan?.goal.trim()),
-    Boolean(plan?.endingConditions.some((item) => item.trim())),
   ].filter(Boolean).length;
 }
 

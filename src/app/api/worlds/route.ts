@@ -5,6 +5,7 @@ import { parseGenresJson } from "@/lib/characterGenres";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
+import { validateWorldTrpgPublicationTransition } from "@/lib/trpg/trpgPublication";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -45,6 +46,15 @@ export async function POST(req: Request) {
   }
 
   const { trpgEnabled, trpgVisibility } = parseWorldTrpgFlags(b);
+  try {
+    validateWorldTrpgPublicationTransition({
+      previousTrpgEnabled: false,
+      nextTrpgEnabled: trpgEnabled === 1,
+      summary,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "공개 설정을 확인해 주세요." }, { status: 400 });
+  }
   const genresJson = JSON.stringify(parseGenresJson(b.genres));
   const coverUrl = sanitizeWorldCoverUrl(b.coverUrl ?? b.cover_url);
 

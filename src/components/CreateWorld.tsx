@@ -116,6 +116,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
   const [content, setContent] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [genres, setGenres] = useState<CharacterGenre[]>([]);
+  const [trpgEnabled, setTrpgEnabled] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -138,6 +139,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
         setContent(data.world.content);
         setCoverUrl(data.world.coverUrl ?? "");
         setGenres(data.world.genres ?? []);
+        setTrpgEnabled(data.world.trpgEnabled);
       } catch {
         if (!cancelled) setError("불러오는 중 오류가 발생했습니다.");
       } finally {
@@ -191,7 +193,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
       const res = await fetch(isEdit ? `/api/worlds/${worldId}` : "/api/worlds", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, content, coverUrl, genres }),
+        body: JSON.stringify({ name, summary, content, coverUrl, genres, trpgEnabled }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -224,12 +226,20 @@ function WorldForm({ worldId }: { worldId?: number }) {
         />
 
         <StudioInput
-          label="한 줄 요약"
-          placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
+          label="플레이어 공개 소개"
+          placeholder="TRPG 목록과 시작 전 화면에서 플레이어에게 보입니다."
           value={summary}
           maxLength={WORLD_SUMMARY_LIMIT}
+          counter={{ now: summary.length, max: WORLD_SUMMARY_LIMIT }}
           onChange={(e) => setSummary(e.target.value.slice(0, WORLD_SUMMARY_LIMIT))}
         />
+        <p className={cn(studioType.helper, "-mt-4")}>
+          이 세계관에서 어떤 분위기와 플레이를 기대할 수 있는지 짧게 적어 주세요. TRPG 목록에 공개할 때는
+          필수입니다.
+          {isEdit && trpgEnabled && !summary.trim() ? (
+            <span className="mt-1 block text-amber-300">공개 TRPG 세계관에 플레이어 소개를 추가하는 것을 권장합니다.</span>
+          ) : null}
+        </p>
 
         <div>
           <GenrePicker value={genres} onChange={setGenres} disabled={loading} />
@@ -285,6 +295,37 @@ function WorldForm({ worldId }: { worldId?: number }) {
             </div>
           </div>
         </div>
+
+        {isEdit ? (
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className={studioType.label}>TRPG 목록 공개</p>
+            <p className={cn(studioType.helper, "mt-1")}>
+              켜면 TRPG 탭 세계관 목록에 표시됩니다. 처음 공개할 때는 플레이어 공개 소개가 필요합니다.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setTrpgEnabled(false)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-semibold",
+                  !trpgEnabled ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+                )}
+              >
+                비공개
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrpgEnabled(true)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-semibold",
+                  trpgEnabled ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+                )}
+              >
+                TRPG 탭에 공개
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <StudioTextarea
           label="세계관 본문 *"
