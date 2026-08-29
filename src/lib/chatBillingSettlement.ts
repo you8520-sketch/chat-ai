@@ -1,6 +1,5 @@
 /**
  * Exactly-once chat turn billing — DB-owned idempotency for consumer ledger charges.
- * Single owner for chat_billing_settlements schema and settlement transactions.
  */
 
 import type Database from "better-sqlite3";
@@ -11,29 +10,27 @@ import {
   type DeductionSlice,
   type PointBalance,
 } from "./points";
+import {
+  CHAT_BILLING_SETTLEMENTS_TABLE,
+  CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS,
+} from "./chatBillingSettlementSchema";
+
+export { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 
 export const CHAT_TURN_CHARGE_KIND = "chat_turn";
 
-export const CHAT_BILLING_SETTLEMENTS_DDL = `
-  CREATE TABLE IF NOT EXISTS chat_billing_settlements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    chat_id INTEGER NOT NULL,
-    request_id TEXT NOT NULL,
-    charge_kind TEXT NOT NULL DEFAULT 'chat_turn',
-    assistant_message_id INTEGER,
-    requested_points INTEGER NOT NULL,
-    settled_points INTEGER NOT NULL,
-    outcome TEXT NOT NULL,
-    deduction_slices_json TEXT NOT NULL DEFAULT '[]',
-    reason TEXT NOT NULL DEFAULT '',
-    source TEXT NOT NULL DEFAULT 'native',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(user_id, chat_id, request_id, charge_kind)
-  );
-  CREATE INDEX IF NOT EXISTS idx_chat_billing_settlements_message
-    ON chat_billing_settlements(assistant_message_id);
-`;
+/** Settlement uses BEGIN IMMEDIATE to serialize concurrent writers before claim insert. */
+export const SETTLEMENT_TRANSACTION_MODE = "IMMEDIATE" as const;
+
+export const SETTLEMENT_CONTENTION_FAILURE_MODES = [
+  "SQLITE_BUSY",
+  "SQLITE_BUSY_SNAPSHOT",
+  "SQLITE_LOCKED",
+] as const;
+
+export const SETTLEMENT_CONTENTION_MAX_ATTEMPTS = 12;
+
+const CLAIM_OUTCOME = "claiming";
 
 export type ChatBillingSettlementSource =
   | "native"
@@ -93,15 +90,27 @@ const SETTLEMENT_SELECT = `
   WHERE user_id = ? AND chat_id = ? AND request_id = ? AND charge_kind = ?
 `;
 
-/** Canonical schema owner — invoked from db.ts migrate() for local and remote bootstrap. */
-export function ensureChatBillingSettlementSchema(db: Pick<Database.Database, "exec">): void {
-  db.exec(CHAT_BILLING_SETTLEMENTS_DDL);
+export function isRetryableSettlementContention(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as Error & { code?: string }).code;
+  if (
+    code === "SQLITE_BUSY" ||
+    code === "SQLITE_BUSY_SNAPSHOT" ||
+    code === "SQLITE_LOCKED"
+  ) {
+    return true;
+  }
+  return /database is locked|SQLITE_BUSY|SQLITE_LOCKED/i.test(err.message);
 }
 
+/** Match only the canonical chat_billing_settlements identity UNIQUE — not generic constraints. */
 export function isChatBillingSettlementUniqueConflict(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const code = (err as Error & { code?: string }).code;
-  return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "SQLITE_CONSTRAINT";
+  if (code !== "SQLITE_CONSTRAINT_UNIQUE") return false;
+  const message = err.message.toLowerCase();
+  if (message.includes(CHAT_BILLING_SETTLEMENTS_TABLE)) return true;
+  return CHAT_BILLING_SETTLEMENT_UNIQUE_COLUMNS.every((col) => message.includes(col));
 }
 
 function normalizeRequestedPoints(n: number): number {
@@ -154,6 +163,26 @@ function readSettlementRow(
   );
 }
 
+function readSettlementRowSafe(
+  db: Database.Database,
+  userId: number,
+  chatId: number,
+  requestId: string,
+  chargeKind: string
+): SettlementRow | null {
+  for (let attempt = 1; attempt <= SETTLEMENT_CONTENTION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return readSettlementRow(db, userId, chatId, requestId, chargeKind);
+    } catch (err) {
+      if (!isRetryableSettlementContention(err) || attempt === SETTLEMENT_CONTENTION_MAX_ATTEMPTS) {
+        throw err;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10 * attempt);
+    }
+  }
+  return null;
+}
+
 export function readChatBillingSettlement(
   db: Database.Database,
   userId: number,
@@ -164,7 +193,6 @@ export function readChatBillingSettlement(
   const row = readSettlementRow(db, userId, chatId, requestId, chargeKind);
   if (!row) return null;
   const slices = parseDeductionSlicesJson(row.deduction_slices_json) ?? [];
-  const amountMismatch = false;
   return {
     settlementId: row.id,
     appliedNewCharge: false,
@@ -175,7 +203,6 @@ export function readChatBillingSettlement(
     balance: getPointBalanceOnDb(db, userId),
     source: row.source as ChatBillingSettlementSource,
     outcome: row.outcome as ChatBillingSettlementOutcome,
-    amountMismatch: amountMismatch || undefined,
   };
 }
 
@@ -236,7 +263,7 @@ function persistMessageDeductionSlices(
   return result.changes > 0;
 }
 
-function insertSettlement(
+function insertSettlementOrIgnore(
   db: Database.Database,
   opts: {
     userId: number;
@@ -251,13 +278,14 @@ function insertSettlement(
     reason: string;
     source: ChatBillingSettlementSource;
   }
-): number {
+): { inserted: boolean; settlementId: number | null } {
   const insert = db
     .prepare(
       `INSERT INTO chat_billing_settlements (
          user_id, chat_id, request_id, charge_kind, assistant_message_id,
          requested_points, settled_points, outcome, deduction_slices_json, reason, source
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, chat_id, request_id, charge_kind) DO NOTHING`
     )
     .run(
       opts.userId,
@@ -272,7 +300,68 @@ function insertSettlement(
       opts.reason,
       opts.source
     );
-  return Number(insert.lastInsertRowid);
+  if (insert.changes === 0) return { inserted: false, settlementId: null };
+  return { inserted: true, settlementId: Number(insert.lastInsertRowid) };
+}
+
+function tryAcquireSettlementClaim(
+  db: Database.Database,
+  input: SettleChatTurnBillingInput,
+  chargeKind: string,
+  requestedPoints: number
+): { acquired: boolean; claimId: number | null } {
+  const claim = db
+    .prepare(
+      `INSERT INTO chat_billing_settlements (
+         user_id, chat_id, request_id, charge_kind, assistant_message_id,
+         requested_points, settled_points, outcome, deduction_slices_json, reason, source
+       ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, '[]', ?, 'native')
+       ON CONFLICT(user_id, chat_id, request_id, charge_kind) DO NOTHING`
+    )
+    .run(
+      input.userId,
+      input.chatId,
+      input.requestId,
+      chargeKind,
+      input.assistantMessageId,
+      requestedPoints,
+      CLAIM_OUTCOME,
+      input.reason
+    );
+  if (claim.changes === 0) return { acquired: false, claimId: null };
+  return { acquired: true, claimId: Number(claim.lastInsertRowid) };
+}
+
+function finalizeSettlementClaim(
+  db: Database.Database,
+  claimId: number,
+  opts: {
+    settledPoints: number;
+    outcome: ChatBillingSettlementOutcome;
+    slices: DeductionSlice[];
+    reason: string;
+    source: ChatBillingSettlementSource;
+    assistantMessageId: number;
+  }
+): void {
+  db.prepare(
+    `UPDATE chat_billing_settlements
+     SET assistant_message_id = ?,
+         settled_points = ?,
+         outcome = ?,
+         deduction_slices_json = ?,
+         reason = ?,
+         source = ?
+     WHERE id = ?`
+  ).run(
+    opts.assistantMessageId,
+    opts.settledPoints,
+    opts.outcome,
+    JSON.stringify(opts.slices),
+    opts.reason,
+    opts.source,
+    claimId
+  );
 }
 
 function buildResultFromRow(
@@ -323,6 +412,21 @@ function buildResultFromRow(
   };
 }
 
+function duplicateResultFromExistingRow(
+  db: Database.Database,
+  input: SettleChatTurnBillingInput,
+  row: SettlementRow,
+  source: ChatBillingSettlementSource = "existing_settlement"
+): ChatBillingSettlementResult {
+  console.info("[ChatBillingSettlement] duplicate_replay", {
+    userId: input.userId,
+    chatId: input.chatId,
+    requestId: input.requestId,
+    settlementId: row.id,
+  });
+  return buildResultFromRow(db, row, input, false, true, source);
+}
+
 function settleWithinTransaction(
   db: Database.Database,
   input: SettleChatTurnBillingInput
@@ -330,9 +434,9 @@ function settleWithinTransaction(
   const chargeKind = input.chargeKind ?? CHAT_TURN_CHARGE_KIND;
   const requestedPoints = normalizeRequestedPoints(input.requestedPoints);
 
-  const existing = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind);
-  if (existing) {
-    return buildResultFromRow(db, existing, input, false, true, "existing_settlement");
+  const existing = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+  if (existing && existing.outcome !== CLAIM_OUTCOME) {
+    return duplicateResultFromExistingRow(db, input, existing);
   }
 
   const legacy = findLegacyBridgeState(db, input.chatId, input.requestId);
@@ -344,7 +448,7 @@ function settleWithinTransaction(
       input.requestId,
       legacy.slices
     );
-    const settlementId = insertSettlement(db, {
+    const inserted = insertSettlementOrIgnore(db, {
       userId: input.userId,
       chatId: input.chatId,
       requestId: input.requestId,
@@ -358,11 +462,14 @@ function settleWithinTransaction(
       source: "legacy_message_deduction_slices",
     });
     const row = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind)!;
+    if (!inserted.inserted) {
+      return duplicateResultFromExistingRow(db, input, row, "legacy_message_deduction_slices");
+    }
     console.info("[ChatBillingSettlement] legacy_bridge", {
       userId: input.userId,
       chatId: input.chatId,
       requestId: input.requestId,
-      settlementId,
+      settlementId: inserted.settlementId,
       settledPoints: legacy.settledPoints,
     });
     return buildResultFromRow(db, row, input, false, true, "legacy_message_deduction_slices");
@@ -375,7 +482,7 @@ function settleWithinTransaction(
       requestId: input.requestId,
       assistantMessageId: legacy.assistantMessageId,
     });
-    const settlementId = insertSettlement(db, {
+    const inserted = insertSettlementOrIgnore(db, {
       userId: input.userId,
       chatId: input.chatId,
       requestId: input.requestId,
@@ -389,7 +496,19 @@ function settleWithinTransaction(
       source: "legacy_message_deduction_slices",
     });
     const row = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind)!;
+    if (!inserted.inserted) {
+      return duplicateResultFromExistingRow(db, input, row, "legacy_message_deduction_slices");
+    }
     return buildResultFromRow(db, row, input, false, true, "legacy_message_deduction_slices");
+  }
+
+  const claim = tryAcquireSettlementClaim(db, input, chargeKind, requestedPoints);
+  if (!claim.acquired || claim.claimId == null) {
+    const winner = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+    if (!winner) {
+      throw new Error("Settlement claim lost but no canonical row found");
+    }
+    return duplicateResultFromExistingRow(db, input, winner);
   }
 
   let slices: DeductionSlice[] = [];
@@ -414,18 +533,13 @@ function settleWithinTransaction(
     slices
   );
 
-  insertSettlement(db, {
-    userId: input.userId,
-    chatId: input.chatId,
-    requestId: input.requestId,
-    chargeKind,
-    assistantMessageId: input.assistantMessageId,
-    requestedPoints,
+  finalizeSettlementClaim(db, claim.claimId, {
     settledPoints,
     outcome,
     slices,
     reason: input.reason,
     source: "native",
+    assistantMessageId: input.assistantMessageId,
   });
 
   console.info("[ChatBillingSettlement] fresh_settlement", {
@@ -440,31 +554,66 @@ function settleWithinTransaction(
   return buildResultFromRow(db, row, input, requestedPoints > 0, false, "native");
 }
 
+function runSettlementTransaction(
+  db: Database.Database,
+  input: SettleChatTurnBillingInput
+): ChatBillingSettlementResult {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = settleWithinTransaction(db, input);
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      // Connection may already be rolled back on driver contention errors.
+    }
+    throw err;
+  }
+}
+
 /**
- * Exactly-once chat turn billing. DB UNIQUE constraint is the final concurrent guard.
- * `alreadyBilledForRequest` must not authorize charges — this function owns safety.
+ * Exactly-once chat turn billing.
+ * Claim-first: settlement identity is acquired before any ledger mutation.
  */
 export function settleChatTurnBillingExactlyOnce(
   db: Database.Database,
   input: SettleChatTurnBillingInput
 ): ChatBillingSettlementResult {
   try {
-    return db.transaction(() => settleWithinTransaction(db, input))();
-  } catch (err) {
-    if (isChatBillingSettlementUniqueConflict(err)) {
-      const chargeKind = input.chargeKind ?? CHAT_TURN_CHARGE_KIND;
-      const row = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind);
-      if (!row) throw err;
-      console.info("[ChatBillingSettlement] duplicate_replay", {
-        userId: input.userId,
-        chatId: input.chatId,
-        requestId: input.requestId,
-      });
-      return buildResultFromRow(db, row, input, false, true, "existing_settlement");
-    }
-    if (err instanceof InsufficientPointsError) {
-      throw err;
-    }
-    throw err;
+    db.pragma("busy_timeout = 5000");
+  } catch {
+    // Some remote drivers may reject pragma mutation; contention retry remains.
   }
+
+  const chargeKind = input.chargeKind ?? CHAT_TURN_CHARGE_KIND;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= SETTLEMENT_CONTENTION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return runSettlementTransaction(db, input);
+    } catch (err) {
+      lastError = err;
+      if (err instanceof InsufficientPointsError) throw err;
+      if (isChatBillingSettlementUniqueConflict(err)) {
+        const row = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+        if (!row) throw err;
+        return duplicateResultFromExistingRow(db, input, row);
+      }
+      if (isRetryableSettlementContention(err) && attempt < SETTLEMENT_CONTENTION_MAX_ATTEMPTS) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15 * attempt);
+        continue;
+      }
+      break;
+    }
+  }
+
+  const settled = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+  if (settled && settled.outcome !== CLAIM_OUTCOME) {
+    return duplicateResultFromExistingRow(db, input, settled);
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("Settlement contention retries exhausted");
 }

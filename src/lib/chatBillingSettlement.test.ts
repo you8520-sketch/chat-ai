@@ -6,17 +6,21 @@ import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
   CHAT_TURN_CHARGE_KIND,
-  ensureChatBillingSettlementSchema,
   isChatBillingSettlementUniqueConflict,
+  isRetryableSettlementContention,
   readChatBillingSettlement,
   settleChatTurnBillingExactlyOnce,
 } from "./chatBillingSettlement";
+import { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 import { deductPointsOnDb, creditPointsWithIds, InsufficientPointsError } from "./points";
 import { findTurnByRequestId } from "./streamingPersistence";
+import { fork, type ChildProcess } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 function createSettlementTestDb(dbPath: string): Database.Database {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
   db.exec(`
     CREATE TABLE users (
       id INTEGER PRIMARY KEY,
@@ -196,8 +200,8 @@ describe("chatBillingSettlement — sequential duplicate", () => {
   });
 });
 
-describe("chatBillingSettlement — concurrent duplicate", () => {
-  it("two WAL connections racing → one settlement and one ledger charge", () => {
+describe("chatBillingSettlement — two-connection sequential replay", () => {
+  it("two WAL connections sequentially → one settlement and one ledger charge", () => {
     const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
     const dbPath = join(dir, "test.db");
     try {
@@ -741,6 +745,275 @@ describe("chatBillingSettlement — old raw path still double-charges (historica
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+const CONCURRENT_FORK_PATH = fileURLToPath(
+  new URL("./chatBillingSettlement.concurrentFork.ts", import.meta.url)
+);
+const CONCURRENT_FORK_EXEC_ARGV = ["--conditions=react-server", "--import", "tsx"];
+
+type ConcurrentWorkerResult =
+  | {
+      ok: true;
+      appliedNewCharge: boolean;
+      duplicate: boolean;
+      settledPoints: number;
+      settlementId: number;
+    }
+  | { ok: false; code: string; message: string; name: string };
+
+function spawnSettlementFork(
+  dbPath: string,
+  input: {
+    userId: number;
+    chatId: number;
+    requestId: string;
+    assistantMessageId: number;
+    requestedPoints: number;
+    reason: string;
+  }
+): { child: ChildProcess; ready: Promise<void>; result: Promise<ConcurrentWorkerResult> } {
+  const child = fork(CONCURRENT_FORK_PATH, [], {
+    execArgv: CONCURRENT_FORK_EXEC_ARGV,
+    stdio: ["ignore", "ignore", "ignore", "ipc"],
+  });
+
+  let readyResolve!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    readyResolve = resolve;
+  });
+
+  const result = new Promise<ConcurrentWorkerResult>((resolve, reject) => {
+    child.on("message", (message: Record<string, unknown>) => {
+      if (message.type === "ready") {
+        readyResolve();
+        return;
+      }
+      if (message.type === "result") {
+        if (message.ok === true) {
+          resolve({
+            ok: true,
+            appliedNewCharge: Boolean(message.appliedNewCharge),
+            duplicate: Boolean(message.duplicate),
+            settledPoints: Number(message.settledPoints),
+            settlementId: Number(message.settlementId),
+          });
+        } else {
+          resolve({
+            ok: false,
+            code: String(message.code ?? "UNKNOWN"),
+            message: String(message.message ?? "unknown"),
+            name: String(message.name ?? "Error"),
+          });
+        }
+      }
+    });
+    child.once("error", reject);
+    child.once("exit", (code) => {
+      if (code !== 0 && code !== null) reject(new Error(`fork exited ${code}`));
+    });
+  });
+
+  return { child, ready, result };
+}
+
+function runConcurrentSettlementWorkers(
+  dbPath: string,
+  input: {
+    userId: number;
+    chatId: number;
+    requestId: string;
+    assistantMessageId: number;
+    requestedPoints: number;
+    reason: string;
+  }
+): Promise<ConcurrentWorkerResult[]> {
+  const spawned = [0, 1].map(() => spawnSettlementFork(dbPath, input));
+  return Promise.all(spawned.map((s) => s.ready)).then(async () => {
+    for (const s of spawned) {
+      s.child.send({ type: "start", dbPath, input });
+    }
+    const results = await Promise.all(spawned.map((s) => s.result));
+    for (const s of spawned) {
+      s.child.kill();
+    }
+    return results;
+  });
+}
+
+describe("chatBillingSettlement — true overlapping duplicate workers", () => {
+  it("TRUE_CONCURRENT_DUPLICATE_TEST_PASS: child_process forks overlap → one charge", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = createSettlementTestDb(dbPath);
+      const msgId = insertAssistant(db, 1, "req_true_concurrent");
+      db.close();
+
+      const input = {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_true_concurrent",
+        assistantMessageId: msgId,
+        requestedPoints: 100,
+        reason: "overlap",
+      };
+
+      for (let iteration = 0; iteration < 3; iteration += 1) {
+        if (iteration > 0) {
+          const resetDb = new Database(dbPath);
+          resetDb.exec(`
+            DELETE FROM chat_billing_settlements;
+            DELETE FROM point_logs;
+            UPDATE point_transactions SET remaining_amount=5000 WHERE user_id=1 AND point_type='PAID';
+            UPDATE users SET points=10000 WHERE id=1;
+            UPDATE messages SET deduction_slices=NULL WHERE id=${msgId};
+          `);
+          resetDb.close();
+        }
+
+        const lastResults = await runConcurrentSettlementWorkers(dbPath, input);
+        assert.equal(lastResults.length, 2);
+        for (const result of lastResults) {
+          assert.equal(result.ok, true, JSON.stringify(result));
+        }
+        const okResults = lastResults.filter((r): r is Extract<ConcurrentWorkerResult, { ok: true }> => r.ok);
+        assert.equal(okResults.filter((r) => r.appliedNewCharge).length, 1);
+        assert.equal(okResults.filter((r) => r.duplicate).length, 1);
+        assert.equal(new Set(okResults.map((r) => r.settledPoints)).size, 1);
+
+        const verifyDb = new Database(dbPath);
+        assert.equal(countSettlements(verifyDb), 1);
+        assert.equal(countNegativeLogs(verifyDb), 1);
+        verifyDb.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("chatBillingSettlement — DB contention recovery", () => {
+  it("DB_CONTENTION_RECOVERY_TEST_PASS: bounded retry survives lock holder", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = createSettlementTestDb(dbPath);
+      const msgId = insertAssistant(db, 1, "req_contention");
+      db.close();
+
+      const holdDb = new Database(dbPath);
+      holdDb.pragma("journal_mode = WAL");
+      holdDb.exec("BEGIN IMMEDIATE");
+
+      const spawned = spawnSettlementFork(dbPath, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_contention",
+        assistantMessageId: msgId,
+        requestedPoints: 60,
+        reason: "contention",
+      });
+
+      await spawned.ready;
+      spawned.child.send({ type: "start", dbPath, input: {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_contention",
+        assistantMessageId: msgId,
+        requestedPoints: 60,
+        reason: "contention",
+      }});
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 120);
+      holdDb.exec("COMMIT");
+      holdDb.close();
+
+      const result = await spawned.result;
+      assert.equal(result.ok, true);
+      if (!result.ok) return;
+      assert.equal(result.appliedNewCharge, true);
+
+      const verifyDb = new Database(dbPath);
+      assert.equal(countSettlements(verifyDb), 1);
+      assert.equal(countNegativeLogs(verifyDb), 1);
+      verifyDb.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("chatBillingSettlement — canonical duplicate constraint matcher", () => {
+  it("NON_SETTLEMENT_CONSTRAINT_CAN_BE_CLASSIFIED_AS_DUPLICATE: false", () => {
+    const foreignUnique = new Error("UNIQUE constraint failed: creator_earnings.message_id");
+    (foreignUnique as Error & { code?: string }).code = "SQLITE_CONSTRAINT_UNIQUE";
+    assert.equal(isChatBillingSettlementUniqueConflict(foreignUnique), false);
+
+    const genericConstraint = new Error("CHECK constraint failed: point_type");
+    (genericConstraint as Error & { code?: string }).code = "SQLITE_CONSTRAINT";
+    assert.equal(isChatBillingSettlementUniqueConflict(genericConstraint), false);
+
+    const settlementUnique = new Error(
+      "UNIQUE constraint failed: chat_billing_settlements.user_id, chat_billing_settlements.chat_id, chat_billing_settlements.request_id, chat_billing_settlements.charge_kind"
+    );
+    (settlementUnique as Error & { code?: string }).code = "SQLITE_CONSTRAINT_UNIQUE";
+    assert.equal(isChatBillingSettlementUniqueConflict(settlementUnique), true);
+  });
+
+  it("isRetryableSettlementContention recognizes busy/locked codes", () => {
+    for (const code of ["SQLITE_BUSY", "SQLITE_BUSY_SNAPSHOT", "SQLITE_LOCKED"] as const) {
+      const err = new Error(code);
+      (err as Error & { code?: string }).code = code;
+      assert.equal(isRetryableSettlementContention(err), true);
+    }
+  });
+});
+
+describe("chatBillingSettlement — claim-before-ledger safety", () => {
+  it("UNIQUE_OR_CLAIM_CONFLICT_LEDGER_SAFETY: duplicate claim does not mutate ledger", () => {
+    const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = createSettlementTestDb(dbPath);
+      const msgId = insertAssistant(db, 1, "req_claim_safe");
+      const beforeBalance = userBalance(db);
+      const first = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_claim_safe",
+        assistantMessageId: msgId,
+        requestedPoints: 90,
+        reason: "first",
+      });
+      assert.equal(first.appliedNewCharge, true);
+      const midBalance = userBalance(db);
+      assert.ok(midBalance < beforeBalance);
+
+      const second = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_claim_safe",
+        assistantMessageId: msgId,
+        requestedPoints: 120,
+        reason: "duplicate",
+      });
+      assert.equal(second.appliedNewCharge, false);
+      assert.equal(userBalance(db), midBalance);
+      assert.equal(countNegativeLogs(db), 1);
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("chatBillingSettlement — schema parity", () => {
+  it("LOCAL_SETTLEMENT_SCHEMA_READY and verifier passes after ensure", () => {
+    const db = new Database(":memory:");
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasChatBillingSettlementSchema(db), true);
+    db.close();
   });
 });
 
