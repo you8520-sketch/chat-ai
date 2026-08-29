@@ -15,6 +15,7 @@ import {
 import {
   listExactPublishedCatalogEntries,
   resolvePublishedPricingExact,
+  getPublishedPricing,
   _setPublishedPricingForTest,
   type PublishedModelPricing,
 } from "@/lib/publishedModelPricing";
@@ -634,6 +635,22 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
   });
 
+  it("base_tier_only + null max threshold → structurally invalid", () => {
+    const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 200_000, 100);
+    const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
+      ...snap,
+      promptTokens: 200_001,
+      standardInputTokens: 200_001,
+      applicability: {
+        ...snap.applicability,
+        pricingApplicability: "base_tier_only",
+        publishedBaseTierMaxPromptTokens: null,
+      },
+    });
+    assert.equal(isPublishedUserChargeSnapshot(tampered), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+  });
+
   it("G31 self-consistent cache snapshot → live-grade false (unverified policy)", () => {
     const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 10_000, 500);
     const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
@@ -715,6 +732,53 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     const diagnostic = { ...snap, usageCoverage: "partial" as const };
     assert.equal(isPublishedUserChargeSnapshot(diagnostic), true);
     assert.equal(isLiveGradePublishedUserChargeSnapshot(diagnostic), false);
+  });
+
+  it("exact snapshots carry exact_published_catalog provenance", () => {
+    const snap = requireCompleteSnapshot("gemini-3.7-flash", 24_952, 2_367);
+    assert.equal(snap.chargeSnapshotOrigin, "exact_published_catalog");
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(snap), true);
+  });
+
+  it("verified_5m requires 5M_ONLY TTL structurally", () => {
+    const snap = requireCompleteSnapshot("claude-opus-5", 10_000, 500, { read: 5_000, write: 1_000 });
+    for (const opusCacheTtlMode of [null, "VARIABLE", "UNKNOWN"] as const) {
+      const tampered = {
+        ...snap,
+        applicability: { ...snap.applicability, opusCacheTtlMode },
+      };
+      assert.equal(isPublishedUserChargeSnapshot(tampered), false, String(opusCacheTtlMode));
+      assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false, String(opusCacheTtlMode));
+    }
+  });
+});
+
+describe("publishedUserCharge — trust boundary audit", () => {
+  it("legacy generic shadow diagnostic snapshot → diagnostic valid, live-grade false", () => {
+    const modelId = "deepseek/deepseek-chat-v3-0324";
+    const pub = getPublishedPricing(modelId);
+    const canonicalId = canonicalizePublishedModelId(modelId);
+    const result = computePublishedUserChargeFromResolvedPolicy({
+      requestedModelId: modelId,
+      resolvedPricing: {
+        requestedModelId: modelId,
+        canonicalModelId: canonicalId,
+        pricing: { ...pub, modelId: canonicalId },
+      },
+      usage: usage(modelId, 10_000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(result.status, "complete");
+    if (result.status === "complete") {
+      assert.equal(result.snapshot.chargeSnapshotOrigin, "diagnostic_resolved_policy");
+      assert.equal(isPublishedUserChargeSnapshot(result.snapshot), true);
+      assert.equal(isLiveGradePublishedUserChargeSnapshot(result.snapshot), false);
+      const roundTrip = JSON.parse(JSON.stringify(result.snapshot));
+      assert.deepEqual(roundTrip, result.snapshot);
+      assert.equal(isLiveGradePublishedUserChargeSnapshot(roundTrip), false);
+    }
   });
 });
 

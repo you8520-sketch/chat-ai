@@ -41,6 +41,11 @@ export type { PublishedApplicabilitySnapshot } from "@/lib/modelPublishedPricing
 
 export const CHARGE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
+/** Immutable provenance — set by engine owners only, never by callers. */
+export type PublishedChargeSnapshotOrigin =
+  | "exact_published_catalog"
+  | "diagnostic_resolved_policy";
+
 const ISO_UTC_MS_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export type PublishedChargeBlockedReason =
@@ -89,6 +94,7 @@ export type ComputePublishedUserChargeFromResolvedPolicyInput = {
 
 export type PublishedUserChargeSnapshot = {
   chargeSnapshotSchemaVersion: typeof CHARGE_SNAPSHOT_SCHEMA_VERSION;
+  chargeSnapshotOrigin: PublishedChargeSnapshotOrigin;
   roundingPolicyVersion: typeof PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION;
   requestedModelId: string;
   canonicalModelId: string;
@@ -218,6 +224,14 @@ function validateApplicabilitySnapshotStructure(applicability: PublishedApplicab
   if (applicability.publishedPolicySchemaVersion !== PUBLISHED_POLICY_SCHEMA_VERSION) return false;
   switch (applicability.pricingApplicability) {
     case "base_tier_only":
+      if (applicability.publishedBaseTierMaxPromptTokens == null) return false;
+      if (
+        !Number.isSafeInteger(applicability.publishedBaseTierMaxPromptTokens) ||
+        applicability.publishedBaseTierMaxPromptTokens <= 0
+      ) {
+        return false;
+      }
+      break;
     case "tier_aware":
     case "not_applicable":
       break;
@@ -236,10 +250,14 @@ function validateApplicabilitySnapshotStructure(applicability: PublishedApplicab
   }
   if (
     applicability.publishedBaseTierMaxPromptTokens != null &&
+    applicability.pricingApplicability !== "base_tier_only" &&
     (!Number.isSafeInteger(applicability.publishedBaseTierMaxPromptTokens) ||
       applicability.publishedBaseTierMaxPromptTokens <= 0)
   ) {
     return false;
+  }
+  if (applicability.cacheSemanticStatus === "verified_5m") {
+    if (applicability.opusCacheTtlMode !== "5M_ONLY") return false;
   }
   if (applicability.opusCacheTtlMode != null) {
     switch (applicability.opusCacheTtlMode) {
@@ -334,7 +352,8 @@ function buildSnapshot(
   usage: NormalizedBillableUsage,
   usageCoverage: UserBillableUsageCoverage,
   fxSnapshot: BillingFxSnapshot,
-  adjustment: PublishedChargeAdjustment
+  adjustment: PublishedChargeAdjustment,
+  chargeSnapshotOrigin: PublishedChargeSnapshotOrigin
 ): PublishedUserChargeSnapshot {
   const pricing = resolved.pricing;
   const applicability = buildPublishedApplicabilitySnapshot(resolved.canonicalModelId, pricing);
@@ -366,6 +385,7 @@ function buildSnapshot(
 
   return {
     chargeSnapshotSchemaVersion: CHARGE_SNAPSHOT_SCHEMA_VERSION,
+    chargeSnapshotOrigin,
     roundingPolicyVersion: PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION,
     requestedModelId,
     canonicalModelId: resolved.canonicalModelId,
@@ -410,7 +430,7 @@ function computePublishedUserChargeCore(
   usageCoverage: UserBillableUsageCoverage,
   fxSnapshot: BillingFxSnapshot,
   adjustment: PublishedChargeAdjustment,
-  opts: { liveGradeFx: boolean }
+  opts: { liveGradeFx: boolean; chargeSnapshotOrigin: PublishedChargeSnapshotOrigin }
 ): PublishedUserChargeResult {
   if (!validateNormalizedBillableUsage(usage)) {
     return { status: "blocked", reason: "invalid_usage", finalPoints: null };
@@ -476,7 +496,8 @@ function computePublishedUserChargeCore(
     usage,
     usageCoverage,
     fxSnapshot,
-    adjustment
+    adjustment,
+    opts.chargeSnapshotOrigin
   );
 
   if (
@@ -524,7 +545,7 @@ export function computePublishedUserChargeWithSnapshot(
     input.usageCoverage,
     input.fxSnapshot,
     input.adjustment,
-    { liveGradeFx: true }
+    { liveGradeFx: true, chargeSnapshotOrigin: "exact_published_catalog" }
   );
 }
 
@@ -565,7 +586,10 @@ export function computePublishedUserChargeFromResolvedPolicy(
     input.usageCoverage,
     input.fxSnapshot,
     input.adjustment,
-    { liveGradeFx: !input.allowUnlockedFx }
+    {
+      liveGradeFx: !input.allowUnlockedFx,
+      chargeSnapshotOrigin: "diagnostic_resolved_policy",
+    }
   );
 }
 
@@ -620,6 +644,12 @@ export function validatePublishedChargeSnapshotStructure(
   const s = value as PublishedUserChargeSnapshot;
 
   if (s.chargeSnapshotSchemaVersion !== CHARGE_SNAPSHOT_SCHEMA_VERSION) return false;
+  if (
+    s.chargeSnapshotOrigin !== "exact_published_catalog" &&
+    s.chargeSnapshotOrigin !== "diagnostic_resolved_policy"
+  ) {
+    return false;
+  }
   if (s.roundingPolicyVersion !== PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION) return false;
   if (typeof s.requestedModelId !== "string" || s.requestedModelId.length === 0) return false;
   if (typeof s.canonicalModelId !== "string" || s.canonicalModelId.length === 0) return false;
@@ -729,6 +759,7 @@ export function isLiveGradePublishedUserChargeSnapshot(
   const s = value;
   if (s.usageCoverage !== "complete") return false;
   if (s.fxLocked !== true) return false;
+  if (s.chargeSnapshotOrigin !== "exact_published_catalog") return false;
   if (canonicalizePublishedModelId(s.requestedModelId) !== s.canonicalModelId) return false;
   return validateEmbeddedPublishedApplicability(s);
 }
