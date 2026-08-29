@@ -6,7 +6,7 @@ import {
   difficultyDcFromAnchor,
   resolveTrpgAdjudicationDifficulty,
 } from "./adjudicationDifficulty";
-import { pickStatForAction, pickStatForActionDetailed } from "./actionTypes";
+import { defaultStatForAction, pickStatForAction, pickStatForActionDetailed } from "./actionTypes";
 import { bucketTrpgSuccessTier, exhaustiveD20Buckets, resolveTrpgRoll } from "./dice";
 import { statModifier } from "./stats";
 import { defsFromKeys, DEFAULT_TRPG_STAT_DEFS } from "./stats";
@@ -18,6 +18,7 @@ function rate(count: number): number {
 
 const INVESTIGATE_SHEET = defsFromKeys(["str", "dex", "con", "int", "per", "ins", "wis"]);
 const SUPPORT_SHEET = defsFromKeys(["str", "dex", "con", "int", "wis", "cha"]);
+const SUPPORT_COVER_SHEET = defsFromKeys(["str", "dex", "acc", "con", "int", "wis", "cha"]);
 const DEFEND_SHEET = defsFromKeys(["str", "dex", "con", "grd", "res", "wil"]);
 
 describe("TRPG adjudication fairness — stat selection", () => {
@@ -65,6 +66,61 @@ describe("TRPG adjudication fairness — stat selection", () => {
     });
     assert.equal(result.statKey, "wis");
     assert.equal(result.reason, "selected");
+  });
+});
+
+describe("TRPG adjudication fairness — adversarial method hints", () => {
+  it("generic support fallback stays WIS", () => {
+    assert.equal(defaultStatForAction("support"), "wis");
+    assert.equal(
+      pickStatForAction({
+        actionType: "support",
+        selectedStat: null,
+        body: "동료를 돕는다.",
+        defs: SUPPORT_SHEET,
+      }),
+      "wis"
+    );
+    assert.equal(
+      pickStatForAction({
+        actionType: "support",
+        selectedStat: null,
+        body: "렌을 지원한다.",
+        defs: SUPPORT_SHEET,
+      }),
+      "wis"
+    );
+  });
+
+  it("support inspect does not pick STR from 점검 substring", () => {
+    const stat = pickStatForAction({
+      actionType: "support",
+      selectedStat: null,
+      body: "상태를 점검한다",
+      defs: SUPPORT_SHEET,
+    });
+    assert.notEqual(stat, "str");
+  });
+
+  it("investigate infection confirmation prefers INT/PER over INS", () => {
+    const stat = pickStatForAction({
+      actionType: "investigate",
+      selectedStat: null,
+      body: "감염 상태를 확인한다",
+      defs: INVESTIGATE_SHEET,
+    });
+    assert.ok(["int", "per"].includes(stat));
+    assert.notEqual(stat, "ins");
+  });
+
+  it("support cover fire picks ACC/DEX method", () => {
+    const stat = pickStatForAction({
+      actionType: "support",
+      selectedStat: null,
+      body: "엄호 사격으로 진입을 돕는다",
+      defs: SUPPORT_COVER_SHEET,
+    });
+    assert.ok(["acc", "dex"].includes(stat));
   });
 });
 

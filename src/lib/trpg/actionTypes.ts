@@ -42,12 +42,12 @@ export function isTrpgVisibleActionType(value: string): value is TrpgVisibleActi
 
 /** Preferred sheet keys for each action, first match on the scenario sheet wins. */
 export const ACTION_STAT_PREFS: Record<TrpgActionType, readonly string[]> = {
-  attack: ["str", "mag", "spd", "dex", "foc"],
-  defend: ["con", "res", "wil", "dex"],
-  investigate: ["int", "per", "ins", "tec", "wis"],
+  attack: ["str", "mag", "spd", "dex"],
+  defend: ["con", "res", "wil"],
+  investigate: ["int", "per", "ins"],
   persuade: ["cha", "wis", "wil"],
   stealth: ["dex", "spd", "surv", "tec", "lck"],
-  support: ["str", "dex", "tec", "wis", "int", "fth", "wil", "foc"],
+  support: ["wis", "fth", "wil", "san"],
   use_item: ["int", "tec", "foc", "mag", "dex"],
   free: ["dex", "foc", "ins", "int", "str"],
 };
@@ -72,7 +72,7 @@ export function defaultStatForAction(actionType: TrpgActionType | null): string 
     case "stealth":
       return "dex";
     case "support":
-      return "str";
+      return "wis";
     case "use_item":
       return "int";
     case "free":
