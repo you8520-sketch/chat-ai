@@ -2,10 +2,9 @@
  * Candidate turn billable usage composition owner.
  * Pure resolver: stages/context → NormalizedBillableUsage + UserBillableUsageCoverage.
  *
- * Responsibility (LEVEL 1): route-assembled user billable usage basis —
+ * Responsibility (LEVEL 1 only): route-assembled user billable usage basis —
  * primary-stage prompt/cache + aggregate completion/reasoning.
- * Effective live pricing basis (LEVEL 2) is exposed in diagnostics only;
- * see turnBillableUsageBasis.ts.
+ * Does NOT interpret live pricing policy (LEVEL 2 — owned by computeTurnBilling).
  */
 import type { StageUsage } from "@/lib/ai";
 import {
@@ -23,10 +22,6 @@ import {
   sumOpenRouterStageOutputTokens,
   sumOpenRouterStageReasoningTokens,
 } from "@/lib/stageBillableUsage";
-import {
-  resolveLivePricingCompletionBasis,
-  resolveLivePricingPromptBasis,
-} from "@/lib/turnBillableUsageBasis";
 
 export type TurnUsageFieldSource =
   | "PROVIDER_REPORTED_EXACT"
@@ -53,8 +48,6 @@ export type TurnBillableUsageDiagnostics = {
   routeTotalInput: number;
   apiPromptTokensForCost: number;
   apiCompletionTokensForCost: number;
-  livePricingPromptBasis: number;
-  livePricingCompletionBasis: number;
   routeChargeOutputTokens: number;
   promptAuditCapApplied: boolean;
   cacheReadReported: boolean;
@@ -94,8 +87,6 @@ function emptyDiagnostics(): TurnBillableUsageDiagnostics {
     routeTotalInput: 0,
     apiPromptTokensForCost: 0,
     apiCompletionTokensForCost: 0,
-    livePricingPromptBasis: 0,
-    livePricingCompletionBasis: 0,
     routeChargeOutputTokens: 0,
     promptAuditCapApplied: false,
     cacheReadReported: false,
@@ -274,17 +265,6 @@ export function resolveTurnBillableUsage(
     summedApiReasoning
   );
   diagnostics.routeChargeOutputTokens = routeChargeOutputTokens;
-  diagnostics.livePricingPromptBasis = resolveLivePricingPromptBasis(
-    input.modelId,
-    routeTotalInput,
-    apiTokens.apiPromptTokensForCost
-  );
-  diagnostics.livePricingCompletionBasis = resolveLivePricingCompletionBasis(
-    input.modelId,
-    routeChargeOutputTokens,
-    apiTokens.apiCompletionTokensForCost,
-    summedApiReasoning
-  );
 
   diagnostics.fieldSources = {
     prompt: promptSource,

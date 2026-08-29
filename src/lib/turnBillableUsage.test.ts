@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
 import type { StageUsage } from "@/lib/ai";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -11,6 +14,8 @@ import {
 } from "@/lib/chatModels";
 import { computePublishedUserChargeWithSnapshot } from "@/lib/publishedUserCharge";
 import { computeTurnBilling } from "@/lib/points";
+import { parseOpenRouterUsage, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
+import type { TokenUsage } from "@/lib/tokenUsage";
 import {
   billableOpenRouterOutputTokens,
   resolveRouteApiTokensForCost,
@@ -20,10 +25,6 @@ import {
   sumOpenRouterStageReasoningTokens,
 } from "@/lib/stageBillableUsage";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
-import {
-  resolveLivePricingCompletionBasis,
-  resolveLivePricingPromptBasis,
-} from "@/lib/turnBillableUsageBasis";
 import { compareTurnBillableUsageWithLegacy } from "@/lib/turnBillableUsageCanary";
 
 const FX_1530: BillingFxSnapshot = {
@@ -36,8 +37,82 @@ const FX_1530: BillingFxSnapshot = {
   locked: true,
 };
 
+const FORBIDDEN_CANDIDATE_IMPORT_PATTERNS = [
+  "@/lib/points",
+  "@/lib/pointsReasoningMargins",
+  "@/lib/pointsMuse60",
+  "@/lib/gemini37FlashPricing",
+  "@/lib/exchangeRate",
+  "@/lib/publishedUserChargeEngine",
+  "@/lib/publishedUserCharge",
+  "@/lib/shadowPricing",
+  "@/lib/db",
+  "@/lib/database",
+] as const;
+
+function collectProductionImports(entryPath: string, visited = new Set<string>()): string[] {
+  const abs = resolve(entryPath);
+  if (visited.has(abs) || !existsSync(abs)) return [];
+  visited.add(abs);
+
+  const content = readFileSync(abs, "utf8");
+  const imports: string[] = [];
+  const importRe = /^import(?! type)\s[\s\S]*?\sfrom\s+["'](@\/[^"']+|\.[^"']*)["']/gm;
+  let match: RegExpExecArray | null;
+  while ((match = importRe.exec(content)) !== null) {
+    const spec = match[1];
+    imports.push(spec);
+    if (spec.startsWith("@/")) {
+      const rel = spec.slice(2);
+      const candidates = [
+        join(process.cwd(), "src", `${rel}.ts`),
+        join(process.cwd(), "src", rel, "index.ts"),
+      ];
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+          imports.push(...collectProductionImports(candidate, visited));
+          break;
+        }
+      }
+    } else if (spec.startsWith(".")) {
+      const base = resolve(abs, "..", spec);
+      const candidates = [`${base}.ts`, join(base, "index.ts")];
+      for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+          imports.push(...collectProductionImports(candidate, visited));
+          break;
+        }
+      }
+    }
+  }
+  return imports;
+}
+
 function stage(partial: Partial<StageUsage> & Pick<StageUsage, "stage" | "model" | "input" | "output">): StageUsage {
   return { estimated: false, ...partial };
+}
+
+/** Mirrors openRouterAdult.ts stage writer cache field forwarding (>0 only). */
+function productionStageUsageFromTokenUsage(
+  usage: TokenUsage,
+  stageLabel: string,
+  modelId: string
+): StageUsage {
+  return {
+    stage: stageLabel,
+    model: modelId,
+    input: usage.inputTokens,
+    output: usage.outputTokens,
+    apiReportedInputTokens: usage.apiReportedInputTokens ?? usage.inputTokens,
+    apiOutputTokens: usage.outputTokens,
+    estimated: usage.estimated ?? false,
+    ...(usage.cacheReadTokens != null && usage.cacheReadTokens > 0
+      ? { cacheReadTokens: usage.cacheReadTokens }
+      : {}),
+    ...(usage.cacheWriteTokens != null && usage.cacheWriteTokens > 0
+      ? { cacheWriteTokens: usage.cacheWriteTokens }
+      : {}),
+  };
 }
 
 /** LEVEL 1 — mirrors route.ts inline legacy assembly. */
@@ -107,7 +182,7 @@ function assertLevel1Parity(opts: Parameters<typeof resolveLegacyRouteUsageBasis
   assert.equal(canary.status, "match");
 }
 
-describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
+describe("turnBillableUsage — effective billing basis (LEVEL 2 via computeTurnBilling)", () => {
   it("G37 live pricing prefers apiPromptTokensForCost over route totalInput", () => {
     const routeInput = 9000;
     const apiPromptLow = 9000;
@@ -130,13 +205,9 @@ describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
       apiCompletionTokens: output,
     });
     assert.notEqual(routeBilling.total, apiBilling.total);
-    assert.equal(
-      resolveLivePricingPromptBasis(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, routeInput, apiPromptHigh),
-      apiPromptHigh
-    );
   });
 
-  it("G31 live pricing uses route totalInput (apiPrompt override does not change charge)", () => {
+  it("G31 OpenRouter live pricing uses route totalInput (apiPrompt override does not change charge)", () => {
     const routeInput = 9000;
     const apiPrompt = 12_000;
     const output = 4307;
@@ -157,7 +228,28 @@ describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
       apiCompletionTokens: output,
     });
     assert.equal(routeBilling.total, apiBilling.total);
-    assert.equal(resolveLivePricingPromptBasis(OPENROUTER_GEMINI_31_PRO_MODEL, routeInput, apiPrompt), routeInput);
+  });
+
+  it("G31 CI live pricing charge changes when apiPromptTokensForCost changes", () => {
+    const routeInput = 9000;
+    const output = 4307;
+    const low = computeTurnBilling({
+      provider: "cheaperinference",
+      openRouterModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      inputTokens: routeInput,
+      outputTokens: output,
+      apiPromptTokens: routeInput,
+      apiCompletionTokens: output,
+    });
+    const high = computeTurnBilling({
+      provider: "cheaperinference",
+      openRouterModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      inputTokens: routeInput,
+      outputTokens: output,
+      apiPromptTokens: 30_000,
+      apiCompletionTokens: output,
+    });
+    assert.notEqual(low.total, high.total);
   });
 
   it("Opus5 live pricing prefers apiPrompt via unified-reasoning margins path", () => {
@@ -183,13 +275,9 @@ describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
       apiCompletionTokens: output,
     });
     assert.notEqual(routeBilling.total, apiBilling.total);
-    assert.equal(
-      resolveLivePricingPromptBasis(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL, routeInput, apiPrompt),
-      apiPrompt
-    );
   });
 
-  it("adversarial A — stage 10k, api 12k, audit 9k", () => {
+  it("adversarial A — route totalInput vs apiPromptTokensForCost stay separate at LEVEL 1", () => {
     const stages = [
       stage({
         stage: "primary",
@@ -198,8 +286,8 @@ describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
         output: 2500,
         apiOutputTokens: 2500,
         apiReportedInputTokens: 12_000,
-        cacheReadTokens: 0,
-        cacheWriteTokens: 0,
+        cacheReadTokens: 100,
+        cacheWriteTokens: 50,
       }),
     ];
     const legacy = resolveLegacyRouteUsageBasis({
@@ -215,8 +303,12 @@ describe("turnBillableUsage — effective billing basis (LEVEL 2)", () => {
       promptAuditTotal: 9000,
     });
     assert.equal(candidate.diagnostics.routeTotalInput, 9000);
-    assert.equal(candidate.diagnostics.livePricingPromptBasis, 12_000);
-    assert.notEqual(candidate.diagnostics.routeTotalInput, candidate.diagnostics.livePricingPromptBasis);
+    assert.equal(candidate.diagnostics.apiPromptTokensForCost, 12_000);
+    assert.notEqual(
+      candidate.diagnostics.routeTotalInput,
+      candidate.diagnostics.apiPromptTokensForCost
+    );
+    assert.equal("livePricingPromptBasis" in candidate.diagnostics, false);
   });
 });
 
@@ -238,7 +330,7 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
     });
   });
 
-  it("S2 refusal fallback", () => {
+  it("S2 refusal fallback with production-reachable positive cache", () => {
     assertLevel1Parity({
       stages: [
         stage({ stage: "primary-refused", model: OPENROUTER_QWEN_37_MAX_MODEL, input: 8000, output: 100 }),
@@ -248,8 +340,8 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
           input: 9500,
           output: 700,
           apiOutputTokens: 700,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadTokens: 200,
+          cacheWriteTokens: 50,
         }),
       ],
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
@@ -280,7 +372,7 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
     assert.equal(resolveLegacyRouteUsageBasis({ stages, modelId: OPENROUTER_GEMINI_31_PRO_MODEL }).routeTotalInput, 10_000);
   });
 
-  it("S8 Muse reasoning-bearing output", () => {
+  it("S8 Muse reasoning-bearing output with production-reachable positive cache", () => {
     assertLevel1Parity({
       stages: [
         stage({
@@ -290,15 +382,15 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
           output: 1200,
           apiOutputTokens: 1200,
           apiReasoningOutputTokens: 200,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadTokens: 300,
+          cacheWriteTokens: 100,
         }),
       ],
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
     });
   });
 
-  it("S9 promptAudit cap", () => {
+  it("S9 promptAudit cap with production-reachable positive cache", () => {
     assertLevel1Parity({
       stages: [
         stage({
@@ -307,8 +399,8 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
           input: 15_000,
           output: 500,
           apiOutputTokens: 500,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadTokens: 400,
+          cacheWriteTokens: 100,
         }),
       ],
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
@@ -376,6 +468,78 @@ describe("turnBillableUsage — cache evidence", () => {
   });
 });
 
+describe("turnBillableUsage — cache production reachability", () => {
+  it("absent raw cache fields are not forwarded to TokenUsage or StageUsage", () => {
+    const parsed = parseOpenRouterUsage({ prompt_tokens: 100, completion_tokens: 50 });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    assert.equal("cacheReadTokens" in tokenUsage, false);
+    assert.equal("cacheWriteTokens" in tokenUsage, false);
+
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    assert.equal(stageUsage.cacheReadTokens, undefined);
+    assert.equal(stageUsage.cacheWriteTokens, undefined);
+  });
+
+  it("explicit provider zero is not preserved at StageUsage (PRODUCTION_STAGE_CAN_CONTAIN_EXPLICIT_ZERO_CACHE_FIELD=false)", () => {
+    const parsed = parseOpenRouterUsage({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+    });
+    assert.equal(parsed.cacheReadTokens, 0);
+    assert.equal(parsed.cacheWriteTokens, 0);
+
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    assert.equal("cacheReadTokens" in tokenUsage, false);
+    assert.equal("cacheWriteTokens" in tokenUsage, false);
+
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    assert.equal(stageUsage.cacheReadTokens, undefined);
+    assert.equal(stageUsage.cacheWriteTokens, undefined);
+  });
+
+  it("positive cache is forwarded to StageUsage", () => {
+    const parsed = parseOpenRouterUsage({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: 12, cache_write_tokens: 3 },
+    });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    assert.equal(stageUsage.cacheReadTokens, 12);
+    assert.equal(stageUsage.cacheWriteTokens, 3);
+  });
+
+  it("production no-cache stage shape yields partial candidate coverage", () => {
+    const parsed = parseOpenRouterUsage({ prompt_tokens: 5000, completion_tokens: 400 });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    const r = resolveTurnBillableUsage({
+      stages: [stageUsage],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    });
+    assert.equal(r.usageCoverage, "partial");
+    assert.equal(r.diagnostics.cacheReadReported, false);
+    assert.equal(r.diagnostics.cacheWriteReported, false);
+  });
+});
+
 describe("turnBillableUsage — partial/unknown scenarios", () => {
   it("estimated usage → partial", () => {
     const r = resolveTurnBillableUsage({
@@ -387,8 +551,8 @@ describe("turnBillableUsage — partial/unknown scenarios", () => {
           output: 400,
           apiOutputTokens: 400,
           estimated: true,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
+          cacheReadTokens: 100,
+          cacheWriteTokens: 50,
         }),
       ],
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
@@ -438,6 +602,22 @@ describe("turnBillableUsageCanary — structured comparison", () => {
     });
     assert.equal(result.status, "not_comparable");
   });
+
+  it("unknown candidate → not_comparable (not silent match)", () => {
+    const candidate = resolveTurnBillableUsage({
+      stages: [],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    });
+    const result = compareTurnBillableUsageWithLegacy(candidate, {
+      routeTotalInput: 0,
+      routeChargeOutput: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      apiCompletionTotal: 0,
+      reasoningTotal: 0,
+    });
+    assert.equal(result.status, "not_comparable");
+  });
 });
 
 describe("publishedUserCharge — existing golden guards (not candidate integration)", () => {
@@ -463,8 +643,8 @@ describe("publishedUserCharge — existing golden guards (not candidate integrat
   });
 });
 
-describe("turnBillableUsage → Published (candidate integration)", () => {
-  it("G31 complete fixture through resolveTurnBillableUsage", () => {
+describe("turnBillableUsage → Published — SYNTHETIC_COMPLETE_CONTRACT (not production-reachable)", () => {
+  it("explicit zero cache in stage fixture is synthetic — not emitted by production StageUsage writer", () => {
     const candidate = resolveTurnBillableUsage({
       stages: [
         stage({
@@ -481,6 +661,9 @@ describe("turnBillableUsage → Published (candidate integration)", () => {
     });
     assert.equal(candidate.status, "resolved");
     assert.equal(candidate.usageCoverage, "complete");
+    assert.equal(candidate.diagnostics.cacheReadReported, true);
+    assert.equal(candidate.diagnostics.cacheWriteReported, true);
+
     const published = computePublishedUserChargeWithSnapshot({
       modelId: "gemini-3.1-pro-preview",
       usage: candidate.usage!,
@@ -517,14 +700,39 @@ describe("turnBillableUsage → Published (candidate integration)", () => {
   });
 });
 
-describe("turnBillableUsage — purity", () => {
-  it("does not import @/lib/points from turnBillableUsage module graph", async () => {
-    const mod = await import("@/lib/turnBillableUsage");
-    assert.equal(typeof mod.resolveTurnBillableUsage, "function");
-    const src = await import("node:fs/promises").then((fs) =>
-      fs.readFile(new URL("./turnBillableUsage.ts", import.meta.url), "utf8")
+describe("turnBillableUsage — diagnostics and purity", () => {
+  it("diagnostics retain raw LEVEL-1 facts only (no live pricing policy fields)", () => {
+    const candidate = resolveTurnBillableUsage({
+      stages: [
+        stage({
+          stage: "primary",
+          model: OPENROUTER_QWEN_37_MAX_MODEL,
+          input: 5000,
+          output: 400,
+          apiOutputTokens: 400,
+          cacheReadTokens: 100,
+          cacheWriteTokens: 50,
+        }),
+      ],
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+    });
+    assert.equal(candidate.diagnostics.stageInput, 5000);
+    assert.equal(candidate.diagnostics.routeTotalInput, 5000);
+    assert.equal(candidate.diagnostics.apiPromptTokensForCost, 5000);
+    assert.equal("livePricingPromptBasis" in candidate.diagnostics, false);
+    assert.equal("livePricingCompletionBasis" in candidate.diagnostics, false);
+  });
+
+  it("transitive dependency graph excludes pricing, FX, DB, and Published modules", () => {
+    const entry = join(process.cwd(), "src/lib/turnBillableUsage.ts");
+    const allImports = collectProductionImports(entry);
+    const forbiddenHits = allImports.filter((imp) =>
+      FORBIDDEN_CANDIDATE_IMPORT_PATTERNS.some((pattern) => imp.startsWith(pattern))
     );
-    assert.ok(!src.includes('from "@/lib/points"'));
-    assert.ok(!src.includes("from '@/lib/points'"));
+    assert.deepEqual(
+      forbiddenHits,
+      [],
+      `forbidden transitive imports: ${forbiddenHits.join(", ")}`
+    );
   });
 });
