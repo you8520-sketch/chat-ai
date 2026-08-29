@@ -36,13 +36,14 @@ describe("remote schema bootstrap", () => {
   it("runs migration only once after recording the schema version", () => {
     const db = new Database(":memory:");
     let migrations = 0;
-    initializeRemoteSchema(db, () => {
+    const migrate = () => {
       migrations += 1;
-    });
-    initializeRemoteSchema(db, () => {
-      migrations += 1;
-    });
+      ensureChatBillingSettlementSchema(db);
+    };
+    initializeRemoteSchema(db, migrate);
+    initializeRemoteSchema(db, migrate);
     assert.equal(migrations, 1);
+    assert.equal(hasChatBillingSettlementSchema(db), true);
     const current = db
       .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
       .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
@@ -124,6 +125,101 @@ describe("remote schema bootstrap", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     assert.equal(canAdoptExistingRemoteSchema(db), false);
+    db.close();
+  });
+
+  it("REMOTE_CURRENT_MARKER_WITH_MISSING_SETTLEMENT_TABLE_CAN_SKIP_UPGRADE: false", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+    `);
+    seedProductionRemoteCore(db);
+    assert.equal(hasChatBillingSettlementSchema(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      ensureChatBillingSettlementSchema(db);
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasChatBillingSettlementSchema(db), true);
+    const current = db
+      .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+      .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
+    assert.equal(current?.version, REMOTE_SCHEMA_VERSION);
+    db.close();
+  });
+
+  it("v2 marker + valid settlement schema → migration skipped", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+    `);
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasChatBillingSettlementSchema(db), true);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+
+    assert.equal(migrations, 0);
+    db.close();
+  });
+
+  it("CURRENT_MARKER_WITH_BROKEN_UNIQUE_CAN_REPORT_CURRENT: false", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+    `);
+    seedProductionRemoteCore(db);
+    db.exec(`
+      CREATE TABLE chat_billing_settlements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        chat_id INTEGER NOT NULL,
+        request_id TEXT NOT NULL,
+        charge_kind TEXT NOT NULL DEFAULT 'chat_turn',
+        assistant_message_id INTEGER,
+        requested_points INTEGER NOT NULL,
+        settled_points INTEGER NOT NULL,
+        outcome TEXT NOT NULL,
+        deduction_slices_json TEXT NOT NULL DEFAULT '[]',
+        reason TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT 'native',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    assert.equal(hasChatBillingSettlementSchema(db), false);
+
+    let migrations = 0;
+    const migrate = () => {
+      migrations += 1;
+      ensureChatBillingSettlementSchema(db);
+    };
+    initializeRemoteSchema(db, migrate);
+    assert.equal(migrations, 1);
+    assert.equal(hasChatBillingSettlementSchema(db), false);
+
+    initializeRemoteSchema(db, migrate);
+    assert.equal(migrations, 2);
     db.close();
   });
 });

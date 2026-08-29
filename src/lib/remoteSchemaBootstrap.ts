@@ -29,12 +29,15 @@ function ensureControlTables(db: SchemaDatabase): void {
   `);
 }
 
+/** v2 "current" requires the version marker AND the canonical settlement schema invariant. */
 function isCurrent(db: SchemaDatabase): boolean {
-  return Boolean(
+  const versionMarked = Boolean(
     db.prepare("SELECT 1 AS ok FROM _remote_schema_state WHERE version=?").get(
       REMOTE_SCHEMA_VERSION
     )
   );
+  if (!versionMarked) return false;
+  return hasChatBillingSettlementSchema(db);
 }
 
 function markCurrent(db: SchemaDatabase): void {
