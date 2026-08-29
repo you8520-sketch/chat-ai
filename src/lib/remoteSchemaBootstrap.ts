@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { hasChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 
-const REMOTE_SCHEMA_VERSION = "turso-v1";
+export const REMOTE_SCHEMA_VERSION = "turso-v2-chat-billing-settlement";
+export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v1";
+
 const LOCK_STALE_AFTER_MS = 5 * 60_000;
 const WAIT_ATTEMPTS = 360;
 const WAIT_MS = 250;
@@ -45,9 +48,11 @@ function hasColumn(db: SchemaDatabase, table: string, column: string): boolean {
   return rows.some((row) => row.name === column);
 }
 
-/** Adopt databases completed by the first Turso preview, before schema versioning existed. */
+/** Adopt databases that already contain the full production schema including settlement UNIQUE owner. */
 export function canAdoptExistingRemoteSchema(db: SchemaDatabase): boolean {
   try {
+    if (!hasChatBillingSettlementSchema(db)) return false;
+
     const tables = db
       .prepare(
         `SELECT COUNT(*) AS c FROM sqlite_master

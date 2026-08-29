@@ -27,7 +27,7 @@ import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
-import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlement";
+import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
