@@ -4,7 +4,7 @@ import {
   TRPG_SCENARIO_MAX_NPCS,
   scenarioBundleLimitError,
 } from "./scenarioTypes";
-import { SCENARIO_PUBLIC_INTRO_REQUIRED, validateScenarioPublicIntro } from "./trpgPublication";
+import { SCENARIO_PUBLIC_INTRO_REQUIRED, validateScenarioPublicationTransition } from "./trpgPublication";
 import type { TrpgVisibility } from "./types";
 
 export type ScenarioReadinessStatus = "playable" | "recommended" | "blocked";
@@ -33,6 +33,8 @@ export type ScenarioReadinessInput = {
   content: string;
   summary?: string;
   visibility?: TrpgVisibility;
+  /** Saved visibility before unsaved edits; defaults to private for new scenarios. */
+  previousVisibility?: TrpgVisibility;
   scenarioPlan: TrpgScenarioPlan | null | undefined;
   npcs?: unknown;
   startInventory?: unknown;
@@ -121,8 +123,9 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
     });
   }
   try {
-    validateScenarioPublicIntro({
-      visibility: input.visibility ?? "private",
+    validateScenarioPublicationTransition({
+      previousVisibility: input.previousVisibility ?? "private",
+      nextVisibility: input.visibility ?? "private",
       summary: String(input.summary ?? ""),
     });
   } catch (error) {

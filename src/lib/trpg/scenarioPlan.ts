@@ -1,3 +1,5 @@
+import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
+
 export const TRPG_SCENARIO_PLAN_VERSION = 1 as const;
 export const TRPG_SCENARIO_PLAN_SCHEMA_VERSION = "trpg-scenario-plan-v1";
 
@@ -287,8 +289,6 @@ function bullets(label: string, items: readonly string[]): string {
   if (rows.length === 0) return "";
   return `${label}\n${rows.map((item) => `- ${item}`).join("\n")}`;
 }
-
-import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
 
 export function effectiveEndingConditionsForGm(plan: TrpgScenarioPlan | null | undefined): string[] {
   const authored = (plan?.endingConditions ?? []).map((item) => item.trim()).filter(Boolean);

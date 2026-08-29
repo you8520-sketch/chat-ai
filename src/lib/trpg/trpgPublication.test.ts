@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
+import { applyCampaignStoryProgress } from "./campaignContext";
+import { buildTrpgGmUserBlock } from "./gmPrompt";
 import {
   effectiveEndingConditionsForGm,
   hasLegacyAdvancedPlanFields,
   hasPlayableScenarioPlan,
   serializeTrpgScenarioPlanForGm,
   emptyTrpgScenarioPlan,
+  type TrpgScenarioPlan,
 } from "./scenarioPlan";
 import { evaluateScenarioReadiness } from "./scenarioReadiness";
 import { normalizeScenarioTemplateInput } from "./scenarioTypes";
@@ -14,11 +17,49 @@ import {
   isLegacyPublicTrpgWorld,
   mergeGmPrivateNotes,
   TRPG_DEFAULT_ENDING_GUIDANCE,
-  validateScenarioPublicIntro,
+  validateScenarioPublicationTransition,
   validateWorldTrpgPublicationTransition,
   WORLD_TRPG_PUBLIC_INTRO_REQUIRED,
   SCENARIO_PUBLIC_INTRO_REQUIRED,
 } from "./trpgPublication";
+
+function countOccurrences(hay: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let pos = 0;
+  while ((pos = hay.indexOf(needle, pos)) !== -1) {
+    count += 1;
+    pos += needle.length;
+  }
+  return count;
+}
+
+function basicPlayablePlan(overrides: Partial<TrpgScenarioPlan> = {}): TrpgScenarioPlan {
+  return {
+    ...emptyTrpgScenarioPlan(),
+    startingSituation: "시작",
+    goal: "탈출",
+    endingConditions: [],
+    ...overrides,
+  };
+}
+
+function buildNewCampaignGmPrompt(opts: {
+  secretContent: string;
+  planSecret: string;
+  plan: TrpgScenarioPlan;
+}): string {
+  const gmSecret = mergeGmPrivateNotes(opts.secretContent, opts.planSecret);
+  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(opts.plan);
+  return buildTrpgGmUserBlock({
+    worldBrief: "테스트 세계",
+    memoryBlock: "",
+    opening: true,
+    gmSecret,
+    scenarioPlanBlock,
+    actions: [],
+  });
+}
 
 describe("TRPG publication and authoring consolidation", () => {
   it("GENERAL_WORLD_EMPTY_SUMMARY_CAN_SAVE: private world save does not require intro", () => {
@@ -54,12 +95,67 @@ describe("TRPG publication and authoring consolidation", () => {
     assert.equal(isLegacyPublicTrpgWorld({ trpg_enabled: 1, summary: "" }), true);
   });
 
-  it("PUBLIC_SCENARIO_REQUIRES_PUBLIC_INTRO and PRIVATE_SCENARIO_PUBLIC_INTRO_OPTIONAL", () => {
+  it("NEW_PRIVATE_SCENARIO_EMPTY_INTRO: private save does not require intro", () => {
+    assert.doesNotThrow(() =>
+      validateScenarioPublicationTransition({
+        previousVisibility: "private",
+        nextVisibility: "private",
+        summary: "",
+      })
+    );
+    const readiness = evaluateScenarioReadiness({
+      title: "테스트",
+      content: "",
+      summary: "",
+      visibility: "private",
+      previousVisibility: "private",
+      scenarioPlan: basicPlayablePlan(),
+    });
+    assert.equal(readiness.canSave, true);
+  });
+
+  it("NEW_PUBLIC_SCENARIO_EMPTY_INTRO: first public save requires intro", () => {
     assert.throws(
-      () => validateScenarioPublicIntro({ visibility: "public", summary: "" }),
+      () =>
+        validateScenarioPublicationTransition({
+          previousVisibility: "private",
+          nextVisibility: "public",
+          summary: "",
+        }),
       (error: Error) => error.message === SCENARIO_PUBLIC_INTRO_REQUIRED
     );
-    assert.doesNotThrow(() => validateScenarioPublicIntro({ visibility: "private", summary: "" }));
+  });
+
+  it("PRIVATE_TO_PUBLIC_EMPTY_INTRO: transition to public requires intro", () => {
+    assert.throws(
+      () =>
+        validateScenarioPublicationTransition({
+          previousVisibility: "private",
+          nextVisibility: "public",
+          summary: "   ",
+        }),
+      (error: Error) => error.message === SCENARIO_PUBLIC_INTRO_REQUIRED
+    );
+    const readiness = evaluateScenarioReadiness({
+      title: "테스트",
+      content: "",
+      summary: "",
+      visibility: "public",
+      previousVisibility: "private",
+      scenarioPlan: basicPlayablePlan(),
+    });
+    assert.equal(readiness.canSave, false);
+    assert.ok(readiness.blockers.some((item) => item.id === "missing_public_intro"));
+  });
+
+  it("PUBLIC_SCENARIO_WITH_INTRO: public save passes when intro present", () => {
+    assert.doesNotThrow(() =>
+      validateScenarioPublicationTransition({
+        previousVisibility: "private",
+        nextVisibility: "public",
+        summary: "플레이어용 소개",
+      })
+    );
   });
 
   it("BASIC_AUTHORING_DOES_NOT_REQUIRE_ADVANCED_UI_FIELDS", () => {
@@ -80,28 +176,113 @@ describe("TRPG publication and authoring consolidation", () => {
     assert.equal(readiness.canPlay, true);
   });
 
-  it("NO_FAKE_AUTHORED_ENDING_DATA_PERSISTED: runtime fallback is not written into plan JSON", () => {
-    const plan = {
-      ...emptyTrpgScenarioPlan(),
-      startingSituation: "시작",
-      goal: "목표",
-      endingConditions: [],
-    };
+  it("DEFAULT_ENDING_GUIDANCE_IN_PROMPT exactly once for empty endingConditions", () => {
+    const plan = basicPlayablePlan();
     assert.deepEqual(plan.endingConditions, []);
     assert.deepEqual(effectiveEndingConditionsForGm(plan), [TRPG_DEFAULT_ENDING_GUIDANCE]);
     const serialized = serializeTrpgScenarioPlanForGm(plan);
+    assert.equal(countOccurrences(serialized, TRPG_DEFAULT_ENDING_GUIDANCE), 1);
     assert.match(serialized, /종료 조건:/);
-    assert.match(serialized, /자연스럽게 결말/);
     assert.doesNotMatch(serialized, /GM만 아는 비밀:/);
   });
 
-  it("GM_PRIVATE_NOTE_INJECTION_COUNT_EQUALS_ONE via merge helper", () => {
-    assert.equal(
-      mergeGmPrivateNotes("숨김 A", "숨김 A", "숨김 B"),
-      "숨김 A\n\n숨김 B"
+  it("AUTHORED_ENDING_JSON_UNCHANGED: runtime fallback is not written into plan JSON", () => {
+    const plan = basicPlayablePlan();
+    serializeTrpgScenarioPlanForGm(plan);
+    assert.deepEqual(plan.endingConditions, []);
+  });
+
+  it("CAMPAIGN_FINISH_WITH_DEFAULT_GUIDANCE: campaign_finished=true ends without endingConditionId", () => {
+    const plan = basicPlayablePlan();
+    const ctx = applyCampaignStoryProgress(
+      {
+        campaignId: 1,
+        sourceMode: "scenario",
+        worldSnapshot: null,
+        scenarioSnapshot: {
+          id: 1,
+          title: "테스트",
+          summary: "",
+          content: "",
+          secretContent: "",
+          startLocation: "",
+          startInventory: [],
+          plan,
+          updatedAt: "",
+        },
+        directorPlan: plan,
+        storyPhase: "CLIMAX",
+        activeThreads: [],
+        resolvedThreads: [],
+        endingStatus: { finished: false },
+        directorError: "",
+      },
+      { campaignFinished: true }
     );
-    const engineCreate = fs.readFileSync("src/lib/trpg/engineCreate.ts", "utf8");
-    assert.match(engineCreate, /mergeGmPrivateNotes\(template\.secretContent, template\.scenarioPlan\?\.secret\)/);
+    assert.equal(ctx.endingStatus.finished, true);
+    assert.equal(ctx.storyPhase, "FINISHED");
+    assert.equal(ctx.endingStatus.endingConditionId, undefined);
+    assert.equal(ctx.endingStatus.endingConditionText, undefined);
+  });
+
+  it("ENDING_CONTRACT_MISMATCH_FOUND: finish does not require fallback index id", () => {
+    const plan = basicPlayablePlan();
+    const withoutId = applyCampaignStoryProgress(
+      {
+        campaignId: 2,
+        sourceMode: "scenario",
+        worldSnapshot: null,
+        scenarioSnapshot: null,
+        directorPlan: plan,
+        storyPhase: "DEVELOPMENT",
+        activeThreads: [],
+        resolvedThreads: [],
+        endingStatus: { finished: false },
+        directorError: "",
+      },
+      { campaignFinished: true }
+    );
+    const withWrongId = applyCampaignStoryProgress(withoutId, { endingConditionId: "0" });
+    assert.equal(withWrongId.endingStatus.finished, true);
+    assert.equal(withWrongId.endingStatus.endingConditionText, undefined);
+  });
+
+  it("NEW_CAMPAIGN_SECRET_CONTENT_ONLY: GM note appears exactly once", () => {
+    const secret = "SECRET_CONTENT_ONLY_TOKEN";
+    const plan = basicPlayablePlan({ secret: "" });
+    const prompt = buildNewCampaignGmPrompt({ secretContent: secret, planSecret: "", plan });
+    assert.equal(countOccurrences(prompt, secret), 1);
+    assert.equal(countOccurrences(prompt, "[GM SECRET"), 1);
+    assert.doesNotMatch(serializeTrpgScenarioPlanForGm(plan), new RegExp(secret));
+  });
+
+  it("NEW_CAMPAIGN_PLAN_SECRET_ONLY: legacy plan.secret appears exactly once via GM SECRET", () => {
+    const secret = "PLAN_SECRET_ONLY_TOKEN";
+    const plan = basicPlayablePlan({ secret });
+    const prompt = buildNewCampaignGmPrompt({ secretContent: "", planSecret: secret, plan });
+    assert.equal(countOccurrences(prompt, secret), 1);
+    assert.equal(countOccurrences(prompt, "[GM SECRET"), 1);
+    assert.doesNotMatch(serializeTrpgScenarioPlanForGm(plan), /PLAN_SECRET_ONLY_TOKEN/);
+  });
+
+  it("NEW_CAMPAIGN_BOTH: merged secrets each appear exactly once without duplication", () => {
+    const secretA = "MERGED_SECRET_A";
+    const secretB = "MERGED_SECRET_B";
+    const plan = basicPlayablePlan({ secret: secretB });
+    const prompt = buildNewCampaignGmPrompt({ secretContent: secretA, planSecret: secretB, plan });
+    assert.equal(countOccurrences(prompt, secretA), 1);
+    assert.equal(countOccurrences(prompt, secretB), 1);
+    assert.equal(countOccurrences(prompt, "[GM SECRET"), 1);
+    assert.doesNotMatch(serializeTrpgScenarioPlanForGm(plan), new RegExp(secretB));
+  });
+
+  it("GM_NOTE_DUPLICATION_COUNT: duplicate merge inputs collapse to one occurrence", () => {
+    const secret = "DUPLICATE_SECRET";
+    const merged = mergeGmPrivateNotes(secret, secret);
+    assert.equal(merged, secret);
+    const plan = basicPlayablePlan({ secret });
+    const prompt = buildNewCampaignGmPrompt({ secretContent: secret, planSecret: secret, plan });
+    assert.equal(countOccurrences(prompt, secret), 1);
   });
 
   it("PLAYER_PREVIEW_DOES_NOT_EXPOSE_RAW_GM_PLAN_FIELDS", () => {
@@ -119,11 +300,7 @@ describe("TRPG publication and authoring consolidation", () => {
   });
 
   it("normalizeScenarioTemplateInput rejects new public scenario without intro", () => {
-    const plan = {
-      ...emptyTrpgScenarioPlan(),
-      startingSituation: "문 앞",
-      goal: "탈출",
-    };
+    const plan = basicPlayablePlan({ startingSituation: "문 앞", goal: "탈출" });
     assert.throws(
       () =>
         normalizeScenarioTemplateInput({
@@ -134,6 +311,19 @@ describe("TRPG publication and authoring consolidation", () => {
           scenarioPlan: plan,
         }),
       /플레이어 공개 소개/
+    );
+  });
+
+  it("normalizeScenarioTemplateInput allows private scenario without intro", () => {
+    const plan = basicPlayablePlan({ startingSituation: "문 앞", goal: "탈출" });
+    assert.doesNotThrow(() =>
+      normalizeScenarioTemplateInput({
+        title: "테스트",
+        content: "",
+        summary: "",
+        visibility: "private",
+        scenarioPlan: plan,
+      })
     );
   });
 

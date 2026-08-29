@@ -181,6 +181,14 @@ export default function TrpgScenarioEditor({
 
   const [savedSnapshot, setSavedSnapshot] = useState(() => scenarioEditorSnapshot(currentFields()));
   const [lastDraftSnapshot, setLastDraftSnapshot] = useState<string | null>(null);
+  const savedVisibility = useMemo(() => {
+    try {
+      const parsed = JSON.parse(savedSnapshot) as { visibility?: TrpgVisibility };
+      return parsed.visibility ?? "private";
+    } catch {
+      return "private" as TrpgVisibility;
+    }
+  }, [savedSnapshot]);
 
   const namedNpcs = npcs.filter((n) => n.name.trim());
   const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
@@ -230,12 +238,13 @@ export default function TrpgScenarioEditor({
         content,
         summary,
         visibility,
+        previousVisibility: savedVisibility,
         scenarioPlan: plan,
         npcs: namedNpcs,
         startInventory: namedInventory,
         bundleChars: bundleUsed,
       }),
-    [title, content, summary, visibility, plan, namedNpcs, namedInventory, bundleUsed]
+    [title, content, summary, visibility, savedVisibility, plan, namedNpcs, namedInventory, bundleUsed]
   );
   const persistDecision = scenarioPersistDecision({
     dirty,

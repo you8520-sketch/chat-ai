@@ -34,12 +34,15 @@ export function validateWorldTrpgPublicationTransition(opts: {
   }
 }
 
-export function validateScenarioPublicIntro(opts: {
-  visibility: TrpgVisibility;
+/** Blocks only when visibility transitions to public without a player-facing intro. */
+export function validateScenarioPublicationTransition(opts: {
+  previousVisibility: TrpgVisibility;
+  nextVisibility: TrpgVisibility;
   summary: string;
 }): void {
-  if (opts.visibility !== "public") return;
-  if (!normalizePublicationText(opts.summary)) {
+  const intro = normalizePublicationText(opts.summary);
+  const becomingPublic = opts.previousVisibility !== "public" && opts.nextVisibility === "public";
+  if (becomingPublic && !intro) {
     throw new Error(SCENARIO_PUBLIC_INTRO_REQUIRED);
   }
 }

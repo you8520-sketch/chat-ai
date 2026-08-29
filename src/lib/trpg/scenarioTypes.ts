@@ -18,7 +18,7 @@ import {
   parseTrpgScenarioPlan,
   type TrpgScenarioPlan,
 } from "./scenarioPlan";
-import { validateScenarioPublicIntro } from "./trpgPublication";
+import { validateScenarioPublicationTransition } from "./trpgPublication";
 import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgStatDefinition, type TrpgVisibility } from "./types";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
@@ -157,6 +157,8 @@ export type NormalizeScenarioTemplateOptions = {
    * UPDATE only: preserve these. The request payload cannot add new legacy keys.
    */
   preservedLegacyStatKeys?: readonly string[];
+  /** Visibility before this save. INSERT defaults to private. */
+  previousVisibility?: TrpgVisibility;
 };
 
 function uniquePreservedLegacyKeys(raw: readonly string[] | undefined): string[] {
@@ -219,11 +221,16 @@ export function normalizeScenarioTemplateInput(
     throw new Error(`모브 NPC는 최대 ${TRPG_SCENARIO_MAX_NPCS}명입니다.`);
   }
   const visibility = parseTrpgVisibility(input.visibility);
-  validateScenarioPublicIntro({ visibility, summary: clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT) });
+  const summary = clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT);
+  validateScenarioPublicationTransition({
+    previousVisibility: options?.previousVisibility ?? "private",
+    nextVisibility: visibility,
+    summary,
+  });
   const worldIdRaw = Number(input.worldId);
   return {
     title,
-    summary: clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT),
+    summary,
     content,
     secretContent: clip(String(input.secretContent ?? ""), TRPG_SCENARIO_SECRET_LIMIT),
     worldId: Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null,
