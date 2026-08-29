@@ -20,7 +20,8 @@ describe("TRPG GM resolution quality — prompt owners", () => {
     assert.equal(countOwnerMatches(craft, /Do not replay, re-quote, closely paraphrase, or re-stage/g), 1);
     assert.equal(countOwnerMatches(craft, /Failure: intended result does not fully land/g), 1);
     assert.equal(countOwnerMatches(craft, /Resolution is a compact bridge, not the main destination/g), 1);
-    assert.equal(countOwnerMatches(craft, /do not produce isolated actor-by-actor recap paragraphs/g), 1);
+    assert.equal(countOwnerMatches(craft, /never dedicate a separate long paragraph to each actor's performance or outcome/g), 1);
+    assert.equal(countOwnerMatches(craft, /\[VISIBLE ACTION PROSE — established context for its outcome\]/g), 1);
     assert.equal(countOwnerMatches(craft, /do not choose their next actions, dialogue, allegiance, movement, or decisions/g), 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FORWARD MOTION\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[STORY PROGRESSION\]/);
@@ -75,6 +76,19 @@ describe("TRPG GM resolution quality — probe scorer unit tests", () => {
     assert.equal(bloated.ACTION_REPLAY, "NONE");
     assert.equal(bloated.RESOLUTION_BLOAT, "MAJOR");
     assert.match(bloated.notes.join(" "), /RESOLUTION_BLOAT/);
+
+    const combined = reviewGmForwardMotionQuality({
+      narration: [
+        "렌의 일격이 길을 열었지만 태현의 추가 절단은 표면에 걸려 미끄러졌다. ".repeat(4),
+        "통로 너머에서 금속성 마찰음이 빨라지며 포자낭이 일렁였다. ".repeat(4),
+        "GM: 좁은 틈을 지금 통과할지 결정해야 합니다.",
+      ].join("\n\n"),
+      actions: [
+        { participantId: 1, name: "렌", body: "균사를 파쇄한다.", tier: "SUCCESS" },
+        { participantId: 2, name: "태현", body: "연결부를 절단한다.", tier: "FAILURE" },
+      ],
+    });
+    assert.notEqual(combined.RESOLUTION_BLOAT, "MAJOR");
   });
 });
 

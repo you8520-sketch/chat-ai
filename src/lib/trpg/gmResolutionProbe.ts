@@ -109,8 +109,12 @@ function countActorRecapParagraphs(narration: string, pcNames: readonly string[]
   let count = 0;
   for (const paragraph of paragraphs) {
     if (paragraph.length < 120) continue;
-    const lead = paragraph.slice(0, 24);
-    if (pcNames.some((name) => lead.includes(name))) count += 1;
+    const mentioned = pcNames.filter((name) => paragraph.includes(name));
+    // Combined resolution mentions multiple PCs in one paragraph — not actor-by-actor bloat.
+    if (mentioned.length !== 1) continue;
+    const lead = paragraph.slice(0, 40);
+    if (!mentioned.some((name) => lead.includes(name))) continue;
+    count += 1;
   }
   return count;
 }
