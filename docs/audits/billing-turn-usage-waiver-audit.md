@@ -1,245 +1,322 @@
 # Billing Turn Usage + Waiver Contract Audit
 
-**Date:** 2026-08-29  
-**Base main SHA:** `0f4f8c3df34488f551c49970101186dda3abc4c1` (#726 merged)  
-**Scope:** Read-only production path audit — no billing behavior change
+**Audit date:** 2026-08-29 (route-composition correction pass)
+**Scope:** Characterization + contract fit only — **no production billing changes**
+**Base main SHA:** `0f4f8c3df34488f551c49970101186dda3abc4c1`
+**PR branch:** `cursor/billing-turn-usage-waiver-audit-d7cd`
 
 ---
 
 ## Executive summary
 
-Production chat billing is orchestrated in `src/app/api/chat/route.ts` with pricing math in `@/lib/points` (wrapper chain → `points.ts`) and exactly-once settlement in `settleChatTurnBillingExactlyOnce()`. There is **no single canonical `resolveTurnBillableUsage()` owner** today; usage is assembled inline in the route from `StageUsage[]` via a **split responsibility**:
+This audit maps the **live chat turn billing path** from OpenRouter stage usage through waiver/minimum logic to settlement, and compares it to the **Published user-charge engine** contract (PR #726 / #719).
 
-- **Input + cache:** `selectBillableStages()` → primary (or fallback-last) stage
-- **Output + reasoning + upstream USD:** `sumOpenRouterStage*()` over **all** non-Gemini stages
+**Route-composition correction (this pass):** The initial audit draft incorrectly concluded that model-specific waiver minimum floors could revive non-zero charges on reachable waiver paths. Reproduction through the **actual composed route path** (`shouldWaiveTurnBilling` → model minimum resolver) proves that **every reachable live waiver ends at 0P**. The prior conclusion was an **audit bug** caused by low-level helper isolation tests that manually injected unreachable `(text, reason)` pairs.
 
-This split is **documented and intentional** for OpenRouter multi-stage turns (primary + recovery/continuation), but creates a structural pattern that must be preserved or explicitly redesigned before Published live cutover.
-
-Waiver semantics are **D — historically accumulated mixed behavior**: base waiver zeros charge, then seven model families may apply a **minimum charge floor** on certain waiver reasons when meaningful output was delivered.
-
-Published engine `#726` adjustment contract (`none | waiver | self_funded_promo`) is **partial** — it does not model legacy minimum-charge-after-waiver.
-
----
-
-## Owner map
-
-| Responsibility | Owner | Count | Classification |
-|----------------|-------|-------|----------------|
-| CHAT_PROVIDER_CALL_OWNER | `route.ts` stream/postprocess orchestration | 1 | CANONICAL (orchestration) |
-| STAGE_USAGE_WRITER_OWNER(S) | `openRouterAdult.ts`, `serverUnderLengthRecovery.ts`, `narrativeLengthContinuation.ts` → `route.ts` push | 3 writers + 1 collector | SPLIT |
-| USER_BILLABLE_STAGE_SELECTION_OWNER | `selectBillableStages()` in `points.ts` | 1 | CANONICAL (partial — input/cache only) |
-| USER_BILLABLE_INPUT_OWNER | `route.ts` → `resolveTurnBillableInput(primaryStage.input, promptAudit)` | 1 | SPLIT (route assembly) |
-| USER_BILLABLE_OUTPUT_OWNER | `route.ts` → `sumOpenRouterStageOutputTokens` + `billableOpenRouterOutputTokens` | 1 | SPLIT (aggregate) |
-| USER_BILLABLE_REASONING_OWNER | `route.ts` → `sumOpenRouterStageReasoningTokens` | 1 | SPLIT (aggregate) |
-| USER_BILLABLE_CACHE_OWNER | `route.ts` → `primaryStage.cache*` | 1 | SPLIT (primary only) |
-| USER_USAGE_COVERAGE_OWNER | **None explicit** — implicit `complete` when billing runs; `generationFailure` skips billing | 0 dedicated | LEGACY gap |
-| PROVIDER_ACTUAL_COST_AGGREGATION_OWNER | `sumOpenRouterStageUpstreamUsd` + `hiddenFallbackOverheadCostUsd` (admin) | 1 | SPLIT |
-| ACTUAL_COST_COVERAGE_OWNER | `resolveActualTurnCostCoverage()` in `shadowPricing.ts` | 1 | CANONICAL (shadow only) |
-| WAIVER_REASON_OWNER | `shouldWaiveTurnBilling()` in `points.ts` | 1 | CANONICAL |
-| WAIVER_MINIMUM_CHARGE_OWNER | `resolveModelWaiverMinimumCharge()` + 7 public resolvers | 1 impl, 7 wrappers | CANONICAL |
-| WAIVER_MODEL_ROUTING_OWNER | `route.ts` model `if/else if` chain (lines ~4340–4375) | 1 | LEGACY inline |
-| FINAL_PRE_SETTLEMENT_CHARGE_OWNER | `route.ts` (`cost` variable, incl. widget add-on) | 1 | CANONICAL |
-| SETTLEMENT_OWNER | `settleChatTurnBillingExactlyOnce()` | 1 | CANONICAL (#719 closed) |
-| RECEIPT_USAGE_OWNER | `route.ts` `usageRecord` assembly | 1 | CANONICAL |
-| PUBLISHED_USER_CHARGE_OWNER | `computePublishedUserChargeWithSnapshot()` (#726, shadow only) | 1 | CANONICAL (not live) |
+| Finding | Status |
+|---------|--------|
+| Primary input/cache + aggregate output/reasoning mixing | **INTENTIONAL** (documented) |
+| Canonical `resolveTurnBillableUsage()` owner | **MISSING** |
+| Live `UserBillableUsageCoverage` owner | **MISSING** |
+| `ActualTurnCostCoverage` | **Separate** (shadow only) |
+| Settlement recalculates usage/waiver | **NO** |
+| Reachable live waiver semantic | **Full waiver to 0P** |
+| Model-specific waiver minimum floors via route | **UNREACHABLE / DEAD WORKAROUND** |
+| Published `waiver` adjustment covers reachable live waiver | **YES** |
+| `minimum_charge_after_waiver` required for live parity | **NO** |
 
 ---
 
-## Turn provider call inventory
+## 1. Live billing path (route.ts)
 
-| CALL_ID | TRIGGER | PROVIDER | USER_VISIBLE | DELIVERED | STAGE_WRITTEN | INPUT | CACHE | OUTPUT | REASONING | SETTLED_COST | LIVE_BILL | SHADOW | ECONOMICS |
-|---------|---------|----------|--------------|-----------|---------------|-------|-------|--------|-----------|--------------|-----------|--------|-----------|
-| P1_primary_generation | Main RP stream | OpenRouter/CI/Gemini | yes | yes | yes → `stages[0]` | yes | conditional | yes | conditional | upstreamUsd | yes | partial | yes |
-| P2_adult_refusal_fallback | Primary refusal/error | OpenRouter general | yes | yes | yes (replaces primary in `stages`) | yes | conditional | yes | conditional | fallback upstream | yes | partial | overhead in admin meta |
-| P3_under_length_recovery | Primary under-length | Same model | partial append | yes | yes `recoveryStage` | yes | conditional | yes | conditional | per-stage | yes (aggregated output) | partial | yes |
-| P4_narrative_continuation | Tier min not met | Same model | yes append | yes | yes push | yes | conditional | yes | conditional | per-stage | yes (agg output) | partial | yes |
-| P5_html_visual_flash | HTML card policy | Gemini Flash | yes (HTML) | yes | **no StageUsage** — `flashHtmlUsage` | yes | conditional | yes | no | upstream | yes (htmlFlash path) | unknown | yes |
-| P6_status_widget_extract | Status widget active | Separate model call | no (widget JSON) | no | **no StageUsage** | yes | unknown | yes | unknown | widget usage | **partial** (add-on points) | **no** | admin receipt |
-| P7_memory_summary | `prepareNonBlockingSummaryForMainRp` | Background | no | no | **no** | n/a | n/a | n/a | n/a | separate | **no** | **no** | **no** |
-| P8_stealth_fallback | `selectBillableStages({stealthFallback})` | — | — | — | **UNREACHABLE** in route | — | — | — | — | — | — | — | — |
+### Stage collection
 
-**TURN_PROVIDER_CALL_TYPE_COUNT:** 7 reachable (+ 1 dead API)  
-**CALLS_NOT_REPRESENTED_IN_STAGE_USAGE:** P5 (flashHtmlUsage), P6 (widget), P7 (memory)  
-**HIDDEN_PROVIDER_COST_PATHS:** `hiddenFallbackOverheadCostUsd` (failed primary before fallback — admin adultRouting meta only)
+| Source | Function | Stages appended |
+|--------|----------|-----------------|
+| Primary adult chat | `openRouterAdult.ts` | Main completion |
+| Under-length recovery | `serverUnderLengthRecovery.ts` | Recovery attempt(s) |
+| Narrative continuation | `narrativeLengthContinuation.ts` | Continuation attempt(s) |
 
----
+All stages land in `stages: OpenRouterStageUsage[]` before billing.
 
-## Stage writers
+### Aggregation (intentional mixing)
 
-**STAGE_WRITER_COUNT:** 3 producers + 1 collector (`route.ts`)
+```text
+primary input/cache     ← selectBillableStages(stages) — first primary-eligible stage only
+aggregate output        ← sumOpenRouterStageCompletionTokens(stages)
+aggregate reasoning     ← sumOpenRouterStageReasoningTokens(stages)
+aggregate upstream      ← sumOpenRouterStageUpstreamCost(stages)
+```
 
-| Writer | Location | Represents | Failed attempt stage? |
-|--------|----------|------------|----------------------|
-| Primary stream finalize | `openRouterAdult.ts:2265+` | Main generation | Yes if streamed before failure |
-| Under-length recovery | `serverUnderLengthRecovery.ts:136+` | Recovery pass | Only on success |
-| Length continuation | `narrativeLengthContinuation.ts:133+` | Continuation | Only on success |
-| Route collector | `route.ts:3241,3243,3722` | `stages.push` | Generation failure → billing skipped before settlement |
+**Classification:** `PRIMARY_AGGREGATE_BUCKET_MIXING: INTENTIONAL`
 
----
+Primary input/cache tokens come from the **first billable primary stage**; output/reasoning/upstream are **summed across all stages** (including recovery/continuation). This is the current production contract.
 
-## selectBillableStages
+### Billing computation
 
-**SELECT_BILLABLE_STAGES_PURPOSE:** mixed — selects **one stage** for input/cache/waiver context; does **not** own output aggregation  
-**SELECT_BILLABLE_STAGES_CALLERS:** `route.ts:4015` (production), tests  
-**SELECT_BILLABLE_STAGES_IS_CANONICAL_USER_USAGE_OWNER:** **partial** (input/cache/failure detection only)
+`computeTurnBilling()` (via `@/lib/points` alias chain) receives the mixed buckets and returns `{ cost, breakdown, ... }`.
 
-| Scenario | Behavior |
-|----------|----------|
-| Normal single-stage | `[stages[0]]` |
-| Multi-stage same provider | `[stages[0]]` for input; output summed separately |
-| Refusal fallback delivered | `[stages[last]]` — fallback stage |
-| Stealth fallback | **Not invoked** from route (dead option) |
-| Continuation/recovery | Primary selected for input; continuation/recovery in `stages` for output sum |
+### Waiver gate
 
----
+```text
+billingWaiverReason = shouldWaiveTurnBilling(trimmed, {
+  forcedAbort,
+  degenerationAborted,
+  generationFailure,
+  usageUnavailable,
+  adultMode: true,
+  targetResponseChars,
+})
+if (billingWaiverReason) cost = 0
+else → model-specific minimum chain (see §3)
+```
 
-## Primary vs aggregate mixing
+### Widget add-on (auxiliary)
 
-**PRIMARY_AGGREGATE_BUCKET_MIXING:** **INTENTIONAL**
+After shadow pricing, `statusWidgetApiCostChargePoints` may add integer points. This is **not** a waiver adjustment.
 
-Evidence (`route.ts:4133–4224`):
-- `totalInput` ← `primaryStage.input` capped by `resolveTurnBillableInput`
-- `cacheRead/Write` ← `primaryStage` only
-- `summedApiOutput/Reasoning/Upstream` ← **all** non-Gemini stages
-- `reasoningTokens: summedApiReasoning` passed to `computeTurnBilling`
+**Classification:** `AUXILIARY_CHARGE_COMPONENT` — separate from waiver semantics.
 
-Characterization: `src/lib/turnBillingUsageAudit.test.ts`
+### Settlement
+
+`settleChatTurnBillingExactlyOnce()` receives the final integer `cost` only. It does **not** recalculate usage, waiver, or minimum floors.
 
 ---
 
-## Coverage separation
+## 2. Owner map (reconfirmed)
 
-| Dimension | Owner | Notes |
-|-----------|-------|-------|
-| UserBillableUsageCoverage | **No explicit owner** — billing skipped on `generationFailure`; otherwise implicit complete | Not passed to shadow Published engine on live path |
-| ActualTurnCostCoverage | `resolveActualTurnCostCoverage()` | Shadow/admin only; marks partial on multi-stage, fallback, recovery, continuation |
+| Role | File | Function | Production callers |
+|------|------|----------|-------------------|
+| **WAIVER_REASON_OWNER** | `src/lib/points.ts` | `shouldWaiveTurnBilling()` | 1 (`route.ts`) |
+| **FORCED_ABORT_REASON_OWNER** | `src/lib/points.ts` | `resolveForcedAbortWaiverReason()` (private) | 0 direct (via `shouldWaiveTurnBilling`) |
+| **MINIMUM_CHARGE_COMMON_OWNER** | `src/lib/points.ts` | `resolveModelWaiverMinimumCharge()` (private) | 0 direct (via model wrappers) |
+| **MINIMUM_CHARGE_MODEL_WRAPPERS** | `src/lib/points.ts` | 7 public `resolve*WaiverMinimumCharge()` | 1 each (`route.ts` only) |
+| **MINIMUM_CHARGE_CONSTANT_OWNER** | `src/lib/points.ts` | `*_WAIVER_SUCCESS_MIN_COST` constants | Used only by minimum resolver |
+| **FINAL_WAIVER_COST_OWNER** | `src/app/api/chat/route.ts` | inline `if (billingWaiverReason) cost = 0` | 1 |
 
-**THEY_ARE_CURRENTLY_COUPLED:** **partial** — route does not set UserBillableUsageCoverage; shadow uses separate ActualTurnCostCoverage heuristic
+### `@/lib/points` alias chain (verified)
 
----
-
-## Scenario matrix (reachable)
-
-| ID | Scenario | Provider calls | Live user usage | Provider cost | Waiver | Settlement |
-|----|----------|----------------|-----------------|---------------|--------|------------|
-| S1 | Normal primary success | P1 | primary input + agg output | primary upstream | null → full | yes |
-| S2 | Refusal → fallback | P1+P2 | fallback input + output (single stage in array) | fallback + hidden primary overhead (admin) | null if delivered | yes |
-| S3 | Primary failure → recovery | P1+P3 | primary input + agg output | sum upstream | null | yes |
-| S4 | Primary + continuation | P1+P4 | primary input + agg output | sum upstream | null | yes |
-| S5 | Multiple continuations | **Not reachable** — `lengthContinuationPasses` max 1 | — | — | — | — |
-| S6 | Continuation fails after primary | Primary delivered; no cont stage pushed | primary only | primary only | null | yes |
-| S7 | Generation failure | P1 maybe | **billing skipped** (4090 return) | provider may have cost | n/a | **no settlement** |
-| S8 | Forced abort | P1 | computed then waived | upstream | forced_abort → 0 or min | yes (0 or min) |
-| S9 | Degeneration abort | P1 | waived | upstream | degeneration → 0 | yes (0) |
-| S10 | Incomplete usage | P1 | waived | unknown | generation_failure | yes (0) |
-| S11 | Regeneration | Same as S1–S4 | fresh `stages[]`, new `clientRequestId` | same rules | same | independent settlement |
-| S12 | HTML flash auxiliary | P5 (+ maybe P1) | flashHtmlUsage path | flash upstream | generationFailure rules | yes |
-| S13 | Cross-provider fallback | **Not reachable** — adult fallback same general OR path | — | — | — | — |
+```text
+@/lib/points
+  → pointsReasoningMargins.ts (re-exports)
+    → pointsMuse60.ts (re-exports)
+      → points.ts (runtime owner)
+```
 
 ---
 
-## Waiver
+## 3. Route composition — waiver + minimum (corrected)
 
-**WAIVER_REASON_OWNER:** `shouldWaiveTurnBilling()` — priority: degeneration → generationFailure → usageUnavailable → forcedAbort/unknown → catastrophically short → garbage
+### Composed path
 
-**WAIVER_MINIMUM_CHARGE_OWNER_COUNT:** 1 (`resolveModelWaiverMinimumCharge`) + 7 model wrappers (same algorithm, different constants)
+```text
+shouldWaiveTurnBilling(text, flags, targetResponseChars)
+  → billingWaiverReason | null
+  → if reason: cost = 0
+  → else if reason was set earlier: model resolve*WaiverMinimumCharge(text, reason, targetResponseChars)
+```
 
-**WAIVER_MODEL_ROUTING_OWNER:** `route.ts` inline if/else if
+**Critical invariant (proven by tests):**
 
-**WAIVER_SEMANTIC:** **D** — mixed historical behavior:
-- **A** for degeneration/generation_failure/garbage/over_reasoning → always 0 (minimum resolver returns 0)
-- **B** for forced_abort with **catastrophically short** delivered text → waive to 0; minimum charge applies only when waiver reason is `forced_abort` AND visible text ≥ 80 chars (characterization in tests)
-- **Important:** `forcedAbort: true` with long healthy text → **no waiver** (`shouldWaiveTurnBilling` returns null) — full normal billing applies
-- Models without resolver (Opus, G37 Flash, Terra, …) → stay 0 when waived
+When `shouldWaiveTurnBilling` returns `forced_abort`, `isCatastrophicallyShortResponse(text, targetResponseChars)` is **always true**. The minimum resolver returns **0** for catastrophically short text regardless of reason. All other reachable waiver reasons (`degeneration`, `generation_failure`, `garbage_output`) explicitly return minimum **0**.
 
-**PUBLISHED_ADJUSTMENT_CONTRACT_COVERS_CURRENT_LIVE_POLICY:** **partial**
+### Reachability matrix (route composition fixtures A–H)
 
-Missing semantics for future Published live:
-- `minimum_charge_after_waiver` (non-zero floor)
-- `partial_waiver` / delivered-output recovery charge
-- Model-specific minimum constants as policy snapshot fields
-- Widget add-on billing (separate API call)
+| Fixture | shouldWaive | Minimum resolver called | Waiver minimum | Final semantic |
+|---------|-------------|-------------------------|----------------|----------------|
+| A. Forced abort + healthy long output | `null` | No | — | **NORMAL FULL BILLING** |
+| B. Forced abort + catastrophically short | `forced_abort` | Yes | **0** | **0P waiver** |
+| C. Forced abort + degenerate output | `degeneration` | Yes | **0** | **0P waiver** |
+| D. degenerationAborted | `degeneration` | Yes | **0** | **0P waiver** |
+| E. generationFailure | `generation_failure` | Yes | **0** | **0P waiver** |
+| F. usageUnavailable | `usage_unavailable` | Yes | **0** | **0P waiver** |
+| G. Short without forcedAbort | `forced_abort` | Yes | **0** | **0P waiver** |
+| H. Garbage without forcedAbort | `garbage_output` | Yes | **0** | **0P waiver** |
 
----
+### Hard reachability question
 
-## Settlement boundary (#719)
+```text
+CAN_ROUTE_WAIVER_MINIMUM_EVER_BE_GREATER_THAN_ZERO: false
+EXACT_REACHABLE_FIXTURE_IF_TRUE: (none)
+MODEL_SPECIFIC_WAIVER_MINIMUM_ROUTE_PATH: UNREACHABLE / DEAD WORKAROUND
+```
 
-**SETTLEMENT_RECALCULATES_USAGE:** false — receives `requestedPoints: cost` only  
-**SETTLEMENT_RECALCULATES_WAIVER:** false  
-Retry/replay returns canonical settled result from `chat_billing_settlements` UNIQUE key.
+The low-level helper `resolveDeepSeekWaiverMinimumCharge(meaningfulProse, "forced_abort")` returns a non-zero floor, but **no production caller can produce that `(text, reason)` pair** — `forced_abort` requires catastrophically short text, which forces minimum 0.
 
----
+### Reachable waiver reasons (all models)
 
-## Receipt
+For every model (DeepSeek, Qwen, GLM, Kimi, Muse, Gemini 3.6, Gemini 3.1) and every reason producible by `shouldWaiveTurnBilling`:
 
-**RECEIPT_USAGE_SEMANTIC:** mixed
-- `usage.input` / `usage.output` → billable values passed to `computeTurnBilling`
-- `apiInputTokens` → primary stage API reported (can differ from billable input)
-- `apiOutputTokens` → **aggregated** across stages
-- `stages` receipt array → billable stages with **full turn cost duplicated** on each row (`stageCosts`)
+| GENERATED_REASON | MINIMUM_RESULT |
+|------------------|----------------|
+| `forced_abort` | 0 |
+| `degeneration` | 0 |
+| `generation_failure` | 0 |
+| `garbage_output` | 0 |
+| `usage_unavailable` | 0 |
 
-**RECEIPT_MATCHES_USER_BILLABLE_USAGE:** **partial** — API token fields show provider totals; billable fields show charge basis
+(`over_reasoning` is handled inside the minimum resolver but **never returned** by `shouldWaiveTurnBilling`.)
 
----
+### Waiver semantic (corrected)
 
-## Shadow / Published
+```text
+REACHABLE_WAIVER_SEMANTIC:
+  full waiver to 0P
 
-Shadow receives route-assembled tokens (`route.ts:4925–4934`) — primary cache + aggregated output.  
-Multi-stage → `actualTurnCostCoverage: partial` but Published charge may still compute if exact catalog + complete usage normalized.
+FORCED_ABORT_WITH_HEALTHY_OUTPUT:
+  not a waiver → normal full billing (shouldWaive returns null)
 
-Widget cost added **after** shadow attach — shadow does not include widget.
+MODEL_SPECIFIC_MINIMUM_FLOORS:
+  present in code but unreachable from current route composition
+```
 
----
+**Previous audit conclusion (`WAIVER_SEMANTIC = D`, nonzero minimum after waiver) is INCORRECT.**
 
-## Three sums (must differ intentionally)
+```text
+ROOT_CAUSE:
+  HELPER_ISOLATION_TEST_CREATED_UNREACHABLE_STATE
 
-| Sum | What it includes today |
-|-----|------------------------|
-| USER_BILLABLE_USAGE_SUM | primary input (capped) + aggregated OR output + primary cache + waiver/min floor |
-| PROVIDER_ACTUAL_COST_SUM | sum upstream USD all stages + hidden fallback overhead (admin) + widget (separate) |
-| USER_VISIBLE_RECEIPT_USAGE_SUM | `usage.input/output` + optional api* breakdown fields |
+PRODUCTION_BILLING_BUG:
+  NOT PROVEN
 
----
-
-## Cleanup classification
-
-| Item | Class |
-|------|-------|
-| `selectBillableStages({ stealthFallback })` branch | **FOLLOW_UP** — unreachable from route |
-| Duplicate `chargePoints` in calibration fixtures | **KEEP** — not billing path |
-| Inline waiver model routing in route | **FOLLOW_UP** — delegate to policy owner |
-| `stageCosts` full cost on each stage row | **FOLLOW_UP** — receipt semantics confusing |
-| No `UserBillableUsageCoverage` on live path | **FOLLOW_UP** — needed before Published persistence |
-
----
-
-## Recommended next PR
-
-**NAME:** `Billing canonical TurnBillableUsage aggregator (design + canary)`  
-
-**CANONICAL_OWNER_TO_CREATE_OR_CHANGE:**
-- New `resolveTurnBillableUsage(stages, opts)` — single owner for NormalizedBillableUsage + UserBillableUsageCoverage
-- New `resolveTurnBillingAdjustment(waiver, model, text)` — encapsulate waiver + minimum floor
-
-**OBSOLETE_OWNER_TO_REMOVE_OR_DELEGATE:**
-- Route inline usage assembly → delegate to aggregator
-- Route inline waiver model chain → delegate to adjustment owner
-
-**CHANGE_BUDGET:** Separate PR after product sign-off on minimum-charge policy snapshot semantics
+AUDIT_BUG:
+  CONFIRMED
+```
 
 ---
 
-## Findings
+## 4. Minimum constants (verified from production)
 
-### P0
-- None requiring immediate production patch (audit-only phase)
+Resolved via `@/lib/points` → `points.ts`:
 
-### P1
-- **PRIMARY_AGGREGATE_BUCKET_MIXING** — INTENTIONAL but must be explicit in future aggregator (ROOT_CAUSE_UNCONFIRMED as bug; INTENTIONAL_POLICY)
-- **Published adjustment gap** — minimum charge not representable (BUG_REPRODUCED_NOT_FIXED — design gap)
-- **No UserBillableUsageCoverage owner on live path** (ROOT_CAUSE_UNCONFIRMED)
+| Constant | Value |
+|----------|-------|
+| DEEPSEEK_WAIVER_MIN | **20** |
+| QWEN_WAIVER_MIN | **50** |
+| GLM_WAIVER_MIN | **50** |
+| KIMI_WAIVER_MIN | **65** |
+| MUSE_WAIVER_MIN | **50** |
+| GEMINI36_WAIVER_MIN | **50** |
+| GEMINI31_WAIVER_MIN | **65** |
 
-### P2
-- Widget billing after shadow attach (FOLLOW_UP)
-- Receipt `stageCosts` duplicates full cost per stage (FOLLOW_UP)
-- `stealthFallback` dead branch (SAFE_TO_DELETE candidate after confirmation)
+These constants apply only when `resolveModelWaiverMinimumCharge` is called with **non-catastrophically-short text** and a reason that does not force zero (e.g. manual `over_reasoning` or isolated helper tests). They are **not reachable** through route composition.
+
+### Previous 343 / 357 / 364 values
+
+```text
+PREVIOUS_343_357_364_VALUES_EXPLAINED_AS: REPORTING_ERROR
+```
+
+No such values exist in `points.ts` or the waiver minimum resolver. They were erroneous figures in the initial audit draft, not a different billing metric or runtime override.
+
+---
+
+## 5. Caller audit — waiver minimum resolvers
+
+| Resolver | Callers | Classification |
+|----------|---------|----------------|
+| `resolveDeepSeekWaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveQwenWaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveGlmWaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveKimiWaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveMuseWaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveGemini36WaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+| `resolveGemini31WaiverMinimumCharge` | `route.ts`, tests | PRODUCTION (route) + TEST |
+
+```text
+OTHER_PRODUCTION_CALLER_CAN_PASS_NONZERO_REACHABLE_MINIMUM: false
+```
+
+The sole production caller is `route.ts`, and route composition never passes a reachable `(text, reason)` pair that yields a non-zero minimum.
+
+---
+
+## 6. Published adjustment fit-gap (re-evaluated)
+
+Current Published adjustment kinds: `none`, `waiver`, `self_funded_promo`.
+
+```text
+PUBLISHED_WAIVER_CONTRACT_COVERS_REACHABLE_LIVE_WAIVER: true
+MINIMUM_CHARGE_AFTER_WAIVER_REQUIRED_FOR_CURRENT_LIVE_PARITY: false
+```
+
+All reachable live waivers are full 0P waivers. The existing `waiver` adjustment kind is sufficient. **`minimum_charge_after_waiver` is not a current-live semantic gap** — it would only model unreachable legacy minimum-resolver behavior.
+
+---
+
+## 7. Dead system classification (do not delete in this PR)
+
+| Component | Classification |
+|-----------|----------------|
+| `resolveModelWaiverMinimumCharge` (private) | SAFE_TO_DELETE_CANDIDATE |
+| 7 public model minimum wrappers | SAFE_TO_DELETE_CANDIDATE |
+| 7 minimum constants | SAFE_TO_DELETE_CANDIDATE |
+| Route waiver-minimum if chain | SAFE_TO_DELETE_CANDIDATE |
+
+Before future deletion, verify: writer/caller, reader/import, historical receipt dependency, rollback/compatibility.
+
+---
+
+## 8. Recommended next PR (revised)
+
+Do **not** bundle waiver minimum cleanup with canonical usage extraction.
+
+```text
+PR A (recommended first):
+  Canonical resolveTurnBillableUsage()
+  + UserBillableUsageCoverage canary
+  One responsibility: usage bucket ownership
+
+PR B (separate, after PR A):
+  Waiver / dead minimum cleanup OR charge-component policy
+  One responsibility: remove unreachable minimum chain OR document retention
+```
+
+---
+
+## 9. Preserved valid findings (unchanged)
+
+- PRIMARY_AGGREGATE_BUCKET_MIXING: **INTENTIONAL**
+- No dedicated live `UserBillableUsageCoverage` owner
+- `ActualTurnCostCoverage` is separate (shadow diagnostics)
+- Settlement does not recalculate usage/waiver
+- `StageUsage` does not represent every auxiliary provider call (HTML flash, status widget, memory summary)
+- Route / points / PUBLISHED / settlement **unchanged in this PR**
+
+---
+
+## 10. Scope guard
+
+| Guard | Value |
+|-------|-------|
+| PRODUCTION_CODE_CHANGED | **false** |
+| ROUTE_CHANGED | **false** |
+| POINTS_PRICING_CHANGED | **false** |
+| PUBLISHED_ENGINE_CHANGED | **false** |
+| SETTLEMENT_CHANGED | **false** |
+| DB_SCHEMA_CHANGED | **false** |
+| LIVE_USER_DEDUCTION_CHANGED | **false** |
+| PROMPT_FILES_CHANGED | **0** |
+
+Changes limited to: this audit doc + `src/lib/turnBillingUsageAudit.test.ts`.
+
+---
+
+## 11. Characterization tests
+
+| Section | Purpose |
+|---------|---------|
+| `LOW_LEVEL_HELPER_CHARACTERIZATION` | Isolated resolver behavior including unreachable manual pairs — **not** route evidence |
+| `CURRENT_ROUTE_COMPOSITION_CHARACTERIZATION` | Full composed path mirroring `route.ts` — **authoritative for live semantics** |
+
+Run: `node --conditions=react-server --import tsx --test src/lib/turnBillingUsageAudit.test.ts`
+
+---
+
+## 12. Merge recommendation
+
+```text
+MERGE_RECOMMENDED: false
+```
+
+Audit-only PR. Human review required before merge.
