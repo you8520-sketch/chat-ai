@@ -15,7 +15,7 @@ export type SummaryBarrierGateResult =
   | { proceed: true; summarizedThrough: number }
   | { proceed: false; response: SummaryBarrierGateFailure };
 
-/** Route seam — barrier failure must stop main provider bootstrap with billing waived. */
+/** @deprecated Main /api/chat no longer blocks on barrier failure — chat proceeds with RAW expansion. */
 export function gateChatOnSummaryBarrier(
   barrier: SummaryBarrierResult
 ): SummaryBarrierGateResult {

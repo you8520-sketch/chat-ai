@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { HISTORY_TOKEN_BUDGET, MIN_HISTORY_TURN_FLOOR } from "@/lib/contextTrack";
+import { trimProviderHistoryToBudget } from "@/lib/providerHistoryPolicy";
 import {
   RAW_HISTORY_COMPLETE_EXCHANGES,
   areCompatibleHistorySuffixes,
@@ -11,6 +12,8 @@ import {
   resolveLorebookExcludeFromTrimmedHistory,
   resolveMemoryCoverageGap,
   resolveMemoryCoverageTurnFloor,
+  resolveProviderRawPoolExchangeCount,
+  resolveProviderRawTrimFloorExchanges,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
   type DialogueTurn,
@@ -66,18 +69,10 @@ describe("resolveMemoryCoverageTurnFloor (diagnostics only)", () => {
   });
 });
 
-describe("provider RAW policy", () => {
-  it("memory ON and OFF both keep four-exchange floor", () => {
+describe("provider RAW policy (bounded injection)", () => {
+  it("memory OFF keeps four-exchange pool", () => {
     assert.equal(
-      resolveHistoryMinTurnFloor({
-        memoryFeatureEnabled: true,
-        completedTurns: 20,
-        summarizedTurnCount: 0,
-      }),
-      RAW_HISTORY_COMPLETE_EXCHANGES
-    );
-    assert.equal(
-      resolveHistoryMinTurnFloor({
+      resolveProviderRawPoolExchangeCount({
         memoryFeatureEnabled: false,
         completedTurns: 20,
         summarizedTurnCount: 0,
@@ -86,27 +81,35 @@ describe("provider RAW policy", () => {
     );
   });
 
-  it("never sends more than four complete exchanges to provider RAW", () => {
-    for (const completed of [5, 7, 12, 20]) {
-      const result = analyzeRawPolicy({ completedTurns: completed, summarizedTurnCount: 0 });
-      assert.equal(result.playableTurns, Math.min(RAW_HISTORY_COMPLETE_EXCHANGES, completed));
-    }
+  it("memory ON uses unsummarized suffix pool but RAW4 trim floor", () => {
+    assert.equal(
+      resolveProviderRawPoolExchangeCount({
+        memoryFeatureEnabled: true,
+        completedTurns: 20,
+        summarizedTurnCount: 6,
+      }),
+      14
+    );
+    assert.equal(resolveProviderRawTrimFloorExchanges(), RAW_HISTORY_COMPLETE_EXCHANGES);
   });
 
-  it("summary lag does not expand provider RAW beyond four exchanges", () => {
-    const lagging = analyzeRawPolicy({ completedTurns: 20, summarizedTurnCount: 6 });
-    assert.equal(lagging.floor, RAW_HISTORY_COMPLETE_EXCHANGES);
-    assert.equal(lagging.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
-  });
-
-  it("opening greeting is excluded from playable RAW count", () => {
-    const result = analyzeRawPolicy({
-      completedTurns: 7,
-      summarizedTurnCount: 0,
-      opening: true,
+  it("trim enforces HISTORY_TOKEN_BUDGET with RAW4 floor when backlog pool is large", () => {
+    const pool = resolveProviderRawPoolExchangeCount({
+      memoryFeatureEnabled: true,
+      completedTurns: 20,
+      summarizedTurnCount: 6,
     });
-    assert.equal(result.playableTurns, RAW_HISTORY_COMPLETE_EXCHANGES);
-    assert.equal(result.firstRawPlayableTurn, 4);
+    const playable = makePlayableTurns(20);
+    const full = rawRecentTurnsToHistory(playable, pool, {
+      memoryFeatureEnabled: true,
+      summarizedTurnCount: 6,
+    });
+    const trimmed = trimProviderHistoryToBudget(full, HISTORY_TOKEN_BUDGET, {
+      minRealPlayableExchanges: resolveProviderRawTrimFloorExchanges(),
+      protectOpening: false,
+    });
+    assert.ok(countPlayableHistoryTurns(trimmed) < pool);
+    assert.ok(countPlayableHistoryTurns(trimmed) >= RAW_HISTORY_COMPLETE_EXCHANGES);
   });
 });
 

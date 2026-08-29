@@ -585,6 +585,8 @@ export type OpenRouterMessageOpts = {
   deepSeekAdultHandoffTrueOff?: boolean;
   /** Internal budget/diagnostic label for this upstream request. */
   requestKind?: string;
+  /** Temporary GEMINI_TTFT_PHASE_AUDIT instrumentation (env-gated). */
+  phaseAudit?: import("@/lib/turnPhaseLatencyAudit").TurnPhaseLatencyAudit | null;
   /**
    * Experiment harness — when false, do not issue a second non-stream call
    * after an empty primary stream. Production default remains enabled.
@@ -1427,12 +1429,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         throw error;
       }
     } else {
+      messageOpts?.phaseAudit?.mark("T10_PROVIDER_FETCH_START");
       res = await fetchOpenRouterChatWithCreditRetry(
         transport.endpoint,
         transport.headers,
         requestBody as Record<string, unknown>,
         240_000
       );
+      messageOpts?.phaseAudit?.mark("T11_PROVIDER_HEADERS");
     }
     if (!res.body) {
       throw new OpenRouterApiError({
@@ -1484,6 +1488,9 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (value?.byteLength) {
+        messageOpts?.phaseAudit?.mark("T12_PROVIDER_FIRST_SSE");
+      }
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
@@ -1548,6 +1555,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
           const rawDelta = extractOpenRouterStreamDelta(choice);
           const delta = rawDelta ? prefillStripper.push(rawDelta) : "";
           if (delta) {
+            messageOpts?.phaseAudit?.mark("T13_PROVIDER_FIRST_VISIBLE_TOKEN");
             if (process.env.DEBUG_STREAM === "true") {
               console.log("[STREAMING CHUNK]:", delta.slice(0, 50));
             }
@@ -1736,6 +1744,15 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       ? { cacheDiscountUsd: usageBreakdown.cacheDiscountUsd }
       : {}),
   };
+
+  messageOpts?.phaseAudit?.mark("T17_PROVIDER_COMPLETE");
+  messageOpts?.phaseAudit?.setTokens({
+    prompt_tokens: finalBreakdown.promptTokens,
+    cached_tokens: finalBreakdown.cacheReadTokens,
+    completion_tokens: finalBreakdown.completionTokens,
+    reasoning_tokens: finalBreakdown.reasoningTokens,
+    estimated: finalBreakdown.estimated,
+  });
 
   return {
     ...tokenUsageFromOpenRouterBreakdown(finalBreakdown),
