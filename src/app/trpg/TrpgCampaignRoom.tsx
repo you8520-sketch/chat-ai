@@ -2576,9 +2576,11 @@ function SceneTurn({
     decorativeShownLen: shownNarrationLen,
   });
   const canonicalCommitted = Boolean(row.narration?.trim());
+  const liveStreaming = Boolean(gmStreamDraft?.trim()) && !canonicalCommitted;
   const liveAssetResolution = resolveTrpgGmLiveAssetResolution({
     canonicalCommitted,
     revealComplete: gmRevealComplete,
+    liveStreaming,
   });
   const gmDisplayNarration = liveAssetResolution ? (row.narration ?? shownNarration) : shownNarration;
   const gmScenarioAssets = liveAssetResolution ? scenarioAssets : [];

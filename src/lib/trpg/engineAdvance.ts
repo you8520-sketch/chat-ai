@@ -1281,12 +1281,20 @@ async function runGmForRound(
       }
     : undefined;
   if (opts.requestId) {
+    const draftAssetEnforceOpts = {
+      aiParticipantIds: aiParticipantIdSet(aiContexts),
+      characterTagsByParticipant: characterTagsByParticipant(aiContexts),
+      scenarioTags: new Set(
+        playableScenarioAssets(scenarioAssets).map((asset) => asset.tag.trim()).filter(Boolean)
+      ),
+    };
     draftCoalescer = new GmNarrationDraftCoalescer({
       db,
       roundId: opts.roundId,
       generationId: opts.requestId,
       providerTimings: () => providerTimings,
       onStaleDiscard: () => logStaleOwnerDiscard(opts.roundId, opts.requestId!, "draft"),
+      draftSanitize: (text) => enforceGmSceneAssetMarkers(text, draftAssetEnforceOpts).text,
     });
     heartbeatTimer = setInterval(() => {
       if (!refreshGmGenerationHeartbeat(db, opts.roundId, opts.requestId!)) {
