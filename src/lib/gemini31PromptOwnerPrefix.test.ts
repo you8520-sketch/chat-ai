@@ -5,6 +5,7 @@ import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import { CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL } from "@/lib/chatModels";
 import {
   compareLayoutOwners,
+  isGemini31IntentionalLayoutMultiInjection,
   isGemini31TerminalLayoutOwnerOnly,
   shouldInjectSystemLayoutRecency,
 } from "@/lib/gemini31LayoutOwnerPolicy";
@@ -223,6 +224,14 @@ test("logPromptSectionFingerprints tracks turn-over-turn changes", () => {
   assert.equal(second.unchangedCount, 2);
   const third = logPromptSectionFingerprints({ scopeKey: scope, sections: mk("v2") });
   assert.equal(third.firstChangedSection, "dynamic-b");
+});
+
+test("intentional multi-injection is default production classification", () => {
+  const prev = process.env.GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY;
+  delete process.env.GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY;
+  assert.equal(isGemini31IntentionalLayoutMultiInjection(), true);
+  if (prev === undefined) delete process.env.GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY;
+  else process.env.GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY = prev;
 });
 
 test("token accounting audit — local over-estimate vs provider, no double count", () => {

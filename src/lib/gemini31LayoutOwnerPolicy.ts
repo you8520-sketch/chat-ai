@@ -6,10 +6,19 @@ import {
 
 /**
  * When true, Gemini 3.1 Pro uses terminal user-tail layout recency only;
- * system `[OUTPUT LAYOUT]` block is omitted. Default OFF — enable for A/B or after quality gate PASS.
+ * system `[OUTPUT LAYOUT]` block is omitted. Default OFF.
+ *
+ * Phase B.1 live A/B (2026-08-29): terminal-only FAILED quality parity on Q1/Q2/Q4.
+ * Production keeps dual injection — system rich contract + user-tail recency reinforcement.
+ * Classification: ONE POLICY, MULTIPLE PURPOSEFUL INJECTIONS (not TRUE D2).
  */
 export function isGemini31TerminalLayoutOwnerOnly(): boolean {
   return process.env.GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY === "1";
+}
+
+/** Phase B.1 — dual layout injection is intentional reinforcement, not a policy conflict. */
+export function isGemini31IntentionalLayoutMultiInjection(): boolean {
+  return !isGemini31TerminalLayoutOwnerOnly();
 }
 
 export function shouldInjectSystemLayoutRecency(opts: {
