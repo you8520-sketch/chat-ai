@@ -4,11 +4,16 @@ import { normalizeBillableUsage } from "@/lib/billingUsage";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import {
   CHARGE_SNAPSHOT_SCHEMA_VERSION,
+  computePublishedUserChargeFromResolvedPolicy,
   computePublishedUserChargeWithSnapshot,
   isPublishedUserChargeSnapshot,
+  validateAdjustment,
   type PublishedUserChargeSnapshot,
 } from "@/lib/publishedUserCharge";
-import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
+import { resolvePublishedPricingExact, type PublishedModelPricing } from "@/lib/publishedModelPricing";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { getModelPublishedPricingPolicy } from "@/lib/modelPublishedPricingPolicy";
+import { GEMINI37_V2_PROPOSED } from "@/lib/gemini37PricingPolicy";
 
 const FX_1530: BillingFxSnapshot = {
   mode: "daily_kst",
@@ -237,14 +242,14 @@ describe("publishedUserCharge — determinism and serialization", () => {
     assert.deepEqual(a, b);
   });
 
-  it("snapshot JSON round-trip lossless", () => {
+  it("snapshot JSON round-trip deep equal", () => {
     const r = completeCharge("gemini-3.1-pro-preview", 40_689, 4_307);
     assert.equal(r.status, "complete");
     if (r.status === "complete") {
       const parsed = JSON.parse(JSON.stringify(r.snapshot)) as PublishedUserChargeSnapshot;
+      assert.deepEqual(parsed, r.snapshot);
       assert.equal(isPublishedUserChargeSnapshot(parsed), true);
       assert.equal(parsed.chargeSnapshotSchemaVersion, CHARGE_SNAPSHOT_SCHEMA_VERSION);
-      assert.equal(parsed.finalPoints, r.snapshot.finalPoints);
       assert.equal(Number.isInteger(parsed.finalPoints), true);
     }
   });
@@ -289,5 +294,257 @@ describe("publishedUserCharge — adversarial inputs", () => {
       adjustment: { kind: "none" },
     });
     assert.equal(r.status, "blocked");
+  });
+});
+
+describe("publishedUserCharge — live-grade contract hardening", () => {
+  it("public engine cannot bypass unknown model via resolved pricing override", () => {
+    const g37 = resolvePublishedPricingExact("gemini-3.7-flash")!;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "made-up-model-xyz",
+      usage: usage("gemini-3.7-flash", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") {
+      assert.equal(r.reason, "unsupported_model");
+      assert.equal(r.finalPoints, null);
+    }
+    void g37;
+  });
+
+  it("Opus request + Gemini resolved policy → identity mismatch blocked", () => {
+    const g37 = resolvePublishedPricingExact("gemini-3.7-flash")!;
+    const r = computePublishedUserChargeFromResolvedPolicy({
+      requestedModelId: "claude-opus-5",
+      resolvedPricing: g37,
+      usage: usage("claude-opus-5", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "model_pricing_identity_mismatch");
+  });
+
+  it("locked=false FX → blocked for live-grade public engine", () => {
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: usage("gemini-3.7-flash", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: { ...FX_1530, locked: false },
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "invalid_fx_snapshot");
+  });
+
+  it("wrong effective rate → blocked", () => {
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: usage("gemini-3.7-flash", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: { ...FX_1530, effectiveKrwPerUsd: 1000 },
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "invalid_fx_snapshot");
+  });
+
+  it("wrong overseas fee → blocked", () => {
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: usage("gemini-3.7-flash", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: { ...FX_1530, overseasFeeRate: 0 },
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "invalid_fx_snapshot");
+  });
+
+  it("malformed KST dateKey → blocked", () => {
+    for (const dateKey of ["x", "tomorrow", "2026-99-99"]) {
+      const r = computePublishedUserChargeWithSnapshot({
+        modelId: "gemini-3.7-flash",
+        usage: usage("gemini-3.7-flash", 1000, 500),
+        usageCoverage: "complete",
+        fxSnapshot: { ...FX_1530, dateKey },
+        adjustment: { kind: "none" },
+      });
+      assert.equal(r.status, "blocked", dateKey);
+    }
+  });
+
+  it("reasoning included_in_output with under-reported billableOutput → blocked", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.reasoningAccounting = "included_in_output";
+    u.reasoningTokens = 100;
+    u.billableOutputTokens = 400;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+  });
+
+  it("reasoningAccounting=separate → blocked for live-grade", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.reasoningAccounting = "separate";
+    u.reasoningTokens = 100;
+    u.billableOutputTokens = 600;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+  });
+
+  it("reasoningAccounting=unknown → blocked", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.reasoningAccounting = "unknown";
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+  });
+
+  it("fractional token count → blocked", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.promptTokens = 1000.5;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+  });
+
+  it("unsafe integer token count → blocked", () => {
+    const u = usage("gemini-3.7-flash", 1000, 500);
+    u.promptTokens = Number.MAX_SAFE_INTEGER + 1;
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: u,
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(r.status, "blocked");
+  });
+
+  it("targetMargin 0.99 uses exact gross margin (not silent 95% clamp)", () => {
+    const pricing: PublishedModelPricing = {
+      ...GEMINI37_V2_PROPOSED,
+      targetMargin: 0.99,
+    };
+    const r = computePublishedUserChargeFromResolvedPolicy({
+      requestedModelId: "gemini-3.7-flash",
+      resolvedPricing: {
+        requestedModelId: "gemini-3.7-flash",
+        canonicalModelId: "gemini-3.7-flash",
+        pricing,
+      },
+      usage: usage("gemini-3.7-flash", 24_952, 2_367),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+      expectedCanonicalModelId: "gemini-3.7-flash",
+    });
+    assert.equal(r.status, "complete");
+    if (r.status === "complete") {
+      assert.equal(r.snapshot.targetMargin, 0.99);
+      assert.ok(r.snapshot.standardUserChargeKrw > r.snapshot.billingReferenceCostKrw * 50);
+    }
+  });
+
+  it("cache rate NaN → invalid published pricing", () => {
+    const pricing: PublishedModelPricing = {
+      ...resolvePublishedPricingExact("claude-opus-5")!.pricing,
+      billingReferenceCacheReadUsdPerMillion: NaN,
+    };
+    const r = computePublishedUserChargeFromResolvedPolicy({
+      requestedModelId: "claude-opus-5",
+      resolvedPricing: {
+        requestedModelId: "claude-opus-5",
+        canonicalModelId: "claude-opus-5",
+        pricing,
+      },
+      usage: usage("claude-opus-5", 1000, 500, { read: 100 }),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+      expectedCanonicalModelId: "claude-opus-5",
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "invalid_published_pricing");
+  });
+
+  it("malformed adjustment → invalid_adjustment", () => {
+    const r = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.7-flash",
+      usage: usage("gemini-3.7-flash", 1000, 500),
+      usageCoverage: "complete",
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "waiver", reason: "" },
+    });
+    assert.equal(r.status, "blocked");
+    if (r.status === "blocked") assert.equal(r.reason, "invalid_adjustment");
+    assert.equal(validateAdjustment({ kind: "waiver", reason: "" }), false);
+  });
+
+  it("snapshot validator rejects tampered finalPoints", () => {
+    const r = completeCharge("gemini-3.1-pro-preview", 40_689, 4_307);
+    assert.equal(r.status, "complete");
+    if (r.status === "complete") {
+      const tampered = { ...r.snapshot, finalPoints: r.snapshot.finalPoints + 1 };
+      assert.equal(isPublishedUserChargeSnapshot(tampered), false);
+    }
+  });
+
+  it("snapshot validator rejects tampered USD rate", () => {
+    const r = completeCharge("gemini-3.1-pro-preview", 40_689, 4_307);
+    assert.equal(r.status, "complete");
+    if (r.status === "complete") {
+      const tampered = {
+        ...r.snapshot,
+        billingReferenceInputUsdPerMillion: r.snapshot.billingReferenceInputUsdPerMillion + 0.01,
+      };
+      assert.equal(isPublishedUserChargeSnapshot(tampered), false);
+    }
+  });
+
+  it("snapshot validator rejects missing FX fields", () => {
+    const r = completeCharge("gemini-3.1-pro-preview", 40_689, 4_307);
+    assert.equal(r.status, "complete");
+    if (r.status === "complete") {
+      const partial = { ...r.snapshot };
+      delete (partial as Partial<PublishedUserChargeSnapshot>).fxDateKey;
+      assert.equal(isPublishedUserChargeSnapshot(partial), false);
+    }
+  });
+
+  it("alias pricing and policy canonical ids identical", () => {
+    const alias = "google/gemini-3.1-pro-preview";
+    const pricing = resolvePublishedPricingExact(alias);
+    const policy = getModelPublishedPricingPolicy(alias);
+    assert.ok(pricing);
+    assert.ok(policy);
+    assert.equal(pricing!.canonicalModelId, canonicalizePublishedModelId(alias));
+    assert.equal(policy!.modelId, pricing!.canonicalModelId);
   });
 });

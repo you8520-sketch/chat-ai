@@ -7,6 +7,7 @@ import {
   GEMINI31_MODEL_ID,
   OPUS5_MODEL_ID,
 } from "@/lib/premiumModelIds";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
 
@@ -53,13 +54,8 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
   },
 };
 
-function normalizeModelId(modelId: string): string {
-  return modelId.trim().toLowerCase();
-}
-
 export function getModelPublishedPricingPolicy(modelId: string): ModelPublishedPricingPolicy | null {
-  const n = normalizeModelId(modelId);
-  const canonical = n === "google/gemini-3.1-pro-preview" ? GEMINI31_MODEL_ID : n;
+  const canonical = canonicalizePublishedModelId(modelId);
   return MODEL_PUBLISHED_PRICING_POLICIES[canonical] ?? null;
 }
 

@@ -3,25 +3,35 @@
  * Does NOT perform DB/network/clock side effects. Shadow/readiness only in this PR.
  */
 
-import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
-import { validateBillingFxSnapshot } from "@/lib/billingFxSnapshot";
+import {
+  type BillingFxSnapshot,
+  validateBillingFxSnapshot,
+  validateBillingFxSnapshotForLiveGrade,
+} from "@/lib/billingFxSnapshot";
 import {
   type NormalizedBillableUsage,
   type UserBillableUsageCoverage,
   validateNormalizedBillableUsage,
 } from "@/lib/billingUsage";
-import { convertUsdToKrw } from "@/lib/exchangeRate";
 import {
   getModelPublishedPricingPolicy,
   type ModelPublishedPricingPolicy,
 } from "@/lib/modelPublishedPricingPolicy";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import {
+  ceilPublishedChargePoints,
+  convertUsdToKrwPure,
+  PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION,
+  roundKrwTenths,
+} from "@/lib/publishedChargeRounding";
 import {
   resolvePublishedPricingExact,
   type PublishedModelPricing,
   type ResolvedPublishedPricing,
 } from "@/lib/publishedModelPricing";
 
-export const PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION = "published_points_v1" as const;
+export { PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION } from "@/lib/publishedChargeRounding";
+
 export const CHARGE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
 export type PublishedChargeBlockedReason =
@@ -32,21 +42,40 @@ export type PublishedChargeBlockedReason =
   | "unknown_usage_coverage"
   | "invalid_usage"
   | "invalid_fx_snapshot"
-  | "invalid_published_pricing";
+  | "invalid_published_pricing"
+  | "invalid_adjustment"
+  | "model_pricing_identity_mismatch";
 
 export type PublishedChargeAdjustment =
   | { kind: "none" }
   | { kind: "waiver"; reason: string }
   | { kind: "self_funded_promo"; promoId: string; percent: number };
 
+/** Live-safe public input — exact catalog resolution mandatory. */
 export type ComputePublishedUserChargeInput = {
   modelId: string;
   usage: NormalizedBillableUsage;
   usageCoverage: UserBillableUsageCoverage;
   fxSnapshot: BillingFxSnapshot;
   adjustment: PublishedChargeAdjustment;
-  /** Diagnostic override — skips catalog lookup when provided. */
-  resolvedPricing?: ResolvedPublishedPricing;
+};
+
+/**
+ * INTERNAL / DIAGNOSTIC — NOT LIVE-SAFE.
+ * For shadow generic compat, pricing overrides, and snapshot promo recomputation only.
+ * Must NOT be imported by route.ts or chatBillingSettlement.ts.
+ */
+export type ComputePublishedUserChargeFromResolvedPolicyInput = {
+  requestedModelId: string;
+  resolvedPricing: ResolvedPublishedPricing;
+  usage: NormalizedBillableUsage;
+  usageCoverage: UserBillableUsageCoverage;
+  fxSnapshot: BillingFxSnapshot;
+  adjustment: PublishedChargeAdjustment;
+  /** Diagnostic-only: allow unlocked FX snapshots. */
+  allowUnlockedFx?: boolean;
+  /** When set, resolved canonical id must match this identity (snapshot replay). */
+  expectedCanonicalModelId?: string;
 };
 
 export type PublishedUserChargeSnapshot = {
@@ -98,49 +127,47 @@ export type PublishedUserChargeResult =
       finalPoints: null;
     };
 
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
+const NUMERIC_TOLERANCE = 1e-6;
+
+function isValidIsoTimestamp(value: string): boolean {
+  if (!value || typeof value !== "string") return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed);
 }
 
-function chargePoints(n: number): number {
-  if (!Number.isFinite(n) || n <= 0) return 0;
-  return Math.ceil(n - 1e-9);
+function isValidUsdRate(rate: number): boolean {
+  return Number.isFinite(rate) && rate > 0;
+}
+
+function isValidOptionalCacheRate(rate: number | undefined): boolean {
+  if (rate == null) return true;
+  return Number.isFinite(rate) && rate >= 0;
 }
 
 export function validatePublishedModelPricingForLiveGrade(pricing: PublishedModelPricing): boolean {
-  if (!Number.isFinite(pricing.billingReferenceInputUsdPerMillion) || pricing.billingReferenceInputUsdPerMillion <= 0) {
-    return false;
-  }
-  if (!Number.isFinite(pricing.billingReferenceOutputUsdPerMillion) || pricing.billingReferenceOutputUsdPerMillion <= 0) {
-    return false;
-  }
+  if (!isValidUsdRate(pricing.billingReferenceInputUsdPerMillion)) return false;
+  if (!isValidUsdRate(pricing.billingReferenceOutputUsdPerMillion)) return false;
   if (!Number.isFinite(pricing.targetMargin) || pricing.targetMargin < 0 || pricing.targetMargin >= 1) {
     return false;
   }
   if (!Number.isFinite(pricing.minimumMarginFloor) || pricing.minimumMarginFloor < 0 || pricing.minimumMarginFloor >= 1) {
     return false;
   }
-  if (pricing.targetMargin < pricing.minimumMarginFloor) {
-    return false;
-  }
-  if (!Number.isInteger(pricing.pricingVersion) || pricing.pricingVersion <= 0) {
-    return false;
-  }
+  if (pricing.targetMargin < pricing.minimumMarginFloor) return false;
+  if (!Number.isSafeInteger(pricing.pricingVersion) || pricing.pricingVersion <= 0) return false;
+  if (!isValidIsoTimestamp(pricing.publishedAt)) return false;
   if (pricing.publishedBaseTierMaxPromptTokens != null) {
-    if (!Number.isFinite(pricing.publishedBaseTierMaxPromptTokens) || pricing.publishedBaseTierMaxPromptTokens <= 0) {
+    if (!Number.isSafeInteger(pricing.publishedBaseTierMaxPromptTokens) || pricing.publishedBaseTierMaxPromptTokens <= 0) {
       return false;
     }
   }
-  if (pricing.billingReferenceCacheReadUsdPerMillion != null && pricing.billingReferenceCacheReadUsdPerMillion < 0) {
-    return false;
-  }
-  if (pricing.billingReferenceCacheWriteUsdPerMillion != null && pricing.billingReferenceCacheWriteUsdPerMillion < 0) {
-    return false;
-  }
+  if (!isValidOptionalCacheRate(pricing.billingReferenceCacheReadUsdPerMillion)) return false;
+  if (!isValidOptionalCacheRate(pricing.billingReferenceCacheWriteUsdPerMillion)) return false;
+  if (pricing.modelId !== pricing.modelId.trim()) return false;
   return true;
 }
 
-function validateAdjustment(adjustment: PublishedChargeAdjustment): boolean {
+export function validateAdjustment(adjustment: PublishedChargeAdjustment): boolean {
   switch (adjustment.kind) {
     case "none":
       return true;
@@ -159,6 +186,22 @@ function validateAdjustment(adjustment: PublishedChargeAdjustment): boolean {
       return _exhaustive;
     }
   }
+}
+
+export function validateResolvedPricingIdentity(
+  requestedModelId: string,
+  resolved: ResolvedPublishedPricing,
+  expectedCanonicalModelId?: string
+): boolean {
+  if (resolved.pricing.modelId !== resolved.canonicalModelId) return false;
+  const canonicalFromRequest = canonicalizePublishedModelId(requestedModelId);
+  if (expectedCanonicalModelId != null && resolved.canonicalModelId !== expectedCanonicalModelId) {
+    return false;
+  }
+  if (expectedCanonicalModelId == null && canonicalFromRequest !== resolved.canonicalModelId) {
+    return false;
+  }
+  return true;
 }
 
 function resolvePolicyForModel(
@@ -236,15 +279,21 @@ function computeBillingReferenceCostUsd(
 }
 
 function buildSnapshot(
-  input: ComputePublishedUserChargeInput,
-  resolved: ResolvedPublishedPricing
+  requestedModelId: string,
+  resolved: ResolvedPublishedPricing,
+  usage: NormalizedBillableUsage,
+  usageCoverage: UserBillableUsageCoverage,
+  fxSnapshot: BillingFxSnapshot,
+  adjustment: PublishedChargeAdjustment
 ): PublishedUserChargeSnapshot {
-  const { usage, usageCoverage, fxSnapshot, adjustment } = input;
   const pricing = resolved.pricing;
   const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
-  const billingReferenceCostKrw = round1(convertUsdToKrw(billingReferenceCostUsd, fxSnapshot.effectiveKrwPerUsd));
-  const clampedMargin = Math.min(0.95, Math.max(0, pricing.targetMargin));
-  const standardUserChargeKrw = round1(billingReferenceCostKrw / (1 - clampedMargin));
+  const billingReferenceCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(billingReferenceCostUsd, fxSnapshot.effectiveKrwPerUsd)
+  );
+  const standardUserChargeKrw = roundKrwTenths(
+    billingReferenceCostKrw / (1 - pricing.targetMargin)
+  );
 
   let finalUserChargeKrw = standardUserChargeKrw;
   switch (adjustment.kind) {
@@ -254,7 +303,7 @@ function buildSnapshot(
       finalUserChargeKrw = 0;
       break;
     case "self_funded_promo":
-      finalUserChargeKrw = round1(standardUserChargeKrw * (1 - adjustment.percent));
+      finalUserChargeKrw = roundKrwTenths(standardUserChargeKrw * (1 - adjustment.percent));
       break;
     default: {
       const _exhaustive: never = adjustment;
@@ -262,12 +311,12 @@ function buildSnapshot(
     }
   }
 
-  const finalPoints = chargePoints(finalUserChargeKrw);
+  const finalPoints = ceilPublishedChargePoints(finalUserChargeKrw);
 
   return {
     chargeSnapshotSchemaVersion: CHARGE_SNAPSHOT_SCHEMA_VERSION,
     roundingPolicyVersion: PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION,
-    requestedModelId: input.modelId,
+    requestedModelId,
     canonicalModelId: resolved.canonicalModelId,
     pricingVersion: pricing.pricingVersion,
     publishedAt: pricing.publishedAt,
@@ -302,20 +351,31 @@ function buildSnapshot(
   };
 }
 
-export function computePublishedUserChargeWithSnapshot(
-  input: ComputePublishedUserChargeInput
+function computePublishedUserChargeCore(
+  requestedModelId: string,
+  resolved: ResolvedPublishedPricing,
+  usage: NormalizedBillableUsage,
+  usageCoverage: UserBillableUsageCoverage,
+  fxSnapshot: BillingFxSnapshot,
+  adjustment: PublishedChargeAdjustment,
+  opts: { liveGradeFx: boolean }
 ): PublishedUserChargeResult {
-  if (!validateNormalizedBillableUsage(input.usage)) {
-    return { status: "blocked", reason: "invalid_usage", finalPoints: null };
-  }
-  if (!validateBillingFxSnapshot(input.fxSnapshot)) {
-    return { status: "blocked", reason: "invalid_fx_snapshot", finalPoints: null };
-  }
-  if (!validateAdjustment(input.adjustment)) {
+  if (!validateNormalizedBillableUsage(usage)) {
     return { status: "blocked", reason: "invalid_usage", finalPoints: null };
   }
 
-  switch (input.usageCoverage) {
+  const fxValid = opts.liveGradeFx
+    ? validateBillingFxSnapshotForLiveGrade(fxSnapshot)
+    : validateBillingFxSnapshot(fxSnapshot, { requireLocked: false });
+  if (!fxValid) {
+    return { status: "blocked", reason: "invalid_fx_snapshot", finalPoints: null };
+  }
+
+  if (!validateAdjustment(adjustment)) {
+    return { status: "blocked", reason: "invalid_adjustment", finalPoints: null };
+  }
+
+  switch (usageCoverage) {
     case "partial":
       return { status: "blocked", reason: "incomplete_usage_coverage", finalPoints: null };
     case "unknown":
@@ -323,17 +383,11 @@ export function computePublishedUserChargeWithSnapshot(
     case "complete":
       break;
     default: {
-      const _exhaustive: never = input.usageCoverage;
+      const _exhaustive: never = usageCoverage;
       return { status: "blocked", reason: "unknown_usage_coverage", finalPoints: null };
     }
   }
 
-  const resolved =
-    input.resolvedPricing ??
-    resolvePublishedPricingExact(input.modelId);
-  if (!resolved) {
-    return { status: "blocked", reason: "unsupported_model", finalPoints: null };
-  }
   if (!validatePublishedModelPricingForLiveGrade(resolved.pricing)) {
     return {
       status: "blocked",
@@ -344,7 +398,7 @@ export function computePublishedUserChargeWithSnapshot(
   }
 
   const policy = resolvePolicyForModel(resolved.canonicalModelId, resolved.pricing);
-  const tierBlock = evaluateTierGate(input.usage, policy, resolved.pricing);
+  const tierBlock = evaluateTierGate(usage, policy, resolved.pricing);
   if (tierBlock) {
     return {
       status: "blocked",
@@ -354,7 +408,7 @@ export function computePublishedUserChargeWithSnapshot(
     };
   }
 
-  const cacheBlock = evaluateCacheGate(input.usage, policy, resolved.pricing);
+  const cacheBlock = evaluateCacheGate(usage, policy, resolved.pricing);
   if (cacheBlock) {
     return {
       status: "blocked",
@@ -364,14 +418,23 @@ export function computePublishedUserChargeWithSnapshot(
     };
   }
 
-  const snapshot = buildSnapshot(input, resolved);
+  const snapshot = buildSnapshot(
+    requestedModelId,
+    resolved,
+    usage,
+    usageCoverage,
+    fxSnapshot,
+    adjustment
+  );
+
   if (
     !Number.isFinite(snapshot.billingReferenceCostUsd) ||
     !Number.isFinite(snapshot.billingReferenceCostKrw) ||
     !Number.isFinite(snapshot.standardUserChargeKrw) ||
     !Number.isFinite(snapshot.finalUserChargeKrw) ||
     !Number.isFinite(snapshot.finalPoints) ||
-    snapshot.finalPoints < 0
+    snapshot.finalPoints < 0 ||
+    !Number.isInteger(snapshot.finalPoints)
   ) {
     return {
       status: "blocked",
@@ -384,14 +447,198 @@ export function computePublishedUserChargeWithSnapshot(
   return { status: "complete", snapshot };
 }
 
+/** Live-safe public owner — always exact-resolves catalog pricing. */
+export function computePublishedUserChargeWithSnapshot(
+  input: ComputePublishedUserChargeInput
+): PublishedUserChargeResult {
+  const resolved = resolvePublishedPricingExact(input.modelId);
+  if (!resolved) {
+    return { status: "blocked", reason: "unsupported_model", finalPoints: null };
+  }
+
+  const canonicalFromRequest = canonicalizePublishedModelId(input.modelId);
+  if (canonicalFromRequest !== resolved.canonicalModelId) {
+    return {
+      status: "blocked",
+      reason: "model_pricing_identity_mismatch",
+      canonicalModelId: resolved.canonicalModelId,
+      finalPoints: null,
+    };
+  }
+
+  return computePublishedUserChargeCore(
+    input.modelId,
+    resolved,
+    input.usage,
+    input.usageCoverage,
+    input.fxSnapshot,
+    input.adjustment,
+    { liveGradeFx: true }
+  );
+}
+
+/**
+ * INTERNAL / DIAGNOSTIC — NOT LIVE-SAFE.
+ * Shadow generic compat, pricing overrides, snapshot promo recomputation.
+ */
+export function computePublishedUserChargeFromResolvedPolicy(
+  input: ComputePublishedUserChargeFromResolvedPolicyInput
+): PublishedUserChargeResult {
+  if (
+    !validateResolvedPricingIdentity(
+      input.requestedModelId,
+      input.resolvedPricing,
+      input.expectedCanonicalModelId
+    )
+  ) {
+    return {
+      status: "blocked",
+      reason: "model_pricing_identity_mismatch",
+      canonicalModelId: input.resolvedPricing.canonicalModelId,
+      finalPoints: null,
+    };
+  }
+
+  const fxValid = input.allowUnlockedFx
+    ? validateBillingFxSnapshot(input.fxSnapshot, { requireLocked: false })
+    : validateBillingFxSnapshotForLiveGrade(input.fxSnapshot);
+
+  if (!fxValid) {
+    return { status: "blocked", reason: "invalid_fx_snapshot", finalPoints: null };
+  }
+
+  return computePublishedUserChargeCore(
+    input.requestedModelId,
+    input.resolvedPricing,
+    input.usage,
+    input.usageCoverage,
+    input.fxSnapshot,
+    input.adjustment,
+    { liveGradeFx: !input.allowUnlockedFx }
+  );
+}
+
+function snapshotUsageFromSnapshot(snapshot: PublishedUserChargeSnapshot): NormalizedBillableUsage {
+  return {
+    promptTokens: snapshot.promptTokens,
+    cacheReadTokens: snapshot.cacheReadTokens,
+    cacheWriteTokens: snapshot.cacheWriteTokens,
+    standardInputTokens: snapshot.standardInputTokens,
+    visibleOutputTokens: snapshot.visibleOutputTokens,
+    reasoningTokens: snapshot.reasoningTokens,
+    billableOutputTokens: snapshot.billableOutputTokens,
+    reasoningAccounting: snapshot.reasoningAccounting,
+  };
+}
+
+function snapshotFxFromSnapshot(snapshot: PublishedUserChargeSnapshot): BillingFxSnapshot {
+  return {
+    mode: snapshot.fxMode,
+    dateKey: snapshot.fxDateKey,
+    usdToKrw: snapshot.usdToKrw,
+    effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
+    source: snapshot.fxSource,
+    overseasFeeRate: snapshot.overseasFeeRate,
+    locked: snapshot.fxLocked,
+  };
+}
+
+function approxEqual(a: number, b: number): boolean {
+  return Math.abs(a - b) <= NUMERIC_TOLERANCE;
+}
+
+function validateSnapshotDerivedFields(snapshot: PublishedUserChargeSnapshot): boolean {
+  const usage = snapshotUsageFromSnapshot(snapshot);
+  if (!validateNormalizedBillableUsage(usage)) return false;
+
+  const pricing: PublishedModelPricing = {
+    modelId: snapshot.canonicalModelId,
+    billingReferenceInputUsdPerMillion: snapshot.billingReferenceInputUsdPerMillion,
+    billingReferenceOutputUsdPerMillion: snapshot.billingReferenceOutputUsdPerMillion,
+    billingReferenceCacheReadUsdPerMillion: snapshot.billingReferenceCacheReadUsdPerMillion ?? undefined,
+    billingReferenceCacheWriteUsdPerMillion: snapshot.billingReferenceCacheWriteUsdPerMillion ?? undefined,
+    targetMargin: snapshot.targetMargin,
+    minimumMarginFloor: snapshot.minimumMarginFloor,
+    pricingVersion: snapshot.pricingVersion,
+    publishedAt: snapshot.publishedAt,
+  };
+
+  if (!validatePublishedModelPricingForLiveGrade(pricing)) return false;
+
+  const expectedCostUsd = computeBillingReferenceCostUsd(usage, pricing);
+  if (!approxEqual(expectedCostUsd, snapshot.billingReferenceCostUsd)) return false;
+
+  const expectedCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(expectedCostUsd, snapshot.effectiveKrwPerUsd)
+  );
+  if (!approxEqual(expectedCostKrw, snapshot.billingReferenceCostKrw)) return false;
+
+  const expectedStandard = roundKrwTenths(expectedCostKrw / (1 - snapshot.targetMargin));
+  if (!approxEqual(expectedStandard, snapshot.standardUserChargeKrw)) return false;
+
+  let expectedFinalKrw = expectedStandard;
+  switch (snapshot.adjustment.kind) {
+    case "none":
+      break;
+    case "waiver":
+      expectedFinalKrw = 0;
+      break;
+    case "self_funded_promo":
+      if (!validateAdjustment(snapshot.adjustment)) return false;
+      expectedFinalKrw = roundKrwTenths(expectedStandard * (1 - snapshot.adjustment.percent));
+      break;
+    default: {
+      const _exhaustive: never = snapshot.adjustment;
+      return _exhaustive;
+    }
+  }
+  if (!approxEqual(expectedFinalKrw, snapshot.finalUserChargeKrw)) return false;
+
+  const expectedPoints = ceilPublishedChargePoints(expectedFinalKrw);
+  if (snapshot.finalPoints !== expectedPoints) return false;
+
+  const fxSnapshot = snapshotFxFromSnapshot(snapshot);
+  if (!validateBillingFxSnapshot(fxSnapshot, { requireLocked: snapshot.fxLocked })) return false;
+
+  return true;
+}
+
 export function isPublishedUserChargeSnapshot(value: unknown): value is PublishedUserChargeSnapshot {
   if (value == null || typeof value !== "object") return false;
   const s = value as PublishedUserChargeSnapshot;
-  return (
-    s.chargeSnapshotSchemaVersion === CHARGE_SNAPSHOT_SCHEMA_VERSION &&
-    typeof s.canonicalModelId === "string" &&
-    typeof s.pricingVersion === "number" &&
-    typeof s.finalPoints === "number" &&
-    Number.isInteger(s.finalPoints)
-  );
+
+  if (s.chargeSnapshotSchemaVersion !== CHARGE_SNAPSHOT_SCHEMA_VERSION) return false;
+  if (s.roundingPolicyVersion !== PUBLISHED_CHARGE_ROUNDING_POLICY_VERSION) return false;
+  if (typeof s.requestedModelId !== "string" || s.requestedModelId.length === 0) return false;
+  if (typeof s.canonicalModelId !== "string" || s.canonicalModelId.length === 0) return false;
+  if (!Number.isSafeInteger(s.pricingVersion) || s.pricingVersion <= 0) return false;
+  if (typeof s.publishedAt !== "string" || !isValidIsoTimestamp(s.publishedAt)) return false;
+  if (!isValidUsdRate(s.billingReferenceInputUsdPerMillion)) return false;
+  if (!isValidUsdRate(s.billingReferenceOutputUsdPerMillion)) return false;
+  if (s.billingReferenceCacheReadUsdPerMillion != null && !Number.isFinite(s.billingReferenceCacheReadUsdPerMillion)) {
+    return false;
+  }
+  if (s.billingReferenceCacheWriteUsdPerMillion != null && !Number.isFinite(s.billingReferenceCacheWriteUsdPerMillion)) {
+    return false;
+  }
+  if (!Number.isFinite(s.targetMargin) || s.targetMargin < 0 || s.targetMargin >= 1) return false;
+  if (!Number.isFinite(s.minimumMarginFloor) || s.minimumMarginFloor < 0 || s.minimumMarginFloor >= 1) return false;
+  if (s.usageCoverage !== "complete" && s.usageCoverage !== "partial" && s.usageCoverage !== "unknown") {
+    return false;
+  }
+  if (s.fxMode !== "daily_kst") return false;
+  if (typeof s.fxDateKey !== "string") return false;
+  if (s.fxSource !== "api_daily" && s.fxSource !== "previous_daily_snapshot" && s.fxSource !== "emergency_fallback") {
+    return false;
+  }
+  if (!Number.isFinite(s.usdToKrw) || s.usdToKrw <= 0) return false;
+  if (!Number.isFinite(s.effectiveKrwPerUsd) || s.effectiveKrwPerUsd <= 0) return false;
+  if (!Number.isFinite(s.overseasFeeRate) || s.overseasFeeRate < 0) return false;
+  if (typeof s.fxLocked !== "boolean") return false;
+  if (!Number.isFinite(s.billingReferenceCostUsd) || !Number.isFinite(s.billingReferenceCostKrw)) return false;
+  if (!Number.isFinite(s.standardUserChargeKrw) || !Number.isFinite(s.finalUserChargeKrw)) return false;
+  if (!Number.isInteger(s.finalPoints) || s.finalPoints < 0) return false;
+  if (!validateAdjustment(s.adjustment)) return false;
+
+  return validateSnapshotDerivedFields(s);
 }

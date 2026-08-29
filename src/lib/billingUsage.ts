@@ -21,6 +21,31 @@ export type NormalizedBillableUsage = {
 
 export type UserBillableUsageCoverage = "complete" | "partial" | "unknown";
 
+function isSafeNonNegativeInteger(n: number): boolean {
+  return Number.isSafeInteger(n) && n >= 0;
+}
+
+function validateReasoningAccountingInvariants(usage: NormalizedBillableUsage): boolean {
+  switch (usage.reasoningAccounting) {
+    case "none":
+      return usage.reasoningTokens === 0 && usage.billableOutputTokens === usage.visibleOutputTokens;
+    case "included_in_output":
+      return (
+        usage.reasoningTokens >= 0 &&
+        usage.reasoningTokens <= usage.visibleOutputTokens &&
+        usage.billableOutputTokens === usage.visibleOutputTokens
+      );
+    case "separate":
+      return usage.billableOutputTokens === usage.visibleOutputTokens + usage.reasoningTokens;
+    case "unknown":
+      return false;
+    default: {
+      const _exhaustive: never = usage.reasoningAccounting;
+      return _exhaustive;
+    }
+  }
+}
+
 /** Canonical billable usage normalizer — single owner for reasoning accounting */
 export function normalizeBillableUsage(opts: {
   modelId: string;
@@ -30,12 +55,12 @@ export function normalizeBillableUsage(opts: {
   outputTokens: number;
   reasoningTokens?: number;
 }): NormalizedBillableUsage {
-  const promptTokens = Math.max(0, opts.promptTokens);
-  const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
-  const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
+  const promptTokens = Math.max(0, Math.floor(opts.promptTokens));
+  const cacheReadTokens = Math.max(0, Math.floor(opts.cacheReadTokens ?? 0));
+  const cacheWriteTokens = Math.max(0, Math.floor(opts.cacheWriteTokens ?? 0));
   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
-  const visibleOutputTokens = Math.max(0, opts.outputTokens);
-  const reasoningTokens = Math.max(0, opts.reasoningTokens ?? 0);
+  const visibleOutputTokens = Math.max(0, Math.floor(opts.outputTokens));
+  const reasoningTokens = Math.max(0, Math.floor(opts.reasoningTokens ?? 0));
   // Contract: reasoning_tokens from completion_tokens_details is subset of completion_tokens (included)
   let reasoningAccounting: ReasoningAccounting = "none";
   let billableOutputTokens = visibleOutputTokens;
@@ -59,28 +84,19 @@ export function normalizeBillableUsage(opts: {
 }
 
 export function validateNormalizedBillableUsage(usage: NormalizedBillableUsage): boolean {
-  if (
-    !Number.isFinite(usage.promptTokens) ||
-    !Number.isFinite(usage.cacheReadTokens) ||
-    !Number.isFinite(usage.cacheWriteTokens) ||
-    !Number.isFinite(usage.standardInputTokens) ||
-    !Number.isFinite(usage.visibleOutputTokens) ||
-    !Number.isFinite(usage.reasoningTokens) ||
-    !Number.isFinite(usage.billableOutputTokens)
-  ) {
-    return false;
+  const tokenFields = [
+    usage.promptTokens,
+    usage.cacheReadTokens,
+    usage.cacheWriteTokens,
+    usage.standardInputTokens,
+    usage.visibleOutputTokens,
+    usage.reasoningTokens,
+    usage.billableOutputTokens,
+  ];
+  for (const field of tokenFields) {
+    if (!isSafeNonNegativeInteger(field)) return false;
   }
-  if (
-    usage.promptTokens < 0 ||
-    usage.cacheReadTokens < 0 ||
-    usage.cacheWriteTokens < 0 ||
-    usage.standardInputTokens < 0 ||
-    usage.visibleOutputTokens < 0 ||
-    usage.reasoningTokens < 0 ||
-    usage.billableOutputTokens < 0
-  ) {
-    return false;
-  }
+
   const expectedStandard = Math.max(0, usage.promptTokens - usage.cacheReadTokens - usage.cacheWriteTokens);
   if (usage.standardInputTokens !== expectedStandard) {
     return false;
@@ -88,5 +104,10 @@ export function validateNormalizedBillableUsage(usage: NormalizedBillableUsage):
   if (usage.cacheReadTokens + usage.cacheWriteTokens > usage.promptTokens) {
     return false;
   }
-  return true;
+
+  if (usage.reasoningAccounting === "unknown" || usage.reasoningAccounting === "separate") {
+    return false;
+  }
+
+  return validateReasoningAccountingInvariants(usage);
 }

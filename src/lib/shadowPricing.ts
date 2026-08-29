@@ -14,6 +14,7 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing, resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import {
   resolveCheaperInferenceCatalogPricing,
   resolveCatalogRatesForPrompt,
@@ -30,10 +31,13 @@ import {
   type ReasoningAccounting,
 } from "@/lib/billingUsage";
 import {
+  computePublishedUserChargeFromResolvedPolicy,
   computePublishedUserChargeWithSnapshot,
   type PublishedChargeBlockedReason,
   type PublishedUserChargeResult,
 } from "@/lib/publishedUserCharge";
+
+export type ShadowPricingResolution = "exact_published" | "legacy_generic_shadow_compat";
 
 export type { NormalizedBillableUsage, ReasoningAccounting } from "@/lib/billingUsage";
 export { normalizeBillableUsage } from "@/lib/billingUsage";
@@ -114,6 +118,7 @@ export type ShadowCostBreakdown = {
   };
   /** Shadow convergence — base published charge result before promo adjustment */
   _publishedChargeBase?: PublishedUserChargeResult;
+  pricingResolution?: ShadowPricingResolution;
 };
 
 export type ShadowChargeBreakdown = ShadowCostBreakdown & {
@@ -169,6 +174,8 @@ function mapPublishedBlockToBillingStatus(
     case "invalid_usage":
     case "invalid_fx_snapshot":
     case "invalid_published_pricing":
+    case "invalid_adjustment":
+    case "model_pricing_identity_mismatch":
       return "reference_rates_unavailable";
     default: {
       const _exhaustive: never = reason;
@@ -261,32 +268,83 @@ function computeBillingReferenceCost(
   usage: NormalizedBillableUsage,
   modelId: string,
   fxSnapshot: BillingFxSnapshot,
-  pub: ReturnType<typeof getPublishedPricing>
-): { costUsd: number; status: BillingReferenceCostStatus; publishedResult: PublishedUserChargeResult } {
-  const resolvedOverride = resolvePublishedPricingExact(modelId);
-  const publishedResult = computePublishedUserChargeWithSnapshot({
-    modelId,
+  pub: ReturnType<typeof getPublishedPricing>,
+  publishedPricingOverride?: ReturnType<typeof getPublishedPricing>
+): {
+  costUsd: number;
+  status: BillingReferenceCostStatus;
+  publishedResult: PublishedUserChargeResult;
+  pricingResolution: ShadowPricingResolution;
+} {
+  if (publishedPricingOverride) {
+    const canonicalId =
+      resolvePublishedPricingExact(modelId)?.canonicalModelId ?? canonicalizePublishedModelId(modelId);
+    const publishedResult = computePublishedUserChargeFromResolvedPolicy({
+      requestedModelId: modelId,
+      resolvedPricing: {
+        requestedModelId: modelId,
+        canonicalModelId: canonicalId,
+        pricing: { ...publishedPricingOverride, modelId: canonicalId },
+      },
+      usage,
+      usageCoverage: "complete",
+      fxSnapshot,
+      adjustment: { kind: "none" },
+      allowUnlockedFx: !fxSnapshot.locked,
+    });
+    return {
+      costUsd: publishedResult.status === "complete" ? publishedResult.snapshot.billingReferenceCostUsd : 0,
+      status:
+        publishedResult.status === "complete"
+          ? "complete"
+          : mapPublishedBlockToBillingStatus(publishedResult.reason),
+      publishedResult,
+      pricingResolution: "legacy_generic_shadow_compat",
+    };
+  }
+
+  const exact = resolvePublishedPricingExact(modelId);
+  if (exact) {
+    const publishedResult = computePublishedUserChargeWithSnapshot({
+      modelId,
+      usage,
+      usageCoverage: "complete",
+      fxSnapshot,
+      adjustment: { kind: "none" },
+    });
+    return {
+      costUsd: publishedResult.status === "complete" ? publishedResult.snapshot.billingReferenceCostUsd : 0,
+      status:
+        publishedResult.status === "complete"
+          ? "complete"
+          : mapPublishedBlockToBillingStatus(publishedResult.reason),
+      publishedResult,
+      pricingResolution: "exact_published",
+    };
+  }
+
+  const canonicalId = canonicalizePublishedModelId(modelId);
+  const publishedResult = computePublishedUserChargeFromResolvedPolicy({
+    requestedModelId: modelId,
+    resolvedPricing: {
+      requestedModelId: modelId,
+      canonicalModelId: canonicalId,
+      pricing: { ...pub, modelId: canonicalId },
+    },
     usage,
     usageCoverage: "complete",
     fxSnapshot,
     adjustment: { kind: "none" },
-    resolvedPricing: resolvedOverride ?? {
-      requestedModelId: modelId,
-      canonicalModelId: pub.modelId,
-      pricing: pub,
-    },
+    allowUnlockedFx: !fxSnapshot.locked,
   });
-  if (publishedResult.status === "complete") {
-    return {
-      costUsd: publishedResult.snapshot.billingReferenceCostUsd,
-      status: "complete",
-      publishedResult,
-    };
-  }
   return {
-    costUsd: 0,
-    status: mapPublishedBlockToBillingStatus(publishedResult.reason),
+    costUsd: publishedResult.status === "complete" ? publishedResult.snapshot.billingReferenceCostUsd : 0,
+    status:
+      publishedResult.status === "complete"
+        ? "complete"
+        : mapPublishedBlockToBillingStatus(publishedResult.reason),
     publishedResult,
+    pricingResolution: "legacy_generic_shadow_compat",
   };
 }
 
@@ -392,7 +450,8 @@ export function computeShadowCostsWithSnapshot(
     usage,
     opts.modelId ?? "",
     billingFxSnapshot,
-    pub
+    pub,
+    opts.publishedPricingOverride
   );
   const billingReferenceCostUsd = billingReferenceResult.costUsd;
   const billingReferenceCostStatus = billingReferenceResult.status;
@@ -484,6 +543,7 @@ export function computeShadowCostsWithSnapshot(
       locked: snapshot.locked,
     },
     _publishedChargeBase: billingReferenceResult.publishedResult,
+    pricingResolution: billingReferenceResult.pricingResolution,
   };
 }
 
@@ -538,12 +598,8 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
         overseasFeeRate: base.snapshot.overseasFeeRate,
         locked: base.snapshot.fxLocked,
       };
-      const promoResult = computePublishedUserChargeWithSnapshot({
-        modelId: base.snapshot.canonicalModelId,
-        usage,
-        usageCoverage: "complete",
-        fxSnapshot,
-        adjustment: { kind: "self_funded_promo", promoId: "shadow_promo", percent: clampedPromo },
+      const promoResult = computePublishedUserChargeFromResolvedPolicy({
+        requestedModelId: base.snapshot.requestedModelId,
         resolvedPricing: {
           requestedModelId: base.snapshot.requestedModelId,
           canonicalModelId: base.snapshot.canonicalModelId,
@@ -559,13 +615,20 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
             publishedAt: base.snapshot.publishedAt,
           },
         },
+        usage,
+        usageCoverage: "complete",
+        fxSnapshot,
+        adjustment: { kind: "self_funded_promo", promoId: "shadow_promo", percent: clampedPromo },
+        expectedCanonicalModelId: base.snapshot.canonicalModelId,
       });
       if (promoResult.status === "complete") {
         finalShadowChargeKrw = promoResult.snapshot.finalUserChargeKrw;
         finalShadowPoints = promoResult.snapshot.finalPoints;
       } else {
-        finalShadowChargeKrw = standardUserChargeKrw;
-        finalShadowPoints = chargePoints(finalShadowChargeKrw);
+        publishedChargeStatus = "blocked";
+        publishedChargeBlockedReason = promoResult.reason;
+        finalShadowChargeKrw = 0;
+        finalShadowPoints = 0;
       }
     } else {
       finalShadowChargeKrw = base.snapshot.finalUserChargeKrw;
