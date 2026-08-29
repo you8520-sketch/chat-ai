@@ -15,6 +15,7 @@ import {
 } from "@/lib/promptTokenAccounting";
 import {
   buildSectionFingerprints,
+  clearPromptSectionFingerprintCache,
   diffSectionFingerprints,
   hashSectionText,
   logPromptSectionFingerprints,
@@ -212,6 +213,9 @@ test("section fingerprint diff detects first changed section", () => {
 });
 
 test("logPromptSectionFingerprints tracks turn-over-turn changes", () => {
+  const prevFp = process.env.PROMPT_SECTION_FINGERPRINT;
+  process.env.PROMPT_SECTION_FINGERPRINT = "1";
+  clearPromptSectionFingerprintCache();
   const scope = `test-${Date.now()}`;
   const mk = (text: string): TrackedPromptSection[] => [
     { id: "static-a", label: "A", category: "systemRules", text: "stable" },
@@ -224,6 +228,9 @@ test("logPromptSectionFingerprints tracks turn-over-turn changes", () => {
   assert.equal(second.unchangedCount, 2);
   const third = logPromptSectionFingerprints({ scopeKey: scope, sections: mk("v2") });
   assert.equal(third.firstChangedSection, "dynamic-b");
+  clearPromptSectionFingerprintCache();
+  if (prevFp === undefined) delete process.env.PROMPT_SECTION_FINGERPRINT;
+  else process.env.PROMPT_SECTION_FINGERPRINT = prevFp;
 });
 
 test("intentional multi-injection is default production classification", () => {

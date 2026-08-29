@@ -45,7 +45,10 @@ export type TurnPhaseLatencyReport = {
   /** Section fingerprint telemetry — hashes only, no prompt bodies. */
   prompt_section_fingerprint?: {
     first_changed_section: string | null;
+    first_changed_position?: number | null;
+    order_change_detected?: boolean;
     unchanged_count: number;
+    unchanged_prefix_sections?: number;
     section_count: number;
   };
 };

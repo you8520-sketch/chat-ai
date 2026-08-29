@@ -2230,18 +2230,6 @@ export async function POST(req: Request) {
     });
   });
   phaseAudit?.mark("T8_CONTEXT_BUILD_DONE");
-  phaseAudit?.setTokens({
-    estimated_input_tokens: built.meta.estimatedInputTokens,
-    local_estimated_input_tokens: built.meta.estimatedInputTokens,
-    estimated: true,
-  });
-  if (phaseAudit && built.meta.sectionFingerprint) {
-    phaseAudit.setSectionFingerprint({
-      first_changed_section: built.meta.sectionFingerprint.firstChangedSection,
-      unchanged_count: built.meta.sectionFingerprint.unchangedCount,
-      section_count: built.meta.sectionFingerprint.sectionCount,
-    });
-  }
   if (memoryFeatureOn) {
     const reconciliation = await reconcileMemoryCoverageFixedPoint({
       initialBuild: built,
@@ -2293,6 +2281,25 @@ export async function POST(req: Request) {
       });
     }
   }
+
+  if (phaseAudit) {
+    phaseAudit.setTokens({
+      estimated_input_tokens: built.meta.estimatedInputTokens,
+      local_estimated_input_tokens: built.meta.estimatedInputTokens,
+      estimated: true,
+    });
+    if (built.meta.sectionFingerprint) {
+      phaseAudit.setSectionFingerprint({
+        first_changed_section: built.meta.sectionFingerprint.firstChangedSection,
+        unchanged_count: built.meta.sectionFingerprint.unchangedCount,
+        section_count: built.meta.sectionFingerprint.sectionCount,
+        first_changed_position: built.meta.sectionFingerprint.firstChangedPosition ?? null,
+        order_change_detected: built.meta.sectionFingerprint.orderChangeDetected ?? false,
+        unchanged_prefix_sections: built.meta.sectionFingerprint.unchangedPrefixSections ?? 0,
+      });
+    }
+  }
+
   if (terraPromptCanary) {
     const assembledUserTurn =
       [...(built.history ?? [])].reverse().find((m) => m.role === "user")?.content ??

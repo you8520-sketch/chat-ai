@@ -14,6 +14,11 @@ export type PromptSectionFingerprint = {
   stabilityClass: SectionStabilityClass;
 };
 
+export type SectionSequenceEntry = {
+  sectionId: string;
+  sha256: string;
+};
+
 export type PrefixDiffReport = {
   commonPrefixChars: number;
   commonPrefixRatio: number;
@@ -23,10 +28,54 @@ export type PrefixDiffReport = {
   totalSections: number;
 };
 
-const previousFingerprintsByKey = new Map<string, Map<string, string>>();
+/** Per-chat/model cross-turn state — only retained when fingerprint telemetry is enabled. */
+const previousFingerprintsByKey = new Map<string, SectionSequenceEntry[]>();
 
+/** Bounded FIFO eviction (same pattern as modelPickerInputSnapshot). */
+export const PROMPT_SECTION_FINGERPRINT_MAX_SCOPES = 256;
+
+export function isPromptSectionFingerprintStateEnabled(): boolean {
+  return (
+    process.env.PROMPT_SECTION_FINGERPRINT === "1" ||
+    process.env.GEMINI_TTFT_PHASE_AUDIT === "1"
+  );
+}
+
+export function promptSectionFingerprintCacheSize(): number {
+  return previousFingerprintsByKey.size;
+}
+
+export function clearPromptSectionFingerprintCache(): void {
+  previousFingerprintsByKey.clear();
+}
+
+function touchFingerprintScope(scopeKey: string): SectionSequenceEntry[] | undefined {
+  const entry = previousFingerprintsByKey.get(scopeKey);
+  if (!entry) return undefined;
+  previousFingerprintsByKey.delete(scopeKey);
+  previousFingerprintsByKey.set(scopeKey, entry);
+  return entry;
+}
+
+function evictOldestFingerprintScopes(): void {
+  while (previousFingerprintsByKey.size > PROMPT_SECTION_FINGERPRINT_MAX_SCOPES) {
+    const oldestKey = previousFingerprintsByKey.keys().next().value as string | undefined;
+    if (oldestKey == null) break;
+    previousFingerprintsByKey.delete(oldestKey);
+  }
+}
+
+function rememberFingerprintScope(scopeKey: string, sequence: SectionSequenceEntry[]): void {
+  if (previousFingerprintsByKey.has(scopeKey)) {
+    previousFingerprintsByKey.delete(scopeKey);
+  }
+  previousFingerprintsByKey.set(scopeKey, sequence);
+  evictOldestFingerprintScopes();
+}
+
+/** Matches tracked section bytes (pushSection stores trimmed text). */
 export function hashSectionText(text: string): string {
-  return createHash("sha256").update(text.trim()).digest("hex").slice(0, 16);
+  return createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
 export function classifySectionStability(sectionId: string): SectionStabilityClass {
@@ -47,7 +96,7 @@ export function buildSectionFingerprints(
   sections: TrackedPromptSection[]
 ): PromptSectionFingerprint[] {
   return sections.map((s) => {
-    const text = s.text.trim();
+    const text = s.text;
     return {
       sectionId: s.id,
       label: s.label,
@@ -59,38 +108,135 @@ export function buildSectionFingerprints(
   });
 }
 
+export function buildSectionSequence(
+  fingerprints: PromptSectionFingerprint[]
+): SectionSequenceEntry[] {
+  return fingerprints.map((f) => ({ sectionId: f.sectionId, sha256: f.sha256 }));
+}
+
 export function diffSectionFingerprints(
-  prev: PromptSectionFingerprint[],
+  prev: PromptSectionFingerprint[] | SectionSequenceEntry[],
   curr: PromptSectionFingerprint[]
 ): {
   firstChangedSection: string | null;
+  firstChangedPosition: number | null;
+  orderChangeDetected: boolean;
   unchangedCount: number;
+  unchangedPrefixSections: number;
   changed: { sectionId: string; prevHash: string; currHash: string }[];
   added: string[];
   removed: string[];
 } {
-  const prevMap = new Map(prev.map((p) => [p.sectionId, p]));
+  const prevSeq: SectionSequenceEntry[] = prev.map((p) =>
+    "sha256" in p && !("label" in p)
+      ? { sectionId: p.sectionId, sha256: p.sha256 }
+      : { sectionId: p.sectionId, sha256: (p as PromptSectionFingerprint).sha256 }
+  );
+  const currSeq = buildSectionSequence(curr);
+
   const changed: { sectionId: string; prevHash: string; currHash: string }[] = [];
   const added: string[] = [];
-  let unchangedCount = 0;
+  const removed: string[] = [];
+  let unchangedPrefixSections = 0;
+  let firstChangedPosition: number | null = null;
+  let firstChangedSection: string | null = null;
 
-  for (const c of curr) {
-    const p = prevMap.get(c.sectionId);
-    if (!p) {
+  const maxLen = Math.max(prevSeq.length, currSeq.length);
+  for (let i = 0; i < maxLen; i++) {
+    const p = prevSeq[i];
+    const c = currSeq[i];
+    if (p == null && c != null) {
       added.push(c.sectionId);
+      if (firstChangedPosition == null) {
+        firstChangedPosition = i;
+        firstChangedSection = c.sectionId;
+      }
       continue;
     }
-    if (p.sha256 === c.sha256) {
-      unchangedCount++;
-    } else {
-      changed.push({ sectionId: c.sectionId, prevHash: p.sha256, currHash: c.sha256 });
+    if (p != null && c == null) {
+      removed.push(p.sectionId);
+      if (firstChangedPosition == null) {
+        firstChangedPosition = i;
+        firstChangedSection = p.sectionId;
+      }
+      continue;
+    }
+    if (p != null && c != null) {
+      if (p.sectionId === c.sectionId && p.sha256 === c.sha256) {
+        if (firstChangedPosition == null) unchangedPrefixSections++;
+        continue;
+      }
+      if (firstChangedPosition == null) {
+        firstChangedPosition = i;
+        firstChangedSection = c.sectionId;
+      }
+      if (p.sectionId === c.sectionId) {
+        changed.push({ sectionId: c.sectionId, prevHash: p.sha256, currHash: c.sha256 });
+      } else {
+        changed.push({ sectionId: c.sectionId, prevHash: p.sha256, currHash: c.sha256 });
+      }
     }
   }
-  const removed = prev.filter((p) => !curr.some((c) => c.sectionId === p.sectionId)).map((p) => p.sectionId);
-  const firstChangedSection =
-    changed[0]?.sectionId ?? added[0] ?? removed[0] ?? null;
 
-  return { firstChangedSection, unchangedCount, changed, added, removed };
+  const prevMultiset = new Map<string, number>();
+  const currMultiset = new Map<string, number>();
+  for (const e of prevSeq) {
+    const k = `${e.sectionId}:${e.sha256}`;
+    prevMultiset.set(k, (prevMultiset.get(k) ?? 0) + 1);
+  }
+  for (const e of currSeq) {
+    const k = `${e.sectionId}:${e.sha256}`;
+    currMultiset.set(k, (currMultiset.get(k) ?? 0) + 1);
+  }
+  let multisetEqual = prevMultiset.size === currMultiset.size;
+  if (multisetEqual) {
+    for (const [k, n] of prevMultiset) {
+      if (currMultiset.get(k) !== n) {
+        multisetEqual = false;
+        break;
+      }
+    }
+  }
+  const orderChangeDetected =
+    multisetEqual &&
+    prevSeq.length === currSeq.length &&
+    firstChangedPosition != null &&
+    prevSeq.some((p, i) => p.sectionId !== currSeq[i]?.sectionId);
+
+  // Content-level id tracking for added/removed (non-order)
+  const prevMap = new Map(prevSeq.map((p) => [p.sectionId, p.sha256]));
+  let unchangedCount = 0;
+  for (const c of currSeq) {
+    const pHash = prevMap.get(c.sectionId);
+    if (pHash == null) {
+      if (!added.includes(c.sectionId)) added.push(c.sectionId);
+    } else if (pHash === c.sha256) {
+      unchangedCount++;
+    } else if (!changed.some((x) => x.sectionId === c.sectionId)) {
+      changed.push({ sectionId: c.sectionId, prevHash: pHash, currHash: c.sha256 });
+    }
+  }
+  for (const p of prevSeq) {
+    if (!currSeq.some((c) => c.sectionId === p.sectionId)) {
+      if (!removed.includes(p.sectionId)) removed.push(p.sectionId);
+    }
+  }
+
+  if (firstChangedSection == null) {
+    firstChangedSection =
+      changed[0]?.sectionId ?? added[0] ?? removed[0] ?? null;
+  }
+
+  return {
+    firstChangedSection,
+    firstChangedPosition,
+    orderChangeDetected,
+    unchangedCount,
+    unchangedPrefixSections,
+    changed,
+    added,
+    removed,
+  };
 }
 
 export function commonPrefixMetrics(textA: string, textB: string): PrefixDiffReport {
@@ -115,29 +261,30 @@ export function logPromptSectionFingerprints(opts: {
 }): {
   fingerprints: PromptSectionFingerprint[];
   firstChangedSection: string | null;
+  firstChangedPosition: number | null;
+  orderChangeDetected: boolean;
   unchangedCount: number;
+  unchangedPrefixSections: number;
 } {
   const curr = buildSectionFingerprints(opts.sections);
-  const prevMap = previousFingerprintsByKey.get(opts.scopeKey) ?? new Map();
-  const prev = [...prevMap.entries()].map(([sectionId, sha256]) => ({
-    sectionId,
-    label: sectionId,
-    chars: 0,
-    estimatedTokens: 0,
-    sha256,
-    stabilityClass: classifySectionStability(sectionId) as SectionStabilityClass,
-  }));
+  const stateEnabled = isPromptSectionFingerprintStateEnabled();
+  const prevSeq = stateEnabled ? touchFingerprintScope(opts.scopeKey) ?? [] : [];
 
-  const diff = diffSectionFingerprints(prev, curr);
-  const nextMap = new Map(curr.map((c) => [c.sectionId, c.sha256]));
-  previousFingerprintsByKey.set(opts.scopeKey, nextMap);
+  const diff = diffSectionFingerprints(prevSeq, curr);
+
+  if (stateEnabled) {
+    rememberFingerprintScope(opts.scopeKey, buildSectionSequence(curr));
+  }
 
   if (process.env.PROMPT_SECTION_FINGERPRINT === "1") {
     console.info("[prompt-section-fingerprint]", {
       scope: opts.scopeKey,
       sectionCount: curr.length,
       unchangedCount: diff.unchangedCount,
+      unchangedPrefixSections: diff.unchangedPrefixSections,
       firstChangedSection: diff.firstChangedSection,
+      firstChangedPosition: diff.firstChangedPosition,
+      orderChangeDetected: diff.orderChangeDetected,
       changed: diff.changed,
       added: diff.added,
       removed: diff.removed,
@@ -153,6 +300,9 @@ export function logPromptSectionFingerprints(opts: {
   return {
     fingerprints: curr,
     firstChangedSection: diff.firstChangedSection,
+    firstChangedPosition: diff.firstChangedPosition,
+    orderChangeDetected: diff.orderChangeDetected,
     unchangedCount: diff.unchangedCount,
+    unchangedPrefixSections: diff.unchangedPrefixSections,
   };
 }

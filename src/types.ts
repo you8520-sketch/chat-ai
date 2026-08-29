@@ -326,7 +326,10 @@ export type BuiltContext = {
     /** Section SHA256 fingerprints — hashes only, no prompt bodies. */
     sectionFingerprint?: {
       firstChangedSection: string | null;
+      firstChangedPosition?: number | null;
+      orderChangeDetected?: boolean;
       unchangedCount: number;
+      unchangedPrefixSections?: number;
       sectionCount: number;
     };
   };

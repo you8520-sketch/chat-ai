@@ -1754,7 +1754,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       trackedSections,
       sectionFingerprint: {
         firstChangedSection: fingerprintLog.firstChangedSection,
+        firstChangedPosition: fingerprintLog.firstChangedPosition,
+        orderChangeDetected: fingerprintLog.orderChangeDetected,
         unchangedCount: fingerprintLog.unchangedCount,
+        unchangedPrefixSections: fingerprintLog.unchangedPrefixSections,
         sectionCount: fingerprintLog.fingerprints.length,
       },
       geminiBulkPadded: false,
