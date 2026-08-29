@@ -421,7 +421,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
     assert.match(TRPG_GM_SYSTEM, /submitted PC action prose and spoken lines are already visible/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
-    assert.match(TRPG_GM_SYSTEM, /actionable information|somewhere meaningful to go next/);
+    assert.match(TRPG_GM_SYSTEM, /route opening|sceneTransitionTo rather than objectiveSet/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
     assert.match(TRPG_GM_SYSTEM, /Failure: intended result does not fully land/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
@@ -471,6 +471,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
-    assert.ok(TRPG_GM_SYSTEM.length <= 9500);
+    assert.ok(TRPG_GM_SYSTEM.length <= 10000);
   });
 });

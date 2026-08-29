@@ -6,8 +6,10 @@ import {
   emptyLocalSceneProgress,
   parseLocalSceneProgress,
   parseLocalSceneProgressDelta,
+  serializeLocalSceneDeltaContract,
   serializeLocalSceneStateForGm,
 } from "./localSceneProgress";
+import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 import {
   applyLocalSceneProgressToContext,
   emptyCampaignContext,
@@ -310,5 +312,52 @@ describe("TRPG local scene progress", () => {
       openRoutesAdd: ["환풍구", "환풍구"],
     });
     assert.deepEqual(applied.openRoutes, ["환풍구"]);
+  });
+
+  it("prompt integration — single scene-craft consumer, data-only local scene blocks", () => {
+    assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
+    assert.match(TRPG_GM_SYSTEM, /\[LOCAL SCENE STATE\] when supplied is current local scene canon/);
+    assert.match(TRPG_GM_SYSTEM, /sceneTransitionTo rather than objectiveSet alone/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[LOCAL SCENE RULES\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[SCENE PROGRESS RULES\]/);
+    const dataBlock = serializeLocalSceneStateForGm(
+      applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        openRoutesAdd: ["환풍구"],
+      })
+    );
+    assert.doesNotMatch(dataBlock, /canon|PC 이동|transition_ready는/);
+    const contract = serializeLocalSceneDeltaContract();
+    assert.match(contract, /sceneTransitionTo/);
+    assert.match(contract, /objectiveSet/);
+  });
+
+  it("scene transition reset — next GM user block shows only new local scene state", () => {
+    const sceneA = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+      resolvedObstaclesAdd: ["균사벽 제거"],
+      remainingBlockersAdd: ["기생종"],
+    });
+    const sceneB = applyLocalSceneProgressDelta(sceneA, {
+      sceneTransitionTo: "유지보수 터널 안전 통과",
+      openRoutesAdd: ["동쪽 정비통로"],
+      remainingBlockersAdd: ["붕괴 구간"],
+    });
+    const stateBlock = serializeLocalSceneStateForGm(sceneB);
+    const user = buildTrpgGmUserBlock({
+      worldBrief: "지하 터널",
+      memoryBlock: "[MEMORY]",
+      opening: false,
+      actions: [],
+      localSceneBlock: stateBlock,
+      localSceneDeltaContract: serializeLocalSceneDeltaContract(),
+    });
+    assert.match(stateBlock, /유지보수 터널 안전 통과/);
+    assert.match(stateBlock, /동쪽 정비통로/);
+    assert.doesNotMatch(stateBlock, /균사벽 제거/);
+    assert.doesNotMatch(stateBlock, /기생종/);
+    assert.equal((user.match(/^\[LOCAL SCENE STATE\]/gm) ?? []).length, 1);
+    assert.equal((user.match(/^\[LOCAL SCENE DELTA CONTRACT\]/gm) ?? []).length, 1);
   });
 });

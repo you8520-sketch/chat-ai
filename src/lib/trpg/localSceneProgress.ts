@@ -227,6 +227,7 @@ export function serializeLocalSceneDeltaContract(): string {
 Optional nested "localScene" in <<<DELTA>>> JSON. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
 Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
 When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
+When the submitted action establishes entry into a genuinely new local dramatic situation, include sceneTransitionTo in localScene.
 Record world/scene availability only — not unsubmitted PC decisions or movement.
 Example:
 {"players":[],"location":"","next_round_context":"","localScene":{"objectiveSet":"건물 탈출 경로 확보","openRoutesAdd":["우측 환풍구"],"remainingBlockersAdd":["환풍구 앞 기생종"],"sceneStateSet":"active"}}`;
