@@ -18,7 +18,7 @@ import {
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 6780;
+const SYSTEM_PROMPT_CHARS_BEFORE = 9500;
 
 function padRich(seed: string): string {
   let out = seed.trim();
@@ -146,7 +146,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     assert.match(block, /\[INTENT\]\n측면을 찌른다/);
     assert.match(block, /\[VISIBLE ACTION PROSE — established context for its outcome\]/);
     assert.equal(block.split(richBody.trim()).length - 1, 1);
-    assert.match(TRPG_GM_SYSTEM, /first new consequence, reaction, discovery, or changed state/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence or changed state/i);
   });
 
   it("C: no-intent action — body occurs exactly once", () => {
@@ -176,19 +176,19 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     assert.match(TRPG_GM_SYSTEM, /BRIEF\/MID get vivid motion/);
   });
 
-  it("E: failure — credible technique, critical escalation, and nearby source diversity", () => {
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
-    assert.match(TRPG_GM_SYSTEM, /critical failure escalates world's answer or cascading consequence/i);
-    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
-    assert.doesNotMatch(TRPG_GM_SYSTEM, /slip|loss of balance|bodily mishap|hazardous terrain/i);
+  it("E: failure — credible technique, critical escalation, clustered setback cap", () => {
+    assert.match(TRPG_GM_SYSTEM, /Failure: intended result does not fully land/);
+    assert.match(TRPG_GM_SYSTEM, /Critical failure: self-inflicted blunder/);
+    assert.match(TRPG_GM_SYSTEM, /fold them into one coherent setback/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
     assert.equal(
-      (TRPG_GM_SYSTEM.match(/Failure keeps technique credible/g) ?? []).length,
+      (TRPG_GM_SYSTEM.match(/Failure: intended result does not fully land/g) ?? []).length,
       1
     );
   });
 
   it("F: partial success owner", () => {
-    assert.match(TRPG_GM_SYSTEM, /partial success yields progress with limit, uncertainty, or cost/i);
+    assert.match(TRPG_GM_SYSTEM, /partial success yields meaningful progress with bounded cost or limit/i);
   });
 
   it("G: closing — one owner, immediate pressure, no user-block duplicate", () => {

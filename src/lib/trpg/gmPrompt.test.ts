@@ -63,8 +63,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
-    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /submitted PC action prose and spoken lines are already visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
@@ -216,8 +216,8 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
-    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /submitted PC action prose and spoken lines are already visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     const block = buildTrpgGmUserBlock({
@@ -306,8 +306,8 @@ describe("TRPG GM prompt/parse", () => {
 
   it("E: rich participant prose does not own roll outcomes", () => {
     assert.match(TRPG_GM_SYSTEM, /ROLL and AUTHORITATIVE MECHANICS determine outcomes/);
-    assert.match(TRPG_GM_SYSTEM, /Failed rolls must fail in the fiction/);
-    assert.match(TRPG_GM_SYSTEM, /Successes must land/);
+    assert.match(TRPG_GM_SYSTEM, /Honor supplied roll tiers exactly/);
+    assert.match(TRPG_GM_SYSTEM, /Success creates intended leverage/);
     assert.match(TRPG_GM_SYSTEM, /mechanics wins/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Carry the established result forward/);
     const block = buildTrpgGmUserBlock({
@@ -359,29 +359,31 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[AGENCY\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[DIALOGUE\]/);
-    assert.doesNotMatch(TRPG_GM_SYSTEM, /Never replay/);
+    assert.match(TRPG_GM_SYSTEM, /Do not replay, re-quote, closely paraphrase, or re-stage/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /do not replay submitted prose/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /never dump into the scene/);
   });
 
   it("A: persona micro-reactions keep characters embodied", () => {
-    assert.match(TRPG_GM_SYSTEM, /persona-true micro-reactions/);
+    assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /persona-true micro-reactions/);
   });
 
   it("B: micro-reactions do not take the next meaningful decision", () => {
     assert.match(TRPG_GM_SYSTEM, /each PC's next meaningful decision remains with that player/);
   });
 
-  it("C: failure preserves competence and varies the cause", () => {
-    assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
-    assert.match(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
-    assert.doesNotMatch(TRPG_GM_SYSTEM, /slip|loss of balance|bodily mishap|hazardous terrain/i);
+  it("C: failure preserves competence without slapstick defaults", () => {
+    assert.match(TRPG_GM_SYSTEM, /Failure: intended result does not fully land/);
+    assert.match(TRPG_GM_SYSTEM, /established competence stays credible/);
+    assert.match(TRPG_GM_SYSTEM, /fold them into one coherent setback/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /preserving competence and personality/);
   });
 
   it("D: rich participant prose starts GM writing at the first new beat", () => {
-    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
-    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /submitted PC action prose and spoken lines are already visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /previously written action as the minimum continuity/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /manner, motion, posture, aim, speech/);
@@ -417,12 +419,13 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
     assert.match(TRPG_GM_SYSTEM, /TARGET is the normal finish range/);
     assert.match(TRPG_GM_SYSTEM, /Minimum is a compact-scene fallback/);
-    assert.match(TRPG_GM_SYSTEM, /RICH prose is visible/);
-    assert.match(TRPG_GM_SYSTEM, /first new consequence/);
+    assert.match(TRPG_GM_SYSTEM, /submitted PC action prose and spoken lines are already visible/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /actionable information|somewhere meaningful to go next/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
-    assert.match(TRPG_GM_SYSTEM, /preserving competence and personality/);
-    assert.match(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
+    assert.match(TRPG_GM_SYSTEM, /Failure: intended result does not fully land/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /preserving competence and personality/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
   });
 
@@ -437,18 +440,17 @@ describe("TRPG GM prompt/parse", () => {
     );
     const closing = TRPG_GM_SYSTEM.split("\n").find((line) => line.includes("Closing GM beat")) ?? "";
 
-    assert.match(craft, /RICH prose is visible/);
-    assert.match(craft, /first new consequence/);
-    assert.equal((craft.match(/RICH prose is visible/g) ?? []).length, 1);
+    assert.match(craft, /submitted PC action prose and spoken lines are already visible/);
+    assert.match(craft, /first new consequence/i);
+    assert.equal((craft.match(/submitted PC action prose and spoken lines are already visible/g) ?? []).length, 1);
     assert.doesNotMatch(craft, /previously written action as the minimum continuity/);
     assert.doesNotMatch(craft, /Most of the response must depict/);
     assert.doesNotMatch(craft, /isolated per-character recaps/);
     assert.doesNotMatch(craft, /Write its effect first/);
     assert.doesNotMatch(length, /NEW material/);
 
-    assert.match(craft, /Failure keeps technique credible/);
-    assert.match(craft, /Across concurrent and nearby failures, vary source and consequence/);
-    assert.doesNotMatch(craft, /slip|loss of balance|bodily mishap|hazardous terrain/i);
+    assert.match(craft, /Failure: intended result does not fully land/);
+    assert.match(craft, /fold them into one coherent setback/);
 
     assert.match(craft, /Latest established scene state is the starting point/);
 
@@ -469,6 +471,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FAILURE\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
-    assert.ok(TRPG_GM_SYSTEM.length <= 6780);
+    assert.ok(TRPG_GM_SYSTEM.length <= 9500);
   });
 });
