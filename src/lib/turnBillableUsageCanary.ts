@@ -1,33 +1,61 @@
 /**
- * Compare candidate turn usage against legacy route-computed values.
- * Pure read-only diagnostic — no billing side effects.
+ * Read-only dual-run canary comparison — legacy route basis vs candidate.
  */
 import type { TurnBillableUsageResolution } from "@/lib/turnBillableUsage";
+import type { UserBillableUsageCoverage } from "@/lib/billingUsage";
 
 export type LegacyTurnUsageBasis = {
-  totalInput: number;
-  totalOutput: number;
+  routeTotalInput: number;
+  routeChargeOutput: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   apiCompletionTotal: number;
   reasoningTotal: number;
 };
 
+export type TurnUsageCanaryComparison =
+  | { status: "match" }
+  | { status: "mismatch"; fields: string[] }
+  | {
+      status: "not_comparable";
+      reason: string;
+      candidateStatus: "resolved" | "unavailable";
+      usageCoverage: UserBillableUsageCoverage;
+    };
+
 export function compareTurnBillableUsageWithLegacy(
   candidate: TurnBillableUsageResolution,
   legacy: LegacyTurnUsageBasis
-): string[] {
-  if (candidate.status !== "resolved" || candidate.usageCoverage !== "complete") {
-    return [];
+): TurnUsageCanaryComparison {
+  if (candidate.status !== "resolved") {
+    return {
+      status: "not_comparable",
+      reason: candidate.reason,
+      candidateStatus: "unavailable",
+      usageCoverage: candidate.usageCoverage,
+    };
   }
-  const mismatches: string[] = [];
+  if (candidate.usageCoverage !== "complete") {
+    return {
+      status: "not_comparable",
+      reason: candidate.diagnostics.coverageReasons.join(",") || "partial_or_unknown_coverage",
+      candidateStatus: "resolved",
+      usageCoverage: candidate.usageCoverage,
+    };
+  }
+
   const u = candidate.usage;
   const d = candidate.diagnostics;
-  if (u.promptTokens !== legacy.totalInput) mismatches.push("prompt");
+  const mismatches: string[] = [];
+  if (u.promptTokens !== legacy.routeTotalInput) mismatches.push("prompt");
   if (u.cacheReadTokens !== legacy.cacheReadTokens) mismatches.push("cacheRead");
   if (u.cacheWriteTokens !== legacy.cacheWriteTokens) mismatches.push("cacheWrite");
-  if (d.apiCompletionTotalTokens !== legacy.apiCompletionTotal) mismatches.push("completionBasis");
+  if (d.apiCompletionTokensForCost !== legacy.apiCompletionTotal) mismatches.push("completionBasis");
   if (u.reasoningTokens !== legacy.reasoningTotal) mismatches.push("reasoning");
-  if (d.legacyChargeOutputTokens !== legacy.totalOutput) mismatches.push("legacyChargeOutput");
-  return mismatches;
+  if (d.routeChargeOutputTokens !== legacy.routeChargeOutput) mismatches.push("routeChargeOutput");
+
+  if (mismatches.length > 0) {
+    return { status: "mismatch", fields: mismatches };
+  }
+  return { status: "match" };
 }

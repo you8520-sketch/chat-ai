@@ -2013,84 +2013,15 @@ export function resolveGemini31WaiverMinimumCharge(
   );
 }
 
-const GEMINI_BILLING_MODEL = /^gemini/i;
-
-export function isGeminiBillingStage(stage: { model: string }): boolean {
-  return GEMINI_BILLING_MODEL.test(stage.model) || stage.model === "demo";
-}
-
-/** One provider per turn — stealth fallback must never sum Gemini + OpenRouter stages. */
-export function selectBillableStages(
-  stages: StageUsage[],
-  opts?: { stealthFallback?: boolean; refusalFallbackDelivered?: boolean }
-): StageUsage[] {
-  if (!stages.length) return [];
-  if (opts?.refusalFallbackDelivered) {
-    return [stages[stages.length - 1]!];
-  }
-  if (opts?.stealthFallback) {
-    const openRouterOnly = stages.filter((s) => !isGeminiBillingStage(s));
-    return openRouterOnly.length > 0 ? openRouterOnly : [stages[stages.length - 1]!];
-  }
-  return [stages[0]!];
-}
-
-/** OpenRouter 턴 — primary + continuation 등 모든 non-Gemini stage output 합산 (영수증·원가) */
-export function sumOpenRouterStageOutputTokens(stages: StageUsage[]): number {
-  return stages
-    .filter((s) => !isGeminiBillingStage(s))
-    .reduce((sum, s) => sum + Math.max(0, s.apiOutputTokens ?? s.output ?? 0), 0);
-}
-
-/** OpenRouter 턴 — primary + continuation stage reasoning_tokens 합산 (영수증 표시) */
-export function sumOpenRouterStageReasoningTokens(stages: StageUsage[]): number {
-  return stages
-    .filter((s) => !isGeminiBillingStage(s))
-    .reduce((sum, s) => sum + Math.max(0, s.apiReasoningOutputTokens ?? 0), 0);
-}
-
-/** OpenRouter 턴 — stage upstream_inference_cost 합산 (과금 원가 베이스) */
-export function sumOpenRouterStageUpstreamUsd(stages: StageUsage[]): number {
-  return stages
-    .filter((s) => !isGeminiBillingStage(s))
-    .reduce((sum, s) => sum + Math.max(0, s.upstreamCostUsd ?? 0), 0);
-}
-
-/**
- * Receipt/content output tokens (visible RP) for all OpenRouter models.
- * For simple-point models and Muse/Gemini chat, reasoning is split out so
- * receipts can show content and thinking separately. Billing adds reasoning
- * back for simple-point models via the per-token formula.
- */
-export function billableOpenRouterOutputTokens(
-  modelId: string,
-  totalApiOutputTokens: number,
-  reasoningTokens: number
-): number {
-  if (totalApiOutputTokens <= 0) return 0;
-  if (isOpenRouterSimplePointModel(modelId)) {
-    return Math.max(0, totalApiOutputTokens - reasoningTokens);
-  }
-  if (
-    (isMuseModel(modelId) || isGeminiChatOpenRouterModel(modelId)) &&
-    reasoningTokens > 0
-  ) {
-    return Math.max(0, totalApiOutputTokens - reasoningTokens);
-  }
-  return totalApiOutputTokens;
-}
-
-/** Gemini/OpenRouter 공통 — stage 과금 입력을 promptAudit 조립값으로 상한 (패딩·API 과다 보고 방지) */
-export function resolveTurnBillableInput(opts: {
-  stageInput: number;
-  promptAuditTotal?: number;
-}): number {
-  let billable = Math.max(0, opts.stageInput);
-  if (opts.promptAuditTotal != null && opts.promptAuditTotal > 0) {
-    billable = Math.min(billable, opts.promptAuditTotal);
-  }
-  return billable;
-}
+export {
+  isGeminiBillingStage,
+  selectBillableStages,
+  sumOpenRouterStageOutputTokens,
+  sumOpenRouterStageReasoningTokens,
+  sumOpenRouterStageUpstreamUsd,
+  billableOpenRouterOutputTokens,
+  resolveTurnBillableInput,
+} from "@/lib/stageBillableUsage";
 
 /** Single-provider token totals for one chat turn (never sums cross-provider stages). */
 export function computeTurnBilling(opts: {

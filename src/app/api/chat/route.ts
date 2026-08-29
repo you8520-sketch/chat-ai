@@ -4276,21 +4276,25 @@ export async function POST(req: Request) {
                 modelId: deliveredModelId ?? "",
                 refusalFallbackDelivered: adultFallbackSucceeded,
                 promptAuditTotal: promptAuditRef?.totalAssembledTokens,
-                savedText,
-                targetResponseChars: targetResponseCharsRef,
               });
-              const canaryMismatches = compareTurnBillableUsageWithLegacy(turnUsageCandidate, {
-                totalInput,
-                totalOutput,
+              const canaryResult = compareTurnBillableUsageWithLegacy(turnUsageCandidate, {
+                routeTotalInput: totalInput,
+                routeChargeOutput: totalOutput,
                 cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens ?? 0,
                 cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
                 apiCompletionTotal: apiCompletionTokensForCost,
                 reasoningTotal: summedApiReasoning,
               });
-              if (canaryMismatches.length > 0) {
+              if (canaryResult.status === "mismatch") {
                 console.warn("[/api/chat] turnBillableUsage canary mismatch (legacy authoritative)", {
-                  mismatches: canaryMismatches,
+                  fields: canaryResult.fields,
                   selectedStage: turnUsageCandidate.diagnostics.selectedStage,
+                });
+              } else if (canaryResult.status === "not_comparable") {
+                console.warn("[/api/chat] turnBillableUsage canary not comparable (legacy authoritative)", {
+                  reason: canaryResult.reason,
+                  usageCoverage: canaryResult.usageCoverage,
+                  candidateStatus: canaryResult.candidateStatus,
                 });
               }
             } catch (canaryErr) {

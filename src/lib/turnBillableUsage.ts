@@ -1,7 +1,11 @@
 /**
  * Candidate turn billable usage composition owner.
  * Pure resolver: stages/context → NormalizedBillableUsage + UserBillableUsageCoverage.
- * Does NOT own pricing, waiver, settlement, provider economics, or FX.
+ *
+ * Responsibility (LEVEL 1): route-assembled user billable usage basis —
+ * primary-stage prompt/cache + aggregate completion/reasoning.
+ * Effective live pricing basis (LEVEL 2) is exposed in diagnostics only;
+ * see turnBillableUsageBasis.ts.
  */
 import type { StageUsage } from "@/lib/ai";
 import {
@@ -12,13 +16,17 @@ import {
 } from "@/lib/billingUsage";
 import {
   billableOpenRouterOutputTokens,
-  billableOutputTokens,
   isGeminiBillingStage,
+  resolveRouteApiTokensForCost,
   resolveTurnBillableInput,
   selectBillableStages,
   sumOpenRouterStageOutputTokens,
   sumOpenRouterStageReasoningTokens,
-} from "@/lib/points";
+} from "@/lib/stageBillableUsage";
+import {
+  resolveLivePricingCompletionBasis,
+  resolveLivePricingPromptBasis,
+} from "@/lib/turnBillableUsageBasis";
 
 export type TurnUsageFieldSource =
   | "PROVIDER_REPORTED_EXACT"
@@ -41,9 +49,16 @@ export type TurnBillableUsageDiagnostics = {
   selectedStage: string | null;
   stageCount: number;
   billableStageCount: number;
-  apiCompletionTotalTokens: number;
-  legacyChargeOutputTokens: number;
+  stageInput: number;
+  routeTotalInput: number;
+  apiPromptTokensForCost: number;
+  apiCompletionTokensForCost: number;
+  livePricingPromptBasis: number;
+  livePricingCompletionBasis: number;
+  routeChargeOutputTokens: number;
   promptAuditCapApplied: boolean;
+  cacheReadReported: boolean;
+  cacheWriteReported: boolean;
   fieldSources: TurnBillableUsageFieldSources;
   coverageReasons: string[];
 };
@@ -68,8 +83,6 @@ export type ResolveTurnBillableUsageInput = {
   modelId: string;
   refusalFallbackDelivered?: boolean;
   promptAuditTotal?: number | null;
-  savedText?: string;
-  targetResponseChars?: number | null;
 };
 
 function emptyDiagnostics(): TurnBillableUsageDiagnostics {
@@ -77,9 +90,16 @@ function emptyDiagnostics(): TurnBillableUsageDiagnostics {
     selectedStage: null,
     stageCount: 0,
     billableStageCount: 0,
-    apiCompletionTotalTokens: 0,
-    legacyChargeOutputTokens: 0,
+    stageInput: 0,
+    routeTotalInput: 0,
+    apiPromptTokensForCost: 0,
+    apiCompletionTokensForCost: 0,
+    livePricingPromptBasis: 0,
+    livePricingCompletionBasis: 0,
+    routeChargeOutputTokens: 0,
     promptAuditCapApplied: false,
+    cacheReadReported: false,
+    cacheWriteReported: false,
     fieldSources: {
       prompt: "MISSING_AND_UNKNOWN",
       cacheRead: "MISSING_AND_UNKNOWN",
@@ -98,16 +118,14 @@ function isMalformedRaw(n: unknown): boolean {
   return false;
 }
 
-function classifyNumericField(
+function classifyCacheField(
   raw: unknown,
-  opts: { estimatedStage?: boolean; usedFallback?: boolean }
+  reported: boolean,
+  estimatedStage?: boolean
 ): TurnUsageFieldSource {
-  if (opts.usedFallback) return "FALLBACK_VALUE";
-  if (opts.estimatedStage) return "ESTIMATED";
-  if (raw == null) return "MISSING_BUT_PROVEN_ZERO";
+  if (estimatedStage) return "ESTIMATED";
+  if (!reported) return "MISSING_AND_UNKNOWN";
   if (isMalformedRaw(raw)) return "SANITIZED_MALFORMED";
-  const n = raw as number;
-  if (n === 0) return "MISSING_BUT_PROVEN_ZERO";
   return "PROVIDER_REPORTED_EXACT";
 }
 
@@ -116,9 +134,13 @@ function resolveUsageCoverage(
   coverageReasons: string[],
   usage: NormalizedBillableUsage
 ): UserBillableUsageCoverage {
-  const values = Object.values(fieldSources);
-  if (values.some((s) => s === "MISSING_AND_UNKNOWN")) return "unknown";
-  if (values.some((s) => s === "ESTIMATED" || s === "FALLBACK_VALUE" || s === "SANITIZED_MALFORMED")) {
+  const required = [fieldSources.prompt, fieldSources.completion];
+  if (required.some((s) => s === "MISSING_AND_UNKNOWN")) return "unknown";
+
+  const all = Object.values(fieldSources);
+  if (all.some((s) => s === "SANITIZED_MALFORMED")) return "partial";
+  if (all.some((s) => s === "ESTIMATED" || s === "FALLBACK_VALUE")) return "partial";
+  if ([fieldSources.cacheRead, fieldSources.cacheWrite].some((s) => s === "MISSING_AND_UNKNOWN")) {
     return "partial";
   }
   if (usage.reasoningAccounting === "unknown") return "unknown";
@@ -128,10 +150,9 @@ function resolveUsageCoverage(
 }
 
 /**
- * Candidate composition owner mirroring current route.ts legacy contract:
+ * Candidate composition owner mirroring route.ts LEVEL 1 assembly:
  * - prompt/cache: selected primary/fallback stage only (+ promptAudit cap)
  * - completion/reasoning: aggregate non-Gemini successful stages
- * - legacyChargeOutputTokens: value passed to computeTurnBilling as outputTokens
  */
 export function resolveTurnBillableUsage(
   input: ResolveTurnBillableUsageInput
@@ -184,15 +205,17 @@ export function resolveTurnBillableUsage(
     promptSource = "PROVIDER_REPORTED_EXACT";
   }
 
-  const promptTokens = resolveTurnBillableInput({
-    stageInput: Math.max(0, Math.floor(Number(rawStageInput) || 0)),
+  const stageInput = Math.max(0, Math.floor(Number(rawStageInput) || 0));
+  diagnostics.stageInput = stageInput;
+  const routeTotalInput = resolveTurnBillableInput({
+    stageInput,
     promptAuditTotal: promptAuditTotal ?? undefined,
   });
+  diagnostics.routeTotalInput = routeTotalInput;
   if (
     promptAuditTotal != null &&
     promptAuditTotal > 0 &&
-    rawStageInput != null &&
-    Math.max(0, Math.floor(rawStageInput)) > promptAuditTotal
+    stageInput > promptAuditTotal
   ) {
     diagnostics.promptAuditCapApplied = true;
     if (promptSource === "PROVIDER_REPORTED_EXACT") {
@@ -200,35 +223,42 @@ export function resolveTurnBillableUsage(
     }
   }
 
+  const cacheReadReported =
+    primaryStage.cacheReadTokens != null || primaryStage.cachedContentTokens != null;
+  const cacheWriteReported = primaryStage.cacheWriteTokens != null;
+  diagnostics.cacheReadReported = cacheReadReported;
+  diagnostics.cacheWriteReported = cacheWriteReported;
+
   const rawCacheRead = primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens;
   const rawCacheWrite = primaryStage.cacheWriteTokens;
-  const cacheReadSource = classifyNumericField(rawCacheRead, { estimatedStage: primaryStage.estimated });
-  const cacheWriteSource = classifyNumericField(rawCacheWrite, { estimatedStage: primaryStage.estimated });
-  const cacheReadTokens = Math.max(0, Math.floor(Number(rawCacheRead) || 0));
-  const cacheWriteTokens = Math.max(0, Math.floor(Number(rawCacheWrite) || 0));
+  const cacheReadSource = classifyCacheField(rawCacheRead, cacheReadReported, primaryStage.estimated);
+  const cacheWriteSource = classifyCacheField(rawCacheWrite, cacheWriteReported, primaryStage.estimated);
+  if (!cacheReadReported) coverageReasons.push("cache_read_unreported");
+  if (!cacheWriteReported) coverageReasons.push("cache_write_unreported");
 
-  if (cacheReadTokens + cacheWriteTokens > promptTokens) {
+  const cacheReadTokens = cacheReadReported ? Math.max(0, Math.floor(Number(rawCacheRead) || 0)) : 0;
+  const cacheWriteTokens = cacheWriteReported ? Math.max(0, Math.floor(Number(rawCacheWrite) || 0)) : 0;
+
+  if (cacheReadTokens + cacheWriteTokens > routeTotalInput) {
     coverageReasons.push("cache_exceeds_capped_prompt");
   }
 
   const summedApiOutput = sumOpenRouterStageOutputTokens(input.stages);
   const summedApiReasoning = sumOpenRouterStageReasoningTokens(input.stages);
-  const apiCompletionTotalTokens =
-    summedApiOutput > 0
-      ? summedApiOutput
-      : Math.max(0, Math.floor(Number(primaryStage.apiOutputTokens ?? primaryStage.output) || 0));
+  const apiTokens = resolveRouteApiTokensForCost(primaryStage, summedApiOutput);
+  diagnostics.apiPromptTokensForCost = apiTokens.apiPromptTokensForCost;
+  diagnostics.apiCompletionTokensForCost = apiTokens.apiCompletionTokensForCost;
+
+  const apiCompletionTotalTokens = apiTokens.apiCompletionTokensForCost;
 
   let completionSource: TurnUsageFieldSource;
   if (summedApiOutput > 0) {
     completionSource = anyEstimatedInComposition ? "ESTIMATED" : "PROVIDER_REPORTED_EXACT";
-    if (openRouterStages.length > 1 && !anyEstimatedInComposition) {
-      completionSource = "PROVIDER_REPORTED_EXACT";
-    }
   } else if ((primaryStage.apiOutputTokens ?? primaryStage.output ?? 0) > 0) {
     completionSource = primaryStage.estimated ? "ESTIMATED" : "PROVIDER_REPORTED_EXACT";
   } else {
-    completionSource = "FALLBACK_VALUE";
-    coverageReasons.push("completion_text_fallback");
+    completionSource = "MISSING_AND_UNKNOWN";
+    coverageReasons.push("completion_api_missing");
   }
 
   const reasoningSource =
@@ -238,22 +268,24 @@ export function resolveTurnBillableUsage(
         : "PROVIDER_REPORTED_EXACT"
       : "MISSING_BUT_PROVEN_ZERO";
 
-  const billableApiOutputTokens = billableOpenRouterOutputTokens(
+  const routeChargeOutputTokens = billableOpenRouterOutputTokens(
     input.modelId,
     apiCompletionTotalTokens,
     summedApiReasoning
   );
-  const legacyChargeOutputTokens =
-    billableApiOutputTokens > 0
-      ? billableApiOutputTokens
-      : billableOutputTokens(
-          primaryStage.apiOutputTokens ?? 0,
-          input.savedText ?? "",
-          input.targetResponseChars ?? null
-        );
+  diagnostics.routeChargeOutputTokens = routeChargeOutputTokens;
+  diagnostics.livePricingPromptBasis = resolveLivePricingPromptBasis(
+    input.modelId,
+    routeTotalInput,
+    apiTokens.apiPromptTokensForCost
+  );
+  diagnostics.livePricingCompletionBasis = resolveLivePricingCompletionBasis(
+    input.modelId,
+    routeChargeOutputTokens,
+    apiTokens.apiCompletionTokensForCost,
+    summedApiReasoning
+  );
 
-  diagnostics.apiCompletionTotalTokens = apiCompletionTotalTokens;
-  diagnostics.legacyChargeOutputTokens = legacyChargeOutputTokens;
   diagnostics.fieldSources = {
     prompt: promptSource,
     cacheRead: cacheReadSource,
@@ -263,16 +295,26 @@ export function resolveTurnBillableUsage(
   };
   diagnostics.coverageReasons = coverageReasons;
 
+  if (completionSource === "MISSING_AND_UNKNOWN") {
+    return {
+      status: "unavailable",
+      usage: null,
+      usageCoverage: "unknown",
+      reason: "completion_api_missing",
+      diagnostics,
+    };
+  }
+
   const usage = normalizeBillableUsage({
     modelId: input.modelId,
-    promptTokens,
+    promptTokens: routeTotalInput,
     cacheReadTokens,
     cacheWriteTokens,
     outputTokens: apiCompletionTotalTokens,
     reasoningTokens: summedApiReasoning,
   });
 
-  if (cacheReadTokens + cacheWriteTokens > promptTokens) {
+  if (cacheReadTokens + cacheWriteTokens > routeTotalInput) {
     return {
       status: "unavailable",
       usage: null,
@@ -293,7 +335,6 @@ export function resolveTurnBillableUsage(
   }
 
   const usageCoverage = resolveUsageCoverage(diagnostics.fieldSources, coverageReasons, usage);
-  diagnostics.coverageReasons = coverageReasons;
 
   return {
     status: "resolved",
