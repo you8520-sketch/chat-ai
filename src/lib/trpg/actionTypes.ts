@@ -1,5 +1,8 @@
 import type { TrpgStatDefinition } from "./types";
-import { scoreStatHints } from "./stats";
+import {
+  compatibleStatsForAction,
+  scoreActionMethodHints,
+} from "./actionMethodHints";
 
 export const TRPG_ACTION_TYPES = [
   "attack",
@@ -39,14 +42,21 @@ export function isTrpgVisibleActionType(value: string): value is TrpgVisibleActi
 
 /** Preferred sheet keys for each action, first match on the scenario sheet wins. */
 export const ACTION_STAT_PREFS: Record<TrpgActionType, readonly string[]> = {
-  attack: ["str", "mag", "spd", "dex"],
-  defend: ["con", "res", "wil"],
-  investigate: ["int", "per", "ins"],
+  attack: ["str", "mag", "spd", "dex", "foc"],
+  defend: ["con", "res", "wil", "dex"],
+  investigate: ["int", "per", "ins", "tec", "wis"],
   persuade: ["cha", "wis", "wil"],
   stealth: ["dex", "spd", "surv", "tec", "lck"],
-  support: ["wis", "fth", "wil", "san"],
+  support: ["str", "dex", "tec", "wis", "int", "fth", "wil", "foc"],
   use_item: ["int", "tec", "foc", "mag", "dex"],
   free: ["dex", "foc", "ins", "int", "str"],
+};
+
+export type StatSelectionReason = "selected" | "method" | "action_pref" | "fallback";
+
+export type StatSelectionResult = {
+  statKey: string;
+  reason: StatSelectionReason;
 };
 
 export function defaultStatForAction(actionType: TrpgActionType | null): string {
@@ -62,7 +72,7 @@ export function defaultStatForAction(actionType: TrpgActionType | null): string 
     case "stealth":
       return "dex";
     case "support":
-      return "wis";
+      return "str";
     case "use_item":
       return "int";
     case "free":
@@ -82,34 +92,68 @@ function firstPrefOnSheet(prefs: readonly string[], defs: TrpgStatDefinition[]):
   return null;
 }
 
+function pickMethodStat(opts: {
+  actionType: TrpgActionType | null;
+  body: string;
+  defs: TrpgStatDefinition[];
+}): { statKey: string; reason: StatSelectionReason } | null {
+  const text = opts.body.trim();
+  if (!text || opts.defs.length === 0) return null;
+  const compatible = new Set(compatibleStatsForAction(opts.actionType));
+  let bestKey = "";
+  let bestScore = 0;
+  for (const def of opts.defs) {
+    if (!compatible.has(def.key)) continue;
+    const score = scoreActionMethodHints(text, def.key);
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = def.key;
+    }
+  }
+  if (bestScore > 0 && bestKey) {
+    return { statKey: bestKey, reason: "method" };
+  }
+  return null;
+}
+
 /**
  * Pick which scenario-sheet stat this action uses.
- * Player override → body keywords on this sheet → action-type prefs → first sheet stat.
+ * Player override → action-compatible method semantics → action-type prefs → first sheet stat.
  */
+export function pickStatForActionDetailed(opts: {
+  actionType: TrpgActionType | null;
+  selectedStat: string | null;
+  body?: string;
+  defs: TrpgStatDefinition[];
+}): StatSelectionResult {
+  if (opts.selectedStat && opts.defs.some((d) => d.key === opts.selectedStat)) {
+    return { statKey: opts.selectedStat, reason: "selected" };
+  }
+
+  const method = pickMethodStat({
+    actionType: opts.actionType,
+    body: opts.body?.trim() ?? "",
+    defs: opts.defs,
+  });
+  if (method) return method;
+
+  const prefs = opts.actionType ? ACTION_STAT_PREFS[opts.actionType] : ACTION_STAT_PREFS.free;
+  const pref = firstPrefOnSheet(prefs, opts.defs);
+  if (pref) return { statKey: pref, reason: "action_pref" };
+
+  return {
+    statKey: opts.defs[0]?.key ?? defaultStatForAction(opts.actionType),
+    reason: "fallback",
+  };
+}
+
 export function pickStatForAction(opts: {
   actionType: TrpgActionType | null;
   selectedStat: string | null;
   body?: string;
   defs: TrpgStatDefinition[];
 }): string {
-  if (opts.selectedStat && opts.defs.some((d) => d.key === opts.selectedStat)) {
-    return opts.selectedStat;
-  }
-  const text = opts.body?.trim() ?? "";
-  if (text && opts.defs.length > 0) {
-    let bestKey = "";
-    let bestScore = 0;
-    for (const def of opts.defs) {
-      const score = scoreStatHints(text, def.key);
-      if (score > bestScore) {
-        bestScore = score;
-        bestKey = def.key;
-      }
-    }
-    if (bestScore > 0 && bestKey) return bestKey;
-  }
-  const prefs = opts.actionType ? ACTION_STAT_PREFS[opts.actionType] : ACTION_STAT_PREFS.free;
-  return firstPrefOnSheet(prefs, opts.defs) ?? opts.defs[0]?.key ?? defaultStatForAction(opts.actionType);
+  return pickStatForActionDetailed(opts).statKey;
 }
 
 export function resolveAdjudicationStat(opts: {

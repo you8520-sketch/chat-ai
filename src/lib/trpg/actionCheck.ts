@@ -328,6 +328,10 @@ export function resolveTrpgActionCheckDecision(opts: {
   }
   const actionType = opts.actionType ?? null;
   if (actionType && EXPLICIT_RESOLUTION_TYPES.has(actionType)) {
+    const visibleRisk = resolveVisibleActorRisk(opts.body);
+    if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
+    const intentReason = intent ? resolveIntentDisambiguation(opts.body, intent) : null;
+    if (intentReason) return { needsCheck: true, reason: intentReason };
     return { needsCheck: true, reason: "explicit_resolution" };
   }
 

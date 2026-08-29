@@ -96,12 +96,12 @@ describe("TRPG canonical 18-stat vocabulary", () => {
     for (const key of used) {
       assert.ok(isCanonicalStatKey(key), `${key} is not canonical`);
     }
-    assert.deepEqual(ACTION_STAT_PREFS.attack, ["str", "mag", "spd", "dex"]);
-    assert.deepEqual(ACTION_STAT_PREFS.defend, ["con", "res", "wil"]);
-    assert.deepEqual(ACTION_STAT_PREFS.investigate, ["int", "per", "ins"]);
+    assert.deepEqual(ACTION_STAT_PREFS.attack, ["str", "mag", "spd", "dex", "foc"]);
+    assert.deepEqual(ACTION_STAT_PREFS.defend, ["con", "res", "wil", "dex"]);
+    assert.deepEqual(ACTION_STAT_PREFS.investigate, ["int", "per", "ins", "tec", "wis"]);
     assert.deepEqual(ACTION_STAT_PREFS.persuade, ["cha", "wis", "wil"]);
     assert.deepEqual(ACTION_STAT_PREFS.stealth, ["dex", "spd", "surv", "tec", "lck"]);
-    assert.deepEqual(ACTION_STAT_PREFS.support, ["wis", "fth", "wil", "san"]);
+    assert.deepEqual(ACTION_STAT_PREFS.support, ["str", "dex", "tec", "wis", "int", "fth", "wil", "foc"]);
     assert.deepEqual(ACTION_STAT_PREFS.use_item, ["int", "tec", "foc", "mag", "dex"]);
     assert.deepEqual(ACTION_STAT_PREFS.free, ["dex", "foc", "ins", "int", "str"]);
   });
@@ -217,7 +217,7 @@ describe("TRPG canonical 18-stat vocabulary", () => {
     );
     assert.equal(
       pickStatForAction({ actionType: "support", selectedStat: null, body: "", defs: DEFAULT_TRPG_STAT_DEFS }),
-      "wis"
+      "str"
     );
   });
 
