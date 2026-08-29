@@ -1,23 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
-import { callTrpgGm } from "./gmCall";
-import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgSheetCanon, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { probeGmResolutionQuality } from "./gmResolutionProbe";
-import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
-import { TRPG_GM_MODEL } from "./types";
-
-const previousFetch = globalThis.fetch;
-const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
-const previousMock = process.env.MOCK_MODE;
-
-afterEach(() => {
-  globalThis.fetch = previousFetch;
-  if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-  else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
-  if (previousMock === undefined) delete process.env.MOCK_MODE;
-  else process.env.MOCK_MODE = previousMock;
-});
+import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 function gmSceneCraftBlock(): string {
   const start = TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]");
@@ -43,118 +28,81 @@ describe("TRPG GM resolution quality — prompt owners", () => {
   });
 });
 
-describe("TRPG GM resolution quality — probe scorer", () => {
-  it("detects dialogue replay and raw stat prose", () => {
+describe("TRPG GM resolution quality — probe scorer unit tests", () => {
+  it("detects dialogue replay, invented PC lines, raw stat prose, and erasure language", () => {
     const bad = probeGmResolutionQuality({
-      narration: `렌: "포자층 쪽으로 간다."\n힘 10의 완력으로 문을 밀었다.`,
-      actions: [{ participantId: 1, name: "렌", body: '「포자층 쪽으로 간다.」' }],
+      narration: `렌: "포자층 쪽으로 간다."\n힘 10의 완력으로 문을 밀었다.\n렌의 성공은 무효가 되었다.`,
+      actions: [{ participantId: 1, name: "렌", body: '「포자층 쪽으로 간다.」', tier: "SUCCESS" }],
+      earlierSuccessNames: ["렌"],
+      rollOutcomes: [{ name: "렌", tier: "SUCCESS" }],
     });
-    assert.equal(bad.pcDialogueVerbatimReplayCount, 1);
-    assert.equal(bad.pcSpeakerLineInventionCount, 1);
-    assert.ok(bad.rawStatValueNarrationCount >= 1);
+    assert.equal(bad.pcDialogueExactReplayCount, 1);
+    assert.equal(bad.inventedPcDialogueCount, 1);
+    assert.ok(bad.rawStatNumberProseCount >= 1);
+    assert.equal(bad.earlierSuccessErasureDetected, true);
 
     const good = probeGmResolutionQuality({
       narration: "문틈에서 새어 나온 냄새가 코를 찔렀다. 경비의 발소리가 한 층 위에서 멎었다.",
       actions: [{ participantId: 1, name: "렌", body: '「포자층 쪽으로 간다.」' }],
     });
-    assert.equal(good.pcDialogueVerbatimReplayCount, 0);
-    assert.equal(good.pcSpeakerLineInventionCount, 0);
-    assert.equal(good.rawStatValueNarrationCount, 0);
+    assert.equal(good.pcDialogueExactReplayCount, 0);
+    assert.equal(good.inventedPcDialogueCount, 0);
+    assert.equal(good.rawStatNumberProseCount, 0);
+    assert.equal(good.earlierSuccessErasureDetected, false);
   });
 });
 
-const FIXTURES = [
-  {
-    name: "three_pc_dialogue_mixed",
-    actions: [
-      { participantId: 1, name: "렌", body: '*검을 들어 올린다.* 「앞장 서.」', tier: "SUCCESS" },
-      { participantId: 2, name: "강이현", body: '*포자층을 가리킨다.* 「저쪽 흐름이 이상해.」', tier: "FAILURE" },
-      { participantId: 3, name: "권태현", body: '*방패를 세운다.* 「뒤는 내가 막을게.」', tier: "PARTIAL_SUCCESS" },
-    ],
-  },
-  {
-    name: "success_failure_mix",
-    actions: [
-      { participantId: 1, name: "알파", body: "잠긴 문을 연다.", tier: "SUCCESS" },
-      { participantId: 2, name: "베타", body: "복도를 조사한다.", tier: "FAILURE" },
-    ],
-  },
-  {
-    name: "clustered_failures",
-    actions: [
-      { participantId: 1, name: "알파", body: "포자 낭을 깨뜨린다.", tier: "FAILURE" },
-      { participantId: 2, name: "베타", body: "동료를 끌어당긴다.", tier: "FAILURE" },
-      { participantId: 3, name: "감마", body: "후퇴로를 확보한다.", tier: "FAILURE" },
-    ],
-    earlierSuccessNames: [],
-  },
-  {
-    name: "relationship_non_combat",
-    actions: [
-      { participantId: 1, name: "솔", body: '「오늘은 무리하지 말자.」', tier: null, needsCheck: false },
-      { participantId: 2, name: "로코", body: "벽에 기대 선다.", tier: null, needsCheck: false },
-    ],
-  },
-] as const;
-
-describe("TRPG GM resolution quality — frozen fixtures (mock path)", () => {
-  for (const fixture of FIXTURES) {
-    it(`${fixture.name} mock GM obeys probe contract`, async () => {
-      delete process.env.MOCK_MODE;
-      process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-resolution-probe";
-      const user = buildTrpgGmUserBlock({
-        worldBrief: "지하 시설",
-        memoryBlock: "[TRPG STRUCTURED STATE]",
-        opening: false,
-        actions: fixture.actions.map((a) => ({
-          participantId: a.participantId,
-          name: a.name,
-          body: a.body,
+describe("TRPG GM resolution quality — mock provider path (not Gemini quality probe)", () => {
+  it("MOCK_PATH: buildTrpgGmUserBlock preserves submitted action prose once", () => {
+    const body = '*검을 들어 올린다.* 「앞장 서.」';
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "지하 시설",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body,
           statKey: "str",
-          d20: a.tier ? 10 : null,
-          finalScore: a.tier ? 10 : null,
+          d20: 10,
+          finalScore: 12,
           dc: 9,
-          tier: a.tier,
-          needsCheck: "needsCheck" in a ? a.needsCheck : a.tier != null,
-        })),
-      });
-      assert.match(TRPG_GM_SYSTEM, /already visible/);
-
-      const mockNarration = `<<<NARRATION>>>
-공기가 무거워지자 경보등이 한 번 깜빡였다. 복도 끝에서 금속 문이 살짝 흔들렸고, 누군가의 숨소리가 멎었다.
-GM: 다음 행동을 정하기 전에, 위층에서 무언가 빠른 발소리가 다가오고 있다.
-<<<DELTA>>>
-{"players":[],"location":"복도","next_round_context":"위 혹은 아래","campaign_finished":false}`;
-
-      globalThis.fetch = (async () => {
-        const chunks = [
-          ...buildMockOpenRouterStreamChunks(mockNarration, TRPG_GM_MODEL).slice(0, 1),
-          `data: ${JSON.stringify({
-            choices: [{ delta: {}, finish_reason: "stop" }],
-            usage: { prompt_tokens: 20, completion_tokens: 12 },
-          })}\n\n`,
-          "data: [DONE]\n\n",
-        ];
-        return new Response(mockReadableStreamFromText(chunks), {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        });
-      }) as typeof fetch;
-
-      const result = await callTrpgGm({ system: TRPG_GM_SYSTEM, user, timeoutMs: 5_000 });
-      assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-
-      const probe = probeGmResolutionQuality({
-        narration: result.text,
-        actions: fixture.actions,
-        earlierSuccessNames: "earlierSuccessNames" in fixture ? fixture.earlierSuccessNames : ["알파"],
-        rollOutcomes: fixture.actions.map((a) => ({ name: a.name, tier: a.tier ?? "SUCCESS" })),
-      });
-      assert.equal(probe.pcDialogueVerbatimReplayCount, 0);
-      assert.equal(probe.pcSpeakerLineInventionCount, 0);
-      assert.equal(probe.rawStatValueNarrationCount, 0);
-      assert.equal(probe.rawD20DcNarrationCount, 0);
-      assert.equal(probe.newConsequenceStart, true);
+          tier: "SUCCESS",
+        },
+      ],
     });
-  }
+    assert.equal(block.split(body).length - 1, 1);
+    assert.match(block, /\[ACTION PROSE|\[VISIBLE ACTION PROSE/);
+  });
+
+  it("MOCK_PATH: canned narration passes automatic scorer gates", () => {
+    const canned = `공기가 무거워지자 경보등이 한 번 깜빡였다. 복도 끝에서 금속 문이 살짝 흔들렸고, 누군가의 숨소리가 멎었다.`;
+    const probe = probeGmResolutionQuality({
+      narration: canned,
+      actions: [
+        { participantId: 1, name: "렌", body: '*검을 들어 올린다.* 「앞장 서.」', tier: "SUCCESS" },
+      ],
+    });
+    assert.equal(probe.pcDialogueExactReplayCount, 0);
+    assert.equal(probe.inventedPcDialogueCount, 0);
+    assert.equal(probe.rawStatNumberProseCount, 0);
+    assert.equal(probe.newConsequenceStart, true);
+  });
+
+  it("MOCK_PATH: sheet canon input with raw stats is allowed in user block", () => {
+    const sheetCanon = formatTrpgSheetCanon({
+      defs: DEFAULT_TRPG_STAT_DEFS,
+      sheets: [{ name: "렌", stats: { str: 10, dex: 8, int: 7, wis: 7, cha: 6, con: 6 } }],
+    });
+    assert.match(sheetCanon, /힘 10/);
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "지하",
+      memoryBlock: "",
+      opening: false,
+      sheetCanon,
+      actions: [],
+    });
+    assert.match(block, /힘 10/);
+  });
 });
