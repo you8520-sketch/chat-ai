@@ -27,6 +27,26 @@ export type GmResolutionProbeResult = {
   newConsequenceStart: boolean;
 };
 
+export type ForwardMotionSeverity = "NONE" | "MINOR" | "MAJOR";
+export type NewMaterialLevel = "LOW" | "ADEQUATE" | "STRONG";
+export type WorldInitiativeLevel = "NONE" | "ADEQUATE" | "STRONG";
+export type SceneAdvanceLevel = "YES" | "PARTIAL" | "NO";
+
+export type GmForwardMotionReview = {
+  ACTION_REPLAY: ForwardMotionSeverity;
+  RESOLUTION_BLOAT: ForwardMotionSeverity;
+  NEW_MATERIAL: NewMaterialLevel;
+  WORLD_INITIATIVE: WorldInitiativeLevel;
+  SCENE_STATE_ADVANCED: SceneAdvanceLevel;
+  PLAYER_AGENCY_VIOLATION: boolean;
+  notes: string[];
+};
+
+export type GmResolutionFixtureProfile = {
+  /** F6-style quiet control — low escalation is acceptable. */
+  allowQuietBeat?: boolean;
+};
+
 const QUOTED_DIALOGUE =
   /「([^」]{1,400})」|『([^』]{1,400})』|"([^"]{1,400})"|"([^"]{1,400})"/g;
 
@@ -65,6 +85,168 @@ function extractSubmittedDialogue(body: string): string[] {
     if (line.length >= 4) lines.push(line);
   }
   return lines;
+}
+
+function countActionBodyRestaging(narration: string, submittedBodies: readonly string[]): number {
+  let count = 0;
+  for (const body of submittedBodies) {
+    const prose = body.replace(QUOTED_DIALOGUE, "").replace(/\*[^*]+\*/g, "").trim();
+    const chunk = prose.slice(0, Math.min(24, prose.length)).trim();
+    if (chunk.length >= 12 && narration.includes(chunk)) count += 1;
+  }
+  return count;
+}
+
+function splitNarrationParagraphs(narration: string): string[] {
+  return narration
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function countActorRecapParagraphs(narration: string, pcNames: readonly string[]): number {
+  const paragraphs = splitNarrationParagraphs(narration);
+  let count = 0;
+  for (const paragraph of paragraphs) {
+    if (paragraph.length < 120) continue;
+    const lead = paragraph.slice(0, 24);
+    if (pcNames.some((name) => lead.includes(name))) count += 1;
+  }
+  return count;
+}
+
+function countForwardMotionSignals(text: string): number {
+  const patterns = [
+    /(?:적|경비|NPC|군중|습격|추격|함정|기습)/,
+    /(?:발견|단서|정보|사실|확인|드러|폭로)/,
+    /(?:갈림|통로|출구|문|계단|경로|이동|개방)/,
+    /(?:압박|위협|기회|변화|반응|대응|일어나|밀려|번져)/,
+    /(?:환경|공기|소리|진동|붕괴|연기|안개)/,
+  ];
+  return patterns.reduce((n, pattern) => (pattern.test(text) ? n + 1 : 0), 0);
+}
+
+function classifyActionReplay(probe: GmResolutionProbeResult, actionBodyRestaging: number): ForwardMotionSeverity {
+  if (probe.pcDialogueExactReplayCount > 0 || actionBodyRestaging >= 2) return "MAJOR";
+  if (probe.pcDialogueCloseRestagingCount > 0 || actionBodyRestaging === 1) return "MINOR";
+  return "NONE";
+}
+
+function classifyResolutionBloat(
+  narration: string,
+  pcNames: readonly string[],
+  actionCount: number
+): ForwardMotionSeverity {
+  const recapParagraphs = countActorRecapParagraphs(narration, pcNames);
+  const paragraphs = splitNarrationParagraphs(narration);
+  const firstHalf = paragraphs.slice(0, Math.ceil(paragraphs.length * 0.65)).join("\n");
+  const actorMentionsInFirstHalf = pcNames.filter((name) => firstHalf.includes(name)).length;
+  if (actionCount >= 2 && recapParagraphs >= actionCount) {
+    return "MAJOR";
+  }
+  if (recapParagraphs >= 2 || (actionCount >= 2 && actorMentionsInFirstHalf >= actionCount)) {
+    return "MINOR";
+  }
+  return "NONE";
+}
+
+function classifyNewMaterial(narration: string): NewMaterialLevel {
+  const paragraphs = splitNarrationParagraphs(narration);
+  if (paragraphs.length === 0) return "LOW";
+  const latter = paragraphs.slice(Math.floor(paragraphs.length * 0.45)).join("\n");
+  const signals = countForwardMotionSignals(latter);
+  const gmClosing = /GM:\s*/.test(narration);
+  if (signals >= 3 || (signals >= 2 && gmClosing)) return "STRONG";
+  if (signals >= 1 || gmClosing) return "ADEQUATE";
+  return "LOW";
+}
+
+function classifyWorldInitiative(narration: string, pcNames: readonly string[]): WorldInitiativeLevel {
+  const withoutPcDialogue = narration.replace(new RegExp(`(${pcNames.join("|")}):`, "g"), "");
+  const signals = countForwardMotionSignals(withoutPcDialogue);
+  if (signals >= 3) return "STRONG";
+  if (signals >= 1) return "ADEQUATE";
+  return "NONE";
+}
+
+function classifySceneAdvance(narration: string): SceneAdvanceLevel {
+  const signals = countForwardMotionSignals(narration);
+  const hasDecisionPoint = /GM:\s*/.test(narration) || /(?:선택|결정|어느|어떻게|해야)/.test(narration);
+  if (signals >= 3 && hasDecisionPoint) return "YES";
+  if (signals >= 1 || hasDecisionPoint) return "PARTIAL";
+  return "NO";
+}
+
+export function reviewGmForwardMotionQuality(
+  input: GmResolutionProbeInput & { profile?: GmResolutionFixtureProfile }
+): GmForwardMotionReview {
+  const narration = parseTrpgGmOutput(input.narration).narration;
+  const pcNames = input.actions.map((a) => a.name);
+  const submittedBodies = input.actions.map((a) => a.body);
+  const probe = probeGmResolutionQuality(input);
+  const actionBodyRestaging = countActionBodyRestaging(narration, submittedBodies);
+
+  const ACTION_REPLAY = classifyActionReplay(probe, actionBodyRestaging);
+  const RESOLUTION_BLOAT = classifyResolutionBloat(narration, pcNames, input.actions.length);
+  const NEW_MATERIAL = classifyNewMaterial(narration);
+  const WORLD_INITIATIVE = classifyWorldInitiative(narration, pcNames);
+  const SCENE_STATE_ADVANCED = classifySceneAdvance(narration);
+  const PLAYER_AGENCY_VIOLATION = probe.inventedPcDialogueCount > 0;
+
+  const notes: string[] = [];
+  if (ACTION_REPLAY === "MAJOR") {
+    notes.push("ACTION_REPLAY: dialogue or action-prose restaging detected in GM narration.");
+  }
+  if (RESOLUTION_BLOAT === "MAJOR") {
+    notes.push("RESOLUTION_BLOAT: multiple long actor-centered recap paragraphs dominate the response.");
+  }
+  if (NEW_MATERIAL === "LOW" && !input.profile?.allowQuietBeat) {
+    notes.push("NEW_MATERIAL: little forward-moving world/story material after resolution bridge.");
+  }
+  if (SCENE_STATE_ADVANCED === "NO" && !input.profile?.allowQuietBeat) {
+    notes.push("SCENE_STATE_ADVANCED: scene ends without a materially changed decision point.");
+  }
+  if (PLAYER_AGENCY_VIOLATION) {
+    notes.push("PLAYER_AGENCY_VIOLATION: GM assigned new PC dialogue lines.");
+  }
+
+  return {
+    ACTION_REPLAY,
+    RESOLUTION_BLOAT,
+    NEW_MATERIAL,
+    WORLD_INITIATIVE,
+    SCENE_STATE_ADVANCED,
+    PLAYER_AGENCY_VIOLATION,
+    notes,
+  };
+}
+
+export function summarizeGmForwardMotionReviews(reviews: readonly GmForwardMotionReview[]): {
+  ACTION_REPLAY_MAJOR: number;
+  RESOLUTION_BLOAT_MAJOR: number;
+  NEW_MATERIAL_LOW: number;
+  WORLD_INITIATIVE_NONE: number;
+  SCENE_STATE_ADVANCED_NO: number;
+  PLAYER_AGENCY_VIOLATION: number;
+  GM_RECAP_DOMINANT_FAILURE_FOUND: boolean;
+  GM_STORY_STALL_FAILURE_FOUND: boolean;
+} {
+  const ACTION_REPLAY_MAJOR = reviews.filter((r) => r.ACTION_REPLAY === "MAJOR").length;
+  const RESOLUTION_BLOAT_MAJOR = reviews.filter((r) => r.RESOLUTION_BLOAT === "MAJOR").length;
+  const NEW_MATERIAL_LOW = reviews.filter((r) => r.NEW_MATERIAL === "LOW").length;
+  const WORLD_INITIATIVE_NONE = reviews.filter((r) => r.WORLD_INITIATIVE === "NONE").length;
+  const SCENE_STATE_ADVANCED_NO = reviews.filter((r) => r.SCENE_STATE_ADVANCED === "NO").length;
+  const PLAYER_AGENCY_VIOLATION = reviews.filter((r) => r.PLAYER_AGENCY_VIOLATION).length;
+  return {
+    ACTION_REPLAY_MAJOR,
+    RESOLUTION_BLOAT_MAJOR,
+    NEW_MATERIAL_LOW,
+    WORLD_INITIATIVE_NONE,
+    SCENE_STATE_ADVANCED_NO,
+    PLAYER_AGENCY_VIOLATION,
+    GM_RECAP_DOMINANT_FAILURE_FOUND: RESOLUTION_BLOAT_MAJOR > 0 || ACTION_REPLAY_MAJOR > 0,
+    GM_STORY_STALL_FAILURE_FOUND: NEW_MATERIAL_LOW > 0 || SCENE_STATE_ADVANCED_NO > 0,
+  };
 }
 
 function countExactReplay(narration: string, dialogue: readonly string[]): number {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, TRPG_GM_SYSTEM } from "./gmPrompt";
-import { probeGmResolutionQuality } from "./gmResolutionProbe";
+import { probeGmResolutionQuality, reviewGmForwardMotionQuality } from "./gmResolutionProbe";
 import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 function gmSceneCraftBlock(): string {
@@ -15,16 +15,23 @@ function countOwnerMatches(text: string, pattern: RegExp): number {
 }
 
 describe("TRPG GM resolution quality — prompt owners", () => {
-  it("keeps single replay and failure realization owners", () => {
+  it("keeps single replay, failure, and forward-motion owners", () => {
     const craft = gmSceneCraftBlock();
     assert.equal(countOwnerMatches(craft, /Do not replay, re-quote, closely paraphrase, or re-stage/g), 1);
     assert.equal(countOwnerMatches(craft, /Failure: intended result does not fully land/g), 1);
+    assert.equal(countOwnerMatches(craft, /Resolution is a compact bridge, not the main destination/g), 1);
+    assert.equal(countOwnerMatches(craft, /do not produce isolated actor-by-actor recap paragraphs/g), 1);
+    assert.equal(countOwnerMatches(craft, /do not choose their next actions, dialogue, allegiance, movement, or decisions/g), 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[FORWARD MOTION\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[STORY PROGRESSION\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[NEW MATERIAL\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Across concurrent and nearby failures, vary source and consequence/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /RICH prose is visible/);
     assert.match(TRPG_GM_SYSTEM, /Do not narrate raw stat values, modifiers, d20, DC, or tier/);
     assert.match(craft, /Earlier SUCCESS in \[RESOLUTION ORDER\] stays canon/);
     assert.match(craft, /fold them into one coherent setback/);
+    assert.match(TRPG_GM_SYSTEM, /not actor-by-actor recap of submitted actions/);
   });
 });
 
@@ -49,6 +56,25 @@ describe("TRPG GM resolution quality — probe scorer unit tests", () => {
     assert.equal(good.inventedPcDialogueCount, 0);
     assert.equal(good.rawStatNumberProseCount, 0);
     assert.equal(good.earlierSuccessErasureDetected, false);
+  });
+
+  it("flags actor-by-actor resolution bloat without dialogue replay", () => {
+    const bloated = reviewGmForwardMotionQuality({
+      narration: [
+        "렌이 검을 들어 올리며 앞장서 나아갔다. ".repeat(8),
+        "강이현은 포자층을 가리키며 기류를 읽으려 했다. ".repeat(8),
+        "권태현이 방패를 세워 후방을 막았다. ".repeat(8),
+        "GM: 세 갈래 통로 앞에서 선택해야 합니다.",
+      ].join("\n\n"),
+      actions: [
+        { participantId: 1, name: "렌", body: '*검을 들어 올린다.* 「앞장 서.」', tier: "SUCCESS" },
+        { participantId: 2, name: "강이현", body: '*포자층을 가리킨다.* 「저쪽 기류가 이상해.」', tier: "FAILURE" },
+        { participantId: 3, name: "권태현", body: '*방패를 세운다.* 「뒤는 내가 맡을게.」', tier: "PARTIAL_SUCCESS" },
+      ],
+    });
+    assert.equal(bloated.ACTION_REPLAY, "NONE");
+    assert.equal(bloated.RESOLUTION_BLOAT, "MAJOR");
+    assert.match(bloated.notes.join(" "), /RESOLUTION_BLOAT/);
   });
 });
 
