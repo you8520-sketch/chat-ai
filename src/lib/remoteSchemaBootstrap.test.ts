@@ -180,7 +180,7 @@ describe("remote schema bootstrap", () => {
     db.close();
   });
 
-  it("CURRENT_MARKER_WITH_BROKEN_UNIQUE_CAN_REPORT_CURRENT: false", () => {
+  it("BROKEN_SETTLEMENT_UNIQUE_CAN_BOOT_APPLICATION: false — post-migration validation throws", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE _remote_schema_state (
@@ -214,11 +214,18 @@ describe("remote schema bootstrap", () => {
       migrations += 1;
       ensureChatBillingSettlementSchema(db);
     };
-    initializeRemoteSchema(db, migrate);
+
+    assert.throws(
+      () => initializeRemoteSchema(db, migrate),
+      /canonical chat billing settlement schema/
+    );
     assert.equal(migrations, 1);
     assert.equal(hasChatBillingSettlementSchema(db), false);
 
-    initializeRemoteSchema(db, migrate);
+    assert.throws(
+      () => initializeRemoteSchema(db, migrate),
+      /canonical chat billing settlement schema/
+    );
     assert.equal(migrations, 2);
     db.close();
   });

@@ -112,10 +112,20 @@ function releaseLock(db: SchemaDatabase, owner: string): void {
   db.prepare("DELETE FROM _remote_schema_lock WHERE id=1 AND owner=?").run(owner);
 }
 
+/** Fail closed — migration/adoption must leave canonical settlement schema before markCurrent. */
+function assertCanonicalSettlementSchemaReady(db: SchemaDatabase): void {
+  if (!hasChatBillingSettlementSchema(db)) {
+    throw new Error(
+      "Remote schema migration completed without canonical chat billing settlement schema."
+    );
+  }
+}
+
 export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void): void {
   ensureControlTables(db);
   if (isCurrent(db)) return;
   if (canAdoptExistingRemoteSchema(db)) {
+    assertCanonicalSettlementSchemaReady(db);
     markCurrent(db);
     return;
   }
@@ -126,6 +136,7 @@ export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void):
     if (tryAcquireLock(db, owner)) {
       try {
         migrate();
+        assertCanonicalSettlementSchemaReady(db);
         markCurrent(db);
         return;
       } finally {
