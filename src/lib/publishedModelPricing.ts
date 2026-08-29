@@ -188,6 +188,21 @@ function normalizeId(id: string): string {
   return id.trim().toLowerCase();
 }
 
+export type ResolvedPublishedPricing = {
+  requestedModelId: string;
+  canonicalModelId: string;
+  pricing: PublishedModelPricing;
+};
+
+export function resolvePublishedPricingExact(modelId: string): ResolvedPublishedPricing | null {
+  const requestedModelId = modelId.trim();
+  const n = normalizeId(requestedModelId);
+  const canonicalModelId = PUBLISHED_MODEL_ALIASES[n] ?? n;
+  const pricing = PUBLISHED_CATALOG[canonicalModelId];
+  if (!pricing) return null;
+  return { requestedModelId, canonicalModelId, pricing };
+}
+
 export function getPublishedPricing(modelId: string): PublishedModelPricing {
   const n = normalizeId(modelId);
   const canonical = PUBLISHED_MODEL_ALIASES[n] ?? n;
