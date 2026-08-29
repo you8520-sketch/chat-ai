@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
 import {
@@ -23,12 +22,12 @@ function thinkingType(body: Record<string, unknown>): string {
 }
 
 describe("TRPG production model routing (PR-A)", () => {
-  it("pins Bot=Luna and GM=Gemini 3.7 Flash", () => {
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  it("pins Bot=Gemini 3.7 Flash and GM=Gemini 3.7 Flash", () => {
+    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
   });
 
-  it("adaptTrpgBotChatBody sends Luna true-off without DeepSeek thinking pollution", () => {
+  it("adaptTrpgBotChatBody sends Gemini low reasoning via canonical policy", () => {
     const bot = adaptTrpgBotChatBody({
       model: TRPG_BOT_MODEL,
       messages: [{ role: "user", content: "행동" }],
@@ -38,13 +37,14 @@ describe("TRPG production model routing (PR-A)", () => {
       thinking: { type: "disabled" },
       reasoning_effort: "high",
     });
-    assert.equal(bot.model, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(bot.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(bot.stream, false);
-    assert.deepEqual(bot.reasoning, { effort: "none" });
-    assert.equal(bot.reasoning_effort, "none");
+    assert.equal(bot.reasoning_effort, "low");
     assert.equal(bot.thinking, undefined);
+    assert.equal(bot.reasoning, undefined);
     const contract = trpgProviderRequestContract(bot);
-    assert.equal(isTrpgTrueOffRequest(contract), true);
+    assert.equal(isTrpgGeminiLowReasoningRequest(contract), true);
+    assert.equal(isTrpgTrueOffRequest(contract), false);
   });
 
   it("adaptTrpgGmChatBody sends Gemini low reasoning without forced none", () => {
@@ -68,7 +68,7 @@ describe("TRPG production model routing (PR-A)", () => {
   });
 
   it("resolveTrpgCheaperInferenceModel preserves configured models without DeepSeek fallback", () => {
-    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL), CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.throws(
       () => resolveTrpgCheaperInferenceModel("unknown-model"),

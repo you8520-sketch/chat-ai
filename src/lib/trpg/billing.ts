@@ -1,7 +1,4 @@
-import {
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-} from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
 
@@ -24,16 +21,15 @@ export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
   outputTokens: 3_500,
 };
 
-/** Typical bot-seat Luna action when usage is missing. */
+/** Typical bot-seat Gemini action when usage is missing. */
 export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   inputTokens: 2_500,
   outputTokens: 400,
 };
 
 /**
- * Round charge = sum of actual model calls at RP Pro 65% (GM thinking-on +
- * bot-seat thinking-off). Flash is not used for bot lines.
+ * Round charge = sum of actual model calls at RP Pro 65% (GM + bot-seat Gemini 3.7 Flash).
  */
 export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
   let total = 0;
