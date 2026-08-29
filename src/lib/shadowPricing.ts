@@ -10,9 +10,10 @@ import {
   type BillingFxSource,
   type ShadowBillingExchangeRateSnapshot,
 } from "@/lib/shadowBillingExchangeRate";
+import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { convertUsdToKrw, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
-import { getPublishedPricing } from "@/lib/publishedModelPricing";
+import { getPublishedPricing, resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import {
   resolveCheaperInferenceCatalogPricing,
   resolveCatalogRatesForPrompt,
@@ -23,6 +24,19 @@ import {
   requiresStrictCachePolicy,
 } from "@/lib/modelShadowPricingPolicy";
 import { selectCatalogPricingTier } from "@/lib/catalogPricingTier";
+import {
+  normalizeBillableUsage,
+  type NormalizedBillableUsage,
+  type ReasoningAccounting,
+} from "@/lib/billingUsage";
+import {
+  computePublishedUserChargeWithSnapshot,
+  type PublishedChargeBlockedReason,
+  type PublishedUserChargeResult,
+} from "@/lib/publishedUserCharge";
+
+export type { NormalizedBillableUsage, ReasoningAccounting } from "@/lib/billingUsage";
+export { normalizeBillableUsage } from "@/lib/billingUsage";
 
 export type ActualCostSource =
   | "cheaper_inference_billed"
@@ -61,19 +75,6 @@ export function resolveActualTurnCostCoverage(opts: {
   return "complete";
 }
 
-export type ReasoningAccounting = "included_in_output" | "separate" | "none" | "unknown";
-
-export type NormalizedBillableUsage = {
-  promptTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-  standardInputTokens: number;
-  visibleOutputTokens: number;
-  reasoningTokens: number;
-  billableOutputTokens: number;
-  reasoningAccounting: ReasoningAccounting;
-};
-
 export type ShadowCostBreakdown = {
   promptTokens: number;
   cacheReadTokens: number;
@@ -111,6 +112,8 @@ export type ShadowCostBreakdown = {
     effectiveKrwPerUsd: number;
     locked: boolean;
   };
+  /** Shadow convergence — base published charge result before promo adjustment */
+  _publishedChargeBase?: PublishedUserChargeResult;
 };
 
 export type ShadowChargeBreakdown = ShadowCostBreakdown & {
@@ -119,6 +122,8 @@ export type ShadowChargeBreakdown = ShadowCostBreakdown & {
   promoGivebackKrw: number;
   finalShadowChargeKrw: number;
   finalShadowPoints: number;
+  publishedChargeStatus: "complete" | "blocked";
+  publishedChargeBlockedReason?: PublishedChargeBlockedReason;
   actualRealizedMargin: number | null;
   providerSavingsKrw: number | null;
   providerOverrunKrw: number | null;
@@ -138,41 +143,38 @@ function chargePoints(n: number): number {
   return Math.ceil(n - 1e-9);
 }
 
-/** Canonical billable usage normalizer — single owner for reasoning accounting */
-export function normalizeBillableUsage(opts: {
-  modelId: string;
-  promptTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  outputTokens: number;
-  reasoningTokens?: number;
-}): NormalizedBillableUsage {
-  const promptTokens = Math.max(0, opts.promptTokens);
-  const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
-  const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
-  const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
-  const visibleOutputTokens = Math.max(0, opts.outputTokens);
-  const reasoningTokens = Math.max(0, opts.reasoningTokens ?? 0);
-  // Contract: reasoning_tokens from completion_tokens_details is subset of completion_tokens (included)
-  let reasoningAccounting: ReasoningAccounting = "none";
-  let billableOutputTokens = visibleOutputTokens;
-  if (reasoningTokens <= 0) {
-    reasoningAccounting = "none";
-    billableOutputTokens = visibleOutputTokens;
-  } else {
-    reasoningAccounting = "included_in_output";
-    billableOutputTokens = visibleOutputTokens;
-  }
+function toBillingFxSnapshot(snapshot: ShadowBillingExchangeRateSnapshot): BillingFxSnapshot {
   return {
-    promptTokens,
-    cacheReadTokens,
-    cacheWriteTokens,
-    standardInputTokens,
-    visibleOutputTokens,
-    reasoningTokens,
-    billableOutputTokens,
-    reasoningAccounting,
+    mode: snapshot.mode,
+    dateKey: snapshot.dateKey,
+    usdToKrw: snapshot.usdToKrw,
+    effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
+    source: normalizeBillingFxSource(snapshot.source),
+    overseasFeeRate: snapshot.overseasFeeRate,
+    locked: snapshot.locked,
   };
+}
+
+function mapPublishedBlockToBillingStatus(
+  reason: PublishedChargeBlockedReason
+): BillingReferenceCostStatus {
+  switch (reason) {
+    case "unsupported_cache_semantics":
+      return "unsupported_cache_semantics";
+    case "unsupported_pricing_tier":
+      return "unsupported_pricing_tier";
+    case "unsupported_model":
+    case "incomplete_usage_coverage":
+    case "unknown_usage_coverage":
+    case "invalid_usage":
+    case "invalid_fx_snapshot":
+    case "invalid_published_pricing":
+      return "reference_rates_unavailable";
+    default: {
+      const _exhaustive: never = reason;
+      return _exhaustive;
+    }
+  }
 }
 
 function usageUsdFromReferenceRates(
@@ -258,68 +260,34 @@ function computeProviderListCostKrw(
 function computeBillingReferenceCost(
   usage: NormalizedBillableUsage,
   modelId: string,
+  fxSnapshot: BillingFxSnapshot,
   pub: ReturnType<typeof getPublishedPricing>
-): { costUsd: number; status: BillingReferenceCostStatus } {
-  const policy = getModelShadowPricingPolicy(modelId);
-  const maxPrompt =
-    policy?.publishedBaseTierMaxPromptTokens ?? pub.publishedBaseTierMaxPromptTokens;
-  if (
-    (policy?.pricingApplicability === "base_tier_only" || pub.pricingApplicability === "base_tier_only") &&
-    maxPrompt != null &&
-    usage.promptTokens > maxPrompt
-  ) {
-    return { costUsd: 0, status: "unsupported_pricing_tier" };
+): { costUsd: number; status: BillingReferenceCostStatus; publishedResult: PublishedUserChargeResult } {
+  const resolvedOverride = resolvePublishedPricingExact(modelId);
+  const publishedResult = computePublishedUserChargeWithSnapshot({
+    modelId,
+    usage,
+    usageCoverage: "complete",
+    fxSnapshot,
+    adjustment: { kind: "none" },
+    resolvedPricing: resolvedOverride ?? {
+      requestedModelId: modelId,
+      canonicalModelId: pub.modelId,
+      pricing: pub,
+    },
+  });
+  if (publishedResult.status === "complete") {
+    return {
+      costUsd: publishedResult.snapshot.billingReferenceCostUsd,
+      status: "complete",
+      publishedResult,
+    };
   }
-
-  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
-  if (hasCacheUsage && requiresStrictCachePolicy(modelId)) {
-    return { costUsd: 0, status: "unsupported_cache_semantics" };
-  }
-
-  const pubCacheRead = pub.billingReferenceCacheReadUsdPerMillion;
-  const pubCacheWrite = pub.billingReferenceCacheWriteUsdPerMillion;
-  const strictCache = policy?.cachePolicyStatus === "unverified";
-
-  if (hasCacheUsage) {
-    if (strictCache) {
-      return { costUsd: 0, status: "unsupported_cache_semantics" };
-    }
-    if (usage.cacheReadTokens > 0 && pubCacheRead == null) {
-      if (requiresStrictCachePolicy(modelId)) {
-        return { costUsd: 0, status: "unsupported_cache_semantics" };
-      }
-    }
-    if (usage.cacheWriteTokens > 0 && pubCacheWrite == null) {
-      if (requiresStrictCachePolicy(modelId)) {
-        return { costUsd: 0, status: "unsupported_cache_semantics" };
-      }
-    }
-  }
-
-  const cacheReadRate =
-    pubCacheRead ??
-    (strictCache || requiresStrictCachePolicy(modelId) ? undefined : pub.billingReferenceInputUsdPerMillion * 0.1);
-  const cacheWriteRate =
-    pubCacheWrite ??
-    (strictCache || requiresStrictCachePolicy(modelId) ? undefined : pub.billingReferenceInputUsdPerMillion);
-
-  if (usage.cacheReadTokens > 0 && cacheReadRate == null) {
-    return { costUsd: 0, status: "unsupported_cache_semantics" };
-  }
-  if (usage.cacheWriteTokens > 0 && cacheWriteRate == null) {
-    return { costUsd: 0, status: "unsupported_cache_semantics" };
-  }
-
-  const costUsd =
-    (usage.standardInputTokens / 1_000_000) * pub.billingReferenceInputUsdPerMillion +
-    (cacheReadRate != null ? (usage.cacheReadTokens / 1_000_000) * cacheReadRate : 0) +
-    (cacheWriteRate != null ? (usage.cacheWriteTokens / 1_000_000) * cacheWriteRate : 0) +
-    (usage.visibleOutputTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion +
-    (usage.reasoningAccounting === "separate"
-      ? (usage.reasoningTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion
-      : 0);
-
-  return { costUsd, status: "complete" };
+  return {
+    costUsd: 0,
+    status: mapPublishedBlockToBillingStatus(publishedResult.reason),
+    publishedResult,
+  };
 }
 
 function estimateActualCostFromCatalog(
@@ -419,7 +387,13 @@ export function computeShadowCostsWithSnapshot(
   const providerListResult = computeProviderListCostKrw(usage, opts.modelId ?? "", effectiveRate);
   const providerListCostKrw = providerListResult.costKrw;
   const providerListCostStatus = providerListResult.status;
-  const billingReferenceResult = computeBillingReferenceCost(usage, opts.modelId ?? "", pub);
+  const billingFxSnapshot = toBillingFxSnapshot(snapshot);
+  const billingReferenceResult = computeBillingReferenceCost(
+    usage,
+    opts.modelId ?? "",
+    billingFxSnapshot,
+    pub
+  );
   const billingReferenceCostUsd = billingReferenceResult.costUsd;
   const billingReferenceCostStatus = billingReferenceResult.status;
   const billingReferenceCostKrw =
@@ -465,7 +439,7 @@ export function computeShadowCostsWithSnapshot(
       : 0;
   const outputCostKrw =
     billingReferenceCostStatus === "complete"
-      ? round1(convertUsdToKrw((usage.visibleOutputTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion, effectiveRate))
+      ? round1(convertUsdToKrw((usage.billableOutputTokens / 1_000_000) * pub.billingReferenceOutputUsdPerMillion, effectiveRate))
       : 0;
   const reasoningCostKrw =
     billingReferenceCostStatus === "complete" && usage.reasoningAccounting === "separate"
@@ -509,6 +483,7 @@ export function computeShadowCostsWithSnapshot(
       effectiveKrwPerUsd: snapshot.effectiveKrwPerUsd,
       locked: snapshot.locked,
     },
+    _publishedChargeBase: billingReferenceResult.publishedResult,
   };
 }
 
@@ -531,12 +506,84 @@ export function computeShadowCosts(opts: {
 export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPercent?: number; now?: Date }): ShadowChargeBreakdown {
   const promoPercent = opts?.promoPercent ?? 0;
   const clampedPromo = Math.min(0.9, Math.max(0, promoPercent));
-  const standardUserChargeKrw =
-    cost.billingReferenceCostStatus === "complete" && cost.billingReferenceCostKrw > 0
-      ? round1(cost.billingReferenceCostKrw / (1 - Math.min(0.95, Math.max(0, cost.targetMargin))))
-      : 0;
-  const finalShadowChargeKrw = round1(standardUserChargeKrw * (1 - clampedPromo));
-  const finalShadowPoints = chargePoints(finalShadowChargeKrw);
+
+  let standardUserChargeKrw = 0;
+  let finalShadowChargeKrw = 0;
+  let finalShadowPoints = 0;
+  let publishedChargeStatus: "complete" | "blocked" = "blocked";
+  let publishedChargeBlockedReason: PublishedChargeBlockedReason | undefined;
+
+  const base = cost._publishedChargeBase;
+  if (base?.status === "complete") {
+    publishedChargeStatus = "complete";
+    standardUserChargeKrw = base.snapshot.standardUserChargeKrw;
+
+    if (clampedPromo > 0) {
+      const usage: NormalizedBillableUsage = {
+        promptTokens: base.snapshot.promptTokens,
+        cacheReadTokens: base.snapshot.cacheReadTokens,
+        cacheWriteTokens: base.snapshot.cacheWriteTokens,
+        standardInputTokens: base.snapshot.standardInputTokens,
+        visibleOutputTokens: base.snapshot.visibleOutputTokens,
+        reasoningTokens: base.snapshot.reasoningTokens,
+        billableOutputTokens: base.snapshot.billableOutputTokens,
+        reasoningAccounting: base.snapshot.reasoningAccounting,
+      };
+      const fxSnapshot: BillingFxSnapshot = {
+        mode: base.snapshot.fxMode,
+        dateKey: base.snapshot.fxDateKey,
+        usdToKrw: base.snapshot.usdToKrw,
+        effectiveKrwPerUsd: base.snapshot.effectiveKrwPerUsd,
+        source: base.snapshot.fxSource,
+        overseasFeeRate: base.snapshot.overseasFeeRate,
+        locked: base.snapshot.fxLocked,
+      };
+      const promoResult = computePublishedUserChargeWithSnapshot({
+        modelId: base.snapshot.canonicalModelId,
+        usage,
+        usageCoverage: "complete",
+        fxSnapshot,
+        adjustment: { kind: "self_funded_promo", promoId: "shadow_promo", percent: clampedPromo },
+        resolvedPricing: {
+          requestedModelId: base.snapshot.requestedModelId,
+          canonicalModelId: base.snapshot.canonicalModelId,
+          pricing: {
+            modelId: base.snapshot.canonicalModelId,
+            billingReferenceInputUsdPerMillion: base.snapshot.billingReferenceInputUsdPerMillion,
+            billingReferenceOutputUsdPerMillion: base.snapshot.billingReferenceOutputUsdPerMillion,
+            billingReferenceCacheReadUsdPerMillion: base.snapshot.billingReferenceCacheReadUsdPerMillion ?? undefined,
+            billingReferenceCacheWriteUsdPerMillion: base.snapshot.billingReferenceCacheWriteUsdPerMillion ?? undefined,
+            targetMargin: base.snapshot.targetMargin,
+            minimumMarginFloor: base.snapshot.minimumMarginFloor,
+            pricingVersion: base.snapshot.pricingVersion,
+            publishedAt: base.snapshot.publishedAt,
+          },
+        },
+      });
+      if (promoResult.status === "complete") {
+        finalShadowChargeKrw = promoResult.snapshot.finalUserChargeKrw;
+        finalShadowPoints = promoResult.snapshot.finalPoints;
+      } else {
+        finalShadowChargeKrw = standardUserChargeKrw;
+        finalShadowPoints = chargePoints(finalShadowChargeKrw);
+      }
+    } else {
+      finalShadowChargeKrw = base.snapshot.finalUserChargeKrw;
+      finalShadowPoints = base.snapshot.finalPoints;
+    }
+  } else if (base?.status === "blocked") {
+    publishedChargeBlockedReason = base.reason;
+    publishedChargeStatus = "blocked";
+  } else if (cost.billingReferenceCostStatus !== "complete") {
+    publishedChargeBlockedReason =
+      cost.billingReferenceCostStatus === "unsupported_cache_semantics"
+        ? "unsupported_cache_semantics"
+        : cost.billingReferenceCostStatus === "unsupported_pricing_tier"
+          ? "unsupported_pricing_tier"
+          : "unsupported_model";
+    publishedChargeStatus = "blocked";
+  }
+
   const promoGivebackKrw = round1(Math.max(0, standardUserChargeKrw - finalShadowChargeKrw));
   const isReserveComplete = cost.reserveStatus === "complete";
   const providerSavingsKrw = isReserveComplete ? Math.max(0, round1(cost.providerListCostKrw - cost.actualProviderCostKrw)) : null;
@@ -564,6 +611,8 @@ export function computeShadowCharge(cost: ShadowCostBreakdown, opts?: { promoPer
     promoGivebackKrw,
     finalShadowChargeKrw,
     finalShadowPoints,
+    publishedChargeStatus,
+    publishedChargeBlockedReason,
     actualRealizedMargin,
     providerSavingsKrw,
     providerOverrunKrw,

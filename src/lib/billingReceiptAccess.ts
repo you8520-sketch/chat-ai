@@ -67,10 +67,12 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
     shadowPricing: _shadowPricing,
+    publishedChargeSnapshot: _publishedChargeSnapshot,
     ...rest
-  } = usage;
+  } = usage as Usage & { publishedChargeSnapshot?: unknown };
   void _canonAdopted;
   void _canonAdoptedAt;
+  void _publishedChargeSnapshot;
   const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
