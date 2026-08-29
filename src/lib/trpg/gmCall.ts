@@ -43,12 +43,17 @@ export function healthyGmProviderWallMs(
 }
 export const GM_RETRYABLE_HTTP_STATUSES = [500, 502, 503, 504] as const;
 
+/** Provider terminal reasons that must not commit as a healthy GM round. */
+export const GM_ABNORMAL_PROVIDER_FINISH_REASONS = ["length", "content_filter"] as const;
+
 export type TrpgGmCallResult = {
   text: string;
   usage?: TrpgModelUsage;
   elapsedMs?: number;
   reasoningTokens?: number | "unavailable";
   providerTimings?: GmProviderTimings;
+  /** Last non-null terminal finish_reason from provider SSE, when emitted. */
+  finishReason?: string | null;
 };
 
 export type TrpgGmStreamCallbacks = {
@@ -241,18 +246,46 @@ function usageFromSsePayload(payload: unknown): StreamUsagePayload | undefined {
   return usage ? { usage } : undefined;
 }
 
+/** Preserve the last non-null terminal finish_reason from provider SSE payloads. */
+export function finishReasonFromSsePayload(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const reason = (payload as { choices?: Array<{ finish_reason?: unknown }> }).choices?.[0]?.finish_reason;
+  if (typeof reason !== "string") return null;
+  const trimmed = reason.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function isGmAbnormalProviderFinishReason(finishReason: string | null | undefined): boolean {
+  if (!finishReason) return false;
+  return (GM_ABNORMAL_PROVIDER_FINISH_REASONS as readonly string[]).includes(finishReason.toLowerCase());
+}
+
+export function assertHealthyGmProviderCompletion(finishReason: string | null | undefined): void {
+  if (!isGmAbnormalProviderFinishReason(finishReason)) return;
+  throw attachTrpgCallFailureMeta(
+    new Error(`[TRPG] abnormal provider completion: ${finishReason}`),
+    { stage: "provider_call", reasoningTokens: "unavailable" }
+  );
+}
+
 async function readGmProviderSseStream(opts: {
   model: string;
   response: Response;
   callbacks?: TrpgGmStreamCallbacks;
   timings: GmProviderTimings;
-}): Promise<{ text: string; usage?: TrpgModelUsage; reasoningTokens: number | "unavailable" }> {
+}): Promise<{
+  text: string;
+  usage?: TrpgModelUsage;
+  reasoningTokens: number | "unavailable";
+  finishReason: string | null;
+}> {
   const reader = opts.response.body?.getReader();
   if (!reader) throw new Error("[TRPG] empty stream body");
   const decoder = new TextDecoder();
   const sseState = { buffer: "" };
   let rawText = "";
   let usagePayload: StreamUsagePayload | undefined;
+  let terminalFinishReason: string | null = null;
   const parser = createGmStreamParser();
   let sawFirstChunk = false;
   let sawFirstNarration = false;
@@ -282,6 +315,8 @@ async function readGmProviderSseStream(opts: {
     if (content) emitRaw(content);
     const usage = usageFromSsePayload(payload);
     if (usage) usagePayload = usage;
+    const finishReason = finishReasonFromSsePayload(payload);
+    if (finishReason) terminalFinishReason = finishReason;
   };
 
   while (true) {
@@ -323,6 +358,7 @@ async function readGmProviderSseStream(opts: {
     text,
     usage: usagePayload ? usageFromResponse(opts.model, usagePayload) : undefined,
     reasoningTokens,
+    finishReason: terminalFinishReason,
   };
 }
 
@@ -386,11 +422,13 @@ async function postTrpgGmStream(opts: {
         callbacks: opts.callbacks,
         timings,
       });
+      assertHealthyGmProviderCompletion(streamResult.finishReason);
       const elapsedMs = Date.now() - started;
       console.info("[TRPG][gm] response_meta", {
         model: opts.model,
         elapsedMs,
         reasoningTokens: streamResult.reasoningTokens,
+        finishReason: streamResult.finishReason,
         firstContentMs:
           timings.firstChunkAtMs != null ? timings.firstChunkAtMs - timings.startAtMs : null,
         firstNarrationMs:
@@ -404,6 +442,7 @@ async function postTrpgGmStream(opts: {
         elapsedMs,
         reasoningTokens: streamResult.reasoningTokens,
         providerTimings: timings,
+        finishReason: streamResult.finishReason,
       };
     }
     throw lastHttpError ?? new Error("[TRPG] provider retry exhausted");
@@ -480,6 +519,7 @@ export async function callTrpgGm(opts: {
     elapsedMs: result.elapsedMs,
     reasoningTokens: result.reasoningTokens,
     providerTimings: result.providerTimings,
+    finishReason: result.finishReason,
   };
 }
 
