@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
+import { hasChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 
-const REMOTE_SCHEMA_VERSION = "turso-v1";
+export const REMOTE_SCHEMA_VERSION = "turso-v2-chat-billing-settlement";
+export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v1";
+
 const LOCK_STALE_AFTER_MS = 5 * 60_000;
 const WAIT_ATTEMPTS = 360;
 const WAIT_MS = 250;
@@ -26,12 +29,15 @@ function ensureControlTables(db: SchemaDatabase): void {
   `);
 }
 
+/** v2 "current" requires the version marker AND the canonical settlement schema invariant. */
 function isCurrent(db: SchemaDatabase): boolean {
-  return Boolean(
+  const versionMarked = Boolean(
     db.prepare("SELECT 1 AS ok FROM _remote_schema_state WHERE version=?").get(
       REMOTE_SCHEMA_VERSION
     )
   );
+  if (!versionMarked) return false;
+  return hasChatBillingSettlementSchema(db);
 }
 
 function markCurrent(db: SchemaDatabase): void {
@@ -45,9 +51,11 @@ function hasColumn(db: SchemaDatabase, table: string, column: string): boolean {
   return rows.some((row) => row.name === column);
 }
 
-/** Adopt databases completed by the first Turso preview, before schema versioning existed. */
+/** Adopt databases that already contain the full production schema including settlement UNIQUE owner. */
 export function canAdoptExistingRemoteSchema(db: SchemaDatabase): boolean {
   try {
+    if (!hasChatBillingSettlementSchema(db)) return false;
+
     const tables = db
       .prepare(
         `SELECT COUNT(*) AS c FROM sqlite_master
@@ -104,10 +112,20 @@ function releaseLock(db: SchemaDatabase, owner: string): void {
   db.prepare("DELETE FROM _remote_schema_lock WHERE id=1 AND owner=?").run(owner);
 }
 
+/** Fail closed — migration/adoption must leave canonical settlement schema before markCurrent. */
+function assertCanonicalSettlementSchemaReady(db: SchemaDatabase): void {
+  if (!hasChatBillingSettlementSchema(db)) {
+    throw new Error(
+      "Remote schema migration completed without canonical chat billing settlement schema."
+    );
+  }
+}
+
 export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void): void {
   ensureControlTables(db);
   if (isCurrent(db)) return;
   if (canAdoptExistingRemoteSchema(db)) {
+    assertCanonicalSettlementSchemaReady(db);
     markCurrent(db);
     return;
   }
@@ -118,6 +136,7 @@ export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void):
     if (tryAcquireLock(db, owner)) {
       try {
         migrate();
+        assertCanonicalSettlementSchemaReady(db);
         markCurrent(db);
         return;
       } finally {
