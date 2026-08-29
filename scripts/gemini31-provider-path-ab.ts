@@ -127,7 +127,7 @@ function median(nums: number[]): number {
   if (!nums.length) return 0;
   const s = [...nums].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[s]! : (s[mid - 1]! + s[mid]!) / 2;
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
 function stats(nums: number[]) {
@@ -344,14 +344,18 @@ async function streamRun(
     usage.promptTokens > 0
       ? Math.round((usage.cacheReadTokens / usage.promptTokens) * 1000) / 1000
       : 0;
-  const estimatedCostUsd =
-    usage.upstreamCostUsd ??
-    openRouterUsdCostFromRates({
+  const rawEstimated = openRouterUsdCostFromRates({
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       cacheReadTokens: usage.cacheReadTokens,
     });
+  const estimatedCostUsd =
+    typeof rawEstimated === "number"
+      ? rawEstimated
+      : typeof (rawEstimated as { usdCost?: number | null })?.usdCost === "number"
+        ? (rawEstimated as { usdCost: number }).usdCost
+        : usage.upstreamCostUsd ?? usage.cheaperInferenceBilledCostUsd ?? null;
 
   return {
     path: pathId,
