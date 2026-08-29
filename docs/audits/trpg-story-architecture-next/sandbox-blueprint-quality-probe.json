@@ -1,0 +1,223 @@
+{
+  "summary": {
+    "model": "deepseek-v4-flash-0731",
+    "worldsRun": 5,
+    "successes": 5,
+    "playablePassRate": "3/5",
+    "evaluateSandboxPassRate": "3/5",
+    "medianLatencyMs": 12170,
+    "p95LatencyMs": 16103,
+    "typicalInputTokens": 951,
+    "typicalOutputTokens": 1050,
+    "typicalEstimatedUserPointsIfBilled": 5,
+    "note": "Blueprint generation is NOT billed to users today; points are hypothetical via computeOpenRouterTurnBilling."
+  },
+  "results": [
+    {
+      "world": "survival_apocalypse",
+      "genre": "survival / apocalypse",
+      "latencyMs": 10713,
+      "inputTokens": 972,
+      "outputTokens": 899,
+      "estimatedUserPoints": 5,
+      "playable": false,
+      "evaluateSandboxBlueprint": {
+        "ok": false,
+        "error": "sandbox blueprint missing required story fields"
+      },
+      "lintErrors": [
+        "missing_endings"
+      ],
+      "lintWarnings": [
+        "no_ending_conditions",
+        "recovery_path_unclear"
+      ],
+      "qualityReview": {
+        "STARTING_SITUATION_USABLE": true,
+        "CENTRAL_CONFLICT_CLEAR": true,
+        "PLAYER_GOAL_ACTIONABLE": true,
+        "ENDING_CONDITIONS_PLAYABLE": false,
+        "MAJOR_EVENTS_OPTIONAL_NOT_RAILROAD": true,
+        "CLUES_USEFUL": true,
+        "CLIMAX_CAUSAL": true,
+        "ENDING_CANDIDATES_NOT_FIXED_BRANCHES": true,
+        "WORLD_CANON_CONTRADICTION": true,
+        "PLAYER_AGENCY_VIOLATION": false
+      },
+      "planFieldsPresent": {
+        "startingSituation": true,
+        "centralConflict": true,
+        "goal": true,
+        "endingConditions": 0,
+        "majorEvents": 2,
+        "clues": 2,
+        "climax": true,
+        "endingCandidates": 3,
+        "playLength": "open_ended"
+      }
+    },
+    {
+      "world": "fantasy_adventure",
+      "genre": "fantasy adventure",
+      "latencyMs": 11429,
+      "inputTokens": 955,
+      "outputTokens": 1113,
+      "estimatedUserPoints": 5,
+      "playable": true,
+      "evaluateSandboxBlueprint": {
+        "ok": true
+      },
+      "lintErrors": [],
+      "lintWarnings": [
+        "recovery_path_unclear"
+      ],
+      "qualityReview": {
+        "STARTING_SITUATION_USABLE": true,
+        "CENTRAL_CONFLICT_CLEAR": true,
+        "PLAYER_GOAL_ACTIONABLE": true,
+        "ENDING_CONDITIONS_PLAYABLE": true,
+        "MAJOR_EVENTS_OPTIONAL_NOT_RAILROAD": true,
+        "CLUES_USEFUL": true,
+        "CLIMAX_CAUSAL": false,
+        "ENDING_CANDIDATES_NOT_FIXED_BRANCHES": true,
+        "WORLD_CANON_CONTRADICTION": true,
+        "PLAYER_AGENCY_VIOLATION": true
+      },
+      "planFieldsPresent": {
+        "startingSituation": true,
+        "centralConflict": true,
+        "goal": true,
+        "endingConditions": 2,
+        "majorEvents": 2,
+        "clues": 2,
+        "climax": true,
+        "endingCandidates": 2,
+        "playLength": "open_ended"
+      }
+    },
+    {
+      "world": "social_relationship",
+      "genre": "social / relationship",
+      "latencyMs": 12170,
+      "inputTokens": 944,
+      "outputTokens": 851,
+      "estimatedUserPoints": 5,
+      "playable": true,
+      "evaluateSandboxBlueprint": {
+        "ok": true
+      },
+      "lintErrors": [],
+      "lintWarnings": [
+        "recovery_path_unclear"
+      ],
+      "qualityReview": {
+        "STARTING_SITUATION_USABLE": true,
+        "CENTRAL_CONFLICT_CLEAR": true,
+        "PLAYER_GOAL_ACTIONABLE": true,
+        "ENDING_CONDITIONS_PLAYABLE": true,
+        "MAJOR_EVENTS_OPTIONAL_NOT_RAILROAD": true,
+        "CLUES_USEFUL": true,
+        "CLIMAX_CAUSAL": true,
+        "ENDING_CANDIDATES_NOT_FIXED_BRANCHES": true,
+        "WORLD_CANON_CONTRADICTION": true,
+        "PLAYER_AGENCY_VIOLATION": false
+      },
+      "planFieldsPresent": {
+        "startingSituation": true,
+        "centralConflict": true,
+        "goal": true,
+        "endingConditions": 2,
+        "majorEvents": 2,
+        "clues": 2,
+        "climax": true,
+        "endingCandidates": 2,
+        "playLength": "open_ended"
+      }
+    },
+    {
+      "world": "mystery",
+      "genre": "mystery",
+      "latencyMs": 16103,
+      "inputTokens": 948,
+      "outputTokens": 1365,
+      "estimatedUserPoints": 5,
+      "playable": true,
+      "evaluateSandboxBlueprint": {
+        "ok": true
+      },
+      "lintErrors": [],
+      "lintWarnings": [
+        "goal_ending_unrelated",
+        "climax_unrelated",
+        "recovery_path_unclear"
+      ],
+      "qualityReview": {
+        "STARTING_SITUATION_USABLE": true,
+        "CENTRAL_CONFLICT_CLEAR": true,
+        "PLAYER_GOAL_ACTIONABLE": true,
+        "ENDING_CONDITIONS_PLAYABLE": true,
+        "MAJOR_EVENTS_OPTIONAL_NOT_RAILROAD": true,
+        "CLUES_USEFUL": true,
+        "CLIMAX_CAUSAL": false,
+        "ENDING_CANDIDATES_NOT_FIXED_BRANCHES": true,
+        "WORLD_CANON_CONTRADICTION": true,
+        "PLAYER_AGENCY_VIOLATION": false
+      },
+      "planFieldsPresent": {
+        "startingSituation": true,
+        "centralConflict": true,
+        "goal": true,
+        "endingConditions": 2,
+        "majorEvents": 2,
+        "clues": 2,
+        "climax": true,
+        "endingCandidates": 3,
+        "playLength": "open_ended"
+      }
+    },
+    {
+      "world": "open_exploration",
+      "genre": "open exploration",
+      "latencyMs": 14676,
+      "inputTokens": 936,
+      "outputTokens": 1020,
+      "estimatedUserPoints": 5,
+      "playable": false,
+      "evaluateSandboxBlueprint": {
+        "ok": false,
+        "error": "sandbox blueprint missing required story fields"
+      },
+      "lintErrors": [
+        "missing_endings"
+      ],
+      "lintWarnings": [
+        "no_ending_conditions",
+        "recovery_path_unclear"
+      ],
+      "qualityReview": {
+        "STARTING_SITUATION_USABLE": true,
+        "CENTRAL_CONFLICT_CLEAR": true,
+        "PLAYER_GOAL_ACTIONABLE": true,
+        "ENDING_CONDITIONS_PLAYABLE": false,
+        "MAJOR_EVENTS_OPTIONAL_NOT_RAILROAD": true,
+        "CLUES_USEFUL": true,
+        "CLIMAX_CAUSAL": true,
+        "ENDING_CANDIDATES_NOT_FIXED_BRANCHES": true,
+        "WORLD_CANON_CONTRADICTION": true,
+        "PLAYER_AGENCY_VIOLATION": false
+      },
+      "planFieldsPresent": {
+        "startingSituation": true,
+        "centralConflict": true,
+        "goal": true,
+        "endingConditions": 0,
+        "majorEvents": 2,
+        "clues": 2,
+        "climax": true,
+        "endingCandidates": 2,
+        "playLength": "open_ended"
+      }
+    }
+  ],
+  "generatedAt": "2026-08-29T13:43:37.921Z"
+}
