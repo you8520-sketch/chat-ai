@@ -271,6 +271,36 @@ describe("billingReceiptAccess shadow privacy", () => {
     assert.equal((pub as unknown as Record<string, unknown>).shadowPricing, undefined);
   });
 
+  it("strips synthetic future published charge snapshot fields from public receipt", () => {
+    const usage = {
+      input: 100,
+      output: 200,
+      model: "gemini-3.1-pro-preview",
+      route: "safe" as const,
+      cost: 229,
+      breakdown: [],
+      publishedChargeSnapshot: {
+        chargeSnapshotSchemaVersion: 1,
+        roundingPolicyVersion: "published_points_v1",
+        canonicalModelId: "gemini-3.1-pro-preview",
+        pricingVersion: 2,
+        targetMargin: 0.09,
+        minimumMarginFloor: 0.05,
+        billingReferenceInputUsdPerMillion: 2,
+        billingReferenceOutputUsdPerMillion: 12,
+        fxSource: "api_daily",
+        usdToKrw: 1530,
+        effectiveKrwPerUsd: 1560.6,
+        overseasFeeRate: 0.02,
+        finalPoints: 229,
+      },
+    } as unknown as Usage;
+    const pub = sanitizeUsageForPublicReceipt(usage);
+    const leaked = pub as unknown as Record<string, unknown>;
+    assert.equal(leaked.publishedChargeSnapshot, undefined);
+    assert.equal(leaked.targetMargin, undefined);
+  });
+
   it("also strips via stripAdultRoutingForClient without keepInternal", () => {
     const usage = {
       input: 10,

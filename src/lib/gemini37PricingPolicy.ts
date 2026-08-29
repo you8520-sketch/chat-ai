@@ -141,7 +141,7 @@ function chargePoints(n: number): number {
 export function buildFxSnapshotFromBase(baseUsdKrw: number): ShadowBillingExchangeRateSnapshot {
   return {
     mode: SHADOW_BILLING_FX_MODE,
-    dateKey: "fixture",
+    dateKey: "2026-08-28",
     usdToKrw: baseUsdKrw,
     effectiveKrwPerUsd: applyOverseasCardFee(baseUsdKrw),
     source: "api_daily",
