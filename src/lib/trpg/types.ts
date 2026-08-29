@@ -1,6 +1,7 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
 import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import type { TrpgLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
 export const TRPG_GM_MODEL = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
@@ -205,6 +206,8 @@ export type TrpgStateDelta = {
   threadsAdd?: string[];
   threadsResolve?: string[];
   endingConditionId?: string;
+  /** Optional local multi-round scene progress mutations. Omission is not deletion. */
+  localScene?: TrpgLocalSceneProgressDelta;
 };
 
 export function assertNeverTrpg(x: never, label: string): never {

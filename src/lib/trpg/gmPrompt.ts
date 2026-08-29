@@ -4,6 +4,7 @@ import {
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
 import { statModifier } from "./stats";
+import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
 const NARRATION_OPEN = "<<<NARRATION>>>";
@@ -82,6 +83,10 @@ function asDelta(raw: unknown): TrpgStateDelta {
   if (threadsResolve) delta.threadsResolve = threadsResolve;
   if (typeof src.endingConditionId === "string") delta.endingConditionId = src.endingConditionId;
   else if (typeof src.ending_condition_id === "string") delta.endingConditionId = src.ending_condition_id;
+  const localScene =
+    parseLocalSceneProgressDelta(src.localScene) ??
+    parseLocalSceneProgressDelta(src.local_scene);
+  if (localScene) delta.localScene = localScene;
   return delta;
 }
 
@@ -216,7 +221,7 @@ Output format exactly:
 <<<NARRATION>>>
 (Korean prose following ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
 <<<DELTA>>>
-{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
+{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{"objectiveSet":"","openRoutesAdd":[],"remainingBlockersAdd":[],"sceneStateSet":"active"}}
 `;
 
 export function formatTrpgSheetCanon(opts: {
@@ -270,6 +275,8 @@ export function buildTrpgGmUserBlock(opts: {
   scenarioAssetPrompt?: string;
   scenarioPlanBlock?: string;
   storyDirectorBlock?: string;
+  localSceneBlock?: string;
+  localSceneDeltaContract?: string;
   resolutionOrderBlock?: string;
   mechanicsPacket?: string;
   actions: Array<{
@@ -334,6 +341,8 @@ export function buildTrpgGmUserBlock(opts: {
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.scenarioPlanBlock?.trim() ?? "",
     opts.storyDirectorBlock?.trim() ?? "",
+    opts.localSceneBlock?.trim() ?? "",
+    opts.localSceneDeltaContract?.trim() ?? "",
     formatTrpgGenreToneLine(opts.genres ?? []),
     "[SCENE CRAFT]\nApply the system scene-craft contract and ROUND NARRATION BUDGET.",
     narrationBudget,
