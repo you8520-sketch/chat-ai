@@ -1,6 +1,6 @@
 # Billing Turn Usage + Waiver Contract Audit
 
-**Audit date:** 2026-08-29 (route-composition correction pass)
+**Audit date:** 2026-08-29 (route-composition correction + doc-consistency micro-pass)
 **Scope:** Characterization + contract fit only — **no production billing changes**
 **Base main SHA:** `0f4f8c3df34488f551c49970101186dda3abc4c1`
 **PR branch:** `cursor/billing-turn-usage-waiver-audit-d7cd`
@@ -58,8 +58,10 @@ Primary input/cache tokens come from the **first billable primary stage**; outpu
 
 ### Waiver gate
 
+Production composition in `route.ts` (lines ~4327–4376):
+
 ```text
-billingWaiverReason = shouldWaiveTurnBilling(trimmed, {
+billingWaiverReason = shouldWaiveTurnBilling(savedText, {
   forcedAbort,
   degenerationAborted,
   generationFailure,
@@ -67,9 +69,18 @@ billingWaiverReason = shouldWaiveTurnBilling(trimmed, {
   adultMode: true,
   targetResponseChars,
 })
-if (billingWaiverReason) cost = 0
-else → model-specific minimum chain (see §3)
+cost = billingWaiverReason ? 0 : billing.total
+if (billingWaiverReason && !isMockApiMode()) {
+  waiverMin = model-specific resolve*WaiverMinimumCharge(
+    savedText,
+    billingWaiverReason,
+    { degenerationAborted, targetResponseChars }
+  )
+  if (waiverMin > 0) cost = waiverMin
+}
 ```
+
+The minimum resolver runs **inside the waiver branch** (same reason and text), not as an `else` fallback. Route-composition tests prove every reachable `(text, reason)` pair yields `waiverMin = 0`, so final charge stays **0P**.
 
 ### Widget add-on (auxiliary)
 
@@ -92,7 +103,7 @@ After shadow pricing, `statusWidgetApiCostChargePoints` may add integer points. 
 | **MINIMUM_CHARGE_COMMON_OWNER** | `src/lib/points.ts` | `resolveModelWaiverMinimumCharge()` (private) | 0 direct (via model wrappers) |
 | **MINIMUM_CHARGE_MODEL_WRAPPERS** | `src/lib/points.ts` | 7 public `resolve*WaiverMinimumCharge()` | 1 each (`route.ts` only) |
 | **MINIMUM_CHARGE_CONSTANT_OWNER** | `src/lib/points.ts` | `*_WAIVER_SUCCESS_MIN_COST` constants | Used only by minimum resolver |
-| **FINAL_WAIVER_COST_OWNER** | `src/app/api/chat/route.ts` | inline `if (billingWaiverReason) cost = 0` | 1 |
+| **FINAL_WAIVER_COST_OWNER** | `src/app/api/chat/route.ts` | inline waiver gate + optional minimum floor (lines ~4335–4376) | 1 |
 
 ### `@/lib/points` alias chain (verified)
 
@@ -107,14 +118,44 @@ After shadow pricing, `statusWidgetApiCostChargePoints` may add integer points. 
 
 ## 3. Route composition — waiver + minimum (corrected)
 
+### `BillingWaiverReason` enum (current production)
+
+```text
+over_reasoning | garbage_output | forced_abort | degeneration | generation_failure
+```
+
+There is **no** `usage_unavailable` enum value. `usageUnavailable` is a **route input/trigger** that maps to returned reason `generation_failure`.
+
+### Input condition → returned reason (`shouldWaiveTurnBilling`)
+
+Evaluated in order; first match wins:
+
+| Input condition | Returned `BillingWaiverReason` |
+|-----------------|--------------------------------|
+| `degenerationAborted === true` | `degeneration` |
+| `generationFailure` set (e.g. `under_length`, `provider_error`) | `generation_failure` |
+| `usageUnavailable === true` | `generation_failure` |
+| `unknownError \|\| forcedAbort` + degenerate text | `garbage_output` |
+| `unknownError \|\| forcedAbort` + catastrophically short text | `forced_abort` |
+| `unknownError \|\| forcedAbort` + healthy text | `null` (no waiver) |
+| catastrophically short text (no prior match) | `generation_failure` |
+| degenerate text (no prior match) | `garbage_output` |
+| otherwise | `null` |
+
+`over_reasoning` exists in the type and minimum resolver but is **never returned** by `shouldWaiveTurnBilling()`.
+
 ### Composed path
 
 ```text
-shouldWaiveTurnBilling(text, flags, targetResponseChars)
-  → billingWaiverReason | null
-  → if reason: cost = 0
-  → else if reason was set earlier: model resolve*WaiverMinimumCharge(text, reason, targetResponseChars)
+reason = shouldWaiveTurnBilling(text, flags, targetResponseChars)
+cost = reason ? 0 : billing.total
+if (reason && !isMockApiMode()) {
+  waiverMin = model-specific resolve*WaiverMinimumCharge(text, reason, targetResponseChars)
+  if (waiverMin > 0) cost = waiverMin
+}
 ```
+
+Sequence: waiver reason → zero base charge → optional minimum resolver on **same** reason/text → final charge. All reachable pairs return `waiverMin = 0`, so final charge remains **0P**.
 
 **Critical invariant (proven by tests):**
 
@@ -122,16 +163,16 @@ When `shouldWaiveTurnBilling` returns `forced_abort`, `isCatastrophicallyShortRe
 
 ### Reachability matrix (route composition fixtures A–H)
 
-| Fixture | shouldWaive | Minimum resolver called | Waiver minimum | Final semantic |
-|---------|-------------|-------------------------|----------------|----------------|
-| A. Forced abort + healthy long output | `null` | No | — | **NORMAL FULL BILLING** |
-| B. Forced abort + catastrophically short | `forced_abort` | Yes | **0** | **0P waiver** |
-| C. Forced abort + degenerate output | `degeneration` | Yes | **0** | **0P waiver** |
-| D. degenerationAborted | `degeneration` | Yes | **0** | **0P waiver** |
-| E. generationFailure | `generation_failure` | Yes | **0** | **0P waiver** |
-| F. usageUnavailable | `usage_unavailable` | Yes | **0** | **0P waiver** |
-| G. Short without forcedAbort | `forced_abort` | Yes | **0** | **0P waiver** |
-| H. Garbage without forcedAbort | `garbage_output` | Yes | **0** | **0P waiver** |
+| Fixture | Input triggers | Returned reason | Minimum resolver called | Waiver minimum | Final semantic |
+|---------|----------------|-----------------|-------------------------|----------------|----------------|
+| A. Forced abort + healthy long output | `forcedAbort` | `null` | No | — | **NORMAL FULL BILLING** |
+| B. Forced abort + catastrophically short | `forcedAbort` | `forced_abort` | Yes | **0** | **0P waiver** |
+| C. Forced abort + degenerate output | `forcedAbort` | `garbage_output` | Yes | **0** | **0P waiver** |
+| D. degenerationAborted | `degenerationAborted` | `degeneration` | Yes | **0** | **0P waiver** |
+| E. generationFailure | `generationFailure` | `generation_failure` | Yes | **0** | **0P waiver** |
+| F. usageUnavailable | `usageUnavailable` | `generation_failure` | Yes | **0** | **0P waiver** |
+| G. Short without forcedAbort | (none) | `generation_failure` | Yes | **0** | **0P waiver** |
+| H. Garbage without forcedAbort | (none) | `garbage_output` | Yes | **0** | **0P waiver** |
 
 ### Hard reachability question
 
@@ -145,17 +186,27 @@ The low-level helper `resolveDeepSeekWaiverMinimumCharge(meaningfulProse, "force
 
 ### Reachable waiver reasons (all models)
 
-For every model (DeepSeek, Qwen, GLM, Kimi, Muse, Gemini 3.6, Gemini 3.1) and every reason producible by `shouldWaiveTurnBilling`:
+Returned `BillingWaiverReason` values producible by `shouldWaiveTurnBilling()` through route composition:
 
-| GENERATED_REASON | MINIMUM_RESULT |
-|------------------|----------------|
+```text
+forced_abort
+degeneration
+generation_failure
+garbage_output
+```
+
+Trigger note: `usageUnavailable` input → returned `generation_failure` (not a separate enum value).
+
+For every model (DeepSeek, Qwen, GLM, Kimi, Muse, Gemini 3.6, Gemini 3.1) and every reachable reason above:
+
+| RETURNED_REASON | MINIMUM_RESULT |
+|-----------------|----------------|
 | `forced_abort` | 0 |
 | `degeneration` | 0 |
 | `generation_failure` | 0 |
 | `garbage_output` | 0 |
-| `usage_unavailable` | 0 |
 
-(`over_reasoning` is handled inside the minimum resolver but **never returned** by `shouldWaiveTurnBilling`.)
+(`over_reasoning` is handled inside the minimum resolver but **never returned** by `shouldWaiveTurnBilling()`.)
 
 ### Waiver semantic (corrected)
 
@@ -306,7 +357,7 @@ Changes limited to: this audit doc + `src/lib/turnBillingUsageAudit.test.ts`.
 
 | Section | Purpose |
 |---------|---------|
-| `LOW_LEVEL_HELPER_CHARACTERIZATION` | Isolated resolver behavior including unreachable manual pairs — **not** route evidence |
+| `LOW_LEVEL_HELPER_CHARACTERIZATION` | Isolated resolver behavior including unreachable manual pairs (e.g. healthy text + manual `forced_abort`) — labeled **NOT ROUTE REACHABLE**; **not** route evidence |
 | `CURRENT_ROUTE_COMPOSITION_CHARACTERIZATION` | Full composed path mirroring `route.ts` — **authoritative for live semantics** |
 
 Run: `node --conditions=react-server --import tsx --test src/lib/turnBillingUsageAudit.test.ts`
