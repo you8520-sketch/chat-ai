@@ -18,7 +18,7 @@ import {
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 7700;
+const SYSTEM_PROMPT_CHARS_BEFORE = 9500;
 
 function padRich(seed: string): string {
   let out = seed.trim();
@@ -146,7 +146,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
     assert.match(block, /\[INTENT\]\n측면을 찌른다/);
     assert.match(block, /\[VISIBLE ACTION PROSE — established context for its outcome\]/);
     assert.equal(block.split(richBody.trim()).length - 1, 1);
-    assert.match(TRPG_GM_SYSTEM, /first NEW consequence, resolution, world reaction, discovery, or changed state/);
+    assert.match(TRPG_GM_SYSTEM, /first new consequence or changed state/i);
   });
 
   it("C: no-intent action — body occurs exactly once", () => {
