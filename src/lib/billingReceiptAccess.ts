@@ -44,13 +44,16 @@ export function filterUsageBreakdownForReceipt(
   return breakdown.filter((b) => b.label !== BILLING_BREAKDOWN_SYSTEM_RULES_LABEL);
 }
 
-function stripUsageReportingEvidenceFromStages(
+function stripInternalEconomicsFromStages(
   stages: Usage["stages"] | undefined
 ): Usage["stages"] | undefined {
   if (!stages?.length) return stages;
   return stages.map((stage) => {
     const copy = { ...stage } as Record<string, unknown>;
     delete copy.usageReportingEvidence;
+    delete copy.cheaperInferenceBilledCostUsd;
+    delete copy.upstreamCostUsd;
+    delete copy.cacheDiscountUsd;
     return copy as NonNullable<Usage["stages"]>[number];
   });
 }
@@ -63,6 +66,28 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     statusWidgetExtractDiagnostics: _statusWidgetExtractDiagnostics,
     widgetCostPoints: _widgetCostPoints,
     mainApiRawCostKrw: _mainApiRawCostKrw,
+    apiRawCostKrw: _apiRawCostKrw,
+    apiRawCostSource: _apiRawCostSource,
+    normalizedRawCostKrw: _normalizedRawCostKrw,
+    upstreamCostUsd: _upstreamCostUsd,
+    cacheDiscountUsd: _cacheDiscountUsd,
+    apiInputTokens: _apiInputTokens,
+    apiOutputTokens: _apiOutputTokens,
+    apiReasoningOutputTokens: _apiReasoningOutputTokens,
+    apiContentOutputTokens: _apiContentOutputTokens,
+    apiCallCount: _apiCallCount,
+    cacheReadTokens: _cacheReadTokens,
+    cacheWriteTokens: _cacheWriteTokens,
+    standardInputTokens: _standardInputTokens,
+    cacheReadLine: _cacheReadLine,
+    cacheWriteLine: _cacheWriteLine,
+    cacheRateSummary: _cacheRateSummary,
+    cacheFamily: _cacheFamily,
+    gemini37FlashPricing: _gemini37FlashPricing,
+    coldStartShieldApplied: _coldStartShieldApplied,
+    uncappedChargePoints: _uncappedChargePoints,
+    coldStartCostFloorPoints: _coldStartCostFloorPoints,
+    baseCost: _baseCost,
     exchangeRateKrwPerUsd: _exchangeRateKrwPerUsd,
     exchangeRateDateKey: _exchangeRateDateKey,
     exchangeRateMode: _exchangeRateMode,
@@ -86,10 +111,16 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
   void _canonAdoptedAt;
   void _publishedChargeSnapshot;
   void _adminBillingReceipt;
+  void _apiRawCostKrw;
+  void _apiRawCostSource;
+  void _normalizedRawCostKrw;
+  void _upstreamCostUsd;
+  void _cacheDiscountUsd;
+  void _baseCost;
   const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
-    stages: stripUsageReportingEvidenceFromStages(rest.stages),
+    stages: stripInternalEconomicsFromStages(rest.stages),
   };
   if (routing?.activeRoute === "adult" || routing?.fallbackSucceeded) {
     Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));

@@ -114,6 +114,7 @@ export type Usage = {
     cacheReadTokens?: number;
     cacheWriteTokens?: number;
     upstreamCostUsd?: number;
+    cheaperInferenceBilledCostUsd?: number;
     estimated?: boolean;
   };
   /** 관리자 전용 — 위젯 추출 실패/폴백 진단. 일반 사용자 영수증에서는 제거됨. */

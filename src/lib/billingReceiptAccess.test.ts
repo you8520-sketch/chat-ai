@@ -271,6 +271,32 @@ describe("billingReceiptAccess shadow privacy", () => {
     assert.equal((pub as unknown as Record<string, unknown>).shadowPricing, undefined);
   });
 
+  it("strips internal provider economics from public receipt", () => {
+    const usage = {
+      input: 100,
+      output: 50,
+      model: "google/gemini-3.7-flash",
+      route: "safe" as const,
+      cost: 10,
+      apiRawCostKrw: 42,
+      apiRawCostSource: "provider_reported" as const,
+      upstreamCostUsd: 0.03,
+      cacheDiscountUsd: 0.001,
+      normalizedRawCostKrw: 40,
+      baseCost: 8,
+      exchangeRateKrwPerUsd: 1405,
+    } satisfies Usage;
+    const pub = sanitizeUsageForPublicReceipt(usage) as Record<string, unknown>;
+    assert.equal(pub.apiRawCostKrw, undefined);
+    assert.equal(pub.apiRawCostSource, undefined);
+    assert.equal(pub.upstreamCostUsd, undefined);
+    assert.equal(pub.normalizedRawCostKrw, undefined);
+    assert.equal(pub.baseCost, undefined);
+    assert.equal(pub.exchangeRateKrwPerUsd, undefined);
+    assert.equal(pub.input, 100);
+    assert.equal(pub.cost, 10);
+  });
+
   it("strips adminBillingReceipt from public receipt", () => {
     const usage = {
       input: 100,

@@ -6,7 +6,6 @@
 import type { StageUsage } from "@/lib/ai";
 import type { Usage } from "@/lib/chatUsage";
 import {
-  applyOverseasCardFee,
   convertUsdToKrw,
   OVERSEAS_CARD_FEE_RATE,
   type BillingExchangeRateSnapshot,
@@ -17,6 +16,11 @@ import {
   resolveCheaperInferenceCatalogPricing,
 } from "@/lib/cheaperInferenceCatalogPricing";
 import { selectCatalogPricingTier } from "@/lib/catalogPricingTier";
+import {
+  type ActualTurnCostCoverage,
+  resolveActualTurnCostCoverage,
+} from "@/lib/shadowPricing";
+import { isMeteredReceiptProvider } from "@/lib/billingDisplay";
 
 export const ADMIN_BILLING_RECEIPT_SCHEMA_VERSION = 1 as const;
 
@@ -62,19 +66,26 @@ export type AdminBillingReceiptProjection = {
     provider: string;
     actualProviderCostUsd: number | null;
     actualCostSource: string;
+    /** Whole-turn settled actual coverage — not stage-only. */
     actualCostCoverage: AdminActualCostCoverage;
+    stageSettlementCoverage: AdminActualCostCoverage;
     fxDateKey: string;
     fxMode: string;
     baseUsdKrw: number;
     effectiveKrwPerUsd: number;
     overseasCardFeeRate: number;
+    /** Base FX (fee excluded). */
     baseActualKrw: number | null;
+    /** Effective cash cost (single card-fee application via effective FX). */
     effectiveProviderCashCostKrw: number | null;
   };
   providerListReference: {
     providerListCostUsd: number | null;
     referenceSource: string;
+    /** Base FX (fee excluded). */
     baseReferenceKrw: number | null;
+    /** Effective FX (fee included). */
+    effectiveReferenceKrw: number | null;
   };
   publishedBillingReference: {
     billingReferenceCostUsd: number | null;
@@ -92,10 +103,6 @@ export type AdminBillingReceiptProjection = {
   providerCalls: AdminProviderCallAuditRow[];
 };
 
-function roundUsd(n: number): number {
-  return Math.round(n * 10_000) / 10_000;
-}
-
 function roundKrw(n: number): number {
   return Math.round(n * 10) / 10;
 }
@@ -104,7 +111,18 @@ function isCostBearingStage(stage: StageUsage): boolean {
   return !isGeminiBillingStage(stage);
 }
 
-function stageSettledActualUsd(stage: StageUsage): number | null {
+function isCheaperInferenceProvider(provider: string): boolean {
+  return provider === "cheaperinference";
+}
+
+function resolveProviderListReferenceSource(provider: string): string {
+  if (provider === "cheaperinference") return "cheaper_inference_catalog_reference_rates";
+  if (provider === "openrouter") return "openrouter_model_list_rates";
+  return "provider_reference_unavailable";
+}
+
+/** CI settled actual — authoritative for CheaperInference stages. */
+function ciStageSettledActualUsd(stage: StageUsage): number | null {
   const billed = stage.cheaperInferenceBilledCostUsd;
   if (billed != null && billed > 0 && Number.isFinite(billed)) {
     return billed;
@@ -112,7 +130,15 @@ function stageSettledActualUsd(stage: StageUsage): number | null {
   return null;
 }
 
-function stageReferenceListUsd(stage: StageUsage): number | null {
+function stageSettledActualUsd(stage: StageUsage, provider: string): number | null {
+  if (isCheaperInferenceProvider(provider)) {
+    return ciStageSettledActualUsd(stage);
+  }
+  return null;
+}
+
+function stageReferenceListUsd(stage: StageUsage, provider: string): number | null {
+  if (!isCheaperInferenceProvider(provider)) return null;
   const catalog = resolveCheaperInferenceCatalogPricing(stage.model);
   if (!catalog) return null;
   const input = Math.max(0, stage.apiReportedInputTokens ?? stage.input ?? 0);
@@ -140,65 +166,164 @@ function stageReferenceListUsd(stage: StageUsage): number | null {
       ? (cacheWrite / 1_000_000) * resolved.referenceCacheWriteUsdPerMillion
       : 0) +
     (output / 1_000_000) * resolved.referenceOutputUsdPerMillion;
-  return usd > 0 ? roundUsd(usd) : null;
+  return usd > 0 ? usd : null;
 }
 
-function settlementStatusForStage(stage: StageUsage): AdminSettlementDisplayStatus {
-  if (stageSettledActualUsd(stage) != null) return "SETTLED_EXACT";
+function settlementStatusForStage(
+  stage: StageUsage,
+  provider: string
+): AdminSettlementDisplayStatus {
+  if (stageSettledActualUsd(stage, provider) != null) return "SETTLED_EXACT";
   if (stage.upstreamCostUsd != null && stage.upstreamCostUsd > 0) return "ESTIMATED_ONLY";
   return "UNAVAILABLE";
 }
 
-function actualCostSourceForStage(stage: StageUsage): string {
-  if (stageSettledActualUsd(stage) != null) return "cheaper_inference_billed";
+function actualCostSourceForStage(stage: StageUsage, provider: string): string {
+  if (stageSettledActualUsd(stage, provider) != null) return "cheaper_inference_billed";
   if (stage.upstreamCostUsd != null && stage.upstreamCostUsd > 0) return "upstream_reported";
   return "unavailable";
 }
 
-export function aggregateTurnSettledActualUsd(stages: StageUsage[]): {
-  totalUsd: number | null;
-  coverage: AdminActualCostCoverage;
+/** Stage-level settled USD sum — does NOT determine whole-turn coverage. */
+export function summarizeStageSettledActualUsd(
+  stages: StageUsage[],
+  provider: string
+): {
+  totalSettledUsd: number | null;
   settledCallCount: number;
   costBearingCallCount: number;
+  allStagesSettled: boolean;
 } {
   const costBearing = stages.filter(isCostBearingStage);
   if (costBearing.length === 0) {
-    return { totalUsd: null, coverage: "partial", settledCallCount: 0, costBearingCallCount: 0 };
+    return {
+      totalSettledUsd: null,
+      settledCallCount: 0,
+      costBearingCallCount: 0,
+      allStagesSettled: false,
+    };
   }
 
   let sum = 0;
   let settledCount = 0;
   for (const stage of costBearing) {
-    const settled = stageSettledActualUsd(stage);
+    const settled = stageSettledActualUsd(stage, provider);
     if (settled != null) {
       sum += settled;
       settledCount += 1;
     }
   }
 
-  if (settledCount === 0) {
-    return { totalUsd: null, coverage: "partial", settledCallCount: 0, costBearingCallCount: costBearing.length };
-  }
-  if (settledCount < costBearing.length) {
-    return {
-      totalUsd: roundUsd(sum),
-      coverage: "partial",
-      settledCallCount: settledCount,
-      costBearingCallCount: costBearing.length,
-    };
-  }
   return {
-    totalUsd: roundUsd(sum),
-    coverage: "complete",
+    totalSettledUsd: settledCount > 0 ? sum : null,
     settledCallCount: settledCount,
     costBearingCallCount: costBearing.length,
+    allStagesSettled: settledCount === costBearing.length,
   };
+}
+
+/** @deprecated Use summarizeStageSettledActualUsd — legacy name for tests migrating. */
+export function aggregateTurnSettledActualUsd(stages: StageUsage[]): {
+  totalUsd: number | null;
+  coverage: AdminActualCostCoverage;
+  settledCallCount: number;
+  costBearingCallCount: number;
+} {
+  const summary = summarizeStageSettledActualUsd(stages, "cheaperinference");
+  return {
+    totalUsd: summary.totalSettledUsd,
+    coverage: summary.allStagesSettled ? "complete" : "partial",
+    settledCallCount: summary.settledCallCount,
+    costBearingCallCount: summary.costBearingCallCount,
+  };
+}
+
+export type AuxiliaryProviderCostEvidence = {
+  purpose: string;
+  provider: string;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+  settledActualUsd: number | null;
+  actualCostSource: string;
+  settlementStatus: AdminSettlementDisplayStatus;
+  upstreamReportedUsd: number | null;
+};
+
+export function resolveStatusWidgetAuxiliaryCost(
+  widget: Usage["statusWidgetExtract"]
+): AuxiliaryProviderCostEvidence | null {
+  if (!widget) return null;
+
+  const cheaperBilled = (widget as { cheaperInferenceBilledCostUsd?: number })
+    .cheaperInferenceBilledCostUsd;
+  if (cheaperBilled != null && cheaperBilled > 0 && Number.isFinite(cheaperBilled)) {
+    return {
+      purpose: "status_widget_extract",
+      provider: "cheaperinference",
+      modelId: widget.model,
+      inputTokens: widget.input,
+      outputTokens: widget.output,
+      settledActualUsd: cheaperBilled,
+      actualCostSource: "cheaper_inference_billed",
+      settlementStatus: "SETTLED_EXACT",
+      upstreamReportedUsd: widget.upstreamCostUsd ?? null,
+    };
+  }
+
+  if (
+    widget.upstreamCostUsd != null &&
+    widget.upstreamCostUsd > 0 &&
+    !widget.estimated
+  ) {
+    return {
+      purpose: "status_widget_extract",
+      provider: "openrouter",
+      modelId: widget.model,
+      inputTokens: widget.input,
+      outputTokens: widget.output,
+      settledActualUsd: widget.upstreamCostUsd,
+      actualCostSource: "provider_reported",
+      settlementStatus: "SETTLED_EXACT",
+      upstreamReportedUsd: widget.upstreamCostUsd,
+    };
+  }
+
+  return {
+    purpose: "status_widget_extract",
+    provider: "unknown",
+    modelId: widget.model,
+    inputTokens: widget.input,
+    outputTokens: widget.output,
+    settledActualUsd: null,
+    actualCostSource: widget.estimated ? "estimated_catalog" : "unavailable",
+    settlementStatus: widget.estimated ? "ESTIMATED_ONLY" : "UNAVAILABLE",
+    upstreamReportedUsd: widget.upstreamCostUsd ?? null,
+  };
+}
+
+/** Canonical whole-turn actual cost coverage owner for admin receipt. */
+export function resolveWholeTurnActualCostCoverage(opts: {
+  mainTurnCoverage: ActualTurnCostCoverage;
+  stageSummary: ReturnType<typeof summarizeStageSettledActualUsd>;
+  auxiliary: AuxiliaryProviderCostEvidence | null;
+}): AdminActualCostCoverage {
+  if (opts.mainTurnCoverage === "partial") return "partial";
+  if (!opts.stageSummary.allStagesSettled) return "partial";
+  if (opts.auxiliary != null && opts.auxiliary.settlementStatus !== "SETTLED_EXACT") {
+    return "partial";
+  }
+  if (opts.stageSummary.costBearingCallCount === 0 && opts.auxiliary?.settledActualUsd == null) {
+    return "partial";
+  }
+  return "complete";
 }
 
 export function buildAdminProviderCallAuditRows(opts: {
   stages: StageUsage[];
   provider: string;
   billableStageLabels: ReadonlySet<string>;
+  auxiliary?: AuxiliaryProviderCostEvidence | null;
 }): AdminProviderCallAuditRow[] {
   let index = 0;
   const rows: AdminProviderCallAuditRow[] = [];
@@ -215,18 +340,57 @@ export function buildAdminProviderCallAuditRows(opts: {
       cacheReadTokens: Math.max(0, stage.cacheReadTokens ?? stage.cachedContentTokens ?? 0),
       cacheWriteTokens: Math.max(0, stage.cacheWriteTokens ?? 0),
       reasoningTokens: Math.max(0, stage.apiReasoningOutputTokens ?? 0),
-      settledActualUsd: stageSettledActualUsd(stage),
-      actualCostSource: actualCostSourceForStage(stage),
-      providerReferenceListUsd: stageReferenceListUsd(stage),
+      settledActualUsd: stageSettledActualUsd(stage, opts.provider),
+      actualCostSource: actualCostSourceForStage(stage, opts.provider),
+      providerReferenceListUsd: stageReferenceListUsd(stage, opts.provider),
       upstreamReportedUsd:
         stage.upstreamCostUsd != null && stage.upstreamCostUsd > 0
-          ? roundUsd(stage.upstreamCostUsd)
+          ? stage.upstreamCostUsd
           : null,
       includedInTurnTotal: opts.billableStageLabels.has(stage.stage),
-      settlementStatus: settlementStatusForStage(stage),
+      settlementStatus: settlementStatusForStage(stage, opts.provider),
     });
   }
+
+  if (opts.auxiliary) {
+    index += 1;
+    rows.push({
+      callIndex: index,
+      purpose: opts.auxiliary.purpose,
+      provider: opts.auxiliary.provider,
+      modelId: opts.auxiliary.modelId,
+      inputTokens: opts.auxiliary.inputTokens,
+      outputTokens: opts.auxiliary.outputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      reasoningTokens: 0,
+      settledActualUsd: opts.auxiliary.settledActualUsd,
+      actualCostSource: opts.auxiliary.actualCostSource,
+      providerReferenceListUsd: null,
+      upstreamReportedUsd: opts.auxiliary.upstreamReportedUsd,
+      includedInTurnTotal: opts.auxiliary.settlementStatus === "SETTLED_EXACT",
+      settlementStatus: opts.auxiliary.settlementStatus,
+    });
+  }
+
   return rows;
+}
+
+function sumWholeTurnSettledActualUsd(
+  stageSummary: ReturnType<typeof summarizeStageSettledActualUsd>,
+  auxiliary: AuxiliaryProviderCostEvidence | null
+): number | null {
+  let sum = 0;
+  let hasAny = false;
+  if (stageSummary.totalSettledUsd != null) {
+    sum += stageSummary.totalSettledUsd;
+    hasAny = true;
+  }
+  if (auxiliary?.settledActualUsd != null) {
+    sum += auxiliary.settledActualUsd;
+    hasAny = true;
+  }
+  return hasAny ? sum : null;
 }
 
 export function buildAdminBillingReceiptProjection(opts: {
@@ -238,70 +402,92 @@ export function buildAdminBillingReceiptProjection(opts: {
   modelLabel: string;
   exchangeRate: BillingExchangeRateSnapshot;
   shadowPricing?: Usage["shadowPricing"];
+  mainTurnCoverage?: ActualTurnCostCoverage;
 }): AdminBillingReceiptProjection {
-  const { usage, stages, shadowPricing, exchangeRate } = opts;
+  const { usage, stages, shadowPricing, exchangeRate, provider } = opts;
+  const baseFx = exchangeRate.usdToKrw;
   const effectiveRate = exchangeRate.effectiveKrwPerUsd;
 
-  const turnActual = aggregateTurnSettledActualUsd(stages);
-  const actualProviderCostUsd = turnActual.totalUsd;
-  const actualCostCoverage = turnActual.coverage;
+  const stageSummary = summarizeStageSettledActualUsd(stages, provider);
+  const auxiliary = resolveStatusWidgetAuxiliaryCost(usage.statusWidgetExtract);
+  const mainTurnCoverage =
+    opts.mainTurnCoverage ??
+    resolveActualTurnCostCoverage({
+      totalStageCount: stages.filter(isCostBearingStage).length,
+    });
+
+  const stageSettlementCoverage: AdminActualCostCoverage = stageSummary.allStagesSettled
+    ? "complete"
+    : "partial";
+  const actualCostCoverage = resolveWholeTurnActualCostCoverage({
+    mainTurnCoverage,
+    stageSummary,
+    auxiliary,
+  });
+
+  const actualProviderCostUsd = sumWholeTurnSettledActualUsd(stageSummary, auxiliary);
 
   let actualCostSource = "unavailable";
   if (actualProviderCostUsd != null) {
-    actualCostSource =
-      turnActual.settledCallCount === turnActual.costBearingCallCount &&
-      turnActual.costBearingCallCount > 0
+    if (actualCostCoverage === "complete") {
+      actualCostSource = isCheaperInferenceProvider(provider)
         ? "cheaper_inference_billed"
-        : "cheaper_inference_billed_partial";
+        : "provider_settled";
+    } else {
+      actualCostSource = "settled_partial";
+    }
   } else if (shadowPricing?.actualCostSource) {
     actualCostSource = shadowPricing.actualCostSource;
   }
 
   const baseActualKrw =
-    actualProviderCostUsd != null
-      ? roundKrw(convertUsdToKrw(actualProviderCostUsd, effectiveRate))
-      : shadowPricing?.actualProviderCostKrw != null && shadowPricing.actualProviderCostKrw > 0
-        ? shadowPricing.actualProviderCostKrw
-        : null;
+    actualProviderCostUsd != null ? roundKrw(actualProviderCostUsd * baseFx) : null;
 
   const effectiveProviderCashCostKrw =
-    baseActualKrw != null ? roundKrw(applyOverseasCardFee(baseActualKrw)) : null;
+    actualProviderCostUsd != null
+      ? roundKrw(convertUsdToKrw(actualProviderCostUsd, effectiveRate))
+      : null;
 
   const providerListCostUsd =
     shadowPricing?.providerListCostKrw != null && shadowPricing.providerListCostKrw > 0
-      ? roundUsd(shadowPricing.providerListCostKrw / effectiveRate)
+      ? shadowPricing.providerListCostKrw / effectiveRate
       : null;
 
   const billingReferenceCostUsd =
     shadowPricing?.billingReferenceCostUsd != null && shadowPricing.billingReferenceCostUsd > 0
-      ? roundUsd(shadowPricing.billingReferenceCostUsd)
+      ? shadowPricing.billingReferenceCostUsd
       : shadowPricing?.billingReferenceCostKrw != null && shadowPricing.billingReferenceCostKrw > 0
-        ? roundUsd(shadowPricing.billingReferenceCostKrw / effectiveRate)
+        ? shadowPricing.billingReferenceCostKrw / effectiveRate
         : null;
 
-  const economicsComplete =
-    actualCostCoverage === "complete" &&
-    baseActualKrw != null &&
-    providerListCostUsd != null &&
-    (usage.cost ?? 0) > 0 &&
-    !(usage.billingWaived && (usage.cost ?? 0) <= 0);
+  const baseReferenceKrw =
+    providerListCostUsd != null ? roundKrw(providerListCostUsd * baseFx) : null;
+  const effectiveReferenceKrw =
+    providerListCostUsd != null
+      ? roundKrw(convertUsdToKrw(providerListCostUsd, effectiveRate))
+      : shadowPricing?.providerListCostKrw ?? null;
 
   const deductedPoints = usage.cost ?? 0;
+  const economicsComplete =
+    actualCostCoverage === "complete" &&
+    effectiveProviderCashCostKrw != null &&
+    effectiveReferenceKrw != null &&
+    deductedPoints > 0 &&
+    !(usage.billingWaived && deductedPoints <= 0);
+
   const internalEconomics = economicsComplete
     ? {
-        providerSavingsKrw:
-          providerListCostUsd != null && baseActualKrw != null
-            ? roundKrw(Math.max(0, convertUsdToKrw(providerListCostUsd, effectiveRate) - baseActualKrw))
-            : shadowPricing?.providerSavingsKrw ?? null,
-        providerOverrunKrw:
-          providerListCostUsd != null && baseActualKrw != null
-            ? roundKrw(Math.max(0, baseActualKrw - convertUsdToKrw(providerListCostUsd, effectiveRate)))
-            : shadowPricing?.providerOverrunKrw ?? null,
-        grossProfitKrw:
-          baseActualKrw != null ? roundKrw(deductedPoints - baseActualKrw) : null,
+        providerSavingsKrw: roundKrw(
+          Math.max(0, (effectiveReferenceKrw ?? 0) - (effectiveProviderCashCostKrw ?? 0))
+        ),
+        providerOverrunKrw: roundKrw(
+          Math.max(0, (effectiveProviderCashCostKrw ?? 0) - (effectiveReferenceKrw ?? 0))
+        ),
+        grossProfitKrw: roundKrw(deductedPoints - (effectiveProviderCashCostKrw ?? 0)),
         realizedMargin:
-          baseActualKrw != null && deductedPoints > 0
-            ? roundUsd((deductedPoints - baseActualKrw) / deductedPoints)
+          effectiveProviderCashCostKrw != null && deductedPoints > 0
+            ? Math.round(((deductedPoints - effectiveProviderCashCostKrw) / deductedPoints) * 1000) /
+              1000
             : null,
         promoGivebackKrw: shadowPricing?.promoGivebackKrw ?? null,
         netPricingBufferDeltaKrw: shadowPricing?.netPricingBufferDeltaKrw ?? null,
@@ -322,13 +508,14 @@ export function buildAdminBillingReceiptProjection(opts: {
       waiverReason: usage.billingWaiverReason ?? null,
     },
     providerActualSettlement: {
-      provider: opts.provider,
+      provider,
       actualProviderCostUsd,
       actualCostSource,
       actualCostCoverage,
+      stageSettlementCoverage,
       fxDateKey: exchangeRate.dateKey,
       fxMode: exchangeRate.mode,
-      baseUsdKrw: exchangeRate.usdToKrw,
+      baseUsdKrw: baseFx,
       effectiveKrwPerUsd: effectiveRate,
       overseasCardFeeRate: OVERSEAS_CARD_FEE_RATE,
       baseActualKrw,
@@ -336,11 +523,9 @@ export function buildAdminBillingReceiptProjection(opts: {
     },
     providerListReference: {
       providerListCostUsd,
-      referenceSource: "cheaper_inference_catalog_reference_rates",
-      baseReferenceKrw:
-        providerListCostUsd != null
-          ? roundKrw(convertUsdToKrw(providerListCostUsd, effectiveRate))
-          : shadowPricing?.providerListCostKrw ?? null,
+      referenceSource: resolveProviderListReferenceSource(provider),
+      baseReferenceKrw,
+      effectiveReferenceKrw,
     },
     publishedBillingReference: {
       billingReferenceCostUsd,
@@ -350,16 +535,22 @@ export function buildAdminBillingReceiptProjection(opts: {
     internalEconomics,
     providerCalls: buildAdminProviderCallAuditRows({
       stages,
-      provider: opts.provider,
+      provider,
       billableStageLabels: opts.billableStageLabels,
+      auxiliary,
     }),
   };
 }
 
-/** True when admin receipt uses settled actual distinct from provider list/reference. */
-export function adminActualReferenceConflated(projection: AdminBillingReceiptProjection): boolean {
-  const actual = projection.providerActualSettlement.actualProviderCostUsd;
-  const list = projection.providerListReference.providerListCostUsd;
-  if (actual == null || list == null) return false;
-  return Math.abs(actual - list) < 1e-9;
+/** Reproduce double card fee — true when effective ≈ applyOverseasCardFee(base). */
+export function reproducesDoubleCardFee(projection: AdminBillingReceiptProjection): boolean {
+  const base = projection.providerActualSettlement.baseActualKrw;
+  const effective = projection.providerActualSettlement.effectiveProviderCashCostKrw;
+  if (base == null || effective == null || base <= 0) return false;
+  const doubled = roundKrw(base * (1 + projection.providerActualSettlement.overseasCardFeeRate));
+  return Math.abs(effective - doubled) < 0.05;
+}
+
+export function isMeteredAdminReceiptProvider(provider: string): boolean {
+  return isMeteredReceiptProvider(provider);
 }

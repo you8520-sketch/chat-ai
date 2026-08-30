@@ -31,6 +31,7 @@ export type StatusWidgetExtractReceipt = {
   apiRawCostKrw: number;
   callCount: number;
   upstreamCostUsd?: number;
+  cheaperInferenceBilledCostUsd?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
   estimated?: boolean;
@@ -161,6 +162,9 @@ export function buildStatusWidgetExtractReceipt(
     }),
     ...(usage.upstreamCostUsd != null && usage.upstreamCostUsd > 0
       ? { upstreamCostUsd: usage.upstreamCostUsd }
+      : {}),
+    ...(usage.cheaperInferenceBilledCostUsd != null && usage.cheaperInferenceBilledCostUsd > 0
+      ? { cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd }
       : {}),
     ...(usage.cacheReadTokens != null && usage.cacheReadTokens > 0
       ? { cacheReadTokens: usage.cacheReadTokens }

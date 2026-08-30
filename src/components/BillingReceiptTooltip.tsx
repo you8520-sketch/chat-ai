@@ -109,6 +109,12 @@ function AdminBillingReceiptPanel({
         </p>
         <p>
           <span className="text-zinc-500">Coverage:</span> {coverageLabel(actual.actualCostCoverage)}
+          {actual.stageSettlementCoverage !== actual.actualCostCoverage && (
+            <span className="text-zinc-600">
+              {" "}
+              (stage: {coverageLabel(actual.stageSettlementCoverage)})
+            </span>
+          )}
         </p>
         <p>
           <span className="text-zinc-500">KST FX ({actual.fxDateKey}):</span>{" "}
@@ -134,8 +140,14 @@ function AdminBillingReceiptPanel({
           <span className="text-cyan-300/90">{formatUsd(listRef.providerListCostUsd)}</span>
         </p>
         <p>
-          <span className="text-zinc-500">Reference KRW:</span>{" "}
+          <span className="text-zinc-500">Base reference KRW:</span>{" "}
           {listRef.baseReferenceKrw != null ? `~${formatPoints(listRef.baseReferenceKrw)}원` : "—"}
+        </p>
+        <p>
+          <span className="text-zinc-500">Effective reference KRW:</span>{" "}
+          {listRef.effectiveReferenceKrw != null
+            ? `~${formatPoints(listRef.effectiveReferenceKrw)}원`
+            : "—"}
         </p>
         <p>
           <span className="text-zinc-500">Source:</span> {listRef.referenceSource}
@@ -500,66 +512,10 @@ function ReceiptBody({
           ))}
         </div>
       )}
-      {!useAdminSettlementReceipt && apiRawCostKrw != null && apiRawCostKrw > 0 && (
-        <>
-          <p>
-            <span className="text-zinc-500">
-              {usage.statusWidgetExtract ? "메인 RP API 원가:" : "실제 API 원가:"}
-            </span>{" "}
-            <span className="text-cyan-300/90">
-              ~{formatPoints(usage.mainApiRawCostKrw ?? apiRawCostKrw)}원
-            </span>
-            {!usage.statusWidgetExtract &&
-              usage.apiRawCostSource === "provider_reported" && (
-                <span className="text-zinc-600"> (공급자 USD 합산)</span>
-              )}
-            {!usage.statusWidgetExtract &&
-              usage.apiRawCostSource === "live_catalog" && (
-                <span className="text-zinc-600"> (실시간 카탈로그 추정)</span>
-              )}
-            {!usage.statusWidgetExtract &&
-              (usage.apiRawCostSource === "fallback_catalog" ||
-                (usage.apiRawCostSource == null &&
-                  usage.apiRawCostKrw == null &&
-                  usage.upstreamCostUsd == null)) && (
-                <span className="text-zinc-600"> (저장 요율 추정)</span>
-              )}
-          </p>
-          {mainRpCostParts && (
-            <>
-              <p>
-                <span className="text-zinc-500">입력 토큰 원가:</span>{" "}
-                <span className="text-cyan-300/90">
-                  ~{formatPoints(mainRpCostParts.inputKrw)}원
-                </span>
-                <span className="text-zinc-600">
-                  {" "}
-                  ({mainRpCostParts.inputTokens.toLocaleString()} tok)
-                </span>
-              </p>
-              <p>
-                <span className="text-zinc-500">출력 토큰 원가:</span>{" "}
-                <span className="text-cyan-300/90">
-                  ~{formatPoints(mainRpCostParts.outputKrw)}원
-                </span>
-                <span className="text-zinc-600">
-                  {" "}
-                  ({mainRpCostParts.outputContentTokens.toLocaleString()} tok · content)
-                </span>
-              </p>
-              <p>
-                <span className="text-zinc-500">thinking 토큰 원가:</span>{" "}
-                <span className="text-cyan-300/90">
-                  ~{formatPoints(mainRpCostParts.thinkingKrw)}원
-                </span>
-                <span className="text-zinc-600">
-                  {" "}
-                  ({mainRpCostParts.thinkingTokens.toLocaleString()} tok)
-                </span>
-              </p>
-            </>
-          )}
-        </>
+      {showFullReceipt && !useAdminSettlementReceipt && (
+        <p className="text-[10px] leading-relaxed text-amber-400/90">
+          정확한 Provider settlement snapshot 없음 — legacy upstream 추정치는 표시하지 않습니다.
+        </p>
       )}
       {useAdminSettlementReceipt && adminBillingReceipt && (
         <AdminBillingReceiptPanel projection={adminBillingReceipt} />

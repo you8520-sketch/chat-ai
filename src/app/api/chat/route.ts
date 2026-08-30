@@ -4981,15 +4981,16 @@ export async function POST(req: Request) {
           baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
         }
 
+        const actualTurnCostCoverage = resolveActualTurnCostCoverage({
+          totalStageCount: stages.length,
+          fallbackAttempted: adultFallbackAttempted,
+          hiddenFallbackOverheadCostUsd,
+          lengthRecoveryPasses: primaryStage?.lengthRecoveryPasses,
+          lengthContinuationPasses,
+        });
+
         // Shadow pricing — admin-only diagnostics, never affects deductPoints(cost)
         try {
-          const actualTurnCostCoverage = resolveActualTurnCostCoverage({
-            totalStageCount: stages.length,
-            fallbackAttempted: adultFallbackAttempted,
-            hiddenFallbackOverheadCostUsd,
-            lengthRecoveryPasses: primaryStage?.lengthRecoveryPasses,
-            lengthContinuationPasses,
-          });
           const shadow = computeShadowPricing({
             modelId: deliveredModelId,
             promptTokens: apiInputTokens,
@@ -5049,6 +5050,7 @@ export async function POST(req: Request) {
               modelLabel: usageModelLabel,
               exchangeRate: billingExchangeRate,
               shadowPricing: (baseUsageRecord as Usage).shadowPricing,
+              mainTurnCoverage: actualTurnCostCoverage,
             });
             (baseUsageRecord as Usage).adminBillingReceipt = adminReceipt;
           } catch (e) {
