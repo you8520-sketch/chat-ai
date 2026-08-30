@@ -26,6 +26,7 @@ import {
 } from "@/lib/stageBillableUsage";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
 import { compareTurnBillableUsageWithLegacy } from "@/lib/turnBillableUsageCanary";
+import { stageUsageReportingEvidenceFromTokenUsage } from "@/lib/usageReportingEvidence";
 
 const FX_1530: BillingFxSnapshot = {
   mode: "daily_kst",
@@ -92,7 +93,7 @@ function stage(partial: Partial<StageUsage> & Pick<StageUsage, "stage" | "model"
   return { estimated: false, ...partial };
 }
 
-/** Mirrors openRouterAdult.ts stage writer cache field forwarding (>0 only). */
+/** Production openRouterAdult stage writer shape (cache/reasoning numeric >0 + evidence spread). */
 function productionStageUsageFromTokenUsage(
   usage: TokenUsage,
   stageLabel: string,
@@ -115,6 +116,7 @@ function productionStageUsageFromTokenUsage(
     ...(usage.reasoningOutputTokens != null && usage.reasoningOutputTokens > 0
       ? { apiReasoningOutputTokens: usage.reasoningOutputTokens }
       : {}),
+    ...stageUsageReportingEvidenceFromTokenUsage(usage),
   };
 }
 
@@ -487,7 +489,7 @@ describe("turnBillableUsage — cache production reachability", () => {
     assert.equal(stageUsage.cacheWriteTokens, undefined);
   });
 
-  it("explicit provider zero is not preserved at StageUsage (PRODUCTION_STAGE_CAN_CONTAIN_EXPLICIT_ZERO_CACHE_FIELD=false)", () => {
+  it("explicit provider zero preserves reporting evidence at TokenUsage and StageUsage", () => {
     const parsed = parseOpenRouterUsage({
       prompt_tokens: 100,
       completion_tokens: 50,
@@ -495,10 +497,14 @@ describe("turnBillableUsage — cache production reachability", () => {
     });
     assert.equal(parsed.cacheReadTokens, 0);
     assert.equal(parsed.cacheWriteTokens, 0);
+    assert.equal(parsed.reportingEvidence.cacheRead, "reported_valid");
+    assert.equal(parsed.reportingEvidence.cacheWrite, "reported_valid");
 
     const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
     assert.equal("cacheReadTokens" in tokenUsage, false);
     assert.equal("cacheWriteTokens" in tokenUsage, false);
+    assert.equal(tokenUsage.usageReportingEvidence?.cacheRead, "reported_valid");
+    assert.equal(tokenUsage.usageReportingEvidence?.cacheWrite, "reported_valid");
 
     const stageUsage = productionStageUsageFromTokenUsage(
       tokenUsage,
@@ -507,6 +513,8 @@ describe("turnBillableUsage — cache production reachability", () => {
     );
     assert.equal(stageUsage.cacheReadTokens, undefined);
     assert.equal(stageUsage.cacheWriteTokens, undefined);
+    assert.equal(stageUsage.usageReportingEvidence?.cacheRead, "reported_valid");
+    assert.equal(stageUsage.usageReportingEvidence?.cacheWrite, "reported_valid");
   });
 
   it("positive cache is forwarded to StageUsage", () => {
@@ -525,7 +533,7 @@ describe("turnBillableUsage — cache production reachability", () => {
     assert.equal(stageUsage.cacheWriteTokens, 3);
   });
 
-  it("production no-cache stage shape yields partial candidate coverage", () => {
+  it("production absent cache evidence yields partial candidate coverage", () => {
     const parsed = parseOpenRouterUsage({ prompt_tokens: 5000, completion_tokens: 400 });
     const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
     const stageUsage = productionStageUsageFromTokenUsage(
@@ -533,6 +541,7 @@ describe("turnBillableUsage — cache production reachability", () => {
       "openRouterAdult",
       OPENROUTER_GEMINI_31_PRO_MODEL
     );
+    stageUsage.apiOutputTokens = parsed.completionTokens;
     const r = resolveTurnBillableUsage({
       stages: [stageUsage],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -541,11 +550,40 @@ describe("turnBillableUsage — cache production reachability", () => {
     assert.equal(r.diagnostics.cacheReadReported, false);
     assert.equal(r.diagnostics.cacheWriteReported, false);
   });
+
+  it("production explicit-zero cache evidence yields complete candidate coverage", () => {
+    const parsed = parseOpenRouterUsage({
+      prompt_tokens: 5000,
+      completion_tokens: 400,
+      prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      completion_tokens_details: { reasoning_tokens: 0 },
+    });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    stageUsage.apiOutputTokens = parsed.completionTokens;
+    const r = resolveTurnBillableUsage({
+      stages: [stageUsage],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    });
+    assert.equal(r.usageCoverage, "complete");
+    assert.equal(r.diagnostics.cacheReadReported, true);
+    assert.equal(r.diagnostics.cacheWriteReported, true);
+    assert.equal(r.diagnostics.fieldSources.cacheRead, "PROVIDER_REPORTED_EXACT");
+    assert.equal(r.diagnostics.fieldSources.cacheWrite, "PROVIDER_REPORTED_EXACT");
+  });
 });
 
 describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachability", () => {
   function resolveCandidateFromRawUsage(rawUsage: Record<string, unknown>) {
-    const parsed = parseOpenRouterUsage(rawUsage);
+    const rawWithCache = {
+      prompt_tokens_details: { cached_tokens: 100, cache_write_tokens: 50 },
+      ...rawUsage,
+    };
+    const parsed = parseOpenRouterUsage(rawWithCache);
     const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
     const stageUsage = productionStageUsageFromTokenUsage(
       tokenUsage,
@@ -554,13 +592,7 @@ describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachabilit
     );
     stageUsage.apiOutputTokens = parsed.completionTokens;
     const candidate = resolveTurnBillableUsage({
-      stages: [
-        {
-          ...stageUsage,
-          cacheReadTokens: 100,
-          cacheWriteTokens: 50,
-        },
-      ],
+      stages: [stageUsage],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     });
     return { parsed, tokenUsage, stageUsage, candidate };
@@ -589,11 +621,12 @@ describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachabilit
     assert.equal(parseReasoningTokens(raw), 0);
     const { parsed, tokenUsage, stageUsage, candidate } = resolveCandidateFromRawUsage(raw);
     assert.equal(parsed.reasoningTokens, 0);
+    assert.equal(parsed.reportingEvidence.reasoning, "reported_valid");
     assert.equal("reasoningOutputTokens" in tokenUsage, false);
     assert.equal(stageUsage.apiReasoningOutputTokens, undefined);
-    assert.equal(candidate.diagnostics.reasoningReported, false);
-    assert.equal(candidate.diagnostics.fieldSources.reasoning, "MISSING_AND_UNKNOWN");
-    assert.notEqual(candidate.diagnostics.fieldSources.reasoning, "MISSING_BUT_PROVEN_ZERO");
+    assert.equal(stageUsage.usageReportingEvidence?.reasoning, "reported_valid");
+    assert.equal(candidate.diagnostics.reasoningReported, true);
+    assert.equal(candidate.diagnostics.fieldSources.reasoning, "PROVIDER_REPORTED_EXACT");
     assert.equal(candidate.usageCoverage, "complete");
   });
 
@@ -615,7 +648,7 @@ describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachabilit
     assert.equal(candidate.usageCoverage, "complete");
   });
 
-  it("PRODUCTION_STAGE_CAN_CONTAIN_EXPLICIT_ZERO_REASONING_FIELD is false", () => {
+  it("explicit-zero reasoning evidence preserved without numeric stage field", () => {
     const parsed = parseOpenRouterUsage({
       prompt_tokens: 100,
       completion_tokens: 50,
@@ -628,6 +661,7 @@ describe("CURRENT_BEHAVIOR_CHARACTERIZATION — reasoning production reachabilit
       OPENROUTER_GEMINI_31_PRO_MODEL
     );
     assert.equal(stageUsage.apiReasoningOutputTokens, undefined);
+    assert.equal(stageUsage.usageReportingEvidence?.reasoning, "reported_valid");
   });
 
   it("UNPROVEN_ZERO_SOURCE_COUNT is 0 — reasoning absent is not labeled proven zero", () => {
@@ -753,8 +787,42 @@ describe("publishedUserCharge — existing golden guards (not candidate integrat
   });
 });
 
-describe("turnBillableUsage → Published — SYNTHETIC_COMPLETE_CONTRACT (not production-reachable)", () => {
-  it("explicit zero cache in stage fixture is synthetic — not emitted by production StageUsage writer", () => {
+describe("turnBillableUsage → Published — production-reachable explicit zero", () => {
+  it("production-reachable explicit-zero cache evidence can reach complete candidate", () => {
+    const parsed = parseOpenRouterUsage({
+      prompt_tokens: 40_689,
+      completion_tokens: 4307,
+      prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
+      completion_tokens_details: { reasoning_tokens: 0 },
+    });
+    const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
+    const stageUsage = productionStageUsageFromTokenUsage(
+      tokenUsage,
+      "openRouterAdult",
+      OPENROUTER_GEMINI_31_PRO_MODEL
+    );
+    stageUsage.apiOutputTokens = parsed.completionTokens;
+    const candidate = resolveTurnBillableUsage({
+      stages: [stageUsage],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    });
+    assert.equal(candidate.status, "resolved");
+    assert.equal(candidate.usageCoverage, "complete");
+    assert.equal(candidate.diagnostics.cacheReadReported, true);
+    assert.equal(candidate.diagnostics.cacheWriteReported, true);
+
+    const published = computePublishedUserChargeWithSnapshot({
+      modelId: "gemini-3.1-pro-preview",
+      usage: candidate.usage!,
+      usageCoverage: candidate.usageCoverage,
+      fxSnapshot: FX_1530,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(published.status, "complete");
+    if (published.status === "complete") assert.equal(published.snapshot.finalPoints, 229);
+  });
+
+  it("synthetic numeric-zero cache field without evidence still classifies via legacy fallback", () => {
     const candidate = resolveTurnBillableUsage({
       stages: [
         stage({
@@ -773,16 +841,6 @@ describe("turnBillableUsage → Published — SYNTHETIC_COMPLETE_CONTRACT (not p
     assert.equal(candidate.usageCoverage, "complete");
     assert.equal(candidate.diagnostics.cacheReadReported, true);
     assert.equal(candidate.diagnostics.cacheWriteReported, true);
-
-    const published = computePublishedUserChargeWithSnapshot({
-      modelId: "gemini-3.1-pro-preview",
-      usage: candidate.usage!,
-      usageCoverage: candidate.usageCoverage,
-      fxSnapshot: FX_1530,
-      adjustment: { kind: "none" },
-    });
-    assert.equal(published.status, "complete");
-    if (published.status === "complete") assert.equal(published.snapshot.finalPoints, 229);
   });
 
   it("G31 absent cache → partial blocks Published complete charge", () => {

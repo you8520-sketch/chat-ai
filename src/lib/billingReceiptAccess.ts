@@ -44,6 +44,17 @@ export function filterUsageBreakdownForReceipt(
   return breakdown.filter((b) => b.label !== BILLING_BREAKDOWN_SYSTEM_RULES_LABEL);
 }
 
+function stripUsageReportingEvidenceFromStages(
+  stages: Usage["stages"] | undefined
+): Usage["stages"] | undefined {
+  if (!stages?.length) return stages;
+  return stages.map((stage) => {
+    const copy = { ...stage } as Record<string, unknown>;
+    delete copy.usageReportingEvidence;
+    return copy as NonNullable<Usage["stages"]>[number];
+  });
+}
+
 /** 일반 이용자 영수증 — 위젯·환율·시스템 규칙 breakdown 등 상세 필드 제거 */
 export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
   const routing = usage.adultRouting;
@@ -76,6 +87,7 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
   const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
+    stages: stripUsageReportingEvidenceFromStages(rest.stages),
   };
   if (routing?.activeRoute === "adult" || routing?.fallbackSucceeded) {
     Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));

@@ -22,6 +22,10 @@ import {
   sumOpenRouterStageOutputTokens,
   sumOpenRouterStageReasoningTokens,
 } from "@/lib/stageBillableUsage";
+import {
+  mergeFieldReportingStatus,
+  type UsageFieldReportingStatus,
+} from "@/lib/usageReportingEvidence";
 
 export type TurnUsageFieldSource =
   | "PROVIDER_REPORTED_EXACT"
@@ -113,13 +117,62 @@ function isMalformedRaw(n: unknown): boolean {
 
 function classifyCacheField(
   raw: unknown,
-  reported: boolean,
+  reportingStatus: UsageFieldReportingStatus,
   estimatedStage?: boolean
 ): TurnUsageFieldSource {
   if (estimatedStage) return "ESTIMATED";
-  if (!reported) return "MISSING_AND_UNKNOWN";
+  if (reportingStatus === "unreported") return "MISSING_AND_UNKNOWN";
+  if (reportingStatus === "reported_invalid") return "SANITIZED_MALFORMED";
   if (isMalformedRaw(raw)) return "SANITIZED_MALFORMED";
   return "PROVIDER_REPORTED_EXACT";
+}
+
+function resolveCacheReadReportingStatus(stage: StageUsage): UsageFieldReportingStatus {
+  if (stage.usageReportingEvidence?.cacheRead) {
+    return stage.usageReportingEvidence.cacheRead;
+  }
+  if (stage.cacheReadTokens != null || stage.cachedContentTokens != null) {
+    return "reported_valid";
+  }
+  return "unreported";
+}
+
+function resolveCacheWriteReportingStatus(stage: StageUsage): UsageFieldReportingStatus {
+  if (stage.usageReportingEvidence?.cacheWrite) {
+    return stage.usageReportingEvidence.cacheWrite;
+  }
+  if (stage.cacheWriteTokens != null) return "reported_valid";
+  return "unreported";
+}
+
+function aggregateReasoningReportingStatus(stages: StageUsage[]): UsageFieldReportingStatus {
+  let merged: UsageFieldReportingStatus = "unreported";
+  for (const stage of stages) {
+    const status =
+      stage.usageReportingEvidence?.reasoning ??
+      (stage.apiReasoningOutputTokens != null ? "reported_valid" : "unreported");
+    merged = mergeFieldReportingStatus(merged, status);
+  }
+  return merged;
+}
+
+function fieldSourceFromReportingStatus(
+  status: UsageFieldReportingStatus,
+  estimated?: boolean
+): TurnUsageFieldSource {
+  if (estimated) return "ESTIMATED";
+  switch (status) {
+    case "unreported":
+      return "MISSING_AND_UNKNOWN";
+    case "reported_invalid":
+      return "SANITIZED_MALFORMED";
+    case "reported_valid":
+      return "PROVIDER_REPORTED_EXACT";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
 }
 
 function resolveUsageCoverage(
@@ -216,16 +269,17 @@ export function resolveTurnBillableUsage(
     }
   }
 
-  const cacheReadReported =
-    primaryStage.cacheReadTokens != null || primaryStage.cachedContentTokens != null;
-  const cacheWriteReported = primaryStage.cacheWriteTokens != null;
+  const cacheReadStatus = resolveCacheReadReportingStatus(primaryStage);
+  const cacheWriteStatus = resolveCacheWriteReportingStatus(primaryStage);
+  const cacheReadReported = cacheReadStatus === "reported_valid";
+  const cacheWriteReported = cacheWriteStatus === "reported_valid";
   diagnostics.cacheReadReported = cacheReadReported;
   diagnostics.cacheWriteReported = cacheWriteReported;
 
-  const rawCacheRead = primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens;
-  const rawCacheWrite = primaryStage.cacheWriteTokens;
-  const cacheReadSource = classifyCacheField(rawCacheRead, cacheReadReported, primaryStage.estimated);
-  const cacheWriteSource = classifyCacheField(rawCacheWrite, cacheWriteReported, primaryStage.estimated);
+  const rawCacheRead = primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens ?? 0;
+  const rawCacheWrite = primaryStage.cacheWriteTokens ?? 0;
+  const cacheReadSource = classifyCacheField(rawCacheRead, cacheReadStatus, primaryStage.estimated);
+  const cacheWriteSource = classifyCacheField(rawCacheWrite, cacheWriteStatus, primaryStage.estimated);
   if (!cacheReadReported) coverageReasons.push("cache_read_unreported");
   if (!cacheWriteReported) coverageReasons.push("cache_write_unreported");
 
@@ -254,17 +308,13 @@ export function resolveTurnBillableUsage(
     coverageReasons.push("completion_api_missing");
   }
 
-  const reasoningReported = openRouterStages.some((s) => s.apiReasoningOutputTokens != null);
-  diagnostics.reasoningReported = reasoningReported;
+  const reasoningStatus = aggregateReasoningReportingStatus(openRouterStages);
+  diagnostics.reasoningReported = reasoningStatus === "reported_valid";
 
-  const reasoningSource =
-    summedApiReasoning > 0
-      ? anyEstimatedInComposition
-        ? "ESTIMATED"
-        : "PROVIDER_REPORTED_EXACT"
-      : reasoningReported
-        ? "PROVIDER_REPORTED_EXACT"
-        : "MISSING_AND_UNKNOWN";
+  const reasoningSource = fieldSourceFromReportingStatus(
+    reasoningStatus,
+    anyEstimatedInComposition ? true : primaryStage.estimated
+  );
 
   const routeChargeOutputTokens = billableOpenRouterOutputTokens(
     input.modelId,

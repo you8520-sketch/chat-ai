@@ -13,6 +13,7 @@ import {
   TURN_LENGTH_SUPPLEMENT_API_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
+import { stageUsageReportingEvidenceFromTokenUsage } from "@/lib/usageReportingEvidence";
 
 export type ServerUnderLengthRecoveryOpts = {
   prose: string;
@@ -144,6 +145,7 @@ export async function tryServerUnderLengthRecovery(
       ...(result.usage.reasoningOutputTokens != null && result.usage.reasoningOutputTokens > 0
         ? { apiReasoningOutputTokens: result.usage.reasoningOutputTokens }
         : {}),
+      ...stageUsageReportingEvidenceFromTokenUsage(result.usage),
     },
   };
 }

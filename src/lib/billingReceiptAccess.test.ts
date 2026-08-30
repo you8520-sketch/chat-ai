@@ -271,6 +271,36 @@ describe("billingReceiptAccess shadow privacy", () => {
     assert.equal((pub as unknown as Record<string, unknown>).shadowPricing, undefined);
   });
 
+  it("strips usageReportingEvidence from public receipt stages", () => {
+    const usage = {
+      input: 100,
+      output: 200,
+      model: "gemini-3.1-pro-preview",
+      route: "safe" as const,
+      cost: 10,
+      breakdown: [],
+      stages: [
+        {
+          stage: "openRouterAdult",
+          model: "gemini-3.1-pro-preview",
+          input: 100,
+          output: 200,
+          cost: 10,
+          usageReportingEvidence: {
+            cacheRead: "reported_valid",
+            cacheWrite: "unreported",
+            reasoning: "reported_valid",
+          },
+        },
+      ],
+    } as unknown as Usage;
+    const pub = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(
+      (pub.stages?.[0] as Record<string, unknown> | undefined)?.usageReportingEvidence,
+      undefined
+    );
+  });
+
   it("strips synthetic future published charge snapshot fields from public receipt", () => {
     const usage = {
       input: 100,
