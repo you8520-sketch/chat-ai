@@ -1,0 +1,70 @@
+name: Validate TRPG Blueprint lifecycle
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-trpg-blueprint.yml"
+      - "src/lib/trpg/worldBlueprintArtifact.ts"
+      - "src/lib/trpg/worldBlueprintGeneration.ts"
+      - "src/lib/trpg/worldBlueprintPregen.test.ts"
+      - "src/lib/trpg/worldBlueprintSyncFallbackHealing.test.ts"
+      - "src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts"
+      - "src/lib/trpg/blueprintValidity.ts"
+      - "src/lib/trpg/blueprintSourceFingerprint.ts"
+      - "src/lib/trpg/sandboxDirector.ts"
+      - "src/lib/trpg/scenarioDraft.ts"
+      - "src/lib/trpg/scenarioDraftCall.ts"
+      - "src/lib/trpg/scenarioDraftCall.transport.test.ts"
+      - "src/lib/deepseekProviderFailover.ts"
+      - "src/lib/deepseekProviderFailover.background.test.ts"
+      - "src/lib/trpg/scenarioPlan.ts"
+      - "src/lib/trpg/campaignContext.ts"
+      - "src/lib/trpg/catalog.ts"
+      - "src/lib/trpg/store.ts"
+      - "src/lib/trpg/trpgPublication.ts"
+      - "src/lib/trpg/schema.ts"
+      - "src/lib/trpg/engineAdvance.ts"
+      - "src/lib/worlds.ts"
+      - "src/lib/derivedCache/worldBlueprintPregen.ts"
+      - "src/lib/derivedCache/jobs.ts"
+      - "src/lib/derivedCache/worker.ts"
+      - "src/lib/derivedCache/wakeupScheduler.ts"
+      - "src/lib/derivedCache/derivedCache.test.ts"
+      - "src/lib/derivedCache/wakeupScheduler.test.ts"
+      - "src/app/api/worlds/**"
+      - "server.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      DISABLE_DERIVED_CACHE_WORKER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck:app
+      - name: Canonical convergence
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts
+      - name: Sync fallback healing
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintSyncFallbackHealing.test.ts
+      - name: World Blueprint pregeneration
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintPregen.test.ts
+      - name: Derived-cache queue
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/derivedCache.test.ts
+      - name: Derived-cache wakeup
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/wakeupScheduler.test.ts
+      - name: Blueprint transport policy
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/scenarioDraftCall.transport.test.ts
+      - name: Background provider failover
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/deepseekProviderFailover.background.test.ts
