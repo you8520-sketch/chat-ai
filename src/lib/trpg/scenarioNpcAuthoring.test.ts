@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
+import Database from "better-sqlite3";
 import { withAssetSize } from "@/lib/characterAssets";
+import { loadTrpgCatalog } from "./catalog";
+import { createTrpgCampaign } from "./engineCreate";
 import {
   enforceGmSceneAssetMarkers,
   formatNpcAssetMarker,
@@ -25,6 +28,8 @@ import {
   type TrpgScenarioNpc,
 } from "./scenarioTypes";
 import { splitTrpgGmProseForAssets } from "./trpgTaggedProse";
+import { ensureTrpgTables } from "./schema";
+import { insertScenarioTemplate, listPublicScenarioTemplates, loadCampaignScenarioNpcImages } from "./scenarioTemplates";
 
 const EDITOR_SOURCE = fs.readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
 
@@ -258,5 +263,134 @@ describe("TRPG NPC / boss authoring unification", () => {
     const key = createScenarioNpcKey();
     const used = collectUsedNpcKeys([`이전 장면\n${formatNpcAssetMarker(key)}`]);
     assert.equal(used.has(key), true);
+  });
+});
+
+const CATALOG_SECRET_GM = "CATALOG_SECRET_GM_NOTE_XYZ";
+const CATALOG_BOSS_KEY = "npc_01234567-89ab-cdef-0123-456789abcdef";
+const CATALOG_BOSS_IMAGE = "/uploads/catalog-boss-secret.webp";
+
+function catalogPrivacyDb(): Database.Database {
+  const db = new Database(":memory:");
+  ensureTrpgTables(db);
+  return db;
+}
+
+function seedPublicNpcScenario(db: Database.Database): number {
+  return insertScenarioTemplate(db, 2, {
+    title: "공개 NPC 프라이버시",
+    summary: "공개 소개",
+    content: "플레이어 공개 본문",
+    visibility: "public",
+    npcs: [
+      {
+        npcKey: CATALOG_BOSS_KEY,
+        role: "boss",
+        name: "한도윤",
+        description: "숨겨진 보스 설명",
+        greeting: "존댓말 힌트",
+        systemPrompt: CATALOG_SECRET_GM,
+        stats: null,
+        image: {
+          url: CATALOG_BOSS_IMAGE,
+          tag: "한도윤",
+          width: 800,
+          height: 1200,
+          orientation: "portrait",
+        },
+      },
+    ],
+  });
+}
+
+describe("TRPG public scenario catalog NPC privacy", () => {
+  it("PUBLIC_SCENARIO_CATALOG_DOES_NOT_EXPOSE_NPC_SYSTEM_PROMPT", () => {
+    const db = catalogPrivacyDb();
+    seedPublicNpcScenario(db);
+    const json = JSON.stringify(listPublicScenarioTemplates(db));
+    assert.doesNotMatch(json, new RegExp(CATALOG_SECRET_GM));
+  });
+
+  it("PUBLIC_SCENARIO_CATALOG_DOES_NOT_EXPOSE_BOSS_ROLE", () => {
+    const db = catalogPrivacyDb();
+    seedPublicNpcScenario(db);
+    const json = JSON.stringify(listPublicScenarioTemplates(db));
+    assert.doesNotMatch(json, /"role"\s*:\s*"boss"/);
+    assert.doesNotMatch(json, /"role":"boss"/);
+  });
+
+  it("PUBLIC_SCENARIO_CATALOG_DOES_NOT_EXPOSE_NPC_IMAGE_URL", () => {
+    const db = catalogPrivacyDb();
+    seedPublicNpcScenario(db);
+    const json = JSON.stringify(listPublicScenarioTemplates(db));
+    assert.doesNotMatch(json, new RegExp(CATALOG_BOSS_IMAGE));
+  });
+
+  it("PUBLIC_SCENARIO_CATALOG_DOES_NOT_EXPOSE_NPC_KEY", () => {
+    const db = catalogPrivacyDb();
+    seedPublicNpcScenario(db);
+    const json = JSON.stringify(listPublicScenarioTemplates(db));
+    assert.doesNotMatch(json, new RegExp(CATALOG_BOSS_KEY));
+    assert.doesNotMatch(json, /"npcKey"/);
+  });
+
+  it("loadTrpgCatalog public projection strips NPC authoring data", () => {
+    const db = catalogPrivacyDb();
+    seedPublicNpcScenario(db);
+    const json = JSON.stringify(loadTrpgCatalog(db, 1).publicScenarios);
+    assert.doesNotMatch(json, new RegExp(CATALOG_SECRET_GM));
+    assert.doesNotMatch(json, new RegExp(CATALOG_BOSS_IMAGE));
+    assert.doesNotMatch(json, new RegExp(CATALOG_BOSS_KEY));
+    assert.deepEqual(loadTrpgCatalog(db, 1).publicScenarios[0]?.npcs, []);
+  });
+
+  it("CREATOR_SCENARIO_STILL_HAS_FULL_NPC_AUTHORING_DATA", () => {
+    const db = catalogPrivacyDb();
+    const id = seedPublicNpcScenario(db);
+    const mine = loadTrpgCatalog(db, 2).myScenarios.find((row) => row.id === id);
+    assert.equal(mine?.npcs[0]?.systemPrompt, CATALOG_SECRET_GM);
+    assert.equal(mine?.npcs[0]?.role, "boss");
+    assert.equal(mine?.npcs[0]?.npcKey, CATALOG_BOSS_KEY);
+    assert.equal(mine?.npcs[0]?.image?.url, CATALOG_BOSS_IMAGE);
+  });
+
+  it("PUBLIC_SCENARIO_CAN_STILL_START", () => {
+    const db = catalogPrivacyDb();
+    const templateId = seedPublicNpcScenario(db);
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "플레이어",
+      viewerUserId: 1,
+      templateId,
+    });
+    assert.ok(campaignId > 0);
+  });
+
+  it("CAMPAIGN_RUNTIME_STILL_LOADS_FULL_NPCS_SERVER_SIDE", () => {
+    const db = catalogPrivacyDb();
+    const templateId = seedPublicNpcScenario(db);
+    createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "플레이어",
+      viewerUserId: 1,
+      templateId,
+    });
+    const runtimeImages = loadCampaignScenarioNpcImages(db, templateId);
+    assert.equal(runtimeImages.length, 1);
+    assert.equal(runtimeImages[0]?.npcKey, CATALOG_BOSS_KEY);
+    assert.equal(runtimeImages[0]?.image.url, CATALOG_BOSS_IMAGE);
+  });
+
+  it("NPC_FIRST_APPEARANCE_IMAGE_STILL_RENDERS", () => {
+    const db = catalogPrivacyDb();
+    const templateId = seedPublicNpcScenario(db);
+    const catalog = loadCampaignScenarioNpcImages(db, templateId);
+    const parts = splitTrpgGmProseForAssets(`등장.\n${formatNpcAssetMarker(CATALOG_BOSS_KEY)}`, {
+      scenarioAssets: [],
+      npcCatalog: catalog,
+      campaignId: 1,
+      roundNumber: 1,
+    });
+    assert.equal(parts.some((part) => part.kind === "npc"), true);
   });
 });

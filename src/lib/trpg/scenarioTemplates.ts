@@ -85,7 +85,7 @@ export function rowToScenarioTemplate(
     startInventory: parseInventory(parseJson(row.start_inventory_json, [] as string[])),
     defaultPcStats: parseStatRecord(parseJson(row.default_pc_stats_json, null), statDefs),
     statKeys,
-    npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
+    npcs: opts?.includeSecret === false ? [] : parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
     characterIds: parseCharacterIds(parseJson(row.character_ids_json, [] as unknown[])),
     genres: parseGenresJson(row.genres),
     assets: parseScenarioAssets(row.assets_json),
