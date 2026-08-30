@@ -1,0 +1,21 @@
+{
+  "phase": "D.2",
+  "generatedAt": "2026-08-30T05:05:00Z",
+  "PRODUCTION_CHANGED": "NO",
+  "CI_USAGE_API_AVAILABLE": true,
+  "D1_REQUESTS_MATCHED": "36/36",
+  "D1_JOIN_METHOD": "token_fingerprint (stream gen-* id ≠ usage UUID)",
+  "ALIAS_USAGE_MATCHED": "23/24",
+  "CI_USAGE_CACHE_FIELD": "RECORDED_ZERO",
+  "STREAM_CACHE_REPORTING": "UNAVAILABLE",
+  "CI_USAGE_TTFT_AVAILABLE": true,
+  "CI_TTFT_CLOSEST_TO": "FIRST_SSE",
+  "LOW_FIELD_BEHAVIOR": "A_B_SAME",
+  "CURRENT_CI_REASONING_FIELD_CONTRACT": "SUPPORTED",
+  "PHASE_E_READY": "NO",
+  "artifacts": {
+    "usage_reconcile": "/opt/cursor/artifacts/gemini31-phase-d2-reasoning/usage-reconcile.json",
+    "reasoning_alias": "/opt/cursor/artifacts/gemini31-phase-d2-reasoning/reasoning-alias.json",
+    "alias_usage_join": "/opt/cursor/artifacts/gemini31-phase-d2-reasoning/alias-usage-join.json"
+  }
+}

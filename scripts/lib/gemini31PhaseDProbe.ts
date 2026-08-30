@@ -90,6 +90,9 @@ export type StreamProbeResult = {
   emptyContentMetadataChunks: number;
   capturedReasoningDetails: unknown[] | null;
   providerRequestId: string | null;
+  ciRequestId: string | null;
+  responseHeaderKeys: string[];
+  xCiCache: string | null;
   orRoutedProvider: string | null;
   responseModelId: string | null;
   ciRouteMetadata: unknown;
@@ -454,6 +457,9 @@ export async function probeStreamRequest(opts: {
   const rawChunks: unknown[] = [];
   let chunkIndex = 0;
   let providerRequestId: string | null = null;
+  let ciRequestId: string | null = null;
+  let responseHeaderKeys: string[] = [];
+  let xCiCache: string | null = null;
   let orRoutedProvider: string | null = null;
   let responseModelId: string | null = null;
   let ciRouteMetadata: unknown = null;
@@ -464,6 +470,9 @@ export async function probeStreamRequest(opts: {
     body: JSON.stringify(opts.requestBody),
   });
   firstByteMs = performance.now() - t0;
+  responseHeaderKeys = [...res.headers.keys()].sort();
+  ciRequestId = res.headers.get("x-ci-request-id")?.trim() || null;
+  xCiCache = res.headers.get("x-ci-cache")?.trim() || null;
 
   if (!res.ok) {
     const errText = await res.text();
@@ -595,6 +604,9 @@ export async function probeStreamRequest(opts: {
     emptyContentMetadataChunks,
     capturedReasoningDetails,
     providerRequestId,
+    ciRequestId,
+    responseHeaderKeys,
+    xCiCache,
     orRoutedProvider,
     responseModelId,
     ciRouteMetadata,
@@ -684,6 +696,8 @@ export function summarizeProbeRun(result: StreamProbeResult) {
     visible_chunks_in_stream: result.visibleChunksInStream,
     or_routed_provider: result.orRoutedProvider,
     provider_request_id: result.providerRequestId,
+    ci_request_id: result.ciRequestId,
+    x_ci_cache: result.xCiCache,
   };
 }
 
