@@ -15,6 +15,7 @@ import {
   resolveStoredWidgetExtractCallCount,
   type BillingReceipt,
 } from "@/lib/billingDisplay";
+import type { AdminBillingReceiptProjection } from "@/lib/adminBillingReceiptProjection";
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import {
@@ -25,6 +26,227 @@ import {
 } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
 
+function formatUsd(usd: number | null | undefined): string {
+  if (usd == null || !Number.isFinite(usd)) return "—";
+  return `$${usd.toFixed(4)}`;
+}
+
+function coverageLabel(coverage: AdminBillingReceiptProjection["providerActualSettlement"]["actualCostCoverage"]): string {
+  return coverage === "complete" ? "전체 확정" : "일부 미확정";
+}
+
+function settlementStatusLabel(
+  status: AdminBillingReceiptProjection["providerCalls"][number]["settlementStatus"]
+): string {
+  switch (status) {
+    case "SETTLED_EXACT":
+      return "정산 확정";
+    case "SETTLED_PARTIAL":
+      return "부분 정산";
+    case "ESTIMATED_ONLY":
+      return "추정만";
+    case "UNAVAILABLE":
+      return "없음";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+function AdminBillingReceiptPanel({
+  projection,
+}: {
+  projection: AdminBillingReceiptProjection;
+}) {
+  const [callsOpen, setCallsOpen] = useState(false);
+  const actual = projection.providerActualSettlement;
+  const listRef = projection.providerListReference;
+  const published = projection.publishedBillingReference;
+  const economics = projection.internalEconomics;
+
+  return (
+    <div className="mt-2 space-y-2 border-t border-amber-500/20 pt-2 text-[10px] leading-relaxed text-zinc-300">
+      <p className="font-semibold text-amber-300/90">관리자 정산 감사 영수증</p>
+
+      <div className="space-y-0.5">
+        <p className="font-semibold text-zinc-400">A. 사용자 청구</p>
+        <p>
+          <span className="text-zinc-500">모델:</span> {projection.userCharge.modelLabel}
+        </p>
+        <p>
+          <span className="text-zinc-500">입력/출력:</span>{" "}
+          {projection.userCharge.inputTokens.toLocaleString()} /{" "}
+          {projection.userCharge.outputTokens.toLocaleString()}
+        </p>
+        <p>
+          <span className="text-zinc-500">저장 RP:</span>{" "}
+          {projection.userCharge.outputChars.toLocaleString()}자
+        </p>
+        <p>
+          <span className="text-zinc-500">차감:</span>{" "}
+          {projection.userCharge.waived
+            ? "0 P (면제)"
+            : `${formatPoints(projection.userCharge.deductedPoints)} P`}
+        </p>
+        {projection.userCharge.pricingVersion != null && (
+          <p>
+            <span className="text-zinc-500">Published pricing v:</span>{" "}
+            {projection.userCharge.pricingVersion}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-0.5 border-t border-zinc-800 pt-1">
+        <p className="font-semibold text-zinc-400">B. Provider 실제 정산</p>
+        <p>
+          <span className="text-zinc-500">Provider:</span> {actual.provider}
+        </p>
+        <p>
+          <span className="text-zinc-500">정산 actual USD:</span>{" "}
+          <span className="text-emerald-300/90">{formatUsd(actual.actualProviderCostUsd)}</span>
+          <span className="text-zinc-600"> ({actual.actualCostSource})</span>
+        </p>
+        <p>
+          <span className="text-zinc-500">Coverage:</span> {coverageLabel(actual.actualCostCoverage)}
+        </p>
+        <p>
+          <span className="text-zinc-500">KST FX ({actual.fxDateKey}):</span>{" "}
+          {actual.effectiveKrwPerUsd.toFixed(2)} KRW/USD
+        </p>
+        <p>
+          <span className="text-zinc-500">Base actual KRW:</span>{" "}
+          {actual.baseActualKrw != null ? `~${formatPoints(actual.baseActualKrw)}원` : "—"}
+        </p>
+        <p>
+          <span className="text-zinc-500">해외결제 {Math.round(actual.overseasCardFeeRate * 100)}% 포함:</span>{" "}
+          {actual.effectiveProviderCashCostKrw != null
+            ? `~${formatPoints(actual.effectiveProviderCashCostKrw)}원`
+            : "—"}
+        </p>
+      </div>
+
+      <div className="space-y-0.5 border-t border-zinc-800 pt-1">
+        <p className="font-semibold text-zinc-400">C. Provider list/reference (비교용)</p>
+        <p className="text-[9px] text-zinc-600">실제 정산 비용이 아닙니다.</p>
+        <p>
+          <span className="text-zinc-500">List/reference USD:</span>{" "}
+          <span className="text-cyan-300/90">{formatUsd(listRef.providerListCostUsd)}</span>
+        </p>
+        <p>
+          <span className="text-zinc-500">Reference KRW:</span>{" "}
+          {listRef.baseReferenceKrw != null ? `~${formatPoints(listRef.baseReferenceKrw)}원` : "—"}
+        </p>
+        <p>
+          <span className="text-zinc-500">Source:</span> {listRef.referenceSource}
+        </p>
+      </div>
+
+      <div className="space-y-0.5 border-t border-zinc-800 pt-1">
+        <p className="font-semibold text-zinc-400">D. Published billing reference</p>
+        <p>
+          <span className="text-zinc-500">Reference USD:</span>{" "}
+          {formatUsd(published.billingReferenceCostUsd)}
+        </p>
+        <p>
+          <span className="text-zinc-500">Reference KRW:</span>{" "}
+          {published.billingReferenceCostKrw != null
+            ? `~${formatPoints(published.billingReferenceCostKrw)}원`
+            : "—"}
+        </p>
+      </div>
+
+      <div className="space-y-0.5 border-t border-zinc-800 pt-1">
+        <p className="font-semibold text-zinc-400">E. 내부 economics</p>
+        {economics ? (
+          <>
+            <p>
+              <span className="text-zinc-500">Provider 절감:</span>{" "}
+              {economics.providerSavingsKrw != null
+                ? `~${formatPoints(economics.providerSavingsKrw)}원`
+                : "—"}
+            </p>
+            <p>
+              <span className="text-zinc-500">Provider 초과:</span>{" "}
+              {economics.providerOverrunKrw != null
+                ? `~${formatPoints(economics.providerOverrunKrw)}원`
+                : "—"}
+            </p>
+            <p>
+              <span className="text-zinc-500">Gross profit:</span>{" "}
+              {economics.grossProfitKrw != null
+                ? `~${formatPoints(economics.grossProfitKrw)}원`
+                : "—"}
+            </p>
+            <p>
+              <span className="text-zinc-500">Realized margin:</span>{" "}
+              {economics.realizedMargin != null
+                ? `${(economics.realizedMargin * 100).toFixed(1)}%`
+                : "—"}
+            </p>
+          </>
+        ) : (
+          <p className="text-amber-400/90">정산 일부 미확정 — exact economics 미표시</p>
+        )}
+      </div>
+
+      {projection.providerCalls.length > 0 && (
+        <div className="border-t border-zinc-800 pt-1">
+          <button
+            type="button"
+            onClick={() => setCallsOpen((v) => !v)}
+            className="flex w-full items-center justify-between text-left font-semibold text-zinc-400 hover:text-zinc-200"
+          >
+            <span>F. Provider call audit ({projection.providerCalls.length})</span>
+            <span className="text-zinc-600">{callsOpen ? "▾" : "▸"}</span>
+          </button>
+          {callsOpen && (
+            <div className="mt-1 max-h-40 space-y-1 overflow-y-auto">
+              {projection.providerCalls.map((call) => (
+                <div key={call.callIndex} className="rounded border border-zinc-800/80 p-1">
+                  <p>
+                    <span className="text-zinc-500">#{call.callIndex}</span> {call.purpose} ·{" "}
+                    {call.modelId}
+                  </p>
+                  <p>
+                    {call.inputTokens.toLocaleString()} / {call.outputTokens.toLocaleString()} tok
+                    {call.reasoningTokens > 0
+                      ? ` · thinking ${call.reasoningTokens.toLocaleString()}`
+                      : ""}
+                  </p>
+                  {(call.cacheReadTokens > 0 || call.cacheWriteTokens > 0) && (
+                    <p className="text-zinc-600">
+                      cache r/w: {call.cacheReadTokens}/{call.cacheWriteTokens}
+                    </p>
+                  )}
+                  <p>
+                    <span className="text-zinc-500">Settled:</span> {formatUsd(call.settledActualUsd)}{" "}
+                    <span className="text-zinc-600">({call.actualCostSource})</span>
+                  </p>
+                  <p>
+                    <span className="text-zinc-500">List/ref:</span>{" "}
+                    {formatUsd(call.providerReferenceListUsd)}
+                    {call.upstreamReportedUsd != null && (
+                      <span className="text-zinc-600">
+                        {" "}
+                        · upstream {formatUsd(call.upstreamReportedUsd)}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-zinc-600">
+                    {settlementStatusLabel(call.settlementStatus)}
+                    {call.includedInTurnTotal ? " · turn 합산" : " · audit only"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReceiptBody({
   receipt,
   usage,
@@ -33,6 +255,7 @@ function ReceiptBody({
   cacheReceipt,
   exchangeRateLabel,
   showFullReceipt,
+  adminBillingReceipt,
 }: {
   receipt: BillingReceipt;
   usage: Usage;
@@ -41,7 +264,9 @@ function ReceiptBody({
   cacheReceipt: ReturnType<typeof resolveOpenRouterCacheReceipt>;
   exchangeRateLabel: string;
   showFullReceipt: boolean;
+  adminBillingReceipt?: AdminBillingReceiptProjection;
 }) {
+  const useAdminSettlementReceipt = showFullReceipt && adminBillingReceipt != null;
   const reasoningExcludedFromBilling =
     isMeteredReceiptProvider(usage.provider) &&
     !isOpenRouterSimplePointModel(usage.model ?? "") &&
@@ -52,6 +277,9 @@ function ReceiptBody({
   // 원가: 공급자 실시간 차감 USD 우선, 없으면 이용 사이트 게시 요율×토큰×환율.
   const marginRateLabel = (() => {
     if (!showFullReceipt || receipt.waived) return null;
+    if (adminBillingReceipt?.internalEconomics?.realizedMargin != null) {
+      return `${(adminBillingReceipt.internalEconomics.realizedMargin * 100).toFixed(1)}%`;
+    }
     const pct = resolveRealizedMarginRatePercent(usage, receipt.totalCost);
     return pct != null ? `${pct}%` : null;
   })();
@@ -272,7 +500,7 @@ function ReceiptBody({
           ))}
         </div>
       )}
-      {apiRawCostKrw != null && apiRawCostKrw > 0 && (
+      {!useAdminSettlementReceipt && apiRawCostKrw != null && apiRawCostKrw > 0 && (
         <>
           <p>
             <span className="text-zinc-500">
@@ -332,6 +560,9 @@ function ReceiptBody({
             </>
           )}
         </>
+      )}
+      {useAdminSettlementReceipt && adminBillingReceipt && (
+        <AdminBillingReceiptPanel projection={adminBillingReceipt} />
       )}
       {usage.statusWidgetExtract && apiRawCostKrw != null && apiRawCostKrw > 0 && (
         <p>
@@ -525,7 +756,9 @@ export default function BillingReceiptTooltip({
         <div
           role="dialog"
           aria-label="포인트 차감 내역"
-          className="absolute bottom-full right-0 z-30 mb-1.5 w-60 rounded-lg border border-white/10 bg-[#1a1a1a]/95 p-2.5 shadow-xl shadow-black/40 backdrop-blur-sm"
+          className={`absolute bottom-full right-0 z-30 mb-1.5 rounded-lg border border-white/10 bg-[#1a1a1a]/95 p-2.5 shadow-xl shadow-black/40 backdrop-blur-sm ${
+            showFullReceipt && usage.adminBillingReceipt ? "w-80 max-w-[min(20rem,calc(100vw-2rem))]" : "w-60"
+          }`}
         >
           <ReceiptBody
             receipt={receipt}
@@ -535,6 +768,7 @@ export default function BillingReceiptTooltip({
             cacheReceipt={cacheReceipt}
             exchangeRateLabel={exchangeRateLabel}
             showFullReceipt={showFullReceipt}
+            adminBillingReceipt={usage.adminBillingReceipt}
           />
           {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt).some(
             (b) => b.tokens > 0

@@ -43,6 +43,7 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import { observeTurnBillableUsageCanary } from "@/lib/turnBillableUsageProductionTelemetry";
+import { buildAdminBillingReceiptProjection } from "@/lib/adminBillingReceiptProjection";
 import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEvidence";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
@@ -5035,6 +5036,24 @@ export async function POST(req: Request) {
           };
         } catch (e) {
           console.warn("[shadowPricing] compute failed:", (e as Error).message);
+        }
+
+        if (meteredReceiptBilling && billingExchangeRate) {
+          try {
+            const adminReceipt = buildAdminBillingReceiptProjection({
+              usage: baseUsageRecord,
+              stages,
+              billableStageLabels: new Set(billableStages.map((s) => s.stage)),
+              provider: billingProvider,
+              modelId: deliveredModelId ?? usageModel,
+              modelLabel: usageModelLabel,
+              exchangeRate: billingExchangeRate,
+              shadowPricing: (baseUsageRecord as Usage).shadowPricing,
+            });
+            (baseUsageRecord as Usage).adminBillingReceipt = adminReceipt;
+          } catch (e) {
+            console.warn("[adminBillingReceipt] projection failed:", (e as Error).message);
+          }
         }
 
         // Muse 1-pass acceptance telemetry — DB/context only; never client SSE/variants.

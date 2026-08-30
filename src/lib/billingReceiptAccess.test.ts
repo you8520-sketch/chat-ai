@@ -271,6 +271,57 @@ describe("billingReceiptAccess shadow privacy", () => {
     assert.equal((pub as unknown as Record<string, unknown>).shadowPricing, undefined);
   });
 
+  it("strips adminBillingReceipt from public receipt", () => {
+    const usage = {
+      input: 100,
+      output: 50,
+      model: "google/gemini-3.7-flash",
+      route: "safe" as const,
+      cost: 10,
+      adminBillingReceipt: {
+        schemaVersion: 1,
+        userCharge: {
+          modelId: "google/gemini-3.7-flash",
+          modelLabel: "Gemini",
+          inputTokens: 100,
+          outputTokens: 50,
+          outputChars: 200,
+          deductedPoints: 10,
+          pricingVersion: 1,
+          waived: false,
+          waiverReason: null,
+        },
+        providerActualSettlement: {
+          provider: "cheaperinference",
+          actualProviderCostUsd: 0.0217,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          fxDateKey: "2026-08-30",
+          fxMode: "daily_kst",
+          baseUsdKrw: 1377,
+          effectiveKrwPerUsd: 1405,
+          overseasCardFeeRate: 0.02,
+          baseActualKrw: 30.5,
+          effectiveProviderCashCostKrw: 31.1,
+        },
+        providerListReference: {
+          providerListCostUsd: 0.0309,
+          referenceSource: "cheaper_inference_catalog_reference_rates",
+          baseReferenceKrw: 43.4,
+        },
+        publishedBillingReference: {
+          billingReferenceCostUsd: 0.015,
+          billingReferenceCostKrw: 21,
+          pricingVersion: 1,
+        },
+        internalEconomics: null,
+        providerCalls: [],
+      },
+    } as unknown as Usage;
+    const pub = sanitizeUsageForPublicReceipt(usage);
+    assert.equal((pub as unknown as Record<string, unknown>).adminBillingReceipt, undefined);
+  });
+
   it("strips usageReportingEvidence from public receipt stages", () => {
     const usage = {
       input: 100,

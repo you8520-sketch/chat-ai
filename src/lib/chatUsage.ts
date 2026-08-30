@@ -1,3 +1,4 @@
+import type { AdminBillingReceiptProjection } from "@/lib/adminBillingReceiptProjection";
 import type { BillingWaiverReason } from "@/lib/points";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 
@@ -226,4 +227,6 @@ export type Usage = {
     worstCasePromoMargin: number | null;
     marginFloorViolated: boolean | null;
   };
+  /** Admin-only exact settlement audit receipt — stripped from public clients. */
+  adminBillingReceipt?: AdminBillingReceiptProjection;
 };

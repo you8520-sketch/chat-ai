@@ -78,12 +78,14 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
     shadowPricing: _shadowPricing,
+    adminBillingReceipt: _adminBillingReceipt,
     publishedChargeSnapshot: _publishedChargeSnapshot,
     ...rest
   } = usage as Usage & { publishedChargeSnapshot?: unknown };
   void _canonAdopted;
   void _canonAdoptedAt;
   void _publishedChargeSnapshot;
+  void _adminBillingReceipt;
   const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
@@ -112,8 +114,10 @@ export function stripAdultRoutingForClient(
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
     shadowPricing: _shadowPricing,
+    adminBillingReceipt: _adminBillingReceipt,
     ...rest
   } = usage;
+  void _adminBillingReceipt;
   void _canonAdopted;
   void _canonAdoptedAt;
   let client = { ...rest } as Usage;
@@ -130,6 +134,7 @@ export function stripAdultRoutingForClient(
     if (usage.canonAdopted != null) client.canonAdopted = usage.canonAdopted;
     if (usage.canonAdoptedAt) client.canonAdoptedAt = usage.canonAdoptedAt;
     if (usage.shadowPricing) client.shadowPricing = usage.shadowPricing;
+    if (usage.adminBillingReceipt) client.adminBillingReceipt = usage.adminBillingReceipt;
   }
   return client;
 }
