@@ -1,6 +1,6 @@
 # TRPG Sandbox Blueprint Generator Reliability Audit
 
-Generated: 2026-08-30
+Generated: 2026-08-30 (metrics reclassified 2026-08-30)
 
 ## Root cause chain (confirmed)
 
@@ -12,70 +12,75 @@ sandbox prompt → model returns valid JSON → endingConditions missing/empty
 
 | Check | Result |
 |-------|--------|
-| VALID_JSON_WITH_EMPTY_ENDING_CONDITIONS_PARSE_SUCCESS | **true** (test + prior probe) |
-| SEMANTIC_BLUEPRINT_VALIDATION_HAPPENS_AFTER_AUTHORING_COMPLETE | **true** (`sandboxDirector.ts` L133–137) |
-| JSON_REPAIR_SEES_SEMANTIC_BLUEPRINT_FAILURE | **false** (repair only on parse throw) |
+| VALID_JSON_WITH_EMPTY_ENDING_CONDITIONS_PARSE_SUCCESS | **true** |
+| SEMANTIC_BLUEPRINT_VALIDATION_HAPPENS_AFTER_AUTHORING_COMPLETE | **true** |
+| JSON_REPAIR_SEES_SEMANTIC_BLUEPRINT_FAILURE | **false** |
 
 **PRIMARY_ROOT_CAUSE:** `A_SANDBOX_REQUIRED_FIELD_CONTRACT_TOO_WEAK` + `B_OPEN_ENDED_WORDING_SUPPRESSES_END_CONDITIONS`
 
-Generic draft prompt listed `endingConditions` in JSON keys but treated endings as optional via "Ending candidates are adaptable outcomes" and sandbox addendum "Keep playLength open_ended" without requiring completion criteria.
+## Frozen provider suite (corrected metrics)
 
-## Owner map
+| Metric | Count |
+|--------|-------|
+| TOTAL_PROVIDER_RUNS | 16 |
+| SUCCESSFUL_PARSED_BLUEPRINTS | 12 |
+| TRANSPORT_FAILURES | 4 |
+| PARSE_FAILURES | 0 |
+| REPAIR_FAILURES | 0 |
+| SEMANTIC_BLUEPRINT_REJECTS | 0 |
+| MISSING_ENDING_CONDITIONS_AMONG_PARSED | 0 |
 
-| Owner | Location |
-|-------|----------|
-| SANDBOX_BLUEPRINT_GENERATION_OWNER | `sandboxDirector.ensureCampaignDirectorContext` |
-| SANDBOX_SYSTEM_PROMPT_OWNER | `buildSandboxDirectorSystemPrompt` |
-| SANDBOX_USER_PROMPT_OWNER | `buildSandboxDirectorUserPrompt` |
-| SHARED_SCENARIO_DRAFT_PROMPT_OWNER | `buildScenarioDraftSystemPrompt` |
-| JSON_PARSE_OWNER | `parseScenarioDraftJson` / `completeTrpgAuthoringJson` |
-| JSON_REPAIR_OWNER | `completeTrpgAuthoringJson` repair branch |
-| SANDBOX_SEMANTIC_VALIDATION_OWNER | `evaluateSandboxBlueprint` |
-| SANDBOX_PLAN_PERSISTENCE_OWNER | `trpg_campaign_context.director_plan_json` |
-| WORLD_ONLY_START_FAILURE_POLICY_OWNER | `ensureCampaignDirectorContext` (null plan, no block) |
+### Pass rates (split denominators)
 
-`WORLD_ONLY_BLUEPRINT_GENERATOR_OWNER_COUNT = 1`
+| Rate | Value |
+|------|-------|
+| END_TO_END_GENERATION_SUCCESS_RATE (all 16) | 12/16 = 75% |
+| PARSED_BLUEPRINT_ACCEPTANCE_RATE | 12/12 = 100% |
+| PRIMARY_WORLD_END_TO_END_PASS_RATE (12 primary) | 9/12 = 75% |
+| PRIMARY_PARSED_BLUEPRINT_ACCEPTANCE_RATE | 9/9 = 100% |
 
-## Minimal correction (sandbox-only)
+Transport failures (all `body completion deadline exceeded`):
 
-Extended `buildSandboxDirectorSystemPrompt` + one line in `buildSandboxDirectorUserPrompt`:
-- Mandatory `startingSituation`, `centralConflict`, `goal`, `endingConditions` (≥1)
-- `endingConditions` vs `endingCandidates` semantics
-- `open_ended` ≠ absent completion criteria
+- W03 fantasy adventure (primary)
+- W09 urban supernatural (primary)
+- W12 lore-heavy world (primary)
+- W02 open exploration (high-risk repeat run 1)
 
-**Not changed:** generic creator draft, JSON repair, validator strictness, feature flag, startup policy.
+Previously failing genres on successful parse:
 
-## Provider suite (post-correction)
+- Apocalypse survival: **PASS**
+- Open exploration: **PASS** (primary + repeat run 2)
+
+## Heuristic vs human review
+
+| Field | Value |
+|-------|-------|
+| AGENCY_HEURISTIC_HITS | 2 (W06, W07) |
+| AGENCY_HUMAN_CONFIRMED_FAILURES | 0 |
+| RAILROAD_HEURISTIC_HITS | 2 (W06, W07) |
+| RAILROAD_HUMAN_CONFIRMED_FAILURES | 0 |
+
+Human review note: goal phrasing (“플레이어는 … 행동한다”) triggered regex false positives; no confirmed agency or railroad failures.
+
+## High-risk repeats
+
+| Field | Value |
+|-------|-------|
+| HIGH_RISK_TRANSPORT_FAILURES | 1 |
+| HIGH_RISK_MISSING_ENDING_CONDITIONS | 0 |
+
+## Product gate
+
+- **Required-field contract (parsed Blueprints):** 0 missing `endingConditions`
+- **DEFAULT_ENABLE_READY:** **NO** — 3/12 primary transport timeouts remain a separate reliability concern
+- **TRANSPORT_FAILURE_COUNTED_AS_SEMANTIC_REJECT:** **false** (corrected)
+- **TIMEOUT_COUNTED_AS_ENDING_MISS:** **false** (corrected)
+
+## Latency / tokens (successful calls only)
 
 | Metric | Value |
 |--------|-------|
-| FROZEN_WORLD_COUNT | 12 |
-| HIGH_RISK_REPEAT_CALLS | 4 |
-| TOTAL_PROVIDER_CALLS | 16 |
-| PRIMARY_JSON_PARSE_SUCCESS | 12/16 |
-| JSON_REPAIR_TRIGGERED | 0 |
-| SEMANTIC_BLUEPRINT_REJECT (empty endings) | **0** |
-| MISSING_ENDING_CONDITIONS (successful parses) | **0** |
-| BEFORE missing endings (prior 5-world probe) | 2/5 |
-| AFTER missing endings | 0/9 successful primary parses |
-| Apocalypse + open exploration (primary) | **PASS** both |
-| HIGH_RISK_ENDING_CONDITION_MISSES | 1 (W02 repeat timeout, not empty endings) |
-| Transport timeouts (primary) | 3 (W03, W09, W12) |
 | MEDIAN_LATENCY_MS | 16077 |
 | P95_LATENCY_MS | 88865 |
 | AVG_INPUT_TOKENS | 1044 |
 | AVG_OUTPUT_TOKENS | 1420 |
-
-## Product gate
-
-- **Required-field contract:** fixed (0 empty `endingConditions` on successful calls)
-- **DEFAULT_ENABLE_READY:** **NO** — 3/12 primary runs hit transport timeout; timeout handling is a separate follow-up
-- **GENERATOR_QUALITY:** **PRODUCTION_GRADE** for the targeted endingConditions failure mode
-
-## Cleanup
-
-| Item | Status |
-|------|--------|
-| `scripts/lib/blueprint-prompt-vnext.ts` | KEEP (harness-only) |
-| Duplicate sandbox generator | none found |
-| Generic scenario authoring | KEEP unchanged |

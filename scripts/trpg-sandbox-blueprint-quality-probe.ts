@@ -11,6 +11,11 @@ import {
 } from "../src/lib/trpg/scenarioDraft";
 import { completeTrpgAuthoringJson, callTrpgAuthoringModel } from "../src/lib/trpg/scenarioDraftCall";
 import { evaluateSandboxBlueprint, parseTrpgScenarioPlan } from "../src/lib/trpg/scenarioPlan";
+import {
+  classifyGenerationFailure,
+  summarizeSandboxBlueprintProbeRuns,
+  type SandboxBlueprintProbeRunRecord,
+} from "../src/lib/trpg/sandboxBlueprintProbeMetrics";
 
 type WorldFixture = {
   id: string;
@@ -248,6 +253,7 @@ async function runWorld(world: WorldFixture, runIndex: number) {
       primaryParseSuccess,
       repairTriggered,
       repairSuccess,
+      generationFailure: null,
       semanticReject,
       metrics,
       planSummary: {
@@ -264,6 +270,12 @@ async function runWorld(world: WorldFixture, runIndex: number) {
       error: null as string | null,
     };
   } catch (error) {
+    const generationFailure = classifyGenerationFailure({
+      error,
+      primaryParseSuccess,
+      repairTriggered,
+      repairSuccess,
+    });
     return {
       worldId: world.id,
       category: world.category,
@@ -272,7 +284,8 @@ async function runWorld(world: WorldFixture, runIndex: number) {
       primaryParseSuccess,
       repairTriggered,
       repairSuccess,
-      semanticReject: true,
+      generationFailure,
+      semanticReject: false,
       metrics: null,
       planSummary: null,
       inputTokens: 0,
@@ -281,13 +294,6 @@ async function runWorld(world: WorldFixture, runIndex: number) {
       error: error instanceof Error ? error.message : String(error),
     };
   }
-}
-
-function percentile(values: number[], p: number): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const idx = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, idx)] ?? 0;
 }
 
 async function main() {
@@ -299,7 +305,7 @@ async function main() {
   const outDir = process.env.PROBE_OUT_DIR ?? "docs/audits/trpg-sandbox-blueprint-quality-probe";
   mkdirSync(outDir, { recursive: true });
 
-  const runs: Awaited<ReturnType<typeof runWorld>>[] = [];
+  const runs: SandboxBlueprintProbeRunRecord[] = [];
   for (const world of WORLDS) {
     runs.push(await runWorld(world, 0));
   }
@@ -309,41 +315,14 @@ async function main() {
     runs.push(await runWorld(world, 2));
   }
 
-  const metrics = runs.filter((r) => r.metrics);
-  const summary = {
-    generatedAt: new Date().toISOString(),
-    frozenWorldCount: WORLDS.length,
-    highRiskRepeatCalls: 4,
-    totalProviderCalls: runs.length,
-    primaryJsonParseSuccess: runs.filter((r) => r.primaryParseSuccess).length,
-    jsonRepairTriggered: runs.filter((r) => r.repairTriggered).length,
-    jsonRepairSuccess: runs.filter((r) => r.repairSuccess).length,
-    semanticBlueprintReject: runs.filter((r) => r.semanticReject).length,
-    playablePlanPassRate: metrics.filter((r) => r.metrics?.EVALUATE_SANDBOX_BLUEPRINT_PASS).length / WORLDS.length,
-    missingStartingSituation: metrics.filter((r) => !r.metrics?.STARTING_SITUATION_PRESENT).length,
-    missingCentralConflict: metrics.filter((r) => !r.metrics?.CENTRAL_CONFLICT_PRESENT).length,
-    missingGoal: metrics.filter((r) => !r.metrics?.GOAL_PRESENT).length,
-    missingEndingConditions: metrics.filter((r) => (r.metrics?.ENDING_CONDITIONS_COUNT ?? 0) === 0).length,
-    playerAgencyViolation: metrics.filter((r) => r.metrics?.PLAYER_AGENCY === "VIOLATED").length,
-    majorRailroadFailure: metrics.filter((r) => r.metrics?.RAILROAD_MAJOR).length,
-    worldCanonContradiction: 0,
-    medianLatencyMs: percentile(
-      runs.map((r) => r.latencyMs).filter((n) => n > 0),
-      50
-    ),
-    p95LatencyMs: percentile(
-      runs.map((r) => r.latencyMs).filter((n) => n > 0),
-      95
-    ),
-    avgInputTokens:
-      runs.reduce((sum, r) => sum + r.inputTokens, 0) / Math.max(1, runs.filter((r) => r.inputTokens > 0).length),
-    avgOutputTokens:
-      runs.reduce((sum, r) => sum + r.outputTokens, 0) / Math.max(1, runs.filter((r) => r.outputTokens > 0).length),
-    highRiskEndingConditionMisses: runs
-      .filter((r) => r.highRisk && r.runIndex > 0)
-      .filter((r) => !r.metrics?.EVALUATE_SANDBOX_BLUEPRINT_PASS || (r.metrics?.ENDING_CONDITIONS_COUNT ?? 0) === 0).length,
-    runs,
-  };
+  const summary = summarizeSandboxBlueprintProbeRuns(runs, {
+    primaryWorldCount: WORLDS.length,
+    humanReview: {
+      agencyHumanConfirmedFailures: 0,
+      railroadHumanConfirmedFailures: 0,
+      notes: "",
+    },
+  });
 
   writeFileSync(join(outDir, "probe-results.json"), JSON.stringify(summary, null, 2), "utf8");
   console.log(JSON.stringify(summary, null, 2));
