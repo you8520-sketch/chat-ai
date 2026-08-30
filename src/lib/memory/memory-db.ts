@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import { getChatMemoryCapacity, resolveMemoryBudgetFromCapacity } from "./memory-capacity";
-import type { ChatMemoryRow, MemoryBufferRow, MemoryTier } from "./memory-types";
+import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 
 export function calcUsedChars(row: Pick<ChatMemoryRow, "pinned_facts" | "recent_summary" | "archive_summary">): number {
   return (row.pinned_facts?.length ?? 0) + (row.recent_summary?.length ?? 0) + (row.archive_summary?.length ?? 0);
@@ -100,29 +100,6 @@ function migrateLegacyChatMemory(
       (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
      VALUES (?,?,?,?,?,?,?,?,0)`
   ).run(chatId, userId, characterId, "", text, "", tier, text.length);
-}
-
-export function appendToBuffer(opts: {
-  chatId: number;
-  userId: number;
-  characterId: number;
-  role: "user" | "assistant";
-  content: string;
-  messageIndex: number;
-}): void {
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO memory_buffer (user_id, character_id, chat_id, role, content, message_index) VALUES (?,?,?,?,?,?)`
-  ).run(opts.userId, opts.characterId, opts.chatId, opts.role, opts.content, opts.messageIndex);
-}
-
-export function getBufferMessages(chatId: number): MemoryBufferRow[] {
-  return getDb()
-    .prepare(
-      `SELECT id, user_id, character_id, chat_id, role, content, message_index, created_at
-       FROM memory_buffer WHERE chat_id=? ORDER BY message_index ASC, id ASC`
-    )
-    .all(chatId) as MemoryBufferRow[];
 }
 
 export function getBufferCount(chatId: number): number {

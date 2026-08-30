@@ -134,11 +134,17 @@ describe("single memory policy owner", () => {
     }
   });
 
-  it("deleted flag module is gone", () => {
-    assert.equal(repoRgCount("memory-5plus4-flag.ts"), 0);
+  it("legacy 20-message memory compressor subgraph has zero runtime references", () => {
+    assert.equal(repoRgCount("memory-compressor"), 0);
+    assert.equal(repoRgCount("compressMemoryBuffer"), 0);
+    assert.equal(repoRgCount("scheduleMemoryCompression"), 0);
+    assert.equal(repoRgCount("callGeminiCompression"), 0);
+    assert.equal(repoRgCount("COMPRESSION_TRIGGER"), 0);
+    assert.equal(repoRgCount("appendToBuffer"), 0);
+    assert.equal(repoRgCount("getBufferMessages"), 0);
     try {
-      readFileSync("/workspace/src/lib/memory/memory-5plus4-flag.ts");
-      assert.fail("flag file still exists");
+      readFileSync("/workspace/src/lib/memory/memory-compressor.ts");
+      assert.fail("memory-compressor.ts still exists");
     } catch {
       // expected
     }
