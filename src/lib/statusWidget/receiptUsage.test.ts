@@ -64,6 +64,7 @@ describe("statusWidget receiptUsage", () => {
         upstreamCostUsd: 0.01,
         cacheReadTokens: 200,
         cacheWriteTokens: 100,
+        cheaperInferenceBilledCostUsd: 0.0007,
       },
     ]);
     assert.equal(merged?.inputTokens, 1800);
@@ -72,6 +73,17 @@ describe("statusWidget receiptUsage", () => {
     assert.equal(merged?.upstreamCostUsd, 0.01);
     assert.equal(merged?.cacheReadTokens, 800);
     assert.equal(merged?.cacheWriteTokens, 100);
+    assert.equal(merged?.cheaperInferenceBilledCostUsd, 0.0007);
+    assert.equal(merged?.syncExtractCiBilledCallCount, 1);
+  });
+
+  it("mergeStatusWidgetExtractUsages sums CI billed across calls", () => {
+    const merged = mergeStatusWidgetExtractUsages([
+      { inputTokens: 100, outputTokens: 50, estimated: false, cheaperInferenceBilledCostUsd: 0.001 },
+      { inputTokens: 80, outputTokens: 40, estimated: false, cheaperInferenceBilledCostUsd: 0.0007 },
+    ]);
+    assert.ok(Math.abs((merged?.cheaperInferenceBilledCostUsd ?? 0) - 0.0017) < 1e-9);
+    assert.equal(merged?.syncExtractCiBilledCallCount, 2);
   });
 
   it("Flash billing meta never records Opus as extract model", () => {
@@ -289,5 +301,57 @@ describe("statusWidget receiptUsage", () => {
       statusWidgetExtractModelLabel("vendor/custom-model"),
       "vendor/custom-model (상태창 추출)"
     );
+  });
+
+  it("F1 — failed call with no usage + billed repair is partial coverage", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 100,
+        outputTokens: 50,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.001,
+        syncExtractCiBilledCallCount: 1,
+        syncExtractPhysicalCallCount: 1,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "partial");
+    assert.notEqual(receipt.actualCostCoverage, "complete");
+  });
+
+  it("F2 — all represented calls billed yields complete coverage", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 200,
+        outputTokens: 100,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.002,
+        syncExtractCiBilledCallCount: 2,
+        syncExtractPhysicalCallCount: 2,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "complete");
+  });
+
+  it("F3 — nested physical exceeds stale metadata uses larger denominator", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 200,
+        outputTokens: 100,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.002,
+        syncExtractCiBilledCallCount: 2,
+        syncExtractPhysicalCallCount: 3,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "partial");
   });
 });

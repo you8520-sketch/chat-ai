@@ -10,6 +10,11 @@ import {
 import { openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { BillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
+import {
+  resolveSyncExtractActualCostFromAggregate,
+  type SyncActualCostCoverage,
+} from "@/lib/syncExtractActualCost";
+import type { ActualCostSource } from "@/lib/shadowPricing";
 
 /** 상태창 추출 전용 — 공용 TokenUsage에 modelId/callCount를 넣지 않는다. */
 export type StatusWidgetExtractBillingMeta = {
@@ -30,6 +35,11 @@ export type StatusWidgetExtractReceipt = {
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
   estimated?: boolean;
+  /** CheaperInference aggregate settled USD — sum of physical calls, counted once per call. */
+  actualProviderCostUsd?: number;
+  actualProviderCostKrw?: number;
+  actualCostSource?: ActualCostSource;
+  actualCostCoverage?: SyncActualCostCoverage;
 };
 
 function nonNegativeFinite(n: unknown): number {
@@ -135,8 +145,18 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
   let hasApiReported = false;
   let cacheReadTokens = 0;
   let cacheWriteTokens = 0;
+  let cheaperInferenceBilledCostUsd = 0;
+  let hasCiBilled = false;
+  let syncExtractCiBilledCallCount = 0;
+  let syncExtractPhysicalCallCount = 0;
 
   for (const u of usages) {
+    syncExtractPhysicalCallCount +=
+      typeof u.syncExtractPhysicalCallCount === "number" &&
+      Number.isInteger(u.syncExtractPhysicalCallCount) &&
+      u.syncExtractPhysicalCallCount > 0
+        ? u.syncExtractPhysicalCallCount
+        : 1;
     inputTokens += nonNegativeFinite(u.inputTokens);
     outputTokens += nonNegativeFinite(u.outputTokens);
     cacheReadTokens += nonNegativeFinite(u.cacheReadTokens);
@@ -152,6 +172,18 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
       upstreamCostUsd += upstream;
       hasUpstream = true;
     }
+    const ciBilled = nonNegativeFinite(u.cheaperInferenceBilledCostUsd);
+    if (ciBilled > 0) {
+      cheaperInferenceBilledCostUsd += ciBilled;
+      hasCiBilled = true;
+      const billedMultiplicity =
+        typeof u.syncExtractCiBilledCallCount === "number" &&
+        Number.isInteger(u.syncExtractCiBilledCallCount) &&
+        u.syncExtractCiBilledCallCount > 0
+          ? u.syncExtractCiBilledCallCount
+          : 1;
+      syncExtractCiBilledCallCount += billedMultiplicity;
+    }
   }
 
   return {
@@ -160,6 +192,9 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
     estimated,
     ...(hasApiReported ? { apiReportedInputTokens } : {}),
     ...(hasUpstream ? { upstreamCostUsd } : {}),
+    ...(hasCiBilled ? { cheaperInferenceBilledCostUsd } : {}),
+    ...(syncExtractCiBilledCallCount > 0 ? { syncExtractCiBilledCallCount } : {}),
+    ...(syncExtractPhysicalCallCount > 0 ? { syncExtractPhysicalCallCount } : {}),
     ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
     ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
   };
@@ -174,6 +209,27 @@ export function buildStatusWidgetExtractReceipt(
   const output = usage.outputTokens;
   const modelId = billingMeta.modelId?.trim() || "unknown";
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
+  const nestedPhysicalCount =
+    typeof usage.syncExtractPhysicalCallCount === "number" &&
+    Number.isInteger(usage.syncExtractPhysicalCallCount) &&
+    usage.syncExtractPhysicalCallCount > 0
+      ? usage.syncExtractPhysicalCallCount
+      : 0;
+  const physicalCallCount = Math.max(callCount, nestedPhysicalCount);
+  const billedCallCount =
+    usage.syncExtractCiBilledCallCount ??
+    (usage.cheaperInferenceBilledCostUsd != null && usage.cheaperInferenceBilledCostUsd > 0
+      ? 1
+      : 0);
+  const actualProvenance = resolveSyncExtractActualCostFromAggregate(
+    {
+      cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd,
+      physicalCallCount,
+      billedCallCount,
+    },
+    exchangeRate.effectiveKrwPerUsd
+  );
+
   return {
     model: modelId,
     modelLabel: statusWidgetExtractModelLabel(
@@ -201,6 +257,18 @@ export function buildStatusWidgetExtractReceipt(
       : {}),
     ...(usage.cacheWriteTokens != null && usage.cacheWriteTokens > 0
       ? { cacheWriteTokens: usage.cacheWriteTokens }
+      : {}),
+    ...(actualProvenance.actualProviderCostUsd != null
+      ? { actualProviderCostUsd: actualProvenance.actualProviderCostUsd }
+      : {}),
+    ...(actualProvenance.actualProviderCostKrw != null
+      ? { actualProviderCostKrw: actualProvenance.actualProviderCostKrw }
+      : {}),
+    ...(actualProvenance.actualCostSource !== "unavailable"
+      ? {
+          actualCostSource: actualProvenance.actualCostSource,
+          actualCostCoverage: actualProvenance.actualCostCoverage,
+        }
       : {}),
     estimated: usage.estimated,
   };

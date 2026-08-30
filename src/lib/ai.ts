@@ -63,6 +63,10 @@ export type TokenUsage = {
   responseModelId?: string;
   /** Provider request id from response headers (when present) */
   providerRequestId?: string;
+  /** Merged status-widget extract — physical calls with CI billed USD. Admin receipt only. */
+  syncExtractCiBilledCallCount?: number;
+  /** Merged status-widget extract — total physical calls represented (nested-safe). */
+  syncExtractPhysicalCallCount?: number;
 };
 
 /** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference GPT-5.6 Luna */

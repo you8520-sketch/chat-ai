@@ -114,6 +114,11 @@ export type Usage = {
     cacheWriteTokens?: number;
     upstreamCostUsd?: number;
     estimated?: boolean;
+    /** CheaperInference aggregate settled USD — admin receipt v2 only. */
+    actualProviderCostUsd?: number;
+    actualProviderCostKrw?: number;
+    actualCostSource?: string;
+    actualCostCoverage?: "complete" | "partial" | "unavailable";
   };
   /** 관리자 전용 — 위젯 추출 실패/폴백 진단. 일반 사용자 영수증에서는 제거됨. */
   statusWidgetExtractDiagnostics?: {
@@ -204,7 +209,12 @@ export type Usage = {
     reserveStatus: string;
     actualTurnCostCoverage?: "complete" | "partial";
     actualProviderCostKrw: number;
+    actualCostUsd?: number;
     actualCostSource: string;
+    /** Delivered billing model used for shadow cost calculation. Admin-only. */
+    modelId?: string;
+    /** Delivered provider used for shadow cost calculation. Admin-only. */
+    provider?: string;
     providerListCostKrw: number;
     inputCostKrw: number;
     outputCostKrw: number;
