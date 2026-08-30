@@ -51,7 +51,30 @@ export function normalizeStatusWidgetExtractCallCount(callCount: unknown): numbe
   return 1;
 }
 
-export function statusWidgetExtractModelLabel(modelId: string): string {
+export function statusWidgetExtractModelLabel(
+  modelId: string,
+  postTurnSharedInitial?: boolean
+): string {
+  if (postTurnSharedInitial) {
+    const id = modelId.trim();
+    if (id.includes(" + ")) {
+      return id
+        .split(" + ")
+        .map((part) => statusWidgetExtractModelLabel(part.trim(), true))
+        .join(" + ");
+    }
+    const lower = id.toLowerCase();
+    if (isGpt56LunaModel(id) || lower === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+      return "GPT-5.6 Luna (공유 초기: 상태창 + 추천입력)";
+    }
+    if (
+      lower === OPENROUTER_GEMINI_25_FLASH_MODEL ||
+      lower.includes("gemini-2.5-flash")
+    ) {
+      return "Google Gemini 2.5 Flash (공유 초기: 상태창 + 추천입력)";
+    }
+    return `${id || "unknown"} (공유 초기: 상태창 + 추천입력)`;
+  }
   const id = modelId.trim();
   if (id.includes(" + ")) {
     return id
@@ -142,7 +165,7 @@ export function buildStatusWidgetExtractReceipt(
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
   return {
     model: modelId,
-    modelLabel: statusWidgetExtractModelLabel(modelId),
+    modelLabel: statusWidgetExtractModelLabel(modelId, billingMeta.postTurnSharedInitial),
     input,
     output,
     callCount,
@@ -209,11 +232,17 @@ export function appendStatusWidgetExtractToUsageRecord(
   const widgetIn = widgetReceipt.input;
   const widgetOut = widgetReceipt.output;
   const callCount = widgetReceipt.callCount;
+  const extractStageLabel = billingMeta.postTurnSharedInitial
+    ? "공유 초기 (상태창 + 추천입력)"
+    : "상태창 추출";
 
   return {
     ...record,
     mainApiRawCostKrw,
-    statusWidgetExtract: widgetReceipt,
+    statusWidgetExtract: {
+      ...widgetReceipt,
+      ...(billingMeta.postTurnSharedInitial ? { postTurnSharedInitial: true } : {}),
+    },
     apiRawCostKrw: totalApiRawCostKrw,
     apiInputTokens: (record.apiInputTokens ?? record.input) + widgetIn,
     apiOutputTokens: (record.apiOutputTokens ?? record.output) + widgetOut,
@@ -225,7 +254,7 @@ export function appendStatusWidgetExtractToUsageRecord(
     stages: [
       ...(record.stages ?? []),
       {
-        stage: "상태창 추출",
+        stage: extractStageLabel,
         model: widgetReceipt.model,
         input: widgetIn,
         output: widgetOut,

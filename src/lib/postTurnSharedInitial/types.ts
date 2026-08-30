@@ -13,6 +13,10 @@ export type PostTurnSharedInitialInput = {
   characterIdentity?: string | null;
   characterCriticalContext?: string | null;
   personaName: string;
+  /** Public sanitized persona identity — suggestions voice only. */
+  userPersona?: string | null;
+  personaDescription?: string | null;
+  personaSpeechExamples?: string | null;
   userMessage: string;
   assistantProse: string;
   previousAssistantProse?: string | null;
@@ -39,11 +43,15 @@ export type PostTurnSharedInitialParseResult = {
 };
 
 export type PostTurnSharedInitialRunResult = {
-  consumed: boolean;
+  /** Physical provider invocation was started (success or transport failure). */
+  attempted: boolean;
   transportOk: boolean;
   text: string;
   usage: TokenUsage | null;
   parsed: PostTurnSharedInitialParseResult | null;
+  httpStatus: number | null;
+  finishReason: string | null;
+  errorCode: string | null;
 };
 
 export type CoalesceSuggestedRepliesOpts = {

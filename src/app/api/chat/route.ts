@@ -422,6 +422,7 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
+import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
 import {
   diagnoseStatusWidgetValues,
   logStatusWidgetLiveTrace,
@@ -4874,6 +4875,7 @@ export async function POST(req: Request) {
         let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
         let widgetPrefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
           null;
+        let widgetPrefetchedSuggestedRepliesAssistantProseHash: string | null = null;
         let widgetSharedInitialConsumed = false;
         const suggestedRepliesEligibleForCoalesce =
           body.suggestedRepliesEnabled !== false &&
@@ -4895,6 +4897,8 @@ export async function POST(req: Request) {
             characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
             userPersona: backgroundPersonaIdentity,
+            personaDescription,
+            personaSpeechExamples: selectedPersona?.speech_examples ?? null,
             userMessage: messageText,
             userNote: effectiveUserNote,
             assistantMessageId: persistedAssistantId,
@@ -4914,6 +4918,8 @@ export async function POST(req: Request) {
           widgetExtractResult = widgetResolved.telemetry.resolutionSource;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
           widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
+          widgetPrefetchedSuggestedRepliesAssistantProseHash =
+            widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
           widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
@@ -5762,6 +5768,11 @@ export async function POST(req: Request) {
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
         if (suggestedRepliesEnabled) {
+          const prefetchedReplies = resolvePrefetchedSuggestedReplies({
+            prefetched: widgetPrefetchedSuggestedReplies,
+            prefetchAssistantProseHash: widgetPrefetchedSuggestedRepliesAssistantProseHash,
+            finalAssistantProse: savedText,
+          });
           scheduleSuggestedRepliesExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
@@ -5772,7 +5783,7 @@ export async function POST(req: Request) {
             userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             assistantProse: savedText,
-            prefetchedReplies: widgetPrefetchedSuggestedReplies,
+            prefetchedReplies,
             sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
           });
         }

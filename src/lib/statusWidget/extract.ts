@@ -29,6 +29,7 @@ import {
   type StatusWidgetExtractBillingMeta,
 } from "./receiptUsage";
 import { resolvePostTurnSharedInitialMode } from "@/lib/postTurnSharedInitial/parse";
+import { hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import type { PostTurnSharedInitialParseResult } from "@/lib/postTurnSharedInitial/types";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
@@ -110,6 +111,7 @@ export type StatusWidgetTurnExtractMeta = {
   attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[];
   /** Populated when status widget + suggested replies shared one initial Luna call. */
   prefetchedSuggestedReplies?: SuggestedReplyItem[] | null;
+  prefetchedSuggestedRepliesAssistantProseHash?: string | null;
   sharedInitialConsumed?: boolean;
   postTurnSharedInitial?: boolean;
 };
@@ -976,6 +978,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   characterCriticalContext?: string | null;
   personaName: string;
   userPersona?: string | null;
+  personaDescription?: string | null;
+  personaSpeechExamples?: string | null;
   userMessage: string;
   assistantProse: string;
   resolved: ResolvedStatusWidgetTurn;
@@ -1025,6 +1029,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     mergedOutputTokens: 0,
     attemptDiagnostics: [],
     prefetchedSuggestedReplies: null,
+    prefetchedSuggestedRepliesAssistantProseHash: null,
     sharedInitialConsumed: false,
     postTurnSharedInitial: false,
   });
@@ -1056,6 +1061,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   const fallbackBudget = { remaining: 1 };
 
   let prefetchedSuggestedReplies: SuggestedReplyItem[] | null = null;
+  let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
+  let sharedInitialAttempted = false;
   let sharedInitialConsumed = false;
   let postTurnSharedInitial = false;
   let sharedInitialParsed: PostTurnSharedInitialParseResult | null = null;
@@ -1070,6 +1077,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         characterIdentity: opts.characterIdentity,
         characterCriticalContext: opts.characterCriticalContext,
         personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        personaDescription: opts.personaDescription,
+        personaSpeechExamples: opts.personaSpeechExamples,
         userMessage: opts.userMessage,
         assistantProse: opts.assistantProse,
         previousAssistantProse: opts.previousAssistantProse,
@@ -1081,23 +1091,29 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       },
       caller
     );
-    if (shared.consumed && shared.transportOk && shared.parsed) {
-      postTurnSharedInitial = true;
+    if (shared.attempted) {
+      sharedInitialAttempted = true;
       sharedInitialConsumed = true;
-      sharedInitialParsed = shared.parsed;
-      sharedInitialUsage = shared.usage;
+      postTurnSharedInitial = true;
       actualCallCount += 1;
       if (shared.usage) turnUsages.push(shared.usage);
-      prefetchedSuggestedReplies = shared.parsed.suggestedRepliesOk
-        ? shared.parsed.suggestedReplies
-        : null;
       turnAttemptDiagnostics.push({
         stage: "initial",
         modelId: primaryModelId,
-        httpStatus: 200,
-        finishReason: shared.usage?.finishReason ?? null,
-        errorCode: null,
+        httpStatus: shared.httpStatus,
+        finishReason: shared.finishReason ?? shared.usage?.finishReason ?? null,
+        errorCode: shared.errorCode,
       });
+      if (shared.transportOk && shared.parsed) {
+        sharedInitialParsed = shared.parsed;
+        sharedInitialUsage = shared.usage;
+        prefetchedSuggestedReplies = shared.parsed.suggestedRepliesOk
+          ? shared.parsed.suggestedReplies
+          : null;
+        prefetchedSuggestedRepliesAssistantProseHash = hashAssistantProseForSuggestionPrefetch(
+          opts.assistantProse
+        );
+      }
     }
   }
 
@@ -1125,10 +1141,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     let combinedFailure: ReturnType<typeof extractAttemptFailure> | null = null;
     let parsed: ReturnType<typeof parseCombinedDualWidgetExtractResponse>;
 
-    if (sharedInitialConsumed && sharedInitialParsed) {
+    if (sharedInitialAttempted) {
       combinedUsage = sharedInitialUsage;
       parsed =
-        sharedInitialParsed.dual ??
+        sharedInitialParsed?.dual ??
         parseCombinedDualWidgetExtractResponse("", {
           characterWidget: charWidget,
           userWidget,
@@ -1576,6 +1592,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       mergedOutputTokens: mergedUsage?.outputTokens ?? 0,
       attemptDiagnostics: turnAttemptDiagnostics,
       prefetchedSuggestedReplies,
+      prefetchedSuggestedRepliesAssistantProseHash,
       sharedInitialConsumed,
       postTurnSharedInitial,
     },

@@ -10,8 +10,9 @@ import type { PostTurnSharedInitialInput, PostTurnSharedInitialMode } from "./ty
 const SHARED_SUGGESTIONS_OUTPUT_RULES = `SUGGESTED REPLIES section — write the USER's next roleplay turn options.
 Return in suggestedReplies.items exactly 3 objects: escalate, soften, pivot (one each).
 Korean only in text; each text 50–200 characters; mix dialogue and *stage direction*.
-Write as the USER persona named in [USER] — match their voice from the scene (no separate persona secret block is provided in this shared call).
-Do not write as the character/NPC.`;
+Write as the USER persona named in [USER] — match voice from [SUGGESTED REPLIES VOICE CONTEXT] when provided.
+Do not write as the character/NPC.
+Use [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — never as evidence for statusWidget field values.`;
 
 function buildSharedOutputEnvelope(mode: PostTurnSharedInitialMode): string {
   const widgetShape =
@@ -35,33 +36,50 @@ Do not include markdown fences or prose outside JSON.
 ${SHARED_SUGGESTIONS_OUTPUT_RULES}`;
 }
 
+function buildSharedSuggestionVoiceContext(input: PostTurnSharedInitialInput): string {
+  const lines = [
+    input.userPersona?.trim() ? `[USER IDENTITY]\n${input.userPersona.trim()}` : "",
+    input.personaDescription?.trim()
+      ? `[USER PERSONA PERSONALITY / SPEECH]\n${input.personaDescription.trim()}`
+      : "",
+    input.personaSpeechExamples?.trim()
+      ? `[USER SPEECH EXAMPLES — imitate this voice]\n${input.personaSpeechExamples.trim()}`
+      : "",
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+  return `[SUGGESTED REPLIES VOICE CONTEXT — suggestions only; do NOT use for statusWidget inference]\n${lines.join("\n\n")}`;
+}
+
 export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInput): string {
-  const widgetSystem =
+  const widgetSemantic =
     input.mode === "dual" && input.characterWidget && input.userWidget
-      ? buildCombinedDualWidgetExtractSystem(input.characterWidget, input.userWidget)
+      ? buildCombinedDualWidgetExtractSystem(input.characterWidget, input.userWidget, false)
       : input.mode === "character" && input.characterWidget
         ? buildWidgetExtractSystem(
             input.characterWidget,
             collectWidgetJsonKeys(input.characterWidget),
-            "character"
+            "character",
+            false
           )
         : input.mode === "user" && input.userWidget
           ? buildWidgetExtractSystem(
               input.userWidget,
               collectWidgetJsonKeys(input.userWidget),
-              "user"
+              "user",
+              false
             )
           : "";
 
-  return `${widgetSystem}
+  return `${widgetSemantic}
 
-SHARED POST-TURN ENRICHMENT — also produce suggested user reply options in the same JSON response.
+SHARED POST-TURN ENRICHMENT — produce status widget values and suggested user reply options in one response.
 ${buildSharedOutputEnvelope(input.mode)}`;
 }
 
 export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitialInput): string {
+  let widgetBlock = "";
   if (input.mode === "dual" && input.characterWidget && input.userWidget) {
-    return buildCombinedDualWidgetExtractUserBlock({
+    widgetBlock = buildCombinedDualWidgetExtractUserBlock({
       charName: input.charName,
       characterIdentity: input.characterIdentity,
       characterCriticalContext: input.characterCriticalContext,
@@ -74,9 +92,8 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       previousCharacterValues: input.previousCharacterValues ?? null,
       previousUserValues: input.previousUserValues ?? null,
     });
-  }
-  if (input.mode === "character" && input.characterWidget) {
-    return buildWidgetExtractUserBlock({
+  } else if (input.mode === "character" && input.characterWidget) {
+    widgetBlock = buildWidgetExtractUserBlock({
       charName: input.charName,
       characterIdentity: input.characterIdentity,
       characterCriticalContext: input.characterCriticalContext,
@@ -88,9 +105,8 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       source: "character",
       previousValues: input.previousCharacterValues ?? null,
     });
-  }
-  if (input.mode === "user" && input.userWidget) {
-    return buildWidgetExtractUserBlock({
+  } else if (input.mode === "user" && input.userWidget) {
+    widgetBlock = buildWidgetExtractUserBlock({
       charName: input.charName,
       characterIdentity: input.characterIdentity,
       characterCriticalContext: input.characterCriticalContext,
@@ -103,5 +119,17 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
       previousValues: input.previousUserValues ?? null,
     });
   }
-  return "";
+  const voiceContext = buildSharedSuggestionVoiceContext(input);
+  return [widgetBlock, voiceContext].filter(Boolean).join("\n\n");
+}
+
+/** @internal tests — count authoritative top-level JSON output contracts. */
+export function countAuthoritativeSharedOutputContracts(system: string): number {
+  const matches = system.match(/Return exactly one JSON object/gi) ?? [];
+  return matches.length;
+}
+
+/** @internal tests — widget-only flat top-level contract must not appear in shared system. */
+export function sharedSystemHasConflictingWidgetOnlyContract(system: string): boolean {
+  return /"character_values"\s*:\s*\{[^}]+\}\s*,\s*\n\s*"user_values"\s*:/.test(system);
 }

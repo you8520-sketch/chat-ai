@@ -108,6 +108,8 @@ export type Usage = {
     apiRawCostKrw: number;
     /** background extract API calls this turn (1–4); absent on legacy stored receipts */
     callCount?: number;
+    /** Admin provenance — one Luna call served widget + suggested replies initial. */
+    postTurnSharedInitial?: boolean;
     cacheReadTokens?: number;
     cacheWriteTokens?: number;
     upstreamCostUsd?: number;

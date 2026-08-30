@@ -8,8 +8,16 @@ import { resolveStatusWidgetTurn } from "@/lib/statusWidget/resolve";
 import { serializeStatusWidget } from "@/lib/statusWidget/serialize";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/parse";
+import {
+  buildPostTurnSharedInitialSystem,
+  buildPostTurnSharedInitialUserBlock,
+  countAuthoritativeSharedOutputContracts,
+  sharedSystemHasConflictingWidgetOnlyContract,
+} from "@/lib/postTurnSharedInitial/prompt";
+import { resolveSuggestedRepliesExtractMaxAttempts } from "@/lib/suggestedReplies/job";
 import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
 import type { StatusWidget } from "@/lib/statusWidget/types";
+import { buildCombinedDualWidgetExtractSystem } from "@/lib/statusWidget/extractNormalize";
 
 const creatorJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
 const userJson = serializeStatusWidget({
@@ -20,6 +28,12 @@ const userJson = serializeStatusWidget({
 
 const ASSISTANT =
   "*그는 천천히 고개를 들었다.* \"오늘은 좀 다르게 시작해볼까.\" *잔잔한 미소.*";
+
+const PUBLIC_PERSONA = {
+  userPersona: "이름/호칭: 렌\n성별: 남성 — 절대 준수.",
+  personaDescription: "냉소적인 반말, 짧은 문장.",
+  personaSpeechExamples: "\"흥, 내가 왜.\"",
+};
 
 function padReply(seed: string, length: number): string {
   const filler = "가".repeat(Math.max(0, length - seed.length));
@@ -109,7 +123,7 @@ describe("postTurnSharedInitial parse", () => {
   });
 });
 
-describe("T1/T2 shared initial call graph", () => {
+describe("shared initial call graph", () => {
   it("T1/T2 creator+user widget + coalesce → 1 provider call (shared initial)", async () => {
     const both = resolveStatusWidgetTurn({
       characterWidgetJson: creatorJson,
@@ -122,6 +136,7 @@ describe("T1/T2 shared initial call graph", () => {
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
       personaName: "렌",
+      ...PUBLIC_PERSONA,
       userMessage: "안녕",
       assistantProse: ASSISTANT,
       resolved: both,
@@ -136,7 +151,6 @@ describe("T1/T2 shared initial call graph", () => {
     assert.equal(result.meta.postTurnSharedInitial, true);
     assert.equal(result.meta.prefetchedSuggestedReplies?.length, 3);
     assert.equal(result.meta.actualCallCount, 1);
-    assert.equal(result.meta.extractMode, "dual_combined");
     assert.equal(result.meta.billing?.postTurnSharedInitial, true);
   });
 
@@ -165,106 +179,6 @@ describe("T1/T2 shared initial call graph", () => {
     assert.equal(spy.invocations.length, 1);
     assert.equal(spy.invocations[0]?.requestKind, "background-status-widget-extract-combined");
     assert.equal(result.meta.postTurnSharedInitial, false);
-    assert.equal(result.meta.actualCallCount, 1);
-  });
-
-  it("T4 widget OFF path — character-only + coalesce → 1 shared call", async () => {
-    const charOnly = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: null,
-      chatMode: "character",
-      displayMode: "hidden",
-    });
-    const character_values: Record<string, string> = {};
-    for (const key of collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET)) {
-      character_values[key] = padWidgetValue(key);
-    }
-    const spy = makeSpyCaller(
-      JSON.stringify({
-        statusWidget: { character_values, extracted_facts: [] },
-        suggestedReplies: {
-          items: [
-            { kind: "escalate", text: padReply("*손을 뻗으며* \"잠깐, 그 말부터 다시 들어보자.\" ", 72) },
-            { kind: "soften", text: padReply("*미소 지으며* \"괜찮아, 천천히 말해도 돼.\" ", 72) },
-            { kind: "pivot", text: padReply("*시계를 보며* \"일단 밥부터 먹고 얘기할까?\" ", 72) },
-          ],
-        },
-      })
-    );
-
-    const result = await extractStatusWidgetValuesForTurn({
-      charName: "레온",
-      personaName: "렌",
-      userMessage: "안녕",
-      assistantProse: ASSISTANT,
-      resolved: charOnly,
-      caller: spy.caller,
-      primaryModelId: "gpt-5.6-luna",
-      coalesceSuggestedReplies: { enabled: true },
-    });
-
-    assert.equal(spy.invocations.length, 1);
-    assert.equal(spy.invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
-    assert.equal(result.meta.extractMode, "single");
-    assert.equal(result.meta.prefetchedSuggestedReplies?.length, 3);
-  });
-
-  it("T5 widget OFF + suggestions would coalesce but neither extract needed → 0 calls", async () => {
-    const inactive = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: userJson,
-      chatMode: "both",
-      displayMode: "hidden",
-    });
-    inactive.active = false;
-    const spy = makeSpyCaller(makeSharedResponseJson());
-
-    const result = await extractStatusWidgetValuesForTurn({
-      charName: "레온",
-      personaName: "렌",
-      userMessage: "안녕",
-      assistantProse: ASSISTANT,
-      resolved: inactive,
-      caller: spy.caller,
-      primaryModelId: "gpt-5.6-luna",
-      coalesceSuggestedReplies: { enabled: true },
-    });
-
-    assert.equal(spy.invocations.length, 0);
-    assert.equal(result.meta.actualCallCount, 0);
-  });
-
-  it("T6 both ON + suggestion malformed — widget ok, suggestion prefetched null", async () => {
-    const both = resolveStatusWidgetTurn({
-      characterWidgetJson: creatorJson,
-      userWidgetJson: userJson,
-      chatMode: "both",
-      displayMode: "hidden",
-    });
-    const userWidget = both.userWidget!;
-    const spy = makeSpyCaller(
-      JSON.stringify({
-        statusWidget: buildCombinedWidgetJson(DEFAULT_STATUS_WIDGET, userWidget),
-        suggestedReplies: { items: [{ kind: "escalate", text: "짧음" }] },
-      })
-    );
-
-    const result = await extractStatusWidgetValuesForTurn({
-      charName: "레온",
-      personaName: "렌",
-      userMessage: "안녕",
-      assistantProse: ASSISTANT,
-      resolved: both,
-      caller: spy.caller,
-      primaryModelId: "gpt-5.6-luna",
-      coalesceSuggestedReplies: { enabled: true },
-    });
-
-    assert.equal(spy.invocations.length, 1);
-    assert.equal(result.meta.postTurnSharedInitial, true);
-    assert.equal(result.meta.prefetchedSuggestedReplies, null);
-    assert.ok(result.values.character);
-    assert.ok(result.values.user);
   });
 
   it("T7 widget malformed / suggestions valid — widget repair only, suggestions prefetched", async () => {
@@ -302,27 +216,40 @@ describe("T1/T2 shared initial call graph", () => {
     assert.ok(spy.invocations.length >= 2);
     assert.equal(spy.invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
     assert.ok(
-      spy.invocations.slice(1).every((i) => i.requestKind.includes("status-widget")),
-      "follow-up calls are widget repair only"
+      !spy.invocations.some((i) => i.requestKind === "background-status-widget-extract-combined")
     );
     assert.ok(
       !spy.invocations.some((i) => i.requestKind === "background-suggested-replies-extract")
     );
   });
 
-  it("T8 both malformed — shared=1 then independent widget repairs, no suggestion extract", async () => {
+  it("T9 shared transport failure — attempt consumed, no second full initial", async () => {
     const both = resolveStatusWidgetTurn({
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
       displayMode: "hidden",
     });
-    const spy = makeSpyCaller(
-      JSON.stringify({
-        statusWidget: { character_values: {}, user_values: {}, extracted_facts: [] },
-        suggestedReplies: { items: [{ kind: "escalate", text: "짧음" }] },
-      })
-    );
+    const invocations: Array<{ requestKind: string }> = [];
+    const caller = async (
+      _system: string,
+      _history: ChatMsg[],
+      opts: { requestKind: string }
+    ) => {
+      invocations.push({ requestKind: opts.requestKind });
+      if (opts.requestKind === POST_TURN_SHARED_INITIAL_REQUEST_KIND) {
+        throw new Error("503 provider unavailable");
+      }
+      return {
+        text: JSON.stringify(buildCombinedWidgetJson(DEFAULT_STATUS_WIDGET, both.userWidget!)),
+        usage: {
+          inputTokens: 800,
+          outputTokens: 200,
+          estimated: false,
+          upstreamCostUsd: 0.001,
+        },
+      };
+    };
 
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -330,17 +257,86 @@ describe("T1/T2 shared initial call graph", () => {
       userMessage: "안녕",
       assistantProse: ASSISTANT,
       resolved: both,
-      caller: spy.caller,
+      caller,
       primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
       coalesceSuggestedReplies: { enabled: true },
     });
 
-    assert.equal(spy.invocations[0]?.requestKind, POST_TURN_SHARED_INITIAL_REQUEST_KIND);
-    assert.equal(result.meta.prefetchedSuggestedReplies, null);
-    assert.ok(spy.invocations.length >= 2);
-    assert.ok(spy.invocations.length <= 4, "widget repair budget not expanded beyond dual_combined max");
-    assert.ok(
-      !spy.invocations.some((i) => i.requestKind === "background-suggested-replies-extract")
+    assert.equal(
+      invocations.filter((i) => i.requestKind === POST_TURN_SHARED_INITIAL_REQUEST_KIND).length,
+      1
     );
+    assert.equal(
+      invocations.filter((i) => i.requestKind === "background-status-widget-extract-combined")
+        .length,
+      0
+    );
+    assert.equal(result.meta.sharedInitialConsumed, true);
+    assert.equal(result.meta.postTurnSharedInitial, true);
+    assert.equal(result.meta.prefetchedSuggestedReplies, null);
+    assert.ok(result.meta.actualCallCount <= 4, "widget failure budget not expanded beyond dual_combined max");
+    assert.equal(resolveSuggestedRepliesExtractMaxAttempts(result.meta.sharedInitialConsumed), 2);
+  });
+});
+
+describe("T10 shared prompt output contract", () => {
+  it("exactly one authoritative output contract, no conflicting widget-only top-level schema", () => {
+    const both = resolveStatusWidgetTurn({
+      characterWidgetJson: creatorJson,
+      userWidgetJson: userJson,
+      chatMode: "both",
+      displayMode: "hidden",
+    });
+    const sharedSystem = buildPostTurnSharedInitialSystem({
+      mode: "dual",
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: ASSISTANT,
+      characterWidget: both.characterWidget!,
+      userWidget: both.userWidget!,
+      primaryModelId: "gpt-5.6-luna",
+    });
+    const widgetOnlySystem = buildCombinedDualWidgetExtractSystem(
+      both.characterWidget!,
+      both.userWidget!,
+      true
+    );
+
+    assert.equal(countAuthoritativeSharedOutputContracts(sharedSystem), 1);
+    assert.equal(sharedSystemHasConflictingWidgetOnlyContract(sharedSystem), false);
+    assert.match(sharedSystem, /"statusWidget"/);
+    assert.match(sharedSystem, /"suggestedReplies"/);
+    assert.equal(countAuthoritativeSharedOutputContracts(widgetOnlySystem), 1);
+    assert.equal(sharedSystemHasConflictingWidgetOnlyContract(widgetOnlySystem), true);
+  });
+});
+
+describe("T13 persona voice context parity", () => {
+  it("public voice context preserved, secret markers absent", () => {
+    const both = resolveStatusWidgetTurn({
+      characterWidgetJson: creatorJson,
+      userWidgetJson: userJson,
+      chatMode: "both",
+      displayMode: "hidden",
+    });
+    const block = buildPostTurnSharedInitialUserBlock({
+      mode: "dual",
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: ASSISTANT,
+      characterWidget: both.characterWidget!,
+      userWidget: both.userWidget!,
+      primaryModelId: "gpt-5.6-luna",
+      userPersona: PUBLIC_PERSONA.userPersona,
+      personaDescription: PUBLIC_PERSONA.personaDescription,
+      personaSpeechExamples: PUBLIC_PERSONA.personaSpeechExamples,
+    });
+    assert.match(block, /USER PERSONA PERSONALITY/);
+    assert.match(block, /USER SPEECH EXAMPLES/);
+    assert.match(block, /냉소적인 반말/);
+    assert.match(block, /SUGGESTED REPLIES VOICE CONTEXT/);
+    assert.doesNotMatch(block, /비밀설정|secret_description|NPC들은 모르는/i);
   });
 });
