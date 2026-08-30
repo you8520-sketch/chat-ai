@@ -1,4 +1,5 @@
 import { callBackgroundMemory } from "@/lib/ai";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import { loadChatRelationshipMeta } from "@/lib/memory/memory-relationship-meta";
 import {
   buildFilledTableMarkdown,
@@ -240,6 +241,8 @@ function normalizePlainTextExtraction(
 
 export async function extractStatusMetaFromTurn(opts: {
   chatId: number;
+  messageId?: number;
+  jobAttemptOrdinal?: number;
   charName: string;
   characterIdentity?: string | null;
   personaName: string;
@@ -265,11 +268,22 @@ export async function extractStatusMetaFromTurn(opts: {
       : EXTRACT_LEGACY_SYSTEM;
 
   try {
+    const ledgerContext =
+      opts.messageId != null && opts.jobAttemptOrdinal != null
+        ? buildPlatformAsyncTurnLedgerContext({
+            chatId: opts.chatId,
+            assistantMessageId: opts.messageId,
+            family: "status_meta",
+            jobAttemptOrdinal: opts.jobAttemptOrdinal,
+            requestKind: "background-status-meta-extract",
+          })
+        : undefined;
     const { text } = await callBackgroundMemory(
       system,
       [{ role: "user", content: userBlock }],
       undefined,
-      "background-status-meta-extract"
+      "background-status-meta-extract",
+      { ledgerContext }
     );
     const parsed = extractJsonObject(text);
     if (!parsed) {

@@ -1,4 +1,5 @@
 import { callBackgroundMemory } from "@/lib/ai";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import { parseSuggestedRepliesFromModelText } from "./parse";
 import {
   SUGGESTED_REPLIES_REQUEST_KIND,
@@ -67,15 +68,28 @@ export async function extractSuggestedRepliesFromTurn(opts: {
   userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
+  chatId?: number;
+  messageId?: number;
+  jobAttemptOrdinal?: number;
 }): Promise<SuggestedReplyItem[]> {
   const userBlock = buildExtractUserBlock(opts);
+  const ledgerContext =
+    opts.chatId != null && opts.messageId != null && opts.jobAttemptOrdinal != null
+      ? buildPlatformAsyncTurnLedgerContext({
+          chatId: opts.chatId,
+          assistantMessageId: opts.messageId,
+          family: "suggested_replies_repair",
+          jobAttemptOrdinal: opts.jobAttemptOrdinal,
+          requestKind: SUGGESTED_REPLIES_REQUEST_KIND,
+        })
+      : undefined;
   try {
     const { text } = await callBackgroundMemory(
       EXTRACT_SYSTEM,
       [{ role: "user", content: userBlock }],
       undefined,
       SUGGESTED_REPLIES_REQUEST_KIND,
-      { temperature: 0.65 }
+      { temperature: 0.65, ledgerContext }
     );
     return parseSuggestedRepliesFromModelText(text);
   } catch (e) {

@@ -6,6 +6,10 @@ import {
 } from "@/lib/ai";
 import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
+import {
+  buildPlatformSyncTurnLedgerContext,
+} from "@/lib/providerCostLedger";
+import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
@@ -1075,6 +1079,16 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     sharedMode &&
     isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
   ) {
+    const syncLedgerContext =
+      opts.trace?.chatId != null && opts.trace?.messageId != null
+        ? buildPlatformSyncTurnLedgerContext({
+            chatId: opts.trace.chatId,
+            assistantMessageId: opts.trace.messageId,
+            family: "post_turn_shared_initial",
+            requestedModel: primaryModelId,
+            requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+          })
+        : undefined;
     const shared = await runPostTurnSharedInitial(
       {
         mode: sharedMode,
@@ -1094,7 +1108,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         previousUserValues: opts.previousValues?.user ?? null,
         primaryModelId,
       },
-      caller
+      caller,
+      syncLedgerContext
     );
     if (shared.attempted) {
       sharedInitialAttempted = true;

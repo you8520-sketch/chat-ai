@@ -94,7 +94,10 @@ async function runSuggestedRepliesExtraction(opts: {
   let last: SuggestedReplyItem[] = opts.prefetchedReplies ?? [];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const replies = await extractSuggestedRepliesFromTurn(opts);
+      const replies = await extractSuggestedRepliesFromTurn({
+        ...opts,
+        jobAttemptOrdinal: attempt,
+      });
       last = replies;
       if (suggestedRepliesHaveContent(replies)) {
         if (attempt > 1) {

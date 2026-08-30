@@ -351,6 +351,7 @@ export async function scheduleMemoryUpdate(opts: {
         mainModelDelta: opts.relationshipDeltaFromMain,
         sourceUserMessageId,
         boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
       });
     }
   } catch (e) {
