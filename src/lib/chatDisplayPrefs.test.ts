@@ -265,11 +265,14 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bhidden\b/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:flex/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:sticky/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[768px\]:static/);
     assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /chat-room-portrait-column/);
+    assert.match(CHAT_PORTRAIT_COLUMN_CLASS, /min-\[768px\]:sticky/);
     assert.match(CHAT_PORTRAIT_CHAT_COLUMN_CLASS, /chat-room-portrait-chat-column/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /chat-room-portrait-rail/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[768px\]:flex/);
+    assert.doesNotMatch(CHAT_PORTRAIT_STICKY_CLASS, /sticky/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /min-\[768px\]:flex-row/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /chat-room-portrait-grid/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /chat-room-messages-column/);

@@ -490,9 +490,9 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
   "min-[576px]:flex min-[576px]:flex-col min-[576px]:items-center min-[768px]:flex-row min-[768px]:items-start min-[768px]:justify-center min-[768px]:gap-x-6";
 
-/** Left column — name header (+ portrait panel at 768+). */
+/** Left column — name header (+ portrait panel at 768+). 768+: single sticky owner for the full stack. */
 export const CHAT_PORTRAIT_COLUMN_CLASS =
-  "chat-room-portrait-column hidden min-[576px]:flex min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:shrink-0 min-[576px]:flex-col min-[768px]:w-max min-[768px]:max-w-none min-[768px]:self-start";
+  "chat-room-portrait-column hidden min-[576px]:flex min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:shrink-0 min-[576px]:flex-col min-[768px]:sticky min-[768px]:top-[var(--site-header-height,44px)] min-[768px]:z-20 min-[768px]:w-max min-[768px]:max-w-none min-[768px]:self-start";
 
 /** Right column — chat header band + messages. */
 export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
@@ -552,7 +552,7 @@ export const CHAT_PORTRAIT_GRID_CLASS =
  * Desktop sticky name/creator/album (portrait ON) — top of portrait column.
  */
 export const CHAT_PORTRAIT_INFO_STICKY_CLASS =
-  "chat-room-desktop-name-strip hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:shrink-0 min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
+  "chat-room-desktop-name-strip hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[768px]:static min-[768px]:top-auto min-[576px]:z-30 min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:shrink-0 min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
 
 /** Desktop header continuation over chat column (768+ side portrait only). */
 export const CHAT_PORTRAIT_INFO_HEADER_CHAT_CLASS =
