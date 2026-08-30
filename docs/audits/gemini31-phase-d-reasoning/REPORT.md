@@ -1,5 +1,7 @@
 # GEMINI31_PHASE_D_REASONING_ROOT_CAUSE
 
+> **Phase D.1 correction (2026-08-30):** Comparator metric bug fixed (`provider_wait_ms` ≠ stream complete). Parity-correct CI vs OR re-run confirms ~2× reasoning ratio and ~2× first-visible latency. `CI_LOW_MAPPING_SUSPECT` downgraded — see `docs/audits/gemini31-phase-d1-reasoning/REPORT.md`.
+
 ```text
 MAIN_TIP: 2eacc0cc
 PRODUCTION_CHANGED: NO
@@ -47,7 +49,7 @@ OR_PRE_VISIBLE_GAP_P50: 3 ms (*OR streams visible in first SSE chunk; metric not
 CI_REASONING_THROUGHPUT: ~126 reasoning tok / pre-visible sec
 OR_REASONING_THROUGHPUT: ~186461 (*OR pre-visible gap ≈ 0 — throughput metric misleading*)
 
-CI_LOW_MAPPING_SUSPECT: YES
+CI_LOW_MAPPING_SUSPECT: YES → DOWNGRADED UNCONFIRMED (D.1); paired parity-correct CI reasoning still ~2× OR
   Wire verified: reasoning_effort=low, thinking absent, reasoning object deleted
   Yet CI generates ~2× OR reasoning tokens at same semantic LOW
 
