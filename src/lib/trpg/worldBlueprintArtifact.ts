@@ -99,6 +99,9 @@ export function casPublishWorldBlueprintArtifact(
     return false;
   }
   const planJson = JSON.stringify(opts.plan);
+  // Atomic same-revision convergence: a valid artifact for the exact generation identity
+  // (sourceFingerprint + derivationVersion + generatorModel + schemaVersion) is canonical
+  // and must not be overwritten by a concurrent late writer for the same revision.
   const result = db
     .prepare(
       `INSERT INTO trpg_world_blueprint_artifacts (
@@ -111,7 +114,11 @@ export function casPublishWorldBlueprintArtifact(
           generator_model = excluded.generator_model,
           schema_version = excluded.schema_version,
           director_plan_json = excluded.director_plan_json,
-          updated_at = datetime('now')`
+          updated_at = datetime('now')
+        WHERE trpg_world_blueprint_artifacts.source_fingerprint != excluded.source_fingerprint
+           OR trpg_world_blueprint_artifacts.derivation_version != excluded.derivation_version
+           OR trpg_world_blueprint_artifacts.generator_model != excluded.generator_model
+           OR trpg_world_blueprint_artifacts.schema_version != excluded.schema_version`
     )
     .run(
       opts.worldId,
