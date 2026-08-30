@@ -80,7 +80,8 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     shadowPricing: _shadowPricing,
     publishedChargeSnapshot: _publishedChargeSnapshot,
     ...rest
-  } = usage as Usage & { publishedChargeSnapshot?: unknown };
+  } = usage as Usage & { widgetCostPoints?: number; publishedChargeSnapshot?: unknown };
+  void _widgetCostPoints;
   void _canonAdopted;
   void _canonAdoptedAt;
   void _publishedChargeSnapshot;

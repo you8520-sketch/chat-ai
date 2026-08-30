@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   appendStatusWidgetExtractToUsageRecord,
-  applyStatusWidgetBillingCharge,
+  applyStatusWidgetPlatformFundedExtract,
   buildStatusWidgetExtractReceipt,
   mergeStatusWidgetExtractUsages,
-  statusWidgetApiCostChargePoints,
   statusWidgetExtractModelLabel,
   type StatusWidgetExtractBillingMeta,
 } from "./receiptUsage";
@@ -161,6 +160,7 @@ describe("statusWidget receiptUsage", () => {
     assert.ok(stage);
     assert.equal(stage!.stage, "상태창 추출");
     assert.equal(stage!.stage.includes("V3"), false);
+    assert.equal(stage!.cost, 0);
   });
 
   it("upstreamCostUsd wins over model rate estimate", () => {
@@ -225,7 +225,7 @@ describe("statusWidget receiptUsage", () => {
     assert.match(receipt.modelLabel, /DeepSeek V3 0324/);
   });
 
-  it("showFullBillingReceipt true/false yield same widget P", () => {
+  it("platform-funded extract preserves provider economics without user surcharge", () => {
     const exchangeRate = resolveBillingExchangeRateSnapshot();
     const usage = {
       inputTokens: 4252,
@@ -237,17 +237,26 @@ describe("statusWidget receiptUsage", () => {
       modelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
       callCount: 2,
     };
-    const full = applyStatusWidgetBillingCharge(baseUsage(), usage, exchangeRate, 48, meta);
+    const out = applyStatusWidgetPlatformFundedExtract(baseUsage(), usage, exchangeRate, 48, meta);
     const receipt = buildStatusWidgetExtractReceipt(usage, exchangeRate, meta);
-    const plainPoints = statusWidgetApiCostChargePoints(receipt.apiRawCostKrw);
-    assert.equal(full.widgetCostPoints, plainPoints);
-    assert.equal(full.totalCost, 48 + plainPoints);
-    assert.equal(full.record.baseCost, 48);
+    assert.equal(out.userCost, 48);
+    assert.equal(out.record.cost, 48);
+    assert.equal(out.record.baseCost, 48);
+    assert.equal(out.record.statusWidgetExtract!.apiRawCostKrw, receipt.apiRawCostKrw);
+    assert.ok(out.record.statusWidgetExtract!.apiRawCostKrw > 0);
+    assert.equal(
+      out.record.stages?.find((s) => s.stage === "상태창 추출")?.cost,
+      0
+    );
+    assert.equal(
+      (out.record as Usage & { widgetCostPoints?: number }).widgetCostPoints,
+      undefined
+    );
   });
 
-  it("applyStatusWidgetBillingCharge keeps main RP baseCost", () => {
+  it("applyStatusWidgetPlatformFundedExtract keeps main RP baseCost", () => {
     const exchangeRate = resolveBillingExchangeRateSnapshot();
-    const out = applyStatusWidgetBillingCharge(
+    const out = applyStatusWidgetPlatformFundedExtract(
       baseUsage(),
       { inputTokens: 4252, outputTokens: 120, estimated: false, upstreamCostUsd: 0.002 },
       exchangeRate,
@@ -255,11 +264,8 @@ describe("statusWidget receiptUsage", () => {
       FLASH
     );
     assert.equal(out.record.baseCost, 48);
-    assert.equal(out.totalCost, 48 + out.widgetCostPoints);
-    assert.equal(
-      out.record.stages?.find((s) => s.stage === "상태창 추출")?.cost,
-      out.widgetCostPoints
-    );
+    assert.equal(out.userCost, 48);
+    assert.equal(out.record.cost, 48);
   });
 
   it("model labels", () => {
@@ -283,11 +289,5 @@ describe("statusWidget receiptUsage", () => {
       statusWidgetExtractModelLabel("vendor/custom-model"),
       "vendor/custom-model (상태창 추출)"
     );
-  });
-
-  it("statusWidgetApiCostChargePoints ceils KRW raw cost", () => {
-    assert.equal(statusWidgetApiCostChargePoints(0), 0);
-    assert.equal(statusWidgetApiCostChargePoints(12.1), 13);
-    assert.equal(statusWidgetApiCostChargePoints(12), 12);
   });
 });

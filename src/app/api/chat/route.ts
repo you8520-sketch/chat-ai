@@ -428,9 +428,7 @@ import {
   statusWidgetDiagnosticHash,
 } from "@/lib/statusWidget/diagnostics";
 import {
-  applyStatusWidgetBillingCharge,
-  buildStatusWidgetExtractReceipt,
-  statusWidgetApiCostChargePoints,
+  applyStatusWidgetPlatformFundedExtract,
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
@@ -4918,27 +4916,21 @@ export async function POST(req: Request) {
             billingExchangeRate
           ) {
             if (showFullBillingReceipt) {
-              const widgetBilling = applyStatusWidgetBillingCharge(
+              const widgetExtract = applyStatusWidgetPlatformFundedExtract(
                 usageRecord,
                 widgetResolved.widgetExtractUsage,
                 billingExchangeRate,
                 mainBillingCost,
                 widgetResolved.widgetExtractBillingMeta
               );
-              usageRecord = widgetBilling.record;
-              cost = widgetBilling.totalCost;
+              usageRecord = widgetExtract.record;
+              cost = widgetExtract.userCost;
             } else {
-              const widgetReceipt = buildStatusWidgetExtractReceipt(
-                widgetResolved.widgetExtractUsage,
-                billingExchangeRate,
-                widgetResolved.widgetExtractBillingMeta
-              );
-              const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
-              cost = mainBillingCost + widgetCostPoints;
+              cost = mainBillingCost;
               usageRecord = {
                 ...usageRecord,
                 baseCost: mainBillingCost,
-                cost,
+                cost: mainBillingCost,
               };
             }
           }

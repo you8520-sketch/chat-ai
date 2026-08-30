@@ -17,12 +17,6 @@ export type StatusWidgetExtractBillingMeta = {
   callCount: number;
 };
 
-/** 상태창 추출 API 원가(KRW)를 P로 올림 반영 */
-export function statusWidgetApiCostChargePoints(apiRawCostKrw: number): number {
-  if (!Number.isFinite(apiRawCostKrw) || apiRawCostKrw <= 0) return 0;
-  return Math.ceil(apiRawCostKrw - 1e-9);
-}
-
 export type StatusWidgetExtractReceipt = {
   model: string;
   modelLabel: string;
@@ -172,40 +166,29 @@ export function buildStatusWidgetExtractReceipt(
   };
 }
 
-/** 위젯 추출 API 원가(KRW) → P 올림 + 메인 RP 과금과 합산 */
-export function applyStatusWidgetBillingCharge(
+/**
+ * Platform-funded status widget extract — preserves provider economics on the usage
+ * record without increasing user point deduction (main RP only).
+ */
+export function applyStatusWidgetPlatformFundedExtract(
   record: Usage,
   widgetUsage: TokenUsage,
   exchangeRate: BillingExchangeRateSnapshot,
   mainBillingCost: number,
   billingMeta: StatusWidgetExtractBillingMeta
-): { record: Usage; totalCost: number; widgetCostPoints: number } {
+): { record: Usage; userCost: number } {
   const withReceipt = appendStatusWidgetExtractToUsageRecord(
     record,
     widgetUsage,
     exchangeRate,
     billingMeta
   );
-  const widgetCostPoints = statusWidgetApiCostChargePoints(
-    withReceipt.statusWidgetExtract!.apiRawCostKrw
-  );
-  const totalCost = mainBillingCost + widgetCostPoints;
-  const stages = withReceipt.stages?.map((s) =>
-    s.stage === "상태창 추출" || s.stage.includes("위젯") ? { ...s, cost: widgetCostPoints } : s
-  );
-
   return {
-    widgetCostPoints,
-    totalCost,
+    userCost: mainBillingCost,
     record: {
       ...withReceipt,
       baseCost: mainBillingCost,
-      widgetCostPoints,
-      cost: totalCost,
-      stages,
-      ...(withReceipt.billingWaived && totalCost > 0
-        ? { billingWaived: undefined, billingWaiverReason: undefined }
-        : {}),
+      cost: mainBillingCost,
     },
   };
 }

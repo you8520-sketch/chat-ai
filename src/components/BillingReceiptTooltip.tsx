@@ -235,17 +235,12 @@ function ReceiptBody({
             <span className="text-cyan-300/90">
               ~{formatPoints(usage.statusWidgetExtract.apiRawCostKrw)}원
             </span>
-            {usage.widgetCostPoints != null && usage.widgetCostPoints > 0 ? (
-              <span className="text-zinc-600">
-                {" "}
-                → {formatPoints(usage.widgetCostPoints)} P (올림)
-              </span>
-            ) : null}
+            <span className="text-zinc-600"> (플랫폼 부담)</span>
             {usage.statusWidgetExtract.upstreamCostUsd != null &&
             usage.statusWidgetExtract.upstreamCostUsd > 0 ? (
-              <span className="text-zinc-600"> (OpenRouter USD)</span>
+              <span className="text-zinc-600"> · OpenRouter USD</span>
             ) : (
-              <span className="text-zinc-600"> (요율 추정)</span>
+              <span className="text-zinc-600"> · 요율 추정</span>
             )}
           </p>
         </>
@@ -371,19 +366,6 @@ function ReceiptBody({
         </>
       ) : (
         <>
-          {usage.widgetCostPoints != null &&
-            usage.widgetCostPoints > 0 &&
-            usage.baseCost != null &&
-            usage.baseCost !== receipt.totalCost && (
-              <p>
-                <span className="text-zinc-500">메인 RP:</span>{" "}
-                {formatPoints(usage.baseCost)} P
-                <span className="text-zinc-600">
-                  {" "}
-                  + 위젯 {formatPoints(usage.widgetCostPoints)} P
-                </span>
-              </p>
-            )}
           <p className="font-semibold text-zinc-100">
             <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
             {marginRateLabel != null && (
