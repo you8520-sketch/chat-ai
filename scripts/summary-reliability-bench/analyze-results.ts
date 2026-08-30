@@ -199,6 +199,11 @@ function notableFailures(rows: BenchRecord[]): string[] {
     if (stats.emptyResponseRate > 0) {
       notes.push(`${m.label}: EMPTY_RESPONSE rate ${fmtPct(stats.emptyResponseRate)}`);
     }
+    if (stats.lengthTruncationRate >= 0.5) {
+      notes.push(
+        `${m.label}: LENGTH_TRUNCATED rate ${fmtPct(stats.lengthTruncationRate)} at max_tokens=350 (production risk; visible output still returned)`
+      );
+    }
   }
   const empty0731Like = rows.filter(
     (r) =>
@@ -306,6 +311,8 @@ PRODUCTION_CHANGED: false
 | Luna reasoning (production adapter) | \`reasoning: { effort: \"none\" }\`, \`reasoning_effort: \"none\"\` via \`adaptCheaperInferenceChatBody\` |
 | Gemini bench reasoning | \`reasoning_effort: \"none\"\` |
 | DeepSeek bench reasoning | \`thinking: { type: \"disabled\" }\` |
+| Luna bench payload | base body + \`adaptCheaperInferenceChatBody\` (production adapter) |
+| Request payload normalization | Gemini/DeepSeek: \`buildBenchmarkCheaperInferenceBody\` only; Luna: same + \`adaptCheaperInferenceChatBody\` |
 | Usage/cost extraction | \`parseCompatibleUsage\` in \`openRouterUsage.ts\` |
 | TTFT | Non-streaming — \`TTFT_NOT_MEASURABLE\` |
 
