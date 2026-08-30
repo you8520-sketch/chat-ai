@@ -287,7 +287,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_world_blueprint_artifacts (
       world_id INTEGER PRIMARY KEY,
-      source_world_hash TEXT NOT NULL,
+      source_fingerprint TEXT NOT NULL,
       derivation_version INTEGER NOT NULL,
       generator_model TEXT NOT NULL,
       schema_version TEXT NOT NULL,
@@ -295,8 +295,8 @@ export function ensureTrpgTables(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX IF NOT EXISTS idx_trpg_world_blueprint_artifacts_hash
-      ON trpg_world_blueprint_artifacts(source_world_hash, derivation_version);
+    CREATE INDEX IF NOT EXISTS idx_trpg_world_blueprint_artifacts_fingerprint
+      ON trpg_world_blueprint_artifacts(source_fingerprint, derivation_version);
   `);
 
   db.exec(`

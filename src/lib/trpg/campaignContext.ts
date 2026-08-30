@@ -27,7 +27,10 @@ export type TrpgWorldSnapshot = {
   summary: string;
   content: string;
   updatedAt: string;
+  /** Full world row fingerprint including updated_at (audit / provenance). */
   hash: string;
+  /** Semantic Blueprint generation inputs only (name + summary + content). */
+  sourceFingerprint: string;
 };
 
 export type TrpgScenarioSnapshot = {

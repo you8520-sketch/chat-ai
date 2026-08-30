@@ -10,17 +10,17 @@ import type { TrpgWorldSnapshot } from "./campaignContext";
 export const TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION = 1;
 
 export type BlueprintGenerationValidity = {
-  sourceWorldHash: string;
+  sourceFingerprint: string;
   derivationVersion: number;
   generatorModel: string;
   schemaVersion: string;
 };
 
 export function currentBlueprintGenerationValidity(
-  snapshot: Pick<TrpgWorldSnapshot, "hash">
+  snapshot: Pick<TrpgWorldSnapshot, "sourceFingerprint">
 ): BlueprintGenerationValidity {
   return {
-    sourceWorldHash: snapshot.hash,
+    sourceFingerprint: snapshot.sourceFingerprint,
     derivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
     generatorModel: TRPG_SCENARIO_DRAFT_MODEL,
     schemaVersion: TRPG_SCENARIO_PLAN_SCHEMA_VERSION,
@@ -28,13 +28,13 @@ export function currentBlueprintGenerationValidity(
 }
 
 export function blueprintGenerationValidityFromRow(row: {
-  source_world_hash: string;
+  source_fingerprint: string;
   derivation_version: number;
   generator_model: string;
   schema_version: string;
 }): BlueprintGenerationValidity {
   return {
-    sourceWorldHash: row.source_world_hash,
+    sourceFingerprint: row.source_fingerprint,
     derivationVersion: row.derivation_version,
     generatorModel: row.generator_model,
     schemaVersion: row.schema_version,
@@ -44,11 +44,11 @@ export function blueprintGenerationValidityFromRow(row: {
 /** Single canonical validity predicate for stored world Blueprint artifacts. */
 export function isStoredBlueprintValidForCurrentGeneration(
   stored: BlueprintGenerationValidity,
-  snapshot: Pick<TrpgWorldSnapshot, "hash">
+  snapshot: Pick<TrpgWorldSnapshot, "sourceFingerprint">
 ): boolean {
   const current = currentBlueprintGenerationValidity(snapshot);
   return (
-    stored.sourceWorldHash === current.sourceWorldHash &&
+    stored.sourceFingerprint === current.sourceFingerprint &&
     stored.derivationVersion === current.derivationVersion &&
     stored.generatorModel === current.generatorModel &&
     stored.schemaVersion === current.schemaVersion

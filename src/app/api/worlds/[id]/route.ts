@@ -10,8 +10,7 @@ import {
 import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
 import {
-  enqueueWorldBlueprintPregenJob,
-  shouldEnqueueWorldBlueprintPregen,
+  maybeEnqueueWorldBlueprintPregenAfterCommit,
 } from "@/lib/derivedCache/worldBlueprintPregen";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
@@ -108,7 +107,8 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   const summaryChanged = b.summary != null && summary !== existing.summary;
   const previousTrpgEnabled = Number(existing.trpg_enabled ?? 0) === 1;
   const nextTrpgEnabled = trpgFlags.trpgEnabled === 1;
-  const enqueueBlueprint = shouldEnqueueWorldBlueprintPregen({
+  const enqueueBlueprint = maybeEnqueueWorldBlueprintPregenAfterCommit(db, {
+    worldId: id,
     previousTrpgEnabled,
     nextTrpgEnabled,
     nameChanged,
@@ -137,9 +137,6 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
   if (contentChanged) {
     enqueueWorldTranslationJob(db, id, content);
-  }
-  if (enqueueBlueprint) {
-    enqueueWorldBlueprintPregenJob(db, id);
   }
   if (contentChanged || enqueueBlueprint) {
     kickDerivedCacheWorker();

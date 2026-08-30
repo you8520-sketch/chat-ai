@@ -103,7 +103,7 @@ export async function ensureCampaignDirectorContext(
       worldSummary: ctx.worldSnapshot.summary,
       worldContent: ctx.worldSnapshot.content,
       worldUpdatedAt: ctx.worldSnapshot.updatedAt,
-      worldHash: ctx.worldSnapshot.hash,
+      worldHash: ctx.worldSnapshot.sourceFingerprint,
     },
     { complete: deps?.directorCall }
   );

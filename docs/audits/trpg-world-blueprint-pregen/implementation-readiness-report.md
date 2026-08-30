@@ -1,9 +1,8 @@
-# P0 — World-Revision Blueprint Pregeneration — Implementation Readiness & Draft
+# P0 — World-Revision Blueprint Pregeneration — Implementation Readiness (Corrected)
 
-**Status:** STOP_BEFORE_MERGE (Draft PR only)  
+**Status:** STOP_BEFORE_MERGE (Draft PR #749 — corrected)  
 **Date:** 2026-08-30  
-**Baseline main:** `ac6b397330c5fb6af8dc51bda7a57478f6438d67` (#745 merged)  
-**PR #746:** OPEN (audit-only, not merged)
+**Baseline main:** `ac6b397330c5fb6af8dc51bda7a57478f6438d67`
 
 ---
 
@@ -11,141 +10,101 @@
 
 ```text
 CURRENT_MAIN_SHA: ac6b397330c5fb6af8dc51bda7a57478f6438d67
-PR_745_PRESENT: yes
-PR_745_MERGE_SHA: ac6b397330c5fb6af8dc51bda7a57478f6438d67
-PR_746_STATE: OPEN
-PR_746_MERGED: no
-```
-
-Main unchanged since audit. No competing ownership landed on main.
-
----
-
-## Implementation gates (§26)
-
-| Gate | Result | Evidence |
-|------|--------|----------|
-| BLUEPRINT_INPUT_IS_WORLD_ONLY | **true** | `generateWorldSandboxBlueprint` uses world name/summary/content only |
-| VALIDITY_OWNER_CAN_BE_SINGLE | **true** | `isStoredBlueprintValidForCurrentGeneration` in `blueprintValidity.ts` |
-| GM_ONLY_STORAGE_SAFE | **true** | `trpg_world_blueprint_artifacts` — not in `rowToWorldListItem` / catalog |
-| TRIGGER_OWNER_FOUND | **true** | `PATCH/POST /api/worlds` after durable commit; semantic + TRPG enable |
-| DURABLE_EXECUTION_PATH_SAFE | **true** | Reuses `derived_cache_jobs` + `kickDerivedCacheWorker` (same as world translate) |
-| NO_DESTRUCTIVE_MIGRATION | **true** | Additive `CREATE TABLE IF NOT EXISTS` only |
-| PUBLIC_SECRET_BOUNDARY_PRESERVED | **true** | Test: catalog/list JSON has zero blueprint fields |
-
-**All gates passed → Draft implementation included in this PR.**
-
----
-
-## Architecture implemented (Draft)
-
-```text
-World PATCH/POST (trpg_enabled=1, flag ON, semantic change)
-  → enqueueWorldBlueprintPregenJob (derived_cache_jobs, idempotent)
-  → kickDerivedCacheWorker
-  → refreshWorldBlueprintArtifact
-  → generateWorldSandboxBlueprint (canonical owner)
-  → evaluateSandboxBlueprint (#741)
-  → trpg-sandbox-blueprint transport (#745)
-  → casPublishWorldBlueprintArtifact (GM-only table)
-
-Campaign start (flag ON)
-  → loadValidWorldBlueprintPlan → copyWorldBlueprintPlan → director_plan_json
-  → if missing: sync fallback via same generateWorldSandboxBlueprint
+PR_749_BASE_SHA: ac6b397330c5fb6af8dc51bda7a57478f6438d67
+PR_749_HEAD_SHA: (see branch after correction commit)
+PR_749_MERGEABLE: MERGEABLE (draft)
 ```
 
 ---
 
-## Validity contract (single owner)
+## Defects fixed in correction pass
 
-`isStoredBlueprintValidForCurrentGeneration` checks:
+| ID | Issue | Fix |
+|----|-------|-----|
+| BUG A | POST bypassed flag check (`trpgEnabled === 1` → direct enqueue) | Both POST/PATCH use `maybeEnqueueWorldBlueprintPregenAfterCommit` |
+| BUG B | `updated_at` in validity via `hashWorldSnapshot` | New `blueprintSourceFingerprint` (name+summary+content only) |
+| BUG C | Blueprint jobs inherited 8-attempt queue retry | `maxAttemptsForDerivedJobKind` → 1 for `trpg_sandbox_blueprint_pregen` |
+| ISSUE D | Duplicate DDL in `schema.ts` + `worldBlueprintArtifact.ts` | Single owner: `ensureTrpgTables` in `schema.ts` only |
 
-- `sourceWorldHash` (`hashWorldSnapshot`: name + summary + content + updatedAt)
-- `derivationVersion` (`TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION` — bump on #741-like prompt contract changes)
-- `generatorModel` (`TRPG_SCENARIO_DRAFT_MODEL`)
-- `schemaVersion` (`TRPG_SCENARIO_PLAN_SCHEMA_VERSION`)
-
-`hashWorldSnapshot` classification: **CONSERVATIVE_SUPERSET** (includes `updatedAt` not in LLM user prompt).
-
----
-
-## Product diversity (accepted)
-
-One macro Blueprint per exact world generation revision. Same-revision campaigns may share narrative beat sheet; runtime state remains per-campaign.
+No compatibility shims for unmerged Draft schema (`source_world_hash` removed; `source_fingerprint` only).
 
 ---
 
-## §30 Final report
+## Canonical owners (after correction)
+
+| Responsibility | Owner | Count |
+|----------------|-------|-------|
+| Trigger policy | `shouldEnqueueWorldBlueprintPregen` + `maybeEnqueueWorldBlueprintPregenAfterCommit` | 1 |
+| Source fingerprint | `blueprintSourceFingerprint` | 1 |
+| Validity | `isStoredBlueprintValidForCurrentGeneration` | 1 |
+| Generation | `generateWorldSandboxBlueprint` | 1 |
+| Storage | `trpg_world_blueprint_artifacts` via `worldBlueprintArtifact.ts` | 1 |
+| Schema DDL | `ensureTrpgTables` (`schema.ts`) | 1 |
+| Derived job retry policy | `maxAttemptsForDerivedJobKind` (`jobs.ts`) | 1 |
+| Campaign copy | `ensureCampaignDirectorContext` → `copyWorldBlueprintPlan` | 1 |
+
+---
+
+## §25 Final report (corrected)
 
 ```text
-CURRENT_MAIN_SHA: ac6b397330c5fb6af8dc51bda7a57478f6438d67
-HEAD_SHA: (see branch cursor/trpg-world-blueprint-pregen-9c97)
-DRAFT_PR: (created on push)
-=== INPUT ===
-BLUEPRINT_INPUT_IS_WORLD_ONLY: true
-=== VALIDITY ===
-WORLD_HASH_CLASSIFICATION: CONSERVATIVE_SUPERSET
-BLUEPRINT_VALIDITY_OWNER: isStoredBlueprintValidForCurrentGeneration (blueprintValidity.ts)
-BLUEPRINT_VALIDITY_OWNER_COUNT: 1
-MODEL_CHANGE_INVALIDATES: true (generatorModel field)
-SCHEMA_CHANGE_INVALIDATES: true (schemaVersion field)
-PROMPT_CONTRACT_CHANGE_INVALIDATES: true (derivationVersion bump)
-=== LIFECYCLE ===
-TRPG_READY_TRIGGER_OWNER: shouldEnqueueWorldBlueprintPregen + worlds API after DB commit
-TRIGGER_AFTER_DURABLE_COMMIT: true
-UNRELATED_EDIT_TRIGGERS_REGEN: false (cover/genre-only PATCH does not enqueue; updated_at-only would via hash — conservative)
-DURABLE_JOB_QUEUE_EXISTS: true (derived_cache_jobs)
-DURABLE_JOB_OWNER: derivedCache/jobs.ts + worker.ts
-PROCESS_RESTART_SAFE: partial — jobs persist; worker drains on kick (same as world translate; boot drain is follow-up)
-=== STORAGE / PRIVACY ===
-BLUEPRINT_STORAGE_OWNER: trpg_world_blueprint_artifacts (worldBlueprintArtifact.ts)
-NEW_STORAGE_CREATED: true
-MIGRATION_TYPE: additive CREATE TABLE IF NOT EXISTS
-PUBLIC_BLUEPRINT_LEAK_COUNT: 0 (test)
-BORROWED_WORLD_SECRET_LEAK_COUNT: 0
-=== GENERATION / CONCURRENCY ===
-BLUEPRINT_GENERATION_OWNER_COUNT: 1 (generateWorldSandboxBlueprint)
-SAME_REVISION_DUPLICATE_CALL_POSSIBLE: false for pregen (INSERT OR IGNORE job); true for campaign sync fallback when artifact missing
-STALE_GENERATION_OVERWRITE_POSSIBLE: false (CAS checks current world hash before publish)
-MAX_PROVIDER_ATTEMPTS: 2 (#745 unchanged)
+=== REPRODUCTION (before fix) ===
+FLAG_OFF_POST_BYPASS_REPRODUCED: true
+UNRELATED_EDIT_FALSE_INVALIDATION_REPRODUCED: true
+BLUEPRINT_APPLICATION_RETRY_INHERITED: true
+BLUEPRINT_TABLE_DDL_OWNER_COUNT_BEFORE: 2
+
+=== FLAG ===
+FLAG_OFF_POST_BLUEPRINT_JOB_COUNT: 0
+FLAG_OFF_PATCH_BLUEPRINT_JOB_COUNT: 0
+FLAG_ON_NEW_WORLD_JOB_COUNT: 1
+
+=== INVALIDATION ===
+UPDATED_AT_IN_BLUEPRINT_SOURCE_FINGERPRINT: false
+COVER_ONLY_ARTIFACT_STILL_VALID: true
+GENRE_ONLY_ARTIFACT_STILL_VALID: true
+VISIBILITY_ONLY_BEHAVIOR: no semantic invalidation; enqueue only on TRPG enable or semantic field change
+NAME_CHANGE_INVALIDATES: true
+SUMMARY_CHANGE_INVALIDATES: true
+CONTENT_CHANGE_INVALIDATES: true
+INVALID_WITHOUT_REPLACEMENT_JOB_POSSIBLE: false
+
+=== RETRY / COST ===
+BLUEPRINT_JOB_MAX_LOGICAL_ATTEMPTS: 1
+MAX_PROVIDER_ATTEMPTS_PER_LOGICAL_GENERATION: 2 (primary→backup, #745 unchanged)
+TRANSLATION_RETRY_POLICY_CHANGED: false
 APPLICATION_RETRY_ADDED: false
+
+=== STORAGE ===
+BLUEPRINT_TABLE_DDL_OWNER_COUNT_AFTER: 1
+UNMERGED_COMPATIBILITY_SHIM_ADDED: false
+PUBLIC_BLUEPRINT_READER_COUNT: 0
+BORROWED_WORLD_SECRET_LEAK_COUNT: 0
+
 === CAMPAIGN ===
-CAMPAIGN_START_VALID_ARTIFACT_PROVIDER_CALLS: 0
+VALID_ARTIFACT_PROVIDER_CALLS: 0
+MISSING_ARTIFACT_PROVIDER_CALLS: 1 (sync fallback preserved)
 CAMPAIGN_PLAN_COPIED: true
 CAMPAIGN_RUNTIME_SHARED: false
-EXISTING_CAMPAIGN_CHANGED: false (no migration/backfill)
-=== FEATURE / COST ===
-FLAG_OFF_PROVIDER_CALLS: 0
-PROVIDER_CALLS_PER_WORLD_REVISION: 1 (when flag ON and TRPG-ready world saved)
-ESTIMATED_PROVIDER_CALLS_PER_100_CAMPAIGNS: 1 per world revision (not 100)
-DEFAULT_ENABLE_READY: NO
-=== CLEANUP ===
-SAFE_TO_DELETE: none in this PR
-KEEP: per-campaign sync fallback, derived_cache translation jobs, #741/#745 paths
-FOLLOW_UP: boot-time derived cache drain; variant pool; default-enable UX; historical backfill
-=== VALIDATION ===
-FOCUSED_TEST_PASS: worldBlueprintPregen.test.ts (9/9), scenarioDraftCall.transport.test.ts (13/13)
-FOCUSED_TEST_FAIL: none
-TYPECHECK: pass
-LINT: pass
-DIFF_CHECK: pass
-CI_STATUS: pending
-=== SYSTEM DELTA ===
-BEFORE: Per-campaign synchronous Blueprint generation on campaign start
-PROBLEM: World-only work duplicated; 16s–135s startup when flag ON
-AFTER: Pregenerate on TRPG-ready world commit; campaign copies validated artifact; sync fallback if missing
-REMOVED: Duplicate prompt/generation block from sandboxDirector (delegates to canonical owner)
-PRESERVED: #741 validation, #745 transport, flag default OFF, billing, campaign runtime independence
-REGRESSION_RISKS: Same story per revision; boot drain gap; sync fallback still duplicates if artifact missing
-PROOF: worldBlueprintPregen.test.ts + transport tests
+SYNC_FALLBACK_PUBLISHES_ARTIFACT: false
+
+=== DURABILITY ===
+PROCESS_RESTART_SAFE: PARTIAL
+BOOT_DRAIN_CHANGED: false
+
 === FINAL ===
-ROOT_CAUSE_STATUS: ROOT_CAUSE_FIXED (for pregen path when artifact exists; symptom remains on missing-artifact fallback)
-IMPLEMENTATION_CREATED: true
+ROOT_CAUSE_STATUS: ROOT_CAUSE_FIXED (pregen path); SYMPTOM_MITIGATED_ONLY for missing-artifact sync fallback
 MERGE_READINESS: NEEDS_PRODUCT_DECISION
-DEFAULT_ENABLED: false
-STARTUP_FAILURE_POLICY_CHANGED: false
-USER_BILLING_CHANGED: false
-MERGED: false
-DEPLOYED: false
+DEFAULT_ENABLE_READY: NO
 STATUS: STOP_BEFORE_MERGE
 ```
+
+---
+
+## Validation
+
+- `worldBlueprintPregen.test.ts` — 18/18 (T1–T15 + corrections)
+- `scenarioDraftCall.transport.test.ts` — 13/13 (#745)
+- `npm run typecheck:app` — pass
+- `npm run lint` — pass
+- `git diff --check` — pass

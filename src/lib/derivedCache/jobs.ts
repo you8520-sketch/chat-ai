@@ -31,6 +31,21 @@ export type DerivedCacheJobRow = {
 const MAX_JOB_ATTEMPTS = 8;
 const LEASE_STALE_MINUTES = 15;
 
+export function maxAttemptsForDerivedJobKind(jobKind: DerivedJobKind): number {
+  switch (jobKind) {
+    case "trpg_sandbox_blueprint_pregen":
+      return 1;
+    case "character_derived_refresh":
+    case "world_translate":
+    case "world_share_translate":
+      return MAX_JOB_ATTEMPTS;
+    default: {
+      const unknownKind: never = jobKind;
+      return unknownKind;
+    }
+  }
+}
+
 export function ensureDerivedCacheJobsTable(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS derived_cache_jobs (
@@ -192,10 +207,11 @@ export function completeDerivedCacheJob(
   }
 
   const row = db
-    .prepare(`SELECT attempts FROM derived_cache_jobs WHERE id = ?`)
-    .get(jobId) as { attempts: number } | undefined;
+    .prepare(`SELECT attempts, job_kind FROM derived_cache_jobs WHERE id = ?`)
+    .get(jobId) as { attempts: number; job_kind: DerivedJobKind } | undefined;
   const attempts = row?.attempts ?? MAX_JOB_ATTEMPTS;
-  const retryable = outcome.retryable !== false && attempts < MAX_JOB_ATTEMPTS;
+  const maxAttempts = row ? maxAttemptsForDerivedJobKind(row.job_kind) : MAX_JOB_ATTEMPTS;
+  const retryable = outcome.retryable !== false && attempts < maxAttempts;
   const err = outcome.error.slice(0, 240);
   if (retryable) {
     db.prepare(

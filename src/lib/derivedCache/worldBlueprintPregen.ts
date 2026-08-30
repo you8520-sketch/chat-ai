@@ -10,13 +10,16 @@ import { isTrpgSandboxDirectorEnabled } from "@/lib/trpg/sandboxDirector";
 
 export const WORLD_BLUEPRINT_PREGEN_JOB_KIND = "trpg_sandbox_blueprint_pregen" as const;
 
-export function shouldEnqueueWorldBlueprintPregen(opts: {
+export type WorldBlueprintPregenTriggerInput = {
   previousTrpgEnabled: boolean;
   nextTrpgEnabled: boolean;
   nameChanged: boolean;
   summaryChanged: boolean;
   contentChanged: boolean;
-}): boolean {
+};
+
+/** Single canonical trigger-policy owner for POST and PATCH world mutations. */
+export function shouldEnqueueWorldBlueprintPregen(opts: WorldBlueprintPregenTriggerInput): boolean {
   if (!isTrpgSandboxDirectorEnabled()) return false;
   if (!opts.nextTrpgEnabled) return false;
   const becomingTrpg = !opts.previousTrpgEnabled && opts.nextTrpgEnabled;
@@ -30,19 +33,28 @@ export function enqueueWorldBlueprintPregenJob(db: Database.Database, worldId: n
     jobKind: WORLD_BLUEPRINT_PREGEN_JOB_KIND,
     entityType: "world",
     entityId: worldId,
-    sourceFingerprint: snapshot.hash,
+    sourceFingerprint: snapshot.sourceFingerprint,
     derivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
   });
+}
+
+/** Routes delegate here after durable world commit. */
+export function maybeEnqueueWorldBlueprintPregenAfterCommit(
+  db: Database.Database,
+  opts: WorldBlueprintPregenTriggerInput & { worldId: number }
+): boolean {
+  if (!shouldEnqueueWorldBlueprintPregen(opts)) return false;
+  return enqueueWorldBlueprintPregenJob(db, opts.worldId);
 }
 
 export async function refreshWorldBlueprintArtifact(
   db: Database.Database,
   worldId: number,
-  expectedSourceWorldHash: string,
+  expectedSourceFingerprint: string,
   expectedDerivationVersion: number
 ): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
   const snapshot = loadWorldSnapshotForBlueprint(db, worldId);
-  if (!snapshot || snapshot.hash !== expectedSourceWorldHash) {
+  if (!snapshot || snapshot.sourceFingerprint !== expectedSourceFingerprint) {
     return { ok: true };
   }
   if (expectedDerivationVersion !== TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION) {
@@ -55,19 +67,19 @@ export async function refreshWorldBlueprintArtifact(
     worldSummary: snapshot.summary,
     worldContent: snapshot.content,
     worldUpdatedAt: snapshot.updatedAt,
-    worldHash: snapshot.hash,
+    worldHash: snapshot.sourceFingerprint,
   });
   if (!generated.ok) {
     return {
       ok: false,
       error: generated.error,
-      retryable: generated.retryable !== false,
+      retryable: false,
     };
   }
 
   const published = casPublishWorldBlueprintArtifact(db, {
     worldId,
-    expectedSourceWorldHash,
+    expectedSourceFingerprint,
     expectedDerivationVersion,
     plan: generated.plan,
   });

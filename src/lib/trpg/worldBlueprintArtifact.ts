@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { loadWorldForTrpg } from "./catalog";
+import { blueprintSourceFingerprint } from "./blueprintSourceFingerprint";
 import { hashWorldSnapshot } from "./scenarioDraft";
 import type { TrpgWorldSnapshot } from "./campaignContext";
 import {
@@ -12,7 +13,7 @@ import { parseTrpgScenarioPlan, type TrpgScenarioPlan } from "./scenarioPlan";
 
 export type WorldBlueprintArtifactRow = {
   world_id: number;
-  source_world_hash: string;
+  source_fingerprint: string;
   derivation_version: number;
   generator_model: string;
   schema_version: string;
@@ -28,23 +29,6 @@ function tableExists(db: Database.Database, name: string): boolean {
   return Boolean(row);
 }
 
-export function ensureWorldBlueprintArtifactsTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS trpg_world_blueprint_artifacts (
-      world_id INTEGER PRIMARY KEY,
-      source_world_hash TEXT NOT NULL,
-      derivation_version INTEGER NOT NULL,
-      generator_model TEXT NOT NULL,
-      schema_version TEXT NOT NULL,
-      director_plan_json TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_trpg_world_blueprint_artifacts_hash
-      ON trpg_world_blueprint_artifacts(source_world_hash, derivation_version);
-  `);
-}
-
 export function loadWorldSnapshotForBlueprint(
   db: Database.Database,
   worldId: number | null
@@ -57,18 +41,16 @@ export function loadWorldSnapshotForBlueprint(
     .get(worldId) as { name?: string; updated_at?: string } | undefined;
   const name = extra?.name ?? "";
   const updatedAt = extra?.updated_at ?? "";
+  const summary = world.summary;
+  const content = world.content;
   return {
     id: world.id,
     name,
-    summary: world.summary,
-    content: world.content,
+    summary,
+    content,
     updatedAt,
-    hash: hashWorldSnapshot({
-      name,
-      summary: world.summary,
-      content: world.content,
-      updatedAt,
-    }),
+    hash: hashWorldSnapshot({ name, summary, content, updatedAt }),
+    sourceFingerprint: blueprintSourceFingerprint({ name, summary, content }),
   };
 }
 
@@ -76,7 +58,6 @@ export function loadWorldBlueprintArtifactRow(
   db: Database.Database,
   worldId: number
 ): WorldBlueprintArtifactRow | null {
-  ensureWorldBlueprintArtifactsTable(db);
   return (
     (db
       .prepare(`SELECT * FROM trpg_world_blueprint_artifacts WHERE world_id=?`)
@@ -104,14 +85,13 @@ export function casPublishWorldBlueprintArtifact(
   db: Database.Database,
   opts: {
     worldId: number;
-    expectedSourceWorldHash: string;
+    expectedSourceFingerprint: string;
     expectedDerivationVersion: number;
     plan: TrpgScenarioPlan;
   }
 ): boolean {
-  ensureWorldBlueprintArtifactsTable(db);
   const snapshot = loadWorldSnapshotForBlueprint(db, opts.worldId);
-  if (!snapshot || snapshot.hash !== opts.expectedSourceWorldHash) {
+  if (!snapshot || snapshot.sourceFingerprint !== opts.expectedSourceFingerprint) {
     return false;
   }
   const validity = currentBlueprintGenerationValidity(snapshot);
@@ -122,11 +102,11 @@ export function casPublishWorldBlueprintArtifact(
   const result = db
     .prepare(
       `INSERT INTO trpg_world_blueprint_artifacts (
-          world_id, source_world_hash, derivation_version, generator_model, schema_version,
+          world_id, source_fingerprint, derivation_version, generator_model, schema_version,
           director_plan_json, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(world_id) DO UPDATE SET
-          source_world_hash = excluded.source_world_hash,
+          source_fingerprint = excluded.source_fingerprint,
           derivation_version = excluded.derivation_version,
           generator_model = excluded.generator_model,
           schema_version = excluded.schema_version,
@@ -135,7 +115,7 @@ export function casPublishWorldBlueprintArtifact(
     )
     .run(
       opts.worldId,
-      validity.sourceWorldHash,
+      validity.sourceFingerprint,
       validity.derivationVersion,
       validity.generatorModel,
       validity.schemaVersion,
