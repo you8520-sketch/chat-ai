@@ -15,6 +15,10 @@ import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import {
   invalidateSummarySealBatchEpisodicFactsForSourceMutation,
 } from "@/lib/episodicMemoryFacts";
 import { getOrCreateChatMemory } from "./memory-db";
@@ -121,12 +125,16 @@ function seedTurns(specs: Array<{ turn: number; user: string; assistant: string 
   }
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 before(() => seedBase());
 after(() => {
   __setEpisodicExtractCallerForTests(null);
   __setSummarizeTurnBatchCallerForTests(null);
   cleanup();
 });
+
 
 describe("pre-merge blocker regression", () => {
   it("A migration 1~5 compose ignores future legacy 7~12 prior rows", async () => {

@@ -13,6 +13,10 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import { __setSummarizeTurnBatchCallerForTests } from "./memory-rolling-summary";
 import { listMemoryRecordsForChat } from "./memory-turn-summary";
@@ -86,6 +90,9 @@ function seedPlayableTurns(count: number) {
   }
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 before(() => {
   seed();
 });
@@ -93,6 +100,7 @@ after(() => {
   __setSummarizeTurnBatchCallerForTests(null);
   cleanup();
 });
+
 
 describe("5-turn summary migration worker", () => {
   it("dry-run mutates nothing and classifies legacy 6-turn chats", () => {

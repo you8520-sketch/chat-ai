@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, beforeEach, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { getOrCreateChatMemory } from "./memory-db";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -101,8 +105,12 @@ function seedMessages() {
   assert.equal(persisted.ok, true, persisted.ok ? "" : String((persisted as { reason?: string }).reason));
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(seedMessages);
 after(cleanup);
+
 
 describe("LTM + RAW integration gap", () => {
   it("turn6 assembly keeps fact X only via LTM with MIDDLE_GAP=0", () => {

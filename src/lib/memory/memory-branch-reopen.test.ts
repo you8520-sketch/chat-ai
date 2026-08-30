@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { reconcileMemoryAfterTurnDelete } from "./memory-reconcile";
@@ -227,6 +231,9 @@ function seedPlayableTurns(
 const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
 let savedEnv: string | undefined;
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(() => {
   savedEnv = process.env[ENV_KEY];
   delete process.env[ENV_KEY];
@@ -244,6 +251,7 @@ afterEach(() => {
 after(() => {
   cleanup();
 });
+
 
 describe("targeted closed branch reopen", () => {
   it("A: reopen closed A only; B stays closed; branch_id stable", () => {

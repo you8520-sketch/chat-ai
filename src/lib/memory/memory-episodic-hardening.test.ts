@@ -14,6 +14,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import {
   detectUnsupportedEvidenceFact,
   persistEpisodicMemoryFactsBestEffort,
   resolveExplicitUserStatementProvenance,
@@ -125,6 +129,9 @@ function seedFiveTurnBatch() {
   }
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 before(() => {
   seedBase();
 });
@@ -134,6 +141,7 @@ after(() => {
   __setSummarizeTurnBatchCallerForTests(null);
   cleanup();
 });
+
 
 describe("memory episodic hardening regression", () => {
   it("A turn1 user durable fact survives turn5 seal evidence validation", async () => {

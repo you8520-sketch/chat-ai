@@ -14,8 +14,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { describe, it, before, after, beforeEach } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { ensureLorebookWithinBudget } from "./memory-lorebook-fit";
@@ -130,6 +134,10 @@ async function persistCompactIfNeeded(): Promise<{ compressed: boolean; text: st
   }
   return result;
 }
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("10k lorebook compact path (mocked, no live API)", () => {
   before(() => {

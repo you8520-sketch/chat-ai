@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -107,6 +111,9 @@ const ENV_5PLUS4 = "MEMORY_5PLUS4_ENABLED";
 const ENV_MEMORY = "MEMORY_FEATURE_ENABLED";
 let savedEnv: Record<string, string | undefined>;
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(() => {
   savedEnv = {
     [ENV_5PLUS4]: process.env[ENV_5PLUS4],
@@ -126,6 +133,7 @@ afterEach(() => {
   }
 });
 after(cleanup);
+
 
 describe("summary barrier B1-B7", () => {
   it("B1 summary already sealed => no LLM call", async () => {
