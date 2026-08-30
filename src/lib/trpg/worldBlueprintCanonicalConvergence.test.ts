@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "./blueprintValidity";
+import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION, currentBlueprintGenerationValidity } from "./blueprintValidity";
 import { ensureTrpgTables } from "./schema";
 import {
   casPublishWorldBlueprintArtifact,
@@ -126,6 +126,30 @@ function gmText(): string {
 
 function planWithGoal(goal: string) {
   return parseTrpgScenarioPlan({ ...playablePlan, goal })!;
+}
+
+const POISON_PLAN_JSON = "{not a valid scenario plan";
+
+function insertPoisonArtifact(
+  db: Database.Database,
+  worldId: number,
+  snapshot: ReturnType<typeof loadWorldSnapshotForBlueprint>,
+  poisonJson = POISON_PLAN_JSON
+): void {
+  const validity = currentBlueprintGenerationValidity(snapshot!);
+  db.prepare(
+    `INSERT INTO trpg_world_blueprint_artifacts (
+        world_id, source_fingerprint, derivation_version, generator_model, schema_version,
+        director_plan_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+  ).run(
+    worldId,
+    validity.sourceFingerprint,
+    validity.derivationVersion,
+    validity.generatorModel,
+    validity.schemaVersion,
+    poisonJson
+  );
 }
 
 function createCampaign(db: Database.Database, worldId: number, suffix: string): number {
@@ -498,6 +522,137 @@ describe("world blueprint canonical convergence", () => {
       assert.equal(directorCalls, 0);
     });
   });
+
+  it("T10 same-generation malformed artifact → valid publish repairs → reader returns plan", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+    insertPoisonArtifact(db, worldId, snap);
+
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap), null);
+
+    const repaired = casPublishWorldBlueprintArtifact(db, {
+      worldId,
+      expectedSourceFingerprint: snap.sourceFingerprint,
+      expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      plan: planWithGoal("REPAIRED"),
+    });
+
+    assert.equal(repaired, true);
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "REPAIRED");
+  });
+
+  it("T11 repaired artifact → later same-generation valid writer returns false", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+    insertPoisonArtifact(db, worldId, snap);
+
+    assert.equal(
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal("REPAIRED"),
+      }),
+      true
+    );
+
+    assert.equal(
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal("LATE_OVERWRITE"),
+      }),
+      false
+    );
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "REPAIRED");
+  });
+
+  it("T12 poison artifact campaign lifecycle → A repairs → B provider 0", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      insertPoisonArtifact(db, worldId, snap);
+
+      const campaignA = createCampaign(db, worldId, "A");
+      let providerCalls = 0;
+
+      await ensureCampaignDirectorContext(db, campaignA, {
+        directorCall: async () => {
+          providerCalls += 1;
+          return (await mockBlueprintComplete("PLAN_A")()) as never;
+        },
+      });
+
+      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "PLAN_A");
+      assert.equal(providerCalls, 1);
+
+      const campaignB = createCampaign(db, worldId, "B");
+      await ensureCampaignDirectorContext(db, campaignB, {
+        directorCall: async () => {
+          providerCalls += 1;
+          throw new Error("must not call provider");
+        },
+      });
+
+      assert.equal(providerCalls, 1);
+      assert.equal(loadCampaignContext(db, campaignA)?.directorPlan?.goal, "PLAN_A");
+      assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "PLAN_A");
+    });
+  });
+
+  it("T13 two SQLite connections repair same invalid artifact → one winner", () => {
+    const { db1, db2 } = sharedMemoryDbs();
+    const worldId = insertWorld(db1);
+    const snap = loadWorldSnapshotForBlueprint(db1, worldId)!;
+    insertPoisonArtifact(db1, worldId, snap);
+
+    const publish = (db: Database.Database, goal: string) =>
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal(goal),
+      });
+
+    assert.equal(publish(db1, "REPAIR_A"), true);
+    assert.equal(publish(db2, "REPAIR_B"), false);
+    assert.equal(loadValidWorldBlueprintPlan(db2, worldId, snap)?.goal, "REPAIR_A");
+  });
+
+  it("T14 obsolete generation identity matrix — stale fingerprint blocked, old derivation replaced", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db, "v1");
+    const snapV1 = loadWorldSnapshotForBlueprint(db, worldId)!;
+    insertPoisonArtifact(db, worldId, snapV1, POISON_PLAN_JSON);
+
+    db.prepare(`UPDATE worlds SET content='v2', updated_at=datetime('now') WHERE id=?`).run(worldId);
+    const snapV2 = loadWorldSnapshotForBlueprint(db, worldId)!;
+
+    assert.equal(
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snapV1.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal("stale"),
+      }),
+      false
+    );
+
+    assert.equal(
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snapV2.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal("current-v2"),
+      }),
+      true
+    );
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snapV2)?.goal, "current-v2");
+  });
 });
 
 describe("canonical convergence reproduction (before-fix semantics)", () => {
@@ -519,5 +674,24 @@ describe("canonical convergence reproduction (before-fix semantics)", () => {
     });
     assert.equal(second, false, "after fix: second same-generation publish is rejected");
     assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "FIRST");
+  });
+
+  it("R2 — same-generation poison artifact is repairable after identity-only preservation fix", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+    insertPoisonArtifact(db, worldId, snap);
+
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap), null);
+    assert.equal(
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: planWithGoal("REPAIRED"),
+      }),
+      true
+    );
+    assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "REPAIRED");
   });
 });
