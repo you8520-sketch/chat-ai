@@ -211,6 +211,10 @@ export type Usage = {
     actualProviderCostKrw: number;
     actualCostUsd?: number;
     actualCostSource: string;
+    /** Delivered billing model used for shadow cost calculation. Admin-only. */
+    modelId?: string;
+    /** Delivered provider used for shadow cost calculation. Admin-only. */
+    provider?: string;
     providerListCostKrw: number;
     inputCostKrw: number;
     outputCostKrw: number;

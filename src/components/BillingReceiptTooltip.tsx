@@ -18,6 +18,10 @@ import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { AdminBillingReceiptV2Panel } from "@/components/AdminBillingReceiptV2Panel";
 import {
+  buildAdminBillingReceiptV2,
+  formatAdminBillingReceiptV2Text,
+} from "@/lib/adminBillingReceiptV2";
+import {
   isGemini25ProModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
@@ -86,6 +90,56 @@ function ReceiptBody({
             <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
           </p>
         )}
+      </div>
+    );
+  }
+
+  if (showFullReceipt) {
+    return (
+      <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
+        {usage.htmlFlashOnly && (
+          <p className="text-[10px] leading-relaxed text-zinc-500">
+            HTML 전용 턴 — 백그라운드 단독 호출 (영수증 모델: HTML전용모델). 메인 RP 모델 미호출.
+          </p>
+        )}
+        {usage.coldStartShieldApplied && (
+          <>
+            {usage.uncappedChargePoints != null && usage.uncappedChargePoints > 0 && (
+              <p>
+                <span className="text-zinc-500">방어선 적용 전 청구:</span>{" "}
+                <span className="text-rose-300/90">{formatPoints(usage.uncappedChargePoints)} P</span>
+              </p>
+            )}
+            {usage.coldStartCostFloorPoints != null && usage.coldStartCostFloorPoints > 0 && (
+              <p>
+                <span className="text-zinc-500">원가·글자상한 중간값:</span>{" "}
+                <span className="text-cyan-300/90">{formatPoints(usage.coldStartCostFloorPoints)} P</span>
+              </p>
+            )}
+          </>
+        )}
+        {usage.statusWidgetExtractDiagnostics && (
+          <div className="mt-1 border-t border-zinc-800 pt-1">
+            <p className="text-zinc-500">
+              위젯 진단:{" "}
+              {usage.statusWidgetExtractDiagnostics.usedFallback
+                ? "V3 폴백 사용"
+                : usage.statusWidgetExtractDiagnostics.exhausted
+                  ? "추출 실패"
+                  : "정상"}
+            </p>
+            {usage.statusWidgetExtractDiagnostics.attempts.map((attempt, index) => (
+              <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
+                <span className="text-zinc-500">
+                  {attempt.stage} · {attempt.modelId}:
+                </span>{" "}
+                HTTP {attempt.httpStatus ?? "없음"} · finish {attempt.finishReason ?? "없음"}
+                {attempt.errorCode ? ` · ${attempt.errorCode}` : ""}
+              </p>
+            ))}
+          </div>
+        )}
+        <AdminBillingReceiptV2Panel usage={usage} />
       </div>
     );
   }
@@ -371,7 +425,6 @@ function ReceiptBody({
           </p>
         </>
       ))}
-      {showFullReceipt && <AdminBillingReceiptV2Panel usage={usage} />}
     </div>
   );
 }
@@ -461,27 +514,7 @@ export default function BillingReceiptTooltip({
 
   async function copyReceipt() {
     if (!showFullReceipt) return;
-    const text = formatBillingReceiptText(receipt!, {
-      route: usage.route,
-      breakdown: usage.breakdown,
-      apiRawCostKrw,
-      coldStartShieldApplied: usage.coldStartShieldApplied,
-      uncappedChargePoints: usage.uncappedChargePoints,
-      coldStartCostFloorPoints: usage.coldStartCostFloorPoints,
-      cacheReadLine: cacheReceipt?.cacheReadLine,
-      cacheWriteLine: cacheReceipt?.cacheWriteLine,
-      cacheRateSummary: cacheReceipt?.rateSummary,
-      standardInputTokens: cacheReceipt?.standardInputTokens,
-      exchangeRateLabel,
-      apiReasoningOutputTokens: usage.apiReasoningOutputTokens,
-      apiContentOutputTokens: usage.apiContentOutputTokens,
-      statusWidgetExtract: usage.statusWidgetExtract,
-      statusWidgetExtractDiagnostics: usage.statusWidgetExtractDiagnostics,
-      mainApiRawCostKrw: usage.mainApiRawCostKrw,
-      apiRawCostSource: usage.apiRawCostSource,
-      mainRpCostParts,
-      gemini37FlashPricing: usage.gemini37FlashPricing,
-    });
+    const text = formatAdminBillingReceiptV2Text(buildAdminBillingReceiptV2(usage));
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);

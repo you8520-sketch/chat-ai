@@ -1,4 +1,5 @@
 import type { Usage } from "@/lib/chatUsage";
+import { convertUsdToKrw } from "@/lib/exchangeRate";
 import {
   isSyncExtractActualExact,
   type SyncActualCostCoverage,
@@ -8,8 +9,10 @@ import type { ActualCostSource, ActualTurnCostCoverage } from "@/lib/shadowPrici
 export type AdminReceiptExactness = "settled" | "partial" | "estimated" | "unavailable";
 
 export type AdminBillingReceiptV2UserCharge = {
-  modelLabel: string;
-  provider: string;
+  selectedModelLabel: string;
+  selectedProvider: string;
+  /** Delivered billing model when handoff identity differs from selected. */
+  billingModelId?: string;
   inputTokens: number;
   outputTokens: number;
   reasoningTokens?: number;
@@ -17,6 +20,12 @@ export type AdminBillingReceiptV2UserCharge = {
   deductedPoints: number;
   billingWaived: boolean;
   waiverReason?: string;
+};
+
+export type AdminBillingReceiptV2AggregateApiTelemetry = {
+  inputTokens: number;
+  outputTokens: number;
+  callCount?: number;
 };
 
 export type AdminBillingReceiptV2MainActual = {
@@ -66,13 +75,15 @@ export type AdminBillingReceiptV2SyncPlatformSpend = {
   callCount?: number;
   postTurnSharedInitial?: boolean;
   actualProviderCostUsd?: number;
+  /** V2 canonical KRW from USD × shadow FX snapshot. */
   actualProviderCostKrw?: number;
   actualCostSource?: ActualCostSource | string;
   actualCostCoverage?: SyncActualCostCoverage;
   exactness?: AdminReceiptExactness;
   platformFunded: true;
   userChargedPoints: 0;
-  /** Legacy estimate — not exact settled actual. */
+  /** Legacy estimate at generation-time billing FX — not v2 canonical. */
+  legacyStoredActualKrw?: number;
   legacyApiRawCostKrw?: number;
 };
 
@@ -81,6 +92,7 @@ export type AdminBillingReceiptV2 = {
   snapshotAvailable: boolean;
   historicalNote?: string;
   userCharge: AdminBillingReceiptV2UserCharge;
+  aggregateApiTelemetry: AdminBillingReceiptV2AggregateApiTelemetry | null;
   mainRp: {
     actual: AdminBillingReceiptV2MainActual | null;
     providerReference: AdminBillingReceiptV2ProviderReference | null;
@@ -99,6 +111,10 @@ const SETTLED_ACTUAL_SOURCES = new Set<ActualCostSource>([
   "cheaper_inference_billed",
   "provider_reported",
 ]);
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
 
 function resolveMainExactness(
   source: string,
@@ -143,6 +159,44 @@ function mainMarginEligible(
   );
 }
 
+function resolveDeliveredMainModel(
+  usage: Usage,
+  shadow: Usage["shadowPricing"] | undefined
+): string {
+  if (shadow?.modelId) return shadow.modelId;
+  if (usage.adultRouting?.actualModel) return usage.adultRouting.actualModel;
+  return usage.model ?? "unknown";
+}
+
+function resolveDeliveredMainProvider(
+  usage: Usage,
+  shadow: Usage["shadowPricing"] | undefined
+): string {
+  if (shadow?.provider) return shadow.provider;
+  if (usage.adultRouting?.actualProvider) return usage.adultRouting.actualProvider;
+  return usage.provider ?? "unknown";
+}
+
+function resolveSyncV2Krw(
+  syncUsd: number | undefined,
+  fx: AdminBillingReceiptV2Fx | null
+): number | undefined {
+  if (syncUsd == null || !(syncUsd > 0) || fx == null) return undefined;
+  return round1(convertUsdToKrw(syncUsd, fx.effectiveKrwPerUsd));
+}
+
+/** Admin audit USD — preserve stored precision; avoid rounding small values to $0.0000. */
+export function formatAdminActualUsd(value: number | undefined | null): string {
+  if (value == null || !(value > 0)) return "—";
+  const trimmed = value.toFixed(8).replace(/\.?0+$/, "");
+  return `$${trimmed}`;
+}
+
+function formatKrwLine(value: number | undefined | null): string {
+  if (value == null || !(value > 0)) return "—";
+  return `${value} KRW`;
+}
+
 /**
  * Pure admin receipt projection — consumes generation-time Usage snapshots only.
  * Scope: CAPTURED SYNC (main RP + persisted sync post-turn). No whole-turn economics.
@@ -153,17 +207,37 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
   const deductedPoints = usage.cost ?? 0;
   const billingWaived = usage.billingWaived === true || deductedPoints === 0;
 
+  const billingInput = usage.input ?? 0;
+  const billingOutput = usage.output ?? 0;
+  const deliveredModelId = resolveDeliveredMainModel(usage, shadow);
+  const selectedModelLabel = usage.modelLabel ?? usage.model ?? "unknown";
+
   const userCharge: AdminBillingReceiptV2UserCharge = {
-    modelLabel: usage.modelLabel ?? usage.model ?? "unknown",
-    provider: usage.provider ?? "unknown",
-    inputTokens: usage.apiInputTokens ?? usage.input ?? 0,
-    outputTokens: usage.apiOutputTokens ?? usage.output ?? 0,
+    selectedModelLabel,
+    selectedProvider: usage.provider ?? "unknown",
+    billingModelId:
+      deliveredModelId !== (usage.model ?? "") ? deliveredModelId : undefined,
+    inputTokens: billingInput,
+    outputTokens: billingOutput,
     reasoningTokens: usage.apiReasoningOutputTokens,
     savedOutputChars: usage.savedOutputChars,
     deductedPoints,
     billingWaived,
     waiverReason: usage.billingWaiverReason,
   };
+
+  const aggregateApiTelemetry =
+    usage.apiInputTokens != null &&
+    usage.apiOutputTokens != null &&
+    (usage.apiInputTokens !== billingInput ||
+      usage.apiOutputTokens !== billingOutput ||
+      usage.statusWidgetExtract != null)
+      ? {
+          inputTokens: usage.apiInputTokens,
+          outputTokens: usage.apiOutputTokens,
+          callCount: usage.apiCallCount,
+        }
+      : null;
 
   let mainActual: AdminBillingReceiptV2MainActual | null = null;
   let providerReference: AdminBillingReceiptV2ProviderReference | null = null;
@@ -182,8 +256,8 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
       actualCostSource: shadow.actualCostSource,
       actualTurnCostCoverage: coverage,
       exactness,
-      provider: usage.provider ?? "unknown",
-      model: usage.model ?? "unknown",
+      provider: resolveDeliveredMainProvider(usage, shadow),
+      model: deliveredModelId,
     };
     providerReference = {
       providerListCostKrw: shadow.providerListCostKrw,
@@ -220,6 +294,7 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
       syncExtract.actualCostSource,
       syncExtract.actualCostCoverage
     );
+    const syncV2Krw = resolveSyncV2Krw(syncExtract.actualProviderCostUsd, fx);
     syncPlatformSpend = {
       status: "available",
       groupLabel:
@@ -235,12 +310,13 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
       callCount: syncExtract.callCount,
       postTurnSharedInitial: syncExtract.postTurnSharedInitial,
       actualProviderCostUsd: syncExtract.actualProviderCostUsd,
-      actualProviderCostKrw: syncExtract.actualProviderCostKrw,
+      actualProviderCostKrw: syncV2Krw,
       actualCostSource: syncExtract.actualCostSource,
       actualCostCoverage: syncExtract.actualCostCoverage,
       exactness: syncExactness,
       platformFunded: true,
       userChargedPoints: 0,
+      legacyStoredActualKrw: syncExtract.actualProviderCostKrw,
       legacyApiRawCostKrw: syncExtract.apiRawCostKrw,
     };
   } else {
@@ -258,12 +334,13 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
   const syncKrw =
     syncPlatformSpend.status === "available" &&
     syncPlatformSpend.exactness === "settled" &&
-    syncPlatformSpend.actualProviderCostKrw != null
+    syncPlatformSpend.actualProviderCostKrw != null &&
+    fx != null
       ? syncPlatformSpend.actualProviderCostKrw
       : null;
 
   if (mainKrw != null && syncKrw != null) {
-    capturedSyncProviderSpendKrw = Math.round((mainKrw + syncKrw) * 10) / 10;
+    capturedSyncProviderSpendKrw = round1(mainKrw + syncKrw);
     capturedSyncProviderSpendExact = true;
   } else if (mainKrw != null && syncPlatformSpend.status === "not_persisted") {
     capturedSyncProviderSpendKrw = null;
@@ -274,6 +351,7 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
     snapshotAvailable,
     historicalNote,
     userCharge,
+    aggregateApiTelemetry,
     mainRp: {
       actual: mainActual,
       providerReference,
@@ -308,6 +386,142 @@ export function adminReceiptExactnessLabel(exactness: AdminReceiptExactness): st
       return _exhaustive;
     }
   }
+}
+
+export function formatAdminBillingReceiptV2Text(receipt: AdminBillingReceiptV2): string {
+  const lines: string[] = [
+    "Admin Receipt v2 · 동기 수집 범위 (async 제외)",
+  ];
+  if (receipt.historicalNote) lines.push(receipt.historicalNote);
+
+  lines.push("", "[사용자 청구]");
+  lines.push(`선택 모델: ${receipt.userCharge.selectedModelLabel}`);
+  if (receipt.userCharge.billingModelId) {
+    lines.push(`청구 기준 모델: ${receipt.userCharge.billingModelId}`);
+  }
+  lines.push(
+    `과금 입력/출력: ${receipt.userCharge.inputTokens} / ${receipt.userCharge.outputTokens}`
+  );
+  if (receipt.userCharge.reasoningTokens != null && receipt.userCharge.reasoningTokens > 0) {
+    lines.push(`reasoning: ${receipt.userCharge.reasoningTokens}`);
+  }
+  if (receipt.userCharge.savedOutputChars != null && receipt.userCharge.savedOutputChars > 0) {
+    lines.push(`저장 RP: ${receipt.userCharge.savedOutputChars}자`);
+  }
+  lines.push(
+    receipt.userCharge.billingWaived
+      ? "포인트 차감: 0 P (면제)"
+      : `포인트 차감: ${receipt.userCharge.deductedPoints} P`
+  );
+
+  if (receipt.aggregateApiTelemetry) {
+    lines.push("", "[Captured API telemetry · Main + sync aggregate]");
+    lines.push(
+      `API 입력/출력: ${receipt.aggregateApiTelemetry.inputTokens} / ${receipt.aggregateApiTelemetry.outputTokens}`
+    );
+    if (receipt.aggregateApiTelemetry.callCount != null) {
+      lines.push(`API callCount: ${receipt.aggregateApiTelemetry.callCount}`);
+    }
+  }
+
+  if (receipt.mainRp.actual) {
+    lines.push("", "[Main RP — Provider Actual]");
+    lines.push(`provider: ${receipt.mainRp.actual.provider}`);
+    lines.push(`model: ${receipt.mainRp.actual.model}`);
+    lines.push(`actual USD: ${formatAdminActualUsd(receipt.mainRp.actual.actualProviderCostUsd)}`);
+    lines.push(`actual KRW: ${formatKrwLine(receipt.mainRp.actual.actualProviderCostKrw)}`);
+    lines.push(`source: ${receipt.mainRp.actual.actualCostSource}`);
+    lines.push(`coverage: ${receipt.mainRp.actual.actualTurnCostCoverage}`);
+    lines.push(`확정 상태: ${adminReceiptExactnessLabel(receipt.mainRp.actual.exactness)}`);
+  }
+
+  if (receipt.mainRp.providerReference) {
+    lines.push("", "[Main RP — Provider Reference]");
+    lines.push(
+      `list cost: ${formatKrwLine(receipt.mainRp.providerReference.providerListCostKrw)} (실제 결제액 아님)`
+    );
+    lines.push(`list status: ${receipt.mainRp.providerReference.providerListCostStatus}`);
+  }
+
+  if (receipt.mainRp.publishedPricing) {
+    lines.push("", "[Published User Pricing]");
+    lines.push(
+      `billing reference: ${formatKrwLine(receipt.mainRp.publishedPricing.billingReferenceCostKrw)}`
+    );
+    lines.push(
+      `input rate: $${receipt.mainRp.publishedPricing.billingReferenceInputUsdPerMillion}/M`
+    );
+    lines.push(
+      `output rate: $${receipt.mainRp.publishedPricing.billingReferenceOutputUsdPerMillion}/M`
+    );
+    lines.push(`pricing v: ${receipt.mainRp.publishedPricing.pricingVersion}`);
+    lines.push(
+      `published standard: ${formatKrwLine(receipt.mainRp.publishedPricing.standardUserChargeKrw)}`
+    );
+  }
+
+  if (receipt.mainRp.marginPercent != null) {
+    lines.push(`${receipt.mainRp.marginScopeLabel}: ${receipt.mainRp.marginPercent}%`);
+  }
+
+  lines.push("", "[플랫폼 부담 후처리]");
+  if (receipt.syncPlatformSpend.status === "not_persisted") {
+    lines.push("sync platform spend: NOT PERSISTED / unavailable");
+  } else if (receipt.syncPlatformSpend.status === "available") {
+    lines.push(`group: ${receipt.syncPlatformSpend.groupLabel ?? "—"}`);
+    lines.push(`model: ${receipt.syncPlatformSpend.modelLabel ?? receipt.syncPlatformSpend.model ?? "—"}`);
+    lines.push(
+      `tokens: ${receipt.syncPlatformSpend.inputTokens ?? 0} / ${receipt.syncPlatformSpend.outputTokens ?? 0}`
+    );
+    lines.push(`callCount: ${receipt.syncPlatformSpend.callCount ?? 1} (aggregate)`);
+    lines.push(
+      `actual USD: ${formatAdminActualUsd(receipt.syncPlatformSpend.actualProviderCostUsd)}`
+    );
+    lines.push(
+      `actual KRW (v2): ${formatKrwLine(receipt.syncPlatformSpend.actualProviderCostKrw)}`
+    );
+    if (receipt.syncPlatformSpend.exactness) {
+      lines.push(
+        `확정 상태: ${adminReceiptExactnessLabel(receipt.syncPlatformSpend.exactness)}`
+      );
+    }
+    lines.push("user charged: 0 P (platform funded)");
+    if (
+      receipt.syncPlatformSpend.legacyStoredActualKrw != null &&
+      receipt.syncPlatformSpend.legacyStoredActualKrw > 0 &&
+      receipt.syncPlatformSpend.legacyStoredActualKrw !==
+        receipt.syncPlatformSpend.actualProviderCostKrw
+    ) {
+      lines.push(
+        `legacy stored sync KRW: ${formatKrwLine(receipt.syncPlatformSpend.legacyStoredActualKrw)} (legacy estimate ≠ v2 canonical)`
+      );
+    }
+    if (receipt.syncPlatformSpend.legacyApiRawCostKrw != null) {
+      lines.push(
+        `legacy apiRawCostKrw: ${formatKrwLine(receipt.syncPlatformSpend.legacyApiRawCostKrw)} (legacy estimate ≠ exact settled)`
+      );
+    }
+  }
+
+  if (receipt.capturedSyncProviderSpendKrw != null) {
+    lines.push(
+      `CAPTURED_SYNC_PROVIDER_SPEND: ${formatKrwLine(receipt.capturedSyncProviderSpendKrw)}`
+    );
+  }
+
+  if (receipt.fx) {
+    lines.push("", "[FX Snapshot]");
+    lines.push(`KST date: ${receipt.fx.dateKey}`);
+    lines.push(`base USD/KRW: ${receipt.fx.baseUsdKrw}`);
+    lines.push(`overseas fee: ${Math.round(receipt.fx.overseasFeeRate * 100)}%`);
+    lines.push(`effective KRW/USD: ${receipt.fx.effectiveKrwPerUsd}`);
+    lines.push(`source: ${receipt.fx.source}`);
+  }
+
+  lines.push("", "[비동기 범위 제외]");
+  lines.push(`현재 receipt 범위 밖 — ${receipt.asyncDeferredFamilies.join(", ")}`);
+
+  return lines.join("\n");
 }
 
 export { isSyncExtractActualExact };

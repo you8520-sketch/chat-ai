@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   adminReceiptExactnessLabel,
   buildAdminBillingReceiptV2,
+  formatAdminActualUsd,
   type AdminBillingReceiptV2,
 } from "@/lib/adminBillingReceiptV2";
 import { formatPoints } from "@/lib/billingDisplay";
@@ -12,11 +13,6 @@ import type { Usage } from "@/lib/chatUsage";
 function formatKrw(value: number | undefined | null): string {
   if (value == null || !(value > 0)) return "—";
   return `~${formatPoints(value)}원`;
-}
-
-function formatUsd(value: number | undefined | null): string {
-  if (value == null || !(value > 0)) return "—";
-  return `$${value.toFixed(4)}`;
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -48,7 +44,7 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
   const receipt = buildAdminBillingReceiptV2(usage);
 
   return (
-    <div className="mt-2 space-y-0.5 border-t border-zinc-700 pt-2 text-[11px] leading-relaxed text-zinc-300">
+    <div className="space-y-0.5 text-[11px] leading-relaxed text-zinc-300">
       <p className="text-[10px] font-semibold text-amber-300/90">
         Admin Receipt v2 · 동기 수집 범위 (async 제외)
       </p>
@@ -57,7 +53,10 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
       )}
 
       <SectionTitle>사용자 청구</SectionTitle>
-      <ReceiptRow label="모델" value={receipt.userCharge.modelLabel} />
+      <ReceiptRow label="선택 모델" value={receipt.userCharge.selectedModelLabel} />
+      {receipt.userCharge.billingModelId && (
+        <ReceiptRow label="청구 기준 모델" value={receipt.userCharge.billingModelId} />
+      )}
       <ReceiptRow
         label="과금 입력/출력"
         value={`${receipt.userCharge.inputTokens.toLocaleString()} / ${receipt.userCharge.outputTokens.toLocaleString()}`}
@@ -83,12 +82,29 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
         }
       />
 
+      {receipt.aggregateApiTelemetry && (
+        <>
+          <SectionTitle>Captured API telemetry · Main + sync aggregate</SectionTitle>
+          <ReceiptRow
+            label="API 입력/출력"
+            value={`${receipt.aggregateApiTelemetry.inputTokens.toLocaleString()} / ${receipt.aggregateApiTelemetry.outputTokens.toLocaleString()}`}
+            hint="(과금 기준 아님)"
+          />
+          {receipt.aggregateApiTelemetry.callCount != null && (
+            <ReceiptRow label="API callCount" value={receipt.aggregateApiTelemetry.callCount} />
+          )}
+        </>
+      )}
+
       {receipt.mainRp.actual && (
         <>
           <SectionTitle>Main RP — Provider Actual</SectionTitle>
           <ReceiptRow label="provider" value={receipt.mainRp.actual.provider} />
           <ReceiptRow label="model" value={receipt.mainRp.actual.model} />
-          <ReceiptRow label="actual USD" value={formatUsd(receipt.mainRp.actual.actualProviderCostUsd)} />
+          <ReceiptRow
+            label="actual USD"
+            value={formatAdminActualUsd(receipt.mainRp.actual.actualProviderCostUsd)}
+          />
           <ReceiptRow label="actual KRW" value={formatKrw(receipt.mainRp.actual.actualProviderCostKrw)} />
           <ReceiptRow label="source" value={receipt.mainRp.actual.actualCostSource} />
           <ReceiptRow label="coverage" value={receipt.mainRp.actual.actualTurnCostCoverage} />
@@ -142,7 +158,10 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
             value={`$${receipt.mainRp.publishedPricing.billingReferenceOutputUsdPerMillion}/M`}
           />
           <ReceiptRow label="pricing v" value={receipt.mainRp.publishedPricing.pricingVersion} />
-          <ReceiptRow label="target margin" value={`${Math.round(receipt.mainRp.publishedPricing.targetMargin * 100)}%`} />
+          <ReceiptRow
+            label="target margin"
+            value={`${Math.round(receipt.mainRp.publishedPricing.targetMargin * 100)}%`}
+          />
           <ReceiptRow
             label="margin floor"
             value={`${Math.round(receipt.mainRp.publishedPricing.minimumMarginFloor * 100)}%`}
@@ -167,7 +186,10 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
       ) : receipt.syncPlatformSpend.status === "available" ? (
         <>
           <ReceiptRow label="group" value={receipt.syncPlatformSpend.groupLabel} />
-          <ReceiptRow label="model" value={receipt.syncPlatformSpend.modelLabel ?? receipt.syncPlatformSpend.model} />
+          <ReceiptRow
+            label="model"
+            value={receipt.syncPlatformSpend.modelLabel ?? receipt.syncPlatformSpend.model}
+          />
           <ReceiptRow
             label="tokens"
             value={`${(receipt.syncPlatformSpend.inputTokens ?? 0).toLocaleString()} / ${(receipt.syncPlatformSpend.outputTokens ?? 0).toLocaleString()}`}
@@ -177,8 +199,14 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
             value={String(receipt.syncPlatformSpend.callCount ?? 1)}
             hint="(aggregate — physical call audit 아님)"
           />
-          <ReceiptRow label="actual USD" value={formatUsd(receipt.syncPlatformSpend.actualProviderCostUsd)} />
-          <ReceiptRow label="actual KRW" value={formatKrw(receipt.syncPlatformSpend.actualProviderCostKrw)} />
+          <ReceiptRow
+            label="actual USD"
+            value={formatAdminActualUsd(receipt.syncPlatformSpend.actualProviderCostUsd)}
+          />
+          <ReceiptRow
+            label="actual KRW (v2)"
+            value={formatKrw(receipt.syncPlatformSpend.actualProviderCostKrw)}
+          />
           {receipt.syncPlatformSpend.actualCostSource && (
             <ReceiptRow label="source" value={receipt.syncPlatformSpend.actualCostSource} />
           )}
@@ -192,12 +220,22 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
             />
           )}
           <ReceiptRow label="user charged" value="0 P" hint="(platform funded)" />
+          {receipt.syncPlatformSpend.legacyStoredActualKrw != null &&
+            receipt.syncPlatformSpend.legacyStoredActualKrw > 0 &&
+            receipt.syncPlatformSpend.legacyStoredActualKrw !==
+              receipt.syncPlatformSpend.actualProviderCostKrw && (
+              <ReceiptRow
+                label="legacy stored sync KRW"
+                value={formatKrw(receipt.syncPlatformSpend.legacyStoredActualKrw)}
+                hint="(legacy estimate ≠ v2 canonical)"
+              />
+            )}
           {receipt.syncPlatformSpend.legacyApiRawCostKrw != null &&
             receipt.syncPlatformSpend.legacyApiRawCostKrw > 0 && (
               <ReceiptRow
                 label="legacy apiRawCostKrw"
                 value={formatKrw(receipt.syncPlatformSpend.legacyApiRawCostKrw)}
-                hint="(≠ exact settled actual)"
+                hint="(legacy estimate ≠ exact settled)"
               />
             )}
         </>
@@ -211,7 +249,7 @@ export function AdminBillingReceiptV2Panel({ usage }: { usage: Usage }) {
           value={formatKrw(receipt.capturedSyncProviderSpendKrw)}
           hint={
             receipt.capturedSyncProviderSpendExact
-              ? "(main + sync exact)"
+              ? "(main + sync exact, single FX)"
               : "(partial — not labeled exact)"
           }
         />

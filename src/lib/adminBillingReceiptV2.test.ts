@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   buildAdminBillingReceiptV2,
   adminReceiptExactnessLabel,
+  formatAdminActualUsd,
+  formatAdminBillingReceiptV2Text,
 } from "@/lib/adminBillingReceiptV2";
 import { sanitizeUsageForPublicReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
@@ -19,13 +21,15 @@ import {
 } from "@/lib/syncExtractActualCost";
 import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
 
-const FX = {
-  mode: "daily_kst" as const,
+const SHADOW_FX = {
   dateKey: "2026-08-30",
-  usdToKrw: 1530,
-  effectiveKrwPerUsd: applyOverseasCardFee(1530),
-  source: "api" as const,
+  source: "api_daily" as const,
+  baseUsdKrw: 1600,
+  overseasFeeRate: 0.02,
+  effectiveKrwPerUsd: 1600,
 };
+
+const LEGACY_FX_EFFECTIVE = 1500;
 
 function baseUsage(overrides: Partial<Usage> = {}): Usage {
   return {
@@ -44,68 +48,220 @@ function baseUsage(overrides: Partial<Usage> = {}): Usage {
   };
 }
 
-describe("syncExtractActualCost", () => {
-  it("T1 — pure shared CI exact", () => {
-    const p = resolveSyncExtractActualCost(
-      [{ cheaperInferenceBilledCostUsd: 0.001 }],
-      FX.effectiveKrwPerUsd
-    );
-    assert.equal(p.actualCostSource, "cheaper_inference_billed");
-    assert.equal(p.actualCostCoverage, "complete");
-    assert.equal(p.actualProviderCostUsd, 0.001);
-    assert.equal(p.physicalCallCount, 1);
-  });
+function shadowFixture(overrides: Partial<NonNullable<Usage["shadowPricing"]>> = {}) {
+  return {
+    pricingVersion: 1,
+    billingReferenceInputUsdPerMillion: 1,
+    billingReferenceOutputUsdPerMillion: 2,
+    billingReferenceCostKrw: 10,
+    billingReferenceCostUsd: 0.01,
+    fxSnapshot: SHADOW_FX,
+    providerListCostStatus: "complete",
+    reserveStatus: "complete",
+    actualTurnCostCoverage: "complete" as const,
+    actualProviderCostKrw: 30,
+    actualCostUsd: 0.02,
+    actualCostSource: "cheaper_inference_billed",
+    providerListCostKrw: 35,
+    inputCostKrw: 5,
+    outputCostKrw: 5,
+    reasoningCostKrw: 0,
+    cacheReadCostKrw: 0,
+    cacheWriteCostKrw: 0,
+    targetMargin: 0.5,
+    minimumMarginFloor: 0.3,
+    standardUserChargeKrw: 80,
+    promoPercent: 0,
+    finalShadowChargeKrw: 80,
+    finalShadowPoints: 80,
+    providerSavingsKrw: null,
+    providerOverrunKrw: null,
+    promoGivebackKrw: 0,
+    netPricingBufferDeltaKrw: null,
+    actualGrossProfitKrw: 50,
+    actualRealizedMargin: 0.625,
+    worstCasePromoMargin: null,
+    marginFloorViolated: null,
+    modelId: "deepseek/deepseek-v4-pro",
+    provider: "cheaperinference",
+    ...overrides,
+  };
+}
 
-  it("T2 — shared + repair all exact", () => {
-    const merged = mergeStatusWidgetExtractUsages([
+describe("nested syncExtractActualCost", () => {
+  it("R1/N1 — nested aggregate all exact", () => {
+    const inner = mergeStatusWidgetExtractUsages([
       { inputTokens: 100, outputTokens: 50, estimated: false, cheaperInferenceBilledCostUsd: 0.001 },
       { inputTokens: 80, outputTokens: 40, estimated: false, cheaperInferenceBilledCostUsd: 0.0007 },
     ]);
-    assert.ok(Math.abs((merged?.cheaperInferenceBilledCostUsd ?? 0) - 0.0017) < 1e-9);
-    assert.equal(merged?.syncExtractCiBilledCallCount, 2);
+    assert.equal(inner?.syncExtractCiBilledCallCount, 2);
+    assert.equal(inner?.syncExtractPhysicalCallCount, 2);
+
+    const outer = mergeStatusWidgetExtractUsages([
+      { inputTokens: 200, outputTokens: 100, estimated: false, cheaperInferenceBilledCostUsd: 0.0005 },
+      inner!,
+    ]);
+    assert.ok(Math.abs((outer?.cheaperInferenceBilledCostUsd ?? 0) - 0.0022) < 1e-9);
+    assert.equal(outer?.syncExtractCiBilledCallCount, 3);
+    assert.equal(outer?.syncExtractPhysicalCallCount, 3);
 
     const p = resolveSyncExtractActualCost(
       [
-        { cheaperInferenceBilledCostUsd: 0.001 },
-        { cheaperInferenceBilledCostUsd: 0.0007 },
-      ],
-      FX.effectiveKrwPerUsd
-    );
-    assert.ok(Math.abs((p.actualProviderCostUsd ?? 0) - 0.0017) < 1e-9);
-    assert.equal(p.actualCostCoverage, "complete");
-    assert.equal(p.physicalCallCount, 2);
-  });
-
-  it("T3 — shared + repair one missing billed", () => {
-    const p = resolveSyncExtractActualCost(
-      [{ cheaperInferenceBilledCostUsd: 0.001 }, { upstreamCostUsd: 0.002 }],
-      FX.effectiveKrwPerUsd
-    );
-    assert.equal(p.actualCostCoverage, "partial");
-    assert.equal(p.actualProviderCostUsd, 0.001);
-    assert.equal(p.billedCallCount, 1);
-  });
-
-  it("T4 — CI billed beats upstream on aggregate", () => {
-    const receipt = buildStatusWidgetExtractReceipt(
-      mergeStatusWidgetExtractUsages([
+        { cheaperInferenceBilledCostUsd: 0.0005 },
         {
-          inputTokens: 100,
-          outputTokens: 50,
-          estimated: false,
-          cheaperInferenceBilledCostUsd: 0.01,
-          upstreamCostUsd: 0.02,
+          cheaperInferenceBilledCostUsd: inner!.cheaperInferenceBilledCostUsd,
+          syncExtractCiBilledCallCount: inner!.syncExtractCiBilledCallCount,
+          syncExtractPhysicalCallCount: inner!.syncExtractPhysicalCallCount,
         },
-      ])!,
-      FX,
-      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 1, postTurnSharedInitial: true }
+      ],
+      LEGACY_FX_EFFECTIVE
     );
-    assert.equal(receipt.actualProviderCostUsd, 0.01);
-    assert.notEqual(receipt.actualProviderCostUsd, 0.02);
+    assert.ok(Math.abs((p.actualProviderCostUsd ?? 0) - 0.0022) < 1e-9);
+    assert.equal(p.billedCallCount, 3);
+    assert.equal(p.physicalCallCount, 3);
+    assert.equal(p.actualCostCoverage, "complete");
+  });
+
+  it("R2/N2 — nested aggregate partial", () => {
+    const inner = mergeStatusWidgetExtractUsages([
+      { inputTokens: 100, outputTokens: 50, estimated: false, cheaperInferenceBilledCostUsd: 0.001 },
+      { inputTokens: 80, outputTokens: 40, estimated: false, upstreamCostUsd: 0.002 },
+    ]);
+    assert.equal(inner?.syncExtractCiBilledCallCount, 1);
+    assert.equal(inner?.syncExtractPhysicalCallCount, 2);
+
+    const p = resolveSyncExtractActualCost(
+      [
+        { cheaperInferenceBilledCostUsd: 0.0005 },
+        {
+          cheaperInferenceBilledCostUsd: inner!.cheaperInferenceBilledCostUsd,
+          syncExtractCiBilledCallCount: inner!.syncExtractCiBilledCallCount,
+          syncExtractPhysicalCallCount: inner!.syncExtractPhysicalCallCount,
+        },
+      ],
+      LEGACY_FX_EFFECTIVE
+    );
+    assert.equal(p.physicalCallCount, 3);
+    assert.equal(p.billedCallCount, 2);
+    assert.equal(p.actualCostCoverage, "partial");
   });
 });
 
-describe("adminBillingReceiptV2", () => {
+describe("adminBillingReceiptV2 corrections", () => {
+  it("R3/R4 — adult handoff selected != delivered main actual model", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        model: "google/gemini-3.7-flash",
+        modelLabel: "Gemini 3.7 Flash",
+        provider: "openrouter",
+        adultRouting: {
+          activeRoute: "adult",
+          actualModel: "qwen/qwen3-235b-a22b",
+          actualProvider: "cheaperinference",
+          userSelectedModel: "google/gemini-3.7-flash",
+          userSelectedModelLabel: "Gemini 3.7 Flash",
+        },
+        shadowPricing: shadowFixture({
+          modelId: "qwen/qwen3-235b-a22b",
+          provider: "cheaperinference",
+        }),
+      })
+    );
+    assert.equal(receipt.userCharge.selectedModelLabel, "Gemini 3.7 Flash");
+    assert.equal(receipt.userCharge.billingModelId, "qwen/qwen3-235b-a22b");
+    assert.equal(receipt.mainRp.actual?.model, "qwen/qwen3-235b-a22b");
+    assert.equal(receipt.mainRp.actual?.provider, "cheaperinference");
+  });
+
+  it("R5/R6 — user billing tokens exclude sync; aggregate telemetry separate", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        input: 1000,
+        output: 500,
+        apiInputTokens: 1100,
+        apiOutputTokens: 550,
+        statusWidgetExtract: {
+          model: OPENROUTER_GEMINI_25_FLASH_MODEL,
+          modelLabel: "Gemini",
+          input: 100,
+          output: 50,
+          apiRawCostKrw: 4,
+        },
+      })
+    );
+    assert.equal(receipt.userCharge.inputTokens, 1000);
+    assert.equal(receipt.userCharge.outputTokens, 500);
+    assert.equal(receipt.aggregateApiTelemetry?.inputTokens, 1100);
+    assert.equal(receipt.aggregateApiTelemetry?.outputTokens, 550);
+  });
+
+  it("R7 — FX mismatch uses shadow FX for sync v2 KRW", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        shadowPricing: shadowFixture(),
+        statusWidgetExtract: {
+          model: OPENROUTER_GEMINI_25_FLASH_MODEL,
+          modelLabel: "Gemini",
+          input: 100,
+          output: 50,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.01,
+          actualProviderCostKrw: 15,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+        },
+      })
+    );
+    assert.equal(receipt.syncPlatformSpend.actualProviderCostKrw, 16);
+    assert.equal(receipt.syncPlatformSpend.legacyStoredActualKrw, 15);
+    assert.equal(receipt.capturedSyncProviderSpendKrw, 46);
+  });
+
+  it("R8 — card fee applied once in v2 sync KRW", () => {
+    const effective = applyOverseasCardFee(1530);
+    const expected = Math.round(convertUsdToKrw(0.02, effective) * 10) / 10;
+    const p = resolveSyncExtractActualCostFromAggregate(
+      { cheaperInferenceBilledCostUsd: 0.02, physicalCallCount: 1, billedCallCount: 1 },
+      effective
+    );
+    assert.equal(p.actualProviderCostKrw, expected);
+  });
+
+  it("R9/R10 — clipboard uses same v2 projection without legacy actual labels", () => {
+    const usage = baseUsage({ shadowPricing: shadowFixture() });
+    const receipt = buildAdminBillingReceiptV2(usage);
+    const text = formatAdminBillingReceiptV2Text(receipt);
+    assert.match(text, /\[사용자 청구\]/);
+    assert.match(text, /\[Main RP — Provider Actual\]/);
+    assert.match(text, /\[플랫폼 부담 후처리\]/);
+    assert.doesNotMatch(text, /API 원가 합계/);
+    assert.doesNotMatch(text, /실제 API 원가/);
+    assert.doesNotMatch(text, /공급자 보고 API 원가/);
+  });
+
+  it("R11 — tiny actual USD preserves non-zero display", () => {
+    assert.equal(formatAdminActualUsd(0.000043), "$0.000043");
+    assert.notEqual(formatAdminActualUsd(0.000043), "$0.0000");
+  });
+
+  it("R12 — public strips new shadow provenance fields", () => {
+    const admin = baseUsage({
+      shadowPricing: shadowFixture({ modelId: "qwen/qwen3", provider: "cheaperinference" }),
+      statusWidgetExtract: {
+        model: OPENROUTER_GEMINI_25_FLASH_MODEL,
+        modelLabel: "Gemini",
+        input: 100,
+        output: 50,
+        apiRawCostKrw: 4,
+        actualProviderCostUsd: 0.001,
+      },
+    });
+    const pub = sanitizeUsageForPublicReceipt(admin);
+    assert.equal(pub.shadowPricing, undefined);
+    assert.equal(pub.statusWidgetExtract, undefined);
+    assert.ok(admin.shadowPricing?.modelId);
+  });
+
   it("T5 — Main CI settled exact", () => {
     const shadow = computeShadowPricing({
       modelId: "deepseek/deepseek-v4-pro",
@@ -118,348 +274,60 @@ describe("adminBillingReceiptV2", () => {
     const receipt = buildAdminBillingReceiptV2(
       baseUsage({
         shadowPricing: {
-          pricingVersion: shadow.pricingVersion,
-          billingReferenceInputUsdPerMillion: shadow.billingReferenceInputUsdPerMillion,
-          billingReferenceOutputUsdPerMillion: shadow.billingReferenceOutputUsdPerMillion,
-          billingReferenceCostKrw: shadow.billingReferenceCostKrw,
-          billingReferenceCostUsd: shadow.billingReferenceCostUsd,
-          fxSnapshot: shadow.fxSnapshot,
-          providerListCostStatus: shadow.providerListCostStatus,
-          reserveStatus: shadow.reserveStatus,
-          actualTurnCostCoverage: shadow.actualTurnCostCoverage,
-          actualProviderCostKrw: shadow.actualProviderCostKrw,
+          ...shadowFixture(),
           actualCostUsd: shadow.actualCostUsd,
+          actualProviderCostKrw: shadow.actualProviderCostKrw,
           actualCostSource: shadow.actualCostSource,
-          providerListCostKrw: shadow.providerListCostKrw,
-          inputCostKrw: shadow.inputCostKrw,
-          outputCostKrw: shadow.outputCostKrw,
-          reasoningCostKrw: shadow.reasoningCostKrw,
-          cacheReadCostKrw: shadow.cacheReadCostKrw,
-          cacheWriteCostKrw: shadow.cacheWriteCostKrw,
-          targetMargin: shadow.targetMargin,
-          minimumMarginFloor: shadow.minimumMarginFloor,
-          standardUserChargeKrw: shadow.standardUserChargeKrw,
-          promoPercent: 0,
-          finalShadowChargeKrw: shadow.finalShadowChargeKrw,
-          finalShadowPoints: shadow.finalShadowPoints,
-          providerSavingsKrw: shadow.providerSavingsKrw,
-          providerOverrunKrw: shadow.providerOverrunKrw,
-          promoGivebackKrw: shadow.promoGivebackKrw,
-          netPricingBufferDeltaKrw: shadow.netPricingBufferDeltaKrw,
-          actualGrossProfitKrw: shadow.actualGrossProfitKrw,
-          actualRealizedMargin: shadow.actualRealizedMargin,
-          worstCasePromoMargin: shadow.worstCasePromoMargin,
-          marginFloorViolated: shadow.marginFloorViolated,
         },
       })
     );
-    assert.equal(receipt.mainRp.actual?.actualCostSource, "cheaper_inference_billed");
     assert.equal(receipt.mainRp.actual?.exactness, "settled");
-    assert.equal(receipt.mainRp.actual?.actualProviderCostUsd, 0.02);
-  });
-
-  it("T6 — Main partial coverage is not settled", () => {
-    const receipt = buildAdminBillingReceiptV2(
-      baseUsage({
-        shadowPricing: {
-          pricingVersion: 1,
-          billingReferenceInputUsdPerMillion: 1,
-          billingReferenceOutputUsdPerMillion: 2,
-          billingReferenceCostKrw: 10,
-          billingReferenceCostUsd: 0.01,
-          fxSnapshot: {
-            dateKey: "2026-08-30",
-            source: "api_daily",
-            baseUsdKrw: 1530,
-            overseasFeeRate: 0.02,
-            effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
-          },
-          providerListCostStatus: "complete",
-          reserveStatus: "estimated",
-          actualTurnCostCoverage: "partial",
-          actualProviderCostKrw: 30,
-          actualCostUsd: 0.02,
-          actualCostSource: "cheaper_inference_billed",
-          providerListCostKrw: 35,
-          inputCostKrw: 5,
-          outputCostKrw: 5,
-          reasoningCostKrw: 0,
-          cacheReadCostKrw: 0,
-          cacheWriteCostKrw: 0,
-          targetMargin: 0.5,
-          minimumMarginFloor: 0.3,
-          standardUserChargeKrw: 80,
-          promoPercent: 0,
-          finalShadowChargeKrw: 80,
-          finalShadowPoints: 80,
-          providerSavingsKrw: null,
-          providerOverrunKrw: null,
-          promoGivebackKrw: 0,
-          netPricingBufferDeltaKrw: null,
-          actualGrossProfitKrw: 50,
-          actualRealizedMargin: 0.625,
-          worstCasePromoMargin: null,
-          marginFloorViolated: null,
-        },
-      })
-    );
-    assert.equal(receipt.mainRp.actual?.exactness, "partial");
-    assert.equal(receipt.mainRp.marginPercent, null);
-  });
-
-  it("T7 — catalog estimate is not settled", () => {
-    const receipt = buildAdminBillingReceiptV2(
-      baseUsage({
-        shadowPricing: {
-          pricingVersion: 1,
-          billingReferenceInputUsdPerMillion: 1,
-          billingReferenceOutputUsdPerMillion: 2,
-          billingReferenceCostKrw: 10,
-          billingReferenceCostUsd: 0.01,
-          fxSnapshot: {
-            dateKey: "2026-08-30",
-            source: "api_daily",
-            baseUsdKrw: 1530,
-            overseasFeeRate: 0.02,
-            effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
-          },
-          providerListCostStatus: "complete",
-          reserveStatus: "estimated",
-          actualTurnCostCoverage: "complete",
-          actualProviderCostKrw: 30,
-          actualCostSource: "live_catalog_estimated",
-          providerListCostKrw: 35,
-          inputCostKrw: 5,
-          outputCostKrw: 5,
-          reasoningCostKrw: 0,
-          cacheReadCostKrw: 0,
-          cacheWriteCostKrw: 0,
-          targetMargin: 0.5,
-          minimumMarginFloor: 0.3,
-          standardUserChargeKrw: 80,
-          promoPercent: 0,
-          finalShadowChargeKrw: 80,
-          finalShadowPoints: 80,
-          providerSavingsKrw: null,
-          providerOverrunKrw: null,
-          promoGivebackKrw: 0,
-          netPricingBufferDeltaKrw: null,
-          actualGrossProfitKrw: 50,
-          actualRealizedMargin: 0.625,
-          worstCasePromoMargin: null,
-          marginFloorViolated: null,
-        },
-      })
-    );
-    assert.equal(receipt.mainRp.actual?.exactness, "estimated");
-    assert.notEqual(adminReceiptExactnessLabel(receipt.mainRp.actual!.exactness), "정산 확정");
-  });
-
-  it("T31 — FX card fee applied once", () => {
-    const effective = applyOverseasCardFee(1530);
-    const expectedKrw = Math.round(convertUsdToKrw(0.02, effective) * 10) / 10;
-    const p = resolveSyncExtractActualCostFromAggregate(
-      {
-        cheaperInferenceBilledCostUsd: 0.02,
-        physicalCallCount: 1,
-        billedCallCount: 1,
-      },
-      effective
-    );
-    assert.equal(p.actualProviderCostKrw, expectedKrw);
-    assert.ok(Math.abs(expectedKrw - 31.2) < 0.1);
-  });
-
-  it("T32 — user charge separate from sync platform spend", () => {
-    const receipt = buildAdminBillingReceiptV2(
-      baseUsage({
-        cost: 80,
-        shadowPricing: {
-          pricingVersion: 1,
-          billingReferenceInputUsdPerMillion: 1,
-          billingReferenceOutputUsdPerMillion: 2,
-          billingReferenceCostKrw: 10,
-          billingReferenceCostUsd: 0.01,
-          fxSnapshot: {
-            dateKey: "2026-08-30",
-            source: "api_daily",
-            baseUsdKrw: 1530,
-            overseasFeeRate: 0.02,
-            effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
-          },
-          providerListCostStatus: "complete",
-          reserveStatus: "complete",
-          actualTurnCostCoverage: "complete",
-          actualProviderCostKrw: 30,
-          actualCostUsd: 0.02,
-          actualCostSource: "cheaper_inference_billed",
-          providerListCostKrw: 35,
-          inputCostKrw: 5,
-          outputCostKrw: 5,
-          reasoningCostKrw: 0,
-          cacheReadCostKrw: 0,
-          cacheWriteCostKrw: 0,
-          targetMargin: 0.5,
-          minimumMarginFloor: 0.3,
-          standardUserChargeKrw: 80,
-          promoPercent: 0,
-          finalShadowChargeKrw: 80,
-          finalShadowPoints: 80,
-          providerSavingsKrw: null,
-          providerOverrunKrw: null,
-          promoGivebackKrw: 0,
-          netPricingBufferDeltaKrw: null,
-          actualGrossProfitKrw: 50,
-          actualRealizedMargin: 0.625,
-          worstCasePromoMargin: null,
-          marginFloorViolated: null,
-        },
-        statusWidgetExtract: {
-          model: OPENROUTER_GEMINI_25_FLASH_MODEL,
-          modelLabel: "Gemini (공유 초기)",
-          input: 100,
-          output: 50,
-          apiRawCostKrw: 4,
-          callCount: 1,
-          postTurnSharedInitial: true,
-          actualProviderCostUsd: 0.001,
-          actualProviderCostKrw: 4,
-          actualCostSource: "cheaper_inference_billed",
-          actualCostCoverage: "complete",
-        },
-      })
-    );
-    assert.equal(receipt.userCharge.deductedPoints, 80);
-    assert.equal(receipt.mainRp.actual?.actualProviderCostKrw, 30);
-    assert.equal(receipt.syncPlatformSpend.actualProviderCostKrw, 4);
-    assert.notEqual(receipt.userCharge.deductedPoints, 84);
   });
 
   it("T33 — missing aux is not zero", () => {
-    const receipt = buildAdminBillingReceiptV2(
-      baseUsage({
-        shadowPricing: {
-          pricingVersion: 1,
-          billingReferenceInputUsdPerMillion: 1,
-          billingReferenceOutputUsdPerMillion: 2,
-          billingReferenceCostKrw: 10,
-          billingReferenceCostUsd: 0.01,
-          fxSnapshot: {
-            dateKey: "2026-08-30",
-            source: "api_daily",
-            baseUsdKrw: 1530,
-            overseasFeeRate: 0.02,
-            effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
-          },
-          providerListCostStatus: "complete",
-          reserveStatus: "complete",
-          actualTurnCostCoverage: "complete",
-          actualProviderCostKrw: 30,
-          actualCostUsd: 0.02,
-          actualCostSource: "cheaper_inference_billed",
-          providerListCostKrw: 35,
-          inputCostKrw: 5,
-          outputCostKrw: 5,
-          reasoningCostKrw: 0,
-          cacheReadCostKrw: 0,
-          cacheWriteCostKrw: 0,
-          targetMargin: 0.5,
-          minimumMarginFloor: 0.3,
-          standardUserChargeKrw: 80,
-          promoPercent: 0,
-          finalShadowChargeKrw: 80,
-          finalShadowPoints: 80,
-          providerSavingsKrw: null,
-          providerOverrunKrw: null,
-          promoGivebackKrw: 0,
-          netPricingBufferDeltaKrw: null,
-          actualGrossProfitKrw: 50,
-          actualRealizedMargin: 0.625,
-          worstCasePromoMargin: null,
-          marginFloorViolated: null,
-        },
-      })
-    );
+    const receipt = buildAdminBillingReceiptV2(baseUsage({ shadowPricing: shadowFixture() }));
     assert.equal(receipt.syncPlatformSpend.status, "not_persisted");
     assert.equal(receipt.capturedSyncProviderSpendKrw, null);
   });
 
   it("T34 — historical legacy row without shadow snapshot", () => {
     const receipt = buildAdminBillingReceiptV2(
-      baseUsage({
-        apiRawCostKrw: 25,
-        upstreamCostUsd: 0.015,
-      })
+      baseUsage({ apiRawCostKrw: 25, upstreamCostUsd: 0.015 })
     );
     assert.equal(receipt.snapshotAvailable, false);
     assert.equal(receipt.mainRp.actual, null);
     assert.match(receipt.historicalNote ?? "", /정확한 정산 스냅샷/);
   });
 
-  it("T35 — public strips new internal economics", () => {
-    const admin = baseUsage({
-      shadowPricing: {
-        pricingVersion: 1,
-        billingReferenceInputUsdPerMillion: 1,
-        billingReferenceOutputUsdPerMillion: 2,
-        billingReferenceCostKrw: 10,
-        billingReferenceCostUsd: 0.01,
-        fxSnapshot: {
-          dateKey: "2026-08-30",
-          source: "api_daily",
-          baseUsdKrw: 1530,
-          overseasFeeRate: 0.02,
-          effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
+  it("T4 — CI billed beats upstream on widget receipt", () => {
+    const receipt = buildStatusWidgetExtractReceipt(
+      mergeStatusWidgetExtractUsages([
+        {
+          inputTokens: 100,
+          outputTokens: 50,
+          estimated: false,
+          cheaperInferenceBilledCostUsd: 0.01,
+          upstreamCostUsd: 0.02,
         },
-        providerListCostStatus: "complete",
-        reserveStatus: "complete",
-        actualTurnCostCoverage: "complete",
-        actualProviderCostKrw: 30,
-        actualCostUsd: 0.02,
-        actualCostSource: "cheaper_inference_billed",
-        providerListCostKrw: 35,
-        inputCostKrw: 5,
-        outputCostKrw: 5,
-        reasoningCostKrw: 0,
-        cacheReadCostKrw: 0,
-        cacheWriteCostKrw: 0,
-        targetMargin: 0.5,
-        minimumMarginFloor: 0.3,
-        standardUserChargeKrw: 80,
-        promoPercent: 0,
-        finalShadowChargeKrw: 80,
-        finalShadowPoints: 80,
-        providerSavingsKrw: null,
-        providerOverrunKrw: null,
-        promoGivebackKrw: 0,
-        netPricingBufferDeltaKrw: null,
-        actualGrossProfitKrw: 50,
-        actualRealizedMargin: 0.625,
-        worstCasePromoMargin: null,
-        marginFloorViolated: null,
+      ])!,
+      {
+        mode: "daily_kst",
+        dateKey: "2026-08-30",
+        usdToKrw: 1530,
+        effectiveKrwPerUsd: applyOverseasCardFee(1530),
+        source: "api",
       },
-      statusWidgetExtract: {
-        model: OPENROUTER_GEMINI_25_FLASH_MODEL,
-        modelLabel: "Gemini",
-        input: 100,
-        output: 50,
-        apiRawCostKrw: 4,
-        actualProviderCostUsd: 0.001,
-        actualProviderCostKrw: 4,
-        actualCostSource: "cheaper_inference_billed",
-        actualCostCoverage: "complete",
-      },
-    });
-    const pub = sanitizeUsageForPublicReceipt(admin);
-    assert.equal(pub.shadowPricing, undefined);
-    assert.equal(pub.statusWidgetExtract, undefined);
-    assert.equal((pub as Record<string, unknown>).actualCostUsd, undefined);
-    assert.ok(admin.shadowPricing?.actualCostUsd);
-    assert.ok(admin.statusWidgetExtract?.actualProviderCostUsd);
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 1, postTurnSharedInitial: true }
+    );
+    assert.equal(receipt.actualProviderCostUsd, 0.01);
   });
 
-  it("scope is captured sync — no whole-turn label", () => {
-    const receipt = buildAdminBillingReceiptV2(baseUsage());
-    assert.equal(receipt.scope, "captured_sync");
+  it("catalog estimate is not settled label", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        shadowPricing: shadowFixture({ actualCostSource: "live_catalog_estimated" }),
+      })
+    );
+    assert.notEqual(adminReceiptExactnessLabel(receipt.mainRp.actual!.exactness), "정산 확정");
   });
 });

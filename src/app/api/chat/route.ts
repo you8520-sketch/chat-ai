@@ -5024,6 +5024,8 @@ export async function POST(req: Request) {
             actualProviderCostKrw: shadow.actualProviderCostKrw,
             ...(shadow.actualCostUsd != null ? { actualCostUsd: shadow.actualCostUsd } : {}),
             actualCostSource: shadow.actualCostSource,
+            modelId: deliveredModelId,
+            provider: deliveredProvider,
             providerListCostKrw: shadow.providerListCostKrw,
             inputCostKrw: shadow.inputCostKrw,
             outputCostKrw: shadow.outputCostKrw,

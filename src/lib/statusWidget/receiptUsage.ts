@@ -148,8 +148,15 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
   let cheaperInferenceBilledCostUsd = 0;
   let hasCiBilled = false;
   let syncExtractCiBilledCallCount = 0;
+  let syncExtractPhysicalCallCount = 0;
 
   for (const u of usages) {
+    syncExtractPhysicalCallCount +=
+      typeof u.syncExtractPhysicalCallCount === "number" &&
+      Number.isInteger(u.syncExtractPhysicalCallCount) &&
+      u.syncExtractPhysicalCallCount > 0
+        ? u.syncExtractPhysicalCallCount
+        : 1;
     inputTokens += nonNegativeFinite(u.inputTokens);
     outputTokens += nonNegativeFinite(u.outputTokens);
     cacheReadTokens += nonNegativeFinite(u.cacheReadTokens);
@@ -169,7 +176,13 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
     if (ciBilled > 0) {
       cheaperInferenceBilledCostUsd += ciBilled;
       hasCiBilled = true;
-      syncExtractCiBilledCallCount += 1;
+      const billedMultiplicity =
+        typeof u.syncExtractCiBilledCallCount === "number" &&
+        Number.isInteger(u.syncExtractCiBilledCallCount) &&
+        u.syncExtractCiBilledCallCount > 0
+          ? u.syncExtractCiBilledCallCount
+          : 1;
+      syncExtractCiBilledCallCount += billedMultiplicity;
     }
   }
 
@@ -181,6 +194,7 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
     ...(hasUpstream ? { upstreamCostUsd } : {}),
     ...(hasCiBilled ? { cheaperInferenceBilledCostUsd } : {}),
     ...(syncExtractCiBilledCallCount > 0 ? { syncExtractCiBilledCallCount } : {}),
+    ...(syncExtractPhysicalCallCount > 0 ? { syncExtractPhysicalCallCount } : {}),
     ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
     ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
   };
@@ -195,6 +209,7 @@ export function buildStatusWidgetExtractReceipt(
   const output = usage.outputTokens;
   const modelId = billingMeta.modelId?.trim() || "unknown";
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
+  const physicalCallCount = usage.syncExtractPhysicalCallCount ?? callCount;
   const billedCallCount =
     usage.syncExtractCiBilledCallCount ??
     (usage.cheaperInferenceBilledCostUsd != null && usage.cheaperInferenceBilledCostUsd > 0
@@ -203,7 +218,7 @@ export function buildStatusWidgetExtractReceipt(
   const actualProvenance = resolveSyncExtractActualCostFromAggregate(
     {
       cheaperInferenceBilledCostUsd: usage.cheaperInferenceBilledCostUsd,
-      physicalCallCount: callCount,
+      physicalCallCount,
       billedCallCount,
     },
     exchangeRate.effectiveKrwPerUsd

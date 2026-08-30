@@ -17,6 +17,8 @@ export type SyncExtractActualCostProvenance = {
 export type SyncExtractUsageCostInput = {
   cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
+  syncExtractCiBilledCallCount?: number;
+  syncExtractPhysicalCallCount?: number;
 };
 
 export type SyncExtractAggregateInput = {
@@ -39,6 +41,22 @@ function hasCiBilled(u: SyncExtractUsageCostInput): boolean {
   return billed > 0;
 }
 
+function resolvePhysicalCallCount(u: SyncExtractUsageCostInput): number {
+  const nested = u.syncExtractPhysicalCallCount;
+  if (typeof nested === "number" && Number.isInteger(nested) && nested > 0) {
+    return nested;
+  }
+  return 1;
+}
+
+function resolveBilledCallCount(u: SyncExtractUsageCostInput): number {
+  const nested = u.syncExtractCiBilledCallCount;
+  if (typeof nested === "number" && Number.isInteger(nested) && nested > 0) {
+    return nested;
+  }
+  return hasCiBilled(u) ? 1 : 0;
+}
+
 /**
  * Canonical sync post-turn aggregate actual cost provenance.
  * CheaperInference billed USD is the settled actual owner — upstream is never promoted to exact.
@@ -47,8 +65,7 @@ export function resolveSyncExtractActualCost(
   usages: SyncExtractUsageCostInput[],
   effectiveKrwPerUsd: number
 ): SyncExtractActualCostProvenance {
-  const physicalCallCount = usages.length;
-  if (physicalCallCount === 0) {
+  if (usages.length === 0) {
     return {
       actualCostSource: "unavailable",
       actualCostCoverage: "unavailable",
@@ -57,14 +74,20 @@ export function resolveSyncExtractActualCost(
     };
   }
 
-  const billedUsages = usages.filter(hasCiBilled);
-  const billedCallCount = billedUsages.length;
+  let physicalCallCount = 0;
+  let billedCallCount = 0;
+  let actualProviderCostUsd = 0;
+
+  for (const u of usages) {
+    physicalCallCount += resolvePhysicalCallCount(u);
+    const ciBilled = nonNegativeFinite(u.cheaperInferenceBilledCostUsd);
+    if (ciBilled > 0) {
+      actualProviderCostUsd += ciBilled;
+      billedCallCount += resolveBilledCallCount(u);
+    }
+  }
 
   if (billedCallCount > 0) {
-    const actualProviderCostUsd = billedUsages.reduce(
-      (sum, u) => sum + nonNegativeFinite(u.cheaperInferenceBilledCostUsd),
-      0
-    );
     const actualProviderCostKrw = round1(
       convertUsdToKrw(actualProviderCostUsd, effectiveKrwPerUsd)
     );
