@@ -5,9 +5,6 @@ import {
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
 
-/** Hard cap on how far visual reveal may lag behind the server target (ms). */
-export const STREAM_REVEAL_MAX_TARGET_LAG_MS = 5_000;
-
 export function streamRevealOptionsFromInterval(intervalMs: number): StreamRevealOptions {
   return {
     intervalMs,
@@ -34,28 +31,13 @@ export function theoreticalRevealDurationsForCharCount(charCount: number): Recor
   return out;
 }
 
-/**
- * Scale charsPerTick when pending backlog would take longer than MAX_TARGET_LAG to drain
- * at the user's chosen base speed.
- */
+/** Foreground reveal — always honor the user-selected preset (no backlog catch-up override). */
 export function computeAdaptiveCharsPerTick(
-  pendingLength: number,
+  _pendingLength: number,
   opts: StreamRevealOptions
 ): number {
   if (opts.intervalMs <= 0) return Math.max(opts.charsPerTick, 64);
-  if (pendingLength <= 0) return opts.charsPerTick;
-
-  const baseDrainMs =
-    (pendingLength / Math.max(1, opts.charsPerTick)) * opts.intervalMs;
-  if (baseDrainMs <= STREAM_REVEAL_MAX_TARGET_LAG_MS) {
-    return opts.charsPerTick;
-  }
-
-  const ticksInBudget = Math.max(
-    1,
-    Math.ceil(STREAM_REVEAL_MAX_TARGET_LAG_MS / opts.intervalMs)
-  );
-  return Math.max(opts.charsPerTick, Math.ceil(pendingLength / ticksInBudget));
+  return opts.charsPerTick;
 }
 
 export function revealOptionsFromDisplayPrefs(prefs: ChatDisplayPrefs): StreamRevealOptions {

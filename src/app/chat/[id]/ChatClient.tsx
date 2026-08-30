@@ -122,6 +122,23 @@ import {
   resolveStreamAppendTail,
   type StreamRevealController,
 } from "@/lib/streamReveal";
+import {
+  planStreamRevealTermination,
+  runStreamRevealTermination,
+} from "@/lib/streamRevealLifecycle";
+import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
+import {
+  isGenerationStreamingMessage,
+  isVisualRevealPendingForMessage,
+  resolveApplyStreamDoneDisplayContent,
+  resolveAssistantDisplayBody,
+  shouldUseLiveDisplayedContent,
+} from "@/lib/streamRevealDisplaySource";
+import {
+  isRevealRowWritable,
+  type PendingRevealSession,
+  type RevealSessionIdentity,
+} from "@/lib/streamRevealIdentity";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1020,8 +1037,40 @@ export default function ChatClient({
   );
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
-  const streamTargetTextRef = useRef("");
-  const assistantStreamContentRef = useRef("");
+  const pendingRevealSessionsRef = useRef<Map<string, PendingRevealSession>>(new Map());
+  const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const addVisualRevealPending = useCallback((requestId: string) => {
+    setVisualRevealPendingIds((prev) => {
+      if (prev.has(requestId)) return prev;
+      const next = new Set(prev);
+      next.add(requestId);
+      return next;
+    });
+  }, []);
+
+  const removeVisualRevealPending = useCallback((requestId: string) => {
+    setVisualRevealPendingIds((prev) => {
+      if (!prev.has(requestId)) return prev;
+      const next = new Set(prev);
+      next.delete(requestId);
+      return next;
+    });
+  }, []);
+
+  const cancelPendingRevealForRequestId = useCallback(
+    (requestId: string | null | undefined) => {
+      if (!requestId) return;
+      const entry = pendingRevealSessionsRef.current.get(requestId);
+      if (entry) {
+        entry.controller.reset();
+        pendingRevealSessionsRef.current.delete(requestId);
+      }
+      removeVisualRevealPending(requestId);
+    },
+    [removeVisualRevealPending]
+  );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const nsfwMode = isAdult && userNsfwOn;
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
@@ -1513,6 +1562,12 @@ export default function ChatClient({
       chatMountedRef.current = false;
       chatFetchAbortRef.current?.abort();
       chatFetchAbortRef.current = null;
+      for (const session of pendingRevealSessionsRef.current.values()) {
+        session.controller.reset();
+      }
+      pendingRevealSessionsRef.current.clear();
+      activeStreamRevealRef.current = null;
+      setVisualRevealPendingIds(new Set());
     };
   }, []);
 
@@ -2324,36 +2379,118 @@ export default function ChatClient({
     const postProcessEvidence: PostProcessPhaseEvidence =
       createEmptyPostProcessPhaseEvidence();
 
-    assistantStreamContentRef.current = "";
-    streamTargetTextRef.current = "";
+    let sessionDisplayedText = "";
+    let sessionTargetText = "";
+    let revealLifetimeEnded = false;
+    const recoveryDraftLifetime = createStreamDraftWriteGate();
+    const sessionRecoveryDraftScope = createSessionRecoveryDraftScope(chatId);
+    const recoveryDraftScopeOps: RecoveryDraftScopeOps = {
+      clearScope: (id) => clearChatStreamDraft(character.id, id),
+      readScope: (id) => readChatStreamDraft(character.id, id),
+      writeScope: (id, draft) => writeChatStreamDraft(character.id, id, draft),
+    };
+
+    const writeSessionRecoveryDraft = (draft: {
+      requestId: string;
+      chatId: number;
+      userText: string;
+      assistantPartial: string;
+    }) => {
+      recoveryDraftLifetime.tryWrite(() =>
+        writeChatStreamDraft(character.id, sessionRecoveryDraftScope.chatId, {
+          ...draft,
+          chatId: sessionRecoveryDraftScope.chatId ?? draft.chatId ?? 0,
+          updatedAt: Date.now(),
+        })
+      );
+    };
+
+    const closeSessionRecoveryDraft = () => {
+      recoveryDraftLifetime.closeAndClear(() =>
+        clearRecoveryDraftScopes(sessionRecoveryDraftScope, (id) =>
+          clearChatStreamDraft(character.id, id)
+        )
+      );
+    };
+
+    const sessionRequestId = clientRequestId;
+    const sessionAiIndex = aiIndex;
+    const revealIdentity: RevealSessionIdentity = {
+      requestId: sessionRequestId,
+      aiIndex: sessionAiIndex,
+    };
+    let sessionAbandoned = false;
+
+    const abandonRevealSession = () => {
+      if (sessionAbandoned) return;
+      sessionAbandoned = true;
+      reveal.reset();
+      pendingRevealSessionsRef.current.delete(sessionRequestId);
+      removeVisualRevealPending(sessionRequestId);
+      if (activeStreamRevealRef.current === reveal) {
+        activeStreamRevealRef.current = null;
+      }
+    };
+
+    const unregisterRevealSession = () => {
+      pendingRevealSessionsRef.current.delete(sessionRequestId);
+      removeVisualRevealPending(sessionRequestId);
+      if (activeStreamRevealRef.current === reveal) {
+        activeStreamRevealRef.current = null;
+      }
+    };
+
+    const endRevealLifetime = (
+      plan: ReturnType<typeof planStreamRevealTermination>
+    ) => {
+      if (revealLifetimeEnded) return;
+      revealLifetimeEnded = true;
+      runStreamRevealTermination(
+        plan,
+        {
+          reveal,
+          removeVisibilityListener: () => {
+            if (typeof document !== "undefined") {
+              document.removeEventListener("visibilitychange", onVisibilityChange);
+            }
+          },
+          flush: plan.action === "end_sync" ? plan.flush : undefined,
+        },
+        unregisterRevealSession
+      );
+    };
 
     const reveal = createStreamReveal(
       {
         onAppend: (chunk) => {
-          assistantStreamContentRef.current += chunk;
-          const nextContent = assistantStreamContentRef.current;
+          if (!chatMountedRef.current || sessionAbandoned) return;
+          sessionDisplayedText += chunk;
+          const nextContent = sessionDisplayedText;
           setMessages((m) => {
             const copy = [...m];
-            const cur = copy[aiIndex];
-            if (cur?.role === "assistant") {
-              copy[aiIndex] = {
-                ...cur,
-                content: nextContent,
-                generationStatus: cur.generationStatus ?? "generating",
-              };
-              applyEmotionRef.current(nextContent, true, assetSelectionKey);
-              const rid = cur.requestId;
-              if (rid) {
-                const userText =
-                  copy[aiIndex - 1]?.role === "user" ? copy[aiIndex - 1]!.content : "";
-                writeChatStreamDraft(character.id, chatId, {
-                  requestId: rid,
-                  chatId: chatId ?? 0,
-                  userText,
-                  assistantPartial: nextContent,
-                  updatedAt: Date.now(),
-                });
-              }
+            const cur = copy[sessionAiIndex];
+            if (!isRevealRowWritable(revealIdentity, cur, sessionAiIndex)) {
+              abandonRevealSession();
+              return m;
+            }
+            copy[sessionAiIndex] = {
+              ...cur,
+              content: nextContent,
+              generationStatus: cur.generationStatus ?? "generating",
+            };
+            applyEmotionRef.current(nextContent, true, assetSelectionKey);
+            const rid = cur.requestId;
+            if (rid) {
+              const userText =
+                copy[sessionAiIndex - 1]?.role === "user"
+                  ? copy[sessionAiIndex - 1]!.content
+                  : "";
+              writeSessionRecoveryDraft({
+                requestId: rid,
+                chatId: sessionRecoveryDraftScope.chatId ?? 0,
+                userText,
+                assistantPartial: nextContent,
+              });
             }
             return copy;
           });
@@ -2364,26 +2501,37 @@ export default function ChatClient({
         charsPerTick: displayPrefsRef.current.streamCharsPerTick,
       })
     );
+    pendingRevealSessionsRef.current.set(sessionRequestId, {
+      controller: reveal,
+      requestId: sessionRequestId,
+      aiIndex: sessionAiIndex,
+    });
     activeStreamRevealRef.current = reveal;
+    if (displayPrefsRef.current.streamIntervalMs > 0) {
+      addVisualRevealPending(sessionRequestId);
+    }
 
     function setAssistantContentInstant(text: string) {
-      assistantStreamContentRef.current = text;
-      streamTargetTextRef.current = text;
+      if (sessionAbandoned) return;
+      sessionDisplayedText = text;
+      sessionTargetText = text;
       setMessages((m) => {
         const copy = [...m];
-        const cur = copy[aiIndex];
-        if (cur?.role === "assistant") {
-          copy[aiIndex] = { ...cur, content: text };
-          applyEmotionRef.current(text, true, assetSelectionKey);
+        const cur = copy[sessionAiIndex];
+        if (!isRevealRowWritable(revealIdentity, cur, sessionAiIndex)) {
+          abandonRevealSession();
+          return m;
         }
+        copy[sessionAiIndex] = { ...cur, content: text };
+        applyEmotionRef.current(text, true, assetSelectionKey);
         return copy;
       });
     }
 
     /** 서버 목표 텍스트까지 — 설정 간격으로 큐 재생 (replace·finalContent 포함) */
     function syncStreamToText(newText: string, forceInstant = false) {
-      const priorTarget = streamTargetTextRef.current;
-      streamTargetTextRef.current = newText;
+      const priorTarget = sessionTargetText;
+      sessionTargetText = newText;
       if (forceInstant || displayPrefsRef.current.streamIntervalMs <= 0) {
         reveal.reset();
         setAssistantContentInstant(newText);
@@ -2391,12 +2539,12 @@ export default function ChatClient({
       }
 
       const plan = planStreamRevealCatchUp(
-        assistantStreamContentRef.current,
+        sessionDisplayedText,
         newText,
         priorTarget,
-        streamTargetTextRef.current
+        sessionTargetText
       );
-      const displayed = assistantStreamContentRef.current;
+      const displayed = sessionDisplayedText;
       if (!plan) {
         if (newText.startsWith(displayed)) {
           const tail = newText.slice(displayed.length);
@@ -2412,15 +2560,15 @@ export default function ChatClient({
         return;
       }
 
-      if (plan.resetQueue || plan.setPrefix !== assistantStreamContentRef.current) {
+      if (plan.resetQueue || plan.setPrefix !== sessionDisplayedText) {
         reveal.reset();
       }
-      if (plan.setPrefix !== assistantStreamContentRef.current) {
-        const displayedCollapsed = collapseStreamCompareText(assistantStreamContentRef.current);
+      if (plan.setPrefix !== sessionDisplayedText) {
+        const displayedCollapsed = collapseStreamCompareText(sessionDisplayedText);
         const prefixCollapsed = collapseStreamCompareText(plan.setPrefix);
         if (
           displayedCollapsed !== prefixCollapsed &&
-          !assistantStreamContentRef.current.startsWith(plan.setPrefix)
+          !sessionDisplayedText.startsWith(plan.setPrefix)
         ) {
           setAssistantContentInstant(plan.setPrefix);
         }
@@ -2441,18 +2589,18 @@ export default function ChatClient({
         softResetPending = false;
       }
       if (reveal.isPaused() && !forceAppend) {
-        streamTargetTextRef.current += text;
+        sessionTargetText += text;
         return;
       }
       if (displayPrefsRef.current.streamIntervalMs <= 0) {
-        setAssistantContentInstant(assistantStreamContentRef.current + text);
+        setAssistantContentInstant(sessionDisplayedText + text);
       } else {
-        const st = streamTargetTextRef.current;
-        const displayed = assistantStreamContentRef.current;
+        const st = sessionTargetText;
+        const displayed = sessionDisplayedText;
         if (text && st.endsWith(text) && st.length - text.length >= displayed.length) {
           return;
         }
-        streamTargetTextRef.current += text;
+        sessionTargetText += text;
         reveal.enqueue(text);
       }
     }
@@ -2463,8 +2611,8 @@ export default function ChatClient({
       opts?: { instant?: boolean; fallbackInstant?: boolean }
     ) {
       softResetPending = false;
-      const displayed = assistantStreamContentRef.current;
-      const streamTarget = streamTargetTextRef.current;
+      const displayed = sessionDisplayedText;
+      const streamTarget = sessionTargetText;
 
       const appendTail = resolveStreamAppendTail(displayed, streamTarget, target);
       if (appendTail !== null) {
@@ -2480,7 +2628,7 @@ export default function ChatClient({
         displayed &&
         collapseStreamCompareText(displayed) === collapseStreamCompareText(target)
       ) {
-        streamTargetTextRef.current = displayed;
+        sessionTargetText = displayed;
         return;
       }
 
@@ -2506,8 +2654,8 @@ export default function ChatClient({
             setAssistantContentInstant(mapped);
           }
           const collapsedAppendTail = resolveStreamAppendTail(
-            assistantStreamContentRef.current,
-            streamTargetTextRef.current,
+            sessionDisplayedText,
+            sessionTargetText,
             target
           );
           if (collapsedAppendTail) appendStreamText(collapsedAppendTail, true);
@@ -2528,7 +2676,11 @@ export default function ChatClient({
       syncStreamToText(target, false);
     }
 
-    const applyStreamDone = (data: NonNullable<typeof pendingDone>) => {
+    const applyStreamDone = (
+      data: NonNullable<typeof pendingDone>,
+      opts?: { preserveStreamingContent?: boolean }
+    ) => {
+      closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
       if (data.chatId) {
@@ -2571,20 +2723,27 @@ export default function ChatClient({
             activeVariant: data.activeVariant,
           });
           const canonicalDoneContent = getCanonicalProseBody(activeVariantSource);
+          const streamingContent = sessionDisplayedText || cur.content;
+          const preserveStreaming = opts?.preserveStreamingContent === true;
+          const displayContent = resolveApplyStreamDoneDisplayContent({
+            streamingContent,
+            canonicalDoneContent,
+            preserveStreamingContent: preserveStreaming,
+          });
           logProseSourceDivergenceDev({
             messageId: data.messageId,
             phase: "applyStreamDone",
-            streamingSource: assistantStreamContentRef.current || cur.content,
+            streamingSource: sessionDisplayedText || cur.content,
             activeVariantSource,
-            displaySource: canonicalDoneContent,
+            displaySource: displayContent,
             editSource: canonicalDoneContent,
-            usedPreferDisplayedNewlineLayout: false,
+            usedPreferDisplayedNewlineLayout: preserveStreaming,
             sourceFieldUsedByEditModal: "activeVariant",
           });
           copy[aiIndex] = {
             ...cur,
             id: data.messageId,
-            content: canonicalDoneContent,
+            content: displayContent,
             model: resolvedUsage?.model ?? data.usage?.model,
             usage: resolvedUsage,
             variants: data.variants,
@@ -2620,7 +2779,6 @@ export default function ChatClient({
             canonAdopted: data.canonAdopted === true,
           };
           if (data.finalContent) applyEmotionRef.current(data.finalContent, true, assetSelectionKey);
-          clearChatStreamDraft(character.id, data.chatId ?? chatId);
         }
         return copy;
       });
@@ -2702,15 +2860,23 @@ export default function ChatClient({
     const finalizeStreamDone = (data: NonNullable<typeof pendingDone>) => {
       if (streamDoneApplied) return;
       streamDoneApplied = true;
-      reveal.flush();
+      const instantReveal =
+        displayPrefsRef.current.streamIntervalMs <= 0 ||
+        htmlFlashStreamTurn ||
+        data.htmlFlashTurn === true;
+      if (instantReveal) {
+        reveal.flush();
+      }
       if (data.finalContent?.trim()) {
         postStreamLocked = true;
         applyStreamReplaceTarget(data.finalContent, {
-          instant: true,
+          instant: instantReveal,
           fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
         });
       }
-      applyStreamDone(data);
+      applyStreamDone(data, {
+        preserveStreamingContent: !instantReveal && !reveal.isIdle(),
+      });
     };
 
     try {
@@ -2765,9 +2931,25 @@ export default function ChatClient({
 
           if (data.type === "turn_persisted") {
             const rid = data.requestId;
-            const nextChatId = data.chatId ?? chatId;
             if (data.messageId != null && Number.isFinite(data.messageId)) {
               persistedAssistantMessageId = data.messageId;
+            }
+            if (data.chatId != null) {
+              recoveryDraftLifetime.tryWrite(() => {
+                adoptSessionRecoveryDraftChatId(
+                  sessionRecoveryDraftScope,
+                  data.chatId!,
+                  recoveryDraftScopeOps
+                );
+              });
+            } else if (rid) {
+              const existing = recoveryDraftScopeOps.readScope(sessionRecoveryDraftScope.chatId);
+              writeSessionRecoveryDraft({
+                requestId: rid,
+                chatId: sessionRecoveryDraftScope.chatId ?? 0,
+                userText: existing?.userText ?? "",
+                assistantPartial: sessionDisplayedText,
+              });
             }
             if (data.chatId) {
               setChatId(data.chatId);
@@ -2793,17 +2975,6 @@ export default function ChatClient({
                   requestId: rid ?? cur.requestId,
                   generationStatus: cur.generationStatus ?? "generating",
                 };
-              }
-              const userText =
-                copy[userIdx]?.role === "user" ? copy[userIdx]!.content : "";
-              if (rid) {
-                writeChatStreamDraft(character.id, nextChatId ?? null, {
-                  requestId: rid,
-                  chatId: nextChatId ?? 0,
-                  userText,
-                  assistantPartial: copy[aiIndex]?.content ?? "",
-                  updatedAt: Date.now(),
-                });
               }
               return copy;
             });
@@ -2895,6 +3066,7 @@ export default function ChatClient({
               htmlFlashStreamTurn = true;
             }
             if (data.trafficOverload || data.skipPersistence) {
+              closeSessionRecoveryDraft();
               reveal.reset();
               reveal.flush();
               trafficOverload =
@@ -2923,20 +3095,13 @@ export default function ChatClient({
 
       setStreamPhase(null);
       setGenerationPrepUi(null);
+      const instantReveal =
+        displayPrefsRef.current.streamIntervalMs <= 0 || htmlFlashStreamTurn;
       if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
         applyStreamReplaceTarget(pendingDone.finalContent, {
           instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
         });
-      }
-      if (!streamDoneApplied) {
-        if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
-          await reveal.waitUntilIdle();
-        } else {
-          reveal.flush();
-        }
-      } else {
-        reveal.flush();
       }
       if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
@@ -2949,7 +3114,7 @@ export default function ChatClient({
 
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
-          streamedContentChars: assistantStreamContentRef.current.trim().length,
+          streamedContentChars: sessionDisplayedText.trim().length,
           postProcessEvidence,
           fetchSnapshot: async (messageId) => {
             const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
@@ -2964,7 +3129,7 @@ export default function ChatClient({
 
         if (eofResult.kind === "completed") {
           const s = eofResult.snapshot;
-          applyStreamReplaceTarget(s.content || assistantStreamContentRef.current, {
+          applyStreamReplaceTarget(s.content || sessionDisplayedText, {
             instant: true,
           });
           applyStreamDone({
@@ -3013,13 +3178,24 @@ export default function ChatClient({
             return copy;
           });
           if (status === "interrupted" || status === "failed" || status === "failed_partial") {
-            clearChatStreamDraft(character.id, chatId);
+            closeSessionRecoveryDraft();
           }
         }
       }
+
+      endRevealLifetime(
+        planStreamRevealTermination({
+          instantReveal,
+          isIdle: reveal.isIdle(),
+          hadError: Boolean(streamError),
+          trafficOverload: Boolean(trafficOverload),
+        })
+      );
     } catch (e) {
-      reveal.reset();
-      reveal.flush();
+      endRevealLifetime({
+        action: "end_sync",
+        flush: true,
+      });
       const abortMsg = chatStreamAbortMessage(e);
       if (abortMsg) {
         streamError = streamError || abortMsg;
@@ -3028,11 +3204,6 @@ export default function ChatClient({
         console.error("[chat] stream consume failed:", e);
       }
     } finally {
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-      }
-      reveal.setBackgroundMode(false);
-      activeStreamRevealRef.current = null;
       setStreamPhase(null);
       setGenerationPrepUi(null);
     }
@@ -3482,6 +3653,7 @@ export default function ChatClient({
       statusMetaPollStartedRef.current.delete(prevAssistant.id);
       suggestedRepliesPollStartedRef.current.delete(prevAssistant.id);
     }
+    cancelPendingRevealForRequestId(prevAssistant.requestId);
 
     setMessages((m) => {
       const copy = [...m];
@@ -3626,6 +3798,8 @@ export default function ChatClient({
 
   async function switchVariant(messageId: number, messageIndex: number, variantIndex: number) {
     if (loading) return;
+    const switching = messages[messageIndex];
+    cancelPendingRevealForRequestId(switching?.requestId);
     try {
       const res = await fetch("/api/chat/message/variant", {
         method: "PATCH",
@@ -3687,6 +3861,9 @@ export default function ChatClient({
     const idx = role === "assistant" ? messages.findIndex((m) => m.id === messageId) : -1;
     const asst = idx >= 0 ? messages[idx] : null;
     const editingGreeting = asst ? isGreetingMessage(asst) : false;
+    if (role === "assistant" && asst?.requestId && !editingGreeting) {
+      cancelPendingRevealForRequestId(asst.requestId);
+    }
     const activeVariantSource =
       role === "assistant" ? resolveAssistantCanonicalProseSource(asst ?? { content }) : content;
     const canonical =
@@ -4642,14 +4819,25 @@ export default function ChatClient({
                 ) : (
                   <>
                     {(() => {
-                      const isStreamingThisMessage =
-                        i === lastAssistantIdx &&
-                        !isTerminalGenerationStatus(genStatus) &&
-                        ((loading && i === messages.length - 1) ||
-                          genStatus === "generating");
-                      const variantContent = isStreamingThisMessage
-                        ? m.content
-                        : resolveActiveVariantContent(m);
+                      const isGenerationStreaming = isGenerationStreamingMessage({
+                        messageIndex: i,
+                        lastAssistantIndex: lastAssistantIdx,
+                        generationStatus: genStatus,
+                        loading,
+                        messagesLength: messages.length,
+                      });
+                      const isVisualRevealPending = isVisualRevealPendingForMessage(
+                        m.requestId,
+                        visualRevealPendingIds
+                      );
+                      const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
+                        isGenerationStreaming,
+                        isVisualRevealPending
+                      );
+                      const isStreamingThisMessage = isGenerationStreaming;
+                      const variantContent = resolveAssistantDisplayBody(m, {
+                        useLiveDisplayedContent,
+                      });
                       const displayBody = stripIncompleteStatusWidgetTail(
                         stripRepeatedTrailingQuoteMarks(
                           stripRpMetaPreamble(
@@ -4657,7 +4845,7 @@ export default function ChatClient({
                               stripInternalTagLeakage(variantContent),
                               resolvedAssets,
                               {
-                                streaming: isStreamingThisMessage,
+                                streaming: useLiveDisplayedContent,
                                 assetsEnabled: showCharacterPortrait,
                               }
                             )
@@ -4672,7 +4860,7 @@ export default function ChatClient({
                               displayBody,
                               messageFormatSpec,
                               statusWindowPlacement,
-                              { streaming: isStreamingThisMessage }
+                              { streaming: useLiveDisplayedContent }
                             ).prose
                           : displayBody;
                       // Canonical raw into NovelText; display paragraph policy lives only there.
@@ -4698,13 +4886,13 @@ export default function ChatClient({
                         userMessage: userBefore?.role === "user" ? userBefore.content : undefined,
                         markdownStatusWindowActive,
                         statusWidgetActive,
-                        isStreaming: isStreamingThisMessage,
+                        isStreaming: isGenerationStreaming,
                       });
                       const showStatusWidget = shouldShowStatusWidgetOnMessage({
                         model: m.model,
                         statusWidgetTurnActive: m.statusWidgetTurnActive,
                         statusWidgetValues: m.statusWidgetValues,
-                        isStreaming: isStreamingThisMessage,
+                        isStreaming: isGenerationStreaming,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       if (
@@ -4775,7 +4963,7 @@ export default function ChatClient({
                               display={displayPrefs}
                               paragraphMode={m.model === "greeting" ? "author" : "ai"}
                               proseOnly={m.model !== "greeting"}
-                              streaming={isStreamingThisMessage}
+                              streaming={useLiveDisplayedContent}
                               inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
                               viewerIsCreator={isCharacterCreator}
                               unlockedUrls={unlockedUrls}

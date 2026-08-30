@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createStreamReveal } from "@/lib/streamReveal";
 import {
-  STREAM_REVEAL_MAX_TARGET_LAG_MS,
   computeAdaptiveCharsPerTick,
   estimateStreamRevealDurationMs,
   streamRevealOptionsFromInterval,
@@ -21,12 +20,12 @@ describe("streamRevealTiming — chat 707 theoretical durations", () => {
     assert.equal(durations["빠름"], 191_975);
   });
 
-  it("B: adaptive catch-up caps drain time for large backlog", () => {
+  it("B: foreground backlog keeps user-selected charsPerTick (no adaptive override)", () => {
     const fast = streamRevealOptionsFromInterval(35);
     const adaptive = computeAdaptiveCharsPerTick(5485, fast);
-    assert.ok(adaptive > fast.charsPerTick);
+    assert.equal(adaptive, fast.charsPerTick);
     const drainMs = Math.ceil(5485 / adaptive) * fast.intervalMs;
-    assert.ok(drainMs <= STREAM_REVEAL_MAX_TARGET_LAG_MS + fast.intervalMs);
+    assert.equal(drainMs, 5485 * 35);
   });
 
   it("G: small backlog keeps base charsPerTick", () => {
@@ -36,24 +35,12 @@ describe("streamRevealTiming — chat 707 theoretical durations", () => {
 });
 
 describe("createStreamReveal adaptive + visibility", () => {
-  it("A: 5485 fast backlog completes far faster than fixed-speed theoretical duration", async () => {
-    let shown = "";
+  it("A: large fast backlog drains at fixed preset speed (theoretical)", () => {
     const fast = streamRevealOptionsFromInterval(35);
-    const fixedTheoreticalMs = estimateStreamRevealDurationMs(5485, fast);
-    const reveal = createStreamReveal(
-      { onAppend: (c) => { shown += c; } },
-      fast
-    );
-    reveal.enqueue("x".repeat(5485));
-    const start = Date.now();
-    while (!reveal.isIdle() && Date.now() - start < 60_000) {
-      await new Promise((r) => setTimeout(r, 16));
-    }
-    assert.equal([...shown].length, 5485);
-    const elapsed = Date.now() - start;
-    assert.ok(elapsed < 60_000);
-    assert.ok(elapsed < fixedTheoreticalMs / 3, `adaptive ${elapsed}ms vs fixed ${fixedTheoreticalMs}ms`);
-    assert.ok(reveal.isIdle());
+    const chars = 5485;
+    const fixedTheoreticalMs = estimateStreamRevealDurationMs(chars, fast);
+    assert.equal(computeAdaptiveCharsPerTick(chars, fast), fast.charsPerTick);
+    assert.equal(fixedTheoreticalMs, chars * 35);
   });
 
   it("C/D: hidden tab bypasses animation backlog", () => {
