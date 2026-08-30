@@ -487,16 +487,6 @@ export async function callBackgroundMemory(
   return call(modelId);
 }
 
-/** @deprecated callBackgroundMemory */
-export async function callGeminiBackground(
-  system: string,
-  history: ChatMsg[],
-  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
-  requestKind = "background-memory-extract"
-): Promise<{ text: string; usage: TokenUsage }> {
-  return callBackgroundMemory(system, history, turnTrace, requestKind);
-}
-
 export async function generateReply(opts: {
   system: string;
   history: ChatMsg[];
@@ -587,7 +577,7 @@ export async function summarizeMemory(
     },
   ];
   try {
-    const { text } = await callGeminiBackground(system, history);
+    const { text } = await callBackgroundMemory(system, history);
     return text.slice(0, maxChars);
   } catch {
     return prevMemory.slice(0, maxChars);
@@ -615,7 +605,7 @@ turnSummary 형식: 서술형 문장 금지. 음슴체(-음/-ㅁ) 키워드 나�
     },
   ];
   try {
-    const { text } = await callGeminiBackground(system, history);
+    const { text } = await callBackgroundMemory(system, history);
     const trimmed = text.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
     const raw = fenced ? fenced[1].trim() : trimmed;
@@ -694,7 +684,7 @@ ${activePromises}
     },
   ];
   try {
-    const { text } = await callGeminiBackground(
+    const { text } = await callBackgroundMemory(
       `${system}
 
 [RELATIONSHIP MEMORY AUTO EXTRACTION RESTRICTION]
@@ -807,7 +797,7 @@ ${newAssistantMessage}`,
   ];
 
   try {
-    const { text } = await callGeminiBackground(
+    const { text } = await callBackgroundMemory(
       `${system}
 
 [RELATIONSHIP MEMORY AUTO EXTRACTION RESTRICTION]
@@ -878,7 +868,7 @@ export async function mergeTurnSummariesToLongTerm(
     },
   ];
   try {
-    const { text } = await callGeminiBackground(system, history);
+    const { text } = await callBackgroundMemory(system, history);
     return text.slice(0, maxChars);
   } catch {
     const merged = [prevMemory, ...turnSummaries.map((t) => `- ${t}`)].filter(Boolean).join("\n");
@@ -896,7 +886,7 @@ export async function compressLongTermMemory(
   const system = `너는 롤플레잉 장기 기억 압축기다. 아래 기억을 중요 대사·감정·사건·관계·호칭 위주로 재압축하라. 반드시 ${maxChars}자 이내 불릿 목록.`;
   const history: ChatMsg[] = [{ role: "user", content: memory }];
   try {
-    const { text } = await callGeminiBackground(system, history);
+    const { text } = await callBackgroundMemory(system, history);
     return text.slice(0, maxChars);
   } catch {
     return memory.slice(0, maxChars);
@@ -908,7 +898,7 @@ export async function compressLongTermWithFlash(memory: string, maxChars: number
   if (memory.length <= maxChars) return memory;
   const system = `너는 롤플레잉 장기 기억 압축기다. 아래 기억을 핵심 사건·감정·관계·호칭 위주로 재압축하라. 반드시 ${maxChars}자 이내 한국어 불릿(-) 목록.`;
   try {
-    const { text } = await callGeminiBackground(system, [{ role: "user", content: memory }]);
+    const { text } = await callBackgroundMemory(system, [{ role: "user", content: memory }]);
     return text.trim().slice(0, maxChars) || memory.slice(0, maxChars);
   } catch {
     return memory.slice(0, maxChars);
@@ -933,7 +923,7 @@ ${opts.recentDialogue}
 
 위 ${ROLLING_SUMMARY_INTERVAL}턴을 150자 내외 3인칭 관찰자 요약 1문단으로 출력하세요. 기존 요약과 중복되지 않는 새 사건만 서술하세요.`;
 
-  const { text } = await callGeminiBackground(
+  const { text } = await callBackgroundMemory(
     system,
     [{ role: "user", content: userContent }],
     undefined,
@@ -957,7 +947,7 @@ export async function summarizeTurnBatch(
     .join("\n\n");
   const system = `너는 롤플레잉 대화 기록관이다. 아래 ${turns.length}턴(${fromTurn}~${toTurn}턴) 대화에서 핵심 사건·감정 변화·관계·약속만 300자 이내 한국어로 요약하라. 불릿(-) 또는 짧은 문단.`;
   try {
-    const { text } = await callGeminiBackground(
+    const { text } = await callBackgroundMemory(
       system,
       [{ role: "user", content: dialogue }],
       undefined,

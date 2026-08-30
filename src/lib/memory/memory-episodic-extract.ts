@@ -2,7 +2,7 @@
  * Seal-aligned episodic extraction — at most one background call per 5-turn summary batch.
  * Best-effort: failure never rolls back a successful summary seal.
  */
-import { callGeminiBackground } from "@/lib/ai";
+import { callBackgroundMemory } from "@/lib/ai";
 import { getDb } from "@/lib/db";
 import { persistEpisodicMemoryFactsBestEffort } from "@/lib/episodicMemoryFacts";
 import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-normalize";
@@ -97,7 +97,7 @@ ${opts.dialogue}
   const callLlm: EpisodicExtractLlmCaller =
     extractCallerOverride ??
     ((sys, history, turnTrace, requestKind) =>
-      callGeminiBackground(sys, history, turnTrace, requestKind));
+      callBackgroundMemory(sys, history, turnTrace, requestKind));
   try {
     const { text } = await callLlm(
       system,
