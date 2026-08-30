@@ -103,7 +103,7 @@ STATUS: STOP_BEFORE_MERGE
 
 ## Validation
 
-- `worldBlueprintPregen.test.ts` — 18/18 (T1–T15 + corrections)
+- `worldBlueprintPregen.test.ts` — 27/27 (T1–T23 + R1 frozen repro)
 - `scenarioDraftCall.transport.test.ts` — 13/13 (#745)
 - `npm run typecheck:app` — pass
 - `npm run lint` — pass

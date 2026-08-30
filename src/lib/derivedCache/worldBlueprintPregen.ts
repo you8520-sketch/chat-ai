@@ -6,6 +6,7 @@ import {
   loadWorldSnapshotForBlueprint,
 } from "@/lib/trpg/worldBlueprintArtifact";
 import { generateWorldSandboxBlueprint } from "@/lib/trpg/worldBlueprintGeneration";
+import type { TrpgAuthoringComplete } from "@/lib/trpg/scenarioDraftCall";
 import { isTrpgSandboxDirectorEnabled } from "@/lib/trpg/sandboxDirector";
 
 export const WORLD_BLUEPRINT_PREGEN_JOB_KIND = "trpg_sandbox_blueprint_pregen" as const;
@@ -38,7 +39,10 @@ export function enqueueWorldBlueprintPregenJob(db: Database.Database, worldId: n
   });
 }
 
-/** Routes delegate here after durable world commit. */
+/**
+ * Enqueue using the committed world snapshot. Call only after durable INSERT/UPDATE.
+ * Trigger policy is evaluated separately via `shouldEnqueueWorldBlueprintPregen`.
+ */
 export function maybeEnqueueWorldBlueprintPregenAfterCommit(
   db: Database.Database,
   opts: WorldBlueprintPregenTriggerInput & { worldId: number }
@@ -51,8 +55,13 @@ export async function refreshWorldBlueprintArtifact(
   db: Database.Database,
   worldId: number,
   expectedSourceFingerprint: string,
-  expectedDerivationVersion: number
+  expectedDerivationVersion: number,
+  deps?: { complete?: TrpgAuthoringComplete }
 ): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
+  if (!isTrpgSandboxDirectorEnabled()) {
+    return { ok: true };
+  }
+
   const snapshot = loadWorldSnapshotForBlueprint(db, worldId);
   if (!snapshot || snapshot.sourceFingerprint !== expectedSourceFingerprint) {
     return { ok: true };
@@ -61,19 +70,22 @@ export async function refreshWorldBlueprintArtifact(
     return { ok: true };
   }
 
-  const generated = await generateWorldSandboxBlueprint({
-    worldId: snapshot.id ?? worldId,
-    worldName: snapshot.name,
-    worldSummary: snapshot.summary,
-    worldContent: snapshot.content,
-    worldUpdatedAt: snapshot.updatedAt,
-    worldHash: snapshot.sourceFingerprint,
-  });
+  const generated = await generateWorldSandboxBlueprint(
+    {
+      worldId: snapshot.id ?? worldId,
+      worldName: snapshot.name,
+      worldSummary: snapshot.summary,
+      worldContent: snapshot.content,
+      worldUpdatedAt: snapshot.updatedAt,
+      worldHash: snapshot.hash,
+    },
+    { complete: deps?.complete }
+  );
   if (!generated.ok) {
     return {
       ok: false,
       error: generated.error,
-      retryable: false,
+      retryable: generated.retryable,
     };
   }
 

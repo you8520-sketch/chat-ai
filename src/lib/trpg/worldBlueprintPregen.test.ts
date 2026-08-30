@@ -22,6 +22,7 @@ import { parseTrpgScenarioPlan, TRPG_SCENARIO_PLAN_SCHEMA_VERSION } from "./scen
 import {
   enqueueWorldBlueprintPregenJob,
   maybeEnqueueWorldBlueprintPregenAfterCommit,
+  refreshWorldBlueprintArtifact,
   shouldEnqueueWorldBlueprintPregen,
 } from "@/lib/derivedCache/worldBlueprintPregen";
 import {
@@ -30,6 +31,7 @@ import {
   ensureDerivedCacheJobsTable,
   maxAttemptsForDerivedJobKind,
 } from "@/lib/derivedCache/jobs";
+import { processDerivedCacheJob } from "@/lib/derivedCache/worker";
 import { createTrpgCampaign, saveTrpgSheet, EVEN_STATS } from "./engineCreate";
 import { startTrpgCampaign, type TrpgEngineDeps } from "./engineAdvance";
 import { loadCampaignContext, persistCampaignContext } from "./campaignContext";
@@ -115,6 +117,61 @@ function blueprintJobCount(db: Database.Database): number {
       .prepare(`SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE job_kind='trpg_sandbox_blueprint_pregen'`)
       .get() as { c: number }
   ).c;
+}
+
+function blueprintJobRow(db: Database.Database): { source_fingerprint: string; id: number } | undefined {
+  return db
+    .prepare(
+      `SELECT id, source_fingerprint FROM derived_cache_jobs WHERE job_kind='trpg_sandbox_blueprint_pregen' ORDER BY id DESC LIMIT 1`
+    )
+    .get() as { source_fingerprint: string; id: number } | undefined;
+}
+
+function mockBlueprintComplete(goal: string) {
+  return async () => ({
+    text: JSON.stringify({
+      startingSituation: playablePlan.startingSituation,
+      centralConflict: playablePlan.centralConflict,
+      goal,
+      secret: playablePlan.secret,
+      endingConditions: playablePlan.endingConditions,
+      clues: playablePlan.clues,
+      endingCandidates: playablePlan.endingCandidates,
+      gmDirection: playablePlan.gmDirection,
+    }),
+    latencyMs: 1,
+    model: TRPG_SCENARIO_DRAFT_MODEL,
+  });
+}
+
+/** Fixed-route semantic PATCH: UPDATE first, then post-commit enqueue. */
+function applyPostCommitContentPatch(db: Database.Database, worldId: number, newContent: string): void {
+  const before = loadWorldSnapshotForBlueprint(db, worldId)!;
+  const contentChanged = newContent !== before.content;
+  db.prepare(`UPDATE worlds SET content=?, updated_at=datetime('now') WHERE id=?`).run(newContent, worldId);
+  maybeEnqueueWorldBlueprintPregenAfterCommit(db, {
+    worldId,
+    previousTrpgEnabled: true,
+    nextTrpgEnabled: true,
+    nameChanged: false,
+    summaryChanged: false,
+    contentChanged,
+  });
+}
+
+/** Buggy pre-#749-correction PATCH order: enqueue before UPDATE. */
+function applyPreCommitContentPatch(db: Database.Database, worldId: number, newContent: string): void {
+  const before = loadWorldSnapshotForBlueprint(db, worldId)!;
+  const contentChanged = newContent !== before.content;
+  maybeEnqueueWorldBlueprintPregenAfterCommit(db, {
+    worldId,
+    previousTrpgEnabled: true,
+    nextTrpgEnabled: true,
+    nameChanged: false,
+    summaryChanged: false,
+    contentChanged,
+  });
+  db.prepare(`UPDATE worlds SET content=?, updated_at=datetime('now') WHERE id=?`).run(newContent, worldId);
 }
 
 describe("world Blueprint pregeneration corrections", () => {
@@ -495,5 +552,235 @@ describe("world Blueprint pregeneration corrections", () => {
     assert.equal(row.source_fingerprint, snap.sourceFingerprint);
     assert.equal(row.generator_model, TRPG_SCENARIO_DRAFT_MODEL);
     assert.equal(row.schema_version, TRPG_SCENARIO_PLAN_SCHEMA_VERSION);
+  });
+
+  it("R1 frozen — pre-commit PATCH queues stale fingerprint and worker skips generation", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db, { content: "C1" });
+      const snapC1 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snapC1.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+
+      applyPreCommitContentPatch(db, worldId, "C2");
+      const snapC2 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      const job = blueprintJobRow(db)!;
+
+      assert.equal(job.source_fingerprint, snapC1.sourceFingerprint);
+      assert.notEqual(job.source_fingerprint, snapC2.sourceFingerprint);
+
+      const claimed = claimNextDerivedCacheJob(db)!;
+      await processDerivedCacheJob(db, claimed);
+
+      const status = db.prepare(`SELECT status FROM derived_cache_jobs WHERE id=?`).get(claimed.id) as {
+        status: string;
+      };
+      assert.equal(status.status, "done");
+      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snapC2), null);
+    });
+  });
+
+  it("T16 semantic PATCH queues POST-COMMIT fingerprint", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db, { content: "C1" });
+      const snapC1 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snapC1.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+
+      applyPostCommitContentPatch(db, worldId, "C2");
+      const snapC2 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      const job = blueprintJobRow(db)!;
+
+      assert.notEqual(snapC2.sourceFingerprint, snapC1.sourceFingerprint);
+      assert.equal(job.source_fingerprint, snapC2.sourceFingerprint);
+    });
+  });
+
+  it("T17 semantic PATCH worker produces NEW valid artifact", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db, { content: "C1" });
+      const snapC1 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snapC1.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+
+      applyPostCommitContentPatch(db, worldId, "C2");
+      const snapC2 = loadWorldSnapshotForBlueprint(db, worldId)!;
+      const job = claimNextDerivedCacheJob(db)!;
+      assert.equal(job.source_fingerprint, snapC2.sourceFingerprint);
+
+      let providerCalls = 0;
+      await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        job.source_fingerprint,
+        job.derivation_version,
+        {
+          complete: async () => {
+            providerCalls += 1;
+            return (await mockBlueprintComplete("NEW_REVISION_GOAL")()) as never;
+          },
+        }
+      );
+      completeDerivedCacheJob(db, job.id, { ok: true });
+
+      assert.equal(providerCalls, 1);
+      const plan = loadValidWorldBlueprintPlan(db, worldId, snapC2);
+      assert.ok(plan);
+      assert.equal(plan.goal, "NEW_REVISION_GOAL");
+    });
+  });
+
+  it("T18 failed DB mutation creates zero Blueprint job", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db, { content: "C1" });
+      const trigger = {
+        previousTrpgEnabled: true,
+        nextTrpgEnabled: true,
+        nameChanged: false,
+        summaryChanged: false,
+        contentChanged: true,
+      };
+      assert.equal(shouldEnqueueWorldBlueprintPregen(trigger), true);
+
+      const failed = db
+        .prepare(`UPDATE worlds SET content='C2' WHERE id=? AND creator_id=?`)
+        .run(worldId, 999);
+      assert.equal(failed.changes, 0);
+      assert.equal(blueprintJobCount(db), 0);
+
+      db.prepare(`UPDATE worlds SET content='C2', updated_at=datetime('now') WHERE id=?`).run(worldId);
+      assert.equal(maybeEnqueueWorldBlueprintPregenAfterCommit(db, { worldId, ...trigger }), true);
+      assert.equal(blueprintJobCount(db), 1);
+    });
+  });
+
+  it("T19 flag ON enqueue → flag OFF → process → zero Blueprint provider calls", async () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    await withSandboxDirectorEnabled(true, async () => {
+      enqueueWorldBlueprintPregenJob(db, worldId);
+    });
+
+    await withSandboxDirectorEnabled(false, async () => {
+      const job = claimNextDerivedCacheJob(db)!;
+      await processDerivedCacheJob(db, job);
+      const status = db.prepare(`SELECT status FROM derived_cache_jobs WHERE id=?`).get(job.id) as {
+        status: string;
+      };
+      assert.equal(status.status, "done");
+      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
+    });
+  });
+
+  it("T20 stale A + committed B → A cannot publish, B survives and publishes", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db, { content: "A" });
+      const snapA = loadWorldSnapshotForBlueprint(db, worldId)!;
+      enqueueWorldBlueprintPregenJob(db, worldId);
+      const jobA = blueprintJobRow(db)!;
+      assert.equal(jobA.source_fingerprint, snapA.sourceFingerprint);
+
+      applyPostCommitContentPatch(db, worldId, "B");
+      const snapB = loadWorldSnapshotForBlueprint(db, worldId)!;
+      const jobB = blueprintJobRow(db)!;
+      assert.equal(jobB.source_fingerprint, snapB.sourceFingerprint);
+
+      await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        jobA.source_fingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        { complete: mockBlueprintComplete("STALE_A") as never }
+      );
+      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snapB), null);
+
+      await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        jobB.source_fingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        { complete: mockBlueprintComplete("CURRENT_B") as never }
+      );
+      const plan = loadValidWorldBlueprintPlan(db, worldId, snapB);
+      assert.ok(plan);
+      assert.equal(plan.goal, "CURRENT_B");
+    });
+  });
+
+  it("T21 transport-classified Blueprint failure keeps max job attempts at 1", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      enqueueWorldBlueprintPregenJob(db, worldId);
+      const job = claimNextDerivedCacheJob(db)!;
+
+      const outcome = await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        {
+          complete: async () => {
+            throw new Error("503 upstream timeout");
+          },
+        }
+      );
+      assert.equal(outcome.ok, false);
+      assert.equal(outcome.retryable, true);
+      completeDerivedCacheJob(db, job.id, outcome);
+
+      const row = db.prepare(`SELECT status, attempts FROM derived_cache_jobs WHERE id=?`).get(job.id) as {
+        status: string;
+        attempts: number;
+      };
+      assert.equal(maxAttemptsForDerivedJobKind(job.job_kind), 1);
+      assert.equal(row.status, "failed");
+      assert.equal(row.attempts, 1);
+      assert.equal(maxAttemptsForDerivedJobKind("world_translate"), 8);
+    });
+  });
+
+  it("T22 provenance sourceWorldHash uses audit hash not semantic fingerprint", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      assert.notEqual(snap.hash, snap.sourceFingerprint);
+
+      await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        { complete: mockBlueprintComplete("PROV_GOAL") as never }
+      );
+      const row = loadWorldBlueprintArtifactRow(db, worldId)!;
+      const plan = parseTrpgScenarioPlan(row.director_plan_json)!;
+      assert.equal(plan.provenance?.sourceWorldHash, snap.hash);
+      assert.notEqual(plan.provenance?.sourceWorldHash, snap.sourceFingerprint);
+    });
+  });
+
+  it("T23 field-boundary fingerprint collision is unreachable with JSON serialization", () => {
+    const left = blueprintSourceFingerprint({ name: "N", summary: "A\nB", content: "C" });
+    const right = blueprintSourceFingerprint({ name: "N", summary: "A", content: "B\nC" });
+    assert.notEqual(left, right);
   });
 });
