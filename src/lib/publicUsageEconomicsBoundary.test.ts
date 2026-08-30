@@ -5,6 +5,7 @@ import {
   sanitizeUsageForPublicReceipt,
   stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
+import * as adultHandoffDisplay from "@/lib/adultHandoffDisplay";
 import {
   assertNoInternalEconomics,
   PUBLIC_USAGE_INTERNAL_STAGE_KEYS,
@@ -343,5 +344,109 @@ describe("public usage economics boundary — T10 serialization entrypoint", () 
     const canonical = sanitizeUsageForPublicReceipt(usage);
     assert.equal(canonical.apiRawCostKrw, undefined);
     assert.equal((canonical as Usage).shadowPricing, undefined);
+  });
+});
+
+describe("public usage economics boundary — T11 duplicate owner", () => {
+  it("FORBIDDEN_PUBLIC_USAGE_KEYS duplicate export removed", () => {
+    assert.equal(
+      (adultHandoffDisplay as Record<string, unknown>).FORBIDDEN_PUBLIC_USAGE_KEYS,
+      undefined
+    );
+  });
+});
+
+describe("public usage economics boundary — T12 adult handoff canonical serializer", () => {
+  it("handoff scenarios use serializeUsageForPublicClient with identity + privacy", () => {
+    const usage = baseUsage({
+      model: "qwen-3-8-max",
+      modelLabel: "Qwen 3.8 Max",
+      selectedAI: "qwen-3-8-max",
+      provider: "cheaperinference",
+      route: "nsfw",
+      adultRouting: {
+        activeRoute: "adult",
+        actualModel: "qwen-3-8-max",
+        actualProvider: "cheaperinference",
+        userSelectedModel: "claude-opus-5",
+        userSelectedModelLabel: "Claude Opus 5",
+        userSelectedProvider: "cheaperinference",
+        fallbackSucceeded: true,
+      },
+    });
+    const pub = serializeUsageForPublicClient(usage);
+    assert.equal(pub.model, "claude-opus-5");
+    assert.equal(pub.modelLabel, "Claude Opus 5");
+    assert.equal(pub.adultRouting, undefined);
+    assertNoInternalEconomics(pub, "T12");
+  });
+});
+
+describe("public usage economics boundary — T13 operational telemetry", () => {
+  it("strips unused top-level provider/cache/recovery telemetry from public", () => {
+    const internal = baseUsage({
+      cacheReadTokens: 500,
+      cacheWriteTokens: 100,
+      standardInputTokens: 800,
+      lengthRecoveryPasses: 2,
+      assembledInputTokens: 12000,
+      fallback: "legacy-fallback-model",
+    });
+    const pub = serializeUsageForPublicClient(internal);
+    assert.equal(pub.cacheReadTokens, undefined);
+    assert.equal(pub.cacheWriteTokens, undefined);
+    assert.equal(pub.standardInputTokens, undefined);
+    assert.equal(pub.lengthRecoveryPasses, undefined);
+    assert.equal(pub.assembledInputTokens, undefined);
+    assert.equal(pub.fallback, undefined);
+    assertNoInternalEconomics(pub, "T13-public");
+
+    const admin = serializeUsageForPublicClient(internal, { keepInternal: true });
+    assert.equal(admin.cacheReadTokens, 500);
+    assert.equal(admin.cacheWriteTokens, 100);
+    assert.equal(admin.standardInputTokens, 800);
+    assert.equal(admin.lengthRecoveryPasses, 2);
+    assert.equal(admin.assembledInputTokens, 12000);
+    assert.equal(admin.fallback, "legacy-fallback-model");
+  });
+});
+
+describe("public usage economics boundary — T14 reasoning contract", () => {
+  it("preserves api token fields required by public receipt UI", () => {
+    const internal = baseUsage({
+      apiInputTokens: 150,
+      apiOutputTokens: 220,
+      apiContentOutputTokens: 200,
+      apiReasoningOutputTokens: 20,
+    });
+    const pub = serializeUsageForPublicClient(internal);
+    assert.equal(pub.apiInputTokens, 150);
+    assert.equal(pub.apiOutputTokens, 220);
+    assert.equal(pub.apiContentOutputTokens, 200);
+    assert.equal(pub.apiReasoningOutputTokens, 20);
+  });
+});
+
+describe("public usage economics boundary — T15 admin telemetry preserved", () => {
+  it("admin path keeps cache/recovery telemetry and provider economics", () => {
+    const internal = baseUsage({
+      cacheReadTokens: 400,
+      cacheWriteTokens: 50,
+      standardInputTokens: 700,
+      lengthRecoveryPasses: 1,
+      assembledInputTokens: 9000,
+      apiRawCostKrw: 77,
+      upstreamCostUsd: 0.015,
+      shadowPricing: { pricingVersion: 2 } as Usage["shadowPricing"],
+    });
+    const admin = serializeUsageForPublicClient(internal, { keepInternal: true });
+    assert.equal(admin.cacheReadTokens, 400);
+    assert.equal(admin.cacheWriteTokens, 50);
+    assert.equal(admin.standardInputTokens, 700);
+    assert.equal(admin.lengthRecoveryPasses, 1);
+    assert.equal(admin.assembledInputTokens, 9000);
+    assert.equal(admin.apiRawCostKrw, 77);
+    assert.equal(admin.upstreamCostUsd, 0.015);
+    assert.ok(admin.shadowPricing);
   });
 });

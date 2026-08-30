@@ -79,18 +79,3 @@ export function selectedModelIdentityIsStable(
     usage.selectedAI === selectedModel
   );
 }
-
-/** Keys public sanitize already removes — do not reintroduce them on public usage. */
-export const FORBIDDEN_PUBLIC_USAGE_KEYS = [
-  "adultRouting",
-  "statusWidgetExtract",
-  "statusWidgetExtractDiagnostics",
-  "widgetCostPoints",
-  "mainApiRawCostKrw",
-  "exchangeRateKrwPerUsd",
-  "exchangeRateDateKey",
-  "exchangeRateMode",
-  "exchangeRateSource",
-  "assembledPromptChars",
-  "breakdownAllocation",
-] as const;

@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   ADULT_HANDOFF_HINT,
   ADULT_HANDOFF_NOTICE,
-  FORBIDDEN_PUBLIC_USAGE_KEYS,
   modelSupportsAdultHandoffNotice,
   publicAdultHandoffCopyIsSafe,
   selectedModelIdentityIsStable,
@@ -13,9 +12,10 @@ import {
   formatBillingReceiptText,
 } from "@/lib/billingDisplay";
 import {
-  sanitizeUsageForPublicReceipt,
+  serializeUsageForPublicClient,
   stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
+import { assertNoInternalEconomics } from "@/lib/publicUsageEconomicsBoundary";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -94,16 +94,6 @@ function usageWith(input: {
   };
 }
 
-function assertNoForbiddenPublicFields(usage: Usage) {
-  for (const key of FORBIDDEN_PUBLIC_USAGE_KEYS) {
-    assert.equal(
-      usage[key as keyof Usage],
-      undefined,
-      `public usage must not expose ${key}`
-    );
-  }
-}
-
 describe("adult handoff display — public field freeze", () => {
   it("1. public usage field kinds stay the existing receipt set", () => {
     const usage = usageWith({
@@ -112,8 +102,8 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
       cost: 12,
     });
-    const publicUsage = sanitizeUsageForPublicReceipt(usage);
-    assertNoForbiddenPublicFields(publicUsage);
+    const publicUsage = serializeUsageForPublicClient(usage);
+    assertNoInternalEconomics(publicUsage, "handoff-1");
     assert.equal(publicUsage.input, 100);
     assert.equal(publicUsage.output, 50);
     assert.equal(publicUsage.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
@@ -138,11 +128,10 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
       cost: 12,
     });
-    const publicUsage = stripAdultRoutingForClient(usage);
+    const publicUsage = serializeUsageForPublicClient(usage);
     assert.equal(publicUsage.adultRouting, undefined);
-    const sanitized = sanitizeUsageForPublicReceipt(usage);
-    assertNoForbiddenPublicFields(sanitized);
-    const receipt = buildBillingReceipt(sanitized);
+    assertNoInternalEconomics(publicUsage, "handoff-2");
+    const receipt = buildBillingReceipt(publicUsage);
     assert.ok(receipt);
     const text = formatBillingReceiptText(receipt);
     assert.doesNotMatch(text, /마진율|원가|upstream|actualProvider|fallback|Qwen|DeepSeek/);
@@ -155,7 +144,7 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       cost: 10,
     });
-    const adminUsage = stripAdultRoutingForClient(usage, { keepInternal: true });
+    const adminUsage = serializeUsageForPublicClient(usage, { keepInternal: true });
     assert.equal(adminUsage.selectedAI, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
     assert.equal(adminUsage.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
     assert.equal(adminUsage.adultRouting?.actualModel, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
@@ -173,7 +162,7 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
       cost: 12,
     });
-    const publicUsage = stripAdultRoutingForClient(usage);
+    const publicUsage = serializeUsageForPublicClient(usage);
     assert.equal(
       selectedModelIdentityIsStable(
         publicUsage,
@@ -182,6 +171,8 @@ describe("adult handoff display — public field freeze", () => {
       ),
       true
     );
+    assert.equal(publicUsage.adultRouting, undefined);
+    assertNoInternalEconomics(publicUsage, "handoff-4");
     assert.equal(buildBillingReceipt(publicUsage)?.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
     assert.equal(publicUsage.cost, 12);
   });
@@ -193,10 +184,11 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
       cost: 14,
     });
-    const publicUsage = stripAdultRoutingForClient(usage);
+    const publicUsage = serializeUsageForPublicClient(usage);
     assert.equal(publicUsage.modelLabel, GEMINI_31_PRO_PREVIEW_DISPLAY_NAME);
     assert.equal(publicUsage.selectedAI, CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL);
     assert.equal(publicUsage.adultRouting, undefined);
+    assertNoInternalEconomics(publicUsage, "handoff-5");
     assert.equal(publicUsage.cost, 14);
   });
 
@@ -207,15 +199,16 @@ describe("adult handoff display — public field freeze", () => {
       actual: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       cost: 9,
     });
-    const publicUsage = stripAdultRoutingForClient(usage);
+    const publicUsage = serializeUsageForPublicClient(usage);
     assert.equal(publicUsage.modelLabel, GEMINI_37_FLASH_DISPLAY_NAME);
     assert.equal(publicUsage.selectedAI, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
     assert.equal(publicUsage.adultRouting, undefined);
+    assertNoInternalEconomics(publicUsage, "handoff-6");
     assert.equal(publicUsage.cost, 9);
   });
 
   it("7. billing cost stays on the delivered model, not the selected label", () => {
-    const qwenTurn = sanitizeUsageForPublicReceipt(
+    const qwenTurn = serializeUsageForPublicClient(
       usageWith({
         selected: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
         selectedLabel: CLAUDE_OPUS_5_DISPLAY_NAME,
@@ -223,7 +216,7 @@ describe("adult handoff display — public field freeze", () => {
         cost: 12,
       })
     );
-    const deepseekTurn = sanitizeUsageForPublicReceipt(
+    const deepseekTurn = serializeUsageForPublicClient(
       usageWith({
         selected: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         selectedLabel: GEMINI_37_FLASH_DISPLAY_NAME,
@@ -255,7 +248,7 @@ describe("adult handoff display — public field freeze", () => {
       `포인트 차감: ${receipt.totalCost} P`,
     ].join("\n");
     assert.equal(formatBillingReceiptText(receipt), expected);
-    assert.equal(sanitizeUsageForPublicReceipt(usage).adultRouting, undefined);
+    assert.equal(serializeUsageForPublicClient(usage).adultRouting, undefined);
   });
 
   it("picker notice never names Qwen/DeepSeek or margin/cost internals", () => {
@@ -284,6 +277,7 @@ describe("adult handoff display — public field freeze", () => {
     const publicPayload = serializeVariantsForClient(variants, 0);
     assert.equal(publicPayload.variants[0]?.usage?.adultRouting, undefined);
     assert.equal(publicPayload.variants[0]?.usage?.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
+    assertNoInternalEconomics(publicPayload.variants[0]!.usage!, "handoff-variant-public");
     const adminPayload = serializeVariantsForClient(variants, 0, {
       keepInternalAdultRouting: true,
     });
@@ -291,5 +285,33 @@ describe("adult handoff display — public field freeze", () => {
       adminPayload.variants[0]?.usage?.adultRouting?.actualModel,
       CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
     );
+  });
+});
+
+describe("stripAdultRoutingForClient — routing identity only", () => {
+  it("ROUTING_HELPER_REMOVES_OR_REWRITES_ROUTING_METADATA=true", () => {
+    const usage = usageWith({
+      selected: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      selectedLabel: CLAUDE_OPUS_5_DISPLAY_NAME,
+      actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+      cost: 12,
+    });
+    const routingOnly = stripAdultRoutingForClient(usage);
+    assert.equal(routingOnly.adultRouting, undefined);
+    assert.equal(routingOnly.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
+    assert.equal(routingOnly.selectedAI, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
+  });
+
+  it("ROUTING_HELPER_OWNS_ECONOMICS_PRIVACY=false", () => {
+    const usage = usageWith({
+      selected: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      selectedLabel: CLAUDE_OPUS_5_DISPLAY_NAME,
+      actual: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+      cost: 12,
+    });
+    const routingOnly = stripAdultRoutingForClient(usage);
+    assert.equal(routingOnly.apiRawCostKrw, 30);
+    assert.equal(routingOnly.upstreamCostUsd, 0.02);
+    assert.equal(routingOnly.exchangeRateKrwPerUsd, 1400);
   });
 });

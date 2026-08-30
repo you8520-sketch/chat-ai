@@ -41,6 +41,16 @@ export const PUBLIC_USAGE_INTERNAL_TOP_LEVEL_KEYS = [
   "cacheWriteLine",
   "cacheRateSummary",
   "cacheFamily",
+  /** Provider cache accounting — admin receipt only. */
+  "cacheReadTokens",
+  "cacheWriteTokens",
+  "standardInputTokens",
+  /** Internal physical-call / recovery topology. */
+  "lengthRecoveryPasses",
+  /** Internal prompt assembly telemetry. */
+  "assembledInputTokens",
+  /** Legacy unused fallback model label on Usage — no public reader. */
+  "fallback",
 ] as const;
 
 /**
