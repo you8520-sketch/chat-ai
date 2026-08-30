@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { callGeminiBackground } from "@/lib/ai";
+import { callBackgroundMemory } from "@/lib/ai";
 import {
   splitOpeningPlayableTurns,
   RAW_HISTORY_COMPLETE_EXCHANGES,
@@ -333,7 +333,7 @@ export async function summarizeTurnBatch(opts: {
   const callLlm: RollingSummaryLlmCaller =
     summarizeTurnBatchCallerOverride ??
     ((system, history, turnTrace, requestKind) =>
-      callGeminiBackground(system, history, turnTrace, requestKind));
+      callBackgroundMemory(system, history, turnTrace, requestKind));
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -462,7 +462,7 @@ export async function compactCurrentMemory(
     const userContent = expandFrom
       ? `[원문]\n${combined}\n\n[이전 압축 결과 — 너무 짧음 (${expandFrom.length}자)]\n${expandFrom}`
       : combined;
-    const { text } = await callGeminiBackground(
+    const { text } = await callBackgroundMemory(
       system,
       [{ role: "user", content: userContent }],
       turnTrace,

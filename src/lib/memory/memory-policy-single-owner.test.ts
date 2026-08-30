@@ -154,4 +154,8 @@ describe("single memory policy owner", () => {
     assert.equal(repoRgCount("incrementMessageCount"), 0);
     assert.equal(repoRgCount("updateLorebook\\("), 0);
   });
+
+  it("callGeminiBackground deprecated alias has zero runtime references", () => {
+    assert.equal(repoRgCount("callGeminiBackground"), 0);
+  });
 });
