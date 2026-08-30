@@ -174,6 +174,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   mainModelDelta?: RelationshipMetaDelta | null;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
+  assistantMessageId?: number;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
@@ -197,7 +198,13 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     names.userName,
     opts.route,
     prevNormalized,
-    opts.turnTrace
+    opts.turnTrace,
+    opts.assistantMessageId
+      ? {
+          chatId: opts.chatId,
+          assistantMessageId: opts.assistantMessageId,
+        }
+      : undefined
   );
   return applyRelationshipDeltaToChat({
     chatId: opts.chatId,

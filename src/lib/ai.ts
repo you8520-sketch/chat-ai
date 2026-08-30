@@ -7,6 +7,8 @@ import {
 } from "@/lib/chatMemory";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
+import type { ProviderCostLedgerContext } from "@/lib/providerCostLedger";
+import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
@@ -376,7 +378,12 @@ async function callGeminiOnce(
   system: string,
   history: ChatMsg[],
   modelId: string,
-  opts?: { requestKind?: string; maxTokens?: number; temperature?: number }
+  opts?: {
+    requestKind?: string;
+    maxTokens?: number;
+    temperature?: number;
+    ledgerContext?: ProviderCostLedgerContext;
+  }
 ): Promise<{ text: string; usage: TokenUsage }> {
   if (
     isCheaperInferenceModel(modelId)
@@ -436,6 +443,7 @@ async function callGeminiOnce(
     disableReasoning: unboundedNoReasoningRequest,
     requestKind,
     timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
+    ledgerContext: opts?.ledgerContext,
   });
 }
 
@@ -472,7 +480,12 @@ export async function callBackgroundMemory(
   history: ChatMsg[],
   _turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
   requestKind = "background-memory-extract",
-  opts?: { maxTokens?: number; temperature?: number; modelId?: string }
+  opts?: {
+    maxTokens?: number;
+    temperature?: number;
+    modelId?: string;
+    ledgerContext?: ProviderCostLedgerContext;
+  }
 ): Promise<{ text: string; usage: TokenUsage }> {
   const explicitModelId = opts?.modelId?.trim();
   const modelId = explicitModelId
@@ -483,6 +496,12 @@ export async function callBackgroundMemory(
       requestKind,
       maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
       temperature: opts?.temperature,
+      ledgerContext: opts?.ledgerContext
+        ? {
+            ...opts.ledgerContext,
+            requestedModel: opts.ledgerContext.requestedModel || targetModelId,
+          }
+        : undefined,
     });
   return call(modelId);
 }
@@ -648,7 +667,12 @@ export async function extractRelationshipMetaFromTurn(
   userName: string,
   route: Route,
   prevMeta?: import("@/lib/chatMemory").MemoryMeta,
-  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
+  ledgerOpts?: {
+    chatId: number;
+    assistantMessageId: number;
+    jobAttemptOrdinal?: number;
+  }
 ): Promise<import("@/lib/chatMemory").RelationshipMetaDelta> {
   const existing = prevMeta ?? { honorifics: [], items: [], thoughts: [], promises: [] };
   const dialogue = `${userMessage}\n${assistantMessage}`;
@@ -684,6 +708,15 @@ ${activePromises}
     },
   ];
   try {
+    const ledgerContext = ledgerOpts
+      ? buildPlatformAsyncTurnLedgerContext({
+          chatId: ledgerOpts.chatId,
+          assistantMessageId: ledgerOpts.assistantMessageId,
+          family: "memory_relationship",
+          jobAttemptOrdinal: ledgerOpts.jobAttemptOrdinal ?? 1,
+          requestKind: "background-memory-extract",
+        })
+      : undefined;
     const { text } = await callBackgroundMemory(
       `${system}
 
@@ -692,7 +725,9 @@ Do not extract or update honorifics/nicknames, NPC thoughts, inner_thoughts, emo
 Only durable relationship facts may be non-empty: items, itemsRemove, promisesAdd, promisesRemove.
 Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" even if the schema contains those keys.`,
       history,
-      turnTrace
+      turnTrace,
+      "background-memory-extract",
+      { ledgerContext }
     );
     const trimmed = text.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);

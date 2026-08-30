@@ -31,7 +31,8 @@ function emptySharedRunResult(
 /** Canonical owner — exactly one physical shared initial provider call per eligible turn. */
 export async function runPostTurnSharedInitial(
   input: PostTurnSharedInitialInput,
-  caller?: StatusWidgetExtractCaller
+  caller?: StatusWidgetExtractCaller,
+  ledgerContext?: import("@/lib/providerCostLedger").ProviderCostLedgerContext
 ): Promise<PostTurnSharedInitialRunResult> {
   const invoke =
     caller ??
@@ -40,6 +41,7 @@ export async function runPostTurnSharedInitial(
         maxTokens: opts.maxTokens,
         temperature: opts.temperature,
         modelId: opts.modelId,
+        ledgerContext,
       }));
 
   const system = buildPostTurnSharedInitialSystem(input);

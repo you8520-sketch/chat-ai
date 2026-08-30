@@ -111,11 +111,23 @@ export type DeepSeekFailoverDeadlines = {
   backupCompletionMs?: number;
 };
 
+export type DeepSeekPhysicalAttemptLifecycle = {
+  physicalAttemptOrdinal: number;
+  provider: DeepSeekProviderId;
+  model: string;
+  success: boolean;
+  httpStatus: number | null;
+};
+
 export type DeepSeekFailoverHooks = {
   fetchFn?: typeof fetch;
   now?: () => number;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   onTelemetry?: (telemetry: DeepSeekFailoverTelemetry) => void;
+  onPhysicalAttemptStart?: (
+    info: Pick<DeepSeekPhysicalAttemptLifecycle, "physicalAttemptOrdinal" | "provider" | "model">
+  ) => void;
+  onPhysicalAttemptFinish?: (info: DeepSeekPhysicalAttemptLifecycle) => void;
 };
 
 export class DeepSeekProviderFailoverError extends Error {
@@ -555,12 +567,40 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     });
   };
 
+  const primaryModel =
+    typeof opts.primary.body.model === "string" ? opts.primary.body.model : logicalModelId;
+  const backupModel =
+    typeof opts.backupBody.model === "string"
+      ? opts.backupBody.model
+      : resolveDeepSeekBackupModelId(opts.logicalModel);
+
+  const finishPrimaryAttempt = (success: boolean, httpStatus: number | null) => {
+    opts.hooks?.onPhysicalAttemptFinish?.({
+      physicalAttemptOrdinal: 1,
+      provider: "cheaperinference",
+      model: primaryModel,
+      success,
+      httpStatus,
+    });
+  };
+
   const primaryStarted = now();
+  opts.hooks?.onPhysicalAttemptStart?.({
+    physicalAttemptOrdinal: 1,
+    provider: "cheaperinference",
+    model: primaryModel,
+  });
   const attemptBackup = async (): Promise<{
     response: Response;
     telemetry: DeepSeekFailoverTelemetry;
     usedProvider: DeepSeekProviderId;
   }> => {
+    finishPrimaryAttempt(false, telemetry.primary_http_status);
+    opts.hooks?.onPhysicalAttemptStart?.({
+      physicalAttemptOrdinal: 2,
+      provider: "openrouter",
+      model: backupModel,
+    });
     try {
       const backupResponse = await runBackup({
         opts,
@@ -570,8 +610,22 @@ export async function executeDeepSeekWithProviderFailover(opts: {
         backupFirstVisibleDeadline,
         completionDeadline: backupCompletionDeadline,
       });
+      opts.hooks?.onPhysicalAttemptFinish?.({
+        physicalAttemptOrdinal: 2,
+        provider: "openrouter",
+        model: backupModel,
+        success: true,
+        httpStatus: backupResponse.status,
+      });
       return finish(backupResponse, "openrouter");
     } catch (error) {
+      opts.hooks?.onPhysicalAttemptFinish?.({
+        physicalAttemptOrdinal: 2,
+        provider: "openrouter",
+        model: backupModel,
+        success: false,
+        httpStatus: telemetry.primary_http_status,
+      });
       throw failBoth(error);
     }
   };
@@ -610,6 +664,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
         : classified.failureClass;
       telemetry.failover_trigger = failover ? error.trigger : null;
       if (!failover) {
+        finishPrimaryAttempt(false, classified.httpStatus);
         throw new DeepSeekDeterministicProviderError({
           message: errorMessage(error),
           httpStatus: classified.httpStatus,
@@ -627,6 +682,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     telemetry.primary_failure_class = classified.failureClass;
     telemetry.failover_trigger = classified.failover ? classified.trigger : null;
     if (!classified.failover) {
+      finishPrimaryAttempt(false, classified.httpStatus);
       throw new DeepSeekDeterministicProviderError({
         message: errorMessage(error),
         httpStatus: classified.httpStatus,
@@ -645,6 +701,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     telemetry.primary_failure_class = classified.failureClass;
     telemetry.primary_http_status = classified.httpStatus;
     if (!classified.failover) {
+      finishPrimaryAttempt(false, classified.httpStatus);
       throw new DeepSeekDeterministicProviderError({
         message: `CheaperInference ${primaryResponse.status}: ${bodyText.slice(0, 240)}`,
         httpStatus: classified.httpStatus,
@@ -656,6 +713,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
   }
 
   if (!opts.stream) {
+    finishPrimaryAttempt(true, primaryResponse.status);
     return finish(primaryResponse, "cheaperinference");
   }
 
@@ -684,6 +742,7 @@ export async function executeDeepSeekWithProviderFailover(opts: {
     telemetry.primary_failure_class = classified.failureClass;
     telemetry.failover_trigger = classified.failover ? "error" : null;
     if (!classified.failover) {
+      finishPrimaryAttempt(false, classified.httpStatus);
       throw new DeepSeekDeterministicProviderError({
         message: errorMessage(error),
         httpStatus: classified.httpStatus,

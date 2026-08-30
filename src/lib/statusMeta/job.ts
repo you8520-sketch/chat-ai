@@ -149,6 +149,7 @@ async function runStatusMetaExtraction(opts: {
         ...opts,
         previousMeta,
         formatSpec,
+        jobAttemptOrdinal: attempt,
       });
       lastMeta = meta;
       if (statusMetaHasDisplayContent(meta, formatSpec)) {
