@@ -304,7 +304,16 @@ async function main() {
     process.exit(1);
   }
 
-  const outDir = process.env.PROBE_OUT_DIR ?? "docs/audits/trpg-sandbox-blueprint-quality-probe";
+  const outDir =
+    process.env.PROBE_OUT_DIR ?? "docs/audits/trpg-sandbox-blueprint-quality-probe";
+  if (
+    outDir === "docs/audits/trpg-sandbox-blueprint-quality-probe" &&
+    process.env.ALLOW_QUALITY_PROBE_BASELINE_WRITE !== "1"
+  ) {
+    console.warn(
+      "[sandbox-blueprint-probe] writing to frozen #741 baseline dir; set PROBE_OUT_DIR=docs/audits/trpg-sandbox-blueprint-transport-reliability for transport confirmation runs"
+    );
+  }
   mkdirSync(outDir, { recursive: true });
 
   const runs: SandboxBlueprintProbeRunRecord[] = [];

@@ -5,7 +5,7 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
+import { executeDeepSeekBackgroundWithProviderFailover, TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND } from "@/lib/deepseekProviderFailover";
 import type { TrpgModelUsage } from "./billing";
 import {
   parseScenarioDraftJson,
@@ -88,7 +88,7 @@ const MOCK_DRAFT = JSON.stringify({
 });
 
 export const TRPG_SCENARIO_DRAFT_REQUEST_KIND = "trpg-scenario-draft";
-export const TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND = "trpg-sandbox-blueprint";
+export { TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND };
 
 export type TrpgAuthoringKind = "scenario_draft" | "sandbox_blueprint";
 export type TrpgAuthoringStage = "primary" | "repair";

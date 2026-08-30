@@ -38,6 +38,9 @@ export const BACKGROUND_BACKUP_COMPLETION_MS = {
   sandboxBlueprint: 60_000,
 } as const;
 
+/** Canonical transport request kind for sandbox Blueprint primary generation only. */
+export const TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND = "trpg-sandbox-blueprint";
+
 export const DEEPSEEK_TRANSIENT_NETWORK_CLASSES = [
   "UND_ERR_SOCKET",
   "ECONNRESET",
@@ -370,7 +373,7 @@ export function resolveBackgroundFlashProviderDeadlines(opts: {
   existingTimeoutMs?: number;
 }): { primaryCompletionMs: number; backupCompletionMs: number } {
   const kind = opts.requestKind ?? "";
-  const isSandboxBlueprint = /trpg-sandbox-blueprint/i.test(kind);
+  const isSandboxBlueprint = kind === TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND;
   const isLongForm =
     !isSandboxBlueprint &&
     /html-visual-card|background-html|scenario-draft|trpg-scenario|director|background-memory-extract/i.test(

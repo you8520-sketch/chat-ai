@@ -1,32 +1,32 @@
 {
-  "generatedAt": "2026-08-30T06:35:28.871Z",
+  "generatedAt": "2026-08-30T04:43:23.395Z",
   "frozenWorldCount": 12,
   "highRiskRepeatCalls": 4,
   "totalProviderRuns": 16,
-  "successfulParsedBlueprints": 16,
-  "transportFailures": 0,
+  "successfulParsedBlueprints": 12,
+  "transportFailures": 4,
   "parseFailures": 0,
   "repairFailures": 0,
   "semanticBlueprintRejects": 0,
-  "endToEndGenerationSuccessRate": 1,
+  "endToEndGenerationSuccessRate": 0.75,
   "parsedBlueprintAcceptanceRate": 1,
-  "primaryWorldEndToEndPassRate": 1,
+  "primaryWorldEndToEndPassRate": 0.75,
   "primaryParsedBlueprintAcceptanceRate": 1,
   "missingStartingSituation": 0,
   "missingCentralConflict": 0,
   "missingGoal": 0,
   "missingEndingConditionsAmongParsed": 0,
-  "highRiskTransportFailures": 0,
+  "highRiskTransportFailures": 1,
   "highRiskMissingEndingConditions": 0,
   "agencyHeuristicHits": 2,
   "agencyHumanConfirmedFailures": 0,
-  "railroadHeuristicHits": 1,
+  "railroadHeuristicHits": 2,
   "railroadHumanConfirmedFailures": 0,
-  "humanReviewNotes": "",
-  "medianLatencyMs": 16603,
-  "p95LatencyMs": 127466,
-  "avgInputTokens": 1042.25,
-  "avgOutputTokens": 1337.25,
+  "humanReviewNotes": "W06/W07 goal phrasing heuristic false positives; human review found no agency or railroad failures.",
+  "medianLatencyMs": 16077,
+  "p95LatencyMs": 88865,
+  "avgInputTokens": 1043.6666666666667,
+  "avgOutputTokens": 1420.0833333333333,
   "jsonRepairTriggered": 0,
   "jsonRepairSuccess": 0,
   "runs": [
@@ -48,7 +48,7 @@
         "ENDING_CONDITIONS_VALID": true,
         "ENDING_CANDIDATES_COUNT": 3,
         "MAJOR_EVENTS_COUNT": 3,
-        "CLUES_COUNT": 3,
+        "CLUES_COUNT": 2,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
         "WORLD_CANON_CONTRADICTION": false,
@@ -65,23 +65,23 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "플레이어들은 지하철역에 마련된 작은 거점에 모여 있다. 최근 방사능이 북쪽에서 남쪽으로 확산되고 있으며, 연료 저장고를 장악한 갱단 '잿빛 발톱",
-        "centralConflict": "잿빛 발톱 갱단이 연료를 독점하여 생존자들을 압박하고, 방사능 확산으로 거주 가능 지역이 줄어든다. 이에 맞서거나 협상하거나 대안을 찾는 것이 ",
-        "goal": "거점의 생존을 유지하고 주민들을 안전하게 보호하면서, 방사능과 갱단의 위협을 해결할 방법을 찾는 것이다.",
+        "startingSituation": "플레이어들은 지하철역 거점 중 하나에 정착한 생존자 무리로, 식량과 약품이 부족한 상황에서 새로운 보급 경로를 찾아 나서야 한다.",
+        "centralConflict": "자원 부족과 방사능 확대 속에서 생존자 거점 간의 대립, 갱단의 연료 장악, 그리고 고립된 생존자들의 생존 경쟁이 겹쳐진다.",
+        "goal": "거점의 생존 기반을 안정시키고, 방사능과 갱단의 위협 속에서 생존자 공동체의 지속 가능한 미래를 구축한다.",
         "endingConditions": [
-          "거점이 30일 이상 자립적으로 운영되고 방사능 위협이 봉쇄되었을 때",
-          "잿빛 발톱 갱단이 해체되거나 협력 관계로 전환되어 평화가 도래했을 때"
+          "생존자 거점이 자급자족 가능한 식량과 약품을 확보하고, 방사능 확대를 막을 방법을 찾았을 때",
+          "주요 갱단 세력이 해체되거나 협력 관계를 맺어 더 이상 거점을 위협하지 않게 되었을 때"
         ],
         "endingCandidates": [
-          "거점을 방사능으로부터 보호하고 갱단과 휴전하여 생존 공동체를 구축한다.",
-          "갱단을 무력으로 제압하고 연료를 확보하여 거점을 강화한다.",
-          "터널 집단과 합류하여 지하 사회를 건설한다."
+          "정화 시설을 가동시켜 방사능이 줄어들고, 생존자들이 새로운 희망을 얻는다.",
+          "갱단과의 동맹을 통해 연료와 자원을 공평하게 분배하는 체계를 만든다.",
+          "결국 모든 거점이 붕괴하고, 생존자들은 더 먼 곳으로 떠난다."
         ],
-        "playLength": "long"
+        "playLength": "open_ended"
       },
-      "inputTokens": 1055,
-      "outputTokens": 1346,
-      "latencyMs": 73598,
+      "inputTokens": 1075,
+      "outputTokens": 1500,
+      "latencyMs": 16077,
       "error": null
     },
     {
@@ -100,7 +100,7 @@
         "GOAL_PRESENT": true,
         "ENDING_CONDITIONS_COUNT": 2,
         "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 2,
+        "ENDING_CANDIDATES_COUNT": 3,
         "MAJOR_EVENTS_COUNT": 2,
         "CLUES_COUNT": 2,
         "CLIMAX_PRESENT": true,
@@ -119,22 +119,23 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "탐험대는 최근 폭풍으로 나침반을 잃고, 회색 대륙의 미지의 지역에 고립되었다. 주변에는 낯선 유적과 기이한 생태계가 펼쳐져 있다.",
-        "centralConflict": "대륙의 끝을 찾으려는 탐험대의 욕구와, 회색 대륙의 왜곡된 지형과 시간이 흐르는 특성으로 인해 길을 잃고 돌아오지 못하는 위험 사이의 긴장.",
-        "goal": "생존 가능한 경로를 개척하고, 대륙의 끝 또는 귀환 가능한 기준점을 발견하여 탐험대의 목적을 달성한다.",
+        "startingSituation": "탐험대는 회색 대륙의 변방에서 출발한다. 나침반이 불안정하고, 지도는 무용지물이다.",
+        "centralConflict": "대륙의 끝을 찾으려는 탐험대와, 대륙의 비밀을 숨기려는 자연적·초자연적 장애물이 대립한다.",
+        "goal": "대륙의 끝에 도달하거나, 끝이 없음을 증명하는 결정적 증거를 발견한다.",
         "endingConditions": [
-          "탐험대가 대륙의 끝 또는 귀환 가능한 기준점을 발견하고, 그 위치를 기록으로 남긴다.",
-          "탐험대가 정착 가능한 안전 지대를 구축하여 더 이상 떠돌 필요가 없게 된다."
+          "탐험대가 대륙의 끝 또는 무한 순환의 증거를 발견하고 이를 기록으로 남긴다.",
+          "탐험대가 대륙의 끝을 찾는 것을 포기하고 정착지를 건설하여 새로운 삶을 시작한다."
         ],
         "endingCandidates": [
-          "탐험대가 대륙의 순환 구조를 받아들이고, 안전한 정착지를 건설하여 새로운 삶을 시작한다.",
-          "탐험대가 순환 구조를 역이용하여 대륙을 벗어나는 방법을 찾아내고, 외부 세계로 귀환한다."
+          "탐험대가 순환 구조를 받아들이고, 그 지식을 바탕으로 대륙의 자원을 활용하는 정착지를 세운다.",
+          "탐험대가 순환 구조를 깨는 방법을 찾기 위해 계속 탐험을 이어간다.",
+          "탐험대가 기록을 남기고 대륙을 떠나려 하지만, 귀환 방법을 찾지 못해 좌절한다."
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1045,
-      "outputTokens": 1275,
-      "latencyMs": 90649,
+      "inputTokens": 1065,
+      "outputTokens": 1128,
+      "latencyMs": 12744,
       "error": null
     },
     {
@@ -142,54 +143,17 @@
       "category": "fantasy adventure",
       "runIndex": 0,
       "highRisk": false,
-      "primaryParseSuccess": true,
+      "primaryParseSuccess": false,
       "repairTriggered": false,
       "repairSuccess": false,
-      "generationFailure": null,
+      "generationFailure": "transport_timeout",
       "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 3,
-        "CLUES_COUNT": 3,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "왕이 실종된 지 1년, 왕실은 유언을 찾지 못해 후계 문제로 혼란하다. 최근 안개 속에서 고대 수호자가 나타나 왕의 유언과 관련된 단서를 흘렸다",
-        "centralConflict": "안개가 영토를 바꾸면서 유언이 잃어버린 마을 중 하나에 숨겨져 있다. 기사단과 마법사 길드는 각자의 방식으로 유언을 찾으려 하며, 고대 수호자는",
-        "goal": "왕의 유언을 찾아 왕국의 후계 문제를 해결하고, 안개의 비밀을 밝혀 왕국의 미래를 결정한다.",
-        "endingConditions": [
-          "플레이어가 왕의 유언을 확보하여 왕실에 전달하거나 파기하는 결정을 내리고, 그 결과가 왕국의 정치 구도에 반영된다.",
-          "안개의 근원과 고대 수호자의 정체가 밝혀지고, 안개의 변화가 멈추거나 새로운 균형이 잡힌다."
-        ],
-        "endingCandidates": [
-          "왕실에 유언을 전달하여 합법적인 후계자가 즉위하고 안개가 안정된다.",
-          "유언을 파기하고 안개의 힘을 해방하여 새로운 시대를 연다.",
-          "유언을 숨기고 기사단과 길드의 균형을 유지한다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1033,
-      "outputTokens": 1489,
-      "latencyMs": 14525,
-      "error": null
+      "metrics": null,
+      "planSummary": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "latencyMs": 0,
+      "error": "body completion deadline exceeded"
     },
     {
       "worldId": "W04_mystery_investigation",
@@ -207,9 +171,9 @@
         "GOAL_PRESENT": true,
         "ENDING_CONDITIONS_COUNT": 2,
         "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 2,
-        "CLUES_COUNT": 2,
+        "ENDING_CANDIDATES_COUNT": 2,
+        "MAJOR_EVENTS_COUNT": 3,
+        "CLUES_COUNT": 4,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
         "WORLD_CANON_CONTRADICTION": false,
@@ -226,23 +190,22 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "플레이어들은 안개 항구에 도착한 여행자들로, 최근 발생한 실종 사건에 대해 조사해 달라는 의뢰를 받는다.",
-        "centralConflict": "항구의 권력 집단(조합, 경찰, 신문사, 밀수꾼)이 각자의 이익을 위해 실종 사건의 진실을 은폐하고 있으며, 유령선의 정체와 관련된 비밀이 도시",
-        "goal": "실종 사건의 진실을 밝히고, 유령선의 비밀을 파헤쳐 항구를 위협하는 근본 원인을 해결한다.",
+        "startingSituation": "최근 유령선이 항구에 들어왔고, 선원 전원이 실종된 채 발견되었다. 도시는 혼란에 빠졌고, 조합·경찰·신문사·밀수꾼이 각자 정보를 쥐고 있다.",
+        "centralConflict": "항구 아래 지하 동굴에서 벌어지는 비밀 조직의 인신매매와 실종 사건이 유령선과 연결되어 있다.",
+        "goal": "실종자 명단과 등대 기록을 추적하여 지하 동굴의 진실을 밝히고, 유령선의 비밀을 규명한다.",
         "endingConditions": [
-          "유령선의 정체와 실종 사건의 진실이 밝혀지고, 항구의 위협이 제거되거나 봉인된다.",
-          "플레이어들이 항구의 권력 집단과 대립하여 진실을 공표하고, 도시의 질서가 새롭게 재편된다."
+          "지하 동굴의 비밀 조직이 해체되고 실종자들의 운명이 밝혀진 상태",
+          "유령선의 정체와 항구의 연결 고리가 공개되어 더 이상 실종이 발생하지 않는 상태"
         ],
         "endingCandidates": [
-          "유령선을 봉인하고 항구에 평화가 찾아온다.",
-          "진실을 공표하고 항구의 권력 구조가 무너진다.",
-          "플레이어들이 유령선의 힘을 이용해 새로운 질서를 세운다."
+          "비밀 조직이 체포되고, 실종자들이 구조되어 항구에 평화가 찾아온다",
+          "유령선이 파괴되고, 지하 동굴이 봉쇄되며, 항구의 어둠이 드러나지만 완전히 해결되지는 않는다"
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1035,
-      "outputTokens": 1277,
-      "latencyMs": 12919,
+      "inputTokens": 1016,
+      "outputTokens": 1190,
+      "latencyMs": 14992,
       "error": null
     },
     {
@@ -259,11 +222,11 @@
         "STARTING_SITUATION_PRESENT": true,
         "CENTRAL_CONFLICT_PRESENT": true,
         "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
+        "ENDING_CONDITIONS_COUNT": 3,
         "ENDING_CONDITIONS_VALID": true,
         "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 2,
-        "CLUES_COUNT": 2,
+        "MAJOR_EVENTS_COUNT": 4,
+        "CLUES_COUNT": 4,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
         "WORLD_CANON_CONTRADICTION": false,
@@ -280,243 +243,29 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "학교 이사회가 재정난을 이유로 다음 학기 폐교를 결정했고, 남은 학기가 마지막이 될 위기다. 학생과 교사, 마을 주민은 각자 다른 입장에서 학교",
-        "centralConflict": "폐교를 둘러싼 학교 구성원과 마을 주민의 이해관계가 충돌하며, 학교를 살리기 위한 노력과 개인의 선택이 얽힌다.",
-        "goal": "학교의 폐교 여부를 결정짓는 학기말 총회에서 학교를 살릴지, 자연스러운 마무리를 받아들일지 방향을 정한다.",
+        "startingSituation": "학교는 3개월 후 폐교가 결정된 상태. 학생 수는 급감했고,교사진도 줄었으며, 마을 주민들은 학교 폐교 후 지역 경제 악화를 우려한다. 학교 축",
+        "centralConflict": "학교 폐교를 막기 위한 다양한 시도(축제 성공, 학생 모집, 마을 연대, 재정 확보)와 이를 방해하는 현실적 장애물(예산 부족, 학부모 이탈, ",
+        "goal": "학교가 폐교 위기를 극복하고 다음 학년도에도 운영될 수 있는 상태를 만드는 것.",
         "endingConditions": [
-          "학기말 총회에서 학교의 폐교 여부가 최종 결정되어 새로운 학기 계획이 확정된다.",
-          "학교와 마을의 관계가 근본적으로 변화하여 더 이상 폐교 위기가 재발하지 않는다."
+          "학교 이사회가 다음 학년도 운영을 공식 승인한다.",
+          "학생 수가 폐교 기준치를 넘어 정상 운영이 결정된다.",
+          "학교와 마을이 공동으로 새로운 교육 프로그램을 시작한다."
         ],
         "endingCandidates": [
-          "학교가 기부와 마을의 지지로 살아나고, 새로운 학기를 맞이한다.",
-          "학교는 폐교되지만, 마을에 새로운 커뮤니티 공간으로 재탄생한다.",
-          "학교는 폐교되고, 구성원들은 각자의 길을 가며 마을은 쇠퇴한다."
+          "학교가 정상 운영을 유지하고 마을과 협력 관계를 강화한다.",
+          "학교가 폐교되지만, 부지가 마을 교육 공간으로 재탄생한다.",
+          "학교가 소규모 대안 학교로 전환되어 명맥을 유지한다."
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1040,
-      "outputTokens": 1214,
-      "latencyMs": 19430,
+      "inputTokens": 1021,
+      "outputTokens": 1535,
+      "latencyMs": 15189,
       "error": null
     },
     {
       "worldId": "W06_political_faction",
       "category": "political faction conflict",
-      "runIndex": 0,
-      "highRisk": false,
-      "primaryParseSuccess": true,
-      "repairTriggered": false,
-      "repairSuccess": false,
-      "generationFailure": null,
-      "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 2,
-        "CLUES_COUNT": 2,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": true,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "VIOLATED"
-      },
-      "planSummary": {
-        "startingSituation": "항성 연합의 4개 식민지(상회, 군부, 노동조합, 종교단)가 독립 문제로 갈등하는 가운데, 정체불명의 외부 함대가 접근하며 긴장이 최고조에 달한",
-        "centralConflict": "독립을 둘러싼 4개 세력의 대립과 외부 함대의 위협이 얽혀, 식민지의 미래가 불투명하다. 각 세력은 자신의 목적을 위해 플레이어를 이용하려 하며",
-        "goal": "플레이어는 각 세력과의 교류를 통해 외부 함대의 정체를 파악하고, 식민지의 독립 여부와 방향을 결정하는 데 영향을 미친다.",
-        "endingConditions": [
-          "외부 함대의 정체와 목적이 플레이어에게 밝혀지고, 이 정보가 주요 세력(최소 2개)에 전달되어 각 세력의 입장이 변화한다.",
-          "식민지의 독립 여부와 방향이 결정되어, 4개 세력이 그 결과를 받아들이거나 새로운 대립 구도가 형성된다."
-        ],
-        "endingCandidates": [
-          "식민지가 독립을 쟁취하지만, 외부 함대와의 전쟁이 시작된다.",
-          "식민지가 독립을 포기하고 본국에 복귀하지만, 내부의 불만이 남는다.",
-          "플레이어가 중재자가 되어 평화적 해결을 이끌어낸다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1048,
-      "outputTokens": 1610,
-      "latencyMs": 17976,
-      "error": null
-    },
-    {
-      "worldId": "W07_horror",
-      "category": "horror",
-      "runIndex": 0,
-      "highRisk": false,
-      "primaryParseSuccess": true,
-      "repairTriggered": false,
-      "repairSuccess": false,
-      "generationFailure": null,
-      "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 3,
-        "CLUES_COUNT": 3,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "당신은 리모델링 공사가 진행 중인 아파트에 살고 있다. 최근 이웃들이 하나씩 이사 나가고 새 가구가 들어오는데, 새 이웃들은 모두 이상하리만치 ",
-        "centralConflict": "아파트 내에서 발생하는 초자연적 현상의 원인을 규명하고, 이웃들이 바뀌는 이유를 밝혀내는 것. 관리실, 종교집단, 전입자들이 서로 다른 설명을 ",
-        "goal": "아파트의 진실을 밝히고, 이웃들이 바뀌는 현상을 멈추거나 그 영향에서 벗어나는 것.",
-        "endingConditions": [
-          "제단이 파괴되거나 봉인되어 더 이상 주민을 바꾸지 않게 된다.",
-          "모든 침잠자가 원래 상태로 돌아오거나, 아파트에서 퇴거하여 현상이 종료된다."
-        ],
-        "endingCandidates": [
-          "제단을 파괴하고 아파트가 정상으로 돌아온다.",
-          "제단을 봉인하고 아파트를 떠난다.",
-          "종교집단에 흡수되어 침잠자가 된다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1035,
-      "outputTokens": 1409,
-      "latencyMs": 15545,
-      "error": null
-    },
-    {
-      "worldId": "W08_dungeon_expedition",
-      "category": "dungeon / expedition",
-      "runIndex": 0,
-      "highRisk": false,
-      "primaryParseSuccess": true,
-      "repairTriggered": false,
-      "repairSuccess": false,
-      "generationFailure": null,
-      "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 4,
-        "CLUES_COUNT": 2,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "플레이어들은 모험가 길드에 등록된 신참 또는 경험자로, 미궁의 최신 지도를 구매하고 첫 탐험을 준비 중이다. 길드에서는 최근 심층에서 고대 엔진",
-        "centralConflict": "미궁의 구조가 주기적으로 변하면서 탐험이 위험해지고, 길드 내부에서는 정보를 독점하려는 세력과 공개하려는 세력 간의 갈등이 있다. 또한 고대 엔",
-        "goal": "미궁의 심층에 도달하여 고대 엔진의 정체와 잃어버린 원정대의 운명을 밝히고, 미궁의 변화를 이해하거나 통제할 방법을 찾는 것.",
-        "endingConditions": [
-          "플레이어들이 고대 엔진의 정체와 원정대의 운명을 밝히고, 미궁의 변화에 대한 이해를 얻는다.",
-          "미궁의 심층에 도달하여 엔진과 상호작용하거나 그 힘을 무력화하는 결정을 내린다."
-        ],
-        "endingCandidates": [
-          "플레이어들이 엔진을 제어하여 미궁을 안정시키고, 길드의 정보 독점을 무너뜨린다.",
-          "플레이어들이 엔진을 끄고 미궁을 봉인하여, 더 이상의 탐험을 막는다.",
-          "플레이어들이 엔진의 힘을 이용해 미궁을 새로운 차원으로 개방한다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1037,
-      "outputTokens": 1405,
-      "latencyMs": 16603,
-      "error": null
-    },
-    {
-      "worldId": "W09_urban_supernatural",
-      "category": "urban supernatural",
-      "runIndex": 0,
-      "highRisk": false,
-      "primaryParseSuccess": true,
-      "repairTriggered": false,
-      "repairSuccess": false,
-      "generationFailure": null,
-      "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 2,
-        "MAJOR_EVENTS_COUNT": 3,
-        "CLUES_COUNT": 2,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "플레이어들은 각자의 사연으로 야간 광역시에 모인다. 최근 도시 전역에서 미신과 관련된 사건이 급증하고, 조사국과 민간 해결사들이 활동을 강화하고",
-        "centralConflict": "조사국과 민간 해결사 사이의 경쟁과 갈등, 그리고 도시 미신의 근원을 둘러싼 비밀이 중심 갈등이다.",
-        "goal": "도시 미신의 실체와 그 근원을 밝혀내고, 도시의 균형을 유지하거나 새로운 질서를 세우는 것.",
-        "endingConditions": [
-          "도시 미신의 근원이 밝혀지고, 그에 대한 주요 세력(조사국, 민간 해결사 등)의 입장이 정리된다.",
-          "도시의 미신 체계가 안정되거나, 새로운 체계로 대체되어 더 이상 통제 불능 상태가 아니다."
-        ],
-        "endingCandidates": [
-          "플레이어들이 미신 체계를 수리하여 도시를 보호한다.",
-          "플레이어들이 미신 체계를 해체하고 새로운 질서를 세운다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1026,
-      "outputTokens": 1228,
-      "latencyMs": 12801,
-      "error": null
-    },
-    {
-      "worldId": "W10_slice_of_life",
-      "category": "low-stakes slice-of-life",
       "runIndex": 0,
       "highRisk": false,
       "primaryParseSuccess": true,
@@ -549,23 +298,203 @@
         "PLAYER_AGENCY": "VIOLATED"
       },
       "planSummary": {
-        "startingSituation": "마을은 한적한 항구로, 주민들은 카페와 선박 정비로 생계를 잇고 있다. 곧 다가올 축제 준비가 시작되면서 주민들 사이에 미묘한 긴장이 감돈다.",
-        "centralConflict": "마을의 전통을 고수하려는 세력과 새로운 변화를 원하는 세력이 축제의 방향과 항구 활용을 두고 대립한다.",
-        "goal": "플레이어들은 마을의 갈등을 중재하거나 한쪽을 지지하며, 축제를 성공적으로 치르고 마을의 미래 방향을 결정하도록 돕는다.",
+        "startingSituation": "연합 내 4개 식민지(상회, 군부, 노동조합, 종교단)가 독립 문제로 극한 대립 중. 최근 외부 함대가 경계선에 접근하여 모든 세력이 군사적 긴",
+        "centralConflict": "각 세력은 독립 이후의 미래상을 두고 충돌하며, 외부 함대의 개입 가능성이 모든 계획을 뒤흔든다. 협상, 암살, 여론전, 자원 봉쇄 등 다양한 ",
+        "goal": "플레이어는 연합의 미래를 결정하는 분쟁에서 자신의 목표(특정 세력의 승리, 중립 유지, 외부 함대의 위협 제거 등)를 달성하기 위해 행동한다.",
         "endingConditions": [
-          "축제가 무사히 끝나고 마을의 새로운 방향이 주민 투표나 합의로 결정된다.",
-          "주요 갈등이 해소되어 마을의 정체성이 뚜렷이 정해진다."
+          "연합 내 주요 세력 간의 전면전이 발발하거나 평화 협정이 체결되어 분쟁이 일단락되는 상태",
+          "외부 함대의 정체가 공개되어 모든 세력이 이를 알게 되고, 이에 대한 연합의 공동 대응이 결정되는 상태"
         ],
         "endingCandidates": [
-          "마을이 전통을 유지하며 소규모 축제를 계속 연다.",
-          "마을이 현대화되어 관광객이 늘고 경제가 활성화된다.",
-          "두 세력이 절충안을 만들어 전통과 변화를 공존시킨다."
+          "평화 협정: 외부 함대의 정체가 공개되고, 연합이 이를 받아들여 협력 체제를 구축한다.",
+          "전면전: 군부의 선동이 성공하여 연합이 외부 함대와 전쟁을 시작하고, 플레이어는 전쟁의 소용돌이 속에서 생존을 모색한다.",
+          "분열 가속: 외부 함대의 정체가 공개되어도 각 세력이 협력을 거부하고, 연합은 완전히 분열하여 독립 전쟁이 장기화된다."
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1006,
-      "outputTokens": 1108,
-      "latencyMs": 58202,
+      "inputTokens": 1028,
+      "outputTokens": 2105,
+      "latencyMs": 60292,
+      "error": null
+    },
+    {
+      "worldId": "W07_horror",
+      "category": "horror",
+      "runIndex": 0,
+      "highRisk": false,
+      "primaryParseSuccess": true,
+      "repairTriggered": false,
+      "repairSuccess": false,
+      "generationFailure": null,
+      "semanticReject": false,
+      "metrics": {
+        "STARTING_SITUATION_PRESENT": true,
+        "CENTRAL_CONFLICT_PRESENT": true,
+        "GOAL_PRESENT": true,
+        "ENDING_CONDITIONS_COUNT": 3,
+        "ENDING_CONDITIONS_VALID": true,
+        "ENDING_CANDIDATES_COUNT": 3,
+        "MAJOR_EVENTS_COUNT": 5,
+        "CLUES_COUNT": 5,
+        "CLIMAX_PRESENT": true,
+        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
+        "WORLD_CANON_CONTRADICTION": false,
+        "PLAYER_ACTION_PREDECIDED": true,
+        "RAILROAD_MAJOR": true,
+        "ENDING_CONDITION_VAGUE": false,
+        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
+        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
+        "GLOBAL_DIRECTION": "ADEQUATE",
+        "MAJOR_EVENTS": "OPTIONAL",
+        "CLUES": "USEFUL",
+        "CLIMAX": "PLAUSIBLE",
+        "ENDING_CANDIDATES": "FLEXIBLE",
+        "PLAYER_AGENCY": "VIOLATED"
+      },
+      "planSummary": {
+        "startingSituation": "플레이어는 침잠 아파트의 신규 입주자로, 이사 첫날부터 공사 소음과 함께 복도 끝에 평소와 다른 문이 보인다.",
+        "centralConflict": "아파트의 리모델링이 실제로는 차원 간 균열을 확장시키는 의식이며, 관리실과 종교집단, 일부 주민이 각자의 목적을 위해 균열을 이용한다.",
+        "goal": "균열의 정체를 규명하고, 아파트가 완전히 붕괴되기 전에 균열을 봉인하거나 다른 해결책을 찾는다.",
+        "endingConditions": [
+          "균열이 봉인되어 아파트가 정상으로 돌아온다",
+          "균열이 완전히 열려 아파트가 다른 차원과 합쳐진다",
+          "관리실과 종교집단의 계획이 모두 실패하여 아파트가 버려진다"
+        ],
+        "endingCandidates": [
+          "균열을 봉인하고 아파트를 정상화한다",
+          "균열을 열어 다른 차원의 존재와 공존한다",
+          "아파트를 포기하고 탈출한다"
+        ],
+        "playLength": "open_ended"
+      },
+      "inputTokens": 1015,
+      "outputTokens": 1274,
+      "latencyMs": 88865,
+      "error": null
+    },
+    {
+      "worldId": "W08_dungeon_expedition",
+      "category": "dungeon / expedition",
+      "runIndex": 0,
+      "highRisk": false,
+      "primaryParseSuccess": true,
+      "repairTriggered": false,
+      "repairSuccess": false,
+      "generationFailure": null,
+      "semanticReject": false,
+      "metrics": {
+        "STARTING_SITUATION_PRESENT": true,
+        "CENTRAL_CONFLICT_PRESENT": true,
+        "GOAL_PRESENT": true,
+        "ENDING_CONDITIONS_COUNT": 2,
+        "ENDING_CONDITIONS_VALID": true,
+        "ENDING_CANDIDATES_COUNT": 3,
+        "MAJOR_EVENTS_COUNT": 2,
+        "CLUES_COUNT": 4,
+        "CLIMAX_PRESENT": true,
+        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
+        "WORLD_CANON_CONTRADICTION": false,
+        "PLAYER_ACTION_PREDECIDED": false,
+        "RAILROAD_MAJOR": false,
+        "ENDING_CONDITION_VAGUE": false,
+        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
+        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
+        "GLOBAL_DIRECTION": "ADEQUATE",
+        "MAJOR_EVENTS": "OPTIONAL",
+        "CLUES": "USEFUL",
+        "CLIMAX": "PLAUSIBLE",
+        "ENDING_CANDIDATES": "FLEXIBLE",
+        "PLAYER_AGENCY": "PRESERVED"
+      },
+      "planSummary": {
+        "startingSituation": "모험가 길드가 미궁의 최신 층 정보를 거래하는 가운데, 최근 심층에서 고대 엔진의 이상 신호가 감지되어 길드가 조사대를 모집한다.",
+        "centralConflict": "미궁의 구조 변화가 심화되며 고대 엔진이 불안정해지고, 이로 인해 층이 붕괴하거나 새로운 위험이 출현한다. 여러 세력이 엔진의 힘을 차지하려 한",
+        "goal": "고대 엔진의 정체를 밝히고, 미궁의 위협을 해소하거나 기록을 회수하여 길드에 보고한다.",
+        "endingConditions": [
+          "고대 엔진의 정체와 원정대의 운명을 확인하고, 미궁의 안정 또는 붕괴를 선택적으로 해결한다.",
+          "길드에 핵심 기록을 회수하거나 엔진의 상태를 보고하여 캠페인이 종결된다."
+        ],
+        "endingCandidates": [
+          "엔진을 안정화시켜 미궁을 보존하고 길드에 보고한다.",
+          "엔진을 정지시켜 미궁을 붕괴시키고, 남은 기록을 회수한다.",
+          "엔진의 힘을 이용하려는 세력을 저지하고 미궁을 봉인한다."
+        ],
+        "playLength": "open_ended"
+      },
+      "inputTokens": 1037,
+      "outputTokens": 1250,
+      "latencyMs": 15405,
+      "error": null
+    },
+    {
+      "worldId": "W09_urban_supernatural",
+      "category": "urban supernatural",
+      "runIndex": 0,
+      "highRisk": false,
+      "primaryParseSuccess": false,
+      "repairTriggered": false,
+      "repairSuccess": false,
+      "generationFailure": "transport_timeout",
+      "semanticReject": false,
+      "metrics": null,
+      "planSummary": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "latencyMs": 0,
+      "error": "body completion deadline exceeded"
+    },
+    {
+      "worldId": "W10_slice_of_life",
+      "category": "low-stakes slice-of-life",
+      "runIndex": 0,
+      "highRisk": false,
+      "primaryParseSuccess": true,
+      "repairTriggered": false,
+      "repairSuccess": false,
+      "generationFailure": null,
+      "semanticReject": false,
+      "metrics": {
+        "STARTING_SITUATION_PRESENT": true,
+        "CENTRAL_CONFLICT_PRESENT": true,
+        "GOAL_PRESENT": true,
+        "ENDING_CONDITIONS_COUNT": 2,
+        "ENDING_CONDITIONS_VALID": true,
+        "ENDING_CANDIDATES_COUNT": 3,
+        "MAJOR_EVENTS_COUNT": 4,
+        "CLUES_COUNT": 4,
+        "CLIMAX_PRESENT": true,
+        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
+        "WORLD_CANON_CONTRADICTION": false,
+        "PLAYER_ACTION_PREDECIDED": false,
+        "RAILROAD_MAJOR": false,
+        "ENDING_CONDITION_VAGUE": false,
+        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
+        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
+        "GLOBAL_DIRECTION": "ADEQUATE",
+        "MAJOR_EVENTS": "OPTIONAL",
+        "CLUES": "USEFUL",
+        "CLIMAX": "PLAUSIBLE",
+        "ENDING_CANDIDATES": "FLEXIBLE",
+        "PLAYER_AGENCY": "PRESERVED"
+      },
+      "planSummary": {
+        "startingSituation": "봄이 시작되는 시점, 마을의 오래된 선박 정비소가 폐업 위기에 처했고, 카페 주인은 새로운 메뉴를 준비 중이다. 축제 준비 위원회가 결성되어 주",
+        "centralConflict": "마을이 관광객 유치를 위해 변화하려는 움직임과, 전통과 일상을 지키려는 주민들 사이의 갈등이 표면화된다. 이 과정에서 이웃 간의 관계와 마을의 ",
+        "goal": "마을의 미래 방향을 결정하고, 주민들의 갈등을 해소하거나 수용하여 마을이 새로운 균형을 찾도록 돕는다.",
+        "endingConditions": [
+          "마을의 미래 방향(관광 개발 또는 전통 유지)이 주민 투표나 합의를 통해 결정된다.",
+          "개발업자의 계획이 무산되거나, 마을이 그와 협력하는 조건을 명확히 정하여 더 이상의 갈등이 없다."
+        ],
+        "endingCandidates": [
+          "마을이 관광 개발을 선택하여 새로운 활기를 얻지만, 전통이 일부 희생된다.",
+          "마을이 전통을 지키며 개발을 거부하고, 주민들이 단결하여 자체적인 활로를 모색한다.",
+          "개발업자와 협상하여 일부 개발을 수용하고, 정비소를 문화공간으로 보존하는 절충안이 채택된다."
+        ],
+        "playLength": "open_ended"
+      },
+      "inputTokens": 1026,
+      "outputTokens": 1352,
+      "latencyMs": 16629,
       "error": null
     },
     {
@@ -584,8 +513,8 @@
         "GOAL_PRESENT": true,
         "ENDING_CONDITIONS_COUNT": 2,
         "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 2,
+        "ENDING_CANDIDATES_COUNT": 2,
+        "MAJOR_EVENTS_COUNT": 3,
         "CLUES_COUNT": 2,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
@@ -603,23 +532,22 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "탐사대가 협곡 입구에 임시 캠프를 세웠다. 첫 겨울이 오기 전에 정착지 기반을 다져야 한다.",
-        "centralConflict": "협곡의 자원을 두고 유목민, 광산 회사, 연구팀의 이해관계가 충돌하고, 계절 재해가 모든 계획을 위협한다.",
-        "goal": "정착지를 자립 가능한 공동체로 성장시키고, 협곡 내 세력과의 관계를 안정적으로 유지한다.",
+        "startingSituation": "플레이어들은 개척대의 일원으로 협곡 입구에 도착했다. 협곡 내부는 미지의 영역이며, 정착지 건설을 위한 초기 기반을 마련해야 한다.",
+        "centralConflict": "협곡 내 다양한 세력(유목민, 광산 회사, 연구팀)과의 이해관계 충돌, 한정된 자원을 둘러싼 경쟁, 그리고 주기적으로 닥치는 계절 재해가 정착지",
+        "goal": "정착지를 번영시키고 협곡에서 지속 가능한 공동체를 구축하는 것.",
         "endingConditions": [
-          "정착지가 1년 이상 자립적으로 운영되고, 협곡 내 주요 세력과 우호 또는 중립 관계를 유지한다.",
-          "계절 재해의 원인을 규명하거나, 재해에 대비한 방어 시설을 완비하여 정착지가 안정적으로 유지된다."
+          "정착지가 자급자족하고 주요 위협(계절 재해, 적대 세력)을 해결하거나 관리 가능한 수준으로 만든 상태.",
+          "협곡 내 주요 세력(유목민, 광산, 연구팀)과의 관계가 안정적으로 정착지의 생존을 보장하는 상태."
         ],
         "endingCandidates": [
-          "정착지가 협곡의 중심지로 성장하고, 세력들이 공존하는 평화로운 공동체가 된다.",
-          "정착지가 광산 회사의 지배를 받게 되거나, 유목민과의 갈등으로 고립된다.",
-          "고대 유적의 힘을 이용해 재해를 통제하지만, 그 대가로 새로운 위험을 초래한다."
+          "정착지가 협곡의 중심지로 성장하고, 세력들이 평화 공존하는 결말.",
+          "정착지가 고대 유적의 힘을 이용해 계절 재해를 제어하지만, 새로운 책임을 떠안는 결말."
         ],
         "playLength": "open_ended"
       },
       "inputTokens": 1023,
-      "outputTokens": 1178,
-      "latencyMs": 17719,
+      "outputTokens": 1307,
+      "latencyMs": 16382,
       "error": null
     },
     {
@@ -627,54 +555,17 @@
       "category": "broad lore-heavy world",
       "runIndex": 0,
       "highRisk": false,
-      "primaryParseSuccess": true,
+      "primaryParseSuccess": false,
       "repairTriggered": false,
       "repairSuccess": false,
-      "generationFailure": null,
+      "generationFailure": "transport_timeout",
       "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 4,
-        "CLUES_COUNT": 2,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "플레이어는 한 도시의 기록 보관소에서 일하는 조사자로, 최근 들어 고서의 내용이 하룻밤 사이에 바뀌는 사건을 접수한다. 다른 문명에서도 비슷한 ",
-        "centralConflict": "기록 변조의 원인을 두고 각 문명이 서로를 의심하고, 과거의 사건을 재해석하면서 정치적 긴장이 고조된다.",
-        "goal": "기록 변조의 진실을 규명하고, 각 문명의 역사가 왜곡되기 전에 원래 기록을 복원하거나 새로운 균형을 확립한다.",
-        "endingConditions": [
-          "플레이어가 기록 변조의 원인을 밝혀내고, 최소 두 문명이 이를 인정하고 협력하기 시작한다.",
-          "고대 존재를 봉인하거나, 그 존재와 새로운 계약을 맺어 기록 변조가 중단된다."
-        ],
-        "endingCandidates": [
-          "플레이어가 고대 존재를 봉인하고 기록을 원래대로 복원한다.",
-          "플레이어가 고대 존재와 공존하는 방법을 찾아 기록 변조가 아닌 다른 방식으로 기억을 공급한다.",
-          "플레이어가 고대 존재를 파괴하지만, 그 과정에서 일부 문명의 역사가 영원히 사라진다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1033,
-      "outputTokens": 1390,
-      "latencyMs": 15012,
-      "error": null
+      "metrics": null,
+      "planSummary": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "latencyMs": 0,
+      "error": "body completion deadline exceeded"
     },
     {
       "worldId": "W01_apocalypse_survival",
@@ -693,7 +584,7 @@
         "ENDING_CONDITIONS_COUNT": 2,
         "ENDING_CONDITIONS_VALID": true,
         "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 4,
+        "MAJOR_EVENTS_COUNT": 3,
         "CLUES_COUNT": 2,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
@@ -711,23 +602,23 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "플레이어들은 지하철역 거점에 도착한다. 거점은 붕괴 직후부터 생존자들이 모여든 곳으로, 식량과 물이 부족하고 방사능 구역이 가까워지고 있다. 지",
-        "centralConflict": "생존을 위한 자원 확보와 방사능 확산, 그리고 갱단의 위협 사이에서 거점의 안전을 유지하고 생존자들을 이끌어야 한다.",
-        "goal": "거점을 안정적으로 유지하고, 방사능 구역을 피하거나 정화할 방법을 찾으며, 갱단과의 관계를 관리하여 장기적인 생존 기반을 마련한다.",
+        "startingSituation": "플레이어들은 지하철역 거점 '동묘 쉘터'의 일원으로, 식량과 물이 부족한 가운데 근처 폐쇄된 슈퍼마켓에서 보급품을 찾는 임무를 시작한다. 거점의",
+        "centralConflict": "희소한 자원을 두고 갱단 '잿빛 독사'와 생존자 거점들 간의 대립이 심화되고, 방사능 구역이 계속 확대되어 생존 가능 지역이 줄어든다. 각 세력",
+        "goal": "플레이어들은 자신들의 거점을 유지·발전시키고, 자원 확보와 방사능 위협 대응을 통해 생존 기반을 강화하며, 수도권 폐허에서 지속 가능한 공동체의",
         "endingConditions": [
-          "거점이 자급자족할 수 있는 식량·물·에너지 공급원을 확보하고, 방사능 구역의 위협이 통제 가능한 수준이 되었을 때",
-          "갱단과의 관계가 안정적으로 해결(협상, 동맹, 제압 등)되고, 거점의 생존자 수가 일정 수준 이상 유지될 때"
+          "생존자 거점 연합이 결성되어 잿빛 독사의 연료 저장고 장악이 무력화되고, 방사능 확산을 늦출 수 있는 공동 대응 체계가 갖춰진 상태.",
+          "플레이어들이 방사능 구역 내 정수 시설을 확보하거나 복구하여 거점의 물 문제를 해결하고, 주변 세력과의 안정적인 교역 관계를 구축한 상태."
         ],
         "endingCandidates": [
-          "거점이 자급자족하고 방사능 위협이 줄어들어 평화로운 생존이 가능해진다.",
-          "갱단과의 동맹으로 지역 안정을 이루고, 연구 시설을 공동 관리한다.",
-          "거점이 붕괴하지만 생존자들은 새로운 희망을 찾아 이동한다."
+          "생존자 연합이 결성되고 잿빛 독사가 세력에서 배제되어, 수도권에 새로운 평화 질서가 싹튼다.",
+          "플레이어들이 정수 시설을 차지하고 자원을 독점하여, 강력한 신흥 세력으로 부상한다.",
+          "모든 세력이 공멸하고 방사능이 완전히 덮쳐, 생존자들이 더 북쪽으로 떠나는 결말."
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1075,
-      "outputTokens": 1330,
-      "latencyMs": 14511,
+      "inputTokens": 1078,
+      "outputTokens": 1884,
+      "latencyMs": 59003,
       "error": null
     },
     {
@@ -746,62 +637,8 @@
         "GOAL_PRESENT": true,
         "ENDING_CONDITIONS_COUNT": 2,
         "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 4,
-        "CLUES_COUNT": 3,
-        "CLIMAX_PRESENT": true,
-        "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
-        "WORLD_CANON_CONTRADICTION": false,
-        "PLAYER_ACTION_PREDECIDED": false,
-        "RAILROAD_MAJOR": false,
-        "ENDING_CONDITION_VAGUE": false,
-        "ENDING_CONDITION_DUPLICATES_ENDING_CANDIDATE": false,
-        "ENDING_CONDITIONS_QUALITY": "PLAYABLE",
-        "GLOBAL_DIRECTION": "ADEQUATE",
-        "MAJOR_EVENTS": "OPTIONAL",
-        "CLUES": "USEFUL",
-        "CLIMAX": "PLAUSIBLE",
-        "ENDING_CANDIDATES": "FLEXIBLE",
-        "PLAYER_AGENCY": "PRESERVED"
-      },
-      "planSummary": {
-        "startingSituation": "플레이어는 서울 외곽의 한 지하철역 거점에 도착했다. 거점은 소규모 생존자 집단이 관리하며, 식량과 물이 부족한 상태다. 주변에는 약탈자 갱단과",
-        "centralConflict": "수도권의 여러 세력(생존자 집단, 갱단, 군 잔존 세력)이 제한된 자원을 두고 대립한다. 플레이어는 세력 간의 관계를 관리하며 거점을 지켜야 한",
-        "goal": "거점을 자립 가능한 수준으로 발전시키고, 지역 내에서 영향력을 확보한다.",
-        "endingConditions": [
-          "거점이 자립 가능한 식량 생산과 방어 시설을 갖추고, 주요 세력과의 평화 또는 동맹 관계를 구축한다.",
-          "플레이어가 지역을 떠나거나, 거점이 파괴되어 캠페인이 종료된다."
-        ],
-        "endingCandidates": [
-          "거점이 자립하고, 주요 세력과의 동맹을 통해 평화로운 공존을 이룬다.",
-          "플레이어가 거점을 떠나 다른 지역으로 이동하며, 그곳에서 새로운 이야기를 시작한다.",
-          "거점이 파괴되고, 플레이어는 생존자들과 함께 유랑하며 다시 시작한다."
-        ],
-        "playLength": "open_ended"
-      },
-      "inputTokens": 1055,
-      "outputTokens": 1326,
-      "latencyMs": 127466,
-      "error": null
-    },
-    {
-      "worldId": "W02_open_exploration",
-      "category": "open exploration",
-      "runIndex": 1,
-      "highRisk": true,
-      "primaryParseSuccess": true,
-      "repairTriggered": false,
-      "repairSuccess": false,
-      "generationFailure": null,
-      "semanticReject": false,
-      "metrics": {
-        "STARTING_SITUATION_PRESENT": true,
-        "CENTRAL_CONFLICT_PRESENT": true,
-        "GOAL_PRESENT": true,
-        "ENDING_CONDITIONS_COUNT": 2,
-        "ENDING_CONDITIONS_VALID": true,
-        "ENDING_CANDIDATES_COUNT": 3,
-        "MAJOR_EVENTS_COUNT": 4,
+        "ENDING_CANDIDATES_COUNT": 2,
+        "MAJOR_EVENTS_COUNT": 2,
         "CLUES_COUNT": 2,
         "CLIMAX_PRESENT": true,
         "EVALUATE_SANDBOX_BLUEPRINT_PASS": true,
@@ -819,24 +656,40 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "탐험대는 대륙의 황량한 외곽에 도착했다. 나침반이 불안정하게 흔들리고, 하늘에서 이상한 빛이 관측된다. 근처에서 고대 관측탑의 흔적을 발견했다.",
-        "centralConflict": "대륙의 기후 변화와 나침반 왜곡이 심해지며, 탐험대는 고립과 배고픔, 그리고 고대 유적의 함정에 맞서야 한다. 또한, 대륙의 비밀을 쫓는 다른 ",
-        "goal": "고대 관측탑의 비밀을 밝혀내고, 대륙의 이상 현상의 원인을 규명하여 안전한 귀환 경로를 찾는 것.",
+        "startingSituation": "생존자들은 지하철역 거점에서 식량과 물이 부족해지자, 주변 폐허를 탐색하며 자원을 찾기 시작한다. 갱단의 영역과 방사능 구역이 위협으로 다가온다",
+        "centralConflict": "희소한 자원을 두고 생존자 거점, 갱단, 방사능 구역이 삼자 구도를 형성한다. 생존자들은 생존을 위해 협력하거나 경쟁해야 하며, 갱단의 압박과 ",
+        "goal": "생존자 거점을 안정적으로 유지하고, 갱단의 위협을 완화하거나 제거하며, 방사능 구역의 확산을 늦추거나 적응할 방법을 찾아 수도권에서 장기 생존 ",
         "endingConditions": [
-          "탐험대가 고대 관측탑의 에너지원을 정지시키고, 대륙의 기후가 안정화되어 안전한 귀환 경로가 열린다.",
-          "탐험대가 대륙의 다른 생존자 집단과 연합하여 정착지를 세우고, 대륙의 이상 현상에 대한 대비책을 마련한다."
+          "생존자 거점이 3개 이상의 거점과 동맹을 맺고, 갱단의 주요 위협이 제거되었거나 중립화되었다.",
+          "방사능 구역 내 정수 시설을 확보하여 거점의 물 문제가 해결되고, 생존자 공동체가 자급자족할 수 있는 기반을 마련했다."
         ],
         "endingCandidates": [
-          "탐험대가 에너지원을 정지시키고 대륙의 평화를 되찾는다.",
-          "탐험대가 정착지를 세우고 대륙의 새로운 일원이 된다.",
-          "탐험대가 귀환을 포기하고 대륙의 비밀을 계속 탐구한다."
+          "생존자 연합이 결성되어 갱단과 공존하거나 협력하는 평화적 해결.",
+          "갱단이 붕괴하고 생존자들이 수도권의 새로운 주도권을 잡는 결말."
         ],
         "playLength": "open_ended"
       },
-      "inputTokens": 1065,
-      "outputTokens": 1411,
-      "latencyMs": 15404,
+      "inputTokens": 1075,
+      "outputTokens": 1337,
+      "latencyMs": 16953,
       "error": null
+    },
+    {
+      "worldId": "W02_open_exploration",
+      "category": "open exploration",
+      "runIndex": 1,
+      "highRisk": true,
+      "primaryParseSuccess": false,
+      "repairTriggered": false,
+      "repairSuccess": false,
+      "generationFailure": "transport_timeout",
+      "semanticReject": false,
+      "metrics": null,
+      "planSummary": null,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "latencyMs": 0,
+      "error": "body completion deadline exceeded"
     },
     {
       "worldId": "W02_open_exploration",
@@ -873,22 +726,22 @@
         "PLAYER_AGENCY": "PRESERVED"
       },
       "planSummary": {
-        "startingSituation": "탐험대는 대륙의 끝자락에 있는 임시 야영지에서 출발한다. 지도에는 미지의 영역이 펼쳐져 있고, 나침반이 간헐적으로 흔들리는 현상이 관측된다. 근",
-        "centralConflict": "대륙의 지도가 끝나지 않는다는 사실과, 나침반 왜곡과 하늘의 이상 현상이 맞물려 탐험대는 방향을 잃기 쉽다. 고대 관측탑의 기록은 이 현상들이 ",
-        "goal": "탐험대는 대륙의 끝을 찾거나, 왜곡의 원인을 밝혀 안정적인 귀환 경로를 확보하는 것을 목표로 삼는다.",
+        "startingSituation": "탐험대는 대륙 동쪽 해안에 도착했다. 나침반이 불안정하고, 주변은 회색 안개에 싸여 있다. 첫 야영지를 정하고 식량과 물자를 확보하는 것부터 시",
+        "centralConflict": "대륙의 고대 문명이 남긴 유적과 하늘의 이상 현상이 연결되어 있다. 탐험대는 생존과 발견 사이에서 선택해야 하며, 어떤 세력이나 개체가 이 비밀",
+        "goal": "대륙의 지도를 완성하고, 고대 문명의 흔적을 추적하며, 하늘의 비밀을 밝혀내는 것.",
         "endingConditions": [
-          "탐험대가 대륙의 끝에 도달하거나, 왜곡의 원인을 밝혀 귀환 경로를 확보한다.",
-          "탐험대가 대륙의 비밀을 기록한 고대 문명의 핵심 유적을 발견하고 그 의미를 이해한다."
+          "탐험대가 대륙의 주요 지역을 탐험하고, 고대 문명의 장치에 대한 핵심 정보를 얻은 상태.",
+          "장치의 존재와 그 영향을 이해하고, 이를 보존하거나 파괴하는 결정을 내린 상태."
         ],
         "endingCandidates": [
-          "탐험대가 방어막의 진실을 받아들이고 대륙 내에서 새로운 삶을 개척한다.",
-          "탐험대가 방어막을 통과하는 방법을 찾아 외부 세계로 나가려 시도한다."
+          "장치를 보존하여 대륙의 균형을 유지하고, 탐험대는 대륙의 기록자로 남는다.",
+          "장치를 파괴하여 대륙의 기후가 변하지만, 새로운 시대가 열린다."
         ],
         "playLength": "open_ended"
       },
       "inputTokens": 1065,
-      "outputTokens": 1400,
-      "latencyMs": 21681,
+      "outputTokens": 1179,
+      "latencyMs": 12531,
       "error": null
     }
   ]

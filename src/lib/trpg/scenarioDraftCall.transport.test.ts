@@ -160,4 +160,17 @@ describe("background deadline profiles", () => {
     assert.equal(at240.primaryCompletionMs, BACKGROUND_PRIMARY_COMPLETION_MS.sandboxBlueprint);
     assert.equal(at90.primaryCompletionMs, at240.primaryCompletionMs);
   });
+
+  it("noncanonical sandbox-like probe kind must not inherit sandbox production profile", () => {
+    assert.deepEqual(
+      resolveBackgroundFlashProviderDeadlines({
+        requestKind: "trpg-sandbox-blueprint-candidate-probe",
+        existingTimeoutMs: 90_000,
+      }),
+      {
+        primaryCompletionMs: BACKGROUND_PRIMARY_COMPLETION_MS.short,
+        backupCompletionMs: BACKGROUND_BACKUP_COMPLETION_MS.short,
+      }
+    );
+  });
 });

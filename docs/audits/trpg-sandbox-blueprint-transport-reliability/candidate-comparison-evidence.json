@@ -1,0 +1,69 @@
+{
+  "generatedAt": "2026-08-30T06:48:00.000Z",
+  "purpose": "Candidate deadline comparison for sandbox Blueprint transport (#745). Separate from frozen #741 quality baseline.",
+  "baselineReference": {
+    "artifact": "docs/audits/trpg-sandbox-blueprint-quality-probe/probe-results.json",
+    "immutable": true,
+    "profile": "trpg-scenario-draft longForm 45s/45s",
+    "totalProviderRuns": 16,
+    "transportFailures": 4,
+    "semanticBlueprintRejects": 0
+  },
+  "approvedProcedure": {
+    "C1": "60/45",
+    "C2": "75/45",
+    "C3": "60/60",
+    "stopAfterC3IfUnreliable": true
+  },
+  "stopBoundaryCrossed": {
+    "previousStopConditionCrossed": true,
+    "selectedOutsideApprovedSequence": "C4_75_60",
+    "humanReviewRequired": true,
+    "reason": "Agent continued to C4 75/60 after C1–C3 did not achieve reliable full-suite zero-failure without crossing approved STOP"
+  },
+  "candidates": {
+    "C1_60_45": {
+      "sourceArtifact": "/opt/cursor/artifacts/trpg-sandbox-transport-c1-probe.log",
+      "historicalFailureFixturesOnly": true,
+      "runs": 4,
+      "success": 4,
+      "doubleTimeout": 0
+    },
+    "C2_75_45": {
+      "sourceArtifact": "/opt/cursor/artifacts/trpg-sandbox-transport-c2-probe.log",
+      "runs": 3,
+      "success": 2,
+      "doubleTimeout": 1
+    },
+    "C3_60_60": {
+      "sourceArtifact": "/opt/cursor/artifacts/trpg-sandbox-transport-c3-probe.log",
+      "runs": 3,
+      "success": 2,
+      "doubleTimeout": 1
+    },
+    "C4_75_60": {
+      "harnessSourceArtifact": "/opt/cursor/artifacts/trpg-sandbox-transport-c4-probe.log",
+      "harnessRuns": 3,
+      "harnessSuccess": 2,
+      "harnessFailure": 1,
+      "fullSuiteIntermediate": [
+        {
+          "sourceArtifact": "/opt/cursor/artifacts/trpg-sandbox-blueprint-transport-regression-final.log",
+          "totalProviderRuns": 16,
+          "transportFailures": 2
+        }
+      ],
+      "fullSuiteFinal": {
+        "artifact": "docs/audits/trpg-sandbox-blueprint-transport-reliability/transport-confirmation-probe-results.json",
+        "totalProviderRuns": 16,
+        "transportFailures": 0
+      },
+      "totalRunsAcrossAllExistingEvidence": 35,
+      "totalSuccess": 32,
+      "totalFailure": 3,
+      "finalBatchRuns": 16,
+      "finalBatchFailures": 0,
+      "intermediateFailures": 3
+    }
+  }
+}
