@@ -636,13 +636,15 @@ describe("POST-706 production presentation timeline", () => {
     assert.deepEqual(diceOrder, [H, B1, B2], "dice order follows resolutionOrder");
   });
 
-  it("round-scoped follow reset on queueSessionKey change", () => {
+  it("manual scroll detach survives queueSessionKey ready transition", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /useLayoutEffect\(\(\) => \{[\s\S]*queueSessionKey[\s\S]*manualScrollDetachedRef\.current = false/);
-    assert.match(room, /hasLeftFollowZoneSinceDetachRef\.current = false/);
-    assert.match(room, /setFollowLatest\(true\)/);
-    assert.match(room, /setUnseenLatest\(false\)/);
-    assert.match(room, /\}, \[queueSessionKey\]\)/);
+    assert.doesNotMatch(
+      room,
+      /useLayoutEffect\(\(\) => \{[\s\S]*queueSessionKey[\s\S]*manualScrollDetachedRef\.current = false[\s\S]*\}, \[queueSessionKey\]\)/
+    );
+    assert.match(room, /manualScrollDetachedRef/);
+    assert.match(room, /detachLiveFollow/);
+    assert.match(room, /scrollToLatest/);
   });
 
   it("directional wheel and touch detach match TrpgCampaignRoom convention", () => {

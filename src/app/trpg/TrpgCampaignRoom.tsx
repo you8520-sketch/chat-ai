@@ -1479,15 +1479,6 @@ export default function TrpgCampaignRoom({
   );
 
   useLayoutEffect(() => {
-    if (!queueSessionKey) return;
-    manualScrollDetachedRef.current = false;
-    hasLeftFollowZoneSinceDetachRef.current = false;
-    followLatestRef.current = true;
-    setFollowLatest(true);
-    setUnseenLatest(false);
-  }, [queueSessionKey]);
-
-  useLayoutEffect(() => {
     hasScrolledToLatestRef.current = null;
     followLatestRef.current = true;
     manualScrollDetachedRef.current = false;
