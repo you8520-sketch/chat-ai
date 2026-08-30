@@ -7,8 +7,6 @@ import {
   shouldTriggerRollingSummary,
 } from "./memory-rolling-summary";
 import {
-  clearBuffer,
-  getBufferCount,
   getOrCreateChatMemory,
   updateChatMemory,
 } from "./memory-db";
@@ -47,11 +45,6 @@ export function syncMemoryFromChat(opts: {
   if (turns.length === 0) return false;
 
   const playableCount = countPlayableTurns(turns);
-
-  const bufferCount = getBufferCount(opts.chatId);
-  if (bufferCount > 0) {
-    clearBuffer(opts.chatId);
-  }
 
   // Never advance summarized_turn_count from legacy text alone — derive from contiguous table rows
   updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
