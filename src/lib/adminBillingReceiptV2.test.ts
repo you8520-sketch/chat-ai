@@ -330,4 +330,69 @@ describe("adminBillingReceiptV2 corrections", () => {
     );
     assert.notEqual(adminReceiptExactnessLabel(receipt.mainRp.actual!.exactness), "정산 확정");
   });
+
+  it("F4 — CI billed complete is settled with margin", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        cost: 80,
+        shadowPricing: shadowFixture({
+          provider: "cheaperinference",
+          actualCostSource: "cheaper_inference_billed",
+          actualTurnCostCoverage: "complete",
+          actualProviderCostKrw: 30,
+        }),
+      })
+    );
+    assert.equal(receipt.mainRp.actual?.exactness, "settled");
+    assert.equal(receipt.mainRp.marginPercent, 63);
+  });
+
+  it("F5 — CI provider_reported only is not settled", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        cost: 80,
+        shadowPricing: shadowFixture({
+          provider: "cheaperinference",
+          actualCostSource: "provider_reported",
+          actualTurnCostCoverage: "complete",
+          actualProviderCostKrw: 30,
+        }),
+      })
+    );
+    assert.notEqual(receipt.mainRp.actual?.exactness, "settled");
+    assert.equal(receipt.mainRp.actual?.exactness, "estimated");
+    assert.equal(receipt.mainRp.marginPercent, null);
+    assert.notEqual(adminReceiptExactnessLabel(receipt.mainRp.actual!.exactness), "정산 확정");
+    const text = formatAdminBillingReceiptV2Text(receipt);
+    assert.doesNotMatch(text, /정산 확정/);
+  });
+
+  it("F6 — CI billed beats upstream conflict remains settled", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        shadowPricing: shadowFixture({
+          provider: "cheaperinference",
+          actualCostSource: "cheaper_inference_billed",
+          actualCostUsd: 0.01,
+          actualTurnCostCoverage: "complete",
+        }),
+      })
+    );
+    assert.equal(receipt.mainRp.actual?.actualProviderCostUsd, 0.01);
+    assert.equal(receipt.mainRp.actual?.exactness, "settled");
+  });
+
+  it("F7 — OpenRouter provider_reported complete remains settled", () => {
+    const receipt = buildAdminBillingReceiptV2(
+      baseUsage({
+        provider: "openrouter",
+        shadowPricing: shadowFixture({
+          provider: "openrouter",
+          actualCostSource: "provider_reported",
+          actualTurnCostCoverage: "complete",
+        }),
+      })
+    );
+    assert.equal(receipt.mainRp.actual?.exactness, "settled");
+  });
 });

@@ -209,7 +209,13 @@ export function buildStatusWidgetExtractReceipt(
   const output = usage.outputTokens;
   const modelId = billingMeta.modelId?.trim() || "unknown";
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
-  const physicalCallCount = usage.syncExtractPhysicalCallCount ?? callCount;
+  const nestedPhysicalCount =
+    typeof usage.syncExtractPhysicalCallCount === "number" &&
+    Number.isInteger(usage.syncExtractPhysicalCallCount) &&
+    usage.syncExtractPhysicalCallCount > 0
+      ? usage.syncExtractPhysicalCallCount
+      : 0;
+  const physicalCallCount = Math.max(callCount, nestedPhysicalCount);
   const billedCallCount =
     usage.syncExtractCiBilledCallCount ??
     (usage.cheaperInferenceBilledCostUsd != null && usage.cheaperInferenceBilledCostUsd > 0

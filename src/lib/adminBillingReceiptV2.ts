@@ -112,24 +112,38 @@ const SETTLED_ACTUAL_SOURCES = new Set<ActualCostSource>([
   "provider_reported",
 ]);
 
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
+function isCheaperInferenceProvider(provider: string): boolean {
+  return provider.trim().toLowerCase() === "cheaperinference";
 }
 
 function resolveMainExactness(
   source: string,
-  coverage: ActualTurnCostCoverage
+  coverage: ActualTurnCostCoverage,
+  provider: string
 ): AdminReceiptExactness {
-  if (SETTLED_ACTUAL_SOURCES.has(source as ActualCostSource) && coverage === "complete") {
-    return "settled";
-  }
   if (coverage === "partial") return "partial";
+
+  if (coverage === "complete") {
+    if (source === "cheaper_inference_billed") {
+      return "settled";
+    }
+    if (source === "provider_reported") {
+      if (isCheaperInferenceProvider(provider)) {
+        return "estimated";
+      }
+      return "settled";
+    }
+  }
+
   if (
     source === "live_catalog_estimated" ||
     source === "published_fallback_estimated" ||
     source === "live_catalog_partial"
   ) {
     return "estimated";
+  }
+  if (SETTLED_ACTUAL_SOURCES.has(source as ActualCostSource) && coverage === "complete") {
+    return "settled";
   }
   return "unavailable";
 }
@@ -157,6 +171,10 @@ function mainMarginEligible(
     actual.exactness === "settled" &&
     actual.actualProviderCostKrw > 0
   );
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
 }
 
 function resolveDeliveredMainModel(
@@ -249,14 +267,15 @@ export function buildAdminBillingReceiptV2(usage: Usage): AdminBillingReceiptV2 
   if (shadow) {
     snapshotAvailable = true;
     const coverage = shadow.actualTurnCostCoverage ?? "complete";
-    const exactness = resolveMainExactness(shadow.actualCostSource, coverage);
+    const deliveredProvider = resolveDeliveredMainProvider(usage, shadow);
+    const exactness = resolveMainExactness(shadow.actualCostSource, coverage, deliveredProvider);
     mainActual = {
       actualProviderCostUsd: shadow.actualCostUsd,
       actualProviderCostKrw: shadow.actualProviderCostKrw,
       actualCostSource: shadow.actualCostSource,
       actualTurnCostCoverage: coverage,
       exactness,
-      provider: resolveDeliveredMainProvider(usage, shadow),
+      provider: deliveredProvider,
       model: deliveredModelId,
     };
     providerReference = {

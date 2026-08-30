@@ -302,4 +302,56 @@ describe("statusWidget receiptUsage", () => {
       "vendor/custom-model (상태창 추출)"
     );
   });
+
+  it("F1 — failed call with no usage + billed repair is partial coverage", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 100,
+        outputTokens: 50,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.001,
+        syncExtractCiBilledCallCount: 1,
+        syncExtractPhysicalCallCount: 1,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "partial");
+    assert.notEqual(receipt.actualCostCoverage, "complete");
+  });
+
+  it("F2 — all represented calls billed yields complete coverage", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 200,
+        outputTokens: 100,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.002,
+        syncExtractCiBilledCallCount: 2,
+        syncExtractPhysicalCallCount: 2,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "complete");
+  });
+
+  it("F3 — nested physical exceeds stale metadata uses larger denominator", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const receipt = buildStatusWidgetExtractReceipt(
+      {
+        inputTokens: 200,
+        outputTokens: 100,
+        estimated: false,
+        cheaperInferenceBilledCostUsd: 0.002,
+        syncExtractCiBilledCallCount: 2,
+        syncExtractPhysicalCallCount: 3,
+      },
+      exchangeRate,
+      { modelId: OPENROUTER_GEMINI_25_FLASH_MODEL, callCount: 2 }
+    );
+    assert.equal(receipt.actualCostCoverage, "partial");
+  });
 });
