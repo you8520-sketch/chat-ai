@@ -62,6 +62,12 @@ function parseSceneState(raw: unknown): TrpgLocalSceneState | undefined {
   return undefined;
 }
 
+function optionalTrimmedMutationString(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function boundedStringList(raw: unknown, maxItems: number): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: string[] = [];
@@ -117,10 +123,14 @@ export function parseLocalSceneProgressDelta(raw: unknown): TrpgLocalSceneProgre
   if (typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const obj = raw as Record<string, unknown>;
   const delta: TrpgLocalSceneProgressDelta = {};
-  if (typeof obj.objectiveSet === "string") delta.objectiveSet = obj.objectiveSet;
-  else if (typeof obj.objective_set === "string") delta.objectiveSet = obj.objective_set;
-  if (typeof obj.sceneTransitionTo === "string") delta.sceneTransitionTo = obj.sceneTransitionTo;
-  else if (typeof obj.scene_transition_to === "string") delta.sceneTransitionTo = obj.scene_transition_to;
+  const objectiveSet =
+    optionalTrimmedMutationString(obj.objectiveSet) ??
+    optionalTrimmedMutationString(obj.objective_set);
+  if (objectiveSet) delta.objectiveSet = objectiveSet;
+  const sceneTransitionTo =
+    optionalTrimmedMutationString(obj.sceneTransitionTo) ??
+    optionalTrimmedMutationString(obj.scene_transition_to);
+  if (sceneTransitionTo) delta.sceneTransitionTo = sceneTransitionTo;
   const resolvedAdd =
     boundedStringList(obj.resolvedObstaclesAdd, TRPG_LOCAL_SCENE_LIST_MAX) ??
     boundedStringList(obj.resolved_obstacles_add, TRPG_LOCAL_SCENE_LIST_MAX);

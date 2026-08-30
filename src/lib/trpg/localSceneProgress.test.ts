@@ -320,6 +320,9 @@ describe("TRPG local scene progress", () => {
     assert.match(TRPG_GM_SYSTEM, /sceneTransitionTo rather than objectiveSet alone/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[LOCAL SCENE RULES\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[SCENE PROGRESS RULES\]/);
+    assert.match(TRPG_GM_SYSTEM, /"localScene":\{\}/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /"sceneStateSet":"active"/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /"objectiveSet":""/);
     const dataBlock = serializeLocalSceneStateForGm(
       applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
         objectiveSet: "건물 탈출",
@@ -359,5 +362,96 @@ describe("TRPG local scene progress", () => {
     assert.doesNotMatch(stateBlock, /기생종/);
     assert.equal((user.match(/^\[LOCAL SCENE STATE\]/gm) ?? []).length, 1);
     assert.equal((user.match(/^\[LOCAL SCENE DELTA CONTRACT\]/gm) ?? []).length, 1);
+  });
+
+  describe("N — mutation-neutral output example and blank delta safety", () => {
+    const transitionReady = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      objectiveSet: "건물 탈출",
+      openRoutesAdd: ["환풍구"],
+      sceneStateSet: "transition_ready",
+    });
+
+    it("N1 neutral example-shaped localScene does not downgrade transition_ready", () => {
+      const parsed = parseLocalSceneProgressDelta({});
+      assert.equal(parsed, undefined);
+      const after = applyLocalSceneProgressDelta(transitionReady, parsed);
+      assert.equal(after.sceneState, "transition_ready");
+      assert.deepEqual(after.openRoutes, ["환풍구"]);
+    });
+
+    it("N2 blank sceneTransitionTo is no-op and does not reset", () => {
+      const full = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        resolvedObstaclesAdd: ["균사벽 제거"],
+        openRoutesAdd: ["환풍구"],
+        remainingBlockersAdd: ["기생종"],
+      });
+      const delta = parseLocalSceneProgressDelta({ sceneTransitionTo: "" });
+      assert.equal(delta, undefined);
+      const after = applyLocalSceneProgressDelta(full, delta);
+      assert.deepEqual(after, full);
+    });
+
+    it("N3 whitespace sceneTransitionTo is no-op and does not reset", () => {
+      const full = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        resolvedObstaclesAdd: ["균사벽 제거"],
+        openRoutesAdd: ["환풍구"],
+        remainingBlockersAdd: ["기생종"],
+      });
+      const delta = parseLocalSceneProgressDelta({ sceneTransitionTo: "   " });
+      assert.equal(delta, undefined);
+      const after = applyLocalSceneProgressDelta(full, delta);
+      assert.deepEqual(after, full);
+    });
+
+    it("N4 blank objectiveSet is no-op and creates no phantom delta", () => {
+      const full = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        openRoutesAdd: ["환풍구"],
+      });
+      assert.equal(parseLocalSceneProgressDelta({ objectiveSet: "" }), undefined);
+      assert.equal(parseLocalSceneProgressDelta({ objectiveSet: "   " }), undefined);
+      const after = applyLocalSceneProgressDelta(full, parseLocalSceneProgressDelta({ objectiveSet: "   " }));
+      assert.deepEqual(after, full);
+    });
+
+    it("N5 explicit sceneStateSet active remains valid", () => {
+      const after = applyLocalSceneProgressDelta(transitionReady, { sceneStateSet: "active" });
+      assert.equal(after.sceneState, "active");
+      assert.deepEqual(after.openRoutes, ["환풍구"]);
+    });
+
+    it("N6 valid sceneTransitionTo still resets collections", () => {
+      const sceneA = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        openRoutesAdd: ["환풍구"],
+        resolvedObstaclesAdd: ["균사벽 제거"],
+        remainingBlockersAdd: ["기생종"],
+      });
+      const sceneB = applyLocalSceneProgressDelta(sceneA, {
+        sceneTransitionTo: "유지보수 터널 안전 통과",
+      });
+      assert.equal(sceneB.objective, "유지보수 터널 안전 통과");
+      assert.deepEqual(sceneB.openRoutes, []);
+      assert.deepEqual(sceneB.resolvedObstacles, []);
+      assert.deepEqual(sceneB.remainingBlockers, []);
+    });
+
+    it("N7 valid same-scene objectiveSet preserves collections", () => {
+      const sceneA = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+        objectiveSet: "건물 탈출",
+        openRoutesAdd: ["환풍구"],
+        resolvedObstaclesAdd: ["균사벽 제거"],
+        remainingBlockersAdd: ["기생종"],
+      });
+      const sceneB = applyLocalSceneProgressDelta(sceneA, {
+        objectiveSet: "건물에서 안전한 탈출구 확보",
+      });
+      assert.equal(sceneB.objective, "건물에서 안전한 탈출구 확보");
+      assert.deepEqual(sceneB.openRoutes, ["환풍구"]);
+      assert.deepEqual(sceneB.resolvedObstacles, ["균사벽 제거"]);
+      assert.deepEqual(sceneB.remainingBlockers, ["기생종"]);
+    });
   });
 });

@@ -221,7 +221,7 @@ Output format exactly:
 <<<NARRATION>>>
 (Korean prose following ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
 <<<DELTA>>>
-{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{"objectiveSet":"","openRoutesAdd":[],"remainingBlockersAdd":[],"sceneStateSet":"active"}}
+{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
 `;
 
 export function formatTrpgSheetCanon(opts: {
