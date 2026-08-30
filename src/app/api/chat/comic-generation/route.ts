@@ -837,17 +837,22 @@ export async function POST(req: Request) {
       let situation: string | undefined;
       let sceneLocation = "";
       let sceneActions: Array<{ name: string; body: string }> = [];
+      let trpgScene: ReturnType<typeof loadTrpgIllustrationScene> = null;
+      let illustrationMessageId: number | null = null;
       let campaignTitle = "";
       let prompt: string;
       if (campaignId) {
-        const scene = loadTrpgIllustrationScene(getDb(), {
+        trpgScene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
           viewerUserId: user.id,
           roundNumber,
         });
-        if (!scene) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
-        campaignTitle = scene.campaignTitle;
-        const pickedMembers = applyTrpgCastImagePicks(scene.members, body.castImagePicks);
+        if (!trpgScene) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
+        if (!trpgScene.narration.trim()) {
+          throw new RequestError("이 라운드 GM 서술이 확정되기 전에는 일러스트를 만들 수 없습니다.");
+        }
+        campaignTitle = trpgScene.campaignTitle;
+        const pickedMembers = applyTrpgCastImagePicks(trpgScene.members, body.castImagePicks);
         const indexed = withIllustrationReferenceIndices(pickedMembers);
         cast = indexed.map((member) => {
           const isPrimary = isPrimarySelectableImage(member.images, member.imageUrl);
@@ -888,32 +893,31 @@ export async function POST(req: Request) {
           referenceIndex: subject.referenceIndex,
           imageUrl: subject.referenceImageUrl,
         }));
-        sceneLocation = scene.location;
-        sceneActions = scene.actions;
-      }
-      const source = resolveSceneSource({
-        chatId: context.chatId,
-        messageId: positiveInt(body.messageId),
-        sourceText: campaignId ? String(body.sourceText ?? "") : undefined,
-        requireChat: !campaignId,
-      });
-      if (campaignId) {
+        sceneLocation = trpgScene.location;
+        sceneActions = trpgScene.actions;
         situation = buildTrpgIllustrationSituation({
           location: sceneLocation,
           actions: sceneActions,
-          narration: source.turnText,
+          narration: trpgScene.narration,
         });
         prompt = buildChatLdIllustrationPrompt({
           characterName: context.character.name,
           characterGender: context.characterGender,
           personaName: context.persona.name,
           personaGender: context.personaGender,
-          currentTurn: source.turnText,
+          currentTurn: trpgScene.narration,
           cast,
           subjects: partyPlan?.subjects,
           situation,
         });
       } else {
+        const source = resolveSceneSource({
+          chatId: context.chatId,
+          messageId: positiveInt(body.messageId),
+          sourceText: String(body.sourceText ?? ""),
+          requireChat: true,
+        });
+        illustrationMessageId = source.messageId;
         const scenePlan = resolveApprovedScenePlan({
           bodyPlan: body.scenePlan,
           messages: source.messages,
@@ -1016,12 +1020,12 @@ export async function POST(req: Request) {
             model,
             JSON.stringify({
               mode: "illustration",
-              source: source.messageId
+              source: illustrationMessageId
                 ? "selected_chat_turn"
                 : campaignId
                   ? "trpg_scene"
                   : "latest_chat_turn",
-              messageId: source.messageId,
+              messageId: illustrationMessageId,
               campaignId: campaignId ?? undefined,
               campaignTitle: campaignTitle || undefined,
               roundNumber: roundNumber ?? undefined,
@@ -1068,7 +1072,7 @@ export async function POST(req: Request) {
         savedToCharacterAlbum,
         title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
-        messageId: source.messageId ?? undefined,
+        messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
         totalPointsCost: deduction.total,

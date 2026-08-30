@@ -399,6 +399,17 @@ export function visualEvents(events: readonly SceneEvent[]): SceneEvent[] {
   return events.filter((event) => event.kind !== "assistant_echo");
 }
 
+/** Environment-only background from canonical events — no dialogue/narration fallback. */
+export function resolveDeterministicSceneBackground(
+  events: readonly SceneEvent[]
+): string {
+  return (
+    visualEvents(events)
+      .find((event) => event.kind === "environment")
+      ?.text.trim() ?? ""
+  );
+}
+
 export function recommendPanelCount(eventCount: number): ScenePanelCount {
   if (eventCount <= 3) return 2;
   if (eventCount <= 5) return 3;
@@ -462,18 +473,16 @@ export function buildDeterministicScenePlan(
   const usable = visualEvents(events);
   const recommendedPanelCount = recommendPanelCount(usable.length);
   const resolvedCount = panelCount ?? recommendedPanelCount;
-  const background =
-    usable.find((event) => event.kind === "environment")?.text ||
-    messages.map((message) => message.text).join(" ").slice(0, 160) ||
-    "대화가 이어지는 장면";
+  const background = resolveDeterministicSceneBackground(events);
   const groups = groupEventsContiguously(events, resolvedCount);
   const heroEvents = usable.slice(0, Math.min(3, usable.length));
+  const heroScene = heroEvents.map((event) => event.text).join(" ").trim();
   return {
     sceneBackground: background,
     atmosphere: undefined,
     events,
     heroEventIds: heroEvents.map((event) => event.id),
-    heroScene: heroEvents.map((event) => event.text).join(" ").trim() || background,
+    heroScene: heroScene || background,
     recommendedPanelCount,
     panels: groups.map((group, index) =>
       panelFromEvents(index + 1, group, background)
@@ -879,7 +888,7 @@ export function validateScenePlan(
   return {
     ok: true,
     plan: {
-      sceneBackground: cleanLine(source.sceneBackground, 200) || "대화가 이어지는 장면",
+      sceneBackground: cleanLine(source.sceneBackground, 200),
       atmosphere: cleanLine(source.atmosphere, 120) || undefined,
       events: canonicalEvents,
       heroEventIds: heroEventIds.length ? heroEventIds : defaultHero,

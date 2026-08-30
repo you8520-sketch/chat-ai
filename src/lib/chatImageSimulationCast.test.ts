@@ -428,7 +428,7 @@ describe("simulation presentation projection regressions", () => {
       castManifest: grounded.manifest,
     });
     assert.equal(visibility.personaVisible, false);
-    assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
+    assert.equal(scenePlan.sceneBackground, "");
 
     const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
     assertAllPanelFieldsExclude(comic, "Situation", USER_PERSONA_TEXT);
@@ -448,7 +448,7 @@ describe("simulation presentation projection regressions", () => {
 
   it("K: projected background removes user text from visible directives but keeps off-camera block", () => {
     const scenePlan = buildDeterministicScenePlan(REAL_CHAT_MESSAGES, 2);
-    assert.ok(scenePlan.sceneBackground.includes(USER_PERSONA_TEXT));
+    assert.equal(scenePlan.sceneBackground, "");
     const visibility = PERSONA_EXCLUDED_VISIBILITY;
     const illustration = formatApprovedScenePlanForIllustration(scenePlan, visibility);
     const comic = formatApprovedScenePlanForComic(scenePlan, visibility);
