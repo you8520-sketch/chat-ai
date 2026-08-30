@@ -1026,8 +1026,6 @@ export default function ChatClient({
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
   const pendingRevealSessionsRef = useRef<Set<StreamRevealController>>(new Set());
-  const streamTargetTextRef = useRef("");
-  const assistantStreamContentRef = useRef("");
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const nsfwMode = isAdult && userNsfwOn;
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
@@ -2335,8 +2333,8 @@ export default function ChatClient({
     const postProcessEvidence: PostProcessPhaseEvidence =
       createEmptyPostProcessPhaseEvidence();
 
-    assistantStreamContentRef.current = "";
-    streamTargetTextRef.current = "";
+    let sessionDisplayedText = "";
+    let sessionTargetText = "";
     let revealLifetimeEnded = false;
 
     const unregisterRevealSession = (sessionReveal: StreamRevealController) => {
@@ -2370,8 +2368,8 @@ export default function ChatClient({
       {
         onAppend: (chunk) => {
           if (!chatMountedRef.current) return;
-          assistantStreamContentRef.current += chunk;
-          const nextContent = assistantStreamContentRef.current;
+          sessionDisplayedText += chunk;
+          const nextContent = sessionDisplayedText;
           setMessages((m) => {
             const copy = [...m];
             const cur = copy[aiIndex];
@@ -2408,8 +2406,8 @@ export default function ChatClient({
     activeStreamRevealRef.current = reveal;
 
     function setAssistantContentInstant(text: string) {
-      assistantStreamContentRef.current = text;
-      streamTargetTextRef.current = text;
+      sessionDisplayedText = text;
+      sessionTargetText = text;
       setMessages((m) => {
         const copy = [...m];
         const cur = copy[aiIndex];
@@ -2423,8 +2421,8 @@ export default function ChatClient({
 
     /** 서버 목표 텍스트까지 — 설정 간격으로 큐 재생 (replace·finalContent 포함) */
     function syncStreamToText(newText: string, forceInstant = false) {
-      const priorTarget = streamTargetTextRef.current;
-      streamTargetTextRef.current = newText;
+      const priorTarget = sessionTargetText;
+      sessionTargetText = newText;
       if (forceInstant || displayPrefsRef.current.streamIntervalMs <= 0) {
         reveal.reset();
         setAssistantContentInstant(newText);
@@ -2432,12 +2430,12 @@ export default function ChatClient({
       }
 
       const plan = planStreamRevealCatchUp(
-        assistantStreamContentRef.current,
+        sessionDisplayedText,
         newText,
         priorTarget,
-        streamTargetTextRef.current
+        sessionTargetText
       );
-      const displayed = assistantStreamContentRef.current;
+      const displayed = sessionDisplayedText;
       if (!plan) {
         if (newText.startsWith(displayed)) {
           const tail = newText.slice(displayed.length);
@@ -2453,15 +2451,15 @@ export default function ChatClient({
         return;
       }
 
-      if (plan.resetQueue || plan.setPrefix !== assistantStreamContentRef.current) {
+      if (plan.resetQueue || plan.setPrefix !== sessionDisplayedText) {
         reveal.reset();
       }
-      if (plan.setPrefix !== assistantStreamContentRef.current) {
-        const displayedCollapsed = collapseStreamCompareText(assistantStreamContentRef.current);
+      if (plan.setPrefix !== sessionDisplayedText) {
+        const displayedCollapsed = collapseStreamCompareText(sessionDisplayedText);
         const prefixCollapsed = collapseStreamCompareText(plan.setPrefix);
         if (
           displayedCollapsed !== prefixCollapsed &&
-          !assistantStreamContentRef.current.startsWith(plan.setPrefix)
+          !sessionDisplayedText.startsWith(plan.setPrefix)
         ) {
           setAssistantContentInstant(plan.setPrefix);
         }
@@ -2482,18 +2480,18 @@ export default function ChatClient({
         softResetPending = false;
       }
       if (reveal.isPaused() && !forceAppend) {
-        streamTargetTextRef.current += text;
+        sessionTargetText += text;
         return;
       }
       if (displayPrefsRef.current.streamIntervalMs <= 0) {
-        setAssistantContentInstant(assistantStreamContentRef.current + text);
+        setAssistantContentInstant(sessionDisplayedText + text);
       } else {
-        const st = streamTargetTextRef.current;
-        const displayed = assistantStreamContentRef.current;
+        const st = sessionTargetText;
+        const displayed = sessionDisplayedText;
         if (text && st.endsWith(text) && st.length - text.length >= displayed.length) {
           return;
         }
-        streamTargetTextRef.current += text;
+        sessionTargetText += text;
         reveal.enqueue(text);
       }
     }
@@ -2504,8 +2502,8 @@ export default function ChatClient({
       opts?: { instant?: boolean; fallbackInstant?: boolean }
     ) {
       softResetPending = false;
-      const displayed = assistantStreamContentRef.current;
-      const streamTarget = streamTargetTextRef.current;
+      const displayed = sessionDisplayedText;
+      const streamTarget = sessionTargetText;
 
       const appendTail = resolveStreamAppendTail(displayed, streamTarget, target);
       if (appendTail !== null) {
@@ -2521,7 +2519,7 @@ export default function ChatClient({
         displayed &&
         collapseStreamCompareText(displayed) === collapseStreamCompareText(target)
       ) {
-        streamTargetTextRef.current = displayed;
+        sessionTargetText = displayed;
         return;
       }
 
@@ -2547,8 +2545,8 @@ export default function ChatClient({
             setAssistantContentInstant(mapped);
           }
           const collapsedAppendTail = resolveStreamAppendTail(
-            assistantStreamContentRef.current,
-            streamTargetTextRef.current,
+            sessionDisplayedText,
+            sessionTargetText,
             target
           );
           if (collapsedAppendTail) appendStreamText(collapsedAppendTail, true);
@@ -2615,7 +2613,7 @@ export default function ChatClient({
             activeVariant: data.activeVariant,
           });
           const canonicalDoneContent = getCanonicalProseBody(activeVariantSource);
-          const streamingContent = assistantStreamContentRef.current || cur.content;
+          const streamingContent = sessionDisplayedText || cur.content;
           const preserveStreaming = opts?.preserveStreamingContent === true;
           const displayContent = preserveStreaming
             ? preferDisplayedNewlineLayout(streamingContent, canonicalDoneContent)
@@ -2623,7 +2621,7 @@ export default function ChatClient({
           logProseSourceDivergenceDev({
             messageId: data.messageId,
             phase: "applyStreamDone",
-            streamingSource: assistantStreamContentRef.current || cur.content,
+            streamingSource: sessionDisplayedText || cur.content,
             activeVariantSource,
             displaySource: displayContent,
             editSource: canonicalDoneContent,
@@ -2999,7 +2997,7 @@ export default function ChatClient({
 
         const eofResult = await reconcileStreamEof({
           messageId: messageIdForReconcile,
-          streamedContentChars: assistantStreamContentRef.current.trim().length,
+          streamedContentChars: sessionDisplayedText.trim().length,
           postProcessEvidence,
           fetchSnapshot: async (messageId) => {
             const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
@@ -3014,7 +3012,7 @@ export default function ChatClient({
 
         if (eofResult.kind === "completed") {
           const s = eofResult.snapshot;
-          applyStreamReplaceTarget(s.content || assistantStreamContentRef.current, {
+          applyStreamReplaceTarget(s.content || sessionDisplayedText, {
             instant: true,
           });
           applyStreamDone({

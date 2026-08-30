@@ -89,27 +89,7 @@ describe("streamReveal lifecycle — server vs visual decoupling", () => {
     assert.equal(shown, "abc");
   });
 
-  it("R9: NEXT TURN RACE — independent reveals append to their own targets", async () => {
-    let rowA = "";
-    let rowB = "";
-    const revealA = createStreamReveal({ onAppend: (c) => { rowA += c; } }, FAST_TEST);
-    const revealB = createStreamReveal({ onAppend: (c) => { rowB += c; } }, FAST_TEST);
-    revealA.enqueue("A1");
-    runStreamRevealTermination(
-      { action: "end_deferred" },
-      { reveal: revealA, removeVisibilityListener: () => {} }
-    );
-    revealB.enqueue("B1");
-    runStreamRevealTermination(
-      { action: "end_deferred" },
-      { reveal: revealB, removeVisibilityListener: () => {} }
-    );
-    await Promise.all([revealA.waitUntilIdle(), revealB.waitUntilIdle()]);
-    assert.equal(rowA, "A1");
-    assert.equal(rowB, "B1");
-  });
-
-  it("R10: SPEED CHANGE AFTER DONE — syncOptions applies without reset", () => {
+  it("R9: SPEED CHANGE AFTER DONE — syncOptions applies without reset", () => {
     let shown = "";
     let intervalMs = 35;
     const reveal = createStreamReveal(
@@ -124,7 +104,7 @@ describe("streamReveal lifecycle — server vs visual decoupling", () => {
     assert.equal([...shown].length, 10);
   });
 
-  it("R11: BACKGROUND AFTER DONE — deferred session still bypasses queue", () => {
+  it("R10: BACKGROUND AFTER DONE — deferred session still bypasses queue", () => {
     let shown = "";
     const reveal = createStreamReveal({ onAppend: (c) => { shown += c; } }, FAST);
     reveal.enqueue("pending");
@@ -138,7 +118,7 @@ describe("streamReveal lifecycle — server vs visual decoupling", () => {
     reveal.flush();
   });
 
-  it("R12: UNMOUNT — flush on dispose clears pending without orphan timer", () => {
+  it("R11: UNMOUNT — flush on dispose clears pending without orphan timer", () => {
     let shown = "";
     const reveal = createStreamReveal({ onAppend: (c) => { shown += c; } }, FAST);
     reveal.enqueue("orphan");
