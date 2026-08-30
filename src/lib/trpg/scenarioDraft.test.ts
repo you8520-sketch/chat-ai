@@ -522,18 +522,18 @@ describe("TRPG scenario AI draft", () => {
     assert.match(editor, /세계관 선택/);
     assert.match(editor, /불러온 세계관에 덧붙일 설정/);
     assert.doesNotMatch(editor, /전체 시나리오 본문|없음 — 독립 시나리오|예전처럼|기존 형식/);
-    assert.match(editor, /추가 GM 메모 \(선택\)/);
+    assert.match(editor, /GM 진행 메모 \(선택\)/);
     assert.ok(editor.indexOf('title="세계관"') < editor.indexOf('title="이야기"'));
     assert.ok(editor.indexOf('data-scenario-field="bundle"') > editor.indexOf('title="표시 / 공개"'));
     assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
     assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
     assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 5);
-    assert.match(editor, /data-scenario-story-details/);
+    assert.doesNotMatch(editor, /data-scenario-story-details/);
     const orderedSections = [
       'title="세계관"',
       'title="이야기"',
       'title="게임 규칙"',
-      'title="조연 / NPC"',
+      'title="보스 / 조연 NPC"',
       'title="표시 / 공개"',
     ].map((title) => editor.indexOf(title));
     assert.ok(
@@ -542,8 +542,8 @@ describe("TRPG scenario AI draft", () => {
       )
     );
     assert.doesNotMatch(editor, /title="이야기 보강"|title="GM 메모|title="공개 설정"/);
-    assert.match(editor, /GM 비공개 설정 \(선택\)/);
-    assert.match(editor, /피해야 할 전개/);
+    assert.doesNotMatch(editor, /GM 비공개 설정 \(선택\)/);
+    assert.doesNotMatch(editor, /피해야 할 전개/);
     assert.match(editor, /scenarioAuthoringStarted \? \(/);
     assert.match(editor, /세계관만으로도 TRPG를 시작할 수 있습니다/);
     assert.match(worldStudio, />\s*세계관\s*<\/button>/);

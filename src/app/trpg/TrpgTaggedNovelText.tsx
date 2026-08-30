@@ -6,6 +6,7 @@ import TrpgCharacterSceneAsset from "@/components/TrpgCharacterSceneAsset";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
+import type { TrpgPublicScenarioNpcImage } from "@/lib/trpg/scenarioNpcAssets";
 import { resolveTrpgCharacterAssetViewerContext } from "@/lib/trpg/trpgCharacterAssetViewerContext";
 import { splitTrpgGmProseForAssets, type TrpgInlineProsePart } from "@/lib/trpg/trpgTaggedProse";
 
@@ -31,6 +32,7 @@ export default function TrpgTaggedNovelText({
   content,
   scenarioAssets,
   characterCatalog = [],
+  npcCatalog = [],
   campaignId,
   roundNumber,
   display,
@@ -48,6 +50,7 @@ export default function TrpgTaggedNovelText({
   content: string;
   scenarioAssets: CharacterAsset[];
   characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  npcCatalog?: readonly TrpgPublicScenarioNpcImage[];
   campaignId: number;
   roundNumber: number;
   display?: Pick<
@@ -68,10 +71,13 @@ export default function TrpgTaggedNovelText({
   const parts = splitTrpgGmProseForAssets(content, {
     scenarioAssets,
     characterCatalog,
+    npcCatalog,
     campaignId,
     roundNumber,
     streaming,
     unlockedUrlsByCharacterId,
+    viewerIsCreator,
+    unlockedUrls,
   });
   if (parts.length === 0) return null;
 
@@ -120,6 +126,15 @@ export default function TrpgTaggedNovelText({
           />
         );
       }
+      case "npc":
+        return (
+          <TrpgCharacterSceneAsset
+            key={`npc-${part.npcKey}-${part.asset.url}-${i}`}
+            asset={part.asset}
+            viewerIsCreator={viewerIsCreator}
+            unlockedUrls={unlockedUrls}
+          />
+        );
       default: {
         const exhaustive: never = part;
         return exhaustive;

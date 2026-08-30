@@ -47,6 +47,12 @@ import {
 } from "./gmSceneAssets";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
 import { playableScenarioAssets, buildScenarioAssetTagPrompt } from "./scenarioAssets";
+import {
+  applyNpcSpeakerImageFallback,
+  buildGmSceneAssetPrompt,
+  collectUsedNpcKeys,
+  npcsWithImages,
+} from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
 import {
   applyCampaignStoryProgress,
@@ -65,6 +71,7 @@ import {
 } from "./localSceneProgress";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
+import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import {
@@ -1121,6 +1128,32 @@ async function generateBotActions(
   }
 }
 
+function loadCampaignScenarioNpcs(db: Database.Database, templateId: number | null | undefined): TrpgScenarioNpc[] {
+  if (!templateId) return [];
+  const row = loadScenarioTemplate(db, templateId);
+  if (!row) return [];
+  return parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]));
+}
+
+function loadCampaignGmNarrations(db: Database.Database, campaignId: number, excludeRoundId?: number): string[] {
+  const rows = (
+    excludeRoundId
+      ? db.prepare(
+          `SELECT g.narration FROM trpg_gm_messages g
+           JOIN trpg_rounds r ON r.id = g.round_id
+           WHERE r.campaign_id=? AND r.id<>?
+           ORDER BY r.round_number ASC`
+        ).all(campaignId, excludeRoundId)
+      : db.prepare(
+          `SELECT g.narration FROM trpg_gm_messages g
+           JOIN trpg_rounds r ON r.id = g.round_id
+           WHERE r.campaign_id=?
+           ORDER BY r.round_number ASC`
+        ).all(campaignId)
+  ) as Array<{ narration: string }>;
+  return rows.map((row) => row.narration).filter(Boolean);
+}
+
 function previousNarration(db: Database.Database, campaignId: number): string {
   const row = db
     .prepare(
@@ -1220,6 +1253,7 @@ async function runGmForRound(
     sheets: sheets.map((s) => ({ name: s.name, stats: s.stats })),
   });
   const scenarioAssets = loadCampaignScenarioAssets(db, campaign.template_id);
+  const scenarioNpcs = loadCampaignScenarioNpcs(db, campaign.template_id);
   const aiContexts = loadTrpgAiCharacterContexts(db, participants);
   const aiPartyIdentities = buildAiPartyIdentityBlock(aiContexts);
   const characterAssetCatalog = buildAiCharacterImageTagCatalog(
@@ -1231,7 +1265,7 @@ async function runGmForRound(
   );
   const campaignContext = loadCampaignContext(db, opts.campaignId);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
-  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan);
+  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
   const completedRounds = (
     db
       .prepare(
@@ -1267,7 +1301,10 @@ async function runGmForRound(
     relationshipBrief: campaign.relationship_brief ?? "",
     aiPartyIdentities,
     characterAssetCatalog,
-    scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
+    scenarioAssetPrompt: buildGmSceneAssetPrompt({
+      scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
+      npcs: scenarioNpcs,
+    }),
     scenarioPlanBlock,
     storyDirectorBlock,
     localSceneBlock,
@@ -1323,10 +1360,18 @@ async function runGmForRound(
     stage = "gm_output_parse";
     const parsed = parseTrpgGmOutput(text);
     stage = "asset_tagging";
+    const usedNpcKeys = collectUsedNpcKeys(loadCampaignGmNarrations(db, opts.campaignId, opts.regenerate ? opts.roundId : undefined));
+    const npcImageKeys = new Set(npcsWithImages(scenarioNpcs).map((npc) => npc.npcKey));
+    parsed.narration = applyNpcSpeakerImageFallback(parsed.narration, {
+      npcs: scenarioNpcs,
+      usedNpcKeys,
+    });
     parsed.narration = enforceGmSceneAssetMarkers(parsed.narration, {
       aiParticipantIds: aiParticipantIdSet(aiContexts),
       characterTagsByParticipant: characterTagsByParticipant(aiContexts),
       scenarioTags: new Set(playableScenarioAssets(scenarioAssets).map((asset) => asset.tag.trim()).filter(Boolean)),
+      npcImageKeys,
+      usedNpcKeys,
     }).text;
     stage = "state_validation";
     mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);

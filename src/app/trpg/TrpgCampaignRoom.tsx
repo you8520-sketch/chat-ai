@@ -2019,6 +2019,7 @@ export default function TrpgCampaignRoom({
               canImage={Boolean(imageId) && Boolean(row.narration || liveGmStreamDraft)}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
+              scenarioNpcImages={snap.scenarioNpcImages ?? []}
               characterCatalog={characterCatalog}
               viewerUserId={snap.viewerUserId}
               unlockedUrlsByCharacterId={unlockedUrlsByCharacterId}
@@ -2460,6 +2461,7 @@ function SceneTurn({
   canImage,
   busy,
   scenarioAssets,
+  scenarioNpcImages = [],
   characterCatalog = [],
   campaignId,
   viewerUserId,
@@ -2505,6 +2507,7 @@ function SceneTurn({
   canImage: boolean;
   busy: boolean;
   scenarioAssets: CharacterAsset[];
+  scenarioNpcImages?: import("@/lib/trpg/scenarioNpcAssets").TrpgPublicScenarioNpcImage[];
   characterCatalog?: TrpgPublicAiCharacterAssets[];
   campaignId: number;
   viewerUserId: number;
@@ -2583,6 +2586,7 @@ function SceneTurn({
   const gmDisplayNarration = liveAssetResolution ? (row.narration ?? shownNarration) : shownNarration;
   const gmScenarioAssets = liveAssetResolution ? scenarioAssets : [];
   const gmCharacterCatalog = liveAssetResolution ? (characterCatalog ?? []) : [];
+  const gmNpcCatalog = liveAssetResolution ? scenarioNpcImages : [];
   useLayoutEffect(() => {
     if (!liveGmRevealStateRef) return;
     liveGmRevealStateRef.current = {
@@ -2783,6 +2787,7 @@ function SceneTurn({
                       text={beat.text}
                       assets={gmScenarioAssets}
                       characterCatalog={gmCharacterCatalog}
+                      npcCatalog={gmNpcCatalog}
                       campaignId={campaignId}
                       roundNumber={row.roundNumber}
                       quoteAssistantRoot={false}
@@ -2799,6 +2804,7 @@ function SceneTurn({
                       display={display}
                       assets={scenarioAssets}
                       characterCatalog={characterCatalog}
+                      npcCatalog={scenarioNpcImages}
                       campaignId={campaignId}
                       roundNumber={row.roundNumber}
                       quoteAssistantRoot={false}

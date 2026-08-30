@@ -1,4 +1,5 @@
 import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
+import type { TrpgScenarioNpc } from "./scenarioTypes";
 
 export const TRPG_SCENARIO_PLAN_VERSION = 1 as const;
 export const TRPG_SCENARIO_PLAN_SCHEMA_VERSION = "trpg-scenario-plan-v1";
@@ -297,8 +298,12 @@ export function effectiveEndingConditionsForGm(plan: TrpgScenarioPlan | null | u
 }
 
 /** Compact GM-only serializer. Empty fields are omitted. Not raw JSON. */
-export function serializeTrpgScenarioPlanForGm(plan: TrpgScenarioPlan | null | undefined): string {
+export function serializeTrpgScenarioPlanForGm(
+  plan: TrpgScenarioPlan | null | undefined,
+  opts?: { npcs?: readonly TrpgScenarioNpc[] }
+): string {
   if (!plan || isTrpgScenarioPlanEmpty(plan)) return "";
+  const skipBoss = opts?.npcs?.some((npc) => npc.role === "boss" && npc.name.trim());
   const body = [
     line("시작 상황:", plan.startingSituation),
     line("중심 갈등:", plan.centralConflict),
@@ -307,7 +312,7 @@ export function serializeTrpgScenarioPlanForGm(plan: TrpgScenarioPlan | null | u
     bullets("현재 사용 가능한 주요 사건 (강제 순서가 아님):", plan.majorEvents),
     bullets("단서:", plan.clues),
     bullets("금지 사건:", plan.forbiddenEvents),
-    line("보스:", plan.boss),
+    skipBoss ? "" : line("보스:", plan.boss),
     bullets("특별 규칙:", plan.specialRules),
     plan.difficulty ? `난이도: ${plan.difficulty}` : "",
     line("클라이맥스:", plan.climax),

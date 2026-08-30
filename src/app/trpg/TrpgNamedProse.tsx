@@ -5,6 +5,7 @@ import NovelText from "@/components/NovelText";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import type { TrpgPublicAiCharacterAssets } from "@/lib/trpg/aiCharacterContext";
+import type { TrpgPublicScenarioNpcImage } from "@/lib/trpg/scenarioNpcAssets";
 import { resolveTrpgSpeakerRail } from "@/lib/trpg/actionCardUi";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import TrpgTaggedNovelText from "./TrpgTaggedNovelText";
@@ -26,6 +27,7 @@ function TrpgGmProseBody({
   body,
   assets = [],
   characterCatalog = [],
+  npcCatalog = [],
   campaignId = 0,
   roundNumber = 0,
   contentStreaming = false,
@@ -36,6 +38,7 @@ function TrpgGmProseBody({
   body: string;
   assets?: CharacterAsset[];
   characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  npcCatalog?: readonly TrpgPublicScenarioNpcImage[];
   campaignId?: number;
   roundNumber?: number;
   contentStreaming?: boolean;
@@ -46,7 +49,8 @@ function TrpgGmProseBody({
   const hasSceneAssets =
     assets.length > 0 ||
     characterCatalog.length > 0 ||
-    /\[(?:캐릭터에셋|태그):/.test(body);
+    npcCatalog.length > 0 ||
+    /\[(?:캐릭터에셋|태그|NPC에셋):/.test(body);
 
   if (hasSceneAssets) {
     return (
@@ -54,6 +58,7 @@ function TrpgGmProseBody({
         content={body}
         scenarioAssets={assets}
         characterCatalog={characterCatalog}
+        npcCatalog={npcCatalog}
         campaignId={campaignId}
         roundNumber={roundNumber}
         variant="character"
@@ -85,6 +90,7 @@ export function TrpgGmTalk({
   text,
   assets = [],
   characterCatalog = [],
+  npcCatalog = [],
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
@@ -97,6 +103,7 @@ export function TrpgGmTalk({
   text: string;
   assets?: CharacterAsset[];
   characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  npcCatalog?: readonly TrpgPublicScenarioNpcImage[];
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
@@ -139,6 +146,7 @@ export function TrpgGmTalk({
           body={body}
           assets={assets}
           characterCatalog={characterCatalog}
+          npcCatalog={npcCatalog}
           campaignId={campaignId}
           roundNumber={roundNumber}
           contentStreaming={contentStreaming}
@@ -159,6 +167,7 @@ export default function TrpgNamedProse({
   accent,
   assets = [],
   characterCatalog = [],
+  npcCatalog = [],
   campaignId = 0,
   roundNumber = 0,
   reveal = false,
@@ -181,6 +190,7 @@ export default function TrpgNamedProse({
   accent?: boolean;
   assets?: CharacterAsset[];
   characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+  npcCatalog?: readonly TrpgPublicScenarioNpcImage[];
   campaignId?: number;
   roundNumber?: number;
   reveal?: boolean;
@@ -248,11 +258,15 @@ export default function TrpgNamedProse({
         style={quoteSelectStyle}
       >
         {resolveSceneAssets &&
-        (assets.length > 0 || characterCatalog.length > 0 || /\[(?:캐릭터에셋|태그):/.test(shown)) ? (
+        (assets.length > 0 ||
+          characterCatalog.length > 0 ||
+          npcCatalog.length > 0 ||
+          /\[(?:캐릭터에셋|태그|NPC에셋):/.test(shown)) ? (
           <TrpgTaggedNovelText
             content={shown}
             scenarioAssets={assets}
             characterCatalog={characterCatalog}
+            npcCatalog={npcCatalog}
             campaignId={campaignId}
             roundNumber={roundNumber}
             display={display}

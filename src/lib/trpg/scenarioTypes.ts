@@ -36,13 +36,75 @@ export const TRPG_SCENARIO_NPC_PROMPT_LIMIT = 8000;
 /** Story-only mob NPCs. They do not take player-character model seats. */
 export const TRPG_SCENARIO_MAX_NPCS = 8;
 
+export type TrpgScenarioNpcRole = "supporting" | "boss";
+
 export type TrpgScenarioNpc = {
+  /** Stable internal identity for image linkage — not shown in authoring UI. */
+  npcKey: string;
+  role: TrpgScenarioNpcRole;
   name: string;
   description: string;
   greeting: string;
   systemPrompt: string;
   stats: Record<string, number> | null;
+  /** Representative portrait/scene image for this NPC (V1: one image). */
+  image?: CharacterAsset | null;
 };
+
+export function createScenarioNpcKey(): string {
+  return `npc_${globalThis.crypto.randomUUID()}`;
+}
+
+function parseNpcRole(raw: unknown): TrpgScenarioNpcRole {
+  return raw === "boss" ? "boss" : "supporting";
+}
+
+function parseNpcImage(raw: unknown, npcKey: string, fallbackTag: string): CharacterAsset | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const row = raw as Record<string, unknown>;
+  const url = String(row.url ?? "").trim();
+  if (!url) return null;
+  const tag = clip(String(row.tag ?? fallbackTag), 40) || fallbackTag;
+  const asset: CharacterAsset = {
+    url,
+    tag,
+    visualSubjectKey: npcKey,
+    public: true,
+    chat: true,
+    viewerBlur: typeof row.viewerBlur === "boolean" ? row.viewerBlur : false,
+  };
+  const width = Number(row.width);
+  const height = Number(row.height);
+  if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+    asset.width = Math.round(width);
+    asset.height = Math.round(height);
+    const orientation = row.orientation;
+    if (orientation === "landscape" || orientation === "portrait" || orientation === "square") {
+      asset.orientation = orientation;
+    }
+  }
+  if (row.moderationReject === true) asset.moderationReject = true;
+  if (typeof row.moderationReason === "string" && row.moderationReason.trim()) {
+    asset.moderationReason = row.moderationReason.trim().slice(0, 200);
+  }
+  return asset;
+}
+
+export function ensureScenarioNpcKeys(npcs: readonly TrpgScenarioNpc[]): TrpgScenarioNpc[] {
+  return npcs.map((npc) => {
+    const npcKey = npc.npcKey?.trim() || createScenarioNpcKey();
+    const role = npc.role === "boss" ? "boss" : "supporting";
+    const image =
+      npc.image?.url?.trim()
+        ? { ...npc.image, visualSubjectKey: npcKey, tag: npc.image.tag?.trim() || npc.name.trim() || "npc" }
+        : null;
+    return { ...npc, npcKey, role, image };
+  });
+}
+
+export function scenarioHasBossNpc(npcs: readonly TrpgScenarioNpc[]): boolean {
+  return npcs.some((npc) => npc.role === "boss" && npc.name.trim());
+}
 
 export type TrpgScenarioTemplate = {
   id: number;
@@ -117,16 +179,20 @@ export function parseScenarioNpcs(raw: unknown, defs: TrpgStatDefinition[] = DEF
     const row = item as Record<string, unknown>;
     const name = clip(String(row.name ?? ""), TRPG_SCENARIO_NPC_NAME_LIMIT);
     if (!name) continue;
+    const npcKey = clip(String(row.npcKey ?? ""), 80) || createScenarioNpcKey();
     out.push({
+      npcKey,
+      role: parseNpcRole(row.role),
       name,
       description: clip(String(row.description ?? ""), TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT),
       greeting: clip(String(row.greeting ?? ""), TRPG_SCENARIO_NPC_GREETING_LIMIT),
       systemPrompt: clip(String(row.systemPrompt ?? ""), TRPG_SCENARIO_NPC_PROMPT_LIMIT),
       stats: parseStatRecord(row.stats, defs),
+      image: parseNpcImage(row.image, npcKey, name),
     });
     if (out.length >= TRPG_SCENARIO_MAX_NPCS) break;
   }
-  return out;
+  return ensureScenarioNpcKeys(out);
 }
 
 export function parseCharacterIds(raw: unknown): number[] {
@@ -305,7 +371,8 @@ export function scenarioMobNpcWorldBrief(npcs: readonly TrpgScenarioNpc[]): stri
       const name = npc.name.trim();
       if (!name) return "";
       const summary = npc.description.trim();
-      return summary ? `${name} — ${summary}` : name;
+      const prefix = npc.role === "boss" ? "[보스] " : "";
+      return summary ? `${prefix}${name} — ${summary}` : `${prefix}${name}`;
     })
     .filter(Boolean);
   if (rows.length === 0) return "";

@@ -56,6 +56,7 @@ import {
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
   countScenarioBundleChars,
+  createScenarioNpcKey,
   remainingScenarioFieldMax,
   scenarioBundleLimitError,
   type TrpgScenarioNpc,
@@ -65,7 +66,16 @@ import { DEFAULT_TRPG_STAT_KEYS, TRPG_STAT_CATALOG, defsFromKeys } from "@/lib/t
 import type { TrpgVisibility } from "@/lib/trpg/types";
 
 function emptyNpc(): TrpgScenarioNpc {
-  return { name: "", description: "", greeting: "", systemPrompt: "", stats: null };
+  return {
+    npcKey: createScenarioNpcKey(),
+    role: "supporting",
+    name: "",
+    description: "",
+    greeting: "",
+    systemPrompt: "",
+    stats: null,
+    image: null,
+  };
 }
 
 function listText(items: string[]): string {
@@ -401,6 +411,71 @@ export default function TrpgScenarioEditor({
     } finally {
       setBusy(false);
       setProgress("");
+    }
+  }
+
+  async function uploadNpcImage(index: number, file: File) {
+    setBusy(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const upData = (await up.json()) as { urls?: unknown; error?: string };
+      if (!up.ok) {
+        setError(upData.error || "이미지 업로드에 실패했습니다.");
+        return;
+      }
+      const uploadedUrls = Array.isArray(upData.urls)
+        ? upData.urls.filter((url): url is string => typeof url === "string" && url.length > 0)
+        : [];
+      const url = uploadedUrls[0];
+      if (!url) {
+        setError("이미지 업로드에 실패했습니다.");
+        return;
+      }
+      let taggedTag = "";
+      try {
+        const tagRes = await fetch("/api/assets/tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: [url] }),
+        });
+        const tagData = (await tagRes.json()) as { assets?: Array<{ url?: string; tag?: string }> };
+        if (tagRes.ok && Array.isArray(tagData.assets)) {
+          taggedTag = tagData.assets.find((asset) => asset.url === url)?.tag?.trim() ?? "";
+        }
+      } catch {
+        /* optional tagging */
+      }
+      const measured = await measureImageUrl(url);
+      editNpcs((prev) =>
+        prev.map((row, i) => {
+          if (i !== index) return row;
+          const npcKey = row.npcKey?.trim() || createScenarioNpcKey();
+          const tag = taggedTag || row.name.trim() || "npc";
+          return {
+            ...row,
+            npcKey,
+            image: withAssetSize(
+              {
+                url,
+                tag,
+                visualSubjectKey: npcKey,
+                public: true,
+                chat: true,
+                viewerBlur: false,
+              },
+              measured?.width,
+              measured?.height
+            ),
+          };
+        })
+      );
+    } catch {
+      setError("NPC 이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -977,27 +1052,50 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
 
         <div data-scenario-field="npcs">
-        <AppSectionCard title="조연 / NPC" titleVariant="prominent">
-          <label className="mb-4 block text-sm font-semibold text-zinc-100">
-            핵심 적 / 보스 (선택)
-            <input
-              value={plan.boss}
-              onChange={(e) => patchPlan({ boss: e.target.value })}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-            />
-          </label>
-          <h3 className="mb-2 text-base font-bold text-zinc-100">조연 NPC</h3>
-          <p className="mb-3 text-sm text-zinc-400">
-            조연 설정입니다. GM이 참고해서 등장시키며, 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
+        <AppSectionCard title="보스 / 조연 NPC" titleVariant="prominent">
+          <p className="mb-3 text-sm leading-relaxed text-zinc-400">
+            이야기에 미리 정해둘 주요 인물이나 적이 있다면 추가하세요. 조연, 의뢰인, 동료, 적대 인물, 중간 보스, 최종
+            보스 모두 여기에 추가할 수 있습니다. 이름과 어떤 인물인지, 역할·목적·성격·외형·특별한 능력 등을 자연스럽게
+            적으면 충분합니다. HP, 공격력, 스킬 수치 같은 전투 능력치를 자세히 만들 필요는 없습니다. 최대{" "}
+            {TRPG_SCENARIO_MAX_NPCS}명.
             <RegenButton field="npcs" label="NPC" />
           </p>
           {npcs.map((npc, index) => (
-            <div key={index} className="mb-3 rounded-xl border border-white/10 p-3">
+            <div key={npc.npcKey || index} className="mb-3 rounded-xl border border-white/10 p-3">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-zinc-200">구분</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editNpcs((prev) =>
+                        prev.map((row, i) => (i === index ? { ...row, role: "supporting" } : row))
+                      )
+                    }
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      npc.role !== "boss" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+                    }`}
+                  >
+                    조연 NPC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, role: "boss" } : row)))
+                    }
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      npc.role === "boss" ? "bg-rose-600 text-white" : "border border-white/10 text-zinc-300"
+                    }`}
+                  >
+                    보스
+                  </button>
+                </div>
+              </div>
               <label className="block text-sm text-zinc-300">
                 이름
                 <input
                   value={npc.name}
-                  placeholder="예: 역무원"
+                  placeholder="예: 한도윤"
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
                     npc.name.trim().length,
@@ -1013,7 +1111,8 @@ export default function TrpgScenarioEditor({
                 설정
                 <textarea
                   value={npc.description}
-                  rows={2}
+                  rows={3}
+                  placeholder="이 인물이 어떤 사람인지 자유롭게 적어 주세요. 역할, 목적, 성격, 외형, 플레이어와의 관계, 특별한 능력이나 특징 등을 함께 적어도 됩니다. 보스라고 해도 능력치나 스킬 수치를 자세히 만들 필요는 없습니다."
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
                     npc.description.trim().length,
@@ -1032,6 +1131,7 @@ export default function TrpgScenarioEditor({
                 <textarea
                   value={npc.greeting}
                   rows={2}
+                  placeholder={'예: 존댓말을 쓰며 항상 침착하다. 화를 내도 목소리를 높이지 않는다.'}
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
                     npc.greeting.trim().length,
@@ -1046,10 +1146,11 @@ export default function TrpgScenarioEditor({
                 />
               </label>
               <label className="mt-3 block text-sm text-zinc-300">
-                진행 메모 (선택)
+                GM 진행 메모 (선택)
                 <textarea
                   value={npc.systemPrompt}
                   rows={3}
+                  placeholder="등장 시점, 숨기고 있는 정보, 행동 원칙처럼 GM만 참고하면 되는 내용을 적을 수 있습니다."
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
                     npc.systemPrompt.trim().length,
@@ -1063,6 +1164,42 @@ export default function TrpgScenarioEditor({
                   className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
                 />
               </label>
+              <div className="mt-3">
+                <p className="text-sm text-zinc-300">인물 이미지 (선택)</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  이 인물이 실제 장면에 등장할 때 보여줄 이미지입니다. 세로형·정사각형 이미지도 사용할 수 있습니다.
+                </p>
+                {npc.image?.url ? (
+                  <div className="mt-2 flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={npc.image.url} alt={npc.name || "NPC"} className="h-24 w-24 rounded-lg object-cover" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        editNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, image: null } : row)))
+                      }
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-rose-200"
+                    >
+                      이미지 제거
+                    </button>
+                  </div>
+                ) : (
+                  <label className="mt-2 inline-flex cursor-pointer rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200">
+                    + 이미지 추가
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      hidden
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        void uploadNpcImage(index, file);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => editNpcs((prev) => prev.filter((_, i) => i !== index))}
@@ -1078,15 +1215,17 @@ export default function TrpgScenarioEditor({
             onClick={() => editNpcs((prev) => [...prev, emptyNpc()])}
             className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200 disabled:opacity-50"
           >
-            + NPC 추가
+            + 보스·조연 NPC 추가
           </button>
         </AppSectionCard>
         </div>
 
         <AppSectionCard title="표시 / 공개" titleVariant="prominent">
-          <h3 className="text-base font-bold text-zinc-100">표시 및 에셋</h3>
+          <h3 className="text-base font-bold text-zinc-100">장면 이미지 / 에셋</h3>
           <p className="text-sm leading-relaxed text-zinc-300">
-            1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다.
+            장소, 배경, 사건, 크리처, 분위기 같은 장면용 이미지입니다. 보스나 조연 NPC의 인물 이미지는 각 NPC 카드에서
+            추가하세요. 1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수
+            있습니다.
           </p>
           <input
             ref={fileRef}

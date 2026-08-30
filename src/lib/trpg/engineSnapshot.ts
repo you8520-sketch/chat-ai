@@ -32,7 +32,7 @@ import {
   loadParticipantAdjudicationOutcomes,
 } from "./roundAdjudication";
 import { loadTrpgAiCharacterContexts, toPublicAiCharacterAssets } from "./aiCharacterContext";
-import { loadCampaignScenarioAssets } from "./scenarioTemplates";
+import { loadCampaignScenarioAssets, loadCampaignScenarioNpcImages } from "./scenarioTemplates";
 import {
   isListedTrpgCampaign,
   type TrpgCampaignSnapshot,
@@ -454,6 +454,7 @@ export function loadTrpgSnapshot(
         .get(campaignId, round?.round_number ?? 0)
     ),
     scenarioAssets: loadCampaignScenarioAssets(db, campaign.template_id),
+    scenarioNpcImages: loadCampaignScenarioNpcImages(db, campaign.template_id),
     aiCharacterAssets: toPublicAiCharacterAssets(
       timedSnapshotDiag("contextsMs", () => loadTrpgAiCharacterContexts(db, parts)),
       viewerUserId

@@ -1,5 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
+import type { TrpgPublicScenarioNpcImage } from "./scenarioNpcAssets";
 import type { TrpgActionType } from "./actionTypes";
 import type { TrpgResolutionOrderEntry } from "./initiative";
 import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
@@ -157,6 +158,7 @@ export type TrpgCampaignSnapshot = {
   narrationRerolling: boolean;
   scenarioAssets: CharacterAsset[];
   aiCharacterAssets: TrpgPublicAiCharacterAssets[];
+  scenarioNpcImages: TrpgPublicScenarioNpcImage[];
   /** Long-form story stage. Independent from round.phase. */
   storyPhase?: string;
   /** Host-only sanitized GM failure line. Never includes prompt, key, or raw provider body. */
