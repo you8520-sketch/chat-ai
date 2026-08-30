@@ -20,12 +20,12 @@ import { completeDerivedCacheJob, discardDerivedCacheJob, type DerivedCacheJobRo
 import { translateCharacterChunksForDerivedRefresh } from "@/lib/derivedCache/characterTranslation";
 import { refreshWorldEnglishCache, refreshWorldShareEnglishCache } from "@/lib/derivedCache/worldTranslation";
 import {
+  canExecuteWorldBlueprintPregen,
   refreshWorldBlueprintArtifact,
   WORLD_BLUEPRINT_PREGEN_JOB_KIND,
 } from "@/lib/derivedCache/worldBlueprintPregen";
 import { TRANSLATION_DERIVATION_VERSION } from "@/lib/derivedCache/versions";
 import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "@/lib/trpg/blueprintValidity";
-import { isTrpgSandboxDirectorEnabled } from "@/lib/trpg/sandboxDirector";
 import { parseCharacterGender } from "@/lib/characterGender";
 import {
   compiledPublicCanonText,
@@ -216,7 +216,7 @@ export async function processDerivedCacheJob(
         outcome = await refreshWorldShareEnglishCache(db, job.entity_id, job.source_fingerprint);
         break;
       case WORLD_BLUEPRINT_PREGEN_JOB_KIND:
-        if (!isTrpgSandboxDirectorEnabled()) {
+        if (!canExecuteWorldBlueprintPregen(db, job.entity_id)) {
           discardDerivedCacheJob(db, job.id);
           return;
         }

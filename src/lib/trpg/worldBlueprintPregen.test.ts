@@ -25,11 +25,16 @@ import {
   maybeEnqueueWorldBlueprintPregenAfterCommit,
   refreshWorldBlueprintArtifact,
   shouldEnqueueWorldBlueprintPregen,
+  canExecuteWorldBlueprintPregen,
+  WORLD_BLUEPRINT_PREGEN_JOB_KIND,
 } from "@/lib/derivedCache/worldBlueprintPregen";
 import {
   claimNextDerivedCacheJob,
   completeDerivedCacheJob,
+  discardDerivedCacheJob,
+  enqueueDerivedCacheJob,
   ensureDerivedCacheJobsTable,
+  findDerivedCacheJobByIdentity,
   maxAttemptsForDerivedJobKind,
 } from "@/lib/derivedCache/jobs";
 import { processDerivedCacheJob } from "@/lib/derivedCache/worker";
@@ -577,7 +582,15 @@ describe("world Blueprint pregeneration corrections", () => {
         plan: playablePlan,
       });
 
-      applyPreCommitContentPatch(db, worldId, "C2");
+      // Historical buggy PATCH: job fingerprint read before durable UPDATE.
+      enqueueDerivedCacheJob(db, {
+        jobKind: WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+        entityType: "world",
+        entityId: worldId,
+        sourceFingerprint: snapC1.sourceFingerprint,
+        derivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      });
+      db.prepare(`UPDATE worlds SET content='C2', updated_at=datetime('now') WHERE id=?`).run(worldId);
       const snapC2 = loadWorldSnapshotForBlueprint(db, worldId)!;
       const job = blueprintJobRow(db)!;
 
@@ -865,7 +878,7 @@ describe("world Blueprint pregeneration corrections", () => {
     assert.ok(loadWorldBlueprintArtifactRow(db, worldId));
   });
 
-  it("T28 pending Blueprint job after world delete makes zero provider calls", async () => {
+  it("T28 pending Blueprint job after world delete discards queue row with zero provider calls", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
@@ -874,12 +887,166 @@ describe("world Blueprint pregeneration corrections", () => {
 
       const job = claimNextDerivedCacheJob(db)!;
       await processDerivedCacheJob(db, job);
+      assert.equal(blueprintJobCount(db), 0);
       assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
-      // Generic derived-cache retention may leave a terminal job row (FOLLOW_UP).
-      const row = db.prepare(`SELECT status FROM derived_cache_jobs WHERE id=?`).get(job.id) as
-        | { status: string }
-        | undefined;
-      assert.ok(row?.status === "done" || row === undefined);
+    });
+  });
+
+  it("T29 failed Blueprint job allows later explicit re-enqueue without automatic retry", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+      const job = claimNextDerivedCacheJob(db)!;
+      const outcome = await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        { complete: async () => { throw new Error("503 upstream timeout"); } }
+      );
+      assert.equal(outcome.ok, false);
+      completeDerivedCacheJob(db, job.id, outcome);
+      const failed = db.prepare(`SELECT status, attempts FROM derived_cache_jobs WHERE id=?`).get(job.id) as {
+        status: string;
+        attempts: number;
+      };
+      assert.equal(failed.status, "failed");
+      assert.equal(failed.attempts, 1);
+      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
+      assert.equal(claimNextDerivedCacheJob(db), null);
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+      const replacement = findDerivedCacheJobByIdentity(db, {
+        jobKind: WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+        entityType: "world",
+        entityId: worldId,
+        sourceFingerprint: snap.sourceFingerprint,
+        derivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      })!;
+      assert.equal(replacement.status, "pending");
+      assert.equal(replacement.attempts, 0);
+    });
+  });
+
+  it("T30 valid artifact + done job does not create regeneration enqueue", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+      db.prepare(
+        `INSERT INTO derived_cache_jobs (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status)
+         VALUES (?, 'world', ?, ?, ?, 'done')`
+      ).run(
+        WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION
+      );
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), false);
+    });
+  });
+
+  it("T31 invalid artifact (model mismatch) + done job allows explicit re-enqueue", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+      db.prepare(`UPDATE trpg_world_blueprint_artifacts SET generator_model='stale-model' WHERE world_id=?`).run(
+        worldId
+      );
+      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap), null);
+      db.prepare(
+        `INSERT INTO derived_cache_jobs (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status)
+         VALUES (?, 'world', ?, ?, ?, 'done')`
+      ).run(
+        WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION
+      );
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+    });
+  });
+
+  it("T32 invalid artifact (schema mismatch) + done job allows explicit re-enqueue", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+      casPublishWorldBlueprintArtifact(db, {
+        worldId,
+        expectedSourceFingerprint: snap.sourceFingerprint,
+        expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        plan: playablePlan,
+      });
+      db.prepare(`UPDATE trpg_world_blueprint_artifacts SET schema_version='stale-schema' WHERE world_id=?`).run(
+        worldId
+      );
+      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap), null);
+      db.prepare(
+        `INSERT INTO derived_cache_jobs (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status)
+         VALUES (?, 'world', ?, ?, ?, 'done')`
+      ).run(
+        WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION
+      );
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+    });
+  });
+
+  it("T33 pending/processing same identity does not create duplicate job", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), false);
+      const job = claimNextDerivedCacheJob(db)!;
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), false);
+      discardDerivedCacheJob(db, job.id);
+    });
+  });
+
+  it("T34 world disabled before worker discards job and allows re-enqueue when artifact missing", async () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    await withSandboxDirectorEnabled(true, async () => {
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+    });
+    db.prepare(`UPDATE worlds SET trpg_enabled=0 WHERE id=?`).run(worldId);
+    assert.equal(canExecuteWorldBlueprintPregen(db, worldId), false);
+    const job = claimNextDerivedCacheJob(db)!;
+    await processDerivedCacheJob(db, job);
+    assert.equal(blueprintJobCount(db), 0);
+    db.prepare(`UPDATE worlds SET trpg_enabled=1 WHERE id=?`).run(worldId);
+    await withSandboxDirectorEnabled(true, async () => {
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+    });
+  });
+
+  it("T35 pending job after world delete discards row with zero provider calls", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      enqueueWorldBlueprintPregenJob(db, worldId);
+      deleteWorldLikeRoute(db, worldId, 2);
+      const job = claimNextDerivedCacheJob(db)!;
+      await processDerivedCacheJob(db, job);
+      assert.equal(blueprintJobCount(db), 0);
     });
   });
 });

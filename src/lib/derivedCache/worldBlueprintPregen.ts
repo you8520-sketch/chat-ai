@@ -1,8 +1,10 @@
 import type Database from "better-sqlite3";
-import { enqueueDerivedCacheJob } from "@/lib/derivedCache/jobs";
+import { enqueueDerivedCacheJobReplacingTerminal } from "@/lib/derivedCache/jobs";
 import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "@/lib/trpg/blueprintValidity";
+import { loadWorldForTrpg } from "@/lib/trpg/catalog";
 import {
   casPublishWorldBlueprintArtifact,
+  loadValidWorldBlueprintPlan,
   loadWorldSnapshotForBlueprint,
 } from "@/lib/trpg/worldBlueprintArtifact";
 import { generateWorldSandboxBlueprint } from "@/lib/trpg/worldBlueprintGeneration";
@@ -19,6 +21,14 @@ export type WorldBlueprintPregenTriggerInput = {
   contentChanged: boolean;
 };
 
+/** Single canonical execution-eligibility owner for queued Blueprint pregen jobs. */
+export function canExecuteWorldBlueprintPregen(db: Database.Database, worldId: number): boolean {
+  if (!isTrpgSandboxDirectorEnabled()) return false;
+  const world = loadWorldForTrpg(db, worldId);
+  if (!world) return false;
+  return world.trpg_enabled === 1;
+}
+
 /** Single canonical trigger-policy owner for POST and PATCH world mutations. */
 export function shouldEnqueueWorldBlueprintPregen(opts: WorldBlueprintPregenTriggerInput): boolean {
   if (!isTrpgSandboxDirectorEnabled()) return false;
@@ -27,10 +37,14 @@ export function shouldEnqueueWorldBlueprintPregen(opts: WorldBlueprintPregenTrig
   return becomingTrpg || opts.nameChanged || opts.summaryChanged || opts.contentChanged;
 }
 
+/** Single canonical enqueue-policy owner: validity-aware, terminal-row replacement. */
 export function enqueueWorldBlueprintPregenJob(db: Database.Database, worldId: number): boolean {
   const snapshot = loadWorldSnapshotForBlueprint(db, worldId);
   if (!snapshot) return false;
-  return enqueueDerivedCacheJob(db, {
+  if (loadValidWorldBlueprintPlan(db, worldId, snapshot)) {
+    return false;
+  }
+  return enqueueDerivedCacheJobReplacingTerminal(db, {
     jobKind: WORLD_BLUEPRINT_PREGEN_JOB_KIND,
     entityType: "world",
     entityId: worldId,

@@ -107,6 +107,73 @@ export function enqueueDerivedCacheJob(
   return result.changes > 0;
 }
 
+export type DerivedCacheJobIdentity = {
+  jobKind: DerivedJobKind;
+  entityType: DerivedEntityType;
+  entityId: number;
+  sourceFingerprint: string;
+  derivationVersion: number;
+  jobFlags?: string;
+};
+
+export function findDerivedCacheJobByIdentity(
+  db: Database.Database,
+  input: DerivedCacheJobIdentity
+): DerivedCacheJobRow | null {
+  ensureDerivedCacheJobsTable(db);
+  return (
+    (db
+      .prepare(
+        `SELECT * FROM derived_cache_jobs
+         WHERE job_kind = ?
+           AND entity_type = ?
+           AND entity_id = ?
+           AND source_fingerprint = ?
+           AND derivation_version = ?`
+      )
+      .get(
+        input.jobKind,
+        input.entityType,
+        input.entityId,
+        input.sourceFingerprint,
+        input.derivationVersion
+      ) as DerivedCacheJobRow | undefined) ?? null
+  );
+}
+
+/**
+ * Enqueue a pending job, preserving single-flight for pending/processing rows.
+ * Terminal done/failed rows for the same derivation identity are discarded first.
+ */
+export function enqueueDerivedCacheJobReplacingTerminal(
+  db: Database.Database,
+  input: DerivedCacheJobIdentity
+): boolean {
+  ensureDerivedCacheJobsTable(db);
+  const existing = findDerivedCacheJobByIdentity(db, input);
+  if (existing) {
+    if (existing.status === "pending" || existing.status === "processing") {
+      return false;
+    }
+    discardDerivedCacheJob(db, existing.id);
+  }
+  const result = db
+    .prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`
+    )
+    .run(
+      input.jobKind,
+      input.entityType,
+      input.entityId,
+      input.sourceFingerprint,
+      input.derivationVersion,
+      input.jobFlags ?? ""
+    );
+  return result.changes > 0;
+}
+
 /** Explicit force requeue — used for regenerate_appearance and manual refresh only. */
 export function forceRequeueDerivedCacheJob(
   db: Database.Database,
