@@ -28,12 +28,14 @@ export const BACKGROUND_PRIMARY_COMPLETION_MS = {
   short: 20_000,
   trpgReply: 15_000,
   longForm: 45_000,
+  sandboxBlueprint: 75_000,
 } as const;
 
 export const BACKGROUND_BACKUP_COMPLETION_MS = {
   short: 30_000,
   trpgReply: 25_000,
   longForm: 45_000,
+  sandboxBlueprint: 60_000,
 } as const;
 
 export const DEEPSEEK_TRANSIENT_NETWORK_CLASSES = [
@@ -368,21 +370,27 @@ export function resolveBackgroundFlashProviderDeadlines(opts: {
   existingTimeoutMs?: number;
 }): { primaryCompletionMs: number; backupCompletionMs: number } {
   const kind = opts.requestKind ?? "";
+  const isSandboxBlueprint = /trpg-sandbox-blueprint/i.test(kind);
   const isLongForm =
+    !isSandboxBlueprint &&
     /html-visual-card|background-html|scenario-draft|trpg-scenario|director|background-memory-extract/i.test(
       kind
     );
   const isTrpgReply = /trpg-reply-suggestion|reply-suggestions/i.test(kind);
-  const primaryPolicy = isLongForm
-    ? BACKGROUND_PRIMARY_COMPLETION_MS.longForm
-    : isTrpgReply
-      ? BACKGROUND_PRIMARY_COMPLETION_MS.trpgReply
-      : BACKGROUND_PRIMARY_COMPLETION_MS.short;
-  const backupPolicy = isLongForm
-    ? BACKGROUND_BACKUP_COMPLETION_MS.longForm
-    : isTrpgReply
-      ? BACKGROUND_BACKUP_COMPLETION_MS.trpgReply
-      : BACKGROUND_BACKUP_COMPLETION_MS.short;
+  const primaryPolicy = isSandboxBlueprint
+    ? BACKGROUND_PRIMARY_COMPLETION_MS.sandboxBlueprint
+    : isLongForm
+      ? BACKGROUND_PRIMARY_COMPLETION_MS.longForm
+      : isTrpgReply
+        ? BACKGROUND_PRIMARY_COMPLETION_MS.trpgReply
+        : BACKGROUND_PRIMARY_COMPLETION_MS.short;
+  const backupPolicy = isSandboxBlueprint
+    ? BACKGROUND_BACKUP_COMPLETION_MS.sandboxBlueprint
+    : isLongForm
+      ? BACKGROUND_BACKUP_COMPLETION_MS.longForm
+      : isTrpgReply
+        ? BACKGROUND_BACKUP_COMPLETION_MS.trpgReply
+        : BACKGROUND_BACKUP_COMPLETION_MS.short;
   const existing = opts.existingTimeoutMs;
   const cap =
     existing != null && Number.isFinite(existing) && existing > 0
