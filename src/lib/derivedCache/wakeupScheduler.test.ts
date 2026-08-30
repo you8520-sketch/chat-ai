@@ -30,6 +30,7 @@ import {
   __testOnly_setDrainExecutor,
   __testOnly_setOnWakeTimerFire,
   __testOnly_awaitDerivedCacheDrainIdle,
+  __testOnly_isDrainActive,
   requestDerivedCacheWake,
   startDerivedCacheWakeup,
 } from "@/lib/derivedCache/wakeupScheduler";
@@ -59,7 +60,46 @@ function insertPendingJob(
   return fp;
 }
 
-describe("derived cache wakeup scheduler", () => {
+function trackUnhandledRejections() {
+  const rejections: unknown[] = [];
+  const handler = (reason: unknown) => {
+    rejections.push(reason);
+  };
+  process.on("unhandledRejection", handler);
+  return {
+    rejections,
+    restore: () => {
+      process.off("unhandledRejection", handler);
+    },
+  };
+}
+
+function insertDuePendingJobs(db: ReturnType<typeof getDb>, count: number, baseEntityId: number): void {
+  for (let i = 0; i < count; i += 1) {
+    insertPendingJob(db, baseEntityId + i);
+  }
+}
+
+function makeThrowingDrainExecutor(message = "fixture-drain-failure"): (maxJobs: number) => Promise<number> {
+  return async () => {
+    throw new Error(message);
+  };
+}
+
+function processUpToMaxJobs(db: ReturnType<typeof getDb>, maxJobs: number): Promise<number> {
+  return (async () => {
+    let processed = 0;
+    for (let i = 0; i < maxJobs; i += 1) {
+      const job = claimNextDerivedCacheJob(db);
+      if (!job) break;
+      completeDerivedCacheJob(db, job.id, { ok: true });
+      processed += 1;
+    }
+    return processed;
+  })();
+}
+
+describe("derived cache wakeup scheduler", { concurrency: 1 }, () => {
   afterEach(() => {
     mock.timers.reset();
     __testOnly_resetDerivedCacheWakeupState();
@@ -235,6 +275,7 @@ describe("derived cache wakeup scheduler", () => {
   });
 
   it("T7 — repeated kicks coalesce without lost wake", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
     const db = getDb();
     clearDerivedJobs(db);
     insertPendingJob(db, 96007);
@@ -261,7 +302,9 @@ describe("derived cache wakeup scheduler", () => {
     for (let i = 0; i < 10; i += 1) {
       requestDerivedCacheWake();
     }
-    await __testOnly_flushDerivedCacheWakeup();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    mock.timers.tick(50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
 
     assert.equal(maxConcurrent, 1);
     assert.equal(processed, 2);
@@ -474,9 +517,190 @@ describe("derived cache wakeup scheduler", () => {
 
     assert.equal(drainCalls, 1);
   });
+
+  it("T17 — boot drain rejection is contained with no failure loop", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const tracker = trackUnhandledRejections();
+    try {
+      __testOnly_setDrainExecutor(makeThrowingDrainExecutor());
+      startDerivedCacheWakeup();
+      await __testOnly_awaitDerivedCacheDrainIdle();
+      mock.timers.tick(5000);
+      await __testOnly_awaitDerivedCacheDrainIdle();
+
+      assert.equal(tracker.rejections.length, 0);
+      assert.equal(__testOnly_isDrainActive(), false);
+      assert.equal(__testOnly_getScheduledWakeDelayMs(), null);
+    } finally {
+      tracker.restore();
+    }
+  });
+
+  it("T18 — request wake drain rejection is contained with no failure loop", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const tracker = trackUnhandledRejections();
+    try {
+      __testOnly_setDrainExecutor(makeThrowingDrainExecutor());
+      requestDerivedCacheWake();
+      await __testOnly_awaitDerivedCacheDrainIdle();
+      mock.timers.tick(5000);
+      await __testOnly_awaitDerivedCacheDrainIdle();
+
+      assert.equal(tracker.rejections.length, 0);
+      assert.equal(__testOnly_isDrainActive(), false);
+      assert.equal(__testOnly_getScheduledWakeDelayMs(), null);
+    } finally {
+      tracker.restore();
+    }
+  });
+
+  it("T19 — timer wake drain rejection is contained with no failure loop", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, run_after, attempts)
+       VALUES ('world_translate', 'world', 96019, 'fp', 1, 'pending', datetime('now', '+2 seconds'), 0)`
+    ).run();
+
+    const tracker = trackUnhandledRejections();
+    try {
+      let timerPhase = 0;
+      __testOnly_setDrainExecutor(async () => {
+        if (timerPhase === 0) {
+          timerPhase = 1;
+          return 0;
+        }
+        throw new Error("fixture-drain-failure");
+      });
+
+      startDerivedCacheWakeup();
+      await __testOnly_awaitDerivedCacheDrainIdle();
+      const scheduledMs = __testOnly_getScheduledWakeDelayMs();
+      assert.ok(scheduledMs !== null && scheduledMs > 0);
+
+      mock.timers.tick((scheduledMs ?? 2000) + 50);
+      await __testOnly_awaitDerivedCacheDrainIdle();
+      mock.timers.tick(5000);
+      await __testOnly_awaitDerivedCacheDrainIdle();
+
+      assert.equal(tracker.rejections.length, 0);
+      assert.equal(__testOnly_isDrainActive(), false);
+      assert.equal(__testOnly_getScheduledWakeDelayMs(), null);
+    } finally {
+      tracker.restore();
+    }
+  });
+
+  it("T20 — backlog 7 with maxJobs 3 drains in capped batches across scheduler turns", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    insertDuePendingJobs(db, 7, 96100);
+
+    let drainCalls = 0;
+    let totalProcessed = 0;
+    let maxCallsPerDrainCycle = 0;
+    let callsThisCycle = 0;
+
+    __testOnly_setDrainExecutor(async (maxJobs) => {
+      callsThisCycle += 1;
+      maxCallsPerDrainCycle = Math.max(maxCallsPerDrainCycle, callsThisCycle);
+      const processed = await processUpToMaxJobs(db, maxJobs);
+      totalProcessed += processed;
+      callsThisCycle = 0;
+      drainCalls += 1;
+      return processed;
+    });
+
+    startDerivedCacheWakeup();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    assert.equal(drainCalls, 1);
+    assert.equal(totalProcessed, 3);
+
+    mock.timers.tick(50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    assert.equal(drainCalls, 2);
+    assert.equal(totalProcessed, 6);
+
+    mock.timers.tick(50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    assert.equal(drainCalls, 3);
+    assert.equal(totalProcessed, 7);
+    assert.equal(maxCallsPerDrainCycle, 1);
+  });
+
+  it("T21 — wake during active batch coalesces into next scheduler turn", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    insertDuePendingJobs(db, 4, 96200);
+
+    let drainCalls = 0;
+    let releaseFirstBatch: (() => void) | undefined;
+    const firstBatchGate = new Promise<void>((resolve) => {
+      releaseFirstBatch = resolve;
+    });
+
+    __testOnly_setDrainExecutor(async (maxJobs) => {
+      drainCalls += 1;
+      if (drainCalls === 1) {
+        await firstBatchGate;
+      }
+      return processUpToMaxJobs(db, maxJobs);
+    });
+
+    startDerivedCacheWakeup();
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    assert.equal(drainCalls, 1);
+    assert.equal(__testOnly_isDrainActive(), true);
+
+    requestDerivedCacheWake();
+    releaseFirstBatch!();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+
+    mock.timers.tick(50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+
+    assert.ok(drainCalls >= 2);
+    const remaining = db
+      .prepare(`SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE status IN ('pending','processing')`)
+      .get() as { c: number };
+    assert.equal(remaining.c, 0);
+  });
+
+  it("T22 — capped batch schedules next turn instead of inline follow-up drain", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    insertDuePendingJobs(db, 5, 96300);
+
+    let drainCalls = 0;
+    let invocationsDuringActiveDrain = 0;
+
+    __testOnly_setDrainExecutor(async (maxJobs) => {
+      invocationsDuringActiveDrain += 1;
+      assert.ok(invocationsDuringActiveDrain <= 1, "only one executor call per drain cycle");
+      drainCalls += 1;
+      return processUpToMaxJobs(db, maxJobs);
+    });
+
+    startDerivedCacheWakeup();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    invocationsDuringActiveDrain = 0;
+    assert.equal(drainCalls, 1);
+
+    mock.timers.tick(50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    invocationsDuringActiveDrain = 0;
+    assert.equal(drainCalls, 2);
+  });
 });
 
-describe("derived cache wakeup gaps (before-fix baseline semantics)", () => {
+describe("derived cache wakeup gaps (before-fix baseline semantics)", { concurrency: 1 }, () => {
   afterEach(() => {
     __testOnly_resetDerivedCacheWakeupState();
   });

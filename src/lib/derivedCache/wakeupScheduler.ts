@@ -9,7 +9,6 @@ import {
 let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 let scheduledWakeAtMs: number | null = null;
 let drainPromise: Promise<number> | null = null;
-let needsFollowupDrain = false;
 let defaultMaxJobs = 3;
 
 type DrainExecutor = (maxJobs: number) => Promise<number>;
@@ -18,6 +17,18 @@ let onWakeTimerFireForTests: (() => void) | null = null;
 
 export function isDerivedCacheWorkerDisabled(): boolean {
   return process.env.DISABLE_DERIVED_CACHE_WORKER === "1";
+}
+
+function logSchedulerDrainFailure(err: unknown): void {
+  console.warn(
+    "[derivedCache] scheduler drain failed:",
+    err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160)
+  );
+}
+
+function releaseSchedulerAfterDrainFailure(): void {
+  drainPromise = null;
+  clearWakeTimer();
 }
 
 function clearWakeTimer(): void {
@@ -43,7 +54,7 @@ function scheduleWakeAt(delayMs: number): void {
     wakeTimer = null;
     scheduledWakeAtMs = null;
     onWakeTimerFireForTests?.();
-    void runDrainCycle(defaultMaxJobs);
+    invokeDrainCycleAsync(defaultMaxJobs);
   }, safeDelayMs);
   wakeTimer.unref?.();
 }
@@ -58,44 +69,49 @@ function rescheduleFromQueue(): void {
   scheduleWakeAt(delayMs);
 }
 
+async function executeDrainCycle(maxJobs: number): Promise<number> {
+  try {
+    return await drainExecutor(maxJobs);
+  } catch (err) {
+    logSchedulerDrainFailure(err);
+    releaseSchedulerAfterDrainFailure();
+    return 0;
+  } finally {
+    if (drainPromise !== null) {
+      drainPromise = null;
+      rescheduleFromQueue();
+    }
+  }
+}
+
 async function runDrainCycle(maxJobs = defaultMaxJobs): Promise<number> {
   if (isDerivedCacheWorkerDisabled()) return 0;
 
   if (drainPromise) {
-    needsFollowupDrain = true;
     return drainPromise;
   }
 
-  drainPromise = (async () => {
-    let totalProcessed = 0;
-    try {
-      do {
-        needsFollowupDrain = false;
-        const processed = await drainExecutor(maxJobs);
-        totalProcessed += processed;
-        if (processed >= maxJobs) {
-          needsFollowupDrain = true;
-        }
-      } while (needsFollowupDrain);
-      return totalProcessed;
-    } finally {
-      drainPromise = null;
-      rescheduleFromQueue();
-    }
-  })();
-
+  drainPromise = executeDrainCycle(maxJobs);
   return drainPromise;
+}
+
+/** Canonical fire-and-forget entry — one async error boundary for boot/request/timer wakes. */
+function invokeDrainCycleAsync(maxJobs: number): void {
+  void runDrainCycle(maxJobs).catch((err) => {
+    logSchedulerDrainFailure(err);
+    releaseSchedulerAfterDrainFailure();
+  });
 }
 
 /** Request an earlier wake (enqueue / post-response). Coalesces overlapping drains. */
 export function requestDerivedCacheWake(maxJobs = defaultMaxJobs): void {
   if (isDerivedCacheWorkerDisabled()) return;
   defaultMaxJobs = maxJobs;
-  // Drop a later timer; runDrainCycle reschedules from queue after draining.
+  // Drop a later timer; a successful batch reschedules from queue afterward.
   if (scheduledWakeAtMs !== null && scheduledWakeAtMs > Date.now()) {
     clearWakeTimer();
   }
-  void runDrainCycle(maxJobs);
+  invokeDrainCycleAsync(maxJobs);
 }
 
 /** Start durable queue wakeup after HTTP listen — non-blocking for server ready. */
@@ -105,13 +121,12 @@ export function startDerivedCacheWakeup(): void {
     return;
   }
   console.log("[derivedCache] wakeup scheduler started");
-  void runDrainCycle(defaultMaxJobs);
+  invokeDrainCycleAsync(defaultMaxJobs);
 }
 
 export function __testOnly_resetDerivedCacheWakeupState(): void {
   clearWakeTimer();
   drainPromise = null;
-  needsFollowupDrain = false;
   defaultMaxJobs = 3;
   drainExecutor = drainDerivedCacheJobs;
   onWakeTimerFireForTests = null;
@@ -128,6 +143,10 @@ export function __testOnly_setDrainExecutor(executor: DrainExecutor): void {
 export function __testOnly_getScheduledWakeDelayMs(): number | null {
   if (scheduledWakeAtMs === null) return null;
   return Math.max(0, scheduledWakeAtMs - Date.now());
+}
+
+export function __testOnly_isDrainActive(): boolean {
+  return drainPromise !== null;
 }
 
 export async function __testOnly_flushDerivedCacheWakeup(): Promise<number> {
