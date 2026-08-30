@@ -18,6 +18,7 @@ import {
   parseTrpgScenarioPlan,
   type TrpgScenarioPlan,
 } from "./scenarioPlan";
+import { validateScenarioPublicationTransition } from "./trpgPublication";
 import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgStatDefinition, type TrpgVisibility } from "./types";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
@@ -156,6 +157,8 @@ export type NormalizeScenarioTemplateOptions = {
    * UPDATE only: preserve these. The request payload cannot add new legacy keys.
    */
   preservedLegacyStatKeys?: readonly string[];
+  /** Visibility before this save. INSERT defaults to private. */
+  previousVisibility?: TrpgVisibility;
 };
 
 function uniquePreservedLegacyKeys(raw: readonly string[] | undefined): string[] {
@@ -196,7 +199,7 @@ export function normalizeScenarioTemplateInput(
   const scenarioPlan = parseTrpgScenarioPlan(input.scenarioPlan);
   if (!title) throw new Error("시나리오 제목을 입력해 주세요.");
   if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {
-    throw new Error("시나리오 본문 또는 이야기 설계(시작 상황·중심 갈등·목표·종료 조건)를 입력해 주세요.");
+    throw new Error("시작 상황과 플레이어 목표를 입력해 주세요.");
   }
   const preservedLegacy = uniquePreservedLegacyKeys(options?.preservedLegacyStatKeys);
   const requestedCanonical = parseCanonicalStatKeys(input.statKeys, {
@@ -217,14 +220,21 @@ export function normalizeScenarioTemplateInput(
   if (npcs.length > TRPG_SCENARIO_MAX_NPCS) {
     throw new Error(`모브 NPC는 최대 ${TRPG_SCENARIO_MAX_NPCS}명입니다.`);
   }
+  const visibility = parseTrpgVisibility(input.visibility);
+  const summary = clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT);
+  validateScenarioPublicationTransition({
+    previousVisibility: options?.previousVisibility ?? "private",
+    nextVisibility: visibility,
+    summary,
+  });
   const worldIdRaw = Number(input.worldId);
   return {
     title,
-    summary: clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT),
+    summary,
     content,
     secretContent: clip(String(input.secretContent ?? ""), TRPG_SCENARIO_SECRET_LIMIT),
     worldId: Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null,
-    visibility: parseTrpgVisibility(input.visibility),
+    visibility,
     startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
     startInventory: parseInventory(input.startInventory),
     defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? evenStats(statDefs, pool),

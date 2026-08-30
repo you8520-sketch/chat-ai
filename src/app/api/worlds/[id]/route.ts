@@ -20,6 +20,7 @@ import {
   sanitizeWorldCoverUrl,
   type WorldRow,
 } from "@/lib/worlds";
+import { validateWorldTrpgPublicationTransition } from "@/lib/trpg/trpgPublication";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -86,6 +87,16 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       { error: `세계관 본문은 ${WORLD_CONTENT_LIMIT.toLocaleString()}자 이하여야 합니다.` },
       { status: 400 }
     );
+  }
+
+  try {
+    validateWorldTrpgPublicationTransition({
+      previousTrpgEnabled: Number(existing.trpg_enabled ?? 0) === 1,
+      nextTrpgEnabled: trpgFlags.trpgEnabled === 1,
+      summary,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "공개 설정을 확인해 주세요." }, { status: 400 });
   }
 
   const contentChanged = b.content != null && content !== existing.content;

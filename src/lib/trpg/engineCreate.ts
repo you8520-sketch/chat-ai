@@ -10,6 +10,7 @@ import {
   scenarioMobNpcNames,
   scenarioMobNpcWorldBrief,
 } from "./scenarioTemplates";
+import { mergeGmPrivateNotes } from "./trpgPublication";
 import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
@@ -183,7 +184,7 @@ export function createTrpgCampaign(
     startLocation = template.startLocation;
     startInventory = template.startInventory;
     defaultPcStats = template.defaultPcStats;
-    gmSecret = template.secretContent;
+    gmSecret = mergeGmPrivateNotes(template.secretContent, template.scenarioPlan?.secret);
     worldBrief = [template.summary, template.content].filter((x) => x.trim()).join("\n\n");
     statDefs = defsFromKeys(template.statKeys);
     if (template.worldId) {

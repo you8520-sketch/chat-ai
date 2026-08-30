@@ -55,7 +55,7 @@ describe("TRPG scenario plan", () => {
     assert.equal(planned.content, "");
     assert.throws(
       () => normalizeScenarioTemplateInput({ title: "빈것", content: "" }),
-      /이야기 설계/
+      /시작 상황/
     );
   });
 
@@ -63,8 +63,8 @@ describe("TRPG scenario plan", () => {
     const text = serializeTrpgScenarioPlanForGm(parseTrpgScenarioPlan(playablePlan));
     assert.match(text, /\[SCENARIO PLAN\]/);
     assert.match(text, /시작 상황:/);
-    assert.match(text, /GM만 아는 비밀:/);
-    assert.match(text, /SECRETPLAN/);
+    assert.doesNotMatch(text, /GM만 아는 비밀:/);
+    assert.doesNotMatch(text, /SECRETPLAN/);
     assert.doesNotMatch(text, /"version"/);
     assert.doesNotMatch(text, /보스:/);
   });
@@ -133,6 +133,7 @@ describe("TRPG scenario plan", () => {
         name TEXT NOT NULL,
         summary TEXT NOT NULL DEFAULT '',
         content TEXT NOT NULL DEFAULT '',
+        shared_from_nickname TEXT NOT NULL DEFAULT '',
         trpg_enabled INTEGER NOT NULL DEFAULT 0,
         trpg_visibility TEXT NOT NULL DEFAULT 'private',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -143,6 +144,7 @@ describe("TRPG scenario plan", () => {
     insertScenarioTemplate(db, 2, {
       title: "공개 계획",
       content: "공개 본문",
+      summary: "플레이어에게 보이는 소개",
       visibility: "public",
       scenarioPlan: playablePlan,
     });
