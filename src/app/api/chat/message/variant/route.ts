@@ -7,10 +7,9 @@ import {
   serializeVariantsForClient,
   variantToRowFields,
 } from "@/lib/messageAlternates";
-import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import {
   keepInternalAdultRoutingForUser,
-  stripAdultRoutingForClient,
+  serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
@@ -115,7 +114,7 @@ export async function PATCH(req: Request) {
       }),
       content: current.content,
       usage: current.usage
-        ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage), {
+        ? serializeUsageForPublicClient(current.usage, {
             keepInternal: keepInternalAdultRouting,
           })
         : null,
@@ -300,10 +299,9 @@ export async function PATCH(req: Request) {
       }),
       content: responseSelected.content,
       usage: responseSelected.usage
-        ? stripAdultRoutingForClient(
-            stripMuseAcceptanceFromUsage(responseSelected.usage),
-            { keepInternal: keepInternalAdultRouting }
-          )
+        ? serializeUsageForPublicClient(responseSelected.usage, {
+            keepInternal: keepInternalAdultRouting,
+          })
         : null,
     });
   }
@@ -444,7 +442,7 @@ export async function PATCH(req: Request) {
     }),
     content: selected.content,
     usage: selected.usage
-      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(selected.usage), {
+      ? serializeUsageForPublicClient(selected.usage, {
           keepInternal: keepInternalAdultRouting,
         })
       : null,

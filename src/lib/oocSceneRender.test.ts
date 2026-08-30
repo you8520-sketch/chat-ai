@@ -4,7 +4,7 @@ import Database from "better-sqlite3";
 
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
 import { classifySceneMode } from "@/lib/adultSceneRouting";
-import { sanitizeUsageForPublicReceipt, stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
+import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { persistEpisodicMemoryFactsBestEffort, ensureEpisodicMemoryFactsTable } from "@/lib/episodicMemoryFacts";
 import { isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -438,13 +438,10 @@ describe("public sanitize hides generation semantics", () => {
       },
       OOC_SCENE_RENDER_SEMANTICS
     );
-    const sanitized = sanitizeUsageForPublicReceipt(usage);
-    assert.equal(sanitized.generationKind, undefined);
-    assert.equal(sanitized.canonical, undefined);
-    const publicClient = stripAdultRoutingForClient(usage);
+    const publicClient = serializeUsageForPublicClient(usage);
     assert.equal(publicClient.generationKind, undefined);
     assert.equal(publicClient.canonical, undefined);
-    const admin = stripAdultRoutingForClient(usage, { keepInternal: true });
+    const admin = serializeUsageForPublicClient(usage, { keepInternal: true });
     assert.equal(admin.generationKind, "ooc_scene_render");
     assert.equal(admin.canonical, false);
   });

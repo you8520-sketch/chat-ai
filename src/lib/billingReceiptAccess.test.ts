@@ -6,6 +6,7 @@ import {
   canShowFullBillingReceipt,
   filterUsageBreakdownForReceipt,
   sanitizeUsageForPublicReceipt,
+  serializeUsageForPublicClient,
   stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
@@ -331,7 +332,7 @@ describe("billingReceiptAccess shadow privacy", () => {
     assert.equal(leaked.targetMargin, undefined);
   });
 
-  it("also strips via stripAdultRoutingForClient without keepInternal", () => {
+  it("economics privacy is owned by serializeUsageForPublicClient, not stripAdultRoutingForClient alone", () => {
     const usage = {
       input: 10,
       output: 20,
@@ -340,10 +341,18 @@ describe("billingReceiptAccess shadow privacy", () => {
       cost: 1,
       breakdown: [],
       shadowPricing: { pricingVersion: 1 } as unknown as Usage["shadowPricing"],
+      apiRawCostKrw: 12,
     } as unknown as Usage;
-    const client = stripAdultRoutingForClient(usage);
+    const routingOnly = stripAdultRoutingForClient(usage);
+    assert.equal(routingOnly.apiRawCostKrw, 12);
+    assert.ok((routingOnly as unknown as Record<string, unknown>).shadowPricing != null);
+
+    const client = serializeUsageForPublicClient(usage);
     assert.equal((client as unknown as Record<string, unknown>).shadowPricing, undefined);
-    const admin = stripAdultRoutingForClient(usage, { keepInternal: true });
+    assert.equal(client.apiRawCostKrw, undefined);
+
+    const admin = serializeUsageForPublicClient(usage, { keepInternal: true });
     assert.ok((admin as unknown as Record<string, unknown>).shadowPricing != null);
+    assert.equal(admin.apiRawCostKrw, 12);
   });
 });

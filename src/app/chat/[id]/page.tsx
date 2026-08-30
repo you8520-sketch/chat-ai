@@ -4,7 +4,10 @@ import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
-import { canShowFullBillingReceipt, stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
+import {
+  canShowFullBillingReceipt,
+  serializeUsageForPublicClient,
+} from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
 
 import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
@@ -16,7 +19,6 @@ import {
   resolveClientSuggestedReplies,
 } from "@/lib/suggestedReplies/parse";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
-import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
 import {
   markdownPipeTableStatusWindowActive,
@@ -365,7 +367,7 @@ export default async function ChatPage({
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
     const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
     const clientUsage = activeUsage
-      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+      ? serializeUsageForPublicClient(activeUsage, {
           keepInternal: showFullBillingReceipt,
         })
       : null;
