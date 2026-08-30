@@ -9,12 +9,38 @@ import {
   planStreamRevealTermination,
   runStreamRevealTermination,
 } from "@/lib/streamRevealLifecycle";
+import { createStreamDraftWriteGate } from "@/lib/streamDraftLifecycle";
+import {
+  streamDraftStorageKey,
+  type ChatStreamDraft,
+} from "@/lib/streamingPersistence";
 import { streamRevealOptionsFromInterval } from "@/lib/streamRevealTiming";
 
 const TICK = streamRevealOptionsFromInterval(1);
+const CHAR_ID = 1;
+const CHAT_ID = 99;
 
 type Row = { content: string; requestId: string };
-type Draft = { requestId: string; assistantPartial: string };
+
+type SessionText = { displayed: string; target: string };
+
+type RoomStore = Map<string, ChatStreamDraft>;
+
+function createRoomStore(): RoomStore {
+  return new Map();
+}
+
+function readRoomDraft(store: RoomStore): ChatStreamDraft | null {
+  return store.get(streamDraftStorageKey(CHAR_ID, CHAT_ID)) ?? null;
+}
+
+function writeRoomDraft(store: RoomStore, draft: ChatStreamDraft) {
+  store.set(streamDraftStorageKey(CHAR_ID, CHAT_ID), draft);
+}
+
+function clearRoomDraft(store: RoomStore) {
+  store.delete(streamDraftStorageKey(CHAR_ID, CHAT_ID));
+}
 
 type SessionText = { displayed: string; target: string };
 
@@ -25,33 +51,40 @@ function createSessionText(): SessionText {
 type SessionHarness = {
   text: SessionText;
   row: Row;
-  draft: Draft | null;
+  gate: ReturnType<typeof createStreamDraftWriteGate>;
   reveal: ReturnType<typeof createStreamReveal>;
   aiIndex: number;
+  userText: string;
   start: () => void;
   serverDone: () => void;
-  snapshot: () => { displayed: string; pending: number; draft: Draft | null };
+  snapshot: () => { displayed: string; pending: number; roomDraft: ChatStreamDraft | null };
 };
 
 function createSessionHarness(
-  label: "A" | "B",
   rows: Row[],
-  drafts: Map<string, Draft>,
-  aiIndex: number
+  roomStore: RoomStore,
+  aiIndex: number,
+  userText: string
 ): SessionHarness {
   const text = createSessionText();
   const row = rows[aiIndex]!;
   const requestId = row.requestId;
+  const gate = createStreamDraftWriteGate();
 
   const reveal = createStreamReveal(
     {
       onAppend: (chunk) => {
         text.displayed += chunk;
         row.content = text.displayed;
-        drafts.set(requestId, {
-          requestId,
-          assistantPartial: text.displayed,
-        });
+        gate.tryWrite(() =>
+          writeRoomDraft(roomStore, {
+            requestId,
+            chatId: CHAT_ID,
+            userText,
+            assistantPartial: text.displayed,
+            updatedAt: Date.now(),
+          })
+        );
       },
     },
     TICK
@@ -60,14 +93,16 @@ function createSessionHarness(
   return {
     text,
     row,
-    draft: null,
+    gate,
     reveal,
     aiIndex,
+    userText,
     start() {
       text.displayed = "";
       text.target = "";
     },
     serverDone() {
+      gate.closeAndClear(() => clearRoomDraft(roomStore));
       runStreamRevealTermination(
         planStreamRevealTermination({
           instantReveal: false,
@@ -82,7 +117,7 @@ function createSessionHarness(
       return {
         displayed: row.content,
         pending: reveal.getPendingLength(),
-        draft: drafts.get(requestId) ?? null,
+        roomDraft: readRoomDraft(roomStore),
       };
     },
   };
@@ -146,20 +181,26 @@ describe("CONCURRENT_REVEAL_SHARED_STATE — reproduction", () => {
 });
 
 describe("session-local text state — production-equivalent gates", () => {
-  async function runOverlappingTurns() {
+  async function runOverlappingTurns(roomStore: RoomStore) {
     const rows: Row[] = [
       { content: "", requestId: "req-a" },
       { content: "", requestId: "req-b" },
     ];
-    const drafts = new Map<string, Draft>();
-    const sessionA = createSessionHarness("A", rows, drafts, 0);
-    const sessionB = createSessionHarness("B", rows, drafts, 1);
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
 
     sessionA.start();
     sessionA.reveal.enqueue("A".repeat(40));
     await waitTicks(8);
     sessionA.serverDone();
 
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
     sessionB.start();
     sessionB.reveal.enqueue("B".repeat(40));
 
@@ -173,7 +214,7 @@ describe("session-local text state — production-equivalent gates", () => {
 
     return {
       rows,
-      drafts,
+      roomStore,
       mid,
       finalA: rows[0]!.content,
       finalB: rows[1]!.content,
@@ -181,20 +222,20 @@ describe("session-local text state — production-equivalent gates", () => {
   }
 
   it("C1: Turn A pending after done → Turn B starts → content never mixes", async () => {
-    const { finalA, finalB, mid } = await runOverlappingTurns();
+    const { finalA, finalB, mid } = await runOverlappingTurns(createRoomStore());
     assert.ok(mid.a.pending > 0 || mid.a.displayed.length < 40);
     assert.ok(!finalA.includes("B"), `A must not contain B: ${finalA}`);
     assert.ok(!finalB.includes("A"), `B must not contain A: ${finalB}`);
   });
 
   it("C2: B start does not shrink A displayed content", async () => {
+    const roomStore = createRoomStore();
     const rows: Row[] = [
       { content: "", requestId: "req-a" },
       { content: "", requestId: "req-b" },
     ];
-    const drafts = new Map<string, Draft>();
-    const sessionA = createSessionHarness("A", rows, drafts, 0);
-    const sessionB = createSessionHarness("B", rows, drafts, 1);
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
 
     sessionA.start();
     sessionA.reveal.enqueue("A".repeat(25));
@@ -203,6 +244,13 @@ describe("session-local text state — production-equivalent gates", () => {
     assert.ok(aMinLen > 0);
 
     sessionA.serverDone();
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
     sessionB.start();
     sessionB.reveal.enqueue("B".repeat(25));
     await waitTicks(15);
@@ -213,21 +261,28 @@ describe("session-local text state — production-equivalent gates", () => {
   });
 
   it("C3: concurrent reveals each reach exact own final target", async () => {
+    const roomStore = createRoomStore();
     const targetA = "A".repeat(30);
     const targetB = "B".repeat(30);
     const rows: Row[] = [
       { content: "", requestId: "req-a" },
       { content: "", requestId: "req-b" },
     ];
-    const drafts = new Map<string, Draft>();
-    const sessionA = createSessionHarness("A", rows, drafts, 0);
-    const sessionB = createSessionHarness("B", rows, drafts, 1);
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
 
     sessionA.start();
     sessionA.reveal.enqueue(targetA);
     await waitTicks(5);
     sessionA.serverDone();
 
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
     sessionB.start();
     sessionB.reveal.enqueue(targetB);
     await Promise.all([sessionA.reveal.waitUntilIdle(), sessionB.reveal.waitUntilIdle()]);
@@ -236,24 +291,46 @@ describe("session-local text state — production-equivalent gates", () => {
     assert.equal(rows[1]!.content, targetB);
   });
 
-  it("C4: draft partial isolation per requestId", async () => {
-    const { drafts } = await runOverlappingTurns();
-    const draftA = drafts.get("req-a");
-    const draftB = drafts.get("req-b");
-    assert.ok(draftA);
-    assert.ok(draftB);
-    assert.ok(!draftA!.assistantPartial.includes("B"));
-    assert.ok(!draftB!.assistantPartial.includes("A"));
-  });
-
-  it("C5: B error path does not stop A deferred reveal", async () => {
+  it("C4: room-single-slot draft — B survives A deferred ticks (production semantics)", async () => {
+    const roomStore = createRoomStore();
     const rows: Row[] = [
       { content: "", requestId: "req-a" },
       { content: "", requestId: "req-b" },
     ];
-    const drafts = new Map<string, Draft>();
-    const sessionA = createSessionHarness("A", rows, drafts, 0);
-    const sessionB = createSessionHarness("B", rows, drafts, 1);
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
+
+    sessionA.start();
+    sessionA.reveal.enqueue("A".repeat(40));
+    await waitTicks(8);
+    sessionA.serverDone();
+
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
+    sessionB.start();
+    sessionB.reveal.enqueue("B".repeat(40));
+    await waitTicks(25);
+
+    const draft = readRoomDraft(roomStore);
+    assert.equal(draft?.requestId, "req-b");
+    assert.ok(!draft!.assistantPartial.includes("A"));
+
+    await Promise.all([sessionA.reveal.waitUntilIdle(), sessionB.reveal.waitUntilIdle()]);
+  });
+
+  it("C5: B error path does not stop A deferred reveal", async () => {
+    const roomStore = createRoomStore();
+    const rows: Row[] = [
+      { content: "", requestId: "req-a" },
+      { content: "", requestId: "req-b" },
+    ];
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
     const targetA = "A".repeat(20);
 
     sessionA.start();
@@ -261,6 +338,13 @@ describe("session-local text state — production-equivalent gates", () => {
     await waitTicks(5);
     sessionA.serverDone();
 
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
     sessionB.start();
     runStreamRevealTermination(
       { action: "end_sync", flush: true },
@@ -342,13 +426,13 @@ describe("session-local text state — production-equivalent gates", () => {
   });
 
   it("C9: continue-style overlap uses isolated session text (same as send)", async () => {
+    const roomStore = createRoomStore();
     const rows: Row[] = [
       { content: "", requestId: "req-a" },
       { content: "", requestId: "req-b" },
     ];
-    const drafts = new Map<string, Draft>();
-    const sessionA = createSessionHarness("A", rows, drafts, 0);
-    const sessionB = createSessionHarness("B", rows, drafts, 1);
+    const sessionA = createSessionHarness(rows, roomStore, 0, "ua");
+    const sessionB = createSessionHarness(rows, roomStore, 1, "ub");
     const targetA = "A".repeat(15);
     const targetB = "B".repeat(15);
 
@@ -357,6 +441,13 @@ describe("session-local text state — production-equivalent gates", () => {
     await waitTicks(5);
     sessionA.serverDone();
 
+    writeRoomDraft(roomStore, {
+      requestId: "req-b",
+      chatId: CHAT_ID,
+      userText: "ub",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
     sessionB.start();
     sessionB.reveal.enqueue(targetB);
     await Promise.all([sessionA.reveal.waitUntilIdle(), sessionB.reveal.waitUntilIdle()]);
