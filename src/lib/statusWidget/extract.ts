@@ -28,6 +28,12 @@ import {
   mergeStatusWidgetExtractUsages,
   type StatusWidgetExtractBillingMeta,
 } from "./receiptUsage";
+import { resolvePostTurnSharedInitialMode } from "@/lib/postTurnSharedInitial/parse";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
+import { hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
+import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
+import type { PostTurnSharedInitialParseResult } from "@/lib/postTurnSharedInitial/types";
+import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import {
   logStatusWidgetLiveTrace,
@@ -104,6 +110,11 @@ export type StatusWidgetTurnExtractMeta = {
   mergedInputTokens: number;
   mergedOutputTokens: number;
   attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[];
+  /** Populated when status widget + suggested replies shared one initial Luna call. */
+  prefetchedSuggestedReplies?: SuggestedReplyItem[] | null;
+  prefetchedSuggestedRepliesAssistantProseHash?: string | null;
+  sharedInitialConsumed?: boolean;
+  postTurnSharedInitial?: boolean;
 };
 
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
@@ -968,6 +979,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   characterCriticalContext?: string | null;
   personaName: string;
   userPersona?: string | null;
+  personaDescription?: string | null;
+  personaSpeechExamples?: string | null;
   userMessage: string;
   assistantProse: string;
   resolved: ResolvedStatusWidgetTurn;
@@ -985,6 +998,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
    * Missing sources are extracted (combined when both missing).
    */
   seedValues?: ParsedStatusWidgetTurnValues | null;
+  /** When true with route eligibility, coalesce widget initial + suggestions initial into one call. */
+  coalesceSuggestedReplies?: { enabled: boolean };
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -1014,6 +1029,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     mergedInputTokens: 0,
     mergedOutputTokens: 0,
     attemptDiagnostics: [],
+    prefetchedSuggestedReplies: null,
+    prefetchedSuggestedRepliesAssistantProseHash: null,
+    sharedInitialConsumed: false,
+    postTurnSharedInitial: false,
   });
 
   // Route gates HTML/OOC/interrupted; active=false must not call extract either.
@@ -1042,6 +1061,67 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   const caller = opts.caller ?? defaultExtractCaller;
   const fallbackBudget = { remaining: 1 };
 
+  let prefetchedSuggestedReplies: SuggestedReplyItem[] | null = null;
+  let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
+  let sharedInitialAttempted = false;
+  let sharedInitialConsumed = false;
+  let postTurnSharedInitial = false;
+  let sharedInitialParsed: PostTurnSharedInitialParseResult | null = null;
+  let sharedInitialUsage: TokenUsage | null = null;
+
+  const sharedMode = resolvePostTurnSharedInitialMode({ needCharExtract, needUserExtract });
+  if (
+    opts.coalesceSuggestedReplies?.enabled &&
+    sharedMode &&
+    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
+  ) {
+    const shared = await runPostTurnSharedInitial(
+      {
+        mode: sharedMode,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        personaDescription: opts.personaDescription,
+        personaSpeechExamples: opts.personaSpeechExamples,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        previousAssistantProse: opts.previousAssistantProse,
+        characterWidget: charWidget,
+        userWidget: userWidget,
+        previousCharacterValues: opts.previousValues?.character ?? null,
+        previousUserValues: opts.previousValues?.user ?? null,
+        primaryModelId,
+      },
+      caller
+    );
+    if (shared.attempted) {
+      sharedInitialAttempted = true;
+      sharedInitialConsumed = true;
+      postTurnSharedInitial = true;
+      actualCallCount += 1;
+      if (shared.usage) turnUsages.push(shared.usage);
+      turnAttemptDiagnostics.push({
+        stage: "initial",
+        modelId: primaryModelId,
+        httpStatus: shared.httpStatus,
+        finishReason: shared.finishReason ?? shared.usage?.finishReason ?? null,
+        errorCode: shared.errorCode,
+      });
+      if (shared.transportOk && shared.parsed) {
+        sharedInitialParsed = shared.parsed;
+        sharedInitialUsage = shared.usage;
+        prefetchedSuggestedReplies = shared.parsed.suggestedRepliesOk
+          ? shared.parsed.suggestedReplies
+          : null;
+        prefetchedSuggestedRepliesAssistantProseHash = hashAssistantProseForSuggestionPrefetch(
+          opts.assistantProse
+        );
+      }
+    }
+  }
+
   if (needCharExtract && needUserExtract && charWidget && userWidget) {
     extractMode = "dual_combined";
     const started = Date.now();
@@ -1064,38 +1144,51 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     let combinedText = "";
     let combinedUsage: TokenUsage | null = null;
     let combinedFailure: ReturnType<typeof extractAttemptFailure> | null = null;
-    try {
-      const res = await caller(system, [{ role: "user", content: userBlock }], {
-        requestKind: "background-status-widget-extract-combined",
-        modelId: primaryModelId,
-        maxTokens: undefined,
-      });
-      combinedText = res.text ?? "";
-      combinedUsage = res.usage ?? null;
-    } catch (e) {
-      console.error("[STATUS-WIDGET-ERROR] combined extract call failed", (e as Error).message);
-      combinedFailure = extractAttemptFailure(e);
-      combinedUsage = combinedFailure.usage;
-    }
-    actualCallCount += 1;
-    if (combinedUsage) turnUsages.push(combinedUsage);
-    turnAttemptDiagnostics.push({
-      stage: "initial",
-      modelId: primaryModelId,
-      httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
-      finishReason:
-        combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
-      errorCode: combinedFailure?.errorCode ?? null,
-    });
+    let parsed: ReturnType<typeof parseCombinedDualWidgetExtractResponse>;
 
-    const parsed = parseCombinedDualWidgetExtractResponse(
-      isLengthFinishReason(combinedUsage?.finishReason) ? "" : combinedText,
-      {
-      characterWidget: charWidget,
-      userWidget,
-      applyEchoFilter: true,
+    if (sharedInitialAttempted) {
+      combinedUsage = sharedInitialUsage;
+      parsed =
+        sharedInitialParsed?.dual ??
+        parseCombinedDualWidgetExtractResponse("", {
+          characterWidget: charWidget,
+          userWidget,
+          applyEchoFilter: true,
+        });
+    } else {
+      try {
+        const res = await caller(system, [{ role: "user", content: userBlock }], {
+          requestKind: "background-status-widget-extract-combined",
+          modelId: primaryModelId,
+          maxTokens: undefined,
+        });
+        combinedText = res.text ?? "";
+        combinedUsage = res.usage ?? null;
+      } catch (e) {
+        console.error("[STATUS-WIDGET-ERROR] combined extract call failed", (e as Error).message);
+        combinedFailure = extractAttemptFailure(e);
+        combinedUsage = combinedFailure.usage;
       }
-    );
+      actualCallCount += 1;
+      if (combinedUsage) turnUsages.push(combinedUsage);
+      turnAttemptDiagnostics.push({
+        stage: "initial",
+        modelId: primaryModelId,
+        httpStatus: combinedFailure?.httpStatus ?? (combinedUsage ? 200 : null),
+        finishReason:
+          combinedFailure?.finishReason ?? combinedUsage?.finishReason ?? null,
+        errorCode: combinedFailure?.errorCode ?? null,
+      });
+      parsed = parseCombinedDualWidgetExtractResponse(
+        isLengthFinishReason(combinedUsage?.finishReason) ? "" : combinedText,
+        {
+          characterWidget: charWidget,
+          userWidget,
+          applyEchoFilter: true,
+        }
+      );
+    }
+
     const latencyMs = Date.now() - started;
     const combinedLikelyTruncated = isCombinedExtractLikelyTruncated({
       finishReason: combinedUsage?.finishReason ?? null,
@@ -1315,59 +1408,123 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     }
   } else {
     if (needCharExtract && charWidget) {
-      const character = await extractStatusWidgetValuesForWidget({
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        personaName: opts.personaName,
-        userPersona: opts.userPersona,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        widget: charWidget,
-        source: "character",
-        previousValues: opts.previousValues?.character ?? null,
-        previousAssistantProse: opts.previousAssistantProse,
-        userNote: opts.userNote,
-        trace: opts.trace,
-        caller,
-        primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
-        fallbackBudget,
-        env: opts.env,
-      });
-      actualCallCount += character.apiCalls;
-      out.character = character.values;
-      if (character.facts.length > 0) factBatches.push(character.facts);
-      if (character.usage) turnUsages.push(character.usage);
-      characterMeta = character.meta;
+      if (
+        sharedInitialConsumed &&
+        sharedInitialParsed?.character?.ok &&
+        sharedInitialParsed.character.values
+      ) {
+        out.character = sharedInitialParsed.character.values;
+        characterMeta = {
+          source: "character",
+          callCount: 0,
+          stages: ["initial"],
+          finalStage: "initial",
+          finalReasonCode: "OK",
+          models: [primaryModelId],
+          attemptUsages: sharedInitialUsage
+            ? [
+                {
+                  stage: "initial",
+                  modelId: primaryModelId,
+                  inputTokens: sharedInitialUsage.inputTokens,
+                  outputTokens: sharedInitialUsage.outputTokens,
+                },
+              ]
+            : [],
+          attemptDiagnostics: [],
+          echoDroppedKeys: sharedInitialParsed.character.echoDroppedKeys,
+          repairMaxTokens: null,
+          sharedCombinedInitial: true,
+        };
+      } else {
+        const character = await extractStatusWidgetValuesForWidget({
+          charName: opts.charName,
+          characterIdentity: opts.characterIdentity,
+          characterCriticalContext: opts.characterCriticalContext,
+          personaName: opts.personaName,
+          userPersona: opts.userPersona,
+          userMessage: opts.userMessage,
+          assistantProse: opts.assistantProse,
+          widget: charWidget,
+          source: "character",
+          previousValues: opts.previousValues?.character ?? null,
+          previousAssistantProse: opts.previousAssistantProse,
+          userNote: opts.userNote,
+          trace: opts.trace,
+          caller,
+          primaryModelId,
+          fallbackModelId: opts.fallbackModelId,
+          fallbackBudget,
+          env: opts.env,
+          repairOnly: sharedInitialConsumed,
+          sharedCombinedInitial: sharedInitialConsumed,
+        });
+        actualCallCount += character.apiCalls;
+        out.character = character.values;
+        if (character.facts.length > 0) factBatches.push(character.facts);
+        if (character.usage) turnUsages.push(character.usage);
+        characterMeta = character.meta;
+      }
     }
 
     if (needUserExtract && userWidget) {
-      const user = await extractStatusWidgetValuesForWidget({
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        personaName: opts.personaName,
-        userPersona: opts.userPersona,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        widget: userWidget,
-        source: "user",
-        previousValues: opts.previousValues?.user ?? null,
-        previousAssistantProse: opts.previousAssistantProse,
-        userNote: opts.userNote,
-        trace: opts.trace,
-        caller,
-        primaryModelId,
-        fallbackModelId: opts.fallbackModelId,
-        fallbackBudget,
-        env: opts.env,
-      });
-      actualCallCount += user.apiCalls;
-      out.user = user.values;
-      if (user.facts.length > 0) factBatches.push(user.facts);
-      if (user.usage) turnUsages.push(user.usage);
-      userMeta = user.meta;
+      if (
+        sharedInitialConsumed &&
+        sharedInitialParsed?.user?.ok &&
+        sharedInitialParsed.user.values
+      ) {
+        out.user = sharedInitialParsed.user.values;
+        userMeta = {
+          source: "user",
+          callCount: 0,
+          stages: ["initial"],
+          finalStage: "initial",
+          finalReasonCode: "OK",
+          models: [primaryModelId],
+          attemptUsages: sharedInitialUsage
+            ? [
+                {
+                  stage: "initial",
+                  modelId: primaryModelId,
+                  inputTokens: sharedInitialUsage.inputTokens,
+                  outputTokens: sharedInitialUsage.outputTokens,
+                },
+              ]
+            : [],
+          attemptDiagnostics: [],
+          echoDroppedKeys: sharedInitialParsed.user.echoDroppedKeys,
+          repairMaxTokens: null,
+          sharedCombinedInitial: true,
+        };
+      } else {
+        const user = await extractStatusWidgetValuesForWidget({
+          charName: opts.charName,
+          characterIdentity: opts.characterIdentity,
+          characterCriticalContext: opts.characterCriticalContext,
+          personaName: opts.personaName,
+          userPersona: opts.userPersona,
+          userMessage: opts.userMessage,
+          assistantProse: opts.assistantProse,
+          widget: userWidget,
+          source: "user",
+          previousValues: opts.previousValues?.user ?? null,
+          previousAssistantProse: opts.previousAssistantProse,
+          userNote: opts.userNote,
+          trace: opts.trace,
+          caller,
+          primaryModelId,
+          fallbackModelId: opts.fallbackModelId,
+          fallbackBudget,
+          env: opts.env,
+          repairOnly: sharedInitialConsumed,
+          sharedCombinedInitial: sharedInitialConsumed,
+        });
+        actualCallCount += user.apiCalls;
+        out.user = user.values;
+        if (user.facts.length > 0) factBatches.push(user.facts);
+        if (user.usage) turnUsages.push(user.usage);
+        userMeta = user.meta;
+      }
     }
   }
 
@@ -1410,7 +1567,13 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   ];
   const billingModelId = resolveStatusWidgetBillingModelId(allModels, primaryModelId);
   const billing: StatusWidgetExtractBillingMeta | null =
-    actualCallCount > 0 ? { modelId: billingModelId, callCount: actualCallCount } : null;
+    actualCallCount > 0
+      ? {
+          modelId: billingModelId,
+          callCount: actualCallCount,
+          ...(postTurnSharedInitial ? { postTurnSharedInitial: true } : {}),
+        }
+      : null;
   turnAttemptDiagnostics.push(
     ...(characterMeta?.attemptDiagnostics ?? []),
     ...(userMeta?.attemptDiagnostics ?? [])
@@ -1433,6 +1596,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       mergedInputTokens: mergedUsage?.inputTokens ?? 0,
       mergedOutputTokens: mergedUsage?.outputTokens ?? 0,
       attemptDiagnostics: turnAttemptDiagnostics,
+      prefetchedSuggestedReplies,
+      prefetchedSuggestedRepliesAssistantProseHash,
+      sharedInitialConsumed,
+      postTurnSharedInitial,
     },
   };
 }

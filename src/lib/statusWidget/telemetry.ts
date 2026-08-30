@@ -121,11 +121,15 @@ export type ResolveStatusWidgetTurnValuesInput = {
   characterIdentity?: string | null;
   personaName: string;
   userPersona?: string | null;
+  personaDescription?: string | null;
+  personaSpeechExamples?: string | null;
   userMessage: string;
   userNote?: string;
   assistantMessageId?: number;
   regenerateMessageId?: number;
   requestId?: string | null;
+  /** When true, coalesce widget initial + suggested replies initial (route gate). */
+  coalesceSuggestedReplies?: boolean;
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -138,6 +142,10 @@ export type ResolveStatusWidgetTurnValuesResult = {
   /** Same lifetime as widgetExtractUsage — null when background extract was not called or left no usage. */
   widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null;
   widgetExtractDiagnostics: NonNullable<Usage["statusWidgetExtractDiagnostics"]> | null;
+  /** Prefetched from shared initial Luna call — consumed by scheduleSuggestedRepliesExtraction. */
+  prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
+  prefetchedSuggestedRepliesAssistantProseHash: string | null;
+  sharedInitialConsumed: boolean;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -224,6 +232,10 @@ export async function resolveStatusWidgetTurnValues(
   let widgetExtractDiagnostics: NonNullable<
     Usage["statusWidgetExtractDiagnostics"]
   > | null = null;
+  let prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
+    null;
+  let prefetchedSuggestedRepliesAssistantProseHash: string | null = null;
+  let sharedInitialConsumed = false;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -352,6 +364,9 @@ export async function resolveStatusWidgetTurnValues(
         charName: input.charName,
         characterIdentity: input.characterIdentity,
         personaName: input.personaName,
+        userPersona: input.userPersona,
+        personaDescription: input.personaDescription,
+        personaSpeechExamples: input.personaSpeechExamples,
         userMessage: input.userMessage,
         assistantProse: prose,
         resolved: input.statusWidgetTurn,
@@ -360,18 +375,28 @@ export async function resolveStatusWidgetTurnValues(
         userNote: input.userNote,
         trace: traceBase,
         seedValues: valuesPayload,
+        coalesceSuggestedReplies: input.coalesceSuggestedReplies
+          ? { enabled: true }
+          : undefined,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,
         usedFallback: v3Result.meta.usedFallback,
         attempts: v3Result.meta.attemptDiagnostics,
       };
+      prefetchedSuggestedReplies = v3Result.meta.prefetchedSuggestedReplies ?? null;
+      prefetchedSuggestedRepliesAssistantProseHash =
+        v3Result.meta.prefetchedSuggestedRepliesAssistantProseHash ?? null;
+      sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
         widgetExtractBillingMeta = {
           modelId: v3Result.meta.billingModelId,
           callCount: v3Result.meta.actualCallCount,
+          ...(v3Result.meta.billing.postTurnSharedInitial
+            ? { postTurnSharedInitial: true }
+            : {}),
         };
       } else {
         widgetExtractUsage = null;
@@ -558,6 +583,9 @@ export async function resolveStatusWidgetTurnValues(
     widgetExtractUsage,
     widgetExtractBillingMeta,
     widgetExtractDiagnostics,
+    prefetchedSuggestedReplies,
+    prefetchedSuggestedRepliesAssistantProseHash,
+    sharedInitialConsumed,
     telemetry,
   };
 }

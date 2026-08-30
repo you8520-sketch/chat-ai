@@ -15,6 +15,8 @@ import type { Usage } from "@/lib/chatUsage";
 export type StatusWidgetExtractBillingMeta = {
   modelId: string;
   callCount: number;
+  /** Admin provenance — one Luna call served widget + suggested replies initial. */
+  postTurnSharedInitial?: boolean;
 };
 
 export type StatusWidgetExtractReceipt = {
@@ -49,43 +51,77 @@ export function normalizeStatusWidgetExtractCallCount(callCount: unknown): numbe
   return 1;
 }
 
-export function statusWidgetExtractModelLabel(modelId: string): string {
+function statusWidgetExtractBaseModelName(modelId: string): string {
   const id = modelId.trim();
-  if (id.includes(" + ")) {
-    return id
-      .split(" + ")
-      .map((part) => statusWidgetExtractModelLabel(part.trim()))
-      .join(" + ");
-  }
   const lower = id.toLowerCase();
   if (
     lower === OPENROUTER_GEMINI_25_FLASH_LITE_MODEL ||
     lower.includes("gemini-2.5-flash-lite")
   ) {
-    return "Google Gemini 2.5 Flash Lite (상태창 추출)";
+    return "Google Gemini 2.5 Flash Lite";
   }
   if (
     lower === OPENROUTER_GEMINI_25_FLASH_MODEL ||
     lower.includes("gemini-2.5-flash")
   ) {
-    return "Google Gemini 2.5 Flash (상태창 추출)";
+    return "Google Gemini 2.5 Flash";
   }
   if (isGpt56LunaModel(id) || lower === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
-    return "GPT-5.6 Luna (상태창 추출)";
+    return "GPT-5.6 Luna";
   }
   if (
     lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     lower.includes("deepseek-v4-flash")
   ) {
-    return "DeepSeek V4 Flash (상태창 추출)";
+    return "DeepSeek V4 Flash";
   }
   if (
     lower === OPENROUTER_DEEPSEEK_V3_MODEL ||
     lower.includes("deepseek-chat-v3-0324")
   ) {
-    return "DeepSeek V3 0324 (상태창 추출)";
+    return "DeepSeek V3 0324";
   }
-  return `${id || "unknown"} (상태창 추출)`;
+  return id || "unknown";
+}
+
+/** Admin stage label — aggregate may include shared initial plus follow-up repairs. */
+export function statusWidgetExtractStageLabel(billingMeta: StatusWidgetExtractBillingMeta): string {
+  const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
+  if (!billingMeta.postTurnSharedInitial) return "상태창 추출";
+  if (callCount === 1) return "공유 초기 (상태창 + 추천입력)";
+  return "후처리 (공유 초기 포함)";
+}
+
+function statusWidgetExtractProvenanceSuffix(
+  postTurnSharedInitial: boolean | undefined,
+  callCount: number
+): string {
+  if (!postTurnSharedInitial) return "상태창 추출";
+  if (callCount === 1) return "공유 초기: 상태창 + 추천입력";
+  return "후처리 · 공유 초기 포함";
+}
+
+export function statusWidgetExtractModelLabel(
+  modelId: string,
+  postTurnSharedInitial?: boolean,
+  callCount = 1
+): string {
+  const normalizedCallCount = normalizeStatusWidgetExtractCallCount(callCount);
+  const suffix = statusWidgetExtractProvenanceSuffix(postTurnSharedInitial, normalizedCallCount);
+  const id = modelId.trim();
+  if (id.includes(" + ")) {
+    const bases = id
+      .split(" + ")
+      .map((part) => statusWidgetExtractBaseModelName(part.trim()));
+    if (postTurnSharedInitial && normalizedCallCount > 1) {
+      return `${bases.join(" + ")} (${suffix})`;
+    }
+    if (postTurnSharedInitial) {
+      return bases.map((base) => `${base} (${suffix})`).join(" + ");
+    }
+    return bases.map((base) => `${base} (상태창 추출)`).join(" + ");
+  }
+  return `${statusWidgetExtractBaseModelName(id)} (${suffix})`;
 }
 
 export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage | null {
@@ -140,7 +176,11 @@ export function buildStatusWidgetExtractReceipt(
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
   return {
     model: modelId,
-    modelLabel: statusWidgetExtractModelLabel(modelId),
+    modelLabel: statusWidgetExtractModelLabel(
+      modelId,
+      billingMeta.postTurnSharedInitial,
+      callCount
+    ),
     input,
     output,
     callCount,
@@ -207,11 +247,15 @@ export function appendStatusWidgetExtractToUsageRecord(
   const widgetIn = widgetReceipt.input;
   const widgetOut = widgetReceipt.output;
   const callCount = widgetReceipt.callCount;
+  const extractStageLabel = statusWidgetExtractStageLabel(billingMeta);
 
   return {
     ...record,
     mainApiRawCostKrw,
-    statusWidgetExtract: widgetReceipt,
+    statusWidgetExtract: {
+      ...widgetReceipt,
+      ...(billingMeta.postTurnSharedInitial ? { postTurnSharedInitial: true } : {}),
+    },
     apiRawCostKrw: totalApiRawCostKrw,
     apiInputTokens: (record.apiInputTokens ?? record.input) + widgetIn,
     apiOutputTokens: (record.apiOutputTokens ?? record.output) + widgetOut,
@@ -223,7 +267,7 @@ export function appendStatusWidgetExtractToUsageRecord(
     stages: [
       ...(record.stages ?? []),
       {
-        stage: "상태창 추출",
+        stage: extractStageLabel,
         model: widgetReceipt.model,
         input: widgetIn,
         output: widgetOut,

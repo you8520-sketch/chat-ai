@@ -206,15 +206,17 @@ export function formatStatusWidgetCharacterContextBlocks(opts: {
 export function buildWidgetExtractSystem(
   widget: StatusWidget,
   keys: string[],
-  source: "character" | "user" = "character"
+  source: "character" | "user" = "character",
+  includeOutputContract = true
 ): string {
   const keyList = keys.map((k) => `"${k}"`).join(", ");
   const defaultSubject = source === "character" ? "[CHARACTER] (the NPC)" : "[USER] (the user persona)";
+  const outputContract = includeOutputContract
+    ? `Return exactly one JSON object with these keys plus "extracted_facts": ${keyList}, "extracted_facts"\n\n`
+    : "";
   return `You extract RP scene status widget field values as JSON only. No prose, no markdown fences.
 
-Return exactly one JSON object with these keys plus "extracted_facts": ${keyList}, "extracted_facts"
-
-Rules:
+${outputContract}Rules:
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
@@ -838,7 +840,8 @@ function usableWidgetValueKeys(values: StatusWidgetValues | null): string[] {
 /** Dual character+user initial extract — flat product field keys, no opaque fids. */
 export function buildCombinedDualWidgetExtractSystem(
   characterWidget: StatusWidget,
-  userWidget: StatusWidget
+  userWidget: StatusWidget,
+  includeOutputContract = true
 ): string {
   const charKeys = collectWidgetJsonKeys(characterWidget)
     .map((k) => `"${k}"`)
@@ -846,16 +849,19 @@ export function buildCombinedDualWidgetExtractSystem(
   const userKeys = collectWidgetJsonKeys(userWidget)
     .map((k) => `"${k}"`)
     .join(", ");
-  return `You extract RP scene status widget field values as JSON only. No prose, no markdown fences.
-
-Return exactly one JSON object with this shape:
+  const outputContract = includeOutputContract
+    ? `Return exactly one JSON object with this shape:
 {
   "character_values": { ${charKeys || ""} },
   "user_values": { ${userKeys || ""} },
   "extracted_facts": []
 }
 
-Rules:
+`
+    : "";
+  return `You extract RP scene status widget field values as JSON only. No prose, no markdown fences.
+
+${outputContract}Rules:
 - character_values and user_values are separate namespaces. Never put user fields into character_values or vice versa.
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips, fill EVERY field from the LAST scene.

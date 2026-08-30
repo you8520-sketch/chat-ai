@@ -422,6 +422,8 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
+import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import {
   diagnoseStatusWidgetValues,
   logStatusWidgetLiveTrace,
@@ -4872,6 +4874,15 @@ export async function POST(req: Request) {
           }
         }
         let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
+        let widgetPrefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
+          null;
+        let widgetPrefetchedSuggestedRepliesAssistantProseHash: string | null = null;
+        let widgetSharedInitialConsumed = false;
+        const suggestedRepliesEligibleForCoalesce =
+          body.suggestedRepliesEnabled !== false &&
+          !htmlFlashOnlyTurn &&
+          !oocSceneRenderTurn &&
+          Boolean(savedText.trim());
         if (statusWidgetActive) {
           send({ type: "status", message: "상태창 생성 중…" });
           postprocessHeartbeat.setPhase("status_widget");
@@ -4887,6 +4898,8 @@ export async function POST(req: Request) {
             characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
             userPersona: backgroundPersonaIdentity,
+            personaDescription,
+            personaSpeechExamples: selectedPersona?.speech_examples ?? null,
             userMessage: messageText,
             userNote: effectiveUserNote,
             assistantMessageId: persistedAssistantId,
@@ -4894,6 +4907,9 @@ export async function POST(req: Request) {
             requestId: clientRequestId ?? null,
             userId: user.id,
             characterId: ch.id,
+            coalesceSuggestedReplies:
+              suggestedRepliesEligibleForCoalesce &&
+              isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -4902,6 +4918,10 @@ export async function POST(req: Request) {
             widgetResolved.widgetExtractDiagnostics?.attempts?.length ?? null;
           widgetExtractResult = widgetResolved.telemetry.resolutionSource;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
+          widgetPrefetchedSuggestedRepliesAssistantProseHash =
+            widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
+          widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -5749,6 +5769,11 @@ export async function POST(req: Request) {
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
         if (suggestedRepliesEnabled) {
+          const prefetchedReplies = resolvePrefetchedSuggestedReplies({
+            prefetched: widgetPrefetchedSuggestedReplies,
+            prefetchAssistantProseHash: widgetPrefetchedSuggestedRepliesAssistantProseHash,
+            finalAssistantProse: savedText,
+          });
           scheduleSuggestedRepliesExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
@@ -5759,6 +5784,8 @@ export async function POST(req: Request) {
             userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             assistantProse: savedText,
+            prefetchedReplies,
+            sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
           });
         }
 

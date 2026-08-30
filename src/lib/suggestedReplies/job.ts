@@ -12,6 +12,12 @@ const running = new Set<number>();
 const STALE_PENDING_MS = 90_000;
 const EXTRACT_MAX_ATTEMPTS = 3;
 
+export function resolveSuggestedRepliesExtractMaxAttempts(
+  sharedInitialAttemptConsumed?: boolean
+): number {
+  return sharedInitialAttemptConsumed ? EXTRACT_MAX_ATTEMPTS - 1 : EXTRACT_MAX_ATTEMPTS;
+}
+
 export function loadMessageSuggestedReplies(messageId: number): SuggestedRepliesRecord | null {
   const db = getDb();
   const row = db
@@ -73,9 +79,20 @@ async function runSuggestedRepliesExtraction(opts: {
   userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
+  prefetchedReplies?: SuggestedReplyItem[] | null;
+  sharedInitialAttemptConsumed?: boolean;
 }): Promise<SuggestedReplyItem[]> {
-  let last: SuggestedReplyItem[] = [];
-  for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
+  if (suggestedRepliesHaveContent(opts.prefetchedReplies)) {
+    return opts.prefetchedReplies!;
+  }
+
+  const maxAttempts = resolveSuggestedRepliesExtractMaxAttempts(opts.sharedInitialAttemptConsumed);
+  if (maxAttempts <= 0) {
+    return opts.prefetchedReplies ?? [];
+  }
+
+  let last: SuggestedReplyItem[] = opts.prefetchedReplies ?? [];
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const replies = await extractSuggestedRepliesFromTurn(opts);
       last = replies;
@@ -99,7 +116,7 @@ async function runSuggestedRepliesExtraction(opts: {
         error: (e as Error).message,
       });
     }
-    if (attempt < EXTRACT_MAX_ATTEMPTS) {
+    if (attempt < maxAttempts) {
       await new Promise((r) => setTimeout(r, 1200 * attempt));
     }
   }
@@ -117,6 +134,8 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
+  prefetchedReplies?: SuggestedReplyItem[] | null;
+  sharedInitialAttemptConsumed?: boolean;
 }): void {
   if (running.has(opts.messageId)) return;
   running.add(opts.messageId);
