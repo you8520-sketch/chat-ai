@@ -4,6 +4,8 @@ import { sanitizeUsageForPublicReceipt } from "@/lib/billingReceiptAccess";
 import {
   applyStatusWidgetPlatformFundedExtract,
   buildStatusWidgetExtractReceipt,
+  mergeStatusWidgetExtractUsages,
+  statusWidgetExtractStageLabel,
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -55,7 +57,69 @@ describe("T11/T12 shared admin provenance", () => {
     assert.equal(merged.statusWidgetExtract?.callCount, 1);
     assert.equal(merged.apiCallCount, 2);
     assert.ok((merged.apiRawCostKrw ?? 0) > 45);
-    assert.match(merged.stages?.at(-1)?.stage ?? "", /공유 초기/);
+    assert.match(merged.stages?.at(-1)?.stage ?? "", /공유 초기 \(상태창 \+ 추천입력\)/);
+  });
+
+  it("P3 shared + widget repair — mixed label, single aggregate cost", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const sharedUsage = {
+      inputTokens: 2000,
+      outputTokens: 500,
+      estimated: false,
+      upstreamCostUsd: 0.003,
+    };
+    const repairUsage = {
+      inputTokens: 800,
+      outputTokens: 200,
+      estimated: false,
+      upstreamCostUsd: 0.001,
+    };
+    const mergedUsage = mergeStatusWidgetExtractUsages([sharedUsage, repairUsage]);
+    assert.ok(mergedUsage);
+    const mixedMeta = {
+      modelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      callCount: 2,
+      postTurnSharedInitial: true,
+    };
+    const receipt = buildStatusWidgetExtractReceipt(mergedUsage, exchangeRate, mixedMeta);
+    assert.equal(receipt.callCount, 2);
+    assert.match(receipt.modelLabel, /후처리 · 공유 초기 포함/);
+    assert.doesNotMatch(receipt.modelLabel, /공유 초기: 상태창 \+ 추천입력\)/);
+    assert.equal(
+      statusWidgetExtractStageLabel(mixedMeta),
+      "후처리 (공유 초기 포함)"
+    );
+
+    const mainUsage: Usage = {
+      input: 1,
+      output: 1,
+      model: "m",
+      modelLabel: "M",
+      provider: "openrouter",
+      route: "nsfw",
+      cost: 60,
+      baseCost: 60,
+      breakdown: [],
+      apiCallCount: 1,
+      apiRawCostKrw: 10,
+      mainApiRawCostKrw: 10,
+    };
+    const applied = applyStatusWidgetPlatformFundedExtract(
+      mainUsage,
+      mergedUsage,
+      exchangeRate,
+      60,
+      mixedMeta
+    ).record;
+    assert.equal(applied.apiCallCount, 3);
+    assert.equal(applied.statusWidgetExtract?.callCount, 2);
+    assert.equal(applied.statusWidgetExtract?.postTurnSharedInitial, true);
+    const widgetCost = applied.statusWidgetExtract?.apiRawCostKrw ?? 0;
+    assert.ok(widgetCost > 0);
+    assert.equal(
+      (applied.apiRawCostKrw ?? 0),
+      (applied.mainApiRawCostKrw ?? 0) + widgetCost
+    );
   });
 
   it("T12 pure widget provenance remains pure widget", () => {

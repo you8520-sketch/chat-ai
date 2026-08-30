@@ -36,4 +36,13 @@ describe("T14/T15 shared suggestion prose fingerprint", () => {
     });
     assert.equal(kept, null);
   });
+
+  it("prefetch present but hash missing — fail-closed discard", () => {
+    const kept = resolvePrefetchedSuggestedReplies({
+      prefetched: VALID_REPLIES,
+      prefetchAssistantProseHash: null,
+      finalAssistantProse: "*그는 고개를 들었다.* \"안녕.\"",
+    });
+    assert.equal(kept, null);
+  });
 });

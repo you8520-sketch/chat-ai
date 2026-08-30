@@ -29,6 +29,7 @@ import {
   type StatusWidgetExtractBillingMeta,
 } from "./receiptUsage";
 import { resolvePostTurnSharedInitialMode } from "@/lib/postTurnSharedInitial/parse";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import { hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import type { PostTurnSharedInitialParseResult } from "@/lib/postTurnSharedInitial/types";
@@ -1069,7 +1070,11 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let sharedInitialUsage: TokenUsage | null = null;
 
   const sharedMode = resolvePostTurnSharedInitialMode({ needCharExtract, needUserExtract });
-  if (opts.coalesceSuggestedReplies?.enabled && sharedMode) {
+  if (
+    opts.coalesceSuggestedReplies?.enabled &&
+    sharedMode &&
+    isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved)
+  ) {
     const shared = await runPostTurnSharedInitial(
       {
         mode: sharedMode,

@@ -129,7 +129,7 @@ describe("shared initial call graph", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const spy = makeSpyCaller(makeSharedResponseJson());
 
@@ -159,7 +159,7 @@ describe("shared initial call graph", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const userWidget = both.userWidget!;
     const spy = makeSpyCaller(
@@ -186,7 +186,7 @@ describe("shared initial call graph", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const spy = makeSpyCaller(
       JSON.stringify({
@@ -228,7 +228,7 @@ describe("shared initial call graph", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const invocations: Array<{ requestKind: string }> = [];
     const caller = async (
@@ -285,7 +285,7 @@ describe("T10 shared prompt output contract", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const sharedSystem = buildPostTurnSharedInitialSystem({
       mode: "dual",
@@ -318,7 +318,7 @@ describe("T13 persona voice context parity", () => {
       characterWidgetJson: creatorJson,
       userWidgetJson: userJson,
       chatMode: "both",
-      displayMode: "hidden",
+      displayMode: "both",
     });
     const block = buildPostTurnSharedInitialUserBlock({
       mode: "dual",

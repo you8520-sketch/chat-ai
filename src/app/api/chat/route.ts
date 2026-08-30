@@ -423,6 +423,7 @@ import {
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
 import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
+import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import {
   diagnoseStatusWidgetValues,
   logStatusWidgetLiveTrace,
@@ -4908,7 +4909,7 @@ export async function POST(req: Request) {
             characterId: ch.id,
             coalesceSuggestedReplies:
               suggestedRepliesEligibleForCoalesce &&
-              (statusWidgetTurn.needsCharacterValues || statusWidgetTurn.needsUserValues),
+              isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;

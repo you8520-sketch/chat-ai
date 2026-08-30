@@ -8,7 +8,7 @@ export function resolvePrefetchedSuggestedReplies(opts: {
   finalAssistantProse: string;
 }): SuggestedReplyItem[] | null {
   if (!opts.prefetched?.length) return null;
-  if (!opts.prefetchAssistantProseHash) return opts.prefetched;
+  if (!opts.prefetchAssistantProseHash) return null;
   const finalHash = statusWidgetDiagnosticHash(opts.finalAssistantProse);
   if (!finalHash || finalHash !== opts.prefetchAssistantProseHash) return null;
   return opts.prefetched;
