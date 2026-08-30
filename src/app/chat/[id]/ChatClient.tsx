@@ -118,6 +118,7 @@ import {
   collapseStreamCompareText,
   createStreamReveal,
   planStreamRevealCatchUp,
+  preferDisplayedNewlineLayout,
   rawPrefixForCollapsedCompare,
   resolveStreamAppendTail,
   type StreamRevealController,
@@ -2528,7 +2529,10 @@ export default function ChatClient({
       syncStreamToText(target, false);
     }
 
-    const applyStreamDone = (data: NonNullable<typeof pendingDone>) => {
+    const applyStreamDone = (
+      data: NonNullable<typeof pendingDone>,
+      opts?: { preserveStreamingContent?: boolean }
+    ) => {
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
       if (data.chatId) {
@@ -2571,20 +2575,25 @@ export default function ChatClient({
             activeVariant: data.activeVariant,
           });
           const canonicalDoneContent = getCanonicalProseBody(activeVariantSource);
+          const streamingContent = assistantStreamContentRef.current || cur.content;
+          const preserveStreaming = opts?.preserveStreamingContent === true;
+          const displayContent = preserveStreaming
+            ? preferDisplayedNewlineLayout(streamingContent, canonicalDoneContent)
+            : canonicalDoneContent;
           logProseSourceDivergenceDev({
             messageId: data.messageId,
             phase: "applyStreamDone",
             streamingSource: assistantStreamContentRef.current || cur.content,
             activeVariantSource,
-            displaySource: canonicalDoneContent,
+            displaySource: displayContent,
             editSource: canonicalDoneContent,
-            usedPreferDisplayedNewlineLayout: false,
+            usedPreferDisplayedNewlineLayout: preserveStreaming,
             sourceFieldUsedByEditModal: "activeVariant",
           });
           copy[aiIndex] = {
             ...cur,
             id: data.messageId,
-            content: canonicalDoneContent,
+            content: displayContent,
             model: resolvedUsage?.model ?? data.usage?.model,
             usage: resolvedUsage,
             variants: data.variants,
@@ -2702,15 +2711,23 @@ export default function ChatClient({
     const finalizeStreamDone = (data: NonNullable<typeof pendingDone>) => {
       if (streamDoneApplied) return;
       streamDoneApplied = true;
-      reveal.flush();
+      const instantReveal =
+        displayPrefsRef.current.streamIntervalMs <= 0 ||
+        htmlFlashStreamTurn ||
+        data.htmlFlashTurn === true;
+      if (instantReveal) {
+        reveal.flush();
+      }
       if (data.finalContent?.trim()) {
         postStreamLocked = true;
         applyStreamReplaceTarget(data.finalContent, {
-          instant: true,
+          instant: instantReveal,
           fallbackInstant: htmlFlashStreamTurn || data.htmlFlashTurn === true,
         });
       }
-      applyStreamDone(data);
+      applyStreamDone(data, {
+        preserveStreamingContent: !instantReveal && !reveal.isIdle(),
+      });
     };
 
     try {
@@ -2923,6 +2940,8 @@ export default function ChatClient({
 
       setStreamPhase(null);
       setGenerationPrepUi(null);
+      const instantReveal =
+        displayPrefsRef.current.streamIntervalMs <= 0 || htmlFlashStreamTurn;
       if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
         applyStreamReplaceTarget(pendingDone.finalContent, {
@@ -2930,11 +2949,13 @@ export default function ChatClient({
         });
       }
       if (!streamDoneApplied) {
-        if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
+        if (!instantReveal) {
           await reveal.waitUntilIdle();
         } else {
           reveal.flush();
         }
+      } else if (!instantReveal) {
+        await reveal.waitUntilIdle();
       } else {
         reveal.flush();
       }
