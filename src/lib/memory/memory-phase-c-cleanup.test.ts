@@ -12,8 +12,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
-import { after, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import {
   RAW_HISTORY_COMPLETE_EXCHANGES,
   ROLLING_SUMMARY_INTERVAL,
@@ -90,6 +94,10 @@ function seedChat() {
   );
   getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
 }
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("Phase C — six-turn compatibility cleanup", () => {
   it("precondition helper accepts zero legacy inventory", () => {

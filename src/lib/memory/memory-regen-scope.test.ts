@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { encodeScopePayload } from "./memory-summary-scope";
 import { getOrCreateChatMemory } from "./memory-db";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
@@ -114,6 +118,10 @@ function memSummarized(): number {
     .get(CHAT) as { summarized_turn_count: number } | undefined;
   return row?.summarized_turn_count ?? -1;
 }
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("assistant regeneration rebuilds full scopePayload", () => {
   let modelCalls = 0;

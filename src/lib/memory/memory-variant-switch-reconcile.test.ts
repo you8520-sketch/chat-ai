@@ -16,8 +16,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { getOrCreateChatMemory } from "./memory-db";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
@@ -64,6 +68,10 @@ function seedChat() {
   ).run(CHAT, USER, CHAR);
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
 }
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
   beforeEach(() => {

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, it, beforeEach, after } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 
 import {
   buildNoncanonSummaryFromTurns,
@@ -43,6 +47,9 @@ function cleanup() {
   db.prepare("DELETE FROM chat_memories WHERE chat_id IN (?,?)").run(CHAT_A, CHAT_B);
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(() => {
   cleanup();
   getOrCreateChatMemory(CHAT_A, USER, CHAR, "free");
@@ -52,6 +59,7 @@ beforeEach(() => {
 after(() => {
   cleanup();
 });
+
 
 describe("memory summary scope classification", () => {
   it("meaningful IF/copy-pasta is saved as noncanon", () => {

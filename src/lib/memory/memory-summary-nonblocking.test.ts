@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import {
   RAW_HISTORY_COMPLETE_EXCHANGES,
   RAW_HISTORY_COMPLETE_EXCHANGES,
@@ -174,6 +178,9 @@ const prepOpts = (
   completedTurns,
 });
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(() => {
   savedEnv = { [ENV_MEMORY]: process.env[ENV_MEMORY] };
   process.env[ENV_MEMORY] = "1";
@@ -193,6 +200,7 @@ after(() => {
     getDb().prepare("DELETE FROM chat_memories WHERE chat_id=?").run(i);
   }
 });
+
 
 describe("Phase 3-A non-blocking summary", () => {
   it("TEST 1 — summary pending: main prep does not await summary completion", async () => {

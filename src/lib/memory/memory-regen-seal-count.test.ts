@@ -13,6 +13,10 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { getOrCreateChatMemory } from "./memory-db";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { shouldTriggerRollingSummary } from "./memory-rolling-summary";
@@ -62,6 +66,10 @@ function seedSevenPlayableTurns() {
 }
 
 const ENV_KEY = "MEMORY_5PLUS4_ENABLED";
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("syncMemoryEligibleTurnCount + regen seal gate (Phase2 ON)", () => {
   let prevEnv: string | undefined;

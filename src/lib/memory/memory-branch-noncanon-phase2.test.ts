@@ -11,8 +11,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { resolveBatchStartForTurnNumber } from "./memory-summary-integrity";
@@ -164,6 +168,9 @@ function row(id: number) {
   return listMemoryRecordsForChat(CHAT).find((r) => r.id === id)!;
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 beforeEach(() => {
   savedEnv = process.env[ENV_KEY];
   process.env[ENV_KEY] = "1";
@@ -179,6 +186,7 @@ afterEach(() => {
 after(() => {
   cleanup();
 });
+
 
 describe("Phase2 branch/noncanon contract B2_1-B2_10", () => {
   it("B2_1 noncanon continue promotes latest contiguous group to branch_canon", async () => {

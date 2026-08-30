@@ -13,6 +13,10 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { getOrCreateChatMemory } from "./memory-db";
 import {
   __setSummarizeTurnBatchCallerForTests,
@@ -165,6 +169,9 @@ function ifUserText(turn: number): string {
   return `(OOC: IF 번외 장면 ${turn})`;
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 before(() => {
   __clearMigrationFinalShadowForTests();
   __setSummarizeTurnBatchCallerForTests(async () => ({ text: FIXTURE }));
@@ -176,6 +183,7 @@ after(() => {
   cleanupChat(CHAT_A, USER_A, CHAR_A);
   cleanupChat(CHAT_B, USER_B, CHAR_B);
 });
+
 
 describe("final shadow / DB consistency", () => {
   it("A batch2 promote updates final shadow and persisted DB batch1 branch_canon", async () => {

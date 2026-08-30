@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
 import { ensureMemoryResetBoundaryColumns } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { reconcileEpisodicMemoryFactsForGeneration } from "@/lib/episodicMemoryFacts";
 import {
   countMemoryEligibleCompletedTurnsUpToMessageId,
@@ -123,6 +127,10 @@ function addMessage(
       .run(role, content, model, userMessageId, `status:${content}`).lastInsertRowid
   );
 }
+
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
 
 describe("memory boundary lookup is fail-closed", () => {
   it("returns the default only when the row is absent", () => {

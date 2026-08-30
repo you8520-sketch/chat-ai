@@ -17,6 +17,10 @@ import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
 import { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } from "@/lib/chatModels";
 import { getDb } from "@/lib/db";
 import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import {
   detectRelationshipLedgerOwnedFact,
   episodicMemoryRecallEnabled,
   resolveEpisodicMemoryMinAgeTurns,
@@ -63,6 +67,9 @@ function cleanup() {
   db.prepare("DELETE FROM characters WHERE id=?").run(CHAR);
 }
 
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
 before(() => {
   cleanup();
   const db = getDb();
@@ -85,6 +92,7 @@ after(() => {
   __setEpisodicExtractCallerForTests(null);
   cleanup();
 });
+
 
 describe("episodic ownership decoupled from status widget", () => {
   it("status widget payload cannot persist episodic facts via /api/chat", () => {
