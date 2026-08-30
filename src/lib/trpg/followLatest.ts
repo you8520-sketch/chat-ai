@@ -443,3 +443,121 @@ export function shouldSkipRevealFinishClick(target: EventTarget | null): boolean
   }
   return isInteractiveRevealFinishTarget(target);
 }
+
+/** Lifecycle state for deterministic scroll-follow regression tests. */
+export type TrpgScrollFollowLifecycleState = {
+  manualDetached: boolean;
+  followLatest: boolean;
+  unseenLatest: boolean;
+  hasLeftFollowZoneSinceDetach: boolean;
+  programmaticScrollCount: number;
+  queueSessionKey: string;
+};
+
+export function createTrpgScrollFollowLifecycleState(
+  overrides?: Partial<TrpgScrollFollowLifecycleState>
+): TrpgScrollFollowLifecycleState {
+  return {
+    manualDetached: false,
+    followLatest: true,
+    unseenLatest: false,
+    hasLeftFollowZoneSinceDetach: false,
+    programmaticScrollCount: 0,
+    queueSessionKey: "",
+    ...overrides,
+  };
+}
+
+/** Models detachLiveFollow() in TrpgCampaignRoom. */
+export function applyTrpgManualScrollDetach(
+  state: TrpgScrollFollowLifecycleState
+): TrpgScrollFollowLifecycleState {
+  return {
+    ...state,
+    manualDetached: true,
+    hasLeftFollowZoneSinceDetach: false,
+    followLatest: false,
+  };
+}
+
+/** PRE-FIX: models the removed [queueSessionKey] useLayoutEffect. */
+export function applyLegacyQueueSessionKeyFollowReset(
+  state: TrpgScrollFollowLifecycleState,
+  nextQueueSessionKey: string
+): TrpgScrollFollowLifecycleState {
+  if (!nextQueueSessionKey) {
+    return { ...state, queueSessionKey: nextQueueSessionKey };
+  }
+  return {
+    ...state,
+    queueSessionKey: nextQueueSessionKey,
+    manualDetached: false,
+    hasLeftFollowZoneSinceDetach: false,
+    followLatest: true,
+    unseenLatest: false,
+  };
+}
+
+/** POST-FIX: queueSessionKey transition does not touch follow ownership. */
+export function applyQueueSessionKeyTransition(
+  state: TrpgScrollFollowLifecycleState,
+  nextQueueSessionKey: string
+): TrpgScrollFollowLifecycleState {
+  return { ...state, queueSessionKey: nextQueueSessionKey };
+}
+
+/** Models scrollToFollowOwner when followActivityKey / ResizeObserver / declaration fires. */
+export function applyTrpgPassiveFollowScrollAttempt(
+  state: TrpgScrollFollowLifecycleState
+): TrpgScrollFollowLifecycleState {
+  if (!state.followLatest || state.manualDetached) return state;
+  return { ...state, programmaticScrollCount: state.programmaticScrollCount + 1 };
+}
+
+/** Models scrollToLatest() explicit rejoin. */
+export function applyTrpgExplicitRejoinScroll(
+  state: TrpgScrollFollowLifecycleState
+): TrpgScrollFollowLifecycleState {
+  return {
+    ...state,
+    manualDetached: false,
+    hasLeftFollowZoneSinceDetach: false,
+    followLatest: true,
+    unseenLatest: false,
+    programmaticScrollCount: state.programmaticScrollCount + 1,
+  };
+}
+
+/** Models campaign entry [snap.id] reset — canonical owner #1. */
+export function applyTrpgCampaignEntryFollowReset(
+  state: TrpgScrollFollowLifecycleState
+): TrpgScrollFollowLifecycleState {
+  return {
+    ...state,
+    manualDetached: false,
+    hasLeftFollowZoneSinceDetach: false,
+    followLatest: true,
+    unseenLatest: false,
+  };
+}
+
+/** Models hysteresis rejoin from passive scroll handler. */
+export function applyTrpgHysteresisRejoin(
+  state: TrpgScrollFollowLifecycleState
+): TrpgScrollFollowLifecycleState {
+  const update = decidePassiveScrollFollowUpdate({
+    manualDetached: state.manualDetached,
+    following: state.followLatest,
+    nearFollowOwner: true,
+    hasLeftFollowZoneSinceDetach: true,
+  });
+  if (!update.rejoin) return state;
+  return {
+    ...state,
+    manualDetached: false,
+    followLatest: true,
+    unseenLatest: false,
+    hasLeftFollowZoneSinceDetach: false,
+    programmaticScrollCount: state.programmaticScrollCount + 1,
+  };
+}
