@@ -25,6 +25,7 @@ import {
   buildTurnBillableUsageCanaryTelemetry,
   logTurnBillableUsageCanaryTelemetry,
   observeTurnBillableUsageCanary,
+  truncateTelemetryMetadataString,
   type TurnBillableUsageCanaryTelemetry,
 } from "@/lib/turnBillableUsageProductionTelemetry";
 
@@ -116,6 +117,265 @@ function observeWithCapture(
 ) {
   return captureInfoLogs(() => observeTurnBillableUsageCanary(opts, deps));
 }
+
+function normalObserveOpts(modelId = OPENROUTER_QWEN_37_MAX_MODEL) {
+  const stages = [
+    stage({
+      stage: "primary",
+      model: modelId,
+      input: 5000,
+      output: 400,
+      apiOutputTokens: 400,
+      cacheReadTokens: 100,
+      cacheWriteTokens: 50,
+    }),
+  ];
+  const { legacy, billableStageCount } = resolveLegacyRouteUsageBasis({ stages, modelId });
+  return {
+    stages,
+    modelId,
+    provider: "openrouter",
+    stageCount: stages.length,
+    billableStageCount,
+    legacy,
+  };
+}
+
+describe("turnBillableUsageProductionTelemetry — BEFORE correction characterization", () => {
+  it("privacy assertion alone throws on unbounded builder output (defense remains active)", () => {
+    const payload = {
+      ...buildTurnBillableUsageCanaryErrorTelemetry({
+        modelId: "x".repeat(100),
+        provider: "openrouter",
+        stageCount: 1,
+        billableStageCount: 1,
+        errorName: "Error",
+      }),
+      modelId: "x".repeat(100),
+    };
+    assert.throws(
+      () => assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload),
+      /telemetry string field exceeds safe metadata length/
+    );
+  });
+
+  it("documented pre-correction escape class: overlong modelId through observer (fixed on current HEAD)", () => {
+    const overlongModelId = "x".repeat(100);
+    assert.doesNotThrow(() =>
+      observeTurnBillableUsageCanary({
+        ...normalObserveOpts(overlongModelId),
+        modelId: overlongModelId,
+      })
+    );
+  });
+});
+
+describe("turnBillableUsageProductionTelemetry — total no-throw adversarial (T1–T8)", () => {
+  it("T1 normal match → exactly 1 match event when sink available", () => {
+    const { calls } = observeWithCapture(normalObserveOpts());
+    assert.equal(calls.length, 1);
+    assert.equal((calls[0]?.payload as TurnBillableUsageCanaryTelemetry).status, "match");
+  });
+
+  it("T2 resolver throws → exactly 1 error event, observer does not throw", () => {
+    const { calls } = observeWithCapture(normalObserveOpts(), {
+      resolveTurnBillableUsage: () => {
+        throw new TypeError("forced_canary_failure");
+      },
+    });
+    assert.doesNotThrow(() =>
+      observeTurnBillableUsageCanary(normalObserveOpts(), {
+        resolveTurnBillableUsage: () => {
+          throw new TypeError("forced_canary_failure");
+        },
+      })
+    );
+    assert.equal(calls.length, 1);
+    assert.equal((calls[0]?.payload as TurnBillableUsageCanaryTelemetry).status, "error");
+  });
+
+  it("T3 overlong modelId → observer does not throw, emitted metadata bounded when sink works", () => {
+    const overlongModelId = "m".repeat(100);
+    const { calls } = observeWithCapture({
+      ...normalObserveOpts(overlongModelId),
+      modelId: overlongModelId,
+    });
+    assert.doesNotThrow(() =>
+      observeTurnBillableUsageCanary({
+        ...normalObserveOpts(overlongModelId),
+        modelId: overlongModelId,
+      })
+    );
+    assert.equal(calls.length, 1);
+    const payload = calls[0]?.payload as TurnBillableUsageCanaryTelemetry;
+    assert.equal(payload.modelId.length, 64);
+    assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload);
+  });
+
+  it("T4 overlong provider → observer does not throw, provider bounded when sink works", () => {
+    const overlongProvider = "p".repeat(100);
+    const opts = { ...normalObserveOpts(), provider: overlongProvider };
+    const { calls } = observeWithCapture(opts);
+    assert.doesNotThrow(() => observeTurnBillableUsageCanary(opts));
+    assert.equal(calls.length, 1);
+    const payload = calls[0]?.payload as TurnBillableUsageCanaryTelemetry;
+    assert.equal(payload.provider.length, 64);
+    assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload);
+  });
+
+  it("T5 overlong selectedStage via injected candidate → observer does not throw, stage bounded", () => {
+    const longStage = "s".repeat(100);
+    const opts = normalObserveOpts();
+    const { calls } = observeWithCapture(opts, {
+      resolveTurnBillableUsage: () => ({
+        status: "resolved",
+        usage: {
+          promptTokens: opts.legacy.routeTotalInput,
+          cacheReadTokens: opts.legacy.cacheReadTokens,
+          cacheWriteTokens: opts.legacy.cacheWriteTokens,
+          reasoningTokens: opts.legacy.reasoningTotal,
+          reasoningAccounting: "none",
+        },
+        usageCoverage: "complete",
+        diagnostics: {
+          selectedStage: longStage,
+          stageCount: opts.stageCount,
+          billableStageCount: opts.billableStageCount,
+          stageInput: opts.legacy.routeTotalInput,
+          routeTotalInput: opts.legacy.routeTotalInput,
+          apiPromptTokensForCost: opts.legacy.routeTotalInput,
+          apiCompletionTokensForCost: opts.legacy.apiCompletionTotal,
+          routeChargeOutputTokens: opts.legacy.routeChargeOutput,
+          cacheReadReported: true,
+          cacheWriteReported: true,
+          reasoningReported: false,
+          promptAuditCapApplied: false,
+          coverageReasons: [],
+          fieldSources: {
+            prompt: "PROVIDER_REPORTED_EXACT",
+            cacheRead: "PROVIDER_REPORTED_EXACT",
+            cacheWrite: "PROVIDER_REPORTED_EXACT",
+            completion: "PROVIDER_REPORTED_EXACT",
+            reasoning: "MISSING_AND_UNKNOWN",
+          },
+        },
+      }),
+    });
+    assert.doesNotThrow(() => observeTurnBillableUsageCanary(opts, {
+      resolveTurnBillableUsage: () => ({
+        status: "resolved",
+        usage: {
+          promptTokens: opts.legacy.routeTotalInput,
+          cacheReadTokens: opts.legacy.cacheReadTokens,
+          cacheWriteTokens: opts.legacy.cacheWriteTokens,
+          reasoningTokens: opts.legacy.reasoningTotal,
+          reasoningAccounting: "none",
+        },
+        usageCoverage: "complete",
+        diagnostics: {
+          selectedStage: longStage,
+          stageCount: opts.stageCount,
+          billableStageCount: opts.billableStageCount,
+          stageInput: opts.legacy.routeTotalInput,
+          routeTotalInput: opts.legacy.routeTotalInput,
+          apiPromptTokensForCost: opts.legacy.routeTotalInput,
+          apiCompletionTokensForCost: opts.legacy.apiCompletionTotal,
+          routeChargeOutputTokens: opts.legacy.routeChargeOutput,
+          cacheReadReported: true,
+          cacheWriteReported: true,
+          reasoningReported: false,
+          promptAuditCapApplied: false,
+          coverageReasons: [],
+          fieldSources: {
+            prompt: "PROVIDER_REPORTED_EXACT",
+            cacheRead: "PROVIDER_REPORTED_EXACT",
+            cacheWrite: "PROVIDER_REPORTED_EXACT",
+            completion: "PROVIDER_REPORTED_EXACT",
+            reasoning: "MISSING_AND_UNKNOWN",
+          },
+        },
+      }),
+    }));
+    assert.equal(calls.length, 1);
+    const payload = calls[0]?.payload as TurnBillableUsageCanaryTelemetry;
+    assert.equal(payload.selectedStage?.length, 64);
+    assert.equal(payload.status, "match");
+  });
+
+  it("T6 privacy validation forced failure → observer does not throw, no repeated log attempt", () => {
+    const logTelemetry = mock.fn(() => {});
+    assert.doesNotThrow(() =>
+      observeTurnBillableUsageCanary(normalObserveOpts(), {
+        assertPrivacySafe: () => {
+          throw new Error("privacy_assert_failure");
+        },
+        logTelemetry: logTelemetry as typeof logTurnBillableUsageCanaryTelemetry,
+      })
+    );
+    assert.equal(logTelemetry.mock.calls.length, 0);
+  });
+
+  it("T7 console.info throws → observer does not throw, no duplicate log attempt", () => {
+    const logTelemetry = mock.fn(() => {
+      throw new Error("sink broken");
+    });
+    assert.doesNotThrow(() =>
+      observeTurnBillableUsageCanary(normalObserveOpts(), {
+        logTelemetry: logTelemetry as typeof logTurnBillableUsageCanaryTelemetry,
+      })
+    );
+    assert.equal(logTelemetry.mock.calls.length, 1);
+  });
+
+  it("T8 normal mismatch → exactly 1 mismatch event when sink available", () => {
+    const opts = normalObserveOpts(OPENROUTER_GEMINI_31_PRO_MODEL);
+    const { calls } = observeWithCapture({
+      ...opts,
+      legacy: { ...opts.legacy, routeTotalInput: opts.legacy.routeTotalInput + 1 },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal((calls[0]?.payload as TurnBillableUsageCanaryTelemetry).status, "mismatch");
+  });
+
+  it("T8 not_comparable → exactly 1 event when sink available", () => {
+    const { calls } = observeWithCapture({
+      stages: [],
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+      provider: "openrouter",
+      stageCount: 0,
+      billableStageCount: 0,
+      legacy: {
+        routeTotalInput: 0,
+        routeChargeOutput: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        apiCompletionTotal: 0,
+        reasoningTotal: 0,
+      },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal((calls[0]?.payload as TurnBillableUsageCanaryTelemetry).status, "not_comparable");
+  });
+});
+
+describe("turnBillableUsageProductionTelemetry — metadata bounding at projection owner", () => {
+  it("buildTurnBillableUsageCanaryErrorTelemetry bounds modelId and provider", () => {
+    const payload = buildTurnBillableUsageCanaryErrorTelemetry({
+      modelId: "x".repeat(100),
+      provider: "y".repeat(100),
+      stageCount: 1,
+      billableStageCount: 1,
+      errorName: "Error",
+    });
+    assert.equal(payload.modelId.length, 64);
+    assert.equal(payload.provider.length, 64);
+    assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload);
+  });
+
+  it("truncateTelemetryMetadataString matches MAX length contract", () => {
+    assert.equal(truncateTelemetryMetadataString("a".repeat(100)).length, 64);
+  });
+});
 
 describe("turnBillableUsageProductionTelemetry — match (observable denominator)", () => {
   it("complete parity emits one match event with empty mismatchFields", () => {
@@ -486,14 +746,15 @@ describe("turnBillableUsageProductionTelemetry — privacy contract", () => {
     );
   });
 
-  it("string field above safe metadata length fails", () => {
+  it("unbounded manual payload still fails privacy assertion (defense)", () => {
     const payload = buildTurnBillableUsageCanaryErrorTelemetry({
-      modelId: "x".repeat(100),
+      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
       provider: "openrouter",
       stageCount: 1,
       billableStageCount: 1,
       errorName: "Error",
-    });
+    }) as TurnBillableUsageCanaryTelemetry & { modelId: string };
+    payload.modelId = "x".repeat(100);
     assert.throws(
       () => assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload),
       /telemetry string field exceeds safe metadata length/
@@ -655,7 +916,7 @@ describe("turnBillableUsageProductionTelemetry — billing side-effect safety", 
 });
 
 describe("turnBillableUsageProductionTelemetry — single log owner", () => {
-  it("observe emits exactly one structured log line per evaluation", () => {
+  it("observe emits exactly one structured log line per evaluation when sink available", () => {
     const stages = [
       stage({
         stage: "primary",

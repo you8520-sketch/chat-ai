@@ -98,8 +98,16 @@ const FORBIDDEN_TELEMETRY_KEY_SUBSTRINGS = [
 
 const MAX_METADATA_STRING_LENGTH = 64;
 
-function truncateMetadataString(value: string): string {
+export function truncateTelemetryMetadataString(value: string): string {
   return value.slice(0, MAX_METADATA_STRING_LENGTH);
+}
+
+function boundTelemetryMetadataString(value: string): string {
+  return truncateTelemetryMetadataString(value);
+}
+
+function boundSelectedStage(value: string | null): string | null {
+  return value == null ? null : boundTelemetryMetadataString(value);
 }
 
 function legacyBucketSnapshot(legacy: LegacyTurnUsageBasis): TurnBillableUsageCanaryBucketSnapshot {
@@ -129,9 +137,9 @@ function candidateBucketSnapshot(
 
 function coverageReasonFromCandidate(candidate: TurnBillableUsageResolution): string {
   if (candidate.diagnostics.coverageReasons.length > 0) {
-    return truncateMetadataString(candidate.diagnostics.coverageReasons.join(","));
+    return boundTelemetryMetadataString(candidate.diagnostics.coverageReasons.join(","));
   }
-  if (candidate.status === "unavailable") return truncateMetadataString(candidate.reason);
+  if (candidate.status === "unavailable") return boundTelemetryMetadataString(candidate.reason);
   return "";
 }
 
@@ -146,9 +154,9 @@ export function buildTurnBillableUsageCanaryTelemetry(opts: {
 }): TurnBillableUsageCanaryTelemetry {
   const base = {
     schemaVersion: TURN_BILLABLE_USAGE_CANARY_TELEMETRY_SCHEMA_VERSION,
-    modelId: opts.modelId,
-    provider: opts.provider,
-    selectedStage: opts.candidate.diagnostics.selectedStage,
+    modelId: boundTelemetryMetadataString(opts.modelId),
+    provider: boundTelemetryMetadataString(opts.provider),
+    selectedStage: boundSelectedStage(opts.candidate.diagnostics.selectedStage),
     stageCount: opts.stageCount,
     billableStageCount: opts.billableStageCount,
     candidateStatus: opts.candidate.status,
@@ -177,7 +185,7 @@ export function buildTurnBillableUsageCanaryTelemetry(opts: {
         ...base,
         status: "not_comparable",
         mismatchFields: [],
-        coverageReason: truncateMetadataString(
+        coverageReason: boundTelemetryMetadataString(
           opts.comparison.reason || base.coverageReason
         ),
         candidateStatus: opts.comparison.candidateStatus,
@@ -200,8 +208,8 @@ export function buildTurnBillableUsageCanaryErrorTelemetry(opts: {
   return {
     schemaVersion: TURN_BILLABLE_USAGE_CANARY_TELEMETRY_SCHEMA_VERSION,
     status: "error",
-    modelId: opts.modelId,
-    provider: opts.provider,
+    modelId: boundTelemetryMetadataString(opts.modelId),
+    provider: boundTelemetryMetadataString(opts.provider),
     selectedStage: null,
     stageCount: opts.stageCount,
     billableStageCount: opts.billableStageCount,
@@ -209,7 +217,7 @@ export function buildTurnBillableUsageCanaryErrorTelemetry(opts: {
     usageCoverage: "error",
     coverageReason: "canary_observation_error",
     mismatchFields: [],
-    errorName: opts.errorName.slice(0, MAX_METADATA_STRING_LENGTH),
+    errorName: boundTelemetryMetadataString(opts.errorName),
   };
 }
 
@@ -222,7 +230,24 @@ export function logTurnBillableUsageCanaryTelemetry(
 
 type ObserveTurnBillableUsageCanaryDeps = {
   resolveTurnBillableUsage?: typeof resolveTurnBillableUsage;
+  logTelemetry?: typeof logTurnBillableUsageCanaryTelemetry;
+  assertPrivacySafe?: typeof assertTurnBillableUsageCanaryTelemetryPrivacySafe;
 };
+
+function emitTurnBillableUsageCanaryTelemetrySafely(
+  payload: TurnBillableUsageCanaryTelemetry,
+  deps: {
+    logTelemetry: typeof logTurnBillableUsageCanaryTelemetry;
+    assertPrivacySafe: typeof assertTurnBillableUsageCanaryTelemetryPrivacySafe;
+  }
+): void {
+  try {
+    deps.assertPrivacySafe(payload);
+    deps.logTelemetry(payload);
+  } catch {
+    // Observational sink failure must not affect billing/request path.
+  }
+}
 
 export function assertTurnBillableUsageCanaryTelemetryPrivacySafe(
   payload: TurnBillableUsageCanaryTelemetry
@@ -255,8 +280,8 @@ export function assertTurnBillableUsageCanaryTelemetryPrivacySafe(
 }
 
 /**
- * Run candidate comparison and emit exactly one privacy-safe telemetry event.
- * Fail-open — never throws to caller.
+ * Run candidate comparison and emit one privacy-safe telemetry event when the sink is available.
+ * Total no-throw — never throws to caller regardless of resolve/compare/build/assert/log failure.
  */
 export function observeTurnBillableUsageCanary(
   opts: {
@@ -272,6 +297,11 @@ export function observeTurnBillableUsageCanary(
   deps?: ObserveTurnBillableUsageCanaryDeps
 ): void {
   const resolve = deps?.resolveTurnBillableUsage ?? resolveTurnBillableUsage;
+  const logTelemetry = deps?.logTelemetry ?? logTurnBillableUsageCanaryTelemetry;
+  const assertPrivacySafe =
+    deps?.assertPrivacySafe ?? assertTurnBillableUsageCanaryTelemetryPrivacySafe;
+
+  let payload: TurnBillableUsageCanaryTelemetry;
   try {
     const candidate = resolve({
       stages: opts.stages,
@@ -280,7 +310,7 @@ export function observeTurnBillableUsageCanary(
       promptAuditTotal: opts.promptAuditTotal ?? undefined,
     });
     const comparison = compareTurnBillableUsageWithLegacy(candidate, opts.legacy);
-    const payload = buildTurnBillableUsageCanaryTelemetry({
+    payload = buildTurnBillableUsageCanaryTelemetry({
       modelId: opts.modelId,
       provider: opts.provider,
       stageCount: opts.stageCount,
@@ -289,21 +319,22 @@ export function observeTurnBillableUsageCanary(
       candidate,
       comparison,
     });
-    assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload);
-    logTurnBillableUsageCanaryTelemetry(payload);
   } catch (err) {
     const errorName =
       err instanceof Error && typeof err.name === "string" && err.name.length > 0
         ? err.name
         : "Error";
-    const payload = buildTurnBillableUsageCanaryErrorTelemetry({
+    payload = buildTurnBillableUsageCanaryErrorTelemetry({
       modelId: opts.modelId,
       provider: opts.provider,
       stageCount: opts.stageCount,
       billableStageCount: opts.billableStageCount,
       errorName,
     });
-    assertTurnBillableUsageCanaryTelemetryPrivacySafe(payload);
-    logTurnBillableUsageCanaryTelemetry(payload);
   }
+
+  emitTurnBillableUsageCanaryTelemetrySafely(payload, {
+    logTelemetry,
+    assertPrivacySafe,
+  });
 }
