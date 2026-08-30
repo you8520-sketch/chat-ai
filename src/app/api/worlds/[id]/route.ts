@@ -9,6 +9,10 @@ import {
 } from "@/lib/worldPermissions";
 import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
+import {
+  enqueueWorldBlueprintPregenJob,
+  shouldEnqueueWorldBlueprintPregen,
+} from "@/lib/derivedCache/worldBlueprintPregen";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   WORLD_CONTENT_LIMIT,
@@ -100,6 +104,17 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   const contentChanged = b.content != null && content !== existing.content;
+  const nameChanged = b.name != null && name !== existing.name;
+  const summaryChanged = b.summary != null && summary !== existing.summary;
+  const previousTrpgEnabled = Number(existing.trpg_enabled ?? 0) === 1;
+  const nextTrpgEnabled = trpgFlags.trpgEnabled === 1;
+  const enqueueBlueprint = shouldEnqueueWorldBlueprintPregen({
+    previousTrpgEnabled,
+    nextTrpgEnabled,
+    nameChanged,
+    summaryChanged,
+    contentChanged,
+  });
 
   db.prepare(
     `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
@@ -122,6 +137,11 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
   if (contentChanged) {
     enqueueWorldTranslationJob(db, id, content);
+  }
+  if (enqueueBlueprint) {
+    enqueueWorldBlueprintPregenJob(db, id);
+  }
+  if (contentChanged || enqueueBlueprint) {
     kickDerivedCacheWorker();
   }
 

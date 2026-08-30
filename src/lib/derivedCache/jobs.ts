@@ -4,7 +4,8 @@ import { getDb } from "@/lib/db";
 export type DerivedJobKind =
   | "character_derived_refresh"
   | "world_translate"
-  | "world_share_translate";
+  | "world_share_translate"
+  | "trpg_sandbox_blueprint_pregen";
 
 export type DerivedEntityType = "character" | "world" | "world_share";
 
