@@ -108,22 +108,36 @@ export const INNER_STATE_QUALITY_KO =
   "현재 턴에서 새로 생긴 판단·의문·의도를 우선하고, 본문에 이미 나온 내면문장을 그대로 복창하지 마라.";
 
 /**
+ * ONE STATUS FIELD SEMANTICS OWNER — shared by initial / combined / repair extract prompts.
+ * Factual vs character-interpretive vs creator-format priority live here only.
+ */
+export const STATUS_WIDGET_FIELD_SEMANTICS_EN =
+  "Field semantics by meaning: " +
+  "(1) Factual/extractive fields (place, inventory, injury, outfit, explicit counts, confirmed events, stated current action): source-grounded only — use explicit prose, user message, or unchanged previous persistent state; do not invent new canonical facts (items, weapons, injuries, identity, relationships, promises, backstory, ownership, numbers) without evidence. Use \"—\" or prior value when truly unknown, except calendar/clock fields (follow their chain). " +
+  "(2) Character-interpretive fields (emotion, kaomoji mood, inner thought, stream of consciousness, current desire, things they want to do now, character's guess about another's mood): allow reasonable current-state inference from character identity, relationship, and this turn's scene — but do not invent new canonical facts, past events, or fixed future outcomes; these are current interpretation/intent, not memory. " +
+  "(3) Obey each field's instruction in [WIDGET FIELDS] for output format (kaomoji-only, exact count, numeric range, sentence limit) when compatible with schema and grounding above. " +
+  "(4) [USER] inner-state: infer only from the user's own dialogue, actions, and persona — do not assert hidden user feelings the scene did not support; character-side fields that guess user feelings must stay the character's guess, not stated user fact.";
+
+const CHARACTER_INTERPRETIVE_FIELD_RE =
+  /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face|카오모지|kaomoji|하고\s*싶|원하는|욕구|wish|want|desire/i;
+
+const VOLATILE_TURN_DERIVED_FIELD_RE =
+  /현재\s*상황|지금\s*벌어지는|현재\s*욕구|현재\s*의도|현재\s*행동|현재\s*반응|하고\s*싶|원하는|카오모지|kaomoji|current\s*situation|current\s*scene|current\s*reaction|situation\s*summary/i;
+
+/**
  * Turn-derived free-text fields — previous answer text must not be injected as
  * continuity anchors (answer anchoring). Persistent meters/time/place stay.
- * Includes inner-state and 현재상황 / current-situation style fields.
+ * Includes inner-state, wants/desire, and 현재상황 style fields.
  */
 export function looksLikeVolatileTurnDerivedField(field: StatusWidgetField): boolean {
   if (looksLikeInnerStateField(field)) return true;
   const blob = `${field.id} ${field.label} ${field.instruction}`.toLowerCase();
-  return /현재\s*상황|지금\s*벌어지는|현재\s*욕구|현재\s*의도|현재\s*행동|현재\s*반응|current\s*situation|current\s*scene|current\s*reaction|situation\s*summary/.test(
-    blob
-  );
+  return VOLATILE_TURN_DERIVED_FIELD_RE.test(blob);
 }
 
 export function looksLikeVolatileTurnDerivedKey(key: string): boolean {
-  return /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face|현재\s*상황|현재상황|current\s*situation|current\s*scene/i.test(
-    key
-  );
+  return CHARACTER_INTERPRETIVE_FIELD_RE.test(key) ||
+    /현재\s*상황|현재상황|current\s*situation|current\s*scene/i.test(key);
 }
 
 export function shouldOmitVolatilePreviousValue(
@@ -220,14 +234,14 @@ ${outputContract}Rules:
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
-- Fill every key with a scene-accurate value from the assistant prose and user message.
-- Previous-turn widget values are continuity references, not answer text to copy. Derive this turn's values primarily from what actually happened in the current RP turn. Persistent state (date/place/HP/corruption/currency/ammo/D-DAY/relationship meters) may keep prior values when unchanged; do not invent changes without evidence. A completed RP turn normally consumes some in-world time: advance clock fields by a scene-plausible amount (at least one minute) unless the current prose explicitly establishes the exact same instant or frozen time.
+- ${STATUS_WIDGET_FIELD_SEMANTICS_EN}
+- Previous-turn widget values are continuity references, not answer text to copy. Derive this turn's values primarily from what actually happened in the current RP turn. Persistent factual state (date/place/HP/corruption/currency/ammo/D-DAY/relationship meters) may keep prior values when unchanged; do not invent factual changes without evidence. A completed RP turn normally consumes some in-world time: advance clock fields by a scene-plausible amount (at least one minute) unless the current prose explicitly establishes the exact same instant or frozen time.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) [PREVIOUS TURN WIDGET VALUES] canonical anchor — advance its clock by a scene-plausible amount for a completed turn, with exact preservation only when prose explicitly pins the same instant; advance date/season/weather consistently for larger skips (4) first fill / missing prior clock: MUST invent one scene-consistent real value (valid date, HH:MM, season+weather), not "—". If prose advances time but prior clock is missing, invent a plausible prior then advance. Counters (days-met, D-DAY, elapsed days) follow each field's own instruction/initialValue only — do not auto-sync them to date. "—" only if still impossible after that chain. Anchor is extract-only; never paste previous values as-is.
 - Calendar, clock, season, and weather fields require concrete values. Never output —, unknown, 알 수 없음, 미상, 모름, or N/A. When no explicit value exists, use initialValue, a valid previous anchor, or invent one scene-consistent concrete value.
 - For location/place fields: update when the scene moves; use the location of the LAST scene.
 - Use "—" only when there is truly no usable basis for that field (calendar/clock fields: follow the chain above).
-- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the character's ("{{char}}의 속마음", "NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("{{user}}의 속마음", "유저의 속마음" etc.), write [USER]'s. {{char}} means [CHARACTER]'s display name and {{user}} means [USER]'s display name — never output the literals "NPC", "PC", "{{char}}", or "{{user}}" as a name or value when a real name is known. If the instruction does not name anyone, default to ${defaultSubject}.
+- Character-interpretive fields (속마음, 의식의 흐름, 감정/카오모지, desires/wants, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE state to write and any output format — obey both exactly. If the instruction says the character's ("{{char}}의 속마음", "NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("{{user}}의 속마음", "유저의 속마음" etc.), write [USER]'s. {{char}} means [CHARACTER]'s display name and {{user}} means [USER]'s display name — never output the literals "NPC", "PC", "{{char}}", or "{{user}}" as a name or value when a real name is known. If the instruction does not name anyone, default to ${defaultSubject}.
   Never substitute the other person's feelings for the required person's. If the turn's prose is written from the OTHER person's point of view and the required person does not appear on-page, do NOT copy the narrator's feelings — actively infer the required person's OWN separate reaction to what happened to THEM this turn, from their last known state.
   Example — field instruction asks for [CHARACTER]'s inner state, but the turn narrates [USER] anxiously rushing to rescue [CHARACTER] who was just sent to a dangerous frontier:
   ✗ WRONG: "그가 위험에 처했다는 소식에 불안하다. 반드시 구하러 가야 한다" (this is [USER]'s worry, mislabeled as [CHARACTER]'s)
@@ -236,7 +250,6 @@ ${outputContract}Rules:
   ${INNER_STATE_QUALITY_EN}
   If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update from this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
-- Do NOT invent lore that contradicts the provided context.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.
 ${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
@@ -286,7 +299,7 @@ function buildWidgetSourceReminder(
   personaName: string
 ): string {
   const defaultName = source === "character" ? `[CHARACTER](${charName})` : `[USER](${personaName})`;
-  return `[REMINDER] 내면 필드(속마음/의식의 흐름/표정 등)는 각 필드의 지시사항이 지정한 인물의 시점으로, 이 턴 끝 기준으로 재평가하라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. [PREVIOUS TURN WIDGET VALUES]는 continuity reference일 뿐 답안 복사용이 아니다 — 이 턴에 새 행동·대사·정보·감정 단서가 있으면 직전 문구를 기계적으로 복사하지 말고 갱신하라. 상태가 진짜로 같으면 의미만 유지하고 거짓 감정 변화는 만들지 마라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라. ${INNER_STATE_QUALITY_KO}`;
+  return `[REMINDER] 해석형 필드(속마음/의식의 흐름/감정·카오모지/욕구/하고 싶은 일 등)는 각 필드의 지시사항이 지정한 인물의 시점과 출력 형식(개수·카오모지-only 등)을 따르며, 이 턴 끝 기준으로 재평가하라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. [PREVIOUS TURN WIDGET VALUES]는 continuity reference일 뿐 답안 복사용이 아니다 — 이 턴에 새 행동·대사·정보·감정 단서가 있으면 직전 문구를 기계적으로 복사하지 말고 갱신하라. 상태가 진짜로 같으면 의미만 유지하고 거짓 감정 변화는 만들지 마라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라. ${INNER_STATE_QUALITY_KO}`;
 }
 
 export function normalizeWidgetExtraction(
@@ -362,10 +375,8 @@ export function sliceAssistantProseForRepair(
 }
 
 export function looksLikeInnerStateField(field: StatusWidgetField): boolean {
-  const blob = `${field.id} ${field.label} ${field.instruction}`.toLowerCase();
-  return /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face/.test(
-    blob
-  );
+  const blob = `${field.id} ${field.label} ${field.instruction}`;
+  return CHARACTER_INTERPRETIVE_FIELD_RE.test(blob);
 }
 
 function resolveFieldValue(
@@ -511,6 +522,7 @@ export function buildVolatileEchoRepairSystem(
 Return exactly one JSON object with these keys: ${keyList}
 
 Rules:
+- Re-evaluate interpretive/desire fields from the current scene; factual fields stay source-grounded per field semantics.
 - Korean values preferred when the scene is Korean.
 - Use CURRENT USER MESSAGE + the FINAL SCENE of the assistant RP as primary evidence.
 - Do NOT return the exact strings listed under [STALE PREVIOUS VALUE — DO NOT RETURN UNCHANGED].
@@ -735,11 +747,13 @@ Never use placeholders like "<scene value>", "…", "...", or "—".
 Calendar/clock/season/weather must be concrete values — never unknown/알 수 없음/미상/모름/N/A.
 Do not add extra keys.
 
+${STATUS_WIDGET_FIELD_SEMANTICS_EN}
+
 Return final scene values, not field instructions.
 Never copy a field label, instruction, initial-value description, "NPC의 속마음", "유저의 속마음", "{{char}}", "{{user}}", "NPC", or "PC" as the value when a real [CHARACTER]/[USER] name is available.
 Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 
-Inner-state fields: each field's instruction states WHOSE inner state to write — obey it exactly.
+Character-interpretive fields: each field's instruction states WHOSE state to write and any output format — obey both exactly.
 If the instruction does not name anyone, default to ${defaultSubject}.
 Never substitute the other person's feelings for the required person's.
 
@@ -747,8 +761,8 @@ Fill priority (highest first):
 1. Explicit values in the current ASSISTANT RP / CURRENT USER MESSAGE
 2. Field initialValue when the widget defines one (use the value, not the instruction text)
 3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep unchanged place/state when appropriate; advance clock fields by a scene-plausible amount (at least one minute) for a completed RP turn unless prose explicitly pins the exact same instant, and advance date/season/weather consistently for larger skips
-4. First-fill reasonable inference when no prior anchor exists
-Previous values are continuity references, not answer text to copy — never paste them as-is when current RP changed the scene or adds new dialogue/information/emotional context. Persistent state may keep prior values when unchanged; inner-state: freshly evaluate at END of turn (preserve meaning if truly unchanged; do not invent false change).
+4. First-fill reasonable inference when no prior anchor exists (interpretive fields only; factual fields stay source-grounded)
+Previous values are continuity references, not answer text to copy — never paste them as-is when current RP changed the scene or adds new dialogue/information/emotional context. Persistent factual state may keep prior values when unchanged; interpretive fields: freshly evaluate at END of turn (preserve meaning if truly unchanged; do not invent false change).
 Inner-state quality: ${INNER_STATE_QUALITY_EN}
 Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
@@ -782,7 +796,7 @@ function formatWidgetFieldContract(
     if (initial) {
       lines.push(`  initialValue: ${expandFieldText(initial, charName, personaName)}`);
     }
-    if (looksLikeInnerStateField(field)) {
+    if (looksLikeInnerStateField(field) || looksLikeVolatileTurnDerivedField(field)) {
       lines.push(`  defaultSubject: ${defaultSubjectForRepairField(field, source)}`);
     }
     return lines.join("\n");
@@ -866,22 +880,20 @@ ${outputContract}Rules:
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips, fill EVERY field from the LAST scene.
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
+- ${STATUS_WIDGET_FIELD_SEMANTICS_EN}
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) previous canonical anchor (4) invent one scene-consistent concrete value. For a completed RP turn, advance a previous clock by a scene-plausible amount (at least one minute) unless prose explicitly pins the exact same instant. Never output unknown/알 수 없음/미상/모름/N/A.
-- Previous-turn widget values are continuity references, not answer text to copy. Derive primarily from the current RP turn. Persistent non-clock state may keep prior values when unchanged; do not invent changes without evidence.
-- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue):
-  - Infer each source's current scene reaction separately from that source's field instruction.
+- Previous-turn widget values are continuity references, not answer text to copy. Derive primarily from the current RP turn. Persistent factual state may keep prior values when unchanged; do not invent factual changes without evidence.
+- Character-interpretive fields (속마음, 감정/카오모지, desires/wants, inner monologue):
+  - Infer each source's current scene reaction separately from that source's field instruction and format.
   - Freshly evaluate at END of turn; do not mechanically repeat previous wording when this turn has new actions/dialogue/information/emotional context. If underlying state is unchanged, preserve meaning (exact wording need not be copied); do not invent false change.
   - ${INNER_STATE_QUALITY_EN}
   - Do not copy character and user emotions/inner states as one shared value across character_values and user_values.
-  - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown.
-  - Unknown-like narrative values are allowed only when the scene is truly ambiguous OR the field instruction itself requires uncertainty.
-  - Identical strings across sources are fine when the scene genuinely warrants the same state; sameness alone is not an error.
-  - Obey each field's instruction for WHOSE inner state to write. Do not swap [CHARACTER] and [USER] subjects.
+  - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown for interpretive fields.
+  - Obey each field's instruction for WHOSE state to write. Do not swap [CHARACTER] and [USER] subjects.
 - Do NOT copy field labels, instructions, or requirement phrases as values.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - Prefer current-turn explicit change over previous canonical anchors.
-- Do NOT invent lore that contradicts the provided context.
 ${STATUS_WIDGET_NO_EPISODIC_OWNERSHIP_INSTRUCTIONS}`;
 }
 
