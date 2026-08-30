@@ -1,22 +1,21 @@
 import type Database from "better-sqlite3";
-import { canUseWorldForTrpg, loadWorldForTrpg } from "./catalog";
+import { canUseWorldForTrpg } from "./catalog";
 import {
   emptyCampaignContext,
   loadCampaignContext,
   persistCampaignContext,
   type TrpgCampaignContext,
   type TrpgScenarioSnapshot,
-  type TrpgWorldSnapshot,
 } from "./campaignContext";
-import { hashWorldSnapshot, makeDraftProvenance } from "./scenarioDraft";
-import {
-  buildSandboxDirectorSystemPrompt,
-  buildSandboxDirectorUserPrompt,
-} from "./scenarioDraft";
-import { completeTrpgAuthoringJson, type TrpgAuthoringComplete } from "./scenarioDraftCall";
-import { evaluateSandboxBlueprint, parseTrpgScenarioPlan } from "./scenarioPlan";
 import { loadScenarioTemplate, rowToScenarioTemplate } from "./scenarioTemplates";
 import { loadCampaign } from "./store";
+import {
+  copyWorldBlueprintPlan,
+  loadValidWorldBlueprintPlan,
+  loadWorldSnapshotForBlueprint,
+} from "./worldBlueprintArtifact";
+import { generateWorldSandboxBlueprint } from "./worldBlueprintGeneration";
+import type { TrpgAuthoringComplete } from "./scenarioDraftCall";
 
 export type TrpgDirectorDeps = {
   directorCall?: TrpgAuthoringComplete;
@@ -28,37 +27,6 @@ export const TRPG_SANDBOX_DIRECTOR_ENABLED_ENV = "TRPG_SANDBOX_DIRECTOR_ENABLED"
 export function isTrpgSandboxDirectorEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = env[TRPG_SANDBOX_DIRECTOR_ENABLED_ENV]?.trim().toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
-}
-
-function tableExists(db: Database.Database, name: string): boolean {
-  const row = db
-    .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
-    .get(name) as { ok: number } | undefined;
-  return Boolean(row);
-}
-
-function loadWorldSnapshot(db: Database.Database, worldId: number | null): TrpgWorldSnapshot | null {
-  if (!worldId || !tableExists(db, "worlds")) return null;
-  const world = loadWorldForTrpg(db, worldId);
-  if (!world) return null;
-  const extra = db
-    .prepare(`SELECT name, COALESCE(updated_at, '') AS updated_at FROM worlds WHERE id=?`)
-    .get(worldId) as { name?: string; updated_at?: string } | undefined;
-  const name = extra?.name ?? "";
-  const updatedAt = extra?.updated_at ?? "";
-  return {
-    id: world.id,
-    name,
-    summary: world.summary,
-    content: world.content,
-    updatedAt,
-    hash: hashWorldSnapshot({
-      name,
-      summary: world.summary,
-      content: world.content,
-      updatedAt,
-    }),
-  };
 }
 
 function loadScenarioSnapshot(db: Database.Database, templateId: number | null): TrpgScenarioSnapshot | null {
@@ -81,7 +49,8 @@ function loadScenarioSnapshot(db: Database.Database, templateId: number | null):
 
 /**
  * One-shot campaign context. Never called per round.
- * Scenario campaigns copy the authored plan. World-only sandbox may generate a blueprint once.
+ * Scenario campaigns copy the authored plan. World-only sandbox may copy a pre-generated
+ * world-revision Blueprint or fall back to synchronous generation when none is valid.
  * Failure never blocks campaign start.
  */
 export async function ensureCampaignDirectorContext(
@@ -99,7 +68,7 @@ export async function ensureCampaignDirectorContext(
     return ctx;
   }
 
-  ctx.worldSnapshot = loadWorldSnapshot(db, campaign.source_world_id);
+  ctx.worldSnapshot = loadWorldSnapshotForBlueprint(db, campaign.source_world_id);
   ctx.scenarioSnapshot = loadScenarioSnapshot(db, campaign.template_id);
   if (campaign.template_id) {
     ctx.sourceMode = "scenario";
@@ -119,33 +88,30 @@ export async function ensureCampaignDirectorContext(
     persistCampaignContext(db, ctx);
     return ctx;
   }
-  try {
-    const generated = await completeTrpgAuthoringJson({
-      kind: "sandbox_blueprint",
-      system: buildSandboxDirectorSystemPrompt(),
-      user: buildSandboxDirectorUserPrompt({
-        worldName: ctx.worldSnapshot.name,
-        worldSummary: ctx.worldSnapshot.summary,
-        worldContent: ctx.worldSnapshot.content,
-      }),
-      complete: deps?.directorCall,
-    });
-    const plan = parseTrpgScenarioPlan(generated.plan) ?? generated.plan;
-    const accepted = evaluateSandboxBlueprint(plan);
-    if (!accepted.ok) {
-      ctx.directorPlan = null;
-      ctx.directorError = accepted.error;
-    } else {
-      plan.provenance = makeDraftProvenance({
-        worldId: ctx.worldSnapshot.id,
-        worldUpdatedAt: ctx.worldSnapshot.updatedAt,
-        worldHash: ctx.worldSnapshot.hash,
-      });
-      ctx.directorPlan = plan;
-    }
-  } catch (error) {
-    ctx.directorError = error instanceof Error ? error.message : "sandbox director failed";
+
+  const artifactPlan = loadValidWorldBlueprintPlan(db, campaign.source_world_id, ctx.worldSnapshot);
+  if (artifactPlan) {
+    ctx.directorPlan = copyWorldBlueprintPlan(artifactPlan);
+    persistCampaignContext(db, ctx);
+    return ctx;
+  }
+
+  const generated = await generateWorldSandboxBlueprint(
+    {
+      worldId: ctx.worldSnapshot.id ?? campaign.source_world_id,
+      worldName: ctx.worldSnapshot.name,
+      worldSummary: ctx.worldSnapshot.summary,
+      worldContent: ctx.worldSnapshot.content,
+      worldUpdatedAt: ctx.worldSnapshot.updatedAt,
+      worldHash: ctx.worldSnapshot.hash,
+    },
+    { complete: deps?.directorCall }
+  );
+  if (!generated.ok) {
+    ctx.directorError = generated.error;
     ctx.directorPlan = null;
+  } else {
+    ctx.directorPlan = generated.plan;
   }
   persistCampaignContext(db, ctx);
   return ctx;

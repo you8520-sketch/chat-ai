@@ -4,6 +4,9 @@ import { getDb } from "@/lib/db";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
+import {
+  maybeEnqueueWorldBlueprintPregenAfterCommit,
+} from "@/lib/derivedCache/worldBlueprintPregen";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import { validateWorldTrpgPublicationTransition } from "@/lib/trpg/trpgPublication";
 import {
@@ -75,6 +78,14 @@ export async function POST(req: Request) {
     .get(id) as WorldRow;
 
   enqueueWorldTranslationJob(db, id, content);
+  maybeEnqueueWorldBlueprintPregenAfterCommit(db, {
+    worldId: id,
+    previousTrpgEnabled: false,
+    nextTrpgEnabled: trpgEnabled === 1,
+    nameChanged: false,
+    summaryChanged: false,
+    contentChanged: false,
+  });
   kickDerivedCacheWorker();
 
   return NextResponse.json({ ok: true, world: rowToWorldListItem(row) });

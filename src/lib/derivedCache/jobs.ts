@@ -4,7 +4,8 @@ import { getDb } from "@/lib/db";
 export type DerivedJobKind =
   | "character_derived_refresh"
   | "world_translate"
-  | "world_share_translate";
+  | "world_share_translate"
+  | "trpg_sandbox_blueprint_pregen";
 
 export type DerivedEntityType = "character" | "world" | "world_share";
 
@@ -29,6 +30,21 @@ export type DerivedCacheJobRow = {
 
 const MAX_JOB_ATTEMPTS = 8;
 const LEASE_STALE_MINUTES = 15;
+
+export function maxAttemptsForDerivedJobKind(jobKind: DerivedJobKind): number {
+  switch (jobKind) {
+    case "trpg_sandbox_blueprint_pregen":
+      return 1;
+    case "character_derived_refresh":
+    case "world_translate":
+    case "world_share_translate":
+      return MAX_JOB_ATTEMPTS;
+    default: {
+      const unknownKind: never = jobKind;
+      return unknownKind;
+    }
+  }
+}
 
 export function ensureDerivedCacheJobsTable(db: Database.Database): void {
   db.exec(`
@@ -79,6 +95,77 @@ export function enqueueDerivedCacheJob(
       `INSERT OR IGNORE INTO derived_cache_jobs
         (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`
+    )
+    .run(
+      input.jobKind,
+      input.entityType,
+      input.entityId,
+      input.sourceFingerprint,
+      input.derivationVersion,
+      input.jobFlags ?? ""
+    );
+  return result.changes > 0;
+}
+
+export type DerivedCacheJobIdentity = {
+  jobKind: DerivedJobKind;
+  entityType: DerivedEntityType;
+  entityId: number;
+  sourceFingerprint: string;
+  derivationVersion: number;
+  jobFlags?: string;
+};
+
+export function findDerivedCacheJobByIdentity(
+  db: Database.Database,
+  input: DerivedCacheJobIdentity
+): DerivedCacheJobRow | null {
+  ensureDerivedCacheJobsTable(db);
+  return (
+    (db
+      .prepare(
+        `SELECT * FROM derived_cache_jobs
+         WHERE job_kind = ?
+           AND entity_type = ?
+           AND entity_id = ?
+           AND source_fingerprint = ?
+           AND derivation_version = ?`
+      )
+      .get(
+        input.jobKind,
+        input.entityType,
+        input.entityId,
+        input.sourceFingerprint,
+        input.derivationVersion
+      ) as DerivedCacheJobRow | undefined) ?? null
+  );
+}
+
+/**
+ * Atomically enqueue a pending job or reactivate a terminal done/failed row.
+ * Pending/processing rows are preserved (single-flight); returns false if unchanged.
+ */
+export function enqueueDerivedCacheJobReplacingTerminal(
+  db: Database.Database,
+  input: DerivedCacheJobIdentity
+): boolean {
+  ensureDerivedCacheJobsTable(db);
+  const result = db
+    .prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags,
+         status, run_after, attempts, locked_at, last_error, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), 0, NULL, '', datetime('now'))
+       ON CONFLICT(job_kind, entity_type, entity_id, source_fingerprint, derivation_version)
+       DO UPDATE SET
+         status = 'pending',
+         attempts = 0,
+         run_after = datetime('now'),
+         locked_at = NULL,
+         last_error = '',
+         job_flags = excluded.job_flags,
+         updated_at = datetime('now')
+       WHERE derived_cache_jobs.status IN ('done', 'failed')`
     )
     .run(
       input.jobKind,
@@ -176,6 +263,11 @@ function backoffMinutes(attempts: number): number {
   return Math.min(60, Math.pow(2, Math.max(0, attempts - 1)));
 }
 
+/** Remove a job row so its derivation identity can be enqueued again. */
+export function discardDerivedCacheJob(db: Database.Database, jobId: number): void {
+  db.prepare(`DELETE FROM derived_cache_jobs WHERE id = ?`).run(jobId);
+}
+
 export function completeDerivedCacheJob(
   db: Database.Database,
   jobId: number,
@@ -191,10 +283,11 @@ export function completeDerivedCacheJob(
   }
 
   const row = db
-    .prepare(`SELECT attempts FROM derived_cache_jobs WHERE id = ?`)
-    .get(jobId) as { attempts: number } | undefined;
+    .prepare(`SELECT attempts, job_kind FROM derived_cache_jobs WHERE id = ?`)
+    .get(jobId) as { attempts: number; job_kind: DerivedJobKind } | undefined;
   const attempts = row?.attempts ?? MAX_JOB_ATTEMPTS;
-  const retryable = outcome.retryable !== false && attempts < MAX_JOB_ATTEMPTS;
+  const maxAttempts = row ? maxAttemptsForDerivedJobKind(row.job_kind) : MAX_JOB_ATTEMPTS;
+  const retryable = outcome.retryable !== false && attempts < maxAttempts;
   const err = outcome.error.slice(0, 240);
   if (retryable) {
     db.prepare(

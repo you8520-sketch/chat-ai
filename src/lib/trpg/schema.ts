@@ -285,6 +285,21 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_campaign_context", "local_scene_progress_json", "TEXT");
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS trpg_world_blueprint_artifacts (
+      world_id INTEGER PRIMARY KEY,
+      source_fingerprint TEXT NOT NULL,
+      derivation_version INTEGER NOT NULL,
+      generator_model TEXT NOT NULL,
+      schema_version TEXT NOT NULL,
+      director_plan_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_world_blueprint_artifacts_fingerprint
+      ON trpg_world_blueprint_artifacts(source_fingerprint, derivation_version);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       round_id INTEGER NOT NULL,

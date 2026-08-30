@@ -16,10 +16,16 @@ import {
 import { isAppearanceCompiledCurrent, resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { characterCanonicalSourceFingerprintFromRow } from "@/lib/derivedCache/characterSourceFingerprint";
 import { FORCE_APPEARANCE_JOB_FLAG } from "@/lib/derivedCache/characterEnqueue";
-import { completeDerivedCacheJob, type DerivedCacheJobRow } from "@/lib/derivedCache/jobs";
+import { completeDerivedCacheJob, discardDerivedCacheJob, type DerivedCacheJobRow } from "@/lib/derivedCache/jobs";
 import { translateCharacterChunksForDerivedRefresh } from "@/lib/derivedCache/characterTranslation";
 import { refreshWorldEnglishCache, refreshWorldShareEnglishCache } from "@/lib/derivedCache/worldTranslation";
+import {
+  canExecuteWorldBlueprintPregen,
+  refreshWorldBlueprintArtifact,
+  WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+} from "@/lib/derivedCache/worldBlueprintPregen";
 import { TRANSLATION_DERIVATION_VERSION } from "@/lib/derivedCache/versions";
+import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "@/lib/trpg/blueprintValidity";
 import { parseCharacterGender } from "@/lib/characterGender";
 import {
   compiledPublicCanonText,
@@ -169,11 +175,26 @@ async function processCharacterDerivedRefresh(
   return { ok: true };
 }
 
+function expectedDerivationVersion(jobKind: DerivedCacheJobRow["job_kind"]): number {
+  switch (jobKind) {
+    case WORLD_BLUEPRINT_PREGEN_JOB_KIND:
+      return TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION;
+    case "character_derived_refresh":
+    case "world_translate":
+    case "world_share_translate":
+      return TRANSLATION_DERIVATION_VERSION;
+    default: {
+      const unknownKind: never = jobKind;
+      return unknownKind;
+    }
+  }
+}
+
 export async function processDerivedCacheJob(
   db: Database.Database,
   job: DerivedCacheJobRow
 ): Promise<void> {
-  if (job.derivation_version !== TRANSLATION_DERIVATION_VERSION) {
+  if (job.derivation_version !== expectedDerivationVersion(job.job_kind)) {
     completeDerivedCacheJob(db, job.id, {
       ok: false,
       error: "derivation_version_mismatch",
@@ -193,6 +214,18 @@ export async function processDerivedCacheJob(
         break;
       case "world_share_translate":
         outcome = await refreshWorldShareEnglishCache(db, job.entity_id, job.source_fingerprint);
+        break;
+      case WORLD_BLUEPRINT_PREGEN_JOB_KIND:
+        if (!canExecuteWorldBlueprintPregen(db, job.entity_id)) {
+          discardDerivedCacheJob(db, job.id);
+          return;
+        }
+        outcome = await refreshWorldBlueprintArtifact(
+          db,
+          job.entity_id,
+          job.source_fingerprint,
+          job.derivation_version
+        );
         break;
       default: {
         const unknownKind: never = job.job_kind;

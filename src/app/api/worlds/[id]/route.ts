@@ -8,7 +8,12 @@ import {
   loadOwnedWorldRow,
 } from "@/lib/worldPermissions";
 import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
+import { deleteWorldBlueprintArtifact } from "@/lib/trpg/worldBlueprintArtifact";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
+import {
+  maybeEnqueueWorldBlueprintPregenAfterCommit,
+  shouldEnqueueWorldBlueprintPregen,
+} from "@/lib/derivedCache/worldBlueprintPregen";
 import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   WORLD_CONTENT_LIMIT,
@@ -100,28 +105,52 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   const contentChanged = b.content != null && content !== existing.content;
+  const nameChanged = b.name != null && name !== existing.name;
+  const summaryChanged = b.summary != null && summary !== existing.summary;
+  const previousTrpgEnabled = Number(existing.trpg_enabled ?? 0) === 1;
+  const nextTrpgEnabled = trpgFlags.trpgEnabled === 1;
+  const blueprintTriggerInput = {
+    previousTrpgEnabled,
+    nextTrpgEnabled,
+    nameChanged,
+    summaryChanged,
+    contentChanged,
+  };
+  const shouldEnqueueBlueprint = shouldEnqueueWorldBlueprintPregen(blueprintTriggerInput);
 
-  db.prepare(
-    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
+  const updateResult = db
+    .prepare(
+      `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
      content_en = CASE WHEN ? THEN '' ELSE content_en END,
      content_translation_fingerprint = CASE WHEN ? THEN '' ELSE content_translation_fingerprint END
      WHERE id = ? AND creator_id = ?`
-  ).run(
-    name,
-    summary,
-    content,
-    trpgFlags.trpgEnabled,
-    trpgFlags.trpgVisibility,
-    genresJson,
-    coverUrl,
-    contentChanged ? 1 : 0,
-    contentChanged ? 1 : 0,
-    id,
-    user.id
-  );
+    )
+    .run(
+      name,
+      summary,
+      content,
+      trpgFlags.trpgEnabled,
+      trpgFlags.trpgVisibility,
+      genresJson,
+      coverUrl,
+      contentChanged ? 1 : 0,
+      contentChanged ? 1 : 0,
+      id,
+      user.id
+    );
 
-  if (contentChanged) {
+  let enqueuedBlueprint = false;
+  if (updateResult.changes > 0 && shouldEnqueueBlueprint) {
+    enqueuedBlueprint = maybeEnqueueWorldBlueprintPregenAfterCommit(db, {
+      worldId: id,
+      ...blueprintTriggerInput,
+    });
+  }
+
+  if (contentChanged && updateResult.changes > 0) {
     enqueueWorldTranslationJob(db, id, content);
+  }
+  if ((contentChanged || enqueuedBlueprint) && updateResult.changes > 0) {
     kickDerivedCacheWorker();
   }
 
@@ -144,6 +173,9 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
   }
 
   revokeWorldSharesForDeletedWorld(id);
-  db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(id, user.id);
+  const deleted = db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(id, user.id);
+  if (deleted.changes > 0) {
+    deleteWorldBlueprintArtifact(db, id);
+  }
   return NextResponse.json({ ok: true });
 }
