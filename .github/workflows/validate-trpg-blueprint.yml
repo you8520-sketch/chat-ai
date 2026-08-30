@@ -9,6 +9,9 @@ on:
       - "src/lib/trpg/worldBlueprintPregen.test.ts"
       - "src/lib/trpg/worldBlueprintSyncFallbackHealing.test.ts"
       - "src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts"
+      - "src/lib/trpg/blueprintRolloutStatus.ts"
+      - "src/lib/trpg/blueprintRolloutStatus.test.ts"
+      - "src/app/api/admin/trpg-blueprint-rollout-status/route.ts"
       - "src/lib/trpg/blueprintValidity.ts"
       - "src/lib/trpg/blueprintSourceFingerprint.ts"
       - "src/lib/trpg/sandboxDirector.ts"
@@ -54,6 +57,8 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npm run typecheck:app
+      - name: Blueprint rollout status snapshot
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/blueprintRolloutStatus.test.ts
       - name: Canonical convergence
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts
       - name: Sync fallback healing
