@@ -1,3 +1,4 @@
+import { displayVisibilityFromMode } from "./displayVisibilityToggles";
 import {
   displayModeFromEngineMode,
   parseStatusWidgetDisplayMode,
@@ -257,7 +258,7 @@ export function statusWidgetTogglesFromMode(mode: StatusWidgetSourceMode): {
 }
 
 /**
- * @deprecated COMPATIBILITY_ONLY_OWNER — display visibility helper only.
+ * @deprecated COMPATIBILITY_ONLY_OWNER — delegate to displayVisibilityFromMode.
  * Must not be used to derive engine mode.
  */
 export function statusWidgetTogglesFromDisplayMode(display: StatusWidgetDisplayMode): {
@@ -265,18 +266,10 @@ export function statusWidgetTogglesFromDisplayMode(display: StatusWidgetDisplayM
   userVisible: boolean;
   uiHidden: boolean;
 } {
-  switch (display) {
-    case "creator":
-      return { creatorVisible: true, userVisible: false, uiHidden: false };
-    case "user":
-      return { creatorVisible: false, userVisible: true, uiHidden: false };
-    case "both":
-      return { creatorVisible: true, userVisible: true, uiHidden: false };
-    case "hidden":
-      return { creatorVisible: false, userVisible: false, uiHidden: true };
-    default: {
-      const _exhaustive: never = display;
-      return _exhaustive;
-    }
-  }
+  const { creatorVisible, userVisible } = displayVisibilityFromMode(display);
+  return {
+    creatorVisible,
+    userVisible,
+    uiHidden: !creatorVisible && !userVisible,
+  };
 }
