@@ -435,7 +435,6 @@ export async function callOpenRouterCompletion(opts: {
         outputTokens: resolvedOutputTokens,
         cacheReadTokens: parsedUsage.cacheReadTokens || undefined,
         cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
-        upstreamCostUsd: parsedUsage.upstreamCostUsd,
         estimated: promptTokens == null || completionTokens == null,
       });
     } catch (error) {

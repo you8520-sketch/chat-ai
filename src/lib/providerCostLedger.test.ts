@@ -9,11 +9,12 @@ import {
   isLedgerEventCostCoverageIncomplete,
   isLedgerEventCostExact,
   listProviderCostEventsForAssistantMessage,
-  projectAsyncLedgerUsdToTurnKrw,
   readProviderCostEventByKey,
   resolveLedgerAttemptSettlement,
   startProviderCostAttempt,
 } from "./providerCostLedger";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 function createLedgerTestDb(): Database.Database {
   const db = new Database(":memory:");
@@ -231,18 +232,49 @@ describe("providerCostLedger", () => {
     assert.equal(row.assistant_message_id, 99);
   });
 
-  it("M/N — async USD projects with parent turn FX snapshot only", () => {
-    const krw = projectAsyncLedgerUsdToTurnKrw(0.02, {
-      dateKey: "2026-08-30",
-      baseUsdKrw: 1530,
-      overseasFeeRate: 0.02,
-      effectiveKrwPerUsd: 1560.6,
-      source: "test",
-    });
-    assert.ok(krw != null && Math.abs(krw - 31.2) < 0.05);
-  });
+  it("micro-correction gates — legacy finance isolation and cleanup", () => {
+    const openRouterCompletionSource = readFileSync(
+      join(process.cwd(), "src/lib/openRouterCompletion.ts"),
+      "utf8"
+    );
+    const legacyRecordApiCostBlock = openRouterCompletionSource.match(
+      /recordApiCost\(\{[\s\S]*?\}\);/
+    )?.[0];
+    assert.ok(legacyRecordApiCostBlock);
+    assert.equal(
+      legacyRecordApiCostBlock.includes("upstreamCostUsd"),
+      false,
+      "LEGACY_NO_CONTEXT_UPSTREAM_FORWARDING=false"
+    );
 
-  it("O — missing parent FX returns unavailable KRW projection", () => {
-    assert.equal(projectAsyncLedgerUsdToTurnKrw(0.02, null), null);
+    const providerCostLedgerSource = readFileSync(
+      join(process.cwd(), "src/lib/providerCostLedger.ts"),
+      "utf8"
+    );
+    assert.equal(
+      providerCostLedgerSource.includes("projectAsyncLedgerUsdToTurnKrw"),
+      false,
+      "WHOLE_TURN_FX_PROJECTION_IMPLEMENTED=false"
+    );
+    assert.equal(
+      providerCostLedgerSource.includes("resolveLedgerAttemptActualCost"),
+      false,
+      "DEPRECATED_PROVIDER_LEDGER_ADAPTER_COUNT=0"
+    );
+    assert.equal(
+      providerCostLedgerSource.includes("isLedgerEventExact"),
+      false,
+      "DEPRECATED_PROVIDER_LEDGER_ADAPTER_COUNT=0"
+    );
+    assert.equal(
+      providerCostLedgerSource.includes("isLedgerEventCoverageIncomplete"),
+      false,
+      "DEPRECATED_PROVIDER_LEDGER_ADAPTER_COUNT=0"
+    );
+    assert.equal(
+      providerCostLedgerSource.includes("@deprecated"),
+      false,
+      "DEPRECATED_PROVIDER_LEDGER_ADAPTER_COUNT=0"
+    );
   });
 });

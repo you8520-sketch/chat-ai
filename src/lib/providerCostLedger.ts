@@ -9,8 +9,6 @@ import {
 } from "@/lib/adminFinance";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { ActualCostSource } from "@/lib/shadowPricing";
-import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
-import { convertUsdToKrw } from "@/lib/exchangeRate";
 
 export type ProviderCostFamily =
   | "suggested_replies_repair"
@@ -253,35 +251,6 @@ export function resolveLedgerAttemptSettlement(input: {
   };
 }
 
-/** @deprecated use resolveLedgerAttemptSettlement */
-export function resolveLedgerAttemptActualCost(input: {
-  actualProvider: string;
-  cheaperInferenceBilledCostUsd?: number;
-  upstreamCostUsd?: number;
-  usageEstimated?: boolean;
-  eventStatus: ProviderCostEventStatus;
-}): {
-  actualCostUsd?: number;
-  actualCostSource: ActualCostSource | "legacy_estimated" | "incomplete";
-  settled: boolean;
-} {
-  const outcome =
-    input.eventStatus === "failed_without_usage"
-      ? "failed_without_usage"
-      : input.eventStatus === "failed_with_usage"
-        ? "failed_with_usage"
-        : "success";
-  const settlement = resolveLedgerAttemptSettlement({ ...input, outcome });
-  return {
-    actualCostUsd: settlement.actualCostUsd,
-    actualCostSource:
-      settlement.actualCostSource === "unavailable"
-        ? "incomplete"
-        : settlement.actualCostSource,
-    settled: settlement.settled,
-  };
-}
-
 export function isLedgerEventCostExact(
   row: Pick<
     ProviderCostLedgerRow,
@@ -294,16 +263,6 @@ export function isLedgerEventCostExact(
       row.actual_cost_source === "provider_reported") &&
     finiteNonNegative(row.actual_cost_usd) > 0
   );
-}
-
-/** @deprecated use isLedgerEventCostExact */
-export function isLedgerEventExact(
-  row: Pick<
-    ProviderCostLedgerRow,
-    "actual_cost_usd" | "actual_cost_source" | "event_status"
-  >
-): boolean {
-  return isLedgerEventCostExact(row);
 }
 
 export function isLedgerEventCostCoverageIncomplete(
@@ -319,27 +278,6 @@ export function isLedgerEventCostCoverageIncomplete(
     return true;
   }
   return false;
-}
-
-/** @deprecated use isLedgerEventCostCoverageIncomplete */
-export function isLedgerEventCoverageIncomplete(
-  row: Pick<
-    ProviderCostLedgerRow,
-    "event_status" | "actual_cost_usd" | "actual_cost_source"
-  >
-): boolean {
-  return isLedgerEventCostCoverageIncomplete(row);
-}
-
-/** Future whole-turn projection — parent turn FX only; never re-fetch FX here. */
-export function projectAsyncLedgerUsdToTurnKrw(
-  actualUsd: number,
-  parentFxSnapshot: BillingFxSnapshot | null | undefined
-): number | null {
-  if (!parentFxSnapshot) return null;
-  const effective = finiteNonNegative(parentFxSnapshot.effectiveKrwPerUsd);
-  if (effective <= 0) return null;
-  return Math.round(convertUsdToKrw(actualUsd, effective) * 10) / 10;
 }
 
 export function buildPlatformAsyncTurnLedgerContext(input: {
