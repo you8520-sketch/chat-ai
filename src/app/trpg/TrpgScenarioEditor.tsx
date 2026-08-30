@@ -17,7 +17,6 @@ import {
 } from "@/lib/trpg/scenarioAssets";
 import {
   emptyTrpgScenarioPlan,
-  hasLegacyAdvancedPlanFields,
   lintTrpgScenarioPlan,
   type TrpgScenarioDifficulty,
   type TrpgScenarioPlan,
@@ -145,7 +144,6 @@ export default function TrpgScenarioEditor({
     initial?.scenarioPlan ? ["difficulty", "playLength"] : []
   );
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
-  const [storyDetailsOpen, setStoryDetailsOpen] = useState(() => hasLegacyAdvancedPlanFields(initial?.scenarioPlan));
   const [worldExtraOpen, setWorldExtraOpen] = useState(() =>
     Boolean(initial?.worldId && initial?.content.trim())
   );
@@ -275,8 +273,7 @@ export default function TrpgScenarioEditor({
     router.push(returnHref);
   }
 
-  function revealReadinessField(field: ScenarioReadinessField, section: "story" | "details") {
-    if (section === "details" && field !== "bundle") setStoryDetailsOpen(true);
+  function revealReadinessField(field: ScenarioReadinessField, _section: "story" | "details") {
     window.setTimeout(() => scrollToScenarioField(field), 0);
   }
 
@@ -882,6 +879,7 @@ export default function TrpgScenarioEditor({
               value={secretContent}
               maxLength={secretMax}
               rows={4}
+              placeholder={SCENARIO_STORY_FIELD_COPY.gmNotes.placeholder}
               onChange={(e) => {
                 setScenarioAuthoringActive(true);
                 setSecretContent(e.target.value);
@@ -889,134 +887,6 @@ export default function TrpgScenarioEditor({
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
-          <button
-            type="button"
-            data-scenario-story-details
-            aria-expanded={storyDetailsOpen}
-            onClick={() => setStoryDetailsOpen((open) => !open)}
-            className="mt-5 min-h-11 w-full rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2 text-left text-sm font-bold text-violet-100"
-          >
-            {storyDetailsOpen
-              ? "− 고급 설정 접기"
-              : hasLegacyAdvancedPlanFields(plan)
-                ? "+ 기존 고급 설정 보기"
-                : "+ 고급 설정 (선택)"}
-          </button>
-          {storyDetailsOpen ? (
-            <div className="mt-4 space-y-3" data-scenario-story-details-content>
-              <label className="block text-sm text-zinc-300" data-scenario-field="centralConflict">
-                {SCENARIO_STORY_FIELD_COPY.centralConflict.label}
-                <LockButton field="centralConflict" />
-                <RegenButton field="centralConflict" label={SCENARIO_STORY_FIELD_COPY.centralConflict.label} />
-                <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="centralConflict">
-                  {SCENARIO_STORY_FIELD_COPY.centralConflict.helper}
-                </p>
-                <textarea
-                  value={plan.centralConflict}
-                  rows={3}
-                  onChange={(e) => patchPlan({ centralConflict: e.target.value })}
-                  placeholder="예: 성채를 장악하려는 인간 세력과 도시 코어의 확장이 동시에 진행되고 있다."
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300" data-scenario-field="endingConditions">
-                {SCENARIO_STORY_FIELD_COPY.endingConditions.label}
-                <LockButton field="endingConditions" />
-                <RegenButton field="endingConditions" label={SCENARIO_STORY_FIELD_COPY.endingConditions.label} />
-                <p className="mt-1 text-xs font-normal text-zinc-500" data-scenario-field-helper="endingConditions">
-                  {SCENARIO_STORY_FIELD_COPY.endingConditions.helper}
-                </p>
-                <textarea
-                  value={listText(plan.endingConditions)}
-                  rows={4}
-                  onChange={(e) => patchPlan({ endingConditions: parseList(e.target.value) })}
-                  placeholder={"예: 생존자를 구조하고 연구소에서 탈출한다\n예: 위협을 차단한 뒤 철수한다"}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                GM 비공개 설정 (레거시)
-                <LockButton field="secret" />
-                <textarea
-                  value={plan.secret}
-                  rows={3}
-                  onChange={(e) => patchPlan({ secret: e.target.value })}
-                  placeholder="이전 버전에서 작성된 GM 비공개 설정입니다. 새 메모는 위 GM 추가 설정을 사용하세요."
-                  className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                주요 사건 (강제 순서가 아닌 가능/조건부 사건)
-                <LockButton field="majorEvents" />
-                <RegenButton field="majorEvents" label="사건" />
-                <textarea
-                  value={listText(plan.majorEvents)}
-                  rows={4}
-                  onChange={(e) => patchPlan({ majorEvents: parseList(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                단서
-                <LockButton field="clues" />
-                <RegenButton field="clues" label="단서" />
-                <textarea
-                  value={listText(plan.clues)}
-                  rows={4}
-                  onChange={(e) => patchPlan({ clues: parseList(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                클라이맥스
-                <LockButton field="climax" />
-                <RegenButton field="climax" label="클라이맥스" />
-                <textarea
-                  value={plan.climax}
-                  rows={3}
-                  onChange={(e) => patchPlan({ climax: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                엔딩 후보 (고정 분기가 아님)
-                <textarea
-                  value={listText(plan.endingCandidates)}
-                  rows={3}
-                  onChange={(e) => patchPlan({ endingCandidates: parseList(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                세력 변화
-                <textarea
-                  value={listText(plan.factionChanges)}
-                  rows={3}
-                  onChange={(e) => patchPlan({ factionChanges: parseList(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                피해야 할 전개
-                <textarea
-                  value={listText(plan.forbiddenEvents)}
-                  rows={3}
-                  onChange={(e) => patchPlan({ forbiddenEvents: parseList(e.target.value) })}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-              <label className="block text-sm text-zinc-300">
-                GM 연출
-                <textarea
-                  value={plan.gmDirection}
-                  rows={3}
-                  onChange={(e) => patchPlan({ gmDirection: e.target.value })}
-                  placeholder="예: 코즈믹 호러 중심, 전투보다 탐험, 플레이어 결정을 대신하지 않음"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-                />
-              </label>
-            </div>
-          ) : null}
         </AppSectionCard>
 
         <AppSectionCard title="게임 규칙" titleVariant="prominent">
