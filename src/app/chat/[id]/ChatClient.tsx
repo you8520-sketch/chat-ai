@@ -127,7 +127,7 @@ import {
   planStreamRevealTermination,
   runStreamRevealTermination,
 } from "@/lib/streamRevealLifecycle";
-import { createStreamDraftWriteGate } from "@/lib/streamDraftLifecycle";
+import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -2338,27 +2338,33 @@ export default function ChatClient({
     let sessionTargetText = "";
     let revealLifetimeEnded = false;
     const recoveryDraftLifetime = createStreamDraftWriteGate();
+    const sessionRecoveryDraftScope = createSessionRecoveryDraftScope(chatId);
+    const recoveryDraftScopeOps: RecoveryDraftScopeOps = {
+      clearScope: (id) => clearChatStreamDraft(character.id, id),
+      readScope: (id) => readChatStreamDraft(character.id, id),
+      writeScope: (id, draft) => writeChatStreamDraft(character.id, id, draft),
+    };
 
-    const writeSessionRecoveryDraft = (
-      targetChatId: number | null,
-      draft: {
-        requestId: string;
-        chatId: number;
-        userText: string;
-        assistantPartial: string;
-      }
-    ) => {
+    const writeSessionRecoveryDraft = (draft: {
+      requestId: string;
+      chatId: number;
+      userText: string;
+      assistantPartial: string;
+    }) => {
       recoveryDraftLifetime.tryWrite(() =>
-        writeChatStreamDraft(character.id, targetChatId, {
+        writeChatStreamDraft(character.id, sessionRecoveryDraftScope.chatId, {
           ...draft,
+          chatId: sessionRecoveryDraftScope.chatId ?? draft.chatId ?? 0,
           updatedAt: Date.now(),
         })
       );
     };
 
-    const closeSessionRecoveryDraft = (targetChatId: number | null) => {
+    const closeSessionRecoveryDraft = () => {
       recoveryDraftLifetime.closeAndClear(() =>
-        clearChatStreamDraft(character.id, targetChatId)
+        clearRecoveryDraftScopes(sessionRecoveryDraftScope, (id) =>
+          clearChatStreamDraft(character.id, id)
+        )
       );
     };
 
@@ -2409,9 +2415,9 @@ export default function ChatClient({
               if (rid) {
                 const userText =
                   copy[aiIndex - 1]?.role === "user" ? copy[aiIndex - 1]!.content : "";
-                writeSessionRecoveryDraft(chatId, {
+                writeSessionRecoveryDraft({
                   requestId: rid,
-                  chatId: chatId ?? 0,
+                  chatId: sessionRecoveryDraftScope.chatId ?? 0,
                   userText,
                   assistantPartial: nextContent,
                 });
@@ -2595,7 +2601,7 @@ export default function ChatClient({
       data: NonNullable<typeof pendingDone>,
       opts?: { preserveStreamingContent?: boolean }
     ) => {
-      closeSessionRecoveryDraft(data.chatId ?? chatId);
+      closeSessionRecoveryDraft();
       setGenerationStartedAt(null);
       setChatId(data.chatId ?? chatId);
       if (data.chatId) {
@@ -2876,12 +2882,24 @@ export default function ChatClient({
               const userText =
                 copy[userIdx]?.role === "user" ? copy[userIdx]!.content : "";
               if (rid) {
-                writeSessionRecoveryDraft(nextChatId ?? null, {
+                const assistantPartial = copy[aiIndex]?.content ?? "";
+                const draftSnapshot = {
                   requestId: rid,
                   chatId: nextChatId ?? 0,
                   userText,
-                  assistantPartial: copy[aiIndex]?.content ?? "",
-                });
+                  assistantPartial,
+                  updatedAt: Date.now(),
+                };
+                if (data.chatId != null) {
+                  adoptSessionRecoveryDraftChatId(
+                    sessionRecoveryDraftScope,
+                    data.chatId,
+                    recoveryDraftScopeOps,
+                    draftSnapshot
+                  );
+                } else {
+                  writeSessionRecoveryDraft(draftSnapshot);
+                }
               }
               return copy;
             });
@@ -2973,7 +2991,7 @@ export default function ChatClient({
               htmlFlashStreamTurn = true;
             }
             if (data.trafficOverload || data.skipPersistence) {
-              closeSessionRecoveryDraft(chatId);
+              closeSessionRecoveryDraft();
               reveal.reset();
               reveal.flush();
               trafficOverload =
@@ -3085,7 +3103,7 @@ export default function ChatClient({
             return copy;
           });
           if (status === "interrupted" || status === "failed" || status === "failed_partial") {
-            closeSessionRecoveryDraft(chatId);
+            closeSessionRecoveryDraft();
           }
         }
       }
