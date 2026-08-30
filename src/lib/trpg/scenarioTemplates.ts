@@ -5,6 +5,7 @@ import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKey
 import { canUseWorldForTrpg, loadWorldForTrpg } from "@/lib/trpg/worldAccess";
 import { parseJson } from "./store";
 import { parseScenarioAssets } from "./scenarioAssets";
+import { toPublicScenarioNpcImages } from "./scenarioNpcAssets";
 import { parseTrpgScenarioPlan, publicTrpgScenarioPlan } from "./scenarioPlan";
 import {
   assertScenarioBundleLimit,
@@ -84,7 +85,7 @@ export function rowToScenarioTemplate(
     startInventory: parseInventory(parseJson(row.start_inventory_json, [] as string[])),
     defaultPcStats: parseStatRecord(parseJson(row.default_pc_stats_json, null), statDefs),
     statKeys,
-    npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
+    npcs: opts?.includeSecret === false ? [] : parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
     characterIds: parseCharacterIds(parseJson(row.character_ids_json, [] as unknown[])),
     genres: parseGenresJson(row.genres),
     assets: parseScenarioAssets(row.assets_json),
@@ -109,6 +110,19 @@ export function loadCampaignScenarioAssets(
   if (!templateId) return [];
   const row = loadScenarioTemplate(db, templateId);
   return row ? parseScenarioAssets(row.assets_json) : [];
+}
+
+export function loadCampaignScenarioNpcImages(
+  db: Database.Database,
+  templateId: number | null | undefined
+): import("./scenarioNpcAssets").TrpgPublicScenarioNpcImage[] {
+  if (!templateId) return [];
+  const row = loadScenarioTemplate(db, templateId);
+  if (!row) return [];
+  const statKeys = parseStatKeys(parseJson(row.stat_keys_json, [] as unknown[]));
+  const statDefs = defsFromKeys(statKeys);
+  const npcs = parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs);
+  return toPublicScenarioNpcImages(npcs);
 }
 
 export function loadScenarioTemplate(
@@ -317,16 +331,26 @@ function restoreNpcLegacyStatsOnUpdate(
   if (preservedKeys.length === 0) return incoming;
   const existingNpcs = parseScenarioNpcs(parseJson(existingJson, [] as unknown[]), statDefs);
   if (existingNpcs.length === 0) return incoming;
+  const byKey = new Map(existingNpcs.filter((npc) => npc.npcKey).map((npc) => [npc.npcKey, npc]));
   const byName = new Map(existingNpcs.map((npc) => [npc.name, npc]));
   return incoming.map((npc) => {
-    const prev = byName.get(npc.name);
-    if (!prev?.stats) return npc;
-    const stats = { ...(npc.stats ?? prev.stats) };
-    for (const key of preservedKeys) {
-      const value = prev.stats[key];
-      if (value != null) stats[key] = value;
+    const prev = (npc.npcKey && byKey.get(npc.npcKey)) || byName.get(npc.name);
+    if (!prev) return npc;
+    const stats = prev.stats
+      ? { ...(npc.stats ?? prev.stats) }
+      : npc.stats;
+    if (stats && prev.stats) {
+      for (const key of preservedKeys) {
+        const value = prev.stats[key];
+        if (value != null) stats[key] = value;
+      }
     }
-    return { ...npc, stats };
+    return {
+      ...npc,
+      npcKey: npc.npcKey?.trim() || prev.npcKey,
+      image: npc.image?.url ? npc.image : prev.image ?? npc.image,
+      stats: stats ?? npc.stats,
+    };
   });
 }
 

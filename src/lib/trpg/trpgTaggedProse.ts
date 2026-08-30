@@ -4,6 +4,7 @@ import {
   createTrpgCombinedAssetMarkerRegExp,
   gmSceneAssetSeed,
   parseCharacterAssetMarkerPayload,
+  parseNpcAssetMarkerPayload,
   selectStableTaggedAsset,
   selectStableViewerVisibleTaggedAsset,
   stripMalformedTrpgAssetControlMarkers,
@@ -11,11 +12,13 @@ import {
   TRPG_CHARACTER_ASSET_MARKER_PREFIX,
 } from "./gmSceneAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
+import { resolveNpcImageAsset, type TrpgPublicScenarioNpcImage } from "./scenarioNpcAssets";
 
 export type TrpgInlineProsePart =
   | { kind: "text"; text: string }
   | { kind: "scenario"; tag: string; asset: CharacterAsset }
-  | { kind: "character"; participantId: number; tag: string; asset: CharacterAsset };
+  | { kind: "character"; participantId: number; tag: string; asset: CharacterAsset }
+  | { kind: "npc"; npcKey: string; asset: CharacterAsset };
 
 const TRPG_STREAMING_CHARACTER_MARKER_RE = /^\[캐릭터에셋:[ \t]*[^\]\r\n]*\]$/;
 
@@ -44,10 +47,13 @@ export function splitTrpgGmProseForAssets(
   opts: {
     scenarioAssets: CharacterAsset[];
     characterCatalog?: readonly TrpgPublicAiCharacterAssets[];
+    npcCatalog?: readonly TrpgPublicScenarioNpcImage[];
     campaignId: number;
     roundNumber: number;
     streaming?: boolean;
     unlockedUrlsByCharacterId?: ReadonlyMap<number, ReadonlySet<string>>;
+    viewerIsCreator?: boolean;
+    unlockedUrls?: ReadonlySet<string>;
   }
 ): TrpgInlineProsePart[] {
   const source = stripMalformedTrpgAssetControlMarkers(
@@ -86,6 +92,18 @@ export function splitTrpgGmProseForAssets(
           : null;
       if (parsed && asset) {
         parts.push({ kind: "character", participantId: parsed.participantId, tag: parsed.tag, asset });
+      }
+    } else if (typeof match[3] === "string") {
+      const npcKey = parseNpcAssetMarkerPayload(match[3]);
+      const asset =
+        npcKey && opts.npcCatalog?.length
+          ? resolveNpcImageAsset(npcKey, opts.npcCatalog, {
+              viewerIsCreator: opts.viewerIsCreator === true,
+              unlockedUrls: opts.unlockedUrls,
+            })
+          : null;
+      if (npcKey && asset) {
+        parts.push({ kind: "npc", npcKey, asset });
       }
     } else {
       const tag = String(match[2] ?? "").trim();

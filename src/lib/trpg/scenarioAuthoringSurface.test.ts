@@ -65,6 +65,7 @@ describe("TRPG human authoring surface", () => {
     ["NO_ENDING_CONDITIONS_FIELD_VISIBLE", /data-scenario-field="endingConditions"/],
     ["NO_MAJOR_EVENTS_FIELD_VISIBLE", /data-scenario-field="majorEvents"/],
     ["NO_CLUES_FIELD_VISIBLE", /data-scenario-field="clues"/],
+    ["NO_SEPARATE_HUMAN_PLAN_BOSS_FIELD", /핵심 적 \/ 보스|patchPlan\(\{ boss:/],
   ] as const) {
     it(name, () => {
       assert.doesNotMatch(EDITOR_SOURCE, pattern);

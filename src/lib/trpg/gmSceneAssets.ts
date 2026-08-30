@@ -13,6 +13,7 @@ export const CHARACTER_TAG_PAIR_MAX = 1;
 
 export const TRPG_CHARACTER_ASSET_MARKER_PREFIX = "[캐릭터에셋:";
 export const TRPG_SCENARIO_ASSET_MARKER_PREFIX = "[태그:";
+export const TRPG_NPC_ASSET_MARKER_PREFIX = "[NPC에셋:";
 
 export type TrpgAiPartyIdentity = {
   participantId: number;
@@ -28,7 +29,8 @@ export type TrpgAiCharacterTagCatalogRow = {
 
 export type GmSceneAssetKeep =
   | { kind: "character"; participantId: number; tag: string }
-  | { kind: "scenario"; tag: string };
+  | { kind: "scenario"; tag: string }
+  | { kind: "npc"; npcKey: string };
 
 /** Horizontal whitespace only after ":" — never `\r`/`\n`. */
 const TRPG_ASSET_MARKER_SPACE = "[ \\t]*";
@@ -44,8 +46,12 @@ export const TRPG_CLOSED_SCENARIO_MARKER_RE = new RegExp(
   `\\[태그:${TRPG_ASSET_MARKER_SPACE}${TRPG_ASSET_MARKER_PAYLOAD}\\]`,
   "g"
 );
+export const TRPG_CLOSED_NPC_MARKER_RE = new RegExp(
+  `\\[NPC에셋:${TRPG_ASSET_MARKER_SPACE}${TRPG_ASSET_MARKER_PAYLOAD}\\]`,
+  "g"
+);
 export const TRPG_COMBINED_ASSET_MARKER_RE = new RegExp(
-  `\\[캐릭터에셋:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]|\\[태그:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]`,
+  `\\[캐릭터에셋:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]|\\[태그:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]|\\[NPC에셋:${TRPG_ASSET_MARKER_SPACE}(${TRPG_ASSET_MARKER_PAYLOAD})\\]`,
   "g"
 );
 
@@ -61,6 +67,7 @@ function replaceWithTrpgAssetPattern(
     substring: string,
     characterPayload: string | undefined,
     scenarioPayload: string | undefined,
+    npcPayload: string | undefined,
     offset: number,
     whole: string
   ) => string
@@ -74,6 +81,7 @@ function replaceWithTrpgAssetPattern(
         substring: string,
         characterPayload: string | undefined,
         scenarioPayload: string | undefined,
+        npcPayload: string | undefined,
         offset: number,
         whole: string
       ) => string)
@@ -221,8 +229,19 @@ export function formatScenarioAssetMarker(tag: string): string {
   return `[태그: ${tag.trim()}]`;
 }
 
+export function formatNpcAssetMarker(npcKey: string): string {
+  return `[NPC에셋: ${npcKey.trim()}]`;
+}
+
+export function parseNpcAssetMarkerPayload(raw: string): string | null {
+  const key = raw.trim();
+  if (!key || !/^npc_[0-9a-f-]{36}$/i.test(key)) return null;
+  return key;
+}
+
 const CLOSED_CHARACTER_MARKER_RE = TRPG_CLOSED_CHARACTER_MARKER_RE;
 const CLOSED_SCENARIO_MARKER_RE = TRPG_CLOSED_SCENARIO_MARKER_RE;
+const CLOSED_NPC_MARKER_RE = TRPG_CLOSED_NPC_MARKER_RE;
 
 function normalizeTrpgAssetControlText(text: string): string {
   return text.replace(/\r\n/g, "\n");
@@ -234,8 +253,11 @@ function collapseTrpgAssetControlWhitespace(text: string): string {
 
 function stripUnclosedAssetMarkersFromLine(line: string): string {
   return stripUnclosedMarkerPrefixOnLine(
-    stripUnclosedMarkerPrefixOnLine(line, TRPG_CHARACTER_ASSET_MARKER_PREFIX),
-    TRPG_SCENARIO_ASSET_MARKER_PREFIX
+    stripUnclosedMarkerPrefixOnLine(
+      stripUnclosedMarkerPrefixOnLine(line, TRPG_CHARACTER_ASSET_MARKER_PREFIX),
+      TRPG_SCENARIO_ASSET_MARKER_PREFIX
+    ),
+    TRPG_NPC_ASSET_MARKER_PREFIX
   );
 }
 
@@ -250,7 +272,11 @@ export function stripMalformedTrpgAssetControlMarkers(text: string): string {
 /** Strip TRPG scene-asset control syntax only. Ordinary bracketed prose stays. */
 export function stripTrpgAssetControlMarkers(text: string): string {
   const withoutClosed = replaceWithTrpgAssetPattern(
-    replaceWithTrpgAssetPattern(normalizeTrpgAssetControlText(text), CLOSED_SCENARIO_MARKER_RE, ""),
+    replaceWithTrpgAssetPattern(
+      replaceWithTrpgAssetPattern(normalizeTrpgAssetControlText(text), CLOSED_NPC_MARKER_RE, ""),
+      CLOSED_SCENARIO_MARKER_RE,
+      ""
+    ),
     CLOSED_CHARACTER_MARKER_RE,
     ""
   );
@@ -303,46 +329,71 @@ export function enforceGmSceneAssetMarkers(
     aiParticipantIds: ReadonlySet<number>;
     characterTagsByParticipant: ReadonlyMap<number, ReadonlySet<string>>;
     scenarioTags: ReadonlySet<string>;
+    npcImageKeys?: ReadonlySet<string>;
+    usedNpcKeys?: ReadonlySet<string>;
   }
 ): { text: string; kept: GmSceneAssetKeep[] } {
   const hasAi = opts.aiParticipantIds.size > 0;
   const maxScenario = hasAi ? MAX_SCENARIO_IMAGES_WITH_AI : MAX_SCENARIO_IMAGES_WITHOUT_AI;
   const allowedScenario = [...opts.scenarioTags];
+  const allowedNpcKeys = opts.npcImageKeys ?? new Set<string>();
+  const usedNpcKeys = opts.usedNpcKeys ?? new Set<string>();
   const kept: GmSceneAssetKeep[] = [];
   const seenCharacterPairs = new Set<string>();
   const seenScenario = new Set<string>();
+  const seenNpc = new Set<string>();
   let total = 0;
   let scenarioCount = 0;
 
-  const rewritten = replaceWithTrpgAssetPattern(narration, TRPG_COMBINED_ASSET_MARKER_RE, (full, characterPayload?: string, scenarioPayload?: string) => {
-    if (typeof characterPayload === "string") {
-      const parsed = parseCharacterAssetMarkerPayload(characterPayload);
-      if (!parsed) return "";
-      if (!opts.aiParticipantIds.has(parsed.participantId)) return "";
-      const owned = opts.characterTagsByParticipant.get(parsed.participantId);
-      if (!owned?.has(parsed.tag)) return "";
-      const pairKey = `${parsed.participantId}\0${parsed.tag}`;
-      if (seenCharacterPairs.has(pairKey) || kept.filter((item) => item.kind === "character" && item.participantId === parsed.participantId && item.tag === parsed.tag).length >= CHARACTER_TAG_PAIR_MAX) {
-        return "";
+  const rewritten = replaceWithTrpgAssetPattern(
+    narration,
+    TRPG_COMBINED_ASSET_MARKER_RE,
+    (full, characterPayload?: string, scenarioPayload?: string, npcPayload?: string) => {
+      if (typeof characterPayload === "string") {
+        const parsed = parseCharacterAssetMarkerPayload(characterPayload);
+        if (!parsed) return "";
+        if (!opts.aiParticipantIds.has(parsed.participantId)) return "";
+        const owned = opts.characterTagsByParticipant.get(parsed.participantId);
+        if (!owned?.has(parsed.tag)) return "";
+        const pairKey = `${parsed.participantId}\0${parsed.tag}`;
+        if (
+          seenCharacterPairs.has(pairKey) ||
+          kept.filter(
+            (item) => item.kind === "character" && item.participantId === parsed.participantId && item.tag === parsed.tag
+          ).length >= CHARACTER_TAG_PAIR_MAX
+        ) {
+          return "";
+        }
+        if (total >= MAX_IMAGES_PER_GM_SCENE) return "";
+        seenCharacterPairs.add(pairKey);
+        total += 1;
+        kept.push({ kind: "character", participantId: parsed.participantId, tag: parsed.tag });
+        return formatCharacterAssetMarker(parsed.participantId, parsed.tag);
       }
-      if (total >= MAX_IMAGES_PER_GM_SCENE) return "";
-      seenCharacterPairs.add(pairKey);
-      total += 1;
-      kept.push({ kind: "character", participantId: parsed.participantId, tag: parsed.tag });
-      return formatCharacterAssetMarker(parsed.participantId, parsed.tag);
-    }
 
-    const rawTag = String(scenarioPayload ?? "").trim();
-    const resolved = resolveEmotionTag(rawTag, allowedScenario);
-    if (!resolved) return "";
-    if (seenScenario.has(resolved)) return "";
-    if (scenarioCount >= maxScenario || total >= MAX_IMAGES_PER_GM_SCENE) return "";
-    seenScenario.add(resolved);
-    scenarioCount += 1;
-    total += 1;
-    kept.push({ kind: "scenario", tag: resolved });
-    return formatScenarioAssetMarker(resolved);
-  });
+      if (typeof npcPayload === "string") {
+        const npcKey = parseNpcAssetMarkerPayload(npcPayload);
+        if (!npcKey || !allowedNpcKeys.has(npcKey)) return "";
+        if (usedNpcKeys.has(npcKey) || seenNpc.has(npcKey)) return "";
+        if (total >= MAX_IMAGES_PER_GM_SCENE) return "";
+        seenNpc.add(npcKey);
+        total += 1;
+        kept.push({ kind: "npc", npcKey });
+        return formatNpcAssetMarker(npcKey);
+      }
+
+      const rawTag = String(scenarioPayload ?? "").trim();
+      const resolved = resolveEmotionTag(rawTag, allowedScenario);
+      if (!resolved) return "";
+      if (seenScenario.has(resolved)) return "";
+      if (scenarioCount >= maxScenario || total >= MAX_IMAGES_PER_GM_SCENE) return "";
+      seenScenario.add(resolved);
+      scenarioCount += 1;
+      total += 1;
+      kept.push({ kind: "scenario", tag: resolved });
+      return formatScenarioAssetMarker(resolved);
+    }
+  );
 
   const stripped = collapseTrpgAssetControlWhitespace(
     stripMalformedTrpgAssetControlMarkers(rewritten)
@@ -356,13 +407,16 @@ export function gmSceneAssetSeed(opts: {
   roundNumber: number;
   participantId?: number;
   tag: string;
-  kind: "character" | "scenario";
+  kind: "character" | "scenario" | "npc";
+  npcKey?: string;
 }): string {
   switch (opts.kind) {
     case "character":
       return `${opts.campaignId}:${opts.roundNumber}:${opts.participantId ?? 0}:${opts.tag}`;
     case "scenario":
       return `${opts.campaignId}:${opts.roundNumber}:scenario:${opts.tag}`;
+    case "npc":
+      return `${opts.campaignId}:${opts.roundNumber}:npc:${opts.npcKey ?? opts.tag}`;
     default: {
       const exhaustive: never = opts.kind;
       return exhaustive;

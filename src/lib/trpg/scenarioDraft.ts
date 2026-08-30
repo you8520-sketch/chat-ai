@@ -20,6 +20,7 @@ import {
   TRPG_SCENARIO_TITLE_LIMIT,
   type TrpgScenarioNpc,
 } from "./scenarioTypes";
+import { normalizeDraftBossIntoNpcs } from "./scenarioNpcAssets";
 
 export const TRPG_SCENARIO_DRAFT_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
 export const TRPG_SANDBOX_DIRECTOR_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
@@ -302,13 +303,16 @@ export function mergeScenarioDraft(opts: {
               : []
         ),
     npcs: generatedAllowed("npcs") && overwrite("npcs")
-      ? parseScenarioNpcs(generated.npcs).slice(0, TRPG_SCENARIO_MAX_NPCS)
-      : parseScenarioNpcs(
-          opts.existing.npcs?.length
-            ? opts.existing.npcs
-            : generatedAllowed("npcs")
-              ? generated.npcs
-              : []
+      ? normalizeDraftBossIntoNpcs(generated.plan.boss, parseScenarioNpcs(generated.npcs)).slice(0, TRPG_SCENARIO_MAX_NPCS)
+      : normalizeDraftBossIntoNpcs(
+          existingPlan.boss,
+          parseScenarioNpcs(
+            opts.existing.npcs?.length
+              ? opts.existing.npcs
+              : generatedAllowed("npcs")
+                ? generated.npcs
+                : []
+          )
         ).slice(0, TRPG_SCENARIO_MAX_NPCS),
     plan,
   };
@@ -325,7 +329,7 @@ export function parseScenarioDraftJson(raw: string): TrpgScenarioDraftResult {
     summary,
     startLocation: String(parsed.startLocation ?? "").trim().slice(0, 80),
     startInventory: parseInventory(parsed.startInventory),
-    npcs: parseScenarioNpcs(parsed.npcs).map((npc) => ({ ...npc, stats: null })),
+    npcs: normalizeDraftBossIntoNpcs(plan.boss, parseScenarioNpcs(parsed.npcs).map((npc) => ({ ...npc, stats: null }))),
     plan,
     generatedFields: parseDraftFields(Object.keys(parsed)),
   };
@@ -372,7 +376,8 @@ Rules:
 - Keep each scalar to one short sentence.
 - Hard size caps: title 30 Korean chars; summary 80; each scalar 100; secret 160.
 - Use at most 2 items per list, each at most 60 Korean chars.
-- Use at most 2 essential NPCs. NPC name 20 chars, description 80, greeting 40, systemPrompt 80.
+- Use at most 2 essential NPCs. Put antagonists/bosses in npcs with role boss. NPC name 20 chars, description 80, greeting 40, systemPrompt 80.
+- npcs items: {role:"supporting"|"boss", name, description, greeting, systemPrompt, stats:null}
 - Use at most 4 startInventory items, each at most 20 chars.
 - Keep the complete JSON below 6,000 output tokens.
 - Do not repeat the same lore across summary, conflict, goal, events, and GM direction.
@@ -387,7 +392,7 @@ Rules:
 
 JSON keys:
 title, summary, startingSituation, centralConflict, goal, secret, endingConditions, majorEvents, clues, npcs, forbiddenEvents, boss, startLocation, startInventory, specialRules, difficulty, climax, endingCandidates, factionChanges, gmDirection, playLength
-npcs items: {name, description, greeting, systemPrompt, stats:null}
+npcs items: {role, name, description, greeting, systemPrompt, stats:null}
 difficulty: easy|normal|hard|deadly
 playLength: short|medium|long|open_ended`;
 }
