@@ -42,8 +42,7 @@ import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputS
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
-import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
-import { compareTurnBillableUsageWithLegacy } from "@/lib/turnBillableUsageCanary";
+import { observeTurnBillableUsageCanary } from "@/lib/turnBillableUsageProductionTelemetry";
 import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEvidence";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
@@ -4270,38 +4269,24 @@ export async function POST(req: Request) {
             apiCompletionTokens: apiCompletionTokensForCost,
           });
 
-          if (process.env.NODE_ENV !== "production") {
-            try {
-              const turnUsageCandidate = resolveTurnBillableUsage({
-                stages,
-                modelId: deliveredModelId ?? "",
-                refusalFallbackDelivered: adultFallbackSucceeded,
-                promptAuditTotal: promptAuditRef?.totalAssembledTokens,
-              });
-              const canaryResult = compareTurnBillableUsageWithLegacy(turnUsageCandidate, {
-                routeTotalInput: totalInput,
-                routeChargeOutput: totalOutput,
-                cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens ?? 0,
-                cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
-                apiCompletionTotal: apiCompletionTokensForCost,
-                reasoningTotal: summedApiReasoning,
-              });
-              if (canaryResult.status === "mismatch") {
-                console.warn("[/api/chat] turnBillableUsage canary mismatch (legacy authoritative)", {
-                  fields: canaryResult.fields,
-                  selectedStage: turnUsageCandidate.diagnostics.selectedStage,
-                });
-              } else if (canaryResult.status === "not_comparable") {
-                console.warn("[/api/chat] turnBillableUsage canary not comparable (legacy authoritative)", {
-                  reason: canaryResult.reason,
-                  usageCoverage: canaryResult.usageCoverage,
-                  candidateStatus: canaryResult.candidateStatus,
-                });
-              }
-            } catch (canaryErr) {
-              console.warn("[/api/chat] turnBillableUsage canary error (ignored)", canaryErr);
-            }
-          }
+          observeTurnBillableUsageCanary({
+            stages,
+            modelId: deliveredModelId ?? "",
+            provider: billingProvider,
+            refusalFallbackDelivered: adultFallbackSucceeded,
+            promptAuditTotal: promptAuditRef?.totalAssembledTokens,
+            stageCount: stages.length,
+            billableStageCount: billableStages.length,
+            legacy: {
+              routeTotalInput: totalInput,
+              routeChargeOutput: totalOutput,
+              cacheReadTokens:
+                primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens ?? 0,
+              cacheWriteTokens: primaryStage?.cacheWriteTokens ?? 0,
+              apiCompletionTotal: apiCompletionTokensForCost,
+              reasoningTotal: summedApiReasoning,
+            },
+          });
         }
 
         const removalTraceReport = buildRemovalTraceReport({
