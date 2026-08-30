@@ -829,7 +829,6 @@ export default function ChatClient({
   initialBookmarkedIds,
   initialScrollMessageId = null,
   initialMode,
-  hasMemory,
   initialUserNote,
   defaultUserNote,
   initialNotePresets,
@@ -872,7 +871,6 @@ export default function ChatClient({
   initialBookmarkedIds: number[];
   initialScrollMessageId?: number | null;
   initialMode: "safe" | "nsfw";
-  hasMemory: boolean;
   initialUserNote: string;
   defaultUserNote: string;
   initialNotePresets: UserNotePresetItem[];

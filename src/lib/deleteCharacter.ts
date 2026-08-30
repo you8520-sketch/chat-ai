@@ -62,7 +62,6 @@ export function deleteUserCharacter(
       "DELETE FROM profile_comments WHERE target_type='character' AND target_id=?"
     ).run(characterId);
     db.prepare("DELETE FROM creator_earnings WHERE character_id=?").run(characterId);
-    db.prepare("DELETE FROM character_memories WHERE character_id=?").run(characterId);
 
     db.prepare("DELETE FROM characters WHERE id=? AND creator_id=? AND official=0").run(
       characterId,

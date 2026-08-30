@@ -466,14 +466,6 @@ export default async function ChatPage({
       .all(user.id, chat.id) as { message_id: number }[]
   ).map((r) => r.message_id);
 
-  const charMemory = db
-    .prepare(
-      `SELECT used_chars FROM character_memories WHERE user_id=? AND character_id=?`
-    )
-    .get(user.id, c.id) as { used_chars: number } | undefined;
-
-  const hasCharacterMemory = (charMemory?.used_chars ?? 0) > 0;
-
   const clientKey = initialScrollMessageId
     ? `${chat.id}-msg-${initialScrollMessageId}`
     : String(chat.id);
@@ -518,10 +510,6 @@ export default async function ChatPage({
       initialBookmarkedIds={bookmarkedIds}
       initialScrollMessageId={initialScrollMessageId}
       initialMode={(chat?.mode as "safe" | "nsfw") ?? (c.nsfw ? "nsfw" : "safe")}
-      hasMemory={
-        hasCharacterMemory ||
-        !!(chat?.memory || chat?.memory_pending !== "[]" || chat?.memory_meta !== "{}")
-      }
       initialUserNote={mergedInitialUserNote}
       defaultUserNote={notePresetList[0]?.content ?? userProfileRow.user_note ?? ""}
       initialNotePresets={notePresetList}
