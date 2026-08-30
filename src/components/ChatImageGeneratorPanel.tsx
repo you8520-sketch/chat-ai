@@ -482,27 +482,24 @@ export default function ChatImageGeneratorPanel({
           ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
           : []
       );
+      const epoch = beginSceneSourceChange();
+      setSourceMessageId(null);
+      setSourceTurnPreview("");
+      setComicSummary("");
+      setComicLoadedMaxChars(0);
+      setComicText("");
+      setTab("comic");
+      setLdProduct("scene");
+      setSceneOutputMode("illustration");
+
       const messageId = Number(detail?.messageId);
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
-        const epoch = beginSceneSourceChange();
         setSourceMessageId(messageId);
         setSourceTurnPreview(preview.slice(0, 280));
-        setTab("comic");
-        setLdProduct("scene");
-        setSceneOutputMode("illustration");
-        setComicText("");
-        setComicSummary("");
-        setComicLoadedMaxChars(0);
         void loadSelectedTurnContent(messageId, epoch);
       } else if (preview) {
-        const epoch = beginSceneSourceChange();
-        setSourceMessageId(null);
         setSourceTurnPreview(preview.slice(0, 280));
-        setTab("comic");
-        setLdProduct("scene");
-        setSceneOutputMode("illustration");
-        setComicText("");
         setComicSummary(preview.slice(0, CHAT_COMIC_MAX_INPUT_CHARS));
         setComicLoadedMaxChars(Math.min(preview.length, CHAT_COMIC_MAX_INPUT_CHARS));
         applyPreviewSceneSource(preview, epoch);

@@ -2007,7 +2007,7 @@ export default function TrpgCampaignRoom({
               statDefs={snap.statDefs}
               display={displayPrefs}
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
-              canImage={Boolean(imageId) && Boolean(row.narration || liveGmStreamDraft)}
+              canImage={Boolean(imageId) && Boolean(row.narration?.trim())}
               busy={busy || generating}
               scenarioAssets={snap.scenarioAssets ?? []}
               scenarioNpcImages={snap.scenarioNpcImages ?? []}

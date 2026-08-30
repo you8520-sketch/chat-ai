@@ -251,19 +251,6 @@ export default function ChatSceneBuilder({
 
   return (
     <div className="space-y-3">
-      <section className="space-y-1">
-        <h3 className="text-[11px] font-semibold text-zinc-400">장면 원본</h3>
-        {sourceLoading ? (
-          <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
-            선택 턴을 불러오는 중…
-          </p>
-        ) : (
-          <p className="whitespace-pre-wrap rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-relaxed text-zinc-300">
-            {sourcePreview || "채팅 메시지 아래 이미지 버튼을 누르면 그 턴이 장면 원본이 됩니다."}
-          </p>
-        )}
-      </section>
-
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[11px] font-semibold text-zinc-400">
@@ -271,13 +258,18 @@ export default function ChatSceneBuilder({
           </h3>
           <button
             type="button"
-            disabled={disabled || aiSuggestionLoading || planLoading || !sourcePreview || !plan}
+            disabled={disabled || aiSuggestionLoading || planLoading || !plan}
             onClick={onRequestAiSuggestion}
             className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
           >
             {hasAiSuggestionSession ? "✨ 새 AI 제안" : "✨ AI 장면 제안"}
           </button>
         </div>
+        {sourceLoading ? (
+          <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+            선택 턴을 불러오는 중…
+          </p>
+        ) : null}
         {aiSuggestionLoading ? (
           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
             AI 장면 제안을 불러오는 중…
