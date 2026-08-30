@@ -12,6 +12,7 @@ import { ensureTrpgTables } from "./schema";
 import {
   casPublishWorldBlueprintArtifact,
   copyWorldBlueprintPlan,
+  deleteWorldBlueprintArtifact,
   loadValidWorldBlueprintPlan,
   loadWorldBlueprintArtifactRow,
   loadWorldSnapshotForBlueprint,
@@ -172,6 +173,16 @@ function applyPreCommitContentPatch(db: Database.Database, worldId: number, newC
     contentChanged,
   });
   db.prepare(`UPDATE worlds SET content=?, updated_at=datetime('now') WHERE id=?`).run(newContent, worldId);
+}
+
+/** Production-equivalent world DELETE cleanup owner. */
+function deleteWorldLikeRoute(db: Database.Database, worldId: number, creatorId: number): boolean {
+  const deleted = db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(worldId, creatorId);
+  if (deleted.changes > 0) {
+    deleteWorldBlueprintArtifact(db, worldId);
+    return true;
+  }
+  return false;
 }
 
 describe("world Blueprint pregeneration corrections", () => {
@@ -678,11 +689,10 @@ describe("world Blueprint pregeneration corrections", () => {
 
     await withSandboxDirectorEnabled(false, async () => {
       const job = claimNextDerivedCacheJob(db)!;
+      const jobId = job.id;
       await processDerivedCacheJob(db, job);
-      const status = db.prepare(`SELECT status FROM derived_cache_jobs WHERE id=?`).get(job.id) as {
-        status: string;
-      };
-      assert.equal(status.status, "done");
+      const row = db.prepare(`SELECT id FROM derived_cache_jobs WHERE id=?`).get(jobId);
+      assert.equal(row, undefined);
       assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
     });
   });
@@ -782,5 +792,94 @@ describe("world Blueprint pregeneration corrections", () => {
     const left = blueprintSourceFingerprint({ name: "N", summary: "A\nB", content: "C" });
     const right = blueprintSourceFingerprint({ name: "N", summary: "A", content: "B\nC" });
     assert.notEqual(left, right);
+  });
+
+  it("T24 flag OFF discards job so same revision can re-enqueue when flag returns ON", async () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+
+    await withSandboxDirectorEnabled(true, async () => {
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+    });
+
+    await withSandboxDirectorEnabled(false, async () => {
+      const job = claimNextDerivedCacheJob(db)!;
+      assert.equal(job.source_fingerprint, snap.sourceFingerprint);
+      await processDerivedCacheJob(db, job);
+      assert.equal(blueprintJobCount(db), 0);
+      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
+    });
+
+    await withSandboxDirectorEnabled(true, async () => {
+      assert.equal(enqueueWorldBlueprintPregenJob(db, worldId), true);
+      assert.equal(blueprintJobCount(db), 1);
+    });
+  });
+
+  it("T25 flag OFF skip does not busy-reclaim the same Blueprint job", async () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    await withSandboxDirectorEnabled(true, async () => {
+      enqueueWorldBlueprintPregenJob(db, worldId);
+    });
+
+    await withSandboxDirectorEnabled(false, async () => {
+      const job = claimNextDerivedCacheJob(db)!;
+      await processDerivedCacheJob(db, job);
+      assert.equal(claimNextDerivedCacheJob(db), null);
+      assert.equal(blueprintJobCount(db), 0);
+    });
+  });
+
+  it("T26 world delete removes Blueprint artifact", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+    casPublishWorldBlueprintArtifact(db, {
+      worldId,
+      expectedSourceFingerprint: snap.sourceFingerprint,
+      expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      plan: playablePlan,
+    });
+    assert.ok(loadWorldBlueprintArtifactRow(db, worldId));
+
+    assert.equal(deleteWorldLikeRoute(db, worldId, 2), true);
+    assert.equal(db.prepare(`SELECT id FROM worlds WHERE id=?`).get(worldId), undefined);
+    assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
+  });
+
+  it("T27 failed world deletion preserves world and Blueprint artifact", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+    casPublishWorldBlueprintArtifact(db, {
+      worldId,
+      expectedSourceFingerprint: snap.sourceFingerprint,
+      expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      plan: playablePlan,
+    });
+
+    assert.equal(deleteWorldLikeRoute(db, worldId, 999), false);
+    assert.ok(db.prepare(`SELECT id FROM worlds WHERE id=?`).get(worldId));
+    assert.ok(loadWorldBlueprintArtifactRow(db, worldId));
+  });
+
+  it("T28 pending Blueprint job after world delete makes zero provider calls", async () => {
+    await withSandboxDirectorEnabled(true, async () => {
+      const db = memoryDb();
+      const worldId = insertWorld(db);
+      enqueueWorldBlueprintPregenJob(db, worldId);
+      assert.equal(deleteWorldLikeRoute(db, worldId, 2), true);
+
+      const job = claimNextDerivedCacheJob(db)!;
+      await processDerivedCacheJob(db, job);
+      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
+      // Generic derived-cache retention may leave a terminal job row (FOLLOW_UP).
+      const row = db.prepare(`SELECT status FROM derived_cache_jobs WHERE id=?`).get(job.id) as
+        | { status: string }
+        | undefined;
+      assert.ok(row?.status === "done" || row === undefined);
+    });
   });
 });

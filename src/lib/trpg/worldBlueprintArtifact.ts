@@ -127,3 +127,10 @@ export function casPublishWorldBlueprintArtifact(
 export function storedBlueprintValidity(row: WorldBlueprintArtifactRow): BlueprintGenerationValidity {
   return blueprintGenerationValidityFromRow(row);
 }
+
+/** Single canonical owner: remove world-scoped Blueprint artifact on world deletion. */
+export function deleteWorldBlueprintArtifact(db: Database.Database, worldId: number): boolean {
+  if (!tableExists(db, "trpg_world_blueprint_artifacts")) return false;
+  const result = db.prepare(`DELETE FROM trpg_world_blueprint_artifacts WHERE world_id = ?`).run(worldId);
+  return result.changes > 0;
+}

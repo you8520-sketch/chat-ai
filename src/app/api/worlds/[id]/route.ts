@@ -8,6 +8,7 @@ import {
   loadOwnedWorldRow,
 } from "@/lib/worldPermissions";
 import { revokeWorldSharesForDeletedWorld } from "@/lib/worldShares";
+import { deleteWorldBlueprintArtifact } from "@/lib/trpg/worldBlueprintArtifact";
 import { enqueueWorldTranslationJob } from "@/lib/derivedCache/worldTranslation";
 import {
   maybeEnqueueWorldBlueprintPregenAfterCommit,
@@ -172,6 +173,9 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
   }
 
   revokeWorldSharesForDeletedWorld(id);
-  db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(id, user.id);
+  const deleted = db.prepare("DELETE FROM worlds WHERE id = ? AND creator_id = ?").run(id, user.id);
+  if (deleted.changes > 0) {
+    deleteWorldBlueprintArtifact(db, id);
+  }
   return NextResponse.json({ ok: true });
 }

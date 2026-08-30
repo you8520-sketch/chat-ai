@@ -192,6 +192,11 @@ function backoffMinutes(attempts: number): number {
   return Math.min(60, Math.pow(2, Math.max(0, attempts - 1)));
 }
 
+/** Remove a job row so its derivation identity can be enqueued again. */
+export function discardDerivedCacheJob(db: Database.Database, jobId: number): void {
+  db.prepare(`DELETE FROM derived_cache_jobs WHERE id = ?`).run(jobId);
+}
+
 export function completeDerivedCacheJob(
   db: Database.Database,
   jobId: number,

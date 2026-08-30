@@ -16,7 +16,7 @@ import {
 import { isAppearanceCompiledCurrent, resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { characterCanonicalSourceFingerprintFromRow } from "@/lib/derivedCache/characterSourceFingerprint";
 import { FORCE_APPEARANCE_JOB_FLAG } from "@/lib/derivedCache/characterEnqueue";
-import { completeDerivedCacheJob, type DerivedCacheJobRow } from "@/lib/derivedCache/jobs";
+import { completeDerivedCacheJob, discardDerivedCacheJob, type DerivedCacheJobRow } from "@/lib/derivedCache/jobs";
 import { translateCharacterChunksForDerivedRefresh } from "@/lib/derivedCache/characterTranslation";
 import { refreshWorldEnglishCache, refreshWorldShareEnglishCache } from "@/lib/derivedCache/worldTranslation";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/lib/derivedCache/worldBlueprintPregen";
 import { TRANSLATION_DERIVATION_VERSION } from "@/lib/derivedCache/versions";
 import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "@/lib/trpg/blueprintValidity";
+import { isTrpgSandboxDirectorEnabled } from "@/lib/trpg/sandboxDirector";
 import { parseCharacterGender } from "@/lib/characterGender";
 import {
   compiledPublicCanonText,
@@ -215,6 +216,10 @@ export async function processDerivedCacheJob(
         outcome = await refreshWorldShareEnglishCache(db, job.entity_id, job.source_fingerprint);
         break;
       case WORLD_BLUEPRINT_PREGEN_JOB_KIND:
+        if (!isTrpgSandboxDirectorEnabled()) {
+          discardDerivedCacheJob(db, job.id);
+          return;
+        }
         outcome = await refreshWorldBlueprintArtifact(
           db,
           job.entity_id,

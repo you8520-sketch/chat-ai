@@ -58,10 +58,6 @@ export async function refreshWorldBlueprintArtifact(
   expectedDerivationVersion: number,
   deps?: { complete?: TrpgAuthoringComplete }
 ): Promise<{ ok: true } | { ok: false; error: string; retryable?: boolean }> {
-  if (!isTrpgSandboxDirectorEnabled()) {
-    return { ok: true };
-  }
-
   const snapshot = loadWorldSnapshotForBlueprint(db, worldId);
   if (!snapshot || snapshot.sourceFingerprint !== expectedSourceFingerprint) {
     return { ok: true };
