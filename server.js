@@ -118,6 +118,19 @@ async function runBackgroundInitialization() {
       `[boot-timing] exchange init failed (+${Date.now() - bootStart}ms from process start)`
     );
   }
+
+  try {
+    const { startDerivedCacheWakeup } = await import("./src/lib/derivedCache/wakeupScheduler.ts");
+    startDerivedCacheWakeup();
+    console.log(
+      `[boot-timing] derived cache wakeup init complete (+${Date.now() - bootStart}ms from process start)`
+    );
+  } catch (err) {
+    console.error("[server] derived cache wakeup scheduler 시작 실패:", err);
+    console.log(
+      `[boot-timing] derived cache wakeup init failed (+${Date.now() - bootStart}ms from process start)`
+    );
+  }
 }
 
 const prepareStart = Date.now();

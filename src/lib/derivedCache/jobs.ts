@@ -31,6 +31,10 @@ export type DerivedCacheJobRow = {
 const MAX_JOB_ATTEMPTS = 8;
 const LEASE_STALE_MINUTES = 15;
 
+export function derivedCacheLeaseStaleMinutes(): number {
+  return LEASE_STALE_MINUTES;
+}
+
 export function maxAttemptsForDerivedJobKind(jobKind: DerivedJobKind): number {
   switch (jobKind) {
     case "trpg_sandbox_blueprint_pregen":
@@ -308,15 +312,68 @@ export function completeDerivedCacheJob(
   }
 }
 
-/** Best-effort post-response kick — durability owner is SQLite queue, not this call. */
+/**
+ * Request an earlier derived-cache drain via the canonical wakeup scheduler.
+ * Durability owner is SQLite queue; this only schedules execution.
+ */
 export function kickDerivedCacheWorker(maxJobs = 3): void {
   if (process.env.DISABLE_DERIVED_CACHE_WORKER === "1") return;
-  void drainDerivedCacheJobs(maxJobs).catch((err) => {
-    console.warn(
-      "[derivedCache] worker kick failed:",
-      err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160)
-    );
-  });
+  void import("@/lib/derivedCache/wakeupScheduler")
+    .then(({ requestDerivedCacheWake }) => {
+      requestDerivedCacheWake(maxJobs);
+    })
+    .catch((err) => {
+      console.warn(
+        "[derivedCache] worker wake request failed:",
+        err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160)
+      );
+    });
+}
+
+/** Milliseconds until the queue needs another wake, or null when idle. */
+export function getDerivedCacheNextWakeDelayMs(db: Database.Database): number | null {
+  ensureDerivedCacheJobsTable(db);
+  const staleOffset = `-${LEASE_STALE_MINUTES} minutes`;
+  const leaseWakeOffset = `+${LEASE_STALE_MINUTES} minutes`;
+
+  const dueNow = db
+    .prepare(
+      `SELECT 1 AS ok FROM derived_cache_jobs
+       WHERE (status = 'pending' AND datetime(run_after) <= datetime('now'))
+          OR (status = 'processing'
+              AND locked_at IS NOT NULL
+              AND datetime(locked_at) < datetime('now', ?))
+       LIMIT 1`
+    )
+    .get(staleOffset) as { ok: number } | undefined;
+  if (dueNow) return 0;
+
+  const nextRow = db
+    .prepare(
+      `SELECT MIN(wake_at) AS wake_at FROM (
+         SELECT datetime(run_after) AS wake_at
+           FROM derived_cache_jobs
+          WHERE status = 'pending'
+            AND datetime(run_after) > datetime('now')
+         UNION ALL
+         SELECT datetime(locked_at, ?) AS wake_at
+           FROM derived_cache_jobs
+          WHERE status = 'processing'
+            AND locked_at IS NOT NULL
+            AND datetime(locked_at, ?) > datetime('now')
+       )`
+    )
+    .get(leaseWakeOffset, leaseWakeOffset) as { wake_at: string | null } | undefined;
+
+  if (!nextRow?.wake_at) return null;
+
+  const delayRow = db
+    .prepare(
+      `SELECT CAST((julianday(?) - julianday(datetime('now'))) * 86400000 AS INTEGER) AS delay_ms`
+    )
+    .get(nextRow.wake_at) as { delay_ms: number };
+
+  return delayRow.delay_ms <= 0 ? 0 : delayRow.delay_ms;
 }
 
 export async function drainDerivedCacheJobs(maxJobs = 3): Promise<number> {
