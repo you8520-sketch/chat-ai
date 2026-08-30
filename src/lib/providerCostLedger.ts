@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import {
@@ -32,6 +33,7 @@ export type ProviderCostEventStatus =
   | "failed_with_usage"
   | "completed_without_exact_cost";
 
+/** Grouping/debug metadata — not the global physical attempt identity. */
 export type ProviderCostLedgerContext = {
   chatId: number;
   assistantMessageId: number;
@@ -43,10 +45,16 @@ export type ProviderCostLedgerContext = {
   requestedProvider: string;
   requestedModel: string;
   requestKind?: string;
-  /** Physical provider attempt within one logical call (failover). Default 1. */
+  /** Failover grouping ordinal within one logical call (1-based). */
   physicalAttemptOrdinal?: number;
   /** Test seam — bypass NODE_TEST_CONTEXT skip. */
   persistInTests?: boolean;
+};
+
+/** Canonical physical attempt handle — event_key owner is physicalAttemptId only. */
+export type ProviderCostPhysicalAttemptHandle = {
+  physicalAttemptId: string;
+  context: ProviderCostLedgerContext;
 };
 
 export type ProviderCostFinalizeInput = {
@@ -62,7 +70,8 @@ export type ProviderCostFinalizeInput = {
   providerRequestId?: string | null;
   usageEstimated?: boolean;
   httpStatus?: number | null;
-  eventStatus: ProviderCostEventStatus;
+  /** Transport/product outcome — distinct from cost exactness. */
+  outcome: "success" | "failed_without_usage" | "failed_with_usage";
 };
 
 export type ProviderCostLedgerRow = {
@@ -76,8 +85,12 @@ export type ProviderCostLedgerRow = {
   attempt_ordinal: number | null;
   requested_provider: string | null;
   requested_model: string | null;
+  /** Legacy finance columns — mirror delivered provider/model for Admin Finance readers. */
   provider: string;
   model: string;
+  /** Canonical delivered provider/model for whole-turn projection. */
+  actual_provider: string | null;
+  actual_model: string | null;
   request_kind: string;
   provider_request_id: string | null;
   input_tokens: number;
@@ -86,26 +99,34 @@ export type ProviderCostLedgerRow = {
   cache_read_tokens: number;
   cache_write_tokens: number;
   cheaper_inference_billed_cost_usd: number | null;
+  /** Raw provider upstream/list/reference USD — never overwritten by actual settlement. */
   upstream_cost_usd: number | null;
   actual_cost_usd: number | null;
   actual_cost_source: string | null;
   event_status: string | null;
   exchange_rate_krw_per_usd: number;
+  /** Legacy Admin Finance monthly estimate at write-time billing FX. */
   cost_krw: number;
   estimated: number;
   created_at: string;
   completed_at: string | null;
 };
 
-export type ResolvedLedgerAttemptActualCost = {
+export type ResolvedLedgerAttemptSettlement = {
+  eventStatus: ProviderCostEventStatus;
   actualCostUsd?: number;
-  actualCostSource: ActualCostSource | "legacy_estimated" | "incomplete";
+  actualCostSource: ActualCostSource | "unavailable" | "legacy_estimated";
   settled: boolean;
 };
 
 function finiteNonNegative(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function positiveOrNull(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function shouldSkipPersistence(ctx?: Pick<ProviderCostLedgerContext, "persistInTests">): boolean {
@@ -161,81 +182,153 @@ export function ensureProviderCostLedgerSchema(db: Database.Database = getDb()):
   `);
 }
 
-/** Stable physical-attempt identity — retries and failovers must not collide. */
-export function buildProviderCostEventKey(ctx: ProviderCostLedgerContext): string {
-  const physical = ctx.physicalAttemptOrdinal ?? 1;
-  return [
-    ctx.executionPhase,
-    ctx.family,
-    `c${ctx.chatId}`,
-    `m${ctx.assistantMessageId}`,
-    `j${ctx.jobAttemptOrdinal}`,
-    `p${physical}`,
-    `${ctx.requestedProvider}:${ctx.requestedModel}`,
-  ].join("|");
-}
-
-export function resolveLedgerAttemptActualCost(input: {
+/**
+ * Canonical settlement + event_status owner.
+ * Callers must not duplicate hasExactUsage / settled heuristics.
+ */
+export function resolveLedgerAttemptSettlement(input: {
   actualProvider: string;
   cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   usageEstimated?: boolean;
-  eventStatus: ProviderCostEventStatus;
-}): ResolvedLedgerAttemptActualCost {
-  if (input.eventStatus === "started") {
-    return { actualCostSource: "incomplete", settled: false };
-  }
-  if (
-    input.eventStatus === "failed_without_usage" ||
-    input.eventStatus === "completed_without_exact_cost"
-  ) {
-    return { actualCostSource: "incomplete", settled: false };
+  outcome: ProviderCostFinalizeInput["outcome"];
+}): ResolvedLedgerAttemptSettlement {
+  const ciBilled = finiteNonNegative(input.cheaperInferenceBilledCostUsd);
+  const provider = input.actualProvider.trim().toLowerCase();
+  const upstream = finiteNonNegative(input.upstreamCostUsd);
+
+  if (input.outcome === "failed_without_usage") {
+    return {
+      eventStatus: "failed_without_usage",
+      actualCostSource: "unavailable",
+      settled: false,
+    };
   }
 
-  const ciBilled = finiteNonNegative(input.cheaperInferenceBilledCostUsd);
   if (ciBilled > 0) {
     return {
+      eventStatus:
+        input.outcome === "success" ? "settled" : "failed_with_usage",
       actualCostUsd: ciBilled,
       actualCostSource: "cheaper_inference_billed",
       settled: true,
     };
   }
 
-  const provider = input.actualProvider.trim().toLowerCase();
-  const upstream = finiteNonNegative(input.upstreamCostUsd);
   if (provider === "cheaperinference") {
-    return { actualCostSource: "incomplete", settled: false };
+    return {
+      eventStatus:
+        input.outcome === "success"
+          ? "completed_without_exact_cost"
+          : input.outcome === "failed_with_usage"
+            ? "failed_with_usage"
+            : "failed_without_usage",
+      actualCostSource: "unavailable",
+      settled: false,
+    };
   }
 
-  if (upstream > 0 && input.usageEstimated !== true && input.eventStatus === "settled") {
+  if (upstream > 0 && input.usageEstimated !== true) {
     return {
+      eventStatus:
+        input.outcome === "success" ? "settled" : "failed_with_usage",
       actualCostUsd: upstream,
       actualCostSource: "provider_reported",
       settled: true,
     };
   }
 
-  if (input.eventStatus === "failed_with_usage") {
-    return { actualCostSource: "incomplete", settled: false };
+  if (input.outcome === "failed_with_usage") {
+    return {
+      eventStatus: "failed_with_usage",
+      actualCostSource: "unavailable",
+      settled: false,
+    };
   }
 
-  return { actualCostSource: "legacy_estimated", settled: false };
+  return {
+    eventStatus: "completed_without_exact_cost",
+    actualCostSource: "unavailable",
+    settled: false,
+  };
 }
 
-export function isLedgerEventExact(
-  row: Pick<ProviderCostLedgerRow, "actual_cost_usd" | "actual_cost_source" | "event_status">
+/** @deprecated use resolveLedgerAttemptSettlement */
+export function resolveLedgerAttemptActualCost(input: {
+  actualProvider: string;
+  cheaperInferenceBilledCostUsd?: number;
+  upstreamCostUsd?: number;
+  usageEstimated?: boolean;
+  eventStatus: ProviderCostEventStatus;
+}): {
+  actualCostUsd?: number;
+  actualCostSource: ActualCostSource | "legacy_estimated" | "incomplete";
+  settled: boolean;
+} {
+  const outcome =
+    input.eventStatus === "failed_without_usage"
+      ? "failed_without_usage"
+      : input.eventStatus === "failed_with_usage"
+        ? "failed_with_usage"
+        : "success";
+  const settlement = resolveLedgerAttemptSettlement({ ...input, outcome });
+  return {
+    actualCostUsd: settlement.actualCostUsd,
+    actualCostSource:
+      settlement.actualCostSource === "unavailable"
+        ? "incomplete"
+        : settlement.actualCostSource,
+    settled: settlement.settled,
+  };
+}
+
+export function isLedgerEventCostExact(
+  row: Pick<
+    ProviderCostLedgerRow,
+    "actual_cost_usd" | "actual_cost_source" | "event_status"
+  >
 ): boolean {
   if (row.event_status === "started") return false;
   return (
-    row.actual_cost_source === "cheaper_inference_billed" ||
-    row.actual_cost_source === "provider_reported"
-  ) && finiteNonNegative(row.actual_cost_usd) > 0;
+    (row.actual_cost_source === "cheaper_inference_billed" ||
+      row.actual_cost_source === "provider_reported") &&
+    finiteNonNegative(row.actual_cost_usd) > 0
+  );
 }
 
-export function isLedgerEventCoverageIncomplete(
-  row: Pick<ProviderCostLedgerRow, "event_status">
+/** @deprecated use isLedgerEventCostExact */
+export function isLedgerEventExact(
+  row: Pick<
+    ProviderCostLedgerRow,
+    "actual_cost_usd" | "actual_cost_source" | "event_status"
+  >
 ): boolean {
-  return row.event_status === "started";
+  return isLedgerEventCostExact(row);
+}
+
+export function isLedgerEventCostCoverageIncomplete(
+  row: Pick<
+    ProviderCostLedgerRow,
+    "event_status" | "actual_cost_usd" | "actual_cost_source"
+  >
+): boolean {
+  if (row.event_status === "started") return true;
+  if (row.event_status === "failed_without_usage") return true;
+  if (row.event_status === "completed_without_exact_cost") return true;
+  if (row.event_status === "failed_with_usage" && !isLedgerEventCostExact(row)) {
+    return true;
+  }
+  return false;
+}
+
+/** @deprecated use isLedgerEventCostCoverageIncomplete */
+export function isLedgerEventCoverageIncomplete(
+  row: Pick<
+    ProviderCostLedgerRow,
+    "event_status" | "actual_cost_usd" | "actual_cost_source"
+  >
+): boolean {
+  return isLedgerEventCostCoverageIncomplete(row);
 }
 
 /** Future whole-turn projection — parent turn FX only; never re-fetch FX here. */
@@ -295,53 +388,48 @@ export function buildPlatformSyncTurnLedgerContext(input: {
 export function startProviderCostAttempt(
   ctx: ProviderCostLedgerContext,
   db: Database.Database = getDb()
-): { eventKey: string; inserted: boolean } {
+): ProviderCostPhysicalAttemptHandle {
+  const physicalAttemptId = randomUUID();
   if (shouldSkipPersistence(ctx)) {
-    return { eventKey: buildProviderCostEventKey(ctx), inserted: false };
+    return { physicalAttemptId, context: ctx };
   }
 
   ensureProviderCostLedgerSchema(db);
-  const eventKey = buildProviderCostEventKey(ctx);
-  const physical = ctx.physicalAttemptOrdinal ?? 1;
+  db.prepare(
+    `INSERT INTO api_cost_ledger
+      (event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+       attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
+       event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))`
+  ).run(
+    physicalAttemptId,
+    ctx.chatId,
+    ctx.assistantMessageId,
+    ctx.family,
+    ctx.fundingClass,
+    ctx.executionPhase,
+    ctx.jobAttemptOrdinal,
+    ctx.requestedProvider,
+    ctx.requestedModel,
+    ctx.requestedProvider,
+    ctx.requestedModel,
+    ctx.requestKind?.slice(0, 120) ?? ""
+  );
 
-  const result = db
-    .prepare(
-      `INSERT INTO api_cost_ledger
-        (event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
-         attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
-         event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))
-       ON CONFLICT(event_key) DO NOTHING`
-    )
-    .run(
-      eventKey,
-      ctx.chatId,
-      ctx.assistantMessageId,
-      ctx.family,
-      ctx.fundingClass,
-      ctx.executionPhase,
-      ctx.jobAttemptOrdinal,
-      ctx.requestedProvider,
-      ctx.requestedModel,
-      ctx.requestedProvider,
-      ctx.requestedModel,
-      ctx.requestKind?.slice(0, 120) ?? ""
-    );
-
-  return { eventKey, inserted: result.changes > 0 };
+  return { physicalAttemptId, context: ctx };
 }
 
 export function finalizeProviderCostAttempt(
-  ctx: ProviderCostLedgerContext,
+  attempt: ProviderCostPhysicalAttemptHandle,
   input: ProviderCostFinalizeInput,
   db: Database.Database = getDb()
 ): { eventKey: string; updated: boolean; rowId?: number } {
-  if (shouldSkipPersistence(ctx)) {
-    return { eventKey: buildProviderCostEventKey(ctx), updated: false };
+  const eventKey = attempt.physicalAttemptId;
+  if (shouldSkipPersistence(attempt.context)) {
+    return { eventKey, updated: false };
   }
 
   ensureProviderCostLedgerSchema(db);
-  const eventKey = buildProviderCostEventKey(ctx);
   const exchange = resolveBillingExchangeRateSnapshot();
 
   const inputTokens = Math.max(0, Math.trunc(input.inputTokens ?? 0));
@@ -350,12 +438,12 @@ export function finalizeProviderCostAttempt(
   const cacheWriteTokens = Math.max(0, Math.trunc(input.cacheWriteTokens ?? 0));
   const reasoningTokens = Math.max(0, Math.trunc(input.reasoningTokens ?? 0));
 
-  const resolved = resolveLedgerAttemptActualCost({
+  const settlement = resolveLedgerAttemptSettlement({
     actualProvider: input.actualProvider,
     cheaperInferenceBilledCostUsd: input.cheaperInferenceBilledCostUsd,
     upstreamCostUsd: input.upstreamCostUsd,
     usageEstimated: input.usageEstimated,
-    eventStatus: input.eventStatus,
+    outcome: input.outcome,
   });
 
   const estimatedUsd = estimateApiCostUsd({
@@ -366,13 +454,13 @@ export function finalizeProviderCostAttempt(
     cacheWriteTokens,
   });
 
-  const legacyUpstreamUsd = resolved.settled && resolved.actualCostUsd
-    ? resolved.actualCostUsd
-    : finiteNonNegative(input.upstreamCostUsd) || estimatedUsd;
-
-  const legacyCostKrw = legacyUpstreamUsd * exchange.effectiveKrwPerUsd;
-  const legacyEstimated =
-    resolved.settled ? 0 : input.usageEstimated === true || !finiteNonNegative(input.upstreamCostUsd) ? 1 : 0;
+  const rawUpstreamUsd = positiveOrNull(input.upstreamCostUsd);
+  const legacyAccountingCostUsd =
+    settlement.settled && settlement.actualCostUsd
+      ? settlement.actualCostUsd
+      : rawUpstreamUsd ?? estimatedUsd;
+  const legacyCostKrw = legacyAccountingCostUsd * exchange.effectiveKrwPerUsd;
+  const legacyEstimated = settlement.settled ? 0 : rawUpstreamUsd == null ? 1 : 0;
 
   const result = db
     .prepare(
@@ -405,18 +493,18 @@ export function finalizeProviderCostAttempt(
       input.actualModel,
       input.actualProvider,
       input.actualModel,
-      ctx.requestKind?.slice(0, 120) ?? "",
+      attempt.context.requestKind?.slice(0, 120) ?? "",
       input.providerRequestId ?? null,
       inputTokens,
       outputTokens,
       reasoningTokens,
       cacheReadTokens,
       cacheWriteTokens,
-      finiteNonNegative(input.cheaperInferenceBilledCostUsd) || null,
-      legacyUpstreamUsd,
-      resolved.actualCostUsd ?? null,
-      resolved.actualCostSource === "incomplete" ? "unavailable" : resolved.actualCostSource,
-      input.eventStatus,
+      positiveOrNull(input.cheaperInferenceBilledCostUsd),
+      rawUpstreamUsd,
+      settlement.actualCostUsd ?? null,
+      settlement.actualCostSource,
+      settlement.eventStatus,
       exchange.effectiveKrwPerUsd,
       legacyCostKrw,
       legacyEstimated,

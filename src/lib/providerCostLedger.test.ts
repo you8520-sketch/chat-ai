@@ -4,15 +4,14 @@ import { describe, it } from "node:test";
 import { ensureAdminFinanceTables } from "./adminFinance";
 import {
   buildPlatformAsyncTurnLedgerContext,
-  buildProviderCostEventKey,
   ensureProviderCostLedgerSchema,
   finalizeProviderCostAttempt,
-  isLedgerEventCoverageIncomplete,
-  isLedgerEventExact,
+  isLedgerEventCostCoverageIncomplete,
+  isLedgerEventCostExact,
   listProviderCostEventsForAssistantMessage,
   projectAsyncLedgerUsdToTurnKrw,
   readProviderCostEventByKey,
-  resolveLedgerAttemptActualCost,
+  resolveLedgerAttemptSettlement,
   startProviderCostAttempt,
 } from "./providerCostLedger";
 
@@ -41,42 +40,55 @@ function baseAsyncCtx(jobAttemptOrdinal: number) {
   };
 }
 
+function settledInput(overrides: Record<string, unknown> = {}) {
+  return {
+    actualProvider: "cheaperinference",
+    actualModel: "deepseek-v4-flash",
+    inputTokens: 100,
+    outputTokens: 50,
+    cheaperInferenceBilledCostUsd: 0.002,
+    outcome: "success" as const,
+    ...overrides,
+  };
+}
+
 describe("providerCostLedger", () => {
-  it("A1 — one async repair attempt creates one physical event", () => {
+  it("A1/R2 — stale requeue with same job metadata creates distinct physical events", () => {
     const db = createLedgerTestDb();
     const ctx = baseAsyncCtx(1);
-    startProviderCostAttempt(ctx, db);
-    finalizeProviderCostAttempt(
-      ctx,
-      {
-        actualProvider: "cheaperinference",
-        actualModel: "deepseek-v4-flash",
-        inputTokens: 100,
-        outputTokens: 50,
-        cheaperInferenceBilledCostUsd: 0.002,
-        eventStatus: "settled",
-      },
-      db
-    );
+
+    const run1 = startProviderCostAttempt(ctx, db);
+    finalizeProviderCostAttempt(run1, settledInput(), db);
+
+    const run2 = startProviderCostAttempt(ctx, db);
+    finalizeProviderCostAttempt(run2, settledInput(), db);
+
     const rows = listProviderCostEventsForAssistantMessage(42, db);
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0]?.family, "suggested_replies_repair");
-    assert.equal(rows[0]?.assistant_message_id, 42);
+    assert.equal(rows.length, 2);
+    assert.notEqual(rows[0]?.event_key, rows[1]?.event_key);
   });
 
-  it("A2 — two repair job attempts create two physical events", () => {
+  it("A3/R3 — duplicate finalize on same physical handle inserts once", () => {
+    const db = createLedgerTestDb();
+    const attempt = startProviderCostAttempt(baseAsyncCtx(1), db);
+    const input = settledInput({ cheaperInferenceBilledCostUsd: 0.003 });
+    finalizeProviderCostAttempt(attempt, input, db);
+    finalizeProviderCostAttempt(attempt, input, db);
+    assert.equal(listProviderCostEventsForAssistantMessage(42, db).length, 1);
+  });
+
+  it("A4/R4 — genuine logical retries remain separate events", () => {
     const db = createLedgerTestDb();
     for (const ordinal of [1, 2]) {
-      const ctx = baseAsyncCtx(ordinal);
-      startProviderCostAttempt(ctx, db);
+      const attempt = startProviderCostAttempt(baseAsyncCtx(ordinal), db);
       finalizeProviderCostAttempt(
-        ctx,
+        attempt,
         {
           actualProvider: "cheaperinference",
           actualModel: "deepseek-v4-flash",
-          inputTokens: 100,
-          outputTokens: 50,
-          eventStatus: "failed_without_usage",
+          inputTokens: 500,
+          outputTokens: 120,
+          outcome: "failed_without_usage",
         },
         db
       );
@@ -84,115 +96,112 @@ describe("providerCostLedger", () => {
     assert.equal(listProviderCostEventsForAssistantMessage(42, db).length, 2);
   });
 
-  it("A3 — duplicate finalize inserts once", () => {
+  it("C/R8 — failure coverage keeps incomplete attempt plus settled retry", () => {
     const db = createLedgerTestDb();
-    const ctx = { ...baseAsyncCtx(1), persistInTests: true };
-    startProviderCostAttempt(ctx, db);
-    const input = {
-      actualProvider: "cheaperinference",
-      actualModel: "deepseek-v4-flash",
-      inputTokens: 100,
-      outputTokens: 50,
-      cheaperInferenceBilledCostUsd: 0.003,
-      eventStatus: "settled" as const,
-    };
-    finalizeProviderCostAttempt(ctx, input, db);
-    finalizeProviderCostAttempt(ctx, input, db);
-    assert.equal(listProviderCostEventsForAssistantMessage(42, db).length, 1);
-  });
-
-  it("A4 — genuine retries with identical token counts remain separate events", () => {
-    const db = createLedgerTestDb();
-    for (const ordinal of [1, 2]) {
-      const ctx = baseAsyncCtx(ordinal);
-      startProviderCostAttempt(ctx, db);
-      finalizeProviderCostAttempt(
-        ctx,
-        {
-          actualProvider: "cheaperinference",
-          actualModel: "deepseek-v4-flash",
-          inputTokens: 500,
-          outputTokens: 120,
-          eventStatus: "failed_without_usage",
-        },
-        db
-      );
-    }
-    const keys = listProviderCostEventsForAssistantMessage(42, db).map((r) => r.event_key);
-    assert.equal(new Set(keys).size, 2);
-  });
-
-  it("C — failure coverage keeps incomplete attempt plus settled retry", () => {
-    const db = createLedgerTestDb();
-    const failCtx = baseAsyncCtx(1);
-    startProviderCostAttempt(failCtx, db);
+    const failAttempt = startProviderCostAttempt(baseAsyncCtx(1), db);
     finalizeProviderCostAttempt(
-      failCtx,
+      failAttempt,
       {
         actualProvider: "cheaperinference",
         actualModel: "deepseek-v4-flash",
-        eventStatus: "failed_without_usage",
+        outcome: "failed_without_usage",
       },
       db
     );
-    const okCtx = baseAsyncCtx(2);
-    startProviderCostAttempt(okCtx, db);
+    const okAttempt = startProviderCostAttempt(baseAsyncCtx(2), db);
     finalizeProviderCostAttempt(
-      okCtx,
-      {
-        actualProvider: "cheaperinference",
-        actualModel: "deepseek-v4-flash",
-        cheaperInferenceBilledCostUsd: 0.01,
-        eventStatus: "settled",
-      },
+      okAttempt,
+      settledInput({ cheaperInferenceBilledCostUsd: 0.01 }),
       db
     );
     const rows = listProviderCostEventsForAssistantMessage(42, db);
     assert.equal(rows.length, 2);
-    assert.equal(rows[0]?.event_status, "failed_without_usage");
+    assert.equal(isLedgerEventCostCoverageIncomplete(rows[0]!), true);
     assert.equal(rows[1]?.actual_cost_source, "cheaper_inference_billed");
   });
 
-  it("D — CI billed wins over upstream for actual cost", () => {
-    const resolved = resolveLedgerAttemptActualCost({
+  it("R6 — CI billed and upstream provenance stored separately", () => {
+    const db = createLedgerTestDb();
+    const attempt = startProviderCostAttempt(baseAsyncCtx(1), db);
+    finalizeProviderCostAttempt(
+      attempt,
+      {
+        actualProvider: "cheaperinference",
+        actualModel: "deepseek-v4-flash",
+        cheaperInferenceBilledCostUsd: 0.01,
+        upstreamCostUsd: 0.02,
+        outcome: "success",
+      },
+      db
+    );
+    const row = readProviderCostEventByKey(attempt.physicalAttemptId, db);
+    assert.ok(row);
+    assert.equal(row?.cheaper_inference_billed_cost_usd, 0.01);
+    assert.equal(row?.upstream_cost_usd, 0.02);
+    assert.equal(row?.actual_cost_usd, 0.01);
+    assert.equal(row?.actual_cost_source, "cheaper_inference_billed");
+  });
+
+  it("R7 — CI upstream-only is not settled", () => {
+    const settlement = resolveLedgerAttemptSettlement({
       actualProvider: "cheaperinference",
-      cheaperInferenceBilledCostUsd: 0.01,
       upstreamCostUsd: 0.02,
-      eventStatus: "settled",
+      usageEstimated: false,
+      outcome: "success",
     });
-    assert.equal(resolved.actualCostUsd, 0.01);
-    assert.equal(resolved.actualCostSource, "cheaper_inference_billed");
-    assert.equal(resolved.settled, true);
+    assert.notEqual(settlement.eventStatus, "settled");
+    assert.equal(settlement.settled, false);
+    assert.equal(settlement.actualCostSource, "unavailable");
+
+    const db = createLedgerTestDb();
+    const attempt = startProviderCostAttempt(baseAsyncCtx(1), db);
+    finalizeProviderCostAttempt(
+      attempt,
+      {
+        actualProvider: "cheaperinference",
+        actualModel: "deepseek-v4-flash",
+        upstreamCostUsd: 0.02,
+        usageEstimated: false,
+        outcome: "success",
+      },
+      db
+    );
+    const row = readProviderCostEventByKey(attempt.physicalAttemptId, db)!;
+    assert.equal(row.event_status, "completed_without_exact_cost");
+    assert.equal(row.actual_cost_usd, null);
+    assert.equal(isLedgerEventCostExact(row), false);
+    assert.equal(isLedgerEventCostCoverageIncomplete(row), true);
   });
 
-  it("E — CI upstream only is not settled", () => {
-    const resolved = resolveLedgerAttemptActualCost({
-      actualProvider: "cheaperinference",
-      upstreamCostUsd: 0.02,
-      eventStatus: "settled",
-    });
-    assert.equal(resolved.settled, false);
-    assert.equal(resolved.actualCostSource, "incomplete");
+  it("R9 — failed transport with exact CI billed cost remains cost-exact", () => {
+    const db = createLedgerTestDb();
+    const attempt = startProviderCostAttempt(baseAsyncCtx(1), db);
+    finalizeProviderCostAttempt(
+      attempt,
+      {
+        actualProvider: "cheaperinference",
+        actualModel: "deepseek-v4-flash",
+        cheaperInferenceBilledCostUsd: 0.003,
+        outcome: "failed_with_usage",
+      },
+      db
+    );
+    const row = readProviderCostEventByKey(attempt.physicalAttemptId, db)!;
+    assert.equal(row.event_status, "failed_with_usage");
+    assert.equal(isLedgerEventCostExact(row), true);
+    assert.equal(isLedgerEventCostCoverageIncomplete(row), false);
   });
 
-  it("F — provider failover uses separate physical ordinals in event keys", () => {
-    const base = baseAsyncCtx(1);
-    const primaryKey = buildProviderCostEventKey({
-      ...base,
-      physicalAttemptOrdinal: 1,
-      requestedProvider: "cheaperinference",
-      requestedModel: "deepseek-v4-flash",
-    });
-    const backupKey = buildProviderCostEventKey({
-      ...base,
-      physicalAttemptOrdinal: 2,
-      requestedProvider: "openrouter",
-      requestedModel: "deepseek/deepseek-v4-flash-0731",
-    });
-    assert.notEqual(primaryKey, backupKey);
+  it("R10 — started without finalize is incomplete coverage", () => {
+    const db = createLedgerTestDb();
+    const attempt = startProviderCostAttempt(baseAsyncCtx(1), db);
+    const row = readProviderCostEventByKey(attempt.physicalAttemptId, db)!;
+    assert.equal(row.event_status, "started");
+    assert.equal(isLedgerEventCostCoverageIncomplete(row), true);
+    assert.equal(isLedgerEventCostExact(row), false);
   });
 
-  it("G — status meta event links assistant message id", () => {
+  it("G — status meta row stores actual_provider/model", () => {
     const db = createLedgerTestDb();
     const ctx = {
       ...buildPlatformAsyncTurnLedgerContext({
@@ -204,34 +213,22 @@ describe("providerCostLedger", () => {
       }),
       persistInTests: true,
     };
-    startProviderCostAttempt(ctx, db);
+    const attempt = startProviderCostAttempt(ctx, db);
     finalizeProviderCostAttempt(
-      ctx,
+      attempt,
       {
         actualProvider: "openrouter",
         actualModel: "google/gemini-3.1-flash-lite-preview",
         upstreamCostUsd: 0.001,
         usageEstimated: false,
-        eventStatus: "settled",
+        outcome: "success",
       },
       db
     );
-    const row = readProviderCostEventByKey(buildProviderCostEventKey(ctx), db);
-    assert.ok(row);
-    assert.equal(row?.assistant_message_id, 99);
-    assert.equal(row?.funding_class, "platform_funded");
-    assert.equal(isLedgerEventExact(row!), true);
-  });
-
-  it("L — started without finalize is incomplete coverage", () => {
-    const db = createLedgerTestDb();
-    const ctx = baseAsyncCtx(1);
-    startProviderCostAttempt(ctx, db);
-    const row = readProviderCostEventByKey(buildProviderCostEventKey(ctx), db);
-    assert.ok(row);
-    assert.equal(row?.event_status, "started");
-    assert.equal(isLedgerEventCoverageIncomplete(row!), true);
-    assert.equal(isLedgerEventExact(row!), false);
+    const row = readProviderCostEventByKey(attempt.physicalAttemptId, db)!;
+    assert.equal(row.actual_provider, "openrouter");
+    assert.equal(row.actual_model, "google/gemini-3.1-flash-lite-preview");
+    assert.equal(row.assistant_message_id, 99);
   });
 
   it("M/N — async USD projects with parent turn FX snapshot only", () => {

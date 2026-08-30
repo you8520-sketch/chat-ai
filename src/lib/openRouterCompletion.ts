@@ -17,8 +17,9 @@ import { recordApiCost } from "@/lib/adminFinance";
 import {
   finalizeProviderCostAttempt,
   startProviderCostAttempt,
-  type ProviderCostEventStatus,
+  type ProviderCostFinalizeInput,
   type ProviderCostLedgerContext,
+  type ProviderCostPhysicalAttemptHandle,
 } from "@/lib/providerCostLedger";
 import {
   getMockResponseText,
@@ -104,18 +105,15 @@ function ledgerContextForPhysicalAttempt(
   };
 }
 
-function persistProviderCostLedgerFailure(
-  ctx: ProviderCostLedgerContext,
-  input: {
-    actualProvider: string;
-    actualModel: string;
-    httpStatus?: number | null;
+function persistProviderCostLedgerOutcome(
+  attempt: ProviderCostPhysicalAttemptHandle,
+  input: Omit<ProviderCostFinalizeInput, "outcome"> & {
     usage?: OpenRouterCompletionUsage | null;
-    eventStatus: ProviderCostEventStatus;
+    outcome: ProviderCostFinalizeInput["outcome"];
   }
 ): void {
   try {
-    finalizeProviderCostAttempt(ctx, {
+    finalizeProviderCostAttempt(attempt, {
       actualProvider: input.actualProvider,
       actualModel: input.actualModel,
       inputTokens: input.usage?.inputTokens,
@@ -125,58 +123,19 @@ function persistProviderCostLedgerFailure(
       cacheWriteTokens: input.usage?.cacheWriteTokens,
       cheaperInferenceBilledCostUsd: input.usage?.cheaperInferenceBilledCostUsd,
       upstreamCostUsd: input.usage?.upstreamCostUsd,
+      providerRequestId: input.providerRequestId,
       usageEstimated: input.usage?.estimated,
       httpStatus: input.httpStatus,
-      eventStatus: input.eventStatus,
+      outcome: input.outcome,
     });
   } catch (error) {
     console.warn("[provider-cost-ledger] finalize failed:", (error as Error).message);
   }
-}
-
-function persistProviderCostLedgerSuccess(
-  ctx: ProviderCostLedgerContext,
-  input: {
-    actualProvider: string;
-    actualModel: string;
-    usage: OpenRouterCompletionUsage;
-    providerRequestId?: string | null;
-  }
-): void {
-  const hasExactUsage =
-    finiteNonNegative(input.usage.cheaperInferenceBilledCostUsd) > 0 ||
-    (finiteNonNegative(input.usage.upstreamCostUsd) > 0 && input.usage.estimated !== true);
-  const eventStatus: ProviderCostEventStatus = hasExactUsage
-    ? "settled"
-    : "completed_without_exact_cost";
-  try {
-    finalizeProviderCostAttempt(ctx, {
-      actualProvider: input.actualProvider,
-      actualModel: input.actualModel,
-      inputTokens: input.usage.inputTokens,
-      outputTokens: input.usage.outputTokens,
-      reasoningTokens: input.usage.reasoningOutputTokens,
-      cacheReadTokens: input.usage.cacheReadTokens,
-      cacheWriteTokens: input.usage.cacheWriteTokens,
-      cheaperInferenceBilledCostUsd: input.usage.cheaperInferenceBilledCostUsd,
-      upstreamCostUsd: input.usage.upstreamCostUsd,
-      providerRequestId: input.providerRequestId,
-      usageEstimated: input.usage.estimated,
-      eventStatus,
-    });
-  } catch (error) {
-    console.warn("[provider-cost-ledger] finalize failed:", (error as Error).message);
-  }
-}
-
-function finiteNonNegative(value: unknown): number {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function buildFailoverLedgerHooks(
   ledgerBase: ProviderCostLedgerContext,
-  backupModel: string
+  handles: Map<number, ProviderCostPhysicalAttemptHandle>
 ): {
   onPhysicalAttemptStart: (info: {
     physicalAttemptOrdinal: number;
@@ -200,24 +159,20 @@ function buildFailoverLedgerHooks(
         info.model
       );
       try {
-        startProviderCostAttempt(ctx);
+        handles.set(info.physicalAttemptOrdinal, startProviderCostAttempt(ctx));
       } catch (error) {
         console.warn("[provider-cost-ledger] start failed:", (error as Error).message);
       }
     },
     onPhysicalAttemptFinish: (info) => {
       if (info.success) return;
-      const ctx = ledgerContextForPhysicalAttempt(
-        ledgerBase,
-        info.physicalAttemptOrdinal,
-        info.physicalAttemptOrdinal === 1 ? "cheaperinference" : "openrouter",
-        info.physicalAttemptOrdinal === 1 ? ledgerBase.requestedModel : backupModel
-      );
-      persistProviderCostLedgerFailure(ctx, {
+      const handle = handles.get(info.physicalAttemptOrdinal);
+      if (!handle) return;
+      persistProviderCostLedgerOutcome(handle, {
         actualProvider: info.provider,
         actualModel: info.model,
         httpStatus: info.httpStatus,
-        eventStatus: "failed_without_usage",
+        outcome: "failed_without_usage",
       });
     },
   };
@@ -307,6 +262,8 @@ export async function callOpenRouterCompletion(opts: {
       }
     : null;
   const backupModelId = logical ? resolveDeepSeekBackupModelId(logical) : model;
+  const failoverHandles = new Map<number, ProviderCostPhysicalAttemptHandle>();
+  let singleAttemptHandle: ProviderCostPhysicalAttemptHandle | null = null;
 
   if (
     useCheaperInference &&
@@ -326,7 +283,7 @@ export async function callOpenRouterCompletion(opts: {
         timeoutMs,
         requestKind: opts.requestKind,
         hooks: ledgerBase
-          ? buildFailoverLedgerHooks(ledgerBase, backupModelId)
+          ? buildFailoverLedgerHooks(ledgerBase, failoverHandles)
           : undefined,
       });
       res = failover.response;
@@ -353,17 +310,15 @@ export async function callOpenRouterCompletion(opts: {
       throw error;
     }
   } else {
-    const singleAttemptCtx = ledgerBase
-      ? ledgerContextForPhysicalAttempt(
-          ledgerBase,
-          1,
-          useCheaperInference ? "cheaperinference" : "openrouter",
-          model
-        )
-      : null;
-    if (singleAttemptCtx) {
+    if (ledgerBase) {
+      const ctx = ledgerContextForPhysicalAttempt(
+        ledgerBase,
+        1,
+        useCheaperInference ? "cheaperinference" : "openrouter",
+        model
+      );
       try {
-        startProviderCostAttempt(singleAttemptCtx);
+        singleAttemptHandle = startProviderCostAttempt(ctx);
       } catch (error) {
         console.warn("[provider-cost-ledger] start failed:", (error as Error).message);
       }
@@ -376,21 +331,21 @@ export async function callOpenRouterCompletion(opts: {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
-      if (singleAttemptCtx) {
-        persistProviderCostLedgerFailure(singleAttemptCtx, {
+      if (singleAttemptHandle) {
+        persistProviderCostLedgerOutcome(singleAttemptHandle, {
           actualProvider: useCheaperInference ? "cheaperinference" : "openrouter",
           actualModel: model,
-          eventStatus: "failed_without_usage",
+          outcome: "failed_without_usage",
         });
       }
       throw error;
     }
-    if (!res.ok && singleAttemptCtx) {
-      persistProviderCostLedgerFailure(singleAttemptCtx, {
+    if (!res.ok && singleAttemptHandle) {
+      persistProviderCostLedgerOutcome(singleAttemptHandle, {
         actualProvider: useCheaperInference ? "cheaperinference" : "openrouter",
         actualModel: model,
         httpStatus: res.status,
-        eventStatus: "failed_without_usage",
+        outcome: "failed_without_usage",
       });
     }
   }
@@ -436,19 +391,21 @@ export async function callOpenRouterCompletion(opts: {
     usedProvider === "openrouter" && useCheaperInference && isDeepSeekPrimaryCheaperInferenceModel(model)
       ? 2
       : 1;
-  const successAttemptCtx = ledgerBase
-    ? ledgerContextForPhysicalAttempt(ledgerBase, physicalOrdinal, usedProvider, usedModel)
-    : null;
+  const successAttemptHandle =
+    ledgerBase != null
+      ? failoverHandles.get(physicalOrdinal) ?? singleAttemptHandle
+      : null;
 
   if (!text) {
     const finishReason = data.choices?.[0]?.finish_reason ?? null;
-    if (successAttemptCtx) {
-      persistProviderCostLedgerFailure(successAttemptCtx, {
+    if (successAttemptHandle) {
+      persistProviderCostLedgerOutcome(successAttemptHandle, {
         actualProvider: usedProvider,
         actualModel: usedModel,
         httpStatus: res.status,
         usage,
-        eventStatus: usage.estimated ? "failed_without_usage" : "failed_with_usage",
+        providerRequestId,
+        outcome: usage.estimated ? "failed_without_usage" : "failed_with_usage",
       });
     }
     throw new CompatibleCompletionError({
@@ -460,12 +417,13 @@ export async function callOpenRouterCompletion(opts: {
     });
   }
 
-  if (ledgerBase && successAttemptCtx) {
-    persistProviderCostLedgerSuccess(successAttemptCtx, {
+  if (successAttemptHandle) {
+    persistProviderCostLedgerOutcome(successAttemptHandle, {
       actualProvider: usedProvider,
       actualModel: usedModel,
       usage,
       providerRequestId,
+      outcome: "success",
     });
   } else {
     try {
