@@ -177,7 +177,6 @@ export function executeAtomicMemoryResetCore(
        memory_reset_after_message_id=?, memory_epoch=?, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(boundaryAfter, epochAfter, opts.chatId);
-  db.prepare(`DELETE FROM memory_buffer WHERE chat_id=?`).run(opts.chatId);
   db.prepare(`DELETE FROM chat_turn_summaries WHERE chat_id=?`).run(opts.chatId);
   db.prepare(`DELETE FROM episodic_memory_facts WHERE chat_id=?`).run(opts.chatId);
   ensureMemorySummaryMigrationsTable(db);

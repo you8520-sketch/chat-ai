@@ -1314,17 +1314,6 @@ function migrate(db: Database.Database) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(user_id, character_id)
     );
-    CREATE TABLE IF NOT EXISTS memory_buffer (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      character_id INTEGER NOT NULL,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      message_index INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_memory_buffer_user_char
-      ON memory_buffer(user_id, character_id);
     CREATE INDEX IF NOT EXISTS idx_character_memories_user
       ON character_memories(user_id);
     CREATE TABLE IF NOT EXISTS chat_memories (
@@ -1356,7 +1345,6 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_chat_memories_character
       ON chat_memories(character_id);
   `);
-  addColumn("memory_buffer", "chat_id", "INTEGER");
   ensureMemoryResetBoundaryColumns(db);
   addColumn("messages", "user_message_id", "INTEGER");
   addColumn("messages", "status_meta", "TEXT");
@@ -1654,12 +1642,40 @@ function migrate(db: Database.Database) {
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);
   migrateBoardPostsOnce(db);
+  dropLegacyMemoryBufferTableOnce(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
   addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+}
+
+/** One-time retirement of the legacy 20-message compressor buffer table. */
+export function dropLegacyMemoryBufferTableOnce(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const flagExists = Boolean(
+    db
+      .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='memory_buffer_dropped_v1'")
+      .get()
+  );
+  const tableExists = Boolean(
+    db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
+      .get()
+  );
+
+  if (flagExists && !tableExists) return;
+
+  db.exec("DROP TABLE IF EXISTS memory_buffer");
+  if (!flagExists) {
+    db.prepare("INSERT INTO _schema_flags (key) VALUES ('memory_buffer_dropped_v1')").run();
+  }
 }
 
 function migrateBoardPostsOnce(db: Database.Database) {

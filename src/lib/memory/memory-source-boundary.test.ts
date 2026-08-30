@@ -66,7 +66,6 @@ function makeDb(): Database.Database {
       memory_epoch INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE TABLE memory_buffer (chat_id INTEGER NOT NULL, content TEXT);
     CREATE TABLE chat_turn_summaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
@@ -308,7 +307,6 @@ describe("persistent memory reset boundary", () => {
          used_chars, message_count, summarized_turn_count, last_compressed_at)
        VALUES (1,10,20,'pin','recent','archive',16,1,6,'now')`
     ).run();
-    db.prepare(`INSERT INTO memory_buffer (chat_id, content) VALUES (1, 'buffer')`).run();
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary) VALUES (1,1,'old')`
     ).run();
@@ -342,7 +340,6 @@ describe("persistent memory reset boundary", () => {
       "status:before reply"
     );
     assert.equal(db.prepare(`SELECT value FROM rp_numeric_state_current WHERE chat_id=1`).get().value, 77);
-    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM memory_buffer WHERE chat_id=1`).get().n, 0);
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=1`).get().n, 0);
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1`).get().n, 0);
 

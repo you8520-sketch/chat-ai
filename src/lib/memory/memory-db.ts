@@ -101,24 +101,6 @@ function migrateLegacyChatMemory(
   ).run(chatId, userId, characterId, "", text, "", tier, text.length);
 }
 
-export function getBufferCount(chatId: number): number {
-  const row = getDb()
-    .prepare(`SELECT COUNT(*) AS c FROM memory_buffer WHERE chat_id=?`)
-    .get(chatId) as { c: number };
-  return row.c;
-}
-
-export function clearBuffer(chatId: number, upToMessageIndex?: number): void {
-  const db = getDb();
-  if (upToMessageIndex != null) {
-    db.prepare(
-      `DELETE FROM memory_buffer WHERE chat_id=? AND message_index <= ?`
-    ).run(chatId, upToMessageIndex);
-  } else {
-    db.prepare(`DELETE FROM memory_buffer WHERE chat_id=?`).run(chatId);
-  }
-}
-
 export function updateChatMemory(
   chatId: number,
   userId: number,
@@ -176,7 +158,6 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
       used_chars=0, message_count=0, summarized_turn_count=0, last_compressed_at=NULL, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(chatId);
-  clearBuffer(chatId);
   db.prepare(`UPDATE chats SET current_summary='', memory='' WHERE id=? AND user_id=?`).run(chatId, userId);
   getOrCreateChatMemory(chatId, userId, characterId, tier);
 }
