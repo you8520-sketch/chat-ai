@@ -128,17 +128,66 @@ test("explicit Luna stays Luna", () => {
   );
 });
 
-test("PRIMARY=Luna FALLBACK=Luna is replaced by OpenRouter DeepSeek", () => {
+test("PRIMARY=Luna FALLBACK=Luna is replaced by OpenRouter Gemini Flash-Lite", () => {
   assert.equal(
     resolveBackgroundMemoryFallbackModel(
       { BACKGROUND_MEMORY_FALLBACK_MODEL: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } as NodeJS.ProcessEnv,
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
     ),
-    OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL
+    OPENROUTER_GEMINI_31_FLASH_MODEL
   );
   assert.notEqual(
     resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
     CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
+  );
+});
+
+test("background memory fallback env migration E1-E6", () => {
+  const primary = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, primary),
+    OPENROUTER_GEMINI_31_FLASH_MODEL,
+    "E1 unset"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: "" } as NodeJS.ProcessEnv,
+      primary
+    ),
+    OPENROUTER_GEMINI_31_FLASH_MODEL,
+    "E2 blank"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: OPENROUTER_DEEPSEEK_V3_MODEL } as NodeJS.ProcessEnv,
+      primary
+    ),
+    OPENROUTER_GEMINI_31_FLASH_MODEL,
+    "E3 legacy V3"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL } as NodeJS.ProcessEnv,
+      primary
+    ),
+    OPENROUTER_GEMINI_31_FLASH_MODEL,
+    "E4 stale 0731"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: "openai/gpt-4o-mini" } as NodeJS.ProcessEnv,
+      primary
+    ),
+    "openai/gpt-4o-mini",
+    "E5 explicit custom"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: primary } as NodeJS.ProcessEnv,
+      primary
+    ),
+    OPENROUTER_GEMINI_31_FLASH_MODEL,
+    "E6 same as primary"
   );
 });
 

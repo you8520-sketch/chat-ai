@@ -19,7 +19,7 @@ import {
 } from "@/lib/deepseekProviderFailover";
 import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { isMockApiMode } from "@/lib/mockApiMode";
 import {
@@ -1107,7 +1107,7 @@ function buildTrpgReplySuggestionBodies(opts: { system: string; user: string }):
     ...shared,
     model: primaryModel,
   });
-  const fallbackModel = OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+  const fallbackModel = OPENROUTER_GEMINI_31_FLASH_MODEL;
   const fallbackBody = adaptOpenRouterDeepSeekBackupBody(
     { ...shared, model: fallbackModel },
     fallbackModel

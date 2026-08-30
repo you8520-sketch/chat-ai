@@ -6,7 +6,7 @@ import {
 } from "./ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "./chatModels";
 import {
   BACKGROUND_BACKUP_COMPLETION_MS,
@@ -343,7 +343,7 @@ describe("background complete-body ownership", () => {
         assert.equal(result.text.includes("복구"), true);
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
         assert.equal(commits, 1);
       } finally {
@@ -376,7 +376,7 @@ describe("background complete-body ownership", () => {
         assert.deepEqual(parsed, ["English setting"]);
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
         assert.equal(saveCommits, 1);
       } finally {

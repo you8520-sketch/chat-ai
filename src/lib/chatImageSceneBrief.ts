@@ -5,6 +5,7 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 
@@ -20,8 +21,15 @@ const STALE_SCENE_PRIMARY_ALIASES = new Set([
 
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
-export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL = OPENROUTER_GEMINI_31_FLASH_MODEL;
+
+const STALE_SCENE_FALLBACK_ALIASES = new Set([
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+]);
 /** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
 
@@ -47,6 +55,9 @@ export function resolveChatImageSceneBriefFallbackModel(
   if (raw == null) return CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
   const trimmed = String(raw).trim();
   if (!trimmed) return CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+  if (STALE_SCENE_FALLBACK_ALIASES.has(trimmed.toLowerCase())) {
+    return CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+  }
   if (trimmed.toLowerCase() === primaryModelId.toLowerCase()) return null;
   return trimmed;
 }

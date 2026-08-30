@@ -6,7 +6,7 @@ import {
 } from "./ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "./chatModels";
 import {
   CompatibleCompletionError,
@@ -50,7 +50,7 @@ async function withKeys<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-describe("DeepSeek background Flash0731 provider failover", () => {
+describe("DeepSeek background Flash provider failover to Gemini", () => {
   it("B1 memory Flash normal CI success → OR calls 0 → commit 1", async () => {
     await withKeys(async () => {
       const previousFetch = globalThis.fetch;
@@ -104,7 +104,7 @@ describe("DeepSeek background Flash0731 provider failover", () => {
         assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
       } finally {
         globalThis.fetch = previousFetch;
@@ -135,7 +135,7 @@ describe("DeepSeek background Flash0731 provider failover", () => {
         assert.equal(result.text, "fallback summary");
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
       } finally {
         globalThis.fetch = previousFetch;
@@ -304,7 +304,7 @@ describe("DeepSeek background Flash0731 provider failover", () => {
         assert.deepEqual(parsed, ["English setting"]);
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
         assert.equal(saveCommits, 1);
       } finally {
@@ -418,7 +418,7 @@ describe("DeepSeek background Flash0731 provider failover", () => {
     });
   });
 
-  it("OpenRouter backup keeps Flash0731 and JSON response_format", async () => {
+  it("OpenRouter backup keeps Gemini Flash-Lite and JSON response_format", async () => {
     await withKeys(async () => {
       const bodies: Record<string, unknown>[] = [];
       const result = await executeDeepSeekBackgroundWithProviderFailover({
@@ -442,9 +442,9 @@ describe("DeepSeek background Flash0731 provider failover", () => {
           }) as typeof fetch,
         },
       });
-      assert.equal(bodies[1]?.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+      assert.equal(bodies[1]?.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
       assert.deepEqual(bodies[1]?.response_format, { type: "json_object" });
-      assert.deepEqual(bodies[1]?.reasoning, { effort: "none", exclude: true });
+      assert.deepEqual(bodies[1]?.reasoning, { effort: "minimal", exclude: true });
       assert.equal(await result.response.text().then((t) => t.includes("ok")), true);
     });
   });

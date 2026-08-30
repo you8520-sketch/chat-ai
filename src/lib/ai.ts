@@ -14,6 +14,7 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
@@ -140,10 +141,25 @@ export function resolveBackgroundCreativeHtmlPrimaryModelId(
 
 export const BACKGROUND_CREATIVE_HTML_MODEL = resolveBackgroundCreativeHtmlPrimaryModelId();
 
+const HISTORICAL_BACKGROUND_FALLBACK_DEEPSEEK_ALIASES = new Set([
+  OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+]);
+
+function isHistoricalBackgroundFallbackDeepSeekAlias(modelId?: string | null): boolean {
+  const trimmed = modelId?.trim();
+  if (!trimmed) return false;
+  return HISTORICAL_BACKGROUND_FALLBACK_DEEPSEEK_ALIASES.has(trimmed.toLowerCase());
+}
+
 /**
  * Optional cross-model fallback after primary background calls fail.
- * Explicit fallback ids keep their vendor (DeepSeek stays DeepSeek).
- * Same resolved model as primary is replaced by OpenRouter DeepSeek V4 Flash
+ * No live production callers — kept for env/docs/tests compatibility.
+ * Explicit fallback ids keep their vendor. Stale DeepSeek aliases migrate to
+ * OpenRouter Gemini 3.1 Flash-Lite. Same resolved model as primary is replaced
  * so PRIMARY=Luna FALLBACK=Luna cannot happen.
  */
 export function resolveBackgroundMemoryFallbackModel(
@@ -151,15 +167,15 @@ export function resolveBackgroundMemoryFallbackModel(
   primaryModelId: string = BACKGROUND_OPENROUTER_MODEL
 ): string | null {
   const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
-  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+  if (raw == null) return OPENROUTER_GEMINI_31_FLASH_MODEL;
   const rawTrimmed = String(raw).trim();
-  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
-  if (rawTrimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+  if (!rawTrimmed) return OPENROUTER_GEMINI_31_FLASH_MODEL;
+  if (isHistoricalBackgroundFallbackDeepSeekAlias(rawTrimmed)) {
+    return OPENROUTER_GEMINI_31_FLASH_MODEL;
   }
   const trimmed = resolveBackgroundTextModelId(rawTrimmed);
   if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+    return OPENROUTER_GEMINI_31_FLASH_MODEL;
   }
   return trimmed;
 }
