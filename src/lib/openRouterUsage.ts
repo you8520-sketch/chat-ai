@@ -1,7 +1,6 @@
 import type { TokenUsage } from "@/lib/ai";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import {
-  isInvalidReportedTokenValue,
   isValidReportedTokenValue,
   type UsageFieldReportingStatus,
   type UsageReportingEvidence,
@@ -129,10 +128,10 @@ function detectFieldReportingEvidence(rawValues: unknown[]): UsageFieldReporting
   let hasInvalid = false;
   for (const raw of rawValues) {
     if (isValidReportedTokenValue(raw)) hasValid = true;
-    else if (isInvalidReportedTokenValue(raw)) hasInvalid = true;
+    else hasInvalid = true;
   }
-  if (hasValid) return "reported_valid";
   if (hasInvalid) return "reported_invalid";
+  if (hasValid) return "reported_valid";
   return "unreported";
 }
 

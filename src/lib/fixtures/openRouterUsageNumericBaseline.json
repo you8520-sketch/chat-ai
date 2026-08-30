@@ -1,0 +1,158 @@
+{
+  "capturedAtRef": "2eacc0cc5f8f7561a50a906a595057c56d743b2e",
+  "numeric": {
+    "plain": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    },
+    "cache_explicit_zero": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    },
+    "cache_positive": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 12,
+      "cacheWriteTokens": 3,
+      "standardInputTokens": 85,
+      "estimated": false
+    },
+    "cache_malformed": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    },
+    "gemini_implicit_echo": {
+      "promptTokens": 4541,
+      "completionTokens": 1079,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 4290,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 251,
+      "estimated": false
+    },
+    "reasoning_positive": {
+      "promptTokens": 1200,
+      "completionTokens": 5976,
+      "reasoningTokens": 4912,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 1200,
+      "estimated": false
+    },
+    "reasoning_explicit_zero": {
+      "promptTokens": 1200,
+      "completionTokens": 5976,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 1200,
+      "estimated": false
+    },
+    "reasoning_malformed_float": {
+      "promptTokens": 5000,
+      "completionTokens": 400,
+      "reasoningTokens": 6,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5000,
+      "estimated": false
+    },
+    "reasoning_malformed_string_float": {
+      "promptTokens": 5000,
+      "completionTokens": 400,
+      "reasoningTokens": 6,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 5000,
+      "estimated": false
+    },
+    "mixed_cache_valid_invalid": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 12,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 88,
+      "estimated": false
+    },
+    "mixed_cache_float_and_zero": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 6,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 94,
+      "estimated": false
+    },
+    "header_body_mixed": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 20,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 80,
+      "estimated": false
+    },
+    "header_malformed_body_valid": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    },
+    "empty_string_cache": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    },
+    "whitespace_string_cache": {
+      "promptTokens": 100,
+      "completionTokens": 50,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "standardInputTokens": 100,
+      "estimated": false
+    }
+  },
+  "liveBilling": {
+    "G37": {
+      "total": 35,
+      "baseCost": 35
+    },
+    "G31_OR": {
+      "total": 355,
+      "baseCost": 355
+    },
+    "G31_CI": {
+      "total": 286,
+      "baseCost": 286
+    },
+    "Opus5": {
+      "total": 798,
+      "baseCost": 798
+    }
+  }
+}

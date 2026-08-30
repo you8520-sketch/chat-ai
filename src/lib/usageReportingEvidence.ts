@@ -17,22 +17,29 @@ export type UsageReportingEvidence = {
 };
 
 export function isValidReportedTokenValue(raw: unknown): boolean {
-  if (typeof raw !== "number" && typeof raw !== "string") return false;
-  const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 && Number.isInteger(n);
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) && raw >= 0 && Number.isInteger(raw);
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return false;
+    const n = Number(trimmed);
+    return Number.isFinite(n) && n >= 0 && Number.isInteger(n);
+  }
+  return false;
 }
 
 export function isInvalidReportedTokenValue(raw: unknown): boolean {
   return !isValidReportedTokenValue(raw);
 }
 
-/** Merge field evidence across partial stages (recovery/continuation). */
+/** Merge field evidence across partial stages (recovery/continuation). Invalid dominates. */
 export function mergeFieldReportingStatus(
   a: UsageFieldReportingStatus,
   b: UsageFieldReportingStatus
 ): UsageFieldReportingStatus {
-  if (a === "reported_valid" || b === "reported_valid") return "reported_valid";
   if (a === "reported_invalid" || b === "reported_invalid") return "reported_invalid";
+  if (a === "reported_valid" || b === "reported_valid") return "reported_valid";
   return "unreported";
 }
 
@@ -72,4 +79,12 @@ export function unreportedUsageReportingEvidence(): UsageReportingEvidence {
     cacheWrite: "unreported",
     reasoning: "unreported",
   };
+}
+
+/** Runtime-only evidence — strip before persisting usage.stages JSON. */
+export function stripUsageReportingEvidenceFromStage<T extends { usageReportingEvidence?: UsageReportingEvidence }>(
+  stage: T
+): Omit<T, "usageReportingEvidence"> {
+  const { usageReportingEvidence: _evidence, ...rest } = stage;
+  return rest;
 }

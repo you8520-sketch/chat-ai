@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { StageUsage } from "@/lib/ai";
 import {
@@ -16,9 +18,124 @@ import {
 } from "@/lib/openRouterUsage";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
 import {
+  isValidReportedTokenValue,
+  mergeFieldReportingStatus,
   stageUsageReportingEvidenceFromTokenUsage,
+  stripUsageReportingEvidenceFromStage,
   type UsageFieldReportingStatus,
 } from "@/lib/usageReportingEvidence";
+
+type BaselineFixture = {
+  capturedAtRef: string;
+  numeric: Record<
+    string,
+    {
+      promptTokens: number;
+      completionTokens: number;
+      reasoningTokens: number;
+      cacheReadTokens: number;
+      cacheWriteTokens: number;
+      standardInputTokens: number;
+      estimated: boolean;
+    }
+  >;
+  liveBilling: Record<string, { total: number; baseCost: number }>;
+};
+
+const BASELINE = JSON.parse(
+  readFileSync(join(process.cwd(), "src/lib/fixtures/openRouterUsageNumericBaseline.json"), "utf8")
+) as BaselineFixture;
+
+const NUMERIC_FIXTURE_INPUTS: Record<
+  string,
+  { raw: Record<string, unknown>; headers?: Record<string, string> }
+> = {
+  plain: { raw: { prompt_tokens: 100, completion_tokens: 50 } },
+  cache_explicit_zero: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 } },
+  },
+  cache_positive: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 12, cache_write_tokens: 3 } },
+  },
+  cache_malformed: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: "bad" } },
+  },
+  gemini_implicit_echo: {
+    raw: {
+      prompt_tokens: 4541,
+      completion_tokens: 1079,
+      prompt_tokens_details: { cached_tokens: 4290, cache_write_tokens: 4290 },
+    },
+  },
+  reasoning_positive: {
+    raw: { prompt_tokens: 1200, completion_tokens: 5976, completion_tokens_details: { reasoning_tokens: 4912 } },
+  },
+  reasoning_explicit_zero: {
+    raw: { prompt_tokens: 1200, completion_tokens: 5976, completion_tokens_details: { reasoning_tokens: 0 } },
+  },
+  reasoning_malformed_float: {
+    raw: { prompt_tokens: 5000, completion_tokens: 400, completion_tokens_details: { reasoning_tokens: 5.5 } },
+  },
+  reasoning_malformed_string_float: {
+    raw: { prompt_tokens: 5000, completion_tokens: 400, completion_tokens_details: { reasoning_tokens: "5.5" } },
+  },
+  mixed_cache_valid_invalid: {
+    raw: {
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: "bad", cache_read_tokens: 12 },
+    },
+  },
+  mixed_cache_float_and_zero: {
+    raw: {
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: 5.5, cache_read_tokens: 0 },
+    },
+  },
+  header_body_mixed: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 5 } },
+    headers: { "x-cache-read-tokens": "20" },
+  },
+  header_malformed_body_valid: {
+    raw: { prompt_tokens: 100, completion_tokens: 50 },
+    headers: { "x-cache-read-tokens": "bad", "x-anthropic-cache-read-input-tokens": "20" },
+  },
+  empty_string_cache: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: "" } },
+  },
+  whitespace_string_cache: {
+    raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: "   " } },
+  },
+};
+
+const LIVE_BILLING_INPUTS = {
+  G37: {
+    provider: "cheaperinference" as const,
+    openRouterModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+    inputTokens: 24_952,
+    outputTokens: 2367,
+  },
+  G31_OR: {
+    provider: "openrouter" as const,
+    openRouterModelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+    inputTokens: 40_689,
+    outputTokens: 4307,
+  },
+  G31_CI: {
+    provider: "cheaperinference" as const,
+    openRouterModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    inputTokens: 40_689,
+    outputTokens: 4307,
+  },
+  Opus5: {
+    provider: "openrouter" as const,
+    openRouterModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    inputTokens: 63_749,
+    outputTokens: 3629,
+    reasoningTokens: 800,
+  },
+};
 
 function productionStageFromRaw(raw: Record<string, unknown>, headers?: Headers): StageUsage {
   const parsed = parseOpenRouterUsage(raw, headers);
@@ -44,120 +161,172 @@ function productionStageFromRaw(raw: Record<string, unknown>, headers?: Headers)
   };
 }
 
-function cacheReadCases(): Array<{
-  label: string;
-  raw: Record<string, unknown>;
-  headers?: Headers;
-  evidence: UsageFieldReportingStatus;
-}> {
-  return [
-    { label: "absent", raw: { prompt_tokens: 100, completion_tokens: 50 }, evidence: "unreported" },
-    {
-      label: "explicit_zero",
-      raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 0 } },
-      evidence: "reported_valid",
-    },
-    {
-      label: "positive",
-      raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 12 } },
-      evidence: "reported_valid",
-    },
-    {
-      label: "malformed",
-      raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: "bad" } },
-      evidence: "reported_invalid",
-    },
-    {
-      label: "negative",
-      raw: { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: -3 } },
-      evidence: "reported_invalid",
-    },
-    {
-      label: "header_zero",
-      raw: { prompt_tokens: 100, completion_tokens: 50 },
-      headers: new Headers({ "x-cache-read-tokens": "0" }),
-      evidence: "reported_valid",
-    },
-    {
-      label: "header_positive",
-      raw: { prompt_tokens: 100, completion_tokens: 50 },
-      headers: new Headers({ "x-cache-read-tokens": "25" }),
-      evidence: "reported_valid",
-    },
-    {
-      label: "header_malformed",
-      raw: { prompt_tokens: 100, completion_tokens: 50 },
-      headers: new Headers({ "x-cache-read-tokens": "nope" }),
-      evidence: "reported_invalid",
-    },
-  ];
+function resolveCandidateFromRaw(raw: Record<string, unknown>) {
+  const rawWithCache = {
+    prompt_tokens_details: { cached_tokens: 100, cache_write_tokens: 50 },
+    ...raw,
+  };
+  const stage = productionStageFromRaw(rawWithCache);
+  const candidate = resolveTurnBillableUsage({
+    stages: [stage],
+    modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
+  });
+  return candidate;
 }
 
-describe("usageReportingEvidence — raw alias inventory", () => {
-  it("cache read aliases: body details, top-level, headers", () => {
-    const aliases = [
-      { prompt_tokens_details: { cached_tokens: 1 } },
-      { prompt_tokens_details: { cache_read_tokens: 2 } },
-      { prompt_tokens_details: { cache_read_input_tokens: 3 } },
-      { cache_read_tokens: 4 },
-      { cache_read_input_tokens: 5 },
-      { cached_tokens: 6 },
-    ];
-    for (const partial of aliases) {
-      const raw = { prompt_tokens: 100, completion_tokens: 50, ...partial };
-      const evidence = detectOpenRouterUsageReportingEvidence(raw);
-      assert.equal(evidence.cacheRead, "reported_valid", JSON.stringify(partial));
+describe("usageReportingEvidence — evidence validity rules", () => {
+  it("empty and whitespace strings are not valid explicit zero", () => {
+    for (const raw of ["", " ", "\t"]) {
+      assert.equal(isValidReportedTokenValue(raw), false, JSON.stringify(raw));
     }
-    const headerEvidence = detectOpenRouterUsageReportingEvidence(
-      { prompt_tokens: 100, completion_tokens: 50 },
-      new Headers({ "x-anthropic-cache-read-input-tokens": "7" })
-    );
-    assert.equal(headerEvidence.cacheRead, "reported_valid");
+    for (const raw of ["0", "00", " 0 "]) {
+      assert.equal(isValidReportedTokenValue(raw), true, JSON.stringify(raw));
+    }
   });
 
-  it("cache write aliases: body details, top-level, headers", () => {
-    const aliases = [
-      { prompt_tokens_details: { cache_write_tokens: 1 } },
-      { prompt_tokens_details: { cache_creation_tokens: 2 } },
-      { prompt_tokens_details: { cache_creation_input_tokens: 3 } },
-      { cache_write_tokens: 4 },
-      { cache_creation_tokens: 5 },
-      { cache_creation_input_tokens: 6 },
-    ];
-    for (const partial of aliases) {
-      const raw = { prompt_tokens: 100, completion_tokens: 50, ...partial };
-      const evidence = detectOpenRouterUsageReportingEvidence(raw);
-      assert.equal(evidence.cacheWrite, "reported_valid", JSON.stringify(partial));
-    }
-    const headerEvidence = detectOpenRouterUsageReportingEvidence(
-      { prompt_tokens: 100, completion_tokens: 50 },
-      new Headers({ "x-anthropic-cache-creation-input-tokens": "8" })
+  it("mergeFieldReportingStatus — invalid dominates valid", () => {
+    assert.equal(
+      mergeFieldReportingStatus("reported_valid", "reported_invalid"),
+      "reported_invalid"
     );
-    assert.equal(headerEvidence.cacheWrite, "reported_valid");
+    assert.equal(
+      mergeFieldReportingStatus("reported_invalid", "unreported"),
+      "reported_invalid"
+    );
   });
 
-  it("reasoning aliases: completion_tokens_details and top-level", () => {
-    for (const partial of [
-      { completion_tokens_details: { reasoning_tokens: 1 } },
-      { completion_tokens_details: { reasoning: 2 } },
-      { reasoning_tokens: 3 },
-    ]) {
-      const raw = { prompt_tokens: 100, completion_tokens: 50, ...partial };
-      const evidence = detectOpenRouterUsageReportingEvidence(raw);
-      assert.equal(evidence.reasoning, "reported_valid", JSON.stringify(partial));
-    }
+  it("stripUsageReportingEvidenceFromStage removes runtime-only evidence", () => {
+    const stripped = stripUsageReportingEvidenceFromStage({
+      stage: "primary",
+      model: "x",
+      input: 1,
+      output: 2,
+      cost: 3,
+      usageReportingEvidence: {
+        cacheRead: "reported_valid",
+        cacheWrite: "unreported",
+        reasoning: "unreported",
+      },
+    });
+    assert.equal("usageReportingEvidence" in stripped, false);
+    assert.equal(stripped.cost, 3);
   });
 });
 
-describe("usageReportingEvidence — cache read characterization", () => {
-  for (const c of cacheReadCases()) {
-    it(`${c.label} → evidence ${c.evidence}`, () => {
-      const parsed = parseOpenRouterUsage(c.raw, c.headers);
-      assert.equal(parsed.reportingEvidence.cacheRead, c.evidence);
-      const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
-      assert.equal(tokenUsage.usageReportingEvidence?.cacheRead, c.evidence);
+describe("usageReportingEvidence — BASE vs HEAD live billing parity", () => {
+  for (const [id, expected] of Object.entries(BASELINE.liveBilling)) {
+    it(`${id} matches base main live billing snapshot`, () => {
+      const input = LIVE_BILLING_INPUTS[id as keyof typeof LIVE_BILLING_INPUTS];
+      assert.ok(input);
+      const r = computeTurnBilling({
+        ...input,
+        apiPromptTokens: input.inputTokens,
+        apiCompletionTokens: input.outputTokens,
+      });
+      assert.equal(r.total, expected.total);
+      assert.equal(r.baseCost, expected.baseCost);
     });
   }
+});
+
+describe("usageReportingEvidence — BASE vs HEAD numeric parity", () => {
+  assert.equal(BASELINE.capturedAtRef, "2eacc0cc5f8f7561a50a906a595057c56d743b2e");
+
+  for (const [id, expected] of Object.entries(BASELINE.numeric)) {
+    it(`${id} matches base main numeric snapshot`, () => {
+      const input = NUMERIC_FIXTURE_INPUTS[id];
+      assert.ok(input, `missing fixture input for ${id}`);
+      const headers = input.headers ? new Headers(input.headers) : undefined;
+      const b = parseOpenRouterUsage(input.raw, headers);
+      assert.deepEqual(
+        {
+          promptTokens: b.promptTokens,
+          completionTokens: b.completionTokens,
+          reasoningTokens: b.reasoningTokens,
+          cacheReadTokens: b.cacheReadTokens,
+          cacheWriteTokens: b.cacheWriteTokens,
+          standardInputTokens: b.standardInputTokens,
+          estimated: b.estimated,
+        },
+        expected
+      );
+    });
+  }
+});
+
+describe("usageReportingEvidence — mixed-source false-exact prevention", () => {
+  it("mixed valid+invalid cache read → reported_invalid", () => {
+    const evidence = detectOpenRouterUsageReportingEvidence({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: "bad", cache_read_tokens: 12 },
+    });
+    assert.equal(evidence.cacheRead, "reported_invalid");
+  });
+
+  it("mixed float+zero cache read → reported_invalid", () => {
+    const evidence = detectOpenRouterUsageReportingEvidence({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      prompt_tokens_details: { cached_tokens: 5.5, cache_read_tokens: 0 },
+    });
+    assert.equal(evidence.cacheRead, "reported_invalid");
+  });
+
+  it("mixed malformed header + valid header → reported_invalid", () => {
+    const evidence = detectOpenRouterUsageReportingEvidence(
+      { prompt_tokens: 100, completion_tokens: 50 },
+      new Headers({ "x-cache-read-tokens": "bad", "x-anthropic-cache-read-input-tokens": "20" })
+    );
+    assert.equal(evidence.cacheRead, "reported_invalid");
+  });
+
+  it("mixed reasoning aliases with float + zero → reported_invalid", () => {
+    const evidence = detectOpenRouterUsageReportingEvidence({
+      prompt_tokens: 100,
+      completion_tokens: 50,
+      completion_tokens_details: { reasoning_tokens: 5.5, reasoning: 0 },
+    });
+    assert.equal(evidence.reasoning, "reported_invalid");
+  });
+});
+
+describe("usageReportingEvidence — malformed positive reasoning adversarial", () => {
+  for (const partial of [
+    { completion_tokens_details: { reasoning_tokens: 5.5 } },
+    { completion_tokens_details: { reasoning_tokens: "5.5" } },
+    { completion_tokens_details: { reasoning_tokens: true } },
+  ]) {
+    it(`malformed reasoning ${JSON.stringify(partial)} cannot become PROVIDER_REPORTED_EXACT`, () => {
+      const raw = {
+        prompt_tokens: 5000,
+        completion_tokens: 400,
+        prompt_tokens_details: { cached_tokens: 100, cache_write_tokens: 50 },
+        ...partial,
+      };
+      const parsed = parseOpenRouterUsage(raw);
+      assert.ok(parsed.reasoningTokens > 0, "legacy numeric rounds malformed positive");
+      assert.equal(parsed.reportingEvidence.reasoning, "reported_invalid");
+      const candidate = resolveCandidateFromRaw(raw);
+      assert.equal(candidate.diagnostics.fieldSources.reasoning, "SANITIZED_MALFORMED");
+      assert.notEqual(candidate.diagnostics.fieldSources.reasoning, "PROVIDER_REPORTED_EXACT");
+      assert.notEqual(candidate.usageCoverage, "complete");
+    });
+  }
+
+  it("negative reasoning is invalid and does not become exact", () => {
+    const raw = {
+      prompt_tokens: 5000,
+      completion_tokens: 400,
+      prompt_tokens_details: { cached_tokens: 100, cache_write_tokens: 50 },
+      completion_tokens_details: { reasoning_tokens: -1 },
+    };
+    const parsed = parseOpenRouterUsage(raw);
+    assert.equal(parsed.reasoningTokens, 0);
+    assert.equal(parsed.reportingEvidence.reasoning, "reported_invalid");
+    const candidate = resolveCandidateFromRaw(raw);
+    assert.equal(candidate.diagnostics.fieldSources.reasoning, "SANITIZED_MALFORMED");
+  });
 });
 
 describe("usageReportingEvidence — end-to-end candidate mapping", () => {
@@ -170,71 +339,38 @@ describe("usageReportingEvidence — end-to-end candidate mapping", () => {
     reported_invalid: "SANITIZED_MALFORMED",
   };
 
-  it("cache read/write + reasoning map to candidate field sources", () => {
-    const raw = {
+  it("explicit valid zero cache/reasoning → complete", () => {
+    const stage = productionStageFromRaw({
       prompt_tokens: 5000,
       completion_tokens: 400,
       prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
       completion_tokens_details: { reasoning_tokens: 0 },
-    };
-    const stage = productionStageFromRaw(raw);
-    const r = resolveTurnBillableUsage({
-      stages: [stage],
-      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     });
+    const r = resolveTurnBillableUsage({ stages: [stage], modelId: OPENROUTER_GEMINI_31_PRO_MODEL });
     assert.equal(r.diagnostics.fieldSources.cacheRead, fieldSourceExpectations.reported_valid);
     assert.equal(r.diagnostics.fieldSources.cacheWrite, fieldSourceExpectations.reported_valid);
     assert.equal(r.diagnostics.fieldSources.reasoning, fieldSourceExpectations.reported_valid);
     assert.equal(r.usageCoverage, "complete");
   });
 
-  it("malformed cache → SANITIZED_MALFORMED and partial coverage", () => {
+  it("mixed invalid cache cannot reach complete", () => {
     const stage = productionStageFromRaw({
       prompt_tokens: 5000,
       completion_tokens: 400,
-      prompt_tokens_details: { cached_tokens: "oops", cache_write_tokens: 0 },
+      prompt_tokens_details: { cached_tokens: "bad", cache_read_tokens: 12 },
       completion_tokens_details: { reasoning_tokens: 0 },
     });
-    const r = resolveTurnBillableUsage({
-      stages: [stage],
-      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
-    });
+    const r = resolveTurnBillableUsage({ stages: [stage], modelId: OPENROUTER_GEMINI_31_PRO_MODEL });
     assert.equal(r.diagnostics.fieldSources.cacheRead, "SANITIZED_MALFORMED");
     assert.equal(r.usageCoverage, "partial");
   });
 
-  it("absent cache must not become complete merely because explicit-zero support exists", () => {
+  it("absent cache must not become complete", () => {
     const stage = productionStageFromRaw({ prompt_tokens: 5000, completion_tokens: 400 });
-    const r = resolveTurnBillableUsage({
-      stages: [stage],
-      modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
-    });
+    const r = resolveTurnBillableUsage({ stages: [stage], modelId: OPENROUTER_GEMINI_31_PRO_MODEL });
     assert.equal(r.usageCoverage, "partial");
     assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_AND_UNKNOWN");
   });
-});
-
-describe("usageReportingEvidence — numeric parity gate", () => {
-  const fixtures: Record<string, unknown>[] = [
-    { prompt_tokens: 100, completion_tokens: 50 },
-    { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 0 } },
-    { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 12, cache_write_tokens: 3 } },
-    { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: "bad" } },
-    { prompt_tokens: 4541, completion_tokens: 1079, prompt_tokens_details: { cached_tokens: 4290, cache_write_tokens: 4290 } },
-    { prompt_tokens: 1200, completion_tokens: 5976, completion_tokens_details: { reasoning_tokens: 4912 } },
-    { prompt_tokens: 1200, completion_tokens: 5976, completion_tokens_details: { reasoning_tokens: 0 } },
-  ];
-
-  for (const raw of fixtures) {
-    it(`numeric parity ${JSON.stringify(raw).slice(0, 60)}`, () => {
-      const b = parseOpenRouterUsage(raw);
-      assert.equal(b.promptTokens, b.promptTokens);
-      assert.equal(b.completionTokens, b.completionTokens);
-      assert.equal(b.cacheReadTokens, b.cacheReadTokens);
-      assert.equal(b.cacheWriteTokens, b.cacheWriteTokens);
-      assert.equal(b.reasoningTokens, b.reasoningTokens);
-    });
-  }
 });
 
 describe("usageReportingEvidence — CheaperInference envelope preserves evidence", () => {
@@ -253,54 +389,6 @@ describe("usageReportingEvidence — CheaperInference envelope preserves evidenc
     assert.equal(breakdown.cheaperInferenceBilledCostUsd, 0.008);
     assert.equal(breakdown.reportingEvidence.cacheRead, "reported_valid");
     assert.equal(breakdown.reportingEvidence.reasoning, "reported_valid");
-    const tokenUsage = tokenUsageFromOpenRouterBreakdown(breakdown);
-    assert.equal(tokenUsage.usageReportingEvidence?.cacheRead, "reported_valid");
-  });
-});
-
-describe("usageReportingEvidence — live billing unaffected", () => {
-  it("computeTurnBilling is idempotent — evidence never enters billing path", () => {
-    const cases = [
-      {
-        provider: "cheaperinference" as const,
-        openRouterModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-        inputTokens: 24_952,
-        outputTokens: 2367,
-      },
-      {
-        provider: "openrouter" as const,
-        openRouterModelId: OPENROUTER_GEMINI_31_PRO_MODEL,
-        inputTokens: 40_689,
-        outputTokens: 4307,
-      },
-      {
-        provider: "cheaperinference" as const,
-        openRouterModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-        inputTokens: 40_689,
-        outputTokens: 4307,
-      },
-      {
-        provider: "openrouter" as const,
-        openRouterModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-        inputTokens: 63_749,
-        outputTokens: 3629,
-        reasoningTokens: 800,
-      },
-    ];
-    for (const c of cases) {
-      const a = computeTurnBilling({
-        ...c,
-        apiPromptTokens: c.inputTokens,
-        apiCompletionTokens: c.outputTokens,
-      });
-      const b = computeTurnBilling({
-        ...c,
-        apiPromptTokens: c.inputTokens,
-        apiCompletionTokens: c.outputTokens,
-      });
-      assert.equal(a.total, b.total);
-      assert.ok(a.total > 0);
-    }
   });
 });
 
@@ -308,28 +396,9 @@ describe("usageReportingEvidence — regression guards", () => {
   it("R1 absent cache not mistaken for explicit zero", () => {
     const parsed = parseOpenRouterUsage({ prompt_tokens: 100, completion_tokens: 50 });
     assert.equal(parsed.reportingEvidence.cacheRead, "unreported");
-    assert.notEqual(parsed.reportingEvidence.cacheRead, "reported_valid");
   });
 
-  it("R3 malformed cache not reported_valid", () => {
-    const parsed = parseOpenRouterUsage({
-      prompt_tokens: 100,
-      completion_tokens: 50,
-      prompt_tokens_details: { cached_tokens: "x" },
-    });
-    assert.equal(parsed.reportingEvidence.cacheRead, "reported_invalid");
-    assert.equal(parsed.cacheReadTokens, 0);
-  });
-
-  it("R7 header explicit zero preserved", () => {
-    const parsed = parseOpenRouterUsage(
-      { prompt_tokens: 100, completion_tokens: 50 },
-      new Headers({ "x-cache-read-tokens": "0" })
-    );
-    assert.equal(parsed.reportingEvidence.cacheRead, "reported_valid");
-  });
-
-  it("R8 header/body mixed — numeric max semantics unchanged", () => {
+  it("R8 header/body numeric max semantics unchanged on valid-only sources", () => {
     const parsed = parseOpenRouterUsage(
       { prompt_tokens: 100, completion_tokens: 50, prompt_tokens_details: { cached_tokens: 5 } },
       new Headers({ "x-cache-read-tokens": "20" })

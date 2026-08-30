@@ -311,15 +311,10 @@ export function resolveTurnBillableUsage(
   const reasoningStatus = aggregateReasoningReportingStatus(openRouterStages);
   diagnostics.reasoningReported = reasoningStatus === "reported_valid";
 
-  const reasoningSource =
-    summedApiReasoning > 0
-      ? anyEstimatedInComposition
-        ? "ESTIMATED"
-        : "PROVIDER_REPORTED_EXACT"
-      : fieldSourceFromReportingStatus(
-          reasoningStatus,
-          anyEstimatedInComposition ? true : primaryStage.estimated
-        );
+  const reasoningSource = fieldSourceFromReportingStatus(
+    reasoningStatus,
+    anyEstimatedInComposition ? true : primaryStage.estimated
+  );
 
   const routeChargeOutputTokens = billableOpenRouterOutputTokens(
     input.modelId,
