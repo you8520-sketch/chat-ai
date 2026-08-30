@@ -15,6 +15,8 @@ import type { Usage } from "@/lib/chatUsage";
 export type StatusWidgetExtractBillingMeta = {
   modelId: string;
   callCount: number;
+  /** Admin provenance — one Luna call served widget + suggested replies initial. */
+  postTurnSharedInitial?: boolean;
 };
 
 export type StatusWidgetExtractReceipt = {

@@ -4872,6 +4872,14 @@ export async function POST(req: Request) {
           }
         }
         let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
+        let widgetPrefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
+          null;
+        let widgetSharedInitialConsumed = false;
+        const suggestedRepliesEligibleForCoalesce =
+          body.suggestedRepliesEnabled !== false &&
+          !htmlFlashOnlyTurn &&
+          !oocSceneRenderTurn &&
+          Boolean(savedText.trim());
         if (statusWidgetActive) {
           send({ type: "status", message: "상태창 생성 중…" });
           postprocessHeartbeat.setPhase("status_widget");
@@ -4894,6 +4902,9 @@ export async function POST(req: Request) {
             requestId: clientRequestId ?? null,
             userId: user.id,
             characterId: ch.id,
+            coalesceSuggestedReplies:
+              suggestedRepliesEligibleForCoalesce &&
+              (statusWidgetTurn.needsCharacterValues || statusWidgetTurn.needsUserValues),
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -4902,6 +4913,8 @@ export async function POST(req: Request) {
             widgetResolved.widgetExtractDiagnostics?.attempts?.length ?? null;
           widgetExtractResult = widgetResolved.telemetry.resolutionSource;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
+          widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -5759,6 +5772,8 @@ export async function POST(req: Request) {
             userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             assistantProse: savedText,
+            prefetchedReplies: widgetPrefetchedSuggestedReplies,
+            sharedInitialAttemptConsumed: widgetSharedInitialConsumed,
           });
         }
 

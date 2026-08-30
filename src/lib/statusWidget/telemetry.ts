@@ -126,6 +126,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   assistantMessageId?: number;
   regenerateMessageId?: number;
   requestId?: string | null;
+  /** When true, coalesce widget initial + suggested replies initial (route gate). */
+  coalesceSuggestedReplies?: boolean;
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -138,6 +140,9 @@ export type ResolveStatusWidgetTurnValuesResult = {
   /** Same lifetime as widgetExtractUsage — null when background extract was not called or left no usage. */
   widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null;
   widgetExtractDiagnostics: NonNullable<Usage["statusWidgetExtractDiagnostics"]> | null;
+  /** Prefetched from shared initial Luna call — consumed by scheduleSuggestedRepliesExtraction. */
+  prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null;
+  sharedInitialConsumed: boolean;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -224,6 +229,9 @@ export async function resolveStatusWidgetTurnValues(
   let widgetExtractDiagnostics: NonNullable<
     Usage["statusWidgetExtractDiagnostics"]
   > | null = null;
+  let prefetchedSuggestedReplies: import("@/lib/suggestedReplies/types").SuggestedReplyItem[] | null =
+    null;
+  let sharedInitialConsumed = false;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -360,12 +368,17 @@ export async function resolveStatusWidgetTurnValues(
         userNote: input.userNote,
         trace: traceBase,
         seedValues: valuesPayload,
+        coalesceSuggestedReplies: input.coalesceSuggestedReplies
+          ? { enabled: true }
+          : undefined,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,
         usedFallback: v3Result.meta.usedFallback,
         attempts: v3Result.meta.attemptDiagnostics,
       };
+      prefetchedSuggestedReplies = v3Result.meta.prefetchedSuggestedReplies ?? null;
+      sharedInitialConsumed = v3Result.meta.sharedInitialConsumed === true;
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -558,6 +571,8 @@ export async function resolveStatusWidgetTurnValues(
     widgetExtractUsage,
     widgetExtractBillingMeta,
     widgetExtractDiagnostics,
+    prefetchedSuggestedReplies,
+    sharedInitialConsumed,
     telemetry,
   };
 }
