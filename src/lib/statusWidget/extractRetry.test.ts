@@ -21,7 +21,7 @@ import {
   statusWidgetValuesHasContent,
 } from "./displayPolicy";
 import {
-  applyStatusWidgetBillingCharge,
+  applyStatusWidgetPlatformFundedExtract,
   mergeStatusWidgetExtractUsages,
 } from "./receiptUsage";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -724,7 +724,7 @@ describe("extract usage merge", () => {
     assert.ok(result.meta.billing);
     assert.equal(result.meta.billing!.callCount, 2);
     assert.equal(result.meta.totalCallCount, 2);
-    const billed = applyStatusWidgetBillingCharge(
+    const billed = applyStatusWidgetPlatformFundedExtract(
       base,
       result.usage!,
       exchangeRate,
@@ -735,7 +735,8 @@ describe("extract usage merge", () => {
     assert.equal(billed.record.statusWidgetExtract?.callCount, 2);
     assert.equal(billed.record.apiCallCount, 3);
     assert.equal(billed.record.stages?.some((s) => s.stage === "상태창 추출"), true);
-    assert.ok(billed.widgetCostPoints > 0);
+    assert.equal(billed.userCost, 48);
+    assert.equal(billed.record.cost, 48);
     const merged = mergeStatusWidgetExtractUsages([
       { inputTokens: 1000, outputTokens: 50, estimated: false },
       { inputTokens: Number.NaN, outputTokens: -5, estimated: false },
@@ -1235,7 +1236,7 @@ describe("dual combined status extract", () => {
       mainApiRawCostKrw: 33,
       apiCallCount: 1,
     };
-    const billed = applyStatusWidgetBillingCharge(
+    const billed = applyStatusWidgetPlatformFundedExtract(
       base,
       result.usage!,
       rate,
