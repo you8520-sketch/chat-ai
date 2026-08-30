@@ -191,6 +191,35 @@ test("background memory fallback env migration E1-E6", () => {
   );
 });
 
+test("COMMON_FALLBACK_PRIMARY_GEMINI guard: unset/blank/stale alias never equals primary", () => {
+  const primary = OPENROUTER_GEMINI_31_FLASH_MODEL;
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, primary),
+    null,
+    "COMMON_FALLBACK_PRIMARY_GEMINI_UNSET"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: "" } as NodeJS.ProcessEnv,
+      primary
+    ),
+    null,
+    "COMMON_FALLBACK_PRIMARY_GEMINI_BLANK"
+  );
+  assert.equal(
+    resolveBackgroundMemoryFallbackModel(
+      { BACKGROUND_MEMORY_FALLBACK_MODEL: OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL } as NodeJS.ProcessEnv,
+      primary
+    ),
+    null,
+    "COMMON_FALLBACK_PRIMARY_GEMINI_STALE_ALIAS"
+  );
+  assert.notEqual(
+    resolveBackgroundMemoryFallbackModel({} as NodeJS.ProcessEnv, primary),
+    primary
+  );
+});
+
 test("callBackgroundMemory default outbound is Luna with reasoning none", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
