@@ -15,6 +15,7 @@ on:
       - "src/lib/trpg/scenarioDraft.ts"
       - "src/lib/trpg/scenarioDraftCall.ts"
       - "src/lib/trpg/scenarioDraftCall.transport.test.ts"
+      - "src/lib/deepseekProviderFailover.ts"
       - "src/lib/trpg/scenarioPlan.ts"
       - "src/lib/trpg/campaignContext.ts"
       - "src/lib/trpg/catalog.ts"
