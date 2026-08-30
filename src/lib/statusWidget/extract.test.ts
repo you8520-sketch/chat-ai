@@ -153,7 +153,7 @@ describe("statusWidget extract", () => {
       "character"
     );
     // Instruction-first: NPC 지시 → CHARACTER, 유저 지시 → USER
-    assert.match(system, /instruction states WHOSE inner state to write — obey it exactly/);
+    assert.match(system, /instruction states WHOSE state to write and any output format — obey both exactly/);
     assert.match(system, /\{\{char\}\}의 속마음[\s\S]*write \[CHARACTER\]'s inner state/);
     assert.match(system, /NPC의 속마음/);
     assert.match(system, /\{\{user\}\}의 속마음[\s\S]*write \[USER\]'s/);
@@ -173,7 +173,7 @@ describe("statusWidget extract", () => {
     );
     assert.match(system, /does not name anyone, default to \[USER\] \(the user persona\)/);
     // Instruction-first rule stays the same regardless of source
-    assert.match(system, /instruction states WHOSE inner state to write — obey it exactly/);
+    assert.match(system, /instruction states WHOSE state to write and any output format — obey both exactly/);
   });
 
   it("buildWidgetExtractUserBlock appends an instruction-first POV reminder right before generation (recency)", () => {
@@ -185,7 +185,7 @@ describe("statusWidget extract", () => {
       widget: DEFAULT_STATUS_WIDGET,
       source: "character",
     });
-    assert.match(block, /\[REMINDER\][\s\S]*지시사항이 지정한 인물의 시점/);
+    assert.match(block, /\[REMINDER\][\s\S]*지시사항이 지정한 인물의 시점과 출력 형식/);
     assert.match(block, /NPC의 것을 요구하면 \[CHARACTER\]\(레온\)/);
     assert.match(block, /유저의 것을 요구하면 \[USER\]\(렌\)/);
     assert.match(block, /명시되지 않은 필드는 \[CHARACTER\]\(레온\) 기준/);
