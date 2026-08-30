@@ -99,6 +99,49 @@ export function casPublishWorldBlueprintArtifact(
     return false;
   }
   const planJson = JSON.stringify(opts.plan);
+  const existing = loadWorldBlueprintArtifactRow(db, opts.worldId);
+  if (existing) {
+    const stored = blueprintGenerationValidityFromRow(existing);
+    if (isStoredBlueprintValidForCurrentGeneration(stored, snapshot)) {
+      // Reader-usable same-generation artifact is the canonical winner.
+      if (loadValidWorldBlueprintPlan(db, opts.worldId, snapshot)) {
+        return false;
+      }
+      // Same generation identity but reader-unusable payload: atomic repair via observed row CAS.
+      const repaired = db
+        .prepare(
+          `UPDATE trpg_world_blueprint_artifacts SET
+            source_fingerprint = ?,
+            derivation_version = ?,
+            generator_model = ?,
+            schema_version = ?,
+            director_plan_json = ?,
+            updated_at = datetime('now')
+          WHERE world_id = ?
+            AND source_fingerprint = ?
+            AND derivation_version = ?
+            AND generator_model = ?
+            AND schema_version = ?
+            AND director_plan_json = ?`
+        )
+        .run(
+          validity.sourceFingerprint,
+          validity.derivationVersion,
+          validity.generatorModel,
+          validity.schemaVersion,
+          planJson,
+          opts.worldId,
+          existing.source_fingerprint,
+          existing.derivation_version,
+          existing.generator_model,
+          existing.schema_version,
+          existing.director_plan_json
+        );
+      return repaired.changes > 0;
+    }
+  }
+
+  // No row, obsolete generation identity, or first publish: atomic UPSERT with identity guard.
   const result = db
     .prepare(
       `INSERT INTO trpg_world_blueprint_artifacts (
@@ -111,7 +154,11 @@ export function casPublishWorldBlueprintArtifact(
           generator_model = excluded.generator_model,
           schema_version = excluded.schema_version,
           director_plan_json = excluded.director_plan_json,
-          updated_at = datetime('now')`
+          updated_at = datetime('now')
+        WHERE trpg_world_blueprint_artifacts.source_fingerprint != excluded.source_fingerprint
+           OR trpg_world_blueprint_artifacts.derivation_version != excluded.derivation_version
+           OR trpg_world_blueprint_artifacts.generator_model != excluded.generator_model
+           OR trpg_world_blueprint_artifacts.schema_version != excluded.schema_version`
     )
     .run(
       opts.worldId,
