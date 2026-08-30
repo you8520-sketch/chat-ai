@@ -18,9 +18,14 @@ import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { AdminBillingReceiptV2Panel } from "@/components/AdminBillingReceiptV2Panel";
 import {
+  AdminBillingReceiptV3Panel,
+  formatAdminBillingReceiptV3Text,
+} from "@/components/AdminBillingReceiptV3Panel";
+import {
   buildAdminBillingReceiptV2,
   formatAdminBillingReceiptV2Text,
 } from "@/lib/adminBillingReceiptV2";
+import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import {
   isGemini25ProModel,
   isGemini31ProModel,
@@ -28,6 +33,82 @@ import {
   isOpenRouterSimplePointModel,
 } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
+
+function AdminFullReceiptBody({
+  usage,
+  messageId,
+  v3Receipt,
+  v3Loading,
+  v3Error,
+  copied,
+  onCopy,
+}: {
+  usage: Usage;
+  messageId?: number;
+  v3Receipt: AdminBillingReceiptV3 | null;
+  v3Loading: boolean;
+  v3Error: string | null;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
+      {usage.htmlFlashOnly && (
+        <p className="text-[10px] leading-relaxed text-zinc-500">
+          HTML 전용 턴 — 백그라운드 단독 호출 (영수증 모델: HTML전용모델). 메인 RP 모델 미호출.
+        </p>
+      )}
+      {usage.coldStartShieldApplied && (
+        <>
+          {usage.uncappedChargePoints != null && usage.uncappedChargePoints > 0 && (
+            <p>
+              <span className="text-zinc-500">방어선 적용 전 청구:</span>{" "}
+              <span className="text-rose-300/90">{formatPoints(usage.uncappedChargePoints)} P</span>
+            </p>
+          )}
+          {usage.coldStartCostFloorPoints != null && usage.coldStartCostFloorPoints > 0 && (
+            <p>
+              <span className="text-zinc-500">원가·글자상한 중간값:</span>{" "}
+              <span className="text-cyan-300/90">{formatPoints(usage.coldStartCostFloorPoints)} P</span>
+            </p>
+          )}
+        </>
+      )}
+      {usage.statusWidgetExtractDiagnostics && (
+        <div className="mt-1 border-t border-zinc-800 pt-1">
+          <p className="text-zinc-500">
+            위젯 진단:{" "}
+            {usage.statusWidgetExtractDiagnostics.usedFallback
+              ? "V3 폴백 사용"
+              : usage.statusWidgetExtractDiagnostics.exhausted
+                ? "추출 실패"
+                : "정상"}
+          </p>
+          {usage.statusWidgetExtractDiagnostics.attempts.map((attempt, index) => (
+            <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
+              <span className="text-zinc-500">
+                {attempt.stage} · {attempt.modelId}:
+              </span>{" "}
+              HTTP {attempt.httpStatus ?? "없음"} · finish {attempt.finishReason ?? "없음"}
+              {attempt.errorCode ? ` · ${attempt.errorCode}` : ""}
+            </p>
+          ))}
+        </div>
+      )}
+      {messageId && v3Loading && (
+        <p className="text-[10px] text-zinc-500">Async ledger 불러오는 중…</p>
+      )}
+      {messageId && v3Error && (
+        <p className="text-[10px] text-amber-400/90">Async ledger unavailable — {v3Error}</p>
+      )}
+      {v3Receipt ? (
+        <AdminBillingReceiptV3Panel receipt={v3Receipt} onCopy={onCopy} copied={copied} />
+      ) : (
+        <AdminBillingReceiptV2Panel usage={usage} />
+      )}
+    </div>
+  );
+}
 
 function ReceiptBody({
   receipt,
@@ -95,53 +176,7 @@ function ReceiptBody({
   }
 
   if (showFullReceipt) {
-    return (
-      <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
-        {usage.htmlFlashOnly && (
-          <p className="text-[10px] leading-relaxed text-zinc-500">
-            HTML 전용 턴 — 백그라운드 단독 호출 (영수증 모델: HTML전용모델). 메인 RP 모델 미호출.
-          </p>
-        )}
-        {usage.coldStartShieldApplied && (
-          <>
-            {usage.uncappedChargePoints != null && usage.uncappedChargePoints > 0 && (
-              <p>
-                <span className="text-zinc-500">방어선 적용 전 청구:</span>{" "}
-                <span className="text-rose-300/90">{formatPoints(usage.uncappedChargePoints)} P</span>
-              </p>
-            )}
-            {usage.coldStartCostFloorPoints != null && usage.coldStartCostFloorPoints > 0 && (
-              <p>
-                <span className="text-zinc-500">원가·글자상한 중간값:</span>{" "}
-                <span className="text-cyan-300/90">{formatPoints(usage.coldStartCostFloorPoints)} P</span>
-              </p>
-            )}
-          </>
-        )}
-        {usage.statusWidgetExtractDiagnostics && (
-          <div className="mt-1 border-t border-zinc-800 pt-1">
-            <p className="text-zinc-500">
-              위젯 진단:{" "}
-              {usage.statusWidgetExtractDiagnostics.usedFallback
-                ? "V3 폴백 사용"
-                : usage.statusWidgetExtractDiagnostics.exhausted
-                  ? "추출 실패"
-                  : "정상"}
-            </p>
-            {usage.statusWidgetExtractDiagnostics.attempts.map((attempt, index) => (
-              <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
-                <span className="text-zinc-500">
-                  {attempt.stage} · {attempt.modelId}:
-                </span>{" "}
-                HTTP {attempt.httpStatus ?? "없음"} · finish {attempt.finishReason ?? "없음"}
-                {attempt.errorCode ? ` · ${attempt.errorCode}` : ""}
-              </p>
-            ))}
-          </div>
-        )}
-        <AdminBillingReceiptV2Panel usage={usage} />
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -473,11 +508,13 @@ export default function BillingReceiptTooltip({
   usage,
   triggerVariant = "coin",
   showFullReceipt = false,
+  messageId,
 }: {
   usage: Usage;
   triggerVariant?: "coin" | "info";
   /** 관리자·데모유저 — thinking·API raw·strip 등 전체 영수증 */
   showFullReceipt?: boolean;
+  messageId?: number;
 }) {
   const receipt = buildBillingReceipt(usage);
   const apiRawCostKrw = resolveApiRawCostKrw(usage);
@@ -486,7 +523,42 @@ export default function BillingReceiptTooltip({
   const exchangeRateLabel = resolveExchangeRateReceiptLabel(usage);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [v3Receipt, setV3Receipt] = useState<AdminBillingReceiptV3 | null>(null);
+  const [v3Loading, setV3Loading] = useState(false);
+  const [v3Error, setV3Error] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const fetchGenerationRef = useRef(0);
+
+  useEffect(() => {
+    if (!open || !showFullReceipt || !messageId) return;
+    const generation = ++fetchGenerationRef.current;
+    setV3Loading(true);
+    setV3Error(null);
+    void fetch(`/api/chat/admin-billing-receipt?messageId=${messageId}`, {
+      cache: "no-store",
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? `HTTP ${res.status}`);
+        }
+        return res.json() as Promise<AdminBillingReceiptV3>;
+      })
+      .then((payload) => {
+        if (generation !== fetchGenerationRef.current) return;
+        setV3Receipt(payload);
+      })
+      .catch((error: Error) => {
+        if (generation !== fetchGenerationRef.current) return;
+        setV3Receipt(null);
+        setV3Error(error.message);
+      })
+      .finally(() => {
+        if (generation === fetchGenerationRef.current) {
+          setV3Loading(false);
+        }
+      });
+  }, [open, showFullReceipt, messageId]);
 
   useEffect(() => {
     if (!open) return;
@@ -514,7 +586,9 @@ export default function BillingReceiptTooltip({
 
   async function copyReceipt() {
     if (!showFullReceipt) return;
-    const text = formatAdminBillingReceiptV2Text(buildAdminBillingReceiptV2(usage));
+    const text = v3Receipt
+      ? formatAdminBillingReceiptV3Text(v3Receipt)
+      : formatAdminBillingReceiptV2Text(buildAdminBillingReceiptV2(usage));
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -540,15 +614,27 @@ export default function BillingReceiptTooltip({
           aria-label="포인트 차감 내역"
           className="absolute bottom-full right-0 z-30 mb-1.5 w-60 rounded-lg border border-white/10 bg-[#1a1a1a]/95 p-2.5 shadow-xl shadow-black/40 backdrop-blur-sm"
         >
-          <ReceiptBody
-            receipt={receipt}
-            usage={usage}
-            apiRawCostKrw={apiRawCostKrw}
-            mainRpCostParts={mainRpCostParts}
-            cacheReceipt={cacheReceipt}
-            exchangeRateLabel={exchangeRateLabel}
-            showFullReceipt={showFullReceipt}
-          />
+          {showFullReceipt ? (
+            <AdminFullReceiptBody
+              usage={usage}
+              messageId={messageId}
+              v3Receipt={v3Receipt}
+              v3Loading={v3Loading}
+              v3Error={v3Error}
+              copied={copied}
+              onCopy={() => void copyReceipt()}
+            />
+          ) : (
+            <ReceiptBody
+              receipt={receipt}
+              usage={usage}
+              apiRawCostKrw={apiRawCostKrw}
+              mainRpCostParts={mainRpCostParts}
+              cacheReceipt={cacheReceipt}
+              exchangeRateLabel={exchangeRateLabel}
+              showFullReceipt={showFullReceipt}
+            />
+          )}
           {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt).some(
             (b) => b.tokens > 0
           ) && (

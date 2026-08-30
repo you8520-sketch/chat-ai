@@ -311,6 +311,7 @@ export default function MessageBubbleToolbar({
                   usage={usage!}
                   triggerVariant="info"
                   showFullReceipt={showFullReceipt}
+                  messageId={messageId}
                 />
               )}
             </div>
