@@ -296,4 +296,70 @@ describe("status widget creator field semantics", () => {
     assert.equal(normalized["속마음"], "질투가 스친다");
     assert.equal(normalized["부상"], undefined);
   });
+
+  describe("broad-token collision guards (F1–F3)", () => {
+    const f1 = field("현재 장소", "원하는 형식으로 지역명 > 건물명 순서로 표시", "장소");
+    const f2 = field("호감도", "원하는 범위가 아니라 0~100 숫자로만 표시");
+    const f3 = field("소지품", "원하는 경우 쉼표로 구분");
+    const genericDerived = field("custom1", "캐릭터가 지금 원하는 일 3가지", "custom1");
+
+    const collisionWidget: StatusWidget = {
+      version: 1,
+      name: "collision",
+      htmlTemplate: "{{장소}}{{소지품}}",
+      placement: "bottom",
+      fields: [f1, f2, f3, genericDerived],
+    };
+
+    it("F1 — formatting '원하는 형식' on 장소 is not interpretive/volatile", () => {
+      assert.equal(looksLikeInnerStateField(f1), false);
+      assert.equal(looksLikeVolatileTurnDerivedField(f1), false);
+    });
+
+    it("F2 — formatting '원하는 범위' on 호감도 is not interpretive/volatile", () => {
+      assert.equal(looksLikeInnerStateField(f2), false);
+      assert.equal(looksLikeVolatileTurnDerivedField(f2), false);
+    });
+
+    it("F3 — formatting '원하는 경우' on 소지품 is not interpretive/volatile", () => {
+      assert.equal(looksLikeInnerStateField(f3), false);
+      assert.equal(looksLikeVolatileTurnDerivedField(f3), false);
+    });
+
+    it("generic id + derived wants instruction stays interpretive/volatile", () => {
+      assert.equal(looksLikeInnerStateField(genericDerived), true);
+      assert.equal(looksLikeVolatileTurnDerivedField(genericDerived), true);
+    });
+
+    it("factual collision fields keep previous persistent anchors", () => {
+      const prev = formatPreviousTurnWidgetValues(
+        { 장소: "카페 테라스", 소지품: "열쇠, 지갑", 호감도: "72" },
+        "character",
+        collisionWidget
+      );
+      assert.match(prev, /장소: 카페 테라스/);
+      assert.match(prev, /소지품: 열쇠, 지갑/);
+      assert.match(prev, /호감도: 72/);
+      assert.doesNotMatch(prev, /custom1/);
+    });
+
+    it("derived positive fixtures remain classified", () => {
+      const derivedChecks: Array<[string, StatusWidgetField, boolean]> = [
+        ["감정", field("감정", "현재 감정"), true],
+        ["카오모지", field("감정카오모지", "감정을 카오모지 하나로만 표현", "감정카오모지"), true],
+        ["속마음", field("속마음", "NPC의 속마음"), true],
+        ["의식의흐름", field("의식의흐름", "캐릭터의 의식의 흐름"), true],
+        ["하고싶은일", field("하고싶은일", "현재 하고 싶은 일 3가지"), true],
+        ["욕구", field("욕구", "현재 욕구"), true],
+        ["장소", field("장소", "현재 장소"), false],
+        ["부상", field("부상", "현재 부상 상태"), false],
+        ["소지품 factual", field("소지품", "현재 소지품"), false],
+        ["호감도 factual", field("호감도", "0~100 숫자로만"), false],
+      ];
+      for (const [name, f, expectDerived] of derivedChecks) {
+        assert.equal(looksLikeInnerStateField(f), expectDerived, `${name} inner`);
+        assert.equal(looksLikeVolatileTurnDerivedField(f), expectDerived, `${name} volatile`);
+      }
+    });
+  });
 });

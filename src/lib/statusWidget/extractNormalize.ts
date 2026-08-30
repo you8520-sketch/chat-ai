@@ -118,11 +118,18 @@ export const STATUS_WIDGET_FIELD_SEMANTICS_EN =
   "(3) Obey each field's instruction in [WIDGET FIELDS] for output format (kaomoji-only, exact count, numeric range, sentence limit) when compatible with schema and grounding above. " +
   "(4) [USER] inner-state: infer only from the user's own dialogue, actions, and persona — do not assert hidden user feelings the scene did not support; character-side fields that guess user feelings must stay the character's guess, not stated user fact.";
 
-const CHARACTER_INTERPRETIVE_FIELD_RE =
-  /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face|카오모지|kaomoji|하고\s*싶|원하는|욕구|wish|want|desire/i;
+const CHARACTER_INTERPRETIVE_ID_LABEL_RE =
+  /속마음|의식|내면|감정|표정|카오모지|kaomoji|욕구|thought|inner|monologue|feeling|mood|expression|face|하고_?싶/i;
+
+/** Derived-state wants/desire — instruction context only; not bare formatting "원하는 형식/범위/경우". */
+const CHARACTER_INTERPRETIVE_INSTRUCTION_RE =
+  /하고\s*싶|(?:지금|현재)\s*(?:원하는|욕구)|(?:원하는|하고\s*싶)\s*(?:일|것|행동)|캐릭터(?:가)?\s+(?:지금\s+)?원하는|current\s+desire|wants?\s+to\s+do/i;
+
+const FORMATTING_WANT_CONTEXT_RE =
+  /원하는\s*(?:형식|범위|경우|방식|순서|포맷|format)/i;
 
 const VOLATILE_TURN_DERIVED_FIELD_RE =
-  /현재\s*상황|지금\s*벌어지는|현재\s*욕구|현재\s*의도|현재\s*행동|현재\s*반응|하고\s*싶|원하는|카오모지|kaomoji|current\s*situation|current\s*scene|current\s*reaction|situation\s*summary/i;
+  /현재\s*상황|지금\s*벌어지는|현재\s*욕구|현재\s*의도|현재\s*행동|현재\s*반응|하고\s*싶|카오모지|kaomoji|current\s*situation|current\s*scene|current\s*reaction|situation\s*summary/i;
 
 /**
  * Turn-derived free-text fields — previous answer text must not be injected as
@@ -136,8 +143,10 @@ export function looksLikeVolatileTurnDerivedField(field: StatusWidgetField): boo
 }
 
 export function looksLikeVolatileTurnDerivedKey(key: string): boolean {
-  return CHARACTER_INTERPRETIVE_FIELD_RE.test(key) ||
-    /현재\s*상황|현재상황|current\s*situation|current\s*scene/i.test(key);
+  return (
+    CHARACTER_INTERPRETIVE_ID_LABEL_RE.test(key) ||
+    /현재\s*상황|현재상황|current\s*situation|current\s*scene/i.test(key)
+  );
 }
 
 export function shouldOmitVolatilePreviousValue(
@@ -375,8 +384,14 @@ export function sliceAssistantProseForRepair(
 }
 
 export function looksLikeInnerStateField(field: StatusWidgetField): boolean {
-  const blob = `${field.id} ${field.label} ${field.instruction}`;
-  return CHARACTER_INTERPRETIVE_FIELD_RE.test(blob);
+  const idLabel = `${field.id ?? ""} ${field.label ?? ""}`;
+  if (CHARACTER_INTERPRETIVE_ID_LABEL_RE.test(idLabel)) return true;
+  const instruction = field.instruction ?? "";
+  if (!instruction.trim()) return false;
+  if (FORMATTING_WANT_CONTEXT_RE.test(instruction) && !CHARACTER_INTERPRETIVE_INSTRUCTION_RE.test(instruction)) {
+    return false;
+  }
+  return CHARACTER_INTERPRETIVE_INSTRUCTION_RE.test(instruction);
 }
 
 function resolveFieldValue(
