@@ -1,5 +1,4 @@
 import { getDb } from "@/lib/db";
-import { getChatMemoryCapacity, resolveMemoryBudgetFromCapacity } from "./memory-capacity";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 
 export function calcUsedChars(row: Pick<ChatMemoryRow, "pinned_facts" | "recent_summary" | "archive_summary">): number {
@@ -167,31 +166,6 @@ export function updateChatMemory(
   );
 
   return getOrCreateChatMemory(chatId, userId, characterId, tier);
-}
-export function incrementMessageCount(chatId: number): number {
-  const db = getDb();
-  db.prepare(
-    `UPDATE chat_memories SET message_count = message_count + 1, updated_at=datetime('now')
-     WHERE chat_id=?`
-  ).run(chatId);
-  const row = db
-    .prepare(`SELECT message_count FROM chat_memories WHERE chat_id=?`)
-    .get(chatId) as { message_count: number };
-  return row.message_count;
-}
-
-/** @deprecated updateChatMemory + ensureLorebookWithinBudget (memory-manager) 사용 */
-export function updateLorebook(
-  chatId: number,
-  userId: number,
-  characterId: number,
-  lorebook: string,
-  tier: MemoryTier,
-  memoryCapacity: number
-): ChatMemoryRow {
-  const budget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
-  void budget;
-  return updateChatMemory(chatId, userId, characterId, { recent_summary: lorebook.trim(), membership_tier: tier });
 }
 
 export function clearChatMemory(chatId: number, userId: number, characterId: number, tier: MemoryTier): void {

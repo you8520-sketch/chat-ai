@@ -149,4 +149,9 @@ describe("single memory policy owner", () => {
       // expected
     }
   });
+
+  it("memory-db orphan helpers have zero runtime references", () => {
+    assert.equal(repoRgCount("incrementMessageCount"), 0);
+    assert.equal(repoRgCount("updateLorebook\\("), 0);
+  });
 });
