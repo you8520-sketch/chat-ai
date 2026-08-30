@@ -19,20 +19,59 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 
-function tableNames(db: Database.Database): string[] {
-  return (
+function memoryBufferTableExists(db: Database.Database): boolean {
+  return Boolean(
     db
-      .prepare(`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
-      .all() as { name: string }[]
-  ).map((row) => row.name);
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
+      .get()
+  );
 }
 
-function indexNames(db: Database.Database): string[] {
-  return (
+function memoryBufferIndexExists(db: Database.Database): boolean {
+  return Boolean(
     db
-      .prepare(`SELECT name FROM sqlite_master WHERE type='index' ORDER BY name`)
-      .all() as { name: string }[]
-  ).map((row) => row.name);
+      .prepare(
+        `SELECT 1 AS ok FROM sqlite_master WHERE type='index' AND name='idx_memory_buffer_user_char'`
+      )
+      .get()
+  );
+}
+
+function retirementFlagExists(db: Database.Database): boolean {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  return Boolean(
+    db
+      .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='memory_buffer_dropped_v1'")
+      .get()
+  );
+}
+
+function createLegacyMemoryBuffer(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE memory_buffer (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      message_index INTEGER NOT NULL DEFAULT 0,
+      chat_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_memory_buffer_user_char ON memory_buffer(user_id, character_id);
+  `);
+}
+
+function insertSyntheticMemoryBufferRow(db: Database.Database): void {
+  db.prepare(
+    `INSERT INTO memory_buffer (user_id, character_id, role, content, message_index, chat_id)
+     VALUES (1, 2, 'user', 'legacy fixture', 1, 99)`
+  ).run();
 }
 
 before(() => installIsolatedTestDatabase());
@@ -42,44 +81,18 @@ describe("memory_buffer schema retirement", () => {
   it("FRESH_DB_MEMORY_BUFFER_ABSENT", () => {
     getDb();
     const db = getDb();
-    assert.equal(
-      db
-        .prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
-        .get().n,
-      0
-    );
-    assert.equal(
-      db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM sqlite_master WHERE type='index' AND name='idx_memory_buffer_user_char'`
-        )
-        .get().n,
-      0
-    );
+    assert.equal(memoryBufferTableExists(db), false);
+    assert.equal(memoryBufferIndexExists(db), false);
   });
 
-  it("LEGACY_DB_MEMORY_BUFFER_DROPPED", () => {
+  it("LEGACY_DB_MEMORY_BUFFER_DROPPED lifecycle", () => {
     const db = new Database(":memory:");
-    db.exec(`
-      CREATE TABLE memory_buffer (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        character_id INTEGER NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        message_index INTEGER NOT NULL DEFAULT 0,
-        chat_id INTEGER,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      CREATE INDEX idx_memory_buffer_user_char ON memory_buffer(user_id, character_id);
-    `);
-    db.prepare(
-      `INSERT INTO memory_buffer (user_id, character_id, role, content, message_index, chat_id)
-       VALUES (1, 2, 'user', 'legacy fixture', 1, 99)`
-    ).run();
 
-    assert.ok(tableNames(db).includes("memory_buffer"));
-    assert.ok(indexNames(db).includes("idx_memory_buffer_user_char"));
+    // S1 — initial retirement
+    createLegacyMemoryBuffer(db);
+    insertSyntheticMemoryBufferRow(db);
+    assert.equal(retirementFlagExists(db), false);
+    assert.equal(memoryBufferTableExists(db), true);
     assert.equal(
       (db.prepare(`SELECT COUNT(*) AS n FROM memory_buffer`).get() as { n: number }).n,
       1
@@ -87,27 +100,31 @@ describe("memory_buffer schema retirement", () => {
 
     dropLegacyMemoryBufferTableOnce(db);
 
+    assert.equal(memoryBufferTableExists(db), false);
+    assert.equal(memoryBufferIndexExists(db), false);
+    assert.equal(retirementFlagExists(db), true);
+
+    // S2 — idempotent rerun
+    dropLegacyMemoryBufferTableOnce(db);
+    assert.equal(memoryBufferTableExists(db), false);
+    assert.equal(memoryBufferIndexExists(db), false);
+    assert.equal(retirementFlagExists(db), true);
+
+    // S3 — rollback recreation then current redeploy repair
+    createLegacyMemoryBuffer(db);
+    insertSyntheticMemoryBufferRow(db);
+    assert.equal(retirementFlagExists(db), true);
+    assert.equal(memoryBufferTableExists(db), true);
+    assert.equal(memoryBufferIndexExists(db), true);
     assert.equal(
-      db
-        .prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
-        .get().n,
-      0
-    );
-    assert.equal(
-      db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM sqlite_master WHERE type='index' AND name='idx_memory_buffer_user_char'`
-        )
-        .get().n,
-      0
+      (db.prepare(`SELECT COUNT(*) AS n FROM memory_buffer`).get() as { n: number }).n,
+      1
     );
 
     dropLegacyMemoryBufferTableOnce(db);
-    assert.equal(
-      db
-        .prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
-        .get().n,
-      0
-    );
+
+    assert.equal(memoryBufferTableExists(db), false);
+    assert.equal(memoryBufferIndexExists(db), false);
+    assert.equal(retirementFlagExists(db), true);
   });
 });

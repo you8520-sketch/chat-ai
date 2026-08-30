@@ -1659,13 +1659,23 @@ export function dropLegacyMemoryBufferTableOnce(db: Database.Database): void {
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
-  const done = db
-    .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='memory_buffer_dropped_v1'")
-    .get() as { ok: number } | undefined;
-  if (done?.ok) return;
+  const flagExists = Boolean(
+    db
+      .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='memory_buffer_dropped_v1'")
+      .get()
+  );
+  const tableExists = Boolean(
+    db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
+      .get()
+  );
+
+  if (flagExists && !tableExists) return;
 
   db.exec("DROP TABLE IF EXISTS memory_buffer");
-  db.prepare("INSERT INTO _schema_flags (key) VALUES ('memory_buffer_dropped_v1')").run();
+  if (!flagExists) {
+    db.prepare("INSERT INTO _schema_flags (key) VALUES ('memory_buffer_dropped_v1')").run();
+  }
 }
 
 function migrateBoardPostsOnce(db: Database.Database) {
