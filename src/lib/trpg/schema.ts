@@ -282,6 +282,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  addColumn("trpg_campaign_context", "local_scene_progress_json", "TEXT");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (

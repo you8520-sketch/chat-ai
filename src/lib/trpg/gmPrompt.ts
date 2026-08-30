@@ -4,6 +4,7 @@ import {
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
 import { statModifier } from "./stats";
+import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
 const NARRATION_OPEN = "<<<NARRATION>>>";
@@ -82,6 +83,10 @@ function asDelta(raw: unknown): TrpgStateDelta {
   if (threadsResolve) delta.threadsResolve = threadsResolve;
   if (typeof src.endingConditionId === "string") delta.endingConditionId = src.endingConditionId;
   else if (typeof src.ending_condition_id === "string") delta.endingConditionId = src.ending_condition_id;
+  const localScene =
+    parseLocalSceneProgressDelta(src.localScene) ??
+    parseLocalSceneProgressDelta(src.local_scene);
+  if (localScene) delta.localScene = localScene;
   return delta;
 }
 
@@ -190,14 +195,14 @@ Therefore never rely on implied/contextual speakers.
 [GM SCENE CRAFT — ADAPTIVE NARRATION]
 Continue timeline from submitted actions into outcomes and the world's next move.
 ROLL and AUTHORITATIVE MECHANICS determine outcomes; participant input fixes intent and attempted action.
-Latest established scene state is the starting point; adapt stale wording into that timeline.
+Latest established scene state is the starting point — [LOCAL SCENE STATE] when supplied is current local scene canon; adapt stale wording into that timeline. Resolved obstacles and open routes/opportunities there remain established unless this accepted result explicitly reverses them; do not recreate a functionally equivalent resolved obstacle merely to keep the scene stationary.
 Match density: BRIEF/MID get vivid motion; submitted PC action prose and spoken lines are already visible — treat them as established in-round history. Do not replay, re-quote, closely paraphrase, or re-stage those lines, and do not spend the scene narrating how each participant performed them. If an action is labeled [VISIBLE ACTION PROSE — established context for its outcome], its prose is already on screen — narrate only the adjudicated outcome in combined form, never the performance. Resolve only the fictionally necessary consequences of submitted actions; combine simultaneous or related results into one coherent changed scene state. When multiple PCs acted this round, never dedicate a separate long paragraph to each actor's performance or outcome — merge adjudicated results into one combined changed-scene paragraph (two short paragraphs only if tiers or locations truly cannot merge), then pivot immediately to NEW material. Resolution is a compact bridge, not the main destination of the response — do not produce isolated actor-by-actor recap paragraphs. After that bridge, spend the substantial remainder on meaningful NEW material whenever the scene can naturally advance: world/NPC initiative, new pressure or opportunity, discovery, changed objective, enemy reaction, environmental development, consequence becoming actionable, route opening, or plot-thread progress. The world may move without waiting passively for another player line; do not force a major twist or manufacture arbitrary danger merely to create motion — advance what is already causally available, and a quiet beat is enough when the fiction genuinely calls for it. Begin narration at the first new consequence or changed state, not at restaging submitted action. When an earlier PC line matters, refer to its meaning indirectly; never invent new PC dialogue. Allowed speaker lines: NPC, world voice where appropriate, GM closing aside.
 Success creates intended leverage; partial success yields meaningful progress with bounded cost or limit.
 Failure: intended result does not fully land, but established competence stays credible — prefer opposition, environment, timing, incomplete effect, exposure, or lost opportunity; avoid slapstick self-own, dropped weapons, wild misses on obvious targets, or acting stupid by default.
 Critical failure: self-inflicted blunder or severe miscalculation; cascading complication only when fiction supports it.
 Earlier SUCCESS in [RESOLUTION ORDER] stays canon; later support FAILURE may fail to add benefit but must not retroactively erase an earlier actor's SUCCESS unless that roll was CRITICAL_FAILURE or an independent world threat justifies major escalation.
 When several ordinary FAILURES land in the same round, respect each tier but fold them into one coherent setback rather than stacking separate scene-level catastrophes; additional failures add bounded costs (no progress, position loss, exposure, time loss, reduced information) unless CRITICAL_FAILURE or a distinct threat warrants more.
-As encounter purpose is spent, open fiction outward via reachable space, destination, route, objective, or consequence — somewhere meaningful to go next; one location may still yield new play until then; movement stays player choice.
+As encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.
 Let NPCs and environment act back; each PC's next meaningful decision remains with that player — do not choose their next actions, dialogue, allegiance, movement, or decisions for them.
 For talk/ask, spoken words are in-scene; resolve through listener and world.
 
@@ -216,7 +221,7 @@ Output format exactly:
 <<<NARRATION>>>
 (Korean prose following ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure)
 <<<DELTA>>>
-{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
+{"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
 `;
 
 export function formatTrpgSheetCanon(opts: {
@@ -270,6 +275,8 @@ export function buildTrpgGmUserBlock(opts: {
   scenarioAssetPrompt?: string;
   scenarioPlanBlock?: string;
   storyDirectorBlock?: string;
+  localSceneBlock?: string;
+  localSceneDeltaContract?: string;
   resolutionOrderBlock?: string;
   mechanicsPacket?: string;
   actions: Array<{
@@ -334,6 +341,8 @@ export function buildTrpgGmUserBlock(opts: {
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.scenarioPlanBlock?.trim() ?? "",
     opts.storyDirectorBlock?.trim() ?? "",
+    opts.localSceneBlock?.trim() ?? "",
+    opts.localSceneDeltaContract?.trim() ?? "",
     formatTrpgGenreToneLine(opts.genres ?? []),
     "[SCENE CRAFT]\nApply the system scene-craft contract and ROUND NARRATION BUDGET.",
     narrationBudget,

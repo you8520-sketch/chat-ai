@@ -8,6 +8,15 @@ import {
   type TrpgStoryPhase,
 } from "./scenarioPlan";
 import { clipTrpgChars } from "./clip";
+import {
+  applyLocalSceneProgressDelta,
+  emptyLocalSceneProgress,
+  hasLocalSceneProgressContent,
+  hasLocalSceneProgressDelta,
+  parseLocalSceneProgress,
+  type TrpgLocalSceneProgressDelta,
+  type TrpgLocalSceneProgressV1,
+} from "./localSceneProgress";
 
 export const TRPG_CAMPAIGN_SOURCE_MODES = ["none", "sandbox", "scenario"] as const;
 export type TrpgCampaignSourceMode = (typeof TRPG_CAMPAIGN_SOURCE_MODES)[number];
@@ -50,6 +59,7 @@ export type TrpgCampaignContext = {
   resolvedThreads: string[];
   endingStatus: TrpgEndingStatus;
   directorError: string;
+  localSceneProgress: TrpgLocalSceneProgressV1;
 };
 
 function parseMode(value: unknown): TrpgCampaignSourceMode {
@@ -84,6 +94,7 @@ export function emptyCampaignContext(campaignId: number): TrpgCampaignContext {
     resolvedThreads: [],
     endingStatus: { finished: false },
     directorError: "",
+    localSceneProgress: emptyLocalSceneProgress(),
   };
 }
 
@@ -95,7 +106,8 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
   const row = db
     .prepare(
       `SELECT campaign_id, source_mode, world_snapshot_json, scenario_snapshot_json, director_plan_json,
-              story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error
+              story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error,
+              local_scene_progress_json
        FROM trpg_campaign_context WHERE campaign_id=?`
     )
     .get(campaignId) as
@@ -110,6 +122,7 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
         resolved_threads_json: string;
         ending_status_json: string;
         director_error: string | null;
+        local_scene_progress_json?: string | null;
       }
     | undefined;
   if (!row) return null;
@@ -124,6 +137,7 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
     resolvedThreads: parseThreads(parseJson(row.resolved_threads_json, [] as string[])),
     endingStatus: parseJson(row.ending_status_json, { finished: false } as TrpgEndingStatus),
     directorError: row.director_error ?? "",
+    localSceneProgress: parseLocalSceneProgress(row.local_scene_progress_json),
   };
 }
 
@@ -131,8 +145,9 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
   db.prepare(
     `INSERT INTO trpg_campaign_context (
         campaign_id, source_mode, world_snapshot_json, scenario_snapshot_json, director_plan_json,
-        story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))
+        story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error,
+        local_scene_progress_json, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
       ON CONFLICT(campaign_id) DO UPDATE SET
         source_mode=excluded.source_mode,
         world_snapshot_json=excluded.world_snapshot_json,
@@ -143,6 +158,7 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
         resolved_threads_json=excluded.resolved_threads_json,
         ending_status_json=excluded.ending_status_json,
         director_error=excluded.director_error,
+        local_scene_progress_json=excluded.local_scene_progress_json,
         updated_at=datetime('now')`
   ).run(
     ctx.campaignId,
@@ -154,8 +170,22 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
     JSON.stringify(ctx.activeThreads),
     JSON.stringify(ctx.resolvedThreads),
     JSON.stringify(ctx.endingStatus),
-    ctx.directorError
+    ctx.directorError,
+    hasLocalSceneProgressContent(ctx.localSceneProgress)
+      ? JSON.stringify(ctx.localSceneProgress)
+      : null
   );
+}
+
+export function applyLocalSceneProgressToContext(
+  ctx: TrpgCampaignContext,
+  delta: TrpgLocalSceneProgressDelta | undefined
+): TrpgCampaignContext {
+  if (!hasLocalSceneProgressDelta(delta)) return ctx;
+  return {
+    ...ctx,
+    localSceneProgress: applyLocalSceneProgressDelta(ctx.localSceneProgress, delta),
+  };
 }
 
 export function resolvedCampaignPlan(ctx: TrpgCampaignContext | null): TrpgScenarioPlan | null {
