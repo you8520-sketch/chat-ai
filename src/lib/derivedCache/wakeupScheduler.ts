@@ -14,6 +14,7 @@ let defaultMaxJobs = 3;
 
 type DrainExecutor = (maxJobs: number) => Promise<number>;
 let drainExecutor: DrainExecutor = drainDerivedCacheJobs;
+let onWakeTimerFireForTests: (() => void) | null = null;
 
 export function isDerivedCacheWorkerDisabled(): boolean {
   return process.env.DISABLE_DERIVED_CACHE_WORKER === "1";
@@ -41,6 +42,7 @@ function scheduleWakeAt(delayMs: number): void {
   wakeTimer = setTimeout(() => {
     wakeTimer = null;
     scheduledWakeAtMs = null;
+    onWakeTimerFireForTests?.();
     void runDrainCycle(defaultMaxJobs);
   }, safeDelayMs);
   wakeTimer.unref?.();
@@ -89,7 +91,10 @@ async function runDrainCycle(maxJobs = defaultMaxJobs): Promise<number> {
 export function requestDerivedCacheWake(maxJobs = defaultMaxJobs): void {
   if (isDerivedCacheWorkerDisabled()) return;
   defaultMaxJobs = maxJobs;
-  scheduleWakeAt(0);
+  // Drop a later timer; runDrainCycle reschedules from queue after draining.
+  if (scheduledWakeAtMs !== null && scheduledWakeAtMs > Date.now()) {
+    clearWakeTimer();
+  }
   void runDrainCycle(maxJobs);
 }
 
@@ -109,6 +114,11 @@ export function __testOnly_resetDerivedCacheWakeupState(): void {
   needsFollowupDrain = false;
   defaultMaxJobs = 3;
   drainExecutor = drainDerivedCacheJobs;
+  onWakeTimerFireForTests = null;
+}
+
+export function __testOnly_setOnWakeTimerFire(handler: (() => void) | null): void {
+  onWakeTimerFireForTests = handler;
 }
 
 export function __testOnly_setDrainExecutor(executor: DrainExecutor): void {

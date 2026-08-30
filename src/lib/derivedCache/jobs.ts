@@ -35,6 +35,11 @@ export function derivedCacheLeaseStaleMinutes(): number {
   return LEASE_STALE_MINUTES;
 }
 
+/** SQLite offset from locked_at to the instant a processing lease becomes stale/due. */
+function derivedCacheLeaseWakeOffset(): string {
+  return `+${LEASE_STALE_MINUTES} minutes`;
+}
+
 export function maxAttemptsForDerivedJobKind(jobKind: DerivedJobKind): number {
   switch (jobKind) {
     case "trpg_sandbox_blueprint_pregen":
@@ -228,8 +233,8 @@ export function recoverStaleDerivedCacheLeases(db: Database.Database): void {
      SET status = 'pending', locked_at = NULL, updated_at = datetime('now')
      WHERE status = 'processing'
        AND locked_at IS NOT NULL
-       AND datetime(locked_at) < datetime('now', ?)`
-  ).run(`-${LEASE_STALE_MINUTES} minutes`);
+       AND datetime(locked_at, ?) <= datetime('now')`
+  ).run(derivedCacheLeaseWakeOffset());
 }
 
 export function claimNextDerivedCacheJob(db: Database.Database): DerivedCacheJobRow | null {
@@ -333,8 +338,7 @@ export function kickDerivedCacheWorker(maxJobs = 3): void {
 /** Milliseconds until the queue needs another wake, or null when idle. */
 export function getDerivedCacheNextWakeDelayMs(db: Database.Database): number | null {
   ensureDerivedCacheJobsTable(db);
-  const staleOffset = `-${LEASE_STALE_MINUTES} minutes`;
-  const leaseWakeOffset = `+${LEASE_STALE_MINUTES} minutes`;
+  const leaseWakeOffset = derivedCacheLeaseWakeOffset();
 
   const dueNow = db
     .prepare(
@@ -342,10 +346,10 @@ export function getDerivedCacheNextWakeDelayMs(db: Database.Database): number | 
        WHERE (status = 'pending' AND datetime(run_after) <= datetime('now'))
           OR (status = 'processing'
               AND locked_at IS NOT NULL
-              AND datetime(locked_at) < datetime('now', ?))
+              AND datetime(locked_at, ?) <= datetime('now'))
        LIMIT 1`
     )
-    .get(staleOffset) as { ok: number } | undefined;
+    .get(leaseWakeOffset) as { ok: number } | undefined;
   if (dueNow) return 0;
 
   const nextRow = db

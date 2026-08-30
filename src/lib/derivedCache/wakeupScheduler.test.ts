@@ -9,7 +9,7 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
+import { afterEach, describe, it, mock } from "node:test";
 
 import { getDb } from "@/lib/db";
 import {
@@ -28,6 +28,7 @@ import {
   __testOnly_getScheduledWakeDelayMs,
   __testOnly_resetDerivedCacheWakeupState,
   __testOnly_setDrainExecutor,
+  __testOnly_setOnWakeTimerFire,
   __testOnly_awaitDerivedCacheDrainIdle,
   requestDerivedCacheWake,
   startDerivedCacheWakeup,
@@ -60,6 +61,7 @@ function insertPendingJob(
 
 describe("derived cache wakeup scheduler", () => {
   afterEach(() => {
+    mock.timers.reset();
     __testOnly_resetDerivedCacheWakeupState();
     delete process.env.DISABLE_DERIVED_CACHE_WORKER;
     delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
@@ -346,9 +348,162 @@ describe("derived cache wakeup scheduler", () => {
     };
     assert.equal(done.status, "done");
   });
+
+  it("T12 — lease just before threshold stays processing with future wake", () => {
+    const db = getDb();
+    clearDerivedJobs(db);
+    const leaseMinutes = derivedCacheLeaseStaleMinutes();
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, locked_at, attempts)
+       VALUES ('world_translate', 'world', 96012, 'fp', 1, 'processing', datetime('now', ?), 1)`
+    ).run(`-${leaseMinutes - 1} minutes`);
+
+    recoverStaleDerivedCacheLeases(db);
+    const row = db.prepare(`SELECT status FROM derived_cache_jobs WHERE entity_id = 96012`).get() as {
+      status: string;
+    };
+    assert.equal(row.status, "processing");
+
+    const delayMs = getDerivedCacheNextWakeDelayMs(db);
+    assert.ok(delayMs !== null && delayMs > 0);
+  });
+
+  it("T13 — lease exactly at threshold is due with no null-wake gap", () => {
+    const db = getDb();
+    clearDerivedJobs(db);
+    const leaseMinutes = derivedCacheLeaseStaleMinutes();
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, locked_at, attempts)
+       VALUES ('world_translate', 'world', 96013, 'fp', 1, 'processing', datetime('now', ?), 1)`
+    ).run(`-${leaseMinutes} minutes`);
+
+    recoverStaleDerivedCacheLeases(db);
+    const recovered = db.prepare(`SELECT status FROM derived_cache_jobs WHERE entity_id = 96013`).get() as {
+      status: string;
+    };
+    assert.equal(recovered.status, "pending");
+
+    clearDerivedJobs(db);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, locked_at, attempts)
+       VALUES ('world_translate', 'world', 96013, 'fp', 1, 'processing', datetime('now', ?), 1)`
+    ).run(`-${leaseMinutes} minutes`);
+    assert.equal(getDerivedCacheNextWakeDelayMs(db), 0);
+  });
+
+  it("T14 — lease just after threshold is stale and recoverable", () => {
+    const db = getDb();
+    clearDerivedJobs(db);
+    const leaseMinutes = derivedCacheLeaseStaleMinutes();
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, locked_at, attempts)
+       VALUES ('world_translate', 'world', 96014, 'fp', 1, 'processing', datetime('now', ?), 1)`
+    ).run(`-${leaseMinutes + 1} minutes`);
+
+    assert.equal(getDerivedCacheNextWakeDelayMs(db), 0);
+    recoverStaleDerivedCacheLeases(db);
+    const row = db.prepare(`SELECT status FROM derived_cache_jobs WHERE entity_id = 96014`).get() as {
+      status: string;
+    };
+    assert.equal(row.status, "pending");
+  });
+
+  it("T15 — timer callback drains future pending job without manual flush", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, run_after, attempts)
+       VALUES ('world_translate', 'world', 96015, 'fp', 1, 'pending', datetime('now', '+2 seconds'), 0)`
+    ).run();
+
+    let drainCalls = 0;
+    let processed = false;
+    __testOnly_setDrainExecutor(async () => {
+      drainCalls += 1;
+      const job = claimNextDerivedCacheJob(db);
+      if (!job) return 0;
+      processed = true;
+      completeDerivedCacheJob(db, job.id, { ok: true });
+      return 1;
+    });
+
+    startDerivedCacheWakeup();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    assert.equal(drainCalls, 1);
+    assert.equal(processed, false);
+
+    const scheduledMs = __testOnly_getScheduledWakeDelayMs();
+    assert.ok(scheduledMs !== null && scheduledMs > 0, "future wake should be scheduled");
+
+    __testOnly_setOnWakeTimerFire(() => {
+      db.prepare(`UPDATE derived_cache_jobs SET run_after = datetime('now', '-1 second') WHERE entity_id = 96015`).run();
+    });
+    mock.timers.tick((scheduledMs ?? 2000) + 50);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    __testOnly_setOnWakeTimerFire(null);
+
+    assert.equal(processed, true);
+    assert.ok(drainCalls >= 2, "timer callback should invoke drain executor");
+  });
+
+  it("T16 — one request wake invokes drain executor once", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] });
+    const db = getDb();
+    clearDerivedJobs(db);
+    insertPendingJob(db, 96016);
+
+    let drainCalls = 0;
+    __testOnly_setDrainExecutor(async () => {
+      drainCalls += 1;
+      const job = claimNextDerivedCacheJob(db);
+      if (!job) return 0;
+      completeDerivedCacheJob(db, job.id, { ok: true });
+      return 1;
+    });
+
+    requestDerivedCacheWake();
+    await __testOnly_awaitDerivedCacheDrainIdle();
+    mock.timers.tick(100);
+    await __testOnly_awaitDerivedCacheDrainIdle();
+
+    assert.equal(drainCalls, 1);
+  });
 });
 
 describe("derived cache wakeup gaps (before-fix baseline semantics)", () => {
+  afterEach(() => {
+    __testOnly_resetDerivedCacheWakeupState();
+  });
+
+  it("R0 — exact stale boundary is due (no null-wake gap while processing)", () => {
+    const db = getDb();
+    clearDerivedJobs(db);
+    const leaseMinutes = derivedCacheLeaseStaleMinutes();
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, status, locked_at, attempts)
+       VALUES ('world_translate', 'world', 97000, 'fp', 1, 'processing', datetime('now', ?), 1)`
+    ).run(`-${leaseMinutes} minutes`);
+
+    const row = db.prepare(`SELECT status FROM derived_cache_jobs WHERE entity_id = 97000`).get() as {
+      status: string;
+    };
+    assert.equal(row.status, "processing");
+    assert.equal(getDerivedCacheNextWakeDelayMs(db), 0);
+
+    recoverStaleDerivedCacheLeases(db);
+    const recovered = db.prepare(`SELECT status FROM derived_cache_jobs WHERE entity_id = 97000`).get() as {
+      status: string;
+    };
+    assert.equal(recovered.status, "pending");
+  });
+
   it("R1 — due pending job requires wake owner (scheduler processes on boot)", async () => {
     const db = getDb();
     clearDerivedJobs(db);
