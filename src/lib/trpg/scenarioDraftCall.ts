@@ -5,7 +5,7 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekProviderFailover";
+import { executeDeepSeekBackgroundWithProviderFailover, TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND } from "@/lib/deepseekProviderFailover";
 import type { TrpgModelUsage } from "./billing";
 import {
   parseScenarioDraftJson,
@@ -87,6 +87,22 @@ const MOCK_DRAFT = JSON.stringify({
   playLength: "medium",
 });
 
+export const TRPG_SCENARIO_DRAFT_REQUEST_KIND = "trpg-scenario-draft";
+export { TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND };
+
+export type TrpgAuthoringKind = "scenario_draft" | "sandbox_blueprint";
+export type TrpgAuthoringStage = "primary" | "repair";
+
+export function resolveTrpgAuthoringTransportRequestKind(opts: {
+  kind: TrpgAuthoringKind;
+  stage?: TrpgAuthoringStage;
+}): string {
+  if (opts.kind === "sandbox_blueprint" && (opts.stage ?? "primary") === "primary") {
+    return TRPG_SANDBOX_BLUEPRINT_REQUEST_KIND;
+  }
+  return TRPG_SCENARIO_DRAFT_REQUEST_KIND;
+}
+
 export function logTrpgAuthoringUsage(opts: {
   kind: "scenario_draft" | "sandbox_blueprint";
   stage?: "primary" | "repair";
@@ -139,6 +155,8 @@ export async function callTrpgAuthoringModel(opts: {
   timeoutMs?: number;
   maxTokens?: number;
   temperature?: number;
+  kind?: TrpgAuthoringKind;
+  stage?: TrpgAuthoringStage;
 }): Promise<TrpgAuthoringCallResult> {
   const started = Date.now();
   const model = TRPG_SCENARIO_DRAFT_MODEL;
@@ -151,6 +169,10 @@ export async function callTrpgAuthoringModel(opts: {
     maxTokens: opts.maxTokens,
     temperature: opts.temperature,
   });
+  const requestKind = resolveTrpgAuthoringTransportRequestKind({
+    kind: opts.kind ?? "scenario_draft",
+    stage: opts.stage ?? "primary",
+  });
   const failover = await executeDeepSeekBackgroundWithProviderFailover({
     primary: {
       endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
@@ -158,7 +180,7 @@ export async function callTrpgAuthoringModel(opts: {
       body,
     },
     timeoutMs: opts.timeoutMs ?? 90_000,
-    requestKind: "trpg-scenario-draft",
+    requestKind,
   });
   const res = failover.response;
   if (!res.ok) {
@@ -228,6 +250,8 @@ export async function completeTrpgAuthoringJson(opts: {
         maxTokens: call.maxTokens,
         timeoutMs: call.timeoutMs,
         temperature: call.temperature,
+        kind: opts.kind,
+        stage: call.stage,
       }));
   const started = Date.now();
   let result: TrpgAuthoringCallResult;
