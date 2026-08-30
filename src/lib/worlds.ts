@@ -3,7 +3,7 @@ import type { WorldLibraryKind } from "@/lib/worldPermissions";
 import { isVercelPublicBlobUrl } from "@/lib/uploadUrls";
 
 export const WORLD_NAME_LIMIT = 40;
-export const WORLD_SUMMARY_LIMIT = 100;
+export const WORLD_SUMMARY_LIMIT = 160;
 export const WORLD_CONTENT_LIMIT = 10000;
 
 export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content, created_at, updated_at,

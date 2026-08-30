@@ -18,7 +18,7 @@ import {
 } from "./gmNarrationBudget";
 import { buildTrpgGmUserBlock, TRPG_GM_SYSTEM } from "./gmPrompt";
 
-const SYSTEM_PROMPT_CHARS_BEFORE = 9500;
+const SYSTEM_PROMPT_CHARS_BEFORE = 10000;
 
 function padRich(seed: string): string {
   let out = seed.trim();
@@ -226,9 +226,9 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
       TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
     );
-    assert.match(craft, /As encounter purpose is spent, open fiction outward/);
+    assert.match(craft, /As encounter purpose is spent — or local scene state is transition_ready — open fiction outward/);
     assert.match(craft, /reachable space, destination, route, objective, or consequence/);
-    assert.match(craft, /somewhere meaningful to go next/);
+    assert.match(craft, /sceneTransitionTo rather than objectiveSet alone/);
     assert.match(craft, /one location may still yield new play until then/);
     assert.match(craft, /movement stays player choice/);
     assert.doesNotMatch(craft, /every N rounds|turn-count|forced relocation cadence/i);

@@ -18,7 +18,7 @@ import {
   type TrpgScenarioTemplate,
   type TrpgScenarioTemplateInput,
 } from "./scenarioTypes";
-import { parseTrpgVisibility, type TrpgStatDefinition } from "./types";
+import { parseTrpgVisibility, type TrpgStatDefinition, type TrpgVisibility } from "./types";
 
 export {
   TRPG_SCENARIO_BUNDLE_LIMIT,
@@ -245,7 +245,10 @@ export function updateScenarioTemplate(
   const preservedLegacyStatKeys = preservedLegacyStatKeysFromStored(
     parseJson(existing.stat_keys_json, [] as unknown[])
   );
-  const n = normalizeScenarioTemplateInput(input, { preservedLegacyStatKeys });
+  const n = normalizeScenarioTemplateInput(input, {
+    preservedLegacyStatKeys,
+    previousVisibility: (existing.visibility as TrpgVisibility) ?? "private",
+  });
   assertScenarioWorldAccess(db, creatorId, n.worldId);
   const statDefs = defsFromKeys(n.statKeys);
   const defaultPcStats = restoreDefaultPcStatsOnUpdate(

@@ -44,6 +44,7 @@ import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFla
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
 import { compareTurnBillableUsageWithLegacy } from "@/lib/turnBillableUsageCanary";
+import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEvidence";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
@@ -4565,7 +4566,9 @@ export async function POST(req: Request) {
             currentUserChars,
         };
 
-        const stageCosts = billableStages.map((s) => ({ ...s, cost }));
+        const stageCosts = billableStages.map((s) =>
+          stripUsageReportingEvidenceFromStage({ ...s, cost })
+        );
 
         const routeMode: Route = isAdultMode ? "nsfw" : "safe";
 

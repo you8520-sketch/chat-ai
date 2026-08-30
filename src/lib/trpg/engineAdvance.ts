@@ -50,6 +50,7 @@ import { playableScenarioAssets, buildScenarioAssetTagPrompt } from "./scenarioA
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
 import {
   applyCampaignStoryProgress,
+  applyLocalSceneProgressToContext,
   loadCampaignContext,
   persistCampaignContext,
   resolvedCampaignPlan,
@@ -57,6 +58,11 @@ import {
   serializeCampaignDirectorState,
   serializeDirectorDeltaContract,
 } from "./campaignContext";
+import {
+  hasLocalSceneProgressDelta,
+  serializeLocalSceneDeltaContract,
+  serializeLocalSceneStateForGm,
+} from "./localSceneProgress";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
@@ -1246,6 +1252,9 @@ async function runGmForRound(
         .filter(Boolean)
         .join("\n\n")
     : "";
+  const localSceneProgress = campaignContext?.localSceneProgress;
+  const localSceneBlock = localSceneProgress ? serializeLocalSceneStateForGm(localSceneProgress) : "";
+  const localSceneDeltaContract = serializeLocalSceneDeltaContract();
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
@@ -1261,6 +1270,8 @@ async function runGmForRound(
     scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
     scenarioPlanBlock,
     storyDirectorBlock,
+    localSceneBlock,
+    localSceneDeltaContract,
     resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
     mechanicsPacket: mechanics?.packet ?? "",
     actions,
@@ -1468,18 +1479,23 @@ function commitPendingGmResult(
         ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
       }
       persistCampaignLedger(db, campaign.id, roundNumber, ledger);
-      if (campaignContext && resolvedPlan) {
-        stage = "story_progress";
-        persistCampaignContext(
-          db,
-          applyCampaignStoryProgress(campaignContext, {
+      const hasLocalSceneDelta = hasLocalSceneProgressDelta(parsed.delta.localScene);
+      if (campaignContext && (hasLocalSceneDelta || resolvedPlan)) {
+        let ctx = campaignContext;
+        if (hasLocalSceneDelta) {
+          ctx = applyLocalSceneProgressToContext(ctx, parsed.delta.localScene);
+        }
+        if (resolvedPlan) {
+          stage = "story_progress";
+          ctx = applyCampaignStoryProgress(ctx, {
             storyPhase: parsed.delta.storyPhase,
             threadsAdd: parsed.delta.threadsAdd,
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
             campaignFinished: parsed.campaignFinished,
-          })
-        );
+          });
+        }
+        persistCampaignContext(db, ctx);
       }
       setRoundPhase(db, opts.roundId, "APPLYING_STATE");
       if (!opts.opening) {

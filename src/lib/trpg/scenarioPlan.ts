@@ -1,3 +1,5 @@
+import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
+
 export const TRPG_SCENARIO_PLAN_VERSION = 1 as const;
 export const TRPG_SCENARIO_PLAN_SCHEMA_VERSION = "trpg-scenario-plan-v1";
 
@@ -215,17 +217,36 @@ export function isTrpgScenarioPlanEmpty(plan: TrpgScenarioPlan | null | undefine
 /** Enough authored story structure to play without legacy content. */
 export function hasPlayableScenarioPlan(plan: TrpgScenarioPlan | null | undefined): boolean {
   if (!plan) return false;
+  return Boolean(plan.startingSituation.trim() && plan.goal.trim());
+}
+
+export function hasLegacyAdvancedPlanFields(plan: TrpgScenarioPlan | null | undefined): boolean {
+  if (!plan) return false;
   return Boolean(
-    plan.startingSituation.trim() &&
-      plan.centralConflict.trim() &&
-      plan.goal.trim() &&
-      plan.endingConditions.some((item) => item.trim())
+    plan.centralConflict.trim() ||
+      plan.endingConditions.some((item) => item.trim()) ||
+      plan.secret.trim() ||
+      plan.majorEvents.some((item) => item.trim()) ||
+      plan.clues.some((item) => item.trim()) ||
+      plan.forbiddenEvents.some((item) => item.trim()) ||
+      plan.boss.trim() ||
+      plan.specialRules.some((item) => item.trim()) ||
+      plan.climax.trim() ||
+      plan.endingCandidates.some((item) => item.trim()) ||
+      plan.factionChanges.some((item) => item.trim()) ||
+      plan.gmDirection.trim()
   );
 }
 
 /** Sandbox Blueprint only. Human-reviewed drafts keep warning UX and are not rejected here. */
 export function evaluateSandboxBlueprint(plan: TrpgScenarioPlan | null | undefined): { ok: true } | { ok: false; error: string } {
-  if (!hasPlayableScenarioPlan(plan)) {
+  if (
+    !plan ||
+    !plan.startingSituation.trim() ||
+    !plan.centralConflict.trim() ||
+    !plan.goal.trim() ||
+    !plan.endingConditions.some((item) => item.trim())
+  ) {
     return { ok: false, error: "sandbox blueprint missing required story fields" };
   }
   const errors = lintTrpgScenarioPlan({ plan }).filter((issue) => issue.level === "error");
@@ -269,6 +290,12 @@ function bullets(label: string, items: readonly string[]): string {
   return `${label}\n${rows.map((item) => `- ${item}`).join("\n")}`;
 }
 
+export function effectiveEndingConditionsForGm(plan: TrpgScenarioPlan | null | undefined): string[] {
+  const authored = (plan?.endingConditions ?? []).map((item) => item.trim()).filter(Boolean);
+  if (authored.length > 0) return authored;
+  return [TRPG_DEFAULT_ENDING_GUIDANCE];
+}
+
 /** Compact GM-only serializer. Empty fields are omitted. Not raw JSON. */
 export function serializeTrpgScenarioPlanForGm(plan: TrpgScenarioPlan | null | undefined): string {
   if (!plan || isTrpgScenarioPlanEmpty(plan)) return "";
@@ -276,8 +303,7 @@ export function serializeTrpgScenarioPlanForGm(plan: TrpgScenarioPlan | null | u
     line("시작 상황:", plan.startingSituation),
     line("중심 갈등:", plan.centralConflict),
     line("목표:", plan.goal),
-    line("GM만 아는 비밀:", plan.secret),
-    bullets("종료 조건:", plan.endingConditions),
+    bullets("종료 조건:", effectiveEndingConditionsForGm(plan)),
     bullets("현재 사용 가능한 주요 사건 (강제 순서가 아님):", plan.majorEvents),
     bullets("단서:", plan.clues),
     bullets("금지 사건:", plan.forbiddenEvents),
@@ -342,13 +368,17 @@ export function lintTrpgScenarioPlan(opts: {
     issues.push({ level: "error", code: "missing_start", message: "시작 상황이 없습니다." });
   }
   if (!plan.centralConflict.trim()) {
-    issues.push({ level: "error", code: "missing_conflict", message: "중심 갈등이 없습니다." });
+    issues.push({ level: "warning", code: "missing_conflict", message: "중심 갈등이 없습니다. GM은 목표와 시작 상황을 참고해 진행합니다." });
   }
   if (!plan.goal.trim()) {
     issues.push({ level: "error", code: "missing_goal", message: "목표가 없습니다." });
   }
   if (plan.endingConditions.length === 0) {
-    issues.push({ level: "error", code: "missing_endings", message: "종료 조건이 없습니다." });
+    issues.push({
+      level: "warning",
+      code: "missing_endings",
+      message: "작성된 종료 조건이 없습니다. GM은 기본 마무리 기준을 사용합니다.",
+    });
   }
   if (plan.goal && plan.endingConditions.length > 0 && !plan.endingConditions.some((item) => relatedEnough(plan.goal, item))) {
     issues.push({

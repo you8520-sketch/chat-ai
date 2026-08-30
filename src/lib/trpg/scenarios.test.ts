@@ -29,6 +29,7 @@ function memoryDb(): Database.Database {
       name TEXT NOT NULL,
       summary TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
+      shared_from_nickname TEXT NOT NULL DEFAULT '',
       trpg_enabled INTEGER NOT NULL DEFAULT 0,
       trpg_visibility TEXT NOT NULL DEFAULT 'private',
       cover_url TEXT NOT NULL DEFAULT '',
@@ -118,6 +119,7 @@ describe("TRPG scenarios and catalog", () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역 탐험",
+      summary: "유령 기차를 기다리는 공포 TRPG",
       content: "한밤의 역에서 유령 기차를 기다린다.",
       visibility: "public",
       startLocation: "대합실",
@@ -203,6 +205,7 @@ describe("TRPG scenarios and catalog", () => {
     });
     insertScenarioTemplate(db, 2, {
       title: "공개 시나리오",
+      summary: "공개 시나리오 소개",
       content: "누구나 캠페인으로 쓸 수 있다.",
       secretContent: "진범은 역무원SECRETTOKEN",
       visibility: "public",
@@ -249,6 +252,7 @@ describe("TRPG scenarios and catalog", () => {
     };
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역 탐험",
+      summary: "유령 기차를 기다리는 공포 TRPG",
       content: "한밤의 역에서 유령 기차를 기다린다.",
       secretContent: "역무원은이미죽었다SECRETGM",
       visibility: "public",

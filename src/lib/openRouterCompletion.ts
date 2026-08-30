@@ -12,6 +12,7 @@ import {
 } from "@/lib/cheaperInferenceConfig";
 import { isCheaperInferenceModel } from "@/lib/chatModels";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { recordApiCost } from "@/lib/adminFinance";
 import {
   getMockResponseText,
@@ -44,6 +45,7 @@ export type OpenRouterCompletionUsage = {
   cheaperInferenceBilledCostUsd?: number;
   upstreamCostUsd?: number;
   debugRawUsage?: unknown;
+  usageReportingEvidence?: UsageReportingEvidence;
 };
 
 export class CompatibleCompletionError extends Error {
@@ -240,6 +242,7 @@ export async function callOpenRouterCompletion(opts: {
     cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
     upstreamCostUsd: parsedUsage.upstreamCostUsd,
     debugRawUsage: data.usage,
+    usageReportingEvidence: parsedUsage.reportingEvidence,
   };
   try {
     recordApiCost({

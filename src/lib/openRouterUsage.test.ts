@@ -5,6 +5,7 @@ import {
   parseReasoningTokens,
   tokenUsageFromOpenRouterBreakdown,
 } from "@/lib/openRouterUsage";
+import { unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 
 describe("parseReasoningTokens", () => {
   it("reads completion_tokens_details.reasoning_tokens", () => {
@@ -100,6 +101,7 @@ describe("tokenUsageFromOpenRouterBreakdown", () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
       standardInputTokens: 1200,
+      reportingEvidence: unreportedUsageReportingEvidence(),
       estimated: false,
     });
     assert.equal(usage.outputTokens, 5976);
@@ -114,6 +116,7 @@ describe("tokenUsageFromOpenRouterBreakdown", () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
       standardInputTokens: 100,
+      reportingEvidence: unreportedUsageReportingEvidence(),
       estimated: false,
     });
     assert.equal(usage.reasoningOutputTokens, undefined);
@@ -127,6 +130,7 @@ describe("tokenUsageFromOpenRouterBreakdown", () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
       standardInputTokens: 1000,
+      reportingEvidence: unreportedUsageReportingEvidence(),
       estimated: false,
       upstreamCostUsd: 0.01,
       cheaperInferenceBilledCostUsd: 0.008,
