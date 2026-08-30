@@ -1,0 +1,451 @@
+{
+  "generatedAt": "2026-08-30T09:10:08.719Z",
+  "classification": "UPSTREAM_PROVIDER_BOUNDARY_LATENCY_CONFIRMED",
+  "classificationNote": "Production reasoning=low: T10→T11 ≈99.9% of provider-visible TTFT (median 17946ms); post-header phases ≈9ms. Experiment A: reasoning=none did not materially beat low (median 18081ms vs 17946ms).",
+  "invariants": {
+    "CHEAPER_INFERENCE_ROUTE_REQUIRED": true,
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "model": "gemini-3.7-flash",
+    "DO_NOT_MERGE": true,
+    "DO_NOT_DEPLOY": true
+  },
+  "ownerAudit": {
+    "GEMINI37_MODEL_ID_OWNER": "src/lib/chatModels.ts — CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL",
+    "GEMINI37_PROVIDER_OWNER": "src/lib/openRouterAdult.ts — resolveCompatibleTransport(cheaperinference)",
+    "CHEAPER_INFERENCE_ENDPOINT_OWNER": "src/lib/cheaperInferenceConfig.ts — CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL",
+    "CHEAPER_INFERENCE_HEADER_OWNER": "src/lib/cheaperInferenceConfig.ts — buildCheaperInferenceHeaders",
+    "CHEAPER_INFERENCE_BODY_ADAPTER_OWNER": "src/lib/cheaperInferenceConfig.ts — adaptCheaperInferenceChatBody",
+    "GEMINI37_REASONING_OWNER": "src/lib/cheaperInferenceConfig.ts — applyCheaperInferenceModelReasoningPolicy (reasoning_effort=low)",
+    "STREAM_FETCH_OWNER": "src/lib/openRouterAdult.ts — streamOpenRouterAdult fetchOpenRouterChatWithCreditRetry",
+    "FIRST_HTTP_RESPONSE_OWNER": "turnPhaseLatencyAudit T11_PROVIDER_RESPONSE_HEADERS",
+    "FIRST_SSE_OWNER": "turnPhaseLatencyAudit T12_PROVIDER_FIRST_SSE",
+    "FIRST_VISIBLE_TOKEN_OWNER": "turnPhaseLatencyAudit T13_PROVIDER_FIRST_VISIBLE_TOKEN",
+    "FIRST_VISIBLE_SERVER_WRITE_OWNER": "turnPhaseLatencyAudit T14_SERVER_FIRST_VISIBLE_WRITE",
+    "TTFT_TELEMETRY_OWNER": "src/lib/turnPhaseLatencyAudit.ts (GEMINI_TTFT_PHASE_AUDIT=1)"
+  },
+  "fixture": "action-event",
+  "samplesPerArm": 5,
+  "redactedOutboundSnapshot": {
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "model": "gemini-3.7-flash",
+    "stream": true,
+    "max_tokens": null,
+    "temperature": 0.7,
+    "reasoning_effort": "low",
+    "thinking": null,
+    "reasoning": null,
+    "requestHeaderNames": [
+      "Authorization",
+      "Content-Type"
+    ],
+    "messageCount": 6,
+    "providerPromptTokenCount": 4421,
+    "cachedTokenCount": 0
+  },
+  "experimentA": [
+    {
+      "variant": "A_production_low",
+      "reasoningEffort": "low",
+      "ciRoute": null,
+      "frozenBodySha256": "859bdfdeb8f967956d17fb067c70211460eefd5c6e6a2a3792c64c40c5685b71",
+      "samples": [
+        {
+          "sample": 1,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "models/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080646271,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080665252,
+            "T12_PROVIDER_FIRST_SSE": 1788080665260,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080665260
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 18989,
+          "FETCH_TO_HEADERS_MS": 18981,
+          "HEADERS_TO_FIRST_SSE_MS": 8,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 27942,
+          "promptTokens": 4421,
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "visibleOutputTokens": 1520,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "f1437b22-5e4a-445e-be79-a944b93a4b21",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "중앙 로비의 높은 천장에 박혀 있던 백색 조명들이 일제히 차단되더니, 싸늘한 금속제 격벽 틈새마다 붉은 비상등이 날카롭게 번쩍이기 시작했다. 뒤이어 고막을 찢을 듯한 고주파 경보음이 벽면의 음향 증폭 장치들을 타고 "
+        },
+        {
+          "sample": 2,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "models/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080674213,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080696045,
+            "T12_PROVIDER_FIRST_SSE": 1788080696054,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080696054
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 21841,
+          "FETCH_TO_HEADERS_MS": 21832,
+          "HEADERS_TO_FIRST_SSE_MS": 9,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 37549,
+          "promptTokens": 4421,
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "visibleOutputTokens": 2497,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "ea3e69af-670c-48c4-b5a0-14262d9a2c3f",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "로비 천장에 매달린 비상등이 날카로운 궤적을 그리며 붉은빛을 토해냈다. 웅성거리던 소음이 일순간 찢겨 나갔다. 고막을 찌르는 전자 사이렌이 규칙적인 박자로 울려 퍼지기 시작했고, 강화유리창 너머로 길게 드리우던 가을"
+        },
+        {
+          "sample": 3,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080711762,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080729181,
+            "T12_PROVIDER_FIRST_SSE": 1788080729190,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080729190
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 17428,
+          "FETCH_TO_HEADERS_MS": 17419,
+          "HEADERS_TO_FIRST_SSE_MS": 9,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 29115,
+          "promptTokens": 4423,
+          "cachedTokens": 3366,
+          "reasoningTokens": 0,
+          "visibleOutputTokens": 1954,
+          "billedCostUsd": 0.00851295,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "5d1945ed-42f5-4ab9-8cd6-624e0826e601",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "찢어지는 듯한 고주파의 비상 신호가 중앙 로비의 높은 천장을 단숨에 갈랐다.\n\n평온하던 공기가 순식간에 차갑게 굳어붙었다. 붉은 경보등이 벽면을 따라 일제히 점멸하며 바닥의 대리석 타일을 핏빛으로 물들였다. 안내 데"
+        },
+        {
+          "sample": 4,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080740877,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080757308,
+            "T12_PROVIDER_FIRST_SSE": 1788080757317,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080757317
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 16440,
+          "FETCH_TO_HEADERS_MS": 16431,
+          "HEADERS_TO_FIRST_SSE_MS": 9,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 27846,
+          "promptTokens": 4423,
+          "cachedTokens": 3366,
+          "reasoningTokens": 0,
+          "visibleOutputTokens": 2000,
+          "billedCostUsd": 0.0085452,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "81e0098c-3c9d-42c3-a258-967d20da9273",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "평온하던 로비의 공기가 찢겨 나간 것은 찰나였다.\n\n천장에 매립된 스피커에서 귀를 찌르는 날카로운 전자 경보음이 세 박자 주기로 터져 나왔다. 백색 형광등이 일제히 꺼지고, 벽면을 따라 촘촘히 박힌 비상등이 선명한 "
+        },
+        {
+          "sample": 5,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080768723,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080786660,
+            "T12_PROVIDER_FIRST_SSE": 1788080786669,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080786669
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 17946,
+          "FETCH_TO_HEADERS_MS": 17937,
+          "HEADERS_TO_FIRST_SSE_MS": 9,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 29298,
+          "promptTokens": 4423,
+          "cachedTokens": 3366,
+          "reasoningTokens": 0,
+          "visibleOutputTokens": 1764,
+          "billedCostUsd": 0.0076602,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "b4990212-34ed-4f8b-a642-3ba2dbe1e57e",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "에이지스 본부 중앙 로비의 높은 천장에 박힌 비상등이 일제히 날카로운 붉은빛을 뿜어냈다. 평화롭게 부서지던 가을 햇살은 순식간에 피처럼 붉은 음영 뒤로 숨어버렸고, 벽면을 따라 촘촘히 박힌 경보 시스템이 고막을 찢을"
+        }
+      ],
+      "stats": {
+        "samples": 5,
+        "failures": 0,
+        "MEDIAN_TTFT": 17946,
+        "P25_TTFT": 17428,
+        "P75_TTFT": 18989,
+        "MIN_TTFT": 16440,
+        "MAX_TTFT": 21841,
+        "MEDIAN_FETCH_TO_HEADERS": 17937,
+        "MEDIAN_HEADERS_TO_FIRST_SSE": 9,
+        "MEDIAN_FIRST_SSE_TO_VISIBLE": 0,
+        "MEDIAN_PROMPT_TOKENS": 4423,
+        "MEDIAN_CACHED_TOKENS": 3366,
+        "MEDIAN_REASONING_TOKENS": 0,
+        "MEDIAN_VISIBLE_OUTPUT_TOKENS": 1954,
+        "MEDIAN_BILLED_COST": 0.00851295,
+        "slowestRequestId": "ea3e69af-670c-48c4-b5a0-14262d9a2c3f",
+        "fastestRequestId": "81e0098c-3c9d-42c3-a258-967d20da9273"
+      }
+    },
+    {
+      "variant": "A_reasoning_none",
+      "reasoningEffort": "none",
+      "ciRoute": null,
+      "frozenBodySha256": "028ed608d5f30f95cf482ebea4cbb87d7e94d5867c0a49d0771b16699dff011a",
+      "samples": [
+        {
+          "sample": 1,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080798022,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080834914,
+            "T12_PROVIDER_FIRST_SSE": 1788080834922,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080850043
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 52021,
+          "FETCH_TO_HEADERS_MS": 36892,
+          "HEADERS_TO_FIRST_SSE_MS": 8,
+          "FIRST_SSE_TO_VISIBLE_MS": 15121,
+          "totalLatencyMs": 70767,
+          "promptTokens": 4417,
+          "cachedTokens": 0,
+          "reasoningTokens": 1880,
+          "visibleOutputTokens": 3728,
+          "billedCostUsd": 0.01729275,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "722da4ed-b38c-4a8d-b8fe-001654d8d21f",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "날카로운 전자 경보음이 로비의 높은 천장을 찢어발기듯 울려 퍼졌다. \n\n귀청을 찌르는 굉음과 함께 복도 끝 벽면을 따라 붉은 경광등이 일제히 번쩍이며 바닥의 대리석 타일을 핏빛으로 물들였다. 평화롭던 본부의 공기는 "
+        },
+        {
+          "sample": 2,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080868789,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080887942,
+            "T12_PROVIDER_FIRST_SSE": 1788080887951,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080888030
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 19241,
+          "FETCH_TO_HEADERS_MS": 19153,
+          "HEADERS_TO_FIRST_SSE_MS": 9,
+          "FIRST_SSE_TO_VISIBLE_MS": 79,
+          "totalLatencyMs": 36285,
+          "promptTokens": 4414,
+          "cachedTokens": 0,
+          "reasoningTokens": 1460,
+          "visibleOutputTokens": 1886,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "fd143159-ee26-4355-8ec7-ec69bbb15dca",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "정적을 찢어발기듯 날카로운 파열음이 에이지스 본부 중앙 로비의 높은 천장을 때렸다.\n\n귀청을 찌르는 전자 사이렌이 일정한 주기로 귓전을 파고들며 울려 퍼졌다. 하얗게 쏟아져 들어오던 가을 햇살은 복도 끝에서 뿜어져 "
+        },
+        {
+          "sample": 3,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080905074,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080923147,
+            "T12_PROVIDER_FIRST_SSE": 1788080923155,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080923155
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 18081,
+          "FETCH_TO_HEADERS_MS": 18073,
+          "HEADERS_TO_FIRST_SSE_MS": 8,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 35184,
+          "promptTokens": 4414,
+          "cachedTokens": 0,
+          "reasoningTokens": 1460,
+          "visibleOutputTokens": 1886,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "eb4b4096-1160-46d6-9d09-2b6867237ac8",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "정적을 찢어발기듯 날카로운 파열음이 에이지스 본부 중앙 로비의 높은 천장을 때렸다.\n\n귀청을 찌르는 전자 사이렌이 일정한 주기로 귓전을 파고들며 울려 퍼졌다. 하얗게 쏟아져 들어오던 가을 햇살은 복도 끝에서 뿜어져 "
+        },
+        {
+          "sample": 4,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080940258,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080955295,
+            "T12_PROVIDER_FIRST_SSE": 1788080955295,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080955295
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 15037,
+          "FETCH_TO_HEADERS_MS": 15037,
+          "HEADERS_TO_FIRST_SSE_MS": 0,
+          "FIRST_SSE_TO_VISIBLE_MS": 0,
+          "totalLatencyMs": 32013,
+          "promptTokens": 4414,
+          "cachedTokens": 0,
+          "reasoningTokens": 1460,
+          "visibleOutputTokens": 1886,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "b1528c08-433f-44c6-a623-424f71c9d5e9",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "정적을 찢어발기듯 날카로운 파열음이 에이지스 본부 중앙 로비의 높은 천장을 때렸다.\n\n귀청을 찌르는 전자 사이렌이 일정한 주기로 귓전을 파고들며 울려 퍼졌다. 하얗게 쏟아져 들어오던 가을 햇살은 복도 끝에서 뿜어져 "
+        },
+        {
+          "sample": 5,
+          "httpStatus": 200,
+          "failure": null,
+          "resolvedModel": "google/gemini-3.7-flash",
+          "finishReason": "stop",
+          "marks": {
+            "T10_PROVIDER_FETCH_START": 1788080972271,
+            "T11_PROVIDER_RESPONSE_HEADERS": 1788080989688,
+            "T12_PROVIDER_FIRST_SSE": 1788080989696,
+            "T13_PROVIDER_FIRST_VISIBLE_TOKEN": 1788080989706
+          },
+          "FETCH_TO_FIRST_VISIBLE_MS": 17435,
+          "FETCH_TO_HEADERS_MS": 17417,
+          "HEADERS_TO_FIRST_SSE_MS": 8,
+          "FIRST_SSE_TO_VISIBLE_MS": 10,
+          "totalLatencyMs": 36447,
+          "promptTokens": 4414,
+          "cachedTokens": 0,
+          "reasoningTokens": 1460,
+          "visibleOutputTokens": 1886,
+          "billedCostUsd": null,
+          "cheaperInferenceDiagnostics": {
+            "x-ci-request-id": "8f534068-eaa6-408e-99c4-a21af914d2e1",
+            "x-ci-cache": "miss",
+            "x-ci-tokens-saved": "0",
+            "x-ci-saved-usd": "0.000000"
+          },
+          "visiblePreview": "정적을 찢어발기듯 날카로운 파열음이 에이지스 본부 중앙 로비의 높은 천장을 때렸다.\n\n귀청을 찌르는 전자 사이렌이 일정한 주기로 귓전을 파고들며 울려 퍼졌다. 하얗게 쏟아져 들어오던 가을 햇살은 복도 끝에서 뿜어져 "
+        }
+      ],
+      "stats": {
+        "samples": 5,
+        "failures": 0,
+        "MEDIAN_TTFT": 18081,
+        "P25_TTFT": 17435,
+        "P75_TTFT": 19241,
+        "MIN_TTFT": 15037,
+        "MAX_TTFT": 52021,
+        "MEDIAN_FETCH_TO_HEADERS": 18073,
+        "MEDIAN_HEADERS_TO_FIRST_SSE": 8,
+        "MEDIAN_FIRST_SSE_TO_VISIBLE": 10,
+        "MEDIAN_PROMPT_TOKENS": 4414,
+        "MEDIAN_CACHED_TOKENS": 0,
+        "MEDIAN_REASONING_TOKENS": 1460,
+        "MEDIAN_VISIBLE_OUTPUT_TOKENS": 1886,
+        "MEDIAN_BILLED_COST": 0.01729275,
+        "slowestRequestId": "722da4ed-b38c-4a8d-b8fe-001654d8d21f",
+        "fastestRequestId": "b1528c08-433f-44c6-a623-424f71c9d5e9"
+      }
+    }
+  ],
+  "experimentB": [],
+  "experimentBRouteSemantics": {
+    "X_CI_Route_auto_documentation": "CheaperInference docs: opts into model routing for eligible prompts; may substitute provider route — exact gemini-3.7-flash identity must be verified per response model + billing.",
+    "productionCandidateRequires": {
+      "MODEL_IDENTITY_PRESERVED": "response.model === gemini-3.7-flash",
+      "CHEAPER_INFERENCE_PROVIDER_PRESERVED": true,
+      "BILLING_POLICY_PRESERVED": true,
+      "TTFT_REPEATABLE_IMPROVEMENT": ">=20% median or >=3s absolute"
+    }
+  },
+  "summaryTable": [
+    {
+      "VARIANT": "A_production_low",
+      "SAMPLES": 5,
+      "MEDIAN_TTFT": 17946,
+      "P25": 17428,
+      "P75": 18989,
+      "MIN": 16440,
+      "MAX": 21841,
+      "MEDIAN_FETCH_TO_HEADERS": 17937,
+      "MEDIAN_HEADERS_TO_FIRST_SSE": 9,
+      "PROMPT_TOKENS": 4423,
+      "CACHED_TOKENS": 3366,
+      "REASONING_TOKENS": 0,
+      "VISIBLE_OUTPUT_TOKENS": 1954,
+      "BILLED_COST": 0.00851295,
+      "FAILURES": 0,
+      "slowest_ci_request_id": "ea3e69af-670c-48c4-b5a0-14262d9a2c3f",
+      "fastest_ci_request_id": "81e0098c-3c9d-42c3-a258-967d20da9273"
+    },
+    {
+      "VARIANT": "A_reasoning_none",
+      "SAMPLES": 5,
+      "MEDIAN_TTFT": 18081,
+      "P25": 17435,
+      "P75": 19241,
+      "MIN": 15037,
+      "MAX": 52021,
+      "MEDIAN_FETCH_TO_HEADERS": 18073,
+      "MEDIAN_HEADERS_TO_FIRST_SSE": 8,
+      "PROMPT_TOKENS": 4414,
+      "CACHED_TOKENS": 0,
+      "REASONING_TOKENS": 1460,
+      "VISIBLE_OUTPUT_TOKENS": 1886,
+      "BILLED_COST": 0.01729275,
+      "FAILURES": 0,
+      "slowest_ci_request_id": "722da4ed-b38c-4a8d-b8fe-001654d8d21f",
+      "fastest_ci_request_id": "b1528c08-433f-44c6-a623-424f71c9d5e9"
+    }
+  ]
+}
