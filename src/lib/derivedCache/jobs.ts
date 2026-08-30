@@ -142,26 +142,30 @@ export function findDerivedCacheJobByIdentity(
 }
 
 /**
- * Enqueue a pending job, preserving single-flight for pending/processing rows.
- * Terminal done/failed rows for the same derivation identity are discarded first.
+ * Atomically enqueue a pending job or reactivate a terminal done/failed row.
+ * Pending/processing rows are preserved (single-flight); returns false if unchanged.
  */
 export function enqueueDerivedCacheJobReplacingTerminal(
   db: Database.Database,
   input: DerivedCacheJobIdentity
 ): boolean {
   ensureDerivedCacheJobsTable(db);
-  const existing = findDerivedCacheJobByIdentity(db, input);
-  if (existing) {
-    if (existing.status === "pending" || existing.status === "processing") {
-      return false;
-    }
-    discardDerivedCacheJob(db, existing.id);
-  }
   const result = db
     .prepare(
       `INSERT INTO derived_cache_jobs
-        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags,
+         status, run_after, attempts, locked_at, last_error, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), 0, NULL, '', datetime('now'))
+       ON CONFLICT(job_kind, entity_type, entity_id, source_fingerprint, derivation_version)
+       DO UPDATE SET
+         status = 'pending',
+         attempts = 0,
+         run_after = datetime('now'),
+         locked_at = NULL,
+         last_error = '',
+         job_flags = excluded.job_flags,
+         updated_at = datetime('now')
+       WHERE derived_cache_jobs.status IN ('done', 'failed')`
     )
     .run(
       input.jobKind,

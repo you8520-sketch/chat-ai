@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
 import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
@@ -33,6 +36,7 @@ import {
   completeDerivedCacheJob,
   discardDerivedCacheJob,
   enqueueDerivedCacheJob,
+  enqueueDerivedCacheJobReplacingTerminal,
   ensureDerivedCacheJobsTable,
   findDerivedCacheJobByIdentity,
   maxAttemptsForDerivedJobKind,
@@ -188,6 +192,91 @@ function deleteWorldLikeRoute(db: Database.Database, worldId: number, creatorId:
     return true;
   }
   return false;
+}
+
+type JobIdentity = {
+  jobKind: typeof WORLD_BLUEPRINT_PREGEN_JOB_KIND;
+  entityType: "world";
+  entityId: number;
+  sourceFingerprint: string;
+  derivationVersion: number;
+  jobFlags?: string;
+};
+
+function sampleJobIdentity(db: Database.Database, worldId: number): JobIdentity {
+  const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+  return {
+    jobKind: WORLD_BLUEPRINT_PREGEN_JOB_KIND,
+    entityType: "world",
+    entityId: worldId,
+    sourceFingerprint: snap.sourceFingerprint,
+    derivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+  };
+}
+
+function insertTerminalJob(
+  db: Database.Database,
+  identity: JobIdentity,
+  status: "done" | "failed",
+  opts: { attempts?: number; jobFlags?: string } = {}
+): number {
+  const result = db
+    .prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, attempts, last_error)
+       VALUES (?, 'world', ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      identity.jobKind,
+      identity.entityId,
+      identity.sourceFingerprint,
+      identity.derivationVersion,
+      opts.jobFlags ?? "",
+      status,
+      opts.attempts ?? 1,
+      status === "failed" ? "transport timeout" : ""
+    );
+  return Number(result.lastInsertRowid);
+}
+
+function pendingJobsForIdentity(db: Database.Database, identity: JobIdentity): number {
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM derived_cache_jobs
+         WHERE job_kind=? AND entity_type='world' AND entity_id=?
+           AND source_fingerprint=? AND derivation_version=? AND status='pending'`
+      )
+      .get(
+        identity.jobKind,
+        identity.entityId,
+        identity.sourceFingerprint,
+        identity.derivationVersion
+      ) as { c: number }
+  ).c;
+}
+
+function openSharedQueueDb(dbPath: string): Database.Database {
+  const db = new Database(dbPath);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS worlds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      trpg_enabled INTEGER NOT NULL DEFAULT 0,
+      trpg_visibility TEXT NOT NULL DEFAULT 'private',
+      genres TEXT NOT NULL DEFAULT '[]',
+      cover_url TEXT NOT NULL DEFAULT '',
+      shared_from_nickname TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  ensureTrpgTables(db);
+  ensureDerivedCacheJobsTable(db);
+  return db;
 }
 
 describe("world Blueprint pregeneration corrections", () => {
@@ -1048,5 +1137,147 @@ describe("world Blueprint pregeneration corrections", () => {
       await processDerivedCacheJob(db, job);
       assert.equal(blueprintJobCount(db), 0);
     });
+  });
+
+  it("R2 frozen — non-atomic terminal replacement UNIQUE-fails under interleaved callers", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const identity = sampleJobIdentity(db, worldId);
+    const terminalId = insertTerminalJob(db, identity, "failed");
+
+    // Caller B completes full legacy replacement first.
+    discardDerivedCacheJob(db, terminalId);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
+       VALUES (?, 'world', ?, ?, ?, '', 'pending', datetime('now'), datetime('now'))`
+    ).run(
+      identity.jobKind,
+      identity.entityId,
+      identity.sourceFingerprint,
+      identity.derivationVersion
+    );
+
+    // Caller A continues from stale terminal snapshot without re-reading queue state.
+    discardDerivedCacheJob(db, terminalId);
+    assert.throws(
+      () => {
+        db.prepare(
+          `INSERT INTO derived_cache_jobs
+            (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, run_after, updated_at)
+           VALUES (?, 'world', ?, ?, ?, '', 'pending', datetime('now'), datetime('now'))`
+        ).run(
+          identity.jobKind,
+          identity.entityId,
+          identity.sourceFingerprint,
+          identity.derivationVersion
+        );
+      },
+      /UNIQUE constraint failed/
+    );
+  });
+
+  it("T36 failed terminal + concurrent explicit enqueue x2 → one pending, attempts=0", () => {
+    const dir = mkdtempSync(join(tmpdir(), "derived-cache-race-"));
+    const dbPath = join(dir, "queue.db");
+    try {
+      const db1 = openSharedQueueDb(dbPath);
+      const db2 = new Database(dbPath);
+      const worldId = insertWorld(db1);
+      const identity = sampleJobIdentity(db1, worldId);
+      insertTerminalJob(db1, identity, "failed", { attempts: 1 });
+
+      assert.doesNotThrow(() => {
+        enqueueDerivedCacheJobReplacingTerminal(db1, identity);
+        enqueueDerivedCacheJobReplacingTerminal(db2, identity);
+      });
+      assert.equal(pendingJobsForIdentity(db1, identity), 1);
+      const row = findDerivedCacheJobByIdentity(db1, identity)!;
+      assert.equal(row.status, "pending");
+      assert.equal(row.attempts, 0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("T37 done terminal + concurrent explicit enqueue x2 → one pending", () => {
+    const dir = mkdtempSync(join(tmpdir(), "derived-cache-race-"));
+    const dbPath = join(dir, "queue.db");
+    try {
+      const db1 = openSharedQueueDb(dbPath);
+      const db2 = new Database(dbPath);
+      const worldId = insertWorld(db1);
+      const identity = sampleJobIdentity(db1, worldId);
+      insertTerminalJob(db1, identity, "done", { attempts: 1 });
+
+      assert.doesNotThrow(() => {
+        enqueueDerivedCacheJobReplacingTerminal(db1, identity);
+        enqueueDerivedCacheJobReplacingTerminal(db2, identity);
+      });
+      assert.equal(pendingJobsForIdentity(db1, identity), 1);
+      assert.equal(findDerivedCacheJobByIdentity(db1, identity)!.status, "pending");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("T38 pending identity + concurrent enqueue → no duplicate, pending not reset", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const identity = sampleJobIdentity(db, worldId);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, attempts, run_after)
+       VALUES (?, 'world', ?, ?, ?, 'keep-flag', 'pending', 0, datetime('now', '+5 minutes'))`
+    ).run(
+      identity.jobKind,
+      identity.entityId,
+      identity.sourceFingerprint,
+      identity.derivationVersion
+    );
+    assert.equal(enqueueDerivedCacheJobReplacingTerminal(db, identity), false);
+    assert.equal(enqueueDerivedCacheJobReplacingTerminal(db, identity), false);
+    assert.equal(pendingJobsForIdentity(db, identity), 1);
+    const row = findDerivedCacheJobByIdentity(db, identity)!;
+    assert.equal(row.job_flags, "keep-flag");
+    assert.equal(row.attempts, 0);
+  });
+
+  it("T39 processing identity + concurrent enqueue → no duplicate, processing preserved", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const identity = sampleJobIdentity(db, worldId);
+    db.prepare(
+      `INSERT INTO derived_cache_jobs
+        (job_kind, entity_type, entity_id, source_fingerprint, derivation_version, job_flags, status, attempts, locked_at, run_after)
+       VALUES (?, 'world', ?, ?, ?, 'proc-flag', 'processing', 2, datetime('now'), datetime('now'))`
+    ).run(
+      identity.jobKind,
+      identity.entityId,
+      identity.sourceFingerprint,
+      identity.derivationVersion
+    );
+    assert.equal(enqueueDerivedCacheJobReplacingTerminal(db, identity), false);
+    assert.equal(enqueueDerivedCacheJobReplacingTerminal(db, identity), false);
+    assert.equal(pendingJobsForIdentity(db, identity), 0);
+    const row = findDerivedCacheJobByIdentity(db, identity)!;
+    assert.equal(row.status, "processing");
+    assert.equal(row.attempts, 2);
+    assert.equal(row.job_flags, "proc-flag");
+  });
+
+  it("T40 terminal replacement updates job_flags to current explicit request", () => {
+    const db = memoryDb();
+    const worldId = insertWorld(db);
+    const identity = sampleJobIdentity(db, worldId);
+    insertTerminalJob(db, identity, "failed", { jobFlags: "old-flag", attempts: 1 });
+    assert.equal(
+      enqueueDerivedCacheJobReplacingTerminal(db, { ...identity, jobFlags: "new-flag" }),
+      true
+    );
+    const row = findDerivedCacheJobByIdentity(db, identity)!;
+    assert.equal(row.status, "pending");
+    assert.equal(row.job_flags, "new-flag");
+    assert.equal(row.attempts, 0);
   });
 });
