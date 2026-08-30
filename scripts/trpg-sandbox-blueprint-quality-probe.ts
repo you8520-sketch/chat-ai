@@ -225,6 +225,8 @@ async function runWorld(world: WorldFixture, runIndex: number) {
           maxTokens: call.maxTokens,
           timeoutMs: call.timeoutMs,
           temperature: call.temperature,
+          kind: "sandbox_blueprint",
+          stage: call.stage,
         });
         latencyMs += response.latencyMs;
         inputTokens += response.usage?.inputTokens ?? 0;
