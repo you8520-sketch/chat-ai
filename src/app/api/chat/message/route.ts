@@ -8,10 +8,9 @@ import {
   resolveActiveVariantContent,
   serializeVariantsForClient,
 } from "@/lib/messageAlternates";
-import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import {
   keepInternalAdultRoutingForUser,
-  stripAdultRoutingForClient,
+  serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
 import { normalizeEditedProseForSave, isMaterialProseEdit } from "@/lib/canonicalProse";
 import {
@@ -110,7 +109,7 @@ export async function GET(req: Request) {
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
   const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
-    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+    ? serializeUsageForPublicClient(activeUsage, {
         keepInternal: keepInternalAdultRouting,
       })
     : null;

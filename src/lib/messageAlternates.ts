@@ -1,6 +1,5 @@
 import type { Usage } from "@/lib/chatUsage";
-import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
-import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
+import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
 export type MessageVariant = {
@@ -113,7 +112,7 @@ export function serializeVariantsForClient(
   const clientVariants = variants.map((v) => ({
     ...v,
     usage: v.usage
-      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(v.usage), {
+      ? serializeUsageForPublicClient(v.usage, {
           keepInternal: options?.keepInternalAdultRouting,
         })
       : null,

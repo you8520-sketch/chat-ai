@@ -16,9 +16,8 @@ import {
 import type { Usage } from "@/lib/chatUsage";
 import {
   keepInternalAdultRoutingForUser,
-  stripAdultRoutingForClient,
+  serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
-import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import {
   parseStoredStatusWidgetValuesJson,
   stripExtractedFactsForClient,
@@ -63,7 +62,7 @@ function mapDbMessageForClient(
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
   const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
-    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+    ? serializeUsageForPublicClient(activeUsage, {
         keepInternal: keepInternalAdultRouting,
       })
     : null;

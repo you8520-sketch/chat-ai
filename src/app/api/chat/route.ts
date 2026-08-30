@@ -396,7 +396,7 @@ import {
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
   sanitizeUsageForPublicReceipt,
-  stripAdultRoutingForClient,
+  serializeUsageForPublicClient,
 } from "@/lib/billingReceiptAccess";
 import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
 import {
@@ -2989,10 +2989,9 @@ export async function POST(req: Request) {
             ? (JSON.parse(row.usage) as Usage)
             : null;
           const usage = rawCompletedUsage
-            ? stripAdultRoutingForClient(
-                stripMuseAcceptanceFromUsage(rawCompletedUsage),
-                { keepInternal: showFullBillingReceipt }
-              )
+            ? serializeUsageForPublicClient(rawCompletedUsage, {
+                keepInternal: showFullBillingReceipt,
+              })
             : null;
           send({ type: "replace", text: content, instant: true });
           send({
@@ -5080,10 +5079,9 @@ export async function POST(req: Request) {
           logMuseAcceptanceTelemetry(museTelemetry);
         }
         // Even for full billing receipt admins — never send museAcceptance to clients.
-        const clientUsageRecord = stripAdultRoutingForClient(
-          stripMuseAcceptanceFromUsage(dbUsageRecord),
-          { keepInternal: showFullBillingReceipt }
-        );
+        const clientUsageRecord = serializeUsageForPublicClient(dbUsageRecord, {
+          keepInternal: showFullBillingReceipt,
+        });
         if (oocSceneRenderTurn) {
           dbUsageRecord = mergeGenerationSemantics(dbUsageRecord, generationSemantics);
         }

@@ -3,6 +3,11 @@ import {
   collapsePublicHandoffStages,
 } from "@/lib/adultHandoffDisplay";
 import type { Usage } from "@/lib/chatUsage";
+import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
+import {
+  omitInternalTopLevelUsageFields,
+  sanitizePublicStages,
+} from "@/lib/publicUsageEconomicsBoundary";
 
 export const BILLING_BREAKDOWN_SYSTEM_RULES_LABEL = "시스템 프롬프트 (고정 규칙)";
 /** Keyword-activated lorebook entries injected this turn */
@@ -44,51 +49,20 @@ export function filterUsageBreakdownForReceipt(
   return breakdown.filter((b) => b.label !== BILLING_BREAKDOWN_SYSTEM_RULES_LABEL);
 }
 
-function stripUsageReportingEvidenceFromStages(
-  stages: Usage["stages"] | undefined
-): Usage["stages"] | undefined {
-  if (!stages?.length) return stages;
-  return stages.map((stage) => {
-    const copy = { ...stage } as Record<string, unknown>;
-    delete copy.usageReportingEvidence;
-    return copy as NonNullable<Usage["stages"]>[number];
-  });
-}
-
-/** 일반 이용자 영수증 — 위젯·환율·시스템 규칙 breakdown 등 상세 필드 제거 */
+/**
+ * Canonical public economics privacy owner — strips provider/internal economics from Usage.
+ * Routing identity is applied separately via stripAdultRoutingForClient.
+ */
 export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
   const routing = usage.adultRouting;
-  const {
-    statusWidgetExtract: _statusWidgetExtract,
-    statusWidgetExtractDiagnostics: _statusWidgetExtractDiagnostics,
-    widgetCostPoints: _widgetCostPoints,
-    mainApiRawCostKrw: _mainApiRawCostKrw,
-    exchangeRateKrwPerUsd: _exchangeRateKrwPerUsd,
-    exchangeRateDateKey: _exchangeRateDateKey,
-    exchangeRateMode: _exchangeRateMode,
-    exchangeRateSource: _exchangeRateSource,
-    museAcceptance: _museAcceptance,
-    adultRouting: _adultRouting,
-    assembledPromptChars: _assembledPromptChars,
-    breakdownAllocation: _breakdownAllocation,
-    usedEnglishCharacterPrompt: _usedEnglishCharacterPrompt,
-    characterPromptLanguage: _characterPromptLanguage,
-    generationKind: _generationKind,
-    canonical: _canonical,
-    canonAdopted: _canonAdopted,
-    canonAdoptedAt: _canonAdoptedAt,
-    shadowPricing: _shadowPricing,
-    publishedChargeSnapshot: _publishedChargeSnapshot,
-    ...rest
-  } = usage as Usage & { widgetCostPoints?: number; publishedChargeSnapshot?: unknown };
-  void _widgetCostPoints;
-  void _canonAdopted;
-  void _canonAdoptedAt;
-  void _publishedChargeSnapshot;
+  const rest = omitInternalTopLevelUsageFields(usage as Usage & Record<string, unknown>);
   const publicUsage: Usage = {
-    ...rest,
-    breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
-    stages: stripUsageReportingEvidenceFromStages(rest.stages),
+    ...(rest as Usage),
+    breakdown: filterUsageBreakdownForReceipt(
+      (rest as Usage).breakdown,
+      false
+    ),
+    stages: sanitizePublicStages((rest as Usage).stages),
   };
   if (routing?.activeRoute === "adult" || routing?.fallbackSucceeded) {
     Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));
@@ -98,8 +72,8 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
 }
 
 /**
- * Client serialization — keep selected-model identity on top-level fields.
- * Public clients never receive adultRouting. Admin/debug may keep the full object.
+ * Client serialization — adult handoff identity transformation only.
+ * Economics privacy is owned by sanitizeUsageForPublicReceipt.
  */
 export function stripAdultRoutingForClient(
   usage: Usage,
@@ -112,9 +86,9 @@ export function stripAdultRoutingForClient(
     canonical: _canonical,
     canonAdopted: _canonAdopted,
     canonAdoptedAt: _canonAdoptedAt,
-    shadowPricing: _shadowPricing,
     ...rest
   } = usage;
+  void _adultRouting;
   void _canonAdopted;
   void _canonAdoptedAt;
   let client = { ...rest } as Usage;
@@ -133,4 +107,21 @@ export function stripAdultRoutingForClient(
     if (usage.shadowPricing) client.shadowPricing = usage.shadowPricing;
   }
   return client;
+}
+
+/**
+ * Single public Usage serialization entry — economics privacy then routing identity.
+ * Admin/full paths pass keepInternal: true and skip economics stripping.
+ */
+export function serializeUsageForPublicClient(
+  usage: Usage,
+  options?: StripAdultRoutingOptions
+): Usage {
+  const withoutMuse = stripMuseAcceptanceFromUsage(usage);
+  if (options?.keepInternal) {
+    return stripAdultRoutingForClient(withoutMuse, { keepInternal: true });
+  }
+  return stripAdultRoutingForClient(sanitizeUsageForPublicReceipt(withoutMuse), {
+    keepInternal: false,
+  });
 }
