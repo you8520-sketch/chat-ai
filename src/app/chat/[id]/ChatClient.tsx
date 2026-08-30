@@ -2850,9 +2850,25 @@ export default function ChatClient({
 
           if (data.type === "turn_persisted") {
             const rid = data.requestId;
-            const nextChatId = data.chatId ?? chatId;
             if (data.messageId != null && Number.isFinite(data.messageId)) {
               persistedAssistantMessageId = data.messageId;
+            }
+            if (data.chatId != null) {
+              recoveryDraftLifetime.tryWrite(() => {
+                adoptSessionRecoveryDraftChatId(
+                  sessionRecoveryDraftScope,
+                  data.chatId!,
+                  recoveryDraftScopeOps
+                );
+              });
+            } else if (rid) {
+              const existing = recoveryDraftScopeOps.readScope(sessionRecoveryDraftScope.chatId);
+              writeSessionRecoveryDraft({
+                requestId: rid,
+                chatId: sessionRecoveryDraftScope.chatId ?? 0,
+                userText: existing?.userText ?? "",
+                assistantPartial: sessionDisplayedText,
+              });
             }
             if (data.chatId) {
               setChatId(data.chatId);
@@ -2878,28 +2894,6 @@ export default function ChatClient({
                   requestId: rid ?? cur.requestId,
                   generationStatus: cur.generationStatus ?? "generating",
                 };
-              }
-              const userText =
-                copy[userIdx]?.role === "user" ? copy[userIdx]!.content : "";
-              if (rid) {
-                const assistantPartial = copy[aiIndex]?.content ?? "";
-                const draftSnapshot = {
-                  requestId: rid,
-                  chatId: nextChatId ?? 0,
-                  userText,
-                  assistantPartial,
-                  updatedAt: Date.now(),
-                };
-                if (data.chatId != null) {
-                  adoptSessionRecoveryDraftChatId(
-                    sessionRecoveryDraftScope,
-                    data.chatId,
-                    recoveryDraftScopeOps,
-                    draftSnapshot
-                  );
-                } else {
-                  writeSessionRecoveryDraft(draftSnapshot);
-                }
               }
               return copy;
             });

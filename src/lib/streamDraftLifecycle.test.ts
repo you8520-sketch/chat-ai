@@ -377,6 +377,158 @@ describe("new-chat scope migration — N1–N8", () => {
   });
 });
 
+describe("POST_TERMINAL_SCOPE_MIGRATION — reproduction (pre-fix ungated deferred updater)", () => {
+  it("POST_TERMINAL_SCOPE_MIGRATION_WRITE_CONFIRMED when adopt runs after gate close", () => {
+    const store = createRoomStore();
+    const gate = createStreamDraftWriteGate();
+    const scope = createSessionRecoveryDraftScope(null);
+    const ops = createScopeOps(store);
+
+    writeRoomDraft(store, null, {
+      requestId: "req-a",
+      chatId: 0,
+      userText: "hello",
+      assistantPartial: "partial",
+      updatedAt: Date.now(),
+    });
+
+    const deferredUpdater = () => {
+      adoptSessionRecoveryDraftChatId(scope, REAL_CHAT_ID, ops, {
+        requestId: "req-a",
+        chatId: REAL_CHAT_ID,
+        userText: "hello",
+        assistantPartial: "partial",
+        updatedAt: Date.now(),
+      });
+    };
+
+    gate.closeAndClear(() => clearRecoveryDraftScopes(scope, (id) => clearRoomDraft(store, id)));
+    assert.equal(gate.isActive(), false);
+    assert.equal(readRoomDraft(store, REAL_CHAT_ID), null);
+
+    deferredUpdater();
+
+    assert.ok(
+      readRoomDraft(store, REAL_CHAT_ID),
+      "POST_TERMINAL_SCOPE_MIGRATION_WRITE_CONFIRMED"
+    );
+  });
+});
+
+describe("scope migration scheduling — N9–N12", () => {
+  function gatedAdopt(
+    gate: ReturnType<typeof createStreamDraftWriteGate>,
+    scope: ReturnType<typeof createSessionRecoveryDraftScope>,
+    ops: RecoveryDraftScopeOps,
+    nextChatId: number
+  ) {
+    gate.tryWrite(() => adoptSessionRecoveryDraftChatId(scope, nextChatId, ops));
+  }
+
+  function closeGate(
+    gate: ReturnType<typeof createStreamDraftWriteGate>,
+    scope: ReturnType<typeof createSessionRecoveryDraftScope>,
+    store: RoomStore
+  ) {
+    gate.closeAndClear(() => clearRecoveryDraftScopes(scope, (id) => clearRoomDraft(store, id)));
+  }
+
+  it("N9 DEFERRED_REACT_UPDATER: done closes gate before deferred updater → no draft recreated", () => {
+    const store = createRoomStore();
+    const gate = createStreamDraftWriteGate();
+    const scope = createSessionRecoveryDraftScope(null);
+    const ops = createScopeOps(store);
+
+    writeRoomDraft(store, null, {
+      requestId: "req-a",
+      chatId: 0,
+      userText: "hello",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
+
+    const deferredUpdater = () => gatedAdopt(gate, scope, ops, REAL_CHAT_ID);
+    closeGate(gate, scope, store);
+    deferredUpdater();
+
+    assert.equal(gate.isActive(), false);
+    assert.equal(readRoomDraft(store, REAL_CHAT_ID), null);
+    assert.equal(readRoomDraft(store, null), null);
+  });
+
+  it("N10 ALREADY_COMPLETED_BURST: sync turn_persisted then done → terminal clear wins", () => {
+    const store = createRoomStore();
+    const gate = createStreamDraftWriteGate();
+    const scope = createSessionRecoveryDraftScope(null);
+    const ops = createScopeOps(store);
+
+    writeRoomDraft(store, null, {
+      requestId: "req-a",
+      chatId: 0,
+      userText: "hello",
+      assistantPartial: "burst",
+      updatedAt: Date.now(),
+    });
+
+    gatedAdopt(gate, scope, ops, REAL_CHAT_ID);
+    assert.equal(readRoomDraft(store, null), null);
+    assert.equal(readRoomDraft(store, REAL_CHAT_ID)?.requestId, "req-a");
+
+    closeGate(gate, scope, store);
+
+    assert.equal(gate.isActive(), false);
+    assert.equal(readRoomDraft(store, REAL_CHAT_ID), null);
+    assert.equal(readRoomDraft(store, null), null);
+  });
+
+  it("N11 LATE_TURN_PERSISTED_AFTER_TERMINAL: gate closed → migration is no-op", () => {
+    const store = createRoomStore();
+    const gate = createStreamDraftWriteGate();
+    const scope = createSessionRecoveryDraftScope(null);
+    const ops = createScopeOps(store);
+
+    writeRoomDraft(store, null, {
+      requestId: "req-a",
+      chatId: 0,
+      userText: "hello",
+      assistantPartial: "",
+      updatedAt: Date.now(),
+    });
+
+    closeGate(gate, scope, store);
+    gatedAdopt(gate, scope, ops, REAL_CHAT_ID);
+
+    assert.equal(gate.isActive(), false);
+    assert.equal(readRoomDraft(store, REAL_CHAT_ID), null);
+    assert.equal(readRoomDraft(store, null), null);
+  });
+
+  it("N12 DUPLICATE_TURN_PERSISTED: same real chatId twice → no mis-scoped mutation", () => {
+    const store = createRoomStore();
+    const gate = createStreamDraftWriteGate();
+    const scope = createSessionRecoveryDraftScope(null);
+    const ops = createScopeOps(store);
+
+    writeRoomDraft(store, null, {
+      requestId: "req-a",
+      chatId: 0,
+      userText: "hello",
+      assistantPartial: "first",
+      updatedAt: Date.now(),
+    });
+
+    gatedAdopt(gate, scope, ops, REAL_CHAT_ID);
+    const afterFirst = readRoomDraft(store, REAL_CHAT_ID);
+    gatedAdopt(gate, scope, ops, REAL_CHAT_ID);
+    const afterSecond = readRoomDraft(store, REAL_CHAT_ID);
+
+    assert.equal(scope.chatId, REAL_CHAT_ID);
+    assert.equal(afterSecond?.requestId, "req-a");
+    assert.equal(afterSecond?.assistantPartial, afterFirst?.assistantPartial);
+    assert.equal(readRoomDraft(store, null), null);
+  });
+});
+
 describe("DEFERRED_REVEAL_DRAFT_OVERWRITE — reproduction", () => {
   it("buggy gate (clear without close) allows A to overwrite B room draft", async () => {
     const store = createRoomStore();

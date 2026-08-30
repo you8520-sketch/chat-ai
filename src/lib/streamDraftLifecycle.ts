@@ -13,6 +13,8 @@ export const STREAM_DRAFT_SCOPE_OWNER =
   "streamDraftLifecycle.createSessionRecoveryDraftScope (per consumeChatStream)" as const;
 export const STREAM_DRAFT_SCOPE_MIGRATION_OWNER =
   "streamDraftLifecycle.adoptSessionRecoveryDraftChatId" as const;
+export const STREAM_DRAFT_SCOPE_MIGRATION_EVENT_OWNER =
+  "consumeChatStream SSE/request lifecycle (NOT React setState updater)" as const;
 export const STREAM_DRAFT_CLEAR_OWNER =
   "streamDraftLifecycle.clearRecoveryDraftScopes (via closeSessionRecoveryDraft)" as const;
 export const STREAM_DRAFT_RECOVERY_OWNER =
