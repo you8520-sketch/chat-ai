@@ -123,6 +123,10 @@ import {
   resolveStreamAppendTail,
   type StreamRevealController,
 } from "@/lib/streamReveal";
+import {
+  planStreamRevealTermination,
+  runStreamRevealTermination,
+} from "@/lib/streamRevealLifecycle";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1021,6 +1025,7 @@ export default function ChatClient({
   );
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
+  const pendingRevealSessionsRef = useRef<Set<StreamRevealController>>(new Set());
   const streamTargetTextRef = useRef("");
   const assistantStreamContentRef = useRef("");
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
@@ -1514,6 +1519,11 @@ export default function ChatClient({
       chatMountedRef.current = false;
       chatFetchAbortRef.current?.abort();
       chatFetchAbortRef.current = null;
+      for (const session of pendingRevealSessionsRef.current) {
+        session.flush();
+      }
+      pendingRevealSessionsRef.current.clear();
+      activeStreamRevealRef.current = null;
     };
   }, []);
 
@@ -2327,10 +2337,39 @@ export default function ChatClient({
 
     assistantStreamContentRef.current = "";
     streamTargetTextRef.current = "";
+    let revealLifetimeEnded = false;
+
+    const unregisterRevealSession = (sessionReveal: StreamRevealController) => {
+      pendingRevealSessionsRef.current.delete(sessionReveal);
+      if (activeStreamRevealRef.current === sessionReveal) {
+        activeStreamRevealRef.current = null;
+      }
+    };
+
+    const endRevealLifetime = (
+      plan: ReturnType<typeof planStreamRevealTermination>
+    ) => {
+      if (revealLifetimeEnded) return;
+      revealLifetimeEnded = true;
+      runStreamRevealTermination(
+        plan,
+        {
+          reveal,
+          removeVisibilityListener: () => {
+            if (typeof document !== "undefined") {
+              document.removeEventListener("visibilitychange", onVisibilityChange);
+            }
+          },
+          flush: plan.action === "end_sync" ? plan.flush : undefined,
+        },
+        () => unregisterRevealSession(reveal)
+      );
+    };
 
     const reveal = createStreamReveal(
       {
         onAppend: (chunk) => {
+          if (!chatMountedRef.current) return;
           assistantStreamContentRef.current += chunk;
           const nextContent = assistantStreamContentRef.current;
           setMessages((m) => {
@@ -2365,6 +2404,7 @@ export default function ChatClient({
         charsPerTick: displayPrefsRef.current.streamCharsPerTick,
       })
     );
+    pendingRevealSessionsRef.current.add(reveal);
     activeStreamRevealRef.current = reveal;
 
     function setAssistantContentInstant(text: string) {
@@ -2948,17 +2988,6 @@ export default function ChatClient({
           instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
         });
       }
-      if (!streamDoneApplied) {
-        if (!instantReveal) {
-          await reveal.waitUntilIdle();
-        } else {
-          reveal.flush();
-        }
-      } else if (!instantReveal) {
-        await reveal.waitUntilIdle();
-      } else {
-        reveal.flush();
-      }
       if (pendingDone && !trafficOverload && !streamDoneApplied) {
         applyStreamDone(pendingDone);
       } else if (
@@ -3038,9 +3067,20 @@ export default function ChatClient({
           }
         }
       }
+
+      endRevealLifetime(
+        planStreamRevealTermination({
+          instantReveal,
+          isIdle: reveal.isIdle(),
+          hadError: Boolean(streamError),
+          trafficOverload: Boolean(trafficOverload),
+        })
+      );
     } catch (e) {
-      reveal.reset();
-      reveal.flush();
+      endRevealLifetime({
+        action: "end_sync",
+        flush: true,
+      });
       const abortMsg = chatStreamAbortMessage(e);
       if (abortMsg) {
         streamError = streamError || abortMsg;
@@ -3049,11 +3089,6 @@ export default function ChatClient({
         console.error("[chat] stream consume failed:", e);
       }
     } finally {
-      if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-      }
-      reveal.setBackgroundMode(false);
-      activeStreamRevealRef.current = null;
       setStreamPhase(null);
       setGenerationPrepUi(null);
     }
