@@ -16,6 +16,7 @@ on:
       - "src/lib/trpg/scenarioDraftCall.ts"
       - "src/lib/trpg/scenarioDraftCall.transport.test.ts"
       - "src/lib/deepseekProviderFailover.ts"
+      - "src/lib/deepseekProviderFailover.background.test.ts"
       - "src/lib/trpg/scenarioPlan.ts"
       - "src/lib/trpg/campaignContext.ts"
       - "src/lib/trpg/catalog.ts"
@@ -65,3 +66,5 @@ jobs:
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/wakeupScheduler.test.ts
       - name: Blueprint transport policy
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/scenarioDraftCall.transport.test.ts
+      - name: Background provider failover
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/deepseekProviderFailover.background.test.ts
