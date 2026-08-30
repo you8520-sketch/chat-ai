@@ -13,6 +13,7 @@ import {
 } from "./chatBillingSettlement";
 import { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 import { deductPointsOnDb, creditPointsWithIds, InsufficientPointsError } from "./points";
+import { paidCreatorRewardSpend } from "./creatorPoints";
 import { findTurnByRequestId } from "./streamingPersistence";
 import { fork, type ChildProcess } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -1036,6 +1037,32 @@ describe("chatBillingSettlement — read helper", () => {
       assert.ok(read);
       assert.equal(read!.settledPoints, 30);
       assert.equal(read!.duplicate, true);
+      db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("chatBillingSettlement — platform-funded widget route contract", () => {
+  it("requestedPoints main-only (route #754) — settlement deducts main, not widget surcharge", () => {
+    const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
+    const dbPath = join(dir, "test.db");
+    try {
+      const db = createSettlementTestDb(dbPath);
+      creditPointsWithIds(db, 1, 500, "PAID", "test seed");
+      const msgId = insertAssistant(db, 1, "req_widget_main_only");
+      const mainBillingCost = 60;
+      const settled = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_widget_main_only",
+        assistantMessageId: msgId,
+        requestedPoints: mainBillingCost,
+        reason: "main RP only — widget platform-funded at route",
+      });
+      assert.equal(settled.settledPoints, mainBillingCost);
+      assert.equal(paidCreatorRewardSpend(settled.slices), mainBillingCost);
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
