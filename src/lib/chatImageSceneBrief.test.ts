@@ -34,28 +34,28 @@ describe("chatImageSceneBrief model routing", () => {
     );
   });
 
-  it("falls back to OpenRouter DeepSeek V4 Flash when cheaper inference fails", () => {
+  it("falls back to OpenRouter Gemini 3.1 Flash-Lite when cheaper inference fails", () => {
     assert.equal(
       CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
-      "deepseek/deepseek-v4-flash-0731"
+      "google/gemini-3.1-flash-lite"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel({} as NodeJS.ProcessEnv),
-      "deepseek/deepseek-v4-flash-0731"
+      "google/gemini-3.1-flash-lite"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
         {} as NodeJS.ProcessEnv,
         "gpt-5.6-luna"
       ),
-      "deepseek/deepseek-v4-flash-0731"
+      "google/gemini-3.1-flash-lite"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
         {} as NodeJS.ProcessEnv,
         "deepseek-v4-flash"
       ),
-      "deepseek/deepseek-v4-flash-0731"
+      "google/gemini-3.1-flash-lite"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(
@@ -63,6 +63,13 @@ describe("chatImageSceneBrief model routing", () => {
         "deepseek-v4-flash"
       ),
       "openai/gpt-4o-mini"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        { CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL: "deepseek/deepseek-v4-flash-0731" } as NodeJS.ProcessEnv,
+        "gpt-5.6-luna"
+      ),
+      "google/gemini-3.1-flash-lite"
     );
     assert.equal(
       resolveChatImageSceneBriefFallbackModel(

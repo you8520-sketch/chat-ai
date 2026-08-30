@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import {
@@ -121,7 +121,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
         assert.deepEqual(urls, [CI_URL, OR_URL]);
         assert.equal(result.telemetry.provider_attempt_count, 2);
         assert.equal(result.telemetry.fallback_provider, TRPG_REPLY_SUGGESTION_BACKUP_PROVIDER);
-        assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+        assert.equal(result.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
       } finally {
         globalThis.fetch = previousFetch;
       }
@@ -294,7 +294,7 @@ describe("TRPG reply suggestion provider priority A-H", () => {
       assert.equal(result.telemetry.primary_failure_class, "no_api_key");
       assert.equal(result.telemetry.fallback_attempted, true);
       assert.equal(result.telemetry.fallback_success, true);
-      assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+      assert.equal(result.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousOr == null) delete process.env.OPENROUTER_API_KEY;

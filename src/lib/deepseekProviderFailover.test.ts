@@ -4,7 +4,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
 } from "./chatModels";
 import {
@@ -155,12 +155,28 @@ describe("DeepSeek cross-provider failover owner", () => {
     );
     assert.equal(
       resolveDeepSeekBackupModelId("flash"),
-      OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL
+      OPENROUTER_GEMINI_31_FLASH_MODEL
     );
     assert.equal(resolveDeepSeekBackupModelId("pro").includes("deepseek-v4-pro-0813"), true);
-    assert.equal(resolveDeepSeekBackupModelId("flash").includes("deepseek-v4-flash-0731"), true);
+    assert.equal(resolveDeepSeekBackupModelId("flash").includes("gemini-3.1-flash-lite"), true);
     assert.equal(resolveDeepSeekBackupModelId("pro").endsWith("/deepseek-v4-pro"), false);
     assert.equal(resolveDeepSeekBackupModelId("flash").endsWith("/deepseek-v4-flash"), false);
+  });
+
+  it("maps OpenRouter Gemini Flash-Lite backup with minimal reasoning", () => {
+    const adapted = adaptOpenRouterDeepSeekBackupBody(
+      {
+        model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+        thinking: { type: "disabled" },
+        messages: [{ role: "user", content: "x" }],
+        response_format: { type: "json_object" },
+      },
+      OPENROUTER_GEMINI_31_FLASH_MODEL
+    );
+    assert.equal(adapted.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
+    assert.deepEqual(adapted.reasoning, { effort: "minimal", exclude: true });
+    assert.equal(adapted.include_reasoning, false);
+    assert.deepEqual(adapted.response_format, { type: "json_object" });
   });
 
   it("maps OpenRouter true-off without CI-only fields", () => {
@@ -318,7 +334,7 @@ describe("DeepSeek cross-provider failover owner", () => {
     });
     assert.deepEqual(result.models, [
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+      OPENROUTER_GEMINI_31_FLASH_MODEL,
     ]);
   });
 
@@ -333,10 +349,10 @@ describe("DeepSeek cross-provider failover owner", () => {
       },
     });
     assert.equal(result.telemetry.primary_http_status, 503);
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+    assert.equal(result.models[1], OPENROUTER_GEMINI_31_FLASH_MODEL);
   });
 
-  it("F4 Flash first-visible deadline → OR Flash0731 1", async () => {
+  it("F4 Flash first-visible deadline → OR Gemini Flash-Lite 1", async () => {
     let calls = 0;
     const result = await runStream({
       logical: "flash",
@@ -348,7 +364,7 @@ describe("DeepSeek cross-provider failover owner", () => {
       },
     });
     assert.equal(result.telemetry.failover_trigger, "first_visible_timeout");
-    assert.equal(result.models[1], OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+    assert.equal(result.models[1], OPENROUTER_GEMINI_31_FLASH_MODEL);
   });
 
   it("F5 Flash partial visible then failure → OR calls 0", async () => {
@@ -632,7 +648,7 @@ describe("F500 Cheaper Inference HTTP 500 immediate OpenRouter", () => {
     assert.equal(calls, 2);
     assert.deepEqual(result.models, [
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+      OPENROUTER_GEMINI_31_FLASH_MODEL,
     ]);
     assert.equal(result.telemetry.primary_http_status, 500);
     assert.equal(result.telemetry.primary_failure_class, "http_500");

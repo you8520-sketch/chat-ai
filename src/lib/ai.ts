@@ -14,6 +14,7 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   isCheaperInferenceModel,
   normalizeDeepSeekV4FlashModelId,
 } from "@/lib/chatModels";
@@ -140,28 +141,62 @@ export function resolveBackgroundCreativeHtmlPrimaryModelId(
 
 export const BACKGROUND_CREATIVE_HTML_MODEL = resolveBackgroundCreativeHtmlPrimaryModelId();
 
+const HISTORICAL_BACKGROUND_FALLBACK_DEEPSEEK_ALIASES = new Set([
+  OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase(),
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL.toLowerCase(),
+]);
+
+function isHistoricalBackgroundFallbackDeepSeekAlias(modelId?: string | null): boolean {
+  const trimmed = modelId?.trim();
+  if (!trimmed) return false;
+  return HISTORICAL_BACKGROUND_FALLBACK_DEEPSEEK_ALIASES.has(trimmed.toLowerCase());
+}
+
+function resolveBackgroundMemoryFallbackCandidate(
+  env: NodeJS.ProcessEnv
+): string {
+  const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
+  if (raw == null) return OPENROUTER_GEMINI_31_FLASH_MODEL;
+  const rawTrimmed = String(raw).trim();
+  if (!rawTrimmed) return OPENROUTER_GEMINI_31_FLASH_MODEL;
+  if (isHistoricalBackgroundFallbackDeepSeekAlias(rawTrimmed)) {
+    return OPENROUTER_GEMINI_31_FLASH_MODEL;
+  }
+  return resolveBackgroundTextModelId(rawTrimmed);
+}
+
 /**
  * Optional cross-model fallback after primary background calls fail.
- * Explicit fallback ids keep their vendor (DeepSeek stays DeepSeek).
- * Same resolved model as primary is replaced by OpenRouter DeepSeek V4 Flash
- * so PRIMARY=Luna FALLBACK=Luna cannot happen.
+ * No live production callers — kept for env/docs/tests compatibility.
+ * Explicit fallback ids keep their vendor. Stale DeepSeek aliases migrate to
+ * OpenRouter Gemini 3.1 Flash-Lite. Never returns the same resolved model as
+ * primary; when the canonical candidate would collide, returns null.
  */
 export function resolveBackgroundMemoryFallbackModel(
   env: NodeJS.ProcessEnv = process.env,
   primaryModelId: string = BACKGROUND_OPENROUTER_MODEL
 ): string | null {
+  const primaryNorm = primaryModelId.trim().toLowerCase();
   const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
-  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
-  const rawTrimmed = String(raw).trim();
-  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
-  if (rawTrimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+  const rawTrimmed = raw == null ? "" : String(raw).trim();
+  const isExplicitEnv =
+    rawTrimmed.length > 0 && !isHistoricalBackgroundFallbackDeepSeekAlias(rawTrimmed);
+
+  if (isExplicitEnv) {
+    const explicit = resolveBackgroundTextModelId(rawTrimmed);
+    if (explicit.trim().toLowerCase() === primaryNorm) {
+      const canonical = OPENROUTER_GEMINI_31_FLASH_MODEL;
+      return canonical.trim().toLowerCase() === primaryNorm ? null : canonical;
+    }
+    return explicit;
   }
-  const trimmed = resolveBackgroundTextModelId(rawTrimmed);
-  if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) {
-    return OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
-  }
-  return trimmed;
+
+  const candidate = resolveBackgroundMemoryFallbackCandidate(env);
+  if (candidate.trim().toLowerCase() === primaryNorm) return null;
+  return candidate;
 }
 
 /** 백그라운드 비전 1차 — 이미지 검열·에셋 태그 (실패 시 Qwen3-VL-8B Instruct) */

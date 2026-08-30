@@ -318,7 +318,7 @@ describe("TRPG reply suggestion auto-attempt reload + error sanitization", () =>
       semantic_failure_class: null,
       fallback_attempted: true,
       fallback_provider: "openrouter",
-      fallback_model: "deepseek/deepseek-v4-flash-0731",
+      fallback_model: "google/gemini-3.1-flash-lite",
       fallback_latency_ms: 50,
       fallback_success: false,
       backup_failure_class: "body_timeout",

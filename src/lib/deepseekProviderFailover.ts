@@ -3,9 +3,12 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
+  isGeminiFlashOpenRouterModel,
 } from "@/lib/chatModels";
+import { OPENROUTER_RP_REASONING_GEMINI_FLASH } from "@/lib/openRouterClient";
 import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
@@ -215,7 +218,7 @@ export function resolveDeepSeekBackupModelId(
 ): string {
   return logical === "pro"
     ? OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL
-    : OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL;
+    : OPENROUTER_GEMINI_31_FLASH_MODEL;
 }
 
 export function resolveDeepSeekFailoverRouteKind(input: {
@@ -242,7 +245,11 @@ export function adaptOpenRouterDeepSeekBackupBody(
   delete next.reasoning_effort;
   delete next.enable_thinking;
   delete next.session_id;
-  next.reasoning = { ...OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING };
+  if (isGeminiFlashOpenRouterModel(backupModelId)) {
+    next.reasoning = { ...OPENROUTER_RP_REASONING_GEMINI_FLASH };
+  } else {
+    next.reasoning = { ...OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING };
+  }
   next.include_reasoning = false;
   return next;
 }

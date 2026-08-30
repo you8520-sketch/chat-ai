@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
 } from "@/lib/chatModels";
 import {
   callTrpgReplySuggestionModel,
@@ -377,10 +377,10 @@ describe("TRPG reply suggestion provider failover A-N", () => {
       }) as typeof fetch;
       try {
         const result = await callTrpgReplySuggestionModel({ system: "sys", user: "user" });
-        assert.equal(result.model, OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL);
+        assert.equal(result.model, OPENROUTER_GEMINI_31_FLASH_MODEL);
         assert.deepEqual(models, [
           CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
-          OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
+          OPENROUTER_GEMINI_31_FLASH_MODEL,
         ]);
       } finally {
         globalThis.fetch = previousFetch;

@@ -189,7 +189,7 @@ describe("TRPG reply suggestion failure instrumentation", () => {
         semantic_failure_class: "malformed_json",
         fallback_attempted: true,
         fallback_provider: "openrouter",
-        fallback_model: "deepseek/deepseek-v4-flash-0731",
+        fallback_model: "google/gemini-3.1-flash-lite",
         fallback_latency_ms: 4578,
         fallback_success: false,
         backup_failure_class: "malformed_json",
