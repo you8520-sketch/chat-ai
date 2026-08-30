@@ -5022,6 +5022,7 @@ export async function POST(req: Request) {
             reserveStatus: shadow.reserveStatus,
             actualTurnCostCoverage: shadow.actualTurnCostCoverage,
             actualProviderCostKrw: shadow.actualProviderCostKrw,
+            ...(shadow.actualCostUsd != null ? { actualCostUsd: shadow.actualCostUsd } : {}),
             actualCostSource: shadow.actualCostSource,
             providerListCostKrw: shadow.providerListCostKrw,
             inputCostKrw: shadow.inputCostKrw,

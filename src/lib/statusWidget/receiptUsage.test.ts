@@ -64,6 +64,7 @@ describe("statusWidget receiptUsage", () => {
         upstreamCostUsd: 0.01,
         cacheReadTokens: 200,
         cacheWriteTokens: 100,
+        cheaperInferenceBilledCostUsd: 0.0007,
       },
     ]);
     assert.equal(merged?.inputTokens, 1800);
@@ -72,6 +73,17 @@ describe("statusWidget receiptUsage", () => {
     assert.equal(merged?.upstreamCostUsd, 0.01);
     assert.equal(merged?.cacheReadTokens, 800);
     assert.equal(merged?.cacheWriteTokens, 100);
+    assert.equal(merged?.cheaperInferenceBilledCostUsd, 0.0007);
+    assert.equal(merged?.syncExtractCiBilledCallCount, 1);
+  });
+
+  it("mergeStatusWidgetExtractUsages sums CI billed across calls", () => {
+    const merged = mergeStatusWidgetExtractUsages([
+      { inputTokens: 100, outputTokens: 50, estimated: false, cheaperInferenceBilledCostUsd: 0.001 },
+      { inputTokens: 80, outputTokens: 40, estimated: false, cheaperInferenceBilledCostUsd: 0.0007 },
+    ]);
+    assert.ok(Math.abs((merged?.cheaperInferenceBilledCostUsd ?? 0) - 0.0017) < 1e-9);
+    assert.equal(merged?.syncExtractCiBilledCallCount, 2);
   });
 
   it("Flash billing meta never records Opus as extract model", () => {
