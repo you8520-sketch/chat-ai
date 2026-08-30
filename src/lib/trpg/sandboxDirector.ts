@@ -10,12 +10,15 @@ import {
 import { loadScenarioTemplate, rowToScenarioTemplate } from "./scenarioTemplates";
 import { loadCampaign } from "./store";
 import {
+  casPublishWorldBlueprintArtifact,
   copyWorldBlueprintPlan,
   loadValidWorldBlueprintPlan,
   loadWorldSnapshotForBlueprint,
 } from "./worldBlueprintArtifact";
 import { generateWorldSandboxBlueprint } from "./worldBlueprintGeneration";
 import type { TrpgAuthoringComplete } from "./scenarioDraftCall";
+import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "./blueprintValidity";
+import type { TrpgScenarioPlan } from "./scenarioPlan";
 
 export type TrpgDirectorDeps = {
   directorCall?: TrpgAuthoringComplete;
@@ -45,6 +48,27 @@ function loadScenarioSnapshot(db: Database.Database, templateId: number | null):
     plan: template.scenarioPlan,
     updatedAt: template.updatedAt,
   };
+}
+
+/** Best-effort artifact healing after successful sync fallback; must not block campaign start. */
+function tryPublishSyncFallbackBlueprintArtifact(
+  db: Database.Database,
+  opts: {
+    worldId: number;
+    expectedSourceFingerprint: string;
+    plan: TrpgScenarioPlan;
+  }
+): void {
+  try {
+    casPublishWorldBlueprintArtifact(db, {
+      worldId: opts.worldId,
+      expectedSourceFingerprint: opts.expectedSourceFingerprint,
+      expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+      plan: opts.plan,
+    });
+  } catch {
+    // Healing is auxiliary; campaign directorPlan persistence remains authoritative.
+  }
 }
 
 /**
@@ -112,6 +136,13 @@ export async function ensureCampaignDirectorContext(
     ctx.directorPlan = null;
   } else {
     ctx.directorPlan = generated.plan;
+    if (ctx.worldSnapshot?.sourceFingerprint) {
+      tryPublishSyncFallbackBlueprintArtifact(db, {
+        worldId: campaign.source_world_id,
+        expectedSourceFingerprint: ctx.worldSnapshot.sourceFingerprint,
+        plan: generated.plan,
+      });
+    }
   }
   persistCampaignContext(db, ctx);
   return ctx;

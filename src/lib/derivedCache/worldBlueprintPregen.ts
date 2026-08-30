@@ -80,6 +80,10 @@ export async function refreshWorldBlueprintArtifact(
     return { ok: true };
   }
 
+  if (loadValidWorldBlueprintPlan(db, worldId, snapshot)) {
+    return { ok: true };
+  }
+
   const generated = await generateWorldSandboxBlueprint(
     {
       worldId: snapshot.id ?? worldId,
