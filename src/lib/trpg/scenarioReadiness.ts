@@ -178,6 +178,13 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
   for (const issue of lint) {
     if (blockerIds.has(issue.code)) continue;
     if (issue.code === "recovery_path_unclear") continue;
+    if (
+      issue.code === "missing_conflict" ||
+      issue.code === "missing_endings" ||
+      issue.code === "no_ending_conditions"
+    ) {
+      continue;
+    }
     const isQualityOnly = issue.level === "warning" || (issue.level === "error" && canSave);
     if (!isQualityOnly) continue;
     const field = fieldForLintCode(issue.code);
