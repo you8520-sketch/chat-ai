@@ -49,3 +49,15 @@ export function resolveAssistantDisplayBody(
     ? message.content
     : resolveActiveVariantContent(message);
 }
+
+/** Live display body owner at server done — do not snap partial to full while reveal pending. */
+export function resolveApplyStreamDoneDisplayContent(input: {
+  streamingContent: string;
+  canonicalDoneContent: string;
+  preserveStreamingContent: boolean;
+}): string {
+  if (input.preserveStreamingContent) {
+    return input.streamingContent;
+  }
+  return input.canonicalDoneContent;
+}

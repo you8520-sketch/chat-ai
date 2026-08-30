@@ -118,7 +118,6 @@ import {
   collapseStreamCompareText,
   createStreamReveal,
   planStreamRevealCatchUp,
-  preferDisplayedNewlineLayout,
   rawPrefixForCollapsedCompare,
   resolveStreamAppendTail,
   type StreamRevealController,
@@ -131,6 +130,7 @@ import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessi
 import {
   isGenerationStreamingMessage,
   isVisualRevealPendingForMessage,
+  resolveApplyStreamDoneDisplayContent,
   resolveAssistantDisplayBody,
   shouldUseLiveDisplayedContent,
 } from "@/lib/streamRevealDisplaySource";
@@ -2725,9 +2725,11 @@ export default function ChatClient({
           const canonicalDoneContent = getCanonicalProseBody(activeVariantSource);
           const streamingContent = sessionDisplayedText || cur.content;
           const preserveStreaming = opts?.preserveStreamingContent === true;
-          const displayContent = preserveStreaming
-            ? preferDisplayedNewlineLayout(streamingContent, canonicalDoneContent)
-            : canonicalDoneContent;
+          const displayContent = resolveApplyStreamDoneDisplayContent({
+            streamingContent,
+            canonicalDoneContent,
+            preserveStreamingContent: preserveStreaming,
+          });
           logProseSourceDivergenceDev({
             messageId: data.messageId,
             phase: "applyStreamDone",
@@ -3796,6 +3798,8 @@ export default function ChatClient({
 
   async function switchVariant(messageId: number, messageIndex: number, variantIndex: number) {
     if (loading) return;
+    const switching = messages[messageIndex];
+    cancelPendingRevealForRequestId(switching?.requestId);
     try {
       const res = await fetch("/api/chat/message/variant", {
         method: "PATCH",
@@ -3857,6 +3861,9 @@ export default function ChatClient({
     const idx = role === "assistant" ? messages.findIndex((m) => m.id === messageId) : -1;
     const asst = idx >= 0 ? messages[idx] : null;
     const editingGreeting = asst ? isGreetingMessage(asst) : false;
+    if (role === "assistant" && asst?.requestId && !editingGreeting) {
+      cancelPendingRevealForRequestId(asst.requestId);
+    }
     const activeVariantSource =
       role === "assistant" ? resolveAssistantCanonicalProseSource(asst ?? { content }) : content;
     const canonical =

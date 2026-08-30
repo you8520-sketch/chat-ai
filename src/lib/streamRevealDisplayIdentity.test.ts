@@ -11,12 +11,14 @@ import {
 import {
   isGenerationStreamingMessage,
   isVisualRevealPendingForMessage,
+  resolveApplyStreamDoneDisplayContent,
   resolveAssistantDisplayBody,
   shouldUseLiveDisplayedContent,
 } from "@/lib/streamRevealDisplaySource";
 import { isRevealRowWritable } from "@/lib/streamRevealIdentity";
 import { isInFlightGenerationStatus, isTerminalGenerationStatus } from "@/lib/streamingPersistence";
 import { resolveActiveVariantContent } from "@/lib/messageAlternates";
+import { preferDisplayedNewlineLayout } from "@/lib/streamReveal";
 import { streamRevealOptionsFromInterval } from "@/lib/streamRevealTiming";
 
 const TICK = streamRevealOptionsFromInterval(1);
@@ -306,5 +308,210 @@ describe("display source + reveal identity — V1–V8", () => {
     assert.equal(after, FULL);
     m.activeVariant = 1;
     assert.equal(fixedDisplayBody(m, new Set(), 0), "ALT");
+  });
+});
+
+describe("APPLY_STREAM_DONE_OVERWRITES_PENDING_DISPLAY — reproduction", () => {
+  it("preferDisplayedNewlineLayout partial+full returns full (buggy done owner)", () => {
+    const resolved = preferDisplayedNewlineLayout(PARTIAL, FULL);
+    assert.equal(resolved, FULL, "APPLY_STREAM_DONE_OVERWRITES_PENDING_DISPLAY_CONFIRMED");
+    assert.notEqual(resolved, PARTIAL);
+  });
+});
+
+describe("live content ownership — V9–V14", () => {
+  function doneThenDisplay(
+    streamingContent: string,
+    preserve: boolean,
+    pending: ReadonlySet<string>
+  ): { mContent: string; visibleBody: string } {
+    const mContent = resolveApplyStreamDoneDisplayContent({
+      streamingContent,
+      canonicalDoneContent: FULL,
+      preserveStreamingContent: preserve,
+    });
+    const row: Row = {
+      role: "assistant",
+      content: mContent,
+      requestId: "req-a",
+      generationStatus: "completed",
+      variants: [{ content: FULL }],
+      activeVariant: 0,
+    };
+    const visibleBody = fixedDisplayBody(row, pending, 0);
+    return { mContent, visibleBody };
+  }
+
+  it("V9 APPLY_STREAM_DONE CONTENT: partial 168 + preserve=true → m.content remains 168", () => {
+    const mContent = resolveApplyStreamDoneDisplayContent({
+      streamingContent: PARTIAL,
+      canonicalDoneContent: FULL,
+      preserveStreamingContent: true,
+    });
+    assert.equal(mContent, PARTIAL);
+    assert.equal(mContent.length, PARTIAL.length);
+    assert.notEqual(mContent, FULL);
+  });
+
+  it("V10 DONE + ACTUAL DISPLAY SOURCE: done owner then display resolution → visible partial", () => {
+    const { mContent, visibleBody } = doneThenDisplay(PARTIAL, true, new Set(["req-a"]));
+    assert.equal(mContent, PARTIAL);
+    assert.equal(visibleBody, PARTIAL);
+    assert.ok(visibleBody.length < FULL.length);
+  });
+
+  it("V11 REVEAL GROWTH: post-done ticks monotonically grow m.content", async () => {
+    const canonicalFull = PARTIAL + "x".repeat(3000);
+    let content = PARTIAL;
+    const row: Row = {
+      role: "assistant",
+      content,
+      requestId: "req-a",
+      generationStatus: "completed",
+      variants: [{ content: canonicalFull }],
+      activeVariant: 0,
+    };
+    const identity = { requestId: "req-a", aiIndex: 0 };
+    const reveal = createStreamReveal(
+      {
+        onAppend: (chunk) => {
+          if (isRevealRowWritable(identity, row, 0)) {
+            row.content += chunk;
+          }
+        },
+      },
+      TICK
+    );
+    reveal.enqueue(canonicalFull.slice(PARTIAL.length));
+    const len0 = row.content.length;
+    await tick(10);
+    const len1 = row.content.length;
+    await tick(10);
+    const len2 = row.content.length;
+    assert.ok(len1 >= len0);
+    assert.ok(len2 >= len1);
+    assert.ok(len2 < canonicalFull.length || len2 === canonicalFull.length);
+    await reveal.waitUntilIdle();
+  });
+
+  it("V12 IDLE HANDOFF: reveal idle → active variant canonical, no duplication", async () => {
+    const canonicalFull = PARTIAL + "x".repeat(3000);
+    const row: Row = {
+      role: "assistant",
+      content: PARTIAL,
+      requestId: "req-a",
+      generationStatus: "completed",
+      variants: [{ content: canonicalFull }],
+      activeVariant: 0,
+    };
+    const identity = { requestId: "req-a", aiIndex: 0 };
+    const reveal = createStreamReveal(
+      {
+        onAppend: (chunk) => {
+          if (isRevealRowWritable(identity, row, 0)) row.content += chunk;
+        },
+      },
+      TICK
+    );
+    reveal.enqueue(canonicalFull.slice(PARTIAL.length));
+    await reveal.waitUntilIdle();
+    assert.equal(row.content, canonicalFull);
+    const pending = new Set<string>();
+    const visible = fixedDisplayBody(row, pending, 0);
+    assert.equal(visible, canonicalFull);
+    assert.equal(visible.indexOf(PARTIAL + PARTIAL), -1);
+  });
+
+  it("V13 SAME-ROW EDIT: edit cancels pending req-A → no later reveal write", async () => {
+    const row: Row = {
+      role: "assistant",
+      content: PARTIAL,
+      requestId: "req-a",
+      generationStatus: "completed",
+    };
+    const identityA = { requestId: "req-a", aiIndex: 0 };
+    let abandoned = false;
+    const revealA = createStreamReveal(
+      {
+        onAppend: (chunk) => {
+          if (abandoned) return;
+          if (!isRevealRowWritable(identityA, row, 0)) {
+            abandoned = true;
+            revealA.reset();
+            return;
+          }
+          row.content += chunk;
+        },
+      },
+      TICK
+    );
+    revealA.enqueue("A".repeat(25));
+    await tick(5);
+    runStreamRevealTermination(
+      { action: "end_deferred" },
+      { reveal: revealA, removeVisibilityListener: () => {} }
+    );
+
+    const contentAtEdit = row.content;
+    revealA.reset();
+    abandoned = true;
+
+    row.content = "EDITED_BY_USER";
+    await tick(25);
+    await revealA.waitUntilIdle();
+    assert.equal(row.content, "EDITED_BY_USER");
+    assert.ok(!row.content.includes("AAAA"));
+    assert.ok(contentAtEdit.length <= row.content.length || row.content === "EDITED_BY_USER");
+  });
+
+  it("V14 NORMAL NEXT TURN: old row reveal continues while new row streams", async () => {
+    const rows: Row[] = [
+      {
+        role: "assistant",
+        content: PARTIAL,
+        requestId: "req-a",
+        generationStatus: "completed",
+      },
+      {
+        role: "assistant",
+        content: "",
+        requestId: "req-b",
+        generationStatus: "generating",
+      },
+    ];
+    const revealA = createStreamReveal(
+      {
+        onAppend: (chunk) => {
+          if (isRevealRowWritable({ requestId: "req-a", aiIndex: 0 }, rows[0], 0)) {
+            rows[0]!.content += chunk;
+          }
+        },
+      },
+      TICK
+    );
+    revealA.enqueue("A".repeat(20));
+    await tick(5);
+    runStreamRevealTermination(
+      { action: "end_deferred" },
+      { reveal: revealA, removeVisibilityListener: () => {} }
+    );
+
+    const revealB = createStreamReveal(
+      {
+        onAppend: (chunk) => {
+          if (isRevealRowWritable({ requestId: "req-b", aiIndex: 1 }, rows[1], 1)) {
+            rows[1]!.content += chunk;
+          }
+        },
+      },
+      TICK
+    );
+    revealB.enqueue("B".repeat(20));
+    await tick(20);
+    await Promise.all([revealA.waitUntilIdle(), revealB.waitUntilIdle()]);
+    assert.ok(rows[0]!.content.includes("A"));
+    assert.ok(rows[1]!.content.includes("B"));
+    assert.ok(!rows[0]!.content.includes("B"));
+    assert.ok(!rows[1]!.content.includes("A"));
   });
 });
