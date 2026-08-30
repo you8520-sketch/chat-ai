@@ -186,15 +186,6 @@ export function resolveSummaryHealthState(opts: {
   return "SUMMARY_BACKLOGGED";
 }
 
-/** @deprecated Use resolveProviderRawPoolExchangeCount + resolveProviderRawTrimFloorExchanges */
-export function resolveProviderRawExchangeCountForChat(opts: {
-  memoryFeatureEnabled: boolean;
-  completedTurns: number;
-  summarizedTurnCount?: number | null;
-}): number {
-  return resolveProviderRawPoolExchangeCount(opts);
-}
-
 /** first RAW playable turn과 sealed summary 사이의 미보존 구간. */
 export function resolveMemoryCoverageGap(opts: {
   firstRawPlayableTurn: number | null | undefined;
