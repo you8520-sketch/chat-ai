@@ -128,6 +128,17 @@ import {
   runStreamRevealTermination,
 } from "@/lib/streamRevealLifecycle";
 import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
+import {
+  isGenerationStreamingMessage,
+  isVisualRevealPendingForMessage,
+  resolveAssistantDisplayBody,
+  shouldUseLiveDisplayedContent,
+} from "@/lib/streamRevealDisplaySource";
+import {
+  isRevealRowWritable,
+  type PendingRevealSession,
+  type RevealSessionIdentity,
+} from "@/lib/streamRevealIdentity";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1026,7 +1037,40 @@ export default function ChatClient({
   );
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
-  const pendingRevealSessionsRef = useRef<Set<StreamRevealController>>(new Set());
+  const pendingRevealSessionsRef = useRef<Map<string, PendingRevealSession>>(new Map());
+  const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const addVisualRevealPending = useCallback((requestId: string) => {
+    setVisualRevealPendingIds((prev) => {
+      if (prev.has(requestId)) return prev;
+      const next = new Set(prev);
+      next.add(requestId);
+      return next;
+    });
+  }, []);
+
+  const removeVisualRevealPending = useCallback((requestId: string) => {
+    setVisualRevealPendingIds((prev) => {
+      if (!prev.has(requestId)) return prev;
+      const next = new Set(prev);
+      next.delete(requestId);
+      return next;
+    });
+  }, []);
+
+  const cancelPendingRevealForRequestId = useCallback(
+    (requestId: string | null | undefined) => {
+      if (!requestId) return;
+      const entry = pendingRevealSessionsRef.current.get(requestId);
+      if (entry) {
+        entry.controller.reset();
+        pendingRevealSessionsRef.current.delete(requestId);
+      }
+      removeVisualRevealPending(requestId);
+    },
+    [removeVisualRevealPending]
+  );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
   const nsfwMode = isAdult && userNsfwOn;
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
@@ -1518,11 +1562,12 @@ export default function ChatClient({
       chatMountedRef.current = false;
       chatFetchAbortRef.current?.abort();
       chatFetchAbortRef.current = null;
-      for (const session of pendingRevealSessionsRef.current) {
-        session.flush();
+      for (const session of pendingRevealSessionsRef.current.values()) {
+        session.controller.reset();
       }
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
+      setVisualRevealPendingIds(new Set());
     };
   }, []);
 
@@ -2368,9 +2413,29 @@ export default function ChatClient({
       );
     };
 
-    const unregisterRevealSession = (sessionReveal: StreamRevealController) => {
-      pendingRevealSessionsRef.current.delete(sessionReveal);
-      if (activeStreamRevealRef.current === sessionReveal) {
+    const sessionRequestId = clientRequestId;
+    const sessionAiIndex = aiIndex;
+    const revealIdentity: RevealSessionIdentity = {
+      requestId: sessionRequestId,
+      aiIndex: sessionAiIndex,
+    };
+    let sessionAbandoned = false;
+
+    const abandonRevealSession = () => {
+      if (sessionAbandoned) return;
+      sessionAbandoned = true;
+      reveal.reset();
+      pendingRevealSessionsRef.current.delete(sessionRequestId);
+      removeVisualRevealPending(sessionRequestId);
+      if (activeStreamRevealRef.current === reveal) {
+        activeStreamRevealRef.current = null;
+      }
+    };
+
+    const unregisterRevealSession = () => {
+      pendingRevealSessionsRef.current.delete(sessionRequestId);
+      removeVisualRevealPending(sessionRequestId);
+      if (activeStreamRevealRef.current === reveal) {
         activeStreamRevealRef.current = null;
       }
     };
@@ -2391,37 +2456,41 @@ export default function ChatClient({
           },
           flush: plan.action === "end_sync" ? plan.flush : undefined,
         },
-        () => unregisterRevealSession(reveal)
+        unregisterRevealSession
       );
     };
 
     const reveal = createStreamReveal(
       {
         onAppend: (chunk) => {
-          if (!chatMountedRef.current) return;
+          if (!chatMountedRef.current || sessionAbandoned) return;
           sessionDisplayedText += chunk;
           const nextContent = sessionDisplayedText;
           setMessages((m) => {
             const copy = [...m];
-            const cur = copy[aiIndex];
-            if (cur?.role === "assistant") {
-              copy[aiIndex] = {
-                ...cur,
-                content: nextContent,
-                generationStatus: cur.generationStatus ?? "generating",
-              };
-              applyEmotionRef.current(nextContent, true, assetSelectionKey);
-              const rid = cur.requestId;
-              if (rid) {
-                const userText =
-                  copy[aiIndex - 1]?.role === "user" ? copy[aiIndex - 1]!.content : "";
-                writeSessionRecoveryDraft({
-                  requestId: rid,
-                  chatId: sessionRecoveryDraftScope.chatId ?? 0,
-                  userText,
-                  assistantPartial: nextContent,
-                });
-              }
+            const cur = copy[sessionAiIndex];
+            if (!isRevealRowWritable(revealIdentity, cur, sessionAiIndex)) {
+              abandonRevealSession();
+              return m;
+            }
+            copy[sessionAiIndex] = {
+              ...cur,
+              content: nextContent,
+              generationStatus: cur.generationStatus ?? "generating",
+            };
+            applyEmotionRef.current(nextContent, true, assetSelectionKey);
+            const rid = cur.requestId;
+            if (rid) {
+              const userText =
+                copy[sessionAiIndex - 1]?.role === "user"
+                  ? copy[sessionAiIndex - 1]!.content
+                  : "";
+              writeSessionRecoveryDraft({
+                requestId: rid,
+                chatId: sessionRecoveryDraftScope.chatId ?? 0,
+                userText,
+                assistantPartial: nextContent,
+              });
             }
             return copy;
           });
@@ -2432,19 +2501,29 @@ export default function ChatClient({
         charsPerTick: displayPrefsRef.current.streamCharsPerTick,
       })
     );
-    pendingRevealSessionsRef.current.add(reveal);
+    pendingRevealSessionsRef.current.set(sessionRequestId, {
+      controller: reveal,
+      requestId: sessionRequestId,
+      aiIndex: sessionAiIndex,
+    });
     activeStreamRevealRef.current = reveal;
+    if (displayPrefsRef.current.streamIntervalMs > 0) {
+      addVisualRevealPending(sessionRequestId);
+    }
 
     function setAssistantContentInstant(text: string) {
+      if (sessionAbandoned) return;
       sessionDisplayedText = text;
       sessionTargetText = text;
       setMessages((m) => {
         const copy = [...m];
-        const cur = copy[aiIndex];
-        if (cur?.role === "assistant") {
-          copy[aiIndex] = { ...cur, content: text };
-          applyEmotionRef.current(text, true, assetSelectionKey);
+        const cur = copy[sessionAiIndex];
+        if (!isRevealRowWritable(revealIdentity, cur, sessionAiIndex)) {
+          abandonRevealSession();
+          return m;
         }
+        copy[sessionAiIndex] = { ...cur, content: text };
+        applyEmotionRef.current(text, true, assetSelectionKey);
         return copy;
       });
     }
@@ -3572,6 +3651,7 @@ export default function ChatClient({
       statusMetaPollStartedRef.current.delete(prevAssistant.id);
       suggestedRepliesPollStartedRef.current.delete(prevAssistant.id);
     }
+    cancelPendingRevealForRequestId(prevAssistant.requestId);
 
     setMessages((m) => {
       const copy = [...m];
@@ -4732,14 +4812,25 @@ export default function ChatClient({
                 ) : (
                   <>
                     {(() => {
-                      const isStreamingThisMessage =
-                        i === lastAssistantIdx &&
-                        !isTerminalGenerationStatus(genStatus) &&
-                        ((loading && i === messages.length - 1) ||
-                          genStatus === "generating");
-                      const variantContent = isStreamingThisMessage
-                        ? m.content
-                        : resolveActiveVariantContent(m);
+                      const isGenerationStreaming = isGenerationStreamingMessage({
+                        messageIndex: i,
+                        lastAssistantIndex: lastAssistantIdx,
+                        generationStatus: genStatus,
+                        loading,
+                        messagesLength: messages.length,
+                      });
+                      const isVisualRevealPending = isVisualRevealPendingForMessage(
+                        m.requestId,
+                        visualRevealPendingIds
+                      );
+                      const useLiveDisplayedContent = shouldUseLiveDisplayedContent(
+                        isGenerationStreaming,
+                        isVisualRevealPending
+                      );
+                      const isStreamingThisMessage = isGenerationStreaming;
+                      const variantContent = resolveAssistantDisplayBody(m, {
+                        useLiveDisplayedContent,
+                      });
                       const displayBody = stripIncompleteStatusWidgetTail(
                         stripRepeatedTrailingQuoteMarks(
                           stripRpMetaPreamble(
@@ -4747,7 +4838,7 @@ export default function ChatClient({
                               stripInternalTagLeakage(variantContent),
                               resolvedAssets,
                               {
-                                streaming: isStreamingThisMessage,
+                                streaming: useLiveDisplayedContent,
                                 assetsEnabled: showCharacterPortrait,
                               }
                             )
@@ -4762,7 +4853,7 @@ export default function ChatClient({
                               displayBody,
                               messageFormatSpec,
                               statusWindowPlacement,
-                              { streaming: isStreamingThisMessage }
+                              { streaming: useLiveDisplayedContent }
                             ).prose
                           : displayBody;
                       // Canonical raw into NovelText; display paragraph policy lives only there.
@@ -4788,13 +4879,13 @@ export default function ChatClient({
                         userMessage: userBefore?.role === "user" ? userBefore.content : undefined,
                         markdownStatusWindowActive,
                         statusWidgetActive,
-                        isStreaming: isStreamingThisMessage,
+                        isStreaming: isGenerationStreaming,
                       });
                       const showStatusWidget = shouldShowStatusWidgetOnMessage({
                         model: m.model,
                         statusWidgetTurnActive: m.statusWidgetTurnActive,
                         statusWidgetValues: m.statusWidgetValues,
-                        isStreaming: isStreamingThisMessage,
+                        isStreaming: isGenerationStreaming,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       if (
@@ -4865,7 +4956,7 @@ export default function ChatClient({
                               display={displayPrefs}
                               paragraphMode={m.model === "greeting" ? "author" : "ai"}
                               proseOnly={m.model !== "greeting"}
-                              streaming={isStreamingThisMessage}
+                              streaming={useLiveDisplayedContent}
                               inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
                               viewerIsCreator={isCharacterCreator}
                               unlockedUrls={unlockedUrls}

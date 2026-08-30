@@ -5,9 +5,6 @@ import {
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
 
-/** @deprecated Foreground reveal no longer scales past the user-selected speed. Kept for tests/docs. */
-export const STREAM_REVEAL_MAX_TARGET_LAG_MS = 5_000;
-
 export function streamRevealOptionsFromInterval(intervalMs: number): StreamRevealOptions {
   return {
     intervalMs,

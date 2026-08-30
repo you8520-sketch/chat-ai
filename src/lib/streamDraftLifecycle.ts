@@ -1,24 +1,17 @@
 /**
  * Recovery draft write lifetime + scope ownership per consumeChatStream session.
  * ChatStreamDraft is room-global (single slot); scope is characterId:chatId|null→"new".
+ *
+ * Owner map:
+ * - STREAM_DRAFT_STORAGE_KEY_OWNER → streamingPersistence.streamDraftStorageKey
+ * - STREAM_DRAFT_WRITE_LIFETIME_OWNER → createStreamDraftWriteGate (per consumeChatStream)
+ * - STREAM_DRAFT_SCOPE_OWNER → createSessionRecoveryDraftScope
+ * - STREAM_DRAFT_SCOPE_MIGRATION_OWNER → adoptSessionRecoveryDraftChatId
+ * - STREAM_DRAFT_SCOPE_MIGRATION_EVENT_OWNER → SSE/request lifecycle in consumeChatStream
+ * - STREAM_DRAFT_CLEAR_OWNER → clearRecoveryDraftScopes via closeSessionRecoveryDraft
+ * - STREAM_DRAFT_RECOVERY_OWNER → writeSessionRecoveryDraft / readChatStreamDraft on load
  */
 import type { ChatStreamDraft } from "@/lib/streamingPersistence";
-
-/** Owner map — one in-flight request = one active recovery draft scope. */
-export const STREAM_DRAFT_STORAGE_KEY_OWNER =
-  "streamingPersistence.streamDraftStorageKey(characterId, chatId ?? 'new')" as const;
-export const STREAM_DRAFT_WRITE_LIFETIME_OWNER =
-  "streamDraftLifecycle.createStreamDraftWriteGate (per consumeChatStream)" as const;
-export const STREAM_DRAFT_SCOPE_OWNER =
-  "streamDraftLifecycle.createSessionRecoveryDraftScope (per consumeChatStream)" as const;
-export const STREAM_DRAFT_SCOPE_MIGRATION_OWNER =
-  "streamDraftLifecycle.adoptSessionRecoveryDraftChatId" as const;
-export const STREAM_DRAFT_SCOPE_MIGRATION_EVENT_OWNER =
-  "consumeChatStream SSE/request lifecycle (NOT React setState updater)" as const;
-export const STREAM_DRAFT_CLEAR_OWNER =
-  "streamDraftLifecycle.clearRecoveryDraftScopes (via closeSessionRecoveryDraft)" as const;
-export const STREAM_DRAFT_RECOVERY_OWNER =
-  "ChatClient.writeSessionRecoveryDraft / closeSessionRecoveryDraft" as const;
 
 export type StreamDraftWriteGate = {
   isActive: () => boolean;
