@@ -41,6 +41,7 @@ function createMessagesDb(): Database.Database {
       status_meta TEXT,
       status_widget_values_json TEXT NOT NULL DEFAULT '',
       status_widget_turn_active INTEGER NOT NULL DEFAULT 0,
+      memory_relationship_task_json TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -351,6 +352,40 @@ describe("streamingPersistence", () => {
     const alts = JSON.parse(row.alternates) as { content: string }[];
     assert.equal(alts.length, 1);
     assert.equal(alts[0].content, "이전 답변");
+  });
+
+  it("clears memory_relationship_task_json when regenerating the same assistant row", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_marker_base",
+      userContent: "유저",
+      skipUserInsert: false,
+    });
+    db.prepare(
+      `UPDATE messages SET memory_relationship_task_json=? WHERE id=?`
+    ).run(
+      JSON.stringify({
+        state: "skipped",
+        updatedAt: new Date().toISOString(),
+        reason: "main_model_tail_satisfied",
+      }),
+      boot.assistantMessageId
+    );
+
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_marker_2",
+      userContent: "유저",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+
+    const row = db
+      .prepare(`SELECT memory_relationship_task_json FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as { memory_relationship_task_json: string | null };
+    assert.equal(row.memory_relationship_task_json, null);
   });
 
   it("finalizes regenerated assistant with canonical prose in DB and active variant", () => {

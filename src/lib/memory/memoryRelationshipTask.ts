@@ -123,6 +123,14 @@ export function setMemoryRelationshipTaskState(
   return record;
 }
 
+/** Clear durable task marker at generation boundary (e.g. same-message regenerate). */
+export function clearMemoryRelationshipTaskMarker(
+  messageId: number,
+  db: ReturnType<typeof getDb> = getDb()
+): void {
+  db.prepare("UPDATE messages SET memory_relationship_task_json=NULL WHERE id=?").run(messageId);
+}
+
 export function isMemoryRelationshipTaskTerminal(
   record: MemoryRelationshipTaskRecord | null
 ): boolean {

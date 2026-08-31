@@ -187,6 +187,8 @@ type ProviderBackedMergeOpts = {
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
+  /** Regeneration reuses assistantMessageId without generation-scoped ledger — keep marker absent. */
+  skipTaskLifecycleMarker?: boolean;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 };
@@ -223,8 +225,9 @@ async function runProviderBackedRelationshipMerge(
 ): Promise<MemoryMeta> {
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, opts.names);
+  const trackTaskLifecycle = !opts.skipTaskLifecycleMarker;
 
-  if (opts.assistantMessageId) {
+  if (opts.assistantMessageId && trackTaskLifecycle) {
     setMemoryRelationshipTaskState(opts.assistantMessageId, "pending");
   }
 
@@ -232,13 +235,17 @@ async function runProviderBackedRelationshipMerge(
   try {
     extractResult = await opts.extract();
   } catch (e) {
-    recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
+    if (trackTaskLifecycle) {
+      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
+    }
     console.warn("[memory] relationship provider extract failed:", (e as Error).message);
     return prevNormalized;
   }
 
   if (!extractResult.parseOk) {
-    recordProviderBackedTaskTerminalState(opts.assistantMessageId, "parse_failed");
+    if (trackTaskLifecycle) {
+      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "parse_failed");
+    }
     return prevNormalized;
   }
 
@@ -251,13 +258,17 @@ async function runProviderBackedRelationshipMerge(
       boundarySnapshot: opts.boundarySnapshot,
       __testThrowOnSave: opts.__testThrowOnSave,
     });
-    recordProviderBackedTaskTerminalState(
-      opts.assistantMessageId,
-      applied.accepted ? "commit_accepted" : "stale_epoch_rejected"
-    );
+    if (trackTaskLifecycle) {
+      recordProviderBackedTaskTerminalState(
+        opts.assistantMessageId,
+        applied.accepted ? "commit_accepted" : "stale_epoch_rejected"
+      );
+    }
     return applied.meta;
   } catch (e) {
-    recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
+    if (trackTaskLifecycle) {
+      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
+    }
     console.warn("[memory] relationship meta commit failed:", (e as Error).message);
     return prevNormalized;
   }
@@ -363,6 +374,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     sourceUserMessageId: opts.sourceUserMessageId,
     boundarySnapshot: opts.boundarySnapshot,
     assistantMessageId: opts.assistantMessageId,
+    skipTaskLifecycleMarker: true,
     __testExtract: opts.__testExtract,
     __testThrowOnSave: opts.__testThrowOnSave,
     extract: () =>
