@@ -236,15 +236,22 @@ describe("chats.memory M1 writer retirement", () => {
   it("production sources no longer write nonempty chats.memory", () => {
     const root = join(process.cwd(), "src/lib/memory");
     const variantSrc = readFileSync(join(root, "memory-variant-switch-reconcile.ts"), "utf8");
-    const forkSrc = readFileSync(join(root, "memory-fork-snapshot.ts"), "utf8");
-    const dbSrc = readFileSync(join(process.cwd(), "src/lib/memory/memory-db.ts"), "utf8");
+    const forkSnapshotSrc = readFileSync(join(root, "memory-fork-snapshot.ts"), "utf8");
+    const forkCreateSrc = readFileSync(join(process.cwd(), "src/lib/chatForkCreate.ts"), "utf8");
+    const dbSrc = readFileSync(join(root, "memory-db.ts"), "utf8");
+    const forkRouteSrc = readFileSync(
+      join(process.cwd(), "src/app/api/chat/fork/route.ts"),
+      "utf8"
+    );
 
     assert.ok(!variantSrc.includes("SET current_summary=?, memory=?"));
     assert.ok(variantSrc.includes("SET current_summary=? WHERE id=?"));
-    assert.ok(!forkSrc.includes("SET memory=?, current_summary=?"));
-    assert.ok(forkSrc.includes("SET current_summary=?, memory_archived_turns=?"));
+    assert.ok(!forkSnapshotSrc.includes("SET memory=?, current_summary=?"));
+    assert.ok(forkSnapshotSrc.includes("SET current_summary=?, memory_archived_turns=?"));
     assert.ok(!dbSrc.includes("SELECT current_summary, memory FROM chats"));
     assert.ok(!dbSrc.match(/UPDATE chats SET current_summary='',\s*memory=''/));
+    assert.ok(!/\bmemory,\s*memory_pending\b/.test(forkCreateSrc.split("LEGACY_FORK_CHAT_INSERT_SQL_WITH_MEMORY")[0]!));
+    assert.ok(forkRouteSrc.includes("insertForkChatRow"));
   });
 });
 

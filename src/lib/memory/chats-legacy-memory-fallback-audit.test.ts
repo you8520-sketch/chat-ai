@@ -22,6 +22,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
+import { insertForkChatRow } from "@/lib/chatForkCreate";
 import {
   getOrCreateChatMemory,
   updateChatMemory,
@@ -199,14 +200,25 @@ describe("chats legacy memory fallback audit — frozen classification constants
 describe("chats legacy memory fallback audit — fork bootstrap", () => {
   it("A8 new fork chat row starts with empty memory and current_summary", () => {
     const db = getDb();
-    const info = db
-      .prepare(
-        `INSERT INTO chats (user_id, character_id, mode, memory, memory_pending, memory_meta,
-          memory_archived_turns, current_summary)
-         VALUES (?,?,?,?,?,?,?,?)`
-      )
-      .run(USER_ID, CHARACTER_ID, "safe", "", "[]", "{}", 0, "");
-    const forkChatId = Number(info.lastInsertRowid);
+    const forkChatId = insertForkChatRow(db, {
+      userId: USER_ID,
+      characterId: CHARACTER_ID,
+      mode: "safe",
+      memoryPending: "[]",
+      memoryMeta: "{}",
+      memoryArchivedTurns: 0,
+      currentSummary: "",
+      geminiModel: "",
+      userNote: "",
+      selectedPersonaId: null,
+      userImpersonation: 0,
+      targetResponseChars: 700,
+      title: "",
+      writingStyleOverride: "",
+      memoryCapacity: 4000,
+      narrativePov: "third_person",
+      povCharacterName: "",
+    });
     const row = db
       .prepare(`SELECT memory, current_summary FROM chats WHERE id=?`)
       .get(forkChatId) as { memory: string; current_summary: string };

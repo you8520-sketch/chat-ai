@@ -21,6 +21,7 @@ import {
 } from "@/lib/memory/memory-source-boundary";
 import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
 import { recomputeAndPersistUserCoauthorMode } from "@/lib/userCoauthorState";
+import { insertForkChatRow } from "@/lib/chatForkCreate";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -102,34 +103,28 @@ export async function POST(req: Request) {
   });
 
   const forkResult = db.transaction(() => {
-    const info = db
-      .prepare(
-        `INSERT INTO chats (user_id, character_id, mode, memory, memory_pending, memory_meta,
-          memory_archived_turns, current_summary, gemini_model, user_note, selected_persona_id, user_impersonation,
-          target_response_chars, title, writing_style_override, memory_capacity, narrative_pov, pov_character_name)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-      )
-      .run(
-        user.id,
-        characterId,
-        source.mode ?? "safe",
-        "",
-        "[]",
-        forkMemoryMeta,
-        0,
-        "",
-        "",
-        source.user_note ?? "",
-        source.selected_persona_id ?? null,
-        source.user_impersonation ?? 0,
-        normalizeTargetResponseChars(source.target_response_chars ?? DEFAULT_TARGET_RESPONSE_CHARS),
-        branchTitle,
-        String(source.writing_style_override ?? ""),
-        memoryCapacity,
-        String(source.narrative_pov ?? "third_person"),
-        String(source.pov_character_name ?? "")
-      );
-    const newChatId = Number(info.lastInsertRowid);
+    const newChatId = insertForkChatRow(db, {
+      userId: user.id,
+      characterId,
+      mode: String(source.mode ?? "safe"),
+      memoryPending: "[]",
+      memoryMeta: forkMemoryMeta,
+      memoryArchivedTurns: 0,
+      currentSummary: "",
+      geminiModel: "",
+      userNote: String(source.user_note ?? ""),
+      selectedPersonaId:
+        source.selected_persona_id == null ? null : Number(source.selected_persona_id),
+      userImpersonation: Number(source.user_impersonation ?? 0),
+      targetResponseChars: normalizeTargetResponseChars(
+        source.target_response_chars ?? DEFAULT_TARGET_RESPONSE_CHARS
+      ),
+      title: branchTitle,
+      writingStyleOverride: String(source.writing_style_override ?? ""),
+      memoryCapacity,
+      narrativePov: String(source.narrative_pov ?? "third_person"),
+      povCharacterName: String(source.pov_character_name ?? ""),
+    });
     const messageIdMap = new Map<number, number>();
 
     const ins = db.prepare(
