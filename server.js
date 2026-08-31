@@ -22,9 +22,11 @@ const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 
-const { withCustomServerBootImportBoundary } = require(
-  "./src/lib/customServerBootImportBoundary.js"
-);
+const {
+  withCustomServerBootImportBoundary,
+  resolveCustomServerImportedExport,
+  requireCustomServerBootFunction,
+} = require("./src/lib/customServerBootImportBoundary.js");
 
 /** Background modules that transitively load server-only under plain tsx. */
 async function importBackgroundModule(specifier) {
@@ -47,10 +49,12 @@ const handle = app.getRequestHandler();
 
 async function runBackgroundInitialization() {
   try {
-    const { warnEpisodicMemoryRecallDisabledInProduction } = await importBackgroundModule(
+    const episodicMod = await importBackgroundModule("./src/lib/episodicMemoryFacts.ts");
+    requireCustomServerBootFunction(
+      episodicMod,
+      "warnEpisodicMemoryRecallDisabledInProduction",
       "./src/lib/episodicMemoryFacts.ts"
-    );
-    warnEpisodicMemoryRecallDisabledInProduction();
+    )();
   } catch (e) {
     console.warn(
       "[boot] episodic memory recall warning skipped:",
@@ -59,8 +63,12 @@ async function runBackgroundInitialization() {
   }
   if (process.env.DISABLE_PAYOUT_SCHEDULER !== "1") {
     try {
-      const { startPayoutScheduler } = await importBackgroundModule("./src/cron/payoutScheduler.ts");
-      startPayoutScheduler();
+      const payoutMod = await importBackgroundModule("./src/cron/payoutScheduler.ts");
+      requireCustomServerBootFunction(
+        payoutMod,
+        "startPayoutScheduler",
+        "./src/cron/payoutScheduler.ts"
+      )();
       console.log(
         `[boot-timing] payout init complete (+${Date.now() - bootStart}ms from process start)`
       );
@@ -79,8 +87,12 @@ async function runBackgroundInitialization() {
 
   if (process.env.DISABLE_TRAINING_PIPELINE !== "1" && process.env.ENABLE_TRAINING_PIPELINE === "1") {
     try {
-      const { startTrainingScheduler } = await importBackgroundModule("./src/cron/trainingScheduler.ts");
-      startTrainingScheduler();
+      const trainingMod = await importBackgroundModule("./src/cron/trainingScheduler.ts");
+      requireCustomServerBootFunction(
+        trainingMod,
+        "startTrainingScheduler",
+        "./src/cron/trainingScheduler.ts"
+      )();
     } catch (err) {
       console.error("[server] training scheduler 시작 실패:", err);
     }
@@ -90,8 +102,12 @@ async function runBackgroundInitialization() {
 
   if (process.env.DISABLE_FINANCE_SCHEDULER !== "1") {
     try {
-      const { startFinanceScheduler } = await importBackgroundModule("./src/cron/financeScheduler.ts");
-      startFinanceScheduler();
+      const financeMod = await importBackgroundModule("./src/cron/financeScheduler.ts");
+      requireCustomServerBootFunction(
+        financeMod,
+        "startFinanceScheduler",
+        "./src/cron/financeScheduler.ts"
+      )();
     } catch (err) {
       console.error("[server] finance scheduler 시작 실패:", err);
     }
@@ -101,18 +117,18 @@ async function runBackgroundInitialization() {
 
   try {
     const webPushMod = await importBackgroundModule("./src/lib/webPush.ts");
-    const startWebPushSchedulers =
-      webPushMod.startWebPushSchedulers ?? webPushMod.default?.startWebPushSchedulers;
-    if (typeof startWebPushSchedulers === "function") startWebPushSchedulers();
+    requireCustomServerBootFunction(
+      webPushMod,
+      "startWebPushSchedulers",
+      "./src/lib/webPush.ts"
+    )();
   } catch (err) {
     console.error("[server] web push scheduler 시작 실패:", err);
   }
 
   try {
     const exchangeRateMod = await import("./src/lib/exchangeRate.ts");
-    const warm =
-      exchangeRateMod.warmExchangeRateCache ??
-      exchangeRateMod.default?.warmExchangeRateCache;
+    const warm = resolveCustomServerImportedExport(exchangeRateMod, "warmExchangeRateCache");
     if (typeof warm === "function") {
       warm();
     } else {
@@ -129,10 +145,14 @@ async function runBackgroundInitialization() {
   }
 
   try {
-    const { startDerivedCacheWakeup } = await importBackgroundModule(
+    const derivedCacheMod = await importBackgroundModule(
       "./src/lib/derivedCache/wakeupScheduler.ts"
     );
-    startDerivedCacheWakeup();
+    requireCustomServerBootFunction(
+      derivedCacheMod,
+      "startDerivedCacheWakeup",
+      "./src/lib/derivedCache/wakeupScheduler.ts"
+    )();
     console.log(
       `[boot-timing] derived cache wakeup init complete (+${Date.now() - bootStart}ms from process start)`
     );
