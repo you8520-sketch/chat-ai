@@ -1,5 +1,8 @@
 import { getDb } from "@/lib/db";
-import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
+import {
+  isCurrentAssistantGeneration,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 export type MemoryRelationshipTaskState =
   | "pending"
@@ -126,6 +129,24 @@ export function setMemoryRelationshipTaskState(
       to: next,
     });
     return existing;
+  }
+
+  if (generationScope != null) {
+    const scope: AssistantGenerationScope = {
+      assistantMessageId: messageId,
+      generationSequence: generationScope.generationSequence,
+      generationRequestId: generationScope.generationRequestId ?? null,
+    };
+    if (!isCurrentAssistantGeneration(scope, db)) {
+      console.info("STALE_GENERATION_RESULT_REJECTED", {
+        family: "memory_relationship",
+        messageId,
+        generationSequence: generationScope.generationSequence,
+        phase: "task_state_write",
+        next,
+      });
+      return existing;
+    }
   }
 
   const record: MemoryRelationshipTaskRecord = {

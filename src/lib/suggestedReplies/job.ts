@@ -118,6 +118,10 @@ export function markMessageSuggestedRepliesPending(
   writePending(messageId, scope);
 }
 
+export function isSuggestedRepliesJobRunning(scope: AssistantGenerationScope): boolean {
+  return isJobRunning(scope);
+}
+
 async function runSuggestedRepliesExtraction(opts: {
   messageId: number;
   chatId: number;
@@ -131,6 +135,7 @@ async function runSuggestedRepliesExtraction(opts: {
   assistantProse: string;
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
+  __testExtract?: () => Promise<SuggestedReplyItem[]>;
 }): Promise<SuggestedReplyItem[]> {
   if (suggestedRepliesHaveContent(opts.prefetchedReplies)) {
     return opts.prefetchedReplies!;
@@ -144,20 +149,22 @@ async function runSuggestedRepliesExtraction(opts: {
   let last: SuggestedReplyItem[] = opts.prefetchedReplies ?? [];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const replies = await extractSuggestedRepliesFromTurn({
-        charName: opts.charName,
-        personaName: opts.personaName,
-        personaDescription: opts.personaDescription,
-        personaSpeechExamples: opts.personaSpeechExamples,
-        userPersona: opts.userPersona,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        chatId: opts.chatId,
-        messageId: opts.messageId,
-        generationSequence: opts.generationScope.generationSequence,
-        generationRequestId: opts.generationScope.generationRequestId,
-        jobAttemptOrdinal: attempt,
-      });
+      const replies = opts.__testExtract
+        ? await opts.__testExtract()
+        : await extractSuggestedRepliesFromTurn({
+            charName: opts.charName,
+            personaName: opts.personaName,
+            personaDescription: opts.personaDescription,
+            personaSpeechExamples: opts.personaSpeechExamples,
+            userPersona: opts.userPersona,
+            userMessage: opts.userMessage,
+            assistantProse: opts.assistantProse,
+            chatId: opts.chatId,
+            messageId: opts.messageId,
+            generationSequence: opts.generationScope.generationSequence,
+            generationRequestId: opts.generationScope.generationRequestId,
+            jobAttemptOrdinal: attempt,
+          });
       last = replies;
       if (suggestedRepliesHaveContent(replies)) {
         if (attempt > 1) {
@@ -200,6 +207,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   assistantProse: string;
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
+  __testExtract?: () => Promise<SuggestedReplyItem[]>;
 }): void {
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;

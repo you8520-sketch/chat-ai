@@ -20,6 +20,7 @@ import {
 import {
   filterLedgerRowsForGenerationScope,
   generationJobKey,
+  resolveActiveAssistantGenerationScope,
   resolveActiveAssistantGenerationScopeFromRow,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
@@ -35,12 +36,142 @@ import {
 import { ensureAdminFinanceTables } from "@/lib/adminFinance";
 import { resolveAsyncTurnCoverage, resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
-import { markMessageSuggestedRepliesPending, loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
-import { markMessageStatusMetaPending, loadMessageStatusMeta } from "@/lib/statusMeta/job";
 import type { Usage } from "@/lib/chatUsage";
+import { markMessageSuggestedRepliesPending, loadMessageSuggestedReplies, scheduleSuggestedRepliesExtraction, isSuggestedRepliesJobRunning, requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
+import { markMessageStatusMetaPending, loadMessageStatusMeta, scheduleStatusMetaExtraction, isStatusMetaJobRunning, requeueStatusMetaExtractionIfNeeded } from "@/lib/statusMeta/job";
+import { SUGGESTED_REPLY_KINDS } from "@/lib/suggestedReplies/types";
+import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
+import { loadAdminBillingReceiptV3ForMessage } from "@/lib/adminBillingReceiptV3Server";
+import { serializeSuggestedRepliesRecord } from "@/lib/suggestedReplies/parse";
+import { serializeStatusMetaRecord } from "@/lib/statusMeta/types";
+import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import type { StatusMeta } from "@/lib/statusMeta/types";
 
 const CHAT_ID = 991001;
 const MSG_ID = 991010;
+const USER_ID = 991002;
+const USER_MSG_ID = 991009;
+
+function validReplies(prefix: string): SuggestedReplyItem[] {
+  return SUGGESTED_REPLY_KINDS.map((kind) => ({
+    kind,
+    text: `${prefix}-${kind}-${"x".repeat(40)}`,
+  }));
+}
+
+function validStatusMeta(label: string): StatusMeta {
+  return {
+    tableMarkdown: `| ${label} |\n| --- |\n| value |`,
+    datetime: "09:00",
+    location: "room",
+    relationship: "ok",
+    npcEmotion: "calm",
+    npcIntent: "talk",
+    nextObjective: "go",
+    hiddenThought: "none",
+    sceneSummary: "scene",
+  };
+}
+
+function seedRegenHarness() {
+  const db = getDb();
+  db.prepare("DELETE FROM api_cost_ledger WHERE assistant_message_id=?").run(MSG_ID);
+  db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM chats WHERE id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM users WHERE id=?").run(USER_ID);
+  db.prepare("DELETE FROM characters WHERE id IN (1)").run();
+  db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+    USER_ID,
+    "gen-scope@test.local",
+    "gen-scope",
+    "x"
+  );
+  db.prepare(`INSERT OR REPLACE INTO characters (id, name) VALUES (1,'Char')`).run();
+  db.prepare(`INSERT INTO chats (id, user_id, character_id, mode, memory_meta) VALUES (?,?,1,'safe','{}')`).run(
+    CHAT_ID,
+    USER_ID
+  );
+  db.prepare(
+    `INSERT INTO messages (id, chat_id, role, content, user_message_id, generation_status, alternates, active_variant, model)
+     VALUES (?, ?, 'user', 'hi', NULL, 'completed', '[]', 0, 'm')`
+  ).run(USER_MSG_ID, CHAT_ID);
+  db.prepare(
+    `INSERT INTO messages (id, chat_id, role, content, user_message_id, generation_status, alternates, active_variant, model)
+     VALUES (?, ?, 'assistant', 'gen0 text', ?, 'completed', '[]', 0, 'm')`
+  ).run(MSG_ID, CHAT_ID, USER_MSG_ID);
+}
+
+function startRegenHarness(requestId = "regen-scope-test") {
+  bootstrapStreamingTurn(getDb(), {
+    chatId: CHAT_ID,
+    requestId,
+    userContent: "hi",
+    skipUserInsert: true,
+    existingUserMessageId: USER_MSG_ID,
+    regenerateAssistantId: MSG_ID,
+  });
+}
+
+function usageWithInput(input: number): Usage {
+  return {
+    ...baseUsage(),
+    input,
+    cost: input / 10,
+    shadowPricing: {
+      pricingVersion: 1,
+      billingReferenceInputUsdPerMillion: 1,
+      billingReferenceOutputUsdPerMillion: 2,
+      billingReferenceCostKrw: 10,
+      billingReferenceCostUsd: 0.01,
+      fxSnapshot: {
+        dateKey: "2026-08-30",
+        source: "api_daily" as const,
+        baseUsdKrw: 1560,
+        overseasFeeRate: 0.02,
+        effectiveKrwPerUsd: 1560.6,
+      },
+      providerListCostStatus: "complete",
+      reserveStatus: "complete",
+      actualTurnCostCoverage: "complete",
+      actualProviderCostKrw: 31.2,
+      actualCostUsd: 0.02,
+      actualCostSource: "cheaper_inference_billed",
+      providerListCostKrw: 35,
+      inputCostKrw: 5,
+      outputCostKrw: 5,
+      reasoningCostKrw: 0,
+      cacheReadCostKrw: 0,
+      cacheWriteCostKrw: 0,
+      targetMargin: 0.5,
+      minimumMarginFloor: 0.3,
+      standardUserChargeKrw: 80,
+      promoPercent: 0,
+      finalShadowChargeKrw: 80,
+      finalShadowPoints: 80,
+      providerSavingsKrw: null,
+      providerOverrunKrw: null,
+      promoGivebackKrw: 0,
+      netPricingBufferDeltaKrw: null,
+      actualGrossProfitKrw: 50,
+      actualRealizedMargin: 0.625,
+      worstCasePromoMargin: null,
+      marginFloorViolated: null,
+      modelId: "deepseek/deepseek-v4-pro",
+      provider: "cheaperinference",
+    },
+  };
+}
+
+function scheduleBase() {
+  return {
+    messageId: MSG_ID,
+    chatId: CHAT_ID,
+    charName: "Char",
+    personaName: "Tester",
+    userMessage: "hi",
+    assistantProse: "gen0 text",
+  };
+}
 
 function baseUsage(): Usage {
   return {
@@ -315,5 +446,288 @@ describe("generation-scoped async provenance", () => {
       ],
     });
     assert.equal(receipt.async.knownActualCostUsd, 0.002);
+  });
+
+  it("W1 — deferred gen0 suggested replies scheduler cannot overwrite gen1 record", async () => {
+    seedRegenHarness();
+    let releaseGen0!: () => void;
+    const gen0Gate = new Promise<void>((resolve) => {
+      releaseGen0 = resolve;
+    });
+
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: scope(0),
+      __testExtract: async () => {
+        await gen0Gate;
+        return validReplies("STALE");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(isSuggestedRepliesJobRunning(scope(0)), true);
+
+    startRegenHarness();
+
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+
+    let gen1Started = false;
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: activeScope,
+      __testExtract: async () => {
+        gen1Started = true;
+        return validReplies("CURRENT");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(gen1Started, true);
+    assert.equal(isSuggestedRepliesJobRunning(activeScope), false);
+
+    releaseGen0();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const record = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(record?.generationSequence, activeScope.generationSequence);
+    assert.ok(record?.replies[0]?.text.startsWith("CURRENT"));
+    assert.ok(!record?.replies.some((r) => r.text.startsWith("STALE")));
+  });
+
+  it("W2 — deferred gen0 status meta scheduler cannot overwrite gen1 record", async () => {
+    seedRegenHarness();
+    let releaseGen0!: () => void;
+    const gen0Gate = new Promise<void>((resolve) => {
+      releaseGen0 = resolve;
+    });
+
+    scheduleStatusMetaExtraction({
+      ...scheduleBase(),
+      generationScope: scope(0),
+      formatSpec: "| 🕒 |",
+      __testExtract: async () => {
+        await gen0Gate;
+        return validStatusMeta("STALE");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(isStatusMetaJobRunning(scope(0)), true);
+
+    startRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+
+    let gen1Started = false;
+    scheduleStatusMetaExtraction({
+      ...scheduleBase(),
+      generationScope: activeScope,
+      formatSpec: "| 🕒 |",
+      __testExtract: async () => {
+        gen1Started = true;
+        return validStatusMeta("CURRENT");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(gen1Started, true);
+
+    releaseGen0();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const record = loadMessageStatusMeta(MSG_ID);
+    assert.equal(record?.generationSequence, activeScope.generationSequence);
+    assert.match(record?.meta.tableMarkdown ?? "", /CURRENT/);
+    assert.doesNotMatch(record?.meta.tableMarkdown ?? "", /STALE/);
+  });
+
+  it("W3 — gen0 running does not block gen1 scheduler extraction", async () => {
+    seedRegenHarness();
+    let releaseGen0!: () => void;
+    const gen0Gate = new Promise<void>((resolve) => {
+      releaseGen0 = resolve;
+    });
+
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: scope(0),
+      __testExtract: async () => {
+        await gen0Gate;
+        return validReplies("OLD");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(isSuggestedRepliesJobRunning(scope(0)), true);
+
+    startRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+
+    let gen1ExtractInvoked = false;
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: activeScope,
+      __testExtract: async () => {
+        gen1ExtractInvoked = true;
+        return validReplies("NEW");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(gen1ExtractInvoked, true);
+    releaseGen0();
+  });
+
+  it("W4 — gen0 deferred completion after regen does not write gen1 state", async () => {
+    seedRegenHarness();
+    let releaseGen0!: () => void;
+    const gen0Gate = new Promise<void>((resolve) => {
+      releaseGen0 = resolve;
+    });
+
+    scheduleSuggestedRepliesExtraction({
+      ...scheduleBase(),
+      generationScope: scope(0),
+      __testExtract: async () => {
+        await gen0Gate;
+        return validReplies("LATE");
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    startRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    markMessageSuggestedRepliesPending(MSG_ID, activeScope);
+
+    releaseGen0();
+    await new Promise((r) => setTimeout(r, 50));
+
+    const record = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(record?.generationSequence, activeScope.generationSequence);
+    assert.equal(record?.pending, true);
+    assert.ok(!record?.replies.some((r) => r.text.startsWith("LATE")));
+  });
+
+  it("Q1 — old-generation stale pending is not requeued", () => {
+    seedMessage(
+      JSON.stringify([
+        { content: "gen0", model: "m", usage: null, created_at: "", generationSequence: 0 },
+        { content: "gen1", model: "m", usage: null, created_at: "", generationSequence: 1 },
+      ]),
+      1
+    );
+    const db = getDb();
+    const staleGen0 = {
+      replies: [],
+      extractedAt: new Date(Date.now() - 120_000).toISOString(),
+      source: "background-deepseek" as const,
+      pending: true,
+      failed: false,
+      generationSequence: 0,
+    };
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      serializeSuggestedRepliesRecord(staleGen0),
+      MSG_ID
+    );
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+  });
+
+  it("Q2 — current-generation stale pending is requeued", () => {
+    seedRegenHarness();
+    startRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    const db = getDb();
+    const staleGen1 = {
+      replies: [],
+      extractedAt: new Date(Date.now() - 120_000).toISOString(),
+      source: "background-deepseek" as const,
+      pending: true,
+      failed: false,
+      generationSequence: activeScope.generationSequence,
+      generationRequestId: activeScope.generationRequestId,
+    };
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      serializeSuggestedRepliesRecord(staleGen1),
+      MSG_ID
+    );
+    assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), true);
+
+    const staleStatusGen1 = {
+      meta: validStatusMeta("pending"),
+      extractedAt: new Date(Date.now() - 120_000).toISOString(),
+      source: "background-deepseek" as const,
+      pending: true,
+      failed: false,
+      generationSequence: activeScope.generationSequence,
+      generationRequestId: activeScope.generationRequestId,
+    };
+    db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
+      serializeStatusMetaRecord(staleStatusGen1),
+      MSG_ID
+    );
+    assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), true);
+  });
+
+  it("regen bootstrap — post-bootstrap pending write is effective for current generation", () => {
+    seedRegenHarness();
+    startRegenHarness();
+    const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
+    assert.ok(activeScope);
+    markMessageSuggestedRepliesPending(MSG_ID, activeScope);
+    const record = loadMessageSuggestedReplies(MSG_ID);
+    assert.equal(record?.pending, true);
+    assert.equal(record?.generationSequence, activeScope.generationSequence);
+  });
+
+  it("variant switch — server receipt follows active variant usage and ledger", () => {
+    const usageA = usageWithInput(100);
+    const usageB = usageWithInput(200);
+    const db = getDb();
+    db.prepare("DELETE FROM api_cost_ledger WHERE assistant_message_id=?").run(MSG_ID);
+    db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT_ID);
+    db.prepare("DELETE FROM chats WHERE id=?").run(CHAT_ID);
+    db.prepare("DELETE FROM users WHERE id=?").run(USER_ID);
+    db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+      USER_ID,
+      "receipt@test.local",
+      "receipt",
+      "x"
+    );
+    db.prepare("DELETE FROM characters WHERE id IN (1)").run();
+    db.prepare(`INSERT OR REPLACE INTO characters (id, name) VALUES (1,'Char')`).run();
+    db.prepare(`INSERT INTO chats (id, user_id, character_id, mode, memory_meta) VALUES (?,?,1,'safe','{}')`).run(
+      CHAT_ID,
+      USER_ID
+    );
+    const alternates = JSON.stringify([
+      { content: "gen0", model: "m", usage: usageA, created_at: "", generationSequence: 0 },
+      { content: "gen1", model: "m", usage: usageB, created_at: "", generationSequence: 1 },
+    ]);
+    db.prepare(
+      `INSERT INTO messages (id, chat_id, role, content, model, usage, alternates, active_variant, generation_status, user_message_id)
+       VALUES (?, ?, 'assistant', 'gen0', 'm', ?, ?, 0, 'completed', NULL)`
+    ).run(MSG_ID, CHAT_ID, JSON.stringify(usageA), alternates);
+
+    insertLedgerRow(0, 0.01);
+    insertLedgerRow(1, 0.002);
+
+    const gen0Receipt = loadAdminBillingReceiptV3ForMessage({ userId: USER_ID, messageId: MSG_ID });
+    assert.equal(gen0Receipt.ok, true);
+    if (gen0Receipt.ok) {
+      assert.equal(gen0Receipt.receipt.syncReceipt.userCharge.inputTokens, 100);
+      assert.equal(gen0Receipt.receipt.async.knownActualCostUsd, 0.01);
+    }
+
+    db.prepare("UPDATE messages SET active_variant=1, content='gen1' WHERE id=?").run(MSG_ID);
+    const gen1Receipt = loadAdminBillingReceiptV3ForMessage({ userId: USER_ID, messageId: MSG_ID });
+    assert.equal(gen1Receipt.ok, true);
+    if (gen1Receipt.ok) {
+      assert.equal(gen1Receipt.receipt.syncReceipt.userCharge.inputTokens, 200);
+      assert.equal(gen1Receipt.receipt.async.knownActualCostUsd, 0.002);
+    }
   });
 });

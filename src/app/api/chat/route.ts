@@ -1014,29 +1014,6 @@ export async function POST(req: Request) {
         clientDraftPresent: typeof message === "string" && message.trim().length > 0,
       })
     );
-
-    const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
-      userNote: effectiveUserNote || undefined,
-      userPersona: userPersonaPrompt ?? undefined,
-      userMessage: messageText,
-    });
-    if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
-      const regenGenerationScope: AssistantGenerationScope = {
-        assistantMessageId: regenerateMessageId,
-        generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
-        generationRequestId: clientRequestId ?? null,
-      };
-      markMessageStatusMetaPending(
-        regenerateMessageId,
-        regenStatusPolicy.formatSpec,
-        regenGenerationScope
-      );
-    }
-    markMessageSuggestedRepliesPending(regenerateMessageId, {
-      assistantMessageId: regenerateMessageId,
-      generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
-      generationRequestId: clientRequestId ?? null,
-    });
   }
 
   const msgRowsWithId = db
@@ -2707,6 +2684,26 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (regenerateMessageId != null) {
+    const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
+      userNote: effectiveUserNote || undefined,
+      userPersona: userPersonaPrompt ?? undefined,
+      userMessage: messageText,
+    });
+    const regenGenerationScope: AssistantGenerationScope = {
+      assistantMessageId: regenerateMessageId,
+      generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
+      generationRequestId: clientRequestId ?? null,
+    };
+    if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
+      markMessageStatusMetaPending(
+        regenerateMessageId,
+        regenStatusPolicy.formatSpec,
+        regenGenerationScope
+      );
+    }
+    markMessageSuggestedRepliesPending(regenerateMessageId, regenGenerationScope);
+  }
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {
       userMessageId,

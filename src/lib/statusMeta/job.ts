@@ -26,6 +26,10 @@ function isJobRunning(scope: AssistantGenerationScope): boolean {
   return running.has(generationJobKey(scope));
 }
 
+export function isStatusMetaJobRunning(scope: AssistantGenerationScope): boolean {
+  return isJobRunning(scope);
+}
+
 export function loadMessageStatusMeta(messageId: number): StatusMetaRecord | null {
   const db = getDb();
   const row = db
@@ -171,6 +175,7 @@ async function runStatusMetaExtraction(opts: {
   memoryBlock?: string;
   loreBlock?: string;
   formatSpec?: string | null;
+  __testExtract?: (attempt: number) => Promise<StatusMeta>;
 }): Promise<StatusMeta> {
   const formatSpec = opts.formatSpec?.trim() || null;
   const previousMeta = loadPreviousTurnStatusMeta(opts.chatId, opts.messageId);
@@ -188,24 +193,26 @@ async function runStatusMetaExtraction(opts: {
 
   for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
     try {
-      const meta = await extractStatusMetaFromTurn({
-        chatId: opts.chatId,
-        messageId: opts.messageId,
-        generationSequence: opts.generationScope.generationSequence,
-        generationRequestId: opts.generationScope.generationRequestId,
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        personaName: opts.personaName,
-        userPersona: opts.userPersona,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        userNote: opts.userNote,
-        memoryBlock: opts.memoryBlock,
-        loreBlock: opts.loreBlock,
-        previousMeta,
-        formatSpec,
-        jobAttemptOrdinal: attempt,
-      });
+      const meta = opts.__testExtract
+        ? await opts.__testExtract(attempt)
+        : await extractStatusMetaFromTurn({
+            chatId: opts.chatId,
+            messageId: opts.messageId,
+            generationSequence: opts.generationScope.generationSequence,
+            generationRequestId: opts.generationScope.generationRequestId,
+            charName: opts.charName,
+            characterIdentity: opts.characterIdentity,
+            personaName: opts.personaName,
+            userPersona: opts.userPersona,
+            userMessage: opts.userMessage,
+            assistantProse: opts.assistantProse,
+            userNote: opts.userNote,
+            memoryBlock: opts.memoryBlock,
+            loreBlock: opts.loreBlock,
+            previousMeta,
+            formatSpec,
+            jobAttemptOrdinal: attempt,
+          });
       lastMeta = meta;
       if (statusMetaHasDisplayContent(meta, formatSpec)) {
         if (attempt > 1) {
@@ -253,6 +260,7 @@ export function scheduleStatusMetaExtraction(opts: {
   formatSpec?: string | null;
   /** 모델 본문에서 분리한 pipe-table — Flash 대신 즉시 StatusMetaCard에 사용 */
   prefilledTableMarkdown?: string | null;
+  __testExtract?: (attempt: number) => Promise<StatusMeta>;
 }): void {
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;

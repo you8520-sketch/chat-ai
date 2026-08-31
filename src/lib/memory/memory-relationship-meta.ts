@@ -23,13 +23,17 @@ import {
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 import { setMemoryRelationshipTaskState } from "./memoryRelationshipTask";
-import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
+import {
+  isCurrentAssistantGeneration,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 export type { RelationshipMetaCategory };
 
 export type RelationshipMetaApplyResult = {
   meta: MemoryMeta;
   accepted: boolean;
+  rejectReason?: "stale_epoch_rejected" | "stale_generation_rejected";
 };
 
 export function loadChatRelationshipMeta(chatId: number, names?: HonorificNames): MemoryMeta {
@@ -135,11 +139,26 @@ export function applyRelationshipDeltaToChat(opts: {
   delta: RelationshipMetaDelta;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
+  generationScope?: AssistantGenerationScope;
   __testThrowOnSave?: boolean;
 }): RelationshipMetaApplyResult {
   const db = getDb();
   const snapshot = opts.boundarySnapshot ?? getMemorySourceBoundary(opts.chatId);
-  return db.transaction(() => {
+  return db.transaction((): RelationshipMetaApplyResult => {
+    if (opts.generationScope && !isCurrentAssistantGeneration(opts.generationScope, db)) {
+      console.info("STALE_GENERATION_RESULT_REJECTED", {
+        family: "memory_relationship",
+        messageId: opts.generationScope.assistantMessageId,
+        generationSequence: opts.generationScope.generationSequence,
+        phase: "projection_write",
+      });
+      return {
+        meta: loadChatRelationshipMeta(opts.chatId, opts.names),
+        accepted: false,
+        rejectReason: "stale_generation_rejected",
+      };
+    }
+
     if (
       !isMemoryWriteGuardCurrentCore(db, {
         chatId: opts.chatId,
@@ -155,6 +174,7 @@ export function applyRelationshipDeltaToChat(opts: {
       return {
         meta: loadChatRelationshipMeta(opts.chatId, opts.names),
         accepted: false,
+        rejectReason: "stale_epoch_rejected",
       };
     }
 
@@ -267,11 +287,23 @@ async function runProviderBackedRelationshipMerge(
       delta: extractResult.delta,
       sourceUserMessageId: opts.sourceUserMessageId,
       boundarySnapshot: opts.boundarySnapshot,
+      generationScope: generationScope ?? undefined,
       __testThrowOnSave: opts.__testThrowOnSave,
     });
+    if (!applied.accepted) {
+      if (applied.rejectReason === "stale_generation_rejected") {
+        return applied.meta;
+      }
+      recordProviderBackedTaskTerminalState(
+        opts.assistantMessageId,
+        "stale_epoch_rejected",
+        generationScope
+      );
+      return applied.meta;
+    }
     recordProviderBackedTaskTerminalState(
       opts.assistantMessageId,
-      applied.accepted ? "commit_accepted" : "stale_epoch_rejected",
+      "commit_accepted",
       generationScope
     );
     return applied.meta;
@@ -324,6 +356,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
         delta: opts.mainModelDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
         __testThrowOnSave: opts.__testThrowOnSave,
       });
       return applied.meta;
