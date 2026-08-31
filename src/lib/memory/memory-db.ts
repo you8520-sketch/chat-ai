@@ -1,4 +1,10 @@
 import { getDb } from "@/lib/db";
+import {
+  clearChatsMemoryColumnIfPresent,
+} from "@/lib/memory/chats-memory-column-compat";
+import {
+  migrateLegacyCurrentSummaryIntoCanonical,
+} from "@/lib/memory/chats-memory-convergence";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -20,7 +26,7 @@ export function getOrCreateChatMemory(
   let row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
 
   if (!row) {
-    migrateLegacyChatMemory(chatId, userId, characterId, tier);
+    migrateLegacyCurrentSummaryIntoCanonical(db, chatId, userId, characterId, tier);
     row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
     if (!row) {
       db.prepare(
@@ -48,33 +54,6 @@ export function getOrCreateChatMemory(
 export function getChatMemoryRow(chatId: number): ChatMemoryRow | null {
   const row = getDb().prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
   return row ?? null;
-}
-
-/** 해당 채팅방의 chats.current_summary / memory → chat_memories.recent_summary 1회 이전 */
-function migrateLegacyChatMemory(
-  chatId: number,
-  userId: number,
-  characterId: number,
-  tier: MemoryTier
-): void {
-  const db = getDb();
-  const legacy = db
-    .prepare(
-      `SELECT current_summary, memory FROM chats
-       WHERE id=? AND user_id=? AND character_id=?
-         AND ((current_summary IS NOT NULL AND current_summary != '') OR (memory IS NOT NULL AND memory != ''))`
-    )
-    .get(chatId, userId, characterId) as { current_summary?: string; memory: string } | undefined;
-
-  if (!legacy) return;
-  const text = (legacy.current_summary?.trim() || legacy.memory?.trim()) ?? "";
-  if (!text) return;
-
-  db.prepare(
-    `INSERT INTO chat_memories
-      (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
-     VALUES (?,?,?,?,?,?,?,0)`
-  ).run(chatId, userId, characterId, text, "", tier, text.length);
 }
 
 export function updateChatMemory(
@@ -128,7 +107,8 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
       used_chars=0, message_count=0, summarized_turn_count=0, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(chatId);
-  db.prepare(`UPDATE chats SET current_summary='', memory='' WHERE id=? AND user_id=?`).run(chatId, userId);
+  db.prepare(`UPDATE chats SET current_summary='' WHERE id=? AND user_id=?`).run(chatId, userId);
+  clearChatsMemoryColumnIfPresent(db, chatId, userId);
   getOrCreateChatMemory(chatId, userId, characterId, tier);
 }
 export function upgradeTierForUser(userId: number, tier: MemoryTier): void {

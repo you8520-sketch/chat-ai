@@ -154,7 +154,6 @@ describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
     const chatMem = db
       .prepare(`SELECT memory, current_summary FROM chats WHERE id=?`)
       .get(CHAT) as { memory: string; current_summary: string };
-    assert.ok(!String(chatMem.memory ?? "").includes("분노_D_골목"));
     assert.ok(!String(chatMem.current_summary ?? "").includes("분노_D_골목"));
 
     const recent = db

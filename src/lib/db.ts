@@ -26,6 +26,7 @@ import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
@@ -1631,6 +1632,7 @@ function migrate(db: Database.Database) {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  convergeLegacyChatsMemoryIntoCanonical(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
@@ -1696,6 +1698,7 @@ export function dropLegacyCharacterMemoriesTableOnce(db: Database.Database): voi
 /** Re-export for migration test wiring consistent with other retirement helpers. */
 export { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 export { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+export { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 
 function migrateBoardPostsOnce(db: Database.Database) {
   db.exec(`

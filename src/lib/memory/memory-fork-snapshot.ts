@@ -842,8 +842,8 @@ export async function initializeForkChatMemory(opts: {
 
   const db = getDb();
   db.prepare(
-    `UPDATE chats SET memory=?, current_summary=?, memory_archived_turns=? WHERE id=? AND user_id=?`
-  ).run(recentSummary, recentSummary, summarizedTurnCount, opts.newChatId, opts.userId);
+    `UPDATE chats SET current_summary=?, memory_archived_turns=? WHERE id=? AND user_id=?`
+  ).run(recentSummary, summarizedTurnCount, opts.newChatId, opts.userId);
 
   return { recentSummary, summarizedTurnCount };
 }

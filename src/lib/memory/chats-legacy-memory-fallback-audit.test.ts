@@ -5,7 +5,7 @@
  * Frozen classification:
  * - chat_memories.recent_summary → CURRENT_CANONICAL
  * - chats.current_summary → CURRENT_MIRROR + MIGRATION_FALLBACK (precedence 1)
- * - chats.memory → MIGRATION_ONLY_FALLBACK (precedence 2) + reset guard + reconcile/fork mirror
+ * - chats.memory → M1 RETIRED semantic/fallback (physical column kept); global convergence only
  */
 import Module from "module";
 
@@ -77,13 +77,13 @@ describe("chats legacy memory fallback audit — lazy bootstrap precedence", () 
     assert.equal(row.recent_summary, "CURRENT");
   });
 
-  it("A2 memory fallback works only when current_summary empty", () => {
+  it("A2 memory-only legacy is not lazy-read after M1 — global convergence required", () => {
     getDb();
     deleteChatMemoriesRow();
     seedChatLegacyFields({ current_summary: "", memory: "OLD" });
 
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(row.recent_summary, "OLD");
+    assert.equal(row.recent_summary, "");
   });
 
   it("A3 existing canonical recent_summary is never overwritten by legacy fields", () => {
