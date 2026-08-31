@@ -1,31 +1,66 @@
 /**
- * Custom-server boot import boundary.
+ * Scoped custom-server background import boundary.
  *
  * Production starts via `tsx server.js` without Node's `react-server` condition.
- * Next.js server modules use `import "server-only"`, which throws outside that
- * condition. The custom server process is always server-side, so neutralize the
- * marker before background dynamic imports (schedulers, derived-cache wakeup).
- *
- * Must be required from server.js before any TS module that transitively loads
- * `server-only` (directly or via `@/lib/db`).
+ * Background dynamic imports may transitively load `import "server-only"`, which
+ * throws outside that condition. This helper temporarily neutralizes the marker
+ * only while an explicit background import is loading, then restores Module._load.
  */
 const Module = require("module");
 
-let installed = false;
+/** @type {typeof Module._load | null} */
+let originalModuleLoad = null;
+/** @type {typeof Module._load | null} */
+let neutralizerModuleLoad = null;
+let boundaryDepth = 0;
 
-function installCustomServerBootImportBoundary() {
-  if (installed) return;
-  installed = true;
-
-  const originalLoad = Module._load;
-  Module._load = function customServerBootLoad(request, parent, isMain) {
-    if (request === "server-only") return {};
-    return originalLoad.call(this, request, parent, isMain);
-  };
+function activateCustomServerBootImportBoundary() {
+  if (boundaryDepth === 0) {
+    originalModuleLoad = Module._load;
+    neutralizerModuleLoad = function customServerBootLoad(request, parent, isMain) {
+      if (request === "server-only") return {};
+      return originalModuleLoad.call(this, request, parent, isMain);
+    };
+    Module._load = neutralizerModuleLoad;
+  }
+  boundaryDepth += 1;
 }
 
-installCustomServerBootImportBoundary();
+function deactivateCustomServerBootImportBoundary() {
+  if (boundaryDepth <= 0) return;
+  boundaryDepth -= 1;
+  if (boundaryDepth === 0 && originalModuleLoad !== null) {
+    Module._load = originalModuleLoad;
+    originalModuleLoad = null;
+    neutralizerModuleLoad = null;
+  }
+}
+
+/**
+ * Run a background boot import under temporary server-only compatibility.
+ * @template T
+ * @param {() => T | Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+async function withCustomServerBootImportBoundary(fn) {
+  activateCustomServerBootImportBoundary();
+  try {
+    return await fn();
+  } finally {
+    deactivateCustomServerBootImportBoundary();
+  }
+}
+
+function isCustomServerBootImportBoundaryActive() {
+  return boundaryDepth > 0;
+}
+
+function getCustomServerBootImportBoundaryDepth() {
+  return boundaryDepth;
+}
 
 module.exports = {
-  installCustomServerBootImportBoundary,
+  withCustomServerBootImportBoundary,
+  isCustomServerBootImportBoundaryActive,
+  getCustomServerBootImportBoundaryDepth,
 };
