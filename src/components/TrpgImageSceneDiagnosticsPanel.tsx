@@ -7,20 +7,12 @@ import {
 } from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 
 type TrpgImageSceneDiagnosticsPanelProps = {
-  diagnostics: TrpgImageSceneDiagnosticsPayload | undefined;
+  diagnostics: TrpgImageSceneDiagnosticsPayload;
 };
 
 export default function TrpgImageSceneDiagnosticsPanel({
   diagnostics,
 }: TrpgImageSceneDiagnosticsPanelProps) {
-  if (!diagnostics) {
-    return (
-      <div className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[10px] text-zinc-500">
-        생성 후 이번 처리 경로가 여기에 표시됩니다.
-      </div>
-    );
-  }
-
   const rows = buildTrpgImageSceneDiagnosticsDisplayRows(diagnostics);
   const rawFallback = isTrpgAiFocusRawFallback(diagnostics);
 

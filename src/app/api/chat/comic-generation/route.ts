@@ -52,6 +52,7 @@ import {
 } from "@/lib/trpg/trpgAiFocusSelection";
 import {
   buildTrpgImageSceneDiagnosticsPayload,
+  resolveTrpgImageSceneDiagnosticsForResponse,
   type TrpgImageSceneDiagnosticsPayload,
 } from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 import {
@@ -1121,10 +1122,11 @@ export async function POST(req: Request) {
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-        trpgImageSceneDiagnostics:
-          campaignId && trpgImageSceneDiagnosticsPayload
-            ? trpgImageSceneDiagnosticsPayload
-            : undefined,
+        trpgImageSceneDiagnostics: resolveTrpgImageSceneDiagnosticsForResponse({
+          canSeeCost,
+          campaignId,
+          payload: trpgImageSceneDiagnosticsPayload,
+        }),
         totalPointsCost: deduction.total,
         remainingPoints: deduction.balance.total,
         paidPoints: deduction.balance.paid,

@@ -23,7 +23,19 @@ export function resolveTrpgImageSceneDiagnosticsFromResponse(
   return response?.trpgImageSceneDiagnostics ?? clearedTrpgImageSceneDiagnostics();
 }
 
-/** Server response owner helper — TRPG campaign illustrations always emit a payload. */
+/** Server response visibility owner — reuses existing admin canSeeCost gate. */
+export function resolveTrpgImageSceneDiagnosticsForResponse(opts: {
+  canSeeCost: boolean;
+  campaignId: number | null | undefined;
+  payload: TrpgImageSceneDiagnosticsPayload | null;
+}): TrpgImageSceneDiagnosticsPayload | undefined {
+  if (!opts.canSeeCost || !opts.campaignId || !opts.payload) {
+    return undefined;
+  }
+  return opts.payload;
+}
+
+/** Server response owner helper — builds payload for admin-gated TRPG diagnostics. */
 export function buildTrpgImageSceneDiagnosticsPayload(opts: {
   requestedMode: TrpgImageSceneMode;
   modeApplied: TrpgImageSceneMode;
@@ -83,7 +95,7 @@ export function buildTrpgImageSceneDiagnosticsDisplayRows(
 
   return [
     { key: "modeRequested", label: "요청 모드", value: diagnostics.modeRequested },
-    { key: "modeApplied", label: "적용 모드", value: diagnostics.modeApplied },
+    { key: "modeApplied", label: "실제 적용 모드", value: diagnostics.modeApplied },
     { key: "mode", label: "mode", value: diagnostics.mode },
     {
       key: "fallback",

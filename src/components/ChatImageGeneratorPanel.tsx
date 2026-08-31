@@ -1663,9 +1663,6 @@ export default function ChatImageGeneratorPanel({
                         </>
                       ) : null}
                     </div>
-                    {trpgCampaignMode && sceneIsIllustration && activeResultUrl ? (
-                      <TrpgImageSceneDiagnosticsPanel diagnostics={trpgImageSceneDiagnostics} />
-                    ) : null}
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
                         ? activeMode === "persona"
@@ -1788,9 +1785,11 @@ export default function ChatImageGeneratorPanel({
                                 AI_FOCUS
                               </label>
                             </div>
-                            <TrpgImageSceneDiagnosticsPanel
-                              diagnostics={trpgImageSceneDiagnostics}
-                            />
+                            {trpgImageSceneDiagnostics ? (
+                              <TrpgImageSceneDiagnosticsPanel
+                                diagnostics={trpgImageSceneDiagnostics}
+                              />
+                            ) : null}
                           </div>
                         ) : null}
                         {partyPickerMember && partyPickerMember.images.length > 1 ? (
