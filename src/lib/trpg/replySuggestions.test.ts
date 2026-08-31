@@ -205,7 +205,6 @@ describe("TRPG reply suggestions", () => {
     assert.match(room, /bottomRef/);
     assert.match(room, /scrollToLatest/);
     assert.match(room, /followLatestRef/);
-    assert.match(room, /shouldSkipTrpgNextActionTailFollow/);
     assert.match(room, /scrollIntoView/);
     assert.match(room, /block: "nearest"/);
     assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);

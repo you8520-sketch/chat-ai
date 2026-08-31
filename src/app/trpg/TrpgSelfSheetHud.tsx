@@ -179,7 +179,6 @@ export default function TrpgSelfSheetHud({
   return (
     <section
       aria-label={label}
-      data-trpg-self-sheet-hud
       className="sticky bottom-0 z-30 mt-3 border-t border-white/10 bg-[#101010]/95 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-md"
     >
       <div className="hidden md:block">

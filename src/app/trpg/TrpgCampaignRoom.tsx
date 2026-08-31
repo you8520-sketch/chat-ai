@@ -153,7 +153,6 @@ import {
   shouldDetachLiveFollowOnUserIntent,
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
-  shouldSkipTrpgNextActionTailFollow,
   type ActorRevealReport,
   type GmRevealReport,
   type TrpgLiveFollowOwner,
@@ -1415,25 +1414,9 @@ export default function TrpgCampaignRoom({
         case "NEXT_ACTION": {
           const target = bottomRef.current;
           if (target) {
-            const hudEl = document.querySelector("[data-trpg-self-sheet-hud]");
-            const hudTop =
-              hudEl instanceof HTMLElement
-                ? hudEl.getBoundingClientRect().top
-                : window.innerHeight;
-            const root = document.documentElement;
-            const maxScrollY = Math.max(0, root.scrollHeight - root.clientHeight);
-            if (
-              !shouldSkipTrpgNextActionTailFollow({
-                tailRectBottom: target.getBoundingClientRect().bottom,
-                hudTop,
-                scrollY: window.scrollY,
-                maxScrollY,
-              })
-            ) {
-              runProgrammaticScroll(() => {
-                target.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
-              }, behavior);
-            }
+            runProgrammaticScroll(() => {
+              target.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
+            }, behavior);
           } else {
             runProgrammaticScroll(() => {
               window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
