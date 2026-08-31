@@ -192,16 +192,6 @@ export function freezeViewportScrollPosition(): number {
   return top;
 }
 
-export function decideManualScrollRejoin(opts: {
-  manualDetached: boolean;
-  hasLeftFollowZoneSinceDetach: boolean;
-  nearFollowOwner: boolean;
-}): { rejoin: boolean } {
-  if (!opts.manualDetached) return { rejoin: false };
-  if (!opts.hasLeftFollowZoneSinceDetach) return { rejoin: false };
-  return { rejoin: opts.nearFollowOwner };
-}
-
 export function updateManualDetachFollowZone(opts: {
   manualDetached: boolean;
   nearFollowOwner: boolean;

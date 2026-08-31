@@ -132,7 +132,6 @@ import {
   decideLiveFollowOnGrowth,
   decideLiveFollowUpdate,
   decidePassiveScrollFollowUpdate,
-  freezeViewportScrollPosition,
   shouldDetachLiveFollowOnKey,
   shouldDetachLiveFollowOnTouchDelta,
   shouldDetachLiveFollowOnWheel,
@@ -1334,7 +1333,6 @@ export default function TrpgCampaignRoom({
     if (!shouldDetachLiveFollowOnUserIntent()) return;
     cancelPendingFollowScroll();
     cancelProgrammaticScrollOwnership();
-    freezeViewportScrollPosition();
     manualScrollDetachedRef.current = true;
     hasLeftFollowZoneSinceDetachRef.current = false;
     followLatestRef.current = false;
@@ -1390,7 +1388,6 @@ export default function TrpgCampaignRoom({
 
   const scrollToFollowOwner = useCallback(
     (owner: TrpgLiveFollowOwner, behavior: ScrollBehavior = "instant") => {
-      if (!followLatestRef.current || manualScrollDetachedRef.current) return;
       switch (owner) {
         case "GM_NARRATION_END":
           if (narrationEndRef.current) alignNarrationEnd(behavior);
@@ -1471,12 +1468,12 @@ export default function TrpgCampaignRoom({
 
   const scrollToLatest = useCallback(
     (behavior: ScrollBehavior = "instant") => {
-      scrollToFollowOwner(liveFollowOwner, behavior);
       manualScrollDetachedRef.current = false;
       hasLeftFollowZoneSinceDetachRef.current = false;
       followLatestRef.current = true;
       setFollowLatest(true);
       setUnseenLatest(false);
+      scrollToFollowOwner(liveFollowOwner, behavior);
     },
     [liveFollowOwner, scrollToFollowOwner]
   );
@@ -1602,6 +1599,13 @@ export default function TrpgCampaignRoom({
         hasLeftFollowZoneSinceDetach: hasLeftFollowZoneSinceDetachRef.current,
       });
       hasLeftFollowZoneSinceDetachRef.current = update.hasLeftFollowZoneSinceDetach;
+      if (update.rejoin) {
+        manualScrollDetachedRef.current = false;
+        followLatestRef.current = true;
+        setFollowLatest(true);
+        setUnseenLatest(false);
+        return;
+      }
       if (manualScrollDetachedRef.current) {
         if (update.unseenLatest) setUnseenLatest(true);
         return;
@@ -1681,7 +1685,7 @@ export default function TrpgCampaignRoom({
   ]);
 
   useLayoutEffect(() => {
-    if (!followLatestRef.current || manualScrollDetachedRef.current) return;
+    if (!followLatestRef.current) return;
     if (liveFollowOwner !== "NEXT_ACTION") return;
     if (!showReplySuggestions && !nextActionVisible) return;
     scrollToFollowOwner("NEXT_ACTION", "smooth");

@@ -89,16 +89,16 @@ function campaignEntryReset(state: ScrollFollowModel): ScrollFollowModel {
   };
 }
 
-/** Test-local model of scrollToLatest() explicit rejoin. */
+/** Test-local model of scrollToLatest() explicit rejoin — production order. */
 function explicitRejoin(state: ScrollFollowModel): ScrollFollowModel {
-  return {
+  const restored = {
     ...state,
     manualDetached: false,
     hasLeftFollowZoneSinceDetach: false,
     followLatest: true,
     unseenLatest: false,
-    programmaticScrollCount: state.programmaticScrollCount + 1,
   };
+  return passiveFollowScrollAttempt(restored);
 }
 
 /** Test-local model of hysteresis rejoin via decidePassiveScrollFollowUpdate. */

@@ -116,11 +116,21 @@ function scrollToFollowOwnerAttempt(model: LifecycleModel) {
   model.programmaticScrollCount += 1;
 }
 
-function explicitRejoin(model: LifecycleModel) {
+/** Broken #790 production order: scroll before restore — guard blocks rejoin scroll. */
+function scrollToLatestBroken(model: LifecycleModel) {
+  scrollToFollowOwnerAttempt(model);
   model.manualDetached = false;
+  model.hasLeftFollowZoneSinceDetach = false;
   model.followLatest = true;
   model.unseenLatest = false;
+}
+
+/** Fixed production order: restore rejoin authority, then scrollToFollowOwner. */
+function scrollToLatestProduction(model: LifecycleModel) {
+  model.manualDetached = false;
   model.hasLeftFollowZoneSinceDetach = false;
+  model.followLatest = true;
+  model.unseenLatest = false;
   scrollToFollowOwnerAttempt(model);
 }
 
@@ -221,11 +231,20 @@ describe("manual scroll detach absolute — S2–S14", () => {
     assert.equal(model.programmaticScrollCount, 0);
   });
 
-  it("S9: explicit rejoin → manualDetached=false, one programmatic scroll", () => {
-    let model = detachFixed(createModel());
-    explicitRejoin(model);
+  it("S9 BEFORE: broken scrollToLatest order — guard blocks explicit rejoin scroll", () => {
+    let model = detachFixed(createModel({ liveFollowOwner: "NEXT_ACTION" }));
+    scrollToLatestBroken(model);
     assert.equal(model.manualDetached, false);
     assert.equal(model.followLatest, true);
+    assert.equal(model.programmaticScrollCount, 0, "EXPLICIT_REJOIN_BROKEN_BEFORE");
+  });
+
+  it("S9: explicit rejoin restores state before scroll — one programmatic scroll", () => {
+    let model = detachFixed(createModel({ liveFollowOwner: "NEXT_ACTION" }));
+    scrollToLatestProduction(model);
+    assert.equal(model.manualDetached, false);
+    assert.equal(model.followLatest, true);
+    assert.equal(model.unseenLatest, false);
     assert.equal(model.programmaticScrollCount, 1);
   });
 
@@ -284,6 +303,21 @@ describe("production wiring — TrpgCampaignRoom scroll owners", () => {
   it("passive scroll handler does not rejoin on update.rejoin", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.doesNotMatch(room, /if \(update\.rejoin\)/);
+  });
+
+  it("scrollToLatest restores rejoin state before scrollToFollowOwner", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const block = room.match(/const scrollToLatest = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(block, "scrollToLatest callback must exist");
+    const body = block[0]!;
+    const restoreIdx = body.indexOf("manualScrollDetachedRef.current = false");
+    const scrollIdx = body.indexOf("scrollToFollowOwner(liveFollowOwner");
+    assert.ok(restoreIdx >= 0, "must restore manualScrollDetachedRef");
+    assert.ok(scrollIdx >= 0, "must call scrollToFollowOwner");
+    assert.ok(
+      restoreIdx < scrollIdx,
+      "rejoin state must be restored before scrollToFollowOwner"
+    );
   });
 
   it("GM complete → NEXT_ACTION owner transition", () => {
