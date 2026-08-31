@@ -71,6 +71,18 @@ export function clearGmNarrationDraft(db: Database.Database, roundId: number): v
   db.prepare(`UPDATE trpg_rounds SET gm_narration_draft_json=NULL WHERE id=?`).run(roundId);
 }
 
+/** Generation-scoped draft cleanup — stale owner cannot clear a newer lease draft. */
+export function clearGmNarrationDraftForGeneration(
+  db: Database.Database,
+  roundId: number,
+  generationId: string
+): boolean {
+  const result = db
+    .prepare(`UPDATE trpg_rounds SET gm_narration_draft_json=NULL WHERE id=? AND gm_generation_id=?`)
+    .run(roundId, generationId);
+  return result.changes === 1;
+}
+
 export function gmProviderTimingMetrics(timings: GmProviderTimings | undefined): {
   firstContentMs: number | null;
   firstNarrationMs: number | null;

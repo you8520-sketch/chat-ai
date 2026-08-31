@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { ensureTrpgTables } from "./schema";
 import {
   clearGmNarrationDraft,
+  clearGmNarrationDraftForGeneration,
   loadGmNarrationDraft,
   saveGmNarrationDraftForGeneration,
 } from "./gmNarrationDraft";
@@ -103,6 +104,26 @@ describe("gmNarrationDraft", () => {
       updatedAtMs: Date.now(),
     });
     clearGmNarrationDraft(db, roundId);
+    assert.equal(loadGmNarrationDraft(db, roundId), null);
+    db.close();
+  });
+
+  it("generation-fenced clear removes only matching owner draft", () => {
+    const db = memoryDb();
+    const roundId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_rounds (campaign_id, round_number, phase, gm_generation_id) VALUES (1,1,'GENERATING_NARRATION','token-b')`
+        )
+        .run().lastInsertRowid
+    );
+    saveGmNarrationDraftForGeneration(db, roundId, "token-b", {
+      text: "owner-b",
+      updatedAtMs: Date.now(),
+    });
+    assert.equal(clearGmNarrationDraftForGeneration(db, roundId, "token-a"), false);
+    assert.equal(loadGmNarrationDraft(db, roundId)?.text, "owner-b");
+    assert.equal(clearGmNarrationDraftForGeneration(db, roundId, "token-b"), true);
     assert.equal(loadGmNarrationDraft(db, roundId), null);
     db.close();
   });
