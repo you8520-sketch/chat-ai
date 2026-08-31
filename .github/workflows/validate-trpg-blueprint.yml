@@ -11,7 +11,10 @@ on:
       - "src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts"
       - "src/lib/trpg/blueprintRolloutStatus.ts"
       - "src/lib/trpg/blueprintRolloutStatus.test.ts"
+      - "src/lib/trpg/blueprintWarmupForAdmin.ts"
+      - "src/lib/trpg/blueprintWarmupForAdmin.test.ts"
       - "src/app/api/admin/trpg-blueprint-rollout-status/route.ts"
+      - "src/app/api/admin/trpg-blueprint-warmup/route.ts"
       - "src/lib/trpg/blueprintValidity.ts"
       - "src/lib/trpg/blueprintSourceFingerprint.ts"
       - "src/lib/trpg/sandboxDirector.ts"
@@ -59,6 +62,8 @@ jobs:
         run: npm run typecheck:app
       - name: Blueprint rollout status snapshot
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/blueprintRolloutStatus.test.ts
+      - name: Admin blueprint warmup action
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/blueprintWarmupForAdmin.test.ts
       - name: Canonical convergence
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts
       - name: Sync fallback healing
