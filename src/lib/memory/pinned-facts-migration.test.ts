@@ -184,6 +184,23 @@ describe("computeLegacyPinnedFold fixture matrix", () => {
       null
     );
   });
+
+  it("migration no-op when pinned_facts column is absent", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE chat_memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id INTEGER NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL,
+        character_id INTEGER NOT NULL,
+        recent_summary TEXT NOT NULL DEFAULT '',
+        archive_summary TEXT NOT NULL DEFAULT '',
+        membership_tier TEXT NOT NULL DEFAULT 'free',
+        used_chars INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    assert.doesNotThrow(() => migrateLegacyPinnedFactsIntoRecentSummary(db));
+  });
 });
 
 describe("pinned_facts global migration lifecycle", () => {

@@ -25,6 +25,7 @@ import {
   hasCharacterMemoriesRetired,
   hasCurrentRemoteSchemaInvariant,
   hasMemoryBufferRetired,
+  hasPinnedFactsDropCompatible,
   hasPinnedFactsPhase1Clean,
 } from "@/lib/remoteSchemaCurrentInvariant";
 import {
@@ -84,13 +85,23 @@ function seedV2CurrentMarker(db: Database.Database): void {
   `);
 }
 
-function seedV3CurrentMarker(db: Database.Database): void {
+function seedV4CurrentMarker(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _remote_schema_state (
       version TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     INSERT OR REPLACE INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+  `);
+}
+
+function seedV3LegacyMarker(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _remote_schema_state (
+      version TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT OR REPLACE INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION_PREVIOUS}');
   `);
 }
 
@@ -212,7 +223,7 @@ describe("remote schema memory reachability", () => {
       const v3 = db
         .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
         .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
-      assert.equal(v3?.version, REMOTE_SCHEMA_VERSION, `${setup.name}: v3 marker recorded`);
+      assert.equal(v3?.version, REMOTE_SCHEMA_VERSION, `${setup.name}: v4 marker recorded`);
       db.close();
     }
   });
@@ -254,6 +265,7 @@ describe("remote schema memory reachability", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
+    assert.equal(hasPinnedFactsDropCompatible(db), true);
     assert.equal(hasPinnedFactsPhase1Clean(db), true);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
     assert.equal(canAdoptExistingRemoteSchema(db), true);
@@ -275,12 +287,12 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R6 v3 marker + recreated memory_buffer triggers repair migrate", () => {
+  it("R6 v4 marker + recreated memory_buffer triggers repair migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     createLegacyMemoryBuffer(db);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -296,12 +308,12 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R7 v3 marker + recreated character_memories triggers repair migrate", () => {
+  it("R7 v4 marker + recreated character_memories triggers repair migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     createLegacyCharacterMemories(db);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -316,13 +328,13 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R8 v3 marker + dirty pinned reintroduced triggers repair migrate", () => {
+  it("R8 v4 marker + dirty pinned reintroduced triggers repair migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     createChatMemoriesWithDirtyPinned(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     db.prepare(`UPDATE chat_memories SET pinned_facts=? WHERE chat_id=1`).run("rollback pinned");
     assert.equal(hasPinnedFactsPhase1Clean(db), false);
 
@@ -339,12 +351,12 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R9 fully current v3 DB skips migrate", () => {
+  it("R9 fully current v4 DB skips migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
 
     let migrations = 0;
@@ -373,7 +385,7 @@ describe("fail-closed memory base", () => {
     db.close();
   });
 
-  it("M2 chat_memories without pinned_facts column is not Phase1 clean or current", () => {
+  it("M2 chat_memories without pinned_facts column is Phase1-not-clean but drop-compatible", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     db.exec("DROP TABLE chat_memories");
@@ -391,7 +403,8 @@ describe("fail-closed memory base", () => {
     `);
     ensureChatBillingSettlementSchema(db);
     assert.equal(hasPinnedFactsPhase1Clean(db), false);
-    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    assert.equal(hasPinnedFactsDropCompatible(db), true);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
     db.close();
   });
 
@@ -405,12 +418,12 @@ describe("fail-closed memory base", () => {
 });
 
 describe("one current remote schema owner", () => {
-  it("C1 v3 marker + missing required production table is not current and runs migrate", () => {
+  it("C1 v4 marker + missing required production table is not current and runs migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     db.exec("DROP TABLE web_push_outbox");
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -425,12 +438,12 @@ describe("one current remote schema owner", () => {
     db.close();
   });
 
-  it("C2 v3 marker + missing required production column is not current and runs migrate", () => {
+  it("C2 v4 marker + missing required production column is not current and runs migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     db.exec(`
       CREATE TABLE messages_new (id INTEGER);
       INSERT INTO messages_new (id) VALUES (1);
@@ -450,7 +463,7 @@ describe("one current remote schema owner", () => {
     db.close();
   });
 
-  it("C3 full structure without v3 marker adopts without migrate", () => {
+  it("C3 full structure without v4 marker adopts without migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
@@ -477,11 +490,11 @@ describe("one current remote schema owner", () => {
 });
 
 describe("current schema invariant owner", () => {
-  it("isCurrent requires v3 marker and full invariant (not billing-only)", () => {
+  it("isCurrent requires v4 marker and full invariant (not billing-only)", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
-    seedV3CurrentMarker(db);
+    seedV4CurrentMarker(db);
     createLegacyMemoryBuffer(db);
 
     let migrations = 0;

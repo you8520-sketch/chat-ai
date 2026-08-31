@@ -29,8 +29,7 @@ export function hasCharacterMemoriesRetired(db: SchemaDatabase): boolean {
 
 /**
  * #779 Phase 1 — chat_memories + pinned_facts carrier exist and no dirty rows.
- * Fail-closed: missing table/column is not clean.
- * ACTUAL DATA STATE > FLAG.
+ * Historical helper: carrier-present schema only. Not used by current remote invariant.
  */
 export function hasPinnedFactsPhase1Clean(db: SchemaDatabase): boolean {
   if (!tableExists(db, "chat_memories")) return false;
@@ -46,11 +45,32 @@ export function hasPinnedFactsPhase1Clean(db: SchemaDatabase): boolean {
   );
 }
 
+/**
+ * Phase 2A — drop-compatible transitional pinned schema.
+ * STATE A: carrier present + clean → true
+ * STATE B: carrier absent → true
+ * STATE C: carrier present + dirty → false
+ * STATE D: chat_memories absent → false
+ */
+export function hasPinnedFactsDropCompatible(db: SchemaDatabase): boolean {
+  if (!tableExists(db, "chat_memories")) return false;
+  if (!hasColumn(db, "chat_memories", "pinned_facts")) return true;
+  return !Boolean(
+    db
+      .prepare(
+        `SELECT 1 AS ok FROM chat_memories
+         WHERE COALESCE(pinned_facts, '') <> ''
+         LIMIT 1`
+      )
+      .get()
+  );
+}
+
 export function hasMemoryRetirementsCurrentSchema(db: SchemaDatabase): boolean {
   return (
     hasMemoryBufferRetired(db) &&
     hasCharacterMemoriesRetired(db) &&
-    hasPinnedFactsPhase1Clean(db)
+    hasPinnedFactsDropCompatible(db)
   );
 }
 

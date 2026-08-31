@@ -10,6 +10,20 @@ type LegacyPinnedRow = {
   archive_summary: string;
 };
 
+function tableExists(db: Database.Database, name: string): boolean {
+  return Boolean(
+    db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
+      .get(name)
+  );
+}
+
+function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  if (!tableExists(db, table)) return false;
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return rows.some((row) => row.name === column);
+}
+
 function ensureSchemaFlagsTable(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _schema_flags (
@@ -29,6 +43,8 @@ function pinnedFactsFoldFlagExists(db: Database.Database): boolean {
 }
 
 function listLegacyPinnedRows(db: Database.Database): LegacyPinnedRow[] {
+  if (!tableExists(db, "chat_memories")) return [];
+  if (!hasColumn(db, "chat_memories", "pinned_facts")) return [];
   return db
     .prepare(
       `SELECT chat_id, pinned_facts, recent_summary, archive_summary
@@ -40,6 +56,9 @@ function listLegacyPinnedRows(db: Database.Database): LegacyPinnedRow[] {
 
 /** Global deterministic fold of legacy chat_memories.pinned_facts into recent_summary. */
 export function migrateLegacyPinnedFactsIntoRecentSummary(db: Database.Database): void {
+  if (!tableExists(db, "chat_memories")) return;
+  if (!hasColumn(db, "chat_memories", "pinned_facts")) return;
+
   const updateStmt = db.prepare(
     `UPDATE chat_memories SET
        pinned_facts='',
@@ -56,13 +75,7 @@ export function migrateLegacyPinnedFactsIntoRecentSummary(db: Database.Database)
         .prepare(`SELECT 1 AS ok FROM _schema_flags WHERE key=?`)
         .get(PINNED_FACTS_FOLDED_FLAG)
     );
-    const candidates = db
-      .prepare(
-        `SELECT chat_id, pinned_facts, recent_summary, archive_summary
-         FROM chat_memories
-         WHERE COALESCE(pinned_facts, '') <> ''`
-      )
-      .all() as LegacyPinnedRow[];
+    const candidates = listLegacyPinnedRows(db);
 
     if (flagExists && candidates.length === 0) return;
 

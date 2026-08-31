@@ -4,8 +4,8 @@ import {
   hasCurrentRemoteSchemaInvariant,
 } from "@/lib/remoteSchemaCurrentInvariant";
 
-export const REMOTE_SCHEMA_VERSION = "turso-v3-current-schema";
-export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v2-chat-billing-settlement";
+export const REMOTE_SCHEMA_VERSION = "turso-v4-pinned-drop-compatible";
+export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v3-current-schema";
 
 const LOCK_STALE_AFTER_MS = 5 * 60_000;
 const WAIT_ATTEMPTS = 360;

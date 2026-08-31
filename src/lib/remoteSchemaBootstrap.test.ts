@@ -196,7 +196,7 @@ describe("remote schema bootstrap", () => {
     db.close();
   });
 
-  it("v2 marker + structurally current schema adopts v3 without migrate", () => {
+  it("v3 legacy marker + structurally current schema adopts v4 without migrate", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE _remote_schema_state (
