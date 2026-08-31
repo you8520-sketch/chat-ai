@@ -3,6 +3,8 @@ import {
   generationJobKey,
   isCurrentAssistantGeneration,
   resolveActiveAssistantGenerationScope,
+  resolveActiveAssistantGenerationScopeFromRow,
+  resolveCurrentGenerationAsyncRecord,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
 import { extractStatusMetaFromTurn } from "./extract";
@@ -52,18 +54,38 @@ export function loadPreviousTurnStatusMeta(
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT id, status_meta FROM messages
+      `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, status_meta
+       FROM messages
        WHERE chat_id=? AND role='assistant' AND (model IS NULL OR model != 'greeting')
        AND status_meta IS NOT NULL AND status_meta != ''
        ORDER BY id DESC LIMIT 12`
     )
-    .all(chatId) as { id: number; status_meta: string }[];
+    .all(chatId) as {
+      id: number;
+      content: string;
+      model: string;
+      usage: string | null;
+      alternates: string | null;
+      active_variant: number | null;
+      request_id: string | null;
+      generation_status: string | null;
+      status_meta: string;
+    }[];
 
   for (const row of rows) {
     if (excludeMessageId != null && row.id === excludeMessageId) continue;
-    const rec = parseStatusMetaRecord(row.status_meta);
-    if (rec && !rec.pending && !rec.failed && statusMetaHasDisplayContent(rec.meta, rec.formatSpec)) {
-      return rec.meta;
+    const scope = resolveActiveAssistantGenerationScopeFromRow(row);
+    const rawRecord = parseStatusMetaRecord(row.status_meta);
+    const record = scope
+      ? resolveCurrentGenerationAsyncRecord(rawRecord, scope)
+      : null;
+    if (
+      record &&
+      !record.pending &&
+      !record.failed &&
+      statusMetaHasDisplayContent(record.meta, record.formatSpec)
+    ) {
+      return record.meta;
     }
   }
   return null;
@@ -176,9 +198,11 @@ async function runStatusMetaExtraction(opts: {
   loreBlock?: string;
   formatSpec?: string | null;
   __testExtract?: (attempt: number) => Promise<StatusMeta>;
+  __testObservePreviousMeta?: (meta: StatusMeta | null) => void;
 }): Promise<StatusMeta> {
   const formatSpec = opts.formatSpec?.trim() || null;
   const previousMeta = loadPreviousTurnStatusMeta(opts.chatId, opts.messageId);
+  opts.__testObservePreviousMeta?.(previousMeta);
   let lastMeta: StatusMeta = {
     tableMarkdown: "",
     datetime: "",
@@ -261,6 +285,7 @@ export function scheduleStatusMetaExtraction(opts: {
   /** 모델 본문에서 분리한 pipe-table — Flash 대신 즉시 StatusMetaCard에 사용 */
   prefilledTableMarkdown?: string | null;
   __testExtract?: (attempt: number) => Promise<StatusMeta>;
+  __testObservePreviousMeta?: (meta: StatusMeta | null) => void;
 }): void {
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;
