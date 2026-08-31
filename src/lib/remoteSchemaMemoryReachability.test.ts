@@ -16,6 +16,7 @@ import { after, before, describe, it } from "node:test";
 import {
   dropLegacyCharacterMemoriesTableOnce,
   dropLegacyMemoryBufferTableOnce,
+  dropLastCompressedAtColumnOnce,
   dropPinnedFactsColumnOnce,
 } from "@/lib/db";
 import {
@@ -25,6 +26,7 @@ import {
 import {
   hasCharacterMemoriesRetired,
   hasCurrentRemoteSchemaInvariant,
+  hasLastCompressedAtPhysicallyRetired,
   hasMemoryBufferRetired,
   hasPinnedFactsDropCompatible,
   hasPinnedFactsPhase1Clean,
@@ -40,6 +42,7 @@ import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-f
 const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
+const HISTORICAL_REMOTE_SCHEMA_V5 = "turso-v5-pinned-column-retired";
 
 function seedProductionRemoteCore(db: Database.Database): void {
   db.exec(`
@@ -85,8 +88,8 @@ function seedStaleRemoteMarker(db: Database.Database, version: string): void {
   `);
 }
 
-function seedV5CurrentMarker(db: Database.Database): void {
-  seedStaleRemoteMarker(db, REMOTE_SCHEMA_VERSION);
+function seedV5HistoricalMarker(db: Database.Database): void {
+  seedStaleRemoteMarker(db, HISTORICAL_REMOTE_SCHEMA_V5);
 }
 
 function createLegacyMemoryBuffer(db: Database.Database): void {
@@ -156,6 +159,7 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
+  dropLastCompressedAtColumnOnce(db);
 }
 
 function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
@@ -165,7 +169,7 @@ function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
   }
 }
 
-function runV5DirectUpgradeMigrations(db: Database.Database): void {
+function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runMemoryRetirementMigrations(db);
   ensureMemoryRelationshipTaskColumn(db);
 }
@@ -251,15 +255,15 @@ describe("remote schema memory reachability", () => {
 
       assert.equal(migrations, 1, `${setup.name}: migrate must run once`);
       setup.assertFixed(db);
-      const v5 = db
+      const v6 = db
         .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
         .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
-      assert.equal(v5?.version, REMOTE_SCHEMA_VERSION, `${setup.name}: v5 marker recorded`);
+      assert.equal(v6?.version, REMOTE_SCHEMA_VERSION, `${setup.name}: v6 marker recorded`);
       db.close();
     }
   });
 
-  it("R4 V3 legacy stack direct → V5 convergence", () => {
+  it("R4 V3 legacy stack direct → V6 convergence", () => {
     const db = new Database(":memory:");
     seedStaleRemoteMarker(db, HISTORICAL_REMOTE_SCHEMA_V3);
     seedProductionRemoteCore(db);
@@ -292,7 +296,7 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R4b V2 legacy stack direct → V5 convergence", () => {
+  it("R4b V2 legacy stack direct → V6 convergence", () => {
     const db = new Database(":memory:");
     seedStaleRemoteMarker(db, HISTORICAL_REMOTE_SCHEMA_V2);
     seedV2HistoricalProductionCore(db);
@@ -306,7 +310,7 @@ describe("remote schema memory reachability", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runV5DirectUpgradeMigrations(db);
+      runV6DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -326,7 +330,7 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R5 structurally current V5 without marker adopts without migrate", () => {
+  it("R5 structurally current V6 without marker adopts without migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
@@ -356,7 +360,7 @@ describe("remote schema memory reachability", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     createLegacyMemoryBuffer(db);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -377,7 +381,7 @@ describe("remote schema memory reachability", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     createLegacyCharacterMemories(db);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -397,7 +401,7 @@ describe("remote schema memory reachability", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.prepare(`INSERT INTO chat_memories (chat_id, user_id, character_id) VALUES (1, 1, 2)`).run();
     db.exec(`ALTER TABLE chat_memories ADD COLUMN pinned_facts TEXT NOT NULL DEFAULT ''`);
     db.prepare(`UPDATE chat_memories SET pinned_facts=?, recent_summary=? WHERE chat_id=1`).run(
@@ -418,12 +422,12 @@ describe("remote schema memory reachability", () => {
     db.close();
   });
 
-  it("R9 fully current v5 DB skips migrate", () => {
+  it("R9 fully current v6 DB skips migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedStaleRemoteMarker(db, REMOTE_SCHEMA_VERSION);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
 
     let migrations = 0;
@@ -453,7 +457,7 @@ describe("fail-closed memory base", () => {
     db.close();
   });
 
-  it("M2 chat_memories without pinned_facts column is V5 current", () => {
+  it("M2 chat_memories without pinned_facts column satisfies V6 pinned retirement", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
@@ -483,7 +487,7 @@ describe("one current remote schema owner", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.exec("DROP TABLE web_push_outbox");
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -503,7 +507,7 @@ describe("one current remote schema owner", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.exec(`
       CREATE TABLE messages_new (id INTEGER);
       INSERT INTO messages_new (id) VALUES (1);
@@ -526,7 +530,7 @@ describe("one current remote schema owner", () => {
     db.close();
   });
 
-  it("C3 full V5 structure without marker adopts without migrate", () => {
+  it("C3 full V6 structure without marker adopts without migrate", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
@@ -553,11 +557,11 @@ describe("one current remote schema owner", () => {
 });
 
 describe("current schema invariant owner", () => {
-  it("isCurrent requires v5 marker and full invariant (not billing-only)", () => {
+  it("isCurrent requires v6 marker and full invariant (not billing-only)", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     createLegacyMemoryBuffer(db);
 
     let migrations = 0;
@@ -572,10 +576,63 @@ describe("current schema invariant owner", () => {
 });
 
 describe("remote schema version chain", () => {
-  it("V2/V3/V4 historical literals remain stable", () => {
+  it("V2/V3/V4/V5 historical literals remain stable; V6 is current", () => {
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V2, "turso-v2-chat-billing-settlement");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V3, "turso-v3-current-schema");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V4, "turso-v4-pinned-drop-compatible");
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v5-pinned-column-retired");
+    assert.equal(HISTORICAL_REMOTE_SCHEMA_V5, "turso-v5-pinned-column-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v6-last-compressed-at-retired");
+  });
+});
+
+describe("last_compressed_at V6 reachability", () => {
+  it("R10 v5 marker + last_compressed_at carrier triggers drop repair", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    runMemoryRetirementMigrations(db);
+    seedV5HistoricalMarker(db);
+    db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
+    db.prepare(`UPDATE chat_memories SET last_compressed_at=? WHERE chat_id IS NOT NULL`).run(
+      "2025-01-01T00:00:00Z"
+    );
+    assert.equal(hasLastCompressedAtPhysicallyRetired(db), false);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      dropLastCompressedAtColumnOnce(db);
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasLastCompressedAtPhysicallyRetired(db), true);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    db.close();
+  });
+
+  it("R11 v5 marker structurally V6 current adopts without migrate", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    seedV5HistoricalMarker(db);
+    assert.equal(hasLastCompressedAtPhysicallyRetired(db), true);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+
+    assert.equal(migrations, 0);
+    assert.equal(
+      (
+        db
+          .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+          .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined
+      )?.version,
+      REMOTE_SCHEMA_VERSION
+    );
+    db.close();
   });
 });

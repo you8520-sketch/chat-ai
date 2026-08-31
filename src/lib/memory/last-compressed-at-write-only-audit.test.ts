@@ -13,13 +13,12 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { after, before, describe, it } from "node:test";
-import { getDb } from "@/lib/db";
+import { getDb, dropLastCompressedAtColumnOnce } from "@/lib/db";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import { buildMemoryContext } from "./memory-injector";
 import { getMemorySnapshot, updateLorebookForChat } from "./memory-manager";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import {
-  clearChatMemory,
   getOrCreateChatMemory,
   updateChatMemory,
 } from "./memory-db";
@@ -32,13 +31,6 @@ import {
 function hasPhysicalLastCompressedAtColumn(db: Database.Database): boolean {
   const cols = db.prepare(`PRAGMA table_info(chat_memories)`).all() as Array<{ name: string }>;
   return cols.some((col) => col.name === "last_compressed_at");
-}
-
-function readPhysicalLastCompressedAt(db: Database.Database, chatId: number): string | null {
-  const row = db
-    .prepare(`SELECT last_compressed_at FROM chat_memories WHERE chat_id=?`)
-    .get(chatId) as { last_compressed_at: string | null } | undefined;
-  return row?.last_compressed_at ?? null;
 }
 
 function seedChatMemoryRow(db: Database.Database, chatId: number, lastCompressedAt: string | null): void {
@@ -94,9 +86,9 @@ describe("last_compressed_at write-only audit", () => {
     assert.equal("last_compressed_at" in row, false);
   });
 
-  it("L7 physical DB column still exists on fresh schema", () => {
+  it("L7 fresh init physically retires last_compressed_at column", () => {
     getDb();
-    assert.equal(hasPhysicalLastCompressedAtColumn(getDb()), true);
+    assert.equal(hasPhysicalLastCompressedAtColumn(getDb()), false);
   });
 
   it("L8 historical non-null timestamp does not change injection or snapshot decisions", () => {
@@ -190,14 +182,14 @@ describe("last_compressed_at policy constants unchanged", () => {
   });
 });
 
-describe("last_compressed_at physical column write-only carrier", () => {
-  it("clearChatMemory does not touch physical last_compressed_at column", () => {
+describe("last_compressed_at V6 physical retirement on init", () => {
+  it("migrate drops legacy last_compressed_at carrier without affecting runtime row shape", () => {
     const db = getDb();
+    db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
     seedChatMemoryRow(db, 88007, "historical-write-carrier");
-    clearChatMemory(88007, 1, 2, "free");
-    assert.equal(readPhysicalLastCompressedAt(db, 88007), "historical-write-carrier");
+    dropLastCompressedAtColumnOnce(db);
+    assert.equal(hasPhysicalLastCompressedAtColumn(db), false);
     const row = getOrCreateChatMemory(88007, 1, 2, "free");
-    assert.equal(row.recent_summary, "");
     assert.equal("last_compressed_at" in row, false);
   });
 });

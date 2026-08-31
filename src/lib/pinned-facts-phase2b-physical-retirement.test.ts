@@ -16,6 +16,7 @@ import { describe, it } from "node:test";
 import {
   dropLegacyCharacterMemoriesTableOnce,
   dropLegacyMemoryBufferTableOnce,
+  dropLastCompressedAtColumnOnce,
   dropPinnedFactsColumnOnce,
 } from "@/lib/db";
 import {
@@ -45,6 +46,7 @@ import {
 const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
+const HISTORICAL_REMOTE_SCHEMA_V5 = "turso-v5-pinned-column-retired";
 
 function seedProductionRemoteCore(db: Database.Database): void {
   db.exec(`
@@ -76,7 +78,6 @@ function seedProductionRemoteCore(db: Database.Database): void {
       summarized_turn_count INTEGER NOT NULL DEFAULT 0,
       memory_reset_after_message_id INTEGER,
       memory_epoch INTEGER NOT NULL DEFAULT 0,
-      last_compressed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -118,8 +119,8 @@ function seedHistoricalMarker(db: Database.Database, version: string): void {
   `);
 }
 
-function seedV5CurrentMarker(db: Database.Database): void {
-  seedHistoricalMarker(db, REMOTE_SCHEMA_VERSION);
+function seedV5HistoricalMarker(db: Database.Database): void {
+  seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V5);
 }
 
 function createLegacyMemoryBuffer(db: Database.Database): void {
@@ -159,6 +160,7 @@ function runFullMemoryRetirementMigrations(db: Database.Database): void {
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
+  dropLastCompressedAtColumnOnce(db);
 }
 
 /** Simulates #783 relationship-task column arrival on legacy message tables during V5 convergence. */
@@ -169,7 +171,7 @@ function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
   }
 }
 
-function runV5DirectUpgradeMigrations(db: Database.Database): void {
+function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runFullMemoryRetirementMigrations(db);
   ensureMemoryRelationshipTaskColumn(db);
 }
@@ -247,7 +249,6 @@ type ParityRow = {
   summarized_turn_count: number;
   memory_reset_after_message_id: number | null;
   memory_epoch: number;
-  last_compressed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -257,8 +258,7 @@ function readParityRow(db: Database.Database): ParityRow {
     .prepare(
       `SELECT id, chat_id, user_id, character_id, recent_summary, archive_summary,
               membership_tier, used_chars, message_count, summarized_turn_count,
-              memory_reset_after_message_id, memory_epoch, last_compressed_at,
-              created_at, updated_at
+              memory_reset_after_message_id, memory_epoch, created_at, updated_at
        FROM chat_memories WHERE chat_id=42`
     )
     .get() as ParityRow;
@@ -288,7 +288,7 @@ describe("pinned_facts Phase 2B physical retirement invariant", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.exec(`ALTER TABLE chat_memories ADD COLUMN pinned_facts TEXT NOT NULL DEFAULT ''`);
     assert.equal(hasPinnedFactsPhysicallyRetired(db), false);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
@@ -388,7 +388,6 @@ describe("pinned_facts Phase 2B data and index parity", () => {
     assert.equal(after.summarized_turn_count, before.summarized_turn_count);
     assert.equal(after.memory_reset_after_message_id, before.memory_reset_after_message_id);
     assert.equal(after.memory_epoch, before.memory_epoch);
-    assert.equal(after.last_compressed_at, before.last_compressed_at);
     assert.equal(after.created_at, before.created_at);
     assert.equal(after.updated_at, before.updated_at);
     db.close();
@@ -442,7 +441,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runV5DirectUpgradeMigrations(db);
+      runV6DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -499,7 +498,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runV5DirectUpgradeMigrations(db);
+      runV6DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -524,7 +523,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runV5DirectUpgradeMigrations(db);
+      runV6DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -552,7 +551,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runV5DirectUpgradeMigrations(db);
+      runV6DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -577,7 +576,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runFullMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.exec(`ALTER TABLE chat_memories ADD COLUMN pinned_facts TEXT NOT NULL DEFAULT ''`);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -598,7 +597,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runFullMemoryRetirementMigrations(db);
-    seedV5CurrentMarker(db);
+    seedV5HistoricalMarker(db);
     db.prepare(`INSERT INTO chat_memories (chat_id, user_id, character_id) VALUES (1, 1, 2)`).run();
     db.exec(`ALTER TABLE chat_memories ADD COLUMN pinned_facts TEXT NOT NULL DEFAULT ''`);
     db.prepare(`UPDATE chat_memories SET pinned_facts=?, recent_summary=? WHERE chat_id=1`).run(
@@ -645,9 +644,9 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
 });
 
 describe("pinned_facts Phase 2B rollback contract (documentation)", () => {
-  it("P2B-18 V5 → V4 rollback safe (missing column); V3 shim not added", () => {
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v5-pinned-column-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V4);
+  it("P2B-18 V6 → V5 pinned rollback safe (missing column); V3 shim not added", () => {
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v6-last-compressed-at-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V5);
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     assert.equal(hasPinnedFactsPhysicallyRetired(db), true);

@@ -75,11 +75,21 @@ export function hasPinnedFactsPhysicallyRetired(db: SchemaDatabase): boolean {
   return !hasColumn(db, "chat_memories", "pinned_facts");
 }
 
+/**
+ * V6 — last_compressed_at column must be physically absent on current schema.
+ * chat_memories absent → false (outer production invariant fail-closed).
+ */
+export function hasLastCompressedAtPhysicallyRetired(db: SchemaDatabase): boolean {
+  if (!tableExists(db, "chat_memories")) return false;
+  return !hasColumn(db, "chat_memories", "last_compressed_at");
+}
+
 export function hasMemoryRetirementsCurrentSchema(db: SchemaDatabase): boolean {
   return (
     hasMemoryBufferRetired(db) &&
     hasCharacterMemoriesRetired(db) &&
-    hasPinnedFactsPhysicallyRetired(db)
+    hasPinnedFactsPhysicallyRetired(db) &&
+    hasLastCompressedAtPhysicallyRetired(db)
   );
 }
 
