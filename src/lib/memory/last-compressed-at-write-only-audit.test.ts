@@ -34,25 +34,9 @@ function hasPhysicalLastCompressedAtColumn(db: Database.Database): boolean {
 }
 
 function seedChatMemoryRow(db: Database.Database, chatId: number, lastCompressedAt: string | null): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS chat_memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      chat_id INTEGER NOT NULL UNIQUE,
-      user_id INTEGER NOT NULL,
-      character_id INTEGER NOT NULL,
-      recent_summary TEXT NOT NULL DEFAULT '',
-      archive_summary TEXT NOT NULL DEFAULT '',
-      membership_tier TEXT NOT NULL DEFAULT 'free',
-      used_chars INTEGER NOT NULL DEFAULT 0,
-      message_count INTEGER NOT NULL DEFAULT 0,
-      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
-      memory_reset_after_message_id INTEGER,
-      memory_epoch INTEGER NOT NULL DEFAULT 0,
-      last_compressed_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
+  if (!hasPhysicalLastCompressedAtColumn(db)) {
+    db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
+  }
   db.prepare(
     `INSERT OR REPLACE INTO chat_memories
       (chat_id, user_id, character_id, recent_summary, archive_summary, used_chars,
@@ -185,7 +169,9 @@ describe("last_compressed_at policy constants unchanged", () => {
 describe("last_compressed_at V6 physical retirement on init", () => {
   it("migrate drops legacy last_compressed_at carrier without affecting runtime row shape", () => {
     const db = getDb();
-    db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
+    if (!hasPhysicalLastCompressedAtColumn(db)) {
+      db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
+    }
     seedChatMemoryRow(db, 88007, "historical-write-carrier");
     dropLastCompressedAtColumnOnce(db);
     assert.equal(hasPhysicalLastCompressedAtColumn(db), false);

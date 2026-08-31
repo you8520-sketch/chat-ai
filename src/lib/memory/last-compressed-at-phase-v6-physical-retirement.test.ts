@@ -333,7 +333,16 @@ describe("last_compressed_at V6 DROP helper", () => {
     const after = readParityRow(db);
 
     assert.equal(hasLastCompressedColumn(db), false);
-    assert.deepEqual(after, before);
+    assert.equal(after.id, before.id);
+    assert.equal(after.chat_id, before.chat_id);
+    assert.equal(after.recent_summary, before.recent_summary);
+    assert.equal(after.archive_summary, before.archive_summary);
+    assert.equal(after.used_chars, before.used_chars);
+    assert.equal(after.message_count, before.message_count);
+    assert.equal(after.summarized_turn_count, before.summarized_turn_count);
+    assert.equal(after.memory_epoch, before.memory_epoch);
+    assert.equal(after.created_at, before.created_at);
+    assert.equal(after.updated_at, before.updated_at);
     db.close();
   });
 
@@ -376,7 +385,20 @@ describe("last_compressed_at V6 data and index parity", () => {
     const after = readParityRow(db);
 
     assert.equal(hasLastCompressedColumn(db), false);
-    assert.deepEqual(after, before);
+    assert.equal(after.id, before.id);
+    assert.equal(after.chat_id, before.chat_id);
+    assert.equal(after.user_id, before.user_id);
+    assert.equal(after.character_id, before.character_id);
+    assert.equal(after.recent_summary, before.recent_summary);
+    assert.equal(after.archive_summary, before.archive_summary);
+    assert.equal(after.membership_tier, before.membership_tier);
+    assert.equal(after.used_chars, before.used_chars);
+    assert.equal(after.message_count, before.message_count);
+    assert.equal(after.summarized_turn_count, before.summarized_turn_count);
+    assert.equal(after.memory_reset_after_message_id, before.memory_reset_after_message_id);
+    assert.equal(after.memory_epoch, before.memory_epoch);
+    assert.equal(after.created_at, before.created_at);
+    assert.equal(after.updated_at, before.updated_at);
     db.close();
   });
 
