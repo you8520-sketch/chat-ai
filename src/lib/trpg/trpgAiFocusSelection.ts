@@ -73,12 +73,26 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
   const messages = buildTrpgGmNarrationSceneMessages(opts.narration);
   const planScene = opts.planScene ?? planChatImageScene;
   const started = Date.now();
-  const result = await planScene({
-    characterName: "TRPG GM",
-    personaName: "Party",
-    messages,
-    complete: opts.complete,
-  });
+  let result;
+  try {
+    result = await planScene({
+      characterName: "TRPG GM",
+      personaName: "Party",
+      messages,
+      complete: opts.complete,
+    });
+  } catch {
+    const latencyMs = Date.now() - started;
+    return {
+      modeApplied: "RAW",
+      diagnostics: {
+        ...base,
+        modeApplied: "RAW",
+        aiLatencyMs: latencyMs,
+        fallbackReason: "planner-error",
+      },
+    };
+  }
   const latencyMs = Date.now() - started;
   const heroScene = result.plan.heroScene.trim();
   const deterministicFallback = result.model === "deterministic-fallback";

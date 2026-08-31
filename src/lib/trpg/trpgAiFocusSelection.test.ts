@@ -161,7 +161,7 @@ describe("trpg AI focus selection", () => {
     assert.equal(result.diagnostics.aiDeterministicFallback, true);
   });
 
-  it("provider/validator failure via empty hero resolves to RAW", async () => {
+  it("empty hero scene resolves to RAW", async () => {
     const result = await resolveTrpgAiFocusHeroScene({
       narration: "장면",
       canonicalLocation: "탑",
@@ -203,5 +203,19 @@ describe("trpg AI focus selection", () => {
     assert.equal(result.modeApplied, "RAW");
     assert.equal(result.diagnostics.fallbackReason, "over-selection");
     assert.equal(result.diagnostics.overSelectionRejected, true);
+  });
+
+  it("thrown planner error resolves to RAW without escaping", async () => {
+    const result = await resolveTrpgAiFocusHeroScene({
+      narration: "장면",
+      canonicalLocation: "탑",
+      planScene: async () => {
+        throw new Error("synthetic planner failure");
+      },
+    });
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.diagnostics.fallbackReason, "planner-error");
+    assert.equal(result.diagnostics.selectedHeroScene, "");
+    assert.equal(result.diagnostics.aiModel, "");
   });
 });

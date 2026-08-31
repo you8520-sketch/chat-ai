@@ -33,6 +33,10 @@ import {
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { TrpgImageSceneMode } from "@/lib/trpg/trpgImageSceneMode";
+import {
+  clearedTrpgImageSceneDiagnostics,
+  resolveTrpgImageSceneDiagnosticsFromResponse,
+} from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
@@ -464,6 +468,9 @@ export default function ChatImageGeneratorPanel({
   const [trpgImageSceneMode, setTrpgImageSceneMode] = useState<TrpgImageSceneMode>("RAW");
   const [trpgImageSceneDiagnostics, setTrpgImageSceneDiagnostics] =
     useState<GenerateResult["trpgImageSceneDiagnostics"]>(undefined);
+  const clearTrpgImageSceneDiagnostics = useCallback(() => {
+    setTrpgImageSceneDiagnostics(clearedTrpgImageSceneDiagnostics());
+  }, []);
   const [campaignTitle, setCampaignTitle] = useState("");
   const [partyNames, setPartyNames] = useState<string[]>([]);
   const [partyCast, setPartyCast] = useState<PartyCastMember[]>([]);
@@ -504,6 +511,7 @@ export default function ChatImageGeneratorPanel({
           ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
           : []
       );
+      clearTrpgImageSceneDiagnostics();
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -530,7 +538,7 @@ export default function ChatImageGeneratorPanel({
     };
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
-  }, []);
+  }, [clearTrpgImageSceneDiagnostics]);
 
   useEffect(() => {
     if (!trpgCampaignMode) return;
@@ -1332,6 +1340,7 @@ export default function ChatImageGeneratorPanel({
     setGenerating(true);
     setError("");
     setNotice("");
+    clearTrpgImageSceneDiagnostics();
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
     const controller = new AbortController();
@@ -1401,9 +1410,9 @@ export default function ChatImageGeneratorPanel({
           },
         }));
       }
-      if (data.trpgImageSceneDiagnostics) {
-        setTrpgImageSceneDiagnostics(data.trpgImageSceneDiagnostics);
-      }
+      setTrpgImageSceneDiagnostics(
+        resolveTrpgImageSceneDiagnosticsFromResponse(data)
+      );
       updateBalance(data);
       setNotice(
         isIllustration
@@ -1754,7 +1763,10 @@ export default function ChatImageGeneratorPanel({
                                   type="radio"
                                   name="trpg-image-scene-mode"
                                   checked={trpgImageSceneMode === "RAW"}
-                                  onChange={() => setTrpgImageSceneMode("RAW")}
+                                  onChange={() => {
+                                    clearTrpgImageSceneDiagnostics();
+                                    setTrpgImageSceneMode("RAW");
+                                  }}
                                 />
                                 CURRENT_RAW
                               </label>
@@ -1763,7 +1775,10 @@ export default function ChatImageGeneratorPanel({
                                   type="radio"
                                   name="trpg-image-scene-mode"
                                   checked={trpgImageSceneMode === "AI_FOCUS"}
-                                  onChange={() => setTrpgImageSceneMode("AI_FOCUS")}
+                                  onChange={() => {
+                                    clearTrpgImageSceneDiagnostics();
+                                    setTrpgImageSceneMode("AI_FOCUS");
+                                  }}
                                 />
                                 AI_FOCUS
                               </label>
