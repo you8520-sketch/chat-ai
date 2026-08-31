@@ -24,6 +24,8 @@ import {
 } from "@/lib/chatBillingSettlementSchema";
 import { calcUsedChars } from "@/lib/memory/memory-used-chars";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
+import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import {
   countDirtyPinnedRows,
   listBlockingPinnedFactsSchemaDependencies,
@@ -65,6 +67,17 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE chat_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL UNIQUE,
@@ -161,6 +174,8 @@ function runFullMemoryRetirementMigrations(db: Database.Database): void {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  convergeLegacyChatsMemoryIntoCanonical(db);
+  dropChatsMemoryColumnOnce(db);
 }
 
 /** Simulates #783 relationship-task column arrival on legacy message tables during V5 convergence. */
@@ -193,6 +208,18 @@ function seedV2HistoricalProductionCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -308,11 +335,22 @@ function seedProductionRemoteCoreTablesExceptChatMemories(db: Database.Database)
       ('target_response_chars_unified_3200'),
       ('memory_capacity_fixed_10000'),
       ('character_adult_status_metadata_v1');
-    CREATE TABLE IF NOT EXISTS messages (request_id TEXT);
+    CREATE TABLE IF NOT EXISTS messages (request_id TEXT, memory_relationship_task_json TEXT);
     CREATE TABLE IF NOT EXISTS users (comment_report_restricted_until TEXT);
     CREATE TABLE IF NOT EXISTS profile_comments (delete_reason TEXT);
     CREATE TABLE IF NOT EXISTS characters (id INTEGER, total_turns INTEGER);
     INSERT OR IGNORE INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE IF NOT EXISTS chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -644,9 +682,9 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
 });
 
 describe("pinned_facts Phase 2B rollback contract (documentation)", () => {
-  it("P2B-18 V6 → V5 pinned rollback safe (missing column); V3 shim not added", () => {
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v6-last-compressed-at-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V5);
+  it("P2B-18 V7 current; V6 historical pinned rollback documented", () => {
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, "turso-v6-last-compressed-at-retired");
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     assert.equal(hasPinnedFactsPhysicallyRetired(db), true);

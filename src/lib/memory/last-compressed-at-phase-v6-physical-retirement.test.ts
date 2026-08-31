@@ -19,6 +19,8 @@ import {
   dropLastCompressedAtColumnOnce,
   dropPinnedFactsColumnOnce,
 } from "@/lib/db";
+import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import {
   ensureChatBillingSettlementSchema,
 } from "@/lib/chatBillingSettlementSchema";
@@ -45,6 +47,7 @@ const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
 const HISTORICAL_REMOTE_SCHEMA_V5 = "turso-v5-pinned-column-retired";
+const HISTORICAL_REMOTE_SCHEMA_V6 = "turso-v6-last-compressed-at-retired";
 
 function seedProductionRemoteCore(db: Database.Database): void {
   db.exec(`
@@ -63,6 +66,17 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE chat_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL UNIQUE,
@@ -162,6 +176,8 @@ function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
 function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runFullMemoryRetirementMigrations(db);
   ensureMemoryRelationshipTaskColumn(db);
+  convergeLegacyChatsMemoryIntoCanonical(db);
+  dropChatsMemoryColumnOnce(db);
 }
 
 function seedV2HistoricalProductionCore(db: Database.Database): void {
@@ -181,6 +197,17 @@ function seedV2HistoricalProductionCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -293,7 +320,7 @@ describe("last_compressed_at V6 physical retirement invariant", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
-    seedHistoricalMarker(db, REMOTE_SCHEMA_VERSION);
+    seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V6);
     db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
     assert.equal(hasLastCompressedAtPhysicallyRetired(db), false);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
@@ -501,7 +528,7 @@ describe("last_compressed_at V6 remote lifecycle", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runFullMemoryRetirementMigrations(db);
-    seedHistoricalMarker(db, REMOTE_SCHEMA_VERSION);
+    seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V6);
     db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
@@ -522,7 +549,7 @@ describe("last_compressed_at V6 remote lifecycle", () => {
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
     runFullMemoryRetirementMigrations(db);
-    seedHistoricalMarker(db, REMOTE_SCHEMA_VERSION);
+    seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V6);
     db.exec(`ALTER TABLE chat_memories ADD COLUMN last_compressed_at TEXT`);
     db.prepare(`INSERT INTO chat_memories (chat_id, user_id, character_id, last_compressed_at) VALUES (1,1,2,?)`).run(
       "rollback timestamp"
@@ -704,13 +731,25 @@ function seedProductionRemoteCoreTablesExceptChatMemories(db: Database.Database)
     CREATE TABLE IF NOT EXISTS profile_comments (delete_reason TEXT);
     CREATE TABLE IF NOT EXISTS characters (id INTEGER, total_turns INTEGER);
     INSERT OR IGNORE INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE IF NOT EXISTS chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
 describe("last_compressed_at V6 rollback contract (documentation)", () => {
-  it("LC-V6-15 V6 → #789/V5 rollback safe; pre-#789 unsupported; no compat shim", () => {
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v6-last-compressed-at-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V5);
+  it("LC-V6-15 V6 frozen historical; current schema is V7 chats.memory retired", () => {
+    assert.equal(HISTORICAL_REMOTE_SCHEMA_V6, "turso-v6-last-compressed-at-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION_PREVIOUS, HISTORICAL_REMOTE_SCHEMA_V6);
     const ROLLBACK_FLOOR = "#789";
     assert.equal(ROLLBACK_FLOOR, "#789");
     const db = new Database(":memory:");

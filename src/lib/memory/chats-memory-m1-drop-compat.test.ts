@@ -1,6 +1,6 @@
 /**
- * M1 drop-compatibility — chats.memory column-absent lifecycle (M2 rollback safety).
- * Physical column KEPT on fresh M1 DDL; tests synthetic M2-like schemas separately.
+ * M1 drop-compatibility — historical #796 rollback safety (memory column absent lifecycle).
+ * M2 fresh DB has no memory column; tests use synthetic schemas for FAIL-BEFORE evidence.
  */
 import Module from "module";
 
@@ -24,7 +24,6 @@ import { createChatSession } from "@/lib/chatSessionCreate";
 import {
   FORK_CHAT_INSERT_SQL,
   insertForkChatRow,
-  LEGACY_FORK_CHAT_INSERT_SQL_WITH_MEMORY,
   type ForkChatInsertParams,
 } from "@/lib/chatForkCreate";
 import {
@@ -39,6 +38,13 @@ import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
+
+const LEGACY_FORK_CHAT_INSERT_SQL_WITH_MEMORY = `INSERT INTO chats (
+  user_id, character_id, mode, memory, memory_pending, memory_meta,
+  memory_archived_turns, current_summary, gemini_model, user_note, selected_persona_id,
+  user_impersonation, target_response_chars, title, writing_style_override, memory_capacity,
+  narrative_pov, pov_character_name
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
 const USER_ID = 88001;
 const CHARACTER_ID = 88002;
@@ -111,9 +117,10 @@ function makeM1LikeChatsSchemaWithMemory(): Database.Database {
   return db;
 }
 
-function dropMemoryColumnOnLiveDb(db: Database.Database): void {
-  assert.ok(hasChatsMemoryColumn(db), "expected memory column before DROP for live-db tests");
-  db.exec(`ALTER TABLE chats DROP COLUMN memory`);
+function ensureLiveDbWithoutMemoryColumn(db: Database.Database): void {
+  if (hasChatsMemoryColumn(db)) {
+    db.exec(`ALTER TABLE chats DROP COLUMN memory`);
+  }
   assert.ok(!hasChatsMemoryColumn(db));
 }
 
@@ -289,7 +296,7 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
   before(() => {
     installIsolatedTestDatabase();
     getDb();
-    dropMemoryColumnOnLiveDb(getDb());
+    ensureLiveDbWithoutMemoryColumn(getDb());
   });
 
   after(() => {

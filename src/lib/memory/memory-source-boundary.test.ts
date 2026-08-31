@@ -34,7 +34,6 @@ function makeDb(): Database.Database {
       id INTEGER PRIMARY KEY,
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
-      memory TEXT NOT NULL DEFAULT '',
       current_summary TEXT NOT NULL DEFAULT '',
       memory_meta TEXT NOT NULL DEFAULT '{}',
       memory_pending TEXT NOT NULL DEFAULT '[]',
@@ -95,9 +94,9 @@ function makeDb(): Database.Database {
   `);
   db.prepare(
     `INSERT INTO chats
-      (id, user_id, character_id, memory, current_summary, memory_meta,
+      (id, user_id, character_id, current_summary, memory_meta,
        memory_pending, memory_archived_turns)
-     VALUES (1, 10, 20, 'legacy', 'summary', ?, '["pending"]', 12)`
+     VALUES (1, 10, 20, 'summary', ?, '["pending"]', 12)`
   ).run(
     JSON.stringify({
       ...EMPTY_MEMORY_META,
@@ -349,7 +348,6 @@ describe("persistent memory reset boundary", () => {
     assert.equal(memory.message_count, 0);
     assert.equal(memory.summarized_turn_count, 0);
     const chat = db.prepare(`SELECT * FROM chats WHERE id=1`).get();
-    assert.equal(chat.memory, "");
     assert.equal(chat.current_summary, "");
     assert.equal(chat.memory_pending, "[]");
     assert.equal(chat.memory_archived_turns, 0);

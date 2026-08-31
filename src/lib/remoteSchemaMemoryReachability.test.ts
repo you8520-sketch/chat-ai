@@ -38,11 +38,14 @@ import {
   REMOTE_SCHEMA_VERSION,
 } from "@/lib/remoteSchemaBootstrap";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
+import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
+import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 
 const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
 const HISTORICAL_REMOTE_SCHEMA_V5 = "turso-v5-pinned-column-retired";
+const HISTORICAL_REMOTE_SCHEMA_V6 = "turso-v6-last-compressed-at-retired";
 
 function seedProductionRemoteCore(db: Database.Database): void {
   db.exec(`
@@ -61,6 +64,17 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE chat_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL UNIQUE,
@@ -160,6 +174,8 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
+  convergeLegacyChatsMemoryIntoCanonical(db);
+  dropChatsMemoryColumnOnce(db);
 }
 
 function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
@@ -191,6 +207,17 @@ function seedV2HistoricalProductionCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -581,7 +608,8 @@ describe("remote schema version chain", () => {
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V3, "turso-v3-current-schema");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V4, "turso-v4-pinned-drop-compatible");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V5, "turso-v5-pinned-column-retired");
-    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v6-last-compressed-at-retired");
+    assert.equal(HISTORICAL_REMOTE_SCHEMA_V6, "turso-v6-last-compressed-at-retired");
+    assert.equal(REMOTE_SCHEMA_VERSION, "turso-v7-chats-memory-retired");
   });
 });
 
