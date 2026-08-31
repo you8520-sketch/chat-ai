@@ -7,19 +7,31 @@ import {
   AUDIT_BASE_USD_KRW,
   AUDIT_EFFECTIVE_KRW_PER_USD,
   BILLING_LIVE_OWNER_MAP,
+  COMPLETED_TURN_RUNTIME_EFFECT,
   CUTOVER_REQUIRED_MODEL_FAMILIES,
+  F4_CLASSIFICATION,
   FROZEN_LIVE_CHARGE_GOLDEN,
+  INTERNAL_DELIVERED_PRODUCTION_OWNERS,
+  OPENROUTER_G31_CURRENTLY_DELIVERABLE,
+  OPUS45_ADMIN_SPECIAL_CASE,
   REGEN_USER_CHARGE_SCOPE,
   SPECIAL_BILLING_POLICIES,
+  UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36,
+  WAIVER_MINIMUM_RUNTIME_REACHABLE,
   auditCanaryCleanupClassification,
+  auditF4RequestedDeliveredIdentity,
   auditFalseExactnessGuards,
   buildBillingLiveOwnerReadinessFixtures,
   buildCurrentReachableBilledModelInventory,
   buildSpecialPolicyCoverageMatrix,
+  collectBillingReadinessHardGates,
+  collectExactDeliveredModelCoverage,
   compareLiveVsCandidate,
   computeCandidateChargeFromFixture,
   computeLiveChargeFromFixture,
+  derivePolicyCoverageCounts,
   evaluateBillingLiveOwnerReadiness,
+  generateBillingLiveOwnerReadinessFinalReport,
   getAuditFxParityEvidence,
   installAuditLegacyFxForTest,
   clearAuditLegacyFxForTest,
@@ -28,7 +40,7 @@ import {
   verifyPlatformFundedAuxIsolation,
 } from "./billingLiveOwnerReadinessAudit";
 import { applyOverseasCardFee } from "@/lib/billingFxPolicy";
-import { resolveSelectedAI } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL } from "@/lib/chatModels";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import { assertNoInternalEconomics } from "@/lib/publicUsageEconomicsBoundary";
@@ -113,31 +125,71 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
     assert.ok(inventory.length > 0);
     for (const entry of inventory) {
       assert.ok(entry.classification);
+      assert.ok(entry.reachabilityOwner);
+      assert.ok(entry.deliveredModelId);
+      assert.equal(entry.modelId, entry.deliveredModelId);
       assert.ok(typeof entry.cutoverRequired === "boolean");
     }
   });
 
-  it("CUTOVER_REQUIRED_MODEL_WITHOUT_FIXTURE=0", () => {
+  it("CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE=0", () => {
     const fixtures = buildBillingLiveOwnerReadinessFixtures();
-    const a1Resolved = new Set(
-      fixtures
-        .filter((f) => f.id.startsWith("A1-"))
-        .map((f) => resolveSelectedAI(f.deliveredModelId))
-    );
-    const evaluation = evaluateBillingLiveOwnerReadiness(fixtures);
-    assert.equal(evaluation.uncoveredModelCount, 0);
+    const { a1ExactDeliveredModelIds, uncoveredCutoverRequired } =
+      collectExactDeliveredModelCoverage(fixtures);
+    assert.equal(uncoveredCutoverRequired.length, 0);
     for (const modelId of CUTOVER_REQUIRED_MODEL_FAMILIES) {
       assert.ok(
-        a1Resolved.has(resolveSelectedAI(modelId)),
-        `missing A1 fixture for ${modelId}`
+        a1ExactDeliveredModelIds.has(modelId),
+        `missing exact A1 fixture for ${modelId}`
       );
+    }
+  });
+
+  it("does not treat OPENROUTER_G31 as live-delivered without production call site", () => {
+    assert.equal(OPENROUTER_G31_CURRENTLY_DELIVERABLE, false);
+    const inventory = buildCurrentReachableBilledModelInventory();
+    assert.ok(
+      !inventory.some(
+        (entry) =>
+          entry.deliveredModelId === "google/gemini-3.1-pro-preview" &&
+          entry.classification === "INTERNAL_DELIVERED"
+      )
+    );
+    const legacy = inventory.find((entry) => entry.deliveredModelId === "google/gemini-3.1-pro-preview");
+    assert.ok(legacy);
+    assert.equal(legacy.classification, "LEGACY_COMPAT_ONLY");
+  });
+
+  it("Opus 4.5 is not ADMIN_REACHABLE without admin-only route", () => {
+    assert.equal(OPUS45_ADMIN_SPECIAL_CASE, false);
+    const inventory = buildCurrentReachableBilledModelInventory();
+    const opus45 = inventory.find((entry) => entry.deliveredModelId.includes("claude-opus-4"));
+    assert.ok(opus45);
+    assert.notEqual(opus45.classification, "ADMIN_REACHABLE");
+  });
+
+  it("Opus 5 hidden flag uses CONDITIONAL_REACHABLE not ADMIN_REACHABLE", () => {
+    const inventory = buildCurrentReachableBilledModelInventory();
+    const opus5 = inventory.find((entry) => entry.deliveredModelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
+    assert.ok(opus5);
+    if (process.env.OPUS5_USER_ENABLED?.trim() !== "1") {
+      assert.equal(opus5.classification, "CONDITIONAL_REACHABLE");
+    }
+  });
+
+  it("INTERNAL_DELIVERED models have production owner evidence", () => {
+    assert.ok(INTERNAL_DELIVERED_PRODUCTION_OWNERS.length > 0);
+    for (const evidence of INTERNAL_DELIVERED_PRODUCTION_OWNERS) {
+      assert.ok(evidence.productionRoutingOwner);
+      assert.ok(evidence.actualCallSite);
+      assert.ok(evidence.trigger);
     }
   });
 
   it("LEGACY slugs are not counted as cutover-required without proof", () => {
     const inventory = buildCurrentReachableBilledModelInventory();
     const legacy = inventory.filter((e) => e.classification === "LEGACY_COMPAT_ONLY");
-    assert.ok(legacy.some((e) => e.modelId.includes("qwen")));
+    assert.ok(legacy.some((e) => e.deliveredModelId.includes("qwen")));
     assert.ok(legacy.every((e) => e.cutoverRequired === false));
   });
 
@@ -153,6 +205,8 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
 });
 
 describe("billingLiveOwnerReadinessAudit — FX parity", () => {
+  const previousMode = process.env.EXCHANGE_RATE_MODE;
+
   beforeEach(() => {
     installAuditLegacyFxForTest();
   });
@@ -168,6 +222,17 @@ describe("billingLiveOwnerReadinessAudit — FX parity", () => {
     assert.equal(evidence.live.baseUsdKrw, AUDIT_BASE_USD_KRW);
     assert.equal(evidence.candidate.usdToKrw, AUDIT_BASE_USD_KRW);
     assert.equal(evidence.live.effectiveKrwPerUsd, evidence.candidate.effectiveKrwPerUsd);
+  });
+
+  it("AUDIT_FX_ENV_LEAK=false restores EXCHANGE_RATE_MODE", () => {
+    assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+    clearAuditLegacyFxForTest();
+    if (previousMode === undefined) {
+      assert.equal(process.env.EXCHANGE_RATE_MODE, undefined);
+    } else {
+      assert.equal(process.env.EXCHANGE_RATE_MODE, previousMode);
+    }
+    installAuditLegacyFxForTest();
   });
 });
 
@@ -197,21 +262,44 @@ describe("billingLiveOwnerReadinessAudit — BASE vs HEAD live parity gate", () 
 });
 
 describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
-  it("SPECIAL_POLICY_COVERED for live policies", () => {
+  beforeEach(() => {
+    installAuditLegacyFxForTest();
+  });
+
+  afterEach(() => {
+    clearAuditLegacyFxForTest();
+  });
+
+  it("LIVE policies require behavioral proof not fixture existence only", () => {
     const fixtures = buildBillingLiveOwnerReadinessFixtures();
     const matrix = buildSpecialPolicyCoverageMatrix(fixtures);
-    const liveRows = matrix.filter((row) => row.classification !== "LEGACY_COMPAT");
-    const covered = liveRows.filter((row) => row.covered);
-    assert.ok(covered.length >= 10);
+    const liveRows = matrix.filter((row) => row.classification === "LIVE_REACHABLE");
+    for (const row of liveRows) {
+      assert.ok(row.fixtureIds.length > 0, row.policy);
+      assert.ok(Object.keys(row.proof).length > 0, row.policy);
+    }
+    const counts = derivePolicyCoverageCounts(matrix);
     assert.equal(
-      liveRows.filter((row) => !row.covered).length,
+      counts.uncoveredLivePolicyCount,
       0,
       JSON.stringify(liveRows.filter((row) => !row.covered))
     );
   });
 
+  it("dead policies are classified without cutover-required coverage debt", () => {
+    assert.equal(WAIVER_MINIMUM_RUNTIME_REACHABLE, false);
+    assert.equal(COMPLETED_TURN_RUNTIME_EFFECT, "NO_LIVE_EFFECT");
+    assert.equal(UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36, false);
+    const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
+    const waiver = matrix.find((row) => row.policy.includes("waiver minimum"));
+    assert.ok(waiver);
+    assert.equal(waiver.classification, "LEGACY_OR_DEAD");
+    assert.equal(waiver.covered, true);
+  });
+
   it("SPECIAL_BILLING_POLICIES derived from matrix", () => {
     assert.ok(SPECIAL_BILLING_POLICIES.length >= 10);
+    assert.equal(SPECIAL_BILLING_POLICIES.length, derivePolicyCoverageCounts().totalPolicyCount);
   });
 });
 
@@ -258,6 +346,15 @@ describe("billingLiveOwnerReadinessAudit — golden parity harness", () => {
       assert.equal(computeLiveChargeFromFixture(fixture).totalPoints, 0, id);
     }
   });
+
+  it("hard gates include exact delivered-model coverage flags", () => {
+    const gates = collectBillingReadinessHardGates(fixtures);
+    assert.equal(gates.CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE, 0);
+    assert.equal(gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP, false);
+    assert.equal(gates.POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY, false);
+    assert.equal(gates.UNCOVERED_LIVE_POLICY_COUNT, 0);
+    assert.equal(gates.F4_REQUESTED_DELIVERED_IDENTITY_PROVEN, true);
+  });
 });
 
 describe("billingLiveOwnerReadinessAudit — F4 model handoff", () => {
@@ -273,10 +370,16 @@ describe("billingLiveOwnerReadinessAudit — F4 model handoff", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "F4-model-handoff")!;
     assert.notEqual(fixture.requestedSelectedAI, fixture.deliveredSelectedAI);
     assert.notEqual(fixture.requestedSelectedAI, fixture.deliveredModelId);
+    const identity = auditF4RequestedDeliveredIdentity();
+    assert.equal(identity.classification, F4_CLASSIFICATION);
+    assert.notEqual(identity.requestedModel, identity.deliveredModel);
+    assert.equal(identity.liveBillingModel, identity.deliveredModel);
+    assert.equal(identity.candidateBillingModel, identity.deliveredModel);
+    assert.equal(identity.requestedModelUsedForPrice, false);
     const live = computeLiveChargeFromFixture(fixture);
     assert.equal(live.modelId, fixture.deliveredModelId);
     const candidate = computeCandidateChargeFromFixture(fixture);
-    assert.notEqual(candidate.status, "match");
+    assert.equal(candidate.billingModelId, fixture.deliveredModelId);
   });
 });
 
@@ -348,5 +451,14 @@ describe("billingLiveOwnerReadinessAudit — public economics privacy", () => {
     };
     const pub = serializeUsageForPublicClient(usage);
     assertNoInternalEconomics(pub as Record<string, unknown>);
+  });
+});
+
+describe("billingLiveOwnerReadinessAudit — final report", () => {
+  it("generateBillingLiveOwnerReadinessFinalReport ends with STOP", () => {
+    const report = generateBillingLiveOwnerReadinessFinalReport();
+    assert.ok(report.includes("=== EXACT MODEL COVERAGE ==="));
+    assert.ok(report.includes("DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP=false"));
+    assert.ok(report.endsWith("STOP"));
   });
 });

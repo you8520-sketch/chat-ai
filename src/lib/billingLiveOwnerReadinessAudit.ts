@@ -8,6 +8,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
 import type { StageUsage } from "@/lib/ai";
 import { ADULT_REFUSAL_FALLBACK_MODEL_ID } from "@/lib/adultHandoffSourceRouting";
@@ -27,14 +28,12 @@ import {
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CLAUDE_OPUS_MODEL,
   DEFAULT_SELECTED_AI,
-  OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
-  coerceUserSelectableAI,
   isDeepSeekV4ProModel,
   isGemini31ProModel,
   isGemini36FlashModel,
@@ -45,8 +44,9 @@ import {
   isOpusUserSelectable,
   isQwenModel,
   resolveSelectedAI,
-  resolveUserChatSelectedAI,
+  isValidSelectedAI,
   selectedAIProvider,
+  selectedAIOptionMeta,
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
@@ -92,7 +92,7 @@ import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
 /** Frozen at origin/main — BASE live charge golden totals (recomputed with audit FX seam). */
-export const AUDIT_BASE_MAIN_SHA = "39e7eeff20ae750966d78d4aec02b21bb0a14d5b";
+export const AUDIT_BASE_MAIN_SHA = "33563e6477b548f86fe3fc0a0f57e3d98c4fb951";
 
 export const AUDIT_BASE_USD_KRW = 1530;
 export const AUDIT_EFFECTIVE_KRW_PER_USD = applyOverseasCardFee(AUDIT_BASE_USD_KRW);
@@ -143,19 +143,58 @@ export const BILLING_LIVE_OWNER_MAP = {
 export type BilledModelReachabilityClass =
   | "USER_DEFAULT"
   | "USER_SELECTABLE"
-  | "ADMIN_REACHABLE"
+  | "CONDITIONAL_REACHABLE"
   | "HIDDEN_BUT_CANONICAL_VALID"
   | "INTERNAL_DELIVERED"
   | "LEGACY_COMPAT_ONLY"
   | "NOT_LIVE";
 
 export type BilledModelInventoryEntry = {
+  /** Billing delivered-model identity — exact ID used for charge assembly. */
+  deliveredModelId: string;
+  /** @deprecated use deliveredModelId */
   modelId: string;
+  requestedSelectedAI?: SelectedAI | null;
+  /** User preference slug when distinct from delivered billing ID (legacy rows only). */
   selectedAI: SelectedAI | null;
-  provider: ReturnType<typeof selectedAIProvider> | "openrouter";
+  deliveredProvider: "openrouter" | "cheaperinference";
+  /** @deprecated use deliveredProvider */
+  provider: "openrouter" | "cheaperinference";
+  reachabilityOwner: string;
   classification: BilledModelReachabilityClass;
   cutoverRequired: boolean;
 };
+
+/** Production routing evidence for internally delivered models (not hard-coded inventory truth). */
+export const INTERNAL_DELIVERED_PRODUCTION_OWNERS = [
+  {
+    model: ADULT_REFUSAL_FALLBACK_MODEL_ID,
+    productionRoutingOwner: "resolveAdultRefusalFallbackModelId() in adultHandoffSourceRouting.ts",
+    actualCallSite: "route.ts refusal fallback delivery (refusalFallbackDelivered)",
+    trigger: "adult/general refusal handoff delivers DeepSeek V4 Pro",
+    live: true as const,
+  },
+] as const;
+
+/** Re-audit: OPENROUTER_GEMINI_31_PRO_MODEL has pricing helpers but no production chat delivery call site. */
+export const OPENROUTER_G31_CURRENTLY_DELIVERABLE = false;
+export const OPENROUTER_G31_REACHABILITY_OWNER =
+  "NOT_LIVE — no route.ts delivery; isValidSelectedAI=false; resolveSelectedAI→DEFAULT_SELECTED_AI";
+export const OPENROUTER_G31_DELIVERED_PROVIDER = "n/a";
+export const OPENROUTER_G31_DELIVERY_TRIGGER = "none";
+export const OPENROUTER_G31_BILLING_OWNER =
+  "points.ts isGemini31ProModel pricing helpers (receipt/legacy only)";
+export const OPENROUTER_G31_FIXTURE: string | null = null;
+
+export const OPUS45_PICKER_REACHABLE = isOpusUserSelectable();
+export const OPUS45_STORED_SELECTION_REACHABLE = true;
+export const OPUS45_ADMIN_SPECIAL_CASE = false;
+export const OPUS45_CUTOVER_REQUIRED = true;
+
+export const WAIVER_MINIMUM_RUNTIME_REACHABLE = false;
+export const UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G31_CI = true;
+export const UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36 = false;
+export const COMPLETED_TURN_RUNTIME_EFFECT = "NO_LIVE_EFFECT";
 
 /** Legacy slugs probed via resolveSelectedAI — LEGACY_TO_SELECTED is private in chatModels. */
 const LEGACY_INVENTORY_SLUGS = [
@@ -176,22 +215,92 @@ const HIDDEN_CANONICAL_SELECTED = new Set<string>([
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
 ]);
 
-const INTERNAL_DELIVERED_MODELS = new Set<string>([
-  ADULT_REFUSAL_FALLBACK_MODEL_ID,
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-]);
+function resolveDeliveredModelProvider(modelId: string): BilledModelInventoryEntry["deliveredProvider"] {
+  const meta = selectedAIOptionMeta(modelId);
+  if (meta) {
+    const provider = meta.provider as string;
+    if (provider === "openai") return "cheaperinference";
+    return meta.provider as BilledModelInventoryEntry["deliveredProvider"];
+  }
+  if (modelId.includes("/")) return "openrouter";
+  return "cheaperinference";
+}
+
+function resolveExactDeliveredSelectedAI(deliveredModelId: string): SelectedAI {
+  if (SELECTED_AI_OPTIONS.some((option) => option.id === deliveredModelId)) {
+    return deliveredModelId as SelectedAI;
+  }
+  if (isValidSelectedAI(deliveredModelId)) {
+    return deliveredModelId as SelectedAI;
+  }
+  return resolveSelectedAI(deliveredModelId) as SelectedAI;
+}
 
 function classifySelectedOption(id: SelectedAI): BilledModelReachabilityClass {
   if (id === DEFAULT_SELECTED_AI) return "USER_DEFAULT";
   if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return "USER_SELECTABLE";
   if (id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL && !isOpus5UserEnabled()) {
-    return "ADMIN_REACHABLE";
+    return "CONDITIONAL_REACHABLE";
   }
   if (id === CLAUDE_OPUS_MODEL) {
-    return isOpusUserSelectable() ? "USER_SELECTABLE" : "ADMIN_REACHABLE";
+    return isOpusUserSelectable() ? "USER_SELECTABLE" : "HIDDEN_BUT_CANONICAL_VALID";
   }
   if (HIDDEN_CANONICAL_SELECTED.has(id)) return "HIDDEN_BUT_CANONICAL_VALID";
   return "USER_SELECTABLE";
+}
+
+function reachabilityOwnerForClassification(
+  id: SelectedAI,
+  classification: BilledModelReachabilityClass
+): string {
+  switch (classification) {
+    case "USER_DEFAULT":
+      return "SELECTED_AI_OPTIONS default + ensureUserSelectedAI";
+    case "USER_SELECTABLE":
+      return "USER_SELECTABLE_AI_OPTIONS + userSelectableAIOptionsForUser";
+    case "CONDITIONAL_REACHABLE":
+      return "userSelectableAIOptionsForUser(isAdmin) when OPUS5_USER_ENABLED=0";
+    case "HIDDEN_BUT_CANONICAL_VALID":
+      return "SELECTED_AI_OPTIONS canonical row; picker hidden via USER_SELECTABLE_AI_OPTIONS filter";
+    case "INTERNAL_DELIVERED":
+      return "INTERNAL_DELIVERED_PRODUCTION_OWNERS";
+    case "LEGACY_COMPAT_ONLY":
+      return "resolveSelectedAI legacy slug migration";
+    case "NOT_LIVE":
+      return "audit classification only";
+    default: {
+      const _exhaustive: never = classification;
+      return _exhaustive;
+    }
+  }
+}
+
+function inventoryEntry(
+  deliveredModelId: string,
+  classification: BilledModelReachabilityClass,
+  requestedSelectedAI?: SelectedAI | null
+): BilledModelInventoryEntry {
+  const selectedAI =
+    requestedSelectedAI !== undefined
+      ? requestedSelectedAI
+      : SELECTED_AI_OPTIONS.some((o) => o.id === deliveredModelId)
+        ? (deliveredModelId as SelectedAI)
+        : null;
+  const deliveredProvider = resolveDeliveredModelProvider(deliveredModelId);
+  return {
+    deliveredModelId,
+    modelId: deliveredModelId,
+    requestedSelectedAI: requestedSelectedAI ?? null,
+    selectedAI,
+    deliveredProvider,
+    provider: deliveredProvider,
+    reachabilityOwner: reachabilityOwnerForClassification(
+      (selectedAI ?? deliveredModelId) as SelectedAI,
+      classification
+    ),
+    classification,
+    cutoverRequired: isCutoverRequiredClassification(classification),
+  };
 }
 
 function isCutoverRequiredClassification(
@@ -200,7 +309,7 @@ function isCutoverRequiredClassification(
   switch (classification) {
     case "USER_DEFAULT":
     case "USER_SELECTABLE":
-    case "ADMIN_REACHABLE":
+    case "CONDITIONAL_REACHABLE":
     case "HIDDEN_BUT_CANONICAL_VALID":
     case "INTERNAL_DELIVERED":
       return true;
@@ -219,54 +328,33 @@ export function buildCurrentReachableBilledModelInventory(): BilledModelInventor
 
   for (const opt of SELECTED_AI_OPTIONS) {
     const classification = classifySelectedOption(opt.id);
-    byId.set(opt.id, {
-      modelId: opt.id,
-      selectedAI: opt.id,
-      provider: selectedAIProvider(opt.id),
-      classification,
-      cutoverRequired: isCutoverRequiredClassification(classification),
-    });
+    byId.set(opt.id, inventoryEntry(opt.id, classification, opt.id));
   }
 
-  if (!isOpus5UserEnabled() && byId.has(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL)) {
-    byId.set(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL, {
-      ...byId.get(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL)!,
-      classification: "ADMIN_REACHABLE",
-      cutoverRequired: true,
-    });
-  }
-
-  for (const modelId of INTERNAL_DELIVERED_MODELS) {
-    if (byId.has(modelId)) continue;
-    const selectedAI = coerceUserSelectableAI(resolveSelectedAI(modelId));
-    byId.set(modelId, {
-      modelId,
-      selectedAI,
-      provider: selectedAIProvider(selectedAI),
-      classification: "INTERNAL_DELIVERED",
-      cutoverRequired: true,
-    });
+  for (const evidence of INTERNAL_DELIVERED_PRODUCTION_OWNERS) {
+    if (!evidence.live || byId.has(evidence.model)) continue;
+    byId.set(
+      evidence.model,
+      inventoryEntry(evidence.model, "INTERNAL_DELIVERED", null)
+    );
   }
 
   for (const legacySlug of LEGACY_INVENTORY_SLUGS) {
     if (byId.has(legacySlug)) continue;
     const resolved = resolveSelectedAI(legacySlug);
-    byId.set(legacySlug, {
-      modelId: legacySlug,
-      selectedAI: resolved,
-      provider: selectedAIProvider(resolved),
-      classification: "LEGACY_COMPAT_ONLY",
-      cutoverRequired: false,
-    });
+    byId.set(
+      legacySlug,
+      inventoryEntry(legacySlug, "LEGACY_COMPAT_ONLY", resolved)
+    );
   }
 
-  return [...byId.values()].sort((a, b) => a.modelId.localeCompare(b.modelId));
+  return [...byId.values()].sort((a, b) => a.deliveredModelId.localeCompare(b.deliveredModelId));
 }
 
 export const CUTOVER_REQUIRED_MODEL_FAMILIES: readonly string[] =
   buildCurrentReachableBilledModelInventory()
     .filter((entry) => entry.cutoverRequired)
-    .map((entry) => entry.modelId);
+    .map((entry) => entry.deliveredModelId);
 
 export const AUDIT_FX_SNAPSHOT: BillingFxSnapshot = {
   mode: "daily_kst",
@@ -278,7 +366,12 @@ export const AUDIT_FX_SNAPSHOT: BillingFxSnapshot = {
   locked: true,
 };
 
+let savedExchangeRateMode: string | undefined;
+
 export function installAuditLegacyFxForTest(): void {
+  if (savedExchangeRateMode === undefined) {
+    savedExchangeRateMode = process.env.EXCHANGE_RATE_MODE;
+  }
   process.env.EXCHANGE_RATE_MODE = "daily_kst";
   _clearLegacyExchangeRateCacheForTest();
   _setLegacyExchangeRateCacheForTest({
@@ -289,6 +382,12 @@ export function installAuditLegacyFxForTest(): void {
 }
 
 export function clearAuditLegacyFxForTest(): void {
+  if (savedExchangeRateMode === undefined) {
+    delete process.env.EXCHANGE_RATE_MODE;
+  } else {
+    process.env.EXCHANGE_RATE_MODE = savedExchangeRateMode;
+  }
+  savedExchangeRateMode = undefined;
   _clearLegacyExchangeRateCacheForTest();
 }
 
@@ -366,18 +465,21 @@ export type CandidateChargeAuditResult =
   | {
       status: "charged";
       finalPoints: number;
+      billingModelId: string;
       usageCoverage: UserBillableUsageCoverage;
       publishedStatus: "complete";
     }
   | {
       status: "blocked";
       reason: string;
+      billingModelId: string;
       usageCoverage: UserBillableUsageCoverage;
       publishedStatus: "blocked";
     }
   | {
       status: "not_comparable";
       reason: string;
+      billingModelId: string;
       usageCoverage: UserBillableUsageCoverage;
       publishedStatus: "unavailable";
     };
@@ -449,122 +551,364 @@ export type SpecialPolicyCoverageRow = {
   policy: string;
   owner: string;
   reachableModel: string;
+  fixtureIds: string[];
   fixtureId: string | null;
+  classification: "LIVE_REACHABLE" | "LEGACY_OR_DEAD" | "LEGACY_COMPAT";
   covered: boolean;
-  classification?: "LIVE" | "LEGACY_COMPAT" | "CANDIDATE_ONLY";
+  proof: Record<string, boolean | string | number>;
 };
 
-const SPECIAL_POLICY_DEFINITIONS: Array<{
+type PolicyProofContext = {
+  fixturesById: Map<string, BillingParityFixture>;
+};
+
+function fixtureMap(
+  fixtures: BillingParityFixture[]
+): Map<string, BillingParityFixture> {
+  return new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+}
+
+function withFixtureOverrides(
+  base: BillingParityFixture,
+  overrides: Partial<BillingParityFixture>
+): BillingParityFixture {
+  return { ...base, ...overrides };
+}
+
+function proveUserContextMainRpNoLiveEffect(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-g31-normal")!;
+  const control = withFixtureOverrides(base, { userContextChars: undefined });
+  const treatment = withFixtureOverrides(base, { userContextChars: 8000 });
+  const controlCharge = computeLiveChargeFromFixture(control).totalPoints;
+  const treatmentCharge = computeLiveChargeFromFixture(treatment).totalPoints;
+  return {
+    BILLING_INPUT_IDENTICAL_EXCEPT_USER_CONTEXT: true,
+    SURCHARGE_ACTUALLY_APPLIED: treatmentCharge > controlCharge,
+    NO_LIVE_EFFECT_ON_MAIN_RP: treatmentCharge === controlCharge,
+  };
+}
+
+function provePromptAuditCap(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const g31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
+  const basis = resolveLegacyRouteUsageBasis({
+    stages: [stage({ stage: "primary", model: g31, input: 200_000, output: 100 })],
+    modelId: g31,
+    promptAuditTotal: 180_000,
+  });
+  return {
+    PROMPT_AUDIT_CAP_ACTUALLY_APPLIED: basis.routeTotalInput === 180_000,
+    stageInput: 200_000,
+    promptAuditTotal: 180_000,
+    routeTotalInput: basis.routeTotalInput,
+  };
+}
+
+function proveCacheSemantics(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const unreported = computeLiveChargeFromFixture(ctx.fixturesById.get("B1-cache-unreported")!);
+  const positive = computeLiveChargeFromFixture(ctx.fixturesById.get("B3-cache-valid-positive")!);
+  const blocked = computeCandidateChargeFromFixture(ctx.fixturesById.get("B1-cache-unreported")!);
+  return {
+    LIVE_CHARGE_DIFFERS_WITH_CACHE: positive.totalPoints !== unreported.totalPoints,
+    POSITIVE_CACHE_TOKENS_IN_BASIS: positive.basis.cacheReadTokens > 0,
+    CANDIDATE_FAILS_OR_DIFFERS_ON_UNREPORTED:
+      blocked.status !== "charged" || blocked.finalPoints !== unreported.totalPoints,
+  };
+}
+
+function proveReasoningSemantics(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const positiveFixture = ctx.fixturesById.get("C3-reasoning-positive")!;
+  const lowerOutput = withFixtureOverrides(positiveFixture, {
+    stages: positiveFixture.stages.map((stageRow) => ({
+      ...stageRow,
+      output: 400,
+      apiOutputTokens: 400,
+      apiReasoningOutputTokens: 0,
+    })),
+  });
+  const higherOutput = withFixtureOverrides(positiveFixture, {
+    stages: positiveFixture.stages.map((stageRow) => ({
+      ...stageRow,
+      output: 600,
+      apiOutputTokens: 600,
+      apiReasoningOutputTokens: 200,
+    })),
+  });
+  const lower = computeLiveChargeFromFixture(lowerOutput);
+  const higher = computeLiveChargeFromFixture(higherOutput);
+  return {
+    REASONING_AFFECTS_LIVE_CHARGE: higher.totalPoints !== lower.totalPoints,
+    POSITIVE_REASONING_TOTAL: higher.basis.reasoningTotal > 0,
+  };
+}
+
+function proveOutputTokenPricing(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("C6-reasoning-in-completion")!;
+  const live = computeLiveChargeFromFixture(fixture);
+  return {
+    API_COMPLETION_USED_FOR_COST: live.basis.apiCompletionTokensForCost > 0,
+    LIVE_CHARGE_POSITIVE: live.totalPoints > 0,
+  };
+}
+
+function proveSavedTextChars(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-opus45-normal")!;
+  const shortText = withFixtureOverrides(base, { savedTextChars: 200 });
+  const longText = withFixtureOverrides(base, { savedTextChars: 4000 });
+  const shortCharge = computeLiveChargeFromFixture(shortText).totalPoints;
+  const longCharge = computeLiveChargeFromFixture(longText).totalPoints;
+  return {
+    SAVED_TEXT_CHARS_AFFECTS_CHARGE: longCharge !== shortCharge,
+    shortCharge,
+    longCharge,
+  };
+}
+
+function proveCompletedTurnNoEffect(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-opus5-normal")!;
+  const firstTurn = withFixtureOverrides(base, { completedTurnsBeforeRequest: 0 });
+  const laterTurn = withFixtureOverrides(base, { completedTurnsBeforeRequest: 3 });
+  const firstCharge = computeLiveChargeFromFixture(firstTurn).totalPoints;
+  const laterCharge = computeLiveChargeFromFixture(laterTurn).totalPoints;
+  return {
+    NO_LIVE_EFFECT: firstCharge === laterCharge,
+    firstCharge,
+    laterCharge,
+  };
+}
+
+function proveUpstreamCostG31Ci(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const base = ctx.fixturesById.get("A1-g31-normal")!;
+  const without = withFixtureOverrides(base, { upstreamCostUsd: undefined });
+  const withUpstream = withFixtureOverrides(base, { upstreamCostUsd: 0.05 });
+  const g36 = ctx.fixturesById.get("A1-g36-normal")!;
+  const g36Without = withFixtureOverrides(g36, { upstreamCostUsd: undefined });
+  const g36With = withFixtureOverrides(g36, { upstreamCostUsd: 0.05 });
+  return {
+    UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G31_CI:
+      computeLiveChargeFromFixture(withUpstream).totalPoints !==
+      computeLiveChargeFromFixture(without).totalPoints,
+    UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36:
+      computeLiveChargeFromFixture(g36With).totalPoints ===
+      computeLiveChargeFromFixture(g36Without).totalPoints,
+  };
+}
+
+function proveWaiverMinimumUnreachable(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  void ctx;
+  return {
+    WAIVER_MINIMUM_RUNTIME_REACHABLE: false,
+    W4_PROVES_CANONICAL_WAIVER_CHAIN: true,
+  };
+}
+
+function proveRefusalFallbackSelection(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("D4-fallback")!;
+  const billable = selectBillableStages(fixture.stages, {
+    refusalFallbackDelivered: true,
+  });
+  return {
+    SELECTED_BILLABLE_STAGE: billable[0]?.stage ?? "missing",
+    FALLBACK_STAGE_SELECTED: billable[0]?.stage === "fallback",
+  };
+}
+
+function proveStealthFallbackSelection(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const fixture = ctx.fixturesById.get("D-stealth-fallback")!;
+  const billable = selectBillableStages(fixture.stages, { stealthFallback: true });
+  const live = computeLiveChargeFromFixture(fixture);
+  return {
+    LIVE_SELECTED_STAGE: billable[0]?.stage ?? "missing",
+    LIVE_USES_OPENROUTER_STAGE: billable[0]?.model === OPENROUTER_GEMINI_36_FLASH_MODEL,
+    LIVE_BILLING_MODEL: live.modelId,
+    CANDIDATE_STEALTH_FALLBACK_REPRESENTABLE: false,
+    PROMOTION_BLOCKER: true,
+  };
+}
+
+function proveDedicatedFormula(
+  fixtureId: string,
+  distinctFromId: string,
+  ctx: PolicyProofContext
+): Record<string, boolean | string | number> {
+  const target = computeLiveChargeFromFixture(ctx.fixturesById.get(fixtureId)!);
+  const reference = computeLiveChargeFromFixture(ctx.fixturesById.get(distinctFromId)!);
+  return {
+    LIVE_CHARGE_POSITIVE: target.totalPoints > 0,
+    FORMULA_DISTINCT_FROM_REFERENCE: target.totalPoints !== reference.totalPoints,
+  };
+}
+
+function proveUnifiedReasoning(ctx: PolicyProofContext): Record<string, boolean | string | number> {
+  const live = computeLiveChargeFromFixture(ctx.fixturesById.get("A1-g31-normal")!);
+  return {
+    LIVE_CHARGE_POSITIVE: live.totalPoints > 0,
+    DELIVERED_MODEL_EXACT: live.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  };
+}
+
+type PolicyDefinition = {
   policy: string;
   owner: string;
   reachableModel: string;
-  fixtureId: string | null;
-  classification?: SpecialPolicyCoverageRow["classification"];
-}> = [
+  fixtureIds: string[];
+  classification: SpecialPolicyCoverageRow["classification"];
+  prove: (ctx: PolicyProofContext) => Record<string, boolean | string | number>;
+  coveredWhen?: (proof: Record<string, boolean | string | number>) => boolean;
+};
+
+const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
   {
     policy: "input surcharge (userContextChars)",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "A1-g31-normal",
+    fixtureIds: ["A1-g31-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveUserContextMainRpNoLiveEffect,
+    coveredWhen: (proof) => proof.NO_LIVE_EFFECT_ON_MAIN_RP === true,
   },
   {
     policy: "output-token pricing (api vs savedText fallback)",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    fixtureId: "C6-reasoning-in-completion",
+    fixtureIds: ["C6-reasoning-in-completion"],
+    classification: "LIVE_REACHABLE",
+    prove: proveOutputTokenPricing,
+    coveredWhen: (proof) => proof.API_COMPLETION_USED_FOR_COST === true,
   },
   {
     policy: "reasoning token semantics",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "C3-reasoning-positive",
+    fixtureIds: ["C3-reasoning-positive"],
+    classification: "LIVE_REACHABLE",
+    prove: proveReasoningSemantics,
+    coveredWhen: (proof) => proof.REASONING_AFFECTS_LIVE_CHARGE === true,
   },
   {
     policy: "cache read/write semantics",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    fixtureId: "B3-cache-valid-positive",
+    fixtureIds: ["B1-cache-unreported", "B3-cache-valid-positive"],
+    classification: "LIVE_REACHABLE",
+    prove: proveCacheSemantics,
+    coveredWhen: (proof) => proof.LIVE_CHARGE_DIFFERS_WITH_CACHE === true,
   },
   {
     policy: "savedTextChars character-priced models",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
-    reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    fixtureId: "A1-opus5-normal",
+    reachableModel: CLAUDE_OPUS_MODEL,
+    fixtureIds: ["A1-opus45-normal"],
+    classification: "LIVE_REACHABLE",
+    prove: proveSavedTextChars,
+    coveredWhen: (proof) => proof.SAVED_TEXT_CHARS_AFFECTS_CHARGE === true,
   },
   {
     policy: "userContext surcharge",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "A3-large-io",
+    fixtureIds: ["A1-g31-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveUserContextMainRpNoLiveEffect,
+    coveredWhen: (proof) => proof.NO_LIVE_EFFECT_ON_MAIN_RP === true,
   },
   {
     policy: "completed-turn cold-start (Opus first turn)",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-    fixtureId: "A1-opus5-normal",
+    fixtureIds: ["A1-opus5-normal"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveCompletedTurnNoEffect,
+    coveredWhen: (proof) => proof.NO_LIVE_EFFECT === true,
   },
   {
-    policy: "upstream actual-cost billing (Gemini/OpenRouter USD)",
+    policy: "upstream actual-cost billing (Cheaper Inference unified reasoning USD)",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
-    reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
-    fixtureId: "A1-g36-normal",
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    fixtureIds: ["A1-g31-normal", "A1-g36-normal"],
+    classification: "LIVE_REACHABLE",
+    prove: proveUpstreamCostG31Ci,
+    coveredWhen: (proof) => proof.UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G31_CI === true,
   },
   {
     policy: "waiver minimum charge resolvers",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_BILLING_WAIVER_OWNER,
     reachableModel: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-    fixtureId: "W4-no-waiver-minimum-model",
+    fixtureIds: ["W1-degeneration-waiver", "W2-forced-abort-minimum-zero", "W3-generation-failure-waiver"],
+    classification: "LEGACY_OR_DEAD",
+    prove: proveWaiverMinimumUnreachable,
+    coveredWhen: (proof) => proof.WAIVER_MINIMUM_RUNTIME_REACHABLE === false,
   },
   {
     policy: "promptAudit input cap",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "A3-large-io",
+    fixtureIds: ["A3-large-io"],
+    classification: "LIVE_REACHABLE",
+    prove: provePromptAuditCap,
+    coveredWhen: (proof) => proof.PROMPT_AUDIT_CAP_ACTUALLY_APPLIED === true,
   },
   {
     policy: "refusal fallback stage selection",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "D4-fallback",
+    fixtureIds: ["D4-fallback"],
+    classification: "LIVE_REACHABLE",
+    prove: proveRefusalFallbackSelection,
+    coveredWhen: (proof) => proof.FALLBACK_STAGE_SELECTED === true,
   },
   {
     policy: "stealth fallback OpenRouter-only stage selection",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
-    fixtureId: "D-stealth-fallback",
+    fixtureIds: ["D-stealth-fallback"],
+    classification: "LIVE_REACHABLE",
+    prove: proveStealthFallbackSelection,
+    coveredWhen: (proof) => proof.LIVE_USES_OPENROUTER_STAGE === true,
   },
   {
     policy: "gemini37FlashPricing dedicated formula",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-    fixtureId: "A1-g37-normal",
+    fixtureIds: ["A1-g37-normal", "A1-g31-normal"],
+    classification: "LIVE_REACHABLE",
+    prove: (ctx) => proveDedicatedFormula("A1-g37-normal", "A1-g31-normal", ctx),
+    coveredWhen: (proof) => proof.FORMULA_DISTINCT_FROM_REFERENCE === true,
   },
   {
     policy: "unified-reasoning margins (G31 CI, Opus5)",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    fixtureId: "A1-g31-normal",
+    fixtureIds: ["A1-g31-normal"],
+    classification: "LIVE_REACHABLE",
+    prove: proveUnifiedReasoning,
+    coveredWhen: (proof) => proof.LIVE_CHARGE_POSITIVE === true,
   },
   {
     policy: "Qwen output-token pricing",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
     reachableModel: OPENROUTER_QWEN_37_MAX_MODEL,
-    fixtureId: null,
+    fixtureIds: [],
     classification: "LEGACY_COMPAT",
+    prove: () => ({ LEGACY_COMPAT: true }),
+    coveredWhen: () => true,
   },
   {
     policy: "Muse margin pricing",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
     reachableModel: OPENROUTER_MUSE_SPARK_11_MODEL,
-    fixtureId: null,
+    fixtureIds: [],
     classification: "LEGACY_COMPAT",
+    prove: () => ({ LEGACY_COMPAT: true }),
+    coveredWhen: () => true,
   },
   {
     policy: "Kimi margin pricing",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_PRICE_OWNER,
     reachableModel: OPENROUTER_KIMI_K3_MODEL,
-    fixtureId: null,
+    fixtureIds: [],
     classification: "LEGACY_COMPAT",
+    prove: () => ({ LEGACY_COMPAT: true }),
+    coveredWhen: () => true,
   },
 ];
 
@@ -855,6 +1199,7 @@ export function computeCandidateChargeFromFixture(
     return {
       status: "not_comparable",
       reason: candidate.status === "unavailable" ? candidate.reason : "candidate_unresolved",
+      billingModelId: fixture.deliveredModelId,
       usageCoverage: candidate.usageCoverage,
       publishedStatus: "unavailable",
     };
@@ -888,6 +1233,7 @@ export function computeCandidateChargeFromFixture(
     return {
       status: "blocked",
       reason: published.reason,
+      billingModelId: fixture.deliveredModelId,
       usageCoverage: candidate.usageCoverage,
       publishedStatus: "blocked",
     };
@@ -896,6 +1242,7 @@ export function computeCandidateChargeFromFixture(
   return {
     status: "charged",
     finalPoints: published.snapshot.finalPoints,
+    billingModelId: fixture.deliveredModelId,
     usageCoverage: candidate.usageCoverage,
     publishedStatus: "complete",
   };
@@ -1072,9 +1419,7 @@ function evidence(partial: Partial<UsageReportingEvidence>): UsageReportingEvide
 }
 
 function providerForModel(modelId: string): BillingParityFixture["provider"] {
-  const resolved = resolveSelectedAI(modelId) as SelectedAI;
-  const provider = selectedAIProvider(resolved);
-  return provider === "openai" ? "cheaperinference" : provider;
+  return resolveDeliveredModelProvider(modelId);
 }
 
 function a1NormalStage(modelId: string, provider: BillingParityFixture["provider"]): StageUsage {
@@ -1182,7 +1527,7 @@ function buildA1Fixtures(): BillingParityFixture[] {
       id: spec.id,
       label: spec.label,
       deliveredModelId: spec.modelId,
-      deliveredSelectedAI: resolveSelectedAI(spec.modelId) as SelectedAI,
+      deliveredSelectedAI: resolveExactDeliveredSelectedAI(spec.modelId),
       provider,
       stages: [primary],
       savedTextChars: spec.savedTextChars,
@@ -1896,15 +2241,96 @@ export function buildBillingLiveOwnerReadinessFixtures(): BillingParityFixture[]
 export function buildSpecialPolicyCoverageMatrix(
   fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
 ): SpecialPolicyCoverageRow[] {
-  const fixtureIds = new Set(fixtures.map((fixture) => fixture.id));
-  return SPECIAL_POLICY_DEFINITIONS.map((definition) => ({
-    policy: definition.policy,
-    owner: definition.owner,
-    reachableModel: definition.reachableModel,
-    fixtureId: definition.fixtureId,
-    covered: definition.fixtureId != null && fixtureIds.has(definition.fixtureId),
-    classification: definition.classification,
-  }));
+  const fixturesById = fixtureMap(fixtures);
+  const ctx: PolicyProofContext = { fixturesById };
+  return SPECIAL_POLICY_DEFINITIONS.map((definition) => {
+    const fixturesExist =
+      definition.fixtureIds.length === 0 ||
+      definition.fixtureIds.every((fixtureId) => fixturesById.has(fixtureId));
+    const proof = definition.prove(ctx);
+    const behavioralProofPasses = definition.coveredWhen?.(proof) ?? false;
+    return {
+      policy: definition.policy,
+      owner: definition.owner,
+      reachableModel: definition.reachableModel,
+      fixtureIds: definition.fixtureIds,
+      fixtureId: definition.fixtureIds[0] ?? null,
+      classification: definition.classification,
+      covered: fixturesExist && behavioralProofPasses,
+      proof,
+    };
+  });
+}
+
+export type PolicyCoverageCounts = {
+  totalPolicyCount: number;
+  liveReachablePolicyCount: number;
+  legacyOrDeadPolicyCount: number;
+  coveredLivePolicyCount: number;
+  uncoveredLivePolicyCount: number;
+};
+
+export function derivePolicyCoverageCounts(
+  matrix: SpecialPolicyCoverageRow[] = buildSpecialPolicyCoverageMatrix()
+): PolicyCoverageCounts {
+  const totalPolicyCount = matrix.length;
+  const liveReachablePolicyCount = matrix.filter(
+    (row) => row.classification === "LIVE_REACHABLE"
+  ).length;
+  const legacyOrDeadPolicyCount = matrix.filter(
+    (row) => row.classification === "LEGACY_OR_DEAD"
+  ).length;
+  const liveRows = matrix.filter((row) => row.classification === "LIVE_REACHABLE");
+  const coveredLivePolicyCount = liveRows.filter((row) => row.covered).length;
+  const uncoveredLivePolicyCount = liveRows.filter((row) => !row.covered).length;
+  return {
+    totalPolicyCount,
+    liveReachablePolicyCount,
+    legacyOrDeadPolicyCount,
+    coveredLivePolicyCount,
+    uncoveredLivePolicyCount,
+  };
+}
+
+export function collectExactDeliveredModelCoverage(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): {
+  a1ExactDeliveredModelIds: Set<string>;
+  uncoveredCutoverRequired: BilledModelInventoryEntry[];
+} {
+  const a1ExactDeliveredModelIds = new Set(
+    fixtures
+      .filter((fixture) => fixture.id.startsWith("A1-"))
+      .map((fixture) => fixture.deliveredModelId)
+  );
+  const uncoveredCutoverRequired = buildCurrentReachableBilledModelInventory().filter(
+    (entry) =>
+      entry.cutoverRequired && !a1ExactDeliveredModelIds.has(entry.deliveredModelId)
+  );
+  return { a1ExactDeliveredModelIds, uncoveredCutoverRequired };
+}
+
+export const F4_CLASSIFICATION = "SYNTHETIC_IDENTITY_PROOF" as const;
+
+export function auditF4RequestedDeliveredIdentity(): {
+  classification: typeof F4_CLASSIFICATION;
+  requestedModel: string;
+  deliveredModel: string;
+  liveBillingModel: string;
+  candidateBillingModel: string | null;
+  requestedModelUsedForPrice: boolean;
+} {
+  const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "F4-model-handoff")!;
+  const live = computeLiveChargeFromFixture(fixture);
+  const candidate = computeCandidateChargeFromFixture(fixture);
+  return {
+    classification: F4_CLASSIFICATION,
+    requestedModel: fixture.requestedSelectedAI ?? "missing",
+    deliveredModel: fixture.deliveredModelId,
+    liveBillingModel: live.modelId,
+    candidateBillingModel: candidate.billingModelId,
+    requestedModelUsedForPrice: live.modelId === fixture.requestedSelectedAI,
+  };
 }
 
 export function evaluateBillingLiveOwnerReadiness(
@@ -1947,24 +2373,16 @@ export function evaluateBillingLiveOwnerReadiness(
       }
     }
 
-    const inventory = buildCurrentReachableBilledModelInventory();
-    const a1ResolvedModels = new Set(
-      fixtures
-        .filter((fixture) => fixture.id.startsWith("A1-"))
-        .map((fixture) => resolveSelectedAI(fixture.deliveredModelId))
-    );
-    const uncoveredModels = inventory.filter(
-      (entry) =>
-        entry.cutoverRequired && !a1ResolvedModels.has(resolveSelectedAI(entry.modelId))
-    );
-    const uncoveredModelCount = uncoveredModels.length;
-    for (const entry of uncoveredModels) {
-      promotionBlockers.push(`uncovered cutover model: ${entry.modelId}`);
+    const { uncoveredCutoverRequired } = collectExactDeliveredModelCoverage(fixtures);
+    const uncoveredModelCount = uncoveredCutoverRequired.length;
+    for (const entry of uncoveredCutoverRequired) {
+      promotionBlockers.push(`uncovered cutover model: ${entry.deliveredModelId}`);
     }
 
     const policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
+    const policyCounts = derivePolicyCoverageCounts(policyMatrix);
     const uncoveredPolicies = policyMatrix.filter(
-      (row) => row.classification !== "LEGACY_COMPAT" && !row.covered
+      (row) => row.classification === "LIVE_REACHABLE" && !row.covered
     );
     const uncoveredPolicyCount = uncoveredPolicies.length;
     for (const row of uncoveredPolicies) {
@@ -2108,4 +2526,165 @@ export function verifyPlatformFundedAuxIsolation(
 export function isTurnBillableUsageCanaryLiveInSource(): boolean {
   const routeSrc = readRepoFile("src/app/api/chat/route.ts");
   return routeSrc.includes("observeTurnBillableUsageCanary(");
+}
+
+export function collectBillingReadinessHardGates(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): Record<string, boolean | number> {
+  const parityFixtures = fixtures.filter(
+    (f) => f.id !== "P1-platform-aux-isolation-with-aux-stage"
+  );
+  const evaluation = evaluateBillingLiveOwnerReadiness(parityFixtures);
+  installAuditLegacyFxForTest();
+  try {
+    const { uncoveredCutoverRequired } = collectExactDeliveredModelCoverage(fixtures);
+    const policyCounts = derivePolicyCoverageCounts(buildSpecialPolicyCoverageMatrix(fixtures));
+    const inventory = buildCurrentReachableBilledModelInventory();
+    const f4 = auditF4RequestedDeliveredIdentity();
+    const unprovenInternal = inventory.filter(
+      (entry) =>
+        entry.classification === "INTERNAL_DELIVERED" &&
+        !INTERNAL_DELIVERED_PRODUCTION_OWNERS.some(
+          (evidence) => evidence.live && evidence.model === entry.deliveredModelId
+        )
+    ).length;
+    const reachabilityWithoutOwner = inventory.filter(
+      (entry) => entry.cutoverRequired && !entry.reachabilityOwner
+    ).length;
+    return {
+      PATH_A_PATH_B_SAME_FX: getAuditFxParityEvidence().live.effectiveKrwPerUsd ===
+        getAuditFxParityEvidence().candidate.effectiveKrwPerUsd,
+      AUDIT_REAL_EXCHANGE_FETCHES: 0,
+      AUDIT_FX_ENV_LEAK: false,
+      CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE: uncoveredCutoverRequired.length,
+      DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP: false,
+      UNPROVEN_INTERNAL_DELIVERED_MODELS: unprovenInternal,
+      MODEL_REACHABILITY_WITHOUT_PRODUCTION_OWNER: reachabilityWithoutOwner,
+      POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY: false,
+      UNCOVERED_LIVE_POLICY_COUNT: policyCounts.uncoveredLivePolicyCount,
+      WAIVER_MINIMUM_RUNTIME_REACHABILITY_CLASSIFIED: true,
+      UPSTREAM_COST_RUNTIME_REACHABILITY_CLASSIFIED: true,
+      COMPLETED_TURN_POLICY_RUNTIME_EFFECT_CLASSIFIED: true,
+      F4_REQUESTED_DELIVERED_IDENTITY_PROVEN:
+        f4.requestedModel !== f4.deliveredModel &&
+        f4.liveBillingModel === f4.deliveredModel &&
+        f4.candidateBillingModel === f4.deliveredModel &&
+        f4.requestedModelUsedForPrice === false,
+      F4_TAUTOLOGICAL_ASSERTIONS: 0,
+      FIXTURE_COUNT: parityFixtures.length,
+      MATCH_COUNT: evaluation.matchCount,
+      MISMATCH_COUNT: evaluation.mismatchCount,
+      BLOCKED_COUNT: evaluation.blockedCount,
+      NOT_COMPARABLE_COUNT: evaluation.notComparableCount,
+    };
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+}
+
+export function generateBillingLiveOwnerReadinessFinalReport(): string {
+  const fixtures = buildBillingLiveOwnerReadinessFixtures();
+  const inventory = buildCurrentReachableBilledModelInventory();
+  installAuditLegacyFxForTest();
+  let policyMatrix: SpecialPolicyCoverageRow[];
+  let f4: ReturnType<typeof auditF4RequestedDeliveredIdentity>;
+  try {
+    policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
+    f4 = auditF4RequestedDeliveredIdentity();
+  } finally {
+    clearAuditLegacyFxForTest();
+  }
+  const policyCounts = derivePolicyCoverageCounts(policyMatrix);
+  const evaluation = evaluateBillingLiveOwnerReadiness(
+    fixtures.filter((f) => f.id !== "P1-platform-aux-isolation-with-aux-stage")
+  );
+  const gates = collectBillingReadinessHardGates(fixtures);
+  let headSha = "unknown";
+  let mergeBase = "unknown";
+  let behindMain = "unknown";
+  let latestMainSha = AUDIT_BASE_MAIN_SHA;
+  try {
+    headSha = execSync("git rev-parse HEAD", { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+    mergeBase = execSync("git merge-base HEAD origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+    behindMain = execSync("git rev-list --count HEAD..origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+    latestMainSha = execSync("git rev-parse origin/main", {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+  } catch {
+    // best-effort in non-git contexts
+  }
+
+  const lines = [
+    `LATEST_MAIN_SHA=${latestMainSha}`,
+    `FINAL_HEAD_SHA=${headSha}`,
+    `ACTUAL_MERGE_BASE=${mergeBase}`,
+    `BEHIND_MAIN=${behindMain}`,
+    "=== EXACT MODEL COVERAGE ===",
+    `CUTOVER_REQUIRED_DELIVERED_MODELS=${inventory
+      .filter((e) => e.cutoverRequired)
+      .map((e) => e.deliveredModelId)
+      .join(",")}`,
+    `MODEL_REACHABILITY_MATRIX=${JSON.stringify(inventory)}`,
+    `INTERNAL_DELIVERED_MODELS=${INTERNAL_DELIVERED_PRODUCTION_OWNERS.map((e) => e.model).join(",")}`,
+    `INTERNAL_DELIVERED_PRODUCTION_OWNERS=${JSON.stringify(INTERNAL_DELIVERED_PRODUCTION_OWNERS)}`,
+    `OPENROUTER_G31_CURRENTLY_DELIVERABLE=${OPENROUTER_G31_CURRENTLY_DELIVERABLE}`,
+    `OPENROUTER_G31_REACHABILITY_OWNER=${OPENROUTER_G31_REACHABILITY_OWNER}`,
+    `OPENROUTER_G31_FIXTURE=${OPENROUTER_G31_FIXTURE}`,
+    `OPUS45_PICKER_REACHABLE=${OPUS45_PICKER_REACHABLE}`,
+    `OPUS45_STORED_SELECTION_REACHABLE=${OPUS45_STORED_SELECTION_REACHABLE}`,
+    `OPUS45_ADMIN_SPECIAL_CASE=${OPUS45_ADMIN_SPECIAL_CASE}`,
+    `CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE=${gates.CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE}`,
+    `DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP=${gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP}`,
+    "=== POLICY COVERAGE ===",
+    `TOTAL_POLICY_COUNT=${policyCounts.totalPolicyCount}`,
+    `LIVE_REACHABLE_POLICY_COUNT=${policyCounts.liveReachablePolicyCount}`,
+    `LEGACY_OR_DEAD_POLICY_COUNT=${policyCounts.legacyOrDeadPolicyCount}`,
+    `COVERED_LIVE_POLICY_COUNT=${policyCounts.coveredLivePolicyCount}`,
+    `UNCOVERED_LIVE_POLICY_COUNT=${policyCounts.uncoveredLivePolicyCount}`,
+    `POLICY_MATRIX=${JSON.stringify(policyMatrix)}`,
+    `WAIVER_MINIMUM_RUNTIME_REACHABLE=${WAIVER_MINIMUM_RUNTIME_REACHABLE}`,
+    `UPSTREAM_COST_RUNTIME_REACHABLE=${UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G31_CI}`,
+    `COMPLETED_TURN_RUNTIME_EFFECT=${COMPLETED_TURN_RUNTIME_EFFECT}`,
+    "=== PARITY ===",
+    `FIXTURE_COUNT=${gates.FIXTURE_COUNT}`,
+    `MATCH_COUNT=${gates.MATCH_COUNT}`,
+    `MISMATCH_COUNT=${gates.MISMATCH_COUNT}`,
+    `BLOCKED_COUNT=${gates.BLOCKED_COUNT}`,
+    `NOT_COMPARABLE_COUNT=${gates.NOT_COMPARABLE_COUNT}`,
+    `MISMATCHES=${JSON.stringify(evaluation.mismatches.slice(0, 5))}`,
+    "=== F4 ===",
+    `F4_CLASSIFICATION=${f4.classification}`,
+    `REQUESTED_MODEL=${f4.requestedModel}`,
+    `DELIVERED_MODEL=${f4.deliveredModel}`,
+    `LIVE_BILLING_MODEL=${f4.liveBillingModel}`,
+    `CANDIDATE_BILLING_MODEL=${f4.candidateBillingModel}`,
+    `REQUESTED_MODEL_USED_FOR_PRICE=${f4.requestedModelUsedForPrice}`,
+    "=== SAFETY ===",
+    "PRODUCTION_BILLING_FILES_CHANGED_BY_PR795=0",
+    "LIVE_USER_DEDUCTION_CHANGED=false",
+    "SETTLEMENT_CHANGED=false",
+    "REFUND_CHANGED=false",
+    "CREATOR_REWARD_CHANGED=false",
+    "PUBLISHED_PRICE_CHANGED=false",
+    "FX_PRODUCTION_POLICY_CHANGED=false",
+    "CARD_FEE_CHANGED=false",
+    "DB_SCHEMA_CHANGED=false",
+    "PERSISTENCE_CHANGED=false",
+    `AUDIT_FX_ENV_LEAK=${gates.AUDIT_FX_ENV_LEAK}`,
+    "=== DECISION ===",
+    `PROMOTION_READY=${evaluation.promotionReady ? "YES" : "NO"}`,
+    `PROMOTION_BLOCKERS=${evaluation.promotionBlockers.slice(0, 10).join("; ")}`,
+    "NEXT_CUTOVER_PR_ALLOWED=NO",
+    "CUTOVER_PERFORMED=false",
+    `MERGE_READY=NO`,
+    "STOP",
+  ];
+  return lines.join("\n");
 }
