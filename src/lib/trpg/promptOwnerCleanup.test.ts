@@ -184,7 +184,8 @@ describe("TRPG prompt owner cleanup", () => {
     assert.doesNotMatch(user, /\[PROSE LAYOUT\]/);
   });
 
-  it("GM scene/tone/length/speech owners remain count=1", () => {
+  it("GM scene/tone/length/speech/narrator owners remain count=1", () => {
+    assert.equal((TRPG_GM_SYSTEM.match(/\[NARRATOR REGISTER\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[SPEECH FORMAT\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.equal((TRPG_GM_SYSTEM.match(/\[TONE\]/g) ?? []).length, 1);

@@ -188,6 +188,15 @@ Rules:
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
 - Closing GM beat: one compact \`GM:\` aside, 1–2 sentences (~100–180 Korean chars). End on the most immediate unresolved pressure at the exact moment player control returns. Keep it a GM aside, not a character \`이름: "대사"\` line.
 
+[NARRATOR REGISTER]
+Narration uses Korean literary plain style, not formal polite explanatory or report prose.
+Prefer novelistic endings such as 했다, 였다, 있었다, 보였다, 느껴졌다; short present or fragment beats are fine when the scene needs them.
+Do not narrate with formal polite endings such as 했습니다, 였습니다, 있습니다, 입니다, 합니다, 됩니다.
+Applies to narration and the GM closing aside only.
+Spoken dialogue keeps each character's speech level; never normalize dialogue to the narrator register.
+Quoted in-world text (signs, documents, broadcasts) may keep its own register.
+Do not mimic injected plan or blueprint surface register in narration.
+
 [SPEECH FORMAT]
 Only actual words spoken aloud get a speaker line.
 Write every spoken line as a standalone:
