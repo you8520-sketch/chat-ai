@@ -29,12 +29,28 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chat_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      pinned_facts TEXT NOT NULL DEFAULT '',
+      recent_summary TEXT NOT NULL DEFAULT '',
+      archive_summary TEXT NOT NULL DEFAULT '',
+      membership_tier TEXT NOT NULL DEFAULT 'free',
+      used_chars INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
 describe("remote schema bootstrap", () => {
   it("runs migration only once after recording the schema version", () => {
     const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
     let migrations = 0;
     const migrate = () => {
       migrations += 1;
@@ -58,7 +74,7 @@ describe("remote schema bootstrap", () => {
         version TEXT PRIMARY KEY,
         applied_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
-      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION_PREVIOUS}');
+      INSERT INTO _remote_schema_state (version) VALUES ('turso-v1');
     `);
     seedProductionRemoteCore(db);
     assert.equal(hasChatBillingSettlementSchema(db), false);
@@ -86,7 +102,7 @@ describe("remote schema bootstrap", () => {
         version TEXT PRIMARY KEY,
         applied_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
-      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION_PREVIOUS}');
+      INSERT INTO _remote_schema_state (version) VALUES ('turso-v1');
     `);
     seedProductionRemoteCore(db);
 
@@ -155,7 +171,7 @@ describe("remote schema bootstrap", () => {
     db.close();
   });
 
-  it("v2 marker + valid settlement schema → migration skipped", () => {
+  it("v3 marker + valid full current invariant → migration skipped", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE _remote_schema_state (
@@ -177,6 +193,31 @@ describe("remote schema bootstrap", () => {
     });
 
     assert.equal(migrations, 0);
+    db.close();
+  });
+
+  it("v2 marker + structurally current schema adopts v3 without migrate", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION_PREVIOUS}');
+    `);
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+
+    assert.equal(migrations, 0);
+    const current = db
+      .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+      .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
+    assert.equal(current?.version, REMOTE_SCHEMA_VERSION);
     db.close();
   });
 
@@ -217,14 +258,14 @@ describe("remote schema bootstrap", () => {
 
     assert.throws(
       () => initializeRemoteSchema(db, migrate),
-      /canonical chat billing settlement schema/
+      /canonical current production schema/
     );
     assert.equal(migrations, 1);
     assert.equal(hasChatBillingSettlementSchema(db), false);
 
     assert.throws(
       () => initializeRemoteSchema(db, migrate),
-      /canonical chat billing settlement schema/
+      /canonical current production schema/
     );
     assert.equal(migrations, 2);
     db.close();

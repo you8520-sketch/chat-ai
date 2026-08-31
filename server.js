@@ -22,6 +22,15 @@ const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 
+const { withCustomServerBootImportBoundary } = require(
+  "./src/lib/customServerBootImportBoundary.js"
+);
+
+/** Background modules that transitively load server-only under plain tsx. */
+async function importBackgroundModule(specifier) {
+  return withCustomServerBootImportBoundary(() => import(specifier));
+}
+
 const dev = process.env.NODE_ENV !== "production";
 // 개발 모드에서는 출금 스케줄러 기본 비활성화 (ENABLE_PAYOUT_SCHEDULER=1 로 재활성화)
 if (dev && process.env.ENABLE_PAYOUT_SCHEDULER !== "1") {
@@ -38,7 +47,7 @@ const handle = app.getRequestHandler();
 
 async function runBackgroundInitialization() {
   try {
-    const { warnEpisodicMemoryRecallDisabledInProduction } = await import(
+    const { warnEpisodicMemoryRecallDisabledInProduction } = await importBackgroundModule(
       "./src/lib/episodicMemoryFacts.ts"
     );
     warnEpisodicMemoryRecallDisabledInProduction();
@@ -50,7 +59,7 @@ async function runBackgroundInitialization() {
   }
   if (process.env.DISABLE_PAYOUT_SCHEDULER !== "1") {
     try {
-      const { startPayoutScheduler } = await import("./src/cron/payoutScheduler.ts");
+      const { startPayoutScheduler } = await importBackgroundModule("./src/cron/payoutScheduler.ts");
       startPayoutScheduler();
       console.log(
         `[boot-timing] payout init complete (+${Date.now() - bootStart}ms from process start)`
@@ -70,7 +79,7 @@ async function runBackgroundInitialization() {
 
   if (process.env.DISABLE_TRAINING_PIPELINE !== "1" && process.env.ENABLE_TRAINING_PIPELINE === "1") {
     try {
-      const { startTrainingScheduler } = await import("./src/cron/trainingScheduler.ts");
+      const { startTrainingScheduler } = await importBackgroundModule("./src/cron/trainingScheduler.ts");
       startTrainingScheduler();
     } catch (err) {
       console.error("[server] training scheduler 시작 실패:", err);
@@ -81,7 +90,7 @@ async function runBackgroundInitialization() {
 
   if (process.env.DISABLE_FINANCE_SCHEDULER !== "1") {
     try {
-      const { startFinanceScheduler } = await import("./src/cron/financeScheduler.ts");
+      const { startFinanceScheduler } = await importBackgroundModule("./src/cron/financeScheduler.ts");
       startFinanceScheduler();
     } catch (err) {
       console.error("[server] finance scheduler 시작 실패:", err);
@@ -91,7 +100,7 @@ async function runBackgroundInitialization() {
   }
 
   try {
-    const webPushMod = await import("./src/lib/webPush.ts");
+    const webPushMod = await importBackgroundModule("./src/lib/webPush.ts");
     const startWebPushSchedulers =
       webPushMod.startWebPushSchedulers ?? webPushMod.default?.startWebPushSchedulers;
     if (typeof startWebPushSchedulers === "function") startWebPushSchedulers();
@@ -120,7 +129,9 @@ async function runBackgroundInitialization() {
   }
 
   try {
-    const { startDerivedCacheWakeup } = await import("./src/lib/derivedCache/wakeupScheduler.ts");
+    const { startDerivedCacheWakeup } = await importBackgroundModule(
+      "./src/lib/derivedCache/wakeupScheduler.ts"
+    );
     startDerivedCacheWakeup();
     console.log(
       `[boot-timing] derived cache wakeup init complete (+${Date.now() - bootStart}ms from process start)`
