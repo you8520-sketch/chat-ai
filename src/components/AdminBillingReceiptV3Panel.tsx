@@ -9,7 +9,7 @@ import {
   formatAdminBillingReceiptV3Text,
   wholeTurnCoverageLabel,
   type AdminBillingReceiptV3,
-} from "@/lib/adminBillingReceiptV3";
+} from "@/lib/adminBillingReceiptV3Shared";
 import { formatPoints } from "@/lib/billingDisplay";
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -90,9 +90,9 @@ export function AdminBillingReceiptV3Panel({
 
       <SectionTitle>턴 귀속 Provider 총원가</SectionTitle>
       <ReceiptRow
-        label="수집된 USD"
+        label="현재 확인된 Provider 비용"
         value={formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}
-        hint="(확정/미확정 혼합 가능)"
+        hint="(정산확정 subset만 합산)"
       />
       <ReceiptRow
         label="확정 USD"
@@ -194,5 +194,3 @@ export function AdminBillingReceiptV3Panel({
     </div>
   );
 }
-
-export { formatAdminBillingReceiptV3Text };

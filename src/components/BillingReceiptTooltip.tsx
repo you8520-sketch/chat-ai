@@ -17,15 +17,15 @@ import {
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { AdminBillingReceiptV2Panel } from "@/components/AdminBillingReceiptV2Panel";
-import {
-  AdminBillingReceiptV3Panel,
-  formatAdminBillingReceiptV3Text,
-} from "@/components/AdminBillingReceiptV3Panel";
+import { AdminBillingReceiptV3Panel } from "@/components/AdminBillingReceiptV3Panel";
 import {
   buildAdminBillingReceiptV2,
   formatAdminBillingReceiptV2Text,
 } from "@/lib/adminBillingReceiptV2";
-import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
+import {
+  formatAdminBillingReceiptV3Text,
+} from "@/lib/adminBillingReceiptV3Shared";
+import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import {
   isGemini25ProModel,
   isGemini31ProModel,

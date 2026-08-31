@@ -4,19 +4,22 @@ import type { Usage } from "@/lib/chatUsage";
 import { convertUsdToKrw } from "@/lib/exchangeRate";
 import {
   buildAdminBillingReceiptV2,
-  formatAdminActualUsd,
   type AdminBillingReceiptV2,
   type AdminBillingReceiptV2Fx,
-  type AdminReceiptExactness,
 } from "@/lib/adminBillingReceiptV2";
 import {
   ASYNC_FAMILY_LABELS,
   resolveAsyncTurnCoverage,
   type AsyncFamilyCoverageState,
   type AsyncFamilyExpectationState,
-  type AsyncTurnCoverageResult,
   type TurnAttributableAsyncFamily,
 } from "@/lib/asyncTurnCoverage";
+import type {
+  AdminBillingReceiptV3,
+  AdminBillingReceiptV3AsyncFamilySummary,
+  AdminBillingReceiptV3AsyncSection,
+  AdminBillingReceiptV3WholeTurnCoverage,
+} from "@/lib/adminBillingReceiptV3Shared";
 import {
   isLedgerEventCostCoverageIncomplete,
   isLedgerEventCostExact,
@@ -25,77 +28,13 @@ import {
 import type { SuggestedRepliesRecord } from "@/lib/suggestedReplies/types";
 import type { StatusMetaRecord } from "@/lib/statusMeta/types";
 
-export type AdminBillingReceiptV3WholeTurnCoverage =
-  | "complete"
-  | "pending"
-  | "partial"
-  | "unverifiable";
-
-export type AdminBillingReceiptV3AsyncFamilySummary = {
-  family: TurnAttributableAsyncFamily;
-  label: string;
-  expectationState: AsyncFamilyExpectationState;
-  coverage: AsyncFamilyCoverageState;
-  physicalCallCount: number;
-  exactPhysicalCallCount: number;
-  incompletePhysicalCallCount: number;
-  knownActualCostUsd: number;
-  exactActualCostUsd: number | null;
-  taskPending?: boolean;
-  taskFailed?: boolean;
-  skipReason?: string;
-};
-
-export type AdminBillingReceiptV3AsyncSection = {
-  coverage: AdminBillingReceiptV3WholeTurnCoverage;
-  expectation: AsyncTurnCoverageResult;
-  physicalCallCount: number;
-  exactPhysicalCallCount: number;
-  incompletePhysicalCallCount: number;
-  knownActualCostUsd: number;
-  exactActualCostUsd: number | null;
-  unexpectedRowCount: number;
-  unexpectedFamilies: string[];
-  byFamily: AdminBillingReceiptV3AsyncFamilySummary[];
-  events?: Array<{
-    eventKey: string | null;
-    family: string | null;
-    eventStatus: string | null;
-    actualCostUsd: number | null;
-    actualCostSource: string | null;
-    exact: boolean;
-    incomplete: boolean;
-  }>;
-};
-
-export type AdminBillingReceiptV3WholeTurnSection = {
-  scope: "turn_attributable";
-  coverage: AdminBillingReceiptV3WholeTurnCoverage;
-  mainActualCostUsd: number | null;
-  mainExact: boolean;
-  syncActualCostUsd: number | null;
-  syncExact: boolean;
-  syncProvablyNone: boolean;
-  asyncKnownActualCostUsd: number;
-  asyncExactActualCostUsd: number | null;
-  knownProviderSpendUsd: number;
-  exactProviderSpendUsd: number | null;
-  exactProviderSpendKrw: number | null;
-  contributionMarginKrw: number | null;
-  contributionMarginPercent: number | null;
-  fx: AdminBillingReceiptV2Fx | null;
-};
-
-export type AdminBillingReceiptV3 = {
-  version: 3;
-  assistantMessageId: number;
-  chatId: number;
-  syncReceipt: AdminBillingReceiptV2;
-  async: AdminBillingReceiptV3AsyncSection;
-  wholeTurn: AdminBillingReceiptV3WholeTurnSection;
-  excludedCostScopes: string[];
-  historicalNote?: string;
-};
+export type {
+  AdminBillingReceiptV3,
+  AdminBillingReceiptV3AsyncFamilySummary,
+  AdminBillingReceiptV3AsyncSection,
+  AdminBillingReceiptV3WholeTurnCoverage,
+  AdminBillingReceiptV3WholeTurnSection,
+} from "@/lib/adminBillingReceiptV3Shared";
 
 export type BuildAdminBillingReceiptV3Input = {
   usage: Usage;
@@ -104,8 +43,6 @@ export type BuildAdminBillingReceiptV3Input = {
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
   statusMetaRecord: StatusMetaRecord | null;
   ledgerRows: ProviderCostLedgerRow[];
-  /** True when turn predates #769 ledger instrumentation. */
-  preLedgerHistorical?: boolean;
 };
 
 function round1(n: number): number {
@@ -125,7 +62,6 @@ function filterAsyncLedgerRows(rows: ProviderCostLedgerRow[]): {
   const unexpected: ProviderCostLedgerRow[] = [];
   for (const row of rows) {
     if (row.execution_phase !== "async_post_turn") {
-      unexpected.push(row);
       continue;
     }
     if (row.funding_class !== "platform_funded") {
@@ -215,11 +151,9 @@ function resolveAsyncSection(input: {
         exactActualCostUsd:
           familyExpectation.expectationState === "not_expected"
             ? 0
-            : rows.length === 0 && familyExpectation.expectationState === "terminal"
-              ? null
-              : allExact
-                ? knownUsd
-                : null,
+            : familyCoverage === "complete" && allExact
+              ? knownUsd
+              : null,
         taskPending: familyExpectation.taskPending,
         taskFailed: familyExpectation.taskFailed,
         skipReason: familyExpectation.skipReason,
@@ -276,11 +210,7 @@ function resolveAsyncSection(input: {
   }
 
   const exactActualCostUsd =
-    coverage === "complete" && allPhysicalExact
-      ? knownActualCostUsd
-      : allPhysicalExact && physicalCallCount > 0
-        ? knownActualCostUsd
-        : null;
+    coverage === "complete" && allPhysicalExact ? knownActualCostUsd : null;
 
   const unexpectedFamilies = [
     ...new Set(
@@ -329,7 +259,7 @@ function resolveSyncUsd(syncReceipt: AdminBillingReceiptV2): {
 } {
   const sync = syncReceipt.syncPlatformSpend;
   if (sync.status === "not_persisted") {
-    return { usd: null, exact: false, provablyNone: true };
+    return { usd: null, exact: false, provablyNone: false };
   }
   if (sync.status !== "available" || sync.exactness !== "settled") {
     return { usd: null, exact: false, provablyNone: false };
@@ -370,7 +300,7 @@ export function buildAdminBillingReceiptV3(
     (main.usd ?? 0) + (sync.usd ?? 0) + asyncSection.knownActualCostUsd;
 
   const mainExact = main.exact;
-  const syncExact = sync.exact || sync.provablyNone;
+  const syncExact = sync.exact;
   const asyncExact =
     asyncSection.coverage === "complete" && asyncSection.exactActualCostUsd != null;
   const wholeTurnCoverage: AdminBillingReceiptV3WholeTurnCoverage =
@@ -411,11 +341,6 @@ export function buildAdminBillingReceiptV3(
       ? Math.round(((deductedPoints - exactProviderSpendKrw!) / deductedPoints) * 100)
       : null;
 
-  const historicalNote =
-    input.preLedgerHistorical && input.ledgerRows.length === 0
-      ? "이 턴은 async ledger/coverage 도입 이전 데이터라 전체 턴 원가를 확정할 수 없음"
-      : syncReceipt.historicalNote;
-
   return {
     version: 3,
     assistantMessageId: input.assistantMessageId,
@@ -445,80 +370,6 @@ export function buildAdminBillingReceiptV3(
       "chat_level_lorebook_maintenance",
       "multi_turn_batch_allocation",
     ],
-    historicalNote,
+    historicalNote: syncReceipt.historicalNote,
   };
 }
-
-export function wholeTurnCoverageLabel(
-  coverage: AdminBillingReceiptV3WholeTurnCoverage
-): string {
-  switch (coverage) {
-    case "complete":
-      return "확정";
-    case "pending":
-      return "처리 중";
-    case "partial":
-      return "부분 수집";
-    case "unverifiable":
-      return "검증 불가";
-    default: {
-      const _exhaustive: never = coverage;
-      return _exhaustive;
-    }
-  }
-}
-
-export function formatAdminBillingReceiptV3Text(receipt: AdminBillingReceiptV3): string {
-  const lines: string[] = [
-    "Admin Receipt v3 · 턴 귀속 Provider 원가",
-    `coverage: ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`,
-  ];
-  if (receipt.historicalNote) lines.push(receipt.historicalNote);
-
-  lines.push("", "[Main RP]");
-  lines.push(
-    `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.mainActualCostUsd)} (${receipt.wholeTurn.mainExact ? "exact" : "not exact"})`
-  );
-
-  lines.push("", "[Sync Platform Spend]");
-  if (receipt.wholeTurn.syncProvablyNone) {
-    lines.push("sync: none persisted");
-  } else {
-    lines.push(
-      `actual USD: ${formatAdminActualUsd(receipt.wholeTurn.syncActualCostUsd)} (${receipt.wholeTurn.syncExact ? "exact" : "not exact"})`
-    );
-  }
-
-  lines.push("", "[Async Turn-attributable]");
-  lines.push(`coverage: ${wholeTurnCoverageLabel(receipt.async.coverage)}`);
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.async.knownActualCostUsd)}`);
-  lines.push(
-    `exact USD: ${receipt.async.exactActualCostUsd != null ? formatAdminActualUsd(receipt.async.exactActualCostUsd) : "—"}`
-  );
-  for (const family of receipt.async.byFamily) {
-    lines.push(
-      `- ${family.label}: calls=${family.physicalCallCount}, known=${formatAdminActualUsd(family.knownActualCostUsd)}, state=${family.expectationState}/${family.coverage}`
-    );
-  }
-
-  lines.push("", "[Whole Turn]");
-  lines.push(`known USD: ${formatAdminActualUsd(receipt.wholeTurn.knownProviderSpendUsd)}`);
-  lines.push(
-    `exact USD: ${receipt.wholeTurn.exactProviderSpendUsd != null ? formatAdminActualUsd(receipt.wholeTurn.exactProviderSpendUsd) : "—"}`
-  );
-  lines.push(
-    `exact KRW: ${receipt.wholeTurn.exactProviderSpendKrw != null ? `${receipt.wholeTurn.exactProviderSpendKrw} KRW` : "—"}`
-  );
-  if (receipt.wholeTurn.contributionMarginPercent != null) {
-    lines.push(
-      `turn-attributable margin: ${receipt.wholeTurn.contributionMarginPercent}% (${receipt.wholeTurn.contributionMarginKrw} KRW)`
-    );
-  }
-
-  lines.push("", "[Excluded scopes]");
-  lines.push(receipt.excludedCostScopes.join(", "));
-
-  return lines.join("\n");
-}
-
-export type { AdminReceiptExactness };

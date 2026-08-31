@@ -4,8 +4,8 @@ import { getDb } from "@/lib/db";
 import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   buildAdminBillingReceiptV3,
-  type AdminBillingReceiptV3,
 } from "@/lib/adminBillingReceiptV3";
+import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
 import type { Usage } from "@/lib/chatUsage";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
 import { loadMessageStatusMeta } from "@/lib/statusMeta/job";
@@ -63,7 +63,6 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     : loadMessageStatusMeta(input.messageId);
 
   const ledgerRows = listProviderCostEventsForAssistantMessage(input.messageId, db);
-  const preLedgerHistorical = ledgerRows.length === 0;
 
   const receipt = buildAdminBillingReceiptV3({
     usage,
@@ -72,7 +71,6 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     suggestedRepliesRecord,
     statusMetaRecord,
     ledgerRows,
-    preLedgerHistorical,
   });
 
   return { ok: true, receipt };
