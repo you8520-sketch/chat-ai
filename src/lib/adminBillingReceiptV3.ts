@@ -49,9 +49,13 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function finiteUsd(value: unknown): number {
+function positiveUsdOrNull(value: unknown): number | null {
   const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function finiteUsd(value: unknown): number {
+  return positiveUsdOrNull(value) ?? 0;
 }
 
 function filterAsyncLedgerRows(rows: ProviderCostLedgerRow[]): {
@@ -110,10 +114,14 @@ function resolveAsyncSection(input: {
     rowsByFamily.set(family, []);
   }
   for (const row of relevant) {
-    const family = row.family;
-    if (family === "suggested_replies_repair" || family === "status_meta" || family === "memory_relationship") {
+    const family = row.family?.trim() || null;
+    if (
+      family === "suggested_replies_repair" ||
+      family === "status_meta" ||
+      family === "memory_relationship"
+    ) {
       rowsByFamily.get(family)!.push(row);
-    } else if (family) {
+    } else {
       unexpected.push(row);
     }
   }
@@ -214,7 +222,10 @@ function resolveAsyncSection(input: {
 
   const unexpectedFamilies = [
     ...new Set(
-      unexpected.map((row) => row.family).filter((family): family is string => Boolean(family))
+      unexpected.map((row) => {
+        const family = row.family?.trim();
+        return family ? family : "(missing family)";
+      })
     ),
   ];
 
@@ -249,7 +260,11 @@ function resolveMainUsd(syncReceipt: AdminBillingReceiptV2): {
   if (!actual || actual.exactness !== "settled") {
     return { usd: null, exact: false };
   }
-  return { usd: finiteUsd(actual.actualProviderCostUsd), exact: true };
+  const usd = positiveUsdOrNull(actual.actualProviderCostUsd);
+  if (usd == null) {
+    return { usd: null, exact: false };
+  }
+  return { usd, exact: true };
 }
 
 function resolveSyncUsd(syncReceipt: AdminBillingReceiptV2): {
@@ -264,8 +279,12 @@ function resolveSyncUsd(syncReceipt: AdminBillingReceiptV2): {
   if (sync.status !== "available" || sync.exactness !== "settled") {
     return { usd: null, exact: false, provablyNone: false };
   }
+  const usd = positiveUsdOrNull(sync.actualProviderCostUsd);
+  if (usd == null) {
+    return { usd: null, exact: false, provablyNone: false };
+  }
   return {
-    usd: finiteUsd(sync.actualProviderCostUsd),
+    usd,
     exact: true,
     provablyNone: false,
   };

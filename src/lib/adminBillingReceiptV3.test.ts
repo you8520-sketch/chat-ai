@@ -531,6 +531,205 @@ describe("adminBillingReceiptV3", () => {
     assert.notEqual(receipt.historicalNote, "이 턴은 async ledger/coverage 도입 이전 데이터라 전체 턴 원가를 확정할 수 없음");
   });
 
+  it("T9 — main settled but USD missing", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 91, "suggested_replies_repair", "async_post_turn", 0.001);
+    ledgerRow(db, 91, "status_meta", "async_post_turn", 0.0005);
+    ledgerRow(db, 91, "memory_relationship", "async_post_turn", 0.0005);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(91);
+    const shadow = baseUsage().shadowPricing!;
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({
+        shadowPricing: {
+          ...shadow,
+          actualCostSource: "cheaper_inference_billed",
+          actualTurnCostCoverage: "complete",
+          actualCostUsd: undefined,
+          actualProviderCostKrw: 31.2,
+        },
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "flash",
+          modelLabel: "Flash",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.003,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 4.7,
+        },
+      }),
+      assistantMessageId: 91,
+      chatId: 1,
+      suggestedRepliesRecord: {
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+      },
+      statusMetaRecord: {
+        meta: { tableMarkdown: "", datetime: "d", location: "l", relationship: "", npcEmotion: "", npcIntent: "", nextObjective: "", hiddenThought: "", sceneSummary: "" },
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+        formatSpec: null,
+      },
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.syncReceipt.mainRp.actual?.exactness, "settled");
+    assert.equal(receipt.wholeTurn.mainExact, false);
+    assert.equal(receipt.wholeTurn.mainActualCostUsd, null);
+    assert.equal(receipt.wholeTurn.syncExact, true);
+    assert.equal(receipt.async.coverage, "complete");
+    assert.notEqual(receipt.wholeTurn.coverage, "complete");
+    assert.equal(receipt.wholeTurn.exactProviderSpendUsd, null);
+    assert.equal(receipt.wholeTurn.exactProviderSpendKrw, null);
+    assert.equal(receipt.wholeTurn.contributionMarginPercent, null);
+    assert.equal(receipt.wholeTurn.mainActualCostUsd === 0, false);
+  });
+
+  it("T10 — sync settled but USD missing", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 92, "suggested_replies_repair", "async_post_turn", 0.001);
+    ledgerRow(db, 92, "status_meta", "async_post_turn", 0.0005);
+    ledgerRow(db, 92, "memory_relationship", "async_post_turn", 0.0005);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(92);
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "flash",
+          modelLabel: "Flash",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: undefined,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 4.7,
+        },
+      }),
+      assistantMessageId: 92,
+      chatId: 1,
+      suggestedRepliesRecord: {
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+      },
+      statusMetaRecord: {
+        meta: { tableMarkdown: "", datetime: "d", location: "l", relationship: "", npcEmotion: "", npcIntent: "", nextObjective: "", hiddenThought: "", sceneSummary: "" },
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+        formatSpec: null,
+      },
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.wholeTurn.mainExact, true);
+    assert.equal(receipt.syncReceipt.syncPlatformSpend.exactness, "settled");
+    assert.equal(receipt.wholeTurn.syncExact, false);
+    assert.equal(receipt.wholeTurn.syncActualCostUsd, null);
+    assert.equal(receipt.async.coverage, "complete");
+    assert.notEqual(receipt.wholeTurn.coverage, "complete");
+    assert.equal(receipt.wholeTurn.exactProviderSpendUsd, null);
+    assert.equal(receipt.wholeTurn.exactProviderSpendKrw, null);
+    assert.equal(receipt.wholeTurn.contributionMarginPercent, null);
+    assert.equal(receipt.wholeTurn.syncActualCostUsd === 0, false);
+  });
+
+  it("T11 — settled positive USD remains exact whole-turn", () => {
+    const db = createLedgerDb();
+    ledgerRow(db, 93, "suggested_replies_repair", "async_post_turn", 0.001);
+    ledgerRow(db, 93, "status_meta", "async_post_turn", 0.0005);
+    ledgerRow(db, 93, "memory_relationship", "async_post_turn", 0.0005);
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(93);
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage({
+        statusWidgetExtract: {
+          input: 100,
+          output: 50,
+          model: "flash",
+          modelLabel: "Flash",
+          estimated: false,
+          apiRawCostKrw: 4,
+          actualProviderCostUsd: 0.003,
+          actualCostSource: "cheaper_inference_billed",
+          actualCostCoverage: "complete",
+          actualProviderCostKrw: 4.7,
+        },
+      }),
+      assistantMessageId: 93,
+      chatId: 1,
+      suggestedRepliesRecord: {
+        replies: [],
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+      },
+      statusMetaRecord: {
+        meta: { tableMarkdown: "", datetime: "d", location: "l", relationship: "", npcEmotion: "", npcIntent: "", nextObjective: "", hiddenThought: "", sceneSummary: "" },
+        extractedAt: new Date().toISOString(),
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+        formatSpec: null,
+      },
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.wholeTurn.mainExact, true);
+    assert.equal(receipt.wholeTurn.syncExact, true);
+    assert.equal(receipt.async.coverage, "complete");
+    assert.equal(receipt.wholeTurn.coverage, "complete");
+    assert.ok(receipt.wholeTurn.exactProviderSpendUsd != null);
+    assert.ok(receipt.wholeTurn.exactProviderSpendKrw != null);
+  });
+
+  it("T12 — null/blank async family fails closed", () => {
+    const db = createLedgerDb();
+    db.prepare(
+      `INSERT INTO api_cost_ledger
+        (event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+         attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
+         event_status, exchange_rate_krw_per_usd, cost_krw, estimated, actual_cost_usd,
+         actual_cost_source, created_at)
+       VALUES (?, 1, 94, NULL, 'platform_funded', 'async_post_turn',
+         1, 'cheaperinference', 'flash', 'cheaperinference', 'flash', 'test',
+         'settled', 1500, 1.5, 0, 0.001, 'cheaper_inference_billed', datetime('now'))`
+    ).run(randomUUID());
+    db.prepare(
+      `INSERT INTO api_cost_ledger
+        (event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+         attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
+         event_status, exchange_rate_krw_per_usd, cost_krw, estimated, actual_cost_usd,
+         actual_cost_source, created_at)
+       VALUES (?, 1, 94, '   ', 'platform_funded', 'async_post_turn',
+         1, 'cheaperinference', 'flash', 'cheaperinference', 'flash', 'test',
+         'settled', 1500, 1.5, 0, 0.002, 'cheaper_inference_billed', datetime('now'))`
+    ).run(randomUUID());
+    const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(94);
+    const receipt = buildAdminBillingReceiptV3({
+      usage: baseUsage(),
+      assistantMessageId: 94,
+      chatId: 1,
+      suggestedRepliesRecord: null,
+      statusMetaRecord: null,
+      ledgerRows: rows as never[],
+    });
+    assert.equal(receipt.async.unexpectedRowCount, 2);
+    assert.equal(receipt.async.coverage, "unverifiable");
+    assert.equal(receipt.async.exactActualCostUsd, null);
+    assert.equal(receipt.wholeTurn.exactProviderSpendUsd, null);
+    assert.equal(receipt.wholeTurn.contributionMarginPercent, null);
+    assert.ok(receipt.async.unexpectedFamilies.includes("(missing family)"));
+  });
+
   it("T7 — client graph has zero runtime import from server-only v3", () => {
     const clientFiles = [
       "src/components/AdminBillingReceiptV3Panel.tsx",
