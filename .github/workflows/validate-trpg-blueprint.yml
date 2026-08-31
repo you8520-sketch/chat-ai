@@ -7,7 +7,7 @@ on:
       - "src/lib/trpg/worldBlueprintArtifact.ts"
       - "src/lib/trpg/worldBlueprintGeneration.ts"
       - "src/lib/trpg/worldBlueprintPregen.test.ts"
-      - "src/lib/trpg/worldBlueprintSyncFallbackHealing.test.ts"
+      - "src/lib/trpg/campaignStartBlueprintLatency.test.ts"
       - "src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts"
       - "src/lib/trpg/blueprintRolloutStatus.ts"
       - "src/lib/trpg/blueprintRolloutStatus.test.ts"
@@ -68,8 +68,8 @@ jobs:
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/blueprintWarmupForAdmin.test.ts
       - name: Canonical convergence
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintCanonicalConvergence.test.ts
-      - name: Sync fallback healing
-        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintSyncFallbackHealing.test.ts
+      - name: Campaign start Blueprint latency
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/campaignStartBlueprintLatency.test.ts
       - name: World Blueprint pregeneration
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/worldBlueprintPregen.test.ts
       - name: Derived-cache queue
