@@ -4,8 +4,8 @@ import {
   hasCurrentRemoteSchemaInvariant,
 } from "@/lib/remoteSchemaCurrentInvariant";
 
-export const REMOTE_SCHEMA_VERSION = "turso-v6-last-compressed-at-retired";
-export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v5-pinned-column-retired";
+export const REMOTE_SCHEMA_VERSION = "turso-v7-chats-memory-retired";
+export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v6-last-compressed-at-retired";
 
 const LOCK_STALE_AFTER_MS = 5 * 60_000;
 const WAIT_ATTEMPTS = 360;

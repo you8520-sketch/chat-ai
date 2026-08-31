@@ -211,10 +211,10 @@ function seedAbcdChat(
 
   const chat = db
     .prepare(
-      `INSERT INTO chats (user_id, character_id, mode, memory)
-       VALUES (?, ?, 'safe', ?)`
+      `INSERT INTO chats (user_id, character_id, mode)
+       VALUES (?, ?, 'safe')`
     )
-    .run(opts.userId, opts.characterId, `b1d2-variant-canary:${opts.label}`);
+    .run(opts.userId, opts.characterId);
   const chatId = Number(chat.lastInsertRowid);
 
   bootstrapNumericStateCurrentCore(db, {

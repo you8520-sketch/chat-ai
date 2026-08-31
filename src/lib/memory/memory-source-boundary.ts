@@ -2,7 +2,6 @@ import type Database from "better-sqlite3";
 
 import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
 import { getDb } from "@/lib/db";
-import { clearChatsMemoryColumnIfPresent } from "@/lib/memory/chats-memory-column-compat";
 import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { MemoryTier } from "./memory-types";
 
@@ -187,7 +186,6 @@ export function executeAtomicMemoryResetCore(
        memory_pending='[]', memory_archived_turns=0
      WHERE id=? AND user_id=?`
   ).run(JSON.stringify(EMPTY_MEMORY_META), opts.chatId, opts.userId);
-  clearChatsMemoryColumnIfPresent(db, opts.chatId, opts.userId);
 
   return {
     boundaryBefore: before.resetAfterMessageId,

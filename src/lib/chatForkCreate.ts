@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-/** Fork child chat INSERT — omits legacy chats.memory (DEFAULT '' on M1; absent on M2). */
+/** Fork child chat INSERT — omits legacy chats.memory (absent on M2+). */
 export const FORK_CHAT_INSERT_SQL = `INSERT INTO chats (
   user_id, character_id, mode, memory_pending, memory_meta,
   memory_archived_turns, current_summary, gemini_model, user_note, selected_persona_id,
@@ -50,11 +50,3 @@ export function insertForkChatRow(db: Database.Database, params: ForkChatInsertP
   );
   return Number(info.lastInsertRowid);
 }
-
-/** Pre-M1 fork INSERT shape — column-absent schema fails at prepare time. */
-export const LEGACY_FORK_CHAT_INSERT_SQL_WITH_MEMORY = `INSERT INTO chats (
-  user_id, character_id, mode, memory, memory_pending, memory_meta,
-  memory_archived_turns, current_summary, gemini_model, user_note, selected_persona_id,
-  user_impersonation, target_response_chars, title, writing_style_override, memory_capacity,
-  narrative_pov, pov_character_name
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;

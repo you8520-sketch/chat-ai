@@ -452,8 +452,8 @@ export function auditIdempotencyFromSource(): IdempotencyAudit {
     "UNIQUE(user_id, chat_id, request_id, charge_kind)"
   );
   const hasRemoteSchemaUpgradeChain =
-    remoteBootstrapSrc.includes("turso-v5-pinned-column-retired") &&
-    remoteBootstrapSrc.includes("turso-v6-last-compressed-at-retired");
+    remoteBootstrapSrc.includes("turso-v6-last-compressed-at-retired") &&
+    remoteBootstrapSrc.includes("turso-v7-chats-memory-retired");
   const remoteUpgradeTestPresent = remoteTestSrc.includes("OLD_REMOTE_V1_DB_UPGRADE_PASS");
   const trueConcurrentTestPresent = settlementTestSrc.includes("true overlapping duplicate workers");
   const claimFirstPresent = settlementSrc.includes("ON CONFLICT(user_id, chat_id, request_id, charge_kind) DO NOTHING");
