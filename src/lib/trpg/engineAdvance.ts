@@ -69,6 +69,7 @@ import {
   serializeLocalSceneDeltaContract,
   serializeLocalSceneStateForGm,
 } from "./localSceneProgress";
+import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
@@ -192,7 +193,13 @@ export type TrpgEngineDeps = {
     system: string;
     user: string;
     stream?: TrpgGmStreamCallbacks;
-  }) => Promise<{ text: string; usage?: TrpgModelUsage; providerTimings?: GmProviderTimings }>;
+  }) => Promise<{
+    text: string;
+    usage?: TrpgModelUsage;
+    providerTimings?: GmProviderTimings;
+    finishReason?: string | null;
+    semanticDone?: boolean;
+  }>;
   botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
   directorCall?: TrpgDirectorDeps["directorCall"];
   memoryCall?: TrpgMemoryCall;
@@ -1343,8 +1350,16 @@ async function runGmForRound(
     }, GM_HEARTBEAT_REFRESH_INTERVAL_MS);
   }
   try {
-    const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user, stream: streamCallbacks });
+    const { text, usage, finishReason, semanticDone } = await gmCall({ system: TRPG_GM_SYSTEM, user, stream: streamCallbacks });
     draftCoalescer?.flush();
+    const integrity = assessGmCompletionIntegrity(text, { finishReason, semanticDone });
+    console.info("[TRPG][gm] completion_integrity", {
+      status: completionIntegrityStatusLabel(integrity),
+      finishReason: finishReason ?? null,
+      semanticDone: semanticDone === true,
+      outputTokens: usage?.outputTokens ?? null,
+    });
+    assertGmCompletionCanCommit(text, { finishReason, semanticDone });
     if (opts.requestId) {
       if (
         !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {
@@ -1414,6 +1429,9 @@ async function runGmForRound(
       provenanceGenerationId: opts.requestId,
     });
   } catch (error) {
+    if (!(error instanceof StaleGmGenerationOwnerError)) {
+      clearGmNarrationDraft(db, opts.roundId);
+    }
     throw attachTrpgCallFailureMeta(error, { stage });
   } finally {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
