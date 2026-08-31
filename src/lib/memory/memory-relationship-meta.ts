@@ -18,6 +18,7 @@ import {
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
+import { setMemoryRelationshipTaskState } from "./memoryRelationshipTask";
 
 export type { RelationshipMetaCategory };
 
@@ -180,6 +181,13 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   const names = opts.names;
 
   if (opts.mainModelTailParsed === true) {
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "main_model_tail_satisfied"
+      );
+    }
     return applyRelationshipDeltaToChat({
       chatId: opts.chatId,
       names,
@@ -191,7 +199,12 @@ export async function mergeRelationshipMetaFromTurn(opts: {
 
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, names);
-  const delta = await extractRelationshipMetaFromTurn(
+
+  if (opts.assistantMessageId) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "pending");
+  }
+
+  const extractResult = await extractRelationshipMetaFromTurn(
     opts.userMessage,
     opts.assistantMessage,
     names.charName,
@@ -206,13 +219,24 @@ export async function mergeRelationshipMetaFromTurn(opts: {
         }
       : undefined
   );
-  return applyRelationshipDeltaToChat({
+
+  if (opts.assistantMessageId && !extractResult.parseOk) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "failed", "parse_failed");
+    return prevNormalized;
+  }
+
+  const applied = applyRelationshipDeltaToChat({
     chatId: opts.chatId,
     names,
-    delta,
+    delta: extractResult.delta,
     sourceUserMessageId: opts.sourceUserMessageId,
     boundarySnapshot: opts.boundarySnapshot,
   });
+
+  if (opts.assistantMessageId) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "succeeded");
+  }
+  return applied;
 }
 
 /** 재생성 — 거부본 대비 소지품·속마음 제거 후 새 정본 반영 */
@@ -226,12 +250,18 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
+  assistantMessageId?: number;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, names);
-  const delta = await extractRelationshipMetaAfterRegenerate(
+
+  if (opts.assistantMessageId) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "pending");
+  }
+
+  const extractResult = await extractRelationshipMetaAfterRegenerate(
     opts.userMessage,
     opts.newAssistantMessage,
     opts.previousAssistantMessage,
@@ -241,11 +271,22 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     prevNormalized,
     opts.turnTrace
   );
-  return applyRelationshipDeltaToChat({
+
+  if (opts.assistantMessageId && !extractResult.parseOk) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "failed", "parse_failed");
+    return prevNormalized;
+  }
+
+  const applied = applyRelationshipDeltaToChat({
     chatId: opts.chatId,
     names,
-    delta,
+    delta: extractResult.delta,
     sourceUserMessageId: opts.sourceUserMessageId,
     boundarySnapshot: opts.boundarySnapshot,
   });
+
+  if (opts.assistantMessageId) {
+    setMemoryRelationshipTaskState(opts.assistantMessageId, "succeeded");
+  }
+  return applied;
 }

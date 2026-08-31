@@ -12,6 +12,7 @@ import { loadMessageStatusMeta } from "@/lib/statusMeta/job";
 import { listProviderCostEventsForAssistantMessage } from "@/lib/providerCostLedger";
 import { parseSuggestedRepliesRecord } from "@/lib/suggestedReplies/parse";
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
+import { loadMessageMemoryRelationshipTask } from "@/lib/memory/memoryRelationshipTask";
 
 export type LoadAdminBillingReceiptV3Result =
   | { ok: true; receipt: AdminBillingReceiptV3 }
@@ -63,6 +64,7 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     : loadMessageStatusMeta(input.messageId);
 
   const ledgerRows = listProviderCostEventsForAssistantMessage(input.messageId, db);
+  const memoryRelationshipTask = loadMessageMemoryRelationshipTask(input.messageId);
 
   const receipt = buildAdminBillingReceiptV3({
     usage,
@@ -70,6 +72,7 @@ export function loadAdminBillingReceiptV3ForMessage(input: {
     chatId: row.chat_id,
     suggestedRepliesRecord,
     statusMetaRecord,
+    memoryRelationshipTask,
     ledgerRows,
   });
 

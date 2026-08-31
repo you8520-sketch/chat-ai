@@ -25,6 +25,7 @@ import {
 } from "@/lib/asyncTurnCoverage";
 import { sanitizeUsageForPublicReceipt } from "@/lib/billingReceiptAccess";
 import { assertNoInternalEconomics } from "@/lib/publicUsageEconomicsBoundary";
+import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
 
 const FX = {
   dateKey: "2026-08-30",
@@ -33,6 +34,20 @@ const FX = {
   overseasFeeRate: 0.02,
   effectiveKrwPerUsd: 1560.6,
 };
+
+function memoryTask(
+  state: MemoryRelationshipTaskRecord["state"],
+  reason?: string
+): MemoryRelationshipTaskRecord {
+  return { state, updatedAt: new Date().toISOString(), reason };
+}
+
+function buildV3(input: Parameters<typeof buildAdminBillingReceiptV3>[0]) {
+  return buildAdminBillingReceiptV3({
+    ...input,
+    memoryRelationshipTask: input.memoryRelationshipTask ?? null,
+  });
+}
 
 function baseUsage(overrides: Partial<Usage> = {}): Usage {
   return {
@@ -143,7 +158,7 @@ function ledgerRow(
 
 describe("adminBillingReceiptV3", () => {
   it("A — main only, async families proven skipped", () => {
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({ statusWidgetExtract: undefined }),
       assistantMessageId: 1,
       chatId: 1,
@@ -180,7 +195,7 @@ describe("adminBillingReceiptV3", () => {
       .prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?")
       .all(10);
 
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         statusWidgetExtract: {
           input: 100,
@@ -197,6 +212,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 10,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -242,7 +258,7 @@ describe("adminBillingReceiptV3", () => {
       db
     );
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(20);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 20,
       chatId: 1,
@@ -274,7 +290,7 @@ describe("adminBillingReceiptV3", () => {
     };
     startProviderCostAttempt(ctx, db);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(30);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 30,
       chatId: 1,
@@ -294,7 +310,7 @@ describe("adminBillingReceiptV3", () => {
   });
 
   it("I — expected family zero rows is NOT zero exact", () => {
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 40,
       chatId: 1,
@@ -320,7 +336,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 50, "status_meta", "async_post_turn", 0.0005);
     ledgerRow(db, 50, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(50);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         statusWidgetExtract: {
           input: 100,
@@ -338,6 +354,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 50,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -369,7 +386,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 51, "status_meta", "async_post_turn", 0.0005);
     ledgerRow(db, 51, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(51);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         statusWidgetExtract: {
           input: 100,
@@ -387,6 +404,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 51,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -423,7 +441,7 @@ describe("adminBillingReceiptV3", () => {
          'settled', 1500, 1.5, 0, 0.001, 'cheaper_inference_billed', datetime('now'))`
     ).run(randomUUID());
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(61);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 61,
       chatId: 1,
@@ -448,7 +466,7 @@ describe("adminBillingReceiptV3", () => {
          'settled', 1500, 1.5, 0, 0.001, 'cheaper_inference_billed', datetime('now'))`
     ).run(randomUUID());
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(62);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 62,
       chatId: 1,
@@ -466,10 +484,11 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 63, "status_meta", "async_post_turn", 0.0005);
     ledgerRow(db, 63, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(63);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({ statusWidgetExtract: undefined }),
       assistantMessageId: 63,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -499,7 +518,7 @@ describe("adminBillingReceiptV3", () => {
     const db = createLedgerDb();
     ledgerRow(db, 64, "suggested_replies_repair", "async_post_turn", 0.001);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(64);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 64,
       chatId: 1,
@@ -519,7 +538,7 @@ describe("adminBillingReceiptV3", () => {
   });
 
   it("T6 — zero ledger rows does not auto historical note", () => {
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 65,
       chatId: 1,
@@ -538,7 +557,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 91, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(91);
     const shadow = baseUsage().shadowPricing!;
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         shadowPricing: {
           ...shadow,
@@ -562,6 +581,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 91,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -597,7 +617,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 92, "status_meta", "async_post_turn", 0.0005);
     ledgerRow(db, 92, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(92);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         statusWidgetExtract: {
           input: 100,
@@ -614,6 +634,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 92,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -649,7 +670,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 93, "status_meta", "async_post_turn", 0.0005);
     ledgerRow(db, 93, "memory_relationship", "async_post_turn", 0.0005);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(93);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage({
         statusWidgetExtract: {
           input: 100,
@@ -666,6 +687,7 @@ describe("adminBillingReceiptV3", () => {
       }),
       assistantMessageId: 93,
       chatId: 1,
+      memoryRelationshipTask: memoryTask("succeeded"),
       suggestedRepliesRecord: {
         replies: [],
         extractedAt: new Date().toISOString(),
@@ -714,7 +736,7 @@ describe("adminBillingReceiptV3", () => {
          'settled', 1500, 1.5, 0, 0.002, 'cheaper_inference_billed', datetime('now'))`
     ).run(randomUUID());
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(94);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 94,
       chatId: 1,
@@ -753,7 +775,7 @@ describe("adminBillingReceiptV3", () => {
   it("P — missing parent FX keeps USD, null KRW/margin", () => {
     const usage = baseUsage();
     delete usage.shadowPricing;
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage,
       assistantMessageId: 70,
       chatId: 1,
@@ -771,7 +793,7 @@ describe("adminBillingReceiptV3", () => {
     ledgerRow(db, 80, "suggested_replies_repair", "async_post_turn", 0.0001);
     ledgerRow(db, 80, "status_meta", "async_post_turn", 0.0002);
     const rows = db.prepare("SELECT * FROM api_cost_ledger WHERE assistant_message_id=?").all(80);
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 80,
       chatId: 1,
@@ -799,9 +821,12 @@ describe("adminBillingReceiptV3", () => {
   });
 
   it("ZERO_LEDGER_ROWS_IMPLIES_ZERO_COST=false gate", () => {
-    const memory = resolveMemoryRelationshipExpectation({ memoryRelationshipLedgerRowCount: 0 });
+    const memory = resolveMemoryRelationshipExpectation({
+      task: null,
+      memoryRelationshipLedgerRowCount: 0,
+    });
     assert.equal(memory.expectationState, "unverifiable");
-    const receipt = buildAdminBillingReceiptV3({
+    const receipt = buildV3({
       usage: baseUsage(),
       assistantMessageId: 90,
       chatId: 1,

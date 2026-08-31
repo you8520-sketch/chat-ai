@@ -16,6 +16,7 @@ import {
   mergeRelationshipMetaFromTurn,
   mergeRelationshipMetaAfterRegenerate,
 } from "./memory-relationship-meta";
+import { setMemoryRelationshipTaskState } from "./memoryRelationshipTask";
 import {
   getChatMemoryRow,
   getOrCreateChatMemory,
@@ -316,6 +317,13 @@ export async function scheduleMemoryUpdate(opts: {
       boundary: boundarySnapshot.resetAfterMessageId,
       source_message_id: sourceUserMessageId,
     });
+    if (opts.assistantMessageId) {
+      setMemoryRelationshipTaskState(
+        opts.assistantMessageId,
+        "skipped",
+        "memory_source_pre_reset"
+      );
+    }
     return;
   }
 
@@ -336,6 +344,7 @@ export async function scheduleMemoryUpdate(opts: {
         turnTrace: opts.turnTrace,
         sourceUserMessageId,
         boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
       });
     } else {
       await mergeRelationshipMetaFromTurn({
