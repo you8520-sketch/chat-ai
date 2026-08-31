@@ -1,8 +1,5 @@
 import { getDb } from "@/lib/db";
 import {
-  clearChatsMemoryColumnIfPresent,
-} from "@/lib/memory/chats-memory-column-compat";
-import {
   migrateLegacyCurrentSummaryIntoCanonical,
 } from "@/lib/memory/chats-memory-convergence";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
@@ -108,7 +105,6 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
      WHERE chat_id=?`
   ).run(chatId);
   db.prepare(`UPDATE chats SET current_summary='' WHERE id=? AND user_id=?`).run(chatId, userId);
-  clearChatsMemoryColumnIfPresent(db, chatId, userId);
   getOrCreateChatMemory(chatId, userId, characterId, tier);
 }
 export function upgradeTierForUser(userId: number, tier: MemoryTier): void {

@@ -26,6 +26,7 @@ import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
@@ -186,7 +187,6 @@ function init(db: Database.Database) {
     user_id INTEGER NOT NULL,
     character_id INTEGER NOT NULL,
     mode TEXT NOT NULL DEFAULT 'safe',
-    memory TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS messages (
@@ -1633,6 +1633,7 @@ function migrate(db: Database.Database) {
   dropPinnedFactsColumnOnce(db);
   dropLastCompressedAtColumnOnce(db);
   convergeLegacyChatsMemoryIntoCanonical(db);
+  dropChatsMemoryColumnOnce(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
@@ -1698,6 +1699,7 @@ export function dropLegacyCharacterMemoriesTableOnce(db: Database.Database): voi
 /** Re-export for migration test wiring consistent with other retirement helpers. */
 export { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 export { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
+export { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
 export { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 
 function migrateBoardPostsOnce(db: Database.Database) {

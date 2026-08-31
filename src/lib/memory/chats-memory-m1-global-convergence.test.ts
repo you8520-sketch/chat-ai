@@ -1,6 +1,6 @@
 /**
  * M1 — global chats.memory convergence + runtime fallback retirement.
- * Physical chats.memory column KEPT; current_summary mirror KEPT.
+ * M2 retires the physical column; tests re-add memory for historical bridge scenarios.
  */
 import Module from "module";
 
@@ -43,10 +43,24 @@ const USER_ID = 1;
 const CHARACTER_ID = 2;
 const TIER = "free" as const;
 
+function ensureMemoryColumnForHistoricalFixture(db: Database.Database): void {
+  if (!hasChatsMemoryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN memory TEXT NOT NULL DEFAULT ''`);
+  }
+}
+
 function ensureChatRow(db: Database.Database): void {
+  ensureMemoryColumnForHistoricalFixture(db);
+  if (hasChatsMemoryColumn(db)) {
+    db.prepare(
+      `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
+       VALUES (?,?,?,'safe','','','{}','[]',0)`
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID);
+    return;
+  }
   db.prepare(
-    `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
-     VALUES (?,?,?,'safe','','','{}','[]',0)`
+    `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, current_summary, memory_meta, memory_pending, memory_archived_turns)
+     VALUES (?,?,?,'safe','','{}','[]',0)`
   ).run(CHAT_ID, USER_ID, CHARACTER_ID);
 }
 
@@ -55,11 +69,15 @@ function seedLegacy(
   opts: { current_summary: string; memory: string }
 ): void {
   ensureChatRow(db);
-  db.prepare(`UPDATE chats SET current_summary=?, memory=? WHERE id=?`).run(
-    opts.current_summary,
-    opts.memory,
-    CHAT_ID
-  );
+  if (hasChatsMemoryColumn(db)) {
+    db.prepare(`UPDATE chats SET current_summary=?, memory=? WHERE id=?`).run(
+      opts.current_summary,
+      opts.memory,
+      CHAT_ID
+    );
+    return;
+  }
+  db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run(opts.current_summary, CHAT_ID);
 }
 
 function countMemoryNonempty(db: Database.Database): number {
@@ -120,6 +138,7 @@ describe("chats.memory M1 global convergence precedence", () => {
 
   it("M1-2 memory-only orphan migrates to canonical and promotes current_summary", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     seedLegacy(db, { current_summary: "", memory: "ONLY COPY" });
 
@@ -129,11 +148,16 @@ describe("chats.memory M1 global convergence precedence", () => {
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
     const chat = db
-      .prepare(`SELECT current_summary, memory FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string; memory: string };
+      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+      .get(CHAT_ID) as { current_summary: string };
     assert.equal(canonical.recent_summary, "ONLY COPY");
     assert.equal(chat.current_summary, "ONLY COPY");
-    assert.equal(chat.memory, "");
+    if (hasChatsMemoryColumn(db)) {
+      const memory = db.prepare(`SELECT memory FROM chats WHERE id=?`).get(CHAT_ID) as {
+        memory: string;
+      };
+      assert.equal(memory.memory, "");
+    }
   });
 
   it("M1-3 existing canonical recent_summary is never overwritten", () => {
@@ -168,6 +192,7 @@ describe("chats.memory M1 global convergence precedence", () => {
 
   it("M1 data-loss gate: recover before zero memory", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     seedLegacy(db, { current_summary: "", memory: "ONLY COPY" });
 
@@ -184,6 +209,7 @@ describe("chats.memory M1 global convergence precedence", () => {
 describe("chats.memory M1 lazy bootstrap retirement", () => {
   it("lazy migrate reads current_summary only — memory never read", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     seedLegacy(db, { current_summary: "LAZY", memory: "IGNORED" });
 
@@ -193,12 +219,15 @@ describe("chats.memory M1 lazy bootstrap retirement", () => {
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
     assert.equal(row.recent_summary, "LAZY");
-    assert.equal(db.prepare(`SELECT memory FROM chats WHERE id=?`).get(CHAT_ID)?.memory, "IGNORED");
+    if (hasChatsMemoryColumn(db)) {
+      assert.equal(db.prepare(`SELECT memory FROM chats WHERE id=?`).get(CHAT_ID)?.memory, "IGNORED");
+    }
   });
 
   it("memory-only orphan is not lazy-migrated on getOrCreate without global convergence", () => {
     getDb();
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     seedLegacy(db, { current_summary: "", memory: "LAZY SKIP" });
 
@@ -210,6 +239,7 @@ describe("chats.memory M1 lazy bootstrap retirement", () => {
 describe("chats.memory M1 reset resurrection safety", () => {
   it("reset then row delete does not resurrect old memory", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture(db);
     ensureChatRow(db);
     seedLegacy(db, { current_summary: "", memory: "OLD LEGACY MEMORY" });
     db.prepare(
@@ -228,7 +258,6 @@ describe("chats.memory M1 reset resurrection safety", () => {
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
     assert.equal(row.recent_summary, "");
-    assert.equal(countMemoryNonempty(db), 0);
   });
 });
 
@@ -250,7 +279,7 @@ describe("chats.memory M1 writer retirement", () => {
     assert.ok(forkSnapshotSrc.includes("SET current_summary=?, memory_archived_turns=?"));
     assert.ok(!dbSrc.includes("SELECT current_summary, memory FROM chats"));
     assert.ok(!dbSrc.match(/UPDATE chats SET current_summary='',\s*memory=''/));
-    assert.ok(!/\bmemory,\s*memory_pending\b/.test(forkCreateSrc.split("LEGACY_FORK_CHAT_INSERT_SQL_WITH_MEMORY")[0]!));
+    assert.ok(!/\bmemory,\s*memory_pending\b/.test(forkCreateSrc));
     assert.ok(forkRouteSrc.includes("insertForkChatRow"));
   });
 });

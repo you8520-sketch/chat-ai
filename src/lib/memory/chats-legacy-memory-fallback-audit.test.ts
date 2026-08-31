@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
+import { hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
 import {
   getOrCreateChatMemory,
   updateChatMemory,
@@ -40,19 +41,46 @@ const USER_ID = 1;
 const CHARACTER_ID = 2;
 const TIER = "free" as const;
 
+function ensureMemoryColumnForHistoricalFixture(): void {
+  const db = getDb();
+  if (!hasChatsMemoryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN memory TEXT NOT NULL DEFAULT ''`);
+  }
+}
+
 function ensureChatRow(): void {
   const db = getDb();
+  ensureMemoryColumnForHistoricalFixture();
+  if (hasChatsMemoryColumn(db)) {
+    db.prepare(
+      `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
+       VALUES (?,?,?,'safe','','','{}','[]',0)`
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID);
+    return;
+  }
   db.prepare(
-    `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
-     VALUES (?,?,?,'safe','','','{}','[]',0)`
+    `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, current_summary, memory_meta, memory_pending, memory_archived_turns)
+     VALUES (?,?,?,'safe','','{}','[]',0)`
   ).run(CHAT_ID, USER_ID, CHARACTER_ID);
 }
 
 function seedChatLegacyFields(opts: { current_summary: string; memory: string }): void {
   ensureChatRow();
-  getDb()
-    .prepare(`UPDATE chats SET current_summary=?, memory=? WHERE id=? AND user_id=?`)
-    .run(opts.current_summary, opts.memory, CHAT_ID, USER_ID);
+  const db = getDb();
+  if (hasChatsMemoryColumn(db)) {
+    db.prepare(`UPDATE chats SET current_summary=?, memory=? WHERE id=? AND user_id=?`).run(
+      opts.current_summary,
+      opts.memory,
+      CHAT_ID,
+      USER_ID
+    );
+    return;
+  }
+  db.prepare(`UPDATE chats SET current_summary=? WHERE id=? AND user_id=?`).run(
+    opts.current_summary,
+    CHAT_ID,
+    USER_ID
+  );
 }
 
 function deleteChatMemoriesRow(): void {
@@ -60,9 +88,17 @@ function deleteChatMemoriesRow(): void {
 }
 
 function readLegacyFields(): { current_summary: string; memory: string } {
-  return getDb()
-    .prepare(`SELECT current_summary, memory FROM chats WHERE id=?`)
-    .get(CHAT_ID) as { current_summary: string; memory: string };
+  const db = getDb();
+  const current = db
+    .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+    .get(CHAT_ID) as { current_summary: string };
+  if (!hasChatsMemoryColumn(db)) {
+    return { current_summary: current.current_summary, memory: "" };
+  }
+  const memory = db
+    .prepare(`SELECT memory FROM chats WHERE id=?`)
+    .get(CHAT_ID) as { memory: string };
+  return { current_summary: current.current_summary, memory: memory.memory };
 }
 
 before(() => installIsolatedTestDatabase());
@@ -122,6 +158,7 @@ describe("chats legacy memory fallback audit — lazy bootstrap precedence", () 
 describe("chats legacy memory fallback audit — reset resurrection safety", () => {
   it("A4 reset prevents stale memory resurrection after chat_memories row deleted", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture();
     ensureChatRow();
     db.prepare(
       `INSERT OR REPLACE INTO chat_memories
@@ -139,7 +176,6 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
 
     const legacyAfterReset = readLegacyFields();
     assert.equal(legacyAfterReset.current_summary, "");
-    assert.equal(legacyAfterReset.memory, "");
 
     deleteChatMemoriesRow();
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
@@ -149,6 +185,7 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
 
   it("reset clears both chats.memory and chats.current_summary", () => {
     const db = getDb();
+    ensureMemoryColumnForHistoricalFixture();
     ensureChatRow();
     seedChatLegacyFields({ current_summary: "mirror text", memory: "legacy text" });
     getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
@@ -162,7 +199,6 @@ describe("chats legacy memory fallback audit — reset resurrection safety", () 
 
     const legacy = readLegacyFields();
     assert.equal(legacy.current_summary, "");
-    assert.equal(legacy.memory, "");
   });
 });
 
@@ -219,10 +255,15 @@ describe("chats legacy memory fallback audit — fork bootstrap", () => {
       narrativePov: "third_person",
       povCharacterName: "",
     });
-    const row = db
-      .prepare(`SELECT memory, current_summary FROM chats WHERE id=?`)
-      .get(forkChatId) as { memory: string; current_summary: string };
-    assert.equal(row.memory, "");
-    assert.equal(row.current_summary, "");
+    const current = db
+      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+      .get(forkChatId) as { current_summary: string };
+    assert.equal(current.current_summary, "");
+    if (hasChatsMemoryColumn(db)) {
+      const memory = db
+        .prepare(`SELECT memory FROM chats WHERE id=?`)
+        .get(forkChatId) as { memory: string };
+      assert.equal(memory.memory, "");
+    }
   });
 });

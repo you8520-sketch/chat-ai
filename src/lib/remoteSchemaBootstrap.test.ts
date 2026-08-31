@@ -30,6 +30,17 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'safe',
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory_meta TEXT NOT NULL DEFAULT '{}',
+      memory_pending TEXT NOT NULL DEFAULT '[]',
+      memory_archived_turns INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE TABLE chat_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL UNIQUE,

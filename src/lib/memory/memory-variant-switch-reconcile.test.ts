@@ -30,6 +30,7 @@ import {
   rebuildLorebookFromRecords,
 } from "./memory-turn-summary";
 import { reconcileMemoryAfterVariantSwitch } from "./memory-variant-switch-reconcile";
+import { hasChatsMemoryColumn } from "./chats-memory-column-compat";
 
 const CHAT = 910921;
 const USER = 910922;
@@ -63,9 +64,15 @@ function seedChat() {
     "x"
   );
   db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR, "B1D2Ltm");
-  db.prepare(
-    `INSERT INTO chats (id, user_id, character_id, mode, current_summary, memory) VALUES (?,?,?,'safe','','')`
-  ).run(CHAT, USER, CHAR);
+  if (hasChatsMemoryColumn(db)) {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode, current_summary, memory) VALUES (?,?,?,'safe','','')`
+    ).run(CHAT, USER, CHAR);
+  } else {
+    db.prepare(
+      `INSERT INTO chats (id, user_id, character_id, mode, current_summary) VALUES (?,?,?,'safe','')`
+    ).run(CHAT, USER, CHAR);
+  }
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
 }
 
@@ -114,11 +121,10 @@ describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
     db.prepare(
       `UPDATE chat_memories SET recent_summary=?, updated_at=datetime('now') WHERE chat_id=?`
     ).run(SUMMARY_WITH_D, CHAT);
-    db.prepare(`UPDATE chats SET memory=?, current_summary=? WHERE id=?`).run(
-      SUMMARY_WITH_D,
-      SUMMARY_WITH_D,
-      CHAT
-    );
+    db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run(SUMMARY_WITH_D, CHAT);
+    if (hasChatsMemoryColumn(db)) {
+      db.prepare(`UPDATE chats SET memory=? WHERE id=?`).run(SUMMARY_WITH_D, CHAT);
+    }
 
     const beforeVisible = listVisibleMemoryRecordsForChat(CHAT);
     assert.ok(beforeVisible.some((r) => r.summary.includes("분노_D_골목")));
@@ -152,8 +158,8 @@ describe("Phase B1-D2 — LTM reconcile after variant switch", () => {
     );
 
     const chatMem = db
-      .prepare(`SELECT memory, current_summary FROM chats WHERE id=?`)
-      .get(CHAT) as { memory: string; current_summary: string };
+      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+      .get(CHAT) as { current_summary: string };
     assert.ok(!String(chatMem.current_summary ?? "").includes("분노_D_골목"));
 
     const recent = db
