@@ -1298,24 +1298,6 @@ function migrate(db: Database.Database) {
       ON chats(user_id, character_id);
   `);
   db.exec(`
-    CREATE TABLE IF NOT EXISTS character_memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      character_id INTEGER NOT NULL,
-      pinned_facts TEXT NOT NULL DEFAULT '',
-      recent_summary TEXT NOT NULL DEFAULT '',
-      archive_summary TEXT NOT NULL DEFAULT '',
-      membership_tier TEXT NOT NULL DEFAULT 'free',
-      used_chars INTEGER NOT NULL DEFAULT 0,
-      message_count INTEGER NOT NULL DEFAULT 0,
-      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
-      last_compressed_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(user_id, character_id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_character_memories_user
-      ON character_memories(user_id);
     CREATE TABLE IF NOT EXISTS chat_memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL UNIQUE,
@@ -1643,6 +1625,7 @@ function migrate(db: Database.Database) {
   migrateUnifiedTargetResponseChars3200(db);
   migrateBoardPostsOnce(db);
   dropLegacyMemoryBufferTableOnce(db);
+  dropLegacyCharacterMemoriesTableOnce(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
@@ -1675,6 +1658,33 @@ export function dropLegacyMemoryBufferTableOnce(db: Database.Database): void {
   db.exec("DROP TABLE IF EXISTS memory_buffer");
   if (!flagExists) {
     db.prepare("INSERT INTO _schema_flags (key) VALUES ('memory_buffer_dropped_v1')").run();
+  }
+}
+
+/** One-time retirement of the legacy user-character memory table (superseded by chat_memories). */
+export function dropLegacyCharacterMemoriesTableOnce(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const flagExists = Boolean(
+    db
+      .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='character_memories_dropped_v1'")
+      .get()
+  );
+  const tableExists = Boolean(
+    db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='character_memories'`)
+      .get()
+  );
+
+  if (flagExists && !tableExists) return;
+
+  db.exec("DROP TABLE IF EXISTS character_memories");
+  if (!flagExists) {
+    db.prepare("INSERT INTO _schema_flags (key) VALUES ('character_memories_dropped_v1')").run();
   }
 }
 

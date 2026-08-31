@@ -102,9 +102,9 @@ async function main() {
   const before = db
     .prepare(
       `SELECT message_count, summarized_turn_count, length(recent_summary) AS len, recent_summary
-       FROM character_memories WHERE user_id=? AND character_id=?`
+       FROM chat_memories WHERE chat_id=?`
     )
-    .get(chat.user_id, chat.character_id) as
+    .get(chat.id) as
     | { message_count: number; summarized_turn_count: number; len: number; recent_summary: string }
     | undefined;
 
@@ -127,9 +127,9 @@ async function main() {
   while (rounds < 20) {
     const mem = db
       .prepare(
-        `SELECT message_count, summarized_turn_count FROM character_memories WHERE user_id=? AND character_id=?`
+        `SELECT message_count, summarized_turn_count FROM chat_memories WHERE chat_id=?`
       )
-      .get(chat.user_id, chat.character_id) as
+      .get(chat.id) as
       | { message_count: number; summarized_turn_count: number }
       | undefined;
     if (!mem || mem.message_count - mem.summarized_turn_count < 5) break;
@@ -151,9 +151,9 @@ async function main() {
   const after = db
     .prepare(
       `SELECT message_count, summarized_turn_count, length(recent_summary) AS len, recent_summary
-       FROM character_memories WHERE user_id=? AND character_id=?`
+       FROM chat_memories WHERE chat_id=?`
     )
-    .get(chat.user_id, chat.character_id) as
+    .get(chat.id) as
     | { message_count: number; summarized_turn_count: number; len: number; recent_summary: string }
     | undefined;
 

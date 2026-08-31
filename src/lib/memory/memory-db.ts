@@ -166,7 +166,4 @@ export function upgradeTierForUser(userId: number, tier: MemoryTier): void {
   db.prepare(
     `UPDATE chat_memories SET membership_tier=?, updated_at=datetime('now') WHERE user_id=?`
   ).run(tier, userId);
-  db.prepare(
-    `UPDATE character_memories SET membership_tier=?, updated_at=datetime('now') WHERE user_id=?`
-  ).run(tier, userId);
 }
