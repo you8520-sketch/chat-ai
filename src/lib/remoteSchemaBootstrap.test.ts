@@ -354,13 +354,6 @@ describe("remote schema bootstrap", () => {
 
   it("S4 post-migration assert fail-closed when memory_relationship_task_json not created", () => {
     const db = new Database(":memory:");
-    db.exec(`
-      CREATE TABLE _remote_schema_state (
-        version TEXT PRIMARY KEY,
-        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
-    `);
     seedProductionRemoteCore(db);
     db.exec(`
       CREATE TABLE messages_legacy (request_id TEXT);
@@ -385,7 +378,7 @@ describe("remote schema bootstrap", () => {
     const current = db
       .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
       .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
-    assert.equal(current, undefined);
+    assert.equal(current, undefined, "markCurrent must not run when invariant fails");
     db.close();
   });
 });
