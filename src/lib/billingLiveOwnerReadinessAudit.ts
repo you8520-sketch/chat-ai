@@ -52,7 +52,7 @@ import {
 import {
   _clearLegacyExchangeRateCacheForTest,
   _setLegacyExchangeRateCacheForTest,
-  getKstDateKey,
+  getEffectiveKrwPerUsd,
 } from "@/lib/exchangeRate";
 import {
   billableOutputChars,
@@ -279,8 +279,10 @@ export const AUDIT_FX_SNAPSHOT: BillingFxSnapshot = {
 };
 
 export function installAuditLegacyFxForTest(): void {
+  process.env.EXCHANGE_RATE_MODE = "daily_kst";
+  _clearLegacyExchangeRateCacheForTest();
   _setLegacyExchangeRateCacheForTest({
-    dateKey: getKstDateKey(),
+    dateKey: AUDIT_FX_SNAPSHOT.dateKey,
     usdToKrw: AUDIT_BASE_USD_KRW,
     source: "api",
   });
@@ -302,10 +304,11 @@ export function getAuditFxParityEvidence(): {
     overseasFeeRate: number;
   };
 } {
+  const liveEffective = getEffectiveKrwPerUsd();
   return {
     live: {
       baseUsdKrw: AUDIT_BASE_USD_KRW,
-      effectiveKrwPerUsd: AUDIT_EFFECTIVE_KRW_PER_USD,
+      effectiveKrwPerUsd: liveEffective,
       overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
     },
     candidate: {
@@ -504,13 +507,13 @@ const SPECIAL_POLICY_DEFINITIONS: Array<{
     policy: "upstream actual-cost billing (Gemini/OpenRouter USD)",
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
-    fixtureId: null,
+    fixtureId: "A1-g36-normal",
   },
   {
     policy: "waiver minimum charge resolvers",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_BILLING_WAIVER_OWNER,
     reachableModel: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-    fixtureId: "W4-waiver-minimum",
+    fixtureId: "W4-no-waiver-minimum-model",
   },
   {
     policy: "promptAudit input cap",
@@ -527,8 +530,8 @@ const SPECIAL_POLICY_DEFINITIONS: Array<{
   {
     policy: "stealth fallback OpenRouter-only stage selection",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
-    reachableModel: OPENROUTER_GEMINI_31_PRO_MODEL,
-    fixtureId: null,
+    reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
+    fixtureId: "D-stealth-fallback",
   },
   {
     policy: "gemini37FlashPricing dedicated formula",
@@ -984,8 +987,51 @@ export function compareLiveVsCandidate(fixture: BillingParityFixture): ParityCom
   };
 }
 
-/** Placeholder — populate after frozen golden run with installAuditLegacyFxForTest(). */
-export const FROZEN_LIVE_CHARGE_GOLDEN: Readonly<Record<BillingParityFixtureId, number>> = {};
+/** Frozen live totals — computed with installAuditLegacyFxForTest() at audit BASE. */
+export const FROZEN_LIVE_CHARGE_GOLDEN: Readonly<Record<BillingParityFixtureId, number>> = {
+  "A1-g37-normal": 35,
+  "A1-g31-normal": 153,
+  "A1-opus5-normal": 115,
+  "A1-deepseek-normal": 16,
+  "A1-g36-normal": 71,
+  "A1-terra-normal": 113,
+  "A1-luna-normal": 4,
+  "A1-deepseek-flash-normal": 6,
+  "A1-opus45-normal": 284,
+  "A2-small-io": 4,
+  "A3-large-io": 997,
+  "A4-zero-reasoning": 153,
+  "A5-positive-reasoning": 115,
+  "B1-cache-unreported": 115,
+  "B2-cache-valid-zero": 115,
+  "B3-cache-valid-positive": 80,
+  "B4-cache-malformed-positive": 115,
+  "B5-cache-invalid-beats-valid": 150,
+  "B6-cache-mixed-valid-invalid": 49,
+  "C1-reasoning-unreported": 153,
+  "C2-reasoning-zero": 153,
+  "C3-reasoning-positive": 120,
+  "C4-reasoning-malformed-positive": 153,
+  "C5-reasoning-valid-invalid-stage": 50,
+  "C6-reasoning-in-completion": 115,
+  "D1-single-stage": 153,
+  "D2-recovery": 50,
+  "D3-continuation": 45,
+  "D4-fallback": 155,
+  "D5-failover": 0,
+  "D6-multi-attempt": 42,
+  "D7-failed-then-success": 0,
+  "D-stealth-fallback": 71,
+  "W1-degeneration-waiver": 0,
+  "W2-forced-abort-minimum-zero": 0,
+  "W3-generation-failure-waiver": 0,
+  "W4-no-waiver-minimum-model": 0,
+  "F1-general-normal": 153,
+  "F2-adult-normal": 150,
+  "F3-adult-fallback": 17,
+  "F4-model-handoff": 16,
+  "P1-platform-aux-isolation": 153,
+};
 
 export function verifyBaseVsHeadLiveParity(
   fixtures: BillingParityFixture[]
@@ -1053,6 +1099,7 @@ function buildA1Fixtures(): BillingParityFixture[] {
     savedTextChars?: number;
     output?: number;
     apiOutput?: number;
+    upstreamCostUsd?: number;
   }> = [
     {
       id: "A1-g37-normal",
@@ -1088,6 +1135,7 @@ function buildA1Fixtures(): BillingParityFixture[] {
       modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
       output: 1200,
       apiOutput: 1200,
+      upstreamCostUsd: 0.012,
     },
     {
       id: "A1-terra-normal",
@@ -1127,6 +1175,9 @@ function buildA1Fixtures(): BillingParityFixture[] {
       primary.output = spec.output;
       primary.apiOutputTokens = spec.apiOutput ?? spec.output;
     }
+    if (spec.upstreamCostUsd != null) {
+      primary.upstreamCostUsd = spec.upstreamCostUsd;
+    }
     return {
       id: spec.id,
       label: spec.label,
@@ -1135,6 +1186,7 @@ function buildA1Fixtures(): BillingParityFixture[] {
       provider,
       stages: [primary],
       savedTextChars: spec.savedTextChars,
+      upstreamCostUsd: spec.upstreamCostUsd,
     };
   });
 }
@@ -1613,6 +1665,30 @@ export function buildBillingLiveOwnerReadinessFixtures(): BillingParityFixture[]
       ],
     },
     {
+      id: "D-stealth-fallback",
+      label: "D stealth fallback OpenRouter-only billing",
+      deliveredModelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
+      deliveredSelectedAI: OPENROUTER_GEMINI_36_FLASH_MODEL,
+      provider: "openrouter",
+      stealthFallback: true,
+      stages: [
+        stage({
+          stage: "primary-gemini",
+          model: "gemini-3.6-flash-internal",
+          input: 8000,
+          output: 100,
+          apiOutputTokens: 100,
+        }),
+        stage({
+          stage: "fallback-openrouter",
+          model: OPENROUTER_GEMINI_36_FLASH_MODEL,
+          input: 9000,
+          output: 1200,
+          apiOutputTokens: 1200,
+        }),
+      ],
+    },
+    {
       id: "W1-degeneration-waiver",
       label: "W1 degeneration billing waived",
       deliveredModelId: g31,
@@ -1632,8 +1708,28 @@ export function buildBillingLiveOwnerReadinessFixtures(): BillingParityFixture[]
       ],
     },
     {
-      id: "W2-generation-failure-waiver",
-      label: "W2 generation failure billing waived",
+      id: "W2-forced-abort-minimum-zero",
+      label: "W2 forced abort — route minimum stays 0 (DeepSeek)",
+      deliveredModelId: deepseek,
+      deliveredSelectedAI: deepseek,
+      provider: "cheaperinference",
+      forcedAbort: true,
+      savedText: "She paused at the doorway, breath uneven.",
+      targetResponseChars: 4000,
+      stages: [
+        stage({
+          stage: "primary",
+          model: deepseek,
+          input: 9000,
+          output: 800,
+          apiOutputTokens: 800,
+          loopAborted: true,
+        }),
+      ],
+    },
+    {
+      id: "W3-generation-failure-waiver",
+      label: "W3 generation failure billing waived",
       deliveredModelId: g31,
       deliveredSelectedAI: g31,
       provider: "cheaperinference",
@@ -1651,42 +1747,21 @@ export function buildBillingLiveOwnerReadinessFixtures(): BillingParityFixture[]
       ],
     },
     {
-      id: "W3-forced-abort-waiver",
-      label: "W3 loop abort with garbage output waived",
-      deliveredModelId: g31,
-      deliveredSelectedAI: g31,
+      id: "W4-no-waiver-minimum-model",
+      label: "W4 G37 waiver with no minimum resolver on route",
+      deliveredModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      deliveredSelectedAI: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       provider: "cheaperinference",
-      forcedAbort: true,
-      savedText: "!!!!!",
+      degenerationAborted: true,
+      savedText: "asdfasdf",
       stages: [
         stage({
           stage: "primary",
-          model: g31,
+          model: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
           input: 9000,
-          output: 4307,
-          apiOutputTokens: 4307,
-          loopAborted: true,
-        }),
-      ],
-    },
-    {
-      id: "W4-waiver-minimum",
-      label: "W4 waiver minimum floor on healthy partial output",
-      deliveredModelId: deepseek,
-      deliveredSelectedAI: deepseek,
-      provider: "cheaperinference",
-      forcedAbort: true,
-      savedText:
-        "She paused at the doorway, fingers tracing the chipped paint. The hallway smelled of rain and old wood. Whatever waited inside, she would face it without looking back.",
-      targetResponseChars: 4000,
-      stages: [
-        stage({
-          stage: "primary",
-          model: deepseek,
-          input: 9000,
-          output: 800,
-          apiOutputTokens: 800,
-          loopAborted: true,
+          output: 2500,
+          apiOutputTokens: 2500,
+          degenerationAborted: true,
         }),
       ],
     },
@@ -1873,11 +1948,14 @@ export function evaluateBillingLiveOwnerReadiness(
     }
 
     const inventory = buildCurrentReachableBilledModelInventory();
-    const a1Models = new Set(
-      fixtures.filter((fixture) => fixture.id.startsWith("A1-")).map((fixture) => fixture.deliveredModelId)
+    const a1ResolvedModels = new Set(
+      fixtures
+        .filter((fixture) => fixture.id.startsWith("A1-"))
+        .map((fixture) => resolveSelectedAI(fixture.deliveredModelId))
     );
     const uncoveredModels = inventory.filter(
-      (entry) => entry.cutoverRequired && !a1Models.has(entry.modelId)
+      (entry) =>
+        entry.cutoverRequired && !a1ResolvedModels.has(resolveSelectedAI(entry.modelId))
     );
     const uncoveredModelCount = uncoveredModels.length;
     for (const entry of uncoveredModels) {
