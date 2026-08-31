@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseMainSha": "419cb2c0a699587de9ef277da0b0da799b66485c",
-  "benchmarkHeadSha": "419cb2c0a699587de9ef277da0b0da799b66485c",
+  "benchmarkHeadSha": "f939e41c19165e48270d8eff98a6eb17501206f7",
   "nodeVersion": "v22.14.0",
   "resolvedPrimaryModel": "gpt-5.6-luna",
   "resolvedFallbackModel": "google/gemini-3.1-flash-lite",

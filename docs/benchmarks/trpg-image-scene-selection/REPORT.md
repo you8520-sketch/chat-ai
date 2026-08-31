@@ -5,7 +5,7 @@ Research/benchmark only. GPT/human reviewer scores pending.
 ## Reproducibility
 
 - BASE_MAIN_SHA: `419cb2c0a699587de9ef277da0b0da799b66485c`
-- BENCHMARK_HEAD_SHA: `419cb2c0a699587de9ef277da0b0da799b66485c`
+- BENCHMARK_HEAD_SHA: `f939e41c19165e48270d8eff98a6eb17501206f7`
 - NODE_VERSION: `v22.14.0`
 - PRIMARY_MODEL: `gpt-5.6-luna`
 - FALLBACK_MODEL: `google/gemini-3.1-flash-lite`
