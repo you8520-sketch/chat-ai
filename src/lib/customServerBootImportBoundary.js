@@ -1,10 +1,10 @@
 /**
- * Scoped custom-server background import boundary.
+ * Scoped custom-server background import boundary and export interop.
  *
- * Production starts via `tsx server.js` without Node's `react-server` condition.
- * Background dynamic imports may transitively load `import "server-only"`, which
- * throws outside that condition. This helper temporarily neutralizes the marker
- * only while an explicit background import is loading, then restores Module._load.
+ * Production starts via `tsx server.js` (CommonJS) without Node's `react-server`
+ * condition. Background dynamic imports may transitively load `import "server-only"`.
+ * TypeScript modules loaded via dynamic import() from CJS often expose exports on
+ * `moduleNamespace.default` rather than as direct named properties.
  */
 const Module = require("module");
 
@@ -51,6 +51,46 @@ async function withCustomServerBootImportBoundary(fn) {
   }
 }
 
+/**
+ * Resolve a named export from a custom-server dynamic import namespace.
+ * Prefers direct named exports; falls back to default-wrapped exports.
+ * @param {unknown} moduleNamespace
+ * @param {string} exportName
+ * @returns {unknown}
+ */
+function resolveCustomServerImportedExport(moduleNamespace, exportName) {
+  if (moduleNamespace == null || typeof moduleNamespace !== "object") return undefined;
+  const record = /** @type {Record<string, unknown>} */ (moduleNamespace);
+  if (Object.prototype.hasOwnProperty.call(record, exportName)) {
+    return record[exportName];
+  }
+  const wrapped = record.default;
+  if (wrapped != null && typeof wrapped === "object") {
+    const defaultRecord = /** @type {Record<string, unknown>} */ (wrapped);
+    if (Object.prototype.hasOwnProperty.call(defaultRecord, exportName)) {
+      return defaultRecord[exportName];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Resolve and require a boot function export; throws a sanitized TypeError if absent.
+ * @param {unknown} moduleNamespace
+ * @param {string} exportName
+ * @param {string} moduleId
+ * @returns {(...args: unknown[]) => unknown}
+ */
+function requireCustomServerBootFunction(moduleNamespace, exportName, moduleId) {
+  const resolved = resolveCustomServerImportedExport(moduleNamespace, exportName);
+  if (typeof resolved !== "function") {
+    throw new TypeError(
+      `[boot] ${moduleId}: export "${exportName}" is not a function (got ${typeof resolved})`
+    );
+  }
+  return resolved;
+}
+
 function isCustomServerBootImportBoundaryActive() {
   return boundaryDepth > 0;
 }
@@ -61,6 +101,8 @@ function getCustomServerBootImportBoundaryDepth() {
 
 module.exports = {
   withCustomServerBootImportBoundary,
+  resolveCustomServerImportedExport,
+  requireCustomServerBootFunction,
   isCustomServerBootImportBoundaryActive,
   getCustomServerBootImportBoundaryDepth,
 };
