@@ -290,10 +290,9 @@ export function persistValidatedSummaryBatch(opts: {
           recent_summary=?,
           used_chars=?,
           summarized_turn_count=?,
-          last_compressed_at=?,
           updated_at=datetime('now')
          WHERE chat_id=?`
-      ).run(recent, used, contiguous, new Date().toISOString(), opts.chatId);
+      ).run(recent, used, contiguous, opts.chatId);
 
       syncChatLongTermMemory(opts.chatId, recent);
 

@@ -116,7 +116,6 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
         updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
           recent_summary: recentSummary,
           archive_summary: archiveSummary,
-          last_compressed_at: new Date().toISOString(),
           membership_tier: opts.tier,
         });
       }
@@ -495,10 +494,9 @@ export async function updateLorebookForChat(
     return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
   }
   const budget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
-  const { text: fitted, compressed } = await ensureLorebookWithinBudget(lorebook, budget);
+  const { text: fitted } = await ensureLorebookWithinBudget(lorebook, budget);
   updateChatMemory(chatId, userId, characterId, {
     recent_summary: fitted,
-    last_compressed_at: compressed ? new Date().toISOString() : undefined,
     membership_tier: tier,
   });
   return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);

@@ -1115,7 +1115,6 @@ async function persistComposedBatchScopes(opts: {
           updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
             recent_summary: compactedText,
             membership_tier: opts.tier,
-            last_compressed_at: new Date().toISOString(),
           });
           syncChatLongTermMemory(opts.chatId, compactedText);
           return true;

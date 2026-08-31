@@ -7,7 +7,7 @@ export { calcUsedChars } from "./memory-used-chars";
 const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, recent_summary, archive_summary,
               membership_tier, used_chars, message_count, summarized_turn_count,
               memory_reset_after_message_id, memory_epoch,
-              last_compressed_at, created_at, updated_at
+              created_at, updated_at
        FROM chat_memories WHERE chat_id=?`;
 
 export function getOrCreateChatMemory(
@@ -89,7 +89,6 @@ export function updateChatMemory(
       | "membership_tier"
       | "message_count"
       | "summarized_turn_count"
-      | "last_compressed_at"
     >
   >
 ): ChatMemoryRow {
@@ -106,7 +105,6 @@ export function updateChatMemory(
       recent_summary=?, archive_summary=?,
       membership_tier=?, used_chars=?, message_count=COALESCE(?, message_count),
       summarized_turn_count=COALESCE(?, summarized_turn_count),
-      last_compressed_at=COALESCE(?, last_compressed_at),
       updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(
@@ -116,7 +114,6 @@ export function updateChatMemory(
     used,
     patch.message_count ?? null,
     patch.summarized_turn_count ?? null,
-    patch.last_compressed_at ?? null,
     chatId
   );
 
@@ -128,7 +125,7 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
   db.prepare(
     `UPDATE chat_memories SET
       recent_summary='', archive_summary='',
-      used_chars=0, message_count=0, summarized_turn_count=0, last_compressed_at=NULL, updated_at=datetime('now')
+      used_chars=0, message_count=0, summarized_turn_count=0, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(chatId);
   db.prepare(`UPDATE chats SET current_summary='', memory='' WHERE id=? AND user_id=?`).run(chatId, userId);

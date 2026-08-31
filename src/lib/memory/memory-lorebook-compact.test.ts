@@ -128,7 +128,6 @@ async function persistCompactIfNeeded(): Promise<{ compressed: boolean; text: st
     updateChatMemory(CHAT_ID, USER_ID, CHAR_ID, {
       recent_summary: result.text,
       membership_tier: "free",
-      last_compressed_at: new Date().toISOString(),
     });
     syncChatLongTermMemory(CHAT_ID, result.text);
   }
