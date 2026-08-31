@@ -7,7 +7,6 @@ describe("buildMemoryContext default header", () => {
   it("uses tier-separated [현재기억] hint", () => {
     const injection = buildMemoryContext({
       memory: {
-        pinned_facts: "",
         recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",
@@ -25,7 +24,6 @@ describe("buildMemoryContext pastEventSummaryDedupe", () => {
   it("uses [과거 사건 요약본] header for DeepSeek", () => {
     const injection = buildMemoryContext({
       memory: {
-        pinned_facts: "",
         recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",

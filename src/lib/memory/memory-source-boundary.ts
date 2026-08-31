@@ -126,15 +126,14 @@ export function ensureChatMemoryRowCore(
 ): void {
   db.prepare(
     `INSERT OR IGNORE INTO chat_memories
-      (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
+      (chat_id, user_id, character_id, recent_summary, archive_summary,
        membership_tier, used_chars, message_count, summarized_turn_count,
        memory_reset_after_message_id, memory_epoch)
-     VALUES (?,?,?,?,?,?,?,?,0,0,NULL,0)`
+     VALUES (?,?,?,?,?,?,?,0,0,NULL,0)`
   ).run(
     opts.chatId,
     opts.userId,
     opts.characterId,
-    "",
     "",
     "",
     opts.tier,
@@ -172,7 +171,7 @@ export function executeAtomicMemoryResetCore(
 
   db.prepare(
     `UPDATE chat_memories SET
-       pinned_facts='', recent_summary='', archive_summary='', used_chars=0,
+       recent_summary='', archive_summary='', used_chars=0,
        message_count=0, summarized_turn_count=0, last_compressed_at=NULL,
        memory_reset_after_message_id=?, memory_epoch=?, updated_at=datetime('now')
      WHERE chat_id=?`

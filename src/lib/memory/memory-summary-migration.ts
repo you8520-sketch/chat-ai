@@ -8,7 +8,8 @@ import {
   __getLastSummarizeTurnBatchError,
   composeBatchScopePayload,
 } from "./memory-rolling-summary";
-import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import {
   highestContiguousCompletedTurn,
 } from "./memory-summary-integrity";
@@ -803,7 +804,6 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       const recent = rebuildLorebookFromRecords(opts.chatId) || "";
       const current = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, tier);
       const used = calcUsedChars({
-        pinned_facts: current.pinned_facts,
         recent_summary: recent,
         archive_summary: current.archive_summary,
       });

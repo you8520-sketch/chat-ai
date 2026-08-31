@@ -13,7 +13,7 @@ import { getDb } from "@/lib/db";
 import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
 import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { isMemoryFeatureEnabled } from "./memory-feature";
-import { calcUsedChars } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
@@ -167,10 +167,10 @@ function ensureChatMemoryRowDb(
   }
   db.prepare(
     `INSERT INTO chat_memories
-      (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
+      (chat_id, user_id, character_id, recent_summary, archive_summary,
        membership_tier, used_chars, summarized_turn_count)
-     VALUES (?,?,?,?,?,?,?,?,0)`
-  ).run(chatId, userId, characterId, "", "", "", tier, 0);
+     VALUES (?,?,?,?,?,?,?,0)`
+  ).run(chatId, userId, characterId, "", "", tier, 0);
 }
 
 /**
@@ -277,13 +277,12 @@ export function reconcileMemoryAfterVariantSwitchCore(
 
   const mem = db
     .prepare(
-      `SELECT pinned_facts, archive_summary FROM chat_memories WHERE chat_id=?`
+      `SELECT archive_summary FROM chat_memories WHERE chat_id=?`
     )
     .get(opts.chatId) as
-    | { pinned_facts: string; archive_summary: string }
+    | { archive_summary: string }
     | undefined;
   const used = calcUsedChars({
-    pinned_facts: mem?.pinned_facts ?? "",
     recent_summary: lorebook,
     archive_summary: mem?.archive_summary ?? "",
   });

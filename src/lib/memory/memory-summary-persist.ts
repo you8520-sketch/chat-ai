@@ -2,7 +2,8 @@
  * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import { validateSummarySpanWrite } from "./memory-summary-span-write";
 import type { MemoryTier } from "./memory-types";
 import {
@@ -280,7 +281,6 @@ export function persistValidatedSummaryBatch(opts: {
         opts.tier
       );
       const used = calcUsedChars({
-        pinned_facts: current.pinned_facts,
         recent_summary: recent,
         archive_summary: current.archive_summary,
       });
@@ -361,7 +361,6 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
   const recent = rebuildLorebookFromRecords(opts.chatId);
   const current = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const used = calcUsedChars({
-    pinned_facts: current.pinned_facts,
     recent_summary: recent,
     archive_summary: current.archive_summary,
   });

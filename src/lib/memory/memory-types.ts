@@ -5,7 +5,6 @@ export type ChatMemoryRow = {
   chat_id: number;
   user_id: number;
   character_id: number;
-  pinned_facts: string;
   recent_summary: string;
   archive_summary: string;
   membership_tier: MemoryTier;

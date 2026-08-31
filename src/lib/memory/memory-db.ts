@@ -1,11 +1,10 @@
 import { getDb } from "@/lib/db";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
+import { calcUsedChars } from "./memory-used-chars";
 
-export function calcUsedChars(row: Pick<ChatMemoryRow, "pinned_facts" | "recent_summary" | "archive_summary">): number {
-  return (row.pinned_facts?.length ?? 0) + (row.recent_summary?.length ?? 0) + (row.archive_summary?.length ?? 0);
-}
+export { calcUsedChars } from "./memory-used-chars";
 
-const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
+const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, recent_summary, archive_summary,
               membership_tier, used_chars, message_count, summarized_turn_count,
               memory_reset_after_message_id, memory_epoch,
               last_compressed_at, created_at, updated_at
@@ -26,9 +25,9 @@ export function getOrCreateChatMemory(
     if (!row) {
       db.prepare(
         `INSERT INTO chat_memories
-          (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
-         VALUES (?,?,?,?,?,?,?,?,0)`
-      ).run(chatId, userId, characterId, "", "", "", tier, 0);
+          (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
+         VALUES (?,?,?,?,?,?,?,0)`
+      ).run(chatId, userId, characterId, "", "", tier, 0);
       row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow;
     }
   } else if (row.membership_tier !== tier) {
@@ -42,10 +41,6 @@ export function getOrCreateChatMemory(
     row = { ...row, summarized_turn_count: 0 };
   }
 
-  if (row) {
-    row = foldLegacyPinnedIntoLorebook(row);
-  }
-
   return row;
 }
 
@@ -55,25 +50,6 @@ export function getChatMemoryRow(chatId: number): ChatMemoryRow | null {
   return row ?? null;
 }
 
-/** 구버전 고정 기억(pinned_facts)을 로어북(recent_summary) 앞에 1회 병합 */
-function foldLegacyPinnedIntoLorebook(row: ChatMemoryRow): ChatMemoryRow {
-  const pinned = row.pinned_facts?.trim();
-  if (!pinned) return row;
-
-  const db = getDb();
-  const merged = [pinned, row.recent_summary?.trim() ?? ""].filter(Boolean).join("\n\n");
-  const used = calcUsedChars({
-    pinned_facts: "",
-    recent_summary: merged,
-    archive_summary: row.archive_summary,
-  });
-
-  db.prepare(
-    `UPDATE chat_memories SET pinned_facts='', recent_summary=?, used_chars=?, updated_at=datetime('now') WHERE chat_id=?`
-  ).run(merged, used, row.chat_id);
-
-  return { ...row, pinned_facts: "", recent_summary: merged, used_chars: used };
-}
 /** 해당 채팅방의 chats.current_summary / memory → chat_memories.recent_summary 1회 이전 */
 function migrateLegacyChatMemory(
   chatId: number,
@@ -96,9 +72,9 @@ function migrateLegacyChatMemory(
 
   db.prepare(
     `INSERT INTO chat_memories
-      (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
-     VALUES (?,?,?,?,?,?,?,?,0)`
-  ).run(chatId, userId, characterId, "", text, "", tier, text.length);
+      (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
+     VALUES (?,?,?,?,?,?,?,0)`
+  ).run(chatId, userId, characterId, text, "", tier, text.length);
 }
 
 export function updateChatMemory(
@@ -108,7 +84,6 @@ export function updateChatMemory(
   patch: Partial<
     Pick<
       ChatMemoryRow,
-      | "pinned_facts"
       | "recent_summary"
       | "archive_summary"
       | "membership_tier"
@@ -121,22 +96,20 @@ export function updateChatMemory(
   const db = getDb();
   const current = getOrCreateChatMemory(chatId, userId, characterId, patch.membership_tier ?? "free");
 
-  const pinned = patch.pinned_facts ?? current.pinned_facts;
   const recent = patch.recent_summary ?? current.recent_summary;
   const archive = patch.archive_summary ?? current.archive_summary;
   const tier = patch.membership_tier ?? current.membership_tier;
-  const used = calcUsedChars({ pinned_facts: pinned, recent_summary: recent, archive_summary: archive });
+  const used = calcUsedChars({ recent_summary: recent, archive_summary: archive });
 
   db.prepare(
     `UPDATE chat_memories SET
-      pinned_facts=?, recent_summary=?, archive_summary=?,
+      recent_summary=?, archive_summary=?,
       membership_tier=?, used_chars=?, message_count=COALESCE(?, message_count),
       summarized_turn_count=COALESCE(?, summarized_turn_count),
       last_compressed_at=COALESCE(?, last_compressed_at),
       updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(
-    pinned,
     recent,
     archive,
     tier,
@@ -154,7 +127,7 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
   const db = getDb();
   db.prepare(
     `UPDATE chat_memories SET
-      pinned_facts='', recent_summary='', archive_summary='',
+      recent_summary='', archive_summary='',
       used_chars=0, message_count=0, summarized_turn_count=0, last_compressed_at=NULL, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(chatId);
