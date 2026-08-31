@@ -1,7 +1,4 @@
 import { getDb } from "@/lib/db";
-import {
-  migrateLegacyCurrentSummaryIntoCanonical,
-} from "@/lib/memory/chats-memory-convergence";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -23,16 +20,12 @@ export function getOrCreateChatMemory(
   let row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
 
   if (!row) {
-    migrateLegacyCurrentSummaryIntoCanonical(db, chatId, userId, characterId, tier);
-    row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
-    if (!row) {
-      db.prepare(
-        `INSERT INTO chat_memories
-          (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
-         VALUES (?,?,?,?,?,?,?,0)`
-      ).run(chatId, userId, characterId, "", "", tier, 0);
-      row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow;
-    }
+    db.prepare(
+      `INSERT INTO chat_memories
+        (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
+       VALUES (?,?,?,?,?,?,?,0)`
+    ).run(chatId, userId, characterId, "", "", tier, 0);
+    row = db.prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow;
   } else if (row.membership_tier !== tier) {
     db.prepare(
       `UPDATE chat_memories SET membership_tier=?, updated_at=datetime('now') WHERE chat_id=?`
@@ -104,7 +97,6 @@ export function clearChatMemory(chatId: number, userId: number, characterId: num
       used_chars=0, message_count=0, summarized_turn_count=0, updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(chatId);
-  db.prepare(`UPDATE chats SET current_summary='' WHERE id=? AND user_id=?`).run(chatId, userId);
   getOrCreateChatMemory(chatId, userId, characterId, tier);
 }
 export function upgradeTierForUser(userId: number, tier: MemoryTier): void {
