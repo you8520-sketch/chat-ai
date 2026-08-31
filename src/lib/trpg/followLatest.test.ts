@@ -186,7 +186,7 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /resolveTrpgGmRevealActive/);
     assert.match(room, /data-trpg-live-follow-owner=\{liveFollowOwner\}/);
     assert.match(room, /requestAnimationFrame/);
-    assert.match(room, /if \(!followLatestRef\.current\) return/);
+    assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);
     assert.doesNotMatch(room, /100, 250, 500, 1000, 1500, 2500/);
     assert.doesNotMatch(room, /setInterval\([^)]*3000/);
   });
