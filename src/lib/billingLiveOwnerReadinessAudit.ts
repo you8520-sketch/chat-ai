@@ -179,6 +179,7 @@ export const INTERNAL_DELIVERED_PRODUCTION_OWNERS = [
     actualCallSite: "route.ts refusal fallback delivery (refusalFallbackDelivered)",
     trigger: "adult/general refusal handoff delivers DeepSeek V4 Pro",
     live: true as const,
+    /** Legacy DeepSeek billing — excluded from Phase 1 Published promotion gates in #795. */
   },
 ] as const;
 
@@ -661,6 +662,11 @@ export type BillingLiveOwnerReadinessEvaluation = {
   uncoveredPolicyCount: number;
   phase1UncoveredModelCount: number;
   phase1UncoveredPolicyCount: number;
+  phase1AuditCoverageComplete: boolean;
+  phase1MismatchCount: number;
+  phase1BlockedCount: number;
+  phase1NotComparableCount: number;
+  phase1ParityBlockerCount: number;
   phase1CutoverReady: boolean;
   promotionReady: boolean;
   promotionBlockers: string[];
@@ -2893,28 +2899,35 @@ export function evaluateBillingLiveOwnerReadiness(
     let mismatchCount = 0;
     let blockedCount = 0;
     let notComparableCount = 0;
+    let phase1MismatchCount = 0;
+    let phase1BlockedCount = 0;
+    let phase1NotComparableCount = 0;
     const mismatches: ParityMismatchRecord[] = [];
     const promotionBlockers: string[] = [];
 
     for (const fixture of fixtures) {
       if (fixture.id === "P1-platform-aux-isolation-with-aux-stage") continue;
       const result = compareLiveVsCandidate(fixture);
+      const phase1ParityFixture = isPhase1CutoverRequiredModel(fixture.deliveredModelId);
       switch (result.status) {
         case "match":
           matchCount += 1;
           break;
         case "mismatch":
           mismatchCount += 1;
+          if (phase1ParityFixture) phase1MismatchCount += 1;
           mismatches.push(result.mismatch);
           promotionBlockers.push(`${fixture.id}: live/candidate points mismatch`);
           break;
         case "blocked":
           blockedCount += 1;
+          if (phase1ParityFixture) phase1BlockedCount += 1;
           mismatches.push(result.mismatch);
           promotionBlockers.push(`${fixture.id}: candidate blocked (${result.reason})`);
           break;
         case "not_comparable":
           notComparableCount += 1;
+          if (phase1ParityFixture) phase1NotComparableCount += 1;
           promotionBlockers.push(`${fixture.id}: not comparable (${result.reason})`);
           break;
         default: {
@@ -2949,16 +2962,18 @@ export function evaluateBillingLiveOwnerReadiness(
       );
     }
 
-    const phase1CutoverReady =
+    const phase1AuditCoverageComplete =
       phase1UncoveredModelCount === 0 &&
       phase1UncoveredPolicyCount === 0 &&
       phase1WaiverModelWithoutEvidence === 0;
 
-    const promotionReady =
-      mismatchCount === 0 &&
-      blockedCount === 0 &&
-      notComparableCount === 0 &&
-      phase1CutoverReady;
+    const phase1ParityBlockerCount =
+      phase1MismatchCount + phase1BlockedCount + phase1NotComparableCount;
+
+    const phase1CutoverReady =
+      phase1AuditCoverageComplete && phase1ParityBlockerCount === 0;
+
+    const promotionReady = phase1CutoverReady;
 
     return {
       matchCount,
@@ -2969,6 +2984,11 @@ export function evaluateBillingLiveOwnerReadiness(
       uncoveredPolicyCount: phase1UncoveredPolicyCount,
       phase1UncoveredModelCount,
       phase1UncoveredPolicyCount,
+      phase1AuditCoverageComplete,
+      phase1MismatchCount,
+      phase1BlockedCount,
+      phase1NotComparableCount,
+      phase1ParityBlockerCount,
       phase1CutoverReady,
       promotionReady,
       promotionBlockers,
@@ -3152,6 +3172,8 @@ export function collectBillingReadinessHardGates(
       PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE: Number(
         waiverRow?.proof.phase1WaiverModelWithoutEvidence ?? 0
       ),
+      PHASE1_AUDIT_COVERAGE_COMPLETE: evaluation.phase1AuditCoverageComplete,
+      PHASE1_PARITY_BLOCKER_COUNT: evaluation.phase1ParityBlockerCount,
       PHASE1_CUTOVER_READY: evaluation.phase1CutoverReady,
       DEEPSEEK_PHASE2: DEEPSEEK_PHASE2,
       NON_PHASE1_USER_SELECTABLE_MODELS: nonPhase1Exposure.nonPhase1UserSelectableModels.length,
@@ -3234,6 +3256,18 @@ export function generateBillingLiveOwnerReadinessFinalReport(): string {
     `PHASE1_EXACT_MODEL_WITHOUT_FIXTURE=${phase1.uncoveredPhase1Required.length}`,
     `PHASE1_UNCOVERED_POLICY_COUNT=${gates.PHASE1_UNCOVERED_POLICY_COUNT}`,
     `PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE=${gates.PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE}`,
+    `PHASE1_AUDIT_COVERAGE_COMPLETE=${evaluation.phase1AuditCoverageComplete ? "YES" : "NO"}`,
+    `PHASE1_PARITY_MISMATCH_COUNT=${evaluation.phase1MismatchCount}`,
+    `PHASE1_PARITY_BLOCKED_COUNT=${evaluation.phase1BlockedCount}`,
+    `PHASE1_PARITY_NOT_COMPARABLE_COUNT=${evaluation.phase1NotComparableCount}`,
+    `PHASE1_PARITY_BLOCKER_COUNT=${evaluation.phase1ParityBlockerCount}`,
+    `PHASE1_CUTOVER_READY=${evaluation.phase1CutoverReady ? "YES" : "NO"}`,
+    `FUTURE_CUTOVER_REQUIRES_BILLING_CONTRACT_DISPATCH_OWNER=ONE`,
+    `FUTURE_CUTOVER_DISPATCH_RULE=PHASE1_PUBLISHED_MODEL->PUBLISHED;DEFERRED_OR_DEEPSEEK_MODEL->LEGACY`,
+    `BILLING_CONTRACT_DISPATCH_OWNER_IMPLEMENTED_IN_PR795=false`,
+    `DEEPSEEK_V4_PRO_0813_PHASE1_PUBLISHED_BILLING=false`,
+    `DEEPSEEK_ADULT_REFUSAL_FALLBACK_LEGACY_BILLING=true`,
+    `DEEPSEEK_FALLBACK_AFFECTS_PHASE1_CUTOVER_READY=false`,
     `NON_PHASE1_USER_SELECTABLE_MODELS=${nonPhase1Exposure.nonPhase1UserSelectableModels.join(",")}`,
     `NON_PHASE1_STORED_SELECTION_STILL_EXECUTABLE=${nonPhase1Exposure.nonPhase1StoredSelectionStillExecutable.join(",")}`,
     `NON_PHASE1_USER_BILLING_POLICY=${nonPhase1Exposure.nonPhase1UserBillingPolicy}`,

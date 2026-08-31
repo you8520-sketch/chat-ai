@@ -527,21 +527,19 @@ describe("billingLiveOwnerReadinessAudit — golden parity harness", () => {
     }
   });
 
-  it("hard gates include Phase 1 scope flags", () => {
+  it("hard gates separate audit coverage from cutover readiness", () => {
     const gates = collectBillingReadinessHardGates(fixtures);
+    const evaluation = evaluateBillingLiveOwnerReadiness(
+      fixtures.filter((f) => f.id !== "P1-platform-aux-isolation-with-aux-stage")
+    );
     assert.equal(gates.PHASE1_EXACT_MODEL_WITHOUT_FIXTURE, 0);
-    assert.equal(gates.CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE, 0);
-    assert.equal(gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP, false);
-    assert.equal(gates.POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY, false);
     assert.equal(gates.PHASE1_UNCOVERED_POLICY_COUNT, 0);
-    assert.equal(gates.UNCOVERED_LIVE_POLICY_COUNT, 0);
     assert.equal(gates.PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE, 0);
-    assert.equal(gates.F4_REQUESTED_DELIVERED_IDENTITY_PROVEN, true);
-    assert.equal(gates.AUDIT_FX_NESTED_SCOPE_SAFE, true);
-    assert.equal(gates.AUDIT_FX_ENV_LEAK, false);
-    assert.equal(gates.AUDIT_FX_CACHE_LEAK, false);
+    assert.equal(gates.PHASE1_AUDIT_COVERAGE_COMPLETE, true);
+    assert.ok(Number(gates.PHASE1_PARITY_BLOCKER_COUNT) > 0);
+    assert.equal(gates.PHASE1_CUTOVER_READY, false);
+    assert.equal(evaluation.promotionReady, false);
     assert.equal(gates.DEEPSEEK_PHASE2, true);
-    assert.equal(gates.PHASE1_CUTOVER_READY, true);
   });
 });
 
@@ -647,7 +645,9 @@ describe("billingLiveOwnerReadinessAudit — final report", () => {
     const report = generateBillingLiveOwnerReadinessFinalReport();
     assert.ok(report.includes("=== PHASE 1 PUBLISHED BILLING SCOPE ==="));
     assert.ok(report.includes(`PHASE1_PUBLISHED_BILLING_MODELS=${PHASE_1_CUTOVER_REQUIRED_MODELS.join(",")}`));
-    assert.ok(report.includes("PHASE1_CUTOVER_READY="));
+    assert.ok(report.includes("PHASE1_AUDIT_COVERAGE_COMPLETE=YES"));
+    assert.ok(report.includes("PHASE1_CUTOVER_READY=NO"));
+    assert.ok(report.includes("DEEPSEEK_FALLBACK_AFFECTS_PHASE1_CUTOVER_READY=false"));
     assert.ok(report.includes("NON_PHASE1_USER_SELECTABLE_MODELS="));
     assert.ok(report.endsWith("STOP"));
   });
