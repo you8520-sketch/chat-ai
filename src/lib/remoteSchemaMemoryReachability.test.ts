@@ -52,7 +52,7 @@ function seedProductionRemoteCore(db: Database.Database): void {
       ('target_response_chars_unified_3200'),
       ('memory_capacity_fixed_10000'),
       ('character_adult_status_metadata_v1');
-    CREATE TABLE messages (request_id TEXT);
+    CREATE TABLE messages (request_id TEXT, memory_relationship_task_json TEXT);
     CREATE TABLE users (comment_report_restricted_until TEXT);
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
@@ -455,7 +455,10 @@ describe("one current remote schema owner", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      db.exec("ALTER TABLE messages ADD COLUMN request_id TEXT");
+      db.exec(`
+        ALTER TABLE messages ADD COLUMN request_id TEXT;
+        ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT;
+      `);
     });
 
     assert.equal(migrations, 1);
