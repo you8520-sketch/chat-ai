@@ -53,6 +53,130 @@ function tailVisibleAboveHud(tailRectBottom: number, hudTop: number): boolean {
   return tailRectBottom + SCROLL_MB_28_PX <= hudTop + 8;
 }
 
+/** Production-equivalent: scrollToLatest → scrollToFollowOwner(NEXT_ACTION). */
+function simulateExplicitLatestButtonBefore(opts: {
+  manualBottomScrollY: number;
+  nextActionBottomDocument: number;
+  viewportHeight: number;
+}): number {
+  return simulateBlockEndScrollY(opts.nextActionBottomDocument, opts.viewportHeight);
+}
+
+function simulateExplicitLatestButtonAfter(opts: {
+  manualBottomScrollY: number;
+  maxScrollY: number;
+  bottomRefTailBottomDocument: number;
+  viewportHeight: number;
+}): number {
+  const delta = simulateBlockNearestTailDelta({
+    scrollY: opts.manualBottomScrollY,
+    maxScrollY: opts.maxScrollY,
+    tailBottomDocument: opts.bottomRefTailBottomDocument,
+    viewportHeight: opts.viewportHeight,
+  });
+  return opts.manualBottomScrollY + delta;
+}
+
+/** NEXT_ACTION useLayoutEffect rerun after latest-button rejoin (attached user). */
+function simulatePostLatestNextActionUpdateDelta(opts: {
+  scrollY: number;
+  maxScrollY: number;
+  bottomRefTailBottomDocument: number;
+  viewportHeight: number;
+}): number {
+  return simulateBlockNearestTailDelta({
+    scrollY: opts.scrollY,
+    maxScrollY: opts.maxScrollY,
+    tailBottomDocument: opts.bottomRefTailBottomDocument,
+    viewportHeight: opts.viewportHeight,
+  });
+}
+
+describe("B0 — PRIMARY: explicit 최신으로 ↓ rejoin path", () => {
+  const MANUAL_BOTTOM_SCROLL_Y = 5200;
+  const MAX_SCROLL_Y = 5200;
+  const NEXT_ACTION_EARLIER_BOTTOM_DOC = 5800;
+  const BOTTOM_REF_TAIL_DOC = 5796;
+  const LAST_ACTIONABLE_VIEWPORT_BOTTOM = 708;
+
+  it("BEFORE: latest button via nextActionRef block:end yanks upward from true bottom", () => {
+    const afterLatestButtonScrollY = simulateExplicitLatestButtonBefore({
+      manualBottomScrollY: MANUAL_BOTTOM_SCROLL_Y,
+      nextActionBottomDocument: NEXT_ACTION_EARLIER_BOTTOM_DOC,
+      viewportHeight: DESKTOP_VIEWPORT_H,
+    });
+    const upwardDelta = afterLatestButtonScrollY - MANUAL_BOTTOM_SCROLL_Y;
+    assert.ok(upwardDelta < 0, "LATEST_BUTTON_UPWARD_DELTA_BEFORE");
+    assert.equal(afterLatestButtonScrollY, 4900, "AFTER_LATEST_BUTTON_SCROLL_Y_BEFORE");
+    assert.ok(
+      actionableOcclusionPx(850, DESKTOP_HUD_TOP) > 0,
+      "occlusion after latest button before fix"
+    );
+  });
+
+  it("AFTER: latest button via bottomRef block:nearest — zero upward delta at true bottom", () => {
+    const afterLatestButtonScrollY = simulateExplicitLatestButtonAfter({
+      manualBottomScrollY: MANUAL_BOTTOM_SCROLL_Y,
+      maxScrollY: MAX_SCROLL_Y,
+      bottomRefTailBottomDocument: BOTTOM_REF_TAIL_DOC,
+      viewportHeight: DESKTOP_VIEWPORT_H,
+    });
+    const upwardDelta = afterLatestButtonScrollY - MANUAL_BOTTOM_SCROLL_Y;
+    assert.equal(upwardDelta, 0, "LATEST_BUTTON_UPWARD_DELTA_AFTER");
+    assert.equal(afterLatestButtonScrollY, MANUAL_BOTTOM_SCROLL_Y, "AFTER_LATEST_BUTTON_SCROLL_Y_AFTER");
+    assert.ok(afterLatestButtonScrollY >= MANUAL_BOTTOM_SCROLL_Y, "LATEST_BUTTON_SCROLL_DIRECTION=down_or_zero");
+    assert.equal(
+      actionableOcclusionPx(LAST_ACTIONABLE_VIEWPORT_BOTTOM, DESKTOP_HUD_TOP),
+      0,
+      "LAST_ACTIONABLE_OCCLUSION_AFTER"
+    );
+  });
+
+  it("POST latest: suggestions arrival while attached — no upward delta", () => {
+    const delta = simulatePostLatestNextActionUpdateDelta({
+      scrollY: MANUAL_BOTTOM_SCROLL_Y,
+      maxScrollY: MAX_SCROLL_Y,
+      bottomRefTailBottomDocument: BOTTOM_REF_TAIL_DOC,
+      viewportHeight: DESKTOP_VIEWPORT_H,
+    });
+    assert.equal(delta, 0, "POST_LATEST_SUGGESTION_UPDATE_DELTA");
+  });
+
+  it("POST latest: suggestionsError update while attached — no upward delta", () => {
+    const delta = simulatePostLatestNextActionUpdateDelta({
+      scrollY: MANUAL_BOTTOM_SCROLL_Y,
+      maxScrollY: MAX_SCROLL_Y,
+      bottomRefTailBottomDocument: BOTTOM_REF_TAIL_DOC,
+      viewportHeight: DESKTOP_VIEWPORT_H,
+    });
+    assert.equal(delta, 0, "POST_LATEST_ERROR_UPDATE_DELTA");
+  });
+
+  it("POST latest: suggestions content update while attached — no upward delta", () => {
+    const delta = simulatePostLatestNextActionUpdateDelta({
+      scrollY: MANUAL_BOTTOM_SCROLL_Y,
+      maxScrollY: MAX_SCROLL_Y,
+      bottomRefTailBottomDocument: BOTTOM_REF_TAIL_DOC,
+      viewportHeight: DESKTOP_VIEWPORT_H,
+    });
+    assert.equal(delta, 0);
+  });
+
+  it("production wiring: 최신으로 ↓ → scrollToLatest(smooth) → bottomRef NEXT_ACTION", () => {
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /onClick=\{\(\) => scrollToLatest\("smooth"\)\}/);
+    assert.match(room, /최신으로 ↓/);
+    const latest = room.match(/const scrollToLatest = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(latest);
+    const body = latest[0]!;
+    assert.ok(body.indexOf("manualScrollDetachedRef.current = false") < body.indexOf("scrollToFollowOwner(liveFollowOwner"));
+    const block = nextActionCaseBlock(room);
+    assert.match(block, /const target = bottomRef\.current/);
+    assert.match(block, /block: "nearest"/);
+    assert.doesNotMatch(block, /nextActionRef/);
+  });
+});
+
 describe("B1 — bottom NEXT_ACTION rerun at document bottom", () => {
   it("BEFORE: block:end on earlier nextAction target decreases scrollY", () => {
     const scrollYBefore = 5200;
