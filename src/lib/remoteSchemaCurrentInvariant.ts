@@ -118,6 +118,7 @@ export function hasRequiredProductionRemoteSchema(db: SchemaDatabase): boolean {
 
   return (
     hasColumn(db, "messages", "request_id") &&
+    hasColumn(db, "messages", "memory_relationship_task_json") &&
     hasColumn(db, "users", "comment_report_restricted_until") &&
     hasColumn(db, "profile_comments", "delete_reason") &&
     hasColumn(db, "characters", "total_turns")

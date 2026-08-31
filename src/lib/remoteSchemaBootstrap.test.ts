@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   canAdoptExistingRemoteSchema,
+  hasCurrentRemoteSchemaInvariant,
   initializeRemoteSchema,
   REMOTE_SCHEMA_VERSION,
   REMOTE_SCHEMA_VERSION_PREVIOUS,
@@ -24,7 +25,7 @@ function seedProductionRemoteCore(db: Database.Database): void {
       ('target_response_chars_unified_3200'),
       ('memory_capacity_fixed_10000'),
       ('character_adult_status_metadata_v1');
-    CREATE TABLE messages (request_id TEXT);
+    CREATE TABLE messages (request_id TEXT, memory_relationship_task_json TEXT);
     CREATE TABLE users (comment_report_restricted_until TEXT);
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
@@ -267,6 +268,116 @@ describe("remote schema bootstrap", () => {
       /canonical current production schema/
     );
     assert.equal(migrations, 2);
+    db.close();
+  });
+
+  it("S1 current marker + memory_relationship_task_json missing runs migrate once then current", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+    `);
+    seedProductionRemoteCore(db);
+    db.exec(`
+      CREATE TABLE messages_legacy (request_id TEXT);
+      INSERT INTO messages_legacy (request_id) VALUES ('req-1');
+      DROP TABLE messages;
+      ALTER TABLE messages_legacy RENAME TO messages;
+    `);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    assert.equal(canAdoptExistingRemoteSchema(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      db.exec("ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT");
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    const current = db
+      .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+      .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
+    assert.equal(current?.version, REMOTE_SCHEMA_VERSION);
+    db.close();
+  });
+
+  it("S2 current marker + memory_relationship_task_json present skips migrate", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE _remote_schema_state (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO _remote_schema_state (version) VALUES ('${REMOTE_SCHEMA_VERSION}');
+    `);
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+
+    assert.equal(migrations, 0);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    db.close();
+  });
+
+  it("S3 adoption requires memory_relationship_task_json column", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    db.exec(`
+      CREATE TABLE messages_legacy (request_id TEXT);
+      INSERT INTO messages_legacy (request_id) VALUES ('req-1');
+      DROP TABLE messages;
+      ALTER TABLE messages_legacy RENAME TO messages;
+    `);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    assert.equal(canAdoptExistingRemoteSchema(db), false);
+
+    db.exec("ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT");
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    assert.equal(canAdoptExistingRemoteSchema(db), true);
+    db.close();
+  });
+
+  it("S4 post-migration assert fail-closed when memory_relationship_task_json not created", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    db.exec(`
+      CREATE TABLE messages_legacy (request_id TEXT);
+      INSERT INTO messages_legacy (request_id) VALUES ('req-1');
+      DROP TABLE messages;
+      ALTER TABLE messages_legacy RENAME TO messages;
+    `);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+
+    let migrations = 0;
+    const migrate = () => {
+      migrations += 1;
+    };
+
+    assert.throws(
+      () => initializeRemoteSchema(db, migrate),
+      /canonical current production schema/
+    );
+    assert.equal(migrations, 1);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    const current = db
+      .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+      .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined;
+    assert.equal(current, undefined, "markCurrent must not run when invariant fails");
     db.close();
   });
 });

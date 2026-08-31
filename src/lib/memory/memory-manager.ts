@@ -16,6 +16,7 @@ import {
   mergeRelationshipMetaFromTurn,
   mergeRelationshipMetaAfterRegenerate,
 } from "./memory-relationship-meta";
+import { setMemoryRelationshipTaskState, skipMemoryRelationshipProviderTask } from "./memoryRelationshipTask";
 import {
   getChatMemoryRow,
   getOrCreateChatMemory,
@@ -291,10 +292,17 @@ export async function scheduleMemoryUpdate(opts: {
   relationshipTailParsed?: boolean;
   relationshipDeltaFromMain?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
 }): Promise<void> {
-  if (!isMemoryFeatureEnabled()) return;
-  if (resolveOocSceneRenderIntent(opts.userMessage)) return;
+  if (!isMemoryFeatureEnabled()) {
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "feature_disabled");
+    return;
+  }
+  if (resolveOocSceneRenderIntent(opts.userMessage)) {
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "ooc_scene");
+    return;
+  }
   if (isGeminiIsolationMode()) {
     console.warn("[gemini-isolation] scheduleMemoryUpdate skipped");
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "gemini_isolation");
     return;
   }
 
@@ -316,6 +324,9 @@ export async function scheduleMemoryUpdate(opts: {
       boundary: boundarySnapshot.resetAfterMessageId,
       source_message_id: sourceUserMessageId,
     });
+    if (opts.assistantMessageId) {
+      skipMemoryRelationshipProviderTask(opts.assistantMessageId, "memory_source_pre_reset");
+    }
     return;
   }
 
@@ -336,6 +347,7 @@ export async function scheduleMemoryUpdate(opts: {
         turnTrace: opts.turnTrace,
         sourceUserMessageId,
         boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
       });
     } else {
       await mergeRelationshipMetaFromTurn({

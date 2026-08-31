@@ -27,6 +27,7 @@ import {
 } from "@/lib/providerCostLedger";
 import type { SuggestedRepliesRecord } from "@/lib/suggestedReplies/types";
 import type { StatusMetaRecord } from "@/lib/statusMeta/types";
+import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
 
 export type {
   AdminBillingReceiptV3,
@@ -42,6 +43,7 @@ export type BuildAdminBillingReceiptV3Input = {
   chatId: number;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
   statusMetaRecord: StatusMetaRecord | null;
+  memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerRows: ProviderCostLedgerRow[];
 };
 
@@ -99,6 +101,7 @@ function resolveAsyncSection(input: {
   usage: Usage;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
   statusMetaRecord: StatusMetaRecord | null;
+  memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerRows: ProviderCostLedgerRow[];
 }): AdminBillingReceiptV3AsyncSection {
   const { relevant, unexpected } = filterAsyncLedgerRows(input.ledgerRows);
@@ -106,6 +109,7 @@ function resolveAsyncSection(input: {
     usage: input.usage,
     suggestedRepliesRecord: input.suggestedRepliesRecord,
     statusMetaRecord: input.statusMetaRecord,
+    memoryRelationshipTask: input.memoryRelationshipTask,
     ledgerAsyncRows: relevant,
   });
 
@@ -198,10 +202,7 @@ function resolveAsyncSection(input: {
     hasIncomplete ||
     byFamily.some((f) => f.coverage === "partial") ||
     byFamily.some(
-      (f) =>
-        f.expectationState === "terminal" &&
-        f.physicalCallCount === 0 &&
-        f.family !== "memory_relationship"
+      (f) => f.expectationState === "terminal" && f.physicalCallCount === 0
     )
   ) {
     coverage = "partial";
@@ -308,6 +309,7 @@ export function buildAdminBillingReceiptV3(
     usage: input.usage,
     suggestedRepliesRecord: input.suggestedRepliesRecord,
     statusMetaRecord: input.statusMetaRecord,
+    memoryRelationshipTask: input.memoryRelationshipTask,
     ledgerRows: input.ledgerRows,
   });
 

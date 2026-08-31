@@ -660,6 +660,11 @@ turnSummary 형식: 서술형 문장 금지. 음슴체(-음/-ㅁ) 키워드 나�
 }
 
 /** 턴 1회 — 호칭·물건·속마음·약속 추출 (관계 메모 탭용) */
+export type RelationshipMetaExtractResult = {
+  delta: import("@/lib/chatMemory").RelationshipMetaDelta;
+  parseOk: boolean;
+};
+
 export async function extractRelationshipMetaFromTurn(
   userMessage: string,
   assistantMessage: string,
@@ -673,7 +678,7 @@ export async function extractRelationshipMetaFromTurn(
     assistantMessageId: number;
     jobAttemptOrdinal?: number;
   }
-): Promise<import("@/lib/chatMemory").RelationshipMetaDelta> {
+): Promise<RelationshipMetaExtractResult> {
   const existing = prevMeta ?? { honorifics: [], items: [], thoughts: [], promises: [] };
   const dialogue = `${userMessage}\n${assistantMessage}`;
   const names = { charName, userName };
@@ -769,14 +774,17 @@ Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" eve
       },
       names
     );
-    return restrictRelationshipMetaDeltaToDurableAutoFacts({
-      ...delta,
-      honorifics: normalized.honorifics,
-      items: normalized.items,
-      currentLocation: normalized.currentLocation,
-    });
+    return {
+      delta: restrictRelationshipMetaDeltaToDurableAutoFacts({
+        ...delta,
+        honorifics: normalized.honorifics,
+        items: normalized.items,
+        currentLocation: normalized.currentLocation,
+      }),
+      parseOk: true,
+    };
   } catch {
-    return {};
+    return { delta: {}, parseOk: false };
   }
 }
 
@@ -790,7 +798,7 @@ export async function extractRelationshipMetaAfterRegenerate(
   route: Route,
   prevMeta?: import("@/lib/chatMemory").MemoryMeta,
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace
-): Promise<import("@/lib/chatMemory").RelationshipMetaDelta> {
+): Promise<RelationshipMetaExtractResult> {
   const existing = prevMeta ?? { honorifics: [], items: [], thoughts: [], promises: [] };
   const names = { charName, userName };
   const activePromises = existing.promises.length
@@ -876,14 +884,17 @@ Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" eve
       { honorifics: delta.honorifics ?? [], items: delta.items ?? [], thoughts: [], promises: [], currentLocation: delta.currentLocation },
       names
     );
-    return restrictRelationshipMetaDeltaToDurableAutoFacts({
-      ...delta,
-      honorifics: normalized.honorifics,
-      items: normalized.items,
-      currentLocation: normalized.currentLocation,
-    });
+    return {
+      delta: restrictRelationshipMetaDeltaToDurableAutoFacts({
+        ...delta,
+        honorifics: normalized.honorifics,
+        items: normalized.items,
+        currentLocation: normalized.currentLocation,
+      }),
+      parseOk: true,
+    };
   } catch {
-    return {};
+    return { delta: {}, parseOk: false };
   }
 }
 
