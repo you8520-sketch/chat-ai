@@ -55,5 +55,5 @@ export function resolveLongTermMemory(
   const summary = chat.current_summary?.trim();
   if (summary) return summary;
 
-  return chat.memory?.trim() ?? "";
+  return "";
 }
