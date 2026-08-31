@@ -28,14 +28,6 @@ const playablePlan = parseTrpgScenarioPlan({
   gmDirection: "탐험",
 })!;
 
-function defer<T = void>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
-
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
@@ -164,110 +156,6 @@ function createCampaign(db: Database.Database, worldId: number, suffix: string):
 }
 
 describe("world blueprint canonical convergence", () => {
-  it("T1 A publishes first → B sync fallback adopts PLAN_A (same-revision convergence)", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const campaignA = createCampaign(db, worldId, "A");
-      let providerCalls = 0;
-
-      await ensureCampaignDirectorContext(db, campaignA, {
-        directorCall: async () => {
-          providerCalls += 1;
-          return (await mockBlueprintComplete("PLAN_A")()) as never;
-        },
-      });
-
-      const campaignB = createCampaign(db, worldId, "B");
-      await ensureCampaignDirectorContext(db, campaignB, {
-        directorCall: async () => {
-          providerCalls += 1;
-          return (await mockBlueprintComplete("PLAN_B")()) as never;
-        },
-      });
-
-      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      const ctxA = loadCampaignContext(db, campaignA)!;
-      const ctxB = loadCampaignContext(db, campaignB)!;
-      const artifact = loadValidWorldBlueprintPlan(db, worldId, snap)!;
-
-      assert.equal(providerCalls, 1);
-      assert.equal(ctxA.directorPlan?.goal, "PLAN_A");
-      assert.equal(ctxB.directorPlan?.goal, "PLAN_A");
-      assert.equal(artifact.goal, "PLAN_A");
-    });
-  });
-
-  it("T1b A publishes first → B uses warm artifact path with zero provider calls", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const campaignA = createCampaign(db, worldId, "A");
-
-      await ensureCampaignDirectorContext(db, campaignA, {
-        directorCall: async () => (await mockBlueprintComplete("PLAN_A")()) as never,
-      });
-
-      const campaignB = createCampaign(db, worldId, "B");
-      let bCalls = 0;
-      await ensureCampaignDirectorContext(db, campaignB, {
-        directorCall: async () => {
-          bCalls += 1;
-          throw new Error("must not call provider");
-        },
-      });
-
-      assert.equal(bCalls, 0);
-      assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "PLAN_A");
-    });
-  });
-
-  it("T2 B publishes first → A sync fallback adopts PLAN_B (same-revision convergence)", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const campaignB = createCampaign(db, worldId, "B");
-
-      await ensureCampaignDirectorContext(db, campaignB, {
-        directorCall: async () => (await mockBlueprintComplete("PLAN_B")()) as never,
-      });
-
-      const campaignA = createCampaign(db, worldId, "A");
-      await ensureCampaignDirectorContext(db, campaignA, {
-        directorCall: async () => (await mockBlueprintComplete("PLAN_A")()) as never,
-      });
-
-      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      assert.equal(loadCampaignContext(db, campaignA)?.directorPlan?.goal, "PLAN_B");
-      assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "PLAN_B");
-      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "PLAN_B");
-    });
-  });
-
-  it("T2b sync fallback adopts pre-published canonical winner over local candidate", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      const campaignB = createCampaign(db, worldId, "B");
-
-      await ensureCampaignDirectorContext(db, campaignB, {
-        directorCall: async () => {
-          casPublishWorldBlueprintArtifact(db, {
-            worldId,
-            expectedSourceFingerprint: snap.sourceFingerprint,
-            expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
-            plan: planWithGoal("CANONICAL_WINNER"),
-          });
-          return (await mockBlueprintComplete("LATE_CANDIDATE")()) as never;
-        },
-      });
-
-      assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "CANONICAL_WINNER");
-      assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "CANONICAL_WINNER");
-    });
-  });
-
   it("T3 same-generation late writer cannot overwrite valid canonical artifact", () => {
     const db = memoryDb();
     const worldId = insertWorld(db);
@@ -315,185 +203,36 @@ describe("world blueprint canonical convergence", () => {
     assert.equal(loadValidWorldBlueprintPlan(db2, worldId, snap)?.goal, "CONN_A");
   });
 
-  it("T4 pregen in-flight + sync fallback → one canonical artifact, campaign adopts winner", async () => {
+  it("T5 worker pregen completes before campaign → warm artifact copied with zero campaign provider calls", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
       const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      const campaignId = createCampaign(db, worldId, "sync");
+      const campaignId = createCampaign(db, worldId, "warm");
 
-      const pregenEntered = defer();
-      const pregenRelease = defer();
-      const syncEntered = defer();
-      const syncRelease = defer();
-
-      const pregenPromise = refreshWorldBlueprintArtifact(
+      let workerCalls = 0;
+      await refreshWorldBlueprintArtifact(
         db,
         worldId,
         snap.sourceFingerprint,
         TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
         {
           complete: async () => {
-            pregenEntered.resolve();
-            await syncEntered.promise;
-            await pregenRelease.promise;
+            workerCalls += 1;
             return (await mockBlueprintComplete("PREGEN_PLAN")()) as never;
           },
         }
       );
+      assert.equal(workerCalls, 1);
 
-      await pregenEntered.promise;
-      const syncPromise = ensureCampaignDirectorContext(db, campaignId, {
-        directorCall: async () => {
-          syncEntered.resolve();
-          await syncRelease.promise;
-          return (await mockBlueprintComplete("SYNC_PLAN")()) as never;
-        },
-      });
-
-      syncRelease.resolve();
-      await syncPromise;
-      pregenRelease.resolve();
-      await pregenPromise;
-
-      const artifact = loadValidWorldBlueprintPlan(db, worldId, snap)!;
-      const ctx = loadCampaignContext(db, campaignId)!;
-      assert.equal(artifact.goal, "SYNC_PLAN");
-      assert.equal(ctx.directorPlan?.goal, "SYNC_PLAN");
-    });
-  });
-
-  it("T5 pregen completes before sync fallback → canonical PREGEN_PLAN adopted by campaign", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      const campaignId = createCampaign(db, worldId, "sync");
-
-      const pregenEntered = defer();
-      const pregenRelease = defer();
-      const syncEntered = defer();
-
-      const pregenPromise = refreshWorldBlueprintArtifact(
-        db,
-        worldId,
-        snap.sourceFingerprint,
-        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
-        {
-          complete: async () => {
-            pregenEntered.resolve();
-            await pregenRelease.promise;
-            return (await mockBlueprintComplete("PREGEN_PLAN")()) as never;
-          },
-        }
-      );
-
-      await pregenEntered.promise;
-      pregenRelease.resolve();
-      await pregenPromise;
-
-      await ensureCampaignDirectorContext(db, campaignId, {
-        directorCall: async () => {
-          syncEntered.resolve();
-          throw new Error("must not call provider");
-        },
-      });
-
+      await ensureCampaignDirectorContext(db, campaignId);
       const artifact = loadValidWorldBlueprintPlan(db, worldId, snap)!;
       assert.equal(artifact.goal, "PREGEN_PLAN");
       assert.equal(loadCampaignContext(db, campaignId)?.directorPlan?.goal, "PREGEN_PLAN");
     });
   });
 
-  it("T6 world revision changes during generation → stale result cannot publish, campaign keeps generated plan", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db, "revision A");
-      const campaignId = createCampaign(db, worldId, "stale");
-
-      await ensureCampaignDirectorContext(db, campaignId, {
-        directorCall: async () => {
-          db.prepare(`UPDATE worlds SET content='revision B', updated_at=datetime('now') WHERE id=?`).run(worldId);
-          return (await mockBlueprintComplete("plan-from-A")()) as never;
-        },
-      });
-
-      const ctx = loadCampaignContext(db, campaignId)!;
-      assert.equal(ctx.directorPlan?.goal, "plan-from-A");
-      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
-    });
-  });
-
-  it("T7 artifact publication/storage failure → campaign still starts with generated plan", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      const campaignId = createCampaign(db, worldId, "fail");
-      const originalPrepare = db.prepare.bind(db);
-      db.prepare = ((sql: string) => {
-        const stmt = originalPrepare(sql);
-        if (sql.includes("trpg_world_blueprint_artifacts") && /\b(INSERT|UPDATE|DELETE)\b/i.test(sql)) {
-          return {
-            run: () => {
-              throw new Error("storage failure");
-            },
-          } as ReturnType<typeof originalPrepare>;
-        }
-        return stmt;
-      }) as typeof db.prepare;
-
-      await startTrpgCampaign(db, {
-        campaignId,
-        userId: 1,
-        deps: {
-          skipBilling: true,
-          directorCall: mockBlueprintComplete("persisted-plan"),
-          gmCall: async () => ({ text: gmText() }),
-        },
-      });
-
-      const ctx = loadCampaignContext(db, campaignId)!;
-      assert.equal(ctx.directorPlan?.goal, "persisted-plan");
-      assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
-    });
-  });
-
-  it("T8 sequential baseline → Campaign A heals, Campaign B provider 0", async () => {
-    await withSandboxDirectorEnabled(true, async () => {
-      const db = memoryDb();
-      const worldId = insertWorld(db);
-      let directorCalls = 0;
-      const deps: TrpgEngineDeps = {
-        skipBilling: true,
-        directorCall: async () => {
-          directorCalls += 1;
-          return (await mockBlueprintComplete("campaign-a")()) as never;
-        },
-        gmCall: async () => ({ text: gmText() }),
-      };
-      const campaignA = createCampaign(db, worldId, "A");
-      await startTrpgCampaign(db, { campaignId: campaignA, userId: 1, deps });
-      assert.equal(directorCalls, 1);
-
-      const campaignB = createCampaign(db, worldId, "B");
-      await startTrpgCampaign(db, {
-        campaignId: campaignB,
-        userId: 1,
-        deps: {
-          skipBilling: true,
-          directorCall: async () => {
-            directorCalls += 1;
-            throw new Error("must not call provider");
-          },
-          gmCall: async () => ({ text: gmText() }),
-        },
-      });
-      assert.equal(directorCalls, 1);
-      assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "campaign-a");
-    });
-  });
-
-  it("T9 valid artifact baseline → provider 0", async () => {
+  it("T9 valid artifact baseline → campaign provider 0", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
@@ -505,21 +244,16 @@ describe("world blueprint canonical convergence", () => {
         plan: playablePlan,
       });
 
-      let directorCalls = 0;
       const campaignId = createCampaign(db, worldId, "warm");
       await startTrpgCampaign(db, {
         campaignId,
         userId: 1,
         deps: {
           skipBilling: true,
-          directorCall: async () => {
-            directorCalls += 1;
-            throw new Error("must not call provider");
-          },
           gmCall: async () => ({ text: gmText() }),
         },
       });
-      assert.equal(directorCalls, 0);
+      assert.equal(loadCampaignContext(db, campaignId)?.directorPlan?.goal, playablePlan.goal);
     });
   });
 
@@ -570,35 +304,34 @@ describe("world blueprint canonical convergence", () => {
     assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "REPAIRED");
   });
 
-  it("T12 poison artifact campaign lifecycle → A repairs → B provider 0", async () => {
+  it("T12 poison artifact → worker repairs → campaigns copy repaired artifact", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
       const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
       insertPoisonArtifact(db, worldId, snap);
 
-      const campaignA = createCampaign(db, worldId, "A");
-      let providerCalls = 0;
-
-      await ensureCampaignDirectorContext(db, campaignA, {
-        directorCall: async () => {
-          providerCalls += 1;
-          return (await mockBlueprintComplete("PLAN_A")()) as never;
-        },
-      });
-
+      let workerCalls = 0;
+      await refreshWorldBlueprintArtifact(
+        db,
+        worldId,
+        snap.sourceFingerprint,
+        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+        {
+          complete: async () => {
+            workerCalls += 1;
+            return (await mockBlueprintComplete("PLAN_A")()) as never;
+          },
+        }
+      );
+      assert.equal(workerCalls, 1);
       assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "PLAN_A");
-      assert.equal(providerCalls, 1);
 
+      const campaignA = createCampaign(db, worldId, "A");
+      await ensureCampaignDirectorContext(db, campaignA);
       const campaignB = createCampaign(db, worldId, "B");
-      await ensureCampaignDirectorContext(db, campaignB, {
-        directorCall: async () => {
-          providerCalls += 1;
-          throw new Error("must not call provider");
-        },
-      });
+      await ensureCampaignDirectorContext(db, campaignB);
 
-      assert.equal(providerCalls, 1);
       assert.equal(loadCampaignContext(db, campaignA)?.directorPlan?.goal, "PLAN_A");
       assert.equal(loadCampaignContext(db, campaignB)?.directorPlan?.goal, "PLAN_A");
     });

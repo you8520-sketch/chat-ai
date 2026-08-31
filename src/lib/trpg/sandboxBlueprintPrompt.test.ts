@@ -104,7 +104,7 @@ describe("TRPG sandbox Blueprint prompt contract", () => {
     assert.equal(evaluateSandboxBlueprint(parsed.plan).ok, false);
   });
 
-  it("failure chain — ensureCampaignDirectorContext persists null plan on semantic reject", async () => {
+  it("failure chain — ensureCampaignDirectorContext persists null plan without artifact", async () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE worlds (
@@ -129,21 +129,9 @@ describe("TRPG sandbox Blueprint prompt contract", () => {
     const prev = process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
     process.env.TRPG_SANDBOX_DIRECTOR_ENABLED = "1";
     try {
-      const ctx = await ensureCampaignDirectorContext(db, campaignId, {
-        directorCall: async () => ({
-          text: JSON.stringify({
-            startingSituation: "폐허 입구",
-            centralConflict: "생존",
-            goal: "탐험",
-            endingConditions: [],
-            endingCandidates: ["귀환"],
-          }),
-          latencyMs: 1,
-          model: "mock",
-        }),
-      });
+      const ctx = await ensureCampaignDirectorContext(db, campaignId);
       assert.equal(ctx.directorPlan, null);
-      assert.match(ctx.directorError ?? "", /missing required story fields/);
+      assert.ok(!ctx.directorError);
     } finally {
       if (prev === undefined) delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
       else process.env.TRPG_SANDBOX_DIRECTOR_ENABLED = prev;

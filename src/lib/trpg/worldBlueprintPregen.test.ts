@@ -559,13 +559,8 @@ describe("world Blueprint pregeneration corrections", () => {
         expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
         plan: playablePlan,
       });
-      let directorCalls = 0;
       const deps: TrpgEngineDeps = {
         skipBilling: true,
-        directorCall: async () => {
-          directorCalls += 1;
-          throw new Error("must not call provider");
-        },
         gmCall: async () => ({
           text: `<<<NARRATION>>>\nok\n<<<DELTA>>>\n{"players":[],"location":"x","next_round_context":"y","campaign_finished":false,"storyPhase":"DEVELOPMENT"}`,
         }),
@@ -578,7 +573,6 @@ describe("world Blueprint pregeneration corrections", () => {
       });
       saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
       await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-      assert.equal(directorCalls, 0);
     });
   });
 
