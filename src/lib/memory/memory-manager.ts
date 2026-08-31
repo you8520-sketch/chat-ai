@@ -191,7 +191,6 @@ export async function buildMemoryContextForPreview(opts: {
 
   return buildMemoryContext({
     memory: {
-      pinned_facts: memory?.pinned_facts ?? "",
       recent_summary: recentForPrompt,
       archive_summary: archiveForPrompt,
       membership_tier: opts.tier,
@@ -257,7 +256,6 @@ export async function buildMemoryContextForChat(opts: {
   return buildMemoryContext({
     memory: {
       ...memory,
-      pinned_facts: memory.pinned_facts,
       recent_summary: recentForPrompt,
       archive_summary: archiveForPrompt,
     },

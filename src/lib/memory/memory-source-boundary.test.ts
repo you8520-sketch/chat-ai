@@ -303,9 +303,9 @@ describe("persistent memory reset boundary", () => {
     const assistantId = addMessage(db, "assistant", "before reply", "model", userId);
     db.prepare(
       `INSERT INTO chat_memories
-        (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
+        (chat_id, user_id, character_id, recent_summary, archive_summary,
          used_chars, message_count, summarized_turn_count, last_compressed_at)
-       VALUES (1,10,20,'pin','recent','archive',16,1,6,'now')`
+       VALUES (1,10,20,'recent','archive',16,1,6,'now')`
     ).run();
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary) VALUES (1,1,'old')`
@@ -344,7 +344,6 @@ describe("persistent memory reset boundary", () => {
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1`).get().n, 0);
 
     const memory = db.prepare(`SELECT * FROM chat_memories WHERE chat_id=1`).get();
-    assert.equal(memory.pinned_facts, "");
     assert.equal(memory.recent_summary, "");
     assert.equal(memory.archive_summary, "");
     assert.equal(memory.message_count, 0);

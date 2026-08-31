@@ -25,6 +25,7 @@ import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
+import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
@@ -1626,6 +1627,7 @@ function migrate(db: Database.Database) {
   migrateBoardPostsOnce(db);
   dropLegacyMemoryBufferTableOnce(db);
   dropLegacyCharacterMemoriesTableOnce(db);
+  migrateLegacyPinnedFactsIntoRecentSummary(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");

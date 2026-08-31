@@ -280,7 +280,6 @@ export function persistValidatedSummaryBatch(opts: {
         opts.tier
       );
       const used = calcUsedChars({
-        pinned_facts: current.pinned_facts,
         recent_summary: recent,
         archive_summary: current.archive_summary,
       });
@@ -361,7 +360,6 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
   const recent = rebuildLorebookFromRecords(opts.chatId);
   const current = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const used = calcUsedChars({
-    pinned_facts: current.pinned_facts,
     recent_summary: recent,
     archive_summary: current.archive_summary,
   });

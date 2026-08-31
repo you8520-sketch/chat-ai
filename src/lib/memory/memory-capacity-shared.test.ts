@@ -23,7 +23,6 @@ describe("archive prompt injection", () => {
     assert.equal(shouldIncludeArchiveAlways("claude-opus-4", "openrouter"), true);
     const injection = buildMemoryContext({
       memory: {
-        pinned_facts: "",
         recent_summary: "[1~5턴]\n최근 사건",
         archive_summary: "과거 아카이브 요약",
         membership_tier: "free",
@@ -41,7 +40,6 @@ describe("archive prompt injection", () => {
   it("DeepSeek uses past-event summary header with dedupe line", () => {
     const injection = buildMemoryContext({
       memory: {
-        pinned_facts: "",
         recent_summary: "[1~5턴]\n밥을 먹었다",
         archive_summary: "",
         membership_tier: "free",

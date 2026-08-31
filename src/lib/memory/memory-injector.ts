@@ -29,7 +29,7 @@ export function shouldIncludeArchive(archive: string, userMessage: string): bool
 }
 
 export function buildMemoryContext(opts: {
-  memory: Pick<ChatMemoryRow, "pinned_facts" | "recent_summary" | "archive_summary" | "membership_tier">;
+  memory: Pick<ChatMemoryRow, "recent_summary" | "archive_summary" | "membership_tier">;
   userMessage: string;
   tier?: MemoryTier;
   memoryCapacity: number;
@@ -41,12 +41,7 @@ export function buildMemoryContext(opts: {
   const tier = opts.tier ?? opts.memory.membership_tier ?? "free";
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
 
-  // 레거시 pinned_facts가 남아 있으면 로어북 앞에 합쳐서 주입 (마이그레이션 전 안전망)
-  const legacyPinned = opts.memory.pinned_facts?.trim() ?? "";
-  const lorebookRaw = [legacyPinned, opts.memory.recent_summary?.trim() ?? ""]
-    .filter(Boolean)
-    .join("\n\n");
-  const recent = lorebookRaw;
+  const recent = opts.memory.recent_summary?.trim() ?? "";
 
   let archive = "";
   let archiveIncluded = false;
@@ -79,7 +74,6 @@ ${recent}`
   }
 
   const usedChars = calcUsedChars({
-    pinned_facts: "",
     recent_summary: recent,
     archive_summary: archiveIncluded ? archive : "",
   });
