@@ -79,6 +79,16 @@ function canTransition(
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
 
+export function skipMemoryRelationshipProviderTask(
+  messageId: number | undefined,
+  reason: string,
+  db: ReturnType<typeof getDb> = getDb()
+): void {
+  if (messageId) {
+    setMemoryRelationshipTaskState(messageId, "skipped", reason, db);
+  }
+}
+
 /** Canonical logical-task lifecycle write owner — one marker per assistant message. */
 export function setMemoryRelationshipTaskState(
   messageId: number,
