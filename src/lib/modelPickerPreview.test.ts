@@ -38,7 +38,6 @@ const ACTIVE = [
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
 ] as const;
 
@@ -70,8 +69,9 @@ describe("modelPickerPreview V2", () => {
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
     );
-    assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
+    assert.equal(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
+      false
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
@@ -83,7 +83,7 @@ describe("modelPickerPreview V2", () => {
 
   it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 5);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
@@ -332,6 +332,18 @@ describe("modelPickerPreview V2", () => {
       modelIds: ["unknown/model"],
     });
     assert.equal(preview.models[0]?.estimatedPoints ?? null, null);
+  });
+
+  it("hides Terra from picker estimates so receipts do not skew DeepSeek", () => {
+    const preview = buildModelPickerPreview({
+      messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
+      modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL],
+    });
+    const terra = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
+    const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(terra?.supported, false);
+    assert.equal(terra?.estimatedPoints, null);
+    assert.equal(deepSeek?.supported, true);
   });
 
   it("retires Muse from active picker estimates while keeping historical parsing", () => {
