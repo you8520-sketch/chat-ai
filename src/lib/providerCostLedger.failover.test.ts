@@ -30,6 +30,7 @@ describe("providerCostLedger failover integration", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 5,
         assistantMessageId: 88,
+        generationSequence: 0,
         family: "suggested_replies_repair",
         jobAttemptOrdinal: 1,
         requestedModel: "deepseek-v4-flash",

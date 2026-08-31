@@ -21,11 +21,10 @@ import {
 } from "@/lib/statusWidget/parseValues";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
-import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import {
-  parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
 } from "@/lib/suggestedReplies/parse";
+import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import {
   markdownPipeTableStatusWindowActive,
   resolveUserNoteStatusWindowPolicy,
@@ -118,7 +117,7 @@ export async function GET(req: Request) {
     variants: variantMeta.variants,
     activeVariant: variantMeta.activeVariant,
   });
-  const statusRecord = parseStatusMetaRecord(row.status_meta);
+  const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(row);
   const markdownStatusWindowActive = row.user_note
     ? markdownPipeTableStatusWindowActive(resolveUserNoteStatusWindowPolicy(row.user_note))
     : false;
@@ -136,9 +135,7 @@ export async function GET(req: Request) {
   const messageStatusWidgetValues = hasVariantStatusSnapshot
     ? (activeVariantSnapshot?.statusWidgetValues ?? null)
     : parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
-  const suggestedRepliesFields = resolveClientSuggestedReplies(
-    parseSuggestedRepliesRecord(row.suggested_replies_json)
-  );
+  const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
 
   return NextResponse.json({
     messageId: row.id,

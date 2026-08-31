@@ -1,4 +1,12 @@
 import { getDb } from "@/lib/db";
+import {
+  generationJobKey,
+  isCurrentAssistantGeneration,
+  resolveActiveAssistantGenerationScope,
+  resolveActiveAssistantGenerationScopeFromRow,
+  resolveCurrentGenerationAsyncRecord,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 import { extractStatusMetaFromTurn } from "./extract";
 import {
   rebalanceTableMarkdownWithFormatSpec,
@@ -12,9 +20,17 @@ import {
   type StatusMetaRecord,
 } from "./types";
 
-const running = new Set<number>();
+const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
 const EXTRACT_MAX_ATTEMPTS = 3;
+
+function isJobRunning(scope: AssistantGenerationScope): boolean {
+  return running.has(generationJobKey(scope));
+}
+
+export function isStatusMetaJobRunning(scope: AssistantGenerationScope): boolean {
+  return isJobRunning(scope);
+}
 
 export function loadMessageStatusMeta(messageId: number): StatusMetaRecord | null {
   const db = getDb();
@@ -38,18 +54,38 @@ export function loadPreviousTurnStatusMeta(
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT id, status_meta FROM messages
+      `SELECT id, content, model, usage, alternates, active_variant, request_id, generation_status, status_meta
+       FROM messages
        WHERE chat_id=? AND role='assistant' AND (model IS NULL OR model != 'greeting')
        AND status_meta IS NOT NULL AND status_meta != ''
        ORDER BY id DESC LIMIT 12`
     )
-    .all(chatId) as { id: number; status_meta: string }[];
+    .all(chatId) as {
+      id: number;
+      content: string;
+      model: string;
+      usage: string | null;
+      alternates: string | null;
+      active_variant: number | null;
+      request_id: string | null;
+      generation_status: string | null;
+      status_meta: string;
+    }[];
 
   for (const row of rows) {
     if (excludeMessageId != null && row.id === excludeMessageId) continue;
-    const rec = parseStatusMetaRecord(row.status_meta);
-    if (rec && !rec.pending && !rec.failed && statusMetaHasDisplayContent(rec.meta, rec.formatSpec)) {
-      return rec.meta;
+    const scope = resolveActiveAssistantGenerationScopeFromRow(row);
+    const rawRecord = parseStatusMetaRecord(row.status_meta);
+    const record = scope
+      ? resolveCurrentGenerationAsyncRecord(rawRecord, scope)
+      : null;
+    if (
+      record &&
+      !record.pending &&
+      !record.failed &&
+      statusMetaHasDisplayContent(record.meta, record.formatSpec)
+    ) {
+      return record.meta;
     }
   }
   return null;
@@ -60,7 +96,7 @@ export function loadLastMessageStatusMeta(chatId: number): StatusMeta | null {
   return loadPreviousTurnStatusMeta(chatId);
 }
 
-function writePending(messageId: number, formatSpec?: string | null): void {
+function writePending(messageId: number, scope: AssistantGenerationScope, formatSpec?: string | null): void {
   const db = getDb();
   const pending: StatusMetaRecord = {
     meta: {
@@ -79,7 +115,18 @@ function writePending(messageId: number, formatSpec?: string | null): void {
     pending: true,
     failed: false,
     formatSpec: formatSpec ?? null,
+    generationSequence: scope.generationSequence,
+    generationRequestId: scope.generationRequestId,
   };
+  if (!isCurrentAssistantGeneration(scope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "status_meta",
+      messageId,
+      generationSequence: scope.generationSequence,
+      phase: "pending_write",
+    });
+    return;
+  }
   db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
     serializeStatusMetaRecord(pending),
     messageId
@@ -88,11 +135,21 @@ function writePending(messageId: number, formatSpec?: string | null): void {
 
 function writeMeta(
   messageId: number,
+  scope: AssistantGenerationScope,
   meta: StatusMeta,
   formatSpec?: string | null,
   failed = false
 ): void {
   const db = getDb();
+  if (!isCurrentAssistantGeneration(scope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "status_meta",
+      messageId,
+      generationSequence: scope.generationSequence,
+      phase: "result_write",
+    });
+    return;
+  }
   const record: StatusMetaRecord = {
     meta,
     extractedAt: new Date().toISOString(),
@@ -100,6 +157,8 @@ function writeMeta(
     pending: false,
     failed,
     formatSpec: formatSpec ?? null,
+    generationSequence: scope.generationSequence,
+    generationRequestId: scope.generationRequestId,
   };
   db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
     serializeStatusMetaRecord(record),
@@ -110,14 +169,24 @@ function writeMeta(
 /** 재생성 시작 — 이전 status_meta 즉시 pending으로 교체 (폴링·SSR stale 방지) */
 export function markMessageStatusMetaPending(
   messageId: number,
-  formatSpec?: string | null
+  formatSpec?: string | null,
+  generationScope?: AssistantGenerationScope
 ): void {
-  writePending(messageId, formatSpec);
+  const scope =
+    generationScope ??
+    resolveActiveAssistantGenerationScope(messageId) ??
+    ({
+      assistantMessageId: messageId,
+      generationSequence: 0,
+      generationRequestId: null,
+    } satisfies AssistantGenerationScope);
+  writePending(messageId, scope, formatSpec);
 }
 
 async function runStatusMetaExtraction(opts: {
   messageId: number;
   chatId: number;
+  generationScope: AssistantGenerationScope;
   charName: string;
   characterIdentity?: string | null;
   personaName: string;
@@ -128,9 +197,12 @@ async function runStatusMetaExtraction(opts: {
   memoryBlock?: string;
   loreBlock?: string;
   formatSpec?: string | null;
+  __testExtract?: (attempt: number) => Promise<StatusMeta>;
+  __testObservePreviousMeta?: (meta: StatusMeta | null) => void;
 }): Promise<StatusMeta> {
   const formatSpec = opts.formatSpec?.trim() || null;
   const previousMeta = loadPreviousTurnStatusMeta(opts.chatId, opts.messageId);
+  opts.__testObservePreviousMeta?.(previousMeta);
   let lastMeta: StatusMeta = {
     tableMarkdown: "",
     datetime: "",
@@ -145,12 +217,26 @@ async function runStatusMetaExtraction(opts: {
 
   for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
     try {
-      const meta = await extractStatusMetaFromTurn({
-        ...opts,
-        previousMeta,
-        formatSpec,
-        jobAttemptOrdinal: attempt,
-      });
+      const meta = opts.__testExtract
+        ? await opts.__testExtract(attempt)
+        : await extractStatusMetaFromTurn({
+            chatId: opts.chatId,
+            messageId: opts.messageId,
+            generationSequence: opts.generationScope.generationSequence,
+            generationRequestId: opts.generationScope.generationRequestId,
+            charName: opts.charName,
+            characterIdentity: opts.characterIdentity,
+            personaName: opts.personaName,
+            userPersona: opts.userPersona,
+            userMessage: opts.userMessage,
+            assistantProse: opts.assistantProse,
+            userNote: opts.userNote,
+            memoryBlock: opts.memoryBlock,
+            loreBlock: opts.loreBlock,
+            previousMeta,
+            formatSpec,
+            jobAttemptOrdinal: attempt,
+          });
       lastMeta = meta;
       if (statusMetaHasDisplayContent(meta, formatSpec)) {
         if (attempt > 1) {
@@ -185,6 +271,7 @@ async function runStatusMetaExtraction(opts: {
 export function scheduleStatusMetaExtraction(opts: {
   messageId: number;
   chatId: number;
+  generationScope: AssistantGenerationScope;
   charName: string;
   characterIdentity?: string | null;
   personaName: string;
@@ -197,9 +284,12 @@ export function scheduleStatusMetaExtraction(opts: {
   formatSpec?: string | null;
   /** 모델 본문에서 분리한 pipe-table — Flash 대신 즉시 StatusMetaCard에 사용 */
   prefilledTableMarkdown?: string | null;
+  __testExtract?: (attempt: number) => Promise<StatusMeta>;
+  __testObservePreviousMeta?: (meta: StatusMeta | null) => void;
 }): void {
-  if (running.has(opts.messageId)) return;
-  running.add(opts.messageId);
+  const jobKey = generationJobKey(opts.generationScope);
+  if (running.has(jobKey)) return;
+  running.add(jobKey);
 
   const formatSpec = opts.formatSpec?.trim() || null;
   const prefilled = opts.prefilledTableMarkdown?.trim() || null;
@@ -208,6 +298,7 @@ export function scheduleStatusMetaExtraction(opts: {
     try {
       writeMeta(
         opts.messageId,
+        opts.generationScope,
         {
           tableMarkdown: rebalanceTableMarkdownWithFormatSpec(prefilled, formatSpec ?? ""),
           datetime: "",
@@ -225,13 +316,13 @@ export function scheduleStatusMetaExtraction(opts: {
     } catch (e) {
       console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
     } finally {
-      running.delete(opts.messageId);
+      running.delete(jobKey);
     }
     return;
   }
 
   try {
-    writePending(opts.messageId, formatSpec);
+    writePending(opts.messageId, opts.generationScope, formatSpec);
   } catch (e) {
     console.error("[STATUS-META-ERROR] pending write failed", (e as Error).message);
   }
@@ -240,7 +331,7 @@ export function scheduleStatusMetaExtraction(opts: {
     try {
       const meta = await runStatusMetaExtraction(opts);
       const ok = statusMetaHasDisplayContent(meta, formatSpec);
-      writeMeta(opts.messageId, meta, formatSpec, !ok);
+      writeMeta(opts.messageId, opts.generationScope, meta, formatSpec, !ok);
       if (!ok) {
         console.error("[STATUS-META-ERROR] extraction finished without displayable meta", {
           messageId: opts.messageId,
@@ -252,6 +343,7 @@ export function scheduleStatusMetaExtraction(opts: {
       try {
         writeMeta(
           opts.messageId,
+          opts.generationScope,
           {
             tableMarkdown: "",
             datetime: "",
@@ -273,15 +365,21 @@ export function scheduleStatusMetaExtraction(opts: {
         );
       }
     } finally {
-      running.delete(opts.messageId);
+      running.delete(jobKey);
     }
   })();
 }
 
 /** pending stuck / failed — status-meta GET에서 재시도 (과도한 재큐 방지) */
 export function requeueStatusMetaExtractionIfNeeded(messageId: number): boolean {
+  const generationScope = resolveActiveAssistantGenerationScope(messageId);
+  if (!generationScope) return false;
+
   const record = loadMessageStatusMeta(messageId);
   if (!record) return false;
+  if (record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
+    return false;
+  }
 
   const stalePending = record.pending === true && isStatusMetaRecordStalePending(record);
   let staleFailed = false;
@@ -290,7 +388,7 @@ export function requeueStatusMetaExtractionIfNeeded(messageId: number): boolean 
     staleFailed = age >= 15_000;
   }
   if (!stalePending && !staleFailed) return false;
-  if (running.has(messageId)) return true;
+  if (isJobRunning(generationScope)) return true;
 
   const db = getDb();
   const row = db
@@ -343,6 +441,7 @@ export function requeueStatusMetaExtractionIfNeeded(messageId: number): boolean 
   scheduleStatusMetaExtraction({
     messageId,
     chatId: row.chat_id,
+    generationScope,
     charName: row.char_name,
     personaName: "유저",
     userMessage,

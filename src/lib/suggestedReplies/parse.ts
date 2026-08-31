@@ -160,6 +160,18 @@ export function parseSuggestedRepliesRecord(
       source: "background-deepseek",
       pending: parsed.pending === true,
       failed: parsed.failed === true,
+      generationSequence:
+        typeof parsed.generationSequence === "number" &&
+        Number.isInteger(parsed.generationSequence) &&
+        parsed.generationSequence >= 0
+          ? parsed.generationSequence
+          : undefined,
+      generationRequestId:
+        typeof parsed.generationRequestId === "string"
+          ? parsed.generationRequestId
+          : parsed.generationRequestId === null
+            ? null
+            : undefined,
     };
   } catch {
     return null;

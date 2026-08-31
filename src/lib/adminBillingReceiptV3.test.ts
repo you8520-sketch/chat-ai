@@ -134,6 +134,7 @@ function ledgerRow(
           ...buildPlatformAsyncTurnLedgerContext({
             chatId: 1,
             assistantMessageId,
+            generationSequence: 0,
             family,
             jobAttemptOrdinal: 1,
           }),
@@ -242,6 +243,7 @@ describe("adminBillingReceiptV3", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 1,
         assistantMessageId: 20,
+        generationSequence: 0,
         family: "suggested_replies_repair",
         jobAttemptOrdinal: 1,
       }),
@@ -283,6 +285,7 @@ describe("adminBillingReceiptV3", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 1,
         assistantMessageId: 30,
+        generationSequence: 0,
         family: "status_meta",
         jobAttemptOrdinal: 1,
       }),

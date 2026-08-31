@@ -46,6 +46,10 @@ export type StatusMetaRecord = {
 
   failed?: boolean;
 
+  generationSequence?: number;
+
+  generationRequestId?: string | null;
+
 };
 
 
@@ -138,6 +142,14 @@ export function parseStatusMetaRecord(raw: string | null | undefined): StatusMet
       formatSpec: typeof parsed.formatSpec === "string" ? parsed.formatSpec : null,
 
       failed: parsed.failed === true,
+
+      generationSequence:
+        typeof parsed.generationSequence === "number" && Number.isInteger(parsed.generationSequence)
+          ? parsed.generationSequence
+          : undefined,
+
+      generationRequestId:
+        typeof parsed.generationRequestId === "string" ? parsed.generationRequestId : null,
 
     };
 

@@ -199,6 +199,7 @@ describe("memoryRelationshipTask ledger integration", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 1,
         assistantMessageId,
+        generationSequence: 0,
         family,
         jobAttemptOrdinal: 1,
       }),

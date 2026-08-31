@@ -40,6 +40,10 @@ import { ensureAdminFinanceTables } from "@/lib/adminFinance";
 import { resolveMemoryRelationshipExpectation } from "@/lib/asyncTurnCoverage";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
 import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
+import {
+  resolveNextAssistantGenerationSequence,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 const CHAT_ID = 881001;
 const USER_ID = 881002;
@@ -48,6 +52,14 @@ const ASSISTANT_MSG_ID = 881010;
 const USER_MSG_ID = 881009;
 
 let extractCallCount = 0;
+
+function regenGenerationScope(requestId = "regen-req-1"): AssistantGenerationScope {
+  return {
+    assistantMessageId: ASSISTANT_MSG_ID,
+    generationSequence: resolveNextAssistantGenerationSequence(ASSISTANT_MSG_ID),
+    generationRequestId: requestId,
+  };
+}
 
 function cleanup() {
   const db = getDb();
@@ -96,11 +108,12 @@ function startRegen(requestId = "regen-req-1") {
   });
 }
 
-function insertOldMemoryLedger(usd = 0.002) {
+function insertOldMemoryLedger(usd = 0.002, generationSequence = 0) {
   const db = getDb();
   const ctx = buildPlatformAsyncTurnLedgerContext({
     chatId: CHAT_ID,
     assistantMessageId: ASSISTANT_MSG_ID,
+    generationSequence,
     family: "memory_relationship",
     jobAttemptOrdinal: 1,
   });
@@ -128,7 +141,8 @@ const FX = {
 
 function buildReceiptWithMarkerAndLedger(
   marker: ReturnType<typeof loadMessageMemoryRelationshipTask>,
-  ledgerUsd: number | null
+  ledgerUsd: number | null,
+  generationSequence = 1
 ) {
   return buildAdminBillingReceiptV3({
     usage: {
@@ -180,6 +194,11 @@ function buildReceiptWithMarkerAndLedger(
     },
     assistantMessageId: ASSISTANT_MSG_ID,
     chatId: CHAT_ID,
+    generationScope: {
+      assistantMessageId: ASSISTANT_MSG_ID,
+      generationSequence,
+      generationRequestId: "regen-req-1",
+    },
     suggestedRepliesRecord: null,
     statusMetaRecord: null,
     memoryRelationshipTask: marker,
@@ -194,13 +213,15 @@ function buildReceiptWithMarkerAndLedger(
               event_status: "settled",
               actual_cost_usd: ledgerUsd,
               actual_cost_source: "cheaper_inference_billed",
+              generation_sequence: generationSequence,
             } as never,
           ],
   });
 }
 
-async function providerBackedRegen() {
+async function providerBackedRegen(requestId = "regen-req-1") {
   extractCallCount += 1;
+  const generationScope = regenGenerationScope(requestId);
   return mergeRelationshipMetaAfterRegenerate({
     chatId: CHAT_ID,
     names: { charName: "TestChar", userName: "Tester" },
@@ -211,6 +232,7 @@ async function providerBackedRegen() {
     sourceUserMessageId: USER_MSG_ID,
     boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
     assistantMessageId: ASSISTANT_MSG_ID,
+    generationScope,
     __testExtract: async () => {
       extractCallCount += 1;
       return { delta: { items: ["Tester: token"] }, parseOk: true };
@@ -226,7 +248,7 @@ before(() => {
 });
 after(() => uninstallIsolatedTestDatabase());
 
-describe("memoryRelationshipTask regeneration fail-closed", () => {
+describe("memoryRelationshipTask generation-scoped regeneration", () => {
   let prevMemoryFeature: string | undefined;
   let prevGeminiIsolation: string | undefined;
 
@@ -247,61 +269,75 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
     cleanup();
   });
 
-  it("R1 — old skipped marker → provider-backed regenerate stays unverifiable", async () => {
-    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "skipped", "main_model_tail_satisfied");
+  it("R1 — old skipped marker → provider-backed regenerate restores gen-scoped lifecycle", async () => {
+    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "skipped", "main_model_tail_satisfied", undefined, {
+      generationSequence: 0,
+      generationRequestId: null,
+    });
     startRegen();
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
 
     await providerBackedRegen();
     assert.equal(extractCallCount, 2);
-    assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
+    const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
+    assert.equal(marker?.state, "succeeded");
+    assert.equal(marker?.generationSequence, 1);
 
     const expectation = resolveMemoryRelationshipExpectation({
-      task: null,
+      task: marker,
       memoryRelationshipLedgerRowCount: 0,
     });
-    assert.equal(expectation.expectationState, "unverifiable");
+    assert.equal(expectation.expectationState, "terminal");
 
-    const receipt = buildReceiptWithMarkerAndLedger(null, null);
-    assert.equal(receipt.wholeTurn.exactProviderSpendUsd, null);
-    assert.equal(receipt.wholeTurn.contributionMarginKrw, null);
-    assert.notEqual(receipt.async.byFamily.find((f) => f.family === "memory_relationship")?.expectationState, "terminal");
+    const receipt = buildReceiptWithMarkerAndLedger(marker, null, 1);
+    assert.notEqual(
+      receipt.async.byFamily.find((f) => f.family === "memory_relationship")?.expectationState,
+      "unverifiable"
+    );
   });
 
-  it("R2 — old succeeded + old exact ledger → regen marker absent, old ledger preserved", async () => {
-    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "succeeded");
-    insertOldMemoryLedger(0.002);
+  it("R2 — old gen0 ledger preserved; regen gets gen1 succeeded marker", async () => {
+    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "succeeded", undefined, undefined, {
+      generationSequence: 0,
+      generationRequestId: null,
+    });
+    insertOldMemoryLedger(0.002, 0);
     assert.equal(listProviderCostEventsForAssistantMessage(ASSISTANT_MSG_ID).length, 1);
 
     startRegen();
     await providerBackedRegen();
 
-    assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
+    const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
+    assert.equal(marker?.state, "succeeded");
+    assert.equal(marker?.generationSequence, 1);
     assert.equal(listProviderCostEventsForAssistantMessage(ASSISTANT_MSG_ID).length, 1);
 
     const expectation = resolveMemoryRelationshipExpectation({
-      task: null,
-      memoryRelationshipLedgerRowCount: 1,
+      task: marker,
+      memoryRelationshipLedgerRowCount: 0,
     });
-    assert.equal(expectation.expectationState, "unverifiable");
-    assert.equal(expectation.skipReason, "missing_durable_marker_with_ledger_evidence");
+    assert.equal(expectation.expectationState, "terminal");
 
-    const receipt = buildReceiptWithMarkerAndLedger(null, 0.002);
-    assert.equal(receipt.wholeTurn.exactProviderSpendUsd, null);
-    assert.equal(receipt.wholeTurn.contributionMarginKrw, null);
+    const receipt = buildReceiptWithMarkerAndLedger(marker, null, 1);
+    assert.equal(receipt.async.byFamily.find((f) => f.family === "memory_relationship")?.coverage, "partial");
   });
 
-  it("R3 — old failed marker cleared; provider-backed regen stays absent/unverifiable", async () => {
-    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "failed", "parse_failed");
+  it("R3 — old failed marker cleared; provider-backed regen succeeds for gen1", async () => {
+    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "failed", "parse_failed", undefined, {
+      generationSequence: 0,
+      generationRequestId: null,
+    });
     startRegen();
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
 
     await providerBackedRegen();
-    assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
+    const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
+    assert.equal(marker?.state, "succeeded");
+    assert.equal(marker?.generationSequence, 1);
     assert.equal(
-      resolveMemoryRelationshipExpectation({ task: null, memoryRelationshipLedgerRowCount: 0 })
+      resolveMemoryRelationshipExpectation({ task: marker, memoryRelationshipLedgerRowCount: 0 })
         .expectationState,
-      "unverifiable"
+      "terminal"
     );
   });
 
@@ -330,6 +366,11 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
       sourceUserMessageId: USER_MSG_ID,
       boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
       assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope: {
+        assistantMessageId: ASSISTANT_MSG_ID,
+        generationSequence: 0,
+        generationRequestId: null,
+      },
       __testExtract: async () => {
         await extractGate;
         return { delta: {}, parseOk: true };
@@ -345,9 +386,13 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID), null);
   });
 
-  it("R5 — regen deterministic no-provider writes new skipped after reset", async () => {
-    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "skipped", "main_model_tail_satisfied");
+  it("R5 — regen deterministic no-provider writes gen1 skipped after reset", async () => {
+    setMemoryRelationshipTaskState(ASSISTANT_MSG_ID, "skipped", "main_model_tail_satisfied", undefined, {
+      generationSequence: 0,
+      generationRequestId: null,
+    });
     startRegen();
+    const generationScope = regenGenerationScope();
 
     await scheduleMemoryUpdate({
       chatId: CHAT_ID,
@@ -363,17 +408,20 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
       isRegenerate: true,
       previousAssistantMessage: "old reply",
       route: "safe",
+      generationScope,
     });
 
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "skipped");
     assert.equal(marker?.reason, "ooc_scene");
+    assert.equal(marker?.generationSequence, 1);
     assert.equal(extractCallCount, 0);
   });
 
-  it("R6 — regen skipped + old ledger fails closed as unverifiable", async () => {
-    insertOldMemoryLedger(0.001);
+  it("R6 — regen gen1 skipped + old gen0 ledger is not a current-generation contradiction", async () => {
+    insertOldMemoryLedger(0.001, 0);
     startRegen();
+    const generationScope = regenGenerationScope();
 
     await scheduleMemoryUpdate({
       chatId: CHAT_ID,
@@ -389,18 +437,20 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
       isRegenerate: true,
       previousAssistantMessage: "old reply",
       route: "safe",
+      generationScope,
     });
 
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "skipped");
+    assert.equal(marker?.generationSequence, 1);
     assert.equal(listProviderCostEventsForAssistantMessage(ASSISTANT_MSG_ID).length, 1);
 
     const expectation = resolveMemoryRelationshipExpectation({
       task: marker,
-      memoryRelationshipLedgerRowCount: 1,
+      memoryRelationshipLedgerRowCount: 0,
     });
-    assert.equal(expectation.expectationState, "unverifiable");
-    assert.equal(expectation.skipReason, "skipped_marker_with_physical_ledger_contradiction");
+    assert.equal(expectation.expectationState, "not_expected");
+    assert.notEqual(expectation.skipReason, "skipped_marker_with_physical_ledger_contradiction");
   });
 
   it("R7 — normal turn lifecycle unchanged", async () => {
@@ -413,6 +463,11 @@ describe("memoryRelationshipTask regeneration fail-closed", () => {
       sourceUserMessageId: USER_MSG_ID,
       boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
       assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope: {
+        assistantMessageId: ASSISTANT_MSG_ID,
+        generationSequence: 0,
+        generationRequestId: null,
+      },
       __testExtract: async () => ({ delta: {}, parseOk: true }),
     });
     assert.equal(loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID)?.state, "succeeded");

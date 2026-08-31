@@ -17,6 +17,7 @@ import {
   mergeRelationshipMetaAfterRegenerate,
 } from "./memory-relationship-meta";
 import { setMemoryRelationshipTaskState, skipMemoryRelationshipProviderTask } from "./memoryRelationshipTask";
+import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
 import {
   getChatMemoryRow,
   getOrCreateChatMemory,
@@ -290,18 +291,20 @@ export async function scheduleMemoryUpdate(opts: {
   /** DeepSeek/Qwen — 메인 JSON tail 파싱 성공 시 Flash 관계메모 추출 생략 */
   relationshipTailParsed?: boolean;
   relationshipDeltaFromMain?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
+  generationScope?: AssistantGenerationScope;
 }): Promise<void> {
+  const generationScope = opts.generationScope;
   if (!isMemoryFeatureEnabled()) {
-    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "feature_disabled");
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "feature_disabled", undefined, generationScope);
     return;
   }
   if (resolveOocSceneRenderIntent(opts.userMessage)) {
-    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "ooc_scene");
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "ooc_scene", undefined, generationScope);
     return;
   }
   if (isGeminiIsolationMode()) {
     console.warn("[gemini-isolation] scheduleMemoryUpdate skipped");
-    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "gemini_isolation");
+    skipMemoryRelationshipProviderTask(opts.assistantMessageId, "gemini_isolation", undefined, generationScope);
     return;
   }
 
@@ -324,7 +327,12 @@ export async function scheduleMemoryUpdate(opts: {
       source_message_id: sourceUserMessageId,
     });
     if (opts.assistantMessageId) {
-      skipMemoryRelationshipProviderTask(opts.assistantMessageId, "memory_source_pre_reset");
+      skipMemoryRelationshipProviderTask(
+        opts.assistantMessageId,
+        "memory_source_pre_reset",
+        undefined,
+        generationScope
+      );
     }
     return;
   }
@@ -347,6 +355,7 @@ export async function scheduleMemoryUpdate(opts: {
         sourceUserMessageId,
         boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,
+        generationScope,
       });
     } else {
       await mergeRelationshipMetaFromTurn({
@@ -361,6 +370,7 @@ export async function scheduleMemoryUpdate(opts: {
         sourceUserMessageId,
         boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,
+        generationScope,
       });
     }
   } catch (e) {

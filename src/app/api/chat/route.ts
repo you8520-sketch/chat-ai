@@ -361,6 +361,10 @@ import {
   resolveAutoContinueHistoryTurns,
 } from "@/lib/continueNarrative";
 import {
+  resolveNextAssistantGenerationSequence,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
+import {
   appendMessageVariant,
   normalizeMessageVariants,
   serializeVariantsForClient,
@@ -1010,16 +1014,6 @@ export async function POST(req: Request) {
         clientDraftPresent: typeof message === "string" && message.trim().length > 0,
       })
     );
-
-    const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
-      userNote: effectiveUserNote || undefined,
-      userPersona: userPersonaPrompt ?? undefined,
-      userMessage: messageText,
-    });
-    if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
-      markMessageStatusMetaPending(regenerateMessageId, regenStatusPolicy.formatSpec);
-    }
-    markMessageSuggestedRepliesPending(regenerateMessageId);
   }
 
   const msgRowsWithId = db
@@ -2690,6 +2684,26 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (regenerateMessageId != null) {
+    const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
+      userNote: effectiveUserNote || undefined,
+      userPersona: userPersonaPrompt ?? undefined,
+      userMessage: messageText,
+    });
+    const regenGenerationScope: AssistantGenerationScope = {
+      assistantMessageId: regenerateMessageId,
+      generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
+      generationRequestId: clientRequestId ?? null,
+    };
+    if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
+      markMessageStatusMetaPending(
+        regenerateMessageId,
+        regenStatusPolicy.formatSpec,
+        regenGenerationScope
+      );
+    }
+    markMessageSuggestedRepliesPending(regenerateMessageId, regenGenerationScope);
+  }
   if (oocSceneRenderTurn) {
     persistGenerationSemanticsOnMessages(db, {
       userMessageId,
@@ -5748,10 +5762,17 @@ export async function POST(req: Request) {
           }
         }
 
+        const postTurnGenerationScope: AssistantGenerationScope = {
+          assistantMessageId: aiMessageId,
+          generationSequence: newVariant.generationSequence ?? snapshotVariantIndex ?? 0,
+          generationRequestId: clientRequestId ?? null,
+        };
+
         if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
           scheduleStatusMetaExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
+            generationScope: postTurnGenerationScope,
             charName: ch.name,
             characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
@@ -5778,6 +5799,7 @@ export async function POST(req: Request) {
           scheduleSuggestedRepliesExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
+            generationScope: postTurnGenerationScope,
             charName: ch.name,
             personaName: personaDisplayName,
             personaDescription,
@@ -6004,6 +6026,7 @@ export async function POST(req: Request) {
               route: nextMode,
               relationshipTailParsed,
               relationshipDeltaFromMain,
+              generationScope: postTurnGenerationScope,
             });
             }
           } catch (e) {

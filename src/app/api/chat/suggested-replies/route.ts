@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
+  asyncRecordMatchesGenerationScope,
+  resolveActiveAssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
+import {
   loadMessageSuggestedReplies,
   requeueSuggestedRepliesExtractionIfNeeded,
 } from "@/lib/suggestedReplies/job";
@@ -36,11 +40,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  let record = loadMessageSuggestedReplies(messageId);
+  const activeScope = resolveActiveAssistantGenerationScope(messageId);
+  let rawRecord = loadMessageSuggestedReplies(messageId);
+  let record =
+    activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
 
   if (shouldEnsureSuggestedRepliesExtraction(record)) {
     requeueSuggestedRepliesExtractionIfNeeded(messageId);
-    record = loadMessageSuggestedReplies(messageId);
+    rawRecord = loadMessageSuggestedReplies(messageId);
+    record =
+      activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
   }
 
   const replies = normalizeSuggestedReplies(record);

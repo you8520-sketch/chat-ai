@@ -242,6 +242,8 @@ function normalizePlainTextExtraction(
 export async function extractStatusMetaFromTurn(opts: {
   chatId: number;
   messageId?: number;
+  generationSequence?: number;
+  generationRequestId?: string | null;
   jobAttemptOrdinal?: number;
   charName: string;
   characterIdentity?: string | null;
@@ -269,10 +271,14 @@ export async function extractStatusMetaFromTurn(opts: {
 
   try {
     const ledgerContext =
-      opts.messageId != null && opts.jobAttemptOrdinal != null
+      opts.messageId != null &&
+      opts.jobAttemptOrdinal != null &&
+      opts.generationSequence != null
         ? buildPlatformAsyncTurnLedgerContext({
             chatId: opts.chatId,
             assistantMessageId: opts.messageId,
+            generationSequence: opts.generationSequence,
+            generationRequestId: opts.generationRequestId ?? null,
             family: "status_meta",
             jobAttemptOrdinal: opts.jobAttemptOrdinal,
             requestKind: "background-status-meta-extract",

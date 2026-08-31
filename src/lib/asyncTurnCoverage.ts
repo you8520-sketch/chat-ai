@@ -254,6 +254,7 @@ export function resolveAsyncTurnCoverage(input: {
   statusMetaRecord: StatusMetaRecord | null;
   memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerAsyncRows: ProviderCostLedgerRow[];
+  hasUnscopedLedgerRows?: boolean;
 }): AsyncTurnCoverageResult {
   const rowsByFamily = new Map<TurnAttributableAsyncFamily, ProviderCostLedgerRow[]>();
   for (const family of TURN_ATTRIBUTABLE_ASYNC_FAMILIES) {
@@ -297,7 +298,9 @@ export function resolveAsyncTurnCoverage(input: {
     .map((f) => f.family);
 
   let overallCoverage: AsyncFamilyCoverageState;
-  if (unverifiableFamilies.length > 0) {
+  if (input.hasUnscopedLedgerRows) {
+    overallCoverage = "unverifiable";
+  } else if (unverifiableFamilies.length > 0) {
     overallCoverage = "unverifiable";
   } else if (pendingFamilies.length > 0) {
     overallCoverage = "pending";

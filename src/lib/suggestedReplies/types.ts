@@ -44,6 +44,8 @@ export type SuggestedRepliesRecord = {
   source: "background-deepseek";
   pending?: boolean;
   failed?: boolean;
+  generationSequence?: number;
+  generationRequestId?: string | null;
 };
 
 export type SuggestedRepliesClientFields = {

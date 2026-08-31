@@ -35,6 +35,10 @@ export type ProviderCostEventStatus =
 export type ProviderCostLedgerContext = {
   chatId: number;
   assistantMessageId: number;
+  /** Canonical generation discriminator — captured before provider call. */
+  generationSequence: number;
+  /** Secondary provenance / idempotency field for the generation. */
+  generationRequestId?: string | null;
   family: ProviderCostFamily;
   fundingClass: ProviderCostFundingClass;
   executionPhase: ProviderCostExecutionPhase;
@@ -106,6 +110,8 @@ export type ProviderCostLedgerRow = {
   /** Legacy Admin Finance monthly estimate at write-time billing FX. */
   cost_krw: number;
   estimated: number;
+  generation_sequence: number | null;
+  generation_request_id: string | null;
   created_at: string;
   completed_at: string | null;
 };
@@ -169,12 +175,16 @@ export function ensureProviderCostLedgerSchema(db: Database.Database = getDb()):
   addColumn("actual_cost_source", "actual_cost_source TEXT");
   addColumn("event_status", "event_status TEXT");
   addColumn("completed_at", "completed_at TEXT");
+  addColumn("generation_sequence", "generation_sequence INTEGER");
+  addColumn("generation_request_id", "generation_request_id TEXT");
 
   db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_api_cost_ledger_event_key
       ON api_cost_ledger(event_key);
     CREATE INDEX IF NOT EXISTS idx_api_cost_ledger_assistant_message
       ON api_cost_ledger(assistant_message_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_api_cost_ledger_assistant_generation
+      ON api_cost_ledger(assistant_message_id, generation_sequence, created_at);
     CREATE INDEX IF NOT EXISTS idx_api_cost_ledger_chat_created
       ON api_cost_ledger(chat_id, created_at);
   `);
@@ -283,6 +293,8 @@ export function isLedgerEventCostCoverageIncomplete(
 export function buildPlatformAsyncTurnLedgerContext(input: {
   chatId: number;
   assistantMessageId: number;
+  generationSequence: number;
+  generationRequestId?: string | null;
   family: ProviderCostFamily;
   jobAttemptOrdinal: number;
   requestedModel?: string;
@@ -292,6 +304,8 @@ export function buildPlatformAsyncTurnLedgerContext(input: {
   return {
     chatId: input.chatId,
     assistantMessageId: input.assistantMessageId,
+    generationSequence: input.generationSequence,
+    generationRequestId: input.generationRequestId ?? null,
     family: input.family,
     fundingClass: "platform_funded",
     executionPhase: "async_post_turn",
@@ -305,6 +319,8 @@ export function buildPlatformAsyncTurnLedgerContext(input: {
 export function buildPlatformSyncTurnLedgerContext(input: {
   chatId: number;
   assistantMessageId: number;
+  generationSequence?: number;
+  generationRequestId?: string | null;
   family: ProviderCostFamily;
   requestedModel?: string;
   requestedProvider?: string;
@@ -313,6 +329,8 @@ export function buildPlatformSyncTurnLedgerContext(input: {
   return {
     chatId: input.chatId,
     assistantMessageId: input.assistantMessageId,
+    generationSequence: input.generationSequence ?? 0,
+    generationRequestId: input.generationRequestId ?? null,
     family: input.family,
     fundingClass: "platform_funded",
     executionPhase: "sync_post_turn",
@@ -335,14 +353,17 @@ export function startProviderCostAttempt(
   ensureProviderCostLedgerSchema(db);
   db.prepare(
     `INSERT INTO api_cost_ledger
-      (event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+      (event_key, chat_id, assistant_message_id, generation_sequence, generation_request_id,
+       family, funding_class, execution_phase,
        attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
        event_status, exchange_rate_krw_per_usd, cost_krw, estimated, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'started', 0, 0, 1, datetime('now'))`
   ).run(
     physicalAttemptId,
     ctx.chatId,
     ctx.assistantMessageId,
+    ctx.generationSequence,
+    ctx.generationRequestId ?? null,
     ctx.family,
     ctx.fundingClass,
     ctx.executionPhase,
@@ -478,6 +499,21 @@ export function listProviderCostEventsForAssistantMessage(
        ORDER BY id ASC`
     )
     .all(assistantMessageId) as ProviderCostLedgerRow[];
+}
+
+export function listProviderCostEventsForAssistantGeneration(
+  assistantMessageId: number,
+  generationSequence: number,
+  db: Database.Database = getDb()
+): ProviderCostLedgerRow[] {
+  ensureProviderCostLedgerSchema(db);
+  return db
+    .prepare(
+      `SELECT * FROM api_cost_ledger
+       WHERE assistant_message_id = ? AND generation_sequence = ?
+       ORDER BY id ASC`
+    )
+    .all(assistantMessageId, generationSequence) as ProviderCostLedgerRow[];
 }
 
 export function readProviderCostEventByKey(

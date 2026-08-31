@@ -23,12 +23,17 @@ import {
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 import { setMemoryRelationshipTaskState } from "./memoryRelationshipTask";
+import {
+  isCurrentAssistantGeneration,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 export type { RelationshipMetaCategory };
 
 export type RelationshipMetaApplyResult = {
   meta: MemoryMeta;
   accepted: boolean;
+  rejectReason?: "stale_epoch_rejected" | "stale_generation_rejected";
 };
 
 export function loadChatRelationshipMeta(chatId: number, names?: HonorificNames): MemoryMeta {
@@ -134,11 +139,26 @@ export function applyRelationshipDeltaToChat(opts: {
   delta: RelationshipMetaDelta;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
+  generationScope?: AssistantGenerationScope;
   __testThrowOnSave?: boolean;
 }): RelationshipMetaApplyResult {
   const db = getDb();
   const snapshot = opts.boundarySnapshot ?? getMemorySourceBoundary(opts.chatId);
-  return db.transaction(() => {
+  return db.transaction((): RelationshipMetaApplyResult => {
+    if (opts.generationScope && !isCurrentAssistantGeneration(opts.generationScope, db)) {
+      console.info("STALE_GENERATION_RESULT_REJECTED", {
+        family: "memory_relationship",
+        messageId: opts.generationScope.assistantMessageId,
+        generationSequence: opts.generationScope.generationSequence,
+        phase: "projection_write",
+      });
+      return {
+        meta: loadChatRelationshipMeta(opts.chatId, opts.names),
+        accepted: false,
+        rejectReason: "stale_generation_rejected",
+      };
+    }
+
     if (
       !isMemoryWriteGuardCurrentCore(db, {
         chatId: opts.chatId,
@@ -154,6 +174,7 @@ export function applyRelationshipDeltaToChat(opts: {
       return {
         meta: loadChatRelationshipMeta(opts.chatId, opts.names),
         accepted: false,
+        rejectReason: "stale_epoch_rejected",
       };
     }
 
@@ -187,29 +208,29 @@ type ProviderBackedMergeOpts = {
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
-  /** Regeneration reuses assistantMessageId without generation-scoped ledger — keep marker absent. */
-  skipTaskLifecycleMarker?: boolean;
+  generationScope?: AssistantGenerationScope;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 };
 
 function recordProviderBackedTaskTerminalState(
   assistantMessageId: number | undefined,
-  outcome: "parse_failed" | "commit_accepted" | "stale_epoch_rejected" | "commit_failed"
+  outcome: "parse_failed" | "commit_accepted" | "stale_epoch_rejected" | "commit_failed",
+  generationScope?: Pick<AssistantGenerationScope, "generationSequence" | "generationRequestId">
 ): void {
   if (!assistantMessageId) return;
   switch (outcome) {
     case "parse_failed":
-      setMemoryRelationshipTaskState(assistantMessageId, "failed", "parse_failed");
+      setMemoryRelationshipTaskState(assistantMessageId, "failed", "parse_failed", undefined, generationScope);
       break;
     case "commit_accepted":
-      setMemoryRelationshipTaskState(assistantMessageId, "succeeded");
+      setMemoryRelationshipTaskState(assistantMessageId, "succeeded", undefined, undefined, generationScope);
       break;
     case "stale_epoch_rejected":
-      setMemoryRelationshipTaskState(assistantMessageId, "failed", "stale_epoch_rejected");
+      setMemoryRelationshipTaskState(assistantMessageId, "failed", "stale_epoch_rejected", undefined, generationScope);
       break;
     case "commit_failed":
-      setMemoryRelationshipTaskState(assistantMessageId, "failed", "commit_failed");
+      setMemoryRelationshipTaskState(assistantMessageId, "failed", "commit_failed", undefined, generationScope);
       break;
     default: {
       const _exhaustive: never = outcome;
@@ -225,27 +246,37 @@ async function runProviderBackedRelationshipMerge(
 ): Promise<MemoryMeta> {
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, opts.names);
-  const trackTaskLifecycle = !opts.skipTaskLifecycleMarker;
+  const generationScope = opts.generationScope;
 
-  if (opts.assistantMessageId && trackTaskLifecycle) {
-    setMemoryRelationshipTaskState(opts.assistantMessageId, "pending");
+  if (opts.assistantMessageId && generationScope) {
+    setMemoryRelationshipTaskState(
+      opts.assistantMessageId,
+      "pending",
+      undefined,
+      undefined,
+      generationScope
+    );
   }
 
   let extractResult: RelationshipMetaExtractResult;
   try {
     extractResult = await opts.extract();
   } catch (e) {
-    if (trackTaskLifecycle) {
-      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
-    }
+    recordProviderBackedTaskTerminalState(
+      opts.assistantMessageId,
+      "commit_failed",
+      generationScope
+    );
     console.warn("[memory] relationship provider extract failed:", (e as Error).message);
     return prevNormalized;
   }
 
   if (!extractResult.parseOk) {
-    if (trackTaskLifecycle) {
-      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "parse_failed");
-    }
+    recordProviderBackedTaskTerminalState(
+      opts.assistantMessageId,
+      "parse_failed",
+      generationScope
+    );
     return prevNormalized;
   }
 
@@ -256,19 +287,32 @@ async function runProviderBackedRelationshipMerge(
       delta: extractResult.delta,
       sourceUserMessageId: opts.sourceUserMessageId,
       boundarySnapshot: opts.boundarySnapshot,
+      generationScope: generationScope ?? undefined,
       __testThrowOnSave: opts.__testThrowOnSave,
     });
-    if (trackTaskLifecycle) {
+    if (!applied.accepted) {
+      if (applied.rejectReason === "stale_generation_rejected") {
+        return applied.meta;
+      }
       recordProviderBackedTaskTerminalState(
         opts.assistantMessageId,
-        applied.accepted ? "commit_accepted" : "stale_epoch_rejected"
+        "stale_epoch_rejected",
+        generationScope
       );
+      return applied.meta;
     }
+    recordProviderBackedTaskTerminalState(
+      opts.assistantMessageId,
+      "commit_accepted",
+      generationScope
+    );
     return applied.meta;
   } catch (e) {
-    if (trackTaskLifecycle) {
-      recordProviderBackedTaskTerminalState(opts.assistantMessageId, "commit_failed");
-    }
+    recordProviderBackedTaskTerminalState(
+      opts.assistantMessageId,
+      "commit_failed",
+      generationScope
+    );
     console.warn("[memory] relationship meta commit failed:", (e as Error).message);
     return prevNormalized;
   }
@@ -288,6 +332,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
+  generationScope?: AssistantGenerationScope;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 }): Promise<MemoryMeta> {
@@ -299,7 +344,9 @@ export async function mergeRelationshipMetaFromTurn(opts: {
       setMemoryRelationshipTaskState(
         opts.assistantMessageId,
         "skipped",
-        "main_model_tail_satisfied"
+        "main_model_tail_satisfied",
+        undefined,
+        opts.generationScope
       );
     }
     try {
@@ -309,6 +356,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
         delta: opts.mainModelDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
+        generationScope: opts.generationScope,
         __testThrowOnSave: opts.__testThrowOnSave,
       });
       return applied.meta;
@@ -326,6 +374,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     sourceUserMessageId: opts.sourceUserMessageId,
     boundarySnapshot: opts.boundarySnapshot,
     assistantMessageId: opts.assistantMessageId,
+    generationScope: opts.generationScope,
     __testExtract: opts.__testExtract,
     __testThrowOnSave: opts.__testThrowOnSave,
     extract: () =>
@@ -339,10 +388,12 @@ export async function mergeRelationshipMetaFromTurn(opts: {
             opts.route,
             prevNormalized,
             opts.turnTrace,
-            opts.assistantMessageId
+            opts.assistantMessageId && opts.generationScope
               ? {
                   chatId: opts.chatId,
                   assistantMessageId: opts.assistantMessageId,
+                  generationSequence: opts.generationScope.generationSequence,
+                  generationRequestId: opts.generationScope.generationRequestId,
                 }
               : undefined
           ),
@@ -361,6 +412,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
   assistantMessageId?: number;
+  generationScope?: AssistantGenerationScope;
   __testExtract?: () => Promise<RelationshipMetaExtractResult>;
   __testThrowOnSave?: boolean;
 }): Promise<MemoryMeta> {
@@ -374,7 +426,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     sourceUserMessageId: opts.sourceUserMessageId,
     boundarySnapshot: opts.boundarySnapshot,
     assistantMessageId: opts.assistantMessageId,
-    skipTaskLifecycleMarker: true,
+    generationScope: opts.generationScope,
     __testExtract: opts.__testExtract,
     __testThrowOnSave: opts.__testThrowOnSave,
     extract: () =>
@@ -388,7 +440,15 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
             names.userName,
             opts.route,
             prevNormalized,
-            opts.turnTrace
+            opts.turnTrace,
+            opts.assistantMessageId && opts.generationScope
+              ? {
+                  chatId: opts.chatId,
+                  assistantMessageId: opts.assistantMessageId,
+                  generationSequence: opts.generationScope.generationSequence,
+                  generationRequestId: opts.generationScope.generationRequestId,
+                }
+              : undefined
           ),
   });
 }
