@@ -70,14 +70,21 @@ export async function extractSuggestedRepliesFromTurn(opts: {
   assistantProse: string;
   chatId?: number;
   messageId?: number;
+  generationSequence?: number;
+  generationRequestId?: string | null;
   jobAttemptOrdinal?: number;
 }): Promise<SuggestedReplyItem[]> {
   const userBlock = buildExtractUserBlock(opts);
   const ledgerContext =
-    opts.chatId != null && opts.messageId != null && opts.jobAttemptOrdinal != null
+    opts.chatId != null &&
+    opts.messageId != null &&
+    opts.jobAttemptOrdinal != null &&
+    opts.generationSequence != null
       ? buildPlatformAsyncTurnLedgerContext({
           chatId: opts.chatId,
           assistantMessageId: opts.messageId,
+          generationSequence: opts.generationSequence,
+          generationRequestId: opts.generationRequestId ?? null,
           family: "suggested_replies_repair",
           jobAttemptOrdinal: opts.jobAttemptOrdinal,
           requestKind: SUGGESTED_REPLIES_REQUEST_KIND,

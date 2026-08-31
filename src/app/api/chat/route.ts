@@ -361,6 +361,10 @@ import {
   resolveAutoContinueHistoryTurns,
 } from "@/lib/continueNarrative";
 import {
+  resolveNextAssistantGenerationSequence,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
+import {
   appendMessageVariant,
   normalizeMessageVariants,
   serializeVariantsForClient,
@@ -1017,9 +1021,22 @@ export async function POST(req: Request) {
       userMessage: messageText,
     });
     if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
-      markMessageStatusMetaPending(regenerateMessageId, regenStatusPolicy.formatSpec);
+      const regenGenerationScope: AssistantGenerationScope = {
+        assistantMessageId: regenerateMessageId,
+        generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
+        generationRequestId: clientRequestId ?? null,
+      };
+      markMessageStatusMetaPending(
+        regenerateMessageId,
+        regenStatusPolicy.formatSpec,
+        regenGenerationScope
+      );
     }
-    markMessageSuggestedRepliesPending(regenerateMessageId);
+    markMessageSuggestedRepliesPending(regenerateMessageId, {
+      assistantMessageId: regenerateMessageId,
+      generationSequence: resolveNextAssistantGenerationSequence(regenerateMessageId, db),
+      generationRequestId: clientRequestId ?? null,
+    });
   }
 
   const msgRowsWithId = db
@@ -5748,10 +5765,17 @@ export async function POST(req: Request) {
           }
         }
 
+        const postTurnGenerationScope: AssistantGenerationScope = {
+          assistantMessageId: aiMessageId,
+          generationSequence: newVariant.generationSequence ?? snapshotVariantIndex ?? 0,
+          generationRequestId: clientRequestId ?? null,
+        };
+
         if (statusMetaEnabled && shouldCommitCanonicalTurnState(generationSemantics)) {
           scheduleStatusMetaExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
+            generationScope: postTurnGenerationScope,
             charName: ch.name,
             characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
@@ -5778,6 +5802,7 @@ export async function POST(req: Request) {
           scheduleSuggestedRepliesExtraction({
             messageId: aiMessageId,
             chatId: chatRef.id,
+            generationScope: postTurnGenerationScope,
             charName: ch.name,
             personaName: personaDisplayName,
             personaDescription,
@@ -6004,6 +6029,7 @@ export async function POST(req: Request) {
               route: nextMode,
               relationshipTailParsed,
               relationshipDeltaFromMain,
+              generationScope: postTurnGenerationScope,
             });
             }
           } catch (e) {

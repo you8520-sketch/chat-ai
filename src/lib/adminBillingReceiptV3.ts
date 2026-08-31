@@ -28,6 +28,7 @@ import {
 import type { SuggestedRepliesRecord } from "@/lib/suggestedReplies/types";
 import type { StatusMetaRecord } from "@/lib/statusMeta/types";
 import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
+import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
 
 export type {
   AdminBillingReceiptV3,
@@ -41,6 +42,8 @@ export type BuildAdminBillingReceiptV3Input = {
   usage: Usage;
   assistantMessageId: number;
   chatId: number;
+  generationScope?: AssistantGenerationScope | null;
+  hasUnscopedLedgerRows?: boolean;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
   statusMetaRecord: StatusMetaRecord | null;
   memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
@@ -103,6 +106,7 @@ function resolveAsyncSection(input: {
   statusMetaRecord: StatusMetaRecord | null;
   memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerRows: ProviderCostLedgerRow[];
+  hasUnscopedLedgerRows?: boolean;
 }): AdminBillingReceiptV3AsyncSection {
   const { relevant, unexpected } = filterAsyncLedgerRows(input.ledgerRows);
   const expectation = resolveAsyncTurnCoverage({
@@ -111,6 +115,7 @@ function resolveAsyncSection(input: {
     statusMetaRecord: input.statusMetaRecord,
     memoryRelationshipTask: input.memoryRelationshipTask,
     ledgerAsyncRows: relevant,
+    hasUnscopedLedgerRows: input.hasUnscopedLedgerRows === true,
   });
 
   const rowsByFamily = new Map<TurnAttributableAsyncFamily, ProviderCostLedgerRow[]>();
@@ -311,6 +316,7 @@ export function buildAdminBillingReceiptV3(
     statusMetaRecord: input.statusMetaRecord,
     memoryRelationshipTask: input.memoryRelationshipTask,
     ledgerRows: input.ledgerRows,
+    hasUnscopedLedgerRows: input.hasUnscopedLedgerRows,
   });
 
   const main = resolveMainUsd(syncReceipt);

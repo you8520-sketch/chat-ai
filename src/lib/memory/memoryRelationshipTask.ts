@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import type { AssistantGenerationScope } from "@/lib/assistantGenerationScope";
 
 export type MemoryRelationshipTaskState =
   | "pending"
@@ -10,6 +11,8 @@ export type MemoryRelationshipTaskRecord = {
   state: MemoryRelationshipTaskState;
   updatedAt: string;
   reason?: string;
+  generationSequence?: number;
+  generationRequestId?: string | null;
 };
 
 const TERMINAL_STATES = new Set<MemoryRelationshipTaskState>([
@@ -50,6 +53,18 @@ export function parseMemoryRelationshipTaskRecord(
       state: parsed.state,
       updatedAt: parsed.updatedAt,
       reason: typeof parsed.reason === "string" ? parsed.reason : undefined,
+      generationSequence:
+        typeof parsed.generationSequence === "number" &&
+        Number.isInteger(parsed.generationSequence) &&
+        parsed.generationSequence >= 0
+          ? parsed.generationSequence
+          : undefined,
+      generationRequestId:
+        typeof parsed.generationRequestId === "string"
+          ? parsed.generationRequestId
+          : parsed.generationRequestId === null
+            ? null
+            : undefined,
     };
   } catch {
     return null;
@@ -82,10 +97,11 @@ function canTransition(
 export function skipMemoryRelationshipProviderTask(
   messageId: number | undefined,
   reason: string,
-  db: ReturnType<typeof getDb> = getDb()
+  db: ReturnType<typeof getDb> = getDb(),
+  generationScope?: Pick<AssistantGenerationScope, "generationSequence" | "generationRequestId">
 ): void {
   if (messageId) {
-    setMemoryRelationshipTaskState(messageId, "skipped", reason, db);
+    setMemoryRelationshipTaskState(messageId, "skipped", reason, db, generationScope);
   }
 }
 
@@ -94,7 +110,8 @@ export function setMemoryRelationshipTaskState(
   messageId: number,
   next: MemoryRelationshipTaskState,
   reason?: string,
-  db: ReturnType<typeof getDb> = getDb()
+  db: ReturnType<typeof getDb> = getDb(),
+  generationScope?: Pick<AssistantGenerationScope, "generationSequence" | "generationRequestId">
 ): MemoryRelationshipTaskRecord | null {
   const existing = loadMessageMemoryRelationshipTask(messageId, db);
   const from: MemoryRelationshipTaskState | "absent" = existing?.state ?? "absent";
@@ -115,6 +132,8 @@ export function setMemoryRelationshipTaskState(
     state: next,
     updatedAt: new Date().toISOString(),
     reason,
+    generationSequence: generationScope?.generationSequence,
+    generationRequestId: generationScope?.generationRequestId ?? null,
   };
   db.prepare("UPDATE messages SET memory_relationship_task_json=? WHERE id=?").run(
     serializeMemoryRelationshipTaskRecord(record),

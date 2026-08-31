@@ -676,6 +676,8 @@ export async function extractRelationshipMetaFromTurn(
   ledgerOpts?: {
     chatId: number;
     assistantMessageId: number;
+    generationSequence: number;
+    generationRequestId?: string | null;
     jobAttemptOrdinal?: number;
   }
 ): Promise<RelationshipMetaExtractResult> {
@@ -717,6 +719,8 @@ ${activePromises}
       ? buildPlatformAsyncTurnLedgerContext({
           chatId: ledgerOpts.chatId,
           assistantMessageId: ledgerOpts.assistantMessageId,
+          generationSequence: ledgerOpts.generationSequence,
+          generationRequestId: ledgerOpts.generationRequestId ?? null,
           family: "memory_relationship",
           jobAttemptOrdinal: ledgerOpts.jobAttemptOrdinal ?? 1,
           requestKind: "background-memory-extract",
@@ -797,7 +801,14 @@ export async function extractRelationshipMetaAfterRegenerate(
   userName: string,
   route: Route,
   prevMeta?: import("@/lib/chatMemory").MemoryMeta,
-  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
+  ledgerOpts?: {
+    chatId: number;
+    assistantMessageId: number;
+    generationSequence: number;
+    generationRequestId?: string | null;
+    jobAttemptOrdinal?: number;
+  }
 ): Promise<RelationshipMetaExtractResult> {
   const existing = prevMeta ?? { honorifics: [], items: [], thoughts: [], promises: [] };
   const names = { charName, userName };
@@ -840,6 +851,17 @@ ${newAssistantMessage}`,
   ];
 
   try {
+    const ledgerContext = ledgerOpts
+      ? buildPlatformAsyncTurnLedgerContext({
+          chatId: ledgerOpts.chatId,
+          assistantMessageId: ledgerOpts.assistantMessageId,
+          generationSequence: ledgerOpts.generationSequence,
+          generationRequestId: ledgerOpts.generationRequestId ?? null,
+          family: "memory_relationship",
+          jobAttemptOrdinal: ledgerOpts.jobAttemptOrdinal ?? 1,
+          requestKind: "background-memory-regen-extract",
+        })
+      : undefined;
     const { text } = await callBackgroundMemory(
       `${system}
 
@@ -848,7 +870,9 @@ Do not extract or update honorifics/nicknames, NPC thoughts, inner_thoughts, emo
 Only durable relationship facts may be non-empty: items, itemsRemove, promisesAdd, promisesRemove.
 Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" even if the schema contains those keys.`,
       history,
-      turnTrace
+      turnTrace,
+      "background-memory-regen-extract",
+      { ledgerContext }
     );
     const trimmed = text.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);

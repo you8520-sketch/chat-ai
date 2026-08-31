@@ -1,4 +1,10 @@
 import { getDb } from "@/lib/db";
+import {
+  generationJobKey,
+  isCurrentAssistantGeneration,
+  resolveActiveAssistantGenerationScope,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 import { extractSuggestedRepliesFromTurn } from "./extract";
 import {
   parseSuggestedRepliesRecord,
@@ -8,9 +14,13 @@ import {
 } from "./parse";
 import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
 
-const running = new Set<number>();
+const running = new Set<string>();
 const STALE_PENDING_MS = 90_000;
 const EXTRACT_MAX_ATTEMPTS = 3;
+
+function isJobRunning(scope: AssistantGenerationScope): boolean {
+  return running.has(generationJobKey(scope));
+}
 
 export function resolveSuggestedRepliesExtractMaxAttempts(
   sharedInitialAttemptConsumed?: boolean
@@ -35,7 +45,7 @@ export function isSuggestedRepliesRecordStalePending(
   return age >= STALE_PENDING_MS;
 }
 
-function writePending(messageId: number): void {
+function writePending(messageId: number, scope: AssistantGenerationScope): void {
   const db = getDb();
   const pending: SuggestedRepliesRecord = {
     replies: [],
@@ -43,21 +53,48 @@ function writePending(messageId: number): void {
     source: "background-deepseek",
     pending: true,
     failed: false,
+    generationSequence: scope.generationSequence,
+    generationRequestId: scope.generationRequestId,
   };
+  if (!isCurrentAssistantGeneration(scope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "suggested_replies_repair",
+      messageId,
+      generationSequence: scope.generationSequence,
+      phase: "pending_write",
+    });
+    return;
+  }
   db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
     serializeSuggestedRepliesRecord(pending),
     messageId
   );
 }
 
-function writeReplies(messageId: number, replies: SuggestedReplyItem[], failed = false): void {
+function writeReplies(
+  messageId: number,
+  scope: AssistantGenerationScope,
+  replies: SuggestedReplyItem[],
+  failed = false
+): void {
   const db = getDb();
+  if (!isCurrentAssistantGeneration(scope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "suggested_replies_repair",
+      messageId,
+      generationSequence: scope.generationSequence,
+      phase: "result_write",
+    });
+    return;
+  }
   const record: SuggestedRepliesRecord = {
     replies,
     extractedAt: new Date().toISOString(),
     source: "background-deepseek",
     pending: false,
     failed,
+    generationSequence: scope.generationSequence,
+    generationRequestId: scope.generationRequestId,
   };
   db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
     serializeSuggestedRepliesRecord(record),
@@ -66,12 +103,25 @@ function writeReplies(messageId: number, replies: SuggestedReplyItem[], failed =
 }
 
 /** 재생성 시작 — 이전 추천을 즉시 pending으로 교체 */
-export function markMessageSuggestedRepliesPending(messageId: number): void {
-  writePending(messageId);
+export function markMessageSuggestedRepliesPending(
+  messageId: number,
+  generationScope?: AssistantGenerationScope
+): void {
+  const scope =
+    generationScope ??
+    resolveActiveAssistantGenerationScope(messageId) ??
+    ({
+      assistantMessageId: messageId,
+      generationSequence: 0,
+      generationRequestId: null,
+    } satisfies AssistantGenerationScope);
+  writePending(messageId, scope);
 }
 
 async function runSuggestedRepliesExtraction(opts: {
   messageId: number;
+  chatId: number;
+  generationScope: AssistantGenerationScope;
   charName: string;
   personaName: string;
   personaDescription?: string | null;
@@ -95,7 +145,17 @@ async function runSuggestedRepliesExtraction(opts: {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const replies = await extractSuggestedRepliesFromTurn({
-        ...opts,
+        charName: opts.charName,
+        personaName: opts.personaName,
+        personaDescription: opts.personaDescription,
+        personaSpeechExamples: opts.personaSpeechExamples,
+        userPersona: opts.userPersona,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        chatId: opts.chatId,
+        messageId: opts.messageId,
+        generationSequence: opts.generationScope.generationSequence,
+        generationRequestId: opts.generationScope.generationRequestId,
         jobAttemptOrdinal: attempt,
       });
       last = replies;
@@ -130,6 +190,7 @@ async function runSuggestedRepliesExtraction(opts: {
 export function scheduleSuggestedRepliesExtraction(opts: {
   messageId: number;
   chatId: number;
+  generationScope: AssistantGenerationScope;
   charName: string;
   personaName: string;
   personaDescription?: string | null;
@@ -140,11 +201,12 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
 }): void {
-  if (running.has(opts.messageId)) return;
-  running.add(opts.messageId);
+  const jobKey = generationJobKey(opts.generationScope);
+  if (running.has(jobKey)) return;
+  running.add(jobKey);
 
   try {
-    writePending(opts.messageId);
+    writePending(opts.messageId, opts.generationScope);
   } catch (e) {
     console.error("[SUGGESTED-REPLIES-ERROR] pending write failed", (e as Error).message);
   }
@@ -153,7 +215,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     try {
       const replies = await runSuggestedRepliesExtraction(opts);
       const ok = suggestedRepliesHaveContent(replies);
-      writeReplies(opts.messageId, replies, !ok);
+      writeReplies(opts.messageId, opts.generationScope, replies, !ok);
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {
           messageId: opts.messageId,
@@ -163,7 +225,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
     } catch (e) {
       console.error("[SUGGESTED-REPLIES-ERROR] extraction job failed", (e as Error).message);
       try {
-        writeReplies(opts.messageId, [], true);
+        writeReplies(opts.messageId, opts.generationScope, [], true);
       } catch (writeErr) {
         console.error(
           "[SUGGESTED-REPLIES-ERROR] failed to write failed replies after job error",
@@ -171,15 +233,21 @@ export function scheduleSuggestedRepliesExtraction(opts: {
         );
       }
     } finally {
-      running.delete(opts.messageId);
+      running.delete(jobKey);
     }
   })();
 }
 
 export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): boolean {
+  const generationScope = resolveActiveAssistantGenerationScope(messageId);
+  if (!generationScope) return false;
+
   const record = loadMessageSuggestedReplies(messageId);
   if (!shouldEnsureSuggestedRepliesExtraction(record)) return false;
-  if (running.has(messageId)) return true;
+  if (record && record.generationSequence != null && record.generationSequence !== generationScope.generationSequence) {
+    return false;
+  }
+  if (isJobRunning(generationScope)) return true;
 
   const db = getDb();
   const row = db
@@ -249,6 +317,7 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
   scheduleSuggestedRepliesExtraction({
     messageId,
     chatId: row.chat_id,
+    generationScope,
     charName: row.char_name,
     personaName,
     personaDescription,

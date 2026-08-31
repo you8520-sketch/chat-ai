@@ -90,6 +90,12 @@ function ledgerCount(db: Database.Database = getDb()): number {
   ).c;
 }
 
+const GEN0_SCOPE = {
+  assistantMessageId: ASSISTANT_MSG_ID,
+  generationSequence: 0,
+  generationRequestId: null as string | null,
+};
+
 function scheduleBase(overrides: Partial<Parameters<typeof scheduleMemoryUpdate>[0]> = {}) {
   return scheduleMemoryUpdate({
     chatId: CHAT_ID,
@@ -103,6 +109,7 @@ function scheduleBase(overrides: Partial<Parameters<typeof scheduleMemoryUpdate>
     assistantMessageId: ASSISTANT_MSG_ID,
     sourceUserMessageId: USER_MSG_ID,
     route: "safe",
+    generationScope: GEN0_SCOPE,
     ...overrides,
   });
 }
@@ -118,6 +125,7 @@ function mergeBase(overrides: Partial<Parameters<typeof mergeRelationshipMetaFro
     sourceUserMessageId: USER_MSG_ID,
     boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
     assistantMessageId: ASSISTANT_MSG_ID,
+    generationScope: GEN0_SCOPE,
     __testExtract: async () => {
       extractCallCount += 1;
       return { delta: {}, parseOk: true };
@@ -221,6 +229,7 @@ describe("memoryRelationshipTask production path regression", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: CHAT_ID,
         assistantMessageId: ASSISTANT_MSG_ID,
+        generationSequence: 0,
         family: "memory_relationship",
         jobAttemptOrdinal: 1,
       }),
@@ -249,6 +258,7 @@ describe("memoryRelationshipTask production path regression", () => {
       sourceUserMessageId: USER_MSG_ID,
       boundarySnapshot,
       assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope: GEN0_SCOPE,
       __testExtract: async () => ({ delta: { items: ["Tester: coin"] }, parseOk: true }),
     });
 
