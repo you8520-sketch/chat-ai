@@ -1612,13 +1612,6 @@ export default function TrpgCampaignRoom({
   }, [isNearFollowOwner, liveFollowOwner]);
 
   useEffect(() => {
-    const liveRevealActive =
-      roundShow.mode === "cinematic" ||
-      presentationStarting ||
-      liveDeclaration.activeDeclarationActorId != null ||
-      Boolean(currentNarrationRef.current);
-    if (!liveRevealActive) return;
-
     let touchStartY = 0;
 
     const onWheel = (event: WheelEvent) => {
@@ -1673,12 +1666,7 @@ export default function TrpgCampaignRoom({
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [
-    liveDeclaration.activeDeclarationActorId,
-    detachLiveFollow,
-    presentationStarting,
-    roundShow.mode,
-  ]);
+  }, [detachLiveFollow]);
 
   useLayoutEffect(() => {
     if (!followLatestRef.current || manualScrollDetachedRef.current) return;
