@@ -47,14 +47,12 @@ import {
   loadTrpgIllustrationScene,
 } from "@/lib/trpg/illustrationCast";
 import {
-  resolveTrpgAiFocusHeroScene,
+  resolveTrpgIllustrationSceneFocus,
   type TrpgAiFocusDiagnostics,
 } from "@/lib/trpg/trpgAiFocusSelection";
 import {
   TRPG_IMAGE_SCENE_MODE_DEFAULT,
-  canUseTrpgAiFocusAdminExperiment,
   normalizeTrpgImageSceneMode,
-  resolveTrpgAiFocusExperimentConfig,
   type TrpgImageSceneMode,
 } from "@/lib/trpg/trpgImageSceneMode";
 import {
@@ -908,47 +906,27 @@ export async function POST(req: Request) {
         }));
         sceneLocation = trpgScene.location;
         sceneActions = trpgScene.actions;
-        let gmSceneNarration = trpgScene.narration;
-        trpgImageSceneModeApplied = TRPG_IMAGE_SCENE_MODE_DEFAULT;
         trpgAiFocusDiagnostics = null;
         const requestedSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
-        if (requestedSceneMode === "AI_FOCUS") {
-          const adminRow = getDb()
-            .prepare("SELECT is_admin FROM users WHERE id = ?")
-            .get(user.id) as { is_admin: number } | undefined;
-          const experimentAccess = canUseTrpgAiFocusAdminExperiment({
-            config: resolveTrpgAiFocusExperimentConfig(),
-            isAdmin: isAdminUser({
-              email: user.email,
-              is_admin: adminRow?.is_admin ?? 0,
-            }),
-            userId: user.id,
-            campaignId,
-          });
-          if (!experimentAccess) {
-            throw new RequestError("AI 장면 초점 실험 권한이 없습니다.", 403);
-          }
-          const focus = await resolveTrpgAiFocusHeroScene({
-            narration: trpgScene.narration,
-            canonicalLocation: sceneLocation,
-          });
-          trpgAiFocusDiagnostics = focus.diagnostics;
-          if (focus.modeApplied === "AI_FOCUS") {
-            trpgImageSceneModeApplied = "AI_FOCUS";
-            gmSceneNarration = focus.heroScene;
-          } else {
-            trpgImageSceneModeApplied = "RAW";
-            console.info(
-              "[trpg-ai-focus] RAW fallback",
-              JSON.stringify({
-                campaignId,
-                roundNumber,
-                reason: focus.diagnostics.fallbackReason ?? "unknown",
-                model: focus.diagnostics.aiModel,
-              })
-            );
-          }
+        const focus = await resolveTrpgIllustrationSceneFocus({
+          sceneMode: requestedSceneMode,
+          rawNarration: trpgScene.narration,
+          canonicalLocation: sceneLocation,
+        });
+        trpgImageSceneModeApplied = focus.modeApplied;
+        trpgAiFocusDiagnostics = focus.diagnostics;
+        if (focus.modeApplied === "RAW" && requestedSceneMode === "AI_FOCUS") {
+          console.info(
+            "[trpg-ai-focus] RAW fallback",
+            JSON.stringify({
+              campaignId,
+              roundNumber,
+              reason: focus.diagnostics?.fallbackReason ?? "unknown",
+              model: focus.diagnostics?.aiModel,
+            })
+          );
         }
+        const gmSceneNarration = focus.narration;
         situation = buildTrpgIllustrationSituation({
           location: sceneLocation,
           actions: sceneActions,

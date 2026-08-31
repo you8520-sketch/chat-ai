@@ -32,7 +32,10 @@ import {
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
-import type { TrpgImageSceneMode } from "@/lib/trpg/trpgImageSceneMode";
+import {
+  TRPG_IMAGE_SCENE_MODE_DEFAULT,
+  type TrpgImageSceneMode,
+} from "@/lib/trpg/trpgImageSceneMode";
 import {
   clearedTrpgImageSceneDiagnostics,
   resolveTrpgImageSceneDiagnosticsFromResponse,
@@ -371,13 +374,10 @@ function downloadImage(imageUrl: string, mode: ResultMode) {
 type ChatImageGeneratorPanelProps = {
   /** When false, only the modal host mounts (message toolbar opens via event). */
   showRailTrigger?: boolean;
-  /** Admin/dev TRPG AI-focus experiment access for this campaign. */
-  trpgAiFocusExperimentAccess?: boolean;
 };
 
 export default function ChatImageGeneratorPanel({
   showRailTrigger = true,
-  trpgAiFocusExperimentAccess = false,
 }: ChatImageGeneratorPanelProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("comic");
@@ -465,7 +465,9 @@ export default function ChatImageGeneratorPanel({
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
-  const [trpgImageSceneMode, setTrpgImageSceneMode] = useState<TrpgImageSceneMode>("RAW");
+  const [trpgImageSceneMode, setTrpgImageSceneMode] = useState<TrpgImageSceneMode>(
+    TRPG_IMAGE_SCENE_MODE_DEFAULT
+  );
   const [trpgImageSceneDiagnostics, setTrpgImageSceneDiagnostics] =
     useState<GenerateResult["trpgImageSceneDiagnostics"]>(undefined);
   const clearTrpgImageSceneDiagnostics = useCallback(() => {
@@ -512,6 +514,7 @@ export default function ChatImageGeneratorPanel({
           : []
       );
       clearTrpgImageSceneDiagnostics();
+      setTrpgImageSceneMode(TRPG_IMAGE_SCENE_MODE_DEFAULT);
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -1386,9 +1389,7 @@ export default function ChatImageGeneratorPanel({
                   .filter((pick) => pick.imageUrl)
               : undefined,
           trpgImageSceneMode:
-            isIllustration && campaignId && trpgAiFocusExperimentAccess
-              ? trpgImageSceneMode
-              : undefined,
+            isIllustration && campaignId ? trpgImageSceneMode : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -1752,10 +1753,10 @@ export default function ChatImageGeneratorPanel({
                         {partyCast.length === 0 ? (
                           <p className="text-[10px] text-zinc-500">파티 이미지를 불러오는 중…</p>
                         ) : null}
-                        {trpgAiFocusExperimentAccess ? (
+                        {trpgCampaignMode ? (
                           <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 p-3 space-y-2">
                             <p className="text-[10px] font-semibold text-amber-200">
-                              장면 초점 실험 (admin/dev)
+                              장면 초점
                             </p>
                             <div className="flex flex-wrap gap-2 text-[11px]">
                               <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1">
