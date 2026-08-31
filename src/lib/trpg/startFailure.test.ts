@@ -326,6 +326,13 @@ describe("TRPG start failure classification", () => {
     const db = memoryDb();
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const origPrepare = db.prepare.bind(db);
+    db.prepare = ((sql: string, ...rest: unknown[]) => {
+      if (sql.includes("INSERT INTO trpg_gm_messages")) {
+        throw new Error("no such table: trpg_gm_messages");
+      }
+      return origPrepare(sql, ...(rest as []));
+    }) as typeof db.prepare;
     await assert.rejects(
       () =>
         startTrpgCampaign(db, {
@@ -333,10 +340,7 @@ describe("TRPG start failure classification", () => {
           userId: 1,
           deps: {
             skipBilling: true,
-            gmCall: async () => {
-              db.exec("DROP TABLE trpg_gm_messages");
-              return { text: gmText() };
-            },
+            gmCall: async () => ({ text: gmText() }),
           },
         }),
       /trpg_gm_messages/

@@ -121,6 +121,74 @@ function startDeps(): TrpgEngineDeps {
   };
 }
 
+type BlockedWorkerCampaignProof = {
+  campaignId: number;
+  workerCalls: number;
+  gmCalls: number;
+  workerReleased: boolean;
+};
+
+/** Deterministic proof that campaign start does not await blocked worker Blueprint generation. */
+async function assertCampaignStartBeforeWorkerRelease(opts: {
+  db: Database.Database;
+  worldId: number;
+  workerPlanGoal: string;
+  gmNarration?: string;
+}): Promise<BlockedWorkerCampaignProof> {
+  const { db, worldId } = opts;
+  const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
+  enqueueWorldBlueprintPregenJob(db, worldId);
+  const job = claimNextDerivedCacheJob(db)!;
+  assert.equal(job.status, "processing");
+
+  let workerCalls = 0;
+  let workerReleased = false;
+  const workerEntered = defer<void>();
+  const workerRelease = defer<void>();
+  const gmEntered = defer<void>();
+
+  const workerPromise = refreshWorldBlueprintArtifact(
+    db,
+    worldId,
+    snap.sourceFingerprint,
+    TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
+    {
+      complete: async () => {
+        workerCalls += 1;
+        workerEntered.resolve();
+        await workerRelease.promise;
+        workerReleased = true;
+        return (await mockBlueprintComplete(opts.workerPlanGoal)()) as never;
+      },
+    }
+  );
+
+  await workerEntered.promise;
+
+  let gmCalls = 0;
+  const campaignId = await startWorldCampaign(db, worldId, {
+    ...startDeps(),
+    gmCall: async () => {
+      gmCalls += 1;
+      gmEntered.resolve();
+      return { text: gmText(opts.gmNarration ?? "opening") };
+    },
+  });
+
+  await gmEntered.promise;
+  assert.equal(gmCalls, 1, "GM_ENTERED_BEFORE_WORKER_RELEASE=true");
+  assert.equal(workerCalls, 1);
+  assert.equal(workerReleased, false, "WORKER_STILL_BLOCKED_WHEN_CAMPAIGN_COMPLETED=true");
+  assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
+  assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null, "CAMPAIGN_START_BLUEPRINT_PROVIDER_CALLS=0");
+
+  workerRelease.resolve();
+  await workerPromise;
+  completeDerivedCacheJob(db, job.id, { ok: true });
+
+  return { campaignId, workerCalls, gmCalls, workerReleased };
+}
+
 async function startWorldCampaign(
   db: Database.Database,
   worldId: number,
@@ -143,6 +211,32 @@ describe("campaign start sandbox blueprint latency (AFTER contract)", () => {
     assert.doesNotMatch(src, /generateWorldSandboxBlueprint/);
     assert.doesNotMatch(src, /resolveSyncFallbackDirectorPlan/);
     assert.doesNotMatch(src, /directorCall/);
+  });
+
+  it("structural — no wall-clock latency correctness assertions in this suite", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/trpg/campaignStartBlueprintLatency.test.ts"), "utf8");
+    assert.doesNotMatch(src, /Date\.now\(\)\s*-\s*started\s*</);
+    assert.doesNotMatch(src, /<\s*500/);
+  });
+
+  it("post-#800 — GM completion integrity preserved after rebase", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/trpg/engineAdvance.ts"), "utf8");
+    assert.match(src, /assertGmCompletionCanCommit/);
+    assert.match(src, /finishReason/);
+    assert.match(src, /semanticDone/);
+    assert.match(src, /clearGmNarrationDraftForGeneration/);
+    assert.doesNotMatch(src, /directorCall/);
+    const runGmIdx = src.indexOf("async function runGmForRound");
+    assert.ok(runGmIdx >= 0);
+    const runGmBody = src.slice(runGmIdx, runGmIdx + 8000);
+    const afterGmCall = runGmBody.slice(runGmBody.indexOf("await gmCall"));
+    const usageIdx = Math.min(
+      ...["appendGmRoundUsageForGeneration", "appendRoundUsage"]
+        .map((needle) => afterGmCall.indexOf(needle))
+        .filter((idx) => idx >= 0)
+    );
+    const integrityIdx = afterGmCall.indexOf("assessGmCompletionIntegrity");
+    assert.ok(Number.isFinite(usageIdx) && integrityIdx > usageIdx, "GM_USAGE_BEFORE_INTEGRITY_ORDER_PRESERVED=true");
   });
 
   it("A — valid same-revision artifact: plan copied, GM 1, no campaign-start provider path", async () => {
@@ -217,43 +311,17 @@ describe("campaign start sandbox blueprint latency (AFTER contract)", () => {
     });
   });
 
-  it("D — processing pregen: campaign does not wait, worker candidate only", async () => {
+  it("D — processing pregen: campaign does not wait on blocked worker", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
-      const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      enqueueWorldBlueprintPregenJob(db, worldId);
-      const job = claimNextDerivedCacheJob(db)!;
-      assert.equal(job.status, "processing");
-
-      let workerCalls = 0;
-      const workerEntered = defer();
-      const workerRelease = defer();
-      const workerPromise = refreshWorldBlueprintArtifact(
+      const proof = await assertCampaignStartBeforeWorkerRelease({
         db,
         worldId,
-        snap.sourceFingerprint,
-        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
-        {
-          complete: async () => {
-            workerCalls += 1;
-            workerEntered.resolve();
-            await workerRelease.promise;
-            return (await mockBlueprintComplete("worker-plan")()) as never;
-          },
-        }
-      );
-
-      await workerEntered.promise;
-      const started = Date.now();
-      const campaignId = await startWorldCampaign(db, worldId);
-      assert.ok(Date.now() - started < 500, "campaign start must not wait on worker Blueprint");
-      assert.equal(workerCalls, 1);
-      assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
-
-      workerRelease.resolve();
-      await workerPromise;
-      completeDerivedCacheJob(db, job.id, { ok: true });
+        workerPlanGoal: "worker-plan",
+      });
+      assert.equal(proof.workerCalls, 1);
+      assert.equal(proof.gmCalls, 1);
     });
   });
 
@@ -370,43 +438,20 @@ describe("campaign start sandbox blueprint latency (AFTER contract)", () => {
     });
   });
 
-  it("J — concurrent worker + campaign start: one worker candidate, GM not blocked", async () => {
+  it("J — concurrent worker + campaign start: one worker candidate, campaign not blocked", async () => {
     await withSandboxDirectorEnabled(true, async () => {
       const db = memoryDb();
       const worldId = insertWorld(db);
       const snap = loadWorldSnapshotForBlueprint(db, worldId)!;
-      enqueueWorldBlueprintPregenJob(db, worldId);
-      const job = claimNextDerivedCacheJob(db)!;
-
-      let workerCalls = 0;
-      const workerEntered = defer();
-      const workerRelease = defer();
-      const workerPromise = refreshWorldBlueprintArtifact(
-        db,
-        worldId,
-        snap.sourceFingerprint,
-        TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
-        {
-          complete: async () => {
-            workerCalls += 1;
-            workerEntered.resolve();
-            await workerRelease.promise;
-            return (await mockBlueprintComplete("concurrent")()) as never;
-          },
-        }
-      );
-      await workerEntered.promise;
-
-      const started = Date.now();
-      const campaignId = await startWorldCampaign(db, worldId);
-      assert.ok(Date.now() - started < 500);
-      assert.equal(workerCalls, 1);
-      assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
       assert.equal(loadWorldBlueprintArtifactRow(db, worldId), null);
 
-      workerRelease.resolve();
-      await workerPromise;
-      completeDerivedCacheJob(db, job.id, { ok: true });
+      const proof = await assertCampaignStartBeforeWorkerRelease({
+        db,
+        worldId,
+        workerPlanGoal: "concurrent",
+      });
+      assert.equal(proof.workerCalls, 1, "SANDBOX_BLUEPRINT_PROVIDER_GENERATION_OWNER_COUNT=1");
+      assert.ok(loadWorldBlueprintArtifactRow(db, worldId));
       assert.equal(loadValidWorldBlueprintPlan(db, worldId, snap)?.goal, "concurrent");
     });
   });
