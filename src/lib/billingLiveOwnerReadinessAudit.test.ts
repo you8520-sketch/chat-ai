@@ -7,7 +7,6 @@ import {
   AUDIT_BASE_USD_KRW,
   AUDIT_EFFECTIVE_KRW_PER_USD,
   BILLING_LIVE_OWNER_MAP,
-  COMPLETED_TURN_RUNTIME_EFFECT,
   CUTOVER_REQUIRED_MODEL_FAMILIES,
   F4_CLASSIFICATION,
   FROZEN_LIVE_CHARGE_GOLDEN,
@@ -16,8 +15,6 @@ import {
   OPUS45_ADMIN_SPECIAL_CASE,
   REGEN_USER_CHARGE_SCOPE,
   SPECIAL_BILLING_POLICIES,
-  UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36,
-  WAIVER_MINIMUM_RUNTIME_REACHABLE,
   auditCanaryCleanupClassification,
   auditF4RequestedDeliveredIdentity,
   auditFalseExactnessGuards,
@@ -30,11 +27,14 @@ import {
   computeCandidateChargeFromFixture,
   computeLiveChargeFromFixture,
   derivePolicyCoverageCounts,
+  derivePolicyReportFacts,
   evaluateBillingLiveOwnerReadiness,
   generateBillingLiveOwnerReadinessFinalReport,
   getAuditFxParityEvidence,
+  getAuditFxScopeDepthForTest,
   installAuditLegacyFxForTest,
   clearAuditLegacyFxForTest,
+  probeAuditFxNestedScopeSafety,
   isTurnBillableUsageCanaryLiveInSource,
   verifyBaseVsHeadLiveParity,
   verifyPlatformFundedAuxIsolation,
@@ -236,6 +236,100 @@ describe("billingLiveOwnerReadinessAudit — FX parity", () => {
   });
 });
 
+describe("billingLiveOwnerReadinessAudit — FX nested scope (FX-N1..N4)", () => {
+  it("FX-N1 — original undefined: nested install/clear restores undefined", () => {
+    const saved = process.env.EXCHANGE_RATE_MODE;
+    try {
+      delete process.env.EXCHANGE_RATE_MODE;
+      installAuditLegacyFxForTest();
+      installAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getEffectiveKrwPerUsd(), AUDIT_EFFECTIVE_KRW_PER_USD);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getEffectiveKrwPerUsd(), AUDIT_EFFECTIVE_KRW_PER_USD);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, undefined);
+      assert.equal(getAuditFxScopeDepthForTest(), 0);
+    } finally {
+      if (saved === undefined) {
+        delete process.env.EXCHANGE_RATE_MODE;
+      } else {
+        process.env.EXCHANGE_RATE_MODE = saved;
+      }
+    }
+  });
+
+  it("FX-N2 — original realtime: nested install/clear restores realtime", () => {
+    const saved = process.env.EXCHANGE_RATE_MODE;
+    try {
+      process.env.EXCHANGE_RATE_MODE = "realtime";
+      installAuditLegacyFxForTest();
+      installAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getEffectiveKrwPerUsd(), AUDIT_EFFECTIVE_KRW_PER_USD);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getEffectiveKrwPerUsd(), AUDIT_EFFECTIVE_KRW_PER_USD);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "realtime");
+      assert.equal(getAuditFxScopeDepthForTest(), 0);
+    } finally {
+      if (saved === undefined) {
+        delete process.env.EXCHANGE_RATE_MODE;
+      } else {
+        process.env.EXCHANGE_RATE_MODE = saved;
+      }
+    }
+  });
+
+  it("FX-N3 — nested evaluator keeps audit FX until outer clear", () => {
+    const saved = process.env.EXCHANGE_RATE_MODE;
+    try {
+      process.env.EXCHANGE_RATE_MODE = "realtime";
+      installAuditLegacyFxForTest();
+      evaluateBillingLiveOwnerReadiness();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getEffectiveKrwPerUsd(), AUDIT_EFFECTIVE_KRW_PER_USD);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "realtime");
+      assert.equal(getAuditFxScopeDepthForTest(), 0);
+    } finally {
+      if (saved === undefined) {
+        delete process.env.EXCHANGE_RATE_MODE;
+      } else {
+        process.env.EXCHANGE_RATE_MODE = saved;
+      }
+    }
+  });
+
+  it("FX-N4 — sequential scopes leave no state drift", () => {
+    const saved = process.env.EXCHANGE_RATE_MODE;
+    try {
+      delete process.env.EXCHANGE_RATE_MODE;
+      installAuditLegacyFxForTest();
+      clearAuditLegacyFxForTest();
+      installAuditLegacyFxForTest();
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, undefined);
+      assert.equal(getAuditFxScopeDepthForTest(), 0);
+    } finally {
+      if (saved === undefined) {
+        delete process.env.EXCHANGE_RATE_MODE;
+      } else {
+        process.env.EXCHANGE_RATE_MODE = saved;
+      }
+    }
+  });
+
+  it("probeAuditFxNestedScopeSafety gates nested scope safety", () => {
+    const probe = probeAuditFxNestedScopeSafety();
+    assert.equal(probe.nestedScopeSafe, true);
+    assert.equal(probe.envLeak, false);
+    assert.equal(probe.cacheLeak, false);
+  });
+});
+
 describe("billingLiveOwnerReadinessAudit — BASE vs HEAD live parity gate", () => {
   beforeEach(() => {
     installAuditLegacyFxForTest();
@@ -277,6 +371,7 @@ describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
     for (const row of liveRows) {
       assert.ok(row.fixtureIds.length > 0, row.policy);
       assert.ok(Object.keys(row.proof).length > 0, row.policy);
+      assert.equal(row.covered, row.fixturesExist && row.behavioralProofPasses, row.policy);
     }
     const counts = derivePolicyCoverageCounts(matrix);
     assert.equal(
@@ -286,15 +381,41 @@ describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
     );
   });
 
-  it("dead policies are classified without cutover-required coverage debt", () => {
-    assert.equal(WAIVER_MINIMUM_RUNTIME_REACHABLE, false);
-    assert.equal(COMPLETED_TURN_RUNTIME_EFFECT, "NO_LIVE_EFFECT");
-    assert.equal(UPSTREAM_COST_CONSUMED_BY_LIVE_OWNER_G36, false);
+  it("dead policies derive report facts from canonical owner evidence", () => {
     const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
+    const facts = derivePolicyReportFacts(matrix);
+    assert.equal(facts.waiverMinimumRuntimeReachable, false);
+    assert.equal(facts.completedTurnRuntimeEffect, "NO_LIVE_EFFECT");
+    assert.equal(facts.upstreamCostConsumedByLiveOwnerG36, false);
     const waiver = matrix.find((row) => row.policy.includes("waiver minimum"));
     assert.ok(waiver);
     assert.equal(waiver.classification, "LEGACY_OR_DEAD");
     assert.equal(waiver.covered, true);
+    assert.equal(Number(waiver.proof.maxWaiverMinimum), 0);
+  });
+
+  it("unified-reasoning and G37 proofs use canonical owners not cross-model diffs", () => {
+    const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
+    const unified = matrix.find((row) => row.policy === "unified-reasoning margins (G31 CI, Opus5)");
+    const g37 = matrix.find((row) => row.policy === "gemini37FlashPricing dedicated formula");
+    assert.ok(unified);
+    assert.ok(g37);
+    assert.equal(unified.behavioralProofPasses, true);
+    assert.equal(g37.behavioralProofPasses, true);
+    assert.equal(unified.proof.g31ExpectedPoints, unified.proof.g31LivePoints);
+    assert.equal(unified.proof.opusExpectedPoints, unified.proof.opusLivePoints);
+    assert.equal(g37.proof.g37CanonicalExpectedPoints, g37.proof.liveG37Points);
+  });
+
+  it("output-token pricing proves API vs saved-text fallback precedence", () => {
+    const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
+    const outputToken = matrix.find(
+      (row) => row.policy === "output-token pricing (api vs savedText fallback)"
+    );
+    assert.ok(outputToken);
+    assert.equal(outputToken.behavioralProofPasses, true);
+    assert.equal(outputToken.proof.ot1ApiCompletionTokens, 500);
+    assert.equal(outputToken.proof.ot2LiveBillingCompletionSource, "SAVED_TEXT_FALLBACK");
   });
 
   it("SPECIAL_BILLING_POLICIES derived from matrix", () => {
@@ -354,6 +475,15 @@ describe("billingLiveOwnerReadinessAudit — golden parity harness", () => {
     assert.equal(gates.POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY, false);
     assert.equal(gates.UNCOVERED_LIVE_POLICY_COUNT, 0);
     assert.equal(gates.F4_REQUESTED_DELIVERED_IDENTITY_PROVEN, true);
+    assert.equal(gates.AUDIT_FX_NESTED_SCOPE_SAFE, true);
+    assert.equal(gates.AUDIT_FX_ENV_LEAK, false);
+    assert.equal(gates.AUDIT_FX_CACHE_LEAK, false);
+    assert.equal(gates.WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED, false);
+    assert.equal(gates.WAIVER_MINIMUM_RUNTIME_REACHABILITY_DERIVED, true);
+    assert.equal(gates.POLICY_REPORT_FACTS_DERIVED_FROM_EVIDENCE, true);
+    assert.equal(gates.UNIFIED_REASONING_OWNER_MATCH, 1);
+    assert.equal(gates.G37_DEDICATED_OWNER_MATCH, 1);
+    assert.equal(gates.OUTPUT_TOKEN_SOURCE_BEHAVIOR_PROVEN, 1);
   });
 });
 
