@@ -61,15 +61,13 @@ async function withCustomServerBootImportBoundary(fn) {
 function resolveCustomServerImportedExport(moduleNamespace, exportName) {
   if (moduleNamespace == null || typeof moduleNamespace !== "object") return undefined;
   const record = /** @type {Record<string, unknown>} */ (moduleNamespace);
-  if (Object.prototype.hasOwnProperty.call(record, exportName)) {
-    return record[exportName];
+  const direct = record[exportName];
+  if (direct !== undefined && direct !== null) {
+    return direct;
   }
   const wrapped = record.default;
   if (wrapped != null && typeof wrapped === "object") {
-    const defaultRecord = /** @type {Record<string, unknown>} */ (wrapped);
-    if (Object.prototype.hasOwnProperty.call(defaultRecord, exportName)) {
-      return defaultRecord[exportName];
-    }
+    return /** @type {Record<string, unknown>} */ (wrapped)[exportName];
   }
   return undefined;
 }

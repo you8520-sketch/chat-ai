@@ -232,7 +232,7 @@ describe("custom server boot import boundary", () => {
     );
   });
 
-  it("startDerivedCacheWakeup resolves and logs started when worker enabled", () => {
+  it("startDerivedCacheWakeup resolves and emits canonical scheduler-start log when worker enabled", () => {
     const output = runCustomServerCjsProbe(
       `
       const boundary = cjsRequire("./src/lib/customServerBootImportBoundary.js");
@@ -243,12 +243,11 @@ describe("custom server boot import boundary", () => {
           "startDerivedCacheWakeup",
           "./src/lib/derivedCache/wakeupScheduler.ts"
         )();
-        console.log("started");
       });
     `,
-      { DISABLE_DERIVED_CACHE_WORKER: "0" }
+      { DISABLE_DERIVED_CACHE_WORKER: "0", REGULAR_TEST_REAL_PROVIDER_CALLS: "0" }
     );
-    assert.match(output, /\bstarted\b/);
+    assert.match(output, /\[derivedCache\] wakeup scheduler started/);
   });
 
   it("DISABLE_DERIVED_CACHE_WORKER=1 keeps worker/provider activity off after resolved export", () => {
@@ -276,15 +275,51 @@ describe("custom server boot import boundary", () => {
     assert.equal(parsed.started, false);
   });
 
-  it("resolveCustomServerImportedExport prefers direct named export when present", () => {
+  it("E1–E5 resolveCustomServerImportedExport nullish named ?? default.named contract", () => {
     const directFn = () => "direct";
-    const wrappedFn = () => "wrapped";
+    const defaultFn = () => "default";
+    const differentDirectFn = () => "different-direct";
+
+    assert.equal(
+      boundary.resolveCustomServerImportedExport({ foo: directFn, default: { foo: defaultFn } }, "foo"),
+      directFn,
+      "E1 direct function present → direct wins"
+    );
     assert.equal(
       boundary.resolveCustomServerImportedExport(
-        { directFn, default: { directFn: wrappedFn } },
-        "directFn"
+        { foo: undefined, default: { foo: defaultFn } },
+        "foo"
       ),
-      directFn
+      defaultFn,
+      "E2 direct undefined + default function → default function wins"
+    );
+    assert.equal(
+      boundary.resolveCustomServerImportedExport({ foo: null, default: { foo: defaultFn } }, "foo"),
+      defaultFn,
+      "E3 direct null + default function → default function wins"
+    );
+    assert.equal(
+      boundary.resolveCustomServerImportedExport(
+        { foo: differentDirectFn, default: { foo: defaultFn } },
+        "foo"
+      ),
+      differentDirectFn,
+      "E4 direct function + default different function → direct wins"
+    );
+    assert.equal(
+      boundary.resolveCustomServerImportedExport({ default: {} }, "foo"),
+      undefined,
+      "E5 both absent → undefined"
+    );
+    assert.equal(
+      boundary.resolveCustomServerImportedExport({ foo: false, default: { foo: true } }, "foo"),
+      false,
+      "direct false preserved (not truthiness fallback)"
+    );
+    assert.equal(
+      boundary.resolveCustomServerImportedExport({ foo: 0, default: { foo: 1 } }, "foo"),
+      0,
+      "direct zero preserved (not truthiness fallback)"
     );
   });
 
