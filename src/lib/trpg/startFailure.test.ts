@@ -181,9 +181,6 @@ describe("TRPG start failure classification", () => {
     let gmCalls = 0;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
-      directorCall: async () => {
-        throw new Error("director must not run");
-      },
       gmCall: async () => {
         gmCalls += 1;
         return { text: gmText(`장면 ${gmCalls}`) };
@@ -197,6 +194,7 @@ describe("TRPG start failure classification", () => {
 
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역",
+      summary: "유령 기차를 기다리는 공포 TRPG",
       content: "유령 기차를 기다린다.",
       visibility: "public",
       scenarioPlan: playablePlan,
@@ -328,6 +326,13 @@ describe("TRPG start failure classification", () => {
     const db = memoryDb();
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const origPrepare = db.prepare.bind(db);
+    db.prepare = ((sql: string, ...rest: unknown[]) => {
+      if (sql.includes("INSERT INTO trpg_gm_messages")) {
+        throw new Error("no such table: trpg_gm_messages");
+      }
+      return origPrepare(sql, ...(rest as []));
+    }) as typeof db.prepare;
     await assert.rejects(
       () =>
         startTrpgCampaign(db, {
@@ -335,10 +340,7 @@ describe("TRPG start failure classification", () => {
           userId: 1,
           deps: {
             skipBilling: true,
-            gmCall: async () => {
-              db.exec("DROP TABLE trpg_gm_messages");
-              return { text: gmText() };
-            },
+            gmCall: async () => ({ text: gmText() }),
           },
         }),
       /trpg_gm_messages/
@@ -395,6 +397,8 @@ describe("TRPG start failure classification", () => {
         trpg_enabled INTEGER NOT NULL DEFAULT 0,
         trpg_visibility TEXT NOT NULL DEFAULT 'private',
         genres TEXT NOT NULL DEFAULT '[]',
+        cover_url TEXT NOT NULL DEFAULT '',
+        shared_from_nickname TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -403,13 +407,9 @@ describe("TRPG start failure classification", () => {
       `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
        VALUES (2, '북부', '얼음 마법', 1, 'public')`
     ).run();
-    let directorCalls = 0;
+    let gmCalls = 0;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
-      directorCall: async () => {
-        directorCalls += 1;
-        return { text: "{}", latencyMs: 1, model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL };
-      },
       gmCall: async () => ({ text: gmText() }),
     };
     try {
@@ -422,7 +422,6 @@ describe("TRPG start failure classification", () => {
       });
       saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
       await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-      assert.equal(directorCalls, 0);
       assert.equal(loadCampaignContext(db, campaignId)?.directorPlan, null);
     } finally {
       if (prev === undefined) delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;

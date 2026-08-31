@@ -73,7 +73,7 @@ import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionInt
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
-import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
+import { ensureCampaignDirectorContext } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import {
   diagnoseAdvanceTrpgCampaign,
@@ -202,7 +202,6 @@ export type TrpgEngineDeps = {
     semanticDone?: boolean;
   }>;
   botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
-  directorCall?: TrpgDirectorDeps["directorCall"];
   memoryCall?: TrpgMemoryCall;
   rollD20?: () => number;
   skipBilling?: boolean;
@@ -262,7 +261,7 @@ export async function startTrpgCampaign(
 ): Promise<TrpgCampaignSnapshot> {
   assertCanStart(db, opts.campaignId, opts.userId);
   try {
-    await ensureCampaignDirectorContext(db, opts.campaignId, { directorCall: opts.deps?.directorCall });
+    await ensureCampaignDirectorContext(db, opts.campaignId);
   } catch (error) {
     console.warn("[trpg-director] context failed; continuing with existing GM", error);
   }

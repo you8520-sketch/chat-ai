@@ -10,19 +10,10 @@ import {
 import { loadScenarioTemplate, rowToScenarioTemplate } from "./scenarioTemplates";
 import { loadCampaign } from "./store";
 import {
-  casPublishWorldBlueprintArtifact,
   copyWorldBlueprintPlan,
   loadValidWorldBlueprintPlan,
   loadWorldSnapshotForBlueprint,
 } from "./worldBlueprintArtifact";
-import { generateWorldSandboxBlueprint } from "./worldBlueprintGeneration";
-import type { TrpgAuthoringComplete } from "./scenarioDraftCall";
-import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "./blueprintValidity";
-import type { TrpgScenarioPlan } from "./scenarioPlan";
-
-export type TrpgDirectorDeps = {
-  directorCall?: TrpgAuthoringComplete;
-};
 
 export const TRPG_SANDBOX_DIRECTOR_ENABLED_ENV = "TRPG_SANDBOX_DIRECTOR_ENABLED";
 
@@ -50,64 +41,16 @@ function loadScenarioSnapshot(db: Database.Database, templateId: number | null):
   };
 }
 
-/** Best-effort artifact healing after successful sync fallback; must not block campaign start. */
-function tryPublishSyncFallbackBlueprintArtifact(
-  db: Database.Database,
-  opts: {
-    worldId: number;
-    expectedSourceFingerprint: string;
-    plan: TrpgScenarioPlan;
-  }
-): void {
-  casPublishWorldBlueprintArtifact(db, {
-    worldId: opts.worldId,
-    expectedSourceFingerprint: opts.expectedSourceFingerprint,
-    expectedDerivationVersion: TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION,
-    plan: opts.plan,
-  });
-}
-
-/**
- * Publish generated plan, then adopt the canonical same-revision winner if one exists.
- * Falls back to the generated plan when publication/canonical reload is unavailable.
- */
-function resolveSyncFallbackDirectorPlan(
-  db: Database.Database,
-  opts: {
-    worldId: number;
-    worldSnapshot: NonNullable<TrpgCampaignContext["worldSnapshot"]>;
-    generatedPlan: TrpgScenarioPlan;
-  }
-): TrpgScenarioPlan {
-  let plan = opts.generatedPlan;
-  try {
-    if (opts.worldSnapshot.sourceFingerprint) {
-      tryPublishSyncFallbackBlueprintArtifact(db, {
-        worldId: opts.worldId,
-        expectedSourceFingerprint: opts.worldSnapshot.sourceFingerprint,
-        plan: opts.generatedPlan,
-      });
-    }
-    const canonical = loadValidWorldBlueprintPlan(db, opts.worldId, opts.worldSnapshot);
-    if (canonical) {
-      plan = copyWorldBlueprintPlan(canonical);
-    }
-  } catch {
-    // Healing/canonical convergence is auxiliary; generated plan remains usable.
-  }
-  return plan;
-}
-
 /**
  * One-shot campaign context. Never called per round.
- * Scenario campaigns copy the authored plan. World-only sandbox may copy a pre-generated
- * world-revision Blueprint or fall back to synchronous generation when none is valid.
+ * Scenario campaigns copy the authored plan. World-only sandbox copies a pre-generated
+ * world-revision Blueprint when valid; otherwise directorPlan stays null and opening GM proceeds.
+ * Campaign start never generates Sandbox Blueprint — worker owns generation.
  * Failure never blocks campaign start.
  */
 export async function ensureCampaignDirectorContext(
   db: Database.Database,
-  campaignId: number,
-  deps?: TrpgDirectorDeps
+  campaignId: number
 ): Promise<TrpgCampaignContext> {
   const existing = loadCampaignContext(db, campaignId);
   if (existing) return existing;
@@ -143,30 +86,8 @@ export async function ensureCampaignDirectorContext(
   const artifactPlan = loadValidWorldBlueprintPlan(db, campaign.source_world_id, ctx.worldSnapshot);
   if (artifactPlan) {
     ctx.directorPlan = copyWorldBlueprintPlan(artifactPlan);
-    persistCampaignContext(db, ctx);
-    return ctx;
-  }
-
-  const generated = await generateWorldSandboxBlueprint(
-    {
-      worldId: ctx.worldSnapshot.id ?? campaign.source_world_id,
-      worldName: ctx.worldSnapshot.name,
-      worldSummary: ctx.worldSnapshot.summary,
-      worldContent: ctx.worldSnapshot.content,
-      worldUpdatedAt: ctx.worldSnapshot.updatedAt,
-      worldHash: ctx.worldSnapshot.hash,
-    },
-    { complete: deps?.directorCall }
-  );
-  if (!generated.ok) {
-    ctx.directorError = generated.error;
-    ctx.directorPlan = null;
   } else {
-    ctx.directorPlan = resolveSyncFallbackDirectorPlan(db, {
-      worldId: campaign.source_world_id,
-      worldSnapshot: ctx.worldSnapshot,
-      generatedPlan: generated.plan,
-    });
+    ctx.directorPlan = null;
   }
   persistCampaignContext(db, ctx);
   return ctx;
