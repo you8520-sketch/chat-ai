@@ -15,7 +15,7 @@ import {
   gmStreamParserComplete,
 } from "./gmStreamParser";
 import { feedGmProviderSseBytes } from "./gmProviderSse";
-import { parseTrpgGmOutput } from "./gmPrompt";
+import { parseTrpgGmOutput, TRPG_GM_DELTA_OPEN, TRPG_GM_NARRATION_OPEN } from "./gmPrompt";
 import { TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 import { adaptTrpgGmChatBody } from "./gmClient";
 
@@ -27,7 +27,7 @@ const VALID_DELTA = JSON.stringify({
 });
 
 /** Production-shaped incident ending mid-sentence before DELTA. */
-const INCIDENT_TRUNCATED_BEFORE_DELTA = `<<<NARRATION>>>
+const INCIDENT_TRUNCATED_BEFORE_DELTA = `${TRPG_GM_NARRATION_OPEN}
 GM: 권태현이 ... 강이현이 환풍구로 이어지는 안전한 우회로를 확보했지만 ... 태현의 방벽 뒤에서 이현이 찾은 환풍구 발판으로 단숨에 도약해 빠져나갈지, 아니면 태현과`;
 
 const previousFetch = globalThis.fetch;
@@ -87,7 +87,7 @@ describe("gmCompletionIntegrity BEFORE reproduction", () => {
     assert.equal(assessment.ok, false);
     assert.equal(assessment.status, "missing_delta_envelope");
     assert.throws(
-      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop" }),
+      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop" }, assessment),
       /missing required NARRATION\/DELTA envelope/
     );
   });
@@ -97,13 +97,13 @@ describe("gmCompletionIntegrity fixtures", () => {
   it("C1 — healthy stop + complete envelope commits", () => {
     const narration =
       "GM: 태현의 방벽 뒤에서 이현이 찾은 환풍구 발판으로 단숨에 도약해 빠져나갈지, 아니면 태현과 함께 버틴다.";
-    const text = `<<<NARRATION>>>\n${narration}\n<<<DELTA>>>\n${VALID_DELTA}`;
-    assert.doesNotThrow(() => assertGmCompletionCanCommit(text, { finishReason: "stop", semanticDone: true }));
+    const text = `${TRPG_GM_NARRATION_OPEN}\n${narration}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
+    assert.doesNotThrow(() => assertGmCompletionCanCommit(text, { finishReason: "stop" }));
     assert.match(parseTrpgGmOutput(text).narration, /함께 버틴다/);
   });
 
   it("C2 — finish_reason=length rejects (TRUNCATED_BEFORE_DELTA_CAN_COMMIT=false)", () => {
-    const truncated = `${INCIDENT_TRUNCATED_BEFORE_DELTA}\n<<<DELTA>>>\n${VALID_DELTA}`;
+    const truncated = `${INCIDENT_TRUNCATED_BEFORE_DELTA}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
     assert.throws(
       () => assertGmCompletionCanCommit(truncated, { finishReason: "length" }),
       /abnormal provider completion: length/
@@ -112,7 +112,7 @@ describe("gmCompletionIntegrity fixtures", () => {
   });
 
   it("C3 — finish_reason=content_filter rejects", () => {
-    const text = `<<<NARRATION>>>\n필터.\n<<<DELTA>>>\n${VALID_DELTA}`;
+    const text = `${TRPG_GM_NARRATION_OPEN}\n필터.\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
     assert.throws(
       () => assertGmCompletionCanCommit(text, { finishReason: "content_filter" }),
       /abnormal provider completion: content_filter/
@@ -121,31 +121,40 @@ describe("gmCompletionIntegrity fixtures", () => {
 
   it("C4 — EOF before DELTA with stop still rejects envelope", () => {
     assert.throws(
-      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop", semanticDone: false }),
+      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop" }),
       /missing required NARRATION\/DELTA envelope/
     );
   });
 
-  it("C5 — [DONE] with DELTA missing rejects", () => {
+  it("C5 — complete stream with DELTA missing rejects", () => {
     assert.throws(
-      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop", semanticDone: true }),
+      () => assertGmCompletionCanCommit(INCIDENT_TRUNCATED_BEFORE_DELTA, { finishReason: "stop" }),
       /missing required NARRATION\/DELTA envelope/
     );
   });
 
   it("C6 — finish_reason=stop but truncated DELTA JSON rejects", () => {
-    const text = `<<<NARRATION>>>\n장면.\n<<<DELTA>>>\n{"players":[`;
+    const text = `${TRPG_GM_NARRATION_OPEN}\n장면.\n${TRPG_GM_DELTA_OPEN}\n{"players":[`;
     assert.throws(() => assertGmCompletionCanCommit(text, { finishReason: "stop" }), /not parseable JSON/);
   });
 
   it("C7 — EOF after complete envelope without [DONE] remains acceptable", () => {
-    const text = `<<<NARRATION>>>\neof complete\n<<<DELTA>>>\n${VALID_DELTA}`;
-    assert.doesNotThrow(() => assertGmCompletionCanCommit(text, { finishReason: null, semanticDone: false }));
+    const text = `${TRPG_GM_NARRATION_OPEN}\neof complete\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
+    assert.doesNotThrow(() => assertGmCompletionCanCommit(text, { finishReason: null }));
+  });
+
+  it("empty narration between markers rejects (EMPTY_NARRATION_CAN_COMMIT=false)", () => {
+    const text = `${TRPG_GM_NARRATION_OPEN}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
+    const assessment = assessGmCompletionIntegrity(text, { finishReason: "stop" });
+    assert.equal(assessment.ok, false);
+    assert.equal(assessment.status, "empty_narration");
+    assert.throws(() => assertGmCompletionCanCommit(text, { finishReason: "stop" }, assessment), /NARRATION section is empty/);
+    assert.match(parseTrpgGmOutput(text).narration, /장면이 잠시 멈췄다/);
   });
 
   it("C8 — arbitrary SSE chunk split around DELTA marker stays healthy", async () => {
     const korean = "한글 장면";
-    const fullText = `<<<NARRATION>>>\n${korean}\n<<<DELTA>>>\n${VALID_DELTA}`;
+    const fullText = `${TRPG_GM_NARRATION_OPEN}\n${korean}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
     const payload = JSON.stringify({ choices: [{ delta: { content: fullText } }] });
     const line = `data: ${payload}\n\n`;
     const usageLine = `data: ${JSON.stringify({
@@ -153,7 +162,7 @@ describe("gmCompletionIntegrity fixtures", () => {
       usage: { prompt_tokens: 4, completion_tokens: 6 },
     })}\n\n`;
     const bytes = new TextEncoder().encode(`${line}${usageLine}data: [DONE]\n\n`);
-    const marker = "<<<DELTA>>>";
+    const marker = TRPG_GM_DELTA_OPEN;
     const splitAt = line.indexOf(marker) + Math.floor(marker.length / 2);
     delete process.env.MOCK_MODE;
     process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-completion";
@@ -175,7 +184,7 @@ describe("gmCompletionIntegrity fixtures", () => {
 
   it("C9 — UTF-8 Korean byte split stays healthy", async () => {
     const korean = "한글";
-    const fullText = `<<<NARRATION>>>\n${korean}\n<<<DELTA>>>\n${VALID_DELTA}`;
+    const fullText = `${TRPG_GM_NARRATION_OPEN}\n${korean}\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
     installGmSseStream([sseGmPayload(fullText, "stop")]);
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.doesNotThrow(() => assertGmCompletionCanCommit(result.text, { finishReason: "stop" }));
@@ -193,7 +202,7 @@ describe("gmCompletionIntegrity fixtures", () => {
   });
 
   it("C11 — reroll transport uses same integrity owner", async () => {
-    const text = `<<<NARRATION>>>\n재생성.\n<<<DELTA>>>\n${VALID_DELTA}`;
+    const text = `${TRPG_GM_NARRATION_OPEN}\n재생성.\n${TRPG_GM_DELTA_OPEN}\n${VALID_DELTA}`;
     installGmSseStream([sseGmPayload(text, "stop")]);
     const result = await callTrpgGm({ system: "sys", user: "재생성", timeoutMs: 5_000 });
     assert.doesNotThrow(() => assertGmCompletionCanCommit(result.text, { finishReason: result.finishReason }));

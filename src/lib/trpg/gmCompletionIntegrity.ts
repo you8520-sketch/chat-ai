@@ -1,7 +1,9 @@
 import { attachTrpgCallFailureMeta } from "./startFailure";
-
-export const GM_NARRATION_OPEN = "<<<NARRATION>>>";
-export const GM_DELTA_OPEN = "<<<DELTA>>>";
+import {
+  parseTrpgGmEnvelopeJson,
+  TRPG_GM_DELTA_OPEN,
+  TRPG_GM_NARRATION_OPEN,
+} from "./gmPrompt";
 
 /** Provider terminal reasons that must not commit as a healthy GM round. */
 export const GM_ABNORMAL_PROVIDER_FINISH_REASONS = ["length", "content_filter"] as const;
@@ -11,11 +13,12 @@ export type GmCompletionIntegrityStatus =
   | "abnormal_finish_reason"
   | "missing_delta_envelope"
   | "malformed_delta_json"
+  | "empty_narration"
   | "empty_output";
 
+/** Provider terminal metadata used for integrity policy (not transport diagnostics). */
 export type GmCompletionTransportMeta = {
   finishReason?: string | null;
-  semanticDone?: boolean;
 };
 
 export type GmCompletionIntegrityAssessment = {
@@ -24,29 +27,9 @@ export type GmCompletionIntegrityAssessment = {
   error?: string;
 };
 
-function stripFences(text: string): string {
-  return text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-}
-
-function parseDeltaJson(raw: string): Record<string, unknown> | null {
-  const trimmed = stripFences(raw.trim());
-  if (!trimmed) return null;
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start < 0 || end <= start) return null;
-    try {
-      const parsed = JSON.parse(trimmed.slice(start, end + 1)) as unknown;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-      return parsed as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
+function isParseableDeltaJson(raw: string): boolean {
+  const parsed = parseTrpgGmEnvelopeJson(raw);
+  return parsed != null && typeof parsed === "object" && !Array.isArray(parsed);
 }
 
 /** Preserve the last non-null terminal finish_reason from provider SSE payloads. */
@@ -79,8 +62,8 @@ export function assessGmCompletionIntegrity(
       error: `abnormal provider completion: ${transport!.finishReason}`,
     };
   }
-  const narAt = text.indexOf(GM_NARRATION_OPEN);
-  const deltaAt = text.indexOf(GM_DELTA_OPEN);
+  const narAt = text.indexOf(TRPG_GM_NARRATION_OPEN);
+  const deltaAt = text.indexOf(TRPG_GM_DELTA_OPEN);
   if (deltaAt < 0 || narAt < 0 || deltaAt <= narAt) {
     return {
       ok: false,
@@ -88,8 +71,16 @@ export function assessGmCompletionIntegrity(
       error: "GM output missing required NARRATION/DELTA envelope",
     };
   }
-  const deltaJson = parseDeltaJson(text.slice(deltaAt + GM_DELTA_OPEN.length));
-  if (!deltaJson) {
+  const narrationBody = text.slice(narAt + TRPG_GM_NARRATION_OPEN.length, deltaAt).trim();
+  if (!narrationBody) {
+    return {
+      ok: false,
+      status: "empty_narration",
+      error: "GM NARRATION section is empty",
+    };
+  }
+  const deltaRaw = text.slice(deltaAt + TRPG_GM_DELTA_OPEN.length);
+  if (!isParseableDeltaJson(deltaRaw)) {
     return {
       ok: false,
       status: "malformed_delta_json",
@@ -99,8 +90,12 @@ export function assessGmCompletionIntegrity(
   return { ok: true, status: "healthy" };
 }
 
-export function assertGmCompletionCanCommit(raw: string, transport?: GmCompletionTransportMeta): void {
-  const assessment = assessGmCompletionIntegrity(raw, transport);
+export function assertGmCompletionCanCommit(
+  raw: string,
+  transport?: GmCompletionTransportMeta,
+  precomputed?: GmCompletionIntegrityAssessment
+): void {
+  const assessment = precomputed ?? assessGmCompletionIntegrity(raw, transport);
   if (assessment.ok) return;
   throw attachTrpgCallFailureMeta(new Error(`[TRPG] ${assessment.error}`), {
     stage: assessment.status === "abnormal_finish_reason" ? "provider_call" : "gm_output_parse",
@@ -120,6 +115,8 @@ export function completionIntegrityStatusLabel(
       return "MALFORMED_ENVELOPE";
     case "malformed_delta_json":
       return "MALFORMED_DELTA";
+    case "empty_narration":
+      return "EMPTY_NARRATION";
     case "empty_output":
       return "EMPTY_OUTPUT";
     default: {

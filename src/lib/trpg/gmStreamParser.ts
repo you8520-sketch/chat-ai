@@ -1,5 +1,7 @@
-const NARRATION_OPEN = "<<<NARRATION>>>";
-const DELTA_OPEN = "<<<DELTA>>>";
+import { TRPG_GM_DELTA_OPEN, TRPG_GM_NARRATION_OPEN } from "./gmPrompt";
+
+const NARRATION_OPEN = TRPG_GM_NARRATION_OPEN;
+const DELTA_OPEN = TRPG_GM_DELTA_OPEN;
 
 export type GmStreamParserState = {
   /** Raw provider buffer not yet classified. */

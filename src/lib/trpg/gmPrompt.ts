@@ -7,8 +7,11 @@ import { statModifier } from "./stats";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
 
-const NARRATION_OPEN = "<<<NARRATION>>>";
-const DELTA_OPEN = "<<<DELTA>>>";
+/** Canonical GM wire-format markers — single owner for envelope primitives. */
+export const TRPG_GM_NARRATION_OPEN = "<<<NARRATION>>>";
+export const TRPG_GM_DELTA_OPEN = "<<<DELTA>>>";
+const NARRATION_OPEN = TRPG_GM_NARRATION_OPEN;
+const DELTA_OPEN = TRPG_GM_DELTA_OPEN;
 
 export type ParsedTrpgGmOutput = {
   narration: string;
@@ -90,8 +93,26 @@ function asDelta(raw: unknown): TrpgStateDelta {
   return delta;
 }
 
-function stripFences(text: string): string {
+export function stripTrpgGmEnvelopeFences(text: string): string {
   return text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+}
+
+/** Canonical JSON decoder for GM DELTA envelope sections. */
+export function parseTrpgGmEnvelopeJson(raw: string): unknown {
+  const trimmed = stripTrpgGmEnvelopeFences(raw.trim());
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start < 0 || end <= start) return null;
+    try {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
 }
 
 export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
@@ -106,12 +127,12 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
   const narAt = text.indexOf(NARRATION_OPEN);
   if (narAt >= 0 && deltaAt > narAt) {
     narration = text.slice(narAt + NARRATION_OPEN.length, deltaAt).trim();
-    deltaJson = safeJson(text.slice(deltaAt + DELTA_OPEN.length));
+    deltaJson = parseTrpgGmEnvelopeJson(text.slice(deltaAt + DELTA_OPEN.length));
   } else if (deltaAt >= 0) {
     narration = text.slice(0, deltaAt).trim();
-    deltaJson = safeJson(text.slice(deltaAt + DELTA_OPEN.length));
+    deltaJson = parseTrpgGmEnvelopeJson(text.slice(deltaAt + DELTA_OPEN.length));
   } else if (text.startsWith("{")) {
-    const parsed = safeJson(text);
+    const parsed = parseTrpgGmEnvelopeJson(text);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       const obj = parsed as Record<string, unknown>;
       if (typeof obj.narration === "string") narration = obj.narration.trim();
@@ -144,21 +165,6 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
     campaignFinished,
     nextRoundContext,
   };
-}
-
-function safeJson(raw: string): unknown {
-  try {
-    return JSON.parse(stripFences(raw));
-  } catch {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start < 0 || end <= start) return null;
-    try {
-      return JSON.parse(raw.slice(start, end + 1));
-    } catch {
-      return null;
-    }
-  }
 }
 
 export const TRPG_GM_SYSTEM = `You are the TRPG Game Master. Korean novelistic narration only for players.

@@ -182,6 +182,7 @@ import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_M
 import { isTrpgRoundPhase } from "./types";
 import {
   clearGmNarrationDraft,
+  clearGmNarrationDraftForGeneration,
   type GmProviderTimings,
 } from "./gmNarrationDraft";
 import { GmNarrationDraftCoalescer } from "./gmNarrationDraftCoalescer";
@@ -1352,14 +1353,6 @@ async function runGmForRound(
   try {
     const { text, usage, finishReason, semanticDone } = await gmCall({ system: TRPG_GM_SYSTEM, user, stream: streamCallbacks });
     draftCoalescer?.flush();
-    const integrity = assessGmCompletionIntegrity(text, { finishReason, semanticDone });
-    console.info("[TRPG][gm] completion_integrity", {
-      status: completionIntegrityStatusLabel(integrity),
-      finishReason: finishReason ?? null,
-      semanticDone: semanticDone === true,
-      outputTokens: usage?.outputTokens ?? null,
-    });
-    assertGmCompletionCanCommit(text, { finishReason, semanticDone });
     if (opts.requestId) {
       if (
         !appendGmRoundUsageForGeneration(db, opts.roundId, opts.requestId, usage ?? TRPG_GM_USAGE_FALLBACK, {
@@ -1372,6 +1365,14 @@ async function runGmForRound(
     } else {
       appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
     }
+    const integrity = assessGmCompletionIntegrity(text, { finishReason });
+    console.info("[TRPG][gm] completion_integrity", {
+      status: completionIntegrityStatusLabel(integrity),
+      finishReason: finishReason ?? null,
+      semanticDone: semanticDone === true,
+      outputTokens: usage?.outputTokens ?? null,
+    });
+    assertGmCompletionCanCommit(text, { finishReason }, integrity);
     stage = "gm_output_parse";
     const parsed = parseTrpgGmOutput(text);
     stage = "asset_tagging";
@@ -1430,7 +1431,11 @@ async function runGmForRound(
     });
   } catch (error) {
     if (!(error instanceof StaleGmGenerationOwnerError)) {
-      clearGmNarrationDraft(db, opts.roundId);
+      if (opts.requestId) {
+        clearGmNarrationDraftForGeneration(db, opts.roundId, opts.requestId);
+      } else {
+        clearGmNarrationDraft(db, opts.roundId);
+      }
     }
     throw attachTrpgCallFailureMeta(error, { stage });
   } finally {
