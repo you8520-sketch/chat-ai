@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  buildTrpgDiagnosticsResultIdentity,
+  buildTrpgDiagnosticsSourceIdentity,
   buildTrpgImageSceneDiagnosticsDisplayRows,
   buildTrpgImageSceneDiagnosticsPayload,
   clearedTrpgImageSceneDiagnostics,
@@ -10,6 +12,8 @@ import {
   isTrpgAiFocusRawFallback,
   resolveTrpgImageSceneDiagnosticsForResponse,
   resolveTrpgImageSceneDiagnosticsFromResponse,
+  resolveTrpgImageSceneDiagnosticsOnSourceReopen,
+  shouldClearTrpgImageSceneDiagnosticsOnSourceOpen,
   type TrpgImageSceneDiagnosticsPayload,
 } from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 
@@ -77,6 +81,98 @@ describe("trpg image scene diagnostics lifecycle", () => {
 
     const fromRaw = resolveTrpgImageSceneDiagnosticsFromResponse(null);
     assert.equal(fromRaw, undefined);
+  });
+});
+
+describe("trpg diagnostics result identity lifecycle", () => {
+  const sourceRound1 = buildTrpgDiagnosticsSourceIdentity({
+    campaignId: 7,
+    roundNumber: 2,
+    sourceMessageId: 99,
+  });
+  const sourceRound2 = buildTrpgDiagnosticsSourceIdentity({
+    campaignId: 7,
+    roundNumber: 3,
+    sourceMessageId: 99,
+  });
+  const resultA = buildTrpgDiagnosticsResultIdentity({
+    generationId: 42,
+    imageUrl: "https://example.com/a.png",
+  });
+  const resultB = buildTrpgDiagnosticsResultIdentity({
+    generationId: 43,
+    imageUrl: "https://example.com/b.png",
+  });
+
+  it("R3/R4: same-source reopen preserves; different round clears on source change", () => {
+    assert.equal(
+      shouldClearTrpgImageSceneDiagnosticsOnSourceOpen({
+        previousSourceIdentity: sourceRound1,
+        nextSourceIdentity: sourceRound1,
+      }),
+      false
+    );
+    assert.equal(
+      shouldClearTrpgImageSceneDiagnosticsOnSourceOpen({
+        previousSourceIdentity: sourceRound1,
+        nextSourceIdentity: sourceRound2,
+      }),
+      true
+    );
+  });
+
+  it("R3: reopen restores from cache when in-memory state was lost", () => {
+    const restored = resolveTrpgImageSceneDiagnosticsOnSourceReopen({
+      nextSourceIdentity: sourceRound1,
+      currentResultIdentity: resultA,
+      cached: {
+        sourceIdentity: sourceRound1,
+        resultIdentity: resultA,
+        diagnostics: sampleAiDiagnostics,
+      },
+      currentDiagnostics: undefined,
+    });
+    assert.equal(restored?.aiModel, "gpt-5.6-luna");
+  });
+
+  it("R3: reopen keeps in-memory diagnostics without cache round-trip", () => {
+    const kept = resolveTrpgImageSceneDiagnosticsOnSourceReopen({
+      nextSourceIdentity: sourceRound1,
+      currentResultIdentity: resultA,
+      cached: {
+        sourceIdentity: sourceRound1,
+        resultIdentity: resultA,
+        diagnostics: sampleAiDiagnostics,
+      },
+      currentDiagnostics: sampleAiDiagnostics,
+    });
+    assert.equal(kept, sampleAiDiagnostics);
+  });
+
+  it("R5: different round/source identity blocks stale restore", () => {
+    const blocked = resolveTrpgImageSceneDiagnosticsOnSourceReopen({
+      nextSourceIdentity: sourceRound2,
+      currentResultIdentity: resultA,
+      cached: {
+        sourceIdentity: sourceRound1,
+        resultIdentity: resultA,
+        diagnostics: sampleAiDiagnostics,
+      },
+      currentDiagnostics: undefined,
+    });
+    assert.equal(blocked, undefined);
+  });
+
+  it("R6/R7: generation identity prefers generationId over imageUrl", () => {
+    assert.equal(resultA, "gen:42");
+    assert.equal(
+      buildTrpgDiagnosticsResultIdentity({
+        generationId: null,
+        imageUrl: "https://example.com/a.png",
+      }),
+      "url:https://example.com/a.png"
+    );
+    assert.notEqual(resultA, resultB);
   });
 });
 
@@ -215,6 +311,20 @@ describe("trpg image scene diagnostics payload + display", () => {
     assert.equal(formatTrpgDiagnosticsText(""), "—");
     assert.equal(formatTrpgDiagnosticsIds([]), "(none)");
   });
+
+  it("R1: AI_FOCUS success preserves full selectedHeroScene in display rows", () => {
+    const longHeroScene =
+      "영웅이 돌진한다. ".repeat(40).trim();
+    const payload: TrpgImageSceneDiagnosticsPayload = {
+      ...sampleAiDiagnostics,
+      selectedHeroScene: longHeroScene,
+    };
+    const row = buildTrpgImageSceneDiagnosticsDisplayRows(payload).find(
+      (entry) => entry.key === "selectedHeroScene"
+    );
+    assert.equal(row?.value, longHeroScene);
+    assert.ok((row?.value.length ?? 0) > 200);
+  });
 });
 
 describe("trpg image scene diagnostics UI wiring", () => {
@@ -227,5 +337,39 @@ describe("trpg image scene diagnostics UI wiring", () => {
   it("T12: diagnostics panel component has no non-admin placeholder", () => {
     const source = readFileSync("src/components/TrpgImageSceneDiagnosticsPanel.tsx", "utf8");
     assert.doesNotMatch(source, /생성 후 이번 처리 경로가 여기에 표시됩니다/);
+  });
+
+  it("R2: selectedHeroScene display has no line-clamp truncation", () => {
+    const source = readFileSync("src/components/TrpgImageSceneDiagnosticsPanel.tsx", "utf8");
+    assert.doesNotMatch(source, /line-clamp-\d+/);
+    assert.match(source, /selectedHeroScene.*whitespace-pre-wrap/s);
+  });
+
+  it("R11: openGenerator no longer unconditionally clears diagnostics on modal open", () => {
+    const source = readFileSync("src/components/ChatImageGeneratorPanel.tsx", "utf8");
+    const openBlock = source.match(
+      /const openGenerator = \(event: Event\) => \{[\s\S]*?window\.addEventListener\("chat:image-generator:open", openGenerator\)/
+    )?.[0];
+    assert.ok(openBlock);
+    assert.match(openBlock!, /shouldClearTrpgImageSceneDiagnosticsOnSourceOpen/);
+    assert.match(openBlock!, /resolveTrpgImageSceneDiagnosticsOnSourceReopen/);
+    assert.doesNotMatch(openBlock!, /\n\s*clearTrpgImageSceneDiagnostics\(\);\n\s*setTrpgImageSceneMode/);
+  });
+
+  it("client/shared lifecycle test has no server-only imports", () => {
+    const source = readFileSync("src/lib/trpg/trpgImageSceneDiagnosticsLifecycle.test.ts", "utf8");
+    const importLines = source
+      .split("\n")
+      .filter((line) => /^\s*import\s/.test(line));
+    const serverOnlyImportPatterns = [
+      /from "better-sqlite3"/,
+      /from "@\/lib\/trpg\/illustrationCast"/,
+      /from "@\/lib\/trpg\/schema"/,
+      /from "@\/lib\/trpg\/trpgAiFocusSelection"/,
+    ];
+    const hits = importLines.filter((line) =>
+      serverOnlyImportPatterns.some((pattern) => pattern.test(line))
+    );
+    assert.equal(hits.length, 0);
   });
 });

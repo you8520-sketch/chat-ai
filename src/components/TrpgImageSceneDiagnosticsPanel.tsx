@@ -40,7 +40,7 @@ export default function TrpgImageSceneDiagnosticsPanel({
             <dt className="text-[10px] text-zinc-500">{row.label}</dt>
             <dd
               className={`text-[10px] text-zinc-200 break-words ${
-                row.key === "selectedHeroScene" ? "line-clamp-4" : ""
+                row.key === "selectedHeroScene" ? "whitespace-pre-wrap" : ""
               }`}
             >
               {row.value}
