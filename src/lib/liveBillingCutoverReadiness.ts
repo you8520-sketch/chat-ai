@@ -451,7 +451,9 @@ export function auditIdempotencyFromSource(): IdempotencyAudit {
   const hasSettlementUnique = schemaSrc.includes(
     "UNIQUE(user_id, chat_id, request_id, charge_kind)"
   );
-  const hasRemoteV2Upgrade = remoteBootstrapSrc.includes("turso-v2-chat-billing-settlement");
+  const hasRemoteSchemaUpgradeChain =
+    remoteBootstrapSrc.includes("turso-v3-current-schema") &&
+    remoteBootstrapSrc.includes("turso-v4-pinned-drop-compatible");
   const remoteUpgradeTestPresent = remoteTestSrc.includes("OLD_REMOTE_V1_DB_UPGRADE_PASS");
   const trueConcurrentTestPresent = settlementTestSrc.includes("true overlapping duplicate workers");
   const claimFirstPresent = settlementSrc.includes("ON CONFLICT(user_id, chat_id, request_id, charge_kind) DO NOTHING");
@@ -463,7 +465,7 @@ export function auditIdempotencyFromSource(): IdempotencyAudit {
   return {
     idempotencyOwner: LIVE_BILLING_OWNER_AUDIT.idempotencyOwner,
     dbEnforcedRequestIdempotency:
-      hasSettlementUnique && hasRemoteV2Upgrade && remoteUpgradeTestPresent ? "verified" : "documented",
+      hasSettlementUnique && hasRemoteSchemaUpgradeChain && remoteUpgradeTestPresent ? "verified" : "documented",
     ledgerIdempotencyUniqueKey: hasSettlementUnique
       ? "chat_billing_settlements(user_id, chat_id, request_id, charge_kind)"
       : "none",
