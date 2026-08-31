@@ -348,7 +348,6 @@ describe("persistent memory reset boundary", () => {
     assert.equal(memory.message_count, 0);
     assert.equal(memory.summarized_turn_count, 0);
     const chat = db.prepare(`SELECT * FROM chats WHERE id=1`).get();
-    assert.equal(chat.current_summary, "");
     assert.equal(chat.memory_pending, "[]");
     assert.equal(chat.memory_archived_turns, 0);
     assert.deepEqual(

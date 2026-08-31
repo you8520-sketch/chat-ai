@@ -1,8 +1,5 @@
 /**
- * CHATS.CURRENT_SUMMARY canonical-owner / mirror necessity audit.
- * AUDIT ONLY — no column drops, no runtime retirement, no production behavior change.
- *
- * Post V7 (chats.memory physically absent). Verdict target: classification evidence only.
+ * #804 owner audit — updated post-C1 for historical evidence + regression gates.
  */
 import Module from "module";
 
@@ -20,15 +17,13 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { getDb } from "@/lib/db";
+import { getDb, convergeLegacyChatsMemoryIntoCanonical } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
 import { buildMemoryContext } from "@/lib/memory/memory-injector";
 import {
   getOrCreateChatMemory,
-  updateChatMemory,
 } from "@/lib/memory/memory-db";
 import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
-import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import { updateLorebookForChat } from "@/lib/memory/memory-manager";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
@@ -58,8 +53,7 @@ function seedChat(currentSummary: string): void {
 }
 
 function seedCanonical(recentSummary: string): void {
-  const db = getDb();
-  db.prepare(
+  getDb().prepare(
     `INSERT INTO chat_memories
       (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
      VALUES (?,?,?,?,?,?,?,0)`
@@ -106,23 +100,15 @@ describe("chats.current_summary owner audit — policy constants", () => {
   });
 });
 
-describe("chats.current_summary owner audit — deterministic behavior", () => {
-  it("CS-A1 canonical row wins over current_summary on read", () => {
-    seedChat("OLD");
-    seedCanonical("NEW");
-    const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(row.recent_summary, "NEW");
-  });
-
-  it("CS-A2 missing canonical + current_summary nonempty → lazy bootstrap", () => {
+describe("chats.current_summary owner audit — post-C1 behavior", () => {
+  it("CS-A2 global convergence restores current_summary-only orphan", () => {
     seedChat("LAZY SOURCE");
-    assert.equal(readRecentSummary(), "");
-    const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(row.recent_summary, "LAZY SOURCE");
+    convergeLegacyChatsMemoryIntoCanonical(getDb());
     assert.equal(readRecentSummary(), "LAZY SOURCE");
+    assert.equal(readCurrentSummary(), "");
   });
 
-  it("CS-A3 reset clears current_summary and prevents stale resurrection after canonical delete", () => {
+  it("CS-A3 reset + bootstrap does not resurrect stale current_summary", () => {
     seedChat("OLD");
     seedCanonical("NEW");
     executeAtomicMemoryResetCore(getDb(), {
@@ -131,23 +117,13 @@ describe("chats.current_summary owner audit — deterministic behavior", () => {
       characterId: CHARACTER_ID,
       tier: TIER,
     });
-    assert.equal(readRecentSummary(), "");
-    assert.equal(readCurrentSummary(), "");
-
     getDb().prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
     assert.equal(row.recent_summary, "");
     assert.notEqual(row.recent_summary, "OLD");
   });
 
-  it("CS-A4 syncChatLongTermMemory mirrors canonical into current_summary", () => {
-    seedChat("stale mirror");
-    seedCanonical("canonical body");
-    syncChatLongTermMemory(CHAT_ID, "canonical body");
-    assert.equal(readCurrentSummary(), "canonical body");
-  });
-
-  it("CS-A6 fork insert starts with empty current_summary", () => {
+  it("CS-A6 fork insert uses physical DEFAULT empty current_summary", () => {
     cleanup();
     const forkId = insertForkChatRow(getDb(), {
       userId: USER_ID,
@@ -156,7 +132,6 @@ describe("chats.current_summary owner audit — deterministic behavior", () => {
       memoryMeta: "{}",
       memoryPending: "[]",
       memoryArchivedTurns: 0,
-      currentSummary: "",
       geminiModel: "",
       userNote: "",
       selectedPersonaId: null,
@@ -187,42 +162,13 @@ describe("chats.current_summary owner audit — deterministic behavior", () => {
     assert.ok(!injection.text.includes("STALE MIRROR ONLY"));
   });
 
-  it("CS-A8 canonical functional when current_summary empty", () => {
-    seedChat("");
-    seedCanonical("CANONICAL ONLY");
-    const memory = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(memory.recent_summary, "CANONICAL ONLY");
-    const injection = buildMemoryContext({
-      memory,
-      userMessage: "test",
-      memoryCapacity: MEMORY_CAPACITY,
-    });
-    assert.ok(injection.text.includes("CANONICAL ONLY"));
-  });
-
-  it("CS-A11 stale current_summary can resurrect if canonical row deleted without reset", () => {
+  it("CS-A11 stale current_summary cannot resurrect after canonical row deleted (C1)", () => {
     seedChat("OLD RESURRECT SOURCE");
     seedCanonical("NEW");
     getDb().prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-    assert.equal(row.recent_summary, "OLD RESURRECT SOURCE");
-  });
-});
-
-describe("chats.current_summary owner audit — mirror parity gaps", () => {
-  it("CS-A4b manual updateLorebookForChat writes canonical but not current_summary mirror", async () => {
-    seedChat("prior mirror");
-    seedCanonical("prior canonical");
-    await updateLorebookForChat(
-      CHAT_ID,
-      USER_ID,
-      CHARACTER_ID,
-      "manual edit body",
-      TIER,
-      MEMORY_CAPACITY
-    );
-    assert.equal(readRecentSummary(), "manual edit body");
-    assert.equal(readCurrentSummary(), "prior mirror");
+    assert.equal(row.recent_summary, "");
+    assert.notEqual(row.recent_summary, "OLD RESURRECT SOURCE");
   });
 });
 
@@ -240,54 +186,17 @@ describe("chats.current_summary owner audit — production reference inventory",
     assert.deepEqual(callers, []);
   });
 
-  it("INV-2 memory-injector reads recent_summary only — not current_summary", () => {
-    const src = readFileSync(
-      join(process.cwd(), "src/lib/memory/memory-injector.ts"),
-      "utf8"
-    );
-    assert.ok(!src.includes("current_summary"));
-  });
-
-  it("INV-3 memory-manager prompt path uses getOrCreateChatMemory / recent_summary", () => {
-    const src = readFileSync(
-      join(process.cwd(), "src/lib/memory/memory-manager.ts"),
-      "utf8"
-    );
-    assert.ok(src.includes("getOrCreateChatMemory"));
-    assert.ok(src.includes("recent_summary"));
-    assert.ok(!/SELECT[\s\S]*current_summary[\s\S]*FROM chats/.test(src));
-  });
-
-  it("INV-4 production mirror writers are confined to known locations", () => {
+  it("INV-4 runtime mirror writers removed; historical convergence clear only", () => {
     const root = join(process.cwd(), "src");
-    const files = listProductionTsFiles(root);
-    const mirrorWriterHits: string[] = [];
-    for (const file of files) {
+    const hits: string[] = [];
+    for (const file of listProductionTsFiles(root)) {
       const rel = file.replace(process.cwd() + "/", "");
       const src = readFileSync(file, "utf8");
       if (/UPDATE\s+chats\s+SET[\s\S]*?current_summary\s*=/.test(src)) {
-        mirrorWriterHits.push(rel);
+        if (rel === "src/lib/memory/chats-memory-convergence.ts") continue;
+        hits.push(rel);
       }
     }
-    mirrorWriterHits.sort();
-    assert.deepEqual(mirrorWriterHits, [
-      "src/lib/memory/chats-memory-convergence.ts",
-      "src/lib/memory/memory-db.ts",
-      "src/lib/memory/memory-fork-snapshot.ts",
-      "src/lib/memory/memory-rolling-summary.ts",
-      "src/lib/memory/memory-source-boundary.ts",
-      "src/lib/memory/memory-summary-migration.ts",
-      "src/lib/memory/memory-summary-persist.ts",
-      "src/lib/memory/memory-variant-switch-reconcile.ts",
-    ]);
-  });
-
-  it("INV-5 /api/chat/memory GET does not SELECT current_summary", () => {
-    const src = readFileSync(
-      join(process.cwd(), "src/app/api/chat/memory/route.ts"),
-      "utf8"
-    );
-    assert.ok(!/SELECT[\s\S]*current_summary/.test(src));
-    assert.ok(src.includes("getMemorySnapshot"));
+    assert.deepEqual(hits, []);
   });
 });

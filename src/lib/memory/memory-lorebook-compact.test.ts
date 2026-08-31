@@ -29,7 +29,6 @@ import { greenfieldBatchEnd } from "./memory-test-batch";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import {
   __setCompactCurrentMemoryTestOverride,
-  syncChatLongTermMemory,
 } from "./memory-rolling-summary";
 import {
   listMemoryRecordsForChat,
@@ -129,7 +128,6 @@ async function persistCompactIfNeeded(): Promise<{ compressed: boolean; text: st
       recent_summary: result.text,
       membership_tier: "free",
     });
-    syncChatLongTermMemory(CHAT_ID, result.text);
   }
   return result;
 }
@@ -167,7 +165,7 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
     assert.equal(stub.calls, 0);
   });
 
-  it("above threshold runs compact exactly once and persists to recent + chats.current_summary", async () => {
+  it("above threshold runs compact exactly once and persists to recent_summary only (C1)", async () => {
     const rebuilt = seedOverBudgetSummaries();
     updateChatMemory(CHAT_ID, USER_ID, CHAR_ID, {
       recent_summary: rebuilt,
@@ -176,7 +174,6 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
       membership_tier: "free",
     });
     const db = getDb();
-    db.prepare("UPDATE chats SET current_summary=? WHERE id=?").run(rebuilt, CHAT_ID);
 
     const beforeCount = (
       db
@@ -193,12 +190,8 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
     const mem = db
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    const chat = db
-      .prepare("SELECT current_summary FROM chats WHERE id=?")
-      .get(CHAT_ID) as { current_summary: string };
 
     assert.equal(mem.recent_summary, stub.resultText.trim());
-    assert.equal(chat.current_summary, stub.resultText.trim());
     assert.equal(mem.summarized_turn_count, beforeCount);
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, beforeRows);
   });
@@ -213,7 +206,7 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
     assert.equal(stub.lastInput.includes(OOC_ONLY_SUMMARY_MARKER), false);
   });
 
-  it("compact failure does not overwrite existing current_summary", async () => {
+  it("compact failure does not overwrite existing recent_summary", async () => {
     const rebuilt = seedOverBudgetSummaries();
     const prior = `[prior] ${rebuilt.slice(0, 200)}`;
     updateChatMemory(CHAT_ID, USER_ID, CHAR_ID, {
@@ -222,7 +215,6 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
       membership_tier: "free",
     });
     const db = getDb();
-    db.prepare("UPDATE chats SET current_summary=? WHERE id=?").run(prior, CHAT_ID);
 
     stub.mode = "throw";
     const r = await persistCompactIfNeeded();
@@ -232,11 +224,7 @@ describe("10k lorebook compact path (mocked, no live API)", () => {
     const mem = db
       .prepare("SELECT recent_summary, summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { recent_summary: string; summarized_turn_count: number };
-    const chat = db
-      .prepare("SELECT current_summary FROM chats WHERE id=?")
-      .get(CHAT_ID) as { current_summary: string };
     assert.equal(mem.recent_summary, prior);
-    assert.equal(chat.current_summary, prior);
     assert.equal(mem.summarized_turn_count, 60);
   });
 

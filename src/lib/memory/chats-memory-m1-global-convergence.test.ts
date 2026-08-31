@@ -26,7 +26,6 @@ import {
 } from "@/lib/memory/chats-memory-column-compat";
 import {
   convergeLegacyChatsMemoryIntoCanonical as convergeDirect,
-  migrateLegacyCurrentSummaryIntoCanonical,
 } from "@/lib/memory/chats-memory-convergence";
 import {
   getOrCreateChatMemory,
@@ -136,7 +135,7 @@ describe("chats.memory M1 global convergence precedence", () => {
     assert.equal(countMemoryNonempty(db), 0);
   });
 
-  it("M1-2 memory-only orphan migrates to canonical and promotes current_summary", () => {
+  it("M1-2 memory-only orphan migrates to canonical; current_summary zeroed (C1)", () => {
     const db = getDb();
     ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
@@ -151,7 +150,7 @@ describe("chats.memory M1 global convergence precedence", () => {
       .prepare(`SELECT current_summary FROM chats WHERE id=?`)
       .get(CHAT_ID) as { current_summary: string };
     assert.equal(canonical.recent_summary, "ONLY COPY");
-    assert.equal(chat.current_summary, "ONLY COPY");
+    assert.equal(chat.current_summary, "");
     if (hasChatsMemoryColumn(db)) {
       const memory = db.prepare(`SELECT memory FROM chats WHERE id=?`).get(CHAT_ID) as {
         memory: string;
@@ -206,22 +205,15 @@ describe("chats.memory M1 global convergence precedence", () => {
   });
 });
 
-describe("chats.memory M1 lazy bootstrap retirement", () => {
-  it("lazy migrate reads current_summary only — memory never read", () => {
+describe("chats.memory M1 lazy bootstrap retirement (C1)", () => {
+  it("getOrCreate no longer lazy-migrates current_summary", () => {
     const db = getDb();
     ensureMemoryColumnForHistoricalFixture(db);
     db.prepare(`DELETE FROM chat_memories WHERE chat_id=?`).run(CHAT_ID);
     seedLegacy(db, { current_summary: "LAZY", memory: "IGNORED" });
 
-    migrateLegacyCurrentSummaryIntoCanonical(db, CHAT_ID, USER_ID, CHARACTER_ID, TIER);
-
-    const row = db
-      .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
-      .get(CHAT_ID) as { recent_summary: string };
-    assert.equal(row.recent_summary, "LAZY");
-    if (hasChatsMemoryColumn(db)) {
-      assert.equal(db.prepare(`SELECT memory FROM chats WHERE id=?`).get(CHAT_ID)?.memory, "IGNORED");
-    }
+    const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, TIER);
+    assert.equal(row.recent_summary, "");
   });
 
   it("memory-only orphan is not lazy-migrated on getOrCreate without global convergence", () => {
@@ -273,12 +265,11 @@ describe("chats.memory M1 writer retirement", () => {
       "utf8"
     );
 
-    assert.ok(!variantSrc.includes("SET current_summary=?, memory=?"));
-    assert.ok(variantSrc.includes("SET current_summary=? WHERE id=?"));
-    assert.ok(!forkSnapshotSrc.includes("SET memory=?, current_summary=?"));
-    assert.ok(forkSnapshotSrc.includes("SET current_summary=?, memory_archived_turns=?"));
-    assert.ok(!dbSrc.includes("SELECT current_summary, memory FROM chats"));
-    assert.ok(!dbSrc.match(/UPDATE chats SET current_summary='',\s*memory=''/));
+    const writesCurrentSummary = /\b(?:UPDATE\s+chats\s+SET\s+[^;]*current_summary|INSERT\s+INTO\s+chats\s*\([^)]*current_summary)/i;
+    assert.ok(!writesCurrentSummary.test(variantSrc));
+    assert.ok(!writesCurrentSummary.test(forkSnapshotSrc));
+    assert.ok(!writesCurrentSummary.test(forkCreateSrc));
+    assert.ok(!writesCurrentSummary.test(dbSrc));
     assert.ok(!/\bmemory,\s*memory_pending\b/.test(forkCreateSrc));
     assert.ok(forkRouteSrc.includes("insertForkChatRow"));
   });

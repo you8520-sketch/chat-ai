@@ -110,7 +110,6 @@ export async function POST(req: Request) {
       memoryPending: "[]",
       memoryMeta: forkMemoryMeta,
       memoryArchivedTurns: 0,
-      currentSummary: "",
       geminiModel: "",
       userNote: String(source.user_note ?? ""),
       selectedPersonaId:

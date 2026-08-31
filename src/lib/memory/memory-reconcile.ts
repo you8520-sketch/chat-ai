@@ -13,7 +13,6 @@ import { countMemoryEligibleCompletedTurns } from "./memory-turn-loader";
 import {
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
-  syncChatLongTermMemory,
 } from "./memory-rolling-summary";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
@@ -97,7 +96,6 @@ export function reconcileMemoryAfterRecordDelete(opts: {
     recent_summary: lorebook,
     membership_tier: opts.tier,
   });
-  syncChatLongTermMemory(opts.chatId, lorebook);
 
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
@@ -174,7 +172,6 @@ export function reconcileMemoryAfterTurnDelete(opts: {
     recent_summary: lorebook,
     membership_tier: opts.tier,
   });
-  syncChatLongTermMemory(opts.chatId, lorebook);
 
   // 6) Existing seal trigger
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {

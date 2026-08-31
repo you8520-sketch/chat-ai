@@ -31,7 +31,6 @@ import {
 } from "@/lib/memory/chats-memory-column-compat";
 import { convergeLegacyChatsMemoryIntoCanonical } from "@/lib/memory/chats-memory-convergence";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
-import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import { executeAtomicMemoryResetCore } from "@/lib/memory/memory-source-boundary";
 import { reconcileMemoryAfterVariantSwitch } from "@/lib/memory/memory-variant-switch-reconcile";
 import {
@@ -57,7 +56,6 @@ const FORK_INSERT_PARAMS: ForkChatInsertParams = {
   memoryPending: "[]",
   memoryMeta: "{}",
   memoryArchivedTurns: 0,
-  currentSummary: "",
   geminiModel: "",
   userNote: "",
   selectedPersonaId: null,
@@ -155,7 +153,6 @@ function forkInsertArgsFromParams(params: ForkChatInsertParams): unknown[] {
     params.memoryPending,
     params.memoryMeta,
     params.memoryArchivedTurns,
-    params.currentSummary,
     params.geminiModel,
     params.userNote,
     params.selectedPersonaId,
@@ -217,10 +214,11 @@ describe("chats.memory M1 drop-compat FAIL-BEFORE", () => {
 });
 
 describe("chats.memory M1 drop-compat fork INSERT correction", () => {
-  it("production fork INSERT omits memory column (17 placeholders)", () => {
+  it("production fork INSERT omits memory and current_summary columns (16 placeholders)", () => {
     const placeholderCount = (FORK_CHAT_INSERT_SQL.match(/\?/g) ?? []).length;
-    assert.equal(placeholderCount, 17);
+    assert.equal(placeholderCount, 16);
     assert.ok(!/\bmemory,\s*memory_pending\b/.test(FORK_CHAT_INSERT_SQL));
+    assert.ok(!/\bcurrent_summary,\s*gemini_model\b/.test(FORK_CHAT_INSERT_SQL));
   });
 
   it("MEMORY_COLUMN_ABSENT_CREATION: insertForkChatRow PASS", () => {
@@ -263,26 +261,28 @@ describe("chats.memory M2 → M1 rollback matrix (synthetic)", () => {
       .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
       .get(CHAT_ID) as { recent_summary: string };
     assert.equal(row.recent_summary, "ORPHAN MIRROR");
+    const chat = db
+      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+      .get(CHAT_ID) as { current_summary: string };
+    assert.equal(chat.current_summary, "");
   });
 
-  it("C5 FORK_MEMORY_INIT mirror SQL: memory absent → PASS", () => {
+  it("C5 FORK_MEMORY_INIT: memory_archived_turns only (no current_summary mirror)", () => {
     const db = makeM2LikeChatsSchema();
     const forkChatId = insertForkChatRow(db, FORK_INSERT_PARAMS);
     db.prepare(
       `INSERT INTO chat_memories (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars)
        VALUES (?,?,?,?,?,?,?)`
-    ).run(forkChatId, USER_ID, CHARACTER_ID, "", "", "free", 0);
+    ).run(forkChatId, USER_ID, CHARACTER_ID, "fork summary", "", "free", 12);
     assert.doesNotThrow(() =>
       db
-        .prepare(
-          `UPDATE chats SET current_summary=?, memory_archived_turns=? WHERE id=? AND user_id=?`
-        )
-        .run("fork summary", 3, forkChatId, USER_ID)
+        .prepare(`UPDATE chats SET memory_archived_turns=? WHERE id=? AND user_id=?`)
+        .run(3, forkChatId, USER_ID)
     );
     const row = db
       .prepare(`SELECT current_summary, memory_archived_turns FROM chats WHERE id=?`)
       .get(forkChatId) as { current_summary: string; memory_archived_turns: number };
-    assert.equal(row.current_summary, "fork summary");
+    assert.equal(row.current_summary, "");
     assert.equal(row.memory_archived_turns, 3);
   });
 
@@ -303,15 +303,15 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
     uninstallIsolatedTestDatabase();
   });
 
-  it("C2 GET_OR_CREATE: memory absent → PASS", () => {
+  it("C2 GET_OR_CREATE: no lazy current_summary fallback (C1)", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
     db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("LAZY MIRROR", CHAT_ID);
     const row = getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, "free");
-    assert.equal(row.recent_summary, "LAZY MIRROR");
+    assert.equal(row.recent_summary, "");
   });
 
-  it("C3 RESET: memory absent → PASS", () => {
+  it("C3 RESET: canonical cleared without current_summary guard dependency", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
     db.prepare(`UPDATE chats SET current_summary=? WHERE id=?`).run("before reset", CHAT_ID);
@@ -328,13 +328,13 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
         tier: "free",
       })
     );
-    const chat = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(CHAT_ID) as { current_summary: string };
-    assert.equal(chat.current_summary, "");
+    const mem = db
+      .prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=?`)
+      .get(CHAT_ID) as { recent_summary: string };
+    assert.equal(mem.recent_summary, "");
   });
 
-  it("C4 VARIANT_SWITCH: memory absent → current_summary mirror updated", () => {
+  it("C4 VARIANT_SWITCH: canonical-only reconcile (no current_summary mirror)", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
     getOrCreateChatMemory(CHAT_ID, USER_ID, CHARACTER_ID, "free");
@@ -367,14 +367,18 @@ describe("chats.memory M2 → M1 rollback matrix (live DB column dropped)", () =
     assert.ok(row);
   });
 
-  it("C8 ROLLING_SUMMARY mirror: memory absent → current_summary updated", () => {
+  it("C8 mirror retired: rolling summary path does not write current_summary", () => {
     const db = getDb();
     seedLiveUserCharacterChat(db);
-    syncChatLongTermMemory(CHAT_ID, "rolling mirror text");
+    db.prepare(
+      `INSERT OR REPLACE INTO chat_memories
+        (chat_id, user_id, character_id, recent_summary, archive_summary, membership_tier, used_chars, summarized_turn_count)
+       VALUES (?,?,?,?,?,?,?,0)`
+    ).run(CHAT_ID, USER_ID, CHARACTER_ID, "rolling canonical", "", "free", 17);
     const row = db
       .prepare(`SELECT current_summary FROM chats WHERE id=?`)
       .get(CHAT_ID) as { current_summary: string };
-    assert.equal(row.current_summary, "rolling mirror text");
+    assert.equal(row.current_summary, "");
   });
 });
 

@@ -19,8 +19,8 @@ import {
 import type { PersistPendingBranchControlOp } from "./memory-branch-control";
 import {
   highestContiguousCompletedTurn,
-  type SummaryReasonCode,
   highestContiguousOccupiedTurn,
+  type SummaryReasonCode,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
 import {
@@ -37,9 +37,6 @@ import {
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 
-function syncChatLongTermMemory(chatId: number, summary: string): void {
-  getDb().prepare("UPDATE chats SET current_summary=? WHERE id=?").run(summary.trim(), chatId);
-}
 export type PersistSummaryBatchResult =
   | { ok: true; reason: "SUMMARY_SUCCESS"; record: MemoryRecordView; summarizedTurnCount: number }
   | { ok: false; reason: SummaryReasonCode; error?: string };
@@ -294,8 +291,6 @@ export function persistValidatedSummaryBatch(opts: {
          WHERE chat_id=?`
       ).run(recent, used, contiguous, opts.chatId);
 
-      syncChatLongTermMemory(opts.chatId, recent);
-
       const row = after.find((r) => r.turnStart === opts.turnStart);
       if (!row) {
         throw Object.assign(new Error("row missing after upsert"), {
@@ -382,7 +377,6 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
         updated_at=datetime('now')
        WHERE chat_id=?`
     ).run(recent, used, contiguous, opts.chatId);
-    syncChatLongTermMemory(opts.chatId, recent);
     return true;
   }).immediate();
 
