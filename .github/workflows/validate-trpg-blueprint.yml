@@ -37,6 +37,8 @@ on:
       - "src/lib/derivedCache/wakeupScheduler.ts"
       - "src/lib/derivedCache/derivedCache.test.ts"
       - "src/lib/derivedCache/wakeupScheduler.test.ts"
+      - "src/lib/customServerBootImportBoundary.js"
+      - "src/lib/customServerBootImportBoundary.test.ts"
       - "src/app/api/worlds/**"
       - "server.js"
   workflow_dispatch:
@@ -74,6 +76,8 @@ jobs:
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/derivedCache.test.ts
       - name: Derived-cache wakeup
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/derivedCache/wakeupScheduler.test.ts
+      - name: Custom-server boot import boundary (production parity)
+        run: node --import tsx --test --test-concurrency=1 src/lib/customServerBootImportBoundary.test.ts
       - name: Blueprint transport policy
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/scenarioDraftCall.transport.test.ts
       - name: Background provider failover

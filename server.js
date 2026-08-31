@@ -18,6 +18,11 @@ const bootStart = Date.now();
 const { assertRailwayProductionNodeEnv } = require("./src/lib/railwayProductionBootGuard.js");
 assertRailwayProductionNodeEnv();
 
+const { installCustomServerBootImportBoundary } = require(
+  "./src/lib/customServerBootImportBoundary.js"
+);
+installCustomServerBootImportBoundary();
+
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
