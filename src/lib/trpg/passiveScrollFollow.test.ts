@@ -62,15 +62,14 @@ describe("POST-705 passive scroll follow ownership", () => {
     assert.equal(shouldDetachLiveFollowOnTouchDelta(towardOlderDelta), true);
   });
 
-  it("explicit rejoin restores follow after manual detach", () => {
-    const rejoin = decidePassiveScrollFollowUpdate({
+  it("explicit rejoin is only via scrollToLatest — passive never rejoins", () => {
+    const passive = decidePassiveScrollFollowUpdate({
       manualDetached: true,
       following: false,
       nearFollowOwner: true,
       hasLeftFollowZoneSinceDetach: true,
     });
-    assert.equal(rejoin.rejoin, true);
-    assert.equal(rejoin.following, true);
-    assert.equal(rejoin.unseenLatest, false);
+    assert.equal(passive.rejoin, false);
+    assert.equal(passive.following, false);
   });
 });

@@ -7,7 +7,7 @@ import {
   countRawSmoothScrollBypass,
   createTrpgProgrammaticScrollHandle,
   decideLiveFollowOnGrowth,
-  decideManualScrollRejoin,
+  decidePassiveScrollFollowUpdate,
   isTrpgScrollIntentKey,
   resolveTrpgLiveFollowOwner,
   shouldDetachLiveFollowOnUserIntent,
@@ -49,21 +49,21 @@ describe("TRPG declaration scroll ownership", () => {
   });
 
   it("3: tiny manual scroll while still near → stays detached (hysteresis latch)", () => {
-    assert.deepEqual(
-      decideManualScrollRejoin({
-        manualDetached: true,
-        hasLeftFollowZoneSinceDetach: false,
-        nearFollowOwner: true,
-      }),
-      { rejoin: false }
-    );
+    const passive = decidePassiveScrollFollowUpdate({
+      manualDetached: true,
+      following: false,
+      nearFollowOwner: true,
+      hasLeftFollowZoneSinceDetach: false,
+    });
+    assert.equal(passive.rejoin, false);
+    assert.equal(passive.following, false);
 
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /hasLeftFollowZoneSinceDetachRef/);
     assert.match(room, /decidePassiveScrollFollowUpdate/);
   });
 
-  it("4: leave follow zone then return → rejoin", () => {
+  it("4: leave follow zone then return → passive stays detached (no auto-rejoin)", () => {
     assert.deepEqual(
       updateManualDetachFollowZone({
         manualDetached: true,
@@ -72,21 +72,24 @@ describe("TRPG declaration scroll ownership", () => {
       }),
       { hasLeftFollowZoneSinceDetach: true }
     );
-    assert.deepEqual(
-      decideManualScrollRejoin({
-        manualDetached: true,
-        hasLeftFollowZoneSinceDetach: true,
-        nearFollowOwner: true,
-      }),
-      { rejoin: true }
-    );
+    const passive = decidePassiveScrollFollowUpdate({
+      manualDetached: true,
+      following: false,
+      nearFollowOwner: true,
+      hasLeftFollowZoneSinceDetach: true,
+    });
+    assert.equal(passive.rejoin, false);
+    assert.equal(passive.following, false);
   });
 
   it("5: explicit 최신으로 → immediate rejoin regardless of latch", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     assert.match(room, /scrollToLatest\("smooth"\)/);
+    const block = room.match(/const scrollToLatest = useCallback\([\s\S]*?\n  \);/);
+    assert.ok(block);
+    const body = block[0]!;
+    assert.ok(body.indexOf("manualScrollDetachedRef.current = false") < body.indexOf("scrollToFollowOwner(liveFollowOwner"));
     assert.match(room, /hasLeftFollowZoneSinceDetachRef\.current = false/);
-    assert.match(room, /manualScrollDetachedRef\.current = false/);
     assert.match(room, /followLatestRef\.current = true/);
     assert.match(room, /최신으로/);
   });

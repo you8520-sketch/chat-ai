@@ -89,16 +89,16 @@ function campaignEntryReset(state: ScrollFollowModel): ScrollFollowModel {
   };
 }
 
-/** Test-local model of scrollToLatest() explicit rejoin. */
+/** Test-local model of scrollToLatest() explicit rejoin — production order. */
 function explicitRejoin(state: ScrollFollowModel): ScrollFollowModel {
-  return {
+  const restored = {
     ...state,
     manualDetached: false,
     hasLeftFollowZoneSinceDetach: false,
     followLatest: true,
     unseenLatest: false,
-    programmaticScrollCount: state.programmaticScrollCount + 1,
   };
+  return passiveFollowScrollAttempt(restored);
 }
 
 /** Test-local model of hysteresis rejoin via decidePassiveScrollFollowUpdate. */
@@ -171,19 +171,19 @@ describe("TRPG scroll-follow lifecycle regression", () => {
     assert.equal(state.programmaticScrollCount, 0);
   });
 
-  it("explicit latest rejoin and hysteresis rejoin preserved", () => {
-    let explicit = explicitRejoin(detach(createModel()));
-    assert.equal(explicit.manualDetached, false);
-    assert.equal(explicit.followLatest, true);
-    assert.equal(explicit.programmaticScrollCount, 1);
-
+  it("passive hysteresis no longer auto-rejoins — explicit scrollToLatest only", () => {
     let hysteresis = hysteresisRejoin({
       ...detach(createModel()),
       hasLeftFollowZoneSinceDetach: true,
     });
-    assert.equal(hysteresis.manualDetached, false);
-    assert.equal(hysteresis.followLatest, true);
-    assert.equal(hysteresis.programmaticScrollCount, 1);
+    assert.equal(hysteresis.manualDetached, true);
+    assert.equal(hysteresis.followLatest, false);
+    assert.equal(hysteresis.programmaticScrollCount, 0);
+
+    let explicit = explicitRejoin(detach(createModel()));
+    assert.equal(explicit.manualDetached, false);
+    assert.equal(explicit.followLatest, true);
+    assert.equal(explicit.programmaticScrollCount, 1);
   });
 
   it("USER_MANUAL_SCROLL_DETACH beats passive presentation state", () => {

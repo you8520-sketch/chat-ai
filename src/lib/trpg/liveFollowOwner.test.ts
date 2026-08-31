@@ -160,7 +160,7 @@ describe("TRPG live follow owner", () => {
     assert.equal(growth.unseenLatest, true);
 
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /if \(!followLatestRef\.current\) return/);
+    assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);
     assert.match(room, /scrollToFollowOwner\(liveFollowOwner/);
   });
 

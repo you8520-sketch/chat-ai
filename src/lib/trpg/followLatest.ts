@@ -185,14 +185,11 @@ export function shouldDetachLiveFollowOnUserIntent(): boolean {
   return true;
 }
 
-export function decideManualScrollRejoin(opts: {
-  manualDetached: boolean;
-  hasLeftFollowZoneSinceDetach: boolean;
-  nearFollowOwner: boolean;
-}): { rejoin: boolean } {
-  if (!opts.manualDetached) return { rejoin: false };
-  if (!opts.hasLeftFollowZoneSinceDetach) return { rejoin: false };
-  return { rejoin: opts.nearFollowOwner };
+export function freezeViewportScrollPosition(): number {
+  if (typeof window === "undefined") return 0;
+  const top = window.scrollY;
+  window.scrollTo({ top, left: 0, behavior: "instant" });
+  return top;
 }
 
 export function updateManualDetachFollowZone(opts: {
@@ -209,7 +206,7 @@ export function updateManualDetachFollowZone(opts: {
   return { hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach };
 }
 
-/** Passive layout scroll must not detach follow — only explicit user intent may. */
+/** Passive layout scroll must not detach follow — only explicit user intent may rejoin. */
 export function decidePassiveScrollFollowUpdate(opts: {
   manualDetached: boolean;
   following: boolean;
@@ -234,16 +231,11 @@ export function decidePassiveScrollFollowUpdate(opts: {
     nearFollowOwner: opts.nearFollowOwner,
     hasLeftFollowZoneSinceDetach: opts.hasLeftFollowZoneSinceDetach,
   });
-  const rejoin = decideManualScrollRejoin({
-    manualDetached: true,
-    hasLeftFollowZoneSinceDetach: zone.hasLeftFollowZoneSinceDetach,
-    nearFollowOwner: opts.nearFollowOwner,
-  });
   return {
-    following: rejoin.rejoin ? true : opts.following,
-    unseenLatest: rejoin.rejoin ? false : !opts.nearFollowOwner,
+    following: false,
+    unseenLatest: !opts.nearFollowOwner,
     hasLeftFollowZoneSinceDetach: zone.hasLeftFollowZoneSinceDetach,
-    rejoin: rejoin.rejoin,
+    rejoin: false,
   };
 }
 
