@@ -56,6 +56,21 @@ function seedProductionRemoteCore(db: Database.Database): void {
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
     INSERT INTO characters (id, total_turns) VALUES (1, 0);
+    CREATE TABLE chat_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      pinned_facts TEXT NOT NULL DEFAULT '',
+      recent_summary TEXT NOT NULL DEFAULT '',
+      archive_summary TEXT NOT NULL DEFAULT '',
+      membership_tier TEXT NOT NULL DEFAULT 'free',
+      used_chars INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -239,6 +254,7 @@ describe("remote schema memory reachability", () => {
     const db = new Database(":memory:");
     seedProductionRemoteCore(db);
     ensureChatBillingSettlementSchema(db);
+    assert.equal(hasPinnedFactsPhase1Clean(db), true);
     assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
     assert.equal(canAdoptExistingRemoteSchema(db), true);
 
@@ -340,6 +356,122 @@ describe("remote schema memory reachability", () => {
     });
 
     assert.equal(migrations, 0);
+    db.close();
+  });
+});
+
+describe("fail-closed memory base", () => {
+  it("M1 chat_memories absent is not Phase1 clean or current", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    db.exec("DROP TABLE chat_memories");
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasMemoryBufferRetired(db), true);
+    assert.equal(hasCharacterMemoriesRetired(db), true);
+    assert.equal(hasPinnedFactsPhase1Clean(db), false);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    db.close();
+  });
+
+  it("M2 chat_memories without pinned_facts column is not Phase1 clean or current", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    db.exec("DROP TABLE chat_memories");
+    db.exec(`
+      CREATE TABLE chat_memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id INTEGER NOT NULL UNIQUE,
+        user_id INTEGER NOT NULL,
+        character_id INTEGER NOT NULL,
+        recent_summary TEXT NOT NULL DEFAULT '',
+        archive_summary TEXT NOT NULL DEFAULT '',
+        membership_tier TEXT NOT NULL DEFAULT 'free',
+        used_chars INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasPinnedFactsPhase1Clean(db), false);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+    db.close();
+  });
+
+  it("M3 physical pinned_facts carrier present and all empty is Phase1 clean", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasPinnedFactsPhase1Clean(db), true);
+    db.close();
+  });
+});
+
+describe("one current remote schema owner", () => {
+  it("C1 v3 marker + missing required production table is not current and runs migrate", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    runMemoryRetirementMigrations(db);
+    seedV3CurrentMarker(db);
+    db.exec("DROP TABLE web_push_outbox");
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      db.exec("CREATE TABLE web_push_outbox (id INTEGER)");
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    db.close();
+  });
+
+  it("C2 v3 marker + missing required production column is not current and runs migrate", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    runMemoryRetirementMigrations(db);
+    seedV3CurrentMarker(db);
+    db.exec(`
+      CREATE TABLE messages_new (id INTEGER);
+      INSERT INTO messages_new (id) VALUES (1);
+      DROP TABLE messages;
+      ALTER TABLE messages_new RENAME TO messages;
+    `);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      db.exec("ALTER TABLE messages ADD COLUMN request_id TEXT");
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    db.close();
+  });
+
+  it("C3 full structure without v3 marker adopts without migrate", () => {
+    const db = new Database(":memory:");
+    seedProductionRemoteCore(db);
+    ensureChatBillingSettlementSchema(db);
+    runMemoryRetirementMigrations(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    assert.equal(canAdoptExistingRemoteSchema(db), true);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+    });
+
+    assert.equal(migrations, 0);
+    assert.equal(
+      (
+        db
+          .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+          .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined
+      )?.version,
+      REMOTE_SCHEMA_VERSION
+    );
     db.close();
   });
 });

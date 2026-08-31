@@ -48,53 +48,9 @@ function markCurrent(db: SchemaDatabase): void {
   );
 }
 
-function hasColumn(db: SchemaDatabase, table: string, column: string): boolean {
-  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  return rows.some((row) => row.name === column);
-}
-
 /** Adopt databases that already satisfy the full current production schema invariant. */
 export function canAdoptExistingRemoteSchema(db: SchemaDatabase): boolean {
-  try {
-    if (!hasCurrentRemoteSchemaInvariant(db)) return false;
-
-    const tables = db
-      .prepare(
-        `SELECT COUNT(*) AS c FROM sqlite_master
-         WHERE type='table' AND name IN (
-           'web_push_outbox',
-           'create_migration_event_applications',
-           'beta_free_point_applications',
-           'portone_checkouts'
-         )`
-      )
-      .get() as { c: number };
-    if (Number(tables.c) !== 4) return false;
-
-    const flags = db
-      .prepare(
-        `SELECT COUNT(*) AS c FROM _schema_flags
-         WHERE key IN (
-           'board_posts_dedupe_v1',
-           'target_response_chars_unified_3200',
-           'memory_capacity_fixed_10000',
-           'character_adult_status_metadata_v1'
-         )`
-      )
-      .get() as { c: number };
-    if (Number(flags.c) !== 4) return false;
-
-    const characters = db.prepare("SELECT COUNT(*) AS c FROM characters").get() as { c: number };
-    return (
-      Number(characters.c) > 0 &&
-      hasColumn(db, "messages", "request_id") &&
-      hasColumn(db, "users", "comment_report_restricted_until") &&
-      hasColumn(db, "profile_comments", "delete_reason") &&
-      hasColumn(db, "characters", "total_turns")
-    );
-  } catch {
-    return false;
-  }
+  return hasCurrentRemoteSchemaInvariant(db);
 }
 
 function tryAcquireLock(db: SchemaDatabase, owner: string): boolean {
