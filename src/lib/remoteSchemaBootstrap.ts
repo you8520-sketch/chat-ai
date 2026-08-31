@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import { hasChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
+import {
+  hasCurrentRemoteSchemaInvariant,
+} from "@/lib/remoteSchemaCurrentInvariant";
 
-export const REMOTE_SCHEMA_VERSION = "turso-v2-chat-billing-settlement";
-export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v1";
+export const REMOTE_SCHEMA_VERSION = "turso-v3-current-schema";
+export const REMOTE_SCHEMA_VERSION_PREVIOUS = "turso-v2-chat-billing-settlement";
 
 const LOCK_STALE_AFTER_MS = 5 * 60_000;
 const WAIT_ATTEMPTS = 360;
@@ -29,7 +31,7 @@ function ensureControlTables(db: SchemaDatabase): void {
   `);
 }
 
-/** v2 "current" requires the version marker AND the canonical settlement schema invariant. */
+/** Current remote schema = version marker AND full production schema invariant. */
 function isCurrent(db: SchemaDatabase): boolean {
   const versionMarked = Boolean(
     db.prepare("SELECT 1 AS ok FROM _remote_schema_state WHERE version=?").get(
@@ -37,7 +39,7 @@ function isCurrent(db: SchemaDatabase): boolean {
     )
   );
   if (!versionMarked) return false;
-  return hasChatBillingSettlementSchema(db);
+  return hasCurrentRemoteSchemaInvariant(db);
 }
 
 function markCurrent(db: SchemaDatabase): void {
@@ -51,10 +53,10 @@ function hasColumn(db: SchemaDatabase, table: string, column: string): boolean {
   return rows.some((row) => row.name === column);
 }
 
-/** Adopt databases that already contain the full production schema including settlement UNIQUE owner. */
+/** Adopt databases that already satisfy the full current production schema invariant. */
 export function canAdoptExistingRemoteSchema(db: SchemaDatabase): boolean {
   try {
-    if (!hasChatBillingSettlementSchema(db)) return false;
+    if (!hasCurrentRemoteSchemaInvariant(db)) return false;
 
     const tables = db
       .prepare(
@@ -112,11 +114,11 @@ function releaseLock(db: SchemaDatabase, owner: string): void {
   db.prepare("DELETE FROM _remote_schema_lock WHERE id=1 AND owner=?").run(owner);
 }
 
-/** Fail closed — migration/adoption must leave canonical settlement schema before markCurrent. */
-function assertCanonicalSettlementSchemaReady(db: SchemaDatabase): void {
-  if (!hasChatBillingSettlementSchema(db)) {
+/** Fail closed — migration/adoption must satisfy the full current schema invariant before markCurrent. */
+function assertCurrentRemoteSchemaReady(db: SchemaDatabase): void {
+  if (!hasCurrentRemoteSchemaInvariant(db)) {
     throw new Error(
-      "Remote schema migration completed without canonical chat billing settlement schema."
+      "Remote schema migration completed without canonical current production schema."
     );
   }
 }
@@ -125,7 +127,7 @@ export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void):
   ensureControlTables(db);
   if (isCurrent(db)) return;
   if (canAdoptExistingRemoteSchema(db)) {
-    assertCanonicalSettlementSchemaReady(db);
+    assertCurrentRemoteSchemaReady(db);
     markCurrent(db);
     return;
   }
@@ -136,7 +138,7 @@ export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void):
     if (tryAcquireLock(db, owner)) {
       try {
         migrate();
-        assertCanonicalSettlementSchemaReady(db);
+        assertCurrentRemoteSchemaReady(db);
         markCurrent(db);
         return;
       } finally {
@@ -147,3 +149,5 @@ export function initializeRemoteSchema(db: SchemaDatabase, migrate: () => void):
   }
   throw new Error("Timed out waiting for the remote database schema migration lock.");
 }
+
+export { hasCurrentRemoteSchemaInvariant } from "@/lib/remoteSchemaCurrentInvariant";
