@@ -89,6 +89,7 @@ on:
       - "src/lib/trpg/trpgImageSceneMode.ts"
       - "src/lib/trpg/trpgImageSceneDiagnosticsLifecycle.ts"
       - "src/lib/trpg/trpgImageSceneDiagnosticsLifecycle.test.ts"
+      - "src/lib/trpg/trpgImageSceneDiagnosticsLocationAudit.test.ts"
       - "src/app/trpg/[id]/page.tsx"
       - "src/app/trpg/[id]/TrpgRoomClient.tsx"
       - "src/app/trpg/TrpgCampaignRoom.tsx"
@@ -148,3 +149,4 @@ jobs:
       - run: node --import tsx --test src/lib/openAiImageEdit.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/trpg/trpgAiFocusSelection.test.ts
       - run: node --import tsx --test src/lib/trpg/trpgImageSceneDiagnosticsLifecycle.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/trpg/trpgImageSceneDiagnosticsLocationAudit.test.ts
