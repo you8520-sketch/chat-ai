@@ -37,6 +37,7 @@ import {
 } from "@/lib/remoteSchemaBootstrap";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 
+const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
 
@@ -157,6 +158,38 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   dropPinnedFactsColumnOnce(db);
 }
 
+function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
+  const cols = db.prepare(`PRAGMA table_info(messages)`).all() as Array<{ name: string }>;
+  if (!cols.some((col) => col.name === "memory_relationship_task_json")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT`);
+  }
+}
+
+function runV5DirectUpgradeMigrations(db: Database.Database): void {
+  runMemoryRetirementMigrations(db);
+  ensureMemoryRelationshipTaskColumn(db);
+}
+
+function seedV2HistoricalProductionCore(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE web_push_outbox (id INTEGER);
+    CREATE TABLE create_migration_event_applications (id INTEGER);
+    CREATE TABLE beta_free_point_applications (id INTEGER);
+    CREATE TABLE portone_checkouts (id INTEGER);
+    CREATE TABLE _schema_flags (key TEXT PRIMARY KEY);
+    INSERT INTO _schema_flags (key) VALUES
+      ('board_posts_dedupe_v1'),
+      ('target_response_chars_unified_3200'),
+      ('memory_capacity_fixed_10000'),
+      ('character_adult_status_metadata_v1');
+    CREATE TABLE messages (request_id TEXT);
+    CREATE TABLE users (comment_report_restricted_until TEXT);
+    CREATE TABLE profile_comments (delete_reason TEXT);
+    CREATE TABLE characters (id INTEGER, total_turns INTEGER);
+    INSERT INTO characters (id, total_turns) VALUES (1, 0);
+  `);
+}
+
 function readRecentSummary(db: Database.Database): string {
   return (
     db.prepare(`SELECT recent_summary FROM chat_memories WHERE chat_id=1`).get() as
@@ -226,7 +259,7 @@ describe("remote schema memory reachability", () => {
     }
   });
 
-  it("R4 V2_TO_NEW combined #774/#776/#779/#784 convergence to V5", () => {
+  it("R4 V3 legacy stack direct → V5 convergence", () => {
     const db = new Database(":memory:");
     seedStaleRemoteMarker(db, HISTORICAL_REMOTE_SCHEMA_V3);
     seedProductionRemoteCore(db);
@@ -240,6 +273,40 @@ describe("remote schema memory reachability", () => {
     initializeRemoteSchema(db, () => {
       migrations += 1;
       runMemoryRetirementMigrations(db);
+    });
+
+    assert.equal(migrations, 1);
+    assert.equal(hasMemoryBufferRetired(db), true);
+    assert.equal(hasCharacterMemoriesRetired(db), true);
+    assert.equal(hasPinnedColumn(db), false);
+    assert.equal(readRecentSummary(db), "legacy\n\nrecent");
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    assert.equal(
+      (
+        db
+          .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+          .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined
+      )?.version,
+      REMOTE_SCHEMA_VERSION
+    );
+    db.close();
+  });
+
+  it("R4b V2 legacy stack direct → V5 convergence", () => {
+    const db = new Database(":memory:");
+    seedStaleRemoteMarker(db, HISTORICAL_REMOTE_SCHEMA_V2);
+    seedV2HistoricalProductionCore(db);
+    db.exec("DROP TABLE IF EXISTS chat_memories");
+    createLegacyMemoryBuffer(db);
+    createLegacyCharacterMemories(db);
+    createChatMemoriesWithDirtyPinned(db);
+    ensureChatBillingSettlementSchema(db);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
+
+    let migrations = 0;
+    initializeRemoteSchema(db, () => {
+      migrations += 1;
+      runV5DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -505,7 +572,8 @@ describe("current schema invariant owner", () => {
 });
 
 describe("remote schema version chain", () => {
-  it("V3 and V4 historical literals remain stable", () => {
+  it("V2/V3/V4 historical literals remain stable", () => {
+    assert.equal(HISTORICAL_REMOTE_SCHEMA_V2, "turso-v2-chat-billing-settlement");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V3, "turso-v3-current-schema");
     assert.equal(HISTORICAL_REMOTE_SCHEMA_V4, "turso-v4-pinned-drop-compatible");
     assert.equal(REMOTE_SCHEMA_VERSION, "turso-v5-pinned-column-retired");

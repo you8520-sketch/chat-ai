@@ -32,6 +32,8 @@ import {
   hasPinnedFactsDropCompatible,
   hasPinnedFactsPhase1Clean,
   hasPinnedFactsPhysicallyRetired,
+  hasMemoryBufferRetired,
+  hasCharacterMemoriesRetired,
 } from "@/lib/remoteSchemaCurrentInvariant";
 import {
   initializeRemoteSchema,
@@ -40,6 +42,7 @@ import {
 } from "@/lib/remoteSchemaBootstrap";
 
 /** Frozen historical remote schema markers — do not import current REMOTE_SCHEMA_VERSION for legacy fixtures. */
+const HISTORICAL_REMOTE_SCHEMA_V2 = "turso-v2-chat-billing-settlement";
 const HISTORICAL_REMOTE_SCHEMA_V3 = "turso-v3-current-schema";
 const HISTORICAL_REMOTE_SCHEMA_V4 = "turso-v4-pinned-drop-compatible";
 
@@ -55,7 +58,7 @@ function seedProductionRemoteCore(db: Database.Database): void {
       ('target_response_chars_unified_3200'),
       ('memory_capacity_fixed_10000'),
       ('character_adult_status_metadata_v1');
-    CREATE TABLE messages (request_id TEXT);
+    CREATE TABLE messages (request_id TEXT, memory_relationship_task_json TEXT);
     CREATE TABLE users (comment_report_restricted_until TEXT);
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
@@ -156,6 +159,39 @@ function runFullMemoryRetirementMigrations(db: Database.Database): void {
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
   dropPinnedFactsColumnOnce(db);
+}
+
+/** Simulates #783 relationship-task column arrival on legacy message tables during V5 convergence. */
+function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
+  const cols = db.prepare(`PRAGMA table_info(messages)`).all() as Array<{ name: string }>;
+  if (!cols.some((col) => col.name === "memory_relationship_task_json")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT`);
+  }
+}
+
+function runV5DirectUpgradeMigrations(db: Database.Database): void {
+  runFullMemoryRetirementMigrations(db);
+  ensureMemoryRelationshipTaskColumn(db);
+}
+
+function seedV2HistoricalProductionCore(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE web_push_outbox (id INTEGER);
+    CREATE TABLE create_migration_event_applications (id INTEGER);
+    CREATE TABLE beta_free_point_applications (id INTEGER);
+    CREATE TABLE portone_checkouts (id INTEGER);
+    CREATE TABLE _schema_flags (key TEXT PRIMARY KEY);
+    INSERT INTO _schema_flags (key) VALUES
+      ('board_posts_dedupe_v1'),
+      ('target_response_chars_unified_3200'),
+      ('memory_capacity_fixed_10000'),
+      ('character_adult_status_metadata_v1');
+    CREATE TABLE messages (request_id TEXT);
+    CREATE TABLE users (comment_report_restricted_until TEXT);
+    CREATE TABLE profile_comments (delete_reason TEXT);
+    CREATE TABLE characters (id INTEGER, total_turns INTEGER);
+    INSERT INTO characters (id, total_turns) VALUES (1, 0);
+  `);
 }
 
 function hasPinnedColumn(db: Database.Database): boolean {
@@ -406,7 +442,7 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runFullMemoryRetirementMigrations(db);
+      runV5DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
@@ -463,12 +499,13 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runFullMemoryRetirementMigrations(db);
+      runV5DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
     assert.equal(hasPinnedColumn(db), false);
     assert.equal(readRecentSummary(db), "legacy\n\nrecent");
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
     db.close();
   });
 
@@ -487,21 +524,22 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runFullMemoryRetirementMigrations(db);
+      runV5DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
     assert.equal(hasPinnedColumn(db), false);
     assert.match(readRecentSummary(db), /v3 legacy/);
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
     db.close();
   });
 
   it("P2B-14 V2 legacy stack direct → V5 convergence", () => {
     const db = new Database(":memory:");
-    seedProductionRemoteCoreTablesExceptChatMemories(db);
+    seedV2HistoricalProductionCore(db);
     ensureChatMemoriesWithPinned(db);
     ensureChatBillingSettlementSchema(db);
-    seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V3);
+    seedHistoricalMarker(db, HISTORICAL_REMOTE_SCHEMA_V2);
     createLegacyMemoryBuffer(db);
     createLegacyCharacterMemories(db);
     db.prepare(
@@ -509,34 +547,28 @@ describe("pinned_facts Phase 2B remote lifecycle", () => {
         (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary, used_chars)
        VALUES (1, 1, 2, 'legacy', 'recent', '', 0)`
     ).run();
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), false);
 
     let migrations = 0;
     initializeRemoteSchema(db, () => {
       migrations += 1;
-      runFullMemoryRetirementMigrations(db);
+      runV5DirectUpgradeMigrations(db);
     });
 
     assert.equal(migrations, 1);
-    assert.equal(
-      Boolean(
-        db
-          .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='memory_buffer'`)
-          .get()
-      ),
-      false
-    );
-    assert.equal(
-      Boolean(
-        db
-          .prepare(
-            `SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='character_memories'`
-          )
-          .get()
-      ),
-      false
-    );
+    assert.equal(hasMemoryBufferRetired(db), true);
+    assert.equal(hasCharacterMemoriesRetired(db), true);
     assert.equal(hasPinnedColumn(db), false);
     assert.equal(readRecentSummary(db), "legacy\n\nrecent");
+    assert.equal(hasCurrentRemoteSchemaInvariant(db), true);
+    assert.equal(
+      (
+        db
+          .prepare("SELECT version FROM _remote_schema_state WHERE version=?")
+          .get(REMOTE_SCHEMA_VERSION) as { version: string } | undefined
+      )?.version,
+      REMOTE_SCHEMA_VERSION
+    );
     db.close();
   });
 
