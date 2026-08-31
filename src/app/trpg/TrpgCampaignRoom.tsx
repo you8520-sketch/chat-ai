@@ -373,8 +373,6 @@ export default function TrpgCampaignRoom({
   const [streamIntervalMs, setStreamIntervalMs] = useState(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs);
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
-  const suggestionsAnchorRef = useRef<HTMLDivElement>(null);
-  const nextActionRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
@@ -1414,10 +1412,10 @@ export default function TrpgCampaignRoom({
           }
           break;
         case "NEXT_ACTION": {
-          const target = nextActionRef.current ?? suggestionsAnchorRef.current ?? bottomRef.current;
+          const target = bottomRef.current;
           if (target) {
             runProgrammaticScroll(() => {
-              target.scrollIntoView({ behavior, block: "end", inline: "nearest" });
+              target.scrollIntoView({ behavior, block: "nearest", inline: "nearest" });
             }, behavior);
           } else {
             runProgrammaticScroll(() => {
@@ -2086,7 +2084,7 @@ export default function TrpgCampaignRoom({
           })}
 
           {nextActionVisible ? (
-            <div ref={nextActionRef} data-trpg-next-action>
+            <div data-trpg-next-action>
             <AppSectionCard title="시나리오 행동">
               <p className="mb-3 text-sm text-zinc-400">
                 세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
@@ -2239,7 +2237,7 @@ export default function TrpgCampaignRoom({
                 </button>
               </div>
               {showReplySuggestions ? (
-                <div ref={suggestionsAnchorRef} className="scroll-mb-28">
+                <div className="scroll-mb-28">
                   {suggestionsError ? (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <p className="text-sm text-rose-200">{suggestionsError}</p>
