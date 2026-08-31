@@ -1,7 +1,7 @@
 import { ARCHIVE_RELEVANCE_THRESHOLD } from "./memory-constants";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import type { ChatMemoryRow, MemoryInjection, MemoryTier } from "./memory-types";
-import { calcUsedChars } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 
 /** 한글·영문 키워드 추출 (API 없음) */
 export function extractKeywords(text: string): string[] {

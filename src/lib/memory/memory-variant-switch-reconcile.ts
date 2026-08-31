@@ -13,7 +13,7 @@ import { getDb } from "@/lib/db";
 import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
 import { ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import { isMemoryFeatureEnabled } from "./memory-feature";
-import { calcUsedChars } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";

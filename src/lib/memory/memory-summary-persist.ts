@@ -2,7 +2,8 @@
  * Atomic summary persistence — row + counter + recent_summary in one transaction.
  */
 import { getDb } from "@/lib/db";
-import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import { validateSummarySpanWrite } from "./memory-summary-span-write";
 import type { MemoryTier } from "./memory-types";
 import {

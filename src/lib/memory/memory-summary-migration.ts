@@ -8,7 +8,8 @@ import {
   __getLastSummarizeTurnBatchError,
   composeBatchScopePayload,
 } from "./memory-rolling-summary";
-import { calcUsedChars, getOrCreateChatMemory } from "./memory-db";
+import { getOrCreateChatMemory } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import {
   highestContiguousCompletedTurn,
 } from "./memory-summary-integrity";

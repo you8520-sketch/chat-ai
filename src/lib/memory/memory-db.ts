@@ -1,9 +1,8 @@
 import { getDb } from "@/lib/db";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
+import { calcUsedChars } from "./memory-used-chars";
 
-export function calcUsedChars(row: Pick<ChatMemoryRow, "recent_summary" | "archive_summary">): number {
-  return (row.recent_summary?.length ?? 0) + (row.archive_summary?.length ?? 0);
-}
+export { calcUsedChars } from "./memory-used-chars";
 
 const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, recent_summary, archive_summary,
               membership_tier, used_chars, message_count, summarized_turn_count,

@@ -15,7 +15,7 @@ import Database from "better-sqlite3";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { buildMemoryContext } from "./memory-injector";
-import { calcUsedChars } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import {
   computeLegacyPinnedFold,
@@ -30,6 +30,15 @@ import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
+
+function ensureSchemaFlagsTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+}
 
 function createChatMemoriesTable(db: Database.Database): void {
   db.exec(`
@@ -251,6 +260,28 @@ describe("pinned_facts global migration lifecycle", () => {
     assert.equal(readMemory(db, 30).recent_summary, "only recent");
   });
 
+  it("FLAG_ALREADY_EXISTS + DIRTY_DATA repairs without flag conflict", () => {
+    const db = new Database(":memory:");
+    createChatMemoriesTable(db);
+    ensureSchemaFlagsTable(db);
+    db.prepare(`INSERT INTO _schema_flags (key) VALUES (?)`).run(PINNED_FACTS_FOLDED_FLAG);
+    insertChatMemory(db, {
+      chatId: 40,
+      pinned_facts: "dirty after flag",
+      recent_summary: "recent",
+      archive_summary: "arc",
+    });
+    assert.equal(pinnedFactsFoldFlagExists(db), true);
+
+    migrateLegacyPinnedFactsIntoRecentSummary(db);
+
+    const row = readMemory(db, 40);
+    assert.equal(row.pinned_facts, "");
+    assert.equal(row.recent_summary, "dirty after flag\n\nrecent");
+    assert.equal(row.archive_summary, "arc");
+    assert.equal(pinnedFactsFoldFlagExists(db), true);
+  });
+
   it("FRESH_DB migration is wired through getDb init", () => {
     getDb();
     const db = getDb();
@@ -269,6 +300,11 @@ describe("pinned_facts global migration lifecycle", () => {
   });
 });
 
+/** Pre-retirement injector lorebook merge (pinned + recent before canonical recent_summary). */
+function legacyInjectorLorebookRaw(pinned_facts: string, recent_summary: string): string {
+  return [pinned_facts.trim(), recent_summary.trim()].filter(Boolean).join("\n\n");
+}
+
 describe("pinned_facts parity", () => {
   it("OLD lazy fold vs NEW global migration byte-equivalent for meaningful pinned", () => {
     const fixtures: LegacyPinnedFoldInput[] = [
@@ -285,19 +321,36 @@ describe("pinned_facts parity", () => {
     }
   });
 
-  it("INJECTION parity after migration matches lazy fold injection", () => {
+  it("INJECTION parity: migrated DB row matches pre-retirement lorebook semantics", () => {
     const fixture = {
       pinned_facts: "legacy pinned",
       recent_summary: "current recent",
       archive_summary: "archive",
     };
-    const lazy = legacyLazyFoldMeaningful(fixture);
-    assert.ok(lazy);
+    const oldLorebookRaw = legacyInjectorLorebookRaw(
+      fixture.pinned_facts,
+      fixture.recent_summary
+    );
+    assert.equal(oldLorebookRaw, "legacy pinned\n\ncurrent recent");
 
-    const lazyInjection = buildMemoryContext({
+    const db = new Database(":memory:");
+    createChatMemoriesTable(db);
+    insertChatMemory(db, {
+      chatId: 100,
+      pinned_facts: fixture.pinned_facts,
+      recent_summary: fixture.recent_summary,
+      archive_summary: fixture.archive_summary,
+    });
+
+    migrateLegacyPinnedFactsIntoRecentSummary(db);
+    const migrated = readMemory(db, 100);
+    assert.equal(migrated.recent_summary, oldLorebookRaw);
+    assert.equal(migrated.pinned_facts, "");
+
+    const injection = buildMemoryContext({
       memory: {
-        recent_summary: lazy.recent_summary,
-        archive_summary: lazy.archive_summary,
+        recent_summary: migrated.recent_summary,
+        archive_summary: migrated.archive_summary,
         membership_tier: "free",
       },
       userMessage: "안녕",
@@ -305,20 +358,35 @@ describe("pinned_facts parity", () => {
       includeArchiveAlways: true,
     });
 
-    const migratedInjection = buildMemoryContext({
-      memory: {
-        recent_summary: lazy.recent_summary,
-        archive_summary: lazy.archive_summary,
-        membership_tier: "free",
-      },
-      userMessage: "안녕",
-      memoryCapacity: MEMORY_CAPACITY_FIXED,
-      includeArchiveAlways: true,
-    });
+    assert.match(injection.text, /legacy pinned/);
+    assert.match(injection.text, /current recent/);
+    assert.ok(
+      injection.text.includes(oldLorebookRaw),
+      "injected lorebook contains migrated canonical body"
+    );
+    assert.equal(
+      (injection.text.match(/legacy pinned/g) ?? []).length,
+      1,
+      "legacy pinned content appears exactly once"
+    );
+    assert.equal(
+      (injection.text.match(/current recent/g) ?? []).length,
+      1,
+      "current recent content appears exactly once"
+    );
+    assert.ok(
+      injection.text.indexOf("legacy pinned") < injection.text.indexOf("current recent"),
+      "order preserved: pinned before recent"
+    );
 
-    assert.equal(migratedInjection.text, lazyInjection.text);
-    assert.equal(migratedInjection.archiveText, lazyInjection.archiveText);
-    assert.equal(migratedInjection.usedChars, lazyInjection.usedChars);
+    assert.equal(injection.archiveText, fixture.archive_summary);
+    assert.equal(
+      injection.usedChars,
+      calcUsedChars({
+        recent_summary: oldLorebookRaw,
+        archive_summary: fixture.archive_summary,
+      })
+    );
   });
 });
 

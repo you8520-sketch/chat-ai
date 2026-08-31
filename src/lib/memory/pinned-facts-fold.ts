@@ -1,4 +1,4 @@
-import { calcUsedChars } from "./memory-db";
+import { calcUsedChars } from "./memory-used-chars";
 
 export type LegacyPinnedFoldInput = {
   pinned_facts: string;
