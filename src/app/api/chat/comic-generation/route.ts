@@ -51,6 +51,11 @@ import {
   type TrpgAiFocusDiagnostics,
 } from "@/lib/trpg/trpgAiFocusSelection";
 import {
+  buildTrpgImageSceneDiagnosticsPayload,
+  resolveTrpgImageSceneDiagnosticsForResponse,
+  type TrpgImageSceneDiagnosticsPayload,
+} from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
+import {
   TRPG_IMAGE_SCENE_MODE_DEFAULT,
   normalizeTrpgImageSceneMode,
   type TrpgImageSceneMode,
@@ -851,6 +856,8 @@ export async function POST(req: Request) {
       let campaignTitle = "";
       let trpgImageSceneModeApplied: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
       let trpgAiFocusDiagnostics: TrpgAiFocusDiagnostics | null = null;
+      let trpgImageSceneDiagnosticsPayload: TrpgImageSceneDiagnosticsPayload | null = null;
+      let requestedTrpgSceneMode: TrpgImageSceneMode = TRPG_IMAGE_SCENE_MODE_DEFAULT;
       let prompt: string;
       if (campaignId) {
         trpgScene = loadTrpgIllustrationScene(getDb(), {
@@ -907,15 +914,21 @@ export async function POST(req: Request) {
         sceneLocation = trpgScene.location;
         sceneActions = trpgScene.actions;
         trpgAiFocusDiagnostics = null;
-        const requestedSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
+        requestedTrpgSceneMode = normalizeTrpgImageSceneMode(body.trpgImageSceneMode);
         const focus = await resolveTrpgIllustrationSceneFocus({
-          sceneMode: requestedSceneMode,
+          sceneMode: requestedTrpgSceneMode,
           rawNarration: trpgScene.narration,
           canonicalLocation: sceneLocation,
         });
         trpgImageSceneModeApplied = focus.modeApplied;
         trpgAiFocusDiagnostics = focus.diagnostics;
-        if (focus.modeApplied === "RAW" && requestedSceneMode === "AI_FOCUS") {
+        trpgImageSceneDiagnosticsPayload = buildTrpgImageSceneDiagnosticsPayload({
+          requestedMode: requestedTrpgSceneMode,
+          modeApplied: focus.modeApplied,
+          canonicalLocation: sceneLocation,
+          focusDiagnostics: focus.diagnostics,
+        });
+        if (focus.modeApplied === "RAW" && requestedTrpgSceneMode === "AI_FOCUS") {
           console.info(
             "[trpg-ai-focus] RAW fallback",
             JSON.stringify({
@@ -1109,13 +1122,11 @@ export async function POST(req: Request) {
         messageId: illustrationMessageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
-        trpgImageSceneDiagnostics:
-          canSeeCost && trpgAiFocusDiagnostics
-            ? {
-                mode: trpgImageSceneModeApplied,
-                ...trpgAiFocusDiagnostics,
-              }
-            : undefined,
+        trpgImageSceneDiagnostics: resolveTrpgImageSceneDiagnosticsForResponse({
+          canSeeCost,
+          campaignId,
+          payload: trpgImageSceneDiagnosticsPayload,
+        }),
         totalPointsCost: deduction.total,
         remainingPoints: deduction.balance.total,
         paidPoints: deduction.balance.paid,

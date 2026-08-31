@@ -8,6 +8,7 @@ on:
       - "src/app/api/chat/image-album/**"
       - "src/components/ChatAssetAlbumModal.tsx"
       - "src/components/ChatImageGeneratorPanel.tsx"
+      - "src/components/TrpgImageSceneDiagnosticsPanel.tsx"
       - "src/components/ChatImageGeneratorRailButton.tsx"
       - "src/components/ChatRoomDisplayQuickRail.tsx"
       - "src/components/MessageBubbleToolbar.tsx"
