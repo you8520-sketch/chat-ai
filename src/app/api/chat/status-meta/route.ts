@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
+  asyncRecordMatchesGenerationScope,
+  resolveActiveAssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
+import {
   isStatusMetaRecordStalePending,
   loadMessageStatusMeta,
   requeueStatusMetaExtractionIfNeeded,
@@ -31,7 +35,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  let record = loadMessageStatusMeta(messageId);
+  const activeScope = resolveActiveAssistantGenerationScope(messageId);
+  let rawRecord = loadMessageStatusMeta(messageId);
+  let record =
+    activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
 
   if (
     record &&
@@ -39,7 +46,9 @@ export async function GET(req: Request) {
       (record.pending === true && isStatusMetaRecordStalePending(record)))
   ) {
     requeueStatusMetaExtractionIfNeeded(messageId);
-    record = loadMessageStatusMeta(messageId);
+    rawRecord = loadMessageStatusMeta(messageId);
+    record =
+      activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
   }
 
   const meta = record?.meta ?? null;
@@ -58,4 +67,3 @@ export async function GET(req: Request) {
     extractedAt: record?.extractedAt ?? null,
   });
 }
-

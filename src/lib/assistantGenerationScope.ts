@@ -168,6 +168,15 @@ export function asyncRecordMatchesGenerationScope(
   return record.generationSequence === scope.generationSequence;
 }
 
+/** Client read boundary — only expose async logical records matching active generation. */
+export function resolveCurrentGenerationAsyncRecord<T extends { generationSequence?: number | null }>(
+  record: T | null | undefined,
+  scope: AssistantGenerationScope | null | undefined
+): T | null {
+  if (!scope || !record) return null;
+  return asyncRecordMatchesGenerationScope(record, scope) ? record : null;
+}
+
 export function isCurrentAssistantGeneration(
   scope: AssistantGenerationScope,
   db: Database.Database = getDb()

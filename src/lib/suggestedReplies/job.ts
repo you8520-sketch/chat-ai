@@ -135,7 +135,7 @@ async function runSuggestedRepliesExtraction(opts: {
   assistantProse: string;
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
-  __testExtract?: () => Promise<SuggestedReplyItem[]>;
+  __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): Promise<SuggestedReplyItem[]> {
   if (suggestedRepliesHaveContent(opts.prefetchedReplies)) {
     return opts.prefetchedReplies!;
@@ -150,7 +150,7 @@ async function runSuggestedRepliesExtraction(opts: {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const replies = opts.__testExtract
-        ? await opts.__testExtract()
+        ? await opts.__testExtract(attempt)
         : await extractSuggestedRepliesFromTurn({
             charName: opts.charName,
             personaName: opts.personaName,
@@ -207,7 +207,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   assistantProse: string;
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
-  __testExtract?: () => Promise<SuggestedReplyItem[]>;
+  __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): void {
   const jobKey = generationJobKey(opts.generationScope);
   if (running.has(jobKey)) return;

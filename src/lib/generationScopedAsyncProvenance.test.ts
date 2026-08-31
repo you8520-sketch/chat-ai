@@ -458,7 +458,7 @@ describe("generation-scoped async provenance", () => {
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: scope(0),
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         await gen0Gate;
         return validReplies("STALE");
       },
@@ -476,7 +476,7 @@ describe("generation-scoped async provenance", () => {
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: activeScope,
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         gen1Started = true;
         return validReplies("CURRENT");
       },
@@ -506,7 +506,7 @@ describe("generation-scoped async provenance", () => {
       ...scheduleBase(),
       generationScope: scope(0),
       formatSpec: "| 🕒 |",
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         await gen0Gate;
         return validStatusMeta("STALE");
       },
@@ -524,7 +524,7 @@ describe("generation-scoped async provenance", () => {
       ...scheduleBase(),
       generationScope: activeScope,
       formatSpec: "| 🕒 |",
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         gen1Started = true;
         return validStatusMeta("CURRENT");
       },
@@ -552,7 +552,7 @@ describe("generation-scoped async provenance", () => {
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: scope(0),
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         await gen0Gate;
         return validReplies("OLD");
       },
@@ -569,7 +569,7 @@ describe("generation-scoped async provenance", () => {
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: activeScope,
-      __testExtract: async () => {
+      __testExtract: async (_attempt: number) => {
         gen1ExtractInvoked = true;
         return validReplies("NEW");
       },
@@ -580,30 +580,42 @@ describe("generation-scoped async provenance", () => {
     releaseGen0();
   });
 
-  it("W4 — gen0 deferred completion after regen does not write gen1 state", async () => {
+  it("W4 — gen0 retry attempt2 after regen stays gen0-scoped and cannot overwrite gen1 record", async () => {
     seedRegenHarness();
-    let releaseGen0!: () => void;
-    const gen0Gate = new Promise<void>((resolve) => {
-      releaseGen0 = resolve;
+    let releaseAttempt2!: () => void;
+    const attempt2Gate = new Promise<void>((resolve) => {
+      releaseAttempt2 = resolve;
     });
+    let attemptCount = 0;
 
     scheduleSuggestedRepliesExtraction({
       ...scheduleBase(),
       generationScope: scope(0),
-      __testExtract: async () => {
-        await gen0Gate;
+      __testExtract: async (attempt: number) => {
+        attemptCount = attempt;
+        if (attempt === 1) {
+          return [];
+        }
+        await attempt2Gate;
+        insertLedgerRow(0, 0.003);
         return validReplies("LATE");
       },
     });
 
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(attemptCount, 1);
+
     startRegenHarness();
     const activeScope = resolveActiveAssistantGenerationScope(MSG_ID);
     assert.ok(activeScope);
     markMessageSuggestedRepliesPending(MSG_ID, activeScope);
 
-    releaseGen0();
-    await new Promise((r) => setTimeout(r, 50));
+    releaseAttempt2();
+    await new Promise((r) => setTimeout(r, 1400));
+
+    assert.equal(attemptCount, 2);
+    const gen0Ledger = listProviderCostEventsForAssistantGeneration(MSG_ID, 0);
+    assert.ok(gen0Ledger.some((row) => row.actual_cost_usd === 0.003));
 
     const record = loadMessageSuggestedReplies(MSG_ID);
     assert.equal(record?.generationSequence, activeScope.generationSequence);
@@ -611,7 +623,7 @@ describe("generation-scoped async provenance", () => {
     assert.ok(!record?.replies.some((r) => r.text.startsWith("LATE")));
   });
 
-  it("Q1 — old-generation stale pending is not requeued", () => {
+  it("Q1 — old-generation stale pending suggested replies is not requeued", () => {
     seedMessage(
       JSON.stringify([
         { content: "gen0", model: "m", usage: null, created_at: "", generationSequence: 0 },
@@ -633,6 +645,30 @@ describe("generation-scoped async provenance", () => {
       MSG_ID
     );
     assert.equal(requeueSuggestedRepliesExtractionIfNeeded(MSG_ID), false);
+  });
+
+  it("Q1 — old-generation stale pending status meta is not requeued", () => {
+    seedMessage(
+      JSON.stringify([
+        { content: "gen0", model: "m", usage: null, created_at: "", generationSequence: 0 },
+        { content: "gen1", model: "m", usage: null, created_at: "", generationSequence: 1 },
+      ]),
+      1
+    );
+    const db = getDb();
+    const staleGen0 = {
+      meta: validStatusMeta("GEN0_STATUS"),
+      extractedAt: new Date(Date.now() - 120_000).toISOString(),
+      source: "background-deepseek" as const,
+      pending: true,
+      failed: false,
+      generationSequence: 0,
+    };
+    db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
+      serializeStatusMetaRecord(staleGen0),
+      MSG_ID
+    );
+    assert.equal(requeueStatusMetaExtractionIfNeeded(MSG_ID), false);
   });
 
   it("Q2 — current-generation stale pending is requeued", () => {

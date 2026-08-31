@@ -13,13 +13,12 @@ import { getReportStatusesForMessages } from "@/lib/refund";
 import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
 
-import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
-import {
-  parseSuggestedRepliesRecord,
-  resolveClientSuggestedReplies,
-} from "@/lib/suggestedReplies/parse";
+import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
+import {
+  resolveClientSuggestedReplies,
+} from "@/lib/suggestedReplies/parse";
 import {
   markdownPipeTableStatusWindowActive,
   resolveUserNoteStatusWindowPolicy,
@@ -371,7 +370,7 @@ export default async function ChatPage({
           keepInternal: showFullBillingReceipt,
         })
       : null;
-    const statusRecord = parseStatusMetaRecord(m.status_meta);
+    const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(m);
     const activeContent = resolveActiveVariantContent({
       content: m.content,
       variants: variantMeta.variants,
@@ -402,9 +401,7 @@ export default async function ChatPage({
     const messageStatusWidgetValues = hasVariantStatusSnapshot
       ? (activeVariantSnapshot?.statusWidgetValues ?? null)
       : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
-    const suggestedRepliesFields = resolveClientSuggestedReplies(
-      parseSuggestedRepliesRecord(m.suggested_replies_json)
-    );
+    const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
     return {
       id: m.id,
       role: m.role,
