@@ -38,8 +38,13 @@ import {
   type TrpgImageSceneMode,
 } from "@/lib/trpg/trpgImageSceneMode";
 import {
+  buildTrpgDiagnosticsResultIdentity,
+  buildTrpgDiagnosticsSourceIdentity,
   clearedTrpgImageSceneDiagnostics,
   resolveTrpgImageSceneDiagnosticsFromResponse,
+  resolveTrpgImageSceneDiagnosticsOnSourceReopen,
+  shouldClearTrpgImageSceneDiagnosticsOnSourceOpen,
+  type TrpgImageSceneDiagnosticsPayload,
 } from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
@@ -182,6 +187,7 @@ type GenerateResult = {
   paidPoints?: number;
   freePoints?: number;
   savedToCharacterAlbum?: boolean;
+  generationId?: number;
   trpgImageSceneDiagnostics?: {
     mode: TrpgImageSceneMode;
     modeRequested: TrpgImageSceneMode;
@@ -471,8 +477,19 @@ export default function ChatImageGeneratorPanel({
   );
   const [trpgImageSceneDiagnostics, setTrpgImageSceneDiagnostics] =
     useState<GenerateResult["trpgImageSceneDiagnostics"]>(undefined);
+  const trpgDiagnosticsCacheRef = useRef<{
+    sourceIdentity: string;
+    resultIdentity: string;
+    diagnostics: TrpgImageSceneDiagnosticsPayload;
+  } | null>(null);
+  const lastTrpgGenerationIdRef = useRef<number | null>(null);
+  const illustrationResultUrlRef = useRef(illustrationResultUrl);
+  useEffect(() => {
+    illustrationResultUrlRef.current = illustrationResultUrl;
+  }, [illustrationResultUrl]);
   const clearTrpgImageSceneDiagnostics = useCallback(() => {
     setTrpgImageSceneDiagnostics(clearedTrpgImageSceneDiagnostics());
+    trpgDiagnosticsCacheRef.current = null;
   }, []);
   const [campaignTitle, setCampaignTitle] = useState("");
   const [partyNames, setPartyNames] = useState<string[]>([]);
@@ -514,7 +531,36 @@ export default function ChatImageGeneratorPanel({
           ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
           : []
       );
-      clearTrpgImageSceneDiagnostics();
+      const messageId = Number(detail?.messageId);
+      const nextSourceIdentity = buildTrpgDiagnosticsSourceIdentity({
+        campaignId:
+          Number.isInteger(parsedCampaignId) && parsedCampaignId > 0 ? parsedCampaignId : null,
+        roundNumber:
+          Number.isInteger(parsedRound) && parsedRound >= 0 ? parsedRound : null,
+        sourceMessageId: Number.isFinite(messageId) && messageId > 0 ? messageId : null,
+      });
+      const currentResultIdentity = buildTrpgDiagnosticsResultIdentity({
+        generationId: lastTrpgGenerationIdRef.current,
+        imageUrl: illustrationResultUrlRef.current,
+      });
+      if (
+        shouldClearTrpgImageSceneDiagnosticsOnSourceOpen({
+          previousSourceIdentity: trpgDiagnosticsCacheRef.current?.sourceIdentity ?? null,
+          nextSourceIdentity,
+        })
+      ) {
+        clearTrpgImageSceneDiagnostics();
+      } else {
+        const restored = resolveTrpgImageSceneDiagnosticsOnSourceReopen({
+          nextSourceIdentity,
+          currentResultIdentity,
+          cached: trpgDiagnosticsCacheRef.current,
+          currentDiagnostics: trpgImageSceneDiagnostics,
+        });
+        if (restored !== trpgImageSceneDiagnostics) {
+          setTrpgImageSceneDiagnostics(restored);
+        }
+      }
       setTrpgImageSceneMode(TRPG_IMAGE_SCENE_MODE_DEFAULT);
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
@@ -526,7 +572,6 @@ export default function ChatImageGeneratorPanel({
       setLdProduct("scene");
       setSceneOutputMode("illustration");
 
-      const messageId = Number(detail?.messageId);
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
         setSourceMessageId(messageId);
@@ -542,7 +587,7 @@ export default function ChatImageGeneratorPanel({
     };
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
-  }, [clearTrpgImageSceneDiagnostics]);
+  }, [clearTrpgImageSceneDiagnostics, trpgImageSceneDiagnostics]);
 
   useEffect(() => {
     if (!trpgCampaignMode) return;
@@ -1412,9 +1457,28 @@ export default function ChatImageGeneratorPanel({
           },
         }));
       }
-      setTrpgImageSceneDiagnostics(
-        resolveTrpgImageSceneDiagnosticsFromResponse(data)
-      );
+      const diagnostics = resolveTrpgImageSceneDiagnosticsFromResponse(data);
+      setTrpgImageSceneDiagnostics(diagnostics);
+      if (diagnostics && isIllustration && campaignId != null) {
+        const generationId =
+          typeof data.generationId === "number" && data.generationId > 0
+            ? data.generationId
+            : null;
+        if (generationId) lastTrpgGenerationIdRef.current = generationId;
+        const resultIdentity = buildTrpgDiagnosticsResultIdentity({
+          generationId,
+          imageUrl: data.imageUrl,
+        });
+        trpgDiagnosticsCacheRef.current = {
+          sourceIdentity: buildTrpgDiagnosticsSourceIdentity({
+            campaignId,
+            roundNumber: campaignRoundNumber,
+            sourceMessageId,
+          }),
+          resultIdentity,
+          diagnostics,
+        };
+      }
       updateBalance(data);
       setNotice(
         isIllustration

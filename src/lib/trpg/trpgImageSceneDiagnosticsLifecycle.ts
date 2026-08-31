@@ -16,6 +16,79 @@ export function clearedTrpgImageSceneDiagnostics(): undefined {
   return undefined;
 }
 
+export type TrpgDiagnosticsSourceIdentityInput = {
+  campaignId: number | null;
+  roundNumber: number | null;
+  sourceMessageId: number | null;
+};
+
+export type TrpgDiagnosticsResultIdentityInput = {
+  generationId: number | null | undefined;
+  imageUrl: string | null | undefined;
+};
+
+/** TRPG illustration source boundary — campaign + round + optional turn message. */
+export function buildTrpgDiagnosticsSourceIdentity(
+  input: TrpgDiagnosticsSourceIdentityInput
+): string {
+  const campaignId =
+    input.campaignId != null && input.campaignId > 0 ? String(input.campaignId) : "none";
+  const roundNumber =
+    input.roundNumber != null && input.roundNumber >= 0 ? String(input.roundNumber) : "none";
+  const sourceMessageId =
+    input.sourceMessageId != null && input.sourceMessageId > 0
+      ? String(input.sourceMessageId)
+      : "none";
+  return `${campaignId}:${roundNumber}:${sourceMessageId}`;
+}
+
+/** One generation result — prefer server generationId, else unique imageUrl. */
+export function buildTrpgDiagnosticsResultIdentity(
+  input: TrpgDiagnosticsResultIdentityInput
+): string {
+  const generationId = Number(input.generationId);
+  if (Number.isInteger(generationId) && generationId > 0) {
+    return `gen:${generationId}`;
+  }
+  const imageUrl = input.imageUrl?.trim();
+  if (imageUrl) return `url:${imageUrl}`;
+  return "";
+}
+
+/** Clear diagnostics when TRPG source identity changes (campaign/round/turn). */
+export function shouldClearTrpgImageSceneDiagnosticsOnSourceOpen(opts: {
+  previousSourceIdentity: string | null;
+  nextSourceIdentity: string;
+}): boolean {
+  return opts.previousSourceIdentity !== opts.nextSourceIdentity;
+}
+
+/** Restore cached diagnostics when modal reopens the same source + result. */
+export function resolveTrpgImageSceneDiagnosticsOnSourceReopen(opts: {
+  nextSourceIdentity: string;
+  currentResultIdentity: string;
+  cached:
+    | {
+        sourceIdentity: string;
+        resultIdentity: string;
+        diagnostics: TrpgImageSceneDiagnosticsPayload;
+      }
+    | null
+    | undefined;
+  currentDiagnostics: TrpgImageSceneDiagnosticsPayload | undefined;
+}): TrpgImageSceneDiagnosticsPayload | undefined {
+  if (opts.currentDiagnostics) return opts.currentDiagnostics;
+  if (
+    !opts.currentResultIdentity ||
+    !opts.cached ||
+    opts.cached.sourceIdentity !== opts.nextSourceIdentity ||
+    opts.cached.resultIdentity !== opts.currentResultIdentity
+  ) {
+    return clearedTrpgImageSceneDiagnostics();
+  }
+  return opts.cached.diagnostics;
+}
+
 /** DISPLAYED_DIAGNOSTICS = DIAGNOSTICS_FROM_CURRENT_GENERATION_ONLY */
 export function resolveTrpgImageSceneDiagnosticsFromResponse(
   response: { trpgImageSceneDiagnostics?: TrpgImageSceneDiagnosticsPayload } | null | undefined
