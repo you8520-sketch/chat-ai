@@ -4,6 +4,7 @@ import {
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
 import { planChatImageScene, type ScenePlanCompleter } from "@/lib/chatImageScenePlanner";
+import type { TrpgImageSceneMode } from "@/lib/trpg/trpgImageSceneMode";
 
 export type TrpgAiFocusDiagnostics = {
   modeRequested: "AI_FOCUS";
@@ -148,5 +149,58 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
       ...diagnostics,
       modeApplied: "AI_FOCUS",
     },
+  };
+}
+
+export type TrpgIllustrationSceneFocusResult = {
+  narration: string;
+  modeApplied: TrpgImageSceneMode;
+  diagnostics: TrpgAiFocusDiagnostics | null;
+  plannerInvocations: number;
+};
+
+/** TRPG illustration narration owner: RAW skips planner; AI_FOCUS invokes focus owner once. */
+export async function resolveTrpgIllustrationSceneFocus(opts: {
+  sceneMode: TrpgImageSceneMode;
+  rawNarration: string;
+  canonicalLocation: string;
+  complete?: ScenePlanCompleter;
+  planScene?: typeof planChatImageScene;
+}): Promise<TrpgIllustrationSceneFocusResult> {
+  if (opts.sceneMode === "RAW") {
+    return {
+      narration: opts.rawNarration,
+      modeApplied: "RAW",
+      diagnostics: null,
+      plannerInvocations: 0,
+    };
+  }
+
+  let plannerInvocations = 0;
+  const focus = await resolveTrpgAiFocusHeroScene({
+    narration: opts.rawNarration,
+    canonicalLocation: opts.canonicalLocation,
+    complete: opts.complete,
+    planScene: async (input) => {
+      plannerInvocations += 1;
+      const planScene = opts.planScene ?? planChatImageScene;
+      return planScene(input);
+    },
+  });
+
+  if (focus.modeApplied === "AI_FOCUS") {
+    return {
+      narration: focus.heroScene,
+      modeApplied: "AI_FOCUS",
+      diagnostics: focus.diagnostics,
+      plannerInvocations,
+    };
+  }
+
+  return {
+    narration: opts.rawNarration,
+    modeApplied: "RAW",
+    diagnostics: focus.diagnostics,
+    plannerInvocations,
   };
 }

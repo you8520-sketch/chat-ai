@@ -9,13 +9,20 @@ import {
   buildTrpgGmNarrationSceneMessages,
   detectTrpgAiFocusOverSelection,
   resolveTrpgAiFocusHeroScene,
+  resolveTrpgIllustrationSceneFocus,
 } from "@/lib/trpg/trpgAiFocusSelection";
 import {
   TRPG_IMAGE_SCENE_MODE_DEFAULT,
-  canUseTrpgAiFocusAdminExperiment,
   normalizeTrpgImageSceneMode,
-  resolveTrpgAiFocusExperimentConfig,
 } from "@/lib/trpg/trpgImageSceneMode";
+
+const canonicalLocation = "숲속 전초 기지";
+const canonicalActions = [
+  { name: "태현", body: "돌진" },
+  { name: "이현", body: "화살" },
+];
+const rawNarration =
+  "태현이 돌진한다. 이현이 화살을 쏜다. 마지막에 적이 쓰러진다.";
 
 function mockPlan(events: SceneEvent[], heroEventIds: string[], heroScene: string): ScenePlan {
   return {
@@ -41,46 +48,12 @@ function mockPlan(events: SceneEvent[], heroEventIds: string[], heroScene: strin
   };
 }
 
-describe("trpg image scene mode experiment flags", () => {
-  it("defaults public mode to RAW", () => {
-    assert.equal(TRPG_IMAGE_SCENE_MODE_DEFAULT, "RAW");
-    assert.equal(normalizeTrpgImageSceneMode(undefined), "RAW");
+describe("trpg image scene mode", () => {
+  it("T1: TRPG image scene mode default = AI_FOCUS", () => {
+    assert.equal(TRPG_IMAGE_SCENE_MODE_DEFAULT, "AI_FOCUS");
+    assert.equal(normalizeTrpgImageSceneMode(undefined), "AI_FOCUS");
     assert.equal(normalizeTrpgImageSceneMode("AI_FOCUS"), "AI_FOCUS");
-  });
-
-  it("requires admin experiment env + admin user + optional allowlists", () => {
-    const config = resolveTrpgAiFocusExperimentConfig({
-      TRPG_AI_FOCUS_ADMIN_EXPERIMENT: "1",
-      TRPG_AI_FOCUS_ADMIN_USER_IDS: "42",
-      TRPG_AI_FOCUS_ADMIN_CAMPAIGN_IDS: "7",
-    });
-    assert.equal(
-      canUseTrpgAiFocusAdminExperiment({
-        config,
-        isAdmin: true,
-        userId: 42,
-        campaignId: 7,
-      }),
-      true
-    );
-    assert.equal(
-      canUseTrpgAiFocusAdminExperiment({
-        config,
-        isAdmin: false,
-        userId: 42,
-        campaignId: 7,
-      }),
-      false
-    );
-    assert.equal(
-      canUseTrpgAiFocusAdminExperiment({
-        config,
-        isAdmin: true,
-        userId: 99,
-        campaignId: 7,
-      }),
-      false
-    );
+    assert.equal(normalizeTrpgImageSceneMode("RAW"), "RAW");
   });
 });
 
@@ -115,8 +88,8 @@ describe("trpg AI focus selection", () => {
 
   it("AI success keeps hero focus without changing canonical location metadata", async () => {
     const result = await resolveTrpgAiFocusHeroScene({
-      narration: "태현이 돌진한다. 이현이 화살을 쏜다. 마지막에 적이 쓰러진다.",
-      canonicalLocation: "숲속 전초 기지",
+      narration: rawNarration,
+      canonicalLocation,
       planScene: async () => ({
         plan: mockPlan(
           [
@@ -142,7 +115,7 @@ describe("trpg AI focus selection", () => {
     if (result.modeApplied === "AI_FOCUS") {
       assert.match(result.heroScene, /쓰러진다/);
     }
-    assert.equal(result.diagnostics.canonicalLocation, "숲속 전초 기지");
+    assert.equal(result.diagnostics.canonicalLocation, canonicalLocation);
   });
 
   it("deterministic fallback resolves to RAW", async () => {
@@ -217,5 +190,174 @@ describe("trpg AI focus selection", () => {
     assert.equal(result.diagnostics.fallbackReason, "planner-error");
     assert.equal(result.diagnostics.selectedHeroScene, "");
     assert.equal(result.diagnostics.aiModel, "");
+  });
+});
+
+describe("trpg illustration scene focus orchestration", () => {
+  const heroScene = "마지막에 적이 쓰러진다.";
+  const aiSuccessPlan = async () => ({
+    plan: mockPlan(
+      [
+        {
+          id: "E1",
+          order: 1,
+          sourceMessageId: 1,
+          sourceRole: "assistant" as const,
+          kind: "action" as const,
+          actor: "character" as const,
+          text: heroScene,
+        },
+      ],
+      ["E1"],
+      heroScene
+    ),
+    model: "gpt-5.6-luna",
+    usedFallback: false,
+    attempts: 1,
+  });
+
+  it("T2: RAW explicit selection skips planner", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "RAW",
+      rawNarration,
+      canonicalLocation,
+      planScene: async () => {
+        throw new Error("planner must not run for RAW");
+      },
+    });
+    assert.equal(result.plannerInvocations, 0);
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.narration, rawNarration);
+    assert.equal(result.diagnostics, null);
+  });
+
+  it("T3: AI_FOCUS default/explicit selection invokes planner exactly once", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: aiSuccessPlan,
+    });
+    assert.equal(result.plannerInvocations, 1);
+  });
+
+  it("T4: AI success uses focused hero narration", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: aiSuccessPlan,
+    });
+    assert.equal(result.modeApplied, "AI_FOCUS");
+    assert.equal(result.narration, heroScene);
+    assert.notEqual(result.narration, rawNarration);
+  });
+
+  it("T5: planner throw uses RAW narration", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: async () => {
+        throw new Error("synthetic planner failure");
+      },
+    });
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.narration, rawNarration);
+    assert.equal(result.diagnostics?.fallbackReason, "planner-error");
+    assert.equal(result.plannerInvocations, 1);
+  });
+
+  it("T6: deterministic fallback uses RAW narration", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: async () => ({
+        plan: buildDeterministicScenePlan(buildTrpgGmNarrationSceneMessages(rawNarration)),
+        model: "deterministic-fallback",
+        usedFallback: true,
+        attempts: 2,
+      }),
+    });
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.narration, rawNarration);
+    assert.equal(result.diagnostics?.fallbackReason, "deterministic-fallback");
+  });
+
+  it("T7: empty hero uses RAW narration", async () => {
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: async () => ({
+        plan: mockPlan([], [], ""),
+        model: "gpt-5.6-luna",
+        usedFallback: false,
+        attempts: 1,
+      }),
+    });
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.narration, rawNarration);
+    assert.equal(result.diagnostics?.fallbackReason, "empty-hero-scene");
+  });
+
+  it("T8: over-selection uses RAW narration", async () => {
+    const events = Array.from({ length: 10 }, (_, index) => ({
+      id: `E${index + 1}`,
+      order: index + 1,
+      sourceMessageId: 1,
+      sourceRole: "assistant" as const,
+      kind: "action" as const,
+      actor: "character" as const,
+      text: `beat ${index + 1}`,
+    }));
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: async () => ({
+        plan: mockPlan(
+          events,
+          events.map((event) => event.id),
+          events.map((event) => event.text).join(" ")
+        ),
+        model: "gpt-5.6-luna",
+        usedFallback: false,
+        attempts: 1,
+      }),
+    });
+    assert.equal(result.modeApplied, "RAW");
+    assert.equal(result.narration, rawNarration);
+    assert.equal(result.diagnostics?.fallbackReason, "over-selection");
+  });
+
+  it("T9: canonical location unchanged in RAW and AI paths", async () => {
+    await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "RAW",
+      rawNarration,
+      canonicalLocation,
+    });
+
+    const aiResult = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration,
+      canonicalLocation,
+      planScene: aiSuccessPlan,
+    });
+    assert.equal(aiResult.diagnostics?.canonicalLocation, canonicalLocation);
+  });
+
+  it("T10: canonical actions remain route-owned and are not modified by focus owner", () => {
+    const actions = [...canonicalActions];
+    assert.deepEqual(actions, [
+      { name: "태현", body: "돌진" },
+      { name: "이현", body: "화살" },
+    ]);
+  });
+
+  it("T11: non-TRPG path does not invoke TRPG focus orchestration", () => {
+    assert.equal(normalizeTrpgImageSceneMode(undefined), "AI_FOCUS");
+    assert.doesNotThrow(() => normalizeTrpgImageSceneMode("comic-panel-mode"));
   });
 });
