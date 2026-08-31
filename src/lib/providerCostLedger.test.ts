@@ -32,6 +32,7 @@ function baseAsyncCtx(jobAttemptOrdinal: number) {
     ...buildPlatformAsyncTurnLedgerContext({
       chatId: 10,
       assistantMessageId: 42,
+      generationSequence: 0,
       family: "suggested_replies_repair" as const,
       jobAttemptOrdinal,
       requestedModel: "deepseek-v4-flash",
@@ -208,6 +209,7 @@ describe("providerCostLedger", () => {
       ...buildPlatformAsyncTurnLedgerContext({
         chatId: 7,
         assistantMessageId: 99,
+        generationSequence: 0,
         family: "status_meta",
         jobAttemptOrdinal: 1,
         requestKind: "background-status-meta-extract",
