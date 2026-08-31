@@ -91,8 +91,8 @@ import type { UsageReportingEvidence } from "@/lib/usageReportingEvidence";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
-/** Frozen at origin/main cc5c88f41d6abdc3f923430161189dfaa2b87532 — BASE live charge golden totals. */
-export const AUDIT_BASE_MAIN_SHA = "cc5c88f41d6abdc3f923430161189dfaa2b87532";
+/** Frozen at origin/main — BASE live charge golden totals (recomputed with audit FX seam). */
+export const AUDIT_BASE_MAIN_SHA = "39e7eeff20ae750966d78d4aec02b21bb0a14d5b";
 
 export const AUDIT_BASE_USD_KRW = 1530;
 export const AUDIT_EFFECTIVE_KRW_PER_USD = applyOverseasCardFee(AUDIT_BASE_USD_KRW);
