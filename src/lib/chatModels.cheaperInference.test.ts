@@ -66,12 +66,12 @@ test("GPT-5.6 Luna stays Cheaper Inference but is temporarily hidden from picker
   );
 });
 
-test("GPT-5.6 Terra is a selectable Cheaper Inference model", () => {
+test("GPT-5.6 Terra stays Cheaper Inference but is hidden from picker", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
     ),
-    true
+    false
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
@@ -79,6 +79,10 @@ test("GPT-5.6 Terra is a selectable Cheaper Inference model", () => {
   );
   assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL), "GPT-5.6 Terra");
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL), true);
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
 });
 
 test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {

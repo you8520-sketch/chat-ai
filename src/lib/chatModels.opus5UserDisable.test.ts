@@ -85,7 +85,7 @@ describe("Opus 5 temporary user-chat disable", () => {
       USER_SELECTABLE_AI_OPTIONS.some(
         (o) => o.id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
       ),
-      true
+      false
     );
     assert.equal(
       USER_SELECTABLE_AI_OPTIONS.some(
@@ -180,16 +180,19 @@ describe("Opus 5 temporary user-chat disable", () => {
     assert.notEqual(outbound.model, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
   });
 
-  it("keeps DeepSeek / Terra / Gemini 3.1 / Gemini 3.7 as live user-chat models", () => {
+  it("keeps DeepSeek / Gemini 3.1 / Gemini 3.7 as live user-chat models", () => {
     for (const id of [
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     ] as const) {
       assert.equal(resolveUserChatSelectedAI(id), id);
       assert.equal(resolveSelectedAI(id), id);
     }
+    assert.equal(
+      resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    );
   });
 
   it("restores Opus 5 for user chat when OPUS5_USER_ENABLED=1", () => {

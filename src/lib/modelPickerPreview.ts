@@ -7,7 +7,6 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -52,7 +51,6 @@ export {
 /** Active picker models — preview tuning scope for V2. */
 export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -72,7 +70,6 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
     [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
-    [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
     [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
@@ -99,9 +96,8 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse samples have a different output profile and must not skew
-  // the replacement DeepSeek model's picker estimate.
-  if (isMuseModel(raw)) return null;
+  // Retired Muse / hidden Terra samples must not skew DeepSeek picker estimates.
+  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }
