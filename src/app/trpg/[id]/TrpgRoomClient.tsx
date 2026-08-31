@@ -50,9 +50,11 @@ const POLL_MS = TRPG_SNAPSHOT_POLL_MS;
 export default function TrpgRoomClient({
   initial,
   personas: initialPersonas,
+  trpgAiFocusExperimentAccess = false,
 }: {
   initial: TrpgCampaignSnapshot;
   personas: PublicPersonaListItem[];
+  trpgAiFocusExperimentAccess?: boolean;
 }) {
   const [snap, setSnap] = useState(initial);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
@@ -587,7 +589,10 @@ export default function TrpgRoomClient({
           onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
           onBillingModeChange={(mode) => void saveBillingMode(mode)}
         />
-        <ChatImageGeneratorPanel showRailTrigger={false} />
+        <ChatImageGeneratorPanel
+          showRailTrigger={false}
+          trpgAiFocusExperimentAccess={trpgAiFocusExperimentAccess}
+        />
       </>
     );
   }

@@ -32,6 +32,11 @@ import {
   type SelectableCastAsset,
 } from "@/lib/chatImageCast";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { TrpgImageSceneMode } from "@/lib/trpg/trpgImageSceneMode";
+import {
+  clearedTrpgImageSceneDiagnostics,
+  resolveTrpgImageSceneDiagnosticsFromResponse,
+} from "@/lib/trpg/trpgImageSceneDiagnosticsLifecycle";
 import type { ClientVisibleVisualSubject } from "@/lib/visualSubjects";
 import { emptySceneVisualScopeState } from "@/lib/chatImageSceneVisualScope";
 import {
@@ -173,6 +178,21 @@ type GenerateResult = {
   paidPoints?: number;
   freePoints?: number;
   savedToCharacterAlbum?: boolean;
+  trpgImageSceneDiagnostics?: {
+    mode: TrpgImageSceneMode;
+    modeRequested: "AI_FOCUS";
+    modeApplied: TrpgImageSceneMode;
+    aiModel: string;
+    aiAttempts: number;
+    aiUsedFallback: boolean;
+    aiDeterministicFallback: boolean;
+    aiLatencyMs: number;
+    canonicalLocation: string;
+    selectedHeroScene: string;
+    heroEventIds: string[];
+    overSelectionRejected: boolean;
+    fallbackReason?: string;
+  };
 };
 
 type SavedAlbumEntry = {
@@ -351,10 +371,13 @@ function downloadImage(imageUrl: string, mode: ResultMode) {
 type ChatImageGeneratorPanelProps = {
   /** When false, only the modal host mounts (message toolbar opens via event). */
   showRailTrigger?: boolean;
+  /** Admin/dev TRPG AI-focus experiment access for this campaign. */
+  trpgAiFocusExperimentAccess?: boolean;
 };
 
 export default function ChatImageGeneratorPanel({
   showRailTrigger = true,
+  trpgAiFocusExperimentAccess = false,
 }: ChatImageGeneratorPanelProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("comic");
@@ -442,6 +465,12 @@ export default function ChatImageGeneratorPanel({
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
+  const [trpgImageSceneMode, setTrpgImageSceneMode] = useState<TrpgImageSceneMode>("RAW");
+  const [trpgImageSceneDiagnostics, setTrpgImageSceneDiagnostics] =
+    useState<GenerateResult["trpgImageSceneDiagnostics"]>(undefined);
+  const clearTrpgImageSceneDiagnostics = useCallback(() => {
+    setTrpgImageSceneDiagnostics(clearedTrpgImageSceneDiagnostics());
+  }, []);
   const [campaignTitle, setCampaignTitle] = useState("");
   const [partyNames, setPartyNames] = useState<string[]>([]);
   const [partyCast, setPartyCast] = useState<PartyCastMember[]>([]);
@@ -482,6 +511,7 @@ export default function ChatImageGeneratorPanel({
           ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
           : []
       );
+      clearTrpgImageSceneDiagnostics();
       const epoch = beginSceneSourceChange();
       setSourceMessageId(null);
       setSourceTurnPreview("");
@@ -508,7 +538,7 @@ export default function ChatImageGeneratorPanel({
     };
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
-  }, []);
+  }, [clearTrpgImageSceneDiagnostics]);
 
   useEffect(() => {
     if (!trpgCampaignMode) return;
@@ -1310,6 +1340,7 @@ export default function ChatImageGeneratorPanel({
     setGenerating(true);
     setError("");
     setNotice("");
+    clearTrpgImageSceneDiagnostics();
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
     const controller = new AbortController();
@@ -1354,6 +1385,10 @@ export default function ChatImageGeneratorPanel({
                   }))
                   .filter((pick) => pick.imageUrl)
               : undefined,
+          trpgImageSceneMode:
+            isIllustration && campaignId && trpgAiFocusExperimentAccess
+              ? trpgImageSceneMode
+              : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -1375,6 +1410,9 @@ export default function ChatImageGeneratorPanel({
           },
         }));
       }
+      setTrpgImageSceneDiagnostics(
+        resolveTrpgImageSceneDiagnosticsFromResponse(data)
+      );
       updateBalance(data);
       setNotice(
         isIllustration
@@ -1713,6 +1751,52 @@ export default function ChatImageGeneratorPanel({
                         </div>
                         {partyCast.length === 0 ? (
                           <p className="text-[10px] text-zinc-500">파티 이미지를 불러오는 중…</p>
+                        ) : null}
+                        {trpgAiFocusExperimentAccess ? (
+                          <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 p-3 space-y-2">
+                            <p className="text-[10px] font-semibold text-amber-200">
+                              장면 초점 실험 (admin/dev)
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-[11px]">
+                              <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1">
+                                <input
+                                  type="radio"
+                                  name="trpg-image-scene-mode"
+                                  checked={trpgImageSceneMode === "RAW"}
+                                  onChange={() => {
+                                    clearTrpgImageSceneDiagnostics();
+                                    setTrpgImageSceneMode("RAW");
+                                  }}
+                                />
+                                CURRENT_RAW
+                              </label>
+                              <label className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1">
+                                <input
+                                  type="radio"
+                                  name="trpg-image-scene-mode"
+                                  checked={trpgImageSceneMode === "AI_FOCUS"}
+                                  onChange={() => {
+                                    clearTrpgImageSceneDiagnostics();
+                                    setTrpgImageSceneMode("AI_FOCUS");
+                                  }}
+                                />
+                                AI_FOCUS
+                              </label>
+                            </div>
+                            {trpgImageSceneDiagnostics ? (
+                              <div className="text-[10px] text-zinc-300 space-y-1">
+                                <p>
+                                  applied={trpgImageSceneDiagnostics.modeApplied} model=
+                                  {trpgImageSceneDiagnostics.aiModel || "n/a"} latency=
+                                  {trpgImageSceneDiagnostics.aiLatencyMs}ms
+                                </p>
+                                <p className="line-clamp-3">
+                                  hero: {trpgImageSceneDiagnostics.selectedHeroScene || "(empty)"}
+                                </p>
+                                <p>location: {trpgImageSceneDiagnostics.canonicalLocation}</p>
+                              </div>
+                            ) : null}
+                          </div>
                         ) : null}
                         {partyPickerMember && partyPickerMember.images.length > 1 ? (
                           <div className="rounded-xl border border-violet-400/20 bg-black/25 p-2">
