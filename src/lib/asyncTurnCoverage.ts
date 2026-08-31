@@ -6,6 +6,7 @@ import type { SuggestedRepliesRecord } from "@/lib/suggestedReplies/types";
 import { statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import type { StatusMetaRecord } from "@/lib/statusMeta/types";
 import type { ProviderCostFamily, ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
 
 export type TurnAttributableAsyncFamily =
   | "suggested_replies_repair"
@@ -173,25 +174,77 @@ export function resolveStatusMetaExpectation(input: {
 }
 
 /**
- * Memory relationship has no durable pending/terminal marker on the assistant message.
- * Fail-closed: without ledger rows, expectation remains unverifiable.
+ * Memory relationship logical-task expectation — durable marker is source of truth.
+ * Physical ledger rows alone never promote to terminal.
  */
 export function resolveMemoryRelationshipExpectation(input: {
+  task: MemoryRelationshipTaskRecord | null;
   memoryRelationshipLedgerRowCount: number;
 }): ResolvedAsyncFamilyExpectation {
   const family = "memory_relationship" as const;
-  if (input.memoryRelationshipLedgerRowCount > 0) {
+  const rowCount = input.memoryRelationshipLedgerRowCount;
+
+  if (!input.task) {
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "unverifiable",
+      skipReason:
+        rowCount > 0
+          ? "missing_durable_marker_with_ledger_evidence"
+          : "no_durable_memory_relationship_completion_marker",
+    };
+  }
+
+  if (input.task.state === "skipped") {
+    if (rowCount > 0) {
+      return {
+        family,
+        label: ASYNC_FAMILY_LABELS[family],
+        expectationState: "unverifiable",
+        skipReason: "skipped_marker_with_physical_ledger_contradiction",
+      };
+    }
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "not_expected",
+      skipReason: input.task.reason ?? "memory_relationship_skipped",
+    };
+  }
+
+  if (input.task.state === "pending") {
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "pending",
+      taskPending: true,
+    };
+  }
+
+  if (input.task.state === "succeeded") {
     return {
       family,
       label: ASYNC_FAMILY_LABELS[family],
       expectationState: "terminal",
+      taskFailed: false,
     };
   }
+
+  if (input.task.state === "failed") {
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      expectationState: "terminal",
+      taskFailed: true,
+    };
+  }
+
   return {
     family,
     label: ASYNC_FAMILY_LABELS[family],
     expectationState: "unverifiable",
-    skipReason: "no_durable_memory_relationship_completion_marker",
+    skipReason: "invalid_memory_relationship_task_state",
   };
 }
 
@@ -199,6 +252,7 @@ export function resolveAsyncTurnCoverage(input: {
   usage: Usage;
   suggestedRepliesRecord: SuggestedRepliesRecord | null;
   statusMetaRecord: StatusMetaRecord | null;
+  memoryRelationshipTask: MemoryRelationshipTaskRecord | null;
   ledgerAsyncRows: ProviderCostLedgerRow[];
 }): AsyncTurnCoverageResult {
   const rowsByFamily = new Map<TurnAttributableAsyncFamily, ProviderCostLedgerRow[]>();
@@ -221,6 +275,7 @@ export function resolveAsyncTurnCoverage(input: {
       statusMetaLedgerRowCount: rowsByFamily.get("status_meta")!.length,
     }),
     resolveMemoryRelationshipExpectation({
+      task: input.memoryRelationshipTask,
       memoryRelationshipLedgerRowCount: rowsByFamily.get("memory_relationship")!.length,
     }),
   ];
