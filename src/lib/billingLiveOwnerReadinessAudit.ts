@@ -195,7 +195,36 @@ export const OPENROUTER_G31_FIXTURE: string | null = null;
 export const OPUS45_PICKER_REACHABLE = isOpusUserSelectable();
 export const OPUS45_STORED_SELECTION_REACHABLE = true;
 export const OPUS45_ADMIN_SPECIAL_CASE = false;
-export const OPUS45_CUTOVER_REQUIRED = true;
+/** Opus 4.5 billing remains live but is outside Published Billing Phase 1 cutover scope. */
+export const OPUS45_CUTOVER_REQUIRED = false;
+
+/** Published Billing Phase 1 — exact Cheaper Inference canonical IDs from chatModels.ts. */
+export const PHASE_1_CUTOVER_REQUIRED_MODELS = [
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+] as const;
+
+/** Phase 2 planned — separate price-policy work before Published billing promotion. */
+export const PHASE_2_PLANNED_MODELS = [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL] as const;
+
+export const DEEPSEEK_PHASE2 = true;
+
+const PHASE_1_MODEL_SET = new Set<string>(PHASE_1_CUTOVER_REQUIRED_MODELS);
+const PHASE_2_MODEL_SET = new Set<string>(PHASE_2_PLANNED_MODELS);
+
+/** Canonical SELECTED_AI rows outside Phase 1/2 Published billing promotion scope. */
+export const DEFERRED_BILLING_MODELS: readonly string[] = SELECTED_AI_OPTIONS.map(
+  (option) => option.id
+).filter((modelId) => !PHASE_1_MODEL_SET.has(modelId) && !PHASE_2_MODEL_SET.has(modelId));
+
+export function isPhase1CutoverRequiredModel(modelId: string): boolean {
+  return PHASE_1_MODEL_SET.has(modelId);
+}
+
+export function isPhase2PlannedModel(modelId: string): boolean {
+  return PHASE_2_MODEL_SET.has(modelId);
+}
 
 /** Legacy slugs probed via resolveSelectedAI — LEGACY_TO_SELECTED is private in chatModels. */
 const LEGACY_INVENTORY_SLUGS = [
@@ -357,6 +386,11 @@ export const CUTOVER_REQUIRED_MODEL_FAMILIES: readonly string[] =
     .filter((entry) => entry.cutoverRequired)
     .map((entry) => entry.deliveredModelId);
 
+/** Phase 1 Published billing promotion gate — not the full reachable inventory. */
+export const PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES: readonly string[] = [
+  ...PHASE_1_CUTOVER_REQUIRED_MODELS,
+];
+
 export const AUDIT_FX_SNAPSHOT: BillingFxSnapshot = {
   mode: "daily_kst",
   dateKey: "2026-08-28",
@@ -385,6 +419,19 @@ export function getAuditFxScopeDepthForTest(): number {
   return auditFxScopeDepth;
 }
 
+function reinstallAuditFxScopeWithoutCapture(
+  outerDepth: number,
+  outerSavedOriginal: string | undefined
+): void {
+  if (outerDepth <= 0) {
+    return;
+  }
+  savedOriginalExchangeRateMode = outerSavedOriginal;
+  process.env.EXCHANGE_RATE_MODE = "daily_kst";
+  pinAuditLegacyFxCache();
+  auditFxScopeDepth = outerDepth;
+}
+
 /** Verify nested install/clear does not restore env or clear cache early. */
 export function probeAuditFxNestedScopeSafety(): {
   nestedScopeSafe: boolean;
@@ -393,6 +440,7 @@ export function probeAuditFxNestedScopeSafety(): {
 } {
   const savedMode = process.env.EXCHANGE_RATE_MODE;
   const outerDepth = auditFxScopeDepth;
+  const outerSavedOriginal = savedOriginalExchangeRateMode;
   try {
     while (auditFxScopeDepth > 0) {
       clearAuditLegacyFxForTest();
@@ -422,14 +470,14 @@ export function probeAuditFxNestedScopeSafety(): {
     while (getAuditFxScopeDepthForTest() > 0) {
       clearAuditLegacyFxForTest();
     }
-    if (savedMode === undefined) {
+    if (outerDepth > 0) {
+      reinstallAuditFxScopeWithoutCapture(outerDepth, outerSavedOriginal);
+    } else if (savedMode === undefined) {
       delete process.env.EXCHANGE_RATE_MODE;
+      _clearLegacyExchangeRateCacheForTest();
     } else {
       process.env.EXCHANGE_RATE_MODE = savedMode;
-    }
-    _clearLegacyExchangeRateCacheForTest();
-    for (let depth = 0; depth < outerDepth; depth += 1) {
-      installAuditLegacyFxForTest();
+      _clearLegacyExchangeRateCacheForTest();
     }
   }
 }
@@ -611,6 +659,9 @@ export type BillingLiveOwnerReadinessEvaluation = {
   notComparableCount: number;
   uncoveredModelCount: number;
   uncoveredPolicyCount: number;
+  phase1UncoveredModelCount: number;
+  phase1UncoveredPolicyCount: number;
+  phase1CutoverReady: boolean;
   promotionReady: boolean;
   promotionBlockers: string[];
   mismatches: ParityMismatchRecord[];
@@ -622,7 +673,12 @@ export type SpecialPolicyCoverageRow = {
   reachableModel: string;
   fixtureIds: string[];
   fixtureId: string | null;
-  classification: "LIVE_REACHABLE" | "LEGACY_OR_DEAD" | "LEGACY_COMPAT";
+  classification:
+    | "PHASE1_REQUIRED"
+    | "DEFERRED_NOT_PHASE1_BLOCKER"
+    | "PHASE2_PLANNED"
+    | "LEGACY_OR_DEAD"
+    | "LEGACY_COMPAT";
   fixturesExist: boolean;
   behavioralProofPasses: boolean;
   covered: boolean;
@@ -825,11 +881,20 @@ const AUDIT_WAIVER_SHORT_TEXT = "짧음";
 
 const AUDIT_WAIVER_GARBAGE_TEXT = "asdf ".repeat(40);
 
-/** MAIN_RP models with minimum-charge resolver wiring in route composition. */
-const MAIN_RP_WAIVER_MINIMUM_MODELS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
-] as const;
+/** Phase 1 models investigated for route-composition waiver minimum behavior. */
+const PHASE_1_WAIVER_MODELS = PHASE_1_CUTOVER_REQUIRED_MODELS;
+
+function modelHasSpecificWaiverMinimumResolver(modelId: string): boolean {
+  return (
+    isDeepSeekV4ProModel(modelId) ||
+    isQwenModel(modelId) ||
+    isGlmModel(modelId) ||
+    isKimiModel(modelId) ||
+    isMuseModel(modelId) ||
+    isGemini36FlashModel(modelId) ||
+    isGemini31ProModel(modelId)
+  );
+}
 
 type WaiverScenarioSpec = {
   scenario: string;
@@ -914,7 +979,7 @@ function buildWaiverMinimumOutcomeMatrix(): Array<{
     finalLivePoints: number;
     minimumResolverCalled: boolean;
   }> = [];
-  for (const modelId of MAIN_RP_WAIVER_MINIMUM_MODELS) {
+  for (const modelId of PHASE_1_WAIVER_MODELS) {
     for (const spec of scenarios) {
       const waiver = characterizeRouteWaiverMinimum(modelId, spec);
       const fixture: BillingParityFixture = {
@@ -953,21 +1018,54 @@ function buildWaiverMinimumOutcomeMatrix(): Array<{
   return rows;
 }
 
-function proveWaiverMinimumReachability(
+function provePhase1WaiverEvidence(
   _ctx: PolicyProofContext
 ): Record<string, boolean | string | number> {
   const matrix = buildWaiverMinimumOutcomeMatrix();
   const maxWaiverMinimum = matrix.reduce((max, row) => Math.max(max, row.waiverMinimum), 0);
   const reachableWaiverRows = matrix.filter((row) => row.waiverReason != null);
-  const healthyForcedAbort = matrix.find(
-    (row) => row.scenario === "forcedAbort_healthy" && row.minimumResolverCalled
-  );
+  const healthyForcedAbort = matrix.find((row) => row.scenario === "forcedAbort_healthy");
+  const phase1ModelEvidence = PHASE_1_WAIVER_MODELS.map((modelId) => {
+    const modelRows = matrix.filter((row) => row.modelId === modelId);
+    const hasResolver = modelHasSpecificWaiverMinimumResolver(modelId);
+    const evidenceKind = hasResolver
+      ? "MODEL_SPECIFIC_MINIMUM_RESOLVER"
+      : "NO_MODEL_SPECIFIC_WAIVER_MINIMUM";
+    const routeWaiverObserved = modelRows.some((row) => row.waiverReason != null);
+    return {
+      modelId,
+      evidenceKind,
+      routeWaiverObserved,
+      matrixRowCount: modelRows.length,
+      hasEvidence: hasResolver
+        ? modelRows.length >= 6
+        : routeWaiverObserved || modelRows.length >= 6,
+    };
+  });
+  const phase1WaiverModelWithoutEvidence = phase1ModelEvidence.filter((row) => !row.hasEvidence).length;
   return {
     scenarioCount: matrix.length,
     reachableWaiverScenarioCount: reachableWaiverRows.length,
     maxWaiverMinimum,
     healthyForcedAbortWaiverReason: healthyForcedAbort?.waiverReason ?? "none",
     healthyForcedAbortMinimumResolverCalled: healthyForcedAbort?.minimumResolverCalled ? 1 : 0,
+    phase1WaiverModelWithoutEvidence,
+    g31HasModelSpecificMinimumResolver: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+    )
+      ? 1
+      : 0,
+    g37NoModelSpecificMinimum: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+    )
+      ? 0
+      : 1,
+    opus5NoModelSpecificMinimum: modelHasSpecificWaiverMinimumResolver(
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+    )
+      ? 0
+      : 1,
+    phase1WaiverEvidence: JSON.stringify(phase1ModelEvidence),
   };
 }
 
@@ -1082,10 +1180,13 @@ function evaluatePolicyBehavioralProof(
         proof.g31WithUpstreamPoints !== proof.g31WithoutUpstreamPoints &&
         proof.g36WithUpstreamPoints === proof.g36WithoutUpstreamPoints
       );
-    case "waiver minimum charge resolvers":
+    case "waiver minimum charge resolvers (Phase 1)":
       return (
-        Number(proof.scenarioCount) >= 6 &&
-        Number(proof.maxWaiverMinimum) === 0 &&
+        Number(proof.phase1WaiverModelWithoutEvidence) === 0 &&
+        Number(proof.scenarioCount) >= 18 &&
+        proof.g31HasModelSpecificMinimumResolver === 1 &&
+        proof.g37NoModelSpecificMinimum === 1 &&
+        proof.opus5NoModelSpecificMinimum === 1 &&
         proof.healthyForcedAbortWaiverReason === "none"
       );
     case "promptAudit input cap":
@@ -1137,7 +1238,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     fixtureIds: ["A1-opus5-normal"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveOutputTokenPricing,
   },
   {
@@ -1145,7 +1246,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["C3-reasoning-positive"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveReasoningSemantics,
   },
   {
@@ -1153,7 +1254,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     fixtureIds: ["B1-cache-unreported", "B3-cache-valid-positive"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveCacheSemantics,
   },
   {
@@ -1161,7 +1262,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CLAUDE_OPUS_MODEL,
     fixtureIds: ["A1-opus45-normal"],
-    classification: "LIVE_REACHABLE",
+    classification: "DEFERRED_NOT_PHASE1_BLOCKER",
     prove: proveSavedTextChars,
   },
   {
@@ -1185,23 +1286,23 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.MAIN_RP_LIVE_USER_CHARGE_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["A1-g31-normal", "A1-g36-normal"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveUpstreamCostG31Ci,
   },
   {
-    policy: "waiver minimum charge resolvers",
+    policy: "waiver minimum charge resolvers (Phase 1)",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_BILLING_WAIVER_OWNER,
-    reachableModel: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["W1-degeneration-waiver", "W2-forced-abort-minimum-zero", "W3-generation-failure-waiver"],
-    classification: "LEGACY_OR_DEAD",
-    prove: proveWaiverMinimumReachability,
+    classification: "PHASE1_REQUIRED",
+    prove: provePhase1WaiverEvidence,
   },
   {
     policy: "promptAudit input cap",
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["A3-large-io"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: provePromptAuditCap,
   },
   {
@@ -1209,7 +1310,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["D4-fallback"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveRefusalFallbackSelection,
   },
   {
@@ -1217,7 +1318,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_LIVE_USAGE_INPUT_OWNER,
     reachableModel: OPENROUTER_GEMINI_36_FLASH_MODEL,
     fixtureIds: ["D-stealth-fallback"],
-    classification: "LIVE_REACHABLE",
+    classification: "DEFERRED_NOT_PHASE1_BLOCKER",
     prove: proveStealthFallbackSelection,
   },
   {
@@ -1225,7 +1326,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     fixtureIds: ["A1-g37-normal"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveG37DedicatedFormula,
   },
   {
@@ -1233,7 +1334,7 @@ const SPECIAL_POLICY_DEFINITIONS: PolicyDefinition[] = [
     owner: BILLING_LIVE_OWNER_MAP.CURRENT_MODEL_SPECIAL_POLICY_OWNER,
     reachableModel: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     fixtureIds: ["A1-g31-normal", "A1-opus5-normal"],
-    classification: "LIVE_REACHABLE",
+    classification: "PHASE1_REQUIRED",
     prove: proveUnifiedReasoningOwner,
   },
   {
@@ -2623,7 +2724,7 @@ export function derivePolicyReportFacts(
   upstreamCostConsumedByLiveOwnerG36: boolean;
   completedTurnRuntimeEffect: "NO_LIVE_EFFECT" | "LIVE_EFFECT";
 } {
-  const waiverRow = matrix.find((row) => row.policy === "waiver minimum charge resolvers");
+  const waiverRow = matrix.find((row) => row.policy.includes("waiver minimum"));
   const upstreamRow = matrix.find(
     (row) => row.policy === "upstream actual-cost billing (Cheaper Inference unified reasoning USD)"
   );
@@ -2651,18 +2752,23 @@ export function derivePolicyReportFacts(
 function derivePolicyCoverageByFixtureExistenceOnly(
   matrix: SpecialPolicyCoverageRow[]
 ): boolean {
-  const liveRows = matrix.filter((row) => row.classification === "LIVE_REACHABLE");
-  if (liveRows.length === 0) return false;
+  const phase1Rows = matrix.filter((row) => row.classification === "PHASE1_REQUIRED");
+  if (phase1Rows.length === 0) return false;
   return (
-    liveRows.every((row) => row.covered === row.fixturesExist) &&
-    liveRows.some((row) => row.fixturesExist && !row.behavioralProofPasses)
+    phase1Rows.every((row) => row.covered === row.fixturesExist) &&
+    phase1Rows.some((row) => row.fixturesExist && !row.behavioralProofPasses)
   );
 }
 
 export type PolicyCoverageCounts = {
   totalPolicyCount: number;
+  phase1RequiredPolicyCount: number;
+  deferredNotPhase1BlockerCount: number;
   liveReachablePolicyCount: number;
   legacyOrDeadPolicyCount: number;
+  legacyCompatPolicyCount: number;
+  coveredPhase1PolicyCount: number;
+  uncoveredPhase1PolicyCount: number;
   coveredLivePolicyCount: number;
   uncoveredLivePolicyCount: number;
 };
@@ -2671,22 +2777,48 @@ export function derivePolicyCoverageCounts(
   matrix: SpecialPolicyCoverageRow[] = buildSpecialPolicyCoverageMatrix()
 ): PolicyCoverageCounts {
   const totalPolicyCount = matrix.length;
-  const liveReachablePolicyCount = matrix.filter(
-    (row) => row.classification === "LIVE_REACHABLE"
+  const phase1Rows = matrix.filter((row) => row.classification === "PHASE1_REQUIRED");
+  const phase1RequiredPolicyCount = phase1Rows.length;
+  const deferredNotPhase1BlockerCount = matrix.filter(
+    (row) => row.classification === "DEFERRED_NOT_PHASE1_BLOCKER"
   ).length;
   const legacyOrDeadPolicyCount = matrix.filter(
     (row) => row.classification === "LEGACY_OR_DEAD"
   ).length;
-  const liveRows = matrix.filter((row) => row.classification === "LIVE_REACHABLE");
-  const coveredLivePolicyCount = liveRows.filter((row) => row.covered).length;
-  const uncoveredLivePolicyCount = liveRows.filter((row) => !row.covered).length;
+  const legacyCompatPolicyCount = matrix.filter(
+    (row) => row.classification === "LEGACY_COMPAT"
+  ).length;
+  const coveredPhase1PolicyCount = phase1Rows.filter((row) => row.covered).length;
+  const uncoveredPhase1PolicyCount = phase1Rows.filter((row) => !row.covered).length;
   return {
     totalPolicyCount,
-    liveReachablePolicyCount,
+    phase1RequiredPolicyCount,
+    deferredNotPhase1BlockerCount,
+    liveReachablePolicyCount: phase1RequiredPolicyCount,
     legacyOrDeadPolicyCount,
-    coveredLivePolicyCount,
-    uncoveredLivePolicyCount,
+    legacyCompatPolicyCount,
+    coveredPhase1PolicyCount,
+    uncoveredPhase1PolicyCount,
+    coveredLivePolicyCount: coveredPhase1PolicyCount,
+    uncoveredLivePolicyCount: uncoveredPhase1PolicyCount,
   };
+}
+
+export function collectPhase1ExactDeliveredModelCoverage(
+  fixtures: BillingParityFixture[] = buildBillingLiveOwnerReadinessFixtures()
+): {
+  a1ExactDeliveredModelIds: Set<string>;
+  uncoveredPhase1Required: string[];
+} {
+  const a1ExactDeliveredModelIds = new Set(
+    fixtures
+      .filter((fixture) => fixture.id.startsWith("A1-"))
+      .map((fixture) => fixture.deliveredModelId)
+  );
+  const uncoveredPhase1Required = PHASE_1_CUTOVER_REQUIRED_MODELS.filter(
+    (modelId) => !a1ExactDeliveredModelIds.has(modelId)
+  );
+  return { a1ExactDeliveredModelIds, uncoveredPhase1Required };
 }
 
 export function collectExactDeliveredModelCoverage(
@@ -2694,17 +2826,39 @@ export function collectExactDeliveredModelCoverage(
 ): {
   a1ExactDeliveredModelIds: Set<string>;
   uncoveredCutoverRequired: BilledModelInventoryEntry[];
+  phase1: ReturnType<typeof collectPhase1ExactDeliveredModelCoverage>;
 } {
-  const a1ExactDeliveredModelIds = new Set(
-    fixtures
-      .filter((fixture) => fixture.id.startsWith("A1-"))
-      .map((fixture) => fixture.deliveredModelId)
-  );
+  const phase1 = collectPhase1ExactDeliveredModelCoverage(fixtures);
+  const a1ExactDeliveredModelIds = phase1.a1ExactDeliveredModelIds;
   const uncoveredCutoverRequired = buildCurrentReachableBilledModelInventory().filter(
     (entry) =>
       entry.cutoverRequired && !a1ExactDeliveredModelIds.has(entry.deliveredModelId)
   );
-  return { a1ExactDeliveredModelIds, uncoveredCutoverRequired };
+  return { a1ExactDeliveredModelIds, uncoveredCutoverRequired, phase1 };
+}
+
+export type NonPhase1ModelExposureAudit = {
+  nonPhase1UserSelectableModels: readonly string[];
+  nonPhase1StoredSelectionStillExecutable: readonly string[];
+  nonPhase1UserBillingPolicy: "EXPLICIT_LEGACY_DEFERRED";
+  recommendedNonPhase1UserBillingPolicy: "DISABLED_FOR_NEW_USE";
+};
+
+/** Operational exposure audit — not a Phase 1 promotion blocker in #795. */
+export function auditNonPhase1ModelExposure(): NonPhase1ModelExposureAudit {
+  const phase1Set = new Set<string>(PHASE_1_CUTOVER_REQUIRED_MODELS);
+  const nonPhase1UserSelectableModels = USER_SELECTABLE_AI_OPTIONS.map((option) => option.id).filter(
+    (modelId) => !phase1Set.has(modelId)
+  );
+  const nonPhase1StoredSelectionStillExecutable = SELECTED_AI_OPTIONS.map(
+    (option) => option.id
+  ).filter((modelId) => !phase1Set.has(modelId) && isValidSelectedAI(modelId));
+  return {
+    nonPhase1UserSelectableModels,
+    nonPhase1StoredSelectionStillExecutable,
+    nonPhase1UserBillingPolicy: "EXPLICIT_LEGACY_DEFERRED",
+    recommendedNonPhase1UserBillingPolicy: "DISABLED_FOR_NEW_USE",
+  };
 }
 
 export const F4_CLASSIFICATION = "SYNTHETIC_IDENTITY_PROOF" as const;
@@ -2770,36 +2924,52 @@ export function evaluateBillingLiveOwnerReadiness(
       }
     }
 
-    const { uncoveredCutoverRequired } = collectExactDeliveredModelCoverage(fixtures);
-    const uncoveredModelCount = uncoveredCutoverRequired.length;
-    for (const entry of uncoveredCutoverRequired) {
-      promotionBlockers.push(`uncovered cutover model: ${entry.deliveredModelId}`);
+    const { phase1 } = collectExactDeliveredModelCoverage(fixtures);
+    const phase1UncoveredModelCount = phase1.uncoveredPhase1Required.length;
+    for (const modelId of phase1.uncoveredPhase1Required) {
+      promotionBlockers.push(`uncovered phase1 model: ${modelId}`);
     }
 
     const policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
-    const policyCounts = derivePolicyCoverageCounts(policyMatrix);
-    const uncoveredPolicies = policyMatrix.filter(
-      (row) => row.classification === "LIVE_REACHABLE" && !row.covered
+    const uncoveredPhase1Policies = policyMatrix.filter(
+      (row) => row.classification === "PHASE1_REQUIRED" && !row.covered
     );
-    const uncoveredPolicyCount = uncoveredPolicies.length;
-    for (const row of uncoveredPolicies) {
-      promotionBlockers.push(`uncovered policy: ${row.policy}`);
+    const phase1UncoveredPolicyCount = uncoveredPhase1Policies.length;
+    for (const row of uncoveredPhase1Policies) {
+      promotionBlockers.push(`uncovered phase1 policy: ${row.policy}`);
     }
+
+    const waiverRow = policyMatrix.find((row) => row.policy.includes("waiver minimum"));
+    const phase1WaiverModelWithoutEvidence = Number(
+      waiverRow?.proof.phase1WaiverModelWithoutEvidence ?? 0
+    );
+    if (phase1WaiverModelWithoutEvidence > 0) {
+      promotionBlockers.push(
+        `phase1 waiver evidence missing for ${phase1WaiverModelWithoutEvidence} model(s)`
+      );
+    }
+
+    const phase1CutoverReady =
+      phase1UncoveredModelCount === 0 &&
+      phase1UncoveredPolicyCount === 0 &&
+      phase1WaiverModelWithoutEvidence === 0;
 
     const promotionReady =
       mismatchCount === 0 &&
       blockedCount === 0 &&
       notComparableCount === 0 &&
-      uncoveredModelCount === 0 &&
-      uncoveredPolicyCount === 0;
+      phase1CutoverReady;
 
     return {
       matchCount,
       mismatchCount,
       blockedCount,
       notComparableCount,
-      uncoveredModelCount,
-      uncoveredPolicyCount,
+      uncoveredModelCount: phase1UncoveredModelCount,
+      uncoveredPolicyCount: phase1UncoveredPolicyCount,
+      phase1UncoveredModelCount,
+      phase1UncoveredPolicyCount,
+      phase1CutoverReady,
       promotionReady,
       promotionBlockers,
       mismatches,
@@ -2935,11 +3105,12 @@ export function collectBillingReadinessHardGates(
   const evaluation = evaluateBillingLiveOwnerReadiness(parityFixtures);
   installAuditLegacyFxForTest();
   try {
-    const { uncoveredCutoverRequired } = collectExactDeliveredModelCoverage(fixtures);
+    const { phase1 } = collectExactDeliveredModelCoverage(fixtures);
     const policyMatrix = buildSpecialPolicyCoverageMatrix(fixtures);
     const policyCounts = derivePolicyCoverageCounts(policyMatrix);
     const policyFacts = derivePolicyReportFacts(policyMatrix);
     const inventory = buildCurrentReachableBilledModelInventory();
+    const nonPhase1Exposure = auditNonPhase1ModelExposure();
     const f4 = auditF4RequestedDeliveredIdentity();
     const unprovenInternal = inventory.filter(
       (entry) =>
@@ -2960,9 +3131,7 @@ export function collectBillingReadinessHardGates(
     const outputTokenRow = policyMatrix.find(
       (row) => row.policy === "output-token pricing (api vs savedText fallback)"
     );
-    const waiverRow = policyMatrix.find(
-      (row) => row.policy === "waiver minimum charge resolvers"
-    );
+    const waiverRow = policyMatrix.find((row) => row.policy.includes("waiver minimum"));
     return {
       PATH_A_PATH_B_SAME_FX: getAuditFxParityEvidence().live.effectiveKrwPerUsd ===
         getAuditFxParityEvidence().candidate.effectiveKrwPerUsd,
@@ -2970,14 +3139,24 @@ export function collectBillingReadinessHardGates(
       AUDIT_FX_ENV_LEAK: fxProbe.envLeak,
       AUDIT_FX_CACHE_LEAK: fxProbe.cacheLeak,
       AUDIT_FX_NESTED_SCOPE_SAFE: fxProbe.nestedScopeSafe,
-      CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE: uncoveredCutoverRequired.length,
+      PHASE1_EXACT_MODEL_WITHOUT_FIXTURE: phase1.uncoveredPhase1Required.length,
+      CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE: phase1.uncoveredPhase1Required.length,
       DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP: false,
       UNPROVEN_INTERNAL_DELIVERED_MODELS: unprovenInternal,
       MODEL_REACHABILITY_WITHOUT_PRODUCTION_OWNER: reachabilityWithoutOwner,
       POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY:
         derivePolicyCoverageByFixtureExistenceOnly(policyMatrix),
       POLICY_REPORT_FACTS_DERIVED_FROM_EVIDENCE: true,
-      UNCOVERED_LIVE_POLICY_COUNT: policyCounts.uncoveredLivePolicyCount,
+      PHASE1_UNCOVERED_POLICY_COUNT: policyCounts.uncoveredPhase1PolicyCount,
+      UNCOVERED_LIVE_POLICY_COUNT: policyCounts.uncoveredPhase1PolicyCount,
+      PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE: Number(
+        waiverRow?.proof.phase1WaiverModelWithoutEvidence ?? 0
+      ),
+      PHASE1_CUTOVER_READY: evaluation.phase1CutoverReady,
+      DEEPSEEK_PHASE2: DEEPSEEK_PHASE2,
+      NON_PHASE1_USER_SELECTABLE_MODELS: nonPhase1Exposure.nonPhase1UserSelectableModels.length,
+      NON_PHASE1_STORED_SELECTION_STILL_EXECUTABLE:
+        nonPhase1Exposure.nonPhase1StoredSelectionStillExecutable.length,
       WAIVER_MINIMUM_RUNTIME_REACHABILITY_DERIVED: waiverRow != null,
       WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED: false,
       WAIVER_MINIMUM_RUNTIME_REACHABLE: policyFacts.waiverMinimumRuntimeReachable ? 1 : 0,
@@ -3019,6 +3198,8 @@ export function generateBillingLiveOwnerReadinessFinalReport(): string {
     fixtures.filter((f) => f.id !== "P1-platform-aux-isolation-with-aux-stage")
   );
   const gates = collectBillingReadinessHardGates(fixtures);
+  const phase1 = collectPhase1ExactDeliveredModelCoverage(fixtures);
+  const nonPhase1Exposure = auditNonPhase1ModelExposure();
   let headSha = "unknown";
   let mergeBase = "unknown";
   let behindMain = "unknown";
@@ -3046,12 +3227,23 @@ export function generateBillingLiveOwnerReadinessFinalReport(): string {
     `FINAL_HEAD_SHA=${headSha}`,
     `ACTUAL_MERGE_BASE=${mergeBase}`,
     `BEHIND_MAIN=${behindMain}`,
-    "=== EXACT MODEL COVERAGE ===",
+    "=== PHASE 1 PUBLISHED BILLING SCOPE ===",
+    `PHASE1_PUBLISHED_BILLING_MODELS=${PHASE_1_CUTOVER_REQUIRED_MODELS.join(",")}`,
+    `PHASE2_PLANNED_MODELS=${PHASE_2_PLANNED_MODELS.join(",")}`,
+    `DEFERRED_BILLING_MODELS=${DEFERRED_BILLING_MODELS.join(",")}`,
+    `PHASE1_EXACT_MODEL_WITHOUT_FIXTURE=${phase1.uncoveredPhase1Required.length}`,
+    `PHASE1_UNCOVERED_POLICY_COUNT=${gates.PHASE1_UNCOVERED_POLICY_COUNT}`,
+    `PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE=${gates.PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE}`,
+    `NON_PHASE1_USER_SELECTABLE_MODELS=${nonPhase1Exposure.nonPhase1UserSelectableModels.join(",")}`,
+    `NON_PHASE1_STORED_SELECTION_STILL_EXECUTABLE=${nonPhase1Exposure.nonPhase1StoredSelectionStillExecutable.join(",")}`,
+    `NON_PHASE1_USER_BILLING_POLICY=${nonPhase1Exposure.nonPhase1UserBillingPolicy}`,
+    `RECOMMENDED_NON_PHASE1_USER_BILLING_POLICY=${nonPhase1Exposure.recommendedNonPhase1UserBillingPolicy}`,
+    "=== FULL INVENTORY (operational risk, not Phase 1 gate) ===",
+    `CURRENT_REACHABLE_MODEL_INVENTORY=${JSON.stringify(inventory)}`,
     `CUTOVER_REQUIRED_DELIVERED_MODELS=${inventory
       .filter((e) => e.cutoverRequired)
       .map((e) => e.deliveredModelId)
       .join(",")}`,
-    `MODEL_REACHABILITY_MATRIX=${JSON.stringify(inventory)}`,
     `INTERNAL_DELIVERED_MODELS=${INTERNAL_DELIVERED_PRODUCTION_OWNERS.map((e) => e.model).join(",")}`,
     `INTERNAL_DELIVERED_PRODUCTION_OWNERS=${JSON.stringify(INTERNAL_DELIVERED_PRODUCTION_OWNERS)}`,
     `OPENROUTER_G31_CURRENTLY_DELIVERABLE=${OPENROUTER_G31_CURRENTLY_DELIVERABLE}`,
@@ -3060,14 +3252,13 @@ export function generateBillingLiveOwnerReadinessFinalReport(): string {
     `OPUS45_PICKER_REACHABLE=${OPUS45_PICKER_REACHABLE}`,
     `OPUS45_STORED_SELECTION_REACHABLE=${OPUS45_STORED_SELECTION_REACHABLE}`,
     `OPUS45_ADMIN_SPECIAL_CASE=${OPUS45_ADMIN_SPECIAL_CASE}`,
-    `CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE=${gates.CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE}`,
     `DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP=${gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP}`,
     "=== POLICY COVERAGE ===",
     `TOTAL_POLICY_COUNT=${policyCounts.totalPolicyCount}`,
-    `LIVE_REACHABLE_POLICY_COUNT=${policyCounts.liveReachablePolicyCount}`,
+    `PHASE1_REQUIRED_POLICY_COUNT=${policyCounts.phase1RequiredPolicyCount}`,
+    `DEFERRED_NOT_PHASE1_BLOCKER_COUNT=${policyCounts.deferredNotPhase1BlockerCount}`,
     `LEGACY_OR_DEAD_POLICY_COUNT=${policyCounts.legacyOrDeadPolicyCount}`,
-    `COVERED_LIVE_POLICY_COUNT=${policyCounts.coveredLivePolicyCount}`,
-    `UNCOVERED_LIVE_POLICY_COUNT=${policyCounts.uncoveredLivePolicyCount}`,
+    `COVERED_PHASE1_POLICY_COUNT=${policyCounts.coveredPhase1PolicyCount}`,
     `POLICY_MATRIX=${JSON.stringify(policyMatrix)}`,
     `WAIVER_MINIMUM_RUNTIME_REACHABLE=${derivePolicyReportFacts(policyMatrix).waiverMinimumRuntimeReachable}`,
     `UPSTREAM_COST_RUNTIME_REACHABLE=${derivePolicyReportFacts(policyMatrix).upstreamCostConsumedByLiveOwnerG31Ci}`,
@@ -3098,10 +3289,12 @@ export function generateBillingLiveOwnerReadinessFinalReport(): string {
     "DB_SCHEMA_CHANGED=false",
     "PERSISTENCE_CHANGED=false",
     `AUDIT_FX_ENV_LEAK=${gates.AUDIT_FX_ENV_LEAK}`,
+    `DEEPSEEK_PHASE2=${DEEPSEEK_PHASE2}`,
     "=== DECISION ===",
     `PROMOTION_READY=${evaluation.promotionReady ? "YES" : "NO"}`,
+    `PHASE1_CUTOVER_READY=${evaluation.phase1CutoverReady ? "YES" : "NO"}`,
     `PROMOTION_BLOCKERS=${evaluation.promotionBlockers.slice(0, 10).join("; ")}`,
-    "NEXT_CUTOVER_PR_ALLOWED=NO",
+    `NEXT_CUTOVER_PR_ALLOWED=${evaluation.promotionReady ? "YES" : "NO"}`,
     "CUTOVER_PERFORMED=false",
     `MERGE_READY=NO`,
     "STOP",

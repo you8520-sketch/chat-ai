@@ -8,21 +8,28 @@ import {
   AUDIT_EFFECTIVE_KRW_PER_USD,
   BILLING_LIVE_OWNER_MAP,
   CUTOVER_REQUIRED_MODEL_FAMILIES,
+  DEEPSEEK_PHASE2,
+  DEFERRED_BILLING_MODELS,
   F4_CLASSIFICATION,
   FROZEN_LIVE_CHARGE_GOLDEN,
   INTERNAL_DELIVERED_PRODUCTION_OWNERS,
   OPENROUTER_G31_CURRENTLY_DELIVERABLE,
   OPUS45_ADMIN_SPECIAL_CASE,
+  PHASE_1_CUTOVER_REQUIRED_MODELS,
+  PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES,
+  PHASE_2_PLANNED_MODELS,
   REGEN_USER_CHARGE_SCOPE,
   SPECIAL_BILLING_POLICIES,
   auditCanaryCleanupClassification,
   auditF4RequestedDeliveredIdentity,
   auditFalseExactnessGuards,
+  auditNonPhase1ModelExposure,
   buildBillingLiveOwnerReadinessFixtures,
   buildCurrentReachableBilledModelInventory,
   buildSpecialPolicyCoverageMatrix,
   collectBillingReadinessHardGates,
   collectExactDeliveredModelCoverage,
+  collectPhase1ExactDeliveredModelCoverage,
   compareLiveVsCandidate,
   computeCandidateChargeFromFixture,
   computeLiveChargeFromFixture,
@@ -40,7 +47,12 @@ import {
   verifyPlatformFundedAuxIsolation,
 } from "./billingLiveOwnerReadinessAudit";
 import { applyOverseasCardFee } from "@/lib/billingFxPolicy";
-import { CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+} from "@/lib/chatModels";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import { assertNoInternalEconomics } from "@/lib/publicUsageEconomicsBoundary";
@@ -132,17 +144,43 @@ describe("billingLiveOwnerReadinessAudit — owner map", () => {
     }
   });
 
-  it("CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE=0", () => {
+  it("PHASE1_EXACT_MODEL_WITHOUT_FIXTURE=0 for Phase 1 cutover models only", () => {
     const fixtures = buildBillingLiveOwnerReadinessFixtures();
-    const { a1ExactDeliveredModelIds, uncoveredCutoverRequired } =
-      collectExactDeliveredModelCoverage(fixtures);
-    assert.equal(uncoveredCutoverRequired.length, 0);
-    for (const modelId of CUTOVER_REQUIRED_MODEL_FAMILIES) {
+    const phase1 = collectPhase1ExactDeliveredModelCoverage(fixtures);
+    assert.equal(phase1.uncoveredPhase1Required.length, 0);
+    for (const modelId of PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES) {
       assert.ok(
-        a1ExactDeliveredModelIds.has(modelId),
+        phase1.a1ExactDeliveredModelIds.has(modelId),
         `missing exact A1 fixture for ${modelId}`
       );
     }
+  });
+
+  it("Phase 1 scope is separate from full reachable inventory", () => {
+    assert.deepEqual(PHASE_1_CUTOVER_REQUIRED_MODELS, [
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    ]);
+    assert.deepEqual(PHASE_2_PLANNED_MODELS, [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]);
+    assert.equal(DEEPSEEK_PHASE2, true);
+    assert.ok(DEFERRED_BILLING_MODELS.length > 0);
+    assert.ok(CUTOVER_REQUIRED_MODEL_FAMILIES.length > PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES.length);
+    const full = collectExactDeliveredModelCoverage(buildBillingLiveOwnerReadinessFixtures());
+    assert.notDeepEqual(
+      [...CUTOVER_REQUIRED_MODEL_FAMILIES].sort(),
+      [...PHASE_1_CUTOVER_REQUIRED_MODEL_FAMILIES].sort()
+    );
+    assert.equal(full.phase1.uncoveredPhase1Required.length, 0);
+  });
+
+  it("reports non-Phase-1 user exposure separately from promotion gates", () => {
+    const exposure = auditNonPhase1ModelExposure();
+    assert.ok(exposure.nonPhase1UserSelectableModels.length > 0);
+    assert.ok(exposure.nonPhase1StoredSelectionStillExecutable.length > 0);
+    assert.equal(exposure.nonPhase1UserBillingPolicy, "EXPLICIT_LEGACY_DEFERRED");
+    assert.equal(exposure.recommendedNonPhase1UserBillingPolicy, "DISABLED_FOR_NEW_USE");
+    assert.ok(!exposure.nonPhase1UserSelectableModels.includes(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL));
   });
 
   it("does not treat OPENROUTER_G31 as live-delivered without production call site", () => {
@@ -322,11 +360,24 @@ describe("billingLiveOwnerReadinessAudit — FX nested scope (FX-N1..N4)", () =>
     }
   });
 
-  it("probeAuditFxNestedScopeSafety gates nested scope safety", () => {
-    const probe = probeAuditFxNestedScopeSafety();
-    assert.equal(probe.nestedScopeSafe, true);
-    assert.equal(probe.envLeak, false);
-    assert.equal(probe.cacheLeak, false);
+  it("probe preserves outer FX scope original env provenance", () => {
+    const saved = process.env.EXCHANGE_RATE_MODE;
+    try {
+      process.env.EXCHANGE_RATE_MODE = "realtime";
+      installAuditLegacyFxForTest();
+      const probe = probeAuditFxNestedScopeSafety();
+      assert.equal(probe.nestedScopeSafe, true);
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "daily_kst");
+      assert.equal(getAuditFxScopeDepthForTest(), 1);
+      clearAuditLegacyFxForTest();
+      assert.equal(process.env.EXCHANGE_RATE_MODE, "realtime");
+    } finally {
+      if (saved === undefined) {
+        delete process.env.EXCHANGE_RATE_MODE;
+      } else {
+        process.env.EXCHANGE_RATE_MODE = saved;
+      }
+    }
   });
 });
 
@@ -364,34 +415,42 @@ describe("billingLiveOwnerReadinessAudit — policy coverage matrix", () => {
     clearAuditLegacyFxForTest();
   });
 
-  it("LIVE policies require behavioral proof not fixture existence only", () => {
+  it("Phase 1 policies require behavioral proof not fixture existence only", () => {
     const fixtures = buildBillingLiveOwnerReadinessFixtures();
     const matrix = buildSpecialPolicyCoverageMatrix(fixtures);
-    const liveRows = matrix.filter((row) => row.classification === "LIVE_REACHABLE");
-    for (const row of liveRows) {
+    const phase1Rows = matrix.filter((row) => row.classification === "PHASE1_REQUIRED");
+    for (const row of phase1Rows) {
       assert.ok(row.fixtureIds.length > 0, row.policy);
       assert.ok(Object.keys(row.proof).length > 0, row.policy);
       assert.equal(row.covered, row.fixturesExist && row.behavioralProofPasses, row.policy);
     }
     const counts = derivePolicyCoverageCounts(matrix);
     assert.equal(
-      counts.uncoveredLivePolicyCount,
+      counts.uncoveredPhase1PolicyCount,
       0,
-      JSON.stringify(liveRows.filter((row) => !row.covered))
+      JSON.stringify(phase1Rows.filter((row) => !row.covered))
     );
   });
 
-  it("dead policies derive report facts from canonical owner evidence", () => {
+  it("deferred model policies are not Phase 1 blockers", () => {
     const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
-    const facts = derivePolicyReportFacts(matrix);
-    assert.equal(facts.waiverMinimumRuntimeReachable, false);
-    assert.equal(facts.completedTurnRuntimeEffect, "NO_LIVE_EFFECT");
-    assert.equal(facts.upstreamCostConsumedByLiveOwnerG36, false);
+    const deferred = matrix.filter((row) => row.classification === "DEFERRED_NOT_PHASE1_BLOCKER");
+    assert.ok(deferred.some((row) => row.policy.includes("savedTextChars")));
+    assert.ok(deferred.some((row) => row.policy.includes("stealth fallback")));
+    const counts = derivePolicyCoverageCounts(matrix);
+    assert.ok(counts.deferredNotPhase1BlockerCount >= 2);
+  });
+
+  it("Phase 1 waiver evidence covers G31/G37/Opus5 without DeepSeek/G36 matrix", () => {
+    const matrix = buildSpecialPolicyCoverageMatrix(buildBillingLiveOwnerReadinessFixtures());
     const waiver = matrix.find((row) => row.policy.includes("waiver minimum"));
     assert.ok(waiver);
-    assert.equal(waiver.classification, "LEGACY_OR_DEAD");
+    assert.equal(waiver.classification, "PHASE1_REQUIRED");
     assert.equal(waiver.covered, true);
-    assert.equal(Number(waiver.proof.maxWaiverMinimum), 0);
+    assert.equal(Number(waiver.proof.phase1WaiverModelWithoutEvidence), 0);
+    assert.equal(waiver.proof.g37NoModelSpecificMinimum, 1);
+    assert.equal(waiver.proof.opus5NoModelSpecificMinimum, 1);
+    assert.equal(waiver.proof.g31HasModelSpecificMinimumResolver, 1);
   });
 
   it("unified-reasoning and G37 proofs use canonical owners not cross-model diffs", () => {
@@ -468,22 +527,21 @@ describe("billingLiveOwnerReadinessAudit — golden parity harness", () => {
     }
   });
 
-  it("hard gates include exact delivered-model coverage flags", () => {
+  it("hard gates include Phase 1 scope flags", () => {
     const gates = collectBillingReadinessHardGates(fixtures);
+    assert.equal(gates.PHASE1_EXACT_MODEL_WITHOUT_FIXTURE, 0);
     assert.equal(gates.CUTOVER_REQUIRED_EXACT_DELIVERED_MODEL_WITHOUT_FIXTURE, 0);
     assert.equal(gates.DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP, false);
     assert.equal(gates.POLICY_COVERAGE_BY_FIXTURE_EXISTENCE_ONLY, false);
+    assert.equal(gates.PHASE1_UNCOVERED_POLICY_COUNT, 0);
     assert.equal(gates.UNCOVERED_LIVE_POLICY_COUNT, 0);
+    assert.equal(gates.PHASE1_WAIVER_MODEL_WITHOUT_EVIDENCE, 0);
     assert.equal(gates.F4_REQUESTED_DELIVERED_IDENTITY_PROVEN, true);
     assert.equal(gates.AUDIT_FX_NESTED_SCOPE_SAFE, true);
     assert.equal(gates.AUDIT_FX_ENV_LEAK, false);
     assert.equal(gates.AUDIT_FX_CACHE_LEAK, false);
-    assert.equal(gates.WAIVER_MINIMUM_RUNTIME_REACHABILITY_HARDCODED, false);
-    assert.equal(gates.WAIVER_MINIMUM_RUNTIME_REACHABILITY_DERIVED, true);
-    assert.equal(gates.POLICY_REPORT_FACTS_DERIVED_FROM_EVIDENCE, true);
-    assert.equal(gates.UNIFIED_REASONING_OWNER_MATCH, 1);
-    assert.equal(gates.G37_DEDICATED_OWNER_MATCH, 1);
-    assert.equal(gates.OUTPUT_TOKEN_SOURCE_BEHAVIOR_PROVEN, 1);
+    assert.equal(gates.DEEPSEEK_PHASE2, true);
+    assert.equal(gates.PHASE1_CUTOVER_READY, true);
   });
 });
 
@@ -587,8 +645,10 @@ describe("billingLiveOwnerReadinessAudit — public economics privacy", () => {
 describe("billingLiveOwnerReadinessAudit — final report", () => {
   it("generateBillingLiveOwnerReadinessFinalReport ends with STOP", () => {
     const report = generateBillingLiveOwnerReadinessFinalReport();
-    assert.ok(report.includes("=== EXACT MODEL COVERAGE ==="));
-    assert.ok(report.includes("DELIVERED_MODEL_COVERAGE_USING_SELECTION_REMAP=false"));
+    assert.ok(report.includes("=== PHASE 1 PUBLISHED BILLING SCOPE ==="));
+    assert.ok(report.includes(`PHASE1_PUBLISHED_BILLING_MODELS=${PHASE_1_CUTOVER_REQUIRED_MODELS.join(",")}`));
+    assert.ok(report.includes("PHASE1_CUTOVER_READY="));
+    assert.ok(report.includes("NON_PHASE1_USER_SELECTABLE_MODELS="));
     assert.ok(report.endsWith("STOP"));
   });
 });
