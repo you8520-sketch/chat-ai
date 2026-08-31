@@ -7,7 +7,7 @@ import { planChatImageScene, type ScenePlanCompleter } from "@/lib/chatImageScen
 import type { TrpgImageSceneMode } from "@/lib/trpg/trpgImageSceneMode";
 
 export type TrpgAiFocusDiagnostics = {
-  modeRequested: "AI_FOCUS";
+  modeRequested: TrpgImageSceneMode;
   modeApplied: "AI_FOCUS" | "RAW";
   aiModel: string;
   aiAttempts: number;

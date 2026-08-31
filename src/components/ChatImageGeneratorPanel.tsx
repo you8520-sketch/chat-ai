@@ -23,6 +23,7 @@ import ChatSceneBuilder, {
   type SceneOutputMode,
   type ScenePanelCountMode,
 } from "@/components/ChatSceneBuilder";
+import TrpgImageSceneDiagnosticsPanel from "@/components/TrpgImageSceneDiagnosticsPanel";
 import {
   draftCastIntentFromCandidatePool,
   mergeCastIntentDraft,
@@ -183,7 +184,7 @@ type GenerateResult = {
   savedToCharacterAlbum?: boolean;
   trpgImageSceneDiagnostics?: {
     mode: TrpgImageSceneMode;
-    modeRequested: "AI_FOCUS";
+    modeRequested: TrpgImageSceneMode;
     modeApplied: TrpgImageSceneMode;
     aiModel: string;
     aiAttempts: number;
@@ -1662,6 +1663,9 @@ export default function ChatImageGeneratorPanel({
                         </>
                       ) : null}
                     </div>
+                    {trpgCampaignMode && sceneIsIllustration && activeResultUrl ? (
+                      <TrpgImageSceneDiagnosticsPanel diagnostics={trpgImageSceneDiagnostics} />
+                    ) : null}
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
                         ? activeMode === "persona"
@@ -1784,19 +1788,9 @@ export default function ChatImageGeneratorPanel({
                                 AI_FOCUS
                               </label>
                             </div>
-                            {trpgImageSceneDiagnostics ? (
-                              <div className="text-[10px] text-zinc-300 space-y-1">
-                                <p>
-                                  applied={trpgImageSceneDiagnostics.modeApplied} model=
-                                  {trpgImageSceneDiagnostics.aiModel || "n/a"} latency=
-                                  {trpgImageSceneDiagnostics.aiLatencyMs}ms
-                                </p>
-                                <p className="line-clamp-3">
-                                  hero: {trpgImageSceneDiagnostics.selectedHeroScene || "(empty)"}
-                                </p>
-                                <p>location: {trpgImageSceneDiagnostics.canonicalLocation}</p>
-                              </div>
-                            ) : null}
+                            <TrpgImageSceneDiagnosticsPanel
+                              diagnostics={trpgImageSceneDiagnostics}
+                            />
                           </div>
                         ) : null}
                         {partyPickerMember && partyPickerMember.images.length > 1 ? (
