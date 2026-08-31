@@ -192,6 +192,50 @@ export function freezeViewportScrollPosition(): number {
   return top;
 }
 
+/** Tailwind scroll-mb-28 on canonical NEXT_ACTION tail anchor (7rem @ 16px). */
+export const TRPG_NEXT_ACTION_TAIL_SCROLL_MARGIN_PX = 112;
+
+export function trpgNextActionEffectiveTailBottom(tailRectBottom: number): number {
+  return tailRectBottom + TRPG_NEXT_ACTION_TAIL_SCROLL_MARGIN_PX;
+}
+
+export function isTrpgNextActionTailVisibleAboveHud(opts: {
+  tailRectBottom: number;
+  hudTop: number;
+  epsilonPx?: number;
+}): boolean {
+  const epsilon = opts.epsilonPx ?? 8;
+  return trpgNextActionEffectiveTailBottom(opts.tailRectBottom) <= opts.hudTop + epsilon;
+}
+
+export function actionableBottomOccludedByHud(opts: {
+  actionableBottom: number;
+  hudTop: number;
+}): number {
+  return Math.max(0, opts.actionableBottom - opts.hudTop);
+}
+
+/** NEXT_ACTION tail follow must not run when tail is already safe or would yank upward. */
+export function shouldSkipTrpgNextActionTailFollow(opts: {
+  tailRectBottom: number;
+  hudTop: number;
+  scrollY: number;
+  maxScrollY: number;
+  epsilonPx?: number;
+}): boolean {
+  const epsilon = opts.epsilonPx ?? 8;
+  if (isTrpgNextActionTailVisibleAboveHud({ ...opts, epsilonPx: epsilon })) return true;
+  if (opts.scrollY >= opts.maxScrollY - epsilon) return true;
+  return false;
+}
+
+export function simulateScrollIntoViewBlockEndScrollY(opts: {
+  targetBottomDocument: number;
+  viewportHeight: number;
+}): number {
+  return Math.max(0, opts.targetBottomDocument - opts.viewportHeight);
+}
+
 export function updateManualDetachFollowZone(opts: {
   manualDetached: boolean;
   nearFollowOwner: boolean;

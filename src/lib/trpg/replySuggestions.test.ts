@@ -205,10 +205,10 @@ describe("TRPG reply suggestions", () => {
     assert.match(room, /bottomRef/);
     assert.match(room, /scrollToLatest/);
     assert.match(room, /followLatestRef/);
-    assert.match(room, /suggestionsAnchorRef/);
+    assert.match(room, /shouldSkipTrpgNextActionTailFollow/);
     assert.match(room, /scrollIntoView/);
-    assert.match(room, /block: "end"/);
-    assert.match(room, /if \(!followLatestRef\.current\) return/);
+    assert.match(room, /block: "nearest"/);
+    assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);
     assert.match(room, /role="switch"/);
     assert.match(room, /행동 예시 켜짐/);
     assert.match(room, /행동 예시 꺼짐/);
