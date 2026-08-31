@@ -66,11 +66,20 @@ export function hasPinnedFactsDropCompatible(db: SchemaDatabase): boolean {
   );
 }
 
+/**
+ * Phase 2B — pinned_facts column must be physically absent on current schema.
+ * chat_memories absent → false (outer production invariant fail-closed).
+ */
+export function hasPinnedFactsPhysicallyRetired(db: SchemaDatabase): boolean {
+  if (!tableExists(db, "chat_memories")) return false;
+  return !hasColumn(db, "chat_memories", "pinned_facts");
+}
+
 export function hasMemoryRetirementsCurrentSchema(db: SchemaDatabase): boolean {
   return (
     hasMemoryBufferRetired(db) &&
     hasCharacterMemoriesRetired(db) &&
-    hasPinnedFactsDropCompatible(db)
+    hasPinnedFactsPhysicallyRetired(db)
   );
 }
 

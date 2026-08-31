@@ -25,6 +25,7 @@ import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-migration-schema";
+import { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 import { migrateLegacyPinnedFactsIntoRecentSummary } from "@/lib/memory/pinned-facts-migration";
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
@@ -1304,7 +1305,6 @@ function migrate(db: Database.Database) {
       chat_id INTEGER NOT NULL UNIQUE,
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
-      pinned_facts TEXT NOT NULL DEFAULT '',
       recent_summary TEXT NOT NULL DEFAULT '',
       archive_summary TEXT NOT NULL DEFAULT '',
       membership_tier TEXT NOT NULL DEFAULT 'free',
@@ -1628,6 +1628,7 @@ function migrate(db: Database.Database) {
   dropLegacyMemoryBufferTableOnce(db);
   dropLegacyCharacterMemoriesTableOnce(db);
   migrateLegacyPinnedFactsIntoRecentSummary(db);
+  dropPinnedFactsColumnOnce(db);
   seedGlobalLorebookEntries(db);
   ensureDerivedCacheJobsTable(db);
   addColumn("worlds", "content_en", "TEXT NOT NULL DEFAULT ''");
@@ -1689,6 +1690,9 @@ export function dropLegacyCharacterMemoriesTableOnce(db: Database.Database): voi
     db.prepare("INSERT INTO _schema_flags (key) VALUES ('character_memories_dropped_v1')").run();
   }
 }
+
+/** Re-export for migration test wiring consistent with other retirement helpers. */
+export { dropPinnedFactsColumnOnce } from "@/lib/memory/pinned-facts-column-retirement";
 
 function migrateBoardPostsOnce(db: Database.Database) {
   db.exec(`

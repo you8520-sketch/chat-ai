@@ -299,20 +299,14 @@ describe("pinned_facts global migration lifecycle", () => {
     assert.equal(pinnedFactsFoldFlagExists(db), true);
   });
 
-  it("FRESH_DB migration is wired through getDb init", () => {
+  it("FRESH_DB init physically retires pinned_facts column", () => {
     getDb();
     const db = getDb();
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS _schema_flags (
-        key TEXT PRIMARY KEY,
-        applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
+    const cols = db.prepare(`PRAGMA table_info(chat_memories)`).all() as Array<{ name: string }>;
     assert.equal(
-      Boolean(
-        db.prepare(`SELECT 1 AS ok FROM _schema_flags WHERE key=?`).get(PINNED_FACTS_FOLDED_FLAG)
-      ),
-      true
+      cols.some((col) => col.name === "pinned_facts"),
+      false,
+      "fresh schema must not include pinned_facts"
     );
   });
 });
@@ -408,10 +402,10 @@ describe("pinned_facts parity", () => {
 });
 
 describe("getOrCreateChatMemory no longer performs hidden legacy fold", () => {
-  it("read path leaves legacy pinned row unchanged", async () => {
+  it("read path leaves legacy pinned row unchanged until global fold runs", async () => {
     const { getOrCreateChatMemory } = await import("./memory-db");
     const db = getDb();
-    createChatMemoriesTable(db);
+    db.exec(`ALTER TABLE chat_memories ADD COLUMN pinned_facts TEXT NOT NULL DEFAULT ''`);
     insertChatMemory(db, {
       chatId: 9001,
       pinned_facts: "should stay until global migration",

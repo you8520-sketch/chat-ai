@@ -34,7 +34,6 @@ function seedProductionRemoteCore(db: Database.Database): void {
       chat_id INTEGER NOT NULL UNIQUE,
       user_id INTEGER NOT NULL,
       character_id INTEGER NOT NULL,
-      pinned_facts TEXT NOT NULL DEFAULT '',
       recent_summary TEXT NOT NULL DEFAULT '',
       archive_summary TEXT NOT NULL DEFAULT '',
       membership_tier TEXT NOT NULL DEFAULT 'free',
@@ -171,7 +170,7 @@ describe("remote schema bootstrap", () => {
     db.close();
   });
 
-  it("v3 marker + valid full current invariant → migration skipped", () => {
+  it("v5 marker + valid full current invariant → migration skipped", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE _remote_schema_state (
@@ -196,7 +195,7 @@ describe("remote schema bootstrap", () => {
     db.close();
   });
 
-  it("v3 legacy marker + structurally current schema adopts v4 without migrate", () => {
+  it("v4 legacy marker + structurally current V5 schema adopts v5 without migrate", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE _remote_schema_state (
