@@ -1,0 +1,203 @@
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import assert from "node:assert/strict";
+import Database from "better-sqlite3";
+import { after, before, describe, it } from "node:test";
+import { getDb } from "@/lib/db";
+import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
+import { buildMemoryContext } from "./memory-injector";
+import { getMemorySnapshot, updateLorebookForChat } from "./memory-manager";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import {
+  clearChatMemory,
+  getOrCreateChatMemory,
+  updateChatMemory,
+} from "./memory-db";
+import { executeAtomicMemoryReset } from "./memory-source-boundary";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+
+function hasPhysicalLastCompressedAtColumn(db: Database.Database): boolean {
+  const cols = db.prepare(`PRAGMA table_info(chat_memories)`).all() as Array<{ name: string }>;
+  return cols.some((col) => col.name === "last_compressed_at");
+}
+
+function readPhysicalLastCompressedAt(db: Database.Database, chatId: number): string | null {
+  const row = db
+    .prepare(`SELECT last_compressed_at FROM chat_memories WHERE chat_id=?`)
+    .get(chatId) as { last_compressed_at: string | null } | undefined;
+  return row?.last_compressed_at ?? null;
+}
+
+function seedChatMemoryRow(db: Database.Database, chatId: number, lastCompressedAt: string | null): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      recent_summary TEXT NOT NULL DEFAULT '',
+      archive_summary TEXT NOT NULL DEFAULT '',
+      membership_tier TEXT NOT NULL DEFAULT 'free',
+      used_chars INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      memory_reset_after_message_id INTEGER,
+      memory_epoch INTEGER NOT NULL DEFAULT 0,
+      last_compressed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.prepare(
+    `INSERT OR REPLACE INTO chat_memories
+      (chat_id, user_id, character_id, recent_summary, archive_summary, used_chars,
+       message_count, summarized_turn_count, last_compressed_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`
+  ).run(chatId, 1, 2, "canonical recent", "archive body", 20, 5, 5, lastCompressedAt);
+}
+
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+
+describe("last_compressed_at write-only audit", () => {
+  it("L1 getOrCreateChatMemory works without runtime field", () => {
+    getDb();
+    const row = getOrCreateChatMemory(88001, 1, 2, "free");
+    assert.equal(row.recent_summary, "");
+    assert.equal("last_compressed_at" in row, false);
+  });
+
+  it("L5 updateChatMemory supported patches exclude last_compressed_at", () => {
+    getDb();
+    const row = updateChatMemory(88002, 1, 2, {
+      recent_summary: "patched",
+      message_count: 3,
+      summarized_turn_count: 2,
+      membership_tier: "free",
+    });
+    assert.equal(row.recent_summary, "patched");
+    assert.equal(row.message_count, 3);
+    assert.equal(row.summarized_turn_count, 2);
+    assert.equal("last_compressed_at" in row, false);
+  });
+
+  it("L7 physical DB column still exists on fresh schema", () => {
+    getDb();
+    assert.equal(hasPhysicalLastCompressedAtColumn(getDb()), true);
+  });
+
+  it("L8 historical non-null timestamp does not change injection or snapshot decisions", () => {
+    const db = getDb();
+    seedChatMemoryRow(db, 88003, "2020-01-01T00:00:00.000Z");
+    seedChatMemoryRow(db, 88004, null);
+
+    const rowA = getOrCreateChatMemory(88003, 1, 2, "free");
+    const rowB = getOrCreateChatMemory(88004, 1, 2, "free");
+
+    rowB.recent_summary = rowA.recent_summary;
+    rowB.archive_summary = rowA.archive_summary;
+    rowB.used_chars = rowA.used_chars;
+    rowB.message_count = rowA.message_count;
+    rowB.summarized_turn_count = rowA.summarized_turn_count;
+
+    const injectionA = buildMemoryContext({
+      memory: {
+        recent_summary: rowA.recent_summary,
+        archive_summary: rowA.archive_summary,
+        membership_tier: "free",
+      },
+      userMessage: "hello",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      includeArchiveAlways: true,
+    });
+    const injectionB = buildMemoryContext({
+      memory: {
+        recent_summary: rowB.recent_summary,
+        archive_summary: rowB.archive_summary,
+        membership_tier: "free",
+      },
+      userMessage: "hello",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      includeArchiveAlways: true,
+    });
+
+    assert.equal(injectionA.text, injectionB.text);
+    assert.equal(injectionA.usedChars, injectionB.usedChars);
+
+    const snapA = getMemorySnapshot(88003, 1, 2, "free", MEMORY_CAPACITY_FIXED);
+    const snapB = getMemorySnapshot(88004, 1, 2, "free", MEMORY_CAPACITY_FIXED);
+    assert.equal(snapA.messagesUntilCompression, snapB.messagesUntilCompression);
+    assert.equal(snapA.lorebook, snapB.lorebook);
+  });
+
+  it("L4 reset clears canonical fields regardless of stale last_compressed_at carrier", () => {
+    const db = getDb();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS chats (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        character_id INTEGER NOT NULL,
+        current_summary TEXT NOT NULL DEFAULT '',
+        memory TEXT NOT NULL DEFAULT '',
+        memory_meta TEXT NOT NULL DEFAULT '{}',
+        memory_pending TEXT NOT NULL DEFAULT '[]',
+        memory_archived_turns INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT OR IGNORE INTO chats (id, user_id, character_id) VALUES (88005, 1, 2);
+      CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL);
+    `);
+    seedChatMemoryRow(db, 88005, "stale timestamp");
+    db.prepare(`UPDATE chat_memories SET recent_summary='before reset' WHERE chat_id=88005`).run();
+
+    executeAtomicMemoryReset({ chatId: 88005, userId: 1, characterId: 2, tier: "free" });
+
+    const row = getOrCreateChatMemory(88005, 1, 2, "free");
+    assert.equal(row.recent_summary, "");
+    assert.equal(row.archive_summary, "");
+    assert.equal(row.message_count, 0);
+    assert.equal(row.summarized_turn_count, 0);
+  });
+
+  it("L6 no runtime ChatMemoryRow field after lorebook update path", async () => {
+    getDb();
+    const db = getDb();
+    seedChatMemoryRow(db, 88006, null);
+    db.prepare(`UPDATE chat_memories SET recent_summary=? WHERE chat_id=88006`).run("x".repeat(12000));
+
+    await updateLorebookForChat(88006, 1, 2, "x".repeat(12000), "free", MEMORY_CAPACITY_FIXED);
+    const row = getOrCreateChatMemory(88006, 1, 2, "free");
+    assert.equal("last_compressed_at" in row, false);
+  });
+});
+
+describe("last_compressed_at policy constants unchanged", () => {
+  it("rolling summary interval remains 5 and raw history exchanges remain 4", () => {
+    assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
+    assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
+  });
+});
+
+describe("last_compressed_at physical column write-only carrier", () => {
+  it("clearChatMemory does not touch physical last_compressed_at column", () => {
+    const db = getDb();
+    seedChatMemoryRow(db, 88007, "historical-write-carrier");
+    clearChatMemory(88007, 1, 2, "free");
+    assert.equal(readPhysicalLastCompressedAt(db, 88007), "historical-write-carrier");
+    const row = getOrCreateChatMemory(88007, 1, 2, "free");
+    assert.equal(row.recent_summary, "");
+    assert.equal("last_compressed_at" in row, false);
+  });
+});

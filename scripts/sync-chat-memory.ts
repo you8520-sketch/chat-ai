@@ -93,7 +93,6 @@ async function main() {
       summarized_turn_count: 0,
       message_count: turns.length,
       membership_tier: tier,
-      last_compressed_at: null,
     });
     db.prepare("UPDATE chats SET current_summary=? WHERE id=?").run("", chat.id);
     console.log(`[sync] force reset — ${turns.length} turns, pinned facts kept`);

@@ -810,9 +810,9 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       db.prepare(
         `UPDATE chat_memories SET
           recent_summary=?, used_chars=?, summarized_turn_count=?,
-          last_compressed_at=?, updated_at=datetime('now')
+          updated_at=datetime('now')
          WHERE chat_id=?`
-      ).run(recent, used, contiguous, new Date().toISOString(), opts.chatId);
+      ).run(recent, used, contiguous, opts.chatId);
       db.prepare("UPDATE chats SET current_summary=? WHERE id=?").run(recent.trim(), opts.chatId);
       upsertMigrationState(db, {
         chat_id: opts.chatId,

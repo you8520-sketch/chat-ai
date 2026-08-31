@@ -13,7 +13,6 @@ export type ChatMemoryRow = {
   summarized_turn_count: number;
   memory_reset_after_message_id: number | null;
   memory_epoch: number;
-  last_compressed_at: string | null;
   created_at: string;
   updated_at: string;
 };

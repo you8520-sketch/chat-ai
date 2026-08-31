@@ -143,14 +143,11 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   const resolved = await resolveLorebookFromRecords(opts.chatId, budget);
   const stored = memory.recent_summary?.trim() ?? "";
-  let update:
-    | { recent_summary: string; last_compressed_at?: string; membership_tier: MemoryTier }
-    | null = null;
+  let update: { recent_summary: string; membership_tier: MemoryTier } | null = null;
 
   if (resolved.text && resolved.text !== stored) {
     update = {
       recent_summary: resolved.text,
-      last_compressed_at: resolved.compressed ? new Date().toISOString() : undefined,
       membership_tier: opts.tier,
     };
   } else if (!resolved.text && stored.length > budget) {
@@ -158,7 +155,6 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
     if (compressed && fitted !== stored) {
       update = {
         recent_summary: fitted,
-        last_compressed_at: new Date().toISOString(),
         membership_tier: opts.tier,
       };
     }

@@ -825,12 +825,10 @@ export async function initializeForkChatMemory(opts: {
 
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
   let recentSummary = "";
-  let compressed = false;
 
   if (summarizedTurnCount > 0) {
     const resolved = await resolveLorebookFromRecords(opts.newChatId, budget.lorebook);
     recentSummary = resolved.text;
-    compressed = resolved.compressed;
   }
 
   getOrCreateChatMemory(opts.newChatId, opts.userId, opts.characterId, opts.tier);
@@ -840,7 +838,6 @@ export async function initializeForkChatMemory(opts: {
     message_count: opts.forkTurnCount,
     summarized_turn_count: summarizedTurnCount,
     membership_tier: opts.tier,
-    last_compressed_at: compressed ? new Date().toISOString() : null,
   });
 
   const db = getDb();
