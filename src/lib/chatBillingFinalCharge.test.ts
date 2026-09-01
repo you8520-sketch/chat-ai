@@ -83,13 +83,14 @@ describe("chatBillingFinalCharge — canonical final charge invariants", () => {
     assert.equal(snapshot.violations.length, 0);
   });
 
-  it("applyFinalUserChargeToUsage sets cost to settled points only", () => {
+  it("applyFinalUserChargeToUsage sets cost to settled points without overwriting baseCost", () => {
     const usage: Usage = {
       input: 100,
       output: 50,
       model: "claude-opus-5",
       route: "safe",
       cost: 999,
+      baseCost: 80,
       breakdown: [],
     };
     const patched = applyFinalUserChargeToUsage(usage, 115, {
@@ -104,7 +105,7 @@ describe("chatBillingFinalCharge — canonical final charge invariants", () => {
       settledDeductedPoints: 115,
     });
     assert.equal(patched.cost, 115);
-    assert.equal(patched.baseCost, 115);
+    assert.equal(patched.baseCost, 80);
     assert.equal(patched.billingContractDispatch?.settledDeductedPoints, 115);
   });
 
@@ -286,9 +287,10 @@ describe("adminFinanceCostScopeAudit", () => {
     assert.equal(audit.ADMIN_FINANCE_RECOMPUTES_USER_PRICE, false);
     assert.equal(audit.TARGET_MARGIN_USED_AS_REALIZED_MARGIN, false);
     assert.match(audit.ADMIN_FINANCE_REVENUE_OWNER, /deduction_slices/);
-    assert.ok(audit.ADMIN_FINANCE_MISSING_COST_FAMILIES.length > 0);
+    assert.equal(audit.ADMIN_FINANCE_MISSING_COST_FAMILIES.length, 0);
     assert.equal(audit.ADMIN_FINANCE_DOUBLE_COUNTED_COST_FAMILIES.length, 0);
-    assert.equal(adminFinanceRealizedMarginReady(audit), "NO");
+    assert.equal(audit.STATUS_WIDGET_EXTRACT_DOUBLE_COUNT, false);
+    assert.equal(adminFinanceRealizedMarginReady(audit), "YES");
   });
 
   it("paid revenue aggregates deduction slice amounts (Finance owner contract)", () => {

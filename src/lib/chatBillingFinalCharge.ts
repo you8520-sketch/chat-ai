@@ -77,7 +77,6 @@ export function applyFinalUserChargeToUsage(
   return {
     ...usage,
     cost: settledPoints,
-    baseCost: settledPoints,
     ...(billingContractDispatch ? { billingContractDispatch } : {}),
   };
 }
