@@ -89,16 +89,6 @@ export function updateChatMemory(
   return getOrCreateChatMemory(chatId, userId, characterId, tier);
 }
 
-export function clearChatMemory(chatId: number, userId: number, characterId: number, tier: MemoryTier): void {
-  const db = getDb();
-  db.prepare(
-    `UPDATE chat_memories SET
-      recent_summary='', archive_summary='',
-      used_chars=0, message_count=0, summarized_turn_count=0, updated_at=datetime('now')
-     WHERE chat_id=?`
-  ).run(chatId);
-  getOrCreateChatMemory(chatId, userId, characterId, tier);
-}
 export function upgradeTierForUser(userId: number, tier: MemoryTier): void {
   const db = getDb();
   db.prepare(

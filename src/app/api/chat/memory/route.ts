@@ -8,7 +8,6 @@ import {
   resolveChatSelectedPersona,
 } from "@/lib/userPersonas";
 import {
-  clearMemoryForChat,
   getMemorySnapshot,
   resolveMemoryTier,
   updateLorebookForChat,
@@ -221,7 +220,6 @@ export async function PATCH(req: Request) {
   const chatId = Number(body.chatId);
   const action = body.action as
     | "updateLorebook"
-    | "clear"
     | "updateMemoryRecord"
     | "updateTurnSummary"
     | "regenerateMemoryRecord"
@@ -241,12 +239,6 @@ export async function PATCH(req: Request) {
 
   const tier = resolveMemoryTier(user);
   const memoryCapacity = getChatMemoryCapacity(chatId);
-
-  if (action === "clear") {
-    clearMemoryForChat(chatId, user.id, chat.character_id, tier);
-    const snapshot = getMemorySnapshot(chatId, user.id, chat.character_id, tier, memoryCapacity);
-    return Response.json({ ok: true, ...snapshot });
-  }
 
   if (action === "catchUpSummary") {
     const charRow = getDb()
@@ -488,7 +480,7 @@ export async function PATCH(req: Request) {
   return Response.json(
     {
       error:
-        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | catchUpSummary | continueBranch | reopenBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem | clear)",
+        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | catchUpSummary | continueBranch | reopenBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem)",
     },
     { status: 400 }
   );

@@ -26,7 +26,6 @@ import {
 } from "./memory-db";
 import { getDb } from "@/lib/db";
 import {
-  executeAtomicMemoryReset,
   getMemorySourceBoundary,
   isMemorySourceEligible,
   isMemoryWriteGuardCurrentCore,
@@ -510,15 +509,6 @@ export async function updateLorebookForChat(
     membership_tier: tier,
   });
   return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
-}
-
-export function clearMemoryForChat(
-  chatId: number,
-  userId: number,
-  characterId: number,
-  tier: MemoryTier
-): void {
-  executeAtomicMemoryReset({ chatId, userId, characterId, tier });
 }
 
 export function upgradeTier(userId: number, tier: MemoryTier): void {
