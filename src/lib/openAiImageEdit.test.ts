@@ -1,57 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { CHEAPER_INFERENCE_IMAGE_EDITS_URL } from "@/lib/cheaperInferenceConfig";
 import {
   OpenAiImageError,
   calculateGptImage2CostUsd,
-  callImageEdit,
-  resolveImageEditTransportConfig,
+  callOpenAiImageEdit,
 } from "./openAiImageEdit";
-
-describe("imageEditTransport", () => {
-  it("resolves CheaperInference as canonical image edit transport", () => {
-    const config = resolveImageEditTransportConfig();
-    assert.equal(config.provider, "cheaperinference");
-    assert.equal(config.baseUrl, "https://api.cheaperinference.com/v1");
-    assert.equal(config.endpointUrl, CHEAPER_INFERENCE_IMAGE_EDITS_URL);
-    assert.equal(config.apiKeyOwner, "CHEAPER_INFERENCE_API_KEY");
-  });
-
-  it("requires CheaperInference API key and does not use OPENAI_API_KEY", async () => {
-    const originalFetch = globalThis.fetch;
-    const originalCiKey = process.env.CHEAPER_INFERENCE_API_KEY;
-    const originalOpenAiKey = process.env.OPENAI_API_KEY;
-    delete process.env.CHEAPER_INFERENCE_API_KEY;
-    process.env.OPENAI_API_KEY = "openai-only-key";
-    globalThis.fetch = async () => {
-      throw new Error("provider must not be called");
-    };
-    try {
-      await assert.rejects(
-        () =>
-          callImageEdit({
-            model: "gpt-image-2",
-            prompt: "test",
-            references: [`data:image/webp;base64,${Buffer.from("x").toString("base64")}`],
-            size: "1024x1024",
-            quality: "medium",
-            outputCompression: 84,
-          }),
-        (error: unknown) =>
-          error instanceof OpenAiImageError &&
-          error.status === 503 &&
-          /CheaperInference API 키/.test(error.message)
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-      if (originalCiKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = originalCiKey;
-      if (originalOpenAiKey == null) delete process.env.OPENAI_API_KEY;
-      else process.env.OPENAI_API_KEY = originalOpenAiKey;
-    }
-  });
-});
 
 describe("openAiImageEdit", () => {
   it("calculates direct GPT Image 2 cost from image, text, and output usage", () => {
@@ -67,16 +21,14 @@ describe("openAiImageEdit", () => {
     assert.equal(calculateGptImage2CostUsd(undefined), null);
   });
 
-  it("sends reference images to CheaperInference image edits endpoint as multipart data", async () => {
+  it("sends reference images to OpenAI direct edit endpoint as multipart data", async () => {
     const originalFetch = globalThis.fetch;
-    const originalCiKey = process.env.CHEAPER_INFERENCE_API_KEY;
-    const originalOpenAiKey = process.env.OPENAI_API_KEY;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci-key";
-    delete process.env.OPENAI_API_KEY;
+    const originalKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
     globalThis.fetch = async (input, init) => {
-      assert.equal(String(input), CHEAPER_INFERENCE_IMAGE_EDITS_URL);
+      assert.equal(String(input), "https://api.openai.com/v1/images/edits");
       assert.equal(init?.method, "POST");
-      assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-ci-key");
+      assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-key");
       assert.ok(init?.body instanceof FormData);
       assert.equal(init.body.get("model"), "gpt-image-2");
       assert.equal(init.body.get("size"), "1200x800");
@@ -99,7 +51,7 @@ describe("openAiImageEdit", () => {
     };
 
     try {
-      const result = await callImageEdit({
+      const result = await callOpenAiImageEdit({
         model: "gpt-image-2",
         prompt: "test",
         references: [
@@ -115,18 +67,50 @@ describe("openAiImageEdit", () => {
       assert.ok(result.costUsd != null && result.costUsd > 0);
     } finally {
       globalThis.fetch = originalFetch;
-      if (originalCiKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = originalCiKey;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
+    }
+  });
+
+  it("requires OPENAI_API_KEY and does not fall back to CheaperInference", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    const originalCiKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "ci-only-key";
+    globalThis.fetch = async () => {
+      throw new Error("provider must not be called");
+    };
+    try {
+      await assert.rejects(
+        () =>
+          callOpenAiImageEdit({
+            model: "gpt-image-2",
+            prompt: "test",
+            references: [`data:image/webp;base64,${Buffer.from("x").toString("base64")}`],
+            size: "1024x1024",
+            quality: "medium",
+            outputCompression: 84,
+          }),
+        (error: unknown) =>
+          error instanceof OpenAiImageError &&
+          error.status === 503 &&
+          /OpenAI API 키/.test(error.message)
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
       if (originalOpenAiKey == null) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalOpenAiKey;
+      if (originalCiKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = originalCiKey;
     }
   });
 
   it("rejects zero references without calling the provider", async () => {
     const originalFetch = globalThis.fetch;
-    const originalCiKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    const originalKey = process.env.OPENAI_API_KEY;
     let called = false;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci-key";
+    process.env.OPENAI_API_KEY = "test-key";
     globalThis.fetch = async () => {
       called = true;
       throw new Error("provider must not be called");
@@ -134,7 +118,7 @@ describe("openAiImageEdit", () => {
     try {
       await assert.rejects(
         () =>
-          callImageEdit({
+          callOpenAiImageEdit({
             model: "gpt-image-2",
             prompt: "test",
             references: [],
@@ -150,8 +134,8 @@ describe("openAiImageEdit", () => {
       assert.equal(called, false);
     } finally {
       globalThis.fetch = originalFetch;
-      if (originalCiKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = originalCiKey;
+      if (originalKey == null) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalKey;
     }
   });
 });
