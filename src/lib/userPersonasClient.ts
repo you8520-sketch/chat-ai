@@ -16,6 +16,10 @@ export type DbUserPersona = {
   image_focus_x: number;
   /** Focal point Y in [0, 1] for display-only framing. */
   image_focus_y: number;
+  /** Canonical persona-owned status-widget selection. Null means no persona widget. */
+  active_status_widget_preset_id: number | null;
+  /** Latest definition resolved from the selected preset; empty when selection is invalid/none. */
+  active_status_widget_json: string;
   created_at: string;
 };
 
