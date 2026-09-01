@@ -5,6 +5,7 @@ on:
     paths:
       - "src/lib/quoteSelectionContainer.ts"
       - "src/lib/quoteSelectionContainer.test.ts"
+      - "src/lib/quoteSelectionContainer.realDom.test.ts"
       - "src/lib/quoteSelectionToolbar.ts"
       - "src/lib/quoteSelectionToolbar.test.ts"
       - "src/lib/useQuoteSelectionContainer.ts"
@@ -18,6 +19,7 @@ on:
     paths:
       - "src/lib/quoteSelectionContainer.ts"
       - "src/lib/quoteSelectionContainer.test.ts"
+      - "src/lib/quoteSelectionContainer.realDom.test.ts"
       - "src/lib/quoteSelectionToolbar.ts"
       - "src/lib/quoteSelectionToolbar.test.ts"
       - "src/lib/useQuoteSelectionContainer.ts"

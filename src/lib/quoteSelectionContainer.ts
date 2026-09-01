@@ -50,6 +50,14 @@ export function normalizeQuoteSelectionText(raw: string): string {
     .trim();
 }
 
+// START_TO_END compares this.end with other.start; END_TO_START compares this.start with other.end.
+function rangesHaveCharacterOverlap(range: Range, nodeRange: Range): boolean {
+  return (
+    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) > 0 &&
+    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) < 0
+  );
+}
+
 function isTextNodeWithinRange(textNode: Text, range: Range): boolean {
   if (typeof range.intersectsNode === "function") {
     try {
@@ -62,10 +70,7 @@ function isTextNodeWithinRange(textNode: Text, range: Range): boolean {
   if (!doc) return false;
   const nodeRange = doc.createRange();
   nodeRange.selectNodeContents(textNode);
-  return (
-    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) < 0 &&
-    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) > 0
-  );
+  return rangesHaveCharacterOverlap(range, nodeRange);
 }
 
 function sliceTextNodeInRange(textNode: Text, range: Range): string {
@@ -76,8 +81,7 @@ function sliceTextNodeInRange(textNode: Text, range: Range): string {
   const nodeRange = doc.createRange();
   nodeRange.selectNodeContents(textNode);
 
-  if (range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) > 0) return "";
-  if (range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) < 0) return "";
+  if (!rangesHaveCharacterOverlap(range, nodeRange)) return "";
 
   let start = 0;
   let end = content.length;
