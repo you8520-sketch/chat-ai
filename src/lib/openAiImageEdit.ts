@@ -1,9 +1,20 @@
-const OPENAI_IMAGE_EDITS_URL = "https://api.openai.com/v1/images/edits";
+import {
+  CHEAPER_INFERENCE_IMAGE_EDITS_URL,
+  IMAGE_EDIT_PROVIDER,
+  resolveCheaperInferenceApiKey,
+} from "@/lib/cheaperInferenceConfig";
 
 /** `/v1/images/edits` requires at least one image. Zero-image requests are not supported. */
 export const OPENAI_IMAGE_EDIT_MIN_REFERENCES = 1;
 
 export type OpenAiImageQuality = "low" | "medium" | "high";
+
+export type ImageEditTransportConfig = {
+  provider: typeof IMAGE_EDIT_PROVIDER;
+  baseUrl: string;
+  endpointUrl: string;
+  apiKeyOwner: "CHEAPER_INFERENCE_API_KEY";
+};
 
 type OpenAiImageUsage = {
   input_tokens?: unknown;
@@ -24,15 +35,27 @@ export class OpenAiImageError extends Error {
   }
 }
 
+/** @deprecated Use OpenAiImageError — kept for existing route handlers. */
+export const ImageGenerationError = OpenAiImageError;
+
+export function resolveImageEditTransportConfig(): ImageEditTransportConfig {
+  return {
+    provider: IMAGE_EDIT_PROVIDER,
+    baseUrl: CHEAPER_INFERENCE_IMAGE_EDITS_URL.replace(/\/images\/edits$/, ""),
+    endpointUrl: CHEAPER_INFERENCE_IMAGE_EDITS_URL,
+    apiKeyOwner: "CHEAPER_INFERENCE_API_KEY",
+  };
+}
+
 function errorMessage(data: unknown): string {
-  if (!data || typeof data !== "object") return "OpenAI 이미지 생성 요청에 실패했습니다.";
+  if (!data || typeof data !== "object") return "이미지 생성 요청에 실패했습니다.";
   const error = (data as { error?: unknown }).error;
   if (typeof error === "string" && error.trim()) return error.slice(0, 240);
   if (error && typeof error === "object") {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string" && message.trim()) return message.slice(0, 240);
   }
-  return "OpenAI 이미지 생성 요청에 실패했습니다.";
+  return "이미지 생성 요청에 실패했습니다.";
 }
 
 function finiteTokenCount(value: unknown): number {
@@ -67,7 +90,26 @@ function referenceToBlob(reference: string, index: number) {
   };
 }
 
-export async function callOpenAiImageEdit(opts: {
+async function decodeImageEditResponse(data: unknown): Promise<Buffer> {
+  const item = (data as { data?: Array<{ b64_json?: string; url?: string }> })?.data?.[0];
+  const encoded = item?.b64_json?.replace(/^data:[^;]+;base64,/, "");
+  if (encoded) {
+    const buffer = Buffer.from(encoded, "base64");
+    if (buffer.length) return buffer;
+  }
+  const url = item?.url?.trim();
+  if (url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new OpenAiImageError("생성된 이미지 URL을 가져오지 못했습니다.", 502);
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length) return bytes;
+  }
+  throw new OpenAiImageError("생성된 이미지 데이터가 비어 있습니다.");
+}
+
+export async function callImageEdit(opts: {
   model: string;
   prompt: string;
   references: string[];
@@ -76,8 +118,12 @@ export async function callOpenAiImageEdit(opts: {
   outputCompression: number;
   signal?: AbortSignal;
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new OpenAiImageError("OpenAI API 키가 설정되지 않았습니다.", 503);
+  let apiKey: string;
+  try {
+    apiKey = resolveCheaperInferenceApiKey();
+  } catch {
+    throw new OpenAiImageError("CheaperInference API 키가 설정되지 않았습니다.", 503);
+  }
   if (opts.references.length < OPENAI_IMAGE_EDIT_MIN_REFERENCES) {
     throw new OpenAiImageError(
       "참조 이미지가 없어 이미지 편집을 요청할 수 없습니다.",
@@ -99,7 +145,8 @@ export async function callOpenAiImageEdit(opts: {
     form.append("image[]", file.blob, file.filename);
   });
 
-  const response = await fetch(OPENAI_IMAGE_EDITS_URL, {
+  const { endpointUrl } = resolveImageEditTransportConfig();
+  const response = await fetch(endpointUrl, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -120,14 +167,12 @@ export async function callOpenAiImageEdit(opts: {
     throw new OpenAiImageError(errorMessage(data), response.status >= 500 ? 502 : 400);
   }
 
-  const encoded = (data as { data?: Array<{ b64_json?: string }> })?.data?.[0]?.b64_json
-    ?.replace(/^data:[^;]+;base64,/, "");
-  if (!encoded) throw new OpenAiImageError("생성된 이미지 데이터가 비어 있습니다.");
-  const buffer = Buffer.from(encoded, "base64");
-  if (!buffer.length) throw new OpenAiImageError("생성된 이미지 데이터가 비어 있습니다.");
-
+  const buffer = await decodeImageEditResponse(data);
   return {
     buffer,
     costUsd: calculateGptImage2CostUsd((data as { usage?: OpenAiImageUsage })?.usage),
   };
 }
+
+/** @deprecated Prefer callImageEdit — alias kept for existing imports. */
+export const callOpenAiImageEdit = callImageEdit;

@@ -211,13 +211,13 @@ async function main() {
     JSON.stringify(comicRefs, null, 2)
   );
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
   if (!apiKey) {
     writeFileSync(
       join(OUT_DIR, "GPT-IMAGE-SMOKE-BLOCKED.json"),
       JSON.stringify(
         {
-          reason: "OPENAI_API_KEY is not configured in this environment",
+          reason: "CHEAPER_INFERENCE_API_KEY is not configured in this environment",
           gptImageRealCalls: 0,
           promptsGenerated: true,
           refsGenerated: true,
@@ -227,7 +227,7 @@ async function main() {
       )
     );
     console.error(
-      "OPENAI_API_KEY missing — saved prompts/refs only under docs/audits/chat-image-multicast-674/smoke/"
+      "CHEAPER_INFERENCE_API_KEY missing — saved prompts/refs only under docs/audits/chat-image-multicast-674/smoke/"
     );
     process.exit(1);
   }

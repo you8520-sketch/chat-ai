@@ -21,6 +21,13 @@ export const CHEAPER_INFERENCE_BASE_URL = "https://api.cheaperinference.com/v1";
 export const CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL =
   `${CHEAPER_INFERENCE_BASE_URL}/chat/completions`;
 
+/** Canonical gpt-image-2 image edits endpoint (OpenAI-compatible multipart API). */
+export const CHEAPER_INFERENCE_IMAGE_EDITS_URL =
+  `${CHEAPER_INFERENCE_BASE_URL}/images/edits`;
+
+/** Canonical image pixel generation transport for chat image products. */
+export const IMAGE_EDIT_PROVIDER = "cheaperinference" as const;
+
 export function resolveCheaperInferenceApiKey(): string {
   const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim();
   if (!key) {
