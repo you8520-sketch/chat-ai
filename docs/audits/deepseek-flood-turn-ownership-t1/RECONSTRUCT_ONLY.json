@@ -1,0 +1,46 @@
+{
+  "reconstructOnly": true,
+  "challengerCalls": 0,
+  "SNAPSHOT_ID": "handoff-17-1-2026-08-18T11-38-17-786Z",
+  "CHARACTER_SHA": "f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2",
+  "PERSONA_SHA": "019047714e494c1b1f874b8bca0fc463522a4ff83d76d6b482f7caddbee7876c",
+  "SPEECH_LOCK_SHA": "a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21",
+  "WORLD_CANON_SHA": "de6c8097f83027ec0d1b0d80ced2b161b02b1cf551fb5864c0b6b59b3785ae98",
+  "SOURCE_ASSISTANT_SHA": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+  "CURRENT_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+  "SYSTEM_SHA": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+  "HISTORY_SHA": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+  "FULL_PROMPT_SHA": "c3d4b4545c5a102bfa263020721ce559f8dda8369584bea0a3e157bccdc2c448",
+  "BASELINE_MESSAGES_SHA": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+  "CHALLENGER_MESSAGES_SHA": "eed39b42c2af6e31198186e7380f9d94f3471124e5a30816a74c0e0dd4d0319d",
+  "BASELINE_BODY_SHA": "e598e865ca1d788809c08948fa9a008c497b262b85a33676a598674abb818e5f",
+  "CHALLENGER_BODY_SHA": "ce261a7d56f0e235552d887b48623f3dc38a601a2c196d266b0ed5e89adf2cdf",
+  "TURN_OWNERSHIP_BLOCK_SHA": "439866d745b165569a252a8c0854122c13dbe692050665ece6676592bd29ae03",
+  "ONLY_SEMANTIC_DIFFERENCE_PROVEN": true,
+  "DIFF": "exactly one inserted owner block after unchanged system prefix",
+  "INSERTION": "messages[0] system += \\n\\n + exact TURN_OWNERSHIP_BLOCK",
+  "CHARACTER_UNCHANGED": true,
+  "PERSONA_UNCHANGED": true,
+  "SPEECH_LOCK_UNCHANGED": true,
+  "WORLD_CANON_UNCHANGED": true,
+  "HISTORY_UNCHANGED": true,
+  "CURRENT_USER_UNCHANGED": true,
+  "SOURCE_ASSISTANT_RAW_UNCHANGED": true,
+  "TRUE_OFF": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "absent": [
+      "reasoning",
+      "include_reasoning",
+      "enable_thinking"
+    ]
+  },
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_TURN_OWNERSHIP_ENABLED": false,
+  "PRODUCTION_TRUE_OFF_CHANGED": false
+}
