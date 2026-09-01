@@ -1,0 +1,42 @@
+name: validate-quote-selection
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/quoteSelectionContainer.ts"
+      - "src/lib/quoteSelectionContainer.test.ts"
+      - "src/lib/quoteSelectionToolbar.ts"
+      - "src/lib/quoteSelectionToolbar.test.ts"
+      - "src/lib/useQuoteSelectionContainer.ts"
+      - "src/components/ChatSelectionQuoteToolbar.tsx"
+      - "src/components/QuoteSelectionHost.tsx"
+      - "src/app/chat/[id]/ChatClient.tsx"
+      - "src/app/trpg/TrpgCampaignRoom.tsx"
+      - ".github/workflows/validate-quote-selection.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/quoteSelectionContainer.ts"
+      - "src/lib/quoteSelectionContainer.test.ts"
+      - "src/lib/quoteSelectionToolbar.ts"
+      - "src/lib/quoteSelectionToolbar.test.ts"
+      - "src/lib/useQuoteSelectionContainer.ts"
+      - "src/components/ChatSelectionQuoteToolbar.tsx"
+      - "src/components/QuoteSelectionHost.tsx"
+      - "src/app/chat/[id]/ChatClient.tsx"
+      - "src/app/trpg/TrpgCampaignRoom.tsx"
+      - ".github/workflows/validate-quote-selection.yml"
+
+jobs:
+  quote-selection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run typecheck:app
+      - run: node --conditions=react-server --import tsx --test src/lib/quoteSelectionContainer.test.ts src/lib/quoteSelectionToolbar.test.ts

@@ -53,7 +53,7 @@ export function normalizeQuoteSelectionText(raw: string): string {
 function isTextNodeWithinRange(textNode: Text, range: Range): boolean {
   if (typeof range.intersectsNode === "function") {
     try {
-      return range.intersectsNode(textNode);
+      if (range.intersectsNode(textNode)) return true;
     } catch {
       // fall through to boundary comparison
     }
@@ -63,8 +63,8 @@ function isTextNodeWithinRange(textNode: Text, range: Range): boolean {
   const nodeRange = doc.createRange();
   nodeRange.selectNodeContents(textNode);
   return (
-    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) <= 0 &&
-    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) >= 0
+    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) < 0 &&
+    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) > 0
   );
 }
 
