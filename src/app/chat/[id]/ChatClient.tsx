@@ -131,6 +131,12 @@ import {
   planSuccessDoneFinalContentReveal,
   resolveCanonicalContentAtRevealIdle,
 } from "@/lib/streamSuccessDoneReconcile";
+import {
+  applyExplicitHtmlFlashTurnFlag,
+  applyInstantReplaceDuringPostStreamLock,
+  applyStatusSseToStreamTurnMode,
+  resolveInstantRevealAtStreamDone,
+} from "@/lib/streamTurnModeClassification";
 import { createStreamDraftWriteGate, createSessionRecoveryDraftScope, adoptSessionRecoveryDraftChatId, clearRecoveryDraftScopes, type RecoveryDraftScopeOps } from "@/lib/streamDraftLifecycle";
 import {
   isGenerationStreamingMessage,
@@ -2975,10 +2981,11 @@ export default function ChatClient({
     const finalizeStreamDone = (data: NonNullable<typeof pendingDone>) => {
       if (streamDoneApplied) return;
       streamDoneApplied = true;
-      const instantReveal =
-        displayPrefsRef.current.streamIntervalMs <= 0 ||
-        htmlFlashStreamTurn ||
-        data.htmlFlashTurn === true;
+      const instantReveal = resolveInstantRevealAtStreamDone({
+        streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+        htmlFlashStreamTurn,
+        htmlFlashTurn: data.htmlFlashTurn,
+      });
       if (instantReveal) {
         reveal.flush();
       }
@@ -3109,22 +3116,18 @@ export default function ChatClient({
             if (data.message) {
               setStreamPhase(data.message);
               applyStatusMessageEvidence(postProcessEvidence, data.message);
-              if (/HTML|상태창 생성/i.test(data.message)) {
-                htmlFlashStreamTurn = true;
+              const nextTurnMode = applyStatusSseToStreamTurnMode(
+                { htmlFlashStreamTurn, postStreamLocked },
+                data.message
+              );
+              postStreamLocked = nextTurnMode.postStreamLocked;
+              if (nextTurnMode.postStreamLocked) {
+                setGenerationPrepUi(null);
               }
             }
             const prep = sanitizeGenerationPreparationUi(data.generationUi);
             if (prep) {
               setGenerationPrepUi(prep);
-            }
-            // Lock only after the main model stream ends (post-process phases).
-            // Pre-stream heartbeats like "생성 중…" / "재생성 준비 중…" must NOT lock.
-            if (
-              data.message &&
-              /마무리|분량 보강|HTML 생성|상태창 생성/i.test(data.message)
-            ) {
-              postStreamLocked = true;
-              setGenerationPrepUi(null);
             }
             continue;
           }
@@ -3140,7 +3143,10 @@ export default function ChatClient({
 
           if (postStreamLocked && data.type !== "done") {
             if (data.type === "replace" && data.text != null && data.instant === true) {
-              htmlFlashStreamTurn = true;
+              htmlFlashStreamTurn = applyInstantReplaceDuringPostStreamLock(
+                { htmlFlashStreamTurn, postStreamLocked },
+                true
+              ).htmlFlashStreamTurn;
               applyStreamReplaceTarget(data.text, { instant: true });
               continue;
             }
@@ -3187,7 +3193,10 @@ export default function ChatClient({
               persistedAssistantMessageId = data.messageId;
             }
             if (data.htmlFlashTurn === true) {
-              htmlFlashStreamTurn = true;
+              htmlFlashStreamTurn = applyExplicitHtmlFlashTurnFlag(
+                { htmlFlashStreamTurn, postStreamLocked },
+                true
+              ).htmlFlashStreamTurn;
             }
             if (data.trafficOverload || data.skipPersistence) {
               closeSessionRecoveryDraft();
@@ -3219,8 +3228,11 @@ export default function ChatClient({
 
       setStreamPhase(null);
       setGenerationPrepUi(null);
-      const instantReveal =
-        displayPrefsRef.current.streamIntervalMs <= 0 || htmlFlashStreamTurn;
+      const instantReveal = resolveInstantRevealAtStreamDone({
+        streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
+        htmlFlashStreamTurn,
+        htmlFlashTurn: pendingDone?.htmlFlashTurn,
+      });
       if (!streamDoneApplied && pendingDone?.finalContent) {
         postStreamLocked = true;
         if (instantReveal) {
