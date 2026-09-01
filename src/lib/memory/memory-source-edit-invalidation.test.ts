@@ -21,12 +21,17 @@ import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
-import { executeAtomicManualEditCore } from "@/lib/rpDerivedStateLifecycle";
+import {
+  executeAtomicManualEditCore,
+  executeAtomicManualEditMutationCore,
+} from "@/lib/rpDerivedStateLifecycle";
 import { buildMemoryContext } from "./memory-injector";
 import { getOrCreateChatMemory } from "./memory-db";
 import {
   reconcileMemoryAfterRecordDelete,
   reconcileMemoryAfterSourceMessageEdit,
+  reconcileMemoryAfterSourceMessageEditSyncCore,
+  scheduleMemoryResealAfterSourceMessageEdit,
 } from "./memory-reconcile";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
@@ -42,6 +47,9 @@ import {
   markMemoryRecordInactive,
   rebuildLorebookFromRecords,
 } from "./memory-turn-summary";
+import {
+  resolveMemorySourceTurnIdentityCore,
+} from "./memory-turn-loader";
 
 const CHAT = 960001;
 const USER = 960002;
@@ -51,9 +59,9 @@ const NEW_FACT = "NEW_FACT_ABC";
 const SECRET_OLD = "SECRET_OLD_QWE";
 const SECRET_NEW = "SECRET_NEW_RTY";
 
-const VALID_SUMMARY =
-  `${OLD_FACT} `.repeat(6) +
-  "장면 요약: 초기 배치 기록. 사실만 압축하고 반복 묘사는 생략한다.";
+const ASSISTANT_ONLY_OLD = "ASSISTANT_ONLY_OLD";
+const ASSISTANT_ONLY_NEW = "ASSISTANT_ONLY_NEW";
+const EARLY_BATCH_MARKER = "EARLY_BATCH_INTACT";
 
 function cleanup() {
   const db = getDb();
@@ -101,6 +109,60 @@ function seedBase(turnCount: number) {
   getOrCreateChatMemory(CHAT, USER, CHAR, "free");
   seedOpening();
   seedPlayableTurns(turnCount);
+}
+
+const VALID_SUMMARY =
+  `${OLD_FACT} `.repeat(6) +
+  "장면 요약: 초기 배치 기록. 사실만 압축하고 반복 묘사는 생략한다.";
+
+const ADOPTED_USAGE = JSON.stringify({
+  generationKind: "ooc_scene_render",
+  canonical: false,
+  canonAdopted: true,
+  canonAdoptedAt: "2026-08-17T00:00:00.000Z",
+});
+
+function messageContent(messageId: number): string {
+  return (
+    getDb()
+      .prepare(`SELECT content FROM messages WHERE id=?`)
+      .get(messageId) as { content: string }
+  ).content;
+}
+
+function runAtomicAssistantMaterialEdit(opts: {
+  assistantId: number;
+  newProse: string;
+  memoryTurnNumber: number;
+  sourceUserMessageId: number | null;
+  sourceAssistantMessageId: number;
+  __testThrowAfterMemoryInvalidate?: boolean;
+  __testThrowAfterMemoryRebuild?: boolean;
+}) {
+  const db = getDb();
+  db.transaction(() => {
+    executeAtomicManualEditMutationCore(db, {
+      chatId: CHAT,
+      messageId: opts.assistantId,
+      content: opts.newProse,
+      alternatesJson: "[]",
+      statusWidgetValuesJson: "{}",
+      materialProseChange: true,
+      sourceTurn: opts.memoryTurnNumber,
+    });
+    reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      memoryCapacity: 10_000,
+      memoryTurnNumber: opts.memoryTurnNumber,
+      sourceUserMessageId: opts.sourceUserMessageId,
+      sourceAssistantMessageId: opts.sourceAssistantMessageId,
+      __testThrowAfterMemoryInvalidate: opts.__testThrowAfterMemoryInvalidate,
+      __testThrowAfterMemoryRebuild: opts.__testThrowAfterMemoryRebuild,
+    });
+  }).immediate();
 }
 
 function sealBatch1To5() {
@@ -225,33 +287,23 @@ describe("assistant material prose edit", () => {
     });
 
     const newProse = `assistant 1 ${NEW_FACT} updated narrative`;
-    executeAtomicManualEditCore(db, {
-      chatId: CHAT,
-      messageId: assistant.id,
-      content: newProse,
-      alternatesJson: "[]",
-      statusWidgetValuesJson: "{}",
-      materialProseChange: true,
-      sourceTurn: 1,
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistant.id)!;
+    runAtomicAssistantMaterialEdit({
+      assistantId: assistant.id,
+      newProse,
+      memoryTurnNumber: identity.memoryTurnNumber,
+      sourceUserMessageId: identity.sourceUserMessageId,
+      sourceAssistantMessageId: identity.sourceAssistantMessageId,
     });
 
-    reconcileMemoryAfterSourceMessageEdit({
+    scheduleMemoryResealAfterSourceMessageEdit({
       chatId: CHAT,
       userId: USER,
       characterId: CHAR,
       charName: "EditChar",
       tier: "free",
       memoryCapacity: 10_000,
-      sourceTurn: 1,
-      sourceUserMessageId: db
-        .prepare(`SELECT id FROM messages WHERE chat_id=? AND role='user' ORDER BY id LIMIT 1`)
-        .get(CHAT) as { id: number } | undefined
-        ? (
-            db
-              .prepare(`SELECT id FROM messages WHERE chat_id=? AND role='user' ORDER BY id LIMIT 1`)
-              .get(CHAT) as { id: number }
-          ).id
-        : null,
+      summarizedTurnCount: 0,
       assistantMessageId: assistant.id,
     });
 
@@ -347,7 +399,20 @@ describe("user message edit", () => {
     const newContent = userMsg.content.replace(SECRET_OLD, SECRET_NEW);
     assert.ok(isMaterialProseEdit(userMsg.content, newContent));
 
-    db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(newContent, userMsg.id);
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
+    db.transaction(() => {
+      db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(newContent, userMsg.id);
+      reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        tier: "free",
+        memoryCapacity: 10_000,
+        memoryTurnNumber: identity.memoryTurnNumber,
+        sourceUserMessageId: identity.sourceUserMessageId,
+        sourceAssistantMessageId: identity.sourceAssistantMessageId,
+      });
+    }).immediate();
 
     let releaseLlm!: () => void;
     __setSummarizeTurnBatchCallerForTests(async () => {
@@ -369,8 +434,9 @@ describe("user message edit", () => {
       charName: "EditChar",
       tier: "free",
       memoryCapacity: 10_000,
-      sourceTurn: 1,
-      sourceUserMessageId: userMsg.id,
+      memoryTurnNumber: identity.memoryTurnNumber,
+      sourceUserMessageId: identity.sourceUserMessageId,
+      sourceAssistantMessageId: identity.sourceAssistantMessageId,
     });
 
     releaseLlm!();
@@ -441,5 +507,291 @@ describe("helper — old repair self-stale ordering regression", () => {
     invalidateDerivedMemoryGenerationCore(getDb(), CHAT);
     assert.equal(staleSnapshot.epoch + 1, getMemorySourceBoundaryCore(getDb(), CHAT).epoch);
     void staleSnapshot;
+  });
+});
+
+describe("atomic source edit rollback — assistant", () => {
+  it("A1: failure after message update rolls back prose and sealed summary", () => {
+    seedBase(5);
+    sealBatch1To5();
+    const db = getDb();
+    const assistant = db
+      .prepare(
+        `SELECT id, content FROM messages WHERE chat_id=? AND role='assistant' AND model='test' ORDER BY id LIMIT 1`
+      )
+      .get(CHAT) as { id: number; content: string };
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistant.id)!;
+    const beforeEpoch = getMemorySourceBoundaryCore(db, CHAT).epoch;
+    const newProse = "completely different assistant prose";
+
+    assert.throws(() => {
+      runAtomicAssistantMaterialEdit({
+        assistantId: assistant.id,
+        newProse,
+        memoryTurnNumber: identity.memoryTurnNumber,
+        sourceUserMessageId: identity.sourceUserMessageId,
+        sourceAssistantMessageId: identity.sourceAssistantMessageId,
+        __testThrowAfterMemoryInvalidate: true,
+      });
+    });
+
+    assert.equal(messageContent(assistant.id), assistant.content);
+    assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
+    assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, beforeEpoch);
+    assert.equal(
+      listMemoryRecordsForChat(CHAT).filter((r) => !r.inactive).length,
+      1
+    );
+  });
+
+  it("A2: failure after sealed-row inactive rolls back entire transaction", () => {
+    seedBase(5);
+    sealBatch1To5();
+    const db = getDb();
+    const assistant = db
+      .prepare(
+        `SELECT id, content FROM messages WHERE chat_id=? AND role='assistant' AND model='test' ORDER BY id LIMIT 1`
+      )
+      .get(CHAT) as { id: number; content: string };
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistant.id)!;
+    const newProse = "another different assistant prose";
+
+    assert.throws(() => {
+      runAtomicAssistantMaterialEdit({
+        assistantId: assistant.id,
+        newProse,
+        memoryTurnNumber: identity.memoryTurnNumber,
+        sourceUserMessageId: identity.sourceUserMessageId,
+        sourceAssistantMessageId: identity.sourceAssistantMessageId,
+        __testThrowAfterMemoryRebuild: true,
+      });
+    });
+
+    assert.equal(messageContent(assistant.id), assistant.content);
+    assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
+    assert.equal(
+      listMemoryRecordsForChat(CHAT).filter((r) => !r.inactive).length,
+      1
+    );
+  });
+});
+
+describe("atomic source edit rollback — user", () => {
+  it("failure during memory mutation rolls back user content and sealed summary", () => {
+    seedBase(5);
+    sealBatch1To5();
+    const db = getDb();
+    const userMsg = db
+      .prepare(`SELECT id, content FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1`)
+      .get(CHAT) as { id: number; content: string };
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, userMsg.id)!;
+    const newContent = userMsg.content.replace(SECRET_OLD, SECRET_NEW);
+    const beforeEpoch = getMemorySourceBoundaryCore(db, CHAT).epoch;
+
+    assert.throws(() => {
+      db.transaction(() => {
+        db.prepare(`UPDATE messages SET content=? WHERE id=?`).run(newContent, userMsg.id);
+        reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+          chatId: CHAT,
+          userId: USER,
+          characterId: CHAR,
+          tier: "free",
+          memoryCapacity: 10_000,
+          memoryTurnNumber: identity.memoryTurnNumber,
+          sourceUserMessageId: identity.sourceUserMessageId,
+          sourceAssistantMessageId: identity.sourceAssistantMessageId,
+          __testThrowAfterMemoryRebuild: true,
+        });
+      }).immediate();
+    });
+
+    assert.equal(messageContent(userMsg.id), userMsg.content);
+    assert.match(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
+    assert.equal(getMemorySourceBoundaryCore(db, CHAT).epoch, beforeEpoch);
+  });
+});
+
+describe("async reseal failure — safe missing memory", () => {
+  it("sync invalidation committed; failed LLM reseal leaves old summary non-canonical", async () => {
+    seedBase(5);
+    sealBatch1To5();
+    const db = getDb();
+    const assistant = db
+      .prepare(
+        `SELECT id FROM messages WHERE chat_id=? AND role='assistant' AND model='test' ORDER BY id LIMIT 1`
+      )
+      .get(CHAT) as { id: number };
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistant.id)!;
+    const newProse = `assistant 1 ${NEW_FACT} committed prose`;
+
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      throw new Error("LLM_RESEAL_FAILED");
+    });
+
+    runAtomicAssistantMaterialEdit({
+      assistantId: assistant.id,
+      newProse,
+      memoryTurnNumber: identity.memoryTurnNumber,
+      sourceUserMessageId: identity.sourceUserMessageId,
+      sourceAssistantMessageId: identity.sourceAssistantMessageId,
+    });
+
+    scheduleMemoryResealAfterSourceMessageEdit({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "EditChar",
+      tier: "free",
+      memoryCapacity: 10_000,
+      summarizedTurnCount: 0,
+      assistantMessageId: assistant.id,
+    });
+
+    await new Promise((r) => setTimeout(r, 150));
+
+    assert.equal(messageContent(assistant.id), newProse);
+    assert.doesNotMatch(rebuildLorebookFromRecords(CHAT), new RegExp(OLD_FACT));
+    assert.ok(getMemorySourceBoundaryCore(db, CHAT).epoch >= 1);
+    assert.equal(listMemoryRecordsForChat(CHAT).filter((r) => !r.inactive).length, 0);
+  });
+});
+
+describe("assistant-only canon-adopted source identity", () => {
+  function seedWithAssistantOnlyScene() {
+    cleanup();
+    const db = getDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+      USER,
+      `edit-${USER}@test.local`,
+      "edit",
+      "x"
+    );
+    db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR, "EditChar");
+    db.prepare(`INSERT INTO chats (id, user_id, character_id, mode, memory_capacity) VALUES (?,?,?,'safe',?)`).run(
+      CHAT,
+      USER,
+      CHAR,
+      10_000
+    );
+    getOrCreateChatMemory(CHAT, USER, CHAR, "free");
+    seedOpening();
+    for (let t = 1; t <= 7; t++) {
+      db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+        CHAT,
+        "user",
+        `user turn ${t}`,
+        "user"
+      );
+      db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+        CHAT,
+        "assistant",
+        `assistant ${t}`,
+        "test"
+      );
+    }
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, usage) VALUES (?,?,?,?,?)`
+    ).run(CHAT, "assistant", `${ASSISTANT_ONLY_OLD} scene`, "test", ADOPTED_USAGE);
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "user",
+      "user turn 9",
+      "user"
+    );
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "assistant",
+      "assistant 9",
+      "test"
+    );
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "user",
+      "user turn 10",
+      "user"
+    );
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+      CHAT,
+      "assistant",
+      "assistant 10",
+      "test"
+    );
+  }
+
+  it("edits assistant-only turn without misattributing to prior user turn", async () => {
+    seedWithAssistantOnlyScene();
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary: `${EARLY_BATCH_MARKER} `.repeat(6) + "early batch sealed.",
+      playableTurnCount: 10,
+    });
+    persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 6,
+      assistantMessageId: null,
+      summary: `${ASSISTANT_ONLY_OLD} `.repeat(6) + "late batch with assistant-only scene.",
+      playableTurnCount: 10,
+    });
+
+    const db = getDb();
+    const assistantOnly = db
+      .prepare(
+        `SELECT id FROM messages WHERE chat_id=? AND role='assistant' AND content LIKE ? ORDER BY id DESC`
+      )
+      .get(CHAT, `%${ASSISTANT_ONLY_OLD}%`) as { id: number };
+    const identity = resolveMemorySourceTurnIdentityCore(db, CHAT, assistantOnly.id)!;
+    assert.equal(identity.assistantOnly, true);
+    assert.equal(identity.sourceUserMessageId, null);
+    assert.equal(identity.memoryTurnNumber, 8);
+
+    let releaseLlm!: () => void;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      await new Promise<void>((resolve) => {
+        releaseLlm = resolve;
+      });
+      return {
+        text: `${ASSISTANT_ONLY_NEW} `.repeat(8) + "assistant-only reseal.",
+      };
+    });
+
+    runAtomicAssistantMaterialEdit({
+      assistantId: assistantOnly.id,
+      newProse: `${ASSISTANT_ONLY_NEW} updated scene`,
+      memoryTurnNumber: identity.memoryTurnNumber,
+      sourceUserMessageId: identity.sourceUserMessageId,
+      sourceAssistantMessageId: identity.sourceAssistantMessageId,
+    });
+
+    scheduleMemoryResealAfterSourceMessageEdit({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "EditChar",
+      tier: "free",
+      memoryCapacity: 10_000,
+      summarizedTurnCount: 5,
+      assistantMessageId: assistantOnly.id,
+    });
+
+    releaseLlm!();
+    await new Promise((r) => setTimeout(r, 300));
+
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.match(lore, new RegExp(EARLY_BATCH_MARKER));
+    assert.doesNotMatch(lore, new RegExp(ASSISTANT_ONLY_OLD));
+    assert.match(lore, new RegExp(ASSISTANT_ONLY_NEW));
+    const earlyBatch = listMemoryRecordsForChat(CHAT).find(
+      (r) => !r.inactive && r.turnStart === 1
+    );
+    assert.ok(earlyBatch);
+    assert.match(earlyBatch.summary, new RegExp(EARLY_BATCH_MARKER));
   });
 });

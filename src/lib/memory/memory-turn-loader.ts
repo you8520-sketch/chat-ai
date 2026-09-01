@@ -210,6 +210,31 @@ export function resolveMemoryEligibleTurnNumberCore(
   return turn?.turnNumber ?? null;
 }
 
+/** Canonical memory turn identity for a message row (memory-turn-loader owner). */
+export function resolveMemorySourceTurnIdentityCore(
+  db: Database.Database,
+  chatId: number,
+  messageId: number
+): {
+  memoryTurnNumber: number;
+  sourceUserMessageId: number | null;
+  sourceAssistantMessageId: number;
+  assistantOnly: boolean;
+} | null {
+  const turn = loadMemoryEligibleChatTurnsWithMessageIdsCore(db, chatId).find(
+    (candidate) =>
+      candidate.userMessageId === messageId ||
+      candidate.assistantMessageId === messageId
+  );
+  if (!turn) return null;
+  return {
+    memoryTurnNumber: turn.turnNumber,
+    sourceUserMessageId: turn.userMessageId,
+    sourceAssistantMessageId: turn.assistantMessageId,
+    assistantOnly: turn.assistantOnly === true,
+  };
+}
+
 export function countChatTurns(chatId: number): number {
   const all = loadChatTurnsWithMessageIds(chatId);
   return all.filter((t) => t.turnNumber > 0).length;

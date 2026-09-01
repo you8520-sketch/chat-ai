@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { isMemoryFeatureEnabled } from "./memory-feature";
@@ -18,7 +19,10 @@ import {
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import { invalidateDerivedMemoryGenerationCore } from "./memory-source-boundary";
-import { reconcileMemoryAfterVariantSwitchCore } from "./memory-variant-switch-reconcile";
+import {
+  reconcileMemoryAfterVariantSwitchCore,
+  type VariantSwitchMemoryReconcileResult,
+} from "./memory-variant-switch-reconcile";
 import type { MemoryTier } from "./memory-types";
 
 /** memory-eligible 완료 턴 수로 message_count를 맞춘다 (재생성·패널 조회·드리프트 복구). */
@@ -199,36 +203,55 @@ export function reconcileMemoryAfterTurnDelete(opts: {
 }
 
 /**
- * Source message edit (user or assistant material prose) — reuses variant-switch
- * sealed-summary invalidation owner, then starts a post-invalidation reseal job.
+ * Synchronous canonical memory invalidation for source message edit.
+ * Transaction-free — caller owns BEGIN/COMMIT with message mutation.
  */
-export function reconcileMemoryAfterSourceMessageEdit(opts: {
+export type SourceMessageEditMemoryInput = {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  memoryTurnNumber: number;
+  sourceUserMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
+  /** @internal test-only */
+  __testThrowAfterMemoryInvalidate?: boolean;
+  /** @internal test-only */
+  __testThrowAfterMemoryRebuild?: boolean;
+};
+
+export function reconcileMemoryAfterSourceMessageEditSyncCore(
+  db: Database.Database,
+  opts: SourceMessageEditMemoryInput
+): VariantSwitchMemoryReconcileResult {
+  return reconcileMemoryAfterVariantSwitchCore(db, {
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    memoryTurnNumber: opts.memoryTurnNumber,
+    sourceTurn: opts.memoryTurnNumber,
+    sourceUserMessageId: opts.sourceUserMessageId ?? null,
+    sourceAssistantMessageId: opts.sourceAssistantMessageId ?? null,
+    __testThrowAfterInvalidate: opts.__testThrowAfterMemoryInvalidate,
+    __testThrowAfterRebuild: opts.__testThrowAfterMemoryRebuild,
+  });
+}
+
+export function scheduleMemoryResealAfterSourceMessageEdit(opts: {
   chatId: number;
   userId: number;
   characterId: number;
   charName: string;
   tier: MemoryTier;
   memoryCapacity: number;
-  sourceTurn: number;
-  sourceUserMessageId?: number | null;
+  summarizedTurnCount: number | null;
   assistantMessageId?: number | null;
-}): boolean {
-  if (!isMemoryFeatureEnabled()) return false;
-
-  const db = getDb();
-  const result = reconcileMemoryAfterVariantSwitchCore(db, {
-    chatId: opts.chatId,
-    userId: opts.userId,
-    characterId: opts.characterId,
-    tier: opts.tier,
-    memoryCapacity: opts.memoryCapacity,
-    sourceTurn: opts.sourceTurn,
-    sourceUserMessageId: opts.sourceUserMessageId ?? null,
-  });
-  if (!result.attempted) return false;
-
+}): void {
   const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
-  const summarized = result.summarizedTurnCount ?? 0;
+  const summarized = opts.summarizedTurnCount ?? 0;
 
   if (opts.assistantMessageId != null) {
     void refreshRollingSummaryForRegeneratedAssistant({
@@ -255,9 +278,52 @@ export function reconcileMemoryAfterSourceMessageEdit(opts: {
       memoryCapacity: opts.memoryCapacity,
     });
   }
+}
+
+/**
+ * Source message edit (user or assistant material prose) — reuses variant-switch
+ * sealed-summary invalidation owner, then starts a post-invalidation reseal job.
+ */
+export function reconcileMemoryAfterSourceMessageEdit(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  memoryTurnNumber: number;
+  sourceUserMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
+  assistantMessageId?: number | null;
+}): boolean {
+  if (!isMemoryFeatureEnabled()) return false;
+
+  const db = getDb();
+  const result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    memoryTurnNumber: opts.memoryTurnNumber,
+    sourceUserMessageId: opts.sourceUserMessageId ?? null,
+    sourceAssistantMessageId: opts.sourceAssistantMessageId ?? null,
+  });
+  if (!result.attempted) return false;
+
+  scheduleMemoryResealAfterSourceMessageEdit({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    charName: opts.charName,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    summarizedTurnCount: result.summarizedTurnCount,
+    assistantMessageId: opts.assistantMessageId ?? null,
+  });
 
   console.info(
-    `[memory] reconcile after source message edit chat=${opts.chatId} sourceTurn=${opts.sourceTurn} inactivated=${result.inactivatedRecordIds.length} summarized=${summarized}`
+    `[memory] reconcile after source message edit chat=${opts.chatId} memoryTurn=${opts.memoryTurnNumber} inactivated=${result.inactivatedRecordIds.length} summarized=${result.summarizedTurnCount ?? 0}`
   );
   return true;
 }

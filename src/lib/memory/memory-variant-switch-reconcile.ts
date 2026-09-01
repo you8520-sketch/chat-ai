@@ -57,8 +57,12 @@ export type VariantSwitchMemoryReconcileInput = {
   characterId: number;
   tier: MemoryTier;
   memoryCapacity: number;
+  /** Playable memory turn from memory-turn-loader (preferred). */
+  memoryTurnNumber?: number;
+  /** Legacy fallback when memoryTurnNumber omitted. */
   sourceTurn: number;
   sourceUserMessageId?: number | null;
+  sourceAssistantMessageId?: number | null;
   /** When false, skip entirely (memory feature off). Default: isMemoryFeatureEnabled(). */
   enabled?: boolean;
   /** @internal test-only */
@@ -192,7 +196,7 @@ export function reconcileMemoryAfterVariantSwitchCore(
       summarizedTurnCount: null,
     };
   }
-  if (!Number.isFinite(opts.sourceTurn) || opts.sourceTurn <= 0) {
+  if (!Number.isFinite(opts.sourceTurn) && opts.memoryTurnNumber == null) {
     return {
       attempted: false,
       inactivatedRecordIds: [],
@@ -201,7 +205,15 @@ export function reconcileMemoryAfterVariantSwitchCore(
     };
   }
   const boundary = getMemorySourceBoundaryCore(db, opts.chatId);
-  if (!isMemorySourceEligible({ sourceUserMessageId: opts.sourceUserMessageId, boundary })) {
+  const eligibilityMessageId =
+    opts.sourceUserMessageId ?? opts.sourceAssistantMessageId ?? null;
+  if (
+    eligibilityMessageId != null &&
+    !isMemorySourceEligible({
+      sourceUserMessageId: eligibilityMessageId,
+      boundary,
+    })
+  ) {
     return {
       attempted: false,
       inactivatedRecordIds: [],
@@ -209,10 +221,12 @@ export function reconcileMemoryAfterVariantSwitchCore(
       summarizedTurnCount: null,
     };
   }
-  const memorySourceTurn = opts.sourceUserMessageId
-    ? resolveMemoryEligibleTurnNumberCore(db, opts.chatId, opts.sourceUserMessageId)
-    : opts.sourceTurn;
-  if (memorySourceTurn == null) {
+  const memorySourceTurn =
+    opts.memoryTurnNumber ??
+    (opts.sourceUserMessageId != null
+      ? resolveMemoryEligibleTurnNumberCore(db, opts.chatId, opts.sourceUserMessageId)
+      : opts.sourceTurn);
+  if (memorySourceTurn == null || memorySourceTurn <= 0) {
     return {
       attempted: false,
       inactivatedRecordIds: [],
@@ -251,6 +265,8 @@ export function reconcileMemoryAfterVariantSwitchCore(
     chatId: opts.chatId,
     affectedUserMessageIds:
       opts.sourceUserMessageId != null ? [opts.sourceUserMessageId] : [],
+    affectedAssistantMessageIds:
+      opts.sourceAssistantMessageId != null ? [opts.sourceAssistantMessageId] : [],
   });
 
   if (opts.__testThrowAfterInvalidate) {
