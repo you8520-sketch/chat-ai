@@ -9,6 +9,7 @@ import { computeResolutionOrder, type TrpgResolutionOrderEntry } from "./initiat
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import { ensurePreActionMechanics, type MechanicsRoundDeps } from "./mechanicsRound";
 import type { MechanicsResolution } from "./mechanicsTypes";
+import { loadCampaignContext } from "./campaignContext";
 import { loadParticipants, loadScenario, parseJson, setRoundPhase } from "./store";
 import { statModifier } from "./stats";
 
@@ -195,10 +196,28 @@ export function adjudicateCanonicalSubmission(
   });
   const checkBody = resolved.canonicalAttempt;
   const actionType = resolved.actionType;
+  const statSelection = pickStatForActionDetailed({
+    actionType,
+    selectedStat: sub.selected_stat,
+    body: checkBody,
+    defs: scenario.statDefs,
+  });
+  const statKey = statSelection.statKey;
+  const statRow = db
+    .prepare(
+      `SELECT st.value FROM trpg_character_stats st
+       JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
+       WHERE sh.participant_id=? AND st.stat_key=?`
+    )
+    .get(sub.participant_id, statKey) as { value: number } | undefined;
+  const statValue = statRow?.value ?? null;
+  const localScene = loadCampaignContext(db, opts.campaignId)?.localSceneProgress ?? null;
   const decision = resolveTrpgActionCheckDecision({
     body: checkBody,
     actionType: resolved.actionType,
     intent: participantKind === "ai_character" ? checkBody : "",
+    localScene,
+    statValue,
   });
 
   if (!decision.needsCheck) {
@@ -220,26 +239,13 @@ export function adjudicateCanonicalSubmission(
     return "skipped";
   }
 
-  const statSelection = pickStatForActionDetailed({
-    actionType,
-    selectedStat: sub.selected_stat,
-    body: checkBody,
-    defs: scenario.statDefs,
-  });
-  const statKey = statSelection.statKey;
   const difficulty = resolveTrpgAdjudicationDifficulty({
     anchorDc: scenario.diceRules.dc,
     actionType,
     checkReason: decision.reason,
     intent: checkBody,
+    statValue,
   });
-  const statRow = db
-    .prepare(
-      `SELECT st.value FROM trpg_character_stats st
-       JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
-       WHERE sh.participant_id=? AND st.stat_key=?`
-    )
-    .get(sub.participant_id, statKey) as { value: number } | undefined;
   const d20 = opts.deps?.rollD20?.() ?? rollServerD20();
   const conditionModifier = opts.pre.actionModifiers[String(sub.participant_id)] ?? 0;
   const result = resolveTrpgRoll({

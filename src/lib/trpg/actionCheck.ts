@@ -1,5 +1,14 @@
 import type { TrpgActionType } from "./actionTypes";
 import {
+  hasMeaningfulUncertainty,
+  hasRealChallengeContext,
+  isRoutineEnvironmentalAction,
+  isRoutineExpertPreparation,
+  isRoutineInvestigation,
+  isRoutineOpenRouteTraversal,
+} from "./actionCheckContext";
+import type { TrpgLocalSceneProgressV1 } from "./localSceneProgress";
+import {
   isBasicFirstAidIntent,
   isCoverFireSupport,
   isSafeRestIntent,
@@ -35,13 +44,16 @@ const ORDINARY_PREP =
 const PASSIVE_OBSERVATION =
   /(?:댄 채|좁혔|보였|보인|관찰|지켜|응시|바라보|알았|느꼈|재고|갈라|서서|선 채|기대|웃음기|말했다|경고(?:한|하)|알려(?:준|주)|이야기(?:한|하)|얘기(?:한|하))/;
 
-const EXPLICIT_RESOLUTION_TYPES: ReadonlySet<TrpgActionType> = new Set([
+/** These explicit action types always imply a roll unless pure talk/flavor disambiguation applies. */
+const EXPLICIT_ALWAYS_ROLL_TYPES: ReadonlySet<TrpgActionType> = new Set([
   "attack",
   "defend",
-  "investigate",
   "persuade",
   "stealth",
 ]);
+
+/** Investigate may skip when routine context shows no meaningful uncertainty. Support keeps its dedicated owner below. */
+const EXPLICIT_CONTEXTUAL_ROLL_TYPES: ReadonlySet<TrpgActionType> = new Set(["investigate"]);
 
 export type TrpgActionCheckReason =
   | "explicit_resolution"
@@ -53,7 +65,10 @@ export type TrpgActionCheckReason =
   | "talk"
   | "flavor"
   | "safe_rest"
-  | "ordinary_free";
+  | "ordinary_free"
+  | "routine_traversal"
+  | "routine_competence"
+  | "no_meaningful_uncertainty";
 
 export type TrpgActionCheckDecision = {
   needsCheck: boolean;
@@ -320,6 +335,8 @@ export function resolveTrpgActionCheckDecision(opts: {
   body: string;
   actionType?: TrpgActionType | null;
   intent?: string | null;
+  localScene?: TrpgLocalSceneProgressV1 | null;
+  statValue?: number | null;
 }): TrpgActionCheckDecision {
   const body = normalizeBody(opts.body);
   const intent = (opts.intent ?? "").trim();
@@ -327,7 +344,26 @@ export function resolveTrpgActionCheckDecision(opts: {
     return { needsCheck: false, reason: "safe_rest" };
   }
   const actionType = opts.actionType ?? null;
-  if (actionType && EXPLICIT_RESOLUTION_TYPES.has(actionType)) {
+  if (isRoutineOpenRouteTraversal({ body: opts.body, localScene: opts.localScene })) {
+    return { needsCheck: false, reason: "routine_traversal" };
+  }
+  if (isRoutineEnvironmentalAction(body)) {
+    return { needsCheck: false, reason: "routine_competence" };
+  }
+  if (actionType === "investigate" && isRoutineInvestigation(body)) {
+    return { needsCheck: false, reason: "no_meaningful_uncertainty" };
+  }
+  if (actionType === "support" && isRoutineExpertPreparation(body) && !hasRealChallengeContext(body)) {
+    return { needsCheck: false, reason: "routine_competence" };
+  }
+  if (actionType && EXPLICIT_ALWAYS_ROLL_TYPES.has(actionType)) {
+    const visibleRisk = resolveVisibleActorRisk(opts.body);
+    if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
+    const intentReason = intent ? resolveIntentDisambiguation(opts.body, intent) : null;
+    if (intentReason) return { needsCheck: true, reason: intentReason };
+    return { needsCheck: true, reason: "explicit_resolution" };
+  }
+  if (actionType && EXPLICIT_CONTEXTUAL_ROLL_TYPES.has(actionType)) {
     const visibleRisk = resolveVisibleActorRisk(opts.body);
     if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
     const intentReason = intent ? resolveIntentDisambiguation(opts.body, intent) : null;
@@ -357,7 +393,21 @@ export function resolveTrpgActionCheckDecision(opts: {
   if (isTalkOnlyAction(opts.body)) return { needsCheck: false, reason: "talk" };
   if (isHarmlessFlavorAction(opts.body)) return { needsCheck: false, reason: "flavor" };
   if (isOrdinaryPreparation(body)) return { needsCheck: false, reason: "ordinary_free" };
-  return { needsCheck: false, reason: "ordinary_free" };
+  if (
+    hasMeaningfulUncertainty({
+      body: opts.body,
+      actionType,
+      intent,
+      localScene: opts.localScene,
+      statValue: opts.statValue,
+    })
+  ) {
+    const kind = classifyChallengeKind(body);
+    if (kind === "contested") return { needsCheck: true, reason: "contested" };
+    if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
+    return { needsCheck: true, reason: "challenge" };
+  }
+  return { needsCheck: false, reason: "no_meaningful_uncertainty" };
 }
 
 export function actionNeedsCheck(opts: {

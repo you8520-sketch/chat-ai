@@ -1,4 +1,8 @@
 import { clipTrpgChars } from "./clip";
+import {
+  finalizeLocalSceneProgressState,
+  sanitizeLocalSceneProgressDelta,
+} from "./actionCheckContext";
 
 export const TRPG_LOCAL_SCENE_OBJECTIVE_MAX_CHARS = 120;
 export const TRPG_LOCAL_SCENE_ITEM_MAX_CHARS = 80;
@@ -169,7 +173,7 @@ export function applyLocalSceneProgressDelta(
   delta: TrpgLocalSceneProgressDelta | undefined
 ): TrpgLocalSceneProgressV1 {
   if (!hasLocalSceneProgressDelta(delta)) return current;
-  const d = delta!;
+  const d = sanitizeLocalSceneProgressDelta(current, delta!);
   let base: TrpgLocalSceneProgressV1;
   if (d.sceneTransitionTo != null) {
     const nextObjective = clipObjective(d.sceneTransitionTo);
@@ -185,7 +189,7 @@ export function applyLocalSceneProgressDelta(
       if (nextObjective) base.objective = nextObjective;
     }
   }
-  return {
+  const merged: TrpgLocalSceneProgressV1 = {
     version: 1,
     objective: base.objective,
     resolvedObstacles: mergeList(
@@ -203,6 +207,7 @@ export function applyLocalSceneProgressDelta(
     ),
     sceneState: d.sceneTransitionTo == null && d.sceneStateSet ? d.sceneStateSet : base.sceneState,
   };
+  return finalizeLocalSceneProgressState(merged, d);
 }
 
 export function hasLocalSceneProgressContent(progress: TrpgLocalSceneProgressV1): boolean {

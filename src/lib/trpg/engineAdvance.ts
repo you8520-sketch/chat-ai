@@ -69,6 +69,7 @@ import {
   hasLocalSceneProgressDelta,
   serializeLocalSceneDeltaContract,
   serializeLocalSceneStateForGm,
+  type TrpgLocalSceneProgressV1,
 } from "./localSceneProgress";
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
@@ -1221,6 +1222,7 @@ async function runGmForRound(
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
+  const campaignContext = loadCampaignContext(db, opts.campaignId);
   const storedSnapshot = parseJson(
     (db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
       | { input_snapshot_json: string | null }
@@ -1228,7 +1230,10 @@ async function runGmForRound(
     {} as { resolutionOrder?: unknown }
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
-  const actions = sortByResolutionOrder(loadActionsForGm(db, opts.roundId, scenario.statDefs), resolutionOrder);
+  const actions = sortByResolutionOrder(
+    loadActionsForGm(db, opts.roundId, scenario.statDefs, campaignContext?.localSceneProgress ?? null),
+    resolutionOrder
+  );
   const latestScene = previousNarration(db, opts.campaignId);
   const mechanics = opts.opening
     ? null
@@ -1271,7 +1276,6 @@ async function runGmForRound(
       tags: uniqueCharacterAssetTags(row.assets),
     }))
   );
-  const campaignContext = loadCampaignContext(db, opts.campaignId);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
   const completedRounds = (
@@ -1883,7 +1887,8 @@ function chargeTrpgCalls(
 function loadActionsForGm(
   db: Database.Database,
   roundId: number,
-  defs: { key: string; label: string }[]
+  defs: { key: string; label: string }[],
+  localScene: TrpgLocalSceneProgressV1 | null
 ) {
   return (
     db
@@ -1924,6 +1929,8 @@ function loadActionsForGm(
       body: resolved.canonicalAttempt,
       actionType: resolved.actionType,
       intent: resolved.participantKind === "ai_character" ? resolved.canonicalAttempt : "",
+      localScene,
+      statValue: a.stat_value,
     }).needsCheck;
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
