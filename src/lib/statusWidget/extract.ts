@@ -9,6 +9,10 @@ import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import {
   buildPlatformSyncTurnLedgerContext,
 } from "@/lib/providerCostLedger";
+import {
+  evaluatePostTurnSharedInitialWidgetExtraction,
+  postTurnSharedInitialSuggestedRepliesOk,
+} from "@/lib/postTurnSharedInitialWidgetOutcome";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
@@ -1121,21 +1125,26 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnSharedInitial = true;
       actualCallCount += 1;
       if (shared.usage) turnUsages.push(shared.usage);
+      const sharedInitialWidgetOutcome = evaluatePostTurnSharedInitialWidgetExtraction({
+        transportOk: shared.transportOk,
+        mode: sharedMode,
+        parsed: shared.parsed,
+      });
       turnAttemptDiagnostics.push({
         stage: "initial",
         modelId: primaryModelId,
         httpStatus: shared.httpStatus,
         finishReason: shared.finishReason ?? shared.usage?.finishReason ?? null,
         errorCode: shared.errorCode,
-        reasonCode: shared.transportOk && shared.parsed ? "OK" : "V3_INITIAL_EMPTY",
-        succeeded: Boolean(shared.transportOk && shared.parsed),
+        reasonCode: sharedInitialWidgetOutcome.reasonCode,
+        succeeded: sharedInitialWidgetOutcome.succeeded,
       });
-      if (shared.transportOk && shared.parsed) {
+      if (sharedInitialWidgetOutcome.succeeded && shared.parsed) {
         sharedInitialParsed = shared.parsed;
         sharedInitialUsage = shared.usage;
-        prefetchedSuggestedReplies = shared.parsed.suggestedRepliesOk
-          ? shared.parsed.suggestedReplies
-          : null;
+      }
+      if (postTurnSharedInitialSuggestedRepliesOk(shared.parsed)) {
+        prefetchedSuggestedReplies = shared.parsed!.suggestedReplies;
         prefetchedSuggestedRepliesAssistantProseHash = hashAssistantProseForSuggestionPrefetch(
           opts.assistantProse
         );
