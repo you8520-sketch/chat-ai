@@ -169,7 +169,7 @@ export function buildChatComicImagePrompt(opts: {
       : "";
   return [
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panels.length} wide horizontal panels stacked vertically.`,
-    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
+    "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and panel polish, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
     castBlock,
     renderChatImageVisualIdentity({
@@ -314,12 +314,25 @@ export function auditComicDialogueWhitelist(opts: {
   for (const text of whitelistSet) {
     if (!bubbleSet.has(text)) panelTextWhitelistMismatchCount += 1;
   }
-  let userEditDialogueMismatchCount = 0;
-  for (const panel of opts.plan.panels) {
+  const userEditDialogueMismatchCount = countUserEditDialogueMismatch(
+    opts.plan,
+    bubbleTexts
+  );
+  return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
+}
+
+/** Counts user-edited dialogue lines whose text is missing from final visible bubbles. */
+export function countUserEditDialogueMismatch(
+  plan: ScenePlan,
+  finalBubbleTexts: Iterable<string>
+): number {
+  const bubbleSet = new Set(finalBubbleTexts);
+  let count = 0;
+  for (const panel of plan.panels) {
     for (const line of panel.dialogue) {
       if (line.provenance !== "user_edit" || !line.text.trim()) continue;
-      if (!whitelistSet.has(line.text)) userEditDialogueMismatchCount += 1;
+      if (!bubbleSet.has(line.text)) count += 1;
     }
   }
-  return { panelTextWhitelistMismatchCount, userEditDialogueMismatchCount };
+  return count;
 }

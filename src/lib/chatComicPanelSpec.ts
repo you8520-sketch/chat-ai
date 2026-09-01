@@ -1,4 +1,5 @@
 import type { ChatImageCastGroundedSubject } from "@/lib/chatImageCastManifest";
+import type { ChatImageCastImportance } from "@/lib/chatImageCast";
 import type { ScenePanelCount, ScenePlan, ScenePresentationVisibility } from "@/lib/chatImageScenePlan";
 import {
   DEFAULT_SCENE_PRESENTATION_VISIBILITY,
@@ -25,7 +26,7 @@ export type ComicPanelSpecBeat = {
   background: string;
   personaAction?: string;
   characterAction?: string;
-  expressions: string;
+  actingCue?: string;
   speechBubbles: Array<{ speakerLabel: "A" | "B" | "other"; speaker: string; text: string }>;
   sfx: readonly string[];
   mustAvoid: readonly string[];
@@ -45,13 +46,27 @@ export type ChatComicPanelSpec = {
   panels: readonly ComicPanelSpecBeat[];
 };
 
-const GLOBAL_MUST_AVOID = [
-  "invented dialogue or narration",
-  "sound effects or onomatopoeia text",
-  "extra unnamed characters",
-  "identity swaps between A and B",
-  "cropped panel borders or speech bubbles",
-] as const;
+const IMPORTANCE_RANK: Record<ChatImageCastImportance, number> = {
+  primary: 0,
+  secondary: 1,
+  background: 2,
+};
+
+function resolveGlobalMustAvoid(castCount: number): readonly string[] {
+  const identityRule =
+    castCount >= 3
+      ? "identity swaps between A, B, C, or D"
+      : castCount === 1
+        ? "identity swap for the visible recurring character"
+        : "identity swaps between A and B";
+  return [
+    "invented dialogue or narration",
+    "sound effects or onomatopoeia text",
+    "extra unnamed characters",
+    identityRule,
+    "cropped panel borders or speech bubbles",
+  ];
+}
 
 export function resolveComicPanelFormat(panelCount: ScenePanelCount): ComicPanelFormatId {
   if (panelCount === 2) return "2panel";
@@ -59,19 +74,18 @@ export function resolveComicPanelFormat(panelCount: ScenePanelCount): ComicPanel
   return "4panel";
 }
 
-function resolveBeatRole(format: ComicPanelFormatId, index: number, total: number): string {
-  if (format === "2panel") {
-    return index === 1 ? "Setup" : "Payoff";
+function resolveBeatRole(_format: ComicPanelFormatId, index: number, total: number): string {
+  if (total === 2) {
+    return index === 1 ? "Opening beat" : "Closing beat";
   }
-  if (format === "3koma") {
-    if (index === 1) return "Setup";
-    if (index === 2) return "Development";
-    return "Climax / punchline";
+  if (total === 3) {
+    if (index === 1) return "Opening beat";
+    if (index === 2) return "Middle beat";
+    return "Closing beat";
   }
-  if (index === 1) return "Establish";
-  if (index === 2) return "Escalation";
-  if (index === 3) return "Turn";
-  return "Resolution";
+  if (index === 1) return "Opening beat";
+  if (index === total) return "Closing beat";
+  return `Beat ${index}`;
 }
 
 function resolveCameraFromBeat(
@@ -92,14 +106,7 @@ function resolveFramingFromBeat(_beat: ProjectedComicPanelBeat): string {
   return "recurring characters readable in frame";
 }
 
-function castLabelsFromCount(count: number): Array<"A" | "B" | "C" | "D"> {
-  return (["A", "B", "C", "D"] as const).slice(0, Math.max(1, Math.min(count, 4)));
-}
-
-function resolveLayout(
-  personaVisible: boolean,
-  castCount: number
-): string {
+function resolveLayout(personaVisible: boolean, castCount: number): string {
   if (castCount >= 3) {
     return "stable group layout — left / center / right readable; follow cast manifest composition goal";
   }
@@ -107,32 +114,33 @@ function resolveLayout(
   return "A left, B right — maintain stable orientation across panels";
 }
 
-function resolveExpressionsFromBeat(beat: ProjectedComicPanelBeat): string {
+function resolveActingCueFromBeat(beat: ProjectedComicPanelBeat): string | undefined {
   const acting = [beat.personaAction, beat.characterAction].filter(Boolean).join("; ");
-  if (acting) return acting;
-  return `posture and expression matching the scripted beat: ${beat.situation}`;
+  return acting || undefined;
 }
 
 function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): string[] {
   const identityRule =
     castCount >= 3
       ? `Keep all ${castCount} recurring identities distinct — hair, outfit, and face must not swap.`
-      : "Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.";
+      : castCount === 1
+        ? "Keep the visible recurring identity consistent throughout."
+        : "Keep A and B as the same two identities throughout — hair, outfit, and face must not swap.";
   const shared = [
     identityRule,
     "Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.",
-    "Gradual emotional progression — each panel should visibly advance the beat from the prior panel.",
+    "Advance the scripted beats in source order — each panel covers a distinct moment from the Scene Plan.",
   ];
   if (format === "3koma") {
     return [
       ...shared,
-      "3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.",
+      "3-panel rhythm: opening → middle → closing beat — each panel covers a distinct scripted moment.",
     ];
   }
   if (format === "4panel") {
     return [
       ...shared,
-      "4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.",
+      "4-panel rhythm: opening → beat 2 → beat 3 → closing beat — each panel covers a distinct scripted moment.",
     ];
   }
   return [...shared, "2-panel rhythm: opening beat in panel 1, closing beat in panel 2."];
@@ -142,6 +150,45 @@ function speakerLabel(speaker: string): "A" | "B" | "other" {
   if (speaker === "persona") return "A";
   if (speaker === "character") return "B";
   return "other";
+}
+
+export function buildStableCastLabels(opts: {
+  selectedCast: readonly ChatImageCastGroundedSubject[];
+  visibility: ScenePresentationVisibility;
+  personaName: string;
+  characterName: string;
+}): ComicCastRoleLabel[] {
+  if (!opts.selectedCast.length) {
+    return opts.visibility.personaVisible
+      ? [
+          { label: "A", role: "persona", name: opts.personaName },
+          { label: "B", role: "character", name: opts.characterName },
+        ]
+      : [{ label: "B", role: "character", name: opts.characterName }];
+  }
+
+  const included = opts.selectedCast.filter((subject) => subject.included && subject.name);
+  const persona = included.find((subject) => subject.role === "persona");
+  const main = included.find((subject) => subject.role === "main_character");
+  const supporting = included
+    .filter((subject) => subject.role === "supporting_character")
+    .sort((left, right) => IMPORTANCE_RANK[left.importance] - IMPORTANCE_RANK[right.importance]);
+
+  const cast: ComicCastRoleLabel[] = [];
+  if (opts.visibility.personaVisible && persona) {
+    cast.push({ label: "A", role: persona.role, name: persona.name });
+  }
+  if (main) {
+    cast.push({ label: "B", role: main.role, name: main.name });
+  }
+  supporting.slice(0, 2).forEach((subject, index) => {
+    cast.push({
+      label: index === 0 ? "C" : "D",
+      role: subject.role,
+      name: subject.name,
+    });
+  });
+  return cast;
 }
 
 /** Canonical panel-spec compiler — downstream of ScenePlan / hero selection. */
@@ -157,24 +204,18 @@ export function compileChatComicPanelSpec(opts: {
   const format = resolveComicPanelFormat(panelCount);
   const { sharedBackground } = projectComicSharedContext(opts.plan, visibility);
   const selectedCast = opts.castSelected?.filter((subject) => subject.included) ?? [];
-  const cast: ComicCastRoleLabel[] =
-    selectedCast.length > 0
-      ? selectedCast.map((subject, index) => ({
-          label: castLabelsFromCount(selectedCast.length)[index] ?? "D",
-          role: subject.role,
-          name: subject.name,
-        }))
-      : visibility.personaVisible
-        ? [
-            { label: "A", role: "persona", name: opts.personaName },
-            { label: "B", role: "character", name: opts.characterName },
-          ]
-        : [{ label: "B", role: "character", name: opts.characterName }];
+  const cast = buildStableCastLabels({
+    selectedCast,
+    visibility,
+    personaName: opts.personaName,
+    characterName: opts.characterName,
+  });
   const castCount = cast.length;
 
   const panels: ComicPanelSpecBeat[] = opts.plan.panels.map((panel) => {
     const beat = projectComicPanelBeat(opts.plan, panel, visibility);
     const beatRole = resolveBeatRole(format, panel.index, panelCount);
+    const actingCue = resolveActingCueFromBeat(beat);
     return {
       index: panel.index,
       beatRole,
@@ -185,7 +226,7 @@ export function compileChatComicPanelSpec(opts: {
       background: beat.background,
       personaAction: beat.personaAction,
       characterAction: beat.characterAction,
-      expressions: resolveExpressionsFromBeat(beat),
+      actingCue,
       speechBubbles: beat.dialogue.map((line) => ({
         speakerLabel: speakerLabel(line.speaker),
         speaker: line.speaker,
@@ -206,7 +247,7 @@ export function compileChatComicPanelSpec(opts: {
     atmosphere: opts.plan.atmosphere,
     cast,
     continuityRules: resolveContinuityRules(format, castCount),
-    globalMustAvoid: GLOBAL_MUST_AVOID,
+    globalMustAvoid: resolveGlobalMustAvoid(castCount),
     panels,
   };
 }
@@ -220,9 +261,6 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
       const actions = [
         panel.personaAction ? `A action: ${panel.personaAction}` : "",
         panel.characterAction ? `B action: ${panel.characterAction}` : "",
-        !panel.personaAction && !panel.characterAction
-          ? `Acting: ${panel.situation}`
-          : "",
       ]
         .filter(Boolean)
         .join("\n");
@@ -242,7 +280,7 @@ export function renderChatComicPanelSpecSection(spec: ChatComicPanelSpec): strin
         `Layout: ${panel.layout}`,
         `Background: ${panel.background}`,
         actions,
-        `Expressions: ${panel.expressions}`,
+        panel.actingCue ? `Acting cue: ${panel.actingCue}` : "",
         bubbles,
         "SFX: (none — do not render sound-effect text)",
         `Must avoid: ${panel.mustAvoid.join("; ")}`,
@@ -281,4 +319,26 @@ export function buildChatComicPanelSpecPromptSection(opts: {
 }): string {
   const spec = compileChatComicPanelSpec(opts);
   return renderChatComicPanelSpecSection(spec);
+}
+
+export function countForcedGenreDirectives(spec: ChatComicPanelSpec): number {
+  const haystack = [
+    ...spec.panels.map((panel) => panel.beatRole),
+    ...spec.continuityRules,
+    renderChatComicPanelSpecSection(spec),
+  ].join("\n");
+  const forbidden = [/punchline/i, /Climax/i, /Escalation/i, /emotional progression/i];
+  return forbidden.reduce(
+    (count, pattern) => count + (pattern.test(haystack) ? 1 : 0),
+    0
+  );
+}
+
+export function countEmptyActingDirectives(spec: ChatComicPanelSpec): number {
+  const rendered = renderChatComicPanelSpecSection(spec);
+  let count = 0;
+  for (const line of rendered.split("\n")) {
+    if (/^(Acting:|Expressions:|Acting cue:)\s*$/u.test(line)) count += 1;
+  }
+  return count;
 }

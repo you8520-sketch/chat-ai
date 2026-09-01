@@ -34,7 +34,7 @@ describe("chatComicPanelSpec compiler", () => {
     assert.match(rendered, /Hero focus:/);
     assert.match(rendered, /Hero event ids:/);
     assert.match(rendered, /Cast:/);
-    assert.match(rendered, /\[Panel 1 — Setup\]/);
+    assert.match(rendered, /\[Panel 1 — Opening beat\]/);
     assert.match(rendered, /Camera:/);
     assert.match(rendered, /Layout: A left, B right — maintain stable orientation across panels/);
     assert.match(rendered, /Speech bubble \(A \/ persona\):/);
@@ -50,10 +50,10 @@ describe("chatComicPanelSpec compiler", () => {
       personaName: "서연",
       characterName: "도윤",
     });
-    assert.equal(three.panels[2]?.beatRole, "Climax / punchline");
+    assert.equal(three.panels[2]?.beatRole, "Closing beat");
     assert.match(
       renderChatComicPanelSpecSection(three),
-      /3-koma rhythm: setup → development → closing beat/
+      /3-panel rhythm: opening → middle → closing beat/
     );
 
     const four = compileChatComicPanelSpec({
@@ -61,10 +61,10 @@ describe("chatComicPanelSpec compiler", () => {
       personaName: "한별",
       characterName: "시우",
     });
-    assert.equal(four.panels[3]?.beatRole, "Resolution");
+    assert.equal(four.panels[3]?.beatRole, "Closing beat");
     assert.match(
       renderChatComicPanelSpecSection(four),
-      /4-panel rhythm: opening → escalation → turn → closing beat/
+      /4-panel rhythm: opening → beat 2 → beat 3 → closing beat/
     );
   });
 
@@ -78,9 +78,10 @@ describe("chatComicPanelSpec compiler", () => {
       plan: scenePlanForFixture(fixture),
     });
     assert.match(prompt, /COMIC PANEL SPEC/);
-    assert.match(prompt, /\[Panel 1 — Setup\]/);
+    assert.match(prompt, /\[Panel 1 — Opening beat\]/);
     assert.doesNotMatch(prompt, /APPROVED SCENE PLAN/);
     assert.match(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    assert.doesNotMatch(prompt, /romantic-comedy timing/i);
   });
 });
 
