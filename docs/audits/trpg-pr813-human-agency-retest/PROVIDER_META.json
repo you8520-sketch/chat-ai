@@ -1,6 +1,6 @@
 {
   "latestMainSha": "80140cf8afc59de38d849eb9323e7ccdf32ea3fb",
-  "prHeadSha": "92c55996828eb1612e07785d5db50afcfb1187a6",
+  "prHeadSha": "f0db4154",
   "realProviderCalls": 3,
   "openingProviderCall": false,
   "openingSeedSource": "docs/audits/trpg-post810-real-quality/GM_OPENING_RAW.txt (#812 audit)",
@@ -11,22 +11,16 @@
     "crossPcContaminationPresent": true,
     "crossPcClaims": [
       {
-        "id": "human_follow_context",
-        "match": "렌의 뒤를 조용히 엄호하듯 바짝 따르",
-        "context": "비교 분석하겠습니다. 가장 안전하고 빠른 경로를 먼저 도출해 안내하겠습니다.\" 강이현은 렌의 뒤를 조용히 엄호하듯 바짝 따르며, 데이터 패드의 감지 센서를 양쪽 통로 방향으로 겨누어 상세 수치를 기록하기 시작했다."
+        "id": "human_movement_verb",
+        "match": "렌이 나아",
+        "context": "동 경로상의 기압과 오염 수치를 지속해서 체크하겠습니다.\" 그는 패드의 간이 스캐너를 켜 렌이 나아가는 방향의 잔류 균사 밀도를 실시간으로 기록하며 신중하게 뒤따랐다."
       }
     ]
   },
   "bot2": {
     "name": "권태현",
-    "crossPcContaminationPresent": true,
-    "crossPcClaims": [
-      {
-        "id": "human_movement_match",
-        "match": "렌의 움직임에 맞춰",
-        "context": "뭐가 튀어나오든 내가 먼저 벤다.\" 그는 강이현이 패드를 두드리며 경로를 가늠하는 사이, 렌의 움직임에 맞춰 전방의 시야를 확보하며 언제든 마체테를 휘두를 수 있도록 날을 비스듬히 세웠다."
-      }
-    ]
+    "crossPcContaminationPresent": false,
+    "crossPcClaims": []
   },
   "gmHumanRouteChoiceInvented": false,
   "gmHumanMovementInvented": true,
@@ -36,13 +30,8 @@
   "gmHumanMovementHits": [
     {
       "id": "human_steps",
-      "match": "렌이 주변의 흔들리는 안개와 균사 줄기를 재빨리 훑으며 두 동료에게 낮게 수신호를 보냈다. 묵직한 마체테를 비스듬히 세운 권태현이 그 신호에 맞춰 한 발 앞서 전방의 사각지대를 막아섰고, 뒤따른 강이현의 데이터 패드 센서가 빠르게 주변 환경 데이터를 갈무리했다. 셋의 호흡은 불필요한 지체 없이 맞물려, 짙어지는 포자 안개 속에서도 일행은 단숨에 검문소 중앙 통로 바로 앞의 엄폐물 뒤편까지 은밀하고 안정적으로 전진",
-      "context": "렌이 주변의 흔들리는 안개와 균사 줄기를 재빨리 훑으며 두 동료에게 낮게 수신호를 보냈다. 묵직한 마체테를 비스듬히 세운 권태현이 그 신호에 맞춰 한 발 앞서 전방의 사각지대를 막아섰고, 뒤따른 강이현의 데이터 패드 센서가 빠르게 주변 환경 데이터를 갈무리했다. 셋의 호흡은 불필요한 지체 없이 맞물려, 짙어지는 포자 안개 속에서도 일행은 단숨에 검문소 중앙 통로 바로 앞의 엄폐물 뒤편까지 은밀하고 안정적으로 전진하는 데 성공했다. 주변을 둘러싼 공기는 점점 더 무겁게 짓눌려 오고 있었다. 깨진 검문소"
-    },
-    {
-      "id": "human_advance_success",
-      "match": "전진하는 데 성공했다",
-      "context": "속에서도 일행은 단숨에 검문소 중앙 통로 바로 앞의 엄폐물 뒤편까지 은밀하고 안정적으로 전진하는 데 성공했다. 주변을 둘러싼 공기는 점점 더 무겁게 짓눌려 오고 있었다. 깨진 검문소 유리창 틈새로"
+      "match": "렌이 낮게 손짓을 보내자 잿빛 안개 속에서 세 사람의 움직임이 한 호흡으로 맞물려 들었다. 권태현은 묵직한 왼손 마체테를 비스듬히 치켜든 채 지면으로 늘어진 끈적한 균사 덩굴들을 쳐내며 단단한 엄호선을 구축했고, 강이현은 뒤편에서 파랗게 번뜩이는 데이터 패드를 기민하게 조작해 잔해 너머의 환경 수치를 신속히 갱신했다. 발걸음",
+      "context": "렌이 낮게 손짓을 보내자 잿빛 안개 속에서 세 사람의 움직임이 한 호흡으로 맞물려 들었다. 권태현은 묵직한 왼손 마체테를 비스듬히 치켜든 채 지면으로 늘어진 끈적한 균사 덩굴들을 쳐내며 단단한 엄호선을 구축했고, 강이현은 뒤편에서 파랗게 번뜩이는 데이터 패드를 기민하게 조작해 잔해 너머의 환경 수치를 신속히 갱신했다. 발걸음을 죽인 세 사람의 진입로는 거친 쇳소리나 포자 낭포의 파열 없이 은밀하고 매끄럽게 관리"
     }
   ],
   "gmHumanDialogueHits": [],
@@ -52,11 +41,15 @@
   "botSequentialCooperationPreserved": true,
   "gmUserBlockVerify": {
     "humanAuthoritativeLabelCount": 1,
-    "aiVisibleProseLabelCount": 1,
-    "aiSceneProseLabelCount": 1,
+    "aiAttemptLabelCount": 2,
+    "obsoleteVisibleProseLabelCount": 0,
+    "obsoleteSceneProseLabelCount": 0,
     "humanActorKindCount": 1,
     "aiActorKindCount": 2,
-    "humanActionPresent": true
+    "humanActionPresent": true,
+    "botPresentationProsePresentInGmInput": false,
+    "botCrossPcContaminationPresentInGmInput": false,
+    "botCrossPcContaminationPresentInGmInputCount": 0
   },
   "normalGm": {
     "model": "gemini-3.7-flash",
@@ -94,5 +87,5 @@
       "attempt": 1
     }
   ],
-  "botCrossPcContaminationPromotedToGmCanon": true
+  "botCrossPcContaminationPromotedToGmCanon": false
 }
