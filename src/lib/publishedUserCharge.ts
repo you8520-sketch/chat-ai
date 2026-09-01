@@ -447,17 +447,17 @@ function computePublishedUserChargeCore(
     return { status: "blocked", reason: "invalid_adjustment", finalPoints: null };
   }
 
-  switch (usageCoverage) {
-    case "partial":
-      return { status: "blocked", reason: "incomplete_usage_coverage", finalPoints: null };
-    case "unknown":
-      return { status: "blocked", reason: "unknown_usage_coverage", finalPoints: null };
-    case "complete":
-      break;
-    default: {
-      const _exhaustive: never = usageCoverage;
-      return { status: "blocked", reason: "unknown_usage_coverage", finalPoints: null };
-    }
+  // Early returns only — switch/break after partial/unknown caused production bundle
+  // to truncate the complete path (BUILD_TRANSFORM_DIVERGENCE / undefined return).
+  if (usageCoverage === "partial") {
+    return { status: "blocked", reason: "incomplete_usage_coverage", finalPoints: null };
+  }
+  if (usageCoverage === "unknown") {
+    return { status: "blocked", reason: "unknown_usage_coverage", finalPoints: null };
+  }
+  if (usageCoverage !== "complete") {
+    const _exhaustive: never = usageCoverage;
+    return { status: "blocked", reason: "unknown_usage_coverage", finalPoints: null };
   }
 
   if (!validatePublishedModelPricingForLiveGrade(resolved.pricing)) {

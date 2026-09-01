@@ -1,0 +1,35 @@
+name: Validate G37 published build
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/publishedUserCharge.ts"
+      - "src/lib/publishedUserChargeBuildArtifactGuard.ts"
+      - "src/lib/publishedUserChargeBuildArtifactGuard.test.ts"
+      - "src/lib/g37PublishedRuntimeDivergence.test.ts"
+      - "src/lib/shadowPricing.ts"
+      - "src/lib/chatBillingContractDispatch.ts"
+      - ".github/workflows/validate-g37-published-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+      NEXT_PHASE: phase-production-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:app
+      - run: npm run build
+      - run: node --conditions=react-server --import tsx --test src/lib/publishedUserChargeBuildArtifactGuard.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/g37PublishedRuntimeDivergence.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/publishedUserCharge.test.ts
