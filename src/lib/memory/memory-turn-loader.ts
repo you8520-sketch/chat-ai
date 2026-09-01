@@ -210,6 +210,51 @@ export function resolveMemoryEligibleTurnNumberCore(
   return turn?.turnNumber ?? null;
 }
 
+export type MemorySourceTurnIdentity = {
+  memoryTurnNumber: number;
+  sourceUserMessageId: number | null;
+  sourceAssistantMessageId: number;
+  assistantOnly: boolean;
+};
+
+/** Thrown when a material edit would flip memory canonicality (unsupported). */
+export class MemoryCanonicalityEditNotSupportedError extends Error {
+  readonly code = "memory_canonicality_edit_not_supported" as const;
+
+  constructor() {
+    super("memory_canonicality_edit_not_supported");
+    this.name = "MemoryCanonicalityEditNotSupportedError";
+  }
+}
+
+/** True when PRE/POST differ on memory-eligibility presence (canonicality flip). */
+export function memorySourceEligibilityChanged(
+  preIdentity: MemorySourceTurnIdentity | null,
+  postIdentity: MemorySourceTurnIdentity | null
+): boolean {
+  return (preIdentity != null) !== (postIdentity != null);
+}
+
+/** Canonical memory turn identity for a message row (memory-turn-loader owner). */
+export function resolveMemorySourceTurnIdentityCore(
+  db: Database.Database,
+  chatId: number,
+  messageId: number
+): MemorySourceTurnIdentity | null {
+  const turn = loadMemoryEligibleChatTurnsWithMessageIdsCore(db, chatId).find(
+    (candidate) =>
+      candidate.userMessageId === messageId ||
+      candidate.assistantMessageId === messageId
+  );
+  if (!turn) return null;
+  return {
+    memoryTurnNumber: turn.turnNumber,
+    sourceUserMessageId: turn.userMessageId,
+    sourceAssistantMessageId: turn.assistantMessageId,
+    assistantOnly: turn.assistantOnly === true,
+  };
+}
+
 export function countChatTurns(chatId: number): number {
   const all = loadChatTurnsWithMessageIds(chatId);
   return all.filter((t) => t.turnNumber > 0).length;

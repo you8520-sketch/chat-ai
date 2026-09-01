@@ -19,9 +19,9 @@ import {
   resolveMemoryEligibleTurnNumberCore,
 } from "./memory-turn-loader";
 import {
-  executeAtomicMemoryResetCore,
   getMemorySourceBoundaryCore,
   initializeForkMemoryBoundaryCore,
+  invalidateDerivedMemoryGenerationCore,
   isMemorySourceEligible,
   isMemoryWriteGuardCurrentCore,
   resolveCanonicalSourceUserMessageIdCore,
@@ -294,12 +294,12 @@ describe("memory eligible count hot path", () => {
   }
 });
 
-describe("persistent memory reset boundary", () => {
-  it("atomically clears persistent projections while preserving transcript and game state", () => {
+describe("derived memory generation invalidation", () => {
+  it("bumps epoch without clearing canonical projections or transcript", () => {
     const db = makeDb();
     addMessage(db, "assistant", "opening", "greeting");
     const userId = addMessage(db, "user", "before");
-    const assistantId = addMessage(db, "assistant", "before reply", "model", userId);
+    addMessage(db, "assistant", "before reply", "model", userId);
     db.prepare(
       `INSERT INTO chat_memories
         (chat_id, user_id, character_id, recent_summary, archive_summary,
@@ -315,94 +315,45 @@ describe("persistent memory reset boundary", () => {
        VALUES (1,1,'event','user','old','yes','important','old fact')`
     ).run();
 
-    const result = db
-      .transaction(() =>
-        executeAtomicMemoryResetCore(db, {
-          chatId: 1,
-          userId: 10,
-          characterId: 20,
-          tier: "free",
-        })
-      )
-      .immediate();
-
-    assert.equal(result.boundaryAfter, assistantId);
-    assert.equal(result.epochAfter, 1);
+    const after = invalidateDerivedMemoryGenerationCore(db, 1);
+    assert.equal(after.epoch, 1);
+    assert.equal(after.resetAfterMessageId, null);
     assert.deepEqual(getMemorySourceBoundaryCore(db, 1), {
-      resetAfterMessageId: assistantId,
+      resetAfterMessageId: null,
       epoch: 1,
     });
     assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM messages WHERE chat_id=1`).get().n, 3);
     assert.equal(
-      db.prepare(`SELECT status_widget_values_json FROM messages WHERE id=?`).get(assistantId)
-        .status_widget_values_json,
-      "status:before reply"
+      db.prepare(`SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=1`).get().n,
+      1
     );
-    assert.equal(db.prepare(`SELECT value FROM rp_numeric_state_current WHERE chat_id=1`).get().value, 77);
-    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM chat_turn_summaries WHERE chat_id=1`).get().n, 0);
-    assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1`).get().n, 0);
+    assert.equal(
+      db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1`).get().n,
+      1
+    );
 
     const memory = db.prepare(`SELECT * FROM chat_memories WHERE chat_id=1`).get();
-    assert.equal(memory.recent_summary, "");
-    assert.equal(memory.archive_summary, "");
-    assert.equal(memory.message_count, 0);
-    assert.equal(memory.summarized_turn_count, 0);
-    const chat = db.prepare(`SELECT * FROM chats WHERE id=1`).get();
-    assert.equal(chat.memory_pending, "[]");
-    assert.equal(chat.memory_archived_turns, 0);
-    assert.deepEqual(
-      JSON.parse(chat.memory_meta),
-      JSON.parse(JSON.stringify(EMPTY_MEMORY_META))
-    );
+    assert.equal(memory.recent_summary, "recent");
+    assert.equal(memory.archive_summary, "archive");
+    assert.equal(memory.message_count, 1);
+    assert.equal(memory.summarized_turn_count, 6);
   });
 
-  it("uses epoch-relative eligible turns and advances epoch on repeated resets", () => {
+  it("write guard rejects stale snapshot after generation invalidation", () => {
     const db = makeDb();
     const preUser = addMessage(db, "user", "pre");
     addMessage(db, "assistant", "pre reply", "model", preUser);
-    const first = db
-      .transaction(() =>
-        executeAtomicMemoryResetCore(db, {
-          chatId: 1,
-          userId: 10,
-          characterId: 20,
-          tier: "free",
-        })
-      )
-      .immediate();
+    db.prepare(
+      `INSERT INTO chat_memories
+        (chat_id, user_id, character_id, recent_summary, archive_summary, used_chars, message_count, summarized_turn_count)
+       VALUES (1,10,20,'','',0,0,0)`
+    ).run();
     const staleSnapshot = getMemorySourceBoundaryCore(db, 1);
 
     const postUser1 = addMessage(db, "user", "post 1");
     addMessage(db, "assistant", "post reply 1", "model", postUser1);
-    const postUser2 = addMessage(db, "user", "post 2");
-    addMessage(db, "assistant", "post reply 2", "model", postUser2);
 
-    const turns = loadMemoryEligibleChatTurnsWithMessageIdsCore(db, 1);
-    assert.deepEqual(turns.map((turn) => turn.turnNumber), [1, 2]);
-    assert.deepEqual(turns.map((turn) => turn.userMessageId), [postUser1, postUser2]);
-    assert.equal(countMemoryEligibleCompletedTurnsCore(db, 1), 2);
-    assert.equal(resolveMemoryEligibleTurnNumberCore(db, 1, postUser2), 2);
-    assert.equal(resolveMemoryEligibleTurnNumberCore(db, 1, preUser), null);
-    assert.equal(
-      resolveCanonicalSourceUserMessageIdCore(db, {
-        chatId: 1,
-        assistantMessageId: postUser1 + 1,
-      }),
-      postUser1
-    );
-
-    const second = db
-      .transaction(() =>
-        executeAtomicMemoryResetCore(db, {
-          chatId: 1,
-          userId: 10,
-          characterId: 20,
-          tier: "free",
-        })
-      )
-      .immediate();
-    assert.ok(second.boundaryAfter! > first.boundaryAfter!);
-    assert.equal(second.epochAfter, 2);
+    invalidateDerivedMemoryGenerationCore(db, 1);
     assert.equal(
       isMemoryWriteGuardCurrentCore(db, {
         chatId: 1,
@@ -435,29 +386,29 @@ describe("persistent memory reset boundary", () => {
       db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1`).get().n,
       0
     );
+  });
 
-    const third = db
-      .transaction(() =>
-        executeAtomicMemoryResetCore(db, {
-          chatId: 1,
-          userId: 10,
-          characterId: 20,
-          tier: "free",
-        })
-      )
-      .immediate();
-    assert.equal(third.boundaryAfter, second.boundaryAfter);
-    assert.equal(third.epochAfter, 3);
-    assert.equal(countMemoryEligibleCompletedTurnsCore(db, 1), 0);
+  it("fail-closed when chat_memories row is absent at commit time", () => {
+    const db = makeDb();
+    db.prepare(
+      `INSERT INTO chat_memories
+        (chat_id, user_id, character_id, recent_summary, archive_summary, used_chars, message_count, summarized_turn_count)
+       VALUES (1,10,20,'','',0,0,0)`
+    ).run();
+    const snapshot = getMemorySourceBoundaryCore(db, 1);
+    db.prepare(`DELETE FROM chat_memories WHERE chat_id=1`).run();
     assert.equal(
-      isMemorySourceEligible({
-        sourceUserMessageId: postUser2,
-        boundary: getMemorySourceBoundaryCore(db, 1),
+      isMemoryWriteGuardCurrentCore(db, {
+        chatId: 1,
+        snapshot,
+        sourceUserMessageIds: [],
       }),
       false
     );
   });
+});
 
+describe("fork memory boundary initialization", () => {
   it("initializes independent child epochs and remaps both fork boundary cases", () => {
     const messageIdMap = new Map([
       [10, 101],

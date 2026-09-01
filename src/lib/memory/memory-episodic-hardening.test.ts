@@ -46,8 +46,8 @@ import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import { listMemoryRecordsForChat } from "./memory-turn-summary";
 import { insertAutomaticLegacySixTurnSummaryRow } from "./memory-test-batch";
 import {
-  executeAtomicMemoryResetCore,
   getMemorySourceBoundaryCore,
+  invalidateDerivedMemoryGenerationCore,
 } from "./memory-source-boundary";
 
 const CHAT = 890011;
@@ -202,12 +202,7 @@ describe("memory episodic hardening regression", () => {
     seedFiveTurnBatch();
     const boundary = getMemorySourceBoundaryCore(getDb(), CHAT);
     __setEpisodicExtractCallerForTests(async () => {
-      executeAtomicMemoryResetCore(getDb(), {
-        chatId: CHAT,
-        userId: USER,
-        characterId: CHAR,
-        tier: "free",
-      });
+      invalidateDerivedMemoryGenerationCore(getDb(), CHAT);
       return { text: JSON.stringify({ extracted_facts: [TURN1_FACT] }) };
     });
     const result = await extractAndPersistEpisodicFactsForSealedBatch({
