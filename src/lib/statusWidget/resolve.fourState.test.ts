@@ -11,8 +11,6 @@ import {
   resolveStatusWidgetTurn,
   statusWidgetHasCreatorSource,
   statusWidgetHasUserSource,
-  statusWidgetModeFromToggles,
-  statusWidgetTogglesFromMode,
   resolveStatusWidgetEngineStatusKeys,
 } from "./resolve";
 import { engineModeForDisplay, serializeStatusWidget } from "./serialize";
@@ -157,14 +155,6 @@ describe("status widget true 4-state owner", () => {
       assert.equal(resolved.needsUserValues, true);
       assert.equal(resolved.mode, "both");
     }
-  });
-
-  it("toggle mapping is the single engine owner", () => {
-    assert.equal(statusWidgetModeFromToggles(true, false), "character_only");
-    assert.equal(statusWidgetModeFromToggles(false, true), "user_only");
-    assert.equal(statusWidgetModeFromToggles(true, true), "both");
-    assert.equal(statusWidgetModeFromToggles(false, false), "off");
-    assert.deepEqual(statusWidgetTogglesFromMode("both"), { creatorOn: true, userOn: true });
   });
 
   it("engineModeForDisplay is compatibility-only and not used by resolve", () => {

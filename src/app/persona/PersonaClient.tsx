@@ -379,6 +379,36 @@ export default function PersonaClient({
     router.refresh();
   }
 
+  async function selectPersonaStatusWidget(personaId: number, presetId: number | null) {
+    setBusy(true);
+    setError("");
+    setMsg("");
+    try {
+      const res = await fetch(`/api/personas/${personaId}/status-widget`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presetId }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        persona?: PublicPersonaListItem | null;
+      };
+      if (!res.ok || !data.persona) {
+        setError(data.error || "상태창 선택을 저장하지 못했습니다.");
+        return;
+      }
+      setPersonas((prev) =>
+        prev.map((persona) => (persona.id === data.persona!.id ? data.persona! : persona))
+      );
+      setMsg(presetId == null ? "페르소나 상태창을 사용하지 않습니다." : "페르소나 상태창이 선택되었습니다.");
+      router.refresh();
+    } catch {
+      setError("상태창 선택을 저장하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function refreshNotePresets() {
     const res = await fetch("/api/user-note-presets");
     const data = await res.json();
@@ -514,6 +544,7 @@ export default function PersonaClient({
     setMsg("상태창이 삭제되었습니다.");
     if (widgetEditingId === id) cancelWidgetForm();
     await refreshStatusWidgetPresets();
+    await refreshList();
     router.refresh();
   }
 
@@ -680,6 +711,25 @@ export default function PersonaClient({
                   </button>
                 </div>
               </div>
+              <label className="mt-3 block border-t border-white/5 pt-3 text-[11px] text-zinc-400">
+                사용할 상태창
+                <select
+                  value={p.active_status_widget_preset_id ?? ""}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    void selectPersonaStatusWidget(p.id, value ? Number(value) : null);
+                  }}
+                  className={`${studioInputClass} mt-1 w-full`}
+                >
+                  <option value="">사용 안 함</option>
+                  {statusWidgetPresets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </li>
             );
           })}
@@ -996,7 +1046,7 @@ export default function PersonaClient({
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              HTML·필드 제작 · 채팅 상태창 메뉴에서 불러와 사용
+              HTML·필드 제작 · 페르소나별로 하나를 선택해 사용
             </p>
           </div>
           <button

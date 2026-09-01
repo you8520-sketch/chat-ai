@@ -7,36 +7,39 @@ import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import {
   displayModeFromEngineMode,
+  parseIncomingStatusWidgetDisplayMode,
   parseStatusWidgetDisplayMode,
-  parseStatusWidgetJson,
-  parseStatusWidgetMode,
   resolveStatusWidgetReservedBreakdown,
-  resolveStatusWidgetTurn,
+  statusWidgetModeForDefinitions,
   validateStatusWidgetContextBudget,
-  serializeStatusWidget,
 } from "@/lib/statusWidget";
-import { resolveStatusWidgetSettingsWrite } from "@/lib/statusWidget/settingsWrite";
-import { persistChatSettingsWithCreatorTriggerSupersede } from "@/lib/statusWidget/settingsPersist";
 
 function loadChatWidgetContext(chatId: number, userId: number) {
   const db = getDb();
   return db
     .prepare(
-      `SELECT ch.status_widget_mode, ch.user_status_widget_json, ch.status_widget_stack_order,
-              ch.status_widget_display_mode,
-              c.status_widget_json, c.status_widget_allow_user_override
+      `SELECT ch.status_widget_stack_order, ch.status_widget_display_mode,
+              c.status_widget_json, c.status_widget_allow_user_override,
+              COALESCE((
+                SELECT preset.widget_json
+                FROM user_personas persona
+                JOIN user_status_widget_presets preset
+                  ON preset.id=persona.active_status_widget_preset_id
+                 AND preset.user_id=persona.user_id
+                WHERE persona.id=ch.selected_persona_id
+                  AND persona.user_id=ch.user_id
+              ), '') AS persona_status_widget_json
        FROM chats ch
        JOIN characters c ON c.id = ch.character_id
        WHERE ch.id = ? AND ch.user_id = ?`
     )
     .get(chatId, userId) as
     | {
-        status_widget_mode: string | null;
-        user_status_widget_json: string | null;
         status_widget_stack_order: string | null;
         status_widget_display_mode: string | null;
         status_widget_json: string | null;
         status_widget_allow_user_override: number | null;
+        persona_status_widget_json: string;
       }
     | undefined;
 }
@@ -54,9 +57,7 @@ export async function PATCH(req: Request) {
     isAdultMode,
     targetResponseChars,
     chatTitle,
-    statusWidgetMode,
     statusWidgetDisplayMode,
-    userStatusWidgetJson,
     narrativePov,
     povCharacterName,
     adultHandoffEnabled: adultHandoffEnabledInput,
@@ -93,55 +94,29 @@ export async function PATCH(req: Request) {
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
-  let nextUserWidgetJson = widgetCtx?.user_status_widget_json ?? null;
-  if (userStatusWidgetJson !== undefined) {
-    const parsed =
-      typeof userStatusWidgetJson === "string"
-        ? parseStatusWidgetJson(userStatusWidgetJson)
-        : parseStatusWidgetJson(JSON.stringify(userStatusWidgetJson));
-    if (!parsed) {
-      return Response.json({ error: "유효하지 않은 상태창 위젯 JSON입니다." }, { status: 400 });
-    }
-    nextUserWidgetJson = serializeStatusWidget(parsed);
-  }
-
   const allowUser = widgetCtx?.status_widget_allow_user_override !== 0;
-  const storedMode = parseStatusWidgetMode(widgetCtx?.status_widget_mode);
+  const engineMode = statusWidgetModeForDefinitions({
+    characterWidgetJson: widgetCtx?.status_widget_json,
+    personaWidgetJson: widgetCtx?.persona_status_widget_json,
+    characterAllowUserOverride: allowUser,
+  });
   const storedDisplay = parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode);
-  const settingsWrite = resolveStatusWidgetSettingsWrite({
-    storedMode,
-    storedDisplay,
-    incomingMode: statusWidgetMode,
-    incomingDisplay: statusWidgetDisplayMode,
-  });
-  if (!settingsWrite.ok) {
-    return Response.json({ error: settingsWrite.error }, { status: 400 });
+  const writeDisplay = statusWidgetDisplayMode !== undefined;
+  const incomingDisplay = writeDisplay
+    ? parseIncomingStatusWidgetDisplayMode(statusWidgetDisplayMode)
+    : null;
+  if (writeDisplay && !incomingDisplay) {
+    return Response.json(
+      { error: "statusWidgetDisplayMode must be creator, user, both, or hidden." },
+      { status: 400 }
+    );
   }
-  const nextMode = settingsWrite.nextMode;
-  const nextDisplay = settingsWrite.nextDisplay;
-
-  const prevResolved = resolveStatusWidgetTurn({
-    characterWidgetJson: widgetCtx?.status_widget_json,
-    chatMode: storedMode,
-    userWidgetJson: widgetCtx?.user_status_widget_json,
-    stackOrder: widgetCtx?.status_widget_stack_order,
-    characterAllowUserOverride: allowUser,
-    displayMode: storedDisplay,
-  });
-
-  const resolved = resolveStatusWidgetTurn({
-    characterWidgetJson: widgetCtx?.status_widget_json,
-    chatMode: nextMode,
-    userWidgetJson: nextUserWidgetJson,
-    stackOrder: widgetCtx?.status_widget_stack_order,
-    characterAllowUserOverride: allowUser,
-    displayMode: nextDisplay,
-  });
+  const nextDisplay = incomingDisplay ?? storedDisplay ?? displayModeFromEngineMode(engineMode);
 
   const widgetReservedBreakdown = resolveStatusWidgetReservedBreakdown({
     characterWidgetJson: widgetCtx?.status_widget_json,
-    chatMode: nextMode,
-    userWidgetJson: nextUserWidgetJson,
+    chatMode: engineMode,
+    userWidgetJson: widgetCtx?.persona_status_widget_json,
     stackOrder: widgetCtx?.status_widget_stack_order,
     characterAllowUserOverride: allowUser,
     displayMode: nextDisplay,
@@ -200,17 +175,9 @@ export async function PATCH(req: Request) {
     sets.push("pov_character_name=?");
     vals.push(resolvedNarrativePov.povCharacterName || null);
   }
-  if (settingsWrite.writeMode) {
-    sets.push("status_widget_mode=?");
-    vals.push(nextMode);
-  }
-  if (settingsWrite.writeDisplay) {
+  if (writeDisplay) {
     sets.push("status_widget_display_mode=?");
     vals.push(nextDisplay);
-  }
-  if (userStatusWidgetJson !== undefined) {
-    sets.push("user_status_widget_json=?");
-    vals.push(nextUserWidgetJson);
   }
   if (adultHandoffEnabled !== undefined) {
     sets.push("adult_handoff_enabled=?");
@@ -222,14 +189,11 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    persistChatSettingsWithCreatorTriggerSupersede(db, {
+    db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=? AND user_id=?`).run(
+      ...vals,
       chatId,
-      sets,
-      vals,
-      writeMode: settingsWrite.writeMode,
-      prevEffectiveMode: prevResolved.mode,
-      nextEffectiveMode: resolved.mode,
-    });
+      user.id
+    );
   } catch (e) {
     console.error("[StatusWidgetSettings] atomic persist failed:", (e as Error).message);
     return Response.json({ error: "상태창 설정 저장에 실패했습니다." }, { status: 500 });
@@ -237,8 +201,7 @@ export async function PATCH(req: Request) {
 
   return Response.json({
     ok: true,
-    statusWidgetMode: nextMode,
-    statusWidgetDisplayMode: nextDisplay ?? storedDisplay ?? displayModeFromEngineMode(nextMode),
+    statusWidgetDisplayMode: nextDisplay,
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
     ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),

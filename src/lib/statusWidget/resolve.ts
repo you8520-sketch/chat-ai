@@ -21,6 +21,22 @@ export function statusWidgetHasUserSource(mode: StatusWidgetSourceMode): boolean
   return mode === "user_only" || mode === "both";
 }
 
+/** Canonical runtime engine owner: every available, allowed definition is tracked. */
+export function statusWidgetModeForDefinitions(opts: {
+  characterWidgetJson?: string | null;
+  personaWidgetJson?: string | null;
+  characterAllowUserOverride?: boolean;
+}): StatusWidgetSourceMode {
+  const creatorAvailable = Boolean(parseStatusWidgetJson(opts.characterWidgetJson));
+  const personaAvailable =
+    opts.characterAllowUserOverride !== false &&
+    Boolean(parseStatusWidgetJson(opts.personaWidgetJson));
+  if (creatorAvailable && personaAvailable) return "both";
+  if (creatorAvailable) return "character_only";
+  if (personaAvailable) return "user_only";
+  return "off";
+}
+
 /**
  * Fail-closed effective engine mode.
  * Requested source never silently activates another source.
@@ -65,7 +81,7 @@ function clampDisplayMode(opts: {
 /**
  * Single runtime owner for status-widget engine + display.
  *
- * Engine (`mode`) is fail-closed from stored `status_widget_mode`.
+ * Engine (`mode`) is supplied by the canonical definition-derived owner.
  * Display is presentation-only and never changes engine / needs* / extract.
  */
 export function resolveStatusWidgetTurn(opts: {
@@ -190,20 +206,9 @@ export function defaultChatStatusWidgetMode(characterHasWidget = false): StatusW
   return characterHasWidget ? "character_only" : "off";
 }
 
-/** Single owner: UI engine toggles ↔ canonical mode. */
-export function statusWidgetModeFromToggles(
-  creatorOn: boolean,
-  userOn: boolean
-): StatusWidgetSourceMode {
-  if (!creatorOn && !userOn) return "off";
-  if (creatorOn && userOn) return "both";
-  if (creatorOn) return "character_only";
-  return "user_only";
-}
-
 /**
  * @deprecated COMPATIBILITY_ONLY_OWNER — do not use for runtime engine.
- * Prefer statusWidgetModeFromToggles.
+ * Runtime engine mode is derived by statusWidgetModeForDefinitions.
  */
 export function statusWidgetModeFromUserToggle(
   userOn: boolean,
@@ -235,26 +240,6 @@ export function displayModeFromUserChoice(opts: {
   }
   if (hasCharacterWidget) return "creator";
   return "hidden";
-}
-
-export function statusWidgetTogglesFromMode(mode: StatusWidgetSourceMode): {
-  creatorOn: boolean;
-  userOn: boolean;
-} {
-  switch (mode) {
-    case "character_only":
-      return { creatorOn: true, userOn: false };
-    case "user_only":
-      return { creatorOn: false, userOn: true };
-    case "both":
-      return { creatorOn: true, userOn: true };
-    case "off":
-      return { creatorOn: false, userOn: false };
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
-  }
 }
 
 /**

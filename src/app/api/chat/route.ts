@@ -288,7 +288,7 @@ import {
 import { estimateUserContextChars } from "@/lib/userContextBilling";
 import { formatUserNoteForPrompt } from "@/lib/persona";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
-import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
+import { resolveStatusWidgetReservedChars, statusWidgetModeForDefinitions } from "@/lib/statusWidget";
 import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
 import { parseUserChatPrefs } from "@/lib/userChatPrefs";
 import {
@@ -781,6 +781,23 @@ export async function POST(req: Request) {
   }
   phaseAudit?.mark("T2_SESSION_LOADED");
 
+  const { persona: selectedPersona, personaId: resolvedPersonaId } = resolveChatSelectedPersona(
+    user,
+    personas,
+    chat.selected_persona_id,
+    chat.id
+  );
+  if (resolvedPersonaId && chat.selected_persona_id !== resolvedPersonaId) {
+    chat.selected_persona_id = resolvedPersonaId;
+  }
+  const personaWidgetJson = selectedPersona?.active_status_widget_json ?? "";
+  const statusWidgetEngineMode = statusWidgetModeForDefinitions({
+    characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
+    personaWidgetJson,
+    characterAllowUserOverride:
+      (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
+  });
+
   const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const personaSecretDiscoveryOn = isPersonaSecretDiscoveryEnabled({
     userId: user.id,
@@ -802,8 +819,8 @@ export async function POST(req: Request) {
   if (userNoteInput !== undefined) {
     const widgetReserved = resolveStatusWidgetReservedChars({
       characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
-      chatMode: (chat as { status_widget_mode?: string }).status_widget_mode,
-      userWidgetJson: (chat as { user_status_widget_json?: string }).user_status_widget_json,
+      chatMode: statusWidgetEngineMode,
+      userWidgetJson: personaWidgetJson,
       stackOrder: (chat as { status_widget_stack_order?: string }).status_widget_stack_order,
       displayMode: (chat as { status_widget_display_mode?: string }).status_widget_display_mode,
       characterAllowUserOverride:
@@ -845,16 +862,6 @@ export async function POST(req: Request) {
 
   const effectiveUserNote =
     (chat.user_note?.trim() || userNoteRow.user_note?.trim()) ?? "";
-  const { persona: selectedPersona, personaId: resolvedPersonaId } = resolveChatSelectedPersona(
-    user,
-    personas,
-    chat.selected_persona_id,
-    chat.id
-  );
-  if (resolvedPersonaId && chat.selected_persona_id !== resolvedPersonaId) {
-    chat.selected_persona_id = resolvedPersonaId;
-  }
-
   const personaDescription = toPublicPersonaDescription(selectedPersona?.description ?? "");
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
@@ -1642,8 +1649,8 @@ export async function POST(req: Request) {
 
   const statusWidgetTurn = resolveStatusWidgetTurn({
     characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
-    chatMode: (chat as { status_widget_mode?: string }).status_widget_mode,
-    userWidgetJson: (chat as { user_status_widget_json?: string }).user_status_widget_json,
+    chatMode: statusWidgetEngineMode,
+    userWidgetJson: personaWidgetJson,
     stackOrder: (chat as { status_widget_stack_order?: string }).status_widget_stack_order,
     displayMode: (chat as { status_widget_display_mode?: string }).status_widget_display_mode,
     characterAllowUserOverride:

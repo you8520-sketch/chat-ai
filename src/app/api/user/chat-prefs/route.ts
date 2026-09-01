@@ -6,7 +6,10 @@ import {
   serializeUserChatPrefs,
 } from "@/lib/userChatPrefs";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
-import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
+import {
+  resolveStatusWidgetReservedChars,
+  statusWidgetModeForDefinitions,
+} from "@/lib/statusWidget";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -40,26 +43,40 @@ export async function PATCH(req: Request) {
     if (chatId) {
       const row = db
         .prepare(
-          `SELECT ch.status_widget_mode, ch.user_status_widget_json, ch.status_widget_stack_order,
-                  c.status_widget_json, c.status_widget_allow_user_override
+          `SELECT ch.status_widget_stack_order,
+                  c.status_widget_json, c.status_widget_allow_user_override,
+                  COALESCE((
+                    SELECT p.widget_json
+                    FROM user_personas up
+                    JOIN user_status_widget_presets p
+                      ON p.id = up.active_status_widget_preset_id
+                     AND p.user_id = up.user_id
+                    WHERE up.id = ch.selected_persona_id
+                      AND up.user_id = ch.user_id
+                    LIMIT 1
+                  ), '') AS persona_status_widget_json
            FROM chats ch
            JOIN characters c ON c.id = ch.character_id
            WHERE ch.id = ? AND ch.user_id = ?`
         )
         .get(chatId, user.id) as
         | {
-            status_widget_mode: string | null;
-            user_status_widget_json: string | null;
             status_widget_stack_order: string | null;
             status_widget_json: string | null;
             status_widget_allow_user_override: number | null;
+            persona_status_widget_json: string;
           }
         | undefined;
       if (row) {
+        const engineMode = statusWidgetModeForDefinitions({
+          characterWidgetJson: row.status_widget_json,
+          personaWidgetJson: row.persona_status_widget_json,
+          characterAllowUserOverride: row.status_widget_allow_user_override !== 0,
+        });
         widgetReserved = resolveStatusWidgetReservedChars({
           characterWidgetJson: row.status_widget_json,
-          chatMode: row.status_widget_mode,
-          userWidgetJson: row.user_status_widget_json,
+          chatMode: engineMode,
+          userWidgetJson: row.persona_status_widget_json,
           stackOrder: row.status_widget_stack_order,
           characterAllowUserOverride: row.status_widget_allow_user_override !== 0,
         });

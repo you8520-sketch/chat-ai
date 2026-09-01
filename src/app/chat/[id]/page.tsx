@@ -31,7 +31,6 @@ import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
 
 import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
-import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";
 import { getPersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import { canAccessCharacter } from "@/lib/characterVisibility";
 import { recordCharacterClick } from "@/lib/characterClicks";
@@ -42,8 +41,8 @@ import {
 import {
   displayModeFromEngineMode,
   parseStatusWidgetDisplayMode,
-  parseStatusWidgetMode,
   parseStatusWidgetStackOrder,
+  statusWidgetModeForDefinitions,
 } from "@/lib/statusWidget";
 import { resolveStatusWidgetTurn } from "@/lib/statusWidget/resolve";
 import {
@@ -72,8 +71,6 @@ type ChatRow = {
   writing_style_override?: string;
   memory_capacity?: number;
   status_window_enabled?: number;
-  status_widget_mode?: string;
-  user_status_widget_json?: string;
   status_widget_stack_order?: string;
   status_widget_display_mode?: string;
   narrative_pov?: string;
@@ -194,7 +191,6 @@ export default async function ChatPage({
   const personaList = ensureDefaultPublicPersona(user.id, user.nickname);
   const personaSecretSettings = getPersonaSecretSettingsCapability(user.id);
   const notePresetList = listUserNotePresets(user.id);
-  const statusWidgetPresetList = listStatusWidgetPresets(user.id);
 
   let chat: ChatRow | undefined;
 
@@ -204,7 +200,7 @@ export default async function ChatPage({
       if (requestedId) {
         chat = db
           .prepare(
-            "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
+            "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
           )
           .get(requestedId, user.id, c.id) as ChatRow | undefined;
       }
@@ -213,7 +209,7 @@ export default async function ChatPage({
     if (!chat) {
       chat = db
         .prepare(
-          "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
+          "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
         )
         .get(user.id, c.id) as ChatRow | undefined;
     }
@@ -282,6 +278,17 @@ export default async function ChatPage({
     chat?.selected_persona_id && personaList.some((p) => p.id === chat.selected_persona_id)
       ? chat.selected_persona_id
       : (personaList[0]?.id ?? null);
+  const selectedPersona =
+    selectedPersonaId == null
+      ? null
+      : (personaList.find((persona) => persona.id === selectedPersonaId) ?? null);
+  const personaWidgetJson = selectedPersona?.active_status_widget_json ?? "";
+  const statusWidgetEngineMode = statusWidgetModeForDefinitions({
+    characterWidgetJson: (c as { status_widget_json?: string }).status_widget_json,
+    personaWidgetJson,
+    characterAllowUserOverride:
+      (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
+  });
 
   const userChatPrefs = resolveInitialUserChatPrefs({
     serverRaw: userProfileRow.chat_prefs,
@@ -293,8 +300,8 @@ export default async function ChatPage({
   );
   const statusWidgetActive = resolveStatusWidgetTurn({
     characterWidgetJson: (c as { status_widget_json?: string }).status_widget_json,
-    chatMode: chat.status_widget_mode,
-    userWidgetJson: chat.user_status_widget_json,
+    chatMode: statusWidgetEngineMode,
+    userWidgetJson: personaWidgetJson,
     stackOrder: chat.status_widget_stack_order,
     displayMode: chat.status_widget_display_mode,
     characterAllowUserOverride:
@@ -509,7 +516,6 @@ export default async function ChatPage({
       initialUserNote={mergedInitialUserNote}
       defaultUserNote={notePresetList[0]?.content ?? userProfileRow.user_note ?? ""}
       initialNotePresets={notePresetList}
-      initialStatusWidgetPresets={statusWidgetPresetList}
       initialPersonas={personaList}
       initialSelectedPersonaId={selectedPersonaId}
       nickname={user.nickname}
@@ -522,13 +528,11 @@ export default async function ChatPage({
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}
       isCharacterCreator={isCharacterCreator}
-      initialStatusWidgetMode={parseStatusWidgetMode(chat.status_widget_mode)}
       initialStatusWidgetDisplayMode={
         parseStatusWidgetDisplayMode(chat.status_widget_display_mode) ??
-        displayModeFromEngineMode(parseStatusWidgetMode(chat.status_widget_mode))
+        displayModeFromEngineMode(statusWidgetEngineMode)
       }
       initialCharacterWidgetJson={(c as { status_widget_json?: string }).status_widget_json ?? ""}
-      initialUserWidgetJson={chat.user_status_widget_json ?? ""}
       initialStatusWidgetStackOrder={parseStatusWidgetStackOrder(chat.status_widget_stack_order)}
       characterWidgetAllowUserOverride={
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0

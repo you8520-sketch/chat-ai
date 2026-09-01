@@ -812,6 +812,7 @@ function migrate(db: Database.Database) {
   addColumn("user_personas", "image_url", "TEXT NOT NULL DEFAULT ''");
   addColumn("user_personas", "image_focus_x", "REAL NOT NULL DEFAULT 0.5");
   addColumn("user_personas", "image_focus_y", "REAL NOT NULL DEFAULT 0.28");
+  addColumn("user_personas", "active_status_widget_preset_id", "INTEGER");
   migrateLegacyPersonas(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_persona_secret_reveals (
