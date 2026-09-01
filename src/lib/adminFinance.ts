@@ -13,6 +13,15 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
 } from "@/lib/chatModels";
+import type { Usage } from "@/lib/chatUsage";
+import {
+  groupLedgerRowsByAssistantMessageId,
+  mergeFinanceTurnCostCoverage,
+  resolveMessageTurnProviderCostKrw,
+  type FinanceTurnCostCoverage,
+} from "@/lib/adminFinanceTurnCost";
+import { ensureProviderCostLedgerSchema, type ProviderCostLedgerRow } from "@/lib/providerCostLedger";
+import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
 
 export type FinanceMonthlyAdjustments = {
   monthKey: string;
@@ -28,13 +37,17 @@ export type FinanceMonthlyAdjustments = {
 
 type DeductionSlice = { pointType?: string; amount?: number };
 
+export type FinanceMarginCoverage = FinanceTurnCostCoverage;
+
 export type FinanceCategory = {
   paidRevenueKrw: number;
   freePointSpend: number;
   apiCostKrw: number;
   creatorCostKrw: number;
-  netProfitKrw: number;
+  netProfitKrw: number | null;
   marginRate: number | null;
+  marginCoverage: FinanceMarginCoverage;
+  realizedMarginExact: boolean;
 };
 
 export type AdminFinanceSummary = {
@@ -52,8 +65,10 @@ export type AdminFinanceSummary = {
     paidRevenueKrw: number;
     freePointSpend: number;
     apiCostKrw: number;
-    netProfitKrw: number;
+    netProfitKrw: number | null;
     marginRate: number | null;
+    marginCoverage: FinanceMarginCoverage;
+    realizedMarginExact: boolean;
   }>;
   deepSeekV4Flash: {
     calls: number;
@@ -68,8 +83,10 @@ export type AdminFinanceSummary = {
   railwayCostKrw: number;
   operatingCostsKrw: number;
   totalApiCostKrw: number;
-  netProfitKrw: number;
+  netProfitKrw: number | null;
   marginRate: number | null;
+  marginCoverage: FinanceMarginCoverage;
+  realizedMarginExact: boolean;
   adjustments: FinanceMonthlyAdjustments;
 };
 
@@ -322,16 +339,21 @@ function category(
   paidRevenueKrw: number,
   freePointSpend: number,
   apiCostKrw: number,
-  creatorCostKrw = 0
+  creatorCostKrw = 0,
+  marginCoverage: FinanceMarginCoverage = "complete",
+  realizedMarginExact = true
 ): FinanceCategory {
   const netProfitKrw = paidRevenueKrw - apiCostKrw - creatorCostKrw;
+  const marginEligible = realizedMarginExact && paidRevenueKrw > 0;
   return {
     paidRevenueKrw: round1(paidRevenueKrw),
     freePointSpend: round1(freePointSpend),
     apiCostKrw: round1(apiCostKrw),
     creatorCostKrw: round1(creatorCostKrw),
-    netProfitKrw: round1(netProfitKrw),
-    marginRate: paidRevenueKrw > 0 ? netProfitKrw / paidRevenueKrw : null,
+    netProfitKrw: marginEligible ? round1(netProfitKrw) : null,
+    marginRate: marginEligible ? netProfitKrw / paidRevenueKrw : null,
+    marginCoverage,
+    realizedMarginExact,
   };
 }
 
@@ -340,25 +362,52 @@ export function buildAdminFinanceSummary(
   monthKey = currentKstMonthKey()
 ): AdminFinanceSummary {
   ensureAdminFinanceTables(db);
+  ensureProviderCostLedgerSchema(db);
   const { start, end } = monthRange(monthKey);
   const adjustments = getFinanceAdjustments(db, monthKey);
   const exchange = resolveBillingExchangeRateSnapshot();
 
   const messageRows = db
     .prepare(
-      `SELECT usage, deduction_slices
+      `SELECT id, usage, deduction_slices
        FROM messages
        WHERE role='assistant' AND created_at>=? AND created_at<?
          AND COALESCE(is_refunded, 0)=0`
     )
-    .all(start, end) as { usage: string | null; deduction_slices: string | null }[];
+    .all(start, end) as {
+    id: number;
+    usage: string | null;
+    deduction_slices: string | null;
+  }[];
+
+  const assistantIds = messageRows.map((row) => row.id);
+  let ledgerByAssistant = new Map<number, ProviderCostLedgerRow[]>();
+  if (assistantIds.length > 0) {
+    const placeholders = assistantIds.map(() => "?").join(",");
+    const ledgerRows = db
+      .prepare(
+        `SELECT * FROM api_cost_ledger WHERE assistant_message_id IN (${placeholders})`
+      )
+      .all(...assistantIds);
+    ledgerByAssistant = groupLedgerRowsByAssistantMessageId(
+      ledgerRows as ProviderCostLedgerRow[]
+    );
+  }
 
   let chatPaid = 0;
   let chatFree = 0;
   let chatApiCost = 0;
+  let chatMarginCoverage: FinanceMarginCoverage = "complete";
+  let chatRealizedMarginExact = true;
   const modelMap = new Map<
     string,
-    { paidRevenueKrw: number; freePointSpend: number; apiCostKrw: number }
+    {
+      paidRevenueKrw: number;
+      freePointSpend: number;
+      apiCostKrw: number;
+      marginCoverage: FinanceMarginCoverage;
+      realizedMarginExact: boolean;
+    }
   >();
   for (const row of messageRows) {
     const slices = sliceTotals(row.deduction_slices);
@@ -366,31 +415,57 @@ export function buildAdminFinanceSummary(
     chatFree += slices.free;
     let model = "알 수 없음";
     let rowApiCost = 0;
+    let rowMarginCoverage: FinanceMarginCoverage = "unavailable";
+    let rowRealizedMarginExact = false;
     try {
-      const usage = JSON.parse(row.usage ?? "{}") as {
-        model?: string;
+      const usage = JSON.parse(row.usage ?? "{}") as Usage & {
         modelLabel?: string;
-        apiRawCostKrw?: number;
       };
       model = usage.modelLabel?.trim() || usage.model?.trim() || model;
       const isLedgeredDeepSeekFlash = isCheaperInferenceDeepSeekV4FlashModel(
         usage.model ?? ""
       );
-      rowApiCost = isLedgeredDeepSeekFlash
-        ? 0
-        : finiteNonNegative(usage.apiRawCostKrw);
+      if (isLedgeredDeepSeekFlash) {
+        rowApiCost = 0;
+        rowMarginCoverage = "complete";
+        rowRealizedMarginExact = true;
+      } else {
+        const ledgerRows = ledgerByAssistant.get(row.id) ?? [];
+        const turnCost = resolveMessageTurnProviderCostKrw(usage, ledgerRows);
+        rowApiCost = turnCost.knownApiCostKrw;
+        rowMarginCoverage = turnCost.coverage;
+        rowRealizedMarginExact = turnCost.realizedMarginExact;
+      }
       chatApiCost += rowApiCost;
+      chatMarginCoverage = mergeFinanceTurnCostCoverage(
+        chatMarginCoverage,
+        rowMarginCoverage
+      );
+      if (!rowRealizedMarginExact) {
+        chatRealizedMarginExact = false;
+      }
     } catch {
       // Legacy rows without a valid receipt remain visible as revenue but not guessed as cost.
+      chatMarginCoverage = mergeFinanceTurnCostCoverage(chatMarginCoverage, "partial");
+      chatRealizedMarginExact = false;
     }
     const current = modelMap.get(model) ?? {
       paidRevenueKrw: 0,
       freePointSpend: 0,
       apiCostKrw: 0,
+      marginCoverage: "complete" as FinanceMarginCoverage,
+      realizedMarginExact: true,
     };
     current.paidRevenueKrw += slices.paid;
     current.freePointSpend += slices.free;
     current.apiCostKrw += rowApiCost * (1 + adjustments.providerTaxRate);
+    current.marginCoverage = mergeFinanceTurnCostCoverage(
+      current.marginCoverage,
+      rowMarginCoverage
+    );
+    if (!rowRealizedMarginExact) {
+      current.realizedMarginExact = false;
+    }
     modelMap.set(model, current);
   }
 
@@ -429,7 +504,9 @@ export function buildAdminFinanceSummary(
               COALESCE(SUM(cache_read_tokens),0) AS cache_read_tokens,
               COALESCE(SUM(cost_krw),0) AS cost_krw
        FROM api_cost_ledger
-       WHERE created_at>=? AND created_at<? AND lower(model) IN (?, ?)`
+       WHERE created_at>=? AND created_at<?
+         AND lower(model) IN (?, ?)
+         AND (assistant_message_id IS NULL OR assistant_message_id = 0)`
     )
     .get(
       start,
@@ -444,8 +521,14 @@ export function buildAdminFinanceSummary(
       paidRevenueKrw: 0,
       freePointSpend: 0,
       apiCostKrw: 0,
+      marginCoverage: "estimated" as FinanceMarginCoverage,
+      realizedMarginExact: false,
     };
     flash.apiCostKrw += backgroundWithTax;
+    flash.marginCoverage = mergeFinanceTurnCostCoverage(flash.marginCoverage, "estimated");
+    flash.realizedMarginExact = false;
+    chatMarginCoverage = mergeFinanceTurnCostCoverage(chatMarginCoverage, "estimated");
+    chatRealizedMarginExact = false;
     modelMap.set("DeepSeek V4 Flash · 백그라운드", flash);
   }
 
@@ -497,13 +580,33 @@ export function buildAdminFinanceSummary(
     .get(start, end) as { paid_fee: number };
   const giftFeeRevenueKrw = finiteNonNegative(giftFees.paid_fee);
 
+  const imageApiCostBeforeTax = imageApiCost;
+  const imageHasActivity = imageHasAccountingActivity(
+    imagePaid,
+    imageFree,
+    imageApiCostBeforeTax
+  );
+  const imageMarginCoverage: FinanceMarginCoverage = imageHasActivity
+    ? "estimated"
+    : "complete";
+  const imageRealizedMarginExact = !imageHasActivity;
+
   const chat = category(
     chatPaid,
     chatFree,
     chatApiCost * (1 + adjustments.providerTaxRate) + backgroundWithTax,
-    creatorForChat
+    creatorForChat,
+    chatMarginCoverage,
+    chatRealizedMarginExact
   );
-  const image = category(imagePaid, imageFree, imageApiCost * (1 + adjustments.providerTaxRate));
+  const image = category(
+    imagePaid,
+    imageFree,
+    imageApiCost * (1 + adjustments.providerTaxRate),
+    0,
+    imageMarginCoverage,
+    imageRealizedMarginExact
+  );
   const railwayCostKrw = adjustments.railwayUsageKrw + adjustments.railwayTaxKrw;
   const operatingCostsKrw =
     railwayCostKrw +
@@ -513,8 +616,15 @@ export function buildAdminFinanceSummary(
     adjustments.otherCostsKrw;
   const paidRevenue = chat.paidRevenueKrw + image.paidRevenueKrw + giftFeeRevenueKrw;
   const totalApiCostKrw = chat.apiCostKrw + image.apiCostKrw;
-  const netProfitKrw =
-    paidRevenue - totalApiCostKrw - creatorForChat - operatingCostsKrw;
+  const summaryMarginCoverage = mergeFinanceTurnCostCoverage(
+    chat.marginCoverage,
+    image.marginCoverage
+  );
+  const summaryRealizedMarginExact =
+    chat.realizedMarginExact && image.realizedMarginExact;
+  const netProfitKrw = summaryRealizedMarginExact
+    ? paidRevenue - totalApiCostKrw - creatorForChat - operatingCostsKrw
+    : null;
 
   return {
     monthKey,
@@ -528,15 +638,18 @@ export function buildAdminFinanceSummary(
     image,
     modelBreakdown: [...modelMap.entries()]
       .map(([model, values]) => {
-        const netProfitKrw = values.paidRevenueKrw - values.apiCostKrw;
+        const modelNetProfitKrw = values.paidRevenueKrw - values.apiCostKrw;
+        const marginEligible =
+          values.realizedMarginExact && values.paidRevenueKrw > 0;
         return {
           model,
           paidRevenueKrw: round1(values.paidRevenueKrw),
           freePointSpend: round1(values.freePointSpend),
           apiCostKrw: round1(values.apiCostKrw),
-          netProfitKrw: round1(netProfitKrw),
-          marginRate:
-            values.paidRevenueKrw > 0 ? netProfitKrw / values.paidRevenueKrw : null,
+          netProfitKrw: marginEligible ? round1(modelNetProfitKrw) : null,
+          marginRate: marginEligible ? modelNetProfitKrw / values.paidRevenueKrw : null,
+          marginCoverage: values.marginCoverage,
+          realizedMarginExact: values.realizedMarginExact,
         };
       })
       .sort((a, b) => b.paidRevenueKrw - a.paidRevenueKrw),
@@ -553,8 +666,13 @@ export function buildAdminFinanceSummary(
     railwayCostKrw: round1(railwayCostKrw),
     operatingCostsKrw: round1(operatingCostsKrw),
     totalApiCostKrw: round1(totalApiCostKrw),
-    netProfitKrw: round1(netProfitKrw),
-    marginRate: paidRevenue > 0 ? netProfitKrw / paidRevenue : null,
+    netProfitKrw: netProfitKrw == null ? null : round1(netProfitKrw),
+    marginRate:
+      summaryRealizedMarginExact && paidRevenue > 0 && netProfitKrw != null
+        ? netProfitKrw / paidRevenue
+        : null,
+    marginCoverage: summaryMarginCoverage,
+    realizedMarginExact: summaryRealizedMarginExact,
     adjustments,
   };
 }
