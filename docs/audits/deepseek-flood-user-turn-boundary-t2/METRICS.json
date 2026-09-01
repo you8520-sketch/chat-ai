@@ -1,0 +1,132 @@
+{
+  "SNAPSHOT_ID": "handoff-17-1-2026-08-18T11-38-17-786Z",
+  "CHARACTER": "플러드",
+  "PERSONA": "렌",
+  "BASE_MAIN": "b06037dd5c572bd02abec311f4148f57d9362551",
+  "FIXTURE": "Flood F1 frozen",
+  "T1_STATUS": "DROP",
+  "BASELINE_REUSED": true,
+  "BASELINE_NEW_CALLS": 0,
+  "GEMINI_NEW_CALLS": 0,
+  "VANILLA_NEW_CALLS": 0,
+  "T1_NEW_CALLS": 0,
+  "SOURCE_GEMINI_NEW_CALLS": 0,
+  "T2_CALLS": 3,
+  "TOTAL_NEW_CALLS": 3,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "TARGET_PROVIDER": "cheaperinference",
+  "TARGET_ENDPOINT": "https://api.cheaperinference.com/v1/chat/completions",
+  "TARGET_MODEL": "deepseek-v4-pro-0813",
+  "TRUE_OFF": "thinking.disabled + reasoning_effort.none",
+  "REASONING_EVENTS": [
+    0,
+    0,
+    0
+  ],
+  "REASONING_CHARS": [
+    0,
+    0,
+    0
+  ],
+  "T2_BLOCK_SHA": "f1c819ae233c076078f00cc8161d1658abf09d1f85c45acbc8e56c3139e22a48",
+  "BASELINE_MESSAGES_SHA": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+  "CHALLENGER_MESSAGES_SHA": "748121bd03ea932ead68e99d618f8932fcac36c735d0e573e90812c9430d703d",
+  "ONLY_SEMANTIC_DIFFERENCE_PROVEN": true,
+  "T2_VISIBLE_CHARS": [
+    3354,
+    3980,
+    4218
+  ],
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "BLIND_REVIEW": false,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_T2_ENABLED": false,
+  "PRODUCTION_TRUE_OFF_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "challenger": [
+    {
+      "label": "T2_CHALLENGER_1",
+      "raw_sha": "ff22e9f38b88e8e07eaa59e7ad5a2c3bcb67432c011a04fac089b3a9ac00e414",
+      "chars": 3354,
+      "late25_chars": 839,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "deepseek-v4-pro-0813",
+      "latencyMs": 51586,
+      "reasoning": {
+        "reasoning_stream_events": 0,
+        "reasoning_chars": 0,
+        "reasoning_delta_keys": []
+      },
+      "usage_reasoning_tokens_not_used_as_proof": null,
+      "sentKeys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature",
+        "thinking"
+      ],
+      "bodySha": "ae0b7f7f7bd1a9eacffa6fb60bffb93e9c03ffcb00ede922e9463e0befd0ae19"
+    },
+    {
+      "label": "T2_CHALLENGER_2",
+      "raw_sha": "bfd7a2a1bfda2d873f66e2447208bf34bb19d76ad3884d0764ecaf505abb0fbd",
+      "chars": 3980,
+      "late25_chars": 995,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "deepseek-v4-pro-0813",
+      "latencyMs": 59909,
+      "reasoning": {
+        "reasoning_stream_events": 0,
+        "reasoning_chars": 0,
+        "reasoning_delta_keys": []
+      },
+      "usage_reasoning_tokens_not_used_as_proof": null,
+      "sentKeys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature",
+        "thinking"
+      ],
+      "bodySha": "ae0b7f7f7bd1a9eacffa6fb60bffb93e9c03ffcb00ede922e9463e0befd0ae19"
+    },
+    {
+      "label": "T2_CHALLENGER_3",
+      "raw_sha": "6b31b95d3688e8313475b0a89ef3687820b7461de89c113ffb1b088428b7839e",
+      "chars": 4218,
+      "late25_chars": 1055,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "deepseek-v4-pro-0813",
+      "latencyMs": 64295,
+      "reasoning": {
+        "reasoning_stream_events": 0,
+        "reasoning_chars": 0,
+        "reasoning_delta_keys": []
+      },
+      "usage_reasoning_tokens_not_used_as_proof": null,
+      "sentKeys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature",
+        "thinking"
+      ],
+      "bodySha": "ae0b7f7f7bd1a9eacffa6fb60bffb93e9c03ffcb00ede922e9463e0befd0ae19"
+    }
+  ]
+}
