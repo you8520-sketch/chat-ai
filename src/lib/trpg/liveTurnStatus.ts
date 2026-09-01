@@ -50,6 +50,8 @@ export function liveTurnProcessStage(opts: {
   presentationMode?: RoundPresentationMode | string;
   presentationPhase?: RoundPresentationPhase | string;
   cinematicAiActionActive?: boolean;
+  /** Cinematic actor-action slot waiting for backend bot action materialization (not human). */
+  cinematicWaitingForBotAction?: boolean;
   gmProseRevealing?: boolean;
 }): LiveTurnProcessStage {
   if (opts.waitingOpening) return "opening";
@@ -68,7 +70,14 @@ export function liveTurnProcessStage(opts: {
     opts.presentationMode === "cinematic" &&
     opts.presentationPhase === "actor-action"
   ) {
-    return opts.cinematicAiActionActive ? "presenting" : "none";
+    if (opts.cinematicAiActionActive) return "presenting";
+    if (
+      opts.cinematicWaitingForBotAction &&
+      (opts.botGenerationInFlight || opts.workType === "generate_bots")
+    ) {
+      return "bots";
+    }
+    return "none";
   }
   if (opts.presentationMode === "cinematic" && opts.presentationPhase === "gm-narration") {
     return opts.gmTextReady ? "none" : "gm";

@@ -125,6 +125,7 @@ import {
   isHiddenPresentationCatchUpActive,
   hiddenPresentationSessionStillActive,
   presentationStateEquals,
+  shouldRunHiddenRoundGmCatchUp,
   shouldSkipDecorativeReveal,
   type HiddenPresentationSession,
 } from "@/lib/trpg/presentationHiddenCatchUp";
@@ -979,6 +980,12 @@ export default function TrpgCampaignRoom({
     });
   const cinematicAiActionActive =
     cinematicActorAction && activePresentationAction?.kind === "ai_character";
+  const cinematicWaitingForBotAction =
+    cinematicActorAction &&
+    !cinematicAiActionActive &&
+    activePresentationAction?.kind !== "human" &&
+    (activePresentationActor?.action == null || activePresentationAction == null) &&
+    (snap.botGenerationInFlight || snap.workType === "generate_bots");
   useEffect(() => {
     if (typeof document === "undefined") return;
     const syncHidden = () => {
@@ -991,6 +998,8 @@ export default function TrpgCampaignRoom({
             roundNumber: presentationRoundNumber,
           })
         );
+      } else if (!hidden) {
+        setHiddenPresentationSession(null);
       }
     };
     document.addEventListener("visibilitychange", syncHidden);
@@ -1017,10 +1026,17 @@ export default function TrpgCampaignRoom({
     roundShow,
   ]);
   useEffect(() => {
+    if (
+      !shouldRunHiddenRoundGmCatchUp({
+        documentHidden,
+        hiddenRoundSessionActive,
+        gmTextReady,
+        phase: roundShow.phase,
+      })
+    ) {
+      return;
+    }
     if (roundShow.mode !== "cinematic") return;
-    if (!hiddenRoundSessionActive) return;
-    if (!gmTextReady) return;
-    if (roundShow.phase !== "gm-narration" && roundShow.phase !== "complete") return;
     const caught = catchUpHiddenPresentationState({
       state: roundShow,
       actors: presentationActors,
@@ -1031,6 +1047,7 @@ export default function TrpgCampaignRoom({
     }
     setConsumedDecorativeSessionKey(queueSessionKey);
   }, [
+    documentHidden,
     gmTextReady,
     hiddenRoundSessionActive,
     presentationActors,
@@ -1139,6 +1156,7 @@ export default function TrpgCampaignRoom({
     presentationMode: roundShow.mode,
     presentationPhase: roundShow.phase,
     cinematicAiActionActive,
+    cinematicWaitingForBotAction,
     gmProseRevealing:
       cinematicShowGm &&
       currentNarration.length > 0 &&

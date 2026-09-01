@@ -11,6 +11,7 @@ import {
   catchUpHiddenPresentationState,
   isHiddenPresentationCatchUpActive,
   hiddenPresentationSessionStillActive,
+  shouldRunHiddenRoundGmCatchUp,
   shouldSkipDecorativeReveal,
 } from "./presentationHiddenCatchUp";
 
@@ -93,7 +94,7 @@ describe("TRPG hidden presentation catch-up", () => {
     assert.equal(complete.phase, "complete");
   });
 
-  it("D: hidden session persists after visible return for late GM catch-up", () => {
+  it("D: visible return clears hidden session — foreground GM does not skip bots", () => {
     const session = beginHiddenPresentationSession({ sessionKey, roundNumber: 5 });
     assert.equal(
       hiddenPresentationSessionStillActive({ session, sessionKey }),
@@ -107,6 +108,16 @@ describe("TRPG hidden presentation catch-up", () => {
         cinematic: true,
       }),
       false
+    );
+    assert.equal(
+      shouldRunHiddenRoundGmCatchUp({
+        documentHidden: false,
+        hiddenRoundSessionActive: true,
+        gmTextReady: true,
+        phase: "gm-narration",
+      }),
+      false,
+      "GM_START_DOES_NOT_FLUSH_UNSEEN_BOT_PROSE"
     );
     const actors = actorsFor([1, 2]);
     const waiting: RoundPresentationState = {

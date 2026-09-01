@@ -359,6 +359,95 @@ describe("TRPG live turn process status", () => {
       false
     );
   });
+
+  it("SECOND_ROUND: bot generation status wins over none at bot actor-action slot", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "generate_bots",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: true,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: false,
+        cinematicWaitingForBotAction: true,
+      }),
+      "bots",
+      "SECOND_ROUND_BOT_GENERATION_STATUS_VISIBLE"
+    );
+    assert.equal(
+      formatLiveTurnProcessStatus({ stage: "bots", elapsedSec: 6 }),
+      "● 동료 행동 구성 중 · 6초",
+      "SECOND_ROUND_BOT_GENERATION_ELAPSED_VISIBLE"
+    );
+  });
+
+  it("HUMAN_ACTOR_ACTION: human slot does not show companion bots copy", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "idle",
+        phase: "GENERATING_NARRATION",
+        viewerLocked: true,
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: false,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: false,
+        cinematicWaitingForBotAction: false,
+      }),
+      "none",
+      "HUMAN_ACTOR_ACTION_STATUS_NOT_COMPANION"
+    );
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "generate_bots",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: true,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: false,
+        cinematicWaitingForBotAction: true,
+      }),
+      "bots",
+      "bot slot waiting shows bots even while generate_bots work type active"
+    );
+  });
+
+  it("PRESENTING beats bots: active AI prose keeps presenting stage", () => {
+    assert.equal(
+      liveTurnProcessStage({
+        waitingOpening: false,
+        narrationRerolling: false,
+        workType: "generate_bots",
+        phase: "BOT_ACTION",
+        viewerLocked: true,
+        cinematicMotion: true,
+        presentationStarting: false,
+        gmTextReady: false,
+        botGenerationInFlight: true,
+        presentationMode: "cinematic",
+        presentationPhase: "actor-action",
+        cinematicAiActionActive: true,
+        cinematicWaitingForBotAction: false,
+      }),
+      "presenting"
+    );
+  });
 });
 
 describe("TRPG free action display label", () => {
