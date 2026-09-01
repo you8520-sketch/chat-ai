@@ -8,11 +8,21 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  countMalformedAttributionBenchmarkCorpus,
+  countMalformedAttributionLdFixtures,
+} from "../src/lib/chatImageAttributionAudit";
+import {
   auditComicDialogueWhitelist,
   buildChatComicImagePrompt,
 } from "../src/lib/chatComicGeneration";
 import { renderChatComicPanelSpecSection, compileChatComicPanelSpec } from "../src/lib/chatComicPanelSpec";
-import { buildLdSceneGenerationPlan } from "../src/lib/chatLdIllustrationGeneration";
+import {
+  CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
+  CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
+  resolveChatImageSceneBriefModel,
+} from "../src/lib/chatImageSceneBrief";
+import { isCheaperInferenceModel } from "../src/lib/chatModels";
+import { SCENE_PLAN_MAX_PROVIDER_ATTEMPTS } from "../src/lib/chatImageScenePlan";
 import {
   applyUserPanelEdits,
   buildDeterministicScenePlan,
@@ -22,8 +32,8 @@ import {
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
   projectComicPanelBeat,
+  updatePanelDialogueAtIndex,
 } from "../src/lib/chatImageScenePlan";
-import { resolveChatImageSceneBriefModel } from "../src/lib/chatImageSceneBrief";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_DIR = join(ROOT, "docs/audits/ld-image-normalization");
@@ -34,9 +44,9 @@ function gitSha(ref: string): string {
 }
 
 const MAIN_SHA = gitSha("origin/main");
-const HEAD_SHA = gitSha("HEAD");
+const GENERATED_FROM_SOURCE_SHA = gitSha("HEAD");
 const PERSONA = "렌";
-const CHARACTER = "태현";
+const CHARACTER = "태형";
 
 const ATTRIBUTION_SOURCE = '태현이 렌의 손목을 붙잡고 "가지 마."라고 말했다.';
 const messages = buildSceneSourceMessages([
@@ -45,20 +55,6 @@ const messages = buildSceneSourceMessages([
 const plan = buildDeterministicScenePlan(messages, 2);
 const events = extractDeterministicEvents(messages);
 const illustration = formatApprovedScenePlanForIllustration(plan);
-const ld = buildLdSceneGenerationPlan({
-  characterName: CHARACTER,
-  characterGender: "male",
-  personaName: PERSONA,
-  personaGender: "female",
-  characterImageUrl: "/synthetic/hero.webp",
-  characterSavedAppearance: "",
-  characterAppearanceMode: "image_only",
-  personaImageUrl: "/synthetic/user.webp",
-  personaSavedAppearance: "",
-  personaAppearanceMode: "image_only",
-  approvedScenePlan: plan,
-  contentKind: "character",
-});
 const comicSpec = renderChatComicPanelSpecSection(
   compileChatComicPanelSpec({
     plan,
@@ -80,23 +76,36 @@ const duoMessages = buildSceneSourceMessages([
   { id: 2, role: "assistant", content: '렌이 후드를 만지자 태형이 고개를 돌렸다. "그래."' },
 ]);
 const duoPlan = buildDeterministicScenePlan(duoMessages, 2);
-const duoEdited = applyUserPanelEdits(duoPlan, 1, {
-  dialogue: duoPlan.panels[0]!.dialogue.map((line) =>
-    line.text.includes("그래")
-      ? { ...line, text: "좋아.", provenance: "user_edit" as const }
-      : line
-  ),
-});
+const characterPanel = duoPlan.panels.find((panel) =>
+  panel.dialogue.some((line) => line.text.includes("그래"))
+);
+const characterLineIndex =
+  characterPanel?.dialogue.findIndex((line) => line.text.includes("그래")) ?? -1;
+const duoEdited =
+  characterPanel && characterLineIndex >= 0
+    ? updatePanelDialogueAtIndex(duoPlan, characterPanel.index, characterLineIndex, {
+        text: "좋아.",
+      })
+    : duoPlan;
 const audit = auditComicDialogueWhitelist({
   plan: duoEdited,
   personaName: PERSONA,
   characterName: CHARACTER,
 });
 
+const primaryModel = resolveChatImageSceneBriefModel();
+const fallbackModel = CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+const primaryProvider = isCheaperInferenceModel(primaryModel)
+  ? "CheaperInference"
+  : "OpenRouter";
+const fallbackProvider = isCheaperInferenceModel(fallbackModel)
+  ? "CheaperInference"
+  : "OpenRouter";
+
 function dialogueEditorSection(
   label: string,
   reviewPlan: ReturnType<typeof buildDeterministicScenePlan>,
-  edited?: ReturnType<typeof applyUserPanelEdits>
+  edited?: ReturnType<typeof buildDeterministicScenePlan>
 ) {
   const active = edited ?? reviewPlan;
   const whitelist = collectApprovedComicText(active);
@@ -115,7 +124,7 @@ function dialogueEditorSection(
       rows.push("- VISIBLE DIALOGUE: (silent)");
     }
     for (const [index, line] of panel.dialogue.entries()) {
-      const bubble = bubbles[index];
+      const bubble = bubbles.find((_, bubbleIndex) => bubbleIndex === index);
       rows.push(`- LINE ${index + 1}`);
       rows.push(
         `  - VISIBLE SPEAKER NAME: ${line.speaker === "persona" ? PERSONA : line.speaker === "character" ? CHARACTER : "기타"}`
@@ -132,12 +141,15 @@ function dialogueEditorSection(
   return rows.join("\n");
 }
 
+const malformedCount =
+  countMalformedAttributionLdFixtures() + countMalformedAttributionBenchmarkCorpus();
+
 const lines = [
   "# LD Image Normalization — REVIEW PACKET",
   "",
   `**CURRENT_MAIN_SHA:** \`${MAIN_SHA}\``,
+  `**GENERATED_FROM_SOURCE_SHA:** \`${GENERATED_FROM_SOURCE_SHA}\``,
   `**PR_NUMBER:** 808`,
-  `**PR_HEAD_SHA:** \`${HEAD_SHA}\``,
   "",
   "## Flagship fixture",
   "",
@@ -188,7 +200,7 @@ const lines = [
   "## DIALOGUE_EDITOR_REVIEW",
   "",
   dialogueEditorSection("2-panel duo (source)", duoPlan),
-  dialogueEditorSection("2-panel duo (user text edit)", duoPlan, duoEdited),
+  dialogueEditorSection("2-panel duo (user text edit: 그래. → 좋아.)", duoPlan, duoEdited),
   dialogueEditorSection("3-panel duo", buildDeterministicScenePlan(duoMessages, 3)),
   "",
   "## Invariant checks (computed)",
@@ -197,6 +209,7 @@ const lines = [
   `- NO_DANGLING_ATTRIBUTION: ${!/라고 말했다/.test(plan.heroScene)}`,
   `- HERO_IDS_INCLUDE_DIALOGUE: ${plan.heroEventIds.some((id) => plan.events.find((e) => e.id === id)?.kind === "dialogue")}`,
   `- DOWNSTREAM_KEY_DIALOGUE: ${illustration.includes("가지 마")}`,
+  `- MALFORMED_ATTRIBUTION_COUNT: ${malformedCount}`,
   `- PANEL_TEXT_WHITELIST_MISMATCH_COUNT: ${audit.panelTextWhitelistMismatchCount}`,
   `- USER_EDIT_DIALOGUE_MISMATCH_COUNT: ${audit.userEditDialogueMismatchCount}`,
   "",
@@ -204,12 +217,15 @@ const lines = [
   "",
   "**AI_AUTO_PANEL_PLANNING_STATUS:** IMPLEMENTED_COMIC_DEFAULT_ONE_CALL",
   "",
-  `- SCENE_PLANNER_MODEL: ${resolveChatImageSceneBriefModel()}`,
-  `- SCENE_PLANNER_PROVIDER: OpenRouter (via planChatImageScene / chatImageScenePlanner)`,
-  `- COMIC_DEFAULT_SCENE_PLANNER_CALLS_BEFORE: 0 (manual opt-in only)`,
-  `- COMIC_DEFAULT_SCENE_PLANNER_CALLS_AFTER: 1 per source session when comic mode active`,
-  `- COMIC_PANEL_SWITCH_EXTRA_CALLS: 0`,
-  `- IMAGE_PROVIDER_CALLS_AFTER: unchanged (1 per generation)`,
+  `- CLIENT_SCENE_PLAN_REQUESTS_PER_SOURCE: 1`,
+  `- LOGICAL_SCENE_PLANNER_RUNS_PER_SOURCE: 1`,
+  `- MAX_PHYSICAL_PROVIDER_ATTEMPTS_PER_LOGICAL_RUN: ${SCENE_PLAN_MAX_PROVIDER_ATTEMPTS}`,
+  `- ACTUAL_PRIMARY_PROVIDER: ${primaryProvider}`,
+  `- ACTUAL_PRIMARY_MODEL: ${primaryModel}`,
+  `- ACTUAL_FALLBACK_PROVIDER: ${fallbackProvider}`,
+  `- ACTUAL_FALLBACK_MODEL: ${fallbackModel}`,
+  `- PANEL_SWITCH_EXTRA_CLIENT_REQUESTS: 0`,
+  `- PANEL_SWITCH_EXTRA_PROVIDER_ATTEMPTS: 0`,
   "",
   "## Scores",
   "",

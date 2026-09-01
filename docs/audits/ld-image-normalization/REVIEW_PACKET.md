@@ -1,8 +1,8 @@
 # LD Image Normalization — REVIEW PACKET
 
 **CURRENT_MAIN_SHA:** `80140cf8afc59de38d849eb9323e7ccdf32ea3fb`
+**GENERATED_FROM_SOURCE_SHA:** `34a4a6007391dcdbe05fccefcfeaebbf37a88f58`
 **PR_NUMBER:** 808
-**PR_HEAD_SHA:** `0af13bea3b47a95c4cd96c26f06162608b2101c3`
 
 ## Flagship fixture
 
@@ -77,26 +77,24 @@ Shared background:
 Cast:
 
 A = persona (렌)
-B = character (태현)
+B = character (태형)
 
-[Panel 1 — Setup]
+[Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태현이 렌의 손목을 붙잡고
-Expressions: 태현이 렌의 손목을 붙잡고
+Acting cue: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
-[Panel 2 — Payoff]
+[Panel 2 — Closing beat]
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Acting:
-Expressions: posture and expression matching the scripted beat:
 Speech bubble (B / character): “가지 마.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -107,7 +105,7 @@ Continuity rules:
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
-- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+- Advance the scripted beats in source order — each panel covers a distinct moment from the Scene Plan.
 
 - 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
 
@@ -146,18 +144,18 @@ Exact Korean text: character: “가지 마.”
 ```text
 Create one polished Korean manhwa-style page with exactly 2 wide horizontal panels stacked vertically.
 
-Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.
+Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and panel polish, but do not copy its exact poses.
 
 Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.
 
 SUBJECT IDENTITY MANIFEST — each person is an independent identity owner.
 
-[SUBJECT A — CHAT CHARACTER: 태현]
-Reference: Image 2 belongs ONLY to 태현.
+[SUBJECT A — CHAT CHARACTER: 태형]
+Reference: Image 2 belongs ONLY to 태형.
 Appearance mode: IMAGE_ONLY
 No supplemental saved appearance.
 Use this selected reference as the authoritative visual identity for this subject only.
-Identity ownership: every trait in this block belongs only to 태현.
+Identity ownership: every trait in this block belongs only to 태형.
 Never infer SUBJECT A's identity from any other subject.
 
 [SUBJECT B — USER PERSONA: 렌]
@@ -185,7 +183,7 @@ PRIORITY: 1) explicit generation product option (pose, expression, temporary cos
 Product options may add a temporary prop or costume. They must not rewrite hair color, eye/iris/pupil color, or face identity.
 
 GENDER LOCK — mandatory identity rule.
-chat character 태현: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+chat character 태형: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
 user persona 렌: confirmed FEMALE. Keep her female in face, torso and body shape. Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male. Do not masculinize her body, jaw, torso or clothing beyond the reference identity.
 Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
 
@@ -218,26 +216,24 @@ Shared background:
 Cast:
 
 A = persona (렌)
-B = character (태현)
+B = character (태형)
 
-[Panel 1 — Setup]
+[Panel 1 — Opening beat]
 Camera: establish the scripted opening beat in one readable frame
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
 B action: 태현이 렌의 손목을 붙잡고
-Expressions: 태현이 렌의 손목을 붙잡고
+Acting cue: 태현이 렌의 손목을 붙잡고
 Speech bubble: (silent panel — no bubble)
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
 
-[Panel 2 — Payoff]
+[Panel 2 — Closing beat]
 Camera: frame the closing scripted beat clearly
 Framing: recurring characters readable in frame
 Layout: A left, B right — maintain stable orientation across panels
 Background:
-Acting:
-Expressions: posture and expression matching the scripted beat:
 Speech bubble (B / character): “가지 마.”
 SFX: (none — do not render sound-effect text)
 Must avoid: invented SFX text; speech bubble without an approved line below
@@ -248,7 +244,7 @@ Continuity rules:
 
 - Maintain consistent character orientation unless a deliberate mirrored staging note says otherwise.
 
-- Gradual emotional progression — each panel should visibly advance the beat from the prior panel.
+- Advance the scripted beats in source order — each panel covers a distinct moment from the Scene Plan.
 
 - 2-panel rhythm: opening beat in panel 1, closing beat in panel 2.
 
@@ -281,7 +277,7 @@ Global must avoid:
 #### Panel 2
 - VISIBLE SCENE DESCRIPTION: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 - LINE 1
-  - VISIBLE SPEAKER NAME: 태현
+  - VISIBLE SPEAKER NAME: 태형
   - VISIBLE DIALOGUE TEXT: 그래.
   - PROVENANCE: source
   - SOURCE EVENT ID: E4
@@ -289,7 +285,7 @@ Global must avoid:
 
 - FINAL WHITELIST: "같이 갈래?", "그래."
 
-### 2-panel duo (user text edit)
+### 2-panel duo (user text edit: 그래. → 좋아.)
 
 #### Panel 1
 - VISIBLE SCENE DESCRIPTION: 후드 귀를 만진다
@@ -303,13 +299,13 @@ Global must avoid:
 #### Panel 2
 - VISIBLE SCENE DESCRIPTION: 렌이 후드를 만지자 태형이 고개를 돌렸다.
 - LINE 1
-  - VISIBLE SPEAKER NAME: 태현
-  - VISIBLE DIALOGUE TEXT: 그래.
-  - PROVENANCE: source
-  - SOURCE EVENT ID: E4
-  - FINAL BUBBLE: 그래.
+  - VISIBLE SPEAKER NAME: 태형
+  - VISIBLE DIALOGUE TEXT: 좋아.
+  - PROVENANCE: user_edit
+  - SOURCE EVENT ID: (none)
+  - FINAL BUBBLE: 좋아.
 
-- FINAL WHITELIST: "같이 갈래?", "그래."
+- FINAL WHITELIST: "같이 갈래?", "좋아."
 
 ### 3-panel duo
 
@@ -329,7 +325,7 @@ Global must avoid:
 #### Panel 3
 - VISIBLE SCENE DESCRIPTION:
 - LINE 1
-  - VISIBLE SPEAKER NAME: 태현
+  - VISIBLE SPEAKER NAME: 태형
   - VISIBLE DIALOGUE TEXT: 그래.
   - PROVENANCE: source
   - SOURCE EVENT ID: E4
@@ -344,6 +340,7 @@ Global must avoid:
 - NO_DANGLING_ATTRIBUTION: true
 - HERO_IDS_INCLUDE_DIALOGUE: true
 - DOWNSTREAM_KEY_DIALOGUE: true
+- MALFORMED_ATTRIBUTION_COUNT: 0
 - PANEL_TEXT_WHITELIST_MISMATCH_COUNT: 0
 - USER_EDIT_DIALOGUE_MISMATCH_COUNT: 0
 
@@ -351,12 +348,15 @@ Global must avoid:
 
 **AI_AUTO_PANEL_PLANNING_STATUS:** IMPLEMENTED_COMIC_DEFAULT_ONE_CALL
 
-- SCENE_PLANNER_MODEL: gpt-5.6-luna
-- SCENE_PLANNER_PROVIDER: OpenRouter (via planChatImageScene / chatImageScenePlanner)
-- COMIC_DEFAULT_SCENE_PLANNER_CALLS_BEFORE: 0 (manual opt-in only)
-- COMIC_DEFAULT_SCENE_PLANNER_CALLS_AFTER: 1 per source session when comic mode active
-- COMIC_PANEL_SWITCH_EXTRA_CALLS: 0
-- IMAGE_PROVIDER_CALLS_AFTER: unchanged (1 per generation)
+- CLIENT_SCENE_PLAN_REQUESTS_PER_SOURCE: 1
+- LOGICAL_SCENE_PLANNER_RUNS_PER_SOURCE: 1
+- MAX_PHYSICAL_PROVIDER_ATTEMPTS_PER_LOGICAL_RUN: 2
+- ACTUAL_PRIMARY_PROVIDER: CheaperInference
+- ACTUAL_PRIMARY_MODEL: gpt-5.6-luna
+- ACTUAL_FALLBACK_PROVIDER: OpenRouter
+- ACTUAL_FALLBACK_MODEL: google/gemini-3.1-flash-lite
+- PANEL_SWITCH_EXTRA_CLIENT_REQUESTS: 0
+- PANEL_SWITCH_EXTRA_PROVIDER_ATTEMPTS: 0
 
 ## Scores
 

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { auditComicDialogueWhitelist, buildChatComicImagePrompt } from "./chatComicGeneration";
+import {
+  auditComicDialogueWhitelist,
+  buildChatComicImagePrompt,
+  countUserEditDialogueMismatch,
+} from "./chatComicGeneration";
 import { compileChatComicPanelSpec } from "./chatComicPanelSpec";
 import {
   addPanelDialogueLine,
@@ -216,20 +220,30 @@ describe("chatImageSceneDialogueEditor regressions", () => {
   });
 });
 
-describe("chatImageSceneDialogueEditor whitelist audit", () => {
-  it("TEXT_WHITELIST_MISMATCH_COUNT = 0 for edited duo plan", () => {
-    const plan = duoPlan(3);
-    const panel = plan.panels[0];
-    assert.ok(panel);
-    const edited = updatePanelDialogueAtIndex(plan, panel!.index, 0, {
-      text: "지금 갈까?",
-    });
-    const audit = auditComicDialogueWhitelist({
-      plan: edited,
+describe("chatImageSceneDialogueEditor counter negative controls", () => {
+  it("USER_EDIT_DIALOGUE_MISMATCH_COUNT detects stale final bubbles", () => {
+    const plan = duoPlan(2);
+    const auditClean = auditComicDialogueWhitelist({
+      plan,
       personaName: PERSONA,
       characterName: CHARACTER,
     });
-    assert.equal(audit.panelTextWhitelistMismatchCount, 0);
-    assert.equal(audit.userEditDialogueMismatchCount, 0);
+    assert.equal(auditClean.userEditDialogueMismatchCount, 0);
+
+    const panel = plan.panels.find((row) =>
+      row.dialogue.some((line) => line.text.includes("그래"))
+    );
+    assert.ok(panel);
+    const lineIndex = panel!.dialogue.findIndex((line) => line.text.includes("그래"));
+    const edited = updatePanelDialogueAtIndex(plan, panel!.index, lineIndex, {
+      text: "좋아.",
+    });
+    assert.equal(
+      countUserEditDialogueMismatch(edited, bubbleTexts(edited)),
+      0
+    );
+    assert.ok(
+      countUserEditDialogueMismatch(edited, bubbleTexts(plan)) > 0
+    );
   });
 });
