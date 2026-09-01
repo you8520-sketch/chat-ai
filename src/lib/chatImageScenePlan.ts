@@ -1145,34 +1145,70 @@ function visiblePanelSituation(
   return projectVisibleBackground(plan, visibility);
 }
 
+export type ProjectedComicPanelBeat = {
+  situation: string;
+  background: string;
+  personaAction?: string;
+  characterAction?: string;
+  dialogue: SceneDialogue[];
+};
+
+/** Shared comic projection owner — used by legacy formatter and panel-spec compiler. */
+export function projectComicPanelBeat(
+  plan: ScenePlan,
+  panel: ScenePanel,
+  visibility: ScenePresentationVisibility
+): ProjectedComicPanelBeat {
+  return {
+    situation: visiblePanelSituation(panel, plan, visibility),
+    background: projectScenePresentationField(
+      panel.backgroundOverride || plan.sceneBackground,
+      plan,
+      panel,
+      visibility
+    ),
+    personaAction:
+      visibility.personaVisible && panel.personaAction ? panel.personaAction : undefined,
+    characterAction: panel.characterAction || undefined,
+    dialogue: panel.dialogue.filter(
+      (line) => visibility.personaVisible || line.speaker !== "persona"
+    ),
+  };
+}
+
+export function projectComicSharedContext(
+  plan: ScenePlan,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
+): {
+  sharedBackground: string;
+  offCameraEvents: SceneEvent[];
+} {
+  return {
+    sharedBackground: projectVisibleBackground(plan, visibility),
+    offCameraEvents: visibility.personaVisible
+      ? []
+      : plan.events.filter((event) => event.sourceRole === "user"),
+  };
+}
+
 export function formatApprovedScenePlanForComic(
   plan: ScenePlan,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
-  const projectedSharedBackground = projectVisibleBackground(plan, visibility);
-  const offCameraEvents = visibility.personaVisible
-    ? []
-    : plan.events.filter((event) => event.sourceRole === "user");
+  const { sharedBackground: projectedSharedBackground, offCameraEvents } =
+    projectComicSharedContext(plan, visibility);
   const panels = plan.panels
     .map((panel) => {
-      const dialogue = panel.dialogue
-        .filter((line) => visibility.personaVisible || line.speaker !== "persona")
+      const beat = projectComicPanelBeat(plan, panel, visibility);
+      const dialogue = beat.dialogue
         .map((line) => `${line.speaker}: “${line.text}”`)
         .join(" | ");
-      const panelBackground = projectScenePresentationField(
-        panel.backgroundOverride || plan.sceneBackground,
-        plan,
-        panel,
-        visibility
-      );
       return [
         `PANEL ${panel.index}`,
-        `Situation: ${visiblePanelSituation(panel, plan, visibility)}`,
-        `Background: ${panelBackground}`,
-        visibility.personaVisible && panel.personaAction
-          ? `Persona action: ${panel.personaAction}`
-          : "",
-        panel.characterAction ? `Character action: ${panel.characterAction}` : "",
+        `Situation: ${beat.situation}`,
+        `Background: ${beat.background}`,
+        beat.personaAction ? `Persona action: ${beat.personaAction}` : "",
+        beat.characterAction ? `Character action: ${beat.characterAction}` : "",
         `Exact Korean text: ${dialogue || "No speech bubble"}`,
       ]
         .filter(Boolean)

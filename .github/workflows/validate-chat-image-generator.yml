@@ -17,6 +17,9 @@ on:
       - "src/lib/chatImageGeneration.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatComicPanelSpec.ts"
+      - "src/lib/chatComicPanelSpec.test.ts"
+      - "src/lib/chatComicPanelSpec.fixtures.ts"
       - "src/lib/chatCoupleStampGeneration.ts"
       - "src/lib/chatCoupleStampGeneration.test.ts"
       - "src/lib/chatLdIllustrationGeneration.ts"
@@ -113,6 +116,7 @@ jobs:
       - run: npm run typecheck:app
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatComicPanelSpec.test.ts
       - run: node --import tsx --test src/lib/chatCoupleStampGeneration.test.ts
       - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts
