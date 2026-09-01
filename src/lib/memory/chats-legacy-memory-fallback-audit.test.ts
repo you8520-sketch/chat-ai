@@ -25,7 +25,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { insertForkChatRow } from "@/lib/chatForkCreate";
-import { hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
+import { hasChatsCurrentSummaryColumn, hasChatsMemoryColumn } from "@/lib/memory/chats-memory-column-compat";
 import { getOrCreateChatMemory, updateChatMemory } from "@/lib/memory/memory-db";
 import { ROLLING_SUMMARY_INTERVAL, RAW_HISTORY_COMPLETE_EXCHANGES } from "./memory-constants";
 import {
@@ -45,9 +45,17 @@ function ensureMemoryColumnForHistoricalFixture(): void {
   }
 }
 
+function ensureCurrentSummaryColumnForHistoricalFixture(): void {
+  const db = getDb();
+  if (!hasChatsCurrentSummaryColumn(db)) {
+    db.exec(`ALTER TABLE chats ADD COLUMN current_summary TEXT NOT NULL DEFAULT ''`);
+  }
+}
+
 function ensureChatRow(): void {
   const db = getDb();
   ensureMemoryColumnForHistoricalFixture();
+  ensureCurrentSummaryColumnForHistoricalFixture();
   if (hasChatsMemoryColumn(db)) {
     db.prepare(
       `INSERT OR IGNORE INTO chats (id, user_id, character_id, mode, memory, current_summary, memory_meta, memory_pending, memory_archived_turns)
@@ -86,16 +94,20 @@ function deleteChatMemoriesRow(): void {
 
 function readLegacyFields(): { current_summary: string; memory: string } {
   const db = getDb();
-  const current = db
-    .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-    .get(CHAT_ID) as { current_summary: string };
+  const currentSummary = hasChatsCurrentSummaryColumn(db)
+    ? ((
+        db.prepare(`SELECT current_summary FROM chats WHERE id=?`).get(CHAT_ID) as
+          | { current_summary: string }
+          | undefined
+      )?.current_summary ?? "")
+    : "";
   if (!hasChatsMemoryColumn(db)) {
-    return { current_summary: current.current_summary, memory: "" };
+    return { current_summary: currentSummary, memory: "" };
   }
   const memory = db
     .prepare(`SELECT memory FROM chats WHERE id=?`)
     .get(CHAT_ID) as { memory: string };
-  return { current_summary: current.current_summary, memory: memory.memory };
+  return { current_summary: currentSummary, memory: memory.memory };
 }
 
 before(() => installIsolatedTestDatabase());
@@ -225,10 +237,13 @@ describe("chats legacy memory fallback audit — fork bootstrap", () => {
       narrativePov: "third_person",
       povCharacterName: "",
     });
-    const current = db
-      .prepare(`SELECT current_summary FROM chats WHERE id=?`)
-      .get(forkChatId) as { current_summary: string };
-    assert.equal(current.current_summary, "");
+    assert.ok(forkChatId > 0);
+    if (hasChatsCurrentSummaryColumn(db)) {
+      const current = db
+        .prepare(`SELECT current_summary FROM chats WHERE id=?`)
+        .get(forkChatId) as { current_summary: string };
+      assert.equal(current.current_summary, "");
+    }
     if (hasChatsMemoryColumn(db)) {
       const memory = db
         .prepare(`SELECT memory FROM chats WHERE id=?`)
