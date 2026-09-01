@@ -226,6 +226,69 @@ function splitKoreanClauses(text: string): string[] {
     .filter(Boolean);
 }
 
+function normalizePreviewSegmentText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Preview-only clause split — whitespace normalize first, no cleanLine char slice. */
+function splitPreviewKoreanClauses(text: string): string[] {
+  return normalizePreviewSegmentText(text)
+    .split(/(?<=다|자|고|며|서|음|함|것|점)\s+|[.!?。…]\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function splitPreviewSentences(text: string): string[] {
+  return normalizePreviewSegmentText(text)
+    .split(/(?<=[.!?…])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function combinePreviewClausesWithinBudget(
+  clauses: readonly string[],
+  softMaxChars: number
+): string {
+  if (!clauses.length) return "";
+  let beat = clauses[0]!;
+  for (let index = 1; index < clauses.length; index += 1) {
+    const candidate = `${beat} ${clauses[index]!}`;
+    if (candidate.length <= softMaxChars) {
+      beat = candidate;
+      continue;
+    }
+    break;
+  }
+  return beat;
+}
+
+/** First complete visual beat for storyboard preview — clause/sentence safe, no mid-word ellipsis. */
+export function projectCompleteVisualBeat(
+  text: string,
+  softMaxChars: number = COMPACT_PREVIEW_SITUATION_MAX
+): string {
+  const normalized = normalizePreviewSegmentText(text);
+  if (!normalized) return "";
+
+  const hasSentencePunctuation = /[.!?…]/.test(normalized);
+  const sentences = splitPreviewSentences(normalized);
+  const firstSentence = sentences[0] ?? normalized;
+
+  if (hasSentencePunctuation && firstSentence.length <= softMaxChars) {
+    return firstSentence;
+  }
+
+  const clauseSource = hasSentencePunctuation ? firstSentence : normalized;
+  const clauses = splitPreviewKoreanClauses(clauseSource);
+  if (!clauses.length) {
+    return firstSentence;
+  }
+  if (clauses.length === 1) {
+    return clauses[0]!;
+  }
+  return combinePreviewClausesWithinBudget(clauses, softMaxChars);
+}
+
 export type SceneSourceSegment = {
   start: number;
   end: number;
@@ -1688,14 +1751,14 @@ function compactVisualBeatFromEvents(
   const ordered = events.filter((event) => event.kind !== "assistant_echo");
   const action = ordered.find((event) => event.kind === "action" || event.kind === "reaction");
   if (action?.text.trim()) {
-    return truncateCompactPreviewText(action.text, maxChars);
+    return projectCompleteVisualBeat(action.text, maxChars);
   }
   const environment = ordered.find((event) => event.kind === "environment");
   if (environment?.text.trim()) {
-    return truncateCompactPreviewText(environment.text, maxChars);
+    return projectCompleteVisualBeat(environment.text, maxChars);
   }
   const joined = buildUserFacingVisualDescription(ordered, fallback);
-  return truncateCompactPreviewText(joined, maxChars);
+  return projectCompleteVisualBeat(joined || fallback, maxChars);
 }
 
 function normalizeScenePreviewCompareText(text: string): string {
@@ -1773,7 +1836,7 @@ export function projectComicPanelCompactSituation(
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
   if (!panelSituationMatchesCanonicalDerived(plan, panel)) {
-    return truncateCompactPreviewText(
+    return projectCompleteVisualBeat(
       projectComicPanelBeat(plan, panel, visibility).situation,
       COMPACT_PREVIEW_SITUATION_MAX
     );
@@ -1791,7 +1854,7 @@ export function projectComicPanelCompactSituation(
   );
   if (fromEvents) return fromEvents;
 
-  return truncateCompactPreviewText(
+  return projectCompleteVisualBeat(
     projectComicPanelBeat(plan, panel, visibility).situation,
     COMPACT_PREVIEW_SITUATION_MAX
   );
@@ -1821,7 +1884,7 @@ export function projectComicPanelCompactDialoguePreview(
   );
   const previewLines = visible.slice(0, maxLines).map((line) => ({
     speaker: line.speaker,
-    text: truncateCompactPreviewText(line.text, COMPACT_PREVIEW_DIALOGUE_LINE_MAX),
+    text: normalizeDialogueTextForOutput(line.text),
   }));
   return {
     previewLines,

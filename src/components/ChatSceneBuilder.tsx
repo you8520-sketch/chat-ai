@@ -142,7 +142,9 @@ function ComicPanelCompactDialoguePreview({
 
   return (
     <div className="mt-2 space-y-1">
-      <p className="text-[10px] font-semibold text-zinc-500">대사</p>
+      <p className="text-[10px] font-semibold text-zinc-500">
+        대사 {preview.previewLines.length}/{preview.totalVisible} 표시
+      </p>
       {preview.totalVisible === 0 ? (
         <p className="text-xs text-zinc-500">대사 없음</p>
       ) : (
@@ -155,11 +157,13 @@ function ComicPanelCompactDialoguePreview({
               <span className="shrink-0 font-semibold text-zinc-400">
                 {resolveSpeakerDisplayName(line.speaker, personaName, characterName)}
               </span>
-              <span className="min-w-0 line-clamp-1 text-zinc-200">{line.text}</span>
+              <span className="min-w-0 text-zinc-200">{line.text}</span>
             </li>
           ))}
           {preview.hiddenCount > 0 ? (
-            <li className="text-[11px] font-semibold text-zinc-500">+{preview.hiddenCount}개</li>
+            <li className="text-[11px] font-semibold text-zinc-500">
+              +{preview.hiddenCount}개 더 있음
+            </li>
           ) : null}
         </ul>
       )}
@@ -196,7 +200,7 @@ function ComicPanelStoryboardCard({
         <p className="text-[11px] font-semibold text-violet-200">{panel.index}컷</p>
       </div>
       {compactSituation ? (
-        <p className="mt-1 line-clamp-2 text-xs leading-snug text-zinc-200">{compactSituation}</p>
+        <p className="mt-1 text-xs leading-snug text-zinc-200">{compactSituation}</p>
       ) : (
         <p className="mt-1 text-xs text-zinc-500">장면 없음</p>
       )}
@@ -561,14 +565,17 @@ export default function ChatSceneBuilder({
         {plan && outputMode === "illustration" && !sceneEditOpen ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <h3 className="text-[11px] font-semibold text-zinc-400">장면 미리보기</h3>
-            <LdCompactPreview plan={plan} personaVisible={personaVisible} />
+            <p className="text-xs text-zinc-300">장면 정리 완료</p>
+            <p className="text-[10px] leading-relaxed text-zinc-500">
+              배경·인물 참조·장면 행동·대사 연기 정보는 생성 시 함께 반영됩니다.
+            </p>
             <button
               type="button"
               disabled={disabled}
               onClick={() => setSceneEditOpen(true)}
               className="text-[11px] font-semibold text-violet-200 hover:text-white disabled:opacity-40"
             >
-              장면 수정
+              장면 확인 / 수정
             </button>
           </div>
         ) : null}
@@ -637,7 +644,7 @@ export default function ChatSceneBuilder({
         {plan && outputMode === "illustration" && sceneEditOpen ? (
           <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[11px] font-semibold text-zinc-400">장면 수정</h3>
+              <h3 className="text-[11px] font-semibold text-zinc-400">장면 확인 / 수정</h3>
               <button
                 type="button"
                 disabled={disabled}
