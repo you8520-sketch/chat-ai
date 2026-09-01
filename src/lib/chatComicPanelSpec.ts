@@ -79,27 +79,17 @@ function resolveCameraFromBeat(
   index: number,
   total: number
 ): string {
-  const cue = `${beat.situation} ${beat.characterAction ?? ""} ${beat.personaAction ?? ""}`;
-  if (/손|잡|포옹|밀|당기|안/.test(cue)) {
-    return "medium two-shot emphasizing physical interaction";
+  if (index === 1) {
+    return "establish the scripted opening beat in one readable frame";
   }
-  if (/표정|눈|고개|시선|미소|울/.test(cue)) {
-    return "medium close-up on faces and upper body";
+  if (index === total) {
+    return "frame the closing scripted beat clearly";
   }
-  if (/멀리|풍경|배경|하늘|거리|전경/.test(cue)) {
-    return "wide shot establishing place and staging";
-  }
-  if (index === total) return "frame the decisive story beat clearly";
-  if (index === 1) return "establish characters and setting in one readable frame";
-  return "advance the scripted beat with clear character staging";
+  return "continue the scripted beat with clear character staging";
 }
 
-function resolveFramingFromBeat(beat: ProjectedComicPanelBeat, index: number, total: number): string {
-  const cue = `${beat.situation} ${beat.characterAction ?? ""}`;
-  if (/클로즈|눈|표정|속삭|속으로/.test(cue) || index === total) {
-    return "tight on the acting faces and upper body";
-  }
-  return "both recurring characters readable in frame";
+function resolveFramingFromBeat(_beat: ProjectedComicPanelBeat): string {
+  return "recurring characters readable in frame";
 }
 
 function castLabelsFromCount(count: number): Array<"A" | "B" | "C" | "D"> {
@@ -120,7 +110,7 @@ function resolveLayout(
 function resolveExpressionsFromBeat(beat: ProjectedComicPanelBeat): string {
   const acting = [beat.personaAction, beat.characterAction].filter(Boolean).join("; ");
   if (acting) return acting;
-  return `body language and expressions matching: ${beat.situation}`;
+  return `posture and expression matching the scripted beat: ${beat.situation}`;
 }
 
 function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): string[] {
@@ -136,16 +126,16 @@ function resolveContinuityRules(format: ComicPanelFormatId, castCount: number): 
   if (format === "3koma") {
     return [
       ...shared,
-      "3-koma rhythm: setup → development → punchline/climax — the last panel carries the strongest reaction.",
+      "3-koma rhythm: setup → development → closing beat — each panel covers a distinct scripted moment.",
     ];
   }
   if (format === "4panel") {
     return [
       ...shared,
-      "4-panel rhythm: establish → escalate → turn → resolution — each panel must cover a distinct story beat.",
+      "4-panel rhythm: opening → escalation → turn → closing beat — each panel covers a distinct scripted moment.",
     ];
   }
-  return [...shared, "2-panel rhythm: setup in panel 1, clear payoff in panel 2."];
+  return [...shared, "2-panel rhythm: opening beat in panel 1, closing beat in panel 2."];
 }
 
 function speakerLabel(speaker: string): "A" | "B" | "other" {
@@ -189,7 +179,7 @@ export function compileChatComicPanelSpec(opts: {
       index: panel.index,
       beatRole,
       camera: resolveCameraFromBeat(beat, panel.index, panelCount),
-      framing: resolveFramingFromBeat(beat, panel.index, panelCount),
+      framing: resolveFramingFromBeat(beat),
       layout: resolveLayout(visibility.personaVisible, castCount),
       situation: beat.situation,
       background: beat.background,

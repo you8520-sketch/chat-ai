@@ -53,7 +53,7 @@ describe("chatComicPanelSpec compiler", () => {
     assert.equal(three.panels[2]?.beatRole, "Climax / punchline");
     assert.match(
       renderChatComicPanelSpecSection(three),
-      /3-koma rhythm: setup → development → punchline/
+      /3-koma rhythm: setup → development → closing beat/
     );
 
     const four = compileChatComicPanelSpec({
@@ -64,7 +64,7 @@ describe("chatComicPanelSpec compiler", () => {
     assert.equal(four.panels[3]?.beatRole, "Resolution");
     assert.match(
       renderChatComicPanelSpecSection(four),
-      /4-panel rhythm: establish → escalate → turn → resolution/
+      /4-panel rhythm: opening → escalation → turn → closing beat/
     );
   });
 
