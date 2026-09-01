@@ -417,13 +417,14 @@ describe("TRPG second-round presentation integrity", () => {
     assert.equal(caught.phase, "complete");
   });
 
-  it("BOT_REVEAL_AUTO_FOLLOW: lifecycle proof lives in botDeclarationScrollFollowLifecycle.test.ts", () => {
+  it("BOT_AUTO_FOLLOW: helper-chain proof in botDeclarationScrollFollowLifecycle.test.ts", () => {
     const lifecycle = readFileSync("src/lib/trpg/botDeclarationScrollFollowLifecycle.test.ts", "utf8");
+    const wiring = readFileSync("src/lib/trpg/botDeclarationScrollFollowWiring.test.ts", "utf8");
     assert.match(lifecycle, /handleTrpgLiveSceneResizeGrowth/);
-    assert.match(lifecycle, /scheduleTrpgReadingBandEndFollow/);
-    assert.match(lifecycle, /simulateBotProseGrowth/);
-    assert.match(lifecycle, /manual detach blocks programmatic scroll/);
-    assert.doesNotMatch(lifecycle, /decideLiveFollowOnGrowth\(\{ following: true \}\)/);
+    assert.match(lifecycle, /fireResize\(opts\.growthEl\)/);
+    assert.match(wiring, /RESIZE_OBSERVER_GROWTH_ELIGIBLE/);
+    assert.match(wiring, /PRODUCTION_JSDOM_IMPORTS=0/);
+    assert.doesNotMatch(lifecycle, /ROOT_CAUSE_FIXED/);
   });
 
   it("SECOND_ROUND_PRESENTATION_PARITY: round2 session latches independently from round1", () => {

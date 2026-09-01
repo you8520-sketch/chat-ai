@@ -1,7 +1,13 @@
 /**
- * Mounted DOM lifecycle proof for Bot declaration auto-follow.
- * Exercises production owners: handleTrpgLiveSceneResizeGrowth → RAF →
- * scrollToFollowOwner → scheduleTrpgReadingBandEndFollow → scrollBy.
+ * Helper-chain lifecycle proof for Bot declaration auto-follow owners.
+ *
+ * PROVEN scope (NOT full ResizeObserver→RAF→scrollBy end-to-end):
+ *   handleTrpgLiveSceneResizeGrowth (ResizeObserver callback owner)
+ *   → RAF → scrollToFollowOwner → scheduleTrpgReadingBandEndFollow
+ *   → readingBandFollowDeltaFromElement → scrollBy
+ *
+ * Growth simulation triggers the mounted ResizeObserver instance via fireResize().
+ * This does NOT prove full TrpgCampaignRoom React mount or browser viewport behavior.
  */
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
@@ -242,7 +248,7 @@ function createProductionScrollFollowController(opts: {
 }
 
 function simulateBotProseGrowth(opts: {
-  controller: ReturnType<typeof createProductionScrollFollowController>;
+  fireResize: (el: Element) => void;
   growthEl: HTMLElement;
   endEl: HTMLSpanElement;
   lengths: readonly number[];
@@ -264,7 +270,7 @@ function simulateBotProseGrowth(opts: {
       y: endTop,
       toJSON: () => ({}),
     });
-    opts.controller.onResizeObserverFire();
+    opts.fireResize(opts.growthEl);
     opts.flushRaf(4);
     const next = opts.getScrollY();
     scrollDeltas.push(next - previous);
@@ -284,7 +290,7 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
     harness.restore();
   });
 
-  it("1: following + Bot1 prose growth advances viewport via observer → RAF → scrollBy", () => {
+  it("1: helper chain — growth via ResizeObserver instance → RAF → scrollBy", () => {
     const targetY = harness.window.innerHeight * TRPG_NARRATION_FOLLOW_TARGET_RATIO;
     const { growthEl, endEl } = createDeclarationElements(harness.document, proseLengthToEndTop(20));
     let following = true;
@@ -308,7 +314,7 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
     observer.observe(growthEl);
 
     const deltas = simulateBotProseGrowth({
-      controller,
+      fireResize: harness.fireResize,
       growthEl,
       endEl,
       lengths: [20, 80, 180, 350, 600],
@@ -337,9 +343,12 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
       getLiveFollowOwner: () => "ACTIVE_DECLARATION_END",
     });
 
+    const observer = new ResizeObserver(() => controller.onResizeObserverFire());
+    observer.observe(growthEl);
+
     const before = harness.getScrollY();
     simulateBotProseGrowth({
-      controller,
+      fireResize: harness.fireResize,
       growthEl,
       endEl,
       lengths: [180, 350, 600],
@@ -348,6 +357,7 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
     });
     assert.equal(harness.getScrollY(), before, "MANUAL_DETACH preserved — no forced scroll");
     controller.cleanupProgrammatic();
+    observer.disconnect();
   });
 
   it("3: explicit follow restore resumes growth follow", () => {
@@ -461,9 +471,12 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
           nextActionVisible: false,
         }),
     });
+    const observer = new ResizeObserver(() => controller.onResizeObserverFire());
+    observer.observe(round2End.growthEl);
+
     const before = harness.getScrollY();
     const deltas = simulateBotProseGrowth({
-      controller,
+      fireResize: harness.fireResize,
       growthEl: round2End.growthEl,
       endEl: round2End.endEl,
       lengths: [20, 80, 180, 350, 600],
@@ -473,6 +486,7 @@ describe("TRPG bot declaration scroll-follow mounted lifecycle", () => {
     assert.ok(deltas.some((delta) => delta > 0), "second round growth follow");
     assert.ok(harness.getScrollY() > before);
     controller.cleanupProgrammatic();
+    observer.disconnect();
   });
 
   it("6: GM narration follow regression — GM end still scrolls reading band", () => {
