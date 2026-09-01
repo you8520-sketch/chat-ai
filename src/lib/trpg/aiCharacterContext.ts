@@ -1,10 +1,8 @@
 import type Database from "better-sqlite3";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import { GENDER_LABELS, resolveCharacterGender, type CharacterGender } from "@/lib/characterGender";
-import { clipTrpgPreservedLines } from "./clip";
 import { eligibleTrpgCharacterAssets, uniqueCharacterAssetTags } from "./gmSceneAssets";
 import { parseBotPersona, type TrpgParticipantRow } from "./store";
-import { TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS } from "./types";
 
 export type TrpgAiCharacterContext = {
   participantId: number;
@@ -110,10 +108,7 @@ export function loadTrpgAiCharacterContexts(
   });
 }
 
-function serializeAiCharacterContextRow(
-  row: TrpgAiCharacterContext,
-  maxChars = TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS
-): string {
+function serializeAiCharacterContextRow(row: TrpgAiCharacterContext): string {
   const lines = [`[AI CHARACTER participantId=${row.participantId}]`, `Name: ${row.name.trim()}`];
   lines.push(`Gender: ${GENDER_LABELS[row.gender]}`);
   if (row.description.trim()) lines.push(`Description:\n${row.description.trim()}`);
@@ -126,16 +121,12 @@ function serializeAiCharacterContextRow(
   if (row.exampleDialog.trim()) {
     lines.push(`Example Dialogue (voice reference only — do not replay verbatim):\n${row.exampleDialog.trim()}`);
   }
-  return clipTrpgPreservedLines(lines.join("\n"), maxChars);
+  return lines.join("\n");
 }
 
-export function buildAiPartyCharacterContextBlock(
-  rows: readonly TrpgAiCharacterContext[],
-  opts?: { maxCharsPerCharacter?: number }
-): string {
+export function buildAiPartyCharacterContextBlock(rows: readonly TrpgAiCharacterContext[]): string {
   if (rows.length === 0) return "";
-  const maxChars = opts?.maxCharsPerCharacter ?? TRPG_GM_AI_CHARACTER_CONTEXT_MAX_CHARS;
-  const blocks = rows.map((row) => serializeAiCharacterContextRow(row, maxChars));
+  const blocks = rows.map((row) => serializeAiCharacterContextRow(row));
   return [
     "[AI PARTY CHARACTERS — CHARACTER CANON]",
     "Character cards define who these AI party members are. Use for characterization and context only.",

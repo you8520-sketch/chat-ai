@@ -13,7 +13,7 @@ import {
   trpgProviderRequestContract,
 } from "./gmClient";
 import { resolveTrpgCheaperInferenceModel } from "./gmCall";
-import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 function thinkingType(body: Record<string, unknown>): string {
   const thinking = body.thinking;
@@ -33,7 +33,7 @@ describe("TRPG production model routing (PR-A)", () => {
       messages: [{ role: "user", content: "행동" }],
       stream: false,
       temperature: 0.85,
-      max_tokens: 2048,
+      max_tokens: TRPG_BOT_MAX_TOKENS,
       thinking: { type: "disabled" },
       reasoning_effort: "high",
     });
@@ -78,6 +78,13 @@ describe("TRPG production model routing (PR-A)", () => {
       () => resolveTrpgCheaperInferenceModel("openrouter/auto"),
       /unsupported Cheaper Inference model/
     );
+  });
+
+  it("GM and Bot transport ceilings match Gemini 3.7 Flash model max output", () => {
+    assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
+    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_BOT_MAX_TOKENS);
+    assert.equal(TRPG_GM_MAX_TOKENS, 65_536);
   });
 
   it("preserves DeepSeek legacy true-off when explicitly passed to TRPG adapters", () => {

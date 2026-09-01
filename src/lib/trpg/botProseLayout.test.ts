@@ -6,7 +6,6 @@ import {
   resolveNovelDisplayParagraphs,
 } from "@/lib/novelParagraphs";
 import { buildTrpgBotActionUserBlock, TRPG_BOT_SYSTEM } from "./botActions";
-import { TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_MIN_CHARS } from "./types";
 
 const DENSE = `이현은 몸을 낮췄다. "야, 렌. 기다려." 그는 골목을 봤다.`;
 const SPACED = `이현은 몸을 낮췄다.\n\n"야, 렌. 기다려."\n\n그는 골목을 봤다.`;
@@ -38,7 +37,7 @@ describe("TRPG bot prose layout", () => {
       TRPG_BOT_SYSTEM.indexOf("After the finished prose")
     );
     assert.doesNotMatch(proseLayout, /character contract/);
-    assert.doesNotMatch(proseLayout, new RegExp(`${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS}`));
+    assert.doesNotMatch(proseLayout, /300–800/);
   });
 
   it("splits dense spoken dialogue with the regular-chat paragraph rules", () => {
