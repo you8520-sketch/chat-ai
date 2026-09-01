@@ -14,7 +14,7 @@ import {
 import { isTrpgGeminiLowReasoningRequest, trpgProviderRequestContract } from "./gmClient";
 import { extractTrpgHttpStatus } from "./startFailure";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
-import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 const GM_OK = `<<<NARRATION>>>
 문이 천천히 열린다.
@@ -203,7 +203,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
   });
 
-  it("Bot usage.modelId matches Gemini 3.7 Flash", async () => {
+  it("Bot usage.modelId matches Gemini 3.7 Flash and sends model-max max_tokens", async () => {
     const { calls } = installProvider(() =>
       completion(`행동 prose\n\n<<<ACTION_TYPE>>>\nfree\n\n<<<INTENT>>>\n조사한다.`)
     );
@@ -215,6 +215,9 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(calls[0]!.body.reasoning_effort, "low");
     assert.equal(calls[0]!.body.thinking, undefined);
     assert.equal(calls[0]!.body.reasoning, undefined);
+    assert.equal(calls[0]!.body.max_tokens, TRPG_BOT_MAX_TOKENS);
+    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
   });
 
   it("does not retry a provider timeout / network throw", async () => {

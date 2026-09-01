@@ -19,7 +19,14 @@ import {
 } from "./botActionParse";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
 import { buildTrpgGmUserBlock } from "./gmPrompt";
-import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_INTENT_MAX_CHARS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL, TRPG_BOT_MODEL } from "./types";
+import {
+  TRPG_BOT_MAX_TOKENS,
+  TRPG_BOT_INTENT_MAX_CHARS,
+  TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS,
+  TRPG_GM_MAX_TOKENS,
+  TRPG_GM_MODEL,
+  TRPG_BOT_MODEL,
+} from "./types";
 
 function nearMaxField(prefix: string, limit: number, sentinel: string): string {
   const pad = "가".repeat(Math.max(0, limit - Array.from(sentinel).length - Array.from(prefix).length - 1));
@@ -167,15 +174,19 @@ describe("TRPG no redundant runtime truncation", () => {
     assert.match(botUser, /CAMPAIGN WORLD[\s\S]*CAMPAIGN_WORLD_CANON FULL/);
   });
 
-  it("J: GM/Bot provider max_tokens policy passes through adapter unchanged", () => {
+  it("J: GM/Bot transport max_tokens equals Gemini 3.7 Flash model capability max", () => {
+    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
+    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
+
     const gmBody = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,
       messages: [{ role: "user", content: "x" }],
       stream: true,
       max_tokens: TRPG_GM_MAX_TOKENS,
     });
-    assert.equal(gmBody.max_tokens, TRPG_GM_MAX_TOKENS);
-    assert.equal(TRPG_GM_MAX_TOKENS, 12288);
+    assert.equal(gmBody.max_tokens, 65_536);
 
     const botBody = adaptTrpgBotChatBody({
       model: TRPG_BOT_MODEL,
@@ -183,8 +194,15 @@ describe("TRPG no redundant runtime truncation", () => {
       stream: false,
       max_tokens: TRPG_BOT_MAX_TOKENS,
     });
-    assert.equal(botBody.max_tokens, TRPG_BOT_MAX_TOKENS);
-    assert.equal(TRPG_BOT_MAX_TOKENS, 2048);
+    assert.equal(botBody.max_tokens, 65_536);
+  });
+
+  it("K: callTrpgGm/callTrpgBot assemble model-max max_tokens (no omission default)", () => {
+    const gmCallSrc = readFileSync("src/lib/trpg/gmCall.ts", "utf8");
+    assert.match(gmCallSrc, /max_tokens:\s*TRPG_GM_MAX_TOKENS/);
+    assert.match(gmCallSrc, /max_tokens:\s*TRPG_BOT_MAX_TOKENS/);
+    assert.doesNotMatch(gmCallSrc, /max_tokens:\s*12288/);
+    assert.doesNotMatch(gmCallSrc, /max_tokens:\s*2048/);
   });
 
   it("TRPG_BOT_SYSTEM uses scope-based beat contract, not numeric length range", () => {

@@ -16,7 +16,7 @@ import {
 } from "./gmStreamParser";
 import { feedGmProviderSseBytes } from "./gmProviderSse";
 import { parseTrpgGmOutput, TRPG_GM_DELTA_OPEN, TRPG_GM_NARRATION_OPEN } from "./gmPrompt";
-import { TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 import { adaptTrpgGmChatBody } from "./gmClient";
 
 const VALID_DELTA = JSON.stringify({
@@ -228,7 +228,7 @@ describe("gmCompletionIntegrity fixtures", () => {
 });
 
 describe("gmCompletionIntegrity transport + config", () => {
-  it("TRPG_GM_MAX_TOKENS stays 12288 through adapter (MAX_TOKENS_CHANGED=false)", () => {
+  it("TRPG_GM_MAX_TOKENS equals Gemini 3.7 Flash model max through adapter", () => {
     const body = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,
       messages: [{ role: "user", content: "x" }],
@@ -236,7 +236,8 @@ describe("gmCompletionIntegrity transport + config", () => {
       max_tokens: TRPG_GM_MAX_TOKENS,
     });
     assert.equal(body.max_tokens, TRPG_GM_MAX_TOKENS);
-    assert.equal(TRPG_GM_MAX_TOKENS, 12288);
+    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
   });
 
   it("length SSE through callTrpgGm returns text but integrity gate rejects commit", async () => {

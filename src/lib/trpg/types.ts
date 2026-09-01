@@ -16,16 +16,18 @@ export const TRPG_BOT_RECENT_ROUNDS = 5;
 export const TRPG_BOT_CONTINUITY_MAX_CHARS = 2200;
 export const TRPG_BOT_CONTINUITY_ACTION_CHARS = 80;
 export const TRPG_BOT_CONTINUITY_SCENE_CHARS = 220;
-/** Thinking disabled + reasoning_effort none; long Hangul needs headroom against provider-default truncation. */
-export const TRPG_GM_MAX_TOKENS = 12288;
+/** Official Gemini 3.7 Flash max output tokens — single transport-capability owner for TRPG GM/Bot. */
+export const TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS = 65_536;
+/** GM transport ceiling = model capability max (not an app prose-quality cap). */
+export const TRPG_GM_MAX_TOKENS = TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS;
 export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 2200;
 /** Compact mechanical metadata — not player-facing prose. */
 export const TRPG_BOT_INTENT_MAX_CHARS = 120;
-/** Bot-seat output headroom for one semantic PC action beat (not tied to prose char caps). */
-export const TRPG_BOT_MAX_TOKENS = 2048;
+/** Bot transport ceiling = model capability max; beat length is prompt semantic scope, not max_tokens. */
+export const TRPG_BOT_MAX_TOKENS = TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS;
 export const TRPG_LEDGER_QUEST_MAX = 12;
 export const TRPG_LEDGER_NPC_MAX = 16;
 export const TRPG_LEDGER_FLAG_MAX = 24;
