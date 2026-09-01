@@ -1,4 +1,5 @@
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
+import { wholeTurnCoverageLabel } from "@/lib/adminBillingReceiptV3Shared";
 import { formatPoints } from "@/lib/billingDisplay";
 
 export const RECEIPT_BASIC_SUMMARY_OWNER = "adminBillingReceiptTurnSummary.ts";
@@ -16,15 +17,16 @@ export function resolveAdminReceiptSettledPoints(receipt: AdminBillingReceiptV3)
   return uc.settledDeductedPoints ?? uc.deductedPoints;
 }
 
-/** Main RP user-charge tokens — excludes widget/sync auxiliary aggregates. */
+/** Turn summary — whole-turn contribution margin, Main RP user-charge tokens. */
 export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): AdminReceiptTurnSummary {
   const uc = receipt.syncReceipt.userCharge;
-  const marginPercent = receipt.syncReceipt.mainRp.marginPercent;
+  const marginPercent = receipt.wholeTurn.contributionMarginPercent;
   let marginUnavailableReason: string | null = null;
   if (marginPercent == null) {
-    marginUnavailableReason = receipt.syncReceipt.mainRp.actual
-      ? "Main RP actual provider cost not settled for margin"
-      : "Main RP actual provider cost unavailable";
+    marginUnavailableReason =
+      receipt.wholeTurn.coverage === "complete"
+        ? "Whole-turn contribution margin unavailable"
+        : `Status Meta coverage ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`;
   }
 
   return {
@@ -38,16 +40,18 @@ export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): Ad
 
 export function formatAdminReceiptTurnSummaryLines(
   summary: AdminReceiptTurnSummary,
-  opts?: { locale?: "ko" | "en" }
+  opts?: { locale?: "ko" | "en"; includeHeading?: boolean }
 ): string[] {
   const locale = opts?.locale ?? "ko";
+  const includeHeading = opts?.includeHeading !== false;
   if (locale === "en") {
-    const lines = [
-      "[Turn Summary]",
+    const lines: string[] = [];
+    if (includeHeading) lines.push("[Turn Summary]");
+    lines.push(
       `deducted: ${formatPoints(summary.deductedPoints)} P`,
       `input tokens (Main RP): ${summary.inputTokens.toLocaleString()}`,
-      `output tokens (Main RP): ${summary.outputTokens.toLocaleString()}`,
-    ];
+      `output tokens (Main RP): ${summary.outputTokens.toLocaleString()}`
+    );
     if (summary.marginPercent != null) {
       lines.push(`margin: ${summary.marginPercent}%`);
     } else {
@@ -56,18 +60,19 @@ export function formatAdminReceiptTurnSummaryLines(
     return lines;
   }
 
-  const lines = [
-    "[턴 요약]",
+  const lines: string[] = [];
+  if (includeHeading) lines.push("[턴 요약]");
+  lines.push(
     `실제 차감          ${formatPoints(summary.deductedPoints)} P`,
     `총 입력 토큰 (Main RP)       ${summary.inputTokens.toLocaleString()} tok`,
-    `총 출력 토큰 (Main RP)       ${summary.outputTokens.toLocaleString()} tok`,
-  ];
+    `총 출력 토큰 (Main RP)       ${summary.outputTokens.toLocaleString()} tok`
+  );
   if (summary.marginPercent != null) {
     lines.push(`실현 마진          ${summary.marginPercent}%`);
   } else {
     lines.push(
       `실현 마진          계산 불가`,
-      `                   ${summary.marginUnavailableReason ?? "Main RP actual provider cost unavailable"}`
+      `                   ${summary.marginUnavailableReason ?? "Whole-turn contribution margin unavailable"}`
     );
   }
   return lines;

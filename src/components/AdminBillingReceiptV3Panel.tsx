@@ -89,16 +89,20 @@ export function AdminBillingReceiptV3Panel({
           </button>
         )}
       </div>
-      {receipt.historicalNote && (
-        <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
-      )}
 
       <SectionTitle>턴 요약</SectionTitle>
-      {formatAdminReceiptTurnSummaryLines(turnSummary, { locale: "ko" }).map((line) => (
+      {formatAdminReceiptTurnSummaryLines(turnSummary, {
+        locale: "ko",
+        includeHeading: false,
+      }).map((line) => (
         <p key={line} className="whitespace-pre-wrap font-mono text-[10px] leading-snug">
           {line}
         </p>
       ))}
+
+      {receipt.historicalNote && (
+        <p className="text-[10px] text-amber-400/90">{receipt.historicalNote}</p>
+      )}
 
       {sync.userCharge.billingContract && (
         <>

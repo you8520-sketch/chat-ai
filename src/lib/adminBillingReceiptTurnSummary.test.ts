@@ -69,7 +69,7 @@ describe("adminBillingReceiptTurnSummary", () => {
     assert.equal(summary.inputTokens, 9000);
     assert.equal(summary.outputTokens, 2500);
     assert.equal(summary.marginPercent, null);
-    assert.match(summary.marginUnavailableReason ?? "", /unavailable/i);
+    assert.match(summary.marginUnavailableReason ?? "", /검증 불가|unavailable|coverage/i);
     assert.equal(receipt.wholeTurn.contributionMarginPercent, null);
   });
 
@@ -97,6 +97,60 @@ describe("adminBillingReceiptTurnSummary", () => {
     assert.match(text, /input tokens \(Main RP\): 9,000/);
     assert.match(text, /output tokens \(Main RP\): 2,500/);
     assert.match(text, /margin: unavailable/);
+  });
+
+  it("uses whole-turn contribution margin, not Main RP margin", () => {
+    const receipt = buildReceiptFromUsage(usage({ cost: 80 }));
+    const withWholeTurn = {
+      ...receipt,
+      wholeTurn: {
+        ...receipt.wholeTurn,
+        coverage: "complete" as const,
+        contributionMarginPercent: 61,
+      },
+      syncReceipt: {
+        ...receipt.syncReceipt,
+        mainRp: {
+          ...receipt.syncReceipt.mainRp,
+          marginPercent: 99,
+        },
+      },
+    };
+    const summary = buildAdminReceiptTurnSummary(withWholeTurn);
+    assert.equal(summary.marginPercent, 61);
+  });
+
+  it("Main RP margin alone does not surface as realized margin when whole-turn incomplete", () => {
+    const receipt = buildReceiptFromUsage(usage({ cost: 80, shadowPricing: undefined }));
+    const withPartialWholeTurn = {
+      ...receipt,
+      wholeTurn: {
+        ...receipt.wholeTurn,
+        coverage: "unverifiable" as const,
+        contributionMarginPercent: null,
+      },
+      syncReceipt: {
+        ...receipt.syncReceipt,
+        mainRp: {
+          ...receipt.syncReceipt.mainRp,
+          marginPercent: 62,
+          actual: true,
+        },
+      },
+    };
+    const summary = buildAdminReceiptTurnSummary(withPartialWholeTurn);
+    assert.equal(summary.marginPercent, null);
+    assert.match(summary.marginUnavailableReason ?? "", /검증 불가|unverifiable/i);
+  });
+
+  it("UI formatter omits duplicate heading when includeHeading=false", () => {
+    const summary = buildAdminReceiptTurnSummary(buildReceiptFromUsage(usage()));
+    const lines = formatAdminReceiptTurnSummaryLines(summary, {
+      locale: "ko",
+      includeHeading: false,
+    });
+    assert.equal(lines.some((l) => l.includes("[턴 요약]")), false);
+    assert.match(lines.join("\n"), /실제 차감/);
   });
 
   it("does not fabricate margin from partial provider subset", () => {

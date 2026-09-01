@@ -350,7 +350,8 @@ export function buildAdminBillingReceiptV3(
 
   const exactProviderSpendKrw = projectWholeTurnExactKrw(exactProviderSpendUsd, fx);
 
-  const deductedPoints = syncReceipt.userCharge.deductedPoints;
+  const deductedPoints =
+    syncReceipt.userCharge.settledDeductedPoints ?? syncReceipt.userCharge.deductedPoints;
   const marginEligible =
     wholeTurnCoverage === "complete" &&
     exactProviderSpendKrw != null &&
