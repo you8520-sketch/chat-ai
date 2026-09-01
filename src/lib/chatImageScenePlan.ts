@@ -253,7 +253,8 @@ function gapSegments(
   text: string,
   start: number,
   end: number,
-  role: SceneSourceRole
+  role: SceneSourceRole,
+  afterDialogue: boolean
 ): SceneSourceSegment[] {
   const gap = text.slice(start, end);
   const trimmed = gap.trim();
@@ -265,18 +266,101 @@ function gapSegments(
     if (!spoken || isSceneActionText(spoken)) return [];
     return [{ start: gapStart, end: gapEnd, kind: "dialogue", text: spoken }];
   }
+  if (afterDialogue) {
+    return classifyPostDialogueGap(text, gapStart, gapEnd);
+  }
   const narration = cleanLine(trimmed);
-  if (!narration || isDialogueAttributionResidue(narration)) return [];
+  if (!narration) return [];
   return [{ start: gapStart, end: gapEnd, kind: "narration", text: narration }];
 }
 
-/** Residual speech-attribution tail left after quoted dialogue extraction — not a visual beat. */
-function isDialogueAttributionResidue(text: string): boolean {
+function hasVisualActionCue(text: string): boolean {
   const trimmed = cleanLine(text);
-  if (!trimmed) return true;
-  return /^(?:[이라]?라고\s*)?(?:말(?:했다|하며|하고)|외쳤(?:다|으며)|속삭(?:였다|이며)|대답(?:했다|하며)|물(?:었다|으며)|(?:이)?라며)[.!?。…]*$/u.test(
-    trimmed
-  );
+  if (!trimmed) return false;
+  if (/\*[^*]+\*/.test(trimmed)) return true;
+  if (/[을를]\s/.test(trimmed)) return true;
+  if (/^(?:그|그녀|그들|[가-힣]{1,8}(?:이|가))\s/.test(trimmed)) return true;
+  if (/(?:다가|했다|한다|며|고)(?:[\s.!?。…]|$)/u.test(trimmed)) return true;
+  return trimmed.length >= 8;
+}
+
+/** Extract visual narration from a post-quote gap; drop pure speech-attribution tails. */
+function extractVisualFromPostQuoteGap(trimmed: string): string | null {
+  const linkMatch = trimmed.match(/^(?:이라고|라고)\s*([\s\S]+)$/);
+  if (!linkMatch) {
+    return hasVisualActionCue(trimmed) ? cleanLine(trimmed) : null;
+  }
+  const tail = cleanLine(linkMatch[1] ?? "");
+  if (!tail) return null;
+
+  const connectiveMatch = tail.match(/^[\p{L}]+(?:하고|며)\s+([\s\S]+)$/u);
+  if (connectiveMatch) {
+    const action = cleanLine(connectiveMatch[1] ?? "");
+    if (action && hasVisualActionCue(action)) return action;
+  }
+
+  const concurrentMatch = tail.match(/^[\s\S]+?며\s+([\s\S]+)$/);
+  if (concurrentMatch) {
+    const action = cleanLine(concurrentMatch[1] ?? "");
+    if (action && hasVisualActionCue(action)) return action;
+  }
+
+  const sentenceMatch = tail.match(/^[^.!?。…]+[.!?。…]\s*([\s\S]+)$/);
+  if (sentenceMatch) {
+    const next = cleanLine(sentenceMatch[1] ?? "");
+    if (next && hasVisualActionCue(next)) return next;
+  }
+
+  return null;
+}
+
+function classifyPostDialogueGap(
+  text: string,
+  gapStart: number,
+  gapEnd: number
+): SceneSourceSegment[] {
+  const trimmed = text.slice(gapStart, gapEnd).trim();
+  if (!trimmed) return [];
+  if (/^(?:이라고|라고)\s*/u.test(trimmed)) {
+    const visual = extractVisualFromPostQuoteGap(trimmed);
+    if (!visual) return [];
+    const localStart = text.indexOf(visual, gapStart);
+    const start = localStart >= gapStart ? localStart : gapStart;
+    return [
+      {
+        start,
+        end: start + visual.length,
+        kind: "narration",
+        text: visual,
+      },
+    ];
+  }
+  const narration = cleanLine(trimmed);
+  if (!narration) return [];
+  const localStart = text.indexOf(narration, gapStart);
+  const start = localStart >= gapStart ? localStart : gapStart;
+  return [
+    {
+      start,
+      end: start + narration.length,
+      kind: "narration",
+      text: narration,
+    },
+  ];
+}
+
+/** Detect user-facing fields polluted by post-quote speech-attribution residue. */
+export function isMalformedAttributionText(text: string): boolean {
+  const trimmed = cleanLine(text);
+  if (!trimmed) return false;
+  if (/^(?:이라고|라고|이라며|라며)(?:\s|$)/u.test(trimmed)) return true;
+  if (
+    /^(?:이라고|라고|이라며|라며)[\p{L}\s]{0,48}[.!?。…]*$/u.test(trimmed) &&
+    !hasVisualActionCue(trimmed)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /** Canonical intra-message segmenter — events follow source span order, not bucket order. */
@@ -308,9 +392,12 @@ export function extractOrderedSceneSegments(
 
   const segments: SceneSourceSegment[] = [];
   let cursor = 0;
+  let previousSpanKind: MarkedSpan["kind"] | null = null;
   for (const span of marked) {
     if (span.start > cursor) {
-      segments.push(...gapSegments(text, cursor, span.start, role));
+      segments.push(
+        ...gapSegments(text, cursor, span.start, role, previousSpanKind === "dialogue")
+      );
     }
     segments.push({
       start: span.start,
@@ -318,10 +405,13 @@ export function extractOrderedSceneSegments(
       kind: span.kind,
       text: span.text,
     });
+    previousSpanKind = span.kind;
     cursor = span.end;
   }
   if (cursor < text.length) {
-    segments.push(...gapSegments(text, cursor, text.length, role));
+    segments.push(
+      ...gapSegments(text, cursor, text.length, role, previousSpanKind === "dialogue")
+    );
   }
   return segments;
 }
