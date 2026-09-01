@@ -1,0 +1,22 @@
+{
+  "caseId": "B",
+  "title": "character_voice",
+  "requestedModel": "deepseek-v4-pro-0813",
+  "resolvedModel": "deepseek-v4-pro-0813",
+  "visibleChars": 3042,
+  "paragraphs": 39,
+  "paragraphsPer1000": 12.821,
+  "inputTokens": 12549,
+  "outputTokens": 3671,
+  "reasoningTokens": null,
+  "ttftMs": 24360,
+  "latencyMs": 66916,
+  "upstreamCostUsd": 0.004924,
+  "finishReason": "stop",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "rawFile": "DEEPSEEK_CASE_B.txt",
+  "textSha256": "34f863526f808471b0f4d66cc4ef0ff93e69942a5f701105de6b157a2f6d8683"
+}

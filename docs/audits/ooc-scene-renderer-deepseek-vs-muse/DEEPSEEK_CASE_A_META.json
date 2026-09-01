@@ -1,0 +1,22 @@
+{
+  "caseId": "A",
+  "title": "comic_absurd_adult",
+  "requestedModel": "deepseek-v4-pro-0813",
+  "resolvedModel": "deepseek-v4-pro-0813",
+  "visibleChars": 2219,
+  "paragraphs": 24,
+  "paragraphsPer1000": 10.816,
+  "inputTokens": 12539,
+  "outputTokens": 5080,
+  "reasoningTokens": null,
+  "ttftMs": 54457,
+  "latencyMs": 83813,
+  "upstreamCostUsd": 0.006956,
+  "finishReason": "stop",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "rawFile": "DEEPSEEK_CASE_A.txt",
+  "textSha256": "ca29d2f891a4dd076b8ae5bc44ef964bbf73b40edc12bf0c34f5869082928257"
+}
