@@ -8,9 +8,11 @@ import {
   type SceneEvent,
   type ScenePlan,
 } from "@/lib/chatImageScenePlan";
+import { resolveChatImageSceneBriefFallbackModel, resolveChatImageSceneBriefModel } from "@/lib/chatImageSceneBrief";
 import {
   buildTrpgGmNarrationSceneMessages,
   detectTrpgAiFocusOverSelection,
+  detectTrpgAiFocusSemanticRejection,
   resolveTrpgAiFocusHeroScene,
   resolveTrpgIllustrationSceneFocus,
 } from "@/lib/trpg/trpgAiFocusSelection";
@@ -447,20 +449,71 @@ describe("trpg AI focus duct rescue fixture", () => {
     assert.equal(result.diagnostics.overSelectionRejected, false);
   });
 
-  it("A6: deterministic selector excludes GM next-choice event", () => {
+  it("A6: deterministic selector excludes post-action rest and route choice", () => {
     const events = ductRescueEvents();
     const ids = selectDeterministicTrpgFocusEventIds(events);
-    const selected = events.filter((event) => ids.includes(event.id));
-    assert.equal(selected.some((event) => isTrpgNextDecisionEvent(event)), false);
+    const excluded = events.filter((event) => !ids.includes(event.id)).map((event) => event.id);
+
+    assert.ok(ids.length >= 1);
+    assert.ok(ids.length <= 4);
+    assert.deepEqual(ids, ["E3", "E4", "E5", "E6"]);
+    assert.deepEqual(excluded, ["E1", "E2", "E7", "E8", "E9", "E10", "E11", "E12"]);
+    assert.ok(ids.every((id, index, list) => index === 0 || Number(id.slice(1)) === Number(list[index - 1]!.slice(1)) + 1));
+    assert.equal(events.some((event) => ids.includes(event.id) && /추격/.test(event.text)), false);
   });
 
-  it("A10: buildDeterministicTrpgFocusHeroScene yields frameable subset", () => {
+  it("A10: buildDeterministicTrpgFocusHeroScene yields frameable rescue climax subset", () => {
     const plan = buildDeterministicScenePlan(
       buildTrpgGmNarrationSceneMessages(ductRescueEvents().map((event) => event.text).join("\n"))
     );
     const focused = buildDeterministicTrpgFocusHeroScene(plan);
-    assert.ok(focused.heroEventIds.length >= 1);
-    assert.ok(focused.heroEventIds.length <= 4);
-    assert.ok(focused.heroScene.trim().length > 0);
+    assert.deepEqual(focused.heroEventIds, ["E6", "E7", "E8", "E9"]);
+    assert.match(focused.heroScene, /신경다발|맞물|끌어올/);
+    assert.doesNotMatch(focused.heroScene, /숨을 고르|장비를 정리|선택해|좌측 통로|추격/);
+  });
+});
+
+describe("trpg AI focus production path", () => {
+  it("PRODUCTION_PATH_OVER_SELECTION: real planChatImageScene keeps one primary call and recovers focus", async () => {
+    const events = ductRescueEvents();
+    const narration = events.map((event) => event.text).join("\n");
+    const messages = buildTrpgGmNarrationSceneMessages(narration);
+    const canonical = buildDeterministicScenePlan(messages);
+    const overSelectedPlan = {
+      ...canonical,
+      heroEventIds: canonical.events.map((event) => event.id),
+      heroScene: canonical.events.map((event) => event.text).join(" "),
+    };
+    assert.equal(detectTrpgAiFocusSemanticRejection(overSelectedPlan), true);
+
+    const primaryModel = resolveChatImageSceneBriefModel({} as NodeJS.ProcessEnv);
+    const fallbackModel = resolveChatImageSceneBriefFallbackModel({} as NodeJS.ProcessEnv);
+    let primaryCompleterCalls = 0;
+    let fallbackModelCalls = 0;
+
+    const result = await resolveTrpgIllustrationSceneFocus({
+      sceneMode: "AI_FOCUS",
+      rawNarration: narration,
+      canonicalLocation: "지하 대피로 - 환풍구 닥트 내부",
+      complete: async ({ model }) => {
+        if (model === primaryModel) primaryCompleterCalls += 1;
+        if (fallbackModel && model === fallbackModel) fallbackModelCalls += 1;
+        return JSON.stringify(overSelectedPlan);
+      },
+    });
+
+    assert.equal(result.plannerInvocations, 1);
+    assert.equal(primaryCompleterCalls, 1);
+    assert.equal(fallbackModelCalls, 0);
+    assert.equal(result.modeApplied, "AI_FOCUS");
+    assert.equal(result.diagnostics?.aiModel, primaryModel);
+    assert.equal(result.diagnostics?.aiAttempts, 1);
+    assert.equal(result.diagnostics?.aiUsedFallback, false);
+    assert.equal(result.diagnostics?.overSelectionRejected, true);
+    assert.equal(result.diagnostics?.aiDeterministicFallback, true);
+    assert.equal(result.diagnostics?.fallbackReason, "over-selection-deterministic-focus");
+    assert.notEqual(result.narration, rawNarration);
+    assert.match(result.narration, /석궁|신경다발|맞물|끌어올/);
+    assert.doesNotMatch(result.narration, /선택해|좌측 통로/);
   });
 });

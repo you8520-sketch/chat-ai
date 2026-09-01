@@ -675,40 +675,79 @@ export function isTrpgNextDecisionEvent(event: SceneEvent): boolean {
   return false;
 }
 
-function scoreTrpgFocusWindow(events: readonly SceneEvent[]): number {
+/** Post-action rest / corridor survey beats after the main action cluster. */
+export function isTrpgPostActionRestEvent(event: SceneEvent): boolean {
+  if (isTrpgNextDecisionEvent(event)) return true;
+  if (/통로/.test(event.text) && /(좌|우|보인)/.test(event.text)) return true;
+  return /숨을 고르|장비를 정리|장비 정리/.test(event.text);
+}
+
+function capTrpgFocusPoolAtRescueCompletion(pool: readonly SceneEvent[]): readonly SceneEvent[] {
+  let lastRescueIndex = -1;
+  for (let index = 0; index < pool.length; index += 1) {
+    if (/끌어올|맞물린/.test(pool[index]!.text)) lastRescueIndex = index;
+  }
+  return lastRescueIndex >= 0 ? pool.slice(0, lastRescueIndex + 1) : pool;
+}
+
+function scoreTrpgFocusWindow(events: readonly SceneEvent[], startIndex: number): number {
   let score = 0;
   for (const event of events) {
     if (event.kind === "action" || event.kind === "reaction") score += 3;
-    else if (event.kind === "dialogue") score += 1;
-    else score += 0.5;
-    if (/숨을 고르|장비를 정리|다음.*이동|선택해/.test(event.text)) score -= 2;
+    else if (event.kind === "dialogue") score += 0.5;
+    else score += 0.25;
   }
+  score -= Math.max(0, events.length - 1) * 0.75;
+  score += startIndex * 0.2;
   return score;
+}
+
+function compareTrpgFocusCandidate(
+  left: { ids: string[]; score: number; start: number },
+  right: { ids: string[]; score: number; start: number }
+): number {
+  if (right.score !== left.score) return right.score - left.score;
+  if (left.ids.length !== right.ids.length) return left.ids.length - right.ids.length;
+  return right.start - left.start;
 }
 
 /** Deterministic one-drawable-moment subset for TRPG illustration focus recovery. */
 export function selectDeterministicTrpgFocusEventIds(events: readonly SceneEvent[]): string[] {
-  const visual = visualEvents(events).filter((event) => !isTrpgNextDecisionEvent(event));
-  const pool = visual.length ? visual : visualEvents(events);
-  if (!pool.length) return [];
+  const visual = visualEvents(events);
+  const firstRestIndex = visual.findIndex((event) => isTrpgPostActionRestEvent(event));
+  const pool =
+    firstRestIndex >= 0
+      ? visual.slice(0, firstRestIndex).filter((event) => !isTrpgNextDecisionEvent(event))
+      : visual.filter((event) => !isTrpgNextDecisionEvent(event));
 
+  if (!pool.length) {
+    const fallback = visual.filter((event) => !isTrpgNextDecisionEvent(event));
+    return fallback
+      .slice(0, Math.min(TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS, fallback.length))
+      .map((event) => event.id);
+  }
+
+  const focusPool = capTrpgFocusPoolAtRescueCompletion(pool);
   const maxWindow = TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS;
-  let bestIds: string[] = [];
-  let bestScore = Number.NEGATIVE_INFINITY;
+  let best = { ids: [] as string[], score: Number.NEGATIVE_INFINITY, start: 0 };
 
-  for (let start = 0; start < pool.length; start += 1) {
-    for (let len = 1; len <= Math.min(maxWindow, pool.length - start); len += 1) {
-      const window = pool.slice(start, start + len);
-      const score = scoreTrpgFocusWindow(window);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIds = window.map((event) => event.id);
+  for (let start = 0; start < focusPool.length; start += 1) {
+    for (let len = 1; len <= Math.min(maxWindow, focusPool.length - start); len += 1) {
+      const window = focusPool.slice(start, start + len);
+      const candidate = {
+        ids: window.map((event) => event.id),
+        score: scoreTrpgFocusWindow(window, start),
+        start,
+      };
+      if (compareTrpgFocusCandidate(best, candidate) > 0) {
+        best = candidate;
       }
     }
   }
 
-  if (bestIds.length) return bestIds;
-  return pool.slice(0, Math.min(maxWindow, pool.length)).map((event) => event.id);
+  return best.ids.length
+    ? best.ids
+    : focusPool.slice(0, Math.min(maxWindow, focusPool.length)).map((event) => event.id);
 }
 
 export function buildDeterministicTrpgFocusHeroScene(plan: ScenePlan): {
@@ -1215,12 +1254,6 @@ export function validateScenePlan(
   const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
 
   const resolvedHeroIds = heroEventIds.length ? heroEventIds : defaultHero;
-  if (
-    opts.scenePlanIntent === "trpg_illustration" &&
-    resolvedHeroIds.length > TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS
-  ) {
-    return { ok: false, reason: "heroEventIds over limit" };
-  }
   const heroEventsForDescription = resolvedHeroIds
     .map((id) => eventsById.get(id))
     .filter((event): event is SceneEvent => event !== undefined);

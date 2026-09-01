@@ -1,6 +1,7 @@
 import {
   buildDeterministicTrpgFocusHeroScene,
   buildSceneSourceMessages,
+  TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS,
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
@@ -47,6 +48,12 @@ export function detectTrpgAiFocusOverSelection(plan: ScenePlan): boolean {
   if (visualEvents.length < 8) return false;
   const ratio = plan.heroEventIds.length / visualEvents.length;
   return ratio >= 0.85;
+}
+
+/** TRPG illustration semantic focus rejection — owned here, not in shared validateScenePlan. */
+export function detectTrpgAiFocusSemanticRejection(plan: ScenePlan): boolean {
+  if (plan.heroEventIds.length > TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS) return true;
+  return detectTrpgAiFocusOverSelection(plan);
 }
 
 function emptyDiagnostics(canonicalLocation: string): Omit<TrpgAiFocusDiagnostics, "modeApplied"> {
@@ -99,7 +106,8 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
   const latencyMs = Date.now() - started;
   const heroScene = result.plan.heroScene.trim();
   const deterministicFallback = result.model === "deterministic-fallback";
-  const overSelectionRejected = detectTrpgAiFocusOverSelection(result.plan);
+  const focusRejected = detectTrpgAiFocusSemanticRejection(result.plan);
+  const overSelectionRejected = focusRejected;
 
   const diagnostics: TrpgAiFocusDiagnostics = {
     ...base,
@@ -134,7 +142,7 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
     };
   }
 
-  if (overSelectionRejected) {
+  if (focusRejected) {
     const focused = buildDeterministicTrpgFocusHeroScene(result.plan);
     const focusedPlan: ScenePlan = {
       ...result.plan,
@@ -143,7 +151,7 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
     };
     if (
       focused.heroScene.trim() &&
-      !detectTrpgAiFocusOverSelection(focusedPlan)
+      !detectTrpgAiFocusSemanticRejection(focusedPlan)
     ) {
       return {
         modeApplied: "AI_FOCUS",
