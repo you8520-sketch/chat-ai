@@ -41,4 +41,4 @@ jobs:
       - run: npm ci
       - run: git diff --check
       - run: npm run typecheck:app
-      - run: node --conditions=react-server --import tsx --test src/lib/quoteSelectionContainer.test.ts src/lib/quoteSelectionToolbar.test.ts
+      - run: node --conditions=react-server --import tsx --test src/lib/quoteSelectionContainer.test.ts src/lib/quoteSelectionContainer.realDom.test.ts src/lib/quoteSelectionToolbar.test.ts
