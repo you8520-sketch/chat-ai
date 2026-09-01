@@ -1,7 +1,7 @@
 # LD Image Normalization — REVIEW PACKET
 
 **CURRENT_MAIN_SHA:** `80140cf8afc59de38d849eb9323e7ccdf32ea3fb`
-**GENERATED_FROM_SOURCE_SHA:** `34a4a6007391dcdbe05fccefcfeaebbf37a88f58`
+**GENERATED_FROM_SOURCE_SHA:** `fb127fed30c472e0b37877724d1b27a7455543cf`
 **PR_NUMBER:** 808
 
 ## Flagship fixture
