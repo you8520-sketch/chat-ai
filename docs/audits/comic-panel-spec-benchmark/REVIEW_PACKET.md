@@ -4,7 +4,7 @@
 `PROVIDER_IMAGE_CALLS=0`
 
 - **CURRENT_MAIN_SHA:** `ae42507987fb9e8ccdf742a8610dbd8165983016`
-- **GENERATED_FROM_SOURCE_SHA:** `a2bbcb9b6f9718eb716c6a6cba1d00c65d238497`
+- **GENERATED_FROM_SOURCE_SHA:** `8d4fd152163677b61b19ea48880b05c53f8f0a95`
 
 Compare arms:
 - **A (legacy):** `formatApprovedScenePlanForComic` prose block
