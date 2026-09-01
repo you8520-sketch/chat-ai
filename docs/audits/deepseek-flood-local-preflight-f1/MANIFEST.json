@@ -1,0 +1,169 @@
+{
+  "track": "DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1",
+  "DEEPSEEK_FLOOD_LOCAL_PREFLIGHT_F1": true,
+  "SNAPSHOT_ID": "handoff-17-1-2026-08-18T11-38-17-786Z",
+  "CHARACTER": "플러드",
+  "PERSONA": "렌",
+  "PRODUCTION_RECORD_PROVEN": true,
+  "SOURCE_MODEL": "Gemini 3.7 Flash",
+  "TARGET_MODEL": "deepseek-v4-pro-0813",
+  "USER_TURN_ORIGIN": "CURSOR_SYNTHETIC",
+  "HUMAN_WRITTEN": false,
+  "SOURCE_GEMINI_CALLS": 3,
+  "DEEPSEEK_CALLS": 2,
+  "TOTAL_NEW_CALLS": 5,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "TRUE_OFF_CONFIG": "thinking.disabled + reasoning_effort.none",
+  "REASONING_EVENTS": [
+    0,
+    0
+  ],
+  "REASONING_CHARS": [
+    0,
+    0
+  ],
+  "TRUE_OFF_PARITY": true,
+  "SOURCE_ASSISTANT_SHA": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+  "CURRENT_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+  "SYSTEM_SHA": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+  "HISTORY_SHA": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+  "FULL_PROMPT_SHA": "c3d4b4545c5a102bfa263020721ce559f8dda8369584bea0a3e157bccdc2c448",
+  "FULL_ASSEMBLED_MESSAGES_SHA": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "SOURCE_MIRROR": false,
+  "COMPLETION": false,
+  "TURN_OWNERSHIP": false,
+  "ORIGIN_POINTER": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "usage_reasoning_tokens_not_used_as_proof": [
+    null,
+    null
+  ],
+  "CHARACTER_ID": 17,
+  "PERSONA_ID": 1,
+  "CHARACTER_SHA": "f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2",
+  "PERSONA_SHA": "019047714e494c1b1f874b8bca0fc463522a4ff83d76d6b482f7caddbee7876c",
+  "SPEECH_LOCK_SHA": "a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21",
+  "WORLD_CANON_SHA": "de6c8097f83027ec0d1b0d80ced2b161b02b1cf551fb5864c0b6b59b3785ae98",
+  "FREEZE": {
+    "SNAPSHOT_ID": "handoff-17-1-2026-08-18T11-38-17-786Z",
+    "CHARACTER_SHA": "f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2",
+    "PERSONA_SHA": "019047714e494c1b1f874b8bca0fc463522a4ff83d76d6b482f7caddbee7876c",
+    "SPEECH_LOCK_SHA": "a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21",
+    "WORLD_CANON_SHA": "de6c8097f83027ec0d1b0d80ced2b161b02b1cf551fb5864c0b6b59b3785ae98",
+    "FULL_SYSTEM_SHA": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+    "HISTORY_SHA": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+    "SOURCE_GEMINI37_RAW_SHA": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+    "SOURCE_ASSISTANT_SHA": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+    "CURRENT_SYNTHETIC_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+    "CURRENT_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+    "FULL_ASSEMBLED_MESSAGES_SHA": "3a7e4f90a23f74c05cbfdc450cdcf88ace265bec59521a7ff4dcfeb48293b5ab",
+    "FULL_PROMPT_SHA": "c3d4b4545c5a102bfa263020721ce559f8dda8369584bea0a3e157bccdc2c448",
+    "SOURCE_MODEL": "gemini-3.7-flash",
+    "TARGET_MODEL": "deepseek-v4-pro-0813",
+    "SOURCE_TEMPERATURE": 0.7,
+    "TARGET_TEMPERATURE": 0.7,
+    "TARGET_TRANSPORT": {
+      "provider": "cheaperinference",
+      "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+      "thinking": {
+        "type": "disabled"
+      },
+      "reasoning_effort": "none",
+      "sent_keys": [
+        "messages",
+        "model",
+        "reasoning_effort",
+        "stream",
+        "stream_options",
+        "temperature",
+        "thinking"
+      ],
+      "absent_keys": [
+        "enable_thinking",
+        "reasoning",
+        "include_reasoning"
+      ]
+    },
+    "SOURCE_MIRROR": false,
+    "COMPLETION": false,
+    "TURN_OWNERSHIP": false,
+    "ORIGIN_POINTER": false,
+    "MODEL_SPECIFIC_STYLE_ADAPTER": false,
+    "QUALITY_SCORING_BY_CURSOR": false,
+    "chunk_loader": "loadCharacterChunksForPromptReadOnly",
+    "used_english": true,
+    "chunk_count": 21
+  },
+  "gemini": [
+    {
+      "label": "GEMINI_1",
+      "user_sha": "4fa1b0b60fbed6dd60d5dc4918676867a5b9fcd8710dfe203482669b27e88483",
+      "raw_sha": "1797b8d5c9abb56899d71d3f7002c456446623f5f53022f88b0c30d3831a62ec",
+      "chars": 2534,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "gemini-3.7-flash",
+      "latencyMs": 19934
+    },
+    {
+      "label": "GEMINI_2",
+      "user_sha": "4245f75dec0e1ced40b3adcd6202713b160743a6bbf07e883d647d680a98bc1a",
+      "raw_sha": "a3c6973c22469d4328de2988024c73ab83d4282561464b441714752726a4eebc",
+      "chars": 2630,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "gemini-3.7-flash",
+      "latencyMs": 21310
+    },
+    {
+      "label": "GEMINI_3",
+      "user_sha": "d6c277f55219c40a867b5854d2a75c3d71122fe130f1b7e4abcc7566451b3bae",
+      "raw_sha": "1895ef56e88ee16d8d67ec38e838ad8956bb967545e1c57aab8f372dbecb2c6c",
+      "chars": 3517,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "gemini-3.7-flash",
+      "latencyMs": 22908
+    }
+  ],
+  "deepseek": [
+    {
+      "label": "DEEPSEEK_VANILLA_1",
+      "raw_sha": "810a3a7d31e0ecdc92685adefd8ba50503f613802b568f4ed59f8278135e5b4e",
+      "chars": 3356,
+      "late25_chars": 839,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "deepseek-v4-pro-0813",
+      "latencyMs": 46526,
+      "reasoning": {
+        "reasoning_stream_events": 0,
+        "reasoning_chars": 0,
+        "reasoning_delta_keys": []
+      },
+      "bodySha": "e598e865ca1d788809c08948fa9a008c497b262b85a33676a598674abb818e5f"
+    },
+    {
+      "label": "DEEPSEEK_VANILLA_2",
+      "raw_sha": "ed515c46130fb01750ac3de80f7efd2f654c71ba3c4abfb4d98a57fa57057a77",
+      "chars": 3747,
+      "late25_chars": 937,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "resolvedModel": "deepseek-v4-pro-0813",
+      "latencyMs": 52103,
+      "reasoning": {
+        "reasoning_stream_events": 0,
+        "reasoning_chars": 0,
+        "reasoning_delta_keys": []
+      },
+      "bodySha": "e598e865ca1d788809c08948fa9a008c497b262b85a33676a598674abb818e5f"
+    }
+  ]
+}
