@@ -6,6 +6,7 @@ export type TrpgParticipantKind = "human" | "ai_character";
 export type TrpgCanonicalAttemptInput = {
   participantKind: TrpgParticipantKind;
   submissionBody: string;
+  /** Accepted persisted trpg_action_submissions.action_type — canonical after bot accept. */
   actionType?: string | null;
 };
 
@@ -41,6 +42,6 @@ export function resolveTrpgCanonicalAttempt(opts: TrpgCanonicalAttemptInput): Tr
     participantKind: "ai_character",
     canonicalAttempt: parsed.intent.trim(),
     presentationProse: parsed.prose,
-    actionType: parsed.actionType,
+    actionType: normalizeStoredActionType(opts.actionType),
   };
 }

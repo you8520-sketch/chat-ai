@@ -4,8 +4,7 @@ import { parseTrpgBotAction } from "./botActionParse";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { isTrpgActionType } from "./actionTypes";
 
-/** Audit-only: documents action_type canonical owner without changing production. */
-describe("TRPG action_type canonical owner audit", () => {
+describe("TRPG action_type canonical owner", () => {
   it("bot accept write path: persisted action_type equals parse(body).actionType", () => {
     const body = [
       "권태현은 앞을 본다.",
@@ -14,13 +13,12 @@ describe("TRPG action_type canonical owner audit", () => {
       "<<<INTENT>>>",
       "권태현은 전방을 경계하려 했다.",
     ].join("\n");
-    const parsed = parseTrpgBotAction(body);
-    const persisted = parsed.actionType;
+    const persisted = parseTrpgBotAction(body).actionType;
     assert.equal(persisted, "defend");
     assert.ok(isTrpgActionType(persisted));
   });
 
-  it("normal AI read path: resolver re-parse matches persisted value at accept time", () => {
+  it("accepted AI submission: downstream resolver uses persisted action_type", () => {
     const body = [
       "강이현은 패드를 든다.",
       "<<<ACTION_TYPE>>>",
@@ -28,17 +26,16 @@ describe("TRPG action_type canonical owner audit", () => {
       "<<<INTENT>>>",
       "강이현은 주변을 조사하려 했다.",
     ].join("\n");
-    const persisted = parseTrpgBotAction(body).actionType;
+    const persisted = "investigate";
     const resolved = resolveTrpgCanonicalAttempt({
       participantKind: "ai_character",
       submissionBody: body,
       actionType: persisted,
     });
     assert.equal(resolved.actionType, persisted);
-    assert.equal(resolved.actionType, "investigate");
   });
 
-  it("mismatch fixture: body marker vs persisted DB value diverge only under artificial insert", () => {
+  it("persisted action_type wins over body marker after accept", () => {
     const body = [
       "prose",
       "<<<ACTION_TYPE>>>",
@@ -46,15 +43,24 @@ describe("TRPG action_type canonical owner audit", () => {
       "<<<INTENT>>>",
       "attempt",
     ].join("\n");
-    const persistedMismatch = "defend";
     const resolved = resolveTrpgCanonicalAttempt({
       participantKind: "ai_character",
       submissionBody: body,
-      actionType: persistedMismatch,
+      actionType: "defend",
     });
-    assert.equal(resolved.actionType, "attack");
-    assert.notEqual(resolved.actionType, persistedMismatch);
-    // mechanicsRound reads DB; adjudication resolver re-parses body — split only if writer breaks invariant
+    assert.equal(resolved.actionType, "defend");
+    assert.notEqual(parseTrpgBotAction(body).actionType, resolved.actionType);
+  });
+
+  it("missing body marker: valid persisted action_type is still canonical", () => {
+    const body = "prose only without markers";
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: body,
+      actionType: "stealth",
+    });
+    assert.equal(resolved.actionType, "stealth");
+    assert.equal(parseTrpgBotAction(body).actionType, "free");
   });
 
   it("human action_type owner: persisted column only, body never bot-parsed", () => {

@@ -230,13 +230,13 @@ export function loadCompletedMemoryRounds(db: Database.Database, campaignId: num
   return roundRows.map((row) => {
     const actions = db
       .prepare(
-        `SELECT p.display_name AS name, p.kind, s.body
+        `SELECT p.display_name AS name, p.kind, s.body, s.action_type
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
          WHERE s.round_id=? AND s.locked=1
          ORDER BY s.id ASC`
       )
-      .all(row.id) as Array<{ name: string; kind: string; body: string }>;
+      .all(row.id) as Array<{ name: string; kind: string; body: string; action_type: string | null }>;
     return {
       roundNumber: row.round_number,
       actions: actions.map((a) => ({
@@ -244,6 +244,7 @@ export function loadCompletedMemoryRounds(db: Database.Database, campaignId: num
         text: resolveTrpgCanonicalAttempt({
           participantKind: a.kind === "ai_character" ? "ai_character" : "human",
           submissionBody: a.body,
+          actionType: a.action_type,
         }).canonicalAttempt,
       })),
       gmNarration: row.narration,
