@@ -1,5 +1,7 @@
 import {
+  buildDeterministicTrpgFocusHeroScene,
   buildSceneSourceMessages,
+  TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS,
   type ScenePlan,
   type SceneSourceMessage,
 } from "@/lib/chatImageScenePlan";
@@ -48,6 +50,12 @@ export function detectTrpgAiFocusOverSelection(plan: ScenePlan): boolean {
   return ratio >= 0.85;
 }
 
+/** TRPG illustration semantic focus rejection — owned here, not in shared validateScenePlan. */
+export function detectTrpgAiFocusSemanticRejection(plan: ScenePlan): boolean {
+  if (plan.heroEventIds.length > TRPG_ILLUSTRATION_MAX_HERO_EVENT_IDS) return true;
+  return detectTrpgAiFocusOverSelection(plan);
+}
+
 function emptyDiagnostics(canonicalLocation: string): Omit<TrpgAiFocusDiagnostics, "modeApplied"> {
   return {
     modeRequested: "AI_FOCUS",
@@ -80,6 +88,7 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
       characterName: "TRPG GM",
       personaName: "Party",
       messages,
+      scenePlanIntent: "trpg_illustration",
       complete: opts.complete,
     });
   } catch {
@@ -97,7 +106,8 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
   const latencyMs = Date.now() - started;
   const heroScene = result.plan.heroScene.trim();
   const deterministicFallback = result.model === "deterministic-fallback";
-  const overSelectionRejected = detectTrpgAiFocusOverSelection(result.plan);
+  const focusRejected = detectTrpgAiFocusSemanticRejection(result.plan);
+  const overSelectionRejected = focusRejected;
 
   const diagnostics: TrpgAiFocusDiagnostics = {
     ...base,
@@ -132,7 +142,30 @@ export async function resolveTrpgAiFocusHeroScene(opts: {
     };
   }
 
-  if (overSelectionRejected) {
+  if (focusRejected) {
+    const focused = buildDeterministicTrpgFocusHeroScene(result.plan);
+    const focusedPlan: ScenePlan = {
+      ...result.plan,
+      heroEventIds: focused.heroEventIds,
+      heroScene: focused.heroScene,
+    };
+    if (
+      focused.heroScene.trim() &&
+      !detectTrpgAiFocusSemanticRejection(focusedPlan)
+    ) {
+      return {
+        modeApplied: "AI_FOCUS",
+        heroScene: focused.heroScene,
+        diagnostics: {
+          ...diagnostics,
+          modeApplied: "AI_FOCUS",
+          selectedHeroScene: focused.heroScene,
+          heroEventIds: [...focused.heroEventIds],
+          aiDeterministicFallback: true,
+          fallbackReason: "over-selection-deterministic-focus",
+        },
+      };
+    }
     return {
       modeApplied: "RAW",
       diagnostics: {
