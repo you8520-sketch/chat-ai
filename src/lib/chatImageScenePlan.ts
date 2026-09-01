@@ -1535,6 +1535,8 @@ export function formatApprovedScenePlanForComic(
 export const COMPACT_PREVIEW_SITUATION_MAX = 72;
 export const COMPACT_PREVIEW_KEY_ACTION_MAX = 96;
 export const COMPACT_PREVIEW_BACKGROUND_MAX = 48;
+export const COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES = 2;
+export const COMPACT_PREVIEW_DIALOGUE_LINE_MAX = 56;
 
 export function truncateCompactPreviewText(text: string, maxChars: number): string {
   const trimmed = text.replace(/\s+/g, " ").trim();
@@ -1602,13 +1604,6 @@ export function projectComicPanelCompactSituation(
   panel: ScenePanel,
   visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY
 ): string {
-  if (panel.characterAction?.trim()) {
-    return truncateCompactPreviewText(panel.characterAction, COMPACT_PREVIEW_SITUATION_MAX);
-  }
-  if (visibility.personaVisible && panel.personaAction?.trim()) {
-    return truncateCompactPreviewText(panel.personaAction, COMPACT_PREVIEW_SITUATION_MAX);
-  }
-
   const eventsById = new Map(plan.events.map((event) => [event.id, event]));
   const panelEvents = panel.sourceEventIds
     .map((id) => eventsById.get(id))
@@ -1628,6 +1623,39 @@ export function projectComicPanelCompactSituation(
     projectComicPanelBeat(plan, panel, visibility).situation,
     COMPACT_PREVIEW_SITUATION_MAX
   );
+}
+
+export type ComicPanelCompactDialogueLine = {
+  speaker: SceneDialogueSpeaker;
+  text: string;
+};
+
+export type ComicPanelCompactDialoguePreview = {
+  previewLines: ComicPanelCompactDialogueLine[];
+  hiddenCount: number;
+  totalVisible: number;
+};
+
+/** Comic panel compact dialogue preview — read-only; canonical `panel.dialogue` unchanged. */
+export function projectComicPanelCompactDialoguePreview(
+  panel: ScenePanel,
+  visibility: ScenePresentationVisibility = DEFAULT_SCENE_PRESENTATION_VISIBILITY,
+  maxLines: number = COMPACT_PREVIEW_DIALOGUE_VISIBLE_LINES
+): ComicPanelCompactDialoguePreview {
+  const visible = panel.dialogue.filter(
+    (line) =>
+      line.text.trim() &&
+      (visibility.personaVisible || line.speaker !== "persona")
+  );
+  const previewLines = visible.slice(0, maxLines).map((line) => ({
+    speaker: line.speaker,
+    text: truncateCompactPreviewText(line.text, COMPACT_PREVIEW_DIALOGUE_LINE_MAX),
+  }));
+  return {
+    previewLines,
+    hiddenCount: Math.max(0, visible.length - maxLines),
+    totalVisible: visible.length,
+  };
 }
 
 export function collectApprovedComicText(
