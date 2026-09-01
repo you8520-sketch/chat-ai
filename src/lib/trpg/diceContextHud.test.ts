@@ -163,7 +163,7 @@ describe("TRPG contextual dice HUD", () => {
     assert.doesNotMatch(vm.actionSummary, /<<<(?:INTENT|ACTION_TYPE)>>>/);
   });
 
-  it("G: falls back to safe parsed AI prose when intent is missing", () => {
+  it("G: missing AI intent yields empty canonical summary (no prose fallback)", () => {
     const vm = buildTrpgDiceContextViewModel({
       roll: roll(2, {
         actionBody: "상자 뒤를 살피며 조심스럽게 다가간다.\n<<<ACTION_TYPE>>>\ninvestigate",
@@ -171,8 +171,8 @@ describe("TRPG contextual dice HUD", () => {
       progress: null,
       statDefs,
     });
-    assert.equal(vm.actionSummary, "상자 뒤를 살피며 조심스럽게 다가간다.");
-    assert.doesNotMatch(vm.actionSummary, /<<<ACTION_TYPE>>>/);
+    assert.equal(vm.actionSummary, "");
+    assert.doesNotMatch(vm.actionSummary, /상자 뒤를/);
   });
 
   it("H: shows canonical human action safely and clips long text", () => {

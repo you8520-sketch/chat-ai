@@ -1,8 +1,8 @@
 import type Database from "better-sqlite3";
 import { resolveTrpgActionCheckDecision } from "./actionCheck";
 import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
-import { isTrpgActionType, pickStatForActionDetailed } from "./actionTypes";
-import { parseTrpgBotAction } from "./botActions";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
+import { pickStatForActionDetailed } from "./actionTypes";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { loadSheetSnapshots } from "./engineSheets";
 import { computeResolutionOrder, type TrpgResolutionOrderEntry } from "./initiative";
@@ -176,20 +176,29 @@ export function adjudicateCanonicalSubmission(
   }
   const sub = db
     .prepare(
-      `SELECT id, participant_id, action_type, selected_stat, body
-       FROM trpg_action_submissions WHERE id=? AND round_id=? AND locked=1`
+      `SELECT s.id, s.participant_id, s.action_type, s.selected_stat, s.body, p.kind
+       FROM trpg_action_submissions s
+       JOIN trpg_participants p ON p.id = s.participant_id
+       WHERE s.id=? AND s.round_id=? AND s.locked=1`
     )
-    .get(opts.submissionId, opts.roundId) as LockedSubmission | undefined;
+    .get(opts.submissionId, opts.roundId) as
+    | (LockedSubmission & { kind: string })
+    | undefined;
   if (!sub) return "already";
 
   const scenario = loadScenario(db, opts.campaignId);
-  const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
-  const parsed = parseTrpgBotAction(sub.body);
-  const checkBody = parsed.intent || parsed.prose || sub.body;
+  const participantKind = sub.kind === "ai_character" ? "ai_character" : "human";
+  const resolved = resolveTrpgCanonicalAttempt({
+    participantKind,
+    submissionBody: sub.body,
+    actionType: sub.action_type,
+  });
+  const checkBody = resolved.canonicalAttempt;
+  const actionType = resolved.actionType;
   const decision = resolveTrpgActionCheckDecision({
-    body: parsed.prose || sub.body,
-    actionType,
-    intent: parsed.intent,
+    body: checkBody,
+    actionType: resolved.actionType,
+    intent: participantKind === "ai_character" ? checkBody : "",
   });
 
   if (!decision.needsCheck) {

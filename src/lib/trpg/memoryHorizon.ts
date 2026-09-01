@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { parseTrpgBotAction } from "./botActionParse";
 import { clipTrpgChars } from "./clip";
 import { loadParticipants } from "./store";
 
@@ -536,8 +535,7 @@ export function buildBotCompactContinuity(
     .map((round) => {
       const acts = round.actions
         .map((action) => {
-          const parsed = parseTrpgBotAction(action.text);
-          const brief = parsed.intent || clipTrpgChars(parsed.prose || action.text, 80);
+          const brief = clipTrpgChars(action.text, 80);
           return `${action.actorName}:${brief}`;
         })
         .join(" / ");
