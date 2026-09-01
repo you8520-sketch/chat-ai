@@ -63,8 +63,8 @@ function isTextNodeWithinRange(textNode: Text, range: Range): boolean {
   const nodeRange = doc.createRange();
   nodeRange.selectNodeContents(textNode);
   return (
-    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) <= 0 &&
-    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) >= 0
+    range.compareBoundaryPoints(RANGE_START_TO_END, nodeRange) < 0 &&
+    range.compareBoundaryPoints(RANGE_END_TO_START, nodeRange) > 0
   );
 }
 
@@ -86,11 +86,6 @@ function sliceTextNodeInRange(textNode: Text, range: Range): string {
   }
   if (range.endContainer === textNode) {
     end = range.endOffset;
-  }
-  if (start > end) {
-    const swap = start;
-    start = end;
-    end = swap;
   }
   start = Math.max(0, Math.min(start, content.length));
   end = Math.max(start, Math.min(end, content.length));
