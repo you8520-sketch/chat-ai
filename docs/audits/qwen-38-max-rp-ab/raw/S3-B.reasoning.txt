@@ -1,0 +1,457 @@
+We need answer in Korean, 3200+ characters likely. Need continue scene. User input: B (렌) says "음…조금만.나 길 잘 모르거든." while gripping bag strap. Need co-narrate minor actions only. Need third person POV for AI character 조태형, no first-person narration outside dialogue. Need no markdown/RP symbols except 「」 for world terms? Avoid. Dialogue separate paragraphs. Need not godmod. Need active 조태형. Need maintain canon: Aegis HQ, sentinel/guide, electronic choker, tinnitus calms near Ren? Important: 렌 곁에서는 이명이 가라앉는다. But first meeting? He may notice. Need not overdo. Need 3200 characters Korean. Need likely scene: 조태형 offers to guide, observes, banter, maybe walk through lobby, asks name? User hasn't given name? Persona is 렌, but maybe he hasn't introduced. We can have 태형 ask or infer? Cannot decide user name. Could call "너"? Need not use user? Dialogue: 태형 can say "길치?" etc. Need avoid forcing user decisions. End with prompt/open action, not summary. Need not use stage directions. Need no English. Need Korean only except proper nouns? Aegis maybe 에이지스. Need no snake_case. Need ensure no first-person narration: check for 나/내 in narration except dialogue. Use 조태형, 그, 태형. Need no "그녀" for user; user male. Use 렌 maybe if known? He hasn't introduced, but persona name known to system; can character know? Maybe not. Could use "그" or "렌"? If he doesn't know name, shouldn't call by name unless hears. But user persona is 이름/호칭 렌. Could another NPC call? But scene only. Better not have 태형 know name unless badge? He observes maybe ID? But if first meeting, he can ask. We can have 태형 notice a temporary pass? But not force. Could say "이름은?" and wait. Need not decide. We can include his inner observation. Need long. Let's plan scene.
+
+Start immediately after user's line: He grips bag strap and says little, lost. 태형 reacts. He notices the grip, the hesitance. He might smile. Offers guide. He may step slightly closer but respect space. Dialogue: "조금만? 그게 더 위험한데." etc. He can introduce himself? Since user may not know. "나 조태형. S급..." but setting says don't list settings. Natural: "태형. 조태형. 길 안내 정도는 해주지." Maybe rank not needed. He can tease. He may notice quiet near user: tinnitus lessens. Need subtle. He has electronic choker. He might touch it. The calm is surprising. He might think it's placebo. He can propose to go somewhere: "어디 가려던 참이었어?" But user said doesn't know way. Need ask destination. Could infer from bag? Maybe support bureau? He can say "지원국? 동기화 챔버?" But not force. He can walk along if user agrees? User said "조금만" maybe asking for little help? It's ambiguous: "음…조금만. 나 길 잘 모르거든." Could be response to "이름?" maybe "조금만"? Maybe he asks name, user says little? Actually user line: "음…조금만.나 길 잘 모르거든." Could mean "wait a little, I don't know my way around." So 태형 can respond. Need not decide user's destination. He can ask. Need maybe guide to central lobby directory. He can lead to map or ask. Need maintain active.
+
+Need length 3200+ Korean characters. That's substantial. Need rich scene. Could include environment, people passing, 태형's senses, tinnitus, choker, observation of 렌. Need not overexplain. Need maybe introduce NPC? Could have support staff call him, but focus. Need no closing summary. End with 태형 doing something/asking, leaving user to respond.
+
+Potential structure:
+1. After line, 태형 catches the grip on bag strap. He notes small tension. His smile deepens but not mocking.
+2. He says: "조금만?" Teasing. "길 잃으면 여기서 하루도 못 버텨." He pushes off desk.
+3. He glances around, maybe sees directory. He asks destination: "어디 가는데? 지원국? 의무실? 동기화 챔버?" but not too many. He observes reaction.
+4. As he steps nearer, the tinnitus that usually rings like a thin wire fades. He notices. He touches choker. He glances at user. Maybe says something casual to hide. "너 옆에 있으니까 좀 조용하네." But too direct? Could be internal. Need not reveal too soon? But canon: 렌 곁에서 이명 가라앉는다. He might notice if near. It can be a key observation. Use as subtle.
+5. He offers: "일단 로비 안내판까지 가자." He starts walking but checks if user follows. He may not grab. He can keep distance.
+6. They move through lobby. Describe autumn light, sounds. He chats: "에이지스가 크긴 하지. 처음엔 다들 길 잃어." Maybe asks name indirectly: "그래서, 길 잃은 손님은 이름이?" But user may answer. Need not assume.
+7. Some NPC passes, greets him: "조태형, 또 사고 치지 마." He replies. Shows social. Maybe a staff calls: "센티넬 조태형, 대기?" He waves off. Could create urgency? But don't force.
+8. He notices user's bag strap grip, maybe asks if heavy? Not controlling. He can adjust pace.
+9. At directory, he points. But if user doesn't know destination, he can ask: "모르면 누가 불렀는지부터 말해." Good.
+10. He might sense calm, wants to stay near. He proposes to accompany: "어차피 나 비었어. 데려다줄게." Active.
+11. End with he looks at user, waiting. Maybe hand in pocket, green eyes. "어디로 모실까." Open.
+
+Need ensure 3200 characters. Let's draft in Korean. Need no first-person narration outside dialogue. But dialogue can have 나. Need check no narration with "나는". Use "조태형은", "그는", "태형". Need avoid "자신" maybe okay? Third person. Use "자기" not first pronoun? Fine.
+
+Need dialogue separate paragraphs. Each spoken line own paragraph. No appending to narration. Need no markdown. Use Korean quotation marks “ ” or "". Prompt says "…" but can use double quotes? It says dialogue as "…" maybe. Use Korean double quotes? We can use “ ” maybe. But it says "…" spoken dialogue = own paragraph. To be safe use double quotes "". But Korean RP often uses “”. Either okay. Need not use * or parentheses.
+
+Need no foreign words? "에이지스" Korean transliteration okay. "S급" includes English letter? It's canon. Probably okay? It says foreign language mixing prohibited except proper nouns/skill names. S급 maybe allowed? But to be safe avoid "S급"? Canon says S급. Could use "특수계"? But not necessary. Avoid English letters. Use "특수계" maybe. But canon has electronic choker. Need no Cyrillic. Fine.
+
+Need 3200 characters. Let's estimate. Need maybe 2000? We can produce long. Need count? We can aim ~3500-4000. Need ensure not too long? final answer only. Let's compose carefully.
+
+Potential final:
+
+가방 끈을 쥔 손끝에 힘이 들어간 것을 조태형은 놓치지 않았다. 말은 조금만이라고 했지만, 그 조금만이 얼마나 애매한지 아는 눈치였다. 그는 데스크에서 등을 떼며 느긋하게 웃었다.
+
+"조금만?"
+
+그가 한 발짝 가까이 다가왔다. 지나치게 붙지는 않았지만, 도망칠 틈을 만들 만큼 멀지도 않은 거리였다.
+
+"여기서 조금만이 제일 위험해. 복도 하나 잘못 들면 지원국 대신 훈련장이고, 훈련장 잘못 들어가면 가이드들 체력 측정 한복판이야."
+
+... Need include tinnitus. He tilts head. Maybe a faint ringing. As he nears, it lessens. He touches choker. Need not overexplain.
+
+Need ensure user male: "그" for user? Better use "렌" if known? He doesn't know. Could say "상대" but avoid repeated. Use "그 사람"? But user is male. "그" can be ambiguous but okay. Need not describe body. Use "소년"? No. Maybe "그". Need avoid female. Could use "렌" in narration? If character doesn't know, but narrator can know? Third-person can know user's name? It says user persona reference owner: can use 렌. But if character hasn't learned, narration can still call 렌? It says 지문에서 [B]는 "렌", 대명사... use. So can use 렌 even if character doesn't know? Yes narrator can. But if we want natural, use 렌 after some point. But character doesn't know name, but narration can. It's okay. However if he hasn't introduced, using 렌 may be omniscient. Allowed? User persona name. Could use "렌" in narration to avoid pronoun. But if 태형 asks name, maybe not yet. We can use "그" until he asks. But need male. Use "그". Fine.
+
+Need no godmod: cannot narrate user's dialogue/decisions. Can narrate grip already given, maybe gaze? Only minor. We can say "가방 끈을 쥔 손끝이 희게 질렸다" maybe too much? It's involuntary, okay but maybe not over. Better not add emotion. We can observe "손가락 마디가 단단히 고정된 것". Fine.
+
+Need active: 태형 offers. Need maybe not ask too many questions. He can guide to directory. Need ask destination. If user doesn't know, he can suggest finding someone. Need not assume.
+
+Let's write with rich sensory. Need no "하지만 그것도 찰나" style? Avoid. Need varied sentence starts. Need not use short fragment chains. Need natural.
+
+Draft in Korean:
+
+가방 끈을 쥔 손끝에 힘이 들어간 것을 조태형은 놓치지 않았다. 말은 조금만이라고 했지만, 그 조금만이 얼마나 애매한지 아는 눈치였다. 그는 데스크에서 등을 떼며 느긋하게 웃었다.
+
+"조금만?"
+
+그가 한 발짝 가까이 다가왔다. 지나치게 붙지는 않았지만, 도망칠 틈을 만들 만큼 멀지도 않은 거리였다.
+
+"여기서 조금만이 제일 위험해. 복도 하나 잘못 들면 지원국 대신 훈련장이고, 훈련장 잘못 들어가면 가이드들 체력 측정 한복판이야."
+
+태형은 말하면서도 로비 천장에 매달린 안내 표지판을 흘끗 확인했다. 지원국, 동기화 챔버, 의무동, 중앙 통제실. 글자들은 질서 정연하게 붙어 있었지만, 처음 오는 사람에게 그 질서는 오히려 더 마음을 급하게 만드는 법이었다.
+
+"길 모르면 말해야지. 에이지스에서 길 잃은 사람 치고 무사히 제시간에 도착한 경우, 내가 아직 못 봤거든."
+
+그가 가볍게 어깨를 으쓱였다. 검은 네일이 발린 손가락이 목 뒤로 돌아가 전자 초커의 가장자리를 무심하게 건드렸다. 순간, 아주 미세하게 귀 안쪽을 긁던 이명이 낮아졌다. 태형의 눈꺼풀이 잠깐 느리게 감겼다 떠졌다. 착각인가. 평소엔 사람 많은 로비에서 더 심해질 때가 많았다. 소란이 파도처럼 밀려들면 머릿속 어딘가에서 얇은 금속선이 떨리는 소리가 났다. 그런데 지금은, 이상하게도 조용했다.
+
+그의 시선이 다시 렌 쪽으로 돌아왔다. 정확히는 렌의 얼굴과, 가방 끈을 잡은 손, 그리고 발끝이 향한 방향을 차례로 살폈다. 누군가를 찾는 중인지, 어디에 불려온 건지, 아니면 그냥 로비에서 멈춘 건지. 관찰은 숨 쉬듯 자연스러웠다.
+
+"일단 서 있지 말고. 어디 가게?"
+
+태형은 손을 들어 로비 한쪽의 대형 안내판 쪽을 가리켰다.
+
+"저기까지 같이 가 주지. 가서도 모르겠으면, 누가 불렀는지부터 말해. 부서 이름이든, 사람 이름이든, 아니면 쪽지 같은 거 받았으면 그것도."
+
+그는 이미 반 걸음 먼저 움직이면서도, 렌이 따라오는지 확인하기 위해 고개를 살짝 돌렸다. 가을빛이 통유리창을 넘어 바닥에 길게 깔렸다. 지나가던 행정 직원이 태형을 보고 가볍게 목례했다. 태형도 손을 들어 답했다. 낯익은 얼굴들이 스쳐 지나갔지만, 그는 지금 옆의 조용한 쪽에 더 신경을 쓰고 있었다.
+
+"처음엔 다들 그래. 본부가 좀 과하게 넓긴 하지. 층마다 구조도 조금씩 다르고. 왼쪽 복도랑 오른쪽 복도 벽 색이 비슷해서 더 헷갈려."
+
+말투는 장난스러웠지만, 속도는 렌의 걸음에 맞춰 천천히 줄어들었다. 태형은 일부러 안내판 바로 앞까지 가지 않고, 로비 중앙의 화분 옆에서 멈췄다. 사람이 몰리는 자리를 피한 셈이었다.
+
+"그래서. 이름은?"
+
+그가 고개를 약간 기울였다. 녹색 눈동자가 햇살을 받아 옅은 유리알처럼 빛났다.
+
+"길 안내해 주려면 최소한 이름은 알아야지. 내가 길 잃은 사람한테 계속 '거기'라고 부를 수는 없잖아."
+
+잠시 사이를 두고, 태형은 피식 웃었다.
+
+"아, 나는 조태형. 특수계. 너보다는 이 건물 좀 더 돌아다닌 사람."
+
+그가 손을 주머니에 꽂았다가, 다시 빼서 안내판의 층별 약도를 가리켰다.
+
+"지원국이면 이쪽, 동기화 챔버는 저쪽, 의무동은 반대편. 근데 네가 어디인지 모르겠으면, 일단 여기서부터 같이 찾아야지."
+
+그 말과 함께, 태형은 아주 짧게 숨을 들이마셨다. 귀 안이 여전히 조용했다. 사람 많은 로비 특유의 소음은 남아 있는데, 그 안쪽에서 늘 붙어 있던 날카로운 잔음만 빠져 있었다. 그는 그 사실을 입 밖으로 내는 대신, 전자 초커의 단단한 테두리를 손끝으로 한 번 더 문질렀다.
+
+"너 옆에 있으니까 좀 조용하네."
+
+농담처럼 던진 말이었으나, 어조 끝이 아주 약간 낮아졌다. 태형은 곧바로 표정을 바꾸며 웃었다.
+
+"아니면 내가 오늘 컨디션이 좋거나. 둘 중 하나지."
+
+로비 반대편에서 무전음이 짧게 터졌다. 누군가 조태형의 이름을 부르는 소리도 섞여 있었다. 그는 고개만 돌려 그쪽을 확인하고는, 다시 렌을 보았다.
+
+"급한 호출 아니면 무시해도 돼. 지금은 길 잃은 사람 건지는 게 더 급하니까."
+
+그가 한 손으로 안내판 아래 빈 공간을 톡톡 두드렸다.
+
+"여기 서서 하나씩 가 보자. 누가 불렀어? 아니면 뭘 하러 왔는데?"
+
+질문은 단순했지만, 태형의 눈은 단순하지 않았다. 장난처럼 휘어진 눈매 안쪽에서, 그는 렌의 다음 말과 손끝의 힘, 시선이 머무는 방향을 놓치지 않았다. 로비의 소음이 천천히 흘러갔고, 가을 햇살은 두 사람의 발밑에서 길게 겹쳤다. 태형은 대답을 재촉하지 않았다. 다만, 기다리는 동안에도 그 자리에서 물러나지 않았다.
+
+Need check length. This is around maybe 2500? Need 3200+ Korean characters. Need expand. Add more scene, maybe walk, more internal, NPC interaction, sensory. Need ensure no first-person narration. In dialogue: "내가" okay. Need check narration: "그는", "태형". No "자기"? I used "그의". Good.
+
+Need maybe include user name 렌? I used 렌 once: "렌 쪽으로", "렌의", "렌이", "렌을". That's okay. Need ensure male? No gendered. Good.
+
+Need avoid "상대" repeated? I didn't. Good.
+
+Need no markdown. Good.
+
+Need maybe 3200 characters. Let's count roughly. Korean char count. The draft: let's estimate by paragraphs.
+P1: 가방 ... 눈치였다. (around 60) + 그는 ... 웃었다 (20) =80.
+Dialogue 조금만? 6.
+P2: 그가 ... 거리였다. 50.
+Dialogue: 여기서... 70.
+P3: 태형은 ... 법이었다. 120.
+P4: 길 모르면... 70.
+P5: 그가 ... 감겼다 떠졌다. 120. 착각인가... 80. 그런데... 30. total 230.
+P6: 그의 시선... 자연스러웠다. 100.
+Dialogue: 일단... 10.
+P7: 태형은 ... 가리켰다. 20.
+Dialogue: 저기까지... 70.
+P8: 그는 ... 쓰고 있었다. 90.
+Dialogue: 처음엔... 60.
+P9: 말투는 ... 멈췄다. 50.
+Dialogue: 그래서. 이름은? 10.
+P10: 그가 ... 빛났다. 30.
+Dialogue: 길 안내해 ... 없잖아. 50.
+P11: 잠시 ... 웃었다. 10.
+Dialogue: 아, 나는 조태형... 40.
+P12: 그가 ... 가리켰다. 20.
+Dialogue: 지원국이면... 50.
+P13: 그 말과 ... 문질렀다. 100.
+Dialogue: 너 옆에... 20.
+P14: 농담처럼... 웃었다. 30.
+Dialogue: 아니면... 20.
+P15: 로비 ... 렌을 보았다. 60.
+Dialogue: 급한 호출... 40.
+P16: 그가 ... 두드렸다. 20.
+Dialogue: 여기 서서... 30.
+P17: 질문은 ... 겹쳤다. 80. 태형은 ... 않았다. 30.
+Total maybe 2000? Need more. Need 3200+. Let's expand significantly. Add more environmental detail, more interaction, maybe a passing guide recognizes him, he deflects. He can notice user's bag, maybe asks if has appointment slip. Need not assume. He can guide through moving corridor? Need keep scene in lobby maybe. Need enough.
+
+Need final answer only. Let's produce expanded version. Need maintain quality. Could add:
+- After initial offer, he notices a badge or lack thereof. Maybe asks if has pass. But not force.
+- He walks to directory, points out colors. He mentions Aegis layout: central lobby, support bureau, sync chamber. But avoid setting listing. Natural.
+- He hears tinnitus calm, inner conflict: high-risk sentinel, tinnitus, choker. He might think of guide? But not mention too much. Could be subtle.
+- He tests distance: steps aside, ringing returns? Maybe he shifts half step, sound faintly returns, then closer calms. That would be interesting. Need not force user. He can pretend to look at board, adjusting position. This shows canon. But careful not to make user special without reason? Canon says near Ren calms. It's okay.
+- He may offer a temporary escort pass? Not decide.
+- He can ask destination in multiple ways.
+- End open.
+
+Need ensure no "first-person" narration. In dialogue can have "나". Good.
+
+Need no stage directions. Good.
+
+Need maybe use "음…조금만. 나 길 잘 모르거든." User said with spacing. We respond from change.
+
+Let's craft final with 3500+ chars. I can write longer. Need count maybe 4000. Let's draft final fully.
+
+Potential final:
+
+가방 끈을 쥔 손끝에 힘이 들어간 것을 조태형은 놓치지 않았다. 말은 조금만이라고 했지만, 그 조금만이 얼마나 애매한지 아는 눈치였다. 그는 데스크에서 등을 떼며 느긋하게 웃었다.
+
+"조금만?"
+
+그가 한 발짝 가까이 다가왔다. 지나치게 붙지는 않았지만, 도망칠 틈을 만들 만큼 멀지도 않은 거리였다.
+
+"여기서 조금만이 제일 위험해. 복도 하나 잘못 들면 지원국 대신 훈련장이고, 훈련장 잘못 들어가면 가이드들 체력 측정 한복판이야. 거기서 멍하니 서 있으면 기록 측정판에 같이 올라가."
+
+태형은 말하면서도 로비 천장에 매달린 안내 표지판을 흘끗 확인했다. 지원국, 동기화 챔버, 의무동, 중앙 통제실. 글자들은 질서 정연하게 붙어 있었지만, 처음 오는 사람에게 그 질서는 오히려 더 마음을 급하게 만드는 법이었다. 특히 에이지스 본부는 로비 하나만 해도 작은 광장처럼 넓었고, 층마다 복도의 꺾이는 방향이 미묘하게 달랐다.
+
+"길 모르면 말해야지. 에이지스에서 길 잃은 사람 치고 무사히 제시간에 도착한 경우, 내가 아직 못 봤거든."
+
+그가 가볍게 어깨를 으쓱였다. 검은 네일이 발린 손가락이 목 뒤로 돌아가 전자 초커의 가장자리를 무심하게 건드렸다. 순간, 아주 미세하게 귀 안쪽을 긁던 이명이 낮아졌다. 태형의 눈꺼풀이 잠깐 느리게 감겼다 떠졌다. 착각인가. 평소엔 사람 많은 로비에서 더 심해질 때가 많았다. 소란이 파도처럼 밀려들면 머릿속 어딘가에서 얇은 금속선이 떨리는 소리가 났다. 그런데 지금은, 이상하게도 조용했다.
+
+그의 시선이 다시 렌 쪽으로 돌아왔다. 정확히는 렌의 얼굴과, 가방 끈을 잡은 손, 그리고 발끝이 향한 방향을 차례로 살폈다. 누군가를 찾는 중인지, 어디에 불려온 건지, 아니면 그냥 로비에서 멈춘 건지. 관찰은 숨 쉬듯 자연스러웠다. 태형은 그걸 숨길 생각도 없었다.
+
+"일단 서 있지 말고. 어디 가게?"
+
+태형은 손을 들어 로비 한쪽의 대형 안내판 쪽을 가리켰다.
+
+"저기까지 같이 가 주지. 가서도 모르겠으면, 누가 불렀는지부터 말해. 부서 이름이든, 사람 이름이든, 아니면 쪽지 같은 거 받았으면 그것도."
+
+그는 이미 반 걸음 먼저 움직이면서도, 렌이 따라오는지 확인하기 위해 고개를 살짝 돌렸다. 가을빛이 통유리창을 넘어 바닥에 길게 깔렸다. 지나가던 행정 직원이 태형을 보고 가볍게 목례했다. 태형도 손을 들어 답했다. 낯익은 얼굴들이 스쳐 지나갔지만, 그는 지금 옆의 조용한 쪽에 더 신경을 쓰고 있었다.
+
+"처음엔 다들 그래. 본부가 좀 과하게 넓긴 하지. 층마다 구조도 조금씩 다르고. 왼쪽 복도랑 오른쪽 복도 벽 색이 비슷해서 더 헷갈려."
+
+말투는 장난스러웠지만, 속도는 렌의 걸음에 맞춰 천천히 줄어들었다. 태형은 일부러 안내판 바로 앞까지 가지 않고, 로비 중앙의 화분 옆에서 멈췄다. 사람이 몰리는 자리를 피한 셈이었다. 화분 잎사귀 사이로 볕이 부서져 내렸다. 초록 그림자가 바닥에 잘게 흔들렸다.
+
+"그래서. 이름은?"
+
+그가 고개를 약간 기울였다. 녹색 눈동자가 햇살을 받아 옅은 유리알처럼 빛났다.
+
+"길 안내해 주려면 최소한 이름은 알아야지. 내가 길 잃은 사람한테 계속 '거기'라고 부를 수는 없잖아."
+
+잠시 사이를 두고, 태형은 피식 웃었다.
+
+"아, 나는 조태형. 특수계. 너보다는 이 건물 좀 더 돌아다닌 사람."
+
+그가 손을 주머니에 꽂았다가, 다시 빼서 안내판의 층별 약도를 가리켰다.
+
+"지원국이면 이쪽, 동기화 챔버는 저쪽, 의무동은 반대편. 근데 네가 어디인지 모르겠으면, 일단 여기서부터 같이 찾아야지."
+
+그 말과 함께, 태형은 아주 짧게 숨을 들이마셨다. 귀 안이 여전히 조용했다. 사람 많은 로비 특유의 소음은 남아 있는데, 그 안쪽에서 늘 붙어 있던 날카로운 잔음만 빠져 있었다. 그는 그 사실을 입 밖으로 내는 대신, 전자 초커의 단단한 테두리를 손끝으로 한 번 더 문질렀다.
+
+"너 옆에 있으니까 좀 조용하네."
+
+농담처럼 던진 말이었으나, 어조 끝이 아주 약간 낮아졌다. 태형은 곧바로 표정을 바꾸며 웃었다.
+
+"아니면 내가 오늘 컨디션이 좋거나. 둘 중 하나지."
+
+로비 반대편에서 무전음이 짧게 터졌다. 누군가 조태형의 이름을 부르는 소리도 섞여 있었다. 그는 고개만 돌려 그쪽을 확인하고는, 다시 렌을 보았다.
+
+"급한 호출 아니면 무시해도 돼. 지금은 길 잃은 사람 건지는 게 더 급하니까."
+
+그가 한 손으로 안내판 아래 빈 공간을 톡톡 두드렸다.
+
+"여기 서서 하나씩 가 보자. 누가 불렀어? 아니면 뭘 하러 왔는데?"
+
+Need add more after this to reach length. Continue scene: maybe he notices if he steps away, tinnitus returns. He shifts to test. Need not overdo. Add passing NPC: guide or staff asks about escort. He deflects. He asks user if has bag heavy? Maybe not. He can suggest sitting? But user lost, maybe standing. Need not force.
+
+Add:
+
+질문은 단순했지만, 태형의 눈은 단순하지 않았다. 장난처럼 휘어진 눈매 안쪽에서, 그는 렌의 다음 말과 손끝의 힘, 시선이 머무는 방향을 놓치지 않았다. 로비의 소음이 천천히 흘러갔고, 가을 햇살은 두 사람의 발밑에서 길게 겹쳤다. 태형은 대답을 재촉하지 않았다. 다만, 기다리는 동안에도 그 자리에서 물러나지 않았다.
+
+Then add more: He shifts half step to side to see board, ringing returns faintly. He returns. Internal. He might comment: "이상하네." Then asks maybe "혹시 오늘 처음 왔어?" But user may answer. Need not assume. Could ask multiple. Need keep open.
+
+Add:
+
+그는 안내판의 한 칸을 손가락으로 짚은 채로 슬쩍 옆으로 비켜 섰다. 로비 안내 데스크 쪽에서 흘러나온 목소리가 귀에 닿는 순간, 아주 얇은 소음이 다시 귀 안쪽을 긁었다. 태형의 눈썹이 미세하게 꿈틀했다. 그는 아무 일도 아닌 척 다시 반 걸음 렌 쪽으로 돌아왔다. 그러자 날카로운 끝이 다시 흐려졌다.
+
+"……."
+
+짧은 침묵이 지나갔다. 태형은 입술 안쪽을 한 번 깨물었다가, 이내 느슨하게 풀었다.
+
+"이 건물, 진짜 이상하지 않아?"
+
+그가 별일 아니라는 듯 웃으며 말했다.
+
+"분명히 길은 반듯한데, 사람은 꼭 한 번씩 멈추게 돼."
+
+지나가던 연구원 한 명이 태형을 알아보고 고개를 숙였다. 태형은 손을 들어 가볍게 답례했다. 연구원의 시선이 렌에게 잠시 머물렀다가 다시 멀어졌다. 태형은 그 시선을 눈치채고도 모른 척했다. 에이지스에서는 낯선 얼굴을 향한 호기심이 오래 머무는 법이 없었다. 다들 제 할 일에 바빴고, 남의 사정은 복도 모퉁이만큼이나 빨리 스쳐 지나갔다.
+
+"가방은 무겁지?"
+
+그가 불쑥 물었다.
+
+"들고 돌아다니기 힘들면 로비 보관함 쪽도 알아. 물론 네가 괜찮으면 그냥 들고 가도 되고."
+
+태형은 손을 들어 로비 한쪽의 낮은 보관함 벽을 가리켰다. метал? no foreign. Use 금속. But no Russian. Need avoid "метал". Write "금속". Good.
+
+"번호 누르는 방식이라 복잡하지 않아. 분실 표지만 잘 받으면 돼."
+
+그는 렌이 대답하기 전에 너무 많은 선택지를 늘어놓지 않으려는 듯, 바로 말을 이었다.
+
+"아니면 그냥 가자. 안내판 보고도 모르겠으면, 내가 같이 움직여 줄게."
+
+Need maybe ask destination again. Add:
+
+"어디로 모실까."
+
+그의 목소리가 조금 낮고 느긋해졌다.
+
+"지원국? 동기화 챔버? 의무동? 아니면 사람 이름? 아무거나 말해. 모르겠으면 모르겠다고 해도 돼. 그건 그것대로 방법이 있으니까."
+
+Need maybe not too many questions. End with waiting. Could add sensory pause.
+
+로비 천장의 조명이 한 번 아주 희미하게 깜빡였다. 가을 해는 조금씩 기울어, 창가의 붉은 단풍잎이 바닥에 더 진한 그림자를 떨어뜨렸다. 누군가의 구둣발 소리, 무전기에서 새는 낮은 잡음, 서류철이 부딪치는 작은 소리. 그 모든 것 사이에서 조태형은 렌의 대답을 기다렸다. 그의 손가락이 안내판의 가장자리를 천천히 두 번 두드렸다. 초커의 작은 표시등이 조명 아래서 푸르게 반짝였다.
+
+"너무 오래 서 있으면 더 헷갈려. 한 칸만 가 보자."
+
+그가 먼저 발을 떼려다 말고, 렌 쪽을 돌아보았다.
+
+"어디부터 갈래?"
+
+This is open. Need ensure not force user movement. "먼저 발을 떼려다 말고" okay.
+
+Need total length maybe 3500. Let's count roughly maybe enough? Need 3200 Korean chars. The draft plus additions likely 3800. Good.
+
+Need check rules:
+- No first-person narration. I see "그의", "태형". No narration with 나. In dialogue: "내가", "나는", "내가" okay. Need check "자기" none. Good.
+- No markdown. Good.
+- Dialogue separate paragraphs. Yes.
+- No stage directions. Good.
+- No foreign language: "에이지스" okay proper noun? It's Korean transliteration. "S급" avoided. "로비" etc. No English letters? Maybe "ID" no. Good.
+- No snake_case. Good.
+- No system terms. Good.
+- No "상대" repeated. I used 렌. Good.
+- No godmod: I didn't narrate user's response. I narrated only given grip and maybe "렌의 다음 말" not actual. Good. Did I narrate "렌이 따라오는지" not action. Good. Did I say "렌의 얼굴" observation. Fine.
+- Need not list setting. Some mention of departments but natural. Fine.
+- Need no "하지만 그것도 찰나". I didn't. Good.
+- Need no "……" six dots? I used "……." maybe one ellipsis? Prompt says ...... 금지. I used "……." (six? Korean ellipsis often six dots). Better avoid ellipsis entirely. Remove. Replace with short silence. Need no ... unless hesitation actual. User used … but we can avoid. Replace "……." with "짧은 침묵이 지나갔다." Good. Also user line had … but we don't repeat. Need ensure no ellipsis in final. Remove any "...". I had "……." remove.
+- Need no "말줄임 ... 은 망설임... 실제 있을 때만". Better none.
+- Need no one-sentence paragraphs too many? We have some. It's okay if emphasis. But need semantic paragraphing. Dialogue own paragraphs. Narration can be multiple sentences. Good.
+- Need no "그는" starting too many? Check rhythm. Could vary. Fine.
+- Need no translation style fragments. Good.
+- Need no "이것은 ~가 아니었다" abstract. I have "착각인가." maybe okay. "농담처럼 던진 말이었으나" okay? It's not explaining meaning? Could be okay. But avoid "이것은 ~라는 뜻". Fine.
+- Need no "말투는 장난스러웠지만" maybe speech metadata? It narrates tone. The rule says speech metadata invisible; don't narrate register? It forbids narrating honorific level, speech register, labels. "말투는 장난스러웠지만" might be describing tone, maybe okay? It says 말투/레지스터 규칙은 대사로만 반영, 말투 규칙명이나 내부명 말하지 말라. But narrating "말투는 장난스러웠지만" could be borderline. Better remove or rephrase to action. Instead: "태형의 목소리는 가벼웠지만, 속도는..." But tone? Maybe okay but to be safe, avoid explicit "말투". Use "목소리는 장난스러웠지만"? Still tone. Better show through dialogue. But can describe pace. Let's change: "속도는 렌의 걸음에 맞춰 천천히 줄어들었다." Remove 말투. Need not mention. Good.
+- "농담처럼 던진 말이었으나" maybe explains. Could keep? It's okay but maybe remove. Use "어조 끝이 아주 약간 낮아졌다." That's tone. Hmm. Speech metadata invisible: don't narrate tone? It says 말투·존댓말·register·tone·어조는 대사 생성에만 적용. 서사·지문에서 언급·설명하지 않는다. Specifically forbidden narrating honorific level, speech register, labels. It doesn't forbid all tone? But says speech metadata invisible. Maybe avoid explicit "어조". Better: "그 말이 농담처럼 들리지는 않았다." That's interpretation. Could be okay. But to be safe, show by action: "태형은 곧바로 표정을 바꾸며 웃었다." Remove "어조". Need not say. For "농담처럼 던진 말이었으나" maybe okay but could be meta. Let's adjust:
+"너 옆에 있으니까 좀 조용하네."
+그 말이 나온 뒤, 태형은 잠시 입을 다물었다. 곧바로 표정을 바꾸며 웃었다.
+"아니면 내가 오늘 컨디션이 좋거나. 둘 중 하나지."
+No tone mention.
+- "목소리가 조금 낮고 느긋해졌다" also tone. Avoid. Use action: "그가 한 박자 쉬고 말했다." But that's still? We can just dialogue.
+- "질문은 단순했지만, 태형의 눈은 단순하지 않았다." okay.
+- "말은 조금만이라고 했지만" okay.
+
+Need ensure no "그의 시선이 다시 렌 쪽으로 돌아왔다." okay.
+
+Need maybe include "이명" as internal sensation. Allowed. It's character knowledge. Good.
+
+Need not mention "캐릭터 canon"? no.
+
+Need final in Korean. Let's assemble final with corrections.
+
+Let's rewrite final cleanly:
+
+가방 끈을 쥔 손끝에 힘이 들어간 것을 조태형은 놓치지 않았다. 말은 조금만이라고 했지만, 그 조금만이 얼마나 애매한지 아는 눈치였다. 그는 데스크에서 등을 떼며 느긋하게 웃었다.
+
+"조금만?"
+
+그가 한 발짝 가까이 다가왔다. 지나치게 붙지는 않았지만, 도망칠 틈을 만들 만큼 멀지도 않은 거리였다.
+
+"여기서 조금만이 제일 위험해. 복도 하나 잘못 들면 지원국 대신 훈련장이고, 훈련장 잘못 들어가면 가이드들 체력 측정 한복판이야. 거기서 멍하니 서 있으면 기록 측정판에 같이 올라가."
+
+태형은 말하면서도 로비 천장에 매달린 안내 표지판을 흘끗 확인했다. 지원국, 동기화 챔버, 의무동, 중앙 통제실. 글자들은 질서 정연하게 붙어 있었지만, 처음 오는 사람에게 그 질서는 오히려 더 마음을 급하게 만드는 법이었다. 특히 에이지스 본부는 로비 하나만 해도 작은 광장처럼 넓었고, 층마다 복도의 꺾이는 방향이 미묘하게 달랐다.
+
+"길 모르면 말해야지. 에이지스에서 길 잃은 사람 치고 무사히 제시간에 도착한 경우, 내가 아직 못 봤거든."
+
+그가 가볍게 어깨를 으쓱였다. 검은 네일이 발린 손가락이 목 뒤로 돌아가 전자 초커의 가장자리를 무심하게 건드렸다. 순간, 아주 미세하게 귀 안쪽을 긁던 이명이 낮아졌다. 태형의 눈꺼풀이 잠깐 느리게 감겼다 떠졌다. 착각인가. 평소엔 사람 많은 로비에서 더 심해질 때가 많았다. 소란이 파도처럼 밀려들면 머릿속 어딘가에서 얇은 금속선이 떨리는 소리가 났다. 그런데 지금은, 이상하게도 조용했다.
+
+그의 시선이 다시 렌 쪽으로 돌아왔다. 정확히는 렌의 얼굴과, 가방 끈을 잡은 손, 그리고 발끝이 향한 방향을 차례로 살폈다. 누군가를 찾는 중인지, 어디에 불려온 건지, 아니면 그냥 로비에서 멈춘 건지. 관찰은 숨 쉬듯 자연스러웠다. 태형은 그걸 숨길 생각도 없었다.
+
+"일단 서 있지 말고. 어디 가게?"
+
+태형은 손을 들어 로비 한쪽의 대형 안내판 쪽을 가리켰다.
+
+"저기까지 같이 가 주지. 가서도 모르겠으면, 누가 불렀는지부터 말해. 부서 이름이든, 사람 이름이든, 아니면 쪽지 같은 거 받았으면 그것도."
+
+그는 이미 반 걸음 먼저 움직이면서도, 렌이 따라오는지 확인하기 위해 고개를 살짝 돌렸다. 가을빛이 통유리창을 넘어 바닥에 길게 깔렸다. 지나가던 행정 직원이 태형을 보고 가볍게 목례했다. 태형도 손을 들어 답했다. 낯익은 얼굴들이 스쳐 지나갔지만, 그는 지금 옆의 조용한 쪽에 더 신경을 쓰고 있었다.
+
+"처음엔 다들 그래. 본부가 좀 과하게 넓긴 하지. 층마다 구조도 조금씩 다르고. 왼쪽 복도랑 오른쪽 복도 벽 색이 비슷해서 더 헷갈려."
+
+속도는 렌의 걸음에 맞춰 천천히 줄어들었다. 태형은 일부러 안내판 바로 앞까지 가지 않고, 로비 중앙의 화분 옆에서 멈췄다. 사람이 몰리는 자리를 피한 셈이었다. 화분 잎사귀 사이로 볕이 부서져 내렸다. 초록 그림자가 바닥에 잘게 흔들렸다.
+
+"그래서. 이름은?"
+
+그가 고개를 약간 기울였다. 녹색 눈동자가 햇살을 받아 옅은 유리알처럼 빛났다.
+
+"길 안내해 주려면 최소한 이름은 알아야지. 내가 길 잃은 사람한테 계속 '거기'라고 부를 수는 없잖아."
+
+잠시 사이를 두고, 태형은 피식 웃었다.
+
+"아, 나는 조태형. 특수계. 너보다는 이 건물 좀 더 돌아다닌 사람."
+
+그가 손을 주머니에 꽂았다가, 다시 빼서 안내판의 층별 약도를 가리켰다.
+
+"지원국이면 이쪽, 동기화 챔버는 저쪽, 의무동은 반대편. 근데 네가 어디인지 모르겠으면, 일단 여기서부터 같이 찾아야지."
+
+그 말과 함께, 태형은 아주 짧게 숨을 들이마셨다. 귀 안이 여전히 조용했다. 사람 많은 로비 특유의 소음은 남아 있는데, 그 안쪽에서 늘 붙어 있던 날카로운 잔음만 빠져 있었다. 그는 그 사실을 입 밖으로 내는 대신, 전자 초커의 단단한 테두리를 손끝으로 한 번 더 문질렀다.
+
+"너 옆에 있으니까 좀 조용하네."
+
+그 말이 나온 뒤, 태형은 잠시 입을 다물었다. 곧바로 표정을 바꾸며 웃었다.
+
+"아니면 내가 오늘 컨디션이 좋거나. 둘 중 하나지."
+
+로비 반대편에서 무전음이 짧게 터졌다. 누군가 조태형의 이름을 부르는 소리도 섞여 있었다. 그는 고개만 돌려 그쪽을 확인하고는, 다시 렌을 보았다.
+
+"급한 호출 아니면 무시해도 돼. 지금은 길 잃은 사람 건지는 게 더 급하니까."
+
+그가 한 손으로 안내판 아래 빈 공간을 톡톡 두드렸다.
+
+"여기 서서 하나씩 가 보자. 누가 불렀어? 아니면 뭘 하러 왔는데?"
+
+질문은 단순했지만, 태형의 눈은 단순하지 않았다. 장난처럼 휘어진 눈매 안쪽에서, 그는 렌의 다음 말과 손끝의 힘, 시선이 머무는 방향을 놓치지 않았다. 로비의 소음이 천천히 흘러갔고, 가을 햇살은 두 사람의 발밑에서 길게 겹쳤다. 태형은 대답을 재촉하지 않았다. 다만, 기다리는 동안에도 그 자리에서 물러나지 않았다.
+
+그는 안내판의 한 칸을 손가락으로 짚은 채로 슬쩍 옆으로 비켜 섰다. 로비 안내 데스크 쪽에서 흘러나온 목소리가 귀에 닿는 순간, 아주 얇은 소음이 다시 귀 안쪽을 긁었다. 태형의 눈썹이 미세하게 꿈틀했다. 그는 아무 일도 아닌 척 다시 반 걸음 렌 쪽으로 돌아왔다. 그러자 날카로운 끝이 다시 흐려졌다.
+
+짧은 침묵이 지나갔다. 태형은 입술 안쪽을 한 번 깨물었다가, 이내 느슨하게 풀었다.
+
+"이 건물, 진짜 이상하지 않아?"
+
+그가 별일 아니라는 듯 웃으며 말했다.
+
+"분명히 길은 반듯한데, 사람은 꼭 한 번씩 멈추게 돼."
+
+지나가던 연구원 한 명이 태형을 알아보고 고개를 숙였다. 태형은 손을 들어 가볍게 답례했다. 연구원의 시선이 렌에게 잠시 머물렀다가 다시 멀어졌다. 태형은 그 시선을 눈치채고도 모른 척했다. 에이지스에서는 낯선 얼굴을 향한 호기심이 오래 머무는 법이 없었다. 다들 제 할 일에 바빴고, 남의 사정은 복도 모퉁이만큼이나 빨리 스쳐 지나갔다.
+
+"가방은 무겁지?"
+
+그가 불쑥 물었다.
+
+"들고 돌아다니기 힘들면 로비 보관함 쪽도 알아. 물론 네가 괜찮으면 그냥 들고 가도 되고."
+
+태형은 손을 들어 로비 한쪽의 낮은 보관함 벽을 가리켰다. 번호를 누르는 방식이라 복잡하지 않아 보였다. 분실 표지만 잘 받으면 되는 구조였다.
+
+"아니면 그냥 가자. 안내판 보고도 모르겠으면, 내가 같이 움직여 줄게."
+
+그가 안내판의 층별 약도를 다시 한 번 손끝으로 훑었다. 손가락이 멈춘 곳은 중앙 로비와 연결된 짧은 통로 쪽이었다.
+
+"어디로 모실까."
+
+잠시 숨을 고른 태형이 다시 물었다.
+
+"지원국? 동기화 챔버? 의무동? 아니면 사람 이름? 아무거나 말해. 모르겠으면 모르겠다고 해도 돼. 그건 그것대로 방법이 있으니까."
+
+로비 천장의 조명이 한 번 아주 희미하게 깜빡였다. 가을 해는 조금씩 기울어, 창가의 붉은 단풍잎이 바닥에 더 진한 그림자를 떨어뜨렸다. 누군가의 구둣발 소리, 무전기에서 새는 낮은 잡음, 서류철이 부딪치는 작은 소리. 그 모든 것 사이에서 조태형은 렌의 대답을 기다렸다. 그의 손가락이 안내판의 가장자리를 천천히 두 번 두드렸다. 초커의 작은 표시등이 조명 아래서 푸르게 반짝였다.
+
+"너무 오래 서 있으면 더 헷갈려. 한 칸만 가 보자."
+
+그가 먼저 발을 떼려다 말고, 렌 쪽을 돌아보았다.
+
+"어디부터 갈래?"
+
+Need check no ellipsis. Good. No first-person narration? Let's scan:
+Narration: "그는", "태형", "그가", "그의", "그". Dialogue has 나/내가. Good. One line: "그 말이 나온 뒤" okay. "그는 안내판..." good.
+Potential issue: "그 말이 나온 뒤" maybe refers to dialogue, okay.
+No foreign letters? "에이지스" okay. "로비" okay. No S. Good.
+No markdown. Good.
+Need length: Let's approximate char count. It seems >3200. Could be around 4300. Good.
+Need maybe "분실 표지" maybe natural? Could be "분실 표지만" maybe okay. Maybe "분실 표지만 잘 받으면 되는 구조였다." Good.
+Need maybe "기록 측정판" invented but okay. Could be setting-ish. Fine.
+Need no godmod: Did we narrate "렌이 따라오는지" not actual. Good. "렌의 다음 말" not actual. Good. "가방 끈을 쥔 손끝" given. Good.
+Need maybe user said "나 길 잘 모르거든." We respond. Good.
+Need not close scene. Ends with question. Good.
+
+Potential issue: "그가 먼저 발을 떼려다 말고" implies starting action, okay minor. Not forcing user.
+
+Need final answer only. Ensure no analysis. final in Korean. Need maybe remove any quotes inside dialogue? Fine.
+
+Double-check paragraph separation: Each dialogue line own paragraph, separated by blank line. In final, ensure no dialogue appended to narration. I have "그가 별일 아니라는 듯 웃으며 말했다." then blank line dialogue. Good.
+
+Potential issue: "속도는 렌의 걸음에 맞춰 천천히 줄어들었다." This assumes user walking? User hasn't said moving. But he is standing. Could be potential. Maybe better: "태형은 일부러 안내판 바로 앞까지 가지 않고, 로비 중앙의 화분 옆에서 멈췄다." The speed line might imply 렌 walking. Since user only gripping bag, not moving. Could be co-narration of small movement? Maybe too much. To be safe, change to "태형은 상대의 발끝이 향하는 쪽을 살피며 걸음을 늦췄다." But "상대" avoid. Or "태형은 렌이 움직이면 바로 맞출 수 있게 걸음을 늦췄다." That doesn't assume. Let's adjust:
+"태형은 렌이 움직이면 바로 맞출 수 있게 걸음을 늦췄다. 일부러 안내판 바로 앞까지 가지 않고, 로비 중앙의 화분 옆에서 멈췄다." Good. But if not moving, still okay. Need use 렌. Good.
+
+Also "렌이 따라오는지 확인하기 위해" assumes possible. It's okay as observation, not action. But maybe he hasn't moved. He can still check. Fine.
+
+Need maybe "그는 이미 반 걸음 먼저 움직이면서도" implies he moves. okay.
+
+Potential issue: "그의 시선이 다시 렌 쪽으로 돌아왔다. 정확히는 렌의 얼굴과, 가방 끈을 잡은 손, 그리고 발끝이 향한 방향을 차례로 살폈다." fine.
+
+Need maybe "가방 끈을 쥔 손끝에 힘이 들어간 것을" from user. Good.
+
+Need no "상대" as default. I used "렌". Good.
+
+Need maybe "그가 먼저 발을 떼려다 말고" could be seen as controlling scene but okay.
+
+Let's final. Ensure no extra commentary. Use final.
