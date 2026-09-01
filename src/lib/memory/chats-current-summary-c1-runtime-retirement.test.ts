@@ -180,25 +180,6 @@ function listProductionTsFiles(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
-function dropCurrentSummaryColumnOnProductionDb(): void {
-  const db = getDb();
-  assert.ok(
-    hasChatsCurrentSummaryColumn(db),
-    "isolated production DB must include current_summary before synthetic C2 DROP"
-  );
-  const indexes = db
-    .prepare(`SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='chats'`)
-    .all() as { name: string; sql: string | null }[];
-  for (const idx of indexes) {
-    assert.ok(
-      !String(idx.sql ?? "").includes("current_summary"),
-      `C2 blocker: index ${idx.name} references current_summary`
-    );
-  }
-  db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
-  assert.equal(hasChatsCurrentSummaryColumn(db), false);
-}
-
 function cleanupColumnAbsentFixture(): void {
   const db = getDb();
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(CHAT_ID);
