@@ -214,10 +214,7 @@ export function scheduleTrpgReadingBandEndFollow(opts: {
     return;
   }
   opts.cancelPendingFollowScroll();
-  opts.narrationFollowRafRef.current = opts.requestAnimationFrame(() => {
-    opts.narrationFollowRafRef.current = null;
-    opts.runProgrammaticScroll(apply, opts.behavior);
-  });
+  opts.runProgrammaticScroll(apply, opts.behavior);
 }
 
 export const TRPG_SCROLL_INTENT_KEYS = new Set([
