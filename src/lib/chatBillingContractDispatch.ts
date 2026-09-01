@@ -15,13 +15,11 @@ import {
   computePublishedUserChargeWithSnapshot,
   type PublishedChargeAdjustment,
   type PublishedChargeBlockedReason,
-  type PublishedUserChargeResult,
   type PublishedUserChargeSnapshot,
 } from "@/lib/publishedUserCharge";
 import type { BillingWaiverReason } from "@/lib/points";
 import { resolveTurnBillableUsage } from "@/lib/turnBillableUsage";
 import type { UserBillableUsageCoverage } from "@/lib/billingUsage";
-import type { TurnBillableUsageResolution } from "@/lib/turnBillableUsage";
 
 export const CHAT_BILLING_CONTRACT_DISPATCH_OWNER =
   "resolveChatBillingContract() in chatBillingContractDispatch.ts";
@@ -147,32 +145,10 @@ function waiverAdjustment(
   return billingWaiverReason ? { kind: "waiver", reason: billingWaiverReason } : { kind: "none" };
 }
 
-function isTurnBillableUsageResolution(value: unknown): value is TurnBillableUsageResolution {
-  if (value == null || typeof value !== "object") return false;
-  const status = (value as TurnBillableUsageResolution).status;
-  return status === "resolved" || status === "unavailable";
-}
-
-function isPublishedUserChargeResult(value: unknown): value is PublishedUserChargeResult {
-  if (value == null || typeof value !== "object") return false;
-  const status = (value as PublishedUserChargeResult).status;
-  return status === "complete" || status === "blocked";
-}
-
-export type ResolveChatBillingContractDeps = {
-  resolveTurnBillableUsage?: typeof resolveTurnBillableUsage;
-  computePublishedUserChargeWithSnapshot?: typeof computePublishedUserChargeWithSnapshot;
-};
-
 /** Single owner: published Phase 1 vs legacy fallback for main RP turn billing. */
 export function resolveChatBillingContract(
-  input: ResolveChatBillingContractInput,
-  deps?: ResolveChatBillingContractDeps
+  input: ResolveChatBillingContractInput
 ): ChatBillingContractDecision {
-  const resolveUsage = deps?.resolveTurnBillableUsage ?? resolveTurnBillableUsage;
-  const computePublished =
-    deps?.computePublishedUserChargeWithSnapshot ?? computePublishedUserChargeWithSnapshot;
-
   const phase1Enabled = input.phase1PublishedBillingEnabled ?? isPhase1PublishedBillingEnabled();
 
   if (!phase1Enabled) {
@@ -187,29 +163,17 @@ export function resolveChatBillingContract(
     return legacyDecision(input, "legacy_waiver_minimum_nonzero");
   }
 
-  const usageResolutionRaw = resolveUsage({
+  const usageResolution = resolveTurnBillableUsage({
     stages: input.stages,
     modelId: input.deliveredModelId,
     refusalFallbackDelivered: input.refusalFallbackDelivered,
     promptAuditTotal: input.promptAuditTotal,
   });
 
-  if (!isTurnBillableUsageResolution(usageResolutionRaw)) {
-    return legacyDecision(input, "usage_unresolved", {
-      publishedCandidateStatus: "unavailable",
-      publishedBlockReason: "turn_billable_usage_producer_contract_violation",
-    });
-  }
-  const usageResolution = usageResolutionRaw;
-
   if (usageResolution.status !== "resolved" || !usageResolution.usage) {
-    const blockReason =
-      usageResolution.status === "unavailable"
-        ? usageResolution.reason
-        : "usage_resolved_without_usage";
     return legacyDecision(input, "usage_unresolved", {
       publishedCandidateStatus: "unavailable",
-      publishedBlockReason: blockReason,
+      publishedBlockReason: usageResolution.reason,
     });
   }
 
@@ -226,21 +190,13 @@ export function resolveChatBillingContract(
     });
   }
 
-  const publishedRaw = computePublished({
+  const published = computePublishedUserChargeWithSnapshot({
     modelId: input.deliveredModelId,
     usage: usageResolution.usage,
     usageCoverage: usageResolution.usageCoverage,
     fxSnapshot: input.fxSnapshot,
     adjustment: waiverAdjustment(input.billingWaiverReason),
   });
-
-  if (!isPublishedUserChargeResult(publishedRaw)) {
-    return legacyDecision(input, "published_blocked", {
-      publishedCandidateStatus: "blocked",
-      publishedBlockReason: "published_charge_producer_contract_violation",
-    });
-  }
-  const published = publishedRaw;
 
   if (published.status === "blocked") {
     return legacyDecision(input, published.reason, {

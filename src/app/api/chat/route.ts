@@ -44,13 +44,9 @@ import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFla
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import {
   isPhase1PublishedBillingEnabled,
+  resolveChatBillingContract,
   type ChatBillingContractDecision,
 } from "@/lib/chatBillingContractDispatch";
-import {
-  resolveBillingContractForTurn,
-  runStatusWidgetTurnIsolated,
-  sanitizeClientDonePayload,
-} from "@/lib/postTurnFinalizationIsolation";
 import {
   applyFinalUserChargeToUsage,
   buildUsageBillingContractAdmin,
@@ -438,7 +434,10 @@ import {
   shouldEvaluateCreatorStatusTriggers,
 } from "@/lib/statusWidget/creatorTriggerEvaluation";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
-import { logStatusWidgetTurnTelemetry } from "@/lib/statusWidget/telemetry";
+import {
+  logStatusWidgetTurnTelemetry,
+  resolveStatusWidgetTurnValues,
+} from "@/lib/statusWidget/telemetry";
 import { resolvePrefetchedSuggestedReplies } from "@/lib/postTurnSharedInitial/prefetch";
 import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import {
@@ -4486,7 +4485,7 @@ export async function POST(req: Request) {
                 locked: shadowFx.locked,
               }
             : undefined;
-          billingContractDecision = resolveBillingContractForTurn({
+          billingContractDecision = resolveChatBillingContract({
             deliveredModelId: deliveredModelId ?? "",
             stages,
             refusalFallbackDelivered: adultFallbackSucceeded,
@@ -4495,8 +4494,7 @@ export async function POST(req: Request) {
             billingWaiverReason,
             legacyWaiverMinimum,
             fxSnapshot: billingFxSnapshot,
-            phase1PublishedBillingEnabled: isPhase1PublishedBillingEnabled(),
-          }).decision;
+          });
           if (isPhase1PublishedBillingEnabled()) {
             cost = billingContractDecision.points;
           }
@@ -4951,84 +4949,71 @@ export async function POST(req: Request) {
           send({ type: "status", message: "상태창 생성 중…" });
           postprocessHeartbeat.setPhase("status_widget");
           const widgetExtractStartedAt = Date.now();
-          const widgetOutcome = await runStatusWidgetTurnIsolated(
-            {
-              chatId: chatRef.id,
-              modelId: deliveredModelId,
-              regenerate: !!regenerateMessageId,
-              savedText,
-              rawWidgetSourceText,
-              statusWidgetTurn,
-              charName: ch.name,
-              characterIdentity: backgroundCharacterIdentity,
-              personaName: personaDisplayName,
-              userPersona: backgroundPersonaIdentity,
-              personaDescription,
-              personaSpeechExamples: selectedPersona?.speech_examples ?? null,
-              userMessage: messageText,
-              userNote: effectiveUserNote,
-              assistantMessageId: persistedAssistantId,
-              regenerateMessageId: regenerateMessageId ?? undefined,
-              requestId: clientRequestId ?? null,
-              userId: user.id,
-              characterId: ch.id,
-              coalesceSuggestedReplies:
-                suggestedRepliesEligibleForCoalesce &&
-                isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
-            },
-            savedText
-          );
-          savedText = widgetOutcome.prose;
-          statusWidgetValuesPayload = widgetOutcome.values;
-          const widgetResolved = widgetOutcome.resolved;
-          if (widgetOutcome.failed) {
-            console.warn("[/api/chat] status widget optional failure (fail-open)", {
-              requestId: clientRequestId,
-              messageId: persistedAssistantId,
-              error: widgetOutcome.errorMessage,
-            });
+          const widgetResolved = await resolveStatusWidgetTurnValues({
+            chatId: chatRef.id,
+            modelId: deliveredModelId,
+            regenerate: !!regenerateMessageId,
+            savedText,
+            rawWidgetSourceText,
+            statusWidgetTurn,
+            charName: ch.name,
+            characterIdentity: backgroundCharacterIdentity,
+            personaName: personaDisplayName,
+            userPersona: backgroundPersonaIdentity,
+            personaDescription,
+            personaSpeechExamples: selectedPersona?.speech_examples ?? null,
+            userMessage: messageText,
+            userNote: effectiveUserNote,
+            assistantMessageId: persistedAssistantId,
+            regenerateMessageId: regenerateMessageId ?? undefined,
+            requestId: clientRequestId ?? null,
+            userId: user.id,
+            characterId: ch.id,
+            coalesceSuggestedReplies:
+              suggestedRepliesEligibleForCoalesce &&
+              isStatusWidgetContextSafeForSuggestedRepliesCoalesce(statusWidgetTurn),
+          });
+          savedText = widgetResolved.prose;
+          statusWidgetValuesPayload = widgetResolved.values;
+          widgetExtractLatencyMs = Date.now() - widgetExtractStartedAt;
+          widgetExtractAttempts =
+            widgetResolved.widgetExtractDiagnostics?.attempts?.length ?? null;
+          widgetExtractResult = widgetResolved.telemetry.resolutionSource;
+          logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
+          widgetPrefetchedSuggestedRepliesAssistantProseHash =
+            widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
+          widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
+          if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
+            usageRecord = {
+              ...usageRecord,
+              statusWidgetExtractDiagnostics:
+                widgetResolved.widgetExtractDiagnostics,
+            };
           }
-          if (widgetResolved) {
-            widgetExtractLatencyMs = Date.now() - widgetExtractStartedAt;
-            widgetExtractAttempts =
-              widgetResolved.widgetExtractDiagnostics?.attempts?.length ?? null;
-            widgetExtractResult = widgetResolved.telemetry.resolutionSource;
-            logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
-            widgetPrefetchedSuggestedReplies = widgetResolved.prefetchedSuggestedReplies;
-            widgetPrefetchedSuggestedRepliesAssistantProseHash =
-              widgetResolved.prefetchedSuggestedRepliesAssistantProseHash;
-            widgetSharedInitialConsumed = widgetResolved.sharedInitialConsumed;
-            if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
+          if (
+            widgetResolved.widgetExtractUsage &&
+            widgetResolved.widgetExtractBillingMeta &&
+            meteredReceiptBilling &&
+            billingExchangeRate
+          ) {
+            if (showFullBillingReceipt) {
+              const widgetExtract = applyStatusWidgetPlatformFundedExtract(
+                usageRecord,
+                widgetResolved.widgetExtractUsage,
+                billingExchangeRate,
+                mainBillingCost,
+                widgetResolved.widgetExtractBillingMeta
+              );
+              usageRecord = widgetExtract.record;
+              cost = widgetExtract.userCost;
+            } else {
+              cost = mainBillingCost;
               usageRecord = {
                 ...usageRecord,
-                statusWidgetExtractDiagnostics:
-                  widgetResolved.widgetExtractDiagnostics,
+                baseCost: mainBillingCost,
+                cost: mainBillingCost,
               };
-            }
-            if (
-              widgetResolved.widgetExtractUsage &&
-              widgetResolved.widgetExtractBillingMeta &&
-              meteredReceiptBilling &&
-              billingExchangeRate
-            ) {
-              if (showFullBillingReceipt) {
-                const widgetExtract = applyStatusWidgetPlatformFundedExtract(
-                  usageRecord,
-                  widgetResolved.widgetExtractUsage,
-                  billingExchangeRate,
-                  mainBillingCost,
-                  widgetResolved.widgetExtractBillingMeta
-                );
-                usageRecord = widgetExtract.record;
-                cost = widgetExtract.userCost;
-              } else {
-                cost = mainBillingCost;
-                usageRecord = {
-                  ...usageRecord,
-                  baseCost: mainBillingCost,
-                  cost: mainBillingCost,
-                };
-              }
             }
           }
         }
@@ -5322,26 +5307,10 @@ export async function POST(req: Request) {
               };
             } catch (numericFinalizeErr) {
               console.error(
-                "[RpNumericState] atomic regen finalize failed; falling back to standard finalize:",
+                "[RpNumericState] atomic regen finalize failed:",
                 (numericFinalizeErr as Error).message
               );
-              const finalizeResult = executeAtomicRegenerationFinalize(db, {
-                assistantMessageId: regenerateMessageId,
-                chatId: chatRef.id,
-                content: savedText,
-                model: dbUsageRecord.model,
-                usageJson: JSON.stringify(dbUsageRecord),
-                alternatesJson: JSON.stringify(appended.variants),
-                activeVariant: appended.activeVariant,
-                statusWidgetValuesJson,
-                statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-                generationStatus: persistedGenerationStatus,
-              });
-              finalizeWrote = finalizeResult.wrote;
-              finalizedStatusJson =
-                finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson;
-              finalizePreservedExisting =
-                finalizeResult.preservedExistingStatusValues === true;
+              throw numericFinalizeErr;
             }
           } else {
             const finalizeResult = executeAtomicRegenerationFinalize(db, {
@@ -5449,26 +5418,10 @@ export async function POST(req: Request) {
               };
             } catch (numericFinalizeErr) {
               console.error(
-                "[RpNumericState] atomic finalize failed; falling back to standard finalize:",
+                "[RpNumericState] atomic finalize failed:",
                 (numericFinalizeErr as Error).message
               );
-              const finalizeResult = finalizeAssistantMessage(db, {
-                assistantMessageId: persistedAssistantId,
-                chatId: chatRef.id,
-                content: savedText,
-                model: usageRecord.model,
-                usageJson: JSON.stringify(usageRecord),
-                alternatesJson: JSON.stringify(alternatesForFinalize),
-                activeVariant: 0,
-                statusWidgetValuesJson,
-                statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-                generationStatus: persistedGenerationStatus,
-              });
-              finalizeWrote = finalizeResult.wrote;
-              finalizedStatusJson =
-                finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson;
-              finalizePreservedExisting =
-                finalizeResult.preservedExistingStatusValues === true;
+              throw numericFinalizeErr;
             }
           } else {
             const finalizeResult = finalizeAssistantMessage(db, {
@@ -6034,40 +5987,37 @@ export async function POST(req: Request) {
 
         stopPostprocessHeartbeat();
         sseDoneAttempted = true;
-        send(
-          sanitizeClientDonePayload({
-            type: "done",
-            chatId: chatRef.id,
-            messageId: aiMessageId,
-            userMessageId,
-            requestId: clientRequestId,
-            mode: nextMode,
-            cost: canonicalBillingCost,
-            totalPointsCost: canonicalBillingCost,
-            remainingPoints: balanceAfter.total,
-            paidPoints: balanceAfter.paid,
-            freePoints: balanceAfter.free,
-            usage: clientUsageRecord,
-            ...(clientUsageRecord.finishReason
-              ? { finishReason: clientUsageRecord.finishReason }
-              : {}),
-            memoryUpdated: true,
-            statusMetaPending: statusMetaEnabled,
-            suggestedRepliesPending: suggestedRepliesEnabled,
-            statusWidgetActive,
-            statusWidgetTurnActive: statusWidgetActive,
-            statusWidgetValues: statusWidgetValuesPayload
-              ? stripExtractedFactsForClient(statusWidgetValuesPayload)
-              : null,
-            generationStatus: persistedGenerationStatus,
-            ...oocClientFlags,
-            htmlFlashTurn:
-              (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated) && htmlFlashOnlyTurn,
-            showStatusMarkdown: userMessageRequestsStatusWindowOoc(policyUserMessageRef),
-            finalContent: savedText,
-            ...variantPayload,
-          })
-        );
+        send({
+          type: "done",
+          chatId: chatRef.id,
+          messageId: aiMessageId,
+          userMessageId,
+          requestId: clientRequestId,
+          mode: nextMode,
+          cost: canonicalBillingCost,
+          totalPointsCost: canonicalBillingCost,
+          remainingPoints: balanceAfter.total,
+          paidPoints: balanceAfter.paid,
+          freePoints: balanceAfter.free,
+          usage: clientUsageRecord,
+          ...(clientUsageRecord.finishReason
+            ? { finishReason: clientUsageRecord.finishReason }
+            : {}),
+          memoryUpdated: true,
+          statusMetaPending: statusMetaEnabled,
+          suggestedRepliesPending: suggestedRepliesEnabled,
+          statusWidgetActive,
+          statusWidgetTurnActive: statusWidgetActive,
+          statusWidgetValues: statusWidgetValuesPayload
+            ? stripExtractedFactsForClient(statusWidgetValuesPayload)
+            : null,
+          generationStatus: persistedGenerationStatus,
+          ...oocClientFlags,
+          htmlFlashTurn: (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated) && htmlFlashOnlyTurn,
+          showStatusMarkdown: userMessageRequestsStatusWindowOoc(policyUserMessageRef),
+          finalContent: savedText,
+          ...variantPayload,
+        });
         emitStreamTurnForensics(persistedGenerationStatus);
         emitPhaseLatencyAudit();
         controller.close();
