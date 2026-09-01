@@ -144,6 +144,11 @@ import {
   createGlobalAssistantPostTurnRefreshCoordinator,
   shouldDeferResumePostTurnPoll,
 } from "@/lib/streamRouterRefreshGate";
+import {
+  addVisualRevealPendingId,
+  clearVisualRevealPendingIds,
+  removeVisualRevealPendingId,
+} from "@/lib/visualRevealPendingOwner";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import {
@@ -1034,6 +1039,7 @@ export default function ChatClient({
   const displayPrefsRef = useRef(displayPrefs);
   const activeStreamRevealRef = useRef<StreamRevealController | null>(null);
   const pendingRevealSessionsRef = useRef<Map<string, PendingRevealSession>>(new Map());
+  const visualRevealPendingIdsRef = useRef<Set<string>>(new Set());
   const [visualRevealPendingIds, setVisualRevealPendingIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
@@ -1046,32 +1052,44 @@ export default function ChatClient({
       getVisualRevealPendingCount: () => visualRevealPendingCountRef.current,
     })
   );
-  const syncVisualRevealPendingCount = useCallback((count: number) => {
+  const applyVisualRevealPendingCount = useCallback((count: number) => {
     visualRevealPendingCountRef.current = count;
     assistantPostTurnRefreshCoordinatorRef.current.onVisualRevealPendingCountChanged(count);
   }, []);
   const scheduleAssistantPostTurnRefresh = useCallback(() => {
     assistantPostTurnRefreshCoordinatorRef.current.schedule();
   }, []);
-  const addVisualRevealPending = useCallback((requestId: string) => {
-    setVisualRevealPendingIds((prev) => {
-      if (prev.has(requestId)) return prev;
-      const next = new Set(prev);
-      next.add(requestId);
-      syncVisualRevealPendingCount(next.size);
-      return next;
-    });
-  }, [syncVisualRevealPendingCount]);
+  const addVisualRevealPending = useCallback(
+    (requestId: string) => {
+      const nextCount = addVisualRevealPendingId(
+        { ids: visualRevealPendingIdsRef.current },
+        requestId
+      );
+      if (nextCount == null) return;
+      applyVisualRevealPendingCount(nextCount);
+      setVisualRevealPendingIds(new Set(visualRevealPendingIdsRef.current));
+    },
+    [applyVisualRevealPendingCount]
+  );
 
-  const removeVisualRevealPending = useCallback((requestId: string) => {
-    setVisualRevealPendingIds((prev) => {
-      if (!prev.has(requestId)) return prev;
-      const next = new Set(prev);
-      next.delete(requestId);
-      syncVisualRevealPendingCount(next.size);
-      return next;
-    });
-  }, [syncVisualRevealPendingCount]);
+  const removeVisualRevealPending = useCallback(
+    (requestId: string) => {
+      const nextCount = removeVisualRevealPendingId(
+        { ids: visualRevealPendingIdsRef.current },
+        requestId
+      );
+      if (nextCount == null) return;
+      applyVisualRevealPendingCount(nextCount);
+      setVisualRevealPendingIds(new Set(visualRevealPendingIdsRef.current));
+    },
+    [applyVisualRevealPendingCount]
+  );
+
+  const clearVisualRevealPending = useCallback(() => {
+    clearVisualRevealPendingIds({ ids: visualRevealPendingIdsRef.current });
+    applyVisualRevealPendingCount(0);
+    setVisualRevealPendingIds(new Set());
+  }, [applyVisualRevealPendingCount]);
 
   const cancelPendingRevealForRequestId = useCallback(
     (requestId: string | null | undefined) => {
@@ -1594,10 +1612,9 @@ export default function ChatClient({
       }
       pendingRevealSessionsRef.current.clear();
       activeStreamRevealRef.current = null;
-      syncVisualRevealPendingCount(0);
-      setVisualRevealPendingIds(new Set());
+      clearVisualRevealPending();
     };
-  }, [syncVisualRevealPendingCount]);
+  }, [clearVisualRevealPending]);
 
   const syncChatUrl = useCallback(
     (id: number | null) => {
@@ -2268,7 +2285,7 @@ export default function ChatClient({
       );
       break;
     }
-  }, [messages, displayPrefs.showSuggestedReplies, router, visualRevealPendingIds]);
+  }, [messages, displayPrefs.showSuggestedReplies, scheduleAssistantPostTurnRefresh, visualRevealPendingIds]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!chatId || loadingOlder || !hasMoreOlder || loading || inFlightRef.current) return;
