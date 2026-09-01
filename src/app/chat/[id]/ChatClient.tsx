@@ -2171,6 +2171,7 @@ export default function ChatClient({
 
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
+    if (visualRevealPendingIds.size > 0) return;
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i]!;
       if (m.role !== "assistant" || m.id == null) continue;
@@ -2214,11 +2215,12 @@ export default function ChatClient({
         }
       );
     }
-  }, [messages, userNote, markdownStatusWindowActive, router, selectedPersona?.description, statusWidgetActive]);
+  }, [messages, userNote, markdownStatusWindowActive, router, selectedPersona?.description, statusWidgetActive, visualRevealPendingIds]);
 
   useEffect(() => {
     if (!displayPrefs.showSuggestedReplies) return;
     if (loadingRef.current || inFlightRef.current) return;
+    if (visualRevealPendingIds.size > 0) return;
     const last = messages[messages.length - 1];
     if (last?.role !== "assistant") return;
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -2240,7 +2242,7 @@ export default function ChatClient({
       );
       break;
     }
-  }, [messages, displayPrefs.showSuggestedReplies, router]);
+  }, [messages, displayPrefs.showSuggestedReplies, router, visualRevealPendingIds]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!chatId || loadingOlder || !hasMoreOlder || loading || inFlightRef.current) return;

@@ -1,8 +1,8 @@
 import type { AdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3Shared";
-import { wholeTurnCoverageLabel } from "@/lib/adminBillingReceiptV3Shared";
 import { formatPoints } from "@/lib/billingDisplay";
 
 export const RECEIPT_BASIC_SUMMARY_OWNER = "adminBillingReceiptTurnSummary.ts";
+export const MARGIN_UNAVAILABLE_REASON_OWNER = "adminBillingReceiptTurnSummary.ts";
 
 export type AdminReceiptTurnSummary = {
   deductedPoints: number;
@@ -17,16 +17,62 @@ export function resolveAdminReceiptSettledPoints(receipt: AdminBillingReceiptV3)
   return uc.settledDeductedPoints ?? uc.deductedPoints;
 }
 
+/** Evidence-based whole-turn margin unavailability — not a single false Status Meta label. */
+export function resolveWholeTurnMarginUnavailableReason(
+  receipt: AdminBillingReceiptV3
+): string {
+  const reasons: string[] = [];
+
+  if (!receipt.wholeTurn.mainExact) {
+    reasons.push("Main RP 실제 Provider 원가 미확정");
+  }
+
+  if (!receipt.wholeTurn.syncExact && !receipt.wholeTurn.syncProvablyNone) {
+    reasons.push("동기 플랫폼 비용 미확정");
+  }
+
+  switch (receipt.async.coverage) {
+    case "unverifiable": {
+      const unverifiableFamilies = receipt.async.byFamily
+        .filter((family) => family.coverage === "unverifiable")
+        .map((family) => family.label);
+      if (unverifiableFamilies.length > 0) {
+        reasons.push(`Async 비용 검증 불가 (${unverifiableFamilies.join(", ")})`);
+      } else {
+        reasons.push("Async 비용 검증 불가");
+      }
+      break;
+    }
+    case "pending":
+      reasons.push("Async 비용 처리 중");
+      break;
+    case "partial":
+      reasons.push("Async 비용 부분 수집");
+      break;
+    case "complete":
+      break;
+    default: {
+      const _exhaustive: never = receipt.async.coverage;
+      return _exhaustive;
+    }
+  }
+
+  if (reasons.length > 0) {
+    return reasons.join(" · ");
+  }
+
+  return receipt.wholeTurn.coverage === "complete"
+    ? "Whole-turn contribution margin unavailable"
+    : "Whole-turn provider cost coverage incomplete";
+}
+
 /** Turn summary — whole-turn contribution margin, Main RP user-charge tokens. */
 export function buildAdminReceiptTurnSummary(receipt: AdminBillingReceiptV3): AdminReceiptTurnSummary {
   const uc = receipt.syncReceipt.userCharge;
   const marginPercent = receipt.wholeTurn.contributionMarginPercent;
   let marginUnavailableReason: string | null = null;
   if (marginPercent == null) {
-    marginUnavailableReason =
-      receipt.wholeTurn.coverage === "complete"
-        ? "Whole-turn contribution margin unavailable"
-        : `Status Meta coverage ${wholeTurnCoverageLabel(receipt.wholeTurn.coverage)}`;
+    marginUnavailableReason = resolveWholeTurnMarginUnavailableReason(receipt);
   }
 
   return {

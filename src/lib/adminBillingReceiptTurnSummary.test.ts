@@ -4,6 +4,7 @@ import {
   buildAdminReceiptTurnSummary,
   formatAdminReceiptTurnSummaryLines,
   resolveAdminReceiptSettledPoints,
+  resolveWholeTurnMarginUnavailableReason,
 } from "@/lib/adminBillingReceiptTurnSummary";
 import { buildAdminBillingReceiptV2 } from "@/lib/adminBillingReceiptV2";
 import { buildAdminBillingReceiptV3 } from "@/lib/adminBillingReceiptV3";
@@ -128,6 +129,17 @@ describe("adminBillingReceiptTurnSummary", () => {
         ...receipt.wholeTurn,
         coverage: "unverifiable" as const,
         contributionMarginPercent: null,
+        mainExact: false,
+        syncExact: true,
+      },
+      async: {
+        ...receipt.async,
+        coverage: "unverifiable" as const,
+        byFamily: receipt.async.byFamily.map((family) =>
+          family.family === "status_meta"
+            ? { ...family, coverage: "unverifiable" as const }
+            : family
+        ),
       },
       syncReceipt: {
         ...receipt.syncReceipt,
@@ -140,7 +152,26 @@ describe("adminBillingReceiptTurnSummary", () => {
     };
     const summary = buildAdminReceiptTurnSummary(withPartialWholeTurn);
     assert.equal(summary.marginPercent, null);
-    assert.match(summary.marginUnavailableReason ?? "", /검증 불가|unverifiable/i);
+    assert.match(summary.marginUnavailableReason ?? "", /Main RP 실제 Provider 원가 미확정/);
+    assert.match(summary.marginUnavailableReason ?? "", /Status Meta/);
+    assert.doesNotMatch(summary.marginUnavailableReason ?? "", /^Status Meta coverage/);
+  });
+
+  it("resolveWholeTurnMarginUnavailableReason uses syncExact evidence", () => {
+    const receipt = buildReceiptFromUsage(usage());
+    const reason = resolveWholeTurnMarginUnavailableReason({
+      ...receipt,
+      wholeTurn: {
+        ...receipt.wholeTurn,
+        mainExact: true,
+        syncExact: false,
+        syncProvablyNone: false,
+        contributionMarginPercent: null,
+      },
+      async: { ...receipt.async, coverage: "complete" },
+    });
+    assert.match(reason, /동기 플랫폼 비용 미확정/);
+    assert.doesNotMatch(reason, /Status Meta coverage/);
   });
 
   it("UI formatter omits duplicate heading when includeHeading=false", () => {

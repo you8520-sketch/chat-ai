@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   createDeferredRouterRefreshGate,
   shouldDeferAssistantRouterRefresh,
+  shouldDeferResumePostTurnPoll,
 } from "@/lib/streamRouterRefreshGate";
 
 describe("streamRouterRefreshGate", () => {
@@ -75,5 +77,17 @@ describe("streamRouterRefreshGate", () => {
       shouldDeferAssistantRouterRefresh({ streamIntervalMs: 0, revealIdle: false }),
       false
     );
+  });
+
+  it("resume post-turn poll blocked while any visual reveal pending", () => {
+    assert.equal(shouldDeferResumePostTurnPoll({ visualRevealPendingCount: 1 }), true);
+    assert.equal(shouldDeferResumePostTurnPoll({ visualRevealPendingCount: 0 }), false);
+  });
+
+  it("ChatClient resume polls defer until visualRevealPendingIds clears", () => {
+    const chatClient = readFileSync("src/app/chat/[id]/ChatClient.tsx", "utf8");
+    assert.match(chatClient, /visualRevealPendingIds\.size > 0\) return;/);
+    assert.match(chatClient, /startStatusMetaPoll\([\s\S]*?scheduleRouterRefresh/);
+    assert.match(chatClient, /visualRevealPendingIds\]/);
   });
 });

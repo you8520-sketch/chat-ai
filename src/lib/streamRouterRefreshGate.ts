@@ -7,6 +7,12 @@ export function shouldDeferAssistantRouterRefresh(input: {
   return input.streamIntervalMs > 0 && !input.revealIdle;
 }
 
+export function shouldDeferResumePostTurnPoll(input: {
+  visualRevealPendingCount: number;
+}): boolean {
+  return input.visualRevealPendingCount > 0;
+}
+
 export type DeferredRouterRefreshGate = {
   schedule: () => void;
   hasPendingDeferredRefresh: () => boolean;
