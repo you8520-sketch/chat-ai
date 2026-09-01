@@ -1,0 +1,43 @@
+{
+  "source_benchmark": "docs/audits/real-production-mid-chat-style-handoff-benchmark",
+  "turn": "T3",
+  "provider": "gemini-3.1-pro-preview",
+  "finishReason": "stop",
+  "meta_deterministic_alarm_TRUNCATION": false,
+  "usage_stage_truncated": true,
+  "STAGE_TRUNCATED_OWNER": {
+    "file": "src/lib/openRouterAdult.ts",
+    "function": "streamOpenRouterAdult (stage return)",
+    "line_approx": 2198,
+    "expression": "truncated = needsResponseLengthFix(mergedText, usage.finishReason, targetResponseChars)"
+  },
+  "STAGE_TRUNCATED_MEANING": "needsResponseLengthFix — truncation/incomplete heuristic (needsTruncationRecovery, endsIncomplete, isTokenLimitFinish); not a dedicated provider truncation flag",
+  "needsResponseLengthFix_chain": {
+    "file": "src/lib/responseLength.ts",
+    "functions": [
+      "needsResponseLengthFix",
+      "needsTruncationRecovery",
+      "detectProbableOutputTruncation",
+      "endsIncomplete",
+      "endsAtCompleteSentence",
+      "narrativeProseForHealthCheck"
+    ]
+  },
+  "harness_alarm_owner": {
+    "file": "docs/audits/real-production-mid-chat-style-handoff-benchmark/scripts/run-t1-t2-t3-freeze.mjs",
+    "function": "alarmCandidates",
+    "TRUNCATION_rule": "regex on finishReason only (max_tokens|length|truncated|content_filter)"
+  },
+  "ACTUAL_PROVIDER_LENGTH_TERMINATION": false,
+  "POSTPROCESS_REMOVAL_ONLY": true,
+  "OTHER_REASON": "Trailing internal tag [태그: 침실] on provider raw (10 chars after persisted visible) caused endsAtCompleteSentence=false on mergedText at truncated assignment; stripped before DB persist",
+  "evidence": {
+    "provider_raw_chars": 2661,
+    "persisted_visible_chars": 2651,
+    "provider_raw_tail": "와 낮게 속삭였다.\n\n[태그: 침실]",
+    "needsResponseLengthFix_provider_raw_stop_3200": true,
+    "needsResponseLengthFix_persisted_visible_stop_3200": false,
+    "endsAtCompleteSentence_provider_raw": false,
+    "endsAtCompleteSentence_persisted_visible": true
+  }
+}

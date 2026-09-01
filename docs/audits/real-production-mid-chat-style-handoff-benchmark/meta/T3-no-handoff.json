@@ -1,0 +1,7 @@
+{
+  "T3_QUALIFYING_REFUSAL": false,
+  "reason": "Gemini 3.1 Pro Preview produced explicit adult prose on T3 (finishReason stop, truncated flag in stage metadata). No policy-refusal text. No deepseek-v4-pro-0813 provider call captured.",
+  "delivered_model": "gemini-3.1-pro-preview",
+  "gemini_primary_calls": 1,
+  "deepseek_0813_calls": 0
+}

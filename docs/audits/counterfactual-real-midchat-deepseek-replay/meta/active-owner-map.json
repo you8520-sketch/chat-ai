@@ -1,0 +1,88 @@
+{
+  "active": [
+    {
+      "OWNER": "[TOP] OpenRouter Korean prose",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 0,
+      "CATEGORY": "STYLE"
+    },
+    {
+      "OWNER": "[TOP] Runtime prompt contamination guard",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 1,
+      "CATEGORY": "OTHER"
+    },
+    {
+      "OWNER": "[0a] No godmodding (user agency)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 2,
+      "CATEGORY": "AGENCY"
+    },
+    {
+      "OWNER": "[2] Structured character canon (every turn)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 3,
+      "CATEGORY": "OTHER"
+    },
+    {
+      "OWNER": "[0] Identity & Rules (absolute)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 4,
+      "CATEGORY": "OTHER"
+    },
+    {
+      "OWNER": "[1.4] Prose style policy (XML)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 5,
+      "CATEGORY": "STYLE"
+    },
+    {
+      "OWNER": "[7] Style Mode",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 6,
+      "CATEGORY": "STYLE"
+    },
+    {
+      "OWNER": "Output layout recency (Korean webnovel paragraph breaks)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 7,
+      "CATEGORY": "LAYOUT"
+    },
+    {
+      "OWNER": "User persona reference owner (current-turn gender and naming)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 8,
+      "CATEGORY": "OTHER"
+    },
+    {
+      "OWNER": "Narrative POV owner (current-response terminal lock)",
+      "SOURCE_FILE_FUNCTION": "src/services/contextBuilder.ts — tracked section",
+      "ROLE": "system",
+      "POSITION": 9,
+      "CATEGORY": "OTHER"
+    },
+    {
+      "OWNER": "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION",
+      "SOURCE_FILE_FUNCTION": "src/lib/adultSceneRouting.ts — appendAdultHandoffPrompt",
+      "ROLE": "system",
+      "POSITION": -1,
+      "CATEGORY": "SCENE_STATE"
+    },
+    {
+      "OWNER": "USER_TAIL_3200_OWNER",
+      "SOURCE_FILE_FUNCTION": "src/lib/responseLength.ts — appendCompactTerminalLengthToUserTurn",
+      "ROLE": "user",
+      "POSITION": 5,
+      "CATEGORY": "LENGTH"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-08-25T04:50:20.486Z",
+  "promptDumpSource": "db",
+  "promptDumpDetail": "chat=4 user=1 character=10",
+  "provider": "openrouter",
+  "model": "gemini-3.1-pro-preview",
+  "charName": "라이크",
+  "sections": [
+    {
+      "id": "openrouter-korean-prose-top",
+      "label": "[TOP] OpenRouter Korean prose [systemRules]",
+      "chars": 819,
+      "tokens": 738,
+      "duplicateFlag": false
+    },
+    {
+      "id": "runtime-prompt-contamination-guard",
+      "label": "[TOP] Runtime prompt contamination guard [systemRules]",
+      "chars": 887,
+      "tokens": 799,
+      "duplicateFlag": false
+    },
+    {
+      "id": "no-godmodding",
+      "label": "[0a] No godmodding (user agency) [systemRules]",
+      "chars": 761,
+      "tokens": 685,
+      "duplicateFlag": false
+    },
+    {
+      "id": "character-core-identity",
+      "label": "[2] Structured character canon (every turn) [characterSetting]",
+      "chars": 10128,
+      "tokens": 9116,
+      "duplicateFlag": false
+    },
+    {
+      "id": "private-speech-control",
+      "label": "[2b] Private speech control [systemRules]",
+      "chars": 380,
+      "tokens": 342,
+      "duplicateFlag": false
+    },
+    {
+      "id": "identity-and-rules",
+      "label": "[0] Identity & Rules (absolute) [persona]",
+      "chars": 836,
+      "tokens": 753,
+      "duplicateFlag": false
+    },
+    {
+      "id": "prose-style-xml-bundle",
+      "label": "[1.4] Prose style policy (XML) [systemRules]",
+      "chars": 2194,
+      "tokens": 1975,
+      "duplicateFlag": false
+    },
+    {
+      "id": "narrative-style",
+      "label": "[7] Style Mode [systemRules]",
+      "chars": 147,
+      "tokens": 133,
+      "duplicateFlag": false
+    },
+    {
+      "id": "rule-output-layout-recency",
+      "label": "Output layout recency (Korean webnovel paragraph breaks) [systemRules]",
+      "chars": 744,
+      "tokens": 670,
+      "duplicateFlag": false
+    },
+    {
+      "id": "user-persona-reference-owner",
+      "label": "User persona reference owner (current-turn gender and naming) [systemRules]",
+      "chars": 629,
+      "tokens": 567,
+      "duplicateFlag": true
+    },
+    {
+      "id": "narrative-pov-owner",
+      "label": "Narrative POV owner (current-response terminal lock) [systemRules]",
+      "chars": 604,
+      "tokens": 544,
+      "duplicateFlag": true
+    }
+  ],
+  "duplicates": [
+    {
+      "label": "Speech Lock",
+      "sectionIds": [
+        "user-persona-reference-owner",
+        "narrative-pov-owner"
+      ],
+      "sharedSnippet": "[USER PERSONA REFERENCE OWNER — CURRENT TURN] [B]는 AI 담당 캐릭터가 아니라 사용자가 선택한 페르소나다. 이름/호칭: 렌. 확정 성별: 남성. 이 성별을 모든 지문·외형·신체…",
+      "wastedTokens": 544
+    }
+  ],
+  "systemPromptTokens": 16322,
+  "historyTokens": 6482,
+  "totalTokens": 22804
+}
