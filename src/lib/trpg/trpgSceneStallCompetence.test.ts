@@ -250,17 +250,18 @@ describe("TRPG local scene obstacle sanitizer (exact-only)", () => {
     assert.deepEqual(next.remainingBlockers, ["밖에서 유입된 기생종 무리"]);
   });
 
-  it("O3 — explicit reversal allows reactivation", () => {
+  it("O3/O7 — explicit reversal allows reactivation", () => {
     const current = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
-      resolvedObstaclesAdd: ["정문 잠금 해제"],
+      resolvedObstaclesAdd: ["잠긴 정문"],
     });
     const delta = sanitizeLocalSceneProgressDelta(current, {
-      resolvedObstaclesRemove: ["정문 잠금 해제"],
-      remainingBlockersAdd: ["정문 잠금 해제"],
+      resolvedObstaclesRemove: ["잠긴 정문"],
+      remainingBlockersAdd: ["잠긴 정문"],
     });
-    assert.deepEqual(delta.remainingBlockersAdd, ["정문 잠금 해제"]);
+    assert.deepEqual(delta.remainingBlockersAdd, ["잠긴 정문"]);
     const next = applyLocalSceneProgressDelta(current, delta);
-    assert.deepEqual(next.remainingBlockers, ["정문 잠금 해제"]);
+    assert.deepEqual(next.resolvedObstacles, []);
+    assert.deepEqual(next.remainingBlockers, ["잠긴 정문"]);
   });
 
   it("O4 — scene transition isolates old resolved obstacles", () => {
@@ -276,6 +277,37 @@ describe("TRPG local scene obstacle sanitizer (exact-only)", () => {
     assert.equal(next.objective, "정문 밖 거리");
     assert.deepEqual(next.remainingBlockers, ["정문 밖 추격 기생종"]);
   });
+
+  it("O5 — resolution automatically clears exact current blocker", () => {
+    const current = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      remainingBlockersAdd: ["잠긴 정문"],
+    });
+    const next = applyLocalSceneProgressDelta(current, {
+      resolvedObstaclesAdd: ["잠긴 정문"],
+    });
+    assert.deepEqual(next.resolvedObstacles, ["잠긴 정문"]);
+    assert.deepEqual(next.remainingBlockers, []);
+  });
+
+  it("O6 — same-delta resolve/block contradiction resolves in favor of resolved", () => {
+    const next = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      resolvedObstaclesAdd: ["잠긴 정문"],
+      remainingBlockersAdd: ["잠긴 정문"],
+    });
+    assert.deepEqual(next.resolvedObstacles, ["잠긴 정문"]);
+    assert.deepEqual(next.remainingBlockers, []);
+  });
+
+  it("O8 — legitimate new threat preserved after different resolved obstacle", () => {
+    const current = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      resolvedObstaclesAdd: ["정문을 막던 기생종"],
+    });
+    const next = applyLocalSceneProgressDelta(current, {
+      remainingBlockersAdd: ["밖에서 새로 유입된 기생종 무리"],
+    });
+    assert.deepEqual(next.resolvedObstacles, ["정문을 막던 기생종"]);
+    assert.deepEqual(next.remainingBlockers, ["밖에서 새로 유입된 기생종 무리"]);
+  });
 });
 
 describe("TRPG building-escape multi-round simulation (true chain)", () => {
@@ -284,40 +316,64 @@ describe("TRPG building-escape multi-round simulation (true chain)", () => {
       human: string;
       actionType: "free" | "investigate" | "attack";
       delta: Parameters<typeof applyLocalSceneProgressDelta>[1];
+      assertScene?: (scene: TrpgLocalSceneProgressV1) => void;
     }> = [
       {
         human: "복도와 출구 후보를 살핀다.",
         actionType: "investigate",
-        delta: { objectiveSet: "건물 탈출", openRoutesAdd: ["우측 유지보수 통로"] },
+        delta: {
+          objectiveSet: "건물 탈출",
+          openRoutesAdd: ["우측 유지보수 통로"],
+          remainingBlockersAdd: ["정면 균사벽"],
+        },
+        assertScene: (scene) => {
+          assert.equal(scene.objective, "건물 탈출");
+          assert.deepEqual(scene.openRoutes, ["우측 유지보수 통로"]);
+          assert.deepEqual(scene.remainingBlockers, ["정면 균사벽"]);
+        },
       },
       {
         human: "정면 균사벽을 제거한다.",
         actionType: "attack",
         delta: {
-          resolvedObstaclesAdd: ["정면 균사벽 제거"],
-          remainingBlockersRemove: ["정면 균사벽"],
+          resolvedObstaclesAdd: ["정면 균사벽"],
+        },
+        assertScene: (scene) => {
+          assert.deepEqual(scene.resolvedObstacles, ["정면 균사벽"]);
+          assert.deepEqual(scene.remainingBlockers, []);
         },
       },
       {
         human: "우측 유지보수 통로가 열려 있는지 확인한다.",
         actionType: "investigate",
         delta: { sceneStateSet: "transition_ready" },
+        assertScene: (scene) => {
+          assert.equal(scene.sceneState, "transition_ready");
+          assert.deepEqual(scene.remainingBlockers, []);
+        },
       },
       {
         human: "우측 유지보수 통로로 빠져나간다.",
         actionType: "free",
         delta: { sceneTransitionTo: "건물 외부 안전 거리" },
+        assertScene: (scene) => {
+          assert.equal(scene.objective, "건물 외부 안전 거리");
+          assert.deepEqual(scene.resolvedObstacles, []);
+          assert.deepEqual(scene.remainingBlockers, []);
+        },
       },
       {
         human: "주변을 경계하며 다음 이동 거점을 찾는다.",
         actionType: "free",
         delta: { objectiveSet: "안전 거점 확보" },
+        assertScene: (scene) => {
+          assert.equal(scene.objective, "안전 거점 확보");
+        },
       },
     ];
 
     let scene = emptyLocalSceneProgress();
     const unnecessaryChecks: string[] = [];
-    const recreatedObstacles: string[] = [];
     let sceneTransitions = 0;
 
     for (const [index, round] of rounds.entries()) {
@@ -330,23 +386,14 @@ describe("TRPG building-escape multi-round simulation (true chain)", () => {
       if (check.needsCheck && index === 3) {
         unnecessaryChecks.push(round.human);
       }
-      assert.ok(scene.objective.length >= 0);
       const rawDelta = round.delta ?? {};
-      const sanitized = sanitizeLocalSceneProgressDelta(scene, rawDelta);
-      if (
-        sanitized.remainingBlockersAdd?.some((blocker) =>
-          scene.resolvedObstacles.some((resolved) => resolved === blocker)
-        )
-      ) {
-        recreatedObstacles.push(...(sanitized.remainingBlockersAdd ?? []));
-      }
-      const next = applyLocalSceneProgressDelta(scene, sanitized);
+      const next = applyLocalSceneProgressDelta(scene, rawDelta);
+      round.assertScene?.(next);
       if (rawDelta.sceneTransitionTo) sceneTransitions += 1;
       scene = next;
     }
 
     assert.deepEqual(unnecessaryChecks, []);
-    assert.deepEqual(recreatedObstacles, []);
     assert.equal(scene.objective, "안전 거점 확보");
     assert.equal(sceneTransitions, 1);
     assert.deepEqual(scene.resolvedObstacles, []);

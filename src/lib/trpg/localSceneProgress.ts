@@ -54,6 +54,24 @@ function isExactResolvedObstacleResurrection(
   return resolvedObstacles.some((resolved) => normalizeObstacleLabel(resolved) === norm);
 }
 
+function canonicalBlockerLabel(current: readonly string[], norm: string): string | null {
+  for (const blocker of current) {
+    if (normalizeObstacleLabel(blocker) === norm) return clipItem(blocker);
+  }
+  return null;
+}
+
+/** Same scene: exact normalized label cannot live in resolvedObstacles and remainingBlockers. */
+function enforceResolvedBlockerExclusivity(progress: TrpgLocalSceneProgressV1): TrpgLocalSceneProgressV1 {
+  const resolvedNorms = new Set(progress.resolvedObstacles.map(normalizeObstacleLabel));
+  if (resolvedNorms.size === 0) return progress;
+  const remainingBlockers = progress.remainingBlockers.filter(
+    (blocker) => !resolvedNorms.has(normalizeObstacleLabel(blocker))
+  );
+  if (remainingBlockers.length === progress.remainingBlockers.length) return progress;
+  return { ...progress, remainingBlockers };
+}
+
 /** Reject exact same-label blocker resurrection only — no fuzzy semantic equivalence. */
 export function sanitizeLocalSceneProgressDelta(
   current: TrpgLocalSceneProgressV1,
@@ -66,6 +84,25 @@ export function sanitizeLocalSceneProgressDelta(
       (blocker) => !isExactResolvedObstacleResurrection(resolvedPool, blocker, delta)
     );
     if (next.remainingBlockersAdd.length === 0) delete next.remainingBlockersAdd;
+  }
+  if (next.resolvedObstaclesAdd?.length && next.remainingBlockersAdd?.length) {
+    const resolvedNorms = new Set(next.resolvedObstaclesAdd.map(normalizeObstacleLabel));
+    next.remainingBlockersAdd = next.remainingBlockersAdd.filter(
+      (blocker) => !resolvedNorms.has(normalizeObstacleLabel(blocker))
+    );
+    if (next.remainingBlockersAdd.length === 0) delete next.remainingBlockersAdd;
+  }
+  if (delta.sceneTransitionTo == null && next.resolvedObstaclesAdd?.length) {
+    const implicitRemoves: string[] = [];
+    for (const resolved of next.resolvedObstaclesAdd) {
+      const norm = normalizeObstacleLabel(resolved);
+      const canonical = canonicalBlockerLabel(current.remainingBlockers, norm);
+      if (canonical) implicitRemoves.push(canonical);
+    }
+    if (implicitRemoves.length > 0) {
+      const merged = new Set([...(next.remainingBlockersRemove ?? []), ...implicitRemoves]);
+      next.remainingBlockersRemove = [...merged];
+    }
   }
   return next;
 }
@@ -235,7 +272,7 @@ export function applyLocalSceneProgressDelta(
     ),
     sceneState: d.sceneTransitionTo == null && d.sceneStateSet ? d.sceneStateSet : base.sceneState,
   };
-  return merged;
+  return enforceResolvedBlockerExclusivity(merged);
 }
 
 export function hasLocalSceneProgressContent(progress: TrpgLocalSceneProgressV1): boolean {
