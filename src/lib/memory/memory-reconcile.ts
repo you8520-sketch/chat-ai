@@ -16,6 +16,7 @@ import {
 } from "./memory-rolling-summary";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
+import { invalidateDerivedMemoryGenerationCore } from "./memory-source-boundary";
 import type { MemoryTier } from "./memory-types";
 
 /** memory-eligible 완료 턴 수로 message_count를 맞춘다 (재생성·패널 조회·드리프트 복구). */
@@ -111,6 +112,7 @@ export function reconcileMemoryAfterRecordDelete(opts: {
   console.info(
     `[memory] reconcile after record delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}`
   );
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
   return true;
 }
 
@@ -189,5 +191,6 @@ export function reconcileMemoryAfterTurnDelete(opts: {
     `[memory] reconcile after turn delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}` +
       (opts.deletedPlayableTurn != null ? ` deletedTurn=${opts.deletedPlayableTurn}` : "")
   );
+  invalidateDerivedMemoryGenerationCore(getDb(), opts.chatId);
   return true;
 }

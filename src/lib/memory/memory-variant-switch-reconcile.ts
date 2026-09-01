@@ -34,6 +34,7 @@ import {
 import type { MemoryTier } from "./memory-types";
 import {
   getMemorySourceBoundaryCore,
+  invalidateDerivedMemoryGenerationCore,
   isMemorySourceEligible,
 } from "./memory-source-boundary";
 import {
@@ -296,6 +297,8 @@ export function reconcileMemoryAfterVariantSwitchCore(
        updated_at=datetime('now')
      WHERE chat_id=?`
   ).run(lorebook, used, contiguous, opts.tier, opts.chatId);
+
+  invalidateDerivedMemoryGenerationCore(db, opts.chatId);
 
   console.info(
     `[memory] reconcile after variant switch chat=${opts.chatId} sourceTurn=${memorySourceTurn} inactivated=${inactivatedRecordIds.length} summarized=${contiguous}`

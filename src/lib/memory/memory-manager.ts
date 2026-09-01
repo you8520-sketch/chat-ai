@@ -27,6 +27,7 @@ import {
 import { getDb } from "@/lib/db";
 import {
   getMemorySourceBoundary,
+  invalidateDerivedMemoryGeneration,
   isMemorySourceEligible,
   isMemoryWriteGuardCurrentCore,
   resolveCanonicalSourceUserMessageId,
@@ -55,6 +56,13 @@ export type { MemoryTier, MemoryInjection, MemorySnapshot } from "./memory-types
 
 const lorebookMaintenanceRunning = new Set<number>();
 
+/** @internal test seam — await this promise after lorebook resolve, before commit guard */
+let lorebookMaintenanceDefer: Promise<void> | null = null;
+
+export function __setLorebookMaintenanceDeferForTests(defer: Promise<void> | null): void {
+  lorebookMaintenanceDefer = defer;
+}
+
 /** 채팅·패널 응답을 막지 않고 로어북 재조립·AI 압축을 백그라운드에서 수행 */
 export function scheduleBackgroundLorebookMaintenance(opts: {
   chatId: number;
@@ -70,6 +78,8 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
 
   void (async () => {
     try {
+      const db = getDb();
+      const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
       const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
       const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
 
@@ -83,6 +93,18 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
         budget.lorebook,
         opts.turnTrace
       );
+      if (lorebookMaintenanceDefer) {
+        await lorebookMaintenanceDefer;
+      }
+      if (
+        !isMemoryWriteGuardCurrentCore(db, {
+          chatId: opts.chatId,
+          snapshot: boundarySnapshot,
+          sourceUserMessageIds: [],
+        })
+      ) {
+        return;
+      }
       if (resolved.text) {
         if (resolved.text !== recentSummary) {
           recentSummary = resolved.text;
@@ -113,6 +135,15 @@ export function scheduleBackgroundLorebookMaintenance(opts: {
       }
 
       if (recentCompressed || archiveCompressed) {
+        if (
+          !isMemoryWriteGuardCurrentCore(db, {
+            chatId: opts.chatId,
+            snapshot: boundarySnapshot,
+            sourceUserMessageIds: [],
+          })
+        ) {
+          return;
+        }
         updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
           recent_summary: recentSummary,
           archive_summary: archiveSummary,
@@ -377,6 +408,7 @@ export async function scheduleMemoryUpdate(opts: {
   }
 
   if (isRegenerate && opts.assistantMessageId) {
+    invalidateDerivedMemoryGeneration(opts.chatId);
     const eligibleCount = syncMemoryEligibleTurnCount({
       chatId: opts.chatId,
       userId: opts.userId,
@@ -508,6 +540,7 @@ export async function updateLorebookForChat(
     recent_summary: fitted,
     membership_tier: tier,
   });
+  invalidateDerivedMemoryGeneration(chatId);
   return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
 }
 
