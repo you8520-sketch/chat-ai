@@ -50,8 +50,28 @@ class MockRange {
   }
 
   compareBoundaryPoints(how: number, other: MockRange): number {
-    const selfBoundary = how === 0 || how === 1 ? "start" : "end";
-    const otherBoundary = how === 0 || how === 3 ? "start" : "end";
+    let selfBoundary: "start" | "end";
+    let otherBoundary: "start" | "end";
+    switch (how) {
+      case 0:
+        selfBoundary = "start";
+        otherBoundary = "start";
+        break;
+      case 1:
+        selfBoundary = "end";
+        otherBoundary = "start";
+        break;
+      case 2:
+        selfBoundary = "end";
+        otherBoundary = "end";
+        break;
+      case 3:
+        selfBoundary = "start";
+        otherBoundary = "end";
+        break;
+      default:
+        throw new Error(`Invalid compareBoundaryPoints how: ${how}`);
+    }
     return compareDocumentPoints(this.boundaryPoint(selfBoundary), other.boundaryPoint(otherBoundary));
   }
 
@@ -62,8 +82,8 @@ class MockRange {
       node
     );
     return (
-      this.compareBoundaryPoints(this.START_TO_END, nodeRange) < 0 &&
-      this.compareBoundaryPoints(this.END_TO_START, nodeRange) > 0
+      this.compareBoundaryPoints(this.START_TO_END, nodeRange) > 0 &&
+      this.compareBoundaryPoints(this.END_TO_START, nodeRange) < 0
     );
   }
 
