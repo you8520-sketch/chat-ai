@@ -1,0 +1,42 @@
+{
+  "cell": "S3-A",
+  "seed": "S3",
+  "arm": "A",
+  "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 37698,
+  "ttftMs": 3288,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 2704,
+  "charsExclSpaces": 2024,
+  "paragraphCount": 16,
+  "dialogueParagraphCount": 4,
+  "dialogueRatio": 0.25,
+  "inputTokens": 5591,
+  "outputTokens": 2193,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "usageCostUsd": 0.005734,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null
+  },
+  "assembledChars": {
+    "system": 6399,
+    "history": 1162,
+    "lastUser": 848,
+    "total": 8413,
+    "estimatedInputTokens": 7572
+  },
+  "stabilityPresent": false
+}
