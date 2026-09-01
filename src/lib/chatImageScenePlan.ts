@@ -399,6 +399,46 @@ export function visualEvents(events: readonly SceneEvent[]): SceneEvent[] {
   return events.filter((event) => event.kind !== "assistant_echo");
 }
 
+/** Non-dialogue visual beats only — canonical user-facing scene description owner. */
+export function buildUserFacingVisualDescription(
+  events: readonly SceneEvent[],
+  fallback = ""
+): string {
+  const description = events
+    .filter((event) => event.kind !== "dialogue")
+    .map((event) => event.text)
+    .join(" ")
+    .trim();
+  return description || fallback;
+}
+
+function stripDialogueTextsFromSceneText(
+  raw: string,
+  events: readonly SceneEvent[]
+): string {
+  let text = normalizeSceneBriefWhitespace(raw);
+  for (const event of events) {
+    if (event.kind !== "dialogue" || !event.text) continue;
+    text = text.split(event.text).join(" ");
+    text = text.replace(
+      new RegExp(`[“"'‘]${event.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[”"'’]`, "g"),
+      " "
+    );
+  }
+  return normalizeSceneBriefWhitespace(text);
+}
+
+/** Normalize planner/user scene text to visual-only when dialogue leaked in. */
+export function normalizeUserFacingSceneDescription(
+  raw: string,
+  events: readonly SceneEvent[],
+  fallback = ""
+): string {
+  const stripped = stripDialogueTextsFromSceneText(raw, events);
+  if (stripped) return stripped;
+  return buildUserFacingVisualDescription(events, fallback);
+}
+
 /** Environment-only background from canonical events — no dialogue/narration fallback. */
 export function resolveDeterministicSceneBackground(
   events: readonly SceneEvent[]
@@ -458,7 +498,8 @@ function panelFromEvents(
   return {
     index,
     sourceEventIds: events.map((event) => event.id),
-    situation: events.map((event) => event.text).join(" ").trim() || sceneBackground,
+    situation:
+      buildUserFacingVisualDescription(events, sceneBackground) || sceneBackground,
     personaAction: persona?.text,
     characterAction: character?.text,
     dialogue,
@@ -475,8 +516,12 @@ export function buildDeterministicScenePlan(
   const resolvedCount = panelCount ?? recommendedPanelCount;
   const background = resolveDeterministicSceneBackground(events);
   const groups = groupEventsContiguously(events, resolvedCount);
-  const heroEvents = usable.slice(0, Math.min(3, usable.length));
-  const heroScene = heroEvents.map((event) => event.text).join(" ").trim();
+  const nonDialogueUsable = usable.filter((event) => event.kind !== "dialogue");
+  const heroEvents = (nonDialogueUsable.length ? nonDialogueUsable : usable).slice(
+    0,
+    Math.min(3, nonDialogueUsable.length || usable.length)
+  );
+  const heroScene = buildUserFacingVisualDescription(heroEvents, background);
   return {
     sceneBackground: background,
     atmosphere: undefined,
@@ -492,10 +537,9 @@ export function buildDeterministicScenePlan(
 
 export function applyApprovedAiScenePlan(
   aiPlan: ScenePlan,
-  panelCountMode: "ai" | ScenePanelCount
+  panelCount: ScenePanelCount
 ): ScenePlan {
-  if (panelCountMode === "ai") return aiPlan;
-  return reflowScenePlanPanels(aiPlan, panelCountMode);
+  return reflowScenePlanPanels(aiPlan, panelCount);
 }
 
 export function reflowScenePlanPanels(
@@ -825,12 +869,19 @@ export function validateScenePlan(
     panels.push({
       index: index + 1,
       sourceEventIds,
-      situation:
-        cleanLine(item.situation, 240) ||
-        sourceEventIds
-          .map((id) => eventsById.get(id)?.text ?? "")
-          .filter(Boolean)
-          .join(" "),
+      situation: (() => {
+        const panelEvents = sourceEventIds
+          .map((id) => eventsById.get(id))
+          .filter((event): event is SceneEvent => event !== undefined);
+        const derived = buildUserFacingVisualDescription(
+          panelEvents,
+          cleanLine(source.sceneBackground, 200)
+        );
+        const raw = cleanLine(item.situation, 240);
+        if (allowUserEdits && raw) return raw;
+        if (derived) return derived;
+        return normalizeUserFacingSceneDescription(raw, panelEvents, derived);
+      })(),
       backgroundOverride: cleanLine(item.backgroundOverride, 160) || undefined,
       personaAction: cleanLine(item.personaAction, 160) || undefined,
       characterAction: cleanLine(item.characterAction, 160) || undefined,
@@ -856,7 +907,20 @@ export function validateScenePlan(
     panelCount === 2 || panelCount === 3 || panelCount === 4 ? panelCount : count;
 
   const usableVisual = visualEvents(canonicalEvents);
-  const defaultHero = usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id);
+  const defaultHero = usableVisual
+    .filter((event) => event.kind !== "dialogue")
+    .slice(0, Math.min(3, usableVisual.length))
+    .map((event) => event.id);
+  if (!defaultHero.length) {
+    defaultHero.push(
+      ...usableVisual.slice(0, Math.min(3, usableVisual.length)).map((event) => event.id)
+    );
+  }
+
+  const resolvedHeroIds = heroEventIds.length ? heroEventIds : defaultHero;
+  const heroEventsForDescription = resolvedHeroIds
+    .map((id) => eventsById.get(id))
+    .filter((event): event is SceneEvent => event !== undefined);
 
   const castMentionsRaw = Array.isArray(source.castMentions) ? source.castMentions : [];
   const castMentionsParsed = castMentionsRaw
@@ -891,13 +955,21 @@ export function validateScenePlan(
       sceneBackground: cleanLine(source.sceneBackground, 200),
       atmosphere: cleanLine(source.atmosphere, 120) || undefined,
       events: canonicalEvents,
-      heroEventIds: heroEventIds.length ? heroEventIds : defaultHero,
-      heroScene:
-        cleanLine(source.heroScene, 320) ||
-        usableVisual
-          .slice(0, 3)
-          .map((event) => event.text)
-          .join(" "),
+      heroEventIds: resolvedHeroIds,
+      heroScene: (() => {
+        const derived = buildUserFacingVisualDescription(
+          heroEventsForDescription,
+          cleanLine(source.sceneBackground, 200)
+        );
+        const raw = cleanLine(source.heroScene, 320);
+        if (allowUserEdits && raw) return raw;
+        if (derived) return derived;
+        return normalizeUserFacingSceneDescription(
+          raw,
+          heroEventsForDescription,
+          derived
+        );
+      })(),
       recommendedPanelCount: recommended,
       panels,
       castMentions,
@@ -968,9 +1040,10 @@ export function buildScenePlanPrompt(opts: {
     "8. personaAction / characterAction are presentation-only. They must not rewrite canonical event text.",
     "9. Do not describe hair color, hair part, bangs, iris, pupil, outfit identity, or relative height. Those belong to other owners.",
     "10. heroEventIds may select a subset of canonical visual events for a single illustration. assistant_echo is forbidden in heroEventIds.",
-    "11. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
-    "12. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
-    "13. CAST MENTIONS — separate presence evidence from actor attribution:",
+    "11. heroScene and panel situation are visual-only summaries. Never include verbatim spoken dialogue — dialogue belongs only in panel dialogue arrays.",
+    "12. provenance=source dialogue must reference the exact matching dialogue canonical event via sourceEventId.",
+    "13. castMentions is optional supporting-name suggestions only. Each name must appear verbatim in at least one linked sourceEventId event text. Never force inclusion.",
+    "14. CAST MENTIONS — separate presence evidence from actor attribution:",
     "   sourceEventIds: events where the supporting character is present, named, addressed, targeted, or otherwise scene-relevant (candidate detection evidence).",
     "   actorEventIds: ONLY events where that supporting character is the actual acting or speaking subject (final event-subject binding input).",
     "   actorEventIds must be a subset of sourceEventIds. Omit actorEventIds or use [] when the character is only looked at, touched, spoken to, mentioned, observed, or the object of another person's action.",

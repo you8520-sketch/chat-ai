@@ -6,11 +6,13 @@ import {
   buildDeterministicScenePlan,
   buildScenePlanPrompt,
   buildSceneSourceMessages,
+  buildUserFacingVisualDescription,
   extractDeterministicEvents,
   extractOrderedSceneSegments,
   formatApprovedScenePlanForComic,
   formatApprovedScenePlanForIllustration,
   formatSceneSourcePreview,
+  normalizeUserFacingSceneDescription,
   reflowScenePlanPanels,
   sanitizeSceneSourceText,
   scenePlanHasRawChatLeak,
@@ -691,5 +693,111 @@ describe("chatImageScenePlan validator", () => {
       ["태형", "렌"]
     );
     assert.deepEqual(mentions, []);
+  });
+});
+
+describe("chatImageScenePlan user-facing scene description", () => {
+  it("CASE A narration + dialogue excludes exact spoken lines from heroScene", () => {
+    const messages = buildSceneSourceMessages([
+      {
+        id: 1,
+        role: "assistant",
+        content: '태현이 렌의 손목을 붙잡고 "가지 마."라고 말했다.',
+      },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.match(plan.heroScene, /손목|붙잡/);
+    assert.doesNotMatch(plan.heroScene, /가지 마/);
+  });
+
+  it("CASE B dialogue-heavy turn does not dump dialogue into heroScene", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: '"안녕?" "뭐 해?" "같이 갈래?"' },
+      { id: 2, role: "assistant", content: '"그래." "지금?" "좋아."' },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 3);
+    assert.doesNotMatch(plan.heroScene, /같이 갈래/);
+    assert.doesNotMatch(plan.heroScene, /"그래"/);
+  });
+
+  it("CASE C action-only produces a normal scene description", () => {
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "user", content: "*문을 연다*" },
+      { id: 2, role: "assistant", content: "태형이 조용히 따라 나선다." },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.match(plan.heroScene, /문을 연다|따라 나선다/);
+  });
+
+  it("CASE D long literary assistant output is not raw prose copy in heroScene", () => {
+    const longProse =
+      "달빛이 창문을 스치며 방 안을 은은하게 비추었다. 태형은 소파에 기대어 눈을 감았고, " +
+      "렌은 그의 손등 위에 손을 올렸다. \"오늘은 좀 쉬자.\"";
+    const messages = buildSceneSourceMessages([
+      { id: 1, role: "assistant", content: longProse },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.doesNotMatch(plan.heroScene, /오늘은 좀 쉬자/);
+    assert.ok(plan.heroScene.length <= longProse.length);
+  });
+
+  it("CASE E meta/status markup is stripped from source and not in heroScene", () => {
+    const messages = buildSceneSourceMessages([
+      {
+        id: 1,
+        role: "assistant",
+        content: '<<<STATUS_VALUES{"mood":"tense"}>>> *고개를 든다* "괜찮아?"',
+      },
+    ]);
+    const plan = buildDeterministicScenePlan(messages, 2);
+    assert.doesNotMatch(plan.heroScene, /STATUS_VALUES/);
+    assert.doesNotMatch(plan.heroScene, /괜찮아/);
+    assert.match(plan.heroScene, /고개/);
+  });
+
+  it("CASE F comic keeps dialogue in panel speech fields not situation", () => {
+    const plan = buildDeterministicScenePlan(sampleMessages(), 2);
+    for (const panel of plan.panels) {
+      assert.doesNotMatch(panel.situation, /같이 갈래/);
+      assert.doesNotMatch(panel.situation, /그래/);
+    }
+    const dialogueTexts = plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text));
+    assert.ok(dialogueTexts.some((text) => text.includes("같이 갈래")));
+    assert.ok(dialogueTexts.some((text) => text.includes("그래")));
+  });
+
+  it("CASE G planner validation strips dialogue from heroScene and situation", () => {
+    const messages = sampleMessages();
+    const events = extractDeterministicEvents(messages);
+    const forged = {
+      ...buildDeterministicScenePlan(messages, 2),
+      heroScene: '후드 귀를 만진다 "같이 갈래?" 그래.',
+      panels: buildDeterministicScenePlan(messages, 2).panels.map((panel) => ({
+        ...panel,
+        situation: `${panel.situation} "같이 갈래?"`,
+      })),
+    };
+    const validated = validateScenePlan(forged, messages);
+    assert.equal(validated.ok, true);
+    if (validated.ok) {
+      assert.doesNotMatch(validated.plan.heroScene, /같이 갈래/);
+      for (const panel of validated.plan.panels) {
+        assert.doesNotMatch(panel.situation, /같이 갈래/);
+      }
+    }
+    const normalized = normalizeUserFacingSceneDescription(
+      forged.heroScene,
+      events
+    );
+    assert.doesNotMatch(normalized, /같이 갈래/);
+    assert.match(normalized, /후드/);
+  });
+
+  it("buildUserFacingVisualDescription excludes dialogue events only", () => {
+    const events = extractDeterministicEvents(sampleMessages());
+    const description = buildUserFacingVisualDescription(events);
+    assert.match(description, /후드|고개|일어난다/);
+    assert.doesNotMatch(description, /같이 갈래/);
+    assert.doesNotMatch(description, /그래/);
   });
 });
