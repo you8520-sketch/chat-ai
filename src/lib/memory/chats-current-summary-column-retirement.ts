@@ -31,13 +31,13 @@ function selectLegacyRecoveryText(
 export function listLegacyCurrentSummaryRecoveryCandidates(
   db: Database.Database
 ): LegacyCurrentSummaryRecoveryCandidate[] {
-  if (!chatsTableExists(db)) return [];
+  if (!chatsTableExists(db, "chats")) return [];
   if (!hasChatsCurrentSummaryColumn(db)) return [];
 
   const hasMemoryCol = hasChatsMemoryColumn(db);
-  const selectCols = ["c.id"];
-  selectCols.push("c.current_summary");
+  const selectCols = ["c.id", "c.user_id", "c.character_id"];
   if (hasMemoryCol) selectCols.push("c.memory");
+  if (hasChatsCurrentSummaryColumn(db)) selectCols.push("c.current_summary");
 
   const rows = db
     .prepare(
@@ -137,28 +137,25 @@ export function verifyLegacyCurrentSummaryRecovery(
  * Self-verifying recover-before-drop owner. Idempotent via actual column presence.
  */
 export function dropChatsCurrentSummaryColumnOnce(db: Database.Database): void {
-  if (!chatsTableExists(db)) return;
+  if (!chatsTableExists(db, "chats")) return;
   if (!hasChatsCurrentSummaryColumn(db)) return;
 
-  const tx = db.transaction(() => {
-    const candidates = listLegacyCurrentSummaryRecoveryCandidates(db);
-    convergeLegacyChatsMemoryIntoCanonical(db);
-    verifyLegacyCurrentSummaryRecovery(db, candidates);
+  const candidates = listLegacyCurrentSummaryRecoveryCandidates(db);
+  convergeLegacyChatsMemoryIntoCanonical(db);
+  verifyLegacyCurrentSummaryRecovery(db, candidates);
 
-    const dependencies = listBlockingChatsCurrentSummarySchemaDependencies(db);
-    if (dependencies.length > 0) {
-      throw new Error(
-        `Refusing to DROP chats.current_summary: schema dependencies ${dependencies.join(", ")}`
-      );
-    }
+  const dependencies = listBlockingChatsCurrentSummarySchemaDependencies(db);
+  if (dependencies.length > 0) {
+    throw new Error(
+      `Refusing to DROP chats.current_summary: schema dependencies ${dependencies.join(", ")}`
+    );
+  }
 
-    db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
+  db.exec(`ALTER TABLE chats DROP COLUMN current_summary`);
 
-    if (hasChatsCurrentSummaryColumn(db)) {
-      throw new Error("chats.current_summary still present after DROP COLUMN");
-    }
-  });
-  tx();
+  if (hasChatsCurrentSummaryColumn(db)) {
+    throw new Error("chats.current_summary still present after DROP COLUMN");
+  }
 }
 
 export {
